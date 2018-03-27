@@ -2922,7 +2922,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 			rx->sta->sta.bandwidth = new_bw;
 			sband = rx->local->hw.wiphy->bands[status->band];
-			sta_opmode.bw = new_bw;
+			sta_opmode.bw =
+				ieee80211_sta_rx_bw_to_chan_width(rx->sta);
 			sta_opmode.changed = STA_OPMODE_MAX_BW_CHANGED;
 
 			rate_control_rate_update(local, sband, rx->sta,
