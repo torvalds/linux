@@ -97,45 +97,48 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	u8 *rx_bssid;
 	u8 *rx_ra;
 	u8 *my_hwaddr;
-
-	ODM_PACKET_INFO_T pkt_info;
 	u8 *sa = NULL;
+
+	struct odm_packet_info pkt_info = {
+		.data_rate   = 0x00,
+		.station_id  = 0x00,
+		.bssid_match = false,
+		.to_self     = false,
+		.is_beacon   = false,
+	};
+
 	/* _irqL		irqL; */
 	struct sta_priv *pstapriv;
 	struct sta_info *psta;
 
-	pkt_info.bPacketMatchBSSID = false;
-	pkt_info.bPacketToSelf = false;
-	pkt_info.bPacketBeacon = false;
-
 	wlanhdr = get_recvframe_data(precvframe);
 	my_bssid = get_bssid(&padapter->mlmepriv);
 	rx_bssid = get_hdr_bssid(wlanhdr);
-	pkt_info.bPacketMatchBSSID = ((!IsFrameTypeCtrl(wlanhdr)) &&
-				      !pattrib->icv_err && !pattrib->crc_err &&
-				      !ether_addr_equal(rx_bssid, my_bssid));
+	pkt_info.bssid_match = ((!IsFrameTypeCtrl(wlanhdr)) &&
+				!pattrib->icv_err && !pattrib->crc_err &&
+				!ether_addr_equal(rx_bssid, my_bssid));
 
 	rx_ra = get_ra(wlanhdr);
 	my_hwaddr = myid(&padapter->eeprompriv);
-	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID &&
+	pkt_info.to_self = pkt_info.bssid_match &&
 		!ether_addr_equal(rx_ra, my_hwaddr);
 
 
-	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID &&
+	pkt_info.is_beacon = pkt_info.bssid_match &&
 		(GetFrameSubType(wlanhdr) == WIFI_BEACON);
 
 	sa = get_ta(wlanhdr);
 
-	pkt_info.StationID = 0xFF;
+	pkt_info.station_id = 0xFF;
 
 	pstapriv = &padapter->stapriv;
 	psta = rtw_get_stainfo(pstapriv, sa);
 	if (psta) {
-		pkt_info.StationID = psta->mac_id;
+		pkt_info.station_id = psta->mac_id;
 		/* DBG_8192C("%s ==> StationID(%d)\n",
-		 * 	  __func__, pkt_info.StationID); */
+		 * 	  __func__, pkt_info.station_id); */
 	}
-	pkt_info.DataRate = pattrib->data_rate;
+	pkt_info.data_rate = pattrib->data_rate;
 
 	/* rtl8723b_query_rx_phy_status(precvframe, pphy_status); */
 	/* spin_lock_bh(&p_hal_data->odm_stainfo_lock); */
@@ -146,14 +149,14 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	/* spin_unlock_bh(&p_hal_data->odm_stainfo_lock); */
 	precvframe->u.hdr.psta = NULL;
 	if (
-		pkt_info.bPacketMatchBSSID &&
+		pkt_info.bssid_match &&
 		(check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)
 	) {
 		if (psta) {
 			precvframe->u.hdr.psta = psta;
 			rtl8723b_process_phy_info(padapter, precvframe);
 		}
-	} else if (pkt_info.bPacketToSelf || pkt_info.bPacketBeacon) {
+	} else if (pkt_info.to_self || pkt_info.is_beacon) {
 		u32 adhoc_state = WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE;
 		if (check_fwstate(&padapter->mlmepriv, adhoc_state))
 			if (psta)

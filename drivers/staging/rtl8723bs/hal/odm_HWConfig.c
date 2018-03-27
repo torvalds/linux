@@ -93,7 +93,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	PDM_ODM_T pDM_Odm,
 	PODM_PHY_INFO_T pPhyInfo,
 	u8 *pPhyStatus,
-	PODM_PACKET_INFO_T pPktinfo
+	struct odm_packet_info *pPktinfo
 )
 {
 	u8 i, Max_spatial_stream;
@@ -106,7 +106,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	u8 LNA_idx, VGA_idx;
 	PPHY_STATUS_RPT_8192CD_T pPhyStaRpt = (PPHY_STATUS_RPT_8192CD_T)pPhyStatus;
 
-	isCCKrate = pPktinfo->DataRate <= DESC_RATE11M;
+	isCCKrate = pPktinfo->data_rate <= DESC_RATE11M;
 	pPhyInfo->RxMIMOSignalQuality[ODM_RF_PATH_A] = -1;
 	pPhyInfo->RxMIMOSignalQuality[ODM_RF_PATH_B] = -1;
 
@@ -215,7 +215,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 			/*  */
 			/*  (3)EVM of HT rate */
 			/*  */
-			if (pPktinfo->DataRate >= DESC_RATEMCS8 && pPktinfo->DataRate <= DESC_RATEMCS15)
+			if (pPktinfo->data_rate >= DESC_RATEMCS8 && pPktinfo->data_rate <= DESC_RATEMCS15)
 				Max_spatial_stream = 2; /* both spatial stream make sense */
 			else
 				Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
@@ -267,7 +267,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 }
 
 static void odm_Process_RSSIForDM(
-	PDM_ODM_T pDM_Odm, PODM_PHY_INFO_T pPhyInfo, PODM_PACKET_INFO_T pPktinfo
+	PDM_ODM_T pDM_Odm, PODM_PHY_INFO_T pPhyInfo, struct odm_packet_info *pPktinfo
 )
 {
 
@@ -279,22 +279,22 @@ static void odm_Process_RSSIForDM(
 	PSTA_INFO_T pEntry;
 
 
-	if (pPktinfo->StationID == 0xFF)
+	if (pPktinfo->station_id == 0xFF)
 		return;
 
-	pEntry = pDM_Odm->pODM_StaInfo[pPktinfo->StationID];
+	pEntry = pDM_Odm->pODM_StaInfo[pPktinfo->station_id];
 
 	if (!IS_STA_VALID(pEntry))
 		return;
 
-	if ((!pPktinfo->bPacketMatchBSSID))
+	if ((!pPktinfo->bssid_match))
 		return;
 
-	if (pPktinfo->bPacketBeacon)
+	if (pPktinfo->is_beacon)
 		pDM_Odm->PhyDbgInfo.NumQryBeaconPkt++;
 
-	isCCKrate = ((pPktinfo->DataRate <= DESC_RATE11M)) ? true : false;
-	pDM_Odm->RxRate = pPktinfo->DataRate;
+	isCCKrate = ((pPktinfo->data_rate <= DESC_RATE11M)) ? true : false;
+	pDM_Odm->RxRate = pPktinfo->data_rate;
 
 	/* Statistic for antenna/path diversity------------------ */
 	if (pDM_Odm->SupportAbility & ODM_BB_ANT_DIV) {
@@ -307,7 +307,7 @@ static void odm_Process_RSSIForDM(
 	UndecoratedSmoothedOFDM = pEntry->rssi_stat.UndecoratedSmoothedOFDM;
 	UndecoratedSmoothedPWDB = pEntry->rssi_stat.UndecoratedSmoothedPWDB;
 
-	if (pPktinfo->bPacketToSelf || pPktinfo->bPacketBeacon) {
+	if (pPktinfo->to_self || pPktinfo->is_beacon) {
 
 		if (!isCCKrate) { /* ofdm rate */
 			if (pPhyInfo->RxMIMOSignalStrength[ODM_RF_PATH_B] == 0) {
@@ -424,7 +424,7 @@ static void ODM_PhyStatusQuery_92CSeries(
 	PDM_ODM_T pDM_Odm,
 	PODM_PHY_INFO_T pPhyInfo,
 	u8 *pPhyStatus,
-	PODM_PACKET_INFO_T pPktinfo
+	struct odm_packet_info *pPktinfo
 )
 {
 
@@ -438,7 +438,7 @@ void ODM_PhyStatusQuery(
 	PDM_ODM_T pDM_Odm,
 	PODM_PHY_INFO_T pPhyInfo,
 	u8 *pPhyStatus,
-	PODM_PACKET_INFO_T pPktinfo
+	struct odm_packet_info *pPktinfo
 )
 {
 

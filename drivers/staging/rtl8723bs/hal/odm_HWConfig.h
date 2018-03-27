@@ -133,7 +133,7 @@ void ODM_PhyStatusQuery(
 	PDM_ODM_T pDM_Odm,
 	PODM_PHY_INFO_T pPhyInfo,
 	u8 *pPhyStatus,
-	PODM_PACKET_INFO_T pPktinfo
+	struct odm_packet_info *pPktinfo
 );
 
 HAL_STATUS ODM_ConfigRFWithTxPwrTrackHeaderFile(PDM_ODM_T pDM_Odm);

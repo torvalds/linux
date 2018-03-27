@@ -262,15 +262,13 @@ typedef struct _ODM_Phy_Status_Info_ {
 } ODM_PHY_INFO_T, *PODM_PHY_INFO_T;
 
 
-typedef struct _ODM_Per_Pkt_Info_ {
-	/* u8 Rate; */
-	u8 DataRate;
-	u8 StationID;
-	bool bPacketMatchBSSID;
-	bool bPacketToSelf;
-	bool bPacketBeacon;
-	bool bToSelf;
-} ODM_PACKET_INFO_T, *PODM_PACKET_INFO_T;
+struct odm_packet_info {
+	u8 data_rate;
+	u8 station_id;
+	bool bssid_match;
+	bool to_self;
+	bool is_beacon;
+};
 
 
 typedef struct _ODM_Phy_Dbg_Info_ {
