@@ -127,7 +127,7 @@
 			gpios = <&gpx0 1 GPIO_ACTIVE_LOW>;
 			linux,code = <139>;
 			label = "ok";
-			debounce-inteval = <10>;
+			debounce-interval = <10>;
 			wakeup-source;
 		};
 	};

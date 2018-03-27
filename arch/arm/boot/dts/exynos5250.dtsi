@@ -498,6 +498,8 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s0_bus>;
 			power-domains = <&pd_mau>;
+			#clock-cells = <1>;
+			#sound-dai-cells = <1>;
 		};
 
 		i2s1: i2s@12d60000 {
@@ -512,6 +514,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s1_bus>;
 			power-domains = <&pd_mau>;
+			#sound-dai-cells = <1>;
 		};
 
 		i2s2: i2s@12d70000 {
@@ -526,6 +529,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s2_bus>;
 			power-domains = <&pd_mau>;
+			#sound-dai-cells = <1>;
 		};
 
 		usb_dwc3 {
@@ -698,6 +702,7 @@
 					"sclk_hdmiphy", "mout_hdmi";
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			phy = <&hdmiphy>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
