@@ -476,26 +476,26 @@ static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 	struct adapter *padapter = (struct adapter *) rtw_netdev_priv(dev);
 	int ret = 0;
 
-	if ((value & AUTH_ALG_SHARED_KEY) && (value & AUTH_ALG_OPEN_SYSTEM)) {
-		DBG_871X("wpa_set_auth_algs, AUTH_ALG_SHARED_KEY and  AUTH_ALG_OPEN_SYSTEM [value:0x%x]\n", value);
+	if ((value & WLAN_AUTH_SHARED_KEY) && (value & WLAN_AUTH_OPEN)) {
+		DBG_871X("wpa_set_auth_algs, WLAN_AUTH_SHARED_KEY and WLAN_AUTH_OPEN [value:0x%x]\n", value);
 		padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption1Enabled;
 		padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeAutoSwitch;
 		padapter->securitypriv.dot11AuthAlgrthm = dot11AuthAlgrthm_Auto;
-	} else if (value & AUTH_ALG_SHARED_KEY)	{
-		DBG_871X("wpa_set_auth_algs, AUTH_ALG_SHARED_KEY  [value:0x%x]\n", value);
+	} else if (value & WLAN_AUTH_SHARED_KEY)	{
+		DBG_871X("wpa_set_auth_algs, WLAN_AUTH_SHARED_KEY  [value:0x%x]\n", value);
 		padapter->securitypriv.ndisencryptstatus = Ndis802_11Encryption1Enabled;
 
 		padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeShared;
 		padapter->securitypriv.dot11AuthAlgrthm = dot11AuthAlgrthm_Shared;
-	} else if (value & AUTH_ALG_OPEN_SYSTEM) {
-		DBG_871X("wpa_set_auth_algs, AUTH_ALG_OPEN_SYSTEM\n");
+	} else if (value & WLAN_AUTH_OPEN) {
+		DBG_871X("wpa_set_auth_algs, WLAN_AUTH_OPEN\n");
 		/* padapter->securitypriv.ndisencryptstatus = Ndis802_11EncryptionDisabled; */
 		if (padapter->securitypriv.ndisauthtype < Ndis802_11AuthModeWPAPSK) {
 			padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
 			padapter->securitypriv.dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 		}
-	} else if (value & AUTH_ALG_LEAP) {
-		DBG_871X("wpa_set_auth_algs, AUTH_ALG_LEAP\n");
+	} else if (value & WLAN_AUTH_LEAP) {
+		DBG_871X("wpa_set_auth_algs, WLAN_AUTH_LEAP\n");
 	} else {
 		DBG_871X("wpa_set_auth_algs, error!\n");
 		ret = -EINVAL;

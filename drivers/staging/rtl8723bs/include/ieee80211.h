@@ -84,10 +84,6 @@ enum {
 #define IEEE_PARAM_IEEE_802_1X				6
 #define IEEE_PARAM_WPAX_SELECT				7
 
-#define AUTH_ALG_OPEN_SYSTEM			0x1
-#define AUTH_ALG_SHARED_KEY			0x2
-#define AUTH_ALG_LEAP				0x00000004
-
 #define IEEE_MLME_STA_DEAUTH				1
 #define IEEE_MLME_STA_DISASSOC			2
 
