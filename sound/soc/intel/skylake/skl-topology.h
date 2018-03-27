@@ -221,18 +221,9 @@ struct skl_mod_inst_map {
 	u16 inst_id;
 };
 
-struct skl_uuid_inst_map {
-	u16 inst_id;
-	u16 reserved;
-	uuid_le mod_uuid;
-} __packed;
-
 struct skl_kpb_params {
 	u32 num_modules;
-	union {
-		struct skl_mod_inst_map map[0];
-		struct skl_uuid_inst_map map_uuid[0];
-	} u;
+	struct skl_mod_inst_map map[0];
 };
 
 struct skl_module_inst_id {
@@ -469,7 +460,7 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
 			u32 caps_size, u32 node_id);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
-int skl_tplg_init(struct snd_soc_component *component,
+int skl_tplg_init(struct snd_soc_platform *platform,
 				struct hdac_ext_bus *ebus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
 		struct snd_soc_dai *dai, int stream);
@@ -512,8 +503,7 @@ int skl_pcm_host_dma_prepare(struct device *dev,
 int skl_pcm_link_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
 
-int skl_dai_load(struct snd_soc_component *cmp,
-		 struct snd_soc_dai_driver *pcm_dai);
-void skl_tplg_add_moduleid_in_bind_params(struct skl *skl,
-				struct snd_soc_dapm_widget *w);
+int skl_dai_load(struct snd_soc_component *, int index,
+		struct snd_soc_dai_driver *dai_drv,
+		struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai);
 #endif
