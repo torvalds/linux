@@ -450,7 +450,14 @@ static int mlxcpld_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 static u32 mlxcpld_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_SMBUS_BLOCK_DATA;
+	struct mlxcpld_i2c_priv *priv = i2c_get_adapdata(adap);
+
+	if (priv->smbus_block)
+		return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+			I2C_FUNC_SMBUS_I2C_BLOCK | I2C_FUNC_SMBUS_BLOCK_DATA;
+	else
+		return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+			I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
 static const struct i2c_algorithm mlxcpld_i2c_algo = {
