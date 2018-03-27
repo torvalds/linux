@@ -282,3 +282,8 @@
 	status = "okay";
 	usb-phy = <&usb3_1_phy>;
 };
+
+&rtc {
+	/* No crystal connected to the internal RTC */
+	status = "disabled";
+};

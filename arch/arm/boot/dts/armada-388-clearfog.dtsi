@@ -117,6 +117,16 @@
 			};
 		};
 	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c1>;
+		los-gpio = <&expander0 12 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpio = <&expander0 15 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&expander0 14 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio = <&expander0 13 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <2000>;
+	};
 };
 
 &eth1 {
@@ -133,13 +143,10 @@
 	bm,pool-long = <3>;
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
+	managed = "in-band-status";
 	phy-mode = "sgmii";
+	sfp = <&sfp>;
 	status = "okay";
-
-	fixed-link {
-		speed = <1000>;
-		full-duplex;
-	};
 };
 
 &i2c0 {
@@ -207,34 +214,6 @@
 			gpios = <11 GPIO_ACTIVE_HIGH>;
 			output-low;
 			line-name = "m.2 devslp";
-		};
-		sfp_los {
-			/* SFP loss of signal */
-			gpio-hog;
-			gpios = <12 GPIO_ACTIVE_HIGH>;
-			input;
-			line-name = "sfp-los";
-		};
-		sfp_tx_fault {
-			/* SFP laser fault */
-			gpio-hog;
-			gpios = <13 GPIO_ACTIVE_HIGH>;
-			input;
-			line-name = "sfp-tx-fault";
-		};
-		sfp_tx_disable {
-			/* SFP transmit disable */
-			gpio-hog;
-			gpios = <14 GPIO_ACTIVE_HIGH>;
-			output-low;
-			line-name = "sfp-tx-disable";
-		};
-		sfp_mod_def0 {
-			/* SFP module present */
-			gpio-hog;
-			gpios = <15 GPIO_ACTIVE_LOW>;
-			input;
-			line-name = "sfp-mod-def0";
 		};
 	};
 
