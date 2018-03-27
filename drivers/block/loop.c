@@ -1360,7 +1360,10 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	struct loop_device *lo = bdev->bd_disk->private_data;
 	int err;
 
-	mutex_lock_nested(&lo->lo_ctl_mutex, 1);
+	err = mutex_lock_killable_nested(&lo->lo_ctl_mutex, 1);
+	if (err)
+		goto out_unlocked;
+
 	switch (cmd) {
 	case LOOP_SET_FD:
 		err = loop_set_fd(lo, mode, bdev, arg);
@@ -1545,16 +1548,20 @@ static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch(cmd) {
 	case LOOP_SET_STATUS:
-		mutex_lock(&lo->lo_ctl_mutex);
-		err = loop_set_status_compat(
-			lo, (const struct compat_loop_info __user *) arg);
-		mutex_unlock(&lo->lo_ctl_mutex);
+		err = mutex_lock_killable(&lo->lo_ctl_mutex);
+		if (!err) {
+			err = loop_set_status_compat(lo,
+						     (const struct compat_loop_info __user *)arg);
+			mutex_unlock(&lo->lo_ctl_mutex);
+		}
 		break;
 	case LOOP_GET_STATUS:
-		mutex_lock(&lo->lo_ctl_mutex);
-		err = loop_get_status_compat(
-			lo, (struct compat_loop_info __user *) arg);
-		/* loop_get_status() unlocks lo_ctl_mutex */
+		err = mutex_lock_killable(&lo->lo_ctl_mutex);
+		if (!err) {
+			err = loop_get_status_compat(lo,
+						     (struct compat_loop_info __user *)arg);
+			/* loop_get_status() unlocks lo_ctl_mutex */
+		}
 		break;
 	case LOOP_SET_CAPACITY:
 	case LOOP_CLR_FD:
@@ -1959,7 +1966,9 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 		ret = loop_lookup(&lo, parm);
 		if (ret < 0)
 			break;
-		mutex_lock(&lo->lo_ctl_mutex);
+		ret = mutex_lock_killable(&lo->lo_ctl_mutex);
+		if (ret)
+			break;
 		if (lo->lo_state != Lo_unbound) {
 			ret = -EBUSY;
 			mutex_unlock(&lo->lo_ctl_mutex);
