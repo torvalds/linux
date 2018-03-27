@@ -38,6 +38,7 @@
 #include <linux/in6.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_sa.h>
+#include <uapi/rdma/rdma_user_cm.h>
 
 /*
  * Upon receiving a device removal event, users must destroy the associated
@@ -63,13 +64,6 @@ enum rdma_cm_event_type {
 };
 
 const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
-
-enum rdma_port_space {
-	RDMA_PS_IPOIB = 0x0002,
-	RDMA_PS_IB    = 0x013F,
-	RDMA_PS_TCP   = 0x0106,
-	RDMA_PS_UDP   = 0x0111,
-};
 
 #define RDMA_IB_IP_PS_MASK   0xFFFFFFFFFFFF0000ULL
 #define RDMA_IB_IP_PS_TCP    0x0000000001060000ULL
@@ -151,15 +145,16 @@ struct rdma_cm_id {
 	struct ib_qp		*qp;
 	rdma_cm_event_handler	 event_handler;
 	struct rdma_route	 route;
-	enum rdma_port_space	 ps;
+	enum rdma_ucm_port_space ps;
 	enum ib_qp_type		 qp_type;
 	u8			 port_num;
 };
 
 struct rdma_cm_id *__rdma_create_id(struct net *net,
-				  rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps,
-				  enum ib_qp_type qp_type, const char *caller);
+				    rdma_cm_event_handler event_handler,
+				    void *context, enum rdma_ucm_port_space ps,
+				    enum ib_qp_type qp_type,
+				    const char *caller);
 
 /**
  * rdma_create_id - Create an RDMA identifier.

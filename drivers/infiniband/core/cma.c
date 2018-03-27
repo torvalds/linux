@@ -175,7 +175,7 @@ static struct cma_pernet *cma_pernet(struct net *net)
 	return net_generic(net, cma_pernet_id);
 }
 
-static struct idr *cma_pernet_idr(struct net *net, enum rdma_port_space ps)
+static struct idr *cma_pernet_idr(struct net *net, enum rdma_ucm_port_space ps)
 {
 	struct cma_pernet *pernet = cma_pernet(net);
 
@@ -204,7 +204,7 @@ struct cma_device {
 };
 
 struct rdma_bind_list {
-	enum rdma_port_space	ps;
+	enum rdma_ucm_port_space ps;
 	struct hlist_head	owners;
 	unsigned short		port;
 };
@@ -217,7 +217,7 @@ struct class_port_info_context {
 	u8				port_num;
 };
 
-static int cma_ps_alloc(struct net *net, enum rdma_port_space ps,
+static int cma_ps_alloc(struct net *net, enum rdma_ucm_port_space ps,
 			struct rdma_bind_list *bind_list, int snum)
 {
 	struct idr *idr = cma_pernet_idr(net, ps);
@@ -226,14 +226,15 @@ static int cma_ps_alloc(struct net *net, enum rdma_port_space ps,
 }
 
 static struct rdma_bind_list *cma_ps_find(struct net *net,
-					  enum rdma_port_space ps, int snum)
+					  enum rdma_ucm_port_space ps, int snum)
 {
 	struct idr *idr = cma_pernet_idr(net, ps);
 
 	return idr_find(idr, snum);
 }
 
-static void cma_ps_remove(struct net *net, enum rdma_port_space ps, int snum)
+static void cma_ps_remove(struct net *net, enum rdma_ucm_port_space ps,
+			  int snum)
 {
 	struct idr *idr = cma_pernet_idr(net, ps);
 
@@ -742,7 +743,7 @@ static void cma_deref_id(struct rdma_id_private *id_priv)
 
 struct rdma_cm_id *__rdma_create_id(struct net *net,
 				    rdma_cm_event_handler event_handler,
-				    void *context, enum rdma_port_space ps,
+				    void *context, enum rdma_ucm_port_space ps,
 				    enum ib_qp_type qp_type, const char *caller)
 {
 	struct rdma_id_private *id_priv;
@@ -1366,7 +1367,7 @@ static struct net_device *cma_get_net_dev(struct ib_cm_event *ib_event,
 	return net_dev;
 }
 
-static enum rdma_port_space rdma_ps_from_service_id(__be64 service_id)
+static enum rdma_ucm_port_space rdma_ps_from_service_id(__be64 service_id)
 {
 	return (be64_to_cpu(service_id) >> 16) & 0xffff;
 }
@@ -2994,7 +2995,7 @@ static void cma_bind_port(struct rdma_bind_list *bind_list,
 	hlist_add_head(&id_priv->node, &bind_list->owners);
 }
 
-static int cma_alloc_port(enum rdma_port_space ps,
+static int cma_alloc_port(enum rdma_ucm_port_space ps,
 			  struct rdma_id_private *id_priv, unsigned short snum)
 {
 	struct rdma_bind_list *bind_list;
@@ -3057,7 +3058,7 @@ static int cma_port_is_unique(struct rdma_bind_list *bind_list,
 	return 0;
 }
 
-static int cma_alloc_any_port(enum rdma_port_space ps,
+static int cma_alloc_any_port(enum rdma_ucm_port_space ps,
 			      struct rdma_id_private *id_priv)
 {
 	static unsigned int last_used_port;
@@ -3135,7 +3136,7 @@ static int cma_check_port(struct rdma_bind_list *bind_list,
 	return 0;
 }
 
-static int cma_use_port(enum rdma_port_space ps,
+static int cma_use_port(enum rdma_ucm_port_space ps,
 			struct rdma_id_private *id_priv)
 {
 	struct rdma_bind_list *bind_list;
@@ -3169,8 +3170,8 @@ static int cma_bind_listen(struct rdma_id_private *id_priv)
 	return ret;
 }
 
-static enum rdma_port_space cma_select_inet_ps(
-		struct rdma_id_private *id_priv)
+static enum rdma_ucm_port_space
+cma_select_inet_ps(struct rdma_id_private *id_priv)
 {
 	switch (id_priv->id.ps) {
 	case RDMA_PS_TCP:
@@ -3184,9 +3185,10 @@ static enum rdma_port_space cma_select_inet_ps(
 	}
 }
 
-static enum rdma_port_space cma_select_ib_ps(struct rdma_id_private *id_priv)
+static enum rdma_ucm_port_space
+cma_select_ib_ps(struct rdma_id_private *id_priv)
 {
-	enum rdma_port_space ps = 0;
+	enum rdma_ucm_port_space ps = 0;
 	struct sockaddr_ib *sib;
 	u64 sid_ps, mask, sid;
 
@@ -3217,7 +3219,7 @@ static enum rdma_port_space cma_select_ib_ps(struct rdma_id_private *id_priv)
 
 static int cma_get_port(struct rdma_id_private *id_priv)
 {
-	enum rdma_port_space ps;
+	enum rdma_ucm_port_space ps;
 	int ret;
 
 	if (cma_family(id_priv) != AF_IB)
