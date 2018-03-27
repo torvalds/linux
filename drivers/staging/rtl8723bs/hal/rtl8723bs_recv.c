@@ -18,7 +18,6 @@
 #include <rtw_debug.h>
 #include <rtl8723b_hal.h>
 
-
 static s32 initrecvbuf(struct recv_buf *precvbuf, struct adapter *padapter)
 {
 	INIT_LIST_HEAD(&precvbuf->list);
@@ -104,7 +103,6 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	pkt_info.bPacketToSelf = false;
 	pkt_info.bPacketBeacon = false;
 
-
 	wlanhdr = get_recvframe_data(precvframe);
 
 	pkt_info.bPacketMatchBSSID = ((!IsFrameTypeCtrl(wlanhdr)) &&
@@ -188,7 +186,6 @@ static void rtl8723bs_recv_tasklet(void *priv)
 	u32 pkt_offset, skb_len, alloc_sz;
 	_pkt *pkt_copy = NULL;
 	u8 shift_sz = 0, rx_report_sz = 0;
-
 
 	padapter = priv;
 	p_hal_data = GET_HAL_DATA(padapter);
@@ -337,7 +334,6 @@ static void rtl8723bs_recv_tasklet(void *priv)
 						rtl8723bs_c2h_packet_handler(padapter, precvframe->u.hdr.rx_data, pattrib->pkt_len);
 
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
-
 				}
 			}
 
@@ -350,7 +346,6 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 		rtw_enqueue_recvbuf(precvbuf, &precvpriv->free_recv_buf_queue);
 	} while (1);
-
 }
 
 /*
@@ -365,7 +360,6 @@ s32 rtl8723bs_init_recv_priv(struct adapter *padapter)
 	u32 i, n;
 	struct recv_priv *precvpriv;
 	struct recv_buf *precvbuf;
-
 
 	res = _SUCCESS;
 	precvpriv = &padapter->recvpriv;
@@ -462,7 +456,6 @@ void rtl8723bs_free_recv_priv(struct adapter *padapter)
 	u32 i, n;
 	struct recv_priv *precvpriv;
 	struct recv_buf *precvbuf;
-
 
 	precvpriv = &padapter->recvpriv;
 
