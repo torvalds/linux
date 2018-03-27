@@ -142,6 +142,12 @@ struct mlx5_flow_group *
 mlx5_create_flow_group(struct mlx5_flow_table *ft, u32 *in);
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
+struct mlx5_fs_vlan {
+        u16 ethtype;
+        u16 vid;
+        u8  prio;
+};
+
 struct mlx5_flow_act {
 	u32 action;
 	bool has_flow_tag;
@@ -149,6 +155,7 @@ struct mlx5_flow_act {
 	u32 encap_id;
 	u32 modify_id;
 	uintptr_t esp_id;
+	struct mlx5_fs_vlan vlan;
 };
 
 #define MLX5_DECLARE_FLOW_ACT(name) \

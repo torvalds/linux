@@ -227,15 +227,14 @@ enum {
 	SET_VLAN_INSERT	= BIT(1)
 };
 
-#define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x4000
-#define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x8000
-
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_eswitch_rep *out_rep;
 
 	int	action;
-	u16	vlan;
+	__be16	vlan_proto;
+	u16	vlan_vid;
+	u8	vlan_prio;
 	bool	vlan_handled;
 	u32	encap_id;
 	u32	mod_hdr_id;
@@ -257,6 +256,12 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  int vport, u16 vlan, u8 qos, u8 set_flags);
+
+static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev)
+{
+	return MLX5_CAP_ESW_FLOWTABLE_FDB(dev, pop_vlan) &&
+	       MLX5_CAP_ESW_FLOWTABLE_FDB(dev, push_vlan);
+}
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 

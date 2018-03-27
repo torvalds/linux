@@ -217,10 +217,14 @@ struct ethtool_value {
 	__u32	data;
 };
 
+#define PFC_STORM_PREVENTION_AUTO	0xffff
+#define PFC_STORM_PREVENTION_DISABLE	0
+
 enum tunable_id {
 	ETHTOOL_ID_UNSPEC,
 	ETHTOOL_RX_COPYBREAK,
 	ETHTOOL_TX_COPYBREAK,
+	ETHTOOL_PFC_PREVENTION_TOUT, /* timeout in msecs */
 	/*
 	 * Add your fresh new tubale attribute above and remember to update
 	 * tunable_strings[] in net/core/ethtool.c

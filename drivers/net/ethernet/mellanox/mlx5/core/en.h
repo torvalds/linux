@@ -781,7 +781,8 @@ struct mlx5e_priv {
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
 	struct hwtstamp_config     tstamp;
-	u16 q_counter;
+	u16                        q_counter;
+	u16                        drop_rq_q_counter;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx          dcbx;
 #endif
@@ -1061,7 +1062,6 @@ void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_stats_work(struct work_struct *work);
-u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
 
 int mlx5e_bits_invert(unsigned long a, int size);
 
