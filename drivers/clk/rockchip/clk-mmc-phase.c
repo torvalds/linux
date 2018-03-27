@@ -62,7 +62,7 @@ static int rockchip_mmc_get_phase(struct clk_hw *hw)
 
 	/* See the comment for rockchip_mmc_set_phase below */
 	if (!rate) {
-		pr_err("%s: invalid clk rate\n", __func__);
+		printk(KERN_DEBUG "%s: invalid clk rate\n", __func__);
 		return -EINVAL;
 	}
 
