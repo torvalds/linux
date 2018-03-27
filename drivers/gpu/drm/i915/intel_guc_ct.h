@@ -75,6 +75,12 @@ struct intel_guc_ct_channel {
 struct intel_guc_ct {
 	struct intel_guc_ct_channel host_channel;
 	/* other channels are tbd */
+
+	/** @lock: protects pending requests list */
+	spinlock_t lock;
+
+	/** @pending_requests: list of requests waiting for response */
+	struct list_head pending_requests;
 };
 
 void intel_guc_ct_init_early(struct intel_guc_ct *ct);
