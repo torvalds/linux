@@ -796,6 +796,7 @@ struct efx_rss_context {
  * @rx_scatter: Scatter mode enabled for receives
  * @rss_context: Main RSS context.  Its @list member is the head of the list of
  *	RSS contexts created by user requests
+ * @rss_lock: Protects custom RSS context software state in @rss_context.list
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
@@ -940,6 +941,7 @@ struct efx_nic {
 	int rx_packet_ts_offset;
 	bool rx_scatter;
 	struct efx_rss_context rss_context;
+	struct mutex rss_lock;
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;

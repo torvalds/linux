@@ -187,8 +187,8 @@ static inline void efx_filter_rfs_expire(struct work_struct *data) {}
 bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
 
 /* RSS contexts */
-struct efx_rss_context *efx_alloc_rss_context_entry(struct list_head *list);
-struct efx_rss_context *efx_find_rss_context_entry(u32 id, struct list_head *list);
+struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
+struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);
 void efx_free_rss_context_entry(struct efx_rss_context *ctx);
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
 {

@@ -2657,6 +2657,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
+	mutex_lock(&efx->rss_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
 	    method != RESET_TYPE_DATAPATH)
 		efx->phy_op->fini(efx);
@@ -2712,6 +2713,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	if (efx->type->rx_restore_rss_contexts)
 		efx->type->rx_restore_rss_contexts(efx);
+	mutex_unlock(&efx->rss_lock);
 	down_read(&efx->filter_sem);
 	efx_restore_filters(efx);
 	up_read(&efx->filter_sem);
@@ -2730,6 +2732,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 fail:
 	efx->port_initialized = false;
 
+	mutex_unlock(&efx->rss_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -3016,6 +3019,7 @@ static int efx_init_struct(struct efx_nic *efx,
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	INIT_LIST_HEAD(&efx->rss_context.list);
+	mutex_init(&efx->rss_lock);
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
@@ -3091,10 +3095,13 @@ void efx_update_sw_stats(struct efx_nic *efx, u64 *stats)
 /* RSS contexts.  We're using linked lists and crappy O(n) algorithms, because
  * (a) this is an infrequent control-plane operation and (b) n is small (max 64)
  */
-struct efx_rss_context *efx_alloc_rss_context_entry(struct list_head *head)
+struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx)
 {
+	struct list_head *head = &efx->rss_context.list;
 	struct efx_rss_context *ctx, *new;
 	u32 id = 1; /* Don't use zero, that refers to the master RSS context */
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
 
 	/* Search for first gap in the numbering */
 	list_for_each_entry(ctx, head, list) {
@@ -3121,9 +3128,12 @@ struct efx_rss_context *efx_alloc_rss_context_entry(struct list_head *head)
 	return new;
 }
 
-struct efx_rss_context *efx_find_rss_context_entry(u32 id, struct list_head *head)
+struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id)
 {
+	struct list_head *head = &efx->rss_context.list;
 	struct efx_rss_context *ctx;
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
 
 	list_for_each_entry(ctx, head, list)
 		if (ctx->user_id == id)

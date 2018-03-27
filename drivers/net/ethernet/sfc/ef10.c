@@ -1499,6 +1499,7 @@ static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
 
 	/* All our allocations have been reset */
 	nic_data->must_realloc_vis = true;
+	nic_data->must_restore_rss_contexts = true;
 	nic_data->must_restore_filters = true;
 	nic_data->must_restore_piobufs = true;
 	efx_ef10_forget_old_piobufs(efx);
@@ -2899,6 +2900,8 @@ static int efx_ef10_rx_push_rss_context_config(struct efx_nic *efx,
 {
 	int rc;
 
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
 	if (ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID) {
 		rc = efx_ef10_alloc_rss_context(efx, true, ctx, NULL);
 		if (rc)
@@ -2928,6 +2931,8 @@ static int efx_ef10_rx_pull_rss_context_config(struct efx_nic *efx,
 	MCDI_DECLARE_BUF(keybuf, MC_CMD_RSS_CONTEXT_GET_KEY_OUT_LEN);
 	size_t outlen;
 	int rc, i;
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
 
 	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN !=
 		     MC_CMD_RSS_CONTEXT_GET_KEY_IN_LEN);
@@ -2972,13 +2977,24 @@ static int efx_ef10_rx_pull_rss_context_config(struct efx_nic *efx,
 
 static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
 {
-	return efx_ef10_rx_pull_rss_context_config(efx, &efx->rss_context);
+	int rc;
+
+	mutex_lock(&efx->rss_lock);
+	rc = efx_ef10_rx_pull_rss_context_config(efx, &efx->rss_context);
+	mutex_unlock(&efx->rss_lock);
+	return rc;
 }
 
 static void efx_ef10_rx_restore_rss_contexts(struct efx_nic *efx)
 {
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct efx_rss_context *ctx;
 	int rc;
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	if (!nic_data->must_restore_rss_contexts)
+		return;
 
 	list_for_each_entry(ctx, &efx->rss_context.list, list) {
 		/* previous NIC RSS context is gone */
@@ -2993,6 +3009,7 @@ static void efx_ef10_rx_restore_rss_contexts(struct efx_nic *efx)
 				   "; RSS filters may fail to be applied\n",
 				   ctx->user_id, rc);
 	}
+	nic_data->must_restore_rss_contexts = false;
 }
 
 static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
@@ -4307,6 +4324,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 	struct efx_rss_context *ctx = NULL;
 	unsigned int match_pri, hash;
 	unsigned int priv_flags;
+	bool rss_locked = false;
 	bool replacing = false;
 	unsigned int depth, i;
 	int ins_index = -1;
@@ -4336,9 +4354,10 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 		bitmap_zero(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_RSS) {
+		mutex_lock(&efx->rss_lock);
+		rss_locked = true;
 		if (spec->rss_context)
-			ctx = efx_find_rss_context_entry(spec->rss_context,
-							 &efx->rss_context.list);
+			ctx = efx_find_rss_context_entry(efx, spec->rss_context);
 		else
 			ctx = &efx->rss_context;
 		if (!ctx) {
@@ -4501,6 +4520,8 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 		rc = efx_ef10_make_filter_id(match_pri, ins_index);
 
 out_unlock:
+	if (rss_locked)
+		mutex_unlock(&efx->rss_lock);
 	up_write(&table->lock);
 	up_read(&efx->filter_sem);
 	return rc;
@@ -5008,6 +5029,7 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 		return;
 
 	down_write(&table->lock);
+	mutex_lock(&efx->rss_lock);
 
 	for (filter_idx = 0; filter_idx < HUNT_FILTER_TBL_ROWS; filter_idx++) {
 		spec = efx_ef10_filter_entry_spec(table, filter_idx);
@@ -5024,8 +5046,7 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 			goto not_restored;
 		}
 		if (spec->rss_context)
-			ctx = efx_find_rss_context_entry(spec->rss_context,
-							 &efx->rss_context.list);
+			ctx = efx_find_rss_context_entry(efx, spec->rss_context);
 		else
 			ctx = &efx->rss_context;
 		if (spec->flags & EFX_FILTER_FLAG_RX_RSS) {
@@ -5064,6 +5085,7 @@ not_restored:
 		}
 	}
 
+	mutex_unlock(&efx->rss_lock);
 	up_write(&table->lock);
 
 	/* This can happen validly if the MC's capabilities have changed, so
