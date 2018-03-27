@@ -320,13 +320,11 @@ static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
 	barrier();
 	writel(txq->tx_db.raw, txq->doorbell_addr);
 
-	/* mmiowb is needed to synchronize doorbell writes from more than one
-	 * processor. It guarantees that the write arrives to the device before
-	 * the queue lock is released and another start_xmit is called (possibly
-	 * on another CPU). Without this barrier, the next doorbell can bypass
-	 * this doorbell. This is applicable to IA64/Altix systems.
+	/* Fence required to flush the write combined buffer, since another
+	 * CPU may write to the same doorbell address and data may be lost
+	 * due to relaxed order nature of write combined bar.
 	 */
-	mmiowb();
+	wmb();
 }
 
 static int qede_xdp_xmit(struct qede_dev *edev, struct qede_fastpath *fp,
