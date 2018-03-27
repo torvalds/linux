@@ -37,18 +37,18 @@
 #include <linux/types.h>
 
 struct hns_roce_ib_create_cq {
-	__u64   buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 };
 
 struct hns_roce_ib_create_cq_resp {
-	__u64	cqn; /* Only 32 bits used, 64 for compat */
-	__u64	cap_flags;
+	__aligned_u64 cqn; /* Only 32 bits used, 64 for compat */
+	__aligned_u64 cap_flags;
 };
 
 struct hns_roce_ib_create_qp {
-	__u64	buf_addr;
-	__u64   db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u8    log_sq_bb_count;
 	__u8    log_sq_stride;
 	__u8    sq_no_prefetch;
@@ -56,7 +56,7 @@ struct hns_roce_ib_create_qp {
 };
 
 struct hns_roce_ib_create_qp_resp {
-	__u64	cap_flags;
+	__aligned_u64 cap_flags;
 };
 
 struct hns_roce_ib_alloc_ucontext_resp {

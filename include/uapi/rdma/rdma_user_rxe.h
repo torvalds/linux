@@ -58,6 +58,8 @@ struct rxe_global_route {
 struct rxe_av {
 	__u8			port_num;
 	__u8			network_type;
+	__u16			reserved1;
+	__u32			reserved2;
 	struct rxe_global_route	grh;
 	union {
 		struct sockaddr_in	_sockaddr_in;
@@ -66,7 +68,7 @@ struct rxe_av {
 };
 
 struct rxe_send_wr {
-	__u64			wr_id;
+	__aligned_u64		wr_id;
 	__u32			num_sge;
 	__u32			opcode;
 	__u32			send_flags;
@@ -76,36 +78,42 @@ struct rxe_send_wr {
 	} ex;
 	union {
 		struct {
-			__u64	remote_addr;
+			__aligned_u64 remote_addr;
 			__u32	rkey;
+			__u32	reserved;
 		} rdma;
 		struct {
-			__u64	remote_addr;
-			__u64	compare_add;
-			__u64	swap;
+			__aligned_u64 remote_addr;
+			__aligned_u64 compare_add;
+			__aligned_u64 swap;
 			__u32	rkey;
+			__u32	reserved;
 		} atomic;
 		struct {
 			__u32	remote_qpn;
 			__u32	remote_qkey;
 			__u16	pkey_index;
 		} ud;
+		/* reg is only used by the kernel and is not part of the uapi */
 		struct {
-			struct ib_mr *mr;
+			union {
+				struct ib_mr *mr;
+				__aligned_u64 reserved;
+			};
 			__u32        key;
-			int          access;
+			__u32        access;
 		} reg;
 	} wr;
 };
 
 struct rxe_sge {
-	__u64	addr;
+	__aligned_u64 addr;
 	__u32	length;
 	__u32	lkey;
 };
 
 struct mminfo {
-	__u64			offset;
+	__aligned_u64  		offset;
 	__u32			size;
 	__u32			pad;
 };
@@ -116,6 +124,7 @@ struct rxe_dma_info {
 	__u32			cur_sge;
 	__u32			num_sge;
 	__u32			sge_offset;
+	__u32			reserved;
 	union {
 		__u8		inline_data[0];
 		struct rxe_sge	sge[0];
@@ -127,7 +136,7 @@ struct rxe_send_wqe {
 	struct rxe_av		av;
 	__u32			status;
 	__u32			state;
-	__u64			iova;
+	__aligned_u64		iova;
 	__u32			mask;
 	__u32			first_psn;
 	__u32			last_psn;
@@ -138,7 +147,7 @@ struct rxe_send_wqe {
 };
 
 struct rxe_recv_wqe {
-	__u64			wr_id;
+	__aligned_u64		wr_id;
 	__u32			num_sge;
 	__u32			padding;
 	struct rxe_dma_info	dma;
@@ -160,10 +169,11 @@ struct rxe_create_qp_resp {
 struct rxe_create_srq_resp {
 	struct mminfo mi;
 	__u32 srq_num;
+	__u32 reserved;
 };
 
 struct rxe_modify_srq_cmd {
-	__u64 mmap_info_addr;
+	__aligned_u64 mmap_info_addr;
 };
 
 #endif /* RDMA_USER_RXE_H */
