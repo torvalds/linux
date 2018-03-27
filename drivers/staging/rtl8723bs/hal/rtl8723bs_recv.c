@@ -48,7 +48,7 @@ static void update_recvframe_attrib(struct adapter *padapter,
 	memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
 
 	/*  update rx report to recv_frame attribute */
-	pattrib->pkt_rpt_type = prxreport->c2h_ind?C2H_PACKET:NORMAL_RX;
+	pattrib->pkt_rpt_type = prxreport->c2h_ind ? C2H_PACKET : NORMAL_RX;
 /* 	DBG_871X("%s: pkt_rpt_type =%d\n", __func__, pattrib->pkt_rpt_type); */
 
 	if (pattrib->pkt_rpt_type == NORMAL_RX) {
