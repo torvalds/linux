@@ -4301,6 +4301,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 				  bool replace_equal)
 {
 	DECLARE_BITMAP(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct efx_ef10_filter_table *table;
 	struct efx_filter_spec *saved_spec;
 	struct efx_rss_context *ctx = NULL;
@@ -4426,6 +4427,12 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 	/* Actually insert the filter on the HW */
 	rc = efx_ef10_filter_push(efx, spec, &table->entry[ins_index].handle,
 				  ctx, replacing);
+
+	if (rc == -EINVAL && nic_data->must_realloc_vis)
+		/* The MC rebooted under us, causing it to reject our filter
+		 * insertion as pointing to an invalid VI (spec->dmaq_id).
+		 */
+		rc = -EAGAIN;
 
 	/* Finalise the software table entry */
 	if (rc == 0) {
