@@ -1293,17 +1293,6 @@ static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 	__dwc3_gadget_kick_transfer(dep);
 }
 
-static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3 *dwc,
-		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
-{
-	u32 cur_uf, mask;
-
-	mask = ~(dep->interval - 1);
-	cur_uf = event->parameters & mask;
-
-	__dwc3_gadget_start_isoc(dwc, dep, cur_uf);
-}
-
 static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
@@ -2473,6 +2462,17 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3 *dwc,
 
 		dwc->u1u2 = 0;
 	}
+}
+
+static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3 *dwc,
+		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
+{
+	u32 cur_uf, mask;
+
+	mask = ~(dep->interval - 1);
+	cur_uf = event->parameters & mask;
+
+	__dwc3_gadget_start_isoc(dwc, dep, cur_uf);
 }
 
 static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
