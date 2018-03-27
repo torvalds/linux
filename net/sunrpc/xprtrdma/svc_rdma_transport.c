@@ -401,8 +401,10 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	 */
 	set_bit(XPT_CONG_CTRL, &cma_xprt->sc_xprt.xpt_flags);
 
-	if (listener)
+	if (listener) {
+		strcpy(cma_xprt->sc_xprt.xpt_remotebuf, "listener");
 		set_bit(XPT_LISTENER, &cma_xprt->sc_xprt.xpt_flags);
+	}
 
 	return cma_xprt;
 }
