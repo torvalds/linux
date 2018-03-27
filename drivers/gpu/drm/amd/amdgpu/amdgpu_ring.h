@@ -154,6 +154,9 @@ struct amdgpu_ring_funcs {
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
 	void (*emit_reg_wait)(struct amdgpu_ring *ring, uint32_t reg,
 			      uint32_t val, uint32_t mask);
+	void (*emit_reg_write_reg_wait)(struct amdgpu_ring *ring,
+					uint32_t reg0, uint32_t reg1,
+					uint32_t ref, uint32_t mask);
 	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
@@ -228,6 +231,10 @@ int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
 			int *blacklist, int num_blacklist,
 			bool lru_pipe_order, struct amdgpu_ring **ring);
 void amdgpu_ring_lru_touch(struct amdgpu_device *adev, struct amdgpu_ring *ring);
+void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
+						uint32_t reg0, uint32_t val0,
+						uint32_t reg1, uint32_t val1);
+
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;
