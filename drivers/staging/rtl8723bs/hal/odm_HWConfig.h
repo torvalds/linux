@@ -131,7 +131,7 @@ typedef struct _Phy_Status_Rpt_8812 {
 
 void ODM_PhyStatusQuery(
 	PDM_ODM_T pDM_Odm,
-	PODM_PHY_INFO_T pPhyInfo,
+	struct odm_phy_info *pPhyInfo,
 	u8 *pPhyStatus,
 	struct odm_packet_info *pPktinfo
 );

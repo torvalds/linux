@@ -233,33 +233,38 @@ typedef struct _ODM_RATE_ADAPTIVE {
 #define IQK_THRESHOLD			8
 #define DPK_THRESHOLD			4
 
-typedef struct _ODM_Phy_Status_Info_ {
-	/*  */
-	/*  Be care, if you want to add any element please insert between */
-	/*  RxPWDBAll & SignalStrength. */
-	/*  */
-	u8 RxPWDBAll;
+struct odm_phy_info {
+	/*
+	 *  Be care, if you want to add any element, please insert it between
+	 *  rx_pwd_ball and signal_strength.
+	 */
+	u8 rx_pwd_ba11;
 
-	u8 SignalQuality;			/*  in 0-100 index. */
-	s8 RxMIMOSignalQuality[4];	/* per-path's EVM */
-	u8 RxMIMOEVMdbm[4];		/* per-path's EVM dbm */
+	u8 signal_quality;             /* in 0-100 index. */
+	s8 rx_mimo_signal_quality[4];  /* per-path's EVM */
+	u8 rx_mimo_evm_dbm[4];         /* per-path's EVM dbm */
 
-	u8 RxMIMOSignalStrength[4];/*  in 0~100 index */
+	u8 rx_mimo_signal_strength[4]; /* in 0~100 index */
 
-	u16 Cfo_short[4];			/*  per-path's Cfo_short */
-	u16 Cfo_tail[4];			/*  per-path's Cfo_tail */
+	u16 cfo_short[4];              /* per-path's Cfo_short */
+	u16 cfo_tail[4];               /* per-path's Cfo_tail */
 
-	s8 RxPower;				/*  in dBm Translate from PWdB */
-	s8 RecvSignalPower;		/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
-	u8 BTRxRSSIPercentage;
-	u8 SignalStrength;			/*  in 0-100 index. */
+	s8 rx_power;                   /* in dBm Translate from PWdB */
 
-	s8 RxPwr[4];				/* per-path's pwdb */
+	/*
+	 * Real power in dBm for this packet, no beautification and
+	 * aggregation. Keep this raw info to be used for the other procedures.
+	 */
+	s8 recv_signal_power;
+	u8 bt_rx_rssi_percentage;
+	u8 signal_strength;	       /* in 0-100 index. */
 
-	u8 RxSNR[4];				/* per-path's SNR */
-	u8 BandWidth;
-	u8 btCoexPwrAdjust;
-} ODM_PHY_INFO_T, *PODM_PHY_INFO_T;
+	s8 rx_pwr[4];                  /* per-path's pwdb */
+
+	u8 rx_snr[4];                  /* per-path's SNR */
+	u8 band_width;
+	u8 bt_coex_pwr_adjust;
+};
 
 
 struct odm_packet_info {
@@ -1415,7 +1420,7 @@ bool ODM_RAStateCheck(
 void ODM_SwAntDivChkPerPktRssi(
 	PDM_ODM_T pDM_Odm,
 	u8 StationID,
-	PODM_PHY_INFO_T pPhyInfo
+	struct odm_phy_info *pPhyInfo
 );
 
 u32 ODM_Get_Rate_Bitmap(

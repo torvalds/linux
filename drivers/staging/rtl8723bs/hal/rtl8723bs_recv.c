@@ -90,7 +90,8 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	struct adapter *padapter = precvframe->u.hdr.adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
 	struct hal_com_data *p_hal_data = GET_HAL_DATA(padapter);
-	PODM_PHY_INFO_T p_phy_info = (PODM_PHY_INFO_T)(&pattrib->phy_info);
+	struct odm_phy_info *p_phy_info =
+		(struct odm_phy_info *)(&pattrib->phy_info);
 
 	u8 *wlanhdr;
 	u8 *my_bssid;
