@@ -1381,7 +1381,7 @@ int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *act
 	fc = le16_to_cpu(((struct ieee80211_hdr_3addr *)frame)->frame_control);
 
 	if ((fc & (IEEE80211_FCTL_FTYPE|IEEE80211_FCTL_STYPE))
-		!= (IEEE80211_FTYPE_MGMT|RTW_IEEE80211_STYPE_ACTION)
+		!= (IEEE80211_FTYPE_MGMT|IEEE80211_STYPE_ACTION)
 	) {
 		return false;
 	}
