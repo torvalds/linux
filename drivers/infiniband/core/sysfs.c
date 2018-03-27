@@ -811,10 +811,15 @@ static ssize_t show_hw_stats(struct kobject *kobj, struct attribute *attr,
 		dev = port->ibdev;
 		stats = port->hw_stats;
 	}
+	mutex_lock(&stats->lock);
 	ret = update_hw_stats(dev, stats, hsa->port_num, hsa->index);
 	if (ret)
-		return ret;
-	return print_hw_stat(stats, hsa->index, buf);
+		goto unlock;
+	ret = print_hw_stat(stats, hsa->index, buf);
+unlock:
+	mutex_unlock(&stats->lock);
+
+	return ret;
 }
 
 static ssize_t show_stats_lifespan(struct kobject *kobj,
@@ -822,17 +827,25 @@ static ssize_t show_stats_lifespan(struct kobject *kobj,
 				   char *buf)
 {
 	struct hw_stats_attribute *hsa;
+	struct rdma_hw_stats *stats;
 	int msecs;
 
 	hsa = container_of(attr, struct hw_stats_attribute, attr);
 	if (!hsa->port_num) {
 		struct ib_device *dev = container_of((struct device *)kobj,
 						     struct ib_device, dev);
-		msecs = jiffies_to_msecs(dev->hw_stats->lifespan);
+
+		stats = dev->hw_stats;
 	} else {
 		struct ib_port *p = container_of(kobj, struct ib_port, kobj);
-		msecs = jiffies_to_msecs(p->hw_stats->lifespan);
+
+		stats = p->hw_stats;
 	}
+
+	mutex_lock(&stats->lock);
+	msecs = jiffies_to_msecs(stats->lifespan);
+	mutex_unlock(&stats->lock);
+
 	return sprintf(buf, "%d\n", msecs);
 }
 
@@ -841,6 +854,7 @@ static ssize_t set_stats_lifespan(struct kobject *kobj,
 				  const char *buf, size_t count)
 {
 	struct hw_stats_attribute *hsa;
+	struct rdma_hw_stats *stats;
 	int msecs;
 	int jiffies;
 	int ret;
@@ -855,11 +869,18 @@ static ssize_t set_stats_lifespan(struct kobject *kobj,
 	if (!hsa->port_num) {
 		struct ib_device *dev = container_of((struct device *)kobj,
 						     struct ib_device, dev);
-		dev->hw_stats->lifespan = jiffies;
+
+		stats = dev->hw_stats;
 	} else {
 		struct ib_port *p = container_of(kobj, struct ib_port, kobj);
-		p->hw_stats->lifespan = jiffies;
+
+		stats = p->hw_stats;
 	}
+
+	mutex_lock(&stats->lock);
+	stats->lifespan = jiffies;
+	mutex_unlock(&stats->lock);
+
 	return count;
 }
 
@@ -952,6 +973,7 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 		sysfs_attr_init(hsag->attrs[i]);
 	}
 
+	mutex_init(&stats->lock);
 	/* treat an error here as non-fatal */
 	hsag->attrs[i] = alloc_hsa_lifespan("lifespan", port_num);
 	if (hsag->attrs[i])
