@@ -95,6 +95,9 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_RES_PD_ENTRY]		= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY]	= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY] = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_NDEV_INDEX]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_NDEV_NAME]		= { .type = NLA_NUL_STRING,
+						    .len = IFNAMSIZ },
 };
 
 static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
@@ -123,7 +126,7 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 		return -EMSGSIZE;
 
 	ib_get_device_fw_str(device, fw);
-	/* Device without FW has strlen(fw) */
+	/* Device without FW has strlen(fw) = 0 */
 	if (strlen(fw) && nla_put_string(msg, RDMA_NLDEV_ATTR_FW_VERSION, fw))
 		return -EMSGSIZE;
 
@@ -139,8 +142,10 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 }
 
 static int fill_port_info(struct sk_buff *msg,
-			  struct ib_device *device, u32 port)
+			  struct ib_device *device, u32 port,
+			  const struct net *net)
 {
+	struct net_device *netdev = NULL;
 	struct ib_port_attr attr;
 	int ret;
 
@@ -174,7 +179,23 @@ static int fill_port_info(struct sk_buff *msg,
 		return -EMSGSIZE;
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_PORT_PHYS_STATE, attr.phys_state))
 		return -EMSGSIZE;
-	return 0;
+
+	if (device->get_netdev)
+		netdev = device->get_netdev(device, port);
+
+	if (netdev && net_eq(dev_net(netdev), net)) {
+		ret = nla_put_u32(msg,
+				  RDMA_NLDEV_ATTR_NDEV_INDEX, netdev->ifindex);
+		if (ret)
+			goto out;
+		ret = nla_put_string(msg,
+				     RDMA_NLDEV_ATTR_NDEV_NAME, netdev->name);
+	}
+
+out:
+	if (netdev)
+		dev_put(netdev);
+	return ret;
 }
 
 static int fill_res_info_entry(struct sk_buff *msg,
@@ -603,7 +624,7 @@ static int nldev_port_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_GET),
 			0, 0);
 
-	err = fill_port_info(msg, device, port);
+	err = fill_port_info(msg, device, port, sock_net(skb->sk));
 	if (err)
 		goto err_free;
 
@@ -663,7 +684,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 						 RDMA_NLDEV_CMD_PORT_GET),
 				0, NLM_F_MULTI);
 
-		if (fill_port_info(skb, device, p)) {
+		if (fill_port_info(skb, device, p, sock_net(skb->sk))) {
 			nlmsg_cancel(skb, nlh);
 			goto out;
 		}
