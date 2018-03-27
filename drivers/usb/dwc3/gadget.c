@@ -1067,7 +1067,10 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 	struct scatterlist *s;
 	int		i;
 
-	for_each_sg(sg, s, req->num_pending_sgs, i) {
+	unsigned int remaining = req->request.num_mapped_sgs
+		- req->num_queued_sgs;
+
+	for_each_sg(sg, s, remaining, i) {
 		unsigned int length = req->request.length;
 		unsigned int maxp = usb_endpoint_maxp(dep->endpoint.desc);
 		unsigned int rem = length % maxp;
@@ -1105,6 +1108,8 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		 */
 		if (chain)
 			req->start_sg = sg_next(s);
+
+		req->num_queued_sgs++;
 
 		if (!dwc3_calc_trbs_left(dep))
 			break;
@@ -1197,6 +1202,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 
 		req->sg			= req->request.sg;
 		req->start_sg		= req->sg;
+		req->num_queued_sgs	= 0;
 		req->num_pending_sgs	= req->request.num_mapped_sgs;
 
 		if (req->num_pending_sgs > 0)
@@ -2380,8 +2386,19 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 		req->request.actual = length - req->remaining;
 
-		if ((req->request.actual < length) && req->num_pending_sgs)
-			return __dwc3_gadget_kick_transfer(dep);
+		if (req->request.actual < length || req->num_pending_sgs) {
+			/*
+			 * There could be a scenario where the whole req can't
+			 * be mapped into available TRB's. In that case, we need
+			 * to kick transfer again if (req->num_pending_sgs > 0)
+			 */
+			if (req->num_pending_sgs) {
+				dev_WARN_ONCE(dwc->dev,
+					      (req->request.actual == length),
+					      "There are some pending sg's that needs to be queued again\n");
+				return __dwc3_gadget_kick_transfer(dep);
+			}
+		}
 
 		dwc3_gadget_giveback(dep, req, status);
 

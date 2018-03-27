@@ -834,6 +834,7 @@ struct dwc3_hwparams {
  * @sg: pointer to first incomplete sg
  * @start_sg: pointer to the sg which should be queued next
  * @num_pending_sgs: counter to pending sgs
+ * @num_queued_sgs: counter to the number of sgs which already got queued
  * @remaining: amount of data remaining
  * @epnum: endpoint number to which this request refers
  * @trb: pointer to struct dwc3_trb
@@ -852,6 +853,7 @@ struct dwc3_request {
 	struct scatterlist	*start_sg;
 
 	unsigned		num_pending_sgs;
+	unsigned int		num_queued_sgs;
 	unsigned		remaining;
 	u8			epnum;
 	struct dwc3_trb		*trb;
