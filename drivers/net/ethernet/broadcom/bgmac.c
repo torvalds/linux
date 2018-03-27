@@ -1190,7 +1190,7 @@ static int bgmac_open(struct net_device *net_dev)
 	bgmac_chip_init(bgmac);
 
 	err = request_irq(bgmac->irq, bgmac_interrupt, IRQF_SHARED,
-			  KBUILD_MODNAME, net_dev);
+			  net_dev->name, net_dev);
 	if (err < 0) {
 		dev_err(bgmac->dev, "IRQ request error: %d!\n", err);
 		bgmac_dma_cleanup(bgmac);
