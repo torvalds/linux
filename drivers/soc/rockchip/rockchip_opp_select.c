@@ -10,6 +10,7 @@
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
 #include <linux/pm_opp.h>
+#include <linux/version.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #include "../../clk/rockchip/clk.h"
@@ -384,6 +385,9 @@ int rockchip_adjust_opp_by_irdrop(struct device *dev)
 	of_property_read_u32_index(np, "rockchip,max-volt", 0, &max_volt);
 	of_property_read_u32_index(np, "rockchip,evb-irdrop", 0, &evb_irdrop);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+	rcu_read_lock();
+#endif
 	count = dev_pm_opp_get_opp_count(dev);
 	if (count <= 0) {
 		ret = count ? count : -ENODATA;
@@ -427,6 +431,9 @@ int rockchip_adjust_opp_by_irdrop(struct device *dev)
 		}
 	}
 out:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+	rcu_read_unlock();
+#endif
 	of_node_put(np);
 	return ret;
 }
