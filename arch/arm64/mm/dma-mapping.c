@@ -33,7 +33,6 @@
 #include <asm/cacheflush.h>
 
 static int swiotlb __ro_after_init;
-DEFINE_STATIC_KEY_FALSE(swiotlb_noncoherent_bounce);
 
 static pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot,
 				 bool coherent)
@@ -505,14 +504,6 @@ static int __init arm64_dma_init(void)
 	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
 		swiotlb = 1;
 
-	if (WARN_TAINT(ARCH_DMA_MINALIGN < cache_line_size(),
-		       TAINT_CPU_OUT_OF_SPEC,
-		       "ARCH_DMA_MINALIGN smaller than CTR_EL0.CWG (%d < %d)",
-		       ARCH_DMA_MINALIGN, cache_line_size())) {
-		swiotlb = 1;
-		static_branch_enable(&swiotlb_noncoherent_bounce);
-	}
-
 	return atomic_pool_init();
 }
 arch_initcall(arm64_dma_init);
@@ -891,14 +882,6 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
 {
-	/*
-	 * Enable swiotlb for buffer bouncing if ARCH_DMA_MINALIGN < CWG.
-	 * dma_capable() forces the actual bounce if the device is
-	 * non-coherent.
-	 */
-	if (static_branch_unlikely(&swiotlb_noncoherent_bounce) && !coherent)
-		iommu = NULL;
-
 	if (!dev->dma_ops)
 		dev->dma_ops = &arm64_swiotlb_dma_ops;
 

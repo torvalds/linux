@@ -1624,6 +1624,7 @@ static void __init setup_system_capabilities(void)
 void __init setup_cpu_features(void)
 {
 	u32 cwg;
+	int cls;
 
 	setup_system_capabilities();
 	mark_const_caps_ready();
@@ -1644,9 +1645,13 @@ void __init setup_cpu_features(void)
 	 * Check for sane CTR_EL0.CWG value.
 	 */
 	cwg = cache_type_cwg();
+	cls = cache_line_size();
 	if (!cwg)
-		pr_warn("No Cache Writeback Granule information, assuming %d\n",
-			ARCH_DMA_MINALIGN);
+		pr_warn("No Cache Writeback Granule information, assuming cache line size %d\n",
+			cls);
+	if (L1_CACHE_BYTES < cls)
+		pr_warn("L1_CACHE_BYTES smaller than the Cache Writeback Granule (%d < %d)\n",
+			L1_CACHE_BYTES, cls);
 }
 
 static bool __maybe_unused
