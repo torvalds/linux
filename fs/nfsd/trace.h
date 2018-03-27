@@ -35,7 +35,7 @@ DECLARE_EVENT_CLASS(nfsd_io_class,
 )
 
 #define DEFINE_NFSD_IO_EVENT(name)		\
-DEFINE_EVENT(nfsd_io_class, name,		\
+DEFINE_EVENT(nfsd_io_class, nfsd_##name,	\
 	TP_PROTO(struct svc_rqst *rqstp,	\
 		 struct svc_fh	*fhp,		\
 		 loff_t		offset,		\
@@ -76,7 +76,7 @@ DECLARE_EVENT_CLASS(nfsd_stateid_class,
 )
 
 #define DEFINE_STATEID_EVENT(name) \
-DEFINE_EVENT(nfsd_stateid_class, name, \
+DEFINE_EVENT(nfsd_stateid_class, nfsd_##name, \
 	TP_PROTO(stateid_t *stp), \
 	TP_ARGS(stp))
 DEFINE_STATEID_EVENT(layoutstate_alloc);
