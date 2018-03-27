@@ -192,6 +192,7 @@ nfsd3_proc_write(struct svc_rqst *rqstp)
 	struct nfsd3_writeres *resp = rqstp->rq_resp;
 	__be32	nfserr;
 	unsigned long cnt = argp->len;
+	unsigned int nvecs;
 
 	dprintk("nfsd: WRITE(3)    %s %d bytes at %Lu%s\n",
 				SVCFH_fmt(&argp->fh),
@@ -201,9 +202,12 @@ nfsd3_proc_write(struct svc_rqst *rqstp)
 
 	fh_copy(&resp->fh, &argp->fh);
 	resp->committed = argp->stable;
+	nvecs = svc_fill_write_vector(rqstp, &argp->first, cnt);
+	if (!nvecs)
+		RETURN_STATUS(nfserr_io);
 	nfserr = nfsd_write(rqstp, &resp->fh, argp->offset,
-				rqstp->rq_vec, argp->vlen,
-				&cnt, resp->committed);
+			    rqstp->rq_vec, nvecs, &cnt,
+			    resp->committed);
 	resp->count = cnt;
 	RETURN_STATUS(nfserr);
 }
