@@ -391,9 +391,12 @@ static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 	release_sock(sock->sk);
 }
 
-static int svc_sock_secure_port(struct svc_rqst *rqstp)
+static void svc_sock_secure_port(struct svc_rqst *rqstp)
 {
-	return svc_port_is_privileged(svc_addr(rqstp));
+	if (svc_port_is_privileged(svc_addr(rqstp)))
+		set_bit(RQ_SECURE, &rqstp->rq_flags);
+	else
+		clear_bit(RQ_SECURE, &rqstp->rq_flags);
 }
 
 /*
