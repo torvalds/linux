@@ -75,6 +75,28 @@
 	status = "okay";
 };
 
+&eth0 {
+	status = "okay";
+	phy-handle = <&ethphy0>;
+};
+
+&mdio0 {
+	ethphy0: ethphy@0 {
+		reg = <0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	phy-handle = <&ethphy1>;
+};
+
+&mdio1 {
+	ethphy1: ethphy@0 {
+		reg = <0>;
+	};
+};
+
 &nand {
 	status = "okay";
 };
