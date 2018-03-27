@@ -868,7 +868,7 @@ struct nft_chain {
 	char				*name;
 };
 
-enum nft_chain_type {
+enum nft_chain_types {
 	NFT_CHAIN_T_DEFAULT = 0,
 	NFT_CHAIN_T_ROUTE,
 	NFT_CHAIN_T_NAT,
@@ -876,7 +876,7 @@ enum nft_chain_type {
 };
 
 /**
- * 	struct nf_chain_type - nf_tables chain type info
+ * 	struct nft_chain_type - nf_tables chain type info
  *
  * 	@name: name of the type
  * 	@type: numeric identifier
@@ -885,9 +885,9 @@ enum nft_chain_type {
  * 	@hook_mask: mask of valid hooks
  * 	@hooks: array of hook functions
  */
-struct nf_chain_type {
+struct nft_chain_type {
 	const char			*name;
-	enum nft_chain_type		type;
+	enum nft_chain_types		type;
 	int				family;
 	struct module			*owner;
 	unsigned int			hook_mask;
@@ -895,7 +895,7 @@ struct nf_chain_type {
 };
 
 int nft_chain_validate_dependency(const struct nft_chain *chain,
-				  enum nft_chain_type type);
+				  enum nft_chain_types type);
 int nft_chain_validate_hooks(const struct nft_chain *chain,
                              unsigned int hook_flags);
 
@@ -917,7 +917,7 @@ struct nft_stats {
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops;
-	const struct nf_chain_type	*type;
+	const struct nft_chain_type	*type;
 	u8				policy;
 	u8				flags;
 	struct nft_stats __percpu	*stats;
@@ -970,8 +970,8 @@ struct nft_table {
 	char				*name;
 };
 
-int nft_register_chain_type(const struct nf_chain_type *);
-void nft_unregister_chain_type(const struct nf_chain_type *);
+int nft_register_chain_type(const struct nft_chain_type *);
+void nft_unregister_chain_type(const struct nft_chain_type *);
 
 int nft_register_expr(struct nft_expr_type *);
 void nft_unregister_expr(struct nft_expr_type *);

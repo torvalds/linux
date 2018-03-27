@@ -27,7 +27,7 @@ nft_do_chain_arp(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static const struct nf_chain_type filter_arp = {
+static const struct nft_chain_type filter_arp = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
 	.family		= NFPROTO_ARP,

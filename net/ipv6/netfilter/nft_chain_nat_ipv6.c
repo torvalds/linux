@@ -65,7 +65,7 @@ static unsigned int nft_nat_ipv6_local_fn(void *priv,
 	return nf_nat_ipv6_local_fn(priv, skb, state, nft_nat_do_chain);
 }
 
-static const struct nf_chain_type nft_chain_nat_ipv6 = {
+static const struct nft_chain_type nft_chain_nat_ipv6 = {
 	.name		= "nat",
 	.type		= NFT_CHAIN_T_NAT,
 	.family		= NFPROTO_IPV6,

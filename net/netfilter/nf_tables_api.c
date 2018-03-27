@@ -384,9 +384,9 @@ static inline u64 nf_tables_alloc_handle(struct nft_table *table)
 	return ++table->hgenerator;
 }
 
-static const struct nf_chain_type *chain_type[NFPROTO_NUMPROTO][NFT_CHAIN_T_MAX];
+static const struct nft_chain_type *chain_type[NFPROTO_NUMPROTO][NFT_CHAIN_T_MAX];
 
-static const struct nf_chain_type *
+static const struct nft_chain_type *
 __nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family)
 {
 	int i;
@@ -399,10 +399,10 @@ __nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family)
 	return NULL;
 }
 
-static const struct nf_chain_type *
+static const struct nft_chain_type *
 nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family, bool autoload)
 {
-	const struct nf_chain_type *type;
+	const struct nft_chain_type *type;
 
 	type = __nf_tables_chain_type_lookup(nla, family);
 	if (type != NULL)
@@ -859,7 +859,7 @@ static void nf_tables_table_destroy(struct nft_ctx *ctx)
 	kfree(ctx->table);
 }
 
-int nft_register_chain_type(const struct nf_chain_type *ctype)
+int nft_register_chain_type(const struct nft_chain_type *ctype)
 {
 	int err = 0;
 
@@ -878,7 +878,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(nft_register_chain_type);
 
-void nft_unregister_chain_type(const struct nf_chain_type *ctype)
+void nft_unregister_chain_type(const struct nft_chain_type *ctype)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	chain_type[ctype->family][ctype->type] = NULL;
@@ -1239,7 +1239,7 @@ static void nf_tables_chain_destroy(struct nft_chain *chain)
 struct nft_chain_hook {
 	u32				num;
 	s32				priority;
-	const struct nf_chain_type	*type;
+	const struct nft_chain_type	*type;
 	struct net_device		*dev;
 };
 
@@ -1249,7 +1249,7 @@ static int nft_chain_parse_hook(struct net *net,
 				bool create)
 {
 	struct nlattr *ha[NFTA_HOOK_MAX + 1];
-	const struct nf_chain_type *type;
+	const struct nft_chain_type *type;
 	struct net_device *dev;
 	int err;
 
@@ -6000,7 +6000,7 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 };
 
 int nft_chain_validate_dependency(const struct nft_chain *chain,
-				  enum nft_chain_type type)
+				  enum nft_chain_types type)
 {
 	const struct nft_base_chain *basechain;
 

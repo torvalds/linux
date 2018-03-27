@@ -60,7 +60,7 @@ static unsigned int nf_route_table_hook(void *priv,
 	return ret;
 }
 
-static const struct nf_chain_type nft_chain_route_ipv6 = {
+static const struct nft_chain_type nft_chain_route_ipv6 = {
 	.name		= "route",
 	.type		= NFT_CHAIN_T_ROUTE,
 	.family		= NFPROTO_IPV6,

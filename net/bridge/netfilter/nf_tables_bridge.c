@@ -42,7 +42,7 @@ nft_do_chain_bridge(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static const struct nf_chain_type filter_bridge = {
+static const struct nft_chain_type filter_bridge = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
 	.family		= NFPROTO_BRIDGE,

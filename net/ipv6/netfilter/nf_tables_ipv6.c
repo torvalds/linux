@@ -28,7 +28,7 @@ static unsigned int nft_do_chain_ipv6(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static const struct nf_chain_type filter_ipv6 = {
+static const struct nft_chain_type filter_ipv6 = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
 	.family		= NFPROTO_IPV6,
