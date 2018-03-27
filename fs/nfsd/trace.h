@@ -11,6 +11,45 @@
 #include <linux/tracepoint.h>
 #include "nfsfh.h"
 
+TRACE_EVENT(nfsd_compound,
+	TP_PROTO(const struct svc_rqst *rqst,
+		 u32 args_opcnt),
+	TP_ARGS(rqst, args_opcnt),
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, args_opcnt)
+	),
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->args_opcnt = args_opcnt;
+	),
+	TP_printk("xid=0x%08x opcnt=%u",
+		__entry->xid, __entry->args_opcnt)
+)
+
+TRACE_EVENT(nfsd_compound_status,
+	TP_PROTO(u32 args_opcnt,
+		 u32 resp_opcnt,
+		 __be32 status,
+		 const char *name),
+	TP_ARGS(args_opcnt, resp_opcnt, status, name),
+	TP_STRUCT__entry(
+		__field(u32, args_opcnt)
+		__field(u32, resp_opcnt)
+		__field(int, status)
+		__string(name, name)
+	),
+	TP_fast_assign(
+		__entry->args_opcnt = args_opcnt;
+		__entry->resp_opcnt = resp_opcnt;
+		__entry->status = be32_to_cpu(status);
+		__assign_str(name, name);
+	),
+	TP_printk("op=%u/%u %s status=%d",
+		__entry->resp_opcnt, __entry->args_opcnt,
+		__get_str(name), __entry->status)
+)
+
 DECLARE_EVENT_CLASS(nfsd_io_class,
 	TP_PROTO(struct svc_rqst *rqstp,
 		 struct svc_fh	*fhp,
