@@ -189,6 +189,55 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
 	return;
 }
 
+static inline union recv_frame *try_alloc_recvframe(struct recv_priv *precvpriv,
+						    struct recv_buf *precvbuf)
+{
+	union recv_frame *precvframe;
+
+	precvframe = rtw_alloc_recvframe(&precvpriv->free_recv_queue);
+	if (!precvframe) {
+		DBG_8192C("%s: no enough recv frame!\n", __func__);
+		rtw_enqueue_recvbuf_to_head(precvbuf,
+					    &precvpriv->recv_buf_pending_queue);
+
+		/*  The case of can't allocte recvframe should be temporary, */
+		/*  schedule again and hope recvframe is available next time. */
+		tasklet_schedule(&precvpriv->recv_tasklet);
+	}
+
+	return precvframe;
+}
+
+static inline bool rx_crc_err(struct recv_priv *precvpriv,
+			      struct hal_com_data *p_hal_data,
+			      struct rx_pkt_attrib *pattrib,
+			      union recv_frame *precvframe)
+{
+	/*  fix Hardware RX data error, drop whole recv_buffer */
+	if ((!(p_hal_data->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err) {
+		DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n",
+			  __func__, __LINE__);
+		rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+		return true;
+	}
+
+	return false;
+}
+
+static inline bool pkt_exceeds_tail(struct recv_priv *precvpriv,
+				    u8 *end, u8 *tail,
+				    union recv_frame *precvframe)
+{
+	if (end > tail) {
+		DBG_8192C("%s()-%d: : next pkt len(%p,%d) exceed ptail(%p)!\n",
+			  __func__, __LINE__, ptr, pkt_offset, precvbuf->ptail);
+		rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+		return true;
+	}
+
+	return false;
+}
+
 static void rtl8723bs_recv_tasklet(void *priv)
 {
 	struct adapter *padapter;
@@ -197,6 +246,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 	struct recv_buf *precvbuf;
 	union recv_frame *precvframe;
 	struct rx_pkt_attrib *pattrib;
+	struct __queue *recv_buf_queue;
 	u8 *ptr;
 	u32 pkt_offset, skb_len, alloc_sz;
 	_pkt *pkt_copy = NULL;
@@ -205,52 +255,45 @@ static void rtl8723bs_recv_tasklet(void *priv)
 	padapter = priv;
 	p_hal_data = GET_HAL_DATA(padapter);
 	precvpriv = &padapter->recvpriv;
+	recv_buf_queue = &precvpriv->recv_buf_pending_queue;
 
 	do {
-		precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue);
+		precvbuf = rtw_dequeue_recvbuf(recv_buf_queue);
 		if (NULL == precvbuf)
 			break;
 
 		ptr = precvbuf->pdata;
 
 		while (ptr < precvbuf->ptail) {
-			precvframe = rtw_alloc_recvframe(&precvpriv->free_recv_queue);
-			if (precvframe == NULL) {
-				DBG_8192C("%s: no enough recv frame!\n", __func__);
-				rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
-
-				/*  The case of can't allocte recvframe should be temporary, */
-				/*  schedule again and hope recvframe is available next time. */
-				tasklet_schedule(&precvpriv->recv_tasklet);
+			precvframe = try_alloc_recvframe(precvpriv, precvbuf);
+			if(!precvframe)
 				return;
-			}
 
 			/* rx desc parsing */
-			update_recvframe_attrib(padapter, precvframe, (struct recv_stat *)ptr);
+			update_recvframe_attrib(padapter, precvframe,
+						(struct recv_stat *)ptr);
 
 			pattrib = &precvframe->u.hdr.attrib;
 
-			/*  fix Hardware RX data error, drop whole recv_buffer */
-			if ((!(p_hal_data->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err) {
-				DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n", __func__, __LINE__);
-				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+			if(rx_crc_err(precvpriv, p_hal_data,
+				      pattrib, precvframe))
 				break;
-			}
 
 			rx_report_sz = RXDESC_SIZE + pattrib->drvinfo_sz;
-			pkt_offset = rx_report_sz + pattrib->shift_sz + pattrib->pkt_len;
+			pkt_offset = rx_report_sz +
+				pattrib->shift_sz +
+				pattrib->pkt_len;
 
-			if ((ptr + pkt_offset) > precvbuf->ptail) {
-				DBG_8192C("%s()-%d: : next pkt len(%p,%d) exceed ptail(%p)!\n", __func__, __LINE__, ptr, pkt_offset, precvbuf->ptail);
-				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+			if(pkt_exceeds_tail(precvpriv, ptr + pkt_offset,
+					    precvbuf->ptail, precvframe))
 				break;
-			}
 
 			if ((pattrib->crc_err) || (pattrib->icv_err)) {
-				{
-					DBG_8192C("%s: crc_err =%d icv_err =%d, skip!\n", __func__, pattrib->crc_err, pattrib->icv_err);
-				}
-				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				DBG_8192C("%s: crc_err =%d icv_err =%d, skip!\n",
+					  __func__, pattrib->crc_err,
+					  pattrib->icv_err);
+				rtw_free_recvframe(precvframe,
+						   &precvpriv->free_recv_queue);
 			} else {
 				/* 	Modified by Albert 20101213 */
 				/* 	For 8 bytes IP header alignment. */
@@ -301,7 +344,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 						skb_reset_tail_pointer(pkt_clone);
 						precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data = precvframe->u.hdr.rx_tail
 							= pkt_clone->data;
-						precvframe->u.hdr.rx_end =	pkt_clone->data + skb_len;
+						precvframe->u.hdr.rx_end = pkt_clone->data + skb_len;
 					} else {
 						DBG_8192C("%s: rtw_skb_clone fail\n", __func__);
 						rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
