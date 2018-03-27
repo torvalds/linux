@@ -40,9 +40,8 @@ struct net init_net = {
 EXPORT_SYMBOL(init_net);
 
 static bool init_net_initialized;
-static unsigned nr_sync_pernet_ops;
 /*
- * net_sem: protects: pernet_list, net_generic_ids, nr_sync_pernet_ops,
+ * net_sem: protects: pernet_list, net_generic_ids,
  * init_net_initialized and first_device pointer.
  */
 DECLARE_RWSEM(net_sem);
@@ -406,7 +405,6 @@ struct net *copy_net_ns(unsigned long flags,
 {
 	struct ucounts *ucounts;
 	struct net *net;
-	unsigned write;
 	int rv;
 
 	if (!(flags & CLONE_NEWNET))
@@ -424,25 +422,14 @@ struct net *copy_net_ns(unsigned long flags,
 	refcount_set(&net->passive, 1);
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
-again:
-	write = READ_ONCE(nr_sync_pernet_ops);
-	if (write)
-		rv = down_write_killable(&net_sem);
-	else
-		rv = down_read_killable(&net_sem);
+
+	rv = down_read_killable(&net_sem);
 	if (rv < 0)
 		goto put_userns;
 
-	if (!write && unlikely(READ_ONCE(nr_sync_pernet_ops))) {
-		up_read(&net_sem);
-		goto again;
-	}
 	rv = setup_net(net, user_ns);
 
-	if (write)
-		up_write(&net_sem);
-	else
-		up_read(&net_sem);
+	up_read(&net_sem);
 
 	if (rv < 0) {
 put_userns:
@@ -490,21 +477,11 @@ static void cleanup_net(struct work_struct *work)
 	struct net *net, *tmp, *last;
 	struct llist_node *net_kill_list;
 	LIST_HEAD(net_exit_list);
-	unsigned write;
 
 	/* Atomically snapshot the list of namespaces to cleanup */
 	net_kill_list = llist_del_all(&cleanup_list);
-again:
-	write = READ_ONCE(nr_sync_pernet_ops);
-	if (write)
-		down_write(&net_sem);
-	else
-		down_read(&net_sem);
 
-	if (!write && unlikely(READ_ONCE(nr_sync_pernet_ops))) {
-		up_read(&net_sem);
-		goto again;
-	}
+	down_read(&net_sem);
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
@@ -543,10 +520,7 @@ again:
 	list_for_each_entry_reverse(ops, &pernet_list, list)
 		ops_free_list(ops, &net_exit_list);
 
-	if (write)
-		up_write(&net_sem);
-	else
-		up_read(&net_sem);
+	up_read(&net_sem);
 
 	/* Ensure there are no outstanding rcu callbacks using this
 	 * network namespace.
@@ -1006,9 +980,6 @@ again:
 		rcu_barrier();
 		if (ops->id)
 			ida_remove(&net_generic_ids, *ops->id);
-	} else if (!ops->async) {
-		pr_info_once("Pernet operations %ps are sync.\n", ops);
-		nr_sync_pernet_ops++;
 	}
 
 	return error;
@@ -1016,8 +987,6 @@ again:
 
 static void unregister_pernet_operations(struct pernet_operations *ops)
 {
-	if (!ops->async)
-		BUG_ON(nr_sync_pernet_ops-- == 0);
 	__unregister_pernet_operations(ops);
 	rcu_barrier();
 	if (ops->id)
