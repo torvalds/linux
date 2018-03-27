@@ -4,10 +4,11 @@ top_srcdir = ../../../../
 UNAME_M := $(shell uname -m)
 
 LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/sparsebit.c
-LIBKVM_x86_64 = lib/x86.c
+LIBKVM_x86_64 = lib/x86.c lib/vmx.c
 
 TEST_GEN_PROGS_x86_64 = set_sregs_test
 TEST_GEN_PROGS_x86_64 += sync_regs_test
+TEST_GEN_PROGS_x86_64 += vmx_tsc_adjust_test
 
 TEST_GEN_PROGS += $(TEST_GEN_PROGS_$(UNAME_M))
 LIBKVM += $(LIBKVM_$(UNAME_M))
