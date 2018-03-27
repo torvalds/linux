@@ -956,9 +956,8 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction &&
-		plane_state->gamma_correction->is_identity)
-		dpp_base->funcs->dpp_set_degamma(dpp_base, IPP_DEGAMMA_MODE_BYPASS);
-	else if (plane_state->gamma_correction && dce_use_lut(plane_state->format))
+		!plane_state->gamma_correction->is_identity
+			&& dce_use_lut(plane_state->format))
 		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
 
 	if (tf == NULL)

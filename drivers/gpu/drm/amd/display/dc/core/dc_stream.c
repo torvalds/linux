@@ -101,14 +101,16 @@ static void construct(struct dc_stream_state *stream,
 	stream->status.link = stream->sink->link;
 
 	update_stream_signal(stream);
+
+	stream->out_transfer_func = dc_create_transfer_func();
+	stream->out_transfer_func->type = TF_TYPE_BYPASS;
 }
 
 static void destruct(struct dc_stream_state *stream)
 {
 	dc_sink_release(stream->sink);
 	if (stream->out_transfer_func != NULL) {
-		dc_transfer_func_release(
-				stream->out_transfer_func);
+		dc_transfer_func_release(stream->out_transfer_func);
 		stream->out_transfer_func = NULL;
 	}
 }
