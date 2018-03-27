@@ -400,6 +400,13 @@ enum rxrpc_congest_change {
 	EM(RXRPC_ACK_IDLE,			"IDL") \
 	E_(RXRPC_ACK__INVALID,			"-?-")
 
+#define rxrpc_completions \
+	EM(RXRPC_CALL_SUCCEEDED,		"Succeeded") \
+	EM(RXRPC_CALL_REMOTELY_ABORTED,		"RemoteAbort") \
+	EM(RXRPC_CALL_LOCALLY_ABORTED,		"LocalAbort") \
+	EM(RXRPC_CALL_LOCAL_ERROR,		"LocalError") \
+	E_(RXRPC_CALL_NETWORK_ERROR,		"NetError")
+
 /*
  * Export enum symbols via userspace.
  */
@@ -622,6 +629,32 @@ TRACE_EVENT(rxrpc_abort,
 		      __entry->call_nr,
 		      __entry->cid, __entry->call_id, __entry->seq,
 		      __entry->abort_code, __entry->error, __entry->why)
+	    );
+
+TRACE_EVENT(rxrpc_call_complete,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call		)
+		    __field(enum rxrpc_call_completion,	compl		)
+		    __field(int,			error		)
+		    __field(u32,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call->debug_id;
+		    __entry->compl = call->completion;
+		    __entry->error = call->error;
+		    __entry->abort_code = call->abort_code;
+			   ),
+
+	    TP_printk("c=%08x %s r=%d ac=%d",
+		      __entry->call,
+		      __print_symbolic(__entry->compl, rxrpc_completions),
+		      __entry->error,
+		      __entry->abort_code)
 	    );
 
 TRACE_EVENT(rxrpc_transmit,

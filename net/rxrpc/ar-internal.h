@@ -778,6 +778,7 @@ static inline bool __rxrpc_set_call_completion(struct rxrpc_call *call,
 		call->error = error;
 		call->completion = compl,
 		call->state = RXRPC_CALL_COMPLETE;
+		trace_rxrpc_call_complete(call);
 		wake_up(&call->waitq);
 		return true;
 	}
