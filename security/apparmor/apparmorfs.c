@@ -1497,8 +1497,10 @@ static char *gen_symlink_name(int depth, const char *dirname, const char *fname)
 	}
 
 	error = snprintf(s, size, "raw_data/%s/%s", dirname, fname);
-	if (error >= size || error < 0)
+	if (error >= size || error < 0) {
+		kfree(buffer);
 		return ERR_PTR(-ENAMETOOLONG);
+	}
 
 	return buffer;
 }
