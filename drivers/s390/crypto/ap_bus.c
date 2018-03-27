@@ -1226,11 +1226,6 @@ int __init ap_debug_init(void)
 	return 0;
 }
 
-void ap_debug_exit(void)
-{
-	debug_unregister(ap_dbf_info);
-}
-
 /**
  * ap_module_init(): The module initialization code.
  *
