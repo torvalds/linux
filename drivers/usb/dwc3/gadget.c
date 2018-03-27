@@ -703,12 +703,12 @@ out:
 	return 0;
 }
 
-static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force);
+static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force);
 static void dwc3_remove_requests(struct dwc3 *dwc, struct dwc3_ep *dep)
 {
 	struct dwc3_request		*req;
 
-	dwc3_stop_active_transfer(dwc, dep->number, true);
+	dwc3_stop_active_transfer(dep, true);
 
 	/* - giveback all requests to gadget driver */
 	while (!list_empty(&dep->started_list)) {
@@ -1275,11 +1275,10 @@ static int __dwc3_gadget_get_frame(struct dwc3 *dwc)
 	return DWC3_DSTS_SOFFN(reg);
 }
 
-static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
-		struct dwc3_ep *dep, u32 cur_uf)
+static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep, u32 cur_uf)
 {
 	if (list_empty(&dep->pending_list)) {
-		dev_info(dwc->dev, "%s: ran out of requests\n",
+		dev_info(dep->dwc->dev, "%s: ran out of requests\n",
 				dep->name);
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
 		return;
@@ -1329,13 +1328,13 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		if ((dep->flags & DWC3_EP_PENDING_REQUEST)) {
 			if (dep->flags & DWC3_EP_TRANSFER_STARTED) {
-				dwc3_stop_active_transfer(dwc, dep->number, true);
+				dwc3_stop_active_transfer(dep, true);
 				dep->flags = DWC3_EP_ENABLED;
 			} else {
 				u32 cur_uf;
 
 				cur_uf = __dwc3_gadget_get_frame(dwc);
-				__dwc3_gadget_start_isoc(dwc, dep, cur_uf);
+				__dwc3_gadget_start_isoc(dep, cur_uf);
 				dep->flags &= ~DWC3_EP_PENDING_REQUEST;
 			}
 			return 0;
@@ -1398,7 +1397,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 		}
 		if (r == req) {
 			/* wait until it is processed */
-			dwc3_stop_active_transfer(dwc, dep->number, true);
+			dwc3_stop_active_transfer(dep, true);
 
 			/*
 			 * If request was already started, this means we had to
@@ -2231,10 +2230,9 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 
 /* -------------------------------------------------------------------------- */
 
-static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3 *dwc,
-		struct dwc3_ep *dep, struct dwc3_request *req,
-		struct dwc3_trb *trb, const struct dwc3_event_depevt *event,
-		int status, int chain)
+static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
+		struct dwc3_request *req, struct dwc3_trb *trb,
+		const struct dwc3_event_depevt *event, int status, int chain)
 {
 	unsigned int		count;
 	unsigned int		s_pkt = 0;
@@ -2294,7 +2292,7 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3 *dwc,
 				 */
 				dep->flags |= DWC3_EP_MISSED_ISOC;
 			} else {
-				dev_err(dwc->dev, "incomplete IN transfer %s\n",
+				dev_err(dep->dwc->dev, "incomplete IN transfer %s\n",
 						dep->name);
 				status = -ECONNRESET;
 			}
@@ -2316,9 +2314,8 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3 *dwc,
 	return 0;
 }
 
-static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
-		struct dwc3_ep *dep, const struct dwc3_event_depevt *event,
-		int status)
+static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
+		const struct dwc3_event_depevt *event, int status)
 {
 	struct dwc3_request	*req, *n;
 	struct dwc3_trb		*trb;
@@ -2346,22 +2343,22 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
 				req->sg = sg_next(s);
 				req->num_pending_sgs--;
 
-				ret = dwc3_gadget_ep_reclaim_completed_trb(dwc,
-						dep, req, trb, event, status,
+				ret = dwc3_gadget_ep_reclaim_completed_trb(dep,
+						req, trb, event, status,
 						chain);
 				if (ret)
 					break;
 			}
 		} else {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = dwc3_gadget_ep_reclaim_completed_trb(dwc, dep,
-					req, trb, event, status, chain);
+			ret = dwc3_gadget_ep_reclaim_completed_trb(dep, req,
+					trb, event, status, chain);
 		}
 
 		if (req->unaligned || req->zero) {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = dwc3_gadget_ep_reclaim_completed_trb(dwc, dep,
-					req, trb, event, status, false);
+			ret = dwc3_gadget_ep_reclaim_completed_trb(dep, req,
+					trb, event, status, false);
 			req->unaligned = false;
 			req->zero = false;
 		}
@@ -2375,7 +2372,7 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
 			 * to kick transfer again if (req->num_pending_sgs > 0)
 			 */
 			if (req->num_pending_sgs) {
-				dev_WARN_ONCE(dwc->dev,
+				dev_WARN_ONCE(dep->dwc->dev,
 					      (req->request.actual == length),
 					      "There are some pending sg's that needs to be queued again\n");
 				return __dwc3_gadget_kick_transfer(dep);
@@ -2411,7 +2408,7 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
 			 */
 			dep->flags = DWC3_EP_PENDING_REQUEST;
 		} else {
-			dwc3_stop_active_transfer(dwc, dep->number, true);
+			dwc3_stop_active_transfer(dep, true);
 			dep->flags = DWC3_EP_ENABLED;
 		}
 		return 1;
@@ -2423,16 +2420,17 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
 	return 1;
 }
 
-static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3 *dwc,
-		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
+static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
+		const struct dwc3_event_depevt *event)
 {
+	struct dwc3		*dwc = dep->dwc;
 	unsigned		status = 0;
 	int			clean_busy;
 
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
 
-	clean_busy = dwc3_gadget_ep_cleanup_completed_requests(dwc, dep, event,
+	clean_busy = dwc3_gadget_ep_cleanup_completed_requests(dep, event,
 			status);
 	if (clean_busy && (!dep->endpoint.desc ||
 				usb_endpoint_xfer_isoc(dep->endpoint.desc)))
@@ -2464,15 +2462,15 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3 *dwc,
 	}
 }
 
-static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3 *dwc,
-		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
+static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3_ep *dep,
+		const struct dwc3_event_depevt *event)
 {
 	u32 cur_uf, mask;
 
 	mask = ~(dep->interval - 1);
 	cur_uf = event->parameters & mask;
 
-	__dwc3_gadget_start_isoc(dwc, dep, cur_uf);
+	__dwc3_gadget_start_isoc(dep, cur_uf);
 }
 
 static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
@@ -2500,10 +2498,10 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERINPROGRESS:
-		dwc3_gadget_endpoint_transfer_in_progress(dwc, dep, event);
+		dwc3_gadget_endpoint_transfer_in_progress(dep, event);
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
-		dwc3_gadget_endpoint_transfer_not_ready(dwc, dep, event);
+		dwc3_gadget_endpoint_transfer_not_ready(dep, event);
 		break;
 	case DWC3_DEPEVT_EPCMDCMPLT:
 		cmd = DEPEVT_PARAMETER_CMD(event->parameters);
@@ -2559,14 +2557,12 @@ static void dwc3_reset_gadget(struct dwc3 *dwc)
 	}
 }
 
-static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force)
+static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force)
 {
-	struct dwc3_ep *dep;
+	struct dwc3 *dwc = dep->dwc;
 	struct dwc3_gadget_ep_cmd_params params;
 	u32 cmd;
 	int ret;
-
-	dep = dwc->eps[epnum];
 
 	if ((dep->flags & DWC3_EP_END_TRANSFER_PENDING) ||
 	    !dep->resource_index)
