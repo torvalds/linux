@@ -140,12 +140,12 @@ static void rkisp1_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkisp1_buffer *stats_buf = to_rkisp1_buffer(vbuf);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp1_isp_stats_vdev *stats_dev = vq->drv_priv;
-	unsigned long flags;
 
 	stats_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
-	spin_lock_irqsave(&stats_dev->irq_lock, flags);
+
+	mutex_lock(&stats_dev->wq_lock);
 	list_add_tail(&stats_buf->queue, &stats_dev->stat);
-	spin_unlock_irqrestore(&stats_dev->irq_lock, flags);
+	mutex_unlock(&stats_dev->wq_lock);
 }
 
 static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
@@ -155,29 +155,23 @@ static void rkisp1_stats_vb2_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int i;
 
-	/* stop stats received firstly */
+	/* Make sure no new work queued in isr before draining wq */
 	spin_lock_irqsave(&stats_vdev->irq_lock, flags);
 	stats_vdev->streamon = false;
 	spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
 
 	drain_workqueue(stats_vdev->readout_wq);
 
+	mutex_lock(&stats_vdev->wq_lock);
 	for (i = 0; i < RKISP1_ISP_STATS_REQ_BUFS_MAX; i++) {
-		spin_lock_irqsave(&stats_vdev->irq_lock, flags);
-		if (!list_empty(&stats_vdev->stat)) {
-			buf = list_first_entry(&stats_vdev->stat,
-					       struct rkisp1_buffer, queue);
-			list_del(&buf->queue);
-			spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
-		} else {
-			spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
+		if (list_empty(&stats_vdev->stat))
 			break;
-		}
-
-		if (buf)
-			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-		buf = NULL;
+		buf = list_first_entry(&stats_vdev->stat,
+				       struct rkisp1_buffer, queue);
+		list_del(&buf->queue);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
+	mutex_unlock(&stats_vdev->wq_lock);
 }
 
 static int
@@ -185,11 +179,8 @@ rkisp1_stats_vb2_start_streaming(struct vb2_queue *queue,
 				 unsigned int count)
 {
 	struct rkisp1_isp_stats_vdev *stats_vdev = queue->drv_priv;
-	unsigned long flags;
 
-	spin_lock_irqsave(&stats_vdev->irq_lock, flags);
 	stats_vdev->streamon = true;
-	spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
 
 	return 0;
 }
@@ -318,12 +309,10 @@ static void
 rkisp1_stats_send_measurement(struct rkisp1_isp_stats_vdev *stats_vdev,
 			      struct rkisp1_isp_readout_work *meas_work)
 {
-	unsigned long lock_flags = 0;
 	unsigned int cur_frame_id = -1;
 	struct rkisp1_stat_buffer *cur_stat_buf;
 	struct rkisp1_buffer *cur_buf = NULL;
 
-	spin_lock_irqsave(&stats_vdev->irq_lock, lock_flags);
 	cur_frame_id = atomic_read(&stats_vdev->dev->isp_sdev.frm_sync_seq) - 1;
 	if (cur_frame_id != meas_work->frame_id) {
 		v4l2_warn(stats_vdev->vnode.vdev.v4l2_dev,
@@ -331,13 +320,15 @@ rkisp1_stats_send_measurement(struct rkisp1_isp_stats_vdev *stats_vdev,
 			  cur_frame_id, meas_work->frame_id);
 		cur_frame_id = meas_work->frame_id;
 	}
+
+	mutex_lock(&stats_vdev->wq_lock);
 	/* get one empty buffer */
 	if (!list_empty(&stats_vdev->stat)) {
 		cur_buf = list_first_entry(&stats_vdev->stat,
 					   struct rkisp1_buffer, queue);
 		list_del(&cur_buf->queue);
 	}
-	spin_unlock_irqrestore(&stats_vdev->irq_lock, lock_flags);
+	mutex_unlock(&stats_vdev->wq_lock);
 
 	if (!cur_buf)
 		return;
@@ -396,6 +387,8 @@ int rkisp1_stats_isr(struct rkisp1_isp_stats_vdev *stats_vdev, u32 isp_ris)
 	ktime_t in_t = ktime_get();
 #endif
 
+	spin_lock(&stats_vdev->irq_lock);
+
 	writel((CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN | CIF_ISP_EXP_END |
 		CIF_ISP_HIST_MEASURE_RDY),
 		stats_vdev->dev->base_addr + CIF_ISP_ICR);
@@ -408,10 +401,11 @@ int rkisp1_stats_isr(struct rkisp1_isp_stats_vdev *stats_vdev, u32 isp_ris)
 			 "isp icr 3A info err: 0x%x\n",
 			 isp_mis_tmp);
 
+	if (!stats_vdev->streamon)
+		goto unlock;
 	if (isp_ris & (CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN | CIF_ISP_EXP_END |
 		CIF_ISP_HIST_MEASURE_RDY)) {
-		work = (struct rkisp1_isp_readout_work *)
-			kzalloc(sizeof(struct rkisp1_isp_readout_work),
+		work = kzalloc(sizeof(struct rkisp1_isp_readout_work),
 				GFP_ATOMIC);
 		if (work) {
 			INIT_WORK(&work->work,
@@ -443,6 +437,9 @@ int rkisp1_stats_isr(struct rkisp1_isp_stats_vdev *stats_vdev, u32 isp_ris)
 	}
 #endif
 
+unlock:
+	spin_unlock(&stats_vdev->irq_lock);
+
 	return 0;
 }
 
@@ -463,6 +460,7 @@ int rkisp1_register_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev,
 	struct video_device *vdev = &node->vdev;
 
 	stats_vdev->dev = dev;
+	mutex_init(&stats_vdev->wq_lock);
 	mutex_init(&node->vlock);
 	INIT_LIST_HEAD(&stats_vdev->stat);
 	spin_lock_init(&stats_vdev->irq_lock);

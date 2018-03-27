@@ -72,6 +72,7 @@ struct rkisp1_isp_stats_vdev {
 	bool streamon;
 
 	struct workqueue_struct *readout_wq;
+	struct mutex wq_lock;
 };
 
 int rkisp1_stats_isr(struct rkisp1_isp_stats_vdev *stats_vdev, u32 isp_ris);
