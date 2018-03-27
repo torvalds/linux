@@ -2056,7 +2056,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 		return PTR_ERR(gtt->ggtt_mm);
 	}
 
-	intel_vgpu_reset_ggtt(vgpu);
+	intel_vgpu_reset_ggtt(vgpu, false);
 
 	return create_scratch_page_tree(vgpu);
 }
@@ -2341,17 +2341,19 @@ void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu)
 /**
  * intel_vgpu_reset_ggtt - reset the GGTT entry
  * @vgpu: a vGPU
+ * @invalidate_old: invalidate old entries
  *
  * This function is called at the vGPU create stage
  * to reset all the GGTT entries.
  *
  */
-void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
+void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu, bool invalidate_old)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	struct intel_gvt_gtt_pte_ops *pte_ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_gvt_gtt_entry entry = {.type = GTT_TYPE_GGTT_PTE};
+	struct intel_gvt_gtt_entry old_entry;
 	u32 index;
 	u32 num_entries;
 
@@ -2360,13 +2362,23 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 
 	index = vgpu_aperture_gmadr_base(vgpu) >> PAGE_SHIFT;
 	num_entries = vgpu_aperture_sz(vgpu) >> PAGE_SHIFT;
-	while (num_entries--)
+	while (num_entries--) {
+		if (invalidate_old) {
+			ggtt_get_host_entry(vgpu->gtt.ggtt_mm, &old_entry, index);
+			ggtt_invalidate_pte(vgpu, &old_entry);
+		}
 		ggtt_set_host_entry(vgpu->gtt.ggtt_mm, &entry, index++);
+	}
 
 	index = vgpu_hidden_gmadr_base(vgpu) >> PAGE_SHIFT;
 	num_entries = vgpu_hidden_sz(vgpu) >> PAGE_SHIFT;
-	while (num_entries--)
+	while (num_entries--) {
+		if (invalidate_old) {
+			ggtt_get_host_entry(vgpu->gtt.ggtt_mm, &old_entry, index);
+			ggtt_invalidate_pte(vgpu, &old_entry);
+		}
 		ggtt_set_host_entry(vgpu->gtt.ggtt_mm, &entry, index++);
+	}
 
 	ggtt_invalidate(dev_priv);
 }
@@ -2386,5 +2398,5 @@ void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu)
 	 * removing the shadow pages.
 	 */
 	intel_vgpu_destroy_all_ppgtt_mm(vgpu);
-	intel_vgpu_reset_ggtt(vgpu);
+	intel_vgpu_reset_ggtt(vgpu, true);
 }
