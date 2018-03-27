@@ -420,6 +420,7 @@ rxrpc_rtt_rx_traces;
 rxrpc_timer_traces;
 rxrpc_propose_ack_traces;
 rxrpc_propose_ack_outcomes;
+rxrpc_congest_modes;
 rxrpc_congest_changes;
 
 /*
@@ -1227,6 +1228,29 @@ TRACE_EVENT(rxrpc_connect_call,
 		      (void *)__entry->user_call_ID,
 		      __entry->cid,
 		      __entry->call_id)
+	    );
+
+TRACE_EVENT(rxrpc_resend,
+	    TP_PROTO(struct rxrpc_call *call, int ix),
+
+	    TP_ARGS(call, ix),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(int,			ix		)
+		    __array(u8,				anno, 64	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->ix = ix;
+		    memcpy(__entry->anno, call->rxtx_annotations, 64);
+			   ),
+
+	    TP_printk("c=%p ix=%u a=%64phN",
+		      __entry->call,
+		      __entry->ix,
+		      __entry->anno)
 	    );
 
 #endif /* _TRACE_RXRPC_H */
