@@ -839,8 +839,11 @@
 		compatible = "rockchip,rk3308-codec";
 		reg = <0x0 0xff560000 0x0 0x10000>;
 		rockchip,grf = <&grf>;
-		clocks = <&cru PCLK_ACODEC>;
-		clock-names = "acodec";
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_ACODEC>,
+			 <&cru SCLK_I2S2_8CH_TX_OUT>,
+			 <&cru SCLK_I2S2_8CH_RX_OUT>;
+		clock-names = "acodec", "mclk_tx", "mclk_rx";
 		resets = <&cru SRST_ACODEC_P>;
 		reset-names = "acodec-reset";
 		spk_ctl-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
