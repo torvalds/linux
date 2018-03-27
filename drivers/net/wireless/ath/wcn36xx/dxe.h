@@ -452,6 +452,7 @@ struct wcn36xx_dxe_mem_pool {
 	dma_addr_t	phy_addr;
 };
 
+struct wcn36xx_tx_bd;
 struct wcn36xx_vif;
 int wcn36xx_dxe_allocate_mem_pools(struct wcn36xx *wcn);
 void wcn36xx_dxe_free_mem_pools(struct wcn36xx *wcn);
@@ -463,8 +464,8 @@ void wcn36xx_dxe_deinit(struct wcn36xx *wcn);
 int wcn36xx_dxe_init_channels(struct wcn36xx *wcn);
 int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 struct wcn36xx_vif *vif_priv,
+			 struct wcn36xx_tx_bd *bd,
 			 struct sk_buff *skb,
 			 bool is_low);
 void wcn36xx_dxe_tx_ack_ind(struct wcn36xx *wcn, u32 status);
-void *wcn36xx_dxe_get_next_bd(struct wcn36xx *wcn, bool is_low);
 #endif	/* _DXE_H_ */

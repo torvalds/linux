@@ -27,15 +27,6 @@
 #include "wcn36xx.h"
 #include "txrx.h"
 
-void *wcn36xx_dxe_get_next_bd(struct wcn36xx *wcn, bool is_low)
-{
-	struct wcn36xx_dxe_ch *ch = is_low ?
-		&wcn->dxe_tx_l_ch :
-		&wcn->dxe_tx_h_ch;
-
-	return ch->head_blk_ctl->bd_cpu_addr;
-}
-
 static void wcn36xx_ccu_write_register(struct wcn36xx *wcn, int addr, int data)
 {
 	wcn36xx_dbg(WCN36XX_DBG_DXE,
@@ -648,6 +639,7 @@ void wcn36xx_dxe_free_mem_pools(struct wcn36xx *wcn)
 
 int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 			 struct wcn36xx_vif *vif_priv,
+			 struct wcn36xx_tx_bd *bd,
 			 struct sk_buff *skb,
 			 bool is_low)
 {
@@ -680,6 +672,9 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 
 	ctl->skb = NULL;
 	desc = ctl->desc;
+
+	/* write buffer descriptor */
+	memcpy(ctl->bd_cpu_addr, bd, sizeof(*bd));
 
 	/* Set source address of the BD we send */
 	desc->src_addr_l = ctl->bd_phy_addr;
