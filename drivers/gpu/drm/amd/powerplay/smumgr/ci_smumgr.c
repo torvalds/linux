@@ -1182,7 +1182,6 @@ static int ci_populate_single_memory_level(
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int result = 0;
 	bool dll_state_on;
-	struct cgs_display_info info = {0};
 	uint32_t mclk_edc_wr_enable_threshold = 40000;
 	uint32_t mclk_edc_enable_threshold = 40000;
 	uint32_t mclk_strobe_mode_threshold = 40000;
@@ -1236,8 +1235,7 @@ static int ci_populate_single_memory_level(
 	/* default set to low watermark. Highest level will be set to high later.*/
 	memory_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
 
 	/* stutter mode not support on ci */
 

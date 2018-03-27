@@ -2777,8 +2777,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	struct PP_Clocks minimum_clocks = {0};
 	bool disable_mclk_switching;
 	bool disable_mclk_switching_for_frame_lock;
-	struct cgs_display_info info = {0};
-	struct cgs_mode_info mode_info = {0};
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -2787,7 +2785,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	int32_t count;
 	int32_t stable_pstate_sclk = 0, stable_pstate_mclk = 0;
 
-	info.mode_info = &mode_info;
 	data->battery_state = (PP_StateUILabel_Battery ==
 			request_ps->classification.ui_label);
 
@@ -2809,10 +2806,8 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
-	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	minimum_clocks.engineClock = hwmgr->display_config->min_core_set_clock;
+	minimum_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_StablePState)) {
@@ -2843,12 +2838,12 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
 
 
-	if (info.display_count == 0)
+	if (hwmgr->display_config->num_display == 0)
 		disable_mclk_switching = false;
 	else
-		disable_mclk_switching = ((1 < info.display_count) ||
+		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) ||
 					  disable_mclk_switching_for_frame_lock ||
-					  smu7_vblank_too_short(hwmgr, mode_info.vblank_time_us));
+					  smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time));
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
@@ -3479,7 +3474,6 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 			[smu7_ps->performance_level_count - 1].memory_clock;
 	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
-	struct cgs_display_info info = {0};
 
 	for (i = 0; i < sclk_table->count; i++) {
 		if (sclk == sclk_table->dpm_levels[i].value)
@@ -3506,9 +3500,8 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	if (i >= mclk_table->count)
 		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
 
-	if (data->display_timing.num_existing_displays != info.display_count)
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		data->need_update_smu7_dpm_table |= DPMTABLE_UPDATE_MCLK;
 
 	return 0;
@@ -3907,15 +3900,8 @@ smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 static int
 smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
-	uint32_t num_active_displays = 0;
-	struct cgs_display_info info = {0};
-
-	info.mode_info = NULL;
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	num_active_displays = info.display_count;
-
-	if (num_active_displays > 1 && hwmgr->display_config.multi_monitor_in_sync != true)
+	if (hwmgr->display_config->num_display > 1 &&
+			!hwmgr->display_config->multi_monitor_in_sync)
 		smu7_notify_smc_display_change(hwmgr, false);
 
 	return 0;
@@ -3930,33 +3916,24 @@ smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	uint32_t num_active_displays = 0;
 	uint32_t display_gap = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL);
 	uint32_t display_gap2;
 	uint32_t pre_vbi_time_in_us;
 	uint32_t frame_time_in_us;
-	uint32_t ref_clock;
-	uint32_t refresh_rate = 0;
-	struct cgs_display_info info = {0};
-	struct cgs_mode_info mode_info = {0};
+	uint32_t ref_clock, refresh_rate;
 
-	info.mode_info = &mode_info;
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	num_active_displays = info.display_count;
-
-	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (num_active_displays > 0) ? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGNORE);
+	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (hwmgr->display_config->num_display > 0) ? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGNORE);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL, display_gap);
 
 	ref_clock =  amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
-
-	refresh_rate = mode_info.refresh_rate;
+	refresh_rate = hwmgr->display_config->vrefresh;
 
 	if (0 == refresh_rate)
 		refresh_rate = 60;
 
 	frame_time_in_us = 1000000 / refresh_rate;
 
-	pre_vbi_time_in_us = frame_time_in_us - 200 - mode_info.vblank_time_us;
+	pre_vbi_time_in_us = frame_time_in_us - 200 - hwmgr->display_config->min_vblank_time;
 
 	data->frame_time_x2 = frame_time_in_us * 2 / 100;
 
@@ -4036,17 +4013,14 @@ smu7_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	bool is_update_required = false;
-	struct cgs_display_info info = {0, 0, NULL};
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	if (data->display_timing.num_existing_displays != info.display_count)
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		is_update_required = true;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
-		if (data->display_timing.min_clock_in_sr != hwmgr->display_config.min_core_set_clock_in_sr &&
+		if (data->display_timing.min_clock_in_sr != hwmgr->display_config->min_core_set_clock_in_sr &&
 			(data->display_timing.min_clock_in_sr >= SMU7_MINIMUM_ENGINE_CLOCK ||
-			hwmgr->display_config.min_core_set_clock_in_sr >= SMU7_MINIMUM_ENGINE_CLOCK))
+			hwmgr->display_config->min_core_set_clock_in_sr >= SMU7_MINIMUM_ENGINE_CLOCK))
 			is_update_required = true;
 	}
 	return is_update_required;

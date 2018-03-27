@@ -54,6 +54,7 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 	hwmgr->chip_family = adev->family;
 	hwmgr->chip_id = adev->asic_type;
 	hwmgr->feature_mask = amdgpu_pp_feature_mask;
+	hwmgr->display_config = &adev->pm.pm_display_cfg;
 	adev->powerplay.pp_handle = hwmgr;
 	adev->powerplay.pp_funcs = &pp_dpm_funcs;
 	return 0;

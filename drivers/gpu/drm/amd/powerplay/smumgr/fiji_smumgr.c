@@ -988,11 +988,11 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 
 	threshold = clock * data->fast_watermark_threshold / 100;
 
-	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+	data->display_timing.min_clock_in_sr = hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = smu7_get_sleep_divider_id_from_clock(clock,
-								hwmgr->display_config.min_core_set_clock_in_sr);
+								hwmgr->display_config->min_core_set_clock_in_sr);
 
 
 	/* Default to slow, highest DPM level will be

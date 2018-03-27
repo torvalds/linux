@@ -942,11 +942,11 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	level->DownHyst = data->current_profile_setting.sclk_down_hyst;
 	level->VoltageDownHyst = 0;
 	level->PowerThrottle = 0;
-	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+	data->display_timing.min_clock_in_sr = hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = smu7_get_sleep_divider_id_from_clock(clock,
-								hwmgr->display_config.min_core_set_clock_in_sr);
+								hwmgr->display_config->min_core_set_clock_in_sr);
 
 	/* Default to slow, highest DPM level will be
 	 * set to PPSMC_DISPLAY_WATERMARK_LOW later.
@@ -1076,11 +1076,9 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int result = 0;
-	struct cgs_display_info info = {0, 0, NULL};
 	uint32_t mclk_stutter_mode_threshold = 40000;
 	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	if (hwmgr->od_enabled)
 		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
@@ -1106,7 +1104,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	mem_level->StutterEnable = false;
 	mem_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&

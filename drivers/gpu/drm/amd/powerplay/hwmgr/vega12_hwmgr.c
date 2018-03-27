@@ -1260,23 +1260,18 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 {
 	struct vega12_hwmgr *data =
 			(struct vega12_hwmgr *)(hwmgr->backend);
-	uint32_t num_active_disps = 0;
-	struct cgs_display_info info = {0};
 	struct PP_Clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
 	uint32_t clk_request;
 
-	info.mode_info = NULL;
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	num_active_disps = info.display_count;
-	if (num_active_disps > 1)
+	if (hwmgr->display_config->num_display > 1)
 		vega12_notify_smc_display_change(hwmgr, false);
 	else
 		vega12_notify_smc_display_change(hwmgr, true);
 
-	min_clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
-	min_clocks.dcefClockInSR = hwmgr->display_config.min_dcef_deep_sleep_set_clk;
-	min_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
+	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
+	min_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
 	if (data->smu_features[GNLD_DPM_DCEFCLK].supported) {
 		clock_req.clock_type = amd_pp_dcef_clock;
@@ -1832,9 +1827,7 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	int result = 0;
-	uint32_t num_turned_on_displays = 1;
 	Watermarks_t *wm_table = &(data->smc_state_table.water_marks_table);
-	struct cgs_display_info info = {0};
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
@@ -1846,12 +1839,9 @@ static int vega12_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 		data->smu_features[GNLD_DPM_DCEFCLK].supported &&
-		data->smu_features[GNLD_DPM_SOCCLK].supported) {
-		cgs_get_active_displays_info(hwmgr->device, &info);
-		num_turned_on_displays = info.display_count;
+		data->smu_features[GNLD_DPM_SOCCLK].supported)
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_NumOfDisplays, num_turned_on_displays);
-	}
+			PPSMC_MSG_NumOfDisplays, hwmgr->display_config->num_display);
 
 	return result;
 }
@@ -1894,15 +1884,12 @@ vega12_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmg
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
 	bool is_update_required = false;
-	struct cgs_display_info info = {0, 0, NULL};
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	if (data->display_timing.num_existing_displays != info.display_count)
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		is_update_required = true;
 
 	if (data->registry_data.gfx_clk_deep_sleep_support) {
-		if (data->display_timing.min_clock_in_sr != hwmgr->display_config.min_core_set_clock_in_sr)
+		if (data->display_timing.min_clock_in_sr != hwmgr->display_config->min_core_set_clock_in_sr)
 			is_update_required = true;
 	}
 

@@ -3028,7 +3028,6 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	bool disable_mclk_switching_for_frame_lock;
 	bool disable_mclk_switching_for_vr;
 	bool force_mclk_high;
-	struct cgs_display_info info = {0};
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
 	struct vega10_hwmgr *data = hwmgr->backend;
@@ -3063,11 +3062,9 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
 	/* result = PHM_CheckVBlankTime(hwmgr, &vblankTooShort);*/
-	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
-	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	minimum_clocks.engineClock = hwmgr->display_config->min_core_set_clock;
+	minimum_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
 	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
 		stable_pstate_sclk_dpm_percentage =
@@ -3107,10 +3104,10 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		PP_CAP(PHM_PlatformCaps_DisableMclkSwitchForVR);
 	force_mclk_high = PP_CAP(PHM_PlatformCaps_ForceMclkHigh);
 
-	if (info.display_count == 0)
+	if (hwmgr->display_config->num_display == 0)
 		disable_mclk_switching = false;
 	else
-		disable_mclk_switching = (info.display_count > 1) ||
+		disable_mclk_switching = (hwmgr->display_config->num_display > 1) ||
 			disable_mclk_switching_for_frame_lock ||
 			disable_mclk_switching_for_vr ||
 			force_mclk_high;
@@ -3186,7 +3183,6 @@ static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, co
 			[vega10_ps->performance_level_count - 1].mem_clock;
 	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
-	struct cgs_display_info info = {0};
 
 	data->need_update_dpm_table = 0;
 
@@ -3211,10 +3207,8 @@ static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, co
 				data->need_update_dpm_table |= DPMTABLE_UPDATE_SCLK;
 		}
 
-		cgs_get_active_displays_info(hwmgr->device, &info);
-
 		if (data->display_timing.num_existing_displays !=
-				info.display_count)
+				hwmgr->display_config->num_display)
 			data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
 	} else {
 		for (i = 0; i < sclk_table->count; i++) {
@@ -3242,13 +3236,11 @@ static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, co
 				break;
 		}
 
-		cgs_get_active_displays_info(hwmgr->device, &info);
-
 		if (i >= mclk_table->count)
 			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
 
 		if (data->display_timing.num_existing_displays !=
-				info.display_count ||
+				hwmgr->display_config->num_display ||
 				i >= mclk_table->count)
 			data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
 	}
@@ -3956,26 +3948,18 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table = table_info->vdd_dep_on_mclk;
 	uint32_t idx;
-	uint32_t num_active_disps = 0;
-	struct cgs_display_info info = {0};
 	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
 	struct pp_display_clock_request clock_req;
 
-	info.mode_info = NULL;
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	num_active_disps = info.display_count;
-
-	if (num_active_disps > 1)
+	if (hwmgr->display_config->num_display > 1)
 		vega10_notify_smc_display_change(hwmgr, false);
 	else
 		vega10_notify_smc_display_change(hwmgr, true);
 
-	min_clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
-	min_clocks.dcefClockInSR = hwmgr->display_config.min_dcef_deep_sleep_set_clk;
-	min_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
+	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
+	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
+	min_clocks.memoryClock = hwmgr->display_config->min_mem_set_clock;
 
 	for (i = 0; i < dpm_table->count; i++) {
 		if (dpm_table->dpm_levels[i].value == min_clocks.dcefClock)
@@ -4501,10 +4485,8 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
-	int result = 0;
-	uint32_t num_turned_on_displays = 1;
 	Watermarks_t *wm_table = &(data->smc_state_table.water_marks_table);
-	struct cgs_display_info info = {0};
+	int result = 0;
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
@@ -4514,10 +4496,8 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 	}
 
 	if (data->water_marks_bitmap & WaterMarksLoaded) {
-		cgs_get_active_displays_info(hwmgr->device, &info);
-		num_turned_on_displays = info.display_count;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_NumOfDisplays, num_turned_on_displays);
+			PPSMC_MSG_NumOfDisplays, hwmgr->display_config->num_display);
 	}
 
 	return result;
@@ -4603,15 +4583,12 @@ vega10_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmg
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 	bool is_update_required = false;
-	struct cgs_display_info info = {0, 0, NULL};
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	if (data->display_timing.num_existing_displays != info.display_count)
+	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		is_update_required = true;
 
 	if (PP_CAP(PHM_PlatformCaps_SclkDeepSleep)) {
-		if (data->display_timing.min_clock_in_sr != hwmgr->display_config.min_core_set_clock_in_sr)
+		if (data->display_timing.min_clock_in_sr != hwmgr->display_config->min_core_set_clock_in_sr)
 			is_update_required = true;
 	}
 

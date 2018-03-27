@@ -265,13 +265,11 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (display_config == NULL)
 		return -EINVAL;
 
-	hwmgr->display_config = *display_config;
-
 	if (NULL != hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
-		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, hwmgr->display_config.min_dcef_deep_sleep_set_clk);
+		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
 
-	for (index = 0; index < hwmgr->display_config.num_path_including_non_display; index++) {
-		if (hwmgr->display_config.displays[index].controller_id != 0)
+	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+		if (display_config->displays[index].controller_id != 0)
 			number_of_active_display++;
 	}
 
