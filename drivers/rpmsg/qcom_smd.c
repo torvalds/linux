@@ -997,8 +997,26 @@ static struct device_node *qcom_smd_match_channel(struct device_node *edge_node,
 	return NULL;
 }
 
+static int qcom_smd_announce_create(struct rpmsg_device *rpdev)
+{
+	struct qcom_smd_endpoint *qept = to_smd_endpoint(rpdev->ept);
+	struct qcom_smd_channel *channel = qept->qsch;
+	unsigned long flags;
+	bool kick_state;
+
+	spin_lock_irqsave(&channel->recv_lock, flags);
+	kick_state = qcom_smd_channel_intr(channel);
+	spin_unlock_irqrestore(&channel->recv_lock, flags);
+
+	if (kick_state)
+		schedule_work(&channel->edge->state_work);
+
+	return 0;
+}
+
 static const struct rpmsg_device_ops qcom_smd_device_ops = {
 	.create_ept = qcom_smd_create_ept,
+	.announce_create = qcom_smd_announce_create,
 };
 
 static const struct rpmsg_endpoint_ops qcom_smd_endpoint_ops = {
