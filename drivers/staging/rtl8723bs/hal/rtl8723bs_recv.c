@@ -75,8 +75,9 @@ static void update_recvframe_attrib(struct adapter *padapter,
 		pattrib->mdata = (u8)prxreport->md;
 
 		pattrib->data_rate = (u8)prxreport->rx_rate;
-	} else
+	} else {
 		pattrib->pkt_len = (u16)prxreport->pktlen;
+	}
 }
 
 /*
