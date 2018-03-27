@@ -162,7 +162,8 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	}
 }
 
-static void rtl8723bs_c2h_packet_handler(struct adapter *padapter, u8 *pbuf, u16 length)
+static void rtl8723bs_c2h_packet_handler(struct adapter *padapter,
+					 u8 *pbuf, u16 length)
 {
 	u8 *tmp = NULL;
 	u8 res = false;
