@@ -35,7 +35,6 @@
 struct ipu_crtc {
 	struct device		*dev;
 	struct drm_crtc		base;
-	struct imx_drm_crtc	*imx_crtc;
 
 	/* plane[0] is the full plane, plane[1] is the partial plane */
 	struct ipu_plane	*plane[2];
