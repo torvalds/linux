@@ -1161,6 +1161,17 @@ static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
 	return 0;
 }
 
+/* optionally pass new dynamic kcontrol to component driver. */
+static int soc_tplg_add_route(struct soc_tplg *tplg,
+	struct snd_soc_dapm_route *route)
+{
+	if (tplg->comp && tplg->ops && tplg->ops->dapm_route_load)
+		return tplg->ops->dapm_route_load(tplg->comp, tplg->index,
+			route);
+
+	return 0;
+}
+
 static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
@@ -1208,6 +1219,8 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 			route.control = NULL;
 		else
 			route.control = elem->control;
+
+		soc_tplg_add_route(tplg, &route);
 
 		/* add route, but keep going if some fail */
 		snd_soc_dapm_add_routes(dapm, &route, 1);

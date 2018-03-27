@@ -32,6 +32,7 @@ struct snd_kcontrol_new;
 struct snd_soc_dai_link;
 struct snd_soc_dai_driver;
 struct snd_soc_dai;
+struct snd_soc_dapm_route;
 
 /* object scan be loaded and unloaded in groups with identfying indexes */
 #define SND_SOC_TPLG_INDEX_ALL	0	/* ID that matches all FW objects */
@@ -114,6 +115,12 @@ struct snd_soc_tplg_ops {
 	int (*control_load)(struct snd_soc_component *, int index,
 		struct snd_kcontrol_new *, struct snd_soc_tplg_ctl_hdr *);
 	int (*control_unload)(struct snd_soc_component *,
+		struct snd_soc_dobj *);
+
+	/* DAPM graph route element loading and unloading */
+	int (*dapm_route_load)(struct snd_soc_component *, int index,
+		struct snd_soc_dapm_route *route);
+	int (*dapm_route_unload)(struct snd_soc_component *,
 		struct snd_soc_dobj *);
 
 	/* external widget init - used for any driver specific init */
