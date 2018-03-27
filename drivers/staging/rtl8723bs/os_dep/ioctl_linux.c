@@ -2131,8 +2131,8 @@ static int rtw_wx_set_gen_ie(struct net_device *dev,
 }
 
 static int rtw_wx_set_auth(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct iw_param *param = (struct iw_param*)&(wrqu->param);
@@ -2189,7 +2189,7 @@ static int rtw_wx_set_auth(struct net_device *dev,
 	case IW_AUTH_80211_AUTH_ALG:
 		/*
 		 *  It's the starting point of a link layer connection using wpa_supplicant
-		*/
+		 */
 		if (check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 			LeaveAllPowerSaveMode(padapter);
 			rtw_disassoc_cmd(padapter, 500, false);
