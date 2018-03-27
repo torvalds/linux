@@ -125,7 +125,7 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 {
 	u64 *rate;
 	int ret, cnt;
-	bool rate_discrete;
+	bool rate_discrete = false;
 	u32 tot_rate_cnt = 0, rates_flag;
 	u16 num_returned, num_remaining;
 	struct scmi_xfer *t;
@@ -147,7 +147,7 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 
 		ret = scmi_do_xfer(handle, t);
 		if (ret)
-			break;
+			goto err;
 
 		rates_flag = le32_to_cpu(rlist->num_rates_flags);
 		num_remaining = NUM_REMAINING(rates_flag);
@@ -185,6 +185,7 @@ scmi_clock_describe_rates_get(const struct scmi_handle *handle, u32 clk_id,
 	if (rate_discrete)
 		clk->list.num_rates = tot_rate_cnt;
 
+err:
 	scmi_one_xfer_put(handle, t);
 	return ret;
 }

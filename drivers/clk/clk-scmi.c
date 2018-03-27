@@ -172,15 +172,8 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 		}
 	}
 
-	return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
-}
-
-static void scmi_clocks_remove(struct scmi_device *sdev)
-{
-	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
-
-	of_clk_del_provider(np);
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+					   clk_data);
 }
 
 static const struct scmi_device_id scmi_id_table[] = {
@@ -192,7 +185,6 @@ MODULE_DEVICE_TABLE(scmi, scmi_id_table);
 static struct scmi_driver scmi_clocks_driver = {
 	.name = "scmi-clocks",
 	.probe = scmi_clocks_probe,
-	.remove = scmi_clocks_remove,
 	.id_table = scmi_id_table,
 };
 module_scmi_driver(scmi_clocks_driver);
