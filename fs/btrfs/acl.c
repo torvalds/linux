@@ -65,9 +65,6 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-/*
- * Needs to be called with fs_mutex held
- */
 static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 			 struct inode *inode, struct posix_acl *acl, int type)
 {
@@ -127,11 +124,6 @@ int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	return ret;
 }
 
-/*
- * btrfs_init_acl is already generally called under fs_mutex, so the locking
- * stuff has been fixed to work with that.  If the locking stuff changes, we
- * need to re-evaluate the acl locking stuff.
- */
 int btrfs_init_acl(struct btrfs_trans_handle *trans,
 		   struct inode *inode, struct inode *dir)
 {
