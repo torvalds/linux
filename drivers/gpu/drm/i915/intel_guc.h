@@ -163,6 +163,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 void intel_guc_to_host_event_handler(struct intel_guc *guc);
 void intel_guc_to_host_event_handler_nop(struct intel_guc *guc);
 void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc);
+void intel_guc_to_host_process_recv_msg(struct intel_guc *guc, u32 msg);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);

@@ -694,8 +694,17 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 static void ct_process_request(struct intel_guc_ct *ct,
 			       u32 action, u32 len, const u32 *payload)
 {
+	struct intel_guc *guc = ct_to_guc(ct);
+
 	switch (action) {
+	case INTEL_GUC_ACTION_DEFAULT:
+		if (unlikely(len < 1))
+			goto fail_unexpected;
+		intel_guc_to_host_process_recv_msg(guc, *payload);
+		break;
+
 	default:
+fail_unexpected:
 		DRM_ERROR("CT: unexpected request %x %*phn\n",
 			  action, 4 * len, payload);
 		break;
