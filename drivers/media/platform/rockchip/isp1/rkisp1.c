@@ -445,7 +445,7 @@ static int rkisp1_isp_start(struct rkisp1_device *dev)
 	/* Activate ISP */
 	val = readl(base + CIF_ISP_CTRL);
 	val |= CIF_ISP_CTRL_ISP_CFG_UPD | CIF_ISP_CTRL_ISP_ENABLE |
-	       CIF_ISP_CTRL_ISP_INFORM_ENABLE;
+	       CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_CFG_UPD_PERMANENT;
 	writel(val, base + CIF_ISP_CTRL);
 
 	/* XXX: Is the 1000us too long?
