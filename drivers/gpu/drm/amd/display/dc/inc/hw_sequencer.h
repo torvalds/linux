@@ -32,6 +32,8 @@
 #include "inc/hw/link_encoder.h"
 #include "core_status.h"
 
+#define EDP_BACKLIGHT_RAMP_DISABLE_LEVEL 0xFFFFFFFF
+
 enum pipe_gating_control {
 	PIPE_GATING_CONTROL_DISABLE = 0,
 	PIPE_GATING_CONTROL_ENABLE,

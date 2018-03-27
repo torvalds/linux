@@ -1982,7 +1982,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		return false;
 
 	if (stream) {
-		if (stream->bl_pwm_level == 0)
+		if (stream->bl_pwm_level == EDP_BACKLIGHT_RAMP_DISABLE_LEVEL)
 			frame_ramp = 0;
 
 		((struct dc_stream_state *)stream)->bl_pwm_level = level;

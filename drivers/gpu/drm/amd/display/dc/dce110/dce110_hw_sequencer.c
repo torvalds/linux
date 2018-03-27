@@ -1036,7 +1036,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_backlight_control(link, true);
-		stream->bl_pwm_level = 0;
+		stream->bl_pwm_level = EDP_BACKLIGHT_RAMP_DISABLE_LEVEL;
 	}
 }
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
