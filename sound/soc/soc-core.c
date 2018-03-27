@@ -2143,6 +2143,14 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 			if (!dai_link->stream_name)
 				dai_link->stream_name = dai_link->name;
 		}
+
+		/* Inform userspace we are using alternate topology */
+		if (platform->driver->topology_name_prefix) {
+			snprintf(card->topology_shortname, 32, "%s-%s",
+				 platform->driver->topology_name_prefix,
+				 card->name);
+			card->name = card->topology_shortname;
+		}
 	}
 }
 

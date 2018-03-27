@@ -1015,6 +1015,7 @@ struct snd_soc_platform_driver {
 
 	/* this platform uses topology and ignore machine driver FEs */
 	const char *ignore_machine;
+	const char *topology_name_prefix;
 	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
 				  struct snd_pcm_hw_params *params);
 	bool use_dai_pcm_id;	/* use the DAI link PCM ID as PCM device number */
@@ -1167,6 +1168,7 @@ struct snd_soc_card {
 	const char *long_name;
 	const char *driver_name;
 	char dmi_longname[80];
+	char topology_shortname[32];
 
 	struct device *dev;
 	struct snd_card *snd_card;
