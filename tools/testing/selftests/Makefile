@@ -14,6 +14,7 @@ TARGETS += gpio
 TARGETS += intel_pstate
 TARGETS += ipc
 TARGETS += kcmp
+TARGETS += kvm
 TARGETS += lib
 TARGETS += membarrier
 TARGETS += memfd
