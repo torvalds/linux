@@ -1788,6 +1788,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid);
 void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 
 u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
+enum nl80211_smps_mode
+ieee80211_smps_mode_to_smps_mode(enum ieee80211_smps_mode smps);
 
 /* VHT */
 void

@@ -2883,7 +2883,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (rx->sta->sta.smps_mode == smps_mode)
 				goto handled;
 			rx->sta->sta.smps_mode = smps_mode;
-			sta_opmode.smps_mode = smps_mode;
+			sta_opmode.smps_mode =
+				ieee80211_smps_mode_to_smps_mode(smps_mode);
 			sta_opmode.changed = STA_OPMODE_SMPS_MODE_CHANGED;
 
 			sband = rx->local->hw.wiphy->bands[status->band];
