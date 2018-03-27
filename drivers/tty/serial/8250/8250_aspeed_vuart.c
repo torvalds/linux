@@ -179,6 +179,30 @@ static void aspeed_vuart_shutdown(struct uart_port *uart_port)
 	serial8250_do_shutdown(uart_port);
 }
 
+static void aspeed_vuart_set_throttle(struct uart_port *port, bool throttle)
+{
+	unsigned char irqs = UART_IER_RLSI | UART_IER_RDI;
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	up->ier &= ~irqs;
+	if (!throttle)
+		up->ier |= irqs;
+	serial_out(up, UART_IER, up->ier);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static void aspeed_vuart_throttle(struct uart_port *port)
+{
+	aspeed_vuart_set_throttle(port, true);
+}
+
+static void aspeed_vuart_unthrottle(struct uart_port *port)
+{
+	aspeed_vuart_set_throttle(port, false);
+}
+
 static int aspeed_vuart_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port port;
@@ -208,6 +232,9 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	port.port.mapsize = resource_size(res);
 	port.port.startup = aspeed_vuart_startup;
 	port.port.shutdown = aspeed_vuart_shutdown;
+	port.port.throttle = aspeed_vuart_throttle;
+	port.port.unthrottle = aspeed_vuart_unthrottle;
+	port.port.status = UPSTAT_SYNC_FIFO;
 	port.port.dev = &pdev->dev;
 
 	rc = sysfs_create_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
