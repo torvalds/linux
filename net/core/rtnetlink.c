@@ -460,11 +460,11 @@ static void rtnl_lock_unregistering_all(void)
 void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	/* Close the race with cleanup_net() */
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	rtnl_lock_unregistering_all();
 	__rtnl_link_unregister(ops);
 	rtnl_unlock();
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL_GPL(rtnl_link_unregister);
 

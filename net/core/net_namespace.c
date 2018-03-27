@@ -41,10 +41,10 @@ EXPORT_SYMBOL(init_net);
 
 static bool init_net_initialized;
 /*
- * net_sem: protects: pernet_list, net_generic_ids,
+ * pernet_ops_rwsem: protects: pernet_list, net_generic_ids,
  * init_net_initialized and first_device pointer.
  */
-DECLARE_RWSEM(net_sem);
+DECLARE_RWSEM(pernet_ops_rwsem);
 
 #define MIN_PERNET_OPS_ID	\
 	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))
@@ -72,7 +72,7 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	BUG_ON(id < MIN_PERNET_OPS_ID);
 
 	old_ng = rcu_dereference_protected(net->gen,
-					   lockdep_is_held(&net_sem));
+					   lockdep_is_held(&pernet_ops_rwsem));
 	if (old_ng->s.len > id) {
 		old_ng->ptr[id] = data;
 		return 0;
@@ -289,7 +289,7 @@ struct net *get_net_ns_by_id(struct net *net, int id)
  */
 static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 {
-	/* Must be called with net_sem held */
+	/* Must be called with pernet_ops_rwsem held */
 	const struct pernet_operations *ops, *saved_ops;
 	int error = 0;
 	LIST_HEAD(net_exit_list);
@@ -422,13 +422,13 @@ struct net *copy_net_ns(unsigned long flags,
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
 
-	rv = down_read_killable(&net_sem);
+	rv = down_read_killable(&pernet_ops_rwsem);
 	if (rv < 0)
 		goto put_userns;
 
 	rv = setup_net(net, user_ns);
 
-	up_read(&net_sem);
+	up_read(&pernet_ops_rwsem);
 
 	if (rv < 0) {
 put_userns:
@@ -480,7 +480,7 @@ static void cleanup_net(struct work_struct *work)
 	/* Atomically snapshot the list of namespaces to cleanup */
 	net_kill_list = llist_del_all(&cleanup_list);
 
-	down_read(&net_sem);
+	down_read(&pernet_ops_rwsem);
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
@@ -519,7 +519,7 @@ static void cleanup_net(struct work_struct *work)
 	list_for_each_entry_reverse(ops, &pernet_list, list)
 		ops_free_list(ops, &net_exit_list);
 
-	up_read(&net_sem);
+	up_read(&pernet_ops_rwsem);
 
 	/* Ensure there are no outstanding rcu callbacks using this
 	 * network namespace.
@@ -546,8 +546,8 @@ static void cleanup_net(struct work_struct *work)
  */
 void net_ns_barrier(void)
 {
-	down_write(&net_sem);
-	up_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL(net_ns_barrier);
 
@@ -869,12 +869,12 @@ static int __init net_ns_init(void)
 
 	rcu_assign_pointer(init_net.gen, ng);
 
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	if (setup_net(&init_net, &init_user_ns))
 		panic("Could not setup the initial network namespace");
 
 	init_net_initialized = true;
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 
 	register_pernet_subsys(&net_ns_ops);
 
@@ -1013,9 +1013,9 @@ static void unregister_pernet_operations(struct pernet_operations *ops)
 int register_pernet_subsys(struct pernet_operations *ops)
 {
 	int error;
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	error =  register_pernet_operations(first_device, ops);
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 	return error;
 }
 EXPORT_SYMBOL_GPL(register_pernet_subsys);
@@ -1031,9 +1031,9 @@ EXPORT_SYMBOL_GPL(register_pernet_subsys);
  */
 void unregister_pernet_subsys(struct pernet_operations *ops)
 {
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	unregister_pernet_operations(ops);
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
 
@@ -1059,11 +1059,11 @@ EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
 int register_pernet_device(struct pernet_operations *ops)
 {
 	int error;
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	error = register_pernet_operations(&pernet_list, ops);
 	if (!error && (first_device == &pernet_list))
 		first_device = &ops->list;
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 	return error;
 }
 EXPORT_SYMBOL_GPL(register_pernet_device);
@@ -1079,11 +1079,11 @@ EXPORT_SYMBOL_GPL(register_pernet_device);
  */
 void unregister_pernet_device(struct pernet_operations *ops)
 {
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	if (&ops->list == first_device)
 		first_device = first_device->next;
 	unregister_pernet_operations(ops);
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_device);
 
