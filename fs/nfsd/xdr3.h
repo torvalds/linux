@@ -90,6 +90,7 @@ struct nfsd3_symlinkargs {
 	char *			tname;
 	unsigned int		tlen;
 	struct iattr		attrs;
+	struct kvec		first;
 };
 
 struct nfsd3_readdirargs {

@@ -283,6 +283,16 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp)
 	struct nfsd3_diropres *resp = rqstp->rq_resp;
 	__be32	nfserr;
 
+	if (argp->tlen == 0)
+		RETURN_STATUS(nfserr_inval);
+	if (argp->tlen > NFS3_MAXPATHLEN)
+		RETURN_STATUS(nfserr_nametoolong);
+
+	argp->tname = svc_fill_symlink_pathname(rqstp, &argp->first,
+						argp->tlen);
+	if (IS_ERR(argp->tname))
+		RETURN_STATUS(nfserrno(PTR_ERR(argp->tname)));
+
 	dprintk("nfsd: SYMLINK(3)  %s %.*s -> %.*s\n",
 				SVCFH_fmt(&argp->ffh),
 				argp->flen, argp->fname,

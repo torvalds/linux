@@ -110,6 +110,7 @@ struct nfsd4_create {
 		struct {
 			u32 datalen;
 			char *data;
+			struct kvec first;
 		} link;   /* NF4LNK */
 		struct {
 			u32 specdata1;
@@ -124,6 +125,7 @@ struct nfsd4_create {
 };
 #define cr_datalen	u.link.datalen
 #define cr_data		u.link.data
+#define cr_first	u.link.first
 #define cr_specdata1	u.dev.specdata1
 #define cr_specdata2	u.dev.specdata2
 
