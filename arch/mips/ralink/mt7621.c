@@ -170,6 +170,28 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	u32 n1;
 	u32 rev;
 
+	/* Early detection of CMP support */
+	mips_cm_probe();
+	mips_cpc_probe();
+
+	if (mips_cps_numiocu(0)) {
+		/*
+		 * mips_cm_probe() wipes out bootloader
+		 * config for CM regions and we have to configure them
+		 * again. This SoC cannot talk to pamlbus devices
+		 * witout proper iocu region set up.
+		 *
+		 * FIXME: it would be better to do this with values
+		 * from DT, but we need this very early because
+		 * without this we cannot talk to pretty much anything
+		 * including serial.
+		 */
+		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
+		write_gcr_reg0_mask(~MT7621_PALMBUS_SIZE |
+				    CM_GCR_REGn_MASK_CMTGT_IOCU0);
+		__sync();
+	}
+
 	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
 	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
 
@@ -194,26 +216,6 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 	rt2880_pinmux_data = mt7621_pinmux_data;
 
-	/* Early detection of CMP support */
-	mips_cm_probe();
-	mips_cpc_probe();
-
-	if (mips_cps_numiocu(0)) {
-		/*
-		 * mips_cm_probe() wipes out bootloader
-		 * config for CM regions and we have to configure them
-		 * again. This SoC cannot talk to pamlbus devices
-		 * witout proper iocu region set up.
-		 *
-		 * FIXME: it would be better to do this with values
-		 * from DT, but we need this very early because
-		 * without this we cannot talk to pretty much anything
-		 * including serial.
-		 */
-		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
-		write_gcr_reg0_mask(~MT7621_PALMBUS_SIZE |
-				    CM_GCR_REGn_MASK_CMTGT_IOCU0);
-	}
 
 	if (!register_cps_smp_ops())
 		return;

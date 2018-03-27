@@ -655,13 +655,17 @@ static int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
 }
 
 static struct mlxsw_sp_span_inspected_port *
-mlxsw_sp_span_entry_bound_port_find(struct mlxsw_sp_port *port,
-				    struct mlxsw_sp_span_entry *span_entry)
+mlxsw_sp_span_entry_bound_port_find(struct mlxsw_sp_span_entry *span_entry,
+				    enum mlxsw_sp_span_type type,
+				    struct mlxsw_sp_port *port,
+				    bool bind)
 {
 	struct mlxsw_sp_span_inspected_port *p;
 
 	list_for_each_entry(p, &span_entry->bound_ports_list, list)
-		if (port->local_port == p->local_port)
+		if (type == p->type &&
+		    port->local_port == p->local_port &&
+		    bind == p->bound)
 			return p;
 	return NULL;
 }
@@ -691,7 +695,21 @@ mlxsw_sp_span_inspected_port_add(struct mlxsw_sp_port *port,
 	struct mlxsw_sp_span_inspected_port *inspected_port;
 	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
 	char sbib_pl[MLXSW_REG_SBIB_LEN];
+	int i;
 	int err;
+
+	/* A given (source port, direction) can only be bound to one analyzer,
+	 * so if a binding is requested, check for conflicts.
+	 */
+	if (bind)
+		for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+			struct mlxsw_sp_span_entry *curr =
+				&mlxsw_sp->span.entries[i];
+
+			if (mlxsw_sp_span_entry_bound_port_find(curr, type,
+								port, bind))
+				return -EEXIST;
+		}
 
 	/* if it is an egress SPAN, bind a shared buffer to it */
 	if (type == MLXSW_SP_SPAN_EGRESS) {
@@ -720,6 +738,7 @@ mlxsw_sp_span_inspected_port_add(struct mlxsw_sp_port *port,
 	}
 	inspected_port->local_port = port->local_port;
 	inspected_port->type = type;
+	inspected_port->bound = bind;
 	list_add_tail(&inspected_port->list, &span_entry->bound_ports_list);
 
 	return 0;
@@ -746,7 +765,8 @@ mlxsw_sp_span_inspected_port_del(struct mlxsw_sp_port *port,
 	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
 	char sbib_pl[MLXSW_REG_SBIB_LEN];
 
-	inspected_port = mlxsw_sp_span_entry_bound_port_find(port, span_entry);
+	inspected_port = mlxsw_sp_span_entry_bound_port_find(span_entry, type,
+							     port, bind);
 	if (!inspected_port)
 		return;
 

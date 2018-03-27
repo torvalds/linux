@@ -349,6 +349,9 @@ static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp, __le16 flow_handle)
 	if (rc)
 		netdev_info(bp->dev, "Error: %s: flow_handle=0x%x rc=%d",
 			    __func__, flow_handle, rc);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -484,13 +487,15 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	req.action_flags = cpu_to_le16(action_flags);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc)
 		*flow_handle = resp->flow_handle;
-
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (rc == HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR)
+		rc = -ENOSPC;
+	else if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -561,6 +566,8 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -576,6 +583,9 @@ static int hwrm_cfa_decap_filter_free(struct bnxt *bp,
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -624,6 +634,8 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -639,6 +651,9 @@ static int hwrm_cfa_encap_record_free(struct bnxt *bp,
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -1269,11 +1284,8 @@ static int bnxt_tc_del_flow(struct bnxt *bp,
 	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
 					   tc_info->flow_ht_params);
-	if (!flow_node) {
-		netdev_info(bp->dev, "ERROR: no flow_node for cookie %lx",
-			    tc_flow_cmd->cookie);
+	if (!flow_node)
 		return -EINVAL;
-	}
 
 	return __bnxt_tc_del_flow(bp, flow_node);
 }
@@ -1290,11 +1302,8 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
 					   tc_info->flow_ht_params);
-	if (!flow_node) {
-		netdev_info(bp->dev, "Error: no flow_node for cookie %lx",
-			    tc_flow_cmd->cookie);
+	if (!flow_node)
 		return -1;
-	}
 
 	flow = &flow_node->flow;
 	curr_stats = &flow->stats;
@@ -1344,8 +1353,10 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 	} else {
 		netdev_info(bp->dev, "error rc=%d", rc);
 	}
-
 	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 

@@ -22,7 +22,6 @@
 #include <linux/time.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-#include <scsi/scsi_device.h>
 #include <scsi/scsi_dh.h>
 #include <linux/atomic.h>
 #include <linux/blk-mq.h>
@@ -223,6 +222,16 @@ static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
 
 	dm_table_set_type(ti->table, m->queue_mode);
 
+	/*
+	 * Init fields that are only used when a scsi_dh is attached
+	 * - must do this unconditionally (really doesn't hurt non-SCSI uses)
+	 */
+	set_bit(MPATHF_QUEUE_IO, &m->flags);
+	atomic_set(&m->pg_init_in_progress, 0);
+	atomic_set(&m->pg_init_count, 0);
+	m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
+	init_waitqueue_head(&m->pg_init_wait);
+
 	return 0;
 }
 
@@ -331,7 +340,6 @@ static void __switch_pg(struct multipath *m, struct priority_group *pg)
 		set_bit(MPATHF_PG_INIT_REQUIRED, &m->flags);
 		set_bit(MPATHF_QUEUE_IO, &m->flags);
 	} else {
-		/* FIXME: not needed if no scsi_dh is attached */
 		clear_bit(MPATHF_PG_INIT_REQUIRED, &m->flags);
 		clear_bit(MPATHF_QUEUE_IO, &m->flags);
 	}
@@ -796,15 +804,14 @@ static int parse_path_selector(struct dm_arg_set *as, struct priority_group *pg,
 	return 0;
 }
 
-static int setup_scsi_dh(struct block_device *bdev, struct multipath *m, char **error)
+static int setup_scsi_dh(struct block_device *bdev, struct multipath *m,
+			 const char *attached_handler_name, char **error)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	const char *attached_handler_name;
 	int r;
 
 	if (test_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags)) {
 retain:
-		attached_handler_name = scsi_dh_attached_handler_name(q, GFP_KERNEL);
 		if (attached_handler_name) {
 			/*
 			 * Clear any hw_handler_params associated with a
@@ -823,16 +830,6 @@ retain:
 			 */
 			kfree(m->hw_handler_name);
 			m->hw_handler_name = attached_handler_name;
-
-			/*
-			 * Init fields that are only used when a scsi_dh is attached
-			 */
-			if (!test_and_set_bit(MPATHF_QUEUE_IO, &m->flags)) {
-				atomic_set(&m->pg_init_in_progress, 0);
-				atomic_set(&m->pg_init_count, 0);
-				m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
-				init_waitqueue_head(&m->pg_init_wait);
-			}
 		}
 	}
 
@@ -868,7 +865,8 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 	int r;
 	struct pgpath *p;
 	struct multipath *m = ti->private;
-	struct scsi_device *sdev;
+	struct request_queue *q;
+	const char *attached_handler_name;
 
 	/* we need at least a path arg */
 	if (as->argc < 1) {
@@ -887,11 +885,11 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 		goto bad;
 	}
 
-	sdev = scsi_device_from_queue(bdev_get_queue(p->path.dev->bdev));
-	if (sdev) {
-		put_device(&sdev->sdev_gendev);
+	q = bdev_get_queue(p->path.dev->bdev);
+	attached_handler_name = scsi_dh_attached_handler_name(q, GFP_KERNEL);
+	if (attached_handler_name) {
 		INIT_DELAYED_WORK(&p->activate_path, activate_path_work);
-		r = setup_scsi_dh(p->path.dev->bdev, m, &ti->error);
+		r = setup_scsi_dh(p->path.dev->bdev, m, attached_handler_name, &ti->error);
 		if (r) {
 			dm_put_device(ti, p->path.dev);
 			goto bad;
@@ -2022,8 +2020,9 @@ static int multipath_busy(struct dm_target *ti)
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 12, 0},
-	.features = DM_TARGET_SINGLETON | DM_TARGET_IMMUTABLE,
+	.version = {1, 13, 0},
+	.features = DM_TARGET_SINGLETON | DM_TARGET_IMMUTABLE |
+		    DM_TARGET_PASSES_INTEGRITY,
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,

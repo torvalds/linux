@@ -3134,8 +3134,6 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 
 	switch (aplane->base.type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		aplane->base.format_default = true;
-
 		res = drm_universal_plane_init(
 				dm->adev->ddev,
 				&aplane->base,
@@ -4794,6 +4792,9 @@ static int dm_atomic_check_plane_state_fb(struct drm_atomic_state *state,
 			return -EDEADLK;
 
 		crtc_state = drm_atomic_get_crtc_state(plane_state->state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
 		if (crtc->primary == plane && crtc_state->active) {
 			if (!plane_state->fb)
 				return -EINVAL;

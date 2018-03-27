@@ -635,25 +635,6 @@ static int ksz8873mll_config_aneg(struct phy_device *phydev)
 	return 0;
 }
 
-/* This routine returns -1 as an indication to the caller that the
- * Micrel ksz9021 10/100/1000 PHY does not support standard IEEE
- * MMD extended PHY registers.
- */
-static int
-ksz9021_rd_mmd_phyreg(struct phy_device *phydev, int devad, u16 regnum)
-{
-	return -1;
-}
-
-/* This routine does nothing since the Micrel ksz9021 does not support
- * standard IEEE MMD extended PHY registers.
- */
-static int
-ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int devad, u16 regnum, u16 val)
-{
-	return -1;
-}
-
 static int kszphy_get_sset_count(struct phy_device *phydev)
 {
 	return ARRAY_SIZE(kszphy_hw_stats);
@@ -664,8 +645,8 @@ static void kszphy_get_strings(struct phy_device *phydev, u8 *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(kszphy_hw_stats); i++) {
-		memcpy(data + i * ETH_GSTRING_LEN,
-		       kszphy_hw_stats[i].string, ETH_GSTRING_LEN);
+		strlcpy(data + i * ETH_GSTRING_LEN,
+			kszphy_hw_stats[i].string, ETH_GSTRING_LEN);
 	}
 }
 
@@ -946,8 +927,8 @@ static struct phy_driver ksphy_driver[] = {
 	.get_stats	= kszphy_get_stats,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
-	.read_mmd	= ksz9021_rd_mmd_phyreg,
-	.write_mmd	= ksz9021_wr_mmd_phyreg,
+	.read_mmd	= genphy_read_mmd_unsupported,
+	.write_mmd	= genphy_write_mmd_unsupported,
 }, {
 	.phy_id		= PHY_ID_KSZ9031,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
