@@ -170,22 +170,25 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id);
 bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned quota);
-static inline void efx_filter_rfs_expire(struct efx_channel *channel)
+static inline void efx_filter_rfs_expire(struct work_struct *data)
 {
+	struct efx_channel *channel = container_of(data, struct efx_channel,
+						   filter_work);
+
 	if (channel->rfs_filters_added >= 60 &&
 	    __efx_filter_rfs_expire(channel->efx, 100))
 		channel->rfs_filters_added -= 60;
 }
 #define efx_filter_rfs_enabled() 1
 #else
-static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
+static inline void efx_filter_rfs_expire(struct work_struct *data) {}
 #define efx_filter_rfs_enabled() 0
 #endif
 bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
 
 /* RSS contexts */
-struct efx_rss_context *efx_alloc_rss_context_entry(struct list_head *list);
-struct efx_rss_context *efx_find_rss_context_entry(u32 id, struct list_head *list);
+struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx);
+struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id);
 void efx_free_rss_context_entry(struct efx_rss_context *ctx);
 static inline bool efx_rss_active(struct efx_rss_context *ctx)
 {
