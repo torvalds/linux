@@ -1783,7 +1783,6 @@ static int efx_probe_filters(struct efx_nic *efx)
 {
 	int rc;
 
-	spin_lock_init(&efx->filter_lock);
 	init_rwsem(&efx->filter_sem);
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);

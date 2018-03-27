@@ -843,7 +843,7 @@ struct efx_rss_context {
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
- * @filter_sem: Filter table rw_semaphore, for freeing the table
+ * @filter_sem: Filter table rw_semaphore, protects existence of @filter_state
  * @filter_lock: Filter table lock, for mere content changes
  * @filter_state: Architecture-dependent filter table state
  * @rps_mutex: Protects RPS state of all channels
