@@ -437,6 +437,24 @@ static int ipmi_dell_chassis_detect(ipmi_user_t user)
 }
 
 /*
+ * ipmi_hp_chassis_detect()
+ * HP PA-RISC servers rp3410/rp3440, the C8000 workstation and the rx2600 and
+ * zx6000 machines support IPMI vers 1 and don't set the chassis capability bit
+ * but they can handle a chassis poweroff or powercycle command.
+ */
+
+#define HP_IANA_MFR_ID 0x0b
+#define HP_BMC_PROD_ID 0x8201
+static int ipmi_hp_chassis_detect(ipmi_user_t user)
+{
+	if (mfg_id == HP_IANA_MFR_ID
+		&& prod_id == HP_BMC_PROD_ID
+		&& ipmi_version == 1)
+		return 1;
+	return 0;
+}
+
+/*
  * Standard chassis support
  */
 
@@ -512,6 +530,9 @@ static struct poweroff_function poweroff_functions[] = {
 	  .poweroff_func	= ipmi_poweroff_cpi1 },
 	{ .platform_type	= "chassis",
 	  .detect		= ipmi_dell_chassis_detect,
+	  .poweroff_func	= ipmi_poweroff_chassis },
+	{ .platform_type	= "chassis",
+	  .detect		= ipmi_hp_chassis_detect,
 	  .poweroff_func	= ipmi_poweroff_chassis },
 	/* Chassis should generally be last, other things should override
 	   it. */
