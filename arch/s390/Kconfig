@@ -47,27 +47,6 @@ config PGSTE
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config KEXEC
-	def_bool y
-	select KEXEC_CORE
-
-config KEXEC_FILE
-	bool "kexec file based system call"
-	select KEXEC_CORE
-	select BUILD_BIN2C
-	depends on CRYPTO
-	depends on CRYPTO_SHA256
-	depends on CRYPTO_SHA256_S390
-	---help---
-	  This is new version of kexec system call. This system call is
-	  file based and takes file descriptors as system call argument
-	  for kernel and initramfs as opposed to list of segments as
-	  accepted by previous system call.
-
-config ARCH_HAS_KEXEC_PURGATORY
-	def_bool y
-	depends on KEXEC_FILE
-
 config AUDIT_ARCH
 	def_bool y
 
@@ -541,6 +520,26 @@ config SCHED_TOPOLOGY
 source kernel/Kconfig.preempt
 
 source kernel/Kconfig.hz
+
+config KEXEC
+	def_bool y
+	select KEXEC_CORE
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select BUILD_BIN2C
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	depends on CRYPTO_SHA256_S390
+	help
+	  Enable the kexec file based system call. In contrast to the normal
+	  kexec system call this system call takes file descriptors for the
+	  kernel and initramfs as arguments.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool y
+	depends on KEXEC_FILE
 
 config ARCH_RANDOM
 	def_bool y
