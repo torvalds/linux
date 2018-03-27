@@ -1227,10 +1227,10 @@ static void qla24xx_chk_fcp_state(struct fc_port *sess)
 	}
 }
 
-/* ha->tgt.sess_lock supposed to be held on entry */
 void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 {
 	struct qla_tgt *tgt = sess->tgt;
+	struct qla_hw_data *ha = sess->vha->hw;
 	unsigned long flags;
 
 	if (sess->disc_state == DSC_DELETE_PEND)
@@ -1247,16 +1247,16 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 			return;
 	}
 
+	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	if (sess->deleted == QLA_SESS_DELETED)
 		sess->logout_on_delete = 0;
 
-	spin_lock_irqsave(&sess->vha->work_lock, flags);
 	if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
-		spin_unlock_irqrestore(&sess->vha->work_lock, flags);
+		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 		return;
 	}
 	sess->deleted = QLA_SESS_DELETION_IN_PROGRESS;
-	spin_unlock_irqrestore(&sess->vha->work_lock, flags);
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 
 	sess->disc_state = DSC_DELETE_PEND;
 
@@ -1265,13 +1265,10 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 	ql_dbg(ql_dbg_tgt, sess->vha, 0xe001,
 	    "Scheduling sess %p for deletion\n", sess);
 
-	/* use cancel to push work element through before re-queue */
-	cancel_work_sync(&sess->del_work);
 	INIT_WORK(&sess->del_work, qla24xx_delete_sess_fn);
-	queue_work(sess->vha->hw->wq, &sess->del_work);
+	WARN_ON(!queue_work(sess->vha->hw->wq, &sess->del_work));
 }
 
-/* ha->tgt.sess_lock supposed to be held on entry */
 static void qlt_clear_tgt_db(struct qla_tgt *tgt)
 {
 	struct fc_port *sess;
@@ -1454,8 +1451,8 @@ qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport, int max_gen)
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf008, "qla_tgt_fc_port_deleted %p", sess);
 
 	sess->local = 1;
-	qlt_schedule_sess_for_deletion(sess);
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+	qlt_schedule_sess_for_deletion(sess);
 }
 
 static inline int test_tgt_sess_count(struct qla_tgt *tgt)
@@ -1515,10 +1512,8 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 	 * Lock is needed, because we still can get an incoming packet.
 	 */
 	mutex_lock(&vha->vha_tgt.tgt_mutex);
-	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	tgt->tgt_stop = 1;
 	qlt_clear_tgt_db(tgt);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	mutex_unlock(&vha->vha_tgt.tgt_mutex);
 	mutex_unlock(&qla_tgt_mutex);
 
@@ -4869,8 +4864,6 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 				    sess);
 				qlt_send_term_imm_notif(vha, iocb, 1);
 				res = 0;
-				spin_lock_irqsave(&tgt->ha->tgt.sess_lock,
-				    flags);
 				break;
 			}
 

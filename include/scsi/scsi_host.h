@@ -437,6 +437,9 @@ struct scsi_host_template {
 	/* True if the controller does not support WRITE SAME */
 	unsigned no_write_same:1;
 
+	/* True if the low-level driver supports blk-mq only */
+	unsigned force_blk_mq:1;
+
 	/*
 	 * Countdown for host blocking with no commands outstanding.
 	 */
@@ -552,8 +555,6 @@ struct Scsi_Host {
 		struct blk_queue_tag	*bqt;
 		struct blk_mq_tag_set	tag_set;
 	};
-
-	struct rcu_head rcu;
 
 	atomic_t host_busy;		   /* commands actually active on low-level */
 	atomic_t host_blocked;

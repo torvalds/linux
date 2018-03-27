@@ -503,11 +503,19 @@ mbx_done:
 				}
 			pr_warn(" cmd=%x ****\n", command);
 		}
-		ql_dbg(ql_dbg_mbx, vha, 0x1198,
-		    "host_status=%#x intr_ctrl=%#x intr_status=%#x\n",
-		    RD_REG_DWORD(&reg->isp24.host_status),
-		    RD_REG_DWORD(&reg->isp24.ictrl),
-		    RD_REG_DWORD(&reg->isp24.istatus));
+		if (IS_FWI2_CAPABLE(ha) && !(IS_P3P_TYPE(ha))) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1198,
+			    "host_status=%#x intr_ctrl=%#x intr_status=%#x\n",
+			    RD_REG_DWORD(&reg->isp24.host_status),
+			    RD_REG_DWORD(&reg->isp24.ictrl),
+			    RD_REG_DWORD(&reg->isp24.istatus));
+		} else {
+			ql_dbg(ql_dbg_mbx, vha, 0x1206,
+			    "ctrl_status=%#x ictrl=%#x istatus=%#x\n",
+			    RD_REG_WORD(&reg->isp.ctrl_status),
+			    RD_REG_WORD(&reg->isp.ictrl),
+			    RD_REG_WORD(&reg->isp.istatus));
+		}
 	} else {
 		ql_dbg(ql_dbg_mbx, base_vha, 0x1021, "Done %s.\n", __func__);
 	}
