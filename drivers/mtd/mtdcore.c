@@ -700,7 +700,6 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	struct mtd_partitions parsed = { };
 	int ret;
 
 	mtd_set_dev_defaults(mtd);
@@ -712,13 +711,10 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 
 	/* Prefer parsed partitions over driver-provided fallback */
-	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
-	if (!ret && parsed.nr_parts) {
-		parts = parsed.parts;
-		nr_parts = parsed.nr_parts;
-	}
-
-	if (nr_parts)
+	ret = parse_mtd_partitions(mtd, types, parser_data);
+	if (ret > 0)
+		ret = 0;
+	else if (nr_parts)
 		ret = add_mtd_partitions(mtd, parts, nr_parts);
 	else if (!device_is_registered(&mtd->dev))
 		ret = add_mtd_device(mtd);
@@ -744,8 +740,6 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 
 out:
-	/* Cleanup any parsed partitions */
-	mtd_part_parser_cleanup(&parsed);
 	if (ret && device_is_registered(&mtd->dev))
 		del_mtd_device(mtd);
 
