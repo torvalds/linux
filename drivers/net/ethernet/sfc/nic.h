@@ -601,8 +601,6 @@ s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
 				enum efx_filter_priority priority, u32 *buf,
 				u32 size);
 #ifdef CONFIG_RFS_ACCEL
-s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
-				struct efx_filter_spec *spec);
 bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 				     unsigned int index);
 #endif

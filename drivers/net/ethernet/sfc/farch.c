@@ -2901,28 +2901,25 @@ void efx_farch_filter_update_rx_scatter(struct efx_nic *efx)
 
 #ifdef CONFIG_RFS_ACCEL
 
-s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
-				struct efx_filter_spec *gen_spec)
-{
-	return efx_farch_filter_insert(efx, gen_spec, true);
-}
-
 bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 				     unsigned int index)
 {
 	struct efx_farch_filter_state *state = efx->filter_state;
-	struct efx_farch_filter_table *table =
-		&state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
+	struct efx_farch_filter_table *table;
+	bool ret = false;
 
+	spin_lock_bh(&efx->filter_lock);
+	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_IP];
 	if (test_bit(index, table->used_bitmap) &&
 	    table->spec[index].priority == EFX_FILTER_PRI_HINT &&
 	    rps_may_expire_flow(efx->net_dev, table->spec[index].dmaq_id,
 				flow_id, index)) {
 		efx_farch_filter_table_clear_entry(efx, table, index);
-		return true;
+		ret = true;
 	}
 
-	return false;
+	spin_unlock_bh(&efx->filter_lock);
+	return ret;
 }
 
 #endif /* CONFIG_RFS_ACCEL */

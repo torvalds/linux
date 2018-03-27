@@ -4758,143 +4758,6 @@ static s32 efx_ef10_filter_get_rx_ids(struct efx_nic *efx,
 
 #ifdef CONFIG_RFS_ACCEL
 
-static efx_mcdi_async_completer efx_ef10_filter_rfs_insert_complete;
-
-static s32 efx_ef10_filter_rfs_insert(struct efx_nic *efx,
-				      struct efx_filter_spec *spec)
-{
-	struct efx_ef10_filter_table *table = efx->filter_state;
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
-	struct efx_filter_spec *saved_spec;
-	unsigned int hash, i, depth = 1;
-	bool replacing = false;
-	int ins_index = -1;
-	u64 cookie;
-	s32 rc;
-
-	/* Must be an RX filter without RSS and not for a multicast
-	 * destination address (RFS only works for connected sockets).
-	 * These restrictions allow us to pass only a tiny amount of
-	 * data through to the completion function.
-	 */
-	EFX_WARN_ON_PARANOID(spec->flags !=
-			     (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_SCATTER));
-	EFX_WARN_ON_PARANOID(spec->priority != EFX_FILTER_PRI_HINT);
-	EFX_WARN_ON_PARANOID(efx_filter_is_mc_recipient(spec));
-
-	hash = efx_ef10_filter_hash(spec);
-
-	spin_lock_bh(&efx->filter_lock);
-
-	/* Find any existing filter with the same match tuple or else
-	 * a free slot to insert at.  If an existing filter is busy,
-	 * we have to give up.
-	 */
-	for (;;) {
-		i = (hash + depth) & (HUNT_FILTER_TBL_ROWS - 1);
-		saved_spec = efx_ef10_filter_entry_spec(table, i);
-
-		if (!saved_spec) {
-			if (ins_index < 0)
-				ins_index = i;
-		} else if (efx_ef10_filter_equal(spec, saved_spec)) {
-			if (table->entry[i].spec & EFX_EF10_FILTER_FLAG_BUSY) {
-				rc = -EBUSY;
-				goto fail_unlock;
-			}
-			if (spec->priority < saved_spec->priority) {
-				rc = -EPERM;
-				goto fail_unlock;
-			}
-			ins_index = i;
-			break;
-		}
-
-		/* Once we reach the maximum search depth, use the
-		 * first suitable slot or return -EBUSY if there was
-		 * none
-		 */
-		if (depth == EFX_EF10_FILTER_SEARCH_LIMIT) {
-			if (ins_index < 0) {
-				rc = -EBUSY;
-				goto fail_unlock;
-			}
-			break;
-		}
-
-		++depth;
-	}
-
-	/* Create a software table entry if necessary, and mark it
-	 * busy.  We might yet fail to insert, but any attempt to
-	 * insert a conflicting filter while we're waiting for the
-	 * firmware must find the busy entry.
-	 */
-	saved_spec = efx_ef10_filter_entry_spec(table, ins_index);
-	if (saved_spec) {
-		replacing = true;
-	} else {
-		saved_spec = kmalloc(sizeof(*spec), GFP_ATOMIC);
-		if (!saved_spec) {
-			rc = -ENOMEM;
-			goto fail_unlock;
-		}
-		*saved_spec = *spec;
-	}
-	efx_ef10_filter_set_entry(table, ins_index, saved_spec,
-				  EFX_EF10_FILTER_FLAG_BUSY);
-
-	spin_unlock_bh(&efx->filter_lock);
-
-	/* Pack up the variables needed on completion */
-	cookie = replacing << 31 | ins_index << 16 | spec->dmaq_id;
-
-	efx_ef10_filter_push_prep(efx, spec, inbuf,
-				  table->entry[ins_index].handle, NULL,
-				  replacing);
-	efx_mcdi_rpc_async(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
-			   MC_CMD_FILTER_OP_OUT_LEN,
-			   efx_ef10_filter_rfs_insert_complete, cookie);
-
-	return ins_index;
-
-fail_unlock:
-	spin_unlock_bh(&efx->filter_lock);
-	return rc;
-}
-
-static void
-efx_ef10_filter_rfs_insert_complete(struct efx_nic *efx, unsigned long cookie,
-				    int rc, efx_dword_t *outbuf,
-				    size_t outlen_actual)
-{
-	struct efx_ef10_filter_table *table = efx->filter_state;
-	unsigned int ins_index, dmaq_id;
-	struct efx_filter_spec *spec;
-	bool replacing;
-
-	/* Unpack the cookie */
-	replacing = cookie >> 31;
-	ins_index = (cookie >> 16) & (HUNT_FILTER_TBL_ROWS - 1);
-	dmaq_id = cookie & 0xffff;
-
-	spin_lock_bh(&efx->filter_lock);
-	spec = efx_ef10_filter_entry_spec(table, ins_index);
-	if (rc == 0) {
-		table->entry[ins_index].handle =
-			MCDI_QWORD(outbuf, FILTER_OP_OUT_HANDLE);
-		if (replacing)
-			spec->dmaq_id = dmaq_id;
-	} else if (!replacing) {
-		kfree(spec);
-		spec = NULL;
-	}
-	efx_ef10_filter_set_entry(table, ins_index, spec, 0);
-	spin_unlock_bh(&efx->filter_lock);
-
-	wake_up_all(&table->waitq);
-}
-
 static void
 efx_ef10_filter_rfs_expire_complete(struct efx_nic *efx,
 				    unsigned long filter_idx,
@@ -4905,18 +4768,22 @@ static bool efx_ef10_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 					   unsigned int filter_idx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
-	struct efx_filter_spec *spec =
-		efx_ef10_filter_entry_spec(table, filter_idx);
+	struct efx_filter_spec *spec;
 	MCDI_DECLARE_BUF(inbuf,
 			 MC_CMD_FILTER_OP_IN_HANDLE_OFST +
 			 MC_CMD_FILTER_OP_IN_HANDLE_LEN);
+	bool ret = true;
 
+	spin_lock_bh(&efx->filter_lock);
+	spec = efx_ef10_filter_entry_spec(table, filter_idx);
 	if (!spec ||
 	    (table->entry[filter_idx].spec & EFX_EF10_FILTER_FLAG_BUSY) ||
 	    spec->priority != EFX_FILTER_PRI_HINT ||
 	    !rps_may_expire_flow(efx->net_dev, spec->dmaq_id,
-				 flow_id, filter_idx))
-		return false;
+				 flow_id, filter_idx)) {
+		ret = false;
+		goto out_unlock;
+	}
 
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_OP,
 		       MC_CMD_FILTER_OP_IN_OP_REMOVE);
@@ -4924,10 +4791,12 @@ static bool efx_ef10_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 		       table->entry[filter_idx].handle);
 	if (efx_mcdi_rpc_async(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf), 0,
 			       efx_ef10_filter_rfs_expire_complete, filter_idx))
-		return false;
-
-	table->entry[filter_idx].spec |= EFX_EF10_FILTER_FLAG_BUSY;
-	return true;
+		ret = false;
+	else
+		table->entry[filter_idx].spec |= EFX_EF10_FILTER_FLAG_BUSY;
+out_unlock:
+	spin_unlock_bh(&efx->filter_lock);
+	return ret;
 }
 
 static void
@@ -6784,7 +6653,6 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.filter_get_rx_id_limit = efx_ef10_filter_get_rx_id_limit,
 	.filter_get_rx_ids = efx_ef10_filter_get_rx_ids,
 #ifdef CONFIG_RFS_ACCEL
-	.filter_rfs_insert = efx_ef10_filter_rfs_insert,
 	.filter_rfs_expire_one = efx_ef10_filter_rfs_expire_one,
 #endif
 #ifdef CONFIG_SFC_MTD
@@ -6897,7 +6765,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.filter_get_rx_id_limit = efx_ef10_filter_get_rx_id_limit,
 	.filter_get_rx_ids = efx_ef10_filter_get_rx_ids,
 #ifdef CONFIG_RFS_ACCEL
-	.filter_rfs_insert = efx_ef10_filter_rfs_insert,
 	.filter_rfs_expire_one = efx_ef10_filter_rfs_expire_one,
 #endif
 #ifdef CONFIG_SFC_MTD

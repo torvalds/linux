@@ -430,6 +430,7 @@ enum efx_sync_events_state {
  * @event_test_cpu: Last CPU to handle interrupt or test event for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
+ * @filter_work: Work item for efx_filter_rfs_expire()
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *      indexed by filter ID
  * @n_rx_tobe_disc: Count of RX_TOBE_DISC errors
@@ -475,6 +476,7 @@ struct efx_channel {
 	unsigned int irq_mod_score;
 #ifdef CONFIG_RFS_ACCEL
 	unsigned int rfs_filters_added;
+	struct work_struct filter_work;
 #define RPS_FLOW_ID_INVALID 0xFFFFFFFF
 	u32 *rps_flow_id;
 #endif
@@ -844,6 +846,7 @@ struct efx_rss_context {
  * @filter_sem: Filter table rw_semaphore, for freeing the table
  * @filter_lock: Filter table lock, for mere content changes
  * @filter_state: Architecture-dependent filter table state
+ * @rps_mutex: Protects RPS state of all channels
  * @rps_expire_channel: Next channel to check for expiry
  * @rps_expire_index: Next index to check for expiry in
  *	@rps_expire_channel's @rps_flow_id
@@ -998,6 +1001,7 @@ struct efx_nic {
 	spinlock_t filter_lock;
 	void *filter_state;
 #ifdef CONFIG_RFS_ACCEL
+	struct mutex rps_mutex;
 	unsigned int rps_expire_channel;
 	unsigned int rps_expire_index;
 #endif
@@ -1152,10 +1156,6 @@ struct efx_udp_tunnel {
  * @filter_count_rx_used: Get the number of filters in use at a given priority
  * @filter_get_rx_id_limit: Get maximum value of a filter id, plus 1
  * @filter_get_rx_ids: Get list of RX filters at a given priority
- * @filter_rfs_insert: Add or replace a filter for RFS.  This must be
- *	atomic.  The hardware change may be asynchronous but should
- *	not be delayed for long.  It may fail if this can't be done
- *	atomically.
  * @filter_rfs_expire_one: Consider expiring a filter inserted for RFS.
  *	This must check whether the specified table entry is used by RFS
  *	and that rps_may_expire_flow() returns true for it.
@@ -1306,8 +1306,6 @@ struct efx_nic_type {
 				 enum efx_filter_priority priority,
 				 u32 *buf, u32 size);
 #ifdef CONFIG_RFS_ACCEL
-	s32 (*filter_rfs_insert)(struct efx_nic *efx,
-				 struct efx_filter_spec *spec);
 	bool (*filter_rfs_expire_one)(struct efx_nic *efx, u32 flow_id,
 				      unsigned int index);
 #endif
