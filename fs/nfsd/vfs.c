@@ -965,12 +965,14 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 {
 	struct svc_export	*exp;
 	struct iov_iter		iter;
-	__be32			err = 0;
+	__be32			nfserr;
 	int			host_err;
 	int			use_wgather;
 	loff_t			pos = offset;
 	unsigned int		pflags = current->flags;
 	rwf_t			flags = 0;
+
+	trace_nfsd_write_opened(rqstp, fhp, offset, *cnt);
 
 	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
 		/*
@@ -994,22 +996,23 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	host_err = vfs_iter_write(file, &iter, &pos, flags);
 	if (host_err < 0)
 		goto out_nfserr;
-	*cnt = host_err;
-	nfsdstats.io_write += host_err;
+	nfsdstats.io_write += *cnt;
 	fsnotify_modify(file);
 
 	if (stable && use_wgather)
 		host_err = wait_for_concurrent_writes(file);
 
 out_nfserr:
-	dprintk("nfsd: write complete host_err=%d\n", host_err);
-	if (host_err >= 0)
-		err = 0;
-	else
-		err = nfserrno(host_err);
+	if (host_err >= 0) {
+		trace_nfsd_write_io_done(rqstp, fhp, offset, *cnt);
+		nfserr = nfs_ok;
+	} else {
+		trace_nfsd_write_err(rqstp, fhp, offset, host_err);
+		nfserr = nfserrno(host_err);
+	}
 	if (test_bit(RQ_LOCAL, &rqstp->rq_flags))
 		current_restore_flags(pflags, PF_LESS_THROTTLE);
-	return err;
+	return nfserr;
 }
 
 /*
@@ -1067,9 +1070,7 @@ nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t offset,
 	if (err)
 		goto out;
 
-	trace_nfsd_write_opened(rqstp, fhp, offset, *cnt);
 	err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt, stable);
-	trace_nfsd_write_io_done(rqstp, fhp, offset, *cnt);
 	fput(file);
 out:
 	trace_nfsd_write_done(rqstp, fhp, offset, *cnt);

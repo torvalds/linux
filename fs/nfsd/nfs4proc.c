@@ -1001,6 +1001,9 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (write->wr_offset >= OFFSET_MAX)
 		return nfserr_inval;
 
+	cnt = write->wr_buflen;
+	trace_nfsd_write_start(rqstp, &cstate->current_fh,
+			       write->wr_offset, cnt);
 	status = nfs4_preprocess_stateid_op(rqstp, cstate, &cstate->current_fh,
 						stateid, WR_STATE, &filp, NULL);
 	if (status) {
@@ -1008,7 +1011,6 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return status;
 	}
 
-	cnt = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
 	gen_boot_verifier(&write->wr_verifier, SVC_NET(rqstp));
 
@@ -1021,7 +1023,8 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	fput(filp);
 
 	write->wr_bytes_written = cnt;
-
+	trace_nfsd_write_done(rqstp, &cstate->current_fh,
+			      write->wr_offset, cnt);
 	return status;
 }
 

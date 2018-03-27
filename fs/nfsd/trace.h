@@ -51,6 +51,39 @@ DEFINE_NFSD_IO_EVENT(write_opened);
 DEFINE_NFSD_IO_EVENT(write_io_done);
 DEFINE_NFSD_IO_EVENT(write_done);
 
+DECLARE_EVENT_CLASS(nfsd_err_class,
+	TP_PROTO(struct svc_rqst *rqstp,
+		 struct svc_fh	*fhp,
+		 loff_t		offset,
+		 int		status),
+	TP_ARGS(rqstp, fhp, offset, status),
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, fh_hash)
+		__field(loff_t, offset)
+		__field(int, status)
+	),
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->fh_hash = knfsd_fh_hash(&fhp->fh_handle);
+		__entry->offset = offset;
+		__entry->status = status;
+	),
+	TP_printk("xid=0x%08x fh_hash=0x%08x offset=%lld status=%d",
+		  __entry->xid, __entry->fh_hash,
+		  __entry->offset, __entry->status)
+)
+
+#define DEFINE_NFSD_ERR_EVENT(name)		\
+DEFINE_EVENT(nfsd_err_class, nfsd_##name,	\
+	TP_PROTO(struct svc_rqst *rqstp,	\
+		 struct svc_fh	*fhp,		\
+		 loff_t		offset,		\
+		 int		len),		\
+	TP_ARGS(rqstp, fhp, offset, len))
+
+DEFINE_NFSD_ERR_EVENT(write_err);
+
 #include "state.h"
 
 DECLARE_EVENT_CLASS(nfsd_stateid_class,
