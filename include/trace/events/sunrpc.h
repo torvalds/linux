@@ -591,7 +591,9 @@ DEFINE_EVENT(svc_rqst_status, svc_send,
 		{ (1UL << XPT_OLD),		"XPT_OLD"},		\
 		{ (1UL << XPT_LISTENER),	"XPT_LISTENER"},	\
 		{ (1UL << XPT_CACHE_AUTH),	"XPT_CACHE_AUTH"},	\
-		{ (1UL << XPT_LOCAL),		"XPT_LOCAL"})
+		{ (1UL << XPT_LOCAL),		"XPT_LOCAL"},		\
+		{ (1UL << XPT_KILL_TEMP),	"XPT_KILL_TEMP"},	\
+		{ (1UL << XPT_CONG_CTRL),	"XPT_CONG_CTRL"})
 
 TRACE_EVENT(svc_xprt_do_enqueue,
 	TP_PROTO(struct svc_xprt *xprt, struct svc_rqst *rqst),
