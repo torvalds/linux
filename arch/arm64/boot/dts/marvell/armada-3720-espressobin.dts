@@ -6,6 +6,9 @@
  * Romain Perier <romain.perier@free-electrons.com>
  *
  */
+/*
+ * Schematic available at http://espressobin.net/wp-content/uploads/2017/08/ESPRESSObin_V5_Schematics.pdf
+ */
 
 /dts-v1/;
 

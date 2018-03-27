@@ -211,7 +211,9 @@
 			reg = <0x500000 0x4000>;
 			dma-coherent;
 			interrupts = <ICU_GRP_NSR 106 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 22>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 22>,
+				 <&CP110_LABEL(clk) 1 16>;
 			status = "disabled";
 		};
 
@@ -221,7 +223,9 @@
 			reg = <0x510000 0x4000>;
 			dma-coherent;
 			interrupts = <ICU_GRP_NSR 105 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 23>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 23>,
+				 <&CP110_LABEL(clk) 1 16>;
 			status = "disabled";
 		};
 
@@ -240,7 +244,9 @@
 			reg = <0x6a0000 0x1000>, <0x6b0000 0x1000>;
 			dma-coherent;
 			msi-parent = <&gic_v2m0>;
-			clocks = <&CP110_LABEL(clk) 1 8>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 8>,
+				 <&CP110_LABEL(clk) 1 14>;
 		};
 
 		CP110_LABEL(xor1): xor@6c0000 {
@@ -248,7 +254,9 @@
 			reg = <0x6c0000 0x1000>, <0x6d0000 0x1000>;
 			dma-coherent;
 			msi-parent = <&gic_v2m0>;
-			clocks = <&CP110_LABEL(clk) 1 7>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 7>,
+				 <&CP110_LABEL(clk) 1 14>;
 		};
 
 		CP110_LABEL(spi0): spi@700600 {
@@ -357,7 +365,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <ICU_GRP_NSR 115 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 2>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 2>,
+				 <&CP110_LABEL(clk) 1 17>;
 			marvell,system-controller = <&CP110_LABEL(syscon0)>;
 			status = "disabled";
 		};
@@ -367,7 +377,9 @@
 			"inside-secure,safexcel-eip76";
 			reg = <0x760000 0x7d>;
 			interrupts = <ICU_GRP_NSR 95 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 25>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 25>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "okay";
 		};
 
@@ -392,7 +404,9 @@
 				<ICU_GRP_NSR 92 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "mem", "ring0", "ring1",
 				"ring2", "ring3", "eip";
-			clocks = <&CP110_LABEL(clk) 1 26>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 26>,
+				 <&CP110_LABEL(clk) 1 17>;
 			dma-coherent;
 		};
 	};
@@ -419,7 +433,8 @@
 		interrupt-map = <0 0 0 0 &CP110_LABEL(icu) ICU_GRP_NSR 22 IRQ_TYPE_LEVEL_HIGH>;
 		interrupts = <ICU_GRP_NSR 22 IRQ_TYPE_LEVEL_HIGH>;
 		num-lanes = <1>;
-		clocks = <&CP110_LABEL(clk) 1 13>;
+		clock-names = "core", "reg";
+		clocks = <&CP110_LABEL(clk) 1 13>, <&CP110_LABEL(clk) 1 14>;
 		status = "disabled";
 	};
 
@@ -446,7 +461,8 @@
 		interrupts = <ICU_GRP_NSR 24 IRQ_TYPE_LEVEL_HIGH>;
 
 		num-lanes = <1>;
-		clocks = <&CP110_LABEL(clk) 1 11>;
+		clock-names = "core", "reg";
+		clocks = <&CP110_LABEL(clk) 1 11>, <&CP110_LABEL(clk) 1 14>;
 		status = "disabled";
 	};
 
@@ -473,7 +489,8 @@
 		interrupts = <ICU_GRP_NSR 23 IRQ_TYPE_LEVEL_HIGH>;
 
 		num-lanes = <1>;
-		clocks = <&CP110_LABEL(clk) 1 12>;
+		clock-names = "core", "reg";
+		clocks = <&CP110_LABEL(clk) 1 12>, <&CP110_LABEL(clk) 1 14>;
 		status = "disabled";
 	};
 };
