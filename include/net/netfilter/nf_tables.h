@@ -884,6 +884,8 @@ enum nft_chain_types {
  * 	@owner: module owner
  * 	@hook_mask: mask of valid hooks
  * 	@hooks: array of hook functions
+ *	@init: chain initialization function
+ *	@free: chain release function
  */
 struct nft_chain_type {
 	const char			*name;
@@ -892,6 +894,8 @@ struct nft_chain_type {
 	struct module			*owner;
 	unsigned int			hook_mask;
 	nf_hookfn			*hooks[NF_MAX_HOOKS];
+	int				(*init)(struct nft_ctx *ctx);
+	void				(*free)(struct nft_ctx *ctx);
 };
 
 int nft_chain_validate_dependency(const struct nft_chain *chain,

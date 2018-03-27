@@ -1211,13 +1211,17 @@ static void nft_chain_stats_replace(struct nft_base_chain *chain,
 		rcu_assign_pointer(chain->stats, newstats);
 }
 
-static void nf_tables_chain_destroy(struct nft_chain *chain)
+static void nf_tables_chain_destroy(struct nft_ctx *ctx)
 {
+	struct nft_chain *chain = ctx->chain;
+
 	BUG_ON(chain->use > 0);
 
 	if (nft_is_base_chain(chain)) {
 		struct nft_base_chain *basechain = nft_base_chain(chain);
 
+		if (basechain->type->free)
+			basechain->type->free(ctx);
 		module_put(basechain->type->owner);
 		free_percpu(basechain->stats);
 		if (basechain->stats)
@@ -1354,6 +1358,9 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		}
 
 		basechain->type = hook.type;
+		if (basechain->type->init)
+			basechain->type->init(ctx);
+
 		chain = &basechain->chain;
 
 		ops		= &basechain->ops;
@@ -1374,6 +1381,8 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		if (chain == NULL)
 			return -ENOMEM;
 	}
+	ctx->chain = chain;
+
 	INIT_LIST_HEAD(&chain->rules);
 	chain->handle = nf_tables_alloc_handle(table);
 	chain->table = table;
@@ -1387,7 +1396,6 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 	if (err < 0)
 		goto err1;
 
-	ctx->chain = chain;
 	err = nft_trans_chain_add(ctx, NFT_MSG_NEWCHAIN);
 	if (err < 0)
 		goto err2;
@@ -1399,7 +1407,7 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 err2:
 	nf_tables_unregister_hook(net, table, chain);
 err1:
-	nf_tables_chain_destroy(chain);
+	nf_tables_chain_destroy(ctx);
 
 	return err;
 }
@@ -5678,7 +5686,7 @@ static void nf_tables_commit_release(struct nft_trans *trans)
 		nf_tables_table_destroy(&trans->ctx);
 		break;
 	case NFT_MSG_DELCHAIN:
-		nf_tables_chain_destroy(trans->ctx.chain);
+		nf_tables_chain_destroy(&trans->ctx);
 		break;
 	case NFT_MSG_DELRULE:
 		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
@@ -5849,7 +5857,7 @@ static void nf_tables_abort_release(struct nft_trans *trans)
 		nf_tables_table_destroy(&trans->ctx);
 		break;
 	case NFT_MSG_NEWCHAIN:
-		nf_tables_chain_destroy(trans->ctx.chain);
+		nf_tables_chain_destroy(&trans->ctx);
 		break;
 	case NFT_MSG_NEWRULE:
 		nf_tables_rule_destroy(&trans->ctx, nft_trans_rule(trans));
@@ -6499,7 +6507,7 @@ int __nft_release_basechain(struct nft_ctx *ctx)
 	}
 	list_del(&ctx->chain->list);
 	ctx->table->use--;
-	nf_tables_chain_destroy(ctx->chain);
+	nf_tables_chain_destroy(ctx);
 
 	return 0;
 }
@@ -6515,6 +6523,7 @@ static void __nft_release_tables(struct net *net)
 	struct nft_set *set, *ns;
 	struct nft_ctx ctx = {
 		.net	= net,
+		.family	= NFPROTO_NETDEV,
 	};
 
 	list_for_each_entry_safe(table, nt, &net->nft.tables, list) {
@@ -6551,9 +6560,10 @@ static void __nft_release_tables(struct net *net)
 			nft_obj_destroy(obj);
 		}
 		list_for_each_entry_safe(chain, nc, &table->chains, list) {
+			ctx.chain = chain;
 			list_del(&chain->list);
 			table->use--;
-			nf_tables_chain_destroy(chain);
+			nf_tables_chain_destroy(&ctx);
 		}
 		list_del(&table->list);
 		nf_tables_table_destroy(&ctx);
