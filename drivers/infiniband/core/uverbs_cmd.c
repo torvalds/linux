@@ -3581,7 +3581,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 	if (cmd->srq_type == IB_SRQT_XRC)
 		resp.srqn = srq->ext.xrc.srq_num;
 
-	if (copy_to_user((void __user *) (unsigned long) cmd->response,
+	if (copy_to_user(u64_to_user_ptr(cmd->response),
 			 &resp, sizeof resp)) {
 		ret = -EFAULT;
 		goto err_copy;
