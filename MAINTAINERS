@@ -13635,7 +13635,8 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-tegra.c
 
 TEGRA IOMMU DRIVERS
-M:	Hiroshi Doyu <hdoyu@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
+L:	linux-tegra@vger.kernel.org
 S:	Supported
 F:	drivers/iommu/tegra*
 
