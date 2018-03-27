@@ -5348,7 +5348,7 @@ static int pqi_map_queues(struct Scsi_Host *shost)
 {
 	struct pqi_ctrl_info *ctrl_info = shost_to_hba(shost);
 
-	return blk_mq_pci_map_queues(&shost->tag_set, ctrl_info->pci_dev);
+	return blk_mq_pci_map_queues(&shost->tag_set, ctrl_info->pci_dev, 0);
 }
 
 static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info,

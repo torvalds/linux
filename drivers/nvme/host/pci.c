@@ -414,7 +414,7 @@ static int nvme_pci_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nvme_dev *dev = set->driver_data;
 
-	return blk_mq_pci_map_queues(set, to_pci_dev(dev->dev));
+	return blk_mq_pci_map_queues(set, to_pci_dev(dev->dev), 0);
 }
 
 /**
