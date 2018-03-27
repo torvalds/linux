@@ -101,7 +101,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	if (err) {
 		dev_dbg(dev, "MC portal allocation failed\n");
 		err = -EPROBE_DEFER;
-		goto err_mcportal;
+		goto err_priv_alloc;
 	}
 
 	err = dpio_open(dpio_dev->mc_io, 0, dpio_dev->obj_desc.id,
@@ -196,8 +196,6 @@ err_get_attr:
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 err_open:
 	fsl_mc_portal_free(dpio_dev->mc_io);
-err_mcportal:
-	dev_set_drvdata(dev, NULL);
 err_priv_alloc:
 	return err;
 }
@@ -240,8 +238,6 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 
 	fsl_mc_portal_free(dpio_dev->mc_io);
-
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 
