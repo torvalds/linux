@@ -909,7 +909,19 @@ int soc_dai_hw_params(struct snd_pcm_substream *substream,
 		      struct snd_pcm_hw_params *params,
 		      struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int ret;
+
+	/* perform any topology hw_params fixups before DAI  */
+	if (rtd->dai_link->be_hw_params_fixup) {
+		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
+		if (ret < 0) {
+			dev_err(rtd->dev,
+				"ASoC: hw_params topology fixup failed %d\n",
+				ret);
+			return ret;
+		}
+	}
 
 	if (dai->driver->ops->hw_params) {
 		ret = dai->driver->ops->hw_params(substream, params, dai);

@@ -1012,6 +1012,13 @@ struct snd_soc_platform_driver {
 
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
+
+	/* this platform uses topology and ignore machine driver FEs */
+	const char *ignore_machine;
+	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params);
+	bool use_dai_pcm_id;	/* use the DAI link PCM ID as PCM device number */
+	int be_pcm_base;	/* base device ID for all BE PCMs */
 };
 
 struct snd_soc_dai_link_component {
@@ -1117,6 +1124,9 @@ struct snd_soc_dai_link {
 
 	/* pmdown_time is ignored at stop */
 	unsigned int ignore_pmdown_time:1;
+
+	/* Do not create a PCM for this DAI link (Backend link) */
+	unsigned int ignore:1;
 
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
