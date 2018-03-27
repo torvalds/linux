@@ -283,6 +283,7 @@ struct svc_rqst {
 	int			rq_reserved;	/* space on socket outq
 						 * reserved for this request
 						 */
+	ktime_t			rq_stime;	/* start time */
 
 	struct cache_req	rq_chandle;	/* handle passed to caches for 
 						 * request delaying 

@@ -705,6 +705,27 @@ TRACE_EVENT(svc_handle_xprt,
 		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
 
+TRACE_EVENT(svc_stats_latency,
+	TP_PROTO(const struct svc_rqst *rqst),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(unsigned long, execute)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->execute = ktime_to_us(ktime_sub(ktime_get(),
+							 rqst->rq_stime));
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x execute-us=%lu",
+		__get_str(addr), __entry->xid, __entry->execute)
+);
 
 DECLARE_EVENT_CLASS(svc_deferred_event,
 	TP_PROTO(struct svc_deferred_req *dr),
