@@ -1702,6 +1702,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.end_use = amdgpu_uvd_ring_end_use,
 	.emit_wreg = uvd_v7_0_enc_ring_emit_wreg,
 	.emit_reg_wait = uvd_v7_0_enc_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev)
