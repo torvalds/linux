@@ -352,7 +352,7 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe,
 	mode = 1;
 	ret = reg_read(state, 0xb0, val, 1);
 	if (ret == 0) {
-		mode = (val[0] & 0xc0) >> 2;
+		mode = (val[0] & 0xc0) >> 6;
 		c->transmission_mode = tm_conv[mode];
 		c->guard_interval = (val[0] & 0x30) >> 4;
 	}
@@ -379,7 +379,7 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe,
 		}
 
 		/* layer B */
-		v = (val[3] & 0x03) << 1 | (val[4] & 0xc0) >> 6;
+		v = (val[3] & 0x03) << 2 | (val[4] & 0xc0) >> 6;
 		if (v == 0x0f)
 			c->layer[1].segment_count = 0;
 		else {
