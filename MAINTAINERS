@@ -1152,7 +1152,7 @@ S:	Maintained
 F:	drivers/clk/sunxi/
 
 ARM/Allwinner sunXi SoC support
-M:	Maxime Ripard <maxime.ripard@free-electrons.com>
+M:	Maxime Ripard <maxime.ripard@bootlin.com>
 M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -4626,7 +4626,7 @@ F:	include/uapi/drm/drm*
 F:	include/linux/vga*
 
 DRM DRIVERS FOR ALLWINNER A10
-M:	Maxime Ripard  <maxime.ripard@free-electrons.com>
+M:	Maxime Ripard  <maxime.ripard@bootlin.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
