@@ -788,8 +788,9 @@
 	vpu_service: vpu-service@20020000 {
 		compatible = "rockchip,vpu_service";
 		reg = <0x20020000 0x800>;
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "irq_dec";
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec", "irq_enc";
 		resets = <&cru SRST_VPU_A>, <&cru SRST_VPU_H>;
 		reset-names = "video_a", "video_h";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
