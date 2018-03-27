@@ -409,6 +409,7 @@ void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 		if (test_and_set_bit(RQ_BUSY, &rqstp->rq_flags))
 			continue;
 		atomic_long_inc(&pool->sp_stats.threads_woken);
+		rqstp->rq_qtime = ktime_get();
 		wake_up_process(rqstp->rq_task);
 		goto out_unlock;
 	}
@@ -530,7 +531,6 @@ void svc_wake_up(struct svc_serv *serv)
 		if (test_bit(RQ_BUSY, &rqstp->rq_flags))
 			continue;
 		rcu_read_unlock();
-		dprintk("svc: daemon %p woken up.\n", rqstp);
 		wake_up_process(rqstp->rq_task);
 		trace_svc_wake_up(rqstp->rq_task->pid);
 		return;
@@ -726,7 +726,7 @@ out_found:
 		rqstp->rq_chandle.thread_wait = 5*HZ;
 	else
 		rqstp->rq_chandle.thread_wait = 1*HZ;
-	trace_svc_xprt_dequeue(rqstp->rq_xprt);
+	trace_svc_xprt_dequeue(rqstp);
 	return rqstp->rq_xprt;
 }
 

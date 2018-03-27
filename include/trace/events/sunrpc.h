@@ -657,13 +657,35 @@ DECLARE_EVENT_CLASS(svc_xprt_event,
 			show_svc_xprt_flags(__entry->flags))
 );
 
-DEFINE_EVENT(svc_xprt_event, svc_xprt_dequeue,
-	TP_PROTO(struct svc_xprt *xprt),
-	TP_ARGS(xprt));
-
 DEFINE_EVENT(svc_xprt_event, svc_xprt_no_write_space,
 	TP_PROTO(struct svc_xprt *xprt),
 	TP_ARGS(xprt));
+
+TRACE_EVENT(svc_xprt_dequeue,
+	TP_PROTO(struct svc_rqst *rqst),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(struct svc_xprt *, xprt)
+		__field(unsigned long, flags)
+		__field(unsigned long, wakeup)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xprt = rqst->rq_xprt;
+		__entry->flags = rqst->rq_xprt->xpt_flags;
+		__entry->wakeup = ktime_to_us(ktime_sub(ktime_get(),
+							rqst->rq_qtime));
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("xprt=%p addr=%s flags=%s wakeup-us=%lu",
+			__entry->xprt, __get_str(addr),
+			show_svc_xprt_flags(__entry->flags),
+			__entry->wakeup)
+);
 
 TRACE_EVENT(svc_wake_up,
 	TP_PROTO(int pid),
