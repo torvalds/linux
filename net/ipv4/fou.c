@@ -1081,7 +1081,6 @@ static struct pernet_operations fou_net_ops = {
 	.exit = fou_exit_net,
 	.id   = &fou_net_id,
 	.size = sizeof(struct fou_net),
-	.async = true,
 };
 
 static int __init fou_init(void)

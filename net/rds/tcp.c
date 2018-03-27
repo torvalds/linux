@@ -530,7 +530,6 @@ static struct pernet_operations rds_tcp_net_ops = {
 	.exit = rds_tcp_exit_net,
 	.id = &rds_tcp_netid,
 	.size = sizeof(struct rds_tcp_net),
-	.async = true,
 };
 
 void *rds_tcp_listen_sock_def_readable(struct net *net)

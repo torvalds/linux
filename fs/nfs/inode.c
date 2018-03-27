@@ -2122,7 +2122,6 @@ static struct pernet_operations nfs_net_ops = {
 	.exit = nfs_net_exit,
 	.id   = &nfs_net_id,
 	.size = sizeof(struct nfs_net),
-	.async = true,
 };
 
 /*

@@ -969,7 +969,6 @@ static struct pernet_operations brnf_net_ops __read_mostly = {
 	.exit = brnf_exit_net,
 	.id   = &brnf_net_id,
 	.size = sizeof(struct brnf_net),
-	.async = true,
 };
 
 static struct notifier_block brnf_notifier __read_mostly = {

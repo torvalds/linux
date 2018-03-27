@@ -857,7 +857,6 @@ static void __net_exit inet6_net_exit(struct net *net)
 static struct pernet_operations inet6_net_ops = {
 	.init = inet6_net_init,
 	.exit = inet6_net_exit,
-	.async = true,
 };
 
 static const struct ipv6_stub ipv6_stub_impl = {

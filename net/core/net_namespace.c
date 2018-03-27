@@ -338,7 +338,6 @@ static int __net_init net_defaults_init_net(struct net *net)
 
 static struct pernet_operations net_defaults_ops = {
 	.init = net_defaults_init_net,
-	.async = true,
 };
 
 static __init int net_defaults_init(void)
@@ -628,7 +627,6 @@ static __net_exit void net_ns_net_exit(struct net *net)
 static struct pernet_operations __net_initdata net_ns_ops = {
 	.init = net_ns_net_init,
 	.exit = net_ns_net_exit,
-	.async = true,
 };
 
 static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {

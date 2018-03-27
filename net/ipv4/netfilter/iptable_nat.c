@@ -129,7 +129,6 @@ static void __net_exit iptable_nat_net_exit(struct net *net)
 
 static struct pernet_operations iptable_nat_net_ops = {
 	.exit	= iptable_nat_net_exit,
-	.async	= true,
 };
 
 static int __init iptable_nat_init(void)

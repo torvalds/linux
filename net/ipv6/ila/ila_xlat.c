@@ -613,7 +613,6 @@ static struct pernet_operations ila_net_ops = {
 	.exit = ila_exit_net,
 	.id   = &ila_net_id,
 	.size = sizeof(struct ila_net),
-	.async = true,
 };
 
 static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)

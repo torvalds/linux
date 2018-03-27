@@ -1789,7 +1789,6 @@ static struct pernet_operations l2tp_net_ops = {
 	.exit = l2tp_exit_net,
 	.id   = &l2tp_net_id,
 	.size = sizeof(struct l2tp_net),
-	.async = true,
 };
 
 static int __init l2tp_init(void)

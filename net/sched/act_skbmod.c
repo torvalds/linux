@@ -279,7 +279,6 @@ static struct pernet_operations skbmod_net_ops = {
 	.exit_batch = skbmod_exit_net,
 	.id   = &skbmod_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim, <jhs@mojatatu.com>");

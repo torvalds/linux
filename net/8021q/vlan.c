@@ -729,7 +729,6 @@ static struct pernet_operations vlan_net_ops = {
 	.exit = vlan_exit_net,
 	.id   = &vlan_net_id,
 	.size = sizeof(struct vlan_net),
-	.async = true,
 };
 
 static int __init vlan_proto_init(void)

@@ -1263,7 +1263,6 @@ static struct pernet_operations nfsd_net_ops = {
 	.exit = nfsd_exit_net,
 	.id   = &nfsd_net_id,
 	.size = sizeof(struct nfsd_net),
-	.async = true,
 };
 
 static int __init init_nfsd(void)

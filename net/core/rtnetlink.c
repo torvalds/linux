@@ -4730,7 +4730,6 @@ static void __net_exit rtnetlink_net_exit(struct net *net)
 static struct pernet_operations rtnetlink_net_ops = {
 	.init = rtnetlink_net_init,
 	.exit = rtnetlink_net_exit,
-	.async = true,
 };
 
 void __init rtnetlink_init(void)

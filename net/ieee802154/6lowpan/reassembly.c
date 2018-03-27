@@ -603,7 +603,6 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 static struct pernet_operations lowpan_frags_ops = {
 	.init = lowpan_frags_init_net,
 	.exit = lowpan_frags_exit_net,
-	.async = true,
 };
 
 int __init lowpan_net_frag_init(void)

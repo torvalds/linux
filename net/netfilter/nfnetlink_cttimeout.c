@@ -586,7 +586,6 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 static struct pernet_operations cttimeout_ops = {
 	.init	= cttimeout_net_init,
 	.exit	= cttimeout_net_exit,
-	.async	= true,
 };
 
 static int __init cttimeout_init(void)

@@ -1148,7 +1148,6 @@ static struct pernet_operations vti6_net_ops = {
 	.exit_batch = vti6_exit_batch_net,
 	.id   = &vti6_net_id,
 	.size = sizeof(struct vti6_net),
-	.async = true,
 };
 
 static struct xfrm6_protocol vti_esp6_protocol __read_mostly = {

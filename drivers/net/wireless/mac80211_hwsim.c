@@ -3542,7 +3542,6 @@ static struct pernet_operations hwsim_net_ops = {
 	.exit = hwsim_exit_net,
 	.id   = &hwsim_net_id,
 	.size = sizeof(struct hwsim_net),
-	.async = true,
 };
 
 static void hwsim_exit_netlink(void)

@@ -1533,7 +1533,6 @@ static struct pernet_operations tcf_action_net_ops = {
 	.exit = tcf_action_net_exit,
 	.id = &tcf_action_net_id,
 	.size = sizeof(struct tcf_action_net),
-	.async = true,
 };
 
 static int __init tc_action_init(void)

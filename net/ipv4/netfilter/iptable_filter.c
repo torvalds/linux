@@ -87,7 +87,6 @@ static void __net_exit iptable_filter_net_exit(struct net *net)
 static struct pernet_operations iptable_filter_net_ops = {
 	.init = iptable_filter_net_init,
 	.exit = iptable_filter_net_exit,
-	.async = true,
 };
 
 static int __init iptable_filter_init(void)

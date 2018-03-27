@@ -604,7 +604,6 @@ static void __net_exit __ip_vs_lblc_exit(struct net *net) { }
 static struct pernet_operations ip_vs_lblc_ops = {
 	.init = __ip_vs_lblc_init,
 	.exit = __ip_vs_lblc_exit,
-	.async = true,
 };
 
 static int __init ip_vs_lblc_init(void)

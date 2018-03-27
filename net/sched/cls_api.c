@@ -1619,7 +1619,6 @@ static struct pernet_operations tcf_net_ops = {
 	.exit = tcf_net_exit,
 	.id   = &tcf_net_id,
 	.size = sizeof(struct tcf_net),
-	.async = true,
 };
 
 static int __init tc_filter_init(void)

@@ -687,7 +687,6 @@ static struct pernet_operations recent_net_ops = {
 	.exit	= recent_net_exit,
 	.id	= &recent_net_id,
 	.size	= sizeof(struct recent_net),
-	.async	= true,
 };
 
 static struct xt_match recent_mt_reg[] __read_mostly = {

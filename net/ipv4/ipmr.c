@@ -3009,7 +3009,6 @@ static void __net_exit ipmr_net_exit(struct net *net)
 static struct pernet_operations ipmr_net_ops = {
 	.init = ipmr_net_init,
 	.exit = ipmr_net_exit,
-	.async = true,
 };
 
 int __init ip_mr_init(void)

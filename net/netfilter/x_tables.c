@@ -1789,7 +1789,6 @@ static void __net_exit xt_net_exit(struct net *net)
 static struct pernet_operations xt_net_ops = {
 	.init = xt_net_init,
 	.exit = xt_net_exit,
-	.async = true,
 };
 
 static int __init xt_init(void)

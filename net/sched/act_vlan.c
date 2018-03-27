@@ -314,7 +314,6 @@ static struct pernet_operations vlan_net_ops = {
 	.exit_batch = vlan_exit_net,
 	.id   = &vlan_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int __init vlan_init_module(void)

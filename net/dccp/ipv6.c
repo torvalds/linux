@@ -1116,7 +1116,6 @@ static struct pernet_operations dccp_v6_ops = {
 	.init   = dccp_v6_init_net,
 	.exit   = dccp_v6_exit_net,
 	.exit_batch = dccp_v6_exit_batch,
-	.async	= true,
 };
 
 static int __init dccp_v6_init(void)

@@ -324,7 +324,6 @@ static void __net_exit diag_net_exit(struct net *net)
 static struct pernet_operations diag_net_ops = {
 	.init = diag_net_init,
 	.exit = diag_net_exit,
-	.async = true,
 };
 
 static int __init sock_diag_init(void)

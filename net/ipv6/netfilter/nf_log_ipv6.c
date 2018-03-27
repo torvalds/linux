@@ -390,7 +390,6 @@ static void __net_exit nf_log_ipv6_net_exit(struct net *net)
 static struct pernet_operations nf_log_ipv6_net_ops = {
 	.init = nf_log_ipv6_net_init,
 	.exit = nf_log_ipv6_net_exit,
-	.async = true,
 };
 
 static int __init nf_log_ipv6_init(void)

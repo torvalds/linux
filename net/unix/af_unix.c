@@ -2913,7 +2913,6 @@ static void __net_exit unix_net_exit(struct net *net)
 static struct pernet_operations unix_net_ops = {
 	.init = unix_net_init,
 	.exit = unix_net_exit,
-	.async = true,
 };
 
 static int __init af_unix_init(void)

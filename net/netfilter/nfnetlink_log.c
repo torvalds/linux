@@ -1108,7 +1108,6 @@ static struct pernet_operations nfnl_log_net_ops = {
 	.exit	= nfnl_log_net_exit,
 	.id	= &nfnl_log_net_id,
 	.size	= sizeof(struct nfnl_log_net),
-	.async	= true,
 };
 
 static int __init nfnetlink_log_init(void)

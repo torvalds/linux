@@ -352,7 +352,6 @@ static struct pernet_operations ipt_net_ops = {
 	.exit_batch = ipt_exit_net,
 	.id   = &ipt_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int tcf_xt_walker(struct net *net, struct sk_buff *skb,
@@ -403,7 +402,6 @@ static struct pernet_operations xt_net_ops = {
 	.exit_batch = xt_exit_net,
 	.id   = &xt_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-13)");

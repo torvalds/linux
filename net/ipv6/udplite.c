@@ -123,7 +123,6 @@ static void __net_exit udplite6_proc_exit_net(struct net *net)
 static struct pernet_operations udplite6_net_ops = {
 	.init = udplite6_proc_init_net,
 	.exit = udplite6_proc_exit_net,
-	.async = true,
 };
 
 int __init udplite6_proc_init(void)

@@ -1635,7 +1635,6 @@ static void __net_exit arp_tables_net_exit(struct net *net)
 static struct pernet_operations arp_tables_net_ops = {
 	.init = arp_tables_net_init,
 	.exit = arp_tables_net_exit,
-	.async = true,
 };
 
 static int __init arp_tables_init(void)

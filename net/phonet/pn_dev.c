@@ -342,7 +342,6 @@ static struct pernet_operations phonet_net_ops = {
 	.exit = phonet_exit_net,
 	.id   = &phonet_net_id,
 	.size = sizeof(struct phonet_net),
-	.async = true,
 };
 
 /* Initialize Phonet devices list */

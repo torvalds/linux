@@ -6743,7 +6743,6 @@ static void __net_exit selinux_nf_unregister(struct net *net)
 static struct pernet_operations selinux_net_ops = {
 	.init = selinux_nf_register,
 	.exit = selinux_nf_unregister,
-	.async = true,
 };
 
 static int __init selinux_nf_ip_init(void)

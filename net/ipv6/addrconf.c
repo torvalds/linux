@@ -4282,7 +4282,6 @@ static void __net_exit if6_proc_net_exit(struct net *net)
 static struct pernet_operations if6_proc_net_ops = {
 	.init = if6_proc_net_init,
 	.exit = if6_proc_net_exit,
-	.async = true,
 };
 
 int __init if6_proc_init(void)
@@ -6592,7 +6591,6 @@ static void __net_exit addrconf_exit_net(struct net *net)
 static struct pernet_operations addrconf_ops = {
 	.init = addrconf_init_net,
 	.exit = addrconf_exit_net,
-	.async = true,
 };
 
 static struct rtnl_af_ops inet6_ops __read_mostly = {

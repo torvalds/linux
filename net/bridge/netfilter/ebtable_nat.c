@@ -105,7 +105,6 @@ static void __net_exit frame_nat_net_exit(struct net *net)
 static struct pernet_operations frame_nat_net_ops = {
 	.init = frame_nat_net_init,
 	.exit = frame_nat_net_exit,
-	.async = true,
 };
 
 static int __init ebtable_nat_init(void)

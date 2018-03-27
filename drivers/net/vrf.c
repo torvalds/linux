@@ -1435,7 +1435,6 @@ static struct pernet_operations vrf_net_ops __net_initdata = {
 	.init = vrf_netns_init,
 	.id   = &vrf_net_id,
 	.size = sizeof(bool),
-	.async = true,
 };
 
 static int __init vrf_init_module(void)

@@ -2488,7 +2488,6 @@ static void mpls_net_exit(struct net *net)
 static struct pernet_operations mpls_net_ops = {
 	.init = mpls_net_init,
 	.exit = mpls_net_exit,
-	.async = true,
 };
 
 static struct rtnl_af_ops mpls_af_ops __read_mostly = {

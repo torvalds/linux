@@ -2384,7 +2384,6 @@ static struct pernet_operations ovs_net_ops = {
 	.exit = ovs_exit_net,
 	.id   = &ovs_net_id,
 	.size = sizeof(struct ovs_net),
-	.async = true,
 };
 
 static int __init dp_init(void)

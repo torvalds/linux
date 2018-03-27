@@ -970,7 +970,6 @@ static struct pernet_operations ppp_net_ops = {
 	.exit = ppp_exit_net,
 	.id   = &ppp_net_id,
 	.size = sizeof(struct ppp_net),
-	.async = true,
 };
 
 static int ppp_unit_register(struct ppp *ppp, int unit, bool ifname_is_set)

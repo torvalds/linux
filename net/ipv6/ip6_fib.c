@@ -2161,7 +2161,6 @@ static void fib6_net_exit(struct net *net)
 static struct pernet_operations fib6_net_ops = {
 	.init = fib6_net_init,
 	.exit = fib6_net_exit,
-	.async = true,
 };
 
 int __init fib6_init(void)

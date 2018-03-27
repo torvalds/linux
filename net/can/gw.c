@@ -1010,7 +1010,6 @@ static void __net_exit cangw_pernet_exit(struct net *net)
 static struct pernet_operations cangw_pernet_ops = {
 	.init = cangw_pernet_init,
 	.exit = cangw_pernet_exit,
-	.async = true,
 };
 
 static __init int cgw_module_init(void)

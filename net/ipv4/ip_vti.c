@@ -454,7 +454,6 @@ static struct pernet_operations vti_net_ops = {
 	.exit_batch = vti_exit_batch_net,
 	.id   = &vti_net_id,
 	.size = sizeof(struct ip_tunnel_net),
-	.async = true,
 };
 
 static int vti_tunnel_validate(struct nlattr *tb[], struct nlattr *data[],

@@ -3253,7 +3253,6 @@ static void __net_exit xfrm_user_net_exit(struct list_head *net_exit_list)
 static struct pernet_operations xfrm_user_net_ops = {
 	.init	    = xfrm_user_net_init,
 	.exit_batch = xfrm_user_net_exit,
-	.async	    = true,
 };
 
 static int __init xfrm_user_init(void)

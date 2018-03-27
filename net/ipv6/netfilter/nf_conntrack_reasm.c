@@ -646,7 +646,6 @@ static void nf_ct_net_exit(struct net *net)
 static struct pernet_operations nf_ct_net_ops = {
 	.init = nf_ct_net_init,
 	.exit = nf_ct_net_exit,
-	.async = true,
 };
 
 int nf_ct_frag6_init(void)

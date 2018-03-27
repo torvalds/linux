@@ -333,12 +333,6 @@ struct pernet_operations {
 	void (*exit_batch)(struct list_head *net_exit_list);
 	unsigned int *id;
 	size_t size;
-	/*
-	 * Indicates above methods are allowed to be executed in parallel
-	 * with methods of any other pernet_operations, i.e. they are not
-	 * need write locked net_sem.
-	 */
-	bool async;
 };
 
 /*

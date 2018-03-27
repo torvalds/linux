@@ -3752,7 +3752,6 @@ static struct pernet_operations vxlan_net_ops = {
 	.exit_batch = vxlan_exit_batch_net,
 	.id   = &vxlan_net_id,
 	.size = sizeof(struct vxlan_net),
-	.async = true,
 };
 
 static int __init vxlan_init_module(void)

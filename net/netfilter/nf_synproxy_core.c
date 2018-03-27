@@ -398,7 +398,6 @@ static struct pernet_operations synproxy_net_ops = {
 	.exit		= synproxy_net_exit,
 	.id		= &synproxy_net_id,
 	.size		= sizeof(struct synproxy_net),
-	.async		= true,
 };
 
 static int __init synproxy_core_init(void)

@@ -413,7 +413,6 @@ static struct pernet_operations bpf_net_ops = {
 	.exit_batch = bpf_exit_net,
 	.id   = &bpf_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int __init bpf_init_module(void)

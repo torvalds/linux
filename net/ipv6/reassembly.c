@@ -733,7 +733,6 @@ static void __net_exit ipv6_frags_exit_net(struct net *net)
 static struct pernet_operations ip6_frags_ops = {
 	.init = ipv6_frags_init_net,
 	.exit = ipv6_frags_exit_net,
-	.async = true,
 };
 
 int __init ipv6_frag_init(void)

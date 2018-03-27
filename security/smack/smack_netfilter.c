@@ -89,7 +89,6 @@ static void __net_exit smack_nf_unregister(struct net *net)
 static struct pernet_operations smack_net_ops = {
 	.init = smack_nf_register,
 	.exit = smack_nf_unregister,
-	.async = true,
 };
 
 static int __init smack_nf_ip_init(void)

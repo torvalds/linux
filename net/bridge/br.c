@@ -188,7 +188,6 @@ static void __net_exit br_net_exit(struct net *net)
 
 static struct pernet_operations br_net_ops = {
 	.exit	= br_net_exit,
-	.async	= true,
 };
 
 static const struct stp_proto br_stp_proto = {

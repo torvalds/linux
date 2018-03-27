@@ -1717,7 +1717,6 @@ static void canbcm_pernet_exit(struct net *net)
 static struct pernet_operations canbcm_pernet_ops __read_mostly = {
 	.init = canbcm_pernet_init,
 	.exit = canbcm_pernet_exit,
-	.async = true,
 };
 
 static int __init bcm_module_init(void)

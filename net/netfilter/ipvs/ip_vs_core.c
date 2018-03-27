@@ -2289,12 +2289,10 @@ static struct pernet_operations ipvs_core_ops = {
 	.exit = __ip_vs_cleanup,
 	.id   = &ip_vs_net_id,
 	.size = sizeof(struct netns_ipvs),
-	.async = true,
 };
 
 static struct pernet_operations ipvs_core_dev_ops = {
 	.exit = __ip_vs_dev_cleanup,
-	.async = true,
 };
 
 /*

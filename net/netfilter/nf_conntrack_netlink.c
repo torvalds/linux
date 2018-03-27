@@ -3417,7 +3417,6 @@ static void __net_exit ctnetlink_net_exit_batch(struct list_head *net_exit_list)
 static struct pernet_operations ctnetlink_net_ops = {
 	.init		= ctnetlink_net_init,
 	.exit_batch	= ctnetlink_net_exit_batch,
-	.async		= true,
 };
 
 static int __init ctnetlink_init(void)

@@ -2063,7 +2063,6 @@ static __net_exit void rpcsec_gss_exit_net(struct net *net)
 static struct pernet_operations rpcsec_gss_net_ops = {
 	.init = rpcsec_gss_init_net,
 	.exit = rpcsec_gss_exit_net,
-	.async = true,
 };
 
 /*

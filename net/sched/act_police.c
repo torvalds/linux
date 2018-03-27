@@ -347,7 +347,6 @@ static struct pernet_operations police_net_ops = {
 	.exit_batch = police_exit_net,
 	.id   = &police_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int __init police_init_module(void)
