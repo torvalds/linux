@@ -285,8 +285,8 @@ qcom_enable_link_stack_sanitization(const struct arm64_cpu_capabilities *entry)
  * of call backs, sharing the same capability bit.
  * Iterate over each entry to see if at least one matches.
  */
-static bool multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
-				    int scope)
+static bool __maybe_unused
+multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry, int scope)
 {
 	const struct arm64_cpu_capabilities *caps;
 
@@ -301,7 +301,7 @@ static bool multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
  * Take appropriate action for all matching entries in the shared capability
  * entry.
  */
-static void
+static void __maybe_unused
 multi_entry_cap_cpu_enable(const struct arm64_cpu_capabilities *entry)
 {
 	const struct arm64_cpu_capabilities *caps;
