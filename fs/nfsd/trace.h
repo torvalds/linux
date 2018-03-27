@@ -18,19 +18,24 @@ DECLARE_EVENT_CLASS(nfsd_io_class,
 		 int		len),
 	TP_ARGS(rqstp, fhp, offset, len),
 	TP_STRUCT__entry(
-		__field(__be32, xid)
-		__field_struct(struct knfsd_fh, fh)
+		__field(u32, xid)
+		__field(u32, fh_hash)
 		__field(loff_t, offset)
 		__field(int, len)
 	),
 	TP_fast_assign(
-		__entry->xid = rqstp->rq_xid,
-		fh_copy_shallow(&__entry->fh, &fhp->fh_handle);
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		do {
+			struct knfsd_fh fh;
+
+			fh_copy_shallow(&fh, &fhp->fh_handle);
+			__entry->fh_hash = knfsd_fh_hash(&fh);
+		} while (0);
 		__entry->offset = offset;
 		__entry->len = len;
 	),
-	TP_printk("xid=0x%x fh=0x%x offset=%lld len=%d",
-		  __be32_to_cpu(__entry->xid), knfsd_fh_hash(&__entry->fh),
+	TP_printk("xid=0x%08x fh_hash=0x%08x offset=%lld len=%d",
+		  __entry->xid, __entry->fh_hash,
 		  __entry->offset, __entry->len)
 )
 
