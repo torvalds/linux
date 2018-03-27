@@ -844,7 +844,6 @@ struct efx_rss_context {
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
  * @filter_sem: Filter table rw_semaphore, protects existence of @filter_state
- * @filter_lock: Filter table lock, for mere content changes
  * @filter_state: Architecture-dependent filter table state
  * @rps_mutex: Protects RPS state of all channels
  * @rps_expire_channel: Next channel to check for expiry
@@ -998,7 +997,6 @@ struct efx_nic {
 	void *loopback_selftest;
 
 	struct rw_semaphore filter_sem;
-	spinlock_t filter_lock;
 	void *filter_state;
 #ifdef CONFIG_RFS_ACCEL
 	struct mutex rps_mutex;
