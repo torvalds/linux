@@ -980,7 +980,7 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 	c->isdbt_sb_subchannel = 0;
 	c->isdbt_sb_segment_idx = 0;
 	c->isdbt_sb_segment_count = 0;
-	c->isdbt_layer_enabled = 0;
+	c->isdbt_layer_enabled = 7;	/* All layers (A,B,C) */
 	for (i = 0; i < 3; i++) {
 		c->layer[i].fec = FEC_AUTO;
 		c->layer[i].modulation = QAM_AUTO;
