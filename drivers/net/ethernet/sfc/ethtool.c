@@ -1088,6 +1088,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	struct ethtool_tcpip6_spec *ip6_mask = &rule->m_u.tcp_ip6_spec;
 	struct ethtool_usrip6_spec *uip6_entry = &rule->h_u.usr_ip6_spec;
 	struct ethtool_usrip6_spec *uip6_mask = &rule->m_u.usr_ip6_spec;
+	u32 flow_type = rule->flow_type & ~(FLOW_EXT | FLOW_RSS);
 	struct ethhdr *mac_entry = &rule->h_u.ether_spec;
 	struct ethhdr *mac_mask = &rule->m_u.ether_spec;
 	enum efx_filter_flags flags = 0;
@@ -1121,14 +1122,14 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	if (rule->flow_type & FLOW_RSS)
 		spec.rss_context = rss_context;
 
-	switch (rule->flow_type & ~(FLOW_EXT | FLOW_RSS)) {
+	switch (flow_type) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		spec.match_flags = (EFX_FILTER_MATCH_ETHER_TYPE |
 				    EFX_FILTER_MATCH_IP_PROTO);
 		spec.ether_type = htons(ETH_P_IP);
-		spec.ip_proto = ((rule->flow_type & ~FLOW_EXT) == TCP_V4_FLOW ?
-				 IPPROTO_TCP : IPPROTO_UDP);
+		spec.ip_proto = flow_type == TCP_V4_FLOW ? IPPROTO_TCP
+							 : IPPROTO_UDP;
 		if (ip_mask->ip4dst) {
 			if (ip_mask->ip4dst != IP4_ADDR_FULL_MASK)
 				return -EINVAL;
@@ -1162,8 +1163,8 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 		spec.match_flags = (EFX_FILTER_MATCH_ETHER_TYPE |
 				    EFX_FILTER_MATCH_IP_PROTO);
 		spec.ether_type = htons(ETH_P_IPV6);
-		spec.ip_proto = ((rule->flow_type & ~FLOW_EXT) == TCP_V6_FLOW ?
-				 IPPROTO_TCP : IPPROTO_UDP);
+		spec.ip_proto = flow_type == TCP_V6_FLOW ? IPPROTO_TCP
+							 : IPPROTO_UDP;
 		if (!ip6_mask_is_empty(ip6_mask->ip6dst)) {
 			if (!ip6_mask_is_full(ip6_mask->ip6dst))
 				return -EINVAL;
