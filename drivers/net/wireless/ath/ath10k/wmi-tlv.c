@@ -413,6 +413,19 @@ static int ath10k_wmi_tlv_event_tx_pause(struct ath10k *ar,
 	return 0;
 }
 
+static int ath10k_wmi_tlv_event_temperature(struct ath10k *ar,
+					    struct sk_buff *skb)
+{
+	const struct wmi_tlv_pdev_temperature_event *ev;
+
+	ev = (struct wmi_tlv_pdev_temperature_event *)skb->data;
+	if (WARN_ON(skb->len < sizeof(*ev)))
+		return -EPROTO;
+
+	ath10k_thermal_event_temperature(ar, __le32_to_cpu(ev->temperature));
+	return 0;
+}
+
 /***********/
 /* TLV ops */
 /***********/
@@ -552,6 +565,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_TLV_TX_PAUSE_EVENTID:
 		ath10k_wmi_tlv_event_tx_pause(ar, skb);
+		break;
+	case WMI_TLV_PDEV_TEMPERATURE_EVENTID:
+		ath10k_wmi_tlv_event_temperature(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -2658,6 +2674,25 @@ ath10k_wmi_tlv_op_gen_pktlog_enable(struct ath10k *ar, u32 filter)
 }
 
 static struct sk_buff *
+ath10k_wmi_tlv_op_gen_pdev_get_temperature(struct ath10k *ar)
+{
+	struct wmi_tlv_pdev_get_temp_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*tlv) + sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	tlv = (void *)skb->data;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_PDEV_GET_TEMPERATURE_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi pdev get temperature tlv\n");
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_tlv_op_gen_pktlog_disable(struct ath10k *ar)
 {
 	struct wmi_tlv_pktlog_disable *cmd;
@@ -3439,7 +3474,7 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.force_fw_hang_cmdid = WMI_TLV_FORCE_FW_HANG_CMDID,
 	.gpio_config_cmdid = WMI_TLV_GPIO_CONFIG_CMDID,
 	.gpio_output_cmdid = WMI_TLV_GPIO_OUTPUT_CMDID,
-	.pdev_get_temperature_cmdid = WMI_TLV_CMD_UNSUPPORTED,
+	.pdev_get_temperature_cmdid = WMI_TLV_PDEV_GET_TEMPERATURE_CMDID,
 	.vdev_set_wmm_params_cmdid = WMI_TLV_VDEV_SET_WMM_PARAMS_CMDID,
 	.tdls_set_state_cmdid = WMI_TLV_TDLS_SET_STATE_CMDID,
 	.tdls_peer_update_cmdid = WMI_TLV_TDLS_PEER_UPDATE_CMDID,
@@ -3702,7 +3737,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_pktlog_enable = ath10k_wmi_tlv_op_gen_pktlog_enable,
 	.gen_pktlog_disable = ath10k_wmi_tlv_op_gen_pktlog_disable,
 	/* .gen_pdev_set_quiet_mode not implemented */
-	/* .gen_pdev_get_temperature not implemented */
+	.gen_pdev_get_temperature = ath10k_wmi_tlv_op_gen_pdev_get_temperature,
 	/* .gen_addba_clear_resp not implemented */
 	/* .gen_addba_send not implemented */
 	/* .gen_addba_set_resp not implemented */
