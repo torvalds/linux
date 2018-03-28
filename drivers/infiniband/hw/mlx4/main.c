@@ -1858,6 +1858,9 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	if (flow_attr->port < 1 || flow_attr->port > qp->device->phys_port_cnt)
 		return ERR_PTR(-EINVAL);
 
+	if (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if ((flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) &&
 	    (flow_attr->type != IB_FLOW_ATTR_NORMAL))
 		return ERR_PTR(-EOPNOTSUPP);
