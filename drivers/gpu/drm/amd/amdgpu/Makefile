@@ -64,6 +64,10 @@ amdgpu-$(CONFIG_DRM_AMDGPU_SI)+= si.o gmc_v6_0.o gfx_v6_0.o si_ih.o si_dma.o dce
 amdgpu-y += \
 	vi.o mxgpu_vi.o nbio_v6_1.o soc15.o emu_soc.o mxgpu_ai.o nbio_v7_0.o vega10_reg_init.o
 
+# add DF block
+amdgpu-y += \
+	df_v1_7.o
+
 # add GMC block
 amdgpu-y += \
 	gmc_v7_0.o \
