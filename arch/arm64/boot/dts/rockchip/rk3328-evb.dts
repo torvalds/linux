@@ -281,7 +281,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vdd_logic: RK805_DCDC1@0 {
+			vdd_logic: RK805_DCDC1 {
 				regulator-compatible = "RK805_DCDC1";
 				regulator-name = "vdd_logic";
 				regulator-min-microvolt = <712500>;
@@ -297,7 +297,7 @@
 				};
 			};
 
-			vdd_arm: RK805_DCDC2@1 {
+			vdd_arm: RK805_DCDC2 {
 				regulator-compatible = "RK805_DCDC2";
 				regulator-name = "vdd_arm";
 				regulator-min-microvolt = <712500>;
@@ -313,7 +313,7 @@
 				};
 			};
 
-			vcc_ddr: RK805_DCDC3@2 {
+			vcc_ddr: RK805_DCDC3 {
 				regulator-compatible = "RK805_DCDC3";
 				regulator-name = "vcc_ddr";
 				regulator-initial-mode = <0x1>;
@@ -325,7 +325,7 @@
 				};
 			};
 
-			vcc_io: RK805_DCDC4@3 {
+			vcc_io: RK805_DCDC4 {
 				regulator-compatible = "RK805_DCDC4";
 				regulator-name = "vcc_io";
 				regulator-min-microvolt = <3300000>;
@@ -340,7 +340,7 @@
 				};
 			};
 
-			vdd_18: RK805_LDO1@4 {
+			vdd_18: RK805_LDO1 {
 				regulator-compatible = "RK805_LDO1";
 				regulator-name = "vdd_18";
 				regulator-min-microvolt = <1800000>;
@@ -353,7 +353,7 @@
 				};
 			};
 
-			vcc_18emmc: RK805_LDO2@5 {
+			vcc_18emmc: RK805_LDO2 {
 				regulator-compatible = "RK805_LDO2";
 				regulator-name = "vcc_18emmc";
 				regulator-min-microvolt = <1800000>;
@@ -366,7 +366,7 @@
 				};
 			};
 
-			vdd_11: RK805_LDO3@6 {
+			vdd_11: RK805_LDO3 {
 				regulator-compatible = "RK805_LDO3";
 				regulator-name = "vdd_11";
 				regulator-min-microvolt = <1100000>;

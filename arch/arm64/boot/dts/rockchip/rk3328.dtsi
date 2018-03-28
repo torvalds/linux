@@ -371,12 +371,12 @@
 			thermal-sensors = <&tsadc 0>;
 
 			trips {
-				threshold: trip-point@0 {
+				threshold: trip-point-0 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				target: trip-point@1 {
+				target: trip-point-1 {
 					temperature = <85000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
