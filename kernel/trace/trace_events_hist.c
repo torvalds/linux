@@ -2052,7 +2052,7 @@ static void expr_field_str(struct hist_field *field, char *expr)
 
 	strcat(expr, hist_field_name(field, 0));
 
-	if (field->flags) {
+	if (field->flags && !(field->flags & HIST_FIELD_FL_VAR_REF)) {
 		const char *flags_str = get_hist_field_flags(field);
 
 		if (flags_str) {
