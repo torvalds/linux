@@ -1383,7 +1383,7 @@ static int s3c_fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	sfb = devm_kzalloc(dev, sizeof(struct s3c_fb), GFP_KERNEL);
+	sfb = devm_kzalloc(dev, sizeof(*sfb), GFP_KERNEL);
 	if (!sfb)
 		return -ENOMEM;
 
