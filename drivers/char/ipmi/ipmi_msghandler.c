@@ -4956,13 +4956,15 @@ static void device_id_fetcher(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 	}
 }
 
-static void send_panic_events(char *str)
+static void send_panic_events(ipmi_smi_t intf, char *str)
 {
-	struct kernel_ipmi_msg            msg;
-	ipmi_smi_t                        intf;
-	unsigned char                     data[16];
+	struct kernel_ipmi_msg msg;
+	unsigned char data[16];
 	struct ipmi_system_interface_addr *si;
-	struct ipmi_addr                  addr;
+	struct ipmi_addr addr;
+	char *p = str;
+	struct ipmi_ipmb_addr *ipmb;
+	int j;
 
 	if (ipmi_send_panic_event == IPMI_SEND_PANIC_EVENT_NONE)
 		return;
@@ -4993,15 +4995,8 @@ static void send_panic_events(char *str)
 		data[7] = str[2];
 	}
 
-	/* For every registered interface, send the event. */
-	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
-		if (!intf->handlers || !intf->handlers->poll)
-			/* Interface is not ready or can't run at panic time. */
-			continue;
-
-		/* Send the event announcing the panic. */
-		ipmi_panic_request_and_wait(intf, &addr, &msg);
-	}
+	/* Send the event announcing the panic. */
+	ipmi_panic_request_and_wait(intf, &addr, &msg);
 
 	/*
 	 * On every interface, dump a bunch of OEM event holding the
@@ -5010,111 +5005,100 @@ static void send_panic_events(char *str)
 	if (ipmi_send_panic_event != IPMI_SEND_PANIC_EVENT_STRING || !str)
 		return;
 
-	/* For every registered interface, send the event. */
-	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
-		char                  *p = str;
-		struct ipmi_ipmb_addr *ipmb;
-		int                   j;
+	/*
+	 * intf_num is used as an marker to tell if the
+	 * interface is valid.  Thus we need a read barrier to
+	 * make sure data fetched before checking intf_num
+	 * won't be used.
+	 */
+	smp_rmb();
 
-		if (intf->intf_num == -1)
-			/* Interface was not ready yet. */
-			continue;
+	/*
+	 * First job here is to figure out where to send the
+	 * OEM events.  There's no way in IPMI to send OEM
+	 * events using an event send command, so we have to
+	 * find the SEL to put them in and stick them in
+	 * there.
+	 */
 
-		/*
-		 * intf_num is used as an marker to tell if the
-		 * interface is valid.  Thus we need a read barrier to
-		 * make sure data fetched before checking intf_num
-		 * won't be used.
-		 */
-		smp_rmb();
+	/* Get capabilities from the get device id. */
+	intf->local_sel_device = 0;
+	intf->local_event_generator = 0;
+	intf->event_receiver = 0;
 
-		/*
-		 * First job here is to figure out where to send the
-		 * OEM events.  There's no way in IPMI to send OEM
-		 * events using an event send command, so we have to
-		 * find the SEL to put them in and stick them in
-		 * there.
-		 */
+	/* Request the device info from the local MC. */
+	msg.netfn = IPMI_NETFN_APP_REQUEST;
+	msg.cmd = IPMI_GET_DEVICE_ID_CMD;
+	msg.data = NULL;
+	msg.data_len = 0;
+	intf->null_user_handler = device_id_fetcher;
+	ipmi_panic_request_and_wait(intf, &addr, &msg);
 
-		/* Get capabilities from the get device id. */
-		intf->local_sel_device = 0;
-		intf->local_event_generator = 0;
-		intf->event_receiver = 0;
-
-		/* Request the device info from the local MC. */
-		msg.netfn = IPMI_NETFN_APP_REQUEST;
-		msg.cmd = IPMI_GET_DEVICE_ID_CMD;
+	if (intf->local_event_generator) {
+		/* Request the event receiver from the local MC. */
+		msg.netfn = IPMI_NETFN_SENSOR_EVENT_REQUEST;
+		msg.cmd = IPMI_GET_EVENT_RECEIVER_CMD;
 		msg.data = NULL;
 		msg.data_len = 0;
-		intf->null_user_handler = device_id_fetcher;
+		intf->null_user_handler = event_receiver_fetcher;
 		ipmi_panic_request_and_wait(intf, &addr, &msg);
+	}
+	intf->null_user_handler = NULL;
 
-		if (intf->local_event_generator) {
-			/* Request the event receiver from the local MC. */
-			msg.netfn = IPMI_NETFN_SENSOR_EVENT_REQUEST;
-			msg.cmd = IPMI_GET_EVENT_RECEIVER_CMD;
-			msg.data = NULL;
-			msg.data_len = 0;
-			intf->null_user_handler = event_receiver_fetcher;
-			ipmi_panic_request_and_wait(intf, &addr, &msg);
-		}
-		intf->null_user_handler = NULL;
-
+	/*
+	 * Validate the event receiver.  The low bit must not
+	 * be 1 (it must be a valid IPMB address), it cannot
+	 * be zero, and it must not be my address.
+	 */
+	if (((intf->event_receiver & 1) == 0)
+	    && (intf->event_receiver != 0)
+	    && (intf->event_receiver != intf->addrinfo[0].address)) {
 		/*
-		 * Validate the event receiver.  The low bit must not
-		 * be 1 (it must be a valid IPMB address), it cannot
-		 * be zero, and it must not be my address.
+		 * The event receiver is valid, send an IPMB
+		 * message.
 		 */
-		if (((intf->event_receiver & 1) == 0)
-		    && (intf->event_receiver != 0)
-		    && (intf->event_receiver != intf->addrinfo[0].address)) {
-			/*
-			 * The event receiver is valid, send an IPMB
-			 * message.
-			 */
-			ipmb = (struct ipmi_ipmb_addr *) &addr;
-			ipmb->addr_type = IPMI_IPMB_ADDR_TYPE;
-			ipmb->channel = 0; /* FIXME - is this right? */
-			ipmb->lun = intf->event_receiver_lun;
-			ipmb->slave_addr = intf->event_receiver;
-		} else if (intf->local_sel_device) {
-			/*
-			 * The event receiver was not valid (or was
-			 * me), but I am an SEL device, just dump it
-			 * in my SEL.
-			 */
-			si = (struct ipmi_system_interface_addr *) &addr;
-			si->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
-			si->channel = IPMI_BMC_CHANNEL;
-			si->lun = 0;
-		} else
-			continue; /* No where to send the event. */
+		ipmb = (struct ipmi_ipmb_addr *) &addr;
+		ipmb->addr_type = IPMI_IPMB_ADDR_TYPE;
+		ipmb->channel = 0; /* FIXME - is this right? */
+		ipmb->lun = intf->event_receiver_lun;
+		ipmb->slave_addr = intf->event_receiver;
+	} else if (intf->local_sel_device) {
+		/*
+		 * The event receiver was not valid (or was
+		 * me), but I am an SEL device, just dump it
+		 * in my SEL.
+		 */
+		si = (struct ipmi_system_interface_addr *) &addr;
+		si->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
+		si->channel = IPMI_BMC_CHANNEL;
+		si->lun = 0;
+	} else
+		return; /* No where to send the event. */
 
-		msg.netfn = IPMI_NETFN_STORAGE_REQUEST; /* Storage. */
-		msg.cmd = IPMI_ADD_SEL_ENTRY_CMD;
-		msg.data = data;
-		msg.data_len = 16;
+	msg.netfn = IPMI_NETFN_STORAGE_REQUEST; /* Storage. */
+	msg.cmd = IPMI_ADD_SEL_ENTRY_CMD;
+	msg.data = data;
+	msg.data_len = 16;
 
-		j = 0;
-		while (*p) {
-			int size = strlen(p);
+	j = 0;
+	while (*p) {
+		int size = strlen(p);
 
-			if (size > 11)
-				size = 11;
-			data[0] = 0;
-			data[1] = 0;
-			data[2] = 0xf0; /* OEM event without timestamp. */
-			data[3] = intf->addrinfo[0].address;
-			data[4] = j++; /* sequence # */
-			/*
-			 * Always give 11 bytes, so strncpy will fill
-			 * it with zeroes for me.
-			 */
-			strncpy(data+5, p, 11);
-			p += size;
+		if (size > 11)
+			size = 11;
+		data[0] = 0;
+		data[1] = 0;
+		data[2] = 0xf0; /* OEM event without timestamp. */
+		data[3] = intf->addrinfo[0].address;
+		data[4] = j++; /* sequence # */
+		/*
+		 * Always give 11 bytes, so strncpy will fill
+		 * it with zeroes for me.
+		 */
+		strncpy(data+5, p, 11);
+		p += size;
 
-			ipmi_panic_request_and_wait(intf, &addr, &msg);
-		}
+		ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 }
 
@@ -5125,6 +5109,7 @@ static int panic_event(struct notifier_block *this,
 		       void                  *ptr)
 {
 	ipmi_smi_t intf;
+	ipmi_user_t user;
 
 	if (has_panicked)
 		return NOTIFY_DONE;
@@ -5132,8 +5117,11 @@ static int panic_event(struct notifier_block *this,
 
 	/* For every registered interface, set it to run to completion. */
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
-		if (!intf->handlers)
+		if (!intf->handlers || intf->intf_num == -1)
 			/* Interface is not ready. */
+			continue;
+
+		if (!intf->handlers->poll)
 			continue;
 
 		/*
@@ -5157,9 +5145,15 @@ static int panic_event(struct notifier_block *this,
 		if (intf->handlers->set_run_to_completion)
 			intf->handlers->set_run_to_completion(intf->send_info,
 							      1);
-	}
 
-	send_panic_events(ptr);
+		list_for_each_entry_rcu(user, &intf->users, link) {
+			if (user->handler->ipmi_panic_handler)
+				user->handler->ipmi_panic_handler(
+					user->handler_data);
+		}
+
+		send_panic_events(intf, ptr);
+	}
 
 	return NOTIFY_DONE;
 }

@@ -77,6 +77,12 @@ struct ipmi_user_hndl {
 	/* Called when the interface detects a watchdog pre-timeout.  If
 	   this is NULL, it will be ignored for the user. */
 	void (*ipmi_watchdog_pretimeout)(void *handler_data);
+
+	/*
+	 * If not NULL, called at panic time after the interface has
+	 * been set up to handle run to completion.
+	 */
+	void (*ipmi_panic_handler)(void *handler_data);
 };
 
 /* Create a new user of the IPMI layer on the given interface number. */
