@@ -19,7 +19,6 @@
 #include <linux/scatterlist.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
 #define PCIBIOS_MIN_IO		0x1000
