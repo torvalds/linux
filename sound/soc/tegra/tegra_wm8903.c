@@ -170,7 +170,7 @@ static const struct snd_kcontrol_new tegra_wm8903_controls[] = {
 static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	struct snd_soc_card *card = rtd->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 
@@ -189,7 +189,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 			      &tegra_wm8903_mic_jack,
 			      tegra_wm8903_mic_jack_pins,
 			      ARRAY_SIZE(tegra_wm8903_mic_jack_pins));
-	wm8903_mic_detect(codec, &tegra_wm8903_mic_jack, SND_JACK_MICROPHONE,
+	wm8903_mic_detect(component, &tegra_wm8903_mic_jack, SND_JACK_MICROPHONE,
 				0);
 
 	snd_soc_dapm_force_enable_pin(&card->dapm, "MICBIAS");
@@ -202,9 +202,9 @@ static int tegra_wm8903_remove(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd =
 		snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 
-	wm8903_mic_detect(codec, NULL, 0, 0);
+	wm8903_mic_detect(component, NULL, 0, 0);
 
 	return 0;
 }
