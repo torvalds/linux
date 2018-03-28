@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include "renesas-cpg-mssr.h"
 #include "rcar-gen2-cpg.h"
@@ -261,6 +262,11 @@ static const struct rcar_gen2_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_pll0_div __initdata;
 static u32 cpg_mode __initdata;
 
+static const struct soc_device_attribute soc_r8a77470[] = {
+	{ .soc_id = "r8a77470" },
+	{ /* sentinel */ }
+};
+
 struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
 	struct clk **clks, void __iomem *base,
@@ -327,11 +333,17 @@ struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN2_SD0:
 		table = cpg_sd01_div_table;
+		if (soc_device_match(soc_r8a77470))
+			table++;
+
 		shift = 4;
 		break;
 
 	case CLK_TYPE_GEN2_SD1:
 		table = cpg_sd01_div_table;
+		if (soc_device_match(soc_r8a77470))
+			table++;
+
 		shift = 0;
 		break;
 

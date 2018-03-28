@@ -7,6 +7,7 @@ config CLK_RENESAS
 	select CLK_R8A7740 if ARCH_R8A7740
 	select CLK_R8A7743 if ARCH_R8A7743
 	select CLK_R8A7745 if ARCH_R8A7745
+	select CLK_R8A77470 if ARCH_R8A77470
 	select CLK_R8A7778 if ARCH_R8A7778
 	select CLK_R8A7779 if ARCH_R8A7779
 	select CLK_R8A7790 if ARCH_R8A7790
@@ -58,6 +59,10 @@ config CLK_R8A7743
 
 config CLK_R8A7745
 	bool "RZ/G1E clock support" if COMPILE_TEST
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A77470
+	bool "RZ/G1C clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN2_CPG
 
 config CLK_R8A7778
