@@ -457,8 +457,21 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	} else if (rockchip->edev ?
 		   extcon_get_cable_state_(edev, EXTCON_USB_HOST) :
 		   (dwc->dr_mode == USB_DR_MODE_HOST)) {
-		if (rockchip->connected)
-			goto out;
+		if (rockchip->connected) {
+			reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+
+			/*
+			 * If the connected flag is true, and the DWC3 is
+			 * is in device mode, it means that the Type-C Dongle
+			 * is doing data role swap (UFP -> DFP), so we need
+			 * to disconnect UFP first, and then swich DWC3 to
+			 * DFP depends on the next extcon notifier.
+			 */
+			if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_DEVICE)
+				goto disconnect;
+			else
+				goto out;
+		}
 
 		if (rockchip->skip_suspend) {
 			pm_runtime_put(dwc->dev);
@@ -538,6 +551,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		if (!rockchip->connected)
 			goto out;
 
+disconnect:
 		reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
 		/*
