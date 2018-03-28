@@ -38,7 +38,7 @@ Device node example
 -------------------
 
 	isp0: isp0@ff910000 {
-		compatible = "rockchip,rk3399-cif-isp";
+		compatible = "rockchip,rk3399-rkisp1";
 		reg = <0x0 0xff910000 0x0 0x4000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_ISP0>,
