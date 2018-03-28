@@ -73,8 +73,10 @@ struct phylink_mac_ops {
 	void (*mac_config)(struct net_device *ndev, unsigned int mode,
 			   const struct phylink_link_state *state);
 	void (*mac_an_restart)(struct net_device *ndev);
-	void (*mac_link_down)(struct net_device *ndev, unsigned int mode);
+	void (*mac_link_down)(struct net_device *ndev, unsigned int mode,
+			      phy_interface_t interface);
 	void (*mac_link_up)(struct net_device *ndev, unsigned int mode,
+			    phy_interface_t interface,
 			    struct phy_device *phy);
 };
 
@@ -161,25 +163,31 @@ void mac_an_restart(struct net_device *ndev);
  * mac_link_down() - take the link down
  * @ndev: a pointer to a &struct net_device for the MAC.
  * @mode: link autonegotiation mode
+ * @interface: link &typedef phy_interface_t mode
  *
  * If @mode is not an in-band negotiation mode (as defined by
  * phylink_autoneg_inband()), force the link down and disable any
- * Energy Efficient Ethernet MAC configuration.
+ * Energy Efficient Ethernet MAC configuration. Interface type
+ * selection must be done in mac_config().
  */
-void mac_link_down(struct net_device *ndev, unsigned int mode);
+void mac_link_down(struct net_device *ndev, unsigned int mode,
+		   phy_interface_t interface);
 
 /**
  * mac_link_up() - allow the link to come up
  * @ndev: a pointer to a &struct net_device for the MAC.
  * @mode: link autonegotiation mode
+ * @interface: link &typedef phy_interface_t mode
  * @phy: any attached phy
  *
  * If @mode is not an in-band negotiation mode (as defined by
  * phylink_autoneg_inband()), allow the link to come up. If @phy
  * is non-%NULL, configure Energy Efficient Ethernet by calling
  * phy_init_eee() and perform appropriate MAC configuration for EEE.
+ * Interface type selection must be done in mac_config().
  */
 void mac_link_up(struct net_device *ndev, unsigned int mode,
+		 phy_interface_t interface,
 		 struct phy_device *phy);
 #endif
 

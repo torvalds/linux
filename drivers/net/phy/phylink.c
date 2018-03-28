@@ -470,10 +470,12 @@ static void phylink_resolve(struct work_struct *w)
 	if (link_state.link != netif_carrier_ok(ndev)) {
 		if (!link_state.link) {
 			netif_carrier_off(ndev);
-			pl->ops->mac_link_down(ndev, pl->link_an_mode);
+			pl->ops->mac_link_down(ndev, pl->link_an_mode,
+					       pl->phy_state.interface);
 			netdev_info(ndev, "Link is Down\n");
 		} else {
 			pl->ops->mac_link_up(ndev, pl->link_an_mode,
+					     pl->phy_state.interface,
 					     pl->phydev);
 
 			netif_carrier_on(ndev);
