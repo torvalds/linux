@@ -285,7 +285,9 @@ void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no,
 {
 	unsigned long flags;
 
-	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions ||
+	    (epf_bar->barno == BAR_5 &&
+	     epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64))
 		return;
 
 	if (!epc->ops->clear_bar)
