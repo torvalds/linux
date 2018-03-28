@@ -1135,7 +1135,6 @@ static struct fb_ops dlfb_ops = {
  */
 static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info)
 {
-	int retval = -ENOMEM;
 	int old_len = info->fix.smem_len;
 	int new_len;
 	unsigned char *old_fb = info->screen_base;
@@ -1151,7 +1150,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 		new_fb = vmalloc(new_len);
 		if (!new_fb) {
 			dev_err(info->dev, "Virtual framebuffer alloc failed\n");
-			goto error;
+			return -ENOMEM;
 		}
 
 		if (info->screen_base) {
@@ -1180,11 +1179,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 			dlfb->backing_buffer = new_back;
 		}
 	}
-
-	retval = 0;
-
-error:
-	return retval;
+	return 0;
 }
 
 /*
