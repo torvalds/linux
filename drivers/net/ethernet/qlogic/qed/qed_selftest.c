@@ -128,7 +128,8 @@ int qed_selftest_nvram(struct qed_dev *cdev)
 	rc = qed_mcp_bist_nvm_get_num_images(p_hwfn, p_ptt, &num_images);
 	if (rc || !num_images) {
 		DP_ERR(p_hwfn, "Failed getting number of images\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err0;
 	}
 
 	/* Iterate over images and validate CRC */
