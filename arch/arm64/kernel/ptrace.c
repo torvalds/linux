@@ -629,7 +629,7 @@ static int __fpr_get(struct task_struct *target,
 
 	sve_sync_to_fpsimd(target);
 
-	uregs = &target->thread.fpsimd_state.user_fpsimd;
+	uregs = &target->thread.fpsimd_state;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs,
 				   start_pos, start_pos + sizeof(*uregs));
@@ -660,14 +660,14 @@ static int __fpr_set(struct task_struct *target,
 	 */
 	sve_sync_to_fpsimd(target);
 
-	newstate = target->thread.fpsimd_state.user_fpsimd;
+	newstate = target->thread.fpsimd_state;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newstate,
 				 start_pos, start_pos + sizeof(newstate));
 	if (ret)
 		return ret;
 
-	target->thread.fpsimd_state.user_fpsimd = newstate;
+	target->thread.fpsimd_state = newstate;
 
 	return ret;
 }
@@ -1169,7 +1169,7 @@ static int compat_vfp_get(struct task_struct *target,
 	compat_ulong_t fpscr;
 	int ret, vregs_end_pos;
 
-	uregs = &target->thread.fpsimd_state.user_fpsimd;
+	uregs = &target->thread.fpsimd_state;
 
 	if (target == current)
 		fpsimd_preserve_current_state();
@@ -1202,7 +1202,7 @@ static int compat_vfp_set(struct task_struct *target,
 	compat_ulong_t fpscr;
 	int ret, vregs_end_pos;
 
-	uregs = &target->thread.fpsimd_state.user_fpsimd;
+	uregs = &target->thread.fpsimd_state;
 
 	vregs_end_pos = VFP_STATE_SIZE - sizeof(compat_ulong_t);
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, uregs, 0,

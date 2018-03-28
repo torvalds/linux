@@ -66,7 +66,7 @@
  *     been loaded into its FPSIMD registers most recently, or whether it has
  *     been used to perform kernel mode NEON in the meantime.
  *
- * For (a), we add a 'cpu' field to struct fpsimd_state, which gets updated to
+ * For (a), we add a fpsimd_cpu field to thread_struct, which gets updated to
  * the id of the current CPU every time the state is loaded onto a CPU. For (b),
  * we add the per-cpu variable 'fpsimd_last_state' (below), which contains the
  * address of the userland FPSIMD state of the task that was loaded onto the CPU
@@ -75,7 +75,7 @@
  * With this in place, we no longer have to restore the next FPSIMD state right
  * when switching between tasks. Instead, we can defer this check to userland
  * resume, at which time we verify whether the CPU's fpsimd_last_state and the
- * task's fpsimd_state.cpu are still mutually in sync. If this is the case, we
+ * task's fpsimd_cpu are still mutually in sync. If this is the case, we
  * can omit the FPSIMD restore.
  *
  * As an optimization, we use the thread_info flag TIF_FOREIGN_FPSTATE to
@@ -92,14 +92,14 @@
  * flag with local_bh_disable() unless softirqs are already masked.
  *
  * For a certain task, the sequence may look something like this:
- * - the task gets scheduled in; if both the task's fpsimd_state.cpu field
+ * - the task gets scheduled in; if both the task's fpsimd_cpu field
  *   contains the id of the current CPU, and the CPU's fpsimd_last_state per-cpu
  *   variable points to the task's fpsimd_state, the TIF_FOREIGN_FPSTATE flag is
  *   cleared, otherwise it is set;
  *
  * - the task returns to userland; if TIF_FOREIGN_FPSTATE is set, the task's
  *   userland FPSIMD state is copied from memory to the registers, the task's
- *   fpsimd_state.cpu field is set to the id of the current CPU, the current
+ *   fpsimd_cpu field is set to the id of the current CPU, the current
  *   CPU's fpsimd_last_state pointer is set to this task's fpsimd_state and the
  *   TIF_FOREIGN_FPSTATE flag is cleared;
  *
@@ -117,7 +117,7 @@
  *   whatever is in the FPSIMD registers is not saved to memory, but discarded.
  */
 struct fpsimd_last_state_struct {
-	struct fpsimd_state *st;
+	struct user_fpsimd_state *st;
 	bool sve_in_use;
 };
 
@@ -418,7 +418,7 @@ static void fpsimd_to_sve(struct task_struct *task)
 {
 	unsigned int vq;
 	void *sst = task->thread.sve_state;
-	struct fpsimd_state const *fst = &task->thread.fpsimd_state;
+	struct user_fpsimd_state const *fst = &task->thread.fpsimd_state;
 	unsigned int i;
 
 	if (!system_supports_sve())
@@ -444,7 +444,7 @@ static void sve_to_fpsimd(struct task_struct *task)
 {
 	unsigned int vq;
 	void const *sst = task->thread.sve_state;
-	struct fpsimd_state *fst = &task->thread.fpsimd_state;
+	struct user_fpsimd_state *fst = &task->thread.fpsimd_state;
 	unsigned int i;
 
 	if (!system_supports_sve())
@@ -540,7 +540,7 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 {
 	unsigned int vq;
 	void *sst = task->thread.sve_state;
-	struct fpsimd_state const *fst = &task->thread.fpsimd_state;
+	struct user_fpsimd_state const *fst = &task->thread.fpsimd_state;
 	unsigned int i;
 
 	if (!test_tsk_thread_flag(task, TIF_SVE))
@@ -909,10 +909,9 @@ void fpsimd_thread_switch(struct task_struct *next)
 		 * the TIF_FOREIGN_FPSTATE flag so the state will be loaded
 		 * upon the next return to userland.
 		 */
-		struct fpsimd_state *st = &next->thread.fpsimd_state;
-
-		if (__this_cpu_read(fpsimd_last_state.st) == st
-		    && st->cpu == smp_processor_id())
+		if (__this_cpu_read(fpsimd_last_state.st) ==
+			&next->thread.fpsimd_state
+		    && next->thread.fpsimd_cpu == smp_processor_id())
 			clear_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE);
 		else
 			set_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE);
@@ -928,7 +927,8 @@ void fpsimd_flush_thread(void)
 
 	local_bh_disable();
 
-	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
+	memset(&current->thread.fpsimd_state, 0,
+	       sizeof(current->thread.fpsimd_state));
 	fpsimd_flush_task_state(current);
 
 	if (system_supports_sve()) {
@@ -1005,11 +1005,10 @@ static void fpsimd_bind_to_cpu(void)
 {
 	struct fpsimd_last_state_struct *last =
 		this_cpu_ptr(&fpsimd_last_state);
-	struct fpsimd_state *st = &current->thread.fpsimd_state;
 
-	last->st = st;
+	last->st = &current->thread.fpsimd_state;
 	last->sve_in_use = test_thread_flag(TIF_SVE);
-	st->cpu = smp_processor_id();
+	current->thread.fpsimd_cpu = smp_processor_id();
 }
 
 /*
@@ -1044,7 +1043,7 @@ void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 
 	local_bh_disable();
 
-	current->thread.fpsimd_state.user_fpsimd = *state;
+	current->thread.fpsimd_state = *state;
 	if (system_supports_sve() && test_thread_flag(TIF_SVE))
 		fpsimd_to_sve(current);
 
@@ -1061,7 +1060,7 @@ void fpsimd_update_current_state(struct user_fpsimd_state const *state)
  */
 void fpsimd_flush_task_state(struct task_struct *t)
 {
-	t->thread.fpsimd_state.cpu = NR_CPUS;
+	t->thread.fpsimd_cpu = NR_CPUS;
 }
 
 static inline void fpsimd_flush_cpu_state(void)
@@ -1160,7 +1159,7 @@ EXPORT_SYMBOL(kernel_neon_end);
 
 #ifdef CONFIG_EFI
 
-static DEFINE_PER_CPU(struct fpsimd_state, efi_fpsimd_state);
+static DEFINE_PER_CPU(struct user_fpsimd_state, efi_fpsimd_state);
 static DEFINE_PER_CPU(bool, efi_fpsimd_state_used);
 static DEFINE_PER_CPU(bool, efi_sve_state_used);
 
