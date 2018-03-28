@@ -82,11 +82,7 @@ static inline pte_t *virt_to_kpte(unsigned long vaddr)
 
 int page_is_ram(unsigned long pfn)
 {
-#ifndef CONFIG_PPC64	/* XXX for now */
-	return pfn < max_pfn;
-#else
 	return memblock_is_memory(__pfn_to_phys(pfn));
-#endif
 }
 
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
