@@ -669,7 +669,7 @@ static notrace void trace_event_raw_event_synth(void *__data,
 			char *str_val = (char *)(long)var_ref_vals[var_ref_idx + i];
 			char *str_field = (char *)&entry->fields[n_u64];
 
-			strncpy(str_field, str_val, STR_VAR_LEN_MAX);
+			strscpy(str_field, str_val, STR_VAR_LEN_MAX);
 			n_u64 += STR_VAR_LEN_MAX / sizeof(u64);
 		} else {
 			entry->fields[n_u64] = var_ref_vals[var_ref_idx + i];
@@ -3091,7 +3091,7 @@ static inline void __update_field_vars(struct tracing_map_elt *elt,
 			char *str = elt_data->field_var_str[j++];
 			char *val_str = (char *)(uintptr_t)var_val;
 
-			strncpy(str, val_str, STR_VAR_LEN_MAX);
+			strscpy(str, val_str, STR_VAR_LEN_MAX);
 			var_val = (u64)(uintptr_t)str;
 		}
 		tracing_map_set_var(elt, var_idx, var_val);
