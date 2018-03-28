@@ -53,6 +53,7 @@ enum uverbs_default_objects {
 	UVERBS_OBJECT_XRCD,
 	UVERBS_OBJECT_RWQ_IND_TBL,
 	UVERBS_OBJECT_WQ,
+	UVERBS_OBJECT_FLOW_ACTION,
 };
 
 enum {
@@ -75,9 +76,27 @@ enum uverbs_attrs_destroy_cq_cmd_attr_ids {
 	UVERBS_ATTR_DESTROY_CQ_RESP,
 };
 
+enum uverbs_attrs_create_flow_action_esp {
+	UVERBS_ATTR_FLOW_ACTION_ESP_HANDLE,
+	UVERBS_ATTR_FLOW_ACTION_ESP_ATTRS,
+	UVERBS_ATTR_FLOW_ACTION_ESP_ESN,
+	UVERBS_ATTR_FLOW_ACTION_ESP_KEYMAT,
+	UVERBS_ATTR_FLOW_ACTION_ESP_REPLAY,
+	UVERBS_ATTR_FLOW_ACTION_ESP_ENCAP,
+};
+
+enum uverbs_attrs_destroy_flow_action_esp {
+	UVERBS_ATTR_DESTROY_FLOW_ACTION_HANDLE,
+};
+
 enum uverbs_methods_cq {
 	UVERBS_METHOD_CQ_CREATE,
 	UVERBS_METHOD_CQ_DESTROY,
+};
+
+enum uverbs_methods_actions_flow_action_ops {
+	UVERBS_METHOD_FLOW_ACTION_ESP_CREATE,
+	UVERBS_METHOD_FLOW_ACTION_DESTROY,
 };
 
 #endif

@@ -191,6 +191,13 @@ static int uverbs_hot_unplug_completion_event_file(struct ib_uobject_file *uobj_
 	return 0;
 };
 
+int uverbs_destroy_def_handler(struct ib_device *ib_dev,
+			       struct ib_uverbs_file *file,
+			       struct uverbs_attr_bundle *attrs)
+{
+	return 0;
+}
+
 /*
  * This spec is used in order to pass information to the hardware driver in a
  * legacy way. Every verb that could get driver specific data should get this
@@ -293,7 +300,8 @@ static DECLARE_UVERBS_OBJECT_TREE(uverbs_default_objects,
 				  &UVERBS_OBJECT(UVERBS_OBJECT_FLOW),
 				  &UVERBS_OBJECT(UVERBS_OBJECT_WQ),
 				  &UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL),
-				  &UVERBS_OBJECT(UVERBS_OBJECT_XRCD));
+				  &UVERBS_OBJECT(UVERBS_OBJECT_XRCD),
+				  &UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION));
 
 const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
 {

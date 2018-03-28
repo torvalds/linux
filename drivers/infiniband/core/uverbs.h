@@ -234,6 +234,9 @@ void create_udata(struct uverbs_attr_bundle *ctx, struct ib_udata *udata);
 extern const struct uverbs_attr_def uverbs_uhw_compat_in;
 extern const struct uverbs_attr_def uverbs_uhw_compat_out;
 long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+int uverbs_destroy_def_handler(struct ib_device *ib_dev,
+			       struct ib_uverbs_file *file,
+			       struct uverbs_attr_bundle *attrs);
 
 struct ib_uverbs_flow_spec {
 	union {
@@ -273,6 +276,7 @@ extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_WQ);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_XRCD);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION);
 
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
