@@ -1017,9 +1017,9 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 			continue;
 
 		drm_framebuffer_get(old_plane_state->fb);
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 		drm_flip_work_queue(&vop->fb_unref_work, old_plane_state->fb);
 		set_bit(VOP_PENDING_FB_UNREF, &vop->pending);
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 	}
 }
 
