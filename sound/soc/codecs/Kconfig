@@ -101,6 +101,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98373 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9860 if I2C
+	select SND_SOC_MAX9759
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
@@ -1222,6 +1223,10 @@ config SND_SOC_ZX_AUD96P22
 # Amp
 config SND_SOC_LM4857
 	tristate
+
+config SND_SOC_MAX9759
+	tristate "Maxim MAX9759 speaker Amplifier"
+	select GPIOLIB
 
 config SND_SOC_MAX9768
 	tristate
