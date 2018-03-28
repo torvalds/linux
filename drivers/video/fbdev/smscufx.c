@@ -1293,7 +1293,6 @@ static struct fb_ops ufx_ops = {
  * Assumes no active clients have framebuffer open */
 static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 {
-	int retval = -ENOMEM;
 	int old_len = info->fix.smem_len;
 	int new_len;
 	unsigned char *old_fb = info->screen_base;
@@ -1310,7 +1309,7 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 		new_fb = vmalloc(new_len);
 		if (!new_fb) {
 			pr_err("Virtual framebuffer alloc failed");
-			goto error;
+			return -ENOMEM;
 		}
 
 		if (info->screen_base) {
@@ -1323,11 +1322,7 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 		info->fix.smem_start = (unsigned long) new_fb;
 		info->flags = smscufx_info_flags;
 	}
-
-	retval = 0;
-
-error:
-	return retval;
+	return 0;
 }
 
 /* sets up I2C Controller for 100 Kbps, std. speed, 7-bit addr, master,
