@@ -39,8 +39,7 @@ struct pci_epc_ops {
 	int	(*write_header)(struct pci_epc *epc, u8 func_no,
 				struct pci_epf_header *hdr);
 	int	(*set_bar)(struct pci_epc *epc, u8 func_no,
-			   enum pci_barno bar,
-			   dma_addr_t bar_phys, size_t size, int flags);
+			   struct pci_epf_bar *epf_bar);
 	void	(*clear_bar)(struct pci_epc *epc, u8 func_no,
 			     enum pci_barno bar);
 	int	(*map_addr)(struct pci_epc *epc, u8 func_no,
@@ -127,8 +126,7 @@ void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf);
 int pci_epc_write_header(struct pci_epc *epc, u8 func_no,
 			 struct pci_epf_header *hdr);
 int pci_epc_set_bar(struct pci_epc *epc, u8 func_no,
-		    enum pci_barno bar,
-		    dma_addr_t bar_phys, size_t size, int flags);
+		    struct pci_epf_bar *epf_bar);
 void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, int bar);
 int pci_epc_map_addr(struct pci_epc *epc, u8 func_no,
 		     phys_addr_t phys_addr,

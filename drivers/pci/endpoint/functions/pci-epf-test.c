@@ -358,7 +358,6 @@ static void pci_epf_test_unbind(struct pci_epf *epf)
 
 static int pci_epf_test_set_bar(struct pci_epf *epf)
 {
-	int flags;
 	int bar;
 	int ret;
 	struct pci_epf_bar *epf_bar;
@@ -370,14 +369,11 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 	for (bar = BAR_0; bar <= BAR_5; bar++) {
 		epf_bar = &epf->bar[bar];
 
-		flags = PCI_BASE_ADDRESS_SPACE_MEMORY;
-		flags |= upper_32_bits(epf_bar->size) ?
+		epf_bar->flags |= upper_32_bits(epf_bar->size) ?
 			PCI_BASE_ADDRESS_MEM_TYPE_64 :
 			PCI_BASE_ADDRESS_MEM_TYPE_32;
 
-		ret = pci_epc_set_bar(epc, epf->func_no, bar,
-				      epf_bar->phys_addr,
-				      epf_bar->size, flags);
+		ret = pci_epc_set_bar(epc, epf->func_no, epf_bar);
 		if (ret) {
 			pci_epf_free_space(epf, epf_test->reg[bar], bar);
 			dev_err(dev, "failed to set BAR%d\n", bar);

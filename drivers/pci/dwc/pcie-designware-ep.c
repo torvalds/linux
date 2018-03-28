@@ -117,12 +117,14 @@ static void dw_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no,
 }
 
 static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no,
-			      enum pci_barno bar,
-			      dma_addr_t bar_phys, size_t size, int flags)
+			      struct pci_epf_bar *epf_bar)
 {
 	int ret;
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+	enum pci_barno bar = epf_bar->barno;
+	size_t size = epf_bar->size;
+	int flags = epf_bar->flags;
 	enum dw_pcie_as_type as_type;
 	u32 reg = PCI_BASE_ADDRESS_0 + (4 * bar);
 
@@ -131,7 +133,7 @@ static int dw_pcie_ep_set_bar(struct pci_epc *epc, u8 func_no,
 	else
 		as_type = DW_PCIE_AS_IO;
 
-	ret = dw_pcie_ep_inbound_atu(ep, bar, bar_phys, as_type);
+	ret = dw_pcie_ep_inbound_atu(ep, bar, epf_bar->phys_addr, as_type);
 	if (ret)
 		return ret;
 
