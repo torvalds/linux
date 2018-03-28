@@ -290,9 +290,10 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 		regmap_read(rt298->regmap, RT298_GET_MIC1_SENSE, &buf);
 		*mic = buf & 0x80000000;
 	}
-
-	snd_soc_dapm_disable_pin(dapm, "HV");
-	snd_soc_dapm_disable_pin(dapm, "VREF");
+	if (!*mic) {
+		snd_soc_dapm_disable_pin(dapm, "HV");
+		snd_soc_dapm_disable_pin(dapm, "VREF");
+	}
 	if (!*hp)
 		snd_soc_dapm_disable_pin(dapm, "LDO1");
 	snd_soc_dapm_sync(dapm);
