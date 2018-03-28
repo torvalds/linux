@@ -34,17 +34,18 @@ static void michael_init(struct michael_mic_t *mic, uint8_t *key)
 	michael_clear(mic);
 }
 
-#define MichaelBlockFunction(L, R)				\
-do {								\
-	R ^= rol32(L, 17);					\
-	L += R;							\
-	R ^= ((L & 0xff00ff00) >> 8) | ((L & 0x00ff00ff) << 8);	\
-	L += R;							\
-	R ^= rol32(L, 3);					\
-	L += R;							\
-	R ^= ror32(L, 2);					\
-	L += R;							\
-} while (0)
+static inline void michael_block(struct michael_mic_t *mic)
+{
+	mic->r ^= rol32(mic->l, 17);
+	mic->l += mic->r;
+	mic->r ^= ((mic->l & 0xff00ff00) >> 8) |
+		  ((mic->l & 0x00ff00ff) << 8);
+	mic->l += mic->r;
+	mic->r ^= rol32(mic->l, 3);					\
+	mic->l += mic->r;
+	mic->r ^= ror32(mic->l, 2);					\
+	mic->l += mic->r;
+}
 
 static void michael_append(struct michael_mic_t *mic, uint8_t *src, int bytes)
 {
@@ -63,13 +64,13 @@ static void michael_append(struct michael_mic_t *mic, uint8_t *src, int bytes)
 			return;
 
 		mic->l ^= get_unaligned_le32(mic->m);
-		MichaelBlockFunction(mic->l, mic->r);
+		michael_block(mic);
 		mic->m_bytes = 0;
 	}
 
 	while (bytes >= 4) {
 		mic->l ^= get_unaligned_le32(src);
-		MichaelBlockFunction(mic->l, mic->r);
+		michael_block(mic);
 		src += 4;
 		bytes -= 4;
 	}
@@ -99,8 +100,8 @@ static void michael_get_mic(struct michael_mic_t *mic, uint8_t *dst)
 		    0x5a000000;
 		break;
 	}
-	MichaelBlockFunction(mic->l, mic->r);
-	MichaelBlockFunction(mic->l, mic->r);
+	michael_block(mic);
+	michael_block(mic);
 	// The appendByte function has already computed the result.
 	put_unaligned_le32(mic->l, dst);
 	put_unaligned_le32(mic->r, dst + 4);
