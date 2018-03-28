@@ -772,6 +772,16 @@ struct mlx5_ib_multiport_info {
 	bool unaffiliate;
 };
 
+struct mlx5_ib_flow_action {
+	struct ib_flow_action		ib_action;
+	union {
+		struct {
+			u64			    ib_flags;
+			struct mlx5_accel_esp_xfrm *ctx;
+		} esp_aes_gcm;
+	};
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -893,6 +903,12 @@ static inline struct mlx5_ib_mr *to_mmr(struct ib_mr *ibmr)
 static inline struct mlx5_ib_mw *to_mmw(struct ib_mw *ibmw)
 {
 	return container_of(ibmw, struct mlx5_ib_mw, ibmw);
+}
+
+static inline struct mlx5_ib_flow_action *
+to_mflow_act(struct ib_flow_action *ibact)
+{
+	return container_of(ibact, struct mlx5_ib_flow_action, ib_action);
 }
 
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
