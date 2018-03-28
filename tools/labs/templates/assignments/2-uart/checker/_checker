@@ -1,0 +1,4 @@
+#!/bin/sh
+
+insmod uart16550.ko; cat /proc/modules > /dev/kmsg; rmmod uart16550
+./test

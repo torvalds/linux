@@ -1,0 +1,29 @@
+CFLAGS = -Wall -g -static -m32
+
+.PHONY: all run build-pre build-post pack deploy clean
+
+all: build-pre build-post
+
+build-pre: test solutie.ko
+
+test: _test/test.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+solutie.ko: _test/solutie.ko
+	ln -s $< $@
+
+build-post:
+
+run: test solutie.ko
+	insmod uart16550.ko; cat /proc/modules > /dev/kmsg; rmmod uart16550
+	./test
+
+pack: clean
+	zip -r 2-uart.zip _checker Makefile.checker README _test/
+
+deploy: pack
+	scp 2-uart.zip so2@elf.cs.pub.ro:vmchecker-storer/tests/
+	scp 2-uart.zip so2@elf.cs.pub.ro:res/current/teme/
+
+clean:
+	-rm -f *~ test _test/test.o solutie.ko
