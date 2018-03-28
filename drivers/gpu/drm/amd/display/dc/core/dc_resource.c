@@ -1853,10 +1853,12 @@ static void set_avi_info_frame(
 	unsigned int cn0_cn1_value = 0;
 	uint8_t *check_sum = NULL;
 	uint8_t byte_index = 0;
-	union hdmi_info_packet hdmi_info = {0};
+	union hdmi_info_packet hdmi_info;
 	union display_content_support support = {0};
 	unsigned int vic = pipe_ctx->stream->timing.vic;
 	enum dc_timing_3d_format format;
+
+	memset(&hdmi_info, 0, sizeof(union hdmi_info_packet));
 
 	color_space = pipe_ctx->stream->output_color_space;
 	if (color_space == COLOR_SPACE_UNKNOWN)
