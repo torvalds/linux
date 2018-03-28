@@ -213,31 +213,23 @@ static void jz4740_mmc_release_dma_channels(struct jz4740_mmc_host *host)
 
 static int jz4740_mmc_acquire_dma_channels(struct jz4740_mmc_host *host)
 {
-	dma_cap_mask_t mask;
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	host->dma_tx = dma_request_channel(mask, NULL, host);
-	if (!host->dma_tx) {
+	host->dma_tx = dma_request_chan(mmc_dev(host->mmc), "tx");
+	if (IS_ERR(host->dma_tx)) {
 		dev_err(mmc_dev(host->mmc), "Failed to get dma_tx channel\n");
-		return -ENODEV;
+		return PTR_ERR(host->dma_tx);
 	}
 
-	host->dma_rx = dma_request_channel(mask, NULL, host);
-	if (!host->dma_rx) {
+	host->dma_rx = dma_request_chan(mmc_dev(host->mmc), "rx");
+	if (IS_ERR(host->dma_rx)) {
 		dev_err(mmc_dev(host->mmc), "Failed to get dma_rx channel\n");
-		goto free_master_write;
+		dma_release_channel(host->dma_tx);
+		return PTR_ERR(host->dma_rx);
 	}
 
 	/* Initialize DMA pre request cookie */
 	host->next_data.cookie = 1;
 
 	return 0;
-
-free_master_write:
-	dma_release_channel(host->dma_tx);
-	return -ENODEV;
 }
 
 static inline struct dma_chan *jz4740_mmc_get_dma_chan(struct jz4740_mmc_host *host,
