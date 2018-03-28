@@ -262,9 +262,8 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-
-	struct pcm186x_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
 	unsigned int format = params_format(params);
 	unsigned int width = params_width(params);
@@ -274,7 +273,7 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 	u8 tdm_tx_sel = 0;
 	u8 pcm_cfg = 0;
 
-	dev_dbg(codec->dev, "%s() rate=%u format=0x%x width=%u channels=%u\n",
+	dev_dbg(component->dev, "%s() rate=%u format=0x%x width=%u channels=%u\n",
 		__func__, rate, format, width, channels);
 
 	switch (width) {
@@ -306,7 +305,7 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, PCM186X_PCM_CFG,
+	snd_soc_component_update_bits(component, PCM186X_PCM_CFG,
 			    PCM186X_PCM_CFG_RX_WLEN_MASK |
 			    PCM186X_PCM_CFG_TX_WLEN_MASK,
 			    pcm_cfg);
@@ -329,14 +328,14 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		snd_soc_update_bits(codec, PCM186X_TDM_TX_SEL,
+		snd_soc_component_update_bits(component, PCM186X_TDM_TX_SEL,
 				    PCM186X_TDM_TX_SEL_MASK, tdm_tx_sel);
 
 		/* In DSP/TDM mode, the LRCLK divider must be 256 */
 		div_lrck = 256;
 
 		/* Configure 1/256 duty cycle for LRCK */
-		snd_soc_update_bits(codec, PCM186X_PCM_CFG,
+		snd_soc_component_update_bits(component, PCM186X_PCM_CFG,
 				    PCM186X_PCM_CFG_TDM_LRCK_MODE,
 				    PCM186X_PCM_CFG_TDM_LRCK_MODE);
 	}
@@ -345,12 +344,12 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 	if (priv->is_master_mode) {
 		div_bck = priv->sysclk / (div_lrck * rate);
 
-		dev_dbg(codec->dev,
+		dev_dbg(component->dev,
 			"%s() master_clk=%u div_bck=%u div_lrck=%u\n",
 			__func__, priv->sysclk, div_bck, div_lrck);
 
-		snd_soc_write(codec, PCM186X_BCK_DIV, div_bck - 1);
-		snd_soc_write(codec, PCM186X_LRK_DIV, div_lrck - 1);
+		snd_soc_component_write(component, PCM186X_BCK_DIV, div_bck - 1);
+		snd_soc_component_write(component, PCM186X_LRK_DIV, div_lrck - 1);
 	}
 
 	return 0;
@@ -358,18 +357,18 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 
 static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct pcm186x_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 	u8 clk_ctrl = 0;
 	u8 pcm_cfg = 0;
 
-	dev_dbg(codec->dev, "%s() format=0x%x\n", __func__, format);
+	dev_dbg(component->dev, "%s() format=0x%x\n", __func__, format);
 
 	/* set master/slave audio interface */
 	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		if (!priv->sysclk) {
-			dev_err(codec->dev, "operating in master mode requires sysclock to be configured\n");
+			dev_err(component->dev, "operating in master mode requires sysclock to be configured\n");
 			return -EINVAL;
 		}
 		clk_ctrl |= PCM186X_CLK_CTRL_MST_MODE;
@@ -379,7 +378,7 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 		priv->is_master_mode = false;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid DAI master/slave interface\n");
+		dev_err(component->dev, "Invalid DAI master/slave interface\n");
 		return -EINVAL;
 	}
 
@@ -388,7 +387,7 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 	case SND_SOC_DAIFMT_NB_NF:
 		break;
 	default:
-		dev_err(codec->dev, "Inverted DAI clocks not supported\n");
+		dev_err(component->dev, "Inverted DAI clocks not supported\n");
 		return -EINVAL;
 	}
 
@@ -410,16 +409,16 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 		pcm_cfg = PCM186X_PCM_CFG_FMT_TDM;
 		break;
 	default:
-		dev_err(codec->dev, "Invalid DAI format\n");
+		dev_err(component->dev, "Invalid DAI format\n");
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, PCM186X_CLK_CTRL,
+	snd_soc_component_update_bits(component, PCM186X_CLK_CTRL,
 			    PCM186X_CLK_CTRL_MST_MODE, clk_ctrl);
 
-	snd_soc_write(codec, PCM186X_TDM_TX_OFFSET, priv->tdm_offset);
+	snd_soc_component_write(component, PCM186X_TDM_TX_OFFSET, priv->tdm_offset);
 
-	snd_soc_update_bits(codec, PCM186X_PCM_CFG,
+	snd_soc_component_update_bits(component, PCM186X_PCM_CFG,
 			    PCM186X_PCM_CFG_FMT_MASK, pcm_cfg);
 
 	return 0;
@@ -428,16 +427,16 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 static int pcm186x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				unsigned int rx_mask, int slots, int slot_width)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct pcm186x_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 	unsigned int first_slot, last_slot, tdm_offset;
 
-	dev_dbg(codec->dev,
+	dev_dbg(component->dev,
 		"%s() tx_mask=0x%x rx_mask=0x%x slots=%d slot_width=%d\n",
 		__func__, tx_mask, rx_mask, slots, slot_width);
 
 	if (!tx_mask) {
-		dev_err(codec->dev, "tdm tx mask must not be 0\n");
+		dev_err(component->dev, "tdm tx mask must not be 0\n");
 		return -EINVAL;
 	}
 
@@ -445,14 +444,14 @@ static int pcm186x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	last_slot = __fls(tx_mask);
 
 	if (last_slot - first_slot != hweight32(tx_mask) - 1) {
-		dev_err(codec->dev, "tdm tx mask must be contiguous\n");
+		dev_err(component->dev, "tdm tx mask must be contiguous\n");
 		return -EINVAL;
 	}
 
 	tdm_offset = first_slot * slot_width;
 
 	if (tdm_offset > 255) {
-		dev_err(codec->dev, "tdm tx slot selection out of bounds\n");
+		dev_err(component->dev, "tdm tx slot selection out of bounds\n");
 		return -EINVAL;
 	}
 
@@ -464,10 +463,10 @@ static int pcm186x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 static int pcm186x_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 				  unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct pcm186x_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s() clk_id=%d freq=%u dir=%d\n",
+	dev_dbg(component->dev, "%s() clk_id=%d freq=%u dir=%d\n",
 		__func__, clk_id, freq, dir);
 
 	priv->sysclk = freq;
@@ -506,9 +505,9 @@ static struct snd_soc_dai_driver pcm1865_dai = {
 	.ops = &pcm186x_dai_ops,
 };
 
-static int pcm186x_power_on(struct snd_soc_codec *codec)
+static int pcm186x_power_on(struct snd_soc_component *component)
 {
-	struct pcm186x_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 	int ret = 0;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies),
@@ -519,25 +518,25 @@ static int pcm186x_power_on(struct snd_soc_codec *codec)
 	regcache_cache_only(priv->regmap, false);
 	ret = regcache_sync(priv->regmap);
 	if (ret) {
-		dev_err(codec->dev, "Failed to restore cache\n");
+		dev_err(component->dev, "Failed to restore cache\n");
 		regcache_cache_only(priv->regmap, true);
 		regulator_bulk_disable(ARRAY_SIZE(priv->supplies),
 				       priv->supplies);
 		return ret;
 	}
 
-	snd_soc_update_bits(codec, PCM186X_POWER_CTRL,
+	snd_soc_component_update_bits(component, PCM186X_POWER_CTRL,
 			    PCM186X_PWR_CTRL_PWRDN, 0);
 
 	return 0;
 }
 
-static int pcm186x_power_off(struct snd_soc_codec *codec)
+static int pcm186x_power_off(struct snd_soc_component *component)
 {
-	struct pcm186x_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct pcm186x_priv *priv = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	snd_soc_update_bits(codec, PCM186X_POWER_CTRL,
+	snd_soc_component_update_bits(component, PCM186X_POWER_CTRL,
 			    PCM186X_PWR_CTRL_PWRDN, PCM186X_PWR_CTRL_PWRDN);
 
 	regcache_cache_only(priv->regmap, true);
@@ -550,11 +549,11 @@ static int pcm186x_power_off(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int pcm186x_set_bias_level(struct snd_soc_codec *codec,
+static int pcm186x_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	dev_dbg(codec->dev, "## %s: %d -> %d\n", __func__,
-		snd_soc_codec_get_bias_level(codec), level);
+	dev_dbg(component->dev, "## %s: %d -> %d\n", __func__,
+		snd_soc_component_get_bias_level(component), level);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -562,42 +561,44 @@ static int pcm186x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
-			pcm186x_power_on(codec);
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
+			pcm186x_power_on(component);
 		break;
 	case SND_SOC_BIAS_OFF:
-		pcm186x_power_off(codec);
+		pcm186x_power_off(component);
 		break;
 	}
 
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_pcm1863 = {
-	.set_bias_level = pcm186x_set_bias_level,
-
-	.component_driver = {
-		.controls = pcm1863_snd_controls,
-		.num_controls = ARRAY_SIZE(pcm1863_snd_controls),
-		.dapm_widgets = pcm1863_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(pcm1863_dapm_widgets),
-		.dapm_routes = pcm1863_dapm_routes,
-		.num_dapm_routes = ARRAY_SIZE(pcm1863_dapm_routes),
-	},
+static struct snd_soc_component_driver soc_codec_dev_pcm1863 = {
+	.set_bias_level		= pcm186x_set_bias_level,
+	.controls		= pcm1863_snd_controls,
+	.num_controls		= ARRAY_SIZE(pcm1863_snd_controls),
+	.dapm_widgets		= pcm1863_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm1863_dapm_widgets),
+	.dapm_routes		= pcm1863_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm1863_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_pcm1865 = {
-	.set_bias_level = pcm186x_set_bias_level,
-	.suspend_bias_off = true,
-
-	.component_driver = {
-		.controls = pcm1865_snd_controls,
-		.num_controls = ARRAY_SIZE(pcm1865_snd_controls),
-		.dapm_widgets = pcm1865_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(pcm1865_dapm_widgets),
-		.dapm_routes = pcm1865_dapm_routes,
-		.num_dapm_routes = ARRAY_SIZE(pcm1865_dapm_routes),
-	},
+static struct snd_soc_component_driver soc_codec_dev_pcm1865 = {
+	.set_bias_level		= pcm186x_set_bias_level,
+	.controls		= pcm1865_snd_controls,
+	.num_controls		= ARRAY_SIZE(pcm1865_snd_controls),
+	.dapm_widgets		= pcm1865_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm1865_dapm_widgets),
+	.dapm_routes		= pcm1865_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm1865_dapm_routes),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static bool pcm186x_volatile(struct device *dev, unsigned int reg)
@@ -687,13 +688,13 @@ int pcm186x_probe(struct device *dev, enum pcm186x_type type, int irq,
 	switch (type) {
 	case PCM1865:
 	case PCM1864:
-		ret = snd_soc_register_codec(dev, &soc_codec_dev_pcm1865,
+		ret = devm_snd_soc_register_component(dev, &soc_codec_dev_pcm1865,
 					     &pcm1865_dai, 1);
 		break;
 	case PCM1863:
 	case PCM1862:
 	default:
-		ret = snd_soc_register_codec(dev, &soc_codec_dev_pcm1863,
+		ret = devm_snd_soc_register_component(dev, &soc_codec_dev_pcm1863,
 					     &pcm1863_dai, 1);
 	}
 	if (ret) {
@@ -704,14 +705,6 @@ int pcm186x_probe(struct device *dev, enum pcm186x_type type, int irq,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pcm186x_probe);
-
-int pcm186x_remove(struct device *dev)
-{
-	snd_soc_unregister_codec(dev);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pcm186x_remove);
 
 MODULE_AUTHOR("Andreas Dannenberg <dannenberg@ti.com>");
 MODULE_AUTHOR("Andrew F. Davis <afd@ti.com>");
