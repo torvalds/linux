@@ -122,6 +122,18 @@ static bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
 	return alpm_caps & DP_ALPM_CAP;
 }
 
+static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
+{
+	u8 val = 0;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			      DP_SYNCHRONIZATION_LATENCY_IN_SINK, &val) == 1)
+		val &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
+	else
+		DRM_ERROR("Unable to get sink synchronization latency\n");
+	return val;
+}
+
 void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv =
@@ -158,6 +170,8 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 				intel_dp_get_colorimetry_status(intel_dp);
 			dev_priv->psr.alpm =
 				intel_dp_get_alpm_status(intel_dp);
+			dev_priv->psr.sink_sync_latency =
+				intel_dp_get_sink_sync_latency(intel_dp);
 		}
 	}
 }
@@ -379,10 +393,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	 * with the 5 or 6 idle patterns.
 	 */
 	uint32_t idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
-	uint32_t val;
-	uint8_t sink_latency;
-
-	val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
+	u32 val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
 
 	/* FIXME: selective update is probably totally broken because it doesn't
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
@@ -392,14 +403,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		val |= EDP_Y_COORDINATE_VALID | EDP_Y_COORDINATE_ENABLE;
 	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux,
-				DP_SYNCHRONIZATION_LATENCY_IN_SINK,
-				&sink_latency) == 1) {
-		sink_latency &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
-	} else {
-		sink_latency = 0;
-	}
-	val |= EDP_PSR2_FRAME_BEFORE_SU(sink_latency + 1);
+	val |= EDP_PSR2_FRAME_BEFORE_SU(dev_priv->psr.sink_sync_latency + 1);
 
 	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time > 5)
 		val |= EDP_PSR2_TP2_TIME_2500;

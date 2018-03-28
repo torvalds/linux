@@ -608,6 +608,7 @@ struct i915_psr {
 	bool alpm;
 	bool has_hw_tracking;
 	bool psr2_enabled;
+	u8 sink_sync_latency;
 
 	void (*enable_source)(struct intel_dp *,
 			      const struct intel_crtc_state *);
