@@ -2064,7 +2064,13 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 	int n_entries;
 
-	if (IS_CANNONLAKE(dev_priv)) {
+	if (IS_ICELAKE(dev_priv)) {
+		if (port == PORT_A || port == PORT_B)
+			icl_get_combo_buf_trans(dev_priv, port, encoder->type,
+						&n_entries);
+		else
+			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
+	} else if (IS_CANNONLAKE(dev_priv)) {
 		if (encoder->type == INTEL_OUTPUT_EDP)
 			cnl_get_buf_trans_edp(dev_priv, &n_entries);
 		else
