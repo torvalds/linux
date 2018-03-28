@@ -1779,13 +1779,14 @@ wl_iw_get_essid(
 	/* Max SSID length check */
 	if (ssid.SSID_len > IW_ESSID_MAX_SIZE) {
 		ssid.SSID_len = IW_ESSID_MAX_SIZE;
+		/* Get the current SSID */
+		memcpy(extra, ssid.SSID, ssid.SSID_len);
+		/* NULL terminating as length of extra buffer is IW_ESSID_MAX_SIZE ie 32 */
+		extra[IW_ESSID_MAX_SIZE - 1] = '\0';
+	} else {
+		/* Get the current SSID */
+		memcpy(extra, ssid.SSID, ssid.SSID_len);
 	}
-
-	/* Get the current SSID */
-	memcpy(extra, ssid.SSID, ssid.SSID_len);
-
-	/* NULL terminating as length of extra buffer is IW_ESSID_MAX_SIZE ie 32 */
-	extra[IW_ESSID_MAX_SIZE] = '\0';
 
 	dwrq->length = ssid.SSID_len;
 
