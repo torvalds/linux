@@ -2765,13 +2765,13 @@ static int kern_spec_to_ib_spec_action(struct ib_uverbs_flow_spec *kern_spec,
 	return 0;
 }
 
-static size_t kern_spec_filter_sz(struct ib_uverbs_flow_spec_hdr *spec)
+static size_t kern_spec_filter_sz(const struct ib_uverbs_flow_spec_hdr *spec)
 {
 	/* Returns user space filter size, includes padding */
 	return (spec->size - sizeof(struct ib_uverbs_flow_spec_hdr)) / 2;
 }
 
-static ssize_t spec_filter_size(void *kern_spec_filter, u16 kern_filter_size,
+static ssize_t spec_filter_size(const void *kern_spec_filter, u16 kern_filter_size,
 				u16 ib_real_filter_sz)
 {
 	/*
@@ -2789,28 +2789,21 @@ static ssize_t spec_filter_size(void *kern_spec_filter, u16 kern_filter_size,
 	return kern_filter_size;
 }
 
-static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
-				       union ib_flow_spec *ib_spec)
+int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
+					  const void *kern_spec_mask,
+					  const void *kern_spec_val,
+					  size_t kern_filter_sz,
+					  union ib_flow_spec *ib_spec)
 {
 	ssize_t actual_filter_sz;
-	ssize_t kern_filter_sz;
 	ssize_t ib_filter_sz;
-	void *kern_spec_mask;
-	void *kern_spec_val;
 
-	if (kern_spec->reserved)
-		return -EINVAL;
-
-	ib_spec->type = kern_spec->type;
-
-	kern_filter_sz = kern_spec_filter_sz(&kern_spec->hdr);
 	/* User flow spec size must be aligned to 4 bytes */
 	if (kern_filter_sz != ALIGN(kern_filter_sz, 4))
 		return -EINVAL;
 
-	kern_spec_val = (void *)kern_spec +
-		sizeof(struct ib_uverbs_flow_spec_hdr);
-	kern_spec_mask = kern_spec_val + kern_filter_sz;
+	ib_spec->type = type;
+
 	if (ib_spec->type == (IB_FLOW_SPEC_INNER | IB_FLOW_SPEC_VXLAN_TUNNEL))
 		return -EINVAL;
 
@@ -2883,6 +2876,28 @@ static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
 		return -EINVAL;
 	}
 	return 0;
+}
+
+static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
+				       union ib_flow_spec *ib_spec)
+{
+	ssize_t kern_filter_sz;
+	void *kern_spec_mask;
+	void *kern_spec_val;
+
+	if (kern_spec->reserved)
+		return -EINVAL;
+
+	kern_filter_sz = kern_spec_filter_sz(&kern_spec->hdr);
+
+	kern_spec_val = (void *)kern_spec +
+		sizeof(struct ib_uverbs_flow_spec_hdr);
+	kern_spec_mask = kern_spec_val + kern_filter_sz;
+
+	return ib_uverbs_kern_spec_to_ib_spec_filter(kern_spec->type,
+						     kern_spec_mask,
+						     kern_spec_val,
+						     kern_filter_sz, ib_spec);
 }
 
 static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
