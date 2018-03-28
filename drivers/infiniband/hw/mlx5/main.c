@@ -60,6 +60,10 @@
 #include "ib_rep.h"
 #include "cmd.h"
 #include <linux/mlx5/fs_helpers.h>
+#include <rdma/uverbs_std_types.h>
+
+#define UVERBS_MODULE_NAME mlx5_ib
+#include <rdma/uverbs_named_ioctl.h>
 
 #define DRIVER_NAME "mlx5_ib"
 #define DRIVER_VERSION "5.0-0"
@@ -4544,6 +4548,24 @@ static void mlx5_ib_cleanup_multiport_master(struct mlx5_ib_dev *dev)
 	mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
+#define NUM_TREES	0
+static int populate_specs_root(struct mlx5_ib_dev *dev)
+{
+	const struct uverbs_object_tree_def *default_root[NUM_TREES + 1] = {
+		uverbs_default_get_objects()};
+	size_t num_trees = 1;
+
+	dev->ib_dev.specs_root =
+		uverbs_alloc_spec_tree(num_trees, default_root);
+
+	return PTR_ERR_OR_ZERO(dev->ib_dev.specs_root);
+}
+
+static void depopulate_specs_root(struct mlx5_ib_dev *dev)
+{
+	uverbs_free_spec_tree(dev->ib_dev.specs_root);
+}
+
 void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
@@ -4989,9 +5011,19 @@ void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
 }
 
+static int mlx5_ib_stage_populate_specs(struct mlx5_ib_dev *dev)
+{
+	return populate_specs_root(dev);
+}
+
 int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 {
 	return ib_register_device(&dev->ib_dev, NULL);
+}
+
+static void mlx5_ib_stage_depopulate_specs(struct mlx5_ib_dev *dev)
+{
+	depopulate_specs_root(dev);
 }
 
 void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)
@@ -5128,6 +5160,9 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_PRE_IB_REG_UMR,
 		     NULL,
 		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_SPECS,
+		     mlx5_ib_stage_populate_specs,
+		     mlx5_ib_stage_depopulate_specs),
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
@@ -5173,6 +5208,9 @@ static const struct mlx5_ib_profile nic_rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_PRE_IB_REG_UMR,
 		     NULL,
 		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_SPECS,
+		     mlx5_ib_stage_populate_specs,
+		     mlx5_ib_stage_depopulate_specs),
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
