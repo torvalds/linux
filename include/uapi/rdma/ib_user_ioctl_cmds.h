@@ -97,6 +97,7 @@ enum uverbs_methods_cq {
 enum uverbs_methods_actions_flow_action_ops {
 	UVERBS_METHOD_FLOW_ACTION_ESP_CREATE,
 	UVERBS_METHOD_FLOW_ACTION_DESTROY,
+	UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY,
 };
 
 #endif
