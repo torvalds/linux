@@ -64,10 +64,10 @@ struct wm_adsp {
 	struct regmap *regmap;
 	struct snd_soc_component *component;
 
-	int base;
-	int sysclk_reg;
-	int sysclk_mask;
-	int sysclk_shift;
+	unsigned int base;
+	unsigned int sysclk_reg;
+	unsigned int sysclk_mask;
+	unsigned int sysclk_shift;
 
 	struct list_head alg_regions;
 
