@@ -145,10 +145,11 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn,
 }
 
 static void cdns_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn,
-				   enum pci_barno bar)
+				   struct pci_epf_bar *epf_bar)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
+	enum pci_barno bar = epf_bar->barno;
 	u32 reg, cfg, b, ctrl;
 
 	if (bar < BAR_4) {

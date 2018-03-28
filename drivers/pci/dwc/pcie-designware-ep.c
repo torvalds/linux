@@ -19,7 +19,8 @@ void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 	pci_epc_linkup(epc);
 }
 
-void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar)
+static void __dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar,
+				   int flags)
 {
 	u32 reg;
 
@@ -28,6 +29,11 @@ void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar)
 	dw_pcie_writel_dbi2(pci, reg, 0x0);
 	dw_pcie_writel_dbi(pci, reg, 0x0);
 	dw_pcie_dbi_ro_wr_dis(pci);
+}
+
+void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar)
+{
+	__dw_pcie_ep_reset_bar(pci, bar, 0);
 }
 
 static int dw_pcie_ep_write_header(struct pci_epc *epc, u8 func_no,
@@ -104,13 +110,14 @@ static int dw_pcie_ep_outbound_atu(struct dw_pcie_ep *ep, phys_addr_t phys_addr,
 }
 
 static void dw_pcie_ep_clear_bar(struct pci_epc *epc, u8 func_no,
-				 enum pci_barno bar)
+				 struct pci_epf_bar *epf_bar)
 {
 	struct dw_pcie_ep *ep = epc_get_drvdata(epc);
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+	enum pci_barno bar = epf_bar->barno;
 	u32 atu_index = ep->bar_to_atu[bar];
 
-	dw_pcie_ep_reset_bar(pci, bar);
+	__dw_pcie_ep_reset_bar(pci, bar, epf_bar->flags);
 
 	dw_pcie_disable_atu(pci, atu_index, DW_PCIE_REGION_INBOUND);
 	clear_bit(atu_index, ep->ib_window_map);

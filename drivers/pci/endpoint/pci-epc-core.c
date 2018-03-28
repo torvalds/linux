@@ -276,11 +276,12 @@ EXPORT_SYMBOL_GPL(pci_epc_map_addr);
  * pci_epc_clear_bar() - reset the BAR
  * @epc: the EPC device for which the BAR has to be cleared
  * @func_no: the endpoint function number in the EPC device
- * @bar: the BAR number that has to be reset
+ * @epf_bar: the struct epf_bar that contains the BAR information
  *
  * Invoke to reset the BAR of the endpoint device.
  */
-void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, int bar)
+void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no,
+		       struct pci_epf_bar *epf_bar)
 {
 	unsigned long flags;
 
@@ -291,7 +292,7 @@ void pci_epc_clear_bar(struct pci_epc *epc, u8 func_no, int bar)
 		return;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	epc->ops->clear_bar(epc, func_no, bar);
+	epc->ops->clear_bar(epc, func_no, epf_bar);
 	spin_unlock_irqrestore(&epc->lock, flags);
 }
 EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
