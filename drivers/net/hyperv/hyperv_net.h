@@ -189,7 +189,6 @@ struct netvsc_device;
 struct net_device_context;
 
 extern u32 netvsc_ring_bytes;
-extern struct reciprocal_value netvsc_ring_reciprocal;
 
 struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
