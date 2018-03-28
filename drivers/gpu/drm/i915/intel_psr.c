@@ -137,16 +137,9 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
 	    (intel_dp->psr_dpcd[0] & DP_PSR2_IS_SUPPORTED)) {
-		uint8_t frame_sync_cap;
 
 		dev_priv->psr.sink_support = true;
-		if (drm_dp_dpcd_readb(&intel_dp->aux,
-				      DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
-				      &frame_sync_cap) != 1)
-			frame_sync_cap = 0;
-		dev_priv->psr.aux_frame_sync = frame_sync_cap & DP_AUX_FRAME_SYNC_CAP;
-		/* PSR2 needs frame sync as well */
-		dev_priv->psr.psr2_support = dev_priv->psr.aux_frame_sync;
+		dev_priv->psr.psr2_support = true;
 		DRM_DEBUG_KMS("PSR2 %s on sink",
 			      dev_priv->psr.psr2_support ? "supported" : "not supported");
 
@@ -268,12 +261,6 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-
-	/* Enable AUX frame sync at sink */
-	if (dev_priv->psr.aux_frame_sync)
-		drm_dp_dpcd_writeb(&intel_dp->aux,
-				DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
-				DP_AUX_FRAME_SYNC_ENABLE);
 	/* Enable ALPM at sink for psr2 */
 	if (dev_priv->psr.psr2_support && dev_priv->psr.alpm)
 		drm_dp_dpcd_writeb(&intel_dp->aux,
@@ -712,11 +699,6 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 		i915_reg_t psr_status;
 		u32 psr_status_mask;
 
-		if (dev_priv->psr.aux_frame_sync)
-			drm_dp_dpcd_writeb(&intel_dp->aux,
-					DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
-					0);
-
 		if (dev_priv->psr.psr2_support) {
 			psr_status = EDP_PSR2_STATUS;
 			psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
@@ -860,10 +842,6 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 		return;
 
 	if (HAS_DDI(dev_priv)) {
-		if (dev_priv->psr.aux_frame_sync)
-			drm_dp_dpcd_writeb(&intel_dp->aux,
-					DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
-					0);
 		if (dev_priv->psr.psr2_support) {
 			val = I915_READ(EDP_PSR2_CTL);
 			WARN_ON(!(val & EDP_PSR2_ENABLE));
