@@ -500,6 +500,7 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
+	depends on MAY_USE_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially

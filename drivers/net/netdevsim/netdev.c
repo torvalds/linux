@@ -167,6 +167,8 @@ static int nsim_init(struct net_device *dev)
 
 	SET_NETDEV_DEV(dev, &ns->dev);
 
+	nsim_devlink_setup(ns);
+
 	return 0;
 
 err_bpf_uninit:
@@ -180,6 +182,7 @@ static void nsim_uninit(struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
+	nsim_devlink_teardown(ns);
 	debugfs_remove_recursive(ns->ddir);
 	nsim_bpf_uninit(ns);
 }
@@ -478,12 +481,18 @@ static int __init nsim_module_init(void)
 	if (err)
 		goto err_debugfs_destroy;
 
-	err = rtnl_link_register(&nsim_link_ops);
+	err = nsim_devlink_init();
 	if (err)
 		goto err_unreg_bus;
 
+	err = rtnl_link_register(&nsim_link_ops);
+	if (err)
+		goto err_dl_fini;
+
 	return 0;
 
+err_dl_fini:
+	nsim_devlink_exit();
 err_unreg_bus:
 	bus_unregister(&nsim_bus);
 err_debugfs_destroy:
@@ -494,6 +503,7 @@ err_debugfs_destroy:
 static void __exit nsim_module_exit(void)
 {
 	rtnl_link_unregister(&nsim_link_ops);
+	nsim_devlink_exit();
 	bus_unregister(&nsim_bus);
 	debugfs_remove_recursive(nsim_ddir);
 }
