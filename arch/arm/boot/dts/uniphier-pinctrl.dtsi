@@ -71,6 +71,16 @@
 		function = "ether_rmii";
 	};
 
+	pinctrl_ether1_rgmii: ether1-rgmii {
+		groups = "ether1_rgmii";
+		function = "ether1_rgmii";
+	};
+
+	pinctrl_ether1_rmii: ether1-rmii {
+		groups = "ether1_rmii";
+		function = "ether1_rmii";
+	};
+
 	pinctrl_i2c0: i2c0 {
 		groups = "i2c0";
 		function = "i2c0";
