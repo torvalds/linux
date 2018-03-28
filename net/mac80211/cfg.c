@@ -4,6 +4,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -2155,6 +2156,8 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	 * called in master mode.
 	 */
 	p.uapsd = false;
+
+	ieee80211_regulatory_limit_wmm_params(sdata, &p, params->ac);
 
 	sdata->tx_conf[params->ac] = p;
 	if (drv_conf_tx(local, sdata, params->ac, &p)) {
