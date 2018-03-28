@@ -429,6 +429,10 @@ config SND_SOC_BD28623
 config SND_SOC_BT_SCO
 	tristate "Dummy BT SCO codec driver"
 
+config SND_SOC_CPCAP
+	tristate "Motorola CPCAP codec"
+	depends on MFD_CPCAP
+
 config SND_SOC_CQ0093VC
 	tristate
 
