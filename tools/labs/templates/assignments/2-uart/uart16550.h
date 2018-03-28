@@ -38,7 +38,6 @@
 
 #endif
 
-
 #define	UART16550_IOCTL_SET_LINE	1
 
 struct uart16550_line_info {

@@ -16,12 +16,13 @@ YOCTO_IMAGE=core-image-minimal-qemu$(ARCH).ext4
 QEMU_OPTS = -kernel $(ZIMAGE) \
 	-device virtio-serial \
 	-chardev pty,id=virtiocon0 -device virtconsole,chardev=virtiocon0 \
+	-serial pipe:pipe1 -serial pipe:pipe2 \
 	-net nic,model=virtio,vlan=0 -net tap,ifname=tap0,vlan=0,script=no,downscript=no \
 	-drive file=$(YOCTO_IMAGE),if=virtio,format=raw \
 	--append "root=/dev/vda console=hvc0" \
 	--display $(QEMU_DISPLAY) -s
 
-boot: .modinst tap0
+boot: .modinst tap0 pipe1.in pipe1.out pipe2.in pipe2.out
 	ARCH=$(ARCH) qemu/qemu.sh $(QEMU_OPTS)
 
 TEMPDIR := $(shell mktemp -u)
@@ -53,6 +54,19 @@ $(YOCTO_IMAGE):
 
 tap0:
 	qemu/create_net.sh $@
+
+pipe1.in:
+	mkfifo $@
+
+pipe1.out:
+	mkfifo $@
+
+pipe2.in: pipe1.out
+	ln $< $@
+
+pipe2.out: pipe1.in
+	ln $< $@
+
 
 clean::
 	rm -f .modinst
