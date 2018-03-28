@@ -1027,6 +1027,8 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	spin_lock_init(&host->lock);
 	host->irq_mask = 0xffff;
 
+	jz4740_mmc_reset(host);
+
 	ret = request_threaded_irq(host->irq, jz_mmc_irq, jz_mmc_irq_worker, 0,
 			dev_name(&pdev->dev), host);
 	if (ret) {
@@ -1034,7 +1036,6 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 		goto err_free_gpios;
 	}
 
-	jz4740_mmc_reset(host);
 	jz4740_mmc_clock_disable(host);
 	timer_setup(&host->timeout_timer, jz4740_mmc_timeout, 0);
 
