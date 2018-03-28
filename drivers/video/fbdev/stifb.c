@@ -1128,7 +1128,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	fb = kzalloc(sizeof(*fb), GFP_ATOMIC);
 	if (!fb) {
 		printk(KERN_ERR "stifb: Could not allocate stifb structure\n");
-		return -ENODEV;
+		return -ENOMEM;
 	}
 	
 	info = &fb->info;
