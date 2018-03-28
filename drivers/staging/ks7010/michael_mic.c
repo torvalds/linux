@@ -28,12 +28,12 @@ do {								\
 } while (0)
 
 // Reset the state to the empty message.
-#define MichaelClear(A)			\
-do {					\
-	A->l = A->k0;			\
-	A->r = A->k1;			\
-	A->m_bytes = 0;		\
-} while (0)
+static inline void michael_clear(struct michael_mic_t *mic)
+{
+	mic->l = mic->k0;
+	mic->r = mic->k1;
+	mic->m_bytes = 0;
+}
 
 static void michael_init(struct michael_mic_t *mic, uint8_t *key)
 {
@@ -42,7 +42,7 @@ static void michael_init(struct michael_mic_t *mic, uint8_t *key)
 	mic->k1 = getUInt32(key, 4);
 
 	//clear();
-	MichaelClear(mic);
+	michael_clear(mic);
 }
 
 #define MichaelBlockFunction(L, R)				\
@@ -118,7 +118,7 @@ void MichaelGetMIC(struct michael_mic_t *Mic, uint8_t *dst)
 	putUInt32(dst, 4, Mic->r);
 
 	// Reset to the empty message.
-	MichaelClear(Mic);
+	michael_clear(Mic);
 }
 
 void michael_mic_function(struct michael_mic_t *mic, u8 *key,
