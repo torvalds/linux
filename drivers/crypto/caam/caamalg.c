@@ -735,6 +735,7 @@ struct aead_edesc {
  * @src_nents: number of segments in input s/w scatterlist
  * @dst_nents: number of segments in output s/w scatterlist
  * @iv_dma: dma address of iv for checking continuity and link table
+ * @iv_dir: DMA mapping direction for IV
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
  * @sec4_sg: pointer to h/w link table
@@ -744,6 +745,7 @@ struct ablkcipher_edesc {
 	int src_nents;
 	int dst_nents;
 	dma_addr_t iv_dma;
+	enum dma_data_direction iv_dir;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
 	struct sec4_sg_entry *sec4_sg;
@@ -753,7 +755,8 @@ struct ablkcipher_edesc {
 static void caam_unmap(struct device *dev, struct scatterlist *src,
 		       struct scatterlist *dst, int src_nents,
 		       int dst_nents,
-		       dma_addr_t iv_dma, int ivsize, dma_addr_t sec4_sg_dma,
+		       dma_addr_t iv_dma, int ivsize,
+		       enum dma_data_direction iv_dir, dma_addr_t sec4_sg_dma,
 		       int sec4_sg_bytes)
 {
 	if (dst != src) {
@@ -765,7 +768,7 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 	}
 
 	if (iv_dma)
-		dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
+		dma_unmap_single(dev, iv_dma, ivsize, iv_dir);
 	if (sec4_sg_bytes)
 		dma_unmap_single(dev, sec4_sg_dma, sec4_sg_bytes,
 				 DMA_TO_DEVICE);
@@ -776,7 +779,7 @@ static void aead_unmap(struct device *dev,
 		       struct aead_request *req)
 {
 	caam_unmap(dev, req->src, req->dst,
-		   edesc->src_nents, edesc->dst_nents, 0, 0,
+		   edesc->src_nents, edesc->dst_nents, 0, 0, DMA_NONE,
 		   edesc->sec4_sg_dma, edesc->sec4_sg_bytes);
 }
 
@@ -789,7 +792,7 @@ static void ablkcipher_unmap(struct device *dev,
 
 	caam_unmap(dev, req->src, req->dst,
 		   edesc->src_nents, edesc->dst_nents,
-		   edesc->iv_dma, ivsize,
+		   edesc->iv_dma, ivsize, edesc->iv_dir,
 		   edesc->sec4_sg_dma, edesc->sec4_sg_bytes);
 }
 
@@ -1245,7 +1248,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 			GFP_DMA | flags);
 	if (!edesc) {
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, 0, 0);
+			   0, DMA_NONE, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1508,7 +1511,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	if (dma_mapping_error(jrdev, iv_dma)) {
 		dev_err(jrdev, "unable to map IV\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, 0, 0);
+			   0, DMA_NONE, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1530,7 +1533,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents,
-			   iv_dma, ivsize, 0, 0);
+			   iv_dma, ivsize, DMA_TO_DEVICE, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1539,6 +1542,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
 			 desc_bytes;
+	edesc->iv_dir = DMA_TO_DEVICE;
 
 	if (!in_contig) {
 		dma_to_sec4_sg_one(edesc->sec4_sg, iv_dma, ivsize, 0);
@@ -1556,7 +1560,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	if (dma_mapping_error(jrdev, edesc->sec4_sg_dma)) {
 		dev_err(jrdev, "unable to map S/G table\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents,
-			   iv_dma, ivsize, 0, 0);
+			   iv_dma, ivsize, DMA_TO_DEVICE, 0, 0);
 		kfree(edesc);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1714,11 +1718,11 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	 * Check if iv can be contiguous with source and destination.
 	 * If so, include it. If not, create scatterlist.
 	 */
-	iv_dma = dma_map_single(jrdev, greq->giv, ivsize, DMA_TO_DEVICE);
+	iv_dma = dma_map_single(jrdev, greq->giv, ivsize, DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, iv_dma)) {
 		dev_err(jrdev, "unable to map IV\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents, 0,
-			   0, 0, 0);
+			   0, DMA_NONE, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1739,7 +1743,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents,
-			   iv_dma, ivsize, 0, 0);
+			   iv_dma, ivsize, DMA_FROM_DEVICE, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1748,6 +1752,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
 			 desc_bytes;
+	edesc->iv_dir = DMA_FROM_DEVICE;
 
 	if (mapped_src_nents > 1)
 		sg_to_sec4_sg_last(req->src, mapped_src_nents, edesc->sec4_sg,
@@ -1765,7 +1770,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	if (dma_mapping_error(jrdev, edesc->sec4_sg_dma)) {
 		dev_err(jrdev, "unable to map S/G table\n");
 		caam_unmap(jrdev, req->src, req->dst, src_nents, dst_nents,
-			   iv_dma, ivsize, 0, 0);
+			   iv_dma, ivsize, DMA_FROM_DEVICE, 0, 0);
 		kfree(edesc);
 		return ERR_PTR(-ENOMEM);
 	}
