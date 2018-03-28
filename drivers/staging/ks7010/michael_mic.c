@@ -57,38 +57,37 @@ do {								\
 	L += R;							\
 } while (0)
 
-static
-void MichaelAppend(struct michael_mic_t *Mic, uint8_t *src, int nBytes)
+static void michael_append(struct michael_mic_t *mic, uint8_t *src, int bytes)
 {
 	int addlen;
 
-	if (Mic->m_bytes) {
-		addlen = 4 - Mic->m_bytes;
-		if (addlen > nBytes)
-			addlen = nBytes;
-		memcpy(&Mic->m[Mic->m_bytes], src, addlen);
-		Mic->m_bytes += addlen;
+	if (mic->m_bytes) {
+		addlen = 4 - mic->m_bytes;
+		if (addlen > bytes)
+			addlen = bytes;
+		memcpy(&mic->m[mic->m_bytes], src, addlen);
+		mic->m_bytes += addlen;
 		src += addlen;
-		nBytes -= addlen;
+		bytes -= addlen;
 
-		if (Mic->m_bytes < 4)
+		if (mic->m_bytes < 4)
 			return;
 
-		Mic->l ^= getUInt32(Mic->m, 0);
-		MichaelBlockFunction(Mic->l, Mic->r);
-		Mic->m_bytes = 0;
+		mic->l ^= getUInt32(mic->m, 0);
+		MichaelBlockFunction(mic->l, mic->r);
+		mic->m_bytes = 0;
 	}
 
-	while (nBytes >= 4) {
-		Mic->l ^= getUInt32(src, 0);
-		MichaelBlockFunction(Mic->l, Mic->r);
+	while (bytes >= 4) {
+		mic->l ^= getUInt32(src, 0);
+		MichaelBlockFunction(mic->l, mic->r);
 		src += 4;
-		nBytes -= 4;
+		bytes -= 4;
 	}
 
-	if (nBytes > 0) {
-		Mic->m_bytes = nBytes;
-		memcpy(Mic->m, src, nBytes);
+	if (bytes > 0) {
+		mic->m_bytes = bytes;
+		memcpy(mic->m, src, bytes);
 	}
 }
 
@@ -137,8 +136,8 @@ void michael_mic_function(struct michael_mic_t *mic, u8 *key,
 	 * +--+--+--------+--+----+--+--+--+--+--+--+--+--+
 	 */
 	michael_init(mic, key);
-	MichaelAppend(mic, (uint8_t *)data, 12);	/* |DA|SA| */
-	MichaelAppend(mic, pad_data, 4);	/* |Priority|0|0|0| */
-	MichaelAppend(mic, (uint8_t *)(data + 12), len - 12);	/* |Data| */
+	michael_append(mic, (uint8_t *)data, 12);	/* |DA|SA| */
+	michael_append(mic, pad_data, 4);	/* |Priority|0|0|0| */
+	michael_append(mic, (uint8_t *)(data + 12), len - 12);	/* |Data| */
 	MichaelGetMIC(mic, result);
 }
