@@ -125,8 +125,6 @@
 		rockchip,irq-mode-enable = <0>;
 		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2m1_xfer>;
 		status = "disabled";
 	};
 
