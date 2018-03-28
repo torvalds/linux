@@ -14,6 +14,9 @@
 #ifndef __DA7219_H
 #define __DA7219_H
 
+#include <linux/clk.h>
+#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <sound/da7219.h>
@@ -812,6 +815,12 @@ struct da7219_priv {
 	struct regmap *regmap;
 	struct mutex ctrl_lock;
 	struct mutex pll_lock;
+
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw dai_clks_hw;
+#endif
+	struct clk_lookup *dai_clks_lookup;
+	struct clk *dai_clks;
 
 	struct clk *mclk;
 	unsigned int mclk_rate;

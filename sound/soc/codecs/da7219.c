@@ -13,6 +13,8 @@
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
+#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/i2c.h>
 #include <linux/of_device.h>
 #include <linux/property.h>
@@ -772,16 +774,27 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	u8 pll_ctrl, pll_status;
-	int i = 0;
+	int i = 0, ret;
 	bool srm_lock = false;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (da7219->master)
+		if (da7219->master) {
 			/* Enable DAI clks for master mode */
-			snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
-					    DA7219_DAI_CLK_EN_MASK,
-					    DA7219_DAI_CLK_EN_MASK);
+			if (da7219->dai_clks) {
+				ret = clk_prepare_enable(da7219->dai_clks);
+				if (ret) {
+					dev_err(component->dev,
+						"Failed to enable dai_clks\n");
+					return ret;
+				}
+			} else {
+				snd_soc_component_update_bits(component,
+							      DA7219_DAI_CLK_MODE,
+							      DA7219_DAI_CLK_EN_MASK,
+							      DA7219_DAI_CLK_EN_MASK);
+			}
+		}
 
 		/* PC synchronised to DAI */
 		snd_soc_component_update_bits(component, DA7219_PC_COUNT,
@@ -814,9 +827,16 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 				    DA7219_PC_FREERUN_MASK);
 
 		/* Disable DAI clks if in master mode */
-		if (da7219->master)
-			snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
-					    DA7219_DAI_CLK_EN_MASK, 0);
+		if (da7219->master) {
+			if (da7219->dai_clks)
+				clk_disable_unprepare(da7219->dai_clks);
+			else
+				snd_soc_component_update_bits(component,
+							      DA7219_DAI_CLK_MODE,
+							      DA7219_DAI_CLK_EN_MASK,
+							      0);
+		}
+
 		return 0;
 	default:
 		return -EINVAL;
@@ -1598,6 +1618,12 @@ static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_component *compone
 
 	pdata->wakeup_source = device_property_read_bool(dev, "wakeup-source");
 
+	pdata->dai_clks_name = "da7219-dai-clks";
+	if (device_property_read_string(dev, "clock-output-names",
+					&pdata->dai_clks_name))
+		dev_warn(dev, "Using default clk name: %s\n",
+			 pdata->dai_clks_name);
+
 	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
 		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
 	else
@@ -1712,6 +1738,88 @@ static int da7219_handle_supplies(struct snd_soc_component *component)
 	return 0;
 }
 
+#ifdef CONFIG_COMMON_CLK
+static int da7219_dai_clks_prepare(struct clk_hw *hw)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv, dai_clks_hw);
+	struct snd_soc_component *component = da7219->aad->component;
+
+	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
+				      DA7219_DAI_CLK_EN_MASK,
+				      DA7219_DAI_CLK_EN_MASK);
+
+	return 0;
+}
+
+static void da7219_dai_clks_unprepare(struct clk_hw *hw)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv, dai_clks_hw);
+	struct snd_soc_component *component = da7219->aad->component;
+
+	snd_soc_component_update_bits(component, DA7219_DAI_CLK_MODE,
+				      DA7219_DAI_CLK_EN_MASK, 0);
+}
+
+static int da7219_dai_clks_is_prepared(struct clk_hw *hw)
+{
+	struct da7219_priv *da7219 =
+		container_of(hw, struct da7219_priv, dai_clks_hw);
+	struct snd_soc_component *component = da7219->aad->component;
+	u8 clk_reg;
+
+	clk_reg = snd_soc_component_read32(component, DA7219_DAI_CLK_MODE);
+
+	return !!(clk_reg & DA7219_DAI_CLK_EN_MASK);
+}
+
+static const struct clk_ops da7219_dai_clks_ops = {
+	.prepare = da7219_dai_clks_prepare,
+	.unprepare = da7219_dai_clks_unprepare,
+	.is_prepared = da7219_dai_clks_is_prepared,
+};
+
+static void da7219_register_dai_clks(struct snd_soc_component *component)
+{
+	struct device *dev = component->dev;
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+	struct da7219_pdata *pdata = da7219->pdata;
+	struct clk_init_data init = {};
+	struct clk *dai_clks;
+	struct clk_lookup *dai_clks_lookup;
+
+	init.parent_names = NULL;
+	init.num_parents = 0;
+	init.name = pdata->dai_clks_name;
+	init.ops = &da7219_dai_clks_ops;
+	da7219->dai_clks_hw.init = &init;
+
+	dai_clks = devm_clk_register(dev, &da7219->dai_clks_hw);
+	if (IS_ERR(dai_clks)) {
+		dev_warn(dev, "Failed to register DAI clocks: %ld\n",
+			 PTR_ERR(dai_clks));
+		return;
+	}
+	da7219->dai_clks = dai_clks;
+
+	/* If we're using DT, then register as provider accordingly */
+	if (dev->of_node) {
+		devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
+					    &da7219->dai_clks_hw);
+	} else {
+		dai_clks_lookup = clkdev_create(dai_clks, pdata->dai_clks_name,
+						"%s", dev_name(dev));
+		if (!dai_clks_lookup)
+			dev_warn(dev, "Failed to create DAI clkdev");
+		else
+			da7219->dai_clks_lookup = dai_clks_lookup;
+	}
+}
+#else
+static inline void da7219_register_dai_clks(struct snd_soc_component *component) {}
+#endif /* CONFIG_COMMON_CLK */
+
 static void da7219_handle_pdata(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
@@ -1721,6 +1829,8 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
 		u8 micbias_lvl = 0;
 
 		da7219->wakeup_source = pdata->wakeup_source;
+
+		da7219_register_dai_clks(component);
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1855,6 +1965,11 @@ static void da7219_remove(struct snd_soc_component *component)
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 
 	da7219_aad_exit(component);
+
+#ifdef CONFIG_COMMON_CLK
+	if (da7219->dai_clks_lookup)
+		clkdev_drop(da7219->dai_clks_lookup);
+#endif
 
 	/* Supplies */
 	regulator_bulk_disable(DA7219_NUM_SUPPLIES, da7219->supplies);
