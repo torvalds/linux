@@ -418,10 +418,8 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 	/* Allocate new device private */
 	fbdev = devm_kzalloc(&dev->dev, sizeof(struct au1100fb_device),
 			     GFP_KERNEL);
-	if (!fbdev) {
-		print_err("fail to allocate device private record");
+	if (!fbdev)
 		return -ENOMEM;
-	}
 
 	if (au1100fb_setup(fbdev))
 		goto failed;
