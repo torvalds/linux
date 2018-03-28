@@ -34,6 +34,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/build_bug.h>
+#include <linux/stddef.h>
 #include <linux/string.h>
 
 #include <asm/alternative.h>
@@ -103,11 +105,18 @@ struct cpu_context {
 
 struct thread_struct {
 	struct cpu_context	cpu_context;	/* cpu context */
-	unsigned long		tp_value;	/* TLS register */
-#ifdef CONFIG_COMPAT
-	unsigned long		tp2_value;
-#endif
-	struct user_fpsimd_state fpsimd_state;
+
+	/*
+	 * Whitelisted fields for hardened usercopy:
+	 * Maintainers must ensure manually that this contains no
+	 * implicit padding.
+	 */
+	struct {
+		unsigned long	tp_value;	/* TLS register */
+		unsigned long	tp2_value;
+		struct user_fpsimd_state fpsimd_state;
+	} uw;
+
 	unsigned int		fpsimd_cpu;
 	void			*sve_state;	/* SVE registers, if any */
 	unsigned int		sve_vl;		/* SVE vector length */
@@ -117,14 +126,17 @@ struct thread_struct {
 	struct debug_info	debug;		/* debugging */
 };
 
-/*
- * Everything usercopied to/from thread_struct is statically-sized, so
- * no hardened usercopy whitelist is needed.
- */
 static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
 {
-	*offset = *size = 0;
+	/* Verify that there is no padding among the whitelisted fields: */
+	BUILD_BUG_ON(sizeof_field(struct thread_struct, uw) !=
+		     sizeof_field(struct thread_struct, uw.tp_value) +
+		     sizeof_field(struct thread_struct, uw.tp2_value) +
+		     sizeof_field(struct thread_struct, uw.fpsimd_state));
+
+	*offset = offsetof(struct thread_struct, uw);
+	*size = sizeof_field(struct thread_struct, uw);
 }
 
 #ifdef CONFIG_COMPAT
@@ -132,13 +144,13 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 ({									\
 	unsigned long *__tls;						\
 	if (is_compat_thread(task_thread_info(t)))			\
-		__tls = &(t)->thread.tp2_value;				\
+		__tls = &(t)->thread.uw.tp2_value;			\
 	else								\
-		__tls = &(t)->thread.tp_value;				\
+		__tls = &(t)->thread.uw.tp_value;			\
 	__tls;								\
  })
 #else
-#define task_user_tls(t)	(&(t)->thread.tp_value)
+#define task_user_tls(t)	(&(t)->thread.uw.tp_value)
 #endif
 
 /* Sync TPIDR_EL0 back to thread_struct for current */

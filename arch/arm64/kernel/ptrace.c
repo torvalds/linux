@@ -629,7 +629,7 @@ static int __fpr_get(struct task_struct *target,
 
 	sve_sync_to_fpsimd(target);
 
-	uregs = &target->thread.fpsimd_state;
+	uregs = &target->thread.uw.fpsimd_state;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs,
 				   start_pos, start_pos + sizeof(*uregs));
@@ -655,19 +655,19 @@ static int __fpr_set(struct task_struct *target,
 	struct user_fpsimd_state newstate;
 
 	/*
-	 * Ensure target->thread.fpsimd_state is up to date, so that a
+	 * Ensure target->thread.uw.fpsimd_state is up to date, so that a
 	 * short copyin can't resurrect stale data.
 	 */
 	sve_sync_to_fpsimd(target);
 
-	newstate = target->thread.fpsimd_state;
+	newstate = target->thread.uw.fpsimd_state;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &newstate,
 				 start_pos, start_pos + sizeof(newstate));
 	if (ret)
 		return ret;
 
-	target->thread.fpsimd_state = newstate;
+	target->thread.uw.fpsimd_state = newstate;
 
 	return ret;
 }
@@ -692,7 +692,7 @@ static int tls_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	unsigned long *tls = &target->thread.tp_value;
+	unsigned long *tls = &target->thread.uw.tp_value;
 
 	if (target == current)
 		tls_preserve_current_state();
@@ -705,13 +705,13 @@ static int tls_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	unsigned long tls = target->thread.tp_value;
+	unsigned long tls = target->thread.uw.tp_value;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
 	if (ret)
 		return ret;
 
-	target->thread.tp_value = tls;
+	target->thread.uw.tp_value = tls;
 	return ret;
 }
 
@@ -842,7 +842,7 @@ static int sve_get(struct task_struct *target,
 	start = end;
 	end = SVE_PT_SVE_FPCR_OFFSET(vq) + SVE_PT_SVE_FPCR_SIZE;
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpsimd_state.fpsr,
+				  &target->thread.uw.fpsimd_state.fpsr,
 				  start, end);
 	if (ret)
 		return ret;
@@ -941,7 +941,7 @@ static int sve_set(struct task_struct *target,
 	start = end;
 	end = SVE_PT_SVE_FPCR_OFFSET(vq) + SVE_PT_SVE_FPCR_SIZE;
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.fpsimd_state.fpsr,
+				 &target->thread.uw.fpsimd_state.fpsr,
 				 start, end);
 
 out:
@@ -1169,7 +1169,7 @@ static int compat_vfp_get(struct task_struct *target,
 	compat_ulong_t fpscr;
 	int ret, vregs_end_pos;
 
-	uregs = &target->thread.fpsimd_state;
+	uregs = &target->thread.uw.fpsimd_state;
 
 	if (target == current)
 		fpsimd_preserve_current_state();
@@ -1202,7 +1202,7 @@ static int compat_vfp_set(struct task_struct *target,
 	compat_ulong_t fpscr;
 	int ret, vregs_end_pos;
 
-	uregs = &target->thread.fpsimd_state;
+	uregs = &target->thread.uw.fpsimd_state;
 
 	vregs_end_pos = VFP_STATE_SIZE - sizeof(compat_ulong_t);
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, uregs, 0,
@@ -1225,7 +1225,7 @@ static int compat_tls_get(struct task_struct *target,
 			  const struct user_regset *regset, unsigned int pos,
 			  unsigned int count, void *kbuf, void __user *ubuf)
 {
-	compat_ulong_t tls = (compat_ulong_t)target->thread.tp_value;
+	compat_ulong_t tls = (compat_ulong_t)target->thread.uw.tp_value;
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
 }
 
@@ -1235,13 +1235,13 @@ static int compat_tls_set(struct task_struct *target,
 			  const void __user *ubuf)
 {
 	int ret;
-	compat_ulong_t tls = target->thread.tp_value;
+	compat_ulong_t tls = target->thread.uw.tp_value;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
 	if (ret)
 		return ret;
 
-	target->thread.tp_value = tls;
+	target->thread.uw.tp_value = tls;
 	return ret;
 }
 
@@ -1538,7 +1538,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 
 		case COMPAT_PTRACE_GET_THREAD_AREA:
-			ret = put_user((compat_ulong_t)child->thread.tp_value,
+			ret = put_user((compat_ulong_t)child->thread.uw.tp_value,
 				       (compat_ulong_t __user *)datap);
 			break;
 

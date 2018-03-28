@@ -179,7 +179,8 @@ static void __user *apply_user_offset(
 
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 {
-	struct user_fpsimd_state const *fpsimd = &current->thread.fpsimd_state;
+	struct user_fpsimd_state const *fpsimd =
+		&current->thread.uw.fpsimd_state;
 	int err;
 
 	/* copy the FP and status/control registers */
