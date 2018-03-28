@@ -1060,41 +1060,42 @@ ARM PORT
 M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.armlinux.org.uk/
-S:	Maintained
+S:	Odd Fixes
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git
 F:	arch/arm/
+X:	arch/arm/boot/dts/
 
 ARM PRIMECELL AACI PL041 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	sound/arm/aaci.*
 
 ARM PRIMECELL BUS SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
 
 ARM PRIMECELL CLCD PL110 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/video/fbdev/amba-clcd.*
 
 ARM PRIMECELL KMI PL050 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/input/serio/ambakmi.*
 F:	include/linux/amba/kmi.h
 
 ARM PRIMECELL MMCI PL180/1 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/mmc/host/mmci.*
 F:	include/linux/amba/mmci.h
 
 ARM PRIMECELL UART PL010 AND PL011 DRIVERS
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/tty/serial/amba-pl01*.c
 F:	include/linux/amba/serial.h
 
@@ -12874,6 +12875,19 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/socionext/netsec.c
 F:	Documentation/devicetree/bindings/net/socionext-netsec.txt
+
+SOLIDRUN CLEARFOG SUPPORT
+M:	Russell King <linux@armlinux.org.uk>
+S:	Maintained
+F:	arch/arm/boot/dts/armada-388-clearfog*
+F:	arch/arm/boot/dts/armada-38x-solidrun-*
+
+SOLIDRUN CUBOX-I/HUMMINGBOARD SUPPORT
+M:	Russell King <linux@armlinux.org.uk>
+S:	Maintained
+F:	arch/arm/boot/dts/imx6*-cubox-i*
+F:	arch/arm/boot/dts/imx6*-hummingboard*
+F:	arch/arm/boot/dts/imx6*-sr-*
 
 SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
