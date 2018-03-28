@@ -8759,6 +8759,12 @@ enum skl_power_gate {
 #define  PORT_CLK_SEL_NONE		(7<<29)
 #define  PORT_CLK_SEL_MASK		(7<<29)
 
+/* On ICL+ this is the same as PORT_CLK_SEL, but all bits change. */
+#define DDI_CLK_SEL(port)		PORT_CLK_SEL(port)
+#define  DDI_CLK_SEL_NONE		(0x0 << 28)
+#define  DDI_CLK_SEL_MG			(0x8 << 28)
+#define  DDI_CLK_SEL_MASK		(0xF << 28)
+
 /* Transcoder clock selection */
 #define _TRANS_CLK_SEL_A		0x46140
 #define _TRANS_CLK_SEL_B		0x46144
@@ -8889,6 +8895,7 @@ enum skl_power_gate {
  * CNL Clocks
  */
 #define DPCLKA_CFGCR0				_MMIO(0x6C200)
+#define DPCLKA_CFGCR0_ICL			_MMIO(0x164280)
 #define  DPCLKA_CFGCR0_DDI_CLK_OFF(port)	(1 << ((port) ==  PORT_F ? 23 : \
 						      (port)+10))
 #define  DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port)	((port) == PORT_F ? 21 : \
@@ -8905,10 +8912,141 @@ enum skl_power_gate {
 #define  PLL_POWER_STATE	(1 << 26)
 #define CNL_DPLL_ENABLE(pll)	_MMIO_PLL(pll, DPLL0_ENABLE, DPLL1_ENABLE)
 
+#define _MG_PLL1_ENABLE		0x46030
+#define _MG_PLL2_ENABLE		0x46034
+#define _MG_PLL3_ENABLE		0x46038
+#define _MG_PLL4_ENABLE		0x4603C
+/* Bits are the same as DPLL0_ENABLE */
+#define MG_PLL_ENABLE(port)	_MMIO_PORT((port) - PORT_C, _MG_PLL1_ENABLE, \
+					   _MG_PLL2_ENABLE)
+
+#define _MG_REFCLKIN_CTL_PORT1				0x16892C
+#define _MG_REFCLKIN_CTL_PORT2				0x16992C
+#define _MG_REFCLKIN_CTL_PORT3				0x16A92C
+#define _MG_REFCLKIN_CTL_PORT4				0x16B92C
+#define   MG_REFCLKIN_CTL_OD_2_MUX(x)			((x) << 8)
+#define MG_REFCLKIN_CTL(port) _MMIO_PORT((port) - PORT_C, \
+					 _MG_REFCLKIN_CTL_PORT1, \
+					 _MG_REFCLKIN_CTL_PORT2)
+
+#define _MG_CLKTOP2_CORECLKCTL1_PORT1			0x1688D8
+#define _MG_CLKTOP2_CORECLKCTL1_PORT2			0x1698D8
+#define _MG_CLKTOP2_CORECLKCTL1_PORT3			0x16A8D8
+#define _MG_CLKTOP2_CORECLKCTL1_PORT4			0x16B8D8
+#define   MG_CLKTOP2_CORECLKCTL1_B_DIVRATIO(x)		((x) << 16)
+#define   MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO(x)		((x) << 8)
+#define MG_CLKTOP2_CORECLKCTL1(port) _MMIO_PORT((port) - PORT_C, \
+						_MG_CLKTOP2_CORECLKCTL1_PORT1, \
+						_MG_CLKTOP2_CORECLKCTL1_PORT2)
+
+#define _MG_CLKTOP2_HSCLKCTL_PORT1			0x1688D4
+#define _MG_CLKTOP2_HSCLKCTL_PORT2			0x1698D4
+#define _MG_CLKTOP2_HSCLKCTL_PORT3			0x16A8D4
+#define _MG_CLKTOP2_HSCLKCTL_PORT4			0x16B8D4
+#define   MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL(x)		((x) << 16)
+#define   MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL(x)	((x) << 14)
+#define   MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO(x)		((x) << 12)
+#define   MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO(x)		((x) << 8)
+#define MG_CLKTOP2_HSCLKCTL(port) _MMIO_PORT((port) - PORT_C, \
+					     _MG_CLKTOP2_HSCLKCTL_PORT1, \
+					     _MG_CLKTOP2_HSCLKCTL_PORT2)
+
+#define _MG_PLL_DIV0_PORT1				0x168A00
+#define _MG_PLL_DIV0_PORT2				0x169A00
+#define _MG_PLL_DIV0_PORT3				0x16AA00
+#define _MG_PLL_DIV0_PORT4				0x16BA00
+#define   MG_PLL_DIV0_FRACNEN_H				(1 << 30)
+#define   MG_PLL_DIV0_FBDIV_FRAC(x)			((x) << 8)
+#define   MG_PLL_DIV0_FBDIV_INT(x)			((x) << 0)
+#define MG_PLL_DIV0(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_DIV0_PORT1, \
+				     _MG_PLL_DIV0_PORT2)
+
+#define _MG_PLL_DIV1_PORT1				0x168A04
+#define _MG_PLL_DIV1_PORT2				0x169A04
+#define _MG_PLL_DIV1_PORT3				0x16AA04
+#define _MG_PLL_DIV1_PORT4				0x16BA04
+#define   MG_PLL_DIV1_IREF_NDIVRATIO(x)			((x) << 16)
+#define   MG_PLL_DIV1_DITHER_DIV_1			(0 << 12)
+#define   MG_PLL_DIV1_DITHER_DIV_2			(1 << 12)
+#define   MG_PLL_DIV1_DITHER_DIV_4			(2 << 12)
+#define   MG_PLL_DIV1_DITHER_DIV_8			(3 << 12)
+#define   MG_PLL_DIV1_NDIVRATIO(x)			((x) << 4)
+#define   MG_PLL_DIV1_FBPREDIV(x)			((x) << 0)
+#define MG_PLL_DIV1(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_DIV1_PORT1, \
+				     _MG_PLL_DIV1_PORT2)
+
+#define _MG_PLL_LF_PORT1				0x168A08
+#define _MG_PLL_LF_PORT2				0x169A08
+#define _MG_PLL_LF_PORT3				0x16AA08
+#define _MG_PLL_LF_PORT4				0x16BA08
+#define   MG_PLL_LF_TDCTARGETCNT(x)			((x) << 24)
+#define   MG_PLL_LF_AFCCNTSEL_256			(0 << 20)
+#define   MG_PLL_LF_AFCCNTSEL_512			(1 << 20)
+#define   MG_PLL_LF_GAINCTRL(x)				((x) << 16)
+#define   MG_PLL_LF_INT_COEFF(x)			((x) << 8)
+#define   MG_PLL_LF_PROP_COEFF(x)			((x) << 0)
+#define MG_PLL_LF(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_LF_PORT1, \
+				   _MG_PLL_LF_PORT2)
+
+#define _MG_PLL_FRAC_LOCK_PORT1				0x168A0C
+#define _MG_PLL_FRAC_LOCK_PORT2				0x169A0C
+#define _MG_PLL_FRAC_LOCK_PORT3				0x16AA0C
+#define _MG_PLL_FRAC_LOCK_PORT4				0x16BA0C
+#define   MG_PLL_FRAC_LOCK_TRUELOCK_CRIT_32		(1 << 18)
+#define   MG_PLL_FRAC_LOCK_EARLYLOCK_CRIT_32		(1 << 16)
+#define   MG_PLL_FRAC_LOCK_LOCKTHRESH(x)		((x) << 11)
+#define   MG_PLL_FRAC_LOCK_DCODITHEREN			(1 << 10)
+#define   MG_PLL_FRAC_LOCK_FEEDFWRDCAL_EN		(1 << 8)
+#define   MG_PLL_FRAC_LOCK_FEEDFWRDGAIN(x)		((x) << 0)
+#define MG_PLL_FRAC_LOCK(port) _MMIO_PORT((port) - PORT_C, \
+					  _MG_PLL_FRAC_LOCK_PORT1, \
+					  _MG_PLL_FRAC_LOCK_PORT2)
+
+#define _MG_PLL_SSC_PORT1				0x168A10
+#define _MG_PLL_SSC_PORT2				0x169A10
+#define _MG_PLL_SSC_PORT3				0x16AA10
+#define _MG_PLL_SSC_PORT4				0x16BA10
+#define   MG_PLL_SSC_EN					(1 << 28)
+#define   MG_PLL_SSC_TYPE(x)				((x) << 26)
+#define   MG_PLL_SSC_STEPLENGTH(x)			((x) << 16)
+#define   MG_PLL_SSC_STEPNUM(x)				((x) << 10)
+#define   MG_PLL_SSC_FLLEN				(1 << 9)
+#define   MG_PLL_SSC_STEPSIZE(x)			((x) << 0)
+#define MG_PLL_SSC(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_SSC_PORT1, \
+				    _MG_PLL_SSC_PORT2)
+
+#define _MG_PLL_BIAS_PORT1				0x168A14
+#define _MG_PLL_BIAS_PORT2				0x169A14
+#define _MG_PLL_BIAS_PORT3				0x16AA14
+#define _MG_PLL_BIAS_PORT4				0x16BA14
+#define   MG_PLL_BIAS_BIAS_GB_SEL(x)			((x) << 30)
+#define   MG_PLL_BIAS_INIT_DCOAMP(x)			((x) << 24)
+#define   MG_PLL_BIAS_BIAS_BONUS(x)			((x) << 16)
+#define   MG_PLL_BIAS_BIASCAL_EN			(1 << 15)
+#define   MG_PLL_BIAS_CTRIM(x)				((x) << 8)
+#define   MG_PLL_BIAS_VREF_RDAC(x)			((x) << 5)
+#define   MG_PLL_BIAS_IREFTRIM(x)			((x) << 0)
+#define MG_PLL_BIAS(port) _MMIO_PORT((port) - PORT_C, _MG_PLL_BIAS_PORT1, \
+				     _MG_PLL_BIAS_PORT2)
+
+#define _MG_PLL_TDC_COLDST_BIAS_PORT1			0x168A18
+#define _MG_PLL_TDC_COLDST_BIAS_PORT2			0x169A18
+#define _MG_PLL_TDC_COLDST_BIAS_PORT3			0x16AA18
+#define _MG_PLL_TDC_COLDST_BIAS_PORT4			0x16BA18
+#define   MG_PLL_TDC_COLDST_IREFINT_EN			(1 << 27)
+#define   MG_PLL_TDC_COLDST_REFBIAS_START_PULSE_W(x)	((x) << 17)
+#define   MG_PLL_TDC_COLDST_COLDSTART			(1 << 16)
+#define   MG_PLL_TDC_TDCOVCCORR_EN			(1 << 2)
+#define   MG_PLL_TDC_TDCSEL(x)				((x) << 0)
+#define MG_PLL_TDC_COLDST_BIAS(port) _MMIO_PORT((port) - PORT_C, \
+						_MG_PLL_TDC_COLDST_BIAS_PORT1, \
+						_MG_PLL_TDC_COLDST_BIAS_PORT2)
+
 #define _CNL_DPLL0_CFGCR0		0x6C000
 #define _CNL_DPLL1_CFGCR0		0x6C080
 #define  DPLL_CFGCR0_HDMI_MODE		(1 << 30)
 #define  DPLL_CFGCR0_SSC_ENABLE		(1 << 29)
+#define  DPLL_CFGCR0_SSC_ENABLE_ICL	(1 << 25)
 #define  DPLL_CFGCR0_LINK_RATE_MASK	(0xf << 25)
 #define  DPLL_CFGCR0_LINK_RATE_2700	(0 << 25)
 #define  DPLL_CFGCR0_LINK_RATE_1350	(1 << 25)
@@ -8942,7 +9080,18 @@ enum skl_power_gate {
 #define  DPLL_CFGCR1_PDIV_5		(4 << 2)
 #define  DPLL_CFGCR1_PDIV_7		(8 << 2)
 #define  DPLL_CFGCR1_CENTRAL_FREQ	(3 << 0)
+#define  DPLL_CFGCR1_CENTRAL_FREQ_8400	(3 << 0)
 #define CNL_DPLL_CFGCR1(pll)		_MMIO_PLL(pll, _CNL_DPLL0_CFGCR1, _CNL_DPLL1_CFGCR1)
+
+#define _ICL_DPLL0_CFGCR0		0x164000
+#define _ICL_DPLL1_CFGCR0		0x164080
+#define ICL_DPLL_CFGCR0(pll)		_MMIO_PLL(pll, _ICL_DPLL0_CFGCR0, \
+						  _ICL_DPLL1_CFGCR0)
+
+#define _ICL_DPLL0_CFGCR1		0x164004
+#define _ICL_DPLL1_CFGCR1		0x164084
+#define ICL_DPLL_CFGCR1(pll)		_MMIO_PLL(pll, _ICL_DPLL0_CFGCR1, \
+						  _ICL_DPLL1_CFGCR1)
 
 /* BXT display engine PLL */
 #define BXT_DE_PLL_CTL			_MMIO(0x6d000)
