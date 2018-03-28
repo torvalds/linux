@@ -2383,23 +2383,29 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	location.offset = 0;
 
 	root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
+		goto out;
+	}
 	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 	fs_info->extent_root = root;
 
 	location.objectid = BTRFS_DEV_TREE_OBJECTID;
 	root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
+		goto out;
+	}
 	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 	fs_info->dev_root = root;
 	btrfs_init_devices_late(fs_info);
 
 	location.objectid = BTRFS_CSUM_TREE_OBJECTID;
 	root = btrfs_read_tree_root(tree_root, &location);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
+		goto out;
+	}
 	set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 	fs_info->csum_root = root;
 
@@ -2416,7 +2422,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		if (ret != -ENOENT)
-			return ret;
+			goto out;
 	} else {
 		set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 		fs_info->uuid_root = root;
@@ -2425,13 +2431,19 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	if (btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
 		location.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID;
 		root = btrfs_read_tree_root(tree_root, &location);
-		if (IS_ERR(root))
-			return PTR_ERR(root);
+		if (IS_ERR(root)) {
+			ret = PTR_ERR(root);
+			goto out;
+		}
 		set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
 		fs_info->free_space_root = root;
 	}
 
 	return 0;
+out:
+	btrfs_warn(fs_info, "failed to read root (objectid=%llu): %d",
+		   location.objectid, ret);
+	return ret;
 }
 
 int open_ctree(struct super_block *sb,
@@ -3004,6 +3016,7 @@ retry_root_backup:
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (IS_ERR(fs_info->fs_root)) {
 		err = PTR_ERR(fs_info->fs_root);
+		btrfs_warn(fs_info, "failed to read fs tree: %d", err);
 		goto fail_qgroup;
 	}
 
