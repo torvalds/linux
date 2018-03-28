@@ -856,6 +856,10 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 						MLX5_RX_HASH_SRC_PORT_UDP |
 						MLX5_RX_HASH_DST_PORT_UDP |
 						MLX5_RX_HASH_INNER;
+			if (mlx5_accel_ipsec_device_caps(dev->mdev) &
+			    MLX5_ACCEL_IPSEC_CAP_DEVICE)
+				resp.rss_caps.rx_hash_fields_mask |=
+					MLX5_RX_HASH_IPSEC_SPI;
 			resp.response_length += sizeof(resp.rss_caps);
 		}
 	} else {

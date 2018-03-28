@@ -327,6 +327,7 @@ enum mlx5_rx_hash_fields {
 	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
 	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	MLX5_RX_HASH_IPSEC_SPI		= 1 << 8,
 	/* Save bits for future fields */
 	MLX5_RX_HASH_INNER		= (1UL << 31),
 };

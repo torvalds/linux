@@ -1413,6 +1413,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	void *tirc;
 	void *hfso;
 	u32 selected_fields = 0;
+	u32 outer_l4;
 	size_t min_resp_len;
 	u32 tdn = mucontext->tdn;
 	struct mlx5_ib_create_qp_rss ucmd = {};
@@ -1543,10 +1544,14 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
 			 MLX5_L3_PROT_TYPE_IPV6);
 
-	if (((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_SRC_PORT_TCP) ||
-	     (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_TCP)) &&
-	     ((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_SRC_PORT_UDP) ||
-	     (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_UDP))) {
+	outer_l4 = ((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_SRC_PORT_TCP) ||
+		    (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_TCP)) << 0 |
+		   ((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_SRC_PORT_UDP) ||
+		    (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_UDP)) << 1 |
+		   (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_IPSEC_SPI) << 2;
+
+	/* Check that only one l4 protocol is set */
+	if (outer_l4 & (outer_l4 - 1)) {
 		err = -EINVAL;
 		goto err;
 	}
@@ -1576,6 +1581,9 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if ((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_TCP) ||
 	    (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_UDP))
 		selected_fields |= MLX5_HASH_FIELD_SEL_L4_DPORT;
+
+	if (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_IPSEC_SPI)
+		selected_fields |= MLX5_HASH_FIELD_SEL_IPSEC_SPI;
 
 	MLX5_SET(rx_hash_field_select, hfso, selected_fields, selected_fields);
 
