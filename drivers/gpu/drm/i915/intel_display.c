@@ -3623,11 +3623,15 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	u32 plane_color_ctl = 0;
 
-	plane_color_ctl |= PLANE_COLOR_PIPE_GAMMA_ENABLE;
-	plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
+	if (INTEL_GEN(dev_priv) < 11) {
+		plane_color_ctl |= PLANE_COLOR_PIPE_GAMMA_ENABLE;
+		plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
+	}
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(fb->format->format);
 
