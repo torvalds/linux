@@ -108,6 +108,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
+	select SND_SOC_PCM1789_I2C if I2C
 	select SND_SOC_PCM179X_I2C if I2C
 	select SND_SOC_PCM179X_SPI if SPI_MASTER
 	select SND_SOC_PCM186X_I2C if I2C
@@ -649,6 +650,17 @@ config SND_SOC_MSM8916_WCD_DIGITAL
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
 	depends on I2C
+
+config SND_SOC_PCM1789
+	tristate
+
+config SND_SOC_PCM1789_I2C
+	tristate "Texas Instruments PCM1789 CODEC (I2C)"
+	depends on I2C
+	select SND_SOC_PCM1789
+	help
+	  Enable support for Texas Instruments PCM1789 CODEC.
+	  Select this if your PCM1789 is connected via an I2C bus.
 
 config SND_SOC_PCM179X
 	tristate
