@@ -175,15 +175,24 @@ void rockchip_fractional_approximation(struct clk_hw *hw,
 	unsigned long p_rate, p_parent_rate;
 	struct clk_hw *p_parent;
 	unsigned long scale;
+	u32 div;
 
 	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
-	if ((rate * 20 > p_rate) && (p_rate % rate != 0)) {
+	if (((rate * 20 > p_rate) && (p_rate % rate != 0)) ||
+	    (fd->max_prate && fd->max_prate < p_rate)) {
 		p_parent = clk_hw_get_parent(clk_hw_get_parent(hw));
 		p_parent_rate = clk_hw_get_rate(p_parent);
 		*parent_rate = p_parent_rate;
+		if (fd->max_prate && p_parent_rate > fd->max_prate) {
+			div = DIV_ROUND_UP(p_parent_rate, fd->max_prate);
+			*parent_rate = p_parent_rate / div;
+		}
+
 		if (*parent_rate < rate * 20) {
 			pr_err("%s parent_rate(%ld) is low than rate(%ld)*20, fractional div is not allowed\n",
 			       clk_hw_get_name(hw), *parent_rate, rate);
+			*m = 0;
+			*n = 1;
 			return;
 		}
 	}
@@ -209,7 +218,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 		void __iomem *base, int muxdiv_offset, u8 div_flags,
 		int gate_offset, u8 gate_shift, u8 gate_flags,
 		unsigned long flags, struct rockchip_clk_branch *child,
-		spinlock_t *lock)
+		unsigned long max_prate, spinlock_t *lock)
 {
 	struct rockchip_clk_frac *frac;
 	struct clk *clk;
@@ -250,6 +259,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 	div->nmask = GENMASK(div->nwidth - 1, 0) << div->nshift;
 	div->lock = lock;
 	div->approximation = rockchip_fractional_approximation;
+	div->max_prate = max_prate;
 	div_ops = &clk_fractional_divider_ops;
 
 	clk = clk_register_composite(NULL, name, parent_names, num_parents,
@@ -497,7 +507,7 @@ void __init rockchip_clk_register_branches(
 				ctx->reg_base, list->muxdiv_offset, list->div_flags,
 				list->gate_offset, list->gate_shift,
 				list->gate_flags, flags, list->child,
-				&ctx->lock);
+				list->max_prate, &ctx->lock);
 			break;
 		case branch_gate:
 			flags |= CLK_SET_RATE_PARENT;
