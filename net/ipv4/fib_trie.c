@@ -1219,8 +1219,13 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->tb_id = tb->tb_id;
 			new_fa->fa_default = -1;
 
-			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
-						 key, plen, new_fa, extack);
+			err = call_fib_entry_notifiers(net,
+						       FIB_EVENT_ENTRY_REPLACE,
+						       key, plen, new_fa,
+						       extack);
+			if (err)
+				goto out_free_new_fa;
+
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				  tb->tb_id, &cfg->fc_nlinfo, nlflags);
 
