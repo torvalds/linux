@@ -51,15 +51,14 @@
 #define AA(__x)		((unsigned long)(__x))
 
 
-asmlinkage long sys32_truncate64(const char __user *filename,
-				 unsigned long offset_low,
-				 unsigned long offset_high)
+COMPAT_SYSCALL_DEFINE3(x86_truncate64, const char __user *, filename,
+		       unsigned long, offset_low, unsigned long, offset_high)
 {
        return sys_truncate(filename, ((loff_t) offset_high << 32) | offset_low);
 }
 
-asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
-				  unsigned long offset_high)
+COMPAT_SYSCALL_DEFINE3(x86_ftruncate64, unsigned int, fd,
+		       unsigned long, offset_low, unsigned long, offset_high)
 {
        return sys_ftruncate(fd, ((loff_t) offset_high << 32) | offset_low);
 }
@@ -96,8 +95,8 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	return 0;
 }
 
-asmlinkage long sys32_stat64(const char __user *filename,
-			     struct stat64 __user *statbuf)
+COMPAT_SYSCALL_DEFINE2(x86_stat64, const char __user *, filename,
+		       struct stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_stat(filename, &stat);
@@ -107,8 +106,8 @@ asmlinkage long sys32_stat64(const char __user *filename,
 	return ret;
 }
 
-asmlinkage long sys32_lstat64(const char __user *filename,
-			      struct stat64 __user *statbuf)
+COMPAT_SYSCALL_DEFINE2(x86_lstat64, const char __user *, filename,
+		       struct stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_lstat(filename, &stat);
@@ -117,7 +116,8 @@ asmlinkage long sys32_lstat64(const char __user *filename,
 	return ret;
 }
 
-asmlinkage long sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
+COMPAT_SYSCALL_DEFINE2(x86_fstat64, unsigned int, fd,
+		       struct stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_fstat(fd, &stat);
@@ -126,8 +126,9 @@ asmlinkage long sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
 	return ret;
 }
 
-asmlinkage long sys32_fstatat(unsigned int dfd, const char __user *filename,
-			      struct stat64 __user *statbuf, int flag)
+COMPAT_SYSCALL_DEFINE4(x86_fstatat, unsigned int, dfd,
+		       const char __user *, filename,
+		       struct stat64 __user *, statbuf, int, flag)
 {
 	struct kstat stat;
 	int error;
@@ -153,7 +154,7 @@ struct mmap_arg_struct32 {
 	unsigned int offset;
 };
 
-asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *arg)
+COMPAT_SYSCALL_DEFINE1(x86_mmap, struct mmap_arg_struct32 __user *, arg)
 {
 	struct mmap_arg_struct32 a;
 
@@ -167,22 +168,22 @@ asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *arg)
 			       a.offset>>PAGE_SHIFT);
 }
 
-asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int __user *stat_addr,
-			      int options)
+COMPAT_SYSCALL_DEFINE3(x86_waitpid, compat_pid_t, pid, unsigned int __user *,
+		       stat_addr, int, options)
 {
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
 /* warning: next two assume little endian */
-asmlinkage long sys32_pread(unsigned int fd, char __user *ubuf, u32 count,
-			    u32 poslo, u32 poshi)
+COMPAT_SYSCALL_DEFINE5(x86_pread, unsigned int, fd, char __user *, ubuf,
+		       u32, count, u32, poslo, u32, poshi)
 {
 	return sys_pread64(fd, ubuf, count,
 			 ((loff_t)AA(poshi) << 32) | AA(poslo));
 }
 
-asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
-			     u32 count, u32 poslo, u32 poshi)
+COMPAT_SYSCALL_DEFINE5(x86_pwrite, unsigned int, fd, const char __user *, ubuf,
+		       u32, count, u32, poslo, u32, poshi)
 {
 	return sys_pwrite64(fd, ubuf, count,
 			  ((loff_t)AA(poshi) << 32) | AA(poslo));
@@ -193,8 +194,9 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
  * Some system calls that need sign extended arguments. This could be
  * done by a generic wrapper.
  */
-long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
-			__u32 len_low, __u32 len_high, int advice)
+COMPAT_SYSCALL_DEFINE6(x86_fadvise64_64, int, fd, __u32, offset_low,
+		       __u32, offset_high, __u32, len_low, __u32, len_high,
+		       int, advice)
 {
 	return sys_fadvise64_64(fd,
 			       (((u64)offset_high)<<32) | offset_low,
@@ -202,31 +204,43 @@ long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
 				advice);
 }
 
-asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi,
-				   size_t count)
+COMPAT_SYSCALL_DEFINE4(x86_readahead, int, fd, unsigned int, off_lo,
+		       unsigned int, off_hi, size_t, count)
 {
 	return sys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
 }
 
-asmlinkage long sys32_sync_file_range(int fd, unsigned off_low, unsigned off_hi,
-				      unsigned n_low, unsigned n_hi,  int flags)
+COMPAT_SYSCALL_DEFINE6(x86_sync_file_range, int, fd, unsigned int, off_low,
+		       unsigned int, off_hi, unsigned int, n_low,
+		       unsigned int, n_hi, int, flags)
 {
 	return sys_sync_file_range(fd,
 				   ((u64)off_hi << 32) | off_low,
 				   ((u64)n_hi << 32) | n_low, flags);
 }
 
-asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi,
-				size_t len, int advice)
+COMPAT_SYSCALL_DEFINE5(x86_fadvise64, int, fd, unsigned int, offset_lo,
+		       unsigned int, offset_hi, size_t, len, int, advice)
 {
 	return sys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
 				len, advice);
 }
 
-asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
-				unsigned offset_hi, unsigned len_lo,
-				unsigned len_hi)
+COMPAT_SYSCALL_DEFINE6(x86_fallocate, int, fd, int, mode,
+		       unsigned int, offset_lo, unsigned int, offset_hi,
+		       unsigned int, len_lo, unsigned int, len_hi)
 {
 	return sys_fallocate(fd, mode, ((u64)offset_hi << 32) | offset_lo,
 			     ((u64)len_hi << 32) | len_lo);
+}
+
+/*
+ * The 32-bit clone ABI is CONFIG_CLONE_BACKWARDS
+ */
+COMPAT_SYSCALL_DEFINE5(x86_clone, unsigned long, clone_flags,
+		       unsigned long, newsp, int __user *, parent_tidptr,
+		       unsigned long, tls_val, int __user *, child_tidptr)
+{
+	return sys_clone(clone_flags, newsp, parent_tidptr, child_tidptr,
+			tls_val);
 }

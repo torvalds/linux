@@ -376,17 +376,12 @@ struct tcf_net {
 static unsigned int tcf_net_id;
 
 static int tcf_block_insert(struct tcf_block *block, struct net *net,
-			    u32 block_index, struct netlink_ext_ack *extack)
+			    struct netlink_ext_ack *extack)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
-	int err;
 
-	err = idr_alloc_u32(&tn->idr, block, &block_index, block_index,
-			    GFP_KERNEL);
-	if (err)
-		return err;
-	block->index = block_index;
-	return 0;
+	return idr_alloc_u32(&tn->idr, block, &block->index, block->index,
+			     GFP_KERNEL);
 }
 
 static void tcf_block_remove(struct tcf_block *block, struct net *net)
@@ -397,6 +392,7 @@ static void tcf_block_remove(struct tcf_block *block, struct net *net)
 }
 
 static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
+					  u32 block_index,
 					  struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block;
@@ -419,10 +415,13 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 		err = -ENOMEM;
 		goto err_chain_create;
 	}
-	block->net = qdisc_net(q);
 	block->refcnt = 1;
 	block->net = net;
-	block->q = q;
+	block->index = block_index;
+
+	/* Don't store q pointer for blocks which are shared */
+	if (!tcf_block_shared(block))
+		block->q = q;
 	return block;
 
 err_chain_create:
@@ -518,13 +517,12 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 	}
 
 	if (!block) {
-		block = tcf_block_create(net, q, extack);
+		block = tcf_block_create(net, q, ei->block_index, extack);
 		if (IS_ERR(block))
 			return PTR_ERR(block);
 		created = true;
-		if (ei->block_index) {
-			err = tcf_block_insert(block, net,
-					       ei->block_index, extack);
+		if (tcf_block_shared(block)) {
+			err = tcf_block_insert(block, net, extack);
 			if (err)
 				goto err_block_insert;
 		}
@@ -1399,13 +1397,18 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		    nla_get_u32(tca[TCA_CHAIN]) != chain->index)
 			continue;
 		if (!tcf_chain_dump(chain, q, parent, skb, cb,
-				    index_start, &index))
+				    index_start, &index)) {
+			err = -EMSGSIZE;
 			break;
+		}
 	}
 
 	cb->args[0] = index;
 
 out:
+	/* If we did no progress, the error (EMSGSIZE) is real */
+	if (skb->len == 0 && err)
+		return err;
 	return skb->len;
 }
 

@@ -978,10 +978,6 @@ out:
 		lsmc->clcsock = NULL;
 	}
 	release_sock(lsk);
-	/* no more listening, wake up smc_close_wait_listen_clcsock and
-	 * accept
-	 */
-	lsk->sk_state_change(lsk);
 	sock_put(&lsmc->sk); /* sock_hold in smc_listen */
 }
 
@@ -1406,8 +1402,10 @@ static int smc_create(struct net *net, struct socket *sock, int protocol,
 	smc->use_fallback = false; /* assume rdma capability first */
 	rc = sock_create_kern(net, PF_INET, SOCK_STREAM,
 			      IPPROTO_TCP, &smc->clcsock);
-	if (rc)
+	if (rc) {
 		sk_common_release(sk);
+		goto out;
+	}
 	smc->sk.sk_sndbuf = max(smc->clcsock->sk->sk_sndbuf, SMC_BUF_MIN_SIZE);
 	smc->sk.sk_rcvbuf = max(smc->clcsock->sk->sk_rcvbuf, SMC_BUF_MIN_SIZE);
 

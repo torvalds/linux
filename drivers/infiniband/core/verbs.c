@@ -887,7 +887,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	if (qp_init_attr->cap.max_rdma_ctxs)
 		rdma_rw_init_qp(device, qp_init_attr);
 
-	qp = _ib_create_qp(device, pd, qp_init_attr, NULL);
+	qp = _ib_create_qp(device, pd, qp_init_attr, NULL, NULL);
 	if (IS_ERR(qp))
 		return qp;
 
@@ -898,7 +898,6 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	}
 
 	qp->real_qp    = qp;
-	qp->uobject    = NULL;
 	qp->qp_type    = qp_init_attr->qp_type;
 	qp->rwq_ind_tbl = qp_init_attr->rwq_ind_tbl;
 

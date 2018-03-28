@@ -443,12 +443,8 @@ static bool __virtnet_xdp_xmit(struct virtnet_info *vi,
 	sg_init_one(sq->sg, xdp->data, xdp->data_end - xdp->data);
 
 	err = virtqueue_add_outbuf(sq->vq, sq->sg, 1, xdp->data, GFP_ATOMIC);
-	if (unlikely(err)) {
-		struct page *page = virt_to_head_page(xdp->data);
-
-		put_page(page);
-		return false;
-	}
+	if (unlikely(err))
+		return false; /* Caller handle free/refcnt */
 
 	return true;
 }
@@ -456,8 +452,18 @@ static bool __virtnet_xdp_xmit(struct virtnet_info *vi,
 static int virtnet_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	bool sent = __virtnet_xdp_xmit(vi, xdp);
+	struct receive_queue *rq = vi->rq;
+	struct bpf_prog *xdp_prog;
+	bool sent;
 
+	/* Only allow ndo_xdp_xmit if XDP is loaded on dev, as this
+	 * indicate XDP resources have been successfully allocated.
+	 */
+	xdp_prog = rcu_dereference(rq->xdp_prog);
+	if (!xdp_prog)
+		return -ENXIO;
+
+	sent = __virtnet_xdp_xmit(vi, xdp);
 	if (!sent)
 		return -ENOSPC;
 	return 0;
@@ -498,6 +504,7 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 	page_off += *len;
 
 	while (--*num_buf) {
+		int tailroom = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 		unsigned int buflen;
 		void *buf;
 		int off;
@@ -512,7 +519,7 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 		/* guard against a misconfigured or uncooperative backend that
 		 * is sending packet larger than the MTU.
 		 */
-		if ((page_off + buflen) > PAGE_SIZE) {
+		if ((page_off + buflen + tailroom) > PAGE_SIZE) {
 			put_page(p);
 			goto err_buf;
 		}
@@ -546,8 +553,11 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	unsigned int buflen = SKB_DATA_ALIGN(GOOD_PACKET_LEN + headroom) +
 			      SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	struct page *page = virt_to_head_page(buf);
-	unsigned int delta = 0, err;
+	unsigned int delta = 0;
 	struct page *xdp_page;
+	bool sent;
+	int err;
+
 	len -= vi->hdr_len;
 
 	rcu_read_lock();
@@ -558,7 +568,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		void *orig_data;
 		u32 act;
 
-		if (unlikely(hdr->hdr.gso_type || hdr->hdr.flags))
+		if (unlikely(hdr->hdr.gso_type))
 			goto err_xdp;
 
 		if (unlikely(xdp_headroom < virtnet_get_headroom(vi))) {
@@ -596,16 +606,19 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			delta = orig_data - xdp.data;
 			break;
 		case XDP_TX:
-			if (unlikely(!__virtnet_xdp_xmit(vi, &xdp)))
+			sent = __virtnet_xdp_xmit(vi, &xdp);
+			if (unlikely(!sent)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
-			else
-				*xdp_xmit = true;
+				goto err_xdp;
+			}
+			*xdp_xmit = true;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
-			if (!err)
-				*xdp_xmit = true;
+			if (err)
+				goto err_xdp;
+			*xdp_xmit = true;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
@@ -677,6 +690,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	struct bpf_prog *xdp_prog;
 	unsigned int truesize;
 	unsigned int headroom = mergeable_ctx_to_headroom(ctx);
+	bool sent;
 	int err;
 
 	head_skb = NULL;
@@ -689,7 +703,12 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		void *data;
 		u32 act;
 
-		/* This happens when rx buffer size is underestimated */
+		/* This happens when rx buffer size is underestimated
+		 * or headroom is not enough because of the buffer
+		 * was refilled before XDP is set. This should only
+		 * happen for the first several packets, so we don't
+		 * care much about its performance.
+		 */
 		if (unlikely(num_buf > 1 ||
 			     headroom < virtnet_get_headroom(vi))) {
 			/* linearize data for XDP */
@@ -724,9 +743,6 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
-		if (act != XDP_PASS)
-			ewma_pkt_len_add(&rq->mrg_avg_pkt_len, len);
-
 		switch (act) {
 		case XDP_PASS:
 			/* recalculate offset to account for any header
@@ -746,18 +762,28 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			}
 			break;
 		case XDP_TX:
-			if (unlikely(!__virtnet_xdp_xmit(vi, &xdp)))
+			sent = __virtnet_xdp_xmit(vi, &xdp);
+			if (unlikely(!sent)) {
 				trace_xdp_exception(vi->dev, xdp_prog, act);
-			else
-				*xdp_xmit = true;
+				if (unlikely(xdp_page != page))
+					put_page(xdp_page);
+				goto err_xdp;
+			}
+			*xdp_xmit = true;
 			if (unlikely(xdp_page != page))
 				goto err_xdp;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_REDIRECT:
 			err = xdp_do_redirect(dev, &xdp, xdp_prog);
-			if (!err)
-				*xdp_xmit = true;
+			if (err) {
+				if (unlikely(xdp_page != page))
+					put_page(xdp_page);
+				goto err_xdp;
+			}
+			*xdp_xmit = true;
+			if (unlikely(xdp_page != page))
+				goto err_xdp;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		default:
@@ -1003,13 +1029,18 @@ static int add_recvbuf_big(struct virtnet_info *vi, struct receive_queue *rq,
 }
 
 static unsigned int get_mergeable_buf_len(struct receive_queue *rq,
-					  struct ewma_pkt_len *avg_pkt_len)
+					  struct ewma_pkt_len *avg_pkt_len,
+					  unsigned int room)
 {
 	const size_t hdr_len = sizeof(struct virtio_net_hdr_mrg_rxbuf);
 	unsigned int len;
 
-	len = hdr_len + clamp_t(unsigned int, ewma_pkt_len_read(avg_pkt_len),
+	if (room)
+		return PAGE_SIZE - room;
+
+	len = hdr_len +	clamp_t(unsigned int, ewma_pkt_len_read(avg_pkt_len),
 				rq->min_buf_len, PAGE_SIZE - hdr_len);
+
 	return ALIGN(len, L1_CACHE_BYTES);
 }
 
@@ -1018,21 +1049,27 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi,
 {
 	struct page_frag *alloc_frag = &rq->alloc_frag;
 	unsigned int headroom = virtnet_get_headroom(vi);
+	unsigned int tailroom = headroom ? sizeof(struct skb_shared_info) : 0;
+	unsigned int room = SKB_DATA_ALIGN(headroom + tailroom);
 	char *buf;
 	void *ctx;
 	int err;
 	unsigned int len, hole;
 
-	len = get_mergeable_buf_len(rq, &rq->mrg_avg_pkt_len);
-	if (unlikely(!skb_page_frag_refill(len + headroom, alloc_frag, gfp)))
+	/* Extra tailroom is needed to satisfy XDP's assumption. This
+	 * means rx frags coalescing won't work, but consider we've
+	 * disabled GSO for XDP, it won't be a big issue.
+	 */
+	len = get_mergeable_buf_len(rq, &rq->mrg_avg_pkt_len, room);
+	if (unlikely(!skb_page_frag_refill(len + room, alloc_frag, gfp)))
 		return -ENOMEM;
 
 	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
 	buf += headroom; /* advance address leaving hole at front of pkt */
 	get_page(alloc_frag->page);
-	alloc_frag->offset += len + headroom;
+	alloc_frag->offset += len + room;
 	hole = alloc_frag->size - alloc_frag->offset;
-	if (hole < len + headroom) {
+	if (hole < len + room) {
 		/* To avoid internal fragmentation, if there is very likely not
 		 * enough space for another buffer, add the remaining space to
 		 * the current buffer.
@@ -2175,8 +2212,9 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	}
 
 	/* Make sure NAPI is not using any XDP TX queues for RX. */
-	for (i = 0; i < vi->max_queue_pairs; i++)
-		napi_disable(&vi->rq[i].napi);
+	if (netif_running(dev))
+		for (i = 0; i < vi->max_queue_pairs; i++)
+			napi_disable(&vi->rq[i].napi);
 
 	netif_set_real_num_rx_queues(dev, curr_qp + xdp_qp);
 	err = _virtnet_set_queues(vi, curr_qp + xdp_qp);
@@ -2195,7 +2233,8 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 		}
 		if (old_prog)
 			bpf_prog_put(old_prog);
-		virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
+		if (netif_running(dev))
+			virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
 	}
 
 	return 0;
@@ -2566,12 +2605,15 @@ static ssize_t mergeable_rx_buffer_size_show(struct netdev_rx_queue *queue,
 {
 	struct virtnet_info *vi = netdev_priv(queue->dev);
 	unsigned int queue_index = get_netdev_rx_queue_index(queue);
+	unsigned int headroom = virtnet_get_headroom(vi);
+	unsigned int tailroom = headroom ? sizeof(struct skb_shared_info) : 0;
 	struct ewma_pkt_len *avg;
 
 	BUG_ON(queue_index >= vi->max_queue_pairs);
 	avg = &vi->rq[queue_index].mrg_avg_pkt_len;
 	return sprintf(buf, "%u\n",
-		       get_mergeable_buf_len(&vi->rq[queue_index], avg));
+		       get_mergeable_buf_len(&vi->rq[queue_index], avg,
+				       SKB_DATA_ALIGN(headroom + tailroom)));
 }
 
 static struct rx_queue_attribute mergeable_rx_buffer_size_attribute =

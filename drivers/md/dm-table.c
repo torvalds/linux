@@ -942,17 +942,12 @@ static int dm_table_determine_type(struct dm_table *t)
 
 	if (t->type != DM_TYPE_NONE) {
 		/* target already set the table's type */
-		if (t->type == DM_TYPE_BIO_BASED)
-			return 0;
-		else if (t->type == DM_TYPE_NVME_BIO_BASED) {
-			if (!dm_table_does_not_support_partial_completion(t)) {
-				DMERR("nvme bio-based is only possible with devices"
-				      " that don't support partial completion");
-				return -EINVAL;
-			}
-			/* Fallthru, also verify all devices are blk-mq */
+		if (t->type == DM_TYPE_BIO_BASED) {
+			/* possibly upgrade to a variant of bio-based */
+			goto verify_bio_based;
 		}
 		BUG_ON(t->type == DM_TYPE_DAX_BIO_BASED);
+		BUG_ON(t->type == DM_TYPE_NVME_BIO_BASED);
 		goto verify_rq_based;
 	}
 
@@ -985,6 +980,7 @@ static int dm_table_determine_type(struct dm_table *t)
 	}
 
 	if (bio_based) {
+verify_bio_based:
 		/* We must use this table as bio-based */
 		t->type = DM_TYPE_BIO_BASED;
 		if (dm_table_supports_dax(t) ||
@@ -1755,7 +1751,7 @@ static int device_no_partial_completion(struct dm_target *ti, struct dm_dev *dev
 	char b[BDEVNAME_SIZE];
 
 	/* For now, NVMe devices are the only devices of this class */
-	return (strncmp(bdevname(dev->bdev, b), "nvme", 3) == 0);
+	return (strncmp(bdevname(dev->bdev, b), "nvme", 4) == 0);
 }
 
 static bool dm_table_does_not_support_partial_completion(struct dm_table *t)

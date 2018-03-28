@@ -241,24 +241,24 @@
 #define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
 
 struct hv_reenlightenment_control {
-	u64 vector:8;
-	u64 reserved1:8;
-	u64 enabled:1;
-	u64 reserved2:15;
-	u64 target_vp:32;
+	__u64 vector:8;
+	__u64 reserved1:8;
+	__u64 enabled:1;
+	__u64 reserved2:15;
+	__u64 target_vp:32;
 };
 
 #define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
 #define HV_X64_MSR_TSC_EMULATION_STATUS		0x40000108
 
 struct hv_tsc_emulation_control {
-	u64 enabled:1;
-	u64 reserved:63;
+	__u64 enabled:1;
+	__u64 reserved:63;
 };
 
 struct hv_tsc_emulation_status {
-	u64 inprogress:1;
-	u64 reserved:63;
+	__u64 inprogress:1;
+	__u64 reserved:63;
 };
 
 #define HV_X64_MSR_HYPERCALL_ENABLE		0x00000001

@@ -165,9 +165,15 @@ static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
 static int dw_mci_exynos_runtime_resume(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
+	int ret;
+
+	ret = dw_mci_runtime_resume(dev);
+	if (ret)
+		return ret;
 
 	dw_mci_exynos_config_smu(host);
-	return dw_mci_runtime_resume(dev);
+
+	return ret;
 }
 
 /**
@@ -487,6 +493,7 @@ static unsigned long exynos_dwmmc_caps[4] = {
 
 static const struct dw_mci_drv_data exynos_drv_data = {
 	.caps			= exynos_dwmmc_caps,
+	.num_caps		= ARRAY_SIZE(exynos_dwmmc_caps),
 	.init			= dw_mci_exynos_priv_init,
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,

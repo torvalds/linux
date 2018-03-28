@@ -1724,7 +1724,6 @@ static ssize_t qedi_show_boot_eth_info(void *data, int type, char *buf)
 {
 	struct qedi_ctx *qedi = data;
 	struct nvm_iscsi_initiator *initiator;
-	char *str = buf;
 	int rc = 1;
 	u32 ipv6_en, dhcp_en, ip_len;
 	struct nvm_iscsi_block *block;
@@ -1758,32 +1757,32 @@ static ssize_t qedi_show_boot_eth_info(void *data, int type, char *buf)
 
 	switch (type) {
 	case ISCSI_BOOT_ETH_IP_ADDR:
-		rc = snprintf(str, ip_len, fmt, ip);
+		rc = snprintf(buf, ip_len, fmt, ip);
 		break;
 	case ISCSI_BOOT_ETH_SUBNET_MASK:
-		rc = snprintf(str, ip_len, fmt, sub);
+		rc = snprintf(buf, ip_len, fmt, sub);
 		break;
 	case ISCSI_BOOT_ETH_GATEWAY:
-		rc = snprintf(str, ip_len, fmt, gw);
+		rc = snprintf(buf, ip_len, fmt, gw);
 		break;
 	case ISCSI_BOOT_ETH_FLAGS:
-		rc = snprintf(str, 3, "%hhd\n",
+		rc = snprintf(buf, 3, "%hhd\n",
 			      SYSFS_FLAG_FW_SEL_BOOT);
 		break;
 	case ISCSI_BOOT_ETH_INDEX:
-		rc = snprintf(str, 3, "0\n");
+		rc = snprintf(buf, 3, "0\n");
 		break;
 	case ISCSI_BOOT_ETH_MAC:
-		rc = sysfs_format_mac(str, qedi->mac, ETH_ALEN);
+		rc = sysfs_format_mac(buf, qedi->mac, ETH_ALEN);
 		break;
 	case ISCSI_BOOT_ETH_VLAN:
-		rc = snprintf(str, 12, "%d\n",
+		rc = snprintf(buf, 12, "%d\n",
 			      GET_FIELD2(initiator->generic_cont0,
 					 NVM_ISCSI_CFG_INITIATOR_VLAN));
 		break;
 	case ISCSI_BOOT_ETH_ORIGIN:
 		if (dhcp_en)
-			rc = snprintf(str, 3, "3\n");
+			rc = snprintf(buf, 3, "3\n");
 		break;
 	default:
 		rc = 0;
@@ -1819,7 +1818,6 @@ static ssize_t qedi_show_boot_ini_info(void *data, int type, char *buf)
 {
 	struct qedi_ctx *qedi = data;
 	struct nvm_iscsi_initiator *initiator;
-	char *str = buf;
 	int rc;
 	struct nvm_iscsi_block *block;
 
@@ -1831,8 +1829,8 @@ static ssize_t qedi_show_boot_ini_info(void *data, int type, char *buf)
 
 	switch (type) {
 	case ISCSI_BOOT_INI_INITIATOR_NAME:
-		rc = snprintf(str, NVM_ISCSI_CFG_ISCSI_NAME_MAX_LEN, "%s\n",
-			      initiator->initiator_name.byte);
+		rc = sprintf(buf, "%.*s\n", NVM_ISCSI_CFG_ISCSI_NAME_MAX_LEN,
+			     initiator->initiator_name.byte);
 		break;
 	default:
 		rc = 0;
@@ -1860,7 +1858,6 @@ static ssize_t
 qedi_show_boot_tgt_info(struct qedi_ctx *qedi, int type,
 			char *buf, enum qedi_nvm_tgts idx)
 {
-	char *str = buf;
 	int rc = 1;
 	u32 ctrl_flags, ipv6_en, chap_en, mchap_en, ip_len;
 	struct nvm_iscsi_block *block;
@@ -1899,48 +1896,48 @@ qedi_show_boot_tgt_info(struct qedi_ctx *qedi, int type,
 
 	switch (type) {
 	case ISCSI_BOOT_TGT_NAME:
-		rc = snprintf(str, NVM_ISCSI_CFG_ISCSI_NAME_MAX_LEN, "%s\n",
-			      block->target[idx].target_name.byte);
+		rc = sprintf(buf, "%.*s\n", NVM_ISCSI_CFG_ISCSI_NAME_MAX_LEN,
+			     block->target[idx].target_name.byte);
 		break;
 	case ISCSI_BOOT_TGT_IP_ADDR:
 		if (ipv6_en)
-			rc = snprintf(str, ip_len, "%pI6\n",
+			rc = snprintf(buf, ip_len, "%pI6\n",
 				      block->target[idx].ipv6_addr.byte);
 		else
-			rc = snprintf(str, ip_len, "%pI4\n",
+			rc = snprintf(buf, ip_len, "%pI4\n",
 				      block->target[idx].ipv4_addr.byte);
 		break;
 	case ISCSI_BOOT_TGT_PORT:
-		rc = snprintf(str, 12, "%d\n",
+		rc = snprintf(buf, 12, "%d\n",
 			      GET_FIELD2(block->target[idx].generic_cont0,
 					 NVM_ISCSI_CFG_TARGET_TCP_PORT));
 		break;
 	case ISCSI_BOOT_TGT_LUN:
-		rc = snprintf(str, 22, "%.*d\n",
+		rc = snprintf(buf, 22, "%.*d\n",
 			      block->target[idx].lun.value[1],
 			      block->target[idx].lun.value[0]);
 		break;
 	case ISCSI_BOOT_TGT_CHAP_NAME:
-		rc = snprintf(str, NVM_ISCSI_CFG_CHAP_NAME_MAX_LEN, "%s\n",
-			      chap_name);
+		rc = sprintf(buf, "%.*s\n", NVM_ISCSI_CFG_CHAP_NAME_MAX_LEN,
+			     chap_name);
 		break;
 	case ISCSI_BOOT_TGT_CHAP_SECRET:
-		rc = snprintf(str, NVM_ISCSI_CFG_CHAP_PWD_MAX_LEN, "%s\n",
-			      chap_secret);
+		rc = sprintf(buf, "%.*s\n", NVM_ISCSI_CFG_CHAP_NAME_MAX_LEN,
+			     chap_secret);
 		break;
 	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
-		rc = snprintf(str, NVM_ISCSI_CFG_CHAP_NAME_MAX_LEN, "%s\n",
-			      mchap_name);
+		rc = sprintf(buf, "%.*s\n", NVM_ISCSI_CFG_CHAP_NAME_MAX_LEN,
+			     mchap_name);
 		break;
 	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
-		rc = snprintf(str, NVM_ISCSI_CFG_CHAP_PWD_MAX_LEN, "%s\n",
-			      mchap_secret);
+		rc = sprintf(buf, "%.*s\n", NVM_ISCSI_CFG_CHAP_NAME_MAX_LEN,
+			     mchap_secret);
 		break;
 	case ISCSI_BOOT_TGT_FLAGS:
-		rc = snprintf(str, 3, "%hhd\n", SYSFS_FLAG_FW_SEL_BOOT);
+		rc = snprintf(buf, 3, "%hhd\n", SYSFS_FLAG_FW_SEL_BOOT);
 		break;
 	case ISCSI_BOOT_TGT_NIC_ASSOC:
-		rc = snprintf(str, 3, "0\n");
+		rc = snprintf(buf, 3, "0\n");
 		break;
 	default:
 		rc = 0;

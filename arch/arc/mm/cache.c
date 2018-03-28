@@ -780,7 +780,10 @@ noinline static void slc_entire_op(const int op)
 
 	write_aux_reg(r, ctrl);
 
-	write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
+	if (op & OP_INV)	/* Inv or flush-n-inv use same cmd reg */
+		write_aux_reg(ARC_REG_SLC_INVALIDATE, 0x1);
+	else
+		write_aux_reg(ARC_REG_SLC_FLUSH, 0x1);
 
 	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
 	read_aux_reg(r);

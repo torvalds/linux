@@ -327,7 +327,32 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	if (!disasm_line__is_valid_jump(cursor, sym))
 		return;
 
+	/*
+	 * This first was seen with a gcc function, _cpp_lex_token, that
+	 * has the usual jumps:
+	 *
+	 *  │1159e6c: ↓ jne    115aa32 <_cpp_lex_token@@Base+0xf92>
+	 *
+	 * I.e. jumps to a label inside that function (_cpp_lex_token), and
+	 * those works, but also this kind:
+	 *
+	 *  │1159e8b: ↓ jne    c469be <cpp_named_operator2name@@Base+0xa72>
+	 *
+	 *  I.e. jumps to another function, outside _cpp_lex_token, which
+	 *  are not being correctly handled generating as a side effect references
+	 *  to ab->offset[] entries that are set to NULL, so to make this code
+	 *  more robust, check that here.
+	 *
+	 *  A proper fix for will be put in place, looking at the function
+	 *  name right after the '<' token and probably treating this like a
+	 *  'call' instruction.
+	 */
 	target = ab->offsets[cursor->ops.target.offset];
+	if (target == NULL) {
+		ui_helpline__printf("WARN: jump target inconsistency, press 'o', ab->offsets[%#x] = NULL\n",
+				    cursor->ops.target.offset);
+		return;
+	}
 
 	bcursor = browser_line(&cursor->al);
 	btarget = browser_line(target);

@@ -106,6 +106,7 @@ int sctp_rcv(struct sk_buff *skb)
 	int family;
 	struct sctp_af *af;
 	struct net *net = dev_net(skb->dev);
+	bool is_gso = skb_is_gso(skb) && skb_is_gso_sctp(skb);
 
 	if (skb->pkt_type != PACKET_HOST)
 		goto discard_it;
@@ -123,8 +124,7 @@ int sctp_rcv(struct sk_buff *skb)
 	 * it's better to just linearize it otherwise crc computing
 	 * takes longer.
 	 */
-	if ((!(skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) &&
-	     skb_linearize(skb)) ||
+	if ((!is_gso && skb_linearize(skb)) ||
 	    !pskb_may_pull(skb, sizeof(struct sctphdr)))
 		goto discard_it;
 
@@ -135,7 +135,7 @@ int sctp_rcv(struct sk_buff *skb)
 	if (skb_csum_unnecessary(skb))
 		__skb_decr_checksum_unnecessary(skb);
 	else if (!sctp_checksum_disable &&
-		 !(skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) &&
+		 !is_gso &&
 		 sctp_rcv_checksum(net, skb) < 0)
 		goto discard_it;
 	skb->csum_valid = 1;
@@ -897,15 +897,12 @@ int sctp_hash_transport(struct sctp_transport *t)
 	rhl_for_each_entry_rcu(transport, tmp, list, node)
 		if (transport->asoc->ep == t->asoc->ep) {
 			rcu_read_unlock();
-			err = -EEXIST;
-			goto out;
+			return -EEXIST;
 		}
 	rcu_read_unlock();
 
 	err = rhltable_insert_key(&sctp_transport_hashtable, &arg,
 				  &t->node, sctp_hash_params);
-
-out:
 	if (err)
 		pr_err_once("insert transport fail, errno %d\n", err);
 
@@ -1221,7 +1218,7 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 	 * issue as packets hitting this are mostly INIT or INIT-ACK and
 	 * those cannot be on GSO-style anyway.
 	 */
-	if ((skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP)
+	if (skb_is_gso(skb) && skb_is_gso_sctp(skb))
 		return NULL;
 
 	ch = (struct sctp_chunkhdr *)skb->data;

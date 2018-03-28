@@ -29,6 +29,7 @@
 #include "hash.h"
 #include "compression.h"
 #include "qgroup.h"
+#include "inode-map.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *
@@ -966,7 +967,9 @@ static noinline int backref_in_log(struct btrfs_root *log,
 	ptr = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
 
 	if (key->type == BTRFS_INODE_EXTREF_KEY) {
-		if (btrfs_find_name_in_ext_backref(path, ref_objectid,
+		if (btrfs_find_name_in_ext_backref(path->nodes[0],
+						   path->slots[0],
+						   ref_objectid,
 						   name, namelen, NULL))
 			match = 1;
 
@@ -1190,7 +1193,8 @@ static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
 	read_extent_buffer(eb, *name, (unsigned long)&extref->name,
 			   *namelen);
 
-	*index = btrfs_inode_extref_index(eb, extref);
+	if (index)
+		*index = btrfs_inode_extref_index(eb, extref);
 	if (parent_objectid)
 		*parent_objectid = btrfs_inode_extref_parent(eb, extref);
 
@@ -1211,9 +1215,99 @@ static int ref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
 
 	read_extent_buffer(eb, *name, (unsigned long)(ref + 1), *namelen);
 
-	*index = btrfs_inode_ref_index(eb, ref);
+	if (index)
+		*index = btrfs_inode_ref_index(eb, ref);
 
 	return 0;
+}
+
+/*
+ * Take an inode reference item from the log tree and iterate all names from the
+ * inode reference item in the subvolume tree with the same key (if it exists).
+ * For any name that is not in the inode reference item from the log tree, do a
+ * proper unlink of that name (that is, remove its entry from the inode
+ * reference item and both dir index keys).
+ */
+static int unlink_old_inode_refs(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root,
+				 struct btrfs_path *path,
+				 struct btrfs_inode *inode,
+				 struct extent_buffer *log_eb,
+				 int log_slot,
+				 struct btrfs_key *key)
+{
+	int ret;
+	unsigned long ref_ptr;
+	unsigned long ref_end;
+	struct extent_buffer *eb;
+
+again:
+	btrfs_release_path(path);
+	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
+	if (ret > 0) {
+		ret = 0;
+		goto out;
+	}
+	if (ret < 0)
+		goto out;
+
+	eb = path->nodes[0];
+	ref_ptr = btrfs_item_ptr_offset(eb, path->slots[0]);
+	ref_end = ref_ptr + btrfs_item_size_nr(eb, path->slots[0]);
+	while (ref_ptr < ref_end) {
+		char *name = NULL;
+		int namelen;
+		u64 parent_id;
+
+		if (key->type == BTRFS_INODE_EXTREF_KEY) {
+			ret = extref_get_fields(eb, ref_ptr, &namelen, &name,
+						NULL, &parent_id);
+		} else {
+			parent_id = key->offset;
+			ret = ref_get_fields(eb, ref_ptr, &namelen, &name,
+					     NULL);
+		}
+		if (ret)
+			goto out;
+
+		if (key->type == BTRFS_INODE_EXTREF_KEY)
+			ret = btrfs_find_name_in_ext_backref(log_eb, log_slot,
+							     parent_id, name,
+							     namelen, NULL);
+		else
+			ret = btrfs_find_name_in_backref(log_eb, log_slot, name,
+							 namelen, NULL);
+
+		if (!ret) {
+			struct inode *dir;
+
+			btrfs_release_path(path);
+			dir = read_one_inode(root, parent_id);
+			if (!dir) {
+				ret = -ENOENT;
+				kfree(name);
+				goto out;
+			}
+			ret = btrfs_unlink_inode(trans, root, BTRFS_I(dir),
+						 inode, name, namelen);
+			kfree(name);
+			iput(dir);
+			if (ret)
+				goto out;
+			goto again;
+		}
+
+		kfree(name);
+		ref_ptr += namelen;
+		if (key->type == BTRFS_INODE_EXTREF_KEY)
+			ref_ptr += sizeof(struct btrfs_inode_extref);
+		else
+			ref_ptr += sizeof(struct btrfs_inode_ref);
+	}
+	ret = 0;
+ out:
+	btrfs_release_path(path);
+	return ret;
 }
 
 /*
@@ -1343,6 +1437,19 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 			dir = NULL;
 		}
 	}
+
+	/*
+	 * Before we overwrite the inode reference item in the subvolume tree
+	 * with the item from the log tree, we must unlink all names from the
+	 * parent directory that are in the subvolume's tree inode reference
+	 * item, otherwise we end up with an inconsistent subvolume tree where
+	 * dir index entries exist for a name but there is no inode reference
+	 * item with the same name.
+	 */
+	ret = unlink_old_inode_refs(trans, root, path, BTRFS_I(inode), eb, slot,
+				    key);
+	if (ret)
+		goto out;
 
 	/* finally write the back reference in the inode */
 	ret = overwrite_item(trans, root, path, eb, slot, key);
@@ -2472,6 +2579,9 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 					clean_tree_block(fs_info, next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
+				} else {
+					if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &next->bflags))
+						clear_extent_buffer_dirty(next);
 				}
 
 				WARN_ON(root_owner !=
@@ -2552,6 +2662,9 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 					clean_tree_block(fs_info, next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
+				} else {
+					if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &next->bflags))
+						clear_extent_buffer_dirty(next);
 				}
 
 				WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
@@ -2630,6 +2743,9 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 				clean_tree_block(fs_info, next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
+			} else {
+				if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &next->bflags))
+					clear_extent_buffer_dirty(next);
 			}
 
 			WARN_ON(log->root_key.objectid !=
@@ -3018,13 +3134,14 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
-				0, &start, &end, EXTENT_DIRTY | EXTENT_NEW,
+				0, &start, &end,
+				EXTENT_DIRTY | EXTENT_NEW | EXTENT_NEED_WAIT,
 				NULL);
 		if (ret)
 			break;
 
 		clear_extent_bits(&log->dirty_log_pages, start, end,
-				  EXTENT_DIRTY | EXTENT_NEW);
+				  EXTENT_DIRTY | EXTENT_NEW | EXTENT_NEED_WAIT);
 	}
 
 	/*
@@ -5677,6 +5794,23 @@ again:
 						      path);
 		}
 
+		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
+			struct btrfs_root *root = wc.replay_dest;
+
+			btrfs_release_path(path);
+
+			/*
+			 * We have just replayed everything, and the highest
+			 * objectid of fs roots probably has changed in case
+			 * some inode_item's got replayed.
+			 *
+			 * root->objectid_mutex is not acquired as log replay
+			 * could only happen during mount.
+			 */
+			ret = btrfs_find_highest_objectid(root,
+						  &root->highest_objectid);
+		}
+
 		key.offset = found_key.offset - 1;
 		wc.replay_dest->log_root = NULL;
 		free_extent_buffer(log->node);
@@ -5825,7 +5959,7 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * this will force the logging code to walk the dentry chain
 	 * up for the file
 	 */
-	if (S_ISREG(inode->vfs_inode.i_mode))
+	if (!S_ISDIR(inode->vfs_inode.i_mode))
 		inode->last_unlink_trans = trans->transid;
 
 	/*

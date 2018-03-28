@@ -332,16 +332,12 @@ void zconf_nextfile(const char *name)
 				"Inclusion path:\n  current file : '%s'\n",
 				zconf_curname(), zconf_lineno(),
 				zconf_curname());
-			iter = current_file->parent;
-			while (iter && \
-			       strcmp(iter->name,current_file->name)) {
-				fprintf(stderr, "  included from: '%s:%d'\n",
-					iter->name, iter->lineno-1);
+			iter = current_file;
+			do {
 				iter = iter->parent;
-			}
-			if (iter)
 				fprintf(stderr, "  included from: '%s:%d'\n",
-					iter->name, iter->lineno+1);
+					iter->name, iter->lineno - 1);
+			} while (strcmp(iter->name, current_file->name));
 			exit(1);
 		}
 	}

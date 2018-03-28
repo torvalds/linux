@@ -79,12 +79,38 @@ struct thread_data {
 	struct test_obj *objs;
 };
 
+static u32 my_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct test_obj_rhl *obj = data;
+
+	return (obj->value.id % 10) << RHT_HASH_RESERVED_SPACE;
+}
+
+static int my_cmpfn(struct rhashtable_compare_arg *arg, const void *obj)
+{
+	const struct test_obj_rhl *test_obj = obj;
+	const struct test_obj_val *val = arg->key;
+
+	return test_obj->value.id - val->id;
+}
+
 static struct rhashtable_params test_rht_params = {
 	.head_offset = offsetof(struct test_obj, node),
 	.key_offset = offsetof(struct test_obj, value),
 	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
 	.nulls_base = (3U << RHT_BASE_SHIFT),
+};
+
+static struct rhashtable_params test_rht_params_dup = {
+	.head_offset = offsetof(struct test_obj_rhl, list_node),
+	.key_offset = offsetof(struct test_obj_rhl, value),
+	.key_len = sizeof(struct test_obj_val),
+	.hashfn = jhash,
+	.obj_hashfn = my_hashfn,
+	.obj_cmpfn = my_cmpfn,
+	.nelem_hint = 128,
+	.automatic_shrinking = false,
 };
 
 static struct semaphore prestart_sem;
@@ -465,6 +491,112 @@ static int __init test_rhashtable_max(struct test_obj *array,
 	return err;
 }
 
+static unsigned int __init print_ht(struct rhltable *rhlt)
+{
+	struct rhashtable *ht;
+	const struct bucket_table *tbl;
+	char buff[512] = "";
+	unsigned int i, cnt = 0;
+
+	ht = &rhlt->ht;
+	tbl = rht_dereference(ht->tbl, ht);
+	for (i = 0; i < tbl->size; i++) {
+		struct rhash_head *pos, *next;
+		struct test_obj_rhl *p;
+
+		pos = rht_dereference(tbl->buckets[i], ht);
+		next = !rht_is_a_nulls(pos) ? rht_dereference(pos->next, ht) : NULL;
+
+		if (!rht_is_a_nulls(pos)) {
+			sprintf(buff, "%s\nbucket[%d] -> ", buff, i);
+		}
+
+		while (!rht_is_a_nulls(pos)) {
+			struct rhlist_head *list = container_of(pos, struct rhlist_head, rhead);
+			sprintf(buff, "%s[[", buff);
+			do {
+				pos = &list->rhead;
+				list = rht_dereference(list->next, ht);
+				p = rht_obj(ht, pos);
+
+				sprintf(buff, "%s val %d (tid=%d)%s", buff, p->value.id, p->value.tid,
+					list? ", " : " ");
+				cnt++;
+			} while (list);
+
+			pos = next,
+			next = !rht_is_a_nulls(pos) ?
+				rht_dereference(pos->next, ht) : NULL;
+
+			sprintf(buff, "%s]]%s", buff, !rht_is_a_nulls(pos) ? " -> " : "");
+		}
+	}
+	printk(KERN_ERR "\n---- ht: ----%s\n-------------\n", buff);
+
+	return cnt;
+}
+
+static int __init test_insert_dup(struct test_obj_rhl *rhl_test_objects,
+				  int cnt, bool slow)
+{
+	struct rhltable rhlt;
+	unsigned int i, ret;
+	const char *key;
+	int err = 0;
+
+	err = rhltable_init(&rhlt, &test_rht_params_dup);
+	if (WARN_ON(err))
+		return err;
+
+	for (i = 0; i < cnt; i++) {
+		rhl_test_objects[i].value.tid = i;
+		key = rht_obj(&rhlt.ht, &rhl_test_objects[i].list_node.rhead);
+		key += test_rht_params_dup.key_offset;
+
+		if (slow) {
+			err = PTR_ERR(rhashtable_insert_slow(&rhlt.ht, key,
+							     &rhl_test_objects[i].list_node.rhead));
+			if (err == -EAGAIN)
+				err = 0;
+		} else
+			err = rhltable_insert(&rhlt,
+					      &rhl_test_objects[i].list_node,
+					      test_rht_params_dup);
+		if (WARN(err, "error %d on element %d/%d (%s)\n", err, i, cnt, slow? "slow" : "fast"))
+			goto skip_print;
+	}
+
+	ret = print_ht(&rhlt);
+	WARN(ret != cnt, "missing rhltable elements (%d != %d, %s)\n", ret, cnt, slow? "slow" : "fast");
+
+skip_print:
+	rhltable_destroy(&rhlt);
+
+	return 0;
+}
+
+static int __init test_insert_duplicates_run(void)
+{
+	struct test_obj_rhl rhl_test_objects[3] = {};
+
+	pr_info("test inserting duplicates\n");
+
+	/* two different values that map to same bucket */
+	rhl_test_objects[0].value.id = 1;
+	rhl_test_objects[1].value.id = 21;
+
+	/* and another duplicate with same as [0] value
+	 * which will be second on the bucket list */
+	rhl_test_objects[2].value.id = rhl_test_objects[0].value.id;
+
+	test_insert_dup(rhl_test_objects, 2, false);
+	test_insert_dup(rhl_test_objects, 3, false);
+	test_insert_dup(rhl_test_objects, 2, true);
+	test_insert_dup(rhl_test_objects, 3, true);
+
+	return 0;
+}
+
 static int thread_lookup_test(struct thread_data *tdata)
 {
 	unsigned int entries = tdata->entries;
@@ -612,6 +744,8 @@ static int __init test_rht_init(void)
 
 	do_div(total_time, runs);
 	pr_info("Average test time: %llu\n", total_time);
+
+	test_insert_duplicates_run();
 
 	if (!tcount)
 		return 0;

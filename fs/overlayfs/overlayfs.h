@@ -40,6 +40,7 @@ enum ovl_inode_flag {
 enum ovl_entry_flag {
 	OVL_E_UPPER_ALIAS,
 	OVL_E_OPAQUE,
+	OVL_E_CONNECTED,
 };
 
 /*

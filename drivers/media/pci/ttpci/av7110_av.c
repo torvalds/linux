@@ -99,7 +99,7 @@ int av7110_record_cb(struct dvb_filter_pes2ts *p2t, u8 *buf, size_t len)
 		buf[4] = buf[5] = 0;
 	if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
 		return dvbdmxfeed->cb.ts(buf, len, NULL, 0,
-					 &dvbdmxfeed->feed.ts);
+					 &dvbdmxfeed->feed.ts, NULL);
 	else
 		return dvb_filter_pes2ts(p2t, buf, len, 1);
 }
@@ -109,7 +109,7 @@ static int dvb_filter_pes2ts_cb(void *priv, unsigned char *data)
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) priv;
 
 	dvbdmxfeed->cb.ts(data, 188, NULL, 0,
-			  &dvbdmxfeed->feed.ts);
+			  &dvbdmxfeed->feed.ts, NULL);
 	return 0;
 }
 
@@ -814,7 +814,7 @@ static void p_to_t(u8 const *buf, long int length, u16 pid, u8 *counter,
 			memcpy(obuf + l, buf + c, TS_SIZE - l);
 			c = length;
 		}
-		feed->cb.ts(obuf, 188, NULL, 0, &feed->feed.ts);
+		feed->cb.ts(obuf, 188, NULL, 0, &feed->feed.ts, NULL);
 		pes_start = 0;
 	}
 }

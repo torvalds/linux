@@ -81,6 +81,12 @@ const char *sctp_cname(const union sctp_subtype cid)
 	case SCTP_CID_RECONF:
 		return "RECONF";
 
+	case SCTP_CID_I_DATA:
+		return "I_DATA";
+
+	case SCTP_CID_I_FWD_TSN:
+		return "I_FWD_TSN";
+
 	default:
 		break;
 	}

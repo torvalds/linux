@@ -121,7 +121,7 @@ static void rmnet_get_stats64(struct net_device *dev,
 	memset(&total_stats, 0, sizeof(struct rmnet_vnd_stats));
 
 	for_each_possible_cpu(cpu) {
-		pcpu_ptr = this_cpu_ptr(priv->pcpu_stats);
+		pcpu_ptr = per_cpu_ptr(priv->pcpu_stats, cpu);
 
 		do {
 			start = u64_stats_fetch_begin_irq(&pcpu_ptr->syncp);

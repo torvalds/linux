@@ -202,10 +202,10 @@ static int create_safe_exec_page(void *src_start, size_t length,
 				 gfp_t mask)
 {
 	int rc = 0;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
 	unsigned long dst = (unsigned long)allocator(mask);
 
 	if (!dst) {
@@ -216,38 +216,38 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	memcpy((void *)dst, src_start, length);
 	flush_icache_range(dst, dst + length);
 
-	pgd = pgd_offset_raw(allocator(mask), dst_addr);
-	if (pgd_none(*pgd)) {
-		pud = allocator(mask);
-		if (!pud) {
+	pgdp = pgd_offset_raw(allocator(mask), dst_addr);
+	if (pgd_none(READ_ONCE(*pgdp))) {
+		pudp = allocator(mask);
+		if (!pudp) {
 			rc = -ENOMEM;
 			goto out;
 		}
-		pgd_populate(&init_mm, pgd, pud);
+		pgd_populate(&init_mm, pgdp, pudp);
 	}
 
-	pud = pud_offset(pgd, dst_addr);
-	if (pud_none(*pud)) {
-		pmd = allocator(mask);
-		if (!pmd) {
+	pudp = pud_offset(pgdp, dst_addr);
+	if (pud_none(READ_ONCE(*pudp))) {
+		pmdp = allocator(mask);
+		if (!pmdp) {
 			rc = -ENOMEM;
 			goto out;
 		}
-		pud_populate(&init_mm, pud, pmd);
+		pud_populate(&init_mm, pudp, pmdp);
 	}
 
-	pmd = pmd_offset(pud, dst_addr);
-	if (pmd_none(*pmd)) {
-		pte = allocator(mask);
-		if (!pte) {
+	pmdp = pmd_offset(pudp, dst_addr);
+	if (pmd_none(READ_ONCE(*pmdp))) {
+		ptep = allocator(mask);
+		if (!ptep) {
 			rc = -ENOMEM;
 			goto out;
 		}
-		pmd_populate_kernel(&init_mm, pmd, pte);
+		pmd_populate_kernel(&init_mm, pmdp, ptep);
 	}
 
-	pte = pte_offset_kernel(pmd, dst_addr);
-	set_pte(pte, pfn_pte(virt_to_pfn(dst), PAGE_KERNEL_EXEC));
+	ptep = pte_offset_kernel(pmdp, dst_addr);
+	set_pte(ptep, pfn_pte(virt_to_pfn(dst), PAGE_KERNEL_EXEC));
 
 	/*
 	 * Load our new page tables. A strict BBM approach requires that we
@@ -263,7 +263,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	 */
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
-	write_sysreg(phys_to_ttbr(virt_to_phys(pgd)), ttbr0_el1);
+	write_sysreg(phys_to_ttbr(virt_to_phys(pgdp)), ttbr0_el1);
 	isb();
 
 	*phys_dst_addr = virt_to_phys((void *)dst);
@@ -320,9 +320,9 @@ int swsusp_arch_suspend(void)
 	return ret;
 }
 
-static void _copy_pte(pte_t *dst_pte, pte_t *src_pte, unsigned long addr)
+static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
 {
-	pte_t pte = *src_pte;
+	pte_t pte = READ_ONCE(*src_ptep);
 
 	if (pte_valid(pte)) {
 		/*
@@ -330,7 +330,7 @@ static void _copy_pte(pte_t *dst_pte, pte_t *src_pte, unsigned long addr)
 		 * read only (code, rodata). Clear the RDONLY bit from
 		 * the temporary mappings we use during restore.
 		 */
-		set_pte(dst_pte, pte_mkwrite(pte));
+		set_pte(dst_ptep, pte_mkwrite(pte));
 	} else if (debug_pagealloc_enabled() && !pte_none(pte)) {
 		/*
 		 * debug_pagealloc will removed the PTE_VALID bit if
@@ -343,112 +343,116 @@ static void _copy_pte(pte_t *dst_pte, pte_t *src_pte, unsigned long addr)
 		 */
 		BUG_ON(!pfn_valid(pte_pfn(pte)));
 
-		set_pte(dst_pte, pte_mkpresent(pte_mkwrite(pte)));
+		set_pte(dst_ptep, pte_mkpresent(pte_mkwrite(pte)));
 	}
 }
 
-static int copy_pte(pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long start,
+static int copy_pte(pmd_t *dst_pmdp, pmd_t *src_pmdp, unsigned long start,
 		    unsigned long end)
 {
-	pte_t *src_pte;
-	pte_t *dst_pte;
+	pte_t *src_ptep;
+	pte_t *dst_ptep;
 	unsigned long addr = start;
 
-	dst_pte = (pte_t *)get_safe_page(GFP_ATOMIC);
-	if (!dst_pte)
+	dst_ptep = (pte_t *)get_safe_page(GFP_ATOMIC);
+	if (!dst_ptep)
 		return -ENOMEM;
-	pmd_populate_kernel(&init_mm, dst_pmd, dst_pte);
-	dst_pte = pte_offset_kernel(dst_pmd, start);
+	pmd_populate_kernel(&init_mm, dst_pmdp, dst_ptep);
+	dst_ptep = pte_offset_kernel(dst_pmdp, start);
 
-	src_pte = pte_offset_kernel(src_pmd, start);
+	src_ptep = pte_offset_kernel(src_pmdp, start);
 	do {
-		_copy_pte(dst_pte, src_pte, addr);
-	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
+		_copy_pte(dst_ptep, src_ptep, addr);
+	} while (dst_ptep++, src_ptep++, addr += PAGE_SIZE, addr != end);
 
 	return 0;
 }
 
-static int copy_pmd(pud_t *dst_pud, pud_t *src_pud, unsigned long start,
+static int copy_pmd(pud_t *dst_pudp, pud_t *src_pudp, unsigned long start,
 		    unsigned long end)
 {
-	pmd_t *src_pmd;
-	pmd_t *dst_pmd;
+	pmd_t *src_pmdp;
+	pmd_t *dst_pmdp;
 	unsigned long next;
 	unsigned long addr = start;
 
-	if (pud_none(*dst_pud)) {
-		dst_pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
-		if (!dst_pmd)
+	if (pud_none(READ_ONCE(*dst_pudp))) {
+		dst_pmdp = (pmd_t *)get_safe_page(GFP_ATOMIC);
+		if (!dst_pmdp)
 			return -ENOMEM;
-		pud_populate(&init_mm, dst_pud, dst_pmd);
+		pud_populate(&init_mm, dst_pudp, dst_pmdp);
 	}
-	dst_pmd = pmd_offset(dst_pud, start);
+	dst_pmdp = pmd_offset(dst_pudp, start);
 
-	src_pmd = pmd_offset(src_pud, start);
+	src_pmdp = pmd_offset(src_pudp, start);
 	do {
+		pmd_t pmd = READ_ONCE(*src_pmdp);
+
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*src_pmd))
+		if (pmd_none(pmd))
 			continue;
-		if (pmd_table(*src_pmd)) {
-			if (copy_pte(dst_pmd, src_pmd, addr, next))
+		if (pmd_table(pmd)) {
+			if (copy_pte(dst_pmdp, src_pmdp, addr, next))
 				return -ENOMEM;
 		} else {
-			set_pmd(dst_pmd,
-				__pmd(pmd_val(*src_pmd) & ~PMD_SECT_RDONLY));
+			set_pmd(dst_pmdp,
+				__pmd(pmd_val(pmd) & ~PMD_SECT_RDONLY));
 		}
-	} while (dst_pmd++, src_pmd++, addr = next, addr != end);
+	} while (dst_pmdp++, src_pmdp++, addr = next, addr != end);
 
 	return 0;
 }
 
-static int copy_pud(pgd_t *dst_pgd, pgd_t *src_pgd, unsigned long start,
+static int copy_pud(pgd_t *dst_pgdp, pgd_t *src_pgdp, unsigned long start,
 		    unsigned long end)
 {
-	pud_t *dst_pud;
-	pud_t *src_pud;
+	pud_t *dst_pudp;
+	pud_t *src_pudp;
 	unsigned long next;
 	unsigned long addr = start;
 
-	if (pgd_none(*dst_pgd)) {
-		dst_pud = (pud_t *)get_safe_page(GFP_ATOMIC);
-		if (!dst_pud)
+	if (pgd_none(READ_ONCE(*dst_pgdp))) {
+		dst_pudp = (pud_t *)get_safe_page(GFP_ATOMIC);
+		if (!dst_pudp)
 			return -ENOMEM;
-		pgd_populate(&init_mm, dst_pgd, dst_pud);
+		pgd_populate(&init_mm, dst_pgdp, dst_pudp);
 	}
-	dst_pud = pud_offset(dst_pgd, start);
+	dst_pudp = pud_offset(dst_pgdp, start);
 
-	src_pud = pud_offset(src_pgd, start);
+	src_pudp = pud_offset(src_pgdp, start);
 	do {
+		pud_t pud = READ_ONCE(*src_pudp);
+
 		next = pud_addr_end(addr, end);
-		if (pud_none(*src_pud))
+		if (pud_none(pud))
 			continue;
-		if (pud_table(*(src_pud))) {
-			if (copy_pmd(dst_pud, src_pud, addr, next))
+		if (pud_table(pud)) {
+			if (copy_pmd(dst_pudp, src_pudp, addr, next))
 				return -ENOMEM;
 		} else {
-			set_pud(dst_pud,
-				__pud(pud_val(*src_pud) & ~PMD_SECT_RDONLY));
+			set_pud(dst_pudp,
+				__pud(pud_val(pud) & ~PMD_SECT_RDONLY));
 		}
-	} while (dst_pud++, src_pud++, addr = next, addr != end);
+	} while (dst_pudp++, src_pudp++, addr = next, addr != end);
 
 	return 0;
 }
 
-static int copy_page_tables(pgd_t *dst_pgd, unsigned long start,
+static int copy_page_tables(pgd_t *dst_pgdp, unsigned long start,
 			    unsigned long end)
 {
 	unsigned long next;
 	unsigned long addr = start;
-	pgd_t *src_pgd = pgd_offset_k(start);
+	pgd_t *src_pgdp = pgd_offset_k(start);
 
-	dst_pgd = pgd_offset_raw(dst_pgd, start);
+	dst_pgdp = pgd_offset_raw(dst_pgdp, start);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none(*src_pgd))
+		if (pgd_none(READ_ONCE(*src_pgdp)))
 			continue;
-		if (copy_pud(dst_pgd, src_pgd, addr, next))
+		if (copy_pud(dst_pgdp, src_pgdp, addr, next))
 			return -ENOMEM;
-	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+	} while (dst_pgdp++, src_pgdp++, addr = next, addr != end);
 
 	return 0;
 }
