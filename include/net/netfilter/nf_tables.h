@@ -1015,9 +1015,9 @@ static inline void *nft_obj_data(const struct nft_object *obj)
 
 #define nft_expr_obj(expr)	*((struct nft_object **)nft_expr_priv(expr))
 
-struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
-					const struct nlattr *nla, u32 objtype,
-					u8 genmask);
+struct nft_object *nft_obj_lookup(const struct nft_table *table,
+				  const struct nlattr *nla, u32 objtype,
+				  u8 genmask);
 
 void nft_obj_notify(struct net *net, struct nft_table *table,
 		    struct nft_object *obj, u32 portid, u32 seq,
@@ -1106,9 +1106,9 @@ struct nft_flowtable {
 	struct nf_flowtable		data;
 };
 
-struct nft_flowtable *nf_tables_flowtable_lookup(const struct nft_table *table,
-						 const struct nlattr *nla,
-						 u8 genmask);
+struct nft_flowtable *nft_flowtable_lookup(const struct nft_table *table,
+					   const struct nlattr *nla,
+					   u8 genmask);
 
 void nft_register_flowtable_type(struct nf_flowtable_type *type);
 void nft_unregister_flowtable_type(struct nf_flowtable_type *type);
