@@ -730,7 +730,7 @@
 
 &pwm0 {
 	status = "okay";
-	interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH 0>;
+	interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 	compatible = "rockchip,remotectl-pwm";
 	remote_pwm_id = <0>;
 	handle_cpu_id = <0>;

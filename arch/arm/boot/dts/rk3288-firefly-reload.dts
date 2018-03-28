@@ -215,7 +215,7 @@
 	 */
 
 	wireless-bluetooth {
-		clocks = <&hym8563 1>;
+		clocks = <&hym8563>;
 		clock-names = "ext_clock";
 	};
 
