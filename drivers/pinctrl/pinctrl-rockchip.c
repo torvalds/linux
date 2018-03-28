@@ -658,7 +658,7 @@ static struct rockchip_mux_recalced_data rk3308_mux_recalced_data[] = {
 		.pin = 14,
 		.reg = 0x28,
 		.bit = 12,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 1,
 		.pin = 15,
@@ -670,49 +670,49 @@ static struct rockchip_mux_recalced_data rk3308_mux_recalced_data[] = {
 		.pin = 18,
 		.reg = 0x30,
 		.bit = 4,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 1,
 		.pin = 19,
 		.reg = 0x30,
 		.bit = 8,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 1,
 		.pin = 20,
 		.reg = 0x30,
 		.bit = 12,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 1,
 		.pin = 21,
 		.reg = 0x34,
 		.bit = 0,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 1,
 		.pin = 22,
 		.reg = 0x34,
 		.bit = 4,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 1,
 		.pin = 23,
 		.reg = 0x34,
 		.bit = 8,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 3,
 		.pin = 12,
 		.reg = 0x68,
 		.bit = 8,
-		.mask = 0x7
+		.mask = 0xf
 	}, {
 		.num = 3,
 		.pin = 13,
 		.reg = 0x68,
 		.bit = 12,
-		.mask = 0x7
+		.mask = 0xf
 	},
 };
 
@@ -1040,6 +1040,55 @@ static struct rockchip_mux_route_data rk3308_mux_route_data[] = {
 		.func = 2,
 		.route_offset = 0x314,
 		.route_val =  BIT(16 + 4) | BIT(4),
+	}, {
+		/* i2s-8ch-1-sclktxm0 */
+		.bank_num = 1,
+		.pin = 3,
+		.func = 2,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 3),
+	}, {
+		/* i2s-8ch-1-sclkrxm0 */
+		.bank_num = 1,
+		.pin = 4,
+		.func = 2,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 3),
+	}, {
+		/* i2s-8ch-1-sclktxm1 */
+		.bank_num = 1,
+		.pin = 13,
+		.func = 2,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 3) | BIT(3),
+	}, {
+		/* i2s-8ch-1-sclkrxm1 */
+		.bank_num = 1,
+		.pin = 14,
+		.func = 2,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 3) | BIT(3),
+	}, {
+		/* pdm-clkm0 */
+		.bank_num = 1,
+		.pin = 4,
+		.func = 3,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 12) | BIT(16 + 13),
+	}, {
+		/* pdm-clkm1 */
+		.bank_num = 1,
+		.pin = 14,
+		.func = 4,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 12) | BIT(16 + 13) | BIT(12),
+	}, {
+		/* pdm-clkm2 */
+		.bank_num = 2,
+		.pin = 6,
+		.func = 2,
+		.route_offset = 0x308,
+		.route_val =  BIT(16 + 12) | BIT(16 + 13) | BIT(13),
 	},
 };
 
