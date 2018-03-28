@@ -602,11 +602,12 @@ struct i915_psr {
 	bool active;
 	struct delayed_work work;
 	unsigned busy_frontbuffer_bits;
-	bool psr2_support;
+	bool sink_psr2_support;
 	bool link_standby;
 	bool colorimetry_support;
 	bool alpm;
 	bool has_hw_tracking;
+	bool psr2_enabled;
 
 	void (*enable_source)(struct intel_dp *,
 			      const struct intel_crtc_state *);

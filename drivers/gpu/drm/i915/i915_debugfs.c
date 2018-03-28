@@ -2630,7 +2630,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		   yesno(work_busy(&dev_priv->psr.work.work)));
 
 	if (HAS_DDI(dev_priv)) {
-		if (dev_priv->psr.psr2_support)
+		if (dev_priv->psr.psr2_enabled)
 			enabled = I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE;
 		else
 			enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
@@ -2678,7 +2678,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
 	}
-	if (dev_priv->psr.psr2_support) {
+	if (dev_priv->psr.psr2_enabled) {
 		u32 psr2 = I915_READ(EDP_PSR2_STATUS);
 
 		seq_printf(m, "EDP_PSR2_STATUS: %x [%s]\n",
