@@ -1007,12 +1007,16 @@ add:
 		if (err)
 			return err;
 
+		err = call_fib6_entry_notifiers(info->nl_net,
+						FIB_EVENT_ENTRY_ADD,
+						rt, extack);
+		if (err)
+			return err;
+
 		rcu_assign_pointer(rt->rt6_next, iter);
 		atomic_inc(&rt->rt6i_ref);
 		rcu_assign_pointer(rt->rt6i_node, fn);
 		rcu_assign_pointer(*ins, rt);
-		call_fib6_entry_notifiers(info->nl_net, FIB_EVENT_ENTRY_ADD,
-					  rt, extack);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
@@ -1036,12 +1040,16 @@ add:
 		if (err)
 			return err;
 
+		err = call_fib6_entry_notifiers(info->nl_net,
+						FIB_EVENT_ENTRY_REPLACE,
+						rt, extack);
+		if (err)
+			return err;
+
 		atomic_inc(&rt->rt6i_ref);
 		rcu_assign_pointer(rt->rt6i_node, fn);
 		rt->rt6_next = iter->rt6_next;
 		rcu_assign_pointer(*ins, rt);
-		call_fib6_entry_notifiers(info->nl_net, FIB_EVENT_ENTRY_REPLACE,
-					  rt, extack);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
