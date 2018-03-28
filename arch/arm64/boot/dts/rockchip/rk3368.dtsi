@@ -713,12 +713,12 @@
 
 			thermal-sensors = <&tsadc 0>;
 			trips {
-				threshold: trip-point@0 {
+				threshold: trip-point-0 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				target: trip-point@1 {
+				target: trip-point-1 {
 					temperature = <80000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
@@ -1045,7 +1045,7 @@
 			 *	*_HDMI		HDMI
 			 *	*_MIPI_*	MIPI
 			 */
-			pd_vio {
+			pd_vio@RK3368_PD_VIO {
 				reg = <RK3368_PD_VIO>;
 				clocks = <&cru ACLK_IEP>,
 					 <&cru ACLK_ISP>,
@@ -1092,7 +1092,7 @@
 			 * (video endecoder & decoder) clocks that on the
 			 * ACLK_VCODEC_NIU and HCLK_VCODEC_NIU (NOC).
 			 */
-			pd_video {
+			pd_video@RK3368_PD_VIDEO {
 				reg = <RK3368_PD_VIDEO>;
 				clocks = <&cru ACLK_VIDEO>,
 					 <&cru HCLK_VIDEO>,
@@ -1106,7 +1106,7 @@
 			 * Note: ACLK_GPU is the GPU clock,
 			 * and on the ACLK_GPU_NIU (NOC).
 			 */
-			pd_gpu_1 {
+			pd_gpu_1@RK3368_PD_GPU_1 {
 				reg = <RK3368_PD_GPU_1>;
 				clocks = <&cru ACLK_GPU_CFG>,
 					 <&cru ACLK_GPU_MEM>,
