@@ -8,6 +8,12 @@ Required properties:
 - vbus-5v-gpios: enable/disable 5v vbus output
 - vbus-other-gpios: enable/disable other high-voltage vbus output
 - int-n-gpios: I2C int pin
+- fusb302,role: typec port power role
+		(ROLE_MODE_DRP/ROLE_MODE_DFP/ROLE_MODE_UFP)
+- fusb302,try_role: enable try.role function, it would try your wanted
+		    role when detect.
+		    Valid when fusb302,role == ROLE_MODE_DRP.
+		    (ROLE_MODE_DFP/ROLE_MODE_UFP)
 
 example:
 	fusb1: fusb30x@22 {
@@ -18,6 +24,8 @@ example:
 		vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		vbus-other-gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		int-n-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		fusb302,role = "ROLE_MODE_DRP";
+		fusb302,try_role = "ROLE_MODE_DFP";
 		status = "okay";
 	};
 
