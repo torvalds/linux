@@ -878,6 +878,60 @@ static void set_wmm_rule(struct ieee80211_wmm_rule *rule,
 	}
 }
 
+static int __regdb_query_wmm(const struct fwdb_header *db,
+			     const struct fwdb_country *country, int freq,
+			     u32 *dbptr, struct ieee80211_wmm_rule *rule)
+{
+	unsigned int ptr = be16_to_cpu(country->coll_ptr) << 2;
+	struct fwdb_collection *coll = (void *)((u8 *)db + ptr);
+	int i;
+
+	for (i = 0; i < coll->n_rules; i++) {
+		__be16 *rules_ptr = (void *)((u8 *)coll + ALIGN(coll->len, 2));
+		unsigned int rule_ptr = be16_to_cpu(rules_ptr[i]) << 2;
+		struct fwdb_rule *rrule = (void *)((u8 *)db + rule_ptr);
+		struct fwdb_wmm_rule *wmm;
+		unsigned int wmm_ptr;
+
+		if (rrule->len < offsetofend(struct fwdb_rule, wmm_ptr))
+			continue;
+
+		if (freq >= KHZ_TO_MHZ(be32_to_cpu(rrule->start)) &&
+		    freq <= KHZ_TO_MHZ(be32_to_cpu(rrule->end))) {
+			wmm_ptr = be16_to_cpu(rrule->wmm_ptr) << 2;
+			wmm = (void *)((u8 *)db + wmm_ptr);
+			set_wmm_rule(rule, wmm);
+			if (dbptr)
+				*dbptr = wmm_ptr;
+			return 0;
+		}
+	}
+
+	return -ENODATA;
+}
+
+int reg_query_regdb_wmm(char *alpha2, int freq, u32 *dbptr,
+			struct ieee80211_wmm_rule *rule)
+{
+	const struct fwdb_header *hdr = regdb;
+	const struct fwdb_country *country;
+
+	if (IS_ERR(regdb))
+		return PTR_ERR(regdb);
+
+	country = &hdr->country[0];
+	while (country->coll_ptr) {
+		if (alpha2_equal(alpha2, country->alpha2))
+			return __regdb_query_wmm(regdb, country, freq, dbptr,
+						 rule);
+
+		country++;
+	}
+
+	return -ENODATA;
+}
+EXPORT_SYMBOL(reg_query_regdb_wmm);
+
 struct wmm_ptrs {
 	struct ieee80211_wmm_rule *rule;
 	u32 ptr;
