@@ -55,7 +55,13 @@ struct ib_uverbs_attr {
 	__u16 attr_id;		/* command specific type attribute */
 	__u16 len;		/* only for pointers */
 	__u16 flags;		/* combination of UVERBS_ATTR_F_XXXX */
-	__u16 reserved;
+	union {
+		struct {
+			__u8 elem_id;
+			__u8 reserved;
+		} enum_data;
+		__u16 reserved;
+	} attr_data;
 	__aligned_u64 data;	/* ptr to command, inline data or idr/fd */
 };
 

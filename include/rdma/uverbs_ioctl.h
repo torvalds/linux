@@ -51,6 +51,7 @@ enum uverbs_attr_type {
 	UVERBS_ATTR_TYPE_PTR_OUT,
 	UVERBS_ATTR_TYPE_IDR,
 	UVERBS_ATTR_TYPE_FD,
+	UVERBS_ATTR_TYPE_ENUM_IN,
 };
 
 enum uverbs_obj_access {
@@ -95,6 +96,18 @@ struct uverbs_attr_spec {
 			u16			obj_type;
 			u8			access;
 		} obj;
+		struct {
+			enum uverbs_attr_type		type;
+			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
+			u8				flags;
+			u8				num_elems;
+			/*
+			 * The enum attribute can select one of the attributes
+			 * contained in the ids array. Currently only PTR_IN
+			 * attributes are supported in the ids array.
+			 */
+			const struct uverbs_attr_spec	*ids;
+		} enum_def;
 	};
 };
 
@@ -215,6 +228,10 @@ struct uverbs_object_tree_def {
 	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_PTR_OUT, ptr, _len, ##__VA_ARGS__)
 #define UVERBS_ATTR_PTR_OUT(_id, _type, ...)				\
 	UVERBS_ATTR_PTR_OUT_SZ(_id, _type, ##__VA_ARGS__)
+#define UVERBS_ATTR_ENUM_IN(_id, _enum_arr, ...)			\
+	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_ENUM_IN, enum_def,		\
+		    .ids = (_enum_arr),					\
+		    .num_elems = ARRAY_SIZE(_enum_arr), ##__VA_ARGS__)
 
 /*
  * In new compiler, UVERBS_ATTR_IDR (and FD) could be simplified by declaring
@@ -254,6 +271,11 @@ struct uverbs_object_tree_def {
 #define DECLARE_UVERBS_ATTR_SPEC(_name, ...)				\
 	const struct uverbs_attr_def _name = __VA_ARGS__
 
+#define DECLARE_UVERBS_ENUM(_name, ...)					\
+	const struct uverbs_enum_spec _name = {				\
+		.len = ARRAY_SIZE(((struct uverbs_attr_spec[]){__VA_ARGS__})),\
+		.ids = {__VA_ARGS__},					\
+	}
 #define _UVERBS_METHOD_ATTRS_SZ(...)					\
 	(sizeof((const struct uverbs_attr_def * const []){__VA_ARGS__}) /\
 	 sizeof(const struct uverbs_attr_def *))
@@ -305,6 +327,7 @@ struct uverbs_ptr_attr {
 	u16		len;
 	/* Combination of bits from enum UVERBS_ATTR_F_XXXX */
 	u16		flags;
+	u8		enum_id;
 };
 
 struct uverbs_obj_attr {
@@ -372,6 +395,17 @@ static inline const struct uverbs_attr *uverbs_attr_get(const struct uverbs_attr
 		return ERR_PTR(-ENOENT);
 
 	return &attrs_bundle->hash[idx_bucket].attrs[idx & ~UVERBS_ID_NS_MASK];
+}
+
+static inline int uverbs_attr_get_enum_id(const struct uverbs_attr_bundle *attrs_bundle,
+					  u16 idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	return attr->ptr_attr.enum_id;
 }
 
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
