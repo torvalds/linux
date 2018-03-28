@@ -2160,7 +2160,7 @@ static int tegra_dc_couple(struct tegra_dc *dc)
 		struct device_link *link;
 		struct device *partner;
 
-		partner = driver_find_device(dc->dev->driver, NULL, 0,
+		partner = driver_find_device(dc->dev->driver, NULL, NULL,
 					     tegra_dc_match_by_pipe);
 		if (!partner)
 			return -EPROBE_DEFER;
