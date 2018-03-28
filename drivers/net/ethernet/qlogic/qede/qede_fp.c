@@ -1247,16 +1247,10 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 
 	csum_flag = qede_check_csum(parse_flag);
 	if (unlikely(csum_flag == QEDE_CSUM_ERROR)) {
-		if (qede_pkt_is_ip_fragmented(fp_cqe, parse_flag)) {
+		if (qede_pkt_is_ip_fragmented(fp_cqe, parse_flag))
 			rxq->rx_ip_frags++;
-		} else {
-			DP_NOTICE(edev,
-				  "CQE has error, flags = %x, dropping incoming packet\n",
-				  parse_flag);
+		else
 			rxq->rx_hw_errors++;
-			qede_recycle_rx_bd_ring(rxq, fp_cqe->bd_num);
-			return 0;
-		}
 	}
 
 	/* Basic validation passed; Need to prepare an SKB. This would also
