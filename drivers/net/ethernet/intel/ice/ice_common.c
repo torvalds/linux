@@ -468,8 +468,10 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	mac_buf_len = sizeof(struct ice_aqc_manage_mac_read_resp);
 	mac_buf = devm_kzalloc(ice_hw_to_dev(hw), mac_buf_len, GFP_KERNEL);
 
-	if (!mac_buf)
+	if (!mac_buf) {
+		status = ICE_ERR_NO_MEMORY;
 		goto err_unroll_fltr_mgmt_struct;
+	}
 
 	status = ice_aq_manage_mac_read(hw, mac_buf, mac_buf_len, NULL);
 	devm_kfree(ice_hw_to_dev(hw), mac_buf);
