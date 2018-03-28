@@ -1489,7 +1489,8 @@ static int android_setup(struct usb_gadget *gadget,
 	struct usb_function_instance *fi;
 
 	spin_lock_irqsave(&cdev->lock, flags);
-	if (!gi->connected) {
+	if (c->bRequest == USB_REQ_GET_DESCRIPTOR &&
+	    (c->wValue >> 8) == USB_DT_CONFIG && !gi->connected) {
 		gi->connected = 1;
 		schedule_work(&gi->work);
 	}
