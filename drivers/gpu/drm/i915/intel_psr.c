@@ -278,18 +278,19 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	u8 dpcd_val = DP_PSR_ENABLE;
 
 	/* Enable ALPM at sink for psr2 */
 	if (dev_priv->psr.psr2_enabled && dev_priv->psr.alpm)
 		drm_dp_dpcd_writeb(&intel_dp->aux,
 				DP_RECEIVER_ALPM_CONFIG,
 				DP_ALPM_ENABLE);
+
+	if (dev_priv->psr.psr2_enabled)
+		dpcd_val |= DP_PSR_ENABLE_PSR2;
 	if (dev_priv->psr.link_standby)
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
-	else
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE);
+		dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, dpcd_val);
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
 }
