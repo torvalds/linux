@@ -646,12 +646,12 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	return error;
 
 no_id:
+	ipc_update_pid(&shp->shm_cprid, NULL);
+	ipc_update_pid(&shp->shm_lprid, NULL);
 	if (is_file_hugepages(file) && shp->mlock_user)
 		user_shm_unlock(size, shp->mlock_user);
 	fput(file);
 no_file:
-	ipc_update_pid(&shp->shm_cprid, NULL);
-	ipc_update_pid(&shp->shm_lprid, NULL);
 	call_rcu(&shp->shm_perm.rcu, shm_rcu_free);
 	return error;
 }
