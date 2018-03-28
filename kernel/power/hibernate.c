@@ -1053,7 +1053,7 @@ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
 	lock_system_sleep();
 	swsusp_resume_device = res;
 	unlock_system_sleep();
-	pr_info("Starting manual resume from disk\n");
+	pm_pr_dbg("Configured resume from disk to %u\n", swsusp_resume_device);
 	noresume = 0;
 	software_resume();
 	return n;
