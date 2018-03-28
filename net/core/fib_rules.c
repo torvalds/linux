@@ -631,6 +631,11 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout_free;
 
+	err = call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule, ops,
+				      extack);
+	if (err < 0)
+		goto errout_free;
+
 	list_for_each_entry(r, &ops->rules_list, list) {
 		if (r->pref > rule->pref)
 			break;
@@ -667,7 +672,6 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rule->tun_id)
 		ip_tunnel_need_metadata();
 
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule, ops, extack);
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
