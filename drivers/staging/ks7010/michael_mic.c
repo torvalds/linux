@@ -81,7 +81,7 @@ static void michael_append(struct michael_mic_t *mic, u8 *src, int bytes)
 	}
 }
 
-static void michael_get_mic(struct michael_mic_t *mic, uint8_t *dst)
+static void michael_get_mic(struct michael_mic_t *mic, u8 *dst)
 {
 	u8 *data = mic->m;
 
