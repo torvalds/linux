@@ -241,6 +241,10 @@ static int qcom_enable_link_stack_sanitization(void *data)
 	.midr_range_min = 0, \
 	.midr_range_max = (MIDR_VARIANT_MASK | MIDR_REVISION_MASK)
 
+#ifndef ERRATA_MIDR_ALL_VERSIONS
+#define	ERRATA_MIDR_ALL_VERSIONS(x)	MIDR_ALL_VERSIONS(x)
+#endif
+
 const struct arm64_cpu_capabilities arm64_errata[] = {
 #if	defined(CONFIG_ARM64_ERRATUM_826319) || \
 	defined(CONFIG_ARM64_ERRATUM_827319) || \
@@ -429,12 +433,12 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	{
 		.desc = "Cortex-A57 EL2 vector hardening",
 		.capability = ARM64_HARDEN_EL2_VECTORS,
-		MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
 	},
 	{
 		.desc = "Cortex-A72 EL2 vector hardening",
 		.capability = ARM64_HARDEN_EL2_VECTORS,
-		MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
 	},
 #endif
 	{
