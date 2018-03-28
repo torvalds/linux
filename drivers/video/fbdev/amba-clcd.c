@@ -969,7 +969,6 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 
 	fb = kzalloc(sizeof(struct clcd_fb), GFP_KERNEL);
 	if (!fb) {
-		printk(KERN_INFO "CLCD: could not allocate new clcd_fb struct\n");
 		ret = -ENOMEM;
 		goto free_region;
 	}
