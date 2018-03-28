@@ -4449,7 +4449,8 @@ static int adap_init0(struct adapter *adap)
 		adap->params.ofldq_wr_cred = val[5];
 
 		if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_HASHFILTER)) {
-			if (init_hash_filter(adap) < 0)
+			ret = init_hash_filter(adap);
+			if (ret < 0)
 				goto bye;
 		} else {
 			adap->params.offload = 1;
