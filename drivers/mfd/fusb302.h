@@ -466,7 +466,7 @@ struct fusb30x_chip {
 	int timer_state;
 	int timer_mux;
 	int port_num;
-	int work_continue;
+	u32 work_continue;
 	spinlock_t irq_lock;
 	int gpio_int_irq;
 	int enable_irq;
