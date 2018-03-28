@@ -944,9 +944,31 @@ static void ipmi_wdog_pretimeout_handler(void *handler_data)
 	atomic_set(&pretimeout_since_last_heartbeat, 1);
 }
 
+static void ipmi_wdog_panic_handler(void *user_data)
+{
+	static int panic_event_handled;
+
+	/*
+	 * On a panic, if we have a panic timeout, make sure to extend
+	 * the watchdog timer to a reasonable value to complete the
+	 * panic, if the watchdog timer is running.  Plus the
+	 * pretimeout is meaningless at panic time.
+	 */
+	if (watchdog_user && !panic_event_handled &&
+	    ipmi_watchdog_state != WDOG_TIMEOUT_NONE) {
+		/* Make sure we do this only once. */
+		panic_event_handled = 1;
+
+		timeout = panic_wdt_timeout;
+		pretimeout = 0;
+		panic_halt_ipmi_set_timeout();
+	}
+}
+
 static const struct ipmi_user_hndl ipmi_hndlrs = {
 	.ipmi_recv_hndl           = ipmi_wdog_msg_handler,
-	.ipmi_watchdog_pretimeout = ipmi_wdog_pretimeout_handler
+	.ipmi_watchdog_pretimeout = ipmi_wdog_pretimeout_handler,
+	.ipmi_panic_handler       = ipmi_wdog_panic_handler
 };
 
 static void ipmi_register_watchdog(int ipmi_intf)
@@ -1146,36 +1168,6 @@ static struct notifier_block wdog_reboot_notifier = {
 	.priority	= 0
 };
 
-static int wdog_panic_handler(struct notifier_block *this,
-			      unsigned long         event,
-			      void                  *unused)
-{
-	static int panic_event_handled;
-
-	/* On a panic, if we have a panic timeout, make sure to extend
-	   the watchdog timer to a reasonable value to complete the
-	   panic, if the watchdog timer is running.  Plus the
-	   pretimeout is meaningless at panic time. */
-	if (watchdog_user && !panic_event_handled &&
-	    ipmi_watchdog_state != WDOG_TIMEOUT_NONE) {
-		/* Make sure we do this only once. */
-		panic_event_handled = 1;
-
-		timeout = panic_wdt_timeout;
-		pretimeout = 0;
-		panic_halt_ipmi_set_timeout();
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block wdog_panic_notifier = {
-	.notifier_call	= wdog_panic_handler,
-	.next		= NULL,
-	.priority	= 150	/* priority: INT_MAX >= x >= 0 */
-};
-
-
 static void ipmi_new_smi(int if_num, struct device *device)
 {
 	ipmi_register_watchdog(if_num);
@@ -1311,8 +1303,6 @@ static int __init ipmi_wdog_init(void)
 	check_parms();
 
 	register_reboot_notifier(&wdog_reboot_notifier);
-	atomic_notifier_chain_register(&panic_notifier_list,
-			&wdog_panic_notifier);
 
 	rv = ipmi_smi_watcher_register(&smi_watcher);
 	if (rv) {
@@ -1320,8 +1310,6 @@ static int __init ipmi_wdog_init(void)
 		if (nmi_handler_registered)
 			unregister_nmi_handler(NMI_UNKNOWN, "ipmi");
 #endif
-		atomic_notifier_chain_unregister(&panic_notifier_list,
-						 &wdog_panic_notifier);
 		unregister_reboot_notifier(&wdog_reboot_notifier);
 		pr_warn(PFX "can't register smi watcher\n");
 		return rv;
@@ -1342,8 +1330,6 @@ static void __exit ipmi_wdog_exit(void)
 		unregister_nmi_handler(NMI_UNKNOWN, "ipmi");
 #endif
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &wdog_panic_notifier);
 	unregister_reboot_notifier(&wdog_reboot_notifier);
 }
 module_exit(ipmi_wdog_exit);
