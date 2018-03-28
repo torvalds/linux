@@ -165,6 +165,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_cu_info = get_cu_info,
 	.get_vram_usage = amdgpu_amdkfd_get_vram_usage,
 	.create_process_vm = amdgpu_amdkfd_gpuvm_create_process_vm,
+	.acquire_process_vm = amdgpu_amdkfd_gpuvm_acquire_process_vm,
 	.destroy_process_vm = amdgpu_amdkfd_gpuvm_destroy_process_vm,
 	.get_process_page_dir = amdgpu_amdkfd_gpuvm_get_process_page_dir,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,

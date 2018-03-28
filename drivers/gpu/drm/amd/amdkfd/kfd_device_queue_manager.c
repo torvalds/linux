@@ -142,11 +142,30 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	return 0;
 }
 
+static int flush_texture_cache_nocpsch(struct kfd_dev *kdev,
+				struct qcm_process_device *qpd)
+{
+	uint32_t len;
+
+	if (!qpd->ib_kaddr)
+		return -ENOMEM;
+
+	len = pm_create_release_mem(qpd->ib_base, (uint32_t *)qpd->ib_kaddr);
+
+	return kdev->kfd2kgd->submit_ib(kdev->kgd, KGD_ENGINE_MEC1, qpd->vmid,
+				qpd->ib_base, (uint32_t *)qpd->ib_kaddr, len);
+}
+
 static void deallocate_vmid(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
 				struct queue *q)
 {
 	int bit = qpd->vmid - dqm->dev->vm_info.first_vmid_kfd;
+
+	/* On GFX v7, CP doesn't flush TC at dequeue */
+	if (q->device->device_info->asic_family == CHIP_HAWAII)
+		if (flush_texture_cache_nocpsch(q->device, qpd))
+			pr_err("Failed to flush TC\n");
 
 	kfd_flush_tlb(qpd_to_pdd(qpd));
 
@@ -792,11 +811,12 @@ static void uninitialize(struct device_queue_manager *dqm)
 static int start_nocpsch(struct device_queue_manager *dqm)
 {
 	init_interrupts(dqm);
-	return 0;
+	return pm_init(&dqm->packets, dqm);
 }
 
 static int stop_nocpsch(struct device_queue_manager *dqm)
 {
+	pm_uninit(&dqm->packets);
 	return 0;
 }
 

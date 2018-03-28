@@ -107,8 +107,6 @@ struct kfd_ioctl_get_clock_counters_args {
 	__u32 pad;
 };
 
-#define NUM_OF_SUPPORTED_GPUS 7
-
 struct kfd_process_device_apertures {
 	__u64 lds_base;		/* from KFD */
 	__u64 lds_limit;		/* from KFD */
@@ -120,11 +118,30 @@ struct kfd_process_device_apertures {
 	__u32 pad;
 };
 
+/*
+ * AMDKFD_IOC_GET_PROCESS_APERTURES is deprecated. Use
+ * AMDKFD_IOC_GET_PROCESS_APERTURES_NEW instead, which supports an
+ * unlimited number of GPUs.
+ */
+#define NUM_OF_SUPPORTED_GPUS 7
 struct kfd_ioctl_get_process_apertures_args {
 	struct kfd_process_device_apertures
 			process_apertures[NUM_OF_SUPPORTED_GPUS];/* from KFD */
 
 	/* from KFD, should be in the range [1 - NUM_OF_SUPPORTED_GPUS] */
+	__u32 num_of_nodes;
+	__u32 pad;
+};
+
+struct kfd_ioctl_get_process_apertures_new_args {
+	/* User allocated. Pointer to struct kfd_process_device_apertures
+	 * filled in by Kernel
+	 */
+	__u64 kfd_process_device_apertures_ptr;
+	/* to KFD - indicates amount of memory present in
+	 *  kfd_process_device_apertures_ptr
+	 * from KFD - Number of entries filled by KFD.
+	 */
 	__u32 num_of_nodes;
 	__u32 pad;
 };
@@ -269,6 +286,86 @@ struct kfd_ioctl_set_trap_handler_args {
 	__u32 pad;
 };
 
+struct kfd_ioctl_acquire_vm_args {
+	__u32 drm_fd;	/* to KFD */
+	__u32 gpu_id;	/* to KFD */
+};
+
+/* Allocation flags: memory types */
+#define KFD_IOC_ALLOC_MEM_FLAGS_VRAM		(1 << 0)
+#define KFD_IOC_ALLOC_MEM_FLAGS_GTT		(1 << 1)
+#define KFD_IOC_ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
+#define KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+/* Allocation flags: attributes/access options */
+#define KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
+#define KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
+#define KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC		(1 << 29)
+#define KFD_IOC_ALLOC_MEM_FLAGS_NO_SUBSTITUTE	(1 << 28)
+#define KFD_IOC_ALLOC_MEM_FLAGS_AQL_QUEUE_MEM	(1 << 27)
+#define KFD_IOC_ALLOC_MEM_FLAGS_COHERENT	(1 << 26)
+
+/* Allocate memory for later SVM (shared virtual memory) mapping.
+ *
+ * @va_addr:     virtual address of the memory to be allocated
+ *               all later mappings on all GPUs will use this address
+ * @size:        size in bytes
+ * @handle:      buffer handle returned to user mode, used to refer to
+ *               this allocation for mapping, unmapping and freeing
+ * @mmap_offset: for CPU-mapping the allocation by mmapping a render node
+ *               for userptrs this is overloaded to specify the CPU address
+ * @gpu_id:      device identifier
+ * @flags:       memory type and attributes. See KFD_IOC_ALLOC_MEM_FLAGS above
+ */
+struct kfd_ioctl_alloc_memory_of_gpu_args {
+	__u64 va_addr;		/* to KFD */
+	__u64 size;		/* to KFD */
+	__u64 handle;		/* from KFD */
+	__u64 mmap_offset;	/* to KFD (userptr), from KFD (mmap offset) */
+	__u32 gpu_id;		/* to KFD */
+	__u32 flags;
+};
+
+/* Free memory allocated with kfd_ioctl_alloc_memory_of_gpu
+ *
+ * @handle: memory handle returned by alloc
+ */
+struct kfd_ioctl_free_memory_of_gpu_args {
+	__u64 handle;		/* to KFD */
+};
+
+/* Map memory to one or more GPUs
+ *
+ * @handle:                memory handle returned by alloc
+ * @device_ids_array_ptr:  array of gpu_ids (__u32 per device)
+ * @n_devices:             number of devices in the array
+ * @n_success:             number of devices mapped successfully
+ *
+ * @n_success returns information to the caller how many devices from
+ * the start of the array have mapped the buffer successfully. It can
+ * be passed into a subsequent retry call to skip those devices. For
+ * the first call the caller should initialize it to 0.
+ *
+ * If the ioctl completes with return code 0 (success), n_success ==
+ * n_devices.
+ */
+struct kfd_ioctl_map_memory_to_gpu_args {
+	__u64 handle;			/* to KFD */
+	__u64 device_ids_array_ptr;	/* to KFD */
+	__u32 n_devices;		/* to KFD */
+	__u32 n_success;		/* to/from KFD */
+};
+
+/* Unmap memory from one or more GPUs
+ *
+ * same arguments as for mapping
+ */
+struct kfd_ioctl_unmap_memory_from_gpu_args {
+	__u64 handle;			/* to KFD */
+	__u64 device_ids_array_ptr;	/* to KFD */
+	__u32 n_devices;		/* to KFD */
+	__u32 n_success;		/* to/from KFD */
+};
+
 #define AMDKFD_IOCTL_BASE 'K'
 #define AMDKFD_IO(nr)			_IO(AMDKFD_IOCTL_BASE, nr)
 #define AMDKFD_IOR(nr, type)		_IOR(AMDKFD_IOCTL_BASE, nr, type)
@@ -332,7 +429,26 @@ struct kfd_ioctl_set_trap_handler_args {
 #define AMDKFD_IOC_SET_TRAP_HANDLER		\
 		AMDKFD_IOW(0x13, struct kfd_ioctl_set_trap_handler_args)
 
+#define AMDKFD_IOC_GET_PROCESS_APERTURES_NEW	\
+		AMDKFD_IOWR(0x14,		\
+			struct kfd_ioctl_get_process_apertures_new_args)
+
+#define AMDKFD_IOC_ACQUIRE_VM			\
+		AMDKFD_IOW(0x15, struct kfd_ioctl_acquire_vm_args)
+
+#define AMDKFD_IOC_ALLOC_MEMORY_OF_GPU		\
+		AMDKFD_IOWR(0x16, struct kfd_ioctl_alloc_memory_of_gpu_args)
+
+#define AMDKFD_IOC_FREE_MEMORY_OF_GPU		\
+		AMDKFD_IOW(0x17, struct kfd_ioctl_free_memory_of_gpu_args)
+
+#define AMDKFD_IOC_MAP_MEMORY_TO_GPU		\
+		AMDKFD_IOWR(0x18, struct kfd_ioctl_map_memory_to_gpu_args)
+
+#define AMDKFD_IOC_UNMAP_MEMORY_FROM_GPU	\
+		AMDKFD_IOWR(0x19, struct kfd_ioctl_unmap_memory_from_gpu_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x14
+#define AMDKFD_COMMAND_END		0x1A
 
 #endif

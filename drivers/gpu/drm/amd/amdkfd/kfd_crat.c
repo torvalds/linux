@@ -882,7 +882,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	crat_table->length = sizeof(struct crat_header);
 
 	status = acpi_get_table("DSDT", 0, &acpi_table);
-	if (status == AE_NOT_FOUND)
+	if (status != AE_OK)
 		pr_warn("DSDT table not found for OEM information\n");
 	else {
 		crat_table->oem_revision = acpi_table->revision;
@@ -1116,6 +1116,9 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
+
+	if (debug_largebar)
+		local_mem_info.local_mem_size_private = 0;
 
 	if (local_mem_info.local_mem_size_private == 0)
 		ret = kfd_fill_gpu_memory_affinity(&avail_size,

@@ -52,6 +52,7 @@ struct kfd_event_waiter {
 struct kfd_signal_page {
 	uint64_t *kernel_address;
 	uint64_t __user *user_address;
+	bool need_to_free_pages;
 };
 
 
@@ -79,6 +80,7 @@ static struct kfd_signal_page *allocate_signal_page(struct kfd_process *p)
 	       KFD_SIGNAL_EVENT_LIMIT * 8);
 
 	page->kernel_address = backing_store;
+	page->need_to_free_pages = true;
 	pr_debug("Allocated new event signal page at %p, for process %p\n",
 			page, p);
 
@@ -269,8 +271,9 @@ static void shutdown_signal_page(struct kfd_process *p)
 	struct kfd_signal_page *page = p->signal_page;
 
 	if (page) {
-		free_pages((unsigned long)page->kernel_address,
-				get_order(KFD_SIGNAL_EVENT_LIMIT * 8));
+		if (page->need_to_free_pages)
+			free_pages((unsigned long)page->kernel_address,
+				   get_order(KFD_SIGNAL_EVENT_LIMIT * 8));
 		kfree(page);
 	}
 }
@@ -290,6 +293,30 @@ static bool event_can_be_gpu_signaled(const struct kfd_event *ev)
 static bool event_can_be_cpu_signaled(const struct kfd_event *ev)
 {
 	return ev->type == KFD_EVENT_TYPE_SIGNAL;
+}
+
+int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
+		       uint64_t size)
+{
+	struct kfd_signal_page *page;
+
+	if (p->signal_page)
+		return -EBUSY;
+
+	page = kzalloc(sizeof(*page), GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	/* Initialize all events to unsignaled */
+	memset(kernel_address, (uint8_t) UNSIGNALED_EVENT_SLOT,
+	       KFD_SIGNAL_EVENT_LIMIT * 8);
+
+	page->kernel_address = kernel_address;
+
+	p->signal_page = page;
+	p->signal_mapped_size = size;
+
+	return 0;
 }
 
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
