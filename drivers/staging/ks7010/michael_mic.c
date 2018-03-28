@@ -91,34 +91,33 @@ static void michael_append(struct michael_mic_t *mic, uint8_t *src, int bytes)
 	}
 }
 
-static
-void MichaelGetMIC(struct michael_mic_t *Mic, uint8_t *dst)
+static void michael_get_mic(struct michael_mic_t *mic, uint8_t *dst)
 {
-	u8 *data = Mic->m;
+	u8 *data = mic->m;
 
-	switch (Mic->m_bytes) {
+	switch (mic->m_bytes) {
 	case 0:
-		Mic->l ^= 0x5a;
+		mic->l ^= 0x5a;
 		break;
 	case 1:
-		Mic->l ^= data[0] | 0x5a00;
+		mic->l ^= data[0] | 0x5a00;
 		break;
 	case 2:
-		Mic->l ^= data[0] | (data[1] << 8) | 0x5a0000;
+		mic->l ^= data[0] | (data[1] << 8) | 0x5a0000;
 		break;
 	case 3:
-		Mic->l ^= data[0] | (data[1] << 8) | (data[2] << 16) |
+		mic->l ^= data[0] | (data[1] << 8) | (data[2] << 16) |
 		    0x5a000000;
 		break;
 	}
-	MichaelBlockFunction(Mic->l, Mic->r);
-	MichaelBlockFunction(Mic->l, Mic->r);
+	MichaelBlockFunction(mic->l, mic->r);
+	MichaelBlockFunction(mic->l, mic->r);
 	// The appendByte function has already computed the result.
-	putUInt32(dst, 0, Mic->l);
-	putUInt32(dst, 4, Mic->r);
+	putUInt32(dst, 0, mic->l);
+	putUInt32(dst, 4, mic->r);
 
 	// Reset to the empty message.
-	michael_clear(Mic);
+	michael_clear(mic);
 }
 
 void michael_mic_function(struct michael_mic_t *mic, u8 *key,
@@ -139,5 +138,5 @@ void michael_mic_function(struct michael_mic_t *mic, u8 *key,
 	michael_append(mic, (uint8_t *)data, 12);	/* |DA|SA| */
 	michael_append(mic, pad_data, 4);	/* |Priority|0|0|0| */
 	michael_append(mic, (uint8_t *)(data + 12), len - 12);	/* |Data| */
-	MichaelGetMIC(mic, result);
+	michael_get_mic(mic, result);
 }
