@@ -628,7 +628,8 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 		pki_ih3->tag     = LIO_CONTROL;
 		pki_ih3->tagtype = ATOMIC_TAG;
 		pki_ih3->qpg         =
-			oct->instr_queue[sc->iq_no]->txpciq.s.qpg;
+			oct->instr_queue[sc->iq_no]->txpciq.s.ctrl_qpg;
+
 		pki_ih3->pm          = 0x7;
 		pki_ih3->sl          = 8;
 

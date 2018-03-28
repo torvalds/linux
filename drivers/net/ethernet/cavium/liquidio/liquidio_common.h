@@ -712,9 +712,13 @@ union oct_txpciq {
 		u64 pkind:6;
 		u64 use_qpg:1;
 		u64 qpg:11;
-		u64 reserved:30;
+		u64 reserved0:10;
+		u64 ctrl_qpg:11;
+		u64 reserved:9;
 #else
-		u64 reserved:30;
+		u64 reserved:9;
+		u64 ctrl_qpg:11;
+		u64 reserved0:10;
 		u64 qpg:11;
 		u64 use_qpg:1;
 		u64 pkind:6;
