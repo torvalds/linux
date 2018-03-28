@@ -574,16 +574,16 @@ static int bcm_sysport_set_wol(struct net_device *dev,
 	return 0;
 }
 
-static void bcm_sysport_set_rx_coalesce(struct bcm_sysport_priv *priv)
+static void bcm_sysport_set_rx_coalesce(struct bcm_sysport_priv *priv,
+					u32 usecs, u32 pkts)
 {
 	u32 reg;
 
 	reg = rdma_readl(priv, RDMA_MBDONE_INTR);
 	reg &= ~(RDMA_INTR_THRESH_MASK |
 		 RDMA_TIMEOUT_MASK << RDMA_TIMEOUT_SHIFT);
-	reg |= priv->dim.coal_pkts;
-	reg |= DIV_ROUND_UP(priv->dim.coal_usecs * 1000, 8192) <<
-			    RDMA_TIMEOUT_SHIFT;
+	reg |= pkts;
+	reg |= DIV_ROUND_UP(usecs * 1000, 8192) << RDMA_TIMEOUT_SHIFT;
 	rdma_writel(priv, reg, RDMA_MBDONE_INTR);
 }
 
@@ -626,6 +626,8 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 				    struct ethtool_coalesce *ec)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	struct net_dim_cq_moder moder;
+	u32 usecs, pkts;
 	unsigned int i;
 
 	/* Base system clock is 125Mhz, DMA timeout is this reference clock
@@ -646,15 +648,21 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 	for (i = 0; i < dev->num_tx_queues; i++)
 		bcm_sysport_set_tx_coalesce(&priv->tx_rings[i], ec);
 
-	priv->dim.coal_usecs = ec->rx_coalesce_usecs;
-	priv->dim.coal_pkts = ec->rx_max_coalesced_frames;
+	priv->rx_coalesce_usecs = ec->rx_coalesce_usecs;
+	priv->rx_max_coalesced_frames = ec->rx_max_coalesced_frames;
+	usecs = priv->rx_coalesce_usecs;
+	pkts = priv->rx_max_coalesced_frames;
 
-	if (!ec->use_adaptive_rx_coalesce && priv->dim.use_dim) {
-		priv->dim.coal_pkts = 1;
-		priv->dim.coal_usecs = 0;
+	if (ec->use_adaptive_rx_coalesce && !priv->dim.use_dim) {
+		moder = net_dim_get_def_profile(priv->dim.dim.mode);
+		usecs = moder.usec;
+		pkts = moder.pkts;
 	}
+
 	priv->dim.use_dim = ec->use_adaptive_rx_coalesce;
-	bcm_sysport_set_rx_coalesce(priv);
+
+	/* Apply desired coalescing parameters */
+	bcm_sysport_set_rx_coalesce(priv, usecs, pkts);
 
 	return 0;
 }
@@ -1058,10 +1066,7 @@ static void bcm_sysport_dim_work(struct work_struct *work)
 	struct net_dim_cq_moder cur_profile =
 				net_dim_get_profile(dim->mode, dim->profile_ix);
 
-	priv->dim.coal_usecs = cur_profile.usec;
-	priv->dim.coal_pkts = cur_profile.pkts;
-
-	bcm_sysport_set_rx_coalesce(priv);
+	bcm_sysport_set_rx_coalesce(priv, cur_profile.usec, cur_profile.pkts);
 	dim->state = NET_DIM_START_MEASURE;
 }
 
@@ -1408,14 +1413,35 @@ out:
 		phy_print_status(phydev);
 }
 
-static void bcm_sysport_init_dim(struct bcm_sysport_net_dim *dim,
+static void bcm_sysport_init_dim(struct bcm_sysport_priv *priv,
 				 void (*cb)(struct work_struct *work))
 {
+	struct bcm_sysport_net_dim *dim = &priv->dim;
+
 	INIT_WORK(&dim->dim.work, cb);
 	dim->dim.mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 	dim->event_ctr = 0;
 	dim->packets = 0;
 	dim->bytes = 0;
+}
+
+static void bcm_sysport_init_rx_coalesce(struct bcm_sysport_priv *priv)
+{
+	struct bcm_sysport_net_dim *dim = &priv->dim;
+	struct net_dim_cq_moder moder;
+	u32 usecs, pkts;
+
+	usecs = priv->rx_coalesce_usecs;
+	pkts = priv->rx_max_coalesced_frames;
+
+	/* If DIM was enabled, re-apply default parameters */
+	if (dim->use_dim) {
+		moder = net_dim_get_def_profile(dim->dim.mode);
+		usecs = moder.usec;
+		pkts = moder.pkts;
+	}
+
+	bcm_sysport_set_rx_coalesce(priv, usecs, pkts);
 }
 
 static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
@@ -1658,8 +1684,6 @@ static int bcm_sysport_init_rx_ring(struct bcm_sysport_priv *priv)
 	rdma_writel(priv, 0, RDMA_END_ADDR_HI);
 	rdma_writel(priv, priv->num_rx_desc_words - 1, RDMA_END_ADDR_LO);
 
-	rdma_writel(priv, 1, RDMA_MBDONE_INTR);
-
 	netif_dbg(priv, hw, priv->netdev,
 		  "RDMA cfg, num_rx_bds=%d, rx_bds=%p\n",
 		  priv->num_rx_bds, priv->rx_bds);
@@ -1827,7 +1851,8 @@ static void bcm_sysport_netif_start(struct net_device *dev)
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 
 	/* Enable NAPI */
-	bcm_sysport_init_dim(&priv->dim, bcm_sysport_dim_work);
+	bcm_sysport_init_dim(priv, bcm_sysport_dim_work);
+	bcm_sysport_init_rx_coalesce(priv);
 	napi_enable(&priv->napi);
 
 	/* Enable RX interrupt and TX ring full interrupt */
@@ -2333,6 +2358,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	/* libphy will adjust the link state accordingly */
 	netif_carrier_off(dev);
 
+	priv->rx_max_coalesced_frames = 1;
 	u64_stats_init(&priv->syncp);
 
 	priv->dsa_notifier.notifier_call = bcm_sysport_dsa_notifier;
