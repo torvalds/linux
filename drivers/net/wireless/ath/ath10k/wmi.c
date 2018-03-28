@@ -4357,7 +4357,7 @@ static void ath10k_tpc_config_disp_tables(struct ath10k *ar,
 							    rate_code[i],
 							    type);
 			snprintf(buff, sizeof(buff), "%8d ", tpc[j]);
-			strncat(tpc_value, buff, strlen(buff));
+			strlcat(tpc_value, buff, sizeof(tpc_value));
 		}
 		tpc_stats->tpc_table[type].pream_idx[i] = pream_idx;
 		tpc_stats->tpc_table[type].rate_code[i] = rate_code[i];
@@ -4694,7 +4694,7 @@ ath10k_wmi_tpc_stats_final_disp_tables(struct ath10k *ar,
 							       rate_code[i],
 							       type, pream_idx);
 			snprintf(buff, sizeof(buff), "%8d ", tpc[j]);
-			strncat(tpc_value, buff, strlen(buff));
+			strlcat(tpc_value, buff, sizeof(tpc_value));
 		}
 		tpc_stats->tpc_table_final[type].pream_idx[i] = pream_idx;
 		tpc_stats->tpc_table_final[type].rate_code[i] = rate_code[i];
