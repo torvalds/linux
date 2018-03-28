@@ -24,7 +24,7 @@ static inline void michael_clear(struct michael_mic_t *mic)
 	mic->m_bytes = 0;
 }
 
-static void michael_init(struct michael_mic_t *mic, uint8_t *key)
+static void michael_init(struct michael_mic_t *mic, u8 *key)
 {
 	// Set the key
 	mic->k0 = get_unaligned_le32(key);
