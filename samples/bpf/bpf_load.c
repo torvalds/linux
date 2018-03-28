@@ -61,6 +61,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_kprobe = strncmp(event, "kprobe/", 7) == 0;
 	bool is_kretprobe = strncmp(event, "kretprobe/", 10) == 0;
 	bool is_tracepoint = strncmp(event, "tracepoint/", 11) == 0;
+	bool is_raw_tracepoint = strncmp(event, "raw_tracepoint/", 15) == 0;
 	bool is_xdp = strncmp(event, "xdp", 3) == 0;
 	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
 	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
@@ -85,6 +86,8 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_KPROBE;
 	} else if (is_tracepoint) {
 		prog_type = BPF_PROG_TYPE_TRACEPOINT;
+	} else if (is_raw_tracepoint) {
+		prog_type = BPF_PROG_TYPE_RAW_TRACEPOINT;
 	} else if (is_xdp) {
 		prog_type = BPF_PROG_TYPE_XDP;
 	} else if (is_perf_event) {
@@ -129,6 +132,16 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 			return -1;
 		}
 		return populate_prog_array(event, fd);
+	}
+
+	if (is_raw_tracepoint) {
+		efd = bpf_raw_tracepoint_open(event + 15, fd);
+		if (efd < 0) {
+			printf("tracepoint %s %s\n", event + 15, strerror(errno));
+			return -1;
+		}
+		event_fd[prog_cnt - 1] = efd;
+		return 0;
 	}
 
 	if (is_kprobe || is_kretprobe) {
@@ -587,6 +600,7 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		if (memcmp(shname, "kprobe/", 7) == 0 ||
 		    memcmp(shname, "kretprobe/", 10) == 0 ||
 		    memcmp(shname, "tracepoint/", 11) == 0 ||
+		    memcmp(shname, "raw_tracepoint/", 15) == 0 ||
 		    memcmp(shname, "xdp", 3) == 0 ||
 		    memcmp(shname, "perf_event", 10) == 0 ||
 		    memcmp(shname, "socket", 6) == 0 ||
