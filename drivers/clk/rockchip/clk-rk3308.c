@@ -21,6 +21,7 @@
 #include "clk.h"
 
 #define RK3308_GRF_SOC_STATUS0		0x380
+#define RK3308_VOP_FRAC_MAX_PRATE	270000000
 
 enum rk3308_plls {
 	apll, dpll, vpll0, vpll1,
@@ -454,7 +455,7 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "dclk_vop_frac", "dclk_vop_src", CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(9), 0,
 			RK3308_CLKGATE_CON(1), 7, GFLAGS,
-			&rk3308_dclk_vop_fracmux, 0),
+			&rk3308_dclk_vop_fracmux, RK3308_VOP_FRAC_MAX_PRATE),
 	GATE(DCLK_VOP, "dclk_vop", "dclk_vop_mux", 0,
 			RK3308_CLKGATE_CON(1), 8, GFLAGS),
 
