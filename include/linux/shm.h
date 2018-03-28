@@ -7,6 +7,8 @@
 #include <uapi/linux/shm.h>
 #include <asm/shmparam.h>
 
+struct file;
+
 #ifdef CONFIG_SYSVIPC
 struct sysv_shm {
 	struct list_head shm_clist;
