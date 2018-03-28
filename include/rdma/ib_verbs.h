@@ -1828,6 +1828,7 @@ enum ib_flow_spec_type {
 	/* L3 header*/
 	IB_FLOW_SPEC_IPV4		= 0x30,
 	IB_FLOW_SPEC_IPV6		= 0x31,
+	IB_FLOW_SPEC_ESP                = 0x34,
 	/* L4 headers*/
 	IB_FLOW_SPEC_TCP		= 0x40,
 	IB_FLOW_SPEC_UDP		= 0x41,
@@ -1960,6 +1961,20 @@ struct ib_flow_spec_tunnel {
 	struct ib_flow_tunnel_filter  mask;
 };
 
+struct ib_flow_esp_filter {
+	__be32	spi;
+	__be32  seq;
+	/* Must be last */
+	u8	real_sz[0];
+};
+
+struct ib_flow_spec_esp {
+	u32                           type;
+	u16			      size;
+	struct ib_flow_esp_filter     val;
+	struct ib_flow_esp_filter     mask;
+};
+
 struct ib_flow_spec_action_tag {
 	enum ib_flow_spec_type	      type;
 	u16			      size;
@@ -1988,6 +2003,7 @@ union ib_flow_spec {
 	struct ib_flow_spec_tcp_udp	tcp_udp;
 	struct ib_flow_spec_ipv6        ipv6;
 	struct ib_flow_spec_tunnel      tunnel;
+	struct ib_flow_spec_esp		esp;
 	struct ib_flow_spec_action_tag  flow_tag;
 	struct ib_flow_spec_action_drop drop;
 	struct ib_flow_spec_action_handle action;

@@ -257,6 +257,7 @@ struct ib_uverbs_flow_spec {
 		};
 		struct ib_uverbs_flow_spec_eth     eth;
 		struct ib_uverbs_flow_spec_ipv4    ipv4;
+		struct ib_uverbs_flow_spec_esp     esp;
 		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
 		struct ib_uverbs_flow_spec_ipv6    ipv6;
 		struct ib_uverbs_flow_spec_action_tag	flow_tag;

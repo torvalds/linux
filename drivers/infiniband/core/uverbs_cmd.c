@@ -2931,6 +2931,17 @@ int ib_uverbs_kern_spec_to_ib_spec_filter(enum ib_flow_spec_type type,
 		    (ntohl(ib_spec->tunnel.val.tunnel_id)) >= BIT(24))
 			return -EINVAL;
 		break;
+	case IB_FLOW_SPEC_ESP:
+		ib_filter_sz = offsetof(struct ib_flow_esp_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
+			return -EINVAL;
+		ib_spec->esp.size = sizeof(struct ib_flow_spec_esp);
+		memcpy(&ib_spec->esp.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->esp.mask, kern_spec_mask, actual_filter_sz);
+		break;
 	default:
 		return -EINVAL;
 	}
