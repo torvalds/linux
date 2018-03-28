@@ -15,9 +15,6 @@
 #include <asm/unaligned.h>
 #include "michael_mic.h"
 
-// Convert from Byte[] to UInt32 in a portable way
-#define getUInt32(A, B)	((uint32_t)(A[B + 0] << 0) \
-		+ (A[B + 1] << 8) + (A[B + 2] << 16) + (A[B + 3] << 24))
 
 // Reset the state to the empty message.
 static inline void michael_clear(struct michael_mic_t *mic)
@@ -30,8 +27,8 @@ static inline void michael_clear(struct michael_mic_t *mic)
 static void michael_init(struct michael_mic_t *mic, uint8_t *key)
 {
 	// Set the key
-	mic->k0 = getUInt32(key, 0);
-	mic->k1 = getUInt32(key, 4);
+	mic->k0 = get_unaligned_le32(key);
+	mic->k1 = get_unaligned_le32(key + 4);
 
 	//clear();
 	michael_clear(mic);
@@ -65,13 +62,13 @@ static void michael_append(struct michael_mic_t *mic, uint8_t *src, int bytes)
 		if (mic->m_bytes < 4)
 			return;
 
-		mic->l ^= getUInt32(mic->m, 0);
+		mic->l ^= get_unaligned_le32(mic->m);
 		MichaelBlockFunction(mic->l, mic->r);
 		mic->m_bytes = 0;
 	}
 
 	while (bytes >= 4) {
-		mic->l ^= getUInt32(src, 0);
+		mic->l ^= get_unaligned_le32(src);
 		MichaelBlockFunction(mic->l, mic->r);
 		src += 4;
 		bytes -= 4;
