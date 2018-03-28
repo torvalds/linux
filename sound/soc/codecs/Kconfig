@@ -47,6 +47,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_BT_SCO
+	select SND_SOC_BD28623
 	select SND_SOC_CQ0093VC
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
@@ -417,6 +418,13 @@ config SND_SOC_ALC5623
 
 config SND_SOC_ALC5632
 	tristate
+
+config SND_SOC_BD28623
+	tristate "ROHM BD28623 CODEC"
+	help
+	  Enable support for ROHM BD28623MUV Class D speaker amplifier.
+	  This codec does not have any control buses such as I2C, it
+	  detect format of I2S automatically.
 
 config SND_SOC_BT_SCO
 	tristate "Dummy BT SCO codec driver"
