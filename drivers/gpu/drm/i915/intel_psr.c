@@ -386,8 +386,10 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	/* FIXME: selective update is probably totally broken because it doesn't
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
 	 * good enough. */
-	val |= EDP_PSR2_ENABLE |
-		EDP_SU_TRACK_ENABLE;
+	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+		val |= EDP_Y_COORDINATE_VALID | EDP_Y_COORDINATE_ENABLE;
+	}
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 				DP_SYNCHRONIZATION_LATENCY_IN_SINK,
@@ -569,8 +571,14 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 		hsw_psr_setup_aux(intel_dp);
 
 	if (dev_priv->psr.psr2_support) {
-		u32 chicken = PSR2_VSC_ENABLE_PROG_HEADER
-			      | PSR2_ADD_VERTICAL_LINE_COUNT;
+		u32 chicken = I915_READ(CHICKEN_TRANS(cpu_transcoder));
+
+		if (INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv))
+			chicken |= (PSR2_VSC_ENABLE_PROG_HEADER
+				   | PSR2_ADD_VERTICAL_LINE_COUNT);
+
+		else
+			chicken &= ~VSC_DATA_SEL_SOFTWARE_CONTROL;
 		I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
 
 		I915_WRITE(EDP_PSR_DEBUG,
