@@ -310,7 +310,9 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no,
 	int ret;
 	unsigned long irq_flags;
 
-	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions ||
+	    (epf_bar->barno == BAR_5 &&
+	     epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64))
 		return -EINVAL;
 
 	if (!epc->ops->set_bar)
