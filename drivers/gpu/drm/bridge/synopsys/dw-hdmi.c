@@ -2667,6 +2667,11 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 
 	if (hdmi->hdmi_data.update) {
 		dw_hdmi_setup(hdmi, &hdmi->previous_mode);
+		/*
+		 * Before clear AVMUTE, delay is needed to
+		 * prevent display flash.
+		 */
+		msleep(50);
 		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
 		hdmi->hdmi_data.update = false;
 	} else if (connector->state->hdr_metadata_changed &&
