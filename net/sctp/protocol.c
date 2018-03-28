@@ -1258,8 +1258,10 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	return 0;
 
+#ifdef CONFIG_PROC_FS
 err_init_proc:
 	cleanup_sctp_mibs(net);
+#endif
 err_init_mibs:
 	sctp_sysctl_net_unregister(net);
 err_sysctl_register:
