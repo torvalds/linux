@@ -2218,6 +2218,7 @@ cnl_ddi_calculate_wrpll(int clock,
 			struct skl_wrpll_params *wrpll_params)
 {
 	u32 afe_clock = clock * 5;
+	uint32_t ref_clock;
 	u32 dco_min = 7998000;
 	u32 dco_max = 10000000;
 	u32 dco_mid = (dco_min + dco_max) / 2;
@@ -2250,8 +2251,17 @@ cnl_ddi_calculate_wrpll(int clock,
 
 	cnl_wrpll_get_multipliers(best_div, &pdiv, &qdiv, &kdiv);
 
-	cnl_wrpll_params_populate(wrpll_params, best_dco,
-				  dev_priv->cdclk.hw.ref, pdiv, qdiv, kdiv);
+	ref_clock = dev_priv->cdclk.hw.ref;
+
+	/*
+	 * For ICL, the spec states: if reference frequency is 38.4, use 19.2
+	 * because the DPLL automatically divides that by 2.
+	 */
+	if (IS_ICELAKE(dev_priv) && ref_clock == 38400)
+		ref_clock = 19200;
+
+	cnl_wrpll_params_populate(wrpll_params, best_dco, ref_clock, pdiv, qdiv,
+				  kdiv);
 
 	return true;
 }
@@ -2403,7 +2413,30 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 				struct intel_encoder *encoder, int clock,
 				struct intel_dpll_hw_state *pll_state)
 {
-	/* TODO */
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	uint32_t cfgcr0, cfgcr1;
+	struct skl_wrpll_params pll_params = { 0 };
+	bool ret;
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		ret = cnl_ddi_calculate_wrpll(clock, dev_priv, &pll_params);
+	else
+		ret = false; /* TODO */
+
+	if (!ret)
+		return false;
+
+	cfgcr0 = DPLL_CFGCR0_DCO_FRACTION(pll_params.dco_fraction) |
+		 pll_params.dco_integer;
+
+	cfgcr1 = DPLL_CFGCR1_QDIV_RATIO(pll_params.qdiv_ratio) |
+		 DPLL_CFGCR1_QDIV_MODE(pll_params.qdiv_mode) |
+		 DPLL_CFGCR1_KDIV(pll_params.kdiv) |
+		 DPLL_CFGCR1_PDIV(pll_params.pdiv) |
+		 DPLL_CFGCR1_CENTRAL_FREQ_8400;
+
+	pll_state->cfgcr0 = cfgcr0;
+	pll_state->cfgcr1 = cfgcr1;
 	return true;
 }
 
