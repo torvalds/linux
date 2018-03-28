@@ -83,6 +83,30 @@ static inline bool is_vlan_dev(const struct net_device *dev)
 #define skb_vlan_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
 #define skb_vlan_tag_get_prio(__skb)	((__skb)->vlan_tci & VLAN_PRIO_MASK)
 
+static inline int vlan_get_rx_ctag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return notifier_to_errno(call_netdevice_notifiers(NETDEV_CVLAN_FILTER_PUSH_INFO, dev));
+}
+
+static inline void vlan_drop_rx_ctag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_CVLAN_FILTER_DROP_INFO, dev);
+}
+
+static inline int vlan_get_rx_stag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return notifier_to_errno(call_netdevice_notifiers(NETDEV_SVLAN_FILTER_PUSH_INFO, dev));
+}
+
+static inline void vlan_drop_rx_stag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_SVLAN_FILTER_DROP_INFO, dev);
+}
+
 /**
  *	struct vlan_pcpu_stats - VLAN percpu rx/tx stats
  *	@rx_packets: number of received packets

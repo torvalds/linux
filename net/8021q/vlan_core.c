@@ -165,13 +165,12 @@ struct vlan_vid_info {
 	int refcount;
 };
 
-static bool vlan_hw_filter_capable(const struct net_device *dev,
-				     const struct vlan_vid_info *vid_info)
+bool vlan_hw_filter_capable(const struct net_device *dev, __be16 proto)
 {
-	if (vid_info->proto == htons(ETH_P_8021Q) &&
+	if (proto == htons(ETH_P_8021Q) &&
 	    dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 		return true;
-	if (vid_info->proto == htons(ETH_P_8021AD) &&
+	if (proto == htons(ETH_P_8021AD) &&
 	    dev->features & NETIF_F_HW_VLAN_STAG_FILTER)
 		return true;
 	return false;
@@ -202,11 +201,73 @@ static struct vlan_vid_info *vlan_vid_info_alloc(__be16 proto, u16 vid)
 	return vid_info;
 }
 
+static int vlan_add_rx_filter_info(struct net_device *dev, __be16 proto, u16 vid)
+{
+	if (!vlan_hw_filter_capable(dev, proto))
+		return 0;
+
+	if (netif_device_present(dev))
+		return dev->netdev_ops->ndo_vlan_rx_add_vid(dev, proto, vid);
+	else
+		return -ENODEV;
+}
+
+static int vlan_kill_rx_filter_info(struct net_device *dev, __be16 proto, u16 vid)
+{
+	if (!vlan_hw_filter_capable(dev, proto))
+		return 0;
+
+	if (netif_device_present(dev))
+		return dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, proto, vid);
+	else
+		return -ENODEV;
+}
+
+int vlan_filter_push_vids(struct vlan_info *vlan_info, __be16 proto)
+{
+	struct net_device *real_dev = vlan_info->real_dev;
+	struct vlan_vid_info *vlan_vid_info;
+	int err;
+
+	list_for_each_entry(vlan_vid_info, &vlan_info->vid_list, list) {
+		if (vlan_vid_info->proto == proto) {
+			err = vlan_add_rx_filter_info(real_dev, proto,
+						      vlan_vid_info->vid);
+			if (err)
+				goto unwind;
+		}
+	}
+
+	return 0;
+
+unwind:
+	list_for_each_entry_continue_reverse(vlan_vid_info,
+					     &vlan_info->vid_list, list) {
+		if (vlan_vid_info->proto == proto)
+			vlan_kill_rx_filter_info(real_dev, proto,
+						 vlan_vid_info->vid);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(vlan_filter_push_vids);
+
+void vlan_filter_drop_vids(struct vlan_info *vlan_info, __be16 proto)
+{
+	struct vlan_vid_info *vlan_vid_info;
+
+	list_for_each_entry(vlan_vid_info, &vlan_info->vid_list, list)
+		if (vlan_vid_info->proto == proto)
+			vlan_kill_rx_filter_info(vlan_info->real_dev,
+						 vlan_vid_info->proto,
+						 vlan_vid_info->vid);
+}
+EXPORT_SYMBOL(vlan_filter_drop_vids);
+
 static int __vlan_vid_add(struct vlan_info *vlan_info, __be16 proto, u16 vid,
 			  struct vlan_vid_info **pvid_info)
 {
 	struct net_device *dev = vlan_info->real_dev;
-	const struct net_device_ops *ops = dev->netdev_ops;
 	struct vlan_vid_info *vid_info;
 	int err;
 
@@ -214,16 +275,12 @@ static int __vlan_vid_add(struct vlan_info *vlan_info, __be16 proto, u16 vid,
 	if (!vid_info)
 		return -ENOMEM;
 
-	if (vlan_hw_filter_capable(dev, vid_info)) {
-		if (netif_device_present(dev))
-			err = ops->ndo_vlan_rx_add_vid(dev, proto, vid);
-		else
-			err = -ENODEV;
-		if (err) {
-			kfree(vid_info);
-			return err;
-		}
+	err = vlan_add_rx_filter_info(dev, proto, vid);
+	if (err) {
+		kfree(vid_info);
+		return err;
 	}
+
 	list_add(&vid_info->list, &vlan_info->vid_list);
 	vlan_info->nr_vids++;
 	*pvid_info = vid_info;
@@ -270,21 +327,15 @@ static void __vlan_vid_del(struct vlan_info *vlan_info,
 			   struct vlan_vid_info *vid_info)
 {
 	struct net_device *dev = vlan_info->real_dev;
-	const struct net_device_ops *ops = dev->netdev_ops;
 	__be16 proto = vid_info->proto;
 	u16 vid = vid_info->vid;
 	int err;
 
-	if (vlan_hw_filter_capable(dev, vid_info)) {
-		if (netif_device_present(dev))
-			err = ops->ndo_vlan_rx_kill_vid(dev, proto, vid);
-		else
-			err = -ENODEV;
-		if (err) {
-			pr_warn("failed to kill vid %04x/%d for device %s\n",
-				proto, vid, dev->name);
-		}
-	}
+	err = vlan_kill_rx_filter_info(dev, proto, vid);
+	if (err)
+		pr_warn("failed to kill vid %04x/%d for device %s\n",
+			proto, vid, dev->name);
+
 	list_del(&vid_info->list);
 	kfree(vid_info);
 	vlan_info->nr_vids--;

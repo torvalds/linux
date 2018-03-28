@@ -97,6 +97,9 @@ static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
 		if (((dev) = __vlan_group_get_device((grp), (i) / VLAN_N_VID, \
 							    (i) % VLAN_N_VID)))
 
+int vlan_filter_push_vids(struct vlan_info *vlan_info, __be16 proto);
+void vlan_filter_drop_vids(struct vlan_info *vlan_info, __be16 proto);
+
 /* found in vlan_dev.c */
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);

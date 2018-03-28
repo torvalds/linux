@@ -1584,6 +1584,8 @@ const char *netdev_cmd_to_name(enum netdev_cmd cmd)
 	N(RESEND_IGMP) N(PRECHANGEMTU) N(CHANGEINFODATA) N(BONDING_INFO)
 	N(PRECHANGEUPPER) N(CHANGELOWERSTATE) N(UDP_TUNNEL_PUSH_INFO)
 	N(UDP_TUNNEL_DROP_INFO) N(CHANGE_TX_QUEUE_LEN)
+	N(CVLAN_FILTER_PUSH_INFO) N(CVLAN_FILTER_DROP_INFO)
+	N(SVLAN_FILTER_PUSH_INFO) N(SVLAN_FILTER_DROP_INFO)
 	};
 #undef N
 	return "UNKNOWN_NETDEV_EVENT";
@@ -7662,6 +7664,24 @@ sync_lower:
 				udp_tunnel_get_rx_info(dev);
 			} else {
 				udp_tunnel_drop_rx_info(dev);
+			}
+		}
+
+		if (diff & NETIF_F_HW_VLAN_CTAG_FILTER) {
+			if (features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+				dev->features = features;
+				err |= vlan_get_rx_ctag_filter_info(dev);
+			} else {
+				vlan_drop_rx_ctag_filter_info(dev);
+			}
+		}
+
+		if (diff & NETIF_F_HW_VLAN_STAG_FILTER) {
+			if (features & NETIF_F_HW_VLAN_STAG_FILTER) {
+				dev->features = features;
+				err |= vlan_get_rx_stag_filter_info(dev);
+			} else {
+				vlan_drop_rx_stag_filter_info(dev);
 			}
 		}
 
