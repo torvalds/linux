@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
@@ -35,6 +36,8 @@ struct pwm_bl_data {
 	struct gpio_desc	*enable_gpio;
 	unsigned int		scale;
 	bool			legacy;
+	unsigned int		post_pwm_on_delay;
+	unsigned int		pwm_off_delay;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
@@ -56,6 +59,9 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 
 	pwm_enable(pb->pwm);
 
+	if (pb->post_pwm_on_delay)
+		msleep(pb->post_pwm_on_delay);
+
 	if (pb->enable_gpio)
 		gpiod_set_value_cansleep(pb->enable_gpio, 1);
 
@@ -69,6 +75,9 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 
 	if (pb->enable_gpio)
 		gpiod_set_value_cansleep(pb->enable_gpio, 0);
+
+	if (pb->pwm_off_delay)
+		msleep(pb->pwm_off_delay);
 
 	pwm_config(pb->pwm, 0, pb->period);
 	pwm_disable(pb->pwm);
@@ -178,6 +187,14 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->max_brightness--;
 	}
 
+	/*
+	 * These values are optional and set as 0 by default, the out values
+	 * are modified only if a valid u32 value can be decoded.
+	 */
+	of_property_read_u32(node, "post-pwm-on-delay-ms",
+			     &data->post_pwm_on_delay);
+	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
+
 	data->enable_gpio = -EINVAL;
 	return 0;
 }
@@ -276,6 +293,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
 	pb->enabled = false;
+	pb->post_pwm_on_delay = data->post_pwm_on_delay;
+	pb->pwm_off_delay = data->pwm_off_delay;
 
 	pb->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
 						  GPIOD_ASIS);
