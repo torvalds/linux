@@ -604,7 +604,6 @@ struct i915_psr {
 	unsigned busy_frontbuffer_bits;
 	bool psr2_support;
 	bool link_standby;
-	bool y_cord_support;
 	bool colorimetry_support;
 	bool alpm;
 	bool has_hw_tracking;

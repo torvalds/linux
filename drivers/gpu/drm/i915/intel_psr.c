@@ -93,7 +93,7 @@ static void psr_aux_io_power_put(struct intel_dp *intel_dp)
 	intel_display_power_put(dev_priv, psr_aux_domain(intel_dp));
 }
 
-static bool intel_dp_get_y_cord_status(struct intel_dp *intel_dp)
+static bool intel_dp_get_y_coord_required(struct intel_dp *intel_dp)
 {
 	uint8_t psr_caps = 0;
 
@@ -130,22 +130,29 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	drm_dp_dpcd_read(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
 			 sizeof(intel_dp->psr_dpcd));
 
-	if (intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED) {
+	if (intel_dp->psr_dpcd[0]) {
 		dev_priv->psr.sink_support = true;
 		DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9 &&
-	    (intel_dp->psr_dpcd[0] & DP_PSR2_IS_SUPPORTED)) {
-
-		dev_priv->psr.sink_support = true;
-		dev_priv->psr.psr2_support = true;
+	    (intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)) {
+		/*
+		 * All panels that supports PSR version 03h (PSR2 +
+		 * Y-coordinate) can handle Y-coordinates in VSC but we are
+		 * only sure that it is going to be used when required by the
+		 * panel. This way panel is capable to do selective update
+		 * without a aux frame sync.
+		 *
+		 * To support PSR version 02h and PSR version 03h without
+		 * Y-coordinate requirement panels we would need to enable
+		 * GTC first.
+		 */
+		dev_priv->psr.psr2_support = intel_dp_get_y_coord_required(intel_dp);
 		DRM_DEBUG_KMS("PSR2 %s on sink",
 			      dev_priv->psr.psr2_support ? "supported" : "not supported");
 
 		if (dev_priv->psr.psr2_support) {
-			dev_priv->psr.y_cord_support =
-				intel_dp_get_y_cord_status(intel_dp);
 			dev_priv->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
 			dev_priv->psr.alpm =
@@ -191,16 +198,12 @@ static void hsw_psr_setup_vsc(struct intel_dp *intel_dp,
 		memset(&psr_vsc, 0, sizeof(psr_vsc));
 		psr_vsc.sdp_header.HB0 = 0;
 		psr_vsc.sdp_header.HB1 = 0x7;
-		if (dev_priv->psr.colorimetry_support &&
-		    dev_priv->psr.y_cord_support) {
+		if (dev_priv->psr.colorimetry_support) {
 			psr_vsc.sdp_header.HB2 = 0x5;
 			psr_vsc.sdp_header.HB3 = 0x13;
-		} else if (dev_priv->psr.y_cord_support) {
+		} else {
 			psr_vsc.sdp_header.HB2 = 0x4;
 			psr_vsc.sdp_header.HB3 = 0xe;
-		} else {
-			psr_vsc.sdp_header.HB2 = 0x3;
-			psr_vsc.sdp_header.HB3 = 0xc;
 		}
 	} else {
 		/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
@@ -457,15 +460,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	/*
-	 * FIXME:enable psr2 only for y-cordinate psr2 panels
-	 * After gtc implementation , remove this restriction.
-	 */
-	if (!dev_priv->psr.y_cord_support) {
-		DRM_DEBUG_KMS("PSR2 not enabled, panel does not support Y coordinate\n");
-		return false;
-	}
-
 	return true;
 }
 
@@ -565,7 +559,6 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 chicken;
 
 	psr_aux_io_power_get(intel_dp);
 
@@ -576,9 +569,8 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 		hsw_psr_setup_aux(intel_dp);
 
 	if (dev_priv->psr.psr2_support) {
-		chicken = PSR2_VSC_ENABLE_PROG_HEADER;
-		if (dev_priv->psr.y_cord_support)
-			chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
+		u32 chicken = PSR2_VSC_ENABLE_PROG_HEADER
+			      | PSR2_ADD_VERTICAL_LINE_COUNT;
 		I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
 
 		I915_WRITE(EDP_PSR_DEBUG,
