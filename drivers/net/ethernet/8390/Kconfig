@@ -3,7 +3,7 @@
 #
 
 config NET_VENDOR_8390
-	bool "National Semi-conductor 8390 devices"
+	bool "National Semiconductor 8390 devices"
 	default y
 	depends on NET_VENDOR_NATSEMI
 	---help---

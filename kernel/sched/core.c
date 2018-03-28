@@ -6683,13 +6683,18 @@ static int tg_cfs_schedulable_down(struct task_group *tg, void *data)
 		parent_quota = parent_b->hierarchical_quota;
 
 		/*
-		 * Ensure max(child_quota) <= parent_quota, inherit when no
+		 * Ensure max(child_quota) <= parent_quota.  On cgroup2,
+		 * always take the min.  On cgroup1, only inherit when no
 		 * limit is set:
 		 */
-		if (quota == RUNTIME_INF)
-			quota = parent_quota;
-		else if (parent_quota != RUNTIME_INF && quota > parent_quota)
-			return -EINVAL;
+		if (cgroup_subsys_on_dfl(cpu_cgrp_subsys)) {
+			quota = min(quota, parent_quota);
+		} else {
+			if (quota == RUNTIME_INF)
+				quota = parent_quota;
+			else if (parent_quota != RUNTIME_INF && quota > parent_quota)
+				return -EINVAL;
+		}
 	}
 	cfs_b->hierarchical_quota = quota;
 

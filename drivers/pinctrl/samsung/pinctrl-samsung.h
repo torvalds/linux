@@ -282,6 +282,16 @@ struct samsung_pinctrl_drv_data {
 };
 
 /**
+ * struct samsung_pinctrl_of_match_data: OF match device specific configuration data.
+ * @ctrl: array of pin controller data.
+ * @num_ctrl: size of array @ctrl.
+ */
+struct samsung_pinctrl_of_match_data {
+	const struct samsung_pin_ctrl	*ctrl;
+	unsigned int			num_ctrl;
+};
+
+/**
  * struct samsung_pin_group: represent group of pins of a pinmux function.
  * @name: name of the pin group, used to lookup the group.
  * @pins: the pins included in this group.
@@ -309,20 +319,20 @@ struct samsung_pmx_func {
 };
 
 /* list of all exported SoC specific data */
-extern const struct samsung_pin_ctrl exynos3250_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos4210_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos4x12_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos5250_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos5260_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos5410_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos5420_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos5433_pin_ctrl[];
-extern const struct samsung_pin_ctrl exynos7_pin_ctrl[];
-extern const struct samsung_pin_ctrl s3c64xx_pin_ctrl[];
-extern const struct samsung_pin_ctrl s3c2412_pin_ctrl[];
-extern const struct samsung_pin_ctrl s3c2416_pin_ctrl[];
-extern const struct samsung_pin_ctrl s3c2440_pin_ctrl[];
-extern const struct samsung_pin_ctrl s3c2450_pin_ctrl[];
-extern const struct samsung_pin_ctrl s5pv210_pin_ctrl[];
+extern const struct samsung_pinctrl_of_match_data exynos3250_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos4210_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos4x12_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos5250_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos5260_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos5410_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos5420_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos5433_of_data;
+extern const struct samsung_pinctrl_of_match_data exynos7_of_data;
+extern const struct samsung_pinctrl_of_match_data s3c64xx_of_data;
+extern const struct samsung_pinctrl_of_match_data s3c2412_of_data;
+extern const struct samsung_pinctrl_of_match_data s3c2416_of_data;
+extern const struct samsung_pinctrl_of_match_data s3c2440_of_data;
+extern const struct samsung_pinctrl_of_match_data s3c2450_of_data;
+extern const struct samsung_pinctrl_of_match_data s5pv210_of_data;
 
 #endif /* __PINCTRL_SAMSUNG_H */

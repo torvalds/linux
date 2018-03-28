@@ -361,9 +361,9 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 				    info->hit_count, XT_RECENT_MAX_NSTAMPS - 1);
 		return -EINVAL;
 	}
-	if (info->name[0] == '\0' ||
-	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	if (ip_pkt_list_tot && info->hit_count < ip_pkt_list_tot)
 		nstamp_mask = roundup_pow_of_two(ip_pkt_list_tot) - 1;

@@ -2675,10 +2675,14 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	else
 		ndr_desc->numa_node = NUMA_NO_NODE;
 
-	if(acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_CACHE_FLUSH)
+	/*
+	 * Persistence domain bits are hierarchical, if
+	 * ACPI_NFIT_CAPABILITY_CACHE_FLUSH is set then
+	 * ACPI_NFIT_CAPABILITY_MEM_FLUSH is implied.
+	 */
+	if (acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_CACHE_FLUSH)
 		set_bit(ND_REGION_PERSIST_CACHE, &ndr_desc->flags);
-
-	if (acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_MEM_FLUSH)
+	else if (acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_MEM_FLUSH)
 		set_bit(ND_REGION_PERSIST_MEMCTRL, &ndr_desc->flags);
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
