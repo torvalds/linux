@@ -687,6 +687,9 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code)
 	/* Create VM */
 	vm = vm_create(VM_MODE_FLAT48PG, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
 
+	/* Setup guest code */
+	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
+
 	/* Setup IRQ Chip */
 	vm_create_irqchip(vm);
 
