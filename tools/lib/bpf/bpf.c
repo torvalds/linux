@@ -428,6 +428,17 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 	return err;
 }
 
+int bpf_raw_tracepoint_open(const char *name, int prog_fd)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.raw_tracepoint.name = ptr_to_u64(name);
+	attr.raw_tracepoint.prog_fd = prog_fd;
+
+	return sys_bpf(BPF_RAW_TRACEPOINT_OPEN, &attr, sizeof(attr));
+}
+
 int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 {
 	struct sockaddr_nl sa;

@@ -95,6 +95,7 @@
 #ifdef TRACEPOINTS_ENABLED
 #include <trace/trace_events.h>
 #include <trace/perf.h>
+#include <trace/bpf_probe.h>
 #endif
 
 #undef TRACE_EVENT

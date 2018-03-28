@@ -877,7 +877,7 @@ static void test_stacktrace_map()
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
-		goto out;
+		return;
 
 	/* Get the ID for the sched/sched_switch tracepoint */
 	snprintf(buf, sizeof(buf),
@@ -888,8 +888,7 @@ static void test_stacktrace_map()
 
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
-	if (CHECK(bytes <= 0 || bytes >= sizeof(buf),
-		  "read", "bytes %d errno %d\n", bytes, errno))
+	if (bytes <= 0 || bytes >= sizeof(buf))
 		goto close_prog;
 
 	/* Open the perf event and attach bpf progrram */
@@ -906,29 +905,24 @@ static void test_stacktrace_map()
 		goto close_prog;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
-	if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n",
-		  err, errno))
-		goto close_pmu;
+	if (err)
+		goto disable_pmu;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
-	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n",
-		  err, errno))
+	if (err)
 		goto disable_pmu;
 
 	/* find map fds */
 	control_map_fd = bpf_find_map(__func__, obj, "control_map");
-	if (CHECK(control_map_fd < 0, "bpf_find_map control_map",
-		  "err %d errno %d\n", err, errno))
+	if (control_map_fd < 0)
 		goto disable_pmu;
 
 	stackid_hmap_fd = bpf_find_map(__func__, obj, "stackid_hmap");
-	if (CHECK(stackid_hmap_fd < 0, "bpf_find_map stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+	if (stackid_hmap_fd < 0)
 		goto disable_pmu;
 
 	stackmap_fd = bpf_find_map(__func__, obj, "stackmap");
-	if (CHECK(stackmap_fd < 0, "bpf_find_map stackmap", "err %d errno %d\n",
-		  err, errno))
+	if (stackmap_fd < 0)
 		goto disable_pmu;
 
 	/* give some time for bpf program run */
@@ -945,24 +939,78 @@ static void test_stacktrace_map()
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
 		  "err %d errno %d\n", err, errno))
-		goto disable_pmu;
+		goto disable_pmu_noerr;
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
 		  "err %d errno %d\n", err, errno))
-		; /* fall through */
+		goto disable_pmu_noerr;
 
+	goto disable_pmu_noerr;
 disable_pmu:
+	error_cnt++;
+disable_pmu_noerr:
 	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
-
-close_pmu:
 	close(pmu_fd);
-
 close_prog:
 	bpf_object__close(obj);
+}
 
-out:
-	return;
+static void test_stacktrace_map_raw_tp()
+{
+	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	const char *file = "./test_stacktrace_map.o";
+	int efd, err, prog_fd;
+	__u32 key, val, duration = 0;
+	struct bpf_object *obj;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+		return;
+
+	efd = bpf_raw_tracepoint_open("sched_switch", prog_fd);
+	if (CHECK(efd < 0, "raw_tp_open", "err %d errno %d\n", efd, errno))
+		goto close_prog;
+
+	/* find map fds */
+	control_map_fd = bpf_find_map(__func__, obj, "control_map");
+	if (control_map_fd < 0)
+		goto close_prog;
+
+	stackid_hmap_fd = bpf_find_map(__func__, obj, "stackid_hmap");
+	if (stackid_hmap_fd < 0)
+		goto close_prog;
+
+	stackmap_fd = bpf_find_map(__func__, obj, "stackmap");
+	if (stackmap_fd < 0)
+		goto close_prog;
+
+	/* give some time for bpf program run */
+	sleep(1);
+
+	/* disable stack trace collection */
+	key = 0;
+	val = 1;
+	bpf_map_update_elem(control_map_fd, &key, &val, 0);
+
+	/* for every element in stackid_hmap, we can find a corresponding one
+	 * in stackmap, and vise versa.
+	 */
+	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
+	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
+		  "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
+	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
+		  "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	goto close_prog_noerr;
+close_prog:
+	error_cnt++;
+close_prog_noerr:
+	bpf_object__close(obj);
 }
 
 static int extract_build_id(char *build_id, size_t size)
@@ -1138,6 +1186,7 @@ int main(void)
 	test_tp_attach_query();
 	test_stacktrace_map();
 	test_stacktrace_build_id();
+	test_stacktrace_map_raw_tp();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
