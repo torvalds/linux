@@ -201,6 +201,15 @@ static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 	return va;
 }
 
+static inline void fixup_tlbie(unsigned long vpn, int psize, int apsize, int ssize)
+{
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+		/* Need the extra ptesync to ensure we don't reorder tlbie*/
+		asm volatile("ptesync": : :"memory");
+		___tlbie(vpn, psize, apsize, ssize);
+	}
+}
+
 static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 {
 	unsigned long rb;
@@ -278,6 +287,7 @@ static inline void tlbie(unsigned long vpn, int psize, int apsize,
 		asm volatile("ptesync": : :"memory");
 	} else {
 		__tlbie(vpn, psize, apsize, ssize);
+		fixup_tlbie(vpn, psize, apsize, ssize);
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
@@ -771,7 +781,7 @@ static void native_hpte_clear(void)
  */
 static void native_flush_hash_range(unsigned long number, int local)
 {
-	unsigned long vpn;
+	unsigned long vpn = 0;
 	unsigned long hash, index, hidx, shift, slot;
 	struct hash_pte *hptep;
 	unsigned long hpte_v;
@@ -843,6 +853,10 @@ static void native_flush_hash_range(unsigned long number, int local)
 				__tlbie(vpn, psize, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
+		/*
+		 * Just do one more with the last used values.
+		 */
+		fixup_tlbie(vpn, psize, psize, ssize);
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 
 		if (lock_tlbie)

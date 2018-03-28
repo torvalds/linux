@@ -97,6 +97,9 @@ typedef struct {
 	/* Number of bits in the mm_cpumask */
 	atomic_t active_cpus;
 
+	/* Number of users of the external (Nest) MMU */
+	atomic_t copros;
+
 	/* NPU NMMU context */
 	struct npu_context *npu_context;
 

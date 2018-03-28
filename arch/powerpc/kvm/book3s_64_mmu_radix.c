@@ -157,6 +157,9 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	asm volatile("ptesync": : :"memory");
 	asm volatile(PPC_TLBIE_5(%0, %1, 0, 0, 1)
 		     : : "r" (addr), "r" (kvm->arch.lpid) : "memory");
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG))
+		asm volatile(PPC_TLBIE_5(%0, %1, 0, 0, 1)
+			     : : "r" (addr), "r" (kvm->arch.lpid) : "memory");
 	asm volatile("ptesync": : :"memory");
 }
 

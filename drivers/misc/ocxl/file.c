@@ -102,10 +102,32 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 	return rc;
 }
 
+static long afu_ioctl_get_metadata(struct ocxl_context *ctx,
+		struct ocxl_ioctl_metadata __user *uarg)
+{
+	struct ocxl_ioctl_metadata arg;
+
+	memset(&arg, 0, sizeof(arg));
+
+	arg.version = 0;
+
+	arg.afu_version_major = ctx->afu->config.version_major;
+	arg.afu_version_minor = ctx->afu->config.version_minor;
+	arg.pasid = ctx->pasid;
+	arg.pp_mmio_size = ctx->afu->config.pp_mmio_stride;
+	arg.global_mmio_size = ctx->afu->config.global_mmio_size;
+
+	if (copy_to_user(uarg, &arg, sizeof(arg)))
+		return -EFAULT;
+
+	return 0;
+}
+
 #define CMD_STR(x) (x == OCXL_IOCTL_ATTACH ? "ATTACH" :			\
 			x == OCXL_IOCTL_IRQ_ALLOC ? "IRQ_ALLOC" :	\
 			x == OCXL_IOCTL_IRQ_FREE ? "IRQ_FREE" :		\
 			x == OCXL_IOCTL_IRQ_SET_FD ? "IRQ_SET_FD" :	\
+			x == OCXL_IOCTL_GET_METADATA ? "GET_METADATA" :	\
 			"UNKNOWN")
 
 static long afu_ioctl(struct file *file, unsigned int cmd,
@@ -157,6 +179,11 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		rc = ocxl_afu_irq_set_fd(ctx, irq_fd.irq_offset,
 					irq_fd.eventfd);
+		break;
+
+	case OCXL_IOCTL_GET_METADATA:
+		rc = afu_ioctl_get_metadata(ctx,
+				(struct ocxl_ioctl_metadata __user *) args);
 		break;
 
 	default:
