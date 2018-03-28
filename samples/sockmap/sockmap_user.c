@@ -65,6 +65,7 @@ int txmsg_cork;
 int txmsg_start;
 int txmsg_end;
 int txmsg_ingress;
+int txmsg_skb;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -85,6 +86,7 @@ static const struct option long_options[] = {
 	{"txmsg_start", required_argument,	NULL, 's'},
 	{"txmsg_end",	required_argument,	NULL, 'e'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
+	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
 	{0, 0, NULL, 0 }
 };
 
@@ -825,6 +827,27 @@ run:
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (p2 txmsg): %d (%s)\n",
+					err, strerror(errno));
+			}
+		}
+
+		if (txmsg_skb) {
+			int skb_fd = (test == SENDMSG || test == SENDPAGE) ? p2 : p1;
+			int ingress = BPF_F_INGRESS;
+
+			i = 0;
+			err = bpf_map_update_elem(map_fd[7], &i, &ingress, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
+					err, strerror(errno));
+			}
+
+			i = 3;
+			err = bpf_map_update_elem(map_fd[0], &i, &skb_fd, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
 					err, strerror(errno));
 			}
 		}

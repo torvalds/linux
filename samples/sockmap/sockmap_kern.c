@@ -85,6 +85,12 @@ struct bpf_map_def SEC("maps") sock_redir_flags = {
 	.max_entries = 1
 };
 
+struct bpf_map_def SEC("maps") sock_skb_opts = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 1
+};
 
 SEC("sk_skb1")
 int bpf_prog1(struct __sk_buff *skb)
@@ -97,15 +103,24 @@ int bpf_prog2(struct __sk_buff *skb)
 {
 	__u32 lport = skb->local_port;
 	__u32 rport = skb->remote_port;
-	int ret = 0;
+	int len, *f, ret, zero = 0;
+	__u64 flags = 0;
 
 	if (lport == 10000)
 		ret = 10;
 	else
 		ret = 1;
 
-	bpf_printk("sockmap: %d -> %d @ %d\n", lport, bpf_ntohl(rport), ret);
-	return bpf_sk_redirect_map(skb, &sock_map, ret, 0);
+	len = (__u32)skb->data_end - (__u32)skb->data;
+	f = bpf_map_lookup_elem(&sock_skb_opts, &zero);
+	if (f && *f) {
+		ret = 3;
+		flags = *f;
+	}
+
+	bpf_printk("sk_skb2: redirect(%iB) flags=%i\n",
+		   len, flags);
+	return bpf_sk_redirect_map(skb, &sock_map, ret, flags);
 }
 
 SEC("sockops")
