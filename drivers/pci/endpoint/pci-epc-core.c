@@ -315,7 +315,9 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no,
 	    (epf_bar->barno == BAR_5 &&
 	     flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ||
 	    (flags & PCI_BASE_ADDRESS_SPACE_IO &&
-	     flags & PCI_BASE_ADDRESS_IO_MASK))
+	     flags & PCI_BASE_ADDRESS_IO_MASK) ||
+	    (upper_32_bits(epf_bar->size) &&
+	     !(flags & PCI_BASE_ADDRESS_MEM_TYPE_64)))
 		return -EINVAL;
 
 	if (!epc->ops->set_bar)
