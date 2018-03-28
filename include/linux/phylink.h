@@ -219,9 +219,6 @@ void phylink_ethtool_get_pauseparam(struct phylink *,
 				    struct ethtool_pauseparam *);
 int phylink_ethtool_set_pauseparam(struct phylink *,
 				   struct ethtool_pauseparam *);
-int phylink_ethtool_get_module_info(struct phylink *, struct ethtool_modinfo *);
-int phylink_ethtool_get_module_eeprom(struct phylink *,
-				      struct ethtool_eeprom *, u8 *);
 int phylink_get_eee_err(struct phylink *);
 int phylink_ethtool_get_eee(struct phylink *, struct ethtool_eee *);
 int phylink_ethtool_set_eee(struct phylink *, struct ethtool_eee *);

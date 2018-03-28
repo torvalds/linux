@@ -4075,22 +4075,6 @@ static int mvneta_ethtool_set_wol(struct net_device *dev,
 	return ret;
 }
 
-static int mvneta_ethtool_get_module_info(struct net_device *dev,
-					  struct ethtool_modinfo *modinfo)
-{
-	struct mvneta_port *pp = netdev_priv(dev);
-
-	return phylink_ethtool_get_module_info(pp->phylink, modinfo);
-}
-
-static int mvneta_ethtool_get_module_eeprom(struct net_device *dev,
-					    struct ethtool_eeprom *ee, u8 *buf)
-{
-	struct mvneta_port *pp = netdev_priv(dev);
-
-	return phylink_ethtool_get_module_eeprom(pp->phylink, ee, buf);
-}
-
 static int mvneta_ethtool_get_eee(struct net_device *dev,
 				  struct ethtool_eee *eee)
 {
@@ -4165,8 +4149,6 @@ static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.set_link_ksettings = mvneta_ethtool_set_link_ksettings,
 	.get_wol        = mvneta_ethtool_get_wol,
 	.set_wol        = mvneta_ethtool_set_wol,
-	.get_module_info = mvneta_ethtool_get_module_info,
-	.get_module_eeprom = mvneta_ethtool_get_module_eeprom,
 	.get_eee	= mvneta_ethtool_get_eee,
 	.set_eee	= mvneta_ethtool_set_eee,
 };
