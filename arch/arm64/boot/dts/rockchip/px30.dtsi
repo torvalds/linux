@@ -804,12 +804,12 @@
 			thermal-sensors = <&tsadc 0>;
 
 			trips {
-				threshold: trip-point@0 {
+				threshold: trip-point-0 {
 					temperature = <70000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				target: trip-point@1 {
+				target: trip-point-1 {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
@@ -1142,7 +1142,7 @@
 		operating-points-v2 = <&gpu_opp_table>;
 
 		status = "disabled";
-		power_model@0 {
+		power_model {
 			compatible = "arm,mali-simple-power-model";
 			static-coefficient = <411000>;
 			dynamic-coefficient = <733>;

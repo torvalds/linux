@@ -550,7 +550,7 @@
 &i2c1 {
 	status = "okay";
 
-	sensor@0f {
+	sensor@f {
 		status = "okay";
 		compatible = "ak8963";
 		reg = <0x0f>;
