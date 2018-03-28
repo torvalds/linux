@@ -276,7 +276,6 @@ static int ks_wlan_set_essid(struct net_device *dev,
 		memset(priv->reg.ssid.body, 0, sizeof(priv->reg.ssid.body));
 		priv->reg.ssid.size = 0;
 	} else {
-#if 1
 		len = dwrq->length;
 		/* iwconfig uses nul termination in SSID.. */
 		if (len > 0 && extra[len - 1] == '\0')
@@ -286,28 +285,14 @@ static int ks_wlan_set_essid(struct net_device *dev,
 		if (len > IW_ESSID_MAX_SIZE)
 			return -EINVAL;
 
-#else
-		/* Check the size of the string */
-		if (dwrq->length > IW_ESSID_MAX_SIZE + 1)
-			return -E2BIG;
-
-#endif
-
 		/* Set the SSID */
 		memset(priv->reg.ssid.body, 0, sizeof(priv->reg.ssid.body));
-
-#if 1
 		memcpy(priv->reg.ssid.body, extra, len);
 		priv->reg.ssid.size = len;
-#else
-		memcpy(priv->reg.ssid.body, extra, dwrq->length);
-		priv->reg.ssid.size = dwrq->length;
-#endif
 	}
 	/* Write it to the card */
 	priv->need_commit |= SME_MODE_SET;
 
-//      return  -EINPROGRESS;   /* Call commit handler */
 	ks_wlan_setup_parameter(priv, priv->need_commit);
 	priv->need_commit = 0;
 	return 0;
