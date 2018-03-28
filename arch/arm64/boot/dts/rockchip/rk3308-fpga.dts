@@ -16,7 +16,7 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff0b0000 console=ttyFIQ0 init=/init initrd=0x9000000,0x18bfc0";
 	};
 
-	memory@00000000 {
+	memory@200000 {
 		device_type = "memory";
 		reg = <0x0 0x00200000 0x0 0x0FE00000>;
 	};
