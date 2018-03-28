@@ -2303,9 +2303,9 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return rc;
 }
 
-int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
-					 struct qed_ptt *p_ptt,
-					 u32 *num_images)
+int qed_mcp_bist_nvm_get_num_images(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    u32 *num_images)
 {
 	u32 drv_mb_param = 0, rsp;
 	int rc = 0;
@@ -2324,10 +2324,10 @@ int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
-					struct qed_ptt *p_ptt,
-					struct bist_nvm_image_att *p_image_att,
-					u32 image_index)
+int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   struct bist_nvm_image_att *p_image_att,
+				   u32 image_index)
 {
 	u32 buf_size = 0, param, resp = 0, resp_param = 0;
 	int rc;
@@ -2351,16 +2351,71 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
+{
+	struct qed_nvm_image_info *nvm_info = &p_hwfn->nvm_info;
+	struct qed_ptt *p_ptt;
+	int rc;
+	u32 i;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt) {
+		DP_ERR(p_hwfn, "failed to acquire ptt\n");
+		return -EBUSY;
+	}
+
+	/* Acquire from MFW the amount of available images */
+	nvm_info->num_images = 0;
+	rc = qed_mcp_bist_nvm_get_num_images(p_hwfn,
+					     p_ptt, &nvm_info->num_images);
+	if (rc == -EOPNOTSUPP) {
+		DP_INFO(p_hwfn, "DRV_MSG_CODE_BIST_TEST is not supported\n");
+		goto out;
+	} else if (rc || !nvm_info->num_images) {
+		DP_ERR(p_hwfn, "Failed getting number of images\n");
+		goto err0;
+	}
+
+	nvm_info->image_att = kmalloc(nvm_info->num_images *
+				      sizeof(struct bist_nvm_image_att),
+				      GFP_KERNEL);
+	if (!nvm_info->image_att) {
+		rc = -ENOMEM;
+		goto err0;
+	}
+
+	/* Iterate over images and get their attributes */
+	for (i = 0; i < nvm_info->num_images; i++) {
+		rc = qed_mcp_bist_nvm_get_image_att(p_hwfn, p_ptt,
+						    &nvm_info->image_att[i], i);
+		if (rc) {
+			DP_ERR(p_hwfn,
+			       "Failed getting image index %d attributes\n", i);
+			goto err1;
+		}
+
+		DP_VERBOSE(p_hwfn, QED_MSG_SP, "image index %d, size %x\n", i,
+			   nvm_info->image_att[i].len);
+	}
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
+	return 0;
+
+err1:
+	kfree(nvm_info->image_att);
+err0:
+	qed_ptt_release(p_hwfn, p_ptt);
+	return rc;
+}
+
 static int
 qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt,
 			  enum qed_nvm_images image_id,
 			  struct qed_nvm_image_att *p_image_att)
 {
-	struct bist_nvm_image_att mfw_image_att;
 	enum nvm_image_type type;
-	u32 num_images, i;
-	int rc;
+	u32 i;
 
 	/* Translate image_id into MFW definitions */
 	switch (image_id) {
@@ -2376,29 +2431,18 @@ qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	/* Learn number of images, then traverse and see if one fits */
-	rc = qed_mcp_bist_nvm_test_get_num_images(p_hwfn, p_ptt, &num_images);
-	if (rc || !num_images)
-		return -EINVAL;
-
-	for (i = 0; i < num_images; i++) {
-		rc = qed_mcp_bist_nvm_test_get_image_att(p_hwfn, p_ptt,
-							 &mfw_image_att, i);
-		if (rc)
-			return rc;
-
-		if (type == mfw_image_att.image_type)
+	for (i = 0; i < p_hwfn->nvm_info.num_images; i++)
+		if (type == p_hwfn->nvm_info.image_att[i].image_type)
 			break;
-	}
-	if (i == num_images) {
+	if (i == p_hwfn->nvm_info.num_images) {
 		DP_VERBOSE(p_hwfn, QED_MSG_STORAGE,
 			   "Failed to find nvram image of type %08x\n",
 			   image_id);
-		return -EINVAL;
+		return -ENOENT;
 	}
 
-	p_image_att->start_addr = mfw_image_att.nvm_start_addr;
-	p_image_att->length = mfw_image_att.len;
+	p_image_att->start_addr = p_hwfn->nvm_info.image_att[i].nvm_start_addr;
+	p_image_att->length = p_hwfn->nvm_info.image_att[i].len;
 
 	return 0;
 }

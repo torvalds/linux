@@ -496,9 +496,9 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
  *
  * @return int - 0 - operation was successful.
  */
-int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
-					 struct qed_ptt *p_ptt,
-					 u32 *num_images);
+int qed_mcp_bist_nvm_get_num_images(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    u32 *num_images);
 
 /**
  * @brief Bist nvm test - get image attributes by index
@@ -510,10 +510,10 @@ int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
  *
  * @return int - 0 - operation was successful.
  */
-int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
-					struct qed_ptt *p_ptt,
-					struct bist_nvm_image_att *p_image_att,
-					u32 image_index);
+int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   struct bist_nvm_image_att *p_image_att,
+				   u32 image_index);
 
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
@@ -957,4 +957,12 @@ int qed_mcp_get_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  * @param p_ptt
  */
 int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Populate the nvm info shadow in the given hardware function
+ *
+ * @param p_hwfn
+ */
+int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn);
+
 #endif

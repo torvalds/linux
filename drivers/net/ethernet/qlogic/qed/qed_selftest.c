@@ -125,7 +125,7 @@ int qed_selftest_nvram(struct qed_dev *cdev)
 	}
 
 	/* Acquire from MFW the amount of available images */
-	rc = qed_mcp_bist_nvm_test_get_num_images(p_hwfn, p_ptt, &num_images);
+	rc = qed_mcp_bist_nvm_get_num_images(p_hwfn, p_ptt, &num_images);
 	if (rc || !num_images) {
 		DP_ERR(p_hwfn, "Failed getting number of images\n");
 		return -EINVAL;
@@ -136,8 +136,8 @@ int qed_selftest_nvram(struct qed_dev *cdev)
 		/* This mailbox returns information about the image required for
 		 * reading it.
 		 */
-		rc = qed_mcp_bist_nvm_test_get_image_att(p_hwfn, p_ptt,
-							 &image_att, i);
+		rc = qed_mcp_bist_nvm_get_image_att(p_hwfn, p_ptt,
+						    &image_att, i);
 		if (rc) {
 			DP_ERR(p_hwfn,
 			       "Failed getting image index %d attributes\n",
