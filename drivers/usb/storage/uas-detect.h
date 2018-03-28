@@ -116,6 +116,14 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	if (le16_to_cpu(udev->descriptor.idVendor) == 0x0bc2)
 		flags |= US_FL_NO_ATA_1X;
 
+	/* ayufan: All Seagate disk do probably have broken UAS support */
+	if (le16_to_cpu(udev->descriptor.idVendor) == 0x0bc2)
+		flags |= US_FL_IGNORE_UAS;
+
+	/* ayufan: All WD disk do probably have broken UAS support */
+	if (le16_to_cpu(udev->descriptor.idVendor) == 0x1058)
+		flags |= US_FL_IGNORE_UAS;
+
 	usb_stor_adjust_quirks(udev, &flags);
 
 	if (flags & US_FL_IGNORE_UAS) {
