@@ -348,8 +348,8 @@ out:
 /*
  * Calculates the digest for the given bio
  */
-int verity_for_io_block(struct dm_verity *v, struct dm_verity_io *io,
-			struct bvec_iter *iter, struct crypto_wait *wait)
+static int verity_for_io_block(struct dm_verity *v, struct dm_verity_io *io,
+			       struct bvec_iter *iter, struct crypto_wait *wait)
 {
 	unsigned int todo = 1 << v->data_dev_block_bits;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
