@@ -47,7 +47,7 @@ static inline void michael_block(struct michael_mic_t *mic)
 	mic->l += mic->r;
 }
 
-static void michael_append(struct michael_mic_t *mic, uint8_t *src, int bytes)
+static void michael_append(struct michael_mic_t *mic, u8 *src, int bytes)
 {
 	int addlen;
 
@@ -125,8 +125,8 @@ void michael_mic_function(struct michael_mic_t *mic, u8 *key,
 	 * +--+--+--------+--+----+--+--+--+--+--+--+--+--+
 	 */
 	michael_init(mic, key);
-	michael_append(mic, (uint8_t *)data, 12);	/* |DA|SA| */
+	michael_append(mic, data, 12);	/* |DA|SA| */
 	michael_append(mic, pad_data, 4);	/* |Priority|0|0|0| */
-	michael_append(mic, (uint8_t *)(data + 12), len - 12);	/* |Data| */
+	michael_append(mic, data + 12, len - 12);	/* |Data| */
 	michael_get_mic(mic, result);
 }
