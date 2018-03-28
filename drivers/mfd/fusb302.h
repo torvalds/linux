@@ -412,11 +412,21 @@ enum CC_MODE {
 	CC_PULL_NONE,
 };
 
+enum typec_power_role {
+	POWER_ROLE_SINK = 0,
+	POWER_ROLE_SOURCE,
+};
+
+enum typec_data_role {
+	DATA_ROLE_UFP = 0,
+	DATA_ROLE_DFP,
+};
+
 struct notify_info {
 	enum CC_ORIENTATION orientation;
 	/* 0 UFP : 1 DFP */
-	bool power_role;
-	bool data_role;
+	enum typec_power_role power_role;
+	enum typec_data_role data_role;
 
 	bool is_cc_connected;
 	bool is_pd_connected;

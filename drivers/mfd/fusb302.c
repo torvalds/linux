@@ -220,8 +220,8 @@ void fusb_irq_enable(struct fusb30x_chip *chip)
 
 static void platform_fusb_notify(struct fusb30x_chip *chip)
 {
-	bool plugged = 0, flip = 0, dfp = 0, ufp = 0, dp = 0, usb_ss = 0,
-	     hpd = 0;
+	bool plugged = false, flip = false, dfp = false, ufp = false,
+	     dp = false, usb_ss = false, hpd = false;
 	union extcon_property_value property;
 
 	if (chip->notify.is_cc_connected)
@@ -233,27 +233,28 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 	if (memcmp(&chip->notify, &chip->notify_cmp,
 		   sizeof(struct notify_info))) {
 		dump_notify_info(chip);
-		chip->notify.attention = 0;
+		chip->notify.attention = false;
 		memcpy(&chip->notify_cmp, &chip->notify,
 		       sizeof(struct notify_info));
 
 		plugged = chip->notify.is_cc_connected ||
 			  chip->notify.is_pd_connected;
-		flip = chip->notify.orientation ?
-		       (chip->notify.orientation - 1) : 0;
+		if (chip->notify.orientation != NONE)
+			flip = (chip->notify.orientation == CC1) ? false : true;
 		dp = chip->notify.is_enter_mode;
 
 		if (dp) {
-			dfp = 1;
+			dfp = true;
 			usb_ss = (chip->notify.pin_assignment_def &
-				(PIN_MAP_B | PIN_MAP_D | PIN_MAP_F)) ? 1 : 0;
+				 (PIN_MAP_B | PIN_MAP_D | PIN_MAP_F)) ?
+				 true : false;
 			hpd = GET_DP_STATUS_HPD(chip->notify.dp_status);
 		} else if (chip->notify.data_role) {
-			dfp = 1;
-			usb_ss = 1;
+			dfp = true;
+			usb_ss = true;
 		} else if (plugged) {
-			ufp = 1;
-			usb_ss = 1;
+			ufp = true;
+			usb_ss = true;
 		}
 
 		property.intval = flip;
@@ -277,7 +278,7 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 		extcon_sync(chip->extcon, EXTCON_USB);
 		extcon_sync(chip->extcon, EXTCON_USB_HOST);
 		extcon_sync(chip->extcon, EXTCON_DISP_DP);
-		if (chip->notify.power_role == 0 &&
+		if (chip->notify.power_role == POWER_ROLE_SINK &&
 		    chip->notify.is_pd_connected &&
 		    chip->pd_output_vol > 0 && chip->pd_output_cur > 0) {
 			extcon_set_state(chip->extcon, EXTCON_CHG_USB_FAST, true);
@@ -308,7 +309,7 @@ static void fusb_timer_start(struct hrtimer *timer, int ms)
 static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 					 int vbus_other)
 {
-	bool gpio_vbus_value = 0;
+	bool gpio_vbus_value = false;
 
 	gpio_vbus_value = gpiod_get_value(chip->gpio_vbus_5v);
 	if (chip->gpio_vbus_5v) {
@@ -619,7 +620,7 @@ static int tcpm_set_vconn(struct fusb30x_chip *chip, int enable)
 	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 			   SWITCHES0_VCONN_CC1 | SWITCHES0_VCONN_CC2,
 			   val);
-	chip->vconn_enabled = enable;
+	chip->vconn_enabled = (bool)enable;
 	return 0;
 }
 
@@ -692,7 +693,7 @@ static void tcpm_init(struct fusb30x_chip *chip)
 	regmap_read(chip->regmap, FUSB_REG_DEVICEID, &tmp);
 	chip->chip_id = (u8)tmp;
 	platform_set_vbus_lvl_enable(chip, 0, 0);
-	chip->notify.is_cc_connected = 0;
+	chip->notify.is_cc_connected = false;
 	chip->cc_state = 0;
 
 	/* restore default settings */
@@ -714,7 +715,6 @@ static void tcpm_init(struct fusb30x_chip *chip)
 		 MASKA_M_HARDRST | MASKA_M_TOGDONE);
 	regmap_write(chip->regmap, FUSB_REG_MASKA, val);
 
-	val = 0xff;
 	val = ~MASKB_M_GCRCSEND;
 	regmap_write(chip->regmap, FUSB_REG_MASKB, val);
 
@@ -1041,7 +1041,7 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 			chip->notify.dp_status = GET_DP_STATUS(chip->rec_load[1]);
 			dev_info(chip->dev, "attention, dp_status %x\n",
 				 chip->rec_load[1]);
-			chip->notify.attention = 1;
+			chip->notify.attention = true;
 			chip->vdm_state = 6;
 			platform_fusb_notify(chip);
 			break;
@@ -1115,7 +1115,7 @@ static void process_vdm_msg(struct fusb30x_chip *chip)
 			dev_info(chip->dev,
 				 "DP config successful, pin_assignment 0x%x\n",
 				 chip->notify.pin_assignment_def);
-			chip->notify.is_enter_mode = 1;
+			chip->notify.is_enter_mode = true;
 			break;
 		default:
 			break;
@@ -1272,7 +1272,7 @@ static int vdm_send_entermode(struct fusb30x_chip *chip, u32 evt)
 		set_vdm_mesg(chip, VDM_ENTER_MODE, VDM_TYPE_INIT, 1);
 		chip->tx_state = 0;
 		chip->vdm_send_state++;
-		chip->notify.is_enter_mode = 0;
+		chip->notify.is_enter_mode = false;
 	case 1:
 		tmp = policy_send_data(chip);
 		if (tmp == tx_success) {
@@ -1443,8 +1443,8 @@ static void fusb_state_disabled(struct fusb30x_chip *chip, u32 evt)
 
 static void fusb_state_unattached(struct fusb30x_chip *chip, u32 evt)
 {
-	chip->notify.is_cc_connected = 0;
-	chip->is_pd_support = 0;
+	chip->notify.is_cc_connected = false;
+	chip->is_pd_support = false;
 
 	if ((evt & EVENT_CC) && chip->cc_state) {
 		if (chip->cc_state & CC_STATE_TOGSS_IS_UFP)
@@ -1580,8 +1580,8 @@ static void fusb_state_attached_source(struct fusb30x_chip *chip, u32 evt)
 
 	chip->notify.is_cc_connected = true;
 
-	chip->notify.power_role = 1;
-	chip->notify.data_role = 1;
+	chip->notify.power_role = POWER_ROLE_SOURCE;
+	chip->notify.data_role = DATA_ROLE_DFP;
 	chip->hardrst_count = 0;
 	set_state(chip, policy_src_startup);
 	regmap_update_bits(chip->regmap, FUSB_REG_MASK, MASK_M_COMP_CHNG, 0);
@@ -1603,8 +1603,8 @@ static void fusb_state_attached_sink(struct fusb30x_chip *chip, u32 evt)
 
 		chip->try_role_complete = true;
 		chip->notify.is_cc_connected = true;
-		chip->notify.power_role = 0;
-		chip->notify.data_role = 0;
+		chip->notify.power_role = POWER_ROLE_SINK;
+		chip->notify.data_role = DATA_ROLE_UFP;
 		chip->hardrst_count = 0;
 		set_state(chip, policy_snk_startup);
 		dev_info(chip->dev, "CC connected in %s as UFP\n",
@@ -1665,7 +1665,7 @@ static void fusb_soft_reset_parameter(struct fusb30x_chip *chip)
 
 static void fusb_state_src_startup(struct fusb30x_chip *chip, u32 evt)
 {
-	chip->notify.is_pd_connected = 0;
+	chip->notify.is_pd_connected = false;
 	fusb_soft_reset_parameter(chip);
 
 	memset(chip->partner_cap, 0, sizeof(chip->partner_cap));
@@ -1729,7 +1729,7 @@ static void fusb_state_src_send_caps(struct fusb30x_chip *chip, u32 evt)
 					 chip->timer_state);
 			chip->timer_mux = T_DISABLED;
 			chip->sub_state++;
-			chip->is_pd_support = 1;
+			chip->is_pd_support = true;
 		} else if (tmp == tx_failed) {
 			set_state(chip, policy_src_discovery);
 			break;
@@ -1797,7 +1797,7 @@ static void fusb_state_src_transition_supply(struct fusb30x_chip *chip,
 		break;
 	case 2:
 		if (evt & EVENT_TIMER_STATE) {
-			chip->notify.is_pd_connected = 1;
+			chip->notify.is_pd_connected = true;
 			platform_set_vbus_lvl_enable(chip, 1, 0);
 			set_mesg(chip, CMT_PS_RDY, CONTROLMESSAGE);
 			chip->tx_state = tx_idle;
@@ -1850,7 +1850,7 @@ static void fusb_state_src_transition_default(struct fusb30x_chip *chip,
 {
 	switch (chip->sub_state) {
 	case 0:
-		chip->notify.is_pd_connected = 0;
+		chip->notify.is_pd_connected = false;
 		platform_set_vbus_lvl_enable(chip, 0, 0);
 		if (chip->notify.data_role)
 			regmap_update_bits(chip->regmap,
@@ -2059,7 +2059,7 @@ static void fusb_state_src_prs_transition_to_off(struct fusb30x_chip *chip,
 	case 1:
 		if (evt & EVENT_TIMER_STATE) {
 			platform_set_vbus_lvl_enable(chip, 0, 0);
-			chip->notify.power_role = 0;
+			chip->notify.power_role = POWER_ROLE_SINK;
 			tcpm_set_msg_header(chip);
 			if (chip->role == ROLE_MODE_DRP)
 				set_state(chip, policy_src_prs_assert_rd);
@@ -2093,7 +2093,7 @@ static void fusb_state_src_prs_source_off(struct fusb30x_chip *chip, u32 evt)
 					 chip->timer_state);
 			chip->sub_state++;
 		} else if (tmp == tx_failed) {
-			chip->notify.power_role = 1;
+			chip->notify.power_role = POWER_ROLE_SOURCE;
 			tcpm_set_msg_header(chip);
 			set_state(chip, policy_src_send_hardrst);
 		}
@@ -2105,7 +2105,7 @@ static void fusb_state_src_prs_source_off(struct fusb30x_chip *chip, u32 evt)
 						  CMT_PS_RDY)) {
 				chip->timer_state = T_DISABLED;
 				/* snk startup */
-				chip->notify.is_pd_connected = 0;
+				chip->notify.is_pd_connected = false;
 				chip->cc_state |= CC_STATE_TOGSS_IS_UFP;
 				tcpm_set_polarity(chip, chip->cc_polarity);
 				tcpm_set_rx_enable(chip, 1);
@@ -2116,7 +2116,7 @@ static void fusb_state_src_prs_source_off(struct fusb30x_chip *chip, u32 evt)
 					chip->rec_head);
 			}
 		} else if (evt & EVENT_TIMER_STATE) {
-			chip->notify.power_role = 1;
+			chip->notify.power_role = POWER_ROLE_SOURCE;
 			tcpm_set_msg_header(chip);
 			set_state(chip, policy_src_send_hardrst);
 		}
@@ -2149,7 +2149,8 @@ static void fusb_state_drs_send_accept(struct fusb30x_chip *chip, u32 evt)
 
 static void fusb_state_drs_role_change(struct fusb30x_chip *chip, u32 evt)
 {
-	chip->notify.data_role = chip->notify.data_role ? false : true;
+	chip->notify.data_role = chip->notify.data_role ?
+				 DATA_ROLE_UFP : DATA_ROLE_DFP;
 	tcpm_set_msg_header(chip);
 	set_state(chip, chip->notify.power_role ? policy_src_ready :
 						  policy_snk_ready);
@@ -2283,7 +2284,7 @@ static void fusb_state_src_send_softreset(struct fusb30x_chip *chip, u32 evt)
 
 static void fusb_state_snk_startup(struct fusb30x_chip *chip, u32 evt)
 {
-	chip->notify.is_pd_connected = 0;
+	chip->notify.is_pd_connected = false;
 	fusb_soft_reset_parameter(chip);
 
 	memset(chip->partner_cap, 0, sizeof(chip->partner_cap));
@@ -2308,7 +2309,7 @@ static void fusb_state_snk_wait_caps(struct fusb30x_chip *chip, u32 evt)
 	if (evt & EVENT_RX) {
 		if (PACKET_IS_DATA_MSG(chip->rec_head,
 				       DMT_SOURCECAPABILITIES)) {
-			chip->is_pd_support = 1;
+			chip->is_pd_support = true;
 			chip->timer_mux = T_DISABLED;
 			set_state(chip, policy_snk_evaluate_caps);
 		}
@@ -2439,7 +2440,7 @@ static void fusb_state_snk_transition_sink(struct fusb30x_chip *chip, u32 evt)
 {
 	if (evt & EVENT_RX) {
 		if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_PS_RDY)) {
-			chip->notify.is_pd_connected = 1;
+			chip->notify.is_pd_connected = true;
 			dev_info(chip->dev,
 				 "PD connected as UFP, fetching 5V\n");
 			set_state(chip, policy_snk_ready);
@@ -2457,7 +2458,7 @@ static void fusb_state_snk_transition_default(struct fusb30x_chip *chip,
 {
 	switch (chip->sub_state) {
 	case 0:
-		chip->notify.is_pd_connected = 0;
+		chip->notify.is_pd_connected = false;
 		chip->timer_mux = T_NO_RESPONSE;
 		fusb_timer_start(&chip->timer_mux_machine,
 				 chip->timer_mux);
@@ -2468,6 +2469,7 @@ static void fusb_state_snk_transition_default(struct fusb30x_chip *chip,
 			tcpm_set_msg_header(chip);
 
 		chip->sub_state++;
+		/* fallthrough */
 	case 1:
 		if (!tcpm_check_vbus(chip)) {
 			chip->sub_state++;
@@ -2572,7 +2574,7 @@ static void fusb_state_send_swap(struct fusb30x_chip *chip, u32 evt, int cmd)
 						set_state(chip, policy_src_prs_transition_to_off);
 					else
 						set_state(chip, policy_snk_prs_transition_to_off);
-					chip->notify.power_role = 1;
+					chip->notify.power_role = POWER_ROLE_SOURCE;
 					tcpm_set_msg_header(chip);
 				} else if (cmd == CMT_DR_SWAP) {
 					set_state(chip, chip->notify.data_role ?
@@ -2624,7 +2626,7 @@ static void fusb_state_snk_prs_transition_to_off(struct fusb30x_chip *chip,
 					chip->rec_head);
 			}
 		} else if (evt & EVENT_TIMER_STATE) {
-			chip->notify.power_role = 0;
+			chip->notify.power_role = POWER_ROLE_SINK;
 			tcpm_set_msg_header(chip);
 			set_state(chip, policy_snk_send_hardrst);
 		}
@@ -2663,7 +2665,7 @@ static void fusb_state_snk_prs_source_on(struct fusb30x_chip *chip, u32 evt)
 					 chip->timer_state);
 			chip->sub_state++;
 		} else if (tmp == tx_failed) {
-			chip->notify.power_role = 0;
+			chip->notify.power_role = POWER_ROLE_SINK;
 			tcpm_set_msg_header(chip);
 			set_state(chip, policy_snk_send_hardrst);
 		}
