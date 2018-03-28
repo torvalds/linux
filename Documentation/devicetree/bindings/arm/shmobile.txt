@@ -21,6 +21,8 @@ SoCs:
     compatible = "renesas,r8a7744"
   - RZ/G1E (R8A77450)
     compatible = "renesas,r8a7745"
+  - RZ/G1C (R8A77470)
+    compatible = "renesas,r8a77470"
   - R-Car M1A (R8A77781)
     compatible = "renesas,r8a7778"
   - R-Car H1 (R8A77790)
