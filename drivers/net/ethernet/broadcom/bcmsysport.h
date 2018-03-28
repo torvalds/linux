@@ -723,7 +723,6 @@ struct bcm_sysport_tx_ring {
 	struct bcm_sysport_priv *priv;	/* private context backpointer */
 	unsigned long	packets;	/* packets statistics */
 	unsigned long	bytes;		/* bytes statistics */
-	struct bcm_sysport_net_dim dim;	/* Net DIM context */
 	unsigned int	switch_queue;	/* switch port queue number */
 	unsigned int	switch_port;	/* switch port queue number */
 	bool		inspect;	/* inspect switch port and queue */
