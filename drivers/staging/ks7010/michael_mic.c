@@ -35,15 +35,14 @@ do {					\
 	A->m_bytes = 0;		\
 } while (0)
 
-static
-void MichaelInitializeFunction(struct michael_mic_t *Mic, uint8_t *key)
+static void michael_init(struct michael_mic_t *mic, uint8_t *key)
 {
 	// Set the key
-	Mic->k0 = getUInt32(key, 0);
-	Mic->k1 = getUInt32(key, 4);
+	mic->k0 = getUInt32(key, 0);
+	mic->k1 = getUInt32(key, 4);
 
 	//clear();
-	MichaelClear(Mic);
+	MichaelClear(mic);
 }
 
 #define MichaelBlockFunction(L, R)				\
@@ -137,7 +136,7 @@ void michael_mic_function(struct michael_mic_t *mic, u8 *key,
 	 * |DA|SA|Priority|0 |Data|M0|M1|M2|M3|M4|M5|M6|M7|
 	 * +--+--+--------+--+----+--+--+--+--+--+--+--+--+
 	 */
-	MichaelInitializeFunction(mic, key);
+	michael_init(mic, key);
 	MichaelAppend(mic, (uint8_t *)data, 12);	/* |DA|SA| */
 	MichaelAppend(mic, pad_data, 4);	/* |Priority|0|0|0| */
 	MichaelAppend(mic, (uint8_t *)(data + 12), len - 12);	/* |Data| */
