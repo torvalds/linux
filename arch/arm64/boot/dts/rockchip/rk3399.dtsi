@@ -744,12 +744,12 @@
 			thermal-sensors = <&tsadc 0>;
 
 			trips {
-				threshold: trip-point@0 {
+				threshold: trip-point-0 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				target: trip-point@1 {
+				target: trip-point-1 {
 					temperature = <85000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
@@ -1176,7 +1176,7 @@
 		status = "disabled";
 	};
 
-	pcie_phy: phy@e220 {
+	pcie_phy: pcie-phy {
 		compatible = "rockchip,rk3399-pcie-phy";
 		#phy-cells = <0>;
 		rockchip,grf = <&grf>;
@@ -1423,25 +1423,25 @@
 		clock-names = "pclk_efuse";
 
 		/* Data cells */
-		efuse_id: id {
+		efuse_id: id@7 {
 			reg = <0x07 0x10>;
 		};
-		cpul_leakage: cpul-leakage {
-			reg = <0x1a 0x1>;
-		};
-		cpub_leakage: cpub-leakage {
+		cpub_leakage: cpub-leakage@17 {
 			reg = <0x17 0x1>;
 		};
-		gpu_leakage: gpu-leakage {
+		gpu_leakage: gpu-leakage@18 {
 			reg = <0x18 0x1>;
 		};
-		center_leakage: center-leakage {
+		center_leakage: center-leakage@19 {
 			reg = <0x19 0x1>;
 		};
-		logic_leakage: logic-leakage {
+		cpul_leakage: cpul-leakage@1a {
+			reg = <0x1a 0x1>;
+		};
+		logic_leakage: logic-leakage@1b {
 			reg = <0x1b 0x1>;
 		};
-		wafer_info: wafer-info {
+		wafer_info: wafer-info@1c {
 			reg = <0x1c 0x1>;
 		};
 	};
