@@ -785,7 +785,8 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 				i++;
 				if (i == MAX_SKB_FRAGS)
 					i = 0;
-				put_page(page);
+				if (!md->skb)
+					put_page(page);
 			}
 			if (copied == len)
 				break;
@@ -794,6 +795,8 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 		if (!sg->length && md->sg_start == md->sg_end) {
 			list_del(&md->list);
+			if (md->skb)
+				consume_skb(md->skb);
 			kfree(md);
 		}
 	}
@@ -1045,27 +1048,72 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 		__SK_DROP;
 }
 
+static int smap_do_ingress(struct smap_psock *psock, struct sk_buff *skb)
+{
+	struct sock *sk = psock->sock;
+	int copied = 0, num_sg;
+	struct sk_msg_buff *r;
+
+	r = kzalloc(sizeof(struct sk_msg_buff), __GFP_NOWARN | GFP_ATOMIC);
+	if (unlikely(!r))
+		return -EAGAIN;
+
+	if (!sk_rmem_schedule(sk, skb, skb->len)) {
+		kfree(r);
+		return -EAGAIN;
+	}
+
+	sg_init_table(r->sg_data, MAX_SKB_FRAGS);
+	num_sg = skb_to_sgvec(skb, r->sg_data, 0, skb->len);
+	if (unlikely(num_sg < 0)) {
+		kfree(r);
+		return num_sg;
+	}
+	sk_mem_charge(sk, skb->len);
+	copied = skb->len;
+	r->sg_start = 0;
+	r->sg_end = num_sg == MAX_SKB_FRAGS ? 0 : num_sg;
+	r->skb = skb;
+	list_add_tail(&r->list, &psock->ingress);
+	sk->sk_data_ready(sk);
+	return copied;
+}
+
 static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 {
+	struct smap_psock *peer;
 	struct sock *sk;
+	__u32 in;
 	int rc;
 
 	rc = smap_verdict_func(psock, skb);
 	switch (rc) {
 	case __SK_REDIRECT:
 		sk = do_sk_redirect_map(skb);
-		if (likely(sk)) {
-			struct smap_psock *peer = smap_psock_sk(sk);
+		if (!sk) {
+			kfree_skb(skb);
+			break;
+		}
 
-			if (likely(peer &&
-				   test_bit(SMAP_TX_RUNNING, &peer->state) &&
-				   !sock_flag(sk, SOCK_DEAD) &&
-				   sock_writeable(sk))) {
-				skb_set_owner_w(skb, sk);
-				skb_queue_tail(&peer->rxqueue, skb);
-				schedule_work(&peer->tx_work);
-				break;
-			}
+		peer = smap_psock_sk(sk);
+		in = (TCP_SKB_CB(skb)->bpf.flags) & BPF_F_INGRESS;
+
+		if (unlikely(!peer || sock_flag(sk, SOCK_DEAD) ||
+			     !test_bit(SMAP_TX_RUNNING, &peer->state))) {
+			kfree_skb(skb);
+			break;
+		}
+
+		if (!in && sock_writeable(sk)) {
+			skb_set_owner_w(skb, sk);
+			skb_queue_tail(&peer->rxqueue, skb);
+			schedule_work(&peer->tx_work);
+			break;
+		} else if (in &&
+			   atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf) {
+			skb_queue_tail(&peer->rxqueue, skb);
+			schedule_work(&peer->tx_work);
+			break;
 		}
 	/* Fall through and free skb otherwise */
 	case __SK_DROP:
@@ -1127,15 +1175,23 @@ static void smap_tx_work(struct work_struct *w)
 	}
 
 	while ((skb = skb_dequeue(&psock->rxqueue))) {
+		__u32 flags;
+
 		rem = skb->len;
 		off = 0;
 start:
+		flags = (TCP_SKB_CB(skb)->bpf.flags) & BPF_F_INGRESS;
 		do {
-			if (likely(psock->sock->sk_socket))
-				n = skb_send_sock_locked(psock->sock,
-							 skb, off, rem);
-			else
+			if (likely(psock->sock->sk_socket)) {
+				if (flags)
+					n = smap_do_ingress(psock, skb);
+				else
+					n = skb_send_sock_locked(psock->sock,
+								 skb, off, rem);
+			} else {
 				n = -EINVAL;
+			}
+
 			if (n <= 0) {
 				if (n == -EAGAIN) {
 					/* Retry when space is available */
@@ -1153,7 +1209,9 @@ start:
 			rem -= n;
 			off += n;
 		} while (rem);
-		kfree_skb(skb);
+
+		if (!flags)
+			kfree_skb(skb);
 	}
 out:
 	release_sock(psock->sock);

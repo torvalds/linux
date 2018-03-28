@@ -521,6 +521,7 @@ struct sk_msg_buff {
 	__u32 key;
 	__u32 flags;
 	struct bpf_map *map;
+	struct sk_buff *skb;
 	struct list_head list;
 };
 
