@@ -1413,6 +1413,21 @@ static int rockchip_thermal_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rockchip_thermal_shutdown(struct platform_device *pdev)
+{
+	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < thermal->chip->chn_num; i++) {
+		int id = thermal->sensors[i].id;
+
+		if (thermal->tshut_mode != TSHUT_MODE_CRU)
+			thermal->chip->set_tshut_mode(id, thermal->regs,
+						      TSHUT_MODE_CRU);
+	}
+	pinctrl_pm_select_sleep_state(&pdev->dev);
+}
+
 static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1485,6 +1500,7 @@ static struct platform_driver rockchip_thermal_driver = {
 	},
 	.probe = rockchip_thermal_probe,
 	.remove = rockchip_thermal_remove,
+	.shutdown = rockchip_thermal_shutdown,
 };
 
 module_platform_driver(rockchip_thermal_driver);
