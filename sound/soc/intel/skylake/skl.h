@@ -33,8 +33,10 @@
 
 #define AZX_PCIREG_PGCTL		0x44
 #define AZX_PGCTL_LSRMD_MASK		(1 << 4)
+#define AZX_PGCTL_ADSPPGD		BIT(2)
 #define AZX_PCIREG_CGCTL		0x48
 #define AZX_CGCTL_MISCBDCGE_MASK	(1 << 6)
+#define AZX_CGCTL_ADSPDCGE		BIT(1)
 /* D0I3C Register fields */
 #define AZX_REG_VS_D0I3C_CIP      0x1 /* Command in progress */
 #define AZX_REG_VS_D0I3C_I3       0x4 /* D0i3 enable */
@@ -42,6 +44,8 @@
 #define DMA_CLK_CONTROLS	1
 #define DMA_TRANSMITION_START	2
 #define DMA_TRANSMITION_STOP	3
+
+#define AZX_REG_VS_EM2_L1SEN		BIT(13)
 
 struct skl_dsp_resource {
 	u32 max_mcps;

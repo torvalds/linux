@@ -959,6 +959,17 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 },
 {
+	.name = "DMIC16k Pin",
+	.ops = &skl_dmic_dai_ops,
+	.capture = {
+		.stream_name = "DMIC16k Rx",
+		.channels_min = HDA_MONO,
+		.channels_max = HDA_QUAD,
+		.rates = SNDRV_PCM_RATE_16000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+},
+{
 	.name = "HD-Codec Pin",
 	.ops = &skl_link_dai_ops,
 	.playback = {
@@ -1307,6 +1318,8 @@ static int skl_populate_modules(struct skl *skl)
 					"query module info failed\n");
 				return ret;
 			}
+
+			skl_tplg_add_moduleid_in_bind_params(skl, w);
 		}
 	}
 
@@ -1343,11 +1356,16 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 			return -EIO;
 		}
 
-		/* disable dynamic clock gating during fw and lib download */
+		/*
+		 * Disable dynamic clock and power gating during firmware
+		 * and library download
+		 */
 		skl->skl_sst->enable_miscbdcge(component->dev, false);
+		skl->skl_sst->clock_power_gating(component->dev, false);
 
 		ret = ops->init_fw(component->dev, skl->skl_sst);
 		skl->skl_sst->enable_miscbdcge(component->dev, true);
+		skl->skl_sst->clock_power_gating(component->dev, true);
 		if (ret < 0) {
 			dev_err(component->dev, "Failed to boot first fw: %d\n", ret);
 			return ret;

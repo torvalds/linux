@@ -40,7 +40,7 @@ struct rt286_priv {
 	struct reg_default *index_cache;
 	int index_cache_size;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt286_platform_data pdata;
 	struct i2c_client *i2c;
 	struct snd_soc_jack *jack;
@@ -187,13 +187,13 @@ static bool rt286_readable_register(struct device *dev, unsigned int reg)
 }
 
 #ifdef CONFIG_PM
-static void rt286_index_sync(struct snd_soc_codec *codec)
+static void rt286_index_sync(struct snd_soc_component *component)
 {
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 	int i;
 
 	for (i = 0; i < INDEX_CACHE_SIZE; i++) {
-		snd_soc_write(codec, rt286->index_cache[i].reg,
+		snd_soc_component_write(component, rt286->index_cache[i].reg,
 				  rt286->index_cache[i].def);
 	}
 }
@@ -220,10 +220,10 @@ static int rt286_jack_detect(struct rt286_priv *rt286, bool *hp, bool *mic)
 	*hp = false;
 	*mic = false;
 
-	if (!rt286->codec)
+	if (!rt286->component)
 		return -EINVAL;
 
-	dapm = snd_soc_codec_get_dapm(rt286->codec);
+	dapm = snd_soc_component_get_dapm(rt286->component);
 
 	if (rt286->pdata.cbj_en) {
 		regmap_read(rt286->regmap, RT286_GET_HP_SENSE, &buf);
@@ -305,10 +305,10 @@ static void rt286_jack_detect_work(struct work_struct *work)
 		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
 }
 
-int rt286_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
+int rt286_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	rt286->jack = jack;
 
@@ -334,8 +334,8 @@ EXPORT_SYMBOL_GPL(rt286_mic_detect);
 static int is_mclk_mode(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	if (rt286->clk_id == RT286_SCLK_S_MCLK)
 		return 1;
@@ -434,15 +434,15 @@ SOC_DAPM_ENUM("SPO source", rt286_spo_enum);
 static int rt286_spk_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT286_SPK_EAPD, RT286_SET_EAPD_HIGH);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT286_SPK_EAPD, RT286_SET_EAPD_LOW);
 		break;
 
@@ -456,14 +456,14 @@ static int rt286_spk_event(struct snd_soc_dapm_widget *w,
 static int rt286_set_dmic1_event(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_write(codec, RT286_SET_PIN_DMIC1, 0x20);
+		snd_soc_component_write(component, RT286_SET_PIN_DMIC1, 0x20);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_write(codec, RT286_SET_PIN_DMIC1, 0);
+		snd_soc_component_write(component, RT286_SET_PIN_DMIC1, 0);
 		break;
 	default:
 		return 0;
@@ -475,14 +475,14 @@ static int rt286_set_dmic1_event(struct snd_soc_dapm_widget *w,
 static int rt286_ldo2_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RT286_POWER_CTRL2, 0x38, 0x08);
+		snd_soc_component_update_bits(component, RT286_POWER_CTRL2, 0x38, 0x08);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RT286_POWER_CTRL2, 0x38, 0x30);
+		snd_soc_component_update_bits(component, RT286_POWER_CTRL2, 0x38, 0x30);
 		break;
 	default:
 		return 0;
@@ -494,19 +494,19 @@ static int rt286_ldo2_event(struct snd_soc_dapm_widget *w,
 static int rt286_mic1_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_A_BIAS_CTRL3, 0xc000, 0x8000);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_A_BIAS_CTRL2, 0xc000, 0x8000);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_A_BIAS_CTRL3, 0xc000, 0x0000);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_A_BIAS_CTRL2, 0xc000, 0x0000);
 		break;
 	default:
@@ -674,8 +674,8 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 	int d_len_code;
 
@@ -687,7 +687,7 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported sample rate %d\n",
+		dev_err(component->dev, "Unsupported sample rate %d\n",
 					params_rate(params));
 		return -EINVAL;
 	}
@@ -695,7 +695,7 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(codec->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
 					params_rate(params), rt286->sys_clk);
 			return -EINVAL;
 		}
@@ -703,7 +703,7 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(codec->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
 					params_rate(params), rt286->sys_clk);
 			return -EINVAL;
 		}
@@ -714,7 +714,7 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 		/* bit 3:0 Number of Channel */
 		val |= (params_channels(params) - 1);
 	} else {
-		dev_err(codec->dev, "Unsupported channels %d\n",
+		dev_err(component->dev, "Unsupported channels %d\n",
 					params_channels(params));
 		return -EINVAL;
 	}
@@ -745,27 +745,27 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec,
+	snd_soc_component_update_bits(component,
 		RT286_I2S_CTRL1, 0x0018, d_len_code << 3);
-	dev_dbg(codec->dev, "format val = 0x%x\n", val);
+	dev_dbg(component->dev, "format val = 0x%x\n", val);
 
-	snd_soc_update_bits(codec, RT286_DAC_FORMAT, 0x407f, val);
-	snd_soc_update_bits(codec, RT286_ADC_FORMAT, 0x407f, val);
+	snd_soc_component_update_bits(component, RT286_DAC_FORMAT, 0x407f, val);
+	snd_soc_component_update_bits(component, RT286_ADC_FORMAT, 0x407f, val);
 
 	return 0;
 }
 
 static int rt286_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x800, 0x800);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x800, 0x0);
 		break;
 	default:
@@ -774,27 +774,27 @@ static int rt286_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x300, 0x0);
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x300, 0x1 << 8);
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x300, 0x2 << 8);
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x300, 0x3 << 8);
 		break;
 	default:
 		return -EINVAL;
 	}
 	/* bit 15 Stream Type 0:PCM 1:Non-PCM */
-	snd_soc_update_bits(codec, RT286_DAC_FORMAT, 0x8000, 0);
-	snd_soc_update_bits(codec, RT286_ADC_FORMAT, 0x8000, 0);
+	snd_soc_component_update_bits(component, RT286_DAC_FORMAT, 0x8000, 0);
+	snd_soc_component_update_bits(component, RT286_ADC_FORMAT, 0x8000, 0);
 
 	return 0;
 }
@@ -802,58 +802,58 @@ static int rt286_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int rt286_set_dai_sysclk(struct snd_soc_dai *dai,
 				int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s freq=%d\n", __func__, freq);
+	dev_dbg(component->dev, "%s freq=%d\n", __func__, freq);
 
 	if (RT286_SCLK_S_MCLK == clk_id) {
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL2, 0x0100, 0x0);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_PLL_CTRL1, 0x20, 0x20);
 	} else {
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL2, 0x0100, 0x0100);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_PLL_CTRL, 0x4, 0x4);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_PLL_CTRL1, 0x20, 0x0);
 	}
 
 	switch (freq) {
 	case 19200000:
 		if (RT286_SCLK_S_MCLK == clk_id) {
-			dev_err(codec->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should not use MCLK\n");
 			return -EINVAL;
 		}
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL2, 0x40, 0x40);
 		break;
 	case 24000000:
 		if (RT286_SCLK_S_MCLK == clk_id) {
-			dev_err(codec->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should not use MCLK\n");
 			return -EINVAL;
 		}
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL2, 0x40, 0x0);
 		break;
 	case 12288000:
 	case 11289600:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL2, 0x8, 0x0);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_CLK_DIV, 0xfc1e, 0x0004);
 		break;
 	case 24576000:
 	case 22579200:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL2, 0x8, 0x8);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_CLK_DIV, 0xfc1e, 0x5406);
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported system clock\n");
+		dev_err(component->dev, "Unsupported system clock\n");
 		return -EINVAL;
 	}
 
@@ -865,42 +865,42 @@ static int rt286_set_dai_sysclk(struct snd_soc_dai *dai,
 
 static int rt286_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	dev_dbg(codec->dev, "%s ratio=%d\n", __func__, ratio);
+	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
 	if (50 == ratio)
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x1000, 0x1000);
 	else
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_I2S_CTRL1, 0x1000, 0x0);
 
 
 	return 0;
 }
 
-static int rt286_set_bias_level(struct snd_soc_codec *codec,
+static int rt286_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == snd_soc_codec_get_bias_level(codec)) {
-			snd_soc_write(codec,
+		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+			snd_soc_component_write(component,
 				RT286_SET_AUDIO_POWER, AC_PWRST_D0);
-			snd_soc_update_bits(codec,
+			snd_soc_component_update_bits(component,
 				RT286_DC_GAIN, 0x200, 0x200);
 		}
 		break;
 
 	case SND_SOC_BIAS_ON:
 		mdelay(10);
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT286_DC_GAIN, 0x200, 0x0);
 
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT286_SET_AUDIO_POWER, AC_PWRST_D3);
 		break;
 
@@ -937,11 +937,11 @@ static irqreturn_t rt286_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rt286_probe(struct snd_soc_codec *codec)
+static int rt286_probe(struct snd_soc_component *component)
 {
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
-	rt286->codec = codec;
+	rt286->component = component;
 
 	if (rt286->i2c->irq) {
 		regmap_update_bits(rt286->regmap,
@@ -956,19 +956,17 @@ static int rt286_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt286_remove(struct snd_soc_codec *codec)
+static void rt286_remove(struct snd_soc_component *component)
 {
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt286->jack_detect_work);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
-static int rt286_suspend(struct snd_soc_codec *codec)
+static int rt286_suspend(struct snd_soc_component *component)
 {
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt286->regmap, true);
 	regcache_mark_dirty(rt286->regmap);
@@ -976,12 +974,12 @@ static int rt286_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt286_resume(struct snd_soc_codec *codec)
+static int rt286_resume(struct snd_soc_component *component)
 {
-	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
+	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt286->regmap, false);
-	rt286_index_sync(codec);
+	rt286_index_sync(component);
 	regcache_sync(rt286->regmap);
 
 	return 0;
@@ -1046,21 +1044,21 @@ static struct snd_soc_dai_driver rt286_dai[] = {
 
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_rt286 = {
-	.probe = rt286_probe,
-	.remove = rt286_remove,
-	.suspend = rt286_suspend,
-	.resume = rt286_resume,
-	.set_bias_level = rt286_set_bias_level,
-	.idle_bias_off = true,
-	.component_driver = {
-		.controls		= rt286_snd_controls,
-		.num_controls		= ARRAY_SIZE(rt286_snd_controls),
-		.dapm_widgets		= rt286_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(rt286_dapm_widgets),
-		.dapm_routes		= rt286_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(rt286_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_rt286 = {
+	.probe			= rt286_probe,
+	.remove			= rt286_remove,
+	.suspend		= rt286_suspend,
+	.resume			= rt286_resume,
+	.set_bias_level		= rt286_set_bias_level,
+	.controls		= rt286_snd_controls,
+	.num_controls		= ARRAY_SIZE(rt286_snd_controls),
+	.dapm_widgets		= rt286_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rt286_dapm_widgets),
+	.dapm_routes		= rt286_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rt286_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt286_regmap = {
@@ -1243,7 +1241,8 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt286,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				     &soc_component_dev_rt286,
 				     rt286_dai, ARRAY_SIZE(rt286_dai));
 
 	return ret;
@@ -1255,7 +1254,6 @@ static int rt286_i2c_remove(struct i2c_client *i2c)
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt286);
-	snd_soc_unregister_codec(&i2c->dev);
 
 	return 0;
 }
