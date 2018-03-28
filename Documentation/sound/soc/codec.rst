@@ -179,12 +179,12 @@ i.e.
 
   static int wm8974_mute(struct snd_soc_dai *dai, int mute)
   {
-	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = snd_soc_read(codec, WM8974_DAC) & 0xffbf;
+	struct snd_soc_component *component = dai->component;
+	u16 mute_reg = snd_soc_component_read32(component, WM8974_DAC) & 0xffbf;
 
 	if (mute)
-		snd_soc_write(codec, WM8974_DAC, mute_reg | 0x40);
+		snd_soc_component_write(component, WM8974_DAC, mute_reg | 0x40);
 	else
-		snd_soc_write(codec, WM8974_DAC, mute_reg);
+		snd_soc_component_write(component, WM8974_DAC, mute_reg);
 	return 0;
   }
