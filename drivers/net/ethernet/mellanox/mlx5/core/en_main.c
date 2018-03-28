@@ -747,23 +747,24 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 	mlx5_core_destroy_rq(rq->mdev, rq->rqn);
 }
 
-static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
+static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time)
 {
-	unsigned long exp_time = jiffies + msecs_to_jiffies(20000);
+	unsigned long exp_time = jiffies + msecs_to_jiffies(wait_time);
 	struct mlx5e_channel *c = rq->channel;
 
 	struct mlx5_wq_ll *wq = &rq->wq;
 	u16 min_wqes = mlx5_min_rx_wqes(rq->wq_type, mlx5_wq_ll_get_size(wq));
 
-	while (time_before(jiffies, exp_time)) {
+	do {
 		if (wq->cur_sz >= min_wqes)
 			return 0;
 
 		msleep(20);
-	}
+	} while (time_before(jiffies, exp_time));
 
-	netdev_warn(c->netdev, "Failed to get min RX wqes on RQN[0x%x] wq cur_sz(%d) min_rx_wqes(%d)\n",
-		    rq->rqn, wq->cur_sz, min_wqes);
+	netdev_warn(c->netdev, "Failed to get min RX wqes on Channel[%d] RQN[0x%x] wq cur_sz(%d) min_rx_wqes(%d)\n",
+		    c->ix, rq->rqn, wq->cur_sz, min_wqes);
+
 	return -ETIMEDOUT;
 }
 
@@ -2128,13 +2129,11 @@ static int mlx5e_wait_channels_min_rx_wqes(struct mlx5e_channels *chs)
 	int err = 0;
 	int i;
 
-	for (i = 0; i < chs->num; i++) {
-		err = mlx5e_wait_for_min_rx_wqes(&chs->c[i]->rq);
-		if (err)
-			break;
-	}
+	for (i = 0; i < chs->num; i++)
+		err |= mlx5e_wait_for_min_rx_wqes(&chs->c[i]->rq,
+						  err ? 0 : 20000);
 
-	return err;
+	return err ? -ETIMEDOUT : 0;
 }
 
 static void mlx5e_deactivate_channels(struct mlx5e_channels *chs)
