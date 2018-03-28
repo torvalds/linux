@@ -81,6 +81,13 @@ enum qed_coalescing_mode {
 	QED_COAL_MODE_ENABLE
 };
 
+enum qed_nvm_cmd {
+	QED_PUT_FILE_BEGIN = DRV_MSG_CODE_NVM_PUT_FILE_BEGIN,
+	QED_PUT_FILE_DATA = DRV_MSG_CODE_NVM_PUT_FILE_DATA,
+	QED_NVM_WRITE_NVRAM = DRV_MSG_CODE_NVM_WRITE_NVRAM,
+	QED_GET_MCP_NVM_RESP = 0xFFFFFF00
+};
+
 struct qed_eth_cb_ops;
 struct qed_dev_info;
 union qed_mcp_protocol_stats;

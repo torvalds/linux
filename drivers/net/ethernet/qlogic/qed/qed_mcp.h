@@ -443,6 +443,40 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
  */
 int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
 
+/**
+ * @brief Write to nvm
+ *
+ *  @param cdev
+ *  @param addr - nvm offset
+ *  @param cmd - nvm command
+ *  @param p_buf - nvm write buffer
+ *  @param len - buffer len
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_write(struct qed_dev *cdev,
+		      u32 cmd, u32 addr, u8 *p_buf, u32 len);
+
+/**
+ * @brief Put file begin
+ *
+ *  @param cdev
+ *  @param addr - nvm offset
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_put_file_begin(struct qed_dev *cdev, u32 addr);
+
+/**
+ * @brief Check latest response
+ *
+ *  @param cdev
+ *  @param p_buf - nvm write buffer
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_resp(struct qed_dev *cdev, u8 *p_buf);
+
 struct qed_nvm_image_att {
 	u32 start_addr;
 	u32 length;
