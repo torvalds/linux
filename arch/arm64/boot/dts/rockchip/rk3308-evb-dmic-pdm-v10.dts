@@ -12,4 +12,31 @@
 / {
 	model = "Rockchip RK3308 evb digital-pdm mic board";
 	compatible = "rockchip,rk3308-evb-dmic-pdm-v10", "rockchip,rk3308";
+
+	pdm-mic-array {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+};
+
+&dummy_codec {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&pdm_8ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm_m2_clk
+		     &pdm_m2_sdi0
+		     &pdm_m2_sdi1
+		     &pdm_m2_sdi2
+		     &pdm_m2_sdi3>;
 };
