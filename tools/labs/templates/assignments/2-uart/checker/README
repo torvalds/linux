@@ -16,7 +16,7 @@ _checker
 _test/test.c
 	* test suite for UART16550
 
-_test/solutie.ko
+_test/link_handler.ko
 	* kernel module implementing UART16550,
 	used to transmit/receive data to/from your kernel module
 
@@ -28,7 +28,7 @@ Use the Makefile to properly build the test executable:
 
 == RUNNING ==
 
-Copy your uart16550.ko module and _checker, test and solutie.ko
+Copy your uart16550.ko module and _checker, test and link_handler.ko
 to fsimg/root directory on your QEMU/KVM virtual machine.
 
 In order to run the test suite you can use the _checker script.
