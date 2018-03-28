@@ -147,14 +147,14 @@ static int byt_rt5651_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai,
 	}
 	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, rate * 512);
 	if (ret < 0) {
-		dev_err(codec_dai->codec->dev, "can't set pll: %d\n", ret);
+		dev_err(codec_dai->component->dev, "can't set pll: %d\n", ret);
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT5651_SCLK_S_PLL1,
 				     rate * 512, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
-		dev_err(codec_dai->codec->dev, "can't set clock %d\n", ret);
+		dev_err(codec_dai->component->dev, "can't set clock %d\n", ret);
 		return ret;
 	}
 
