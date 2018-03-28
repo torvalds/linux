@@ -1686,8 +1686,6 @@ static const char *hist_field_name(struct hist_field *field,
 	else if (field->flags & HIST_FIELD_FL_LOG2 ||
 		 field->flags & HIST_FIELD_FL_ALIAS)
 		field_name = hist_field_name(field->operands[0], ++level);
-	else if (field->flags & HIST_FIELD_FL_TIMESTAMP)
-		field_name = "common_timestamp";
 	else if (field->flags & HIST_FIELD_FL_CPU)
 		field_name = "cpu";
 	else if (field->flags & HIST_FIELD_FL_EXPR ||
@@ -1703,7 +1701,8 @@ static const char *hist_field_name(struct hist_field *field,
 			field_name = full_name;
 		} else
 			field_name = field->name;
-	}
+	} else if (field->flags & HIST_FIELD_FL_TIMESTAMP)
+		field_name = "common_timestamp";
 
 	if (field_name == NULL)
 		field_name = "";
@@ -4858,23 +4857,15 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 	if (hist_field->var.name)
 		seq_printf(m, "%s=", hist_field->var.name);
 
-	if (hist_field->flags & HIST_FIELD_FL_TIMESTAMP)
-		seq_puts(m, "common_timestamp");
-	else if (hist_field->flags & HIST_FIELD_FL_CPU)
+	if (hist_field->flags & HIST_FIELD_FL_CPU)
 		seq_puts(m, "cpu");
 	else if (field_name) {
 		if (hist_field->flags & HIST_FIELD_FL_VAR_REF ||
 		    hist_field->flags & HIST_FIELD_FL_ALIAS)
 			seq_putc(m, '$');
 		seq_printf(m, "%s", field_name);
-	}
-
-	if (hist_field->flags) {
-		const char *flags_str = get_hist_field_flags(hist_field);
-
-		if (flags_str)
-			seq_printf(m, ".%s", flags_str);
-	}
+	} else if (hist_field->flags & HIST_FIELD_FL_TIMESTAMP)
+		seq_puts(m, "common_timestamp");
 }
 
 static int event_hist_trigger_print(struct seq_file *m,
