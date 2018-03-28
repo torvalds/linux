@@ -641,7 +641,8 @@ config SND_SOC_MAX98504
 	depends on I2C
 
 config SND_SOC_MAX9867
-	tristate
+	tristate "Maxim MAX9867 CODEC"
+	depends on I2C
 
 config SND_SOC_MAX98925
        tristate
