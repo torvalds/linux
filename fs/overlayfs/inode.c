@@ -83,14 +83,15 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat,
 		 */
 		stat->dev = dentry->d_sb->s_dev;
 		stat->ino = dentry->d_inode->i_ino;
-	} else if (lower_layer) {
+	} else if (lower_layer && lower_layer->fsid) {
 		/*
 		 * For non-samefs setup, if we cannot map all layers st_ino
 		 * to a unified address space, we need to make sure that st_dev
-		 * is unique per layer. Upper layer uses real st_dev and lower
-		 * layers use the unique anonymous bdev.
+		 * is unique per lower fs. Upper layer uses real st_dev and
+		 * lower layers use the unique anonymous bdev assigned to the
+		 * lower fs.
 		 */
-		stat->dev = lower_layer->pseudo_dev;
+		stat->dev = lower_layer->fs->pseudo_dev;
 	}
 
 	return 0;

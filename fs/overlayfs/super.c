@@ -236,11 +236,12 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	if (ofs->upperdir_locked)
 		ovl_inuse_unlock(ofs->upper_mnt->mnt_root);
 	mntput(ofs->upper_mnt);
-	for (i = 0; i < ofs->numlower; i++) {
+	for (i = 0; i < ofs->numlower; i++)
 		mntput(ofs->lower_layers[i].mnt);
-		free_anon_bdev(ofs->lower_layers[i].pseudo_dev);
-	}
+	for (i = 0; i < ofs->numlowerfs; i++)
+		free_anon_bdev(ofs->lower_fs[i].pseudo_dev);
 	kfree(ofs->lower_layers);
+	kfree(ofs->lower_fs);
 
 	kfree(ofs->config.lowerdir);
 	kfree(ofs->config.upperdir);
@@ -1108,6 +1109,35 @@ out:
 	return err;
 }
 
+/* Get a unique fsid for the layer */
+static int ovl_get_fsid(struct ovl_fs *ofs, struct super_block *sb)
+{
+	unsigned int i;
+	dev_t dev;
+	int err;
+
+	/* fsid 0 is reserved for upper fs even with non upper overlay */
+	if (ofs->upper_mnt && ofs->upper_mnt->mnt_sb == sb)
+		return 0;
+
+	for (i = 0; i < ofs->numlowerfs; i++) {
+		if (ofs->lower_fs[i].sb == sb)
+			return i + 1;
+	}
+
+	err = get_anon_bdev(&dev);
+	if (err) {
+		pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
+		return err;
+	}
+
+	ofs->lower_fs[ofs->numlowerfs].sb = sb;
+	ofs->lower_fs[ofs->numlowerfs].pseudo_dev = dev;
+	ofs->numlowerfs++;
+
+	return ofs->numlowerfs;
+}
+
 static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 				unsigned int numlower)
 {
@@ -1119,23 +1149,27 @@ static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 				    GFP_KERNEL);
 	if (ofs->lower_layers == NULL)
 		goto out;
+
+	ofs->lower_fs = kcalloc(numlower, sizeof(struct ovl_sb),
+				GFP_KERNEL);
+	if (ofs->lower_fs == NULL)
+		goto out;
+
 	for (i = 0; i < numlower; i++) {
 		struct vfsmount *mnt;
-		dev_t dev;
+		int fsid;
 
-		err = get_anon_bdev(&dev);
-		if (err) {
-			pr_err("overlayfs: failed to get anonymous bdev for lowerpath\n");
+		err = fsid = ovl_get_fsid(ofs, stack[i].mnt->mnt_sb);
+		if (err < 0)
 			goto out;
-		}
 
 		mnt = clone_private_mount(&stack[i]);
 		err = PTR_ERR(mnt);
 		if (IS_ERR(mnt)) {
 			pr_err("overlayfs: failed to clone lowerpath\n");
-			free_anon_bdev(dev);
 			goto out;
 		}
+
 		/*
 		 * Make lower layers R/O.  That way fchmod/fchown on lower file
 		 * will fail instead of modifying lower fs.
@@ -1143,15 +1177,13 @@ static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
 
 		ofs->lower_layers[ofs->numlower].mnt = mnt;
-		ofs->lower_layers[ofs->numlower].pseudo_dev = dev;
 		ofs->lower_layers[ofs->numlower].idx = i + 1;
+		ofs->lower_layers[ofs->numlower].fsid = fsid;
+		if (fsid) {
+			ofs->lower_layers[ofs->numlower].fs =
+				&ofs->lower_fs[fsid - 1];
+		}
 		ofs->numlower++;
-
-		/* Check if all lower layers are on same sb */
-		if (i == 0)
-			ofs->same_sb = mnt->mnt_sb;
-		else if (ofs->same_sb != mnt->mnt_sb)
-			ofs->same_sb = NULL;
 	}
 	err = 0;
 out:
@@ -1305,8 +1337,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ofs->upper_mnt)
 		sb->s_flags |= SB_RDONLY;
-	else if (ofs->upper_mnt->mnt_sb != ofs->same_sb)
-		ofs->same_sb = NULL;
 
 	if (!(ovl_force_readonly(ofs)) && ofs->config.index) {
 		err = ovl_get_indexdir(ofs, oe, &upperpath);
