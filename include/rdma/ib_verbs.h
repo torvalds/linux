@@ -1854,7 +1854,8 @@ enum ib_flow_domain {
 
 enum ib_flow_flags {
 	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, no steal */
-	IB_FLOW_ATTR_FLAGS_RESERVED  = 1UL << 2  /* Must be last */
+	IB_FLOW_ATTR_FLAGS_EGRESS = 1UL << 2, /* Egress flow */
+	IB_FLOW_ATTR_FLAGS_RESERVED  = 1UL << 3  /* Must be last */
 };
 
 struct ib_flow_eth_filter {
