@@ -4732,6 +4732,67 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_drrs_ctl_fops, NULL, i915_drrs_ctl_set, "%llu\n");
 
+static ssize_t
+i915_fifo_underrun_reset_write(struct file *filp,
+			       const char __user *ubuf,
+			       size_t cnt, loff_t *ppos)
+{
+	struct drm_i915_private *dev_priv = filp->private_data;
+	struct intel_crtc *intel_crtc;
+	struct drm_device *dev = &dev_priv->drm;
+	int ret;
+	bool reset;
+
+	ret = kstrtobool_from_user(ubuf, cnt, &reset);
+	if (ret)
+		return ret;
+
+	if (!reset)
+		return cnt;
+
+	for_each_intel_crtc(dev, intel_crtc) {
+		struct drm_crtc_commit *commit;
+		struct intel_crtc_state *crtc_state;
+
+		ret = drm_modeset_lock_single_interruptible(&intel_crtc->base.mutex);
+		if (ret)
+			return ret;
+
+		crtc_state = to_intel_crtc_state(intel_crtc->base.state);
+		commit = crtc_state->base.commit;
+		if (commit) {
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (!ret)
+				ret = wait_for_completion_interruptible(&commit->flip_done);
+		}
+
+		if (!ret && crtc_state->base.active) {
+			DRM_DEBUG_KMS("Re-arming FIFO underruns on pipe %c\n",
+				      pipe_name(intel_crtc->pipe));
+
+			intel_crtc_arm_fifo_underrun(intel_crtc, crtc_state);
+		}
+
+		drm_modeset_unlock(&intel_crtc->base.mutex);
+
+		if (ret)
+			return ret;
+	}
+
+	ret = intel_fbc_reset_underrun(dev_priv);
+	if (ret)
+		return ret;
+
+	return cnt;
+}
+
+static const struct file_operations i915_fifo_underrun_reset_ops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = i915_fifo_underrun_reset_write,
+	.llseek = default_llseek,
+};
+
 static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
@@ -4799,6 +4860,7 @@ static const struct i915_debugfs_files {
 	{"i915_error_state", &i915_error_state_fops},
 	{"i915_gpu_info", &i915_gpu_info_fops},
 #endif
+	{"i915_fifo_underrun_reset", &i915_fifo_underrun_reset_ops},
 	{"i915_next_seqno", &i915_next_seqno_fops},
 	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},
