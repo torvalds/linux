@@ -1082,15 +1082,16 @@ static noinline int __sched
 __mutex_lock_interruptible_slowpath(struct mutex *lock);
 
 /**
- * mutex_lock_interruptible - acquire the mutex, interruptible
- * @lock: the mutex to be acquired
+ * mutex_lock_interruptible() - Acquire the mutex, interruptible by signals.
+ * @lock: The mutex to be acquired.
  *
- * Lock the mutex like mutex_lock(), and return 0 if the mutex has
- * been acquired or sleep until the mutex becomes available. If a
- * signal arrives while waiting for the lock then this function
- * returns -EINTR.
+ * Lock the mutex like mutex_lock().  If a signal is delivered while the
+ * process is sleeping, this function will return without acquiring the
+ * mutex.
  *
- * This function is similar to (but not equivalent to) down_interruptible().
+ * Context: Process context.
+ * Return: 0 if the lock was successfully acquired or %-EINTR if a
+ * signal arrived.
  */
 int __sched mutex_lock_interruptible(struct mutex *lock)
 {
@@ -1104,6 +1105,18 @@ int __sched mutex_lock_interruptible(struct mutex *lock)
 
 EXPORT_SYMBOL(mutex_lock_interruptible);
 
+/**
+ * mutex_lock_killable() - Acquire the mutex, interruptible by fatal signals.
+ * @lock: The mutex to be acquired.
+ *
+ * Lock the mutex like mutex_lock().  If a signal which will be fatal to
+ * the current process is delivered while the process is sleeping, this
+ * function will return without acquiring the mutex.
+ *
+ * Context: Process context.
+ * Return: 0 if the lock was successfully acquired or %-EINTR if a
+ * fatal signal arrived.
+ */
 int __sched mutex_lock_killable(struct mutex *lock)
 {
 	might_sleep();
@@ -1115,6 +1128,16 @@ int __sched mutex_lock_killable(struct mutex *lock)
 }
 EXPORT_SYMBOL(mutex_lock_killable);
 
+/**
+ * mutex_lock_io() - Acquire the mutex and mark the process as waiting for I/O
+ * @lock: The mutex to be acquired.
+ *
+ * Lock the mutex like mutex_lock().  While the task is waiting for this
+ * mutex, it will be accounted as being in the IO wait state by the
+ * scheduler.
+ *
+ * Context: Process context.
+ */
 void __sched mutex_lock_io(struct mutex *lock)
 {
 	int token;

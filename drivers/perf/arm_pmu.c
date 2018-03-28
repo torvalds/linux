@@ -638,7 +638,7 @@ static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_node *node)
 		if (irq_is_percpu_devid(irq))
 			disable_percpu_irq(irq);
 		else
-			disable_irq(irq);
+			disable_irq_nosync(irq);
 	}
 
 	per_cpu(cpu_armpmu, cpu) = NULL;

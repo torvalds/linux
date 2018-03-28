@@ -188,9 +188,6 @@ struct l2tp_tunnel {
 	struct sock		*sock;		/* Parent socket */
 	int			fd;		/* Parent fd, if tunnel socket
 						 * was created by userspace */
-#if IS_ENABLED(CONFIG_IPV6)
-	bool			v4mapped;
-#endif
 
 	struct work_struct	del_work;
 
@@ -214,27 +211,8 @@ static inline void *l2tp_session_priv(struct l2tp_session *session)
 	return &session->priv[0];
 }
 
-static inline struct l2tp_tunnel *l2tp_sock_to_tunnel(struct sock *sk)
-{
-	struct l2tp_tunnel *tunnel;
-
-	if (sk == NULL)
-		return NULL;
-
-	sock_hold(sk);
-	tunnel = (struct l2tp_tunnel *)(sk->sk_user_data);
-	if (tunnel == NULL) {
-		sock_put(sk);
-		goto out;
-	}
-
-	BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
-
-out:
-	return tunnel;
-}
-
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
+void l2tp_tunnel_free(struct l2tp_tunnel *tunnel);
 
 struct l2tp_session *l2tp_session_get(const struct net *net,
 				      struct l2tp_tunnel *tunnel,
@@ -283,7 +261,7 @@ static inline void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
 static inline void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
 {
 	if (refcount_dec_and_test(&tunnel->ref_count))
-		kfree_rcu(tunnel, rcu);
+		l2tp_tunnel_free(tunnel);
 }
 
 /* Session reference counts. Incremented when code obtains a reference

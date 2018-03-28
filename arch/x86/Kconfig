@@ -2307,22 +2307,13 @@ choice
 	  it can be used to assist security vulnerability exploitation.
 
 	  This setting can be changed at boot time via the kernel command
-	  line parameter vsyscall=[native|emulate|none].
+	  line parameter vsyscall=[emulate|none].
 
 	  On a system with recent enough glibc (2.14 or newer) and no
 	  static binaries, you can say None without a performance penalty
 	  to improve security.
 
 	  If unsure, select "Emulate".
-
-	config LEGACY_VSYSCALL_NATIVE
-		bool "Native"
-		help
-		  Actual executable code is located in the fixed vsyscall
-		  address mapping, implementing time() efficiently. Since
-		  this makes the mapping executable, it can be used during
-		  security vulnerability exploitation (traditionally as
-		  ROP gadgets). This configuration is not recommended.
 
 	config LEGACY_VSYSCALL_EMULATE
 		bool "Emulate"

@@ -419,11 +419,6 @@ struct bios_event_info {
 	bool backlight_changed;
 };
 
-enum {
-	HDMI_PIXEL_CLOCK_IN_KHZ_297 = 297000,
-	TMDS_PIXEL_CLOCK_IN_KHZ_165 = 165000
-};
-
 /*
  * DFS-bypass flag
  */

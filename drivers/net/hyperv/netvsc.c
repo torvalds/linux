@@ -90,6 +90,11 @@ static void free_netvsc_device(struct rcu_head *head)
 		= container_of(head, struct netvsc_device, rcu);
 	int i;
 
+	kfree(nvdev->extension);
+	vfree(nvdev->recv_buf);
+	vfree(nvdev->send_buf);
+	kfree(nvdev->send_section_map);
+
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
 		vfree(nvdev->chan_table[i].mrc.slots);
 
@@ -211,12 +216,6 @@ static void netvsc_teardown_gpadl(struct hv_device *device,
 		net_device->recv_buf_gpadl_handle = 0;
 	}
 
-	if (net_device->recv_buf) {
-		/* Free up the receive buffer */
-		vfree(net_device->recv_buf);
-		net_device->recv_buf = NULL;
-	}
-
 	if (net_device->send_buf_gpadl_handle) {
 		ret = vmbus_teardown_gpadl(device->channel,
 					   net_device->send_buf_gpadl_handle);
@@ -231,12 +230,6 @@ static void netvsc_teardown_gpadl(struct hv_device *device,
 		}
 		net_device->send_buf_gpadl_handle = 0;
 	}
-	if (net_device->send_buf) {
-		/* Free up the send buffer */
-		vfree(net_device->send_buf);
-		net_device->send_buf = NULL;
-	}
-	kfree(net_device->send_section_map);
 }
 
 int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx)
@@ -562,11 +555,13 @@ void netvsc_device_remove(struct hv_device *device)
 		= rtnl_dereference(net_device_ctx->nvdev);
 	int i;
 
-	cancel_work_sync(&net_device->subchan_work);
-
 	netvsc_revoke_buf(device, net_device);
 
 	RCU_INIT_POINTER(net_device_ctx->nvdev, NULL);
+
+	/* And disassociate NAPI context from device */
+	for (i = 0; i < net_device->num_chn; i++)
+		netif_napi_del(&net_device->chan_table[i].napi);
 
 	/*
 	 * At this point, no one should be accessing net_device
@@ -574,14 +569,15 @@ void netvsc_device_remove(struct hv_device *device)
 	 */
 	netdev_dbg(ndev, "net device safe to remove\n");
 
+	/* older versions require that buffer be revoked before close */
+	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_4)
+		netvsc_teardown_gpadl(device, net_device);
+
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
 
-	netvsc_teardown_gpadl(device, net_device);
-
-	/* And dissassociate NAPI context from device */
-	for (i = 0; i < net_device->num_chn; i++)
-		netif_napi_del(&net_device->chan_table[i].napi);
+	if (net_device->nvsp_version >= NVSP_PROTOCOL_VERSION_4)
+		netvsc_teardown_gpadl(device, net_device);
 
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
@@ -645,14 +641,18 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 	queue_sends =
 		atomic_dec_return(&net_device->chan_table[q_idx].queue_sends);
 
-	if (net_device->destroy && queue_sends == 0)
-		wake_up(&net_device->wait_drain);
+	if (unlikely(net_device->destroy)) {
+		if (queue_sends == 0)
+			wake_up(&net_device->wait_drain);
+	} else {
+		struct netdev_queue *txq = netdev_get_tx_queue(ndev, q_idx);
 
-	if (netif_tx_queue_stopped(netdev_get_tx_queue(ndev, q_idx)) &&
-	    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
-	     queue_sends < 1)) {
-		netif_tx_wake_queue(netdev_get_tx_queue(ndev, q_idx));
-		ndev_ctx->eth_stats.wake_queue++;
+		if (netif_tx_queue_stopped(txq) &&
+		    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
+		     queue_sends < 1)) {
+			netif_tx_wake_queue(txq);
+			ndev_ctx->eth_stats.wake_queue++;
+		}
 	}
 }
 
@@ -852,13 +852,6 @@ int netvsc_send(struct net_device *ndev,
 	if (unlikely(!net_device || net_device->destroy))
 		return -ENODEV;
 
-	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
-	 * here before the negotiation with the host is finished and
-	 * send_section_map may not be allocated yet.
-	 */
-	if (unlikely(!net_device->send_section_map))
-		return -EAGAIN;
-
 	nvchan = &net_device->chan_table[packet->q_idx];
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
@@ -866,10 +859,8 @@ int netvsc_send(struct net_device *ndev,
 	/* Send control message directly without accessing msd (Multi-Send
 	 * Data) field which may be changed during data packet processing.
 	 */
-	if (!skb) {
-		cur_send = packet;
-		goto send_now;
-	}
+	if (!skb)
+		return netvsc_send_pkt(device, packet, net_device, pb, skb);
 
 	/* batch packets in send buffer if possible */
 	msdp = &nvchan->msd;
@@ -953,7 +944,6 @@ int netvsc_send(struct net_device *ndev,
 		}
 	}
 
-send_now:
 	if (cur_send)
 		ret = netvsc_send_pkt(device, cur_send, net_device, pb, skb);
 
@@ -1217,9 +1207,10 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	if (send_recv_completions(ndev, net_device, nvchan) == 0 &&
 	    work_done < budget &&
 	    napi_complete_done(napi, work_done) &&
-	    hv_end_read(&channel->inbound)) {
+	    hv_end_read(&channel->inbound) &&
+	    napi_schedule_prep(napi)) {
 		hv_begin_read(&channel->inbound);
-		napi_reschedule(napi);
+		__napi_schedule(napi);
 	}
 
 	/* Driver may overshoot since multiple packets per descriptor */
@@ -1242,7 +1233,7 @@ void netvsc_channel_cb(void *context)
 		/* disable interupts from host */
 		hv_begin_read(rbi);
 
-		__napi_schedule(&nvchan->napi);
+		__napi_schedule_irqoff(&nvchan->napi);
 	}
 }
 
@@ -1296,7 +1287,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 			 netvsc_channel_cb, net_device->chan_table);
 
 	if (ret != 0) {
-		netif_napi_del(&net_device->chan_table[0].napi);
 		netdev_err(ndev, "unable to open channel: %d\n", ret);
 		goto cleanup;
 	}
@@ -1306,11 +1296,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 	napi_enable(&net_device->chan_table[0].napi);
 
-	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
-	 * populated.
-	 */
-	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
-
 	/* Connect with the NetVsp */
 	ret = netvsc_connect_vsp(device, net_device, device_info);
 	if (ret != 0) {
@@ -1318,6 +1303,11 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 			"unable to connect to NetVSP - %d\n", ret);
 		goto close;
 	}
+
+	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
+	 * populated.
+	 */
+	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
 
 	return net_device;
 
@@ -1329,6 +1319,7 @@ close:
 	vmbus_close(device->channel);
 
 cleanup:
+	netif_napi_del(&net_device->chan_table[0].napi);
 	free_netvsc_device(&net_device->rcu);
 
 	return ERR_PTR(ret);

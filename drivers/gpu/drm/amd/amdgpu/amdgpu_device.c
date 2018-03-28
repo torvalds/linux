@@ -2063,9 +2063,12 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 
 	DRM_INFO("amdgpu: finishing device.\n");
 	adev->shutdown = true;
-	if (adev->mode_info.mode_config_initialized)
-		drm_crtc_force_disable_all(adev->ddev);
-
+	if (adev->mode_info.mode_config_initialized){
+		if (!amdgpu_device_has_dc_support(adev))
+			drm_crtc_force_disable_all(adev->ddev);
+		else
+			drm_atomic_helper_shutdown(adev->ddev);
+	}
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
 	amdgpu_fbdev_fini(adev);

@@ -5037,9 +5037,9 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	const struct nf_flowtable_type *type;
+	struct nft_flowtable *flowtable, *ft;
 	u8 genmask = nft_genmask_next(net);
 	int family = nfmsg->nfgen_family;
-	struct nft_flowtable *flowtable;
 	struct nft_table *table;
 	struct nft_ctx ctx;
 	int err, i, k;
@@ -5099,6 +5099,22 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 		goto err3;
 
 	for (i = 0; i < flowtable->ops_len; i++) {
+		if (!flowtable->ops[i].dev)
+			continue;
+
+		list_for_each_entry(ft, &table->flowtables, list) {
+			for (k = 0; k < ft->ops_len; k++) {
+				if (!ft->ops[k].dev)
+					continue;
+
+				if (flowtable->ops[i].dev == ft->ops[k].dev &&
+				    flowtable->ops[i].pf == ft->ops[k].pf) {
+					err = -EBUSY;
+					goto err4;
+				}
+			}
+		}
+
 		err = nf_register_net_hook(net, &flowtable->ops[i]);
 		if (err < 0)
 			goto err4;
@@ -5120,7 +5136,7 @@ err5:
 	i = flowtable->ops_len;
 err4:
 	for (k = i - 1; k >= 0; k--)
-		nf_unregister_net_hook(net, &flowtable->ops[i]);
+		nf_unregister_net_hook(net, &flowtable->ops[k]);
 
 	kfree(flowtable->ops);
 err3:
@@ -5144,6 +5160,11 @@ static int nf_tables_delflowtable(struct net *net, struct sock *nlsk,
 	struct nft_flowtable *flowtable;
 	struct nft_table *table;
 	struct nft_ctx ctx;
+
+	if (!nla[NFTA_FLOWTABLE_TABLE] ||
+	    (!nla[NFTA_FLOWTABLE_NAME] &&
+	     !nla[NFTA_FLOWTABLE_HANDLE]))
+		return -EINVAL;
 
 	table = nf_tables_table_lookup(net, nla[NFTA_FLOWTABLE_TABLE],
 				       family, genmask);
@@ -5402,6 +5423,7 @@ err:
 static void nf_tables_flowtable_destroy(struct nft_flowtable *flowtable)
 {
 	cancel_delayed_work_sync(&flowtable->data.gc_work);
+	kfree(flowtable->ops);
 	kfree(flowtable->name);
 	flowtable->data.type->free(&flowtable->data);
 	rhashtable_destroy(&flowtable->data.rhashtable);

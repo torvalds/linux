@@ -32,6 +32,22 @@ struct ocxl_ioctl_attach {
 	__u64 reserved3;
 };
 
+struct ocxl_ioctl_metadata {
+	__u16 version; // struct version, always backwards compatible
+
+	// Version 0 fields
+	__u8  afu_version_major;
+	__u8  afu_version_minor;
+	__u32 pasid;		// PASID assigned to the current context
+
+	__u64 pp_mmio_size;	// Per PASID MMIO size
+	__u64 global_mmio_size;
+
+	// End version 0 fields
+
+	__u64 reserved[13]; // Total of 16*u64
+};
+
 struct ocxl_ioctl_irq_fd {
 	__u64 irq_offset;
 	__s32 eventfd;
@@ -45,5 +61,6 @@ struct ocxl_ioctl_irq_fd {
 #define OCXL_IOCTL_IRQ_ALLOC	_IOR(OCXL_MAGIC, 0x11, __u64)
 #define OCXL_IOCTL_IRQ_FREE	_IOW(OCXL_MAGIC, 0x12, __u64)
 #define OCXL_IOCTL_IRQ_SET_FD	_IOW(OCXL_MAGIC, 0x13, struct ocxl_ioctl_irq_fd)
+#define OCXL_IOCTL_GET_METADATA _IOR(OCXL_MAGIC, 0x14, struct ocxl_ioctl_metadata)
 
 #endif /* _UAPI_MISC_OCXL_H */

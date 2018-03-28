@@ -363,9 +363,7 @@ ENTRY(entry_INT80_compat)
 	pushq	2*8(%rdi)		/* regs->ip */
 	pushq	1*8(%rdi)		/* regs->orig_ax */
 
-	movq	(%rdi), %rdi		/* restore %rdi */
-
-	pushq	%rdi			/* pt_regs->di */
+	pushq	(%rdi)			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rcx			/* pt_regs->cx */
@@ -406,15 +404,3 @@ ENTRY(entry_INT80_compat)
 	TRACE_IRQS_ON
 	jmp	swapgs_restore_regs_and_return_to_usermode
 END(entry_INT80_compat)
-
-ENTRY(stub32_clone)
-	/*
-	 * The 32-bit clone ABI is: clone(..., int tls_val, int *child_tidptr).
-	 * The 64-bit clone ABI is: clone(..., int *child_tidptr, int tls_val).
-	 *
-	 * The native 64-bit kernel's sys_clone() implements the latter,
-	 * so we need to swap arguments here before calling it:
-	 */
-	xchg	%r8, %rcx
-	jmp	sys_clone
-ENDPROC(stub32_clone)
