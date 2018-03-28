@@ -341,12 +341,12 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 		memcpy(&recv_mic[0], (priv->rxp) + ((priv->rx_size) - 8), 8);
 		priv->rx_size = priv->rx_size - 8;
 		if (auth_type > 0 && auth_type < 4) {	/* auth_type check */
-			MichaelMICFunction(&michael_mic,
-					   (uint8_t *)key->rx_mic_key,
-					   (uint8_t *)priv->rxp,
-					   (int)priv->rx_size,
-					   (uint8_t)0,	/* priority */
-					   (uint8_t *)michael_mic.result);
+			michael_mic_function(&michael_mic,
+					     (uint8_t *)key->rx_mic_key,
+					     (uint8_t *)priv->rxp,
+					     (int)priv->rx_size,
+					     (uint8_t)0,	/* priority */
+					     (uint8_t *)michael_mic.result);
 		}
 		if (memcmp(michael_mic.result, recv_mic, 8) != 0) {
 			now = jiffies;
@@ -1172,12 +1172,12 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
-				MichaelMICFunction(&michael_mic,
-						   (uint8_t *)priv->wpa.key[0].tx_mic_key,
-						   (uint8_t *)&pp->data[0],
-						   (int)skb_len,
-						   (uint8_t)0,	/* priority */
-						   (uint8_t *)michael_mic.result);
+				michael_mic_function(&michael_mic,
+						     (uint8_t *)priv->wpa.key[0].tx_mic_key,
+						     (uint8_t *)&pp->data[0],
+						     (int)skb_len,
+						     (uint8_t)0,	/* priority */
+						     (uint8_t *)michael_mic.result);
 				memcpy(p, michael_mic.result, 8);
 				length += 8;
 				skb_len += 8;

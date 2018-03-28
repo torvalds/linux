@@ -123,9 +123,8 @@ void MichaelGetMIC(struct michael_mic_t *Mic, uint8_t *dst)
 	MichaelClear(Mic);
 }
 
-void MichaelMICFunction(struct michael_mic_t *Mic, u8 *Key,
-			u8 *Data, int Len, u8 priority,
-			u8 *Result)
+void michael_mic_function(struct michael_mic_t *mic, u8 *key,
+			  u8 *data, int len, u8 priority, u8 *result)
 {
 	u8 pad_data[4] = { priority, 0, 0, 0 };
 	// Compute the MIC value
@@ -138,9 +137,9 @@ void MichaelMICFunction(struct michael_mic_t *Mic, u8 *Key,
 	 * |DA|SA|Priority|0 |Data|M0|M1|M2|M3|M4|M5|M6|M7|
 	 * +--+--+--------+--+----+--+--+--+--+--+--+--+--+
 	 */
-	MichaelInitializeFunction(Mic, Key);
-	MichaelAppend(Mic, (uint8_t *)Data, 12);	/* |DA|SA| */
-	MichaelAppend(Mic, pad_data, 4);	/* |Priority|0|0|0| */
-	MichaelAppend(Mic, (uint8_t *)(Data + 12), Len - 12);	/* |Data| */
-	MichaelGetMIC(Mic, Result);
+	MichaelInitializeFunction(mic, key);
+	MichaelAppend(mic, (uint8_t *)data, 12);	/* |DA|SA| */
+	MichaelAppend(mic, pad_data, 4);	/* |Priority|0|0|0| */
+	MichaelAppend(mic, (uint8_t *)(data + 12), len - 12);	/* |Data| */
+	MichaelGetMIC(mic, result);
 }

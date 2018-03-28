@@ -20,6 +20,5 @@ struct michael_mic_t {
 	u8 result[8];
 };
 
-void MichaelMICFunction(struct michael_mic_t *Mic, u8 *Key,
-			u8 *Data, int Len, u8 priority,
-			u8 *Result);
+void michael_mic_function(struct michael_mic_t *mic, u8 *key,
+			  u8 *data, int len, u8 priority, u8 *result);
