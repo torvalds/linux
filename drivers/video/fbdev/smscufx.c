@@ -1307,10 +1307,8 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 		 * Alloc system memory for virtual framebuffer
 		 */
 		new_fb = vmalloc(new_len);
-		if (!new_fb) {
-			pr_err("Virtual framebuffer alloc failed");
+		if (!new_fb)
 			return -ENOMEM;
-		}
 
 		if (info->screen_base) {
 			memcpy(new_fb, old_fb, old_len);
