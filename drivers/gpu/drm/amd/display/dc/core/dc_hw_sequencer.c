@@ -230,6 +230,9 @@ bool hwss_wait_for_blank_complete(
 {
 	int counter;
 
+	/* Not applicable if the pipe is not primary, save 300ms of boot time */
+	if (!tg->funcs->is_blanked)
+		return true;
 	for (counter = 0; counter < 100; counter++) {
 		if (tg->funcs->is_blanked(tg))
 			break;
