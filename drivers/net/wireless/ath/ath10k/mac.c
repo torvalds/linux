@@ -7905,6 +7905,7 @@ static const struct ieee80211_iface_combination ath10k_10x_if_comb[] = {
 		.max_interfaces = 8,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
+		.beacon_int_min_gcd = 1,
 #ifdef CONFIG_ATH10K_DFS_CERTIFIED
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
@@ -8028,6 +8029,7 @@ static const struct ieee80211_iface_combination ath10k_10_4_if_comb[] = {
 		.max_interfaces = 16,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
+		.beacon_int_min_gcd = 1,
 #ifdef CONFIG_ATH10K_DFS_CERTIFIED
 		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
