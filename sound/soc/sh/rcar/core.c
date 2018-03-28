@@ -93,6 +93,15 @@
  *  [mod]->fn() -> [mod]->fn() -> [mod]->fn()...
  *
  */
+
+/*
+ * you can enable below define if you don't need
+ * DAI status debug message when debugging
+ * see rsnd_dbg_dai_call()
+ *
+ * #define RSND_DEBUG_NO_DAI_CALL 1
+ */
+
 #include <linux/pm_runtime.h>
 #include "rsnd.h"
 
@@ -468,7 +477,7 @@ static int rsnd_status_update(u32 *status,
 						__rsnd_mod_shift_##fn,	\
 						__rsnd_mod_add_##fn,	\
 						__rsnd_mod_call_##fn);	\
-		dev_dbg(dev, "%s[%d]\t0x%08x %s\n",			\
+		rsnd_dbg_dai_call(dev, "%s[%d]\t0x%08x %s\n",		\
 			rsnd_mod_name(mod), rsnd_mod_id(mod), *status,	\
 			(func_call && (mod)->ops->fn) ? #fn : "");	\
 		if (func_call && (mod)->ops->fn)			\
@@ -1546,8 +1555,7 @@ static int rsnd_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rsnd_pm_ops = {
-	.suspend		= rsnd_suspend,
-	.resume			= rsnd_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(rsnd_suspend, rsnd_resume)
 };
 
 static struct platform_driver rsnd_driver = {
