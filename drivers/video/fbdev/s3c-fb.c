@@ -1384,10 +1384,8 @@ static int s3c_fb_probe(struct platform_device *pdev)
 	}
 
 	sfb = devm_kzalloc(dev, sizeof(struct s3c_fb), GFP_KERNEL);
-	if (!sfb) {
-		dev_err(dev, "no memory for framebuffers\n");
+	if (!sfb)
 		return -ENOMEM;
-	}
 
 	dev_dbg(dev, "allocate new framebuffer %p\n", sfb);
 
