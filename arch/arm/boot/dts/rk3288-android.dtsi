@@ -163,7 +163,7 @@
 
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
-		interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,serial-id = <2>;
 		rockchip,wake-irq = <0>;
 		rockchip,irq-mode-enable = <0>;  /* If enable uart uses irq instead of fiq */
