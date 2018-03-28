@@ -42,20 +42,6 @@ enum cgs_ind_reg {
 	CGS_IND_REG__AUDIO_ENDPT
 };
 
-/**
- * enum cgs_engine - Engines that can be statically power-gated
- */
-enum cgs_engine {
-	CGS_ENGINE__UVD,
-	CGS_ENGINE__VCE,
-	CGS_ENGINE__VP8,
-	CGS_ENGINE__ACP_DMA,
-	CGS_ENGINE__ACP_DSP0,
-	CGS_ENGINE__ACP_DSP1,
-	CGS_ENGINE__ISP,
-	/* ... */
-};
-
 /*
  * enum cgs_ucode_id - Firmware types for different IPs
  */
@@ -152,15 +138,6 @@ typedef int (*cgs_get_firmware_info)(struct cgs_device *cgs_device,
 				     enum cgs_ucode_id type,
 				     struct cgs_firmware_info *info);
 
-
-typedef int(*cgs_set_powergating_state)(struct cgs_device *cgs_device,
-				  enum amd_ip_block_type block_type,
-				  enum amd_powergating_state state);
-
-typedef int(*cgs_set_clockgating_state)(struct cgs_device *cgs_device,
-				  enum amd_ip_block_type block_type,
-				  enum amd_clockgating_state state);
-
 struct cgs_ops {
 	/* MMIO access */
 	cgs_read_register_t read_register;
@@ -169,9 +146,6 @@ struct cgs_ops {
 	cgs_write_ind_register_t write_ind_register;
 	/* Firmware Info */
 	cgs_get_firmware_info get_firmware_info;
-	/* cg pg interface*/
-	cgs_set_powergating_state set_powergating_state;
-	cgs_set_clockgating_state set_clockgating_state;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -200,10 +174,5 @@ struct cgs_device
 
 #define cgs_get_firmware_info(dev, type, info)	\
 	CGS_CALL(get_firmware_info, dev, type, info)
-#define cgs_set_powergating_state(dev, block_type, state)	\
-	CGS_CALL(set_powergating_state, dev, block_type, state)
-#define cgs_set_clockgating_state(dev, block_type, state)	\
-	CGS_CALL(set_clockgating_state, dev, block_type, state)
-
 
 #endif /* _CGS_COMMON_H */

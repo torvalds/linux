@@ -108,48 +108,6 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 	WARN(1, "Invalid indirect register space");
 }
 
-static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
-				  enum amd_ip_block_type block_type,
-				  enum amd_clockgating_state state)
-{
-	CGS_FUNC_ADEV;
-	int i, r = -1;
-
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
-			continue;
-
-		if (adev->ip_blocks[i].version->type == block_type) {
-			r = adev->ip_blocks[i].version->funcs->set_clockgating_state(
-								(void *)adev,
-									state);
-			break;
-		}
-	}
-	return r;
-}
-
-static int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
-				  enum amd_ip_block_type block_type,
-				  enum amd_powergating_state state)
-{
-	CGS_FUNC_ADEV;
-	int i, r = -1;
-
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
-			continue;
-
-		if (adev->ip_blocks[i].version->type == block_type) {
-			r = adev->ip_blocks[i].version->funcs->set_powergating_state(
-								(void *)adev,
-									state);
-			break;
-		}
-	}
-	return r;
-}
-
 static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 {
 	CGS_FUNC_ADEV;
@@ -490,8 +448,6 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.read_ind_register = amdgpu_cgs_read_ind_register,
 	.write_ind_register = amdgpu_cgs_write_ind_register,
 	.get_firmware_info = amdgpu_cgs_get_firmware_info,
-	.set_powergating_state = amdgpu_cgs_set_powergating_state,
-	.set_clockgating_state = amdgpu_cgs_set_clockgating_state,
 };
 
 struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev)

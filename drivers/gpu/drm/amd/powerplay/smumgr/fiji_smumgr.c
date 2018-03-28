@@ -306,13 +306,13 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 	}
 
 	/* To initialize all clock gating before RLC loaded and running.*/
-	cgs_set_clockgating_state(hwmgr->device,
+	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 			AMD_IP_BLOCK_TYPE_GFX, AMD_CG_STATE_GATE);
-	cgs_set_clockgating_state(hwmgr->device,
+	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 			AMD_IP_BLOCK_TYPE_GMC, AMD_CG_STATE_GATE);
-	cgs_set_clockgating_state(hwmgr->device,
+	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 			AMD_IP_BLOCK_TYPE_SDMA, AMD_CG_STATE_GATE);
-	cgs_set_clockgating_state(hwmgr->device,
+	amdgpu_device_ip_set_clockgating_state(hwmgr->adev,
 			AMD_IP_BLOCK_TYPE_COMMON, AMD_CG_STATE_GATE);
 
 	/* Setup SoftRegsStart here for register lookup in case
