@@ -6649,7 +6649,7 @@ static __init int test_skb_segment(void)
 	}
 
 	segs = skb_segment(skb, features);
-	if (segs) {
+	if (!IS_ERR(segs)) {
 		kfree_skb_list(segs);
 		ret = 0;
 		pr_info("%s: success in skb_segment!", __func__);
