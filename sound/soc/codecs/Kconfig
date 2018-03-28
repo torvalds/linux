@@ -43,6 +43,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_AK5386
+	select SND_SOC_AK5558 if I2C
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_BT_SCO
@@ -404,6 +405,11 @@ config SND_SOC_AK4671
 
 config SND_SOC_AK5386
 	tristate "AKM AK5638 CODEC"
+
+config SND_SOC_AK5558
+	tristate "AKM AK5558 CODEC"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_ALC5623
        tristate "Realtek ALC5623 CODEC"
