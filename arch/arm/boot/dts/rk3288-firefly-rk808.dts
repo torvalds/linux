@@ -56,7 +56,7 @@
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
-		clocks = <&rk808>;
+		clocks = <&rk808 1>;
 	};
 
 	wireless-bluetooth {
@@ -169,7 +169,7 @@
 
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
-		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,serial-id = <2>;
 		rockchip,wake-irq = <0>;
 		/* If enable uart uses irq instead of fiq */
@@ -210,7 +210,7 @@
 	 */
 
 	wireless-bluetooth {
-		clocks = <&hym8563 1>;
+		clocks = <&hym8563>;
 		clock-names = "ext_clock";
 	};
 
