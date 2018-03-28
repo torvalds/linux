@@ -480,6 +480,8 @@ struct rk817_battery_device {
 	struct i2c_client			*client;
 	struct rk808			*rk817;
 	struct power_supply			*bat;
+	struct power_supply		*usb_psy;
+	struct power_supply		*ac_psy;
 	struct regmap			*regmap;
 	struct regmap_field		*rmap_fields[F_MAX_FIELDS];
 	struct battery_platform_data	*pdata;
@@ -605,7 +607,6 @@ struct rk817_battery_device {
 	int				dbg_meet_soc;
 	int				dbg_calc_dsoc;
 	int				dbg_calc_rsoc;
-
 };
 
 static u64 get_boot_sec(void)
@@ -1835,6 +1836,73 @@ static enum power_supply_property rk817_bat_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
+static int rk817_bat_get_usb_psy(struct device *dev, void *data)
+{
+	struct rk817_battery_device *battery = data;
+	struct power_supply *psy = dev_get_drvdata(dev);
+
+	if (psy->desc->type == POWER_SUPPLY_TYPE_USB) {
+		battery->usb_psy = psy;
+		return 1;
+	}
+
+	return 0;
+}
+
+static int rk817_bat_get_ac_psy(struct device *dev, void *data)
+{
+	struct rk817_battery_device *battery = data;
+	struct power_supply *psy = dev_get_drvdata(dev);
+
+	if (psy->desc->type == POWER_SUPPLY_TYPE_MAINS) {
+		battery->ac_psy = psy;
+		return 1;
+	}
+
+	return 0;
+}
+
+static void rk817_bat_get_chrg_psy(struct rk817_battery_device *battery)
+{
+	if (!battery->usb_psy)
+		class_for_each_device(power_supply_class, NULL, (void *)battery,
+				      rk817_bat_get_usb_psy);
+	if (!battery->ac_psy)
+		class_for_each_device(power_supply_class, NULL, (void *)battery,
+				      rk817_bat_get_ac_psy);
+}
+
+static int rk817_bat_get_charge_state(struct rk817_battery_device *battery)
+{
+	union power_supply_propval val;
+	int ret;
+	struct power_supply *psy;
+
+	if (!battery->usb_psy || !battery->ac_psy)
+		rk817_bat_get_chrg_psy(battery);
+
+	psy = battery->usb_psy;
+	if (psy) {
+		ret = psy->desc->get_property(psy, POWER_SUPPLY_PROP_ONLINE,
+					      &val);
+		if (!ret)
+			battery->usb_in = val.intval;
+	}
+
+	psy = battery->ac_psy;
+	if (psy) {
+		ret = psy->desc->get_property(psy, POWER_SUPPLY_PROP_ONLINE,
+					      &val);
+		if (!ret)
+			battery->ac_in = val.intval;
+	}
+
+	DBG("%s: ac_online=%d, usb_online=%d\n",
+	    __func__, battery->ac_in, battery->usb_in);
+
+	return (battery->usb_in || battery->ac_in);
+}
+
 static int rk817_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
@@ -1870,6 +1938,8 @@ static int rk817_battery_get_property(struct power_supply *psy,
 			val->intval = VIRTUAL_STATUS;
 		else if (battery->dsoc == 100 * 1000)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else if (rk817_bat_get_charge_state(battery))
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
