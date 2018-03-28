@@ -451,7 +451,7 @@
 		iommu_enabled = <1>;
 		iommus = <&iep_mmu>;
 		reg = <0x10108000 0x800>;
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk_iep", "hclk_iep";
 		power-domains = <&power RK3128_PD_VIO>;
@@ -463,7 +463,7 @@
 	iep_mmu: iommu@10108800 {
 		compatible = "rockchip,iommu";
 		reg = <0x10108800 0x40>;
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk", "hclk";
@@ -859,7 +859,7 @@
 		compatible = "snps,dw-wdt";
 		reg = <0x2004c000 0x100>;
 		clocks = <&cru PCLK_WDT>;
-		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
 
