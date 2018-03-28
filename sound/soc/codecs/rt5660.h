@@ -831,7 +831,7 @@ enum {
 };
 
 struct rt5660_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5660_platform_data pdata;
 	struct regmap *regmap;
 	struct clk *mclk;

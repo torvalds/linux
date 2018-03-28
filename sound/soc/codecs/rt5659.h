@@ -1743,10 +1743,14 @@
 #define RT5659_CKGEN_DAC2_SFT			4
 
 /* Chopper and Clock control for ADC (0x013b)*/
-#define RT5659_CKXEN_ADCC_MASK			(0x1 << 13)
-#define RT5659_CKXEN_ADCC_SFT			13
-#define RT5659_CKGEN_ADCC_MASK			(0x1 << 12)
-#define RT5659_CKGEN_ADCC_SFT			12
+#define RT5659_CKXEN_ADC1_MASK			(0x1 << 13)
+#define RT5659_CKXEN_ADC1_SFT			13
+#define RT5659_CKGEN_ADC1_MASK			(0x1 << 12)
+#define RT5659_CKGEN_ADC1_SFT			12
+#define RT5659_CKXEN_ADC2_MASK			(0x1 << 5)
+#define RT5659_CKXEN_ADC2_SFT			5
+#define RT5659_CKGEN_ADC2_MASK			(0x1 << 4)
+#define RT5659_CKGEN_ADC2_SFT			4
 
 /* Test Mode Control 1 (0x0145) */
 #define RT5659_AD2DA_LB_MASK			(0x1 << 9)
@@ -1789,7 +1793,7 @@ struct rt5659_pll_code {
 };
 
 struct rt5659_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5659_platform_data pdata;
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_ldo1_en;
@@ -1810,10 +1814,11 @@ struct rt5659_priv {
 	int pll_out;
 
 	int jack_type;
-
+	bool hda_hp_plugged;
+	bool hda_mic_plugged;
 };
 
-int rt5659_set_jack_detect(struct snd_soc_codec *codec,
+int rt5659_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hs_jack);
 
 #endif /* __RT5659_H__ */

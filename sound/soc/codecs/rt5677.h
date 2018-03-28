@@ -1790,7 +1790,7 @@ struct rt5677_platform_data {
 };
 
 struct rt5677_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5677_platform_data pdata;
 	struct regmap *regmap, *regmap_physical;
 	const struct firmware *fw1, *fw2;
@@ -1816,7 +1816,7 @@ struct rt5677_priv {
 	bool is_vref_slow;
 };
 
-int rt5677_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5677_sel_asrc_clk_src(struct snd_soc_component *component,
 		unsigned int filter_mask, unsigned int clk_src);
 
 #endif /* __RT5677_H__ */

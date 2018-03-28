@@ -18,9 +18,9 @@ Optional properties:
 
 - realtek,jack-detect-source
   u32. Valid values:
-  1: Use JD1_1 pin for jack-dectect
-  2: Use JD1_2 pin for jack-dectect
-  3: Use JD2 pin for jack-dectect
+  1: Use JD1_1 pin for jack-detect
+  2: Use JD1_2 pin for jack-detect
+  3: Use JD2 pin for jack-detect
 
 - realtek,over-current-threshold-microamp
   u32, micbias over-current detection threshold in µA, valid values are

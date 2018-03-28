@@ -34,7 +34,7 @@
 
 struct bdw_rt5677_priv {
 	struct gpio_desc *gpio_hp_en;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 };
 
 static int bdw_rt5677_event_hp(struct snd_soc_dapm_widget *w,
@@ -204,26 +204,26 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct bdw_rt5677_priv *bdw_rt5677 =
 			snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int ret;
 
-	ret = devm_acpi_dev_add_driver_gpios(codec->dev, bdw_rt5677_gpios);
+	ret = devm_acpi_dev_add_driver_gpios(component->dev, bdw_rt5677_gpios);
 	if (ret)
-		dev_warn(codec->dev, "Failed to add driver gpios\n");
+		dev_warn(component->dev, "Failed to add driver gpios\n");
 
 	/* Enable codec ASRC function for Stereo DAC/Stereo1 ADC/DMIC/I2S1.
 	 * The ASRC clock source is clk_i2s1_asrc.
 	 */
-	rt5677_sel_asrc_clk_src(codec, RT5677_DA_STEREO_FILTER |
+	rt5677_sel_asrc_clk_src(component, RT5677_DA_STEREO_FILTER |
 			RT5677_AD_STEREO1_FILTER | RT5677_I2S1_SOURCE,
 			RT5677_CLK_SEL_I2S1_ASRC);
 
 	/* Request rt5677 GPIO for headphone amp control */
-	bdw_rt5677->gpio_hp_en = devm_gpiod_get(codec->dev, "headphone-enable",
+	bdw_rt5677->gpio_hp_en = devm_gpiod_get(component->dev, "headphone-enable",
 						GPIOD_OUT_LOW);
 	if (IS_ERR(bdw_rt5677->gpio_hp_en)) {
-		dev_err(codec->dev, "Can't find HP_AMP_SHDN_L gpio\n");
+		dev_err(component->dev, "Can't find HP_AMP_SHDN_L gpio\n");
 		return PTR_ERR(bdw_rt5677->gpio_hp_en);
 	}
 
@@ -231,25 +231,25 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 	if (!snd_soc_card_jack_new(rtd->card, "Headphone Jack",
 			SND_JACK_HEADPHONE, &headphone_jack,
 			&headphone_jack_pin, 1)) {
-		headphone_jack_gpio.gpiod_dev = codec->dev;
+		headphone_jack_gpio.gpiod_dev = component->dev;
 		if (snd_soc_jack_add_gpios(&headphone_jack, 1,
 				&headphone_jack_gpio))
-			dev_err(codec->dev, "Can't add headphone jack gpio\n");
+			dev_err(component->dev, "Can't add headphone jack gpio\n");
 	} else {
-		dev_err(codec->dev, "Can't create headphone jack\n");
+		dev_err(component->dev, "Can't create headphone jack\n");
 	}
 
 	/* Create and initialize mic jack */
 	if (!snd_soc_card_jack_new(rtd->card, "Mic Jack",
 			SND_JACK_MICROPHONE, &mic_jack,
 			&mic_jack_pin, 1)) {
-		mic_jack_gpio.gpiod_dev = codec->dev;
+		mic_jack_gpio.gpiod_dev = component->dev;
 		if (snd_soc_jack_add_gpios(&mic_jack, 1, &mic_jack_gpio))
-			dev_err(codec->dev, "Can't add mic jack gpio\n");
+			dev_err(component->dev, "Can't add mic jack gpio\n");
 	} else {
-		dev_err(codec->dev, "Can't create mic jack\n");
+		dev_err(component->dev, "Can't create mic jack\n");
 	}
-	bdw_rt5677->codec = codec;
+	bdw_rt5677->component = component;
 
 	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
 	return 0;
@@ -302,8 +302,8 @@ static int bdw_rt5677_suspend_pre(struct snd_soc_card *card)
 	struct bdw_rt5677_priv *bdw_rt5677 = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dapm_context *dapm;
 
-	if (bdw_rt5677->codec) {
-		dapm = snd_soc_codec_get_dapm(bdw_rt5677->codec);
+	if (bdw_rt5677->component) {
+		dapm = snd_soc_component_get_dapm(bdw_rt5677->component);
 		snd_soc_dapm_disable_pin(dapm, "MICBIAS1");
 	}
 	return 0;
@@ -314,8 +314,8 @@ static int bdw_rt5677_resume_post(struct snd_soc_card *card)
 	struct bdw_rt5677_priv *bdw_rt5677 = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dapm_context *dapm;
 
-	if (bdw_rt5677->codec) {
-		dapm = snd_soc_codec_get_dapm(bdw_rt5677->codec);
+	if (bdw_rt5677->component) {
+		dapm = snd_soc_component_get_dapm(bdw_rt5677->component);
 		snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
 	}
 	return 0;
