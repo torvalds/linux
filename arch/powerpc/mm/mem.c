@@ -85,13 +85,7 @@ int page_is_ram(unsigned long pfn)
 #ifndef CONFIG_PPC64	/* XXX for now */
 	return pfn < max_pfn;
 #else
-	unsigned long paddr = (pfn << PAGE_SHIFT);
-	struct memblock_region *reg;
-
-	for_each_memblock(memory, reg)
-		if (paddr >= reg->base && paddr < (reg->base + reg->size))
-			return 1;
-	return 0;
+	return memblock_is_memory(__pfn_to_phys(pfn));
 #endif
 }
 
