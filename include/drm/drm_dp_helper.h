@@ -794,6 +794,15 @@
 # define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_MASK	(0xf << 4)
 # define DP_LAST_ACTUAL_SYNCHRONIZATION_LATENCY_SHIFT	4
 
+#define DP_LAST_RECEIVED_PSR_SDP	    0x200a /* eDP 1.2 */
+# define DP_PSR_STATE_BIT		    (1 << 0) /* eDP 1.2 */
+# define DP_UPDATE_RFB_BIT		    (1 << 1) /* eDP 1.2 */
+# define DP_CRC_VALID_BIT		    (1 << 2) /* eDP 1.2 */
+# define DP_SU_VALID			    (1 << 3) /* eDP 1.4 */
+# define DP_FIRST_SCAN_LINE_SU_REGION	    (1 << 4) /* eDP 1.4 */
+# define DP_LAST_SCAN_LINE_SU_REGION	    (1 << 5) /* eDP 1.4 */
+# define DP_Y_COORDINATE_VALID		    (1 << 6) /* eDP 1.4a */
+
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
 
