@@ -3195,7 +3195,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int invert = mc->invert;
 	unsigned int val, rval = 0;
 	int connect, rconnect = -1, change, reg_change = 0;
-	struct snd_soc_dapm_update update = { NULL };
+	struct snd_soc_dapm_update update = {};
 	int ret = 0;
 
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -3322,7 +3322,7 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned int *item = ucontrol->value.enumerated.item;
 	unsigned int val, change, reg_change = 0;
 	unsigned int mask;
-	struct snd_soc_dapm_update update = { NULL };
+	struct snd_soc_dapm_update update = {};
 	int ret = 0;
 
 	if (item[0] >= e->items)
