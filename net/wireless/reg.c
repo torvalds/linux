@@ -5,6 +5,7 @@
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright      2017  Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -424,23 +425,36 @@ static const struct ieee80211_regdomain *
 reg_copy_regd(const struct ieee80211_regdomain *src_regd)
 {
 	struct ieee80211_regdomain *regd;
-	int size_of_regd;
+	int size_of_regd, size_of_wmms;
 	unsigned int i;
+	struct ieee80211_wmm_rule *d_wmm, *s_wmm;
 
 	size_of_regd =
 		sizeof(struct ieee80211_regdomain) +
 		src_regd->n_reg_rules * sizeof(struct ieee80211_reg_rule);
+	size_of_wmms = src_regd->n_wmm_rules *
+		sizeof(struct ieee80211_wmm_rule);
 
-	regd = kzalloc(size_of_regd, GFP_KERNEL);
+	regd = kzalloc(size_of_regd + size_of_wmms, GFP_KERNEL);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
 
 	memcpy(regd, src_regd, sizeof(struct ieee80211_regdomain));
 
-	for (i = 0; i < src_regd->n_reg_rules; i++)
+	d_wmm = (struct ieee80211_wmm_rule *)((u8 *)regd + size_of_regd);
+	s_wmm = (struct ieee80211_wmm_rule *)((u8 *)src_regd + size_of_regd);
+	memcpy(d_wmm, s_wmm, size_of_wmms);
+
+	for (i = 0; i < src_regd->n_reg_rules; i++) {
 		memcpy(&regd->reg_rules[i], &src_regd->reg_rules[i],
 		       sizeof(struct ieee80211_reg_rule));
+		if (!src_regd->reg_rules[i].wmm_rule)
+			continue;
 
+		regd->reg_rules[i].wmm_rule = d_wmm +
+			(src_regd->reg_rules[i].wmm_rule - s_wmm) /
+			sizeof(struct ieee80211_wmm_rule);
+	}
 	return regd;
 }
 
@@ -595,6 +609,17 @@ enum fwdb_flags {
 	FWDB_FLAG_AUTO_BW	= BIT(4),
 };
 
+struct fwdb_wmm_ac {
+	u8 ecw;
+	u8 aifsn;
+	__be16 cot;
+} __packed;
+
+struct fwdb_wmm_rule {
+	struct fwdb_wmm_ac client[IEEE80211_NUM_ACS];
+	struct fwdb_wmm_ac ap[IEEE80211_NUM_ACS];
+} __packed;
+
 struct fwdb_rule {
 	u8 len;
 	u8 flags;
@@ -602,6 +627,7 @@ struct fwdb_rule {
 	__be32 start, end, max_bw;
 	/* start of optional data */
 	__be16 cac_timeout;
+	__be16 wmm_ptr;
 } __packed __aligned(4);
 
 #define FWDB_MAGIC 0x52474442
@@ -613,6 +639,31 @@ struct fwdb_header {
 	struct fwdb_country country[];
 } __packed __aligned(4);
 
+static int ecw2cw(int ecw)
+{
+	return (1 << ecw) - 1;
+}
+
+static bool valid_wmm(struct fwdb_wmm_rule *rule)
+{
+	struct fwdb_wmm_ac *ac = (struct fwdb_wmm_ac *)rule;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS * 2; i++) {
+		u16 cw_min = ecw2cw((ac[i].ecw & 0xf0) >> 4);
+		u16 cw_max = ecw2cw(ac[i].ecw & 0x0f);
+		u8 aifsn = ac[i].aifsn;
+
+		if (cw_min >= cw_max)
+			return false;
+
+		if (aifsn < 1)
+			return false;
+	}
+
+	return true;
+}
+
 static bool valid_rule(const u8 *data, unsigned int size, u16 rule_ptr)
 {
 	struct fwdb_rule *rule = (void *)(data + (rule_ptr << 2));
@@ -623,7 +674,18 @@ static bool valid_rule(const u8 *data, unsigned int size, u16 rule_ptr)
 	/* mandatory fields */
 	if (rule->len < offsetofend(struct fwdb_rule, max_bw))
 		return false;
+	if (rule->len >= offsetofend(struct fwdb_rule, wmm_ptr)) {
+		u32 wmm_ptr = be16_to_cpu(rule->wmm_ptr) << 2;
+		struct fwdb_wmm_rule *wmm;
 
+		if (wmm_ptr + sizeof(struct fwdb_wmm_rule) > size)
+			return false;
+
+		wmm = (void *)(data + wmm_ptr);
+
+		if (!valid_wmm(wmm))
+			return false;
+	}
 	return true;
 }
 
@@ -798,22 +860,63 @@ static bool valid_regdb(const u8 *data, unsigned int size)
 	return true;
 }
 
+static void set_wmm_rule(struct ieee80211_wmm_rule *rule,
+			 struct fwdb_wmm_rule *wmm)
+{
+	unsigned int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		rule->client[i].cw_min =
+			ecw2cw((wmm->client[i].ecw & 0xf0) >> 4);
+		rule->client[i].cw_max = ecw2cw(wmm->client[i].ecw & 0x0f);
+		rule->client[i].aifsn =  wmm->client[i].aifsn;
+		rule->client[i].cot = 1000 * be16_to_cpu(wmm->client[i].cot);
+		rule->ap[i].cw_min = ecw2cw((wmm->ap[i].ecw & 0xf0) >> 4);
+		rule->ap[i].cw_max = ecw2cw(wmm->ap[i].ecw & 0x0f);
+		rule->ap[i].aifsn = wmm->ap[i].aifsn;
+		rule->ap[i].cot = 1000 * be16_to_cpu(wmm->ap[i].cot);
+	}
+}
+
+struct wmm_ptrs {
+	struct ieee80211_wmm_rule *rule;
+	u32 ptr;
+};
+
+static struct ieee80211_wmm_rule *find_wmm_ptr(struct wmm_ptrs *wmm_ptrs,
+					       u32 wmm_ptr, int n_wmms)
+{
+	int i;
+
+	for (i = 0; i < n_wmms; i++) {
+		if (wmm_ptrs[i].ptr == wmm_ptr)
+			return wmm_ptrs[i].rule;
+	}
+	return NULL;
+}
+
 static int regdb_query_country(const struct fwdb_header *db,
 			       const struct fwdb_country *country)
 {
 	unsigned int ptr = be16_to_cpu(country->coll_ptr) << 2;
 	struct fwdb_collection *coll = (void *)((u8 *)db + ptr);
 	struct ieee80211_regdomain *regdom;
-	unsigned int size_of_regd;
-	unsigned int i;
+	struct ieee80211_regdomain *tmp_rd;
+	unsigned int size_of_regd, i, n_wmms = 0;
+	struct wmm_ptrs *wmm_ptrs;
 
-	size_of_regd =
-		sizeof(struct ieee80211_regdomain) +
+	size_of_regd = sizeof(struct ieee80211_regdomain) +
 		coll->n_rules * sizeof(struct ieee80211_reg_rule);
 
 	regdom = kzalloc(size_of_regd, GFP_KERNEL);
 	if (!regdom)
 		return -ENOMEM;
+
+	wmm_ptrs = kcalloc(coll->n_rules, sizeof(*wmm_ptrs), GFP_KERNEL);
+	if (!wmm_ptrs) {
+		kfree(regdom);
+		return -ENOMEM;
+	}
 
 	regdom->n_reg_rules = coll->n_rules;
 	regdom->alpha2[0] = country->alpha2[0];
@@ -851,7 +954,38 @@ static int regdb_query_country(const struct fwdb_header *db,
 		if (rule->len >= offsetofend(struct fwdb_rule, cac_timeout))
 			rrule->dfs_cac_ms =
 				1000 * be16_to_cpu(rule->cac_timeout);
+		if (rule->len >= offsetofend(struct fwdb_rule, wmm_ptr)) {
+			u32 wmm_ptr = be16_to_cpu(rule->wmm_ptr) << 2;
+			struct ieee80211_wmm_rule *wmm_pos =
+				find_wmm_ptr(wmm_ptrs, wmm_ptr, n_wmms);
+			struct fwdb_wmm_rule *wmm;
+			struct ieee80211_wmm_rule *wmm_rule;
+
+			if (wmm_pos) {
+				rrule->wmm_rule = wmm_pos;
+				continue;
+			}
+			wmm = (void *)((u8 *)db + wmm_ptr);
+			tmp_rd = krealloc(regdom, size_of_regd + (n_wmms + 1) *
+					  sizeof(struct ieee80211_wmm_rule),
+					  GFP_KERNEL);
+
+			if (!tmp_rd) {
+				kfree(regdom);
+				return -ENOMEM;
+			}
+			regdom = tmp_rd;
+
+			wmm_rule = (struct ieee80211_wmm_rule *)
+				((u8 *)regdom + size_of_regd + n_wmms *
+				sizeof(struct ieee80211_wmm_rule));
+
+			set_wmm_rule(wmm_rule, wmm);
+			wmm_ptrs[n_wmms].ptr = wmm_ptr;
+			wmm_ptrs[n_wmms++].rule = wmm_rule;
+		}
 	}
+	kfree(wmm_ptrs);
 
 	return reg_schedule_apply(regdom);
 }
