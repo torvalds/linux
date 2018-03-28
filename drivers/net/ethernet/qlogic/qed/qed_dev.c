@@ -407,6 +407,7 @@ static void qed_init_qm_pq(struct qed_hwfn *p_hwfn,
 		       "pq overflow! pq %d, max pq %d\n", pq_idx, max_pq);
 
 	/* init pq params */
+	qm_info->qm_pq_params[pq_idx].port_id = p_hwfn->port_id;
 	qm_info->qm_pq_params[pq_idx].vport_id = qm_info->start_vport +
 	    qm_info->num_vports;
 	qm_info->qm_pq_params[pq_idx].tc_id = tc;
@@ -727,8 +728,9 @@ static void qed_dp_init_qm_params(struct qed_hwfn *p_hwfn)
 		pq = &(qm_info->qm_pq_params[i]);
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_HW,
-			   "pq idx %d, vport_id %d, tc %d, wrr_grp %d, rl_valid %d\n",
+			   "pq idx %d, port %d, vport_id %d, tc %d, wrr_grp %d, rl_valid %d\n",
 			   qm_info->start_pq + i,
+			   pq->port_id,
 			   pq->vport_id,
 			   pq->tc_id, pq->wrr_group, pq->rl_valid);
 	}

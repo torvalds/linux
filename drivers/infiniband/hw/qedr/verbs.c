@@ -3695,7 +3695,7 @@ static int process_resp_flush(struct qedr_qp *qp, struct qedr_cq *cq,
 static void try_consume_resp_cqe(struct qedr_cq *cq, struct qedr_qp *qp,
 				 struct rdma_cqe_responder *resp, int *update)
 {
-	if (le16_to_cpu(resp->rq_cons) == qp->rq.wqe_cons) {
+	if (le16_to_cpu(resp->rq_cons_or_srq_id) == qp->rq.wqe_cons) {
 		consume_cqe(cq);
 		*update |= 1;
 	}
@@ -3710,7 +3710,7 @@ static int qedr_poll_cq_resp(struct qedr_dev *dev, struct qedr_qp *qp,
 
 	if (resp->status == RDMA_CQE_RESP_STS_WORK_REQUEST_FLUSHED_ERR) {
 		cnt = process_resp_flush(qp, cq, num_entries, wc,
-					 resp->rq_cons);
+					 resp->rq_cons_or_srq_id);
 		try_consume_resp_cqe(cq, qp, resp, update);
 	} else {
 		cnt = process_resp_one(dev, qp, cq, wc, resp);

@@ -2375,13 +2375,6 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 
 		memset(&tx_pkt, 0, sizeof(tx_pkt));
 		tx_pkt.num_of_bds = 1;
-		tx_pkt.vlan = data->vlan;
-
-		if (GET_FIELD(data->parse_flags,
-			      PARSING_AND_ERR_FLAGS_TAG8021QEXIST))
-			SET_FIELD(tx_pkt.bd_flags,
-				  CORE_TX_BD_DATA_VLAN_INSERTION, 1);
-
 		tx_pkt.l4_hdr_offset_w = (data->length.packet_length) >> 2;
 		tx_pkt.tx_dest = QED_LL2_TX_DEST_LB;
 		tx_pkt.first_frag = buf->data_phys_addr +
