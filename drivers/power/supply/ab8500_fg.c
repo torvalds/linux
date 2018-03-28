@@ -1408,7 +1408,7 @@ static void ab8500_fg_charge_state_to(struct ab8500_fg *di,
 static void ab8500_fg_discharge_state_to(struct ab8500_fg *di,
 	enum ab8500_fg_discharge_state new_state)
 {
-	dev_dbg(di->dev, "Disharge state from %d [%s] to %d [%s]\n",
+	dev_dbg(di->dev, "Discharge state from %d [%s] to %d [%s]\n",
 		di->discharge_state,
 		discharge_state[di->discharge_state],
 		new_state,
