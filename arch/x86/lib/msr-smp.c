@@ -225,16 +225,13 @@ EXPORT_SYMBOL(wrmsrl_safe_on_cpu);
 
 int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 {
+	u32 low, high;
 	int err;
-	struct msr_info rv;
 
-	memset(&rv, 0, sizeof(rv));
+	err = rdmsr_safe_on_cpu(cpu, msr_no, &low, &high);
+	*q = (u64)high << 32 | low;
 
-	rv.msr_no = msr_no;
-	err = smp_call_function_single(cpu, __rdmsr_safe_on_cpu, &rv, 1);
-	*q = rv.reg.q;
-
-	return err ? err : rv.err;
+	return err;
 }
 EXPORT_SYMBOL(rdmsrl_safe_on_cpu);
 
