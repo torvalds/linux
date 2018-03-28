@@ -650,10 +650,6 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 		table[1].data = &net->ipv6.frags.low_thresh;
 		table[1].extra2 = &net->ipv6.frags.high_thresh;
 		table[2].data = &net->ipv6.frags.timeout;
-
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table[0].procname = NULL;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv6", table);
