@@ -382,7 +382,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	uint32_t val;
 	uint8_t sink_latency;
 
-	val = idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
+	val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
 
 	/* FIXME: selective update is probably totally broken because it doesn't
 	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
