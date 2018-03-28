@@ -600,7 +600,7 @@
 	i2c-scl-rising-time-ns = <275>;
 	i2c-scl-falling-time-ns = <16>;
 
-	sensor@0f {
+	sensor@f {
 		status = "okay";
 		compatible = "ak8963";
 		reg = <0x0f>;
