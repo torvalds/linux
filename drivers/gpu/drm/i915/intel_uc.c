@@ -480,8 +480,7 @@ int intel_uc_resume(struct drm_i915_private *i915)
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
-	if (i915_modparams.guc_log_level)
-		gen9_enable_guc_interrupts(i915);
+	gen9_enable_guc_interrupts(i915);
 
 	err = intel_guc_resume(guc);
 	if (err) {
