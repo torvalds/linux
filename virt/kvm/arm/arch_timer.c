@@ -545,9 +545,11 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 	 * The kernel may decide to run userspace after calling vcpu_put, so
 	 * we reset cntvoff to 0 to ensure a consistent read between user
 	 * accesses to the virtual counter and kernel access to the physical
-	 * counter.
+	 * counter of non-VHE case. For VHE, the virtual counter uses a fixed
+	 * virtual offset of zero, so no need to zero CNTVOFF_EL2 register.
 	 */
-	set_cntvoff(0);
+	if (!has_vhe())
+		set_cntvoff(0);
 }
 
 /*
@@ -581,6 +583,7 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 
 int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 {
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
@@ -593,6 +596,9 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 	vtimer->cnt_ctl = 0;
 	ptimer->cnt_ctl = 0;
 	kvm_timer_update_state(vcpu);
+
+	if (timer->enabled && irqchip_in_kernel(vcpu->kvm))
+		kvm_vgic_reset_mapped_irq(vcpu, vtimer->irq.irq);
 
 	return 0;
 }
@@ -767,7 +773,7 @@ int kvm_timer_hyp_init(bool has_gic)
 		static_branch_enable(&has_gic_active_state);
 	}
 
-	kvm_info("virtual timer IRQ%d\n", host_vtimer_irq);
+	kvm_debug("virtual timer IRQ%d\n", host_vtimer_irq);
 
 	cpuhp_setup_state(CPUHP_AP_KVM_ARM_TIMER_STARTING,
 			  "kvm/arm/timer:starting", kvm_timer_starting_cpu,
@@ -852,11 +858,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 		return ret;
 
 no_vgic:
-	preempt_disable();
 	timer->enabled = 1;
-	kvm_timer_vcpu_load(vcpu);
-	preempt_enable();
-
 	return 0;
 }
 

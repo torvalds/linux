@@ -19,41 +19,60 @@
 #include <linux/linkage.h>
 #include <linux/arm-smccc.h>
 
-.macro ventry target
-	.rept 31
+#include <asm/alternative.h>
+#include <asm/mmu.h>
+
+.macro hyp_ventry
+	.align 7
+1:	.rept 27
 	nop
 	.endr
-	b	\target
+/*
+ * The default sequence is to directly branch to the KVM vectors,
+ * using the computed offset. This applies for VHE as well as
+ * !ARM64_HARDEN_EL2_VECTORS.
+ *
+ * For ARM64_HARDEN_EL2_VECTORS configurations, this gets replaced
+ * with:
+ *
+ * stp	x0, x1, [sp, #-16]!
+ * movz	x0, #(addr & 0xffff)
+ * movk	x0, #((addr >> 16) & 0xffff), lsl #16
+ * movk	x0, #((addr >> 32) & 0xffff), lsl #32
+ * br	x0
+ *
+ * Where addr = kern_hyp_va(__kvm_hyp_vector) + vector-offset + 4.
+ * See kvm_patch_vector_branch for details.
+ */
+alternative_cb	kvm_patch_vector_branch
+	b	__kvm_hyp_vector + (1b - 0b)
+	nop
+	nop
+	nop
+	nop
+alternative_cb_end
 .endm
 
-.macro vectors target
-	ventry \target + 0x000
-	ventry \target + 0x080
-	ventry \target + 0x100
-	ventry \target + 0x180
-
-	ventry \target + 0x200
-	ventry \target + 0x280
-	ventry \target + 0x300
-	ventry \target + 0x380
-
-	ventry \target + 0x400
-	ventry \target + 0x480
-	ventry \target + 0x500
-	ventry \target + 0x580
-
-	ventry \target + 0x600
-	ventry \target + 0x680
-	ventry \target + 0x700
-	ventry \target + 0x780
+.macro generate_vectors
+0:
+	.rept 16
+	hyp_ventry
+	.endr
+	.org 0b + SZ_2K		// Safety measure
 .endm
+
+
+	.text
+	.pushsection	.hyp.text, "ax"
 
 	.align	11
 ENTRY(__bp_harden_hyp_vecs_start)
-	.rept 4
-	vectors __kvm_hyp_vector
+	.rept BP_HARDEN_EL2_SLOTS
+	generate_vectors
 	.endr
 ENTRY(__bp_harden_hyp_vecs_end)
+
+	.popsection
 
 ENTRY(__qcom_hyp_sanitize_link_stack_start)
 	stp     x29, x30, [sp, #-16]!
