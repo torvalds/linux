@@ -1315,6 +1315,81 @@ static int bpf_obj_get(const union bpf_attr *attr)
 				attr->file_flags);
 }
 
+struct bpf_raw_tracepoint {
+	struct bpf_raw_event_map *btp;
+	struct bpf_prog *prog;
+};
+
+static int bpf_raw_tracepoint_release(struct inode *inode, struct file *filp)
+{
+	struct bpf_raw_tracepoint *raw_tp = filp->private_data;
+
+	if (raw_tp->prog) {
+		bpf_probe_unregister(raw_tp->btp, raw_tp->prog);
+		bpf_prog_put(raw_tp->prog);
+	}
+	kfree(raw_tp);
+	return 0;
+}
+
+static const struct file_operations bpf_raw_tp_fops = {
+	.release	= bpf_raw_tracepoint_release,
+	.read		= bpf_dummy_read,
+	.write		= bpf_dummy_write,
+};
+
+#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
+
+static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
+{
+	struct bpf_raw_tracepoint *raw_tp;
+	struct bpf_raw_event_map *btp;
+	struct bpf_prog *prog;
+	char tp_name[128];
+	int tp_fd, err;
+
+	if (strncpy_from_user(tp_name, u64_to_user_ptr(attr->raw_tracepoint.name),
+			      sizeof(tp_name) - 1) < 0)
+		return -EFAULT;
+	tp_name[sizeof(tp_name) - 1] = 0;
+
+	btp = bpf_find_raw_tracepoint(tp_name);
+	if (!btp)
+		return -ENOENT;
+
+	raw_tp = kzalloc(sizeof(*raw_tp), GFP_USER);
+	if (!raw_tp)
+		return -ENOMEM;
+	raw_tp->btp = btp;
+
+	prog = bpf_prog_get_type(attr->raw_tracepoint.prog_fd,
+				 BPF_PROG_TYPE_RAW_TRACEPOINT);
+	if (IS_ERR(prog)) {
+		err = PTR_ERR(prog);
+		goto out_free_tp;
+	}
+
+	err = bpf_probe_register(raw_tp->btp, prog);
+	if (err)
+		goto out_put_prog;
+
+	raw_tp->prog = prog;
+	tp_fd = anon_inode_getfd("bpf-raw-tracepoint", &bpf_raw_tp_fops, raw_tp,
+				 O_CLOEXEC);
+	if (tp_fd < 0) {
+		bpf_probe_unregister(raw_tp->btp, prog);
+		err = tp_fd;
+		goto out_put_prog;
+	}
+	return tp_fd;
+
+out_put_prog:
+	bpf_prog_put(prog);
+out_free_tp:
+	kfree(raw_tp);
+	return err;
+}
+
 #ifdef CONFIG_CGROUP_BPF
 
 #define BPF_PROG_ATTACH_LAST_FIELD attach_flags
@@ -1924,6 +1999,9 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		break;
 	case BPF_OBJ_GET_INFO_BY_FD:
 		err = bpf_obj_get_info_by_fd(&attr, uattr);
+		break;
+	case BPF_RAW_TRACEPOINT_OPEN:
+		err = bpf_raw_tracepoint_open(&attr);
 		break;
 	default:
 		err = -EINVAL;

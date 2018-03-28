@@ -94,6 +94,7 @@ enum bpf_cmd {
 	BPF_MAP_GET_FD_BY_ID,
 	BPF_OBJ_GET_INFO_BY_FD,
 	BPF_PROG_QUERY,
+	BPF_RAW_TRACEPOINT_OPEN,
 };
 
 enum bpf_map_type {
@@ -134,6 +135,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_CGROUP_DEVICE,
 	BPF_PROG_TYPE_SK_MSG,
+	BPF_PROG_TYPE_RAW_TRACEPOINT,
 };
 
 enum bpf_attach_type {
@@ -344,6 +346,11 @@ union bpf_attr {
 		__aligned_u64	prog_ids;
 		__u32		prog_cnt;
 	} query;
+
+	struct {
+		__u64 name;
+		__u32 prog_fd;
+	} raw_tracepoint;
 } __attribute__((aligned(8)));
 
 /* BPF helper function descriptions:
@@ -1150,6 +1157,10 @@ struct bpf_cgroup_dev_ctx {
 	__u32 access_type;
 	__u32 major;
 	__u32 minor;
+};
+
+struct bpf_raw_tracepoint_args {
+	__u64 args[0];
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */
