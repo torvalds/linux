@@ -5,6 +5,8 @@ Required properties:
 
 - reg : the I2C address of the device
 
+- #sound-dai-cells: must be equal to 0
+
 - clocks : the clock provider of SYS_MCLK
 
 - VDDA-supply : the regulator provider of VDDA
@@ -40,6 +42,7 @@ Example:
 codec: sgtl5000@a {
 	compatible = "fsl,sgtl5000";
 	reg = <0x0a>;
+	#sound-dai-cells = <0>;
 	clocks = <&clks 150>;
 	micbias-resistor-k-ohms = <2>;
 	micbias-voltage-m-volts = <2250>;
