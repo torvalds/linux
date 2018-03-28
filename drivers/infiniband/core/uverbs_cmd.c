@@ -2739,8 +2739,52 @@ out_put:
 	return ret ? ret : in_len;
 }
 
-static int kern_spec_to_ib_spec_action(struct ib_uverbs_flow_spec *kern_spec,
-				       union ib_flow_spec *ib_spec)
+struct ib_uflow_resources {
+	size_t			max;
+	size_t			num;
+	struct ib_flow_action	*collection[0];
+};
+
+static struct ib_uflow_resources *flow_resources_alloc(size_t num_specs)
+{
+	struct ib_uflow_resources *resources;
+
+	resources =
+		kmalloc(sizeof(*resources) +
+			num_specs * sizeof(*resources->collection), GFP_KERNEL);
+
+	if (!resources)
+		return NULL;
+
+	resources->num = 0;
+	resources->max = num_specs;
+
+	return resources;
+}
+
+void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res)
+{
+	unsigned int i;
+
+	for (i = 0; i < uflow_res->num; i++)
+		atomic_dec(&uflow_res->collection[i]->usecnt);
+
+	kfree(uflow_res);
+}
+
+static void flow_resources_add(struct ib_uflow_resources *uflow_res,
+			       struct ib_flow_action *action)
+{
+	WARN_ON(uflow_res->num >= uflow_res->max);
+
+	atomic_inc(&action->usecnt);
+	uflow_res->collection[uflow_res->num++] = action;
+}
+
+static int kern_spec_to_ib_spec_action(struct ib_ucontext *ucontext,
+				       struct ib_uverbs_flow_spec *kern_spec,
+				       union ib_flow_spec *ib_spec,
+				       struct ib_uflow_resources *uflow_res)
 {
 	ib_spec->type = kern_spec->type;
 	switch (ib_spec->type) {
@@ -2758,6 +2802,21 @@ static int kern_spec_to_ib_spec_action(struct ib_uverbs_flow_spec *kern_spec,
 			return -EINVAL;
 
 		ib_spec->drop.size = sizeof(struct ib_flow_spec_action_drop);
+		break;
+	case IB_FLOW_SPEC_ACTION_HANDLE:
+		if (kern_spec->action.size !=
+		    sizeof(struct ib_uverbs_flow_spec_action_handle))
+			return -EOPNOTSUPP;
+		ib_spec->action.act = uobj_get_obj_read(flow_action,
+							UVERBS_OBJECT_FLOW_ACTION,
+							kern_spec->action.handle,
+							ucontext);
+		if (!ib_spec->action.act)
+			return -EINVAL;
+		ib_spec->action.size =
+			sizeof(struct ib_flow_spec_action_handle);
+		flow_resources_add(uflow_res, ib_spec->action.act);
+		uobj_put_obj_read(ib_spec->action.act);
 		break;
 	default:
 		return -EINVAL;
@@ -2900,14 +2959,17 @@ static int kern_spec_to_ib_spec_filter(struct ib_uverbs_flow_spec *kern_spec,
 						     kern_filter_sz, ib_spec);
 }
 
-static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
-				union ib_flow_spec *ib_spec)
+static int kern_spec_to_ib_spec(struct ib_ucontext *ucontext,
+				struct ib_uverbs_flow_spec *kern_spec,
+				union ib_flow_spec *ib_spec,
+				struct ib_uflow_resources *uflow_res)
 {
 	if (kern_spec->reserved)
 		return -EINVAL;
 
 	if (kern_spec->type >= IB_FLOW_SPEC_ACTION_TAG)
-		return kern_spec_to_ib_spec_action(kern_spec, ib_spec);
+		return kern_spec_to_ib_spec_action(ucontext, kern_spec, ib_spec,
+						   uflow_res);
 	else
 		return kern_spec_to_ib_spec_filter(kern_spec, ib_spec);
 }
@@ -3322,10 +3384,12 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	struct ib_uverbs_create_flow	  cmd;
 	struct ib_uverbs_create_flow_resp resp;
 	struct ib_uobject		  *uobj;
+	struct ib_uflow_object		  *uflow;
 	struct ib_flow			  *flow_id;
 	struct ib_uverbs_flow_attr	  *kern_flow_attr;
 	struct ib_flow_attr		  *flow_attr;
 	struct ib_qp			  *qp;
+	struct ib_uflow_resources	  *uflow_res;
 	int err = 0;
 	void *kern_spec;
 	void *ib_spec;
@@ -3403,6 +3467,11 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		err = -ENOMEM;
 		goto err_put;
 	}
+	uflow_res = flow_resources_alloc(cmd.flow_attr.num_of_specs);
+	if (!uflow_res) {
+		err = -ENOMEM;
+		goto err_free_flow_attr;
+	}
 
 	flow_attr->type = kern_flow_attr->type;
 	flow_attr->priority = kern_flow_attr->priority;
@@ -3417,7 +3486,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	     cmd.flow_attr.size > offsetof(struct ib_uverbs_flow_spec, reserved) &&
 	     cmd.flow_attr.size >=
 	     ((struct ib_uverbs_flow_spec *)kern_spec)->size; i++) {
-		err = kern_spec_to_ib_spec(kern_spec, ib_spec);
+		err = kern_spec_to_ib_spec(file->ucontext, kern_spec, ib_spec,
+					   uflow_res);
 		if (err)
 			goto err_free;
 		flow_attr->size +=
@@ -3439,6 +3509,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	}
 	flow_id->uobject = uobj;
 	uobj->object = flow_id;
+	uflow = container_of(uobj, typeof(*uflow), uobject);
+	uflow->resources = uflow_res;
 
 	memset(&resp, 0, sizeof(resp));
 	resp.flow_handle = uobj->id;
@@ -3457,6 +3529,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 err_copy:
 	ib_destroy_flow(flow_id);
 err_free:
+	ib_uverbs_flow_resources_free(uflow_res);
+err_free_flow_attr:
 	kfree(flow_attr);
 err_put:
 	uobj_put_obj_read(qp);
