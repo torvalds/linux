@@ -2710,15 +2710,15 @@ static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
 	return 0;
 }
 
-static void skl_clear_pin_config(struct snd_soc_platform *platform,
+static void skl_clear_pin_config(struct snd_soc_component *component,
 				struct snd_soc_dapm_widget *w)
 {
 	int i;
 	struct skl_module_cfg *mconfig;
 	struct skl_pipe *pipe;
 
-	if (!strncmp(w->dapm->component->name, platform->component.name,
-					strlen(platform->component.name))) {
+	if (!strncmp(w->dapm->component->name, component->name,
+					strlen(component->name))) {
 		mconfig = w->priv;
 		pipe = mconfig->pipe;
 		for (i = 0; i < mconfig->module->max_input_pins; i++) {
@@ -2737,14 +2737,14 @@ static void skl_clear_pin_config(struct snd_soc_platform *platform,
 void skl_cleanup_resources(struct skl *skl)
 {
 	struct skl_sst *ctx = skl->skl_sst;
-	struct snd_soc_platform *soc_platform = skl->platform;
+	struct snd_soc_component *soc_component = skl->component;
 	struct snd_soc_dapm_widget *w;
 	struct snd_soc_card *card;
 
-	if (soc_platform == NULL)
+	if (soc_component == NULL)
 		return;
 
-	card = soc_platform->component.card;
+	card = soc_component->card;
 	if (!card || !card->instantiated)
 		return;
 
@@ -2753,7 +2753,7 @@ void skl_cleanup_resources(struct skl *skl)
 
 	list_for_each_entry(w, &card->widgets, list) {
 		if (is_skl_dsp_widget_type(w) && (w->priv != NULL))
-			skl_clear_pin_config(soc_platform, w);
+			skl_clear_pin_config(soc_component, w);
 	}
 
 	skl_clear_module_cnt(ctx->dsp);
@@ -3400,19 +3400,19 @@ static struct snd_soc_tplg_ops skl_tplg_ops  = {
  * widgets in a pipelines, so this helper - skl_tplg_create_pipe_widget_list()
  * helps to get the SKL type widgets in that pipeline
  */
-static int skl_tplg_create_pipe_widget_list(struct snd_soc_platform *platform)
+static int skl_tplg_create_pipe_widget_list(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_widget *w;
 	struct skl_module_cfg *mcfg = NULL;
 	struct skl_pipe_module *p_module = NULL;
 	struct skl_pipe *pipe;
 
-	list_for_each_entry(w, &platform->component.card->widgets, list) {
+	list_for_each_entry(w, &component->card->widgets, list) {
 		if (is_skl_dsp_widget_type(w) && w->priv != NULL) {
 			mcfg = w->priv;
 			pipe = mcfg->pipe;
 
-			p_module = devm_kzalloc(platform->dev,
+			p_module = devm_kzalloc(component->dev,
 						sizeof(*p_module), GFP_KERNEL);
 			if (!p_module)
 				return -ENOMEM;
@@ -3455,7 +3455,7 @@ static void skl_tplg_set_pipe_type(struct skl *skl, struct skl_pipe *pipe)
 /*
  * SKL topology init routine
  */
-int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
+int skl_tplg_init(struct snd_soc_component *component, struct hdac_ext_bus *ebus)
 {
 	int ret;
 	const struct firmware *fw;
@@ -3479,7 +3479,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	 * The complete tplg for SKL is loaded as index 0, we don't use
 	 * any other index
 	 */
-	ret = snd_soc_tplg_component_load(&platform->component,
+	ret = snd_soc_tplg_component_load(component,
 					&skl_tplg_ops, fw, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
@@ -3491,7 +3491,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	skl->resource.max_mem = SKL_FW_MAX_MEM;
 
 	skl->tplg = fw;
-	ret = skl_tplg_create_pipe_widget_list(platform);
+	ret = skl_tplg_create_pipe_widget_list(component);
 	if (ret < 0)
 		return ret;
 

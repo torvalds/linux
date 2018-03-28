@@ -32,6 +32,7 @@ struct atmel_classd {
 	struct regmap *regmap;
 	struct clk *pclk;
 	struct clk *gclk;
+	struct device *dev;
 	int irq;
 	const struct atmel_classd_pdata *pdata;
 };
@@ -165,7 +166,7 @@ atmel_classd_platform_configure_dma(struct snd_pcm_substream *substream,
 	struct atmel_classd *dd = snd_soc_card_get_drvdata(rtd->card);
 
 	if (params_physical_width(params) != 16) {
-		dev_err(rtd->platform->dev,
+		dev_err(dd->dev,
 			"only supports 16-bit audio data\n");
 		return -EINVAL;
 	}
@@ -587,6 +588,7 @@ static int atmel_classd_probe(struct platform_device *pdev)
 	}
 
 	dd->phy_base = res->start;
+	dd->dev = dev;
 
 	dd->regmap = devm_regmap_init_mmio(dev, io_base,
 					&atmel_classd_regmap_config);

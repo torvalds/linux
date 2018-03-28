@@ -820,7 +820,7 @@ static int cygnus_dma_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform_driver cygnus_soc_platform = {
+static struct snd_soc_component_driver cygnus_soc_platform = {
 	.ops		= &cygnus_pcm_ops,
 	.pcm_new	= cygnus_dma_new,
 	.pcm_free	= cygnus_dma_free_dma_buffers,
@@ -840,7 +840,8 @@ int cygnus_soc_platform_register(struct device *dev,
 		return rc;
 	}
 
-	rc = snd_soc_register_platform(dev, &cygnus_soc_platform);
+	rc = devm_snd_soc_register_component(dev, &cygnus_soc_platform,
+					     NULL, 0);
 	if (rc) {
 		dev_err(dev, "%s failed\n", __func__);
 		return rc;
@@ -851,8 +852,6 @@ int cygnus_soc_platform_register(struct device *dev,
 
 int cygnus_soc_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(dev);
-
 	return 0;
 }
 

@@ -347,15 +347,15 @@ static int bf5xx_pcm_i2s_new(struct snd_soc_pcm_runtime *rtd)
 				SNDRV_DMA_TYPE_DEV, card->dev, size, size);
 }
 
-static struct snd_soc_platform_driver bf5xx_i2s_soc_platform = {
+static struct snd_soc_component_driver bf5xx_i2s_soc_component = {
 	.ops		= &bf5xx_pcm_i2s_ops,
 	.pcm_new	= bf5xx_pcm_i2s_new,
 };
 
 static int bfin_i2s_soc_platform_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_platform(&pdev->dev,
-					      &bf5xx_i2s_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev,
+					&bf5xx_i2s_soc_component, NULL, 0);
 }
 
 static struct platform_driver bfin_i2s_pcm_driver = {

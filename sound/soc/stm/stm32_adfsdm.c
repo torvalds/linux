@@ -281,7 +281,7 @@ static void stm32_adfsdm_pcm_free(struct snd_pcm *pcm)
 	}
 }
 
-static struct snd_soc_platform_driver stm32_adfsdm_soc_platform = {
+static struct snd_soc_component_driver stm32_adfsdm_soc_platform = {
 	.ops		= &stm32_adfsdm_pcm_ops,
 	.pcm_new	= stm32_adfsdm_pcm_new,
 	.pcm_free	= stm32_adfsdm_pcm_free,
@@ -322,8 +322,9 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->iio_cb))
 		return PTR_ERR(priv->iio_cb);
 
-	ret = devm_snd_soc_register_platform(&pdev->dev,
-					     &stm32_adfsdm_soc_platform);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &stm32_adfsdm_soc_platform,
+					      NULL, 0);
 	if (ret < 0)
 		dev_err(&pdev->dev, "%s: Failed to register PCM platform\n",
 			__func__);

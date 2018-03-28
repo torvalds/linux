@@ -74,7 +74,7 @@ struct skl {
 	struct platform_device *dmic_dev;
 	struct platform_device *i2s_dev;
 	struct platform_device *clk_dev;
-	struct snd_soc_platform *platform;
+	struct snd_soc_component *component;
 	struct snd_soc_dai_driver *dais;
 
 	struct nhlt_acpi_table *nhlt; /* nhlt ptr */

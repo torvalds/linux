@@ -35,6 +35,8 @@
 
 #define WM5110_NUM_ADSP 4
 
+#define DRV_NAME "wm5110-codec"
+
 struct wm5110_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
@@ -2229,7 +2231,8 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 static int wm5110_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct wm5110_priv *priv = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct wm5110_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
 
@@ -2346,6 +2349,16 @@ static unsigned int wm5110_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_6R,
 };
 
+static struct snd_compr_ops wm5110_compr_ops = {
+	.open		= wm5110_open,
+	.free		= wm_adsp_compr_free,
+	.set_params	= wm_adsp_compr_set_params,
+	.get_caps	= wm_adsp_compr_get_caps,
+	.trigger	= wm_adsp_compr_trigger,
+	.pointer	= wm_adsp_compr_pointer,
+	.copy		= wm_adsp_compr_copy,
+};
+
 static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.probe = wm5110_codec_probe,
 	.remove = wm5110_codec_remove,
@@ -2356,6 +2369,8 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.set_pll = wm5110_set_fll,
 
 	.component_driver = {
+		.name			= DRV_NAME,
+		.compr_ops		= &wm5110_compr_ops,
 		.controls		= wm5110_snd_controls,
 		.num_controls		= ARRAY_SIZE(wm5110_snd_controls),
 		.dapm_widgets		= wm5110_dapm_widgets,
@@ -2363,20 +2378,6 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 		.dapm_routes		= wm5110_dapm_routes,
 		.num_dapm_routes	= ARRAY_SIZE(wm5110_dapm_routes),
 	},
-};
-
-static const struct snd_compr_ops wm5110_compr_ops = {
-	.open = wm5110_open,
-	.free = wm_adsp_compr_free,
-	.set_params = wm_adsp_compr_set_params,
-	.get_caps = wm_adsp_compr_get_caps,
-	.trigger = wm_adsp_compr_trigger,
-	.pointer = wm_adsp_compr_pointer,
-	.copy = wm_adsp_compr_copy,
-};
-
-static const struct snd_soc_platform_driver wm5110_compr_platform = {
-	.compr_ops = &wm5110_compr_ops,
 };
 
 static int wm5110_probe(struct platform_device *pdev)
@@ -2464,23 +2465,15 @@ static int wm5110_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_dsp_irq;
 
-	ret = snd_soc_register_platform(&pdev->dev, &wm5110_compr_platform);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto err_spk_irqs;
-	}
-
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5110,
 				      wm5110_dai, ARRAY_SIZE(wm5110_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		goto err_platform;
+		goto err_spk_irqs;
 	}
 
 	return ret;
 
-err_platform:
-	snd_soc_unregister_platform(&pdev->dev);
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
 err_dsp_irq:
@@ -2495,7 +2488,6 @@ static int wm5110_remove(struct platform_device *pdev)
 	struct arizona *arizona = wm5110->core.arizona;
 	int i;
 
-	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
