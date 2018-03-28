@@ -156,6 +156,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS571X if I2C
 	select SND_SOC_TAS5720 if I2C
 	select SND_SOC_TAS6424 if I2C
+	select SND_SOC_TDA7419 if I2C
 	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
@@ -947,6 +948,11 @@ config SND_SOC_TAS6424
 	help
 	  Enable support for Texas Instruments TAS6424 high-efficiency
 	  digital input quad-channel Class-D audio power amplifiers.
+
+config SND_SOC_TDA7419
+	tristate "ST TDA7419 audio processor"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
