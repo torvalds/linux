@@ -3427,8 +3427,9 @@ static __be32 nfsd4_encode_splice_read(
 		return nfserr_resource;
 
 	len = maxcount;
-	nfserr = nfsd_splice_read(read->rd_rqstp, file,
-				  read->rd_offset, &maxcount);
+	nfserr = nfsd_splice_read(read->rd_rqstp, read->rd_fhp,
+				  file, read->rd_offset, &maxcount);
+	read->rd_length = maxcount;
 	if (nfserr) {
 		/*
 		 * nfsd_splice_actor may have already messed with the
@@ -3511,8 +3512,9 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	read->rd_vlen = v;
 
 	len = maxcount;
-	nfserr = nfsd_readv(file, read->rd_offset, resp->rqstp->rq_vec,
-			read->rd_vlen, &maxcount);
+	nfserr = nfsd_readv(resp->rqstp, read->rd_fhp, file, read->rd_offset,
+			    resp->rqstp->rq_vec, read->rd_vlen, &maxcount);
+	read->rd_length = maxcount;
 	if (nfserr)
 		return nfserr;
 	xdr_truncate_encode(xdr, starting_len + 8 + ((maxcount+3)&~3));

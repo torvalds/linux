@@ -43,7 +43,8 @@ DEFINE_EVENT(nfsd_io_class, nfsd_##name,	\
 	TP_ARGS(rqstp, fhp, offset, len))
 
 DEFINE_NFSD_IO_EVENT(read_start);
-DEFINE_NFSD_IO_EVENT(read_opened);
+DEFINE_NFSD_IO_EVENT(read_splice);
+DEFINE_NFSD_IO_EVENT(read_vector);
 DEFINE_NFSD_IO_EVENT(read_io_done);
 DEFINE_NFSD_IO_EVENT(read_done);
 DEFINE_NFSD_IO_EVENT(write_start);
@@ -82,6 +83,7 @@ DEFINE_EVENT(nfsd_err_class, nfsd_##name,	\
 		 int		len),		\
 	TP_ARGS(rqstp, fhp, offset, len))
 
+DEFINE_NFSD_ERR_EVENT(read_err);
 DEFINE_NFSD_ERR_EVENT(write_err);
 
 #include "state.h"

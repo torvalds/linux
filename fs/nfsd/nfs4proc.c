@@ -751,6 +751,9 @@ nfsd4_read(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (read->rd_offset >= OFFSET_MAX)
 		return nfserr_inval;
 
+	trace_nfsd_read_start(rqstp, &cstate->current_fh,
+			      read->rd_offset, read->rd_length);
+
 	/*
 	 * If we do a zero copy read, then a client will see read data
 	 * that reflects the state of the file *after* performing the
@@ -783,6 +786,8 @@ nfsd4_read_release(union nfsd4_op_u *u)
 {
 	if (u->read.rd_filp)
 		fput(u->read.rd_filp);
+	trace_nfsd_read_done(u->read.rd_rqstp, u->read.rd_fhp,
+			     u->read.rd_offset, u->read.rd_length);
 }
 
 static __be32
