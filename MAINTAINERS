@@ -12196,7 +12196,7 @@ F:	Documentation/devicetree/bindings/clock/exynos*.txt
 SAMSUNG SPI DRIVERS
 M:	Kukjin Kim <kgene@kernel.org>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
-M:	Andi Shyti <andi.shyti@samsung.com>
+M:	Andi Shyti <andi@etezian.org>
 L:	linux-spi@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
