@@ -607,6 +607,8 @@ struct rk817_battery_device {
 	int				dbg_meet_soc;
 	int				dbg_calc_dsoc;
 	int				dbg_calc_rsoc;
+	int				is_charging;
+	unsigned long			charge_count;
 };
 
 static u64 get_boot_sec(void)
@@ -1662,6 +1664,7 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->dbg_pwr_dsoc = battery->dsoc;
 	battery->dbg_pwr_rsoc = battery->rsoc;
 	battery->dbg_pwr_vol = battery->voltage_avg;
+	battery->temperature = VIRTUAL_TEMPERATURE;
 
 	DBG("probe init: battery->dsoc = %d, rsoc = %d\n"
 	    "remain_cap = %d\n, battery_vol = %d\n, system_vol = %d, qmax = %d\n",
@@ -1834,6 +1837,7 @@ static enum power_supply_property rk817_bat_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 };
 
 static int rk817_bat_get_usb_psy(struct device *dev, void *data)
@@ -1943,6 +1947,9 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = battery->charge_count;
+		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = 4500 * 1000;
 		break;
@@ -2032,6 +2039,20 @@ static void rk817_battery_debug_info(struct rk817_battery_device *battery)
 	DBG("capactiy = %d\n", rk817_bat_get_capacity_mah(battery));
 }
 
+static void
+rk817_bat_update_charging_status(struct rk817_battery_device *battery)
+{
+	int is_charging;
+
+	is_charging = rk817_bat_get_charge_state(battery);
+	if (is_charging == battery->is_charging)
+		return;
+
+	battery->is_charging = is_charging;
+	if (is_charging)
+		battery->charge_count++;
+}
+
 static void rk817_bat_update_info(struct rk817_battery_device *battery)
 {
 	battery->voltage_avg = rk817_bat_get_battery_voltage(battery);
@@ -2042,6 +2063,7 @@ static void rk817_bat_update_info(struct rk817_battery_device *battery)
 	battery->remain_cap = rk817_bat_get_capacity_uah(battery);
 	battery->voltage_usb = rk817_bat_get_USB_voltage(battery);
 	battery->chrg_status = get_charge_status(battery);
+	rk817_bat_update_charging_status(battery);
 	DBG("valtage usb: %d\n", battery->voltage_usb);
 	DBG("UPDATE: voltage_avg = %d\n"
 	    "voltage_sys = %d\n"
