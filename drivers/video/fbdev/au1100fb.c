@@ -410,7 +410,7 @@ static int au1100fb_setup(struct au1100fb_device *fbdev)
 
 static int au1100fb_drv_probe(struct platform_device *dev)
 {
-	struct au1100fb_device *fbdev = NULL;
+	struct au1100fb_device *fbdev;
 	struct resource *regs_res;
 	unsigned long page;
 	struct clk *c;
