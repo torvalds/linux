@@ -1757,6 +1757,13 @@ struct wmi_tlv_tx_pause_ev {
 	__le32 tid_map;
 } __packed;
 
+struct wmi_tlv_tdls_peer_event {
+	struct wmi_mac_addr    peer_macaddr;
+	__le32 peer_status;
+	__le32 peer_reason;
+	__le32 vdev_id;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 struct wmi_tlv_mgmt_tx_cmd {

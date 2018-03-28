@@ -426,6 +426,49 @@ static int ath10k_wmi_tlv_event_temperature(struct ath10k *ar,
 	return 0;
 }
 
+static void ath10k_wmi_event_tdls_peer(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct ieee80211_sta *station;
+	const struct wmi_tlv_tdls_peer_event *ev;
+	const void **tb;
+	struct ath10k_vif *arvif;
+
+	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ath10k_warn(ar, "tdls peer failed to parse tlv");
+		return;
+	}
+	ev = tb[WMI_TLV_TAG_STRUCT_TDLS_PEER_EVENT];
+	if (!ev) {
+		kfree(tb);
+		ath10k_warn(ar, "tdls peer NULL event");
+		return;
+	}
+
+	switch (__le32_to_cpu(ev->peer_reason)) {
+	case WMI_TDLS_TEARDOWN_REASON_TX:
+	case WMI_TDLS_TEARDOWN_REASON_RSSI:
+	case WMI_TDLS_TEARDOWN_REASON_PTR_TIMEOUT:
+		station = ieee80211_find_sta_by_ifaddr(ar->hw,
+						       ev->peer_macaddr.addr,
+						       NULL);
+		if (!station) {
+			ath10k_warn(ar, "did not find station from tdls peer event");
+			kfree(tb);
+			return;
+		}
+		arvif = ath10k_get_arvif(ar, __le32_to_cpu(ev->vdev_id));
+		ieee80211_tdls_oper_request(
+					arvif->vif, station->addr,
+					NL80211_TDLS_TEARDOWN,
+					WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
+					GFP_ATOMIC
+					);
+		break;
+	}
+	kfree(tb);
+}
+
 /***********/
 /* TLV ops */
 /***********/
@@ -568,6 +611,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_TLV_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_tlv_event_temperature(ar, skb);
+		break;
+	case WMI_TLV_TDLS_PEER_EVENTID:
+		ath10k_wmi_event_tdls_peer(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -2888,6 +2934,12 @@ ath10k_wmi_tlv_op_gen_update_fw_tdls_state(struct ath10k *ar, u32 vdev_id,
 
 	if (test_bit(WMI_SERVICE_TDLS_UAPSD_BUFFER_STA, ar->wmi.svc_map))
 		options |=  WMI_TLV_TDLS_BUFFER_STA_EN;
+
+	/* WMI_TDLS_ENABLE_ACTIVE_EXTERNAL_CONTROL means firm will handle TDLS
+	 * link inactivity detecting logic.
+	 */
+	if (state == WMI_TDLS_ENABLE_ACTIVE)
+		state = WMI_TDLS_ENABLE_ACTIVE_EXTERNAL_CONTROL;
 
 	len = sizeof(*tlv) + sizeof(*cmd);
 	skb = ath10k_wmi_alloc_skb(ar, len);
