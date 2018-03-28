@@ -8434,7 +8434,7 @@ S:	Orphan
 F:	drivers/net/wireless/marvell/libertas/
 
 MARVELL MACCHIATOBIN SUPPORT
-M:	Russell King <rmk@armlinux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
 F:	arch/arm64/boot/dts/marvell/armada-8040-mcbin.dts
@@ -8447,7 +8447,7 @@ F:	drivers/net/ethernet/marvell/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
 MARVELL MV88X3310 PHY DRIVER
-M:	Russell King <rmk@armlinux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/phy/marvell10g.c
