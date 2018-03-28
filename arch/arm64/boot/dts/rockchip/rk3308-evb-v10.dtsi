@@ -120,6 +120,14 @@
 		vin-supply = <&vcc_io>;
 	};
 
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 RK_PD6 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	vcc_1v8_codec: vcc-1v8-codec {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8_codec";
@@ -568,6 +576,16 @@
 	mmc-pwrseq = <&sdio_pwrseq>;
 	sd-uhs-sdr104;
 	status = "okay";
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	supports-sd;
+	card-detect-delay = <300>;
+	vmmc-supply = <&vcc_sd>;
+	status = "disabled";
 };
 
 &tsadc {
