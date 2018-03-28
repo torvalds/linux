@@ -80,21 +80,9 @@ void __init wii_memory_fixups(void)
 	BUG_ON(memblock.memory.cnt != 2);
 	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
 
-	/* trim unaligned tail */
-	memblock_remove(ALIGN(p[1].base + p[1].size, PAGE_SIZE),
-			(phys_addr_t)ULLONG_MAX);
-
-	/* determine hole, add & reserve them */
+	/* determine hole */
 	wii_hole_start = ALIGN(p[0].base + p[0].size, PAGE_SIZE);
 	wii_hole_size = p[1].base - wii_hole_start;
-	memblock_add(wii_hole_start, wii_hole_size);
-	memblock_reserve(wii_hole_start, wii_hole_size);
-
-	BUG_ON(memblock.memory.cnt != 1);
-	__memblock_dump_all();
-
-	/* allow ioremapping the address space in the hole */
-	__allow_ioremap_reserved = 1;
 }
 
 unsigned long __init wii_mmu_mapin_mem2(unsigned long top)
