@@ -194,6 +194,11 @@ struct mv88e6xxx_port_hwtstamp {
 
 struct mv88e6xxx_port {
 	u64 serdes_stats[2];
+	u64 atu_member_violation;
+	u64 atu_miss_violation;
+	u64 atu_full_violation;
+	u64 vtu_member_violation;
+	u64 vtu_miss_violation;
 };
 
 struct mv88e6xxx_chip {
@@ -409,10 +414,10 @@ struct mv88e6xxx_ops {
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
-	void (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
-				   uint8_t *data);
-	void (*serdes_get_stats)(struct mv88e6xxx_chip *chip,  int port,
-				 uint64_t *data);
+	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
+				  uint8_t *data);
+	int (*serdes_get_stats)(struct mv88e6xxx_chip *chip,  int port,
+				uint64_t *data);
 
 	/* VLAN Translation Unit operations */
 	int (*vtu_getnext)(struct mv88e6xxx_chip *chip,
