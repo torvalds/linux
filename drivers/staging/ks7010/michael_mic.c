@@ -12,20 +12,12 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
+#include <asm/unaligned.h>
 #include "michael_mic.h"
 
 // Convert from Byte[] to UInt32 in a portable way
 #define getUInt32(A, B)	((uint32_t)(A[B + 0] << 0) \
 		+ (A[B + 1] << 8) + (A[B + 2] << 16) + (A[B + 3] << 24))
-
-// Convert from UInt32 to Byte[] in a portable way
-#define putUInt32(A, B, C)					\
-do {								\
-	A[B + 0] = (uint8_t)(C & 0xff);				\
-	A[B + 1] = (uint8_t)((C >> 8) & 0xff);			\
-	A[B + 2] = (uint8_t)((C >> 16) & 0xff);			\
-	A[B + 3] = (uint8_t)((C >> 24) & 0xff);			\
-} while (0)
 
 // Reset the state to the empty message.
 static inline void michael_clear(struct michael_mic_t *mic)
@@ -113,8 +105,8 @@ static void michael_get_mic(struct michael_mic_t *mic, uint8_t *dst)
 	MichaelBlockFunction(mic->l, mic->r);
 	MichaelBlockFunction(mic->l, mic->r);
 	// The appendByte function has already computed the result.
-	putUInt32(dst, 0, mic->l);
-	putUInt32(dst, 4, mic->r);
+	put_unaligned_le32(mic->l, dst);
+	put_unaligned_le32(mic->r, dst + 4);
 
 	// Reset to the empty message.
 	michael_clear(mic);
