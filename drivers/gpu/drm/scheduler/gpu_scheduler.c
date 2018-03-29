@@ -117,8 +117,9 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
  * @sched	The pointer to the scheduler
  * @entity	The pointer to a valid drm_sched_entity
  * @rq		The run queue this entity belongs
- * @kernel	If this is an entity for the kernel
  * @jobs	The max number of jobs in the job queue
+ * @guilty      atomic_t set to 1 when a job on this queue
+ *              is found to be guilty causing a timeout
  *
  * return 0 if succeed. negative error code on failure
 */
