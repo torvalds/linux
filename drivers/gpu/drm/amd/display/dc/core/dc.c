@@ -1154,9 +1154,17 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	if (u->input_csc_color_matrix)
 		update_flags->bits.input_csc_change = 1;
 
-	if (update_flags->bits.in_transfer_func_change
-			|| update_flags->bits.input_csc_change) {
+	if (u->coeff_reduction_factor)
+		update_flags->bits.coeff_reduction_change = 1;
+
+	if (update_flags->bits.in_transfer_func_change) {
 		type = UPDATE_TYPE_MED;
+		elevate_update_type(&overall_type, type);
+	}
+
+	if (update_flags->bits.input_csc_change
+			|| update_flags->bits.coeff_reduction_change) {
+		type = UPDATE_TYPE_FULL;
 		elevate_update_type(&overall_type, type);
 	}
 

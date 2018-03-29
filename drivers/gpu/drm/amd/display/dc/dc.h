@@ -429,6 +429,7 @@ union surface_update_flags {
 		uint32_t position_change:1;
 		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
+		uint32_t coeff_reduction_change:1;
 		uint32_t output_tf_change:1;
 		uint32_t pixel_format_change:1;
 
