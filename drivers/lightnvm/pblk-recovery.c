@@ -864,6 +864,21 @@ static void pblk_recov_wa_counters(struct pblk *pblk,
 	}
 }
 
+static int pblk_line_was_written(struct pblk_line *line,
+			    struct pblk_line_meta *lm)
+{
+
+	int i;
+	int state_mask = NVM_CHK_ST_OFFLINE | NVM_CHK_ST_FREE;
+
+	for (i = 0; i < lm->blk_per_line; i++) {
+		if (!(line->chks[i].state & state_mask))
+			return 1;
+	}
+
+	return 0;
+}
+
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
@@ -899,6 +914,9 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		line->smeta = smeta;
 		line->lun_bitmap = ((void *)(smeta_buf)) +
 						sizeof(struct line_smeta);
+
+		if (!pblk_line_was_written(line, lm))
+			continue;
 
 		/* Lines that cannot be read are assumed as not written here */
 		if (pblk_line_read_smeta(pblk, line))
