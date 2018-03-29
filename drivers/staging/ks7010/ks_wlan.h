@@ -406,7 +406,6 @@ struct ks_wlan_private {
 	struct tasklet_struct rx_bh_task;
 
 	struct net_device *net_dev;
-	int reg_net;	/* register_netdev */
 	struct net_device_stats nstats;
 	struct iw_statistics wstats;
 
