@@ -1120,13 +1120,13 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 	if (tb[IFLA_MTU]) {
 		unsigned int max = 0xfff8 - dev->hard_header_len - nt->hlen;
 
-		dev->mtu = clamp(dev->mtu, (unsigned int)ETH_MIN_MTU,
-				 (unsigned int)(max - sizeof(struct iphdr)));
-	} else {
-		err = dev_set_mtu(dev, mtu);
-		if (err)
-			goto err_dev_set_mtu;
+		mtu = clamp(dev->mtu, (unsigned int)ETH_MIN_MTU,
+			    (unsigned int)(max - sizeof(struct iphdr)));
 	}
+
+	err = dev_set_mtu(dev, mtu);
+	if (err)
+		goto err_dev_set_mtu;
 
 	ip_tunnel_add(itn, nt);
 	return 0;
