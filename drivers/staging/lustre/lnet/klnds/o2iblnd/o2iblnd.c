@@ -1522,7 +1522,7 @@ static int kiblnd_fmr_pool_is_idle(struct kib_fmr_pool *fpo, unsigned long now)
 		return 0;
 	if (fpo->fpo_failed)
 		return 1;
-	return cfs_time_aftereq(now, fpo->fpo_deadline);
+	return time_after_eq(now, fpo->fpo_deadline);
 }
 
 static int
@@ -1850,7 +1850,7 @@ static int kiblnd_pool_is_idle(struct kib_pool *pool, unsigned long now)
 		return 0;
 	if (pool->po_failed)
 		return 1;
-	return cfs_time_aftereq(now, pool->po_deadline);
+	return time_after_eq(now, pool->po_deadline);
 }
 
 void kiblnd_pool_free_node(struct kib_pool *pool, struct list_head *node)

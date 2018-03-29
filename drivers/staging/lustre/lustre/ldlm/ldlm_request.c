@@ -116,7 +116,7 @@ static void ldlm_expired_completion_wait(struct ldlm_lock *lock, __u32 conn_cnt)
 			   (s64)lock->l_last_activity,
 			   (s64)(ktime_get_real_seconds() -
 				 lock->l_last_activity));
-		if (cfs_time_after(jiffies, next_dump)) {
+		if (time_after(jiffies, next_dump)) {
 			last_dump = next_dump;
 			next_dump = jiffies + 300 * HZ;
 			ldlm_namespace_dump(D_DLMTRACE,
@@ -1176,7 +1176,7 @@ static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 	 * Despite of the LV, It doesn't make sense to keep the lock which
 	 * is unused for ns_max_age time.
 	 */
-	if (cfs_time_after(jiffies, lock->l_last_used + ns->ns_max_age))
+	if (time_after(jiffies, lock->l_last_used + ns->ns_max_age))
 		return LDLM_POLICY_CANCEL_LOCK;
 
 	slv = ldlm_pool_get_slv(pl);

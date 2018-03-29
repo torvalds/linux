@@ -520,11 +520,11 @@ lnet_peer_is_alive(struct lnet_peer *lp, unsigned long now)
 	 * ignore the initial assumed death (see lnet_peers_start_down()).
 	 */
 	if (!lp->lp_alive && lp->lp_alive_count > 0 &&
-	    cfs_time_aftereq(lp->lp_timestamp, lp->lp_last_alive))
+	    time_after_eq(lp->lp_timestamp, lp->lp_last_alive))
 		return 0;
 
 	deadline = lp->lp_last_alive + lp->lp_ni->ni_peertimeout * HZ;
-	alive = cfs_time_after(deadline, now);
+	alive = time_after(deadline, now);
 
 	/* Update obsolete lp_alive except for routers assumed to be dead
 	 * initially, because router checker would update aliveness in this

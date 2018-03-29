@@ -37,20 +37,6 @@
 #ifndef __LIBCFS_TIME_H__
 #define __LIBCFS_TIME_H__
 /*
- * generic time manipulation functions.
- */
-
-static inline int cfs_time_after(unsigned long t1, unsigned long t2)
-{
-	return time_before(t2, t1);
-}
-
-static inline int cfs_time_aftereq(unsigned long t1, unsigned long t2)
-{
-	return time_before_eq(t2, t1);
-}
-
-/*
  * return valid time-out based on user supplied one. Currently we only check
  * that time-out is not shorted than allowed.
  */

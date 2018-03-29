@@ -3141,7 +3141,7 @@ kiblnd_check_txs_locked(struct kib_conn *conn, struct list_head *txs)
 			LASSERT(tx->tx_waiting || tx->tx_sending);
 		}
 
-		if (cfs_time_aftereq(jiffies, tx->tx_deadline)) {
+		if (time_after_eq(jiffies, tx->tx_deadline)) {
 			CERROR("Timed out tx: %s, %lu seconds\n",
 			       kiblnd_queue2str(conn, txs),
 			       cfs_duration_sec(jiffies - tx->tx_deadline));

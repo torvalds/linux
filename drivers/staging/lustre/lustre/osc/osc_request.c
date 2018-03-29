@@ -748,7 +748,7 @@ static int osc_should_shrink_grant(struct client_obd *client)
 	     OBD_CONNECT_GRANT_SHRINK) == 0)
 		return 0;
 
-	if (cfs_time_aftereq(time, next_shrink - 5 * CFS_TICK)) {
+	if (time_after_eq(time, next_shrink - 5 * CFS_TICK)) {
 		/* Get the current RPC size directly, instead of going via:
 		 * cli_brw_size(obd->u.cli.cl_import->imp_obd->obd_self_export)
 		 * Keep comment here so that it can be found by searching.

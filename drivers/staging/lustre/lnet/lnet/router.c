@@ -982,7 +982,7 @@ lnet_ping_router_locked(struct lnet_peer *rtr)
 	lnet_peer_addref_locked(rtr);
 
 	if (rtr->lp_ping_deadline && /* ping timed out? */
-	    cfs_time_after(now, rtr->lp_ping_deadline))
+	    time_after(now, rtr->lp_ping_deadline))
 		lnet_notify_locked(rtr, 1, 0, now);
 
 	/* Run any outstanding notifications */
@@ -1010,7 +1010,7 @@ lnet_ping_router_locked(struct lnet_peer *rtr)
 	       rtr->lp_alive, rtr->lp_alive_count, rtr->lp_ping_timestamp);
 
 	if (secs && !rtr->lp_ping_notsent &&
-	    cfs_time_after(now, rtr->lp_ping_timestamp + secs * HZ)) {
+	    time_after(now, rtr->lp_ping_timestamp + secs * HZ)) {
 		int rc;
 		struct lnet_process_id id;
 		struct lnet_handle_md mdh;
@@ -1748,7 +1748,7 @@ lnet_notify(struct lnet_ni *ni, lnet_nid_t nid, int alive, unsigned long when)
 	}
 
 	/* can't do predictions... */
-	if (cfs_time_after(when, now)) {
+	if (time_after(when, now)) {
 		CWARN("Ignoring prediction from %s of %s %s %ld seconds in the future\n",
 		      !ni ? "userspace" : libcfs_nid2str(ni->ni_nid),
 		      libcfs_nid2str(nid), alive ? "up" : "down",

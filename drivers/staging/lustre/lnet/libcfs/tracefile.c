@@ -431,7 +431,7 @@ console:
 	if (cdls) {
 		if (libcfs_console_ratelimit &&
 		    cdls->cdls_next &&		/* not first time ever */
-		    !cfs_time_after(jiffies, cdls->cdls_next)) {
+		    !time_after(jiffies, cdls->cdls_next)) {
 			/* skipping a console message */
 			cdls->cdls_count++;
 			if (tcd)
@@ -439,9 +439,9 @@ console:
 			return 1;
 		}
 
-		if (cfs_time_after(jiffies,
-				   cdls->cdls_next + libcfs_console_max_delay +
-				   10 * HZ)) {
+		if (time_after(jiffies,
+			       cdls->cdls_next + libcfs_console_max_delay +
+			       10 * HZ)) {
 			/* last timeout was a long time ago */
 			cdls->cdls_delay /= libcfs_console_backoff * 4;
 		} else {

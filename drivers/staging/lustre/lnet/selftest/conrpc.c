@@ -315,7 +315,7 @@ lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error)
 			continue;
 
 		nd = crpc->crp_node;
-		if (cfs_time_after(nd->nd_stamp, crpc->crp_stamp))
+		if (time_after(nd->nd_stamp, crpc->crp_stamp))
 			continue;
 
 		nd->nd_stamp = crpc->crp_stamp;
@@ -404,7 +404,7 @@ lstcon_rpc_get_reply(struct lstcon_rpc *crpc, struct srpc_msg **msgpp)
 		crpc->crp_unpacked = 1;
 	}
 
-	if (cfs_time_after(nd->nd_stamp, crpc->crp_stamp))
+	if (time_after(nd->nd_stamp, crpc->crp_stamp))
 		return 0;
 
 	nd->nd_stamp = crpc->crp_stamp;

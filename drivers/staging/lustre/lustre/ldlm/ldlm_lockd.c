@@ -325,8 +325,8 @@ static void ldlm_handle_gl_callback(struct ptlrpc_request *req,
 	lock_res_and_lock(lock);
 	if (lock->l_granted_mode == LCK_PW &&
 	    !lock->l_readers && !lock->l_writers &&
-	    cfs_time_after(jiffies,
-			   lock->l_last_used + 10 * HZ)) {
+	    time_after(jiffies,
+		       lock->l_last_used + 10 * HZ)) {
 		unlock_res_and_lock(lock);
 		if (ldlm_bl_to_thread_lock(ns, NULL, lock))
 			ldlm_handle_bl_callback(ns, NULL, lock);

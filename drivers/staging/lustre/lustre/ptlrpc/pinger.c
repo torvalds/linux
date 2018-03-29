@@ -180,7 +180,7 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 
 	imp->imp_force_verify = 0;
 
-	if (cfs_time_aftereq(imp->imp_next_ping - 5 * CFS_TICK, this_ping) &&
+	if (time_after_eq(imp->imp_next_ping - 5 * CFS_TICK, this_ping) &&
 	    !force) {
 		spin_unlock(&imp->imp_lock);
 		return;
@@ -236,8 +236,8 @@ static void ptlrpc_pinger_main(struct work_struct *ws)
 			ptlrpc_pinger_process_import(imp, this_ping);
 			/* obd_timeout might have changed */
 			if (imp->imp_pingable && imp->imp_next_ping &&
-			    cfs_time_after(imp->imp_next_ping,
-					   this_ping + PING_INTERVAL * HZ))
+			    time_after(imp->imp_next_ping,
+				       this_ping + PING_INTERVAL * HZ))
 				ptlrpc_update_next_ping(imp, 0);
 		}
 		mutex_unlock(&pinger_mutex);

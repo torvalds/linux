@@ -309,9 +309,9 @@ drop_rule_match(struct lnet_drop_rule *rule, lnet_nid_t src,
 		unsigned long now = jiffies;
 
 		rule->dr_stat.fs_count++;
-		drop = cfs_time_aftereq(now, rule->dr_drop_time);
+		drop = time_after_eq(now, rule->dr_drop_time);
 		if (drop) {
-			if (cfs_time_after(now, rule->dr_time_base))
+			if (time_after(now, rule->dr_time_base))
 				rule->dr_time_base = now;
 
 			rule->dr_drop_time = rule->dr_time_base +
@@ -475,9 +475,9 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
 		unsigned long now = jiffies;
 
 		rule->dl_stat.fs_count++;
-		delay = cfs_time_aftereq(now, rule->dl_delay_time);
+		delay = time_after_eq(now, rule->dl_delay_time);
 		if (delay) {
-			if (cfs_time_after(now, rule->dl_time_base))
+			if (time_after(now, rule->dl_time_base))
 				rule->dl_time_base = now;
 
 			rule->dl_delay_time = rule->dl_time_base +
