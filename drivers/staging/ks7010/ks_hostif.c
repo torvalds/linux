@@ -1897,7 +1897,7 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 
 	} else {	/* D_11G_ONLY_MODE or D_11BG_COMPATIBLE_MODE */
 		for (i = 0; i < priv->reg.rate_set.size; i++) {
-			if (!IS_11BG_RATE(priv->reg.rate_set.body[i]))
+			if (!is_11bg_rate(priv->reg.rate_set.body[i]))
 				break;
 
 			if (IS_OFDM_EXT_RATE(priv->reg.rate_set.body[i])) {
