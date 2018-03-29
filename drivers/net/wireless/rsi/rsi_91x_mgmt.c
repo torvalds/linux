@@ -325,8 +325,8 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	radio_caps->channel_num = common->channel;
 	radio_caps->rf_model = RSI_RF_TYPE;
 
+	radio_caps->radio_cfg_info = RSI_LMAC_CLOCK_80MHZ;
 	if (common->channel_width == BW_40MHZ) {
-		radio_caps->radio_cfg_info = RSI_LMAC_CLOCK_80MHZ;
 		radio_caps->radio_cfg_info |= RSI_ENABLE_40MHZ;
 
 		if (common->fsm_state == FSM_MAC_INIT_DONE) {
