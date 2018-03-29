@@ -48,6 +48,16 @@
 		};
 	};
 
+	divclk4_pin_a: divclk4 {
+		pinconf {
+			pins = "gpio18";
+			function = PMIC_GPIO_FUNC_FUNC2;
+
+			bias-disable;
+			power-source = <PM8994_GPIO_S4>;
+		};
+	};
+
 	usb3_vbus_det_gpio: pm8996_gpio22 {
 		pinconf {
 			pins = "gpio22";
