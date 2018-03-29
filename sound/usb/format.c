@@ -55,7 +55,7 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubframeSize;
-		format = 1 << format;
+		format = 1ULL << format;
 		break;
 	}
 
