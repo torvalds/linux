@@ -154,9 +154,29 @@ struct nvm_id_lp_tbl {
 	struct nvm_id_lp_mlc mlc;
 };
 
-struct nvm_id_group {
-	u8	mtype;
-	u8	fmtype;
+struct nvm_addr_format {
+	u8	ch_offset;
+	u8	ch_len;
+	u8	lun_offset;
+	u8	lun_len;
+	u8	pln_offset;
+	u8	pln_len;
+	u8	blk_offset;
+	u8	blk_len;
+	u8	pg_offset;
+	u8	pg_len;
+	u8	sect_offset;
+	u8	sect_len;
+};
+
+struct nvm_id {
+	u8	ver_id;
+	u8	vmnt;
+	u32	cap;
+	u32	dom;
+
+	struct	nvm_addr_format ppaf;
+
 	u8	num_ch;
 	u8	num_lun;
 	u16	num_chk;
@@ -180,33 +200,12 @@ struct nvm_id_group {
 	u16	cpar;
 
 	/* 1.2 compatibility */
+	u8	mtype;
+	u8	fmtype;
+
 	u8	num_pln;
 	u16	num_pg;
 	u16	fpg_sz;
-};
-
-struct nvm_addr_format {
-	u8	ch_offset;
-	u8	ch_len;
-	u8	lun_offset;
-	u8	lun_len;
-	u8	pln_offset;
-	u8	pln_len;
-	u8	blk_offset;
-	u8	blk_len;
-	u8	pg_offset;
-	u8	pg_len;
-	u8	sect_offset;
-	u8	sect_len;
-};
-
-struct nvm_id {
-	u8	ver_id;
-	u8	vmnt;
-	u32	cap;
-	u32	dom;
-	struct nvm_addr_format ppaf;
-	struct nvm_id_group grp;
 } __packed;
 
 struct nvm_target {

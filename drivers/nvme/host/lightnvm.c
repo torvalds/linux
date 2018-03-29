@@ -203,57 +203,55 @@ static inline void _nvme_nvm_check_size(void)
 static int init_grp(struct nvm_id *nvm_id, struct nvme_nvm_id12 *id12)
 {
 	struct nvme_nvm_id12_grp *src;
-	struct nvm_id_group *grp;
 	int sec_per_pg, sec_per_pl, pg_per_blk;
 
 	if (id12->cgrps != 1)
 		return -EINVAL;
 
 	src = &id12->grp;
-	grp = &nvm_id->grp;
 
-	grp->mtype = src->mtype;
-	grp->fmtype = src->fmtype;
+	nvm_id->mtype = src->mtype;
+	nvm_id->fmtype = src->fmtype;
 
-	grp->num_ch = src->num_ch;
-	grp->num_lun = src->num_lun;
+	nvm_id->num_ch = src->num_ch;
+	nvm_id->num_lun = src->num_lun;
 
-	grp->num_chk = le16_to_cpu(src->num_chk);
-	grp->csecs = le16_to_cpu(src->csecs);
-	grp->sos = le16_to_cpu(src->sos);
+	nvm_id->num_chk = le16_to_cpu(src->num_chk);
+	nvm_id->csecs = le16_to_cpu(src->csecs);
+	nvm_id->sos = le16_to_cpu(src->sos);
 
 	pg_per_blk = le16_to_cpu(src->num_pg);
-	sec_per_pg = le16_to_cpu(src->fpg_sz) / grp->csecs;
+	sec_per_pg = le16_to_cpu(src->fpg_sz) / nvm_id->csecs;
 	sec_per_pl = sec_per_pg * src->num_pln;
-	grp->clba = sec_per_pl * pg_per_blk;
-	grp->ws_per_chk = pg_per_blk;
+	nvm_id->clba = sec_per_pl * pg_per_blk;
+	nvm_id->ws_per_chk = pg_per_blk;
 
-	grp->mpos = le32_to_cpu(src->mpos);
-	grp->cpar = le16_to_cpu(src->cpar);
-	grp->mccap = le32_to_cpu(src->mccap);
+	nvm_id->mpos = le32_to_cpu(src->mpos);
+	nvm_id->cpar = le16_to_cpu(src->cpar);
+	nvm_id->mccap = le32_to_cpu(src->mccap);
 
-	grp->ws_opt = grp->ws_min = sec_per_pg;
-	grp->ws_seq = NVM_IO_SNGL_ACCESS;
+	nvm_id->ws_opt = nvm_id->ws_min = sec_per_pg;
+	nvm_id->ws_seq = NVM_IO_SNGL_ACCESS;
 
-	if (grp->mpos & 0x020202) {
-		grp->ws_seq = NVM_IO_DUAL_ACCESS;
-		grp->ws_opt <<= 1;
-	} else if (grp->mpos & 0x040404) {
-		grp->ws_seq = NVM_IO_QUAD_ACCESS;
-		grp->ws_opt <<= 2;
+	if (nvm_id->mpos & 0x020202) {
+		nvm_id->ws_seq = NVM_IO_DUAL_ACCESS;
+		nvm_id->ws_opt <<= 1;
+	} else if (nvm_id->mpos & 0x040404) {
+		nvm_id->ws_seq = NVM_IO_QUAD_ACCESS;
+		nvm_id->ws_opt <<= 2;
 	}
 
-	grp->trdt = le32_to_cpu(src->trdt);
-	grp->trdm = le32_to_cpu(src->trdm);
-	grp->tprt = le32_to_cpu(src->tprt);
-	grp->tprm = le32_to_cpu(src->tprm);
-	grp->tbet = le32_to_cpu(src->tbet);
-	grp->tbem = le32_to_cpu(src->tbem);
+	nvm_id->trdt = le32_to_cpu(src->trdt);
+	nvm_id->trdm = le32_to_cpu(src->trdm);
+	nvm_id->tprt = le32_to_cpu(src->tprt);
+	nvm_id->tprm = le32_to_cpu(src->tprm);
+	nvm_id->tbet = le32_to_cpu(src->tbet);
+	nvm_id->tbem = le32_to_cpu(src->tbem);
 
 	/* 1.2 compatibility */
-	grp->num_pln = src->num_pln;
-	grp->num_pg = le16_to_cpu(src->num_pg);
-	grp->fpg_sz = le16_to_cpu(src->fpg_sz);
+	nvm_id->num_pln = src->num_pln;
+	nvm_id->num_pg = le16_to_cpu(src->num_pg);
+	nvm_id->fpg_sz = le16_to_cpu(src->fpg_sz);
 
 	return 0;
 }
@@ -740,14 +738,12 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 	struct nvm_dev *ndev = ns->ndev;
 	struct nvm_id *id;
-	struct nvm_id_group *grp;
 	struct attribute *attr;
 
 	if (!ndev)
 		return 0;
 
 	id = &ndev->identity;
-	grp = &id->grp;
 	attr = &dattr->attr;
 
 	if (strcmp(attr->name, "version") == 0) {
@@ -771,41 +767,41 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 			id->ppaf.pg_offset, id->ppaf.pg_len,
 			id->ppaf.sect_offset, id->ppaf.sect_len);
 	} else if (strcmp(attr->name, "media_type") == 0) {	/* u8 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->mtype);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->mtype);
 	} else if (strcmp(attr->name, "flash_media_type") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->fmtype);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->fmtype);
 	} else if (strcmp(attr->name, "num_channels") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_ch);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->num_ch);
 	} else if (strcmp(attr->name, "num_luns") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_lun);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->num_lun);
 	} else if (strcmp(attr->name, "num_planes") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_pln);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->num_pln);
 	} else if (strcmp(attr->name, "num_blocks") == 0) {	/* u16 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_chk);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->num_chk);
 	} else if (strcmp(attr->name, "num_pages") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_pg);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->num_pg);
 	} else if (strcmp(attr->name, "page_size") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->fpg_sz);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->fpg_sz);
 	} else if (strcmp(attr->name, "hw_sector_size") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->csecs);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->csecs);
 	} else if (strcmp(attr->name, "oob_sector_size") == 0) {/* u32 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->sos);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->sos);
 	} else if (strcmp(attr->name, "read_typ") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->trdt);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->trdt);
 	} else if (strcmp(attr->name, "read_max") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->trdm);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->trdm);
 	} else if (strcmp(attr->name, "prog_typ") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tprt);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->tprt);
 	} else if (strcmp(attr->name, "prog_max") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tprm);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->tprm);
 	} else if (strcmp(attr->name, "erase_typ") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tbet);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->tbet);
 	} else if (strcmp(attr->name, "erase_max") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tbem);
+		return scnprintf(page, PAGE_SIZE, "%u\n", id->tbem);
 	} else if (strcmp(attr->name, "multiplane_modes") == 0) {
-		return scnprintf(page, PAGE_SIZE, "0x%08x\n", grp->mpos);
+		return scnprintf(page, PAGE_SIZE, "0x%08x\n", id->mpos);
 	} else if (strcmp(attr->name, "media_capabilities") == 0) {
-		return scnprintf(page, PAGE_SIZE, "0x%08x\n", grp->mccap);
+		return scnprintf(page, PAGE_SIZE, "0x%08x\n", id->mccap);
 	} else if (strcmp(attr->name, "max_phys_secs") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n",
 				ndev->ops->max_phys_sect);
