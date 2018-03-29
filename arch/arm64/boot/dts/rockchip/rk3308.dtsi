@@ -136,6 +136,20 @@
 		method = "smc";
 	};
 
+	ramoops_mem: ramoops_mem {
+		reg = <0x0 0x110000 0x0 0xf0000>;
+		reg-names = "ramoops_mem";
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		record-size = <0x0 0x30000>;
+		console-size = <0x0 0xc0000>;
+		ftrace-size = <0x0 0x00000>;
+		pmsg-size = <0x0 0x00000>;
+		memory-region = <&ramoops_mem>;
+	};
+
 	rgb: rgb {
 		compatible = "rockchip,rk3308-rgb";
 		status = "disabled";
