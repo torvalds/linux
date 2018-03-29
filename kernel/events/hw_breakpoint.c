@@ -492,13 +492,9 @@ modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *a
  * modify_user_hw_breakpoint - modify a user-space hardware breakpoint
  * @bp: the breakpoint structure to modify
  * @attr: new breakpoint attributes
- * @triggered: callback to trigger when we hit the breakpoint
- * @tsk: pointer to 'task_struct' of the process to which the address belongs
  */
 int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
-	int err;
-
 	/*
 	 * modify_user_hw_breakpoint can be invoked with IRQs disabled and hence it
 	 * will not be possible to raise IPIs that invoke __perf_event_disable.
@@ -510,17 +506,14 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	else
 		perf_event_disable(bp);
 
-	err = modify_user_hw_breakpoint_check(bp, attr, false);
+	if (!attr->disabled) {
+		int err = modify_user_hw_breakpoint_check(bp, attr, false);
 
-	if (err) {
-		if (!bp->attr.disabled)
-			perf_event_enable(bp);
-
-		return err;
-	}
-
-	if (!attr->disabled)
+		if (err)
+			return err;
 		perf_event_enable(bp);
+		bp->attr.disabled = 0;
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);

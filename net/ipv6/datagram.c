@@ -146,10 +146,12 @@ int __ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
 	struct inet_sock	*inet = inet_sk(sk);
 	struct ipv6_pinfo	*np = inet6_sk(sk);
-	struct in6_addr		*daddr;
+	struct in6_addr		*daddr, old_daddr;
+	__be32			fl6_flowlabel = 0;
+	__be32			old_fl6_flowlabel;
+	__be16			old_dport;
 	int			addr_type;
 	int			err;
-	__be32			fl6_flowlabel = 0;
 
 	if (usin->sin6_family == AF_INET) {
 		if (__ipv6_only_sock(sk))
@@ -238,9 +240,13 @@ ipv4_connected:
 		}
 	}
 
+	/* save the current peer information before updating it */
+	old_daddr = sk->sk_v6_daddr;
+	old_fl6_flowlabel = np->flow_label;
+	old_dport = inet->inet_dport;
+
 	sk->sk_v6_daddr = *daddr;
 	np->flow_label = fl6_flowlabel;
-
 	inet->inet_dport = usin->sin6_port;
 
 	/*
@@ -250,11 +256,12 @@ ipv4_connected:
 
 	err = ip6_datagram_dst_update(sk, true);
 	if (err) {
-		/* Reset daddr and dport so that udp_v6_early_demux()
-		 * fails to find this socket
+		/* Restore the socket peer info, to keep it consistent with
+		 * the old socket state
 		 */
-		memset(&sk->sk_v6_daddr, 0, sizeof(sk->sk_v6_daddr));
-		inet->inet_dport = 0;
+		sk->sk_v6_daddr = old_daddr;
+		np->flow_label = old_fl6_flowlabel;
+		inet->inet_dport = old_dport;
 		goto out;
 	}
 

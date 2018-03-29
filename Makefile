@@ -2,7 +2,7 @@
 VERSION = 4
 PATCHLEVEL = 16
 SUBLEVEL = 0
-EXTRAVERSION = -rc6
+EXTRAVERSION = -rc7
 NAME = Fearless Coyote
 
 # *DOCUMENTATION*
@@ -825,6 +825,15 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
+
+# clang sets -fmerge-all-constants by default as optimization, but this
+# is non-conforming behavior for C and in fact breaks the kernel, so we
+# need to disable it here generally.
+KBUILD_CFLAGS	+= $(call cc-option,-fno-merge-all-constants)
+
+# for gcc -fno-merge-all-constants disables everything, but it is fine
+# to have actual conforming behavior enabled.
+KBUILD_CFLAGS	+= $(call cc-option,-fmerge-constants)
 
 # Make sure -fstack-check isn't enabled (like gentoo apparently did)
 KBUILD_CFLAGS  += $(call cc-option,-fno-stack-check,)

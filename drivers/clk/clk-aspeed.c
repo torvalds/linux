@@ -205,6 +205,18 @@ static const struct aspeed_clk_soc_data ast2400_data = {
 	.calc_pll = aspeed_ast2400_calc_pll,
 };
 
+static int aspeed_clk_is_enabled(struct clk_hw *hw)
+{
+	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
+	u32 clk = BIT(gate->clock_idx);
+	u32 enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
+	u32 reg;
+
+	regmap_read(gate->map, ASPEED_CLK_STOP_CTRL, &reg);
+
+	return ((reg & clk) == enval) ? 1 : 0;
+}
+
 static int aspeed_clk_enable(struct clk_hw *hw)
 {
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
@@ -214,6 +226,11 @@ static int aspeed_clk_enable(struct clk_hw *hw)
 	u32 enval;
 
 	spin_lock_irqsave(gate->lock, flags);
+
+	if (aspeed_clk_is_enabled(hw)) {
+		spin_unlock_irqrestore(gate->lock, flags);
+		return 0;
+	}
 
 	if (gate->reset_idx >= 0) {
 		/* Put IP in reset */
@@ -253,17 +270,6 @@ static void aspeed_clk_disable(struct clk_hw *hw)
 	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
 
 	spin_unlock_irqrestore(gate->lock, flags);
-}
-
-static int aspeed_clk_is_enabled(struct clk_hw *hw)
-{
-	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
-	u32 clk = BIT(gate->clock_idx);
-	u32 reg;
-
-	regmap_read(gate->map, ASPEED_CLK_STOP_CTRL, &reg);
-
-	return (reg & clk) ? 0 : 1;
 }
 
 static const struct clk_ops aspeed_clk_gate_ops = {

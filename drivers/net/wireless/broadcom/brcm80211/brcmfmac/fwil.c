@@ -131,6 +131,9 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 			  brcmf_fil_get_errstr((u32)(-fwerr)), fwerr);
 		err = -EBADE;
 	}
+	if (ifp->fwil_fwerr)
+		return fwerr;
+
 	return err;
 }
 
