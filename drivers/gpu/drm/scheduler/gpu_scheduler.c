@@ -30,7 +30,7 @@
 #include <drm/spsc_queue.h>
 
 #define CREATE_TRACE_POINTS
-#include <drm/gpu_scheduler_trace.h>
+#include "gpu_scheduler_trace.h"
 
 #define to_drm_sched_job(sched_job)		\
 		container_of((sched_job), struct drm_sched_job, queue_node)
