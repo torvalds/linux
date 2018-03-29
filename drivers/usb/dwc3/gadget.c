@@ -1322,24 +1322,18 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 * errors which will force us issue EndTransfer command.
 	 */
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-		if ((dep->flags & DWC3_EP_PENDING_REQUEST)) {
-			if (dep->flags & DWC3_EP_TRANSFER_STARTED) {
-				dwc3_stop_active_transfer(dep, true);
-				dep->flags = DWC3_EP_ENABLED;
-			} else {
-				__dwc3_gadget_start_isoc(dep);
-				dep->flags &= ~DWC3_EP_PENDING_REQUEST;
-			}
+		if (!(dep->flags & DWC3_EP_PENDING_REQUEST) &&
+				!(dep->flags & DWC3_EP_TRANSFER_STARTED))
 			return 0;
+
+		if ((dep->flags & DWC3_EP_PENDING_REQUEST)) {
+			if (!(dep->flags & DWC3_EP_TRANSFER_STARTED)) {
+				__dwc3_gadget_start_isoc(dep);
+				return 0;
+			}
 		}
-
-		if (dep->flags & DWC3_EP_TRANSFER_STARTED)
-			goto out;
-
-		return 0;
 	}
 
-out:
 	return __dwc3_gadget_kick_transfer(dep);
 }
 
