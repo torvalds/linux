@@ -58,6 +58,7 @@
 #include <linux/etherdevice.h>
 #include <net/netns/generic.h>
 #include <linux/rhashtable.h>
+#include <net/genetlink.h>
 
 struct tipc_node;
 struct tipc_bearer;

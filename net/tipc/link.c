@@ -1810,7 +1810,7 @@ int tipc_link_bc_nack_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 {
-	int max_bulk = TIPC_MAX_PUBLICATIONS / (l->mtu / ITEM_SIZE);
+	int max_bulk = TIPC_MAX_PUBL / (l->mtu / ITEM_SIZE);
 
 	l->window = win;
 	l->backlog[TIPC_LOW_IMPORTANCE].limit      = max_t(u16, 50, win);

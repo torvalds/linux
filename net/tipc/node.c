@@ -324,12 +324,12 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	if (flags & TIPC_NOTIFY_LINK_UP) {
 		tipc_mon_peer_up(net, addr, bearer_id);
 		tipc_nametbl_publish(net, TIPC_LINK_STATE, addr, addr,
-				     TIPC_NODE_SCOPE, link_id, addr);
+				     TIPC_NODE_SCOPE, link_id, link_id);
 	}
 	if (flags & TIPC_NOTIFY_LINK_DOWN) {
 		tipc_mon_peer_down(net, addr, bearer_id);
 		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, addr,
-				      link_id, addr);
+				      link_id, link_id);
 	}
 }
 

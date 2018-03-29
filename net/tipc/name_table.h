@@ -97,7 +97,7 @@ struct publication {
  * @local_publ_count: number of publications issued by this node
  */
 struct name_table {
-	struct hlist_head seq_hlist[TIPC_NAMETBL_SIZE];
+	struct hlist_head services[TIPC_NAMETBL_SIZE];
 	struct list_head node_scope;
 	struct list_head cluster_scope;
 	u32 local_publ_count;
