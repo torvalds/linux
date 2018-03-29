@@ -874,7 +874,6 @@ static int nvm_core_init(struct nvm_dev *dev)
 	geo->sec_size = id->csecs;
 	geo->oob_size = id->sos;
 	geo->mccap = id->mccap;
-	geo->max_rq_size = dev->ops->max_phys_sect * geo->sec_size;
 
 	geo->sec_per_chk = id->clba;
 	geo->sec_per_lun = geo->sec_per_chk * geo->nr_chks;
