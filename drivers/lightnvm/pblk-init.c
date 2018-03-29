@@ -451,6 +451,7 @@ static void pblk_line_meta_free(struct pblk_line *line)
 {
 	kfree(line->blk_bitmap);
 	kfree(line->erase_bitmap);
+	kfree(line->chks);
 }
 
 static void pblk_lines_free(struct pblk *pblk)
@@ -495,55 +496,44 @@ static int pblk_bb_get_tbl(struct nvm_tgt_dev *dev, struct pblk_lun *rlun,
 	return 0;
 }
 
-static void *pblk_bb_get_log(struct pblk *pblk)
+static void *pblk_bb_get_meta(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	u8 *log;
+	u8 *meta;
 	int i, nr_blks, blk_per_lun;
 	int ret;
 
 	blk_per_lun = geo->num_chk * geo->pln_mode;
 	nr_blks = blk_per_lun * geo->all_luns;
 
-	log = kmalloc(nr_blks, GFP_KERNEL);
-	if (!log)
+	meta = kmalloc(nr_blks, GFP_KERNEL);
+	if (!meta)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < geo->all_luns; i++) {
 		struct pblk_lun *rlun = &pblk->luns[i];
-		u8 *log_pos = log + i * blk_per_lun;
+		u8 *meta_pos = meta + i * blk_per_lun;
 
-		ret = pblk_bb_get_tbl(dev, rlun, log_pos, blk_per_lun);
+		ret = pblk_bb_get_tbl(dev, rlun, meta_pos, blk_per_lun);
 		if (ret) {
-			kfree(log);
+			kfree(meta);
 			return ERR_PTR(-EIO);
 		}
 	}
 
-	return log;
+	return meta;
 }
 
-static int pblk_bb_line(struct pblk *pblk, struct pblk_line *line,
-			u8 *bb_log, int blk_per_line)
+static void *pblk_chunk_get_meta(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	int i, bb_cnt = 0;
-	int blk_per_lun = geo->num_chk * geo->pln_mode;
 
-	for (i = 0; i < blk_per_line; i++) {
-		struct pblk_lun *rlun = &pblk->luns[i];
-		u8 *lun_bb_log = bb_log + i * blk_per_lun;
-
-		if (lun_bb_log[line->id] == NVM_BLK_T_FREE)
-			continue;
-
-		set_bit(pblk_ppa_to_pos(geo, rlun->bppa), line->blk_bitmap);
-		bb_cnt++;
-	}
-
-	return bb_cnt;
+	if (geo->version == NVM_OCSSD_SPEC_12)
+		return pblk_bb_get_meta(pblk);
+	else
+		return pblk_chunk_get_info(pblk);
 }
 
 static int pblk_luns_init(struct pblk *pblk)
@@ -644,8 +634,131 @@ static void pblk_set_provision(struct pblk *pblk, long nr_free_blks)
 	atomic_set(&pblk->rl.free_user_blocks, nr_free_blks);
 }
 
-static int pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
-				void *chunk_log, long *nr_bad_blks)
+static int pblk_setup_line_meta_12(struct pblk *pblk, struct pblk_line *line,
+				   void *chunk_meta)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_meta *lm = &pblk->lm;
+	int i, chk_per_lun, nr_bad_chks = 0;
+
+	chk_per_lun = geo->num_chk * geo->pln_mode;
+
+	for (i = 0; i < lm->blk_per_line; i++) {
+		struct pblk_lun *rlun = &pblk->luns[i];
+		struct nvm_chk_meta *chunk;
+		int pos = pblk_ppa_to_pos(geo, rlun->bppa);
+		u8 *lun_bb_meta = chunk_meta + pos * chk_per_lun;
+
+		chunk = &line->chks[pos];
+
+		/*
+		 * In 1.2 spec. chunk state is not persisted by the device. Thus
+		 * some of the values are reset each time pblk is instantiated.
+		 */
+		if (lun_bb_meta[line->id] == NVM_BLK_T_FREE)
+			chunk->state =  NVM_CHK_ST_FREE;
+		else
+			chunk->state = NVM_CHK_ST_OFFLINE;
+
+		chunk->type = NVM_CHK_TP_W_SEQ;
+		chunk->wi = 0;
+		chunk->slba = -1;
+		chunk->cnlb = geo->clba;
+		chunk->wp = 0;
+
+		if (!(chunk->state & NVM_CHK_ST_OFFLINE))
+			continue;
+
+		set_bit(pos, line->blk_bitmap);
+		nr_bad_chks++;
+	}
+
+	return nr_bad_chks;
+}
+
+static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
+				   struct nvm_chk_meta *meta)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_meta *lm = &pblk->lm;
+	int i, nr_bad_chks = 0;
+
+	for (i = 0; i < lm->blk_per_line; i++) {
+		struct pblk_lun *rlun = &pblk->luns[i];
+		struct nvm_chk_meta *chunk;
+		struct nvm_chk_meta *chunk_meta;
+		struct ppa_addr ppa;
+		int pos;
+
+		ppa = rlun->bppa;
+		pos = pblk_ppa_to_pos(geo, ppa);
+		chunk = &line->chks[pos];
+
+		ppa.m.chk = line->id;
+		chunk_meta = pblk_chunk_get_off(pblk, meta, ppa);
+
+		chunk->state = chunk_meta->state;
+		chunk->type = chunk_meta->type;
+		chunk->wi = chunk_meta->wi;
+		chunk->slba = chunk_meta->slba;
+		chunk->cnlb = chunk_meta->cnlb;
+		chunk->wp = chunk_meta->wp;
+
+		if (!(chunk->state & NVM_CHK_ST_OFFLINE))
+			continue;
+
+		if (chunk->type & NVM_CHK_TP_SZ_SPEC) {
+			WARN_ONCE(1, "pblk: custom-sized chunks unsupported\n");
+			continue;
+		}
+
+		set_bit(pos, line->blk_bitmap);
+		nr_bad_chks++;
+	}
+
+	return nr_bad_chks;
+}
+
+static long pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
+				 void *chunk_meta, int line_id)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_line_meta *lm = &pblk->lm;
+	long nr_bad_chks, chk_in_line;
+
+	line->pblk = pblk;
+	line->id = line_id;
+	line->type = PBLK_LINETYPE_FREE;
+	line->state = PBLK_LINESTATE_NEW;
+	line->gc_group = PBLK_LINEGC_NONE;
+	line->vsc = &l_mg->vsc_list[line_id];
+	spin_lock_init(&line->lock);
+
+	if (geo->version == NVM_OCSSD_SPEC_12)
+		nr_bad_chks = pblk_setup_line_meta_12(pblk, line, chunk_meta);
+	else
+		nr_bad_chks = pblk_setup_line_meta_20(pblk, line, chunk_meta);
+
+	chk_in_line = lm->blk_per_line - nr_bad_chks;
+	if (nr_bad_chks < 0 || nr_bad_chks > lm->blk_per_line ||
+					chk_in_line < lm->min_blk_line) {
+		line->state = PBLK_LINESTATE_BAD;
+		list_add_tail(&line->list, &l_mg->bad_list);
+		return 0;
+	}
+
+	atomic_set(&line->blk_in_line, chk_in_line);
+	list_add_tail(&line->list, &l_mg->free_list);
+	l_mg->nr_free_lines++;
+
+	return chk_in_line;
+}
+
+static int pblk_alloc_line_meta(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
 
@@ -659,7 +772,13 @@ static int pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
 		return -ENOMEM;
 	}
 
-	*nr_bad_blks = pblk_bb_line(pblk, line, chunk_log, lm->blk_per_line);
+	line->chks = kmalloc(lm->blk_per_line * sizeof(struct nvm_chk_meta),
+								GFP_KERNEL);
+	if (!line->chks) {
+		kfree(line->erase_bitmap);
+		kfree(line->blk_bitmap);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -846,10 +965,9 @@ add_emeta_page:
 static int pblk_lines_init(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_line *line;
-	void *chunk_log;
-	long nr_bad_blks = 0, nr_free_blks = 0;
+	void *chunk_meta;
+	long nr_free_chks = 0;
 	int i, ret;
 
 	ret = pblk_line_meta_init(pblk);
@@ -864,11 +982,9 @@ static int pblk_lines_init(struct pblk *pblk)
 	if (ret)
 		goto fail_free_meta;
 
-	chunk_log = pblk_bb_get_log(pblk);
-	if (IS_ERR(chunk_log)) {
-		pr_err("pblk: could not get bad block log (%lu)\n",
-							PTR_ERR(chunk_log));
-		ret = PTR_ERR(chunk_log);
+	chunk_meta = pblk_chunk_get_meta(pblk);
+	if (IS_ERR(chunk_meta)) {
+		ret = PTR_ERR(chunk_meta);
 		goto fail_free_luns;
 	}
 
@@ -876,52 +992,30 @@ static int pblk_lines_init(struct pblk *pblk)
 								GFP_KERNEL);
 	if (!pblk->lines) {
 		ret = -ENOMEM;
-		goto fail_free_chunk_log;
+		goto fail_free_chunk_meta;
 	}
 
 	for (i = 0; i < l_mg->nr_lines; i++) {
-		int chk_in_line;
-
 		line = &pblk->lines[i];
 
-		line->pblk = pblk;
-		line->id = i;
-		line->type = PBLK_LINETYPE_FREE;
-		line->state = PBLK_LINESTATE_FREE;
-		line->gc_group = PBLK_LINEGC_NONE;
-		line->vsc = &l_mg->vsc_list[i];
-		spin_lock_init(&line->lock);
-
-		ret = pblk_setup_line_meta(pblk, line, chunk_log, &nr_bad_blks);
+		ret = pblk_alloc_line_meta(pblk, line);
 		if (ret)
 			goto fail_free_lines;
 
-		chk_in_line = lm->blk_per_line - nr_bad_blks;
-		if (nr_bad_blks < 0 || nr_bad_blks > lm->blk_per_line ||
-					chk_in_line < lm->min_blk_line) {
-			line->state = PBLK_LINESTATE_BAD;
-			list_add_tail(&line->list, &l_mg->bad_list);
-			continue;
-		}
-
-		nr_free_blks += chk_in_line;
-		atomic_set(&line->blk_in_line, chk_in_line);
-
-		l_mg->nr_free_lines++;
-		list_add_tail(&line->list, &l_mg->free_list);
+		nr_free_chks += pblk_setup_line_meta(pblk, line, chunk_meta, i);
 	}
 
-	pblk_set_provision(pblk, nr_free_blks);
+	pblk_set_provision(pblk, nr_free_chks);
 
-	kfree(chunk_log);
+	kfree(chunk_meta);
 	return 0;
 
 fail_free_lines:
 	while (--i >= 0)
 		pblk_line_meta_free(&pblk->lines[i]);
 	kfree(pblk->lines);
-fail_free_chunk_log:
-	kfree(chunk_log);
+fail_free_chunk_meta:
+	kfree(chunk_meta);
 fail_free_luns:
 	kfree(pblk->luns);
 fail_free_meta:

@@ -297,6 +297,7 @@ enum {
 	PBLK_LINETYPE_DATA = 2,
 
 	/* Line state */
+	PBLK_LINESTATE_NEW = 9,
 	PBLK_LINESTATE_FREE = 10,
 	PBLK_LINESTATE_OPEN = 11,
 	PBLK_LINESTATE_CLOSED = 12,
@@ -425,6 +426,8 @@ struct pblk_line {
 	struct list_head list;		/* Free, GC lists */
 
 	unsigned long *lun_bitmap;	/* Bitmap for LUNs mapped in line */
+
+	struct nvm_chk_meta *chks;	/* Chunks forming line */
 
 	struct pblk_smeta *smeta;	/* Start metadata */
 	struct pblk_emeta *emeta;	/* End medatada */
@@ -729,6 +732,10 @@ void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);
 void pblk_discard(struct pblk *pblk, struct bio *bio);
+struct nvm_chk_meta *pblk_chunk_get_info(struct pblk *pblk);
+struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
+					      struct nvm_chk_meta *lp,
+					      struct ppa_addr ppa);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
