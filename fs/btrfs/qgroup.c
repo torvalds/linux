@@ -1684,7 +1684,7 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 		return 0;
 
 	if (!extent_buffer_uptodate(root_eb)) {
-		ret = btrfs_read_buffer(root_eb, root_gen);
+		ret = btrfs_read_buffer(root_eb, root_gen, root_level, NULL);
 		if (ret)
 			goto out;
 	}
@@ -1715,6 +1715,7 @@ walk_down:
 	level = root_level;
 	while (level >= 0) {
 		if (path->nodes[level] == NULL) {
+			struct btrfs_key first_key;
 			int parent_slot;
 			u64 child_gen;
 			u64 child_bytenr;
@@ -1727,8 +1728,10 @@ walk_down:
 			parent_slot = path->slots[level + 1];
 			child_bytenr = btrfs_node_blockptr(eb, parent_slot);
 			child_gen = btrfs_node_ptr_generation(eb, parent_slot);
+			btrfs_node_key_to_cpu(eb, &first_key, parent_slot);
 
-			eb = read_tree_block(fs_info, child_bytenr, child_gen);
+			eb = read_tree_block(fs_info, child_bytenr, child_gen,
+					     level, &first_key);
 			if (IS_ERR(eb)) {
 				ret = PTR_ERR(eb);
 				goto out;

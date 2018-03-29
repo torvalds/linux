@@ -365,9 +365,13 @@ void btrfs_print_tree(struct extent_buffer *c)
 		       btrfs_node_blockptr(c, i));
 	}
 	for (i = 0; i < nr; i++) {
-		struct extent_buffer *next = read_tree_block(fs_info,
-					btrfs_node_blockptr(c, i),
-					btrfs_node_ptr_generation(c, i));
+		struct btrfs_key first_key;
+		struct extent_buffer *next;
+
+		btrfs_node_key_to_cpu(c, &first_key, i);
+		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
+				       btrfs_node_ptr_generation(c, i),
+				       level - 1, &first_key);
 		if (IS_ERR(next)) {
 			continue;
 		} else if (!extent_buffer_uptodate(next)) {
