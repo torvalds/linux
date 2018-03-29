@@ -86,3 +86,20 @@ config OVERLAY_FS_NFS_EXPORT
 	  case basis with the "nfs_export=on" mount option.
 
 	  Say N unless you fully understand the consequences.
+
+config OVERLAY_FS_XINO_AUTO
+	bool "Overlayfs: auto enable inode number mapping"
+	default n
+	depends on OVERLAY_FS
+	help
+	  If this config option is enabled then overlay filesystems will use
+	  unused high bits in undelying filesystem inode numbers to map all
+	  inodes to a unified address space.  The mapped 64bit inode numbers
+	  might not be compatible with applications that expect 32bit inodes.
+
+	  If compatibility with applications that expect 32bit inodes is not an
+	  issue, then it is safe and recommended to say Y here.
+
+	  For more information, see Documentation/filesystems/overlayfs.txt
+
+	  If unsure, say N.

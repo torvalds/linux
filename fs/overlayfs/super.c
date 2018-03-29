@@ -51,6 +51,11 @@ module_param_named(nfs_export, ovl_nfs_export_def, bool, 0644);
 MODULE_PARM_DESC(ovl_nfs_export_def,
 		 "Default to on or off for the NFS export feature");
 
+static bool ovl_xino_auto_def = IS_ENABLED(CONFIG_OVERLAY_FS_XINO_AUTO);
+module_param_named(xino_auto, ovl_xino_auto_def, bool, 0644);
+MODULE_PARM_DESC(ovl_xino_auto_def,
+		 "Auto enable xino feature");
+
 static void ovl_entry_stack_free(struct ovl_entry *oe)
 {
 	unsigned int i;
@@ -327,6 +332,23 @@ static const char *ovl_redirect_mode_def(void)
 	return ovl_redirect_dir_def ? "on" : "off";
 }
 
+enum {
+	OVL_XINO_OFF,
+	OVL_XINO_AUTO,
+	OVL_XINO_ON,
+};
+
+static const char * const ovl_xino_str[] = {
+	"off",
+	"auto",
+	"on",
+};
+
+static inline int ovl_xino_def(void)
+{
+	return ovl_xino_auto_def ? OVL_XINO_AUTO : OVL_XINO_OFF;
+}
+
 /**
  * ovl_show_options
  *
@@ -352,6 +374,8 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	if (ofs->config.nfs_export != ovl_nfs_export_def)
 		seq_printf(m, ",nfs_export=%s", ofs->config.nfs_export ?
 						"on" : "off");
+	if (ofs->config.xino != ovl_xino_def())
+		seq_printf(m, ",xino=%s", ovl_xino_str[ofs->config.xino]);
 	return 0;
 }
 
@@ -386,6 +410,9 @@ enum {
 	OPT_INDEX_OFF,
 	OPT_NFS_EXPORT_ON,
 	OPT_NFS_EXPORT_OFF,
+	OPT_XINO_ON,
+	OPT_XINO_OFF,
+	OPT_XINO_AUTO,
 	OPT_ERR,
 };
 
@@ -399,6 +426,9 @@ static const match_table_t ovl_tokens = {
 	{OPT_INDEX_OFF,			"index=off"},
 	{OPT_NFS_EXPORT_ON,		"nfs_export=on"},
 	{OPT_NFS_EXPORT_OFF,		"nfs_export=off"},
+	{OPT_XINO_ON,			"xino=on"},
+	{OPT_XINO_OFF,			"xino=off"},
+	{OPT_XINO_AUTO,			"xino=auto"},
 	{OPT_ERR,			NULL}
 };
 
@@ -511,6 +541,18 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 		case OPT_NFS_EXPORT_OFF:
 			config->nfs_export = false;
+			break;
+
+		case OPT_XINO_ON:
+			config->xino = OVL_XINO_ON;
+			break;
+
+		case OPT_XINO_OFF:
+			config->xino = OVL_XINO_OFF;
+			break;
+
+		case OPT_XINO_AUTO:
+			config->xino = OVL_XINO_AUTO;
 			break;
 
 		default:
@@ -1197,9 +1239,31 @@ static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 		ofs->numlower++;
 	}
 
-	/* When all layers on same fs, overlay can use real inode numbers */
-	if (!ofs->numlowerfs || (ofs->numlowerfs == 1 && !ofs->upper_mnt))
+	/*
+	 * When all layers on same fs, overlay can use real inode numbers.
+	 * With mount option "xino=on", mounter declares that there are enough
+	 * free high bits in underlying fs to hold the unique fsid.
+	 * If overlayfs does encounter underlying inodes using the high xino
+	 * bits reserved for fsid, it emits a warning and uses the original
+	 * inode number.
+	 */
+	if (!ofs->numlowerfs || (ofs->numlowerfs == 1 && !ofs->upper_mnt)) {
 		ofs->xino_bits = 0;
+		ofs->config.xino = OVL_XINO_OFF;
+	} else if (ofs->config.xino == OVL_XINO_ON && !ofs->xino_bits) {
+		/*
+		 * This is a roundup of number of bits needed for numlowerfs+1
+		 * (i.e. ilog2(numlowerfs+1 - 1) + 1). fsid 0 is reserved for
+		 * upper fs even with non upper overlay.
+		 */
+		BUILD_BUG_ON(ilog2(OVL_MAX_STACK) > 31);
+		ofs->xino_bits = ilog2(ofs->numlowerfs) + 1;
+	}
+
+	if (ofs->xino_bits) {
+		pr_info("overlayfs: \"xino\" feature enabled using %d upper inode bits.\n",
+			ofs->xino_bits);
+	}
 
 	err = 0;
 out:
@@ -1311,6 +1375,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	ofs->config.index = ovl_index_def;
 	ofs->config.nfs_export = ovl_nfs_export_def;
+	ofs->config.xino = ovl_xino_def();
 	err = ovl_parse_opt((char *) data, &ofs->config);
 	if (err)
 		goto out_err;
@@ -1325,7 +1390,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_stack_depth = 0;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	/* Assume underlaying fs uses 32bit inodes unless proven otherwise */
-	ofs->xino_bits = BITS_PER_LONG - 32;
+	if (ofs->config.xino != OVL_XINO_OFF)
+		ofs->xino_bits = BITS_PER_LONG - 32;
+
 	if (ofs->config.upperdir) {
 		if (!ofs->config.workdir) {
 			pr_err("overlayfs: missing 'workdir'\n");
