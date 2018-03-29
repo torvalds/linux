@@ -1613,6 +1613,22 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		value = mfspr(SPRN_FSCR);
 
 	status = value >> 56;
+	if ((hv || status >= 2) &&
+	    (status < ARRAY_SIZE(facility_strings)) &&
+	    facility_strings[status])
+		facility = facility_strings[status];
+
+	/* We should not have taken this interrupt in kernel */
+	if (!user_mode(regs)) {
+		pr_emerg("Facility '%s' unavailable (%d) exception in kernel mode at %lx\n",
+			 facility, status, regs->nip);
+		die("Unexpected facility unavailable exception", regs, SIGABRT);
+	}
+
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
 	if (status == FSCR_DSCR_LG) {
 		/*
 		 * User is accessing the DSCR register using the problem
@@ -1679,25 +1695,11 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		return;
 	}
 
-	if ((hv || status >= 2) &&
-	    (status < ARRAY_SIZE(facility_strings)) &&
-	    facility_strings[status])
-		facility = facility_strings[status];
-
-	/* We restore the interrupt state now */
-	if (!arch_irq_disabled_regs(regs))
-		local_irq_enable();
-
 	pr_err_ratelimited("%sFacility '%s' unavailable (%d), exception at 0x%lx, MSR=%lx\n",
 		hv ? "Hypervisor " : "", facility, status, regs->nip, regs->msr);
 
 out:
-	if (user_mode(regs)) {
-		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
-	}
-
-	die("Unexpected facility unavailable exception", regs, SIGABRT);
+	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 }
 #endif
 
