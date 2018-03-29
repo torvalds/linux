@@ -125,7 +125,7 @@ static inline unsigned long osc_submit_duration(struct osc_page *opg)
 	if (opg->ops_submit_time == 0)
 		return 0;
 
-	return (cfs_time_current() - opg->ops_submit_time);
+	return (jiffies - opg->ops_submit_time);
 }
 
 static int osc_page_print(const struct lu_env *env,
@@ -312,7 +312,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		oap->oap_cmd |= OBD_BRW_NOQUOTA;
 	}
 
-	opg->ops_submit_time = cfs_time_current();
+	opg->ops_submit_time = jiffies;
 	osc_page_transfer_get(opg, "transfer\0imm");
 	osc_page_transfer_add(env, opg, crt);
 }

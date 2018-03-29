@@ -300,7 +300,7 @@ drop_lock:
 
 void osc_object_set_contended(struct osc_object *obj)
 {
-	obj->oo_contention_time = cfs_time_current();
+	obj->oo_contention_time = jiffies;
 	/* mb(); */
 	obj->oo_contended = 1;
 }
@@ -314,7 +314,7 @@ int osc_object_is_contended(struct osc_object *obj)
 {
 	struct osc_device *dev = lu2osc_dev(obj->oo_cl.co_lu.lo_dev);
 	int osc_contention_time = dev->od_contention_time;
-	unsigned long cur_time = cfs_time_current();
+	unsigned long cur_time = jiffies;
 	unsigned long retry_time;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_OBJECT_CONTENTION))

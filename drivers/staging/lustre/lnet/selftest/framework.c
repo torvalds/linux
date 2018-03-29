@@ -272,7 +272,7 @@ sfw_init_session(struct sfw_session *sn, struct lst_sid sid,
 	sn->sn_id = sid;
 	sn->sn_features = features;
 	sn->sn_timeout = session_timeout;
-	sn->sn_started = cfs_time_current();
+	sn->sn_started = jiffies;
 
 	timer->stt_data = sn;
 	timer->stt_func = sfw_session_expired;

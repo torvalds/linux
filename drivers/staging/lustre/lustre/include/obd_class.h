@@ -913,7 +913,7 @@ static inline int obd_destroy_export(struct obd_export *exp)
 /*
  * @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
- * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness.
+ * target.  Use a value of "jiffies + HZ" to guarantee freshness.
  */
 static inline int obd_statfs_async(struct obd_export *exp,
 				   struct obd_info *oinfo,
@@ -975,7 +975,7 @@ static inline int obd_statfs_rqset(struct obd_export *exp,
 /*
  * @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
- * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness.
+ * target.  Use a value of "jiffies + HZ" to guarantee freshness.
  */
 static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 			     struct obd_statfs *osfs, __u64 max_age,
@@ -997,7 +997,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 		if (rc == 0) {
 			spin_lock(&obd->obd_osfs_lock);
 			memcpy(&obd->obd_osfs, osfs, sizeof(obd->obd_osfs));
-			obd->obd_osfs_age = cfs_time_current_64();
+			obd->obd_osfs_age = get_jiffies_64();
 			spin_unlock(&obd->obd_osfs_lock);
 		}
 	} else {

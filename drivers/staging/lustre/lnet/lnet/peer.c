@@ -315,7 +315,7 @@ lnet_nid2peer_locked(struct lnet_peer **lpp, lnet_nid_t nid, int cpt)
 	lp->lp_alive_count = 0;
 	lp->lp_timestamp = 0;
 	lp->lp_alive = !lnet_peers_start_down(); /* 1 bit!! */
-	lp->lp_last_alive = cfs_time_current(); /* assumes alive */
+	lp->lp_last_alive = jiffies; /* assumes alive */
 	lp->lp_last_query = 0; /* haven't asked NI yet */
 	lp->lp_ping_timestamp = 0;
 	lp->lp_ping_feats = LNET_PING_FEAT_INVAL;

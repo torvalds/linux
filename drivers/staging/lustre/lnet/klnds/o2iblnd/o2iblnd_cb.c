@@ -1853,8 +1853,8 @@ kiblnd_thread_fini(void)
 static void
 kiblnd_peer_alive(struct kib_peer *peer)
 {
-	/* This is racy, but everyone's only writing cfs_time_current() */
-	peer->ibp_last_alive = cfs_time_current();
+	/* This is racy, but everyone's only writing jiffies */
+	peer->ibp_last_alive = jiffies;
 	mb();
 }
 
@@ -3206,7 +3206,7 @@ kiblnd_check_conns(int idx)
 			if (timedout) {
 				CERROR("Timed out RDMA with %s (%lu): c: %u, oc: %u, rc: %u\n",
 				       libcfs_nid2str(peer->ibp_nid),
-				       cfs_duration_sec(cfs_time_current() -
+				       cfs_duration_sec(jiffies -
 							peer->ibp_last_alive),
 				       conn->ibc_credits,
 				       conn->ibc_outstanding_credits,
@@ -3681,7 +3681,7 @@ kiblnd_failover_thread(void *arg)
 
 		list_for_each_entry(dev, &kiblnd_data.kib_failed_devs,
 				    ibd_fail_list) {
-			if (time_before(cfs_time_current(),
+			if (time_before(jiffies,
 					dev->ibd_next_failover))
 				continue;
 			do_failover = 1;

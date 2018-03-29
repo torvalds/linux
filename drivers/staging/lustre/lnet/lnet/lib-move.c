@@ -501,7 +501,7 @@ lnet_ni_query_locked(struct lnet_ni *ni, struct lnet_peer *lp)
 	ni->ni_lnd->lnd_query(ni, lp->lp_nid, &last_alive);
 	lnet_net_lock(lp->lp_cpt);
 
-	lp->lp_last_query = cfs_time_current();
+	lp->lp_last_query = jiffies;
 
 	if (last_alive) /* NI has updated timestamp */
 		lp->lp_last_alive = last_alive;
@@ -545,7 +545,7 @@ lnet_peer_is_alive(struct lnet_peer *lp, unsigned long now)
 static int
 lnet_peer_alive_locked(struct lnet_peer *lp)
 {
-	unsigned long now = cfs_time_current();
+	unsigned long now = jiffies;
 
 	if (!lnet_peer_aliveness_enabled(lp))
 		return -ENODEV;

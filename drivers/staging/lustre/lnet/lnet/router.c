@@ -765,7 +765,7 @@ lnet_router_checker_event(struct lnet_event *event)
 	 * we ping alive routers to try to detect router death before
 	 * apps get burned).
 	 */
-	lnet_notify_locked(lp, 1, !event->status, cfs_time_current());
+	lnet_notify_locked(lp, 1, !event->status, jiffies);
 
 	/*
 	 * The router checker will wake up very shortly and do the
@@ -976,7 +976,7 @@ static void
 lnet_ping_router_locked(struct lnet_peer *rtr)
 {
 	struct lnet_rc_data *rcd = NULL;
-	unsigned long now = cfs_time_current();
+	unsigned long now = jiffies;
 	int secs;
 
 	lnet_peer_addref_locked(rtr);
@@ -1730,7 +1730,7 @@ int
 lnet_notify(struct lnet_ni *ni, lnet_nid_t nid, int alive, unsigned long when)
 {
 	struct lnet_peer *lp = NULL;
-	unsigned long now = cfs_time_current();
+	unsigned long now = jiffies;
 	int cpt = lnet_cpt_of_nid(nid);
 
 	LASSERT(!in_interrupt());

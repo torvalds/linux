@@ -60,17 +60,10 @@
  * Generic kernel stuff
  */
 
-static inline unsigned long cfs_time_current(void)
-{
-	return jiffies;
-}
-
 static inline long cfs_duration_sec(long d)
 {
 	return d / msecs_to_jiffies(MSEC_PER_SEC);
 }
-
-#define cfs_time_current_64 get_jiffies_64
 
 static inline u64 cfs_time_add_64(u64 t, u64 d)
 {
@@ -79,7 +72,7 @@ static inline u64 cfs_time_add_64(u64 t, u64 d)
 
 static inline u64 cfs_time_shift_64(int seconds)
 {
-	return cfs_time_add_64(cfs_time_current_64(),
+	return cfs_time_add_64(get_jiffies_64(),
 			       seconds * HZ);
 }
 

@@ -431,7 +431,7 @@ console:
 	if (cdls) {
 		if (libcfs_console_ratelimit &&
 		    cdls->cdls_next &&		/* not first time ever */
-		    !cfs_time_after(cfs_time_current(), cdls->cdls_next)) {
+		    !cfs_time_after(jiffies, cdls->cdls_next)) {
 			/* skipping a console message */
 			cdls->cdls_count++;
 			if (tcd)
@@ -439,7 +439,7 @@ console:
 			return 1;
 		}
 
-		if (cfs_time_after(cfs_time_current(),
+		if (cfs_time_after(jiffies,
 				   cdls->cdls_next + libcfs_console_max_delay +
 				   10 * HZ)) {
 			/* last timeout was a long time ago */
@@ -454,7 +454,7 @@ console:
 			cdls->cdls_delay = libcfs_console_max_delay;
 
 		/* ensure cdls_next is never zero after it's been seen */
-		cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
+		cdls->cdls_next = (jiffies + cdls->cdls_delay) | 1;
 	}
 
 	if (tcd) {

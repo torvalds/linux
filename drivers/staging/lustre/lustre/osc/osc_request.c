@@ -741,7 +741,7 @@ int osc_shrink_grant_to_target(struct client_obd *cli, __u64 target_bytes)
 
 static int osc_should_shrink_grant(struct client_obd *client)
 {
-	unsigned long time = cfs_time_current();
+	unsigned long time = jiffies;
 	unsigned long next_shrink = client->cl_next_shrink_grant;
 
 	if ((client->cl_import->imp_connect_data.ocd_connect_flags &

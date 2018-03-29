@@ -508,7 +508,7 @@ static int import_select_connection(struct obd_import *imp)
 		       imp->imp_obd->obd_name, at_get(at));
 	}
 
-	imp_conn->oic_last_attempt = cfs_time_current_64();
+	imp_conn->oic_last_attempt = get_jiffies_64();
 
 	/* switch connection, don't mind if it's same as the current one */
 	ptlrpc_connection_put(imp->imp_connection);

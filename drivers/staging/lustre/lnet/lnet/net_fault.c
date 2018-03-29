@@ -306,7 +306,7 @@ drop_rule_match(struct lnet_drop_rule *rule, lnet_nid_t src,
 	/* match this rule, check drop rate now */
 	spin_lock(&rule->dr_lock);
 	if (rule->dr_drop_time) { /* time based drop */
-		unsigned long now = cfs_time_current();
+		unsigned long now = jiffies;
 
 		rule->dr_stat.fs_count++;
 		drop = cfs_time_aftereq(now, rule->dr_drop_time);
@@ -472,7 +472,7 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
 	/* match this rule, check delay rate now */
 	spin_lock(&rule->dl_lock);
 	if (rule->dl_delay_time) { /* time based delay */
-		unsigned long now = cfs_time_current();
+		unsigned long now = jiffies;
 
 		rule->dl_stat.fs_count++;
 		delay = cfs_time_aftereq(now, rule->dl_delay_time);
@@ -562,7 +562,7 @@ delayed_msg_check(struct lnet_delay_rule *rule, bool all,
 {
 	struct lnet_msg *msg;
 	struct lnet_msg *tmp;
-	unsigned long now = cfs_time_current();
+	unsigned long now = jiffies;
 
 	if (!all && rule->dl_msg_send > now)
 		return;

@@ -1110,7 +1110,7 @@ static inline int ll_glimpse_size(struct inode *inode)
 
 	down_read(&lli->lli_glimpse_sem);
 	rc = cl_glimpse_size(inode);
-	lli->lli_glimpse_time = cfs_time_current();
+	lli->lli_glimpse_time = jiffies;
 	up_read(&lli->lli_glimpse_sem);
 	return rc;
 }

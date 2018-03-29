@@ -1050,7 +1050,7 @@ void ptlrpc_set_add_req(struct ptlrpc_request_set *set,
 	list_add_tail(&req->rq_set_chain, &set->set_requests);
 	req->rq_set = set;
 	atomic_inc(&set->set_remaining);
-	req->rq_queued_time = cfs_time_current();
+	req->rq_queued_time = jiffies;
 
 	if (req->rq_reqmsg)
 		lustre_msg_set_jobid(req->rq_reqmsg, NULL);
@@ -1081,7 +1081,7 @@ void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
 	spin_lock(&set->set_new_req_lock);
 	/* The set takes over the caller's request reference.  */
 	req->rq_set = set;
-	req->rq_queued_time = cfs_time_current();
+	req->rq_queued_time = jiffies;
 	list_add_tail(&req->rq_set_chain, &set->set_new_requests);
 	count = atomic_inc_return(&set->set_new_count);
 	spin_unlock(&set->set_new_req_lock);

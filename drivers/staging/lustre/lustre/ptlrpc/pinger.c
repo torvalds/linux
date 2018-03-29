@@ -142,7 +142,7 @@ static long pinger_check_timeout(unsigned long time)
 	mutex_unlock(&pinger_mutex);
 
 	return cfs_time_sub(cfs_time_add(time, timeout * HZ),
-					 cfs_time_current());
+					 jiffies);
 }
 
 static bool ir_up;
@@ -223,7 +223,7 @@ static DECLARE_DELAYED_WORK(ping_work, ptlrpc_pinger_main);
 
 static void ptlrpc_pinger_main(struct work_struct *ws)
 {
-	unsigned long this_ping = cfs_time_current();
+	unsigned long this_ping = jiffies;
 	long time_to_next_wake;
 	struct timeout_item *item;
 	struct obd_import *imp;

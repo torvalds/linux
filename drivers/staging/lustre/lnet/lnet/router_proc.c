@@ -324,7 +324,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 
 		if (peer) {
 			lnet_nid_t nid = peer->lp_nid;
-			unsigned long now = cfs_time_current();
+			unsigned long now = jiffies;
 			unsigned long deadline = peer->lp_ping_deadline;
 			int nrefs = peer->lp_refcount;
 			int nrtrrefs = peer->lp_rtr_refcount;
@@ -509,7 +509,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 				aliveness = peer->lp_alive ? "up" : "down";
 
 			if (lnet_peer_aliveness_enabled(peer)) {
-				unsigned long now = cfs_time_current();
+				unsigned long now = jiffies;
 				long delta;
 
 				delta = cfs_time_sub(now, peer->lp_last_alive);

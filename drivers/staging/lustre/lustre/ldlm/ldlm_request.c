@@ -116,7 +116,7 @@ static void ldlm_expired_completion_wait(struct ldlm_lock *lock, __u32 conn_cnt)
 			   (s64)lock->l_last_activity,
 			   (s64)(ktime_get_real_seconds() -
 				 lock->l_last_activity));
-		if (cfs_time_after(cfs_time_current(), next_dump)) {
+		if (cfs_time_after(jiffies, next_dump)) {
 			last_dump = next_dump;
 			next_dump = cfs_time_shift(300);
 			ldlm_namespace_dump(D_DLMTRACE,
@@ -1161,7 +1161,7 @@ static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 						    int unused, int added,
 						    int count)
 {
-	unsigned long cur = cfs_time_current();
+	unsigned long cur = jiffies;
 	struct ldlm_pool *pl = &ns->ns_pool;
 	__u64 slv, lvf, lv;
 	unsigned long la;
@@ -1176,7 +1176,7 @@ static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 	 * Despite of the LV, It doesn't make sense to keep the lock which
 	 * is unused for ns_max_age time.
 	 */
-	if (cfs_time_after(cfs_time_current(),
+	if (cfs_time_after(jiffies,
 			   cfs_time_add(lock->l_last_used, ns->ns_max_age)))
 		return LDLM_POLICY_CANCEL_LOCK;
 
@@ -1233,7 +1233,7 @@ static enum ldlm_policy_res ldlm_cancel_aged_policy(struct ldlm_namespace *ns,
 						    int count)
 {
 	if ((added >= count) &&
-	    time_before(cfs_time_current(),
+	    time_before(jiffies,
 			cfs_time_add(lock->l_last_used, ns->ns_max_age)))
 		return LDLM_POLICY_KEEP_LOCK;
 
@@ -1380,7 +1380,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 				continue;
 
 			last_use = lock->l_last_used;
-			if (last_use == cfs_time_current())
+			if (last_use == jiffies)
 				continue;
 
 			/* Somebody is already doing CANCEL. No need for this

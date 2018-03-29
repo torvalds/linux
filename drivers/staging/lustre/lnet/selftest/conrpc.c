@@ -75,7 +75,7 @@ lstcon_rpc_done(struct srpc_client_rpc *rpc)
 		/* not aborted */
 		LASSERT(!crpc->crp_status);
 
-		crpc->crp_stamp = cfs_time_current();
+		crpc->crp_stamp = jiffies;
 		crpc->crp_status = rpc->crpc_status;
 	}
 
@@ -297,14 +297,14 @@ lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error)
 		if (!crpc->crp_posted || /* not posted */
 		    crpc->crp_stamp) {	 /* rpc done or aborted already */
 			if (!crpc->crp_stamp) {
-				crpc->crp_stamp = cfs_time_current();
+				crpc->crp_stamp = jiffies;
 				crpc->crp_status = -EINTR;
 			}
 			spin_unlock(&rpc->crpc_lock);
 			continue;
 		}
 
-		crpc->crp_stamp = cfs_time_current();
+		crpc->crp_stamp = jiffies;
 		crpc->crp_status = error;
 
 		spin_unlock(&rpc->crpc_lock);

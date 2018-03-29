@@ -1316,7 +1316,7 @@ void ldlm_namespace_dump(int level, struct ldlm_namespace *ns)
 	CDEBUG(level, "--- Namespace: %s (rc: %d, side: client)\n",
 	       ldlm_ns_name(ns), atomic_read(&ns->ns_bref));
 
-	if (time_before(cfs_time_current(), ns->ns_next_dump))
+	if (time_before(jiffies, ns->ns_next_dump))
 		return;
 
 	cfs_hash_for_each_nolock(ns->ns_rs_hash,
