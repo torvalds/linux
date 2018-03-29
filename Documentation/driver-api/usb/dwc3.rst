@@ -676,7 +676,6 @@ operations, both of which can be traced. Format is::
   	__entry->flags & DWC3_EP_WEDGE ? 'W' : 'w',
   	__entry->flags & DWC3_EP_TRANSFER_STARTED ? 'B' : 'b',
   	__entry->flags & DWC3_EP_PENDING_REQUEST ? 'P' : 'p',
-  	__entry->flags & DWC3_EP_MISSED_ISOC ? 'M' : 'm',
   	__entry->flags & DWC3_EP_END_TRANSFER_PENDING ? 'E' : 'e',
   	__entry->direction ? '<' : '>'
   )

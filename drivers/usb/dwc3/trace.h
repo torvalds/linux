@@ -303,7 +303,7 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 		__entry->trb_enqueue = dep->trb_enqueue;
 		__entry->trb_dequeue = dep->trb_dequeue;
 	),
-	TP_printk("%s: mps %d/%d streams %d burst %d ring %d/%d flags %c:%c%c%c%c%c:%c:%c",
+	TP_printk("%s: mps %d/%d streams %d burst %d ring %d/%d flags %c:%c%c%c%c:%c:%c",
 		__get_str(name), __entry->maxpacket,
 		__entry->maxpacket_limit, __entry->max_streams,
 		__entry->maxburst, __entry->trb_enqueue,
@@ -313,7 +313,6 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 		__entry->flags & DWC3_EP_WEDGE ? 'W' : 'w',
 		__entry->flags & DWC3_EP_TRANSFER_STARTED ? 'B' : 'b',
 		__entry->flags & DWC3_EP_PENDING_REQUEST ? 'P' : 'p',
-		__entry->flags & DWC3_EP_MISSED_ISOC ? 'M' : 'm',
 		__entry->flags & DWC3_EP_END_TRANSFER_PENDING ? 'E' : 'e',
 		__entry->direction ? '<' : '>'
 	)

@@ -1333,8 +1333,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 			return 0;
 		}
 
-		if ((dep->flags & DWC3_EP_TRANSFER_STARTED) &&
-		    !(dep->flags & DWC3_EP_MISSED_ISOC))
+		if (dep->flags & DWC3_EP_TRANSFER_STARTED)
 			goto out;
 
 		return 0;
@@ -2229,7 +2228,6 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
 {
 	unsigned int		count;
 	unsigned int		s_pkt = 0;
-	unsigned int		trb_status;
 
 	dwc3_ep_inc_deq(dep);
 
@@ -2264,35 +2262,7 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
 	if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
 		return 1;
 
-	if (dep->direction) {
-		if (count) {
-			trb_status = DWC3_TRB_SIZE_TRBSTS(trb->size);
-			if (trb_status == DWC3_TRBSTS_MISSED_ISOC) {
-				/*
-				 * If missed isoc occurred and there is
-				 * no request queued then issue END
-				 * TRANSFER, so that core generates
-				 * next xfernotready and we will issue
-				 * a fresh START TRANSFER.
-				 * If there are still queued request
-				 * then wait, do not issue either END
-				 * or UPDATE TRANSFER, just attach next
-				 * request in pending_list during
-				 * giveback.If any future queued request
-				 * is successfully transferred then we
-				 * will issue UPDATE TRANSFER for all
-				 * request in the pending_list.
-				 */
-				dep->flags |= DWC3_EP_MISSED_ISOC;
-			} else {
-				dev_err(dep->dwc->dev, "incomplete IN transfer %s\n",
-						dep->name);
-				status = -ECONNRESET;
-			}
-		} else {
-			dep->flags &= ~DWC3_EP_MISSED_ISOC;
-		}
-	} else {
+	if (!dep->direction) {
 		if (count && (event->status & DEPEVT_STATUS_SHORT))
 			s_pkt = 1;
 	}
