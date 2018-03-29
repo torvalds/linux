@@ -1703,7 +1703,9 @@ disable_ipv6 - BOOLEAN
 	interface and start Duplicate Address Detection, if necessary.
 
 	When this value is changed from 0 to 1 (IPv6 is being disabled),
-	it will dynamically delete all address on the given interface.
+	it will dynamically delete all addresses and routes on the given
+	interface. From now on it will not possible to add addresses/routes
+	to the selected interface.
 
 accept_dad - INTEGER
 	Whether to accept DAD (Duplicate Address Detection).
