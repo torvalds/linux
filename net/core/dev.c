@@ -1629,6 +1629,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 		goto unlock;
 	if (dev_boot_phase)
 		goto unlock;
+	down_read(&net_rwsem);
 	for_each_net(net) {
 		for_each_netdev(net, dev) {
 			err = call_netdevice_notifier(nb, NETDEV_REGISTER, dev);
@@ -1642,6 +1643,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 			call_netdevice_notifier(nb, NETDEV_UP, dev);
 		}
 	}
+	up_read(&net_rwsem);
 
 unlock:
 	rtnl_unlock();
@@ -1664,6 +1666,7 @@ rollback:
 	}
 
 outroll:
+	up_read(&net_rwsem);
 	raw_notifier_chain_unregister(&netdev_chain, nb);
 	goto unlock;
 }
@@ -1694,6 +1697,7 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 	if (err)
 		goto unlock;
 
+	down_read(&net_rwsem);
 	for_each_net(net) {
 		for_each_netdev(net, dev) {
 			if (dev->flags & IFF_UP) {
@@ -1704,6 +1708,7 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 			call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
 		}
 	}
+	up_read(&net_rwsem);
 unlock:
 	rtnl_unlock();
 	return err;

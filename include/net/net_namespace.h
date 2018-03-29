@@ -291,6 +291,7 @@ static inline struct net *read_pnet(const possible_net_t *pnet)
 #endif
 }
 
+/* Protected by net_rwsem */
 #define for_each_net(VAR)				\
 	list_for_each_entry(VAR, &net_namespace_list, list)
 
