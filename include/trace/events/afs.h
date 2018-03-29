@@ -133,8 +133,7 @@ TRACE_EVENT(afs_recv_data,
 	    TP_ARGS(call, count, offset, want_more, ret),
 
 	    TP_STRUCT__entry(
-		    __field(struct rxrpc_call *,	rxcall		)
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(enum afs_call_state,	state		)
 		    __field(unsigned int,		count		)
 		    __field(unsigned int,		offset		)
@@ -144,8 +143,7 @@ TRACE_EVENT(afs_recv_data,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->rxcall	= call->rxcall;
-		    __entry->call	= call;
+		    __entry->call	= call->debug_id;
 		    __entry->state	= call->state;
 		    __entry->unmarshall	= call->unmarshall;
 		    __entry->count	= count;
@@ -154,8 +152,7 @@ TRACE_EVENT(afs_recv_data,
 		    __entry->ret	= ret;
 			   ),
 
-	    TP_printk("c=%p ac=%p s=%u u=%u %u/%u wm=%u ret=%d",
-		      __entry->rxcall,
+	    TP_printk("c=%08x s=%u u=%u %u/%u wm=%u ret=%d",
 		      __entry->call,
 		      __entry->state, __entry->unmarshall,
 		      __entry->offset, __entry->count,
@@ -168,21 +165,18 @@ TRACE_EVENT(afs_notify_call,
 	    TP_ARGS(rxcall, call),
 
 	    TP_STRUCT__entry(
-		    __field(struct rxrpc_call *,	rxcall		)
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(enum afs_call_state,	state		)
 		    __field(unsigned short,		unmarshall	)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->rxcall	= rxcall;
-		    __entry->call	= call;
+		    __entry->call	= call->debug_id;
 		    __entry->state	= call->state;
 		    __entry->unmarshall	= call->unmarshall;
 			   ),
 
-	    TP_printk("c=%p ac=%p s=%u u=%u",
-		      __entry->rxcall,
+	    TP_printk("c=%08x s=%u u=%u",
 		      __entry->call,
 		      __entry->state, __entry->unmarshall)
 	    );
@@ -193,21 +187,18 @@ TRACE_EVENT(afs_cb_call,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(struct rxrpc_call *,	rxcall		)
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(const char *,		name		)
 		    __field(u32,			op		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->rxcall	= call->rxcall;
-		    __entry->call	= call;
+		    __entry->call	= call->debug_id;
 		    __entry->name	= call->type->name;
 		    __entry->op		= call->operation_ID;
 			   ),
 
-	    TP_printk("c=%p ac=%p %s o=%u",
-		      __entry->rxcall,
+	    TP_printk("c=%08x %s o=%u",
 		      __entry->call,
 		      __entry->name,
 		      __entry->op)
@@ -220,7 +211,7 @@ TRACE_EVENT(afs_call,
 	    TP_ARGS(call, op, usage, outstanding, where),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(int,			op		)
 		    __field(int,			usage		)
 		    __field(int,			outstanding	)
@@ -228,14 +219,14 @@ TRACE_EVENT(afs_call,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->outstanding = outstanding;
 		    __entry->where = where;
 			   ),
 
-	    TP_printk("c=%p %s u=%d o=%d sp=%pSR",
+	    TP_printk("c=%08x %s u=%d o=%d sp=%pSR",
 		      __entry->call,
 		      __print_symbolic(__entry->op, afs_call_traces),
 		      __entry->usage,
@@ -249,13 +240,13 @@ TRACE_EVENT(afs_make_fs_call,
 	    TP_ARGS(call, fid),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(enum afs_fs_operation,	op		)
 		    __field_struct(struct afs_fid,	fid		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->op = call->operation_ID;
 		    if (fid) {
 			    __entry->fid = *fid;
@@ -266,7 +257,7 @@ TRACE_EVENT(afs_make_fs_call,
 		    }
 			   ),
 
-	    TP_printk("c=%p %06x:%06x:%06x %s",
+	    TP_printk("c=%08x %06x:%06x:%06x %s",
 		      __entry->call,
 		      __entry->fid.vid,
 		      __entry->fid.vnode,
@@ -280,16 +271,16 @@ TRACE_EVENT(afs_make_vl_call,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(enum afs_vl_operation,	op		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->op = call->operation_ID;
 			   ),
 
-	    TP_printk("c=%p %s",
+	    TP_printk("c=%08x %s",
 		      __entry->call,
 		      __print_symbolic(__entry->op, afs_vl_operations))
 	    );
@@ -300,20 +291,20 @@ TRACE_EVENT(afs_call_done,
 	    TP_ARGS(call),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(struct rxrpc_call *,	rx_call		)
 		    __field(int,			ret		)
 		    __field(u32,			abort_code	)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->rx_call = call->rxcall;
 		    __entry->ret = call->error;
 		    __entry->abort_code = call->abort_code;
 			   ),
 
-	    TP_printk("   c=%p ret=%d ab=%d [%p]",
+	    TP_printk("   c=%08x ret=%d ab=%d [%p]",
 		      __entry->call,
 		      __entry->ret,
 		      __entry->abort_code,
@@ -327,7 +318,7 @@ TRACE_EVENT(afs_send_pages,
 	    TP_ARGS(call, msg, first, last, offset),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(pgoff_t,			first		)
 		    __field(pgoff_t,			last		)
 		    __field(unsigned int,		nr		)
@@ -337,7 +328,7 @@ TRACE_EVENT(afs_send_pages,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->first = first;
 		    __entry->last = last;
 		    __entry->nr = msg->msg_iter.nr_segs;
@@ -346,7 +337,7 @@ TRACE_EVENT(afs_send_pages,
 		    __entry->flags = msg->msg_flags;
 			   ),
 
-	    TP_printk(" c=%p %lx-%lx-%lx b=%x o=%x f=%x",
+	    TP_printk(" c=%08x %lx-%lx-%lx b=%x o=%x f=%x",
 		      __entry->call,
 		      __entry->first, __entry->first + __entry->nr - 1, __entry->last,
 		      __entry->bytes, __entry->offset,
@@ -360,7 +351,7 @@ TRACE_EVENT(afs_sent_pages,
 	    TP_ARGS(call, first, last, cursor, ret),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(pgoff_t,			first		)
 		    __field(pgoff_t,			last		)
 		    __field(pgoff_t,			cursor		)
@@ -368,14 +359,14 @@ TRACE_EVENT(afs_sent_pages,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->first = first;
 		    __entry->last = last;
 		    __entry->cursor = cursor;
 		    __entry->ret = ret;
 			   ),
 
-	    TP_printk(" c=%p %lx-%lx c=%lx r=%d",
+	    TP_printk(" c=%08x %lx-%lx c=%lx r=%d",
 		      __entry->call,
 		      __entry->first, __entry->last,
 		      __entry->cursor, __entry->ret)
@@ -450,7 +441,7 @@ TRACE_EVENT(afs_call_state,
 	    TP_ARGS(call, from, to, ret, remote_abort),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_call *,		call		)
+		    __field(unsigned int,		call		)
 		    __field(enum afs_call_state,	from		)
 		    __field(enum afs_call_state,	to		)
 		    __field(int,			ret		)
@@ -458,14 +449,14 @@ TRACE_EVENT(afs_call_state,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call;
+		    __entry->call = call->debug_id;
 		    __entry->from = from;
 		    __entry->to = to;
 		    __entry->ret = ret;
 		    __entry->abort = remote_abort;
 			   ),
 
-	    TP_printk("c=%p %u->%u r=%d ab=%d",
+	    TP_printk("c=%08x %u->%u r=%d ab=%d",
 		      __entry->call,
 		      __entry->from, __entry->to,
 		      __entry->ret, __entry->abort)

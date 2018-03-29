@@ -131,6 +131,7 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 
 	call->type = type;
 	call->net = net;
+	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
 	atomic_set(&call->usage, 1);
 	INIT_WORK(&call->async_work, afs_process_async_call);
 	init_waitqueue_head(&call->waitq);
@@ -169,11 +170,12 @@ void afs_put_call(struct afs_call *call)
 		afs_put_server(call->net, call->cm_server);
 		afs_put_cb_interest(call->net, call->cbi);
 		kfree(call->request);
+
+		trace_afs_call(call, afs_call_trace_free, 0, o,
+			       __builtin_return_address(0));
 		kfree(call);
 
 		o = atomic_dec_return(&net->nr_outstanding_calls);
-		trace_afs_call(call, afs_call_trace_free, 0, o,
-			       __builtin_return_address(0));
 		if (o == 0)
 			wake_up_atomic_t(&net->nr_outstanding_calls);
 	}
@@ -378,7 +380,8 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 					 (async ?
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
-					 call->upgrade);
+					 call->upgrade,
+					 call->debug_id);
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
 		goto error_kill_call;
@@ -727,7 +730,8 @@ void afs_charge_preallocation(struct work_struct *work)
 					       afs_wake_up_async_call,
 					       afs_rx_attach,
 					       (unsigned long)call,
-					       GFP_KERNEL) < 0)
+					       GFP_KERNEL,
+					       call->debug_id) < 0)
 			break;
 		call = NULL;
 	}
