@@ -238,6 +238,7 @@ enum cmd_tgt_map {
 	CMD_TGT_READ32_SWAP,
 	CMD_TGT_READ_LE,
 	CMD_TGT_READ_SWAP_LE,
+	CMD_TGT_ADD_IMM,
 	__CMD_TGT_MAP_SIZE,
 };
 
@@ -254,6 +255,7 @@ enum cmd_ctx_swap {
 	CMD_CTX_NO_SWAP = 3,
 };
 
+#define CMD_OVE_DATA	GENMASK(5, 3)
 #define CMD_OVE_LEN	BIT(7)
 #define CMD_OV_LEN	GENMASK(12, 8)
 

@@ -72,6 +72,7 @@ enum nfp_relo_type {
 #define BR_OFF_RELO		15000
 
 enum static_regs {
+	STATIC_REG_IMMA		= 20, /* Bank AB */
 	STATIC_REG_IMM		= 21, /* Bank AB */
 	STATIC_REG_STACK	= 22, /* Bank A */
 	STATIC_REG_PKT_LEN	= 22, /* Bank B */
@@ -91,6 +92,8 @@ enum pkt_vec {
 #define pptr_reg(np)	pv_ctm_ptr(np)
 #define imm_a(np)	reg_a(STATIC_REG_IMM)
 #define imm_b(np)	reg_b(STATIC_REG_IMM)
+#define imma_a(np)	reg_a(STATIC_REG_IMMA)
+#define imma_b(np)	reg_b(STATIC_REG_IMMA)
 #define imm_both(np)	reg_both(STATIC_REG_IMM)
 
 #define NFP_BPF_ABI_FLAGS	reg_imm(0)
@@ -169,18 +172,27 @@ struct nfp_app_bpf {
 	} helpers;
 };
 
+enum nfp_bpf_map_use {
+	NFP_MAP_UNUSED = 0,
+	NFP_MAP_USE_READ,
+	NFP_MAP_USE_WRITE,
+	NFP_MAP_USE_ATOMIC_CNT,
+};
+
 /**
  * struct nfp_bpf_map - private per-map data attached to BPF maps for offload
  * @offmap:	pointer to the offloaded BPF map
  * @bpf:	back pointer to bpf app private structure
  * @tid:	table id identifying map on datapath
  * @l:		link on the nfp_app_bpf->map_list list
+ * @use_map:	map of how the value is used (in 4B chunks)
  */
 struct nfp_bpf_map {
 	struct bpf_offloaded_map *offmap;
 	struct nfp_app_bpf *bpf;
 	u32 tid;
 	struct list_head l;
+	enum nfp_bpf_map_use use_map[];
 };
 
 struct nfp_prog;
@@ -318,6 +330,11 @@ static inline bool is_mbpf_classic_store(const struct nfp_insn_meta *meta)
 static inline bool is_mbpf_classic_store_pkt(const struct nfp_insn_meta *meta)
 {
 	return is_mbpf_classic_store(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
+static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
+{
+	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_XADD);
 }
 
 /**

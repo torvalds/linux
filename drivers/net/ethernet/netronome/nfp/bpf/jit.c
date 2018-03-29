@@ -2127,6 +2127,49 @@ static int mem_stx8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return mem_stx(nfp_prog, meta, 8);
 }
 
+static int
+mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
+{
+	swreg addra, addrb, off, prev_alu = imm_a(nfp_prog);
+	u8 dst_gpr = meta->insn.dst_reg * 2;
+	u8 src_gpr = meta->insn.src_reg * 2;
+
+	off = ur_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+
+	/* If insn has an offset add to the address */
+	if (!meta->insn.off) {
+		addra = reg_a(dst_gpr);
+		addrb = reg_b(dst_gpr + 1);
+	} else {
+		emit_alu(nfp_prog, imma_a(nfp_prog),
+			 reg_a(dst_gpr), ALU_OP_ADD, off);
+		emit_alu(nfp_prog, imma_b(nfp_prog),
+			 reg_a(dst_gpr + 1), ALU_OP_ADD_C, reg_imm(0));
+		addra = imma_a(nfp_prog);
+		addrb = imma_b(nfp_prog);
+	}
+
+	wrp_immed(nfp_prog, prev_alu,
+		  FIELD_PREP(CMD_OVE_DATA, 2) |
+		  CMD_OVE_LEN |
+		  FIELD_PREP(CMD_OV_LEN, 0x8 | is64 << 2));
+	wrp_reg_or_subpart(nfp_prog, prev_alu, reg_b(src_gpr), 2, 2);
+	emit_cmd_indir(nfp_prog, CMD_TGT_ADD_IMM, CMD_MODE_40b_BA, 0,
+		       addra, addrb, 0, false);
+
+	return 0;
+}
+
+static int mem_xadd4(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_xadd(nfp_prog, meta, false);
+}
+
+static int mem_xadd8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	return mem_xadd(nfp_prog, meta, true);
+}
+
 static int jump(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	emit_br(nfp_prog, BR_UNC, meta->insn.off, 0);
@@ -2390,6 +2433,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_STX | BPF_MEM | BPF_H] =	mem_stx2,
 	[BPF_STX | BPF_MEM | BPF_W] =	mem_stx4,
 	[BPF_STX | BPF_MEM | BPF_DW] =	mem_stx8,
+	[BPF_STX | BPF_XADD | BPF_W] =	mem_xadd4,
+	[BPF_STX | BPF_XADD | BPF_DW] =	mem_xadd8,
 	[BPF_ST | BPF_MEM | BPF_B] =	mem_st1,
 	[BPF_ST | BPF_MEM | BPF_H] =	mem_st2,
 	[BPF_ST | BPF_MEM | BPF_W] =	mem_st4,
