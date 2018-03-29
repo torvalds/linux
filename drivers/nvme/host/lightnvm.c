@@ -1028,8 +1028,8 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 	} else {
 		return scnprintf(page,
 				 PAGE_SIZE,
-				 "Unhandled attr(%s) in `nvm_dev_attr_show`\n",
-				 attr->name);
+				 "Unhandled attr(%s) in `%s`\n",
+				 attr->name, __func__);
 	}
 }
 
@@ -1103,8 +1103,8 @@ static ssize_t nvm_dev_attr_show_12(struct device *dev,
 		return scnprintf(page, PAGE_SIZE, "%u\n", NVM_MAX_VLBA);
 	} else {
 		return scnprintf(page, PAGE_SIZE,
-			"Unhandled attr(%s) in `nvm_dev_attr_show_12`\n",
-			attr->name);
+			"Unhandled attr(%s) in `%s`\n",
+			attr->name, __func__);
 	}
 }
 
@@ -1149,8 +1149,8 @@ static ssize_t nvm_dev_attr_show_20(struct device *dev,
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tbem);
 	} else {
 		return scnprintf(page, PAGE_SIZE,
-			"Unhandled attr(%s) in `nvm_dev_attr_show_20`\n",
-			attr->name);
+			"Unhandled attr(%s) in `%s`\n",
+			attr->name, __func__);
 	}
 }
 
