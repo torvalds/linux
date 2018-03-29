@@ -568,6 +568,12 @@ static void soc15_invalidate_hdp(struct amdgpu_device *adev,
 			HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
 }
 
+static bool soc15_need_full_reset(struct amdgpu_device *adev)
+{
+	/* change this when we implement soft reset */
+	return true;
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -581,6 +587,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.get_config_memsize = &soc15_get_config_memsize,
 	.flush_hdp = &soc15_flush_hdp,
 	.invalidate_hdp = &soc15_invalidate_hdp,
+	.need_full_reset = &soc15_need_full_reset,
 };
 
 static int soc15_common_early_init(void *handle)
