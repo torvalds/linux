@@ -261,9 +261,15 @@ static const struct clk_div_table cpg_sd01_div_table[] = {
 static const struct rcar_gen2_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_pll0_div __initdata;
 static u32 cpg_mode __initdata;
+static u32 cpg_quirks __initdata;
 
-static const struct soc_device_attribute soc_r8a77470[] = {
-	{ .soc_id = "r8a77470" },
+#define SD_SKIP_FIRST	BIT(0)		/* Skip first clock in SD table */
+
+static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
+	{
+		.soc_id = "r8a77470",
+		.data = (void *)SD_SKIP_FIRST,
+	},
 	{ /* sentinel */ }
 };
 
@@ -333,7 +339,7 @@ struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN2_SD0:
 		table = cpg_sd01_div_table;
-		if (soc_device_match(soc_r8a77470))
+		if (cpg_quirks & SD_SKIP_FIRST)
 			table++;
 
 		shift = 4;
@@ -341,7 +347,7 @@ struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN2_SD1:
 		table = cpg_sd01_div_table;
-		if (soc_device_match(soc_r8a77470))
+		if (cpg_quirks & SD_SKIP_FIRST)
 			table++;
 
 		shift = 0;
@@ -372,9 +378,15 @@ struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
 int __init rcar_gen2_cpg_init(const struct rcar_gen2_cpg_pll_config *config,
 			      unsigned int pll0_div, u32 mode)
 {
+	const struct soc_device_attribute *attr;
+
 	cpg_pll_config = config;
 	cpg_pll0_div = pll0_div;
 	cpg_mode = mode;
+	attr = soc_device_match(cpg_quirks_match);
+	if (attr)
+		cpg_quirks = (uintptr_t)attr->data;
+	pr_debug("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
 
 	spin_lock_init(&cpg_lock);
 
