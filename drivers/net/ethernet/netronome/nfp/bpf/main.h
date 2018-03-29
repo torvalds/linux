@@ -229,6 +229,8 @@ struct nfp_bpf_reg_state {
  * @pkt_cache.range_start: start offset for associated packet data cache
  * @pkt_cache.range_end: end offset for associated packet data cache
  * @pkt_cache.do_init: this read needs to initialize packet data cache
+ * @xadd_over_16bit: 16bit immediate is not guaranteed
+ * @xadd_maybe_16bit: 16bit immediate is possible
  * @jmp_dst: destination info for jump instructions
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
@@ -243,6 +245,7 @@ struct nfp_bpf_reg_state {
 struct nfp_insn_meta {
 	struct bpf_insn insn;
 	union {
+		/* pointer ops (ld/st/xadd) */
 		struct {
 			struct bpf_reg_state ptr;
 			struct bpf_insn *paired_st;
@@ -253,8 +256,12 @@ struct nfp_insn_meta {
 				s16 range_end;
 				bool do_init;
 			} pkt_cache;
+			bool xadd_over_16bit;
+			bool xadd_maybe_16bit;
 		};
+		/* jump */
 		struct nfp_insn_meta *jmp_dst;
+		/* function calls */
 		struct {
 			u32 func_id;
 			struct bpf_reg_state arg1;

@@ -238,6 +238,7 @@ enum cmd_tgt_map {
 	CMD_TGT_READ32_SWAP,
 	CMD_TGT_READ_LE,
 	CMD_TGT_READ_SWAP_LE,
+	CMD_TGT_ADD,
 	CMD_TGT_ADD_IMM,
 	__CMD_TGT_MAP_SIZE,
 };
@@ -252,6 +253,8 @@ enum cmd_mode {
 
 enum cmd_ctx_swap {
 	CMD_CTX_SWAP = 0,
+	CMD_CTX_SWAP_DEFER1 = 1,
+	CMD_CTX_SWAP_DEFER2 = 2,
 	CMD_CTX_NO_SWAP = 3,
 };
 

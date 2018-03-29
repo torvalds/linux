@@ -414,15 +414,15 @@ nfp_bpf_check_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 			dreg->type);
 		return -EOPNOTSUPP;
 	}
-	if (sreg->type != SCALAR_VALUE ||
-	    sreg->var_off.value > 0xffff || sreg->var_off.mask > 0xffff) {
-		char tn_buf[48];
-
-		tnum_strn(tn_buf, sizeof(tn_buf), sreg->var_off);
-		pr_vlog(env, "atomic add not of a small constant scalar: %s\n",
-			tn_buf);
+	if (sreg->type != SCALAR_VALUE) {
+		pr_vlog(env, "atomic add not of a scalar: %d\n", sreg->type);
 		return -EOPNOTSUPP;
 	}
+
+	meta->xadd_over_16bit |=
+		sreg->var_off.value > 0xffff || sreg->var_off.mask > 0xffff;
+	meta->xadd_maybe_16bit |=
+		(sreg->var_off.value & ~sreg->var_off.mask) <= 0xffff;
 
 	return nfp_bpf_check_ptr(nfp_prog, meta, env, meta->insn.dst_reg);
 }
