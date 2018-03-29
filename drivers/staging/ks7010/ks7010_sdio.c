@@ -408,7 +408,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 		netdev_err(priv->net_dev, " error : READ_STATUS\n");
 
 	if (atomic_read(&priv->psstatus.confirm_wait)) {
-		if (IS_HIF_CONF(event)) {
+		if (is_hif_conf(event)) {
 			netdev_dbg(priv->net_dev, "IS_HIF_CONF true !!\n");
 			atomic_dec(&priv->psstatus.confirm_wait);
 		}

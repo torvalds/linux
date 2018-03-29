@@ -608,7 +608,6 @@ enum multicast_filter_type {
 
 #define NIC_MAX_MCAST_LIST 32
 
-/* macro function */
 #define HIF_EVENT_MASK 0xE800
 
 static inline bool is_hif_ind(unsigned short event)
@@ -621,10 +620,13 @@ static inline bool is_hif_ind(unsigned short event)
 		 ((event & ~HIF_EVENT_MASK) == 0x0012)));
 }
 
-#define IS_HIF_CONF(_EVENT) ((_EVENT & HIF_EVENT_MASK) == 0xE800  && \
-			     (_EVENT & ~HIF_EVENT_MASK) > 0x0000  && \
-			     (_EVENT & ~HIF_EVENT_MASK) < 0x0012  && \
-			     !is_hif_ind(_EVENT))
+static inline bool is_hif_conf(unsigned short event)
+{
+	return (((event & HIF_EVENT_MASK) == HIF_EVENT_MASK) &&
+		((event & ~HIF_EVENT_MASK) > 0x0000) &&
+		((event & ~HIF_EVENT_MASK) < 0x0012) &&
+		!is_hif_ind(event));
+}
 
 #ifdef __KERNEL__
 
