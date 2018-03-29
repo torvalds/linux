@@ -304,11 +304,9 @@ static int __nvm_config_extended(struct nvm_dev *dev,
 	}
 
 	/* op not set falls into target's default */
-	if (e->op == 0xFFFF)
+	if (e->op == 0xFFFF) {
 		e->op = NVM_TARGET_DEFAULT_OP;
-
-	if (e->op < NVM_TARGET_MIN_OP ||
-	    e->op > NVM_TARGET_MAX_OP) {
+	} else if (e->op < NVM_TARGET_MIN_OP || e->op > NVM_TARGET_MAX_OP) {
 		pr_err("nvm: invalid over provisioning value\n");
 		return -EINVAL;
 	}
