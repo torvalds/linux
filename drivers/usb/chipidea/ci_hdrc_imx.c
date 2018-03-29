@@ -20,7 +20,6 @@
 
 struct ci_hdrc_imx_platform_flag {
 	unsigned int flags;
-	bool runtime_pm;
 };
 
 static const struct ci_hdrc_imx_platform_flag imx23_usb_data = {
@@ -29,7 +28,7 @@ static const struct ci_hdrc_imx_platform_flag imx23_usb_data = {
 };
 
 static const struct ci_hdrc_imx_platform_flag imx27_usb_data = {
-		CI_HDRC_DISABLE_STREAMING,
+	.flags = CI_HDRC_DISABLE_STREAMING,
 };
 
 static const struct ci_hdrc_imx_platform_flag imx28_usb_data = {
