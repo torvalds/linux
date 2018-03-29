@@ -156,6 +156,11 @@ enum inno_hdmi_phy_type {
 	INNO_HDMI_PHY_RK3328
 };
 
+struct phy_config {
+	unsigned long	tmdsclock;
+	u8		regs[14];
+};
+
 struct inno_hdmi_phy_drv_data;
 
 struct inno_hdmi_phy {
@@ -166,6 +171,7 @@ struct inno_hdmi_phy {
 
 	struct phy *phy;
 	struct clk *sysclk;
+	struct phy_config *phy_cfg;
 
 	/* platform data */
 	struct inno_hdmi_phy_drv_data *plat_data;
@@ -202,11 +208,6 @@ struct post_pll_config {
 	u16 fbdiv;
 	u8 postdiv;
 	u8 version;
-};
-
-struct phy_config {
-	unsigned long	tmdsclock;
-	u8		regs[14];
 };
 
 struct inno_hdmi_phy_ops {
@@ -423,6 +424,9 @@ static int inno_hdmi_phy_power_on(struct phy *phy)
 	u32 tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, inno->pixclock);
 	u32 chipversion = 1;
 
+	if (inno->phy_cfg)
+		phy_cfg = inno->phy_cfg;
+
 	if (!tmdsclock) {
 		dev_err(inno->dev, "TMDS clock is zero!\n");
 		return -EINVAL;
@@ -526,7 +530,10 @@ static unsigned long inno_hdmi_phy_clk_recalc_rate(struct clk_hw *hw,
 static long inno_hdmi_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 					 unsigned long *parent_rate)
 {
+	int i;
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
+	struct inno_hdmi_phy *inno = to_inno_hdmi_phy(hw);
+	u32 tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, rate);
 
 	for (; cfg->pixclock != ~0UL; cfg++)
 		if (cfg->pixclock == rate)
@@ -534,6 +541,23 @@ static long inno_hdmi_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	/* XXX: Limit pixel clock under 600MHz */
 	if (cfg->pixclock > 600000000)
+		return -EINVAL;
+
+	/*
+	 * If there is no dts phy cfg table, use default phy cfg table.
+	 * The tmds clock maximum is 594MHz. So there is no need to check
+	 * whether tmds clock is out of range.
+	 */
+	if (!inno->phy_cfg)
+		return cfg->pixclock;
+
+	/* Check if tmds clock is out of dts phy config's range. */
+	for (i = 0; inno->phy_cfg[i].tmdsclock != ~0UL; i++) {
+		if (inno->phy_cfg[i].tmdsclock >= tmdsclock)
+			break;
+	}
+
+	if (inno->phy_cfg[i].tmdsclock == ~0UL)
 		return -EINVAL;
 
 	return cfg->pixclock;
@@ -1109,15 +1133,45 @@ static const struct regmap_config inno_hdmi_phy_regmap_config = {
 	.max_register = 0x400,
 };
 
+static
+int inno_hdmi_update_phy_table(struct inno_hdmi_phy *inno, u32 *config,
+			       struct phy_config *phy_cfg,
+			       int phy_table_size)
+{
+	int i, j;
+
+	for (i = 0; i < phy_table_size; i++) {
+		phy_cfg[i].tmdsclock =
+			(unsigned long)config[i * 15];
+
+		for (j = 0; j < 14; j++)
+			phy_cfg[i].regs[j] = (u8)config[i * 15 + 1 + j];
+	}
+
+	/*
+	 * The last set of phy cfg is used to indicate whether
+	 * there is no more phy cfg data.
+	 */
+	phy_cfg[i].tmdsclock = ~0UL;
+	for (j = 0; j < 14; j++)
+		phy_cfg[i].regs[j] = 0;
+
+	return 0;
+}
+
+#define PHY_TAB_LEN 60
+
 static int inno_hdmi_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct inno_hdmi_phy *inno;
 	const struct of_device_id *match;
 	struct phy_provider *phy_provider;
 	struct resource *res;
 	void __iomem *regs;
-	int ret;
+	u32 *phy_config;
+	int ret, val, phy_table_size;
 
 	inno = devm_kzalloc(dev, sizeof(*inno), GFP_KERNEL);
 	if (!inno)
@@ -1160,6 +1214,40 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to create HDMI PHY\n");
 		ret = PTR_ERR(inno->phy);
 		goto err_regsmap;
+	}
+
+	if (of_get_property(np, "rockchip,phy-table", &val)) {
+		if (val % PHY_TAB_LEN || !val) {
+			dev_err(dev, "Invalid phy cfg table format!\n");
+			return -EINVAL;
+		}
+
+		phy_config = kmalloc(val, GFP_KERNEL);
+		if (!phy_config) {
+			dev_err(dev, "kmalloc phy table failed\n");
+			return -ENOMEM;
+		}
+
+		phy_table_size = val / PHY_TAB_LEN;
+		/* Effective phy cfg data and the end of phy cfg table */
+		inno->phy_cfg = devm_kzalloc(dev, val + PHY_TAB_LEN,
+					     GFP_KERNEL);
+		if (!inno->phy_cfg) {
+			kfree(phy_config);
+			return -ENOMEM;
+		}
+		of_property_read_u32_array(np, "rockchip,phy-table",
+					   phy_config, val / sizeof(u32));
+		ret = inno_hdmi_update_phy_table(inno, phy_config,
+						 inno->phy_cfg,
+						 phy_table_size);
+		if (ret) {
+			kfree(phy_config);
+			return ret;
+		}
+		kfree(phy_config);
+	} else {
+		dev_dbg(dev, "use default hdmi phy table\n");
 	}
 
 	phy_set_drvdata(inno->phy, inno);
