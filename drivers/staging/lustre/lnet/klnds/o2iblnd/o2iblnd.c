@@ -1068,7 +1068,7 @@ static void kiblnd_query(struct lnet_ni *ni, lnet_nid_t nid,
 
 	CDEBUG(D_NET, "Peer %s %p, alive %ld secs ago\n",
 	       libcfs_nid2str(nid), peer,
-	       last_alive ? cfs_duration_sec(now - last_alive) : -1);
+	       last_alive ? (now - last_alive) / HZ : -1);
 }
 
 static void kiblnd_free_pages(struct kib_pages *p)

@@ -126,7 +126,7 @@ static int param_get_delay(char *buffer, const struct kernel_param *kp)
 {
 	unsigned int d = *(unsigned int *)kp->arg;
 
-	return sprintf(buffer, "%u", (unsigned int)cfs_duration_sec(d * 100));
+	return sprintf(buffer, "%u", (unsigned int)(d * 100) / HZ);
 }
 
 unsigned int libcfs_console_max_delay;

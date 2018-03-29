@@ -1752,7 +1752,7 @@ lnet_notify(struct lnet_ni *ni, lnet_nid_t nid, int alive, unsigned long when)
 		CWARN("Ignoring prediction from %s of %s %s %ld seconds in the future\n",
 		      !ni ? "userspace" : libcfs_nid2str(ni->ni_nid),
 		      libcfs_nid2str(nid), alive ? "up" : "down",
-		      cfs_duration_sec(when - now));
+		      (when - now) / HZ);
 		return -EINVAL;
 	}
 

@@ -751,7 +751,7 @@ ksocknal_find_connectable_route_locked(struct ksock_peer *peer)
 			       &route->ksnr_ipaddr,
 			       route->ksnr_connected,
 			       route->ksnr_retry_interval,
-			       cfs_duration_sec(route->ksnr_timeout - now));
+			       (route->ksnr_timeout - now) / HZ);
 			continue;
 		}
 
@@ -2439,7 +2439,7 @@ ksocknal_check_peer_timeouts(int idx)
 
 		CERROR("Total %d stale ZC_REQs for peer %s detected; the oldest(%p) timed out %ld secs ago, resid: %d, wmem: %d\n",
 		       n, libcfs_nid2str(peer->ksnp_id.nid), tx_stale,
-		       cfs_duration_sec(jiffies - deadline),
+		       (jiffies - deadline) / HZ,
 		       resid, conn->ksnc_sock->sk->sk_wmem_queued);
 
 		ksocknal_close_conn_and_siblings(conn, -ETIMEDOUT);

@@ -3144,7 +3144,7 @@ kiblnd_check_txs_locked(struct kib_conn *conn, struct list_head *txs)
 		if (time_after_eq(jiffies, tx->tx_deadline)) {
 			CERROR("Timed out tx: %s, %lu seconds\n",
 			       kiblnd_queue2str(conn, txs),
-			       cfs_duration_sec(jiffies - tx->tx_deadline));
+			       (jiffies - tx->tx_deadline) / HZ);
 			return 1;
 		}
 	}
@@ -3206,8 +3206,7 @@ kiblnd_check_conns(int idx)
 			if (timedout) {
 				CERROR("Timed out RDMA with %s (%lu): c: %u, oc: %u, rc: %u\n",
 				       libcfs_nid2str(peer->ibp_nid),
-				       cfs_duration_sec(jiffies -
-							peer->ibp_last_alive),
+				       (jiffies - peer->ibp_last_alive) / HZ,
 				       conn->ibc_credits,
 				       conn->ibc_outstanding_credits,
 				       conn->ibc_reserved_credits);

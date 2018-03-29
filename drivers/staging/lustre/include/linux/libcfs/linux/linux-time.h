@@ -60,11 +60,6 @@
  * Generic kernel stuff
  */
 
-static inline long cfs_duration_sec(long d)
-{
-	return d / msecs_to_jiffies(MSEC_PER_SEC);
-}
-
 static inline int cfs_time_before_64(u64 t1, u64 t2)
 {
 	return (__s64)t2 - (__s64)t1 > 0;

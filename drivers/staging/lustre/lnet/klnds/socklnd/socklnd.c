@@ -1682,7 +1682,7 @@ ksocknal_destroy_conn(struct ksock_conn *conn)
 		       libcfs_id2str(conn->ksnc_peer->ksnp_id), conn->ksnc_type,
 		       &conn->ksnc_ipaddr, conn->ksnc_port,
 		       iov_iter_count(&conn->ksnc_rx_to), conn->ksnc_rx_nob_left,
-		       cfs_duration_sec(jiffies - last_rcv));
+		       (jiffies - last_rcv) / HZ);
 		lnet_finalize(conn->ksnc_peer->ksnp_ni,
 			      conn->ksnc_cookie, -EIO);
 		break;
@@ -1870,7 +1870,7 @@ ksocknal_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when)
 
 	CDEBUG(D_NET, "Peer %s %p, alive %ld secs ago, connect %d\n",
 	       libcfs_nid2str(nid), peer,
-	       last_alive ? cfs_duration_sec(now - last_alive) : -1,
+	       last_alive ? (now - last_alive) / HZ : -1,
 	       connect);
 
 	if (!connect)
