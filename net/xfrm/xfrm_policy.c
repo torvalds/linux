@@ -51,7 +51,7 @@ static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
 
-static struct kmem_cache *xfrm_dst_cache __read_mostly;
+static struct kmem_cache *xfrm_dst_cache __ro_after_init;
 static __read_mostly seqcount_t xfrm_policy_hash_generation;
 
 static void xfrm_init_pmtu(struct xfrm_dst **bundle, int nr);
@@ -1743,7 +1743,7 @@ static void xfrm_pcpu_work_fn(struct work_struct *work)
 void xfrm_policy_cache_flush(void)
 {
 	struct xfrm_dst *old;
-	bool found = 0;
+	bool found = false;
 	int cpu;
 
 	might_sleep();
