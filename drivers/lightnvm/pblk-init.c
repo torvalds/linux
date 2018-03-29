@@ -921,6 +921,7 @@ static void pblk_free(struct pblk *pblk)
 {
 	pblk_luns_free(pblk);
 	pblk_lines_free(pblk);
+	kfree(pblk->pad_dist);
 	pblk_line_meta_free(pblk);
 	pblk_core_free(pblk);
 	pblk_l2p_free(pblk);
@@ -998,11 +999,13 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	pblk->pad_rst_wa = 0;
 	pblk->gc_rst_wa = 0;
 
+	atomic64_set(&pblk->nr_flush, 0);
+	pblk->nr_flush_rst = 0;
+
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_set(&pblk->inflight_writes, 0);
 	atomic_long_set(&pblk->padded_writes, 0);
 	atomic_long_set(&pblk->padded_wb, 0);
-	atomic_long_set(&pblk->nr_flush, 0);
 	atomic_long_set(&pblk->req_writes, 0);
 	atomic_long_set(&pblk->sub_writes, 0);
 	atomic_long_set(&pblk->sync_writes, 0);
@@ -1034,10 +1037,17 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 		goto fail_free_luns;
 	}
 
+	pblk->pad_dist = kzalloc((pblk->min_write_pgs - 1) * sizeof(atomic64_t),
+				 GFP_KERNEL);
+	if (!pblk->pad_dist) {
+		ret = -ENOMEM;
+		goto fail_free_line_meta;
+	}
+
 	ret = pblk_core_init(pblk);
 	if (ret) {
 		pr_err("pblk: could not initialize core\n");
-		goto fail_free_line_meta;
+		goto fail_free_pad_dist;
 	}
 
 	ret = pblk_l2p_init(pblk);
@@ -1097,6 +1107,8 @@ fail_free_l2p:
 	pblk_l2p_free(pblk);
 fail_free_core:
 	pblk_core_free(pblk);
+fail_free_pad_dist:
+	kfree(pblk->pad_dist);
 fail_free_line_meta:
 	pblk_line_meta_free(pblk);
 fail_free_luns:

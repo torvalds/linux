@@ -626,12 +626,16 @@ struct pblk {
 	u64 gc_rst_wa;
 	u64 pad_rst_wa;
 
+	/* Counters used for calculating padding distribution */
+	atomic64_t *pad_dist;		/* Padding distribution buckets */
+	u64 nr_flush_rst;		/* Flushes reset value for pad dist.*/
+	atomic64_t nr_flush;		/* Number of flush/fua I/O */
+
 #ifdef CONFIG_NVM_DEBUG
 	/* Non-persistent debug counters, 4kb sector I/Os */
 	atomic_long_t inflight_writes;	/* Inflight writes (user and gc) */
 	atomic_long_t padded_writes;	/* Sectors padded due to flush/fua */
 	atomic_long_t padded_wb;	/* Sectors padded in write buffer */
-	atomic_long_t nr_flush;		/* Number of flush/fua I/O */
 	atomic_long_t req_writes;	/* Sectors stored on write buffer */
 	atomic_long_t sub_writes;	/* Sectors submitted from buffer */
 	atomic_long_t sync_writes;	/* Sectors synced to media */

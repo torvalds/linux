@@ -437,9 +437,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		struct pblk *pblk = container_of(rb, struct pblk, rwb);
 
-#ifdef CONFIG_NVM_DEBUG
-		atomic_long_inc(&pblk->nr_flush);
-#endif
+		atomic64_inc(&pblk->nr_flush);
 		if (pblk_rb_flush_point_set(&pblk->rwb, bio, mem))
 			*io_ret = NVM_IO_OK;
 	}
@@ -620,14 +618,17 @@ try:
 			pr_err("pblk: could not pad page in write bio\n");
 			return NVM_IO_ERR;
 		}
+
+		if (pad < pblk->min_write_pgs)
+			atomic64_inc(&pblk->pad_dist[pad - 1]);
+		else
+			pr_warn("pblk: padding more than min. sectors\n");
+
+		atomic64_add(pad, &pblk->pad_wa);
 	}
 
-	atomic64_add(pad, &((struct pblk *)
-			(container_of(rb, struct pblk, rwb)))->pad_wa);
-
 #ifdef CONFIG_NVM_DEBUG
-	atomic_long_add(pad, &((struct pblk *)
-			(container_of(rb, struct pblk, rwb)))->padded_writes);
+	atomic_long_add(pad, &pblk->padded_writes);
 #endif
 
 	return NVM_IO_OK;
