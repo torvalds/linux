@@ -690,24 +690,7 @@ void dcn10_hubp_construct(
 	const struct dcn_mi_shift *hubp_shift,
 	const struct dcn_mi_mask *hubp_mask);
 
-
-struct dcn_hubp_state {
-	uint32_t pixel_format;
-	uint32_t inuse_addr_hi;
-	uint32_t viewport_width;
-	uint32_t viewport_height;
-	uint32_t rotation_angle;
-	uint32_t h_mirror_en;
-	uint32_t sw_mode;
-	uint32_t dcc_en;
-	uint32_t blank_en;
-	uint32_t underflow_status;
-	uint32_t ttu_disable;
-	uint32_t min_ttu_vblank;
-	uint32_t qos_level_low_wm;
-	uint32_t qos_level_high_wm;
-};
-void hubp1_read_state(struct dcn10_hubp *hubp1,
+void hubp1_read_state(struct hubp *hubp,
 		struct dcn_hubp_state *s);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);

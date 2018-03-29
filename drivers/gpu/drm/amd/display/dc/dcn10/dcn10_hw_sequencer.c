@@ -112,6 +112,104 @@ void dcn10_log_hubbub_state(struct dc *dc)
 	DTN_INFO("\n");
 }
 
+static void print_rq_dlg_ttu_regs(struct dc_context *dc_ctx, struct dcn_hubp_state *s)
+{
+	struct _vcs_dpi_display_dlg_regs_st *dlg_regs = &s->dlg_attr;
+	struct _vcs_dpi_display_ttu_regs_st *ttu_regs = &s->ttu_attr;
+	struct _vcs_dpi_display_rq_regs_st *rq_regs = &s->rq_regs;
+
+	DTN_INFO("========Requester========\n");
+	DTN_INFO("drq_expansion_mode      = 0x%0x\n", rq_regs->drq_expansion_mode);
+	DTN_INFO("prq_expansion_mode      = 0x%0x\n", rq_regs->prq_expansion_mode);
+	DTN_INFO("mrq_expansion_mode      = 0x%0x\n", rq_regs->mrq_expansion_mode);
+	DTN_INFO("crq_expansion_mode      = 0x%0x\n", rq_regs->crq_expansion_mode);
+	DTN_INFO("plane1_base_address     = 0x%0x\n", rq_regs->plane1_base_address);
+	DTN_INFO("==<LUMA>==\n");
+	DTN_INFO("chunk_size              = 0x%0x\n", rq_regs->rq_regs_l.chunk_size);
+	DTN_INFO("min_chunk_size          = 0x%0x\n", rq_regs->rq_regs_l.min_chunk_size);
+	DTN_INFO("meta_chunk_size         = 0x%0x\n", rq_regs->rq_regs_l.meta_chunk_size);
+	DTN_INFO("min_meta_chunk_size     = 0x%0x\n", rq_regs->rq_regs_l.min_meta_chunk_size);
+	DTN_INFO("dpte_group_size         = 0x%0x\n", rq_regs->rq_regs_l.dpte_group_size);
+	DTN_INFO("mpte_group_size         = 0x%0x\n", rq_regs->rq_regs_l.mpte_group_size);
+	DTN_INFO("swath_height            = 0x%0x\n", rq_regs->rq_regs_l.swath_height);
+	DTN_INFO("pte_row_height_linear   = 0x%0x\n", rq_regs->rq_regs_l.pte_row_height_linear);
+	DTN_INFO("==<CHROMA>==\n");
+	DTN_INFO("chunk_size              = 0x%0x\n", rq_regs->rq_regs_c.chunk_size);
+	DTN_INFO("min_chunk_size          = 0x%0x\n", rq_regs->rq_regs_c.min_chunk_size);
+	DTN_INFO("meta_chunk_size         = 0x%0x\n", rq_regs->rq_regs_c.meta_chunk_size);
+	DTN_INFO("min_meta_chunk_size     = 0x%0x\n", rq_regs->rq_regs_c.min_meta_chunk_size);
+	DTN_INFO("dpte_group_size         = 0x%0x\n", rq_regs->rq_regs_c.dpte_group_size);
+	DTN_INFO("mpte_group_size         = 0x%0x\n", rq_regs->rq_regs_c.mpte_group_size);
+	DTN_INFO("swath_height            = 0x%0x\n", rq_regs->rq_regs_c.swath_height);
+	DTN_INFO("pte_row_height_linear   = 0x%0x\n", rq_regs->rq_regs_c.pte_row_height_linear);
+
+	DTN_INFO("========DLG========\n");
+	DTN_INFO("refcyc_h_blank_end                  = 0x%0x\n", dlg_regs->refcyc_h_blank_end);
+	DTN_INFO("dlg_vblank_end                      = 0x%0x\n", dlg_regs->dlg_vblank_end);
+	DTN_INFO("min_dst_y_next_start                = 0x%0x\n", dlg_regs->min_dst_y_next_start);
+	DTN_INFO("refcyc_per_htotal                   = 0x%0x\n", dlg_regs->refcyc_per_htotal);
+	DTN_INFO("refcyc_x_after_scaler               = 0x%0x\n", dlg_regs->refcyc_x_after_scaler);
+	DTN_INFO("dst_y_after_scaler                  = 0x%0x\n", dlg_regs->dst_y_after_scaler);
+	DTN_INFO("dst_y_prefetch                      = 0x%0x\n", dlg_regs->dst_y_prefetch);
+	DTN_INFO("dst_y_per_vm_vblank                 = 0x%0x\n", dlg_regs->dst_y_per_vm_vblank);
+	DTN_INFO("dst_y_per_row_vblank                = 0x%0x\n", dlg_regs->dst_y_per_row_vblank);
+	DTN_INFO("dst_y_per_vm_flip                   = 0x%0x\n", dlg_regs->dst_y_per_vm_flip);
+	DTN_INFO("dst_y_per_row_flip                  = 0x%0x\n", dlg_regs->dst_y_per_row_flip);
+	DTN_INFO("ref_freq_to_pix_freq                = 0x%0x\n", dlg_regs->ref_freq_to_pix_freq);
+	DTN_INFO("vratio_prefetch                     = 0x%0x\n", dlg_regs->vratio_prefetch);
+	DTN_INFO("vratio_prefetch_c                   = 0x%0x\n", dlg_regs->vratio_prefetch_c);
+	DTN_INFO("refcyc_per_pte_group_vblank_l       = 0x%0x\n", dlg_regs->refcyc_per_pte_group_vblank_l);
+	DTN_INFO("refcyc_per_pte_group_vblank_c       = 0x%0x\n", dlg_regs->refcyc_per_pte_group_vblank_c);
+	DTN_INFO("refcyc_per_meta_chunk_vblank_l      = 0x%0x\n", dlg_regs->refcyc_per_meta_chunk_vblank_l);
+	DTN_INFO("refcyc_per_meta_chunk_vblank_c      = 0x%0x\n", dlg_regs->refcyc_per_meta_chunk_vblank_c);
+	DTN_INFO("refcyc_per_pte_group_flip_l         = 0x%0x\n", dlg_regs->refcyc_per_pte_group_flip_l);
+	DTN_INFO("refcyc_per_pte_group_flip_c         = 0x%0x\n", dlg_regs->refcyc_per_pte_group_flip_c);
+	DTN_INFO("refcyc_per_meta_chunk_flip_l        = 0x%0x\n", dlg_regs->refcyc_per_meta_chunk_flip_l);
+	DTN_INFO("refcyc_per_meta_chunk_flip_c        = 0x%0x\n", dlg_regs->refcyc_per_meta_chunk_flip_c);
+	DTN_INFO("dst_y_per_pte_row_nom_l             = 0x%0x\n", dlg_regs->dst_y_per_pte_row_nom_l);
+	DTN_INFO("dst_y_per_pte_row_nom_c             = 0x%0x\n", dlg_regs->dst_y_per_pte_row_nom_c);
+	DTN_INFO("refcyc_per_pte_group_nom_l          = 0x%0x\n", dlg_regs->refcyc_per_pte_group_nom_l);
+	DTN_INFO("refcyc_per_pte_group_nom_c          = 0x%0x\n", dlg_regs->refcyc_per_pte_group_nom_c);
+	DTN_INFO("dst_y_per_meta_row_nom_l            = 0x%0x\n", dlg_regs->dst_y_per_meta_row_nom_l);
+	DTN_INFO("dst_y_per_meta_row_nom_c            = 0x%0x\n", dlg_regs->dst_y_per_meta_row_nom_c);
+	DTN_INFO("refcyc_per_meta_chunk_nom_l         = 0x%0x\n", dlg_regs->refcyc_per_meta_chunk_nom_l);
+	DTN_INFO("refcyc_per_meta_chunk_nom_c         = 0x%0x\n", dlg_regs->refcyc_per_meta_chunk_nom_c);
+	DTN_INFO("refcyc_per_line_delivery_pre_l      = 0x%0x\n", dlg_regs->refcyc_per_line_delivery_pre_l);
+	DTN_INFO("refcyc_per_line_delivery_pre_c      = 0x%0x\n", dlg_regs->refcyc_per_line_delivery_pre_c);
+	DTN_INFO("refcyc_per_line_delivery_l          = 0x%0x\n", dlg_regs->refcyc_per_line_delivery_l);
+	DTN_INFO("refcyc_per_line_delivery_c          = 0x%0x\n", dlg_regs->refcyc_per_line_delivery_c);
+	DTN_INFO("chunk_hdl_adjust_cur0               = 0x%0x\n", dlg_regs->chunk_hdl_adjust_cur0);
+	DTN_INFO("dst_y_offset_cur1                   = 0x%0x\n", dlg_regs->dst_y_offset_cur1);
+	DTN_INFO("chunk_hdl_adjust_cur1               = 0x%0x\n", dlg_regs->chunk_hdl_adjust_cur1);
+	DTN_INFO("vready_after_vcount0                = 0x%0x\n", dlg_regs->vready_after_vcount0);
+	DTN_INFO("dst_y_delta_drq_limit               = 0x%0x\n", dlg_regs->dst_y_delta_drq_limit);
+	DTN_INFO("xfc_reg_transfer_delay              = 0x%0x\n", dlg_regs->xfc_reg_transfer_delay);
+	DTN_INFO("xfc_reg_precharge_delay             = 0x%0x\n", dlg_regs->xfc_reg_precharge_delay);
+	DTN_INFO("xfc_reg_remote_surface_flip_latency = 0x%0x\n", dlg_regs->xfc_reg_remote_surface_flip_latency);
+
+	DTN_INFO("========TTU========\n");
+	DTN_INFO("qos_level_low_wm                  = 0x%0x\n", ttu_regs->qos_level_low_wm);
+	DTN_INFO("qos_level_high_wm                 = 0x%0x\n", ttu_regs->qos_level_high_wm);
+	DTN_INFO("min_ttu_vblank                    = 0x%0x\n", ttu_regs->min_ttu_vblank);
+	DTN_INFO("qos_level_flip                    = 0x%0x\n", ttu_regs->qos_level_flip);
+	DTN_INFO("refcyc_per_req_delivery_pre_l     = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_pre_l);
+	DTN_INFO("refcyc_per_req_delivery_l         = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_l);
+	DTN_INFO("refcyc_per_req_delivery_pre_c     = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_pre_c);
+	DTN_INFO("refcyc_per_req_delivery_c         = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_c);
+	DTN_INFO("refcyc_per_req_delivery_cur0      = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_cur0);
+	DTN_INFO("refcyc_per_req_delivery_pre_cur0  = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_pre_cur0);
+	DTN_INFO("refcyc_per_req_delivery_cur1      = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_cur1);
+	DTN_INFO("refcyc_per_req_delivery_pre_cur1  = 0x%0x\n", ttu_regs->refcyc_per_req_delivery_pre_cur1);
+	DTN_INFO("qos_level_fixed_l                 = 0x%0x\n", ttu_regs->qos_level_fixed_l);
+	DTN_INFO("qos_ramp_disable_l                = 0x%0x\n", ttu_regs->qos_ramp_disable_l);
+	DTN_INFO("qos_level_fixed_c                 = 0x%0x\n", ttu_regs->qos_level_fixed_c);
+	DTN_INFO("qos_ramp_disable_c                = 0x%0x\n", ttu_regs->qos_ramp_disable_c);
+	DTN_INFO("qos_level_fixed_cur0              = 0x%0x\n", ttu_regs->qos_level_fixed_cur0);
+	DTN_INFO("qos_ramp_disable_cur0             = 0x%0x\n", ttu_regs->qos_ramp_disable_cur0);
+	DTN_INFO("qos_level_fixed_cur1              = 0x%0x\n", ttu_regs->qos_level_fixed_cur1);
+	DTN_INFO("qos_ramp_disable_cur1             = 0x%0x\n", ttu_regs->qos_ramp_disable_cur1);
+}
+
 void dcn10_log_hw_state(struct dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
@@ -129,7 +227,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		struct hubp *hubp = pool->hubps[i];
 		struct dcn_hubp_state s;
 
-		hubp1_read_state(TO_DCN10_HUBP(hubp), &s);
+		hubp->funcs->hubp_read_state(hubp, &s);
 
 		DTN_INFO("[%2d]:  %5xh  %6xh  %5d  %6d  %2xh  %2xh  %6xh"
 				"  %6d  %8d  %7d  %8xh",
@@ -198,6 +296,20 @@ void dcn10_log_hw_state(struct dc *dc)
 				s.h_total,
 				s.v_total,
 				s.underflow_occurred_status);
+	}
+	DTN_INFO("\n");
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct hubp *hubp = pool->hubps[i];
+		struct dcn_hubp_state s = {0};
+
+		if (!dc->current_state->res_ctx.pipe_ctx[i].stream)
+			continue;
+
+		hubp->funcs->hubp_read_state(hubp, &s);
+		DTN_INFO("RQ-DLG-TTU registers for HUBP%d:\n", i);
+		print_rq_dlg_ttu_regs(dc_ctx, &s);
+		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
 
