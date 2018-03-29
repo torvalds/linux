@@ -117,7 +117,6 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
  * @sched	The pointer to the scheduler
  * @entity	The pointer to a valid drm_sched_entity
  * @rq		The run queue this entity belongs
- * @jobs	The max number of jobs in the job queue
  * @guilty      atomic_t set to 1 when a job on this queue
  *              is found to be guilty causing a timeout
  *
@@ -126,7 +125,7 @@ drm_sched_rq_select_entity(struct drm_sched_rq *rq)
 int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
 			  struct drm_sched_entity *entity,
 			  struct drm_sched_rq *rq,
-			  uint32_t jobs, atomic_t *guilty)
+			  atomic_t *guilty)
 {
 	if (!(sched && entity && rq))
 		return -EINVAL;

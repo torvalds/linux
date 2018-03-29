@@ -116,7 +116,7 @@ static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 			drm_sched_entity_init(&gpu->sched,
 				&ctx->sched_entity[i],
 				&gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
-				32, NULL);
+				NULL);
 			}
 	}
 
