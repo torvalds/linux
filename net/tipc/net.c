@@ -136,7 +136,7 @@ void tipc_net_stop(struct net *net)
 	if (!self)
 		return;
 
-	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, self, 0, self);
+	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, self, self, self);
 	rtnl_lock();
 	tipc_bearer_stop(net);
 	tipc_node_stop(net);

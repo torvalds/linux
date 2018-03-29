@@ -171,10 +171,14 @@ static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 		tmp = container_of(parent, struct service_range, tree_node);
 		if (lower < tmp->lower)
 			n = &(*n)->rb_left;
+		else if (lower > tmp->lower)
+			n = &(*n)->rb_right;
+		else if (upper < tmp->upper)
+			n = &(*n)->rb_left;
 		else if (upper > tmp->upper)
 			n = &(*n)->rb_right;
 		else
-			return NULL;
+			return tmp;
 	}
 	sr = kzalloc(sizeof(*sr), GFP_ATOMIC);
 	if (!sr)
@@ -200,17 +204,11 @@ static struct publication *tipc_service_insert_publ(struct net *net,
 	struct publication *p;
 	bool first = false;
 
-	sr = tipc_service_find_range(sc, lower);
-	if (!sr) {
-		sr = tipc_service_create_range(sc, lower, upper);
-		if (!sr)
-			goto  err;
-		first = true;
-	}
+	sr = tipc_service_create_range(sc, lower, upper);
+	if (!sr)
+		goto  err;
 
-	/* Lower end overlaps existing entry, but we need an exact match */
-	if (sr->lower != lower || sr->upper != upper)
-		return NULL;
+	first = list_empty(&sr->all_publ);
 
 	/* Return if the publication already exists */
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
@@ -239,28 +237,30 @@ err:
 
 /**
  * tipc_service_remove_publ - remove a publication from a service
- *
- * NOTE: There may be cases where TIPC is asked to remove a publication
- * that is not in the name table.  For example, if another node issues a
- * publication for a name range that overlaps an existing name range
- * the publication will not be recorded, which means the publication won't
- * be found when the name range is later withdrawn by that node.
- * A failed withdraw request simply returns a failure indication and lets the
- * caller issue any error or warning messages associated with such a problem.
  */
 static struct publication *tipc_service_remove_publ(struct net *net,
 						    struct tipc_service *sc,
-						    u32 inst, u32 node,
-						    u32 port, u32 key)
+						    u32 lower, u32 upper,
+						    u32 node, u32 key)
 {
 	struct tipc_subscription *sub, *tmp;
 	struct service_range *sr;
 	struct publication *p;
 	bool found = false;
 	bool last = false;
+	struct rb_node *n;
 
-	sr = tipc_service_find_range(sc, inst);
+	sr = tipc_service_find_range(sc, lower);
 	if (!sr)
+		return NULL;
+
+	/* Find exact matching service range */
+	for (n = &sr->tree_node; n; n = rb_next(n)) {
+		sr = container_of(n, struct service_range, tree_node);
+		if (sr->upper == upper)
+			break;
+	}
+	if (!n || sr->lower != lower || sr->upper != upper)
 		return NULL;
 
 	/* Find publication, if it exists */
@@ -375,8 +375,8 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 }
 
 struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
-						 u32 lower, u32 node, u32 port,
-						 u32 key)
+					     u32 lower, u32 upper,
+					     u32 node, u32 key)
 {
 	struct tipc_service *sc = tipc_service_find(net, type);
 	struct publication *p = NULL;
@@ -385,7 +385,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 		return NULL;
 
 	spin_lock_bh(&sc->lock);
-	p = tipc_service_remove_publ(net, sc, lower, node, port, key);
+	p = tipc_service_remove_publ(net, sc, lower, upper, node, key);
 
 	/* Delete service item if this no more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
@@ -620,8 +620,6 @@ struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 	if (p) {
 		nt->local_publ_count++;
 		skb = tipc_named_publish(net, p);
-		/* Any pending external events? */
-		tipc_named_process_backlog(net);
 	}
 exit:
 	spin_unlock_bh(&tn->nametbl_lock);
@@ -635,7 +633,7 @@ exit:
  * tipc_nametbl_withdraw - withdraw a service binding
  */
 int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
-			  u32 port, u32 key)
+			  u32 upper, u32 key)
 {
 	struct name_table *nt = tipc_name_table(net);
 	struct tipc_net *tn = tipc_net(net);
@@ -645,17 +643,15 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
 
 	spin_lock_bh(&tn->nametbl_lock);
 
-	p = tipc_nametbl_remove_publ(net, type, lower, self, port, key);
+	p = tipc_nametbl_remove_publ(net, type, lower, upper, self, key);
 	if (p) {
 		nt->local_publ_count--;
 		skb = tipc_named_withdraw(net, p);
-		/* Any pending external events? */
-		tipc_named_process_backlog(net);
 		list_del_init(&p->binding_sock);
 		kfree_rcu(p, rcu);
 	} else {
 		pr_err("Failed to remove local publication {%u,%u,%u}/%u\n",
-		       type, lower, port, key);
+		       type, lower, upper, key);
 	}
 	spin_unlock_bh(&tn->nametbl_lock);
 
@@ -754,8 +750,8 @@ static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_node) {
 		list_for_each_entry_safe(p, tmpb,
 					 &sr->all_publ, all_publ) {
-			tipc_service_remove_publ(net, sc, p->lower, p->node,
-						 p->port, p->key);
+			tipc_service_remove_publ(net, sc, p->lower, p->upper,
+						 p->node, p->key);
 			kfree_rcu(p, rcu);
 		}
 	}

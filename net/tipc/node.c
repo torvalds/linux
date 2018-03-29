@@ -329,7 +329,7 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	if (flags & TIPC_NOTIFY_LINK_DOWN) {
 		tipc_mon_peer_down(net, addr, bearer_id);
 		tipc_nametbl_withdraw(net, TIPC_LINK_STATE, addr,
-				      link_id, link_id);
+				      addr, link_id);
 	}
 }
 
