@@ -1146,3 +1146,26 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 	octeon_free_soft_command(oct, sc);
 	return 0;
 }
+
+int lio_wait_for_clean_oq(struct octeon_device *oct)
+{
+	int retry = 100, pending_pkts = 0;
+	int idx;
+
+	do {
+		pending_pkts = 0;
+
+		for (idx = 0; idx < MAX_OCTEON_OUTPUT_QUEUES(oct); idx++) {
+			if (!(oct->io_qmask.oq & BIT_ULL(idx)))
+				continue;
+			pending_pkts +=
+				atomic_read(&oct->droq[idx]->pkts_pending);
+		}
+
+		if (pending_pkts > 0)
+			schedule_timeout_uninterruptible(1);
+
+	} while (retry-- && pending_pkts);
+
+	return pending_pkts;
+}

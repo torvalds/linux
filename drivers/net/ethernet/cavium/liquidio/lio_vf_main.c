@@ -1138,15 +1138,6 @@ static int liquidio_stop(struct net_device *netdev)
 	/* tell Octeon to stop forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 0);
 
-	if (oct->props[lio->ifidx].napi_enabled) {
-		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
-			napi_disable(napi);
-
-		oct->props[lio->ifidx].napi_enabled = 0;
-
-		oct->droq[0]->ops.poll_mode = 0;
-	}
-
 	netif_info(lio, ifdown, lio->netdev, "Stopping interface!\n");
 	/* Inform that netif carrier is down */
 	lio->intf_open = 0;
@@ -1158,6 +1149,20 @@ static int liquidio_stop(struct net_device *netdev)
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
 	stop_txqs(netdev);
+
+	/* Wait for any pending Rx descriptors */
+	if (lio_wait_for_clean_oq(oct))
+		netif_info(lio, rx_err, lio->netdev,
+			   "Proceeding with stop interface after partial RX desc processing\n");
+
+	if (oct->props[lio->ifidx].napi_enabled == 1) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_disable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 0;
+
+		oct->droq[0]->ops.poll_mode = 0;
+	}
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 

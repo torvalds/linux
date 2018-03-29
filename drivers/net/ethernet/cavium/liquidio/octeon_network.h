@@ -190,6 +190,7 @@ irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
 
 int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
 
+int lio_wait_for_clean_oq(struct octeon_device *oct);
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device

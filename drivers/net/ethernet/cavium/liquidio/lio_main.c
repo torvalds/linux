@@ -2084,16 +2084,6 @@ static int liquidio_stop(struct net_device *netdev)
 	struct octeon_device *oct = lio->oct_dev;
 	struct napi_struct *napi, *n;
 
-	if (oct->props[lio->ifidx].napi_enabled) {
-		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
-			napi_disable(napi);
-
-		oct->props[lio->ifidx].napi_enabled = 0;
-
-		if (OCTEON_CN23XX_PF(oct))
-			oct->droq[0]->ops.poll_mode = 0;
-	}
-
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
 	netif_tx_disable(netdev);
@@ -2117,6 +2107,21 @@ static int liquidio_stop(struct net_device *netdev)
 	if (lio->ptp_clock) {
 		ptp_clock_unregister(lio->ptp_clock);
 		lio->ptp_clock = NULL;
+	}
+
+	/* Wait for any pending Rx descriptors */
+	if (lio_wait_for_clean_oq(oct))
+		netif_info(lio, rx_err, lio->netdev,
+			   "Proceeding with stop interface after partial RX desc processing\n");
+
+	if (oct->props[lio->ifidx].napi_enabled == 1) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_disable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 0;
+
+		if (OCTEON_CN23XX_PF(oct))
+			oct->droq[0]->ops.poll_mode = 0;
 	}
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
