@@ -7,7 +7,6 @@
 /dts-v1/;
 
 #include "rk3308-evb-v10.dtsi"
-#include "rk3308-evb-ext-v10.dtsi"
 
 / {
 	model = "Rockchip RK3308 evb digital-i2s mic board";
