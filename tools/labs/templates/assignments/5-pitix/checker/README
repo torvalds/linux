@@ -1,0 +1,46 @@
+= PITIX FS TEST SUITE ==
+
+Test suite for PITIX FS
+
+== FILES ==
+
+README
+	* this file
+
+Makefile.checker
+	* Makefile for automating the build process
+
+_checker
+	* script to run all tests
+
+_test/mkfs.pitix.c
+	* tool for formatting a device to PITIX FS
+
+pitix.loop.gz
+	* image to be mounted by tests
+
+pitix.files.tar.gz
+	* files to be verified by tests
+
+create_pitix_loop.sh
+	* script to create pitix.loop.gz from pitix.files.tar.gz
+	* needs fully functional pitix.ko
+	* should be run in QEMU/KVM virtual machine
+
+== BUILDING ==
+
+Use the Makefile to properly build the mkfs.pitix executable:
+
+	make -f Makefile.checker
+
+== RUNNING ==
+
+Copy your pitix.ko module and _checker, pitix.files.tar.gz, pitix.loop.gz and
+mkfs.pitix to fsimg/root directory on your QEMU/KVM virtual machine.
+
+In order to run the test suite you can use the _checker script.
+
+The _checker script runs all tests:
+
+	./_checker
+

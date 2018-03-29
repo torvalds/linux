@@ -1,0 +1,378 @@
+#!/bin/sh
+
+mkfs_cmd=./mkfs.pitix
+
+inode_direct_data_blocks=5
+inode_size=32
+
+test_no=0
+
+#
+# $1 - start string
+# $2 - end string
+# $3 - extra string
+pretty_print()
+{
+    start_string="$1"
+    end_string="$2"
+    extra_string="$3"
+    dot_string=""
+
+    n_dots=$((72 - ${#start_string} - ${#end_string}))
+
+    for local_i in $(seq 0 $(($n_dots-1))); do
+        dot_string="${dot_string}."
+    done
+
+    echo "$start_string$dot_string$end_string"
+    if ! test -z "$extra_string"; then
+        echo -e "  -- $extra_string"
+    fi
+}
+
+#
+# $1 - string
+# $2 - command
+verbose_comm()
+{
+    start_string="$1"
+    shift
+
+    eval $@ > /dev/null 2>&1; ret=$?;
+    if ! test "$ret" = "0"; then
+        end_string="failed"
+    else
+        end_string="ok"
+    fi
+
+    pretty_print "$start_string" "$end_string" ""
+}
+
+
+#
+# $1 - string
+# $2 - command
+check_true()
+{
+    test_no=$(($test_no+1))
+    start_string="test $test_no: $1"
+    shift
+
+    eval $@ > /dev/null 2>&1; ret=$?;
+    if ! test "$ret" = "0"; then
+        end_string="failed"
+        extra_string="$@"
+        ret=1
+    else
+        extra_string=""
+        end_string="ok"
+        ret=0
+    fi
+
+    pretty_print "$start_string" "$end_string" "$extra_string"
+
+    return $ret
+}
+
+#
+# $1 - string
+# $2 - command
+check_false()
+{
+    test_no=$(($test_no+1))
+    start_string="test $test_no: $1"
+    shift
+
+    eval $@ > /dev/null 2>&1; ret=$?;
+    if test "$ret" = "0"; then
+        end_string="failed"
+        extra_string="$@"
+    else
+        end_string="ok"
+        extra_string=""
+    fi
+
+    pretty_print "$start_string" "$end_string" "$extra_string"
+}
+
+
+get_file_attrs()
+{
+    rights=0$(stat -c %a $1)
+    uid=$(stat -c %u $1)
+    gid=$(stat -c %g $1)
+    size=$(stat -c %s $1)
+    case "$(stat -c %F $1)" in
+        "regular file") type="-f" ;;
+    "regular empty file") type="-f" ;;
+"directory") type="-d" ;;
+        *) type="-bad" ;;
+    esac
+}
+
+# $1 file
+# $2 size
+# $3 rights
+# $4 uid
+# $5 gid
+# $6 type
+# $7 path to gold file
+check_file()
+{
+    get_file_attrs /tmp/pitix.mnt/$1
+
+    check_true "check $1" test $6 /tmp/pitix.mnt/$1
+    check_true "check $1 size" test "$size" = "$2"
+    check_true "check $1 rights" let \"$rights == $3\"
+    check_true "check $1 uid" let \"$uid == $4\"
+    check_true "check $1 gid" let \"$gid == $5\"
+    check_true "check $1 data" diff /tmp/pitix.mnt/$1 $7/$1
+}
+
+get_statfs()
+{
+    cfblocks=$(stat -f -c %f $1)
+    cfinodes=$(stat -f -c %d $1)
+    cblocks=$(stat -f -c %b $1)
+    cinodes=$(stat -f -c %c $1)
+}
+
+check_statfs()
+{
+    get_statfs /tmp/pitix.mnt/
+    check_true "check free blocks" test "$cfblocks" = "$fblocks" || echo "$cfblocks" = "$fblocks"
+    check_true "check free inodes" test "$cfinodes" = "$finodes" || echo "$cfinodes" = "$finodes"
+}
+
+
+# $1 file
+# $2 size
+# $3 rights
+# $4 uid
+# $5 gid
+do_create()
+{
+    verbose_comm "generating random data" head -c$2 /dev/urandom \> /tmp/pitix.rw/$1
+    chmod $3 /tmp/pitix.rw/$1
+    chown $4.$5 /tmp/pitix.rw/$1
+    check_true "copy file to /tmp/pitix.mnt/$1" \
+    cp -p /tmp/pitix.rw/$1 /tmp/pitix.mnt/$1
+
+    if [ $? -eq 0 ]; then
+        finodes=$(($finodes-1))
+        current_file_blocks=$((($2+$block_size-1)/$block_size))
+        if [ $current_file_blocks -gt $inode_direct_data_blocks ]; then
+            current_file_blocks=$(($current_file_blocks+1))
+        fi
+        fblocks=$(($fblocks-$current_file_blocks))
+    fi
+
+    check_file $1 $2 $3 $4 $5 -f /tmp/pitix.rw/
+    check_statfs
+}
+
+# $1 dir
+# $2 rights
+# $3 uid
+# $4 gid
+do_mkdir()
+{
+    mkdir /tmp/pitix.rw/$1
+    chmod $2 /tmp/pitix.rw/$1
+    chown $3.$4 /tmp/pitix.rw/$1
+
+    check_true "check mkdir" mkdir /tmp/pitix.mnt/$1 && \
+        finodes=$(($finodes-1)) && \
+        fblocks=$(($fblocks-1))
+
+    check_true "check chmod" chmod $2 /tmp/pitix.mnt/$1
+    check_true "check chown" chown $3.$4 /tmp/pitix.mnt/$1
+
+    check_file $1 $block_size $2 $3 $4 -d /tmp/pitix.rw/
+    check_statfs
+}
+
+# $1 file
+do_unlink()
+{
+    get_file_attrs /tmp/pitix.mnt/$1
+
+    rm -f /tmp/pitix.rw/$1
+    check_true "check unlink 1" rm /tmp/pitix.mnt/$1
+    check_true "check unlink 2" ! test -e /tmp/pitix.mnt/$1
+
+    if [ $? -eq 0 ]; then
+        finodes=$(($finodes+1))
+        current_file_blocks=$((($size+$block_size-1)/$block_size))
+        if [ $current_file_blocks -gt $inode_direct_data_blocks ]; then
+            current_file_blocks=$(($current_file_blocks+1))
+        fi
+        fblocks=$(($fblocks+$current_file_blocks))
+    fi
+
+    check_statfs
+}
+
+# $1 file
+do_false_unlink()
+{
+    check_false "check false unlink " rm /tmp/pitix.mnt/$1
+}
+
+
+# $1 file
+do_rmdir()
+{
+    rmdir /tmp/pitix.rw/$1
+    check_true "check rmdir 1" rmdir /tmp/pitix.mnt/$1
+    check_true  "check rmdir 2" ! test -e /tmp/pitix.mnt/$1
+    finodes=$(($finodes+1))
+    fblocks=$(($fblocks+1))
+    check_statfs
+}
+
+# $1 file
+do_false_rmdir()
+{
+    check_false "check false rmdir" rmdir /tmp/pitix.mnt/$1
+}
+
+
+# $1 file
+do_truncate()
+{
+    get_file_attrs /tmp/pitix.mnt/$1
+    old_blocks=$((($size+$block_size-1)/$block_size))
+
+    if [ $old_blocks -gt $inode_direct_data_blocks ]; then
+        old_blocks=$(($old_blocks+1))
+    fi
+
+    echo dummy > /tmp/pitix.rw/$1
+    check_true "check truncate" echo dummy \> /tmp/pitix.mnt/$1 && \
+        fblocks=$(($fblocks+$old_blocks-1))
+
+    check_file $1 6 $rights $uid $gid -f /tmp/pitix.rw/
+    check_statfs
+}
+
+
+# $1 block size
+test_rw()
+{
+    block_size=$1
+    de_per_dir=$(($block_size/20))
+    blocks=$((8*$block_size))
+    inodes=$((32*$block_size/$inode_size))
+    fblocks=$(($blocks-1))
+    finodes=$(($inodes-1))
+
+    rm -Rf /tmp/pitix.loop /tmp/pitix.rw /tmp/pitix.mnt > /dev/null 2>&1; mkdir /tmp/pitix.rw; mkdir /tmp/pitix.mnt
+
+    head -c4096 /dev/zero > /tmp/pitix.loop
+    check_false "mounting bad fs 1" mount -t pitix /tmp/pitix.loop /tmp/pitix.mnt/ -o loop
+    echo > /tmp/pitix.loop
+    check_false "mounting bad fs 2" mount -t pitix /tmp/pitix.loop /tmp/pitix.mnt/ -o loop
+
+    verbose_comm "formating fs" "$mkfs_cmd" $1 /tmp/pitix.loop
+    check_true "mounting fs" mount -t pitix /tmp/pitix.loop /tmp/pitix.mnt/ -o loop
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    get_statfs /tmp/pitix.mnt
+    check_true "check total blocks" test "$cblocks" = "$blocks" || echo "$cblocks" = "$blocks"
+    check_true "check total inodes" test "$cinodes" = "$inodes" || echo "$cinodes" = "$inodes"
+
+    do_mkdir lots_of_files 0777 0 0
+    for i in $(seq 0 $(($de_per_dir-1))); do
+        do_create lots_of_files/file$i $(($i*1024)) 0$(($i%8))$((($i/2)%8))$((($i/4)%8)) $(($i%100)) $(($i*32%100))
+    done
+
+    check_false "dir overflow" touch /tmp/pitix.mnt/lots_of_files/the_drop
+
+    check_statfs
+
+    check_true "umounting fs" umount /tmp/pitix.mnt/
+    check_true "mounting fs" mount -t pitix /tmp/pitix.loop /tmp/pitix.mnt/ -o loop
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    check_statfs
+
+    for i in $(seq 0 $(($de_per_dir-1))); do
+        check_file lots_of_files/file$i $(($i*1024)) 0$(($i%8))$((($i/2)%8))$((($i/4)%8)) $(($i%100)) $(($i*32%100)) -f /tmp/pitix.rw/
+        if let "$(($i%2)) == 0"; then
+            do_truncate lots_of_files/file$i
+        else
+            do_unlink lots_of_files/file$i
+            do_false_unlink lots_of_files/file$i
+        fi
+    done
+
+    for i in $(seq 1 $(($de_per_dir-1))); do
+        do_mkdir dir$i 0666 0 0
+        do_create dir$i/dummy 4096 0666 0 0
+    done
+
+    for i in $(seq 1 $(($de_per_dir-1))); do
+        do_false_rmdir dir$i
+        do_unlink dir$i/dummy
+        do_rmdir dir$i
+    done
+
+
+    check_false "module unloading" rmmod pitix
+    check_true "umounting fs" umount /tmp/pitix.mnt/
+}
+
+test_ro()
+{
+    rm -Rf /tmp/pitix.loop /tmp/pitix.mnt /tmp/pitix.ro > /dev/null 2>&1; mkdir /tmp/pitix.ro; mkdir /tmp/pitix.mnt
+    cp pitix.loop.gz /tmp/pitix.loop.gz
+    gunzip /tmp/pitix.loop.gz
+    tar xfz pitix.files.tar.gz -C /tmp/pitix.ro
+
+    check_true "mounting fs" mount -t pitix /tmp/pitix.loop /tmp/pitix.mnt/ -o loop
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    for file in $(find /tmp/pitix.ro -type f | cut -f4- -d/); do
+        get_file_attrs /tmp/pitix.ro/$file
+        check_file $file $size $rights $uid $gid $type /tmp/pitix.ro/
+    done
+
+    check_false "module unloading" rmmod pitix
+    check_true "umounting fs" umount /tmp/pitix.mnt/
+}
+
+cleanup_world()
+{
+    umount /tmp/pitix.mnt > /dev/null 2>&1
+    rmmod pitix > /dev/null 2>&1
+    rm /tmp/pitix.loop > /dev/null 2>&1
+    rm pitix.loop > /dev/null 2>&1
+    rm -r /tmp/pitix.ro > /dev/null 2>&1
+    rm -r /tmp/pitix.rw > /dev/null 2>&1
+    rm -r /tmp/pitix.mnt > /dev/null 2>&1
+}
+
+cleanup_world
+
+mkdir -p /tmp
+
+check_true  "module loading" insmod pitix.ko
+check_true  "test /proc/filesystems" grep pitix /proc/filesystems
+test_ro
+check_true "module unloading" rmmod pitix
+
+check_true  "module loading" insmod pitix.ko
+check_true  "test /proc/filesystems" grep pitix /proc/filesystems
+test_rw 512
+check_true "module unloading" rmmod pitix
+
+cleanup_world
+
+# vim: set tabstop=4 shiftwidth=4:
