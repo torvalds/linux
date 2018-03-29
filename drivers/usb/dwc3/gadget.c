@@ -2312,7 +2312,6 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 {
 	struct dwc3_request	*req, *n;
 	struct dwc3_trb		*trb;
-	bool			ioc = false;
 	int			ret = 0;
 
 	list_for_each_entry_safe(req, n, &dep->started_list, list) {
@@ -2375,12 +2374,8 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 
 		dwc3_gadget_giveback(dep, req, status);
 
-		if (ret) {
-			if ((event->status & DEPEVT_STATUS_IOC) &&
-			    (trb->ctrl & DWC3_TRB_CTRL_IOC))
-				ioc = true;
+		if (ret)
 			break;
-		}
 	}
 
 	/*
