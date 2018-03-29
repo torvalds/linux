@@ -50,6 +50,11 @@ extern uint mlx5_core_debug_mask;
 		 __func__, __LINE__, current->pid,			\
 		 ##__VA_ARGS__)
 
+#define mlx5_core_dbg_once(__dev, format, ...)				\
+	dev_dbg_once(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		     __func__, __LINE__, current->pid,			\
+		     ##__VA_ARGS__)
+
 #define mlx5_core_dbg_mask(__dev, mask, format, ...)			\
 do {									\
 	if ((mask) & mlx5_core_debug_mask)				\

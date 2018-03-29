@@ -47,6 +47,7 @@ int mlx5_core_create_sq(struct mlx5_core_dev *dev, u32 *in, int inlen,
 int mlx5_core_modify_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *in, int inlen);
 void mlx5_core_destroy_sq(struct mlx5_core_dev *dev, u32 sqn);
 int mlx5_core_query_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *out);
+int mlx5_core_query_sq_state(struct mlx5_core_dev *dev, u32 sqn, u8 *state);
 int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *tirn);
 int mlx5_core_modify_tir(struct mlx5_core_dev *dev, u32 tirn, u32 *in,

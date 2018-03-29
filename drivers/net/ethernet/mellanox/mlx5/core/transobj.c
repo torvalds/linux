@@ -157,6 +157,31 @@ int mlx5_core_query_sq(struct mlx5_core_dev *dev, u32 sqn, u32 *out)
 }
 EXPORT_SYMBOL(mlx5_core_query_sq);
 
+int mlx5_core_query_sq_state(struct mlx5_core_dev *dev, u32 sqn, u8 *state)
+{
+	void *out;
+	void *sqc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(query_sq_out);
+	out = kvzalloc(inlen, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	err = mlx5_core_query_sq(dev, sqn, out);
+	if (err)
+		goto out;
+
+	sqc = MLX5_ADDR_OF(query_sq_out, out, sq_context);
+	*state = MLX5_GET(sqc, sqc, state);
+
+out:
+	kvfree(out);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_core_query_sq_state);
+
 int mlx5_core_create_tir(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *tirn)
 {

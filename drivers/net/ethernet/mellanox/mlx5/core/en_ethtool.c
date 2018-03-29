@@ -231,8 +231,8 @@ static u32 mlx5e_rx_wqes_to_packets(struct mlx5e_priv *priv, int rq_wq_type,
 	if (rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		return num_wqe;
 
-	stride_size = 1 << priv->channels.params.mpwqe_log_stride_sz;
-	num_strides = 1 << priv->channels.params.mpwqe_log_num_strides;
+	stride_size = 1 << mlx5e_mpwqe_get_log_stride_size(priv->mdev, &priv->channels.params);
+	num_strides = 1 << mlx5e_mpwqe_get_log_num_strides(priv->mdev, &priv->channels.params);
 	wqe_size = stride_size * num_strides;
 
 	packets_per_wqe = wqe_size /
@@ -252,8 +252,8 @@ static u32 mlx5e_packets_to_rx_wqes(struct mlx5e_priv *priv, int rq_wq_type,
 	if (rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		return num_packets;
 
-	stride_size = 1 << priv->channels.params.mpwqe_log_stride_sz;
-	num_strides = 1 << priv->channels.params.mpwqe_log_num_strides;
+	stride_size = 1 << mlx5e_mpwqe_get_log_stride_size(priv->mdev, &priv->channels.params);
+	num_strides = 1 << mlx5e_mpwqe_get_log_num_strides(priv->mdev, &priv->channels.params);
 	wqe_size = stride_size * num_strides;
 
 	num_packets = (1 << order_base_2(num_packets));
@@ -1118,13 +1118,9 @@ static int mlx5e_get_tunable(struct net_device *dev,
 			     const struct ethtool_tunable *tuna,
 			     void *data)
 {
-	const struct mlx5e_priv *priv = netdev_priv(dev);
-	int err = 0;
+	int err;
 
 	switch (tuna->id) {
-	case ETHTOOL_TX_COPYBREAK:
-		*(u32 *)data = priv->channels.params.tx_max_inline;
-		break;
 	case ETHTOOL_PFC_PREVENTION_TOUT:
 		err = mlx5e_get_pfc_prevention_tout(dev, data);
 		break;
@@ -1141,35 +1137,11 @@ static int mlx5e_set_tunable(struct net_device *dev,
 			     const void *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_channels new_channels = {};
-	int err = 0;
-	u32 val;
+	int err;
 
 	mutex_lock(&priv->state_lock);
 
 	switch (tuna->id) {
-	case ETHTOOL_TX_COPYBREAK:
-		val = *(u32 *)data;
-		if (val > mlx5e_get_max_inline_cap(mdev)) {
-			err = -EINVAL;
-			break;
-		}
-
-		new_channels.params = priv->channels.params;
-		new_channels.params.tx_max_inline = val;
-
-		if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-			priv->channels.params = new_channels.params;
-			break;
-		}
-
-		err = mlx5e_open_channels(priv, &new_channels);
-		if (err)
-			break;
-		mlx5e_switch_priv_channels(priv, &new_channels, NULL);
-
-		break;
 	case ETHTOOL_PFC_PREVENTION_TOUT:
 		err = mlx5e_set_pfc_prevention_tout(dev, *(u16 *)data);
 		break;
@@ -1561,11 +1533,6 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	new_channels.params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
 
-	new_channels.params.mpwqe_log_stride_sz =
-		MLX5E_MPWQE_STRIDE_SZ(priv->mdev, new_val);
-	new_channels.params.mpwqe_log_num_strides =
-		MLX5_MPWRQ_LOG_WQE_SZ - new_channels.params.mpwqe_log_stride_sz;
-
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
 		return 0;
@@ -1600,6 +1567,38 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 	mlx5e_modify_rx_cqe_compression_locked(priv, enable);
 	priv->channels.params.rx_cqe_compress_def = enable;
 
+	return 0;
+}
+
+static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_channels new_channels = {};
+	int err;
+
+	if (enable) {
+		if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
+			return -EOPNOTSUPP;
+		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
+			return -EINVAL;
+	}
+
+	new_channels.params = priv->channels.params;
+
+	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_STRIDING_RQ, enable);
+	mlx5e_set_rq_type(mdev, &new_channels.params);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		return 0;
+	}
+
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		return err;
+
+	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 	return 0;
 }
 
@@ -1648,6 +1647,12 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 	err = mlx5e_handle_pflag(netdev, pflags,
 				 MLX5E_PFLAG_RX_CQE_COMPRESS,
 				 set_pflag_rx_cqe_compress);
+	if (err)
+		goto out;
+
+	err = mlx5e_handle_pflag(netdev, pflags,
+				 MLX5E_PFLAG_RX_STRIDING_RQ,
+				 set_pflag_rx_striding_rq);
 
 out:
 	mutex_unlock(&priv->state_lock);

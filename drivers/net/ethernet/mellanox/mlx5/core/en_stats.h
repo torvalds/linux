@@ -78,6 +78,8 @@ struct mlx5e_sw_stats {
 	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
 	u64 tx_xmit_more;
+	u64 tx_cqe_err;
+	u64 tx_recover;
 	u64 rx_wqe_err;
 	u64 rx_mpwqe_filler;
 	u64 rx_buff_alloc_err;
@@ -197,6 +199,8 @@ struct mlx5e_sq_stats {
 	u64 stopped;
 	u64 wake;
 	u64 dropped;
+	u64 cqe_err;
+	u64 recover;
 };
 
 struct mlx5e_ch_stats {
