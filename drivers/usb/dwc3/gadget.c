@@ -2271,6 +2271,45 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
 	return 0;
 }
 
+static int dwc3_gadget_ep_reclaim_trb_sg(struct dwc3_ep *dep,
+		struct dwc3_request *req, const struct dwc3_event_depevt *event,
+		int status)
+{
+	struct dwc3_trb *trb = &dep->trb_pool[dep->trb_dequeue];
+	struct scatterlist *sg = req->sg;
+	struct scatterlist *s;
+	unsigned int pending = req->num_pending_sgs;
+	unsigned int i;
+	int ret = 0;
+
+	for_each_sg(sg, s, pending, i) {
+		trb = &dep->trb_pool[dep->trb_dequeue];
+
+		if (trb->ctrl & DWC3_TRB_CTRL_HWO)
+			break;
+
+		req->sg = sg_next(s);
+		req->num_pending_sgs--;
+
+		ret = dwc3_gadget_ep_reclaim_completed_trb(dep, req,
+				trb, event, status, true);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int dwc3_gadget_ep_reclaim_trb_linear(struct dwc3_ep *dep,
+		struct dwc3_request *req, const struct dwc3_event_depevt *event,
+		int status)
+{
+	struct dwc3_trb *trb = &dep->trb_pool[dep->trb_dequeue];
+
+	return dwc3_gadget_ep_reclaim_completed_trb(dep, req, trb,
+			event, status, false);
+}
+
 static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
@@ -2284,32 +2323,12 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 
 		length = req->request.length;
 		chain = req->num_pending_sgs > 0;
-		if (chain) {
-			struct scatterlist *sg = req->sg;
-			struct scatterlist *s;
-			unsigned int pending = req->num_pending_sgs;
-			unsigned int i;
-
-			for_each_sg(sg, s, pending, i) {
-				trb = &dep->trb_pool[dep->trb_dequeue];
-
-				if (trb->ctrl & DWC3_TRB_CTRL_HWO)
-					break;
-
-				req->sg = sg_next(s);
-				req->num_pending_sgs--;
-
-				ret = dwc3_gadget_ep_reclaim_completed_trb(dep,
-						req, trb, event, status,
-						chain);
-				if (ret)
-					break;
-			}
-		} else {
-			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = dwc3_gadget_ep_reclaim_completed_trb(dep, req,
-					trb, event, status, chain);
-		}
+		if (chain)
+			ret = dwc3_gadget_ep_reclaim_trb_sg(dep, req, event,
+					status);
+		else
+			ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
+					status);
 
 		if (req->unaligned || req->zero) {
 			trb = &dep->trb_pool[dep->trb_dequeue];
