@@ -932,7 +932,7 @@ static inline int obd_statfs_async(struct obd_export *exp,
 
 	CDEBUG(D_SUPER, "%s: osfs %p age %llu, max_age %llu\n",
 	       obd->obd_name, &obd->obd_osfs, obd->obd_osfs_age, max_age);
-	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
+	if (time_before64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs_async)(exp, oinfo, max_age, rqset);
 	} else {
 		CDEBUG(D_SUPER,
@@ -992,7 +992,7 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 
 	CDEBUG(D_SUPER, "osfs %llu, max_age %llu\n",
 	       obd->obd_osfs_age, max_age);
-	if (cfs_time_before_64(obd->obd_osfs_age, max_age)) {
+	if (time_before64(obd->obd_osfs_age, max_age)) {
 		rc = OBP(obd, statfs)(env, exp, osfs, max_age, flags);
 		if (rc == 0) {
 			spin_lock(&obd->obd_osfs_lock);

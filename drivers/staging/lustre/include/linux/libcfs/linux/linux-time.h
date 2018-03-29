@@ -57,20 +57,6 @@
 #include <linux/jiffies.h>
 
 /*
- * Generic kernel stuff
- */
-
-static inline int cfs_time_before_64(u64 t1, u64 t2)
-{
-	return (__s64)t2 - (__s64)t1 > 0;
-}
-
-static inline int cfs_time_beforeq_64(u64 t1, u64 t2)
-{
-	return (__s64)t2 - (__s64)t1 >= 0;
-}
-
-/*
  * One jiffy
  */
 #define CFS_TICK		(1UL)

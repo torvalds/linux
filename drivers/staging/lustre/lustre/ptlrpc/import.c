@@ -463,7 +463,7 @@ static int import_select_connection(struct obd_import *imp)
 		 * the last successful attempt, go with this one
 		 */
 		if ((conn->oic_last_attempt == 0) ||
-		    cfs_time_beforeq_64(conn->oic_last_attempt,
+		    time_before_eq64(conn->oic_last_attempt,
 					imp->imp_last_success_conn)) {
 			imp_conn = conn;
 			tried_all = 0;
@@ -476,7 +476,7 @@ static int import_select_connection(struct obd_import *imp)
 		 */
 		if (!imp_conn)
 			imp_conn = conn;
-		else if (cfs_time_before_64(conn->oic_last_attempt,
+		else if (time_before64(conn->oic_last_attempt,
 					    imp_conn->oic_last_attempt))
 			imp_conn = conn;
 	}
