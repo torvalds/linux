@@ -295,7 +295,9 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 		return -EINVAL;
 	}
 
-	geo->ver_id = id->ver_id;
+	/* 1.2 spec. only reports a single version id - unfold */
+	geo->major_ver_id = id->ver_id;
+	geo->minor_ver_id = 2;
 
 	geo->nr_chnls = src->num_ch;
 	geo->nr_luns = src->num_lun;
@@ -379,7 +381,14 @@ static void nvme_nvm_set_addr_20(struct nvm_addrf *dst,
 static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
 			     struct nvm_geo *geo)
 {
-	geo->ver_id = id->mjr;
+	geo->major_ver_id = id->mjr;
+	geo->minor_ver_id = id->mnr;
+
+	if (!(geo->major_ver_id == 2 && geo->minor_ver_id == 0)) {
+		pr_err("nvm: OCSSD version not supported (v%d.%d)\n",
+				geo->major_ver_id, geo->minor_ver_id);
+		return -EINVAL;
+	}
 
 	geo->nr_chnls = le16_to_cpu(id->num_grp);
 	geo->nr_luns = le16_to_cpu(id->num_pu);
@@ -914,7 +923,13 @@ static ssize_t nvm_dev_attr_show(struct device *dev,
 	attr = &dattr->attr;
 
 	if (strcmp(attr->name, "version") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->ver_id);
+		if (geo->major_ver_id == 1)
+			return scnprintf(page, PAGE_SIZE, "%u\n",
+						geo->major_ver_id);
+		else
+			return scnprintf(page, PAGE_SIZE, "%u.%u\n",
+						geo->major_ver_id,
+						geo->minor_ver_id);
 	} else if (strcmp(attr->name, "capabilities") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->cap);
 	} else if (strcmp(attr->name, "read_typ") == 0) {
@@ -1167,7 +1182,7 @@ int nvme_nvm_register_sysfs(struct nvme_ns *ns)
 	if (!ndev)
 		return -EINVAL;
 
-	switch (geo->ver_id) {
+	switch (geo->major_ver_id) {
 	case 1:
 		return sysfs_create_group(&disk_to_dev(ns->disk)->kobj,
 					&nvm_dev_attr_group_12);
@@ -1184,7 +1199,7 @@ void nvme_nvm_unregister_sysfs(struct nvme_ns *ns)
 	struct nvm_dev *ndev = ns->ndev;
 	struct nvm_geo *geo = &ndev->geo;
 
-	switch (geo->ver_id) {
+	switch (geo->major_ver_id) {
 	case 1:
 		sysfs_remove_group(&disk_to_dev(ns->disk)->kobj,
 					&nvm_dev_attr_group_12);

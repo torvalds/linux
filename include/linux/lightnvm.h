@@ -263,7 +263,8 @@ enum {
 /* Instance geometry */
 struct nvm_geo {
 	/* device reported version */
-	u8	ver_id;
+	u8	major_ver_id;
+	u8	minor_ver_id;
 
 	/* instance specific geometry */
 	int nr_chnls;
