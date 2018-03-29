@@ -1190,7 +1190,7 @@ struct ldlm_resource *ldlm_resource_get(struct ldlm_namespace *ns,
 					struct ldlm_resource *parent,
 					const struct ldlm_res_id *,
 					enum ldlm_type type, int create);
-int ldlm_resource_putref(struct ldlm_resource *res);
+void ldlm_resource_putref(struct ldlm_resource *res);
 void ldlm_resource_add_lock(struct ldlm_resource *res,
 			    struct list_head *head,
 			    struct ldlm_lock *lock);
