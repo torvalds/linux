@@ -55,7 +55,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_mgmt_desc *mgmt_desc;
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss = NULL;
-	struct xtended_desc *xtend_desc = NULL;
+	struct rsi_xtended_desc *xtend_desc = NULL;
 	u8 header_size;
 	u32 dword_align_bytes = 0;
 
@@ -69,7 +69,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	vif = tx_params->vif;
 
 	/* Update header size */
-	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
+	header_size = FRAME_DESC_SZ + sizeof(struct rsi_xtended_desc);
 	if (header_size > skb_headroom(skb)) {
 		rsi_dbg(ERR_ZONE,
 			"%s: Failed to add extended descriptor\n",
@@ -92,7 +92,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
-	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
+	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
 	rsi_set_len_qno(&mgmt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
@@ -158,7 +158,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss;
 	struct rsi_data_desc *data_desc;
-	struct xtended_desc *xtend_desc;
+	struct rsi_xtended_desc *xtend_desc;
 	u8 ieee80211_size = MIN_802_11_HDR_LEN;
 	u8 header_size;
 	u8 vap_id = 0;
@@ -170,7 +170,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	bss = &vif->bss_conf;
 	tx_params = (struct skb_info *)info->driver_data;
 
-	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
+	header_size = FRAME_DESC_SZ + sizeof(struct rsi_xtended_desc);
 	if (header_size > skb_headroom(skb)) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to send pkt\n", __func__);
 		return -ENOSPC;
@@ -188,7 +188,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	data_desc = (struct rsi_data_desc *)skb->data;
 	memset(data_desc, 0, header_size);
 
-	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
+	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 	seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(wh->seq_ctrl));
 

@@ -301,6 +301,12 @@ struct rsi_mac_frame {
 #define ENCAP_MGMT_PKT			BIT(7)
 #define DESC_IMMEDIATE_WAKEUP		BIT(15)
 
+struct rsi_xtended_desc {
+	u8 confirm_frame_type;
+	u8 retry_cnt;
+	u16 reserved;
+};
+
 struct rsi_cmd_desc_dword0 {
 	__le16 len_qno;
 	u8 frame_type;
