@@ -418,9 +418,11 @@ void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	struct net *net;
 
+	down_read(&net_rwsem);
 	for_each_net(net) {
 		__rtnl_kill_links(net, ops);
 	}
+	up_read(&net_rwsem);
 	list_del(&ops->list);
 }
 EXPORT_SYMBOL_GPL(__rtnl_link_unregister);
@@ -438,6 +440,9 @@ static void rtnl_lock_unregistering_all(void)
 	for (;;) {
 		unregistering = false;
 		rtnl_lock();
+		/* We held write locked pernet_ops_rwsem, and parallel
+		 * setup_net() and cleanup_net() are not possible.
+		 */
 		for_each_net(net) {
 			if (net->dev_unreg_count > 0) {
 				unregistering = true;

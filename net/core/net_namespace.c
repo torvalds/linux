@@ -33,6 +33,10 @@ static struct list_head *first_device = &pernet_list;
 LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
 
+/* Protects net_namespace_list. Nests iside rtnl_lock() */
+DECLARE_RWSEM(net_rwsem);
+EXPORT_SYMBOL_GPL(net_rwsem);
+
 struct net init_net = {
 	.count		= REFCOUNT_INIT(1),
 	.dev_base_head	= LIST_HEAD_INIT(init_net.dev_base_head),
@@ -309,9 +313,9 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 		if (error < 0)
 			goto out_undo;
 	}
-	rtnl_lock();
+	down_write(&net_rwsem);
 	list_add_tail_rcu(&net->list, &net_namespace_list);
-	rtnl_unlock();
+	up_write(&net_rwsem);
 out:
 	return error;
 
@@ -450,7 +454,7 @@ static void unhash_nsid(struct net *net, struct net *last)
 	 * and this work is the only process, that may delete
 	 * a net from net_namespace_list. So, when the below
 	 * is executing, the list may only grow. Thus, we do not
-	 * use for_each_net_rcu() or rtnl_lock().
+	 * use for_each_net_rcu() or net_rwsem.
 	 */
 	for_each_net(tmp) {
 		int id;
@@ -485,7 +489,7 @@ static void cleanup_net(struct work_struct *work)
 	down_read(&pernet_ops_rwsem);
 
 	/* Don't let anyone else find us. */
-	rtnl_lock();
+	down_write(&net_rwsem);
 	llist_for_each_entry(net, net_kill_list, cleanup_list)
 		list_del_rcu(&net->list);
 	/* Cache last net. After we unlock rtnl, no one new net
@@ -499,7 +503,7 @@ static void cleanup_net(struct work_struct *work)
 	 * useless anyway, as netns_ids are destroyed there.
 	 */
 	last = list_last_entry(&net_namespace_list, struct net, list);
-	rtnl_unlock();
+	up_write(&net_rwsem);
 
 	llist_for_each_entry(net, net_kill_list, cleanup_list) {
 		unhash_nsid(net, last);
@@ -900,6 +904,9 @@ static int __register_pernet_operations(struct list_head *list,
 
 	list_add_tail(&ops->list, list);
 	if (ops->init || (ops->id && ops->size)) {
+		/* We held write locked pernet_ops_rwsem, and parallel
+		 * setup_net() and cleanup_net() are not possible.
+		 */
 		for_each_net(net) {
 			error = ops_init(ops, net);
 			if (error)
@@ -923,6 +930,7 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 	LIST_HEAD(net_exit_list);
 
 	list_del(&ops->list);
+	/* See comment in __register_pernet_operations() */
 	for_each_net(net)
 		list_add_tail(&net->exit_list, &net_exit_list);
 	ops_exit_list(ops, &net_exit_list);

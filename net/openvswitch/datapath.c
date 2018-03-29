@@ -2364,8 +2364,10 @@ static void __net_exit ovs_exit_net(struct net *dnet)
 		__dp_destroy(dp);
 
 	rtnl_lock();
+	down_read(&net_rwsem);
 	for_each_net(net)
 		list_vports_from_net(net, dnet, &head);
+	up_read(&net_rwsem);
 	rtnl_unlock();
 
 	/* Detach all vports from given namespace. */

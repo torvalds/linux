@@ -1764,12 +1764,14 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 	struct net *net;
 
 	rtnl_lock();
+	down_read(&net_rwsem);
 	for_each_net(net) {
 		if (atomic_read(&net->ct.count) == 0)
 			continue;
 		__nf_ct_unconfirmed_destroy(net);
 		nf_queue_nf_hook_drop(net);
 	}
+	up_read(&net_rwsem);
 	rtnl_unlock();
 
 	/* Need to wait for netns cleanup worker to finish, if its
