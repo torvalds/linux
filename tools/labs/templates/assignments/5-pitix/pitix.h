@@ -1,18 +1,18 @@
 #ifndef _PITIX_H
 #define _PITIX_H
 
-#define PITIX_MAGIC 		0x58495450 /* ascii little endian for PTIX */
+#define PITIX_MAGIC			0x58495450 /* ascii little endian for PTIX */
 #define IZONE_BLOCKS		32
 #define INODE_DIRECT_DATA_BLOCKS 5
-#define PITIX_NAME_LEN 		16
+#define PITIX_NAME_LEN			16
 
 /*
- * filesystem layout:
+ *	filesystem layout:
  *
- *      SB      IMAP        DMAP       IZONE 	     DATA
- *    ^	    ^ (1 block)  (1 block)  (32 blocks)
- *    |     |
- *    +-0   +-- 4096
+ *		SB		IMAP		DMAP		IZONE		DATA
+ *	^		^ (1 block)  (1 block)  (32 blocks)
+ *	|		|
+ *	+-0		+-- 4096
  */
 
 struct pitix_super_block {
@@ -82,7 +82,8 @@ extern int pitix_alloc_block(struct super_block *sb);
 extern void pitix_free_block(struct super_block *sb, int block);
 extern int pitix_alloc_inode(struct super_block *sb);
 extern void pitix_free_inode(struct super_block *sb, int ino);
-extern int pitix_get_block(struct inode * inode, sector_t block, struct buffer_head *bh_result, int create);
+extern int pitix_get_block(struct inode *inode, sector_t block,
+		struct buffer_head *bh_result, int create);
 extern struct address_space_operations pitix_aops;
 
 /* Dir operations */
@@ -93,11 +94,11 @@ ino_t pitix_inode_by_name(struct dentry *dentry, int delete);
 /* File operations */
 extern struct file_operations pitix_file_operations;
 extern struct inode_operations pitix_file_inode_operations;
-void pitix_truncate(struct inode * inode);
+void pitix_truncate(struct inode *inode);
 
 /* Inode operations */
 extern struct inode *pitix_new_inode(struct super_block *sb);
-extern int pitix_write_inode(struct inode * inode, struct writeback_control *wbc);
+extern int pitix_write_inode(struct inode *inode, struct writeback_control *wbc);
 extern void pitix_evict_inode(struct inode *inode);
 
 extern struct inode *pitix_iget(struct super_block *sb, unsigned long ino);
@@ -117,15 +118,6 @@ static inline struct pitix_inode *pitix_i(struct inode *inode)
 	return inode->i_private;
 }
 
-//debug
-#define LOG_LEVEL   KERN_ALERT
-//comment this to remove debug messages
-//#define DEBUG
-
-#ifdef DEBUG
-#define PRINT_DEBUG(fmt, args...) printk(LOG_LEVEL "[%s] " fmt, __FUNCTION__ , ##args)
-#else
-#define PRINT_DEBUG(fmt, args...)
-#endif
+#define PRINT_DEBUG(fmt, args...) pr_debug(fmt, args)
 
 #endif
