@@ -102,6 +102,17 @@ static const struct rockchip_grf_info rk3328_grf __initconst = {
 	.num_values = ARRAY_SIZE(rk3328_defaults),
 };
 
+#define RK3308_GRF_SOC_CON3		0x30c
+
+static const struct rockchip_grf_value rk3308_defaults[] __initconst = {
+	{ "uart dma mask", RK3308_GRF_SOC_CON3, HIWORD_UPDATE(0, 0x1f, 10) },
+};
+
+static const struct rockchip_grf_info rk3308_grf __initconst = {
+	.values = rk3308_defaults,
+	.num_values = ARRAY_SIZE(rk3308_defaults),
+};
+
 #define RK3368_GRF_SOC_CON15		0x43c
 
 static const struct rockchip_grf_value rk3368_defaults[] __initconst = {
@@ -140,6 +151,9 @@ static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	}, {
 		.compatible = "rockchip,rk3288-grf",
 		.data = (void *)&rk3288_grf,
+	}, {
+		.compatible = "rockchip,rk3308-grf",
+		.data = (void *)&rk3308_grf,
 	}, {
 		.compatible = "rockchip,rk3328-grf",
 		.data = (void *)&rk3328_grf,
