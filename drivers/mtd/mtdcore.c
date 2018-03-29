@@ -419,7 +419,7 @@ int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,
 EXPORT_SYMBOL_GPL(mtd_wunit_to_pairing_info);
 
 /**
- * mtd_wunit_to_pairing_info - get wunit from pairing information
+ * mtd_pairing_info_to_wunit - get wunit from pairing information
  * @mtd: pointer to new MTD device info structure
  * @info: pairing information struct
  *
@@ -1507,9 +1507,9 @@ int mtd_ooblayout_get_databytes(struct mtd_info *mtd, u8 *databuf,
 EXPORT_SYMBOL_GPL(mtd_ooblayout_get_databytes);
 
 /**
- * mtd_ooblayout_get_eccbytes - set data bytes into the oob buffer
+ * mtd_ooblayout_set_databytes - set data bytes into the oob buffer
  * @mtd: mtd info structure
- * @eccbuf: source buffer to get data bytes from
+ * @databuf: source buffer to get data bytes from
  * @oobbuf: OOB buffer
  * @start: first ECC byte to set
  * @nbytes: number of ECC bytes to set
@@ -1541,7 +1541,7 @@ int mtd_ooblayout_count_freebytes(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(mtd_ooblayout_count_freebytes);
 
 /**
- * mtd_ooblayout_count_freebytes - count the number of ECC bytes in OOB
+ * mtd_ooblayout_count_eccbytes - count the number of ECC bytes in OOB
  * @mtd: mtd info structure
  *
  * Works like mtd_ooblayout_count_bytes(), except it count ECC bytes.
