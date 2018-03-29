@@ -845,6 +845,29 @@ static int pblk_recov_check_line_version(struct pblk *pblk,
 	return 0;
 }
 
+static void pblk_recov_wa_counters(struct pblk *pblk,
+				   struct line_emeta *emeta)
+{
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct line_header *header = &emeta->header;
+	struct wa_counters *wa = emeta_to_wa(lm, emeta);
+
+	/* WA counters were introduced in emeta version 0.2 */
+	if (header->version_major > 0 || header->version_minor >= 2) {
+		u64 user = le64_to_cpu(wa->user);
+		u64 pad = le64_to_cpu(wa->pad);
+		u64 gc = le64_to_cpu(wa->gc);
+
+		atomic64_set(&pblk->user_wa, user);
+		atomic64_set(&pblk->pad_wa, pad);
+		atomic64_set(&pblk->gc_wa, gc);
+
+		pblk->user_rst_wa = user;
+		pblk->pad_rst_wa = pad;
+		pblk->gc_rst_wa = gc;
+	}
+}
+
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
@@ -964,6 +987,8 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		if (pblk_recov_check_line_version(pblk, line->emeta->buf))
 			return ERR_PTR(-EINVAL);
+
+		pblk_recov_wa_counters(pblk, line->emeta->buf);
 
 		if (pblk_recov_l2p_from_emeta(pblk, line))
 			pblk_recov_l2p_from_oob(pblk, line);

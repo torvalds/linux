@@ -1630,10 +1630,15 @@ void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_emeta *emeta = line->emeta;
 	struct line_emeta *emeta_buf = emeta->buf;
+	struct wa_counters *wa = emeta_to_wa(lm, emeta_buf);
 
 	/* No need for exact vsc value; avoid a big line lock and take aprox. */
 	memcpy(emeta_to_vsc(pblk, emeta_buf), l_mg->vsc_list, lm->vsc_list_len);
 	memcpy(emeta_to_bb(emeta_buf), line->blk_bitmap, lm->blk_bitmap_len);
+
+	wa->user = cpu_to_le64(atomic64_read(&pblk->user_wa));
+	wa->pad = cpu_to_le64(atomic64_read(&pblk->pad_wa));
+	wa->gc = cpu_to_le64(atomic64_read(&pblk->gc_wa));
 
 	emeta_buf->nr_valid_lbas = cpu_to_le64(line->nr_valid_lbas);
 	emeta_buf->crc = cpu_to_le32(pblk_calc_emeta_crc(pblk, emeta_buf));
@@ -1837,6 +1842,7 @@ void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 #endif
 	/* Invalidate and discard padded entries */
 	if (lba == ADDR_EMPTY) {
+		atomic64_inc(&pblk->pad_wa);
 #ifdef CONFIG_NVM_DEBUG
 		atomic_long_inc(&pblk->padded_wb);
 #endif

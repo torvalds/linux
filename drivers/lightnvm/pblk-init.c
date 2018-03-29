@@ -559,8 +559,8 @@ static unsigned int calc_emeta_len(struct pblk *pblk)
 
 	/* Round to sector size so that lba_list starts on its own sector */
 	lm->emeta_sec[1] = DIV_ROUND_UP(
-			sizeof(struct line_emeta) + lm->blk_bitmap_len,
-			geo->sec_size);
+			sizeof(struct line_emeta) + lm->blk_bitmap_len +
+			sizeof(struct wa_counters), geo->sec_size);
 	lm->emeta_len[1] = lm->emeta_sec[1] * geo->sec_size;
 
 	/* Round to sector size so that vsc_list starts on its own sector */
@@ -990,6 +990,13 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	if (flags & NVM_TARGET_FACTORY)
 		pblk_setup_uuid(pblk);
+
+	atomic64_set(&pblk->user_wa, 0);
+	atomic64_set(&pblk->pad_wa, 0);
+	atomic64_set(&pblk->gc_wa, 0);
+	pblk->user_rst_wa = 0;
+	pblk->pad_rst_wa = 0;
+	pblk->gc_rst_wa = 0;
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_set(&pblk->inflight_writes, 0);

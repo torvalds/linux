@@ -331,7 +331,7 @@ enum {
 #define SMETA_VERSION_MINOR (1)
 
 #define EMETA_VERSION_MAJOR (0)
-#define EMETA_VERSION_MINOR (1)
+#define EMETA_VERSION_MINOR (2)
 
 struct line_header {
 	__le32 crc;
@@ -361,11 +361,13 @@ struct line_smeta {
 	__le64 lun_bitmap[];
 };
 
+
 /*
  * Metadata layout in media:
  *	First sector:
  *		1. struct line_emeta
  *		2. bad block bitmap (u64 * window_wr_lun)
+ *		3. write amplification counters
  *	Mid sectors (start at lbas_sector):
  *		3. nr_lbas (u64) forming lba list
  *	Last sectors (start at vsc_sector):
@@ -389,7 +391,15 @@ struct line_emeta {
 	__le32 next_id;		/* Line id for next line */
 	__le64 nr_lbas;		/* Number of lbas mapped in line */
 	__le64 nr_valid_lbas;	/* Number of valid lbas mapped in line */
-	__le64 bb_bitmap[];	/* Updated bad block bitmap for line */
+	__le64 bb_bitmap[];     /* Updated bad block bitmap for line */
+};
+
+
+/* Write amplification counters stored on media */
+struct wa_counters {
+	__le64 user;		/* Number of user written sectors */
+	__le64 gc;		/* Number of sectors written by GC*/
+	__le64 pad;		/* Number of padded sectors */
 };
 
 struct pblk_emeta {
@@ -519,10 +529,11 @@ struct pblk_line_meta {
 	unsigned int smeta_sec;		/* Sectors needed for smeta */
 
 	unsigned int emeta_len[4];	/* Lengths for emeta:
-					 *  [0]: Total length
-					 *  [1]: struct line_emeta length
-					 *  [2]: L2P portion length
-					 *  [3]: vsc list length
+					 *  [0]: Total
+					 *  [1]: struct line_emeta +
+					 *       bb_bitmap + struct wa_counters
+					 *  [2]: L2P portion
+					 *  [3]: vsc
 					 */
 	unsigned int emeta_sec[4];	/* Sectors needed for emeta. Same layout
 					 * as emeta_len
@@ -604,8 +615,19 @@ struct pblk {
 	int sec_per_write;
 
 	unsigned char instance_uuid[16];
+
+	/* Persistent write amplification counters, 4kb sector I/Os */
+	atomic64_t user_wa;		/* Sectors written by user */
+	atomic64_t gc_wa;		/* Sectors written by GC */
+	atomic64_t pad_wa;		/* Padded sectors written */
+
+	/* Reset values for delta write amplification measurements */
+	u64 user_rst_wa;
+	u64 gc_rst_wa;
+	u64 pad_rst_wa;
+
 #ifdef CONFIG_NVM_DEBUG
-	/* All debug counters apply to 4kb sector I/Os */
+	/* Non-persistent debug counters, 4kb sector I/Os */
 	atomic_long_t inflight_writes;	/* Inflight writes (user and gc) */
 	atomic_long_t padded_writes;	/* Sectors padded due to flush/fua */
 	atomic_long_t padded_wb;	/* Sectors padded in write buffer */
@@ -898,6 +920,12 @@ static inline struct nvm_rq *nvm_rq_from_c_ctx(void *c_ctx)
 static inline void *emeta_to_bb(struct line_emeta *emeta)
 {
 	return emeta->bb_bitmap;
+}
+
+static inline void *emeta_to_wa(struct pblk_line_meta *lm,
+				struct line_emeta *emeta)
+{
+	return emeta->bb_bitmap + lm->blk_bitmap_len;
 }
 
 static inline void *emeta_to_lbas(struct pblk *pblk, struct line_emeta *emeta)

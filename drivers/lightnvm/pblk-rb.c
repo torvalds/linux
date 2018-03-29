@@ -622,6 +622,9 @@ try:
 		}
 	}
 
+	atomic64_add(pad, &((struct pblk *)
+			(container_of(rb, struct pblk, rwb)))->pad_wa);
+
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(pad, &((struct pblk *)
 			(container_of(rb, struct pblk, rwb)))->padded_writes);
