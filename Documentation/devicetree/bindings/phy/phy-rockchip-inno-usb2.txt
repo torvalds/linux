@@ -50,6 +50,8 @@ Optional properties:
 		bvalid status bit to get vbus status by default.
  - rockchip,vbus-always-on: when set, indicates that the otg vbus
 		is always powered on.
+ - rockchip,low-power-mode: when set, the port will enter low power
+		state when suspend.
 
 Example:
 
