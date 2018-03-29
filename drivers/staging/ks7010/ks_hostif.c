@@ -1900,7 +1900,7 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 			if (!is_11bg_rate(priv->reg.rate_set.body[i]))
 				break;
 
-			if (IS_OFDM_EXT_RATE(priv->reg.rate_set.body[i])) {
+			if (is_ofdm_ext_rate(priv->reg.rate_set.body[i])) {
 				rate_octet[i] = priv->reg.rate_set.body[i] &
 						RATE_MASK;
 			} else {

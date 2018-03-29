@@ -581,9 +581,14 @@ static inline bool is_11bg_rate(u8 rate)
 	return (is_11b_rate(rate) || is_ofdm_rate(rate));
 }
 
-#define IS_OFDM_EXT_RATE(A) (((A & RATE_MASK) == TX_RATE_9M) || ((A & RATE_MASK) == TX_RATE_18M) || \
-			     ((A & RATE_MASK) == TX_RATE_36M) || ((A & RATE_MASK) == TX_RATE_48M) || \
-			     ((A & RATE_MASK) == TX_RATE_54M))
+static inline bool is_ofdm_ext_rate(u8 rate)
+{
+	return (((rate & RATE_MASK) == TX_RATE_9M)  ||
+		((rate & RATE_MASK) == TX_RATE_18M) ||
+		((rate & RATE_MASK) == TX_RATE_36M) ||
+		((rate & RATE_MASK) == TX_RATE_48M) ||
+		((rate & RATE_MASK) == TX_RATE_54M));
+}
 
 enum connect_status_type {
 	CONNECT_STATUS,
