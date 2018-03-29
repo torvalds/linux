@@ -1120,7 +1120,7 @@ sub dump_struct($$) {
 					# Handle bitmaps
 					$arg =~ s/:\s*\d+\s*//g;
 					# Handle arrays
-					$arg =~ s/\[\S+\]//g;
+					$arg =~ s/\[.*\]//g;
 					# The type may have multiple words,
 					# and multiple IDs can be defined, like:
 					#	const struct foo, *bar, foobar
