@@ -299,6 +299,9 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	geo->major_ver_id = id->ver_id;
 	geo->minor_ver_id = 2;
 
+	/* Set compacted version for upper layers */
+	geo->version = NVM_OCSSD_SPEC_12;
+
 	geo->nr_chnls = src->num_ch;
 	geo->nr_luns = src->num_lun;
 	geo->all_luns = geo->nr_chnls * geo->nr_luns;
@@ -383,6 +386,9 @@ static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
 {
 	geo->major_ver_id = id->mjr;
 	geo->minor_ver_id = id->mnr;
+
+	/* Set compacted version for upper layers */
+	geo->version = NVM_OCSSD_SPEC_20;
 
 	if (!(geo->major_ver_id == 2 && geo->minor_ver_id == 0)) {
 		pr_err("nvm: OCSSD version not supported (v%d.%d)\n",

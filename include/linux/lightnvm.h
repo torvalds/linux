@@ -23,6 +23,11 @@ enum {
 #define NVM_LUN_BITS (8)
 #define NVM_CH_BITS  (7)
 
+enum {
+	NVM_OCSSD_SPEC_12 = 12,
+	NVM_OCSSD_SPEC_20 = 20,
+};
+
 struct ppa_addr {
 	/* Generic structure for all addresses */
 	union {
@@ -265,6 +270,9 @@ struct nvm_geo {
 	/* device reported version */
 	u8	major_ver_id;
 	u8	minor_ver_id;
+
+	/* kernel short version */
+	u8	version;
 
 	/* instance specific geometry */
 	int nr_chnls;
