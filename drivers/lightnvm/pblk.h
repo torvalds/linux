@@ -320,14 +320,26 @@ enum {
 };
 
 #define PBLK_MAGIC 0x70626c6b /*pblk*/
-#define SMETA_VERSION cpu_to_le16(1)
+
+/* emeta/smeta persistent storage format versions:
+ * Changes in major version requires offline migration.
+ * Changes in minor version are handled automatically during
+ * recovery.
+ */
+
+#define SMETA_VERSION_MAJOR (0)
+#define SMETA_VERSION_MINOR (1)
+
+#define EMETA_VERSION_MAJOR (0)
+#define EMETA_VERSION_MINOR (1)
 
 struct line_header {
 	__le32 crc;
 	__le32 identifier;	/* pblk identifier */
 	__u8 uuid[16];		/* instance uuid */
 	__le16 type;		/* line type */
-	__le16 version;		/* type version */
+	__u8 version_major;	/* version major */
+	__u8 version_minor;	/* version minor */
 	__le32 id;		/* line id for current line */
 };
 

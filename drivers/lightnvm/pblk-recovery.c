@@ -826,6 +826,25 @@ static u64 pblk_line_emeta_start(struct pblk *pblk, struct pblk_line *line)
 	return emeta_start;
 }
 
+static int pblk_recov_check_line_version(struct pblk *pblk,
+					 struct line_emeta *emeta)
+{
+	struct line_header *header = &emeta->header;
+
+	if (header->version_major != EMETA_VERSION_MAJOR) {
+		pr_err("pblk: line major version mismatch: %d, expected: %d\n",
+		       header->version_major, EMETA_VERSION_MAJOR);
+		return 1;
+	}
+
+#ifdef NVM_DEBUG
+	if (header->version_minor > EMETA_VERSION_MINOR)
+		pr_info("pblk: newer line minor version found: %d\n", line_v);
+#endif
+
+	return 0;
+}
+
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
@@ -873,9 +892,9 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		if (le32_to_cpu(smeta_buf->header.identifier) != PBLK_MAGIC)
 			continue;
 
-		if (smeta_buf->header.version != SMETA_VERSION) {
+		if (smeta_buf->header.version_major != SMETA_VERSION_MAJOR) {
 			pr_err("pblk: found incompatible line version %u\n",
-					le16_to_cpu(smeta_buf->header.version));
+					smeta_buf->header.version_major);
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -942,6 +961,9 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 			pblk_recov_l2p_from_oob(pblk, line);
 			goto next;
 		}
+
+		if (pblk_recov_check_line_version(pblk, line->emeta->buf))
+			return ERR_PTR(-EINVAL);
 
 		if (pblk_recov_l2p_from_emeta(pblk, line))
 			pblk_recov_l2p_from_oob(pblk, line);

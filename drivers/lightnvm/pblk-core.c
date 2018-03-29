@@ -975,7 +975,8 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 	memcpy(smeta_buf->header.uuid, pblk->instance_uuid, 16);
 	smeta_buf->header.id = cpu_to_le32(line->id);
 	smeta_buf->header.type = cpu_to_le16(line->type);
-	smeta_buf->header.version = SMETA_VERSION;
+	smeta_buf->header.version_major = SMETA_VERSION_MAJOR;
+	smeta_buf->header.version_minor = SMETA_VERSION_MINOR;
 
 	/* Start metadata */
 	smeta_buf->seq_nr = cpu_to_le64(line->seq_nr);
@@ -998,6 +999,12 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 	/* End metadata */
 	memcpy(&emeta_buf->header, &smeta_buf->header,
 						sizeof(struct line_header));
+
+	emeta_buf->header.version_major = EMETA_VERSION_MAJOR;
+	emeta_buf->header.version_minor = EMETA_VERSION_MINOR;
+	emeta_buf->header.crc = cpu_to_le32(
+			pblk_calc_meta_header_crc(pblk, &emeta_buf->header));
+
 	emeta_buf->seq_nr = cpu_to_le64(line->seq_nr);
 	emeta_buf->nr_lbas = cpu_to_le64(line->sec_in_line);
 	emeta_buf->nr_valid_lbas = cpu_to_le64(0);
