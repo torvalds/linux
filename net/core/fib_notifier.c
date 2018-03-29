@@ -13,16 +13,22 @@ int call_fib_notifier(struct notifier_block *nb, struct net *net,
 		      enum fib_event_type event_type,
 		      struct fib_notifier_info *info)
 {
+	int err;
+
 	info->net = net;
-	return nb->notifier_call(nb, event_type, info);
+	err = nb->notifier_call(nb, event_type, info);
+	return notifier_to_errno(err);
 }
 EXPORT_SYMBOL(call_fib_notifier);
 
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info)
 {
+	int err;
+
 	info->net = net;
-	return atomic_notifier_call_chain(&fib_chain, event_type, info);
+	err = atomic_notifier_call_chain(&fib_chain, event_type, info);
+	return notifier_to_errno(err);
 }
 EXPORT_SYMBOL(call_fib_notifiers);
 
