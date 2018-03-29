@@ -355,10 +355,13 @@ static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 	struct pblk_rb_entry *entry;
 	unsigned int sync, flush_point;
 
+	pblk_rb_sync_init(rb, NULL);
 	sync = READ_ONCE(rb->sync);
 
-	if (pos == sync)
+	if (pos == sync) {
+		pblk_rb_sync_end(rb, NULL);
 		return 0;
+	}
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_inc(&rb->inflight_flush_point);
@@ -366,8 +369,6 @@ static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 
 	flush_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
 	entry = &rb->entries[flush_point];
-
-	pblk_rb_sync_init(rb, NULL);
 
 	/* Protect flush points */
 	smp_store_release(&rb->flush_point, flush_point);
