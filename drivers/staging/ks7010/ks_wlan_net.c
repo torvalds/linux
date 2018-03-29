@@ -2897,7 +2897,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* The ks_wlan-specific entries in the device structure. */
 	dev->netdev_ops = &ks_wlan_netdev_ops;
-	dev->wireless_handlers = (struct iw_handler_def *)&ks_wlan_handler_def;
+	dev->wireless_handlers = &ks_wlan_handler_def;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	netif_carrier_off(dev);
