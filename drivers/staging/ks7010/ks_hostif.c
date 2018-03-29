@@ -523,7 +523,7 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		/* MAC address */
 		hostif_sme_enqueue(priv, SME_GET_MAC_ADDRESS);
 		memcpy(priv->eth_addr, priv->rxp, ETH_ALEN);
-		priv->mac_address_valid = 1;
+		priv->mac_address_valid = true;
 		dev->dev_addr[0] = priv->eth_addr[0];
 		dev->dev_addr[1] = priv->eth_addr[1];
 		dev->dev_addr[2] = priv->eth_addr[2];
@@ -638,7 +638,7 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 		hostif_sme_enqueue(priv, SME_MULTICAST_CONFIRM);
 		break;
 	case LOCAL_CURRENTADDRESS:
-		priv->mac_address_valid = 1;
+		priv->mac_address_valid = true;
 		break;
 	case DOT11_RSN_CONFIG_MULTICAST_CIPHER:
 		hostif_sme_enqueue(priv, SME_RSN_MCAST_CONFIRM);

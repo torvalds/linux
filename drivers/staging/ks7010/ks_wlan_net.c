@@ -2752,7 +2752,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 	memcpy(dev->dev_addr, mac_addr->sa_data, dev->addr_len);
 	memcpy(priv->eth_addr, mac_addr->sa_data, ETH_ALEN);
 
-	priv->mac_address_valid = 0;
+	priv->mac_address_valid = false;
 	hostif_sme_enqueue(priv, SME_MACADDRESS_SET_REQUEST);
 	netdev_info(dev, "ks_wlan:  MAC ADDRESS = %pM\n", priv->eth_addr);
 	return 0;
@@ -2875,7 +2875,7 @@ int ks_wlan_net_start(struct net_device *dev)
 	/* int rc; */
 
 	priv = netdev_priv(dev);
-	priv->mac_address_valid = 0;
+	priv->mac_address_valid = false;
 	priv->need_commit = 0;
 
 	priv->device_open_status = 1;

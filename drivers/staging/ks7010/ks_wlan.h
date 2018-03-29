@@ -456,7 +456,7 @@ struct ks_wlan_private {
 	unsigned char firmware_version[128 + 1];
 	int version_size;
 
-	int mac_address_valid;	/* Mac Address Status */
+	bool mac_address_valid;	/* Mac Address Status */
 
 	int dev_state;
 
