@@ -691,8 +691,6 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 		if (ret < 0)
 			return ret;
 
-		dep->flags |= DWC3_EP_BUSY;
-
 		dep->resource_index = dwc3_gadget_ep_get_transfer_index(dep);
 		WARN_ON_ONCE(!dep->resource_index);
 	}
@@ -1256,8 +1254,6 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 		dwc3_gadget_del_and_unmap_request(dep, req, ret);
 		return ret;
 	}
-
-	dep->flags |= DWC3_EP_BUSY;
 
 	if (starting) {
 		dep->resource_index = dwc3_gadget_ep_get_transfer_index(dep);
@@ -2389,7 +2385,7 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 	/*
 	 * Our endpoint might get disabled by another thread during
 	 * dwc3_gadget_giveback(). If that happens, we're just gonna return 1
-	 * early on so DWC3_EP_BUSY flag gets cleared
+	 * early.
 	 */
 	if (!dep->endpoint.desc)
 		return 1;
@@ -2432,18 +2428,13 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 {
 	struct dwc3		*dwc = dep->dwc;
 	unsigned		status = 0;
-	int			clean_busy;
 
 	dwc3_gadget_endpoint_frame_from_event(dep, event);
 
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
 
-	clean_busy = dwc3_gadget_ep_cleanup_completed_requests(dep, event,
-			status);
-	if (clean_busy && (!dep->endpoint.desc ||
-				usb_endpoint_xfer_isoc(dep->endpoint.desc)))
-		dep->flags &= ~DWC3_EP_BUSY;
+	dwc3_gadget_ep_cleanup_completed_requests(dep, event, status);
 
 	/*
 	 * WORKAROUND: This is the 2nd half of U1/U2 -> U0 workaround.
@@ -2612,7 +2603,6 @@ static void dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force)
 	ret = dwc3_send_gadget_ep_cmd(dep, cmd, &params);
 	WARN_ON_ONCE(ret);
 	dep->resource_index = 0;
-	dep->flags &= ~DWC3_EP_BUSY;
 
 	if (dwc3_is_usb31(dwc) || dwc->revision < DWC3_REVISION_310A) {
 		dep->flags |= DWC3_EP_END_TRANSFER_PENDING;
