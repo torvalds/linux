@@ -723,9 +723,6 @@ static int omap_drm_suspend_all_displays(struct drm_device *ddev)
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_dss_device *display = priv->pipes[i].display;
 
-		if (!display->driver)
-			continue;
-
 		if (display->state == OMAP_DSS_DISPLAY_ACTIVE) {
 			display->driver->disable(display);
 			display->activate_after_resume = true;
@@ -744,9 +741,6 @@ static int omap_drm_resume_all_displays(struct drm_device *ddev)
 
 	for (i = 0; i < priv->num_pipes; i++) {
 		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (!display->driver)
-			continue;
 
 		if (display->activate_after_resume) {
 			display->driver->enable(display);
