@@ -1221,7 +1221,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 	if (!dwc3_calc_trbs_left(dep))
 		return 0;
 
-	starting = !(dep->flags & DWC3_EP_BUSY);
+	starting = !(dep->flags & DWC3_EP_TRANSFER_STARTED);
 
 	dwc3_prepare_trbs(dep);
 	req = next_request(&dep->started_list);
@@ -1337,7 +1337,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 			return 0;
 		}
 
-		if ((dep->flags & DWC3_EP_BUSY) &&
+		if ((dep->flags & DWC3_EP_TRANSFER_STARTED) &&
 		    !(dep->flags & DWC3_EP_MISSED_ISOC))
 			goto out;
 
