@@ -2351,16 +2351,9 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		return;
 
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-			list_empty(&dep->started_list)) {
-		if (list_empty(&dep->pending_list)) {
-			/*
-			 * If there is no entry in request list then do
-			 * not issue END TRANSFER now. Just set PENDING
-			 * flag, so that END TRANSFER is issued when an
-			 * entry is added into request list.
-			 */
-			dep->flags = DWC3_EP_PENDING_REQUEST;
-		}
+			list_empty(&dep->started_list) &&
+			list_empty(&dep->pending_list)) {
+		dep->flags = DWC3_EP_PENDING_REQUEST;
 	}
 }
 
