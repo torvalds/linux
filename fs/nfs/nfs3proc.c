@@ -138,8 +138,11 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		msg.rpc_cred = nfs_file_cred(sattr->ia_file);
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	if (status == 0)
+	if (status == 0) {
+		if (NFS_I(inode)->cache_validity & NFS_INO_INVALID_ACL)
+			nfs_zap_acl_cache(inode);
 		nfs_setattr_update_inode(inode, sattr, fattr);
+	}
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
