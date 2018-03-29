@@ -481,8 +481,7 @@ ksocknal_process_transmit(struct ksock_conn *conn, struct ksock_tx *tx)
 		LASSERT(conn->ksnc_tx_scheduled);
 		list_add_tail(&conn->ksnc_tx_list,
 			      &ksocknal_data.ksnd_enomem_conns);
-		if (!cfs_time_aftereq(cfs_time_add(jiffies,
-						   SOCKNAL_ENOMEM_RETRY),
+		if (!cfs_time_aftereq(jiffies + SOCKNAL_ENOMEM_RETRY,
 				   ksocknal_data.ksnd_reaper_waketime))
 			wake_up(&ksocknal_data.ksnd_reaper_waitq);
 
@@ -1777,8 +1776,7 @@ ksocknal_connect(struct ksock_route *route)
 	int retry_later = 0;
 	int rc = 0;
 
-	deadline = cfs_time_add(jiffies,
-				*ksocknal_tunables.ksnd_timeout * HZ);
+	deadline = jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
@@ -1877,8 +1875,7 @@ ksocknal_connect(struct ksock_route *route)
 			 */
 			route->ksnr_retry_interval =
 				*ksocknal_tunables.ksnd_min_reconnectms * HZ / 1000;
-			route->ksnr_timeout = cfs_time_add(jiffies,
-							   route->ksnr_retry_interval);
+			route->ksnr_timeout = jiffies + route->ksnr_retry_interval;
 		}
 
 		ksocknal_launch_connection_locked(route);
@@ -1903,8 +1900,7 @@ ksocknal_connect(struct ksock_route *route)
 		    (long)*ksocknal_tunables.ksnd_max_reconnectms * HZ / 1000);
 
 	LASSERT(route->ksnr_retry_interval);
-	route->ksnr_timeout = cfs_time_add(jiffies,
-					   route->ksnr_retry_interval);
+	route->ksnr_timeout = jiffies + route->ksnr_retry_interval;
 
 	if (!list_empty(&peer->ksnp_tx_queue) &&
 	    !peer->ksnp_accepting &&
@@ -2302,8 +2298,7 @@ ksocknal_send_keepalive_locked(struct ksock_peer *peer)
 
 	if (*ksocknal_tunables.ksnd_keepalive <= 0 ||
 	    time_before(jiffies,
-			cfs_time_add(peer->ksnp_last_alive,
-				     *ksocknal_tunables.ksnd_keepalive * HZ)))
+			peer->ksnp_last_alive + *ksocknal_tunables.ksnd_keepalive * HZ))
 		return 0;
 
 	if (time_before(jiffies, peer->ksnp_send_keepalive))
@@ -2531,8 +2526,7 @@ ksocknal_reaper(void *arg)
 		}
 
 		/* careful with the jiffy wrap... */
-		while ((timeout = cfs_time_sub(deadline,
-					       jiffies)) <= 0) {
+		while ((timeout = deadline - jiffies) <= 0) {
 			const int n = 4;
 			const int p = 1;
 			int chunk = ksocknal_data.ksnd_peer_hash_size;
@@ -2557,7 +2551,7 @@ ksocknal_reaper(void *arg)
 					     ksocknal_data.ksnd_peer_hash_size;
 			}
 
-			deadline = cfs_time_add(deadline, p * HZ);
+			deadline = deadline + p * HZ;
 		}
 
 		if (nenomem_conns) {
@@ -2568,8 +2562,7 @@ ksocknal_reaper(void *arg)
 			 */
 			timeout = SOCKNAL_ENOMEM_RETRY;
 		}
-		ksocknal_data.ksnd_reaper_waketime =
-			cfs_time_add(jiffies, timeout);
+		ksocknal_data.ksnd_reaper_waketime = jiffies + timeout;
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&ksocknal_data.ksnd_reaper_waitq, &wait);

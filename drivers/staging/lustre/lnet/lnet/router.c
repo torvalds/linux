@@ -1010,8 +1010,7 @@ lnet_ping_router_locked(struct lnet_peer *rtr)
 	       rtr->lp_alive, rtr->lp_alive_count, rtr->lp_ping_timestamp);
 
 	if (secs && !rtr->lp_ping_notsent &&
-	    cfs_time_after(now, cfs_time_add(rtr->lp_ping_timestamp,
-					     secs * HZ))) {
+	    cfs_time_after(now, rtr->lp_ping_timestamp + secs * HZ)) {
 		int rc;
 		struct lnet_process_id id;
 		struct lnet_handle_md mdh;
@@ -1753,7 +1752,7 @@ lnet_notify(struct lnet_ni *ni, lnet_nid_t nid, int alive, unsigned long when)
 		CWARN("Ignoring prediction from %s of %s %s %ld seconds in the future\n",
 		      !ni ? "userspace" : libcfs_nid2str(ni->ni_nid),
 		      libcfs_nid2str(nid), alive ? "up" : "down",
-		      cfs_duration_sec(cfs_time_sub(when, now)));
+		      cfs_duration_sec(when - now));
 		return -EINVAL;
 	}
 

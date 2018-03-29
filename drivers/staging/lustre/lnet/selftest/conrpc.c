@@ -500,8 +500,8 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 
 		nd = crpc->crp_node;
 
-		dur = (long)cfs_time_sub(crpc->crp_stamp,
-		      (unsigned long)console_session.ses_id.ses_stamp);
+		dur = (long)(crpc->crp_stamp -
+			     (unsigned long)console_session.ses_id.ses_stamp);
 		jiffies_to_timeval(dur, &tv);
 
 		if (copy_to_user(&ent->rpe_peer, &nd->nd_id,

@@ -331,8 +331,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 			int alive_cnt = peer->lp_alive_count;
 			int alive = peer->lp_alive;
 			int pingsent = !peer->lp_ping_notsent;
-			int last_ping = cfs_duration_sec(cfs_time_sub(now,
-						     peer->lp_ping_timestamp));
+			int last_ping = cfs_duration_sec(now - peer->lp_ping_timestamp);
 			int down_ni = 0;
 			struct lnet_route *rtr;
 
@@ -364,7 +363,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 					      nrefs, nrtrrefs, alive_cnt,
 					      alive ? "up" : "down", last_ping,
 					      pingsent,
-					      cfs_duration_sec(cfs_time_sub(deadline, now)),
+					      cfs_duration_sec(deadline - now),
 					      down_ni, libcfs_nid2str(nid));
 			LASSERT(tmpstr + tmpsiz - s > 0);
 		}
@@ -512,7 +511,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 				unsigned long now = jiffies;
 				long delta;
 
-				delta = cfs_time_sub(now, peer->lp_last_alive);
+				delta = now - peer->lp_last_alive;
 				lastalive = cfs_duration_sec(delta);
 
 				/* No need to mess up peers contents with

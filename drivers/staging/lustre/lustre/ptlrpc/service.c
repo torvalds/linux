@@ -1153,7 +1153,7 @@ static void ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 		spin_unlock(&svcpt->scp_at_lock);
 		return;
 	}
-	delay = cfs_time_sub(jiffies, svcpt->scp_at_checktime);
+	delay = jiffies - svcpt->scp_at_checktime;
 	svcpt->scp_at_check = 0;
 
 	if (array->paa_count == 0) {

@@ -1682,7 +1682,7 @@ ksocknal_destroy_conn(struct ksock_conn *conn)
 		       libcfs_id2str(conn->ksnc_peer->ksnp_id), conn->ksnc_type,
 		       &conn->ksnc_ipaddr, conn->ksnc_port,
 		       iov_iter_count(&conn->ksnc_rx_to), conn->ksnc_rx_nob_left,
-		       cfs_duration_sec(cfs_time_sub(jiffies, last_rcv)));
+		       cfs_duration_sec(jiffies - last_rcv));
 		lnet_finalize(conn->ksnc_peer->ksnp_ni,
 			      conn->ksnc_cookie, -EIO);
 		break;

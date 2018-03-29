@@ -157,7 +157,7 @@ stt_check_timers(unsigned long *last)
 
 	while (cfs_time_aftereq(this_slot, *last)) {
 		expired += stt_expire_list(STTIMER_SLOT(this_slot), now);
-		this_slot = cfs_time_sub(this_slot, STTIMER_SLOTTIME);
+		this_slot = this_slot - STTIMER_SLOTTIME;
 	}
 
 	*last = now & STTIMER_SLOTTIMEMASK;

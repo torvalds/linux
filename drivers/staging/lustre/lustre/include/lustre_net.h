@@ -556,7 +556,7 @@ struct ptlrpc_cli_req {
 	/** optional time limit for send attempts */
 	long				 cr_delay_limit;
 	/** time request was first queued */
-	time_t				 cr_queued_time;
+	unsigned long			 cr_queued_time;
 	/** request sent timeval */
 	struct timespec64		 cr_sent_tv;
 	/** time for request really sent out */
@@ -2253,8 +2253,7 @@ static inline int ptlrpc_req_get_repsize(struct ptlrpc_request *req)
 static inline int ptlrpc_send_limit_expired(struct ptlrpc_request *req)
 {
 	if (req->rq_delay_limit != 0 &&
-	    time_before(cfs_time_add(req->rq_queued_time,
-				     req->rq_delay_limit * HZ),
+	    time_before(req->rq_queued_time + req->rq_delay_limit * HZ,
 			jiffies)) {
 		return 1;
 	}

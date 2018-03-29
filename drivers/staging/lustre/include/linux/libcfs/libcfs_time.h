@@ -40,16 +40,6 @@
  * generic time manipulation functions.
  */
 
-static inline unsigned long cfs_time_add(unsigned long t, long d)
-{
-	return (unsigned long)(t + d);
-}
-
-static inline unsigned long cfs_time_sub(unsigned long t1, unsigned long t2)
-{
-	return (unsigned long)(t1 - t2);
-}
-
 static inline int cfs_time_after(unsigned long t1, unsigned long t2)
 {
 	return time_before(t2, t1);
@@ -62,7 +52,7 @@ static inline int cfs_time_aftereq(unsigned long t1, unsigned long t2)
 
 static inline unsigned long cfs_time_shift(int seconds)
 {
-	return cfs_time_add(jiffies, seconds * HZ);
+	return jiffies + seconds * HZ;
 }
 
 /*

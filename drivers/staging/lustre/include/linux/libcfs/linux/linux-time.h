@@ -65,15 +65,9 @@ static inline long cfs_duration_sec(long d)
 	return d / msecs_to_jiffies(MSEC_PER_SEC);
 }
 
-static inline u64 cfs_time_add_64(u64 t, u64 d)
-{
-	return t + d;
-}
-
 static inline u64 cfs_time_shift_64(int seconds)
 {
-	return cfs_time_add_64(get_jiffies_64(),
-			       seconds * HZ);
+	return get_jiffies_64() + (u64)seconds * HZ;
 }
 
 static inline int cfs_time_before_64(u64 t1, u64 t2)

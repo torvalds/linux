@@ -523,8 +523,7 @@ lnet_peer_is_alive(struct lnet_peer *lp, unsigned long now)
 	    cfs_time_aftereq(lp->lp_timestamp, lp->lp_last_alive))
 		return 0;
 
-	deadline = cfs_time_add(lp->lp_last_alive,
-				lp->lp_ni->ni_peertimeout * HZ);
+	deadline = lp->lp_last_alive + lp->lp_ni->ni_peertimeout * HZ;
 	alive = cfs_time_after(deadline, now);
 
 	/* Update obsolete lp_alive except for routers assumed to be dead
@@ -561,8 +560,7 @@ lnet_peer_alive_locked(struct lnet_peer *lp)
 		static const int lnet_queryinterval = 1;
 
 		unsigned long next_query =
-			   cfs_time_add(lp->lp_last_query,
-					lnet_queryinterval * HZ);
+			   lp->lp_last_query + lnet_queryinterval * HZ;
 
 		if (time_before(now, next_query)) {
 			if (lp->lp_alive)
