@@ -313,7 +313,8 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
-static int ib_nl_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
+static int ib_nl_fetch_ha(const struct dst_entry *dst,
+			  struct rdma_dev_addr *dev_addr,
 			  const void *daddr, u32 seq, u16 family)
 {
 	if (rdma_nl_chk_listeners(RDMA_NL_GROUP_LS))
@@ -324,7 +325,8 @@ static int ib_nl_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 	return ib_nl_ip_send_msg(dev_addr, daddr, seq, family);
 }
 
-static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
+static int dst_fetch_ha(const struct dst_entry *dst,
+			struct rdma_dev_addr *dev_addr,
 			const void *daddr)
 {
 	struct neighbour *n;
@@ -348,7 +350,7 @@ static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 	return ret;
 }
 
-static bool has_gateway(struct dst_entry *dst, sa_family_t family)
+static bool has_gateway(const struct dst_entry *dst, sa_family_t family)
 {
 	struct rtable *rt;
 	struct rt6_info *rt6;
@@ -362,7 +364,7 @@ static bool has_gateway(struct dst_entry *dst, sa_family_t family)
 	return rt6->rt6i_flags & RTF_GATEWAY;
 }
 
-static int fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
+static int fetch_ha(const struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 		    const struct sockaddr *dst_in, u32 seq)
 {
 	const struct sockaddr_in *dst_in4 =
@@ -466,7 +468,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 }
 #endif
 
-static int addr_resolve_neigh(struct dst_entry *dst,
+static int addr_resolve_neigh(const struct dst_entry *dst,
 			      const struct sockaddr *dst_in,
 			      struct rdma_dev_addr *addr,
 			      u32 seq)
