@@ -556,15 +556,20 @@ struct hostif_mic_failure_confirm_t {
 #define TX_RATE_48M	(uint8_t)(480 / 5)
 #define TX_RATE_54M	(uint8_t)(540 / 5)
 
-#define IS_11B_RATE(A) (((A & RATE_MASK) == TX_RATE_1M) || ((A & RATE_MASK) == TX_RATE_2M) || \
-			((A & RATE_MASK) == TX_RATE_5M) || ((A & RATE_MASK) == TX_RATE_11M))
+static inline bool is_11b_rate(u8 rate)
+{
+	return (((rate & RATE_MASK) == TX_RATE_1M) ||
+		((rate & RATE_MASK) == TX_RATE_2M) ||
+		((rate & RATE_MASK) == TX_RATE_5M) ||
+		((rate & RATE_MASK) == TX_RATE_11M));
+}
 
 #define IS_OFDM_RATE(A) (((A & RATE_MASK) == TX_RATE_6M) || ((A & RATE_MASK) == TX_RATE_12M) || \
 			 ((A & RATE_MASK) == TX_RATE_24M) || ((A & RATE_MASK) == TX_RATE_9M) || \
 			 ((A & RATE_MASK) == TX_RATE_18M) || ((A & RATE_MASK) == TX_RATE_36M) || \
 			 ((A & RATE_MASK) == TX_RATE_48M) || ((A & RATE_MASK) == TX_RATE_54M))
 
-#define IS_11BG_RATE(A) (IS_11B_RATE(A) || IS_OFDM_RATE(A))
+#define IS_11BG_RATE(A) (is_11b_rate(A) || IS_OFDM_RATE(A))
 
 #define IS_OFDM_EXT_RATE(A) (((A & RATE_MASK) == TX_RATE_9M) || ((A & RATE_MASK) == TX_RATE_18M) || \
 			     ((A & RATE_MASK) == TX_RATE_36M) || ((A & RATE_MASK) == TX_RATE_48M) || \

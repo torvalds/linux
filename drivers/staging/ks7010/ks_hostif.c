@@ -1884,7 +1884,7 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 	/* rate mask by phy setting */
 	if (priv->reg.phy_type == D_11B_ONLY_MODE) {
 		for (i = 0; i < priv->reg.rate_set.size; i++) {
-			if (!IS_11B_RATE(priv->reg.rate_set.body[i]))
+			if (!is_11b_rate(priv->reg.rate_set.body[i]))
 				break;
 
 			if ((priv->reg.rate_set.body[i] & RATE_MASK) >= TX_RATE_5M) {
