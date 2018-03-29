@@ -372,7 +372,7 @@ struct xdp_rxq_info;
 
 #define BPF_LDST_BYTES(insn)					\
 	({							\
-		const int __size = bpf_size_to_bytes(BPF_SIZE(insn->code)); \
+		const int __size = bpf_size_to_bytes(BPF_SIZE((insn)->code)); \
 		WARN_ON(__size < 0);				\
 		__size;						\
 	})
