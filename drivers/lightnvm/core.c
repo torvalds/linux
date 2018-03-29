@@ -931,11 +931,9 @@ static int nvm_init(struct nvm_dev *dev)
 		goto err;
 	}
 
-	pr_debug("nvm: ver:%x nvm_vendor:%x\n",
-			dev->identity.ver_id, dev->identity.vmnt);
-
-	if (dev->identity.ver_id != 1) {
-		pr_err("nvm: device not supported by kernel.");
+	if (dev->identity.ver_id != 1 && dev->identity.ver_id != 2) {
+		pr_err("nvm: device ver_id %d not supported by kernel.\n",
+				dev->identity.ver_id);
 		goto err;
 	}
 

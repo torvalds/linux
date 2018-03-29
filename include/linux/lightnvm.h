@@ -184,10 +184,9 @@ struct nvm_id {
 	u16	csecs;
 	u16	sos;
 
-	u16	ws_min;
-	u16	ws_opt;
-	u16	ws_seq;
-	u16	ws_per_chk;
+	u32	ws_min;
+	u32	ws_opt;
+	u32	mw_cunits;
 
 	u32	trdt;
 	u32	trdm;
@@ -198,6 +197,10 @@ struct nvm_id {
 	u32	mpos;
 	u32	mccap;
 	u16	cpar;
+
+	/* calculated values */
+	u16	ws_seq;
+	u16	ws_per_chk;
 
 	/* 1.2 compatibility */
 	u8	mtype;
