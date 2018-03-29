@@ -10711,9 +10711,9 @@ F:	Documentation/devicetree/bindings/pci/cdns,*.txt
 F:	drivers/pci/cadence/pcie-cadence*
 
 PCI DRIVER FOR FREESCALE LAYERSCAPE
-M:	Minghuan Lian <minghuan.Lian@freescale.com>
-M:	Mingkai Hu <mingkai.hu@freescale.com>
-M:	Roy Zang <tie-fei.zang@freescale.com>
+M:	Minghuan Lian <minghuan.Lian@nxp.com>
+M:	Mingkai Hu <mingkai.hu@nxp.com>
+M:	Roy Zang <roy.zang@nxp.com>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org
