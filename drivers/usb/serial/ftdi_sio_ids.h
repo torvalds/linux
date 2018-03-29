@@ -981,6 +981,7 @@
 #define PI_1014_PID	0x1014  /* PI Device */
 #define PI_1015_PID	0x1015  /* PI Device */
 #define PI_1016_PID	0x1016  /* PI Digital Servo Module */
+#define PI_E870_PID	0x1019  /* PI E-870 Piezomotor Controller */
 
 /*
  * Kondo Kagaku Co.Ltd.
