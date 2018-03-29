@@ -1019,9 +1019,6 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	struct nvm_tgt_type *tt;
 	int tgt_iter = 0;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	info = memdup_user(arg, sizeof(struct nvm_ioctl_info));
 	if (IS_ERR(info))
 		return -EFAULT;
@@ -1059,9 +1056,6 @@ static long nvm_ioctl_get_devices(struct file *file, void __user *arg)
 	struct nvm_ioctl_get_devices *devices;
 	struct nvm_dev *dev;
 	int i = 0;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	devices = kzalloc(sizeof(struct nvm_ioctl_get_devices), GFP_KERNEL);
 	if (!devices)
@@ -1103,9 +1097,6 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 {
 	struct nvm_ioctl_create create;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (copy_from_user(&create, arg, sizeof(struct nvm_ioctl_create)))
 		return -EFAULT;
 
@@ -1141,9 +1132,6 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 	struct nvm_dev *dev;
 	int ret = 0;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (copy_from_user(&remove, arg, sizeof(struct nvm_ioctl_remove)))
 		return -EFAULT;
 
@@ -1168,9 +1156,6 @@ static long nvm_ioctl_dev_init(struct file *file, void __user *arg)
 {
 	struct nvm_ioctl_dev_init init;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (copy_from_user(&init, arg, sizeof(struct nvm_ioctl_dev_init)))
 		return -EFAULT;
 
@@ -1187,9 +1172,6 @@ static long nvm_ioctl_dev_factory(struct file *file, void __user *arg)
 {
 	struct nvm_ioctl_dev_factory fact;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (copy_from_user(&fact, arg, sizeof(struct nvm_ioctl_dev_factory)))
 		return -EFAULT;
 
@@ -1204,6 +1186,9 @@ static long nvm_ioctl_dev_factory(struct file *file, void __user *arg)
 static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	switch (cmd) {
 	case NVM_INFO:
