@@ -708,7 +708,7 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 			     "Error: CQ event with NULL pointer ibcq. Handle=%llx\n",
 			     roce_handle64);
 		}
-		DP_ERR(dev, "CQ event %d on hanlde %p\n", e_code, cq);
+		DP_ERR(dev, "CQ event %d on handle %p\n", e_code, cq);
 		break;
 	case EVENT_TYPE_QP:
 		qp = (struct qedr_qp *)(uintptr_t)roce_handle64;
@@ -724,7 +724,7 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 			     "Error: QP event with NULL pointer ibqp. Handle=%llx\n",
 			     roce_handle64);
 		}
-		DP_ERR(dev, "QP event %d on hanlde %p\n", e_code, qp);
+		DP_ERR(dev, "QP event %d on handle %p\n", e_code, qp);
 		break;
 	default:
 		break;
