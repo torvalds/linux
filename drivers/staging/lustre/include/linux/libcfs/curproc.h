@@ -43,8 +43,6 @@
 /*
  * Plus, platform-specific constant
  *
- * CFS_CURPROC_COMM_MAX,
- *
  * and opaque scalar type
  *
  * kernel_cap_t

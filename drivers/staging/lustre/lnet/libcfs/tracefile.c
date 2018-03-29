@@ -328,7 +328,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 		goto console;
 	}
 
-	depth = __current_nesting_level();
+	depth = 0;
 	known_size = strlen(file) + 1 + depth;
 	if (msgdata->msg_fn)
 		known_size += strlen(msgdata->msg_fn) + 1;

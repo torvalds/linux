@@ -81,8 +81,6 @@
 #include <stdarg.h>
 #include "linux-cpu.h"
 
-#define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
-
 #if !defined(__x86_64__)
 # ifdef __ia64__
 #  define CDEBUG_STACK() (THREAD_SIZE -				 \
@@ -113,20 +111,5 @@ do {								    \
 #define CFS_CHECK_STACK(msgdata, mask, cdls) do {} while (0)
 #define CDEBUG_STACK() (0L)
 #endif /* __x86_64__ */
-
-#define __current_nesting_level() (0)
-
-/**
- * Platform specific declarations for cfs_curproc API (libcfs/curproc.h)
- *
- * Implementation is in linux-curproc.c
- */
-#define CFS_CURPROC_COMM_MAX (sizeof((struct task_struct *)0)->comm)
-
-#include <linux/capability.h>
-
-#ifndef WITH_WATCHDOG
-#define WITH_WATCHDOG
-#endif
 
 #endif /* _LINUX_LIBCFS_H */
