@@ -2885,15 +2885,13 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 */
 	trace_hardirqs_on();
 
-	guest_enter();
+	guest_enter_irqoff();
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
 	trap = __kvmppc_vcore_entry();
 
 	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
-
-	guest_exit();
 
 	trace_hardirqs_off();
 	set_irq_happened(trap);
@@ -2937,6 +2935,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	kvmppc_set_host_core(pcpu);
 
 	local_irq_enable();
+	guest_exit();
 
 	/* Let secondaries go back to the offline loop */
 	for (i = 0; i < controlled_threads; ++i) {
@@ -3656,15 +3655,17 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		goto up_out;
 
 	psize = vma_kernel_pagesize(vma);
-	porder = __ilog2(psize);
 
 	up_read(&current->mm->mmap_sem);
 
 	/* We can handle 4k, 64k or 16M pages in the VRMA */
-	err = -EINVAL;
-	if (!(psize == 0x1000 || psize == 0x10000 ||
-	      psize == 0x1000000))
-		goto out_srcu;
+	if (psize >= 0x1000000)
+		psize = 0x1000000;
+	else if (psize >= 0x10000)
+		psize = 0x10000;
+	else
+		psize = 0x1000;
+	porder = __ilog2(psize);
 
 	senc = slb_pgsize_encoding(psize);
 	kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
@@ -4350,7 +4351,6 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.flush_memslot  = kvmppc_core_flush_memslot_hv,
 	.prepare_memory_region = kvmppc_core_prepare_memory_region_hv,
 	.commit_memory_region  = kvmppc_core_commit_memory_region_hv,
-	.unmap_hva = kvm_unmap_hva_hv,
 	.unmap_hva_range = kvm_unmap_hva_range_hv,
 	.age_hva  = kvm_age_hva_hv,
 	.test_age_hva = kvm_test_age_hva_hv,
