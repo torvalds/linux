@@ -167,6 +167,7 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 {
 	const struct bpf_reg_state *reg1 = cur_regs(env) + BPF_REG_1;
 	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
+	const struct bpf_reg_state *reg3 = cur_regs(env) + BPF_REG_3;
 	struct nfp_app_bpf *bpf = nfp_prog->bpf;
 	u32 func_id = meta->insn.imm;
 
@@ -189,6 +190,15 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 					 bpf->helpers.map_lookup, reg1) ||
 		    !nfp_bpf_stack_arg_ok("map_lookup", env, reg2,
 					  meta->func_id ? &meta->arg2 : NULL))
+			return -EOPNOTSUPP;
+		break;
+
+	case BPF_FUNC_map_update_elem:
+		if (!nfp_bpf_map_call_ok("map_update", env, meta,
+					 bpf->helpers.map_update, reg1) ||
+		    !nfp_bpf_stack_arg_ok("map_update", env, reg2,
+					  meta->func_id ? &meta->arg2 : NULL) ||
+		    !nfp_bpf_stack_arg_ok("map_update", env, reg3, NULL))
 			return -EOPNOTSUPP;
 		break;
 	default:

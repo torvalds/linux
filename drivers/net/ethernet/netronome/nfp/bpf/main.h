@@ -128,6 +128,7 @@ enum pkt_vec {
  *
  * @helpers:		helper addressess for various calls
  * @helpers.map_lookup:		map lookup helper address
+ * @helpers.map_update:		map update helper address
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -162,6 +163,7 @@ struct nfp_app_bpf {
 
 	struct {
 		u32 map_lookup;
+		u32 map_update;
 	} helpers;
 };
 

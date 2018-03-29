@@ -284,6 +284,9 @@ nfp_bpf_parse_cap_func(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
 	case BPF_FUNC_map_lookup_elem:
 		bpf->helpers.map_lookup = readl(&cap->func_addr);
 		break;
+	case BPF_FUNC_map_update_elem:
+		bpf->helpers.map_update = readl(&cap->func_addr);
+		break;
 	}
 
 	return 0;

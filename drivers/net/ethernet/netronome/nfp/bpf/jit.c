@@ -1372,6 +1372,8 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	/* Set LM0 to start of key */
 	if (load_lm_ptr)
 		emit_csr_wr(nfp_prog, reg_b(2 * 2), NFP_CSR_ACT_LM_ADDR0);
+	if (meta->func_id == BPF_FUNC_map_update_elem)
+		emit_csr_wr(nfp_prog, reg_b(3 * 2), NFP_CSR_ACT_LM_ADDR2);
 
 	/* Load map ID into a register, it should actually fit as an immediate
 	 * but in case it doesn't deal with it here, not in the delay slots.
@@ -2326,6 +2328,7 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	case BPF_FUNC_xdp_adjust_head:
 		return adjust_head(nfp_prog, meta);
 	case BPF_FUNC_map_lookup_elem:
+	case BPF_FUNC_map_update_elem:
 		return map_call_stack_common(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
@@ -3209,6 +3212,9 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 			switch (val) {
 			case BPF_FUNC_map_lookup_elem:
 				val = nfp_prog->bpf->helpers.map_lookup;
+				break;
+			case BPF_FUNC_map_update_elem:
+				val = nfp_prog->bpf->helpers.map_update;
 				break;
 			default:
 				pr_err("relocation of unknown helper %d\n",
