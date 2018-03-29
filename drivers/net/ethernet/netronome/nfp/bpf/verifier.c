@@ -201,6 +201,14 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		    !nfp_bpf_stack_arg_ok("map_update", env, reg3, NULL))
 			return -EOPNOTSUPP;
 		break;
+
+	case BPF_FUNC_map_delete_elem:
+		if (!nfp_bpf_map_call_ok("map_delete", env, meta,
+					 bpf->helpers.map_delete, reg1) ||
+		    !nfp_bpf_stack_arg_ok("map_delete", env, reg2,
+					  meta->func_id ? &meta->arg2 : NULL))
+			return -EOPNOTSUPP;
+		break;
 	default:
 		pr_vlog(env, "unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;

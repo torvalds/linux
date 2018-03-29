@@ -2329,6 +2329,7 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return adjust_head(nfp_prog, meta);
 	case BPF_FUNC_map_lookup_elem:
 	case BPF_FUNC_map_update_elem:
+	case BPF_FUNC_map_delete_elem:
 		return map_call_stack_common(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
@@ -3215,6 +3216,9 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 				break;
 			case BPF_FUNC_map_update_elem:
 				val = nfp_prog->bpf->helpers.map_update;
+				break;
+			case BPF_FUNC_map_delete_elem:
+				val = nfp_prog->bpf->helpers.map_delete;
 				break;
 			default:
 				pr_err("relocation of unknown helper %d\n",
