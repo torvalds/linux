@@ -657,10 +657,12 @@
 	status = "okay";
 
 	u2phy_host: host-port {
+		rockchip,low-power-mode;
 		status = "okay";
 	};
 
 	u2phy_otg: otg-port {
+		rockchip,low-power-mode;
 		status = "okay";
 	};
 };
