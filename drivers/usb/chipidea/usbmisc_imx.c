@@ -151,14 +151,18 @@ static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 	if (data->index)
 		return 0;
 
-	if (data->evdo) {
-		spin_lock_irqsave(&usbmisc->lock, flags);
-		reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
-		val = readl(reg);
-		writel(val | MX25_BM_EXTERNAL_VBUS_DIVIDER, reg);
-		spin_unlock_irqrestore(&usbmisc->lock, flags);
-		usleep_range(5000, 10000); /* needed to stabilize voltage */
-	}
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
+	val = readl(reg);
+
+	if (data->evdo)
+		val |= MX25_BM_EXTERNAL_VBUS_DIVIDER;
+	else
+		val &= ~MX25_BM_EXTERNAL_VBUS_DIVIDER;
+
+	writel(val, reg);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+	usleep_range(5000, 10000); /* needed to stabilize voltage */
 
 	return 0;
 }
