@@ -1702,11 +1702,10 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	const i915_reg_t mode = RING_MI_MODE(base);
 
 	I915_WRITE_FW(mode, _MASKED_BIT_ENABLE(STOP_RING));
-	if (intel_wait_for_register_fw(dev_priv,
-				       mode,
-				       MODE_IDLE,
-				       MODE_IDLE,
-				       500))
+	if (__intel_wait_for_register_fw(dev_priv,
+					 mode, MODE_IDLE, MODE_IDLE,
+					 500, 0,
+					 NULL))
 		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
 				 engine->name);
 
@@ -1860,9 +1859,10 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 	__raw_i915_write32(dev_priv, GEN6_GDRST, hw_domain_mask);
 
 	/* Wait for the device to ack the reset requests */
-	err = intel_wait_for_register_fw(dev_priv,
-					  GEN6_GDRST, hw_domain_mask, 0,
-					  500);
+	err = __intel_wait_for_register_fw(dev_priv,
+					   GEN6_GDRST, hw_domain_mask, 0,
+					   500, 0,
+					   NULL);
 	if (err)
 		DRM_DEBUG_DRIVER("Wait for 0x%08x engines reset failed\n",
 				 hw_domain_mask);
@@ -2027,11 +2027,12 @@ static int gen8_reset_engine_start(struct intel_engine_cs *engine)
 	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
 		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
-	ret = intel_wait_for_register_fw(dev_priv,
-					 RING_RESET_CTL(engine->mmio_base),
-					 RESET_CTL_READY_TO_RESET,
-					 RESET_CTL_READY_TO_RESET,
-					 700);
+	ret = __intel_wait_for_register_fw(dev_priv,
+					   RING_RESET_CTL(engine->mmio_base),
+					   RESET_CTL_READY_TO_RESET,
+					   RESET_CTL_READY_TO_RESET,
+					   700, 0,
+					   NULL);
 	if (ret)
 		DRM_ERROR("%s: reset request timeout\n", engine->name);
 
@@ -2094,15 +2095,31 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 	int retry;
 	int ret;
 
-	might_sleep();
+	/*
+	 * We want to perform per-engine reset from atomic context (e.g.
+	 * softirq), which imposes the constraint that we cannot sleep.
+	 * However, experience suggests that spending a bit of time waiting
+	 * for a reset helps in various cases, so for a full-device reset
+	 * we apply the opposite rule and wait if we want to. As we should
+	 * always follow up a failed per-engine reset with a full device reset,
+	 * being a little faster, stricter and more error prone for the
+	 * atomic case seems an acceptable compromise.
+	 *
+	 * Unfortunately this leads to a bimodal routine, when the goal was
+	 * to have a single reset function that worked for resetting any
+	 * number of engines simultaneously.
+	 */
+	might_sleep_if(engine_mask == ALL_ENGINES);
 
-	/* If the power well sleeps during the reset, the reset
+	/*
+	 * If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 	for (retry = 0; retry < 3; retry++) {
 
-		/* We stop engines, otherwise we might get failed reset and a
+		/*
+		 * We stop engines, otherwise we might get failed reset and a
 		 * dead gpu (on elk). Also as modern gpu as kbl can suffer
 		 * from system hang if batchbuffer is progressing when
 		 * the reset is issued, regardless of READY_TO_RESET ack.
@@ -2120,7 +2137,7 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 			GEM_TRACE("engine_mask=%x\n", engine_mask);
 			ret = reset(dev_priv, engine_mask);
 		}
-		if (ret != -ETIMEDOUT)
+		if (ret != -ETIMEDOUT || engine_mask != ALL_ENGINES)
 			break;
 
 		cond_resched();
