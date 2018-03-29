@@ -221,7 +221,7 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 }
 
 static int
-nfp_bpf_change_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
+nfp_bpf_check_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int max_mtu;
@@ -413,7 +413,7 @@ const struct nfp_app_type app_bpf = {
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
 
-	.change_mtu	= nfp_bpf_change_mtu,
+	.check_mtu	= nfp_bpf_check_mtu,
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
