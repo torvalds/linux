@@ -998,12 +998,19 @@ static void gfx_v9_0_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd,
 		start + SQIND_WAVE_VGPRS_OFFSET, size, dst);
 }
 
+static void gfx_v9_0_select_me_pipe_q(struct amdgpu_device *adev,
+				  u32 me, u32 pipe, u32 q)
+{
+	soc15_grbm_select(adev, me, pipe, q, 0);
+}
+
 static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v9_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v9_0_select_se_sh,
 	.read_wave_data = &gfx_v9_0_read_wave_data,
 	.read_wave_sgprs = &gfx_v9_0_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v9_0_read_wave_vgprs,
+	.select_me_pipe_q = &gfx_v9_0_select_me_pipe_q
 };
 
 static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
@@ -2773,13 +2780,13 @@ static int gfx_v9_0_kiq_fini_register(struct amdgpu_ring *ring)
 			udelay(1);
 		}
 
-		if (adev->usec_timeout == AMDGPU_MAX_USEC_TIMEOUT) {
+		if (j == AMDGPU_MAX_USEC_TIMEOUT) {
 			DRM_DEBUG("KIQ dequeue request failed.\n");
 
+			/* Manual disable if dequeue request times out */
 			WREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE, 0);
 		}
 
-		/* Manual disable if dequeue request times out */
 		WREG32_SOC15(GC, 0, mmCP_HQD_DEQUEUE_REQUEST,
 		      0);
 	}
