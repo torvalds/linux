@@ -423,7 +423,7 @@ static int chromeos_laptop_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static const struct chromeos_laptop samsung_series_5_550 = {
+static struct chromeos_laptop samsung_series_5_550 = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_SMBUS },
@@ -432,14 +432,14 @@ static const struct chromeos_laptop samsung_series_5_550 = {
 	},
 };
 
-static const struct chromeos_laptop samsung_series_5 = {
+static struct chromeos_laptop samsung_series_5 = {
 	.i2c_peripherals = {
 		/* Light Sensor. */
 		{ .add = setup_tsl2583_als, I2C_ADAPTER_SMBUS },
 	},
 };
 
-static const struct chromeos_laptop chromebook_pixel = {
+static struct chromeos_laptop chromebook_pixel = {
 	.i2c_peripherals = {
 		/* Touch Screen. */
 		{ .add = setup_atmel_1664s_ts, I2C_ADAPTER_PANEL },
@@ -450,14 +450,14 @@ static const struct chromeos_laptop chromebook_pixel = {
 	},
 };
 
-static const struct chromeos_laptop hp_chromebook_14 = {
+static struct chromeos_laptop hp_chromebook_14 = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
 	},
 };
 
-static const struct chromeos_laptop dell_chromebook_11 = {
+static struct chromeos_laptop dell_chromebook_11 = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
@@ -466,28 +466,28 @@ static const struct chromeos_laptop dell_chromebook_11 = {
 	},
 };
 
-static const struct chromeos_laptop toshiba_cb35 = {
+static struct chromeos_laptop toshiba_cb35 = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
 	},
 };
 
-static const struct chromeos_laptop acer_c7_chromebook = {
+static struct chromeos_laptop acer_c7_chromebook = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_SMBUS },
 	},
 };
 
-static const struct chromeos_laptop acer_ac700 = {
+static struct chromeos_laptop acer_ac700 = {
 	.i2c_peripherals = {
 		/* Light Sensor. */
 		{ .add = setup_tsl2563_als, I2C_ADAPTER_SMBUS },
 	},
 };
 
-static const struct chromeos_laptop acer_c720 = {
+static struct chromeos_laptop acer_c720 = {
 	.i2c_peripherals = {
 		/* Touchscreen. */
 		{ .add = setup_atmel_1664s_ts, I2C_ADAPTER_DESIGNWARE_1 },
@@ -500,14 +500,14 @@ static const struct chromeos_laptop acer_c720 = {
 	},
 };
 
-static const struct chromeos_laptop hp_pavilion_14_chromebook = {
+static struct chromeos_laptop hp_pavilion_14_chromebook = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_SMBUS },
 	},
 };
 
-static const struct chromeos_laptop cr48 = {
+static struct chromeos_laptop cr48 = {
 	.i2c_peripherals = {
 		/* Light Sensor. */
 		{ .add = setup_tsl2563_als, I2C_ADAPTER_SMBUS },

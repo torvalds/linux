@@ -102,10 +102,13 @@ ipu_prg_lookup_by_phandle(struct device *dev, const char *name, int ipu_id)
 			mutex_unlock(&ipu_prg_list_mutex);
 			device_link_add(dev, prg->dev, DL_FLAG_AUTOREMOVE);
 			prg->id = ipu_id;
+			of_node_put(prg_node);
 			return prg;
 		}
 	}
 	mutex_unlock(&ipu_prg_list_mutex);
+
+	of_node_put(prg_node);
 
 	return NULL;
 }
@@ -247,10 +250,14 @@ void ipu_prg_channel_disable(struct ipuv3_channel *ipu_chan)
 {
 	int prg_chan = ipu_prg_ipu_to_prg_chan(ipu_chan->num);
 	struct ipu_prg *prg = ipu_chan->ipu->prg_priv;
-	struct ipu_prg_channel *chan = &prg->chan[prg_chan];
+	struct ipu_prg_channel *chan;
 	u32 val;
 
-	if (!chan->enabled || prg_chan < 0)
+	if (prg_chan < 0)
+		return;
+
+	chan = &prg->chan[prg_chan];
+	if (!chan->enabled)
 		return;
 
 	pm_runtime_get_sync(prg->dev);
@@ -277,12 +284,14 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 {
 	int prg_chan = ipu_prg_ipu_to_prg_chan(ipu_chan->num);
 	struct ipu_prg *prg = ipu_chan->ipu->prg_priv;
-	struct ipu_prg_channel *chan = &prg->chan[prg_chan];
+	struct ipu_prg_channel *chan;
 	u32 val;
 	int ret;
 
 	if (prg_chan < 0)
 		return prg_chan;
+
+	chan = &prg->chan[prg_chan];
 
 	if (chan->enabled) {
 		ipu_pre_update(prg->pres[chan->used_pre], *eba);

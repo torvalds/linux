@@ -1618,7 +1618,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_enc_ring_vm_funcs = {
 	.set_wptr = uvd_v6_0_enc_ring_set_wptr,
 	.emit_frame_size =
 		4 + /* uvd_v6_0_enc_ring_emit_pipeline_sync */
-		6 + /* uvd_v6_0_enc_ring_emit_vm_flush */
+		5 + /* uvd_v6_0_enc_ring_emit_vm_flush */
 		5 + 5 + /* uvd_v6_0_enc_ring_emit_fence x2 vm fence */
 		1, /* uvd_v6_0_enc_ring_insert_end */
 	.emit_ib_size = 5, /* uvd_v6_0_enc_ring_emit_ib */

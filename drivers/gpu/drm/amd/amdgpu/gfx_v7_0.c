@@ -4384,34 +4384,8 @@ static void gfx_v7_0_gpu_early_init(struct amdgpu_device *adev)
 	case CHIP_KAVERI:
 		adev->gfx.config.max_shader_engines = 1;
 		adev->gfx.config.max_tile_pipes = 4;
-		if ((adev->pdev->device == 0x1304) ||
-		    (adev->pdev->device == 0x1305) ||
-		    (adev->pdev->device == 0x130C) ||
-		    (adev->pdev->device == 0x130F) ||
-		    (adev->pdev->device == 0x1310) ||
-		    (adev->pdev->device == 0x1311) ||
-		    (adev->pdev->device == 0x131C)) {
-			adev->gfx.config.max_cu_per_sh = 8;
-			adev->gfx.config.max_backends_per_se = 2;
-		} else if ((adev->pdev->device == 0x1309) ||
-			   (adev->pdev->device == 0x130A) ||
-			   (adev->pdev->device == 0x130D) ||
-			   (adev->pdev->device == 0x1313) ||
-			   (adev->pdev->device == 0x131D)) {
-			adev->gfx.config.max_cu_per_sh = 6;
-			adev->gfx.config.max_backends_per_se = 2;
-		} else if ((adev->pdev->device == 0x1306) ||
-			   (adev->pdev->device == 0x1307) ||
-			   (adev->pdev->device == 0x130B) ||
-			   (adev->pdev->device == 0x130E) ||
-			   (adev->pdev->device == 0x1315) ||
-			   (adev->pdev->device == 0x131B)) {
-			adev->gfx.config.max_cu_per_sh = 4;
-			adev->gfx.config.max_backends_per_se = 1;
-		} else {
-			adev->gfx.config.max_cu_per_sh = 3;
-			adev->gfx.config.max_backends_per_se = 1;
-		}
+		adev->gfx.config.max_cu_per_sh = 8;
+		adev->gfx.config.max_backends_per_se = 2;
 		adev->gfx.config.max_sh_per_se = 1;
 		adev->gfx.config.max_texture_channel_caches = 4;
 		adev->gfx.config.max_gprs = 256;

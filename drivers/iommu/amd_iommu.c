@@ -3044,7 +3044,7 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 	size_t unmap_size;
 
 	if (domain->mode == PAGE_MODE_NONE)
-		return -EINVAL;
+		return 0;
 
 	mutex_lock(&domain->api_lock);
 	unmap_size = iommu_unmap_page(domain, iova, page_size);

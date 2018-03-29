@@ -248,7 +248,7 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 
 	/* common case: seglen is <= mtu
 	 */
-	if (skb_gso_validate_mtu(skb, mtu))
+	if (skb_gso_validate_network_len(skb, mtu))
 		return ip_finish_output2(net, sk, skb);
 
 	/* Slowpath -  GSO segment length exceeds the egress MTU.

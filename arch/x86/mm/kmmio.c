@@ -168,7 +168,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
 		return -1;
 	}
 
-	__flush_tlb_one(f->addr);
+	__flush_tlb_one_kernel(f->addr);
 	return 0;
 }
 

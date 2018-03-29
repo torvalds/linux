@@ -1536,7 +1536,7 @@ static struct iommu_group *omap_iommu_device_group(struct device *dev)
 	struct iommu_group *group = ERR_PTR(-EINVAL);
 
 	if (arch_data->iommu_dev)
-		group = arch_data->iommu_dev->group;
+		group = iommu_group_ref_get(arch_data->iommu_dev->group);
 
 	return group;
 }

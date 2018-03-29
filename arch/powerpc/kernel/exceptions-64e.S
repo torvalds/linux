@@ -943,6 +943,8 @@ kernel_dbg_exc:
 /*
  * An interrupt came in while soft-disabled; We mark paca->irq_happened
  * accordingly and if the interrupt is level sensitive, we hard disable
+ * hard disable (full_mask) corresponds to PACA_IRQ_MUST_HARD_MASK, so
+ * keep these in synch.
  */
 
 .macro masked_interrupt_book3e paca_irq full_mask

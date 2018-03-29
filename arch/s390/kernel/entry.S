@@ -14,6 +14,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/ctl_reg.h>
+#include <asm/dwarf.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
@@ -230,7 +231,7 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	.hidden \name
 	.type \name,@function
 \name:
-	.cfi_startproc
+	CFI_STARTPROC
 #ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	exrl	0,0f
 #else
@@ -239,7 +240,7 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 #endif
 	j	.
 0:	br	\reg
-	.cfi_endproc
+	CFI_ENDPROC
 	.endm
 
 	GEN_BR_THUNK __s390x_indirect_jump_r1use_r9,%r9,%r1
@@ -426,13 +427,13 @@ ENTRY(system_call)
 	UPDATE_VTIME %r8,%r9,__LC_SYNC_ENTER_TIMER
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 	stmg	%r0,%r7,__PT_R0(%r11)
-	# clear user controlled register to prevent speculative use
-	xgr	%r0,%r0
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_PSW(16,%r11),__LC_SVC_OLD_PSW
 	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
 	stg	%r14,__PT_FLAGS(%r11)
 .Lsysc_do_svc:
+	# clear user controlled register to prevent speculative use
+	xgr	%r0,%r0
 	# load address of system call table
 	lg	%r10,__THREAD_sysc_table(%r13,%r12)
 	llgh	%r8,__PT_INT_CODE+2(%r11)
@@ -1439,6 +1440,7 @@ cleanup_critical:
 	stg	%r15,__LC_SYSTEM_TIMER
 0:	# update accounting time stamp
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
+	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 	# set up saved register r11
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r9,STACK_FRAME_OVERHEAD(%r15)

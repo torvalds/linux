@@ -3168,10 +3168,13 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	disable_mclk_switching_for_vr = PP_CAP(PHM_PlatformCaps_DisableMclkSwitchForVR);
 	force_mclk_high = PP_CAP(PHM_PlatformCaps_ForceMclkHigh);
 
-	disable_mclk_switching = (info.display_count > 1) ||
-				    disable_mclk_switching_for_frame_lock ||
-				    disable_mclk_switching_for_vr ||
-				    force_mclk_high;
+	if (info.display_count == 0)
+		disable_mclk_switching = false;
+	else
+		disable_mclk_switching = (info.display_count > 1) ||
+			disable_mclk_switching_for_frame_lock ||
+			disable_mclk_switching_for_vr ||
+			force_mclk_high;
 
 	sclk = vega10_ps->performance_levels[0].gfx_clock;
 	mclk = vega10_ps->performance_levels[0].mem_clock;

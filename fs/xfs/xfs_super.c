@@ -250,6 +250,7 @@ xfs_parseargs(
 				return -EINVAL;
 			break;
 		case Opt_logdev:
+			kfree(mp->m_logname);
 			mp->m_logname = match_strdup(args);
 			if (!mp->m_logname)
 				return -ENOMEM;
@@ -258,6 +259,7 @@ xfs_parseargs(
 			xfs_warn(mp, "%s option not allowed on this system", p);
 			return -EINVAL;
 		case Opt_rtdev:
+			kfree(mp->m_rtname);
 			mp->m_rtname = match_strdup(args);
 			if (!mp->m_rtname)
 				return -ENOMEM;

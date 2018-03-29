@@ -1049,6 +1049,45 @@ static u32 emulated_msrs[] = {
 
 static unsigned num_emulated_msrs;
 
+/*
+ * List of msr numbers which are used to expose MSR-based features that
+ * can be used by a hypervisor to validate requested CPU features.
+ */
+static u32 msr_based_features[] = {
+	MSR_F10H_DECFG,
+	MSR_IA32_UCODE_REV,
+};
+
+static unsigned int num_msr_based_features;
+
+static int kvm_get_msr_feature(struct kvm_msr_entry *msr)
+{
+	switch (msr->index) {
+	case MSR_IA32_UCODE_REV:
+		rdmsrl(msr->index, msr->data);
+		break;
+	default:
+		if (kvm_x86_ops->get_msr_feature(msr))
+			return 1;
+	}
+	return 0;
+}
+
+static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
+{
+	struct kvm_msr_entry msr;
+	int r;
+
+	msr.index = index;
+	r = kvm_get_msr_feature(&msr);
+	if (r)
+		return r;
+
+	*data = msr.data;
+
+	return 0;
+}
+
 bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	if (efer & efer_reserved_bits)
@@ -2222,7 +2261,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 	switch (msr) {
 	case MSR_AMD64_NB_CFG:
-	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_UCODE_WRITE:
 	case MSR_VM_HSAVE_PA:
 	case MSR_AMD64_PATCH_LOADER:
@@ -2230,6 +2268,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_AMD64_DC_CFG:
 		break;
 
+	case MSR_IA32_UCODE_REV:
+		if (msr_info->host_initiated)
+			vcpu->arch.microcode_version = data;
+		break;
 	case MSR_EFER:
 		return set_efer(vcpu, data);
 	case MSR_K7_HWCR:
@@ -2525,7 +2567,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = 0;
 		break;
 	case MSR_IA32_UCODE_REV:
-		msr_info->data = 0x100000000ULL;
+		msr_info->data = vcpu->arch.microcode_version;
 		break;
 	case MSR_MTRRcap:
 	case 0x200 ... 0x2ff:
@@ -2680,13 +2722,11 @@ static int __msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs,
 		    int (*do_msr)(struct kvm_vcpu *vcpu,
 				  unsigned index, u64 *data))
 {
-	int i, idx;
+	int i;
 
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	for (i = 0; i < msrs->nmsrs; ++i)
 		if (do_msr(vcpu, entries[i].index, &entries[i].data))
 			break;
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 	return i;
 }
@@ -2785,6 +2825,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SET_BOOT_CPU_ID:
  	case KVM_CAP_SPLIT_IRQCHIP:
 	case KVM_CAP_IMMEDIATE_EXIT:
+	case KVM_CAP_GET_MSR_FEATURES:
 		r = 1;
 		break;
 	case KVM_CAP_ADJUST_CLOCK:
@@ -2898,6 +2939,31 @@ long kvm_arch_dev_ioctl(struct file *filp,
 				 sizeof(kvm_mce_cap_supported)))
 			goto out;
 		r = 0;
+		break;
+	case KVM_GET_MSR_FEATURE_INDEX_LIST: {
+		struct kvm_msr_list __user *user_msr_list = argp;
+		struct kvm_msr_list msr_list;
+		unsigned int n;
+
+		r = -EFAULT;
+		if (copy_from_user(&msr_list, user_msr_list, sizeof(msr_list)))
+			goto out;
+		n = msr_list.nmsrs;
+		msr_list.nmsrs = num_msr_based_features;
+		if (copy_to_user(user_msr_list, &msr_list, sizeof(msr_list)))
+			goto out;
+		r = -E2BIG;
+		if (n < msr_list.nmsrs)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(user_msr_list->indices, &msr_based_features,
+				 num_msr_based_features * sizeof(u32)))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_GET_MSRS:
+		r = msr_io(NULL, argp, do_get_msr_feature, 1);
 		break;
 	}
 	default:
@@ -3636,12 +3702,18 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
-	case KVM_GET_MSRS:
+	case KVM_GET_MSRS: {
+		int idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = msr_io(vcpu, argp, do_get_msr, 1);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
-	case KVM_SET_MSRS:
+	}
+	case KVM_SET_MSRS: {
+		int idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = msr_io(vcpu, argp, do_set_msr, 0);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
+	}
 	case KVM_TPR_ACCESS_REPORTING: {
 		struct kvm_tpr_access_ctl tac;
 
@@ -4464,6 +4536,19 @@ static void kvm_init_msr_list(void)
 		j++;
 	}
 	num_emulated_msrs = j;
+
+	for (i = j = 0; i < ARRAY_SIZE(msr_based_features); i++) {
+		struct kvm_msr_entry msr;
+
+		msr.index = msr_based_features[i];
+		if (kvm_get_msr_feature(&msr))
+			continue;
+
+		if (j < i)
+			msr_based_features[j] = msr_based_features[i];
+		j++;
+	}
+	num_msr_based_features = j;
 }
 
 static int vcpu_mmio_write(struct kvm_vcpu *vcpu, gpa_t addr, int len,
@@ -8017,6 +8102,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
+	kvm_lapic_reset(vcpu, init_event);
+
 	vcpu->arch.hflags = 0;
 
 	vcpu->arch.smi_pending = 0;
@@ -8460,10 +8547,8 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
 			return r;
 	}
 
-	if (!size) {
-		r = vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
-		WARN_ON(r < 0);
-	}
+	if (!size)
+		vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
 
 	return 0;
 }

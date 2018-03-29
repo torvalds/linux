@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for Hyper-V tools
 
-CC = $(CROSS_COMPILE)gcc
 WARNINGS = -Wall -Wextra
 CFLAGS = $(WARNINGS) -g $(shell getconf LFS_CFLAGS)
 

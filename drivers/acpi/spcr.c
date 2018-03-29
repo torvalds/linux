@@ -115,6 +115,7 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 			table->serial_port.access_width))) {
 		default:
 			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
+			/* fall through */
 		case 8:
 			iotype = "mmio";
 			break;

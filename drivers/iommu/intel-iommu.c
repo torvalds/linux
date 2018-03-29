@@ -5072,7 +5072,6 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 {
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct page *freelist = NULL;
-	struct intel_iommu *iommu;
 	unsigned long start_pfn, last_pfn;
 	unsigned int npages;
 	int iommu_id, level = 0;
@@ -5091,12 +5090,9 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 
 	npages = last_pfn - start_pfn + 1;
 
-	for_each_domain_iommu(iommu_id, dmar_domain) {
-		iommu = g_iommus[iommu_id];
-
+	for_each_domain_iommu(iommu_id, dmar_domain)
 		iommu_flush_iotlb_psi(g_iommus[iommu_id], dmar_domain,
 				      start_pfn, npages, !freelist, 0);
-	}
 
 	dma_free_pagelist(freelist);
 

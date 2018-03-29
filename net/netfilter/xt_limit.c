@@ -106,8 +106,8 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 	/* Check for overflow. */
 	if (r->burst == 0
 	    || user2credits(r->avg * r->burst) < user2credits(r->avg)) {
-		pr_info("Overflow, try lower: %u/%u\n",
-			r->avg, r->burst);
+		pr_info_ratelimited("Overflow, try lower: %u/%u\n",
+				    r->avg, r->burst);
 		return -ERANGE;
 	}
 

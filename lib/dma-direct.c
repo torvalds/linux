@@ -84,6 +84,10 @@ again:
 	return page_address(page);
 }
 
+/*
+ * NOTE: this function must never look at the dma_addr argument, because we want
+ * to be able to use it as a helper for iommu implementations as well.
+ */
 void dma_direct_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
@@ -152,5 +156,6 @@ const struct dma_map_ops dma_direct_ops = {
 	.map_sg			= dma_direct_map_sg,
 	.dma_supported		= dma_direct_supported,
 	.mapping_error		= dma_direct_mapping_error,
+	.is_phys		= 1,
 };
 EXPORT_SYMBOL(dma_direct_ops);

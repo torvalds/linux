@@ -2787,6 +2787,11 @@ static int dce_v6_0_hw_fini(void *handle)
 
 static int dce_v6_0_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->mode_info.bl_level =
+		amdgpu_atombios_encoder_get_backlight_level_from_reg(adev);
+
 	return dce_v6_0_hw_fini(handle);
 }
 
@@ -2794,6 +2799,9 @@ static int dce_v6_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	amdgpu_atombios_encoder_set_backlight_level_to_reg(adev,
+							   adev->mode_info.bl_level);
 
 	ret = dce_v6_0_hw_init(handle);
 
@@ -3093,7 +3101,7 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 		tmp |= DC_HPD1_INT_CONTROL__DC_HPD1_INT_ACK_MASK;
 		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[hpd], tmp);
 		schedule_work(&adev->hotplug_work);
-		DRM_INFO("IH: HPD%d\n", hpd + 1);
+		DRM_DEBUG("IH: HPD%d\n", hpd + 1);
 	}
 
 	return 0;

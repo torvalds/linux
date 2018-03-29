@@ -530,7 +530,8 @@ static int report__browse_hists(struct report *rep)
 	case 1:
 		ret = perf_evlist__tui_browse_hists(evlist, help, NULL,
 						    rep->min_percent,
-						    &session->header.env);
+						    &session->header.env,
+						    true);
 		/*
 		 * Usually "ret" is the last pressed key, and we only
 		 * care if the key notifies us to switch data file.

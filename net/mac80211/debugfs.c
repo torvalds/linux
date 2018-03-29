@@ -212,6 +212,7 @@ static const char *hw_flag_names[] = {
 	FLAG(REPORTS_LOW_ACK),
 	FLAG(SUPPORTS_TX_FRAG),
 	FLAG(SUPPORTS_TDLS_BUFFER_STA),
+	FLAG(DOESNT_SUPPORT_QOS_NDP),
 #undef FLAG
 };
 

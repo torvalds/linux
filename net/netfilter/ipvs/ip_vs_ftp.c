@@ -260,7 +260,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		buf_len = strlen(buf);
 
 		ct = nf_ct_get(skb, &ctinfo);
-		if (ct && (ct->status & IPS_NAT_MASK)) {
+		if (ct) {
 			bool mangled;
 
 			/* If mangling fails this function will return 0

@@ -172,6 +172,8 @@ static struct phy_driver realtek_drvs[] = {
 		.flags		= PHY_HAS_INTERRUPT,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211b_config_intr,
+		.read_mmd	= &genphy_read_mmd_unsupported,
+		.write_mmd	= &genphy_write_mmd_unsupported,
 	}, {
 		.phy_id		= 0x001cc914,
 		.name		= "RTL8211DN Gigabit Ethernet",

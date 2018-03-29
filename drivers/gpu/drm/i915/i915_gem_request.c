@@ -476,8 +476,6 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
 
-	trace_i915_gem_request_execute(request);
-
 	/* Transfer from per-context onto the global per-engine timeline */
 	timeline = engine->timeline;
 	GEM_BUG_ON(timeline == request->timeline);
@@ -500,6 +498,8 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	spin_lock(&request->timeline->lock);
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
+
+	trace_i915_gem_request_execute(request);
 
 	wake_up_all(&request->execute);
 }

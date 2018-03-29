@@ -375,6 +375,7 @@ static void __init bootmem_init(void)
 	unsigned long reserved_end;
 	unsigned long mapstart = ~0UL;
 	unsigned long bootmap_size;
+	phys_addr_t ramstart = (phys_addr_t)ULLONG_MAX;
 	bool bootmap_valid = false;
 	int i;
 
@@ -395,7 +396,8 @@ static void __init bootmem_init(void)
 	max_low_pfn = 0;
 
 	/*
-	 * Find the highest page frame number we have available.
+	 * Find the highest page frame number we have available
+	 * and the lowest used RAM address
 	 */
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
@@ -406,6 +408,8 @@ static void __init bootmem_init(void)
 		start = PFN_UP(boot_mem_map.map[i].addr);
 		end = PFN_DOWN(boot_mem_map.map[i].addr
 				+ boot_mem_map.map[i].size);
+
+		ramstart = min(ramstart, boot_mem_map.map[i].addr);
 
 #ifndef CONFIG_HIGHMEM
 		/*
@@ -435,6 +439,13 @@ static void __init bootmem_init(void)
 			continue;
 		mapstart = max(reserved_end, start);
 	}
+
+	/*
+	 * Reserve any memory between the start of RAM and PHYS_OFFSET
+	 */
+	if (ramstart > PHYS_OFFSET)
+		add_memory_region(PHYS_OFFSET, ramstart - PHYS_OFFSET,
+				  BOOT_MEM_RESERVED);
 
 	if (min_low_pfn >= max_low_pfn)
 		panic("Incorrect memory mapping !!!");
@@ -664,9 +675,6 @@ static int __init early_parse_mem(char *p)
 
 	add_memory_region(start, size, BOOT_MEM_RAM);
 
-	if (start && start > PHYS_OFFSET)
-		add_memory_region(PHYS_OFFSET, start - PHYS_OFFSET,
-				BOOT_MEM_RESERVED);
 	return 0;
 }
 early_param("mem", early_parse_mem);

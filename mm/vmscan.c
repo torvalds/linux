@@ -769,64 +769,7 @@ int remove_mapping(struct address_space *mapping, struct page *page)
  */
 void putback_lru_page(struct page *page)
 {
-	bool is_unevictable;
-	int was_unevictable = PageUnevictable(page);
-
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-
-redo:
-	ClearPageUnevictable(page);
-
-	if (page_evictable(page)) {
-		/*
-		 * For evictable pages, we can use the cache.
-		 * In event of a race, worst case is we end up with an
-		 * unevictable page on [in]active list.
-		 * We know how to handle that.
-		 */
-		is_unevictable = false;
-		lru_cache_add(page);
-	} else {
-		/*
-		 * Put unevictable pages directly on zone's unevictable
-		 * list.
-		 */
-		is_unevictable = true;
-		add_page_to_unevictable_list(page);
-		/*
-		 * When racing with an mlock or AS_UNEVICTABLE clearing
-		 * (page is unlocked) make sure that if the other thread
-		 * does not observe our setting of PG_lru and fails
-		 * isolation/check_move_unevictable_pages,
-		 * we see PG_mlocked/AS_UNEVICTABLE cleared below and move
-		 * the page back to the evictable list.
-		 *
-		 * The other side is TestClearPageMlocked() or shmem_lock().
-		 */
-		smp_mb();
-	}
-
-	/*
-	 * page's status can change while we move it among lru. If an evictable
-	 * page is on unevictable list, it never be freed. To avoid that,
-	 * check after we added it to the list, again.
-	 */
-	if (is_unevictable && page_evictable(page)) {
-		if (!isolate_lru_page(page)) {
-			put_page(page);
-			goto redo;
-		}
-		/* This means someone else dropped this page from LRU
-		 * So, it will be freed or putback to LRU again. There is
-		 * nothing to do here.
-		 */
-	}
-
-	if (was_unevictable && !is_unevictable)
-		count_vm_event(UNEVICTABLE_PGRESCUED);
-	else if (!was_unevictable && is_unevictable)
-		count_vm_event(UNEVICTABLE_PGCULLED);
-
+	lru_cache_add(page);
 	put_page(page);		/* drop ref from isolate */
 }
 
@@ -1837,6 +1780,20 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		set_bit(PGDAT_WRITEBACK, &pgdat->flags);
 
 	/*
+	 * If dirty pages are scanned that are not queued for IO, it
+	 * implies that flushers are not doing their job. This can
+	 * happen when memory pressure pushes dirty pages to the end of
+	 * the LRU before the dirty limits are breached and the dirty
+	 * data has expired. It can also happen when the proportion of
+	 * dirty pages grows not through writes but through memory
+	 * pressure reclaiming all the clean cache. And in some cases,
+	 * the flushers simply cannot keep up with the allocation
+	 * rate. Nudge the flusher threads in case they are asleep.
+	 */
+	if (stat.nr_unqueued_dirty == nr_taken)
+		wakeup_flusher_threads(WB_REASON_VMSCAN);
+
+	/*
 	 * Legacy memcg will stall in page writeback so avoid forcibly
 	 * stalling here.
 	 */
@@ -1848,22 +1805,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		if (stat.nr_dirty && stat.nr_dirty == stat.nr_congested)
 			set_bit(PGDAT_CONGESTED, &pgdat->flags);
 
-		/*
-		 * If dirty pages are scanned that are not queued for IO, it
-		 * implies that flushers are not doing their job. This can
-		 * happen when memory pressure pushes dirty pages to the end of
-		 * the LRU before the dirty limits are breached and the dirty
-		 * data has expired. It can also happen when the proportion of
-		 * dirty pages grows not through writes but through memory
-		 * pressure reclaiming all the clean cache. And in some cases,
-		 * the flushers simply cannot keep up with the allocation
-		 * rate. Nudge the flusher threads in case they are asleep, but
-		 * also allow kswapd to start writing pages during reclaim.
-		 */
-		if (stat.nr_unqueued_dirty == nr_taken) {
-			wakeup_flusher_threads(WB_REASON_VMSCAN);
+		/* Allow kswapd to start writing pages during reclaim. */
+		if (stat.nr_unqueued_dirty == nr_taken)
 			set_bit(PGDAT_DIRTY, &pgdat->flags);
-		}
 
 		/*
 		 * If kswapd scans pages marked marked for immediate

@@ -31,6 +31,7 @@
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
 #include "atom.h"
+#include "amd_pcie.h"
 #include "amdgpu_powerplay.h"
 #include "sid.h"
 #include "si_ih.h"
@@ -1461,8 +1462,8 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 {
 	struct pci_dev *root = adev->pdev->bus->self;
 	int bridge_pos, gpu_pos;
-	u32 speed_cntl, mask, current_data_rate;
-	int ret, i;
+	u32 speed_cntl, current_data_rate;
+	int i;
 	u16 tmp16;
 
 	if (pci_is_root_bus(adev->pdev->bus))
@@ -1474,23 +1475,20 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret != 0)
-		return;
-
-	if (!(mask & (DRM_PCIE_SPEED_50 | DRM_PCIE_SPEED_80)))
+	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
+					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
 		return;
 
 	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	current_data_rate = (speed_cntl & LC_CURRENT_DATA_RATE_MASK) >>
 		LC_CURRENT_DATA_RATE_SHIFT;
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate == 2) {
 			DRM_INFO("PCIE gen 3 link speeds already enabled\n");
 			return;
 		}
 		DRM_INFO("enabling PCIE gen 3 link speeds, disable with amdgpu.pcie_gen2=0\n");
-	} else if (mask & DRM_PCIE_SPEED_50) {
+	} else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) {
 		if (current_data_rate == 1) {
 			DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 			return;
@@ -1506,7 +1504,7 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (!gpu_pos)
 		return;
 
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
 			u16 bridge_cfg2, gpu_cfg2;
@@ -1589,9 +1587,9 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 
 	pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
 	tmp16 &= ~0xf;
-	if (mask & DRM_PCIE_SPEED_80)
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 		tmp16 |= 3;
-	else if (mask & DRM_PCIE_SPEED_50)
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
 		tmp16 |= 2;
 	else
 		tmp16 |= 1;

@@ -418,20 +418,12 @@ static int mtk_iommu_create_mapping(struct device *dev,
 		m4udev->archdata.iommu = mtk_mapping;
 	}
 
-	ret = arm_iommu_attach_device(dev, mtk_mapping);
-	if (ret)
-		goto err_release_mapping;
-
 	return 0;
-
-err_release_mapping:
-	arm_iommu_release_mapping(mtk_mapping);
-	m4udev->archdata.iommu = NULL;
-	return ret;
 }
 
 static int mtk_iommu_add_device(struct device *dev)
 {
+	struct dma_iommu_mapping *mtk_mapping;
 	struct of_phandle_args iommu_spec;
 	struct of_phandle_iterator it;
 	struct mtk_iommu_data *data;
@@ -452,15 +444,30 @@ static int mtk_iommu_add_device(struct device *dev)
 	if (!dev->iommu_fwspec || dev->iommu_fwspec->ops != &mtk_iommu_ops)
 		return -ENODEV; /* Not a iommu client device */
 
-	data = dev->iommu_fwspec->iommu_priv;
-	iommu_device_link(&data->iommu, dev);
-
-	group = iommu_group_get_for_dev(dev);
+	/*
+	 * This is a short-term bodge because the ARM DMA code doesn't
+	 * understand multi-device groups, but we have to call into it
+	 * successfully (and not just rely on a normal IOMMU API attach
+	 * here) in order to set the correct DMA API ops on @dev.
+	 */
+	group = iommu_group_alloc();
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
+	err = iommu_group_add_device(group, dev);
 	iommu_group_put(group);
-	return 0;
+	if (err)
+		return err;
+
+	data = dev->iommu_fwspec->iommu_priv;
+	mtk_mapping = data->dev->archdata.iommu;
+	err = arm_iommu_attach_device(dev, mtk_mapping);
+	if (err) {
+		iommu_group_remove_device(dev);
+		return err;
+	}
+
+	return iommu_device_link(&data->iommu, dev);;
 }
 
 static void mtk_iommu_remove_device(struct device *dev)
@@ -475,24 +482,6 @@ static void mtk_iommu_remove_device(struct device *dev)
 
 	iommu_group_remove_device(dev);
 	iommu_fwspec_free(dev);
-}
-
-static struct iommu_group *mtk_iommu_device_group(struct device *dev)
-{
-	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
-
-	if (!data)
-		return ERR_PTR(-ENODEV);
-
-	/* All the client devices are in the same m4u iommu-group */
-	if (!data->m4u_group) {
-		data->m4u_group = iommu_group_alloc();
-		if (IS_ERR(data->m4u_group))
-			dev_err(dev, "Failed to allocate M4U IOMMU group\n");
-	} else {
-		iommu_group_ref_get(data->m4u_group);
-	}
-	return data->m4u_group;
 }
 
 static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
@@ -547,7 +536,6 @@ static struct iommu_ops mtk_iommu_ops = {
 	.iova_to_phys	= mtk_iommu_iova_to_phys,
 	.add_device	= mtk_iommu_add_device,
 	.remove_device	= mtk_iommu_remove_device,
-	.device_group	= mtk_iommu_device_group,
 	.pgsize_bitmap	= ~0UL << MT2701_IOMMU_PAGE_SHIFT,
 };
 

@@ -26,6 +26,18 @@
 #define BARRIER_BUCKETS_NR_BITS		(PAGE_SHIFT - ilog2(sizeof(atomic_t)))
 #define BARRIER_BUCKETS_NR		(1<<BARRIER_BUCKETS_NR_BITS)
 
+/* Note: raid1_info.rdev can be set to NULL asynchronously by raid1_remove_disk.
+ * There are three safe ways to access raid1_info.rdev.
+ * 1/ when holding mddev->reconfig_mutex
+ * 2/ when resync/recovery is known to be happening - i.e. in code that is
+ *    called as part of performing resync/recovery.
+ * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
+ *    and if it is non-NULL, increment rdev->nr_pending before dropping the
+ *    RCU lock.
+ * When .rdev is set to NULL, the nr_pending count checked again and if it has
+ * been incremented, the pointer is put back in .rdev.
+ */
+
 struct raid1_info {
 	struct md_rdev	*rdev;
 	sector_t	head_position;

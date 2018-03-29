@@ -62,6 +62,7 @@ struct dc_caps {
 	bool dcc_const_color;
 	bool dynamic_audio;
 	bool is_apu;
+	bool dual_link_dvi;
 };
 
 struct dc_dcc_surface_param {
@@ -672,7 +673,7 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
 		uint32_t ext_id);
-void dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable);
+bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable);
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);

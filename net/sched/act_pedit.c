@@ -176,7 +176,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		p = to_pedit(*a);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {
-			tcf_idr_cleanup(*a, est);
+			tcf_idr_release(*a, bind);
 			kfree(keys_ex);
 			return -ENOMEM;
 		}

@@ -48,8 +48,8 @@ bool vlan_do_receive(struct sk_buff **skbp)
 		 * original position later
 		 */
 		skb_push(skb, offset);
-		skb = *skbp = vlan_insert_tag(skb, skb->vlan_proto,
-					      skb->vlan_tci);
+		skb = *skbp = vlan_insert_inner_tag(skb, skb->vlan_proto,
+						    skb->vlan_tci, skb->mac_len);
 		if (!skb)
 			return false;
 		skb_pull(skb, offset + VLAN_HLEN);
