@@ -2584,8 +2584,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		addr[4] = idx;
 		memcpy(data->addresses[0].addr, addr, ETH_ALEN);
 		/* Why need here second address ? */
-		data->addresses[1].addr[0] |= 0x40;
 		memcpy(data->addresses[1].addr, addr, ETH_ALEN);
+		data->addresses[1].addr[0] |= 0x40;
 		hw->wiphy->n_addresses = 2;
 		hw->wiphy->addresses = data->addresses;
 		/* possible address clash is checked at hash table insertion */
@@ -3529,8 +3529,12 @@ static void __net_exit hwsim_exit_net(struct net *net)
 		list_del(&data->list);
 		rhashtable_remove_fast(&hwsim_radios_rht, &data->rht,
 				       hwsim_rht_params);
-		INIT_WORK(&data->destroy_work, destroy_radio);
-		queue_work(hwsim_wq, &data->destroy_work);
+		hwsim_radios_generation++;
+		spin_unlock_bh(&hwsim_radio_lock);
+		mac80211_hwsim_del_radio(data,
+					 wiphy_name(data->hw->wiphy),
+					 NULL);
+		spin_lock_bh(&hwsim_radio_lock);
 	}
 	spin_unlock_bh(&hwsim_radio_lock);
 
