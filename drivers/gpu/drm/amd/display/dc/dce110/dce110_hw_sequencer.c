@@ -1016,8 +1016,10 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
-	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_backlight_control(link, false);
+		dc_link_set_abm_disable(link);
+	}
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
