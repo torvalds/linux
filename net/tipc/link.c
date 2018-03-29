@@ -462,7 +462,8 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 			sprintf(peer_str, "%x", peer);
 	}
 	/* Peer i/f name will be completed by reset/activate message */
-	sprintf(l->name, "%s:%s-%s:unknown", self_str, if_name, peer_str);
+	snprintf(l->name, sizeof(l->name), "%s:%s-%s:unknown",
+		 self_str, if_name, peer_str);
 
 	strcpy(l->if_name, if_name);
 	l->addr = peer;
