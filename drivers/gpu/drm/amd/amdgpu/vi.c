@@ -876,6 +876,27 @@ static void vi_invalidate_hdp(struct amdgpu_device *adev,
 	}
 }
 
+static bool vi_need_full_reset(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		/* CZ has hang issues with full reset at the moment */
+		return false;
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+		/* XXX: soft reset should work on fiji and tonga */
+		return true;
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_TOPAZ:
+	default:
+		/* change this when we support soft reset */
+		return true;
+	}
+}
+
 static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
@@ -889,6 +910,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_config_memsize = &vi_get_config_memsize,
 	.flush_hdp = &vi_flush_hdp,
 	.invalidate_hdp = &vi_invalidate_hdp,
+	.need_full_reset = &vi_need_full_reset,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \
