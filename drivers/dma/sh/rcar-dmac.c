@@ -1686,8 +1686,8 @@ static const struct dev_pm_ops rcar_dmac_pm = {
 	 *   - Wait for the current transfer to complete and stop the device,
 	 *   - Resume transfers, if any.
 	 */
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				      pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(rcar_dmac_runtime_suspend, rcar_dmac_runtime_resume,
 			   NULL)
 };
