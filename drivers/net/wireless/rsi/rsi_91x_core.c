@@ -411,6 +411,18 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	if ((ieee80211_is_mgmt(wh->frame_control)) ||
 	    (ieee80211_is_ctl(wh->frame_control)) ||
 	    (ieee80211_is_qos_nullfunc(wh->frame_control))) {
+		if (ieee80211_is_assoc_req(wh->frame_control) ||
+		    ieee80211_is_reassoc_req(wh->frame_control)) {
+			struct ieee80211_bss_conf *bss = &vif->bss_conf;
+
+			common->eapol4_confirm = false;
+			rsi_hal_send_sta_notify_frame(common,
+						      RSI_IFTYPE_STATION,
+						      STA_CONNECTED, bss->bssid,
+						      bss->qos, bss->aid, 0,
+						      vif);
+		}
+
 		q_num = MGMT_SOFT_Q;
 		skb->priority = q_num;
 
@@ -449,6 +461,10 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 				ieee80211_start_tx_ba_session(rsta->sta,
 							      tid, 0);
 			}
+		}
+		if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
+			q_num = MGMT_SOFT_Q;
+			skb->priority = q_num;
 		}
 		if (rsi_prepare_data_desc(common, skb)) {
 			rsi_dbg(ERR_ZONE, "Failed to prepare data desc\n");

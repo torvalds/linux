@@ -287,6 +287,7 @@ struct rsi_common {
 	struct timer_list roc_timer;
 	struct ieee80211_vif *roc_vif;
 
+	bool eapol4_confirm;
 	void *bt_adapter;
 };
 

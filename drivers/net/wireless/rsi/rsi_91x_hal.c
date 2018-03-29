@@ -232,6 +232,18 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->misc_flags |= RSI_FETCH_RETRY_CNT_FRM_HST;
 #define EAPOL_RETRY_CNT 15
 		xtend_desc->retry_cnt = EAPOL_RETRY_CNT;
+
+		if (common->eapol4_confirm)
+			skb->priority = VO_Q;
+		else
+			rsi_set_len_qno(&data_desc->len_qno,
+					(skb->len - FRAME_DESC_SZ),
+					RSI_WIFI_MGMT_Q);
+		if ((skb->len - header_size) == EAPOL4_PACKET_LEN) {
+			data_desc->misc_flags |=
+				RSI_DESC_REQUIRE_CFM_TO_HOST;
+			xtend_desc->confirm_frame_type = EAPOL4_CONFIRM;
+		}
 	}
 
 	data_desc->mac_flags = cpu_to_le16(seq_num & 0xfff);
@@ -271,8 +283,11 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
+	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss;
+	struct ieee80211_hdr *wh;
 	int status = -EINVAL;
+	u8 header_size;
 
 	if (!skb)
 		return 0;
@@ -284,6 +299,9 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 		goto err;
 	vif = info->control.vif;
 	bss = &vif->bss_conf;
+	tx_params = (struct skb_info *)info->driver_data;
+	header_size = tx_params->internal_hdr_size;
+	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	if (((vif->type == NL80211_IFTYPE_STATION) ||
 	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
