@@ -434,9 +434,6 @@ struct omap_dss_device {
 };
 
 struct omap_dss_driver {
-	int (*probe)(struct omap_dss_device *);
-	void (*remove)(struct omap_dss_device *);
-
 	int (*connect)(struct omap_dss_device *src,
 		       struct omap_dss_device *dst);
 	void (*disconnect)(struct omap_dss_device *src,
@@ -444,7 +441,6 @@ struct omap_dss_driver {
 
 	int (*enable)(struct omap_dss_device *display);
 	void (*disable)(struct omap_dss_device *display);
-	int (*run_test)(struct omap_dss_device *display, int test);
 
 	int (*update)(struct omap_dss_device *dssdev,
 			       u16 x, u16 y, u16 w, u16 h);
@@ -452,9 +448,6 @@ struct omap_dss_driver {
 
 	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
 	int (*get_te)(struct omap_dss_device *dssdev);
-
-	u8 (*get_rotate)(struct omap_dss_device *dssdev);
-	int (*set_rotate)(struct omap_dss_device *dssdev, u8 rotate);
 
 	bool (*get_mirror)(struct omap_dss_device *dssdev);
 	int (*set_mirror)(struct omap_dss_device *dssdev, bool enable);
