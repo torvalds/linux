@@ -2314,7 +2314,6 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
 	struct dwc3_request	*req, *n;
-	struct dwc3_trb		*trb;
 	int			ret = 0;
 
 	list_for_each_entry_safe(req, n, &dep->started_list, list) {
@@ -2329,9 +2328,8 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 					status);
 
 		if (req->unaligned || req->zero) {
-			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = dwc3_gadget_ep_reclaim_completed_trb(dep, req,
-					trb, event, status, false);
+			ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
+					status);
 			req->unaligned = false;
 			req->zero = false;
 		}
