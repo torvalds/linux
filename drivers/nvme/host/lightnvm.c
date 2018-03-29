@@ -812,6 +812,14 @@ int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg)
 	}
 }
 
+void nvme_nvm_update_nvm_info(struct nvme_ns *ns)
+{
+	struct nvm_dev *ndev = ns->ndev;
+
+	ndev->identity.csecs = ndev->geo.sec_size = 1 << ns->lba_shift;
+	ndev->identity.sos = ndev->geo.oob_size = ns->ms;
+}
+
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 {
 	struct request_queue *q = ns->queue;

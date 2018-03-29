@@ -864,8 +864,6 @@ static int nvm_core_init(struct nvm_dev *dev)
 	geo->ws_seq = id->ws_seq;
 	geo->ws_per_chk = id->ws_per_chk;
 	geo->nr_chks = id->num_chk;
-	geo->sec_size = id->csecs;
-	geo->oob_size = id->sos;
 	geo->mccap = id->mccap;
 
 	geo->sec_per_chk = id->clba;
@@ -893,7 +891,6 @@ static int nvm_core_init(struct nvm_dev *dev)
 	if (ret)
 		goto err_fmtype;
 
-	blk_queue_logical_block_size(dev->q, geo->sec_size);
 	return 0;
 err_fmtype:
 	kfree(dev->lun_map);
