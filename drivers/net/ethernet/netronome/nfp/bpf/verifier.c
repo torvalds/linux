@@ -97,13 +97,46 @@ nfp_record_adjust_head(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 		if (nfp_prog->adjust_head_location != meta->n)
 			goto exit_set_location;
 
-		if (meta->arg2.var_off.value != imm)
+		if (meta->arg2.reg.var_off.value != imm)
 			goto exit_set_location;
 	}
 
 	location = meta->n;
 exit_set_location:
 	nfp_prog->adjust_head_location = location;
+}
+
+static int
+nfp_bpf_stack_arg_ok(const char *fname, struct bpf_verifier_env *env,
+		     const struct bpf_reg_state *reg,
+		     struct nfp_bpf_reg_state *old_arg)
+{
+	s64 off, old_off;
+
+	if (reg->type != PTR_TO_STACK) {
+		pr_vlog(env, "%s: unsupported ptr type %d\n",
+			fname, reg->type);
+		return false;
+	}
+	if (!tnum_is_const(reg->var_off)) {
+		pr_vlog(env, "%s: variable pointer\n", fname);
+		return false;
+	}
+
+	off = reg->var_off.value + reg->off;
+	if (-off % 4) {
+		pr_vlog(env, "%s: unaligned stack pointer %lld\n", fname, -off);
+		return false;
+	}
+
+	/* Rest of the checks is only if we re-parse the same insn */
+	if (!old_arg)
+		return true;
+
+	old_off = old_arg->reg.var_off.value + old_arg->reg.off;
+	old_arg->var_off |= off != old_off;
+
+	return true;
 }
 
 static int
@@ -114,7 +147,6 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
 	struct nfp_app_bpf *bpf = nfp_prog->bpf;
 	u32 func_id = meta->insn.imm;
-	s64 off, old_off;
 
 	switch (func_id) {
 	case BPF_FUNC_xdp_adjust_head:
@@ -135,31 +167,14 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 			pr_vlog(env, "map_lookup: not supported by FW\n");
 			return -EOPNOTSUPP;
 		}
-		if (reg2->type != PTR_TO_STACK) {
-			pr_vlog(env,
-				"map_lookup: unsupported key ptr type %d\n",
-				reg2->type);
-			return -EOPNOTSUPP;
-		}
-		if (!tnum_is_const(reg2->var_off)) {
-			pr_vlog(env, "map_lookup: variable key pointer\n");
-			return -EOPNOTSUPP;
-		}
 
-		off = reg2->var_off.value + reg2->off;
-		if (-off % 4) {
-			pr_vlog(env,
-				"map_lookup: unaligned stack pointer %lld\n",
-				-off);
+		if (!nfp_bpf_stack_arg_ok("map_lookup", env, reg2,
+					  meta->func_id ? &meta->arg2 : NULL))
 			return -EOPNOTSUPP;
-		}
 
 		/* Rest of the checks is only if we re-parse the same insn */
 		if (!meta->func_id)
 			break;
-
-		old_off = meta->arg2.var_off.value + meta->arg2.off;
-		meta->arg2_var_off |= off != old_off;
 
 		if (meta->arg1.map_ptr != reg1->map_ptr) {
 			pr_vlog(env, "map_lookup: called for different map\n");
@@ -173,7 +188,7 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 
 	meta->func_id = func_id;
 	meta->arg1 = *reg1;
-	meta->arg2 = *reg2;
+	meta->arg2.reg = *reg2;
 
 	return 0;
 }

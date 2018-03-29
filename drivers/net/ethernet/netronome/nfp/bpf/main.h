@@ -190,6 +190,16 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 #define nfp_meta_next(meta)	list_next_entry(meta, l)
 #define nfp_meta_prev(meta)	list_prev_entry(meta, l)
 
+/**
+ * struct nfp_bpf_reg_state - register state for calls
+ * @reg: BPF register state from latest path
+ * @var_off: for stack arg - changes stack offset on different paths
+ */
+struct nfp_bpf_reg_state {
+	struct bpf_reg_state reg;
+	bool var_off;
+};
+
 #define FLAG_INSN_IS_JUMP_DST	BIT(0)
 
 /**
@@ -207,7 +217,6 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
- * @arg2_var_off: arg2 changes stack offset on different paths
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -233,8 +242,7 @@ struct nfp_insn_meta {
 		struct {
 			u32 func_id;
 			struct bpf_reg_state arg1;
-			struct bpf_reg_state arg2;
-			bool arg2_var_off;
+			struct nfp_bpf_reg_state arg2;
 		};
 	};
 	unsigned int off;

@@ -1366,8 +1366,8 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	/* We only have to reload LM0 if the key is not at start of stack */
 	lm_off = nfp_prog->stack_depth;
-	lm_off += meta->arg2.var_off.value + meta->arg2.off;
-	load_lm_ptr = meta->arg2_var_off || lm_off;
+	lm_off += meta->arg2.reg.var_off.value + meta->arg2.reg.off;
+	load_lm_ptr = meta->arg2.var_off || lm_off;
 
 	/* Set LM0 to start of key */
 	if (load_lm_ptr)
