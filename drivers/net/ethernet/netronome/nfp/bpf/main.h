@@ -133,6 +133,8 @@ enum pkt_vec {
  * @helpers.map_lookup:		map lookup helper address
  * @helpers.map_update:		map update helper address
  * @helpers.map_delete:		map delete helper address
+ *
+ * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -170,6 +172,8 @@ struct nfp_app_bpf {
 		u32 map_update;
 		u32 map_delete;
 	} helpers;
+
+	bool pseudo_random;
 };
 
 enum nfp_bpf_map_use {

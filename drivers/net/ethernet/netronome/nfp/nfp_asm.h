@@ -284,6 +284,7 @@ enum lcsr_wr_src {
 #define NFP_CSR_ACT_LM_ADDR1	0x6c
 #define NFP_CSR_ACT_LM_ADDR2	0x94
 #define NFP_CSR_ACT_LM_ADDR3	0x9c
+#define NFP_CSR_PSEUDO_RND_NUM	0x148
 
 /* Software register representation, independent of operand type */
 #define NN_REG_TYPE	GENMASK(31, 24)

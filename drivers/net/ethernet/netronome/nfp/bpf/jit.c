@@ -405,7 +405,7 @@ __emit_lcsr(struct nfp_prog *nfp_prog, u16 areg, u16 breg, bool wr, u16 addr,
 		FIELD_PREP(OP_LCSR_A_SRC, areg) |
 		FIELD_PREP(OP_LCSR_B_SRC, breg) |
 		FIELD_PREP(OP_LCSR_WRITE, wr) |
-		FIELD_PREP(OP_LCSR_ADDR, addr) |
+		FIELD_PREP(OP_LCSR_ADDR, addr / 4) |
 		FIELD_PREP(OP_LCSR_SRC_LMEXTN, src_lmextn) |
 		FIELD_PREP(OP_LCSR_DST_LMEXTN, dst_lmextn);
 
@@ -433,8 +433,14 @@ static void emit_csr_wr(struct nfp_prog *nfp_prog, swreg src, u16 addr)
 		return;
 	}
 
-	__emit_lcsr(nfp_prog, reg.areg, reg.breg, true, addr / 4,
+	__emit_lcsr(nfp_prog, reg.areg, reg.breg, true, addr,
 		    false, reg.src_lmextn);
+}
+
+/* CSR value is read in following immed[gpr, 0] */
+static void __emit_csr_rd(struct nfp_prog *nfp_prog, u16 addr)
+{
+	__emit_lcsr(nfp_prog, 0, 0, false, addr, false, false);
 }
 
 static void emit_nop(struct nfp_prog *nfp_prog)
@@ -1395,6 +1401,18 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	emit_csr_wr(nfp_prog, stack_reg(nfp_prog),  NFP_CSR_ACT_LM_ADDR0);
 	wrp_nops(nfp_prog, 3);
 
+	return 0;
+}
+
+static int
+nfp_get_prandom_u32(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	__emit_csr_rd(nfp_prog, NFP_CSR_PSEUDO_RND_NUM);
+	/* CSR value is read in following immed[gpr, 0] */
+	emit_immed(nfp_prog, reg_both(0), 0,
+		   IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
+	emit_immed(nfp_prog, reg_both(1), 0,
+		   IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
 	return 0;
 }
 
@@ -2431,6 +2449,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	case BPF_FUNC_map_update_elem:
 	case BPF_FUNC_map_delete_elem:
 		return map_call_stack_common(nfp_prog, meta);
+	case BPF_FUNC_get_prandom_u32:
+		return nfp_get_prandom_u32(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
 		return -EOPNOTSUPP;

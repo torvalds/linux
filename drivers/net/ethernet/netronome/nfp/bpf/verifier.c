@@ -209,6 +209,13 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 					  meta->func_id ? &meta->arg2 : NULL))
 			return -EOPNOTSUPP;
 		break;
+
+	case BPF_FUNC_get_prandom_u32:
+		if (bpf->pseudo_random)
+			break;
+		pr_vlog(env, "bpf_get_prandom_u32(): FW doesn't support random number generation\n");
+		return -EOPNOTSUPP;
+
 	default:
 		pr_vlog(env, "unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;
