@@ -80,7 +80,6 @@
 #include <linux/uaccess.h>
 #include <stdarg.h>
 #include "linux-cpu.h"
-#include "linux-time.h"
 
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
 

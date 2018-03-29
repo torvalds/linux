@@ -53,6 +53,11 @@
 #define LOWEST_BIT_SET(x)       ((x) & ~((x) - 1))
 
 /*
+ * One jiffy
+ */
+#define CFS_TICK		(1UL)
+
+/*
  * Lustre Error Checksum: calculates checksum
  * of Hex number by XORing each bit.
  */
