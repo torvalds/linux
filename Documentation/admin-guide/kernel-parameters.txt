@@ -1743,6 +1743,14 @@
 			of a GICv2 controller even if the memory range
 			exposed by the device tree is too small.
 
+	irqchip.gicv3_nolpi=
+			[ARM, ARM64]
+			Force the kernel to ignore the availability of
+			LPIs (and by consequence ITSs). Intended for system
+			that use the kernel as a bootloader, and thus want
+			to let secondary kernels in charge of setting up
+			LPIs.
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken
