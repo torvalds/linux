@@ -1025,7 +1025,6 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	int nr_bb = 0;
 	u64 off;
 	int bit = -1;
 	int emeta_secs;
@@ -1041,8 +1040,6 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 		bitmap_or(line->map_bitmap, line->map_bitmap, l_mg->bb_aux,
 							lm->sec_per_line);
 		line->sec_in_line -= geo->sec_per_chk;
-		if (bit >= lm->emeta_bb)
-			nr_bb++;
 	}
 
 	/* Mark smeta metadata sectors as bad sectors */

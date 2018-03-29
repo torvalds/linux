@@ -201,12 +201,6 @@ struct pblk_rb {
 
 struct pblk_lun {
 	struct ppa_addr bppa;
-
-	u8 *bb_list;			/* Bad block list for LUN. Only used on
-					 * bring up. Bad blocks are managed
-					 * within lines on run-time.
-					 */
-
 	struct semaphore wr_sem;
 };
 
