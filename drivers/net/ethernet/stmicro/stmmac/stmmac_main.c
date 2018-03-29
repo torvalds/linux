@@ -2014,6 +2014,22 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 	}
 }
 
+static bool stmmac_safety_feat_interrupt(struct stmmac_priv *priv)
+{
+	bool ret = false;
+
+	/* Safety features are only available in cores >= 5.10 */
+	if (priv->synopsys_id < DWMAC_CORE_5_10)
+		return ret;
+	if (priv->hw->mac->safety_feat_irq_status)
+		ret = priv->hw->mac->safety_feat_irq_status(priv->dev,
+				priv->ioaddr, priv->dma_cap.asp, &priv->sstats);
+
+	if (ret)
+		stmmac_global_err(priv);
+	return ret;
+}
+
 /**
  * stmmac_dma_interrupt - DMA ISR
  * @priv: driver private structure
@@ -2503,6 +2519,17 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 		stmmac_mac_config_rx_queues_routing(priv);
 }
 
+static void stmmac_safety_feat_configuration(struct stmmac_priv *priv)
+{
+	if (priv->hw->mac->safety_feat_config && priv->dma_cap.asp) {
+		netdev_info(priv->dev, "Enabling Safety Features\n");
+		priv->hw->mac->safety_feat_config(priv->ioaddr,
+				priv->dma_cap.asp);
+	} else {
+		netdev_info(priv->dev, "No Safety Features support found\n");
+	}
+}
+
 /**
  * stmmac_hw_setup - setup mac in a usable state.
  *  @dev : pointer to the device structure.
@@ -2553,6 +2580,10 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	/* Initialize MTL*/
 	if (priv->synopsys_id >= DWMAC_CORE_4_00)
 		stmmac_mtl_configuration(priv);
+
+	/* Initialize Safety Features */
+	if (priv->synopsys_id >= DWMAC_CORE_5_10)
+		stmmac_safety_feat_configuration(priv);
 
 	ret = priv->hw->mac->rx_ipc(priv->hw);
 	if (!ret) {
@@ -3728,6 +3759,9 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 
 	/* Check if adapter is up */
 	if (test_bit(STMMAC_DOWN, &priv->state))
+		return IRQ_HANDLED;
+	/* Check if a fatal error happened */
+	if (stmmac_safety_feat_interrupt(priv))
 		return IRQ_HANDLED;
 
 	/* To handle GMAC own interrupts */
