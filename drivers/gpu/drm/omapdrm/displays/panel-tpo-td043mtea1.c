@@ -62,7 +62,6 @@ struct panel_drv_data {
 	int nreset_gpio;
 	u16 gamma[12];
 	u32 mode;
-	u32 hmirror:1;
 	u32 vmirror:1;
 	u32 powered_on:1;
 	u32 spi_suspended:1;
@@ -151,22 +150,6 @@ static int tpo_td043_write_mirror(struct spi_device *spi, bool h, bool v)
 	return tpo_td043_write(spi, 4, reg4);
 }
 
-static int tpo_td043_set_hmirror(struct omap_dss_device *dssdev, bool enable)
-{
-	struct panel_drv_data *ddata = dev_get_drvdata(dssdev->dev);
-
-	ddata->hmirror = enable;
-	return tpo_td043_write_mirror(ddata->spi, ddata->hmirror,
-			ddata->vmirror);
-}
-
-static bool tpo_td043_get_hmirror(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = dev_get_drvdata(dssdev->dev);
-
-	return ddata->hmirror;
-}
-
 static ssize_t tpo_td043_vmirror_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -188,7 +171,7 @@ static ssize_t tpo_td043_vmirror_store(struct device *dev,
 
 	val = !!val;
 
-	ret = tpo_td043_write_mirror(ddata->spi, ddata->hmirror, val);
+	ret = tpo_td043_write_mirror(ddata->spi, false, val);
 	if (ret < 0)
 		return ret;
 
@@ -307,8 +290,7 @@ static int tpo_td043_power_on(struct panel_drv_data *ddata)
 	tpo_td043_write(ddata->spi, 3, TPO_R03_VAL_NORMAL);
 	tpo_td043_write(ddata->spi, 0x20, 0xf0);
 	tpo_td043_write(ddata->spi, 0x21, 0xf0);
-	tpo_td043_write_mirror(ddata->spi, ddata->hmirror,
-			ddata->vmirror);
+	tpo_td043_write_mirror(ddata->spi, false, ddata->vmirror);
 	tpo_td043_write_gamma(ddata->spi, ddata->gamma);
 
 	ddata->powered_on = 1;
@@ -435,9 +417,6 @@ static const struct omap_dss_driver tpo_td043_ops = {
 	.set_timings	= tpo_td043_set_timings,
 	.get_timings	= tpo_td043_get_timings,
 	.check_timings	= tpo_td043_check_timings,
-
-	.set_mirror	= tpo_td043_set_hmirror,
-	.get_mirror	= tpo_td043_get_hmirror,
 };
 
 static int tpo_td043_probe_of(struct spi_device *spi)
