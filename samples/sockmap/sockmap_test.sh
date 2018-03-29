@@ -1,5 +1,5 @@
 #Test a bunch of positive cases to verify basic functionality
-for prog in "--txmsg" "--txmsg_redir" "--txmsg_drop"; do
+for prog in  "--txmsg_redir --txmsg_skb" "--txmsg_redir --txmsg_ingress" "--txmsg" "--txmsg_redir" "--txmsg_redir --txmsg_ingress" "--txmsg_drop"; do
 for t in "sendmsg" "sendpage"; do
 for r in 1 10 100; do
 	for i in 1 10 100; do
@@ -100,6 +100,25 @@ for t in "sendmsg" "sendpage"; do
 	sleep 2
 done
 
+prog="--txmsg_redir --txmsg_apply 1 --txmsg_ingress"
+
+for t in "sendmsg" "sendpage"; do
+	TEST="./sockmap --cgroup /mnt/cgroup2/ -t $t -r $r -i $i -l $l $prog"
+	echo $TEST
+	$TEST
+	sleep 2
+done
+
+prog="--txmsg_redir --txmsg_apply 1 --txmsg_skb"
+
+for t in "sendmsg" "sendpage"; do
+	TEST="./sockmap --cgroup /mnt/cgroup2/ -t $t -r $r -i $i -l $l $prog"
+	echo $TEST
+	$TEST
+	sleep 2
+done
+
+
 # Test apply and redirect with larger value than send
 r=1
 i=8
@@ -112,6 +131,25 @@ for t in "sendmsg" "sendpage"; do
 	$TEST
 	sleep 2
 done
+
+prog="--txmsg_redir --txmsg_apply 2048 --txmsg_ingress"
+
+for t in "sendmsg" "sendpage"; do
+	TEST="./sockmap --cgroup /mnt/cgroup2/ -t $t -r $r -i $i -l $l $prog"
+	echo $TEST
+	$TEST
+	sleep 2
+done
+
+prog="--txmsg_redir --txmsg_apply 2048 --txmsg_skb"
+
+for t in "sendmsg" "sendpage"; do
+	TEST="./sockmap --cgroup /mnt/cgroup2/ -t $t -r $r -i $i -l $l $prog"
+	echo $TEST
+	$TEST
+	sleep 2
+done
+
 
 # Test apply and redirect with apply that never reaches limit
 r=1024
