@@ -67,27 +67,9 @@ extern char obd_jobid_var[];
 #define HASH_UUID_BKT_BITS 5
 #define HASH_UUID_CUR_BITS 7
 #define HASH_UUID_MAX_BITS 12
-#define HASH_NID_BKT_BITS 5
-#define HASH_NID_CUR_BITS 7
-#define HASH_NID_MAX_BITS 12
-#define HASH_NID_STATS_BKT_BITS 5
-#define HASH_NID_STATS_CUR_BITS 7
-#define HASH_NID_STATS_MAX_BITS 12
-#define HASH_LQE_BKT_BITS 5
-#define HASH_LQE_CUR_BITS 7
-#define HASH_LQE_MAX_BITS 12
 #define HASH_CONN_BKT_BITS 5
 #define HASH_CONN_CUR_BITS 5
 #define HASH_CONN_MAX_BITS 15
-#define HASH_EXP_LOCK_BKT_BITS  5
-#define HASH_EXP_LOCK_CUR_BITS  7
-#define HASH_EXP_LOCK_MAX_BITS  16
-#define HASH_CL_ENV_BKT_BITS    5
-#define HASH_CL_ENV_BITS	10
-#define HASH_JOB_STATS_BKT_BITS 5
-#define HASH_JOB_STATS_CUR_BITS 7
-#define HASH_JOB_STATS_MAX_BITS 12
-
 /* Timeout definitions */
 #define OBD_TIMEOUT_DEFAULT	     100
 /* Time to wait for all clients to reconnect during recovery (hard limit) */

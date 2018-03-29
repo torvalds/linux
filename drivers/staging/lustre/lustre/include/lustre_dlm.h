@@ -630,16 +630,6 @@ struct ldlm_lock {
 	 */
 	struct ldlm_interval	*l_tree_node;
 	/**
-	 * Per export hash of locks.
-	 * Protected by per-bucket exp->exp_lock_hash locks.
-	 */
-	struct hlist_node	l_exp_hash;
-	/**
-	 * Per export hash of flock locks.
-	 * Protected by per-bucket exp->exp_flock_hash locks.
-	 */
-	struct hlist_node	l_exp_flock_hash;
-	/**
 	 * Requested mode.
 	 * Protected by lr_lock.
 	 */

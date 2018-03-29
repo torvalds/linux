@@ -405,19 +405,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 	cleanup_phase = 0;
 
 	lock_res_and_lock(lock);
-	/* Key change rehash lock in per-export hash with new key */
-	if (exp->exp_lock_hash) {
-		/* In the function below, .hs_keycmp resolves to
-		 * ldlm_export_lock_keycmp()
-		 */
-		/* coverity[overrun-buffer-val] */
-		cfs_hash_rehash_key(exp->exp_lock_hash,
-				    &lock->l_remote_handle,
-				    &reply->lock_handle,
-				    &lock->l_exp_hash);
-	} else {
-		lock->l_remote_handle = reply->lock_handle;
-	}
+	lock->l_remote_handle = reply->lock_handle;
 
 	*flags = ldlm_flags_from_wire(reply->lock_flags);
 	lock->l_flags |= ldlm_flags_from_wire(reply->lock_flags &
@@ -1884,18 +1872,7 @@ static int replay_lock_interpret(const struct lu_env *env,
 
 	/* Key change rehash lock in per-export hash with new key */
 	exp = req->rq_export;
-	if (exp && exp->exp_lock_hash) {
-		/* In the function below, .hs_keycmp resolves to
-		 * ldlm_export_lock_keycmp()
-		 */
-		/* coverity[overrun-buffer-val] */
-		cfs_hash_rehash_key(exp->exp_lock_hash,
-				    &lock->l_remote_handle,
-				    &reply->lock_handle,
-				    &lock->l_exp_hash);
-	} else {
-		lock->l_remote_handle = reply->lock_handle;
-	}
+	lock->l_remote_handle = reply->lock_handle;
 
 	LDLM_DEBUG(lock, "replayed lock:");
 	ptlrpc_import_recovery_state_machine(req->rq_import);

@@ -721,8 +721,6 @@ struct obd_export *class_new_export(struct obd_device *obd,
 		return ERR_PTR(-ENOMEM);
 
 	export->exp_conn_cnt = 0;
-	export->exp_lock_hash = NULL;
-	export->exp_flock_hash = NULL;
 	atomic_set(&export->exp_refcount, 2);
 	atomic_set(&export->exp_rpc_count, 0);
 	atomic_set(&export->exp_cb_count, 0);

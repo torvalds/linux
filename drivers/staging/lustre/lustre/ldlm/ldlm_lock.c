@@ -318,18 +318,6 @@ static int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 	}
 	ldlm_set_destroyed(lock);
 
-	if (lock->l_export && lock->l_export->exp_lock_hash) {
-		/* NB: it's safe to call cfs_hash_del() even lock isn't
-		 * in exp_lock_hash.
-		 */
-		/* In the function below, .hs_keycmp resolves to
-		 * ldlm_export_lock_keycmp()
-		 */
-		/* coverity[overrun-buffer-val] */
-		cfs_hash_del(lock->l_export->exp_lock_hash,
-			     &lock->l_remote_handle, &lock->l_exp_hash);
-	}
-
 	ldlm_lock_remove_from_lru(lock);
 	class_handle_unhash(&lock->l_handle);
 
@@ -419,8 +407,6 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 	lock->l_blocking_lock = NULL;
 	INIT_LIST_HEAD(&lock->l_sl_mode);
 	INIT_LIST_HEAD(&lock->l_sl_policy);
-	INIT_HLIST_NODE(&lock->l_exp_hash);
-	INIT_HLIST_NODE(&lock->l_exp_flock_hash);
 
 	lprocfs_counter_incr(ldlm_res_to_ns(resource)->ns_stats,
 			     LDLM_NSS_LOCKS);

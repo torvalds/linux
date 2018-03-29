@@ -102,13 +102,6 @@ struct obd_export {
 	struct ptlrpc_connection *exp_connection;
 	/** Connection count value from last successful reconnect rpc */
 	__u32		     exp_conn_cnt;
-	/** Hash list of all ldlm locks granted on this export */
-	struct cfs_hash	       *exp_lock_hash;
-	/**
-	 * Hash list for Posix lock deadlock detection, added with
-	 * ldlm_lock::l_exp_flock_hash.
-	 */
-	struct cfs_hash	       *exp_flock_hash;
 	struct list_head		exp_outstanding_replies;
 	struct list_head		exp_uncommitted_replies;
 	spinlock_t		  exp_uncommitted_replies_lock;

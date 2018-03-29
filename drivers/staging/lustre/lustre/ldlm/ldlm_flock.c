@@ -83,9 +83,6 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode)
 	LDLM_DEBUG(lock, "%s(mode: %d)",
 		   __func__, mode);
 
-	/* Safe to not lock here, since it should be empty anyway */
-	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
-
 	list_del_init(&lock->l_res_link);
 
 	/* client side - set a flag to prevent sending a CANCEL */
@@ -263,15 +260,9 @@ reprocess:
 		lock->l_policy_data.l_flock.start =
 			new->l_policy_data.l_flock.end + 1;
 		new2->l_conn_export = lock->l_conn_export;
-		if (lock->l_export) {
+		if (lock->l_export)
 			new2->l_export = class_export_lock_get(lock->l_export,
 							       new2);
-			if (new2->l_export->exp_lock_hash &&
-			    hlist_unhashed(&new2->l_exp_hash))
-				cfs_hash_add(new2->l_export->exp_lock_hash,
-					     &new2->l_remote_handle,
-					     &new2->l_exp_hash);
-		}
 		ldlm_lock_addref_internal_nolock(new2,
 						 lock->l_granted_mode);
 
