@@ -278,6 +278,36 @@ static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM);
 }
 
+static inline bool is_mbpf_load_pkt(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_load(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
+static inline bool is_mbpf_store_pkt(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_store(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
+static inline bool is_mbpf_classic_load(const struct nfp_insn_meta *meta)
+{
+	u8 code = meta->insn.code;
+
+	return BPF_CLASS(code) == BPF_LD &&
+	       (BPF_MODE(code) == BPF_ABS || BPF_MODE(code) == BPF_IND);
+}
+
+static inline bool is_mbpf_classic_store(const struct nfp_insn_meta *meta)
+{
+	u8 code = meta->insn.code;
+
+	return BPF_CLASS(code) == BPF_ST && BPF_MODE(code) == BPF_MEM;
+}
+
+static inline bool is_mbpf_classic_store_pkt(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_classic_store(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
 /**
  * struct nfp_prog - nfp BPF program
  * @bpf: backpointer to the bpf app priv structure

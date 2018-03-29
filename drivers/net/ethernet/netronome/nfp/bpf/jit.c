@@ -2964,6 +2964,120 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 	}
 }
 
+static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta, *range_node = NULL;
+	s16 range_start = 0, range_end = 0;
+	bool cache_avail = false;
+	struct bpf_insn *insn;
+	s32 range_ptr_off = 0;
+	u32 range_ptr_id = 0;
+
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		if (meta->flags & FLAG_INSN_IS_JUMP_DST)
+			cache_avail = false;
+
+		if (meta->skip)
+			continue;
+
+		insn = &meta->insn;
+
+		if (is_mbpf_store_pkt(meta) ||
+		    insn->code == (BPF_JMP | BPF_CALL) ||
+		    is_mbpf_classic_store_pkt(meta) ||
+		    is_mbpf_classic_load(meta)) {
+			cache_avail = false;
+			continue;
+		}
+
+		if (!is_mbpf_load(meta))
+			continue;
+
+		if (meta->ptr.type != PTR_TO_PACKET || meta->ldst_gather_len) {
+			cache_avail = false;
+			continue;
+		}
+
+		if (!cache_avail) {
+			cache_avail = true;
+			if (range_node)
+				goto end_current_then_start_new;
+			goto start_new;
+		}
+
+		/* Check ID to make sure two reads share the same
+		 * variable offset against PTR_TO_PACKET, and check OFF
+		 * to make sure they also share the same constant
+		 * offset.
+		 *
+		 * OFFs don't really need to be the same, because they
+		 * are the constant offsets against PTR_TO_PACKET, so
+		 * for different OFFs, we could canonicalize them to
+		 * offsets against original packet pointer. We don't
+		 * support this.
+		 */
+		if (meta->ptr.id == range_ptr_id &&
+		    meta->ptr.off == range_ptr_off) {
+			s16 new_start = range_start;
+			s16 end, off = insn->off;
+			s16 new_end = range_end;
+			bool changed = false;
+
+			if (off < range_start) {
+				new_start = off;
+				changed = true;
+			}
+
+			end = off + BPF_LDST_BYTES(insn);
+			if (end > range_end) {
+				new_end = end;
+				changed = true;
+			}
+
+			if (!changed)
+				continue;
+
+			if (new_end - new_start <= 64) {
+				/* Install new range. */
+				range_start = new_start;
+				range_end = new_end;
+				continue;
+			}
+		}
+
+end_current_then_start_new:
+		range_node->pkt_cache.range_start = range_start;
+		range_node->pkt_cache.range_end = range_end;
+start_new:
+		range_node = meta;
+		range_node->pkt_cache.do_init = true;
+		range_ptr_id = range_node->ptr.id;
+		range_ptr_off = range_node->ptr.off;
+		range_start = insn->off;
+		range_end = insn->off + BPF_LDST_BYTES(insn);
+	}
+
+	if (range_node) {
+		range_node->pkt_cache.range_start = range_start;
+		range_node->pkt_cache.range_end = range_end;
+	}
+
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		if (meta->skip)
+			continue;
+
+		if (is_mbpf_load_pkt(meta) && !meta->ldst_gather_len) {
+			if (meta->pkt_cache.do_init) {
+				range_start = meta->pkt_cache.range_start;
+				range_end = meta->pkt_cache.range_end;
+			} else {
+				meta->pkt_cache.range_start = range_start;
+				meta->pkt_cache.range_end = range_end;
+			}
+		}
+	}
+}
+
 static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 {
 	nfp_bpf_opt_reg_init(nfp_prog);
@@ -2971,6 +3085,7 @@ static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 	nfp_bpf_opt_ld_mask(nfp_prog);
 	nfp_bpf_opt_ld_shift(nfp_prog);
 	nfp_bpf_opt_ldst_gather(nfp_prog);
+	nfp_bpf_opt_pkt_cache(nfp_prog);
 
 	return 0;
 }
