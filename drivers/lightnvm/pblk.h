@@ -941,7 +941,7 @@ static inline int pblk_ppa_to_line(struct ppa_addr p)
 
 static inline int pblk_ppa_to_pos(struct nvm_geo *geo, struct ppa_addr p)
 {
-	return p.g.lun * geo->nr_chnls + p.g.ch;
+	return p.g.lun * geo->num_ch + p.g.ch;
 }
 
 static inline struct ppa_addr addr_to_gen_ppa(struct pblk *pblk, u64 paddr,
@@ -956,7 +956,7 @@ static inline struct ppa_addr addr_to_gen_ppa(struct pblk *pblk, u64 paddr,
 	ppa.g.lun = (paddr & ppaf->lun_mask) >> ppaf->lun_offset;
 	ppa.g.ch = (paddr & ppaf->ch_mask) >> ppaf->ch_offset;
 	ppa.g.pl = (paddr & ppaf->pln_mask) >> ppaf->pln_offset;
-	ppa.g.sec = (paddr & ppaf->sec_mask) >> ppaf->sect_offset;
+	ppa.g.sec = (paddr & ppaf->sec_mask) >> ppaf->sec_offset;
 
 	return ppa;
 }
@@ -971,7 +971,7 @@ static inline u64 pblk_dev_ppa_to_line_addr(struct pblk *pblk,
 	paddr |= (u64)p.g.lun << ppaf->lun_offset;
 	paddr |= (u64)p.g.pg << ppaf->pg_offset;
 	paddr |= (u64)p.g.pl << ppaf->pln_offset;
-	paddr |= (u64)p.g.sec << ppaf->sect_offset;
+	paddr |= (u64)p.g.sec << ppaf->sec_offset;
 
 	return paddr;
 }
@@ -995,7 +995,7 @@ static inline struct ppa_addr pblk_ppa32_to_ppa64(struct pblk *pblk, u32 ppa32)
 		ppa64.g.blk = (ppa32 & ppaf->blk_mask) >> ppaf->blk_offset;
 		ppa64.g.pg = (ppa32 & ppaf->pg_mask) >> ppaf->pg_offset;
 		ppa64.g.pl = (ppa32 & ppaf->pln_mask) >> ppaf->pln_offset;
-		ppa64.g.sec = (ppa32 & ppaf->sec_mask) >> ppaf->sect_offset;
+		ppa64.g.sec = (ppa32 & ppaf->sec_mask) >> ppaf->sec_offset;
 	}
 
 	return ppa64;
@@ -1018,7 +1018,7 @@ static inline u32 pblk_ppa64_to_ppa32(struct pblk *pblk, struct ppa_addr ppa64)
 		ppa32 |= ppa64.g.blk << ppaf->blk_offset;
 		ppa32 |= ppa64.g.pg << ppaf->pg_offset;
 		ppa32 |= ppa64.g.pl << ppaf->pln_offset;
-		ppa32 |= ppa64.g.sec << ppaf->sect_offset;
+		ppa32 |= ppa64.g.sec << ppaf->sec_offset;
 	}
 
 	return ppa32;
@@ -1136,7 +1136,7 @@ static inline int pblk_set_progr_mode(struct pblk *pblk, int type)
 	struct nvm_geo *geo = &dev->geo;
 	int flags;
 
-	flags = geo->plane_mode >> 1;
+	flags = geo->pln_mode >> 1;
 
 	if (type == PBLK_WRITE)
 		flags |= NVM_IO_SCRAMBLE_ENABLE;
@@ -1157,7 +1157,7 @@ static inline int pblk_set_read_mode(struct pblk *pblk, int type)
 
 	flags = NVM_IO_SUSPEND | NVM_IO_SCRAMBLE_ENABLE;
 	if (type == PBLK_READ_SEQUENTIAL)
-		flags |= geo->plane_mode >> 1;
+		flags |= geo->pln_mode >> 1;
 
 	return flags;
 }
@@ -1210,10 +1210,10 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 		ppa = &ppas[i];
 
 		if (!ppa->c.is_cached &&
-				ppa->g.ch < geo->nr_chnls &&
-				ppa->g.lun < geo->nr_luns &&
+				ppa->g.ch < geo->num_ch &&
+				ppa->g.lun < geo->num_lun &&
 				ppa->g.pl < geo->num_pln &&
-				ppa->g.blk < geo->nr_chks &&
+				ppa->g.blk < geo->num_chk &&
 				ppa->g.pg < geo->num_pg &&
 				ppa->g.sec < geo->ws_min)
 			continue;

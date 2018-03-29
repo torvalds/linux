@@ -163,14 +163,14 @@ struct nvm_addrf_12 {
 	u8	blk_len;
 	u8	pg_len;
 	u8	pln_len;
-	u8	sect_len;
+	u8	sec_len;
 
 	u8	ch_offset;
 	u8	lun_offset;
 	u8	blk_offset;
 	u8	pg_offset;
 	u8	pln_offset;
-	u8	sect_offset;
+	u8	sec_offset;
 
 	u64	ch_mask;
 	u64	lun_mask;
@@ -275,8 +275,8 @@ struct nvm_geo {
 	u8	version;
 
 	/* instance specific geometry */
-	int nr_chnls;
-	int nr_luns;		/* per channel */
+	int num_ch;
+	int num_lun;		/* per channel */
 
 	/* calculated values */
 	int all_luns;		/* across channels */
@@ -287,7 +287,7 @@ struct nvm_geo {
 	sector_t total_secs;	/* across channels */
 
 	/* chunk geometry */
-	u32	nr_chks;	/* chunks per lun */
+	u32	num_chk;	/* chunks per lun */
 	u32	clba;		/* sectors per chunk */
 	u16	csecs;		/* sector size */
 	u16	sos;		/* out-of-band area size */
@@ -325,7 +325,7 @@ struct nvm_geo {
 	u32	mpos;
 
 	u8	num_pln;
-	u8	plane_mode;
+	u8	pln_mode;
 	u16	num_pg;
 	u16	fpg_sz;
 };
@@ -382,7 +382,7 @@ static inline struct ppa_addr generic_to_dev_addr(struct nvm_tgt_dev *tgt_dev,
 	l.ppa |= ((u64)r.g.blk) << ppaf->blk_offset;
 	l.ppa |= ((u64)r.g.pg) << ppaf->pg_offset;
 	l.ppa |= ((u64)r.g.pl) << ppaf->pln_offset;
-	l.ppa |= ((u64)r.g.sec) << ppaf->sect_offset;
+	l.ppa |= ((u64)r.g.sec) << ppaf->sec_offset;
 
 	return l;
 }
@@ -401,7 +401,7 @@ static inline struct ppa_addr dev_to_generic_addr(struct nvm_tgt_dev *tgt_dev,
 	l.g.blk = (r.ppa & ppaf->blk_mask) >> ppaf->blk_offset;
 	l.g.pg = (r.ppa & ppaf->pg_mask) >> ppaf->pg_offset;
 	l.g.pl = (r.ppa & ppaf->pln_mask) >> ppaf->pln_offset;
-	l.g.sec = (r.ppa & ppaf->sec_mask) >> ppaf->sect_offset;
+	l.g.sec = (r.ppa & ppaf->sec_mask) >> ppaf->sec_offset;
 
 	return l;
 }

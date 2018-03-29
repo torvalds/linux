@@ -36,13 +36,13 @@ static DECLARE_RWSEM(nvm_lock);
 /* Map between virtual and physical channel and lun */
 struct nvm_ch_map {
 	int ch_off;
-	int nr_luns;
+	int num_lun;
 	int *lun_offs;
 };
 
 struct nvm_dev_map {
 	struct nvm_ch_map *chnls;
-	int nr_chnls;
+	int num_ch;
 };
 
 static struct nvm_target *nvm_find_target(struct nvm_dev *dev, const char *name)
@@ -114,15 +114,15 @@ static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev, int clear)
 	struct nvm_dev_map *dev_map = tgt_dev->map;
 	int i, j;
 
-	for (i = 0; i < dev_map->nr_chnls; i++) {
+	for (i = 0; i < dev_map->num_ch; i++) {
 		struct nvm_ch_map *ch_map = &dev_map->chnls[i];
 		int *lun_offs = ch_map->lun_offs;
 		int ch = i + ch_map->ch_off;
 
 		if (clear) {
-			for (j = 0; j < ch_map->nr_luns; j++) {
+			for (j = 0; j < ch_map->num_lun; j++) {
 				int lun = j + lun_offs[j];
-				int lunid = (ch * dev->geo.nr_luns) + lun;
+				int lunid = (ch * dev->geo.num_lun) + lun;
 
 				WARN_ON(!test_and_clear_bit(lunid,
 							dev->lun_map));
@@ -147,47 +147,46 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	struct nvm_dev_map *dev_rmap = dev->rmap;
 	struct nvm_dev_map *dev_map;
 	struct ppa_addr *luns;
-	int nr_luns = lun_end - lun_begin + 1;
-	int luns_left = nr_luns;
-	int nr_chnls = nr_luns / dev->geo.nr_luns;
-	int nr_chnls_mod = nr_luns % dev->geo.nr_luns;
-	int bch = lun_begin / dev->geo.nr_luns;
-	int blun = lun_begin % dev->geo.nr_luns;
+	int num_lun = lun_end - lun_begin + 1;
+	int luns_left = num_lun;
+	int num_ch = num_lun / dev->geo.num_lun;
+	int num_ch_mod = num_lun % dev->geo.num_lun;
+	int bch = lun_begin / dev->geo.num_lun;
+	int blun = lun_begin % dev->geo.num_lun;
 	int lunid = 0;
 	int lun_balanced = 1;
-	int sec_per_lun, prev_nr_luns;
+	int sec_per_lun, prev_num_lun;
 	int i, j;
 
-	nr_chnls = (nr_chnls_mod == 0) ? nr_chnls : nr_chnls + 1;
+	num_ch = (num_ch_mod == 0) ? num_ch : num_ch + 1;
 
 	dev_map = kmalloc(sizeof(struct nvm_dev_map), GFP_KERNEL);
 	if (!dev_map)
 		goto err_dev;
 
-	dev_map->chnls = kcalloc(nr_chnls, sizeof(struct nvm_ch_map),
-								GFP_KERNEL);
+	dev_map->chnls = kcalloc(num_ch, sizeof(struct nvm_ch_map), GFP_KERNEL);
 	if (!dev_map->chnls)
 		goto err_chnls;
 
-	luns = kcalloc(nr_luns, sizeof(struct ppa_addr), GFP_KERNEL);
+	luns = kcalloc(num_lun, sizeof(struct ppa_addr), GFP_KERNEL);
 	if (!luns)
 		goto err_luns;
 
-	prev_nr_luns = (luns_left > dev->geo.nr_luns) ?
-					dev->geo.nr_luns : luns_left;
-	for (i = 0; i < nr_chnls; i++) {
+	prev_num_lun = (luns_left > dev->geo.num_lun) ?
+					dev->geo.num_lun : luns_left;
+	for (i = 0; i < num_ch; i++) {
 		struct nvm_ch_map *ch_rmap = &dev_rmap->chnls[i + bch];
 		int *lun_roffs = ch_rmap->lun_offs;
 		struct nvm_ch_map *ch_map = &dev_map->chnls[i];
 		int *lun_offs;
-		int luns_in_chnl = (luns_left > dev->geo.nr_luns) ?
-					dev->geo.nr_luns : luns_left;
+		int luns_in_chnl = (luns_left > dev->geo.num_lun) ?
+					dev->geo.num_lun : luns_left;
 
-		if (lun_balanced && prev_nr_luns != luns_in_chnl)
+		if (lun_balanced && prev_num_lun != luns_in_chnl)
 			lun_balanced = 0;
 
 		ch_map->ch_off = ch_rmap->ch_off = bch;
-		ch_map->nr_luns = luns_in_chnl;
+		ch_map->num_lun = luns_in_chnl;
 
 		lun_offs = kcalloc(luns_in_chnl, sizeof(int), GFP_KERNEL);
 		if (!lun_offs)
@@ -209,7 +208,7 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 		luns_left -= luns_in_chnl;
 	}
 
-	dev_map->nr_chnls = nr_chnls;
+	dev_map->num_ch = num_ch;
 
 	tgt_dev = kmalloc(sizeof(struct nvm_tgt_dev), GFP_KERNEL);
 	if (!tgt_dev)
@@ -219,15 +218,15 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	memcpy(&tgt_dev->geo, &dev->geo, sizeof(struct nvm_geo));
 
 	/* Target device only owns a portion of the physical device */
-	tgt_dev->geo.nr_chnls = nr_chnls;
-	tgt_dev->geo.nr_luns = (lun_balanced) ? prev_nr_luns : -1;
-	tgt_dev->geo.all_luns = nr_luns;
-	tgt_dev->geo.all_chunks = nr_luns * dev->geo.nr_chks;
+	tgt_dev->geo.num_ch = num_ch;
+	tgt_dev->geo.num_lun = (lun_balanced) ? prev_num_lun : -1;
+	tgt_dev->geo.all_luns = num_lun;
+	tgt_dev->geo.all_chunks = num_lun * dev->geo.num_chk;
 
 	tgt_dev->geo.op = op;
 
-	sec_per_lun = dev->geo.clba * dev->geo.nr_chks;
-	tgt_dev->geo.total_secs = nr_luns * sec_per_lun;
+	sec_per_lun = dev->geo.clba * dev->geo.num_chk;
+	tgt_dev->geo.total_secs = num_lun * sec_per_lun;
 
 	tgt_dev->q = dev->q;
 	tgt_dev->map = dev_map;
@@ -505,20 +504,20 @@ static int nvm_register_map(struct nvm_dev *dev)
 	if (!rmap)
 		goto err_rmap;
 
-	rmap->chnls = kcalloc(dev->geo.nr_chnls, sizeof(struct nvm_ch_map),
+	rmap->chnls = kcalloc(dev->geo.num_ch, sizeof(struct nvm_ch_map),
 								GFP_KERNEL);
 	if (!rmap->chnls)
 		goto err_chnls;
 
-	for (i = 0; i < dev->geo.nr_chnls; i++) {
+	for (i = 0; i < dev->geo.num_ch; i++) {
 		struct nvm_ch_map *ch_rmap;
 		int *lun_roffs;
-		int luns_in_chnl = dev->geo.nr_luns;
+		int luns_in_chnl = dev->geo.num_lun;
 
 		ch_rmap = &rmap->chnls[i];
 
 		ch_rmap->ch_off = -1;
-		ch_rmap->nr_luns = luns_in_chnl;
+		ch_rmap->num_lun = luns_in_chnl;
 
 		lun_roffs = kcalloc(luns_in_chnl, sizeof(int), GFP_KERNEL);
 		if (!lun_roffs)
@@ -547,7 +546,7 @@ static void nvm_unregister_map(struct nvm_dev *dev)
 	struct nvm_dev_map *rmap = dev->rmap;
 	int i;
 
-	for (i = 0; i < dev->geo.nr_chnls; i++)
+	for (i = 0; i < dev->geo.num_ch; i++)
 		kfree(rmap->chnls[i].lun_offs);
 
 	kfree(rmap->chnls);
@@ -676,7 +675,7 @@ static int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
 	int i, plane_cnt, pl_idx;
 	struct ppa_addr ppa;
 
-	if (geo->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
+	if (geo->pln_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
 		rqd->nr_ppas = nr_ppas;
 		rqd->ppa_addr = ppas[0];
 
@@ -690,7 +689,7 @@ static int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
 		return -ENOMEM;
 	}
 
-	plane_cnt = geo->plane_mode;
+	plane_cnt = geo->pln_mode;
 	rqd->nr_ppas *= plane_cnt;
 
 	for (i = 0; i < nr_ppas; i++) {
@@ -808,15 +807,15 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 	struct nvm_geo *geo = &dev->geo;
 	int blk, offset, pl, blktype;
 
-	if (nr_blks != geo->nr_chks * geo->plane_mode)
+	if (nr_blks != geo->num_chk * geo->pln_mode)
 		return -EINVAL;
 
-	for (blk = 0; blk < geo->nr_chks; blk++) {
-		offset = blk * geo->plane_mode;
+	for (blk = 0; blk < geo->num_chk; blk++) {
+		offset = blk * geo->pln_mode;
 		blktype = blks[offset];
 
 		/* Bad blocks on any planes take precedence over other types */
-		for (pl = 0; pl < geo->plane_mode; pl++) {
+		for (pl = 0; pl < geo->pln_mode; pl++) {
 			if (blks[offset + pl] &
 					(NVM_BLK_T_BAD|NVM_BLK_T_GRWN_BAD)) {
 				blktype = blks[offset + pl];
@@ -827,7 +826,7 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 		blks[blk] = blktype;
 	}
 
-	return geo->nr_chks;
+	return geo->num_chk;
 }
 EXPORT_SYMBOL(nvm_bb_tbl_fold);
 
@@ -901,9 +900,9 @@ static int nvm_init(struct nvm_dev *dev)
 	}
 
 	pr_info("nvm: registered %s [%u/%u/%u/%u/%u]\n",
-			dev->name, geo->ws_min, geo->ws_opt,
-			geo->nr_chks, geo->all_luns,
-			geo->nr_chnls);
+			dev->name, dev->geo.ws_min, dev->geo.ws_opt,
+			dev->geo.num_chk, dev->geo.all_luns,
+			dev->geo.num_ch);
 	return 0;
 err:
 	pr_err("nvm: failed to initialize nvm\n");

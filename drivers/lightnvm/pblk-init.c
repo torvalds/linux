@@ -193,15 +193,15 @@ static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
 	int power_len;
 
 	/* Re-calculate channel and lun format to adapt to configuration */
-	power_len = get_count_order(geo->nr_chnls);
-	if (1 << power_len != geo->nr_chnls) {
+	power_len = get_count_order(geo->num_ch);
+	if (1 << power_len != geo->num_ch) {
 		pr_err("pblk: supports only power-of-two channel config.\n");
 		return -EINVAL;
 	}
 	dst->ch_len = power_len;
 
-	power_len = get_count_order(geo->nr_luns);
-	if (1 << power_len != geo->nr_luns) {
+	power_len = get_count_order(geo->num_lun);
+	if (1 << power_len != geo->num_lun) {
 		pr_err("pblk: supports only power-of-two LUN config.\n");
 		return -EINVAL;
 	}
@@ -210,16 +210,16 @@ static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
 	dst->blk_len = src->blk_len;
 	dst->pg_len = src->pg_len;
 	dst->pln_len = src->pln_len;
-	dst->sect_len = src->sect_len;
+	dst->sec_len = src->sec_len;
 
-	dst->sect_offset = 0;
-	dst->pln_offset = dst->sect_len;
+	dst->sec_offset = 0;
+	dst->pln_offset = dst->sec_len;
 	dst->ch_offset = dst->pln_offset + dst->pln_len;
 	dst->lun_offset = dst->ch_offset + dst->ch_len;
 	dst->pg_offset = dst->lun_offset + dst->lun_len;
 	dst->blk_offset = dst->pg_offset + dst->pg_len;
 
-	dst->sec_mask = ((1ULL << dst->sect_len) - 1) << dst->sect_offset;
+	dst->sec_mask = ((1ULL << dst->sec_len) - 1) << dst->sec_offset;
 	dst->pln_mask = ((1ULL << dst->pln_len) - 1) << dst->pln_offset;
 	dst->ch_mask = ((1ULL << dst->ch_len) - 1) << dst->ch_offset;
 	dst->lun_mask = ((1ULL << dst->lun_len) - 1) << dst->lun_offset;
@@ -503,7 +503,7 @@ static void *pblk_bb_get_log(struct pblk *pblk)
 	int i, nr_blks, blk_per_lun;
 	int ret;
 
-	blk_per_lun = geo->nr_chks * geo->plane_mode;
+	blk_per_lun = geo->num_chk * geo->pln_mode;
 	nr_blks = blk_per_lun * geo->all_luns;
 
 	log = kmalloc(nr_blks, GFP_KERNEL);
@@ -530,7 +530,7 @@ static int pblk_bb_line(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	int i, bb_cnt = 0;
-	int blk_per_lun = geo->nr_chks * geo->plane_mode;
+	int blk_per_lun = geo->num_chk * geo->pln_mode;
 
 	for (i = 0; i < blk_per_line; i++) {
 		struct pblk_lun *rlun = &pblk->luns[i];
@@ -554,7 +554,7 @@ static int pblk_luns_init(struct pblk *pblk)
 	int i;
 
 	/* TODO: Implement unbalanced LUN support */
-	if (geo->nr_luns < 0) {
+	if (geo->num_lun < 0) {
 		pr_err("pblk: unbalanced LUN config.\n");
 		return -EINVAL;
 	}
@@ -566,9 +566,9 @@ static int pblk_luns_init(struct pblk *pblk)
 
 	for (i = 0; i < geo->all_luns; i++) {
 		/* Stripe across channels */
-		int ch = i % geo->nr_chnls;
-		int lun_raw = i / geo->nr_chnls;
-		int lunid = lun_raw + ch * geo->nr_luns;
+		int ch = i % geo->num_ch;
+		int lun_raw = i / geo->num_ch;
+		int lunid = lun_raw + ch * geo->num_lun;
 
 		rlun = &pblk->luns[i];
 		rlun->bppa = dev->luns[lunid];
@@ -672,7 +672,7 @@ static int pblk_line_mg_init(struct pblk *pblk)
 	struct pblk_line_meta *lm = &pblk->lm;
 	int i, bb_distance;
 
-	l_mg->nr_lines = geo->nr_chks;
+	l_mg->nr_lines = geo->num_chk;
 	l_mg->log_line = l_mg->data_line = NULL;
 	l_mg->l_seq_nr = l_mg->d_seq_nr = 0;
 	l_mg->nr_free_lines = 0;

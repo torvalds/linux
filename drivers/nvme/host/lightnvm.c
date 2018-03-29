@@ -262,21 +262,21 @@ static void nvme_nvm_set_addr_12(struct nvm_addrf_12 *dst,
 	dst->blk_len = src->blk_len;
 	dst->pg_len = src->pg_len;
 	dst->pln_len = src->pln_len;
-	dst->sect_len = src->sec_len;
+	dst->sec_len = src->sec_len;
 
 	dst->ch_offset = src->ch_offset;
 	dst->lun_offset = src->lun_offset;
 	dst->blk_offset = src->blk_offset;
 	dst->pg_offset = src->pg_offset;
 	dst->pln_offset = src->pln_offset;
-	dst->sect_offset = src->sec_offset;
+	dst->sec_offset = src->sec_offset;
 
 	dst->ch_mask = ((1ULL << dst->ch_len) - 1) << dst->ch_offset;
 	dst->lun_mask = ((1ULL << dst->lun_len) - 1) << dst->lun_offset;
 	dst->blk_mask = ((1ULL << dst->blk_len) - 1) << dst->blk_offset;
 	dst->pg_mask = ((1ULL << dst->pg_len) - 1) << dst->pg_offset;
 	dst->pln_mask = ((1ULL << dst->pln_len) - 1) << dst->pln_offset;
-	dst->sec_mask = ((1ULL << dst->sect_len) - 1) << dst->sect_offset;
+	dst->sec_mask = ((1ULL << dst->sec_len) - 1) << dst->sec_offset;
 }
 
 static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
@@ -302,11 +302,11 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	/* Set compacted version for upper layers */
 	geo->version = NVM_OCSSD_SPEC_12;
 
-	geo->nr_chnls = src->num_ch;
-	geo->nr_luns = src->num_lun;
-	geo->all_luns = geo->nr_chnls * geo->nr_luns;
+	geo->num_ch = src->num_ch;
+	geo->num_lun = src->num_lun;
+	geo->all_luns = geo->num_ch * geo->num_lun;
 
-	geo->nr_chks = le16_to_cpu(src->num_chk);
+	geo->num_chk = le16_to_cpu(src->num_chk);
 
 	geo->csecs = le16_to_cpu(src->csecs);
 	geo->sos = le16_to_cpu(src->sos);
@@ -316,7 +316,7 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	sec_per_pl = sec_per_pg * src->num_pln;
 	geo->clba = sec_per_pl * pg_per_blk;
 
-	geo->all_chunks = geo->all_luns * geo->nr_chks;
+	geo->all_chunks = geo->all_luns * geo->num_chk;
 	geo->total_secs = geo->clba * geo->all_chunks;
 
 	geo->ws_min = sec_per_pg;
@@ -327,8 +327,8 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	 * unspecified in 1.2. Users of 1.2 must be aware of this and eventually
 	 * specify these values through a quirk if restrictions apply.
 	 */
-	geo->maxoc = geo->all_luns * geo->nr_chks;
-	geo->maxocpu = geo->nr_chks;
+	geo->maxoc = geo->all_luns * geo->num_chk;
+	geo->maxocpu = geo->num_chk;
 
 	geo->mccap = le32_to_cpu(src->mccap);
 
@@ -350,13 +350,13 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	geo->cpar = le16_to_cpu(src->cpar);
 	geo->mpos = le32_to_cpu(src->mpos);
 
-	geo->plane_mode = NVM_PLANE_SINGLE;
+	geo->pln_mode = NVM_PLANE_SINGLE;
 
 	if (geo->mpos & 0x020202) {
-		geo->plane_mode = NVM_PLANE_DOUBLE;
+		geo->pln_mode = NVM_PLANE_DOUBLE;
 		geo->ws_opt <<= 1;
 	} else if (geo->mpos & 0x040404) {
-		geo->plane_mode = NVM_PLANE_QUAD;
+		geo->pln_mode = NVM_PLANE_QUAD;
 		geo->ws_opt <<= 2;
 	}
 
@@ -403,14 +403,14 @@ static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
 		return -EINVAL;
 	}
 
-	geo->nr_chnls = le16_to_cpu(id->num_grp);
-	geo->nr_luns = le16_to_cpu(id->num_pu);
-	geo->all_luns = geo->nr_chnls * geo->nr_luns;
+	geo->num_ch = le16_to_cpu(id->num_grp);
+	geo->num_lun = le16_to_cpu(id->num_pu);
+	geo->all_luns = geo->num_ch * geo->num_lun;
 
-	geo->nr_chks = le32_to_cpu(id->num_chk);
+	geo->num_chk = le32_to_cpu(id->num_chk);
 	geo->clba = le32_to_cpu(id->clba);
 
-	geo->all_chunks = geo->all_luns * geo->nr_chks;
+	geo->all_chunks = geo->all_luns * geo->num_chk;
 	geo->total_secs = geo->clba * geo->all_chunks;
 
 	geo->ws_min = le32_to_cpu(id->ws_min);
@@ -484,7 +484,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
-	int nr_blks = geo->nr_chks * geo->num_pln;
+	int nr_blks = geo->num_chk * geo->num_pln;
 	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blks;
 	int ret = 0;
 
@@ -525,7 +525,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 		goto out;
 	}
 
-	memcpy(blks, bb_tbl->blk, geo->nr_chks * geo->num_pln);
+	memcpy(blks, bb_tbl->blk, geo->num_chk * geo->num_pln);
 out:
 	kfree(bb_tbl);
 	return ret;
@@ -968,7 +968,7 @@ static ssize_t nvm_dev_attr_show_ppaf(struct nvm_addrf_12 *ppaf, char *page)
 				ppaf->pln_offset, ppaf->pln_len,
 				ppaf->blk_offset, ppaf->blk_len,
 				ppaf->pg_offset, ppaf->pg_len,
-				ppaf->sect_offset, ppaf->sect_len);
+				ppaf->sec_offset, ppaf->sec_len);
 }
 
 static ssize_t nvm_dev_attr_show_12(struct device *dev,
@@ -998,13 +998,13 @@ static ssize_t nvm_dev_attr_show_12(struct device *dev,
 	} else if (strcmp(attr->name, "flash_media_type") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->fmtype);
 	} else if (strcmp(attr->name, "num_channels") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->nr_chnls);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_ch);
 	} else if (strcmp(attr->name, "num_luns") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->nr_luns);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_lun);
 	} else if (strcmp(attr->name, "num_planes") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_pln);
 	} else if (strcmp(attr->name, "num_blocks") == 0) {	/* u16 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->nr_chks);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_chk);
 	} else if (strcmp(attr->name, "num_pages") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_pg);
 	} else if (strcmp(attr->name, "page_size") == 0) {
@@ -1048,11 +1048,11 @@ static ssize_t nvm_dev_attr_show_20(struct device *dev,
 	attr = &dattr->attr;
 
 	if (strcmp(attr->name, "groups") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->nr_chnls);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_ch);
 	} else if (strcmp(attr->name, "punits") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->nr_luns);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_lun);
 	} else if (strcmp(attr->name, "chunks") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", geo->nr_chks);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_chk);
 	} else if (strcmp(attr->name, "clba") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->clba);
 	} else if (strcmp(attr->name, "ws_min") == 0) {
