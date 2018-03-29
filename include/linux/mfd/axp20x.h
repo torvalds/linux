@@ -642,7 +642,7 @@ struct axp20x_dev {
 	struct regmap_irq_chip_data	*regmap_irqc;
 	long				variant;
 	int                             nr_cells;
-	struct mfd_cell                 *cells;
+	const struct mfd_cell           *cells;
 	const struct regmap_config	*regmap_cfg;
 	const struct regmap_irq_chip	*regmap_irq_chip;
 };

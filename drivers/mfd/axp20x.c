@@ -169,18 +169,18 @@ static const struct regmap_access_table axp806_volatile_table = {
 	.n_yes_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
 };
 
-static struct resource axp152_pek_resources[] = {
+static const struct resource axp152_pek_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP152_IRQ_PEK_RIS_EDGE, "PEK_DBR"),
 	DEFINE_RES_IRQ_NAMED(AXP152_IRQ_PEK_FAL_EDGE, "PEK_DBF"),
 };
 
-static struct resource axp20x_ac_power_supply_resources[] = {
+static const struct resource axp20x_ac_power_supply_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_ACIN_PLUGIN, "ACIN_PLUGIN"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_ACIN_REMOVAL, "ACIN_REMOVAL"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_ACIN_OVER_V, "ACIN_OVER_V"),
 };
 
-static struct resource axp20x_pek_resources[] = {
+static const struct resource axp20x_pek_resources[] = {
 	{
 		.name	= "PEK_DBR",
 		.start	= AXP20X_IRQ_PEK_RIS_EDGE,
@@ -194,19 +194,19 @@ static struct resource axp20x_pek_resources[] = {
 	},
 };
 
-static struct resource axp20x_usb_power_supply_resources[] = {
+static const struct resource axp20x_usb_power_supply_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_PLUGIN, "VBUS_PLUGIN"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_VALID, "VBUS_VALID"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_NOT_VALID, "VBUS_NOT_VALID"),
 };
 
-static struct resource axp22x_usb_power_supply_resources[] = {
+static const struct resource axp22x_usb_power_supply_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP22X_IRQ_VBUS_PLUGIN, "VBUS_PLUGIN"),
 	DEFINE_RES_IRQ_NAMED(AXP22X_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
 };
 
-static struct resource axp22x_pek_resources[] = {
+static const struct resource axp22x_pek_resources[] = {
 	{
 		.name   = "PEK_DBR",
 		.start  = AXP22X_IRQ_PEK_RIS_EDGE,
@@ -220,7 +220,7 @@ static struct resource axp22x_pek_resources[] = {
 	},
 };
 
-static struct resource axp288_power_button_resources[] = {
+static const struct resource axp288_power_button_resources[] = {
 	{
 		.name	= "PEK_DBR",
 		.start	= AXP288_IRQ_POKP,
@@ -235,7 +235,7 @@ static struct resource axp288_power_button_resources[] = {
 	},
 };
 
-static struct resource axp288_fuel_gauge_resources[] = {
+static const struct resource axp288_fuel_gauge_resources[] = {
 	{
 		.start = AXP288_IRQ_QWBTU,
 		.end   = AXP288_IRQ_QWBTU,
@@ -268,7 +268,7 @@ static struct resource axp288_fuel_gauge_resources[] = {
 	},
 };
 
-static struct resource axp803_pek_resources[] = {
+static const struct resource axp803_pek_resources[] = {
 	{
 		.name   = "PEK_DBR",
 		.start  = AXP803_IRQ_PEK_RIS_EDGE,
@@ -282,7 +282,7 @@ static struct resource axp803_pek_resources[] = {
 	},
 };
 
-static struct resource axp809_pek_resources[] = {
+static const struct resource axp809_pek_resources[] = {
 	{
 		.name   = "PEK_DBR",
 		.start  = AXP809_IRQ_PEK_RIS_EDGE,
@@ -648,7 +648,7 @@ static const struct regmap_irq_chip axp809_regmap_irq_chip = {
 	.num_regs		= 5,
 };
 
-static struct mfd_cell axp20x_cells[] = {
+static const struct mfd_cell axp20x_cells[] = {
 	{
 		.name		= "axp20x-gpio",
 		.of_compatible	= "x-powers,axp209-gpio",
@@ -677,7 +677,7 @@ static struct mfd_cell axp20x_cells[] = {
 	},
 };
 
-static struct mfd_cell axp221_cells[] = {
+static const struct mfd_cell axp221_cells[] = {
 	{
 		.name		= "axp221-pek",
 		.num_resources	= ARRAY_SIZE(axp22x_pek_resources),
@@ -703,7 +703,7 @@ static struct mfd_cell axp221_cells[] = {
 	},
 };
 
-static struct mfd_cell axp223_cells[] = {
+static const struct mfd_cell axp223_cells[] = {
 	{
 		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp22x_pek_resources),
@@ -729,7 +729,7 @@ static struct mfd_cell axp223_cells[] = {
 	},
 };
 
-static struct mfd_cell axp152_cells[] = {
+static const struct mfd_cell axp152_cells[] = {
 	{
 		.name			= "axp20x-pek",
 		.num_resources		= ARRAY_SIZE(axp152_pek_resources),
@@ -737,7 +737,7 @@ static struct mfd_cell axp152_cells[] = {
 	},
 };
 
-static struct resource axp288_adc_resources[] = {
+static const struct resource axp288_adc_resources[] = {
 	{
 		.name  = "GPADC",
 		.start = AXP288_IRQ_GPADC,
@@ -746,7 +746,7 @@ static struct resource axp288_adc_resources[] = {
 	},
 };
 
-static struct resource axp288_extcon_resources[] = {
+static const struct resource axp288_extcon_resources[] = {
 	{
 		.start = AXP288_IRQ_VBUS_FALL,
 		.end   = AXP288_IRQ_VBUS_FALL,
@@ -769,7 +769,7 @@ static struct resource axp288_extcon_resources[] = {
 	},
 };
 
-static struct resource axp288_charger_resources[] = {
+static const struct resource axp288_charger_resources[] = {
 	{
 		.start = AXP288_IRQ_OV,
 		.end   = AXP288_IRQ_OV,
@@ -817,7 +817,7 @@ static struct resource axp288_charger_resources[] = {
 	},
 };
 
-static struct mfd_cell axp288_cells[] = {
+static const struct mfd_cell axp288_cells[] = {
 	{
 		.name = "axp288_adc",
 		.num_resources = ARRAY_SIZE(axp288_adc_resources),
@@ -848,7 +848,7 @@ static struct mfd_cell axp288_cells[] = {
 	},
 };
 
-static struct mfd_cell axp803_cells[] = {
+static const struct mfd_cell axp803_cells[] = {
 	{
 		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
@@ -857,14 +857,14 @@ static struct mfd_cell axp803_cells[] = {
 	{	.name			= "axp20x-regulator" },
 };
 
-static struct mfd_cell axp806_cells[] = {
+static const struct mfd_cell axp806_cells[] = {
 	{
 		.id			= 2,
 		.name			= "axp20x-regulator",
 	},
 };
 
-static struct mfd_cell axp809_cells[] = {
+static const struct mfd_cell axp809_cells[] = {
 	{
 		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp809_pek_resources),
@@ -875,7 +875,7 @@ static struct mfd_cell axp809_cells[] = {
 	},
 };
 
-static struct mfd_cell axp813_cells[] = {
+static const struct mfd_cell axp813_cells[] = {
 	{
 		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
