@@ -800,12 +800,19 @@ int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 		.scd_queue = queue,
 		.action = SCD_CFG_DISABLE_QUEUE,
 	};
-	bool remove_mac_queue = true;
+	bool remove_mac_queue = mac80211_queue != IEEE80211_INVAL_HW_QUEUE;
 	int ret;
+
+	if (WARN_ON(remove_mac_queue && mac80211_queue >= IEEE80211_MAX_QUEUES))
+		return -EINVAL;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		spin_lock_bh(&mvm->queue_info_lock);
-		mvm->hw_queue_to_mac80211[queue] &= ~BIT(mac80211_queue);
+
+		if (remove_mac_queue)
+			mvm->hw_queue_to_mac80211[queue] &=
+				~BIT(mac80211_queue);
+
 		spin_unlock_bh(&mvm->queue_info_lock);
 
 		iwl_trans_txq_free(mvm->trans, queue);
@@ -1027,13 +1034,17 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 }
 
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       bool prev)
+			       bool low_latency,
+			       enum iwl_mvm_low_latency_cause cause)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int res;
-	bool low_latency;
+	bool prev;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	prev = iwl_mvm_vif_low_latency(mvmvif);
+	iwl_mvm_vif_set_low_latency(mvmvif, low_latency, cause);
 
 	low_latency = iwl_mvm_vif_low_latency(mvmvif);
 

@@ -300,6 +300,18 @@ enum iwl_bt_force_ant_mode {
 };
 
 /**
+* struct iwl_mvm_low_latency_cause - low latency set causes
+* @LOW_LATENCY_TRAFFIC: indicates low latency traffic was detected
+* @LOW_LATENCY_DEBUGFS: low latency mode set from debugfs
+* @LOW_LATENCY_VCMD: low latency mode set from vendor command
+*/
+enum iwl_mvm_low_latency_cause {
+	LOW_LATENCY_TRAFFIC = BIT(0),
+	LOW_LATENCY_DEBUGFS = BIT(1),
+	LOW_LATENCY_VCMD = BIT(2),
+};
+
+/**
 * struct iwl_mvm_vif_bf_data - beacon filtering related data
 * @bf_enabled: indicates if beacon filtering is enabled
 * @ba_enabled: indicated if beacon abort is enabled
@@ -335,9 +347,8 @@ struct iwl_mvm_vif_bf_data {
  * @pm_enabled - Indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
- * @low_latency_traffic: indicates low latency traffic was detected
- * @low_latency_dbgfs: low latency mode set from debugfs
- * @low_latency_vcmd: low latency mode set from vendor command
+ * @low_latency: indicates low latency is set, see
+ *	enum &iwl_mvm_low_latency_cause for causes.
  * @ps_disabled: indicates that this interface requires PS to be disabled
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
@@ -367,7 +378,7 @@ struct iwl_mvm_vif {
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
-	bool low_latency_traffic, low_latency_dbgfs, low_latency_vcmd;
+	u8 low_latency;
 	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
 
@@ -1155,6 +1166,18 @@ static inline bool iwl_mvm_is_adaptive_dwell_supported(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_ADAPTIVE_DWELL);
 }
 
+static inline bool iwl_mvm_is_adaptive_dwell_v2_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_ADAPTIVE_DWELL_V2);
+}
+
+static inline bool iwl_mvm_is_oce_supported(struct iwl_mvm *mvm)
+{
+	/* OCE should never be enabled for LMAC scan FWs */
+	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_OCE);
+}
+
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
 {
 	/* For now we only use this mode to differentiate between
@@ -1744,7 +1767,8 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm);
 
 /* Low latency */
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       bool value);
+			      bool low_latency,
+			      enum iwl_mvm_low_latency_cause cause);
 /* get SystemLowLatencyMode - only needed for beacon threshold? */
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm);
 /* get VMACLowLatencyMode */
@@ -1760,9 +1784,17 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	 * binding, so this has no real impact. For now, just return
 	 * the current desired low-latency state.
 	 */
-	return mvmvif->low_latency_dbgfs ||
-	       mvmvif->low_latency_traffic ||
-	       mvmvif->low_latency_vcmd;
+	return mvmvif->low_latency;
+}
+
+static inline
+void iwl_mvm_vif_set_low_latency(struct iwl_mvm_vif *mvmvif, bool set,
+				 enum iwl_mvm_low_latency_cause cause)
+{
+	if (set)
+		mvmvif->low_latency |= cause;
+	else
+		mvmvif->low_latency &= ~cause;
 }
 
 /* hw scheduler queue config */
