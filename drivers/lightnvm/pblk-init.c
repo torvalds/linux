@@ -80,7 +80,7 @@ static size_t pblk_trans_map_size(struct pblk *pblk)
 {
 	int entry_size = 8;
 
-	if (pblk->ppaf_bitsize < 32)
+	if (pblk->addrf_len < 32)
 		entry_size = 4;
 
 	return entry_size * pblk->rl.nr_secs;
@@ -229,7 +229,7 @@ static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
 	return dst->blk_offset + src->blk_len;
 }
 
-static int pblk_set_ppaf(struct pblk *pblk)
+static int pblk_set_addrf(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
@@ -241,7 +241,7 @@ static int pblk_set_ppaf(struct pblk *pblk)
 		return -EINVAL;
 	}
 
-	pblk->ppaf_bitsize = pblk_set_addrf_12(geo, (void *)&pblk->ppaf);
+	pblk->addrf_len = pblk_set_addrf_12(geo, (void *)&pblk->addrf);
 
 	return 0;
 }
@@ -377,7 +377,7 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->r_end_wq)
 		goto free_bb_wq;
 
-	if (pblk_set_ppaf(pblk))
+	if (pblk_set_addrf(pblk))
 		goto free_r_end_wq;
 
 	INIT_LIST_HEAD(&pblk->compl_list);
