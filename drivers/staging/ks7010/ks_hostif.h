@@ -564,12 +564,19 @@ static inline bool is_11b_rate(u8 rate)
 		((rate & RATE_MASK) == TX_RATE_11M));
 }
 
-#define IS_OFDM_RATE(A) (((A & RATE_MASK) == TX_RATE_6M) || ((A & RATE_MASK) == TX_RATE_12M) || \
-			 ((A & RATE_MASK) == TX_RATE_24M) || ((A & RATE_MASK) == TX_RATE_9M) || \
-			 ((A & RATE_MASK) == TX_RATE_18M) || ((A & RATE_MASK) == TX_RATE_36M) || \
-			 ((A & RATE_MASK) == TX_RATE_48M) || ((A & RATE_MASK) == TX_RATE_54M))
+static inline bool is_ofdm_rate(u8 rate)
+{
+	return (((rate & RATE_MASK) == TX_RATE_6M)  ||
+		((rate & RATE_MASK) == TX_RATE_12M) ||
+		((rate & RATE_MASK) == TX_RATE_24M) ||
+		((rate & RATE_MASK) == TX_RATE_9M)  ||
+		((rate & RATE_MASK) == TX_RATE_18M) ||
+		((rate & RATE_MASK) == TX_RATE_36M) ||
+		((rate & RATE_MASK) == TX_RATE_48M) ||
+		((rate & RATE_MASK) == TX_RATE_54M));
+}
 
-#define IS_11BG_RATE(A) (is_11b_rate(A) || IS_OFDM_RATE(A))
+#define IS_11BG_RATE(A) (is_11b_rate(A) || is_ofdm_rate(A))
 
 #define IS_OFDM_EXT_RATE(A) (((A & RATE_MASK) == TX_RATE_9M) || ((A & RATE_MASK) == TX_RATE_18M) || \
 			     ((A & RATE_MASK) == TX_RATE_36M) || ((A & RATE_MASK) == TX_RATE_48M) || \
