@@ -222,6 +222,27 @@ struct ath10k_fw_stats_vdev {
 	u32 beacon_rssi_history[10];
 };
 
+struct ath10k_fw_stats_vdev_extd {
+	struct list_head list;
+
+	u32 vdev_id;
+	u32 ppdu_aggr_cnt;
+	u32 ppdu_noack;
+	u32 mpdu_queued;
+	u32 ppdu_nonaggr_cnt;
+	u32 mpdu_sw_requeued;
+	u32 mpdu_suc_retry;
+	u32 mpdu_suc_multitry;
+	u32 mpdu_fail_retry;
+	u32 tx_ftm_suc;
+	u32 tx_ftm_suc_retry;
+	u32 tx_ftm_fail;
+	u32 rx_ftmr_cnt;
+	u32 rx_ftmr_dup_cnt;
+	u32 rx_iftmr_cnt;
+	u32 rx_iftmr_dup_cnt;
+};
+
 struct ath10k_fw_stats_pdev {
 	struct list_head list;
 

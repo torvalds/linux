@@ -1340,6 +1340,17 @@ struct wmi_tlv_init_cmd {
 	__le32 num_host_mem_chunks;
 } __packed;
 
+struct wmi_tlv_pdev_get_temp_cmd {
+	__le32 pdev_id; /* not used */
+} __packed;
+
+struct wmi_tlv_pdev_temperature_event {
+	__le32 tlv_hdr;
+	/* temperature value in Celcius degree */
+	__le32 temperature;
+	__le32 pdev_id;
+} __packed;
+
 struct wmi_tlv_pdev_set_param_cmd {
 	__le32 pdev_id; /* not used yet */
 	__le32 param_id;
@@ -1744,6 +1755,13 @@ struct wmi_tlv_tx_pause_ev {
 	__le32 vdev_map;
 	__le32 peer_id;
 	__le32 tid_map;
+} __packed;
+
+struct wmi_tlv_tdls_peer_event {
+	struct wmi_mac_addr    peer_macaddr;
+	__le32 peer_status;
+	__le32 peer_reason;
+	__le32 vdev_id;
 } __packed;
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);

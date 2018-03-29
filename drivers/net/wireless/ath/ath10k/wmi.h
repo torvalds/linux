@@ -4413,6 +4413,7 @@ enum wmi_10_4_stats_id {
 	WMI_10_4_STAT_AP		= BIT(1),
 	WMI_10_4_STAT_INST		= BIT(2),
 	WMI_10_4_STAT_PEER_EXTD		= BIT(3),
+	WMI_10_4_STAT_VDEV_EXTD		= BIT(4),
 };
 
 struct wlan_inst_rssi_args {
@@ -4552,10 +4553,34 @@ struct wmi_10_4_pdev_stats {
 
 /*
  * VDEV statistics
- * TODO: add all VDEV stats here
  */
+
+#define WMI_VDEV_STATS_FTM_COUNT_VALID	BIT(31)
+#define WMI_VDEV_STATS_FTM_COUNT_LSB	0
+#define WMI_VDEV_STATS_FTM_COUNT_MASK	0x7fffffff
+
 struct wmi_vdev_stats {
 	__le32 vdev_id;
+} __packed;
+
+struct wmi_vdev_stats_extd {
+	__le32 vdev_id;
+	__le32 ppdu_aggr_cnt;
+	__le32 ppdu_noack;
+	__le32 mpdu_queued;
+	__le32 ppdu_nonaggr_cnt;
+	__le32 mpdu_sw_requeued;
+	__le32 mpdu_suc_retry;
+	__le32 mpdu_suc_multitry;
+	__le32 mpdu_fail_retry;
+	__le32 tx_ftm_suc;
+	__le32 tx_ftm_suc_retry;
+	__le32 tx_ftm_fail;
+	__le32 rx_ftmr_cnt;
+	__le32 rx_ftmr_dup_cnt;
+	__le32 rx_iftmr_cnt;
+	__le32 rx_iftmr_dup_cnt;
+	__le32 reserved[6];
 } __packed;
 
 /*
@@ -6792,6 +6817,7 @@ enum wmi_tdls_state {
 	WMI_TDLS_DISABLE,
 	WMI_TDLS_ENABLE_PASSIVE,
 	WMI_TDLS_ENABLE_ACTIVE,
+	WMI_TDLS_ENABLE_ACTIVE_EXTERNAL_CONTROL,
 };
 
 enum wmi_tdls_peer_state {

@@ -2041,7 +2041,8 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
 		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
 		ar->fw_stats_req_mask = WMI_10_4_STAT_PEER |
-					WMI_10_4_STAT_PEER_EXTD;
+					WMI_10_4_STAT_PEER_EXTD |
+					WMI_10_4_STAT_VDEV_EXTD;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
 		ar->max_num_tdls_vdevs = TARGET_10_4_NUM_TDLS_VDEVS;
 
@@ -2281,6 +2282,9 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		val = 0;
 		if (ath10k_peer_stats_enabled(ar))
 			val = WMI_10_4_PEER_STATS;
+
+		/* Enable vdev stats by default */
+		val |= WMI_10_4_VDEV_STATS;
 
 		if (test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map))
 			val |= WMI_10_4_BSS_CHANNEL_INFO_64;

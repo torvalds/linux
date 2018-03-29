@@ -591,7 +591,7 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 
-	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
+	eth_broadcast_addr(common->bssidmask);
 
 	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	priv->ah->opmode = NL80211_IFTYPE_STATION;
