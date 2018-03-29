@@ -399,29 +399,32 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 /**
  * tipc_nametbl_translate - perform service instance to socket translation
  *
- * On entry, 'destnode' is the search domain used during translation.
+ * On entry, 'dnode' is the search domain used during translation.
  *
  * On exit:
- * - if name translation is deferred to another node/cluster/zone,
- *   leaves 'destnode' unchanged (will be non-zero) and returns 0
- * - if name translation is attempted and succeeds, sets 'destnode'
- *   to publication node and returns port reference (will be non-zero)
- * - if name translation is attempted and fails, sets 'destnode' to 0
- *   and returns 0
+ * - if translation is deferred to another node, leave 'dnode' unchanged and
+ *   return 0
+ * - if translation is attempted and succeeds, set 'dnode' to the publishing
+ *   node and return the published (non-zero) port number
+ * - if translation is attempted and fails, set 'dnode' to 0 and return 0
+ *
+ * Note that for legacy users (node configured with Z.C.N address format) the
+ * 'closest-first' lookup algorithm must be maintained, i.e., if dnode is 0
+ * we must look in the local binding list first
  */
-u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
-			   u32 *destnode)
+u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
 {
 	struct tipc_net *tn = tipc_net(net);
 	bool legacy = tn->legacy_addr_format;
 	u32 self = tipc_own_addr(net);
 	struct service_range *sr;
 	struct tipc_service *sc;
+	struct list_head *list;
 	struct publication *p;
 	u32 port = 0;
 	u32 node = 0;
 
-	if (!tipc_in_scope(legacy, *destnode, self))
+	if (!tipc_in_scope(legacy, *dnode, self))
 		return 0;
 
 	rcu_read_lock();
@@ -434,43 +437,29 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 	if (unlikely(!sr))
 		goto no_match;
 
-	/* Closest-First Algorithm */
-	if (legacy && !*destnode) {
-		if (!list_empty(&sr->local_publ)) {
-			p = list_first_entry(&sr->local_publ,
-					     struct publication,
-					     local_publ);
-			list_move_tail(&p->local_publ,
-				       &sr->local_publ);
-		} else {
-			p = list_first_entry(&sr->all_publ,
-					     struct publication,
-					     all_publ);
-			list_move_tail(&p->all_publ,
-				       &sr->all_publ);
-		}
-	}
-
-	/* Round-Robin Algorithm */
-	else if (*destnode == self) {
-		if (list_empty(&sr->local_publ))
+	/* Select lookup algorithm: local, closest-first or round-robin */
+	if (*dnode == self) {
+		list = &sr->local_publ;
+		if (list_empty(list))
 			goto no_match;
-		p = list_first_entry(&sr->local_publ, struct publication,
-				     local_publ);
+		p = list_first_entry(list, struct publication, local_publ);
+		list_move_tail(&p->local_publ, &sr->local_publ);
+	} else if (legacy && !*dnode && !list_empty(&sr->local_publ)) {
+		list = &sr->local_publ;
+		p = list_first_entry(list, struct publication, local_publ);
 		list_move_tail(&p->local_publ, &sr->local_publ);
 	} else {
-		p = list_first_entry(&sr->all_publ, struct publication,
-				     all_publ);
+		list = &sr->all_publ;
+		p = list_first_entry(list, struct publication, all_publ);
 		list_move_tail(&p->all_publ, &sr->all_publ);
 	}
-
 	port = p->port;
 	node = p->node;
 no_match:
 	spin_unlock_bh(&sc->lock);
 not_found:
 	rcu_read_unlock();
-	*destnode = node;
+	*dnode = node;
 	return port;
 }
 
