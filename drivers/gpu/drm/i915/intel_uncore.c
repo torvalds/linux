@@ -1996,7 +1996,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	u32 reg_value;
 	int ret;
 
-	might_sleep();
+	might_sleep_if(slow_timeout_ms);
 
 	spin_lock_irq(&dev_priv->uncore.lock);
 	intel_uncore_forcewake_get__locked(dev_priv, fw);
@@ -2008,7 +2008,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	intel_uncore_forcewake_put__locked(dev_priv, fw);
 	spin_unlock_irq(&dev_priv->uncore.lock);
 
-	if (ret)
+	if (ret && slow_timeout_ms)
 		ret = __wait_for(reg_value = I915_READ_NOTRACE(reg),
 				 (reg_value & mask) == value,
 				 slow_timeout_ms * 1000, 10, 1000);
