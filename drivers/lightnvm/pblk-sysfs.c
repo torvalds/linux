@@ -113,15 +113,14 @@ static ssize_t pblk_sysfs_ppaf(struct pblk *pblk, char *page)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct nvm_addrf_12 *ppaf;
-	struct nvm_addrf_12 *geo_ppaf;
 	ssize_t sz = 0;
 
-	ppaf = (struct nvm_addrf_12 *)&pblk->addrf;
-	geo_ppaf = (struct nvm_addrf_12 *)&geo->addrf;
+	if (geo->version == NVM_OCSSD_SPEC_12) {
+		struct nvm_addrf_12 *ppaf = (struct nvm_addrf_12 *)&pblk->addrf;
+		struct nvm_addrf_12 *gppaf = (struct nvm_addrf_12 *)&geo->addrf;
 
-	sz = snprintf(page, PAGE_SIZE,
-		"g:(b:%d)blk:%d/%d,pg:%d/%d,lun:%d/%d,ch:%d/%d,pl:%d/%d,sec:%d/%d\n",
+		sz = snprintf(page, PAGE_SIZE,
+			"g:(b:%d)blk:%d/%d,pg:%d/%d,lun:%d/%d,ch:%d/%d,pl:%d/%d,sec:%d/%d\n",
 			pblk->addrf_len,
 			ppaf->blk_offset, ppaf->blk_len,
 			ppaf->pg_offset, ppaf->pg_len,
@@ -130,14 +129,33 @@ static ssize_t pblk_sysfs_ppaf(struct pblk *pblk, char *page)
 			ppaf->pln_offset, ppaf->pln_len,
 			ppaf->sec_offset, ppaf->sec_len);
 
-	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"d:blk:%d/%d,pg:%d/%d,lun:%d/%d,ch:%d/%d,pl:%d/%d,sec:%d/%d\n",
-			geo_ppaf->blk_offset, geo_ppaf->blk_len,
-			geo_ppaf->pg_offset, geo_ppaf->pg_len,
-			geo_ppaf->lun_offset, geo_ppaf->lun_len,
-			geo_ppaf->ch_offset, geo_ppaf->ch_len,
-			geo_ppaf->pln_offset, geo_ppaf->pln_len,
-			geo_ppaf->sec_offset, geo_ppaf->sec_len);
+		sz += snprintf(page + sz, PAGE_SIZE - sz,
+			"d:blk:%d/%d,pg:%d/%d,lun:%d/%d,ch:%d/%d,pl:%d/%d,sec:%d/%d\n",
+			gppaf->blk_offset, gppaf->blk_len,
+			gppaf->pg_offset, gppaf->pg_len,
+			gppaf->lun_offset, gppaf->lun_len,
+			gppaf->ch_offset, gppaf->ch_len,
+			gppaf->pln_offset, gppaf->pln_len,
+			gppaf->sec_offset, gppaf->sec_len);
+	} else {
+		struct nvm_addrf *ppaf = &pblk->addrf;
+		struct nvm_addrf *gppaf = &geo->addrf;
+
+		sz = snprintf(page, PAGE_SIZE,
+			"pblk:(s:%d)ch:%d/%d,lun:%d/%d,chk:%d/%d/sec:%d/%d\n",
+			pblk->addrf_len,
+			ppaf->ch_offset, ppaf->ch_len,
+			ppaf->lun_offset, ppaf->lun_len,
+			ppaf->chk_offset, ppaf->chk_len,
+			ppaf->sec_offset, ppaf->sec_len);
+
+		sz += snprintf(page + sz, PAGE_SIZE - sz,
+			"device:ch:%d/%d,lun:%d/%d,chk:%d/%d,sec:%d/%d\n",
+			gppaf->ch_offset, gppaf->ch_len,
+			gppaf->lun_offset, gppaf->lun_len,
+			gppaf->chk_offset, gppaf->chk_len,
+			gppaf->sec_offset, gppaf->sec_len);
+	}
 
 	return sz;
 }

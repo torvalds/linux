@@ -229,19 +229,61 @@ static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
 	return dst->blk_offset + src->blk_len;
 }
 
+static int pblk_set_addrf_20(struct nvm_geo *geo, struct nvm_addrf *adst,
+			     struct pblk_addrf *udst)
+{
+	struct nvm_addrf *src = &geo->addrf;
+
+	adst->ch_len = get_count_order(geo->num_ch);
+	adst->lun_len = get_count_order(geo->num_lun);
+	adst->chk_len = src->chk_len;
+	adst->sec_len = src->sec_len;
+
+	adst->sec_offset = 0;
+	adst->ch_offset = adst->sec_len;
+	adst->lun_offset = adst->ch_offset + adst->ch_len;
+	adst->chk_offset = adst->lun_offset + adst->lun_len;
+
+	adst->sec_mask = ((1ULL << adst->sec_len) - 1) << adst->sec_offset;
+	adst->chk_mask = ((1ULL << adst->chk_len) - 1) << adst->chk_offset;
+	adst->lun_mask = ((1ULL << adst->lun_len) - 1) << adst->lun_offset;
+	adst->ch_mask = ((1ULL << adst->ch_len) - 1) << adst->ch_offset;
+
+	udst->sec_stripe = geo->ws_opt;
+	udst->ch_stripe = geo->num_ch;
+	udst->lun_stripe = geo->num_lun;
+
+	udst->sec_lun_stripe = udst->sec_stripe * udst->ch_stripe;
+	udst->sec_ws_stripe = udst->sec_lun_stripe * udst->lun_stripe;
+
+	return adst->chk_offset + adst->chk_len;
+}
+
 static int pblk_set_addrf(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	int mod;
 
-	div_u64_rem(geo->clba, pblk->min_write_pgs, &mod);
-	if (mod) {
-		pr_err("pblk: bad configuration of sectors/pages\n");
+	switch (geo->version) {
+	case NVM_OCSSD_SPEC_12:
+		div_u64_rem(geo->clba, pblk->min_write_pgs, &mod);
+		if (mod) {
+			pr_err("pblk: bad configuration of sectors/pages\n");
+			return -EINVAL;
+		}
+
+		pblk->addrf_len = pblk_set_addrf_12(geo, (void *)&pblk->addrf);
+		break;
+	case NVM_OCSSD_SPEC_20:
+		pblk->addrf_len = pblk_set_addrf_20(geo, (void *)&pblk->addrf,
+								&pblk->uaddrf);
+		break;
+	default:
+		pr_err("pblk: OCSSD revision not supported (%d)\n",
+								geo->version);
 		return -EINVAL;
 	}
-
-	pblk->addrf_len = pblk_set_addrf_12(geo, (void *)&pblk->addrf);
 
 	return 0;
 }
@@ -1110,7 +1152,9 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	struct pblk *pblk;
 	int ret;
 
-	if (geo->version != NVM_OCSSD_SPEC_12) {
+	/* pblk supports 1.2 and 2.0 versions */
+	if (!(geo->version == NVM_OCSSD_SPEC_12 ||
+					geo->version == NVM_OCSSD_SPEC_20)) {
 		pr_err("pblk: OCSSD version not supported (%u)\n",
 							geo->version);
 		return ERR_PTR(-EINVAL);
