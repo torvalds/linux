@@ -192,29 +192,6 @@ static int ldlm_completion_tail(struct ldlm_lock *lock, void *data)
 }
 
 /**
- * Implementation of ->l_completion_ast() for a client, that doesn't wait
- * until lock is granted. Suitable for locks enqueued through ptlrpcd, of
- * other threads that cannot block for long.
- */
-int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data)
-{
-	if (flags == LDLM_FL_WAIT_NOREPROC) {
-		LDLM_DEBUG(lock, "client-side enqueue waiting on pending lock");
-		return 0;
-	}
-
-	if (!(flags & LDLM_FL_BLOCKED_MASK)) {
-		wake_up(&lock->l_waitq);
-		return ldlm_completion_tail(lock, data);
-	}
-
-	LDLM_DEBUG(lock,
-		   "client-side enqueue returned a blocked lock, going forward");
-	return 0;
-}
-EXPORT_SYMBOL(ldlm_completion_ast_async);
-
-/**
  * Generic LDLM "completion" AST. This is called in several cases:
  *
  *     - when a reply to an ENQUEUE RPC is received from the server

@@ -1227,7 +1227,6 @@ int ldlm_lock_change_resource(struct ldlm_namespace *, struct ldlm_lock *,
  * processing.
  * @{
  */
-int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data);
 int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data);
 /** @} ldlm_local_ast */
 
