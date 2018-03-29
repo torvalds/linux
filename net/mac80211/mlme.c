@@ -2011,8 +2011,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/* deauthenticate/disassociate now */
 	if (tx || frame_buf) {
-		struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-
 		/*
 		 * In multi channel scenarios guarantee that the virtual
 		 * interface is granted immediate airtime to transmit the
