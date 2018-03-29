@@ -211,7 +211,7 @@ static arm_lpae_iopte paddr_to_iopte(phys_addr_t paddr,
 static phys_addr_t iopte_to_paddr(arm_lpae_iopte pte,
 				  struct arm_lpae_io_pgtable *data)
 {
-	phys_addr_t paddr = pte & ARM_LPAE_PTE_ADDR_MASK;
+	u64 paddr = pte & ARM_LPAE_PTE_ADDR_MASK;
 
 	if (data->pg_shift < 16)
 		return paddr;
