@@ -59,6 +59,7 @@ check () {
   file=$1
 
   shift
+  opts=
   while [ -n "$*" ]; do
     opts="$opts \"$1\""
     shift
