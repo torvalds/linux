@@ -2396,9 +2396,6 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 			 * entry is added into request list.
 			 */
 			dep->flags = DWC3_EP_PENDING_REQUEST;
-		} else {
-			dwc3_stop_active_transfer(dep, true);
-			dep->flags = DWC3_EP_ENABLED;
 		}
 	}
 }
@@ -2418,13 +2415,24 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 {
 	struct dwc3		*dwc = dep->dwc;
 	unsigned		status = 0;
+	bool			stop = false;
 
 	dwc3_gadget_endpoint_frame_from_event(dep, event);
 
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
 
+	if (event->status & DEPEVT_STATUS_MISSED_ISOC) {
+		status = -EXDEV;
+		stop = true;
+	}
+
 	dwc3_gadget_ep_cleanup_completed_requests(dep, event, status);
+
+	if (stop) {
+		dwc3_stop_active_transfer(dep, true);
+		dep->flags = DWC3_EP_ENABLED;
+	}
 
 	/*
 	 * WORKAROUND: This is the 2nd half of U1/U2 -> U0 workaround.

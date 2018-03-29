@@ -1204,11 +1204,12 @@ struct dwc3_event_depevt {
 /* Within XferNotReady */
 #define DEPEVT_STATUS_TRANSFER_ACTIVE	BIT(3)
 
-/* Within XferComplete */
+/* Within XferComplete or XferInProgress */
 #define DEPEVT_STATUS_BUSERR	BIT(0)
 #define DEPEVT_STATUS_SHORT	BIT(1)
 #define DEPEVT_STATUS_IOC	BIT(2)
-#define DEPEVT_STATUS_LST	BIT(3)
+#define DEPEVT_STATUS_LST	BIT(3) /* XferComplete */
+#define DEPEVT_STATUS_MISSED_ISOC BIT(3) /* XferInProgress */
 
 /* Stream event only */
 #define DEPEVT_STREAMEVT_FOUND		1
