@@ -179,7 +179,7 @@ static int pblk_rwb_init(struct pblk *pblk)
 		return -ENOMEM;
 
 	power_size = get_count_order(nr_entries);
-	power_seg_sz = get_count_order(geo->sec_size);
+	power_seg_sz = get_count_order(geo->csecs);
 
 	return pblk_rb_init(&pblk->rwb, entries, power_size, power_seg_sz);
 }
@@ -187,18 +187,10 @@ static int pblk_rwb_init(struct pblk *pblk)
 /* Minimum pages needed within a lun */
 #define ADDR_POOL_SIZE 64
 
-static int pblk_set_ppaf(struct pblk *pblk)
+static int pblk_set_addrf_12(struct nvm_geo *geo, struct nvm_addrf_12 *dst)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	struct nvm_addr_format ppaf = geo->ppaf;
-	int mod, power_len;
-
-	div_u64_rem(geo->sec_per_chk, pblk->min_write_pgs, &mod);
-	if (mod) {
-		pr_err("pblk: bad configuration of sectors/pages\n");
-		return -EINVAL;
-	}
+	struct nvm_addrf_12 *src = (struct nvm_addrf_12 *)&geo->addrf;
+	int power_len;
 
 	/* Re-calculate channel and lun format to adapt to configuration */
 	power_len = get_count_order(geo->nr_chnls);
@@ -206,34 +198,50 @@ static int pblk_set_ppaf(struct pblk *pblk)
 		pr_err("pblk: supports only power-of-two channel config.\n");
 		return -EINVAL;
 	}
-	ppaf.ch_len = power_len;
+	dst->ch_len = power_len;
 
 	power_len = get_count_order(geo->nr_luns);
 	if (1 << power_len != geo->nr_luns) {
 		pr_err("pblk: supports only power-of-two LUN config.\n");
 		return -EINVAL;
 	}
-	ppaf.lun_len = power_len;
+	dst->lun_len = power_len;
 
-	pblk->ppaf.sec_offset = 0;
-	pblk->ppaf.pln_offset = ppaf.sect_len;
-	pblk->ppaf.ch_offset = pblk->ppaf.pln_offset + ppaf.pln_len;
-	pblk->ppaf.lun_offset = pblk->ppaf.ch_offset + ppaf.ch_len;
-	pblk->ppaf.pg_offset = pblk->ppaf.lun_offset + ppaf.lun_len;
-	pblk->ppaf.blk_offset = pblk->ppaf.pg_offset + ppaf.pg_len;
-	pblk->ppaf.sec_mask = (1ULL << ppaf.sect_len) - 1;
-	pblk->ppaf.pln_mask = ((1ULL << ppaf.pln_len) - 1) <<
-							pblk->ppaf.pln_offset;
-	pblk->ppaf.ch_mask = ((1ULL << ppaf.ch_len) - 1) <<
-							pblk->ppaf.ch_offset;
-	pblk->ppaf.lun_mask = ((1ULL << ppaf.lun_len) - 1) <<
-							pblk->ppaf.lun_offset;
-	pblk->ppaf.pg_mask = ((1ULL << ppaf.pg_len) - 1) <<
-							pblk->ppaf.pg_offset;
-	pblk->ppaf.blk_mask = ((1ULL << ppaf.blk_len) - 1) <<
-							pblk->ppaf.blk_offset;
+	dst->blk_len = src->blk_len;
+	dst->pg_len = src->pg_len;
+	dst->pln_len = src->pln_len;
+	dst->sect_len = src->sect_len;
 
-	pblk->ppaf_bitsize = pblk->ppaf.blk_offset + ppaf.blk_len;
+	dst->sect_offset = 0;
+	dst->pln_offset = dst->sect_len;
+	dst->ch_offset = dst->pln_offset + dst->pln_len;
+	dst->lun_offset = dst->ch_offset + dst->ch_len;
+	dst->pg_offset = dst->lun_offset + dst->lun_len;
+	dst->blk_offset = dst->pg_offset + dst->pg_len;
+
+	dst->sec_mask = ((1ULL << dst->sect_len) - 1) << dst->sect_offset;
+	dst->pln_mask = ((1ULL << dst->pln_len) - 1) << dst->pln_offset;
+	dst->ch_mask = ((1ULL << dst->ch_len) - 1) << dst->ch_offset;
+	dst->lun_mask = ((1ULL << dst->lun_len) - 1) << dst->lun_offset;
+	dst->pg_mask = ((1ULL << dst->pg_len) - 1) << dst->pg_offset;
+	dst->blk_mask = ((1ULL << dst->blk_len) - 1) << dst->blk_offset;
+
+	return dst->blk_offset + src->blk_len;
+}
+
+static int pblk_set_ppaf(struct pblk *pblk)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int mod;
+
+	div_u64_rem(geo->clba, pblk->min_write_pgs, &mod);
+	if (mod) {
+		pr_err("pblk: bad configuration of sectors/pages\n");
+		return -EINVAL;
+	}
+
+	pblk->ppaf_bitsize = pblk_set_addrf_12(geo, (void *)&pblk->ppaf);
 
 	return 0;
 }
@@ -303,10 +311,9 @@ static int pblk_core_init(struct pblk *pblk)
 	atomic64_set(&pblk->nr_flush, 0);
 	pblk->nr_flush_rst = 0;
 
-	pblk->pgs_in_buffer = NVM_MEM_PAGE_WRITE * geo->sec_per_pg *
-						geo->nr_planes * geo->all_luns;
+	pblk->pgs_in_buffer = geo->mw_cunits * geo->all_luns;
 
-	pblk->min_write_pgs = geo->sec_per_pl * (geo->sec_size / PAGE_SIZE);
+	pblk->min_write_pgs = geo->ws_opt * (geo->csecs / PAGE_SIZE);
 	max_write_ppas = pblk->min_write_pgs * geo->all_luns;
 	pblk->max_write_pgs = min_t(int, max_write_ppas, NVM_MAX_VLBA);
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
@@ -583,18 +590,18 @@ static unsigned int calc_emeta_len(struct pblk *pblk)
 	/* Round to sector size so that lba_list starts on its own sector */
 	lm->emeta_sec[1] = DIV_ROUND_UP(
 			sizeof(struct line_emeta) + lm->blk_bitmap_len +
-			sizeof(struct wa_counters), geo->sec_size);
-	lm->emeta_len[1] = lm->emeta_sec[1] * geo->sec_size;
+			sizeof(struct wa_counters), geo->csecs);
+	lm->emeta_len[1] = lm->emeta_sec[1] * geo->csecs;
 
 	/* Round to sector size so that vsc_list starts on its own sector */
 	lm->dsec_per_line = lm->sec_per_line - lm->emeta_sec[0];
 	lm->emeta_sec[2] = DIV_ROUND_UP(lm->dsec_per_line * sizeof(u64),
-			geo->sec_size);
-	lm->emeta_len[2] = lm->emeta_sec[2] * geo->sec_size;
+			geo->csecs);
+	lm->emeta_len[2] = lm->emeta_sec[2] * geo->csecs;
 
 	lm->emeta_sec[3] = DIV_ROUND_UP(l_mg->nr_lines * sizeof(u32),
-			geo->sec_size);
-	lm->emeta_len[3] = lm->emeta_sec[3] * geo->sec_size;
+			geo->csecs);
+	lm->emeta_len[3] = lm->emeta_sec[3] * geo->csecs;
 
 	lm->vsc_list_len = l_mg->nr_lines * sizeof(u32);
 
@@ -625,13 +632,13 @@ static void pblk_set_provision(struct pblk *pblk, long nr_free_blks)
 	 * on user capacity consider only provisioned blocks
 	 */
 	pblk->rl.total_blocks = nr_free_blks;
-	pblk->rl.nr_secs = nr_free_blks * geo->sec_per_chk;
+	pblk->rl.nr_secs = nr_free_blks * geo->clba;
 
 	/* Consider sectors used for metadata */
 	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
-	blk_meta = DIV_ROUND_UP(sec_meta, geo->sec_per_chk);
+	blk_meta = DIV_ROUND_UP(sec_meta, geo->clba);
 
-	pblk->capacity = (provisioned - blk_meta) * geo->sec_per_chk;
+	pblk->capacity = (provisioned - blk_meta) * geo->clba;
 
 	atomic_set(&pblk->rl.free_blocks, nr_free_blks);
 	atomic_set(&pblk->rl.free_user_blocks, nr_free_blks);
@@ -783,7 +790,7 @@ static int pblk_line_meta_init(struct pblk *pblk)
 	unsigned int smeta_len, emeta_len;
 	int i;
 
-	lm->sec_per_line = geo->sec_per_chk * geo->all_luns;
+	lm->sec_per_line = geo->clba * geo->all_luns;
 	lm->blk_per_line = geo->all_luns;
 	lm->blk_bitmap_len = BITS_TO_LONGS(geo->all_luns) * sizeof(long);
 	lm->sec_bitmap_len = BITS_TO_LONGS(lm->sec_per_line) * sizeof(long);
@@ -797,8 +804,8 @@ static int pblk_line_meta_init(struct pblk *pblk)
 	 */
 	i = 1;
 add_smeta_page:
-	lm->smeta_sec = i * geo->sec_per_pl;
-	lm->smeta_len = lm->smeta_sec * geo->sec_size;
+	lm->smeta_sec = i * geo->ws_opt;
+	lm->smeta_len = lm->smeta_sec * geo->csecs;
 
 	smeta_len = sizeof(struct line_smeta) + lm->lun_bitmap_len;
 	if (smeta_len > lm->smeta_len) {
@@ -811,8 +818,8 @@ add_smeta_page:
 	 */
 	i = 1;
 add_emeta_page:
-	lm->emeta_sec[0] = i * geo->sec_per_pl;
-	lm->emeta_len[0] = lm->emeta_sec[0] * geo->sec_size;
+	lm->emeta_sec[0] = i * geo->ws_opt;
+	lm->emeta_len[0] = lm->emeta_sec[0] * geo->csecs;
 
 	emeta_len = calc_emeta_len(pblk);
 	if (emeta_len > lm->emeta_len[0]) {
@@ -825,7 +832,7 @@ add_emeta_page:
 	lm->min_blk_line = 1;
 	if (geo->all_luns > 1)
 		lm->min_blk_line += DIV_ROUND_UP(lm->smeta_sec +
-					lm->emeta_sec[0], geo->sec_per_chk);
+					lm->emeta_sec[0], geo->clba);
 
 	if (lm->min_blk_line > lm->blk_per_line) {
 		pr_err("pblk: config. not supported. Min. LUN in line:%d\n",
@@ -1009,9 +1016,9 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	struct pblk *pblk;
 	int ret;
 
-	if (dev->identity.dom & NVM_RSP_L2P) {
+	if (dev->geo.dom & NVM_RSP_L2P) {
 		pr_err("pblk: host-side L2P table not supported. (%x)\n",
-							dev->identity.dom);
+							dev->geo.dom);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1093,7 +1100,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	blk_queue_write_cache(tqueue, true, false);
 
-	tqueue->limits.discard_granularity = geo->sec_per_chk * geo->sec_size;
+	tqueue->limits.discard_granularity = geo->clba * geo->csecs;
 	tqueue->limits.discard_alignment = 0;
 	blk_queue_max_discard_sectors(tqueue, UINT_MAX >> 9);
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, tqueue);

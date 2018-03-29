@@ -88,7 +88,7 @@ static void pblk_gc_line_ws(struct work_struct *work)
 
 	up(&gc->gc_sem);
 
-	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->sec_size);
+	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->csecs);
 	if (!gc_rq->data) {
 		pr_err("pblk: could not GC line:%d (%d/%d)\n",
 					line->id, *line->vsc, gc_rq->nr_secs);

@@ -155,7 +155,7 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	int blun = lun_begin % dev->geo.nr_luns;
 	int lunid = 0;
 	int lun_balanced = 1;
-	int prev_nr_luns;
+	int sec_per_lun, prev_nr_luns;
 	int i, j;
 
 	nr_chnls = (nr_chnls_mod == 0) ? nr_chnls : nr_chnls + 1;
@@ -215,18 +215,23 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	if (!tgt_dev)
 		goto err_ch;
 
+	/* Inherit device geometry from parent */
 	memcpy(&tgt_dev->geo, &dev->geo, sizeof(struct nvm_geo));
+
 	/* Target device only owns a portion of the physical device */
 	tgt_dev->geo.nr_chnls = nr_chnls;
-	tgt_dev->geo.all_luns = nr_luns;
 	tgt_dev->geo.nr_luns = (lun_balanced) ? prev_nr_luns : -1;
+	tgt_dev->geo.all_luns = nr_luns;
+	tgt_dev->geo.all_chunks = nr_luns * dev->geo.nr_chks;
+
 	tgt_dev->geo.op = op;
-	tgt_dev->total_secs = nr_luns * tgt_dev->geo.sec_per_lun;
+
+	sec_per_lun = dev->geo.clba * dev->geo.nr_chks;
+	tgt_dev->geo.total_secs = nr_luns * sec_per_lun;
+
 	tgt_dev->q = dev->q;
 	tgt_dev->map = dev_map;
 	tgt_dev->luns = luns;
-	memcpy(&tgt_dev->identity, &dev->identity, sizeof(struct nvm_id));
-
 	tgt_dev->parent = dev;
 
 	return tgt_dev;
@@ -296,8 +301,6 @@ static int __nvm_config_simple(struct nvm_dev *dev,
 static int __nvm_config_extended(struct nvm_dev *dev,
 				 struct nvm_ioctl_create_extended *e)
 {
-	struct nvm_geo *geo = &dev->geo;
-
 	if (e->lun_begin == 0xFFFF && e->lun_end == 0xFFFF) {
 		e->lun_begin = 0;
 		e->lun_end = dev->geo.all_luns - 1;
@@ -311,7 +314,7 @@ static int __nvm_config_extended(struct nvm_dev *dev,
 		return -EINVAL;
 	}
 
-	return nvm_config_check_luns(geo, e->lun_begin, e->lun_end);
+	return nvm_config_check_luns(&dev->geo, e->lun_begin, e->lun_end);
 }
 
 static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
@@ -406,7 +409,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	tqueue->queuedata = targetdata;
 
 	blk_queue_max_hw_sectors(tqueue,
-			(dev->geo.sec_size >> 9) * NVM_MAX_VLBA);
+			(dev->geo.csecs >> 9) * NVM_MAX_VLBA);
 
 	set_capacity(tdisk, tt->capacity(targetdata));
 	add_disk(tdisk);
@@ -841,40 +844,9 @@ EXPORT_SYMBOL(nvm_get_tgt_bb_tbl);
 
 static int nvm_core_init(struct nvm_dev *dev)
 {
-	struct nvm_id *id = &dev->identity;
 	struct nvm_geo *geo = &dev->geo;
 	int ret;
 
-	memcpy(&geo->ppaf, &id->ppaf, sizeof(struct nvm_addr_format));
-
-	if (id->mtype != 0) {
-		pr_err("nvm: memory type not supported\n");
-		return -EINVAL;
-	}
-
-	/* Whole device values */
-	geo->nr_chnls = id->num_ch;
-	geo->nr_luns = id->num_lun;
-
-	/* Generic device geometry values */
-	geo->ws_min = id->ws_min;
-	geo->ws_opt = id->ws_opt;
-	geo->ws_seq = id->ws_seq;
-	geo->ws_per_chk = id->ws_per_chk;
-	geo->nr_chks = id->num_chk;
-	geo->mccap = id->mccap;
-
-	geo->sec_per_chk = id->clba;
-	geo->sec_per_lun = geo->sec_per_chk * geo->nr_chks;
-	geo->all_luns = geo->nr_luns * geo->nr_chnls;
-
-	/* 1.2 spec device geometry values */
-	geo->plane_mode = 1 << geo->ws_seq;
-	geo->nr_planes = geo->ws_opt / geo->ws_min;
-	geo->sec_per_pg = geo->ws_min;
-	geo->sec_per_pl = geo->sec_per_pg * geo->nr_planes;
-
-	dev->total_secs = geo->all_luns * geo->sec_per_lun;
 	dev->lun_map = kcalloc(BITS_TO_LONGS(geo->all_luns),
 					sizeof(unsigned long), GFP_KERNEL);
 	if (!dev->lun_map)
@@ -913,16 +885,14 @@ static int nvm_init(struct nvm_dev *dev)
 	struct nvm_geo *geo = &dev->geo;
 	int ret = -EINVAL;
 
-	if (dev->ops->identity(dev, &dev->identity)) {
+	if (dev->ops->identity(dev)) {
 		pr_err("nvm: device could not be identified\n");
 		goto err;
 	}
 
-	if (dev->identity.ver_id != 1 && dev->identity.ver_id != 2) {
-		pr_err("nvm: device ver_id %d not supported by kernel.\n",
-				dev->identity.ver_id);
-		goto err;
-	}
+	pr_debug("nvm: ver:%u nvm_vendor:%x\n",
+				geo->ver_id,
+				geo->vmnt);
 
 	ret = nvm_core_init(dev);
 	if (ret) {
@@ -930,10 +900,10 @@ static int nvm_init(struct nvm_dev *dev)
 		goto err;
 	}
 
-	pr_info("nvm: registered %s [%u/%u/%u/%u/%u/%u]\n",
-			dev->name, geo->sec_per_pg, geo->nr_planes,
-			geo->ws_per_chk, geo->nr_chks,
-			geo->all_luns, geo->nr_chnls);
+	pr_info("nvm: registered %s [%u/%u/%u/%u/%u]\n",
+			dev->name, geo->ws_min, geo->ws_opt,
+			geo->nr_chks, geo->all_luns,
+			geo->nr_chnls);
 	return 0;
 err:
 	pr_err("nvm: failed to initialize nvm\n");

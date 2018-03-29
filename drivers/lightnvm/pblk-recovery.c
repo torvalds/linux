@@ -184,7 +184,7 @@ static int pblk_calc_sec_in_line(struct pblk *pblk, struct pblk_line *line)
 	int nr_bb = bitmap_weight(line->blk_bitmap, lm->blk_per_line);
 
 	return lm->sec_per_line - lm->smeta_sec - lm->emeta_sec[0] -
-				nr_bb * geo->sec_per_chk;
+				nr_bb * geo->clba;
 }
 
 struct pblk_recov_alloc {
@@ -232,7 +232,7 @@ next_read_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (!rq_ppas)
 		rq_ppas = pblk->min_write_pgs;
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 
 	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
 	if (IS_ERR(bio))
@@ -351,7 +351,7 @@ static int pblk_recov_pad_oob(struct pblk *pblk, struct pblk_line *line,
 	if (!pad_rq)
 		return -ENOMEM;
 
-	data = vzalloc(pblk->max_write_pgs * geo->sec_size);
+	data = vzalloc(pblk->max_write_pgs * geo->csecs);
 	if (!data) {
 		ret = -ENOMEM;
 		goto free_rq;
@@ -368,7 +368,7 @@ next_pad_rq:
 		goto fail_free_pad;
 	}
 
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 
 	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_meta_list);
 	if (!meta_list) {
@@ -509,7 +509,7 @@ next_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (!rq_ppas)
 		rq_ppas = pblk->min_write_pgs;
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 
 	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
 	if (IS_ERR(bio))
@@ -640,7 +640,7 @@ next_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (!rq_ppas)
 		rq_ppas = pblk->min_write_pgs;
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 
 	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
 	if (IS_ERR(bio))
@@ -745,7 +745,7 @@ static int pblk_recov_l2p_from_oob(struct pblk *pblk, struct pblk_line *line)
 	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
 	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
 
-	data = kcalloc(pblk->max_write_pgs, geo->sec_size, GFP_KERNEL);
+	data = kcalloc(pblk->max_write_pgs, geo->csecs, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto free_meta_list;

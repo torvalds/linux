@@ -613,7 +613,7 @@ next_rq:
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 
 	bio = pblk_bio_map_addr(pblk, emeta_buf, rq_ppas, rq_len,
 					l_mg->emeta_alloc_type, GFP_KERNEL);
@@ -722,7 +722,7 @@ u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line)
 	if (bit >= lm->blk_per_line)
 		return -1;
 
-	return bit * geo->sec_per_pl;
+	return bit * geo->ws_opt;
 }
 
 static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
@@ -1034,17 +1034,17 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	/* Capture bad block information on line mapping bitmaps */
 	while ((bit = find_next_bit(line->blk_bitmap, lm->blk_per_line,
 					bit + 1)) < lm->blk_per_line) {
-		off = bit * geo->sec_per_pl;
+		off = bit * geo->ws_opt;
 		bitmap_shift_left(l_mg->bb_aux, l_mg->bb_template, off,
 							lm->sec_per_line);
 		bitmap_or(line->map_bitmap, line->map_bitmap, l_mg->bb_aux,
 							lm->sec_per_line);
-		line->sec_in_line -= geo->sec_per_chk;
+		line->sec_in_line -= geo->clba;
 	}
 
 	/* Mark smeta metadata sectors as bad sectors */
 	bit = find_first_zero_bit(line->blk_bitmap, lm->blk_per_line);
-	off = bit * geo->sec_per_pl;
+	off = bit * geo->ws_opt;
 	bitmap_set(line->map_bitmap, off, lm->smeta_sec);
 	line->sec_in_line -= lm->smeta_sec;
 	line->smeta_ssec = off;
@@ -1063,10 +1063,10 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	emeta_secs = lm->emeta_sec[0];
 	off = lm->sec_per_line;
 	while (emeta_secs) {
-		off -= geo->sec_per_pl;
+		off -= geo->ws_opt;
 		if (!test_bit(off, line->invalid_bitmap)) {
-			bitmap_set(line->invalid_bitmap, off, geo->sec_per_pl);
-			emeta_secs -= geo->sec_per_pl;
+			bitmap_set(line->invalid_bitmap, off, geo->ws_opt);
+			emeta_secs -= geo->ws_opt;
 		}
 	}
 
