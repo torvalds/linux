@@ -139,6 +139,28 @@ nfp_bpf_stack_arg_ok(const char *fname, struct bpf_verifier_env *env,
 	return true;
 }
 
+static bool
+nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
+		    struct nfp_insn_meta *meta,
+		    u32 helper_tgt, const struct bpf_reg_state *reg1)
+{
+	if (!helper_tgt) {
+		pr_vlog(env, "%s: not supported by FW\n", fname);
+		return false;
+	}
+
+	/* Rest of the checks is only if we re-parse the same insn */
+	if (!meta->func_id)
+		return true;
+
+	if (meta->arg1.map_ptr != reg1->map_ptr) {
+		pr_vlog(env, "%s: called for different map\n", fname);
+		return false;
+	}
+
+	return true;
+}
+
 static int
 nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		   struct nfp_insn_meta *meta)
@@ -163,23 +185,11 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		break;
 
 	case BPF_FUNC_map_lookup_elem:
-		if (!bpf->helpers.map_lookup) {
-			pr_vlog(env, "map_lookup: not supported by FW\n");
-			return -EOPNOTSUPP;
-		}
-
-		if (!nfp_bpf_stack_arg_ok("map_lookup", env, reg2,
+		if (!nfp_bpf_map_call_ok("map_lookup", env, meta,
+					 bpf->helpers.map_lookup, reg1) ||
+		    !nfp_bpf_stack_arg_ok("map_lookup", env, reg2,
 					  meta->func_id ? &meta->arg2 : NULL))
 			return -EOPNOTSUPP;
-
-		/* Rest of the checks is only if we re-parse the same insn */
-		if (!meta->func_id)
-			break;
-
-		if (meta->arg1.map_ptr != reg1->map_ptr) {
-			pr_vlog(env, "map_lookup: called for different map\n");
-			return -EOPNOTSUPP;
-		}
 		break;
 	default:
 		pr_vlog(env, "unsupported function id: %d\n", func_id);
