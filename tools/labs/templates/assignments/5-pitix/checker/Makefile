@@ -15,5 +15,5 @@ mkfs.pitix: _test/
 
 clean:
 	-rm -f *~
-	-rm -f mkfs.pitix 4-pitix.zip
+	-rm -f mkfs.pitix
 	make -C _test/ clean

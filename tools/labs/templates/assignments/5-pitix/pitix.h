@@ -118,6 +118,4 @@ static inline struct pitix_inode *pitix_i(struct inode *inode)
 	return inode->i_private;
 }
 
-#define PRINT_DEBUG(fmt, args...) pr_debug(fmt, args)
-
 #endif
