@@ -119,13 +119,13 @@ static void pmu_enable_backlight(int on);
 static void pmu_set_brightness(int level);
 
 struct adb_driver via_pmu_driver = {
-	"68K PMU",
-	pmu_probe,
-	pmu_init,
-	pmu_send_request,
-	pmu_autopoll,
-	pmu_poll,
-	pmu_reset_bus
+	.name         = "68K PMU",
+	.probe        = pmu_probe,
+	.init         = pmu_init,
+	.send_request = pmu_send_request,
+	.autopoll     = pmu_autopoll,
+	.poll         = pmu_poll,
+	.reset_bus    = pmu_reset_bus,
 };
 
 /*

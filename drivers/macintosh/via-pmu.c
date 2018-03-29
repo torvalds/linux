@@ -199,13 +199,13 @@ static const struct file_operations pmu_options_proc_fops;
 
 #ifdef CONFIG_ADB
 const struct adb_driver via_pmu_driver = {
-	"PMU",
-	pmu_probe,
-	pmu_init,
-	pmu_send_request,
-	pmu_adb_autopoll,
-	pmu_poll_adb,
-	pmu_adb_reset_bus
+	.name         = "PMU",
+	.probe        = pmu_probe,
+	.init         = pmu_init,
+	.send_request = pmu_send_request,
+	.autopoll     = pmu_adb_autopoll,
+	.poll         = pmu_poll_adb,
+	.reset_bus    = pmu_adb_reset_bus,
 };
 #endif /* CONFIG_ADB */
 
