@@ -729,11 +729,12 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			   int mode)
 {
+	struct super_block *sb = inode->i_sb;
 	struct gfs2_inode *ip = GFS2_I(inode);
+	loff_t end = offset + len;
 	struct buffer_head *dibh;
+	struct iomap iomap;
 	int error;
-	unsigned int nr_blks;
-	sector_t lblock = offset >> inode->i_blkbits;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (unlikely(error))
@@ -747,21 +748,19 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			goto out;
 	}
 
-	while (len) {
-		struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
-		bh_map.b_size = len;
-		set_buffer_zeronew(&bh_map);
-
-		error = gfs2_block_map(inode, lblock, &bh_map, 1);
-		if (unlikely(error))
+	while (offset < end) {
+		error = gfs2_iomap_begin(inode, offset, end - offset,
+					 IOMAP_WRITE, &iomap);
+		if (error)
 			goto out;
-		len -= bh_map.b_size;
-		nr_blks = bh_map.b_size >> inode->i_blkbits;
-		lblock += nr_blks;
-		if (!buffer_new(&bh_map))
+		offset = iomap.offset + iomap.length;
+		if (iomap.type != IOMAP_HOLE)
 			continue;
-		if (unlikely(!buffer_zeronew(&bh_map))) {
-			error = -EIO;
+		error = sb_issue_zeroout(sb, iomap.addr >> inode->i_blkbits,
+					 iomap.length >> inode->i_blkbits,
+					 GFP_NOFS);
+		if (error) {
+			fs_err(GFS2_SB(inode), "Failed to zero data buffers\n");
 			goto out;
 		}
 	}

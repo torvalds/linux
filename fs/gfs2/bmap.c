@@ -491,14 +491,12 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct super_block *sb = sdp->sd_vfs;
 	struct buffer_head *dibh = mp->mp_bh[0];
 	u64 bn;
 	unsigned n, i, blks, alloced = 0, iblks = 0, branch_start = 0;
 	unsigned dblks = 0;
 	unsigned ptrs_per_blk;
 	const unsigned end_of_metadata = mp->mp_fheight - 1;
-	int ret;
 	enum alloc_state state;
 	__be64 *ptr;
 	__be64 zero_bn = 0;
@@ -607,15 +605,6 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 			iomap->flags |= IOMAP_F_NEW;
 			while (n-- > 0)
 				*ptr++ = cpu_to_be64(bn++);
-			if (flags & IOMAP_ZERO) {
-				ret = sb_issue_zeroout(sb, iomap->addr >> inode->i_blkbits,
-						       dblks, GFP_NOFS);
-				if (ret) {
-					fs_err(sdp,
-					       "Failed to zero data buffers\n");
-					flags &= ~IOMAP_ZERO;
-				}
-			}
 			break;
 		}
 	} while (iomap->addr == IOMAP_NULL_ADDR);
@@ -846,8 +835,6 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 
 	if (create)
 		flags |= IOMAP_WRITE;
-	if (buffer_zeronew(bh_map))
-		flags |= IOMAP_ZERO;
 	ret = gfs2_iomap_begin(inode, (loff_t)lblock << inode->i_blkbits,
 			       bh_map->b_size, flags, &iomap);
 	if (ret) {
