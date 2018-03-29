@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(nanddev_isbad);
 /**
  * nanddev_markbad() - Mark a block as bad
  * @nand: NAND device
- * @block: block to mark bad
+ * @pos: position of the block to mark bad
  *
  * Mark a block bad. This function is updating the BBT if available and
  * calls the low-level markbad hook (nand->ops->markbad()).
@@ -117,9 +117,9 @@ EXPORT_SYMBOL_GPL(nanddev_isreserved);
 /**
  * nanddev_erase() - Erase a NAND portion
  * @nand: NAND device
- * @block: eraseblock to erase
+ * @pos: position of the block to erase
  *
- * Erases @block if it's not bad.
+ * Erases the block if it's not bad.
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
@@ -179,11 +179,11 @@ EXPORT_SYMBOL_GPL(nanddev_mtd_erase);
 /**
  * nanddev_init() - Initialize a NAND device
  * @nand: NAND device
- * @memorg: NAND memory organization descriptor
  * @ops: NAND device operations
+ * @owner: NAND device owner
  *
- * Initializes a NAND device object. Consistency checks are done on @memorg and
- * @ops. Also takes care of initializing the BBT.
+ * Initializes a NAND device object. Consistency checks are done on @ops and
+ * @nand->memorg. Also takes care of initializing the BBT.
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
