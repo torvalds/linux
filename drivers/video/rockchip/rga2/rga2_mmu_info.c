@@ -468,6 +468,7 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 						 req->dst.vir_w,
 						 req->dst.vir_h,
 						 &DstStart);
+		DstPageCount = (DstPageCount + 3) & (~3);
 		if (DstPageCount == 0)
 			return -EINVAL;
 	}
