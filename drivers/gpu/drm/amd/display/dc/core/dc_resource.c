@@ -1700,7 +1700,7 @@ enum dc_status resource_map_pool_resources(
 		pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
 
-	if (pipe_idx < 0)
+	if (pipe_idx < 0 || context->res_ctx.pipe_ctx[pipe_idx].stream_res.tg == NULL)
 		return DC_NO_CONTROLLER_RESOURCE;
 
 	pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
