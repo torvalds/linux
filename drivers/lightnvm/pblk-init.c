@@ -460,10 +460,11 @@ static int pblk_bb_line(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	int i, bb_cnt = 0;
+	int blk_per_lun = geo->nr_chks * geo->plane_mode;
 
 	for (i = 0; i < blk_per_line; i++) {
 		struct pblk_lun *rlun = &pblk->luns[i];
-		u8 *lun_bb_log = bb_log + i * blk_per_line;
+		u8 *lun_bb_log = bb_log + i * blk_per_lun;
 
 		if (lun_bb_log[line->id] == NVM_BLK_T_FREE)
 			continue;
