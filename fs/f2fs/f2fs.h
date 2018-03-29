@@ -2535,7 +2535,7 @@ static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 	}
 	if (!is_inode_flag_set(inode, FI_AUTO_RECOVER) ||
 			file_keep_isize(inode) ||
-			i_size_read(inode) & PAGE_MASK)
+			i_size_read(inode) & ~PAGE_MASK)
 		return false;
 
 	down_read(&F2FS_I(inode)->i_sem);
