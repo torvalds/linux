@@ -7078,7 +7078,6 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
-	int ret;
 	gpa_t gpa;
 
 	/*
@@ -7106,17 +7105,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 						       NULL, 0) == EMULATE_DONE;
 	}
 
-	ret = kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
-	if (ret >= 0)
-		return ret;
-
-	/* It is the real ept misconfig */
-	WARN_ON(1);
-
-	vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
-	vcpu->run->hw.hardware_exit_reason = EXIT_REASON_EPT_MISCONFIG;
-
-	return 0;
+	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
 }
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
