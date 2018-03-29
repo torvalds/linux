@@ -1021,6 +1021,7 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	int nr_bb = 0;
 	u64 off;
 	int bit = -1;
+	int emeta_secs;
 
 	line->sec_in_line = lm->sec_per_line;
 
@@ -1055,18 +1056,18 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 	/* Mark emeta metadata sectors as bad sectors. We need to consider bad
 	 * blocks to make sure that there are enough sectors to store emeta
 	 */
-	off = lm->sec_per_line - lm->emeta_sec[0];
-	bitmap_set(line->invalid_bitmap, off, lm->emeta_sec[0]);
-	while (nr_bb) {
+	emeta_secs = lm->emeta_sec[0];
+	off = lm->sec_per_line;
+	while (emeta_secs) {
 		off -= geo->sec_per_pl;
 		if (!test_bit(off, line->invalid_bitmap)) {
 			bitmap_set(line->invalid_bitmap, off, geo->sec_per_pl);
-			nr_bb--;
+			emeta_secs -= geo->sec_per_pl;
 		}
 	}
 
-	line->sec_in_line -= lm->emeta_sec[0];
 	line->emeta_ssec = off;
+	line->sec_in_line -= lm->emeta_sec[0];
 	line->nr_valid_lbas = 0;
 	line->left_msecs = line->sec_in_line;
 	*line->vsc = cpu_to_le32(line->sec_in_line);
