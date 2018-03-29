@@ -1486,7 +1486,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 	}
 
 	if (ptlrpc_import_in_recovery(imp)) {
-		long timeout;
+		unsigned long timeout;
 
 		if (AT_OFF) {
 			if (imp->imp_server_timeout)
@@ -1501,7 +1501,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 
 		if (wait_event_idle_timeout(imp->imp_recovery_waitq,
 					    !ptlrpc_import_in_recovery(imp),
-					    cfs_timeout_cap(timeout)) == 0)
+					    max(timeout, CFS_TICK)) == 0)
 			l_wait_event_abortable(
 				imp->imp_recovery_waitq,
 				!ptlrpc_import_in_recovery(imp));

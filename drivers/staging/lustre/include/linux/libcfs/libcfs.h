@@ -43,7 +43,6 @@
 #include <linux/libcfs/libcfs_private.h>
 #include <linux/libcfs/libcfs_cpu.h>
 #include <linux/libcfs/libcfs_prim.h>
-#include <linux/libcfs/libcfs_time.h>
 #include <linux/libcfs/libcfs_string.h>
 #include <linux/libcfs/libcfs_hash.h>
 #include <linux/libcfs/libcfs_fail.h>

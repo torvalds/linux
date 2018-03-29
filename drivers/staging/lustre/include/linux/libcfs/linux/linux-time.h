@@ -78,7 +78,7 @@ static inline int cfs_time_beforeq_64(u64 t1, u64 t2)
 /*
  * One jiffy
  */
-#define CFS_TICK		(1)
+#define CFS_TICK		(1UL)
 
 #define CFS_DURATION_T	  "%ld"
 
