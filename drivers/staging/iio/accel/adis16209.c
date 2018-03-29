@@ -112,25 +112,22 @@ static int adis16209_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct adis *st = iio_priv(indio_dev);
-	int bits;
-	s16 val16;
-	u8 addr;
+	int m;
 
-	switch (mask) {
-	case IIO_CHAN_INFO_CALIBBIAS:
-		switch (chan->type) {
-		case IIO_ACCEL:
-		case IIO_INCLI:
-			bits = 14;
-			break;
-		default:
-			return -EINVAL;
-		}
-		val16 = val & ((1 << bits) - 1);
-		addr = adis16209_addresses[chan->scan_index][0];
-		return adis_write_reg_16(st, addr, val16);
+	if (mask != IIO_CHAN_INFO_CALIBBIAS)
+		return -EINVAL;
+
+	switch (chan->type) {
+	case IIO_ACCEL:
+	case IIO_INCLI:
+		m = GENMASK(13, 0);
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	return adis_write_reg_16(st, adis16209_addresses[chan->scan_index][0],
+				 val & m);
 }
 
 static int adis16209_read_raw(struct iio_dev *indio_dev,
