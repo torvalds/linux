@@ -323,6 +323,13 @@ static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
 	geo->ws_opt = sec_per_pg;
 	geo->mw_cunits = geo->ws_opt << 3;	/* default to MLC safe values */
 
+	/* Do not impose values for maximum number of open blocks as it is
+	 * unspecified in 1.2. Users of 1.2 must be aware of this and eventually
+	 * specify these values through a quirk if restrictions apply.
+	 */
+	geo->maxoc = geo->all_luns * geo->nr_chks;
+	geo->maxocpu = geo->nr_chks;
+
 	geo->mccap = le32_to_cpu(src->mccap);
 
 	geo->trdt = le32_to_cpu(src->trdt);
@@ -409,6 +416,8 @@ static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
 	geo->ws_min = le32_to_cpu(id->ws_min);
 	geo->ws_opt = le32_to_cpu(id->ws_opt);
 	geo->mw_cunits = le32_to_cpu(id->mw_cunits);
+	geo->maxoc = le32_to_cpu(id->maxoc);
+	geo->maxocpu = le32_to_cpu(id->maxocpu);
 
 	geo->trdt = le32_to_cpu(id->trdt);
 	geo->trdm = le32_to_cpu(id->trdm);
@@ -1050,6 +1059,10 @@ static ssize_t nvm_dev_attr_show_20(struct device *dev,
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->ws_min);
 	} else if (strcmp(attr->name, "ws_opt") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->ws_opt);
+	} else if (strcmp(attr->name, "maxoc") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->maxoc);
+	} else if (strcmp(attr->name, "maxocpu") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->maxocpu);
 	} else if (strcmp(attr->name, "mw_cunits") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%u\n", geo->mw_cunits);
 	} else if (strcmp(attr->name, "write_typ") == 0) {
@@ -1147,6 +1160,8 @@ static NVM_DEV_ATTR_20_RO(chunks);
 static NVM_DEV_ATTR_20_RO(clba);
 static NVM_DEV_ATTR_20_RO(ws_min);
 static NVM_DEV_ATTR_20_RO(ws_opt);
+static NVM_DEV_ATTR_20_RO(maxoc);
+static NVM_DEV_ATTR_20_RO(maxocpu);
 static NVM_DEV_ATTR_20_RO(mw_cunits);
 static NVM_DEV_ATTR_20_RO(write_typ);
 static NVM_DEV_ATTR_20_RO(write_max);
@@ -1163,6 +1178,8 @@ static struct attribute *nvm_dev_attrs_20[] = {
 	&dev_attr_clba.attr,
 	&dev_attr_ws_min.attr,
 	&dev_attr_ws_opt.attr,
+	&dev_attr_maxoc.attr,
+	&dev_attr_maxocpu.attr,
 	&dev_attr_mw_cunits.attr,
 
 	&dev_attr_read_typ.attr,
