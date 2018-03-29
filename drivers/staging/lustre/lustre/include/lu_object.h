@@ -745,15 +745,15 @@ struct lu_object *lu_object_find_slice(const struct lu_env *env,
 static inline struct lu_object *lu_object_top(struct lu_object_header *h)
 {
 	LASSERT(!list_empty(&h->loh_layers));
-	return container_of0(h->loh_layers.next, struct lu_object, lo_linkage);
+	return list_first_entry(&h->loh_layers, struct lu_object, lo_linkage);
 }
 
 /**
  * Next sub-object in the layering
  */
-static inline struct lu_object *lu_object_next(const struct lu_object *o)
+static inline const struct lu_object *lu_object_next(const struct lu_object *o)
 {
-	return container_of0(o->lo_linkage.next, struct lu_object, lo_linkage);
+	return list_next_entry(o, lo_linkage);
 }
 
 /**

@@ -99,7 +99,7 @@ static int echo_client_cleanup(struct obd_device *obddev);
  */
 static inline struct echo_device *cl2echo_dev(const struct cl_device *dev)
 {
-	return container_of0(dev, struct echo_device, ed_cl);
+	return container_of_safe(dev, struct echo_device, ed_cl);
 }
 
 static inline struct cl_device *echo_dev2cl(struct echo_device *d)

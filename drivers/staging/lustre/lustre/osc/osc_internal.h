@@ -180,7 +180,7 @@ struct osc_device {
 
 static inline struct osc_device *obd2osc_dev(const struct obd_device *d)
 {
-	return container_of0(d->obd_lu_dev, struct osc_device, od_cl.cd_lu_dev);
+	return container_of_safe(d->obd_lu_dev, struct osc_device, od_cl.cd_lu_dev);
 }
 
 extern struct lu_kmem_descr osc_caches[];

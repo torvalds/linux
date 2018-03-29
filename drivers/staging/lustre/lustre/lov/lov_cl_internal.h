@@ -496,7 +496,7 @@ static inline struct lu_device *lov2lu_dev(struct lov_device *lov)
 static inline struct lov_device *lu2lov_dev(const struct lu_device *d)
 {
 	LINVRNT(d->ld_type == &lov_device_type);
-	return container_of0(d, struct lov_device, ld_cl.cd_lu_dev);
+	return container_of(d, struct lov_device, ld_cl.cd_lu_dev);
 }
 
 static inline struct cl_device *lovsub2cl_dev(struct lovsub_device *lovsub)
@@ -512,13 +512,13 @@ static inline struct lu_device *lovsub2lu_dev(struct lovsub_device *lovsub)
 static inline struct lovsub_device *lu2lovsub_dev(const struct lu_device *d)
 {
 	LINVRNT(d->ld_type == &lovsub_device_type);
-	return container_of0(d, struct lovsub_device, acid_cl.cd_lu_dev);
+	return container_of(d, struct lovsub_device, acid_cl.cd_lu_dev);
 }
 
 static inline struct lovsub_device *cl2lovsub_dev(const struct cl_device *d)
 {
 	LINVRNT(d->cd_lu_dev.ld_type == &lovsub_device_type);
-	return container_of0(d, struct lovsub_device, acid_cl);
+	return container_of(d, struct lovsub_device, acid_cl);
 }
 
 static inline struct lu_object *lov2lu(struct lov_object *lov)
@@ -534,13 +534,13 @@ static inline struct cl_object *lov2cl(struct lov_object *lov)
 static inline struct lov_object *lu2lov(const struct lu_object *obj)
 {
 	LINVRNT(lov_is_object(obj));
-	return container_of0(obj, struct lov_object, lo_cl.co_lu);
+	return container_of(obj, struct lov_object, lo_cl.co_lu);
 }
 
 static inline struct lov_object *cl2lov(const struct cl_object *obj)
 {
 	LINVRNT(lov_is_object(&obj->co_lu));
-	return container_of0(obj, struct lov_object, lo_cl);
+	return container_of(obj, struct lov_object, lo_cl);
 }
 
 static inline struct lu_object *lovsub2lu(struct lovsub_object *los)
@@ -556,13 +556,13 @@ static inline struct cl_object *lovsub2cl(struct lovsub_object *los)
 static inline struct lovsub_object *cl2lovsub(const struct cl_object *obj)
 {
 	LINVRNT(lovsub_is_object(&obj->co_lu));
-	return container_of0(obj, struct lovsub_object, lso_cl);
+	return container_of(obj, struct lovsub_object, lso_cl);
 }
 
 static inline struct lovsub_object *lu2lovsub(const struct lu_object *obj)
 {
 	LINVRNT(lovsub_is_object(obj));
-	return container_of0(obj, struct lovsub_object, lso_cl.co_lu);
+	return container_of(obj, struct lovsub_object, lso_cl.co_lu);
 }
 
 static inline struct lovsub_lock *
@@ -590,14 +590,14 @@ static inline struct lov_lock *cl2lov_lock(const struct cl_lock_slice *slice)
 static inline struct lov_page *cl2lov_page(const struct cl_page_slice *slice)
 {
 	LINVRNT(lov_is_object(&slice->cpl_obj->co_lu));
-	return container_of0(slice, struct lov_page, lps_cl);
+	return container_of(slice, struct lov_page, lps_cl);
 }
 
 static inline struct lovsub_page *
 cl2lovsub_page(const struct cl_page_slice *slice)
 {
 	LINVRNT(lovsub_is_object(&slice->cpl_obj->co_lu));
-	return container_of0(slice, struct lovsub_page, lsb_cl);
+	return container_of(slice, struct lovsub_page, lsb_cl);
 }
 
 static inline struct lov_io *cl2lov_io(const struct lu_env *env,

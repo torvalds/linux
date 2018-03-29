@@ -58,7 +58,7 @@ static struct lu_object *osc2lu(struct osc_object *osc)
 static struct osc_object *lu2osc(const struct lu_object *obj)
 {
 	LINVRNT(osc_is_object(obj));
-	return container_of0(obj, struct osc_object, oo_cl.co_lu);
+	return container_of(obj, struct osc_object, oo_cl.co_lu);
 }
 
 /*****************************************************************************

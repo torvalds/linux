@@ -263,22 +263,22 @@ static inline struct lu_device *vvp2lu_dev(struct vvp_device *vdv)
 
 static inline struct vvp_device *lu2vvp_dev(const struct lu_device *d)
 {
-	return container_of0(d, struct vvp_device, vdv_cl.cd_lu_dev);
+	return container_of_safe(d, struct vvp_device, vdv_cl.cd_lu_dev);
 }
 
 static inline struct vvp_device *cl2vvp_dev(const struct cl_device *d)
 {
-	return container_of0(d, struct vvp_device, vdv_cl);
+	return container_of_safe(d, struct vvp_device, vdv_cl);
 }
 
 static inline struct vvp_object *cl2vvp(const struct cl_object *obj)
 {
-	return container_of0(obj, struct vvp_object, vob_cl);
+	return container_of_safe(obj, struct vvp_object, vob_cl);
 }
 
 static inline struct vvp_object *lu2vvp(const struct lu_object *obj)
 {
-	return container_of0(obj, struct vvp_object, vob_cl.co_lu);
+	return container_of_safe(obj, struct vvp_object, vob_cl.co_lu);
 }
 
 static inline struct inode *vvp_object_inode(const struct cl_object *obj)

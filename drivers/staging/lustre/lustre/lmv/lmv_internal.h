@@ -60,7 +60,7 @@ int lmv_revalidate_slaves(struct obd_export *exp,
 
 static inline struct obd_device *lmv2obd_dev(struct lmv_obd *lmv)
 {
-	return container_of0(lmv, struct obd_device, u.lmv);
+	return container_of_safe(lmv, struct obd_device, u.lmv);
 }
 
 static inline struct lmv_tgt_desc *

@@ -143,17 +143,6 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 int libcfs_ioctl_data_adjust(struct libcfs_ioctl_data *data);
 int libcfs_ioctl(unsigned long cmd, void __user *arg);
 
-/* container_of depends on "likely" which is defined in libcfs_private.h */
-static inline void *__container_of(void *ptr, unsigned long shift)
-{
-	if (IS_ERR_OR_NULL(ptr))
-		return ptr;
-	return (char *)ptr - shift;
-}
-
-#define container_of0(ptr, type, member) \
-	((type *)__container_of((void *)(ptr), offsetof(type, member)))
-
 #define _LIBCFS_H
 
 extern struct miscdevice libcfs_dev;

@@ -460,7 +460,7 @@ static inline int osc_is_object(const struct lu_object *obj)
 static inline struct osc_device *lu2osc_dev(const struct lu_device *d)
 {
 	LINVRNT(d->ld_type == &osc_device_type);
-	return container_of0(d, struct osc_device, od_cl.cd_lu_dev);
+	return container_of(d, struct osc_device, od_cl.cd_lu_dev);
 }
 
 static inline struct obd_export *osc_export(const struct osc_object *obj)
@@ -476,7 +476,7 @@ static inline struct client_obd *osc_cli(const struct osc_object *obj)
 static inline struct osc_object *cl2osc(const struct cl_object *obj)
 {
 	LINVRNT(osc_is_object(&obj->co_lu));
-	return container_of0(obj, struct osc_object, oo_cl);
+	return container_of(obj, struct osc_object, oo_cl);
 }
 
 static inline struct cl_object *osc2cl(const struct osc_object *obj)
@@ -509,12 +509,12 @@ static inline enum cl_lock_mode osc_ldlm2cl_lock(enum ldlm_mode mode)
 static inline struct osc_page *cl2osc_page(const struct cl_page_slice *slice)
 {
 	LINVRNT(osc_is_object(&slice->cpl_obj->co_lu));
-	return container_of0(slice, struct osc_page, ops_cl);
+	return container_of(slice, struct osc_page, ops_cl);
 }
 
 static inline struct osc_page *oap2osc(struct osc_async_page *oap)
 {
-	return container_of0(oap, struct osc_page, ops_oap);
+	return container_of_safe(oap, struct osc_page, ops_oap);
 }
 
 static inline pgoff_t osc_index(struct osc_page *opg)
@@ -545,7 +545,7 @@ osc_cl_page_osc(struct cl_page *page, struct osc_object *osc)
 static inline struct osc_lock *cl2osc_lock(const struct cl_lock_slice *slice)
 {
 	LINVRNT(osc_is_object(&slice->cls_obj->co_lu));
-	return container_of0(slice, struct osc_lock, ols_cl);
+	return container_of(slice, struct osc_lock, ols_cl);
 }
 
 static inline struct osc_lock *osc_lock_at(const struct cl_lock *lock)
