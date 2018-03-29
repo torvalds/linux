@@ -490,6 +490,7 @@ def generate_case_ids(alltests):
                     testlist.append(t)
         outfile = open(f, "w")
         json.dump(testlist, outfile, indent=4)
+        outfile.write("\n")
         outfile.close()
 
 def filter_tests_by_id(args, testlist):
