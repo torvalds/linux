@@ -610,17 +610,21 @@ enum multicast_filter_type {
 
 /* macro function */
 #define HIF_EVENT_MASK 0xE800
-#define IS_HIF_IND(_EVENT)  ((_EVENT & HIF_EVENT_MASK) == 0xE800  && \
-			     ((_EVENT & ~HIF_EVENT_MASK) == 0x0001 || \
-			     (_EVENT & ~HIF_EVENT_MASK) == 0x0006 || \
-			     (_EVENT & ~HIF_EVENT_MASK) == 0x000C || \
-			     (_EVENT & ~HIF_EVENT_MASK) == 0x0011 || \
-			     (_EVENT & ~HIF_EVENT_MASK) == 0x0012))
+
+static inline bool is_hif_ind(unsigned short event)
+{
+	return (((event & HIF_EVENT_MASK) == HIF_EVENT_MASK) &&
+		(((event & ~HIF_EVENT_MASK) == 0x0001) ||
+		 ((event & ~HIF_EVENT_MASK) == 0x0006) ||
+		 ((event & ~HIF_EVENT_MASK) == 0x000C) ||
+		 ((event & ~HIF_EVENT_MASK) == 0x0011) ||
+		 ((event & ~HIF_EVENT_MASK) == 0x0012)));
+}
 
 #define IS_HIF_CONF(_EVENT) ((_EVENT & HIF_EVENT_MASK) == 0xE800  && \
 			     (_EVENT & ~HIF_EVENT_MASK) > 0x0000  && \
 			     (_EVENT & ~HIF_EVENT_MASK) < 0x0012  && \
-			     !IS_HIF_IND(_EVENT))
+			     !is_hif_ind(_EVENT))
 
 #ifdef __KERNEL__
 
