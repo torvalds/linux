@@ -115,17 +115,6 @@ struct nvme_nvm_command {
 	};
 };
 
-#define NVME_NVM_LP_MLC_PAIRS 886
-struct nvme_nvm_lp_mlc {
-	__le16			num_pairs;
-	__u8			pairs[NVME_NVM_LP_MLC_PAIRS];
-};
-
-struct nvme_nvm_lp_tbl {
-	__u8			id[8];
-	struct nvme_nvm_lp_mlc	mlc;
-};
-
 struct nvme_nvm_id_group {
 	__u8			mtype;
 	__u8			fmtype;
@@ -149,8 +138,7 @@ struct nvme_nvm_id_group {
 	__le32			mpos;
 	__le32			mccap;
 	__le16			cpar;
-	__u8			reserved[10];
-	struct nvme_nvm_lp_tbl lptbl;
+	__u8			reserved[906];
 } __packed;
 
 struct nvme_nvm_addr_format {
