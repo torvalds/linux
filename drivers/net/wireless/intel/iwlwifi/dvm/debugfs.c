@@ -48,16 +48,14 @@
 
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {			\
 	struct dentry *__tmp;						\
-	__tmp = debugfs_create_bool(#name, S_IWUSR | S_IRUSR,		\
-				    parent, ptr);			\
+	__tmp = debugfs_create_bool(#name, 0600, parent, ptr);		\
 	if (IS_ERR(__tmp) || !__tmp)					\
 		goto err;						\
 } while (0)
 
 #define DEBUGFS_ADD_X32(name, parent, ptr) do {				\
 	struct dentry *__tmp;						\
-	__tmp = debugfs_create_x32(#name, S_IWUSR | S_IRUSR,		\
-				   parent, ptr);			\
+	__tmp = debugfs_create_x32(#name, 0600, parent, ptr);		\
 	if (IS_ERR(__tmp) || !__tmp)					\
 		goto err;						\
 } while (0)
@@ -2370,48 +2368,48 @@ int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 	if (!dir_debug)
 		goto err;
 
-	DEBUGFS_ADD_FILE(nvm, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(sram, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(rx_handlers, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(temperature, dir_data, S_IRUSR);
+	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
+	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
+	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, 0400);
+	DEBUGFS_ADD_FILE(stations, dir_data, 0400);
+	DEBUGFS_ADD_FILE(channels, dir_data, 0400);
+	DEBUGFS_ADD_FILE(status, dir_data, 0400);
+	DEBUGFS_ADD_FILE(rx_handlers, dir_data, 0600);
+	DEBUGFS_ADD_FILE(qos, dir_data, 0400);
+	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, 0600);
+	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, 0400);
+	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, 0400);
+	DEBUGFS_ADD_FILE(disable_ht40, dir_data, 0600);
+	DEBUGFS_ADD_FILE(temperature, dir_data, 0400);
 
-	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(rf_reset, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(echo_test, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(fw_restart, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(power_save_status, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(rf_reset, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(protection_mode, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(echo_test, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(fw_restart, dir_debug, 0200);
 #ifdef CONFIG_IWLWIFI_DEBUG
-	DEBUGFS_ADD_FILE(log_event, dir_debug, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(log_event, dir_debug, 0600);
 #endif
 
 	if (iwl_advanced_bt_coexist(priv))
-		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, 0400);
 
 	/* Calibrations disabled/enabled status*/
-	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, 0600);
 
 	/*
 	 * Create a symlink with mac80211. This is not very robust, as it does

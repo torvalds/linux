@@ -161,9 +161,8 @@ void wcn36xx_debugfs_init(struct wcn36xx *wcn)
 		dfs->rootdir = NULL;
 	}
 
-	ADD_FILE(bmps_switcher, S_IRUSR | S_IWUSR,
-		 &fops_wcn36xx_bmps, wcn);
-	ADD_FILE(dump, S_IWUSR, &fops_wcn36xx_dump, wcn);
+	ADD_FILE(bmps_switcher, 0600, &fops_wcn36xx_bmps, wcn);
+	ADD_FILE(dump, 0200, &fops_wcn36xx_dump, wcn);
 }
 
 void wcn36xx_debugfs_exit(struct wcn36xx *wcn)

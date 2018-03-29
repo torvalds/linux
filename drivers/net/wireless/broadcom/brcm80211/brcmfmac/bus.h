@@ -88,7 +88,7 @@ struct brcmf_bus_ops {
 	void (*wowl_config)(struct device *dev, bool enabled);
 	size_t (*get_ramsize)(struct device *dev);
 	int (*get_memdump)(struct device *dev, void *data, size_t len);
-	int (*get_fwname)(struct device *dev, uint chip, uint chiprev,
+	int (*get_fwname)(struct device *dev, const char *ext,
 			  unsigned char *fw_name);
 };
 
@@ -140,6 +140,7 @@ struct brcmf_bus_stats {
  * @always_use_fws_queue: bus wants use queue also when fwsignal is inactive.
  * @wowl_supported: is wowl supported by bus driver.
  * @chiprev: revision of the dongle chip.
+ * @msgbuf: msgbuf protocol parameters provided by bus layer.
  */
 struct brcmf_bus {
 	union {
@@ -228,10 +229,10 @@ int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
 }
 
 static inline
-int brcmf_bus_get_fwname(struct brcmf_bus *bus, uint chip, uint chiprev,
+int brcmf_bus_get_fwname(struct brcmf_bus *bus, const char *ext,
 			 unsigned char *fw_name)
 {
-	return bus->ops->get_fwname(bus->dev, chip, chiprev, fw_name);
+	return bus->ops->get_fwname(bus->dev, ext, fw_name);
 }
 
 /*

@@ -261,7 +261,7 @@ static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
 
 	for (i = 0; i < MAX_FEATURE_SUPPORTED; i++) {
 		if (get_feat_caps(wcn->fw_feat_caps, i))
-			wcn36xx_info("FW Cap %s\n", wcn36xx_get_cap_name(i));
+			wcn36xx_dbg(WCN36XX_DBG_MAC, "FW Cap %s\n", wcn36xx_get_cap_name(i));
 	}
 }
 
@@ -666,15 +666,12 @@ static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
 {
 	struct wcn36xx *wcn = hw->priv;
 
-	if (!wcn36xx_smd_stop_hw_scan(wcn)) {
-		struct cfg80211_scan_info scan_info = { .aborted = true };
-
-		ieee80211_scan_completed(wcn->hw, &scan_info);
-	}
-
 	mutex_lock(&wcn->scan_lock);
 	wcn->scan_aborted = true;
 	mutex_unlock(&wcn->scan_lock);
+
+	/* ieee80211_scan_completed will be called on FW scan indication */
+	wcn36xx_smd_stop_hw_scan(wcn);
 
 	cancel_work_sync(&wcn->scan_work);
 }
@@ -1155,8 +1152,6 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 	wcn->hw->wiphy->cipher_suites = cipher_suites;
 	wcn->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
-	wcn->hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
-
 #ifdef CONFIG_PM
 	wcn->hw->wiphy->wowlan = &wowlan_support;
 #endif
@@ -1283,6 +1278,7 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	wcn = hw->priv;
 	wcn->hw = hw;
 	wcn->dev = &pdev->dev;
+	wcn->first_boot = true;
 	mutex_init(&wcn->conf_mutex);
 	mutex_init(&wcn->hal_mutex);
 	mutex_init(&wcn->scan_lock);
