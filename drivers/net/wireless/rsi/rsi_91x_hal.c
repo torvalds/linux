@@ -45,7 +45,7 @@ int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
 	return status;
 }
 
-static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
+int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_hdr *wh = NULL;
@@ -113,17 +113,6 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	if (conf_is_ht40(conf))
 		mgmt_desc->bbp_info = cpu_to_le16(FULL40M_ENABLE);
 
-	if (ieee80211_is_probe_req(wh->frame_control)) {
-		if (!bss->assoc) {
-			rsi_dbg(INFO_ZONE,
-				"%s: blocking mgmt queue\n", __func__);
-			mgmt_desc->misc_flags = RSI_DESC_REQUIRE_CFM_TO_HOST;
-			xtend_desc->confirm_frame_type = PROBEREQ_CONFIRM;
-			common->mgmt_q_block = true;
-			rsi_dbg(INFO_ZONE, "Mgmt queue blocked\n");
-		}
-	}
-
 	if (ieee80211_is_probe_resp(wh->frame_control)) {
 		mgmt_desc->misc_flags |= (RSI_ADD_DELTA_TSF_VAP_ID |
 					  RSI_FETCH_RETRY_CNT_FRM_HST);
@@ -149,7 +138,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 }
 
 /* This function prepares descriptor for given data packet */
-static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
+int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_vif *vif;
@@ -301,10 +290,6 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	    (!bss->assoc))
 		goto err;
 
-	status = rsi_prepare_data_desc(common, skb);
-	if (status)
-		goto err;
-
 	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write pkt\n", __func__);
@@ -327,12 +312,18 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		      struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_bss_conf *bss;
+	struct ieee80211_hdr *wh;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
+	struct rsi_mgmt_desc *mgmt_desc;
+	struct rsi_xtended_desc *xtend_desc;
 	int status = -E2BIG;
+	u8 header_size;
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
+	header_size = tx_params->internal_hdr_size;
 
 	if (tx_params->flags & INTERNAL_MGMT_PKT) {
 		status = adapter->host_intf_ops->write_pkt(common->priv,
@@ -346,15 +337,25 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		return status;
 	}
 
-	if (FRAME_DESC_SZ > skb_headroom(skb))
-		goto err;
+	bss = &info->control.vif->bss_conf;
+	wh = (struct ieee80211_hdr *)&skb->data[header_size];
+	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
+	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
-	rsi_prepare_mgmt_desc(common, skb);
+	/* Indicate to firmware to give cfm for probe */
+	if (ieee80211_is_probe_req(wh->frame_control) && !bss->assoc) {
+		rsi_dbg(INFO_ZONE,
+			"%s: blocking mgmt queue\n", __func__);
+		mgmt_desc->misc_flags = RSI_DESC_REQUIRE_CFM_TO_HOST;
+		xtend_desc->confirm_frame_type = PROBEREQ_CONFIRM;
+		common->mgmt_q_block = true;
+		rsi_dbg(INFO_ZONE, "Mgmt queue blocked\n");
+	}
+
 	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write the packet\n", __func__);
 
-err:
 	rsi_indicate_tx_status(common->priv, skb, status);
 	return status;
 }

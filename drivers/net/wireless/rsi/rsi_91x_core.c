@@ -413,6 +413,11 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	    (ieee80211_is_qos_nullfunc(wh->frame_control))) {
 		q_num = MGMT_SOFT_Q;
 		skb->priority = q_num;
+
+		if (rsi_prepare_mgmt_desc(common, skb)) {
+			rsi_dbg(ERR_ZONE, "Failed to prepare desc\n");
+			goto xmit_fail;
+		}
 	} else {
 		if (ieee80211_is_data_qos(wh->frame_control)) {
 			tid = (skb->data[24] & IEEE80211_QOS_TID);
@@ -433,6 +438,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 			if (!rsta)
 				goto xmit_fail;
 			tx_params->sta_id = rsta->sta_id;
+		} else {
+			tx_params->sta_id = 0;
 		}
 
 		if (rsta) {
@@ -442,6 +449,10 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 				ieee80211_start_tx_ba_session(rsta->sta,
 							      tid, 0);
 			}
+		}
+		if (rsi_prepare_data_desc(common, skb)) {
+			rsi_dbg(ERR_ZONE, "Failed to prepare data desc\n");
+			goto xmit_fail;
 		}
 	}
 

@@ -167,6 +167,8 @@ struct rsi_bt_desc {
 } __packed;
 
 int rsi_hal_device_init(struct rsi_hw *adapter);
+int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb);
+int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb);
 int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb);
