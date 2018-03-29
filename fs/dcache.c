@@ -3095,6 +3095,8 @@ void d_genocide(struct dentry *parent)
 	d_walk(parent, parent, d_genocide_kill, NULL);
 }
 
+EXPORT_SYMBOL(d_genocide);
+
 void d_tmpfile(struct dentry *dentry, struct inode *inode)
 {
 	inode_dec_link_count(inode);
@@ -3173,8 +3175,6 @@ static void __init dcache_init(void)
 /* SLAB cache for __getname() consumers */
 struct kmem_cache *names_cachep __read_mostly;
 EXPORT_SYMBOL(names_cachep);
-
-EXPORT_SYMBOL(d_genocide);
 
 void __init vfs_caches_init_early(void)
 {
