@@ -65,6 +65,7 @@ struct nfp_app;
 
 /* Extra features bitmap. */
 #define NFP_FL_FEATS_GENEVE		BIT(0)
+#define NFP_FL_NBI_MTU_SETTING		BIT(1)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
@@ -76,6 +77,22 @@ struct nfp_fl_stats_id {
 	struct circ_buf free_list;
 	u32 init_unalloc;
 	u8 repeated_em_count;
+};
+
+/**
+ * struct nfp_mtu_conf - manage MTU setting
+ * @portnum:		NFP port number of repr with requested MTU change
+ * @requested_val:	MTU value requested for repr
+ * @ack:		Received ack that MTU has been correctly set
+ * @wait_q:		Wait queue for MTU acknowledgements
+ * @lock:		Lock for setting/reading MTU variables
+ */
+struct nfp_mtu_conf {
+	u32 portnum;
+	unsigned int requested_val;
+	bool ack;
+	wait_queue_head_t wait_q;
+	spinlock_t lock;
 };
 
 /**
@@ -106,6 +123,7 @@ struct nfp_fl_stats_id {
  * @reify_replies:	atomically stores the number of replies received
  *			from firmware for repr reify
  * @reify_wait_queue:	wait queue for repr reify response counting
+ * @mtu_conf:		Configuration of repr MTU value
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -133,6 +151,7 @@ struct nfp_flower_priv {
 	struct notifier_block nfp_tun_neigh_nb;
 	atomic_t reify_replies;
 	wait_queue_head_t reify_wait_queue;
+	struct nfp_mtu_conf mtu_conf;
 };
 
 struct nfp_fl_key_ls {
