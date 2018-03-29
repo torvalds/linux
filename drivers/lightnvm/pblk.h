@@ -936,12 +936,12 @@ static inline int pblk_pad_distance(struct pblk *pblk)
 
 static inline int pblk_ppa_to_line(struct ppa_addr p)
 {
-	return p.g.blk;
+	return p.a.blk;
 }
 
 static inline int pblk_ppa_to_pos(struct nvm_geo *geo, struct ppa_addr p)
 {
-	return p.g.lun * geo->num_ch + p.g.ch;
+	return p.a.lun * geo->num_ch + p.a.ch;
 }
 
 static inline struct ppa_addr addr_to_gen_ppa(struct pblk *pblk, u64 paddr,

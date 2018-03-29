@@ -194,8 +194,8 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 
 		for (j = 0; j < luns_in_chnl; j++) {
 			luns[lunid].ppa = 0;
-			luns[lunid].g.ch = i;
-			luns[lunid++].g.lun = j;
+			luns[lunid].a.ch = i;
+			luns[lunid++].a.lun = j;
 
 			lun_offs[j] = blun;
 			lun_roffs[j + blun] = blun;
@@ -556,22 +556,22 @@ static void nvm_unregister_map(struct nvm_dev *dev)
 static void nvm_map_to_dev(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 {
 	struct nvm_dev_map *dev_map = tgt_dev->map;
-	struct nvm_ch_map *ch_map = &dev_map->chnls[p->g.ch];
-	int lun_off = ch_map->lun_offs[p->g.lun];
+	struct nvm_ch_map *ch_map = &dev_map->chnls[p->a.ch];
+	int lun_off = ch_map->lun_offs[p->a.lun];
 
-	p->g.ch += ch_map->ch_off;
-	p->g.lun += lun_off;
+	p->a.ch += ch_map->ch_off;
+	p->a.lun += lun_off;
 }
 
 static void nvm_map_to_tgt(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	struct nvm_dev_map *dev_rmap = dev->rmap;
-	struct nvm_ch_map *ch_rmap = &dev_rmap->chnls[p->g.ch];
-	int lun_roff = ch_rmap->lun_offs[p->g.lun];
+	struct nvm_ch_map *ch_rmap = &dev_rmap->chnls[p->a.ch];
+	int lun_roff = ch_rmap->lun_offs[p->a.lun];
 
-	p->g.ch -= ch_rmap->ch_off;
-	p->g.lun -= lun_roff;
+	p->a.ch -= ch_rmap->ch_off;
+	p->a.lun -= lun_roff;
 }
 
 static void nvm_ppa_tgt_to_dev(struct nvm_tgt_dev *tgt_dev,

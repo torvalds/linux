@@ -885,7 +885,7 @@ int pblk_line_erase(struct pblk *pblk, struct pblk_line *line)
 		}
 
 		ppa = pblk->luns[bit].bppa; /* set ch and lun */
-		ppa.g.blk = line->id;
+		ppa.a.blk = line->id;
 
 		atomic_dec(&line->left_eblks);
 		WARN_ON(test_and_set_bit(bit, line->erase_bitmap));
@@ -1683,8 +1683,8 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
-		WARN_ON(ppa_list[0].g.lun != ppa_list[i].g.lun ||
-				ppa_list[0].g.ch != ppa_list[i].g.ch);
+		WARN_ON(ppa_list[0].a.lun != ppa_list[i].a.lun ||
+				ppa_list[0].a.ch != ppa_list[i].a.ch);
 #endif
 
 	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(30000));
@@ -1728,8 +1728,8 @@ void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
 	int i;
 
 	for (i = 1; i < nr_ppas; i++)
-		WARN_ON(ppa_list[0].g.lun != ppa_list[i].g.lun ||
-				ppa_list[0].g.ch != ppa_list[i].g.ch);
+		WARN_ON(ppa_list[0].a.lun != ppa_list[i].a.lun ||
+				ppa_list[0].a.ch != ppa_list[i].a.ch);
 #endif
 
 	rlun = &pblk->luns[pos];

@@ -39,8 +39,8 @@ static ssize_t pblk_sysfs_luns_show(struct pblk *pblk, char *page)
 		sz += snprintf(page + sz, PAGE_SIZE - sz,
 				"pblk: pos:%d, ch:%d, lun:%d - %d\n",
 					i,
-					rlun->bppa.g.ch,
-					rlun->bppa.g.lun,
+					rlun->bppa.a.ch,
+					rlun->bppa.a.lun,
 					active);
 	}
 
