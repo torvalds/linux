@@ -519,6 +519,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			master->control_port_protocol;
 		sdata->control_port_no_encrypt =
 			master->control_port_no_encrypt;
+		sdata->control_port_over_nl80211 =
+			master->control_port_over_nl80211;
 		sdata->vif.cab_queue = master->vif.cab_queue;
 		memcpy(sdata->vif.hw_queue, master->vif.hw_queue,
 		       sizeof(sdata->vif.hw_queue));

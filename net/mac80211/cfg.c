@@ -926,6 +926,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	sdata->control_port_protocol = params->crypto.control_port_ethertype;
 	sdata->control_port_no_encrypt = params->crypto.control_port_no_encrypt;
+	sdata->control_port_over_nl80211 =
+				params->crypto.control_port_over_nl80211;
 	sdata->encrypt_headroom = ieee80211_cs_headroom(sdata->local,
 							&params->crypto,
 							sdata->vif.type);
@@ -935,6 +937,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			params->crypto.control_port_ethertype;
 		vlan->control_port_no_encrypt =
 			params->crypto.control_port_no_encrypt;
+		vlan->control_port_over_nl80211 =
+			params->crypto.control_port_over_nl80211;
 		vlan->encrypt_headroom =
 			ieee80211_cs_headroom(sdata->local,
 					      &params->crypto,
@@ -2019,6 +2023,8 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	err = copy_mesh_setup(ifmsh, setup);
 	if (err)
 		return err;
+
+	sdata->control_port_over_nl80211 = setup->control_port_over_nl80211;
 
 	/* can mesh use other SMPS modes? */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
@@ -3791,4 +3797,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.add_nan_func = ieee80211_add_nan_func,
 	.del_nan_func = ieee80211_del_nan_func,
 	.set_multicast_to_unicast = ieee80211_set_multicast_to_unicast,
+	.tx_control_port = ieee80211_tx_control_port,
 };

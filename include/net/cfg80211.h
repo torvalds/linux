@@ -647,6 +647,8 @@ struct survey_info {
  *	allowed through even on unauthorized ports
  * @control_port_no_encrypt: TRUE to prevent encryption of control port
  *	protocol frames.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  * @wep_keys: static WEP keys, if not NULL points to an array of
  *	CFG80211_MAX_WEP_KEYS WEP keys
  * @wep_tx_key: key index (0..3) of the default TX static WEP key
@@ -662,6 +664,7 @@ struct cfg80211_crypto_settings {
 	bool control_port;
 	__be16 control_port_ethertype;
 	bool control_port_no_encrypt;
+	bool control_port_over_nl80211;
 	struct key_params *wep_keys;
 	int wep_tx_key;
 	const u8 *psk;
@@ -1451,6 +1454,8 @@ struct mesh_config {
  * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
  *	changes the channel when a radar is detected. This is required
  *	to operate on DFS channels.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -1473,6 +1478,7 @@ struct mesh_setup {
 	u32 basic_rates;
 	struct cfg80211_bitrate_mask beacon_rate;
 	bool userspace_handles_dfs;
+	bool control_port_over_nl80211;
 };
 
 /**
@@ -2031,6 +2037,8 @@ struct cfg80211_disassoc_request {
  *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
  *	required to assume that the port is unauthorized until authorized by
  *	user space. Otherwise, port is marked authorized by default.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
  *	changes the channel when a radar is detected. This is required
  *	to operate on DFS channels.
@@ -2054,6 +2062,7 @@ struct cfg80211_ibss_params {
 	bool channel_fixed;
 	bool privacy;
 	bool control_port;
+	bool control_port_over_nl80211;
 	bool userspace_handles_dfs;
 	int mcast_rate[NUM_NL80211_BANDS];
 	struct ieee80211_ht_cap ht_capa;
@@ -2961,6 +2970,9 @@ struct cfg80211_external_auth_params {
  *
  * @external_auth: indicates result of offloaded authentication processing from
  *     user space
+ *
+ * @tx_control_port: TX a control port frame (EAPoL).  The noencrypt parameter
+ *	tells the driver that the frame should not be encrypted.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3256,6 +3268,12 @@ struct cfg80211_ops {
 			   const u8 *aa);
 	int     (*external_auth)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_external_auth_params *params);
+
+	int	(*tx_control_port)(struct wiphy *wiphy,
+				   struct net_device *dev,
+				   const u8 *buf, size_t len,
+				   const u8 *dest, const __be16 proto,
+				   const bool noencrypt);
 };
 
 /*
@@ -5720,6 +5738,28 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
 void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
+
+/**
+ * cfg80211_rx_control_port - notification about a received control port frame
+ * @dev: The device the frame matched to
+ * @buf: control port frame
+ * @len: length of the frame data
+ * @addr: The peer from which the frame was received
+ * @proto: frame protocol, typically PAE or Pre-authentication
+ * @unencrypted: Whether the frame was received unencrypted
+ *
+ * This function is used to inform userspace about a received control port
+ * frame.  It should only be used if userspace indicated it wants to receive
+ * control port frames over nl80211.
+ *
+ * The frame is the data portion of the 802.3 or 802.11 data frame with all
+ * network layer headers removed (e.g. the raw EAPoL frame).
+ *
+ * Return: %true if the frame was passed to userspace
+ */
+bool cfg80211_rx_control_port(struct net_device *dev,
+			      const u8 *buf, size_t len,
+			      const u8 *addr, u16 proto, bool unencrypted);
 
 /**
  * cfg80211_cqm_rssi_notify - connection quality monitoring rssi event
