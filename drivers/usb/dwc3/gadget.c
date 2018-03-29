@@ -2319,11 +2319,9 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 
 	list_for_each_entry_safe(req, n, &dep->started_list, list) {
 		unsigned length;
-		int chain;
 
 		length = req->request.length;
-		chain = req->num_pending_sgs > 0;
-		if (chain)
+		if (req->num_pending_sgs)
 			ret = dwc3_gadget_ep_reclaim_trb_sg(dep, req, event,
 					status);
 		else
