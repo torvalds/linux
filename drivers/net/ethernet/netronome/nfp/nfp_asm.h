@@ -39,6 +39,7 @@
 #include <linux/types.h>
 
 #define REG_NONE	0
+#define REG_WIDTH	4
 
 #define RE_REG_NO_DST	0x020
 #define RE_REG_IMM	0x020

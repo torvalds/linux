@@ -199,6 +199,10 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @ldst_gather_len: memcpy length gathered from load/store sequence
  * @paired_st: the paired store insn at the head of the sequence
  * @ptr_not_const: pointer is not always constant
+ * @pkt_cache: packet data cache information
+ * @pkt_cache.range_start: start offset for associated packet data cache
+ * @pkt_cache.range_end: end offset for associated packet data cache
+ * @pkt_cache.do_init: this read needs to initialize packet data cache
  * @jmp_dst: destination info for jump instructions
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
@@ -219,6 +223,11 @@ struct nfp_insn_meta {
 			struct bpf_insn *paired_st;
 			s16 ldst_gather_len;
 			bool ptr_not_const;
+			struct {
+				s16 range_start;
+				s16 range_end;
+				bool do_init;
+			} pkt_cache;
 		};
 		struct nfp_insn_meta *jmp_dst;
 		struct {

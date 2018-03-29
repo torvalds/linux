@@ -1838,6 +1838,74 @@ mem_ldx_emem(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 					 tmp_reg, meta->insn.dst_reg * 2, size);
 }
 
+static void
+mem_ldx_data_init_pktcache(struct nfp_prog *nfp_prog,
+			   struct nfp_insn_meta *meta)
+{
+	s16 range_start = meta->pkt_cache.range_start;
+	s16 range_end = meta->pkt_cache.range_end;
+	swreg src_base, off;
+	u8 xfer_num, len;
+	bool indir;
+
+	off = re_load_imm_any(nfp_prog, range_start, imm_b(nfp_prog));
+	src_base = reg_a(meta->insn.src_reg * 2);
+	len = range_end - range_start;
+	xfer_num = round_up(len, REG_WIDTH) / REG_WIDTH;
+
+	indir = len > 8 * REG_WIDTH;
+	/* Setup PREV_ALU for indirect mode. */
+	if (indir)
+		wrp_immed(nfp_prog, reg_none(),
+			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
+
+	/* Cache memory into transfer-in registers. */
+	emit_cmd_any(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0, src_base,
+		     off, xfer_num - 1, true, indir);
+}
+
+static int
+mem_ldx_data_from_pktcache_aligned(struct nfp_prog *nfp_prog,
+				   struct nfp_insn_meta *meta,
+				   unsigned int size)
+{
+	swreg dst_lo, dst_hi, src_lo;
+	u8 dst_gpr, idx;
+
+	idx = (meta->insn.off - meta->pkt_cache.range_start) / REG_WIDTH;
+	dst_gpr = meta->insn.dst_reg * 2;
+	dst_hi = reg_both(dst_gpr + 1);
+	dst_lo = reg_both(dst_gpr);
+	src_lo = reg_xfer(idx);
+
+	if (size < REG_WIDTH) {
+		wrp_reg_subpart(nfp_prog, dst_lo, src_lo, size, 0);
+		wrp_immed(nfp_prog, dst_hi, 0);
+	} else if (size == REG_WIDTH) {
+		wrp_mov(nfp_prog, dst_lo, src_lo);
+		wrp_immed(nfp_prog, dst_hi, 0);
+	} else {
+		swreg src_hi = reg_xfer(idx + 1);
+
+		wrp_mov(nfp_prog, dst_lo, src_lo);
+		wrp_mov(nfp_prog, dst_hi, src_hi);
+	}
+
+	return 0;
+}
+
+static int
+mem_ldx_data_from_pktcache(struct nfp_prog *nfp_prog,
+			   struct nfp_insn_meta *meta, unsigned int size)
+{
+	u8 off = meta->insn.off - meta->pkt_cache.range_start;
+
+	if (WARN_ON_ONCE(!IS_ALIGNED(off, REG_WIDTH)))
+		return -EOPNOTSUPP;
+
+	return mem_ldx_data_from_pktcache_aligned(nfp_prog, meta, size);
+}
+
 static int
 mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
@@ -1852,8 +1920,16 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 			return mem_ldx_skb(nfp_prog, meta, size);
 	}
 
-	if (meta->ptr.type == PTR_TO_PACKET)
-		return mem_ldx_data(nfp_prog, meta, size);
+	if (meta->ptr.type == PTR_TO_PACKET) {
+		if (meta->pkt_cache.range_end) {
+			if (meta->pkt_cache.do_init)
+				mem_ldx_data_init_pktcache(nfp_prog, meta);
+
+			return mem_ldx_data_from_pktcache(nfp_prog, meta, size);
+		} else {
+			return mem_ldx_data(nfp_prog, meta, size);
+		}
+	}
 
 	if (meta->ptr.type == PTR_TO_STACK)
 		return mem_ldx_stack(nfp_prog, meta, size,
