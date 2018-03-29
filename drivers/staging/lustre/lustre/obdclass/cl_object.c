@@ -53,7 +53,6 @@
 #include <obd_support.h>
 #include <lustre_fid.h>
 #include <linux/list.h>
-#include <linux/libcfs/libcfs_hash.h>	/* for cfs_hash stuff */
 #include <cl_object.h>
 #include <lu_object.h>
 #include "cl_internal.h"
