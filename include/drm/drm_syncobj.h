@@ -60,11 +60,6 @@ struct drm_syncobj {
 	 * locks cb_list and write-locks fence.
 	 */
 	spinlock_t lock;
-	/**
-	 * @file:
-	 * a file backing for this syncobj.
-	 */
-	struct file *file;
 };
 
 typedef void (*drm_syncobj_func_t)(struct drm_syncobj *syncobj,

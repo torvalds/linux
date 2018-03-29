@@ -617,7 +617,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	if (!pdata && press_data->sensor_settings->drdy_irq.addr)
 		pdata =	(struct st_sensors_platform_data *)&default_press_pdata;
 
-	err = st_sensors_init_sensor(indio_dev, press_data->dev->platform_data);
+	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
 		goto st_press_power_off;
 

@@ -3523,11 +3523,6 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_virt_device *virt_dev;
 	struct xhci_slot_ctx *slot_ctx;
 	int i, ret;
-	struct xhci_command *command;
-
-	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
-	if (!command)
-		return;
 
 #ifndef CONFIG_USB_DEFAULT_PERSIST
 	/*
@@ -3543,10 +3538,8 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	/* If the host is halted due to driver unload, we still need to free the
 	 * device.
 	 */
-	if (ret <= 0 && ret != -ENODEV) {
-		kfree(command);
+	if (ret <= 0 && ret != -ENODEV)
 		return;
-	}
 
 	virt_dev = xhci->devs[udev->slot_id];
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
@@ -3558,26 +3551,21 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 
-	xhci_disable_slot(xhci, command, udev->slot_id);
+	xhci_disable_slot(xhci, udev->slot_id);
 	/*
 	 * Event command completion handler will free any data structures
 	 * associated with the slot.  XXX Can free sleep?
 	 */
 }
 
-int xhci_disable_slot(struct xhci_hcd *xhci, struct xhci_command *command,
-			u32 slot_id)
+int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id)
 {
+	struct xhci_command *command;
 	unsigned long flags;
 	u32 state;
 	int ret = 0;
-	struct xhci_virt_device *virt_dev;
 
-	virt_dev = xhci->devs[slot_id];
-	if (!virt_dev)
-		return -EINVAL;
-	if (!command)
-		command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 	if (!command)
 		return -ENOMEM;
 
@@ -3595,7 +3583,7 @@ int xhci_disable_slot(struct xhci_hcd *xhci, struct xhci_command *command,
 				slot_id);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
+		kfree(command);
 		return ret;
 	}
 	xhci_ring_cmd_db(xhci);
@@ -3670,6 +3658,8 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		return 0;
 	}
 
+	xhci_free_command(xhci, command);
+
 	if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK)) {
 		spin_lock_irqsave(&xhci->lock, flags);
 		ret = xhci_reserve_host_control_ep_resources(xhci);
@@ -3705,18 +3695,12 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		pm_runtime_get_noresume(hcd->self.controller);
 #endif
 
-
-	xhci_free_command(xhci, command);
 	/* Is this a LS or FS device under a HS hub? */
 	/* Hub or peripherial? */
 	return 1;
 
 disable_slot:
-	/* Disable slot, if we can do it without mem alloc */
-	kfree(command->completion);
-	command->completion = NULL;
-	command->status = 0;
-	return xhci_disable_slot(xhci, command, udev->slot_id);
+	return xhci_disable_slot(xhci, udev->slot_id);
 }
 
 /*
