@@ -81,10 +81,13 @@ struct nvm_rq;
 struct nvm_id;
 struct nvm_dev;
 struct nvm_tgt_dev;
+struct nvm_chk_meta;
 
 typedef int (nvm_id_fn)(struct nvm_dev *);
 typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct ppa_addr *, int, int);
+typedef int (nvm_get_chk_meta_fn)(struct nvm_dev *, struct nvm_chk_meta *,
+								sector_t, int);
 typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvm_submit_io_sync_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
@@ -97,6 +100,8 @@ struct nvm_dev_ops {
 	nvm_id_fn		*identity;
 	nvm_op_bb_tbl_fn	*get_bb_tbl;
 	nvm_op_set_bb_fn	*set_bb_tbl;
+
+	nvm_get_chk_meta_fn	*get_chk_meta;
 
 	nvm_submit_io_fn	*submit_io;
 	nvm_submit_io_sync_fn	*submit_io_sync;
@@ -225,6 +230,20 @@ struct nvm_addrf {
 	u64	chk_mask;
 	u64	sec_mask;
 	u64	rsv_mask[2];
+};
+
+/*
+ * Note: The structure size is linked to nvme_nvm_chk_meta such that the same
+ * buffer can be used when converting from little endian to cpu addressing.
+ */
+struct nvm_chk_meta {
+	u8	state;
+	u8	type;
+	u8	wi;
+	u8	rsvd[5];
+	u64	slba;
+	u64	cnlb;
+	u64	wp;
 };
 
 struct nvm_target {
@@ -491,6 +510,11 @@ extern void nvm_dev_dma_free(struct nvm_dev *, void *, dma_addr_t);
 extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
+
+
+extern int nvm_get_chunk_meta(struct nvm_tgt_dev *tgt_dev,
+			      struct nvm_chk_meta *meta, struct ppa_addr ppa,
+			      int nchks);
 
 extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);

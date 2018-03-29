@@ -712,6 +712,17 @@ static void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev,
 	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 }
 
+int nvm_get_chunk_meta(struct nvm_tgt_dev *tgt_dev, struct nvm_chk_meta *meta,
+		struct ppa_addr ppa, int nchks)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+
+	nvm_ppa_tgt_to_dev(tgt_dev, &ppa, 1);
+
+	return dev->ops->get_chk_meta(tgt_dev->parent, meta,
+						(sector_t)ppa.ppa, nchks);
+}
+EXPORT_SYMBOL(nvm_get_chunk_meta);
 
 int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 		       int nr_ppas, int type)
