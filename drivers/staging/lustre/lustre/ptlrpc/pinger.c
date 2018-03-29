@@ -108,7 +108,7 @@ static void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
 				  at_get(&imp->imp_at.iat_net_latency));
 		time = min(time, dtime);
 	}
-	imp->imp_next_ping = cfs_time_shift(time);
+	imp->imp_next_ping = jiffies + time * HZ;
 }
 
 static inline int imp_is_deactive(struct obd_import *imp)
@@ -120,9 +120,9 @@ static inline int imp_is_deactive(struct obd_import *imp)
 static inline int ptlrpc_next_reconnect(struct obd_import *imp)
 {
 	if (imp->imp_server_timeout)
-		return cfs_time_shift(obd_timeout / 2);
+		return jiffies + obd_timeout / 2 * HZ;
 	else
-		return cfs_time_shift(obd_timeout);
+		return jiffies + obd_timeout * HZ;
 }
 
 static long pinger_check_timeout(unsigned long time)

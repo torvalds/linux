@@ -1287,7 +1287,7 @@ ksocknal_create_conn(struct lnet_ni *ni, struct ksock_route *route,
 	conn->ksnc_tx_last_post = jiffies;
 	/* Set the deadline for the outgoing HELLO to drain */
 	conn->ksnc_tx_bufnob = sock->sk->sk_wmem_queued;
-	conn->ksnc_tx_deadline = cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+	conn->ksnc_tx_deadline = jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 	mb();   /* order with adding to peer's conn list */
 
 	list_add(&conn->ksnc_list, &peer->ksnp_conns);
@@ -1852,7 +1852,7 @@ ksocknal_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when)
 			if (bufnob < conn->ksnc_tx_bufnob) {
 				/* something got ACKed */
 				conn->ksnc_tx_deadline =
-					cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+					jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 				peer->ksnp_last_alive = now;
 				conn->ksnc_tx_bufnob = bufnob;
 			}

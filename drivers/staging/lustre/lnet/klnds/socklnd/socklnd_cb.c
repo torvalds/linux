@@ -221,7 +221,7 @@ ksocknal_transmit(struct ksock_conn *conn, struct ksock_tx *tx)
 			 * something got ACKed
 			 */
 			conn->ksnc_tx_deadline =
-				cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+				jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 			conn->ksnc_peer->ksnp_last_alive = jiffies;
 			conn->ksnc_tx_bufnob = bufnob;
 			mb();
@@ -269,7 +269,7 @@ ksocknal_recv_iter(struct ksock_conn *conn)
 
 	conn->ksnc_peer->ksnp_last_alive = jiffies;
 	conn->ksnc_rx_deadline =
-		cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+		jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 	mb();		       /* order with setting rx_started */
 	conn->ksnc_rx_started = 1;
 
@@ -405,7 +405,7 @@ ksocknal_check_zc_req(struct ksock_tx *tx)
 
 	/* ZC_REQ is going to be pinned to the peer */
 	tx->tx_deadline =
-		cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+		jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 
 	LASSERT(!tx->tx_msg.ksm_zc_cookies[0]);
 
@@ -677,7 +677,7 @@ ksocknal_queue_tx_locked(struct ksock_tx *tx, struct ksock_conn *conn)
 	if (list_empty(&conn->ksnc_tx_queue) && !bufnob) {
 		/* First packet starts the timeout */
 		conn->ksnc_tx_deadline =
-			cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+			jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 		if (conn->ksnc_tx_bufnob > 0) /* something got ACKed */
 			conn->ksnc_peer->ksnp_last_alive = jiffies;
 		conn->ksnc_tx_bufnob = 0;
@@ -858,7 +858,7 @@ ksocknal_launch_packet(struct lnet_ni *ni, struct ksock_tx *tx,
 	    ksocknal_find_connecting_route_locked(peer)) {
 		/* the message is going to be pinned to the peer */
 		tx->tx_deadline =
-			cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
+			jiffies + *ksocknal_tunables.ksnd_timeout * HZ;
 
 		/* Queue the message until a connection is established */
 		list_add_tail(&tx->tx_list, &peer->ksnp_tx_queue);
@@ -2308,7 +2308,7 @@ ksocknal_send_keepalive_locked(struct ksock_peer *peer)
 	 * retry 10 secs later, so we wouldn't put pressure
 	 * on this peer if we failed to send keepalive this time
 	 */
-	peer->ksnp_send_keepalive = cfs_time_shift(10);
+	peer->ksnp_send_keepalive = jiffies + 10 * HZ;
 
 	conn = ksocknal_find_conn_locked(peer, NULL, 1);
 	if (conn) {

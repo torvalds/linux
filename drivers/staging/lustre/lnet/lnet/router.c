@@ -1026,7 +1026,7 @@ lnet_ping_router_locked(struct lnet_peer *rtr)
 
 		if (!rtr->lp_ping_deadline) {
 			rtr->lp_ping_deadline =
-				cfs_time_shift(router_ping_timeout);
+				jiffies + router_ping_timeout * HZ;
 		}
 
 		lnet_net_unlock(rtr->lp_cpt);

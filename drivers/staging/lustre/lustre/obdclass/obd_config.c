@@ -269,7 +269,7 @@ static int class_attach(struct lustre_cfg *lcfg)
 	/* obd->obd_osfs_age must be set to a value in the distant
 	 * past to guarantee a fresh statfs is fetched on mount.
 	 */
-	obd->obd_osfs_age = cfs_time_shift_64(-1000);
+	obd->obd_osfs_age = get_jiffies_64() - 1000 * HZ;
 
 	/* XXX belongs in setup not attach  */
 	init_rwsem(&obd->obd_observer_link_sem);

@@ -1063,7 +1063,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		/* got statfs data */
 		rc = obd_statfs(NULL, lov->lov_tgts[index]->ltd_exp, &stat_buf,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				flags);
 		if (rc)
 			return rc;

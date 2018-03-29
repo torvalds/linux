@@ -3700,13 +3700,13 @@ kiblnd_failover_thread(void *arg)
 			LASSERT(dev->ibd_failover);
 			dev->ibd_failover = 0;
 			if (rc >= 0) { /* Device is OK or failover succeed */
-				dev->ibd_next_failover = cfs_time_shift(3);
+				dev->ibd_next_failover = jiffies + 3 * HZ;
 				continue;
 			}
 
 			/* failed to failover, retry later */
 			dev->ibd_next_failover =
-				cfs_time_shift(min(dev->ibd_failed_failover, 10));
+				jiffies + min(dev->ibd_failed_failover, 10) * HZ;
 			if (kiblnd_dev_can_failover(dev)) {
 				list_add_tail(&dev->ibd_fail_list,
 					      &kiblnd_data.kib_failed_devs);

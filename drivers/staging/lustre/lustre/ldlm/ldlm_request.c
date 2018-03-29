@@ -118,7 +118,7 @@ static void ldlm_expired_completion_wait(struct ldlm_lock *lock, __u32 conn_cnt)
 				 lock->l_last_activity));
 		if (cfs_time_after(jiffies, next_dump)) {
 			last_dump = next_dump;
-			next_dump = cfs_time_shift(300);
+			next_dump = jiffies + 300 * HZ;
 			ldlm_namespace_dump(D_DLMTRACE,
 					    ldlm_lock_to_ns(lock));
 			if (last_dump == 0)

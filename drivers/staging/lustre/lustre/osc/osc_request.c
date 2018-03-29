@@ -617,7 +617,7 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 void osc_update_next_shrink(struct client_obd *cli)
 {
 	cli->cl_next_shrink_grant =
-		cfs_time_shift(cli->cl_grant_shrink_interval);
+		jiffies + cli->cl_grant_shrink_interval * HZ;
 	CDEBUG(D_CACHE, "next time %ld to shrink grant\n",
 	       cli->cl_next_shrink_grant);
 }

@@ -169,9 +169,9 @@ lnet_drop_rule_add(struct lnet_fault_attr *attr)
 
 	rule->dr_attr = *attr;
 	if (attr->u.drop.da_interval) {
-		rule->dr_time_base = cfs_time_shift(attr->u.drop.da_interval);
-		rule->dr_drop_time = cfs_time_shift(
-			prandom_u32_max(attr->u.drop.da_interval));
+		rule->dr_time_base = jiffies + attr->u.drop.da_interval * HZ;
+		rule->dr_drop_time = jiffies +
+			prandom_u32_max(attr->u.drop.da_interval) * HZ;
 	} else {
 		rule->dr_drop_at = prandom_u32_max(attr->u.drop.da_rate);
 	}
@@ -279,9 +279,9 @@ lnet_drop_rule_reset(void)
 		if (attr->u.drop.da_rate) {
 			rule->dr_drop_at = prandom_u32_max(attr->u.drop.da_rate);
 		} else {
-			rule->dr_drop_time = cfs_time_shift(
-				prandom_u32_max(attr->u.drop.da_interval));
-			rule->dr_time_base = cfs_time_shift(attr->u.drop.da_interval);
+			rule->dr_drop_time = jiffies +
+				prandom_u32_max(attr->u.drop.da_interval) * HZ;
+			rule->dr_time_base = jiffies + attr->u.drop.da_interval * HZ;
 		}
 		spin_unlock(&rule->dr_lock);
 	}
@@ -513,7 +513,7 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
 
 	list_add_tail(&msg->msg_list, &rule->dl_msg_list);
 	msg->msg_delay_send = round_timeout(
-			cfs_time_shift(attr->u.delay.la_latency));
+			jiffies + attr->u.delay.la_latency * HZ);
 	if (rule->dl_msg_send == -1) {
 		rule->dl_msg_send = msg->msg_delay_send;
 		mod_timer(&rule->dl_timer, rule->dl_msg_send);
@@ -767,9 +767,9 @@ lnet_delay_rule_add(struct lnet_fault_attr *attr)
 
 	rule->dl_attr = *attr;
 	if (attr->u.delay.la_interval) {
-		rule->dl_time_base = cfs_time_shift(attr->u.delay.la_interval);
-		rule->dl_delay_time = cfs_time_shift(
-			prandom_u32_max(attr->u.delay.la_interval));
+		rule->dl_time_base = jiffies + attr->u.delay.la_interval * HZ;
+		rule->dl_delay_time = jiffies + 
+			prandom_u32_max(attr->u.delay.la_interval) * HZ;
 	} else {
 		rule->dl_delay_at = prandom_u32_max(attr->u.delay.la_rate);
 	}
@@ -920,9 +920,9 @@ lnet_delay_rule_reset(void)
 			rule->dl_delay_at = prandom_u32_max(attr->u.delay.la_rate);
 		} else {
 			rule->dl_delay_time =
-				cfs_time_shift(prandom_u32_max(
-						       attr->u.delay.la_interval));
-			rule->dl_time_base = cfs_time_shift(attr->u.delay.la_interval);
+				jiffies + prandom_u32_max(
+					attr->u.delay.la_interval) * HZ;
+			rule->dl_time_base = jiffies + attr->u.delay.la_interval * HZ;
 		}
 		spin_unlock(&rule->dl_lock);
 	}

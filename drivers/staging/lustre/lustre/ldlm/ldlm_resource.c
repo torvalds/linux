@@ -1323,7 +1323,7 @@ void ldlm_namespace_dump(int level, struct ldlm_namespace *ns)
 				 ldlm_res_hash_dump,
 				 (void *)(unsigned long)level, 0);
 	spin_lock(&ns->ns_lock);
-	ns->ns_next_dump = cfs_time_shift(10);
+	ns->ns_next_dump = jiffies + 10 * HZ;
 	spin_unlock(&ns->ns_lock);
 }
 

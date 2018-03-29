@@ -50,11 +50,6 @@ static inline int cfs_time_aftereq(unsigned long t1, unsigned long t2)
 	return time_before_eq(t2, t1);
 }
 
-static inline unsigned long cfs_time_shift(int seconds)
-{
-	return jiffies + seconds * HZ;
-}
-
 /*
  * return valid time-out based on user supplied one. Currently we only check
  * that time-out is not shorted than allowed.

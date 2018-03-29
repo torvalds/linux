@@ -53,7 +53,7 @@ static ssize_t blocksize_show(struct kobject *kobj, struct attribute *attr,
 	int rc;
 
 	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				OBD_STATFS_NODELAY);
 	if (!rc)
 		return sprintf(buf, "%u\n", osfs.os_bsize);
@@ -71,7 +71,7 @@ static ssize_t kbytestotal_show(struct kobject *kobj, struct attribute *attr,
 	int rc;
 
 	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				OBD_STATFS_NODELAY);
 	if (!rc) {
 		__u32 blk_size = osfs.os_bsize >> 10;
@@ -96,7 +96,7 @@ static ssize_t kbytesfree_show(struct kobject *kobj, struct attribute *attr,
 	int rc;
 
 	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				OBD_STATFS_NODELAY);
 	if (!rc) {
 		__u32 blk_size = osfs.os_bsize >> 10;
@@ -121,7 +121,7 @@ static ssize_t kbytesavail_show(struct kobject *kobj, struct attribute *attr,
 	int rc;
 
 	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				OBD_STATFS_NODELAY);
 	if (!rc) {
 		__u32 blk_size = osfs.os_bsize >> 10;
@@ -146,7 +146,7 @@ static ssize_t filestotal_show(struct kobject *kobj, struct attribute *attr,
 	int rc;
 
 	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				OBD_STATFS_NODELAY);
 	if (!rc)
 		return sprintf(buf, "%llu\n", osfs.os_files);
@@ -164,7 +164,7 @@ static ssize_t filesfree_show(struct kobject *kobj, struct attribute *attr,
 	int rc;
 
 	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				OBD_STATFS_NODELAY);
 	if (!rc)
 		return sprintf(buf, "%llu\n", osfs.os_ffree);

@@ -2104,7 +2104,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		}
 
 		rc = mdc_statfs(NULL, obd->obd_self_export, &stat_buf,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				0);
 		if (rc != 0)
 			goto out;

@@ -1446,7 +1446,7 @@ static int kiblnd_create_fmr_pool(struct kib_fmr_poolset *fps,
 	if (rc)
 		goto out_fpo;
 
-	fpo->fpo_deadline = cfs_time_shift(IBLND_POOL_DEADLINE);
+	fpo->fpo_deadline = jiffies + IBLND_POOL_DEADLINE * HZ;
 	fpo->fpo_owner = fps;
 	*pp_fpo = fpo;
 
@@ -1619,7 +1619,7 @@ int kiblnd_fmr_pool_map(struct kib_fmr_poolset *fps, struct kib_tx *tx,
 	spin_lock(&fps->fps_lock);
 	version = fps->fps_version;
 	list_for_each_entry(fpo, &fps->fps_pool_list, fpo_list) {
-		fpo->fpo_deadline = cfs_time_shift(IBLND_POOL_DEADLINE);
+		fpo->fpo_deadline = jiffies + IBLND_POOL_DEADLINE * HZ;
 		fpo->fpo_map_count++;
 
 		if (fpo->fpo_is_fmr) {
@@ -1743,7 +1743,7 @@ int kiblnd_fmr_pool_map(struct kib_fmr_poolset *fps, struct kib_tx *tx,
 		fps->fps_version++;
 		list_add_tail(&fpo->fpo_list, &fps->fps_pool_list);
 	} else {
-		fps->fps_next_retry = cfs_time_shift(IBLND_POOL_RETRY);
+		fps->fps_next_retry = jiffies + IBLND_POOL_RETRY * HZ;
 	}
 	spin_unlock(&fps->fps_lock);
 
@@ -1764,7 +1764,7 @@ static void kiblnd_init_pool(struct kib_poolset *ps, struct kib_pool *pool, int 
 
 	memset(pool, 0, sizeof(*pool));
 	INIT_LIST_HEAD(&pool->po_free_list);
-	pool->po_deadline = cfs_time_shift(IBLND_POOL_DEADLINE);
+	pool->po_deadline = jiffies + IBLND_POOL_DEADLINE * HZ;
 	pool->po_owner    = ps;
 	pool->po_size     = size;
 }
@@ -1899,7 +1899,7 @@ struct list_head *kiblnd_pool_alloc_node(struct kib_poolset *ps)
 			continue;
 
 		pool->po_allocated++;
-		pool->po_deadline = cfs_time_shift(IBLND_POOL_DEADLINE);
+		pool->po_deadline = jiffies + IBLND_POOL_DEADLINE * HZ;
 		node = pool->po_free_list.next;
 		list_del(node);
 
@@ -1947,7 +1947,7 @@ struct list_head *kiblnd_pool_alloc_node(struct kib_poolset *ps)
 	if (!rc) {
 		list_add_tail(&pool->po_list, &ps->ps_pool_list);
 	} else {
-		ps->ps_next_retry = cfs_time_shift(IBLND_POOL_RETRY);
+		ps->ps_next_retry = jiffies + IBLND_POOL_RETRY * HZ;
 		CERROR("Can't allocate new %s pool because out of memory\n",
 		       ps->ps_name);
 	}

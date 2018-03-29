@@ -876,7 +876,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			return -EFAULT;
 
 		rc = obd_statfs(NULL, tgt->ltd_exp, &stat_buf,
-				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
+				get_jiffies_64() - OBD_STATFS_CACHE_SECONDS * HZ,
 				0);
 		if (rc)
 			return rc;
