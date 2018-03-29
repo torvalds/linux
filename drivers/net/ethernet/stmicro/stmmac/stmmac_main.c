@@ -196,6 +196,20 @@ static void stmmac_start_all_queues(struct stmmac_priv *priv)
 		netif_tx_start_queue(netdev_get_tx_queue(priv->dev, queue));
 }
 
+static void stmmac_service_event_schedule(struct stmmac_priv *priv)
+{
+	if (!test_bit(STMMAC_DOWN, &priv->state) &&
+	    !test_and_set_bit(STMMAC_SERVICE_SCHED, &priv->state))
+		queue_work(priv->wq, &priv->service_task);
+}
+
+static void stmmac_global_err(struct stmmac_priv *priv)
+{
+	netif_carrier_off(priv->dev);
+	set_bit(STMMAC_RESET_REQUESTED, &priv->state);
+	stmmac_service_event_schedule(priv);
+}
+
 /**
  * stmmac_clk_csr_set - dynamically set the MDC clock
  * @priv: driver private structure
@@ -3587,12 +3601,8 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 static void stmmac_tx_timeout(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	u32 tx_count = priv->plat->tx_queues_to_use;
-	u32 chan;
 
-	/* Clear Tx resources and restart transmitting again */
-	for (chan = 0; chan < tx_count; chan++)
-		stmmac_tx_err(priv, chan);
+	stmmac_global_err(priv);
 }
 
 /**
@@ -3715,6 +3725,10 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 		netdev_err(priv->dev, "%s: invalid dev pointer\n", __func__);
 		return IRQ_NONE;
 	}
+
+	/* Check if adapter is up */
+	if (test_bit(STMMAC_DOWN, &priv->state))
+		return IRQ_HANDLED;
 
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || (priv->plat->has_gmac4)) {
@@ -4051,6 +4065,37 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_set_mac_address = stmmac_set_mac_address,
 };
 
+static void stmmac_reset_subtask(struct stmmac_priv *priv)
+{
+	if (!test_and_clear_bit(STMMAC_RESET_REQUESTED, &priv->state))
+		return;
+	if (test_bit(STMMAC_DOWN, &priv->state))
+		return;
+
+	netdev_err(priv->dev, "Reset adapter.\n");
+
+	rtnl_lock();
+	netif_trans_update(priv->dev);
+	while (test_and_set_bit(STMMAC_RESETING, &priv->state))
+		usleep_range(1000, 2000);
+
+	set_bit(STMMAC_DOWN, &priv->state);
+	dev_close(priv->dev);
+	dev_open(priv->dev);
+	clear_bit(STMMAC_DOWN, &priv->state);
+	clear_bit(STMMAC_RESETING, &priv->state);
+	rtnl_unlock();
+}
+
+static void stmmac_service_task(struct work_struct *work)
+{
+	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
+			service_task);
+
+	stmmac_reset_subtask(priv);
+	clear_bit(STMMAC_SERVICE_SCHED, &priv->state);
+}
+
 /**
  *  stmmac_hw_init - Init the MAC device
  *  @priv: driver private structure
@@ -4212,6 +4257,15 @@ int stmmac_dvr_probe(struct device *device,
 	/* Verify driver arguments */
 	stmmac_verify_args();
 
+	/* Allocate workqueue */
+	priv->wq = create_singlethread_workqueue("stmmac_wq");
+	if (!priv->wq) {
+		dev_err(priv->device, "failed to create workqueue\n");
+		goto error_wq;
+	}
+
+	INIT_WORK(&priv->service_task, stmmac_service_task);
+
 	/* Override with kernel parameters if supplied XXX CRS XXX
 	 * this needs to have multiple instances
 	 */
@@ -4342,6 +4396,8 @@ error_mdio_register:
 		netif_napi_del(&rx_q->napi);
 	}
 error_hw_init:
+	destroy_workqueue(priv->wq);
+error_wq:
 	free_netdev(ndev);
 
 	return ret;
@@ -4374,6 +4430,7 @@ int stmmac_dvr_remove(struct device *dev)
 	    priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI)
 		stmmac_mdio_unregister(ndev);
+	destroy_workqueue(priv->wq);
 	free_netdev(ndev);
 
 	return 0;
