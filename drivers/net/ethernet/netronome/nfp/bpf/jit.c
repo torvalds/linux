@@ -103,15 +103,10 @@ nfp_prog_confirm_current_offset(struct nfp_prog *nfp_prog, unsigned int off)
 /* --- Emitters --- */
 static void
 __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
-	   u8 mode, u8 xfer, u8 areg, u8 breg, u8 size, bool sync, bool indir)
+	   u8 mode, u8 xfer, u8 areg, u8 breg, u8 size, enum cmd_ctx_swap ctx,
+	   bool indir)
 {
-	enum cmd_ctx_swap ctx;
 	u64 insn;
-
-	if (sync)
-		ctx = CMD_CTX_SWAP;
-	else
-		ctx = CMD_CTX_NO_SWAP;
 
 	insn =	FIELD_PREP(OP_CMD_A_SRC, areg) |
 		FIELD_PREP(OP_CMD_CTX, ctx) |
@@ -119,7 +114,7 @@ __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 		FIELD_PREP(OP_CMD_TOKEN, cmd_tgt_act[op].token) |
 		FIELD_PREP(OP_CMD_XFER, xfer) |
 		FIELD_PREP(OP_CMD_CNT, size) |
-		FIELD_PREP(OP_CMD_SIG, sync) |
+		FIELD_PREP(OP_CMD_SIG, ctx != CMD_CTX_NO_SWAP) |
 		FIELD_PREP(OP_CMD_TGT_CMD, cmd_tgt_act[op].tgt_cmd) |
 		FIELD_PREP(OP_CMD_INDIR, indir) |
 		FIELD_PREP(OP_CMD_MODE, mode);
@@ -129,7 +124,7 @@ __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 
 static void
 emit_cmd_any(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
-	     swreg lreg, swreg rreg, u8 size, bool sync, bool indir)
+	     swreg lreg, swreg rreg, u8 size, enum cmd_ctx_swap ctx, bool indir)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -150,22 +145,22 @@ emit_cmd_any(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
 		return;
 	}
 
-	__emit_cmd(nfp_prog, op, mode, xfer, reg.areg, reg.breg, size, sync,
+	__emit_cmd(nfp_prog, op, mode, xfer, reg.areg, reg.breg, size, ctx,
 		   indir);
 }
 
 static void
 emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
-	 swreg lreg, swreg rreg, u8 size, bool sync)
+	 swreg lreg, swreg rreg, u8 size, enum cmd_ctx_swap ctx)
 {
-	emit_cmd_any(nfp_prog, op, mode, xfer, lreg, rreg, size, sync, false);
+	emit_cmd_any(nfp_prog, op, mode, xfer, lreg, rreg, size, ctx, false);
 }
 
 static void
 emit_cmd_indir(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
-	       swreg lreg, swreg rreg, u8 size, bool sync)
+	       swreg lreg, swreg rreg, u8 size, enum cmd_ctx_swap ctx)
 {
-	emit_cmd_any(nfp_prog, op, mode, xfer, lreg, rreg, size, sync, true);
+	emit_cmd_any(nfp_prog, op, mode, xfer, lreg, rreg, size, ctx, true);
 }
 
 static void
@@ -610,7 +605,7 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	/* Memory read from source addr into transfer-in registers. */
 	emit_cmd_any(nfp_prog, CMD_TGT_READ32_SWAP,
 		     src_40bit_addr ? CMD_MODE_40b_BA : CMD_MODE_32b, 0,
-		     src_base, off, xfer_num - 1, true, len > 32);
+		     src_base, off, xfer_num - 1, CMD_CTX_SWAP, len > 32);
 
 	/* Move from transfer-in to transfer-out. */
 	for (i = 0; i < xfer_num; i++)
@@ -622,39 +617,39 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		/* Use single direct_ref write8. */
 		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, len - 1,
-			 true);
+			 CMD_CTX_SWAP);
 	} else if (len <= 32 && IS_ALIGNED(len, 4)) {
 		/* Use single direct_ref write32. */
 		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, xfer_num - 1,
-			 true);
+			 CMD_CTX_SWAP);
 	} else if (len <= 32) {
 		/* Use single indirect_ref write8. */
 		wrp_immed(nfp_prog, reg_none(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, len - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
-			       len - 1, true);
+			       len - 1, CMD_CTX_SWAP);
 	} else if (IS_ALIGNED(len, 4)) {
 		/* Use single indirect_ref write32. */
 		wrp_immed(nfp_prog, reg_none(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
-			       xfer_num - 1, true);
+			       xfer_num - 1, CMD_CTX_SWAP);
 	} else if (len <= 40) {
 		/* Use one direct_ref write32 to write the first 32-bytes, then
 		 * another direct_ref write8 to write the remaining bytes.
 		 */
 		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, 7,
-			 true);
+			 CMD_CTX_SWAP);
 
 		off = re_load_imm_any(nfp_prog, meta->paired_st->off + 32,
 				      imm_b(nfp_prog));
 		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 8,
 			 reg_a(meta->paired_st->dst_reg * 2), off, len - 33,
-			 true);
+			 CMD_CTX_SWAP);
 	} else {
 		/* Use one indirect_ref write32 to write 4-bytes aligned length,
 		 * then another direct_ref write8 to write the remaining bytes.
@@ -665,12 +660,12 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 2));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
-			       xfer_num - 2, true);
+			       xfer_num - 2, CMD_CTX_SWAP);
 		new_off = meta->paired_st->off + (xfer_num - 1) * 4;
 		off = re_load_imm_any(nfp_prog, new_off, imm_b(nfp_prog));
 		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b,
 			 xfer_num - 1, reg_a(meta->paired_st->dst_reg * 2), off,
-			 (len & 0x3) - 1, true);
+			 (len & 0x3) - 1, CMD_CTX_SWAP);
 	}
 
 	/* TODO: The following extra load is to make sure data flow be identical
@@ -731,7 +726,7 @@ data_ld(struct nfp_prog *nfp_prog, swreg offset, u8 dst_gpr, int size)
 	shift = size < 4 ? 4 - size : 0;
 
 	emit_cmd(nfp_prog, CMD_TGT_READ8, CMD_MODE_32b, 0,
-		 pptr_reg(nfp_prog), offset, sz - 1, true);
+		 pptr_reg(nfp_prog), offset, sz - 1, CMD_CTX_SWAP);
 
 	i = 0;
 	if (shift)
@@ -761,7 +756,7 @@ data_ld_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr,
 	mask = size < 4 ? GENMASK(size - 1, 0) : 0;
 
 	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, mode, 0,
-		 lreg, rreg, sz / 4 - 1, true);
+		 lreg, rreg, sz / 4 - 1, CMD_CTX_SWAP);
 
 	i = 0;
 	if (mask)
@@ -841,7 +836,7 @@ data_stx_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 		wrp_mov(nfp_prog, reg_xfer(i), reg_a(src_gpr + i));
 
 	emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
-		 reg_a(dst_gpr), offset, size - 1, true);
+		 reg_a(dst_gpr), offset, size - 1, CMD_CTX_SWAP);
 
 	return 0;
 }
@@ -855,7 +850,7 @@ data_st_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr, swreg offset,
 		wrp_immed(nfp_prog, reg_xfer(1), imm >> 32);
 
 	emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
-		 reg_a(dst_gpr), offset, size - 1, true);
+		 reg_a(dst_gpr), offset, size - 1, CMD_CTX_SWAP);
 
 	return 0;
 }
@@ -1876,7 +1871,7 @@ mem_ldx_data_init_pktcache(struct nfp_prog *nfp_prog,
 
 	/* Cache memory into transfer-in registers. */
 	emit_cmd_any(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0, src_base,
-		     off, xfer_num - 1, true, indir);
+		     off, xfer_num - 1, CMD_CTX_SWAP, indir);
 }
 
 static int
@@ -2155,7 +2150,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 		  FIELD_PREP(CMD_OV_LEN, 0x8 | is64 << 2));
 	wrp_reg_or_subpart(nfp_prog, prev_alu, reg_b(src_gpr), 2, 2);
 	emit_cmd_indir(nfp_prog, CMD_TGT_ADD_IMM, CMD_MODE_40b_BA, 0,
-		       addra, addrb, 0, false);
+		       addra, addrb, 0, CMD_CTX_NO_SWAP);
 
 	return 0;
 }
