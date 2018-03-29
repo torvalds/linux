@@ -407,7 +407,8 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	tdisk->private_data = targetdata;
 	tqueue->queuedata = targetdata;
 
-	blk_queue_max_hw_sectors(tqueue, 8 * dev->ops->max_phys_sect);
+	blk_queue_max_hw_sectors(tqueue,
+			(dev->geo.sec_size >> 9) * NVM_MAX_VLBA);
 
 	set_capacity(tdisk, tt->capacity(targetdata));
 	add_disk(tdisk);
@@ -719,7 +720,7 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 	struct nvm_rq rqd;
 	int ret;
 
-	if (nr_ppas > dev->ops->max_phys_sect) {
+	if (nr_ppas > NVM_MAX_VLBA) {
 		pr_err("nvm: unable to update all blocks atomically\n");
 		return -EINVAL;
 	}
@@ -739,14 +740,6 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 	return 0;
 }
 EXPORT_SYMBOL(nvm_set_tgt_bb_tbl);
-
-int nvm_max_phys_sects(struct nvm_tgt_dev *tgt_dev)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-
-	return dev->ops->max_phys_sect;
-}
-EXPORT_SYMBOL(nvm_max_phys_sects);
 
 int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
@@ -965,17 +958,10 @@ int nvm_register(struct nvm_dev *dev)
 	if (!dev->q || !dev->ops)
 		return -EINVAL;
 
-	if (dev->ops->max_phys_sect > 256) {
-		pr_info("nvm: max sectors supported is 256.\n");
-		return -EINVAL;
-	}
-
-	if (dev->ops->max_phys_sect > 1) {
-		dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist");
-		if (!dev->dma_pool) {
-			pr_err("nvm: could not create dma pool\n");
-			return -ENOMEM;
-		}
+	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist");
+	if (!dev->dma_pool) {
+		pr_err("nvm: could not create dma pool\n");
+		return -ENOMEM;
 	}
 
 	ret = nvm_init(dev);

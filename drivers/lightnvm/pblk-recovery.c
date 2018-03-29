@@ -21,17 +21,15 @@ void pblk_submit_rec(struct work_struct *work)
 	struct pblk_rec_ctx *recovery =
 			container_of(work, struct pblk_rec_ctx, ws_rec);
 	struct pblk *pblk = recovery->pblk;
-	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_rq *rqd = recovery->rqd;
 	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
-	int max_secs = nvm_max_phys_sects(dev);
 	struct bio *bio;
 	unsigned int nr_rec_secs;
 	unsigned int pgs_read;
 	int ret;
 
 	nr_rec_secs = bitmap_weight((unsigned long int *)&rqd->ppa_status,
-								max_secs);
+								NVM_MAX_VLBA);
 
 	bio = bio_alloc(GFP_KERNEL, nr_rec_secs);
 
@@ -74,8 +72,6 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 			struct pblk_rec_ctx *recovery, u64 *comp_bits,
 			unsigned int comp)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	int max_secs = nvm_max_phys_sects(dev);
 	struct nvm_rq *rec_rqd;
 	struct pblk_c_ctx *rec_ctx;
 	int nr_entries = c_ctx->nr_valid + c_ctx->nr_padded;
@@ -86,7 +82,7 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 	/* Copy completion bitmap, but exclude the first X completed entries */
 	bitmap_shift_right((unsigned long int *)&rec_rqd->ppa_status,
 				(unsigned long int *)comp_bits,
-				comp, max_secs);
+				comp, NVM_MAX_VLBA);
 
 	/* Save the context for the entries that need to be re-written and
 	 * update current context with the completed entries.

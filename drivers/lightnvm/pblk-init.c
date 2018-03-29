@@ -260,8 +260,7 @@ static int pblk_core_init(struct pblk *pblk)
 		return -ENOMEM;
 
 	/* Internal bios can be at most the sectors signaled by the device. */
-	pblk->page_bio_pool = mempool_create_page_pool(nvm_max_phys_sects(dev),
-									0);
+	pblk->page_bio_pool = mempool_create_page_pool(NVM_MAX_VLBA, 0);
 	if (!pblk->page_bio_pool)
 		goto free_global_caches;
 
@@ -716,12 +715,12 @@ static int pblk_lines_init(struct pblk *pblk)
 
 	pblk->min_write_pgs = geo->sec_per_pl * (geo->sec_size / PAGE_SIZE);
 	max_write_ppas = pblk->min_write_pgs * geo->all_luns;
-	pblk->max_write_pgs = (max_write_ppas < nvm_max_phys_sects(dev)) ?
-				max_write_ppas : nvm_max_phys_sects(dev);
+	pblk->max_write_pgs = min_t(int, max_write_ppas, NVM_MAX_VLBA);
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
 
 	if (pblk->max_write_pgs > PBLK_MAX_REQ_ADDRS) {
-		pr_err("pblk: cannot support device max_phys_sect\n");
+		pr_err("pblk: vector list too big(%u > %u)\n",
+				pblk->max_write_pgs, PBLK_MAX_REQ_ADDRS);
 		return -EINVAL;
 	}
 

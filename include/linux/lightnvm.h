@@ -73,8 +73,6 @@ struct nvm_dev_ops {
 	nvm_destroy_dma_pool_fn	*destroy_dma_pool;
 	nvm_dev_dma_alloc_fn	*dev_dma_alloc;
 	nvm_dev_dma_free_fn	*dev_dma_free;
-
-	unsigned int		max_phys_sect;
 };
 
 #ifdef CONFIG_NVM
@@ -227,6 +225,8 @@ struct nvm_target {
 #define NVM_VERSION_MAJOR 1
 #define NVM_VERSION_MINOR 0
 #define NVM_VERSION_PATCH 0
+
+#define NVM_MAX_VLBA (64) /* max logical blocks in a vector command */
 
 struct nvm_rq;
 typedef void (nvm_end_io_fn)(struct nvm_rq *);
@@ -436,7 +436,6 @@ extern void nvm_unregister(struct nvm_dev *);
 
 extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
 			      int, int);
-extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern int nvm_submit_io_sync(struct nvm_tgt_dev *, struct nvm_rq *);
 extern void nvm_end_io(struct nvm_rq *);

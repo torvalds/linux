@@ -612,8 +612,6 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.destroy_dma_pool	= nvme_nvm_destroy_dma_pool,
 	.dev_dma_alloc		= nvme_nvm_dev_dma_alloc,
 	.dev_dma_free		= nvme_nvm_dev_dma_free,
-
-	.max_phys_sect		= 64,
 };
 
 static int nvme_nvm_submit_user_cmd(struct request_queue *q,
@@ -932,8 +930,7 @@ static ssize_t nvm_dev_attr_show_12(struct device *dev,
 	} else if (strcmp(attr->name, "media_capabilities") == 0) {
 		return scnprintf(page, PAGE_SIZE, "0x%08x\n", id->mccap);
 	} else if (strcmp(attr->name, "max_phys_secs") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n",
-				ndev->ops->max_phys_sect);
+		return scnprintf(page, PAGE_SIZE, "%u\n", NVM_MAX_VLBA);
 	} else {
 		return scnprintf(page,
 				 PAGE_SIZE,
