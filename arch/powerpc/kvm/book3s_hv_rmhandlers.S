@@ -2575,7 +2575,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 2:
 BEGIN_FTR_SECTION
 	/* POWER9 with disabled DAWR */
-	li	r3, H_UNSUPPORTED
+	li	r3, H_HARDWARE
 	blr
 END_FTR_SECTION_IFCLR(CPU_FTR_DAWR)
 	/* Emulate H_SET_DABR/X on P8 for the sake of compat mode guests */
