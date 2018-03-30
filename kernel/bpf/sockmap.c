@@ -341,7 +341,7 @@ retry:
 			md->sg_start++;
 			if (md->sg_start == MAX_SKB_FRAGS)
 				md->sg_start = 0;
-			memset(sg, 0, sizeof(*sg));
+			sg_init_table(sg, 1);
 
 			if (md->sg_start == md->sg_end)
 				break;
@@ -843,7 +843,7 @@ static int bpf_tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	}
 
 	sg = md.sg_data;
-	sg_init_table(sg, MAX_SKB_FRAGS);
+	sg_init_marker(sg, MAX_SKB_FRAGS);
 	rcu_read_unlock();
 
 	lock_sock(sk);
@@ -950,10 +950,14 @@ static int bpf_tcp_sendpage(struct sock *sk, struct page *page,
 
 	lock_sock(sk);
 
-	if (psock->cork_bytes)
+	if (psock->cork_bytes) {
 		m = psock->cork;
-	else
+		sg = &m->sg_data[m->sg_end];
+	} else {
 		m = &md;
+		sg = m->sg_data;
+		sg_init_marker(sg, MAX_SKB_FRAGS);
+	}
 
 	/* Catch case where ring is full and sendpage is stalled. */
 	if (unlikely(m->sg_end == m->sg_start &&
@@ -961,7 +965,6 @@ static int bpf_tcp_sendpage(struct sock *sk, struct page *page,
 		goto out_err;
 
 	psock->sg_size += size;
-	sg = &m->sg_data[m->sg_end];
 	sg_set_page(sg, page, size, offset);
 	get_page(page);
 	m->sg_copy[m->sg_end] = true;
