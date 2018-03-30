@@ -3621,6 +3621,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.decomp = __VECS(zlib_deflate_decomp_tv_template)
 			}
 		}
+	}, {
+		.alg = "zstd",
+		.test = alg_test_comp,
+		.fips_allowed = 1,
+		.suite = {
+			.comp = {
+				.comp = __VECS(zstd_comp_tv_template),
+				.decomp = __VECS(zstd_decomp_tv_template)
+			}
+		}
 	}
 };
 
