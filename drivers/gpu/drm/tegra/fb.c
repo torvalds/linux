@@ -16,11 +16,6 @@
 #include "gem.h"
 #include <drm/drm_gem_framebuffer_helper.h>
 
-static inline struct tegra_fb *to_tegra_fb(struct drm_framebuffer *fb)
-{
-	return container_of(fb, struct tegra_fb, base);
-}
-
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
 {
@@ -99,7 +94,6 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 
 static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 	unsigned int i;
 
 	for (i = 0; i < framebuffer->format->num_planes; i++) {
@@ -114,7 +108,7 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 	}
 
 	drm_framebuffer_cleanup(framebuffer);
-	kfree(fb);
+	kfree(framebuffer);
 }
 
 static const struct drm_framebuffer_funcs tegra_fb_funcs = {
@@ -122,12 +116,12 @@ static const struct drm_framebuffer_funcs tegra_fb_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
 };
 
-static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
-				       const struct drm_mode_fb_cmd2 *mode_cmd,
-				       struct tegra_bo **planes,
-				       unsigned int num_planes)
+static struct drm_framebuffer *tegra_fb_alloc(struct drm_device *drm,
+					      const struct drm_mode_fb_cmd2 *mode_cmd,
+					      struct tegra_bo **planes,
+					      unsigned int num_planes)
 {
-	struct tegra_fb *fb;
+	struct drm_framebuffer *fb;
 	unsigned int i;
 	int err;
 
@@ -135,12 +129,12 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(drm, &fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(drm, fb, mode_cmd);
 
-	for (i = 0; i < fb->base.format->num_planes; i++)
-		fb->base.obj[i] = &planes[i]->gem;
+	for (i = 0; i < fb->format->num_planes; i++)
+		fb->obj[i] = &planes[i]->gem;
 
-	err = drm_framebuffer_init(drm, &fb->base, &tegra_fb_funcs);
+	err = drm_framebuffer_init(drm, fb, &tegra_fb_funcs);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize framebuffer: %d\n",
 			err);
@@ -158,7 +152,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 	unsigned int hsub, vsub, i;
 	struct tegra_bo *planes[4];
 	struct drm_gem_object *gem;
-	struct tegra_fb *fb;
+	struct drm_framebuffer *fb;
 	int err;
 
 	hsub = drm_format_horz_chroma_subsampling(cmd->pixel_format);
@@ -194,7 +188,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 		goto unreference;
 	}
 
-	return &fb->base;
+	return fb;
 
 unreference:
 	while (i--)
@@ -275,7 +269,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		return PTR_ERR(fbdev->fb);
 	}
 
-	fb = &fbdev->fb->base;
+	fb = fbdev->fb;
 	helper->fb = fb;
 	helper->fbdev = info;
 
@@ -376,7 +370,7 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 	drm_fb_helper_unregister_fbi(&fbdev->base);
 
 	if (fbdev->fb)
-		drm_framebuffer_remove(&fbdev->fb->base);
+		drm_framebuffer_remove(fbdev->fb);
 
 	drm_fb_helper_fini(&fbdev->base);
 	tegra_fbdev_free(fbdev);
