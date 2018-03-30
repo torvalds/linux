@@ -1886,6 +1886,8 @@ void i915_reset(struct drm_i915_private *i915)
 	int ret;
 	int i;
 
+	GEM_TRACE("flags=%lx\n", error->flags);
+
 	might_sleep();
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
@@ -2016,6 +2018,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 	struct i915_request *active_request;
 	int ret;
 
+	GEM_TRACE("%s flags=%lx\n", engine->name, error->flags);
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
 
 	active_request = i915_gem_reset_prepare_engine(engine);

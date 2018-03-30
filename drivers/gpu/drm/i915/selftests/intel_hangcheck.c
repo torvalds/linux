@@ -979,6 +979,23 @@ unlock:
 	return err;
 }
 
+static int wait_for_others(struct drm_i915_private *i915,
+			   struct intel_engine_cs *exclude)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		if (engine == exclude)
+			continue;
+
+		if (wait_for(intel_engine_is_idle(engine), 10))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 static int igt_reset_queue(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -1027,13 +1044,36 @@ static int igt_reset_queue(void *arg)
 			i915_request_get(rq);
 			__i915_request_add(rq, true);
 
+			/*
+			 * XXX We don't handle resetting the kernel context
+			 * very well. If we trigger a device reset twice in
+			 * quick succession while the kernel context is
+			 * executing, we may end up skipping the breadcrumb.
+			 * This is really only a problem for the selftest as
+			 * normally there is a large interlude between resets
+			 * (hangcheck), or we focus on resetting just one
+			 * engine and so avoid repeatedly resetting innocents.
+			 */
+			err = wait_for_others(i915, engine);
+			if (err) {
+				pr_err("%s(%s): Failed to idle other inactive engines after device reset\n",
+				       __func__, engine->name);
+				i915_request_put(rq);
+				i915_request_put(prev);
+
+				GEM_TRACE_DUMP();
+				i915_gem_set_wedged(i915);
+				goto fini;
+			}
+
 			if (!wait_for_hang(&h, prev)) {
 				struct drm_printer p = drm_info_printer(i915->drm.dev);
 
-				pr_err("%s: Failed to start request %x, at %x\n",
-				       __func__, prev->fence.seqno, hws_seqno(&h, prev));
-				intel_engine_dump(prev->engine, &p,
-						  "%s\n", prev->engine->name);
+				pr_err("%s(%s): Failed to start request %x, at %x\n",
+				       __func__, engine->name,
+				       prev->fence.seqno, hws_seqno(&h, prev));
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
 
 				i915_request_put(rq);
 				i915_request_put(prev);
