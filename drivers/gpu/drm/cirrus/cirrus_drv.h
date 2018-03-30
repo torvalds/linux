@@ -119,7 +119,6 @@ struct cirrus_connector {
 
 struct cirrus_framebuffer {
 	struct drm_framebuffer		base;
-	struct drm_gem_object *obj;
 };
 
 struct cirrus_mc {

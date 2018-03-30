@@ -29,7 +29,7 @@ static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
 	int x2, y2;
 	unsigned long flags;
 
-	obj = afbdev->gfb.obj;
+	obj = afbdev->gfb.base.obj[0];
 	bo = gem_to_cirrus_bo(obj);
 
 	/*
@@ -250,9 +250,9 @@ static int cirrus_fbdev_destroy(struct drm_device *dev,
 
 	drm_fb_helper_unregister_fbi(&gfbdev->helper);
 
-	if (gfb->obj) {
-		drm_gem_object_put_unlocked(gfb->obj);
-		gfb->obj = NULL;
+	if (gfb->base.obj[0]) {
+		drm_gem_object_put_unlocked(gfb->base.obj[0]);
+		gfb->base.obj[0] = NULL;
 	}
 
 	vfree(gfbdev->sysram);

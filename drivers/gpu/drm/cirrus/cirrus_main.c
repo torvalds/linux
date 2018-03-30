@@ -10,30 +10,13 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "cirrus_drv.h"
 
-static int cirrus_create_handle(struct drm_framebuffer *fb,
-				struct drm_file* file_priv,
-				unsigned int* handle)
-{
-	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
-
-	return drm_gem_handle_create(file_priv, cirrus_fb->obj, handle);
-}
-
-static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(cirrus_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
-
 static const struct drm_framebuffer_funcs cirrus_fb_funcs = {
-	.create_handle = cirrus_create_handle,
-	.destroy = cirrus_user_framebuffer_destroy,
+	.create_handle = drm_gem_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
 };
 
 int cirrus_framebuffer_init(struct drm_device *dev,
@@ -44,7 +27,7 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 	int ret;
 
 	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
-	gfb->obj = obj;
+	gfb->base.obj[0] = obj;
 	ret = drm_framebuffer_init(dev, &gfb->base, &cirrus_fb_funcs);
 	if (ret) {
 		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);

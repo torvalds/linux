@@ -110,7 +110,7 @@ static int cirrus_crtc_do_set_base(struct drm_crtc *crtc,
 	/* push the previous fb to system ram */
 	if (!atomic && fb) {
 		cirrus_fb = to_cirrus_framebuffer(fb);
-		obj = cirrus_fb->obj;
+		obj = cirrus_fb->base.obj[0];
 		bo = gem_to_cirrus_bo(obj);
 		ret = cirrus_bo_reserve(bo, false);
 		if (ret)
@@ -120,7 +120,7 @@ static int cirrus_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	cirrus_fb = to_cirrus_framebuffer(crtc->primary->fb);
-	obj = cirrus_fb->obj;
+	obj = cirrus_fb->base.obj[0];
 	bo = gem_to_cirrus_bo(obj);
 
 	ret = cirrus_bo_reserve(bo, false);
