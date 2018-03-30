@@ -167,10 +167,14 @@ static int nsim_init(struct net_device *dev)
 
 	SET_NETDEV_DEV(dev, &ns->dev);
 
-	nsim_devlink_setup(ns);
+	err = nsim_devlink_setup(ns);
+	if (err)
+		goto err_unreg_dev;
 
 	return 0;
 
+err_unreg_dev:
+	device_unregister(&ns->dev);
 err_bpf_uninit:
 	nsim_bpf_uninit(ns);
 err_debugfs_destroy:

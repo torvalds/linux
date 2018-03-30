@@ -218,22 +218,22 @@ void nsim_devlink_teardown(struct netdevsim *ns)
 	}
 }
 
-void nsim_devlink_setup(struct netdevsim *ns)
+int nsim_devlink_setup(struct netdevsim *ns)
 {
 	struct net *net = nsim_to_net(ns);
 	bool *reg_devlink = net_generic(net, nsim_devlink_id);
 	struct devlink *devlink;
-	int err = -ENOMEM;
+	int err;
 
 	/* only one device per namespace controls devlink */
 	if (!*reg_devlink) {
 		ns->devlink = NULL;
-		return;
+		return 0;
 	}
 
 	devlink = devlink_alloc(&nsim_devlink_ops, 0);
 	if (!devlink)
-		return;
+		return -ENOMEM;
 
 	err = devlink_register(devlink, &ns->dev);
 	if (err)
@@ -247,12 +247,14 @@ void nsim_devlink_setup(struct netdevsim *ns)
 
 	*reg_devlink = false;
 
-	return;
+	return 0;
 
 err_dl_unregister:
 	devlink_unregister(devlink);
 err_devlink_free:
 	devlink_free(devlink);
+
+	return err;
 }
 
 /* Initialize per network namespace state */

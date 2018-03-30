@@ -117,7 +117,7 @@ enum nsim_resource_id {
 	NSIM_RESOURCE_IPV6_FIB_RULES,
 };
 
-void nsim_devlink_setup(struct netdevsim *ns);
+int nsim_devlink_setup(struct netdevsim *ns);
 void nsim_devlink_teardown(struct netdevsim *ns);
 
 int nsim_devlink_init(void);
@@ -128,8 +128,9 @@ void nsim_fib_exit(void);
 u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
 int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val);
 #else
-static inline void nsim_devlink_setup(struct netdevsim *ns)
+static inline int nsim_devlink_setup(struct netdevsim *ns)
 {
+	return 0;
 }
 
 static inline void nsim_devlink_teardown(struct netdevsim *ns)
