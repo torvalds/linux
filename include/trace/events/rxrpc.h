@@ -50,6 +50,14 @@ enum rxrpc_local_trace {
 	rxrpc_local_queued,
 };
 
+enum rxrpc_peer_trace {
+	rxrpc_peer_got,
+	rxrpc_peer_new,
+	rxrpc_peer_processing,
+	rxrpc_peer_put,
+	rxrpc_peer_queued_error,
+};
+
 enum rxrpc_conn_trace {
 	rxrpc_conn_got,
 	rxrpc_conn_new_client,
@@ -229,6 +237,13 @@ enum rxrpc_congest_change {
 	EM(rxrpc_local_processing,		"PRO") \
 	EM(rxrpc_local_put,			"PUT") \
 	E_(rxrpc_local_queued,			"QUE")
+
+#define rxrpc_peer_traces \
+	EM(rxrpc_peer_got,			"GOT") \
+	EM(rxrpc_peer_new,			"NEW") \
+	EM(rxrpc_peer_processing,		"PRO") \
+	EM(rxrpc_peer_put,			"PUT") \
+	E_(rxrpc_peer_queued_error,		"QER")
 
 #define rxrpc_conn_traces \
 	EM(rxrpc_conn_got,			"GOT") \
@@ -478,6 +493,33 @@ TRACE_EVENT(rxrpc_local,
 	    TP_printk("L=%08x %s u=%d sp=%pSR",
 		      __entry->local,
 		      __print_symbolic(__entry->op, rxrpc_local_traces),
+		      __entry->usage,
+		      __entry->where)
+	    );
+
+TRACE_EVENT(rxrpc_peer,
+	    TP_PROTO(struct rxrpc_peer *peer, enum rxrpc_peer_trace op,
+		     int usage, const void *where),
+
+	    TP_ARGS(peer, op, usage, where),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	peer		)
+		    __field(int,		op		)
+		    __field(int,		usage		)
+		    __field(const void *,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer = peer->debug_id;
+		    __entry->op = op;
+		    __entry->usage = usage;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("P=%08x %s u=%d sp=%pSR",
+		      __entry->peer,
+		      __print_symbolic(__entry->op, rxrpc_peer_traces),
 		      __entry->usage,
 		      __entry->where)
 	    );

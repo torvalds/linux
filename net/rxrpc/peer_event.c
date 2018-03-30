@@ -192,7 +192,7 @@ void rxrpc_error_report(struct sock *sk)
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 
 	/* The ref we obtained is passed off to the work item */
-	rxrpc_queue_work(&peer->error_distributor);
+	__rxrpc_queue_peer_error(peer);
 	_leave("");
 }
 

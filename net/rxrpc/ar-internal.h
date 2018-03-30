@@ -1041,25 +1041,10 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *,
 struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *, gfp_t);
 struct rxrpc_peer *rxrpc_lookup_incoming_peer(struct rxrpc_local *,
 					      struct rxrpc_peer *);
-
-static inline struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer)
-{
-	atomic_inc(&peer->usage);
-	return peer;
-}
-
-static inline
-struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
-{
-	return atomic_inc_not_zero(&peer->usage) ? peer : NULL;
-}
-
-extern void __rxrpc_put_peer(struct rxrpc_peer *peer);
-static inline void rxrpc_put_peer(struct rxrpc_peer *peer)
-{
-	if (peer && atomic_dec_and_test(&peer->usage))
-		__rxrpc_put_peer(peer);
-}
+struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *);
+struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *);
+void rxrpc_put_peer(struct rxrpc_peer *);
+void __rxrpc_queue_peer_error(struct rxrpc_peer *);
 
 /*
  * proc.c

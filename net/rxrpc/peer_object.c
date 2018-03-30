@@ -386,9 +386,54 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 }
 
 /*
- * Discard a ref on a remote peer record.
+ * Get a ref on a peer record.
  */
-void __rxrpc_put_peer(struct rxrpc_peer *peer)
+struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	n = atomic_inc_return(&peer->usage);
+	trace_rxrpc_peer(peer, rxrpc_peer_got, n, here);
+	return peer;
+}
+
+/*
+ * Get a ref on a peer record unless its usage has already reached 0.
+ */
+struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
+{
+	const void *here = __builtin_return_address(0);
+
+	if (peer) {
+		int n = __atomic_add_unless(&peer->usage, 1, 0);
+		if (n > 0)
+			trace_rxrpc_peer(peer, rxrpc_peer_got, n + 1, here);
+		else
+			peer = NULL;
+	}
+	return peer;
+}
+
+/*
+ * Queue a peer record.  This passes the caller's ref to the workqueue.
+ */
+void __rxrpc_queue_peer_error(struct rxrpc_peer *peer)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	n = atomic_read(&peer->usage);
+	if (rxrpc_queue_work(&peer->error_distributor))
+		trace_rxrpc_peer(peer, rxrpc_peer_queued_error, n, here);
+	else
+		rxrpc_put_peer(peer);
+}
+
+/*
+ * Discard a peer record.
+ */
+static void __rxrpc_put_peer(struct rxrpc_peer *peer)
 {
 	struct rxrpc_net *rxnet = peer->local->rxnet;
 
@@ -400,6 +445,22 @@ void __rxrpc_put_peer(struct rxrpc_peer *peer)
 	spin_unlock_bh(&rxnet->peer_hash_lock);
 
 	kfree_rcu(peer, rcu);
+}
+
+/*
+ * Drop a ref on a peer record.
+ */
+void rxrpc_put_peer(struct rxrpc_peer *peer)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	if (peer) {
+		n = atomic_dec_return(&peer->usage);
+		trace_rxrpc_peer(peer, rxrpc_peer_put, n, here);
+		if (n == 0)
+			__rxrpc_put_peer(peer);
+	}
 }
 
 /**
