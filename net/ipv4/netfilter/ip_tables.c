@@ -378,13 +378,10 @@ mark_source_chains(const struct xt_table_info *newinfo,
 	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct ipt_entry *e = entry0 + pos;
-		unsigned int last_pos, depth;
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
 
-		depth = 0;
-		last_pos = pos;
 		/* Set initial back pointer. */
 		e->counters.pcnt = pos;
 
@@ -413,8 +410,6 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					pos = e->counters.pcnt;
 					e->counters.pcnt = 0;
 
-					if (depth)
-						--depth;
 					/* We're at the start. */
 					if (pos == oldpos)
 						goto next;
@@ -439,9 +434,6 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					if (!xt_find_jump_offset(offsets, newpos,
 								 newinfo->number))
 						return 0;
-
-					if (entry0 + newpos != ipt_next_entry(e))
-						++depth;
 				} else {
 					/* ... this is a fallthru */
 					newpos = pos + e->next_offset;
@@ -452,15 +444,8 @@ mark_source_chains(const struct xt_table_info *newinfo,
 				e->counters.pcnt = pos;
 				pos = newpos;
 			}
-			if (depth == 0)
-				last_pos = pos;
 		}
-next:
-		if (last_pos != newinfo->underflow[hook]) {
-			pr_err_ratelimited("last base chain position %u doesn't match underflow %u (hook %u)\n",
-					   last_pos, newinfo->underflow[hook], hook);
-			return 0;
-		}
+next:		;
 	}
 	return 1;
 }
