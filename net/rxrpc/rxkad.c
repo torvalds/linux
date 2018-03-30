@@ -668,6 +668,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 		return -EAGAIN;
 	}
 
+	conn->params.peer->last_tx_at = ktime_get_real();
 	_leave(" = 0");
 	return 0;
 }
@@ -722,6 +723,7 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 		return -EAGAIN;
 	}
 
+	conn->params.peer->last_tx_at = ktime_get_real();
 	_leave(" = 0");
 	return 0;
 }

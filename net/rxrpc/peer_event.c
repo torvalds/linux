@@ -348,3 +348,99 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
 			   usage, avg);
 }
+
+/*
+ * Perform keep-alive pings with VERSION packets to keep any NAT alive.
+ */
+void rxrpc_peer_keepalive_worker(struct work_struct *work)
+{
+	struct rxrpc_net *rxnet =
+		container_of(work, struct rxrpc_net, peer_keepalive_work);
+	struct rxrpc_peer *peer;
+	unsigned long delay;
+	ktime_t base, now = ktime_get_real();
+	s64 diff;
+	u8 cursor, slot;
+
+	base = rxnet->peer_keepalive_base;
+	cursor = rxnet->peer_keepalive_cursor;
+
+	_enter("%u,%lld", cursor, ktime_sub(now, base));
+
+next_bucket:
+	diff = ktime_to_ns(ktime_sub(now, base));
+	if (diff < 0)
+		goto resched;
+
+	_debug("at %u", cursor);
+	spin_lock_bh(&rxnet->peer_hash_lock);
+next_peer:
+	if (!rxnet->live) {
+		spin_unlock_bh(&rxnet->peer_hash_lock);
+		goto out;
+	}
+
+	/* Everything in the bucket at the cursor is processed this second; the
+	 * bucket at cursor + 1 goes now + 1s and so on...
+	 */
+	if (hlist_empty(&rxnet->peer_keepalive[cursor])) {
+		if (hlist_empty(&rxnet->peer_keepalive_new)) {
+			spin_unlock_bh(&rxnet->peer_hash_lock);
+			goto emptied_bucket;
+		}
+
+		hlist_move_list(&rxnet->peer_keepalive_new,
+				&rxnet->peer_keepalive[cursor]);
+	}
+
+	peer = hlist_entry(rxnet->peer_keepalive[cursor].first,
+			   struct rxrpc_peer, keepalive_link);
+	hlist_del_init(&peer->keepalive_link);
+	if (!rxrpc_get_peer_maybe(peer))
+		goto next_peer;
+
+	spin_unlock_bh(&rxnet->peer_hash_lock);
+
+	_debug("peer %u {%pISp}", peer->debug_id, &peer->srx.transport);
+
+recalc:
+	diff = ktime_divns(ktime_sub(peer->last_tx_at, base), NSEC_PER_SEC);
+	if (diff < -30 || diff > 30)
+		goto send; /* LSW of 64-bit time probably wrapped on 32-bit */
+	diff += RXRPC_KEEPALIVE_TIME - 1;
+	if (diff < 0)
+		goto send;
+
+	slot = (diff > RXRPC_KEEPALIVE_TIME - 1) ? RXRPC_KEEPALIVE_TIME - 1 : diff;
+	if (slot == 0)
+		goto send;
+
+	/* A transmission to this peer occurred since last we examined it so
+	 * put it into the appropriate future bucket.
+	 */
+	slot = (slot + cursor) % ARRAY_SIZE(rxnet->peer_keepalive);
+	spin_lock_bh(&rxnet->peer_hash_lock);
+	hlist_add_head(&peer->keepalive_link, &rxnet->peer_keepalive[slot]);
+	rxrpc_put_peer(peer);
+	goto next_peer;
+
+send:
+	rxrpc_send_keepalive(peer);
+	now = ktime_get_real();
+	goto recalc;
+
+emptied_bucket:
+	cursor++;
+	if (cursor >= ARRAY_SIZE(rxnet->peer_keepalive))
+		cursor = 0;
+	base = ktime_add_ns(base, NSEC_PER_SEC);
+	goto next_bucket;
+
+resched:
+	rxnet->peer_keepalive_base = base;
+	rxnet->peer_keepalive_cursor = cursor;
+	delay = nsecs_to_jiffies(-diff) + 1;
+	timer_reduce(&rxnet->peer_keepalive_timer, jiffies + delay);
+out:
+	_leave("");
+}

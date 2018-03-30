@@ -762,6 +762,7 @@ static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 			int kern)
 {
+	struct rxrpc_net *rxnet;
 	struct rxrpc_sock *rx;
 	struct sock *sk;
 
@@ -800,6 +801,9 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	rwlock_init(&rx->recvmsg_lock);
 	rwlock_init(&rx->call_lock);
 	memset(&rx->srx, 0, sizeof(rx->srx));
+
+	rxnet = rxrpc_net(sock_net(&rx->sk));
+	timer_reduce(&rxnet->peer_keepalive_timer, jiffies + 1);
 
 	_leave(" = 0 [%p]", rx);
 	return 0;

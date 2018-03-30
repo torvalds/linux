@@ -97,8 +97,16 @@ struct rxrpc_net {
 	struct list_head	local_endpoints;
 	struct mutex		local_mutex;	/* Lock for ->local_endpoints */
 
-	spinlock_t		peer_hash_lock;	/* Lock for ->peer_hash */
 	DECLARE_HASHTABLE	(peer_hash, 10);
+	spinlock_t		peer_hash_lock;	/* Lock for ->peer_hash */
+
+#define RXRPC_KEEPALIVE_TIME 20 /* NAT keepalive time in seconds */
+	u8			peer_keepalive_cursor;
+	ktime_t			peer_keepalive_base;
+	struct hlist_head	peer_keepalive[RXRPC_KEEPALIVE_TIME + 1];
+	struct hlist_head	peer_keepalive_new;
+	struct timer_list	peer_keepalive_timer;
+	struct work_struct	peer_keepalive_work;
 };
 
 /*
@@ -285,6 +293,8 @@ struct rxrpc_peer {
 	struct hlist_head	error_targets;	/* targets for net error distribution */
 	struct work_struct	error_distributor;
 	struct rb_root		service_conns;	/* Service connections */
+	struct hlist_node	keepalive_link;	/* Link in net->peer_keepalive[] */
+	time64_t		last_tx_at;	/* Last time packet sent here */
 	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
 	unsigned int		if_mtu;		/* interface MTU for this peer */
@@ -1026,6 +1036,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *, bool, rxrpc_serial_t *);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
 int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
 void rxrpc_reject_packets(struct rxrpc_local *);
+void rxrpc_send_keepalive(struct rxrpc_peer *);
 
 /*
  * peer_event.c
@@ -1034,6 +1045,7 @@ void rxrpc_error_report(struct sock *);
 void rxrpc_peer_error_distributor(struct work_struct *);
 void rxrpc_peer_add_rtt(struct rxrpc_call *, enum rxrpc_rtt_rx_trace,
 			rxrpc_serial_t, rxrpc_serial_t, ktime_t, ktime_t);
+void rxrpc_peer_keepalive_worker(struct work_struct *);
 
 /*
  * peer_object.c

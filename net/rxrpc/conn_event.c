@@ -136,6 +136,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	}
 
 	kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
+	conn->params.peer->last_tx_at = ktime_get_real();
 	_leave("");
 	return;
 }
@@ -238,6 +239,8 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
 	}
+
+	conn->params.peer->last_tx_at = ktime_get_real();
 
 	_leave(" = 0");
 	return 0;

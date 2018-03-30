@@ -1183,6 +1183,8 @@ void rxrpc_data_ready(struct sock *udp_sk)
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_VERSION:
+		if (!(sp->hdr.flags & RXRPC_CLIENT_INITIATED))
+			goto discard;
 		rxrpc_post_packet_to_local(local, skb);
 		goto out;
 
