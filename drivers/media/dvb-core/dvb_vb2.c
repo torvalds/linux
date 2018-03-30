@@ -256,7 +256,8 @@ int dvb_vb2_is_streaming(struct dvb_vb2_ctx *ctx)
 }
 
 int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
-			const unsigned char *src, int len)
+			const unsigned char *src, int len,
+			enum dmx_buffer_flags *buffer_flags)
 {
 	unsigned long flags = 0;
 	void *vbuf = NULL;
@@ -264,15 +265,17 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 	unsigned char *psrc = (unsigned char *)src;
 	int ll = 0;
 
-	dprintk(3, "[%s] %d bytes are rcvd\n", ctx->name, len);
-	if (!src) {
-		dprintk(3, "[%s]:NULL pointer src\n", ctx->name);
-		/**normal case: This func is called twice from demux driver
-		 * once with valid src pointer, second time with NULL pointer
-		 */
+	/*
+	 * normal case: This func is called twice from demux driver
+	 * one with valid src pointer, second time with NULL pointer
+	 */
+	if (!src || !len)
 		return 0;
-	}
 	spin_lock_irqsave(&ctx->slock, flags);
+	if (buffer_flags && *buffer_flags) {
+		ctx->flags |= *buffer_flags;
+		*buffer_flags = 0;
+	}
 	while (todo) {
 		if (!ctx->buf) {
 			if (list_empty(&ctx->dvb_q)) {
@@ -395,6 +398,7 @@ int dvb_vb2_qbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 
 int dvb_vb2_dqbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 {
+	unsigned long flags;
 	int ret;
 
 	ret = vb2_core_dqbuf(&ctx->vb_q, &b->index, b, ctx->nonblocking);
@@ -402,7 +406,16 @@ int dvb_vb2_dqbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
 		return ret;
 	}
-	dprintk(5, "[%s] index=%d\n", ctx->name, b->index);
+
+	spin_lock_irqsave(&ctx->slock, flags);
+	b->count = ctx->count++;
+	b->flags = ctx->flags;
+	ctx->flags = 0;
+	spin_unlock_irqrestore(&ctx->slock, flags);
+
+	dprintk(5, "[%s] index=%d, count=%d, flags=%d\n",
+		ctx->name, b->index, ctx->count, b->flags);
+
 
 	return 0;
 }

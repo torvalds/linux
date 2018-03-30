@@ -79,6 +79,11 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	bool enabled;
 	PHM_FUNC_CHECK(hwmgr);
 
+	if (smum_is_dpm_running(hwmgr)) {
+		pr_info("dpm has been enabled\n");
+		return 0;
+	}
+
 	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
@@ -95,6 +100,11 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	bool enabled;
 
 	PHM_FUNC_CHECK(hwmgr);
+
+	if (!smum_is_dpm_running(hwmgr)) {
+		pr_info("dpm has been disabled\n");
+		return 0;
+	}
 
 	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
@@ -115,23 +125,6 @@ int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level
 	if (hwmgr->hwmgr_func->force_dpm_level != NULL)
 		ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
 
-	return ret;
-}
-
-int phm_reset_power_profile_state(struct pp_hwmgr *hwmgr)
-{
-	int ret = 0;
-
-	if (hwmgr->hwmgr_func->set_power_profile_state) {
-		if (hwmgr->current_power_profile == AMD_PP_GFX_PROFILE)
-			ret = hwmgr->hwmgr_func->set_power_profile_state(
-					hwmgr,
-					&hwmgr->gfx_power_profile);
-		else if (hwmgr->current_power_profile == AMD_PP_COMPUTE_PROFILE)
-			ret = hwmgr->hwmgr_func->set_power_profile_state(
-					hwmgr,
-					&hwmgr->compute_power_profile);
-	}
 	return ret;
 }
 
@@ -209,12 +202,12 @@ int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 	return hwmgr->hwmgr_func->stop_thermal_controller(hwmgr);
 }
 
-int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
+int phm_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->register_internal_thermal_interrupt != NULL)
-		return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
+	if (hwmgr->hwmgr_func->register_irq_handlers != NULL)
+		return hwmgr->hwmgr_func->register_irq_handlers(hwmgr);
 
 	return 0;
 }
@@ -229,6 +222,7 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 	struct PP_TemperatureRange range = {TEMP_RANGE_MIN, TEMP_RANGE_MAX};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	if (hwmgr->hwmgr_func->get_thermal_temperature_range)
 		hwmgr->hwmgr_func->get_thermal_temperature_range(
@@ -239,7 +233,8 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 			&& hwmgr->hwmgr_func->start_thermal_controller != NULL)
 		ret = hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
 
-	cgs_set_temperature_range(hwmgr->device, range.min, range.max);
+	adev->pm.dpm.thermal.min_temp = range.min;
+	adev->pm.dpm.thermal.max_temp = range.max;
 
 	return ret;
 }

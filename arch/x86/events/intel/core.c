@@ -2952,9 +2952,9 @@ static void intel_pebs_aliases_skl(struct perf_event *event)
 	return intel_pebs_aliases_precdist(event);
 }
 
-static unsigned long intel_pmu_free_running_flags(struct perf_event *event)
+static unsigned long intel_pmu_large_pebs_flags(struct perf_event *event)
 {
-	unsigned long flags = x86_pmu.free_running_flags;
+	unsigned long flags = x86_pmu.large_pebs_flags;
 
 	if (event->attr.use_clockid)
 		flags &= ~PERF_SAMPLE_TIME;
@@ -2976,8 +2976,8 @@ static int intel_pmu_hw_config(struct perf_event *event)
 		if (!event->attr.freq) {
 			event->hw.flags |= PERF_X86_EVENT_AUTO_RELOAD;
 			if (!(event->attr.sample_type &
-			      ~intel_pmu_free_running_flags(event)))
-				event->hw.flags |= PERF_X86_EVENT_FREERUNNING;
+			      ~intel_pmu_large_pebs_flags(event)))
+				event->hw.flags |= PERF_X86_EVENT_LARGE_PEBS;
 		}
 		if (x86_pmu.pebs_aliases)
 			x86_pmu.pebs_aliases(event);
@@ -3194,7 +3194,7 @@ static unsigned bdw_limit_period(struct perf_event *event, unsigned left)
 			X86_CONFIG(.event=0xc0, .umask=0x01)) {
 		if (left < 128)
 			left = 128;
-		left &= ~0x3fu;
+		left &= ~0x3fULL;
 	}
 	return left;
 }
@@ -3460,7 +3460,7 @@ static __initconst const struct x86_pmu core_pmu = {
 	.event_map		= intel_pmu_event_map,
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
 	.apic			= 1,
-	.free_running_flags	= PEBS_FREERUNNING_FLAGS,
+	.large_pebs_flags	= LARGE_PEBS_FLAGS,
 
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32-bit width,
@@ -3502,7 +3502,7 @@ static __initconst const struct x86_pmu intel_pmu = {
 	.event_map		= intel_pmu_event_map,
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
 	.apic			= 1,
-	.free_running_flags	= PEBS_FREERUNNING_FLAGS,
+	.large_pebs_flags	= LARGE_PEBS_FLAGS,
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32 bit width,
 	 * so we install an artificial 1<<31 period regardless of
@@ -3559,7 +3559,7 @@ static int intel_snb_pebs_broken(int cpu)
 		break;
 
 	case INTEL_FAM6_SANDYBRIDGE_X:
-		switch (cpu_data(cpu).x86_mask) {
+		switch (cpu_data(cpu).x86_stepping) {
 		case 6: rev = 0x618; break;
 		case 7: rev = 0x70c; break;
 		}

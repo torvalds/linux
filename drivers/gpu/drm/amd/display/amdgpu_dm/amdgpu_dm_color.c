@@ -27,6 +27,8 @@
 #include "amdgpu_dm.h"
 #include "modules/color/color_gamma.h"
 
+#define MAX_DRM_LUT_VALUE 0xFFFF
+
 /*
  * Initialize the color module.
  *
@@ -47,19 +49,18 @@ void amdgpu_dm_init_color_mod(void)
  * f(a) = (0xFF00/MAX_COLOR_LUT_ENTRIES-1)a; for integer a in
  *                                           [0, MAX_COLOR_LUT_ENTRIES)
  */
-static bool __is_lut_linear(struct drm_color_lut *lut)
+static bool __is_lut_linear(struct drm_color_lut *lut, uint32_t size)
 {
 	int i;
-	uint32_t max_os = 0xFF00;
 	uint32_t expected;
 	int delta;
 
-	for (i = 0; i < MAX_COLOR_LUT_ENTRIES; i++) {
+	for (i = 0; i < size; i++) {
 		/* All color values should equal */
 		if ((lut[i].red != lut[i].green) || (lut[i].green != lut[i].blue))
 			return false;
 
-		expected = i * max_os / (MAX_COLOR_LUT_ENTRIES-1);
+		expected = i * MAX_DRM_LUT_VALUE / (size-1);
 
 		/* Allow a +/-1 error. */
 		delta = lut[i].red - expected;
@@ -67,6 +68,42 @@ static bool __is_lut_linear(struct drm_color_lut *lut)
 			return false;
 	}
 	return true;
+}
+
+/**
+ * Convert the drm_color_lut to dc_gamma. The conversion depends on the size
+ * of the lut - whether or not it's legacy.
+ */
+static void __drm_lut_to_dc_gamma(struct drm_color_lut *lut,
+				  struct dc_gamma *gamma,
+				  bool is_legacy)
+{
+	uint32_t r, g, b;
+	int i;
+
+	if (is_legacy) {
+		for (i = 0; i < MAX_COLOR_LEGACY_LUT_ENTRIES; i++) {
+			r = drm_color_lut_extract(lut[i].red, 16);
+			g = drm_color_lut_extract(lut[i].green, 16);
+			b = drm_color_lut_extract(lut[i].blue, 16);
+
+			gamma->entries.red[i] = dal_fixed31_32_from_int(r);
+			gamma->entries.green[i] = dal_fixed31_32_from_int(g);
+			gamma->entries.blue[i] = dal_fixed31_32_from_int(b);
+		}
+		return;
+	}
+
+	/* else */
+	for (i = 0; i < MAX_COLOR_LUT_ENTRIES; i++) {
+		r = drm_color_lut_extract(lut[i].red, 16);
+		g = drm_color_lut_extract(lut[i].green, 16);
+		b = drm_color_lut_extract(lut[i].blue, 16);
+
+		gamma->entries.red[i] = dal_fixed31_32_from_fraction(r, MAX_DRM_LUT_VALUE);
+		gamma->entries.green[i] = dal_fixed31_32_from_fraction(g, MAX_DRM_LUT_VALUE);
+		gamma->entries.blue[i] = dal_fixed31_32_from_fraction(b, MAX_DRM_LUT_VALUE);
+	}
 }
 
 /**
@@ -85,11 +122,10 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	struct drm_property_blob *blob = crtc->base.gamma_lut;
 	struct dc_stream_state *stream = crtc->stream;
 	struct drm_color_lut *lut;
+	uint32_t lut_size;
 	struct dc_gamma *gamma;
 	enum dc_transfer_func_type old_type = stream->out_transfer_func->type;
 
-	uint32_t r, g, b;
-	int i;
 	bool ret;
 
 	if (!blob) {
@@ -100,8 +136,9 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	}
 
 	lut = (struct drm_color_lut *)blob->data;
+	lut_size = blob->length / sizeof(struct drm_color_lut);
 
-	if (__is_lut_linear(lut)) {
+	if (__is_lut_linear(lut, lut_size)) {
 		/* Set to bypass if lut is set to linear */
 		stream->out_transfer_func->type = TF_TYPE_BYPASS;
 		stream->out_transfer_func->tf = TRANSFER_FUNCTION_LINEAR;
@@ -112,19 +149,19 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	if (!gamma)
 		return -ENOMEM;
 
-	gamma->num_entries = MAX_COLOR_LUT_ENTRIES;
-	gamma->type = GAMMA_RGB_256;
-
-	/* Truncate, and store in dc_gamma for output tf calculation */
-	for (i = 0; i < gamma->num_entries; i++) {
-		r = drm_color_lut_extract(lut[i].red, 16);
-		g = drm_color_lut_extract(lut[i].green, 16);
-		b = drm_color_lut_extract(lut[i].blue, 16);
-
-		gamma->entries.red[i] = dal_fixed31_32_from_int(r);
-		gamma->entries.green[i] = dal_fixed31_32_from_int(g);
-		gamma->entries.blue[i] = dal_fixed31_32_from_int(b);
+	gamma->num_entries = lut_size;
+	if (gamma->num_entries == MAX_COLOR_LEGACY_LUT_ENTRIES)
+		gamma->type = GAMMA_RGB_256;
+	else if (gamma->num_entries == MAX_COLOR_LUT_ENTRIES)
+		gamma->type = GAMMA_CS_TFM_1D;
+	else {
+		/* Invalid lut size */
+		dc_gamma_release(&gamma);
+		return -EINVAL;
 	}
+
+	/* Convert drm_lut into dc_gamma */
+	__drm_lut_to_dc_gamma(lut, gamma, gamma->type == GAMMA_RGB_256);
 
 	/* Call color module to translate into something DC understands. Namely
 	 * a transfer function.
@@ -156,6 +193,7 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 	struct drm_property_blob *blob = crtc->base.ctm;
 	struct dc_stream_state *stream = crtc->stream;
 	struct drm_color_ctm *ctm;
+	int64_t val;
 	int i;
 
 	if (!blob) {
@@ -169,7 +207,9 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 	 * DRM gives a 3x3 matrix, but DC wants 3x4. Assuming we're operating
 	 * with homogeneous coordinates, augment the matrix with 0's.
 	 *
-	 * The format provided is S31.32, which is the same as our fixed31_32.
+	 * The format provided is S31.32, using signed-magnitude representation.
+	 * Our fixed31_32 is also S31.32, but is using 2's complement. We have
+	 * to convert from signed-magnitude to 2's complement.
 	 */
 	for (i = 0; i < 12; i++) {
 		/* Skip 4th element */
@@ -177,8 +217,14 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 			stream->gamut_remap_matrix.matrix[i] = dal_fixed31_32_zero;
 			continue;
 		}
-		/* csc[i] = ctm[i - floor(i/4)] */
-		stream->gamut_remap_matrix.matrix[i].value = ctm->matrix[i - (i/4)];
+
+		/* gamut_remap_matrix[i] = ctm[i - floor(i/4)] */
+		val = ctm->matrix[i - (i/4)];
+		/* If negative, convert to 2's complement. */
+		if (val & (1ULL << 63))
+			val = -(val & ~(1ULL << 63));
+
+		stream->gamut_remap_matrix.matrix[i].value = val;
 	}
 }
 
@@ -212,7 +258,7 @@ int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
 	}
 
 	lut = (struct drm_color_lut *)blob->data;
-	if (__is_lut_linear(lut)) {
+	if (__is_lut_linear(lut, MAX_COLOR_LUT_ENTRIES)) {
 		dc_plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
 		dc_plane_state->in_transfer_func->tf = TRANSFER_FUNCTION_LINEAR;
 		return 0;

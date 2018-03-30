@@ -66,6 +66,7 @@ enum {
 	GNLD_FEATURE_FAST_PPT_BIT,
 	GNLD_DIDT,
 	GNLD_ACG,
+	GNLD_PCC_LIMIT,
 	GNLD_FEATURES_MAX
 };
 
@@ -373,9 +374,6 @@ struct vega10_hwmgr {
 	/* ---- Overdrive next setting ---- */
 	uint32_t                       apply_overdrive_next_settings_mask;
 
-	/* ---- Workload Mask ---- */
-	uint32_t                       workload_mask;
-
 	/* ---- SMU9 ---- */
 	struct smu_features            smu_features[GNLD_FEATURES_MAX];
 	struct vega10_smc_state_table  smc_state_table;
@@ -442,5 +440,7 @@ int vega10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
+int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
+		bool enable, uint32_t feature_mask);
 
 #endif /* _VEGA10_HWMGR_H_ */

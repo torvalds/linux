@@ -374,7 +374,7 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 
 	if (max_size) {
 		int r = amdgpu_bo_create_kernel(adev, max_size * 4, PAGE_SIZE,
-			    AMDGPU_GEM_DOMAIN_VRAM, &compressor->bo_ptr,
+			    AMDGPU_GEM_DOMAIN_GTT, &compressor->bo_ptr,
 			    &compressor->gpu_addr, &compressor->cpu_addr);
 
 		if (r)
@@ -1058,6 +1058,10 @@ static void handle_hpd_rx_irq(void *param)
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
+
+			if (aconnector->fake_enable)
+				aconnector->fake_enable = false;
+
 			amdgpu_dm_update_connector_after_detect(aconnector);
 
 
@@ -1126,8 +1130,9 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	unsigned client_id = AMDGPU_IH_CLIENTID_LEGACY;
 
 	if (adev->asic_type == CHIP_VEGA10 ||
+	    adev->asic_type == CHIP_VEGA12 ||
 	    adev->asic_type == CHIP_RAVEN)
-		client_id = AMDGPU_IH_CLIENTID_DCE;
+		client_id = SOC15_IH_CLIENTID_DCE;
 
 	int_params.requested_polarity = INTERRUPT_POLARITY_DEFAULT;
 	int_params.current_polarity = INTERRUPT_POLARITY_DEFAULT;
@@ -1227,7 +1232,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	for (i = DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP;
 			i <= DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP + adev->mode_info.num_crtc - 1;
 			i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, i, &adev->crtc_irq);
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->crtc_irq);
 
 		if (r) {
 			DRM_ERROR("Failed to add crtc irq id!\n");
@@ -1251,7 +1256,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	for (i = DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT;
 			i <= DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT + adev->mode_info.num_crtc - 1;
 			i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, i, &adev->pageflip_irq);
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->pageflip_irq);
 		if (r) {
 			DRM_ERROR("Failed to add page flip irq id!\n");
 			return r;
@@ -1272,7 +1277,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	}
 
 	/* HPD */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, DCN_1_0__SRCID__DC_HPD1_INT,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, DCN_1_0__SRCID__DC_HPD1_INT,
 			&adev->hpd_irq);
 	if (r) {
 		DRM_ERROR("Failed to add hpd irq id!\n");
@@ -1361,6 +1366,43 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 
 #endif
 
+static int initialize_plane(struct amdgpu_display_manager *dm,
+			     struct amdgpu_mode_info *mode_info,
+			     int plane_id)
+{
+	struct amdgpu_plane *plane;
+	unsigned long possible_crtcs;
+	int ret = 0;
+
+	plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
+	mode_info->planes[plane_id] = plane;
+
+	if (!plane) {
+		DRM_ERROR("KMS: Failed to allocate plane\n");
+		return -ENOMEM;
+	}
+	plane->base.type = mode_info->plane_type[plane_id];
+
+	/*
+	 * HACK: IGT tests expect that each plane can only have one
+	 * one possible CRTC. For now, set one CRTC for each
+	 * plane that is not an underlay, but still allow multiple
+	 * CRTCs for underlay planes.
+	 */
+	possible_crtcs = 1 << plane_id;
+	if (plane_id >= dm->dc->caps.max_streams)
+		possible_crtcs = 0xff;
+
+	ret = amdgpu_dm_plane_init(dm, mode_info->planes[plane_id], possible_crtcs);
+
+	if (ret) {
+		DRM_ERROR("KMS: Failed to initialize plane\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 /* In this architecture, the association
  * connector -> encoder -> crtc
  * id not really requried. The crtc and connector will hold the
@@ -1371,12 +1413,12 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_display_manager *dm = &adev->dm;
-	uint32_t i;
+	int32_t i;
 	struct amdgpu_dm_connector *aconnector = NULL;
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
-	unsigned long possible_crtcs;
+	int32_t total_overlay_planes, total_primary_planes;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
@@ -1384,30 +1426,22 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		return -1;
 	}
 
-	for (i = 0; i < dm->dc->caps.max_planes; i++) {
-		struct amdgpu_plane *plane;
+	/* Identify the number of planes to be initialized */
+	total_overlay_planes = dm->dc->caps.max_slave_planes;
+	total_primary_planes = dm->dc->caps.max_planes - dm->dc->caps.max_slave_planes;
 
-		plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
-		mode_info->planes[i] = plane;
-
-		if (!plane) {
-			DRM_ERROR("KMS: Failed to allocate plane\n");
+	/* First initialize overlay planes, index starting after primary planes */
+	for (i = (total_overlay_planes - 1); i >= 0; i--) {
+		if (initialize_plane(dm, mode_info, (total_primary_planes + i))) {
+			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
 			goto fail;
 		}
-		plane->base.type = mode_info->plane_type[i];
+	}
 
-		/*
-		 * HACK: IGT tests expect that each plane can only have one
-		 * one possible CRTC. For now, set one CRTC for each
-		 * plane that is not an underlay, but still allow multiple
-		 * CRTCs for underlay planes.
-		 */
-		possible_crtcs = 1 << i;
-		if (i >= dm->dc->caps.max_streams)
-			possible_crtcs = 0xff;
-
-		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], possible_crtcs)) {
-			DRM_ERROR("KMS: Failed to initialize plane\n");
+	/* Initialize primary planes */
+	for (i = (total_primary_planes - 1); i >= 0; i--) {
+		if (initialize_plane(dm, mode_info, i)) {
+			DRM_ERROR("KMS: Failed to initialize primary plane\n");
 			goto fail;
 		}
 	}
@@ -1468,6 +1502,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS12:
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 		if (dce110_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -1665,6 +1700,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.plane_type = dm_plane_type_default;
 		break;
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
@@ -1912,6 +1948,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 			AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 
 	if (adev->asic_type == CHIP_VEGA10 ||
+	    adev->asic_type == CHIP_VEGA12 ||
 	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
 		plane_state->tiling_info.gfx9.num_pipes =
@@ -1978,6 +2015,10 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 	 * every time.
 	 */
 	ret = amdgpu_dm_set_degamma_lut(crtc_state, dc_plane_state);
+	if (ret) {
+		dc_transfer_func_release(dc_plane_state->in_transfer_func);
+		dc_plane_state->in_transfer_func = NULL;
+	}
 
 	return ret;
 }
@@ -2486,6 +2527,27 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &state->base;
 }
 
+
+static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
+{
+	enum dc_irq_source irq_source;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+
+	irq_source = IRQ_TYPE_VBLANK + acrtc->otg_inst;
+	return dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
+}
+
+static int dm_enable_vblank(struct drm_crtc *crtc)
+{
+	return dm_set_vblank(crtc, true);
+}
+
+static void dm_disable_vblank(struct drm_crtc *crtc)
+{
+	dm_set_vblank(crtc, false);
+}
+
 /* Implemented only the options currently availible for the driver */
 static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.reset = dm_crtc_reset_state,
@@ -2496,6 +2558,8 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.atomic_duplicate_state = dm_crtc_duplicate_state,
 	.atomic_destroy_state = dm_crtc_destroy_state,
 	.set_crc_source = amdgpu_dm_crtc_set_crc_source,
+	.enable_vblank = dm_enable_vblank,
+	.disable_vblank = dm_disable_vblank,
 };
 
 static enum drm_connector_status
@@ -3059,6 +3123,9 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	if (!dm_plane_state->dc_state)
 		return 0;
 
+	if (!fill_rects_from_plane_state(state, dm_plane_state->dc_state))
+		return -EINVAL;
+
 	if (dc_validate_plane(dc, dm_plane_state->dc_state) == DC_OK)
 		return 0;
 
@@ -3105,8 +3172,6 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 
 	switch (aplane->base.type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		aplane->base.format_default = true;
-
 		res = drm_universal_plane_init(
 				dm->adev->ddev,
 				&aplane->base,
@@ -3193,7 +3258,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	dm->adev->mode_info.crtcs[crtc_index] = acrtc;
 	drm_crtc_enable_color_mgmt(&acrtc->base, MAX_COLOR_LUT_ENTRIES,
 				   true, MAX_COLOR_LUT_ENTRIES);
-	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LUT_ENTRIES);
+	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
 
 	return 0;
 
@@ -4660,11 +4725,9 @@ static int dm_update_planes_state(struct dc *dc,
 	bool pflip_needed  = !state->allow_modeset;
 	int ret = 0;
 
-	if (pflip_needed)
-		return ret;
 
-	/* Add new planes */
-	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+	/* Add new planes, in reverse order as DC expectation */
+	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
 		new_plane_crtc = new_plane_state->crtc;
 		old_plane_crtc = old_plane_state->crtc;
 		dm_new_plane_state = to_dm_plane_state(new_plane_state);
@@ -4676,6 +4739,8 @@ static int dm_update_planes_state(struct dc *dc,
 
 		/* Remove any changed/removed planes */
 		if (!enable) {
+			if (pflip_needed)
+				continue;
 
 			if (!old_plane_crtc)
 				continue;
@@ -4707,6 +4772,7 @@ static int dm_update_planes_state(struct dc *dc,
 			*lock_and_validation_needed = true;
 
 		} else { /* Add new planes */
+			struct dc_plane_state *dc_new_plane_state;
 
 			if (drm_atomic_plane_disabling(plane->state, new_plane_state))
 				continue;
@@ -4720,36 +4786,46 @@ static int dm_update_planes_state(struct dc *dc,
 			if (!dm_new_crtc_state->stream)
 				continue;
 
+			if (pflip_needed)
+				continue;
 
 			WARN_ON(dm_new_plane_state->dc_state);
 
-			dm_new_plane_state->dc_state = dc_create_plane_state(dc);
+			dc_new_plane_state = dc_create_plane_state(dc);
+			if (!dc_new_plane_state)
+				return -ENOMEM;
 
 			DRM_DEBUG_DRIVER("Enabling DRM plane: %d on DRM crtc %d\n",
 					plane->base.id, new_plane_crtc->base.id);
 
-			if (!dm_new_plane_state->dc_state) {
-				ret = -EINVAL;
+			ret = fill_plane_attributes(
+				new_plane_crtc->dev->dev_private,
+				dc_new_plane_state,
+				new_plane_state,
+				new_crtc_state);
+			if (ret) {
+				dc_plane_state_release(dc_new_plane_state);
 				return ret;
 			}
 
-			ret = fill_plane_attributes(
-				new_plane_crtc->dev->dev_private,
-				dm_new_plane_state->dc_state,
-				new_plane_state,
-				new_crtc_state);
-			if (ret)
-				return ret;
-
+			/*
+			 * Any atomic check errors that occur after this will
+			 * not need a release. The plane state will be attached
+			 * to the stream, and therefore part of the atomic
+			 * state. It'll be released when the atomic state is
+			 * cleaned.
+			 */
 			if (!dc_add_plane_to_context(
 					dc,
 					dm_new_crtc_state->stream,
-					dm_new_plane_state->dc_state,
+					dc_new_plane_state,
 					dm_state->context)) {
 
-				ret = -EINVAL;
-				return ret;
+				dc_plane_state_release(dc_new_plane_state);
+				return -EINVAL;
 			}
+
+			dm_new_plane_state->dc_state = dc_new_plane_state;
 
 			/* Tell DC to do a full surface update every time there
 			 * is a plane change. Inefficient, but works for now.
@@ -4762,6 +4838,33 @@ static int dm_update_planes_state(struct dc *dc,
 
 
 	return ret;
+}
+
+static int dm_atomic_check_plane_state_fb(struct drm_atomic_state *state,
+					  struct drm_crtc *crtc)
+{
+	struct drm_plane *plane;
+	struct drm_crtc_state *crtc_state;
+
+	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
+
+	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+		struct drm_plane_state *plane_state =
+			drm_atomic_get_plane_state(state, plane);
+
+		if (IS_ERR(plane_state))
+			return -EDEADLK;
+
+		crtc_state = drm_atomic_get_crtc_state(plane_state->state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (crtc->primary == plane && crtc_state->active) {
+			if (!plane_state->fb)
+				return -EINVAL;
+		}
+	}
+	return 0;
 }
 
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
@@ -4787,6 +4890,10 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		goto fail;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		ret = dm_atomic_check_plane_state_fb(state, crtc);
+		if (ret)
+			goto fail;
+
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->color_mgmt_changed)
 			continue;

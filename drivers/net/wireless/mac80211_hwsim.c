@@ -2727,6 +2727,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	mutex_init(&data->mutex);
 
 	data->netgroup = hwsim_net_get_netgroup(net);
+	data->wmediumd = hwsim_net_get_wmediumd(net);
 
 	/* Enable frame retransmissions for lossy channels */
 	hw->max_rates = 4;
@@ -3516,7 +3517,7 @@ static int __init init_mac80211_hwsim(void)
 
 	spin_lock_init(&hwsim_radio_lock);
 
-	hwsim_wq = alloc_workqueue("hwsim_wq",WQ_MEM_RECLAIM,0);
+	hwsim_wq = alloc_workqueue("hwsim_wq", 0, 0);
 	if (!hwsim_wq)
 		return -ENOMEM;
 	rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);

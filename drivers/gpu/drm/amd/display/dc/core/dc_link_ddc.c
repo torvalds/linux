@@ -629,7 +629,7 @@ bool dal_ddc_service_query_ddc_data(
 	return ret;
 }
 
-enum ddc_result dal_ddc_service_read_dpcd_data(
+ssize_t dal_ddc_service_read_dpcd_data(
 	struct ddc_service *ddc,
 	bool i2c,
 	enum i2c_mot_mode mot,
@@ -660,8 +660,9 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 	if (dal_i2caux_submit_aux_command(
 		ddc->ctx->i2caux,
 		ddc->ddc_pin,
-		&command))
-		return DDC_RESULT_SUCESSFULL;
+		&command)) {
+		return (ssize_t)command.payloads->length;
+	}
 
 	return DDC_RESULT_FAILED_OPERATION;
 }

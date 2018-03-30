@@ -688,9 +688,9 @@ static int get_dcefclk_voltage_dependency_table(
 	uint8_t num_entries;
 	struct phm_ppt_v1_clock_voltage_dependency_table
 				*clk_table;
-	struct cgs_system_info sys_info = {0};
 	uint32_t dev_id;
 	uint32_t rev_id;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	PP_ASSERT_WITH_CODE((clk_dep_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
@@ -701,15 +701,8 @@ static int get_dcefclk_voltage_dependency_table(
  * This DPM level was added to support 3DPM monitors @ 4K120Hz
  *
  */
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
-
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	rev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
+	rev_id = adev->pdev->revision;
 
 	if (dev_id == 0x6863 && rev_id == 0 &&
 		clk_dep_table->entries[clk_dep_table->ucNumEntries - 1].ulClk < 90000)

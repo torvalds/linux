@@ -432,14 +432,12 @@ void dpp1_dppclk_control(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	if (enable) {
-		if (dpp->tf_mask->DPPCLK_RATE_CONTROL) {
+		if (dpp->tf_mask->DPPCLK_RATE_CONTROL)
 			REG_UPDATE_2(DPP_CONTROL,
 				DPPCLK_RATE_CONTROL, dppclk_div,
 				DPP_CLOCK_ENABLE, 1);
-		} else {
-			ASSERT(dppclk_div == false);
+		else
 			REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 1);
-		}
 	} else
 		REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 0);
 }
@@ -466,6 +464,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.set_cursor_attributes = dpp1_set_cursor_attributes,
 		.set_cursor_position = dpp1_set_cursor_position,
 		.dpp_dppclk_control = dpp1_dppclk_control,
+		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
 };
 
 static struct dpp_caps dcn10_dpp_cap = {

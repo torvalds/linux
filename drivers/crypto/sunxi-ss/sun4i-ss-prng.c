@@ -28,7 +28,7 @@ int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 	algt = container_of(alg, struct sun4i_ss_alg_template, alg.rng);
 	ss = algt->ss;
 
-	spin_lock(&ss->slock);
+	spin_lock_bh(&ss->slock);
 
 	writel(mode, ss->base + SS_CTL);
 
@@ -51,6 +51,6 @@ int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
 	}
 
 	writel(0, ss->base + SS_CTL);
-	spin_unlock(&ss->slock);
-	return dlen;
+	spin_unlock_bh(&ss->slock);
+	return 0;
 }

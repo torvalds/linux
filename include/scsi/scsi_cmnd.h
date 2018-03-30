@@ -68,6 +68,9 @@ struct scsi_cmnd {
 	struct list_head list;  /* scsi_cmnd participates in queue lists */
 	struct list_head eh_entry; /* entry for the host eh_cmd_q */
 	struct delayed_work abort_work;
+
+	struct rcu_head rcu;
+
 	int eh_eflags;		/* Used by error handlr */
 
 	/*

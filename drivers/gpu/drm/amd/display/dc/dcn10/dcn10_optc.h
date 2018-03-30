@@ -83,6 +83,8 @@
 
 
 struct dcn_optc_registers {
+	uint32_t OTG_GLOBAL_CONTROL1;
+	uint32_t OTG_GLOBAL_CONTROL2;
 	uint32_t OTG_VERT_SYNC_CONTROL;
 	uint32_t OTG_MASTER_UPDATE_MODE;
 	uint32_t OTG_GSL_CONTROL;
@@ -126,6 +128,7 @@ struct dcn_optc_registers {
 	uint32_t OTG_VERTICAL_INTERRUPT2_POSITION;
 	uint32_t OPTC_INPUT_CLOCK_CONTROL;
 	uint32_t OPTC_DATA_SOURCE_SELECT;
+	uint32_t OPTC_MEMORY_CONFIG;
 	uint32_t OPTC_INPUT_GLOBAL_CONTROL;
 	uint32_t CONTROL;
 	uint32_t OTG_GSL_WINDOW_X;
@@ -325,10 +328,9 @@ struct dcn_optc_registers {
 	type OPTC_INPUT_CLK_EN;\
 	type OPTC_INPUT_CLK_ON;\
 	type OPTC_INPUT_CLK_GATE_DIS;\
-	type OPTC_SRC_SEL;\
-	type OPTC_SEG0_SRC_SEL;\
 	type OPTC_UNDERFLOW_OCCURRED_STATUS;\
 	type OPTC_UNDERFLOW_CLEAR;\
+	type OPTC_SRC_SEL;\
 	type VTG0_ENABLE;\
 	type VTG0_FP2;\
 	type VTG0_VCOUNT_INIT;\

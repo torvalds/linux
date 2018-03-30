@@ -56,6 +56,8 @@
 
 #define CTX \
 	enc110->base.ctx
+#define DC_LOGGER \
+	enc110->base.ctx->logger
 
 #define REG(reg)\
 	(enc110->link_regs->reg)
@@ -676,6 +678,7 @@ void dce110_link_encoder_construct(
 {
 	struct bp_encoder_cap_info bp_cap_info = {0};
 	const struct dc_vbios_funcs *bp_funcs = init_data->ctx->dc_bios->funcs;
+	enum bp_result result = BP_RESULT_OK;
 
 	enc110->base.funcs = &dce110_lnk_enc_funcs;
 	enc110->base.ctx = init_data->ctx;
@@ -750,15 +753,23 @@ void dce110_link_encoder_construct(
 		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 	}
 
+	/* default to one to mirror Windows behavior */
+	enc110->base.features.flags.bits.HDMI_6GB_EN = 1;
+
+	result = bp_funcs->get_encoder_cap_info(enc110->base.ctx->dc_bios,
+						enc110->base.id, &bp_cap_info);
+
 	/* Override features with DCE-specific values */
-	if (BP_RESULT_OK == bp_funcs->get_encoder_cap_info(
-			enc110->base.ctx->dc_bios, enc110->base.id,
-			&bp_cap_info)) {
+	if (BP_RESULT_OK == result) {
 		enc110->base.features.flags.bits.IS_HBR2_CAPABLE =
 				bp_cap_info.DP_HBR2_EN;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 		enc110->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
+	} else {
+		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
+				__func__,
+				result);
 	}
 }
 
@@ -809,7 +820,6 @@ void dce110_link_encoder_hw_init(
 	struct link_encoder *enc)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
@@ -827,8 +837,7 @@ void dce110_link_encoder_hw_init(
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
-			"%s: Failed to execute VBIOS command table!\n",
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
 		BREAK_TO_DEBUGGER();
 		return;
@@ -904,7 +913,6 @@ void dce110_link_encoder_enable_tmds_output(
 	uint32_t pixel_clock)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
@@ -928,8 +936,7 @@ void dce110_link_encoder_enable_tmds_output(
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
-			"%s: Failed to execute VBIOS command table!\n",
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
 		BREAK_TO_DEBUGGER();
 	}
@@ -942,7 +949,6 @@ void dce110_link_encoder_enable_dp_output(
 	enum clock_source_id clock_source)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
@@ -969,8 +975,7 @@ void dce110_link_encoder_enable_dp_output(
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
-			"%s: Failed to execute VBIOS command table!\n",
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
 		BREAK_TO_DEBUGGER();
 	}
@@ -983,7 +988,6 @@ void dce110_link_encoder_enable_dp_mst_output(
 	enum clock_source_id clock_source)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
@@ -1010,8 +1014,7 @@ void dce110_link_encoder_enable_dp_mst_output(
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
-			"%s: Failed to execute VBIOS command table!\n",
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
 		BREAK_TO_DEBUGGER();
 	}
@@ -1025,7 +1028,6 @@ void dce110_link_encoder_disable_output(
 	enum signal_type signal)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
-	struct dc_context *ctx = enc110->base.ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
@@ -1053,8 +1055,7 @@ void dce110_link_encoder_disable_output(
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
-			"%s: Failed to execute VBIOS command table!\n",
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
 		BREAK_TO_DEBUGGER();
 		return;

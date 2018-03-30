@@ -773,24 +773,23 @@ EXPORT_SYMBOL(drm_mode_hsync);
 int drm_mode_vrefresh(const struct drm_display_mode *mode)
 {
 	int refresh = 0;
-	unsigned int calc_val;
 
 	if (mode->vrefresh > 0)
 		refresh = mode->vrefresh;
 	else if (mode->htotal > 0 && mode->vtotal > 0) {
-		int vtotal;
-		vtotal = mode->vtotal;
-		/* work out vrefresh the value will be x1000 */
-		calc_val = (mode->clock * 1000);
-		calc_val /= mode->htotal;
-		refresh = (calc_val + vtotal / 2) / vtotal;
+		unsigned int num, den;
+
+		num = mode->clock * 1000;
+		den = mode->htotal * mode->vtotal;
 
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			refresh *= 2;
+			num *= 2;
 		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-			refresh /= 2;
+			den *= 2;
 		if (mode->vscan > 1)
-			refresh /= mode->vscan;
+			den *= mode->vscan;
+
+		refresh = DIV_ROUND_CLOSEST(num, den);
 	}
 	return refresh;
 }
@@ -1596,12 +1595,8 @@ int drm_mode_convert_umode(struct drm_device *dev,
 			   struct drm_display_mode *out,
 			   const struct drm_mode_modeinfo *in)
 {
-	int ret = -EINVAL;
-
-	if (in->clock > INT_MAX || in->vrefresh > INT_MAX) {
-		ret = -ERANGE;
-		goto out;
-	}
+	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
+		return -ERANGE;
 
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
@@ -1616,20 +1611,23 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	out->vscan = in->vscan;
 	out->vrefresh = in->vrefresh;
 	out->flags = in->flags;
-	out->type = in->type;
+	/*
+	 * Old xf86-video-vmware (possibly others too) used to
+	 * leave 'type' unititialized. Just ignore any bits we
+	 * don't like. It's a just hint after all, and more
+	 * useful for the kernel->userspace direction anyway.
+	 */
+	out->type = in->type & DRM_MODE_TYPE_ALL;
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 
 	out->status = drm_mode_validate_driver(dev, out);
 	if (out->status != MODE_OK)
-		goto out;
+		return -EINVAL;
 
 	drm_mode_set_crtcinfo(out, CRTC_INTERLACE_HALVE_V);
 
-	ret = 0;
-
-out:
-	return ret;
+	return 0;
 }
 
 /**

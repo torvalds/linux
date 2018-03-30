@@ -235,14 +235,14 @@
 
 			uart_A: serial@84c0 {
 				compatible = "amlogic,meson-gx-uart";
-				reg = <0x0 0x84c0 0x0 0x14>;
+				reg = <0x0 0x84c0 0x0 0x18>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 
 			uart_B: serial@84dc {
 				compatible = "amlogic,meson-gx-uart";
-				reg = <0x0 0x84dc 0x0 0x14>;
+				reg = <0x0 0x84dc 0x0 0x18>;
 				interrupts = <GIC_SPI 75 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
@@ -287,7 +287,7 @@
 
 			uart_C: serial@8700 {
 				compatible = "amlogic,meson-gx-uart";
-				reg = <0x0 0x8700 0x0 0x14>;
+				reg = <0x0 0x8700 0x0 0x18>;
 				interrupts = <GIC_SPI 93 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
@@ -404,14 +404,14 @@
 
 			uart_AO: serial@4c0 {
 				compatible = "amlogic,meson-gx-uart", "amlogic,meson-ao-uart";
-				reg = <0x0 0x004c0 0x0 0x14>;
+				reg = <0x0 0x004c0 0x0 0x18>;
 				interrupts = <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 
 			uart_AO_B: serial@4e0 {
 				compatible = "amlogic,meson-gx-uart", "amlogic,meson-ao-uart";
-				reg = <0x0 0x004e0 0x0 0x14>;
+				reg = <0x0 0x004e0 0x0 0x18>;
 				interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};

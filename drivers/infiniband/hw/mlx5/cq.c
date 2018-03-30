@@ -226,7 +226,6 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		wc->ex.invalidate_rkey = be32_to_cpu(cqe->imm_inval_pkey);
 		break;
 	}
-	wc->slid	   = be16_to_cpu(cqe->slid);
 	wc->src_qp	   = be32_to_cpu(cqe->flags_rqpn) & 0xffffff;
 	wc->dlid_path_bits = cqe->ml_path;
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
@@ -241,10 +240,12 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	}
 
 	if (ll != IB_LINK_LAYER_ETHERNET) {
+		wc->slid = be16_to_cpu(cqe->slid);
 		wc->sl = (be32_to_cpu(cqe->flags_rqpn) >> 24) & 0xf;
 		return;
 	}
 
+	wc->slid = 0;
 	vlan_present = cqe->l4_l3_hdr_type & 0x1;
 	roce_packet_type   = (be32_to_cpu(cqe->flags_rqpn) >> 24) & 0x3;
 	if (vlan_present) {
@@ -1177,7 +1178,12 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (ucmd.reserved0 || ucmd.reserved1)
 		return -EINVAL;
 
-	umem = ib_umem_get(context, ucmd.buf_addr, entries * ucmd.cqe_size,
+	/* check multiplication overflow */
+	if (ucmd.cqe_size && SIZE_MAX / ucmd.cqe_size <= entries - 1)
+		return -EINVAL;
+
+	umem = ib_umem_get(context, ucmd.buf_addr,
+			   (size_t)ucmd.cqe_size * entries,
 			   IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem)) {
 		err = PTR_ERR(umem);

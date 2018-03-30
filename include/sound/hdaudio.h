@@ -227,9 +227,6 @@ struct hdac_io_ops {
 #define HDA_UNSOL_QUEUE_SIZE	64
 #define HDA_MAX_CODECS		8	/* limit by controller side */
 
-/* HD Audio class code */
-#define PCI_CLASS_MULTIMEDIA_HD_AUDIO	0x0403
-
 /*
  * CORB/RIRB
  *

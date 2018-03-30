@@ -361,7 +361,6 @@ enum SMU7_I2CLineID {
 #define SMU7_I2C_DDCVGACLK         0x4d
 
 #define SMU7_UNUSED_GPIO_PIN       0x7F
-uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr);
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
 		uint32_t clock_insr);
 #endif

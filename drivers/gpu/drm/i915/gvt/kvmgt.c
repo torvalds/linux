@@ -184,7 +184,7 @@ static struct gvt_dma *__gvt_cache_find_gfn(struct intel_vgpu *vgpu, gfn_t gfn)
 	return NULL;
 }
 
-static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
+static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 		dma_addr_t dma_addr)
 {
 	struct gvt_dma *new, *itr;
@@ -192,7 +192,7 @@ static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 
 	new = kzalloc(sizeof(struct gvt_dma), GFP_KERNEL);
 	if (!new)
-		return;
+		return -ENOMEM;
 
 	new->vgpu = vgpu;
 	new->gfn = gfn;
@@ -229,6 +229,7 @@ static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	rb_insert_color(&new->dma_addr_node, &vgpu->vdev.dma_addr_cache);
 
 	vgpu->vdev.nr_cache_entries++;
+	return 0;
 }
 
 static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
@@ -749,6 +750,25 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 	return ret == 0 ? count : ret;
 }
 
+static bool gtt_entry(struct mdev_device *mdev, loff_t *ppos)
+{
+	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
+	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
+	struct intel_gvt *gvt = vgpu->gvt;
+	int offset;
+
+	/* Only allow MMIO GGTT entry access */
+	if (index != PCI_BASE_ADDRESS_0)
+		return false;
+
+	offset = (u64)(*ppos & VFIO_PCI_OFFSET_MASK) -
+		intel_vgpu_get_bar_gpa(vgpu, PCI_BASE_ADDRESS_0);
+
+	return (offset >= gvt->device_info.gtt_start_offset &&
+		offset < gvt->device_info.gtt_start_offset + gvt_ggtt_sz(gvt)) ?
+			true : false;
+}
+
 static ssize_t intel_vgpu_read(struct mdev_device *mdev, char __user *buf,
 			size_t count, loff_t *ppos)
 {
@@ -758,7 +778,21 @@ static ssize_t intel_vgpu_read(struct mdev_device *mdev, char __user *buf,
 	while (count) {
 		size_t filled;
 
-		if (count >= 4 && !(*ppos % 4)) {
+		/* Only support GGTT entry 8 bytes read */
+		if (count >= 8 && !(*ppos % 8) &&
+			gtt_entry(mdev, ppos)) {
+			u64 val;
+
+			ret = intel_vgpu_rw(mdev, (char *)&val, sizeof(val),
+					ppos, false);
+			if (ret <= 0)
+				goto read_err;
+
+			if (copy_to_user(buf, &val, sizeof(val)))
+				goto read_err;
+
+			filled = 8;
+		} else if (count >= 4 && !(*ppos % 4)) {
 			u32 val;
 
 			ret = intel_vgpu_rw(mdev, (char *)&val, sizeof(val),
@@ -818,7 +852,21 @@ static ssize_t intel_vgpu_write(struct mdev_device *mdev,
 	while (count) {
 		size_t filled;
 
-		if (count >= 4 && !(*ppos % 4)) {
+		/* Only support GGTT entry 8 bytes write */
+		if (count >= 8 && !(*ppos % 8) &&
+			gtt_entry(mdev, ppos)) {
+			u64 val;
+
+			if (copy_from_user(&val, buf, sizeof(val)))
+				goto write_err;
+
+			ret = intel_vgpu_rw(mdev, (char *)&val, sizeof(val),
+					ppos, true);
+			if (ret <= 0)
+				goto write_err;
+
+			filled = 8;
+		} else if (count >= 4 && !(*ppos % 4)) {
 			u32 val;
 
 			if (copy_from_user(&val, buf, sizeof(val)))
@@ -1586,11 +1634,12 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 	entry = __gvt_cache_find_gfn(info->vgpu, gfn);
 	if (!entry) {
 		ret = gvt_dma_map_page(vgpu, gfn, dma_addr);
-		if (ret) {
-			mutex_unlock(&info->vgpu->vdev.cache_lock);
-			return ret;
-		}
-		__gvt_cache_add(info->vgpu, gfn, *dma_addr);
+		if (ret)
+			goto err_unlock;
+
+		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr);
+		if (ret)
+			goto err_unmap;
 	} else {
 		kref_get(&entry->ref);
 		*dma_addr = entry->dma_addr;
@@ -1598,6 +1647,12 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 
 	mutex_unlock(&info->vgpu->vdev.cache_lock);
 	return 0;
+
+err_unmap:
+	gvt_dma_unmap_page(vgpu, gfn, *dma_addr);
+err_unlock:
+	mutex_unlock(&info->vgpu->vdev.cache_lock);
+	return ret;
 }
 
 static void __gvt_dma_release(struct kref *ref)

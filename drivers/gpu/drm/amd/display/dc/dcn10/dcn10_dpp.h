@@ -113,7 +113,8 @@
 	SRI(CURSOR0_CONTROL, CNVC_CUR, id), \
 	SRI(CURSOR0_COLOR0, CNVC_CUR, id), \
 	SRI(CURSOR0_COLOR1, CNVC_CUR, id), \
-	SRI(DPP_CONTROL, DPP_TOP, id)
+	SRI(DPP_CONTROL, DPP_TOP, id), \
+	SRI(CM_HDR_MULT_COEF, CM, id)
 
 
 
@@ -308,7 +309,8 @@
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_ENABLE, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_COLOR0, CUR0_COLOR0, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_COLOR1, CUR0_COLOR1, mask_sh), \
-	TF_SF(DPP_TOP0_DPP_CONTROL, DPP_CLOCK_ENABLE, mask_sh)
+	TF_SF(DPP_TOP0_DPP_CONTROL, DPP_CLOCK_ENABLE, mask_sh), \
+	TF_SF(CM0_CM_HDR_MULT_COEF, CM_HDR_MULT_COEF, mask_sh)
 
 #define TF_REG_LIST_SH_MASK_DCN10(mask_sh)\
 	TF_REG_LIST_SH_MASK_DCN(mask_sh),\
@@ -1012,7 +1014,8 @@
 	type CUR0_COLOR0; \
 	type CUR0_COLOR1; \
 	type DPPCLK_RATE_CONTROL; \
-	type DPP_CLOCK_ENABLE;
+	type DPP_CLOCK_ENABLE; \
+	type CM_HDR_MULT_COEF;
 
 struct dcn_dpp_shift {
 	TF_REG_FIELD_LIST(uint8_t)
@@ -1258,7 +1261,8 @@ struct dcn_dpp_mask {
 	uint32_t CURSOR0_CONTROL; \
 	uint32_t CURSOR0_COLOR0; \
 	uint32_t CURSOR0_COLOR1; \
-	uint32_t DPP_CONTROL;
+	uint32_t DPP_CONTROL; \
+	uint32_t CM_HDR_MULT_COEF;
 
 struct dcn_dpp_registers {
 	DPP_COMMON_REG_VARIABLE_LIST
@@ -1413,6 +1417,10 @@ void dpp1_dppclk_control(
 		struct dpp *dpp_base,
 		bool dppclk_div,
 		bool enable);
+
+void dpp1_set_hdr_multiplier(
+		struct dpp *dpp_base,
+		uint32_t multiplier);
 
 void dpp1_construct(struct dcn10_dpp *dpp1,
 	struct dc_context *ctx,

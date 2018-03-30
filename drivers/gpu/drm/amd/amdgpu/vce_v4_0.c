@@ -420,7 +420,7 @@ static int vce_v4_0_sw_init(void *handle)
 	unsigned size;
 	int r, i;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VCE0, 167, &adev->vce.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCE0, 167, &adev->vce.irq);
 	if (r)
 		return r;
 

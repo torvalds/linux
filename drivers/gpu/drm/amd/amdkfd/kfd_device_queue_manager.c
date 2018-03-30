@@ -21,10 +21,11 @@
  *
  */
 
+#include <linux/ratelimit.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/types.h>
-#include <linux/printk.h>
 #include <linux/bitops.h>
 #include <linux/sched.h>
 #include "kfd_priv.h"
@@ -118,9 +119,8 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	if (dqm->vmid_bitmap == 0)
 		return -ENOMEM;
 
-	bit = find_first_bit((unsigned long *)&dqm->vmid_bitmap,
-				dqm->dev->vm_info.vmid_num_kfd);
-	clear_bit(bit, (unsigned long *)&dqm->vmid_bitmap);
+	bit = ffs(dqm->vmid_bitmap) - 1;
+	dqm->vmid_bitmap &= ~(1 << bit);
 
 	allocated_vmid = bit + dqm->dev->vm_info.first_vmid_kfd;
 	pr_debug("vmid allocation %d\n", allocated_vmid);
@@ -130,7 +130,30 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	set_pasid_vmid_mapping(dqm, q->process->pasid, q->properties.vmid);
 	program_sh_mem_settings(dqm, qpd);
 
+	/* qpd->page_table_base is set earlier when register_process()
+	 * is called, i.e. when the first queue is created.
+	 */
+	dqm->dev->kfd2kgd->set_vm_context_page_table_base(dqm->dev->kgd,
+			qpd->vmid,
+			qpd->page_table_base);
+	/* invalidate the VM context after pasid and vmid mapping is set up */
+	kfd_flush_tlb(qpd_to_pdd(qpd));
+
 	return 0;
+}
+
+static int flush_texture_cache_nocpsch(struct kfd_dev *kdev,
+				struct qcm_process_device *qpd)
+{
+	uint32_t len;
+
+	if (!qpd->ib_kaddr)
+		return -ENOMEM;
+
+	len = pm_create_release_mem(qpd->ib_base, (uint32_t *)qpd->ib_kaddr);
+
+	return kdev->kfd2kgd->submit_ib(kdev->kgd, KGD_ENGINE_MEC1, qpd->vmid,
+				qpd->ib_base, (uint32_t *)qpd->ib_kaddr, len);
 }
 
 static void deallocate_vmid(struct device_queue_manager *dqm,
@@ -139,10 +162,17 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 {
 	int bit = qpd->vmid - dqm->dev->vm_info.first_vmid_kfd;
 
+	/* On GFX v7, CP doesn't flush TC at dequeue */
+	if (q->device->device_info->asic_family == CHIP_HAWAII)
+		if (flush_texture_cache_nocpsch(q->device, qpd))
+			pr_err("Failed to flush TC\n");
+
+	kfd_flush_tlb(qpd_to_pdd(qpd));
+
 	/* Release the vmid mapping */
 	set_pasid_vmid_mapping(dqm, 0, qpd->vmid);
 
-	set_bit(bit, (unsigned long *)&dqm->vmid_bitmap);
+	dqm->vmid_bitmap |= (1 << bit);
 	qpd->vmid = 0;
 	q->properties.vmid = 0;
 }
@@ -170,6 +200,14 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 			goto out_unlock;
 	}
 	q->properties.vmid = qpd->vmid;
+	/*
+	 * Eviction state logic: we only mark active queues as evicted
+	 * to avoid the overhead of restoring inactive queues later
+	 */
+	if (qpd->evicted)
+		q->properties.is_evicted = (q->properties.queue_size > 0 &&
+					    q->properties.queue_percent > 0 &&
+					    q->properties.queue_address != 0);
 
 	q->properties.tba_addr = qpd->tba_addr;
 	q->properties.tma_addr = qpd->tma_addr;
@@ -223,12 +261,8 @@ static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 			continue;
 
 		if (dqm->allocated_queues[pipe] != 0) {
-			bit = find_first_bit(
-				(unsigned long *)&dqm->allocated_queues[pipe],
-				get_queues_per_pipe(dqm));
-
-			clear_bit(bit,
-				(unsigned long *)&dqm->allocated_queues[pipe]);
+			bit = ffs(dqm->allocated_queues[pipe]) - 1;
+			dqm->allocated_queues[pipe] &= ~(1 << bit);
 			q->pipe = pipe;
 			q->queue = bit;
 			set = true;
@@ -249,7 +283,7 @@ static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 static inline void deallocate_hqd(struct device_queue_manager *dqm,
 				struct queue *q)
 {
-	set_bit(q->queue, (unsigned long *)&dqm->allocated_queues[q->pipe]);
+	dqm->allocated_queues[q->pipe] |= (1 << q->queue);
 }
 
 static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
@@ -371,21 +405,35 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 {
 	int retval;
 	struct mqd_manager *mqd;
+	struct kfd_process_device *pdd;
 	bool prev_active = false;
 
 	mutex_lock(&dqm->lock);
+	pdd = kfd_get_process_device_data(q->device, q->process);
+	if (!pdd) {
+		retval = -ENODEV;
+		goto out_unlock;
+	}
 	mqd = dqm->ops.get_mqd_manager(dqm,
 			get_mqd_type_from_queue_type(q->properties.type));
 	if (!mqd) {
 		retval = -ENOMEM;
 		goto out_unlock;
 	}
+	/*
+	 * Eviction state logic: we only mark active queues as evicted
+	 * to avoid the overhead of restoring inactive queues later
+	 */
+	if (pdd->qpd.evicted)
+		q->properties.is_evicted = (q->properties.queue_size > 0 &&
+					    q->properties.queue_percent > 0 &&
+					    q->properties.queue_address != 0);
 
 	/* Save previous activity state for counters */
 	prev_active = q->properties.is_active;
 
 	/* Make sure the queue is unmapped before updating the MQD */
-	if (sched_policy != KFD_SCHED_POLICY_NO_HWS) {
+	if (dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) {
 		retval = unmap_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
 		if (retval) {
@@ -417,7 +465,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	else if (!q->properties.is_active && prev_active)
 		dqm->queue_count--;
 
-	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
+	if (dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS)
 		retval = map_queues_cpsch(dqm);
 	else if (q->properties.is_active &&
 		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
@@ -451,10 +499,193 @@ static struct mqd_manager *get_mqd_manager(
 	return mqd;
 }
 
+static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
+					struct qcm_process_device *qpd)
+{
+	struct queue *q;
+	struct mqd_manager *mqd;
+	struct kfd_process_device *pdd;
+	int retval = 0;
+
+	mutex_lock(&dqm->lock);
+	if (qpd->evicted++ > 0) /* already evicted, do nothing */
+		goto out;
+
+	pdd = qpd_to_pdd(qpd);
+	pr_info_ratelimited("Evicting PASID %u queues\n",
+			    pdd->process->pasid);
+
+	/* unactivate all active queues on the qpd */
+	list_for_each_entry(q, &qpd->queues_list, list) {
+		if (!q->properties.is_active)
+			continue;
+		mqd = dqm->ops.get_mqd_manager(dqm,
+			get_mqd_type_from_queue_type(q->properties.type));
+		if (!mqd) { /* should not be here */
+			pr_err("Cannot evict queue, mqd mgr is NULL\n");
+			retval = -ENOMEM;
+			goto out;
+		}
+		q->properties.is_evicted = true;
+		q->properties.is_active = false;
+		retval = mqd->destroy_mqd(mqd, q->mqd,
+				KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN,
+				KFD_UNMAP_LATENCY_MS, q->pipe, q->queue);
+		if (retval)
+			goto out;
+		dqm->queue_count--;
+	}
+
+out:
+	mutex_unlock(&dqm->lock);
+	return retval;
+}
+
+static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
+				      struct qcm_process_device *qpd)
+{
+	struct queue *q;
+	struct kfd_process_device *pdd;
+	int retval = 0;
+
+	mutex_lock(&dqm->lock);
+	if (qpd->evicted++ > 0) /* already evicted, do nothing */
+		goto out;
+
+	pdd = qpd_to_pdd(qpd);
+	pr_info_ratelimited("Evicting PASID %u queues\n",
+			    pdd->process->pasid);
+
+	/* unactivate all active queues on the qpd */
+	list_for_each_entry(q, &qpd->queues_list, list) {
+		if (!q->properties.is_active)
+			continue;
+		q->properties.is_evicted = true;
+		q->properties.is_active = false;
+		dqm->queue_count--;
+	}
+	retval = execute_queues_cpsch(dqm,
+				qpd->is_debug ?
+				KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES :
+				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
+
+out:
+	mutex_unlock(&dqm->lock);
+	return retval;
+}
+
+static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
+					  struct qcm_process_device *qpd)
+{
+	struct queue *q;
+	struct mqd_manager *mqd;
+	struct kfd_process_device *pdd;
+	uint32_t pd_base;
+	int retval = 0;
+
+	pdd = qpd_to_pdd(qpd);
+	/* Retrieve PD base */
+	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+
+	mutex_lock(&dqm->lock);
+	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do nothing */
+		goto out;
+	if (qpd->evicted > 1) { /* ref count still > 0, decrement & quit */
+		qpd->evicted--;
+		goto out;
+	}
+
+	pr_info_ratelimited("Restoring PASID %u queues\n",
+			    pdd->process->pasid);
+
+	/* Update PD Base in QPD */
+	qpd->page_table_base = pd_base;
+	pr_debug("Updated PD address to 0x%08x\n", pd_base);
+
+	if (!list_empty(&qpd->queues_list)) {
+		dqm->dev->kfd2kgd->set_vm_context_page_table_base(
+				dqm->dev->kgd,
+				qpd->vmid,
+				qpd->page_table_base);
+		kfd_flush_tlb(pdd);
+	}
+
+	/* activate all active queues on the qpd */
+	list_for_each_entry(q, &qpd->queues_list, list) {
+		if (!q->properties.is_evicted)
+			continue;
+		mqd = dqm->ops.get_mqd_manager(dqm,
+			get_mqd_type_from_queue_type(q->properties.type));
+		if (!mqd) { /* should not be here */
+			pr_err("Cannot restore queue, mqd mgr is NULL\n");
+			retval = -ENOMEM;
+			goto out;
+		}
+		q->properties.is_evicted = false;
+		q->properties.is_active = true;
+		retval = mqd->load_mqd(mqd, q->mqd, q->pipe,
+				       q->queue, &q->properties,
+				       q->process->mm);
+		if (retval)
+			goto out;
+		dqm->queue_count++;
+	}
+	qpd->evicted = 0;
+out:
+	mutex_unlock(&dqm->lock);
+	return retval;
+}
+
+static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
+					struct qcm_process_device *qpd)
+{
+	struct queue *q;
+	struct kfd_process_device *pdd;
+	uint32_t pd_base;
+	int retval = 0;
+
+	pdd = qpd_to_pdd(qpd);
+	/* Retrieve PD base */
+	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+
+	mutex_lock(&dqm->lock);
+	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do nothing */
+		goto out;
+	if (qpd->evicted > 1) { /* ref count still > 0, decrement & quit */
+		qpd->evicted--;
+		goto out;
+	}
+
+	pr_info_ratelimited("Restoring PASID %u queues\n",
+			    pdd->process->pasid);
+
+	/* Update PD Base in QPD */
+	qpd->page_table_base = pd_base;
+	pr_debug("Updated PD address to 0x%08x\n", pd_base);
+
+	/* activate all active queues on the qpd */
+	list_for_each_entry(q, &qpd->queues_list, list) {
+		if (!q->properties.is_evicted)
+			continue;
+		q->properties.is_evicted = false;
+		q->properties.is_active = true;
+		dqm->queue_count++;
+	}
+	retval = execute_queues_cpsch(dqm,
+				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
+	if (!retval)
+		qpd->evicted = 0;
+out:
+	mutex_unlock(&dqm->lock);
+	return retval;
+}
+
 static int register_process(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	struct device_process_node *n;
+	struct kfd_process_device *pdd;
+	uint32_t pd_base;
 	int retval;
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
@@ -463,8 +694,15 @@ static int register_process(struct device_queue_manager *dqm,
 
 	n->qpd = qpd;
 
+	pdd = qpd_to_pdd(qpd);
+	/* Retrieve PD base */
+	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+
 	mutex_lock(&dqm->lock);
 	list_add(&n->list, &dqm->queues);
+
+	/* Update PD Base in QPD */
+	qpd->page_table_base = pd_base;
 
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
@@ -573,11 +811,12 @@ static void uninitialize(struct device_queue_manager *dqm)
 static int start_nocpsch(struct device_queue_manager *dqm)
 {
 	init_interrupts(dqm);
-	return 0;
+	return pm_init(&dqm->packets, dqm);
 }
 
 static int stop_nocpsch(struct device_queue_manager *dqm)
 {
+	pm_uninit(&dqm->packets);
 	return 0;
 }
 
@@ -589,10 +828,8 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 	if (dqm->sdma_bitmap == 0)
 		return -ENOMEM;
 
-	bit = find_first_bit((unsigned long *)&dqm->sdma_bitmap,
-				CIK_SDMA_QUEUES);
-
-	clear_bit(bit, (unsigned long *)&dqm->sdma_bitmap);
+	bit = ffs(dqm->sdma_bitmap) - 1;
+	dqm->sdma_bitmap &= ~(1 << bit);
 	*sdma_queue_id = bit;
 
 	return 0;
@@ -603,7 +840,7 @@ static void deallocate_sdma_queue(struct device_queue_manager *dqm,
 {
 	if (sdma_queue_id >= CIK_SDMA_QUEUES)
 		return;
-	set_bit(sdma_queue_id, (unsigned long *)&dqm->sdma_bitmap);
+	dqm->sdma_bitmap |= (1 << sdma_queue_id);
 }
 
 static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
@@ -840,6 +1077,14 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		retval = -ENOMEM;
 		goto out;
 	}
+	/*
+	 * Eviction state logic: we only mark active queues as evicted
+	 * to avoid the overhead of restoring inactive queues later
+	 */
+	if (qpd->evicted)
+		q->properties.is_evicted = (q->properties.queue_size > 0 &&
+					    q->properties.queue_percent > 0 &&
+					    q->properties.queue_address != 0);
 
 	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 
@@ -1097,7 +1342,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 			alternate_aperture_base,
 			alternate_aperture_size);
 
-	if ((sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
+	if ((dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
 		program_sh_mem_settings(dqm, qpd);
 
 	pr_debug("sh_mem_config: 0x%x, ape1_base: 0x%x, ape1_limit: 0x%x\n",
@@ -1242,8 +1487,24 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	if (!dqm)
 		return NULL;
 
+	switch (dev->device_info->asic_family) {
+	/* HWS is not available on Hawaii. */
+	case CHIP_HAWAII:
+	/* HWS depends on CWSR for timely dequeue. CWSR is not
+	 * available on Tonga.
+	 *
+	 * FIXME: This argument also applies to Kaveri.
+	 */
+	case CHIP_TONGA:
+		dqm->sched_policy = KFD_SCHED_POLICY_NO_HWS;
+		break;
+	default:
+		dqm->sched_policy = sched_policy;
+		break;
+	}
+
 	dqm->dev = dev;
-	switch (sched_policy) {
+	switch (dqm->sched_policy) {
 	case KFD_SCHED_POLICY_HWS:
 	case KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION:
 		/* initialize dqm for cp scheduling */
@@ -1262,6 +1523,8 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		dqm->ops.set_trap_handler = set_trap_handler;
 		dqm->ops.process_termination = process_termination_cpsch;
+		dqm->ops.evict_process_queues = evict_process_queues_cpsch;
+		dqm->ops.restore_process_queues = restore_process_queues_cpsch;
 		break;
 	case KFD_SCHED_POLICY_NO_HWS:
 		/* initialize dqm for no cp scheduling */
@@ -1278,9 +1541,12 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		dqm->ops.set_trap_handler = set_trap_handler;
 		dqm->ops.process_termination = process_termination_nocpsch;
+		dqm->ops.evict_process_queues = evict_process_queues_nocpsch;
+		dqm->ops.restore_process_queues =
+			restore_process_queues_nocpsch;
 		break;
 	default:
-		pr_err("Invalid scheduling policy %d\n", sched_policy);
+		pr_err("Invalid scheduling policy %d\n", dqm->sched_policy);
 		goto out_free;
 	}
 
@@ -1291,6 +1557,17 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 
 	case CHIP_KAVERI:
 		device_queue_manager_init_cik(&dqm->asic_ops);
+		break;
+
+	case CHIP_HAWAII:
+		device_queue_manager_init_cik_hawaii(&dqm->asic_ops);
+		break;
+
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",

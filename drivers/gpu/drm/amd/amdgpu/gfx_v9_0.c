@@ -57,6 +57,13 @@ MODULE_FIRMWARE("amdgpu/vega10_mec.bin");
 MODULE_FIRMWARE("amdgpu/vega10_mec2.bin");
 MODULE_FIRMWARE("amdgpu/vega10_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/vega12_ce.bin");
+MODULE_FIRMWARE("amdgpu/vega12_pfp.bin");
+MODULE_FIRMWARE("amdgpu/vega12_me.bin");
+MODULE_FIRMWARE("amdgpu/vega12_mec.bin");
+MODULE_FIRMWARE("amdgpu/vega12_mec2.bin");
+MODULE_FIRMWARE("amdgpu/vega12_rlc.bin");
+
 MODULE_FIRMWARE("amdgpu/raven_ce.bin");
 MODULE_FIRMWARE("amdgpu/raven_pfp.bin");
 MODULE_FIRMWARE("amdgpu/raven_me.bin");
@@ -144,7 +151,42 @@ static const struct soc15_reg_golden golden_settings_gc_9_x_common[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_DATA, 0xffffffff, 0x2544c382)
 };
 
+static const struct soc15_reg_golden golden_settings_gc_9_2_1[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000420),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSH_MEM_CONFIG, 0x00001000, 0x00001000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_CU_0, 0x0007ffff, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_CU_1, 0x0007ffff, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_EN_CU_0, 0x01ffffff, 0x0000ff87),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_RESOURCE_RESERVE_EN_CU_1, 0x01ffffff, 0x0000ff8f),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSQC_CONFIG, 0x03000000, 0x020a2000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTA_CNTL_AUX, 0xfffffeef, 0x010b0000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_HI, 0xffffffff, 0x4a2c0e68),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0xb5d3f197),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_CACHE_INVALIDATION, 0x3fff3af3, 0x19200000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_GS_MAX_WAVE_ID, 0x00000fff, 0x000003ff)
+};
+
+static const struct soc15_reg_golden golden_settings_gc_9_2_1_vg12[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_DCC_CONFIG, 0x00000080, 0x04000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL, 0xfffdf3cf, 0x00014104),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_2, 0x0f000000, 0x0a000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xffff77ff, 0x24104041),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG_READ, 0xffff77ff, 0x24104041),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_1, 0xffffffff, 0x04040000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0xffff03ff, 0x01000107),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0x76325410),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x01000000)
+};
+
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
+#define VEGA12_GB_ADDR_CONFIG_GOLDEN 0x24104041
 #define RAVEN_GB_ADDR_CONFIG_GOLDEN 0x24000042
 
 static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -167,6 +209,14 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						 golden_settings_gc_9_0_vg10,
 						 ARRAY_SIZE(golden_settings_gc_9_0_vg10));
+		break;
+	case CHIP_VEGA12:
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_9_2_1,
+						ARRAY_SIZE(golden_settings_gc_9_2_1));
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_9_2_1_vg12,
+						ARRAY_SIZE(golden_settings_gc_9_2_1_vg12));
 		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev,
@@ -271,58 +321,65 @@ static int gfx_v9_0_ring_test_ring(struct amdgpu_ring *ring)
 
 static int gfx_v9_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-        struct amdgpu_device *adev = ring->adev;
-        struct amdgpu_ib ib;
-        struct dma_fence *f = NULL;
-        uint32_t scratch;
-        uint32_t tmp = 0;
-        long r;
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_ib ib;
+	struct dma_fence *f = NULL;
 
-        r = amdgpu_gfx_scratch_get(adev, &scratch);
-        if (r) {
-                DRM_ERROR("amdgpu: failed to get scratch reg (%ld).\n", r);
-                return r;
-        }
-        WREG32(scratch, 0xCAFEDEAD);
-        memset(&ib, 0, sizeof(ib));
-        r = amdgpu_ib_get(adev, NULL, 256, &ib);
-        if (r) {
-                DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
-                goto err1;
-        }
-        ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
-        ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START));
-        ib.ptr[2] = 0xDEADBEEF;
-        ib.length_dw = 3;
+	unsigned index;
+	uint64_t gpu_addr;
+	uint32_t tmp;
+	long r;
 
-        r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
-        if (r)
-                goto err2;
+	r = amdgpu_device_wb_get(adev, &index);
+	if (r) {
+		dev_err(adev->dev, "(%ld) failed to allocate wb slot\n", r);
+		return r;
+	}
 
-        r = dma_fence_wait_timeout(f, false, timeout);
-        if (r == 0) {
-                DRM_ERROR("amdgpu: IB test timed out.\n");
-                r = -ETIMEDOUT;
-                goto err2;
-        } else if (r < 0) {
-                DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-                goto err2;
-        }
-        tmp = RREG32(scratch);
-        if (tmp == 0xDEADBEEF) {
-                DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
-                r = 0;
-        } else {
-                DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
-                          scratch, tmp);
-                r = -EINVAL;
-        }
+	gpu_addr = adev->wb.gpu_addr + (index * 4);
+	adev->wb.wb[index] = cpu_to_le32(0xCAFEDEAD);
+	memset(&ib, 0, sizeof(ib));
+	r = amdgpu_ib_get(adev, NULL, 16, &ib);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
+		goto err1;
+	}
+	ib.ptr[0] = PACKET3(PACKET3_WRITE_DATA, 3);
+	ib.ptr[1] = WRITE_DATA_DST_SEL(5) | WR_CONFIRM;
+	ib.ptr[2] = lower_32_bits(gpu_addr);
+	ib.ptr[3] = upper_32_bits(gpu_addr);
+	ib.ptr[4] = 0xDEADBEEF;
+	ib.length_dw = 5;
+
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	if (r)
+		goto err2;
+
+	r = dma_fence_wait_timeout(f, false, timeout);
+	if (r == 0) {
+			DRM_ERROR("amdgpu: IB test timed out.\n");
+			r = -ETIMEDOUT;
+			goto err2;
+	} else if (r < 0) {
+			DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+			goto err2;
+	}
+
+	tmp = adev->wb.wb[index];
+	if (tmp == 0xDEADBEEF) {
+			DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+			r = 0;
+	} else {
+			DRM_ERROR("ib test on ring %d failed\n", ring->idx);
+			r = -EINVAL;
+	}
+
 err2:
-        amdgpu_ib_free(adev, &ib, NULL);
-        dma_fence_put(f);
+	amdgpu_ib_free(adev, &ib, NULL);
+	dma_fence_put(f);
 err1:
-        amdgpu_gfx_scratch_free(adev, scratch);
-        return r;
+	amdgpu_device_wb_free(adev, index);
+	return r;
 }
 
 
@@ -361,6 +418,9 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		chip_name = "vega10";
+		break;
+	case CHIP_VEGA12:
+		chip_name = "vega12";
 		break;
 	case CHIP_RAVEN:
 		chip_name = "raven";
@@ -961,6 +1021,15 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		gb_addr_config = VEGA10_GB_ADDR_CONFIG_GOLDEN;
 		break;
+	case CHIP_VEGA12:
+		adev->gfx.config.max_hw_contexts = 8;
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
+		gb_addr_config = VEGA12_GB_ADDR_CONFIG_GOLDEN;
+		DRM_INFO("fix gfx.config for vega12\n");
+		break;
 	case CHIP_RAVEN:
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
@@ -1242,6 +1311,7 @@ static int gfx_v9_0_sw_init(void *handle)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_RAVEN:
 		adev->gfx.mec.num_mec = 2;
 		break;
@@ -1254,23 +1324,23 @@ static int gfx_v9_0_sw_init(void *handle)
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* KIQ event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 178, &adev->gfx.kiq.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 178, &adev->gfx.kiq.irq);
 	if (r)
 		return r;
 
 	/* EOP Event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
 	/* Privileged reg */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 184,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 184,
 			      &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
 	/* Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 185,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 185,
 			      &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
@@ -2954,7 +3024,13 @@ static int gfx_v9_0_hw_fini(void *handle)
 		gfx_v9_0_kcq_disable(&adev->gfx.kiq.ring, &adev->gfx.compute_ring[i]);
 
 	if (amdgpu_sriov_vf(adev)) {
-		pr_debug("For SRIOV client, shouldn't do anything.\n");
+		gfx_v9_0_cp_gfx_enable(adev, false);
+		/* must disable polling for SRIOV when hw finished, otherwise
+		 * CPC engine may still keep fetching WB address which is already
+		 * invalid after sw finished and trigger DMAR reading error in
+		 * hypervisor side.
+		 */
+		WREG32_FIELD15(GC, 0, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 		return 0;
 	}
 	gfx_v9_0_cp_enable(adev, false);
@@ -3469,6 +3545,7 @@ static int gfx_v9_0_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_RAVEN:
 		gfx_v9_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE ? true : false);
@@ -4440,6 +4517,7 @@ static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_RAVEN:
 		adev->gfx.rlc.funcs = &gfx_v9_0_rlc_funcs;
 		break;

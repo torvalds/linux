@@ -341,17 +341,9 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->reset_power_profile_state(\
 			(adev)->powerplay.pp_handle, request))
 
-#define amdgpu_dpm_get_power_profile_state(adev, query) \
-		((adev)->powerplay.pp_funcs->get_power_profile_state(\
-			(adev)->powerplay.pp_handle, query))
-
-#define amdgpu_dpm_set_power_profile_state(adev, request) \
-		((adev)->powerplay.pp_funcs->set_power_profile_state(\
-			(adev)->powerplay.pp_handle, request))
-
-#define amdgpu_dpm_switch_power_profile(adev, type) \
+#define amdgpu_dpm_switch_power_profile(adev, type, en) \
 		((adev)->powerplay.pp_funcs->switch_power_profile(\
-			(adev)->powerplay.pp_handle, type))
+			(adev)->powerplay.pp_handle, type, en))
 
 #define amdgpu_dpm_set_clockgating_by_smu(adev, msg_id) \
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\

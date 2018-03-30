@@ -3965,6 +3965,32 @@ void ceph_put_fmode(struct ceph_inode_info *ci, int fmode)
 }
 
 /*
+ * For a soon-to-be unlinked file, drop the AUTH_RDCACHE caps. If it
+ * looks like the link count will hit 0, drop any other caps (other
+ * than PIN) we don't specifically want (due to the file still being
+ * open).
+ */
+int ceph_drop_caps_for_unlink(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int drop = CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL;
+
+	spin_lock(&ci->i_ceph_lock);
+	if (inode->i_nlink == 1) {
+		drop |= ~(__ceph_caps_wanted(ci) | CEPH_CAP_PIN);
+
+		ci->i_ceph_flags |= CEPH_I_NODELAY;
+		if (__ceph_caps_dirty(ci)) {
+			struct ceph_mds_client *mdsc =
+				ceph_inode_to_client(inode)->mdsc;
+			__cap_delay_requeue_front(mdsc, ci);
+		}
+	}
+	spin_unlock(&ci->i_ceph_lock);
+	return drop;
+}
+
+/*
  * Helpers for embedding cap and dentry lease releases into mds
  * requests.
  *

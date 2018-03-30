@@ -11,7 +11,6 @@
 
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
-#include <linux/bpf.h>
 #include <net/xdp.h>
 #include "q_struct.h"
 
@@ -93,9 +92,6 @@
 #define DMA_BUFFER_LEN		1536 /* In multiples of 128bytes */
 #define RCV_FRAG_LEN	 (SKB_DATA_ALIGN(DMA_BUFFER_LEN + NET_SKB_PAD) + \
 			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
-
-#define RCV_BUF_HEADROOM	128 /* To store dma address for XDP redirect */
-#define XDP_HEADROOM		(XDP_PACKET_HEADROOM + RCV_BUF_HEADROOM)
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)

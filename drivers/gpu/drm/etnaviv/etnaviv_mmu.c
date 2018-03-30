@@ -29,7 +29,7 @@ static void etnaviv_domain_unmap(struct etnaviv_iommu_domain *domain,
 	size_t pgsize = SZ_4K;
 
 	if (!IS_ALIGNED(iova | size, pgsize)) {
-		pr_err("unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%x\n",
+		pr_err("unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%zx\n",
 		       iova, size, pgsize);
 		return;
 	}
@@ -54,7 +54,7 @@ static int etnaviv_domain_map(struct etnaviv_iommu_domain *domain,
 	int ret = 0;
 
 	if (!IS_ALIGNED(iova | paddr | size, pgsize)) {
-		pr_err("unaligned: iova 0x%lx pa %pa size 0x%zx min_pagesz 0x%x\n",
+		pr_err("unaligned: iova 0x%lx pa %pa size 0x%zx min_pagesz 0x%zx\n",
 		       iova, &paddr, size, pgsize);
 		return -EINVAL;
 	}

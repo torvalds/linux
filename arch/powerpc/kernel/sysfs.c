@@ -788,7 +788,8 @@ static int register_cpu_online(unsigned int cpu)
 	if (cpu_has_feature(CPU_FTR_PPCAS_ARCH_V2))
 		device_create_file(s, &dev_attr_pir);
 
-	if (cpu_has_feature(CPU_FTR_ARCH_206))
+	if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+		!firmware_has_feature(FW_FEATURE_LPAR))
 		device_create_file(s, &dev_attr_tscr);
 #endif /* CONFIG_PPC64 */
 
@@ -873,7 +874,8 @@ static int unregister_cpu_online(unsigned int cpu)
 	if (cpu_has_feature(CPU_FTR_PPCAS_ARCH_V2))
 		device_remove_file(s, &dev_attr_pir);
 
-	if (cpu_has_feature(CPU_FTR_ARCH_206))
+	if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+		!firmware_has_feature(FW_FEATURE_LPAR))
 		device_remove_file(s, &dev_attr_tscr);
 #endif /* CONFIG_PPC64 */
 

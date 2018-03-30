@@ -24,6 +24,7 @@ extern int icache_44x_need_flush;
 #define PGD_INDEX_SIZE	(32 - PGDIR_SHIFT)
 
 #define PMD_CACHE_INDEX	PMD_INDEX_SIZE
+#define PUD_CACHE_INDEX	PUD_INDEX_SIZE
 
 #ifndef __ASSEMBLY__
 #define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)

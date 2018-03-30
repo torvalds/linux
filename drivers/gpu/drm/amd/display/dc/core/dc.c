@@ -42,6 +42,7 @@
 #include "dmcu.h"
 #include "dpp.h"
 #include "timing_generator.h"
+#include "abm.h"
 #include "virtual/virtual_link_encoder.h"
 
 #include "link_hwss.h"
@@ -51,6 +52,8 @@
 #include "dm_helpers.h"
 #include "mem_input.h"
 #include "hubp.h"
+#define DC_LOGGER \
+	dc->ctx->logger
 
 
 /*******************************************************************************
@@ -264,7 +267,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	/* Only call if supported */
 	if (tg->funcs->configure_crc)
 		return tg->funcs->configure_crc(tg, &param);
-	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	DC_LOG_WARNING("CRC capture not supported.");
 	return false;
 }
 
@@ -297,7 +300,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 
 	if (tg->funcs->get_crc)
 		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
-	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	DC_LOG_WARNING("CRC capture not supported.");
 	return false;
 }
 
@@ -618,8 +621,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	dc->config = init_params->flags;
 
-	dm_logger_write(dc->ctx->logger, LOG_DC,
-			"Display Core initialized\n");
+	DC_LOG_DC("Display Core initialized\n");
 
 
 	/* TODO: missing feature to be enabled */
@@ -801,6 +803,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc, context);
 
+	dc->hwss.set_bandwidth(dc, context, false);
+
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
 	 */
@@ -869,6 +873,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
+	/* pplib is notified if disp_num changed */
+	dc->hwss.set_bandwidth(dc, context, true);
+
 	dc_release_state(dc->current_state);
 
 	dc->current_state = context;
@@ -888,7 +895,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	if (false == context_changed(dc, context))
 		return DC_OK;
 
-	dm_logger_write(dc->ctx->logger, LOG_DC, "%s: %d streams\n",
+	DC_LOG_DC("%s: %d streams\n",
 				__func__, context->stream_count);
 
 	for (i = 0; i < context->stream_count; i++) {
@@ -1102,9 +1109,6 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 
 	if (u->plane_info->input_tf != u->surface->input_tf)
 		update_flags->bits.input_tf_change = 1;
-
-	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level)
-		update_flags->bits.output_tf_change = 1;
 
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
 		update_flags->bits.horizontal_mirror_change = 1;
@@ -1360,6 +1364,17 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
+
+			if (stream_update && stream_update->abm_level && pipe_ctx->stream_res.abm) {
+				if (pipe_ctx->stream_res.tg->funcs->is_blanked) {
+					// if otg funcs defined check if blanked before programming
+					if (!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg))
+						pipe_ctx->stream_res.abm->funcs->set_abm_level(
+								pipe_ctx->stream_res.abm, stream->abm_level);
+				} else
+					pipe_ctx->stream_res.abm->funcs->set_abm_level(
+							pipe_ctx->stream_res.abm, stream->abm_level);
+			}
 		}
 	}
 
@@ -1515,13 +1530,13 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 	return dal_irq_service_to_irq_source(dc->res_pool->irqs, src_id, ext_id);
 }
 
-void dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
+bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
 {
 
 	if (dc == NULL)
-		return;
+		return false;
 
-	dal_irq_service_set(dc->res_pool->irqs, src, enable);
+	return dal_irq_service_set(dc->res_pool->irqs, src, enable);
 }
 
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)

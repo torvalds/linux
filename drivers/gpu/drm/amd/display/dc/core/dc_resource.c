@@ -45,7 +45,8 @@
 #include "dcn10/dcn10_resource.h"
 #endif
 #include "dce120/dce120_resource.h"
-
+#define DC_LOGGER \
+	ctx->logger
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -834,7 +835,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct view recout_skip = { 0 };
 	bool res = false;
-
+	struct dc_context *ctx = pipe_ctx->stream->ctx;
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
 	 * Inits require viewport, taps, ratios and recout of split pipe
@@ -893,7 +894,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		/* May need to re-check lb size after this in some obscure scenario */
 		calculate_inits_and_adj_vp(pipe_ctx, &recout_skip);
 
-	dm_logger_write(pipe_ctx->stream->ctx->logger, LOG_SCALER,
+	DC_LOG_SCALER(
 				"%s: Viewport:\nheight:%d width:%d x:%d "
 				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
 				"y:%d\n",
@@ -1123,6 +1124,7 @@ bool dc_add_plane_to_context(
 		ASSERT(tail_pipe);
 
 		free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+		free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
 		free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
 		free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
 		free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
@@ -1734,6 +1736,10 @@ enum dc_status resource_map_pool_resources(
 			update_audio_usage(&context->res_ctx, pool,
 					   pipe_ctx->stream_res.audio, true);
 	}
+
+	/* Add ABM to the resource if on EDP */
+	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.abm = pool->abm;
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
@@ -2436,7 +2442,7 @@ static void set_vsc_info_packet(
 	unsigned int i;
 
 	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->sink->link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
+	if (stream->psr_version != 0) {
 		vscPacketRevision = 2;
 	}
 

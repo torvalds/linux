@@ -3104,9 +3104,6 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(plane_state->base.crtc);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	int src_x = plane_state->base.src.x1 >> 16;
 	int src_y = plane_state->base.src.y1 >> 16;
@@ -3115,11 +3112,6 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	int x = src_x / hsub;
 	int y = src_y / vsub;
 	u32 offset;
-
-	if (!skl_plane_has_ccs(dev_priv, crtc->pipe, plane->id)) {
-		DRM_DEBUG_KMS("No RC support on %s\n", plane->base.name);
-		return -EINVAL;
-	}
 
 	if (plane_state->base.rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180)) {
 		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation %x\n",
@@ -3585,6 +3577,12 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 			PLANE_CTL_PIPE_GAMMA_ENABLE |
 			PLANE_CTL_PIPE_CSC_ENABLE |
 			PLANE_CTL_PLANE_GAMMA_DISABLE;
+
+		if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+			plane_ctl |= PLANE_CTL_YUV_TO_RGB_CSC_FORMAT_BT709;
+
+		if (plane_state->base.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
+			plane_ctl |= PLANE_CTL_YUV_RANGE_CORRECTION_DISABLE;
 	}
 
 	plane_ctl |= skl_plane_ctl_format(fb->format->format);
@@ -3613,6 +3611,16 @@ u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	plane_color_ctl |= PLANE_COLOR_PIPE_CSC_ENABLE;
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(fb->format->format);
+
+	if (intel_format_is_yuv(fb->format->format)) {
+		if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+			plane_color_ctl |= PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709;
+		else
+			plane_color_ctl |= PLANE_COLOR_CSC_MODE_YUV601_TO_RGB709;
+
+		if (plane_state->base.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
+			plane_color_ctl |= PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE;
+	}
 
 	return plane_color_ctl;
 }
@@ -9413,18 +9421,12 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
-	struct drm_rect clip = {};
 	int src_x, src_y;
 	u32 offset;
 	int ret;
 
-	if (crtc_state->base.enable)
-		drm_mode_get_hv_timing(&crtc_state->base.mode,
-				       &clip.x2, &clip.y2);
-
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
 						  &crtc_state->base,
-						  &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
@@ -11062,24 +11064,17 @@ intel_compare_link_m_n(const struct intel_link_m_n *m_n,
 static void __printf(3, 4)
 pipe_config_err(bool adjust, const char *name, const char *format, ...)
 {
-	char *level;
-	unsigned int category;
 	struct va_format vaf;
 	va_list args;
-
-	if (adjust) {
-		level = KERN_DEBUG;
-		category = DRM_UT_KMS;
-	} else {
-		level = KERN_ERR;
-		category = DRM_UT_NONE;
-	}
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	drm_printk(level, category, "mismatch in %s %pV", name, &vaf);
+	if (adjust)
+		drm_dbg(DRM_UT_KMS, "mismatch in %s %pV", name, &vaf);
+	else
+		drm_err("mismatch in %s %pV", name, &vaf);
 
 	va_end(args);
 }
@@ -12886,7 +12881,6 @@ intel_check_primary_plane(struct intel_plane *plane,
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
-	struct drm_rect clip = {};
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -12898,13 +12892,8 @@ intel_check_primary_plane(struct intel_plane *plane,
 		can_position = true;
 	}
 
-	if (crtc_state->base.enable)
-		drm_mode_get_hv_timing(&crtc_state->base.mode,
-				       &clip.x2, &clip.y2);
-
 	ret = drm_atomic_helper_check_plane_state(&state->base,
 						  &crtc_state->base,
-						  &clip,
 						  min_scale, max_scale,
 						  can_position, true);
 	if (ret)
@@ -13404,6 +13393,15 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		drm_plane_create_rotation_property(&primary->base,
 						   DRM_MODE_ROTATE_0,
 						   supported_rotations);
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		drm_plane_create_color_properties(&primary->base,
+						  BIT(DRM_COLOR_YCBCR_BT601) |
+						  BIT(DRM_COLOR_YCBCR_BT709),
+						  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+						  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+						  DRM_COLOR_YCBCR_BT709,
+						  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 

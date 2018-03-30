@@ -48,6 +48,8 @@ struct dc_stream_status {
 struct dc_stream_state {
 	struct dc_sink *sink;
 	struct dc_crtc_timing timing;
+	struct dc_crtc_timing_adjust timing_adjust;
+	struct vrr_params vrr_params;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -70,8 +72,13 @@ struct dc_stream_state {
 	bool ignore_msa_timing_param;
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
-	/* TODO: PSR info */
+	/* PSR info */
+	unsigned char psr_version;
 	/* TODO: CEA VIC */
+
+	/* DMCU info */
+	unsigned int abm_level;
+	unsigned int bl_pwm_level;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -105,6 +112,7 @@ struct dc_stream_update {
 	struct dc_transfer_func *out_transfer_func;
 	struct dc_hdr_static_metadata *hdr_static_metadata;
 	enum color_transfer_func color_output_tf;
+	unsigned int *abm_level;
 };
 
 bool dc_is_stream_unchanged(

@@ -45,9 +45,11 @@
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_enum.h"
 #include "dce/dce_11_0_sh_mask.h"
+#define DC_LOGGER \
+	dc_ctx->logger
 
 #define LINK_INFO(...) \
-	dm_logger_write(dc_ctx->logger, LOG_HW_HOTPLUG, \
+	DC_LOG_HW_HOTPLUG(  \
 		__VA_ARGS__)
 
 /*******************************************************************************
@@ -677,12 +679,10 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 
 		switch (edid_status) {
 		case EDID_BAD_CHECKSUM:
-			dm_logger_write(link->ctx->logger, LOG_ERROR,
-				"EDID checksum invalid.\n");
+			DC_LOG_ERROR("EDID checksum invalid.\n");
 			break;
 		case EDID_NO_RESPONSE:
-			dm_logger_write(link->ctx->logger, LOG_ERROR,
-				"No EDID read.\n");
+			DC_LOG_ERROR("No EDID read.\n");
 		default:
 			break;
 		}
@@ -712,8 +712,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 					"%s: [Block %d] ", sink->edid_caps.display_name, i);
 		}
 
-		dm_logger_write(link->ctx->logger, LOG_DETECTION_EDID_PARSER,
-			"%s: "
+		DC_LOG_DETECTION_EDID_PARSER("%s: "
 			"manufacturer_id = %X, "
 			"product_id = %X, "
 			"serial_number = %X, "
@@ -733,8 +732,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			sink->edid_caps.audio_mode_count);
 
 		for (i = 0; i < sink->edid_caps.audio_mode_count; i++) {
-			dm_logger_write(link->ctx->logger, LOG_DETECTION_EDID_PARSER,
-				"%s: mode number = %d, "
+			DC_LOG_DETECTION_EDID_PARSER("%s: mode number = %d, "
 				"format_code = %d, "
 				"channel_count = %d, "
 				"sample_rate = %d, "
@@ -984,8 +982,7 @@ static bool construct(
 		}
 		break;
 	default:
-		dm_logger_write(dc_ctx->logger, LOG_WARNING,
-			"Unsupported Connector type:%d!\n", link->link_id.id);
+		DC_LOG_WARNING("Unsupported Connector type:%d!\n", link->link_id.id);
 		goto create_fail;
 	}
 
@@ -1138,7 +1135,7 @@ static void dpcd_configure_panel_mode(
 {
 	union dpcd_edp_config edp_config_set;
 	bool panel_mode_edp = false;
-
+	struct dc_context *dc_ctx = link->ctx;
 	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
 
 	if (DP_PANEL_MODE_DEFAULT != panel_mode) {
@@ -1175,8 +1172,7 @@ static void dpcd_configure_panel_mode(
 			ASSERT(result == DDC_RESULT_SUCESSFULL);
 		}
 	}
-	dm_logger_write(link->ctx->logger, LOG_DETECTION_DP_CAPS,
-			"Link: %d eDP panel mode supported: %d "
+	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
 			"eDP panel mode enabled: %d \n",
 			link->link_index,
 			link->dpcd_caps.panel_mode_edp,
@@ -1310,6 +1306,9 @@ static enum dc_status enable_link_dp_mst(
 	 */
 	if (link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN)
 		return DC_OK;
+
+	/* clear payload table */
+	dm_helpers_dp_mst_clear_payload_allocation_table(link->ctx, link);
 
 	/* set the sink to MST mode before enabling the link */
 	dp_enable_mst_on_sink(link, true);
@@ -1951,6 +1950,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+	struct dc_context *dc_ctx = link->ctx;
 	unsigned int controller_id = 0;
 	bool use_smooth_brightness = true;
 	int i;
@@ -1960,10 +1960,16 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		(abm->funcs->set_backlight_level == NULL))
 		return false;
 
+	if (stream) {
+		if (stream->bl_pwm_level == 0)
+			frame_ramp = 0;
+
+		((struct dc_stream_state *)stream)->bl_pwm_level = level;
+	}
+
 	use_smooth_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
-	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
-			"New Backlight level: %d (0x%X)\n", level, level);
+	DC_LOG_BACKLIGHT("New Backlight level: %d (0x%X)\n", level, level);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		if (stream != NULL) {
@@ -2130,6 +2136,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
+	struct dc_context *dc_ctx = link->ctx;
 	uint8_t i;
 
 	/* enable_link_dp_mst already check link->enabled_stream_count
@@ -2147,21 +2154,18 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 					link, pipe_ctx->stream_res.stream_enc, &proposed_table);
 	}
 	else
-		dm_logger_write(link->ctx->logger, LOG_WARNING,
-				"Failed to update"
+		DC_LOG_WARNING("Failed to update"
 				"MST allocation table for"
 				"pipe idx:%d\n",
 				pipe_ctx->pipe_idx);
 
-	dm_logger_write(link->ctx->logger, LOG_MST,
-			"%s  "
+	DC_LOG_MST("%s  "
 			"stream_count: %d: \n ",
 			__func__,
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		dm_logger_write(link->ctx->logger, LOG_MST,
-		"stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: 0x%x      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
@@ -2212,6 +2216,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp = dal_fixed31_32_from_int(0);
 	uint8_t i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
+	struct dc_context *dc_ctx = link->ctx;
 
 	/* deallocate_mst_payload is called before disable link. When mode or
 	 * disable/enable monitor, new stream is created which is not in link
@@ -2237,23 +2242,20 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				link, pipe_ctx->stream_res.stream_enc, &proposed_table);
 		}
 		else {
-				dm_logger_write(link->ctx->logger, LOG_WARNING,
-						"Failed to update"
+				DC_LOG_WARNING("Failed to update"
 						"MST allocation table for"
 						"pipe idx:%d\n",
 						pipe_ctx->pipe_idx);
 		}
 	}
 
-	dm_logger_write(link->ctx->logger, LOG_MST,
-			"%s"
+	DC_LOG_MST("%s"
 			"stream_count: %d: ",
 			__func__,
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		dm_logger_write(link->ctx->logger, LOG_MST,
-		"stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: 0x%x      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
@@ -2287,21 +2289,24 @@ void core_link_enable_stream(
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
-
+	struct dc_context *dc_ctx = pipe_ctx->stream->ctx;
 	enum dc_status status;
 
 	/* eDP lit up by bios already, no need to enable again. */
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
 		core_dc->apply_edp_fast_boot_optimization) {
 		core_dc->apply_edp_fast_boot_optimization = false;
+		pipe_ctx->stream->dpms_off = false;
 		return;
 	}
+
+	if (pipe_ctx->stream->dpms_off)
+		return;
 
 	status = enable_link(state, pipe_ctx);
 
 	if (status != DC_OK) {
-			dm_logger_write(pipe_ctx->stream->ctx->logger,
-			LOG_WARNING, "enabling link %u failed: %d\n",
+			DC_LOG_WARNING("enabling link %u failed: %d\n",
 			pipe_ctx->stream->sink->link->link_index,
 			status);
 
@@ -2355,11 +2360,14 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
 }
 
-void dc_link_disable_hpd_filter(struct dc_link *link)
+void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 {
 	struct gpio *hpd;
 
-	if (!link->is_hpd_filter_disabled) {
+	if (enable) {
+		link->is_hpd_filter_disabled = false;
+		program_hpd_filter(link);
+	} else {
 		link->is_hpd_filter_disabled = true;
 		/* Obtain HPD handle */
 		hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);

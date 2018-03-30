@@ -246,12 +246,6 @@ long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
 {
 	long avail;
 
-	/*
-	 * The device driver is allowed to sleep, in order to make the
-	 * memory directly accessible.
-	 */
-	might_sleep();
-
 	if (!dax_dev)
 		return -EOPNOTSUPP;
 

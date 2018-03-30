@@ -232,6 +232,20 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_UVDClientMCTuning,
 	PHM_PlatformCaps_ODNinACSupport,
 	PHM_PlatformCaps_ODNinDCSupport,
+	PHM_PlatformCaps_UMDPState,
+	PHM_PlatformCaps_AutoWattmanSupport,
+	PHM_PlatformCaps_AutoWattmanEnable_CCCState,
+	PHM_PlatformCaps_FreeSyncActive,
+	PHM_PlatformCaps_EnableShadowPstate,
+	PHM_PlatformCaps_customThermalManagement,
+	PHM_PlatformCaps_staticFanControl,
+	PHM_PlatformCaps_Virtual_System,
+	PHM_PlatformCaps_LowestUclkReservedForUlv,
+	PHM_PlatformCaps_EnableBoostState,
+	PHM_PlatformCaps_AVFSSupport,
+	PHM_PlatformCaps_ThermalPolicyDelay,
+	PHM_PlatformCaps_CustomFanControlSupport,
+	PHM_PlatformCaps_BAMACO,
 	PHM_PlatformCaps_Max
 };
 
@@ -403,7 +417,7 @@ extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
-extern int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info);
+extern int phm_register_irq_handlers(struct pp_hwmgr *hwmgr);
 extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr);
 extern bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr);
@@ -448,6 +462,5 @@ extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 extern int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 extern int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr);
-extern int phm_reset_power_profile_state(struct pp_hwmgr *hwmgr);
 #endif /* _HARDWARE_MANAGER_H_ */
 

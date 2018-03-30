@@ -567,15 +567,4 @@ static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
 	return mdp->tsu_addr + mdp->reg_offset[enum_index];
 }
 
-static inline void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
-				    int enum_index)
-{
-	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
-}
-
-static inline u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
-{
-	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
-}
-
 #endif	/* #ifndef __SH_ETH_H__ */

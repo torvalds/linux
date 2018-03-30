@@ -33,6 +33,8 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn_calc_math.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 /*
  * NOTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
@@ -981,8 +983,6 @@ bool dcn_validate_bandwidth(
 			context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
 		}
 
-		context->bw.dcn.calc_clk.dram_ccm_us = (int)(v->dram_clock_change_margin);
-		context->bw.dcn.calc_clk.min_active_dram_ccm_us = (int)(v->min_active_dram_clock_change_margin);
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
@@ -996,7 +996,26 @@ bool dcn_validate_bandwidth(
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
+		context->bw.dcn.calc_clk.dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
+
+		switch (v->voltage_level) {
+		case 0:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmin0p65 * 1000);
+			break;
+		case 1:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmid0p72 * 1000);
+			break;
+		case 2:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
+			break;
+		default:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
+			break;
+		}
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1242,8 +1261,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	else
 		dcf_clk =  dc->dcn_soc->dcfclkv_min0p65*1000;
 
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
-		"\tdcf_clk for voltage = %d\n", dcf_clk);
+	DC_LOG_BANDWIDTH_CALCS("\tdcf_clk for voltage = %d\n", dcf_clk);
 	return dcf_clk;
 }
 
@@ -1441,8 +1459,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 {
 	kernel_fpu_begin();
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
-			"sr_exit_time: %d ns\n"
+	DC_LOG_BANDWIDTH_CALCS("sr_exit_time: %d ns\n"
 			"sr_enter_plus_exit_time: %d ns\n"
 			"urgent_latency: %d ns\n"
 			"write_back_latency: %d ns\n"
@@ -1510,8 +1527,7 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_soc->vmm_page_size,
 			dc->dcn_soc->dram_clock_change_latency * 1000,
 			dc->dcn_soc->return_bus_width);
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
-			"rob_buffer_size_in_kbyte: %d\n"
+	DC_LOG_BANDWIDTH_CALCS("rob_buffer_size_in_kbyte: %d\n"
 			"det_buffer_size_in_kbyte: %d\n"
 			"dpp_output_buffer_pixels: %d\n"
 			"opp_output_buffer_lines: %d\n"

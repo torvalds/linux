@@ -26,8 +26,6 @@
 
 AMDDALPATH = $(RELATIVE_AMD_DISPLAY_PATH)
 
-subdir-ccflags-y += -I$(AMDDALPATH)/ -I$(AMDDALPATH)/include
-
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/hw
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/inc

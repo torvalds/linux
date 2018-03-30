@@ -1143,15 +1143,9 @@ static int
 nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		  struct nv50_head_atom *asyh)
 {
-	struct drm_rect clip = {};
 	int ret;
 
-	if (asyh->state.enable)
-		drm_mode_get_hv_timing(&asyh->state.mode,
-				       &clip.x2, &clip.y2);
-
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
@@ -1435,18 +1429,12 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		  struct nv50_head_atom *asyh)
 {
 	const struct drm_framebuffer *fb = asyw->state.fb;
-	struct drm_rect clip = {};
 	int ret;
 
 	if (!fb->format->depth)
 		return -EINVAL;
 
-	if (asyh->state.enable)
-		drm_mode_get_hv_timing(&asyh->state.mode,
-				       &clip.x2, &clip.y2);
-
 	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						  &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, true);
@@ -4481,6 +4469,7 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->fini = nv50_display_fini;
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
+	dev->driver->driver_features |= DRIVER_PREFER_XBGR_30BPP;
 	if (nouveau_atomic)
 		dev->driver->driver_features |= DRIVER_ATOMIC;
 

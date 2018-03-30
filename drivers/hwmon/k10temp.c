@@ -129,7 +129,10 @@ static ssize_t temp1_input_show(struct device *dev,
 
 	data->read_tempreg(data->pdev, &regval);
 	temp = (regval >> 21) * 125;
-	temp -= data->temp_offset;
+	if (temp > data->temp_offset)
+		temp -= data->temp_offset;
+	else
+		temp = 0;
 
 	return sprintf(buf, "%u\n", temp);
 }
@@ -227,7 +230,7 @@ static bool has_erratum_319(struct pci_dev *pdev)
 	 * and AM3 formats, but that's the best we can do.
 	 */
 	return boot_cpu_data.x86_model < 4 ||
-	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask <= 2);
+	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_stepping <= 2);
 }
 
 static int k10temp_probe(struct pci_dev *pdev,

@@ -50,6 +50,41 @@ irqreturn_t pl111_irq(int irq, void *data)
 	return status;
 }
 
+static enum drm_mode_status
+pl111_mode_valid(struct drm_crtc *crtc,
+		 const struct drm_display_mode *mode)
+{
+	struct drm_device *drm = crtc->dev;
+	struct pl111_drm_dev_private *priv = drm->dev_private;
+	u32 cpp = priv->variant->fb_bpp / 8;
+	u64 bw;
+
+	/*
+	 * We use the pixelclock to also account for interlaced modes, the
+	 * resulting bandwidth is in bytes per second.
+	 */
+	bw = mode->clock * 1000; /* In Hz */
+	bw = bw * mode->hdisplay * mode->vdisplay * cpp;
+	bw = div_u64(bw, mode->htotal * mode->vtotal);
+
+	/*
+	 * If no bandwidth constraints, anything goes, else
+	 * check if we are too fast.
+	 */
+	if (priv->memory_bw && (bw > priv->memory_bw)) {
+		DRM_DEBUG_KMS("%d x %d @ %d Hz, %d cpp, bw %llu too fast\n",
+			      mode->hdisplay, mode->vdisplay,
+			      mode->clock * 1000, cpp, bw);
+
+		return MODE_BAD;
+	}
+	DRM_DEBUG_KMS("%d x %d @ %d Hz, %d cpp, bw %llu bytes/s OK\n",
+		      mode->hdisplay, mode->vdisplay,
+		      mode->clock * 1000, cpp, bw);
+
+	return MODE_OK;
+}
+
 static int pl111_display_check(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *pstate,
 			       struct drm_crtc_state *cstate)
@@ -321,8 +356,10 @@ static void pl111_display_update(struct drm_simple_display_pipe *pipe,
 	}
 }
 
-int pl111_enable_vblank(struct drm_device *drm, unsigned int crtc)
+static int pl111_display_enable_vblank(struct drm_simple_display_pipe *pipe)
 {
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_device *drm = crtc->dev;
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 
 	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + priv->ienb);
@@ -330,8 +367,10 @@ int pl111_enable_vblank(struct drm_device *drm, unsigned int crtc)
 	return 0;
 }
 
-void pl111_disable_vblank(struct drm_device *drm, unsigned int crtc)
+static void pl111_display_disable_vblank(struct drm_simple_display_pipe *pipe)
 {
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_device *drm = crtc->dev;
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 
 	writel(0, priv->regs + priv->ienb);
@@ -343,7 +382,8 @@ static int pl111_display_prepare_fb(struct drm_simple_display_pipe *pipe,
 	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
-static const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
+static struct drm_simple_display_pipe_funcs pl111_display_funcs = {
+	.mode_valid = pl111_mode_valid,
 	.check = pl111_display_check,
 	.enable = pl111_display_enable,
 	.disable = pl111_display_disable,
@@ -501,6 +541,11 @@ int pl111_display_init(struct drm_device *drm)
 	ret = pl111_init_clock_divider(drm);
 	if (ret)
 		return ret;
+
+	if (!priv->variant->broken_vblank) {
+		pl111_display_funcs.enable_vblank = pl111_display_enable_vblank;
+		pl111_display_funcs.disable_vblank = pl111_display_disable_vblank;
+	}
 
 	ret = drm_simple_display_pipe_init(drm, &priv->pipe,
 					   &pl111_display_funcs,

@@ -26,7 +26,8 @@
 #include "dc_bios_types.h"
 #include "dce_stream_encoder.h"
 #include "reg_helper.h"
-
+#define DC_LOGGER \
+		enc110->base.ctx->logger
 enum DP_PIXEL_ENCODING {
 DP_PIXEL_ENCODING_RGB444                 = 0x00000000,
 DP_PIXEL_ENCODING_YCBCR422               = 0x00000001,
@@ -197,7 +198,6 @@ static void dce110_update_hdmi_info_packet(
 	uint32_t packet_index,
 	const struct encoder_info_packet *info_packet)
 {
-	struct dc_context *ctx = enc110->base.ctx;
 	uint32_t cont, send, line;
 
 	if (info_packet->valid) {
@@ -277,8 +277,7 @@ static void dce110_update_hdmi_info_packet(
 #endif
 	default:
 		/* invalid HW packet index */
-		dm_logger_write(
-			ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
 			"Invalid HW packet index: %s()\n",
 			__func__);
 		return;
@@ -1386,7 +1385,7 @@ static void dce110_se_setup_hdmi_audio(
 			     crtc_info->requested_pixel_clock,
 			     crtc_info->calculated_pixel_clock,
 			     &audio_clock_info);
-	dm_logger_write(enc->ctx->logger, LOG_HW_AUDIO,
+	DC_LOG_HW_AUDIO(
 			"\n%s:Input::requested_pixel_clock = %d"	\
 			"calculated_pixel_clock = %d \n", __func__,	\
 			crtc_info->requested_pixel_clock,		\

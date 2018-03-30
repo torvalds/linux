@@ -75,13 +75,13 @@ static int vcn_v1_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* VCN DEC TRAP */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VCN, 124, &adev->vcn.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, 124, &adev->vcn.irq);
 	if (r)
 		return r;
 
 	/* VCN ENC TRAP */
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VCN, i + 119,
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, i + 119,
 					&adev->vcn.irq);
 		if (r)
 			return r;

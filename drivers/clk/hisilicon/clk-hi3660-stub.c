@@ -149,6 +149,8 @@ static int hi3660_stub_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(stub_clk_chan.mbox);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 	freq_reg = devm_ioremap(dev, res->start, resource_size(res));
 	if (!freq_reg)
 		return -ENOMEM;

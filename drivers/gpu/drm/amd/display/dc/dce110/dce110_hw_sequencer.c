@@ -70,6 +70,8 @@
 
 #define CTX \
 	hws->ctx
+#define DC_LOGGER \
+	ctx->logger
 #define REG(reg)\
 	hws->regs->reg
 
@@ -682,15 +684,22 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct dc_link *link = pipe_ctx->stream->sink->link;
 
-	/* 1. update AVI info frame (HDMI, DP)
-	 * we always need to update info frame
-	*/
+
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
-	/* TODOFPGA may change to hwss.update_info_frame */
+	/* For MST, there are multiply stream go to only one link.
+	 * connect DIG back_end to front_end while enable_stream and
+	 * disconnect them during disable_stream
+	 * BY this, it is logic clean to separate stream and link */
+	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+						    pipe_ctx->stream_res.stream_enc->id, true);
+
+	/* update AVI info frame (HDMI, DP)*/
+	/* TODO: FPGA may change to hwss.update_info_frame */
 	dce110_update_info_frame(pipe_ctx);
+
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
 			timing->h_addressable
@@ -711,12 +720,8 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
 	}
 
-	/* For MST, there are multiply stream go to only one link.
-	 * connect DIG back_end to front_end while enable_stream and
-	 * disconnect them during disable_stream
-	 * BY this, it is logic clean to separate stream and link */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-						    pipe_ctx->stream_res.stream_enc->id, true);
+
+
 
 }
 
@@ -732,10 +737,14 @@ static bool is_panel_backlight_on(struct dce_hwseq *hws)
 
 static bool is_panel_powered_on(struct dce_hwseq *hws)
 {
-	uint32_t value;
+	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
 
-	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &value);
-	return value == 1;
+
+	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
+
+	REG_GET_2(LVTMA_PWRSEQ_CNTL, LVTMA_DIGON, &dig_on, LVTMA_DIGON_OVRD, &dig_on_ovrd);
+
+	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
 }
 
 static enum bp_result link_transmitter_control(
@@ -816,7 +825,7 @@ void hwss_edp_wait_for_hpd_ready(
 	dal_gpio_destroy_irq(&hpd);
 
 	if (false == edp_hpd_high) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 				"%s: wait timed out!\n", __func__);
 	}
 }
@@ -840,7 +849,7 @@ void hwss_edp_power_control(
 	if (power_up != is_panel_powered_on(hwseq)) {
 		/* Send VBIOS command to prompt eDP panel power */
 
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(
 				"%s: Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 
@@ -856,11 +865,11 @@ void hwss_edp_power_control(
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (bp_result != BP_RESULT_OK)
-			dm_logger_write(ctx->logger, LOG_ERROR,
+			DC_LOG_ERROR(
 					"%s: Panel Power bp_result: %d\n",
 					__func__, bp_result);
 	} else {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(
 				"%s: Skipping Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 	}
@@ -886,7 +895,7 @@ void hwss_edp_backlight_control(
 	}
 
 	if (enable && is_panel_backlight_on(hws)) {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
 		return;
@@ -894,7 +903,7 @@ void hwss_edp_backlight_control(
 
 	/* Send VBIOS command to control eDP panel backlight */
 
-	dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+	DC_LOG_HW_RESUME_S3(
 			"%s: backlight action: %s\n",
 			__func__, (enable ? "On":"Off"));
 
@@ -997,8 +1006,10 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 
-	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_backlight_control(link, true);
+		stream->bl_pwm_level = 0;
+	}
 }
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
@@ -1123,7 +1134,7 @@ static void build_audio_output(
 static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
-	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->pipe_idx) / 4;
+	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->stream_res.tg->inst) / 4;
 
 	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
@@ -1320,10 +1331,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	resource_build_info_frame(pipe_ctx);
 	dce110_update_info_frame(pipe_ctx);
-	if (!pipe_ctx_old->stream) {
-		if (!pipe_ctx->stream->dpms_off)
-			core_link_enable_stream(context, pipe_ctx);
-	}
+	if (!pipe_ctx_old->stream)
+		core_link_enable_stream(context, pipe_ctx);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
@@ -2103,9 +2112,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 			return status;
 	}
 
-	/* pplib is notified if disp_num changed */
-	dc->hwss.set_bandwidth(dc, context, true);
-
 	/* to save power */
 	apply_min_clocks(dc, context, &clocks_state, false);
 
@@ -2689,7 +2695,7 @@ static void dce110_program_front_end_for_pipe(
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
-
+	struct dc_context *ctx = dc->ctx;
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
 
 	if (dc->current_state)
@@ -2764,7 +2770,7 @@ static void dce110_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 
-	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
+	DC_LOG_SURFACE(
 			"Pipe:%d 0x%x: addr hi:0x%x, "
 			"addr low:0x%x, "
 			"src: %d, %d, %d,"
@@ -2787,7 +2793,7 @@ static void dce110_program_front_end_for_pipe(
 			pipe_ctx->plane_state->clip_rect.width,
 			pipe_ctx->plane_state->clip_rect.height);
 
-	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
+	DC_LOG_SURFACE(
 			"Pipe %d: width, height, x, y\n"
 			"viewport:%d, %d, %d, %d\n"
 			"recout:  %d, %d, %d, %d\n",
@@ -2933,15 +2939,18 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
 
-	if (pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
+	if (pipe_ctx->plane_res.ipp &&
+	    pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
 		pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
 				pipe_ctx->plane_res.ipp, attributes);
 
-	if (pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
+	if (pipe_ctx->plane_res.mi &&
+	    pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
 		pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.mi, attributes);
 
-	if (pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
+	if (pipe_ctx->plane_res.xfm &&
+	    pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
 		pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.xfm, attributes);
 }

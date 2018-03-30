@@ -255,6 +255,54 @@ static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
 	return 0;
 }
 
+#ifdef CONFIG_X86
+#define __ttm_kmap_atomic_prot(__page, __prot) kmap_atomic_prot(__page, __prot)
+#define __ttm_kunmap_atomic(__addr) kunmap_atomic(__addr)
+#else
+#define __ttm_kmap_atomic_prot(__page, __prot) vmap(&__page, 1, 0,  __prot)
+#define __ttm_kunmap_atomic(__addr) vunmap(__addr)
+#endif
+
+
+/**
+ * ttm_kmap_atomic_prot - Efficient kernel map of a single page with
+ * specified page protection.
+ *
+ * @page: The page to map.
+ * @prot: The page protection.
+ *
+ * This function maps a TTM page using the kmap_atomic api if available,
+ * otherwise falls back to vmap. The user must make sure that the
+ * specified page does not have an aliased mapping with a different caching
+ * policy unless the architecture explicitly allows it. Also mapping and
+ * unmapping using this api must be correctly nested. Unmapping should
+ * occur in the reverse order of mapping.
+ */
+void *ttm_kmap_atomic_prot(struct page *page, pgprot_t prot)
+{
+	if (pgprot_val(prot) == pgprot_val(PAGE_KERNEL))
+		return kmap_atomic(page);
+	else
+		return __ttm_kmap_atomic_prot(page, prot);
+}
+EXPORT_SYMBOL(ttm_kmap_atomic_prot);
+
+/**
+ * ttm_kunmap_atomic_prot - Unmap a page that was mapped using
+ * ttm_kmap_atomic_prot.
+ *
+ * @addr: The virtual address from the map.
+ * @prot: The page protection.
+ */
+void ttm_kunmap_atomic_prot(void *addr, pgprot_t prot)
+{
+	if (pgprot_val(prot) == pgprot_val(PAGE_KERNEL))
+		kunmap_atomic(addr);
+	else
+		__ttm_kunmap_atomic(addr);
+}
+EXPORT_SYMBOL(ttm_kunmap_atomic_prot);
+
 static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 				unsigned long page,
 				pgprot_t prot)
@@ -266,28 +314,13 @@ static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 		return -ENOMEM;
 
 	src = (void *)((unsigned long)src + (page << PAGE_SHIFT));
-
-#ifdef CONFIG_X86
-	dst = kmap_atomic_prot(d, prot);
-#else
-	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
-		dst = vmap(&d, 1, 0, prot);
-	else
-		dst = kmap(d);
-#endif
+	dst = ttm_kmap_atomic_prot(d, prot);
 	if (!dst)
 		return -ENOMEM;
 
 	memcpy_fromio(dst, src, PAGE_SIZE);
 
-#ifdef CONFIG_X86
-	kunmap_atomic(dst);
-#else
-	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
-		vunmap(dst);
-	else
-		kunmap(d);
-#endif
+	ttm_kunmap_atomic_prot(dst, prot);
 
 	return 0;
 }
@@ -303,27 +336,13 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 		return -ENOMEM;
 
 	dst = (void *)((unsigned long)dst + (page << PAGE_SHIFT));
-#ifdef CONFIG_X86
-	src = kmap_atomic_prot(s, prot);
-#else
-	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
-		src = vmap(&s, 1, 0, prot);
-	else
-		src = kmap(s);
-#endif
+	src = ttm_kmap_atomic_prot(s, prot);
 	if (!src)
 		return -ENOMEM;
 
 	memcpy_toio(dst, src, PAGE_SIZE);
 
-#ifdef CONFIG_X86
-	kunmap_atomic(src);
-#else
-	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
-		vunmap(src);
-	else
-		kunmap(s);
-#endif
+	ttm_kunmap_atomic_prot(src, prot);
 
 	return 0;
 }
@@ -470,7 +489,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 * TODO: Explicit member copy would probably be better here.
 	 */
 
-	atomic_inc(&bo->glob->bo_count);
+	atomic_inc(&bo->bdev->glob->bo_count);
 	INIT_LIST_HEAD(&fbo->ddestroy);
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);
@@ -801,3 +820,27 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_pipeline_move);
+
+int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
+{
+	struct ttm_buffer_object *ghost;
+	int ret;
+
+	ret = ttm_buffer_object_transfer(bo, &ghost);
+	if (ret)
+		return ret;
+
+	ret = reservation_object_copy_fences(ghost->resv, bo->resv);
+	/* Last resort, wait for the BO to be idle when we are OOM */
+	if (ret)
+		ttm_bo_wait(bo, false, false);
+
+	memset(&bo->mem, 0, sizeof(bo->mem));
+	bo->mem.mem_type = TTM_PL_SYSTEM;
+	bo->ttm = NULL;
+
+	ttm_bo_unreserve(ghost);
+	ttm_bo_unref(&ghost);
+
+	return 0;
+}

@@ -39,6 +39,8 @@
 
 MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
+MODULE_FIRMWARE("amdgpu/vega12_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega12_asd.bin");
 
 #define smnMP1_FIRMWARE_FLAGS 0x3010028
 
@@ -106,6 +108,9 @@ static int psp_v3_1_init_microcode(struct psp_context *psp)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		chip_name = "vega10";
+		break;
+	case CHIP_VEGA12:
+		chip_name = "vega12";
 		break;
 	default: BUG();
 	}

@@ -51,9 +51,10 @@ out to disk. Buffers remain locked until dequeued, until the
 the device is closed.
 
 Applications call the ``DMX_DQBUF`` ioctl to dequeue a filled
-(capturing) buffer from the driver's outgoing queue. They just set the ``reserved`` field array to zero. When ``DMX_DQBUF`` is called with a
-pointer to this structure, the driver fills the remaining fields or
-returns an error code.
+(capturing) buffer from the driver's outgoing queue.
+They just set the ``index`` field withe the buffer ID to be queued.
+When ``DMX_DQBUF`` is called with a pointer to struct :c:type:`dmx_buffer`,
+the driver fills the remaining fields or returns an error code.
 
 By default ``DMX_DQBUF`` blocks when no buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the

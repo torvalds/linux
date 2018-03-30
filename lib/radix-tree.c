@@ -2125,7 +2125,7 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
 		preempt_enable();
 
 	if (!this_cpu_read(ida_bitmap)) {
-		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
+		struct ida_bitmap *bitmap = kzalloc(sizeof(*bitmap), gfp);
 		if (!bitmap)
 			return 0;
 		if (this_cpu_cmpxchg(ida_bitmap, NULL, bitmap))

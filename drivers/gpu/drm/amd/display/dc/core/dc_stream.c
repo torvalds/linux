@@ -198,7 +198,7 @@ bool dc_stream_set_cursor_attributes(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream != stream || (!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp))
+		if (pipe_ctx->stream != stream)
 			continue;
 		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			continue;
@@ -237,7 +237,8 @@ bool dc_stream_set_cursor_position(
 		if (pipe_ctx->stream != stream ||
 				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
 				!pipe_ctx->plane_state ||
-				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp))
+				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp) ||
+				!pipe_ctx->plane_res.ipp)
 			continue;
 
 		core_dc->hwss.set_cursor_position(pipe_ctx);

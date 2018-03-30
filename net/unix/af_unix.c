@@ -1825,7 +1825,7 @@ out:
 }
 
 /* We use paged skbs for stream sockets, and limit occupancy to 32768
- * bytes, and a minimun of a full page.
+ * bytes, and a minimum of a full page.
  */
 #define UNIX_SKB_FRAGS_SZ (PAGE_SIZE << get_order(32768))
 

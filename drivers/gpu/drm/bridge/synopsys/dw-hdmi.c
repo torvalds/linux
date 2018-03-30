@@ -147,7 +147,6 @@ struct dw_hdmi {
 	int vic;
 
 	u8 edid[HDMI_EDID_LEN];
-	bool cable_plugin;
 
 	struct {
 		const struct dw_hdmi_phy_ops *ops;
@@ -1654,6 +1653,8 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	 * (v1.31a) and multiple Allwinner SoCs (v1.32a) have been identified
 	 * as needing the workaround, with 4 iterations for v1.30a and 1
 	 * iteration for others.
+	 * The Amlogic Meson GX SoCs (v2.01a) have been identified as needing
+	 * the workaround with a single iteration.
 	 */
 
 	switch (hdmi->version) {
@@ -1662,6 +1663,7 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 		break;
 	case 0x131a:
 	case 0x132a:
+	case 0x201a:
 		count = 1;
 		break;
 	default:
@@ -1674,12 +1676,6 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	val = hdmi_readb(hdmi, HDMI_FC_INVIDCONF);
 	for (i = 0; i < count; i++)
 		hdmi_writeb(hdmi, val, HDMI_FC_INVIDCONF);
-}
-
-static void hdmi_enable_overflow_interrupts(struct dw_hdmi *hdmi)
-{
-	hdmi_writeb(hdmi, 0, HDMI_FC_MASK2);
-	hdmi_writeb(hdmi, 0, HDMI_IH_MUTE_FC_STAT2);
 }
 
 static void hdmi_disable_overflow_interrupts(struct dw_hdmi *hdmi)
@@ -1771,8 +1767,6 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	hdmi_tx_hdcp_config(hdmi);
 
 	dw_hdmi_clear_overflow(hdmi);
-	if (hdmi->cable_plugin && hdmi->sink_is_hdmi)
-		hdmi_enable_overflow_interrupts(hdmi);
 
 	return 0;
 }

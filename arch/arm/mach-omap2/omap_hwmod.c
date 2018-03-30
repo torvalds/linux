@@ -977,6 +977,9 @@ static int _enable_clocks(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: enabling clocks\n", oh->name);
 
+	if (oh->flags & HWMOD_OPT_CLKS_NEEDED)
+		_enable_optional_clocks(oh);
+
 	if (oh->_clk)
 		clk_enable(oh->_clk);
 
@@ -984,9 +987,6 @@ static int _enable_clocks(struct omap_hwmod *oh)
 		if (os->_clk && (os->flags & OCPIF_SWSUP_IDLE))
 			clk_enable(os->_clk);
 	}
-
-	if (oh->flags & HWMOD_OPT_CLKS_NEEDED)
-		_enable_optional_clocks(oh);
 
 	/* The opt clocks are controlled by the device driver. */
 

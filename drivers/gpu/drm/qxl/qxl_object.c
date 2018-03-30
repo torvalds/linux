@@ -109,7 +109,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 	qxl_ttm_placement_from_domain(bo, domain, pinned);
 
 	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, 0, !kernel, NULL, size,
+			&bo->placement, 0, !kernel, size,
 			NULL, NULL, &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
@@ -211,13 +211,13 @@ void qxl_bo_unref(struct qxl_bo **bo)
 	if ((*bo) == NULL)
 		return;
 
-	drm_gem_object_unreference_unlocked(&(*bo)->gem_base);
+	drm_gem_object_put_unlocked(&(*bo)->gem_base);
 	*bo = NULL;
 }
 
 struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 {
-	drm_gem_object_reference(&bo->gem_base);
+	drm_gem_object_get(&bo->gem_base);
 	return bo;
 }
 
@@ -318,7 +318,7 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&qdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference_unlocked(&bo->gem_base);
+		drm_gem_object_put_unlocked(&bo->gem_base);
 	}
 }
 

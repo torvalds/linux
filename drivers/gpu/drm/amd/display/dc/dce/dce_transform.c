@@ -38,6 +38,8 @@
 
 #define CTX \
 	xfm_dce->base.ctx
+#define DC_LOGGER \
+	xfm_dce->base.ctx->logger
 
 #define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
 #define GAMUT_MATRIX_SIZE 12
@@ -693,8 +695,7 @@ static int dce_transform_get_max_num_of_supported_lines(
 		break;
 
 	default:
-		dm_logger_write(xfm_dce->base.ctx->logger, LOG_WARNING,
-			"%s: Invalid LB pixel depth",
+		DC_LOG_WARNING("%s: Invalid LB pixel depth",
 			__func__);
 		BREAK_TO_DEBUGGER();
 		break;
@@ -791,8 +792,7 @@ static void dce_transform_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		dm_logger_write(xfm->ctx->logger, LOG_WARNING,
-			"%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability not supported",
 			__func__);
 	}
 }
@@ -1172,8 +1172,7 @@ static void program_pwl(struct dce_transform *xfm_dce,
 	}
 
 	if (counter == max_tries) {
-		dm_logger_write(xfm_dce->base.ctx->logger, LOG_WARNING,
-				"%s: regamma lut was not powered on "
+		DC_LOG_WARNING("%s: regamma lut was not powered on "
 				"in a timely manner,"
 				" programming still proceeds\n",
 				__func__);

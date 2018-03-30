@@ -41,8 +41,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-static bool
-format_is_yuv(uint32_t format)
+bool intel_format_is_yuv(u32 format)
 {
 	switch (format) {
 	case DRM_FORMAT_YUYV:
@@ -266,6 +265,7 @@ skl_update_plane(struct intel_plane *plane,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
 			      plane_state->color_ctl);
+
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
 		I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), key->max_value);
@@ -346,42 +346,101 @@ skl_plane_get_hw_state(struct intel_plane *plane)
 }
 
 static void
-chv_update_csc(struct intel_plane *plane, uint32_t format)
+chv_update_csc(const struct intel_plane_state *plane_state)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane_id plane_id = plane->id;
+	/*
+	 * |r|   | c0 c1 c2 |   |cr|
+	 * |g| = | c3 c4 c5 | x |y |
+	 * |b|   | c6 c7 c8 |   |cb|
+	 *
+	 * Coefficients are s3.12.
+	 *
+	 * Cb and Cr apparently come in as signed already, and
+	 * we always get full range data in on account of CLRC0/1.
+	 */
+	static const s16 csc_matrix[][9] = {
+		/* BT.601 full range YCbCr -> full range RGB */
+		[DRM_COLOR_YCBCR_BT601] = {
+			 5743, 4096,     0,
+			-2925, 4096, -1410,
+			    0, 4096,  7258,
+		},
+		/* BT.709 full range YCbCr -> full range RGB */
+		[DRM_COLOR_YCBCR_BT709] = {
+			 6450, 4096,     0,
+			-1917, 4096,  -767,
+			    0, 4096,  7601,
+		},
+	};
+	const s16 *csc = csc_matrix[plane_state->base.color_encoding];
 
 	/* Seems RGB data bypasses the CSC always */
-	if (!format_is_yuv(format))
+	if (!intel_format_is_yuv(fb->format->format))
 		return;
 
-	/*
-	 * BT.601 limited range YCbCr -> full range RGB
-	 *
-	 * |r|   | 6537 4769     0|   |cr  |
-	 * |g| = |-3330 4769 -1605| x |y-64|
-	 * |b|   |    0 4769  8263|   |cb  |
-	 *
-	 * Cb and Cr apparently come in as signed already, so no
-	 * need for any offset. For Y we need to remove the offset.
-	 */
-	I915_WRITE_FW(SPCSCYGOFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(-64));
+	I915_WRITE_FW(SPCSCYGOFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
 	I915_WRITE_FW(SPCSCCBOFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
 	I915_WRITE_FW(SPCSCCROFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
 
-	I915_WRITE_FW(SPCSCC01(plane_id), SPCSC_C1(4769) | SPCSC_C0(6537));
-	I915_WRITE_FW(SPCSCC23(plane_id), SPCSC_C1(-3330) | SPCSC_C0(0));
-	I915_WRITE_FW(SPCSCC45(plane_id), SPCSC_C1(-1605) | SPCSC_C0(4769));
-	I915_WRITE_FW(SPCSCC67(plane_id), SPCSC_C1(4769) | SPCSC_C0(0));
-	I915_WRITE_FW(SPCSCC8(plane_id), SPCSC_C0(8263));
+	I915_WRITE_FW(SPCSCC01(plane_id), SPCSC_C1(csc[1]) | SPCSC_C0(csc[0]));
+	I915_WRITE_FW(SPCSCC23(plane_id), SPCSC_C1(csc[3]) | SPCSC_C0(csc[2]));
+	I915_WRITE_FW(SPCSCC45(plane_id), SPCSC_C1(csc[5]) | SPCSC_C0(csc[4]));
+	I915_WRITE_FW(SPCSCC67(plane_id), SPCSC_C1(csc[7]) | SPCSC_C0(csc[6]));
+	I915_WRITE_FW(SPCSCC8(plane_id), SPCSC_C0(csc[8]));
 
-	I915_WRITE_FW(SPCSCYGICLAMP(plane_id), SPCSC_IMAX(940) | SPCSC_IMIN(64));
-	I915_WRITE_FW(SPCSCCBICLAMP(plane_id), SPCSC_IMAX(448) | SPCSC_IMIN(-448));
-	I915_WRITE_FW(SPCSCCRICLAMP(plane_id), SPCSC_IMAX(448) | SPCSC_IMIN(-448));
+	I915_WRITE_FW(SPCSCYGICLAMP(plane_id), SPCSC_IMAX(1023) | SPCSC_IMIN(0));
+	I915_WRITE_FW(SPCSCCBICLAMP(plane_id), SPCSC_IMAX(512) | SPCSC_IMIN(-512));
+	I915_WRITE_FW(SPCSCCRICLAMP(plane_id), SPCSC_IMAX(512) | SPCSC_IMIN(-512));
 
 	I915_WRITE_FW(SPCSCYGOCLAMP(plane_id), SPCSC_OMAX(1023) | SPCSC_OMIN(0));
 	I915_WRITE_FW(SPCSCCBOCLAMP(plane_id), SPCSC_OMAX(1023) | SPCSC_OMIN(0));
 	I915_WRITE_FW(SPCSCCROCLAMP(plane_id), SPCSC_OMAX(1023) | SPCSC_OMIN(0));
+}
+
+#define SIN_0 0
+#define COS_0 1
+
+static void
+vlv_update_clrc(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum pipe pipe = plane->pipe;
+	enum plane_id plane_id = plane->id;
+	int contrast, brightness, sh_scale, sh_sin, sh_cos;
+
+	if (intel_format_is_yuv(fb->format->format) &&
+	    plane_state->base.color_range == DRM_COLOR_YCBCR_LIMITED_RANGE) {
+		/*
+		 * Expand limited range to full range:
+		 * Contrast is applied first and is used to expand Y range.
+		 * Brightness is applied second and is used to remove the
+		 * offset from Y. Saturation/hue is used to expand CbCr range.
+		 */
+		contrast = DIV_ROUND_CLOSEST(255 << 6, 235 - 16);
+		brightness = -DIV_ROUND_CLOSEST(16 * 255, 235 - 16);
+		sh_scale = DIV_ROUND_CLOSEST(128 << 7, 240 - 128);
+		sh_sin = SIN_0 * sh_scale;
+		sh_cos = COS_0 * sh_scale;
+	} else {
+		/* Pass-through everything. */
+		contrast = 1 << 6;
+		brightness = 0;
+		sh_scale = 1 << 7;
+		sh_sin = SIN_0 * sh_scale;
+		sh_cos = COS_0 * sh_scale;
+	}
+
+	/* FIXME these register are single buffered :( */
+	I915_WRITE_FW(SPCLRC0(pipe, plane_id),
+		      SP_CONTRAST(contrast) | SP_BRIGHTNESS(brightness));
+	I915_WRITE_FW(SPCLRC1(pipe, plane_id),
+		      SP_SH_SIN(sh_sin) | SP_SH_COS(sh_cos));
 }
 
 static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
@@ -433,6 +492,9 @@ static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		return 0;
 	}
 
+	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+		sprctl |= SP_YUV_FORMAT_BT709;
+
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SP_TILED;
 
@@ -477,8 +539,10 @@ vlv_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
+	vlv_update_clrc(plane_state);
+
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
-		chv_update_csc(plane, fb->format->format);
+		chv_update_csc(plane_state);
 
 	if (key->flags) {
 		I915_WRITE_FW(SPKEYMINVAL(pipe, plane_id), key->min_value);
@@ -583,6 +647,12 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		MISSING_CASE(fb->format->format);
 		return 0;
 	}
+
+	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+		sprctl |= SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709;
+
+	if (plane_state->base.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
+		sprctl |= SPRITE_YUV_RANGE_CORRECTION_DISABLE;
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SPRITE_TILED;
@@ -739,6 +809,12 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		MISSING_CASE(fb->format->format);
 		return 0;
 	}
+
+	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
+		dvscntr |= DVS_YUV_FORMAT_BT709;
+
+	if (plane_state->base.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
+		dvscntr |= DVS_YUV_RANGE_CORRECTION_DISABLE;
 
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		dvscntr |= DVS_TILED;
@@ -979,7 +1055,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 		src_y = src->y1 >> 16;
 		src_h = drm_rect_height(src) >> 16;
 
-		if (format_is_yuv(fb->format->format)) {
+		if (intel_format_is_yuv(fb->format->format)) {
 			src_x &= ~1;
 			src_w &= ~1;
 
@@ -1458,6 +1534,14 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	drm_plane_create_rotation_property(&intel_plane->base,
 					   DRM_MODE_ROTATE_0,
 					   supported_rotations);
+
+	drm_plane_create_color_properties(&intel_plane->base,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+					  DRM_COLOR_YCBCR_BT709,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 

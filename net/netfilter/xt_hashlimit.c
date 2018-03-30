@@ -523,7 +523,8 @@ static u64 user2rate(u64 user)
 	if (user != 0) {
 		return div64_u64(XT_HASHLIMIT_SCALE_v2, user);
 	} else {
-		pr_warn("invalid rate from userspace: %llu\n", user);
+		pr_info_ratelimited("invalid rate from userspace: %llu\n",
+				    user);
 		return 0;
 	}
 }
@@ -774,7 +775,7 @@ hashlimit_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		if (!dh->rateinfo.prev_window &&
 		    (dh->rateinfo.current_rate <= dh->rateinfo.burst)) {
 			spin_unlock(&dh->lock);
-			rcu_read_unlock_bh();
+			local_bh_enable();
 			return !(cfg->mode & XT_HASHLIMIT_INVERT);
 		} else {
 			goto overlimit;
@@ -865,33 +866,34 @@ static int hashlimit_mt_check_common(const struct xt_mtchk_param *par,
 	}
 
 	if (cfg->mode & ~XT_HASHLIMIT_ALL) {
-		pr_info("Unknown mode mask %X, kernel too old?\n",
-						cfg->mode);
+		pr_info_ratelimited("Unknown mode mask %X, kernel too old?\n",
+				    cfg->mode);
 		return -EINVAL;
 	}
 
 	/* Check for overflow. */
 	if (revision >= 3 && cfg->mode & XT_HASHLIMIT_RATE_MATCH) {
 		if (cfg->avg == 0 || cfg->avg > U32_MAX) {
-			pr_info("hashlimit invalid rate\n");
+			pr_info_ratelimited("invalid rate\n");
 			return -ERANGE;
 		}
 
 		if (cfg->interval == 0) {
-			pr_info("hashlimit invalid interval\n");
+			pr_info_ratelimited("invalid interval\n");
 			return -EINVAL;
 		}
 	} else if (cfg->mode & XT_HASHLIMIT_BYTES) {
 		if (user2credits_byte(cfg->avg) == 0) {
-			pr_info("overflow, rate too high: %llu\n", cfg->avg);
+			pr_info_ratelimited("overflow, rate too high: %llu\n",
+					    cfg->avg);
 			return -EINVAL;
 		}
 	} else if (cfg->burst == 0 ||
-		    user2credits(cfg->avg * cfg->burst, revision) <
-		    user2credits(cfg->avg, revision)) {
-			pr_info("overflow, try lower: %llu/%llu\n",
-				cfg->avg, cfg->burst);
-			return -ERANGE;
+		   user2credits(cfg->avg * cfg->burst, revision) <
+		   user2credits(cfg->avg, revision)) {
+		pr_info_ratelimited("overflow, try lower: %llu/%llu\n",
+				    cfg->avg, cfg->burst);
+		return -ERANGE;
 	}
 
 	mutex_lock(&hashlimit_mutex);
@@ -915,8 +917,9 @@ static int hashlimit_mt_check_v1(const struct xt_mtchk_param *par)
 	struct hashlimit_cfg3 cfg = {};
 	int ret;
 
-	if (info->name[sizeof(info->name) - 1] != '\0')
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	ret = cfg_copy(&cfg, (void *)&info->cfg, 1);
 
@@ -933,8 +936,9 @@ static int hashlimit_mt_check_v2(const struct xt_mtchk_param *par)
 	struct hashlimit_cfg3 cfg = {};
 	int ret;
 
-	if (info->name[sizeof(info->name) - 1] != '\0')
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	ret = cfg_copy(&cfg, (void *)&info->cfg, 2);
 
@@ -948,9 +952,11 @@ static int hashlimit_mt_check_v2(const struct xt_mtchk_param *par)
 static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_hashlimit_mtinfo3 *info = par->matchinfo;
+	int ret;
 
-	if (info->name[sizeof(info->name) - 1] != '\0')
-		return -EINVAL;
+	ret = xt_check_proc_name(info->name, sizeof(info->name));
+	if (ret)
+		return ret;
 
 	return hashlimit_mt_check_common(par, &info->hinfo, &info->cfg,
 					 info->name, 3);

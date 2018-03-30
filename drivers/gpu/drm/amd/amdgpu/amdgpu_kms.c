@@ -190,6 +190,10 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->ver = adev->uvd.fw_version;
 		fw_info->feature = 0;
 		break;
+	case AMDGPU_INFO_FW_VCN:
+		fw_info->ver = adev->vcn.fw_version;
+		fw_info->feature = 0;
+		break;
 	case AMDGPU_INFO_FW_GMC:
 		fw_info->ver = adev->gmc.fw_version;
 		fw_info->feature = 0;
@@ -1197,6 +1201,14 @@ static int amdgpu_debugfs_firmware_info(struct seq_file *m, void *data)
 		seq_printf(m, "SDMA%d feature version: %u, firmware version: 0x%08x\n",
 			   i, fw_info.feature, fw_info.ver);
 	}
+
+	/* VCN */
+	query_fw.fw_type = AMDGPU_INFO_FW_VCN;
+	ret = amdgpu_firmware_info(&fw_info, &query_fw, adev);
+	if (ret)
+		return ret;
+	seq_printf(m, "VCN feature version: %u, firmware version: 0x%08x\n",
+		   fw_info.feature, fw_info.ver);
 
 	return 0;
 }

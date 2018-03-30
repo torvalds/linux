@@ -38,16 +38,25 @@ struct panel_drv_data {
 static int panel_dpi_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *in;
 	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r)
-		return r;
+	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(dssdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
 
+	r = in->ops.dpi->connect(in, dssdev);
+	if (r) {
+		omap_dss_put_device(in);
+		return r;
+	}
+
+	ddata->in = in;
 	return 0;
 }
 
@@ -60,6 +69,9 @@ static void panel_dpi_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops.dpi->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int panel_dpi_enable(struct omap_dss_device *dssdev)
@@ -157,7 +169,6 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
-	struct omap_dss_device *in;
 	int r;
 	struct display_timing timing;
 	struct gpio_desc *gpio;
@@ -195,14 +206,6 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 
 	videomode_from_timing(&timing, &ddata->vm);
 
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
 	return 0;
 }
 
@@ -211,9 +214,6 @@ static int panel_dpi_probe(struct platform_device *pdev)
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
 	int r;
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
@@ -235,28 +235,21 @@ static int panel_dpi_probe(struct platform_device *pdev)
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(&pdev->dev, "Failed to register panel\n");
-		goto err_reg;
+		return r;
 	}
 
 	return 0;
-
-err_reg:
-	omap_dss_put_device(ddata->in);
-	return r;
 }
 
 static int __exit panel_dpi_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	omapdss_unregister_display(dssdev);
 
 	panel_dpi_disable(dssdev);
 	panel_dpi_disconnect(dssdev);
-
-	omap_dss_put_device(in);
 
 	return 0;
 }

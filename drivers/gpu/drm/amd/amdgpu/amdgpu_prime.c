@@ -105,14 +105,25 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	int ret;
 
 	ww_mutex_lock(&resv->lock, NULL);
-	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE, false,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
-	ww_mutex_unlock(&resv->lock);
+	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE,
+			       AMDGPU_GEM_DOMAIN_CPU, 0, ttm_bo_type_sg,
+			       resv, &bo);
 	if (ret)
-		return ERR_PTR(ret);
+		goto error;
 
-	bo->prime_shared_count = 1;
+	bo->tbo.sg = sg;
+	bo->tbo.ttm->sg = sg;
+	bo->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
+	bo->preferred_domains = AMDGPU_GEM_DOMAIN_GTT;
+	if (attach->dmabuf->ops != &amdgpu_dmabuf_ops)
+		bo->prime_shared_count = 1;
+
+	ww_mutex_unlock(&resv->lock);
 	return &bo->gem_base;
+
+error:
+	ww_mutex_unlock(&resv->lock);
+	return ERR_PTR(ret);
 }
 
 static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
@@ -121,6 +132,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	long r;
 
 	r = drm_gem_map_attach(dma_buf, target_dev, attach);
@@ -132,7 +144,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 		goto error_detach;
 
 
-	if (dma_buf->ops != &amdgpu_dmabuf_ops) {
+	if (attach->dev->driver != adev->dev->driver) {
 		/*
 		 * Wait for all shared fences to complete before we switch to future
 		 * use of exclusive fence on this prime shared bo.
@@ -151,7 +163,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	if (r)
 		goto error_unreserve;
 
-	if (dma_buf->ops != &amdgpu_dmabuf_ops)
+	if (attach->dev->driver != adev->dev->driver)
 		bo->prime_shared_count++;
 
 error_unreserve:
@@ -168,6 +180,7 @@ static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int ret = 0;
 
 	ret = amdgpu_bo_reserve(bo, true);
@@ -175,7 +188,7 @@ static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 		goto error;
 
 	amdgpu_bo_unpin(bo);
-	if (dma_buf->ops != &amdgpu_dmabuf_ops && bo->prime_shared_count)
+	if (attach->dev->driver != adev->dev->driver && bo->prime_shared_count)
 		bo->prime_shared_count--;
 	amdgpu_bo_unreserve(bo);
 

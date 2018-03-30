@@ -391,8 +391,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	if (blob) {
 		if (blob->length != sizeof(struct drm_mode_modeinfo) ||
 		    drm_mode_convert_umode(state->crtc->dev, &state->mode,
-		                           (const struct drm_mode_modeinfo *)
-		                            blob->data))
+					   blob->data))
 			return -EINVAL;
 
 		state->mode_blob = drm_property_blob_get(blob);
@@ -409,11 +408,36 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
 
+/**
+ * drm_atomic_replace_property_blob_from_id - lookup the new blob and replace the old one with it
+ * @dev: DRM device
+ * @blob: a pointer to the member blob to be replaced
+ * @blob_id: ID of the new blob
+ * @expected_size: total expected size of the blob data (in bytes)
+ * @expected_elem_size: expected element size of the blob data (in bytes)
+ * @replaced: did the blob get replaced?
+ *
+ * Replace @blob with another blob with the ID @blob_id. If @blob_id is zero
+ * @blob becomes NULL.
+ *
+ * If @expected_size is positive the new blob length is expected to be equal
+ * to @expected_size bytes. If @expected_elem_size is positive the new blob
+ * length is expected to be a multiple of @expected_elem_size bytes. Otherwise
+ * an error is returned.
+ *
+ * @replaced will indicate to the caller whether the blob was replaced or not.
+ * If the old and new blobs were in fact the same blob @replaced will be false
+ * otherwise it will be true.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure.
+ */
 static int
 drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
 					 uint64_t blob_id,
 					 ssize_t expected_size,
+					 ssize_t expected_elem_size,
 					 bool *replaced)
 {
 	struct drm_property_blob *new_blob = NULL;
@@ -423,7 +447,13 @@ drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 		if (new_blob == NULL)
 			return -EINVAL;
 
-		if (expected_size > 0 && expected_size != new_blob->length) {
+		if (expected_size > 0 &&
+		    new_blob->length != expected_size) {
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+		if (expected_elem_size > 0 &&
+		    new_blob->length % expected_elem_size != 0) {
 			drm_property_blob_put(new_blob);
 			return -EINVAL;
 		}
@@ -471,7 +501,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->degamma_lut,
 					val,
-					-1,
+					-1, sizeof(struct drm_color_lut),
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
@@ -479,7 +509,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->ctm,
 					val,
-					sizeof(struct drm_color_ctm),
+					sizeof(struct drm_color_ctm), -1,
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
@@ -487,7 +517,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->gamma_lut,
 					val,
-					-1,
+					-1, sizeof(struct drm_color_lut),
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
@@ -759,6 +789,10 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->rotation = val;
 	} else if (property == plane->zpos_property) {
 		state->zpos = val;
+	} else if (property == plane->color_encoding_property) {
+		state->color_encoding = val;
+	} else if (property == plane->color_range_property) {
+		state->color_range = val;
 	} else if (plane->funcs->atomic_set_property) {
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
@@ -818,6 +852,10 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->rotation;
 	} else if (property == plane->zpos_property) {
 		*val = state->zpos;
+	} else if (property == plane->color_encoding_property) {
+		*val = state->color_encoding;
+	} else if (property == plane->color_range_property) {
+		*val = state->color_range;
 	} else if (plane->funcs->atomic_get_property) {
 		return plane->funcs->atomic_get_property(plane, state, property, val);
 	} else {
@@ -882,12 +920,14 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, state->fb->format->format);
+	ret = drm_plane_check_pixel_format(plane, state->fb->format->format,
+					   state->fb->modifier);
 	if (ret) {
 		struct drm_format_name_buf format_name;
-		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n",
-		                 drm_get_format_name(state->fb->format->format,
-		                                     &format_name));
+		DRM_DEBUG_ATOMIC("Invalid pixel format %s, modifier 0x%llx\n",
+				 drm_get_format_name(state->fb->format->format,
+						     &format_name),
+				 state->fb->modifier);
 		return ret;
 	}
 
@@ -944,6 +984,10 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
 	drm_printf(p, "\tsrc-pos=" DRM_RECT_FP_FMT "\n", DRM_RECT_FP_ARG(&src));
 	drm_printf(p, "\trotation=%x\n", state->rotation);
+	drm_printf(p, "\tcolor-encoding=%s\n",
+		   drm_get_color_encoding_name(state->color_encoding));
+	drm_printf(p, "\tcolor-range=%s\n",
+		   drm_get_color_range_name(state->color_range));
 
 	if (plane->funcs->atomic_print_state)
 		plane->funcs->atomic_print_state(p, state);

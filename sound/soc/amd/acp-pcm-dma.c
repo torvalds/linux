@@ -579,13 +579,6 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 		for (bank = 1; bank < 48; bank++)
 			acp_set_sram_bank_state(acp_mmio, bank, false);
 	}
-
-	/* Stoney supports 16bit resolution */
-	if (asic_type == CHIP_STONEY) {
-		val = acp_reg_read(acp_mmio, mmACP_I2S_16BIT_RESOLUTION_EN);
-		val |= 0x03;
-		acp_reg_write(val, acp_mmio, mmACP_I2S_16BIT_RESOLUTION_EN);
-	}
 	return 0;
 }
 
@@ -774,6 +767,7 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 {
 	int status;
 	uint64_t size;
+	u32 val = 0;
 	struct page *pg;
 	struct snd_pcm_runtime *runtime;
 	struct audio_substream_data *rtd;
@@ -786,6 +780,14 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 	if (WARN_ON(!rtd))
 		return -EINVAL;
 
+	if (adata->asic_type == CHIP_STONEY) {
+		val = acp_reg_read(adata->acp_mmio, mmACP_I2S_16BIT_RESOLUTION_EN);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			val |= ACP_I2S_SP_16BIT_RESOLUTION_EN;
+		else
+			val |= ACP_I2S_MIC_16BIT_RESOLUTION_EN;
+		acp_reg_write(val, adata->acp_mmio, mmACP_I2S_16BIT_RESOLUTION_EN);
+	}
 	size = params_buffer_bytes(params);
 	status = snd_pcm_lib_malloc_pages(substream, size);
 	if (status < 0)

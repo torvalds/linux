@@ -166,7 +166,7 @@ static int __init __gic_clocksource_init(void)
 
 	/* Set clocksource mask. */
 	count_width = read_gic_config() & GIC_CONFIG_COUNTBITS;
-	count_width >>= __fls(GIC_CONFIG_COUNTBITS);
+	count_width >>= __ffs(GIC_CONFIG_COUNTBITS);
 	count_width *= 4;
 	count_width += 32;
 	gic_clocksource.mask = CLOCKSOURCE_MASK(count_width);
@@ -205,12 +205,12 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 	} else if (of_property_read_u32(node, "clock-frequency",
 					&gic_frequency)) {
 		pr_err("GIC frequency not specified.\n");
-		return -EINVAL;;
+		return -EINVAL;
 	}
 	gic_timer_irq = irq_of_parse_and_map(node, 0);
 	if (!gic_timer_irq) {
 		pr_err("GIC timer IRQ not specified.\n");
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	ret = __gic_clocksource_init();

@@ -44,6 +44,7 @@ extern void ppl_write_stripe_run(struct r5conf *conf);
 extern void ppl_stripe_write_finished(struct stripe_head *sh);
 extern int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add);
 extern void ppl_quiesce(struct r5conf *conf, int quiesce);
+extern int ppl_handle_flush_request(struct r5l_log *log, struct bio *bio);
 
 static inline bool raid5_has_ppl(struct r5conf *conf)
 {
@@ -104,7 +105,7 @@ static inline int log_handle_flush_request(struct r5conf *conf, struct bio *bio)
 	if (conf->log)
 		ret = r5l_handle_flush_request(conf->log, bio);
 	else if (raid5_has_ppl(conf))
-		ret = 0;
+		ret = ppl_handle_flush_request(conf->log, bio);
 
 	return ret;
 }

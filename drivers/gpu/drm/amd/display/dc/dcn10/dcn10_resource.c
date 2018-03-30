@@ -440,7 +440,11 @@ static const struct dc_debug debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 
-		.min_disp_clk_khz = 300000,
+		/* raven smu dones't allow 0 disp clk,
+		 * smu min disp clk limit is 50Mhz
+		 * keep min disp clk 100Mhz avoid smu hang
+		 */
+		.min_disp_clk_khz = 100000,
 
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
@@ -963,6 +967,7 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 
 	idle_pipe->stream = head_pipe->stream;
 	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
+	idle_pipe->stream_res.abm = head_pipe->stream_res.abm;
 	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
 
 	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];

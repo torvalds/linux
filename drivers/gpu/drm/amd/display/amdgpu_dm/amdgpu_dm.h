@@ -268,7 +268,9 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
 #define amdgpu_dm_crtc_handle_crc_irq(x)
 #endif
 
-#define MAX_COLOR_LUT_ENTRIES 256
+#define MAX_COLOR_LUT_ENTRIES 4096
+/* Legacy gamm LUT users such as X doesn't like large LUT sizes */
+#define MAX_COLOR_LEGACY_LUT_ENTRIES 256
 
 void amdgpu_dm_init_color_mod(void);
 int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,

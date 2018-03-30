@@ -236,13 +236,10 @@ static int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
 
 	switch (dev_id) {
 	case 0x67BA:
@@ -1309,7 +1306,7 @@ static int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 
 	uint32_t level_array_address = smu_data->dpm_table_start + offsetof(SMU7_Discrete_DpmTable, MemoryLevel);
@@ -1330,10 +1327,7 @@ static int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	smu_data->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
 
 	if ((dpm_table->mclk_table.count >= 2)
 		&& ((dev_id == 0x67B0) ||  (dev_id == 0x67B1))) {
@@ -2228,7 +2222,7 @@ static int ci_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	fan_table.TempRespLim = cpu_to_be16(5);
 
-	reference_clock = smu7_get_xclk(hwmgr);
+	reference_clock = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	fan_table.RefreshPeriod = cpu_to_be32((hwmgr->thermal_controller.advanceFanControlParameters.ulCycleDelay * reference_clock) / 1600);
 
@@ -2772,32 +2766,6 @@ static bool ci_is_dpm_running(struct pp_hwmgr *hwmgr)
 	return ci_is_smc_ram_running(hwmgr);
 }
 
-static int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-						struct amd_pp_profile *request)
-{
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)
-			(hwmgr->smu_backend);
-	struct SMU7_Discrete_GraphicsLevel *levels =
-			smu_data->smc_state_table.GraphicsLevel;
-	uint32_t array = smu_data->dpm_table_start +
-			offsetof(SMU7_Discrete_DpmTable, GraphicsLevel);
-	uint32_t array_size = sizeof(struct SMU7_Discrete_GraphicsLevel) *
-			SMU7_MAX_LEVELS_GRAPHICS;
-	uint32_t i;
-
-	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
-		levels[i].ActivityLevel =
-				cpu_to_be16(request->activity_threshold);
-		levels[i].EnabledForActivity = 1;
-		levels[i].UpH = request->up_hyst;
-		levels[i].DownH = request->down_hyst;
-	}
-
-	return ci_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
-				array_size, SMC_RAM_END);
-}
-
-
 static int ci_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct ci_smumgr *ci_priv = NULL;
@@ -2825,6 +2793,102 @@ static int ci_start_smu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int ci_update_dpm_settings(struct pp_hwmgr *hwmgr,
+				void *profile_setting)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct ci_smumgr *smu_data = (struct ci_smumgr *)
+			(hwmgr->smu_backend);
+	struct profile_mode_setting *setting;
+	struct SMU7_Discrete_GraphicsLevel *levels =
+			smu_data->smc_state_table.GraphicsLevel;
+	uint32_t array = smu_data->dpm_table_start +
+			offsetof(SMU7_Discrete_DpmTable, GraphicsLevel);
+
+	uint32_t mclk_array = smu_data->dpm_table_start +
+			offsetof(SMU7_Discrete_DpmTable, MemoryLevel);
+	struct SMU7_Discrete_MemoryLevel *mclk_levels =
+			smu_data->smc_state_table.MemoryLevel;
+	uint32_t i;
+	uint32_t offset, up_hyst_offset, down_hyst_offset, clk_activity_offset, tmp;
+
+	if (profile_setting == NULL)
+		return -EINVAL;
+
+	setting = (struct profile_mode_setting *)profile_setting;
+
+	if (setting->bupdate_sclk) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
+		for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
+			if (levels[i].ActivityLevel !=
+				cpu_to_be16(setting->sclk_activity)) {
+				levels[i].ActivityLevel = cpu_to_be16(setting->sclk_activity);
+
+				clk_activity_offset = array + (sizeof(SMU7_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU7_Discrete_GraphicsLevel, ActivityLevel);
+				offset = clk_activity_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(clk_activity_offset, tmp, levels[i].ActivityLevel, sizeof(uint16_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+
+			}
+			if (levels[i].UpH != setting->sclk_up_hyst ||
+				levels[i].DownH != setting->sclk_down_hyst) {
+				levels[i].UpH = setting->sclk_up_hyst;
+				levels[i].DownH = setting->sclk_down_hyst;
+				up_hyst_offset = array + (sizeof(SMU7_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU7_Discrete_GraphicsLevel, UpH);
+				down_hyst_offset = array + (sizeof(SMU7_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU7_Discrete_GraphicsLevel, DownH);
+				offset = up_hyst_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(up_hyst_offset, tmp, levels[i].UpH, sizeof(uint8_t));
+				tmp = phm_set_field_to_u32(down_hyst_offset, tmp, levels[i].DownH, sizeof(uint8_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+			}
+		}
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
+	}
+
+	if (setting->bupdate_mclk) {
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
+		for (i = 0; i < smu_data->smc_state_table.MemoryDpmLevelCount; i++) {
+			if (mclk_levels[i].ActivityLevel !=
+				cpu_to_be16(setting->mclk_activity)) {
+				mclk_levels[i].ActivityLevel = cpu_to_be16(setting->mclk_activity);
+
+				clk_activity_offset = mclk_array + (sizeof(SMU7_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU7_Discrete_MemoryLevel, ActivityLevel);
+				offset = clk_activity_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(clk_activity_offset, tmp, mclk_levels[i].ActivityLevel, sizeof(uint16_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+
+			}
+			if (mclk_levels[i].UpH != setting->mclk_up_hyst ||
+				mclk_levels[i].DownH != setting->mclk_down_hyst) {
+				mclk_levels[i].UpH = setting->mclk_up_hyst;
+				mclk_levels[i].DownH = setting->mclk_down_hyst;
+				up_hyst_offset = mclk_array + (sizeof(SMU7_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU7_Discrete_MemoryLevel, UpH);
+				down_hyst_offset = mclk_array + (sizeof(SMU7_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU7_Discrete_MemoryLevel, DownH);
+				offset = up_hyst_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(up_hyst_offset, tmp, mclk_levels[i].UpH, sizeof(uint8_t));
+				tmp = phm_set_field_to_u32(down_hyst_offset, tmp, mclk_levels[i].DownH, sizeof(uint8_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+			}
+		}
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
+	}
+	return 0;
+}
+
 const struct pp_smumgr_func ci_smu_funcs = {
 	.smu_init = ci_smu_init,
 	.smu_fini = ci_smu_fini,
@@ -2846,5 +2910,5 @@ const struct pp_smumgr_func ci_smu_funcs = {
 	.get_mac_definition = ci_get_mac_definition,
 	.initialize_mc_reg_table = ci_initialize_mc_reg_table,
 	.is_dpm_running = ci_is_dpm_running,
-	.populate_requested_graphic_levels = ci_populate_requested_graphic_levels,
+	.update_dpm_settings = ci_update_dpm_settings,
 };

@@ -24,8 +24,7 @@
 #ifndef __KGD_PP_INTERFACE_H__
 #define __KGD_PP_INTERFACE_H__
 
-extern const struct amd_ip_funcs pp_ip_funcs;
-extern const struct amd_pm_funcs pp_dpm_funcs;
+extern const struct amdgpu_ip_block_version pp_smu_ip_block;
 
 struct amd_vce_state {
 	/* vce clocks */
@@ -83,20 +82,6 @@ enum amd_vce_level {
 	AMD_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
 };
 
-enum amd_pp_profile_type {
-	AMD_PP_GFX_PROFILE,
-	AMD_PP_COMPUTE_PROFILE,
-};
-
-struct amd_pp_profile {
-	enum amd_pp_profile_type type;
-	uint32_t min_sclk;
-	uint32_t min_mclk;
-	uint16_t activity_threshold;
-	uint8_t up_hyst;
-	uint8_t down_hyst;
-};
-
 enum amd_fan_ctrl_mode {
 	AMD_FAN_CTRL_NONE = 0,
 	AMD_FAN_CTRL_MANUAL = 1,
@@ -136,14 +121,6 @@ enum amd_pp_task {
 	AMD_PP_TASK_MAX
 };
 
-struct amd_pp_init {
-	struct cgs_device *device;
-	uint32_t chip_family;
-	uint32_t chip_id;
-	bool pm_en;
-	uint32_t feature_mask;
-};
-
 enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x0,
 	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x1,
@@ -151,7 +128,6 @@ enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_VR           = 0x3,
 	PP_SMC_POWER_PROFILE_COMPUTE      = 0x4,
 	PP_SMC_POWER_PROFILE_CUSTOM       = 0x5,
-	PP_SMC_POWER_PROFILE_AUTO         = 0x6,
 };
 
 enum {
@@ -260,15 +236,7 @@ struct amd_pm_funcs {
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
 	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
-
-	int (*reset_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*get_power_profile_state)(void *handle,
-			struct amd_pp_profile *query);
-	int (*set_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*switch_power_profile)(void *handle,
-			enum amd_pp_profile_type type);
+	int (*switch_power_profile)(void *handle, enum PP_SMC_POWER_PROFILE type, bool en);
 /* export to amdgpu */
 	void (*powergate_uvd)(void *handle, bool gate);
 	void (*powergate_vce)(void *handle, bool gate);

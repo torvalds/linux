@@ -49,7 +49,6 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip = { 0, };
 
 	if (!state->crtc)
 		return 0;
@@ -58,11 +57,7 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	return drm_atomic_helper_check_plane_state(state, crtc_state,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   true, true);
@@ -165,10 +160,9 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	/* Update Canvas with buffer address */
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
-	meson_canvas_setup(priv, MESON_CANVAS_ID_OSD1,
-			   gem->paddr, fb->pitches[0],
-			   fb->height, MESON_CANVAS_WRAP_NONE,
-			   MESON_CANVAS_BLKMODE_LINEAR);
+	priv->viu.osd1_addr = gem->paddr;
+	priv->viu.osd1_stride = fb->pitches[0];
+	priv->viu.osd1_height = fb->height;
 
 	spin_unlock_irqrestore(&priv->drm->event_lock, flags);
 }

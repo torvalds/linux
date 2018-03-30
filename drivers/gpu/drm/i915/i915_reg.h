@@ -6027,6 +6027,7 @@ enum {
 #define _DVSACNTR		0x72180
 #define   DVS_ENABLE		(1<<31)
 #define   DVS_GAMMA_ENABLE	(1<<30)
+#define   DVS_YUV_RANGE_CORRECTION_DISABLE	(1<<27)
 #define   DVS_PIXFORMAT_MASK	(3<<25)
 #define   DVS_FORMAT_YUV422	(0<<25)
 #define   DVS_FORMAT_RGBX101010	(1<<25)
@@ -6035,6 +6036,7 @@ enum {
 #define   DVS_PIPE_CSC_ENABLE   (1<<24)
 #define   DVS_SOURCE_KEY	(1<<22)
 #define   DVS_RGB_ORDER_XBGR	(1<<20)
+#define   DVS_YUV_FORMAT_BT709	(1<<18)
 #define   DVS_YUV_BYTE_ORDER_MASK (3<<16)
 #define   DVS_YUV_ORDER_YUYV	(0<<16)
 #define   DVS_YUV_ORDER_UYVY	(1<<16)
@@ -6094,6 +6096,7 @@ enum {
 #define _SPRA_CTL		0x70280
 #define   SPRITE_ENABLE			(1<<31)
 #define   SPRITE_GAMMA_ENABLE		(1<<30)
+#define   SPRITE_YUV_RANGE_CORRECTION_DISABLE	(1<<28)
 #define   SPRITE_PIXFORMAT_MASK		(7<<25)
 #define   SPRITE_FORMAT_YUV422		(0<<25)
 #define   SPRITE_FORMAT_RGBX101010	(1<<25)
@@ -6105,7 +6108,7 @@ enum {
 #define   SPRITE_SOURCE_KEY		(1<<22)
 #define   SPRITE_RGB_ORDER_RGBX		(1<<20) /* only for 888 and 161616 */
 #define   SPRITE_YUV_TO_RGB_CSC_DISABLE	(1<<19)
-#define   SPRITE_YUV_CSC_FORMAT_BT709	(1<<18) /* 0 is BT601 */
+#define   SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709	(1<<18) /* 0 is BT601 */
 #define   SPRITE_YUV_BYTE_ORDER_MASK	(3<<16)
 #define   SPRITE_YUV_ORDER_YUYV		(0<<16)
 #define   SPRITE_YUV_ORDER_UYVY		(1<<16)
@@ -6181,6 +6184,7 @@ enum {
 #define   SP_FORMAT_RGBA8888		(0xf<<26)
 #define   SP_ALPHA_PREMULTIPLY		(1<<23) /* CHV pipe B */
 #define   SP_SOURCE_KEY			(1<<22)
+#define   SP_YUV_FORMAT_BT709		(1<<18)
 #define   SP_YUV_BYTE_ORDER_MASK	(3<<16)
 #define   SP_YUV_ORDER_YUYV		(0<<16)
 #define   SP_YUV_ORDER_UYVY		(1<<16)
@@ -6200,6 +6204,12 @@ enum {
 #define _SPATILEOFF		(VLV_DISPLAY_BASE + 0x721a4)
 #define _SPACONSTALPHA		(VLV_DISPLAY_BASE + 0x721a8)
 #define   SP_CONST_ALPHA_ENABLE		(1<<31)
+#define _SPACLRC0		(VLV_DISPLAY_BASE + 0x721d0)
+#define   SP_CONTRAST(x)		((x) << 18) /* u3.6 */
+#define   SP_BRIGHTNESS(x)		((x) & 0xff) /* s8 */
+#define _SPACLRC1		(VLV_DISPLAY_BASE + 0x721d4)
+#define   SP_SH_SIN(x)			(((x) & 0x7ff) << 16) /* s4.7 */
+#define   SP_SH_COS(x)			(x) /* u3.7 */
 #define _SPAGAMC		(VLV_DISPLAY_BASE + 0x721f4)
 
 #define _SPBCNTR		(VLV_DISPLAY_BASE + 0x72280)
@@ -6213,6 +6223,8 @@ enum {
 #define _SPBKEYMAXVAL		(VLV_DISPLAY_BASE + 0x722a0)
 #define _SPBTILEOFF		(VLV_DISPLAY_BASE + 0x722a4)
 #define _SPBCONSTALPHA		(VLV_DISPLAY_BASE + 0x722a8)
+#define _SPBCLRC0		(VLV_DISPLAY_BASE + 0x722d0)
+#define _SPBCLRC1		(VLV_DISPLAY_BASE + 0x722d4)
 #define _SPBGAMC		(VLV_DISPLAY_BASE + 0x722f4)
 
 #define _MMIO_VLV_SPR(pipe, plane_id, reg_a, reg_b) \
@@ -6229,6 +6241,8 @@ enum {
 #define SPKEYMAXVAL(pipe, plane_id)	_MMIO_VLV_SPR((pipe), (plane_id), _SPAKEYMAXVAL, _SPBKEYMAXVAL)
 #define SPTILEOFF(pipe, plane_id)	_MMIO_VLV_SPR((pipe), (plane_id), _SPATILEOFF, _SPBTILEOFF)
 #define SPCONSTALPHA(pipe, plane_id)	_MMIO_VLV_SPR((pipe), (plane_id), _SPACONSTALPHA, _SPBCONSTALPHA)
+#define SPCLRC0(pipe, plane_id)		_MMIO_VLV_SPR((pipe), (plane_id), _SPACLRC0, _SPBCLRC0)
+#define SPCLRC1(pipe, plane_id)		_MMIO_VLV_SPR((pipe), (plane_id), _SPACLRC1, _SPBCLRC1)
 #define SPGAMC(pipe, plane_id)		_MMIO_VLV_SPR((pipe), (plane_id), _SPAGAMC, _SPBGAMC)
 
 /*
@@ -6274,6 +6288,7 @@ enum {
 #define _PLANE_CTL_3_A				0x70380
 #define   PLANE_CTL_ENABLE			(1 << 31)
 #define   PLANE_CTL_PIPE_GAMMA_ENABLE		(1 << 30)   /* Pre-GLK */
+#define   PLANE_CTL_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 /*
  * ICL+ uses the same PLANE_CTL_FORMAT bits, but the field definition
  * expanded to include bit 23 as well. However, the shift-24 based values
@@ -6295,6 +6310,7 @@ enum {
 #define   PLANE_CTL_KEY_ENABLE_DESTINATION	(  2 << 21)
 #define   PLANE_CTL_ORDER_BGRX			(0 << 20)
 #define   PLANE_CTL_ORDER_RGBX			(1 << 20)
+#define   PLANE_CTL_YUV_TO_RGB_CSC_FORMAT_BT709	(1 << 18)
 #define   PLANE_CTL_YUV422_ORDER_MASK		(0x3 << 16)
 #define   PLANE_CTL_YUV422_YUYV			(  0 << 16)
 #define   PLANE_CTL_YUV422_UYVY			(  1 << 16)
@@ -6347,7 +6363,13 @@ enum {
 #define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
 #define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30)
+#define   PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE	(1 << 28)
 #define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23)
+#define   PLANE_COLOR_CSC_MODE_BYPASS			(0 << 17)
+#define   PLANE_COLOR_CSC_MODE_YUV601_TO_RGB709		(1 << 17)
+#define   PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709		(2 << 17)
+#define   PLANE_COLOR_CSC_MODE_YUV2020_TO_RGB2020	(3 << 17)
+#define   PLANE_COLOR_CSC_MODE_RGB709_TO_RGB2020	(4 << 17)
 #define   PLANE_COLOR_PLANE_GAMMA_DISABLE	(1 << 13)
 #define   PLANE_COLOR_ALPHA_MASK		(0x3 << 4)
 #define   PLANE_COLOR_ALPHA_DISABLE		(0 << 4)

@@ -245,8 +245,8 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 	 * some faults get cleared.
 	 */
 	switch (dw0 & 0xff) {
-	case AMDGPU_IH_CLIENTID_VMC:
-	case AMDGPU_IH_CLIENTID_UTCL2:
+	case SOC15_IH_CLIENTID_VMC:
+	case SOC15_IH_CLIENTID_UTCL2:
 		break;
 	default:
 		/* Not a VM fault */

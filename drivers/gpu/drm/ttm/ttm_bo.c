@@ -149,7 +149,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
 	ttm_tt_destroy(bo->ttm);
-	atomic_dec(&bo->glob->bo_count);
+	atomic_dec(&bo->bdev->glob->bo_count);
 	dma_fence_put(bo->moving);
 	reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
@@ -174,7 +174,7 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 		if (bo->ttm && !(bo->ttm->page_flags &
 				 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED))) {
 			list_add_tail(&bo->swap,
-				      &bo->glob->swap_lru[bo->priority]);
+				      &bdev->glob->swap_lru[bo->priority]);
 			kref_get(&bo->list_kref);
 		}
 	}
@@ -205,9 +205,11 @@ void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 
 void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 {
-	spin_lock(&bo->glob->lru_lock);
+	struct ttm_bo_global *glob = bo->bdev->glob;
+
+	spin_lock(&glob->lru_lock);
 	ttm_bo_del_from_lru(bo);
-	spin_unlock(&bo->glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 }
 EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
@@ -219,54 +221,6 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
 	ttm_bo_add_to_lru(bo);
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
-
-/*
- * Call bo->mutex locked.
- */
-static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
-	int ret = 0;
-	uint32_t page_flags = 0;
-
-	reservation_object_assert_held(bo->resv);
-	bo->ttm = NULL;
-
-	if (bdev->need_dma32)
-		page_flags |= TTM_PAGE_FLAG_DMA32;
-
-	if (bdev->no_retry)
-		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
-
-	switch (bo->type) {
-	case ttm_bo_type_device:
-		if (zero_alloc)
-			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
-	case ttm_bo_type_kernel:
-		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags, glob->dummy_read_page);
-		if (unlikely(bo->ttm == NULL))
-			ret = -ENOMEM;
-		break;
-	case ttm_bo_type_sg:
-		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags | TTM_PAGE_FLAG_SG,
-						      glob->dummy_read_page);
-		if (unlikely(bo->ttm == NULL)) {
-			ret = -ENOMEM;
-			break;
-		}
-		bo->ttm->sg = bo->sg;
-		break;
-	default:
-		pr_err("Illegal buffer object type\n");
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
 
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem, bool evict,
@@ -295,7 +249,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
 		if (bo->ttm == NULL) {
 			bool zero = !(old_man->flags & TTM_MEMTYPE_FLAG_FIXED);
-			ret = ttm_bo_add_ttm(bo, zero);
+			ret = ttm_tt_create(bo, zero);
 			if (ret)
 				goto out_err;
 		}
@@ -429,7 +383,7 @@ static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
+	struct ttm_bo_global *glob = bdev->glob;
 	int ret;
 
 	ret = ttm_bo_individualize_resv(bo);
@@ -500,7 +454,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 			       bool interruptible, bool no_wait_gpu,
 			       bool unlock_resv)
 {
-	struct ttm_bo_global *glob = bo->glob;
+	struct ttm_bo_global *glob = bo->bdev->glob;
 	struct reservation_object *resv;
 	int ret;
 
@@ -668,14 +622,23 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 
 	reservation_object_assert_held(bo->resv);
 
+	placement.num_placement = 0;
+	placement.num_busy_placement = 0;
+	bdev->driver->evict_flags(bo, &placement);
+
+	if (!placement.num_placement && !placement.num_busy_placement) {
+		ret = ttm_bo_pipeline_gutting(bo);
+		if (ret)
+			return ret;
+
+		return ttm_tt_create(bo, false);
+	}
+
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
 	evict_mem.bus.io_reserved_vm = false;
 	evict_mem.bus.io_reserved_count = 0;
 
-	placement.num_placement = 0;
-	placement.num_busy_placement = 0;
-	bdev->driver->evict_flags(bo, &placement);
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, ctx);
 	if (ret) {
 		if (ret != -ERESTARTSYS) {
@@ -730,7 +693,8 @@ static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
 	*locked = false;
 	if (bo->resv == ctx->resv) {
 		reservation_object_assert_held(bo->resv);
-		if (ctx->allow_reserved_eviction || !list_empty(&bo->ddestroy))
+		if (ctx->flags & TTM_OPT_FLAG_ALLOW_RES_EVICT
+		    || !list_empty(&bo->ddestroy))
 			ret = true;
 	} else {
 		*locked = reservation_object_trylock(bo->resv);
@@ -1133,7 +1097,7 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	 * We might need to add a TTM.
 	 */
 	if (bo->mem.mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		ret = ttm_bo_add_ttm(bo, true);
+		ret = ttm_tt_create(bo, true);
 		if (ret)
 			return ret;
 	}
@@ -1148,7 +1112,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 struct file *persistent_swap_storage,
 			 size_t acc_size,
 			 struct sg_table *sg,
 			 struct reservation_object *resv,
@@ -1190,7 +1153,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->io_reserve_lru);
 	mutex_init(&bo->wu_mutex);
 	bo->bdev = bdev;
-	bo->glob = bdev->glob;
 	bo->type = type;
 	bo->num_pages = num_pages;
 	bo->mem.size = num_pages << PAGE_SHIFT;
@@ -1202,7 +1164,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->mem.bus.io_reserved_count = 0;
 	bo->moving = NULL;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
-	bo->persistent_swap_storage = persistent_swap_storage;
 	bo->acc_size = acc_size;
 	bo->sg = sg;
 	if (resv) {
@@ -1212,7 +1173,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		bo->resv = &bo->ttm_resv;
 	}
 	reservation_object_init(&bo->ttm_resv);
-	atomic_inc(&bo->glob->bo_count);
+	atomic_inc(&bo->bdev->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 	bo->priority = 0;
 
@@ -1245,9 +1206,9 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	}
 
 	if (resv && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bo->glob->lru_lock);
+		spin_lock(&bdev->glob->lru_lock);
 		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bo->glob->lru_lock);
+		spin_unlock(&bdev->glob->lru_lock);
 	}
 
 	return ret;
@@ -1261,7 +1222,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		struct ttm_placement *placement,
 		uint32_t page_alignment,
 		bool interruptible,
-		struct file *persistent_swap_storage,
 		size_t acc_size,
 		struct sg_table *sg,
 		struct reservation_object *resv,
@@ -1271,8 +1231,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	int ret;
 
 	ret = ttm_bo_init_reserved(bdev, bo, size, type, placement,
-				   page_alignment, &ctx,
-				   persistent_swap_storage, acc_size,
+				   page_alignment, &ctx, acc_size,
 				   sg, resv, destroy);
 	if (ret)
 		return ret;
@@ -1318,7 +1277,6 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 			struct ttm_placement *placement,
 			uint32_t page_alignment,
 			bool interruptible,
-			struct file *persistent_swap_storage,
 			struct ttm_buffer_object **p_bo)
 {
 	struct ttm_buffer_object *bo;
@@ -1331,7 +1289,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 
 	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
-			  interruptible, persistent_swap_storage, acc_size,
+			  interruptible, acc_size,
 			  NULL, NULL, NULL);
 	if (likely(ret == 0))
 		*p_bo = bo;
@@ -1343,7 +1301,11 @@ EXPORT_SYMBOL(ttm_bo_create);
 static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 				   unsigned mem_type)
 {
-	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false,
+		.flags = TTM_OPT_FLAG_FORCE_ALLOC
+	};
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_bo_global *glob = bdev->glob;
 	struct dma_fence *fence;

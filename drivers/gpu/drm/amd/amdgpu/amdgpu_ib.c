@@ -181,7 +181,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		}
 	}
 
-	if (ring->funcs->init_cond_exec)
+	if (job && ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
 #ifdef CONFIG_X86_64
@@ -279,11 +279,6 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	r = amdgpu_sa_bo_manager_start(adev, &adev->ring_tmp_bo);
-	if (r) {
-		return r;
-	}
-
 	adev->ib_pool_ready = true;
 	if (amdgpu_debugfs_sa_init(adev)) {
 		dev_err(adev->dev, "failed to register debugfs file for SA\n");
@@ -302,7 +297,6 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev)
 {
 	if (adev->ib_pool_ready) {
-		amdgpu_sa_bo_manager_suspend(adev, &adev->ring_tmp_bo);
 		amdgpu_sa_bo_manager_fini(adev, &adev->ring_tmp_bo);
 		adev->ib_pool_ready = false;
 	}
@@ -322,14 +316,45 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 {
 	unsigned i;
 	int r, ret = 0;
+	long tmo_gfx, tmo_mm;
+
+	tmo_mm = tmo_gfx = AMDGPU_IB_TEST_TIMEOUT;
+	if (amdgpu_sriov_vf(adev)) {
+		/* for MM engines in hypervisor side they are not scheduled together
+		 * with CP and SDMA engines, so even in exclusive mode MM engine could
+		 * still running on other VF thus the IB TEST TIMEOUT for MM engines
+		 * under SR-IOV should be set to a long time. 8 sec should be enough
+		 * for the MM comes back to this VF.
+		 */
+		tmo_mm = 8 * AMDGPU_IB_TEST_TIMEOUT;
+	}
+
+	if (amdgpu_sriov_runtime(adev)) {
+		/* for CP & SDMA engines since they are scheduled together so
+		 * need to make the timeout width enough to cover the time
+		 * cost waiting for it coming back under RUNTIME only
+		*/
+		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
+	}
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
+		long tmo;
 
 		if (!ring || !ring->ready)
 			continue;
 
-		r = amdgpu_ring_test_ib(ring, AMDGPU_IB_TEST_TIMEOUT);
+		/* MM engine need more time */
+		if (ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
+			ring->funcs->type == AMDGPU_RING_TYPE_UVD_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_DEC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
+			tmo = tmo_mm;
+		else
+			tmo = tmo_gfx;
+
+		r = amdgpu_ring_test_ib(ring, tmo);
 		if (r) {
 			ring->ready = false;
 
