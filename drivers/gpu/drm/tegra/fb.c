@@ -99,12 +99,8 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 	for (i = 0; i < framebuffer->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(framebuffer, i);
 
-		if (bo) {
-			if (bo->pages)
-				vunmap(bo->vaddr);
-
+		if (bo)
 			drm_gem_object_put_unlocked(&bo->gem);
-		}
 	}
 
 	drm_framebuffer_cleanup(framebuffer);
@@ -369,8 +365,17 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
 	drm_fb_helper_unregister_fbi(&fbdev->base);
 
-	if (fbdev->fb)
+	if (fbdev->fb) {
+		struct tegra_bo *bo = tegra_fb_get_plane(fbdev->fb, 0);
+
+		/* Undo the special mapping we made in fbdev probe. */
+		if (bo && bo->pages) {
+			vunmap(bo->vaddr);
+			bo->vaddr = 0;
+		}
+
 		drm_framebuffer_remove(fbdev->fb);
+	}
 
 	drm_fb_helper_fini(&fbdev->base);
 	tegra_fbdev_free(fbdev);
