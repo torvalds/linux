@@ -4137,7 +4137,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    u16 max_channels, u16 mtu)
 {
-	u8 cq_period_mode = 0;
+	u8 rx_cq_period_mode;
 
 	params->sw_mtu = mtu;
 	params->hard_mtu = MLX5E_ETH_HARD_MTU;
@@ -4173,12 +4173,12 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	params->lro_timeout = mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
 
 	/* CQ moderation params */
-	cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
+	rx_cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
 			MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 			MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
-	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
-	mlx5e_set_tx_cq_mode_params(params, cq_period_mode);
+	mlx5e_set_rx_cq_mode_params(params, rx_cq_period_mode);
+	mlx5e_set_tx_cq_mode_params(params, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 
 	/* TX inline */
 	params->tx_min_inline_mode = mlx5e_params_calculate_tx_min_inline(mdev);
