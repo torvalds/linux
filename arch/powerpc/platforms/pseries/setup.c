@@ -247,7 +247,7 @@ static int alloc_dispatch_logs(void)
 		return 0;
 
 	for_each_possible_cpu(cpu) {
-		pp = &paca[cpu];
+		pp = paca_ptrs[cpu];
 		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
 		if (!dtl) {
 			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",

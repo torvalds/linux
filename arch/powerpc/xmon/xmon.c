@@ -2341,7 +2341,7 @@ static void dump_one_paca(int cpu)
 	catch_memory_errors = 1;
 	sync();
 
-	p = &paca[cpu];
+	p = paca_ptrs[cpu];
 
 	printf("paca for cpu 0x%x @ %px:\n", cpu, p);
 

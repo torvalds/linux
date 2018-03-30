@@ -99,7 +99,7 @@ void vpa_init(int cpu)
 	 * reports that.  All SPLPAR support SLB shadow buffer.
 	 */
 	if (!radix_enabled() && firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		addr = __pa(paca[cpu].slb_shadow_ptr);
+		addr = __pa(paca_ptrs[cpu]->slb_shadow_ptr);
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
 			pr_err("WARNING: SLB shadow buffer registration for "
@@ -111,7 +111,7 @@ void vpa_init(int cpu)
 	/*
 	 * Register dispatch trace log, if one has been allocated.
 	 */
-	pp = &paca[cpu];
+	pp = paca_ptrs[cpu];
 	dtl = pp->dispatch_log;
 	if (dtl) {
 		pp->dtl_ridx = 0;

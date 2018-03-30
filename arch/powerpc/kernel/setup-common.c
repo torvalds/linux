@@ -437,6 +437,8 @@ static void __init cpu_init_thread_core_maps(int tpc)
 }
 
 
+u32 *cpu_to_phys_id = NULL;
+
 /**
  * setup_cpu_maps - initialize the following cpu maps:
  *                  cpu_possible_mask
@@ -463,6 +465,10 @@ void __init smp_setup_cpu_maps(void)
 
 	DBG("smp_setup_cpu_maps()\n");
 
+	cpu_to_phys_id = __va(memblock_alloc(nr_cpu_ids * sizeof(u32),
+							__alignof__(u32)));
+	memset(cpu_to_phys_id, 0, nr_cpu_ids * sizeof(u32));
+
 	for_each_node_by_type(dn, "cpu") {
 		const __be32 *intserv;
 		__be32 cpu_be;
@@ -480,6 +486,7 @@ void __init smp_setup_cpu_maps(void)
 			intserv = of_get_property(dn, "reg", &len);
 			if (!intserv) {
 				cpu_be = cpu_to_be32(cpu);
+				/* XXX: what is this? uninitialized?? */
 				intserv = &cpu_be;	/* assume logical == phys */
 				len = 4;
 			}
@@ -499,8 +506,8 @@ void __init smp_setup_cpu_maps(void)
 						"enable-method", "spin-table");
 
 			set_cpu_present(cpu, avail);
-			set_hard_smp_processor_id(cpu, be32_to_cpu(intserv[j]));
 			set_cpu_possible(cpu, true);
+			cpu_to_phys_id[cpu] = be32_to_cpu(intserv[j]);
 			cpu++;
 		}
 
@@ -835,6 +842,23 @@ static __init void print_system_info(void)
 	pr_info("-----------------------------------------------------\n");
 }
 
+#ifdef CONFIG_SMP
+static void smp_setup_pacas(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		allocate_paca(cpu);
+		set_hard_smp_processor_id(cpu, cpu_to_phys_id[cpu]);
+	}
+
+	memblock_free(__pa(cpu_to_phys_id), nr_cpu_ids * sizeof(u32));
+	cpu_to_phys_id = NULL;
+}
+#endif
+
 /*
  * Called into from start_kernel this initializes memblock, which is used
  * to manage page allocation until mem_init is called.
@@ -888,6 +912,9 @@ void __init setup_arch(char **cmdline_p)
 	/* Check the SMT related command line arguments (ppc64). */
 	check_smt_enabled();
 
+	/* Parse memory topology */
+	mem_topology_setup();
+
 	/* On BookE, setup per-core TLB data structures. */
 	setup_tlb_core_data();
 
@@ -899,6 +926,7 @@ void __init setup_arch(char **cmdline_p)
 	 * so smp_release_cpus() does nothing for them.
 	 */
 #ifdef CONFIG_SMP
+	smp_setup_pacas();
 	smp_release_cpus();
 #endif
 

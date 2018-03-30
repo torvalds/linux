@@ -170,7 +170,7 @@ static bool kvmppc_ipi_thread(int cpu)
 
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
 	if (cpu >= 0 && cpu < nr_cpu_ids) {
-		if (paca[cpu].kvm_hstate.xics_phys) {
+		if (paca_ptrs[cpu]->kvm_hstate.xics_phys) {
 			xics_wake_cpu(cpu);
 			return true;
 		}
@@ -498,7 +498,8 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 		 * use 640 bytes of the structure though, so we should accept
 		 * clients that set a size of 640.
 		 */
-		if (len < 640)
+		BUILD_BUG_ON(sizeof(struct lppaca) != 640);
+		if (len < sizeof(struct lppaca))
 			break;
 		vpap = &tvcpu->arch.vpa;
 		err = 0;
@@ -2157,7 +2158,7 @@ static int kvmppc_grab_hwthread(int cpu)
 	struct paca_struct *tpaca;
 	long timeout = 10000;
 
-	tpaca = &paca[cpu];
+	tpaca = paca_ptrs[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
@@ -2190,7 +2191,7 @@ static void kvmppc_release_hwthread(int cpu)
 {
 	struct paca_struct *tpaca;
 
-	tpaca = &paca[cpu];
+	tpaca = paca_ptrs[cpu];
 	tpaca->kvm_hstate.hwthread_req = 0;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
 	tpaca->kvm_hstate.kvm_vcore = NULL;
@@ -2256,7 +2257,7 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 		vcpu->arch.thread_cpu = cpu;
 		cpumask_set_cpu(cpu, &kvm->arch.cpu_in_guest);
 	}
-	tpaca = &paca[cpu];
+	tpaca = paca_ptrs[cpu];
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	tpaca->kvm_hstate.ptid = cpu - vc->pcpu;
 	tpaca->kvm_hstate.fake_suspend = 0;
@@ -2282,7 +2283,7 @@ static void kvmppc_wait_for_nap(int n_threads)
 		 * for any threads that still have a non-NULL vcore ptr.
 		 */
 		for (i = 1; i < n_threads; ++i)
-			if (paca[cpu + i].kvm_hstate.kvm_vcore)
+			if (paca_ptrs[cpu + i]->kvm_hstate.kvm_vcore)
 				break;
 		if (i == n_threads) {
 			HMT_medium();
@@ -2292,7 +2293,7 @@ static void kvmppc_wait_for_nap(int n_threads)
 	}
 	HMT_medium();
 	for (i = 1; i < n_threads; ++i)
-		if (paca[cpu + i].kvm_hstate.kvm_vcore)
+		if (paca_ptrs[cpu + i]->kvm_hstate.kvm_vcore)
 			pr_err("KVM: CPU %d seems to be stuck\n", cpu + i);
 }
 
@@ -2824,9 +2825,11 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	}
 
 	for (thr = 0; thr < controlled_threads; ++thr) {
-		paca[pcpu + thr].kvm_hstate.tid = thr;
-		paca[pcpu + thr].kvm_hstate.napping = 0;
-		paca[pcpu + thr].kvm_hstate.kvm_split_mode = sip;
+		struct paca_struct *paca = paca_ptrs[pcpu + thr];
+
+		paca->kvm_hstate.tid = thr;
+		paca->kvm_hstate.napping = 0;
+		paca->kvm_hstate.kvm_split_mode = sip;
 	}
 
 	/* Initiate micro-threading (split-core) on POWER8 if required */
@@ -2943,7 +2946,9 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	} else if (hpt_on_radix) {
 		/* Wait for all threads to have seen final sync */
 		for (thr = 1; thr < controlled_threads; ++thr) {
-			while (paca[pcpu + thr].kvm_hstate.kvm_split_mode) {
+			struct paca_struct *paca = paca_ptrs[pcpu + thr];
+
+			while (paca->kvm_hstate.kvm_split_mode) {
 				HMT_low();
 				barrier();
 			}
@@ -4405,7 +4410,7 @@ static int kvm_init_subcore_bitmap(void)
 		int node = cpu_to_node(first_cpu);
 
 		/* Ignore if it is already allocated. */
-		if (paca[first_cpu].sibling_subcore_state)
+		if (paca_ptrs[first_cpu]->sibling_subcore_state)
 			continue;
 
 		sibling_subcore_state =
@@ -4420,7 +4425,8 @@ static int kvm_init_subcore_bitmap(void)
 		for (j = 0; j < threads_per_core; j++) {
 			int cpu = first_cpu + j;
 
-			paca[cpu].sibling_subcore_state = sibling_subcore_state;
+			paca_ptrs[cpu]->sibling_subcore_state =
+						sibling_subcore_state;
 		}
 	}
 	return 0;
@@ -4447,7 +4453,7 @@ static int kvmppc_book3s_init_hv(void)
 
 	/*
 	 * We need a way of accessing the XICS interrupt controller,
-	 * either directly, via paca[cpu].kvm_hstate.xics_phys, or
+	 * either directly, via paca_ptrs[cpu]->kvm_hstate.xics_phys, or
 	 * indirectly, via OPAL.
 	 */
 #ifdef CONFIG_SMP

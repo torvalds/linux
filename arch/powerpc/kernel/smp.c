@@ -123,8 +123,8 @@ int smp_generic_kick_cpu(int nr)
 	 * cpu_start field to become non-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
-	if (!paca[nr].cpu_start) {
-		paca[nr].cpu_start = 1;
+	if (!paca_ptrs[nr]->cpu_start) {
+		paca_ptrs[nr]->cpu_start = 1;
 		smp_mb();
 		return 0;
 	}
@@ -657,7 +657,7 @@ void smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
 #ifdef CONFIG_PPC64
-	paca[boot_cpuid].__current = current;
+	paca_ptrs[boot_cpuid]->__current = current;
 #endif
 	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
 	current_set[boot_cpuid] = task_thread_info(current);
@@ -748,8 +748,8 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 	struct thread_info *ti = task_thread_info(idle);
 
 #ifdef CONFIG_PPC64
-	paca[cpu].__current = idle;
-	paca[cpu].kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
+	paca_ptrs[cpu]->__current = idle;
+	paca_ptrs[cpu]->kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
 #endif
 	ti->cpu = cpu;
 	secondary_ti = current_set[cpu] = ti;

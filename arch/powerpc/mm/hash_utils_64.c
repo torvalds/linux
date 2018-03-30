@@ -781,7 +781,7 @@ void resize_hpt_for_hotplug(unsigned long new_mem_size)
 	}
 }
 
-int hash__create_section_mapping(unsigned long start, unsigned long end)
+int hash__create_section_mapping(unsigned long start, unsigned long end, int nid)
 {
 	int rc = htab_bolt_mapping(start, end, __pa(start),
 				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
