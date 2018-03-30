@@ -469,6 +469,7 @@ struct bpf_prog {
 				is_func:1,	/* program is a bpf function */
 				kprobe_override:1; /* Do we override a kprobe? */
 	enum bpf_prog_type	type;		/* Type of BPF program */
+	enum bpf_attach_type	expected_attach_type; /* For some prog types */
 	u32			len;		/* Number of filter blocks */
 	u32			jited_len;	/* Size of jited insns in bytes */
 	u8			tag[BPF_TAG_SIZE];

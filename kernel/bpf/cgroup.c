@@ -545,7 +545,7 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 EXPORT_SYMBOL(__cgroup_bpf_check_dev_permission);
 
 static const struct bpf_func_proto *
-cgroup_dev_func_proto(enum bpf_func_id func_id)
+cgroup_dev_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_map_lookup_elem:
@@ -566,6 +566,7 @@ cgroup_dev_func_proto(enum bpf_func_id func_id)
 
 static bool cgroup_dev_is_valid_access(int off, int size,
 				       enum bpf_access_type type,
+				       const struct bpf_prog *prog,
 				       struct bpf_insn_access_aux *info)
 {
 	const int size_default = sizeof(__u32);

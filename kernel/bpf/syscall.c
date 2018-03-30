@@ -1171,8 +1171,27 @@ struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
 }
 EXPORT_SYMBOL_GPL(bpf_prog_get_type_dev);
 
+static int
+bpf_prog_load_check_attach_type(enum bpf_prog_type prog_type,
+				enum bpf_attach_type expected_attach_type)
+{
+	/* There are currently no prog types that require specifying
+	 * attach_type at load time.
+	 */
+	return 0;
+}
+
+static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
+					     enum bpf_attach_type attach_type)
+{
+	/* There are currently no prog types that require specifying
+	 * attach_type at load time.
+	 */
+	return 0;
+}
+
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD prog_ifindex
+#define	BPF_PROG_LOAD_LAST_FIELD expected_attach_type
 
 static int bpf_prog_load(union bpf_attr *attr)
 {
@@ -1209,10 +1228,15 @@ static int bpf_prog_load(union bpf_attr *attr)
 	    !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	if (bpf_prog_load_check_attach_type(type, attr->expected_attach_type))
+		return -EINVAL;
+
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
 	if (!prog)
 		return -ENOMEM;
+
+	prog->expected_attach_type = attr->expected_attach_type;
 
 	prog->aux->offload_requested = !!attr->prog_ifindex;
 
@@ -1473,6 +1497,11 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	prog = bpf_prog_get_type(attr->attach_bpf_fd, ptype);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
+
+	if (bpf_prog_attach_check_attach_type(prog, attr->attach_type)) {
+		bpf_prog_put(prog);
+		return -EINVAL;
+	}
 
 	cgrp = cgroup_get_from_fd(attr->target_fd);
 	if (IS_ERR(cgrp)) {
