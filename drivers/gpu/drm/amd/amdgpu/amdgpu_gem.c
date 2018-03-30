@@ -56,11 +56,23 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 		alignment = PAGE_SIZE;
 	}
 
+retry:
 	r = amdgpu_bo_create(adev, size, alignment, initial_domain,
 			     flags, type, resv, &bo);
 	if (r) {
-		DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
-			  size, initial_domain, alignment, r);
+		if (r != -ERESTARTSYS) {
+			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
+				flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+				goto retry;
+			}
+
+			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
+				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
+				goto retry;
+			}
+			DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
+				  size, initial_domain, alignment, r);
+		}
 		return r;
 	}
 	*obj = &bo->gem_base;
