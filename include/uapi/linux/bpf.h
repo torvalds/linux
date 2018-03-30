@@ -152,6 +152,8 @@ enum bpf_attach_type {
 	BPF_CGROUP_INET6_BIND,
 	BPF_CGROUP_INET4_CONNECT,
 	BPF_CGROUP_INET6_CONNECT,
+	BPF_CGROUP_INET4_POST_BIND,
+	BPF_CGROUP_INET6_POST_BIND,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -948,6 +950,15 @@ struct bpf_sock {
 	__u32 protocol;
 	__u32 mark;
 	__u32 priority;
+	__u32 src_ip4;		/* Allows 1,2,4-byte read.
+				 * Stored in network byte order.
+				 */
+	__u32 src_ip6[4];	/* Allows 1,2,4-byte read.
+				 * Stored in network byte order.
+				 */
+	__u32 src_port;		/* Allows 4-byte read.
+				 * Stored in host byte order
+				 */
 };
 
 #define XDP_PACKET_HEADROOM 256

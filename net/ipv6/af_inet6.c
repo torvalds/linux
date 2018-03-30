@@ -412,13 +412,20 @@ int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		sk->sk_ipv6only = 1;
 
 	/* Make sure we are allowed to bind here. */
-	if ((snum || !(inet->bind_address_no_port ||
-		       force_bind_address_no_port)) &&
-	    sk->sk_prot->get_port(sk, snum)) {
-		sk->sk_ipv6only = saved_ipv6only;
-		inet_reset_saddr(sk);
-		err = -EADDRINUSE;
-		goto out;
+	if (snum || !(inet->bind_address_no_port ||
+		      force_bind_address_no_port)) {
+		if (sk->sk_prot->get_port(sk, snum)) {
+			sk->sk_ipv6only = saved_ipv6only;
+			inet_reset_saddr(sk);
+			err = -EADDRINUSE;
+			goto out;
+		}
+		err = BPF_CGROUP_RUN_PROG_INET6_POST_BIND(sk);
+		if (err) {
+			sk->sk_ipv6only = saved_ipv6only;
+			inet_reset_saddr(sk);
+			goto out;
+		}
 	}
 
 	if (addr_type != IPV6_ADDR_ANY)

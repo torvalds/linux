@@ -4097,30 +4097,80 @@ static bool lwt_is_valid_access(int off, int size,
 	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
+
+/* Attach type specific accesses */
+static bool __sock_filter_check_attach_type(int off,
+					    enum bpf_access_type access_type,
+					    enum bpf_attach_type attach_type)
+{
+	switch (off) {
+	case offsetof(struct bpf_sock, bound_dev_if):
+	case offsetof(struct bpf_sock, mark):
+	case offsetof(struct bpf_sock, priority):
+		switch (attach_type) {
+		case BPF_CGROUP_INET_SOCK_CREATE:
+			goto full_access;
+		default:
+			return false;
+		}
+	case bpf_ctx_range(struct bpf_sock, src_ip4):
+		switch (attach_type) {
+		case BPF_CGROUP_INET4_POST_BIND:
+			goto read_only;
+		default:
+			return false;
+		}
+	case bpf_ctx_range_till(struct bpf_sock, src_ip6[0], src_ip6[3]):
+		switch (attach_type) {
+		case BPF_CGROUP_INET6_POST_BIND:
+			goto read_only;
+		default:
+			return false;
+		}
+	case bpf_ctx_range(struct bpf_sock, src_port):
+		switch (attach_type) {
+		case BPF_CGROUP_INET4_POST_BIND:
+		case BPF_CGROUP_INET6_POST_BIND:
+			goto read_only;
+		default:
+			return false;
+		}
+	}
+read_only:
+	return access_type == BPF_READ;
+full_access:
+	return true;
+}
+
+static bool __sock_filter_check_size(int off, int size,
+				     struct bpf_insn_access_aux *info)
+{
+	const int size_default = sizeof(__u32);
+
+	switch (off) {
+	case bpf_ctx_range(struct bpf_sock, src_ip4):
+	case bpf_ctx_range_till(struct bpf_sock, src_ip6[0], src_ip6[3]):
+		bpf_ctx_record_field_size(info, size_default);
+		return bpf_ctx_narrow_access_ok(off, size, size_default);
+	}
+
+	return size == size_default;
+}
+
 static bool sock_filter_is_valid_access(int off, int size,
 					enum bpf_access_type type,
 					const struct bpf_prog *prog,
 					struct bpf_insn_access_aux *info)
 {
-	if (type == BPF_WRITE) {
-		switch (off) {
-		case offsetof(struct bpf_sock, bound_dev_if):
-		case offsetof(struct bpf_sock, mark):
-		case offsetof(struct bpf_sock, priority):
-			break;
-		default:
-			return false;
-		}
-	}
-
-	if (off < 0 || off + size > sizeof(struct bpf_sock))
+	if (off < 0 || off >= sizeof(struct bpf_sock))
 		return false;
-	/* The verifier guarantees that size > 0. */
 	if (off % size != 0)
 		return false;
-	if (size != sizeof(__u32))
+	if (!__sock_filter_check_attach_type(off, type,
+					     prog->expected_attach_type))
 		return false;
-
+	if (!__sock_filter_check_size(off, size, info))
+		return false;
 	return true;
 }
 
@@ -4728,6 +4778,7 @@ static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 					  struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
+	int off;
 
 	switch (si->off) {
 	case offsetof(struct bpf_sock, bound_dev_if):
@@ -4782,6 +4833,43 @@ static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(struct sock, __sk_flags_offset));
 		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_PROTO_MASK);
 		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg, SK_FL_PROTO_SHIFT);
+		break;
+
+	case offsetof(struct bpf_sock, src_ip4):
+		*insn++ = BPF_LDX_MEM(
+			BPF_SIZE(si->code), si->dst_reg, si->src_reg,
+			bpf_target_off(struct sock_common, skc_rcv_saddr,
+				       FIELD_SIZEOF(struct sock_common,
+						    skc_rcv_saddr),
+				       target_size));
+		break;
+
+	case bpf_ctx_range_till(struct bpf_sock, src_ip6[0], src_ip6[3]):
+#if IS_ENABLED(CONFIG_IPV6)
+		off = si->off;
+		off -= offsetof(struct bpf_sock, src_ip6[0]);
+		*insn++ = BPF_LDX_MEM(
+			BPF_SIZE(si->code), si->dst_reg, si->src_reg,
+			bpf_target_off(
+				struct sock_common,
+				skc_v6_rcv_saddr.s6_addr32[0],
+				FIELD_SIZEOF(struct sock_common,
+					     skc_v6_rcv_saddr.s6_addr32[0]),
+				target_size) + off);
+#else
+		(void)off;
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+#endif
+		break;
+
+	case offsetof(struct bpf_sock, src_port):
+		*insn++ = BPF_LDX_MEM(
+			BPF_FIELD_SIZEOF(struct sock_common, skc_num),
+			si->dst_reg, si->src_reg,
+			bpf_target_off(struct sock_common, skc_num,
+				       FIELD_SIZEOF(struct sock_common,
+						    skc_num),
+				       target_size));
 		break;
 	}
 
