@@ -466,7 +466,7 @@ static int dm_get_bdev_for_ioctl(struct mapped_device *md,
 {
 	struct dm_target *tgt;
 	struct dm_table *map;
-	int srcu_idx, r;
+	int srcu_idx, r, r2;
 
 retry:
 	r = -ENOTTY;
@@ -492,9 +492,11 @@ retry:
 		goto out;
 
 	bdgrab(*bdev);
-	r = blkdev_get(*bdev, *mode, _dm_claim_ptr);
-	if (r < 0)
+	r2 = blkdev_get(*bdev, *mode, _dm_claim_ptr);
+	if (r2 < 0) {
+		r = r2;
 		goto out;
+	}
 
 	dm_put_live_table(md, srcu_idx);
 	return r;
