@@ -463,6 +463,27 @@ void rxrpc_put_peer(struct rxrpc_peer *peer)
 	}
 }
 
+/*
+ * Make sure all peer records have been discarded.
+ */
+void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
+{
+	struct rxrpc_peer *peer;
+	int i;
+
+	for (i = 0; i < HASH_SIZE(rxnet->peer_hash); i++) {
+		if (hlist_empty(&rxnet->peer_hash[i]))
+			continue;
+
+		hlist_for_each_entry(peer, &rxnet->peer_hash[i], hash_link) {
+			pr_err("Leaked peer %u {%u} %pISp\n",
+			       peer->debug_id,
+			       atomic_read(&peer->usage),
+			       &peer->srx.transport);
+		}
+	}
+}
+
 /**
  * rxrpc_kernel_get_peer - Get the peer address of a call
  * @sock: The socket on which the call is in progress.

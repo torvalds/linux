@@ -118,6 +118,7 @@ static __net_exit void rxrpc_exit_net(struct net *net)
 	cancel_work_sync(&rxnet->peer_keepalive_work);
 	rxrpc_destroy_all_calls(rxnet);
 	rxrpc_destroy_all_connections(rxnet);
+	rxrpc_destroy_all_peers(rxnet);
 	rxrpc_destroy_all_locals(rxnet);
 	proc_remove(rxnet->proc_net);
 }

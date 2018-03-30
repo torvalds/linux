@@ -324,6 +324,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		mutex_unlock(&call->user_mutex);
 	}
 
+	rxrpc_put_peer(cp.peer);
 	_leave(" = %p", call);
 	return call;
 }
@@ -447,6 +448,7 @@ int rxrpc_kernel_retry_call(struct socket *sock, struct rxrpc_call *call,
 		ret = rxrpc_retry_client_call(rx, call, &cp, srx, GFP_KERNEL);
 
 	mutex_unlock(&call->user_mutex);
+	rxrpc_put_peer(cp.peer);
 	_leave(" = %d", ret);
 	return ret;
 }
