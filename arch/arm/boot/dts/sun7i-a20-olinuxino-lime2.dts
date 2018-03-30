@@ -121,6 +121,12 @@
 };
 
 &hdmi {
+	ddc-i2c-bus = <&hdmi_i2c>;
+	status = "okay";
+};
+
+&hdmi_i2c {
+	clock-frequency = <100000>;
 	status = "okay";
 };
 
