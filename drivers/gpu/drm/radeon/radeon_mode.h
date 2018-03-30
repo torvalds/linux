@@ -46,7 +46,6 @@ struct radeon_device;
 #define to_radeon_crtc(x) container_of(x, struct radeon_crtc, base)
 #define to_radeon_connector(x) container_of(x, struct radeon_connector, base)
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
-#define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
 #define RADEON_MAX_HPD_PINS 7
 #define RADEON_MAX_CRTCS 6
@@ -574,10 +573,6 @@ struct radeon_connector {
 	int enabled_attribs;
 };
 
-struct radeon_framebuffer {
-	struct drm_framebuffer base;
-};
-
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
@@ -931,7 +926,7 @@ radeon_combios_encoder_crtc_scratch_regs(struct drm_encoder *encoder, int crtc);
 extern void
 radeon_combios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on);
 int radeon_framebuffer_init(struct drm_device *dev,
-			     struct radeon_framebuffer *rfb,
+			     struct drm_framebuffer *rfb,
 			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 

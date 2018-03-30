@@ -374,7 +374,6 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct radeon_framebuffer *radeon_fb;
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
@@ -393,14 +392,10 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (atomic) {
-		radeon_fb = to_radeon_framebuffer(fb);
+	if (atomic)
 		target_fb = fb;
-	}
-	else {
-		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+	else
 		target_fb = crtc->primary->fb;
-	}
 
 	switch (target_fb->format->cpp[0] * 8) {
 	case 8:
@@ -423,7 +418,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	/* Pin framebuffer & get tilling informations */
-	obj = radeon_fb->base.obj[0];
+	obj = target_fb->obj[0];
 	rbo = gem_to_radeon_bo(obj);
 retry:
 	r = radeon_bo_reserve(rbo, false);

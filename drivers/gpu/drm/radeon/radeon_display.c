@@ -479,8 +479,6 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct radeon_framebuffer *old_radeon_fb;
-	struct radeon_framebuffer *new_radeon_fb;
 	struct drm_gem_object *obj;
 	struct radeon_flip_work *work;
 	struct radeon_bo *new_rbo;
@@ -502,15 +500,13 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	work->async = (page_flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
 	/* schedule unpin of the old buffer */
-	old_radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
-	obj = old_radeon_fb->base.obj[0];
+	obj = crtc->primary->fb->obj[0];
 
 	/* take a reference to the old object */
 	drm_gem_object_get(obj);
 	work->old_rbo = gem_to_radeon_bo(obj);
 
-	new_radeon_fb = to_radeon_framebuffer(fb);
-	obj = new_radeon_fb->base.obj[0];
+	obj = fb->obj[0];
 	new_rbo = gem_to_radeon_bo(obj);
 
 	/* pin the new buffer */
@@ -1293,16 +1289,16 @@ static const struct drm_framebuffer_funcs radeon_fb_funcs = {
 
 int
 radeon_framebuffer_init(struct drm_device *dev,
-			struct radeon_framebuffer *rfb,
+			struct drm_framebuffer *fb,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
 	int ret;
-	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
-	ret = drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
+	fb->obj[0] = obj;
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	ret = drm_framebuffer_init(dev, fb, &radeon_fb_funcs);
 	if (ret) {
-		rfb->base.obj[0] = NULL;
+		fb->obj[0] = NULL;
 		return ret;
 	}
 	return 0;
@@ -1314,7 +1310,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
-	struct radeon_framebuffer *radeon_fb;
+	struct drm_framebuffer *fb;
 	int ret;
 
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
@@ -1330,20 +1326,20 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL) {
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (fb == NULL) {
 		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
+	ret = radeon_framebuffer_init(dev, fb, mode_cmd, obj);
 	if (ret) {
-		kfree(radeon_fb);
+		kfree(fb);
 		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(ret);
 	}
 
-	return &radeon_fb->base;
+	return fb;
 }
 
 static const struct drm_mode_config_funcs radeon_mode_funcs = {
