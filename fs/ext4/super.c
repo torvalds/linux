@@ -2084,7 +2084,7 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 		SEQ_OPTS_PRINT("inode_readahead_blks=%u",
 			       sbi->s_inode_readahead_blks);
 
-	if (nodefs || (test_opt(sb, INIT_INODE_TABLE) &&
+	if (test_opt(sb, INIT_INODE_TABLE) && (nodefs ||
 		       (sbi->s_li_wait_mult != EXT4_DEF_LI_WAIT_MULT)))
 		SEQ_OPTS_PRINT("init_itable=%u", sbi->s_li_wait_mult);
 	if (nodefs || sbi->s_max_dir_size_kb)
