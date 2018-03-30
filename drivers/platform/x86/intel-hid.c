@@ -65,8 +65,8 @@ static const struct key_entry intel_array_keymap[] = {
 	{ KE_IGNORE, 0xC5, { KEY_VOLUMEUP } },                /* Release */
 	{ KE_KEY,    0xC6, { KEY_VOLUMEDOWN } },              /* Press */
 	{ KE_IGNORE, 0xC7, { KEY_VOLUMEDOWN } },              /* Release */
-	{ KE_SW,     0xC8, { .sw = { SW_ROTATE_LOCK, 1 } } }, /* Press */
-	{ KE_SW,     0xC9, { .sw = { SW_ROTATE_LOCK, 0 } } }, /* Release */
+	{ KE_KEY,    0xC8, { KEY_ROTATE_LOCK_TOGGLE } },      /* Press */
+	{ KE_IGNORE, 0xC9, { KEY_ROTATE_LOCK_TOGGLE } },      /* Release */
 	{ KE_KEY,    0xCE, { KEY_POWER } },                   /* Press */
 	{ KE_IGNORE, 0xCF, { KEY_POWER } },                   /* Release */
 	{ KE_END },
