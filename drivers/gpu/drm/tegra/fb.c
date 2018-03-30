@@ -92,23 +92,8 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 	return 0;
 }
 
-static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
-{
-	unsigned int i;
-
-	for (i = 0; i < framebuffer->format->num_planes; i++) {
-		struct tegra_bo *bo = tegra_fb_get_plane(framebuffer, i);
-
-		if (bo)
-			drm_gem_object_put_unlocked(&bo->gem);
-	}
-
-	drm_framebuffer_cleanup(framebuffer);
-	kfree(framebuffer);
-}
-
 static const struct drm_framebuffer_funcs tegra_fb_funcs = {
-	.destroy = tegra_fb_destroy,
+	.destroy = drm_gem_fb_destroy,
 	.create_handle = drm_gem_fb_create_handle,
 };
 
