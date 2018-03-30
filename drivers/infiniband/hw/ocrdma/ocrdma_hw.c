@@ -2014,7 +2014,7 @@ static int ocrdma_mbx_reg_mr_cont(struct ocrdma_dev *dev,
 				  struct ocrdma_hw_mr *hwmr, u32 pbl_cnt,
 				  u32 pbl_offset, u32 last)
 {
-	int status = -ENOMEM;
+	int status;
 	int i;
 	struct ocrdma_reg_nsmr_cont *cmd;
 
@@ -2033,9 +2033,7 @@ static int ocrdma_mbx_reg_mr_cont(struct ocrdma_dev *dev,
 		    upper_32_bits(hwmr->pbl_table[i + pbl_offset].pa);
 	}
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
-	if (status)
-		goto mbx_err;
-mbx_err:
+
 	kfree(cmd);
 	return status;
 }
@@ -3133,12 +3131,12 @@ done:
 static int ocrdma_mbx_modify_eqd(struct ocrdma_dev *dev, struct ocrdma_eq *eq,
 				 int num)
 {
-	int i, status = -ENOMEM;
+	int i, status;
 	struct ocrdma_modify_eqd_req *cmd;
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_MODIFY_EQ_DELAY, sizeof(*cmd));
 	if (!cmd)
-		return status;
+		return -ENOMEM;
 
 	ocrdma_init_mch(&cmd->cmd.req, OCRDMA_CMD_MODIFY_EQ_DELAY,
 			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
@@ -3151,9 +3149,7 @@ static int ocrdma_mbx_modify_eqd(struct ocrdma_dev *dev, struct ocrdma_eq *eq,
 				(eq[i].aic_obj.prev_eqd * 65)/100;
 	}
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
-	if (status)
-		goto mbx_err;
-mbx_err:
+
 	kfree(cmd);
 	return status;
 }
