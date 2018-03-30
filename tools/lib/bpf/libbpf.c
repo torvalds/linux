@@ -1887,6 +1887,8 @@ static const struct {
 	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
 	BPF_SA_PROG_SEC("cgroup/bind4",	BPF_CGROUP_INET4_BIND),
 	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
+	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
+	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
 };
 
 #undef BPF_PROG_SEC

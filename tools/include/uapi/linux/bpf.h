@@ -150,6 +150,8 @@ enum bpf_attach_type {
 	BPF_SK_MSG_VERDICT,
 	BPF_CGROUP_INET4_BIND,
 	BPF_CGROUP_INET6_BIND,
+	BPF_CGROUP_INET4_CONNECT,
+	BPF_CGROUP_INET6_CONNECT,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -744,6 +746,13 @@ union bpf_attr {
  *     @flags: reserved for future use
  *     Return: SK_PASS
  *
+ * int bpf_bind(ctx, addr, addr_len)
+ *     Bind socket to address. Only binding to IP is supported, no port can be
+ *     set in addr.
+ *     @ctx: pointer to context of type bpf_sock_addr
+ *     @addr: pointer to struct sockaddr to bind socket to
+ *     @addr_len: length of sockaddr structure
+ *     Return: 0 on success or negative error code
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -809,7 +818,8 @@ union bpf_attr {
 	FN(msg_redirect_map),		\
 	FN(msg_apply_bytes),		\
 	FN(msg_cork_bytes),		\
-	FN(msg_pull_data),
+	FN(msg_pull_data),		\
+	FN(bind),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call

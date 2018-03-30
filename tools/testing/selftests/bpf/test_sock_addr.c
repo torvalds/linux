@@ -12,10 +12,13 @@
 #include <linux/filter.h>
 
 #include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
 
 #define CG_PATH	"/foo"
+#define CONNECT4_PROG_PATH	"./connect4_prog.o"
+#define CONNECT6_PROG_PATH	"./connect6_prog.o"
 
 #define SERV4_IP		"192.168.1.254"
 #define SERV4_REWRITE_IP	"127.0.0.1"
@@ -254,6 +257,41 @@ static int bind6_prog_load(enum bpf_attach_type attach_type,
 			  sizeof(insns) / sizeof(struct bpf_insn), comment);
 }
 
+static int connect_prog_load_path(const char *path,
+				  enum bpf_attach_type attach_type,
+				  const char *comment)
+{
+	struct bpf_prog_load_attr attr;
+	struct bpf_object *obj;
+	int prog_fd;
+
+	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
+	attr.file = path;
+	attr.prog_type = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
+	attr.expected_attach_type = attach_type;
+
+	if (bpf_prog_load_xattr(&attr, &obj, &prog_fd)) {
+		if (comment)
+			log_err(">>> Loading %s program at %s error.\n",
+				comment, path);
+		return -1;
+	}
+
+	return prog_fd;
+}
+
+static int connect4_prog_load(enum bpf_attach_type attach_type,
+			      const char *comment)
+{
+	return connect_prog_load_path(CONNECT4_PROG_PATH, attach_type, comment);
+}
+
+static int connect6_prog_load(enum bpf_attach_type attach_type,
+			      const char *comment)
+{
+	return connect_prog_load_path(CONNECT6_PROG_PATH, attach_type, comment);
+}
+
 static void print_ip_port(int sockfd, info_fn fn, const char *fmt)
 {
 	char addr_buf[INET_NTOP_BUF];
@@ -290,6 +328,11 @@ static void print_local_ip_port(int sockfd, const char *fmt)
 	print_ip_port(sockfd, getsockname, fmt);
 }
 
+static void print_remote_ip_port(int sockfd, const char *fmt)
+{
+	print_ip_port(sockfd, getpeername, fmt);
+}
+
 static int start_server(int type, const struct sockaddr_storage *addr,
 			socklen_t addr_len)
 {
@@ -324,6 +367,39 @@ out:
 	return fd;
 }
 
+static int connect_to_server(int type, const struct sockaddr_storage *addr,
+			     socklen_t addr_len)
+{
+	int domain;
+	int fd;
+
+	domain = addr->ss_family;
+
+	if (domain != AF_INET && domain != AF_INET6) {
+		log_err("Unsupported address family");
+		return -1;
+	}
+
+	fd = socket(domain, type, 0);
+	if (fd == -1) {
+		log_err("Failed to creating client socket");
+		return -1;
+	}
+
+	if (connect(fd, (const struct sockaddr *)addr, addr_len) == -1) {
+		log_err("Fail to connect to server");
+		goto err;
+	}
+
+	print_remote_ip_port(fd, "\t   Actual: connect(%s, %d)");
+	print_local_ip_port(fd, " from (%s, %d)\n");
+
+	return 0;
+err:
+	close(fd);
+	return -1;
+}
+
 static void print_test_case_num(int domain, int type)
 {
 	static int test_num;
@@ -356,6 +432,10 @@ static int run_test_case(int domain, int type, const char *ip,
 	if (servfd == -1)
 		goto err;
 
+	printf("\tRequested: connect(%s, %d) from (*, *) ..\n", ip, port);
+	if (connect_to_server(type, &addr, addr_len))
+		goto err;
+
 	goto out;
 err:
 	err = -1;
@@ -380,29 +460,41 @@ static int load_and_attach_progs(int cgfd, struct program *progs,
 	size_t i;
 
 	for (i = 0; i < prog_cnt; ++i) {
+		printf("Load %s with invalid type (can pollute stderr) ",
+		       progs[i].name);
+		fflush(stdout);
 		progs[i].fd = progs[i].loadfn(progs[i].invalid_type, NULL);
 		if (progs[i].fd != -1) {
 			log_err("Load with invalid type accepted for %s",
 				progs[i].name);
 			goto err;
 		}
+		printf("... REJECTED\n");
+
+		printf("Load %s with valid type", progs[i].name);
 		progs[i].fd = progs[i].loadfn(progs[i].type, progs[i].name);
 		if (progs[i].fd == -1) {
 			log_err("Failed to load program %s", progs[i].name);
 			goto err;
 		}
+		printf(" ... OK\n");
+
+		printf("Attach %s with invalid type", progs[i].name);
 		if (bpf_prog_attach(progs[i].fd, cgfd, progs[i].invalid_type,
 				    BPF_F_ALLOW_OVERRIDE) != -1) {
 			log_err("Attach with invalid type accepted for %s",
 				progs[i].name);
 			goto err;
 		}
+		printf(" ... REJECTED\n");
+
+		printf("Attach %s with valid type", progs[i].name);
 		if (bpf_prog_attach(progs[i].fd, cgfd, progs[i].type,
 				    BPF_F_ALLOW_OVERRIDE) == -1) {
 			log_err("Failed to attach program %s", progs[i].name);
 			goto err;
 		}
-		printf("Attached %s program.\n", progs[i].name);
+		printf(" ... OK\n");
 	}
 
 	return 0;
@@ -443,12 +535,16 @@ static int run_test(void)
 	struct program inet6_progs[] = {
 		{BPF_CGROUP_INET6_BIND, bind6_prog_load, -1, "bind6",
 		 BPF_CGROUP_INET4_BIND},
+		{BPF_CGROUP_INET6_CONNECT, connect6_prog_load, -1, "connect6",
+		 BPF_CGROUP_INET4_CONNECT},
 	};
 	inet6_prog_cnt = sizeof(inet6_progs) / sizeof(struct program);
 
 	struct program inet_progs[] = {
 		{BPF_CGROUP_INET4_BIND, bind4_prog_load, -1, "bind4",
 		 BPF_CGROUP_INET6_BIND},
+		{BPF_CGROUP_INET4_CONNECT, connect4_prog_load, -1, "connect4",
+		 BPF_CGROUP_INET6_CONNECT},
 	};
 	inet_prog_cnt = sizeof(inet_progs) / sizeof(struct program);
 
@@ -482,5 +578,11 @@ out:
 
 int main(int argc, char **argv)
 {
+	if (argc < 2) {
+		fprintf(stderr,
+			"%s has to be run via %s.sh. Skip direct run.\n",
+			argv[0], argv[0]);
+		exit(0);
+	}
 	return run_test();
 }
