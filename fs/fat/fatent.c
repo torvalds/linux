@@ -459,6 +459,67 @@ static void fat_collect_bhs(struct buffer_head **bhs, int *nr_bhs,
 	}
 }
 
+int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
+{
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct fat_entry fatent;
+	int next;
+	u64 start_blk, len_blk, minlen_blk;
+	u64 ent_start, ent_end, ent;
+	u32 count = 0, trimmed = 0, minlen;
+
+	/*
+	 * FAT data is organized as clusters, trim at the granulary of cluster.
+	 *
+	 * fstrim_range is in byte, convert vaules to cluster index.
+	 * Treat sectors before data region as all used, not to trim them.
+	 */
+	start_blk = range->start >> sb->s_blocksize_bits;
+	len_blk = range->len >> sb->s_blocksize_bits;
+	minlen_blk = range->minlen >> sb->s_blocksize_bits;
+
+	ent_start = start_blk >> ffs(sbi->sec_per_clus);
+	ent_start = ent_start < FAT_START_ENT? FAT_START_ENT: ent_start;
+
+	ent_end = (ent_start + len_blk) >> ffs(sbi->sec_per_clus);
+	if (ent_end >= sbi->max_cluster)
+		return -EINVAL;
+
+	minlen = minlen_blk >> ffs(sbi->sec_per_clus);
+	if ( ent_start + minlen > ent_end)
+		return -EINVAL;
+
+	fatent_init(&fatent);
+	lock_fat(sbi);
+	ent = ent_start;
+	while (ent < ent_end) {
+		next = fat_ent_read(inode, &fatent, ent);
+
+		if (next == FAT_ENT_FREE) {
+			count++;
+		} else {
+			if (count != 0 && count >= minlen) {
+				sb_issue_discard(sb,
+					fat_clus_to_blknr(sbi, ent - count),
+					count * sbi->sec_per_clus,
+					GFP_NOFS, 0);
+
+				trimmed += count;
+			}
+			count = 0;
+		}
+
+		ent++;
+	}
+	fatent_brelse(&fatent);
+	unlock_fat(sbi);
+
+	range->len = (trimmed * sbi->sec_per_clus) << sb->s_blocksize_bits;
+
+	return 0;
+}
+
 int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 {
 	struct super_block *sb = inode->i_sb;
