@@ -1521,7 +1521,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		break;
 #endif
 	default:
-		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
+		DRM_ERROR("Unsupported ASIC type: 0x%X\n", adev->asic_type);
 		goto fail;
 	}
 
@@ -1714,7 +1714,7 @@ static int dm_early_init(void *handle)
 		break;
 #endif
 	default:
-		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
+		DRM_ERROR("Unsupported ASIC type: 0x%X\n", adev->asic_type);
 		return -EINVAL;
 	}
 
