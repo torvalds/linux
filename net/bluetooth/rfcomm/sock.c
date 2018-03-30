@@ -221,6 +221,7 @@ static void __rfcomm_sock_close(struct sock *sk)
 	case BT_CONFIG:
 	case BT_CONNECTED:
 		rfcomm_dlc_close(d, 0);
+		/* fall through */
 
 	default:
 		sock_set_flag(sk, SOCK_ZAPPED);
