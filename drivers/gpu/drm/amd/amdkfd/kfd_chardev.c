@@ -1421,7 +1421,7 @@ static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
 
 	pdd = kfd_get_process_device_data(dev, p);
 	if (!pdd) {
-		err = PTR_ERR(pdd);
+		err = -EINVAL;
 		goto bind_process_to_device_failed;
 	}
 
