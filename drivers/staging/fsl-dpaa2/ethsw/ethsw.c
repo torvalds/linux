@@ -616,10 +616,8 @@ static void ethsw_teardown_irqs(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	struct fsl_mc_device_irq *irq;
 	int err;
 
-	irq = sw_dev->irqs[DPSW_IRQ_INDEX_IF];
 	err = dpsw_set_irq_enable(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, 0);
 	if (err)
