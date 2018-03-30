@@ -1859,6 +1859,9 @@ static void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 
 #define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
 
+#define BPF_SA_PROG_SEC(string, ptype) \
+	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
+
 static const struct {
 	const char *sec;
 	size_t len;
@@ -1882,10 +1885,13 @@ static const struct {
 	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
 	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
 	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
+	BPF_SA_PROG_SEC("cgroup/bind4",	BPF_CGROUP_INET4_BIND),
+	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
 };
 
 #undef BPF_PROG_SEC
 #undef BPF_PROG_SEC_FULL
+#undef BPF_SA_PROG_SEC
 
 static int bpf_program__identify_section(struct bpf_program *prog)
 {
