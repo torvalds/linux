@@ -5028,8 +5028,10 @@ static struct sk_buff *skb_reorder_vlan_header(struct sk_buff *skb)
 	}
 
 	mac_len = skb->data - skb_mac_header(skb);
-	memmove(skb_mac_header(skb) + VLAN_HLEN, skb_mac_header(skb),
-		mac_len - VLAN_HLEN - ETH_TLEN);
+	if (likely(mac_len > VLAN_HLEN + ETH_TLEN)) {
+		memmove(skb_mac_header(skb) + VLAN_HLEN, skb_mac_header(skb),
+			mac_len - VLAN_HLEN - ETH_TLEN);
+	}
 	skb->mac_header += VLAN_HLEN;
 	return skb;
 }
