@@ -730,6 +730,7 @@ static int stmfts_probe(struct i2c_client *client,
 		return err;
 
 	pm_runtime_enable(&client->dev);
+	device_enable_async_suspend(&client->dev);
 
 	return 0;
 }
@@ -805,6 +806,7 @@ static struct i2c_driver stmfts_driver = {
 		.name = STMFTS_DEV_NAME,
 		.of_match_table = of_match_ptr(stmfts_of_match),
 		.pm = &stmfts_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = stmfts_probe,
 	.remove = stmfts_remove,
