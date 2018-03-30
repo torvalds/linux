@@ -366,7 +366,7 @@ static int __init parse_disable_radix(char *p)
 {
 	bool val;
 
-	if (strlen(p) == 0)
+	if (!p)
 		val = true;
 	else if (kstrtobool(p, &val))
 		return -EINVAL;
