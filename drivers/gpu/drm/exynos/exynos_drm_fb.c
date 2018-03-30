@@ -27,18 +27,6 @@
 #include "exynos_drm_iommu.h"
 #include "exynos_drm_crtc.h"
 
-#define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
-
-/*
- * exynos specific framebuffer structure.
- *
- * @fb: drm framebuffer obejct.
- * @exynos_gem: array of exynos specific gem object containing a gem object.
- */
-struct exynos_drm_fb {
-	struct drm_framebuffer	fb;
-};
-
 static int check_fb_gem_memory_type(struct drm_device *drm_dev,
 				    struct exynos_drm_gem *exynos_gem)
 {
@@ -76,12 +64,12 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct exynos_drm_gem **exynos_gem,
 			    int count)
 {
-	struct exynos_drm_fb *exynos_fb;
+	struct drm_framebuffer *fb;
 	int i;
 	int ret;
 
-	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
-	if (!exynos_fb)
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < count; i++) {
@@ -89,21 +77,21 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 		if (ret < 0)
 			goto err;
 
-		exynos_fb->fb.obj[i] = &exynos_gem[i]->base;
+		fb->obj[i] = &exynos_gem[i]->base;
 	}
 
-	drm_helper_mode_fill_fb_struct(dev, &exynos_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
-	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
+	ret = drm_framebuffer_init(dev, fb, &exynos_drm_fb_funcs);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize framebuffer\n");
 		goto err;
 	}
 
-	return &exynos_fb->fb;
+	return fb;
 
 err:
-	kfree(exynos_fb);
+	kfree(fb);
 	return ERR_PTR(ret);
 }
 
