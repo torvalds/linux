@@ -1176,7 +1176,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	/* If atomic, assume fb object is pinned & idle & fenced and
 	 * just update base pointers
 	 */
-	obj = radeon_fb->obj;
+	obj = radeon_fb->base.obj[0];
 	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
@@ -1442,7 +1442,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		rbo = gem_to_radeon_bo(radeon_fb->base.obj[0]);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -1490,7 +1490,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = crtc->primary->fb;
 	}
 
-	obj = radeon_fb->obj;
+	obj = radeon_fb->base.obj[0];
 	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
@@ -1642,7 +1642,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		rbo = gem_to_radeon_bo(radeon_fb->base.obj[0]);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -2153,7 +2153,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 		struct radeon_bo *rbo;
 
 		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
-		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		rbo = gem_to_radeon_bo(radeon_fb->base.obj[0]);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve rbo before unpin\n");

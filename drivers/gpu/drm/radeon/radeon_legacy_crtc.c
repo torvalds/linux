@@ -423,7 +423,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	/* Pin framebuffer & get tilling informations */
-	obj = radeon_fb->obj;
+	obj = radeon_fb->base.obj[0];
 	rbo = gem_to_radeon_bo(obj);
 retry:
 	r = radeon_bo_reserve(rbo, false);
@@ -451,7 +451,7 @@ retry:
 			struct radeon_bo *old_rbo;
 			unsigned long nsize, osize;
 
-			old_rbo = gem_to_radeon_bo(to_radeon_framebuffer(fb)->obj);
+			old_rbo = gem_to_radeon_bo(fb->obj[0]);
 			osize = radeon_bo_size(old_rbo);
 			nsize = radeon_bo_size(rbo);
 			if (nsize <= osize && !radeon_bo_reserve(old_rbo, false)) {
@@ -558,8 +558,7 @@ retry:
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
-		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		rbo = gem_to_radeon_bo(fb->obj[0]);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -1093,11 +1092,9 @@ static void radeon_crtc_disable(struct drm_crtc *crtc)
 	radeon_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		int r;
-		struct radeon_framebuffer *radeon_fb;
 		struct radeon_bo *rbo;
 
-		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
-		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		rbo = gem_to_radeon_bo(crtc->primary->fb->obj[0]);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve rbo before unpin\n");

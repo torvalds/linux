@@ -312,9 +312,9 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 
 	drm_fb_helper_unregister_fbi(&rfbdev->helper);
 
-	if (rfb->obj) {
-		radeonfb_destroy_pinned_object(rfb->obj);
-		rfb->obj = NULL;
+	if (rfb->base.obj[0]) {
+		radeonfb_destroy_pinned_object(rfb->base.obj[0]);
+		rfb->base.obj[0] = NULL;
 		drm_framebuffer_unregister_private(&rfb->base);
 		drm_framebuffer_cleanup(&rfb->base);
 	}
@@ -400,7 +400,7 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 	if (!rdev->mode_info.rfbdev)
 		return false;
 
-	if (robj == gem_to_radeon_bo(rdev->mode_info.rfbdev->rfb.obj))
+	if (robj == gem_to_radeon_bo(rdev->mode_info.rfbdev->rfb.base.obj[0]))
 		return true;
 	return false;
 }

@@ -576,7 +576,6 @@ struct radeon_connector {
 
 struct radeon_framebuffer {
 	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
 };
 
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \

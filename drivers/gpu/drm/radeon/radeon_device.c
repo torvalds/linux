@@ -1599,10 +1599,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 			}
 		}
 
-		if (rfb == NULL || rfb->obj == NULL) {
+		if (rfb == NULL || rfb->base.obj[0] == NULL) {
 			continue;
 		}
-		robj = gem_to_radeon_bo(rfb->obj);
+		robj = gem_to_radeon_bo(rfb->base.obj[0]);
 		/* don't unpin kernel fb objects */
 		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
 			r = radeon_bo_reserve(robj, false);

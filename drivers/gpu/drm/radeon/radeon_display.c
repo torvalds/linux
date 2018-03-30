@@ -32,6 +32,7 @@
 
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_edid.h>
@@ -502,14 +503,14 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 
 	/* schedule unpin of the old buffer */
 	old_radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
-	obj = old_radeon_fb->obj;
+	obj = old_radeon_fb->base.obj[0];
 
 	/* take a reference to the old object */
 	drm_gem_object_get(obj);
 	work->old_rbo = gem_to_radeon_bo(obj);
 
 	new_radeon_fb = to_radeon_framebuffer(fb);
-	obj = new_radeon_fb->obj;
+	obj = new_radeon_fb->base.obj[0];
 	new_rbo = gem_to_radeon_bo(obj);
 
 	/* pin the new buffer */
@@ -1285,27 +1286,9 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 
 }
 
-static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
-
-	drm_gem_object_put_unlocked(radeon_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(radeon_fb);
-}
-
-static int radeon_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-						  struct drm_file *file_priv,
-						  unsigned int *handle)
-{
-	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
-
-	return drm_gem_handle_create(file_priv, radeon_fb->obj, handle);
-}
-
 static const struct drm_framebuffer_funcs radeon_fb_funcs = {
-	.destroy = radeon_user_framebuffer_destroy,
-	.create_handle = radeon_user_framebuffer_create_handle,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
 int
@@ -1315,11 +1298,11 @@ radeon_framebuffer_init(struct drm_device *dev,
 			struct drm_gem_object *obj)
 {
 	int ret;
-	rfb->obj = obj;
+	rfb->base.obj[0] = obj;
 	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
 	if (ret) {
-		rfb->obj = NULL;
+		rfb->base.obj[0] = NULL;
 		return ret;
 	}
 	return 0;
