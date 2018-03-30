@@ -2541,7 +2541,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	/* unpin the front buffers and cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-		struct amdgpu_framebuffer *rfb = to_amdgpu_framebuffer(crtc->primary->fb);
+		struct drm_framebuffer *fb = crtc->primary->fb;
 		struct amdgpu_bo *robj;
 
 		if (amdgpu_crtc->cursor_bo) {
@@ -2553,10 +2553,10 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			}
 		}
 
-		if (rfb == NULL || rfb->obj == NULL) {
+		if (fb == NULL || fb->obj[0] == NULL) {
 			continue;
 		}
-		robj = gem_to_amdgpu_bo(rfb->obj);
+		robj = gem_to_amdgpu_bo(fb->obj[0]);
 		/* don't unpin kernel fb objects */
 		if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
 			r = amdgpu_bo_reserve(robj, true);

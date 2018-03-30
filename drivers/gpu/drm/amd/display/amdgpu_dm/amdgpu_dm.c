@@ -1819,7 +1819,7 @@ static bool fill_rects_from_plane_state(const struct drm_plane_state *state,
 static int get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
 		       uint64_t *tiling_flags)
 {
-	struct amdgpu_bo *rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+	struct amdgpu_bo *rbo = gem_to_amdgpu_bo(amdgpu_fb->base.obj[0]);
 	int r = amdgpu_bo_reserve(rbo, false);
 
 	if (unlikely(r)) {
@@ -3028,8 +3028,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	}
 
 	afb = to_amdgpu_framebuffer(new_state->fb);
-
-	obj = afb->obj;
+	obj = new_state->fb->obj[0];
 	rbo = gem_to_amdgpu_bo(obj);
 	adev = amdgpu_ttm_adev(rbo->tbo.bdev);
 	r = amdgpu_bo_reserve(rbo, false);
@@ -3093,14 +3092,12 @@ static void dm_plane_helper_cleanup_fb(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
 	struct amdgpu_bo *rbo;
-	struct amdgpu_framebuffer *afb;
 	int r;
 
 	if (!old_state->fb)
 		return;
 
-	afb = to_amdgpu_framebuffer(old_state->fb);
-	rbo = gem_to_amdgpu_bo(afb->obj);
+	rbo = gem_to_amdgpu_bo(old_state->fb->obj[0]);
 	r = amdgpu_bo_reserve(rbo, false);
 	if (unlikely(r)) {
 		DRM_ERROR("failed to reserve rbo before unpin\n");
@@ -3896,7 +3893,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	int r, vpos, hpos;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
-	struct amdgpu_bo *abo = gem_to_amdgpu_bo(afb->obj);
+	struct amdgpu_bo *abo = gem_to_amdgpu_bo(fb->obj[0]);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	bool async_flip = (crtc->state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 	struct dc_flip_addrs addr = { {0} };
