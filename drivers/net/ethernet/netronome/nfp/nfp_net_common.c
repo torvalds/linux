@@ -3066,7 +3066,7 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 	struct nfp_net_dp *dp;
 	int err;
 
-	err = nfp_app_change_mtu(nn->app, netdev, new_mtu);
+	err = nfp_app_check_mtu(nn->app, netdev, new_mtu);
 	if (err)
 		return err;
 

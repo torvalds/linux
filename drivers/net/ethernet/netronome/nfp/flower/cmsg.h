@@ -397,6 +397,7 @@ struct nfp_flower_cmsg_portmod {
 };
 
 #define NFP_FLOWER_CMSG_PORTMOD_INFO_LINK	BIT(0)
+#define NFP_FLOWER_CMSG_PORTMOD_MTU_CHANGE_ONLY	BIT(1)
 
 /* NFP_FLOWER_CMSG_TYPE_PORT_REIFY */
 struct nfp_flower_cmsg_portreify {
@@ -464,7 +465,8 @@ void
 nfp_flower_cmsg_mac_repr_add(struct sk_buff *skb, unsigned int idx,
 			     unsigned int nbi, unsigned int nbi_port,
 			     unsigned int phys_port);
-int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
+int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok,
+			    unsigned int mtu, bool mtu_only);
 int nfp_flower_cmsg_portreify(struct nfp_repr *repr, bool exists);
 void nfp_flower_cmsg_process_rx(struct work_struct *work);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
