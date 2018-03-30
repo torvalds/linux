@@ -138,6 +138,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 	write_unlock(&rx->call_lock);
 
+	rxnet = call->rxnet;
 	write_lock(&rxnet->call_lock);
 	list_add_tail(&call->link, &rxnet->calls);
 	write_unlock(&rxnet->call_lock);
