@@ -701,8 +701,6 @@ struct bcm_sysport_net_dim {
 	u16			event_ctr;
 	unsigned long		packets;
 	unsigned long		bytes;
-	u32			coal_usecs;
-	u32			coal_pkts;
 	struct net_dim		dim;
 };
 
@@ -723,7 +721,6 @@ struct bcm_sysport_tx_ring {
 	struct bcm_sysport_priv *priv;	/* private context backpointer */
 	unsigned long	packets;	/* packets statistics */
 	unsigned long	bytes;		/* bytes statistics */
-	struct bcm_sysport_net_dim dim;	/* Net DIM context */
 	unsigned int	switch_queue;	/* switch port queue number */
 	unsigned int	switch_port;	/* switch port queue number */
 	bool		inspect;	/* inspect switch port and queue */
@@ -756,6 +753,8 @@ struct bcm_sysport_priv {
 	unsigned int		rx_c_index;
 
 	struct bcm_sysport_net_dim	dim;
+	u32			rx_max_coalesced_frames;
+	u32			rx_coalesce_usecs;
 
 	/* PHY device */
 	struct device_node	*phy_dn;

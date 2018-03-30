@@ -625,26 +625,46 @@ static int bcmgenet_get_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static void bcmgenet_set_rx_coalesce(struct bcmgenet_rx_ring *ring)
+static void bcmgenet_set_rx_coalesce(struct bcmgenet_rx_ring *ring,
+				     u32 usecs, u32 pkts)
 {
 	struct bcmgenet_priv *priv = ring->priv;
 	unsigned int i = ring->index;
 	u32 reg;
 
-	bcmgenet_rdma_ring_writel(priv, i, ring->dim.coal_pkts,
-				  DMA_MBUF_DONE_THRESH);
+	bcmgenet_rdma_ring_writel(priv, i, pkts, DMA_MBUF_DONE_THRESH);
 
 	reg = bcmgenet_rdma_readl(priv, DMA_RING0_TIMEOUT + i);
 	reg &= ~DMA_TIMEOUT_MASK;
-	reg |= DIV_ROUND_UP(ring->dim.coal_usecs * 1000, 8192);
+	reg |= DIV_ROUND_UP(usecs * 1000, 8192);
 	bcmgenet_rdma_writel(priv, reg, DMA_RING0_TIMEOUT + i);
+}
+
+static void bcmgenet_set_ring_rx_coalesce(struct bcmgenet_rx_ring *ring,
+					  struct ethtool_coalesce *ec)
+{
+	struct net_dim_cq_moder moder;
+	u32 usecs, pkts;
+
+	ring->rx_coalesce_usecs = ec->rx_coalesce_usecs;
+	ring->rx_max_coalesced_frames = ec->rx_max_coalesced_frames;
+	usecs = ring->rx_coalesce_usecs;
+	pkts = ring->rx_max_coalesced_frames;
+
+	if (ec->use_adaptive_rx_coalesce && !ring->dim.use_dim) {
+		moder = net_dim_get_def_profile(ring->dim.dim.mode);
+		usecs = moder.usec;
+		pkts = moder.pkts;
+	}
+
+	ring->dim.use_dim = ec->use_adaptive_rx_coalesce;
+	bcmgenet_set_rx_coalesce(ring, usecs, pkts);
 }
 
 static int bcmgenet_set_coalesce(struct net_device *dev,
 				 struct ethtool_coalesce *ec)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct bcmgenet_rx_ring *ring;
 	unsigned int i;
 
 	/* Base system clock is 125Mhz, DMA timeout is this reference clock
@@ -680,27 +700,9 @@ static int bcmgenet_set_coalesce(struct net_device *dev,
 				  ec->tx_max_coalesced_frames,
 				  DMA_MBUF_DONE_THRESH);
 
-	for (i = 0; i < priv->hw_params->rx_queues; i++) {
-		ring = &priv->rx_rings[i];
-		ring->dim.coal_usecs = ec->rx_coalesce_usecs;
-		ring->dim.coal_pkts = ec->rx_max_coalesced_frames;
-		if (!ec->use_adaptive_rx_coalesce && ring->dim.use_dim) {
-			ring->dim.coal_pkts = 1;
-			ring->dim.coal_usecs = 0;
-		}
-		ring->dim.use_dim = ec->use_adaptive_rx_coalesce;
-		bcmgenet_set_rx_coalesce(ring);
-	}
-
-	ring = &priv->rx_rings[DESC_INDEX];
-	ring->dim.coal_usecs = ec->rx_coalesce_usecs;
-	ring->dim.coal_pkts = ec->rx_max_coalesced_frames;
-	if (!ec->use_adaptive_rx_coalesce && ring->dim.use_dim) {
-		ring->dim.coal_pkts = 1;
-		ring->dim.coal_usecs = 0;
-	}
-	ring->dim.use_dim = ec->use_adaptive_rx_coalesce;
-	bcmgenet_set_rx_coalesce(ring);
+	for (i = 0; i < priv->hw_params->rx_queues; i++)
+		bcmgenet_set_ring_rx_coalesce(&priv->rx_rings[i], ec);
+	bcmgenet_set_ring_rx_coalesce(&priv->rx_rings[DESC_INDEX], ec);
 
 	return 0;
 }
@@ -1924,10 +1926,7 @@ static void bcmgenet_dim_work(struct work_struct *work)
 	struct net_dim_cq_moder cur_profile =
 			net_dim_get_profile(dim->mode, dim->profile_ix);
 
-	ring->dim.coal_usecs = cur_profile.usec;
-	ring->dim.coal_pkts = cur_profile.pkts;
-
-	bcmgenet_set_rx_coalesce(ring);
+	bcmgenet_set_rx_coalesce(ring, cur_profile.usec, cur_profile.pkts);
 	dim->state = NET_DIM_START_MEASURE;
 }
 
@@ -2079,14 +2078,35 @@ static void init_umac(struct bcmgenet_priv *priv)
 	dev_dbg(kdev, "done init umac\n");
 }
 
-static void bcmgenet_init_dim(struct bcmgenet_net_dim *dim,
+static void bcmgenet_init_dim(struct bcmgenet_rx_ring *ring,
 			      void (*cb)(struct work_struct *work))
 {
+	struct bcmgenet_net_dim *dim = &ring->dim;
+
 	INIT_WORK(&dim->dim.work, cb);
 	dim->dim.mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
 	dim->event_ctr = 0;
 	dim->packets = 0;
 	dim->bytes = 0;
+}
+
+static void bcmgenet_init_rx_coalesce(struct bcmgenet_rx_ring *ring)
+{
+	struct bcmgenet_net_dim *dim = &ring->dim;
+	struct net_dim_cq_moder moder;
+	u32 usecs, pkts;
+
+	usecs = ring->rx_coalesce_usecs;
+	pkts = ring->rx_max_coalesced_frames;
+
+	/* If DIM was enabled, re-apply default parameters */
+	if (dim->use_dim) {
+		moder = net_dim_get_def_profile(dim->dim.mode);
+		usecs = moder.usec;
+		pkts = moder.pkts;
+	}
+
+	bcmgenet_set_rx_coalesce(ring, usecs, pkts);
 }
 
 /* Initialize a Tx ring along with corresponding hardware registers */
@@ -2178,7 +2198,8 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 	if (ret)
 		return ret;
 
-	bcmgenet_init_dim(&ring->dim, bcmgenet_dim_work);
+	bcmgenet_init_dim(ring, bcmgenet_dim_work);
+	bcmgenet_init_rx_coalesce(ring);
 
 	/* Initialize Rx NAPI */
 	netif_napi_add(priv->dev, &ring->napi, bcmgenet_rx_poll,
@@ -2186,7 +2207,6 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_PROD_INDEX);
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_CONS_INDEX);
-	bcmgenet_rdma_ring_writel(priv, index, 1, DMA_MBUF_DONE_THRESH);
 	bcmgenet_rdma_ring_writel(priv, index,
 				  ((size << DMA_RING_SIZE_SHIFT) |
 				   RX_BUF_LENGTH), DMA_RING_BUF_SIZE);
@@ -3424,6 +3444,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	const void *macaddr;
 	struct resource *r;
+	unsigned int i;
 	int err = -EIO;
 	const char *phy_mode_str;
 
@@ -3551,6 +3572,11 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	 */
 	netif_set_real_num_tx_queues(priv->dev, priv->hw_params->tx_queues + 1);
 	netif_set_real_num_rx_queues(priv->dev, priv->hw_params->rx_queues + 1);
+
+	/* Set default coalescing parameters */
+	for (i = 0; i < priv->hw_params->rx_queues; i++)
+		priv->rx_rings[i].rx_max_coalesced_frames = 1;
+	priv->rx_rings[DESC_INDEX].rx_max_coalesced_frames = 1;
 
 	/* libphy will determine the link state */
 	netif_carrier_off(dev);

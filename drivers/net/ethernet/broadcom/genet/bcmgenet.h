@@ -578,8 +578,6 @@ struct bcmgenet_net_dim {
 	u16		event_ctr;
 	unsigned long	packets;
 	unsigned long	bytes;
-	u32		coal_usecs;
-	u32		coal_pkts;
 	struct net_dim	dim;
 };
 
@@ -598,6 +596,8 @@ struct bcmgenet_rx_ring {
 	unsigned int	end_ptr;	/* Rx ring end CB ptr */
 	unsigned int	old_discards;
 	struct bcmgenet_net_dim dim;
+	u32		rx_max_coalesced_frames;
+	u32		rx_coalesce_usecs;
 	void (*int_enable)(struct bcmgenet_rx_ring *);
 	void (*int_disable)(struct bcmgenet_rx_ring *);
 	struct bcmgenet_priv *priv;
