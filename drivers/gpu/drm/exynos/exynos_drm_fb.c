@@ -18,6 +18,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <uapi/drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -36,7 +37,6 @@
  */
 struct exynos_drm_fb {
 	struct drm_framebuffer	fb;
-	struct exynos_drm_gem	*exynos_gem[MAX_FB_BUFFER];
 	dma_addr_t			dma_addr[MAX_FB_BUFFER];
 };
 
@@ -66,40 +66,9 @@ static int check_fb_gem_memory_type(struct drm_device *drm_dev,
 	return 0;
 }
 
-static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
-{
-	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
-	unsigned int i;
-
-	drm_framebuffer_cleanup(fb);
-
-	for (i = 0; i < ARRAY_SIZE(exynos_fb->exynos_gem); i++) {
-		struct drm_gem_object *obj;
-
-		if (exynos_fb->exynos_gem[i] == NULL)
-			continue;
-
-		obj = &exynos_fb->exynos_gem[i]->base;
-		drm_gem_object_unreference_unlocked(obj);
-	}
-
-	kfree(exynos_fb);
-	exynos_fb = NULL;
-}
-
-static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
-					struct drm_file *file_priv,
-					unsigned int *handle)
-{
-	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
-
-	return drm_gem_handle_create(file_priv,
-				     &exynos_fb->exynos_gem[0]->base, handle);
-}
-
 static const struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
-	.destroy	= exynos_drm_fb_destroy,
-	.create_handle	= exynos_drm_fb_create_handle,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
 };
 
 struct drm_framebuffer *
@@ -121,7 +90,7 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 		if (ret < 0)
 			goto err;
 
-		exynos_fb->exynos_gem[i] = exynos_gem[i];
+		exynos_fb->fb.obj[i] = &exynos_gem[i]->base;
 		exynos_fb->dma_addr[i] = exynos_gem[i]->dma_addr
 						+ mode_cmd->offsets[i];
 	}
