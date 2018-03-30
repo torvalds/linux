@@ -2917,6 +2917,12 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!dev)
 		goto out;
 
+	if (idev->cnf.disable_ipv6) {
+		NL_SET_ERR_MSG(extack, "IPv6 is disabled on nexthop device");
+		err = -EACCES;
+		goto out;
+	}
+
 	if (!(dev->flags & IFF_UP)) {
 		NL_SET_ERR_MSG(extack, "Nexthop device is not up");
 		err = -ENETDOWN;
