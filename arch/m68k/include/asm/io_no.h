@@ -18,16 +18,95 @@
 #define __raw_writew(b, addr) (void)((*(volatile unsigned short *) (addr)) = (b))
 #define __raw_writel(b, addr) (void)((*(volatile unsigned int *) (addr)) = (b))
 
-#if defined(CONFIG_PCI) && defined(CONFIG_COLDFIRE)
+#if defined(CONFIG_COLDFIRE)
+/*
+ * For ColdFire platforms we may need to do some extra checks for what
+ * type of address range we are accessing. Include the ColdFire platform
+ * definitions so we can figure out if need to do something special.
+ */
+#include <asm/byteorder.h>
+#include <asm/coldfire.h>
+#include <asm/mcfsim.h>
+#endif /* CONFIG_COLDFIRE */
+
+#if defined(IOMEMBASE)
+/*
+ * The ColdFire SoC internal peripherals are mapped into virtual address
+ * space using the ACR registers of the cache control unit. This means we
+ * are using a 1:1 physical:virtual mapping for them. We can quickly
+ * determine if we are accessing an internal peripheral device given the
+ * physical or vitrual address using the same range check. This check logic
+ * applies just the same of there is no MMU but something like a PCI bus
+ * is present.
+ */
+static int __cf_internalio(unsigned long addr)
+{
+	return (addr >= IOMEMBASE) && (addr <= IOMEMBASE + IOMEMSIZE - 1);
+}
+
+static int cf_internalio(const volatile void __iomem *addr)
+{
+	return __cf_internalio((unsigned long) addr);
+}
+
+/*
+ * We need to treat built-in peripherals and bus based address ranges
+ * differently. Local built-in peripherals (and the ColdFire SoC parts
+ * have quite a lot of them) are always native endian - which is big
+ * endian on m68k/ColdFire. Bus based address ranges, like the PCI bus,
+ * are accessed little endian - so we need to byte swap those.
+ */
+#define readw readw
+static inline u16 readw(const volatile void __iomem *addr)
+{
+	if (cf_internalio(addr))
+		return __raw_readw(addr);
+	return __le16_to_cpu(__raw_readw(addr));
+}
+
+#define readl readl
+static inline u32 readl(const volatile void __iomem *addr)
+{
+	if (cf_internalio(addr))
+		return __raw_readl(addr);
+	return __le32_to_cpu(__raw_readl(addr));
+}
+
+#define writew writew
+static inline void writew(u16 value, volatile void __iomem *addr)
+{
+	if (cf_internalio(addr))
+		__raw_writew(value, addr);
+	else
+		__raw_writew(__cpu_to_le16(value), addr);
+}
+
+#define writel writel
+static inline void writel(u32 value, volatile void __iomem *addr)
+{
+	if (cf_internalio(addr))
+		__raw_writel(value, addr);
+	else
+		__raw_writel(__cpu_to_le32(value), addr);
+}
+
+#else
+
+#define readb __raw_readb
+#define readw __raw_readw
+#define readl __raw_readl
+#define writeb __raw_writeb
+#define writew __raw_writew
+#define writel __raw_writel
+
+#endif /* IOMEMBASE */
+
+#if defined(CONFIG_PCI)
 /*
  * Support for PCI bus access uses the asm-generic access functions.
  * We need to supply the base address and masks for the normal memory
  * and IO address space mappings.
  */
-#include <asm/byteorder.h>
-#include <asm/coldfire.h>
-#include <asm/mcfsim.h>
-
 #define PCI_MEM_PA	0xf0000000		/* Host physical address */
 #define PCI_MEM_BA	0xf0000000		/* Bus physical address */
 #define PCI_MEM_SIZE	0x08000000		/* 128 MB */
@@ -44,17 +123,7 @@
 #define PIO_RESERVED	0x10000
 #define PCI_IOBASE	((void __iomem *) PCI_IO_PA)
 #define PCI_SPACE_LIMIT	PCI_IO_MASK
-
-#else
-
-#define readb __raw_readb
-#define readw __raw_readw
-#define readl __raw_readl
-#define writeb __raw_writeb
-#define writew __raw_writew
-#define writel __raw_writel
-
-#endif /* CONFIG_PCI && CONFIG_COLDFIRE */
+#endif /* CONFIG_PCI */
 
 /*
  * These are defined in kmap.h as static inline functions. To maintain
