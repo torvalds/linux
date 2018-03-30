@@ -28,7 +28,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
-#include "dc.h"
 
 /*
  * This file contains the definition for amdgpu_display_manager
@@ -53,6 +52,7 @@
 struct amdgpu_device;
 struct drm_device;
 struct amdgpu_dm_irq_handler_data;
+struct dc;
 
 struct amdgpu_dm_prev_state {
 	struct drm_framebuffer *fb;
