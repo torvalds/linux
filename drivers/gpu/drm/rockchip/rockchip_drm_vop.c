@@ -728,7 +728,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	obj = rockchip_fb_get_gem_obj(fb, 0);
+	obj = fb->obj[0];
 	rk_obj = to_rockchip_obj(obj);
 
 	actual_w = drm_rect_width(src) >> 16;
@@ -758,7 +758,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
 		int bpp = fb->format->cpp[1];
 
-		uv_obj = rockchip_fb_get_gem_obj(fb, 1);
+		uv_obj = fb->obj[1];
 		rk_uv_obj = to_rockchip_obj(uv_obj);
 
 		offset = (src->x1 >> 16) * bpp / hsub;
