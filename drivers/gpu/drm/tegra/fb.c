@@ -107,7 +107,7 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 	unsigned int i;
 
-	for (i = 0; i < fb->num_planes; i++) {
+	for (i = 0; i < framebuffer->format->num_planes; i++) {
 		struct tegra_bo *bo = fb->planes[i];
 
 		if (bo) {
@@ -155,11 +155,9 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fb->num_planes = num_planes;
-
 	drm_helper_mode_fill_fb_struct(drm, &fb->base, mode_cmd);
 
-	for (i = 0; i < fb->num_planes; i++)
+	for (i = 0; i < fb->base.format->num_planes; i++)
 		fb->planes[i] = planes[i];
 
 	err = drm_framebuffer_init(drm, &fb->base, &tegra_fb_funcs);

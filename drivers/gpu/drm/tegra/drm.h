@@ -32,7 +32,6 @@ struct reset_control;
 struct tegra_fb {
 	struct drm_framebuffer base;
 	struct tegra_bo **planes;
-	unsigned int num_planes;
 };
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
