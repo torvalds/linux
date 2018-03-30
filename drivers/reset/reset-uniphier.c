@@ -63,6 +63,9 @@ static const struct uniphier_reset_data uniphier_pro4_sys_reset_data[] = {
 	UNIPHIER_RESETX(12, 0x2000, 6),		/* GIO (Ether, SATA, USB3) */
 	UNIPHIER_RESETX(14, 0x2000, 17),	/* USB30 */
 	UNIPHIER_RESETX(15, 0x2004, 17),	/* USB31 */
+	UNIPHIER_RESETX(28, 0x2000, 18),	/* SATA0 */
+	UNIPHIER_RESETX(29, 0x2004, 18),	/* SATA1 */
+	UNIPHIER_RESETX(30, 0x2000, 19),	/* SATA-PHY */
 	UNIPHIER_RESETX(40, 0x2000, 13),	/* AIO */
 	UNIPHIER_RESET_END,
 };
@@ -90,7 +93,7 @@ static const struct uniphier_reset_data uniphier_pxs2_sys_reset_data[] = {
 	UNIPHIER_RESETX(20, 0x2014, 5),		/* USB31-PHY0 */
 	UNIPHIER_RESETX(21, 0x2014, 1),		/* USB31-PHY1 */
 	UNIPHIER_RESETX(28, 0x2014, 12),	/* SATA */
-	UNIPHIER_RESET(29, 0x2014, 8),		/* SATA-PHY (active high) */
+	UNIPHIER_RESET(30, 0x2014, 8),		/* SATA-PHY (active high) */
 	UNIPHIER_RESETX(40, 0x2000, 13),	/* AIO */
 	UNIPHIER_RESET_END,
 };
@@ -137,6 +140,9 @@ static const struct uniphier_reset_data uniphier_pxs3_sys_reset_data[] = {
 	UNIPHIER_RESETX(20, 0x200c, 17),	/* USB31-PHY0 */
 	UNIPHIER_RESETX(21, 0x200c, 19),	/* USB31-PHY1 */
 	UNIPHIER_RESETX(24, 0x200c, 3),		/* PCIe */
+	UNIPHIER_RESETX(28, 0x200c, 7),		/* SATA0 */
+	UNIPHIER_RESETX(29, 0x200c, 8),		/* SATA1 */
+	UNIPHIER_RESETX(30, 0x200c, 21),	/* SATA-PHY */
 	UNIPHIER_RESET_END,
 };
 
