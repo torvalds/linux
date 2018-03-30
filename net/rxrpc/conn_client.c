@@ -776,7 +776,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	unsigned int channel = call->cid & RXRPC_CHANNELMASK;
 	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_channel *chan = &conn->channels[channel];
-	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&call->socket->sk));
+	struct rxrpc_net *rxnet = conn->params.local->rxnet;
 
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
 	call->conn = NULL;
