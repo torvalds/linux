@@ -262,6 +262,7 @@ void pci_disable_bridge_window(struct pci_dev *dev);
 	 "Unknown speed")
 
 enum pci_bus_speed pcie_get_speed_cap(struct pci_dev *dev);
+enum pcie_link_width pcie_get_width_cap(struct pci_dev *dev);
 
 /* Single Root I/O Virtualization */
 struct pci_sriov {
