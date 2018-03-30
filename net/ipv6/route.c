@@ -919,6 +919,9 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 	struct rt6_info *rt, *rt_cache;
 	struct fib6_node *fn;
 
+	if (fl6->flowi6_flags & FLOWI_FLAG_SKIP_NH_OIF)
+		flags &= ~RT6_LOOKUP_F_IFACE;
+
 	rcu_read_lock();
 	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
