@@ -1167,18 +1167,10 @@ static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 	}
 }
 
-static void ibmvnic_cleanup(struct net_device *netdev)
+static void ibmvnic_disable_irqs(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct net_device *netdev = adapter->netdev;
 	int i;
-
-	/* ensure that transmissions are stopped if called by do_reset */
-	if (adapter->resetting)
-		netif_tx_disable(netdev);
-	else
-		netif_tx_stop_all_queues(netdev);
-
-	ibmvnic_napi_disable(adapter);
 
 	if (adapter->tx_scrq) {
 		for (i = 0; i < adapter->req_tx_queues; i++)
@@ -1198,6 +1190,21 @@ static void ibmvnic_cleanup(struct net_device *netdev)
 			}
 		}
 	}
+}
+
+static void ibmvnic_cleanup(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+
+	/* ensure that transmissions are stopped if called by do_reset */
+	if (adapter->resetting)
+		netif_tx_disable(netdev);
+	else
+		netif_tx_stop_all_queues(netdev);
+
+	ibmvnic_napi_disable(adapter);
+	ibmvnic_disable_irqs(adapter);
+
 	clean_rx_pools(adapter);
 	clean_tx_pools(adapter);
 }
@@ -1772,6 +1779,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		}
 	}
 
+	ibmvnic_disable_irqs(adapter);
 	adapter->state = VNIC_CLOSED;
 
 	if (reset_state == VNIC_CLOSED)
