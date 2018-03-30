@@ -1614,10 +1614,6 @@ static void hns3_remove(struct pci_dev *pdev)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
 	hnae3_unregister_ae_dev(ae_dev);
-
-	devm_kfree(&pdev->dev, ae_dev);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver hns3_driver = {
