@@ -51,6 +51,7 @@ static bool init_net_initialized;
  * outside.
  */
 DECLARE_RWSEM(pernet_ops_rwsem);
+EXPORT_SYMBOL_GPL(pernet_ops_rwsem);
 
 #define MIN_PERNET_OPS_ID	\
 	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))
