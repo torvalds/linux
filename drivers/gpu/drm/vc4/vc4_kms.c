@@ -90,6 +90,26 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret;
 
+	if (state->async_update) {
+		ret = down_interruptible(&vc4->async_modeset);
+		if (ret)
+			return ret;
+
+		ret = drm_atomic_helper_prepare_planes(dev, state);
+		if (ret) {
+			up(&vc4->async_modeset);
+			return ret;
+		}
+
+		drm_atomic_helper_async_commit(dev, state);
+
+		drm_atomic_helper_cleanup_planes(dev, state);
+
+		up(&vc4->async_modeset);
+
+		return 0;
+	}
+
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
 		return ret;
