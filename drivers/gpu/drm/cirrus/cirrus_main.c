@@ -20,15 +20,15 @@ static const struct drm_framebuffer_funcs cirrus_fb_funcs = {
 };
 
 int cirrus_framebuffer_init(struct drm_device *dev,
-			    struct cirrus_framebuffer *gfb,
+			    struct drm_framebuffer *gfb,
 			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj)
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
-	gfb->base.obj[0] = obj;
-	ret = drm_framebuffer_init(dev, &gfb->base, &cirrus_fb_funcs);
+	drm_helper_mode_fill_fb_struct(dev, gfb, mode_cmd);
+	gfb->obj[0] = obj;
+	ret = drm_framebuffer_init(dev, gfb, &cirrus_fb_funcs);
 	if (ret) {
 		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
 		return ret;
@@ -43,7 +43,7 @@ cirrus_user_framebuffer_create(struct drm_device *dev,
 {
 	struct cirrus_device *cdev = dev->dev_private;
 	struct drm_gem_object *obj;
-	struct cirrus_framebuffer *cirrus_fb;
+	struct drm_framebuffer *fb;
 	u32 bpp;
 	int ret;
 
@@ -57,19 +57,19 @@ cirrus_user_framebuffer_create(struct drm_device *dev,
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 
-	cirrus_fb = kzalloc(sizeof(*cirrus_fb), GFP_KERNEL);
-	if (!cirrus_fb) {
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (!fb) {
 		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = cirrus_framebuffer_init(dev, cirrus_fb, mode_cmd, obj);
+	ret = cirrus_framebuffer_init(dev, fb, mode_cmd, obj);
 	if (ret) {
 		drm_gem_object_put_unlocked(obj);
-		kfree(cirrus_fb);
+		kfree(fb);
 		return ERR_PTR(ret);
 	}
-	return &cirrus_fb->base;
+	return fb;
 }
 
 static const struct drm_mode_config_funcs cirrus_mode_funcs = {
