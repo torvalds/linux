@@ -720,6 +720,19 @@
 		status = "disabled";
 	};
 
+	spdif_tx: spdif-tx@ff3a0000 {
+		compatible = "rockchip,rk3308-spdif", "rockchip,rk3328-spdif";
+		reg = <0x0 0xff3a0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SPDIF_TX>, <&cru HCLK_SPDIFTX>;
+		clock-names = "mclk", "hclk";
+		dmas = <&dmac1 13>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_out>;
+		status = "disabled";
+	};
+
 	vad: vad@ff3c0000 {
 		compatible = "rockchip,rk3308-vad", "rockchip,vad";
 		reg = <0x0 0xff3c0000 0x0 0x10000>, <0x0 0xfff88000 0x0 0x38000>;
@@ -1394,6 +1407,13 @@
 			pdm_m2_sdi3: pdm-m2-sdi3 {
 				rockchip,pins =
 					<2 RK_PC0 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		spdif_out {
+			spdif_out: spdif-out {
+				rockchip,pins =
+					<0 RK_PC1 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
