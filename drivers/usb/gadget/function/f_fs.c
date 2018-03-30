@@ -1266,6 +1266,14 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long ffs_epfile_compat_ioctl(struct file *file, unsigned code,
+		unsigned long value)
+{
+	return ffs_epfile_ioctl(file, code, value);
+}
+#endif
+
 static const struct file_operations ffs_epfile_operations = {
 	.llseek =	no_llseek,
 
@@ -1274,6 +1282,9 @@ static const struct file_operations ffs_epfile_operations = {
 	.read_iter =	ffs_epfile_read_iter,
 	.release =	ffs_epfile_release,
 	.unlocked_ioctl =	ffs_epfile_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = ffs_epfile_compat_ioctl,
+#endif
 };
 
 
