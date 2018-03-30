@@ -1240,6 +1240,7 @@ static int assign_and_init_hc(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh)
 		uint32_t buf_size;
 		if (hc->ep_type != DWC_OTG_EP_TYPE_ISOC) {
 			buf_size = hcd->core_if->core_params->max_transfer_size;
+			buf_size = buf_size > 65536 ? 65536 : buf_size;
 		} else {
 			buf_size = 4096;
 		}
