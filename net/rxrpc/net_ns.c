@@ -57,6 +57,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	rwlock_init(&rxnet->call_lock);
 	atomic_set(&rxnet->nr_calls, 1);
 
+	atomic_set(&rxnet->nr_conns, 1);
 	INIT_LIST_HEAD(&rxnet->conn_proc_list);
 	INIT_LIST_HEAD(&rxnet->service_conns);
 	rwlock_init(&rxnet->conn_lock);

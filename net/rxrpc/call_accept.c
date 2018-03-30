@@ -219,6 +219,8 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		list_del(&conn->proc_link);
 		write_unlock(&rxnet->conn_lock);
 		kfree(conn);
+		if (atomic_dec_and_test(&rxnet->nr_conns))
+			wake_up_atomic_t(&rxnet->nr_conns);
 		tail = (tail + 1) & (size - 1);
 	}
 

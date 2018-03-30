@@ -365,6 +365,9 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 	key_put(conn->params.key);
 	key_put(conn->server_key);
 	rxrpc_put_peer(conn->params.peer);
+
+	if (atomic_dec_and_test(&conn->params.local->rxnet->nr_conns))
+		wake_up_atomic_t(&conn->params.local->rxnet->nr_conns);
 	rxrpc_put_local(conn->params.local);
 
 	kfree(conn);
@@ -458,6 +461,7 @@ void rxrpc_destroy_all_connections(struct rxrpc_net *rxnet)
 
 	_enter("");
 
+	atomic_dec(&rxnet->nr_conns);
 	rxrpc_destroy_all_client_connections(rxnet);
 
 	del_timer_sync(&rxnet->service_conn_reap_timer);
@@ -475,5 +479,9 @@ void rxrpc_destroy_all_connections(struct rxrpc_net *rxnet)
 
 	ASSERT(list_empty(&rxnet->conn_proc_list));
 
+	/* We need to wait for the connections to be destroyed by RCU as they
+	 * pin things that we still need to get rid of.
+	 */
+	wait_on_atomic_t(&rxnet->nr_conns, atomic_t_wait, TASK_UNINTERRUPTIBLE);
 	_leave("");
 }
