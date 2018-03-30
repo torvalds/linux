@@ -224,7 +224,8 @@ static void br_get_stats64(struct net_device *dev,
 static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	if (new_mtu > br_mtu(br))
+
+	if (new_mtu > br_mtu(br, br_vlan_enabled(dev)))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
