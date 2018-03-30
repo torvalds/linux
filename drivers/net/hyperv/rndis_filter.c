@@ -365,14 +365,15 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 
 static int rndis_filter_receive_data(struct net_device *ndev,
 				     struct netvsc_device *nvdev,
-				     struct rndis_message *msg,
 				     struct vmbus_channel *channel,
-				     void *data, u32 data_buflen)
+				     struct rndis_message *msg,
+				     u32 data_buflen)
 {
 	struct rndis_packet *rndis_pkt = &msg->msg.pkt;
 	const struct ndis_tcp_ip_checksum_info *csum_info;
 	const struct ndis_pkt_8021q_info *vlan;
 	u32 data_offset;
+	void *data;
 
 	/* Remove the rndis header and pass it back up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
@@ -393,14 +394,15 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
 
+	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
+
+	data = (void *)msg + data_offset;
+
 	/*
 	 * Remove the rndis trailer padding from rndis packet message
 	 * rndis_pkt->data_len tell us the real data length, we only copy
 	 * the data packet to the stack, without the rndis trailer padding
 	 */
-	data = (void *)((unsigned long)data + data_offset);
-	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
-
 	return netvsc_recv_callback(ndev, nvdev, channel,
 				    data, rndis_pkt->data_len,
 				    csum_info, vlan);
@@ -419,8 +421,8 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:
-		return rndis_filter_receive_data(ndev, net_dev, rndis_msg,
-						 channel, data, buflen);
+		return rndis_filter_receive_data(ndev, net_dev, channel,
+						 rndis_msg, buflen);
 	case RNDIS_MSG_INIT_C:
 	case RNDIS_MSG_QUERY_C:
 	case RNDIS_MSG_SET_C:
