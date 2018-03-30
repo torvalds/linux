@@ -49,8 +49,7 @@ struct ext4_attr {
 	} u;
 };
 
-static ssize_t session_write_kbytes_show(struct ext4_attr *a,
-					 struct ext4_sb_info *sbi, char *buf)
+static ssize_t session_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
@@ -61,8 +60,7 @@ static ssize_t session_write_kbytes_show(struct ext4_attr *a,
 			 sbi->s_sectors_written_start) >> 1);
 }
 
-static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
-					  struct ext4_sb_info *sbi, char *buf)
+static ssize_t lifetime_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 {
 	struct super_block *sb = sbi->s_buddy_cache->i_sb;
 
@@ -74,8 +72,7 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
-static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
-					  struct ext4_sb_info *sbi,
+static ssize_t inode_readahead_blks_store(struct ext4_sb_info *sbi,
 					  const char *buf, size_t count)
 {
 	unsigned long t;
@@ -92,8 +89,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 	return count;
 }
 
-static ssize_t reserved_clusters_store(struct ext4_attr *a,
-				   struct ext4_sb_info *sbi,
+static ssize_t reserved_clusters_store(struct ext4_sb_info *sbi,
 				   const char *buf, size_t count)
 {
 	unsigned long long val;
@@ -109,8 +105,7 @@ static ssize_t reserved_clusters_store(struct ext4_attr *a,
 	return count;
 }
 
-static ssize_t trigger_test_error(struct ext4_attr *a,
-				  struct ext4_sb_info *sbi,
+static ssize_t trigger_test_error(struct ext4_sb_info *sbi,
 				  const char *buf, size_t count)
 {
 	int len = count;
@@ -268,9 +263,9 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 				(s64) EXT4_C2B(sbi,
 		       percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
 	case attr_session_write_kbytes:
-		return session_write_kbytes_show(a, sbi, buf);
+		return session_write_kbytes_show(sbi, buf);
 	case attr_lifetime_write_kbytes:
-		return lifetime_write_kbytes_show(a, sbi, buf);
+		return lifetime_write_kbytes_show(sbi, buf);
 	case attr_reserved_clusters:
 		return snprintf(buf, PAGE_SIZE, "%llu\n",
 				(unsigned long long)
@@ -306,7 +301,7 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 
 	switch (a->attr_id) {
 	case attr_reserved_clusters:
-		return reserved_clusters_store(a, sbi, buf, len);
+		return reserved_clusters_store(sbi, buf, len);
 	case attr_pointer_ui:
 		if (!ptr)
 			return 0;
@@ -316,9 +311,9 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 		*((unsigned int *) ptr) = t;
 		return len;
 	case attr_inode_readahead:
-		return inode_readahead_blks_store(a, sbi, buf, len);
+		return inode_readahead_blks_store(sbi, buf, len);
 	case attr_trigger_test_error:
-		return trigger_test_error(a, sbi, buf, len);
+		return trigger_test_error(sbi, buf, len);
 	}
 	return 0;
 }
