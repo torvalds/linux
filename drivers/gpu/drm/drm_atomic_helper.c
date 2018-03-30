@@ -1572,6 +1572,17 @@ void drm_atomic_helper_async_commit(struct drm_device *dev,
 	for_each_new_plane_in_state(state, plane, plane_state, i) {
 		funcs = plane->helper_private;
 		funcs->atomic_async_update(plane, plane_state);
+
+		/*
+		 * ->atomic_async_update() is supposed to update the
+		 * plane->state in-place, make sure at least common
+		 * properties have been properly updated.
+		 */
+		WARN_ON_ONCE(plane->state->fb != plane_state->fb);
+		WARN_ON_ONCE(plane->state->crtc_x != plane_state->crtc_x);
+		WARN_ON_ONCE(plane->state->crtc_y != plane_state->crtc_y);
+		WARN_ON_ONCE(plane->state->src_x != plane_state->src_x);
+		WARN_ON_ONCE(plane->state->src_y != plane_state->src_y);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_async_commit);
