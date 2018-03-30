@@ -723,13 +723,11 @@ mcr20a_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 	struct mcr20a_local *lp = hw->priv;
 	int ret;
 	u8 rx_frame_filter_reg = 0x0;
-	u8 val;
 
 	dev_dbg(printdev(lp), "%s(%d)\n", __func__, on);
 
 	if (on) {
 		/* All frame types accepted*/
-		val |= DAR_PHY_CTRL4_PROMISCUOUS;
 		rx_frame_filter_reg &= ~(IAR_RX_FRAME_FLT_FRM_VER);
 		rx_frame_filter_reg |= (IAR_RX_FRAME_FLT_ACK_FT |
 				  IAR_RX_FRAME_FLT_NS_FT);
