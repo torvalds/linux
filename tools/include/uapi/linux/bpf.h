@@ -296,6 +296,11 @@ union bpf_attr {
 		__u32		prog_flags;
 		char		prog_name[BPF_OBJ_NAME_LEN];
 		__u32		prog_ifindex;	/* ifindex of netdev to prep for */
+		/* For some prog types expected attach type must be known at
+		 * load time to verify attach type specific parts of prog
+		 * (context accesses, allowed helpers, etc).
+		 */
+		__u32		expected_attach_type;
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */

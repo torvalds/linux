@@ -146,26 +146,30 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
 					  -1);
 }
 
-int bpf_load_program_name(enum bpf_prog_type type, const char *name,
-			  const struct bpf_insn *insns,
-			  size_t insns_cnt, const char *license,
-			  __u32 kern_version, char *log_buf,
-			  size_t log_buf_sz)
+int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
+			   char *log_buf, size_t log_buf_sz)
 {
-	int fd;
 	union bpf_attr attr;
-	__u32 name_len = name ? strlen(name) : 0;
+	__u32 name_len;
+	int fd;
+
+	if (!load_attr)
+		return -EINVAL;
+
+	name_len = load_attr->name ? strlen(load_attr->name) : 0;
 
 	bzero(&attr, sizeof(attr));
-	attr.prog_type = type;
-	attr.insn_cnt = (__u32)insns_cnt;
-	attr.insns = ptr_to_u64(insns);
-	attr.license = ptr_to_u64(license);
+	attr.prog_type = load_attr->prog_type;
+	attr.expected_attach_type = load_attr->expected_attach_type;
+	attr.insn_cnt = (__u32)load_attr->insns_cnt;
+	attr.insns = ptr_to_u64(load_attr->insns);
+	attr.license = ptr_to_u64(load_attr->license);
 	attr.log_buf = ptr_to_u64(NULL);
 	attr.log_size = 0;
 	attr.log_level = 0;
-	attr.kern_version = kern_version;
-	memcpy(attr.prog_name, name, min(name_len, BPF_OBJ_NAME_LEN - 1));
+	attr.kern_version = load_attr->kern_version;
+	memcpy(attr.prog_name, load_attr->name,
+	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
 	fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (fd >= 0 || !log_buf || !log_buf_sz)
@@ -184,8 +188,18 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		     __u32 kern_version, char *log_buf,
 		     size_t log_buf_sz)
 {
-	return bpf_load_program_name(type, NULL, insns, insns_cnt, license,
-				     kern_version, log_buf, log_buf_sz);
+	struct bpf_load_program_attr load_attr;
+
+	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
+	load_attr.prog_type = type;
+	load_attr.expected_attach_type = 0;
+	load_attr.name = NULL;
+	load_attr.insns = insns;
+	load_attr.insns_cnt = insns_cnt;
+	load_attr.license = license;
+	load_attr.kern_version = kern_version;
+
+	return bpf_load_program_xattr(&load_attr, log_buf, log_buf_sz);
 }
 
 int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
