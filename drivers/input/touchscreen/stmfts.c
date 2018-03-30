@@ -2,7 +2,7 @@
 // STMicroelectronics FTS Touchscreen device driver
 //
 // Copyright (c) 2017 Samsung Electronics Co., Ltd.
-// Copyright (c) 2017 Andi Shyti <andi.shyti@samsung.com>
+// Copyright (c) 2017 Andi Shyti <andi@etezian.org>
 
 #include <linux/delay.h>
 #include <linux/i2c.h>

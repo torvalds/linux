@@ -2,7 +2,7 @@
 // Samsung S6SY761 Touchscreen device driver
 //
 // Copyright (c) 2017 Samsung Electronics Co., Ltd.
-// Copyright (c) 2017 Andi Shyti <andi.shyti@samsung.com>
+// Copyright (c) 2017 Andi Shyti <andi@etezian.org>
 
 #include <asm/unaligned.h>
 #include <linux/delay.h>
