@@ -36,11 +36,12 @@ int (*nf_nat_snmp_hook)(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_snmp_hook);
 
 static int snmp_conntrack_help(struct sk_buff *skb, unsigned int protoff,
-		struct nf_conn *ct, enum ip_conntrack_info ctinfo)
+			       struct nf_conn *ct,
+			       enum ip_conntrack_info ctinfo)
 {
 	typeof(nf_nat_snmp_hook) nf_nat_snmp;
 
-	nf_conntrack_broadcast_help(skb, protoff, ct, ctinfo, timeout);
+	nf_conntrack_broadcast_help(skb, ct, ctinfo, timeout);
 
 	nf_nat_snmp = rcu_dereference(nf_nat_snmp_hook);
 	if (nf_nat_snmp && ct->status & IPS_NAT_MASK)

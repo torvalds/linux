@@ -14,6 +14,9 @@
  * published by the Free Software Foundation.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
@@ -1533,20 +1536,20 @@ static int __init nfnetlink_queue_init(void)
 
 	status = register_pernet_subsys(&nfnl_queue_net_ops);
 	if (status < 0) {
-		pr_err("nf_queue: failed to register pernet ops\n");
+		pr_err("failed to register pernet ops\n");
 		goto out;
 	}
 
 	netlink_register_notifier(&nfqnl_rtnl_notifier);
 	status = nfnetlink_subsys_register(&nfqnl_subsys);
 	if (status < 0) {
-		pr_err("nf_queue: failed to create netlink socket\n");
+		pr_err("failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;
 	}
 
 	status = register_netdevice_notifier(&nfqnl_dev_notifier);
 	if (status < 0) {
-		pr_err("nf_queue: failed to register netdevice notifier\n");
+		pr_err("failed to register netdevice notifier\n");
 		goto cleanup_netlink_subsys;
 	}
 
