@@ -19,9 +19,6 @@
 #include <keys/rxrpc-type.h>
 #include "ar-internal.h"
 
-static LIST_HEAD(rxrpc_security_methods);
-static DECLARE_RWSEM(rxrpc_security_sem);
-
 static const struct rxrpc_security *rxrpc_security_types[] = {
 	[RXRPC_SECURITY_NONE]	= &rxrpc_no_security,
 #ifdef CONFIG_RXKAD
