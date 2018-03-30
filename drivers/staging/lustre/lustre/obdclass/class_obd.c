@@ -32,7 +32,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-# include <linux/atomic.h>
+
+#include <linux/atomic.h>
+#include <linux/miscdevice.h>
 
 #include <obd_support.h>
 #include <obd_class.h>
@@ -462,7 +464,7 @@ static int __init obdclass_init(void)
 
 	err = misc_register(&obd_psdev);
 	if (err) {
-		CERROR("cannot register %d err %d\n", OBD_DEV_MINOR, err);
+		CERROR("cannot register OBD miscdevices: err %d\n", err);
 		return err;
 	}
 

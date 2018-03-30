@@ -119,16 +119,5 @@ struct lnet_fault_stat {
 
 #define LNET_DEV_ID 0
 #define LNET_DEV_PATH "/dev/lnet"
-#define LNET_DEV_MAJOR 10
-#define LNET_DEV_MINOR 240
-#define OBD_DEV_ID 1
-#define OBD_DEV_NAME "obd"
-#define OBD_DEV_PATH "/dev/" OBD_DEV_NAME
-#define OBD_DEV_MAJOR 10
-#define OBD_DEV_MINOR 241
-#define SMFS_DEV_ID  2
-#define SMFS_DEV_PATH "/dev/snapdev"
-#define SMFS_DEV_MAJOR 10
-#define SMFS_DEV_MINOR 242
 
 #endif

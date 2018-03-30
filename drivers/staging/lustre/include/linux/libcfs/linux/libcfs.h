@@ -50,7 +50,6 @@
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/kthread.h>
-#include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
 #include <linux/module.h>

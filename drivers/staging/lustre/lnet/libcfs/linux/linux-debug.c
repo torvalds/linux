@@ -48,7 +48,6 @@
 #include <linux/completion.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/miscdevice.h>
 
 # define DEBUG_SUBSYSTEM S_LNET
 
