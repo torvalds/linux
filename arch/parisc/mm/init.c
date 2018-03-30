@@ -629,7 +629,12 @@ void __init mem_init(void)
 #endif
 
 	mem_init_print_info(NULL);
-#ifdef CONFIG_DEBUG_KERNEL /* double-sanity-check paranoia */
+
+#if 0
+	/*
+	 * Do not expose the virtual kernel memory layout to userspace.
+	 * But keep code for debugging purposes.
+	 */
 	printk("virtual kernel memory layout:\n"
 	       "    vmalloc : 0x%px - 0x%px   (%4ld MB)\n"
 	       "    memory  : 0x%px - 0x%px   (%4ld MB)\n"

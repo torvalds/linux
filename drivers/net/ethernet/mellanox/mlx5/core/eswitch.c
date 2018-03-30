@@ -1529,6 +1529,10 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 
 	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
 
+	/* Create steering drop counters for ingress and egress ACLs */
+	if (vport_num && esw->mode == SRIOV_LEGACY)
+		esw_vport_create_drop_counters(vport);
+
 	/* Restore old vport configuration */
 	esw_apply_vport_conf(esw, vport);
 
@@ -1544,10 +1548,6 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 	/* only PF is trusted by default */
 	if (!vport_num)
 		vport->info.trusted = true;
-
-	/* create steering drop counters for ingress and egress ACLs */
-	if (vport_num && esw->mode == SRIOV_LEGACY)
-		esw_vport_create_drop_counters(vport);
 
 	esw_vport_change_handle_locked(vport);
 

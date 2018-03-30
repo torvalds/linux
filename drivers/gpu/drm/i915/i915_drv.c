@@ -1611,15 +1611,12 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	bool fw_csr;
 	int ret;
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	intel_display_set_init_power(dev_priv, false);
 
-	fw_csr = !IS_GEN9_LP(dev_priv) && !hibernation &&
-		suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
 	/*
 	 * In case of firmware assisted context save/restore don't manually
 	 * deinit the power domains. This also means the CSR/DMC firmware will
@@ -1627,8 +1624,11 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 * also enable deeper system power states that would be blocked if the
 	 * firmware was inactive.
 	 */
-	if (!fw_csr)
+	if (IS_GEN9_LP(dev_priv) || hibernation || !suspend_to_idle(dev_priv) ||
+	    dev_priv->csr.dmc_payload == NULL) {
 		intel_power_domains_suspend(dev_priv);
+		dev_priv->power_domains_suspended = true;
+	}
 
 	ret = 0;
 	if (IS_GEN9_LP(dev_priv))
@@ -1640,8 +1640,10 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	if (ret) {
 		DRM_ERROR("Suspend complete failed: %d\n", ret);
-		if (!fw_csr)
+		if (dev_priv->power_domains_suspended) {
 			intel_power_domains_init_hw(dev_priv, true);
+			dev_priv->power_domains_suspended = false;
+		}
 
 		goto out;
 	}
@@ -1661,8 +1663,6 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 */
 	if (!(hibernation && INTEL_GEN(dev_priv) < 6))
 		pci_set_power_state(pdev, PCI_D3hot);
-
-	dev_priv->suspended_to_idle = suspend_to_idle(dev_priv);
 
 out:
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -1830,8 +1830,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	intel_uncore_resume_early(dev_priv);
 
 	if (IS_GEN9_LP(dev_priv)) {
-		if (!dev_priv->suspended_to_idle)
-			gen9_sanitize_dc_state(dev_priv);
+		gen9_sanitize_dc_state(dev_priv);
 		bxt_disable_dc9(dev_priv);
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		hsw_disable_pc8(dev_priv);
@@ -1839,8 +1838,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_sanitize(dev_priv);
 
-	if (IS_GEN9_LP(dev_priv) ||
-	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
+	if (dev_priv->power_domains_suspended)
 		intel_power_domains_init_hw(dev_priv, true);
 	else
 		intel_display_set_init_power(dev_priv, true);
@@ -1850,7 +1848,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	enable_rpm_wakeref_asserts(dev_priv);
 
 out:
-	dev_priv->suspended_to_idle = false;
+	dev_priv->power_domains_suspended = false;
 
 	return ret;
 }

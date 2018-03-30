@@ -123,14 +123,15 @@ memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
 flag KVM_VM_MIPS_VZ.
 
 
-4.3 KVM_GET_MSR_INDEX_LIST
+4.3 KVM_GET_MSR_INDEX_LIST, KVM_GET_MSR_FEATURE_INDEX_LIST
 
-Capability: basic
+Capability: basic, KVM_CAP_GET_MSR_FEATURES for KVM_GET_MSR_FEATURE_INDEX_LIST
 Architectures: x86
-Type: system
+Type: system ioctl
 Parameters: struct kvm_msr_list (in/out)
 Returns: 0 on success; -1 on error
 Errors:
+  EFAULT:    the msr index list cannot be read from or written to
   E2BIG:     the msr index list is to be to fit in the array specified by
              the user.
 
@@ -139,15 +140,22 @@ struct kvm_msr_list {
 	__u32 indices[0];
 };
 
-This ioctl returns the guest msrs that are supported.  The list varies
-by kvm version and host processor, but does not change otherwise.  The
-user fills in the size of the indices array in nmsrs, and in return
-kvm adjusts nmsrs to reflect the actual number of msrs and fills in
-the indices array with their numbers.
+The user fills in the size of the indices array in nmsrs, and in return
+kvm adjusts nmsrs to reflect the actual number of msrs and fills in the
+indices array with their numbers.
+
+KVM_GET_MSR_INDEX_LIST returns the guest msrs that are supported.  The list
+varies by kvm version and host processor, but does not change otherwise.
 
 Note: if kvm indicates supports MCE (KVM_CAP_MCE), then the MCE bank MSRs are
 not returned in the MSR list, as different vcpus can have a different number
 of banks, as set via the KVM_X86_SETUP_MCE ioctl.
+
+KVM_GET_MSR_FEATURE_INDEX_LIST returns the list of MSRs that can be passed
+to the KVM_GET_MSRS system ioctl.  This lets userspace probe host capabilities
+and processor features that are exposed via MSRs (e.g., VMX capabilities).
+This list also varies by kvm version and host processor, but does not change
+otherwise.
 
 
 4.4 KVM_CHECK_EXTENSION
@@ -475,14 +483,22 @@ Support for this has been removed.  Use KVM_SET_GUEST_DEBUG instead.
 
 4.18 KVM_GET_MSRS
 
-Capability: basic
+Capability: basic (vcpu), KVM_CAP_GET_MSR_FEATURES (system)
 Architectures: x86
-Type: vcpu ioctl
+Type: system ioctl, vcpu ioctl
 Parameters: struct kvm_msrs (in/out)
-Returns: 0 on success, -1 on error
+Returns: number of msrs successfully returned;
+        -1 on error
 
+When used as a system ioctl:
+Reads the values of MSR-based features that are available for the VM.  This
+is similar to KVM_GET_SUPPORTED_CPUID, but it returns MSR indices and values.
+The list of msr-based features can be obtained using KVM_GET_MSR_FEATURE_INDEX_LIST
+in a system ioctl.
+
+When used as a vcpu ioctl:
 Reads model-specific registers from the vcpu.  Supported msr indices can
-be obtained using KVM_GET_MSR_INDEX_LIST.
+be obtained using KVM_GET_MSR_INDEX_LIST in a system ioctl.
 
 struct kvm_msrs {
 	__u32 nmsrs; /* number of msrs in entries */

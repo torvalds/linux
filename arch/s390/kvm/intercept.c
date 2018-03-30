@@ -22,22 +22,6 @@
 #include "trace.h"
 #include "trace-s390.h"
 
-
-static const intercept_handler_t instruction_handlers[256] = {
-	[0x01] = kvm_s390_handle_01,
-	[0x82] = kvm_s390_handle_lpsw,
-	[0x83] = kvm_s390_handle_diag,
-	[0xaa] = kvm_s390_handle_aa,
-	[0xae] = kvm_s390_handle_sigp,
-	[0xb2] = kvm_s390_handle_b2,
-	[0xb6] = kvm_s390_handle_stctl,
-	[0xb7] = kvm_s390_handle_lctl,
-	[0xb9] = kvm_s390_handle_b9,
-	[0xe3] = kvm_s390_handle_e3,
-	[0xe5] = kvm_s390_handle_e5,
-	[0xeb] = kvm_s390_handle_eb,
-};
-
 u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
@@ -129,16 +113,39 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 
 static int handle_instruction(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
 	vcpu->stat.exit_instruction++;
 	trace_kvm_s390_intercept_instruction(vcpu,
 					     vcpu->arch.sie_block->ipa,
 					     vcpu->arch.sie_block->ipb);
-	handler = instruction_handlers[vcpu->arch.sie_block->ipa >> 8];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
+
+	switch (vcpu->arch.sie_block->ipa >> 8) {
+	case 0x01:
+		return kvm_s390_handle_01(vcpu);
+	case 0x82:
+		return kvm_s390_handle_lpsw(vcpu);
+	case 0x83:
+		return kvm_s390_handle_diag(vcpu);
+	case 0xaa:
+		return kvm_s390_handle_aa(vcpu);
+	case 0xae:
+		return kvm_s390_handle_sigp(vcpu);
+	case 0xb2:
+		return kvm_s390_handle_b2(vcpu);
+	case 0xb6:
+		return kvm_s390_handle_stctl(vcpu);
+	case 0xb7:
+		return kvm_s390_handle_lctl(vcpu);
+	case 0xb9:
+		return kvm_s390_handle_b9(vcpu);
+	case 0xe3:
+		return kvm_s390_handle_e3(vcpu);
+	case 0xe5:
+		return kvm_s390_handle_e5(vcpu);
+	case 0xeb:
+		return kvm_s390_handle_eb(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int inject_prog_on_prog_intercept(struct kvm_vcpu *vcpu)

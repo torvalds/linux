@@ -43,10 +43,10 @@
 #include <linux/sync_file.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20170612"
+#define VMWGFX_DRIVER_DATE "20180322"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 14
-#define VMWGFX_DRIVER_PATCHLEVEL 0
+#define VMWGFX_DRIVER_PATCHLEVEL 1
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -92,6 +92,8 @@ struct vmw_dma_buffer {
 	s32 pin_count;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
+	/* Protected by reservation */
+	struct ttm_bo_kmap_obj map;
 };
 
 /**
@@ -423,6 +425,7 @@ struct vmw_private {
 	struct vmw_framebuffer *implicit_fb;
 	struct mutex global_kms_state_mutex;
 	spinlock_t cursor_lock;
+	struct drm_atomic_state *suspend_state;
 
 	/*
 	 * Context and surface management.
@@ -494,8 +497,8 @@ struct vmw_private {
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
-	bool suspended;
 	bool refuse_hibernation;
+	bool suspend_locked;
 
 	struct mutex release_mutex;
 	atomic_t num_fifo_resources;
@@ -673,10 +676,12 @@ extern void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 				     struct ttm_mem_reg *mem);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem);
+extern void vmw_resource_swap_notify(struct ttm_buffer_object *bo);
 extern int vmw_query_readback_all(struct vmw_dma_buffer *dx_query_mob);
 extern void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 				struct vmw_fence_obj *fence);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
+
 
 /**
  * DMA buffer helper routines - vmwgfx_dmabuf.c
@@ -700,6 +705,8 @@ extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
 extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
 extern void vmw_bo_pin_reserved(struct vmw_dma_buffer *bo, bool pin);
+extern void *vmw_dma_buffer_map_and_cache(struct vmw_dma_buffer *vbo);
+extern void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
@@ -766,6 +773,7 @@ extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_mob_ne_placement;
+extern struct ttm_placement vmw_nonfixed_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
 extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
@@ -902,6 +910,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv);
 int vmw_fb_close(struct vmw_private *dev_priv);
 int vmw_fb_off(struct vmw_private *vmw_priv);
 int vmw_fb_on(struct vmw_private *vmw_priv);
+void vmw_fb_refresh(struct vmw_private *vmw_priv);
 
 /**
  * Kernel modesetting - vmwgfx_kms.c
@@ -938,6 +947,9 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv);
+int vmw_kms_suspend(struct drm_device *dev);
+int vmw_kms_resume(struct drm_device *dev);
+void vmw_kms_lost_device(struct drm_device *dev);
 
 int vmw_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
@@ -1165,6 +1177,53 @@ extern int vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man,
 				bool interruptible);
 extern void vmw_cmdbuf_irqthread(struct vmw_cmdbuf_man *man);
 
+/* CPU blit utilities - vmwgfx_blit.c */
+
+/**
+ * struct vmw_diff_cpy - CPU blit information structure
+ *
+ * @rect: The output bounding box rectangle.
+ * @line: The current line of the blit.
+ * @line_offset: Offset of the current line segment.
+ * @cpp: Bytes per pixel (granularity information).
+ * @memcpy: Which memcpy function to use.
+ */
+struct vmw_diff_cpy {
+	struct drm_rect rect;
+	size_t line;
+	size_t line_offset;
+	int cpp;
+	void (*do_cpy)(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src,
+		       size_t n);
+};
+
+#define VMW_CPU_BLIT_INITIALIZER {	\
+	.do_cpy = vmw_memcpy,		\
+}
+
+#define VMW_CPU_BLIT_DIFF_INITIALIZER(_cpp) {	  \
+	.line = 0,				  \
+	.line_offset = 0,			  \
+	.rect = { .x1 = INT_MAX/2,		  \
+		  .y1 = INT_MAX/2,		  \
+		  .x2 = INT_MIN/2,		  \
+		  .y2 = INT_MIN/2		  \
+	},					  \
+	.cpp = _cpp,				  \
+	.do_cpy = vmw_diff_memcpy,		  \
+}
+
+void vmw_diff_memcpy(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src,
+		     size_t n);
+
+void vmw_memcpy(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src, size_t n);
+
+int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
+		    u32 dst_offset, u32 dst_stride,
+		    struct ttm_buffer_object *src,
+		    u32 src_offset, u32 src_stride,
+		    u32 w, u32 h,
+		    struct vmw_diff_cpy *diff);
 
 /**
  * Inline helper functions

@@ -132,6 +132,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	long r;
 
 	r = drm_gem_map_attach(dma_buf, target_dev, attach);
@@ -143,7 +144,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 		goto error_detach;
 
 
-	if (dma_buf->ops != &amdgpu_dmabuf_ops) {
+	if (attach->dev->driver != adev->dev->driver) {
 		/*
 		 * Wait for all shared fences to complete before we switch to future
 		 * use of exclusive fence on this prime shared bo.
@@ -162,7 +163,7 @@ static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,
 	if (r)
 		goto error_unreserve;
 
-	if (dma_buf->ops != &amdgpu_dmabuf_ops)
+	if (attach->dev->driver != adev->dev->driver)
 		bo->prime_shared_count++;
 
 error_unreserve:
@@ -179,6 +180,7 @@ static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int ret = 0;
 
 	ret = amdgpu_bo_reserve(bo, true);
@@ -186,7 +188,7 @@ static void amdgpu_gem_map_detach(struct dma_buf *dma_buf,
 		goto error;
 
 	amdgpu_bo_unpin(bo);
-	if (dma_buf->ops != &amdgpu_dmabuf_ops && bo->prime_shared_count)
+	if (attach->dev->driver != adev->dev->driver && bo->prime_shared_count)
 		bo->prime_shared_count--;
 	amdgpu_bo_unreserve(bo);
 

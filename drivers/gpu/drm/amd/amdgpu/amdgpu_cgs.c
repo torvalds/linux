@@ -28,7 +28,6 @@
 #include <linux/firmware.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
-#include "cgs_linux.h"
 #include "atom.h"
 #include "amdgpu_ucode.h"
 
@@ -180,109 +179,6 @@ static int amdgpu_cgs_atom_exec_cmd_table(struct cgs_device *cgs_device, unsigne
 
 	return amdgpu_atom_execute_table(
 		adev->mode_info.atom_context, table, args);
-}
-
-struct cgs_irq_params {
-	unsigned src_id;
-	cgs_irq_source_set_func_t set;
-	cgs_irq_handler_func_t handler;
-	void *private_data;
-};
-
-static int cgs_set_irq_state(struct amdgpu_device *adev,
-			     struct amdgpu_irq_src *src,
-			     unsigned type,
-			     enum amdgpu_interrupt_state state)
-{
-	struct cgs_irq_params *irq_params =
-		(struct cgs_irq_params *)src->data;
-	if (!irq_params)
-		return -EINVAL;
-	if (!irq_params->set)
-		return -EINVAL;
-	return irq_params->set(irq_params->private_data,
-			       irq_params->src_id,
-			       type,
-			       (int)state);
-}
-
-static int cgs_process_irq(struct amdgpu_device *adev,
-			   struct amdgpu_irq_src *source,
-			   struct amdgpu_iv_entry *entry)
-{
-	struct cgs_irq_params *irq_params =
-		(struct cgs_irq_params *)source->data;
-	if (!irq_params)
-		return -EINVAL;
-	if (!irq_params->handler)
-		return -EINVAL;
-	return irq_params->handler(irq_params->private_data,
-				   irq_params->src_id,
-				   entry->iv_entry);
-}
-
-static const struct amdgpu_irq_src_funcs cgs_irq_funcs = {
-	.set = cgs_set_irq_state,
-	.process = cgs_process_irq,
-};
-
-static int amdgpu_cgs_add_irq_source(void *cgs_device,
-				     unsigned client_id,
-				     unsigned src_id,
-				     unsigned num_types,
-				     cgs_irq_source_set_func_t set,
-				     cgs_irq_handler_func_t handler,
-				     void *private_data)
-{
-	CGS_FUNC_ADEV;
-	int ret = 0;
-	struct cgs_irq_params *irq_params;
-	struct amdgpu_irq_src *source =
-		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
-	if (!source)
-		return -ENOMEM;
-	irq_params =
-		kzalloc(sizeof(struct cgs_irq_params), GFP_KERNEL);
-	if (!irq_params) {
-		kfree(source);
-		return -ENOMEM;
-	}
-	source->num_types = num_types;
-	source->funcs = &cgs_irq_funcs;
-	irq_params->src_id = src_id;
-	irq_params->set = set;
-	irq_params->handler = handler;
-	irq_params->private_data = private_data;
-	source->data = (void *)irq_params;
-	ret = amdgpu_irq_add_id(adev, client_id, src_id, source);
-	if (ret) {
-		kfree(irq_params);
-		kfree(source);
-	}
-
-	return ret;
-}
-
-static int amdgpu_cgs_irq_get(void *cgs_device, unsigned client_id,
-			      unsigned src_id, unsigned type)
-{
-	CGS_FUNC_ADEV;
-
-	if (!adev->irq.client[client_id].sources)
-		return -EINVAL;
-
-	return amdgpu_irq_get(adev, adev->irq.client[client_id].sources[src_id], type);
-}
-
-static int amdgpu_cgs_irq_put(void *cgs_device, unsigned client_id,
-			      unsigned src_id, unsigned type)
-{
-	CGS_FUNC_ADEV;
-
-	if (!adev->irq.client[client_id].sources)
-		return -EINVAL;
-
-	return amdgpu_irq_put(adev, adev->irq.client[client_id].sources[src_id], type);
 }
 
 static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
@@ -654,6 +550,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				else
 					strcpy(fw_name, "amdgpu/vega10_smc.bin");
 				break;
+			case CHIP_VEGA12:
+				strcpy(fw_name, "amdgpu/vega12_smc.bin");
+				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
 				return -EINVAL;
@@ -715,12 +614,9 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 		return -EINVAL;
 
 	mode_info = info->mode_info;
-	if (mode_info) {
+	if (mode_info)
 		/* if the displays are off, vblank time is max */
 		mode_info->vblank_time_us = 0xffffffff;
-		/* always set the reference clock */
-		mode_info->ref_clock = adev->clock.spll.reference_freq;
-	}
 
 	if (!amdgpu_device_has_dc_support(adev)) {
 		struct amdgpu_crtc *amdgpu_crtc;
@@ -795,12 +691,6 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,
 };
 
-static const struct cgs_os_ops amdgpu_cgs_os_ops = {
-	.add_irq_source = amdgpu_cgs_add_irq_source,
-	.irq_get = amdgpu_cgs_irq_get,
-	.irq_put = amdgpu_cgs_irq_put
-};
-
 struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_cgs_device *cgs_device =
@@ -812,7 +702,6 @@ struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev)
 	}
 
 	cgs_device->base.ops = &amdgpu_cgs_ops;
-	cgs_device->base.os_ops = &amdgpu_cgs_os_ops;
 	cgs_device->adev = adev;
 
 	return (struct cgs_device *)cgs_device;

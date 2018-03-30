@@ -220,12 +220,12 @@ static u32 nbio_v6_1_get_hdp_flush_done_offset(struct amdgpu_device *adev)
 
 static u32 nbio_v6_1_get_pcie_index_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX);
+	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2);
 }
 
 static u32 nbio_v6_1_get_pcie_data_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA);
+	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
 
 static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {

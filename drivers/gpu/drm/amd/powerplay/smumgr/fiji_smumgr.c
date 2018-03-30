@@ -263,6 +263,9 @@ static int fiji_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 
 static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr)
 {
+	if (!hwmgr->avfs_supported)
+		return 0;
+
 	PP_ASSERT_WITH_CODE(0 == fiji_setup_graphics_level_structure(hwmgr),
 			"[AVFS][fiji_avfs_event_mgr] Could not Copy Graphics Level"
 			" table over to SMU",
@@ -2254,7 +2257,7 @@ static int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	fan_table.TempRespLim = cpu_to_be16(5);
 
-	reference_clock = smu7_get_xclk(hwmgr);
+	reference_clock = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	fan_table.RefreshPeriod = cpu_to_be32((hwmgr->
 			thermal_controller.advanceFanControlParameters.ulCycleDelay *

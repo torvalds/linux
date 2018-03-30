@@ -32,6 +32,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_amdkfd.h"
 
 /*
  * GPUVM
@@ -2405,8 +2406,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (vm->use_cpu_for_update)
 		flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	else
-		flags |= (AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-				AMDGPU_GEM_CREATE_SHADOW);
+		flags |= AMDGPU_GEM_CREATE_SHADOW;
 
 	size = amdgpu_vm_bo_size(adev, adev->vm_manager.root_level);
 	r = amdgpu_bo_create(adev, size, align, AMDGPU_GEM_DOMAIN_VRAM, flags,
@@ -2462,6 +2462,73 @@ error_free_sched_entity:
 }
 
 /**
+ * amdgpu_vm_make_compute - Turn a GFX VM into a compute VM
+ *
+ * This only works on GFX VMs that don't have any BOs added and no
+ * page tables allocated yet.
+ *
+ * Changes the following VM parameters:
+ * - use_cpu_for_update
+ * - pte_supports_ats
+ * - pasid (old PASID is released, because compute manages its own PASIDs)
+ *
+ * Reinitializes the page directory to reflect the changed ATS
+ * setting. May leave behind an unused shadow BO for the page
+ * directory when switching from SDMA updates to CPU updates.
+ *
+ * Returns 0 for success, -errno for errors.
+ */
+int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+{
+	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN);
+	int r;
+
+	r = amdgpu_bo_reserve(vm->root.base.bo, true);
+	if (r)
+		return r;
+
+	/* Sanity checks */
+	if (!RB_EMPTY_ROOT(&vm->va.rb_root) || vm->root.entries) {
+		r = -EINVAL;
+		goto error;
+	}
+
+	/* Check if PD needs to be reinitialized and do it before
+	 * changing any other state, in case it fails.
+	 */
+	if (pte_support_ats != vm->pte_support_ats) {
+		r = amdgpu_vm_clear_bo(adev, vm, vm->root.base.bo,
+			       adev->vm_manager.root_level,
+			       pte_support_ats);
+		if (r)
+			goto error;
+	}
+
+	/* Update VM state */
+	vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
+				    AMDGPU_VM_USE_CPU_FOR_COMPUTE);
+	vm->pte_support_ats = pte_support_ats;
+	DRM_DEBUG_DRIVER("VM update mode is %s\n",
+			 vm->use_cpu_for_update ? "CPU" : "SDMA");
+	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_vm_is_large_bar(adev)),
+		  "CPU update of VM recommended only for large BAR system\n");
+
+	if (vm->pasid) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
+		idr_remove(&adev->vm_manager.pasid_idr, vm->pasid);
+		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+
+		vm->pasid = 0;
+	}
+
+error:
+	amdgpu_bo_unreserve(vm->root.base.bo);
+	return r;
+}
+
+/**
  * amdgpu_vm_free_levels - free PD/PT levels
  *
  * @adev: amdgpu device structure
@@ -2507,6 +2574,8 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	struct amdgpu_bo *root;
 	u64 fault;
 	int i, r;
+
+	amdgpu_amdkfd_gpuvm_destroy_cb(adev, vm);
 
 	/* Clear pending page faults from IH when the VM is destroyed */
 	while (kfifo_get(&vm->faults, &fault))

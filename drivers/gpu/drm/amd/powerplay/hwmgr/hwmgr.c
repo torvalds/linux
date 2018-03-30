@@ -41,11 +41,13 @@ extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
 extern const struct pp_smumgr_func polaris10_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
+extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
 
 extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
@@ -56,50 +58,6 @@ static int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static int ci_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 
-static int phm_thermal_l2h_irq(void *private_data,
-		 unsigned src_id, const uint32_t *iv_entry)
-{
-	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
-			PCI_BUS_NUM(adev->pdev->devfn),
-			PCI_SLOT(adev->pdev->devfn),
-			PCI_FUNC(adev->pdev->devfn));
-	return 0;
-}
-
-static int phm_thermal_h2l_irq(void *private_data,
-		 unsigned src_id, const uint32_t *iv_entry)
-{
-	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
-			PCI_BUS_NUM(adev->pdev->devfn),
-			PCI_SLOT(adev->pdev->devfn),
-			PCI_FUNC(adev->pdev->devfn));
-	return 0;
-}
-
-static int phm_ctf_irq(void *private_data,
-		 unsigned src_id, const uint32_t *iv_entry)
-{
-	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
-			PCI_BUS_NUM(adev->pdev->devfn),
-			PCI_SLOT(adev->pdev->devfn),
-			PCI_FUNC(adev->pdev->devfn));
-	return 0;
-}
-
-static const struct cgs_irq_src_funcs thermal_irq_src[3] = {
-	{ .handler = phm_thermal_l2h_irq },
-	{ .handler = phm_thermal_h2l_irq },
-	{ .handler = phm_ctf_irq }
-};
 
 static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 {
@@ -186,6 +144,10 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
 			break;
+		case CHIP_VEGA12:
+			hwmgr->smumgr_funcs = &vega12_smu_funcs;
+			vega12_hwmgr_init(hwmgr);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -241,10 +203,6 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 		goto err2;
 	ret = phm_start_thermal_controller(hwmgr);
 	ret |= psm_set_performance_states(hwmgr);
-	if (ret)
-		goto err2;
-
-	ret = phm_register_thermal_interrupt(hwmgr, &thermal_irq_src);
 	if (ret)
 		goto err2;
 

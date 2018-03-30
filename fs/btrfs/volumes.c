@@ -645,6 +645,7 @@ static void btrfs_free_stale_devices(const char *path,
 				btrfs_sysfs_remove_fsid(fs_devs);
 				list_del(&fs_devs->list);
 				free_fs_devices(fs_devs);
+				break;
 			} else {
 				fs_devs->num_devices--;
 				list_del(&dev->dev_list);
@@ -4828,10 +4829,13 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	ndevs = min(ndevs, devs_max);
 
 	/*
-	 * the primary goal is to maximize the number of stripes, so use as many
-	 * devices as possible, even if the stripes are not maximum sized.
+	 * The primary goal is to maximize the number of stripes, so use as
+	 * many devices as possible, even if the stripes are not maximum sized.
+	 *
+	 * The DUP profile stores more than one stripe per device, the
+	 * max_avail is the total size so we have to adjust.
 	 */
-	stripe_size = devices_info[ndevs-1].max_avail;
+	stripe_size = div_u64(devices_info[ndevs - 1].max_avail, dev_stripes);
 	num_stripes = ndevs * dev_stripes;
 
 	/*
@@ -4865,8 +4869,6 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		if (stripe_size > devices_info[ndevs-1].max_avail)
 			stripe_size = devices_info[ndevs-1].max_avail;
 	}
-
-	stripe_size = div_u64(stripe_size, dev_stripes);
 
 	/* align to BTRFS_STRIPE_LEN */
 	stripe_size = round_down(stripe_size, BTRFS_STRIPE_LEN);

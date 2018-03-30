@@ -352,7 +352,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	return res;
 out:
 	if (res == ACT_P_CREATED)
-		tcf_idr_cleanup(*act, est);
+		tcf_idr_release(*act, bind);
 
 	return ret;
 }

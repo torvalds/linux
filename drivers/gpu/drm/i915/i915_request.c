@@ -1081,8 +1081,10 @@ void __i915_request_add(struct i915_request *request, bool flush_caches)
 	 * decide whether to preempt the entire chain so that it is ready to
 	 * run at the earliest possible convenience.
 	 */
+	rcu_read_lock();
 	if (engine->schedule)
 		engine->schedule(request, request->ctx->priority);
+	rcu_read_unlock();
 
 	local_bh_disable();
 	i915_sw_fence_commit(&request->submit);

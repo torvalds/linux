@@ -185,6 +185,22 @@ static const struct ttm_place evictable_placement_flags[] = {
 	}
 };
 
+static const struct ttm_place nonfixed_placement_flags[] = {
+	{
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+	}, {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
+	}
+};
+
 struct ttm_placement vmw_evictable_placement = {
 	.num_placement = 4,
 	.placement = evictable_placement_flags,
@@ -211,6 +227,13 @@ struct ttm_placement vmw_mob_ne_placement = {
 	.num_busy_placement = 1,
 	.placement = &mob_ne_placement_flags,
 	.busy_placement = &mob_ne_placement_flags
+};
+
+struct ttm_placement vmw_nonfixed_placement = {
+	.num_placement = 3,
+	.placement = nonfixed_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags
 };
 
 struct vmw_ttm_tt {
@@ -841,6 +864,7 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
  */
 static void vmw_swap_notify(struct ttm_buffer_object *bo)
 {
+	vmw_resource_swap_notify(bo);
 	(void) ttm_bo_wait(bo, false, false);
 }
 

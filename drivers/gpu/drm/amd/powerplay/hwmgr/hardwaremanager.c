@@ -202,12 +202,12 @@ int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 	return hwmgr->hwmgr_func->stop_thermal_controller(hwmgr);
 }
 
-int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
+int phm_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->register_internal_thermal_interrupt != NULL)
-		return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
+	if (hwmgr->hwmgr_func->register_irq_handlers != NULL)
+		return hwmgr->hwmgr_func->register_irq_handlers(hwmgr);
 
 	return 0;
 }

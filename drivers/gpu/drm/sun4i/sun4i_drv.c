@@ -113,7 +113,7 @@ static int sun4i_drv_bind(struct device *dev)
 	/* drm_vblank_init calls kcalloc, which can fail */
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret)
-		goto free_mem_region;
+		goto cleanup_mode_config;
 
 	drm->irq_enabled = true;
 
@@ -141,7 +141,6 @@ finish_poll:
 	sun4i_framebuffer_free(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
-free_mem_region:
 	of_reserved_mem_device_release(dev);
 free_drm:
 	drm_dev_unref(drm);

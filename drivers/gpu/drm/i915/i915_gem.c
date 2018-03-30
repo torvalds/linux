@@ -433,20 +433,28 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 			dma_fence_put(shared[i]);
 		kfree(shared);
 
+		/*
+		 * If both shared fences and an exclusive fence exist,
+		 * then by construction the shared fences must be later
+		 * than the exclusive fence. If we successfully wait for
+		 * all the shared fences, we know that the exclusive fence
+		 * must all be signaled. If all the shared fences are
+		 * signaled, we can prune the array and recover the
+		 * floating references on the fences/requests.
+		 */
 		prune_fences = count && timeout >= 0;
 	} else {
 		excl = reservation_object_get_excl_rcu(resv);
 	}
 
-	if (excl && timeout >= 0) {
+	if (excl && timeout >= 0)
 		timeout = i915_gem_object_wait_fence(excl, flags, timeout,
 						     rps_client);
-		prune_fences = timeout >= 0;
-	}
 
 	dma_fence_put(excl);
 
-	/* Oportunistically prune the fences iff we know they have *all* been
+	/*
+	 * Opportunistically prune the fences iff we know they have *all* been
 	 * signaled and that the reservation object has not been changed (i.e.
 	 * no new fences have been added).
 	 */
@@ -471,10 +479,11 @@ static void __fence_set_priority(struct dma_fence *fence, int prio)
 
 	rq = to_request(fence);
 	engine = rq->engine;
-	if (!engine->schedule)
-		return;
 
-	engine->schedule(rq, prio);
+	rcu_read_lock();
+	if (engine->schedule)
+		engine->schedule(rq, prio);
+	rcu_read_unlock();
 }
 
 static void fence_set_priority(struct dma_fence *fence, int prio)
@@ -2939,8 +2948,16 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	 * calling engine->init_hw() and also writing the ELSP.
 	 * Turning off the execlists->tasklet until the reset is over
 	 * prevents the race.
+	 *
+	 * Note that this needs to be a single atomic operation on the
+	 * tasklet (flush existing tasks, prevent new tasks) to prevent
+	 * a race between reset and set-wedged. It is not, so we do the best
+	 * we can atm and make sure we don't lock the machine up in the more
+	 * common case of recursively being called from set-wedged from inside
+	 * i915_reset.
 	 */
-	tasklet_kill(&engine->execlists.tasklet);
+	if (!atomic_read(&engine->execlists.tasklet.count))
+		tasklet_kill(&engine->execlists.tasklet);
 	tasklet_disable(&engine->execlists.tasklet);
 
 	/*
@@ -3214,8 +3231,11 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	 */
 	for_each_engine(engine, i915, id) {
 		i915_gem_reset_prepare_engine(engine);
+
 		engine->submit_request = nop_submit_request;
+		engine->schedule = NULL;
 	}
+	i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no one is running the old callback before we proceed with
@@ -3233,10 +3253,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		 * start to complete all requests.
 		 */
 		engine->submit_request = nop_complete_submit_request;
-		engine->schedule = NULL;
 	}
-
-	i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no request can slip through without getting completed by

@@ -64,7 +64,7 @@ ENTRY(_start)
 	/* Start the kernel */
 	mv a0, s0
 	mv a1, s1
-	call sbi_save
+	call parse_dtb
 	tail start_kernel
 
 relocate:

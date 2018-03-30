@@ -833,6 +833,7 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table;
+	struct phm_odn_performance_level *entries;
 
 	if (table_info == NULL)
 		return -EINVAL;
@@ -842,11 +843,11 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 
 	odn_table->odn_core_clock_dpm_levels.num_of_pl =
 						data->golden_dpm_table.sclk_table.count;
+	entries = odn_table->odn_core_clock_dpm_levels.entries;
 	for (i=0; i<data->golden_dpm_table.sclk_table.count; i++) {
-		odn_table->odn_core_clock_dpm_levels.entries[i].clock =
-					data->golden_dpm_table.sclk_table.dpm_levels[i].value;
-		odn_table->odn_core_clock_dpm_levels.entries[i].enabled = true;
-		odn_table->odn_core_clock_dpm_levels.entries[i].vddc = dep_sclk_table->entries[i].vddc;
+		entries[i].clock = data->golden_dpm_table.sclk_table.dpm_levels[i].value;
+		entries[i].enabled = true;
+		entries[i].vddc = dep_sclk_table->entries[i].vddc;
 	}
 
 	smu7_get_voltage_dependency_table(dep_sclk_table,
@@ -854,11 +855,11 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 
 	odn_table->odn_memory_clock_dpm_levels.num_of_pl =
 						data->golden_dpm_table.mclk_table.count;
-	for (i=0; i<data->golden_dpm_table.sclk_table.count; i++) {
-		odn_table->odn_memory_clock_dpm_levels.entries[i].clock =
-					data->golden_dpm_table.mclk_table.dpm_levels[i].value;
-		odn_table->odn_memory_clock_dpm_levels.entries[i].enabled = true;
-		odn_table->odn_memory_clock_dpm_levels.entries[i].vddc = dep_mclk_table->entries[i].vddc;
+	entries = odn_table->odn_memory_clock_dpm_levels.entries;
+	for (i=0; i<data->golden_dpm_table.mclk_table.count; i++) {
+		entries[i].clock = data->golden_dpm_table.mclk_table.dpm_levels[i].value;
+		entries[i].enabled = true;
+		entries[i].vddc = dep_mclk_table->entries[i].vddc;
 	}
 
 	smu7_get_voltage_dependency_table(dep_mclk_table,
@@ -889,30 +890,6 @@ static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		smu7_odn_initial_default_setting(hwmgr);
 
 	return 0;
-}
-
-uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr)
-{
-	uint32_t reference_clock, tmp;
-	struct cgs_display_info info = {0};
-	struct cgs_mode_info mode_info = {0};
-
-	info.mode_info = &mode_info;
-
-	tmp = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL_2, MUX_TCLK_TO_XCLK);
-
-	if (tmp)
-		return TCLK;
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	reference_clock = mode_info.ref_clock;
-
-	tmp = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL, XTALIN_DIVIDE);
-
-	if (0 != tmp)
-		return reference_clock / 4;
-
-	return reference_clock;
 }
 
 static int smu7_enable_vrhot_gpio_interrupt(struct pp_hwmgr *hwmgr)
@@ -3970,7 +3947,8 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (num_active_displays > 0) ? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGNORE);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL, display_gap);
 
-	ref_clock = mode_info.ref_clock;
+	ref_clock =  amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
+
 	refresh_rate = mode_info.refresh_rate;
 
 	if (0 == refresh_rate)
@@ -4021,9 +3999,35 @@ static int smu7_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
-static int smu7_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
-					const void *thermal_interrupt_info)
+static const struct amdgpu_irq_src_funcs smu7_irq_funcs = {
+	.process = phm_irq_process,
+};
+
+static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_irq_src *source =
+		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
+
+	if (!source)
+		return -ENOMEM;
+
+	source->funcs = &smu7_irq_funcs;
+
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			AMDGPU_IH_CLIENTID_LEGACY,
+			230,
+			source);
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			AMDGPU_IH_CLIENTID_LEGACY,
+			231,
+			source);
+
+	/* Register CTF(GPIO_19) interrupt */
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			AMDGPU_IH_CLIENTID_LEGACY,
+			83,
+			source);
+
 	return 0;
 }
 
@@ -4725,7 +4729,7 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	for (i=0; i<data->dpm_table.sclk_table.count; i++) {
+	for (i=0; i<data->dpm_table.mclk_table.count; i++) {
 		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
 					data->dpm_table.mclk_table.dpm_levels[i].value) {
 			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
@@ -5007,7 +5011,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_fan_speed_rpm = smu7_fan_ctrl_get_fan_speed_rpm,
 	.set_fan_speed_rpm = smu7_fan_ctrl_set_fan_speed_rpm,
 	.uninitialize_thermal_controller = smu7_thermal_ctrl_uninitialize_thermal_controller,
-	.register_internal_thermal_interrupt = smu7_register_internal_thermal_interrupt,
+	.register_irq_handlers = smu7_register_irq_handlers,
 	.check_smc_update_required_for_display_configuration = smu7_check_smc_update_required_for_display_configuration,
 	.check_states_equal = smu7_check_states_equal,
 	.set_fan_control_mode = smu7_set_fan_control_mode,

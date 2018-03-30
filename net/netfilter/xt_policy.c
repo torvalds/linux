@@ -132,26 +132,29 @@ policy_mt(const struct sk_buff *skb, struct xt_action_param *par)
 static int policy_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_policy_info *info = par->matchinfo;
+	const char *errmsg = "neither incoming nor outgoing policy selected";
 
-	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT))) {
-		pr_info("neither incoming nor outgoing policy selected\n");
-		return -EINVAL;
-	}
+	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT)))
+		goto err;
+
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) && info->flags & XT_POLICY_MATCH_OUT) {
-		pr_info("output policy not valid in PREROUTING and INPUT\n");
-		return -EINVAL;
+		errmsg = "output policy not valid in PREROUTING and INPUT";
+		goto err;
 	}
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) && info->flags & XT_POLICY_MATCH_IN) {
-		pr_info("input policy not valid in POSTROUTING and OUTPUT\n");
-		return -EINVAL;
+		errmsg = "input policy not valid in POSTROUTING and OUTPUT";
+		goto err;
 	}
 	if (info->len > XT_POLICY_MAX_ELEM) {
-		pr_info("too many policy elements\n");
-		return -EINVAL;
+		errmsg = "too many policy elements";
+		goto err;
 	}
 	return 0;
+err:
+	pr_info_ratelimited("%s\n", errmsg);
+	return -EINVAL;
 }
 
 static struct xt_match policy_mt_reg[] __read_mostly = {

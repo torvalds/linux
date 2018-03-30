@@ -1376,8 +1376,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	if (!xen_initial_domain()) {
 		add_preferred_console("xenboot", 0, NULL);
-		add_preferred_console("tty", 0, NULL);
-		add_preferred_console("hvc", 0, NULL);
 		if (pci_xen)
 			x86_init.pci.arch_init = pci_xen_init;
 	} else {
@@ -1410,6 +1408,10 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 		xen_boot_params_init_edd();
 	}
+
+	add_preferred_console("tty", 0, NULL);
+	add_preferred_console("hvc", 0, NULL);
+
 #ifdef CONFIG_PCI
 	/* PCI BIOS service won't work from a PV guest. */
 	pci_probe &= ~PCI_PROBE_BIOS;

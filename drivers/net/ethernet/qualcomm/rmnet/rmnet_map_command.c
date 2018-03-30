@@ -38,6 +38,11 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 	}
 
 	ep = rmnet_get_endpoint(port, mux_id);
+	if (!ep) {
+		kfree_skb(skb);
+		return RX_HANDLER_CONSUMED;
+	}
+
 	vnd = ep->egress_dev;
 
 	ip_family = cmd->flow_control.ip_family;

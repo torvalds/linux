@@ -195,6 +195,7 @@ static unsigned long zx_dwmmc_caps[3] = {
 
 static const struct dw_mci_drv_data zx_drv_data = {
 	.caps			= zx_dwmmc_caps,
+	.num_caps		= ARRAY_SIZE(zx_dwmmc_caps),
 	.execute_tuning		= dw_mci_zx_execute_tuning,
 	.prepare_hs400_tuning	= dw_mci_zx_prepare_hs400_tuning,
 	.parse_dt               = dw_mci_zx_parse_dt,

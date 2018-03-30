@@ -3,6 +3,9 @@ config VIDEOBUF2_CORE
 	select DMA_SHARED_BUFFER
 	tristate
 
+config VIDEOBUF2_V4L2
+	tristate
+
 config VIDEOBUF2_MEMOPS
 	tristate
 	select FRAME_VECTOR

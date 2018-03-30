@@ -86,7 +86,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 
 	subpg_index = (ea & (PAGE_SIZE - 1)) >> shift;
 	vpn  = hpt_vpn(ea, vsid, ssize);
-	rpte = __real_pte(__pte(old_pte), ptep);
+	rpte = __real_pte(__pte(old_pte), ptep, PTRS_PER_PTE);
 	/*
 	 *None of the sub 4k page is hashed
 	 */
@@ -214,7 +214,7 @@ repeat:
 		return -1;
 	}
 
-	new_pte |= pte_set_hidx(ptep, rpte, subpg_index, slot);
+	new_pte |= pte_set_hidx(ptep, rpte, subpg_index, slot, PTRS_PER_PTE);
 	new_pte |= H_PAGE_HASHPTE;
 
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
@@ -262,7 +262,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
 	rflags = htab_convert_pte_flags(new_pte);
-	rpte = __real_pte(__pte(old_pte), ptep);
+	rpte = __real_pte(__pte(old_pte), ptep, PTRS_PER_PTE);
 
 	if (cpu_has_feature(CPU_FTR_NOEXECUTE) &&
 	    !cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
@@ -327,7 +327,7 @@ repeat:
 		}
 
 		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | H_PAGE_HASHPTE;
-		new_pte |= pte_set_hidx(ptep, rpte, 0, slot);
+		new_pte |= pte_set_hidx(ptep, rpte, 0, slot, PTRS_PER_PTE);
 	}
 	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;

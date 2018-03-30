@@ -129,7 +129,7 @@ static void xgpu_ai_mailbox_trans_msg (struct amdgpu_device *adev,
 		xgpu_ai_mailbox_set_valid(adev, false);
 		trn = xgpu_ai_peek_ack(adev);
 		if (trn) {
-			pr_err("trn=%x ACK should not asssert! wait again !\n", trn);
+			pr_err("trn=%x ACK should not assert! wait again !\n", trn);
 			msleep(1);
 		}
 	} while(trn);

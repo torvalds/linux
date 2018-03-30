@@ -43,7 +43,7 @@
 #define TWSI_CTL_AAK		0x04	/* Assert ACK */
 
 /* Status values */
-#define STAT_ERROR		0x00
+#define STAT_BUS_ERROR		0x00
 #define STAT_START		0x08
 #define STAT_REP_START		0x10
 #define STAT_TXADDR_ACK		0x18

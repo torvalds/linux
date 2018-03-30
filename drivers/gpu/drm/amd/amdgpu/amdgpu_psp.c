@@ -51,6 +51,7 @@ static int psp_sw_init(void *handle)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 		psp_v3_1_set_psp_funcs(psp);
 		break;
 	case CHIP_RAVEN:

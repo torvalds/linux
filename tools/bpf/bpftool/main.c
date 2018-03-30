@@ -244,7 +244,7 @@ static int do_batch(int argc, char **argv)
 	}
 
 	if (errno && errno != ENOENT) {
-		perror("reading batch file failed");
+		p_err("reading batch file failed: %s", strerror(errno));
 		err = -1;
 	} else {
 		p_info("processed %d lines", lines);

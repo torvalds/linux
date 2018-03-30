@@ -68,6 +68,7 @@
 #define FIRMWARE_POLARIS12	"amdgpu/polaris12_uvd.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_uvd.bin"
+#define FIRMWARE_VEGA12		"amdgpu/vega12_uvd.bin"
 
 #define mmUVD_GPCOM_VCPU_DATA0_VEGA10 (0x03c4 + 0x7e00)
 #define mmUVD_GPCOM_VCPU_DATA1_VEGA10 (0x03c5 + 0x7e00)
@@ -110,6 +111,7 @@ MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
+MODULE_FIRMWARE(FIRMWARE_VEGA12);
 
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
@@ -161,11 +163,14 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
 		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
+		break;
 	case CHIP_VEGA10:
 		fw_name = FIRMWARE_VEGA10;
 		break;
-	case CHIP_POLARIS12:
-		fw_name = FIRMWARE_POLARIS12;
+	case CHIP_VEGA12:
+		fw_name = FIRMWARE_VEGA12;
 		break;
 	default:
 		return -EINVAL;

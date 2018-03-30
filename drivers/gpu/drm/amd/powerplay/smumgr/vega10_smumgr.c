@@ -25,6 +25,7 @@
 #include "vega10_inc.h"
 #include "pp_soc15.h"
 #include "vega10_smumgr.h"
+#include "vega10_hwmgr.h"
 #include "vega10_ppsmc.h"
 #include "smu9_driver_if.h"
 #include "ppatomctrl.h"
@@ -101,7 +102,7 @@ static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
  * @param    msg the message to send.
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
+static int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 		uint16_t msg)
 {
 	uint32_t reg;
@@ -119,7 +120,7 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
  * @param    msg the message to send.
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
+static int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	uint32_t reg;
 	uint32_t ret;
@@ -146,7 +147,7 @@ int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
  * @param    parameter: the parameter to send
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+static int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
 	uint32_t reg;
@@ -171,54 +172,20 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-
-/*
- * Send a message to the SMC with parameter, do not wait for response
- * @param    hwmgr:  the address of the powerplay hardware manager.
- * @param    msg: the message to send.
- * @param    parameter: the parameter to send
- * @return   The response that came from the SMC.
- */
-int vega10_send_msg_to_smc_with_parameter_without_waiting(
-		struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
-{
-	uint32_t reg;
-
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
-	cgs_write_register(hwmgr->device, reg, parameter);
-
-	return vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
-}
-
-/*
- * Retrieve an argument from SMC.
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @param    arg     pointer to store the argument from SMC.
- * @return   Always return 0.
- */
-int vega10_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg)
+static int vega10_get_argument(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
 
-	*arg = cgs_read_register(hwmgr->device, reg);
-
-	return 0;
+	return cgs_read_register(hwmgr->device, reg);
 }
 
-/*
- * Copy table from SMC into driver FB
- * @param   hwmgr    the address of the HW manager
- * @param   table_id    the driver's table ID to copy from
- */
-int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
+static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -242,16 +209,10 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-/*
- * Copy table from Driver FB into SMC
- * @param   hwmgr    the address of the HW manager
- * @param   table_id    the table to copy from
- */
-int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
+static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -276,42 +237,15 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int vega10_save_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table)
-{
-	PP_ASSERT_WITH_CODE(avfs_table,
-			"No access to SMC AVFS Table",
-			return -EINVAL);
-
-	return vega10_copy_table_from_smc(hwmgr, avfs_table, AVFSTABLE);
-}
-
-int vega10_restore_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table)
-{
-	PP_ASSERT_WITH_CODE(avfs_table,
-			"No access to SMC AVFS Table",
-			return -EINVAL);
-
-	return vega10_copy_table_to_smc(hwmgr, avfs_table, AVFSTABLE);
-}
-
-int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint32_t feature_mask)
-{
-	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
-			PPSMC_MSG_DisableSmuFeatures;
-
-	return vega10_send_msg_to_smc_with_parameter(hwmgr,
-			msg, feature_mask);
-}
-
-int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
+static int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 		uint32_t *features_enabled)
 {
 	if (features_enabled == NULL)
 		return -EINVAL;
 
 	vega10_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
-	vega10_read_arg_from_smc(hwmgr, features_enabled);
+	*features_enabled = vega10_get_argument(hwmgr);
+
 	return 0;
 }
 
@@ -327,10 +261,9 @@ static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
 		return false;
 }
 
-int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
+static int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
 		vega10_send_msg_to_smc_with_parameter(hwmgr,
@@ -354,7 +287,7 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_GetDriverIfVersion),
 			"Attempt to get SMC IF Version Number Failed!",
 			return -EINVAL);
-	vega10_read_arg_from_smc(hwmgr, &smc_driver_if_version);
+	smc_driver_if_version = vega10_get_argument(hwmgr);
 
 	dev_id = adev->pdev->device;
 	rev_id = adev->pdev->revision;
@@ -499,8 +432,7 @@ free_backend:
 
 static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv) {
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,
@@ -539,6 +471,18 @@ static int vega10_start_smu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega10_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+{
+	int ret;
+
+	if (rw)
+		ret = vega10_copy_table_from_smc(hwmgr, table, table_id);
+	else
+		ret = vega10_copy_table_to_smc(hwmgr, table, table_id);
+
+	return ret;
+}
+
 const struct pp_smumgr_func vega10_smu_funcs = {
 	.smu_init = &vega10_smu_init,
 	.smu_fini = &vega10_smu_fini,
@@ -549,4 +493,6 @@ const struct pp_smumgr_func vega10_smu_funcs = {
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.is_dpm_running = vega10_is_dpm_running,
+	.get_argument = vega10_get_argument,
+	.smc_table_manager = vega10_smc_table_manager,
 };

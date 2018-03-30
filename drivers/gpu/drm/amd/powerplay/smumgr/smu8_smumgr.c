@@ -52,7 +52,7 @@ static const enum smu8_scratch_entry firmware_list[] = {
 	SMU8_SCRATCH_ENTRY_UCODE_ID_RLC_G,
 };
 
-static int smu8_smum_get_argument(struct pp_hwmgr *hwmgr)
+static int smu8_get_argument(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
@@ -881,7 +881,7 @@ const struct pp_smumgr_func smu8_smu_funcs = {
 	.check_fw_load_finish = smu8_check_fw_load_finish,
 	.request_smu_load_fw = NULL,
 	.request_smu_load_specific_fw = NULL,
-	.get_argument = smu8_smum_get_argument,
+	.get_argument = smu8_get_argument,
 	.send_msg_to_smc = smu8_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = smu8_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = smu8_download_pptable_settings,

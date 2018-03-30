@@ -733,6 +733,7 @@ int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_RAVEN:
 		mmhub_v1_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);

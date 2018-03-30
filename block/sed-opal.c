@@ -490,7 +490,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 
 	if (!found_com_id) {
 		pr_debug("Could not find OPAL comid for device. Returning early\n");
-		return -EOPNOTSUPP;;
+		return -EOPNOTSUPP;
 	}
 
 	dev->comid = comid;

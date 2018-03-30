@@ -163,4 +163,10 @@ void __init setup_cpu_entry_areas(void)
 
 	for_each_possible_cpu(cpu)
 		setup_cpu_entry_area(cpu);
+
+	/*
+	 * This is the last essential update to swapper_pgdir which needs
+	 * to be synchronized to initial_page_table on 32bit.
+	 */
+	sync_initial_page_table();
 }

@@ -18,6 +18,7 @@ Required properties:
       - "renesas,etheravb-r8a7795" for the R8A7795 SoC.
       - "renesas,etheravb-r8a7796" for the R8A7796 SoC.
       - "renesas,etheravb-r8a77970" for the R8A77970 SoC.
+      - "renesas,etheravb-r8a77980" for the R8A77980 SoC.
       - "renesas,etheravb-r8a77995" for the R8A77995 SoC.
       - "renesas,etheravb-rcar-gen3" as a fallback for the above
 		R-Car Gen3 devices.
@@ -26,7 +27,11 @@ Required properties:
 	SoC-specific version corresponding to the platform first followed by
 	the generic version.
 
-- reg: offset and length of (1) the register block and (2) the stream buffer.
+- reg: Offset and length of (1) the register block and (2) the stream buffer.
+       The region for the register block is mandatory.
+       The region for the stream buffer is optional, as it is only present on
+       R-Car Gen2 and RZ/G1 SoCs, and on R-Car H3 (R8A7795), M3-W (R8A7796),
+       and M3-N (R8A77965).
 - interrupts: A list of interrupt-specifiers, one for each entry in
 	      interrupt-names.
 	      If interrupt-names is not present, an interrupt specifier

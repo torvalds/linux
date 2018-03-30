@@ -709,6 +709,10 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo);
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 		struct ttm_bo_device *bdev);
 
+void *ttm_kmap_atomic_prot(struct page *page, pgprot_t prot);
+
+void ttm_kunmap_atomic_prot(void *addr, pgprot_t prot);
+
 /**
  * ttm_bo_io
  *

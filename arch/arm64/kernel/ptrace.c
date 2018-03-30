@@ -1419,7 +1419,7 @@ static int compat_ptrace_hbp_get(unsigned int note_type,
 	u64 addr = 0;
 	u32 ctrl = 0;
 
-	int err, idx = compat_ptrace_hbp_num_to_idx(num);;
+	int err, idx = compat_ptrace_hbp_num_to_idx(num);
 
 	if (num & 1) {
 		err = ptrace_hbp_get_addr(note_type, tsk, idx, &addr);

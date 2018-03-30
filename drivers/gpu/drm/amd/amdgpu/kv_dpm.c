@@ -2963,6 +2963,7 @@ static int kv_dpm_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->powerplay.pp_funcs = &kv_dpm_funcs;
+	adev->powerplay.pp_handle = adev;
 	kv_dpm_set_irq_funcs(adev);
 
 	return 0;

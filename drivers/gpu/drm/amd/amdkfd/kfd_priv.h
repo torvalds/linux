@@ -105,6 +105,12 @@ extern int cwsr_enable;
 extern int send_sigterm;
 
 /*
+ * This kernel module is used to simulate large bar machine on non-large bar
+ * enabled machines.
+ */
+extern int debug_largebar;
+
+/*
  * Ignore CRAT table during KFD initialization, can be used to work around
  * broken CRAT tables on some AMD systems
  */
@@ -488,8 +494,13 @@ struct qcm_process_device {
 
 	/* CWSR memory */
 	void *cwsr_kaddr;
+	uint64_t cwsr_base;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
+
+	/* IB memory */
+	uint64_t ib_base;
+	void *ib_kaddr;
 };
 
 /* KFD Memory Eviction */
@@ -503,6 +514,14 @@ struct qcm_process_device {
 
 int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 					       struct dma_fence *fence);
+
+/* 8 byte handle containing GPU ID in the most significant 4 bytes and
+ * idr_handle in the least significant 4 bytes
+ */
+#define MAKE_HANDLE(gpu_id, idr_handle) \
+	(((uint64_t)(gpu_id) << 32) + idr_handle)
+#define GET_GPU_ID(handle) (handle >> 32)
+#define GET_IDR_HANDLE(handle) (handle & 0xFFFFFFFF)
 
 enum kfd_pdd_bound {
 	PDD_UNBOUND = 0,
@@ -536,7 +555,11 @@ struct kfd_process_device {
 	uint64_t scratch_limit;
 
 	/* VM context for GPUVM allocations */
+	struct file *drm_file;
 	void *vm;
+
+	/* GPUVM allocations storage */
+	struct idr alloc_idr;
 
 	/* Flag used to tell the pdd has dequeued from the dqm.
 	 * This is used to prevent dev->dqm->ops.process_termination() from
@@ -651,7 +674,7 @@ struct amdkfd_ioctl_desc {
 	const char *name;
 };
 
-void kfd_process_create_wq(void);
+int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(struct file *filep);
 struct kfd_process *kfd_get_process(const struct task_struct *);
@@ -661,6 +684,8 @@ void kfd_unref_process(struct kfd_process *p);
 void kfd_suspend_all_processes(void);
 int kfd_resume_all_processes(void);
 
+int kfd_process_device_init_vm(struct kfd_process_device *pdd,
+			       struct file *drm_file);
 struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 						struct kfd_process *p);
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
@@ -670,6 +695,14 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 
 int kfd_reserved_mem_mmap(struct kfd_process *process,
 			  struct vm_area_struct *vma);
+
+/* KFD process API for creating and translating handles */
+int kfd_process_device_create_obj_handle(struct kfd_process_device *pdd,
+					void *mem);
+void *kfd_process_device_translate_handle(struct kfd_process_device *p,
+					int handle);
+void kfd_process_device_remove_obj_handle(struct kfd_process_device *pdd,
+					int handle);
 
 /* Process device data iterator */
 struct kfd_process_device *kfd_get_first_process_device_data(
@@ -816,6 +849,8 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 
 void pm_release_ib(struct packet_manager *pm);
 
+uint32_t pm_create_release_mem(uint64_t gpu_addr, uint32_t *buffer);
+
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 
 /* Events */
@@ -837,6 +872,8 @@ void kfd_signal_iommu_event(struct kfd_dev *dev,
 void kfd_signal_hw_exception_event(unsigned int pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
+int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
+		       uint64_t size);
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t event_type, bool auto_reset, uint32_t node_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,

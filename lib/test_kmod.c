@@ -1141,7 +1141,7 @@ static struct kmod_test_device *register_test_dev_kmod(void)
 	mutex_lock(&reg_dev_mutex);
 
 	/* int should suffice for number of devices, test for wrap */
-	if (unlikely(num_test_devs + 1) < 0) {
+	if (num_test_devs + 1 == INT_MAX) {
 		pr_err("reached limit of number of test devices\n");
 		goto out;
 	}

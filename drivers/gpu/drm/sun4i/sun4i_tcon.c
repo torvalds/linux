@@ -103,10 +103,13 @@ static void sun4i_tcon_channel_set_status(struct sun4i_tcon *tcon, int channel,
 		return;
 	}
 
-	if (enabled)
+	if (enabled) {
 		clk_prepare_enable(clk);
-	else
+		clk_rate_exclusive_get(clk);
+	} else {
+		clk_rate_exclusive_put(clk);
 		clk_disable_unprepare(clk);
+	}
 }
 
 static void sun4i_tcon_lvds_set_status(struct sun4i_tcon *tcon,
@@ -339,6 +342,9 @@ static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
 	regmap_update_bits(tcon->regs, SUN4I_TCON_GCTL_REG,
 			   SUN4I_TCON_GCTL_IOMAP_MASK,
 			   SUN4I_TCON_GCTL_IOMAP_TCON0);
+
+	/* Enable the output on the pins */
+	regmap_write(tcon->regs, SUN4I_TCON0_IO_TRI_REG, 0xe0000000);
 }
 
 static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
@@ -921,52 +927,56 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
-	/*
-	 * This can only be made optional since we've had DT nodes
-	 * without the LVDS reset properties.
-	 *
-	 * If the property is missing, just disable LVDS, and print a
-	 * warning.
-	 */
-	tcon->lvds_rst = devm_reset_control_get_optional(dev, "lvds");
-	if (IS_ERR(tcon->lvds_rst)) {
-		dev_err(dev, "Couldn't get our reset line\n");
-		return PTR_ERR(tcon->lvds_rst);
-	} else if (tcon->lvds_rst) {
-		has_lvds_rst = true;
-		reset_control_reset(tcon->lvds_rst);
-	} else {
-		has_lvds_rst = false;
-	}
-
-	/*
-	 * This can only be made optional since we've had DT nodes
-	 * without the LVDS reset properties.
-	 *
-	 * If the property is missing, just disable LVDS, and print a
-	 * warning.
-	 */
-	if (tcon->quirks->has_lvds_alt) {
-		tcon->lvds_pll = devm_clk_get(dev, "lvds-alt");
-		if (IS_ERR(tcon->lvds_pll)) {
-			if (PTR_ERR(tcon->lvds_pll) == -ENOENT) {
-				has_lvds_alt = false;
-			} else {
-				dev_err(dev, "Couldn't get the LVDS PLL\n");
-				return PTR_ERR(tcon->lvds_pll);
-			}
+	if (tcon->quirks->supports_lvds) {
+		/*
+		 * This can only be made optional since we've had DT
+		 * nodes without the LVDS reset properties.
+		 *
+		 * If the property is missing, just disable LVDS, and
+		 * print a warning.
+		 */
+		tcon->lvds_rst = devm_reset_control_get_optional(dev, "lvds");
+		if (IS_ERR(tcon->lvds_rst)) {
+			dev_err(dev, "Couldn't get our reset line\n");
+			return PTR_ERR(tcon->lvds_rst);
+		} else if (tcon->lvds_rst) {
+			has_lvds_rst = true;
+			reset_control_reset(tcon->lvds_rst);
 		} else {
-			has_lvds_alt = true;
+			has_lvds_rst = false;
 		}
-	}
 
-	if (!has_lvds_rst || (tcon->quirks->has_lvds_alt && !has_lvds_alt)) {
-		dev_warn(dev,
-			 "Missing LVDS properties, Please upgrade your DT\n");
-		dev_warn(dev, "LVDS output disabled\n");
-		can_lvds = false;
+		/*
+		 * This can only be made optional since we've had DT
+		 * nodes without the LVDS reset properties.
+		 *
+		 * If the property is missing, just disable LVDS, and
+		 * print a warning.
+		 */
+		if (tcon->quirks->has_lvds_alt) {
+			tcon->lvds_pll = devm_clk_get(dev, "lvds-alt");
+			if (IS_ERR(tcon->lvds_pll)) {
+				if (PTR_ERR(tcon->lvds_pll) == -ENOENT) {
+					has_lvds_alt = false;
+				} else {
+					dev_err(dev, "Couldn't get the LVDS PLL\n");
+					return PTR_ERR(tcon->lvds_pll);
+				}
+			} else {
+				has_lvds_alt = true;
+			}
+		}
+
+		if (!has_lvds_rst ||
+		    (tcon->quirks->has_lvds_alt && !has_lvds_alt)) {
+			dev_warn(dev, "Missing LVDS properties, Please upgrade your DT\n");
+			dev_warn(dev, "LVDS output disabled\n");
+			can_lvds = false;
+		} else {
+			can_lvds = true;
+		}
 	} else {
-		can_lvds = true;
+		can_lvds = false;
 	}
 
 	ret = sun4i_tcon_init_clocks(dev, tcon);
@@ -1195,6 +1205,7 @@ static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
 };
 
 static const struct sun4i_tcon_quirks sun8i_a83t_lcd_quirks = {
+	.supports_lvds		= true,
 	.has_channel_0		= true,
 };
 

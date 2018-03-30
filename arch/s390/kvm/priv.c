@@ -85,9 +85,10 @@ int kvm_s390_handle_e3(struct kvm_vcpu *vcpu)
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_vm_tod_clock gtod = { 0 };
 	int rc;
 	u8 ar;
-	u64 op2, val;
+	u64 op2;
 
 	vcpu->stat.instruction_sck++;
 
@@ -97,12 +98,12 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	op2 = kvm_s390_get_base_disp_s(vcpu, &ar);
 	if (op2 & 7)	/* Operand must be on a doubleword boundary */
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	rc = read_guest(vcpu, op2, ar, &val, sizeof(val));
+	rc = read_guest(vcpu, op2, ar, &gtod.tod, sizeof(gtod.tod));
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 
-	VCPU_EVENT(vcpu, 3, "SCK: setting guest TOD to 0x%llx", val);
-	kvm_s390_set_tod_clock(vcpu->kvm, val);
+	VCPU_EVENT(vcpu, 3, "SCK: setting guest TOD to 0x%llx", gtod.tod);
+	kvm_s390_set_tod_clock(vcpu->kvm, &gtod);
 
 	kvm_s390_set_psw_cc(vcpu, 0);
 	return 0;
@@ -795,55 +796,60 @@ out:
 	return rc;
 }
 
-static const intercept_handler_t b2_handlers[256] = {
-	[0x02] = handle_stidp,
-	[0x04] = handle_set_clock,
-	[0x10] = handle_set_prefix,
-	[0x11] = handle_store_prefix,
-	[0x12] = handle_store_cpu_address,
-	[0x14] = kvm_s390_handle_vsie,
-	[0x21] = handle_ipte_interlock,
-	[0x29] = handle_iske,
-	[0x2a] = handle_rrbe,
-	[0x2b] = handle_sske,
-	[0x2c] = handle_test_block,
-	[0x30] = handle_io_inst,
-	[0x31] = handle_io_inst,
-	[0x32] = handle_io_inst,
-	[0x33] = handle_io_inst,
-	[0x34] = handle_io_inst,
-	[0x35] = handle_io_inst,
-	[0x36] = handle_io_inst,
-	[0x37] = handle_io_inst,
-	[0x38] = handle_io_inst,
-	[0x39] = handle_io_inst,
-	[0x3a] = handle_io_inst,
-	[0x3b] = handle_io_inst,
-	[0x3c] = handle_io_inst,
-	[0x50] = handle_ipte_interlock,
-	[0x56] = handle_sthyi,
-	[0x5f] = handle_io_inst,
-	[0x74] = handle_io_inst,
-	[0x76] = handle_io_inst,
-	[0x7d] = handle_stsi,
-	[0xb1] = handle_stfl,
-	[0xb2] = handle_lpswe,
-};
-
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	/*
-	 * A lot of B2 instructions are priviledged. Here we check for
-	 * the privileged ones, that we can handle in the kernel.
-	 * Anything else goes to userspace.
-	 */
-	handler = b2_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
-
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x02:
+		return handle_stidp(vcpu);
+	case 0x04:
+		return handle_set_clock(vcpu);
+	case 0x10:
+		return handle_set_prefix(vcpu);
+	case 0x11:
+		return handle_store_prefix(vcpu);
+	case 0x12:
+		return handle_store_cpu_address(vcpu);
+	case 0x14:
+		return kvm_s390_handle_vsie(vcpu);
+	case 0x21:
+	case 0x50:
+		return handle_ipte_interlock(vcpu);
+	case 0x29:
+		return handle_iske(vcpu);
+	case 0x2a:
+		return handle_rrbe(vcpu);
+	case 0x2b:
+		return handle_sske(vcpu);
+	case 0x2c:
+		return handle_test_block(vcpu);
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	case 0x34:
+	case 0x35:
+	case 0x36:
+	case 0x37:
+	case 0x38:
+	case 0x39:
+	case 0x3a:
+	case 0x3b:
+	case 0x3c:
+	case 0x5f:
+	case 0x74:
+	case 0x76:
+		return handle_io_inst(vcpu);
+	case 0x56:
+		return handle_sthyi(vcpu);
+	case 0x7d:
+		return handle_stsi(vcpu);
+	case 0xb1:
+		return handle_stfl(vcpu);
+	case 0xb2:
+		return handle_lpswe(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int handle_epsw(struct kvm_vcpu *vcpu)
@@ -1105,25 +1111,22 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static const intercept_handler_t b9_handlers[256] = {
-	[0x8a] = handle_ipte_interlock,
-	[0x8d] = handle_epsw,
-	[0x8e] = handle_ipte_interlock,
-	[0x8f] = handle_ipte_interlock,
-	[0xab] = handle_essa,
-	[0xaf] = handle_pfmf,
-};
-
 int kvm_s390_handle_b9(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	/* This is handled just as for the B2 instructions. */
-	handler = b9_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
-
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x8a:
+	case 0x8e:
+	case 0x8f:
+		return handle_ipte_interlock(vcpu);
+	case 0x8d:
+		return handle_epsw(vcpu);
+	case 0xab:
+		return handle_essa(vcpu);
+	case 0xaf:
+		return handle_pfmf(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
@@ -1271,22 +1274,20 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 	return rc ? kvm_s390_inject_prog_cond(vcpu, rc) : 0;
 }
 
-static const intercept_handler_t eb_handlers[256] = {
-	[0x2f] = handle_lctlg,
-	[0x25] = handle_stctg,
-	[0x60] = handle_ri,
-	[0x61] = handle_ri,
-	[0x62] = handle_ri,
-};
-
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	handler = eb_handlers[vcpu->arch.sie_block->ipb & 0xff];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipb & 0x000000ff) {
+	case 0x25:
+		return handle_stctg(vcpu);
+	case 0x2f:
+		return handle_lctlg(vcpu);
+	case 0x60:
+	case 0x61:
+	case 0x62:
+		return handle_ri(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int handle_tprot(struct kvm_vcpu *vcpu)
@@ -1346,10 +1347,12 @@ out_unlock:
 
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu)
 {
-	/* For e5xx... instructions we only handle TPROT */
-	if ((vcpu->arch.sie_block->ipa & 0x00ff) == 0x01)
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x01:
 		return handle_tprot(vcpu);
-	return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int handle_sckpf(struct kvm_vcpu *vcpu)
@@ -1380,17 +1383,14 @@ static int handle_ptff(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static const intercept_handler_t x01_handlers[256] = {
-	[0x04] = handle_ptff,
-	[0x07] = handle_sckpf,
-};
-
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	handler = x01_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x04:
+		return handle_ptff(vcpu);
+	case 0x07:
+		return handle_sckpf(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }

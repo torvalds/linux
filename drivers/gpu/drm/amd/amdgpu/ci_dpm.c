@@ -6244,6 +6244,7 @@ static int ci_dpm_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->powerplay.pp_funcs = &ci_dpm_funcs;
+	adev->powerplay.pp_handle = adev;
 	ci_dpm_set_irq_funcs(adev);
 
 	return 0;

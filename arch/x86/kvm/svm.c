@@ -49,6 +49,7 @@
 #include <asm/debugreg.h>
 #include <asm/kvm_para.h>
 #include <asm/irq_remapping.h>
+#include <asm/microcode.h>
 #include <asm/nospec-branch.h>
 
 #include <asm/virtext.h>
@@ -178,6 +179,8 @@ struct vcpu_svm {
 	uint64_t sysenter_eip;
 	uint64_t tsc_aux;
 
+	u64 msr_decfg;
+
 	u64 next_rip;
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
@@ -299,6 +302,8 @@ module_param(vgif, int, 0444);
 /* enable/disable SEV support */
 static int sev = IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT);
 module_param(sev, int, 0444);
+
+static u8 rsm_ins_bytes[] = "\x0f\xaa";
 
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
@@ -1383,6 +1388,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_intercept(svm, INTERCEPT_SKINIT);
 	set_intercept(svm, INTERCEPT_WBINVD);
 	set_intercept(svm, INTERCEPT_XSETBV);
+	set_intercept(svm, INTERCEPT_RSM);
 
 	if (!kvm_mwait_in_guest()) {
 		set_intercept(svm, INTERCEPT_MONITOR);
@@ -1902,6 +1908,7 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	u32 dummy;
 	u32 eax = 1;
 
+	vcpu->arch.microcode_version = 0x01000065;
 	svm->spec_ctrl = 0;
 
 	if (!init_event) {
@@ -3699,6 +3706,12 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 }
 
+static int rsm_interception(struct vcpu_svm *svm)
+{
+	return x86_emulate_instruction(&svm->vcpu, 0, 0,
+				       rsm_ins_bytes, 2) == EMULATE_DONE;
+}
+
 static int rdpmc_interception(struct vcpu_svm *svm)
 {
 	int err;
@@ -3860,6 +3873,22 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	return 0;
 }
 
+static int svm_get_msr_feature(struct kvm_msr_entry *msr)
+{
+	msr->data = 0;
+
+	switch (msr->index) {
+	case MSR_F10H_DECFG:
+		if (boot_cpu_has(X86_FEATURE_LFENCE_RDTSC))
+			msr->data |= MSR_F10H_DECFG_LFENCE_SERIALIZE;
+		break;
+	default:
+		return 1;
+	}
+
+	return 0;
+}
+
 static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3935,9 +3964,6 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 		msr_info->data = svm->spec_ctrl;
 		break;
-	case MSR_IA32_UCODE_REV:
-		msr_info->data = 0x01000065;
-		break;
 	case MSR_F15H_IC_CFG: {
 
 		int family, model;
@@ -3954,6 +3980,9 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		    (model >= 0x2 && model < 0x20))
 			msr_info->data = 0x1E;
 		}
+		break;
+	case MSR_F10H_DECFG:
+		msr_info->data = svm->msr_decfg;
 		break;
 	default:
 		return kvm_get_msr_common(vcpu, msr_info);
@@ -4133,6 +4162,24 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_VM_IGNNE:
 		vcpu_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
 		break;
+	case MSR_F10H_DECFG: {
+		struct kvm_msr_entry msr_entry;
+
+		msr_entry.index = msr->index;
+		if (svm_get_msr_feature(&msr_entry))
+			return 1;
+
+		/* Check the supported bits */
+		if (data & ~msr_entry.data)
+			return 1;
+
+		/* Don't allow the guest to change a bit, #GP */
+		if (!msr->host_initiated && (data ^ msr_entry.data))
+			return 1;
+
+		svm->msr_decfg = data;
+		break;
+	}
 	case MSR_IA32_APICBASE:
 		if (kvm_vcpu_apicv_active(vcpu))
 			avic_update_vapic_bar(to_svm(vcpu), data);
@@ -4541,7 +4588,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
 	[SVM_EXIT_NPF]				= npf_interception,
-	[SVM_EXIT_RSM]                          = emulate_on_interception,
+	[SVM_EXIT_RSM]                          = rsm_interception,
 	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
 	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,
 };
@@ -5355,7 +5402,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	 * being speculatively taken.
 	 */
 	if (svm->spec_ctrl)
-		wrmsrl(MSR_IA32_SPEC_CTRL, svm->spec_ctrl);
+		native_wrmsrl(MSR_IA32_SPEC_CTRL, svm->spec_ctrl);
 
 	asm volatile (
 		"push %%" _ASM_BP "; \n\t"
@@ -5464,11 +5511,11 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	 * If the L02 MSR bitmap does not intercept the MSR, then we need to
 	 * save it.
 	 */
-	if (!msr_write_intercepted(vcpu, MSR_IA32_SPEC_CTRL))
-		rdmsrl(MSR_IA32_SPEC_CTRL, svm->spec_ctrl);
+	if (unlikely(!msr_write_intercepted(vcpu, MSR_IA32_SPEC_CTRL)))
+		svm->spec_ctrl = native_read_msr(MSR_IA32_SPEC_CTRL);
 
 	if (svm->spec_ctrl)
-		wrmsrl(MSR_IA32_SPEC_CTRL, 0);
+		native_wrmsrl(MSR_IA32_SPEC_CTRL, 0);
 
 	/* Eliminate branch target predictions from guest mode */
 	vmexit_fill_RSB();
@@ -6236,16 +6283,18 @@ e_free:
 
 static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
+	void __user *measure = (void __user *)(uintptr_t)argp->data;
 	struct kvm_sev_info *sev = &kvm->arch.sev_info;
 	struct sev_data_launch_measure *data;
 	struct kvm_sev_launch_measure params;
+	void __user *p = NULL;
 	void *blob = NULL;
 	int ret;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+	if (copy_from_user(&params, measure, sizeof(params)))
 		return -EFAULT;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -6256,14 +6305,10 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!params.len)
 		goto cmd;
 
-	if (params.uaddr) {
+	p = (void __user *)(uintptr_t)params.uaddr;
+	if (p) {
 		if (params.len > SEV_FW_BLOB_MAX_SIZE) {
 			ret = -EINVAL;
-			goto e_free;
-		}
-
-		if (!access_ok(VERIFY_WRITE, params.uaddr, params.len)) {
-			ret = -EFAULT;
 			goto e_free;
 		}
 
@@ -6290,13 +6335,13 @@ cmd:
 		goto e_free_blob;
 
 	if (blob) {
-		if (copy_to_user((void __user *)(uintptr_t)params.uaddr, blob, params.len))
+		if (copy_to_user(p, blob, params.len))
 			ret = -EFAULT;
 	}
 
 done:
 	params.len = data->len;
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params)))
+	if (copy_to_user(measure, &params, sizeof(params)))
 		ret = -EFAULT;
 e_free_blob:
 	kfree(blob);
@@ -6597,7 +6642,7 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	struct page **pages;
 	void *blob, *hdr;
 	unsigned long n;
-	int ret;
+	int ret, offset;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
@@ -6623,6 +6668,10 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!data)
 		goto e_unpin_memory;
 
+	offset = params.guest_uaddr & (PAGE_SIZE - 1);
+	data->guest_address = __sme_page_pa(pages[0]) + offset;
+	data->guest_len = params.guest_len;
+
 	blob = psp_copy_user_blob(params.trans_uaddr, params.trans_len);
 	if (IS_ERR(blob)) {
 		ret = PTR_ERR(blob);
@@ -6637,8 +6686,8 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		ret = PTR_ERR(hdr);
 		goto e_free_blob;
 	}
-	data->trans_address = __psp_pa(blob);
-	data->trans_len = params.trans_len;
+	data->hdr_address = __psp_pa(hdr);
+	data->hdr_len = params.hdr_len;
 
 	data->handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_SECRET, data, &argp->error);
@@ -6821,6 +6870,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.vcpu_unblocking = svm_vcpu_unblocking,
 
 	.update_bp_intercept = update_bp_intercept,
+	.get_msr_feature = svm_get_msr_feature,
 	.get_msr = svm_get_msr,
 	.set_msr = svm_set_msr,
 	.get_segment_base = svm_get_segment_base,
