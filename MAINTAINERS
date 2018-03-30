@@ -1556,15 +1556,6 @@ ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
-ARM/Marvell Berlin SoC support
-M:	Jisheng Zhang <jszhang@marvell.com>
-M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-berlin/
-F:	arch/arm/boot/dts/berlin*
-F:	arch/arm64/boot/dts/marvell/berlin*
-
 ARM/Marvell Dove/MV78xx0/Orion SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -2026,6 +2017,15 @@ N:	stm32
 F:	arch/arm/boot/dts/stm32*
 F:	arch/arm/mach-stm32/
 F:	drivers/clocksource/armv7m_systick.c
+
+ARM/Synaptics Berlin SoC support
+M:	Jisheng Zhang <Jisheng.Zhang@synaptics.com>
+M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-berlin/
+F:	arch/arm/boot/dts/berlin*
+F:	arch/arm64/boot/dts/marvell/berlin*
 
 ARM/TANGO ARCHITECTURE
 M:	Marc Gonzalez <marc.w.gonzalez@free.fr>
