@@ -52,8 +52,6 @@ static const u32 formats[] = {
 
 /* per-plane info for the fb: */
 struct plane {
-	u32 pitch;
-	u32 offset;
 	dma_addr_t dma_addr;
 };
 
@@ -73,14 +71,16 @@ static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.destroy = drm_gem_fb_destroy,
 };
 
-static u32 get_linear_addr(struct plane *plane,
+static u32 get_linear_addr(struct drm_framebuffer *fb,
 		const struct drm_format_info *format, int n, int x, int y)
 {
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	struct plane *plane = &omap_fb->planes[n];
 	u32 offset;
 
-	offset = plane->offset
+	offset = fb->offsets[n]
 	       + (x * format->cpp[n] / (n == 0 ? 1 : format->hsub))
-	       + (y * plane->pitch / (n == 0 ? 1 : format->vsub));
+	       + (y * fb->pitches[n] / (n == 0 ? 1 : format->vsub));
 
 	return plane->dma_addr + offset;
 }
@@ -191,10 +191,10 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 			break;
 		}
 
-		info->paddr         = get_linear_addr(plane, format, 0, x, y);
+		info->paddr         = get_linear_addr(fb, format, 0, x, y);
 		info->rotation_type = OMAP_DSS_ROT_NONE;
 		info->rotation      = DRM_MODE_ROTATE_0;
-		info->screen_width  = plane->pitch;
+		info->screen_width  = fb->pitches[0];
 	}
 
 	/* convert to pixels: */
@@ -208,7 +208,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 			omap_gem_rotated_dma_addr(fb->obj[1], orient, x/2, y/2,
 						  &info->p_uv_addr);
 		} else {
-			info->p_uv_addr = get_linear_addr(plane, format, 1, x, y);
+			info->p_uv_addr = get_linear_addr(fb, format, 1, x, y);
 		}
 	} else {
 		info->p_uv_addr = 0;
@@ -309,16 +309,14 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 #ifdef CONFIG_DEBUG_FS
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
-	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	int i, n = fb->format->num_planes;
 
 	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
 			(char *)&fb->format->format);
 
 	for (i = 0; i < n; i++) {
-		struct plane *plane = &omap_fb->planes[i];
 		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
-				i, plane->offset, plane->pitch);
+				i, fb->offsets[n], fb->pitches[i]);
 		omap_gem_describe(fb->obj[i], m);
 	}
 }
@@ -425,8 +423,6 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		}
 
 		fb->obj[i]    = bos[i];
-		plane->offset = mode_cmd->offsets[i];
-		plane->pitch  = pitch;
 		plane->dma_addr  = 0;
 	}
 
