@@ -265,6 +265,22 @@ struct nicvf_drv_stats {
 
 struct cavium_ptp;
 
+struct xcast_addr {
+	struct list_head list;
+	u64              addr;
+};
+
+struct xcast_addr_list {
+	struct list_head list;
+	int              count;
+};
+
+struct nicvf_work {
+	struct delayed_work    work;
+	u8                     mode;
+	struct xcast_addr_list *mc;
+};
+
 struct nicvf {
 	struct nicvf		*pnicvf;
 	struct net_device	*netdev;
@@ -313,6 +329,7 @@ struct nicvf {
 	struct nicvf_pfc	pfc;
 	struct tasklet_struct	qs_err_task;
 	struct work_struct	reset_task;
+	struct nicvf_work       rx_mode_work;
 
 	/* PTP timestamp */
 	struct cavium_ptp	*ptp_clock;
