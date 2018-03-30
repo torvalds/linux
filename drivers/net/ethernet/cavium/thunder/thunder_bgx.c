@@ -258,6 +258,150 @@ static void bgx_flush_dmac_cam_filter(struct bgx *bgx, int lmacid)
 			      sizeof(u64), 0);
 }
 
+static void bgx_lmac_remove_filters(struct lmac *lmac, u8 vf_id)
+{
+	int i = 0;
+
+	if (!lmac)
+		return;
+
+	/* We've got reset filters request from some of attached VF, while the
+	 * others might want to keep their configuration. So in this case lets
+	 * iterate over all of configured filters and decrease number of
+	 * referencies. if some addresses get zero refs remove them from list
+	 */
+	for (i = lmac->dmacs_cfg - 1; i >= 0; i--) {
+		lmac->dmacs[i].vf_map &= ~BIT_ULL(vf_id);
+		if (!lmac->dmacs[i].vf_map) {
+			lmac->dmacs_cfg--;
+			lmac->dmacs[i].dmac = 0;
+			lmac->dmacs[i].vf_map = 0;
+		}
+	}
+}
+
+static int bgx_lmac_save_filter(struct lmac *lmac, u64 dmac, u8 vf_id)
+{
+	u8 i = 0;
+
+	if (!lmac)
+		return -1;
+
+	/* At the same time we could have several VFs 'attached' to some
+	 * particular LMAC, and each VF is represented as network interface
+	 * for kernel. So from user perspective it should be possible to
+	 * manipulate with its' (VF) receive modes. However from PF
+	 * driver perspective we need to keep track of filter configurations
+	 * for different VFs to prevent filter values dupes
+	 */
+	for (i = 0; i < lmac->dmacs_cfg; i++) {
+		if (lmac->dmacs[i].dmac == dmac) {
+			lmac->dmacs[i].vf_map |= BIT_ULL(vf_id);
+			return -1;
+		}
+	}
+
+	if (!(lmac->dmacs_cfg < lmac->dmacs_count))
+		return -1;
+
+	/* keep it for further tracking */
+	lmac->dmacs[lmac->dmacs_cfg].dmac = dmac;
+	lmac->dmacs[lmac->dmacs_cfg].vf_map = BIT_ULL(vf_id);
+	lmac->dmacs_cfg++;
+	return 0;
+}
+
+static int bgx_set_dmac_cam_filter_mac(struct bgx *bgx, int lmacid,
+				       u64 cam_dmac, u8 idx)
+{
+	struct lmac *lmac = NULL;
+	u64 cfg = 0;
+
+	/* skip zero addresses as meaningless */
+	if (!cam_dmac || !bgx)
+		return -1;
+
+	lmac = &bgx->lmac[lmacid];
+
+	/* configure DCAM filtering for designated LMAC */
+	cfg = RX_DMACX_CAM_LMACID(lmacid & LMAC_ID_MASK) |
+		RX_DMACX_CAM_EN | cam_dmac;
+	bgx_reg_write(bgx, 0, BGX_CMR_RX_DMACX_CAM +
+		      ((lmacid * lmac->dmacs_count) + idx) * sizeof(u64), cfg);
+	return 0;
+}
+
+void bgx_set_dmac_cam_filter(int node, int bgx_idx, int lmacid,
+			     u64 cam_dmac, u8 vf_id)
+{
+	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct lmac *lmac = NULL;
+
+	if (!bgx)
+		return;
+
+	lmac = &bgx->lmac[lmacid];
+
+	if (!cam_dmac)
+		cam_dmac = ether_addr_to_u64(lmac->mac);
+
+	/* since we might have several VFs attached to particular LMAC
+	 * and kernel could call mcast config for each of them with the
+	 * same MAC, check if requested MAC is already in filtering list and
+	 * updare/prepare list of MACs to be applied later to HW filters
+	 */
+	bgx_lmac_save_filter(lmac, cam_dmac, vf_id);
+}
+EXPORT_SYMBOL(bgx_set_dmac_cam_filter);
+
+void bgx_set_xcast_mode(int node, int bgx_idx, int lmacid, u8 mode)
+{
+	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct lmac *lmac = NULL;
+	u64 cfg = 0;
+	u8 i = 0;
+
+	if (!bgx)
+		return;
+
+	lmac = &bgx->lmac[lmacid];
+
+	cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_RX_DMAC_CTL);
+	if (mode & BGX_XCAST_BCAST_ACCEPT)
+		cfg |= BCAST_ACCEPT;
+	else
+		cfg &= ~BCAST_ACCEPT;
+
+	/* disable all MCASTs and DMAC filtering */
+	cfg &= ~(CAM_ACCEPT | BGX_MCAST_MODE(MCAST_MODE_MASK));
+
+	/* check requested bits and set filtergin mode appropriately */
+	if (mode & (BGX_XCAST_MCAST_ACCEPT)) {
+		cfg |= (BGX_MCAST_MODE(MCAST_MODE_ACCEPT));
+	} else if (mode & BGX_XCAST_MCAST_FILTER) {
+		cfg |= (BGX_MCAST_MODE(MCAST_MODE_CAM_FILTER) | CAM_ACCEPT);
+		for (i = 0; i < lmac->dmacs_cfg; i++)
+			bgx_set_dmac_cam_filter_mac(bgx, lmacid,
+						    lmac->dmacs[i].dmac, i);
+	}
+	bgx_reg_write(bgx, lmacid, BGX_CMRX_RX_DMAC_CTL, cfg);
+}
+EXPORT_SYMBOL(bgx_set_xcast_mode);
+
+void bgx_reset_xcast_mode(int node, int bgx_idx, int lmacid, u8 vf_id)
+{
+	struct bgx *bgx = get_bgx(node, bgx_idx);
+
+	if (!bgx)
+		return;
+
+	bgx_lmac_remove_filters(&bgx->lmac[lmacid], vf_id);
+	bgx_flush_dmac_cam_filter(bgx, lmacid);
+	bgx_set_xcast_mode(node, bgx_idx, lmacid,
+			   (BGX_XCAST_BCAST_ACCEPT | BGX_XCAST_MCAST_ACCEPT));
+}
+EXPORT_SYMBOL(bgx_reset_xcast_mode);
+
 void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 {
 	struct bgx *bgx = get_bgx(node, bgx_idx);
