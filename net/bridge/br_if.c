@@ -424,26 +424,32 @@ int br_del_bridge(struct net *net, const char *name)
 	return ret;
 }
 
-/* MTU of the bridge pseudo-device: ETH_DATA_LEN if there are no ports, the
- * minimum of the ports if @max is false or the maximum if it's true
- */
-int br_mtu(const struct net_bridge *br, bool max)
+/* MTU of the bridge pseudo-device: ETH_DATA_LEN or the minimum of the ports */
+static int br_mtu_min(const struct net_bridge *br)
 {
 	const struct net_bridge_port *p;
 	int ret_mtu = 0;
 
-	ASSERT_RTNL();
-
-	list_for_each_entry(p, &br->port_list, list) {
-		if (!max) {
-			if (!ret_mtu || ret_mtu > p->dev->mtu)
-				ret_mtu = p->dev->mtu;
-		} else if (p->dev->mtu > ret_mtu) {
+	list_for_each_entry(p, &br->port_list, list)
+		if (!ret_mtu || ret_mtu > p->dev->mtu)
 			ret_mtu = p->dev->mtu;
-		}
-	}
 
 	return ret_mtu ? ret_mtu : ETH_DATA_LEN;
+}
+
+void br_mtu_auto_adjust(struct net_bridge *br)
+{
+	ASSERT_RTNL();
+
+	/* if the bridge MTU was manually configured don't mess with it */
+	if (br->mtu_set_by_user)
+		return;
+
+	/* change to the minimum MTU and clear the flag which was set by
+	 * the bridge ndo_change_mtu callback
+	 */
+	dev_set_mtu(br->dev, br_mtu_min(br));
+	br->mtu_set_by_user = false;
 }
 
 static void br_set_gso_limits(struct net_bridge *br)
@@ -597,7 +603,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (changed_addr)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
-	dev_set_mtu(br->dev, br_mtu(br, false));
+	br_mtu_auto_adjust(br);
 	br_set_gso_limits(br);
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
@@ -644,7 +650,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	 */
 	del_nbp(p);
 
-	dev_set_mtu(br->dev, br_mtu(br, false));
+	br_mtu_auto_adjust(br);
 	br_set_gso_limits(br);
 
 	spin_lock_bh(&br->lock);

@@ -225,11 +225,10 @@ static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	if (new_mtu > br_mtu(br, br_vlan_enabled(dev)))
-		return -EINVAL;
-
 	dev->mtu = new_mtu;
 
+	/* this flag will be cleared if the MTU was automatically adjusted */
+	br->mtu_set_by_user = true;
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	/* remember the MTU in the rtable for PMTU */
 	dst_metric_set(&br->fake_rtable.dst, RTAX_MTU, new_mtu);
