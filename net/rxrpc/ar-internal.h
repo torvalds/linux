@@ -981,30 +981,11 @@ extern void rxrpc_process_local_events(struct rxrpc_local *);
  * local_object.c
  */
 struct rxrpc_local *rxrpc_lookup_local(struct net *, const struct sockaddr_rxrpc *);
-void __rxrpc_put_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *);
+void rxrpc_put_local(struct rxrpc_local *);
+void rxrpc_queue_local(struct rxrpc_local *);
 void rxrpc_destroy_all_locals(struct rxrpc_net *);
-
-static inline void rxrpc_get_local(struct rxrpc_local *local)
-{
-	atomic_inc(&local->usage);
-}
-
-static inline
-struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
-{
-	return atomic_inc_not_zero(&local->usage) ? local : NULL;
-}
-
-static inline void rxrpc_put_local(struct rxrpc_local *local)
-{
-	if (local && atomic_dec_and_test(&local->usage))
-		__rxrpc_put_local(local);
-}
-
-static inline void rxrpc_queue_local(struct rxrpc_local *local)
-{
-	rxrpc_queue_work(&local->processor);
-}
 
 /*
  * misc.c
