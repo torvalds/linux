@@ -4112,10 +4112,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		 * cope, else JOURNAL_DATA
 		 */
 		if (jbd2_journal_check_available_features
-		    (sbi->s_journal, 0, 0, JBD2_FEATURE_INCOMPAT_REVOKE))
+		    (sbi->s_journal, 0, 0, JBD2_FEATURE_INCOMPAT_REVOKE)) {
 			set_opt(sb, ORDERED_DATA);
-		else
+			sbi->s_def_mount_opt |= EXT4_MOUNT_ORDERED_DATA;
+		} else {
 			set_opt(sb, JOURNAL_DATA);
+			sbi->s_def_mount_opt |= EXT4_MOUNT_JOURNAL_DATA;
+		}
 		break;
 
 	case EXT4_MOUNT_ORDERED_DATA:
