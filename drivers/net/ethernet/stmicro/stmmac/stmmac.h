@@ -114,6 +114,7 @@ struct stmmac_priv {
 	int mii_irq[PHY_MAX_ADDR];
 
 	struct stmmac_extra_stats xstats ____cacheline_aligned_in_smp;
+	struct stmmac_safety_stats sstats;
 	struct plat_stmmacenet_data *plat;
 	struct dma_features dma_cap;
 	struct stmmac_counters mmc;
@@ -145,6 +146,17 @@ struct stmmac_priv {
 	struct dentry *dbgfs_rings_status;
 	struct dentry *dbgfs_dma_cap;
 #endif
+
+	unsigned long state;
+	struct workqueue_struct *wq;
+	struct work_struct service_task;
+};
+
+enum stmmac_state {
+	STMMAC_DOWN,
+	STMMAC_RESET_REQUESTED,
+	STMMAC_RESETING,
+	STMMAC_SERVICE_SCHED,
 };
 
 int stmmac_mdio_unregister(struct net_device *ndev);
