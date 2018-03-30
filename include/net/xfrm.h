@@ -1894,7 +1894,7 @@ static inline struct xfrm_offload *xfrm_offload(struct sk_buff *skb)
 #endif
 }
 
-void __net_init xfrm_dev_init(void);
+void __init xfrm_dev_init(void);
 
 #ifdef CONFIG_XFRM_OFFLOAD
 void xfrm_dev_resume(struct sk_buff *skb);
