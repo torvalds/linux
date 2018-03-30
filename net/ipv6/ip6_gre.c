@@ -1762,7 +1762,6 @@ static int ip6erspan_tap_init(struct net_device *dev)
 		dev->mtu -= 8;
 
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	tunnel = netdev_priv(dev);
 	ip6gre_tnl_link_config(tunnel, 1);
 
 	return 0;
