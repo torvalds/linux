@@ -14,6 +14,7 @@
 
 #include "drm.h"
 #include "gem.h"
+#include <drm/drm_gem_framebuffer_helper.h>
 
 static inline struct tegra_fb *to_tegra_fb(struct drm_framebuffer *fb)
 {
@@ -30,19 +31,14 @@ static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-
-	if (index >= framebuffer->format->num_planes)
-		return NULL;
-
-	return fb->planes[index];
+	return to_tegra_bo(drm_gem_fb_get_obj(framebuffer, index));
 }
 
 bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+	struct tegra_bo *bo = tegra_fb_get_plane(framebuffer, 0);
 
-	if (fb->planes[0]->flags & TEGRA_BO_BOTTOM_UP)
+	if (bo->flags & TEGRA_BO_BOTTOM_UP)
 		return true;
 
 	return false;
@@ -51,8 +47,7 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-	uint64_t modifier = fb->base.modifier;
+	uint64_t modifier = framebuffer->modifier;
 
 	switch (modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -108,7 +103,7 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 	unsigned int i;
 
 	for (i = 0; i < framebuffer->format->num_planes; i++) {
-		struct tegra_bo *bo = fb->planes[i];
+		struct tegra_bo *bo = tegra_fb_get_plane(framebuffer, i);
 
 		if (bo) {
 			if (bo->pages)
@@ -119,21 +114,12 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 	}
 
 	drm_framebuffer_cleanup(framebuffer);
-	kfree(fb->planes);
 	kfree(fb);
-}
-
-static int tegra_fb_create_handle(struct drm_framebuffer *framebuffer,
-				  struct drm_file *file, unsigned int *handle)
-{
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-
-	return drm_gem_handle_create(file, &fb->planes[0]->gem, handle);
 }
 
 static const struct drm_framebuffer_funcs tegra_fb_funcs = {
 	.destroy = tegra_fb_destroy,
-	.create_handle = tegra_fb_create_handle,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
 static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
@@ -149,22 +135,15 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	fb->planes = kzalloc(num_planes * sizeof(*planes), GFP_KERNEL);
-	if (!fb->planes) {
-		kfree(fb);
-		return ERR_PTR(-ENOMEM);
-	}
-
 	drm_helper_mode_fill_fb_struct(drm, &fb->base, mode_cmd);
 
 	for (i = 0; i < fb->base.format->num_planes; i++)
-		fb->planes[i] = planes[i];
+		fb->base.obj[i] = &planes[i]->gem;
 
 	err = drm_framebuffer_init(drm, &fb->base, &tegra_fb_funcs);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize framebuffer: %d\n",
 			err);
-		kfree(fb->planes);
 		kfree(fb);
 		return ERR_PTR(err);
 	}
