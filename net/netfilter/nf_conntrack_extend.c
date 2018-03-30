@@ -71,6 +71,7 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	rcu_read_unlock();
 
 	alloc = max(newlen, NF_CT_EXT_PREALLOC);
+	kmemleak_not_leak(old);
 	new = __krealloc(old, alloc, gfp);
 	if (!new)
 		return NULL;
