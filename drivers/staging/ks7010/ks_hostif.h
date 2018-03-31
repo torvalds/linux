@@ -295,13 +295,8 @@ struct link_ap_info {
 	} __packed rsn;
 } __packed;
 
-struct hostif_connect_indication_t {
-	struct hostif_hdr header;
-	__le16 connect_code;
 #define RESULT_CONNECT    0
 #define RESULT_DISCONNECT 1
-	struct link_ap_info link_ap_info;
-} __packed;
 
 struct hostif_stop_request_t {
 	struct hostif_hdr header;
