@@ -4002,6 +4002,13 @@ static int bnxt_hwrm_vnic_ctx_alloc(struct bnxt *bp, u16 vnic_id, u16 ctx_idx)
 	return rc;
 }
 
+static u32 bnxt_get_roce_vnic_mode(struct bnxt *bp)
+{
+	if (bp->flags & BNXT_FLAG_ROCE_MIRROR_CAP)
+		return VNIC_CFG_REQ_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_MODE;
+	return VNIC_CFG_REQ_FLAGS_ROCE_DUAL_VNIC_MODE;
+}
+
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 {
 	unsigned int ring = 0, grp_idx;
@@ -4057,8 +4064,7 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	if ((bp->flags & BNXT_FLAG_STRIP_VLAN) || def_vlan)
 		req.flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_VLAN_STRIP_MODE);
 	if (!vnic_id && bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP))
-		req.flags |=
-			cpu_to_le32(VNIC_CFG_REQ_FLAGS_ROCE_DUAL_VNIC_MODE);
+		req.flags |= cpu_to_le32(bnxt_get_roce_vnic_mode(bp));
 
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
@@ -4139,9 +4145,13 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
-		if (resp->flags &
-		    cpu_to_le32(VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP))
+		u32 flags = le32_to_cpu(resp->flags);
+
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP)
 			bp->flags |= BNXT_FLAG_NEW_RSS_CAP;
+		if (flags &
+		    VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP)
+			bp->flags |= BNXT_FLAG_ROCE_MIRROR_CAP;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
