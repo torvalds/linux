@@ -249,7 +249,7 @@ struct local_aplist {
 	struct local_ap ap[LOCAL_APLIST_MAX + 1];
 };
 
-struct local_gain_t {
+struct local_gain {
 	u8 tx_mode;
 	u8 rx_mode;
 	u8 tx_gain;
@@ -471,7 +471,7 @@ struct ks_wlan_private {
 
 	u8 scan_ssid_len;
 	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
-	struct local_gain_t gain;
+	struct local_gain gain;
 #ifdef WPS
 	struct net_device *l2_dev;
 	int l2_fd;
