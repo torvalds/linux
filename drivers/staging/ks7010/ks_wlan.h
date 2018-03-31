@@ -211,7 +211,7 @@ struct rsn_ie {
 
 #ifdef WPS
 #define WPS_IE_BODY_MAX 255
-struct wps_ie_t {
+struct wps_ie {
 	u8 id;	/* 221 'dd <len> 00 50 F2 04' */
 	u8 size;	/* max ? 255 ? */
 	u8 body[WPS_IE_BODY_MAX];
@@ -238,7 +238,7 @@ struct local_ap_t {
 	struct rsn_ie wpa_ie;
 	struct rsn_ie rsn_ie;
 #ifdef WPS
-	struct wps_ie_t wps_ie;
+	struct wps_ie wps_ie;
 #endif /* WPS */
 };
 
