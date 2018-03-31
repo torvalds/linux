@@ -35,7 +35,9 @@
  *
  */
 
+#include <linux/mutex.h>
 #include <linux/refcount.h>
+#include <linux/spinlock.h>
 #include <linux/bug.h>
 
 #ifdef CONFIG_REFCOUNT_FULL

@@ -3,9 +3,10 @@
 #define _LINUX_REFCOUNT_H
 
 #include <linux/atomic.h>
-#include <linux/mutex.h>
-#include <linux/spinlock.h>
-#include <linux/kernel.h>
+#include <linux/compiler.h>
+#include <linux/spinlock_types.h>
+
+struct mutex;
 
 /**
  * struct refcount_t - variant of atomic_t specialized for reference counts
