@@ -310,7 +310,7 @@ struct hostif_stop_request {
 #define CTS_MODE_FALSE	0
 #define CTS_MODE_TRUE	1
 
-struct hostif_request_t {
+struct hostif_request {
 	__le16 phy_type;
 	__le16 cts_mode;
 	__le16 scan_type;
@@ -327,7 +327,7 @@ struct hostif_request_t {
  */
 struct hostif_ps_adhoc_set_request_t {
 	struct hostif_hdr header;
-	struct hostif_request_t request;
+	struct hostif_request request;
 	__le16 channel;
 } __packed;
 
@@ -348,7 +348,7 @@ struct hostif_ps_adhoc_set_confirm_t {
  */
 struct hostif_infrastructure_set_request_t {
 	struct hostif_hdr header;
-	struct hostif_request_t request;
+	struct hostif_request request;
 	struct ssid ssid;
 	__le16 beacon_lost_count;
 	__le16 auth_type;
@@ -370,7 +370,7 @@ struct hostif_infrastructure_set_confirm_t {
  */
 struct hostif_adhoc_set_request_t {
 	struct hostif_hdr header;
-	struct hostif_request_t request;
+	struct hostif_request request;
 	struct ssid ssid;
 	__le16 channel;
 } __packed;
@@ -384,7 +384,7 @@ struct hostif_adhoc_set_request_t {
  */
 struct hostif_adhoc_set2_request_t {
 	struct hostif_hdr header;
-	struct hostif_request_t request;
+	struct hostif_request request;
 	__le16 reserved;
 	struct ssid ssid;
 	struct channel_list channel_list;
