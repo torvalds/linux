@@ -380,7 +380,7 @@ struct wpa_status {
 
 #include <linux/list.h>
 #define PMK_LIST_MAX 8
-struct pmk_list_t {
+struct pmk_list {
 	u16 size;
 	struct list_head head;
 	struct pmk_t {
@@ -428,7 +428,7 @@ struct ks_wlan_private {
 	struct power_save_status psstatus;
 	struct sleep_status sleepstatus;
 	struct wpa_status wpa;
-	struct pmk_list_t pmklist;
+	struct pmk_list pmklist;
 	/* wireless parameter */
 	struct ks_wlan_parameter reg;
 	u8 current_rate;
