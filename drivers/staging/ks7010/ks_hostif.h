@@ -319,13 +319,13 @@ struct hostif_request {
 } __packed;
 
 /**
- * struct hostif_ps_adhoc_set_request_t - pseudo adhoc mode
+ * struct hostif_ps_adhoc_set_request - pseudo adhoc mode
  * @capability: bit5  : preamble
  *              bit6  : pbcc - Not supported always 0
  *              bit10 : ShortSlotTime
  *              bit13 : DSSS-OFDM - Not supported always 0
  */
-struct hostif_ps_adhoc_set_request_t {
+struct hostif_ps_adhoc_set_request {
 	struct hostif_hdr header;
 	struct hostif_request request;
 	__le16 channel;
