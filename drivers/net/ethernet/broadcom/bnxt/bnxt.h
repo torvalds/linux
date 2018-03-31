@@ -12,11 +12,11 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.9.0"
+#define DRV_MODULE_VERSION	"1.9.1"
 
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	9
-#define DRV_VER_UPD	0
+#define DRV_VER_UPD	1
 
 #include <linux/interrupt.h>
 #include <linux/rhashtable.h>

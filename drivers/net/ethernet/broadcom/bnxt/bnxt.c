@@ -3577,9 +3577,13 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 			    FUNC_DRV_RGTR_REQ_ENABLES_VER);
 
 	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
-	req.ver_maj = DRV_VER_MAJ;
-	req.ver_min = DRV_VER_MIN;
-	req.ver_upd = DRV_VER_UPD;
+	req.flags = cpu_to_le32(FUNC_DRV_RGTR_REQ_FLAGS_16BIT_VER_MODE);
+	req.ver_maj_8b = DRV_VER_MAJ;
+	req.ver_min_8b = DRV_VER_MIN;
+	req.ver_upd_8b = DRV_VER_UPD;
+	req.ver_maj = cpu_to_le16(DRV_VER_MAJ);
+	req.ver_min = cpu_to_le16(DRV_VER_MIN);
+	req.ver_upd = cpu_to_le16(DRV_VER_UPD);
 
 	if (BNXT_PF(bp)) {
 		u32 data[8];
@@ -5418,10 +5422,9 @@ static int bnxt_hwrm_set_cache_line_size(struct bnxt *bp, int size)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 	req.fid = cpu_to_le16(0xffff);
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_CACHE_LINESIZE);
-	req.cache_linesize = FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_64;
+	req.options = FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SIZE_64;
 	if (size == 128)
-		req.cache_linesize =
-			FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_128;
+		req.options = FUNC_CFG_REQ_OPTIONS_CACHE_LINESIZE_SIZE_128;
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
