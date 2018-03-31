@@ -82,13 +82,15 @@ enum {
 	CPL_RX_ISCSI_CMP      = 0x45,
 	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX_ISCSI_DDP      = 0x49,
+	CPL_RX_TLS_CMP        = 0x4E,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 
 	CPL_PASS_OPEN_REQ6    = 0x81,
 	CPL_ACT_OPEN_REQ6     = 0x83,
 
-	CPL_TX_TLS_PDU     =    0x88,
+	CPL_TX_TLS_PDU        = 0x88,
+	CPL_TX_TLS_SFO        = 0x89,
 	CPL_TX_SEC_PDU        = 0x8A,
 	CPL_TX_TLS_ACK        = 0x8B,
 
@@ -98,6 +100,7 @@ enum {
 	CPL_RX_MPS_PKT        = 0xAF,
 
 	CPL_TRACE_PKT         = 0xB0,
+	CPL_TLS_DATA          = 0xB1,
 	CPL_ISCSI_DATA	      = 0xB2,
 
 	CPL_FW4_MSG           = 0xC0,
@@ -155,6 +158,7 @@ enum {
 	ULP_MODE_RDMA          = 4,
 	ULP_MODE_TCPDDP	       = 5,
 	ULP_MODE_FCOE          = 6,
+	ULP_MODE_TLS           = 8,
 };
 
 enum {
@@ -1445,6 +1449,14 @@ struct cpl_tx_data {
 #define T6_TX_FORCE_V(x)	((x) << T6_TX_FORCE_S)
 #define T6_TX_FORCE_F		T6_TX_FORCE_V(1U)
 
+#define TX_SHOVE_S    14
+#define TX_SHOVE_V(x) ((x) << TX_SHOVE_S)
+
+#define TX_ULP_MODE_S    10
+#define TX_ULP_MODE_M    0x7
+#define TX_ULP_MODE_V(x) ((x) << TX_ULP_MODE_S)
+#define TX_ULP_MODE_G(x) (((x) >> TX_ULP_MODE_S) & TX_ULP_MODE_M)
+
 enum {
 	ULP_TX_MEM_READ = 2,
 	ULP_TX_MEM_WRITE = 3,
@@ -1455,11 +1467,20 @@ enum {
 	ULP_TX_SC_NOOP = 0x80,
 	ULP_TX_SC_IMM  = 0x81,
 	ULP_TX_SC_DSGL = 0x82,
-	ULP_TX_SC_ISGL = 0x83
+	ULP_TX_SC_ISGL = 0x83,
+	ULP_TX_SC_MEMRD = 0x86
 };
 
 #define ULPTX_CMD_S    24
 #define ULPTX_CMD_V(x) ((x) << ULPTX_CMD_S)
+
+#define ULPTX_LEN16_S    0
+#define ULPTX_LEN16_M    0xFF
+#define ULPTX_LEN16_V(x) ((x) << ULPTX_LEN16_S)
+
+#define ULP_TX_SC_MORE_S 23
+#define ULP_TX_SC_MORE_V(x) ((x) << ULP_TX_SC_MORE_S)
+#define ULP_TX_SC_MORE_F  ULP_TX_SC_MORE_V(1U)
 
 struct ulptx_sge_pair {
 	__be32 len[2];
@@ -2183,4 +2204,101 @@ struct cpl_srq_table_rpl {
 #define SRQT_IDX_V(x) ((x) << SRQT_IDX_S)
 #define SRQT_IDX_G(x) (((x) >> SRQT_IDX_S) & SRQT_IDX_M)
 
+struct cpl_tx_tls_sfo {
+	__be32 op_to_seg_len;
+	__be32 pld_len;
+	__be32 type_protover;
+	__be32 r1_lo;
+	__be32 seqno_numivs;
+	__be32 ivgen_hdrlen;
+	__be64 scmd1;
+};
+
+/* cpl_tx_tls_sfo macros */
+#define CPL_TX_TLS_SFO_OPCODE_S         24
+#define CPL_TX_TLS_SFO_OPCODE_V(x)      ((x) << CPL_TX_TLS_SFO_OPCODE_S)
+
+#define CPL_TX_TLS_SFO_DATA_TYPE_S      20
+#define CPL_TX_TLS_SFO_DATA_TYPE_V(x)   ((x) << CPL_TX_TLS_SFO_DATA_TYPE_S)
+
+#define CPL_TX_TLS_SFO_CPL_LEN_S        16
+#define CPL_TX_TLS_SFO_CPL_LEN_V(x)     ((x) << CPL_TX_TLS_SFO_CPL_LEN_S)
+
+#define CPL_TX_TLS_SFO_SEG_LEN_S        0
+#define CPL_TX_TLS_SFO_SEG_LEN_M        0xffff
+#define CPL_TX_TLS_SFO_SEG_LEN_V(x)     ((x) << CPL_TX_TLS_SFO_SEG_LEN_S)
+#define CPL_TX_TLS_SFO_SEG_LEN_G(x)     \
+	(((x) >> CPL_TX_TLS_SFO_SEG_LEN_S) & CPL_TX_TLS_SFO_SEG_LEN_M)
+
+#define CPL_TX_TLS_SFO_TYPE_S           24
+#define CPL_TX_TLS_SFO_TYPE_M           0xff
+#define CPL_TX_TLS_SFO_TYPE_V(x)        ((x) << CPL_TX_TLS_SFO_TYPE_S)
+#define CPL_TX_TLS_SFO_TYPE_G(x)        \
+	(((x) >> CPL_TX_TLS_SFO_TYPE_S) & CPL_TX_TLS_SFO_TYPE_M)
+
+#define CPL_TX_TLS_SFO_PROTOVER_S       8
+#define CPL_TX_TLS_SFO_PROTOVER_M       0xffff
+#define CPL_TX_TLS_SFO_PROTOVER_V(x)    ((x) << CPL_TX_TLS_SFO_PROTOVER_S)
+#define CPL_TX_TLS_SFO_PROTOVER_G(x)    \
+	(((x) >> CPL_TX_TLS_SFO_PROTOVER_S) & CPL_TX_TLS_SFO_PROTOVER_M)
+
+struct cpl_tls_data {
+	struct rss_header rsshdr;
+	union opcode_tid ot;
+	__be32 length_pkd;
+	__be32 seq;
+	__be32 r1;
+};
+
+#define CPL_TLS_DATA_OPCODE_S           24
+#define CPL_TLS_DATA_OPCODE_M           0xff
+#define CPL_TLS_DATA_OPCODE_V(x)        ((x) << CPL_TLS_DATA_OPCODE_S)
+#define CPL_TLS_DATA_OPCODE_G(x)        \
+	(((x) >> CPL_TLS_DATA_OPCODE_S) & CPL_TLS_DATA_OPCODE_M)
+
+#define CPL_TLS_DATA_TID_S              0
+#define CPL_TLS_DATA_TID_M              0xffffff
+#define CPL_TLS_DATA_TID_V(x)           ((x) << CPL_TLS_DATA_TID_S)
+#define CPL_TLS_DATA_TID_G(x)           \
+	(((x) >> CPL_TLS_DATA_TID_S) & CPL_TLS_DATA_TID_M)
+
+#define CPL_TLS_DATA_LENGTH_S           0
+#define CPL_TLS_DATA_LENGTH_M           0xffff
+#define CPL_TLS_DATA_LENGTH_V(x)        ((x) << CPL_TLS_DATA_LENGTH_S)
+#define CPL_TLS_DATA_LENGTH_G(x)        \
+	(((x) >> CPL_TLS_DATA_LENGTH_S) & CPL_TLS_DATA_LENGTH_M)
+
+struct cpl_rx_tls_cmp {
+	struct rss_header rsshdr;
+	union opcode_tid ot;
+	__be32 pdulength_length;
+	__be32 seq;
+	__be32 ddp_report;
+	__be32 r;
+	__be32 ddp_valid;
+};
+
+#define CPL_RX_TLS_CMP_OPCODE_S         24
+#define CPL_RX_TLS_CMP_OPCODE_M         0xff
+#define CPL_RX_TLS_CMP_OPCODE_V(x)      ((x) << CPL_RX_TLS_CMP_OPCODE_S)
+#define CPL_RX_TLS_CMP_OPCODE_G(x)      \
+	(((x) >> CPL_RX_TLS_CMP_OPCODE_S) & CPL_RX_TLS_CMP_OPCODE_M)
+
+#define CPL_RX_TLS_CMP_TID_S            0
+#define CPL_RX_TLS_CMP_TID_M            0xffffff
+#define CPL_RX_TLS_CMP_TID_V(x)         ((x) << CPL_RX_TLS_CMP_TID_S)
+#define CPL_RX_TLS_CMP_TID_G(x)         \
+	(((x) >> CPL_RX_TLS_CMP_TID_S) & CPL_RX_TLS_CMP_TID_M)
+
+#define CPL_RX_TLS_CMP_PDULENGTH_S      16
+#define CPL_RX_TLS_CMP_PDULENGTH_M      0xffff
+#define CPL_RX_TLS_CMP_PDULENGTH_V(x)   ((x) << CPL_RX_TLS_CMP_PDULENGTH_S)
+#define CPL_RX_TLS_CMP_PDULENGTH_G(x)   \
+	(((x) >> CPL_RX_TLS_CMP_PDULENGTH_S) & CPL_RX_TLS_CMP_PDULENGTH_M)
+
+#define CPL_RX_TLS_CMP_LENGTH_S         0
+#define CPL_RX_TLS_CMP_LENGTH_M         0xffff
+#define CPL_RX_TLS_CMP_LENGTH_V(x)      ((x) << CPL_RX_TLS_CMP_LENGTH_S)
+#define CPL_RX_TLS_CMP_LENGTH_G(x)      \
+	(((x) >> CPL_RX_TLS_CMP_LENGTH_S) & CPL_RX_TLS_CMP_LENGTH_M)
 #endif  /* __T4_MSG_H */
