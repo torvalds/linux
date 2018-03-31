@@ -989,8 +989,9 @@ static void acpi_s2idle_sync(void)
 	 * The EC driver uses the system workqueue and an additional special
 	 * one, so those need to be flushed too.
 	 */
+	acpi_os_wait_events_complete();	/* synchronize SCI IRQ handling */
 	acpi_ec_flush_work();
-	acpi_os_wait_events_complete();
+	acpi_os_wait_events_complete();	/* synchronize Notify handling */
 	s2idle_wakeup = false;
 }
 
