@@ -141,11 +141,6 @@ static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 	atomic_add(i, &nf->mem);
 }
 
-static inline int sum_frag_mem_limit(struct netns_frags *nf)
-{
-	return atomic_read(&nf->mem);
-}
-
 /* RFC 3168 support :
  * We want to check ECN values of all fragments, do detect invalid combinations.
  * In ipq->ecn, we store the OR value of each ip4_frag_ecn() fragment value.

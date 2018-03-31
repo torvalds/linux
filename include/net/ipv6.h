@@ -379,13 +379,6 @@ static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 	    idev->cnf.accept_ra;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static inline int ip6_frag_mem(struct net *net)
-{
-	return sum_frag_mem_limit(&net->ipv6.frags);
-}
-#endif
-
 #define IPV6_FRAG_HIGH_THRESH	(4 * 1024*1024)	/* 4194304 */
 #define IPV6_FRAG_LOW_THRESH	(3 * 1024*1024)	/* 3145728 */
 #define IPV6_FRAG_TIMEOUT	(60 * HZ)	/* 60 seconds */
