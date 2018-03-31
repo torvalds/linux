@@ -165,7 +165,7 @@ struct vlan_vid_info {
 	int refcount;
 };
 
-bool vlan_hw_filter_capable(const struct net_device *dev, __be16 proto)
+static bool vlan_hw_filter_capable(const struct net_device *dev, __be16 proto)
 {
 	if (proto == htons(ETH_P_8021Q) &&
 	    dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
