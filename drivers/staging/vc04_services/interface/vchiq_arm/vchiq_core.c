@@ -620,10 +620,9 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 
 /* Called by the recycle thread. */
 static void
-process_free_queue(VCHIQ_STATE_T *state)
+process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 {
 	VCHIQ_SHARED_STATE_T *local = state->local;
-	BITSET_T service_found[BITSET_SIZE(VCHIQ_MAX_SERVICES)];
 	int slot_queue_available;
 
 	/* Find slots which have been freed by the other side, and return them
@@ -656,7 +655,7 @@ process_free_queue(VCHIQ_STATE_T *state)
 
 		/* Initialise the bitmask for services which have used this
 		** slot */
-		BITSET_ZERO(service_found);
+		memset(service_found, 0, length);
 
 		pos = 0;
 
@@ -2183,11 +2182,20 @@ recycle_func(void *v)
 {
 	VCHIQ_STATE_T *state = (VCHIQ_STATE_T *) v;
 	VCHIQ_SHARED_STATE_T *local = state->local;
+	BITSET_T *found;
+	size_t length;
+
+	length = sizeof(*found) * BITSET_SIZE(VCHIQ_MAX_SERVICES);
+
+	found = kmalloc_array(BITSET_SIZE(VCHIQ_MAX_SERVICES), sizeof(*found),
+			      GFP_KERNEL);
+	if (!found)
+		return -ENOMEM;
 
 	while (1) {
 		remote_event_wait(state, &local->recycle);
 
-		process_free_queue(state);
+		process_free_queue(state, found, length);
 	}
 	return 0;
 }
