@@ -374,6 +374,19 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 				   status, rq);
 }
 
+inline void
+execlists_user_begin(struct intel_engine_execlists *execlists,
+		     const struct execlist_port *port)
+{
+	execlists_set_active_once(execlists, EXECLISTS_ACTIVE_USER);
+}
+
+inline void
+execlists_user_end(struct intel_engine_execlists *execlists)
+{
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
+}
+
 static inline void
 execlists_context_schedule_in(struct i915_request *rq)
 {
@@ -711,7 +724,7 @@ unlock:
 	spin_unlock_irq(&engine->timeline->lock);
 
 	if (submit) {
-		execlists_set_active(execlists, EXECLISTS_ACTIVE_USER);
+		execlists_user_begin(execlists, execlists->port);
 		execlists_submit_ports(engine);
 	}
 
@@ -742,7 +755,7 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 		port++;
 	}
 
-	execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
+	execlists_user_end(execlists);
 }
 
 static void clear_gtiir(struct intel_engine_cs *engine)
@@ -873,7 +886,7 @@ static void execlists_submission_tasklet(unsigned long data)
 {
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct execlist_port * const port = execlists->port;
+	struct execlist_port *port = execlists->port;
 	struct drm_i915_private *dev_priv = engine->i915;
 	bool fw = false;
 
@@ -1012,10 +1025,28 @@ static void execlists_submission_tasklet(unsigned long data)
 
 			GEM_BUG_ON(count == 0);
 			if (--count == 0) {
+				/*
+				 * On the final event corresponding to the
+				 * submission of this context, we expect either
+				 * an element-switch event or a completion
+				 * event (and on completion, the active-idle
+				 * marker). No more preemptions, lite-restore
+				 * or otherwise.
+				 */
 				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
 				GEM_BUG_ON(port_isset(&port[1]) &&
 					   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
+				GEM_BUG_ON(!port_isset(&port[1]) &&
+					   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
+
+				/*
+				 * We rely on the hardware being strongly
+				 * ordered, that the breadcrumb write is
+				 * coherent (visible from the CPU) before the
+				 * user interrupt and CSB is processed.
+				 */
 				GEM_BUG_ON(!i915_request_completed(rq));
+
 				execlists_context_schedule_out(rq);
 				trace_i915_request_out(rq);
 				i915_request_put(rq);
@@ -1023,17 +1054,14 @@ static void execlists_submission_tasklet(unsigned long data)
 				GEM_TRACE("%s completed ctx=%d\n",
 					  engine->name, port->context_id);
 
-				execlists_port_complete(execlists, port);
+				port = execlists_port_complete(execlists, port);
+				if (port_isset(port))
+					execlists_user_begin(execlists, port);
+				else
+					execlists_user_end(execlists);
 			} else {
 				port_set(port, port_pack(rq, count));
 			}
-
-			/* After the final element, the hw should be idle */
-			GEM_BUG_ON(port_count(port) == 0 &&
-				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
-			if (port_count(port) == 0)
-				execlists_clear_active(execlists,
-						       EXECLISTS_ACTIVE_USER);
 		}
 
 		if (head != execlists->csb_head) {

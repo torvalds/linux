@@ -638,6 +638,13 @@ execlists_set_active(struct intel_engine_execlists *execlists,
 	__set_bit(bit, (unsigned long *)&execlists->active);
 }
 
+static inline bool
+execlists_set_active_once(struct intel_engine_execlists *execlists,
+			  unsigned int bit)
+{
+	return !__test_and_set_bit(bit, (unsigned long *)&execlists->active);
+}
+
 static inline void
 execlists_clear_active(struct intel_engine_execlists *execlists,
 		       unsigned int bit)
@@ -652,6 +659,10 @@ execlists_is_active(const struct intel_engine_execlists *execlists,
 	return test_bit(bit, (unsigned long *)&execlists->active);
 }
 
+void execlists_user_begin(struct intel_engine_execlists *execlists,
+			  const struct execlist_port *port);
+void execlists_user_end(struct intel_engine_execlists *execlists);
+
 void
 execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
 
@@ -664,7 +675,7 @@ execlists_num_ports(const struct intel_engine_execlists * const execlists)
 	return execlists->port_mask + 1;
 }
 
-static inline void
+static inline struct execlist_port *
 execlists_port_complete(struct intel_engine_execlists * const execlists,
 			struct execlist_port * const port)
 {
@@ -675,6 +686,8 @@ execlists_port_complete(struct intel_engine_execlists * const execlists,
 
 	memmove(port, port + 1, m * sizeof(struct execlist_port));
 	memset(port + m, 0, sizeof(struct execlist_port));
+
+	return port;
 }
 
 static inline unsigned int

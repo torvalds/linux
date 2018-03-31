@@ -728,7 +728,7 @@ done:
 	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);
-		execlists_set_active(execlists, EXECLISTS_ACTIVE_USER);
+		execlists_user_begin(execlists, execlists->port);
 		guc_submit(engine);
 	}
 
@@ -748,17 +748,20 @@ static void guc_submission_tasklet(unsigned long data)
 	struct execlist_port *port = execlists->port;
 	struct i915_request *rq;
 
-	rq = port_request(&port[0]);
+	rq = port_request(port);
 	while (rq && i915_request_completed(rq)) {
 		trace_i915_request_out(rq);
 		i915_request_put(rq);
 
-		execlists_port_complete(execlists, port);
-
-		rq = port_request(&port[0]);
+		port = execlists_port_complete(execlists, port);
+		if (port_isset(port)) {
+			execlists_user_begin(execlists, port);
+			rq = port_request(port);
+		} else {
+			execlists_user_end(execlists);
+			rq = NULL;
+		}
 	}
-	if (!rq)
-		execlists_clear_active(execlists, EXECLISTS_ACTIVE_USER);
 
 	if (execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT) &&
 	    intel_read_status_page(engine, I915_GEM_HWS_PREEMPT_INDEX) ==
