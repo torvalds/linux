@@ -863,7 +863,7 @@ void hostif_adhoc_set_confirm(struct ks_wlan_private *priv)
 static
 void hostif_associate_indication(struct ks_wlan_private *priv)
 {
-	struct association_request_t *assoc_req;
+	struct association_request *assoc_req;
 	struct association_response_t *assoc_resp;
 	unsigned char *pb;
 	union iwreq_data wrqu;
@@ -874,7 +874,7 @@ void hostif_associate_indication(struct ks_wlan_private *priv)
 	static const char associnfo_leader0[] = "ASSOCINFO(ReqIEs=";
 	static const char associnfo_leader1[] = " RespIEs=";
 
-	assoc_req = (struct association_request_t *)(priv->rxp);
+	assoc_req = (struct association_request *)(priv->rxp);
 	assoc_resp = (struct association_response_t *)(assoc_req + 1);
 	pb = (unsigned char *)(assoc_resp + 1);
 

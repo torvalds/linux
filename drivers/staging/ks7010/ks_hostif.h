@@ -381,7 +381,7 @@ struct hostif_adhoc_set2_request {
 	u8 bssid[ETH_ALEN];
 } __packed;
 
-struct association_request_t {
+struct association_request {
 	u8 type;
 	u8 pad;
 	__le16 capability;
@@ -401,7 +401,7 @@ struct association_response_t {
 
 struct hostif_associate_indication_t {
 	struct hostif_hdr header;
-	struct association_request_t assoc_req;
+	struct association_request assoc_req;
 	struct association_response_t assoc_resp;
 	/* followed by (req_ies_size + resp_ies_size) octets of data */
 	/* reqIEs data *//* respIEs data */
