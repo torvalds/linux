@@ -1197,8 +1197,8 @@ release_slot(VCHIQ_STATE_T *state, VCHIQ_SLOT_INFO_T *slot_info,
 			SLOT_INDEX_FROM_INFO(state, slot_info);
 		state->remote->slot_queue_recycle = slot_queue_recycle + 1;
 		vchiq_log_info(vchiq_core_log_level,
-			"%d: release_slot %d - recycle->%x",
-			state->id, SLOT_INDEX_FROM_INFO(state, slot_info),
+			"%d: %s %d - recycle->%x", state->id, __func__,
+			SLOT_INDEX_FROM_INFO(state, slot_info),
 			state->remote->slot_queue_recycle);
 
 		/* A write barrier is necessary, but remote_event_signal
@@ -2338,8 +2338,8 @@ vchiq_init_slots(void *mem_base, int mem_size)
 
 	if (num_slots < 4) {
 		vchiq_log_error(vchiq_core_log_level,
-			"vchiq_init_slots - insufficient memory %x bytes",
-			mem_size);
+			"%s - insufficient memory %x bytes",
+			__func__, mem_size);
 		return NULL;
 	}
 
@@ -2870,9 +2870,9 @@ close_service_complete(VCHIQ_SERVICE_T *service, int failstate)
 		break;
 	default:
 		vchiq_log_error(vchiq_core_log_level,
-			"close_service_complete(%x) called in state %s",
+			"%s(%x) called in state %s", __func__,
 			service->handle, srvstate_names[service->srvstate]);
-		WARN(1, "close_service_complete in unexpected state\n");
+		WARN(1, "%s in unexpected state\n", __func__);
 		return VCHIQ_ERROR;
 	}
 
@@ -2924,9 +2924,9 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 	case VCHIQ_SRVSTATE_CLOSEWAIT:
 		if (close_recvd)
 			vchiq_log_error(vchiq_core_log_level,
-				"vchiq_close_service_internal(1) called "
+				"%s(1) called "
 				"in state %s",
-				srvstate_names[service->srvstate]);
+				__func__, srvstate_names[service->srvstate]);
 		else if (is_server) {
 			if (service->srvstate == VCHIQ_SRVSTATE_LISTENING) {
 				status = VCHIQ_ERROR;
@@ -3033,7 +3033,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 
 	default:
 		vchiq_log_error(vchiq_core_log_level,
-			"vchiq_close_service_internal(%d) called in state %s",
+			"%s(%d) called in state %s", __func__,
 			close_recvd, srvstate_names[service->srvstate]);
 		break;
 	}
@@ -3154,8 +3154,8 @@ vchiq_pause_internal(VCHIQ_STATE_T *state)
 		break;
 	default:
 		vchiq_log_error(vchiq_core_log_level,
-			"vchiq_pause_internal in state %s\n",
-			conn_state_names[state->conn_state]);
+			"%s in state %s\n",
+			__func__, conn_state_names[state->conn_state]);
 		status = VCHIQ_ERROR;
 		VCHIQ_STATS_INC(state, error_count);
 		break;

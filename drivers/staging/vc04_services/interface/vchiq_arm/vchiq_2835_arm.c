@@ -582,8 +582,8 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	struct page **pages    = pagelistinfo->pages;
 	unsigned int num_pages = pagelistinfo->num_pages;
 
-	vchiq_log_trace(vchiq_arm_log_level, "free_pagelist - %pK, %d",
-			pagelistinfo->pagelist, actual);
+	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK, %d",
+			__func__, pagelistinfo->pagelist, actual);
 
 	/*
 	 * NOTE: dma_unmap_sg must be called before the

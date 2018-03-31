@@ -563,7 +563,7 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 		/* Out of space - wait for the client */
 		DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 		vchiq_log_trace(vchiq_arm_log_level,
-			"add_completion - completion queue full");
+			"%s - completion queue full", __func__);
 		DEBUG_COUNT(COMPLETION_QUEUE_FULL_COUNT);
 		if (down_interruptible(&instance->remove_event) != 0) {
 			vchiq_log_info(vchiq_arm_log_level,
@@ -641,9 +641,9 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 		return VCHIQ_SUCCESS;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"service_callback - service %lx(%d,%p), reason %d, header %lx, "
+		"%s - service %lx(%d,%p), reason %d, header %lx, "
 		"instance %lx, bulk_userdata %lx",
-		(unsigned long)user_service,
+		__func__, (unsigned long)user_service,
 		service->localport, user_service->userdata,
 		reason, (unsigned long)header,
 		(unsigned long)instance, (unsigned long)bulk_userdata);
@@ -679,12 +679,12 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 			if (down_interruptible(&user_service->remove_event)
 				!= 0) {
 				vchiq_log_info(vchiq_arm_log_level,
-					"service_callback interrupted");
+					"%s interrupted", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 				return VCHIQ_RETRY;
 			} else if (instance->closing) {
 				vchiq_log_info(vchiq_arm_log_level,
-					"service_callback closing");
+					"%s closing", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 				return VCHIQ_ERROR;
 			}
@@ -740,8 +740,8 @@ user_service_free(void *userdata)
 static void close_delivered(USER_SERVICE_T *user_service)
 {
 	vchiq_log_info(vchiq_arm_log_level,
-		"close_delivered(handle=%x)",
-		user_service->service->handle);
+		"%s(handle=%x)",
+		__func__, user_service->service->handle);
 
 	if (user_service->close_pending) {
 		/* Allow the underlying service to be culled */
@@ -872,8 +872,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	DEBUG_INITIALISE(g_state.local)
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"vchiq_ioctl - instance %pK, cmd %s, arg %lx",
-		instance,
+		"%s - instance %pK, cmd %s, arg %lx",
+		__func__, instance,
 		((_IOC_TYPE(cmd) == VCHIQ_IOC_MAGIC) &&
 		(_IOC_NR(cmd) <= VCHIQ_IOC_MAX)) ?
 		ioctl_names[_IOC_NR(cmd)] : "<invalid>", arg);
@@ -2078,8 +2078,8 @@ vchiq_release(struct inode *inode, struct file *file)
 		int i;
 
 		vchiq_log_info(vchiq_arm_log_level,
-			"vchiq_release: instance=%lx",
-			(unsigned long)instance);
+			"%s: instance=%lx",
+			__func__, (unsigned long)instance);
 
 		if (!state) {
 			ret = -EPERM;
