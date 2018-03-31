@@ -2153,22 +2153,17 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 		add_tsu_reg(TSU_POST2);
 		add_tsu_reg(TSU_POST3);
 		add_tsu_reg(TSU_POST4);
-		if (mdp->reg_offset[TSU_ADRH0] != SH_ETH_OFFSET_INVALID) {
-			/* This is the start of a table, not just a single
-			 * register.
-			 */
-			if (buf) {
-				unsigned int i;
+		/* This is the start of a table, not just a single register. */
+		if (buf) {
+			unsigned int i;
 
-				mark_reg_valid(TSU_ADRH0);
-				for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES * 2; i++)
-					*buf++ = ioread32(
-						mdp->tsu_addr +
-						mdp->reg_offset[TSU_ADRH0] +
-						i * 4);
-			}
-			len += SH_ETH_TSU_CAM_ENTRIES * 2;
+			mark_reg_valid(TSU_ADRH0);
+			for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES * 2; i++)
+				*buf++ = ioread32(mdp->tsu_addr +
+						  mdp->reg_offset[TSU_ADRH0] +
+						  i * 4);
 		}
+		len += SH_ETH_TSU_CAM_ENTRIES * 2;
 	}
 
 #undef mark_reg_valid
