@@ -81,7 +81,7 @@ struct hostif_data_request {
 #define TYPE_GMK2 0x0003
 
 #define CHANNEL_LIST_MAX_SIZE 14
-struct channel_list_t {
+struct channel_list {
 	u8 size;
 	u8 body[CHANNEL_LIST_MAX_SIZE];
 	u8 pad;
@@ -378,7 +378,7 @@ struct hostif_infrastructure_set_request_t {
 	struct ssid_t ssid;
 	__le16 beacon_lost_count;
 	__le16 auth_type;
-	struct channel_list_t channel_list;
+	struct channel_list channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
 
@@ -413,7 +413,7 @@ struct hostif_adhoc_set2_request_t {
 	struct hostif_request_t request;
 	__le16 reserved;
 	struct ssid_t ssid;
-	struct channel_list_t channel_list;
+	struct channel_list channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
 
@@ -461,7 +461,7 @@ struct hostif_bss_scan_request_t {
 	u8 pad[3];
 	__le32 ch_time_min;
 	__le32 ch_time_max;
-	struct channel_list_t channel_list;
+	struct channel_list channel_list;
 	struct ssid_t ssid;
 } __packed;
 
