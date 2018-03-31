@@ -390,7 +390,7 @@ struct association_request {
 	__le16 req_ies_size;
 } __packed;
 
-struct association_response_t {
+struct association_response {
 	u8 type;
 	u8 pad;
 	__le16 capability;
@@ -402,7 +402,7 @@ struct association_response_t {
 struct hostif_associate_indication_t {
 	struct hostif_hdr header;
 	struct association_request assoc_req;
-	struct association_response_t assoc_resp;
+	struct association_response assoc_resp;
 	/* followed by (req_ies_size + resp_ies_size) octets of data */
 	/* reqIEs data *//* respIEs data */
 } __packed;
