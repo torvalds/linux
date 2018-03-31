@@ -285,7 +285,7 @@ struct power_save_status {
 	atomic_t snooze_guard;
 };
 
-struct sleep_status_t {
+struct sleep_status {
 	atomic_t status;	/* initialvalue 0 */
 	atomic_t doze_request;
 	atomic_t wakeup_request;
@@ -426,7 +426,7 @@ struct ks_wlan_private {
 	struct local_aplist aplist;
 	struct local_ap current_ap;
 	struct power_save_status psstatus;
-	struct sleep_status_t sleepstatus;
+	struct sleep_status sleepstatus;
 	struct wpa_status_t wpa;
 	struct pmk_list_t pmklist;
 	/* wireless parameter */
