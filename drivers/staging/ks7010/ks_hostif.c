@@ -2123,7 +2123,7 @@ void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 static
 void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 {
-	struct pmk_cache_t {
+	struct pmk_cache {
 		__le16 size;
 		struct {
 			u8 bssid[ETH_ALEN];
