@@ -1665,7 +1665,7 @@ struct wpa_suite {
 	unsigned char suite[4][CIPHER_ID_LEN];
 } __packed;
 
-struct rsn_mode_t {
+struct rsn_mode {
 	__le32 rsn_mode;
 	__le16 rsn_capability;
 } __packed;
@@ -1674,7 +1674,7 @@ static
 void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 {
 	struct wpa_suite wpa_suite;
-	struct rsn_mode_t rsn_mode;
+	struct rsn_mode rsn_mode;
 	__le32 val;
 
 	memset(&wpa_suite, 0, sizeof(wpa_suite));
