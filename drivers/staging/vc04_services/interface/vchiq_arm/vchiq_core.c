@@ -2553,7 +2553,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		return VCHIQ_ERROR;
 	}
 	set_user_nice(state->slot_handler_thread, -19);
-	wake_up_process(state->slot_handler_thread);
 
 	snprintf(threadname, sizeof(threadname), "vchiq-recy/%d", state->id);
 	state->recycle_thread = kthread_create(&recycle_func,
@@ -2566,7 +2565,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		return VCHIQ_ERROR;
 	}
 	set_user_nice(state->recycle_thread, -19);
-	wake_up_process(state->recycle_thread);
 
 	snprintf(threadname, sizeof(threadname), "vchiq-sync/%d", state->id);
 	state->sync_thread = kthread_create(&sync_func,
@@ -2579,6 +2577,9 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		return VCHIQ_ERROR;
 	}
 	set_user_nice(state->sync_thread, -20);
+
+	wake_up_process(state->slot_handler_thread);
+	wake_up_process(state->recycle_thread);
 	wake_up_process(state->sync_thread);
 
 	vchiq_states[0] = state;
