@@ -30,6 +30,11 @@ static bool is_tls_tx(struct chtls_sock *csk)
 	return csk->tlshws.txkey >= 0;
 }
 
+static bool is_tls_rx(struct chtls_sock *csk)
+{
+	return csk->tlshws.rxkey >= 0;
+}
+
 static int data_sgl_len(const struct sk_buff *skb)
 {
 	unsigned int cnt;
@@ -106,9 +111,11 @@ static int send_flowc_wr(struct sock *sk, struct fw_flowc_wr *flowc,
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	int flowclen16 = flowclen / 16;
 	struct sk_buff *skb;
+	int flowclen16;
 	int ret;
+
+	flowclen16 = flowclen / 16;
 
 	if (csk_flag(sk, CSK_TX_DATA_SENT)) {
 		skb = create_flowc_wr_skb(sk, flowc, flowclen);
@@ -1219,4 +1226,597 @@ out_err:
 		csk_reset_flag(csk, CSK_TX_MORE_DATA);
 	copied = sk_stream_error(sk, flags, err);
 	goto done;
+}
+
+static void chtls_select_window(struct sock *sk)
+{
+	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned int wnd = tp->rcv_wnd;
+
+	wnd = max_t(unsigned int, wnd, tcp_full_space(sk));
+	wnd = max_t(unsigned int, MIN_RCV_WND, wnd);
+
+	if (wnd > MAX_RCV_WND)
+		wnd = MAX_RCV_WND;
+
+/*
+ * Check if we need to grow the receive window in response to an increase in
+ * the socket's receive buffer size.  Some applications increase the buffer
+ * size dynamically and rely on the window to grow accordingly.
+ */
+
+	if (wnd > tp->rcv_wnd) {
+		tp->rcv_wup -= wnd - tp->rcv_wnd;
+		tp->rcv_wnd = wnd;
+		/* Mark the receive window as updated */
+		csk_reset_flag(csk, CSK_UPDATE_RCV_WND);
+	}
+}
+
+/*
+ * Send RX credits through an RX_DATA_ACK CPL message.  We are permitted
+ * to return without sending the message in case we cannot allocate
+ * an sk_buff.  Returns the number of credits sent.
+ */
+static u32 send_rx_credits(struct chtls_sock *csk, u32 credits)
+{
+	struct cpl_rx_data_ack *req;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(*req), GFP_ATOMIC);
+	if (!skb)
+		return 0;
+	__skb_put(skb, sizeof(*req));
+	req = (struct cpl_rx_data_ack *)skb->head;
+
+	set_wr_txq(skb, CPL_PRIORITY_ACK, csk->port_id);
+	INIT_TP_WR(req, csk->tid);
+	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
+						    csk->tid));
+	req->credit_dack = cpu_to_be32(RX_CREDITS_V(credits) |
+				       RX_FORCE_ACK_F);
+	cxgb4_ofld_send(csk->cdev->ports[csk->port_id], skb);
+	return credits;
+}
+
+#define CREDIT_RETURN_STATE (TCPF_ESTABLISHED | \
+			     TCPF_FIN_WAIT1 | \
+			     TCPF_FIN_WAIT2)
+
+/*
+ * Called after some received data has been read.  It returns RX credits
+ * to the HW for the amount of data processed.
+ */
+static void chtls_cleanup_rbuf(struct sock *sk, int copied)
+{
+	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
+	struct tcp_sock *tp;
+	int must_send;
+	u32 credits;
+	u32 thres;
+
+	thres = 15 * 1024;
+
+	if (!sk_in_state(sk, CREDIT_RETURN_STATE))
+		return;
+
+	chtls_select_window(sk);
+	tp = tcp_sk(sk);
+	credits = tp->copied_seq - tp->rcv_wup;
+	if (unlikely(!credits))
+		return;
+
+/*
+ * For coalescing to work effectively ensure the receive window has
+ * at least 16KB left.
+ */
+	must_send = credits + 16384 >= tp->rcv_wnd;
+
+	if (must_send || credits >= thres)
+		tp->rcv_wup += send_rx_credits(csk, credits);
+}
+
+static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+			    int nonblock, int flags, int *addr_len)
+{
+	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
+	struct net_device *dev = csk->egress_dev;
+	struct chtls_hws *hws = &csk->tlshws;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct adapter *adap;
+	unsigned long avail;
+	int buffers_freed;
+	int copied = 0;
+	int request;
+	int target;
+	long timeo;
+
+	adap = netdev2adap(dev);
+	buffers_freed = 0;
+
+	timeo = sock_rcvtimeo(sk, nonblock);
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
+	request = len;
+
+	if (unlikely(csk_flag(sk, CSK_UPDATE_RCV_WND)))
+		chtls_cleanup_rbuf(sk, copied);
+
+	do {
+		struct sk_buff *skb;
+		u32 offset = 0;
+
+		if (unlikely(tp->urg_data &&
+			     tp->urg_seq == tp->copied_seq)) {
+			if (copied)
+				break;
+			if (signal_pending(current)) {
+				copied = timeo ? sock_intr_errno(timeo) :
+					-EAGAIN;
+				break;
+			}
+		}
+		skb = skb_peek(&sk->sk_receive_queue);
+		if (skb)
+			goto found_ok_skb;
+		if (csk->wr_credits &&
+		    skb_queue_len(&csk->txq) &&
+		    chtls_push_frames(csk, csk->wr_credits ==
+				      csk->wr_max_credits))
+			sk->sk_write_space(sk);
+
+		if (copied >= target && !sk->sk_backlog.tail)
+			break;
+
+		if (copied) {
+			if (sk->sk_err || sk->sk_state == TCP_CLOSE ||
+			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
+			    signal_pending(current))
+				break;
+
+			if (!timeo)
+				break;
+		} else {
+			if (sock_flag(sk, SOCK_DONE))
+				break;
+			if (sk->sk_err) {
+				copied = sock_error(sk);
+				break;
+			}
+			if (sk->sk_shutdown & RCV_SHUTDOWN)
+				break;
+			if (sk->sk_state == TCP_CLOSE) {
+				copied = -ENOTCONN;
+				break;
+			}
+			if (!timeo) {
+				copied = -EAGAIN;
+				break;
+			}
+			if (signal_pending(current)) {
+				copied = sock_intr_errno(timeo);
+				break;
+			}
+		}
+		if (sk->sk_backlog.tail) {
+			release_sock(sk);
+			lock_sock(sk);
+			chtls_cleanup_rbuf(sk, copied);
+			continue;
+		}
+
+		if (copied >= target)
+			break;
+		chtls_cleanup_rbuf(sk, copied);
+		sk_wait_data(sk, &timeo, NULL);
+			continue;
+found_ok_skb:
+		if (!skb->len) {
+			skb_dst_set(skb, NULL);
+			__skb_unlink(skb, &sk->sk_receive_queue);
+			kfree_skb(skb);
+
+			if (!copied && !timeo) {
+				copied = -EAGAIN;
+				break;
+			}
+
+			if (copied < target) {
+				release_sock(sk);
+				lock_sock(sk);
+				continue;
+			}
+			break;
+		}
+		offset = hws->copied_seq;
+		avail = skb->len - offset;
+		if (len < avail)
+			avail = len;
+
+		if (unlikely(tp->urg_data)) {
+			u32 urg_offset = tp->urg_seq - tp->copied_seq;
+
+			if (urg_offset < avail) {
+				if (urg_offset) {
+					avail = urg_offset;
+				} else if (!sock_flag(sk, SOCK_URGINLINE)) {
+					/* First byte is urgent, skip */
+					tp->copied_seq++;
+					offset++;
+					avail--;
+					if (!avail)
+						goto skip_copy;
+				}
+			}
+		}
+		if (hws->rstate == TLS_RCV_ST_READ_BODY) {
+			if (skb_copy_datagram_msg(skb, offset,
+						  msg, avail)) {
+				if (!copied) {
+					copied = -EFAULT;
+					break;
+				}
+			}
+		} else {
+			struct tlsrx_cmp_hdr *tls_hdr_pkt =
+				(struct tlsrx_cmp_hdr *)skb->data;
+
+			if ((tls_hdr_pkt->res_to_mac_error &
+			    TLSRX_HDR_PKT_ERROR_M))
+				tls_hdr_pkt->type = 0x7F;
+
+			/* CMP pld len is for recv seq */
+			hws->rcvpld = skb->hdr_len;
+			if (skb_copy_datagram_msg(skb, offset, msg, avail)) {
+				if (!copied) {
+					copied = -EFAULT;
+					break;
+				}
+			}
+		}
+		copied += avail;
+		len -= avail;
+		hws->copied_seq += avail;
+skip_copy:
+		if (tp->urg_data && after(tp->copied_seq, tp->urg_seq))
+			tp->urg_data = 0;
+
+		if (hws->rstate == TLS_RCV_ST_READ_BODY &&
+		    (avail + offset) >= skb->len) {
+			if (likely(skb))
+				chtls_free_skb(sk, skb);
+			buffers_freed++;
+			hws->rstate = TLS_RCV_ST_READ_HEADER;
+			atomic_inc(&adap->chcr_stats.tls_pdu_rx);
+			tp->copied_seq += hws->rcvpld;
+			hws->copied_seq = 0;
+			if (copied >= target &&
+			    !skb_peek(&sk->sk_receive_queue))
+				break;
+		} else {
+			if (likely(skb)) {
+				if (ULP_SKB_CB(skb)->flags &
+				    ULPCB_FLAG_TLS_ND)
+					hws->rstate =
+						TLS_RCV_ST_READ_HEADER;
+				else
+					hws->rstate =
+						TLS_RCV_ST_READ_BODY;
+				chtls_free_skb(sk, skb);
+			}
+			buffers_freed++;
+			tp->copied_seq += avail;
+			hws->copied_seq = 0;
+		}
+	} while (len > 0);
+
+	if (buffers_freed)
+		chtls_cleanup_rbuf(sk, copied);
+	release_sock(sk);
+	return copied;
+}
+
+/*
+ * Peek at data in a socket's receive buffer.
+ */
+static int peekmsg(struct sock *sk, struct msghdr *msg,
+		   size_t len, int nonblock, int flags)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	u32 peek_seq, offset;
+	struct sk_buff *skb;
+	int copied = 0;
+	size_t avail;          /* amount of available data in current skb */
+	long timeo;
+
+	lock_sock(sk);
+	timeo = sock_rcvtimeo(sk, nonblock);
+	peek_seq = tp->copied_seq;
+
+	do {
+		if (unlikely(tp->urg_data && tp->urg_seq == peek_seq)) {
+			if (copied)
+				break;
+			if (signal_pending(current)) {
+				copied = timeo ? sock_intr_errno(timeo) :
+				-EAGAIN;
+				break;
+			}
+		}
+
+		skb_queue_walk(&sk->sk_receive_queue, skb) {
+			offset = peek_seq - ULP_SKB_CB(skb)->seq;
+			if (offset < skb->len)
+				goto found_ok_skb;
+		}
+
+		/* empty receive queue */
+		if (copied)
+			break;
+		if (sock_flag(sk, SOCK_DONE))
+			break;
+		if (sk->sk_err) {
+			copied = sock_error(sk);
+			break;
+		}
+		if (sk->sk_shutdown & RCV_SHUTDOWN)
+			break;
+		if (sk->sk_state == TCP_CLOSE) {
+			copied = -ENOTCONN;
+			break;
+		}
+		if (!timeo) {
+			copied = -EAGAIN;
+			break;
+		}
+		if (signal_pending(current)) {
+			copied = sock_intr_errno(timeo);
+			break;
+		}
+
+		if (sk->sk_backlog.tail) {
+			/* Do not sleep, just process backlog. */
+			release_sock(sk);
+			lock_sock(sk);
+		} else {
+			sk_wait_data(sk, &timeo, NULL);
+		}
+
+		if (unlikely(peek_seq != tp->copied_seq)) {
+			if (net_ratelimit())
+				pr_info("TCP(%s:%d), race in MSG_PEEK.\n",
+					current->comm, current->pid);
+			peek_seq = tp->copied_seq;
+		}
+		continue;
+
+found_ok_skb:
+		avail = skb->len - offset;
+		if (len < avail)
+			avail = len;
+		/*
+		 * Do we have urgent data here?  We need to skip over the
+		 * urgent byte.
+		 */
+		if (unlikely(tp->urg_data)) {
+			u32 urg_offset = tp->urg_seq - peek_seq;
+
+			if (urg_offset < avail) {
+				/*
+				 * The amount of data we are preparing to copy
+				 * contains urgent data.
+				 */
+				if (!urg_offset) { /* First byte is urgent */
+					if (!sock_flag(sk, SOCK_URGINLINE)) {
+						peek_seq++;
+						offset++;
+						avail--;
+					}
+					if (!avail)
+						continue;
+				} else {
+					/* stop short of the urgent data */
+					avail = urg_offset;
+				}
+			}
+		}
+
+		/*
+		 * If MSG_TRUNC is specified the data is discarded.
+		 */
+		if (likely(!(flags & MSG_TRUNC)))
+			if (skb_copy_datagram_msg(skb, offset, msg, len)) {
+				if (!copied) {
+					copied = -EFAULT;
+					break;
+				}
+			}
+		peek_seq += avail;
+		copied += avail;
+		len -= avail;
+	} while (len > 0);
+
+	release_sock(sk);
+	return copied;
+}
+
+int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+		  int nonblock, int flags, int *addr_len)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct chtls_sock *csk;
+	struct chtls_hws *hws;
+	unsigned long avail;    /* amount of available data in current skb */
+	int buffers_freed;
+	int copied = 0;
+	int request;
+	long timeo;
+	int target;             /* Read at least this many bytes */
+
+	buffers_freed = 0;
+
+	if (unlikely(flags & MSG_OOB))
+		return tcp_prot.recvmsg(sk, msg, len, nonblock, flags,
+					addr_len);
+
+	if (unlikely(flags & MSG_PEEK))
+		return peekmsg(sk, msg, len, nonblock, flags);
+
+	if (sk_can_busy_loop(sk) &&
+	    skb_queue_empty(&sk->sk_receive_queue) &&
+	    sk->sk_state == TCP_ESTABLISHED)
+		sk_busy_loop(sk, nonblock);
+
+	lock_sock(sk);
+	csk = rcu_dereference_sk_user_data(sk);
+	hws = &csk->tlshws;
+
+	if (is_tls_rx(csk))
+		return chtls_pt_recvmsg(sk, msg, len, nonblock,
+					flags, addr_len);
+
+	timeo = sock_rcvtimeo(sk, nonblock);
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
+	request = len;
+
+	if (unlikely(csk_flag(sk, CSK_UPDATE_RCV_WND)))
+		chtls_cleanup_rbuf(sk, copied);
+
+	do {
+		struct sk_buff *skb;
+		u32 offset;
+
+		if (unlikely(tp->urg_data && tp->urg_seq == tp->copied_seq)) {
+			if (copied)
+				break;
+			if (signal_pending(current)) {
+				copied = timeo ? sock_intr_errno(timeo) :
+					-EAGAIN;
+				break;
+			}
+		}
+
+		skb = skb_peek(&sk->sk_receive_queue);
+		if (skb)
+			goto found_ok_skb;
+
+		if (csk->wr_credits &&
+		    skb_queue_len(&csk->txq) &&
+		    chtls_push_frames(csk, csk->wr_credits ==
+				      csk->wr_max_credits))
+			sk->sk_write_space(sk);
+
+		if (copied >= target && !sk->sk_backlog.tail)
+			break;
+
+		if (copied) {
+			if (sk->sk_err || sk->sk_state == TCP_CLOSE ||
+			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
+			    signal_pending(current))
+				break;
+		} else {
+			if (sock_flag(sk, SOCK_DONE))
+				break;
+			if (sk->sk_err) {
+				copied = sock_error(sk);
+				break;
+			}
+			if (sk->sk_shutdown & RCV_SHUTDOWN)
+				break;
+			if (sk->sk_state == TCP_CLOSE) {
+				copied = -ENOTCONN;
+				break;
+			}
+			if (!timeo) {
+				copied = -EAGAIN;
+				break;
+			}
+			if (signal_pending(current)) {
+				copied = sock_intr_errno(timeo);
+				break;
+			}
+		}
+
+		if (sk->sk_backlog.tail) {
+			release_sock(sk);
+			lock_sock(sk);
+			chtls_cleanup_rbuf(sk, copied);
+			continue;
+		}
+
+		if (copied >= target)
+			break;
+		chtls_cleanup_rbuf(sk, copied);
+		sk_wait_data(sk, &timeo, NULL);
+		continue;
+
+found_ok_skb:
+		if (!skb->len) {
+			chtls_kfree_skb(sk, skb);
+			if (!copied && !timeo) {
+				copied = -EAGAIN;
+				break;
+			}
+
+			if (copied < target)
+				continue;
+
+			break;
+		}
+
+		offset = tp->copied_seq - ULP_SKB_CB(skb)->seq;
+		avail = skb->len - offset;
+		if (len < avail)
+			avail = len;
+
+		if (unlikely(tp->urg_data)) {
+			u32 urg_offset = tp->urg_seq - tp->copied_seq;
+
+			if (urg_offset < avail) {
+				if (urg_offset) {
+					avail = urg_offset;
+				} else if (!sock_flag(sk, SOCK_URGINLINE)) {
+					tp->copied_seq++;
+					offset++;
+					avail--;
+					if (!avail)
+						goto skip_copy;
+				}
+			}
+		}
+
+		if (likely(!(flags & MSG_TRUNC))) {
+			if (skb_copy_datagram_msg(skb, offset,
+						  msg, avail)) {
+				if (!copied) {
+					copied = -EFAULT;
+					break;
+				}
+			}
+		}
+
+		tp->copied_seq += avail;
+		copied += avail;
+		len -= avail;
+
+skip_copy:
+		if (tp->urg_data && after(tp->copied_seq, tp->urg_seq))
+			tp->urg_data = 0;
+
+		if (avail + offset >= skb->len) {
+			if (likely(skb))
+				chtls_free_skb(sk, skb);
+			buffers_freed++;
+
+			if  (copied >= target &&
+			     !skb_peek(&sk->sk_receive_queue))
+				break;
+		}
+	} while (len > 0);
+
+	if (buffers_freed)
+		chtls_cleanup_rbuf(sk, copied);
+
+	release_sock(sk);
+	return copied;
 }
