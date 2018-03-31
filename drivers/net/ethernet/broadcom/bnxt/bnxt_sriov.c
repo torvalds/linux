@@ -974,7 +974,9 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 		memcpy(&phy_qcfg_resp, &bp->link_info.phy_qcfg_resp,
 		       sizeof(phy_qcfg_resp));
 		mutex_unlock(&bp->hwrm_cmd_lock);
+		phy_qcfg_resp.resp_len = cpu_to_le16(sizeof(phy_qcfg_resp));
 		phy_qcfg_resp.seq_id = phy_qcfg_req->seq_id;
+		phy_qcfg_resp.valid = 1;
 
 		if (vf->flags & BNXT_VF_LINK_UP) {
 			/* if physical link is down, force link up on VF */

@@ -3422,7 +3422,8 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	int i, intr_process, rc, tmo_count;
 	struct input *req = msg;
 	u32 *data = msg;
-	__le32 *resp_len, *valid;
+	__le32 *resp_len;
+	u8 *valid;
 	u16 cp_ring_id, len = 0;
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
 	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
@@ -3474,6 +3475,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 	i = 0;
 	tmo_count = timeout * 40;
+	resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
 	if (intr_process) {
 		/* Wait until hwrm response cmpl interrupt is processed */
 		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
@@ -3486,9 +3488,11 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 				   le16_to_cpu(req->req_type));
 			return -1;
 		}
+		len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
+		      HWRM_RESP_LEN_SFT;
+		valid = bp->hwrm_cmd_resp_addr + len - 1;
 	} else {
 		/* Check if response len is updated */
-		resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
 		for (i = 0; i < tmo_count; i++) {
 			len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 			      HWRM_RESP_LEN_SFT;
@@ -3504,10 +3508,12 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			return -1;
 		}
 
-		/* Last word of resp contains valid bit */
-		valid = bp->hwrm_cmd_resp_addr + len - 4;
+		/* Last byte of resp contains valid bit */
+		valid = bp->hwrm_cmd_resp_addr + len - 1;
 		for (i = 0; i < 5; i++) {
-			if (le32_to_cpu(*valid) & HWRM_RESP_VALID_MASK)
+			/* make sure we read from updated DMA memory */
+			dma_rmb();
+			if (*valid)
 				break;
 			udelay(1);
 		}
@@ -3520,6 +3526,11 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		}
 	}
 
+	/* Zero valid bit for compatibility.  Valid bit in an older spec
+	 * may become a new field in a newer spec.  We must make sure that
+	 * a new field not implemented by old spec will read zero.
+	 */
+	*valid = 0;
 	rc = le16_to_cpu(resp->error_code);
 	if (rc && !silent)
 		netdev_err(bp->dev, "hwrm req_type 0x%x seq id 0x%x error 0x%x\n",
