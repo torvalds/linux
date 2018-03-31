@@ -8393,9 +8393,15 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	dflt_rings = netif_get_num_default_rss_queues();
-	/* Reduce default rings to reduce memory usage on multi-port cards */
-	if (bp->port_count > 1)
-		dflt_rings = min_t(int, dflt_rings, 4);
+	/* Reduce default rings on multi-port cards so that total default
+	 * rings do not exceed CPU count.
+	 */
+	if (bp->port_count > 1) {
+		int max_rings =
+			max_t(int, num_online_cpus() / bp->port_count, 1);
+
+		dflt_rings = min_t(int, dflt_rings, max_rings);
+	}
 	rc = bnxt_get_dflt_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 	if (rc)
 		return rc;
