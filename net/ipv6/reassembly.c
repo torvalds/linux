@@ -128,8 +128,7 @@ void ip6_frag_init(struct inet_frag_queue *q, const void *a)
 }
 EXPORT_SYMBOL(ip6_frag_init);
 
-void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
-			   struct inet_frags *frags)
+void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq)
 {
 	struct net_device *dev = NULL;
 
@@ -138,7 +137,7 @@ void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
-	inet_frag_kill(&fq->q, frags);
+	inet_frag_kill(&fq->q);
 
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(net, fq->iif);
@@ -166,7 +165,7 @@ out_rcu_unlock:
 	rcu_read_unlock();
 out:
 	spin_unlock(&fq->q.lock);
-	inet_frag_put(&fq->q, frags);
+	inet_frag_put(&fq->q);
 }
 EXPORT_SYMBOL(ip6_expire_frag_queue);
 
@@ -179,7 +178,7 @@ static void ip6_frag_expire(struct timer_list *t)
 	fq = container_of(frag, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, ipv6.frags);
 
-	ip6_expire_frag_queue(net, fq, &ip6_frags);
+	ip6_expire_frag_queue(net, fq);
 }
 
 static struct frag_queue *
@@ -364,7 +363,7 @@ found:
 	return -1;
 
 discard_fq:
-	inet_frag_kill(&fq->q, &ip6_frags);
+	inet_frag_kill(&fq->q);
 err:
 	__IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			IPSTATS_MIB_REASMFAILS);
@@ -391,7 +390,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	int sum_truesize;
 	u8 ecn;
 
-	inet_frag_kill(&fq->q, &ip6_frags);
+	inet_frag_kill(&fq->q);
 
 	ecn = ip_frag_ecn_table[fq->ecn];
 	if (unlikely(ecn == 0xff))
@@ -569,7 +568,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		ret = ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
 
 		spin_unlock(&fq->q.lock);
-		inet_frag_put(&fq->q, &ip6_frags);
+		inet_frag_put(&fq->q);
 		return ret;
 	}
 
@@ -716,6 +715,7 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 	net->ipv6.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->ipv6.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
+	net->ipv6.frags.f = &ip6_frags;
 
 	res = inet_frags_init_net(&net->ipv6.frags);
 	if (res < 0)
@@ -723,14 +723,14 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 
 	res = ip6_frags_ns_sysctl_register(net);
 	if (res < 0)
-		inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
+		inet_frags_exit_net(&net->ipv6.frags);
 	return res;
 }
 
 static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
-	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
+	inet_frags_exit_net(&net->ipv6.frags);
 }
 
 static struct pernet_operations ip6_frags_ops = {
