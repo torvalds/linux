@@ -399,7 +399,7 @@ struct association_response {
 	__le16 resp_ies_size;
 } __packed;
 
-struct hostif_bss_scan_request_t {
+struct hostif_bss_scan_request {
 	struct hostif_hdr header;
 	u8 scan_type;
 #define ACTIVE_SCAN  0
