@@ -2128,9 +2128,11 @@ vchiq_release(struct inode *inode, struct file *file)
 
 			while (user_service->msg_remove !=
 				user_service->msg_insert) {
-				VCHIQ_HEADER_T *header = user_service->
-					msg_queue[user_service->msg_remove &
-						(MSG_QUEUE_SIZE - 1)];
+				VCHIQ_HEADER_T *header;
+				int m = user_service->msg_remove &
+					(MSG_QUEUE_SIZE - 1);
+
+				header = user_service->msg_queue[m];
 				user_service->msg_remove++;
 				spin_unlock(&msg_queue_spinlock);
 
@@ -2666,8 +2668,7 @@ start_suspend_timer(VCHIQ_ARM_STATE_T *arm_state)
 {
 	del_timer(&arm_state->suspend_timer);
 	arm_state->suspend_timer.expires = jiffies +
-		msecs_to_jiffies(arm_state->
-			suspend_timer_timeout);
+		msecs_to_jiffies(arm_state->suspend_timer_timeout);
 	add_timer(&arm_state->suspend_timer);
 	arm_state->suspend_timer_running = 1;
 }
