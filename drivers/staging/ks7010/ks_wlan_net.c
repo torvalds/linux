@@ -2875,9 +2875,8 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	priv = netdev_priv(dev);
 	priv->mac_address_valid = false;
+	priv->device_open_status = true;
 	priv->need_commit = 0;
-
-	priv->device_open_status = 1;
 
 	/* phy information update timer */
 	atomic_set(&update_phyinfo, 0);
@@ -2908,7 +2907,7 @@ int ks_wlan_net_stop(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	priv->device_open_status = 0;
+	priv->device_open_status = false;
 	del_timer_sync(&update_phyinfo_timer);
 
 	if (netif_running(dev))
