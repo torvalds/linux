@@ -15,5 +15,5 @@ obj-$(CONFIG_PCIEAER)		+= aer/
 
 obj-$(CONFIG_PCIE_PME) += pme.o
 
-obj-$(CONFIG_PCIE_DPC) += pcie-dpc.o
+obj-$(CONFIG_PCIE_DPC) += dpc.o
 obj-$(CONFIG_PCIE_PTM) += ptm.o
