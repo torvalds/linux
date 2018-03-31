@@ -218,7 +218,7 @@ struct wps_ie {
 } __packed;
 #endif /* WPS */
 
-struct local_ap_t {
+struct local_ap {
 	u8 bssid[6];
 	u8 rssi;
 	u8 sq;
@@ -246,7 +246,7 @@ struct local_ap_t {
 #define LOCAL_CURRENT_AP LOCAL_APLIST_MAX
 struct local_aplist_t {
 	int size;
-	struct local_ap_t ap[LOCAL_APLIST_MAX + 1];
+	struct local_ap ap[LOCAL_APLIST_MAX + 1];
 };
 
 struct local_gain_t {
@@ -424,7 +424,7 @@ struct ks_wlan_private {
 	unsigned char eth_addr[ETH_ALEN];
 
 	struct local_aplist_t aplist;
-	struct local_ap_t current_ap;
+	struct local_ap current_ap;
 	struct power_save_status_t psstatus;
 	struct sleep_status_t sleepstatus;
 	struct wpa_status_t wpa;

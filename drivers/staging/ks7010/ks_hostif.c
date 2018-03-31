@@ -109,14 +109,14 @@ int ks_wlan_do_power_save(struct ks_wlan_private *priv)
 static
 int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 {
-	struct local_ap_t *ap;
+	struct local_ap *ap;
 	union iwreq_data wrqu;
 	struct net_device *netdev = priv->net_dev;
 
 	ap = &priv->current_ap;
 
 	if (is_disconnect_status(priv->connect_status)) {
-		memset(ap, 0, sizeof(struct local_ap_t));
+		memset(ap, 0, sizeof(struct local_ap));
 		return -EPERM;
 	}
 
@@ -224,12 +224,12 @@ static u8 read_ie(unsigned char *bp, u8 max, u8 *body)
 
 static
 int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
-		       struct local_ap_t *ap)
+		       struct local_ap *ap)
 {
 	unsigned char *bp;
 	int bsize, offset;
 
-	memset(ap, 0, sizeof(struct local_ap_t));
+	memset(ap, 0, sizeof(struct local_ap));
 
 	/* bssid */
 	memcpy(ap->bssid, ap_info->bssid, ETH_ALEN);
@@ -2359,7 +2359,7 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 
 static inline void hostif_aplist_init(struct ks_wlan_private *priv)
 {
-	size_t size = LOCAL_APLIST_MAX * sizeof(struct local_ap_t);
+	size_t size = LOCAL_APLIST_MAX * sizeof(struct local_ap);
 	priv->aplist.size = 0;
 	memset(&priv->aplist.ap[0], 0, size);
 }

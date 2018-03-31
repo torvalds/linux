@@ -1301,7 +1301,7 @@ static int ks_wlan_set_scan(struct net_device *dev,
 static inline char *ks_wlan_translate_scan(struct net_device *dev,
 					   struct iw_request_info *info,
 					   char *current_ev, char *end_buf,
-					   struct local_ap_t *ap)
+					   struct local_ap *ap)
 {
 	/* struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv; */
 	struct iw_event iwe;	/* Temporary buffer */
