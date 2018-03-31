@@ -547,6 +547,8 @@ static void __init chtls_init_ulp_ops(void)
 	chtls_cpl_prot.disconnect	= chtls_disconnect;
 	chtls_cpl_prot.destroy		= chtls_destroy_sock;
 	chtls_cpl_prot.shutdown		= chtls_shutdown;
+	chtls_cpl_prot.sendmsg		= chtls_sendmsg;
+	chtls_cpl_prot.sendpage		= chtls_sendpage;
 	chtls_cpl_prot.setsockopt	= chtls_setsockopt;
 	chtls_cpl_prot.getsockopt	= chtls_getsockopt;
 }
