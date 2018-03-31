@@ -150,7 +150,8 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 		}
 		return 1;
 	}
-	if (len > CIFSMaxBufSize + MAX_SMB2_HDR_SIZE - 4) {
+	if (len > CIFSMaxBufSize + MAX_SMB2_HDR_SIZE -
+	    srvr->vals->header_preamble_size) {
 		cifs_dbg(VFS, "SMB length greater than maximum, mid=%llu\n",
 			 mid);
 		return 1;
@@ -189,26 +190,26 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 		}
 	}
 
-	if (4 + len != length) {
+	if (srvr->vals->header_preamble_size + len != length) {
 		cifs_dbg(VFS, "Total length %u RFC1002 length %u mismatch mid %llu\n",
-			 length, 4 + len, mid);
+			 length, srvr->vals->header_preamble_size + len, mid);
 		return 1;
 	}
 
 	clc_len = smb2_calc_size(hdr);
 
-	if (4 + len != clc_len) {
+	if (srvr->vals->header_preamble_size + len != clc_len) {
 		cifs_dbg(FYI, "Calculated size %u length %u mismatch mid %llu\n",
-			 clc_len, 4 + len, mid);
+			 clc_len, srvr->vals->header_preamble_size + len, mid);
 		/* create failed on symlink */
 		if (command == SMB2_CREATE_HE &&
 		    shdr->Status == STATUS_STOPPED_ON_SYMLINK)
 			return 0;
 		/* Windows 7 server returns 24 bytes more */
-		if (clc_len + 20 == len && command == SMB2_OPLOCK_BREAK_HE)
+		if (clc_len + 24 - srvr->vals->header_preamble_size == len && command == SMB2_OPLOCK_BREAK_HE)
 			return 0;
 		/* server can return one byte more due to implied bcc[0] */
-		if (clc_len == 4 + len + 1)
+		if (clc_len == srvr->vals->header_preamble_size + len + 1)
 			return 0;
 
 		/*
@@ -218,10 +219,10 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 		 * Log the server error (once), but allow it and continue
 		 * since the frame is parseable.
 		 */
-		if (clc_len < 4 /* RFC1001 header size */ + len) {
+		if (clc_len < srvr->vals->header_preamble_size /* RFC1001 header size */ + len) {
 			printk_once(KERN_WARNING
 				"SMB2 server sent bad RFC1001 len %d not %d\n",
-				len, clc_len - 4);
+				len, clc_len - srvr->vals->header_preamble_size);
 			return 0;
 		}
 

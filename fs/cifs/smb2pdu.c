@@ -1471,7 +1471,7 @@ parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp,
 	unsigned int remaining;
 	char *name;
 
-	data_offset = (char *)rsp + 4 + le32_to_cpu(rsp->CreateContextsOffset);
+	data_offset = (char *)rsp + server->vals->header_preamble_size + le32_to_cpu(rsp->CreateContextsOffset);
 	remaining = le32_to_cpu(rsp->CreateContextsLength);
 	cc = (struct create_context *)data_offset;
 	while (remaining >= sizeof(struct create_context)) {
@@ -3452,6 +3452,7 @@ static int
 build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 		   int outbuf_len, u64 persistent_fid, u64 volatile_fid)
 {
+	struct TCP_Server_Info *server = tcon->ses->server;
 	int rc;
 	struct smb2_query_info_req *req;
 	unsigned int total_len;
@@ -3474,7 +3475,7 @@ build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 	req->InputBufferOffset =
 			cpu_to_le16(sizeof(struct smb2_query_info_req) - 1);
 	req->OutputBufferLength = cpu_to_le32(
-		outbuf_len + sizeof(struct smb2_query_info_rsp) - 1 - 4);
+		outbuf_len + sizeof(struct smb2_query_info_rsp) - 1 - server->vals->header_preamble_size);
 
 	iov->iov_base = (char *)req;
 	iov->iov_len = total_len;
@@ -3491,6 +3492,7 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
 	struct smb2_fs_full_size_info *info = NULL;
 	int flags = 0;
 
@@ -3511,7 +3513,7 @@ SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 	}
 	rsp = (struct smb2_query_info_rsp *)rsp_iov.iov_base;
 
-	info = (struct smb2_fs_full_size_info *)(4 /* RFC1001 len */ +
+	info = (struct smb2_fs_full_size_info *)(server->vals->header_preamble_size +
 		le16_to_cpu(rsp->OutputBufferOffset) + (char *)&rsp->hdr);
 	rc = validate_buf(le16_to_cpu(rsp->OutputBufferOffset),
 			  le32_to_cpu(rsp->OutputBufferLength), &rsp->hdr,
@@ -3534,6 +3536,7 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype, max_len, min_len;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
 	unsigned int rsp_len, offset;
 	int flags = 0;
 
@@ -3574,15 +3577,15 @@ SMB2_QFS_attr(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qfsattr_exit;
 
 	if (level == FS_ATTRIBUTE_INFORMATION)
-		memcpy(&tcon->fsAttrInfo, 4 /* RFC1001 len */ + offset
+		memcpy(&tcon->fsAttrInfo, server->vals->header_preamble_size + offset
 			+ (char *)&rsp->hdr, min_t(unsigned int,
 			rsp_len, max_len));
 	else if (level == FS_DEVICE_INFORMATION)
-		memcpy(&tcon->fsDevInfo, 4 /* RFC1001 len */ + offset
+		memcpy(&tcon->fsDevInfo, server->vals->header_preamble_size + offset
 			+ (char *)&rsp->hdr, sizeof(FILE_SYSTEM_DEVICE_INFO));
 	else if (level == FS_SECTOR_SIZE_INFORMATION) {
 		struct smb3_fs_ss_info *ss_info = (struct smb3_fs_ss_info *)
-			(4 /* RFC1001 len */ + offset + (char *)&rsp->hdr);
+			(server->vals->header_preamble_size + offset + (char *)&rsp->hdr);
 		tcon->ss_flags = le32_to_cpu(ss_info->Flags);
 		tcon->perf_sector_size =
 			le32_to_cpu(ss_info->PhysicalBytesPerSectorForPerf);
