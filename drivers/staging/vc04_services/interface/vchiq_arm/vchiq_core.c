@@ -601,6 +601,7 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 		}
 
 		if (tx_pos == (state->slot_queue_available * VCHIQ_SLOT_SIZE)) {
+			up(&state->slot_available_event);
 			pr_warn("%s: invalid tx_pos: %d\n", __func__, tx_pos);
 			return NULL;
 		}
