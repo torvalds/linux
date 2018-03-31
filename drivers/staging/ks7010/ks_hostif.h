@@ -209,7 +209,7 @@ struct ssid {
 } __packed;
 
 #define RATE_SET_MAX_SIZE 16
-struct rate_set8_t {
+struct rate_set8 {
 	u8 size;
 	u8 body[8];
 	u8 rate_pad;
@@ -276,14 +276,14 @@ struct link_ap_info_t {
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
-	struct rate_set8_t rate_set;	/* +14 */
+	struct rate_set8 rate_set;	/* +14 */
 	struct fh_parms_t fh_parameter;	/* +24 */
 	struct ds_parms_t ds_parameter;	/* +29 */
 	struct cf_parms_t cf_parameter;	/* +30 */
 	struct ibss_parms_t ibss_parameter;	/* +36 */
 	struct erp_params_t erp_parameter;	/* +38 */
 	u8 pad1;	/* +39 */
-	struct rate_set8_t ext_rate_set;	/* +40 */
+	struct rate_set8 ext_rate_set;	/* +40 */
 	u8 DTIM_period;	/* +50 */
 	u8 rsn_mode;	/* +51 */
 #define RSN_MODE_NONE	0
