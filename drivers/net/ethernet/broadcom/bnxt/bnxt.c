@@ -4720,6 +4720,21 @@ static int bnxt_hwrm_reserve_rings(struct bnxt *bp, int tx, int rx, int grp,
 		return bnxt_hwrm_reserve_vf_rings(bp, tx, rx, grp, cp, vnic);
 }
 
+static int bnxt_cp_rings_in_use(struct bnxt *bp)
+{
+	int cp = bp->cp_nr_rings;
+	int ulp_msix, ulp_base;
+
+	ulp_msix = bnxt_get_ulp_msix_num(bp);
+	if (ulp_msix) {
+		ulp_base = bnxt_get_ulp_msix_base(bp);
+		cp += ulp_msix;
+		if ((ulp_base + ulp_msix) > cp)
+			cp = ulp_base + ulp_msix;
+	}
+	return cp;
+}
+
 static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 			   bool shared);
 
@@ -5893,12 +5908,24 @@ void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 	bp->hw_resc.max_irqs = max_irqs;
 }
 
+static int bnxt_get_num_msix(struct bnxt *bp)
+{
+	if (!(bp->flags & BNXT_FLAG_NEW_RM))
+		return bnxt_get_max_func_irqs(bp);
+
+	return bnxt_cp_rings_in_use(bp);
+}
+
 static int bnxt_init_msix(struct bnxt *bp)
 {
-	int i, total_vecs, rc = 0, min = 1;
+	int i, total_vecs, max, rc = 0, min = 1;
 	struct msix_entry *msix_ent;
 
-	total_vecs = bnxt_get_max_func_irqs(bp);
+	total_vecs = bnxt_get_num_msix(bp);
+	max = bnxt_get_max_func_irqs(bp);
+	if (total_vecs > max)
+		total_vecs = max;
+
 	msix_ent = kcalloc(total_vecs, sizeof(struct msix_entry), GFP_KERNEL);
 	if (!msix_ent)
 		return -ENOMEM;

@@ -116,6 +116,9 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 	if (!(bp->flags & BNXT_FLAG_USING_MSIX))
 		return -ENODEV;
 
+	if (edev->ulp_tbl[ulp_id].msix_requested)
+		return -EAGAIN;
+
 	max_cp_rings = bnxt_get_max_func_cp_rings(bp);
 	max_idx = min_t(int, bp->total_irqs, max_cp_rings);
 	avail_msix = max_idx - bp->cp_nr_rings;
@@ -124,7 +127,11 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 	if (avail_msix > num_msix)
 		avail_msix = num_msix;
 
-	idx = max_idx - avail_msix;
+	if (bp->flags & BNXT_FLAG_NEW_RM)
+		idx = bp->cp_nr_rings;
+	else
+		idx = max_idx - avail_msix;
+	edev->ulp_tbl[ulp_id].msix_base = idx;
 	for (i = 0; i < avail_msix; i++) {
 		ent[i].vector = bp->irq_tbl[idx + i].vector;
 		ent[i].ring_idx = idx + i;
@@ -151,6 +158,27 @@ static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, int ulp_id)
 	bnxt_set_max_func_cp_rings(bp, max_cp_rings + msix_requested);
 	edev->ulp_tbl[ulp_id].msix_requested = 0;
 	bnxt_set_max_func_irqs(bp, bp->total_irqs);
+	return 0;
+}
+
+int bnxt_get_ulp_msix_num(struct bnxt *bp)
+{
+	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP)) {
+		struct bnxt_en_dev *edev = bp->edev;
+
+		return edev->ulp_tbl[BNXT_ROCE_ULP].msix_requested;
+	}
+	return 0;
+}
+
+int bnxt_get_ulp_msix_base(struct bnxt *bp)
+{
+	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP)) {
+		struct bnxt_en_dev *edev = bp->edev;
+
+		if (edev->ulp_tbl[BNXT_ROCE_ULP].msix_requested)
+			return edev->ulp_tbl[BNXT_ROCE_ULP].msix_base;
+	}
 	return 0;
 }
 
