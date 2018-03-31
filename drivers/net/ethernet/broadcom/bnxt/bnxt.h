@@ -786,6 +786,7 @@ struct bnxt_hw_resc {
 	u16	min_tx_rings;
 	u16	max_tx_rings;
 	u16	resv_tx_rings;
+	u16	max_tx_sch_inputs;
 	u16	min_rx_rings;
 	u16	max_rx_rings;
 	u16	resv_rx_rings;
@@ -1456,6 +1457,7 @@ int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
 int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp);
 int bnxt_hwrm_free_wol_fltr(struct bnxt *bp);
+int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);

@@ -5093,7 +5093,7 @@ func_qcfg_exit:
 	return rc;
 }
 
-static int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp)
+int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 {
 	struct hwrm_func_resource_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_resource_qcaps_input req = {0};
@@ -5109,6 +5109,10 @@ static int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp)
 		rc = -EIO;
 		goto hwrm_func_resc_qcaps_exit;
 	}
+
+	hw_resc->max_tx_sch_inputs = le16_to_cpu(resp->max_tx_scheduler_inputs);
+	if (!all)
+		goto hwrm_func_resc_qcaps_exit;
 
 	hw_resc->min_rsscos_ctxs = le16_to_cpu(resp->min_rsscos_ctx);
 	hw_resc->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
@@ -5216,7 +5220,7 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (rc)
 		return rc;
 	if (bp->hwrm_spec_code >= 0x10803) {
-		rc = bnxt_hwrm_func_resc_qcaps(bp);
+		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
 		if (!rc)
 			bp->flags |= BNXT_FLAG_NEW_RM;
 	}
