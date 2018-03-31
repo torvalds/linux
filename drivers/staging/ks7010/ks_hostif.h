@@ -411,12 +411,6 @@ struct hostif_bss_scan_request {
 	struct ssid ssid;
 } __packed;
 
-struct hostif_bss_scan_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-	__le16 reserved;
-} __packed;
-
 struct hostif_phy_information_request_t {
 	struct hostif_hdr header;
 	__le16 type;
