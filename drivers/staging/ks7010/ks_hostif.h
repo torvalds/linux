@@ -268,7 +268,7 @@ struct ap_info {
 	/* +1032 */
 } __packed;
 
-struct link_ap_info_t {
+struct link_ap_info {
 	u8 bssid[6];	/* +00 */
 	u8 rssi;	/* +06 */
 	u8 sq;	/* +07 */
@@ -300,7 +300,7 @@ struct hostif_connect_indication_t {
 	__le16 connect_code;
 #define RESULT_CONNECT    0
 #define RESULT_DISCONNECT 1
-	struct link_ap_info_t link_ap_info;
+	struct link_ap_info link_ap_info;
 } __packed;
 
 struct hostif_stop_request_t {

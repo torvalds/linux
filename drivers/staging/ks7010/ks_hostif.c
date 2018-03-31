@@ -107,7 +107,7 @@ int ks_wlan_do_power_save(struct ks_wlan_private *priv)
 }
 
 static
-int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
+int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info *ap_info)
 {
 	struct local_ap_t *ap;
 	union iwreq_data wrqu;
@@ -745,7 +745,7 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 		break;
 	}
 
-	get_current_ap(priv, (struct link_ap_info_t *)priv->rxp);
+	get_current_ap(priv, (struct link_ap_info *)priv->rxp);
 	if (is_connect_status(priv->connect_status) &&
 	    is_disconnect_status(old_status)) {
 		/* for power save */
