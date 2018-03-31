@@ -579,28 +579,14 @@ enum ip6_defrag_users {
 	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
 };
 
-struct ip6_create_arg {
-	__be32 id;
-	u32 user;
-	const struct in6_addr *src;
-	const struct in6_addr *dst;
-	int iif;
-	u8 ecn;
-};
-
 void ip6_frag_init(struct inet_frag_queue *q, const void *a);
-bool ip6_frag_match(const struct inet_frag_queue *q, const void *a);
+extern const struct rhashtable_params ip6_rhash_params;
 
 /*
  *	Equivalent of ipv4 struct ip
  */
 struct frag_queue {
 	struct inet_frag_queue	q;
-
-	__be32			id;		/* fragment id		*/
-	u32			user;
-	struct in6_addr		saddr;
-	struct in6_addr		daddr;
 
 	int			iif;
 	__u16			nhoffset;

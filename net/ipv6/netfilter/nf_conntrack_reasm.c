@@ -152,23 +152,6 @@ static inline u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 	return 1 << (ipv6_get_dsfield(ipv6h) & INET_ECN_MASK);
 }
 
-static unsigned int nf_hash_frag(__be32 id, const struct in6_addr *saddr,
-				 const struct in6_addr *daddr)
-{
-	net_get_random_once(&nf_frags.rnd, sizeof(nf_frags.rnd));
-	return jhash_3words(ipv6_addr_hash(saddr), ipv6_addr_hash(daddr),
-			    (__force u32)id, nf_frags.rnd);
-}
-
-
-static unsigned int nf_hashfn(const struct inet_frag_queue *q)
-{
-	const struct frag_queue *nq;
-
-	nq = container_of(q, struct frag_queue, q);
-	return nf_hash_frag(nq->id, &nq->saddr, &nq->daddr);
-}
-
 static void nf_ct_frag6_expire(struct timer_list *t)
 {
 	struct inet_frag_queue *frag = from_timer(frag, t, timer);
@@ -182,26 +165,19 @@ static void nf_ct_frag6_expire(struct timer_list *t)
 }
 
 /* Creation primitives. */
-static inline struct frag_queue *fq_find(struct net *net, __be32 id,
-					 u32 user, struct in6_addr *src,
-					 struct in6_addr *dst, int iif, u8 ecn)
+static struct frag_queue *fq_find(struct net *net, __be32 id, u32 user,
+				  const struct ipv6hdr *hdr, int iif)
 {
+	struct frag_v6_compare_key key = {
+		.id = id,
+		.saddr = hdr->saddr,
+		.daddr = hdr->daddr,
+		.user = user,
+		.iif = iif,
+	};
 	struct inet_frag_queue *q;
-	struct ip6_create_arg arg;
-	unsigned int hash;
 
-	arg.id = id;
-	arg.user = user;
-	arg.src = src;
-	arg.dst = dst;
-	arg.iif = iif;
-	arg.ecn = ecn;
-
-	local_bh_disable();
-	hash = nf_hash_frag(id, src, dst);
-
-	q = inet_frag_find(&net->nf_frag.frags, &nf_frags, &arg, hash);
-	local_bh_enable();
+	q = inet_frag_find(&net->nf_frag.frags, &key);
 	if (IS_ERR_OR_NULL(q)) {
 		inet_frag_maybe_warn_overflow(q, pr_fmt());
 		return NULL;
@@ -593,8 +569,8 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 	fhdr = (struct frag_hdr *)skb_transport_header(skb);
 
 	skb_orphan(skb);
-	fq = fq_find(net, fhdr->identification, user, &hdr->saddr, &hdr->daddr,
-		     skb->dev ? skb->dev->ifindex : 0, ip6_frag_ecn(hdr));
+	fq = fq_find(net, fhdr->identification, user, hdr,
+		     skb->dev ? skb->dev->ifindex : 0);
 	if (fq == NULL) {
 		pr_debug("Can't find and can't create new queue\n");
 		return -ENOMEM;
@@ -660,13 +636,12 @@ int nf_ct_frag6_init(void)
 {
 	int ret = 0;
 
-	nf_frags.hashfn = nf_hashfn;
 	nf_frags.constructor = ip6_frag_init;
 	nf_frags.destructor = NULL;
 	nf_frags.qsize = sizeof(struct frag_queue);
-	nf_frags.match = ip6_frag_match;
 	nf_frags.frag_expire = nf_ct_frag6_expire;
 	nf_frags.frags_cache_name = nf_frags_cache_name;
+	nf_frags.rhash_params = ip6_rhash_params;
 	ret = inet_frags_init(&nf_frags);
 	if (ret)
 		goto out;
