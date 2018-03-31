@@ -168,12 +168,6 @@ struct hostif_mib_set_request_t {
 	struct hostif_mib_value mib_value;
 } __packed;
 
-struct hostif_mib_set_confirm_t {
-	struct hostif_hdr header;
-	__le32 mib_status;
-	__le32 mib_attribute;
-} __packed;
-
 struct hostif_power_mgmt_request_t {
 	struct hostif_hdr header;
 	__le32 mode;
