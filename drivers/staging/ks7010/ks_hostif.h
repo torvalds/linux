@@ -298,7 +298,7 @@ struct link_ap_info {
 #define RESULT_CONNECT    0
 #define RESULT_DISCONNECT 1
 
-struct hostif_stop_request_t {
+struct hostif_stop_request {
 	struct hostif_hdr header;
 } __packed;
 
