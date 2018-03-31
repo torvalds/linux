@@ -1240,7 +1240,7 @@ static
 void hostif_mib_get_request(struct ks_wlan_private *priv,
 			    unsigned long mib_attribute)
 {
-	struct hostif_mib_get_request_t *pp;
+	struct hostif_mib_get_request *pp;
 
 	pp = hostif_generic_request(sizeof(*pp), HIF_MIB_GET_REQ);
 	if (!pp)

@@ -135,7 +135,7 @@ struct channel_list {
 #define LOCAL_GAIN                        0xF10D0100	/* Carrer sense threshold for demo ato show */
 #define LOCAL_EEPROM_SUM                  0xF10E0100	/* EEPROM checksum information */
 
-struct hostif_mib_get_request_t {
+struct hostif_mib_get_request {
 	struct hostif_hdr header;
 	__le32 mib_attribute;
 } __packed;
