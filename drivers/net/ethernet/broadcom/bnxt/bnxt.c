@@ -4753,6 +4753,30 @@ static int bnxt_cp_rings_in_use(struct bnxt *bp)
 	return cp;
 }
 
+static bool bnxt_need_reserve_rings(struct bnxt *bp)
+{
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	int cp = bp->cp_nr_rings;
+	int rx = bp->rx_nr_rings;
+	int vnic = 1, grp = rx;
+
+	if (bp->hwrm_spec_code < 0x10601)
+		return false;
+
+	if (hw_resc->resv_tx_rings != bp->tx_nr_rings)
+		return true;
+
+	if (bp->flags & BNXT_FLAG_RFS)
+		vnic = rx + 1;
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		rx <<= 1;
+	if ((bp->flags & BNXT_FLAG_NEW_RM) &&
+	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
+	     hw_resc->resv_hw_ring_grps != grp || hw_resc->resv_vnics != vnic))
+		return true;
+	return false;
+}
+
 static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 			   bool shared);
 
@@ -4766,7 +4790,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	bool sh = false;
 	int vnic = 1;
 
-	if (bp->hwrm_spec_code < 0x10601)
+	if (!bnxt_need_reserve_rings(bp))
 		return 0;
 
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
@@ -4775,14 +4799,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 		vnic = rx + 1;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
-
 	grp = bp->rx_nr_rings;
-	if (tx == hw_resc->resv_tx_rings &&
-	    (!(bp->flags & BNXT_FLAG_NEW_RM) ||
-	      (rx == hw_resc->resv_rx_rings &&
-	       grp == hw_resc->resv_hw_ring_grps &&
-	       cp == hw_resc->resv_cp_rings && vnic == hw_resc->resv_vnics)))
-		return 0;
 
 	rc = bnxt_hwrm_reserve_rings(bp, tx, rx, grp, cp, vnic);
 	if (rc)
@@ -4824,30 +4841,6 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 		return -ENOMEM;
 
 	return rc;
-}
-
-static bool bnxt_need_reserve_rings(struct bnxt *bp)
-{
-	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
-	int rx = bp->rx_nr_rings;
-	int vnic = 1;
-
-	if (bp->hwrm_spec_code < 0x10601)
-		return false;
-
-	if (hw_resc->resv_tx_rings != bp->tx_nr_rings)
-		return true;
-
-	if (bp->flags & BNXT_FLAG_RFS)
-		vnic = rx + 1;
-	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		rx <<= 1;
-	if ((bp->flags & BNXT_FLAG_NEW_RM) &&
-	    (hw_resc->resv_rx_rings != rx ||
-	     hw_resc->resv_cp_rings != bp->cp_nr_rings ||
-	     hw_resc->resv_vnics != vnic))
-		return true;
-	return false;
 }
 
 static int bnxt_hwrm_check_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
