@@ -8206,6 +8206,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_set_vf_rate	= bnxt_set_vf_bw,
 	.ndo_set_vf_link_state	= bnxt_set_vf_link_state,
 	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
+	.ndo_set_vf_trust	= bnxt_set_vf_trust,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bnxt_poll_controller,
