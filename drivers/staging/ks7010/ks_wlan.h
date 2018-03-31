@@ -203,7 +203,7 @@ struct hostt {
 };
 
 #define RSN_IE_BODY_MAX 64
-struct rsn_ie_t {
+struct rsn_ie {
 	u8 id;	/* 0xdd = WPA or 0x30 = RSN */
 	u8 size;	/* max ? 255 ? */
 	u8 body[RSN_IE_BODY_MAX];
@@ -235,8 +235,8 @@ struct local_ap_t {
 	u16 capability;
 	u8 channel;
 	u8 noise;
-	struct rsn_ie_t wpa_ie;
-	struct rsn_ie_t rsn_ie;
+	struct rsn_ie wpa_ie;
+	struct rsn_ie rsn_ie;
 #ifdef WPS
 	struct wps_ie_t wps_ie;
 #endif /* WPS */
