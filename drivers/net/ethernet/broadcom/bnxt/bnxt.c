@@ -4756,7 +4756,7 @@ static int bnxt_cp_rings_in_use(struct bnxt *bp)
 static bool bnxt_need_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
-	int cp = bp->cp_nr_rings;
+	int cp = bnxt_cp_rings_in_use(bp);
 	int rx = bp->rx_nr_rings;
 	int vnic = 1, grp = rx;
 
@@ -4783,9 +4783,9 @@ static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 static int __bnxt_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	int cp = bnxt_cp_rings_in_use(bp);
 	int tx = bp->tx_nr_rings;
 	int rx = bp->rx_nr_rings;
-	int cp = bp->cp_nr_rings;
 	int grp, rx_rings, rc;
 	bool sh = false;
 	int vnic = 1;
@@ -5908,7 +5908,7 @@ void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max)
 	bp->hw_resc.max_cp_rings = max;
 }
 
-static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
+unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
@@ -5918,6 +5918,26 @@ static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 {
 	bp->hw_resc.max_irqs = max_irqs;
+}
+
+int bnxt_get_avail_msix(struct bnxt *bp, int num)
+{
+	int max_cp = bnxt_get_max_func_cp_rings(bp);
+	int max_irq = bnxt_get_max_func_irqs(bp);
+	int total_req = bp->cp_nr_rings + num;
+	int max_idx, avail_msix;
+
+	max_idx = min_t(int, bp->total_irqs, max_cp);
+	avail_msix = max_idx - bp->cp_nr_rings;
+	if (!(bp->flags & BNXT_FLAG_NEW_RM) || avail_msix >= num)
+		return avail_msix;
+
+	if (max_irq < total_req) {
+		num = max_irq - bp->cp_nr_rings;
+		if (num <= 0)
+			return 0;
+	}
+	return num;
 }
 
 static int bnxt_get_num_msix(struct bnxt *bp)
@@ -5930,7 +5950,7 @@ static int bnxt_get_num_msix(struct bnxt *bp)
 
 static int bnxt_init_msix(struct bnxt *bp)
 {
-	int i, total_vecs, max, rc = 0, min = 1;
+	int i, total_vecs, max, rc = 0, min = 1, ulp_msix;
 	struct msix_entry *msix_ent;
 
 	total_vecs = bnxt_get_num_msix(bp);
@@ -5951,7 +5971,8 @@ static int bnxt_init_msix(struct bnxt *bp)
 		min = 2;
 
 	total_vecs = pci_enable_msix_range(bp->pdev, msix_ent, min, total_vecs);
-	if (total_vecs < 0) {
+	ulp_msix = bnxt_get_ulp_msix_num(bp);
+	if (total_vecs < 0 || total_vecs < ulp_msix) {
 		rc = -ENODEV;
 		goto msix_setup_exit;
 	}
@@ -5964,7 +5985,7 @@ static int bnxt_init_msix(struct bnxt *bp)
 		bp->total_irqs = total_vecs;
 		/* Trim rings based upon num of vectors allocated */
 		rc = bnxt_trim_rings(bp, &bp->rx_nr_rings, &bp->tx_nr_rings,
-				     total_vecs, min == 1);
+				     total_vecs - ulp_msix, min == 1);
 		if (rc)
 			goto msix_setup_exit;
 
@@ -6028,9 +6049,8 @@ static void bnxt_clear_int_mode(struct bnxt *bp)
 	bp->flags &= ~BNXT_FLAG_USING_MSIX;
 }
 
-static int bnxt_reserve_rings(struct bnxt *bp)
+int bnxt_reserve_rings(struct bnxt *bp)
 {
-	int orig_cp = bp->hw_resc.resv_cp_rings;
 	int tcs = netdev_get_num_tc(bp->dev);
 	int rc;
 
@@ -6042,7 +6062,8 @@ static int bnxt_reserve_rings(struct bnxt *bp)
 		netdev_err(bp->dev, "ring reservation failure rc: %d\n", rc);
 		return rc;
 	}
-	if ((bp->flags & BNXT_FLAG_NEW_RM) && bp->cp_nr_rings > orig_cp) {
+	if ((bp->flags & BNXT_FLAG_NEW_RM) &&
+	    (bnxt_get_num_msix(bp) != bp->total_irqs)) {
 		bnxt_clear_int_mode(bp);
 		rc = bnxt_init_int_mode(bp);
 		if (rc)
