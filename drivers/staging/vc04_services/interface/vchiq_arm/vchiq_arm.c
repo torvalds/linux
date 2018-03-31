@@ -215,7 +215,7 @@ VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 		state = vchiq_get_state();
 		if (state)
 			break;
-		udelay(500);
+		usleep_range(500, 600);
 	}
 	if (i == VCHIQ_INIT_RETRIES) {
 		vchiq_log_error(vchiq_core_log_level,
