@@ -2130,7 +2130,7 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 			u8 pmkid[IW_PMKID_LEN];
 		} __packed list[PMK_LIST_MAX];
 	} __packed pmkcache;
-	struct pmk_t *pmk;
+	struct pmk *pmk;
 	int i;
 
 	i = 0;

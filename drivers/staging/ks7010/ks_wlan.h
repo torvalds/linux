@@ -383,7 +383,7 @@ struct wpa_status {
 struct pmk_list {
 	u16 size;
 	struct list_head head;
-	struct pmk_t {
+	struct pmk {
 		struct list_head list;
 		u8 bssid[ETH_ALEN];
 		u8 pmkid[IW_PMKID_LEN];

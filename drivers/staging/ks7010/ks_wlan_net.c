@@ -1818,7 +1818,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct iw_pmksa *pmksa;
 	int i;
-	struct pmk_t *pmk;
+	struct pmk *pmk;
 	struct list_head *ptr;
 
 	if (priv->sleep_mode == SLP_SLEEP)
@@ -1847,7 +1847,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		}
 		/* search cache data */
 		list_for_each(ptr, &priv->pmklist.head) {
-			pmk = list_entry(ptr, struct pmk_t, list);
+			pmk = list_entry(ptr, struct pmk, list);
 			if (memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN) == 0) {
 				memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
 				list_move(&pmk->list, &priv->pmklist.head);
@@ -1869,7 +1869,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 			list_add(&pmk->list, &priv->pmklist.head);
 			priv->pmklist.size++;
 		} else {	/* overwrite old cache data */
-			pmk = list_entry(priv->pmklist.head.prev, struct pmk_t,
+			pmk = list_entry(priv->pmklist.head.prev, struct pmk,
 					 list);
 			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
 			memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
@@ -1882,7 +1882,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		}
 		/* search cache data */
 		list_for_each(ptr, &priv->pmklist.head) {
-			pmk = list_entry(ptr, struct pmk_t, list);
+			pmk = list_entry(ptr, struct pmk, list);
 			if (memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN) == 0) {
 				eth_zero_addr(pmk->bssid);
 				memset(pmk->pmkid, 0, IW_PMKID_LEN);
