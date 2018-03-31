@@ -2444,8 +2444,10 @@ static void bnxt_free_cp_rings(struct bnxt *bp)
 
 static int bnxt_alloc_cp_rings(struct bnxt *bp)
 {
-	int i, rc;
+	int i, rc, ulp_base_vec, ulp_msix;
 
+	ulp_msix = bnxt_get_ulp_msix_num(bp);
+	ulp_base_vec = bnxt_get_ulp_msix_base(bp);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr;
@@ -2460,7 +2462,11 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		rc = bnxt_alloc_ring(bp, ring);
 		if (rc)
 			return rc;
-		ring->map_idx = i;
+
+		if (ulp_msix && i >= ulp_base_vec)
+			ring->map_idx = i + ulp_msix;
+		else
+			ring->map_idx = i;
 	}
 	return 0;
 }
@@ -3384,6 +3390,15 @@ static void bnxt_disable_int(struct bnxt *bp)
 	}
 }
 
+static int bnxt_cp_num_to_irq_num(struct bnxt *bp, int n)
+{
+	struct bnxt_napi *bnapi = bp->bnapi[n];
+	struct bnxt_cp_ring_info *cpr;
+
+	cpr = &bnapi->cp_ring;
+	return cpr->cp_ring_struct.map_idx;
+}
+
 static void bnxt_disable_int_sync(struct bnxt *bp)
 {
 	int i;
@@ -3391,8 +3406,11 @@ static void bnxt_disable_int_sync(struct bnxt *bp)
 	atomic_inc(&bp->intr_sem);
 
 	bnxt_disable_int(bp);
-	for (i = 0; i < bp->cp_nr_rings; i++)
-		synchronize_irq(bp->irq_tbl[i].vector);
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		int map_idx = bnxt_cp_num_to_irq_num(bp, i);
+
+		synchronize_irq(bp->irq_tbl[map_idx].vector);
+	}
 }
 
 static void bnxt_enable_int(struct bnxt *bp)
@@ -5824,6 +5842,7 @@ static void bnxt_setup_msix(struct bnxt *bp)
 	}
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
+		int map_idx = bnxt_cp_num_to_irq_num(bp, i);
 		char *attr;
 
 		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
@@ -5833,9 +5852,9 @@ static void bnxt_setup_msix(struct bnxt *bp)
 		else
 			attr = "tx";
 
-		snprintf(bp->irq_tbl[i].name, len, "%s-%s-%d", dev->name, attr,
-			 i);
-		bp->irq_tbl[i].handler = bnxt_msix;
+		snprintf(bp->irq_tbl[map_idx].name, len, "%s-%s-%d", dev->name,
+			 attr, i);
+		bp->irq_tbl[map_idx].handler = bnxt_msix;
 	}
 }
 
@@ -6059,7 +6078,9 @@ static void bnxt_free_irq(struct bnxt *bp)
 		return;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
-		irq = &bp->irq_tbl[i];
+		int map_idx = bnxt_cp_num_to_irq_num(bp, i);
+
+		irq = &bp->irq_tbl[map_idx];
 		if (irq->requested) {
 			if (irq->have_cpumask) {
 				irq_set_affinity_hint(irq->vector, NULL);
@@ -6078,14 +6099,25 @@ static int bnxt_request_irq(struct bnxt *bp)
 	int i, j, rc = 0;
 	unsigned long flags = 0;
 #ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap *rmap = bp->dev->rx_cpu_rmap;
+	struct cpu_rmap *rmap;
 #endif
 
+	rc = bnxt_setup_int_mode(bp);
+	if (rc) {
+		netdev_err(bp->dev, "bnxt_setup_int_mode err: %x\n",
+			   rc);
+		return rc;
+	}
+#ifdef CONFIG_RFS_ACCEL
+	rmap = bp->dev->rx_cpu_rmap;
+#endif
 	if (!(bp->flags & BNXT_FLAG_USING_MSIX))
 		flags = IRQF_SHARED;
 
 	for (i = 0, j = 0; i < bp->cp_nr_rings; i++) {
-		struct bnxt_irq *irq = &bp->irq_tbl[i];
+		int map_idx = bnxt_cp_num_to_irq_num(bp, i);
+		struct bnxt_irq *irq = &bp->irq_tbl[map_idx];
+
 #ifdef CONFIG_RFS_ACCEL
 		if (rmap && bp->bnapi[i]->rx_ring) {
 			rc = irq_cpu_rmap_add(rmap, irq->vector);
@@ -6805,13 +6837,6 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		rc = bnxt_reserve_rings(bp);
 		if (rc)
 			return rc;
-
-		rc = bnxt_setup_int_mode(bp);
-		if (rc) {
-			netdev_err(bp->dev, "bnxt_setup_int_mode err: %x\n",
-				   rc);
-			return rc;
-		}
 	}
 	if ((bp->flags & BNXT_FLAG_RFS) &&
 	    !(bp->flags & BNXT_FLAG_USING_MSIX)) {
