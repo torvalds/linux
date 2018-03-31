@@ -573,6 +573,10 @@ struct bnxt_ring_struct {
 	void			**vmem;
 
 	u16			fw_ring_id; /* Ring id filled by Chimp FW */
+	union {
+		u16		grp_idx;
+		u16		map_idx; /* Used by cmpl rings */
+	};
 	u8			queue_id;
 };
 

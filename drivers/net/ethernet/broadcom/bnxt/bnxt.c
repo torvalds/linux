@@ -2317,6 +2317,7 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 			if (rc)
 				return rc;
 
+			ring->grp_idx = i;
 			rxr->rx_agg_bmap_size = bp->rx_agg_ring_mask + 1;
 			mem_size = rxr->rx_agg_bmap_size / 8;
 			rxr->rx_agg_bmap = kzalloc(mem_size, GFP_KERNEL);
@@ -2389,6 +2390,7 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 		if (rc)
 			return rc;
 
+		ring->grp_idx = txr->bnapi->index;
 		if (bp->tx_push_size) {
 			dma_addr_t mapping;
 
@@ -2458,6 +2460,7 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		rc = bnxt_alloc_ring(bp, ring);
 		if (rc)
 			return rc;
+		ring->map_idx = i;
 	}
 	return 0;
 }
@@ -4253,12 +4256,12 @@ static int bnxt_hwrm_ring_grp_free(struct bnxt *bp)
 
 static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 				    struct bnxt_ring_struct *ring,
-				    u32 ring_type, u32 map_index,
-				    u32 stats_ctx_id)
+				    u32 ring_type, u32 map_index)
 {
 	int rc = 0, err = 0;
 	struct hwrm_ring_alloc_input req = {0};
 	struct hwrm_ring_alloc_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_ring_grp_info *grp_info;
 	u16 ring_id;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_ALLOC, -1, -1);
@@ -4280,10 +4283,10 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	case HWRM_RING_ALLOC_TX:
 		req.ring_type = RING_ALLOC_REQ_RING_TYPE_TX;
 		/* Association of transmit ring with completion ring */
-		req.cmpl_ring_id =
-			cpu_to_le16(bp->grp_info[map_index].cp_fw_ring_id);
+		grp_info = &bp->grp_info[ring->grp_idx];
+		req.cmpl_ring_id = cpu_to_le16(grp_info->cp_fw_ring_id);
 		req.length = cpu_to_le32(bp->tx_ring_mask + 1);
-		req.stat_ctx_id = cpu_to_le32(stats_ctx_id);
+		req.stat_ctx_id = cpu_to_le32(grp_info->fw_stats_ctx);
 		req.queue_id = cpu_to_le16(ring->queue_id);
 		break;
 	case HWRM_RING_ALLOC_RX:
@@ -4370,10 +4373,11 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+		u32 map_idx = ring->map_idx;
 
-		cpr->cp_doorbell = bp->bar1 + i * 0x80;
-		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_CMPL, i,
-					      INVALID_STATS_CTX_ID);
+		cpr->cp_doorbell = bp->bar1 + map_idx * 0x80;
+		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_CMPL,
+					      map_idx);
 		if (rc)
 			goto err_out;
 		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
@@ -4389,11 +4393,10 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 	for (i = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		struct bnxt_ring_struct *ring = &txr->tx_ring_struct;
-		u32 map_idx = txr->bnapi->index;
-		u16 fw_stats_ctx = bp->grp_info[map_idx].fw_stats_ctx;
+		u32 map_idx = i;
 
 		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_TX,
-					      map_idx, fw_stats_ctx);
+					      map_idx);
 		if (rc)
 			goto err_out;
 		txr->tx_doorbell = bp->bar1 + map_idx * 0x80;
@@ -4405,7 +4408,7 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 		u32 map_idx = rxr->bnapi->index;
 
 		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_RX,
-					      map_idx, INVALID_STATS_CTX_ID);
+					      map_idx);
 		if (rc)
 			goto err_out;
 		rxr->rx_doorbell = bp->bar1 + map_idx * 0x80;
@@ -4418,13 +4421,12 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 			struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 			struct bnxt_ring_struct *ring =
 						&rxr->rx_agg_ring_struct;
-			u32 grp_idx = rxr->bnapi->index;
+			u32 grp_idx = ring->grp_idx;
 			u32 map_idx = grp_idx + bp->rx_nr_rings;
 
 			rc = hwrm_ring_alloc_send_msg(bp, ring,
 						      HWRM_RING_ALLOC_AGG,
-						      map_idx,
-						      INVALID_STATS_CTX_ID);
+						      map_idx);
 			if (rc)
 				goto err_out;
 
