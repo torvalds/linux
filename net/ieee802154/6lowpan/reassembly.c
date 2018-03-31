@@ -84,10 +84,9 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 	struct inet_frag_queue *q;
 
 	q = inet_frag_find(&ieee802154_lowpan->frags, &key);
-	if (IS_ERR_OR_NULL(q)) {
-		inet_frag_maybe_warn_overflow(q, pr_fmt());
+	if (!q)
 		return NULL;
-	}
+
 	return container_of(q, struct lowpan_frag_queue, q);
 }
 

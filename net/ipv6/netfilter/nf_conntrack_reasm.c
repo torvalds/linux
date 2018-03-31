@@ -178,10 +178,9 @@ static struct frag_queue *fq_find(struct net *net, __be32 id, u32 user,
 	struct inet_frag_queue *q;
 
 	q = inet_frag_find(&net->nf_frag.frags, &key);
-	if (IS_ERR_OR_NULL(q)) {
-		inet_frag_maybe_warn_overflow(q, pr_fmt());
+	if (!q)
 		return NULL;
-	}
+
 	return container_of(q, struct frag_queue, q);
 }
 

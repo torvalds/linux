@@ -155,10 +155,9 @@ fq_find(struct net *net, __be32 id, const struct ipv6hdr *hdr, int iif)
 		key.iif = 0;
 
 	q = inet_frag_find(&net->ipv6.frags, &key);
-	if (IS_ERR_OR_NULL(q)) {
-		inet_frag_maybe_warn_overflow(q, pr_fmt());
+	if (!q)
 		return NULL;
-	}
+
 	return container_of(q, struct frag_queue, q);
 }
 
