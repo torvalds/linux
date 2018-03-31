@@ -202,11 +202,6 @@ struct hostif_start_request {
 #define MODE_ADHOC          3
 } __packed;
 
-struct hostif_start_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-} __packed;
-
 struct ssid_t {
 	u8 size;
 	u8 body[IEEE80211_MAX_SSID_LEN];
