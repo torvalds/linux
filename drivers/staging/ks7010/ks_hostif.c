@@ -1404,7 +1404,7 @@ void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 static
 void hostif_adhoc_set2_request(struct ks_wlan_private *priv)
 {
-	struct hostif_adhoc_set2_request_t *pp;
+	struct hostif_adhoc_set2_request *pp;
 
 	pp = hostif_generic_request(sizeof(*pp), HIF_ADH_SET_REQ);
 	if (!pp)

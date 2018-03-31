@@ -366,13 +366,13 @@ struct hostif_adhoc_set_request {
 } __packed;
 
 /**
- * struct hostif_adhoc_set2_request_t
+ * struct hostif_adhoc_set2_request
  * @capability: bit5  : preamble
  *              bit6  : pbcc - Not supported always 0
  *              bit10 : ShortSlotTime
  *              bit13 : DSSS-OFDM - Not supported always 0
  */
-struct hostif_adhoc_set2_request_t {
+struct hostif_adhoc_set2_request {
 	struct hostif_hdr header;
 	struct hostif_request request;
 	__le16 reserved;
