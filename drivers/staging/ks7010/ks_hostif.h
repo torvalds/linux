@@ -222,7 +222,7 @@ struct fh_parms {
 	u8 hop_index;
 } __packed;
 
-struct ds_parms_t {
+struct ds_parms {
 	u8 channel;
 } __packed;
 
@@ -278,7 +278,7 @@ struct link_ap_info_t {
 	__le16 capability;	/* +12 */
 	struct rate_set8 rate_set;	/* +14 */
 	struct fh_parms fh_parameter;	/* +24 */
-	struct ds_parms_t ds_parameter;	/* +29 */
+	struct ds_parms ds_parameter;	/* +29 */
 	struct cf_parms_t cf_parameter;	/* +30 */
 	struct ibss_parms_t ibss_parameter;	/* +36 */
 	struct erp_params_t erp_parameter;	/* +38 */
