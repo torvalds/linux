@@ -223,7 +223,7 @@ static u8 read_ie(unsigned char *bp, u8 max, u8 *body)
 
 
 static
-int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
+int get_ap_information(struct ks_wlan_private *priv, struct ap_info *ap_info,
 		       struct local_ap_t *ap)
 {
 	unsigned char *bp;
@@ -771,10 +771,10 @@ static
 void hostif_scan_indication(struct ks_wlan_private *priv)
 {
 	int i;
-	struct ap_info_t *ap_info;
+	struct ap_info *ap_info;
 
 	netdev_dbg(priv->net_dev, "scan_ind_count = %d\n", priv->scan_ind_count);
-	ap_info = (struct ap_info_t *)(priv->rxp);
+	ap_info = (struct ap_info *)(priv->rxp);
 
 	if (priv->scan_ind_count) {
 		/* bssid check */
@@ -794,7 +794,7 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 	if (priv->scan_ind_count < LOCAL_APLIST_MAX + 1) {
 		netdev_dbg(priv->net_dev, " scan_ind_count=%d :: aplist.size=%d\n",
 			priv->scan_ind_count, priv->aplist.size);
-		get_ap_information(priv, (struct ap_info_t *)(priv->rxp),
+		get_ap_information(priv, (struct ap_info *)(priv->rxp),
 				   &(priv->aplist.ap[priv->scan_ind_count - 1]));
 		priv->aplist.size = priv->scan_ind_count;
 	} else {

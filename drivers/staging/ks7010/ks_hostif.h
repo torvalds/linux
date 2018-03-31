@@ -253,7 +253,7 @@ struct rate_set16 {
 	u8 rate_pad;
 } __packed;
 
-struct ap_info_t {
+struct ap_info {
 	u8 bssid[6];	/* +00 */
 	u8 rssi;	/* +06 */
 	u8 sq;	/* +07 */
