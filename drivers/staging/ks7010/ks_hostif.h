@@ -226,7 +226,7 @@ struct ds_parms {
 	u8 channel;
 } __packed;
 
-struct cf_parms_t {
+struct cf_parms {
 	u8 count;
 	u8 period;
 	__le16 max_duration;
@@ -279,7 +279,7 @@ struct link_ap_info_t {
 	struct rate_set8 rate_set;	/* +14 */
 	struct fh_parms fh_parameter;	/* +24 */
 	struct ds_parms ds_parameter;	/* +29 */
-	struct cf_parms_t cf_parameter;	/* +30 */
+	struct cf_parms cf_parameter;	/* +30 */
 	struct ibss_parms_t ibss_parameter;	/* +36 */
 	struct erp_params_t erp_parameter;	/* +38 */
 	u8 pad1;	/* +39 */
