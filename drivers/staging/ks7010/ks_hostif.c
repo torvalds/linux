@@ -1483,7 +1483,7 @@ static
 void hostif_sleep_request(struct ks_wlan_private *priv,
 			  enum sleep_mode_type mode)
 {
-	struct hostif_sleep_request_t *pp;
+	struct hostif_sleep_request *pp;
 
 	if (mode == SLP_SLEEP) {
 		pp = hostif_generic_request(sizeof(*pp), HIF_SLEEP_REQ);
