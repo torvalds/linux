@@ -1894,14 +1894,12 @@ int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags)
 	struct iwl_mvm_int_sta *int_sta = sta;
 	struct iwl_mvm_sta *mvm_sta = sta;
 
-	if (iwl_mvm_has_new_tx_api(mvm)) {
-		if (internal)
-			return iwl_mvm_flush_sta_tids(mvm, int_sta->sta_id,
-						      BIT(IWL_MGMT_TID), flags);
+	BUILD_BUG_ON(offsetof(struct iwl_mvm_int_sta, sta_id) !=
+		     offsetof(struct iwl_mvm_sta, sta_id));
 
+	if (iwl_mvm_has_new_tx_api(mvm))
 		return iwl_mvm_flush_sta_tids(mvm, mvm_sta->sta_id,
-					      0xFF, flags);
-	}
+					      0xff | BIT(IWL_MGMT_TID), flags);
 
 	if (internal)
 		return iwl_mvm_flush_tx_path(mvm, int_sta->tfd_queue_msk,

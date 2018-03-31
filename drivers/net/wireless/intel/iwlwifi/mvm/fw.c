@@ -433,6 +433,10 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 
 	/* Set parameters */
 	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
+
+	/* set flags extra PHY configuration flags from the device's cfg */
+	phy_cfg_cmd.phy_cfg |= cpu_to_le32(mvm->cfg->extra_phy_cfg_flags);
+
 	phy_cfg_cmd.calib_control.event_trigger =
 		mvm->fw->default_calib[ucode_type].event_trigger;
 	phy_cfg_cmd.calib_control.flow_trigger =

@@ -75,6 +75,10 @@ static int brcmf_roamoff;
 module_param_named(roamoff, brcmf_roamoff, int, S_IRUSR);
 MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
 
+static int brcmf_iapp_enable;
+module_param_named(iapp, brcmf_iapp_enable, int, 0);
+MODULE_PARM_DESC(iapp, "Enable partial support for the obsoleted Inter-Access Point Protocol");
+
 #ifdef DEBUG
 /* always succeed brcmf_bus_started() */
 static int brcmf_ignore_probe_fail;
@@ -441,6 +445,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 	settings->feature_disable = brcmf_feature_disable;
 	settings->fcmode = brcmf_fcmode;
 	settings->roamoff = !!brcmf_roamoff;
+	settings->iapp = !!brcmf_iapp_enable;
 #ifdef DEBUG
 	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
 #endif
