@@ -10,7 +10,7 @@
  */
 
 /* MichaelMIC routine define */
-struct michael_mic_t {
+struct michael_mic {
 	u32 k0;	// Key
 	u32 k1;	// Key
 	u32 l;	// Current state
@@ -20,5 +20,5 @@ struct michael_mic_t {
 	u8 result[8];
 };
 
-void michael_mic_function(struct michael_mic_t *mic, u8 *key,
+void michael_mic_function(struct michael_mic *mic, u8 *key,
 			  u8 *data, int len, u8 priority, u8 *result);

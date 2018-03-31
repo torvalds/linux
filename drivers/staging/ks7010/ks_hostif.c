@@ -315,7 +315,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 	char buf[128];
 	unsigned long now;
 	struct mic_failure *mic_failure;
-	struct michael_mic_t michael_mic;
+	struct michael_mic michael_mic;
 	union iwreq_data wrqu;
 	unsigned int key_index = auth_type - 1;
 	struct wpa_key *key = &priv->wpa.key[key_index];
@@ -1065,7 +1065,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	int result = 0;
 	unsigned short eth_proto;
 	struct ether_hdr *eth_hdr;
-	struct michael_mic_t michael_mic;
+	struct michael_mic michael_mic;
 	unsigned short keyinfo = 0;
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
