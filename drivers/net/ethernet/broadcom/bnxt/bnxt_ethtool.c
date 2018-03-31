@@ -181,6 +181,8 @@ static const struct {
 	BNXT_RX_STATS_ENTRY(rx_bytes),
 	BNXT_RX_STATS_ENTRY(rx_runt_bytes),
 	BNXT_RX_STATS_ENTRY(rx_runt_frames),
+	BNXT_RX_STATS_ENTRY(rx_stat_discard),
+	BNXT_RX_STATS_ENTRY(rx_stat_err),
 
 	BNXT_TX_STATS_ENTRY(tx_64b_frames),
 	BNXT_TX_STATS_ENTRY(tx_65b_127b_frames),
@@ -216,6 +218,9 @@ static const struct {
 	BNXT_TX_STATS_ENTRY(tx_eee_lpi_duration),
 	BNXT_TX_STATS_ENTRY(tx_total_collisions),
 	BNXT_TX_STATS_ENTRY(tx_bytes),
+	BNXT_TX_STATS_ENTRY(tx_xthol_frames),
+	BNXT_TX_STATS_ENTRY(tx_stat_discard),
+	BNXT_TX_STATS_ENTRY(tx_stat_error),
 };
 
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
