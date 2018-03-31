@@ -1660,7 +1660,7 @@ void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 	}
 }
 
-struct wpa_suite_t {
+struct wpa_suite {
 	__le16 size;
 	unsigned char suite[4][CIPHER_ID_LEN];
 } __packed;
@@ -1673,7 +1673,7 @@ struct rsn_mode_t {
 static
 void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 {
-	struct wpa_suite_t wpa_suite;
+	struct wpa_suite wpa_suite;
 	struct rsn_mode_t rsn_mode;
 	__le32 val;
 
