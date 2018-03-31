@@ -6064,8 +6064,10 @@ int bnxt_reserve_rings(struct bnxt *bp)
 	}
 	if ((bp->flags & BNXT_FLAG_NEW_RM) &&
 	    (bnxt_get_num_msix(bp) != bp->total_irqs)) {
+		bnxt_ulp_irq_stop(bp);
 		bnxt_clear_int_mode(bp);
 		rc = bnxt_init_int_mode(bp);
+		bnxt_ulp_irq_restart(bp, rc);
 		if (rc)
 			return rc;
 	}
@@ -8575,16 +8577,15 @@ int bnxt_restore_pf_fw_resources(struct bnxt *bp)
 	int rc;
 
 	ASSERT_RTNL();
-	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP))
-		return 0;
-
 	bnxt_hwrm_func_qcaps(bp);
 
 	if (netif_running(bp->dev))
 		__bnxt_close_nic(bp, true, false);
 
+	bnxt_ulp_irq_stop(bp);
 	bnxt_clear_int_mode(bp);
 	rc = bnxt_init_int_mode(bp);
+	bnxt_ulp_irq_restart(bp, rc);
 
 	if (netif_running(bp->dev)) {
 		if (rc)

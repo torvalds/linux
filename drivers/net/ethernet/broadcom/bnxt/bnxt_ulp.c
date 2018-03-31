@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2016 Broadcom Limited
+ * Copyright (c) 2016-2018 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -101,13 +101,27 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 	return 0;
 }
 
+static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
+{
+	struct bnxt_en_dev *edev = bp->edev;
+	int num_msix, idx, i;
+
+	num_msix = edev->ulp_tbl[BNXT_ROCE_ULP].msix_requested;
+	idx = edev->ulp_tbl[BNXT_ROCE_ULP].msix_base;
+	for (i = 0; i < num_msix; i++) {
+		ent[i].vector = bp->irq_tbl[idx + i].vector;
+		ent[i].ring_idx = idx + i;
+		ent[i].db_offset = (idx + i) * 0x80;
+	}
+}
+
 static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 			      struct bnxt_msix_entry *ent, int num_msix)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
 	int max_idx, max_cp_rings;
-	int avail_msix, i, idx;
+	int avail_msix, idx;
 	int rc = 0;
 
 	ASSERT_RTNL();
@@ -154,13 +168,10 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 		avail_msix = hw_resc->resv_cp_rings - bp->cp_nr_rings;
 		edev->ulp_tbl[ulp_id].msix_requested = avail_msix;
 	}
-	for (i = 0; i < avail_msix; i++) {
-		ent[i].vector = bp->irq_tbl[idx + i].vector;
-		ent[i].ring_idx = idx + i;
-		ent[i].db_offset = (idx + i) * 0x80;
-	}
+	bnxt_fill_msix_vecs(bp, ent);
 	bnxt_set_max_func_irqs(bp, bnxt_get_max_func_irqs(bp) - avail_msix);
 	bnxt_set_max_func_cp_rings(bp, max_cp_rings - avail_msix);
+	edev->flags |= BNXT_EN_FLAG_MSIX_REQUESTED;
 	return avail_msix;
 }
 
@@ -174,11 +185,15 @@ static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, int ulp_id)
 	if (ulp_id != BNXT_ROCE_ULP)
 		return -EINVAL;
 
+	if (!(edev->flags & BNXT_EN_FLAG_MSIX_REQUESTED))
+		return 0;
+
 	max_cp_rings = bnxt_get_max_func_cp_rings(bp);
 	msix_requested = edev->ulp_tbl[ulp_id].msix_requested;
 	bnxt_set_max_func_cp_rings(bp, max_cp_rings + msix_requested);
 	edev->ulp_tbl[ulp_id].msix_requested = 0;
 	bnxt_set_max_func_irqs(bp, bnxt_get_max_func_irqs(bp) + msix_requested);
+	edev->flags &= ~BNXT_EN_FLAG_MSIX_REQUESTED;
 	if (netif_running(dev)) {
 		bnxt_close_nic(bp, true, false);
 		bnxt_open_nic(bp, true, false);
@@ -337,6 +352,58 @@ void bnxt_ulp_shutdown(struct bnxt *bp)
 		if (!ops || !ops->ulp_shutdown)
 			continue;
 		ops->ulp_shutdown(ulp->handle);
+	}
+}
+
+void bnxt_ulp_irq_stop(struct bnxt *bp)
+{
+	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_ulp_ops *ops;
+
+	if (!edev || !(edev->flags & BNXT_EN_FLAG_MSIX_REQUESTED))
+		return;
+
+	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP)) {
+		struct bnxt_ulp *ulp = &edev->ulp_tbl[BNXT_ROCE_ULP];
+
+		if (!ulp->msix_requested)
+			return;
+
+		ops = rtnl_dereference(ulp->ulp_ops);
+		if (!ops || !ops->ulp_irq_stop)
+			return;
+		ops->ulp_irq_stop(ulp->handle);
+	}
+}
+
+void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
+{
+	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_ulp_ops *ops;
+
+	if (!edev || !(edev->flags & BNXT_EN_FLAG_MSIX_REQUESTED))
+		return;
+
+	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP)) {
+		struct bnxt_ulp *ulp = &edev->ulp_tbl[BNXT_ROCE_ULP];
+		struct bnxt_msix_entry *ent = NULL;
+
+		if (!ulp->msix_requested)
+			return;
+
+		ops = rtnl_dereference(ulp->ulp_ops);
+		if (!ops || !ops->ulp_irq_restart)
+			return;
+
+		if (!err) {
+			ent = kcalloc(ulp->msix_requested, sizeof(*ent),
+				      GFP_KERNEL);
+			if (!ent)
+				return;
+			bnxt_fill_msix_vecs(bp, ent);
+		}
+		ops->ulp_irq_restart(ulp->handle, ent);
+		kfree(ent);
 	}
 }
 
