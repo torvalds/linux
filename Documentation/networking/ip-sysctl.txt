@@ -133,10 +133,10 @@ min_adv_mss - INTEGER
 
 IP Fragmentation:
 
-ipfrag_high_thresh - INTEGER
+ipfrag_high_thresh - LONG INTEGER
 	Maximum memory used to reassemble IP fragments.
 
-ipfrag_low_thresh - INTEGER
+ipfrag_low_thresh - LONG INTEGER
 	(Obsolete since linux-4.17)
 	Maximum memory used to reassemble IP fragments before the kernel
 	begins to remove incomplete fragment queues to free up resources.

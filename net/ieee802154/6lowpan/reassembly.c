@@ -411,23 +411,23 @@ err:
 }
 
 #ifdef CONFIG_SYSCTL
-static int zero;
+static long zero;
 
 static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 	{
 		.procname	= "6lowpanfrag_high_thresh",
 		.data		= &init_net.ieee802154_lowpan.frags.high_thresh,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_doulongvec_minmax,
 		.extra1		= &init_net.ieee802154_lowpan.frags.low_thresh
 	},
 	{
 		.procname	= "6lowpanfrag_low_thresh",
 		.data		= &init_net.ieee802154_lowpan.frags.low_thresh,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_doulongvec_minmax,
 		.extra1		= &zero,
 		.extra2		= &init_net.ieee802154_lowpan.frags.high_thresh
 	},

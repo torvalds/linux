@@ -8,11 +8,11 @@ struct netns_frags {
 	struct rhashtable       rhashtable ____cacheline_aligned_in_smp;
 
 	/* Keep atomic mem on separate cachelines in structs that include it */
-	atomic_t		mem ____cacheline_aligned_in_smp;
+	atomic_long_t		mem ____cacheline_aligned_in_smp;
 	/* sysctls */
+	long			high_thresh;
+	long			low_thresh;
 	int			timeout;
-	int			high_thresh;
-	int			low_thresh;
 	int			max_dist;
 	struct inet_frags	*f;
 };
@@ -102,7 +102,7 @@ void inet_frags_fini(struct inet_frags *);
 
 static inline int inet_frags_init_net(struct netns_frags *nf)
 {
-	atomic_set(&nf->mem, 0);
+	atomic_long_set(&nf->mem, 0);
 	return rhashtable_init(&nf->rhashtable, &nf->f->rhash_params);
 }
 void inet_frags_exit_net(struct netns_frags *nf);
@@ -119,19 +119,19 @@ static inline void inet_frag_put(struct inet_frag_queue *q)
 
 /* Memory Tracking Functions. */
 
-static inline int frag_mem_limit(struct netns_frags *nf)
+static inline long frag_mem_limit(const struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	return atomic_long_read(&nf->mem);
 }
 
-static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
+static inline void sub_frag_mem_limit(struct netns_frags *nf, long val)
 {
-	atomic_sub(i, &nf->mem);
+	atomic_long_sub(val, &nf->mem);
 }
 
-static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
+static inline void add_frag_mem_limit(struct netns_frags *nf, long val)
 {
-	atomic_add(i, &nf->mem);
+	atomic_long_add(val, &nf->mem);
 }
 
 /* RFC 3168 support :
