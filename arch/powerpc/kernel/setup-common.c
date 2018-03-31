@@ -915,9 +915,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Parse memory topology */
 	mem_topology_setup();
 
-	/* On BookE, setup per-core TLB data structures. */
-	setup_tlb_core_data();
-
 	/*
 	 * Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids.
@@ -927,6 +924,10 @@ void __init setup_arch(char **cmdline_p)
 	 */
 #ifdef CONFIG_SMP
 	smp_setup_pacas();
+
+	/* On BookE, setup per-core TLB data structures. */
+	setup_tlb_core_data();
+
 	smp_release_cpus();
 #endif
 
