@@ -1558,7 +1558,7 @@ void hostif_mic_failure_request(struct ks_wlan_private *priv,
 				unsigned short failure_count,
 				unsigned short timer)
 {
-	struct hostif_mic_failure_request_t *pp;
+	struct hostif_mic_failure_request *pp;
 
 	pp = hostif_generic_request(sizeof(*pp), HIF_MIC_FAILURE_REQ);
 	if (!pp)
