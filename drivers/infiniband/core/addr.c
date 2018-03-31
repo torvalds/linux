@@ -207,6 +207,22 @@ int rdma_addr_size(struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_size);
 
+int rdma_addr_size_in6(struct sockaddr_in6 *addr)
+{
+	int ret = rdma_addr_size((struct sockaddr *) addr);
+
+	return ret <= sizeof(*addr) ? ret : 0;
+}
+EXPORT_SYMBOL(rdma_addr_size_in6);
+
+int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr)
+{
+	int ret = rdma_addr_size((struct sockaddr *) addr);
+
+	return ret <= sizeof(*addr) ? ret : 0;
+}
+EXPORT_SYMBOL(rdma_addr_size_kss);
+
 static struct rdma_addr_client self;
 
 void rdma_addr_register_client(struct rdma_addr_client *client)
@@ -585,6 +601,15 @@ static void process_one_req(struct work_struct *_work)
 	}
 	list_del(&req->list);
 	mutex_unlock(&lock);
+
+	/*
+	 * Although the work will normally have been canceled by the
+	 * workqueue, it can still be requeued as long as it is on the
+	 * req_list, so it could have been requeued before we grabbed &lock.
+	 * We need to cancel it after it is removed from req_list to really be
+	 * sure it is safe to free.
+	 */
+	cancel_delayed_work(&req->work);
 
 	req->callback(req->status, (struct sockaddr *)&req->src_addr,
 		req->addr, req->context);

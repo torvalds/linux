@@ -188,8 +188,7 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 	packet->sh_mem_ape1_base = qpd->sh_mem_ape1_base;
 	packet->sh_mem_ape1_limit = qpd->sh_mem_ape1_limit;
 
-	/* TODO: scratch support */
-	packet->sh_hidden_private_base_vmid = 0;
+	packet->sh_hidden_private_base_vmid = qpd->sh_hidden_private_base;
 
 	packet->gds_addr_lo = lower_32_bits(qpd->gds_context_area);
 	packet->gds_addr_hi = upper_32_bits(qpd->gds_context_area);

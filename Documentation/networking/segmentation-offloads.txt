@@ -20,8 +20,8 @@ TCP Segmentation Offload
 
 TCP segmentation allows a device to segment a single frame into multiple
 frames with a data payload size specified in skb_shinfo()->gso_size.
-When TCP segmentation requested the bit for either SKB_GSO_TCP or
-SKB_GSO_TCP6 should be set in skb_shinfo()->gso_type and
+When TCP segmentation requested the bit for either SKB_GSO_TCPV4 or
+SKB_GSO_TCPV6 should be set in skb_shinfo()->gso_type and
 skb_shinfo()->gso_size should be set to a non-zero value.
 
 TCP segmentation is dependent on support for the use of partial checksum
@@ -153,8 +153,18 @@ To signal this, gso_size is set to the special value GSO_BY_FRAGS.
 
 Therefore, any code in the core networking stack must be aware of the
 possibility that gso_size will be GSO_BY_FRAGS and handle that case
-appropriately. (For size checks, the skb_gso_validate_*_len family of
-helpers do this automatically.)
+appropriately.
+
+There are some helpers to make this easier:
+
+ - skb_is_gso(skb) && skb_is_gso_sctp(skb) is the best way to see if
+   an skb is an SCTP GSO skb.
+
+ - For size checks, the skb_gso_validate_*_len family of helpers correctly
+   considers GSO_BY_FRAGS.
+
+ - For manipulating packets, skb_increase_gso_size and skb_decrease_gso_size
+   will check for GSO_BY_FRAGS and WARN if asked to manipulate these skbs.
 
 This also affects drivers with the NETIF_F_FRAGLIST & NETIF_F_GSO_SCTP bits
 set. Note also that NETIF_F_GSO_SCTP is included in NETIF_F_GSO_SOFTWARE.

@@ -1903,8 +1903,12 @@ cleanup:
 	if (!IS_ERR(primary))
 		drm_plane_cleanup(primary);
 
-	if (group && tegra->domain) {
-		iommu_detach_group(tegra->domain, group);
+	if (group && dc->domain) {
+		if (group == tegra->group) {
+			iommu_detach_group(dc->domain, group);
+			tegra->group = NULL;
+		}
+
 		dc->domain = NULL;
 	}
 
@@ -1913,8 +1917,10 @@ cleanup:
 
 static int tegra_dc_exit(struct host1x_client *client)
 {
+	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct iommu_group *group = iommu_group_get(client->dev);
 	struct tegra_dc *dc = host1x_client_to_dc(client);
+	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
@@ -1926,7 +1932,11 @@ static int tegra_dc_exit(struct host1x_client *client)
 	}
 
 	if (group && dc->domain) {
-		iommu_detach_group(dc->domain, group);
+		if (group == tegra->group) {
+			iommu_detach_group(dc->domain, group);
+			tegra->group = NULL;
+		}
+
 		dc->domain = NULL;
 	}
 
@@ -1999,9 +2009,9 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.coupled_pm = false,
 	.has_nvdisplay = false,
 	.num_primary_formats = ARRAY_SIZE(tegra124_primary_formats),
-	.primary_formats = tegra114_primary_formats,
+	.primary_formats = tegra124_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
-	.overlay_formats = tegra114_overlay_formats,
+	.overlay_formats = tegra124_overlay_formats,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
@@ -2150,7 +2160,7 @@ static int tegra_dc_couple(struct tegra_dc *dc)
 		struct device_link *link;
 		struct device *partner;
 
-		partner = driver_find_device(dc->dev->driver, NULL, 0,
+		partner = driver_find_device(dc->dev->driver, NULL, NULL,
 					     tegra_dc_match_by_pipe);
 		if (!partner)
 			return -EPROBE_DEFER;

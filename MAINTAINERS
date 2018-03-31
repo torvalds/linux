@@ -1060,41 +1060,42 @@ ARM PORT
 M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.armlinux.org.uk/
-S:	Maintained
+S:	Odd Fixes
 T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git
 F:	arch/arm/
+X:	arch/arm/boot/dts/
 
 ARM PRIMECELL AACI PL041 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	sound/arm/aaci.*
 
 ARM PRIMECELL BUS SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
 
 ARM PRIMECELL CLCD PL110 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/video/fbdev/amba-clcd.*
 
 ARM PRIMECELL KMI PL050 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/input/serio/ambakmi.*
 F:	include/linux/amba/kmi.h
 
 ARM PRIMECELL MMCI PL180/1 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/mmc/host/mmci.*
 F:	include/linux/amba/mmci.h
 
 ARM PRIMECELL UART PL010 AND PL011 DRIVERS
 M:	Russell King <linux@armlinux.org.uk>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/tty/serial/amba-pl01*.c
 F:	include/linux/amba/serial.h
 
@@ -1152,7 +1153,7 @@ S:	Maintained
 F:	drivers/clk/sunxi/
 
 ARM/Allwinner sunXi SoC support
-M:	Maxime Ripard <maxime.ripard@free-electrons.com>
+M:	Maxime Ripard <maxime.ripard@bootlin.com>
 M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -4626,7 +4627,7 @@ F:	include/uapi/drm/drm*
 F:	include/linux/vga*
 
 DRM DRIVERS FOR ALLWINNER A10
-M:	Maxime Ripard  <maxime.ripard@free-electrons.com>
+M:	Maxime Ripard  <maxime.ripard@bootlin.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
@@ -8452,7 +8453,7 @@ S:	Orphan
 F:	drivers/net/wireless/marvell/libertas/
 
 MARVELL MACCHIATOBIN SUPPORT
-M:	Russell King <rmk@armlinux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
 F:	arch/arm64/boot/dts/marvell/armada-8040-mcbin.dts
@@ -8465,7 +8466,7 @@ F:	drivers/net/ethernet/marvell/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
 MARVELL MV88X3310 PHY DRIVER
-M:	Russell King <rmk@armlinux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/phy/marvell10g.c
@@ -9943,6 +9944,13 @@ F:	Documentation/ABI/stable/sysfs-bus-nvmem
 F:	include/linux/nvmem-consumer.h
 F:	include/linux/nvmem-provider.h
 
+NXP SGTL5000 DRIVER
+M:	Fabio Estevam <fabio.estevam@nxp.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/sgtl5000.txt
+F:	sound/soc/codecs/sgtl5000*
+
 NXP TDA998X DRM DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 S:	Supported
@@ -10345,7 +10353,7 @@ F:	drivers/oprofile/
 F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
-M:	Mark Fasheh <mfasheh@versity.com>
+M:	Mark Fasheh <mark@fasheh.com>
 M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://ocfs2.wiki.kernel.org
@@ -10855,6 +10863,7 @@ F:	drivers/platform/x86/peaq-wmi.c
 PER-CPU MEMORY ALLOCATOR
 M:	Tejun Heo <tj@kernel.org>
 M:	Christoph Lameter <cl@linux.com>
+M:	Dennis Zhou <dennisszhou@gmail.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git
 S:	Maintained
 F:	include/linux/percpu*.h
@@ -12125,6 +12134,7 @@ M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/samsung/
+F:	Documentation/devicetree/bindings/sound/samsung*
 
 SAMSUNG EXYNOS PSEUDO RANDOM NUMBER GENERATOR (RNG) DRIVER
 M:	Krzysztof Kozlowski <krzk@kernel.org>
@@ -12883,6 +12893,19 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/socionext/netsec.c
 F:	Documentation/devicetree/bindings/net/socionext-netsec.txt
+
+SOLIDRUN CLEARFOG SUPPORT
+M:	Russell King <linux@armlinux.org.uk>
+S:	Maintained
+F:	arch/arm/boot/dts/armada-388-clearfog*
+F:	arch/arm/boot/dts/armada-38x-solidrun-*
+
+SOLIDRUN CUBOX-I/HUMMINGBOARD SUPPORT
+M:	Russell King <linux@armlinux.org.uk>
+S:	Maintained
+F:	arch/arm/boot/dts/imx6*-cubox-i*
+F:	arch/arm/boot/dts/imx6*-hummingboard*
+F:	arch/arm/boot/dts/imx6*-sr-*
 
 SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
@@ -13653,7 +13676,8 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-tegra.c
 
 TEGRA IOMMU DRIVERS
-M:	Hiroshi Doyu <hdoyu@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
+L:	linux-tegra@vger.kernel.org
 S:	Supported
 F:	drivers/iommu/tegra*
 

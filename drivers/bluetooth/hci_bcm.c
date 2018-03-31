@@ -244,7 +244,9 @@ static irqreturn_t bcm_host_wake(int irq, void *data)
 
 	bt_dev_dbg(bdev, "Host wake IRQ");
 
-	pm_request_resume(bdev->dev);
+	pm_runtime_get(bdev->dev);
+	pm_runtime_mark_last_busy(bdev->dev);
+	pm_runtime_put_autosuspend(bdev->dev);
 
 	return IRQ_HANDLED;
 }
@@ -301,7 +303,7 @@ static const struct bcm_set_sleep_mode default_sleep_params = {
 	.usb_auto_sleep = 0,
 	.usb_resume_timeout = 0,
 	.break_to_host = 0,
-	.pulsed_host_wake = 0,
+	.pulsed_host_wake = 1,
 };
 
 static int bcm_setup_sleep(struct hci_uart *hu)
@@ -586,8 +588,11 @@ static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 	} else if (!bcm->rx_skb) {
 		/* Delay auto-suspend when receiving completed packet */
 		mutex_lock(&bcm_device_lock);
-		if (bcm->dev && bcm_device_exists(bcm->dev))
-			pm_request_resume(bcm->dev->dev);
+		if (bcm->dev && bcm_device_exists(bcm->dev)) {
+			pm_runtime_get(bcm->dev->dev);
+			pm_runtime_mark_last_busy(bcm->dev->dev);
+			pm_runtime_put_autosuspend(bcm->dev->dev);
+		}
 		mutex_unlock(&bcm_device_lock);
 	}
 

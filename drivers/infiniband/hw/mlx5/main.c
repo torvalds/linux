@@ -3448,9 +3448,12 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 	if (err)
 		mlx5_ib_warn(dev, "mr cache cleanup failed\n");
 
-	mlx5_ib_destroy_qp(dev->umrc.qp);
-	ib_free_cq(dev->umrc.cq);
-	ib_dealloc_pd(dev->umrc.pd);
+	if (dev->umrc.qp)
+		mlx5_ib_destroy_qp(dev->umrc.qp);
+	if (dev->umrc.cq)
+		ib_free_cq(dev->umrc.cq);
+	if (dev->umrc.pd)
+		ib_dealloc_pd(dev->umrc.pd);
 }
 
 enum {
@@ -3552,12 +3555,15 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 
 error_4:
 	mlx5_ib_destroy_qp(qp);
+	dev->umrc.qp = NULL;
 
 error_3:
 	ib_free_cq(cq);
+	dev->umrc.cq = NULL;
 
 error_2:
 	ib_dealloc_pd(pd);
+	dev->umrc.pd = NULL;
 
 error_0:
 	kfree(attr);
@@ -4860,19 +4866,19 @@ static int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 	return ib_register_device(&dev->ib_dev, NULL);
 }
 
+static void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev)
+{
+	destroy_umrc_res(dev);
+}
+
 static void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev)
 {
 	ib_unregister_device(&dev->ib_dev);
 }
 
-static int mlx5_ib_stage_umr_res_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev)
 {
 	return create_umr_res(dev);
-}
-
-static void mlx5_ib_stage_umr_res_cleanup(struct mlx5_ib_dev *dev)
-{
-	destroy_umrc_res(dev);
 }
 
 static int mlx5_ib_stage_delay_drop_init(struct mlx5_ib_dev *dev)
@@ -4982,12 +4988,15 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_BFREG,
 		     mlx5_ib_stage_bfrag_init,
 		     mlx5_ib_stage_bfrag_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_PRE_IB_REG_UMR,
+		     NULL,
+		     mlx5_ib_stage_pre_ib_reg_umr_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_IB_REG,
 		     mlx5_ib_stage_ib_reg_init,
 		     mlx5_ib_stage_ib_reg_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_UMR_RESOURCES,
-		     mlx5_ib_stage_umr_res_init,
-		     mlx5_ib_stage_umr_res_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_POST_IB_REG_UMR,
+		     mlx5_ib_stage_post_ib_reg_umr_init,
+		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_DELAY_DROP,
 		     mlx5_ib_stage_delay_drop_init,
 		     mlx5_ib_stage_delay_drop_cleanup),

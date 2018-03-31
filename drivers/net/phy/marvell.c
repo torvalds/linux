@@ -1452,8 +1452,8 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(marvell_hw_stats); i++) {
-		memcpy(data + i * ETH_GSTRING_LEN,
-		       marvell_hw_stats[i].string, ETH_GSTRING_LEN);
+		strlcpy(data + i * ETH_GSTRING_LEN,
+			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
 	}
 }
 

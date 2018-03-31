@@ -1458,10 +1458,13 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 static int xfrm_get_tos(const struct flowi *fl, int family)
 {
 	const struct xfrm_policy_afinfo *afinfo;
-	int tos = 0;
+	int tos;
 
 	afinfo = xfrm_policy_get_afinfo(family);
-	tos = afinfo ? afinfo->get_tos(fl) : 0;
+	if (!afinfo)
+		return 0;
+
+	tos = afinfo->get_tos(fl);
 
 	rcu_read_unlock();
 
@@ -1891,7 +1894,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	spin_unlock(&pq->hold_queue.lock);
 
 	dst_hold(xfrm_dst_path(dst));
-	dst = xfrm_lookup(net, xfrm_dst_path(dst), &fl, sk, 0);
+	dst = xfrm_lookup(net, xfrm_dst_path(dst), &fl, sk, XFRM_LOOKUP_QUEUE);
 	if (IS_ERR(dst))
 		goto purge_queue;
 
@@ -2729,14 +2732,14 @@ static const void *xfrm_get_dst_nexthop(const struct dst_entry *dst,
 	while (dst->xfrm) {
 		const struct xfrm_state *xfrm = dst->xfrm;
 
+		dst = xfrm_dst_child(dst);
+
 		if (xfrm->props.mode == XFRM_MODE_TRANSPORT)
 			continue;
 		if (xfrm->type->flags & XFRM_TYPE_REMOTE_COADDR)
 			daddr = xfrm->coaddr;
 		else if (!(xfrm->type->flags & XFRM_TYPE_LOCAL_COADDR))
 			daddr = &xfrm->id.daddr;
-
-		dst = xfrm_dst_child(dst);
 	}
 	return daddr;
 }

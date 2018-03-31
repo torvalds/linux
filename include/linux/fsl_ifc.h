@@ -734,11 +734,7 @@ struct fsl_ifc_nand {
 	u32 res19[0x10];
 	__be32 nand_fsr;
 	u32 res20;
-	/* The V1 nand_eccstat is actually 4 words that overlaps the
-	 * V2 nand_eccstat.
-	 */
-	__be32 v1_nand_eccstat[2];
-	__be32 v2_nand_eccstat[6];
+	__be32 nand_eccstat[8];
 	u32 res21[0x1c];
 	__be32 nanndcr;
 	u32 res22[0x2];

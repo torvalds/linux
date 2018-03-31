@@ -75,6 +75,20 @@ static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
 	cancel_delayed_work_sync(&fwrt->timestamp.wk);
 }
 
+static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt)
+{
+	cancel_delayed_work_sync(&fwrt->timestamp.wk);
+}
+
+static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt)
+{
+	if (!fwrt->timestamp.delay)
+		return;
+
+	schedule_delayed_work(&fwrt->timestamp.wk,
+			      round_jiffies_relative(fwrt->timestamp.delay));
+}
+
 #else
 static inline int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 					  struct dentry *dbgfs_dir)
@@ -83,5 +97,9 @@ static inline int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 }
 
 static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
