@@ -351,11 +351,6 @@ struct hostif_infrastructure_set_request {
 	u8 bssid[ETH_ALEN];
 } __packed;
 
-struct hostif_infrastructure_set_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-} __packed;
-
 /**
  * struct hostif_adhoc_set_request_t
  * @capability: bit5  : preamble
