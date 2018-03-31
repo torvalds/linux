@@ -364,7 +364,7 @@ struct mic_failure {
 	int stop;	/* stop flag */
 };
 
-struct wpa_status_t {
+struct wpa_status {
 	int wpa_enabled;
 	unsigned int rsn_enabled;
 	int version;
@@ -427,7 +427,7 @@ struct ks_wlan_private {
 	struct local_ap current_ap;
 	struct power_save_status psstatus;
 	struct sleep_status sleepstatus;
-	struct wpa_status_t wpa;
+	struct wpa_status wpa;
 	struct pmk_list_t pmklist;
 	/* wireless parameter */
 	struct ks_wlan_parameter reg;
