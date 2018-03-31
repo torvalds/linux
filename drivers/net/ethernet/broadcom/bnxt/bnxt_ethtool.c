@@ -137,6 +137,9 @@ reset_coalesce:
 #define BNXT_TX_STATS_ENTRY(counter)	\
 	{ BNXT_TX_STATS_OFFSET(counter), __stringify(counter) }
 
+#define BNXT_RX_STATS_EXT_ENTRY(counter)	\
+	{ BNXT_RX_STATS_EXT_OFFSET(counter), __stringify(counter) }
+
 static const struct {
 	long offset;
 	char string[ETH_GSTRING_LEN];
@@ -223,7 +226,19 @@ static const struct {
 	BNXT_TX_STATS_ENTRY(tx_stat_error),
 };
 
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_port_stats_ext_arr[] = {
+	BNXT_RX_STATS_EXT_ENTRY(link_down_events),
+	BNXT_RX_STATS_EXT_ENTRY(continuous_pause_events),
+	BNXT_RX_STATS_EXT_ENTRY(resume_pause_events),
+	BNXT_RX_STATS_EXT_ENTRY(continuous_roce_pause_events),
+	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
+};
+
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
+#define BNXT_NUM_PORT_STATS_EXT ARRAY_SIZE(bnxt_port_stats_ext_arr)
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -231,6 +246,9 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS)
 		num_stats += BNXT_NUM_PORT_STATS;
+
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT)
+		num_stats += BNXT_NUM_PORT_STATS_EXT;
 
 	return num_stats;
 }
@@ -277,6 +295,14 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (i = 0; i < BNXT_NUM_PORT_STATS; i++, j++) {
 			buf[j] = le64_to_cpu(*(port_stats +
 					       bnxt_port_stats_arr[i].offset));
+		}
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
+		__le64 *port_stats_ext = (__le64 *)bp->hw_rx_port_stats_ext;
+
+		for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++, j++) {
+			buf[j] = le64_to_cpu(*(port_stats_ext +
+					    bnxt_port_stats_ext_arr[i].offset));
 		}
 	}
 }
@@ -336,6 +362,12 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		if (bp->flags & BNXT_FLAG_PORT_STATS) {
 			for (i = 0; i < BNXT_NUM_PORT_STATS; i++) {
 				strcpy(buf, bnxt_port_stats_arr[i].string);
+				buf += ETH_GSTRING_LEN;
+			}
+		}
+		if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
+			for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++) {
+				strcpy(buf, bnxt_port_stats_ext_arr[i].string);
 				buf += ETH_GSTRING_LEN;
 			}
 		}

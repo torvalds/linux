@@ -3059,12 +3059,21 @@ static void bnxt_free_stats(struct bnxt *bp)
 	u32 size, i;
 	struct pci_dev *pdev = bp->pdev;
 
+	bp->flags &= ~BNXT_FLAG_PORT_STATS;
+	bp->flags &= ~BNXT_FLAG_PORT_STATS_EXT;
+
 	if (bp->hw_rx_port_stats) {
 		dma_free_coherent(&pdev->dev, bp->hw_port_stats_size,
 				  bp->hw_rx_port_stats,
 				  bp->hw_rx_port_stats_map);
 		bp->hw_rx_port_stats = NULL;
-		bp->flags &= ~BNXT_FLAG_PORT_STATS;
+	}
+
+	if (bp->hw_rx_port_stats_ext) {
+		dma_free_coherent(&pdev->dev, sizeof(struct rx_port_stats_ext),
+				  bp->hw_rx_port_stats_ext,
+				  bp->hw_rx_port_stats_ext_map);
+		bp->hw_rx_port_stats_ext = NULL;
 	}
 
 	if (!bp->bnapi)
@@ -3120,6 +3129,21 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 		bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
 					   sizeof(struct rx_port_stats) + 512;
 		bp->flags |= BNXT_FLAG_PORT_STATS;
+
+		/* Display extended statistics only if FW supports it */
+		if (bp->hwrm_spec_code < 0x10804 ||
+		    bp->hwrm_spec_code == 0x10900)
+			return 0;
+
+		bp->hw_rx_port_stats_ext =
+			dma_zalloc_coherent(&pdev->dev,
+					    sizeof(struct rx_port_stats_ext),
+					    &bp->hw_rx_port_stats_ext_map,
+					    GFP_KERNEL);
+		if (!bp->hw_rx_port_stats_ext)
+			return 0;
+
+		bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
 	}
 	return 0;
 }
@@ -5340,6 +5364,21 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 	return rc;
 }
 
+static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
+{
+	struct hwrm_port_qstats_ext_input req = {0};
+	struct bnxt_pf_info *pf = &bp->pf;
+
+	if (!(bp->flags & BNXT_FLAG_PORT_STATS_EXT))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS_EXT, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	req.rx_stat_size = cpu_to_le16(sizeof(struct rx_port_stats_ext));
+	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_ext_map);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 static void bnxt_hwrm_free_tunnel_ports(struct bnxt *bp)
 {
 	if (bp->vxlan_port_cnt) {
@@ -7491,8 +7530,10 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE);
 	}
-	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
+	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event)) {
 		bnxt_hwrm_port_qstats(bp);
+		bnxt_hwrm_port_qstats_ext(bp);
+	}
 
 	if (test_and_clear_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event)) {
 		int rc;
