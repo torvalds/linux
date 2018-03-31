@@ -331,11 +331,6 @@ struct hostif_ps_adhoc_set_request {
 	__le16 channel;
 } __packed;
 
-struct hostif_ps_adhoc_set_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-} __packed;
-
 #define AUTH_TYPE_OPEN_SYSTEM 0
 #define AUTH_TYPE_SHARED_KEY  1
 
