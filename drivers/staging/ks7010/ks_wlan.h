@@ -357,7 +357,7 @@ struct wpa_key {
 #define WPA_KEY_INDEX_MAX 4
 #define WPA_RX_SEQ_LEN 6
 
-struct mic_failure_t {
+struct mic_failure {
 	u16 failure;	/* MIC Failure counter 0 or 1 or 2 */
 	u16 counter;	/* 1sec counter 0-60 */
 	u32 last_failure_time;
@@ -375,7 +375,7 @@ struct wpa_status_t {
 	int txkey;
 	struct wpa_key key[WPA_KEY_INDEX_MAX];
 	struct scan_ext scan_ext;
-	struct mic_failure_t mic_failure;
+	struct mic_failure mic_failure;
 };
 
 #include <linux/list.h>

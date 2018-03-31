@@ -314,7 +314,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 	unsigned char recv_mic[8];
 	char buf[128];
 	unsigned long now;
-	struct mic_failure_t *mic_failure;
+	struct mic_failure *mic_failure;
 	struct michael_mic_t michael_mic;
 	union iwreq_data wrqu;
 	unsigned int key_index = auth_type - 1;
