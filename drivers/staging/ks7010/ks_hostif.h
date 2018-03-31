@@ -411,7 +411,7 @@ struct hostif_bss_scan_request {
 	struct ssid ssid;
 } __packed;
 
-struct hostif_phy_information_request_t {
+struct hostif_phy_information_request {
 	struct hostif_hdr header;
 	__le16 type;
 #define NORMAL_TYPE	0
