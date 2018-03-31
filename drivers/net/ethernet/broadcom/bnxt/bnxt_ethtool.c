@@ -2535,16 +2535,20 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 			return -EOPNOTSUPP;
 
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
-		if (!rc)
+		if (!rc) {
 			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+			*flags = 0;
+		}
 	} else if (*flags == ETH_RESET_AP) {
 		/* This feature is not supported in older firmware versions */
 		if (bp->hwrm_spec_code < 0x10803)
 			return -EOPNOTSUPP;
 
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_AP);
-		if (!rc)
+		if (!rc) {
 			netdev_info(dev, "Reset Application Processor request successful.\n");
+			*flags = 0;
+		}
 	} else {
 		rc = -EINVAL;
 	}
