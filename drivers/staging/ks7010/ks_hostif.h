@@ -399,14 +399,6 @@ struct association_response {
 	__le16 resp_ies_size;
 } __packed;
 
-struct hostif_associate_indication_t {
-	struct hostif_hdr header;
-	struct association_request assoc_req;
-	struct association_response assoc_resp;
-	/* followed by (req_ies_size + resp_ies_size) octets of data */
-	/* reqIEs data *//* respIEs data */
-} __packed;
-
 struct hostif_bss_scan_request_t {
 	struct hostif_hdr header;
 	u8 scan_type;
