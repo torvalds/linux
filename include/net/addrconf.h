@@ -231,6 +231,13 @@ struct ipv6_stub {
 };
 extern const struct ipv6_stub *ipv6_stub __read_mostly;
 
+/* A stub used by bpf helpers. Similarly ugly as ipv6_stub */
+struct ipv6_bpf_stub {
+	int (*inet6_bind)(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+			  bool force_bind_address_no_port, bool with_lock);
+};
+extern const struct ipv6_bpf_stub *ipv6_bpf_stub __read_mostly;
+
 /*
  * identify MLD packets for MLD filter exceptions
  */

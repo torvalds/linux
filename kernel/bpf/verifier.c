@@ -1323,7 +1323,7 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 	};
 
 	if (env->ops->is_valid_access &&
-	    env->ops->is_valid_access(off, size, t, &info)) {
+	    env->ops->is_valid_access(off, size, t, env->prog, &info)) {
 		/* A non zero info.ctx_field_size indicates that this field is a
 		 * candidate for later verifier transformation to load the whole
 		 * field and then apply a mask when accessed with a narrower
@@ -2349,7 +2349,7 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	}
 
 	if (env->ops->get_func_proto)
-		fn = env->ops->get_func_proto(func_id);
+		fn = env->ops->get_func_proto(func_id, env->prog);
 	if (!fn) {
 		verbose(env, "unknown func %s#%d\n", func_id_name(func_id),
 			func_id);
@@ -3887,6 +3887,7 @@ static int check_return_code(struct bpf_verifier_env *env)
 	switch (env->prog->type) {
 	case BPF_PROG_TYPE_CGROUP_SKB:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
 	case BPF_PROG_TYPE_SOCK_OPS:
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 		break;
@@ -5572,7 +5573,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			insn      = new_prog->insnsi + i + delta;
 		}
 patch_call_imm:
-		fn = env->ops->get_func_proto(insn->imm);
+		fn = env->ops->get_func_proto(insn->imm, env->prog);
 		/* all functions that have prototype and verifier allowed
 		 * programs to call them, must be real in-kernel functions
 		 */
