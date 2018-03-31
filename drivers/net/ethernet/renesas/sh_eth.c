@@ -702,6 +702,7 @@ static struct sh_eth_cpu_data rcar_gen1_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
+	.no_xdfar	= 1,
 };
 
 /* R-Car Gen2 and RZ/G1 */
@@ -735,6 +736,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
+	.no_xdfar	= 1,
 	.rmiimode	= 1,
 	.magic		= 1,
 };
@@ -1615,8 +1617,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE &&
-		    mdp->reg_offset[RDFAR] != SH_ETH_OFFSET_INVALID) {
+		if (intr_status & EESR_RDE && !mdp->cd->no_xdfar) {
 			u32 count = (sh_eth_read(ndev, RDFAR) -
 				     sh_eth_read(ndev, RDLAR)) >> 4;
 
