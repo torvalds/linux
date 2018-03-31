@@ -76,16 +76,9 @@ struct hostif_data_request {
 	u8 data[0];
 } __packed;
 
-struct hostif_data_indication_t {
-	struct hostif_hdr header;
-	__le16 auth_type;
-/* #define TYPE_DATA 0x0000 */
 #define TYPE_PMK1 0x0001
 #define TYPE_GMK1 0x0002
 #define TYPE_GMK2 0x0003
-	__le16 reserved;
-	u8 data[0];
-} __packed;
 
 #define CHANNEL_LIST_MAX_SIZE 14
 struct channel_list_t {
