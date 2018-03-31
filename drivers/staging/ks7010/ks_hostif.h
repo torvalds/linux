@@ -215,7 +215,7 @@ struct rate_set8 {
 	u8 rate_pad;
 } __packed;
 
-struct fh_parms_t {
+struct fh_parms {
 	__le16 dwell_time;
 	u8 hop_set;
 	u8 hop_pattern;
@@ -277,7 +277,7 @@ struct link_ap_info_t {
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
 	struct rate_set8 rate_set;	/* +14 */
-	struct fh_parms_t fh_parameter;	/* +24 */
+	struct fh_parms fh_parameter;	/* +24 */
 	struct ds_parms_t ds_parameter;	/* +29 */
 	struct cf_parms_t cf_parameter;	/* +30 */
 	struct ibss_parms_t ibss_parameter;	/* +36 */
