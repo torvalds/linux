@@ -434,11 +434,6 @@ struct hostif_mic_failure_request {
 	__le16 timer;
 } __packed;
 
-struct hostif_mic_failure_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-} __packed;
-
 #define BASIC_RATE	0x80
 #define RATE_MASK	0x7F
 
