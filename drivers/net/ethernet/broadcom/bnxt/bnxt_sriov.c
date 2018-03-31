@@ -510,18 +510,16 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (pf->active_vfs) {
-		u16 n = 1;
+		u16 n = pf->active_vfs;
 
-		if (pf->vf_resv_strategy != BNXT_VF_RESV_STRATEGY_MINIMAL)
-			n = pf->active_vfs;
-
-		hw_resc->max_tx_rings -= vf_tx_rings * n;
-		hw_resc->max_rx_rings -= vf_rx_rings * n;
-		hw_resc->max_hw_ring_grps -= vf_ring_grps * n;
-		hw_resc->max_cp_rings -= vf_cp_rings * n;
+		hw_resc->max_tx_rings -= le16_to_cpu(req.min_tx_rings) * n;
+		hw_resc->max_rx_rings -= le16_to_cpu(req.min_rx_rings) * n;
+		hw_resc->max_hw_ring_grps -= le16_to_cpu(req.min_hw_ring_grps) *
+					     n;
+		hw_resc->max_cp_rings -= le16_to_cpu(req.min_cmpl_rings) * n;
 		hw_resc->max_rsscos_ctxs -= pf->active_vfs;
-		hw_resc->max_stat_ctxs -= vf_stat_ctx * n;
-		hw_resc->max_vnics -= vf_vnics * n;
+		hw_resc->max_stat_ctxs -= le16_to_cpu(req.min_stat_ctx) * n;
+		hw_resc->max_vnics -= le16_to_cpu(req.min_vnics) * n;
 
 		rc = pf->active_vfs;
 	}
