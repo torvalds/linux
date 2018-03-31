@@ -278,7 +278,7 @@ enum {
 	PS_WAKEUP
 };
 
-struct power_save_status_t {
+struct power_save_status {
 	atomic_t status;	/* initialvalue 0 */
 	struct completion wakeup_wait;
 	atomic_t confirm_wait;
@@ -425,7 +425,7 @@ struct ks_wlan_private {
 
 	struct local_aplist aplist;
 	struct local_ap current_ap;
-	struct power_save_status_t psstatus;
+	struct power_save_status psstatus;
 	struct sleep_status_t sleepstatus;
 	struct wpa_status_t wpa;
 	struct pmk_list_t pmklist;
