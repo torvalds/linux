@@ -202,7 +202,7 @@ struct hostif_start_request {
 #define MODE_ADHOC          3
 } __packed;
 
-struct ssid_t {
+struct ssid {
 	u8 size;
 	u8 body[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_pad;
@@ -359,7 +359,7 @@ struct hostif_ps_adhoc_set_confirm_t {
 struct hostif_infrastructure_set_request_t {
 	struct hostif_hdr header;
 	struct hostif_request_t request;
-	struct ssid_t ssid;
+	struct ssid ssid;
 	__le16 beacon_lost_count;
 	__le16 auth_type;
 	struct channel_list channel_list;
@@ -381,7 +381,7 @@ struct hostif_infrastructure_set_confirm_t {
 struct hostif_adhoc_set_request_t {
 	struct hostif_hdr header;
 	struct hostif_request_t request;
-	struct ssid_t ssid;
+	struct ssid ssid;
 	__le16 channel;
 } __packed;
 
@@ -396,7 +396,7 @@ struct hostif_adhoc_set2_request_t {
 	struct hostif_hdr header;
 	struct hostif_request_t request;
 	__le16 reserved;
-	struct ssid_t ssid;
+	struct ssid ssid;
 	struct channel_list channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
@@ -446,7 +446,7 @@ struct hostif_bss_scan_request_t {
 	__le32 ch_time_min;
 	__le32 ch_time_max;
 	struct channel_list channel_list;
-	struct ssid_t ssid;
+	struct ssid ssid;
 } __packed;
 
 struct hostif_bss_scan_confirm_t {
