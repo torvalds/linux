@@ -2702,10 +2702,9 @@ static const iw_handler ks_wlan_private_handler[] = {
 };
 
 static const struct iw_handler_def ks_wlan_handler_def = {
-	.num_standard = sizeof(ks_wlan_handler) / sizeof(iw_handler),
-	.num_private = sizeof(ks_wlan_private_handler) / sizeof(iw_handler),
-	.num_private_args =
-	    sizeof(ks_wlan_private_args) / sizeof(struct iw_priv_args),
+	.num_standard = ARRAY_SIZE(ks_wlan_handler),
+	.num_private = ARRAY_SIZE(ks_wlan_private_handler),
+	.num_private_args = ARRAY_SIZE(ks_wlan_private_args),
 	.standard = (iw_handler *)ks_wlan_handler,
 	.private = (iw_handler *)ks_wlan_private_handler,
 	.private_args = (struct iw_priv_args *)ks_wlan_private_args,
