@@ -381,11 +381,6 @@ struct hostif_adhoc_set2_request {
 	u8 bssid[ETH_ALEN];
 } __packed;
 
-struct hostif_adhoc_set_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-} __packed;
-
 struct last_associate_t {
 	u8 type;
 	u8 status;
