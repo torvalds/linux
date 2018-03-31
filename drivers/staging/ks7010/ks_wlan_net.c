@@ -1706,7 +1706,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	struct iw_encode_ext *enc;
 	int index = dwrq->flags & IW_ENCODE_INDEX;
 	unsigned int commit = 0;
-	struct wpa_key_t *key;
+	struct wpa_key *key;
 
 	enc = (struct iw_encode_ext *)extra;
 	if (!enc)

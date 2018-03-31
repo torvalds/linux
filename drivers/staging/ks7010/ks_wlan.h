@@ -339,7 +339,7 @@ enum {
 
 #define MIC_KEY_SIZE 8
 
-struct wpa_key_t {
+struct wpa_key {
 	u32 ext_flags;	/* IW_ENCODE_EXT_xxx */
 	u8 tx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
 	u8 rx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/* LSB first */
@@ -373,7 +373,7 @@ struct wpa_status_t {
 	int key_mgmt_suite;	/* authentication key management suite */
 	int auth_alg;
 	int txkey;
-	struct wpa_key_t key[WPA_KEY_INDEX_MAX];
+	struct wpa_key key[WPA_KEY_INDEX_MAX];
 	struct scan_ext scan_ext;
 	struct mic_failure_t mic_failure;
 };
