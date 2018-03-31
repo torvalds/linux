@@ -62,13 +62,6 @@
 
 static const char ip6_frag_cache_name[] = "ip6-frags";
 
-struct ip6frag_skb_cb {
-	struct inet6_skb_parm	h;
-	int			offset;
-};
-
-#define FRAG6_CB(skb)	((struct ip6frag_skb_cb *)((skb)->cb))
-
 static u8 ip6_frag_ecn(const struct ipv6hdr *ipv6h)
 {
 	return 1 << (ipv6_get_dsfield(ipv6h) & INET_ECN_MASK);
@@ -250,13 +243,13 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	 * this fragment, right?
 	 */
 	prev = fq->q.fragments_tail;
-	if (!prev || FRAG6_CB(prev)->offset < offset) {
+	if (!prev || prev->ip_defrag_offset < offset) {
 		next = NULL;
 		goto found;
 	}
 	prev = NULL;
 	for (next = fq->q.fragments; next != NULL; next = next->next) {
-		if (FRAG6_CB(next)->offset >= offset)
+		if (next->ip_defrag_offset >= offset)
 			break;	/* bingo! */
 		prev = next;
 	}
@@ -271,14 +264,20 @@ found:
 
 	/* Check for overlap with preceding fragment. */
 	if (prev &&
-	    (FRAG6_CB(prev)->offset + prev->len) > offset)
+	    (prev->ip_defrag_offset + prev->len) > offset)
 		goto discard_fq;
 
 	/* Look for overlap with succeeding segment. */
-	if (next && FRAG6_CB(next)->offset < end)
+	if (next && next->ip_defrag_offset < end)
 		goto discard_fq;
 
-	FRAG6_CB(skb)->offset = offset;
+	/* Note : skb->ip_defrag_offset and skb->dev share the same location */
+	dev = skb->dev;
+	if (dev)
+		fq->iif = dev->ifindex;
+	/* Makes sure compiler wont do silly aliasing games */
+	barrier();
+	skb->ip_defrag_offset = offset;
 
 	/* Insert this fragment in the chain of fragments. */
 	skb->next = next;
@@ -289,11 +288,6 @@ found:
 	else
 		fq->q.fragments = skb;
 
-	dev = skb->dev;
-	if (dev) {
-		fq->iif = dev->ifindex;
-		skb->dev = NULL;
-	}
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
 	fq->ecn |= ecn;
@@ -380,7 +374,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	}
 
 	WARN_ON(head == NULL);
-	WARN_ON(FRAG6_CB(head)->offset != 0);
+	WARN_ON(head->ip_defrag_offset != 0);
 
 	/* Unfragmented part is taken from the first segment. */
 	payload_len = ((head->data - skb_network_header(head)) -
