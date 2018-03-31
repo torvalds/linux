@@ -335,13 +335,13 @@ struct hostif_ps_adhoc_set_request {
 #define AUTH_TYPE_SHARED_KEY  1
 
 /**
- * struct hostif_infrastructure_set_request_t
+ * struct hostif_infrastructure_set_request
  * @capability: bit5  : preamble
  *              bit6  : pbcc - Not supported always 0
  *              bit10 : ShortSlotTime
  *              bit13 : DSSS-OFDM - Not supported always 0
  */
-struct hostif_infrastructure_set_request_t {
+struct hostif_infrastructure_set_request {
 	struct hostif_hdr header;
 	struct hostif_request request;
 	struct ssid ssid;
