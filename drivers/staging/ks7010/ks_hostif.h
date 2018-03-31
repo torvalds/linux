@@ -419,18 +419,6 @@ struct hostif_phy_information_request {
 	__le16 time;	/* unit 100ms */
 } __packed;
 
-struct hostif_phy_information_confirm_t {
-	struct hostif_hdr header;
-	u8 rssi;
-	u8 sq;
-	u8 noise;
-	u8 link_speed;
-	__le32 tx_frame;
-	__le32 rx_frame;
-	__le32 tx_error;
-	__le32 rx_error;
-} __packed;
-
 enum sleep_mode_type {
 	SLP_ACTIVE,
 	SLP_SLEEP
