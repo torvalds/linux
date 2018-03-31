@@ -391,7 +391,7 @@ struct pmk_list {
 };
 
 #ifdef WPS
-struct wps_status_t {
+struct wps_status {
 	int wps_enabled;
 	int ielen;
 	u8 ie[255];
@@ -475,7 +475,7 @@ struct ks_wlan_private {
 #ifdef WPS
 	struct net_device *l2_dev;
 	int l2_fd;
-	struct wps_status_t wps;
+	struct wps_status wps;
 #endif /* WPS */
 	u8 sleep_mode;
 
