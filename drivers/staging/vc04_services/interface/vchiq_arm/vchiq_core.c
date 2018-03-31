@@ -2562,7 +2562,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
+		goto fail_free_handler_thread;
 	}
 	set_user_nice(state->recycle_thread, -19);
 
@@ -2574,7 +2574,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
-		return VCHIQ_ERROR;
+		goto fail_free_recycle_thread;
 	}
 	set_user_nice(state->sync_thread, -20);
 
@@ -2588,6 +2588,13 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	local->initialised = 1;
 
 	return status;
+
+fail_free_recycle_thread:
+	kthread_stop(state->recycle_thread);
+fail_free_handler_thread:
+	kthread_stop(state->slot_handler_thread);
+
+	return VCHIQ_ERROR;
 }
 
 /* Called from application thread when a client or server service is created. */
