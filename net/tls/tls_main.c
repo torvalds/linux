@@ -38,6 +38,7 @@
 #include <linux/highmem.h>
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
+#include <linux/inetdevice.h>
 
 #include <net/tls.h>
 
@@ -56,11 +57,14 @@ enum {
 	TLS_SW_TX,
 	TLS_SW_RX,
 	TLS_SW_RXTX,
+	TLS_HW_RECORD,
 	TLS_NUM_CONFIG,
 };
 
 static struct proto *saved_tcpv6_prot;
 static DEFINE_MUTEX(tcpv6_prot_mutex);
+static LIST_HEAD(device_list);
+static DEFINE_MUTEX(device_mutex);
 static struct proto tls_prots[TLS_NUM_PROTS][TLS_NUM_CONFIG];
 static struct proto_ops tls_sw_proto_ops;
 
@@ -241,8 +245,12 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	lock_sock(sk);
 	sk_proto_close = ctx->sk_proto_close;
 
+	if (ctx->conf == TLS_HW_RECORD)
+		goto skip_tx_cleanup;
+
 	if (ctx->conf == TLS_BASE) {
 		kfree(ctx);
+		ctx = NULL;
 		goto skip_tx_cleanup;
 	}
 
@@ -276,6 +284,11 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 skip_tx_cleanup:
 	release_sock(sk);
 	sk_proto_close(sk, timeout);
+	/* free ctx for TLS_HW_RECORD, used by tcp_set_state
+	 * for sk->sk_prot->unhash [tls_hw_unhash]
+	 */
+	if (ctx && ctx->conf == TLS_HW_RECORD)
+		kfree(ctx);
 }
 
 static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
@@ -493,6 +506,79 @@ static int tls_setsockopt(struct sock *sk, int level, int optname,
 	return do_tls_setsockopt(sk, optname, optval, optlen);
 }
 
+static struct tls_context *create_ctx(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tls_context *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	icsk->icsk_ulp_data = ctx;
+	return ctx;
+}
+
+static int tls_hw_prot(struct sock *sk)
+{
+	struct tls_context *ctx;
+	struct tls_device *dev;
+	int rc = 0;
+
+	mutex_lock(&device_mutex);
+	list_for_each_entry(dev, &device_list, dev_list) {
+		if (dev->feature && dev->feature(dev)) {
+			ctx = create_ctx(sk);
+			if (!ctx)
+				goto out;
+
+			ctx->hash = sk->sk_prot->hash;
+			ctx->unhash = sk->sk_prot->unhash;
+			ctx->sk_proto_close = sk->sk_prot->close;
+			ctx->conf = TLS_HW_RECORD;
+			update_sk_prot(sk, ctx);
+			rc = 1;
+			break;
+		}
+	}
+out:
+	mutex_unlock(&device_mutex);
+	return rc;
+}
+
+static void tls_hw_unhash(struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+	struct tls_device *dev;
+
+	mutex_lock(&device_mutex);
+	list_for_each_entry(dev, &device_list, dev_list) {
+		if (dev->unhash)
+			dev->unhash(dev, sk);
+	}
+	mutex_unlock(&device_mutex);
+	ctx->unhash(sk);
+}
+
+static int tls_hw_hash(struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+	struct tls_device *dev;
+	int err;
+
+	err = ctx->hash(sk);
+	mutex_lock(&device_mutex);
+	list_for_each_entry(dev, &device_list, dev_list) {
+		if (dev->hash)
+			err |= dev->hash(dev, sk);
+	}
+	mutex_unlock(&device_mutex);
+
+	if (err)
+		tls_hw_unhash(sk);
+	return err;
+}
+
 static void build_protos(struct proto *prot, struct proto *base)
 {
 	prot[TLS_BASE] = *base;
@@ -511,14 +597,21 @@ static void build_protos(struct proto *prot, struct proto *base)
 	prot[TLS_SW_RXTX] = prot[TLS_SW_TX];
 	prot[TLS_SW_RXTX].recvmsg	= tls_sw_recvmsg;
 	prot[TLS_SW_RXTX].close		= tls_sk_proto_close;
+
+	prot[TLS_HW_RECORD] = *base;
+	prot[TLS_HW_RECORD].hash	= tls_hw_hash;
+	prot[TLS_HW_RECORD].unhash	= tls_hw_unhash;
+	prot[TLS_HW_RECORD].close	= tls_sk_proto_close;
 }
 
 static int tls_init(struct sock *sk)
 {
 	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
-	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tls_context *ctx;
 	int rc = 0;
+
+	if (tls_hw_prot(sk))
+		goto out;
 
 	/* The TLS ulp is currently supported only for TCP sockets
 	 * in ESTABLISHED state.
@@ -530,12 +623,11 @@ static int tls_init(struct sock *sk)
 		return -ENOTSUPP;
 
 	/* allocate tls context */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = create_ctx(sk);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	icsk->icsk_ulp_data = ctx;
 	ctx->setsockopt = sk->sk_prot->setsockopt;
 	ctx->getsockopt = sk->sk_prot->getsockopt;
 	ctx->sk_proto_close = sk->sk_prot->close;
@@ -556,6 +648,22 @@ static int tls_init(struct sock *sk)
 out:
 	return rc;
 }
+
+void tls_register_device(struct tls_device *device)
+{
+	mutex_lock(&device_mutex);
+	list_add_tail(&device->dev_list, &device_list);
+	mutex_unlock(&device_mutex);
+}
+EXPORT_SYMBOL(tls_register_device);
+
+void tls_unregister_device(struct tls_device *device)
+{
+	mutex_lock(&device_mutex);
+	list_del(&device->dev_list);
+	mutex_unlock(&device_mutex);
+}
+EXPORT_SYMBOL(tls_unregister_device);
 
 static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
 	.name			= "tls",
