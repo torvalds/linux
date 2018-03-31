@@ -191,7 +191,7 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 	}
 
 	if (srvr->vals->header_preamble_size + len != length) {
-		cifs_dbg(VFS, "Total length %u RFC1002 length %u mismatch mid %llu\n",
+		cifs_dbg(VFS, "Total length %u RFC1002 length %zu mismatch mid %llu\n",
 			 length, srvr->vals->header_preamble_size + len, mid);
 		return 1;
 	}
@@ -199,7 +199,7 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 	clc_len = smb2_calc_size(hdr);
 
 	if (srvr->vals->header_preamble_size + len != clc_len) {
-		cifs_dbg(FYI, "Calculated size %u length %u mismatch mid %llu\n",
+		cifs_dbg(FYI, "Calculated size %u length %zu mismatch mid %llu\n",
 			 clc_len, srvr->vals->header_preamble_size + len, mid);
 		/* create failed on symlink */
 		if (command == SMB2_CREATE_HE &&
@@ -221,7 +221,7 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 		 */
 		if (clc_len < srvr->vals->header_preamble_size /* RFC1001 header size */ + len) {
 			printk_once(KERN_WARNING
-				"SMB2 server sent bad RFC1001 len %d not %d\n",
+				"SMB2 server sent bad RFC1001 len %d not %zu\n",
 				len, clc_len - srvr->vals->header_preamble_size);
 			return 0;
 		}
