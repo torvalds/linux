@@ -197,7 +197,7 @@ ext4_xattr_check_entries(struct ext4_xattr_entry *entry, void *end,
 	while (!IS_LAST_ENTRY(entry)) {
 		u32 size = le32_to_cpu(entry->e_value_size);
 
-		if (size > INT_MAX)
+		if (size > EXT4_XATTR_SIZE_MAX)
 			return -EFSCORRUPTED;
 
 		if (size != 0 && entry->e_value_inum == 0) {
@@ -540,8 +540,10 @@ ext4_xattr_block_get(struct inode *inode, int name_index, const char *name,
 	if (error)
 		goto cleanup;
 	size = le32_to_cpu(entry->e_value_size);
+	error = -ERANGE;
+	if (unlikely(size > EXT4_XATTR_SIZE_MAX))
+		goto cleanup;
 	if (buffer) {
-		error = -ERANGE;
 		if (size > buffer_size)
 			goto cleanup;
 		if (entry->e_value_inum) {
@@ -550,8 +552,12 @@ ext4_xattr_block_get(struct inode *inode, int name_index, const char *name,
 			if (error)
 				goto cleanup;
 		} else {
-			memcpy(buffer, bh->b_data +
-			       le16_to_cpu(entry->e_value_offs), size);
+			u16 offset = le16_to_cpu(entry->e_value_offs);
+			void *p = bh->b_data + offset;
+
+			if (unlikely(p + size > end))
+				goto cleanup;
+			memcpy(buffer, p, size);
 		}
 	}
 	error = size;
@@ -589,8 +595,10 @@ ext4_xattr_ibody_get(struct inode *inode, int name_index, const char *name,
 	if (error)
 		goto cleanup;
 	size = le32_to_cpu(entry->e_value_size);
+	error = -ERANGE;
+	if (unlikely(size > EXT4_XATTR_SIZE_MAX))
+		goto cleanup;
 	if (buffer) {
-		error = -ERANGE;
 		if (size > buffer_size)
 			goto cleanup;
 		if (entry->e_value_inum) {
@@ -599,8 +607,12 @@ ext4_xattr_ibody_get(struct inode *inode, int name_index, const char *name,
 			if (error)
 				goto cleanup;
 		} else {
-			memcpy(buffer, (void *)IFIRST(header) +
-			       le16_to_cpu(entry->e_value_offs), size);
+			u16 offset = le16_to_cpu(entry->e_value_offs);
+			void *p = (void *)IFIRST(header) + offset;
+
+			if (unlikely(p + size > end))
+				goto cleanup;
+			memcpy(buffer, p, size);
 		}
 	}
 	error = size;
