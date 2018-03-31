@@ -292,7 +292,7 @@ struct sleep_status {
 };
 
 /* WPA */
-struct scan_ext_t {
+struct scan_ext {
 	unsigned int flag;
 	char ssid[IW_ESSID_MAX_SIZE + 1];
 };
@@ -374,7 +374,7 @@ struct wpa_status_t {
 	int auth_alg;
 	int txkey;
 	struct wpa_key_t key[WPA_KEY_INDEX_MAX];
-	struct scan_ext_t scan_ext;
+	struct scan_ext scan_ext;
 	struct mic_failure_t mic_failure;
 };
 
