@@ -428,11 +428,6 @@ struct hostif_sleep_request {
 	struct hostif_hdr header;
 } __packed;
 
-struct hostif_sleep_confirm_t {
-	struct hostif_hdr header;
-	__le16 result_code;
-} __packed;
-
 struct hostif_mic_failure_request_t {
 	struct hostif_hdr header;
 	__le16 failure_count;
