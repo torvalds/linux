@@ -1876,7 +1876,7 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		for (i = 0; i < ret; i++)
 			if (msgs[i].flags & I2C_M_RD)
 				trace_i2c_reply(adap, &msgs[i], i);
-		trace_i2c_result(adap, i, ret);
+		trace_i2c_result(adap, num, ret);
 	}
 
 	return ret;
