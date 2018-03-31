@@ -119,11 +119,6 @@ static inline void inet_frag_put(struct inet_frag_queue *q)
 		inet_frag_destroy(q);
 }
 
-static inline bool inet_frag_evicting(struct inet_frag_queue *q)
-{
-	return false;
-}
-
 /* Memory Tracking Functions. */
 
 static inline int frag_mem_limit(struct netns_frags *nf)

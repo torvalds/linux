@@ -106,10 +106,6 @@ void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq)
 		goto out_rcu_unlock;
 
 	__IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_REASMFAILS);
-
-	if (inet_frag_evicting(&fq->q))
-		goto out_rcu_unlock;
-
 	__IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_REASMTIMEOUT);
 
 	/* Don't send error if the first segment did not arrive. */
