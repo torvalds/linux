@@ -233,7 +233,7 @@ struct cf_parms {
 	__le16 dur_remaining;
 } __packed;
 
-struct ibss_parms_t {
+struct ibss_parms {
 	__le16 atim_window;
 } __packed;
 
@@ -280,7 +280,7 @@ struct link_ap_info_t {
 	struct fh_parms fh_parameter;	/* +24 */
 	struct ds_parms ds_parameter;	/* +29 */
 	struct cf_parms cf_parameter;	/* +30 */
-	struct ibss_parms_t ibss_parameter;	/* +36 */
+	struct ibss_parms ibss_parameter;	/* +36 */
 	struct erp_params_t erp_parameter;	/* +38 */
 	u8 pad1;	/* +39 */
 	struct rate_set8 ext_rate_set;	/* +40 */
