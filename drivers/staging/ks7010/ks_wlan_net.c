@@ -73,7 +73,7 @@ static int ks_wlan_open(struct net_device *dev);
 static void ks_wlan_tx_timeout(struct net_device *dev);
 static int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int ks_wlan_close(struct net_device *dev);
-static void ks_wlan_set_multicast_list(struct net_device *dev);
+static void ks_wlan_set_rx_mode(struct net_device *dev);
 static struct net_device_stats *ks_wlan_get_stats(struct net_device *dev);
 static int ks_wlan_set_mac_address(struct net_device *dev, void *addr);
 static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq,
@@ -2817,7 +2817,7 @@ void send_packet_complete(struct ks_wlan_private *priv, struct sk_buff *skb)
  * This routine is not state sensitive and need not be SMP locked.
  */
 static
-void ks_wlan_set_multicast_list(struct net_device *dev)
+void ks_wlan_set_rx_mode(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
@@ -2865,7 +2865,7 @@ static const struct net_device_ops ks_wlan_netdev_ops = {
 	.ndo_set_mac_address = ks_wlan_set_mac_address,
 	.ndo_get_stats = ks_wlan_get_stats,
 	.ndo_tx_timeout = ks_wlan_tx_timeout,
-	.ndo_set_rx_mode = ks_wlan_set_multicast_list,
+	.ndo_set_rx_mode = ks_wlan_set_rx_mode,
 };
 
 int ks_wlan_net_start(struct net_device *dev)
