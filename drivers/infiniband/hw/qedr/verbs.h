@@ -38,7 +38,6 @@ int qedr_query_port(struct ib_device *, u8 port, struct ib_port_attr *props);
 int qedr_modify_port(struct ib_device *, u8 port, int mask,
 		     struct ib_port_modify *props);
 
-int qedr_query_gid(struct ib_device *, u8 port, int index, union ib_gid *gid);
 int qedr_iw_query_gid(struct ib_device *ibdev, u8 port,
 		      int index, union ib_gid *gid);
 

@@ -888,24 +888,9 @@ out:
 static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			     union ib_gid *gid)
 {
-	int ret;
-
 	if (rdma_protocol_ib(ibdev, port))
 		return __mlx4_ib_query_gid(ibdev, port, index, gid, 0);
-
-	if (!rdma_protocol_roce(ibdev, port))
-		return -ENODEV;
-
-	if (!rdma_cap_roce_gid_table(ibdev, port))
-		return -ENODEV;
-
-	ret = ib_get_cached_gid(ibdev, port, index, gid, NULL);
-	if (ret == -EAGAIN) {
-		memcpy(gid, &zgid, sizeof(*gid));
-		return 0;
-	}
-
-	return ret;
+	return 0;
 }
 
 static int mlx4_ib_query_sl2vl(struct ib_device *ibdev, u8 port, u64 *sl2vl_tbl)

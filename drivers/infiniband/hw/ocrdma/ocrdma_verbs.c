@@ -62,24 +62,6 @@ int ocrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 	return 0;
 }
 
-int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
-		     int index, union ib_gid *sgid)
-{
-	int ret;
-
-	memset(sgid, 0, sizeof(*sgid));
-	if (index >= OCRDMA_MAX_SGID)
-		return -EINVAL;
-
-	ret = ib_get_cached_gid(ibdev, port, index, sgid, NULL);
-	if (ret == -EAGAIN) {
-		memcpy(sgid, &zgid, sizeof(*sgid));
-		return 0;
-	}
-
-	return ret;
-}
-
 int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 			struct ib_udata *uhw)
 {

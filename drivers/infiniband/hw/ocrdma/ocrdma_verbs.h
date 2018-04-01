@@ -61,8 +61,6 @@ enum rdma_protocol_type
 ocrdma_query_protocol(struct ib_device *device, u8 port_num);
 
 void ocrdma_get_guid(struct ocrdma_dev *, u8 *guid);
-int ocrdma_query_gid(struct ib_device *, u8 port,
-		     int index, union ib_gid *gid);
 struct net_device *ocrdma_get_netdev(struct ib_device *device, u8 port_num);
 int ocrdma_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
 

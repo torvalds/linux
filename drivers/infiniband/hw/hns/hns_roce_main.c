@@ -296,12 +296,6 @@ static enum rdma_link_layer hns_roce_get_link_layer(struct ib_device *device,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static int hns_roce_query_gid(struct ib_device *ib_dev, u8 port_num, int index,
-			      union ib_gid *gid)
-{
-	return 0;
-}
-
 static int hns_roce_query_pkey(struct ib_device *ib_dev, u8 port, u16 index,
 			       u16 *pkey)
 {
@@ -482,7 +476,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->modify_port		= hns_roce_modify_port;
 	ib_dev->get_link_layer		= hns_roce_get_link_layer;
 	ib_dev->get_netdev		= hns_roce_get_netdev;
-	ib_dev->query_gid		= hns_roce_query_gid;
 	ib_dev->add_gid			= hns_roce_add_gid;
 	ib_dev->del_gid			= hns_roce_del_gid;
 	ib_dev->query_pkey		= hns_roce_query_pkey;
