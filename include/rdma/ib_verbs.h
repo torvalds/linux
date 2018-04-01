@@ -2141,6 +2141,10 @@ struct ib_device {
 	 */
 	struct net_device	  *(*get_netdev)(struct ib_device *device,
 						 u8 port_num);
+	/* query_gid should be return GID value for @device, when @port_num
+	 * link layer is either IB or iWarp. It is no-op if @port_num port
+	 * is RoCE link layer.
+	 */
 	int		           (*query_gid)(struct ib_device *device,
 						u8 port_num, int index,
 						union ib_gid *gid);
