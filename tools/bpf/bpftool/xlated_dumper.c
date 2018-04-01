@@ -114,7 +114,7 @@ static struct kernel_sym *kernel_syms_search(struct dump_data *dd,
 		       sizeof(*dd->sym_mapping), kernel_syms_cmp) : NULL;
 }
 
-static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
+static void print_insn(void *private_data, const char *fmt, ...)
 {
 	va_list args;
 
@@ -124,7 +124,7 @@ static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 }
 
 static void
-print_insn_for_graph(struct bpf_verifier_env *env, const char *fmt, ...)
+print_insn_for_graph(void *private_data, const char *fmt, ...)
 {
 	char buf[64], *p;
 	va_list args;
@@ -154,7 +154,7 @@ print_insn_for_graph(struct bpf_verifier_env *env, const char *fmt, ...)
 	printf("%s", buf);
 }
 
-static void print_insn_json(struct bpf_verifier_env *env, const char *fmt, ...)
+static void print_insn_json(void *private_data, const char *fmt, ...)
 {
 	unsigned int l = strlen(fmt);
 	char chomped_fmt[l];
@@ -248,7 +248,7 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 
 		jsonw_start_object(json_wtr);
 		jsonw_name(json_wtr, "disasm");
-		print_bpf_insn(&cbs, NULL, insn + i, true);
+		print_bpf_insn(&cbs, insn + i, true);
 
 		if (opcodes) {
 			jsonw_name(json_wtr, "opcodes");
@@ -302,7 +302,7 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
 
 		printf("% 4d: ", i);
-		print_bpf_insn(&cbs, NULL, insn + i, true);
+		print_bpf_insn(&cbs, insn + i, true);
 
 		if (opcodes) {
 			printf("       ");
@@ -331,7 +331,7 @@ void dump_xlated_for_graph(struct dump_data *dd, void *buf_start, void *buf_end,
 
 	for (; cur <= insn_end; cur++) {
 		printf("% 4d: ", (int)(cur - insn_start + start_idx));
-		print_bpf_insn(&cbs, NULL, cur, true);
+		print_bpf_insn(&cbs, cur, true);
 		if (cur != insn_end)
 			printf(" | ");
 	}

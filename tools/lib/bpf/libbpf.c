@@ -203,6 +203,8 @@ struct bpf_program {
 	struct bpf_object *obj;
 	void *priv;
 	bpf_program_clear_priv_t clear_priv;
+
+	enum bpf_attach_type expected_attach_type;
 };
 
 struct bpf_map {
@@ -1162,21 +1164,31 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 }
 
 static int
-load_program(enum bpf_prog_type type, const char *name, struct bpf_insn *insns,
-	     int insns_cnt, char *license, u32 kern_version, int *pfd)
+load_program(enum bpf_prog_type type, enum bpf_attach_type expected_attach_type,
+	     const char *name, struct bpf_insn *insns, int insns_cnt,
+	     char *license, u32 kern_version, int *pfd)
 {
-	int ret;
+	struct bpf_load_program_attr load_attr;
 	char *log_buf;
+	int ret;
 
-	if (!insns || !insns_cnt)
+	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
+	load_attr.prog_type = type;
+	load_attr.expected_attach_type = expected_attach_type;
+	load_attr.name = name;
+	load_attr.insns = insns;
+	load_attr.insns_cnt = insns_cnt;
+	load_attr.license = license;
+	load_attr.kern_version = kern_version;
+
+	if (!load_attr.insns || !load_attr.insns_cnt)
 		return -EINVAL;
 
 	log_buf = malloc(BPF_LOG_BUF_SIZE);
 	if (!log_buf)
 		pr_warning("Alloc log buffer for bpf loader error, continue without log\n");
 
-	ret = bpf_load_program_name(type, name, insns, insns_cnt, license,
-				    kern_version, log_buf, BPF_LOG_BUF_SIZE);
+	ret = bpf_load_program_xattr(&load_attr, log_buf, BPF_LOG_BUF_SIZE);
 
 	if (ret >= 0) {
 		*pfd = ret;
@@ -1192,18 +1204,18 @@ load_program(enum bpf_prog_type type, const char *name, struct bpf_insn *insns,
 		pr_warning("-- BEGIN DUMP LOG ---\n");
 		pr_warning("\n%s\n", log_buf);
 		pr_warning("-- END LOG --\n");
-	} else if (insns_cnt >= BPF_MAXINSNS) {
-		pr_warning("Program too large (%d insns), at most %d insns\n",
-			   insns_cnt, BPF_MAXINSNS);
+	} else if (load_attr.insns_cnt >= BPF_MAXINSNS) {
+		pr_warning("Program too large (%zu insns), at most %d insns\n",
+			   load_attr.insns_cnt, BPF_MAXINSNS);
 		ret = -LIBBPF_ERRNO__PROG2BIG;
 	} else {
 		/* Wrong program type? */
-		if (type != BPF_PROG_TYPE_KPROBE) {
+		if (load_attr.prog_type != BPF_PROG_TYPE_KPROBE) {
 			int fd;
 
-			fd = bpf_load_program_name(BPF_PROG_TYPE_KPROBE, name,
-						   insns, insns_cnt, license,
-						   kern_version, NULL, 0);
+			load_attr.prog_type = BPF_PROG_TYPE_KPROBE;
+			load_attr.expected_attach_type = 0;
+			fd = bpf_load_program_xattr(&load_attr, NULL, 0);
 			if (fd >= 0) {
 				close(fd);
 				ret = -LIBBPF_ERRNO__PROGTYPE;
@@ -1247,8 +1259,9 @@ bpf_program__load(struct bpf_program *prog,
 			pr_warning("Program '%s' is inconsistent: nr(%d) != 1\n",
 				   prog->section_name, prog->instances.nr);
 		}
-		err = load_program(prog->type, prog->name, prog->insns,
-				   prog->insns_cnt, license, kern_version, &fd);
+		err = load_program(prog->type, prog->expected_attach_type,
+				   prog->name, prog->insns, prog->insns_cnt,
+				   license, kern_version, &fd);
 		if (!err)
 			prog->instances.fds[0] = fd;
 		goto out;
@@ -1276,8 +1289,8 @@ bpf_program__load(struct bpf_program *prog,
 			continue;
 		}
 
-		err = load_program(prog->type, prog->name,
-				   result.new_insn_ptr,
+		err = load_program(prog->type, prog->expected_attach_type,
+				   prog->name, result.new_insn_ptr,
 				   result.new_insn_cnt,
 				   license, kern_version, &fd);
 
@@ -1835,11 +1848,25 @@ BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
-#define BPF_PROG_SEC(string, type) { string, sizeof(string) - 1, type }
+static void bpf_program__set_expected_attach_type(struct bpf_program *prog,
+						 enum bpf_attach_type type)
+{
+	prog->expected_attach_type = type;
+}
+
+#define BPF_PROG_SEC_FULL(string, ptype, atype) \
+	{ string, sizeof(string) - 1, ptype, atype }
+
+#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
+
+#define BPF_SA_PROG_SEC(string, ptype) \
+	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
+
 static const struct {
 	const char *sec;
 	size_t len;
 	enum bpf_prog_type prog_type;
+	enum bpf_attach_type expected_attach_type;
 } section_names[] = {
 	BPF_PROG_SEC("socket",		BPF_PROG_TYPE_SOCKET_FILTER),
 	BPF_PROG_SEC("kprobe/",		BPF_PROG_TYPE_KPROBE),
@@ -1858,10 +1885,17 @@ static const struct {
 	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
 	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
 	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
+	BPF_SA_PROG_SEC("cgroup/bind4",	BPF_CGROUP_INET4_BIND),
+	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
+	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
+	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
 };
-#undef BPF_PROG_SEC
 
-static enum bpf_prog_type bpf_program__guess_type(struct bpf_program *prog)
+#undef BPF_PROG_SEC
+#undef BPF_PROG_SEC_FULL
+#undef BPF_SA_PROG_SEC
+
+static int bpf_program__identify_section(struct bpf_program *prog)
 {
 	int i;
 
@@ -1871,13 +1905,13 @@ static enum bpf_prog_type bpf_program__guess_type(struct bpf_program *prog)
 	for (i = 0; i < ARRAY_SIZE(section_names); i++)
 		if (strncmp(prog->section_name, section_names[i].sec,
 			    section_names[i].len) == 0)
-			return section_names[i].prog_type;
+			return i;
 
 err:
 	pr_warning("failed to guess program type based on section name %s\n",
 		   prog->section_name);
 
-	return BPF_PROG_TYPE_UNSPEC;
+	return -1;
 }
 
 int bpf_map__fd(struct bpf_map *map)
@@ -1977,11 +2011,30 @@ long libbpf_get_error(const void *ptr)
 int bpf_prog_load(const char *file, enum bpf_prog_type type,
 		  struct bpf_object **pobj, int *prog_fd)
 {
+	struct bpf_prog_load_attr attr;
+
+	memset(&attr, 0, sizeof(struct bpf_prog_load_attr));
+	attr.file = file;
+	attr.prog_type = type;
+	attr.expected_attach_type = 0;
+
+	return bpf_prog_load_xattr(&attr, pobj, prog_fd);
+}
+
+int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
+			struct bpf_object **pobj, int *prog_fd)
+{
 	struct bpf_program *prog, *first_prog = NULL;
+	enum bpf_attach_type expected_attach_type;
+	enum bpf_prog_type prog_type;
 	struct bpf_object *obj;
+	int section_idx;
 	int err;
 
-	obj = bpf_object__open(file);
+	if (!attr)
+		return -EINVAL;
+
+	obj = bpf_object__open(attr->file);
 	if (IS_ERR(obj))
 		return -ENOENT;
 
@@ -1990,15 +2043,23 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 		 * If type is not specified, try to guess it based on
 		 * section name.
 		 */
-		if (type == BPF_PROG_TYPE_UNSPEC) {
-			type = bpf_program__guess_type(prog);
-			if (type == BPF_PROG_TYPE_UNSPEC) {
+		prog_type = attr->prog_type;
+		expected_attach_type = attr->expected_attach_type;
+		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
+			section_idx = bpf_program__identify_section(prog);
+			if (section_idx < 0) {
 				bpf_object__close(obj);
 				return -EINVAL;
 			}
+			prog_type = section_names[section_idx].prog_type;
+			expected_attach_type =
+				section_names[section_idx].expected_attach_type;
 		}
 
-		bpf_program__set_type(prog, type);
+		bpf_program__set_type(prog, prog_type);
+		bpf_program__set_expected_attach_type(prog,
+						      expected_attach_type);
+
 		if (prog->idx != obj->efile.text_shndx && !first_prog)
 			first_prog = prog;
 	}

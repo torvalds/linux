@@ -72,6 +72,7 @@ enum nfp_relo_type {
 #define BR_OFF_RELO		15000
 
 enum static_regs {
+	STATIC_REG_IMMA		= 20, /* Bank AB */
 	STATIC_REG_IMM		= 21, /* Bank AB */
 	STATIC_REG_STACK	= 22, /* Bank A */
 	STATIC_REG_PKT_LEN	= 22, /* Bank B */
@@ -91,6 +92,8 @@ enum pkt_vec {
 #define pptr_reg(np)	pv_ctm_ptr(np)
 #define imm_a(np)	reg_a(STATIC_REG_IMM)
 #define imm_b(np)	reg_b(STATIC_REG_IMM)
+#define imma_a(np)	reg_a(STATIC_REG_IMMA)
+#define imma_b(np)	reg_b(STATIC_REG_IMMA)
 #define imm_both(np)	reg_both(STATIC_REG_IMM)
 
 #define NFP_BPF_ABI_FLAGS	reg_imm(0)
@@ -128,6 +131,10 @@ enum pkt_vec {
  *
  * @helpers:		helper addressess for various calls
  * @helpers.map_lookup:		map lookup helper address
+ * @helpers.map_update:		map update helper address
+ * @helpers.map_delete:		map delete helper address
+ *
+ * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -162,7 +169,18 @@ struct nfp_app_bpf {
 
 	struct {
 		u32 map_lookup;
+		u32 map_update;
+		u32 map_delete;
 	} helpers;
+
+	bool pseudo_random;
+};
+
+enum nfp_bpf_map_use {
+	NFP_MAP_UNUSED = 0,
+	NFP_MAP_USE_READ,
+	NFP_MAP_USE_WRITE,
+	NFP_MAP_USE_ATOMIC_CNT,
 };
 
 /**
@@ -171,12 +189,14 @@ struct nfp_app_bpf {
  * @bpf:	back pointer to bpf app private structure
  * @tid:	table id identifying map on datapath
  * @l:		link on the nfp_app_bpf->map_list list
+ * @use_map:	map of how the value is used (in 4B chunks)
  */
 struct nfp_bpf_map {
 	struct bpf_offloaded_map *offmap;
 	struct nfp_app_bpf *bpf;
 	u32 tid;
 	struct list_head l;
+	enum nfp_bpf_map_use use_map[];
 };
 
 struct nfp_prog;
@@ -190,6 +210,16 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 #define nfp_meta_next(meta)	list_next_entry(meta, l)
 #define nfp_meta_prev(meta)	list_prev_entry(meta, l)
 
+/**
+ * struct nfp_bpf_reg_state - register state for calls
+ * @reg: BPF register state from latest path
+ * @var_off: for stack arg - changes stack offset on different paths
+ */
+struct nfp_bpf_reg_state {
+	struct bpf_reg_state reg;
+	bool var_off;
+};
+
 #define FLAG_INSN_IS_JUMP_DST	BIT(0)
 
 /**
@@ -199,11 +229,16 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @ldst_gather_len: memcpy length gathered from load/store sequence
  * @paired_st: the paired store insn at the head of the sequence
  * @ptr_not_const: pointer is not always constant
+ * @pkt_cache: packet data cache information
+ * @pkt_cache.range_start: start offset for associated packet data cache
+ * @pkt_cache.range_end: end offset for associated packet data cache
+ * @pkt_cache.do_init: this read needs to initialize packet data cache
+ * @xadd_over_16bit: 16bit immediate is not guaranteed
+ * @xadd_maybe_16bit: 16bit immediate is possible
  * @jmp_dst: destination info for jump instructions
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
- * @arg2_var_off: arg2 changes stack offset on different paths
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -214,18 +249,27 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 struct nfp_insn_meta {
 	struct bpf_insn insn;
 	union {
+		/* pointer ops (ld/st/xadd) */
 		struct {
 			struct bpf_reg_state ptr;
 			struct bpf_insn *paired_st;
 			s16 ldst_gather_len;
 			bool ptr_not_const;
+			struct {
+				s16 range_start;
+				s16 range_end;
+				bool do_init;
+			} pkt_cache;
+			bool xadd_over_16bit;
+			bool xadd_maybe_16bit;
 		};
+		/* jump */
 		struct nfp_insn_meta *jmp_dst;
+		/* function calls */
 		struct {
 			u32 func_id;
 			struct bpf_reg_state arg1;
-			struct bpf_reg_state arg2;
-			bool arg2_var_off;
+			struct nfp_bpf_reg_state arg2;
 		};
 	};
 	unsigned int off;
@@ -267,6 +311,41 @@ static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
 static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
 {
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM);
+}
+
+static inline bool is_mbpf_load_pkt(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_load(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
+static inline bool is_mbpf_store_pkt(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_store(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
+static inline bool is_mbpf_classic_load(const struct nfp_insn_meta *meta)
+{
+	u8 code = meta->insn.code;
+
+	return BPF_CLASS(code) == BPF_LD &&
+	       (BPF_MODE(code) == BPF_ABS || BPF_MODE(code) == BPF_IND);
+}
+
+static inline bool is_mbpf_classic_store(const struct nfp_insn_meta *meta)
+{
+	u8 code = meta->insn.code;
+
+	return BPF_CLASS(code) == BPF_ST && BPF_MODE(code) == BPF_MEM;
+}
+
+static inline bool is_mbpf_classic_store_pkt(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_classic_store(meta) && meta->ptr.type == PTR_TO_PACKET;
+}
+
+static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
+{
+	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_XADD);
 }
 
 /**
