@@ -718,7 +718,8 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	thread->hw_brk.address = 0;
 	thread->hw_brk.type = 0;
-	set_breakpoint(&thread->hw_brk);
+	if (ppc_breakpoint_available())
+		set_breakpoint(&thread->hw_brk);
 }
 #endif /* !CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
@@ -815,9 +816,14 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 	memcpy(this_cpu_ptr(&current_brk), brk, sizeof(*brk));
 
 	if (cpu_has_feature(CPU_FTR_DAWR))
+		// Power8 or later
 		set_dawr(brk);
-	else
+	else if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		// Power7 or earlier
 		set_dabr(brk);
+	else
+		// Shouldn't happen due to higher level checks
+		WARN_ON_ONCE(1);
 }
 
 void set_breakpoint(struct arch_hw_breakpoint *brk)
