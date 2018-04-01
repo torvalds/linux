@@ -1192,11 +1192,6 @@ static void get_dev_and_dir(const struct sk_buff *skb,
 		       par->hooknum, __func__);
 		BUG();
 	}
-	if (unlikely(!(*el_dev)->name)) {
-		pr_err("qtaguid[%d]: %s(): no dev->name?!!\n",
-		       par->hooknum, __func__);
-		BUG();
-	}
 	if (skb->dev && *el_dev != skb->dev) {
 		MT_DEBUG("qtaguid[%d]: skb->dev=%p %s vs par->%s=%p %s\n",
 			 par->hooknum, skb->dev, skb->dev->name,
