@@ -408,15 +408,15 @@ static u64 mlxsw_sp_kvdl_large_chunks_occ_get(struct devlink *devlink)
 	return mlxsw_sp_kvdl_part_occ(part);
 }
 
-static struct devlink_resource_ops mlxsw_sp_kvdl_single_ops = {
+static const struct devlink_resource_ops mlxsw_sp_kvdl_single_ops = {
 	.occ_get = mlxsw_sp_kvdl_single_occ_get,
 };
 
-static struct devlink_resource_ops mlxsw_sp_kvdl_chunks_ops = {
+static const struct devlink_resource_ops mlxsw_sp_kvdl_chunks_ops = {
 	.occ_get = mlxsw_sp_kvdl_chunks_occ_get,
 };
 
-static struct devlink_resource_ops mlxsw_sp_kvdl_chunks_large_ops = {
+static const struct devlink_resource_ops mlxsw_sp_kvdl_chunks_large_ops = {
 	.occ_get = mlxsw_sp_kvdl_large_chunks_occ_get,
 };
 

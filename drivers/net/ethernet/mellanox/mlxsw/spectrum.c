@@ -3815,7 +3815,7 @@ static u64 mlxsw_sp_resource_kvd_linear_occ_get(struct devlink *devlink)
 	return mlxsw_sp_kvdl_occ_get(mlxsw_sp);
 }
 
-static struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
+static const struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
 	.occ_get = mlxsw_sp_resource_kvd_linear_occ_get,
 };
 
