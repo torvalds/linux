@@ -525,9 +525,6 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 	if (ib_get_cached_gid(&dev->ib_dev, port_num, index, &gid, &attr))
 		return 0;
 
-	if (!attr.ndev)
-		return 0;
-
 	dev_put(attr.ndev);
 
 	if (attr.gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP)
@@ -546,9 +543,6 @@ int mlx5_get_roce_gid_type(struct mlx5_ib_dev *dev, u8 port_num,
 	ret = ib_get_cached_gid(&dev->ib_dev, port_num, index, &gid, &attr);
 	if (ret)
 		return ret;
-
-	if (!attr.ndev)
-		return -ENODEV;
 
 	dev_put(attr.ndev);
 

@@ -2527,7 +2527,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 
 	status = ib_get_cached_gid(&dev->ibdev, 1, grh->sgid_index,
 				   &sgid, &sgid_attr);
-	if (!status && sgid_attr.ndev) {
+	if (!status) {
 		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
 		memcpy(mac_addr, sgid_attr.ndev->dev_addr, ETH_ALEN);
 		dev_put(sgid_attr.ndev);

@@ -718,8 +718,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				grh->sgid_index);
 			goto fail;
 		}
-		if (sgid_attr.ndev)
-			dev_put(sgid_attr.ndev);
+		dev_put(sgid_attr.ndev);
 		/* Get network header type for this GID */
 		nw_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
 		switch (nw_type) {
@@ -1697,7 +1696,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		status = ib_get_cached_gid(&rdev->ibdev, 1,
 					   grh->sgid_index,
 					   &sgid, &sgid_attr);
-		if (!status && sgid_attr.ndev) {
+		if (!status) {
 			memcpy(qp->qplib_qp.smac, sgid_attr.ndev->dev_addr,
 			       ETH_ALEN);
 			dev_put(sgid_attr.ndev);

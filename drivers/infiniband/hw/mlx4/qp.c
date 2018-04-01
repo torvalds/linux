@@ -2370,7 +2370,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 
 			status = ib_get_cached_gid(&dev->ib_dev, port_num,
 						   index, &gid, &gid_attr);
-			if (!status && gid_attr.ndev) {
+			if (!status) {
 				vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
 				memcpy(smac, gid_attr.ndev->dev_addr, ETH_ALEN);
 				dev_put(gid_attr.ndev);

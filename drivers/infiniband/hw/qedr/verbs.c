@@ -1093,43 +1093,41 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 	if (rc)
 		return rc;
 
-	if (gid_attr.ndev) {
-		qp_params->vlan_id = rdma_vlan_dev_vlan_id(gid_attr.ndev);
+	qp_params->vlan_id = rdma_vlan_dev_vlan_id(gid_attr.ndev);
 
-		dev_put(gid_attr.ndev);
-		nw_type = ib_gid_to_network_type(gid_attr.gid_type, &gid);
-		switch (nw_type) {
-		case RDMA_NETWORK_IPV6:
-			memcpy(&qp_params->sgid.bytes[0], &gid.raw[0],
-			       sizeof(qp_params->sgid));
-			memcpy(&qp_params->dgid.bytes[0],
-			       &grh->dgid,
-			       sizeof(qp_params->dgid));
-			qp_params->roce_mode = ROCE_V2_IPV6;
-			SET_FIELD(qp_params->modify_flags,
-				  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
-			break;
-		case RDMA_NETWORK_IB:
-			memcpy(&qp_params->sgid.bytes[0], &gid.raw[0],
-			       sizeof(qp_params->sgid));
-			memcpy(&qp_params->dgid.bytes[0],
-			       &grh->dgid,
-			       sizeof(qp_params->dgid));
-			qp_params->roce_mode = ROCE_V1;
-			break;
-		case RDMA_NETWORK_IPV4:
-			memset(&qp_params->sgid, 0, sizeof(qp_params->sgid));
-			memset(&qp_params->dgid, 0, sizeof(qp_params->dgid));
-			ipv4_addr = qedr_get_ipv4_from_gid(gid.raw);
-			qp_params->sgid.ipv4_addr = ipv4_addr;
-			ipv4_addr =
-			    qedr_get_ipv4_from_gid(grh->dgid.raw);
-			qp_params->dgid.ipv4_addr = ipv4_addr;
-			SET_FIELD(qp_params->modify_flags,
-				  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
-			qp_params->roce_mode = ROCE_V2_IPV4;
-			break;
-		}
+	dev_put(gid_attr.ndev);
+	nw_type = ib_gid_to_network_type(gid_attr.gid_type, &gid);
+	switch (nw_type) {
+	case RDMA_NETWORK_IPV6:
+		memcpy(&qp_params->sgid.bytes[0], &gid.raw[0],
+		       sizeof(qp_params->sgid));
+		memcpy(&qp_params->dgid.bytes[0],
+		       &grh->dgid,
+		       sizeof(qp_params->dgid));
+		qp_params->roce_mode = ROCE_V2_IPV6;
+		SET_FIELD(qp_params->modify_flags,
+			  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
+		break;
+	case RDMA_NETWORK_IB:
+		memcpy(&qp_params->sgid.bytes[0], &gid.raw[0],
+		       sizeof(qp_params->sgid));
+		memcpy(&qp_params->dgid.bytes[0],
+		       &grh->dgid,
+		       sizeof(qp_params->dgid));
+		qp_params->roce_mode = ROCE_V1;
+		break;
+	case RDMA_NETWORK_IPV4:
+		memset(&qp_params->sgid, 0, sizeof(qp_params->sgid));
+		memset(&qp_params->dgid, 0, sizeof(qp_params->dgid));
+		ipv4_addr = qedr_get_ipv4_from_gid(gid.raw);
+		qp_params->sgid.ipv4_addr = ipv4_addr;
+		ipv4_addr =
+		    qedr_get_ipv4_from_gid(grh->dgid.raw);
+		qp_params->dgid.ipv4_addr = ipv4_addr;
+		SET_FIELD(qp_params->modify_flags,
+			  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
+		qp_params->roce_mode = ROCE_V2_IPV4;
+		break;
 	}
 
 	for (i = 0; i < 4; i++) {
