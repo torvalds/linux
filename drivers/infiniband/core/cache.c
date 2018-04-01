@@ -1116,8 +1116,8 @@ static void ib_cache_update(struct ib_device *device,
 
 	if (!use_roce_gid_table) {
 		for (i = 0;  i < gid_cache->table_len; ++i) {
-			ret = ib_query_gid(device, port, i,
-					   gid_cache->table + i, NULL);
+			ret = device->query_gid(device, port, i,
+						gid_cache->table + i);
 			if (ret) {
 				pr_warn("ib_query_gid failed (%d) for %s (index %d)\n",
 					ret, device->name, i);

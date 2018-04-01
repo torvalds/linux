@@ -853,7 +853,7 @@ int ib_query_port(struct ib_device *device,
 	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
 		return 0;
 
-	err = ib_query_gid(device, port_num, 0, &gid, NULL);
+	err = device->query_gid(device, port_num, 0, &gid);
 	if (err)
 		return err;
 
@@ -871,22 +871,13 @@ EXPORT_SYMBOL(ib_query_port);
  * @attr: Returned GID attributes related to this GID index (only in RoCE).
  *   NULL means ignore.
  *
- * ib_query_gid() fetches the specified GID table entry.
+ * ib_query_gid() fetches the specified GID table entry from the cache.
  */
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid,
 		 struct ib_gid_attr *attr)
 {
-	if (rdma_protocol_roce(device, port_num))
-		return ib_get_cached_gid(device, port_num, index, gid, attr);
-
-	if (attr)
-		return -EINVAL;
-
-	if (!device->query_gid)
-		return -EOPNOTSUPP;
-
-	return device->query_gid(device, port_num, index, gid);
+	return ib_get_cached_gid(device, port_num, index, gid, attr);
 }
 EXPORT_SYMBOL(ib_query_gid);
 
