@@ -235,8 +235,7 @@ struct mlxsw_config_profile {
 		used_max_pkey:1,
 		used_ar_sec:1,
 		used_adaptive_routing_group_cap:1,
-		used_kvd_split_data:1; /* indicate for the kvd's values */
-
+		used_kvd_sizes:1;
 	u8	max_vepa_channels;
 	u16	max_mid;
 	u16	max_pgt;
