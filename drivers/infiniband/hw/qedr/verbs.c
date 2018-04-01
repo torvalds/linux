@@ -1093,9 +1093,6 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 	if (rc)
 		return rc;
 
-	if (!memcmp(&gid, &zgid, sizeof(gid)))
-		return -ENOENT;
-
 	if (gid_attr.ndev) {
 		qp_params->vlan_id = rdma_vlan_dev_vlan_id(gid_attr.ndev);
 

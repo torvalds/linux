@@ -411,9 +411,6 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 	if (attr.ndev)
 		dev_put(attr.ndev);
 
-	if (!memcmp(&gid, &zgid, sizeof(gid)))
-		return -EINVAL;
-
 	spin_lock_irqsave(&iboe->lock, flags);
 	port_gid_table = &iboe->gids[port_num - 1];
 

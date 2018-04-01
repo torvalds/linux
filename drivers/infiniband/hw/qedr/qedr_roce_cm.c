@@ -420,12 +420,6 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 		dev_put(sgid_attr.ndev);
 	}
 
-	if (!memcmp(&sgid, &zgid, sizeof(sgid))) {
-		DP_ERR(dev, "gsi post send: GID not found GID index %d\n",
-		       grh->sgid_index);
-		return -ENOENT;
-	}
-
 	has_udp = (sgid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	if (!has_udp) {
 		/* RoCE v1 */
