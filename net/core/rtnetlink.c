@@ -412,17 +412,17 @@ static void __rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
  * __rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
  * @ops: struct rtnl_link_ops * to unregister
  *
- * The caller must hold the rtnl_mutex.
+ * The caller must hold the rtnl_mutex and guarantee net_namespace_list
+ * integrity (hold pernet_ops_rwsem for writing to close the race
+ * with setup_net() and cleanup_net()).
  */
 void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	struct net *net;
 
-	down_read(&net_rwsem);
 	for_each_net(net) {
 		__rtnl_kill_links(net, ops);
 	}
-	up_read(&net_rwsem);
 	list_del(&ops->list);
 }
 EXPORT_SYMBOL_GPL(__rtnl_link_unregister);
