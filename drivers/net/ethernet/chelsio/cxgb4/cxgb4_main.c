@@ -4549,18 +4549,32 @@ static int adap_init0(struct adapter *adap)
 		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.cryptocaps) {
-		/* Should query params here...TODO */
-		params[0] = FW_PARAM_PFVF(NCRYPTO_LOOKASIDE);
-		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
-				      params, val);
-		if (ret < 0) {
-			if (ret != -EINVAL)
+		if (ntohs(caps_cmd.cryptocaps) &
+		    FW_CAPS_CONFIG_CRYPTO_LOOKASIDE) {
+			params[0] = FW_PARAM_PFVF(NCRYPTO_LOOKASIDE);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+					      2, params, val);
+			if (ret < 0) {
+				if (ret != -EINVAL)
+					goto bye;
+			} else {
+				adap->vres.ncrypto_fc = val[0];
+			}
+			adap->num_ofld_uld += 1;
+		}
+		if (ntohs(caps_cmd.cryptocaps) &
+		    FW_CAPS_CONFIG_TLS_INLINE) {
+			params[0] = FW_PARAM_PFVF(TLS_START);
+			params[1] = FW_PARAM_PFVF(TLS_END);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+					      2, params, val);
+			if (ret < 0)
 				goto bye;
-		} else {
-			adap->vres.ncrypto_fc = val[0];
+			adap->vres.key.start = val[0];
+			adap->vres.key.size = val[1] - val[0] + 1;
+			adap->num_uld += 1;
 		}
 		adap->params.crypto = ntohs(caps_cmd.cryptocaps);
-		adap->num_uld += 1;
 	}
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV

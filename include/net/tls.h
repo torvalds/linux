@@ -56,6 +56,32 @@
 #define TLS_RECORD_TYPE_DATA		0x17
 
 #define TLS_AAD_SPACE_SIZE		13
+#define TLS_DEVICE_NAME_MAX		32
+
+/*
+ * This structure defines the routines for Inline TLS driver.
+ * The following routines are optional and filled with a
+ * null pointer if not defined.
+ *
+ * @name: Its the name of registered Inline tls device
+ * @dev_list: Inline tls device list
+ * int (*feature)(struct tls_device *device);
+ *     Called to return Inline TLS driver capability
+ *
+ * int (*hash)(struct tls_device *device, struct sock *sk);
+ *     This function sets Inline driver for listen and program
+ *     device specific functioanlity as required
+ *
+ * void (*unhash)(struct tls_device *device, struct sock *sk);
+ *     This function cleans listen state set by Inline TLS driver
+ */
+struct tls_device {
+	char name[TLS_DEVICE_NAME_MAX];
+	struct list_head dev_list;
+	int  (*feature)(struct tls_device *device);
+	int  (*hash)(struct tls_device *device, struct sock *sk);
+	void (*unhash)(struct tls_device *device, struct sock *sk);
+};
 
 struct tls_sw_context {
 	struct crypto_aead *aead_send;
@@ -114,7 +140,7 @@ struct tls_context {
 
 	void *priv_ctx;
 
-	u8 conf:2;
+	u8 conf:3;
 
 	struct cipher_context tx;
 	struct cipher_context rx;
@@ -135,6 +161,8 @@ struct tls_context {
 	int  (*getsockopt)(struct sock *sk, int level,
 			   int optname, char __user *optval,
 			   int __user *optlen);
+	int  (*hash)(struct sock *sk);
+	void (*unhash)(struct sock *sk);
 };
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
@@ -283,5 +311,7 @@ static inline struct tls_offload_context *tls_offload_ctx(
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
+void tls_register_device(struct tls_device *device);
+void tls_unregister_device(struct tls_device *device);
 
 #endif /* _TLS_OFFLOAD_H */

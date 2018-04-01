@@ -237,6 +237,7 @@ enum cxgb4_uld {
 	CXGB4_ULD_ISCSI,
 	CXGB4_ULD_ISCSIT,
 	CXGB4_ULD_CRYPTO,
+	CXGB4_ULD_TLS,
 	CXGB4_ULD_MAX
 };
 
@@ -289,6 +290,7 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range qp;
 	struct cxgb4_range cq;
 	struct cxgb4_range ocq;
+	struct cxgb4_range key;
 	unsigned int ncrypto_fc;
 };
 
@@ -300,6 +302,9 @@ struct chcr_stats_debug {
 	atomic_t error;
 	atomic_t fallback;
 	atomic_t ipsec_cnt;
+	atomic_t tls_pdu_tx;
+	atomic_t tls_pdu_rx;
+	atomic_t tls_key;
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \
@@ -382,6 +387,8 @@ struct cxgb4_uld_info {
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
+int cxgb4_immdata_send(struct net_device *dev, unsigned int idx,
+		       const void *src, unsigned int len);
 int cxgb4_crypto_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
