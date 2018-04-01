@@ -157,7 +157,7 @@ static void del_roce_gid(struct ib_device *device, u8 port_num,
 		 table->data_vec[ix].gid.raw);
 
 	if (rdma_cap_roce_gid_table(device, port_num))
-		device->del_gid(device, port_num, ix,
+		device->del_gid(&table->data_vec[ix].attr,
 				&table->data_vec[ix].context);
 	dev_put(table->data_vec[ix].attr.ndev);
 }
@@ -186,8 +186,7 @@ static int add_roce_gid(struct ib_gid_table *table,
 	}
 
 	if (rdma_cap_roce_gid_table(attr->device, attr->port_num)) {
-		ret = attr->device->add_gid(attr->device, attr->port_num,
-					    ix, gid, attr, &entry->context);
+		ret = attr->device->add_gid(gid, attr, &entry->context);
 		if (ret) {
 			pr_err("%s GID add failed device=%s port=%d index=%d\n",
 			       __func__, attr->device->name, attr->port_num,

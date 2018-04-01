@@ -62,17 +62,10 @@ static DEFINE_MUTEX(pvrdma_device_list_lock);
 static LIST_HEAD(pvrdma_device_list);
 static struct workqueue_struct *event_wq;
 
-static int pvrdma_add_gid(struct ib_device *ibdev,
-			  u8 port_num,
-			  unsigned int index,
-			  const union ib_gid *gid,
+static int pvrdma_add_gid(const union ib_gid *gid,
 			  const struct ib_gid_attr *attr,
 			  void **context);
-static int pvrdma_del_gid(struct ib_device *ibdev,
-			  u8 port_num,
-			  unsigned int index,
-			  void **context);
-
+static int pvrdma_del_gid(const struct ib_gid_attr *attr, void **context);
 
 static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 			char *buf)
@@ -657,18 +650,15 @@ static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 	return 0;
 }
 
-static int pvrdma_add_gid(struct ib_device *ibdev,
-			  u8 port_num,
-			  unsigned int index,
-			  const union ib_gid *gid,
+static int pvrdma_add_gid(const union ib_gid *gid,
 			  const struct ib_gid_attr *attr,
 			  void **context)
 {
-	struct pvrdma_dev *dev = to_vdev(ibdev);
+	struct pvrdma_dev *dev = to_vdev(attr->device);
 
 	return pvrdma_add_gid_at_index(dev, gid,
 				       ib_gid_type_to_pvrdma(attr->gid_type),
-				       index);
+				       attr->index);
 }
 
 static int pvrdma_del_gid_at_index(struct pvrdma_dev *dev, int index)
@@ -698,17 +688,14 @@ static int pvrdma_del_gid_at_index(struct pvrdma_dev *dev, int index)
 	return 0;
 }
 
-static int pvrdma_del_gid(struct ib_device *ibdev,
-			  u8 port_num,
-			  unsigned int index,
-			  void **context)
+static int pvrdma_del_gid(const struct ib_gid_attr *attr, void **context)
 {
-	struct pvrdma_dev *dev = to_vdev(ibdev);
+	struct pvrdma_dev *dev = to_vdev(attr->device);
 
 	dev_dbg(&dev->pdev->dev, "removing gid at index %u from %s",
-		index, dev->netdev->name);
+		attr->index, dev->netdev->name);
 
-	return pvrdma_del_gid_at_index(dev, index);
+	return pvrdma_del_gid_at_index(dev, attr->index);
 }
 
 static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,

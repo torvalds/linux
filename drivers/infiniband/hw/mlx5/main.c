@@ -502,18 +502,19 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u8 port_num,
 				      vlan_id, port_num);
 }
 
-static int mlx5_ib_add_gid(struct ib_device *device, u8 port_num,
-			   unsigned int index, const union ib_gid *gid,
+static int mlx5_ib_add_gid(const union ib_gid *gid,
 			   const struct ib_gid_attr *attr,
 			   __always_unused void **context)
 {
-	return set_roce_addr(to_mdev(device), port_num, index, gid, attr);
+	return set_roce_addr(to_mdev(attr->device), attr->port_num,
+			     attr->index, gid, attr);
 }
 
-static int mlx5_ib_del_gid(struct ib_device *device, u8 port_num,
-			   unsigned int index, __always_unused void **context)
+static int mlx5_ib_del_gid(const struct ib_gid_attr *attr,
+			   __always_unused void **context)
 {
-	return set_roce_addr(to_mdev(device), port_num, index, NULL, NULL);
+	return set_roce_addr(to_mdev(attr->device), attr->port_num,
+			     attr->index, NULL, NULL);
 }
 
 __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,

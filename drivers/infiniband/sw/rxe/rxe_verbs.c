@@ -77,19 +77,17 @@ out:
 	return rc;
 }
 
-static int rxe_add_gid(struct ib_device *device, u8 port_num, unsigned int
-		       index, const union ib_gid *gid,
+static int rxe_add_gid(const union ib_gid *gid,
 		       const struct ib_gid_attr *attr, void **context)
 {
-	if (index >= RXE_PORT_GID_TBL_LEN)
+	if (attr->index >= RXE_PORT_GID_TBL_LEN)
 		return -EINVAL;
 	return 0;
 }
 
-static int rxe_del_gid(struct ib_device *device, u8 port_num, unsigned int
-		       index, void **context)
+static int rxe_del_gid(const struct ib_gid_attr *attr, void **context)
 {
-	if (index >= RXE_PORT_GID_TBL_LEN)
+	if (attr->index >= RXE_PORT_GID_TBL_LEN)
 		return -EINVAL;
 	return 0;
 }
