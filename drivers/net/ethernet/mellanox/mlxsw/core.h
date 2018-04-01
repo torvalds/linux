@@ -257,7 +257,6 @@ struct mlxsw_config_profile {
 	u32	kvd_linear_size;
 	u8	kvd_hash_single_parts;
 	u8	kvd_hash_double_parts;
-	u8	resource_query_enable;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
@@ -314,6 +313,7 @@ struct mlxsw_driver {
 			     u64 *p_linear_size);
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
+	bool res_query_enabled;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
