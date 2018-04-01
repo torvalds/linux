@@ -702,6 +702,7 @@ static struct sh_eth_cpu_data rcar_gen1_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
+	.no_xdfar	= 1,
 };
 
 /* R-Car Gen2 and RZ/G1 */
@@ -735,6 +736,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
+	.no_xdfar	= 1,
 	.rmiimode	= 1,
 	.magic		= 1,
 };
@@ -1615,8 +1617,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE &&
-		    mdp->reg_offset[RDFAR] != SH_ETH_OFFSET_INVALID) {
+		if (intr_status & EESR_RDE && !mdp->cd->no_xdfar) {
 			u32 count = (sh_eth_read(ndev, RDFAR) -
 				     sh_eth_read(ndev, RDLAR)) >> 4;
 
@@ -2152,22 +2153,17 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 		add_tsu_reg(TSU_POST2);
 		add_tsu_reg(TSU_POST3);
 		add_tsu_reg(TSU_POST4);
-		if (mdp->reg_offset[TSU_ADRH0] != SH_ETH_OFFSET_INVALID) {
-			/* This is the start of a table, not just a single
-			 * register.
-			 */
-			if (buf) {
-				unsigned int i;
+		/* This is the start of a table, not just a single register. */
+		if (buf) {
+			unsigned int i;
 
-				mark_reg_valid(TSU_ADRH0);
-				for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES * 2; i++)
-					*buf++ = ioread32(
-						mdp->tsu_addr +
-						mdp->reg_offset[TSU_ADRH0] +
-						i * 4);
-			}
-			len += SH_ETH_TSU_CAM_ENTRIES * 2;
+			mark_reg_valid(TSU_ADRH0);
+			for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES * 2; i++)
+				*buf++ = ioread32(mdp->tsu_addr +
+						  mdp->reg_offset[TSU_ADRH0] +
+						  i * 4);
 		}
+		len += SH_ETH_TSU_CAM_ENTRIES * 2;
 	}
 
 #undef mark_reg_valid
