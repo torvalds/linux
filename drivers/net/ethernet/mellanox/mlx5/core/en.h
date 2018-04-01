@@ -1102,6 +1102,10 @@ void mlx5e_update_stats_work(struct work_struct *work);
 
 int mlx5e_bits_invert(unsigned long a, int size);
 
+typedef int (*change_hw_mtu_cb)(struct mlx5e_priv *priv);
+int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
+		     change_hw_mtu_cb set_mtu_cb);
+
 /* ethtool helpers */
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo);

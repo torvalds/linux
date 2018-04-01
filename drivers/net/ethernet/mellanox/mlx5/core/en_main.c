@@ -3495,7 +3495,8 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 	return features;
 }
 
-static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
+int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
+		     change_hw_mtu_cb set_mtu_cb)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_channels new_channels = {};
@@ -3522,7 +3523,7 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if (!reset) {
 		params->sw_mtu = new_mtu;
-		mlx5e_set_dev_port_mtu(priv);
+		set_mtu_cb(priv);
 		netdev->mtu = params->sw_mtu;
 		goto out;
 	}
@@ -3531,12 +3532,17 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	if (err)
 		goto out;
 
-	mlx5e_switch_priv_channels(priv, &new_channels, mlx5e_set_dev_port_mtu);
+	mlx5e_switch_priv_channels(priv, &new_channels, set_mtu_cb);
 	netdev->mtu = new_channels.params.sw_mtu;
 
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
+}
+
+static int mlx5e_change_nic_mtu(struct net_device *netdev, int new_mtu)
+{
+	return mlx5e_change_mtu(netdev, new_mtu, mlx5e_set_dev_port_mtu);
 }
 
 int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
@@ -4033,7 +4039,7 @@ static const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_vlan_rx_kill_vid    = mlx5e_vlan_rx_kill_vid,
 	.ndo_set_features        = mlx5e_set_features,
 	.ndo_fix_features        = mlx5e_fix_features,
-	.ndo_change_mtu          = mlx5e_change_mtu,
+	.ndo_change_mtu          = mlx5e_change_nic_mtu,
 	.ndo_do_ioctl            = mlx5e_ioctl,
 	.ndo_set_tx_maxrate      = mlx5e_set_tx_maxrate,
 	.ndo_udp_tunnel_add      = mlx5e_add_vxlan_port,
