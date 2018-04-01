@@ -1223,7 +1223,7 @@ static int ax88179_led_setting(struct usbnet *dev)
 	return 0;
 }
 
-static int ax88179_link_bind_or_reset(struct usbnet *dev, bool do_reset)
+static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	u8 buf[5];
 	u16 *tmp16;
@@ -1231,11 +1231,12 @@ static int ax88179_link_bind_or_reset(struct usbnet *dev, bool do_reset)
 	struct ax88179_data *ax179_data = (struct ax88179_data *)dev->data;
 	struct ethtool_eee eee_data;
 
+	usbnet_get_endpoints(dev, intf);
+
 	tmp16 = (u16 *)buf;
 	tmp = (u8 *)buf;
 
-	if (!do_reset)
-		memset(ax179_data, 0, sizeof(*ax179_data));
+	memset(ax179_data, 0, sizeof(*ax179_data));
 
 	/* Power up ethernet PHY */
 	*tmp16 = 0;
@@ -1248,13 +1249,9 @@ static int ax88179_link_bind_or_reset(struct usbnet *dev, bool do_reset)
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_CLK_SELECT, 1, 1, tmp);
 	msleep(100);
 
-	if (do_reset)
-		ax88179_auto_detach(dev, 0);
-
 	ax88179_read_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN,
 			 ETH_ALEN, dev->net->dev_addr);
-	if (!do_reset)
-		memcpy(dev->net->perm_addr, dev->net->dev_addr, ETH_ALEN);
+	memcpy(dev->net->perm_addr, dev->net->dev_addr, ETH_ALEN);
 
 	/* RX bulk configuration */
 	memcpy(tmp, &AX88179_BULKIN_SIZE[0], 5);
@@ -1269,21 +1266,19 @@ static int ax88179_link_bind_or_reset(struct usbnet *dev, bool do_reset)
 	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_PAUSE_WATERLVL_HIGH,
 			  1, 1, tmp);
 
-	if (!do_reset) {
-		dev->net->netdev_ops = &ax88179_netdev_ops;
-		dev->net->ethtool_ops = &ax88179_ethtool_ops;
-		dev->net->needed_headroom = 8;
-		dev->net->max_mtu = 4088;
+	dev->net->netdev_ops = &ax88179_netdev_ops;
+	dev->net->ethtool_ops = &ax88179_ethtool_ops;
+	dev->net->needed_headroom = 8;
+	dev->net->max_mtu = 4088;
 
-		/* Initialize MII structure */
-		dev->mii.dev = dev->net;
-		dev->mii.mdio_read = ax88179_mdio_read;
-		dev->mii.mdio_write = ax88179_mdio_write;
-		dev->mii.phy_id_mask = 0xff;
-		dev->mii.reg_num_mask = 0xff;
-		dev->mii.phy_id = 0x03;
-		dev->mii.supports_gmii = 1;
-	}
+	/* Initialize MII structure */
+	dev->mii.dev = dev->net;
+	dev->mii.mdio_read = ax88179_mdio_read;
+	dev->mii.mdio_write = ax88179_mdio_write;
+	dev->mii.phy_id_mask = 0xff;
+	dev->mii.reg_num_mask = 0xff;
+	dev->mii.phy_id = 0x03;
+	dev->mii.supports_gmii = 1;
 
 	dev->net->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			      NETIF_F_RXCSUM;
@@ -1333,13 +1328,6 @@ static int ax88179_link_bind_or_reset(struct usbnet *dev, bool do_reset)
 	usbnet_link_change(dev, 0, 0);
 
 	return 0;
-}
-
-static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
-{
-	usbnet_get_endpoints(dev, intf);
-
-	return ax88179_link_bind_or_reset(dev, false);
 }
 
 static void ax88179_unbind(struct usbnet *dev, struct usb_interface *intf)
@@ -1470,7 +1458,74 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 
 static int ax88179_link_reset(struct usbnet *dev)
 {
-	return ax88179_link_bind_or_reset(dev, true);
+	struct ax88179_data *ax179_data = (struct ax88179_data *)dev->data;
+	u8 tmp[5], link_sts;
+	u16 mode, tmp16, delay = HZ / 10;
+	u32 tmp32 = 0x40000000;
+	unsigned long jtimeout;
+
+	jtimeout = jiffies + delay;
+	while (tmp32 & 0x40000000) {
+		mode = 0;
+		ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, &mode);
+		ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2,
+				  &ax179_data->rxctl);
+
+		/*link up, check the usb device control TX FIFO full or empty*/
+		ax88179_read_cmd(dev, 0x81, 0x8c, 0, 4, &tmp32);
+
+		if (time_after(jiffies, jtimeout))
+			return 0;
+	}
+
+	mode = AX_MEDIUM_RECEIVE_EN | AX_MEDIUM_TXFLOW_CTRLEN |
+	       AX_MEDIUM_RXFLOW_CTRLEN;
+
+	ax88179_read_cmd(dev, AX_ACCESS_MAC, PHYSICAL_LINK_STATUS,
+			 1, 1, &link_sts);
+
+	ax88179_read_cmd(dev, AX_ACCESS_PHY, AX88179_PHY_ID,
+			 GMII_PHY_PHYSR, 2, &tmp16);
+
+	if (!(tmp16 & GMII_PHY_PHYSR_LINK)) {
+		return 0;
+	} else if (GMII_PHY_PHYSR_GIGA == (tmp16 & GMII_PHY_PHYSR_SMASK)) {
+		mode |= AX_MEDIUM_GIGAMODE | AX_MEDIUM_EN_125MHZ;
+		if (dev->net->mtu > 1500)
+			mode |= AX_MEDIUM_JUMBO_EN;
+
+		if (link_sts & AX_USB_SS)
+			memcpy(tmp, &AX88179_BULKIN_SIZE[0], 5);
+		else if (link_sts & AX_USB_HS)
+			memcpy(tmp, &AX88179_BULKIN_SIZE[1], 5);
+		else
+			memcpy(tmp, &AX88179_BULKIN_SIZE[3], 5);
+	} else if (GMII_PHY_PHYSR_100 == (tmp16 & GMII_PHY_PHYSR_SMASK)) {
+		mode |= AX_MEDIUM_PS;
+
+		if (link_sts & (AX_USB_SS | AX_USB_HS))
+			memcpy(tmp, &AX88179_BULKIN_SIZE[2], 5);
+		else
+			memcpy(tmp, &AX88179_BULKIN_SIZE[3], 5);
+	} else {
+		memcpy(tmp, &AX88179_BULKIN_SIZE[3], 5);
+	}
+
+	/* RX bulk configuration */
+	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_RX_BULKIN_QCTRL, 5, 5, tmp);
+
+	dev->rx_urb_size = (1024 * (tmp[3] + 2));
+
+	if (tmp16 & GMII_PHY_PHYSR_FULL)
+		mode |= AX_MEDIUM_FULL_DUPLEX;
+	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
+			  2, 2, &mode);
+
+	ax179_data->eee_enabled = ax88179_chk_eee(dev);
+
+	netif_carrier_on(dev->net);
+
+	return 0;
 }
 
 static int ax88179_reset(struct usbnet *dev)
