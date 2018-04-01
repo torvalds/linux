@@ -1038,7 +1038,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_398[0x3];
 	u8         log_max_tis_per_sq[0x5];
 
-	u8         reserved_at_3a0[0x3];
+	u8         ext_stride_num_range[0x1];
+	u8         reserved_at_3a1[0x2];
 	u8         log_max_stride_sz_rq[0x5];
 	u8         reserved_at_3a8[0x3];
 	u8         log_min_stride_sz_rq[0x5];
@@ -1205,9 +1206,9 @@ struct mlx5_ifc_wq_bits {
 	u8         log_hairpin_num_packets[0x5];
 	u8         reserved_at_128[0x3];
 	u8         log_hairpin_data_sz[0x5];
-	u8         reserved_at_130[0x5];
 
-	u8         log_wqe_num_of_strides[0x3];
+	u8         reserved_at_130[0x4];
+	u8         log_wqe_num_of_strides[0x4];
 	u8         two_byte_shift_en[0x1];
 	u8         reserved_at_139[0x4];
 	u8         log_wqe_stride_size[0x3];

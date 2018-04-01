@@ -782,6 +782,9 @@ static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
 	return (u64)lo | ((u64)hi << 32);
 }
 
+#define MLX5_MPWQE_LOG_NUM_STRIDES_BASE	(9)
+#define MLX5_MPWQE_LOG_STRIDE_SZ_BASE	(6)
+
 struct mpwrq_cqe_bc {
 	__be16	filler_consumed_strides;
 	__be16	byte_cnt;
