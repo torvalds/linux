@@ -397,10 +397,6 @@ void power9_idle(void)
  * all other threads not to stop, and sending a message to any
  * that are in a stop state.
  * Must be called with preemption disabled.
- *
- * DO NOT call this unless cpu_has_feature(CPU_FTR_P9_TM_XER_SO_BUG) is
- * true; otherwise this function will hang the system, due to the
- * optimization in power9_idle_stop.
  */
 void pnv_power9_force_smt4_catch(void)
 {

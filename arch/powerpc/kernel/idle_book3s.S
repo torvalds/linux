@@ -442,20 +442,20 @@ _GLOBAL(power9_offline_stop)
  * r3 contains desired PSSCR register value.
  */
 _GLOBAL(power9_idle_stop)
-BEGIN_FTR_SECTION
-	lwz	r5, PACA_DONT_STOP(r13)
-	cmpwi	r5, 0
-	bne	1f
 	std	r3, PACA_REQ_PSSCR(r13)
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+BEGIN_FTR_SECTION
 	sync
 	lwz	r5, PACA_DONT_STOP(r13)
 	cmpwi	r5, 0
 	bne	1f
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
+#endif
 	mtspr 	SPRN_PSSCR,r3
 	LOAD_REG_ADDR(r4,power_enter_stop)
 	b	pnv_powersave_common
 	/* No return */
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 1:
 	/*
 	 * We get here when TM / thread reconfiguration bug workaround
@@ -465,6 +465,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 	li	r3, 0
 	std	r3, PACA_REQ_PSSCR(r13)
 	blr		/* return 0 for wakeup cause / SRR1 value */
+#endif
 
 /*
  * On waking up from stop 0,1,2 with ESL=1 on POWER9 DD1,
