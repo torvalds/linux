@@ -164,9 +164,6 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 	dev->ibdev.query_gid = qedr_query_gid;
 
-	dev->ibdev.add_gid = qedr_add_gid;
-	dev->ibdev.del_gid = qedr_del_gid;
-
 	dev->ibdev.get_port_immutable = qedr_roce_port_immutable;
 }
 
