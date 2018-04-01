@@ -137,6 +137,9 @@ reset_coalesce:
 #define BNXT_TX_STATS_ENTRY(counter)	\
 	{ BNXT_TX_STATS_OFFSET(counter), __stringify(counter) }
 
+#define BNXT_RX_STATS_EXT_ENTRY(counter)	\
+	{ BNXT_RX_STATS_EXT_OFFSET(counter), __stringify(counter) }
+
 static const struct {
 	long offset;
 	char string[ETH_GSTRING_LEN];
@@ -181,6 +184,8 @@ static const struct {
 	BNXT_RX_STATS_ENTRY(rx_bytes),
 	BNXT_RX_STATS_ENTRY(rx_runt_bytes),
 	BNXT_RX_STATS_ENTRY(rx_runt_frames),
+	BNXT_RX_STATS_ENTRY(rx_stat_discard),
+	BNXT_RX_STATS_ENTRY(rx_stat_err),
 
 	BNXT_TX_STATS_ENTRY(tx_64b_frames),
 	BNXT_TX_STATS_ENTRY(tx_65b_127b_frames),
@@ -216,9 +221,24 @@ static const struct {
 	BNXT_TX_STATS_ENTRY(tx_eee_lpi_duration),
 	BNXT_TX_STATS_ENTRY(tx_total_collisions),
 	BNXT_TX_STATS_ENTRY(tx_bytes),
+	BNXT_TX_STATS_ENTRY(tx_xthol_frames),
+	BNXT_TX_STATS_ENTRY(tx_stat_discard),
+	BNXT_TX_STATS_ENTRY(tx_stat_error),
+};
+
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_port_stats_ext_arr[] = {
+	BNXT_RX_STATS_EXT_ENTRY(link_down_events),
+	BNXT_RX_STATS_EXT_ENTRY(continuous_pause_events),
+	BNXT_RX_STATS_EXT_ENTRY(resume_pause_events),
+	BNXT_RX_STATS_EXT_ENTRY(continuous_roce_pause_events),
+	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
 };
 
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
+#define BNXT_NUM_PORT_STATS_EXT ARRAY_SIZE(bnxt_port_stats_ext_arr)
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -226,6 +246,9 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS)
 		num_stats += BNXT_NUM_PORT_STATS;
+
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT)
+		num_stats += BNXT_NUM_PORT_STATS_EXT;
 
 	return num_stats;
 }
@@ -272,6 +295,14 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (i = 0; i < BNXT_NUM_PORT_STATS; i++, j++) {
 			buf[j] = le64_to_cpu(*(port_stats +
 					       bnxt_port_stats_arr[i].offset));
+		}
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
+		__le64 *port_stats_ext = (__le64 *)bp->hw_rx_port_stats_ext;
+
+		for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++, j++) {
+			buf[j] = le64_to_cpu(*(port_stats_ext +
+					    bnxt_port_stats_ext_arr[i].offset));
 		}
 	}
 }
@@ -334,6 +365,12 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 				buf += ETH_GSTRING_LEN;
 			}
 		}
+		if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
+			for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++) {
+				strcpy(buf, bnxt_port_stats_ext_arr[i].string);
+				buf += ETH_GSTRING_LEN;
+			}
+		}
 		break;
 	case ETH_SS_TEST:
 		if (bp->num_tests)
@@ -388,15 +425,26 @@ static void bnxt_get_channels(struct net_device *dev,
 			      struct ethtool_channels *channel)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int max_rx_rings, max_tx_rings, tcs;
+	int max_tx_sch_inputs;
+
+	/* Get the most up-to-date max_tx_sch_inputs. */
+	if (bp->flags & BNXT_FLAG_NEW_RM)
+		bnxt_hwrm_func_resc_qcaps(bp, false);
+	max_tx_sch_inputs = hw_resc->max_tx_sch_inputs;
 
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
+	if (max_tx_sch_inputs)
+		max_tx_rings = min_t(int, max_tx_rings, max_tx_sch_inputs);
 	channel->max_combined = min_t(int, max_rx_rings, max_tx_rings);
 
 	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
 		max_rx_rings = 0;
 		max_tx_rings = 0;
 	}
+	if (max_tx_sch_inputs)
+		max_tx_rings = min_t(int, max_tx_rings, max_tx_sch_inputs);
 
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
@@ -2535,16 +2583,20 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 			return -EOPNOTSUPP;
 
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
-		if (!rc)
+		if (!rc) {
 			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+			*flags = 0;
+		}
 	} else if (*flags == ETH_RESET_AP) {
 		/* This feature is not supported in older firmware versions */
 		if (bp->hwrm_spec_code < 0x10803)
 			return -EOPNOTSUPP;
 
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_AP);
-		if (!rc)
+		if (!rc) {
 			netdev_info(dev, "Reset Application Processor request successful.\n");
+			*flags = 0;
+		}
 	} else {
 		rc = -EINVAL;
 	}
