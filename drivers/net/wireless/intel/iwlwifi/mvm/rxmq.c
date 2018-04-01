@@ -1082,7 +1082,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			mvm->ampdu_toggle = toggle_bit;
 
 			if (he_phy_data != HE_PHY_DATA_INVAL &&
-			    he_type == RATE_MCS_HE_TYPE_MU) {
+			    (he_type == RATE_MCS_HE_TYPE_MU ||
+			     he_type == RATE_MCS_HE_TYPE_SU)) {
 				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
 				if (FIELD_GET(IWL_RX_HE_PHY_DELIM_EOF,
 					      he_phy_data))
