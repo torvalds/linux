@@ -153,6 +153,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		metadata->u.tun_info.mode |= IP_TUNNEL_INFO_TX;
 		break;
 	default:
+		ret = -EINVAL;
 		goto err_out;
 	}
 
