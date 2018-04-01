@@ -222,12 +222,6 @@ int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
 int security_settime64(const struct timespec64 *ts, const struct timezone *tz);
-static inline int security_settime(const struct timespec *ts, const struct timezone *tz)
-{
-	struct timespec64 ts64 = timespec_to_timespec64(*ts);
-
-	return security_settime64(&ts64, tz);
-}
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
 int security_bprm_set_creds(struct linux_binprm *bprm);
 int security_bprm_check(struct linux_binprm *bprm);
@@ -507,14 +501,6 @@ static inline int security_settime64(const struct timespec64 *ts,
 				     const struct timezone *tz)
 {
 	return cap_settime(ts, tz);
-}
-
-static inline int security_settime(const struct timespec *ts,
-				   const struct timezone *tz)
-{
-	struct timespec64 ts64 = timespec_to_timespec64(*ts);
-
-	return cap_settime(&ts64, tz);
 }
 
 static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
