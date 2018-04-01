@@ -876,6 +876,7 @@ static int __ip_append_data(struct sock *sk,
 	unsigned int maxfraglen, fragheaderlen, maxnonfragsize;
 	int csummode = CHECKSUM_NONE;
 	struct rtable *rt = (struct rtable *)cork->dst;
+	unsigned int wmem_alloc_delta = 0;
 	u32 tskey = 0;
 
 	skb = skb_peek_tail(queue);
@@ -971,11 +972,10 @@ alloc_new_skb:
 						(flags & MSG_DONTWAIT), &err);
 			} else {
 				skb = NULL;
-				if (refcount_read(&sk->sk_wmem_alloc) <=
+				if (refcount_read(&sk->sk_wmem_alloc) + wmem_alloc_delta <=
 				    2 * sk->sk_sndbuf)
-					skb = sock_wmalloc(sk,
-							   alloclen + hh_len + 15, 1,
-							   sk->sk_allocation);
+					skb = alloc_skb(alloclen + hh_len + 15,
+							sk->sk_allocation);
 				if (unlikely(!skb))
 					err = -ENOBUFS;
 			}
@@ -1033,6 +1033,11 @@ alloc_new_skb:
 			/*
 			 * Put the packet on the pending queue.
 			 */
+			if (!skb->destructor) {
+				skb->destructor = sock_wfree;
+				skb->sk = sk;
+				wmem_alloc_delta += skb->truesize;
+			}
 			__skb_queue_tail(queue, skb);
 			continue;
 		}
@@ -1079,12 +1084,13 @@ alloc_new_skb:
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;
-			refcount_add(copy, &sk->sk_wmem_alloc);
+			wmem_alloc_delta += copy;
 		}
 		offset += copy;
 		length -= copy;
 	}
 
+	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return 0;
 
 error_efault:
@@ -1092,6 +1098,7 @@ error_efault:
 error:
 	cork->length -= length;
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
+	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return err;
 }
 
