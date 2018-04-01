@@ -103,6 +103,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 				    unsigned int debug_id)
 {
 	struct rxrpc_call *call;
+	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 
 	call = kmem_cache_zalloc(rxrpc_call_jar, gfp);
 	if (!call)
@@ -153,6 +154,9 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 
 	call->cong_cwnd = 2;
 	call->cong_ssthresh = RXRPC_RXTX_BUFF_SIZE - 1;
+
+	call->rxnet = rxnet;
+	atomic_inc(&rxnet->nr_calls);
 	return call;
 
 nomem_2:
@@ -219,9 +223,10 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 gfp_t gfp,
 					 unsigned int debug_id)
 	__releases(&rx->sk.sk_lock.slock)
+	__acquires(&call->user_mutex)
 {
 	struct rxrpc_call *call, *xcall;
-	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
+	struct rxrpc_net *rxnet;
 	struct rb_node *parent, **pp;
 	const void *here = __builtin_return_address(0);
 	int ret;
@@ -271,6 +276,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	write_unlock(&rx->call_lock);
 
+	rxnet = call->rxnet;
 	write_lock(&rxnet->call_lock);
 	list_add_tail(&call->link, &rxnet->calls);
 	write_unlock(&rxnet->call_lock);
@@ -616,7 +622,7 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
  */
 void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 {
-	struct rxrpc_net *rxnet;
+	struct rxrpc_net *rxnet = call->rxnet;
 	const void *here = __builtin_return_address(0);
 	int n;
 
@@ -630,7 +636,6 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 		ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
 		if (!list_empty(&call->link)) {
-			rxnet = rxrpc_net(sock_net(&call->socket->sk));
 			write_lock(&rxnet->call_lock);
 			list_del_init(&call->link);
 			write_unlock(&rxnet->call_lock);
@@ -646,11 +651,14 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
 {
 	struct rxrpc_call *call = container_of(rcu, struct rxrpc_call, rcu);
+	struct rxrpc_net *rxnet = call->rxnet;
 
 	rxrpc_put_peer(call->peer);
 	kfree(call->rxtx_buffer);
 	kfree(call->rxtx_annotations);
 	kmem_cache_free(rxrpc_call_jar, call);
+	if (atomic_dec_and_test(&rxnet->nr_calls))
+		wake_up_atomic_t(&rxnet->nr_calls);
 }
 
 /*
@@ -715,4 +723,7 @@ void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 	}
 
 	write_unlock(&rxnet->call_lock);
+
+	atomic_dec(&rxnet->nr_calls);
+	wait_on_atomic_t(&rxnet->nr_calls, atomic_t_wait, TASK_UNINTERRUPTIBLE);
 }

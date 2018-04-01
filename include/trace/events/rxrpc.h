@@ -42,6 +42,22 @@ enum rxrpc_skb_trace {
 	rxrpc_skb_tx_seen,
 };
 
+enum rxrpc_local_trace {
+	rxrpc_local_got,
+	rxrpc_local_new,
+	rxrpc_local_processing,
+	rxrpc_local_put,
+	rxrpc_local_queued,
+};
+
+enum rxrpc_peer_trace {
+	rxrpc_peer_got,
+	rxrpc_peer_new,
+	rxrpc_peer_processing,
+	rxrpc_peer_put,
+	rxrpc_peer_queued_error,
+};
+
 enum rxrpc_conn_trace {
 	rxrpc_conn_got,
 	rxrpc_conn_new_client,
@@ -214,6 +230,20 @@ enum rxrpc_congest_change {
 	EM(rxrpc_skb_tx_new,			"Tx NEW") \
 	EM(rxrpc_skb_tx_rotated,		"Tx ROT") \
 	E_(rxrpc_skb_tx_seen,			"Tx SEE")
+
+#define rxrpc_local_traces \
+	EM(rxrpc_local_got,			"GOT") \
+	EM(rxrpc_local_new,			"NEW") \
+	EM(rxrpc_local_processing,		"PRO") \
+	EM(rxrpc_local_put,			"PUT") \
+	E_(rxrpc_local_queued,			"QUE")
+
+#define rxrpc_peer_traces \
+	EM(rxrpc_peer_got,			"GOT") \
+	EM(rxrpc_peer_new,			"NEW") \
+	EM(rxrpc_peer_processing,		"PRO") \
+	EM(rxrpc_peer_put,			"PUT") \
+	E_(rxrpc_peer_queued_error,		"QER")
 
 #define rxrpc_conn_traces \
 	EM(rxrpc_conn_got,			"GOT") \
@@ -416,6 +446,7 @@ enum rxrpc_congest_change {
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
 rxrpc_skb_traces;
+rxrpc_local_traces;
 rxrpc_conn_traces;
 rxrpc_client_traces;
 rxrpc_call_traces;
@@ -438,6 +469,60 @@ rxrpc_congest_changes;
 #undef E_
 #define EM(a, b)	{ a, b },
 #define E_(a, b)	{ a, b }
+
+TRACE_EVENT(rxrpc_local,
+	    TP_PROTO(struct rxrpc_local *local, enum rxrpc_local_trace op,
+		     int usage, const void *where),
+
+	    TP_ARGS(local, op, usage, where),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	local		)
+		    __field(int,		op		)
+		    __field(int,		usage		)
+		    __field(const void *,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->local = local->debug_id;
+		    __entry->op = op;
+		    __entry->usage = usage;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("L=%08x %s u=%d sp=%pSR",
+		      __entry->local,
+		      __print_symbolic(__entry->op, rxrpc_local_traces),
+		      __entry->usage,
+		      __entry->where)
+	    );
+
+TRACE_EVENT(rxrpc_peer,
+	    TP_PROTO(struct rxrpc_peer *peer, enum rxrpc_peer_trace op,
+		     int usage, const void *where),
+
+	    TP_ARGS(peer, op, usage, where),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	peer		)
+		    __field(int,		op		)
+		    __field(int,		usage		)
+		    __field(const void *,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer = peer->debug_id;
+		    __entry->op = op;
+		    __entry->usage = usage;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("P=%08x %s u=%d sp=%pSR",
+		      __entry->peer,
+		      __print_symbolic(__entry->op, rxrpc_peer_traces),
+		      __entry->usage,
+		      __entry->where)
+	    );
 
 TRACE_EVENT(rxrpc_conn,
 	    TP_PROTO(struct rxrpc_connection *conn, enum rxrpc_conn_trace op,

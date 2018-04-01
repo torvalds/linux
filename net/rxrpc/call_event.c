@@ -226,7 +226,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
 	}
 
-	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(oldest, now)));
+	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
 	resend_at += jiffies + rxrpc_resend_timeout;
 	WRITE_ONCE(call->resend_at, resend_at);
 
@@ -238,7 +238,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	 * retransmitting data.
 	 */
 	if (!retrans) {
-		rxrpc_reduce_call_timer(call, resend_at, now,
+		rxrpc_reduce_call_timer(call, resend_at, now_j,
 					rxrpc_timer_set_for_resend);
 		spin_unlock_bh(&call->lock);
 		ack_ts = ktime_sub(now, call->acks_latest_ts);

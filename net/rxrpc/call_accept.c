@@ -138,6 +138,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 	write_unlock(&rx->call_lock);
 
+	rxnet = call->rxnet;
 	write_lock(&rxnet->call_lock);
 	list_add_tail(&call->link, &rxnet->calls);
 	write_unlock(&rxnet->call_lock);
@@ -218,6 +219,8 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		list_del(&conn->proc_link);
 		write_unlock(&rxnet->conn_lock);
 		kfree(conn);
+		if (atomic_dec_and_test(&rxnet->nr_conns))
+			wake_up_atomic_t(&rxnet->nr_conns);
 		tail = (tail + 1) & (size - 1);
 	}
 
@@ -225,7 +228,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 	tail = b->call_backlog_tail;
 	while (CIRC_CNT(head, tail, size) > 0) {
 		struct rxrpc_call *call = b->call_backlog[tail];
-		call->socket = rx;
+		rcu_assign_pointer(call->socket, rx);
 		if (rx->discard_new_call) {
 			_debug("discard %lx", call->user_call_ID);
 			rx->discard_new_call(call, call->user_call_ID);
@@ -295,8 +298,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		b->conn_backlog[conn_tail] = NULL;
 		smp_store_release(&b->conn_backlog_tail,
 				  (conn_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
-		rxrpc_get_local(local);
-		conn->params.local = local;
+		conn->params.local = rxrpc_get_local(local);
 		conn->params.peer = peer;
 		rxrpc_see_connection(conn);
 		rxrpc_new_incoming_connection(rx, conn, skb);
@@ -456,6 +458,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 				     unsigned long user_call_ID,
 				     rxrpc_notify_rx_t notify_rx)
 	__releases(&rx->sk.sk_lock.slock)
+	__acquires(call->user_mutex)
 {
 	struct rxrpc_call *call;
 	struct rb_node *parent, **pp;

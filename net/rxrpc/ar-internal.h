@@ -75,7 +75,9 @@ struct rxrpc_net {
 	u32			epoch;		/* Local epoch for detecting local-end reset */
 	struct list_head	calls;		/* List of calls active in this namespace */
 	rwlock_t		call_lock;	/* Lock for ->calls */
+	atomic_t		nr_calls;	/* Count of allocated calls */
 
+	atomic_t		nr_conns;
 	struct list_head	conn_proc_list;	/* List of conns in this namespace for proc */
 	struct list_head	service_conns;	/* Service conns in this namespace */
 	rwlock_t		conn_lock;	/* Lock for ->conn_proc_list, ->service_conns */
@@ -97,8 +99,16 @@ struct rxrpc_net {
 	struct list_head	local_endpoints;
 	struct mutex		local_mutex;	/* Lock for ->local_endpoints */
 
-	spinlock_t		peer_hash_lock;	/* Lock for ->peer_hash */
 	DECLARE_HASHTABLE	(peer_hash, 10);
+	spinlock_t		peer_hash_lock;	/* Lock for ->peer_hash */
+
+#define RXRPC_KEEPALIVE_TIME 20 /* NAT keepalive time in seconds */
+	u8			peer_keepalive_cursor;
+	ktime_t			peer_keepalive_base;
+	struct hlist_head	peer_keepalive[RXRPC_KEEPALIVE_TIME + 1];
+	struct hlist_head	peer_keepalive_new;
+	struct timer_list	peer_keepalive_timer;
+	struct work_struct	peer_keepalive_work;
 };
 
 /*
@@ -285,6 +295,8 @@ struct rxrpc_peer {
 	struct hlist_head	error_targets;	/* targets for net error distribution */
 	struct work_struct	error_distributor;
 	struct rb_root		service_conns;	/* Service connections */
+	struct hlist_node	keepalive_link;	/* Link in net->peer_keepalive[] */
+	time64_t		last_tx_at;	/* Last time packet sent here */
 	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
 	unsigned int		if_mtu;		/* interface MTU for this peer */
@@ -518,6 +530,7 @@ struct rxrpc_call {
 	struct rxrpc_connection	*conn;		/* connection carrying call */
 	struct rxrpc_peer	*peer;		/* Peer record for remote address */
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
+	struct rxrpc_net	*rxnet;		/* Network namespace to which call belongs */
 	struct mutex		user_mutex;	/* User access mutex */
 	unsigned long		ack_at;		/* When deferred ACK needs to happen */
 	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
@@ -969,30 +982,11 @@ extern void rxrpc_process_local_events(struct rxrpc_local *);
  * local_object.c
  */
 struct rxrpc_local *rxrpc_lookup_local(struct net *, const struct sockaddr_rxrpc *);
-void __rxrpc_put_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *);
+void rxrpc_put_local(struct rxrpc_local *);
+void rxrpc_queue_local(struct rxrpc_local *);
 void rxrpc_destroy_all_locals(struct rxrpc_net *);
-
-static inline void rxrpc_get_local(struct rxrpc_local *local)
-{
-	atomic_inc(&local->usage);
-}
-
-static inline
-struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
-{
-	return atomic_inc_not_zero(&local->usage) ? local : NULL;
-}
-
-static inline void rxrpc_put_local(struct rxrpc_local *local)
-{
-	if (local && atomic_dec_and_test(&local->usage))
-		__rxrpc_put_local(local);
-}
-
-static inline void rxrpc_queue_local(struct rxrpc_local *local)
-{
-	rxrpc_queue_work(&local->processor);
-}
 
 /*
  * misc.c
@@ -1026,6 +1020,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *, bool, rxrpc_serial_t *);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
 int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
 void rxrpc_reject_packets(struct rxrpc_local *);
+void rxrpc_send_keepalive(struct rxrpc_peer *);
 
 /*
  * peer_event.c
@@ -1034,6 +1029,7 @@ void rxrpc_error_report(struct sock *);
 void rxrpc_peer_error_distributor(struct work_struct *);
 void rxrpc_peer_add_rtt(struct rxrpc_call *, enum rxrpc_rtt_rx_trace,
 			rxrpc_serial_t, rxrpc_serial_t, ktime_t, ktime_t);
+void rxrpc_peer_keepalive_worker(struct work_struct *);
 
 /*
  * peer_object.c
@@ -1045,25 +1041,11 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *,
 struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *, gfp_t);
 struct rxrpc_peer *rxrpc_lookup_incoming_peer(struct rxrpc_local *,
 					      struct rxrpc_peer *);
-
-static inline struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer)
-{
-	atomic_inc(&peer->usage);
-	return peer;
-}
-
-static inline
-struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *peer)
-{
-	return atomic_inc_not_zero(&peer->usage) ? peer : NULL;
-}
-
-extern void __rxrpc_put_peer(struct rxrpc_peer *peer);
-static inline void rxrpc_put_peer(struct rxrpc_peer *peer)
-{
-	if (peer && atomic_dec_and_test(&peer->usage))
-		__rxrpc_put_peer(peer);
-}
+void rxrpc_destroy_all_peers(struct rxrpc_net *);
+struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *);
+struct rxrpc_peer *rxrpc_get_peer_maybe(struct rxrpc_peer *);
+void rxrpc_put_peer(struct rxrpc_peer *);
+void __rxrpc_queue_peer_error(struct rxrpc_peer *);
 
 /*
  * proc.c
