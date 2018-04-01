@@ -869,8 +869,8 @@ static struct batadv_orig_node *
 batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
 			      struct ethhdr *ethhdr)
 {
-	return batadv_transtable_search(bat_priv, ethhdr->h_source,
-					ethhdr->h_dest, BATADV_NO_FLAGS);
+	return batadv_transtable_search(bat_priv, NULL, ethhdr->h_dest,
+					BATADV_NO_FLAGS);
 }
 
 /**

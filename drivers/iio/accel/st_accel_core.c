@@ -920,6 +920,8 @@ static const struct iio_trigger_ops st_accel_trigger_ops = {
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
+	struct st_sensors_platform_data *pdata =
+		(struct st_sensors_platform_data *)adata->dev->platform_data;
 	int irq = adata->get_irq_data_ready(indio_dev);
 	int err;
 
@@ -946,7 +948,10 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 					&adata->sensor_settings->fs.fs_avl[0];
 	adata->odr = adata->sensor_settings->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev, adata->dev->platform_data);
+	if (!pdata)
+		pdata = (struct st_sensors_platform_data *)&default_accel_pdata;
+
+	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
 		goto st_accel_power_off;
 

@@ -44,6 +44,11 @@
 #include "en_tc.h"
 #include "fs_core.h"
 
+#define MLX5E_REP_PARAMS_LOG_SQ_SIZE \
+	max(0x6, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
+#define MLX5E_REP_PARAMS_LOG_RQ_SIZE \
+	max(0x6, MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE)
+
 static const char mlx5e_rep_driver_name[] = "mlx5e_rep";
 
 static void mlx5e_rep_get_drvinfo(struct net_device *dev,
@@ -209,7 +214,7 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 
 static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep,
-				 u16 *sqns_array, int sqns_num)
+				 u32 *sqns_array, int sqns_num)
 {
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5e_rep_priv *rpriv;
@@ -255,9 +260,9 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 	struct mlx5e_channel *c;
 	int n, tc, num_sqs = 0;
 	int err = -ENOMEM;
-	u16 *sqs;
+	u32 *sqs;
 
-	sqs = kcalloc(priv->channels.num * priv->channels.params.num_tc, sizeof(u16), GFP_KERNEL);
+	sqs = kcalloc(priv->channels.num * priv->channels.params.num_tc, sizeof(*sqs), GFP_KERNEL);
 	if (!sqs)
 		goto out;
 
@@ -288,7 +293,7 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 static void mlx5e_rep_neigh_update_init_interval(struct mlx5e_rep_priv *rpriv)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	unsigned long ipv6_interval = NEIGH_VAR(&ipv6_stub->nd_tbl->parms,
+	unsigned long ipv6_interval = NEIGH_VAR(&nd_tbl.parms,
 						DELAY_PROBE_TIME);
 #else
 	unsigned long ipv6_interval = ~0UL;
@@ -424,7 +429,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
 #if IS_ENABLED(CONFIG_IPV6)
-		if (n->tbl != ipv6_stub->nd_tbl && n->tbl != &arp_tbl)
+		if (n->tbl != &nd_tbl && n->tbl != &arp_tbl)
 #else
 		if (n->tbl != &arp_tbl)
 #endif
@@ -472,7 +477,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 		 * done per device delay prob time parameter.
 		 */
 #if IS_ENABLED(CONFIG_IPV6)
-		if (!p->dev || (p->tbl != ipv6_stub->nd_tbl && p->tbl != &arp_tbl))
+		if (!p->dev || (p->tbl != &nd_tbl && p->tbl != &arp_tbl))
 #else
 		if (!p->dev || p->tbl != &arp_tbl)
 #endif
@@ -668,7 +673,6 @@ static int mlx5e_rep_open(struct net_device *dev)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int err;
 
 	mutex_lock(&priv->state_lock);
@@ -676,8 +680,9 @@ static int mlx5e_rep_open(struct net_device *dev)
 	if (err)
 		goto unlock;
 
-	if (!mlx5_eswitch_set_vport_state(esw, rep->vport,
-					  MLX5_ESW_VPORT_ADMIN_STATE_UP))
+	if (!mlx5_modify_vport_admin_state(priv->mdev,
+			MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+			rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_UP))
 		netif_carrier_on(dev);
 
 unlock:
@@ -690,11 +695,12 @@ static int mlx5e_rep_close(struct net_device *dev)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int ret;
 
 	mutex_lock(&priv->state_lock);
-	(void)mlx5_eswitch_set_vport_state(esw, rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_DOWN);
+	mlx5_modify_vport_admin_state(priv->mdev,
+			MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+			rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_DOWN);
 	ret = mlx5e_close_locked(dev);
 	mutex_unlock(&priv->state_lock);
 	return ret;
@@ -878,9 +884,9 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 					 MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 
 	params->hard_mtu    = MLX5E_ETH_HARD_MTU;
-	params->log_sq_size = MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
+	params->log_sq_size = MLX5E_REP_PARAMS_LOG_SQ_SIZE;
 	params->rq_wq_type  = MLX5_WQ_TYPE_LINKED_LIST;
-	params->log_rq_mtu_frames = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
+	params->log_rq_mtu_frames = MLX5E_REP_PARAMS_LOG_RQ_SIZE;
 
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
@@ -899,9 +905,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 
 	netdev->ethtool_ops	  = &mlx5e_rep_ethtool_ops;
 
-#ifdef CONFIG_NET_SWITCHDEV
 	netdev->switchdev_ops = &mlx5e_rep_switchdev_ops;
-#endif
 
 	netdev->features	 |= NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
 	netdev->hw_features      |= NETIF_F_HW_TC;

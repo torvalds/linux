@@ -207,9 +207,6 @@ static bool vfio_pci_nointx(struct pci_dev *pdev)
 		}
 	}
 
-	if (!pdev->irq)
-		return true;
-
 	return false;
 }
 

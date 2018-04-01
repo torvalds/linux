@@ -1072,6 +1072,8 @@ struct nft_object_ops {
 int nft_register_obj(struct nft_object_type *obj_type);
 void nft_unregister_obj(struct nft_object_type *obj_type);
 
+#define NFT_FLOWTABLE_DEVICE_MAX	8
+
 /**
  *	struct nft_flowtable - nf_tables flow table
  *
@@ -1084,6 +1086,7 @@ void nft_unregister_obj(struct nft_object_type *obj_type);
  *	@genmask: generation mask
  *	@use: number of references to this flow table
  * 	@handle: unique object handle
+ *	@dev_name: array of device names
  *	@data: rhashtable and garbage collector
  * 	@ops: array of hooks
  */
@@ -1097,6 +1100,7 @@ struct nft_flowtable {
 	u32				genmask:2,
 					use:30;
 	u64				handle;
+	char				*dev_name[NFT_FLOWTABLE_DEVICE_MAX];
 	/* runtime data below here */
 	struct nf_hook_ops		*ops ____cacheline_aligned;
 	struct nf_flowtable		data;

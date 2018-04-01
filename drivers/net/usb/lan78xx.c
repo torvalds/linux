@@ -2351,6 +2351,7 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	u32 buf;
 	int ret = 0;
 	unsigned long timeout;
+	u8 sig;
 
 	ret = lan78xx_read_reg(dev, HW_CFG, &buf);
 	buf |= HW_CFG_LRST_;
@@ -2450,6 +2451,15 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	/* LAN7801 only has RGMII mode */
 	if (dev->chipid == ID_REV_CHIP_ID_7801_)
 		buf &= ~MAC_CR_GMII_EN_;
+
+	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
+		ret = lan78xx_read_raw_eeprom(dev, 0, 1, &sig);
+		if (!ret && sig != EEPROM_INDICATOR) {
+			/* Implies there is no external eeprom. Set mac speed */
+			netdev_info(dev->net, "No External EEPROM. Setting MAC Speed\n");
+			buf |= MAC_CR_AUTO_DUPLEX_ | MAC_CR_AUTO_SPEED_;
+		}
+	}
 	ret = lan78xx_write_reg(dev, MAC_CR, buf);
 
 	ret = lan78xx_read_reg(dev, MAC_TX, &buf);
@@ -2863,8 +2873,7 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 	if (ret < 0) {
 		netdev_warn(dev->net,
 			    "lan78xx_setup_irq_domain() failed : %d", ret);
-		kfree(pdata);
-		return ret;
+		goto out1;
 	}
 
 	dev->net->hard_header_len += TX_OVERHEAD;
@@ -2872,13 +2881,31 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 
 	/* Init all registers */
 	ret = lan78xx_reset(dev);
+	if (ret) {
+		netdev_warn(dev->net, "Registers INIT FAILED....");
+		goto out2;
+	}
 
 	ret = lan78xx_mdio_init(dev);
+	if (ret) {
+		netdev_warn(dev->net, "MDIO INIT FAILED.....");
+		goto out2;
+	}
 
 	dev->net->flags |= IFF_MULTICAST;
 
 	pdata->wol = WAKE_MAGIC;
 
+	return ret;
+
+out2:
+	lan78xx_remove_irq_domain(dev);
+
+out1:
+	netdev_warn(dev->net, "Bind routine FAILED");
+	cancel_work_sync(&pdata->set_multicast);
+	cancel_work_sync(&pdata->set_vlan);
+	kfree(pdata);
 	return ret;
 }
 
@@ -2891,6 +2918,8 @@ static void lan78xx_unbind(struct lan78xx_net *dev, struct usb_interface *intf)
 	lan78xx_remove_mdio(dev);
 
 	if (pdata) {
+		cancel_work_sync(&pdata->set_multicast);
+		cancel_work_sync(&pdata->set_vlan);
 		netif_dbg(dev, ifdown, dev->net, "free pdata");
 		kfree(pdata);
 		pdata = NULL;

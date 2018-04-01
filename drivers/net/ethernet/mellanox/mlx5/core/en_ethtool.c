@@ -409,6 +409,9 @@ static int mlx5e_get_coalesce(struct net_device *netdev,
 	return mlx5e_ethtool_get_coalesce(priv, coal);
 }
 
+#define MLX5E_MAX_COAL_TIME		MLX5_MAX_CQ_PERIOD
+#define MLX5E_MAX_COAL_FRAMES		MLX5_MAX_CQ_COUNT
+
 static void
 mlx5e_set_priv_channels_coalesce(struct mlx5e_priv *priv, struct ethtool_coalesce *coal)
 {
@@ -442,6 +445,20 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 
 	if (!MLX5_CAP_GEN(mdev, cq_moderation))
 		return -EOPNOTSUPP;
+
+	if (coal->tx_coalesce_usecs > MLX5E_MAX_COAL_TIME ||
+	    coal->rx_coalesce_usecs > MLX5E_MAX_COAL_TIME) {
+		netdev_info(priv->netdev, "%s: maximum coalesce time supported is %lu usecs\n",
+			    __func__, MLX5E_MAX_COAL_TIME);
+		return -ERANGE;
+	}
+
+	if (coal->tx_max_coalesced_frames > MLX5E_MAX_COAL_FRAMES ||
+	    coal->rx_max_coalesced_frames > MLX5E_MAX_COAL_FRAMES) {
+		netdev_info(priv->netdev, "%s: maximum coalesced frames supported is %lu\n",
+			    __func__, MLX5E_MAX_COAL_FRAMES);
+		return -ERANGE;
+	}
 
 	mutex_lock(&priv->state_lock);
 	new_channels.params = priv->channels.params;

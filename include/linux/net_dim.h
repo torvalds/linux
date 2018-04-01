@@ -231,7 +231,7 @@ static inline void net_dim_exit_parking(struct net_dim *dim)
 }
 
 #define IS_SIGNIFICANT_DIFF(val, ref) \
-	(((100 * abs((val) - (ref))) / (ref)) > 10) /* more than 10% difference */
+	(((100UL * abs((val) - (ref))) / (ref)) > 10) /* more than 10% difference */
 
 static inline int net_dim_stats_compare(struct net_dim_stats *curr,
 					struct net_dim_stats *prev)

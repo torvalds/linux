@@ -290,6 +290,7 @@ void ib_dealloc_device(struct ib_device *device)
 {
 	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
 		device->reg_state != IB_DEV_UNINITIALIZED);
+	rdma_restrack_clean(&device->res);
 	put_device(&device->dev);
 }
 EXPORT_SYMBOL(ib_dealloc_device);
@@ -599,8 +600,6 @@ void ib_unregister_device(struct ib_device *device)
 			context->client->remove(device, context->data);
 	}
 	up_read(&lists_rwsem);
-
-	rdma_restrack_clean(&device->res);
 
 	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);

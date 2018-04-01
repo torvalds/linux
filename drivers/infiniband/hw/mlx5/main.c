@@ -3482,9 +3482,12 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 	if (err)
 		mlx5_ib_warn(dev, "mr cache cleanup failed\n");
 
-	mlx5_ib_destroy_qp(dev->umrc.qp);
-	ib_free_cq(dev->umrc.cq);
-	ib_dealloc_pd(dev->umrc.pd);
+	if (dev->umrc.qp)
+		mlx5_ib_destroy_qp(dev->umrc.qp);
+	if (dev->umrc.cq)
+		ib_free_cq(dev->umrc.cq);
+	if (dev->umrc.pd)
+		ib_dealloc_pd(dev->umrc.pd);
 }
 
 enum {
@@ -3586,12 +3589,15 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 
 error_4:
 	mlx5_ib_destroy_qp(qp);
+	dev->umrc.qp = NULL;
 
 error_3:
 	ib_free_cq(cq);
+	dev->umrc.cq = NULL;
 
 error_2:
 	ib_dealloc_pd(pd);
+	dev->umrc.pd = NULL;
 
 error_0:
 	kfree(attr);
