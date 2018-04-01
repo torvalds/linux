@@ -3793,8 +3793,7 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
 	.max_pkey			= 0,
-	.used_kvd_split_data		= 1,
-	.kvd_hash_granularity		= MLXSW_SP_KVD_GRANULARITY,
+	.used_kvd_sizes			= 1,
 	.kvd_hash_single_parts		= 59,
 	.kvd_hash_double_parts		= 41,
 	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
@@ -3804,7 +3803,6 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 			.type		= MLXSW_PORT_SWID_TYPE_ETH,
 		}
 	},
-	.resource_query_enable		= 1,
 };
 
 static u64 mlxsw_sp_resource_kvd_linear_occ_get(struct devlink *devlink)
@@ -3815,7 +3813,7 @@ static u64 mlxsw_sp_resource_kvd_linear_occ_get(struct devlink *devlink)
 	return mlxsw_sp_kvdl_occ_get(mlxsw_sp);
 }
 
-static struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
+static const struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
 	.occ_get = mlxsw_sp_resource_kvd_linear_occ_get,
 };
 
@@ -3894,7 +3892,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		return err;
 
-	err = mlxsw_sp_kvdl_resources_register(devlink);
+	err = mlxsw_sp_kvdl_resources_register(mlxsw_core);
 	if  (err)
 		return err;
 
@@ -3902,7 +3900,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	double_size *= profile->kvd_hash_double_parts;
 	double_size /= profile->kvd_hash_double_parts +
 		       profile->kvd_hash_single_parts;
-	double_size = rounddown(double_size, profile->kvd_hash_granularity);
+	double_size = rounddown(double_size, MLXSW_SP_KVD_GRANULARITY);
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE,
 					double_size,
 					MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
@@ -3935,8 +3933,7 @@ static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 	int err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, KVD_SINGLE_MIN_SIZE) ||
-	    !MLXSW_CORE_RES_VALID(mlxsw_core, KVD_DOUBLE_MIN_SIZE) ||
-	    !profile->used_kvd_split_data)
+	    !MLXSW_CORE_RES_VALID(mlxsw_core, KVD_DOUBLE_MIN_SIZE))
 		return -EIO;
 
 	/* The hash part is what left of the kvd without the
@@ -3962,7 +3959,7 @@ static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 		double_size /= profile->kvd_hash_double_parts +
 			       profile->kvd_hash_single_parts;
 		*p_double_size = rounddown(double_size,
-					   profile->kvd_hash_granularity);
+					   MLXSW_SP_KVD_GRANULARITY);
 	}
 
 	err = devlink_resource_size_get(devlink,
@@ -4004,6 +4001,7 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.kvd_sizes_get			= mlxsw_sp_kvd_sizes_get,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp_config_profile,
+	.res_query_enabled		= true,
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev)

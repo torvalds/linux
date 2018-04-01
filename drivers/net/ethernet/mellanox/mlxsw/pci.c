@@ -1015,16 +1015,14 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 }
 
 static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
-				     struct mlxsw_res *res,
-				     u8 query_enabled)
+				     struct mlxsw_res *res)
 {
 	int index, i;
 	u64 data;
 	u16 id;
 	int err;
 
-	/* Not all the versions support resources query */
-	if (!query_enabled)
+	if (!res)
 		return 0;
 
 	mlxsw_cmd_mbox_zero(mbox);
@@ -1164,7 +1162,7 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_adaptive_routing_group_cap_set(
 			mbox, profile->adaptive_routing_group_cap);
 	}
-	if (MLXSW_RES_VALID(res, KVD_SIZE)) {
+	if (profile->used_kvd_sizes && MLXSW_RES_VALID(res, KVD_SIZE)) {
 		err = mlxsw_pci_profile_get_kvd_sizes(mlxsw_pci, profile, res);
 		if (err)
 			return err;
@@ -1376,8 +1374,7 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_boardinfo;
 
-	err = mlxsw_pci_resources_query(mlxsw_pci, mbox, res,
-					profile->resource_query_enable);
+	err = mlxsw_pci_resources_query(mlxsw_pci, mbox, res);
 	if (err)
 		goto err_query_resources;
 
