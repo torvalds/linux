@@ -462,7 +462,8 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 			sprintf(peer_str, "%x", peer);
 	}
 	/* Peer i/f name will be completed by reset/activate message */
-	sprintf(l->name, "%s:%s-%s:unknown", self_str, if_name, peer_str);
+	snprintf(l->name, sizeof(l->name), "%s:%s-%s:unknown",
+		 self_str, if_name, peer_str);
 
 	strcpy(l->if_name, if_name);
 	l->addr = peer;
@@ -1810,7 +1811,7 @@ int tipc_link_bc_nack_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 {
-	int max_bulk = TIPC_MAX_PUBLICATIONS / (l->mtu / ITEM_SIZE);
+	int max_bulk = TIPC_MAX_PUBL / (l->mtu / ITEM_SIZE);
 
 	l->window = win;
 	l->backlog[TIPC_LOW_IMPORTANCE].limit      = max_t(u16, 50, win);

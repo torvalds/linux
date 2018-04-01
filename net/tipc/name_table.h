@@ -97,7 +97,7 @@ struct publication {
  * @local_publ_count: number of publications issued by this node
  */
 struct name_table {
-	struct hlist_head seq_hlist[TIPC_NAMETBL_SIZE];
+	struct hlist_head services[TIPC_NAMETBL_SIZE];
 	struct list_head node_scope;
 	struct list_head cluster_scope;
 	u32 local_publ_count;
@@ -116,16 +116,16 @@ bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
 			 struct list_head *dsts, int *dstcnt, u32 exclude,
 			 bool all);
 struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
-					 u32 upper, u32 scope, u32 port_ref,
+					 u32 upper, u32 scope, u32 port,
 					 u32 key);
-int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
+int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 upper,
 			  u32 key);
 struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 					     u32 lower, u32 upper, u32 scope,
 					     u32 node, u32 ref, u32 key);
 struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
-					     u32 lower, u32 node, u32 ref,
-					     u32 key);
+					     u32 lower, u32 upper,
+					     u32 node, u32 key);
 void tipc_nametbl_subscribe(struct tipc_subscription *s);
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);

@@ -2634,12 +2634,12 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			if (publ->upper != seq->upper)
 				break;
 			tipc_nametbl_withdraw(net, publ->type, publ->lower,
-					      publ->port, publ->key);
+					      publ->upper, publ->key);
 			rc = 0;
 			break;
 		}
 		tipc_nametbl_withdraw(net, publ->type, publ->lower,
-				      publ->port, publ->key);
+				      publ->upper, publ->key);
 		rc = 0;
 	}
 	if (list_empty(&tsk->publications))

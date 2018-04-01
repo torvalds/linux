@@ -40,7 +40,7 @@
 #include "topsrv.h"
 
 #define TIPC_MAX_SUBSCR         65535
-#define TIPC_MAX_PUBLICATIONS   65535
+#define TIPC_MAX_PUBL           65535
 
 struct tipc_subscription;
 struct tipc_conn;
@@ -58,7 +58,7 @@ struct tipc_subscription {
 	struct kref kref;
 	struct net *net;
 	struct timer_list timer;
-	struct list_head nameseq_list;
+	struct list_head service_list;
 	struct list_head sub_list;
 	struct tipc_event evt;
 	int conid;

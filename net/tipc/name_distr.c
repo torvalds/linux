@@ -204,12 +204,12 @@ void tipc_named_node_up(struct net *net, u32 dnode)
  */
 static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	struct publication *p;
 
 	spin_lock_bh(&tn->nametbl_lock);
-	p = tipc_nametbl_remove_publ(net, publ->type, publ->lower,
-				     publ->node, publ->port, publ->key);
+	p = tipc_nametbl_remove_publ(net, publ->type, publ->lower, publ->upper,
+				     publ->node, publ->key);
 	if (p)
 		tipc_node_unsubscribe(net, &p->binding_node, addr);
 	spin_unlock_bh(&tn->nametbl_lock);
@@ -261,79 +261,35 @@ void tipc_publ_notify(struct net *net, struct list_head *nsub_list, u32 addr)
 static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 				u32 node, u32 dtype)
 {
-	struct publication *publ = NULL;
+	struct publication *p = NULL;
+	u32 lower = ntohl(i->lower);
+	u32 upper = ntohl(i->upper);
+	u32 type = ntohl(i->type);
+	u32 port = ntohl(i->port);
+	u32 key = ntohl(i->key);
 
 	if (dtype == PUBLICATION) {
-		publ = tipc_nametbl_insert_publ(net, ntohl(i->type),
-						ntohl(i->lower),
-						ntohl(i->upper),
-						TIPC_CLUSTER_SCOPE, node,
-						ntohl(i->port), ntohl(i->key));
-		if (publ) {
-			tipc_node_subscribe(net, &publ->binding_node, node);
+		p = tipc_nametbl_insert_publ(net, type, lower, upper,
+					     TIPC_CLUSTER_SCOPE, node,
+					     port, key);
+		if (p) {
+			tipc_node_subscribe(net, &p->binding_node, node);
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
-		publ = tipc_nametbl_remove_publ(net, ntohl(i->type),
-						ntohl(i->lower),
-						node, ntohl(i->port),
-						ntohl(i->key));
-		if (publ) {
-			tipc_node_unsubscribe(net, &publ->binding_node, node);
-			kfree_rcu(publ, rcu);
+		p = tipc_nametbl_remove_publ(net, type, lower,
+					     upper, node, key);
+		if (p) {
+			tipc_node_unsubscribe(net, &p->binding_node, node);
+			kfree_rcu(p, rcu);
 			return true;
 		}
+		pr_warn_ratelimited("Failed to remove binding %u,%u from %x\n",
+				    type, lower, node);
 	} else {
 		pr_warn("Unrecognized name table message received\n");
 	}
 	return false;
-}
-
-/**
- * tipc_named_add_backlog - add a failed name table update to the backlog
- *
- */
-static void tipc_named_add_backlog(struct net *net, struct distr_item *i,
-				   u32 type, u32 node)
-{
-	struct distr_queue_item *e;
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	unsigned long now = get_jiffies_64();
-
-	e = kzalloc(sizeof(*e), GFP_ATOMIC);
-	if (!e)
-		return;
-	e->dtype = type;
-	e->node = node;
-	e->expires = now + msecs_to_jiffies(sysctl_tipc_named_timeout);
-	memcpy(e, i, sizeof(*i));
-	list_add_tail(&e->next, &tn->dist_queue);
-}
-
-/**
- * tipc_named_process_backlog - try to process any pending name table updates
- * from the network.
- */
-void tipc_named_process_backlog(struct net *net)
-{
-	struct distr_queue_item *e, *tmp;
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	unsigned long now = get_jiffies_64();
-
-	list_for_each_entry_safe(e, tmp, &tn->dist_queue, next) {
-		if (time_after(e->expires, now)) {
-			if (!tipc_update_nametbl(net, &e->i, e->node, e->dtype))
-				continue;
-		} else {
-			pr_warn_ratelimited("Dropping name table update (%d) of {%u, %u, %u} from %x key=%u\n",
-					    e->dtype, ntohl(e->i.type),
-					    ntohl(e->i.lower),
-					    ntohl(e->i.upper),
-					    e->node, ntohl(e->i.key));
-		}
-		list_del(&e->next);
-		kfree(e);
-	}
 }
 
 /**
@@ -358,12 +314,10 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
 		count = msg_data_sz(msg) / ITEM_SIZE;
 		node = msg_orignode(msg);
 		while (count--) {
-			if (!tipc_update_nametbl(net, item, node, mtype))
-				tipc_named_add_backlog(net, item, mtype, node);
+			tipc_update_nametbl(net, item, node, mtype);
 			item++;
 		}
 		kfree_skb(skb);
-		tipc_named_process_backlog(net);
 	}
 	spin_unlock_bh(&tn->nametbl_lock);
 }
