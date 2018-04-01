@@ -26,6 +26,7 @@
 #include <linux/devfreq_cooling.h>
 #include <linux/devfreq-event.h>
 #include <linux/fb.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -54,6 +55,10 @@
 						  system_status_nb)
 #define reboot_to_dmcfreq(nb) container_of(nb, struct rockchip_dmcfreq, \
 					   reboot_nb)
+#define df_update_to_dmcfreq(work) container_of(work, struct rockchip_dmcfreq, \
+						devfreq_update)
+#define input_hd_to_dmcfreq(hd) container_of(hd, struct rockchip_dmcfreq, \
+					     input_handler)
 
 #define VIDEO_1080P_SIZE	(1920 * 1080)
 #define FIQ_INIT_HANDLER	(0x1)
@@ -758,6 +763,8 @@ struct rockchip_dmcfreq {
 	struct notifier_block fb_nb;
 	struct list_head video_info_list;
 	struct freq_map_table *vop_bw_tbl;
+	struct work_struct devfreq_update;
+	struct input_handler input_handler;
 
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
@@ -791,6 +798,9 @@ struct rockchip_dmcfreq {
 	u32 static_coefficient;
 	s32 ts[4];
 	struct thermal_zone_device *ddr_tz;
+
+	unsigned int touchboostpulse_duration_val;
+	u64 touchboostpulse_endtime;
 
 	int (*set_auto_self_refresh)(u32 en);
 };
@@ -2462,13 +2472,19 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	unsigned int upthreshold = data->upthreshold;
 	unsigned int downdifferential = data->downdifferential;
 	unsigned long target_freq = 0;
+	u64 now;
 
 	if (dmcfreq->auto_freq_en && !dmcfreq->is_dualview) {
 		if (dmcfreq->status_rate)
 			target_freq = dmcfreq->status_rate;
 		else if (dmcfreq->auto_min_rate)
 			target_freq = dmcfreq->auto_min_rate;
-		target_freq = max(target_freq, dmcfreq->vop_req_rate);
+		now = ktime_to_us(ktime_get());
+		if (now < dmcfreq->touchboostpulse_endtime)
+			target_freq = max3(target_freq, dmcfreq->vop_req_rate,
+					   dmcfreq->boost_rate);
+		else
+			target_freq = max(target_freq, dmcfreq->vop_req_rate);
 	} else {
 		if (dmcfreq->status_rate)
 			target_freq = dmcfreq->status_rate;
@@ -2584,6 +2600,96 @@ static struct devfreq_governor devfreq_dmc_ondemand = {
 	.name = "dmc_ondemand",
 	.get_target_freq = devfreq_dmc_ondemand_func,
 	.event_handler = devfreq_dmc_ondemand_handler,
+};
+
+static void rockchip_dmcfreq_devfreq_update(struct work_struct *work)
+{
+	struct rockchip_dmcfreq *dmcfreq = df_update_to_dmcfreq(work);
+
+	rockchip_dmcfreq_update_target(dmcfreq);
+}
+
+static void rockchip_dmcfreq_input_event(struct input_handle *handle,
+					 unsigned int type,
+					 unsigned int code,
+					 int value)
+{
+	struct rockchip_dmcfreq *dmcfreq = handle->private;
+	u64 now, endtime;
+
+	if (type != EV_ABS && type != EV_KEY)
+		return;
+
+	now = ktime_to_us(ktime_get());
+	endtime = now + dmcfreq->touchboostpulse_duration_val;
+	if (endtime < (dmcfreq->touchboostpulse_endtime + 10 * USEC_PER_MSEC))
+		return;
+	dmcfreq->touchboostpulse_endtime = endtime;
+
+	schedule_work(&dmcfreq->devfreq_update);
+}
+
+static int rockchip_dmcfreq_input_connect(struct input_handler *handler,
+					  struct input_dev *dev,
+					  const struct input_device_id *id)
+{
+	int error;
+	struct input_handle *handle;
+	struct rockchip_dmcfreq *dmcfreq = input_hd_to_dmcfreq(handler);
+
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "dmcfreq";
+	handle->private = dmcfreq;
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err2;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err1;
+
+	return 0;
+err1:
+	input_unregister_handle(handle);
+err2:
+	kfree(handle);
+	return error;
+}
+
+static void rockchip_dmcfreq_input_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+}
+
+static const struct input_device_id rockchip_dmcfreq_input_ids[] = {
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			BIT_MASK(ABS_MT_POSITION_X) |
+			BIT_MASK(ABS_MT_POSITION_Y) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+	},
+	{ },
 };
 
 static unsigned long model_static_power(struct devfreq *devfreq,
@@ -2784,6 +2890,13 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 					&data->vop_bw_tbl))
 		dev_err(dev, "failed to get vop bandwidth to dmc rate\n");
 
+	of_property_read_u32(np, "touchboost_duration",
+			     (u32 *)&data->touchboostpulse_duration_val);
+	if (data->touchboostpulse_duration_val)
+		data->touchboostpulse_duration_val *= USEC_PER_MSEC;
+	else
+		data->touchboostpulse_duration_val = 500 * USEC_PER_MSEC;
+
 	data->rate = clk_get_rate(data->dmc_clk);
 	data->volt = regulator_get_voltage(data->vdd_center);
 
@@ -2847,6 +2960,20 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 				&dev_attr_system_status.attr);
 	if (ret)
 		dev_err(dev, "failed to register system_status sysfs file\n");
+
+	if (data->boost_rate) {
+		INIT_WORK(&data->devfreq_update,
+			  rockchip_dmcfreq_devfreq_update);
+		data->input_handler.event = rockchip_dmcfreq_input_event;
+		data->input_handler.connect = rockchip_dmcfreq_input_connect;
+		data->input_handler.disconnect =
+			rockchip_dmcfreq_input_disconnect;
+		data->input_handler.name = "dmcfreq";
+		data->input_handler.id_table = rockchip_dmcfreq_input_ids;
+		ret = input_register_handler(&data->input_handler);
+		if (ret)
+			dev_err(dev, "failed to register input handler\n");
+	}
 
 	rockchip_set_system_status(SYS_STATUS_NORMAL);
 
