@@ -389,14 +389,26 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 {
 	struct port_table_attribute *tab_attr =
 		container_of(attr, struct port_table_attribute, attr);
+	union ib_gid *pgid;
 	union ib_gid gid;
 	ssize_t ret;
 
 	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid, NULL);
-	if (ret)
-		return ret;
 
-	return sprintf(buf, "%pI6\n", gid.raw);
+	/* If reading GID fails, it is likely due to GID entry being empty
+	 * (invalid) or reserved GID in the table.
+	 * User space expects to read GID table entries as long as it given
+	 * index is within GID table size.
+	 * Administrative/debugging tool fails to query rest of the GID entries
+	 * if it hits error while querying a GID of the given index.
+	 * To avoid user space throwing such error on fail to read gid, return
+	 * zero GID as before. This maintains backward compatibility.
+	 */
+	if (ret)
+		pgid = &zgid;
+	else
+		pgid = &gid;
+	return sprintf(buf, "%pI6\n", pgid->raw);
 }
 
 static ssize_t show_port_gid_attr_ndev(struct ib_port *p,
