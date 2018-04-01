@@ -3892,7 +3892,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		return err;
 
-	err = mlxsw_sp_kvdl_resources_register(devlink);
+	err = mlxsw_sp_kvdl_resources_register(mlxsw_core);
 	if  (err)
 		return err;
 

@@ -368,9 +368,9 @@ static const struct devlink_resource_ops mlxsw_sp_kvdl_chunks_large_ops = {
 	.occ_get = mlxsw_sp_kvdl_large_chunks_occ_get,
 };
 
-int mlxsw_sp_kvdl_resources_register(struct devlink *devlink)
+int mlxsw_sp_kvdl_resources_register(struct mlxsw_core *mlxsw_core)
 {
-	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 	static struct devlink_resource_size_params size_params;
 	u32 kvdl_max_size;
 	int err;
