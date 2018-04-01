@@ -565,7 +565,11 @@ void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 }
 #endif
 
+#ifdef CONFIG_NMI_IPI
+static void stop_this_cpu(struct pt_regs *regs)
+#else
 static void stop_this_cpu(void *dummy)
+#endif
 {
 	/* Remove this CPU */
 	set_cpu_online(smp_processor_id(), false);
@@ -577,7 +581,11 @@ static void stop_this_cpu(void *dummy)
 
 void smp_send_stop(void)
 {
+#ifdef CONFIG_NMI_IPI
+	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, stop_this_cpu, 1000000);
+#else
 	smp_call_function(stop_this_cpu, NULL, 0);
+#endif
 }
 
 struct thread_info *current_set[NR_CPUS];
