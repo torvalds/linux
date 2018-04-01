@@ -256,7 +256,6 @@ struct mlxsw_config_profile {
 	u16	adaptive_routing_group_cap;
 	u8	arn;
 	u32	kvd_linear_size;
-	u16	kvd_hash_granularity;
 	u8	kvd_hash_single_parts;
 	u8	kvd_hash_double_parts;
 	u8	resource_query_enable;

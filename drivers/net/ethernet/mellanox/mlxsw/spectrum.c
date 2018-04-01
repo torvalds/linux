@@ -3794,7 +3794,6 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.used_max_pkey			= 1,
 	.max_pkey			= 0,
 	.used_kvd_split_data		= 1,
-	.kvd_hash_granularity		= MLXSW_SP_KVD_GRANULARITY,
 	.kvd_hash_single_parts		= 59,
 	.kvd_hash_double_parts		= 41,
 	.kvd_linear_size		= MLXSW_SP_KVD_LINEAR_SIZE,
@@ -3902,7 +3901,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	double_size *= profile->kvd_hash_double_parts;
 	double_size /= profile->kvd_hash_double_parts +
 		       profile->kvd_hash_single_parts;
-	double_size = rounddown(double_size, profile->kvd_hash_granularity);
+	double_size = rounddown(double_size, MLXSW_SP_KVD_GRANULARITY);
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE,
 					double_size,
 					MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
@@ -3962,7 +3961,7 @@ static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 		double_size /= profile->kvd_hash_double_parts +
 			       profile->kvd_hash_single_parts;
 		*p_double_size = rounddown(double_size,
-					   profile->kvd_hash_granularity);
+					   MLXSW_SP_KVD_GRANULARITY);
 	}
 
 	err = devlink_resource_size_get(devlink,
