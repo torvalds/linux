@@ -533,7 +533,8 @@ static void bgmac_dma_tx_ring_free(struct bgmac *bgmac,
 	int i;
 
 	for (i = 0; i < BGMAC_TX_RING_SLOTS; i++) {
-		int len = dma_desc[i].ctl1 & BGMAC_DESC_CTL1_LEN;
+		u32 ctl1 = le32_to_cpu(dma_desc[i].ctl1);
+		unsigned int len = ctl1 & BGMAC_DESC_CTL1_LEN;
 
 		slot = &ring->slots[i];
 		dev_kfree_skb(slot->skb);
