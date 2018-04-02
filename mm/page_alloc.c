@@ -1910,7 +1910,9 @@ static int move_freepages(struct zone *zone,
 	 * Remove at a later date when no bug reports exist related to
 	 * grouping pages by mobility
 	 */
-	VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
+	VM_BUG_ON(pfn_valid(page_to_pfn(start_page)) &&
+	          pfn_valid(page_to_pfn(end_page)) &&
+	          page_zone(start_page) != page_zone(end_page));
 #endif
 
 	if (num_movable)
@@ -3594,7 +3596,7 @@ static bool __need_fs_reclaim(gfp_t gfp_mask)
 		return false;
 
 	/* this guy won't enter reclaim */
-	if ((current->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+	if (current->flags & PF_MEMALLOC)
 		return false;
 
 	/* We're only interested __GFP_FS allocations for now */
@@ -5354,22 +5356,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		if (context != MEMMAP_EARLY)
 			goto not_early;
 
-		if (!early_pfn_valid(pfn)) {
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-			/*
-			 * Skip to the pfn preceding the next valid one (or
-			 * end_pfn), such that we hit a valid pfn (or end_pfn)
-			 * on our next iteration of the loop. Note that it needs
-			 * to be pageblock aligned even when the region itself
-			 * is not. move_freepages_block() can shift ahead of
-			 * the valid region but still depends on correct page
-			 * metadata.
-			 */
-			pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
-					~(pageblock_nr_pages-1)) - 1;
-#endif
+		if (!early_pfn_valid(pfn))
 			continue;
-		}
 		if (!early_pfn_in_nid(pfn, nid))
 			continue;
 		if (!update_defer_init(pgdat, pfn, end_pfn, &nr_initialised))

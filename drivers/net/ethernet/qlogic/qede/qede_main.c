@@ -288,7 +288,7 @@ int __init qede_init(void)
 	}
 
 	/* Must register notifier before pci ops, since we might miss
-	 * interface rename after pci probe and netdev registeration.
+	 * interface rename after pci probe and netdev registration.
 	 */
 	ret = register_netdevice_notifier(&qede_netdev_notifier);
 	if (ret) {
@@ -988,7 +988,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	if (rc)
 		goto err3;
 
-	/* Prepare the lock prior to the registeration of the netdev,
+	/* Prepare the lock prior to the registration of the netdev,
 	 * as once it's registered we might reach flows requiring it
 	 * [it's even possible to reach a flow needing it directly
 	 * from there, although it's unlikely].
@@ -2067,8 +2067,6 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	link_params.link_up = true;
 	edev->ops->common->set_link(edev->cdev, &link_params);
 
-	qede_rdma_dev_event_open(edev);
-
 	edev->state = QEDE_STATE_OPEN;
 
 	DP_INFO(edev, "Ending successfully qede load\n");
@@ -2169,12 +2167,14 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 			DP_NOTICE(edev, "Link is up\n");
 			netif_tx_start_all_queues(edev->ndev);
 			netif_carrier_on(edev->ndev);
+			qede_rdma_dev_event_open(edev);
 		}
 	} else {
 		if (netif_carrier_ok(edev->ndev)) {
 			DP_NOTICE(edev, "Link is down\n");
 			netif_tx_disable(edev->ndev);
 			netif_carrier_off(edev->ndev);
+			qede_rdma_dev_event_close(edev);
 		}
 	}
 }

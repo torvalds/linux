@@ -914,8 +914,8 @@ static bool nau8825_volatile_reg(struct device *dev, unsigned int reg)
 static int nau8825_adc_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -938,8 +938,8 @@ static int nau8825_adc_event(struct snd_soc_dapm_widget *w,
 static int nau8825_pump_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -962,8 +962,8 @@ static int nau8825_pump_event(struct snd_soc_dapm_widget *w,
 static int nau8825_output_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1244,8 +1244,8 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, bclk_div;
 
 	nau8825_sema_acquire(nau8825, 3 * HZ);
@@ -1329,8 +1329,8 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 
 static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1427,10 +1427,10 @@ static struct snd_soc_dai_driver nau8825_dai = {
  * events will be routed to the given jack.  Jack can be null to stop
  * reporting.
  */
-int nau8825_enable_jack_detect(struct snd_soc_codec *codec,
+int nau8825_enable_jack_detect(struct snd_soc_component *component,
 				struct snd_soc_jack *jack)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = nau8825->regmap;
 
 	nau8825->jack = jack;
@@ -1952,24 +1952,22 @@ static const struct regmap_config nau8825_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(nau8825_reg_defaults),
 };
 
-static int nau8825_codec_probe(struct snd_soc_codec *codec)
+static int nau8825_component_probe(struct snd_soc_component *component)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 	nau8825->dapm = dapm;
 
 	return 0;
 }
 
-static int nau8825_codec_remove(struct snd_soc_codec *codec)
+static void nau8825_component_remove(struct snd_soc_component *component)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	/* Cancel and reset cross tak suppresstion detection funciton */
 	nau8825_xtalk_cancel(nau8825);
-
-	return 0;
 }
 
 /**
@@ -2084,20 +2082,20 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 }
 
 /* freq_out must be 256*Fs in order to achieve the best performance */
-static int nau8825_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
+static int nau8825_set_pll(struct snd_soc_component *component, int pll_id, int source,
 		unsigned int freq_in, unsigned int freq_out)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	struct nau8825_fll fll_param;
 	int ret, fs;
 
 	fs = freq_out / 256;
 	ret = nau8825_calc_fll_param(freq_in, fs, &fll_param);
 	if (ret < 0) {
-		dev_err(codec->dev, "Unsupported input clock %d\n", freq_in);
+		dev_err(component->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
 	}
-	dev_dbg(codec->dev, "mclk_src=%x ratio=%x fll_frac=%x fll_int=%x clk_ref_div=%x\n",
+	dev_dbg(component->dev, "mclk_src=%x ratio=%x fll_frac=%x fll_int=%x clk_ref_div=%x\n",
 		fll_param.mclk_src, fll_param.ratio, fll_param.fll_frac,
 		fll_param.fll_int, fll_param.clk_ref_div);
 
@@ -2298,10 +2296,10 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 	return 0;
 }
 
-static int nau8825_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+static int nau8825_set_sysclk(struct snd_soc_component *component, int clk_id,
 	int source, unsigned int freq, int dir)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	return nau8825_configure_sysclk(nau8825, clk_id, freq);
 }
@@ -2331,10 +2329,10 @@ static int nau8825_resume_setup(struct nau8825 *nau8825)
 	return 0;
 }
 
-static int nau8825_set_bias_level(struct snd_soc_codec *codec,
+static int nau8825_set_bias_level(struct snd_soc_component *component,
 				   enum snd_soc_bias_level level)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (level) {
@@ -2345,11 +2343,11 @@ static int nau8825_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			if (nau8825->mclk_freq) {
 				ret = clk_prepare_enable(nau8825->mclk);
 				if (ret) {
-					dev_err(nau8825->dev, "Unable to prepare codec mclk\n");
+					dev_err(nau8825->dev, "Unable to prepare component mclk\n");
 					return ret;
 				}
 			}
@@ -2383,12 +2381,12 @@ static int nau8825_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int __maybe_unused nau8825_suspend(struct snd_soc_codec *codec)
+static int __maybe_unused nau8825_suspend(struct snd_soc_component *component)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	disable_irq(nau8825->irq);
-	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 	/* Power down codec power; don't suppoet button wakeup */
 	snd_soc_dapm_disable_pin(nau8825->dapm, "SAR");
 	snd_soc_dapm_disable_pin(nau8825->dapm, "MICBIAS");
@@ -2399,9 +2397,9 @@ static int __maybe_unused nau8825_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
+static int __maybe_unused nau8825_resume(struct snd_soc_component *component)
 {
-	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	regcache_cache_only(nau8825->regmap, false);
@@ -2415,24 +2413,25 @@ static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver nau8825_codec_driver = {
-	.probe = nau8825_codec_probe,
-	.remove = nau8825_codec_remove,
-	.set_sysclk = nau8825_set_sysclk,
-	.set_pll = nau8825_set_pll,
-	.set_bias_level = nau8825_set_bias_level,
-	.suspend_bias_off = true,
-	.suspend = nau8825_suspend,
-	.resume = nau8825_resume,
-
-	.component_driver = {
-		.controls		= nau8825_controls,
-		.num_controls		= ARRAY_SIZE(nau8825_controls),
-		.dapm_widgets		= nau8825_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(nau8825_dapm_widgets),
-		.dapm_routes		= nau8825_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(nau8825_dapm_routes),
-	},
+static const struct snd_soc_component_driver nau8825_component_driver = {
+	.probe			= nau8825_component_probe,
+	.remove			= nau8825_component_remove,
+	.set_sysclk		= nau8825_set_sysclk,
+	.set_pll		= nau8825_set_pll,
+	.set_bias_level		= nau8825_set_bias_level,
+	.suspend		= nau8825_suspend,
+	.resume			= nau8825_resume,
+	.controls		= nau8825_controls,
+	.num_controls		= ARRAY_SIZE(nau8825_controls),
+	.dapm_widgets		= nau8825_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(nau8825_dapm_widgets),
+	.dapm_routes		= nau8825_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(nau8825_dapm_routes),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static void nau8825_reset_chip(struct regmap *regmap)
@@ -2619,13 +2618,13 @@ static int nau8825_i2c_probe(struct i2c_client *i2c,
 	if (i2c->irq)
 		nau8825_setup_irq(nau8825);
 
-	return snd_soc_register_codec(&i2c->dev, &nau8825_codec_driver,
+	return devm_snd_soc_register_component(&i2c->dev,
+		&nau8825_component_driver,
 		&nau8825_dai, 1);
 }
 
 static int nau8825_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
 

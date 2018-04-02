@@ -33,19 +33,12 @@ static int cs4271_spi_probe(struct spi_device *spi)
 	return cs4271_probe(&spi->dev, devm_regmap_init_spi(spi, &config));
 }
 
-static int cs4271_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static struct spi_driver cs4271_spi_driver = {
 	.driver = {
 		.name	= "cs4271",
 		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.probe		= cs4271_spi_probe,
-	.remove		= cs4271_spi_remove,
 };
 module_spi_driver(cs4271_spi_driver);
 

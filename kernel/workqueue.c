@@ -3018,14 +3018,6 @@ static bool __cancel_work(struct work_struct *work, bool is_dwork)
 	return ret;
 }
 
-/*
- * See cancel_delayed_work()
- */
-bool cancel_work(struct work_struct *work)
-{
-	return __cancel_work(work, false);
-}
-
 /**
  * cancel_delayed_work - cancel a delayed work
  * @dwork: delayed_work to cancel
@@ -5337,7 +5329,7 @@ int workqueue_sysfs_register(struct workqueue_struct *wq)
 
 	ret = device_register(&wq_dev->dev);
 	if (ret) {
-		kfree(wq_dev);
+		put_device(&wq_dev->dev);
 		wq->wq_dev = NULL;
 		return ret;
 	}

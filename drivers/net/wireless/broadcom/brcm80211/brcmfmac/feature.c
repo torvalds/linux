@@ -104,6 +104,9 @@ static void brcmf_feat_iovar_int_get(struct brcmf_if *ifp,
 	u32 data;
 	int err;
 
+	/* we need to know firmware error */
+	ifp->fwil_fwerr = true;
+
 	err = brcmf_fil_iovar_int_get(ifp, name, &data);
 	if (err == 0) {
 		brcmf_dbg(INFO, "enabling feature: %s\n", brcmf_feat_names[id]);
@@ -112,6 +115,8 @@ static void brcmf_feat_iovar_int_get(struct brcmf_if *ifp,
 		brcmf_dbg(TRACE, "%s feature check failed: %d\n",
 			  brcmf_feat_names[id], err);
 	}
+
+	ifp->fwil_fwerr = false;
 }
 
 static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
@@ -119,6 +124,9 @@ static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
 				      const void *data, size_t len)
 {
 	int err;
+
+	/* we need to know firmware error */
+	ifp->fwil_fwerr = true;
 
 	err = brcmf_fil_iovar_data_set(ifp, name, data, len);
 	if (err != -BRCMF_FW_UNSUPPORTED) {
@@ -128,6 +136,8 @@ static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
 		brcmf_dbg(TRACE, "%s feature check failed: %d\n",
 			  brcmf_feat_names[id], err);
 	}
+
+	ifp->fwil_fwerr = false;
 }
 
 #define MAX_CAPS_BUFFER_SIZE	512

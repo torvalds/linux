@@ -36,23 +36,24 @@ static int odroid_card_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct odroid_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	unsigned int pll_freq, rclk_freq;
+	unsigned int pll_freq, rclk_freq, rfs;
 	int ret;
 
 	switch (params_rate(params)) {
-	case 32000:
 	case 64000:
-		pll_freq = 131072006U;
+		pll_freq = 196608001U;
+		rfs = 384;
 		break;
 	case 44100:
 	case 88200:
-	case 176400:
 		pll_freq = 180633609U;
+		rfs = 512;
 		break;
+	case 32000:
 	case 48000:
 	case 96000:
-	case 192000:
 		pll_freq = 196608001U;
+		rfs = 512;
 		break;
 	default:
 		return -EINVAL;
@@ -67,7 +68,7 @@ static int odroid_card_hw_params(struct snd_pcm_substream *substream,
 	 *  frequency values due to the EPLL output frequency not being exact
 	 *  multiple of the audio sampling rate.
 	 */
-	rclk_freq = params_rate(params) * 256 + 1;
+	rclk_freq = params_rate(params) * rfs + 1;
 
 	ret = clk_set_rate(priv->sclk_i2s, rclk_freq);
 	if (ret < 0)
@@ -89,18 +90,6 @@ static const struct snd_soc_ops odroid_card_ops = {
 	.startup = odroid_card_startup,
 	.hw_params = odroid_card_hw_params,
 };
-
-static void odroid_put_codec_of_nodes(struct snd_soc_dai_link *link)
-{
-	struct snd_soc_dai_link_component *component = link->codecs;
-	int i;
-
-	for (i = 0; i < link->num_codecs; i++, component++) {
-		if (!component->of_node)
-			break;
-		of_node_put(component->of_node);
-	}
-}
 
 static int odroid_audio_probe(struct platform_device *pdev)
 {
@@ -196,7 +185,7 @@ err_put_sclk:
 err_put_i2s_n:
 	of_node_put(link->cpu_of_node);
 err_put_codec_n:
-	odroid_put_codec_of_nodes(link);
+	snd_soc_of_put_dai_link_codecs(link);
 	return ret;
 }
 
@@ -205,7 +194,7 @@ static int odroid_audio_remove(struct platform_device *pdev)
 	struct odroid_priv *priv = platform_get_drvdata(pdev);
 
 	of_node_put(priv->dai_link.cpu_of_node);
-	odroid_put_codec_of_nodes(&priv->dai_link);
+	snd_soc_of_put_dai_link_codecs(&priv->dai_link);
 	clk_put(priv->sclk_i2s);
 	clk_put(priv->clk_i2s_bus);
 
@@ -213,8 +202,10 @@ static int odroid_audio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id odroid_audio_of_match[] = {
+	{ .compatible	= "hardkernel,odroid-xu3-audio" },
+	{ .compatible	= "hardkernel,odroid-xu4-audio" },
 	{ .compatible	= "samsung,odroid-xu3-audio" },
-	{ .compatible	= "samsung,odroid-xu4-audio"},
+	{ .compatible	= "samsung,odroid-xu4-audio" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, odroid_audio_of_match);

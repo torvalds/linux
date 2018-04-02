@@ -155,7 +155,7 @@ static struct snd_soc_dai_link_component rk_codecs[] = {
 	{ },
 	{
 		.name = "hdmi-audio-codec.2.auto",
-		.dai_name = "hdmi-hifi.0",
+		.dai_name = "i2s-hifi",
 	},
 };
 

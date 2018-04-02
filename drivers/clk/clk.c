@@ -1125,8 +1125,10 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 {
 	lockdep_assert_held(&prepare_lock);
 
-	if (!core)
+	if (!core) {
+		req->rate = 0;
 		return 0;
+	}
 
 	clk_core_init_rate_req(core, req);
 
@@ -2309,8 +2311,11 @@ static int clk_core_set_phase_nolock(struct clk_core *core, int degrees)
 
 	trace_clk_set_phase(core, degrees);
 
-	if (core->ops->set_phase)
+	if (core->ops->set_phase) {
 		ret = core->ops->set_phase(core->hw, degrees);
+		if (!ret)
+			core->phase = degrees;
+	}
 
 	trace_clk_set_phase_complete(core, degrees);
 
@@ -2968,22 +2973,37 @@ static int __clk_core_init(struct clk_core *core)
 	core->rate = core->req_rate = rate;
 
 	/*
+	 * Enable CLK_IS_CRITICAL clocks so newly added critical clocks
+	 * don't get accidentally disabled when walking the orphan tree and
+	 * reparenting clocks
+	 */
+	if (core->flags & CLK_IS_CRITICAL) {
+		unsigned long flags;
+
+		clk_core_prepare(core);
+
+		flags = clk_enable_lock();
+		clk_core_enable(core);
+		clk_enable_unlock(flags);
+	}
+
+	/*
 	 * walk the list of orphan clocks and reparent any that newly finds a
 	 * parent.
 	 */
 	hlist_for_each_entry_safe(orphan, tmp2, &clk_orphan_list, child_node) {
 		struct clk_core *parent = __clk_init_parent(orphan);
-		unsigned long flags;
 
 		/*
-		 * we could call __clk_set_parent, but that would result in a
-		 * redundant call to the .set_rate op, if it exists
+		 * We need to use __clk_set_parent_before() and _after() to
+		 * to properly migrate any prepare/enable count of the orphan
+		 * clock. This is important for CLK_IS_CRITICAL clocks, which
+		 * are enabled during init but might not have a parent yet.
 		 */
 		if (parent) {
 			/* update the clk tree topology */
-			flags = clk_enable_lock();
-			clk_reparent(orphan, parent);
-			clk_enable_unlock(flags);
+			__clk_set_parent_before(orphan, parent);
+			__clk_set_parent_after(orphan, parent, NULL);
 			__clk_recalc_accuracies(orphan);
 			__clk_recalc_rates(orphan, 0);
 		}
@@ -2999,16 +3019,6 @@ static int __clk_core_init(struct clk_core *core)
 	 */
 	if (core->ops->init)
 		core->ops->init(core->hw);
-
-	if (core->flags & CLK_IS_CRITICAL) {
-		unsigned long flags;
-
-		clk_core_prepare(core);
-
-		flags = clk_enable_lock();
-		clk_core_enable(core);
-		clk_enable_unlock(flags);
-	}
 
 	kref_init(&core->ref);
 out:

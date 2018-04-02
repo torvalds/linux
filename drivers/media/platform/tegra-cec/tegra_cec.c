@@ -172,16 +172,13 @@ static irqreturn_t tegra_cec_irq_handler(int irq, void *data)
 		}
 	}
 
-	if (status & (TEGRA_CEC_INT_STAT_RX_REGISTER_OVERRUN |
-		      TEGRA_CEC_INT_STAT_RX_BUS_ANOMALY_DETECTED |
-		      TEGRA_CEC_INT_STAT_RX_START_BIT_DETECTED |
-		      TEGRA_CEC_INT_STAT_RX_BUS_ERROR_DETECTED)) {
+	if (status & TEGRA_CEC_INT_STAT_RX_START_BIT_DETECTED) {
 		cec_write(cec, TEGRA_CEC_INT_STAT,
-			  (TEGRA_CEC_INT_STAT_RX_REGISTER_OVERRUN |
-			   TEGRA_CEC_INT_STAT_RX_BUS_ANOMALY_DETECTED |
-			   TEGRA_CEC_INT_STAT_RX_START_BIT_DETECTED |
-			   TEGRA_CEC_INT_STAT_RX_BUS_ERROR_DETECTED));
-	} else if (status & TEGRA_CEC_INT_STAT_RX_REGISTER_FULL) {
+			  TEGRA_CEC_INT_STAT_RX_START_BIT_DETECTED);
+		cec->rx_done = false;
+		cec->rx_buf_cnt = 0;
+	}
+	if (status & TEGRA_CEC_INT_STAT_RX_REGISTER_FULL) {
 		u32 v;
 
 		cec_write(cec, TEGRA_CEC_INT_STAT,
@@ -255,7 +252,7 @@ static int tegra_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		  TEGRA_CEC_INT_MASK_TX_BUS_ANOMALY_DETECTED |
 		  TEGRA_CEC_INT_MASK_TX_FRAME_TRANSMITTED |
 		  TEGRA_CEC_INT_MASK_RX_REGISTER_FULL |
-		  TEGRA_CEC_INT_MASK_RX_REGISTER_OVERRUN);
+		  TEGRA_CEC_INT_MASK_RX_START_BIT_DETECTED);
 
 	cec_write(cec, TEGRA_CEC_HW_CONTROL, TEGRA_CEC_HWCTRL_TX_RX_MODE);
 	return 0;

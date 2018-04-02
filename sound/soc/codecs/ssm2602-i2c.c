@@ -27,12 +27,6 @@ static int ssm2602_i2c_probe(struct i2c_client *client,
 		devm_regmap_init_i2c(client, &ssm2602_regmap_config));
 }
 
-static int ssm2602_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
 static const struct i2c_device_id ssm2602_i2c_id[] = {
 	{ "ssm2602", SSM2602 },
 	{ "ssm2603", SSM2602 },
@@ -55,7 +49,6 @@ static struct i2c_driver ssm2602_i2c_driver = {
 		.of_match_table = ssm2602_of_match,
 	},
 	.probe = ssm2602_i2c_probe,
-	.remove = ssm2602_i2c_remove,
 	.id_table = ssm2602_i2c_id,
 };
 module_i2c_driver(ssm2602_i2c_driver);
