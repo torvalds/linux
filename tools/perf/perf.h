@@ -61,6 +61,7 @@ struct record_opts {
 	bool	     tail_synthesize;
 	bool	     overwrite;
 	bool	     ignore_missing_thread;
+	bool	     strict_freq;
 	bool	     sample_id;
 	unsigned int freq;
 	unsigned int mmap_pages;
@@ -83,4 +84,6 @@ struct record_opts {
 struct option;
 extern const char * const *record_usage;
 extern struct option *record_options;
+
+int record__parse_freq(const struct option *opt, const char *str, int unset);
 #endif

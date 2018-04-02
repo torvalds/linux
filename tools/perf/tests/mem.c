@@ -16,7 +16,7 @@ static int check(union perf_mem_data_src data_src,
 
 	n = perf_mem__snp_scnprintf(out, sizeof out, &mi);
 	n += perf_mem__lvl_scnprintf(out + n, sizeof out - n, &mi);
-	snprintf(failure, sizeof failure, "unexpected %s", out);
+	scnprintf(failure, sizeof failure, "unexpected %s", out);
 	TEST_ASSERT_VAL(failure, !strcmp(string, out));
 	return 0;
 }

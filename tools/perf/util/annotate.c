@@ -14,6 +14,7 @@
 #include "sort.h"
 #include "build-id.h"
 #include "color.h"
+#include "config.h"
 #include "cache.h"
 #include "symbol.h"
 #include "debug.h"
@@ -27,7 +28,24 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 
+/* FIXME: For the HE_COLORSET */
+#include "ui/browser.h"
+
+/*
+ * FIXME: Using the same values as slang.h,
+ * but that header may not be available everywhere
+ */
+#define LARROW_CHAR	((unsigned char)',')
+#define RARROW_CHAR	((unsigned char)'+')
+#define DARROW_CHAR	((unsigned char)'.')
+#define UARROW_CHAR	((unsigned char)'-')
+
 #include "sane_ctype.h"
+
+struct annotation_options annotation__default_options = {
+	.use_offset     = true,
+	.jump_arrows    = true,
+};
 
 const char 	*disassembler_style;
 const char	*objdump_path;
@@ -184,9 +202,13 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2)
 	return arch->ins_is_fused(arch, ins1, ins2);
 }
 
-static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
+static int call__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
 {
 	char *endptr, *tok, *name;
+	struct map *map = ms->map;
+	struct addr_map_symbol target = {
+		.map = map,
+	};
 
 	ops->target.addr = strtoull(ops->raw, &endptr, 16);
 
@@ -208,31 +230,35 @@ static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *
 	ops->target.name = strdup(name);
 	*tok = '>';
 
-	return ops->target.name == NULL ? -1 : 0;
+	if (ops->target.name == NULL)
+		return -1;
+find_target:
+	target.addr = map__objdump_2mem(map, ops->target.addr);
+
+	if (map_groups__find_ams(&target) == 0 &&
+	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
+		ops->target.sym = target.sym;
+
+	return 0;
 
 indirect_call:
 	tok = strchr(endptr, '*');
-	if (tok == NULL) {
-		struct symbol *sym = map__find_symbol(map, map->map_ip(map, ops->target.addr));
-		if (sym != NULL)
-			ops->target.name = strdup(sym->name);
-		else
-			ops->target.addr = 0;
-		return 0;
-	}
-
-	ops->target.addr = strtoull(tok + 1, NULL, 16);
-	return 0;
+	if (tok != NULL)
+		ops->target.addr = strtoull(tok + 1, NULL, 16);
+	goto find_target;
 }
 
 static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
-	if (ops->target.name)
-		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.name);
+	if (ops->target.sym)
+		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.sym->name);
 
 	if (ops->target.addr == 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
+
+	if (ops->target.name)
+		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.name);
 
 	return scnprintf(bf, size, "%-6s *%" PRIx64, ins->name, ops->target.addr);
 }
@@ -244,14 +270,29 @@ static struct ins_ops call_ops = {
 
 bool ins__is_call(const struct ins *ins)
 {
-	return ins->ops == &call_ops;
+	return ins->ops == &call_ops || ins->ops == &s390_call_ops;
 }
 
-static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
+static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map_symbol *ms)
 {
-	const char *s = strchr(ops->raw, '+');
+	struct map *map = ms->map;
+	struct symbol *sym = ms->sym;
+	struct addr_map_symbol target = {
+		.map = map,
+	};
 	const char *c = strchr(ops->raw, ',');
-
+	u64 start, end;
+	/*
+	 * Examples of lines to parse for the _cpp_lex_token@@Base
+	 * function:
+	 *
+	 * 1159e6c: jne    115aa32 <_cpp_lex_token@@Base+0xf92>
+	 * 1159e8b: jne    c469be <cpp_named_operator2name@@Base+0xa72>
+	 *
+	 * The first is a jump to an offset inside the same function,
+	 * the second is to another function, i.e. that 0xa72 is an
+	 * offset in the cpp_named_operator2name@@base function.
+	 */
 	/*
 	 * skip over possible up to 2 operands to get to address, e.g.:
 	 * tbnz	 w0, #26, ffff0000083cd190 <security_file_permission+0xd0>
@@ -267,8 +308,36 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 		ops->target.addr = strtoull(ops->raw, NULL, 16);
 	}
 
-	if (s++ != NULL) {
-		ops->target.offset = strtoull(s, NULL, 16);
+	target.addr = map__objdump_2mem(map, ops->target.addr);
+	start = map->unmap_ip(map, sym->start),
+	end = map->unmap_ip(map, sym->end);
+
+	ops->target.outside = target.addr < start || target.addr > end;
+
+	/*
+	 * FIXME: things like this in _cpp_lex_token (gcc's cc1 program):
+
+		cpp_named_operator2name@@Base+0xa72
+
+	 * Point to a place that is after the cpp_named_operator2name
+	 * boundaries, i.e.  in the ELF symbol table for cc1
+	 * cpp_named_operator2name is marked as being 32-bytes long, but it in
+	 * fact is much larger than that, so we seem to need a symbols__find()
+	 * routine that looks for >= current->start and  < next_symbol->start,
+	 * possibly just for C++ objects?
+	 *
+	 * For now lets just make some progress by marking jumps to outside the
+	 * current function as call like.
+	 *
+	 * Actual navigation will come next, with further understanding of how
+	 * the symbol searching and disassembly should be done.
+	 */
+	if (map_groups__find_ams(&target) == 0 &&
+	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
+		ops->target.sym = target.sym;
+
+	if (!ops->target.outside) {
+		ops->target.offset = target.addr - start;
 		ops->target.offset_avail = true;
 	} else {
 		ops->target.offset_avail = false;
@@ -280,11 +349,15 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
-	const char *c = strchr(ops->raw, ',');
+	const char *c;
 
 	if (!ops->target.addr || ops->target.offset < 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
+	if (ops->target.outside && ops->target.sym != NULL)
+		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.sym->name);
+
+	c = strchr(ops->raw, ',');
 	if (c != NULL) {
 		const char *c2 = strchr(c + 1, ',');
 
@@ -340,7 +413,7 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 	return 0;
 }
 
-static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
+static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
 {
 	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
 	if (ops->locked.ops == NULL)
@@ -355,7 +428,7 @@ static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *
 		goto out_free_ops;
 
 	if (ops->locked.ins.ops->parse &&
-	    ops->locked.ins.ops->parse(arch, ops->locked.ops, map) < 0)
+	    ops->locked.ins.ops->parse(arch, ops->locked.ops, ms) < 0)
 		goto out_free_ops;
 
 	return 0;
@@ -398,7 +471,7 @@ static struct ins_ops lock_ops = {
 	.scnprintf = lock__scnprintf,
 };
 
-static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map *map __maybe_unused)
+static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
 {
 	char *s = strchr(ops->raw, ','), *target, *comment, prev;
 
@@ -459,7 +532,7 @@ static struct ins_ops mov_ops = {
 	.scnprintf = mov__scnprintf,
 };
 
-static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
+static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
 {
 	char *target, *comment, *s, prev;
 
@@ -826,6 +899,66 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 	return err;
 }
 
+static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 end)
+{
+	unsigned n_insn = 0;
+	u64 offset;
+
+	for (offset = start; offset <= end; offset++) {
+		if (notes->offsets[offset])
+			n_insn++;
+	}
+	return n_insn;
+}
+
+static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 end, struct cyc_hist *ch)
+{
+	unsigned n_insn;
+	u64 offset;
+
+	n_insn = annotation__count_insn(notes, start, end);
+	if (n_insn && ch->num && ch->cycles) {
+		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
+
+		/* Hide data when there are too many overlaps. */
+		if (ch->reset >= 0x7fff || ch->reset >= ch->num / 2)
+			return;
+
+		for (offset = start; offset <= end; offset++) {
+			struct annotation_line *al = notes->offsets[offset];
+
+			if (al)
+				al->ipc = ipc;
+		}
+	}
+}
+
+void annotation__compute_ipc(struct annotation *notes, size_t size)
+{
+	u64 offset;
+
+	if (!notes->src || !notes->src->cycles_hist)
+		return;
+
+	pthread_mutex_lock(&notes->lock);
+	for (offset = 0; offset < size; ++offset) {
+		struct cyc_hist *ch;
+
+		ch = &notes->src->cycles_hist[offset];
+		if (ch && ch->cycles) {
+			struct annotation_line *al;
+
+			if (ch->have_start)
+				annotation__count_and_fill(notes, ch->start, offset, ch);
+			al = notes->offsets[offset];
+			if (al && ch->num_aggr)
+				al->cycles = ch->cycles_aggr / ch->num_aggr;
+			notes->have_cycles = true;
+		}
+	}
+	pthread_mutex_unlock(&notes->lock);
+}
+
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
 				 int evidx)
 {
@@ -838,14 +971,14 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *samp
 	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip, sample);
 }
 
-static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map *map)
+static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map_symbol *ms)
 {
 	dl->ins.ops = ins__find(arch, dl->ins.name);
 
 	if (!dl->ins.ops)
 		return;
 
-	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, map) < 0)
+	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, ms) < 0)
 		dl->ins.ops = NULL;
 }
 
@@ -882,7 +1015,7 @@ out_free_name:
 struct annotate_args {
 	size_t			 privsize;
 	struct arch		*arch;
-	struct map		*map;
+	struct map_symbol	 ms;
 	struct perf_evsel	*evsel;
 	s64			 offset;
 	char			*line;
@@ -964,7 +1097,7 @@ static struct disasm_line *disasm_line__new(struct annotate_args *args)
 			if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
-			disasm_line__init_ins(dl, args->arch, args->map);
+			disasm_line__init_ins(dl, args->arch, &args->ms);
 		}
 	}
 
@@ -1222,7 +1355,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 				      struct annotate_args *args,
 				      int *line_nr)
 {
-	struct map *map = args->map;
+	struct map *map = args->ms.map;
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *dl;
 	char *line = NULL, *parsed_line, *tmp, *tmp2;
@@ -1269,6 +1402,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 	args->offset  = offset;
 	args->line    = parsed_line;
 	args->line_nr = *line_nr;
+	args->ms.sym  = sym;
 
 	dl = disasm_line__new(args);
 	free(line);
@@ -1277,14 +1411,14 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 	if (dl == NULL)
 		return -1;
 
-	if (!disasm_line__has_offset(dl)) {
+	if (!disasm_line__has_local_offset(dl)) {
 		dl->ops.target.offset = dl->ops.target.addr -
 					map__rip_2objdump(map, sym->start);
 		dl->ops.target.offset_avail = true;
 	}
 
-	/* kcore has no symbols, so add the call target name */
-	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.name) {
+	/* kcore has no symbols, so add the call target symbol */
+	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.sym) {
 		struct addr_map_symbol target = {
 			.map = map,
 			.addr = dl->ops.target.addr,
@@ -1292,7 +1426,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 
 		if (!map_groups__find_ams(&target) &&
 		    target.sym->start == target.al_addr)
-			dl->ops.target.name = strdup(target.sym->name);
+			dl->ops.target.sym = target.sym;
 	}
 
 	annotation_line__add(&dl->al, &notes->src->source);
@@ -1421,9 +1555,9 @@ fallback:
 
 static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 {
-	struct map *map = args->map;
+	struct map *map = args->ms.map;
 	struct dso *dso = map->dso;
-	char command[PATH_MAX * 2];
+	char *command;
 	FILE *file;
 	char symfs_filename[PATH_MAX];
 	struct kcore_extract kce;
@@ -1464,7 +1598,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		strcpy(symfs_filename, tmp);
 	}
 
-	snprintf(command, sizeof(command),
+	err = asprintf(&command,
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
 		 " -l -d %s %s -C \"%s\" 2>/dev/null|grep -v \"%s:\"|expand",
@@ -1477,12 +1611,17 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		 symbol_conf.annotate_src ? "-S" : "",
 		 symfs_filename, symfs_filename);
 
+	if (err < 0) {
+		pr_err("Failure allocating memory for the command to run\n");
+		goto out_remove_tmp;
+	}
+
 	pr_debug("Executing: %s\n", command);
 
 	err = -1;
 	if (pipe(stdout_fd) < 0) {
 		pr_err("Failure creating the pipe to run %s\n", command);
-		goto out_remove_tmp;
+		goto out_free_command;
 	}
 
 	pid = fork();
@@ -1509,7 +1648,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		 * If we were using debug info should retry with
 		 * original binary.
 		 */
-		goto out_remove_tmp;
+		goto out_free_command;
 	}
 
 	nline = 0;
@@ -1537,6 +1676,8 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 	fclose(file);
 	err = 0;
+out_free_command:
+	free(command);
 out_remove_tmp:
 	close(stdout_fd[0]);
 
@@ -1550,7 +1691,7 @@ out:
 
 out_close_stdout:
 	close(stdout_fd[1]);
-	goto out_remove_tmp;
+	goto out_free_command;
 }
 
 static void calc_percent(struct sym_hist *hist,
@@ -1613,7 +1754,6 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 {
 	struct annotate_args args = {
 		.privsize	= privsize,
-		.map		= map,
 		.evsel		= evsel,
 	};
 	struct perf_env *env = perf_evsel__env(evsel);
@@ -1638,6 +1778,9 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 			return err;
 		}
 	}
+
+	args.ms.map = map;
+	args.ms.sym = sym;
 
 	return symbol__disassemble(sym, &args);
 }
@@ -1879,6 +2022,103 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	return more;
 }
 
+static void FILE__set_percent_color(void *fp __maybe_unused,
+				    double percent __maybe_unused,
+				    bool current __maybe_unused)
+{
+}
+
+static int FILE__set_jumps_percent_color(void *fp __maybe_unused,
+					 int nr __maybe_unused, bool current __maybe_unused)
+{
+	return 0;
+}
+
+static int FILE__set_color(void *fp __maybe_unused, int color __maybe_unused)
+{
+	return 0;
+}
+
+static void FILE__printf(void *fp, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vfprintf(fp, fmt, args);
+	va_end(args);
+}
+
+static void FILE__write_graph(void *fp, int graph)
+{
+	const char *s;
+	switch (graph) {
+
+	case DARROW_CHAR: s = "↓"; break;
+	case UARROW_CHAR: s = "↑"; break;
+	case LARROW_CHAR: s = "←"; break;
+	case RARROW_CHAR: s = "→"; break;
+	default:		s = "?"; break;
+	}
+
+	fputs(s, fp);
+}
+
+int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct annotation_write_ops ops = {
+		.first_line		 = true,
+		.obj			 = fp,
+		.set_color		 = FILE__set_color,
+		.set_percent_color	 = FILE__set_percent_color,
+		.set_jumps_percent_color = FILE__set_jumps_percent_color,
+		.printf			 = FILE__printf,
+		.write_graph		 = FILE__write_graph,
+	};
+	struct annotation_line *al;
+
+	list_for_each_entry(al, &notes->src->source, node) {
+		if (annotation_line__filter(al, notes))
+			continue;
+		annotation_line__write(al, notes, &ops);
+		fputc('\n', fp);
+		ops.first_line = false;
+	}
+
+	return 0;
+}
+
+int map_symbol__annotation_dump(struct map_symbol *ms, struct perf_evsel *evsel)
+{
+	const char *ev_name = perf_evsel__name(evsel);
+	char buf[1024];
+	char *filename;
+	int err = -1;
+	FILE *fp;
+
+	if (asprintf(&filename, "%s.annotation", ms->sym->name) < 0)
+		return -1;
+
+	fp = fopen(filename, "w");
+	if (fp == NULL)
+		goto out_free_filename;
+
+	if (perf_evsel__is_group_event(evsel)) {
+		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		ev_name = buf;
+	}
+
+	fprintf(fp, "%s() %s\nEvent: %s\n\n",
+		ms->sym->name, ms->map->dso->long_name, ev_name);
+	symbol__annotate_fprintf2(ms->sym, fp);
+
+	fclose(fp);
+	err = 0;
+out_free_filename:
+	free(filename);
+	return err;
+}
+
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
@@ -1938,8 +2178,109 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	return printed;
 }
 
+bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym)
+{
+	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins) ||
+	    !disasm_line__has_local_offset(dl) || dl->ops.target.offset < 0 ||
+	    dl->ops.target.offset >= (s64)symbol__size(sym))
+		return false;
+
+	return true;
+}
+
+void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
+{
+	u64 offset, size = symbol__size(sym);
+
+	/* PLT symbols contain external offsets */
+	if (strstr(sym->name, "@plt"))
+		return;
+
+	for (offset = 0; offset < size; ++offset) {
+		struct annotation_line *al = notes->offsets[offset];
+		struct disasm_line *dl;
+
+		dl = disasm_line(al);
+
+		if (!disasm_line__is_valid_local_jump(dl, sym))
+			continue;
+
+		al = notes->offsets[dl->ops.target.offset];
+
+		/*
+		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
+		 * have to adjust to the previous offset?
+		 */
+		if (al == NULL)
+			continue;
+
+		if (++al->jump_sources > notes->max_jump_sources)
+			notes->max_jump_sources = al->jump_sources;
+
+		++notes->nr_jumps;
+	}
+}
+
+void annotation__set_offsets(struct annotation *notes, s64 size)
+{
+	struct annotation_line *al;
+
+	notes->max_line_len = 0;
+
+	list_for_each_entry(al, &notes->src->source, node) {
+		size_t line_len = strlen(al->line);
+
+		if (notes->max_line_len < line_len)
+			notes->max_line_len = line_len;
+		al->idx = notes->nr_entries++;
+		if (al->offset != -1) {
+			al->idx_asm = notes->nr_asm_entries++;
+			/*
+			 * FIXME: short term bandaid to cope with assembly
+			 * routines that comes with labels in the same column
+			 * as the address in objdump, sigh.
+			 *
+			 * E.g. copy_user_generic_unrolled
+ 			 */
+			if (al->offset < size)
+				notes->offsets[al->offset] = al;
+		} else
+			al->idx_asm = -1;
+	}
+}
+
+static inline int width_jumps(int n)
+{
+	if (n >= 100)
+		return 5;
+	if (n / 10)
+		return 2;
+	return 1;
+}
+
+void annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
+{
+	notes->widths.addr = notes->widths.target =
+		notes->widths.min_addr = hex_width(symbol__size(sym));
+	notes->widths.max_addr = hex_width(sym->end);
+	notes->widths.jumps = width_jumps(notes->max_jump_sources);
+}
+
+void annotation__update_column_widths(struct annotation *notes)
+{
+	if (notes->options->use_offset)
+		notes->widths.target = notes->widths.min_addr;
+	else
+		notes->widths.target = notes->widths.max_addr;
+
+	notes->widths.addr = notes->widths.target;
+
+	if (notes->options->show_nr_jumps)
+		notes->widths.addr += notes->widths.jumps + 1;
+}
+
 static void annotation__calc_lines(struct annotation *notes, struct map *map,
-				  struct rb_root *root, u64 start)
+				  struct rb_root *root)
 {
 	struct annotation_line *al;
 	struct rb_root tmp_root = RB_ROOT;
@@ -1960,8 +2301,8 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		if (percent_max <= 0.5)
 			continue;
 
-		al->path = get_srcline(map->dso, start + al->offset, NULL,
-				       false, true, start + al->offset);
+		al->path = get_srcline(map->dso, notes->start + al->offset, NULL,
+				       false, true, notes->start + al->offset);
 		insert_source_line(&tmp_root, al);
 	}
 
@@ -1972,9 +2313,40 @@ static void symbol__calc_lines(struct symbol *sym, struct map *map,
 			      struct rb_root *root)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	u64 start = map__rip_2objdump(map, sym->start);
 
-	annotation__calc_lines(notes, map, root, start);
+	annotation__calc_lines(notes, map, root);
+}
+
+int symbol__tty_annotate2(struct symbol *sym, struct map *map,
+			  struct perf_evsel *evsel, bool print_lines,
+			  bool full_paths)
+{
+	struct dso *dso = map->dso;
+	struct rb_root source_line = RB_ROOT;
+	struct annotation_options opts = annotation__default_options;
+	const char *ev_name = perf_evsel__name(evsel);
+	char buf[1024];
+
+	if (symbol__annotate2(sym, map, evsel, &opts, NULL) < 0)
+		return -1;
+
+	if (print_lines) {
+		srcline_full_filename = full_paths;
+		symbol__calc_lines(sym, map, &source_line);
+		print_summary(&source_line, dso->long_name);
+	}
+
+	if (perf_evsel__is_group_event(evsel)) {
+		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		ev_name = buf;
+	}
+
+	fprintf(stdout, "%s() %s\nEvent: %s\n\n", sym->name, dso->long_name, ev_name);
+	symbol__annotate_fprintf2(sym, stdout);
+
+	annotated_source__purge(symbol__annotation(sym)->src);
+
+	return 0;
 }
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map,
@@ -2006,4 +2378,277 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 bool ui__has_annotation(void)
 {
 	return use_browser == 1 && perf_hpp_list.sym;
+}
+
+
+double annotation_line__max_percent(struct annotation_line *al, struct annotation *notes)
+{
+	double percent_max = 0.0;
+	int i;
+
+	for (i = 0; i < notes->nr_events; i++) {
+		if (al->samples[i].percent > percent_max)
+			percent_max = al->samples[i].percent;
+	}
+
+	return percent_max;
+}
+
+static void disasm_line__write(struct disasm_line *dl, struct annotation *notes,
+			       void *obj, char *bf, size_t size,
+			       void (*obj__printf)(void *obj, const char *fmt, ...),
+			       void (*obj__write_graph)(void *obj, int graph))
+{
+	if (dl->ins.ops && dl->ins.ops->scnprintf) {
+		if (ins__is_jump(&dl->ins)) {
+			bool fwd;
+
+			if (dl->ops.target.outside)
+				goto call_like;
+			fwd = dl->ops.target.offset > dl->al.offset;
+			obj__write_graph(obj, fwd ? DARROW_CHAR : UARROW_CHAR);
+			obj__printf(obj, " ");
+		} else if (ins__is_call(&dl->ins)) {
+call_like:
+			obj__write_graph(obj, RARROW_CHAR);
+			obj__printf(obj, " ");
+		} else if (ins__is_ret(&dl->ins)) {
+			obj__write_graph(obj, LARROW_CHAR);
+			obj__printf(obj, " ");
+		} else {
+			obj__printf(obj, "  ");
+		}
+	} else {
+		obj__printf(obj, "  ");
+	}
+
+	disasm_line__scnprintf(dl, bf, size, !notes->options->use_offset);
+}
+
+static void __annotation_line__write(struct annotation_line *al, struct annotation *notes,
+				     bool first_line, bool current_entry, bool change_color, int width,
+				     void *obj,
+				     int  (*obj__set_color)(void *obj, int color),
+				     void (*obj__set_percent_color)(void *obj, double percent, bool current),
+				     int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current),
+				     void (*obj__printf)(void *obj, const char *fmt, ...),
+				     void (*obj__write_graph)(void *obj, int graph))
+
+{
+	double percent_max = annotation_line__max_percent(al, notes);
+	int pcnt_width = annotation__pcnt_width(notes),
+	    cycles_width = annotation__cycles_width(notes);
+	bool show_title = false;
+	char bf[256];
+	int printed;
+
+	if (first_line && (al->offset == -1 || percent_max == 0.0)) {
+		if (notes->have_cycles) {
+			if (al->ipc == 0.0 && al->cycles == 0)
+				show_title = true;
+		} else
+			show_title = true;
+	}
+
+	if (al->offset != -1 && percent_max != 0.0) {
+		int i;
+
+		for (i = 0; i < notes->nr_events; i++) {
+			obj__set_percent_color(obj, al->samples[i].percent, current_entry);
+			if (notes->options->show_total_period) {
+				obj__printf(obj, "%11" PRIu64 " ", al->samples[i].he.period);
+			} else if (notes->options->show_nr_samples) {
+				obj__printf(obj, "%6" PRIu64 " ",
+						   al->samples[i].he.nr_samples);
+			} else {
+				obj__printf(obj, "%6.2f ",
+						   al->samples[i].percent);
+			}
+		}
+	} else {
+		obj__set_percent_color(obj, 0, current_entry);
+
+		if (!show_title)
+			obj__printf(obj, "%-*s", pcnt_width, " ");
+		else {
+			obj__printf(obj, "%-*s", pcnt_width,
+					   notes->options->show_total_period ? "Period" :
+					   notes->options->show_nr_samples ? "Samples" : "Percent");
+		}
+	}
+
+	if (notes->have_cycles) {
+		if (al->ipc)
+			obj__printf(obj, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->ipc);
+		else if (!show_title)
+			obj__printf(obj, "%*s", ANNOTATION__IPC_WIDTH, " ");
+		else
+			obj__printf(obj, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
+
+		if (al->cycles)
+			obj__printf(obj, "%*" PRIu64 " ",
+					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles);
+		else if (!show_title)
+			obj__printf(obj, "%*s", ANNOTATION__CYCLES_WIDTH, " ");
+		else
+			obj__printf(obj, "%*s ", ANNOTATION__CYCLES_WIDTH - 1, "Cycle");
+	}
+
+	obj__printf(obj, " ");
+
+	if (!*al->line)
+		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width, " ");
+	else if (al->offset == -1) {
+		if (al->line_nr && notes->options->show_linenr)
+			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
+		else
+			printed = scnprintf(bf, sizeof(bf), "%-*s  ", notes->widths.addr, " ");
+		obj__printf(obj, bf);
+		obj__printf(obj, "%-*s", width - printed - pcnt_width - cycles_width + 1, al->line);
+	} else {
+		u64 addr = al->offset;
+		int color = -1;
+
+		if (!notes->options->use_offset)
+			addr += notes->start;
+
+		if (!notes->options->use_offset) {
+			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
+		} else {
+			if (al->jump_sources) {
+				if (notes->options->show_nr_jumps) {
+					int prev;
+					printed = scnprintf(bf, sizeof(bf), "%*d ",
+							    notes->widths.jumps,
+							    al->jump_sources);
+					prev = obj__set_jumps_percent_color(obj, al->jump_sources,
+									    current_entry);
+					obj__printf(obj, bf);
+					obj__set_color(obj, prev);
+				}
+
+				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
+						    notes->widths.target, addr);
+			} else {
+				printed = scnprintf(bf, sizeof(bf), "%-*s  ",
+						    notes->widths.addr, " ");
+			}
+		}
+
+		if (change_color)
+			color = obj__set_color(obj, HE_COLORSET_ADDR);
+		obj__printf(obj, bf);
+		if (change_color)
+			obj__set_color(obj, color);
+
+		disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf), obj__printf, obj__write_graph);
+
+		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width - 3 - printed, bf);
+	}
+
+}
+
+void annotation_line__write(struct annotation_line *al, struct annotation *notes,
+			    struct annotation_write_ops *ops)
+{
+	__annotation_line__write(al, notes, ops->first_line, ops->current_entry,
+				 ops->change_color, ops->width, ops->obj,
+				 ops->set_color, ops->set_percent_color,
+				 ops->set_jumps_percent_color, ops->printf,
+				 ops->write_graph);
+}
+
+int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *evsel,
+		      struct annotation_options *options, struct arch **parch)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	size_t size = symbol__size(sym);
+	int nr_pcnt = 1, err;
+
+	notes->offsets = zalloc(size * sizeof(struct annotation_line *));
+	if (notes->offsets == NULL)
+		return -1;
+
+	if (perf_evsel__is_group_event(evsel))
+		nr_pcnt = evsel->nr_members;
+
+	err = symbol__annotate(sym, map, evsel, 0, parch);
+	if (err)
+		goto out_free_offsets;
+
+	notes->options = options;
+
+	symbol__calc_percent(sym, evsel);
+
+	notes->start = map__rip_2objdump(map, sym->start);
+
+	annotation__set_offsets(notes, size);
+	annotation__mark_jump_targets(notes, sym);
+	annotation__compute_ipc(notes, size);
+	annotation__init_column_widths(notes, sym);
+	notes->nr_events = nr_pcnt;
+
+	annotation__update_column_widths(notes);
+
+	return 0;
+
+out_free_offsets:
+	zfree(&notes->offsets);
+	return -1;
+}
+
+#define ANNOTATION__CFG(n) \
+	{ .name = #n, .value = &annotation__default_options.n, }
+
+/*
+ * Keep the entries sorted, they are bsearch'ed
+ */
+static struct annotation_config {
+	const char *name;
+	bool *value;
+} annotation__configs[] = {
+	ANNOTATION__CFG(hide_src_code),
+	ANNOTATION__CFG(jump_arrows),
+	ANNOTATION__CFG(show_linenr),
+	ANNOTATION__CFG(show_nr_jumps),
+	ANNOTATION__CFG(show_nr_samples),
+	ANNOTATION__CFG(show_total_period),
+	ANNOTATION__CFG(use_offset),
+};
+
+#undef ANNOTATION__CFG
+
+static int annotation_config__cmp(const void *name, const void *cfgp)
+{
+	const struct annotation_config *cfg = cfgp;
+
+	return strcmp(name, cfg->name);
+}
+
+static int annotation__config(const char *var, const char *value,
+			    void *data __maybe_unused)
+{
+	struct annotation_config *cfg;
+	const char *name;
+
+	if (!strstarts(var, "annotate."))
+		return 0;
+
+	name = var + 9;
+	cfg = bsearch(name, annotation__configs, ARRAY_SIZE(annotation__configs),
+		      sizeof(struct annotation_config), annotation_config__cmp);
+
+	if (cfg == NULL)
+		pr_debug("%s variable unknown, ignoring...", var);
+	else
+		*cfg->value = perf_config_bool(name, value);
+	return 0;
+}
+
+void annotation_config__init(void)
+{
+	perf_config(annotation__config, NULL);
+
+	annotation__default_options.show_total_period = symbol_conf.show_total_period;
+	annotation__default_options.show_nr_samples   = symbol_conf.show_nr_samples;
 }

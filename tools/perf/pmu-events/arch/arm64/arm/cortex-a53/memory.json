@@ -1,20 +1,10 @@
 [
-  {,
-    "EventCode": "0x60",
-    "EventName": "BUS_ACCESS_LD",
-    "BriefDescription": "Bus access - Read"
-  },
-  {,
-    "EventCode": "0x61",
-    "EventName": "BUS_ACCESS_ST",
-    "BriefDescription": "Bus access - Write"
-  },
-  {,
+  {
     "EventCode": "0xC0",
     "EventName": "EXT_MEM_REQ",
     "BriefDescription": "External memory request"
   },
-  {,
+  {
     "EventCode": "0xC1",
     "EventName": "EXT_MEM_REQ_NC",
     "BriefDescription": "Non-cacheable external memory request"
