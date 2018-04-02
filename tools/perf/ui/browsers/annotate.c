@@ -592,21 +592,40 @@ bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
 	return __annotate_browser__search_reverse(browser);
 }
 
+static int annotate_browser__show(struct ui_browser *browser, char *title, const char *help)
+{
+	struct map_symbol *ms = browser->priv;
+	struct symbol *sym = ms->sym;
+	char symbol_dso[SYM_TITLE_MAX_SIZE];
+
+	if (ui_browser__show(browser, title, help) < 0)
+		return -1;
+
+	sym_title(sym, ms->map, symbol_dso, sizeof(symbol_dso));
+
+	ui_browser__gotorc_title(browser, 0, 0);
+	ui_browser__set_color(browser, HE_COLORSET_ROOT);
+	ui_browser__write_nstring(browser, symbol_dso, browser->width + 1);
+	return 0;
+}
+
 static int annotate_browser__run(struct annotate_browser *browser,
 				 struct perf_evsel *evsel,
 				 struct hist_browser_timer *hbt)
 {
 	struct rb_node *nd = NULL;
+	struct hists *hists = evsel__hists(evsel);
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(ms->sym);
 	const char *help = "Press 'h' for help on key bindings";
 	int delay_secs = hbt ? hbt->refresh : 0;
+	char title[256];
 	int key;
-	char title[SYM_TITLE_MAX_SIZE];
 
-	sym_title(sym, ms->map, title, sizeof(title));
-	if (ui_browser__show(&browser->b, title, help) < 0)
+	annotation__scnprintf_samples_period(notes, title, sizeof(title), evsel);
+
+	if (annotate_browser__show(&browser->b, title, help) < 0)
 		return -1;
 
 	annotate_browser__calc_percent(browser, evsel);
@@ -637,8 +656,11 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			if (hbt)
 				hbt->timer(hbt->arg);
 
-			if (delay_secs != 0)
+			if (delay_secs != 0) {
 				symbol__annotate_decay_histogram(sym, evsel->idx);
+				hists__scnprintf_title(hists, title, sizeof(title));
+				annotate_browser__show(&browser->b, title, help);
+			}
 			continue;
 		case K_TAB:
 			if (nd != NULL) {
@@ -812,6 +834,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
 			.filter  = disasm_line__filter,
+			.extra_title_lines = 1, /* for hists__scnprintf_title() */
 			.priv	 = &ms,
 			.use_navkeypressed = true,
 		},
