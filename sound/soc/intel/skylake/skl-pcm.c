@@ -366,8 +366,20 @@ static int skl_pcm_hw_free(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_module_cfg *mconfig;
+	int ret;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+
+	if (mconfig) {
+		ret = skl_reset_pipe(skl->skl_sst, mconfig->pipe);
+		if (ret < 0)
+			dev_err(dai->dev, "%s:Reset failed ret =%d",
+						__func__, ret);
+	}
 
 	snd_hdac_stream_cleanup(hdac_stream(stream));
 	hdac_stream(stream)->prepared = 0;
