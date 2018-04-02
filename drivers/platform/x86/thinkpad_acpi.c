@@ -8699,16 +8699,24 @@ static const struct attribute_group fan_attr_group = {
 	  .ec = TPID(__id1, __id2),		\
 	  .quirks = __quirks }
 
+#define TPACPI_FAN_QB(__id1, __id2, __quirks)	\
+	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	  .bios = TPID(__id1, __id2),		\
+	  .ec = TPACPI_MATCH_ANY,		\
+	  .quirks = __quirks }
+
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_FAN_QI('1', 'Y', TPACPI_FAN_Q1),
 	TPACPI_FAN_QI('7', '8', TPACPI_FAN_Q1),
 	TPACPI_FAN_QI('7', '6', TPACPI_FAN_Q1),
 	TPACPI_FAN_QI('7', '0', TPACPI_FAN_Q1),
 	TPACPI_FAN_QL('7', 'M', TPACPI_FAN_2FAN),
+	TPACPI_FAN_QB('N', '1', TPACPI_FAN_2FAN),
 };
 
 #undef TPACPI_FAN_QL
 #undef TPACPI_FAN_QI
+#undef TPACPI_FAN_QB
 
 static int __init fan_init(struct ibm_init_struct *iibm)
 {
