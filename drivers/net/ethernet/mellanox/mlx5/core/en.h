@@ -186,9 +186,13 @@ struct mlx5e_tx_wqe {
 	struct mlx5_wqe_data_seg data[0];
 };
 
-struct mlx5e_rx_wqe {
+struct mlx5e_rx_wqe_ll {
 	struct mlx5_wqe_srq_next_seg  next;
-	struct mlx5_wqe_data_seg      data;
+	struct mlx5_wqe_data_seg      data[0];
+};
+
+struct mlx5e_rx_wqe_cyc {
+	struct mlx5_wqe_data_seg      data[0];
 };
 
 struct mlx5e_umr_wqe {
@@ -500,7 +504,7 @@ struct mlx5e_rq {
 	/* data path */
 	union {
 		struct {
-			struct mlx5_wq_ll      wq;
+			struct mlx5_wq_cyc     wq;
 			struct mlx5e_wqe_frag_info *frag_info;
 			u32 frag_sz;	/* max possible skb frag_sz */
 			union {

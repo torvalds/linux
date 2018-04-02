@@ -85,6 +85,7 @@ int mlx5_wq_cyc_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 	mlx5_fill_fbc(MLX5_GET(wq, wqc, log_wq_stride),
 		      MLX5_GET(wq, wqc, log_wq_sz),
 		      fbc);
+	wq->sz    = wq->fbc.sz_m1 + 1;
 
 	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
 	if (err) {

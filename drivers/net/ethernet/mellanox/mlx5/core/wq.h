@@ -51,6 +51,9 @@ struct mlx5_wq_ctrl {
 struct mlx5_wq_cyc {
 	struct mlx5_frag_buf_ctrl fbc;
 	__be32			*db;
+	u16			sz;
+	u16			wqe_ctr;
+	u16			cur_sz;
 };
 
 struct mlx5_wq_qp {
@@ -95,6 +98,43 @@ u32 mlx5_wq_ll_get_size(struct mlx5_wq_ll *wq);
 
 void mlx5_wq_destroy(struct mlx5_wq_ctrl *wq_ctrl);
 
+static inline int mlx5_wq_cyc_is_full(struct mlx5_wq_cyc *wq)
+{
+	return wq->cur_sz == wq->sz;
+}
+
+static inline int mlx5_wq_cyc_missing(struct mlx5_wq_cyc *wq)
+{
+	return wq->sz - wq->cur_sz;
+}
+
+static inline int mlx5_wq_cyc_is_empty(struct mlx5_wq_cyc *wq)
+{
+	return !wq->cur_sz;
+}
+
+static inline void mlx5_wq_cyc_push(struct mlx5_wq_cyc *wq)
+{
+	wq->wqe_ctr++;
+	wq->cur_sz++;
+}
+
+static inline void mlx5_wq_cyc_push_n(struct mlx5_wq_cyc *wq, u8 n)
+{
+	wq->wqe_ctr += n;
+	wq->cur_sz += n;
+}
+
+static inline void mlx5_wq_cyc_pop(struct mlx5_wq_cyc *wq)
+{
+	wq->cur_sz--;
+}
+
+static inline void mlx5_wq_cyc_update_db_record(struct mlx5_wq_cyc *wq)
+{
+	*wq->db = cpu_to_be32(wq->wqe_ctr);
+}
+
 static inline u16 mlx5_wq_cyc_ctr2ix(struct mlx5_wq_cyc *wq, u16 ctr)
 {
 	return ctr & wq->fbc.sz_m1;
@@ -103,6 +143,16 @@ static inline u16 mlx5_wq_cyc_ctr2ix(struct mlx5_wq_cyc *wq, u16 ctr)
 static inline u16 mlx5_wq_cyc_ctr2fragix(struct mlx5_wq_cyc *wq, u16 ctr)
 {
 	return ctr & wq->fbc.frag_sz_m1;
+}
+
+static inline u16 mlx5_wq_cyc_get_head(struct mlx5_wq_cyc *wq)
+{
+	return mlx5_wq_cyc_ctr2ix(wq, wq->wqe_ctr);
+}
+
+static inline u16 mlx5_wq_cyc_get_tail(struct mlx5_wq_cyc *wq)
+{
+	return mlx5_wq_cyc_ctr2ix(wq, wq->wqe_ctr - wq->cur_sz);
 }
 
 static inline void *mlx5_wq_cyc_get_wqe(struct mlx5_wq_cyc *wq, u16 ix)
@@ -177,11 +227,6 @@ static inline int mlx5_wq_ll_is_full(struct mlx5_wq_ll *wq)
 static inline int mlx5_wq_ll_is_empty(struct mlx5_wq_ll *wq)
 {
 	return !wq->cur_sz;
-}
-
-static inline u16 mlx5_wq_ll_ctr2ix(struct mlx5_wq_ll *wq, u16 ctr)
-{
-	return ctr & wq->fbc.sz_m1;
 }
 
 static inline void *mlx5_wq_ll_get_wqe(struct mlx5_wq_ll *wq, u16 ix)
