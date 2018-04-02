@@ -439,6 +439,7 @@ config SURFACE3_WMI
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
