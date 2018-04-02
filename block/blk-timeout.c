@@ -163,7 +163,7 @@ void blk_abort_request(struct request *req)
 		 * No need for fancy synchronizations.
 		 */
 		blk_rq_set_deadline(req, jiffies);
-		mod_timer(&req->q->timeout, 0);
+		kblockd_schedule_work(&req->q->timeout_work);
 	} else {
 		if (blk_mark_rq_complete(req))
 			return;
