@@ -1406,7 +1406,7 @@ static void nfp_net_rx_csum(struct nfp_net_dp *dp,
 		skb->ip_summed = meta->csum_type;
 		skb->csum = meta->csum;
 		u64_stats_update_begin(&r_vec->rx_sync);
-		r_vec->hw_csum_rx_ok++;
+		r_vec->hw_csum_rx_complete++;
 		u64_stats_update_end(&r_vec->rx_sync);
 		return;
 	}
