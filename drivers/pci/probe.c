@@ -16,6 +16,7 @@
 #include <linux/pci-aspm.h>
 #include <linux/aer.h>
 #include <linux/acpi.h>
+#include <linux/hypervisor.h>
 #include <linux/irqdomain.h>
 #include <linux/pm_runtime.h>
 #include "pci.h"
@@ -2518,14 +2519,29 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 {
 	unsigned int used_buses, normal_bridges = 0, hotplug_bridges = 0;
 	unsigned int start = bus->busn_res.start;
-	unsigned int devfn, cmax, max = start;
+	unsigned int devfn, fn, cmax, max = start;
 	struct pci_dev *dev;
+	int nr_devs;
 
 	dev_dbg(&bus->dev, "scanning bus\n");
 
 	/* Go find them, Rover! */
-	for (devfn = 0; devfn < 0x100; devfn += 8)
-		pci_scan_slot(bus, devfn);
+	for (devfn = 0; devfn < 256; devfn += 8) {
+		nr_devs = pci_scan_slot(bus, devfn);
+
+		/*
+		 * The Jailhouse hypervisor may pass individual functions of a
+		 * multi-function device to a guest without passing function 0.
+		 * Look for them as well.
+		 */
+		if (jailhouse_paravirt() && nr_devs == 0) {
+			for (fn = 1; fn < 8; fn++) {
+				dev = pci_scan_single_device(bus, devfn + fn);
+				if (dev)
+					dev->multifunction = 1;
+			}
+		}
+	}
 
 	/* Reserve buses for SR-IOV capability */
 	used_buses = pci_iov_bus_range(bus);
