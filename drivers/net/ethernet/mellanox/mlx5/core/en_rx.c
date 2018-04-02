@@ -311,13 +311,11 @@ void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
 		mlx5e_free_rx_wqe(rq, wi);
 }
 
-static inline void mlx5e_add_skb_frag_mpwqe(struct mlx5e_rq *rq,
-					    struct sk_buff *skb,
-					    struct mlx5e_dma_info *di,
-					    u32 frag_offset, u32 len)
+static inline void
+mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
+		   struct mlx5e_dma_info *di, u32 frag_offset, u32 len,
+		   unsigned int truesize)
 {
-	unsigned int truesize = ALIGN(len, BIT(rq->mpwqe.log_stride_sz));
-
 	dma_sync_single_for_cpu(rq->pdev,
 				di->addr + frag_offset,
 				len, DMA_FROM_DEVICE);
@@ -1094,9 +1092,11 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	while (byte_cnt) {
 		u32 pg_consumed_bytes =
 			min_t(u32, PAGE_SIZE - frag_offset, byte_cnt);
+		unsigned int truesize =
+			ALIGN(pg_consumed_bytes, BIT(rq->mpwqe.log_stride_sz));
 
-		mlx5e_add_skb_frag_mpwqe(rq, skb, di, frag_offset,
-					 pg_consumed_bytes);
+		mlx5e_add_skb_frag(rq, skb, di, frag_offset,
+				   pg_consumed_bytes, truesize);
 		byte_cnt -= pg_consumed_bytes;
 		frag_offset = 0;
 		di++;
