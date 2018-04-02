@@ -142,52 +142,16 @@ bool intel_hdcp_is_ksv_valid(u8 *ksv)
 	return true;
 }
 
-/* Implements Part 2 of the HDCP authorization procedure */
 static
-int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
-			       const struct intel_hdcp_shim *shim)
+int intel_hdcp_validate_v_prime(struct intel_digital_port *intel_dig_port,
+				const struct intel_hdcp_shim *shim,
+				u8 *ksv_fifo, u8 num_downstream, u8 *bstatus)
 {
 	struct drm_i915_private *dev_priv;
 	u32 vprime, sha_text, sha_leftovers, rep_ctl;
-	u8 bstatus[2], num_downstream, *ksv_fifo;
 	int ret, i, j, sha_idx;
 
 	dev_priv = intel_dig_port->base.base.dev->dev_private;
-
-	ret = intel_hdcp_poll_ksv_fifo(intel_dig_port, shim);
-	if (ret) {
-		DRM_ERROR("KSV list failed to become ready (%d)\n", ret);
-		return ret;
-	}
-
-	ret = shim->read_bstatus(intel_dig_port, bstatus);
-	if (ret)
-		return ret;
-
-	if (DRM_HDCP_MAX_DEVICE_EXCEEDED(bstatus[0]) ||
-	    DRM_HDCP_MAX_CASCADE_EXCEEDED(bstatus[1])) {
-		DRM_ERROR("Max Topology Limit Exceeded\n");
-		return -EPERM;
-	}
-
-	/*
-	 * When repeater reports 0 device count, HDCP1.4 spec allows disabling
-	 * the HDCP encryption. That implies that repeater can't have its own
-	 * display. As there is no consumption of encrypted content in the
-	 * repeater with 0 downstream devices, we are failing the
-	 * authentication.
-	 */
-	num_downstream = DRM_HDCP_NUM_DOWNSTREAM(bstatus[0]);
-	if (num_downstream == 0)
-		return -EINVAL;
-
-	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
-	if (!ksv_fifo)
-		return -ENOMEM;
-
-	ret = shim->read_ksv_fifo(intel_dig_port, num_downstream, ksv_fifo);
-	if (ret)
-		return ret;
 
 	/* Process V' values from the receiver */
 	for (i = 0; i < DRM_HDCP_V_PRIME_NUM_PARTS; i++) {
@@ -353,7 +317,8 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 			return ret;
 		sha_idx += sizeof(sha_text);
 	} else {
-		DRM_ERROR("Invalid number of leftovers %d\n", sha_leftovers);
+		DRM_DEBUG_KMS("Invalid number of leftovers %d\n",
+			      sha_leftovers);
 		return -EINVAL;
 	}
 
@@ -381,12 +346,75 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 	if (intel_wait_for_register(dev_priv, HDCP_REP_CTL,
 				    HDCP_SHA1_COMPLETE,
 				    HDCP_SHA1_COMPLETE, 1)) {
-		DRM_ERROR("Timed out waiting for SHA1 complete\n");
+		DRM_DEBUG_KMS("Timed out waiting for SHA1 complete\n");
 		return -ETIMEDOUT;
 	}
 	if (!(I915_READ(HDCP_REP_CTL) & HDCP_SHA1_V_MATCH)) {
-		DRM_ERROR("SHA-1 mismatch, HDCP failed\n");
+		DRM_DEBUG_KMS("SHA-1 mismatch, HDCP failed\n");
 		return -ENXIO;
+	}
+
+	return 0;
+}
+
+/* Implements Part 2 of the HDCP authorization procedure */
+static
+int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
+			       const struct intel_hdcp_shim *shim)
+{
+	u8 bstatus[2], num_downstream, *ksv_fifo;
+	int ret, i, tries = 3;
+
+	ret = intel_hdcp_poll_ksv_fifo(intel_dig_port, shim);
+	if (ret) {
+		DRM_ERROR("KSV list failed to become ready (%d)\n", ret);
+		return ret;
+	}
+
+	ret = shim->read_bstatus(intel_dig_port, bstatus);
+	if (ret)
+		return ret;
+
+	if (DRM_HDCP_MAX_DEVICE_EXCEEDED(bstatus[0]) ||
+	    DRM_HDCP_MAX_CASCADE_EXCEEDED(bstatus[1])) {
+		DRM_ERROR("Max Topology Limit Exceeded\n");
+		return -EPERM;
+	}
+
+	/*
+	 * When repeater reports 0 device count, HDCP1.4 spec allows disabling
+	 * the HDCP encryption. That implies that repeater can't have its own
+	 * display. As there is no consumption of encrypted content in the
+	 * repeater with 0 downstream devices, we are failing the
+	 * authentication.
+	 */
+	num_downstream = DRM_HDCP_NUM_DOWNSTREAM(bstatus[0]);
+	if (num_downstream == 0)
+		return -EINVAL;
+
+	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
+	if (!ksv_fifo)
+		return -ENOMEM;
+
+	ret = shim->read_ksv_fifo(intel_dig_port, num_downstream, ksv_fifo);
+	if (ret)
+		return ret;
+
+	/*
+	 * When V prime mismatches, DP Spec mandates re-read of
+	 * V prime atleast twice.
+	 */
+	for (i = 0; i < tries; i++) {
+		ret = intel_hdcp_validate_v_prime(intel_dig_port, shim,
+						  ksv_fifo, num_downstream,
+						  bstatus);
+		if (!ret)
+			break;
+	}
+
+	if (i == tries) {
+		DRM_ERROR("V Prime validation failed.(%d)\n", ret);
+		return ret;
 	}
 
 	DRM_DEBUG_KMS("HDCP is enabled (%d downstream devices)\n",
