@@ -506,15 +506,26 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	 */
 	wait_remaining_ms_from_jiffies(r0_prime_gen_start, 300);
 
-	ri.reg = 0;
-	ret = shim->read_ri_prime(intel_dig_port, ri.shim);
-	if (ret)
-		return ret;
-	I915_WRITE(PORT_HDCP_RPRIME(port), ri.reg);
+	tries = 3;
 
-	/* Wait for Ri prime match */
-	if (wait_for(I915_READ(PORT_HDCP_STATUS(port)) &
-		     (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1)) {
+	/*
+	 * DP HDCP Spec mandates the two more reattempt to read R0, incase
+	 * of R0 mismatch.
+	 */
+	for (i = 0; i < tries; i++) {
+		ri.reg = 0;
+		ret = shim->read_ri_prime(intel_dig_port, ri.shim);
+		if (ret)
+			return ret;
+		I915_WRITE(PORT_HDCP_RPRIME(port), ri.reg);
+
+		/* Wait for Ri prime match */
+		if (!wait_for(I915_READ(PORT_HDCP_STATUS(port)) &
+		    (HDCP_STATUS_RI_MATCH | HDCP_STATUS_ENC), 1))
+			break;
+	}
+
+	if (i == tries) {
 		DRM_ERROR("Timed out waiting for Ri prime match (%x)\n",
 			  I915_READ(PORT_HDCP_STATUS(port)));
 		return -ETIMEDOUT;
