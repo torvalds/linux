@@ -2208,10 +2208,8 @@ static inline bool is_report_browser(void *timer)
 	return timer == NULL;
 }
 
-static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf, size_t size)
+int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool show_freq)
 {
-	struct hist_browser_timer *hbt = browser->hbt;
-	struct hists *hists = browser->hists;
 	char unit;
 	int printed;
 	const struct dso *dso = hists->dso_filter;
@@ -2254,7 +2252,7 @@ static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf
 	    strstr(ev_name, "call-graph=no"))
 		enable_ref = true;
 
-	if (!is_report_browser(hbt))
+	if (show_freq)
 		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->attr.sample_freq);
 
 	nr_samples = convert_unit(nr_samples, &unit);
@@ -2285,6 +2283,15 @@ static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf
 	if (socket_id > -1)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", Processor Socket: %d", socket_id);
+
+	return printed;
+}
+
+static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf, size_t size)
+{
+	struct hist_browser_timer *hbt = browser->hbt;
+	int printed = __hists__scnprintf_title(browser->hists, bf, size, !is_report_browser(hbt));
+
 	if (!is_report_browser(hbt)) {
 		struct perf_top *top = hbt->arg;
 

@@ -504,5 +504,11 @@ int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...);
 int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
 			   struct perf_hpp_list *hpp_list);
 int hists__fprintf_headers(struct hists *hists, FILE *fp);
+int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool show_freq);
+
+static inline int hists__scnprintf_title(struct hists *hists, char *bf, size_t size)
+{
+	return __hists__scnprintf_title(hists, bf, size, true);
+}
 
 #endif	/* __PERF_HIST_H */
