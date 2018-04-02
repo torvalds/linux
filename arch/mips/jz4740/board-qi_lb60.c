@@ -313,25 +313,34 @@ static struct jz4740_fb_platform_data qi_lb60_fb_pdata = {
 	.pixclk_falling_edge = 1,
 };
 
-struct spi_gpio_platform_data spigpio_platform_data = {
-	.sck = JZ_GPIO_PORTC(23),
-	.mosi = JZ_GPIO_PORTC(22),
-	.miso = -1,
+struct spi_gpio_platform_data qi_lb60_spigpio_platform_data = {
 	.num_chipselect = 1,
 };
 
-static struct platform_device spigpio_device = {
+static struct platform_device qi_lb60_spigpio_device = {
 	.name = "spi_gpio",
 	.id   = 1,
 	.dev = {
-		.platform_data = &spigpio_platform_data,
+		.platform_data = &qi_lb60_spigpio_platform_data,
+	},
+};
+
+static struct gpiod_lookup_table qi_lb60_spigpio_gpio_table = {
+	.dev_id         = "spi_gpio",
+	.table          = {
+		GPIO_LOOKUP("GPIOC", 23,
+			    "sck", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOC", 22,
+			    "mosi", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOC", 21,
+			    "cs", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
 static struct spi_board_info qi_lb60_spi_board_info[] = {
 	{
 		.modalias = "ili8960",
-		.controller_data = (void *)JZ_GPIO_PORTC(21),
 		.chip_select = 0,
 		.bus_num = 1,
 		.max_speed_hz = 30 * 1000,
@@ -435,7 +444,7 @@ static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_mmc_device,
 	&jz4740_nand_device,
 	&qi_lb60_keypad,
-	&spigpio_device,
+	&qi_lb60_spigpio_device,
 	&jz4740_framebuffer_device,
 	&jz4740_pcm_device,
 	&jz4740_i2s_device,
@@ -489,6 +498,7 @@ static int __init qi_lb60_init_platform_devices(void)
 
 	gpiod_add_lookup_table(&qi_lb60_audio_gpio_table);
 	gpiod_add_lookup_table(&qi_lb60_nand_gpio_table);
+	gpiod_add_lookup_table(&qi_lb60_spigpio_gpio_table);
 
 	spi_register_board_info(qi_lb60_spi_board_info,
 				ARRAY_SIZE(qi_lb60_spi_board_info));

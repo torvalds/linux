@@ -768,14 +768,14 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 		rxdesc = dmaengine_prep_slave_single(rxchan,
 						     as->dma_addr_rx_bbuf,
 						     xfer->len,
-						     DMA_FROM_DEVICE,
+						     DMA_DEV_TO_MEM,
 						     DMA_PREP_INTERRUPT |
 						     DMA_CTRL_ACK);
 	} else {
 		rxdesc = dmaengine_prep_slave_sg(rxchan,
 						 xfer->rx_sg.sgl,
 						 xfer->rx_sg.nents,
-						 DMA_FROM_DEVICE,
+						 DMA_DEV_TO_MEM,
 						 DMA_PREP_INTERRUPT |
 						 DMA_CTRL_ACK);
 	}
@@ -787,14 +787,14 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 		memcpy(as->addr_tx_bbuf, xfer->tx_buf, xfer->len);
 		txdesc = dmaengine_prep_slave_single(txchan,
 						     as->dma_addr_tx_bbuf,
-						     xfer->len, DMA_TO_DEVICE,
+						     xfer->len, DMA_MEM_TO_DEV,
 						     DMA_PREP_INTERRUPT |
 						     DMA_CTRL_ACK);
 	} else {
 		txdesc = dmaengine_prep_slave_sg(txchan,
 						 xfer->tx_sg.sgl,
 						 xfer->tx_sg.nents,
-						 DMA_TO_DEVICE,
+						 DMA_MEM_TO_DEV,
 						 DMA_PREP_INTERRUPT |
 						 DMA_CTRL_ACK);
 	}
