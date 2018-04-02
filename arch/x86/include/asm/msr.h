@@ -232,9 +232,6 @@ static __always_inline unsigned long long rdtsc_ordered(void)
 	return rdtsc();
 }
 
-/* Deprecated, keep it for a cycle for easier merging: */
-#define rdtscll(now)	do { (now) = rdtsc_ordered(); } while (0)
-
 static inline unsigned long long native_read_pmc(int counter)
 {
 	DECLARE_ARGS(val, low, high);
