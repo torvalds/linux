@@ -266,6 +266,9 @@ void accumulate_stolen_time(void)
 
 static inline u64 calculate_stolen_time(u64 stop_tb)
 {
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
+		return 0;
+
 	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx))
 		return scan_dispatch_log(stop_tb);
 

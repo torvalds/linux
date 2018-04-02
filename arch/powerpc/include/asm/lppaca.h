@@ -34,6 +34,7 @@
 #include <linux/threads.h>
 #include <asm/types.h>
 #include <asm/mmu.h>
+#include <asm/firmware.h>
 
 /*
  * The lppaca is the "virtual processor area" registered with the hypervisor,
@@ -114,6 +115,8 @@ struct lppaca {
 
 static inline bool lppaca_shared_proc(struct lppaca *l)
 {
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
+		return false;
 	return !!(l->__old_status & LPPACA_OLD_SHARED_PROC);
 }
 
