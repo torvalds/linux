@@ -902,11 +902,7 @@ static int brcm_avs_cpufreq_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	ret = cpufreq_table_validate_and_show(policy, freq_table);
-	if (ret) {
-		dev_err(dev, "invalid frequency table: %d\n", ret);
-		return ret;
-	}
+	policy->freq_table = freq_table;
 
 	/* All cores share the same clock and thus the same policy. */
 	cpumask_setall(policy->cpus);

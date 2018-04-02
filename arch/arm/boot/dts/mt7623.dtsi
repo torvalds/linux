@@ -87,8 +87,6 @@
 			clock-names = "cpu", "intermediate";
 			operating-points-v2 = <&cpu_opp_table>;
 			#cooling-cells = <2>;
-			cooling-min-level = <0>;
-			cooling-max-level = <7>;
 			clock-frequency = <1300000000>;
 		};
 
