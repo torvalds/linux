@@ -61,6 +61,15 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 	return unfolded_rows;
 }
 
+static void hist_browser__set_title_space(struct hist_browser *hb)
+{
+	struct ui_browser *browser = &hb->b;
+	struct hists *hists = hb->hists;
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+
+	browser->extra_title_lines = hb->show_headers ? hpp_list->nr_header_lines : 0;
+}
+
 static u32 hist_browser__nr_entries(struct hist_browser *hb)
 {
 	u32 nr_entries;
@@ -81,10 +90,16 @@ static void hist_browser__update_rows(struct hist_browser *hb)
 	struct ui_browser *browser = &hb->b;
 	struct hists *hists = hb->hists;
 	struct perf_hpp_list *hpp_list = hists->hpp_list;
-	u16 header_offset, index_row;
+	u16 index_row;
 
-	header_offset = hb->show_headers ? hpp_list->nr_header_lines : 0;
-	browser->rows = browser->height - header_offset;
+	if (!hb->show_headers) {
+		browser->rows += browser->extra_title_lines;
+		browser->extra_title_lines = 0;
+		return;
+	}
+
+	browser->extra_title_lines = hpp_list->nr_header_lines;
+	browser->rows -= browser->extra_title_lines;
 	/*
 	 * Verify if we were at the last line and that line isn't
 	 * visibe because we now show the header line(s).
@@ -107,17 +122,6 @@ static void hist_browser__refresh_dimensions(struct ui_browser *browser)
  	 *	  changeset.
  	 */
 	ui_browser__refresh_dimensions(browser);
-	hist_browser__update_rows(hb);
-}
-
-static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
-{
-	struct hists *hists = browser->hists;
-	struct perf_hpp_list *hpp_list = hists->hpp_list;
-	u16 header_offset;
-
-	header_offset = browser->show_headers ? hpp_list->nr_header_lines : 0;
-	ui_browser__gotorc(&browser->b, row + header_offset, column);
 }
 
 static void hist_browser__reset(struct hist_browser *browser)
@@ -732,7 +736,7 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 	}
 
 	ui_browser__set_color(&browser->b, color);
-	hist_browser__gotorc(browser, row, 0);
+	ui_browser__gotorc(&browser->b, row, 0);
 	ui_browser__write_nstring(&browser->b, " ", offset);
 	ui_browser__printf(&browser->b, "%c", folded_sign);
 	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
@@ -1248,7 +1252,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		};
 		int column = 0;
 
-		hist_browser__gotorc(browser, row, 0);
+		ui_browser__gotorc(&browser->b, row, 0);
 
 		hists__for_each_format(browser->hists, fmt) {
 			char s[2048];
@@ -1357,7 +1361,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		goto show_callchain;
 	}
 
-	hist_browser__gotorc(browser, row, 0);
+	ui_browser__gotorc(&browser->b, row, 0);
 
 	if (current_entry && browser->b.navkeypressed)
 		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
@@ -1506,7 +1510,7 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 		browser->selection = NULL;
 	}
 
-	hist_browser__gotorc(browser, row, 0);
+	ui_browser__gotorc(&browser->b, row, 0);
 
 	if (current_entry && browser->b.navkeypressed)
 		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
@@ -1712,7 +1716,7 @@ static void hists_browser__headers(struct hist_browser *browser)
 		hists_browser__scnprintf_headers(browser, headers,
 						 sizeof(headers), line);
 
-		ui_browser__gotorc(&browser->b, line, 0);
+		ui_browser__gotorc_title(&browser->b, line, 0);
 		ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
 		ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
 	}
@@ -2142,6 +2146,7 @@ void hist_browser__init(struct hist_browser *browser,
 	browser->b.seek			= ui_browser__hists_seek;
 	browser->b.use_navkeypressed	= true;
 	browser->show_headers		= symbol_conf.show_hist_headers;
+	hist_browser__set_title_space(browser);
 
 	if (symbol_conf.report_hierarchy) {
 		struct perf_hpp_list_node *fmt_node;
