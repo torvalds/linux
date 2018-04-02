@@ -182,14 +182,6 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 	params->log_rq_mtu_frames = is_kdump_kernel() ?
 		MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE :
 		MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
-	switch (params->rq_wq_type) {
-	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		break;
-	default: /* MLX5_WQ_TYPE_LINKED_LIST */
-		/* Extra room needed for build_skb */
-		params->lro_wqe_sz -= mlx5e_get_rq_headroom(mdev, params) +
-			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	}
 
 	mlx5_core_info(mdev, "MLX5E: StrdRq(%d) RqSz(%ld) StrdSz(%ld) RxCqeCmprss(%d)\n",
 		       params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
@@ -503,14 +495,12 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_rq_wq_destroy;
 		}
 
-		byte_count = params->lro_en  ?
-				params->lro_wqe_sz :
-				MLX5E_SW2HW_MTU(params, params->sw_mtu);
+		byte_count = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		if (MLX5_IPSEC_DEV(mdev))
 			byte_count += MLX5E_METADATA_ETHER_LEN;
 #endif
-		rq->wqe.page_reuse = !params->xdp_prog && !params->lro_en;
+		rq->wqe.page_reuse = !params->xdp_prog;
 
 		/* calc the required page order */
 		rq->wqe.frag_sz = MLX5_SKB_FRAG_SZ(rq->buff.headroom + byte_count);
@@ -3311,6 +3301,12 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 	mutex_lock(&priv->state_lock);
 
 	old_params = &priv->channels.params;
+	if (enable && !MLX5E_GET_PFLAG(old_params, MLX5E_PFLAG_RX_STRIDING_RQ)) {
+		netdev_warn(netdev, "can't set LRO with legacy RQ\n");
+		err = -EINVAL;
+		goto out;
+	}
+
 	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	new_channels.params = *old_params;
@@ -3480,16 +3476,24 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 					    netdev_features_t features)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_params *params;
 
 	mutex_lock(&priv->state_lock);
+	params = &priv->channels.params;
 	if (!bitmap_empty(priv->fs.vlan.active_svlans, VLAN_N_VID)) {
 		/* HW strips the outer C-tag header, this is a problem
 		 * for S-tag traffic.
 		 */
 		features &= ~NETIF_F_HW_VLAN_CTAG_RX;
-		if (!priv->channels.params.vlan_strip_disable)
+		if (!params->vlan_strip_disable)
 			netdev_warn(netdev, "Dropping C-tag vlan stripping offload due to S-tag vlan\n");
 	}
+	if (!MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ)) {
+		features &= ~NETIF_F_LRO;
+		if (params->lro_en)
+			netdev_warn(netdev, "Disabling LRO, not supported in legacy RQ\n");
+	}
+
 	mutex_unlock(&priv->state_lock);
 
 	return features;
@@ -4328,7 +4332,8 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_enc_features  |= NETIF_F_HW_VLAN_CTAG_TX;
 	netdev->hw_enc_features  |= NETIF_F_HW_VLAN_CTAG_RX;
 
-	if (!!MLX5_CAP_ETH(mdev, lro_cap))
+	if (!!MLX5_CAP_ETH(mdev, lro_cap) &&
+	    mlx5e_check_fragmented_striding_rq_cap(mdev))
 		netdev->vlan_features    |= NETIF_F_LRO;
 
 	netdev->hw_features       = netdev->vlan_features;

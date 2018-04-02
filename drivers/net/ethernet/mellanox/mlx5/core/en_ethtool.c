@@ -1515,6 +1515,9 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 			return -EOPNOTSUPP;
 		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
 			return -EINVAL;
+	} else if (priv->channels.params.lro_en) {
+		netdev_warn(netdev, "Can't set legacy RQ with LRO, disable LRO first\n");
+		return -EINVAL;
 	}
 
 	new_channels.params = priv->channels.params;
@@ -1589,6 +1592,10 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 
 out:
 	mutex_unlock(&priv->state_lock);
+
+	/* Need to fix some features.. */
+	netdev_update_features(netdev);
+
 	return err;
 }
 
