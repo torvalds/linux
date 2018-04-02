@@ -108,6 +108,20 @@ static inline void notrace __wrmsr(unsigned int msr, u32 low, u32 high)
 		     : : "c" (msr), "a"(low), "d" (high) : "memory");
 }
 
+#define native_rdmsr(msr, val1, val2)			\
+do {							\
+	u64 __val = __rdmsr((msr));			\
+	(void)((val1) = (u32)__val);			\
+	(void)((val2) = (u32)(__val >> 32));		\
+} while (0)
+
+#define native_wrmsr(msr, low, high)			\
+	__wrmsr(msr, low, high)
+
+#define native_wrmsrl(msr, val)				\
+	__wrmsr((msr), (u32)((u64)(val)),		\
+		       (u32)((u64)(val) >> 32))
+
 static inline unsigned long long native_read_msr(unsigned int msr)
 {
 	unsigned long long val;
