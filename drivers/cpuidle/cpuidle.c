@@ -131,6 +131,10 @@ int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
 static void enter_s2idle_proper(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {
+	ktime_t time_start, time_end;
+
+	time_start = ns_to_ktime(local_clock());
+
 	/*
 	 * trace_suspend_resume() called by tick_freeze() for the last CPU
 	 * executing it contains RCU usage regarded as invalid in the idle
@@ -152,6 +156,11 @@ static void enter_s2idle_proper(struct cpuidle_driver *drv,
 	 */
 	RCU_NONIDLE(tick_unfreeze());
 	start_critical_timings();
+
+	time_end = ns_to_ktime(local_clock());
+
+	dev->states_usage[index].s2idle_time += ktime_us_delta(time_end, time_start);
+	dev->states_usage[index].s2idle_usage++;
 }
 
 /**

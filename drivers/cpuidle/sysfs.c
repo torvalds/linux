@@ -330,6 +330,58 @@ struct cpuidle_state_kobj {
 	struct kobject kobj;
 };
 
+#ifdef CONFIG_SUSPEND
+#define define_show_state_s2idle_ull_function(_name) \
+static ssize_t show_state_s2idle_##_name(struct cpuidle_state *state, \
+					 struct cpuidle_state_usage *state_usage, \
+					 char *buf)				\
+{ \
+	return sprintf(buf, "%llu\n", state_usage->s2idle_##_name);\
+}
+
+define_show_state_s2idle_ull_function(usage);
+define_show_state_s2idle_ull_function(time);
+
+#define define_one_state_s2idle_ro(_name, show) \
+static struct cpuidle_state_attr attr_s2idle_##_name = \
+	__ATTR(_name, 0444, show, NULL)
+
+define_one_state_s2idle_ro(usage, show_state_s2idle_usage);
+define_one_state_s2idle_ro(time, show_state_s2idle_time);
+
+static struct attribute *cpuidle_state_s2idle_attrs[] = {
+	&attr_s2idle_usage.attr,
+	&attr_s2idle_time.attr,
+	NULL
+};
+
+static const struct attribute_group cpuidle_state_s2idle_group = {
+	.name	= "s2idle",
+	.attrs	= cpuidle_state_s2idle_attrs,
+};
+
+static void cpuidle_add_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
+{
+	int ret;
+
+	if (!kobj->state->enter_s2idle)
+		return;
+
+	ret = sysfs_create_group(&kobj->kobj, &cpuidle_state_s2idle_group);
+	if (ret)
+		pr_debug("%s: sysfs attribute group not created\n", __func__);
+}
+
+static void cpuidle_remove_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
+{
+	if (kobj->state->enter_s2idle)
+		sysfs_remove_group(&kobj->kobj, &cpuidle_state_s2idle_group);
+}
+#else
+static inline void cpuidle_add_s2idle_attr_group(struct cpuidle_state_kobj *kobj) { }
+static inline void cpuidle_remove_s2idle_attr_group(struct cpuidle_state_kobj *kobj) { }
+#endif /* CONFIG_SUSPEND */
+
 #define kobj_to_state_obj(k) container_of(k, struct cpuidle_state_kobj, kobj)
 #define kobj_to_state(k) (kobj_to_state_obj(k)->state)
 #define kobj_to_state_usage(k) (kobj_to_state_obj(k)->state_usage)
@@ -383,6 +435,7 @@ static struct kobj_type ktype_state_cpuidle = {
 
 static inline void cpuidle_free_state_kobj(struct cpuidle_device *device, int i)
 {
+	cpuidle_remove_s2idle_attr_group(device->kobjs[i]);
 	kobject_put(&device->kobjs[i]->kobj);
 	wait_for_completion(&device->kobjs[i]->kobj_unregister);
 	kfree(device->kobjs[i]);
@@ -417,6 +470,7 @@ static int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 			kfree(kobj);
 			goto error_state;
 		}
+		cpuidle_add_s2idle_attr_group(kobj);
 		kobject_uevent(&kobj->kobj, KOBJ_ADD);
 		device->kobjs[i] = kobj;
 	}

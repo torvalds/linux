@@ -33,6 +33,10 @@ struct cpuidle_state_usage {
 	unsigned long long	disable;
 	unsigned long long	usage;
 	unsigned long long	time; /* in US */
+#ifdef CONFIG_SUSPEND
+	unsigned long long	s2idle_usage;
+	unsigned long long	s2idle_time; /* in US */
+#endif
 };
 
 struct cpuidle_state {
