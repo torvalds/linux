@@ -8,6 +8,7 @@ Required properties:
  		"invensense,mpu6500"
 		"invensense,mpu9150"
 		"invensense,mpu9250"
+		"invensense,mpu9255"
 		"invensense,icm20608"
  - reg : the I2C address of the sensor
  - interrupt-parent : should be the phandle for the interrupt controller
