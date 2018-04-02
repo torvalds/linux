@@ -35,6 +35,7 @@
 #include "core_types.h"
 #include "set_mode_types.h"
 #include "virtual/virtual_stream_encoder.h"
+#include "dpcd_defs.h"
 
 #include "dce80/dce80_resource.h"
 #include "dce100/dce100_resource.h"
@@ -44,7 +45,8 @@
 #include "dcn10/dcn10_resource.h"
 #endif
 #include "dce120/dce120_resource.h"
-
+#define DC_LOGGER \
+	ctx->logger
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -696,7 +698,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 
 
 	/* Adjust for viewport end clip-off */
-	if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
+	if ((data->viewport.x + data->viewport.width) < (src.x + src.width) && !flip_horz_scan_dir) {
 		int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
 		int int_part = dal_fixed31_32_floor(
 				dal_fixed31_32_sub(data->inits.h, data->ratios.horz));
@@ -704,7 +706,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
 	}
-	if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
+	if ((data->viewport.y + data->viewport.height) < (src.y + src.height) && !flip_vert_scan_dir) {
 		int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
 		int int_part = dal_fixed31_32_floor(
 				dal_fixed31_32_sub(data->inits.v, data->ratios.vert));
@@ -712,7 +714,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
 	}
-	if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
+	if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div && !flip_horz_scan_dir) {
 		int vp_clip = (src.x + src.width) / vpc_div -
 				data->viewport_c.width - data->viewport_c.x;
 		int int_part = dal_fixed31_32_floor(
@@ -721,7 +723,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		int_part = int_part > 0 ? int_part : 0;
 		data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
 	}
-	if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
+	if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div && !flip_vert_scan_dir) {
 		int vp_clip = (src.y + src.height) / vpc_div -
 				data->viewport_c.height - data->viewport_c.y;
 		int int_part = dal_fixed31_32_floor(
@@ -833,7 +835,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct view recout_skip = { 0 };
 	bool res = false;
-
+	struct dc_context *ctx = pipe_ctx->stream->ctx;
 	/* Important: scaling ratio calculation requires pixel format,
 	 * lb depth calculation requires recout and taps require scaling ratios.
 	 * Inits require viewport, taps, ratios and recout of split pipe
@@ -892,7 +894,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		/* May need to re-check lb size after this in some obscure scenario */
 		calculate_inits_and_adj_vp(pipe_ctx, &recout_skip);
 
-	dm_logger_write(pipe_ctx->stream->ctx->logger, LOG_SCALER,
+	DC_LOG_SCALER(
 				"%s: Viewport:\nheight:%d width:%d x:%d "
 				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
 				"y:%d\n",
@@ -1054,6 +1056,7 @@ static int acquire_first_split_pipe(
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
+			pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
 			pipe_ctx->pipe_idx = i;
 
 			pipe_ctx->stream = stream;
@@ -1121,6 +1124,7 @@ bool dc_add_plane_to_context(
 		ASSERT(tail_pipe);
 
 		free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+		free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
 		free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
 		free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
 		free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
@@ -1406,6 +1410,8 @@ static int acquire_first_free_pipe(
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
+			if (pool->dpps[i])
+				pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
 			pipe_ctx->pipe_idx = i;
 
 
@@ -1551,6 +1557,9 @@ enum dc_status dc_remove_stream_from_ctx(
 			resource_unreference_clock_source(&new_ctx->res_ctx,
 							  dc->res_pool,
 							  del_pipe->clock_source);
+
+			if (dc->res_pool->funcs->remove_stream_from_ctx)
+				dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
 
 			memset(del_pipe, 0, sizeof(*del_pipe));
 
@@ -1727,6 +1736,10 @@ enum dc_status resource_map_pool_resources(
 			update_audio_usage(&context->res_ctx, pool,
 					   pipe_ctx->stream_res.audio, true);
 	}
+
+	/* Add ABM to the resource if on EDP */
+	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.abm = pool->abm;
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
@@ -2428,7 +2441,8 @@ static void set_vsc_info_packet(
 	unsigned int vscPacketRevision = 0;
 	unsigned int i;
 
-	if (stream->sink->link->psr_enabled) {
+	/*VSC packet set to 2 when DP revision >= 1.2*/
+	if (stream->psr_version != 0) {
 		vscPacketRevision = 2;
 	}
 

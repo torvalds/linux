@@ -24,6 +24,7 @@
  */
 
 #include "display_rq_dlg_helpers.h"
+#include "dml_logger.h"
 
 void print__rq_params_st(struct display_mode_lib *mode_lib, display_rq_params_st rq_param)
 {

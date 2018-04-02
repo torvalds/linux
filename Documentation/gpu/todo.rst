@@ -212,6 +212,16 @@ probably use drm_fb_helper_fbdev_teardown().
 
 Contact: Maintainer of the driver you plan to convert
 
+idr_init_base()
+---------------
+
+DRM core&drivers uses a lot of idr (integer lookup directories) for mapping
+userspace IDs to internal objects, and in most places ID=0 means NULL and hence
+is never used. Switching to idr_init_base() for these would make the idr more
+efficient.
+
+Contact: Daniel Vetter
+
 Core refactorings
 =================
 
@@ -439,6 +449,13 @@ a bunch of progress cleaning it up but there's still plenty of work to be done.
 See drivers/gpu/drm/amd/display/TODO for tasks.
 
 Contact: Harry Wentland, Alex Deucher
+
+i915
+----
+
+- Our early/late pm callbacks could be removed in favour of using
+  device_link_add to model the dependency between i915 and snd_had. See
+  https://dri.freedesktop.org/docs/drm/driver-api/device_link.html
 
 Outside DRM
 ===========

@@ -113,8 +113,6 @@ struct tve200_drm_dev_private {
 	container_of(x, struct tve200_drm_connector, connector)
 
 int tve200_display_init(struct drm_device *dev);
-int tve200_enable_vblank(struct drm_device *drm, unsigned int crtc);
-void tve200_disable_vblank(struct drm_device *drm, unsigned int crtc);
 irqreturn_t tve200_irq(int irq, void *data);
 int tve200_connector_init(struct drm_device *dev);
 int tve200_encoder_init(struct drm_device *dev);

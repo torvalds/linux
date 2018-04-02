@@ -26,6 +26,7 @@
 #include <linux/ktime.h>
 #include <linux/mm.h>
 #include <linux/platform_data/x86/apple.h>
+#include <linux/pm_runtime.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -4841,3 +4842,41 @@ static void quirk_fsl_no_msi(struct pci_dev *pdev)
 		pdev->no_msi = 1;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, quirk_fsl_no_msi);
+
+/*
+ * GPUs with integrated HDA controller for streaming audio to attached displays
+ * need a device link from the HDA controller (consumer) to the GPU (supplier)
+ * so that the GPU is powered up whenever the HDA controller is accessed.
+ * The GPU and HDA controller are functions 0 and 1 of the same PCI device.
+ * The device link stays in place until shutdown (or removal of the PCI device
+ * if it's hotplugged).  Runtime PM is allowed by default on the HDA controller
+ * to prevent it from permanently keeping the GPU awake.
+ */
+static void quirk_gpu_hda(struct pci_dev *hda)
+{
+	struct pci_dev *gpu;
+
+	if (PCI_FUNC(hda->devfn) != 1)
+		return;
+
+	gpu = pci_get_domain_bus_and_slot(pci_domain_nr(hda->bus),
+					  hda->bus->number,
+					  PCI_DEVFN(PCI_SLOT(hda->devfn), 0));
+	if (!gpu || (gpu->class >> 16) != PCI_BASE_CLASS_DISPLAY) {
+		pci_dev_put(gpu);
+		return;
+	}
+
+	if (!device_link_add(&hda->dev, &gpu->dev,
+			     DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME))
+		pci_err(hda, "cannot link HDA to GPU %s\n", pci_name(gpu));
+
+	pm_runtime_allow(&hda->dev);
+	pci_dev_put(gpu);
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_ATI, PCI_ANY_ID,
+			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMD, PCI_ANY_ID,
+			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
+			      PCI_CLASS_MULTIMEDIA_HD_AUDIO, 8, quirk_gpu_hda);

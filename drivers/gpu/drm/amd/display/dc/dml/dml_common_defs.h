@@ -31,8 +31,6 @@
 #include "display_mode_structs.h"
 #include "display_mode_enums.h"
 
-#define dml_print(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
-#define DTRACE(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
 
 double dml_round(double a);
 

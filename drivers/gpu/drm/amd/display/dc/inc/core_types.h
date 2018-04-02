@@ -119,6 +119,11 @@ struct resource_funcs {
 			struct dc *dc,
 			struct dc_state *new_ctx,
 			struct dc_stream_state *dc_stream);
+
+	enum dc_status (*remove_stream_from_ctx)(
+				struct dc *dc,
+				struct dc_state *new_ctx,
+				struct dc_stream_state *stream);
 };
 
 struct audio_support{
@@ -148,6 +153,7 @@ struct resource_pool {
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
 	unsigned int ref_clock_inKhz;
+	unsigned int timing_generator_count;
 
 	/*
 	 * reserved clock source for DP
@@ -171,6 +177,15 @@ struct resource_pool {
 	const struct resource_caps *res_cap;
 };
 
+struct dcn_fe_clocks {
+	int dppclk_khz;
+};
+
+struct dcn_fe_bandwidth {
+	struct dcn_fe_clocks calc;
+	struct dcn_fe_clocks cur;
+};
+
 struct stream_resource {
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
@@ -179,6 +194,8 @@ struct stream_resource {
 
 	struct pixel_clk_params pix_clk_params;
 	struct encoder_info_frame encoder_info_frame;
+
+	struct abm *abm;
 };
 
 struct plane_resource {
@@ -188,6 +205,9 @@ struct plane_resource {
 	struct input_pixel_processor *ipp;
 	struct transform *xfm;
 	struct dpp *dpp;
+	uint8_t mpcc_inst;
+
+	struct dcn_fe_bandwidth bw;
 };
 
 struct pipe_ctx {
@@ -238,20 +258,9 @@ struct dce_bw_output {
 	int blackout_recovery_time_us;
 };
 
-struct dcn_bw_clocks {
-	int dispclk_khz;
-	int dppclk_khz;
-	bool dppclk_div;
-	int dcfclk_khz;
-	int dcfclk_deep_sleep_khz;
-	int fclk_khz;
-	int dram_ccm_us;
-	int min_active_dram_ccm_us;
-};
-
 struct dcn_bw_output {
-	struct dcn_bw_clocks cur_clk;
-	struct dcn_bw_clocks calc_clk;
+	struct dc_clocks cur_clk;
+	struct dc_clocks calc_clk;
 	struct dcn_watermark_set watermarks;
 };
 

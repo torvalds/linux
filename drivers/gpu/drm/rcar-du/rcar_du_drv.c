@@ -29,6 +29,7 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
+#include "rcar_du_of.h"
 #include "rcar_du_regs.h"
 
 /* -----------------------------------------------------------------------------
@@ -74,7 +75,6 @@ static const struct rcar_du_device_info rzg1_du_r8a7745_info = {
 			.port = 1,
 		},
 	},
-	.num_lvds = 0,
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7779_info = {
@@ -95,14 +95,13 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 			.port = 1,
 		},
 	},
-	.num_lvds = 0,
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
-	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
+	.quirks = RCAR_DU_QUIRK_ALIGN_128B,
 	.num_crtcs = 3,
 	.routes = {
 		/*
@@ -164,7 +163,6 @@ static const struct rcar_du_device_info rcar_du_r8a7792_info = {
 			.port = 1,
 		},
 	},
-	.num_lvds = 0,
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7794_info = {
@@ -186,7 +184,6 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 			.port = 1,
 		},
 	},
-	.num_lvds = 0,
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7795_info = {
@@ -249,6 +246,26 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 	.dpll_ch =  BIT(1),
 };
 
+static const struct rcar_du_device_info rcar_du_r8a77970_info = {
+	.gen = 3,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
+	.num_crtcs = 1,
+	.routes = {
+		/* R8A77970 has one RGB output and one LVDS output. */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(0),
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.port = 1,
+		},
+	},
+	.num_lvds = 1,
+};
+
 static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a7743", .data = &rzg1_du_r8a7743_info },
 	{ .compatible = "renesas,du-r8a7745", .data = &rzg1_du_r8a7745_info },
@@ -260,6 +277,7 @@ static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a7794", .data = &rcar_du_r8a7794_info },
 	{ .compatible = "renesas,du-r8a7795", .data = &rcar_du_r8a7795_info },
 	{ .compatible = "renesas,du-r8a7796", .data = &rcar_du_r8a7796_info },
+	{ .compatible = "renesas,du-r8a77970", .data = &rcar_du_r8a77970_info },
 	{ }
 };
 
@@ -434,7 +452,19 @@ static struct platform_driver rcar_du_platform_driver = {
 	},
 };
 
-module_platform_driver(rcar_du_platform_driver);
+static int __init rcar_du_init(void)
+{
+	rcar_du_of_init(rcar_du_of_table);
+
+	return platform_driver_register(&rcar_du_platform_driver);
+}
+module_init(rcar_du_init);
+
+static void __exit rcar_du_exit(void)
+{
+	platform_driver_unregister(&rcar_du_platform_driver);
+}
+module_exit(rcar_du_exit);
 
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");
 MODULE_DESCRIPTION("Renesas R-Car Display Unit DRM Driver");

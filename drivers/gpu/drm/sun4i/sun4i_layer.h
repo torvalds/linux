@@ -22,10 +22,22 @@ struct sun4i_layer {
 	int			id;
 };
 
+struct sun4i_layer_state {
+	struct drm_plane_state	state;
+	unsigned int		pipe;
+	bool			uses_frontend;
+};
+
 static inline struct sun4i_layer *
 plane_to_sun4i_layer(struct drm_plane *plane)
 {
 	return container_of(plane, struct sun4i_layer, plane);
+}
+
+static inline struct sun4i_layer_state *
+state_to_sun4i_layer_state(struct drm_plane_state *state)
+{
+	return container_of(state, struct sun4i_layer_state, state);
 }
 
 struct drm_plane **sun4i_layers_init(struct drm_device *drm,
