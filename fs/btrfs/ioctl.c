@@ -4007,8 +4007,8 @@ out:
 	return ret;
 }
 
-void btrfs_get_block_group_info(struct list_head *groups_list,
-				struct btrfs_ioctl_space_info *space)
+static void get_block_group_info(struct list_head *groups_list,
+				 struct btrfs_ioctl_space_info *space)
 {
 	struct btrfs_block_group_cache *block_group;
 
@@ -4124,8 +4124,8 @@ static long btrfs_ioctl_space_info(struct btrfs_fs_info *fs_info,
 		down_read(&info->groups_sem);
 		for (c = 0; c < BTRFS_NR_RAID_TYPES; c++) {
 			if (!list_empty(&info->block_groups[c])) {
-				btrfs_get_block_group_info(
-					&info->block_groups[c], &space);
+				get_block_group_info(&info->block_groups[c],
+						     &space);
 				memcpy(dest, &space, sizeof(space));
 				dest++;
 				space_args.total_spaces++;
