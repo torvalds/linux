@@ -745,14 +745,6 @@ static struct proto unix_proto = {
 	.obj_size		= sizeof(struct unix_sock),
 };
 
-/*
- * AF_UNIX sockets do not interact with hardware, hence they
- * dont trigger interrupts - so it's safe for them to have
- * bh-unsafe locking for their sk_receive_queue.lock. Split off
- * this special lock-class by reinitializing the spinlock key:
- */
-static struct lock_class_key af_unix_sk_receive_queue_lock_key;
-
 static struct sock *unix_create1(struct net *net, struct socket *sock, int kern)
 {
 	struct sock *sk = NULL;
@@ -767,8 +759,6 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern)
 		goto out;
 
 	sock_init_data(sock, sk);
-	lockdep_set_class(&sk->sk_receive_queue.lock,
-				&af_unix_sk_receive_queue_lock_key);
 
 	sk->sk_allocation	= GFP_KERNEL_ACCOUNT;
 	sk->sk_write_space	= unix_write_space;
