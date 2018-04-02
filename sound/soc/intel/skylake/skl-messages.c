@@ -225,7 +225,7 @@ static const struct skl_dsp_ops dsp_ops[] = {
 		.id = 0x9d71,
 		.num_cores = 2,
 		.loader_ops = skl_get_loader_ops,
-		.init = kbl_sst_dsp_init,
+		.init = skl_sst_dsp_init,
 		.init_fw = skl_sst_init_fw,
 		.cleanup = skl_sst_dsp_cleanup
 	},
