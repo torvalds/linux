@@ -146,7 +146,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	}
 
 	if (range_count == 0) {
-		dev_warn(host->dev, "All phases bad!");
+		dev_warn_ratelimited(host->dev, "All phases bad!");
 		ret = -EIO;
 		goto free;
 	}

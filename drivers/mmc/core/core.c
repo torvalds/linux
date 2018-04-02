@@ -1112,7 +1112,7 @@ int mmc_execute_tuning(struct mmc_card *card)
 	err = host->ops->execute_tuning(host, opcode);
 
 	if (err)
-		pr_err("%s: tuning execution failed\n", mmc_hostname(host));
+		pr_err_ratelimited("%s: tuning execution failed\n", mmc_hostname(host));
 	else
 		mmc_retune_enable(host);
 
