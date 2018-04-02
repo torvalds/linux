@@ -112,7 +112,7 @@ struct page_pool;
 
 #define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
 
-#define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(256)
+#define MLX5E_RX_MAX_HEAD (256)
 
 #define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (64 * 1024)
 #define MLX5E_DEFAULT_LRO_TIMEOUT                       32
