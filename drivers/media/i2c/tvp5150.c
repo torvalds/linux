@@ -500,8 +500,8 @@ struct i2c_vbi_ram_value {
  * and so on. There are 16 possible locations from 0 to 15.
  */
 
-static struct i2c_vbi_ram_value vbi_ram_default[] =
-{
+static struct i2c_vbi_ram_value vbi_ram_default[] = {
+
 	/*
 	 * FIXME: Current api doesn't handle all VBI types, those not
 	 * yet supported are placed under #if 0
