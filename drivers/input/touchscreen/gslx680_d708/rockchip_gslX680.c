@@ -27,6 +27,7 @@
 #include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
+#include <linux/regulator/consumer.h>
 #include "../tp_suspend.h"
 #include "rockchip_gslX680_88v.h"
 #include "rockchip_gsl3670.h"
@@ -156,6 +157,7 @@ struct gsl_ts {
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	struct early_suspend early_suspend;
 #endif
+	struct regulator        *rst;
 };
 
 #ifdef GSL_DEBUG
@@ -1120,6 +1122,8 @@ static int gsl_ts_resume(struct device *dev)
 	}
 #endif
 
+	if ((!IS_ERR(ts->rst)) && regulator_is_enabled(ts->rst) > 0)
+		regulator_disable(ts->rst);
 	gslX680_shutdown_high();
 	msleep(20);
 	reset_chip(ts->client);
@@ -1230,6 +1234,7 @@ static int  gsl_ts_probe(struct i2c_client *client,
 
 	of_property_read_u32(np, "screen_max_x", &(ts->screen_max_x));
 	of_property_read_u32(np, "screen_max_y", &(ts->screen_max_y));
+	of_property_read_u32(np, "revert_y", &revert_y);
 
 	ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, NULL);
 	ts->wake_pin = of_get_named_gpio_flags(np, "wake-gpio", 0, &wake_flags);
@@ -1246,6 +1251,12 @@ static int  gsl_ts_probe(struct i2c_client *client,
 	if (!gpio_is_valid(ts->irq_pin)) {
 		dev_info(&client->dev, "irq pin invalid\n");
 		goto error_mutex_destroy;
+	}
+
+	ts->rst = devm_regulator_get(&client->dev, "rst");
+	if (IS_ERR(ts->rst)) {
+		dev_err(&client->dev, "failed to get regulator, %ld\n",
+				PTR_ERR(ts->rst));
 	}
 
 	rc = gsl_ts_init_ts(client, ts);
