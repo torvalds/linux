@@ -49,6 +49,10 @@ module_param(default_dsm_family, int, S_IRUGO);
 MODULE_PARM_DESC(default_dsm_family,
 		"Try this DSM type first when identifying NVDIMM family");
 
+static bool no_init_ars;
+module_param(no_init_ars, bool, 0644);
+MODULE_PARM_DESC(no_init_ars, "Skip ARS run at nfit init time");
+
 LIST_HEAD(acpi_descs);
 DEFINE_MUTEX(acpi_desc_lock);
 
@@ -2815,6 +2819,9 @@ static int ars_register(struct acpi_nfit_desc *acpi_desc, struct nfit_spa *nfit_
 		int *query_rc)
 {
 	int rc = *query_rc;
+
+	if (no_init_ars)
+		return acpi_nfit_register_region(acpi_desc, nfit_spa);
 
 	set_bit(ARS_REQ, &nfit_spa->ars_state);
 	set_bit(ARS_SHORT, &nfit_spa->ars_state);
