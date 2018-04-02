@@ -319,10 +319,30 @@ static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 	ucseg->mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 }
 
+static u32 mlx5e_rqwq_get_size(struct mlx5e_rq *rq)
+{
+	switch (rq->wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return mlx5_wq_ll_get_size(&rq->mpwqe.wq);
+	default:
+		return mlx5_wq_ll_get_size(&rq->wqe.wq);
+	}
+}
+
+static u32 mlx5e_rqwq_get_cur_sz(struct mlx5e_rq *rq)
+{
+	switch (rq->wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return rq->mpwqe.wq.cur_sz;
+	default:
+		return rq->wqe.wq.cur_sz;
+	}
+}
+
 static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
 				     struct mlx5e_channel *c)
 {
-	int wq_sz = mlx5_wq_ll_get_size(&rq->wq);
+	int wq_sz = mlx5_wq_ll_get_size(&rq->mpwqe.wq);
 
 	rq->mpwqe.info = kzalloc_node(wq_sz * sizeof(*rq->mpwqe.info),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
@@ -370,7 +390,7 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 
 static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq *rq)
 {
-	u64 num_mtts = MLX5E_REQUIRED_MTTS(mlx5_wq_ll_get_size(&rq->wq));
+	u64 num_mtts = MLX5E_REQUIRED_MTTS(mlx5_wq_ll_get_size(&rq->mpwqe.wq));
 
 	return mlx5e_create_umr_mkey(mdev, num_mtts, PAGE_SHIFT, &rq->umr_mkey);
 }
@@ -396,15 +416,6 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	int i;
 
 	rqp->wq.db_numa_node = cpu_to_node(c->cpu);
-
-	err = mlx5_wq_ll_create(mdev, &rqp->wq, rqc_wq, &rq->wq,
-				&rq->wq_ctrl);
-	if (err)
-		return err;
-
-	rq->wq.db = &rq->wq.db[MLX5_RCV_DBR];
-
-	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 
 	rq->wq_type = params->rq_wq_type;
 	rq->pdev    = c->pdev;
@@ -434,8 +445,17 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		err = mlx5_wq_ll_create(mdev, &rqp->wq, rqc_wq, &rq->mpwqe.wq,
+					&rq->wq_ctrl);
+		if (err)
+			return err;
+
+		rq->mpwqe.wq.db = &rq->mpwqe.wq.db[MLX5_RCV_DBR];
+
+		wq_sz = mlx5_wq_ll_get_size(&rq->mpwqe.wq);
 
 		pool_size = MLX5_MPWRQ_PAGES_PER_WQE << mlx5e_mpwqe_get_log_rq_size(params);
+
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
@@ -472,6 +492,15 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_destroy_umr_mkey;
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
+		err = mlx5_wq_ll_create(mdev, &rqp->wq, rqc_wq, &rq->wqe.wq,
+					&rq->wq_ctrl);
+		if (err)
+			return err;
+
+		rq->wqe.wq.db = &rq->wqe.wq.db[MLX5_RCV_DBR];
+
+		wq_sz = mlx5_wq_ll_get_size(&rq->wqe.wq);
+
 		rq->wqe.frag_info =
 			kzalloc_node(wq_sz * sizeof(*rq->wqe.frag_info),
 				     GFP_KERNEL, cpu_to_node(c->cpu));
@@ -538,16 +567,21 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		goto err_rq_wq_destroy;
 
 	for (i = 0; i < wq_sz; i++) {
-		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
-
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
+			struct mlx5e_rx_wqe *wqe =
+				mlx5_wq_ll_get_wqe(&rq->mpwqe.wq, i);
 			u64 dma_offset = mlx5e_get_mpwqe_offset(rq, i);
 
 			wqe->data.addr = cpu_to_be64(dma_offset + rq->buff.headroom);
-		}
+			wqe->data.byte_count = cpu_to_be32(byte_count);
+			wqe->data.lkey = rq->mkey_be;
+		} else {
+			struct mlx5e_rx_wqe *wqe =
+				mlx5_wq_ll_get_wqe(&rq->wqe.wq, i);
 
-		wqe->data.byte_count = cpu_to_be32(byte_count);
-		wqe->data.lkey = rq->mkey_be;
+			wqe->data.byte_count = cpu_to_be32(byte_count);
+			wqe->data.lkey = rq->mkey_be;
+		}
 	}
 
 	INIT_WORK(&rq->dim.work, mlx5e_rx_dim_work);
@@ -744,51 +778,65 @@ static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time)
 	unsigned long exp_time = jiffies + msecs_to_jiffies(wait_time);
 	struct mlx5e_channel *c = rq->channel;
 
-	struct mlx5_wq_ll *wq = &rq->wq;
-	u16 min_wqes = mlx5_min_rx_wqes(rq->wq_type, mlx5_wq_ll_get_size(wq));
+	u16 min_wqes = mlx5_min_rx_wqes(rq->wq_type, mlx5e_rqwq_get_size(rq));
 
 	do {
-		if (wq->cur_sz >= min_wqes)
+		if (mlx5e_rqwq_get_cur_sz(rq) >= min_wqes)
 			return 0;
 
 		msleep(20);
 	} while (time_before(jiffies, exp_time));
 
 	netdev_warn(c->netdev, "Failed to get min RX wqes on Channel[%d] RQN[0x%x] wq cur_sz(%d) min_rx_wqes(%d)\n",
-		    c->ix, rq->rqn, wq->cur_sz, min_wqes);
+		    c->ix, rq->rqn, mlx5e_rqwq_get_cur_sz(rq), min_wqes);
 
 	return -ETIMEDOUT;
 }
 
 static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 {
-	struct mlx5_wq_ll *wq = &rq->wq;
-	struct mlx5e_rx_wqe *wqe;
 	__be16 wqe_ix_be;
 	u16 wqe_ix;
 
-	/* UMR WQE (if in progress) is always at wq->head */
-	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
-	    rq->mpwqe.umr_in_progress)
-		mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
+	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
+		struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
 
-	while (!mlx5_wq_ll_is_empty(wq)) {
-		wqe_ix_be = *wq->tail_next;
-		wqe_ix    = be16_to_cpu(wqe_ix_be);
-		wqe       = mlx5_wq_ll_get_wqe(&rq->wq, wqe_ix);
-		rq->dealloc_wqe(rq, wqe_ix);
-		mlx5_wq_ll_pop(&rq->wq, wqe_ix_be,
-			       &wqe->next.next_wqe_index);
-	}
+		if (rq->mpwqe.umr_in_progress)
+			mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
 
-	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST && rq->wqe.page_reuse) {
+		while (!mlx5_wq_ll_is_empty(wq)) {
+			struct mlx5e_rx_wqe *wqe;
+
+			wqe_ix_be = *wq->tail_next;
+			wqe_ix    = be16_to_cpu(wqe_ix_be);
+			wqe       = mlx5_wq_ll_get_wqe(wq, wqe_ix);
+			rq->dealloc_wqe(rq, wqe_ix);
+			mlx5_wq_ll_pop(wq, wqe_ix_be,
+				       &wqe->next.next_wqe_index);
+		}
+	} else {
+		struct mlx5_wq_ll *wq = &rq->wqe.wq;
+
+		while (!mlx5_wq_ll_is_empty(wq)) {
+			struct mlx5e_rx_wqe *wqe;
+
+			wqe_ix_be = *wq->tail_next;
+			wqe_ix    = be16_to_cpu(wqe_ix_be);
+			wqe       = mlx5_wq_ll_get_wqe(wq, wqe_ix);
+			rq->dealloc_wqe(rq, wqe_ix);
+			mlx5_wq_ll_pop(wq, wqe_ix_be,
+				       &wqe->next.next_wqe_index);
+		}
+
 		/* Clean outstanding pages on handled WQEs that decided to do page-reuse,
 		 * but yet to be re-posted.
 		 */
-		int wq_sz = mlx5_wq_ll_get_size(&rq->wq);
+		if (rq->wqe.page_reuse) {
+			int wq_sz = mlx5_wq_ll_get_size(wq);
 
-		for (wqe_ix = 0; wqe_ix < wq_sz; wqe_ix++)
-			rq->dealloc_wqe(rq, wqe_ix);
+			for (wqe_ix = 0; wqe_ix < wq_sz; wqe_ix++)
+				rq->dealloc_wqe(rq, wqe_ix);
+		}
 	}
 }
 
@@ -2809,7 +2857,7 @@ static int mlx5e_alloc_drop_rq(struct mlx5_core_dev *mdev,
 
 	param->wq.db_numa_node = param->wq.buf_numa_node;
 
-	err = mlx5_wq_ll_create(mdev, &param->wq, rqc_wq, &rq->wq,
+	err = mlx5_wq_ll_create(mdev, &param->wq, rqc_wq, &rq->wqe.wq,
 				&rq->wq_ctrl);
 	if (err)
 		return err;
