@@ -209,7 +209,7 @@
 &display_subsystem {
 	logo-memory-region = <&drm_logo>;
 	status = "okay";
-
+	secure-memory-region = <&secure_memory>;
 	route {
 		route_hdmi: route-hdmi {
 			status = "okay";
@@ -264,6 +264,14 @@
 	vccio1-supply = <&vccio_3v3_reg>;
 	vccio2-supply = <&vccio_1v8_reg>;
 	vccio4-supply = <&vccio_3v3_reg>;
+};
+
+&secure_memory {
+	/*
+	 * enable like this:
+	 * reg = <0x80000000 0x10000000>;
+	 */
+	reg = <0x80000000 0x0>;
 };
 
 &i2c0 {

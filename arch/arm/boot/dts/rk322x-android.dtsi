@@ -92,6 +92,11 @@
 			reg = <0x0 0x0>;
 		};
 
+		secure_memory: secure-memory@80000000 {
+			compatible = "rockchip,secure-memory";
+			reg = <0x80000000 0x0>;
+		};
+
 		ramoops_mem: ramoops@62e00000 {
 			reg = <0x62e00000 0xf0000>;
 		};
