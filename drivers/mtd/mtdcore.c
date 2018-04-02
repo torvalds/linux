@@ -210,6 +210,15 @@ static ssize_t mtd_oobsize_show(struct device *dev,
 }
 static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
 
+static ssize_t mtd_oobavail_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->oobavail);
+}
+static DEVICE_ATTR(oobavail, S_IRUGO, mtd_oobavail_show, NULL);
+
 static ssize_t mtd_numeraseregions_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -327,6 +336,7 @@ static struct attribute *mtd_attrs[] = {
 	&dev_attr_writesize.attr,
 	&dev_attr_subpagesize.attr,
 	&dev_attr_oobsize.attr,
+	&dev_attr_oobavail.attr,
 	&dev_attr_numeraseregions.attr,
 	&dev_attr_name.attr,
 	&dev_attr_ecc_strength.attr,
