@@ -441,11 +441,16 @@ pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * 'irq' here is a hwirq, but a virq is needed.  Until we know how and where
 	 * to convert one to the other, we have this hack for the GNUBEE1
+	 * Similarly 31->23 and 32->24.
 	 */
-	return irq == 11 ? 22 : irq;
-#else
-	return irq;
+	if (irq == 11)
+		return 22;
+	if (irq == 31)
+		return 23;
+	if (irq == 32)
+		return 24;
 #endif
+	return irq;
 }
 
 void
