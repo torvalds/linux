@@ -82,10 +82,10 @@ struct aic32x4_priv {
 static int aic32x4_get_mfp1_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_read(codec, AIC32X4_DINCTL);
+	val = snd_soc_component_read32(component, AIC32X4_DINCTL);
 
 	ucontrol->value.integer.value[0] = (val & 0x01);
 
@@ -95,11 +95,11 @@ static int aic32x4_get_mfp1_gpio(struct snd_kcontrol *kcontrol,
 static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_read(codec, AIC32X4_DOUTCTL);
+	val = snd_soc_component_read32(component, AIC32X4_DOUTCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
 		printk(KERN_ERR "%s: MFP2 is not configure as a GPIO output\n",
@@ -115,7 +115,7 @@ static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 	else
 		val &= ~AIC32X4_MFP2_GPIO_OUT_HIGH;
 
-	snd_soc_write(codec, AIC32X4_DOUTCTL, val);
+	snd_soc_component_write(component, AIC32X4_DOUTCTL, val);
 
 	return 0;
 };
@@ -123,10 +123,10 @@ static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 static int aic32x4_get_mfp3_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_read(codec, AIC32X4_SCLKCTL);
+	val = snd_soc_component_read32(component, AIC32X4_SCLKCTL);
 
 	ucontrol->value.integer.value[0] = (val & 0x01);
 
@@ -136,11 +136,11 @@ static int aic32x4_get_mfp3_gpio(struct snd_kcontrol *kcontrol,
 static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_read(codec, AIC32X4_MISOCTL);
+	val = snd_soc_component_read32(component, AIC32X4_MISOCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
 		printk(KERN_ERR "%s: MFP4 is not configure as a GPIO output\n",
@@ -156,7 +156,7 @@ static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 	else
 		val &= ~AIC32X4_MFP5_GPIO_OUT_HIGH;
 
-	snd_soc_write(codec, AIC32X4_MISOCTL, val);
+	snd_soc_component_write(component, AIC32X4_MISOCTL, val);
 
 	return 0;
 };
@@ -164,10 +164,10 @@ static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 static int aic32x4_get_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_read(codec, AIC32X4_GPIOCTL);
+	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
 	ucontrol->value.integer.value[0] = ((val & 0x2) >> 1);
 
 	return 0;
@@ -176,11 +176,11 @@ static int aic32x4_get_mfp5_gpio(struct snd_kcontrol *kcontrol,
 static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_read(codec, AIC32X4_GPIOCTL);
+	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
 	gpio_check = (val & AIC32X4_MFP5_GPIO_OUTPUT);
 	if (gpio_check != AIC32X4_MFP5_GPIO_OUTPUT) {
 		printk(KERN_ERR "%s: MFP5 is not configure as a GPIO output\n",
@@ -196,7 +196,7 @@ static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	else
 		val &= 0xfe;
 
-	snd_soc_write(codec, AIC32X4_GPIOCTL, val);
+	snd_soc_component_write(component, AIC32X4_GPIOCTL, val);
 
 	return 0;
 };
@@ -597,8 +597,8 @@ static inline int aic32x4_get_divs(int mclk, int rate)
 static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 
 	switch (freq) {
 	case 12000000:
@@ -613,7 +613,7 @@ static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	u8 iface_reg_1 = 0;
 	u8 iface_reg_2 = 0;
 	u8 iface_reg_3 = 0;
@@ -657,12 +657,12 @@ static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, AIC32X4_IFACE1,
+	snd_soc_component_update_bits(component, AIC32X4_IFACE1,
 			    AIC32X4_IFACE1_DATATYPE_MASK |
 			    AIC32X4_IFACE1_MASTER_MASK, iface_reg_1);
-	snd_soc_update_bits(codec, AIC32X4_IFACE2,
+	snd_soc_component_update_bits(component, AIC32X4_IFACE2,
 			    AIC32X4_DATA_OFFSET_MASK, iface_reg_2);
-	snd_soc_update_bits(codec, AIC32X4_IFACE3,
+	snd_soc_component_update_bits(component, AIC32X4_IFACE3,
 			    AIC32X4_BCLKINV_MASK, iface_reg_3);
 
 	return 0;
@@ -672,8 +672,8 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u8 iface1_reg = 0;
 	u8 dacsetup_reg = 0;
 	int i;
@@ -685,54 +685,54 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* MCLK as PLL_CLKIN */
-	snd_soc_update_bits(codec, AIC32X4_CLKMUX, AIC32X4_PLL_CLKIN_MASK,
+	snd_soc_component_update_bits(component, AIC32X4_CLKMUX, AIC32X4_PLL_CLKIN_MASK,
 			    AIC32X4_PLL_CLKIN_MCLK << AIC32X4_PLL_CLKIN_SHIFT);
 	/* PLL as CODEC_CLKIN */
-	snd_soc_update_bits(codec, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_MASK,
+	snd_soc_component_update_bits(component, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_MASK,
 			    AIC32X4_CODEC_CLKIN_PLL << AIC32X4_CODEC_CLKIN_SHIFT);
 	/* DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_update_bits(codec, AIC32X4_IFACE3, AIC32X4_BDIVCLK_MASK,
+	snd_soc_component_update_bits(component, AIC32X4_IFACE3, AIC32X4_BDIVCLK_MASK,
 			    AIC32X4_DACMOD2BCLK << AIC32X4_BDIVCLK_SHIFT);
 
 	/* We will fix R value to 1 and will make P & J=K.D as variable */
-	snd_soc_update_bits(codec, AIC32X4_PLLPR, AIC32X4_PLL_R_MASK, 0x01);
+	snd_soc_component_update_bits(component, AIC32X4_PLLPR, AIC32X4_PLL_R_MASK, 0x01);
 
 	/* PLL P value */
-	snd_soc_update_bits(codec, AIC32X4_PLLPR, AIC32X4_PLL_P_MASK,
+	snd_soc_component_update_bits(component, AIC32X4_PLLPR, AIC32X4_PLL_P_MASK,
 			    aic32x4_divs[i].p_val << AIC32X4_PLL_P_SHIFT);
 
 	/* PLL J value */
-	snd_soc_write(codec, AIC32X4_PLLJ, aic32x4_divs[i].pll_j);
+	snd_soc_component_write(component, AIC32X4_PLLJ, aic32x4_divs[i].pll_j);
 
 	/* PLL D value */
-	snd_soc_write(codec, AIC32X4_PLLDMSB, (aic32x4_divs[i].pll_d >> 8));
-	snd_soc_write(codec, AIC32X4_PLLDLSB, (aic32x4_divs[i].pll_d & 0xff));
+	snd_soc_component_write(component, AIC32X4_PLLDMSB, (aic32x4_divs[i].pll_d >> 8));
+	snd_soc_component_write(component, AIC32X4_PLLDLSB, (aic32x4_divs[i].pll_d & 0xff));
 
 	/* NDAC divider value */
-	snd_soc_update_bits(codec, AIC32X4_NDAC,
+	snd_soc_component_update_bits(component, AIC32X4_NDAC,
 			    AIC32X4_NDAC_MASK, aic32x4_divs[i].ndac);
 
 	/* MDAC divider value */
-	snd_soc_update_bits(codec, AIC32X4_MDAC,
+	snd_soc_component_update_bits(component, AIC32X4_MDAC,
 			    AIC32X4_MDAC_MASK, aic32x4_divs[i].mdac);
 
 	/* DOSR MSB & LSB values */
-	snd_soc_write(codec, AIC32X4_DOSRMSB, aic32x4_divs[i].dosr >> 8);
-	snd_soc_write(codec, AIC32X4_DOSRLSB, (aic32x4_divs[i].dosr & 0xff));
+	snd_soc_component_write(component, AIC32X4_DOSRMSB, aic32x4_divs[i].dosr >> 8);
+	snd_soc_component_write(component, AIC32X4_DOSRLSB, (aic32x4_divs[i].dosr & 0xff));
 
 	/* NADC divider value */
-	snd_soc_update_bits(codec, AIC32X4_NADC,
+	snd_soc_component_update_bits(component, AIC32X4_NADC,
 			    AIC32X4_NADC_MASK, aic32x4_divs[i].nadc);
 
 	/* MADC divider value */
-	snd_soc_update_bits(codec, AIC32X4_MADC,
+	snd_soc_component_update_bits(component, AIC32X4_MADC,
 			    AIC32X4_MADC_MASK, aic32x4_divs[i].madc);
 
 	/* AOSR value */
-	snd_soc_write(codec, AIC32X4_AOSR, aic32x4_divs[i].aosr);
+	snd_soc_component_write(component, AIC32X4_AOSR, aic32x4_divs[i].aosr);
 
 	/* BCLK N divider */
-	snd_soc_update_bits(codec, AIC32X4_BCLKN,
+	snd_soc_component_update_bits(component, AIC32X4_BCLKN,
 			    AIC32X4_BCLK_MASK, aic32x4_divs[i].blck_N);
 
 	switch (params_width(params)) {
@@ -753,7 +753,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	}
-	snd_soc_update_bits(codec, AIC32X4_IFACE1,
+	snd_soc_component_update_bits(component, AIC32X4_IFACE1,
 			    AIC32X4_IFACE1_DATALEN_MASK, iface1_reg);
 
 	if (params_channels(params) == 1) {
@@ -764,7 +764,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 		else
 			dacsetup_reg = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
 	}
-	snd_soc_update_bits(codec, AIC32X4_DACSETUP,
+	snd_soc_component_update_bits(component, AIC32X4_DACSETUP,
 			    AIC32X4_DAC_CHAN_MASK, dacsetup_reg);
 
 	return 0;
@@ -772,18 +772,18 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 
 static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
-	snd_soc_update_bits(codec, AIC32X4_DACMUTE,
+	snd_soc_component_update_bits(component, AIC32X4_DACMUTE,
 			    AIC32X4_MUTEON, mute ? AIC32X4_MUTEON : 0);
 
 	return 0;
 }
 
-static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
+static int aic32x4_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	switch (level) {
@@ -791,59 +791,59 @@ static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
 		/* Switch on master clock */
 		ret = clk_prepare_enable(aic32x4->mclk);
 		if (ret) {
-			dev_err(codec->dev, "Failed to enable master clock\n");
+			dev_err(component->dev, "Failed to enable master clock\n");
 			return ret;
 		}
 
 		/* Switch on PLL */
-		snd_soc_update_bits(codec, AIC32X4_PLLPR,
+		snd_soc_component_update_bits(component, AIC32X4_PLLPR,
 				    AIC32X4_PLLEN, AIC32X4_PLLEN);
 
 		/* Switch on NDAC Divider */
-		snd_soc_update_bits(codec, AIC32X4_NDAC,
+		snd_soc_component_update_bits(component, AIC32X4_NDAC,
 				    AIC32X4_NDACEN, AIC32X4_NDACEN);
 
 		/* Switch on MDAC Divider */
-		snd_soc_update_bits(codec, AIC32X4_MDAC,
+		snd_soc_component_update_bits(component, AIC32X4_MDAC,
 				    AIC32X4_MDACEN, AIC32X4_MDACEN);
 
 		/* Switch on NADC Divider */
-		snd_soc_update_bits(codec, AIC32X4_NADC,
+		snd_soc_component_update_bits(component, AIC32X4_NADC,
 				    AIC32X4_NADCEN, AIC32X4_NADCEN);
 
 		/* Switch on MADC Divider */
-		snd_soc_update_bits(codec, AIC32X4_MADC,
+		snd_soc_component_update_bits(component, AIC32X4_MADC,
 				    AIC32X4_MADCEN, AIC32X4_MADCEN);
 
 		/* Switch on BCLK_N Divider */
-		snd_soc_update_bits(codec, AIC32X4_BCLKN,
+		snd_soc_component_update_bits(component, AIC32X4_BCLKN,
 				    AIC32X4_BCLKEN, AIC32X4_BCLKEN);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* Switch off BCLK_N Divider */
-		snd_soc_update_bits(codec, AIC32X4_BCLKN,
+		snd_soc_component_update_bits(component, AIC32X4_BCLKN,
 				    AIC32X4_BCLKEN, 0);
 
 		/* Switch off MADC Divider */
-		snd_soc_update_bits(codec, AIC32X4_MADC,
+		snd_soc_component_update_bits(component, AIC32X4_MADC,
 				    AIC32X4_MADCEN, 0);
 
 		/* Switch off NADC Divider */
-		snd_soc_update_bits(codec, AIC32X4_NADC,
+		snd_soc_component_update_bits(component, AIC32X4_NADC,
 				    AIC32X4_NADCEN, 0);
 
 		/* Switch off MDAC Divider */
-		snd_soc_update_bits(codec, AIC32X4_MDAC,
+		snd_soc_component_update_bits(component, AIC32X4_MDAC,
 				    AIC32X4_MDACEN, 0);
 
 		/* Switch off NDAC Divider */
-		snd_soc_update_bits(codec, AIC32X4_NDAC,
+		snd_soc_component_update_bits(component, AIC32X4_NDAC,
 				    AIC32X4_NDACEN, 0);
 
 		/* Switch off PLL */
-		snd_soc_update_bits(codec, AIC32X4_PLLPR,
+		snd_soc_component_update_bits(component, AIC32X4_PLLPR,
 				    AIC32X4_PLLEN, 0);
 
 		/* Switch off master clock */
@@ -884,55 +884,55 @@ static struct snd_soc_dai_driver aic32x4_dai = {
 	.symmetric_rates = 1,
 };
 
-static void aic32x4_setup_gpios(struct snd_soc_codec *codec)
+static void aic32x4_setup_gpios(struct snd_soc_component *component)
 {
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 
 	/* setup GPIO functions */
 	/* MFP1 */
 	if (aic32x4->setup->gpio_func[0] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_write(codec, AIC32X4_DINCTL,
+		snd_soc_component_write(component, AIC32X4_DINCTL,
 		      aic32x4->setup->gpio_func[0]);
-		snd_soc_add_codec_controls(codec, aic32x4_mfp1,
+		snd_soc_add_component_controls(component, aic32x4_mfp1,
 			ARRAY_SIZE(aic32x4_mfp1));
 	}
 
 	/* MFP2 */
 	if (aic32x4->setup->gpio_func[1] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_write(codec, AIC32X4_DOUTCTL,
+		snd_soc_component_write(component, AIC32X4_DOUTCTL,
 		      aic32x4->setup->gpio_func[1]);
-		snd_soc_add_codec_controls(codec, aic32x4_mfp2,
+		snd_soc_add_component_controls(component, aic32x4_mfp2,
 			ARRAY_SIZE(aic32x4_mfp2));
 	}
 
 	/* MFP3 */
 	if (aic32x4->setup->gpio_func[2] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_write(codec, AIC32X4_SCLKCTL,
+		snd_soc_component_write(component, AIC32X4_SCLKCTL,
 		      aic32x4->setup->gpio_func[2]);
-		snd_soc_add_codec_controls(codec, aic32x4_mfp3,
+		snd_soc_add_component_controls(component, aic32x4_mfp3,
 			ARRAY_SIZE(aic32x4_mfp3));
 	}
 
 	/* MFP4 */
 	if (aic32x4->setup->gpio_func[3] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_write(codec, AIC32X4_MISOCTL,
+		snd_soc_component_write(component, AIC32X4_MISOCTL,
 		      aic32x4->setup->gpio_func[3]);
-		snd_soc_add_codec_controls(codec, aic32x4_mfp4,
+		snd_soc_add_component_controls(component, aic32x4_mfp4,
 			ARRAY_SIZE(aic32x4_mfp4));
 	}
 
 	/* MFP5 */
 	if (aic32x4->setup->gpio_func[4] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_write(codec, AIC32X4_GPIOCTL,
+		snd_soc_component_write(component, AIC32X4_GPIOCTL,
 		      aic32x4->setup->gpio_func[4]);
-		snd_soc_add_codec_controls(codec, aic32x4_mfp5,
+		snd_soc_add_component_controls(component, aic32x4_mfp5,
 			ARRAY_SIZE(aic32x4_mfp5));
 	}
 }
 
-static int aic32x4_codec_probe(struct snd_soc_codec *codec)
+static int aic32x4_component_probe(struct snd_soc_component *component)
 {
-	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 	u32 tmp_reg;
 
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
@@ -940,42 +940,42 @@ static int aic32x4_codec_probe(struct snd_soc_codec *codec)
 		gpio_set_value(aic32x4->rstn_gpio, 1);
 	}
 
-	snd_soc_write(codec, AIC32X4_RESET, 0x01);
+	snd_soc_component_write(component, AIC32X4_RESET, 0x01);
 
 	if (aic32x4->setup)
-		aic32x4_setup_gpios(codec);
+		aic32x4_setup_gpios(component);
 
 	/* Power platform configuration */
 	if (aic32x4->power_cfg & AIC32X4_PWR_MICBIAS_2075_LDOIN) {
-		snd_soc_write(codec, AIC32X4_MICBIAS, AIC32X4_MICBIAS_LDOIN |
+		snd_soc_component_write(component, AIC32X4_MICBIAS, AIC32X4_MICBIAS_LDOIN |
 						      AIC32X4_MICBIAS_2075V);
 	}
 	if (aic32x4->power_cfg & AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE)
-		snd_soc_write(codec, AIC32X4_PWRCFG, AIC32X4_AVDDWEAKDISABLE);
+		snd_soc_component_write(component, AIC32X4_PWRCFG, AIC32X4_AVDDWEAKDISABLE);
 
 	tmp_reg = (aic32x4->power_cfg & AIC32X4_PWR_AIC32X4_LDO_ENABLE) ?
 			AIC32X4_LDOCTLEN : 0;
-	snd_soc_write(codec, AIC32X4_LDOCTL, tmp_reg);
+	snd_soc_component_write(component, AIC32X4_LDOCTL, tmp_reg);
 
-	tmp_reg = snd_soc_read(codec, AIC32X4_CMMODE);
+	tmp_reg = snd_soc_component_read32(component, AIC32X4_CMMODE);
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36)
 		tmp_reg |= AIC32X4_LDOIN_18_36;
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED)
 		tmp_reg |= AIC32X4_LDOIN2HP;
-	snd_soc_write(codec, AIC32X4_CMMODE, tmp_reg);
+	snd_soc_component_write(component, AIC32X4_CMMODE, tmp_reg);
 
 	/* Mic PGA routing */
 	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K)
-		snd_soc_write(codec, AIC32X4_LMICPGANIN,
+		snd_soc_component_write(component, AIC32X4_LMICPGANIN,
 				AIC32X4_LMICPGANIN_IN2R_10K);
 	else
-		snd_soc_write(codec, AIC32X4_LMICPGANIN,
+		snd_soc_component_write(component, AIC32X4_LMICPGANIN,
 				AIC32X4_LMICPGANIN_CM1L_10K);
 	if (aic32x4->micpga_routing & AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K)
-		snd_soc_write(codec, AIC32X4_RMICPGANIN,
+		snd_soc_component_write(component, AIC32X4_RMICPGANIN,
 				AIC32X4_RMICPGANIN_IN1L_10K);
 	else
-		snd_soc_write(codec, AIC32X4_RMICPGANIN,
+		snd_soc_component_write(component, AIC32X4_RMICPGANIN,
 				AIC32X4_RMICPGANIN_CM1R_10K);
 
 	/*
@@ -983,27 +983,28 @@ static int aic32x4_codec_probe(struct snd_soc_codec *codec)
 	 * and down for the first capture to work properly. It seems related to
 	 * a HW BUG or some kind of behavior not documented in the datasheet.
 	 */
-	tmp_reg = snd_soc_read(codec, AIC32X4_ADCSETUP);
-	snd_soc_write(codec, AIC32X4_ADCSETUP, tmp_reg |
+	tmp_reg = snd_soc_component_read32(component, AIC32X4_ADCSETUP);
+	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg |
 				AIC32X4_LADC_EN | AIC32X4_RADC_EN);
-	snd_soc_write(codec, AIC32X4_ADCSETUP, tmp_reg);
+	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg);
 
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
-	.probe = aic32x4_codec_probe,
-	.set_bias_level = aic32x4_set_bias_level,
-	.suspend_bias_off = true,
-
-	.component_driver = {
-		.controls		= aic32x4_snd_controls,
-		.num_controls		= ARRAY_SIZE(aic32x4_snd_controls),
-		.dapm_widgets		= aic32x4_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(aic32x4_dapm_widgets),
-		.dapm_routes		= aic32x4_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(aic32x4_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_aic32x4 = {
+	.probe			= aic32x4_component_probe,
+	.set_bias_level		= aic32x4_set_bias_level,
+	.controls		= aic32x4_snd_controls,
+	.num_controls		= ARRAY_SIZE(aic32x4_snd_controls),
+	.dapm_widgets		= aic32x4_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(aic32x4_dapm_widgets),
+	.dapm_routes		= aic32x4_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(aic32x4_dapm_routes),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
@@ -1181,10 +1182,10 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(dev,
-			&soc_codec_dev_aic32x4, &aic32x4_dai, 1);
+	ret = devm_snd_soc_register_component(dev,
+			&soc_component_dev_aic32x4, &aic32x4_dai, 1);
 	if (ret) {
-		dev_err(dev, "Failed to register codec\n");
+		dev_err(dev, "Failed to register component\n");
 		aic32x4_disable_regulators(aic32x4);
 		return ret;
 	}
@@ -1198,8 +1199,6 @@ int aic32x4_remove(struct device *dev)
 	struct aic32x4_priv *aic32x4 = dev_get_drvdata(dev);
 
 	aic32x4_disable_regulators(aic32x4);
-
-	snd_soc_unregister_codec(dev);
 
 	return 0;
 }

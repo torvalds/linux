@@ -1719,7 +1719,6 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 
 			set_bit(ea->fcport->loop_id, vha->hw->loop_id_map);
 			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-			ea->fcport->loop_id = FC_NO_LOOP_ID;
 			ea->fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 			ea->fcport->logout_on_delete = 1;
 			ea->fcport->send_els_logo = 0;

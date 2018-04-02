@@ -3387,11 +3387,9 @@ static int serial_pci_is_class_communication(struct pci_dev *dev)
 	/*
 	 * If it is not a communications device or the programming
 	 * interface is greater than 6, give up.
-	 *
-	 * (Should we try to make guesses for multiport serial devices
-	 * later?)
 	 */
 	if ((((dev->class >> 8) != PCI_CLASS_COMMUNICATION_SERIAL) &&
+	     ((dev->class >> 8) != PCI_CLASS_COMMUNICATION_MULTISERIAL) &&
 	     ((dev->class >> 8) != PCI_CLASS_COMMUNICATION_MODEM)) ||
 	    (dev->class & 0xff) > 6)
 		return -ENODEV;
@@ -3427,6 +3425,12 @@ static int
 serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 {
 	int num_iomem, num_port, first_port = -1, i;
+
+	/*
+	 * Should we try to make guesses for multiport serial devices later?
+	 */
+	if ((dev->class >> 8) == PCI_CLASS_COMMUNICATION_MULTISERIAL)
+		return -ENODEV;
 
 	num_iomem = num_port = 0;
 	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
@@ -4697,6 +4701,17 @@ static const struct pci_device_id serial_pci_tbl[] = {
 	 */
 	{	PCI_VENDOR_ID_INTASHIELD, PCI_DEVICE_ID_INTASHIELD_IS400,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,    /* 135a.0dc0 */
+		pbn_b2_4_115200 },
+	/*
+	 * BrainBoxes UC-260
+	 */
+	{	PCI_VENDOR_ID_INTASHIELD, 0x0D21,
+		PCI_ANY_ID, PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_MULTISERIAL << 8, 0xffff00,
+		pbn_b2_4_115200 },
+	{	PCI_VENDOR_ID_INTASHIELD, 0x0E34,
+		PCI_ANY_ID, PCI_ANY_ID,
+		 PCI_CLASS_COMMUNICATION_MULTISERIAL << 8, 0xffff00,
 		pbn_b2_4_115200 },
 	/*
 	 * Perle PCI-RAS cards

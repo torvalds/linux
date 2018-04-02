@@ -110,6 +110,10 @@ struct intel_vgpu_workload {
 	/* shadow batch buffer */
 	struct list_head shadow_bb;
 	struct intel_shadow_wa_ctx wa_ctx;
+
+	/* oa registers */
+	u32 oactxctrl;
+	u32 flex_mmio[7];
 };
 
 struct intel_vgpu_shadow_bb {
@@ -120,6 +124,7 @@ struct intel_vgpu_shadow_bb {
 	u32 *bb_start_cmd_va;
 	unsigned int clflush;
 	bool accessing;
+	unsigned long bb_offset;
 };
 
 #define workload_q_head(vgpu, ring_id) \

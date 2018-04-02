@@ -841,13 +841,6 @@ F:	sound/soc/codecs/ad7*
 F:	sound/soc/codecs/ssm*
 F:	sound/soc/codecs/sigmadsp.*
 
-ANALOG DEVICES INC ASOC DRIVERS
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org/
-S:	Supported
-F:	sound/soc/blackfin/*
-
 ANALOG DEVICES INC DMA DRIVERS
 M:	Lars-Peter Clausen <lars@metafoo.de>
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -10334,7 +10327,7 @@ F:	drivers/oprofile/
 F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
-M:	Mark Fasheh <mfasheh@versity.com>
+M:	Mark Fasheh <mark@fasheh.com>
 M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://ocfs2.wiki.kernel.org
@@ -10844,6 +10837,7 @@ F:	drivers/platform/x86/peaq-wmi.c
 PER-CPU MEMORY ALLOCATOR
 M:	Tejun Heo <tj@kernel.org>
 M:	Christoph Lameter <cl@linux.com>
+M:	Dennis Zhou <dennisszhou@gmail.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git
 S:	Maintained
 F:	include/linux/percpu*.h

@@ -36,13 +36,6 @@ static int pcm186x_spi_probe(struct spi_device *spi)
 	return pcm186x_probe(&spi->dev, type, irq, regmap);
 }
 
-static int pcm186x_spi_remove(struct spi_device *spi)
-{
-	pcm186x_remove(&spi->dev);
-
-	return 0;
-}
-
 static const struct spi_device_id pcm186x_spi_id[] = {
 	{ "pcm1862", PCM1862 },
 	{ "pcm1863", PCM1863 },
@@ -54,7 +47,6 @@ MODULE_DEVICE_TABLE(spi, pcm186x_spi_id);
 
 static struct spi_driver pcm186x_spi_driver = {
 	.probe		= pcm186x_spi_probe,
-	.remove		= pcm186x_spi_remove,
 	.id_table	= pcm186x_spi_id,
 	.driver		= {
 		.name	= "pcm186x",

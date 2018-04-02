@@ -3,6 +3,15 @@ config SND_SOC_AMD_ACP
 	help
 	 This option enables ACP DMA support on AMD platform.
 
+config SND_SOC_AMD_CZ_DA7219MX98357_MACH
+	tristate "AMD CZ support for DA7219 and MAX9835"
+	select SND_SOC_DA7219
+	select SND_SOC_MAX98357A
+	select SND_SOC_ADAU7002
+	depends on SND_SOC_AMD_ACP && I2C
+	help
+	 This option enables machine driver for DA7219 and MAX9835.
+
 config SND_SOC_AMD_CZ_RT5645_MACH
 	tristate "AMD CZ support for RT5645"
 	select SND_SOC_RT5645

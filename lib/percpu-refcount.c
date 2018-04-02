@@ -322,6 +322,8 @@ EXPORT_SYMBOL_GPL(percpu_ref_switch_to_percpu);
  * This function normally doesn't block and can be called from any context
  * but it may block if @confirm_kill is specified and @ref is in the
  * process of switching to atomic mode by percpu_ref_switch_to_atomic().
+ *
+ * There are no implied RCU grace periods between kill and release.
  */
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)

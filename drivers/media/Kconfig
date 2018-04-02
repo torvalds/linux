@@ -151,7 +151,7 @@ config DVB_MMAP
 	select VIDEOBUF2_VMALLOC
 	default n
 	help
-	  This option enables DVB experimental memory-mapped API, with
+	  This option enables DVB experimental memory-mapped API, which
 	  reduces the number of context switches to read DVB buffers, as
 	  the buffers can use mmap() syscalls.
 
