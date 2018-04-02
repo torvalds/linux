@@ -623,7 +623,7 @@ static int tvp5150_g_sliced_vbi_cap(struct v4l2_subdev *sd,
 	int line, i;
 
 	dev_dbg_lvl(sd->dev, 1, debug, "g_sliced_vbi_cap\n");
-	memset(cap, 0, sizeof *cap);
+	memset(cap, 0, sizeof(*cap));
 
 	for (i = 0; i < ARRAY_SIZE(vbi_ram_default); i++) {
 		const struct i2c_vbi_ram_value *regs = &vbi_ram_default[i];
