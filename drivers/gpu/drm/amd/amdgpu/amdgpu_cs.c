@@ -386,7 +386,8 @@ retry:
 	    bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT)
 		p->bytes_moved_vis += ctx.bytes_moved;
 
-	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
+	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains &&
+	    !(bo->flags & AMDGPU_GEM_CREATE_NO_FALLBACK)) {
 		domain = bo->allowed_domains;
 		goto retry;
 	}

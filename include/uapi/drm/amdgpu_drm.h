@@ -95,6 +95,8 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_VM_ALWAYS_VALID	(1 << 6)
 /* Flag that BO sharing will be explicitly synchronized */
 #define AMDGPU_GEM_CREATE_EXPLICIT_SYNC		(1 << 7)
+/* Flag that BO doesn't need fallback */
+#define AMDGPU_GEM_CREATE_NO_FALLBACK		(1 << 8)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
