@@ -2808,7 +2808,7 @@ static void acpi_nfit_async_scrub(struct acpi_nfit_desc *acpi_desc,
 	unsigned int tmo = scrub_timeout;
 	int rc;
 
-	if (!nfit_spa->ars_required || !nfit_spa->nd_region)
+	if (!test_bit(ARS_REQ, &nfit_spa->ars_state) || !nfit_spa->nd_region)
 		return;
 
 	rc = ars_start(acpi_desc, nfit_spa);
@@ -3003,7 +3003,7 @@ static void acpi_nfit_scrub(struct work_struct *work)
 		 * register them now to make data available.
 		 */
 		if (!nfit_spa->nd_region) {
-			nfit_spa->ars_required = 1;
+			set_bit(ARS_REQ, &nfit_spa->ars_state);
 			acpi_nfit_register_region(acpi_desc, nfit_spa);
 		}
 	}
@@ -3241,7 +3241,7 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 	return 0;
 }
 
-int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, u8 flags)
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, unsigned long flags)
 {
 	struct device *dev = acpi_desc->dev;
 	struct nfit_spa *nfit_spa;
@@ -3261,9 +3261,11 @@ int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, u8 flags)
 		if (nfit_spa_type(spa) != NFIT_SPA_PM)
 			continue;
 
-		nfit_spa->ars_required = 1;
+		set_bit(ARS_REQ, &nfit_spa->ars_state);
 	}
-	acpi_desc->ars_start_flags = flags;
+	acpi_desc->ars_start_flags = 0;
+	if (test_bit(ARS_SHORT, &flags))
+		acpi_desc->ars_start_flags |= ND_ARS_RETURN_PREV_DATA;
 	queue_work(nfit_wq, &acpi_desc->work);
 	dev_dbg(dev, "ars_scan triggered\n");
 	mutex_unlock(&acpi_desc->init_mutex);
@@ -3440,8 +3442,8 @@ static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
 static void acpi_nfit_uc_error_notify(struct device *dev, acpi_handle handle)
 {
 	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(dev);
-	u8 flags = (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON) ?
-			0 : ND_ARS_RETURN_PREV_DATA;
+	unsigned long flags = (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON) ?
+			0 : 1 << ARS_SHORT;
 
 	acpi_nfit_ars_rescan(acpi_desc, flags);
 }
