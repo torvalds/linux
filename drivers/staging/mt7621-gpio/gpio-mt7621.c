@@ -69,7 +69,7 @@ mtk_gpio_r32(struct mtk_gc *rg, u8 reg)
 }
 
 static void
-mediatek_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+mediatek_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 
@@ -77,7 +77,7 @@ mediatek_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 }
 
 static int
-mediatek_gpio_get(struct gpio_chip *chip, unsigned offset)
+mediatek_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 
@@ -85,7 +85,7 @@ mediatek_gpio_get(struct gpio_chip *chip, unsigned offset)
 }
 
 static int
-mediatek_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+mediatek_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 	unsigned long flags;
@@ -102,7 +102,7 @@ mediatek_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int
 mediatek_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int value)
+					unsigned int offset, int value)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 	unsigned long flags;
@@ -119,7 +119,7 @@ mediatek_gpio_direction_output(struct gpio_chip *chip,
 }
 
 static int
-mediatek_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+mediatek_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 	unsigned long flags;
@@ -136,7 +136,7 @@ mediatek_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 }
 
 static int
-mediatek_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
+mediatek_gpio_to_irq(struct gpio_chip *chip, unsigned int pin)
 {
 	struct mtk_gc *rg = to_mediatek_gpio(chip);
 
