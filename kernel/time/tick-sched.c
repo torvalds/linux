@@ -405,30 +405,12 @@ static int tick_nohz_cpu_down(unsigned int cpu)
 	return 0;
 }
 
-static int tick_nohz_init_all(void)
-{
-	int err = -1;
-
-#ifdef CONFIG_NO_HZ_FULL_ALL
-	if (!alloc_cpumask_var(&tick_nohz_full_mask, GFP_KERNEL)) {
-		WARN(1, "NO_HZ: Can't allocate full dynticks cpumask\n");
-		return err;
-	}
-	err = 0;
-	cpumask_setall(tick_nohz_full_mask);
-	tick_nohz_full_running = true;
-#endif
-	return err;
-}
-
 void __init tick_nohz_init(void)
 {
 	int cpu, ret;
 
-	if (!tick_nohz_full_running) {
-		if (tick_nohz_init_all() < 0)
-			return;
-	}
+	if (!tick_nohz_full_running)
+		return;
 
 	/*
 	 * Full dynticks uses irq work to drive the tick rescheduling on safe
