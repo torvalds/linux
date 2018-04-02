@@ -972,8 +972,8 @@ __thermal_cooling_device_register(struct device_node *np,
 	cdev->ops = ops;
 	cdev->updated = false;
 	cdev->device.class = &thermal_class;
-	thermal_cooling_device_setup_sysfs(cdev);
 	cdev->devdata = devdata;
+	thermal_cooling_device_setup_sysfs(cdev);
 	dev_set_name(&cdev->device, "cooling_device%d", cdev->id);
 	result = device_register(&cdev->device);
 	if (result) {
@@ -1106,6 +1106,7 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
 	ida_simple_remove(&thermal_cdev_ida, cdev->id);
 	device_unregister(&cdev->device);
+	thermal_cooling_device_destroy_sysfs(cdev);
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_unregister);
 

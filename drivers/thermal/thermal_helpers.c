@@ -187,7 +187,10 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 		if (instance->target > target)
 			target = instance->target;
 	}
-	cdev->ops->set_cur_state(cdev, target);
+
+	if (!cdev->ops->set_cur_state(cdev, target))
+		thermal_cooling_device_stats_update(cdev, target);
+
 	cdev->updated = true;
 	mutex_unlock(&cdev->lock);
 	trace_cdev_update(cdev, target);
