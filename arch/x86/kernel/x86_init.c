@@ -146,7 +146,7 @@ void arch_restore_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-struct x86_io_apic_ops x86_io_apic_ops __ro_after_init = {
-	.read			= native_io_apic_read,
-	.disable		= native_disable_io_apic,
+struct x86_apic_ops x86_apic_ops __ro_after_init = {
+	.io_apic_read	= native_io_apic_read,
+	.restore	= native_restore_boot_irq_mode,
 };
