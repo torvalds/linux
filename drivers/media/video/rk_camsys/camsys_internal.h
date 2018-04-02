@@ -207,9 +207,14 @@
        reset on too high isp_clk rate will result in bus dead.
        The signoff isp_clk rate is 350M, and the recommended rate
        on reset from IC is NOT greater than 300M.
+*v0.0x29.0:
+       1) fix camera mipi phy config for rk3288.
+	   CSIHOST_PHY_SHUTDOWNZ and CSIHOST_DPHY_RSTZ is
+	   csi host control interface;so DPHY_RX1_SRC_SEL_MASK
+	   should be set DPHY_RX1_SRC_SEL_CSI.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x28, 1)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x29, 0)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"

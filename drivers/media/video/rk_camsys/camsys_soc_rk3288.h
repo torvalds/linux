@@ -34,6 +34,7 @@
 #define DPHY_TX1RX1_ENABLECLK           (0x1 << 12)
 #define DPHY_TX1RX1_DISABLECLK          (0x0 << 12)
 #define DPHY_RX1_SRC_SEL_ISP          (0x1 << 13)
+#define DPHY_RX1_SRC_SEL_CSI          (0x0 << 13)
 #define DPHY_TX1RX1_SLAVEZ            (0x0 << 14)
 #define DPHY_TX1RX1_BASEDIR_REC       (0x1 << 15)
 
@@ -73,6 +74,8 @@
 #define DPHY_TX1RX1_TURN_DISABLE_OFFSET_BITS   (0x0)
 #define DPHY_TX1RX1_ENABLE_MASK                (0xf << 28)
 #define DPHY_TX1RX1_ENABLE_OFFSET_BITS         (12)
+#define DPHY_TX1RX1_FORCE_RX_MODE_MASK         (0xf << 20)
+#define DPHY_TX1RX1_FORCE_RX_MODE_OFFSET_BITS  (0x0)
 
 /*
 *GRF_SOC_CON15
