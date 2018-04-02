@@ -162,7 +162,6 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cpu->perf_caps.highest_perf;
 	policy->cpuinfo.max_freq = cppc_dmi_max_khz;
 
-	policy->cpuinfo.transition_latency = cppc_get_transition_latency(cpu_num);
 	policy->transition_delay_us = cppc_get_transition_latency(cpu_num) /
 		NSEC_PER_USEC;
 	policy->shared_type = cpu->shared_type;
