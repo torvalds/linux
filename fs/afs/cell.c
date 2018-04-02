@@ -25,7 +25,7 @@ static void afs_manage_cell(struct work_struct *);
 static void afs_dec_cells_outstanding(struct afs_net *net)
 {
 	if (atomic_dec_and_test(&net->cells_outstanding))
-		wake_up_atomic_t(&net->cells_outstanding);
+		wake_up_var(&net->cells_outstanding);
 }
 
 /*
@@ -764,7 +764,7 @@ void afs_cell_purge(struct afs_net *net)
 	afs_queue_cell_manager(net);
 
 	_debug("wait");
-	wait_on_atomic_t(&net->cells_outstanding, atomic_t_wait,
-			 TASK_UNINTERRUPTIBLE);
+	wait_var_event(&net->cells_outstanding,
+		       !atomic_read(&net->cells_outstanding));
 	_leave("");
 }

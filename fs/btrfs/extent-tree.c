@@ -3990,7 +3990,7 @@ void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr)
 	bg = btrfs_lookup_block_group(fs_info, bytenr);
 	ASSERT(bg);
 	if (atomic_dec_and_test(&bg->nocow_writers))
-		wake_up_atomic_t(&bg->nocow_writers);
+		wake_up_var(&bg->nocow_writers);
 	/*
 	 * Once for our lookup and once for the lookup done by a previous call
 	 * to btrfs_inc_nocow_writers()
@@ -4001,8 +4001,7 @@ void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr)
 
 void btrfs_wait_nocow_writers(struct btrfs_block_group_cache *bg)
 {
-	wait_on_atomic_t(&bg->nocow_writers, atomic_t_wait,
-			 TASK_UNINTERRUPTIBLE);
+	wait_var_event(&bg->nocow_writers, !atomic_read(&bg->nocow_writers));
 }
 
 static const char *alloc_name(u64 flags)
@@ -6526,7 +6525,7 @@ void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
 	bg = btrfs_lookup_block_group(fs_info, start);
 	ASSERT(bg);
 	if (atomic_dec_and_test(&bg->reservations))
-		wake_up_atomic_t(&bg->reservations);
+		wake_up_var(&bg->reservations);
 	btrfs_put_block_group(bg);
 }
 
@@ -6552,8 +6551,7 @@ void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg)
 	down_write(&space_info->groups_sem);
 	up_write(&space_info->groups_sem);
 
-	wait_on_atomic_t(&bg->reservations, atomic_t_wait,
-			 TASK_UNINTERRUPTIBLE);
+	wait_var_event(&bg->reservations, !atomic_read(&bg->reservations));
 }
 
 /**
@@ -11061,7 +11059,7 @@ void btrfs_wait_for_snapshot_creation(struct btrfs_root *root)
 		ret = btrfs_start_write_no_snapshotting(root);
 		if (ret)
 			break;
-		wait_on_atomic_t(&root->will_be_snapshotted, atomic_t_wait,
-				 TASK_UNINTERRUPTIBLE);
+		wait_var_event(&root->will_be_snapshotted,
+			       !atomic_read(&root->will_be_snapshotted));
 	}
 }

@@ -25,7 +25,7 @@ static void afs_inc_servers_outstanding(struct afs_net *net)
 static void afs_dec_servers_outstanding(struct afs_net *net)
 {
 	if (atomic_dec_and_test(&net->servers_outstanding))
-		wake_up_atomic_t(&net->servers_outstanding);
+		wake_up_var(&net->servers_outstanding);
 }
 
 /*
@@ -521,8 +521,8 @@ void afs_purge_servers(struct afs_net *net)
 	afs_queue_server_manager(net);
 
 	_debug("wait");
-	wait_on_atomic_t(&net->servers_outstanding, atomic_t_wait,
-			 TASK_UNINTERRUPTIBLE);
+	wait_var_event(&net->servers_outstanding,
+		       !atomic_read(&net->servers_outstanding));
 	_leave("");
 }
 
