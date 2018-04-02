@@ -2248,6 +2248,15 @@
 			The memory region may be marked as e820 type 12 (0xc)
 			and is NVDIMM or ADR memory.
 
+	memmap=<size>%<offset>-<oldtype>+<newtype>
+			[KNL,ACPI] Convert memory within the specified region
+			from <oldtype> to <newtype>. If "-<oldtype>" is left
+			out, the whole region will be marked as <newtype>,
+			even if previously unavailable. If "+<newtype>" is left
+			out, matching memory will be removed. Types are
+			specified as e820 types, e.g., 1 = RAM, 2 = reserved,
+			3 = ACPI, 12 = PRAM.
+
 	memory_corruption_check=0/1 [X86]
 			Some BIOSes seem to corrupt the first 64k of
 			memory when doing things like suspend/resume.

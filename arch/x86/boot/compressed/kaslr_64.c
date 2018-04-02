@@ -16,13 +16,6 @@
 #define __pa(x)  ((unsigned long)(x))
 #define __va(x)  ((void *)((unsigned long)(x)))
 
-/*
- * The pgtable.h and mm/ident_map.c includes make use of the SME related
- * information which is not used in the compressed image support. Un-define
- * the SME support to avoid any compile and link errors.
- */
-#undef CONFIG_AMD_MEM_ENCRYPT
-
 /* No PAGE_TABLE_ISOLATION support needed either: */
 #undef CONFIG_PAGE_TABLE_ISOLATION
 
@@ -85,13 +78,14 @@ static struct x86_mapping_info mapping_info;
 /* Locates and clears a region for a new top level page table. */
 void initialize_identity_maps(void)
 {
-	unsigned long sev_me_mask = get_sev_encryption_mask();
+	/* If running as an SEV guest, the encryption mask is required. */
+	set_sev_encryption_mask();
 
 	/* Init mapping_info with run-time function/buffer pointers. */
 	mapping_info.alloc_pgt_page = alloc_pgt_page;
 	mapping_info.context = &pgt_data;
-	mapping_info.page_flag = __PAGE_KERNEL_LARGE_EXEC | sev_me_mask;
-	mapping_info.kernpg_flag = _KERNPG_TABLE | sev_me_mask;
+	mapping_info.page_flag = __PAGE_KERNEL_LARGE_EXEC | sme_me_mask;
+	mapping_info.kernpg_flag = _KERNPG_TABLE;
 
 	/*
 	 * It should be impossible for this not to already be true,

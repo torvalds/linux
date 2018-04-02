@@ -34,6 +34,8 @@ static inline void check_pgt_cache(void) { }
 void paging_init(void);
 void sync_initial_page_table(void);
 
+static inline int pgd_large(pgd_t pgd) { return 0; }
+
 /*
  * Define this if things work differently on an i386 and an i486:
  * it will (on an i486) warn about kernel memory accesses that are
