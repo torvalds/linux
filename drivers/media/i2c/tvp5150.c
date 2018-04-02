@@ -502,8 +502,10 @@ struct i2c_vbi_ram_value {
 
 static struct i2c_vbi_ram_value vbi_ram_default[] =
 {
-	/* FIXME: Current api doesn't handle all VBI types, those not
-	   yet supported are placed under #if 0 */
+	/*
+	 * FIXME: Current api doesn't handle all VBI types, those not
+	 * yet supported are placed under #if 0
+	 */
 #if 0
 	[0] = {0x010, /* Teletext, SECAM, WST System A */
 		{V4L2_SLICED_TELETEXT_SECAM, 6, 23, 1},
@@ -1101,11 +1103,14 @@ static int tvp5150_s_routing(struct v4l2_subdev *sd,
 
 static int tvp5150_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt)
 {
-	/* this is for capturing 36 raw vbi lines
-	   if there's a way to cut off the beginning 2 vbi lines
-	   with the tvp5150 then the vbi line count could be lowered
-	   to 17 lines/field again, although I couldn't find a register
-	   which could do that cropping */
+	/*
+	 * this is for capturing 36 raw vbi lines
+	 * if there's a way to cut off the beginning 2 vbi lines
+	 * with the tvp5150 then the vbi line count could be lowered
+	 * to 17 lines/field again, although I couldn't find a register
+	 * which could do that cropping
+	 */
+
 	if (fmt->sample_format == V4L2_PIX_FMT_GREY)
 		tvp5150_write(sd, TVP5150_LUMA_PROC_CTL_1, 0x70);
 	if (fmt->count[0] == 18 && fmt->count[1] == 18) {
