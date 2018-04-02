@@ -182,8 +182,10 @@ static void bpf_tcp_release(struct sock *sk)
 		psock->cork = NULL;
 	}
 
-	sk->sk_prot = psock->sk_proto;
-	psock->sk_proto = NULL;
+	if (psock->sk_proto) {
+		sk->sk_prot = psock->sk_proto;
+		psock->sk_proto = NULL;
+	}
 out:
 	rcu_read_unlock();
 }
