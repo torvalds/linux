@@ -128,6 +128,7 @@ static const struct key_entry acer_wmi_keymap[] __initconst = {
 	{KE_KEY, KEY_TOUCHPAD_OFF, {KEY_TOUCHPAD_OFF} },
 	{KE_IGNORE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_KEY, 0x85, {KEY_TOUCHPAD_TOGGLE} },
+	{KE_KEY, 0x84, {KEY_KEYBOARD_BACKLIGHT_TOGGLE} }, /* Keyboard Backlight Toggle */
 	{KE_KEY, 0x86, {KEY_WLAN} },
 	{KE_END, 0}
 };
@@ -152,6 +153,8 @@ struct event_return_value {
 #define ACER_WMID3_GDS_RFBTN		(1<<14)	/* RF Button */
 
 #define ACER_WMID3_GDS_TOUCHPAD		(1<<1)	/* Touchpad */
+
+#define ACER_WMID3_GDS_KEYBOARD_BACKLIGHT (1<<0) /* Keyboard Backlight */
 
 /* Hotkey Customized Setting and Acer Application Status.
  * Set Device Default Value and Report Acer Application Status.
@@ -1777,6 +1780,9 @@ static void acer_wmi_notify(u32 value, void *context)
 			case KEY_TOUCHPAD_TOGGLE:
 				scancode = (device_state & ACER_WMID3_GDS_TOUCHPAD) ?
 						KEY_TOUCHPAD_ON : KEY_TOUCHPAD_OFF;
+			case KEY_KEYBOARD_BACKLIGHT_TOGGLE:
+				scancode = (device_state & ACER_WMID3_GDS_KEYBOARD_BACKLIGHT) ?
+						KEY_KEYBOARD_BACKLIGHT_ON : KEY_KEYBOARD_BACKLIGHT_OFF;
 			}
 			sparse_keymap_report_event(acer_wmi_input_dev, scancode, 1, true);
 		}
