@@ -37,6 +37,43 @@ static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *intel_dig_port,
 	return 0;
 }
 
+static bool hdcp_key_loadable(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	enum i915_power_well_id id;
+	bool enabled = false;
+
+	/*
+	 * On HSW and BDW, Display HW loads the Key as soon as Display resumes.
+	 * On all BXT+, SW can load the keys only when the PW#1 is turned on.
+	 */
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		id = HSW_DISP_PW_GLOBAL;
+	else
+		id = SKL_DISP_PW_1;
+
+	mutex_lock(&power_domains->lock);
+
+	/* PG1 (power well #1) needs to be enabled */
+	for_each_power_well(dev_priv, power_well) {
+		if (power_well->id == id) {
+			enabled = power_well->ops->is_enabled(dev_priv,
+							      power_well);
+			break;
+		}
+	}
+	mutex_unlock(&power_domains->lock);
+
+	/*
+	 * Another req for hdcp key loadability is enabled state of pll for
+	 * cdclk. Without active crtc we wont land here. So we are assuming that
+	 * cdclk is already on.
+	 */
+
+	return enabled;
+}
+
 static void intel_hdcp_clear_keys(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(HDCP_KEY_CONF, HDCP_CLEAR_KEYS_TRIGGER);
@@ -619,8 +656,8 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 	DRM_DEBUG_KMS("[%s:%d] HDCP is being enabled...\n",
 		      connector->base.name, connector->base.base.id);
 
-	if (!(I915_READ(SKL_FUSE_STATUS) & SKL_FUSE_PG_DIST_STATUS(1))) {
-		DRM_ERROR("PG1 is disabled, cannot load keys\n");
+	if (!hdcp_key_loadable(dev_priv)) {
+		DRM_ERROR("HDCP key Load is not possible\n");
 		return -ENXIO;
 	}
 
