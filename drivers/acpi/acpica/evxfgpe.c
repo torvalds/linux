@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: evxfgpe - External Interfaces for General Purpose Events (GPEs)
  *
- *****************************************************************************/
-
-/*
  * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #define EXPORT_ACPI_INTERFACES
 
@@ -77,6 +43,7 @@ ACPI_MODULE_NAME("evxfgpe")
 acpi_status acpi_update_all_gpes(void)
 {
 	acpi_status status;
+	u8 is_polling_needed = FALSE;
 
 	ACPI_FUNCTION_TRACE(acpi_update_all_gpes);
 
@@ -89,7 +56,8 @@ acpi_status acpi_update_all_gpes(void)
 		goto unlock_and_exit;
 	}
 
-	status = acpi_ev_walk_gpe_list(acpi_ev_initialize_gpe_block, NULL);
+	status = acpi_ev_walk_gpe_list(acpi_ev_initialize_gpe_block,
+				       &is_polling_needed);
 	if (ACPI_SUCCESS(status)) {
 		acpi_gbl_all_gpes_initialized = TRUE;
 	}
@@ -97,6 +65,12 @@ acpi_status acpi_update_all_gpes(void)
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 
+	if (is_polling_needed && acpi_gbl_all_gpes_initialized) {
+
+		/* Poll GPEs to handle already triggered events */
+
+		acpi_ev_gpe_detect(acpi_gbl_gpe_xrupt_list_head);
+	}
 	return_ACPI_STATUS(status);
 }
 
@@ -135,6 +109,17 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 		if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
 		    ACPI_GPE_DISPATCH_NONE) {
 			status = acpi_ev_add_gpe_reference(gpe_event_info);
+			if (ACPI_SUCCESS(status) &&
+			    ACPI_GPE_IS_POLLING_NEEDED(gpe_event_info)) {
+
+				/* Poll edge-triggered GPEs to handle existing events */
+
+				acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+				(void)acpi_ev_detect_gpe(gpe_device,
+							 gpe_event_info,
+							 gpe_number);
+				flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+			}
 		} else {
 			status = AE_NO_HANDLER;
 		}
