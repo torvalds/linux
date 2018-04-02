@@ -211,6 +211,12 @@ static void bpf_tcp_close(struct sock *sk, long timeout)
 	close_fun = psock->save_close;
 
 	write_lock_bh(&sk->sk_callback_lock);
+	if (psock->cork) {
+		free_start_sg(psock->sock, psock->cork);
+		kfree(psock->cork);
+		psock->cork = NULL;
+	}
+
 	list_for_each_entry_safe(md, mtmp, &psock->ingress, list) {
 		list_del(&md->list);
 		free_start_sg(psock->sock, md);
