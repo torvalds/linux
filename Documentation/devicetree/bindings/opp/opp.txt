@@ -145,6 +145,13 @@ Optional properties:
 
 - status: Marks the node enabled/disabled.
 
+- rockchip,board-irdrop: max IR-drop values for the voltage of a opp on the
+  production board on rockchip platform, this porperty should contain all
+  IR-drop values for different frequencies.
+- rockchip,evb-irdrop: max IR-drop values for the voltage of a opp on the
+  evaluation board on rockchip platform, this property only contain a single
+  IR-drop value for all frequencies.
+
 Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
 
 / {
