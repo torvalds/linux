@@ -1876,7 +1876,7 @@ out:
 }
 
 static int multipath_prepare_ioctl(struct dm_target *ti,
-		struct block_device **bdev, fmode_t *mode)
+				   struct block_device **bdev)
 {
 	struct multipath *m = ti->private;
 	struct pgpath *current_pgpath;
@@ -1889,7 +1889,6 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 	if (current_pgpath) {
 		if (!test_bit(MPATHF_QUEUE_IO, &m->flags)) {
 			*bdev = current_pgpath->path.dev->bdev;
-			*mode = current_pgpath->path.dev->mode;
 			r = 0;
 		} else {
 			/* pg_init has not started or completed */

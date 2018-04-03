@@ -90,8 +90,7 @@ typedef void (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv,
 			      char *result, unsigned maxlen);
 
-typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti,
-			    struct block_device **bdev, fmode_t *mode);
+typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti, struct block_device **bdev);
 
 /*
  * These iteration functions are typically used to check (and combine)
