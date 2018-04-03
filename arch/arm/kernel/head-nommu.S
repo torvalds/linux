@@ -75,8 +75,8 @@ ENTRY(stext)
 	ldr	r12, [r10, #PROCINFO_INITFUNC]
 	add	r12, r12, r10
 	ret	r12
-1:	bl	__after_proc_init
-	b	__mmap_switched
+1:	ldr	lr, =__mmap_switched
+	b	__after_proc_init
 ENDPROC(stext)
 
 #ifdef CONFIG_SMP
@@ -123,6 +123,7 @@ __secondary_data:
 /*
  * Set the Control Register and Read the process ID.
  */
+	.text
 __after_proc_init:
 #ifdef CONFIG_CPU_CP15
 	/*
@@ -202,6 +203,7 @@ ENDPROC(__after_proc_init)
  *
  * r6: Value to be written to DRSR (and IRSR if required) for PMSAv7_RAM_REGION
 */
+	__HEAD
 
 ENTRY(__setup_mpu)
 
@@ -301,6 +303,7 @@ ENDPROC(__setup_pmsa_v7)
  * r6: pointer at mpu_rgn_info
  */
 
+	.text
 ENTRY(__secondary_setup_mpu)
 	/* Use MPU region info supplied by __cpu_up */
 	ldr	r6, [r7]			@ get secondary_data.mpu_rgn_info
