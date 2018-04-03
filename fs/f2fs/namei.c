@@ -61,7 +61,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	}
 
 	if (f2fs_sb_has_project_quota(sbi->sb) &&
-		(F2FS_I(dir)->i_flags & FS_PROJINHERIT_FL))
+		(F2FS_I(dir)->i_flags & F2FS_PROJINHERIT_FL))
 		F2FS_I(inode)->i_projid = F2FS_I(dir)->i_projid;
 	else
 		F2FS_I(inode)->i_projid = make_kprojid(&init_user_ns,
@@ -116,9 +116,9 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		f2fs_mask_flags(mode, F2FS_I(dir)->i_flags & F2FS_FL_INHERITED);
 
 	if (S_ISDIR(inode->i_mode))
-		F2FS_I(inode)->i_flags |= FS_INDEX_FL;
+		F2FS_I(inode)->i_flags |= F2FS_INDEX_FL;
 
-	if (F2FS_I(inode)->i_flags & FS_PROJINHERIT_FL)
+	if (F2FS_I(inode)->i_flags & F2FS_PROJINHERIT_FL)
 		set_inode_flag(inode, FI_PROJ_INHERIT);
 
 	trace_f2fs_new_inode(inode, 0);

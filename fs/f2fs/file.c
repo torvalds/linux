@@ -689,16 +689,16 @@ int f2fs_getattr(struct vfsmount *mnt,
 		stat->btime.tv_nsec = fi->i_crtime.tv_nsec;
 	}
 
-	flags = fi->i_flags & (FS_FL_USER_VISIBLE | FS_PROJINHERIT_FL);
-	if (flags & FS_APPEND_FL)
+	flags = fi->i_flags & (F2FS_FL_USER_VISIBLE | F2FS_PROJINHERIT_FL);
+	if (flags & F2FS_APPEND_FL)
 		stat->attributes |= STATX_ATTR_APPEND;
-	if (flags & FS_COMPR_FL)
+	if (flags & F2FS_COMPR_FL)
 		stat->attributes |= STATX_ATTR_COMPRESSED;
 	if (f2fs_encrypted_inode(inode))
 		stat->attributes |= STATX_ATTR_ENCRYPTED;
-	if (flags & FS_IMMUTABLE_FL)
+	if (flags & F2FS_IMMUTABLE_FL)
 		stat->attributes |= STATX_ATTR_IMMUTABLE;
-	if (flags & FS_NODUMP_FL)
+	if (flags & F2FS_NODUMP_FL)
 		stat->attributes |= STATX_ATTR_NODUMP;
 
 	stat->attributes_mask |= (STATX_ATTR_APPEND |
@@ -1590,7 +1590,8 @@ static int f2fs_ioc_getflags(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	unsigned int flags = fi->i_flags & FS_FL_USER_VISIBLE;
+	unsigned int flags = fi->i_flags &
+			(F2FS_FL_USER_VISIBLE | F2FS_PROJINHERIT_FL);
 	return put_user(flags, (int __user *)arg);
 }
 
@@ -1624,15 +1625,15 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 
 	oldflags = fi->i_flags;
 
-	if ((flags ^ oldflags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) {
+	if ((flags ^ oldflags) & (F2FS_APPEND_FL | F2FS_IMMUTABLE_FL)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
 			ret = -EPERM;
 			goto unlock_out;
 		}
 	}
 
-	flags = flags & FS_FL_USER_MODIFIABLE;
-	flags |= oldflags & ~FS_FL_USER_MODIFIABLE;
+	flags = flags & (F2FS_FL_USER_MODIFIABLE | F2FS_PROJINHERIT_FL);
+	flags |= oldflags & ~(F2FS_FL_USER_MODIFIABLE | F2FS_PROJINHERIT_FL);
 	fi->i_flags = flags;
 
 	inode->i_ctime = current_time(inode);
