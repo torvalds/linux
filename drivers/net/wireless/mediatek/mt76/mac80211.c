@@ -213,7 +213,8 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 	vht_cap->vht_supported = true;
 	vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC |
 			IEEE80211_VHT_CAP_RXSTBC_1 |
-			IEEE80211_VHT_CAP_SHORT_GI_80;
+			IEEE80211_VHT_CAP_SHORT_GI_80 |
+			(3 << IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT);
 
 	return 0;
 }
