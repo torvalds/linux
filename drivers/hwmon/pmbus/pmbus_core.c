@@ -455,15 +455,15 @@ static int pmbus_get_fan_rate(struct i2c_client *client, int page, int id,
 		return s->data;
 	}
 
-	config = pmbus_read_byte_data(client, page,
-				      pmbus_fan_config_registers[id]);
+	config = _pmbus_read_byte_data(client, page,
+				       pmbus_fan_config_registers[id]);
 	if (config < 0)
 		return config;
 
 	have_rpm = !!(config & pmbus_fan_rpm_mask[id]);
 	if (want_rpm == have_rpm)
-		return pmbus_read_word_data(client, page, 0xff,
-					    pmbus_fan_command_registers[id]);
+		return _pmbus_read_word_data(client, page, 0xff,
+					     pmbus_fan_command_registers[id]);
 
 	/* Can't sensibly map between RPM and PWM, just return zero */
 	return 0;
