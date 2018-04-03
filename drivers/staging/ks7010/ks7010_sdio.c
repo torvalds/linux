@@ -957,10 +957,8 @@ static int send_stop_request(struct sdio_func *func)
 	card = sdio_get_drvdata(func);
 
 	pp = kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
-	if (!pp) {
-		netdev_err(card->priv->net_dev, "allocate memory failed..\n");
+	if (!pp)
 		return -ENOMEM;
-	}
 
 	size = sizeof(*pp) - sizeof(pp->header.size);
 	pp->header.size = cpu_to_le16((uint16_t)size);
