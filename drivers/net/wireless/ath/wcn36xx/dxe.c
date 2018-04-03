@@ -693,7 +693,6 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 
 	/* Set source address of the SKB we send */
 	ctl = ctl->next;
-	ctl->skb = skb;
 	desc = ctl->desc;
 	if (ctl->bd_cpu_addr) {
 		wcn36xx_err("bd_cpu_addr cannot be NULL for skb DXE\n");
@@ -702,8 +701,8 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 	}
 
 	desc->src_addr_l = dma_map_single(wcn->dev,
-					  ctl->skb->data,
-					  ctl->skb->len,
+					  skb->data,
+					  skb->len,
 					  DMA_TO_DEVICE);
 	if (dma_mapping_error(wcn->dev, desc->src_addr_l)) {
 		dev_err(wcn->dev, "unable to DMA map src_addr_l\n");
@@ -711,6 +710,7 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 		goto unlock;
 	}
 
+	ctl->skb = skb;
 	desc->dst_addr_l = ch->dxe_wq;
 	desc->fr_len = ctl->skb->len;
 
