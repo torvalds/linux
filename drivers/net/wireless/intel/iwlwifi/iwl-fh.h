@@ -68,6 +68,8 @@
 #include <linux/types.h>
 #include <linux/bitfield.h>
 
+#include "iwl-trans.h"
+
 /****************************/
 /* Flow Handler Definitions */
 /****************************/
