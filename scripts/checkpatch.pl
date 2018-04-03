@@ -2797,7 +2797,10 @@ sub process {
 # Only applies when adding the entry originally, after that we do not have
 # sufficient context to determine whether it is indeed long enough.
 		if ($realfile =~ /Kconfig/ &&
-		    $line =~ /^\+\s*config\s+/) {
+		    # 'choice' is usually the last thing on the line (though
+		    # Kconfig supports named choices), so use a word boundary
+		    # (\b) rather than a whitespace character (\s)
+		    $line =~ /^\+\s*(?:config|menuconfig|choice)\b/) {
 			my $length = 0;
 			my $cnt = $realcnt;
 			my $ln = $linenr + 1;
@@ -2812,9 +2815,13 @@ sub process {
 				next if ($f =~ /^-/);
 				last if (!$file && $f =~ /^\@\@/);
 
-				if ($lines[$ln - 1] =~ /^\+\s*(?:bool|tristate)\s*\"/) {
+				if ($lines[$ln - 1] =~ /^\+\s*(?:bool|tristate|prompt)\s*["']/) {
 					$is_start = 1;
-				} elsif ($lines[$ln - 1] =~ /^\+\s*(?:---)?help(?:---)?$/) {
+				} elsif ($lines[$ln - 1] =~ /^\+\s*(?:help|---help---)\s*$/) {
+					if ($lines[$ln - 1] =~ "---help---") {
+						WARN("CONFIG_DESCRIPTION",
+						     "prefer 'help' over '---help---' for new help texts\n" . $herecurr);
+					}
 					$length = -1;
 				}
 
@@ -2822,7 +2829,13 @@ sub process {
 				$f =~ s/#.*//;
 				$f =~ s/^\s+//;
 				next if ($f =~ /^$/);
-				if ($f =~ /^\s*config\s/) {
+
+				# This only checks context lines in the patch
+				# and so hopefully shouldn't trigger false
+				# positives, even though some of these are
+				# common words in help texts
+				if ($f =~ /^\s*(?:config|menuconfig|choice|endchoice|
+						  if|endif|menu|endmenu|source)\b/x) {
 					$is_end = 1;
 					last;
 				}
