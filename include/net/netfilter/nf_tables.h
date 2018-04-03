@@ -275,23 +275,6 @@ struct nft_set_estimate {
 	enum nft_set_class	space;
 };
 
-/**
- *      struct nft_set_type - nf_tables set type
- *
- *      @select_ops: function to select nft_set_ops
- *      @ops: default ops, used when no select_ops functions is present
- *      @list: used internally
- *      @owner: module reference
- */
-struct nft_set_type {
-	const struct nft_set_ops	*(*select_ops)(const struct nft_ctx *,
-						       const struct nft_set_desc *desc,
-						       u32 flags);
-	const struct nft_set_ops	*ops;
-	struct list_head		list;
-	struct module			*owner;
-};
-
 struct nft_set_ext;
 struct nft_expr;
 
@@ -310,7 +293,6 @@ struct nft_expr;
  *	@init: initialize private data of new set instance
  *	@destroy: destroy private data of set instance
  *	@elemsize: element private size
- *	@features: features supported by the implementation
  */
 struct nft_set_ops {
 	bool				(*lookup)(const struct net *net,
@@ -361,9 +343,23 @@ struct nft_set_ops {
 	void				(*destroy)(const struct nft_set *set);
 
 	unsigned int			elemsize;
-	u32				features;
-	const struct nft_set_type	*type;
 };
+
+/**
+ *      struct nft_set_type - nf_tables set type
+ *
+ *      @ops: set ops for this type
+ *      @list: used internally
+ *      @owner: module reference
+ *      @features: features supported by the implementation
+ */
+struct nft_set_type {
+	const struct nft_set_ops	ops;
+	struct list_head		list;
+	struct module			*owner;
+	u32				features;
+};
+#define to_set_type(o) container_of(o, struct nft_set_type, ops)
 
 int nft_register_set(struct nft_set_type *type);
 void nft_unregister_set(struct nft_set_type *type);

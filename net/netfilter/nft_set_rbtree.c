@@ -393,28 +393,24 @@ static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,
 	return true;
 }
 
-static struct nft_set_type nft_rbtree_type;
-static struct nft_set_ops nft_rbtree_ops __read_mostly = {
-	.type		= &nft_rbtree_type,
-	.privsize	= nft_rbtree_privsize,
-	.elemsize	= offsetof(struct nft_rbtree_elem, ext),
-	.estimate	= nft_rbtree_estimate,
-	.init		= nft_rbtree_init,
-	.destroy	= nft_rbtree_destroy,
-	.insert		= nft_rbtree_insert,
-	.remove		= nft_rbtree_remove,
-	.deactivate	= nft_rbtree_deactivate,
-	.flush		= nft_rbtree_flush,
-	.activate	= nft_rbtree_activate,
-	.lookup		= nft_rbtree_lookup,
-	.walk		= nft_rbtree_walk,
-	.get		= nft_rbtree_get,
-	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT,
-};
-
 static struct nft_set_type nft_rbtree_type __read_mostly = {
-	.ops		= &nft_rbtree_ops,
 	.owner		= THIS_MODULE,
+	.features	= NFT_SET_INTERVAL | NFT_SET_MAP | NFT_SET_OBJECT,
+	.ops		= {
+		.privsize	= nft_rbtree_privsize,
+		.elemsize	= offsetof(struct nft_rbtree_elem, ext),
+		.estimate	= nft_rbtree_estimate,
+		.init		= nft_rbtree_init,
+		.destroy	= nft_rbtree_destroy,
+		.insert		= nft_rbtree_insert,
+		.remove		= nft_rbtree_remove,
+		.deactivate	= nft_rbtree_deactivate,
+		.flush		= nft_rbtree_flush,
+		.activate	= nft_rbtree_activate,
+		.lookup		= nft_rbtree_lookup,
+		.walk		= nft_rbtree_walk,
+		.get		= nft_rbtree_get,
+	},
 };
 
 static int __init nft_rbtree_module_init(void)

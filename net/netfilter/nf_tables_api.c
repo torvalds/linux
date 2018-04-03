@@ -2523,14 +2523,12 @@ void nft_unregister_set(struct nft_set_type *type)
 EXPORT_SYMBOL_GPL(nft_unregister_set);
 
 #define NFT_SET_FEATURES	(NFT_SET_INTERVAL | NFT_SET_MAP | \
-				 NFT_SET_TIMEOUT | NFT_SET_OBJECT)
+				 NFT_SET_TIMEOUT | NFT_SET_OBJECT | \
+				 NFT_SET_EVAL)
 
-static bool nft_set_ops_candidate(const struct nft_set_ops *ops, u32 flags)
+static bool nft_set_ops_candidate(const struct nft_set_type *type, u32 flags)
 {
-	if ((flags & NFT_SET_EVAL) && !ops->update)
-		return false;
-
-	return (flags & ops->features) == (flags & NFT_SET_FEATURES);
+	return (flags & type->features) == (flags & NFT_SET_FEATURES);
 }
 
 /*
@@ -2567,14 +2565,9 @@ nft_select_set_ops(const struct nft_ctx *ctx,
 	best.space  = ~0;
 
 	list_for_each_entry(type, &nf_tables_set_types, list) {
-		if (!type->select_ops)
-			ops = type->ops;
-		else
-			ops = type->select_ops(ctx, desc, flags);
-		if (!ops)
-			continue;
+		ops = &type->ops;
 
-		if (!nft_set_ops_candidate(ops, flags))
+		if (!nft_set_ops_candidate(type, flags))
 			continue;
 		if (!ops->estimate(desc, flags, &est))
 			continue;
@@ -2605,7 +2598,7 @@ nft_select_set_ops(const struct nft_ctx *ctx,
 		if (!try_module_get(type->owner))
 			continue;
 		if (bops != NULL)
-			module_put(bops->type->owner);
+			module_put(to_set_type(bops)->owner);
 
 		bops = ops;
 		best = est;
@@ -3247,14 +3240,14 @@ err3:
 err2:
 	kvfree(set);
 err1:
-	module_put(ops->type->owner);
+	module_put(to_set_type(ops)->owner);
 	return err;
 }
 
 static void nft_set_destroy(struct nft_set *set)
 {
 	set->ops->destroy(set);
-	module_put(set->ops->type->owner);
+	module_put(to_set_type(set->ops)->owner);
 	kfree(set->name);
 	kvfree(set);
 }
