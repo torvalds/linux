@@ -16,6 +16,7 @@
  */
 
 #include "msm_drv.h"
+#include "msm_gem.h"
 #include "msm_kms.h"
 #include "msm_gem.h"
 #include "msm_fence.h"
@@ -95,6 +96,27 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 
 		kms->funcs->wait_for_crtc_commit_done(kms, crtc);
 	}
+}
+
+int msm_atomic_prepare_fb(struct drm_plane *plane,
+			  struct drm_plane_state *new_state)
+{
+	struct msm_drm_private *priv = plane->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct drm_gem_object *obj;
+	struct msm_gem_object *msm_obj;
+	struct dma_fence *fence;
+
+	if (!new_state->fb)
+		return 0;
+
+	obj = msm_framebuffer_bo(new_state->fb, 0);
+	msm_obj = to_msm_bo(obj);
+	fence = reservation_object_get_excl_rcu(msm_obj->resv);
+
+	drm_atomic_set_fence_for_plane(new_state, fence);
+
+	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
 }
 
 static void msm_atomic_commit_tail(struct drm_atomic_state *state)
