@@ -25,7 +25,6 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/suspend.h>
-#include <asm/reset.h>
 #include <asm/airq.h>
 #include <linux/atomic.h>
 #include <asm/isc.h>
@@ -1197,25 +1196,6 @@ static void ap_config_timeout(struct timer_list *unused)
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
-static void ap_reset_all(void)
-{
-	int i, j;
-
-	for (i = 0; i < AP_DOMAINS; i++) {
-		if (!ap_test_config_domain(i))
-			continue;
-		for (j = 0; j < AP_DEVICES; j++) {
-			if (!ap_test_config_card_id(j))
-				continue;
-			ap_rapq(AP_MKQID(j, i));
-		}
-	}
-}
-
-static struct reset_call ap_reset_call = {
-	.fn = ap_reset_all,
-};
-
 int __init ap_debug_init(void)
 {
 	ap_dbf_info = debug_register("ap", 1, 1,
@@ -1268,8 +1248,6 @@ int __init ap_module_init(void)
 		rc = register_adapter_interrupt(&ap_airq);
 		ap_airq_flag = (rc == 0);
 	}
-
-	register_reset_call(&ap_reset_call);
 
 	/* Create /sys/bus/ap. */
 	rc = bus_register(&ap_bus_type);
@@ -1326,7 +1304,6 @@ out_bus:
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
 out:
-	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
 	kfree(ap_configuration);

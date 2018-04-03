@@ -20,7 +20,6 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/smp.h>
-#include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
 #include <asm/elf.h>

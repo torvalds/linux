@@ -87,6 +87,7 @@ struct save_area * __init save_area_boot_cpu(void);
 void __init save_area_add_regs(struct save_area *, void *regs);
 void __init save_area_add_vxrs(struct save_area *, __vector128 *vxrs);
 
+extern void s390_reset_system(void);
 extern void do_reipl(void);
 extern void do_halt(void);
 extern void do_poff(void);
