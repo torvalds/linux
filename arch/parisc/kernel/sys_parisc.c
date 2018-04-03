@@ -270,8 +270,8 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 {
 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
 	   we have. */
-	return sys_mmap_pgoff(addr, len, prot, flags, fd,
-			      pgoff >> (PAGE_SHIFT - 12));
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+			       pgoff >> (PAGE_SHIFT - 12));
 }
 
 asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
@@ -279,7 +279,7 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 		unsigned long offset)
 {
 	if (!(offset & ~PAGE_MASK)) {
-		return sys_mmap_pgoff(addr, len, prot, flags, fd,
+		return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 					offset >> PAGE_SHIFT);
 	} else {
 		return -EINVAL;
@@ -292,24 +292,24 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 asmlinkage long parisc_truncate64(const char __user * path,
 					unsigned int high, unsigned int low)
 {
-	return sys_truncate(path, (long)high << 32 | low);
+	return ksys_truncate(path, (long)high << 32 | low);
 }
 
 asmlinkage long parisc_ftruncate64(unsigned int fd,
 					unsigned int high, unsigned int low)
 {
-	return sys_ftruncate(fd, (long)high << 32 | low);
+	return ksys_ftruncate(fd, (long)high << 32 | low);
 }
 
 /* stubs for the benefit of the syscall_table since truncate64 and truncate 
  * are identical on LP64 */
 asmlinkage long sys_truncate64(const char __user * path, unsigned long length)
 {
-	return sys_truncate(path, length);
+	return ksys_truncate(path, length);
 }
 asmlinkage long sys_ftruncate64(unsigned int fd, unsigned long length)
 {
-	return sys_ftruncate(fd, length);
+	return ksys_ftruncate(fd, length);
 }
 asmlinkage long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -320,7 +320,7 @@ asmlinkage long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg
 asmlinkage long parisc_truncate64(const char __user * path,
 					unsigned int high, unsigned int low)
 {
-	return sys_truncate64(path, (loff_t)high << 32 | low);
+	return ksys_truncate(path, (loff_t)high << 32 | low);
 }
 
 asmlinkage long parisc_ftruncate64(unsigned int fd,
@@ -333,26 +333,26 @@ asmlinkage long parisc_ftruncate64(unsigned int fd,
 asmlinkage ssize_t parisc_pread64(unsigned int fd, char __user *buf, size_t count,
 					unsigned int high, unsigned int low)
 {
-	return sys_pread64(fd, buf, count, (loff_t)high << 32 | low);
+	return ksys_pread64(fd, buf, count, (loff_t)high << 32 | low);
 }
 
 asmlinkage ssize_t parisc_pwrite64(unsigned int fd, const char __user *buf,
 			size_t count, unsigned int high, unsigned int low)
 {
-	return sys_pwrite64(fd, buf, count, (loff_t)high << 32 | low);
+	return ksys_pwrite64(fd, buf, count, (loff_t)high << 32 | low);
 }
 
 asmlinkage ssize_t parisc_readahead(int fd, unsigned int high, unsigned int low,
 		                    size_t count)
 {
-	return sys_readahead(fd, (loff_t)high << 32 | low, count);
+	return ksys_readahead(fd, (loff_t)high << 32 | low, count);
 }
 
 asmlinkage long parisc_fadvise64_64(int fd,
 			unsigned int high_off, unsigned int low_off,
 			unsigned int high_len, unsigned int low_len, int advice)
 {
-	return sys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
+	return ksys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
 			(loff_t)high_len << 32 | low_len, advice);
 }
 
@@ -360,15 +360,15 @@ asmlinkage long parisc_sync_file_range(int fd,
 			u32 hi_off, u32 lo_off, u32 hi_nbytes, u32 lo_nbytes,
 			unsigned int flags)
 {
-	return sys_sync_file_range(fd, (loff_t)hi_off << 32 | lo_off,
+	return ksys_sync_file_range(fd, (loff_t)hi_off << 32 | lo_off,
 			(loff_t)hi_nbytes << 32 | lo_nbytes, flags);
 }
 
 asmlinkage long parisc_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 				u32 lenhi, u32 lenlo)
 {
-        return sys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
-                             ((u64)lenhi << 32) | lenlo);
+	return ksys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
+			      ((u64)lenhi << 32) | lenlo);
 }
 
 long parisc_personality(unsigned long personality)

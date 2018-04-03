@@ -41,8 +41,9 @@ struct compat_fs_quota_stat {
 	__u16		qs_iwarnlimit;
 };
 
-asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
-						qid_t id, void __user *addr)
+COMPAT_SYSCALL_DEFINE4(quotactl32, unsigned int, cmd,
+		       const char __user *, special, qid_t, id,
+		       void __user *, addr)
 {
 	unsigned int cmds;
 	struct if_dqblk __user *dqblk;
@@ -59,7 +60,7 @@ asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
 	case Q_GETQUOTA:
 		dqblk = compat_alloc_user_space(sizeof(struct if_dqblk));
 		compat_dqblk = addr;
-		ret = sys_quotactl(cmd, special, id, dqblk);
+		ret = kernel_quotactl(cmd, special, id, dqblk);
 		if (ret)
 			break;
 		if (copy_in_user(compat_dqblk, dqblk, sizeof(*compat_dqblk)) ||
@@ -75,12 +76,12 @@ asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
 			get_user(data, &compat_dqblk->dqb_valid) ||
 			put_user(data, &dqblk->dqb_valid))
 			break;
-		ret = sys_quotactl(cmd, special, id, dqblk);
+		ret = kernel_quotactl(cmd, special, id, dqblk);
 		break;
 	case Q_XGETQSTAT:
 		fsqstat = compat_alloc_user_space(sizeof(struct fs_quota_stat));
 		compat_fsqstat = addr;
-		ret = sys_quotactl(cmd, special, id, fsqstat);
+		ret = kernel_quotactl(cmd, special, id, fsqstat);
 		if (ret)
 			break;
 		ret = -EFAULT;
@@ -113,7 +114,7 @@ asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
 		ret = 0;
 		break;
 	default:
-		ret = sys_quotactl(cmd, special, id, addr);
+		ret = kernel_quotactl(cmd, special, id, addr);
 	}
 	return ret;
 }
