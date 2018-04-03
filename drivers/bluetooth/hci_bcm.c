@@ -794,6 +794,20 @@ static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
 	{ },
 };
 
+/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
+	{
+		.ident = "Meegopad T08",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR,
+					"To be filled by OEM."),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_EXACT_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+	},
+	{ }
+};
+
 #ifdef CONFIG_ACPI
 /* IRQ polarity of some chipsets are not defined correctly in ACPI table. */
 static const struct dmi_system_id bcm_active_low_irq_dmi_table[] = {
@@ -904,6 +918,8 @@ static int bcm_gpio_set_shutdown(struct bcm_device *dev, bool powered)
 
 static int bcm_get_resources(struct bcm_device *dev)
 {
+	const struct dmi_system_id *dmi_id;
+
 	dev->name = dev_name(dev->dev);
 
 	if (x86_apple_machine && !bcm_apple_get_resources(dev))
@@ -934,6 +950,13 @@ static int bcm_get_resources(struct bcm_device *dev)
 			return PTR_ERR(gpio);
 
 		dev->irq = gpiod_to_irq(gpio);
+	}
+
+	dmi_id = dmi_first_match(bcm_broken_irq_dmi_table);
+	if (dmi_id) {
+		dev_info(dev->dev, "%s: Has a broken IRQ config, disabling IRQ support / runtime-pm\n",
+			 dmi_id->ident);
+		dev->irq = 0;
 	}
 
 	dev_dbg(dev->dev, "BCM irq: %d\n", dev->irq);
