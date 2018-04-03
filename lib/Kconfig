@@ -429,6 +429,9 @@ config SGL_ALLOC
 	bool
 	default n
 
+config IOMMU_HELPER
+	bool
+
 config DMA_DIRECT_OPS
 	bool
 	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)

@@ -708,7 +708,9 @@ config QDIO
 menuconfig PCI
 	bool "PCI support"
 	select PCI_MSI
+	select IOMMU_HELPER
 	select IOMMU_SUPPORT
+
 	help
 	  Enable PCI support.
 
@@ -730,9 +732,6 @@ config PCI_DOMAINS
 	def_bool PCI
 
 config HAS_IOMEM
-	def_bool PCI
-
-config IOMMU_HELPER
 	def_bool PCI
 
 config NEED_SG_DMA_LENGTH

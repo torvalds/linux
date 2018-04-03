@@ -66,6 +66,7 @@ config SPARC64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_DEBUG_KMEMLEAK
+	select IOMMU_HELPER
 	select SPARSE_IRQ
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
@@ -104,10 +105,6 @@ config ARCH_ATU
 config ARCH_DMA_ADDR_T_64BIT
 	bool
 	default y if ARCH_ATU
-
-config IOMMU_HELPER
-	bool
-	default y if SPARC64
 
 config STACKTRACE_SUPPORT
 	bool

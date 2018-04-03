@@ -874,6 +874,7 @@ config DMI
 
 config GART_IOMMU
 	bool "Old AMD GART IOMMU support"
+	select IOMMU_HELPER
 	select SWIOTLB
 	depends on X86_64 && PCI && AMD_NB
 	---help---
@@ -895,6 +896,7 @@ config GART_IOMMU
 
 config CALGARY_IOMMU
 	bool "IBM Calgary IOMMU support"
+	select IOMMU_HELPER
 	select SWIOTLB
 	depends on X86_64 && PCI
 	---help---
@@ -931,10 +933,6 @@ config SWIOTLB
 	  which can only access 32-bits of memory can be used on systems
 	  with more than 3 GB of memory.
 	  If unsure, say Y.
-
-config IOMMU_HELPER
-	def_bool y
-	depends on CALGARY_IOMMU || GART_IOMMU
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
