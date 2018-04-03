@@ -59,7 +59,7 @@ obj-$(CONFIG_SPARC32)   += leon_pmc.o
 
 obj-$(CONFIG_SPARC64)   += reboot.o
 obj-$(CONFIG_SPARC64)   += sysfs.o
-obj-$(CONFIG_SPARC64)   += iommu.o
+obj-$(CONFIG_SPARC64)   += iommu.o iommu-common.o
 obj-$(CONFIG_SPARC64)   += central.o
 obj-$(CONFIG_SPARC64)   += starfire.o
 obj-$(CONFIG_SPARC64)   += power.o

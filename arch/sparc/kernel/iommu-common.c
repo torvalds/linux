@@ -8,9 +8,9 @@
 #include <linux/bitmap.h>
 #include <linux/bug.h>
 #include <linux/iommu-helper.h>
-#include <linux/iommu-common.h>
 #include <linux/dma-mapping.h>
 #include <linux/hash.h>
+#include <asm/iommu-common.h>
 
 static unsigned long iommu_large_alloc = 15;
 
@@ -93,7 +93,6 @@ void iommu_tbl_pool_init(struct iommu_map_table *iommu,
 	p->hint = p->start;
 	p->end = num_entries;
 }
-EXPORT_SYMBOL(iommu_tbl_pool_init);
 
 unsigned long iommu_tbl_range_alloc(struct device *dev,
 				struct iommu_map_table *iommu,
@@ -224,7 +223,6 @@ bail:
 
 	return n;
 }
-EXPORT_SYMBOL(iommu_tbl_range_alloc);
 
 static struct iommu_pool *get_pool(struct iommu_map_table *tbl,
 				   unsigned long entry)
@@ -264,4 +262,3 @@ void iommu_tbl_range_free(struct iommu_map_table *iommu, u64 dma_addr,
 	bitmap_clear(iommu->map, entry, npages);
 	spin_unlock_irqrestore(&(pool->lock), flags);
 }
-EXPORT_SYMBOL(iommu_tbl_range_free);
