@@ -2455,20 +2455,34 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 static void hsw_edp_psr_irq_handler(struct drm_i915_private *dev_priv)
 {
 	u32 edp_psr_iir = I915_READ(EDP_PSR_IIR);
+	u32 edp_psr_imr = I915_READ(EDP_PSR_IMR);
+	u32 mask = BIT(TRANSCODER_EDP);
+	enum transcoder cpu_transcoder;
 
-	if (edp_psr_iir & EDP_PSR_ERROR)
-		DRM_DEBUG_KMS("PSR error\n");
+	if (INTEL_GEN(dev_priv) >= 8)
+		mask |= BIT(TRANSCODER_A) |
+			BIT(TRANSCODER_B) |
+			BIT(TRANSCODER_C);
 
-	if (edp_psr_iir & EDP_PSR_PRE_ENTRY) {
-		DRM_DEBUG_KMS("PSR prepare entry in 2 vblanks\n");
-		I915_WRITE(EDP_PSR_IMR, EDP_PSR_PRE_ENTRY);
+	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, mask) {
+		if (edp_psr_iir & EDP_PSR_ERROR(cpu_transcoder))
+			DRM_DEBUG_KMS("Transcoder %s PSR error\n",
+				      transcoder_name(cpu_transcoder));
+
+		if (edp_psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder)) {
+			DRM_DEBUG_KMS("Transcoder %s PSR prepare entry in 2 vblanks\n",
+				      transcoder_name(cpu_transcoder));
+			edp_psr_imr |= EDP_PSR_PRE_ENTRY(cpu_transcoder);
+		}
+
+		if (edp_psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder)) {
+			DRM_DEBUG_KMS("Transcoder %s PSR exit completed\n",
+				      transcoder_name(cpu_transcoder));
+			edp_psr_imr &= ~EDP_PSR_PRE_ENTRY(cpu_transcoder);
+		}
 	}
 
-	if (edp_psr_iir & EDP_PSR_POST_EXIT) {
-		DRM_DEBUG_KMS("PSR exit completed\n");
-		I915_WRITE(EDP_PSR_IMR, 0);
-	}
-
+	I915_WRITE(EDP_PSR_IMR, edp_psr_imr);
 	I915_WRITE(EDP_PSR_IIR, edp_psr_iir);
 }
 
@@ -2616,11 +2630,22 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		iir = I915_READ(GEN8_DE_MISC_IIR);
 		if (iir) {
+			bool found = false;
+
 			I915_WRITE(GEN8_DE_MISC_IIR, iir);
 			ret = IRQ_HANDLED;
-			if (iir & GEN8_DE_MISC_GSE)
+
+			if (iir & GEN8_DE_MISC_GSE) {
 				intel_opregion_asle_intr(dev_priv);
-			else
+				found = true;
+			}
+
+			if (iir & GEN8_DE_EDP_PSR) {
+				hsw_edp_psr_irq_handler(dev_priv);
+				found = true;
+			}
+
+			if (!found)
 				DRM_ERROR("Unexpected DE Misc interrupt\n");
 		}
 		else
@@ -3414,6 +3439,9 @@ static void gen8_irq_reset(struct drm_device *dev)
 
 	gen8_gt_irq_reset(dev_priv);
 
+	I915_WRITE(EDP_PSR_IMR, 0xffffffff);
+	I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+
 	for_each_pipe(dev_priv, pipe)
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
@@ -3906,7 +3934,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_enables;
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
-	u32 de_misc_masked = GEN8_DE_MISC_GSE;
+	u32 de_misc_masked = GEN8_DE_MISC_GSE | GEN8_DE_EDP_PSR;
 	enum pipe pipe;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -3930,6 +3958,9 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		de_port_enables |= BXT_DE_PORT_HOTPLUG_MASK;
 	else if (IS_BROADWELL(dev_priv))
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
+
+	gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
+	I915_WRITE(EDP_PSR_IMR, 0);
 
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;

@@ -4029,9 +4029,9 @@ enum {
 /* Bspec claims those aren't shifted but stay at 0x64800 */
 #define EDP_PSR_IMR				_MMIO(0x64834)
 #define EDP_PSR_IIR				_MMIO(0x64838)
-#define   EDP_PSR_ERROR				(1<<2)
-#define   EDP_PSR_POST_EXIT			(1<<1)
-#define   EDP_PSR_PRE_ENTRY			(1<<0)
+#define   EDP_PSR_ERROR(trans)			(1 << (((trans) * 8 + 10) & 31))
+#define   EDP_PSR_POST_EXIT(trans)		(1 << (((trans) * 8 + 9) & 31))
+#define   EDP_PSR_PRE_ENTRY(trans)		(1 << (((trans) * 8 + 8) & 31))
 
 #define EDP_PSR_AUX_CTL				_MMIO(dev_priv->psr_mmio_base + 0x10)
 #define   EDP_PSR_AUX_CTL_TIME_OUT_MASK		(3 << 26)
@@ -6969,6 +6969,7 @@ enum {
 #define GEN8_DE_MISC_IIR _MMIO(0x44468)
 #define GEN8_DE_MISC_IER _MMIO(0x4446c)
 #define  GEN8_DE_MISC_GSE		(1 << 27)
+#define  GEN8_DE_EDP_PSR		(1 << 19)
 
 #define GEN8_PCU_ISR _MMIO(0x444e0)
 #define GEN8_PCU_IMR _MMIO(0x444e4)
