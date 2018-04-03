@@ -287,6 +287,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 				      "failed to attach panel: %d\n", ret);
 			goto err_free_connector;
 		}
+		connector->port = dev->of_node;
 	} else {
 		rgb->bridge->encoder = encoder;
 		ret = drm_bridge_attach(drm_dev, rgb->bridge);
