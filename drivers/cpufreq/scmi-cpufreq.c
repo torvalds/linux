@@ -159,13 +159,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	priv->domain_id = handle->perf_ops->device_domain_id(cpu_dev);
 
 	policy->driver_data = priv;
-
-	ret = cpufreq_table_validate_and_show(policy, freq_table);
-	if (ret) {
-		dev_err(cpu_dev, "%s: invalid frequency table: %d\n", __func__,
-			ret);
-		goto out_free_cpufreq_table;
-	}
+	policy->freq_table = freq_table;
 
 	/* SCMI allows DVFS request for any domain from any CPU */
 	policy->dvfs_possible_from_any_cpu = true;
@@ -179,8 +173,6 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	policy->fast_switch_possible = true;
 	return 0;
 
-out_free_cpufreq_table:
-	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
 out_free_priv:
 	kfree(priv);
 out_free_opp:
