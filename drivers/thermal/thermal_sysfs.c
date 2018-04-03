@@ -381,7 +381,7 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 									\
 		return count;						\
 	}								\
-	static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, name##_show, name##_store)
+	static DEVICE_ATTR_RW(name)
 
 create_s32_tzp_attr(k_po);
 create_s32_tzp_attr(k_pu);
@@ -724,8 +724,8 @@ cur_state_store(struct device *dev, struct device_attribute *attr,
 
 static struct device_attribute
 dev_attr_cdev_type = __ATTR(type, 0444, cdev_type_show, NULL);
-static DEVICE_ATTR(max_state, 0444, max_state_show, NULL);
-static DEVICE_ATTR(cur_state, 0644, cur_state_show, cur_state_store);
+static DEVICE_ATTR_RO(max_state);
+static DEVICE_ATTR_RW(cur_state);
 
 static struct attribute *cooling_device_attrs[] = {
 	&dev_attr_cdev_type.attr,
@@ -886,10 +886,10 @@ static ssize_t trans_table_show(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(total_trans, 0444, total_trans_show, NULL);
-static DEVICE_ATTR(time_in_state_ms, 0444, time_in_state_ms_show, NULL);
-static DEVICE_ATTR(reset, 0200, NULL, reset_store);
-static DEVICE_ATTR(trans_table, 0444, trans_table_show, NULL);
+static DEVICE_ATTR_RO(total_trans);
+static DEVICE_ATTR_RO(time_in_state_ms);
+static DEVICE_ATTR_WO(reset);
+static DEVICE_ATTR_RO(trans_table);
 
 static struct attribute *cooling_device_stats_attrs[] = {
 	&dev_attr_total_trans.attr,
