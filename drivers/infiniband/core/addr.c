@@ -56,7 +56,6 @@ struct addr_req {
 	struct sockaddr_storage src_addr;
 	struct sockaddr_storage dst_addr;
 	struct rdma_dev_addr *addr;
-	struct rdma_addr_client *client;
 	void *context;
 	void (*callback)(int status, struct sockaddr *src_addr,
 			 struct rdma_dev_addr *addr, void *context);
@@ -219,28 +218,6 @@ int rdma_addr_size_kss(struct __kernel_sockaddr_storage *addr)
 	return ret <= sizeof(*addr) ? ret : 0;
 }
 EXPORT_SYMBOL(rdma_addr_size_kss);
-
-static struct rdma_addr_client self;
-
-void rdma_addr_register_client(struct rdma_addr_client *client)
-{
-	atomic_set(&client->refcount, 1);
-	init_completion(&client->comp);
-}
-EXPORT_SYMBOL(rdma_addr_register_client);
-
-static inline void put_client(struct rdma_addr_client *client)
-{
-	if (atomic_dec_and_test(&client->refcount))
-		complete(&client->comp);
-}
-
-void rdma_addr_unregister_client(struct rdma_addr_client *client)
-{
-	put_client(client);
-	wait_for_completion(&client->comp);
-}
-EXPORT_SYMBOL(rdma_addr_unregister_client);
 
 void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 		    const struct net_device *dev,
@@ -605,14 +582,12 @@ static void process_one_req(struct work_struct *_work)
 		 */
 		cancel_delayed_work(&req->work);
 		list_del_init(&req->list);
-		put_client(req->client);
 		kfree(req);
 	}
 	spin_unlock_bh(&lock);
 }
 
-int rdma_resolve_ip(struct rdma_addr_client *client,
-		    struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
@@ -644,8 +619,6 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	req->addr = addr;
 	req->callback = callback;
 	req->context = context;
-	req->client = client;
-	atomic_inc(&client->refcount);
 	INIT_DELAYED_WORK(&req->work, process_one_req);
 	req->seq = (u32)atomic_inc_return(&ib_nl_addr_request_seq);
 
@@ -661,7 +634,6 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 		break;
 	default:
 		ret = req->status;
-		atomic_dec(&client->refcount);
 		goto err;
 	}
 	return ret;
@@ -722,7 +694,6 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 		found->callback(-ECANCELED, (struct sockaddr *)&found->src_addr,
 			      found->addr, found->context);
 
-	put_client(found->client);
 	kfree(found);
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
@@ -761,8 +732,8 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	dev_addr.net = &init_net;
 
 	init_completion(&ctx.comp);
-	ret = rdma_resolve_ip(&self, &sgid_addr._sockaddr, &dgid_addr._sockaddr,
-			&dev_addr, 1000, resolve_cb, &ctx);
+	ret = rdma_resolve_ip(&sgid_addr._sockaddr, &dgid_addr._sockaddr,
+			      &dev_addr, 1000, resolve_cb, &ctx);
 	if (ret)
 		return ret;
 
@@ -806,14 +777,13 @@ int addr_init(void)
 		return -ENOMEM;
 
 	register_netevent_notifier(&nb);
-	rdma_addr_register_client(&self);
 
 	return 0;
 }
 
 void addr_cleanup(void)
 {
-	rdma_addr_unregister_client(&self);
 	unregister_netevent_notifier(&nb);
 	destroy_workqueue(addr_wq);
+	WARN_ON(!list_empty(&req_list));
 }
