@@ -755,6 +755,18 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			if (r)
 				goto out;
 			break;
+
+		case 0x0500000d: /* MV buffer */
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 3,
+							idx + 2, 0, 0);
+			if (r)
+				goto out;
+
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 8,
+							idx + 7, 0, 0);
+			if (r)
+				goto out;
+			break;
 		}
 
 		idx += len / 4;
@@ -856,6 +868,18 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		case 0x05000005: /* feedback buffer */
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						4096, fb_idx);
+			if (r)
+				goto out;
+			break;
+
+		case 0x0500000d: /* MV buffer */
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3,
+							idx + 2, *size, 0);
+			if (r)
+				goto out;
+
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 8,
+							idx + 7, *size / 12, 0);
 			if (r)
 				goto out;
 			break;
