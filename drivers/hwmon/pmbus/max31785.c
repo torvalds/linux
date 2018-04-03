@@ -34,29 +34,105 @@ enum max31785_regs {
 #define MAX31785_NR_PAGES		23
 #define MAX31785_NR_FAN_PAGES		6
 
+/*
+ * MAX31785 dragons ahead
+ *
+ * We see weird issues where some transfers fail. There doesn't appear to be
+ * any pattern to the problem, so below we wrap all the read/write calls with a
+ * retry. The device provides no indication of this besides NACK'ing master
+ * Txs; no bits are set in STATUS_BYTE to suggest anything has gone wrong.
+ */
+
+#define max31785_retry(_func, ...) ({					\
+	/* All relevant functions return int, sue me */			\
+	int _ret = _func(__VA_ARGS__);					\
+	if (_ret == -EIO)						\
+		_ret = _func(__VA_ARGS__);				\
+	_ret;								\
+})
+
+static int max31785_i2c_smbus_read_byte_data(struct i2c_client *client,
+					      int command)
+{
+	return max31785_retry(i2c_smbus_read_byte_data, client, command);
+}
+
+
+static int max31785_i2c_smbus_write_byte_data(struct i2c_client *client,
+					      int command, u16 data)
+{
+	return max31785_retry(i2c_smbus_write_byte_data, client, command, data);
+}
+
+static int max31785_i2c_smbus_read_word_data(struct i2c_client *client,
+					     int command)
+{
+	return max31785_retry(i2c_smbus_read_word_data, client, command);
+}
+
+static int max31785_i2c_smbus_write_word_data(struct i2c_client *client,
+					      int command, u16 data)
+{
+	return max31785_retry(i2c_smbus_write_word_data, client, command, data);
+}
+
+static int max31785_pmbus_write_byte(struct i2c_client *client, int page,
+				     u8 value)
+{
+	return max31785_retry(pmbus_write_byte, client, page, value);
+}
+
+static int max31785_pmbus_read_byte_data(struct i2c_client *client, int page,
+					  int command)
+{
+	return max31785_retry(pmbus_read_byte_data, client, page, command);
+}
+
+static int max31785_pmbus_write_byte_data(struct i2c_client *client, int page,
+					  int command, u16 data)
+{
+	return max31785_retry(pmbus_write_byte_data, client, page, command,
+			      data);
+}
+
+static int max31785_pmbus_read_word_data(struct i2c_client *client, int page,
+					 int phase, int command)
+{
+	return max31785_retry(pmbus_read_word_data, client, page, phase, command);
+}
+
+static int max31785_pmbus_write_word_data(struct i2c_client *client, int page,
+					  int command, u16 data)
+{
+	return max31785_retry(pmbus_write_word_data, client, page, command,
+			      data);
+}
+
 static int max31785_read_byte_data(struct i2c_client *client, int page,
 				   int reg)
 {
-	if (page < MAX31785_NR_PAGES)
-		return -ENODATA;
-
 	switch (reg) {
 	case PMBUS_VOUT_MODE:
-		return -ENOTSUPP;
+		if (page >= MAX31785_NR_PAGES)
+			return -ENOTSUPP;
+		break;
 	case PMBUS_FAN_CONFIG_12:
-		return pmbus_read_byte_data(client, page - MAX31785_NR_PAGES,
-					    reg);
+		if (page >= MAX31785_NR_PAGES)
+			return max31785_pmbus_read_byte_data(client,
+					page - MAX31785_NR_PAGES,
+					reg);
+		break;
 	}
 
-	return -ENODATA;
+	return max31785_pmbus_read_byte_data(client, page, reg);
 }
 
 static int max31785_write_byte(struct i2c_client *client, int page, u8 value)
 {
-	if (page < MAX31785_NR_PAGES)
-		return -ENODATA;
+	if (page >= MAX31785_NR_PAGES)
+		return -ENOTSUPP;
 
-	return -ENOTSUPP;
+	return max31785_pmbus_write_byte(client, page, value);
 }
 
 static int max31785_read_long_data(struct i2c_client *client, int page,
@@ -117,11 +193,13 @@ static int max31785_get_pwm_mode(struct i2c_client *client, int page)
 	int config;
 	int command;
 
-	config = pmbus_read_byte_data(client, page, PMBUS_FAN_CONFIG_12);
+	config = max31785_pmbus_read_byte_data(client, page,
+					       PMBUS_FAN_CONFIG_12);
 	if (config < 0)
 		return config;
 
-	command = pmbus_read_word_data(client, page, 0xff, PMBUS_FAN_COMMAND_1);
+	command = max31785_pmbus_read_word_data(client, page, 0xff,
+						PMBUS_FAN_COMMAND_1);
 	if (command < 0)
 		return command;
 
@@ -145,15 +223,14 @@ static int max31785_read_word_data(struct i2c_client *client, int page,
 	switch (reg) {
 	case PMBUS_READ_FAN_SPEED_1:
 		if (page < MAX31785_NR_PAGES)
-			return -ENODATA;
+			return max31785_pmbus_read_word_data(client, page, 0xff, reg);
 
 		rv = max31785_read_long_data(client, page - MAX31785_NR_PAGES,
 					     reg, &val);
 		if (rv < 0)
 			return rv;
 
-		rv = (val >> 16) & 0xffff;
-		break;
+		return (val >> 16) & 0xffff;
 	case PMBUS_FAN_COMMAND_1:
 		/*
 		 * PMBUS_FAN_COMMAND_x is probed to judge whether or not to
@@ -161,20 +238,28 @@ static int max31785_read_word_data(struct i2c_client *client, int page,
 		 *
 		 * Don't expose fan_target attribute for virtual pages.
 		 */
-		rv = (page >= MAX31785_NR_PAGES) ? -ENOTSUPP : -ENODATA;
+		if (page >= MAX31785_NR_PAGES)
+			return -ENOTSUPP;
 		break;
+	case PMBUS_VIRT_FAN_TARGET_1:
+		if (page >= MAX31785_NR_PAGES)
+			return -ENOTSUPP;
+
+		return -ENODATA;
 	case PMBUS_VIRT_PWM_1:
-		rv = max31785_get_pwm(client, page);
-		break;
+		return max31785_get_pwm(client, page);
 	case PMBUS_VIRT_PWM_ENABLE_1:
-		rv = max31785_get_pwm_mode(client, page);
-		break;
+		return max31785_get_pwm_mode(client, page);
 	default:
-		rv = -ENODATA;
+		if (page >= MAX31785_NR_PAGES)
+			return -ENXIO;
 		break;
 	}
 
-	return rv;
+	if (reg >= PMBUS_VIRT_BASE)
+		return -ENXIO;
+
+	return max31785_pmbus_read_word_data(client, page, 0xff, reg);
 }
 
 static inline u32 max31785_scale_pwm(u32 sensor_val)
@@ -196,6 +281,31 @@ static inline u32 max31785_scale_pwm(u32 sensor_val)
 	 * resolution for hardware.
 	 */
 	return (sensor_val * 100) / 255;
+}
+
+static int max31785_update_fan(struct i2c_client *client, int page,
+			       u8 config, u8 mask, u16 command)
+{
+	int from, rv;
+	u8 to;
+
+	from = max31785_pmbus_read_byte_data(client, page, PMBUS_FAN_CONFIG_12);
+	if (from < 0)
+		return from;
+
+	to = (from & ~mask) | (config & mask);
+
+	if (to != from) {
+		rv = max31785_pmbus_write_byte_data(client, page,
+						    PMBUS_FAN_CONFIG_12, to);
+		if (rv < 0)
+			return rv;
+	}
+
+	rv = max31785_pmbus_write_word_data(client, page, PMBUS_FAN_COMMAND_1,
+					    command);
+
+	return rv;
 }
 
 static int max31785_pwm_enable(struct i2c_client *client, int page,
@@ -227,15 +337,18 @@ static int max31785_pwm_enable(struct i2c_client *client, int page,
 		return -EINVAL;
 	}
 
-	return pmbus_update_fan(client, page, 0, config, PB_FAN_1_RPM, rate);
+	return max31785_update_fan(client, page, config, PB_FAN_1_RPM, rate);
 }
 
 static int max31785_write_word_data(struct i2c_client *client, int page,
 				    int reg, u16 word)
 {
 	switch (reg) {
+	case PMBUS_VIRT_FAN_TARGET_1:
+		return max31785_update_fan(client, page, PB_FAN_1_RPM,
+					   PB_FAN_1_RPM, word);
 	case PMBUS_VIRT_PWM_1:
-		return pmbus_update_fan(client, page, 0, 0, PB_FAN_1_RPM,
+		return max31785_update_fan(client, page, 0, PB_FAN_1_RPM,
 					max31785_scale_pwm(word));
 	case PMBUS_VIRT_PWM_ENABLE_1:
 		return max31785_pwm_enable(client, page, word);
@@ -243,7 +356,10 @@ static int max31785_write_word_data(struct i2c_client *client, int page,
 		break;
 	}
 
-	return -ENODATA;
+	if (reg < PMBUS_VIRT_BASE)
+		return max31785_pmbus_write_word_data(client, page, reg, word);
+
+	return -ENXIO;
 }
 
 /*
@@ -276,11 +392,11 @@ static int max31785_of_fan_config(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
+	ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
 	if (ret < 0)
 		return ret;
 
-	pb_cfg = i2c_smbus_read_byte_data(client, PMBUS_FAN_CONFIG_12);
+	pb_cfg = max31785_i2c_smbus_read_byte_data(client, PMBUS_FAN_CONFIG_12);
 	if (pb_cfg < 0)
 		return pb_cfg;
 
@@ -306,7 +422,9 @@ static int max31785_of_fan_config(struct i2c_client *client,
 	} else if (!strcmp("lock", sval)) {
 		mfr_cfg |= MFR_FAN_CONFIG_ROTOR;
 
-		ret = i2c_smbus_write_word_data(client, MFR_FAN_FAULT_LIMIT, 1);
+		ret = max31785_i2c_smbus_write_word_data(client,
+							 MFR_FAN_FAULT_LIMIT,
+							 1);
 		if (ret < 0)
 			return ret;
 
@@ -420,21 +538,23 @@ static int max31785_of_fan_config(struct i2c_client *client,
 	if (of_property_read_bool(child, "maxim,fan-fault-pin-mon"))
 		mfr_fault_resp |= MFR_FAULT_RESPONSE_MONITOR;
 
-	ret = i2c_smbus_write_byte_data(client, PMBUS_FAN_CONFIG_12,
+	ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_FAN_CONFIG_12,
 					pb_cfg & ~PB_FAN_1_INSTALLED);
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_write_word_data(client, MFR_FAN_CONFIG, mfr_cfg);
+	ret = max31785_i2c_smbus_write_word_data(client, MFR_FAN_CONFIG,
+						 mfr_cfg);
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_write_byte_data(client, MFR_FAULT_RESPONSE,
-					mfr_fault_resp);
+	ret = max31785_i2c_smbus_write_byte_data(client, MFR_FAULT_RESPONSE,
+						 mfr_fault_resp);
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_write_byte_data(client, PMBUS_FAN_CONFIG_12, pb_cfg);
+	ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_FAN_CONFIG_12,
+						 pb_cfg);
 	if (ret < 0)
 		return ret;
 
@@ -479,7 +599,7 @@ static int max31785_of_tmp_config(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
+	ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
 	if (ret < 0)
 		return ret;
 
@@ -503,7 +623,7 @@ static int max31785_of_tmp_config(struct i2c_client *client,
 		i++;
 	}
 
-	ret = i2c_smbus_write_word_data(client, MFR_TEMP_SENSOR_CONFIG,
+	ret = max31785_i2c_smbus_write_word_data(client, MFR_TEMP_SENSOR_CONFIG,
 					mfr_tmp_cfg);
 	if (ret < 0)
 		return ret;
@@ -580,11 +700,11 @@ static int max31785_configure_dual_tach(struct i2c_client *client,
 	int i;
 
 	for (i = 0; i < MAX31785_NR_FAN_PAGES; i++) {
-		ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, i);
+		ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_PAGE, i);
 		if (ret < 0)
 			return ret;
 
-		ret = i2c_smbus_read_word_data(client, MFR_FAN_CONFIG);
+		ret = max31785_i2c_smbus_read_word_data(client, MFR_FAN_CONFIG);
 		if (ret < 0)
 			return ret;
 
@@ -621,7 +741,7 @@ static int max31785_probe(struct i2c_client *client)
 
 	*info = max31785_info;
 
-	ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, 255);
+	ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_PAGE, 255);
 	if (ret < 0)
 		return ret;
 
@@ -665,17 +785,20 @@ static int max31785_probe(struct i2c_client *client)
 		if (!have_fan || fan_configured)
 			continue;
 
-		ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, i);
+		ret = max31785_i2c_smbus_write_byte_data(client, PMBUS_PAGE,
+							 i);
 		if (ret < 0)
 			return ret;
 
-		ret = i2c_smbus_read_byte_data(client, PMBUS_FAN_CONFIG_12);
+		ret = max31785_i2c_smbus_read_byte_data(client,
+							PMBUS_FAN_CONFIG_12);
 		if (ret < 0)
 			return ret;
 
 		ret &= ~PB_FAN_1_INSTALLED;
-		ret = i2c_smbus_write_word_data(client, PMBUS_FAN_CONFIG_12,
-						ret);
+		ret = max31785_i2c_smbus_write_word_data(client,
+							 PMBUS_FAN_CONFIG_12,
+							 ret);
 		if (ret < 0)
 			return ret;
 	}
