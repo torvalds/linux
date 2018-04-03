@@ -705,6 +705,11 @@ int wcn36xx_dxe_tx_frame(struct wcn36xx *wcn,
 					  ctl->skb->data,
 					  ctl->skb->len,
 					  DMA_TO_DEVICE);
+	if (dma_mapping_error(wcn->dev, desc->src_addr_l)) {
+		dev_err(wcn->dev, "unable to DMA map src_addr_l\n");
+		ret = -ENOMEM;
+		goto unlock;
+	}
 
 	desc->dst_addr_l = ch->dxe_wq;
 	desc->fr_len = ctl->skb->len;
