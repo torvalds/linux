@@ -849,23 +849,25 @@ static void lpi_check_constraints(void)
 	int i;
 
 	for (i = 0; i < lpi_constraints_table_size; ++i) {
+		acpi_handle handle = lpi_constraints_table[i].handle;
 		struct acpi_device *adev;
 
-		if (acpi_bus_get_device(lpi_constraints_table[i].handle, &adev))
+		if (!handle || acpi_bus_get_device(handle, &adev))
 			continue;
 
-		acpi_handle_debug(adev->handle,
+		acpi_handle_debug(handle,
 			"LPI: required min power state:%s current power state:%s\n",
 			acpi_power_state_string(lpi_constraints_table[i].min_dstate),
 			acpi_power_state_string(adev->power.state));
 
 		if (!adev->flags.power_manageable) {
-			acpi_handle_info(adev->handle, "LPI: Device not power manageble\n");
+			acpi_handle_info(handle, "LPI: Device not power manageable\n");
+			lpi_constraints_table[i].handle = NULL;
 			continue;
 		}
 
 		if (adev->power.state < lpi_constraints_table[i].min_dstate)
-			acpi_handle_info(adev->handle,
+			acpi_handle_info(handle,
 				"LPI: Constraint not met; min power state:%s current power state:%s\n",
 				acpi_power_state_string(lpi_constraints_table[i].min_dstate),
 				acpi_power_state_string(adev->power.state));
@@ -951,15 +953,8 @@ static int acpi_s2idle_prepare(void)
 	if (lps0_device_handle) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
-	} else {
-		/*
-		 * The configuration of GPEs is changed here to avoid spurious
-		 * wakeups, but that should not be necessary if this is a
-		 * "low-power S0" platform and the low-power S0 _DSM is present.
-		 */
-		acpi_enable_all_wakeup_gpes();
-		acpi_os_wait_events_complete();
 	}
+
 	if (acpi_sci_irq_valid())
 		enable_irq_wake(acpi_sci_irq);
 
@@ -992,8 +987,9 @@ static void acpi_s2idle_sync(void)
 	 * The EC driver uses the system workqueue and an additional special
 	 * one, so those need to be flushed too.
 	 */
+	acpi_os_wait_events_complete();	/* synchronize SCI IRQ handling */
 	acpi_ec_flush_work();
-	acpi_os_wait_events_complete();
+	acpi_os_wait_events_complete();	/* synchronize Notify handling */
 	s2idle_wakeup = false;
 }
 
@@ -1005,8 +1001,6 @@ static void acpi_s2idle_restore(void)
 	if (lps0_device_handle) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
-	} else {
-		acpi_enable_all_runtime_gpes();
 	}
 }
 

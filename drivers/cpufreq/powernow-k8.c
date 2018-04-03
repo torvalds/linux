@@ -122,14 +122,12 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 static void count_off_irt(struct powernow_k8_data *data)
 {
 	udelay((1 << data->irt) * 10);
-	return;
 }
 
 /* the voltage stabilization time */
 static void count_off_vst(struct powernow_k8_data *data)
 {
 	udelay(data->vstable * VST_UNITS_20US);
-	return;
 }
 
 /* need to init the control msr to a safe value (for each cpu) */
@@ -591,10 +589,8 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 
 	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->numps + 1)), GFP_KERNEL);
-	if (!powernow_table) {
-		pr_err("powernow_table memory alloc failure\n");
+	if (!powernow_table)
 		return -ENOMEM;
-	}
 
 	for (j = 0; j < data->numps; j++) {
 		int freq;
@@ -760,10 +756,8 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	/* fill in data->powernow_table */
 	powernow_table = kzalloc((sizeof(*powernow_table)
 		* (data->acpi_data.state_count + 1)), GFP_KERNEL);
-	if (!powernow_table) {
-		pr_debug("powernow_table memory alloc failure\n");
+	if (!powernow_table)
 		goto err_out;
-	}
 
 	/* fill in data */
 	data->numps = data->acpi_data.state_count;
@@ -1042,10 +1036,8 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 		return -ENODEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		pr_err("unable to alloc powernow_k8_data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->cpu = pol->cpu;
 
@@ -1084,15 +1076,7 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	cpumask_copy(pol->cpus, topology_core_cpumask(pol->cpu));
 	data->available_cores = pol->cpus;
-
-	/* min/max the cpu is capable of */
-	if (cpufreq_table_validate_and_show(pol, data->powernow_table)) {
-		pr_err(FW_BUG "invalid powernow_table\n");
-		powernow_k8_cpu_exit_acpi(data);
-		kfree(data->powernow_table);
-		kfree(data);
-		return -EINVAL;
-	}
+	pol->freq_table = data->powernow_table;
 
 	pr_debug("cpu_init done, current fid 0x%x, vid 0x%x\n",
 		data->currfid, data->currvid);

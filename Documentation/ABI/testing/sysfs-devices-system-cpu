@@ -198,6 +198,31 @@ Description:
 		time (in microseconds) this cpu should spend in this idle state
 		to make the transition worth the effort.
 
+What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/s2idle/
+Date:		March 2018
+KernelVersion:	v4.17
+Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Description:
+		Idle state usage statistics related to suspend-to-idle.
+
+		This attribute group is only present for states that can be
+		used in suspend-to-idle with suspended timekeeping.
+
+What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/s2idle/time
+Date:		March 2018
+KernelVersion:	v4.17
+Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Description:
+		Total time spent by the CPU in suspend-to-idle (with scheduler
+		tick suspended) after requesting this state.
+
+What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/s2idle/usage
+Date:		March 2018
+KernelVersion:	v4.17
+Contact:	Linux power management list <linux-pm@vger.kernel.org>
+Description:
+		Total number of times this state has been requested by the CPU
+		while entering suspend-to-idle.
 
 What:		/sys/devices/system/cpu/cpu#/cpufreq/*
 Date:		pre-git history
