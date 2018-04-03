@@ -87,6 +87,7 @@ modules.builtin
 #
 include/config
 include/generated
+include/ksym
 arch/*/include/generated
 
 # stgit generated dirs
