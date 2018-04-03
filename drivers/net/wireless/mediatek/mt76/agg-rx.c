@@ -147,12 +147,13 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct mt76_wcid *wcid = status->wcid;
 	struct ieee80211_sta *sta;
 	struct mt76_rx_tid *tid;
 	bool sn_less;
 	u16 seqno, head, size;
-	u8 idx;
+	u8 ackp, idx;
 
 	__skb_queue_tail(frames, skb);
 
@@ -164,6 +165,12 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 		mt76_rx_aggr_check_ctl(skb, frames);
 		return;
 	}
+
+	/* not part of a BA session */
+	ackp = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_ACK_POLICY_MASK;
+	if (ackp != IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK &&
+	    ackp != IEEE80211_QOS_CTL_ACK_POLICY_NORMAL)
+		return;
 
 	tid = rcu_dereference(wcid->aggr[status->tid]);
 	if (!tid)
