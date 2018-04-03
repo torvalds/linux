@@ -75,15 +75,10 @@ void thermal_zone_destroy_device_groups(struct thermal_zone_device *);
 void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *);
 void thermal_cooling_device_destroy_sysfs(struct thermal_cooling_device *cdev);
 /* used only at binding time */
-ssize_t
-thermal_cooling_device_trip_point_show(struct device *,
-				       struct device_attribute *, char *);
-ssize_t thermal_cooling_device_weight_show(struct device *,
-					   struct device_attribute *, char *);
-
-ssize_t thermal_cooling_device_weight_store(struct device *,
-					    struct device_attribute *,
-					    const char *, size_t);
+ssize_t trip_point_show(struct device *, struct device_attribute *, char *);
+ssize_t weight_show(struct device *, struct device_attribute *, char *);
+ssize_t weight_store(struct device *, struct device_attribute *, const char *,
+		     size_t);
 
 #ifdef CONFIG_THERMAL_STATISTICS
 void thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
