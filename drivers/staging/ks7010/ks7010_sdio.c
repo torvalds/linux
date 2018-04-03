@@ -802,6 +802,26 @@ static void ks7010_init_defaults(struct ks_wlan_private *priv)
 	priv->reg.rate_set.size = 12;
 }
 
+static int ks7010_sdio_setup_irqs(struct sdio_func *func)
+{
+	int ret;
+
+	/* interrupt disable */
+	sdio_writeb(func, 0, INT_ENABLE, &ret);
+	if (ret)
+		goto irq_error;
+
+	sdio_writeb(func, 0xff, INT_PENDING, &ret);
+	if (ret)
+		goto irq_error;
+
+	/* setup interrupt handler */
+	ret = sdio_claim_irq(func, ks_sdio_interrupt);
+
+irq_error:
+	return ret;
+}
+
 static void ks7010_sdio_init_irqs(struct sdio_func *func,
 				  struct ks_wlan_private *priv)
 {
@@ -855,17 +875,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto err_free_card;
 
-	/* interrupt disable */
-	sdio_writeb(func, 0, INT_ENABLE, &ret);
-	if (ret)
-		goto err_disable_func;
-
-	sdio_writeb(func, 0xff, INT_PENDING, &ret);
-	if (ret)
-		goto err_disable_func;
-
-	/* setup interrupt handler */
-	ret = sdio_claim_irq(func, ks_sdio_interrupt);
+	ret = ks7010_sdio_setup_irqs(func);
 	if (ret)
 		goto err_disable_func;
 
