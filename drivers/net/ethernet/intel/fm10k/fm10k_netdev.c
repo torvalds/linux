@@ -1254,7 +1254,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 			glort = l2_accel->dglort + 1 + i;
 
 			hw->mac.ops.update_xcast_mode(hw, glort,
-						      FM10K_XCAST_MODE_MULTI);
+						      FM10K_XCAST_MODE_NONE);
 			fm10k_queue_mac_request(interface, glort,
 						sdev->dev_addr,
 						hw->mac.default_vid, true);
@@ -1515,7 +1515,7 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 
 	if (fm10k_host_mbx_ready(interface)) {
 		hw->mac.ops.update_xcast_mode(hw, glort,
-					      FM10K_XCAST_MODE_MULTI);
+					      FM10K_XCAST_MODE_NONE);
 		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
 					hw->mac.default_vid, true);
 	}

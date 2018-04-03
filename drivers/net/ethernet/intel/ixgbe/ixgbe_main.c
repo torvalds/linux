@@ -4219,7 +4219,8 @@ static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
 static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 reg_offset, vf_shift;
+	u16 pool = adapter->num_rx_pools;
+	u32 reg_offset, vf_shift, vmolr;
 	u32 gcr_ext, vmdctl;
 	int i;
 
@@ -4232,6 +4233,13 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	vmdctl |= VMDQ_P(0) << IXGBE_VT_CTL_POOL_SHIFT;
 	vmdctl |= IXGBE_VT_CTL_REPLEN;
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
+
+	/* accept untagged packets until a vlan tag is
+	 * specifically set for the VMDQ queue/pool
+	 */
+	vmolr = IXGBE_VMOLR_AUPE;
+	while (pool--)
+		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(VMDQ_P(pool)), vmolr);
 
 	vf_shift = VMDQ_P(0) % 32;
 	reg_offset = (VMDQ_P(0) >= 32) ? 1 : 0;
@@ -5279,28 +5287,6 @@ static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
 	spin_unlock(&adapter->fdir_perfect_lock);
 }
 
-static void ixgbe_macvlan_set_rx_mode(struct net_device *dev, unsigned int pool,
-				      struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 vmolr;
-
-	/* No unicast promiscuous support for VMDQ devices. */
-	vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(pool));
-	vmolr |= (IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_BAM | IXGBE_VMOLR_AUPE);
-
-	/* clear the affected bit */
-	vmolr &= ~IXGBE_VMOLR_MPE;
-
-	if (dev->flags & IFF_ALLMULTI) {
-		vmolr |= IXGBE_VMOLR_MPE;
-	} else {
-		vmolr |= IXGBE_VMOLR_ROMPE;
-		hw->mac.ops.update_mc_addr_list(hw, dev);
-	}
-	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(pool), vmolr);
-}
-
 /**
  * ixgbe_clean_rx_ring - Free Rx Buffers per Queue
  * @rx_ring: ring to free buffers from
@@ -5384,10 +5370,8 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 	 */
 	err = ixgbe_add_mac_filter(adapter, vdev->dev_addr,
 				   VMDQ_P(accel->pool));
-	if (err >= 0) {
-		ixgbe_macvlan_set_rx_mode(vdev, accel->pool, adapter);
+	if (err >= 0)
 		return 0;
-	}
 
 	for (i = 0; i < adapter->num_rx_queues_per_pool; i++)
 		adapter->rx_ring[baseq + i]->netdev = NULL;
@@ -9831,9 +9815,6 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	/* delete unicast filter associated with offloaded interface */
 	ixgbe_del_mac_filter(adapter, accel->netdev->dev_addr,
 			     VMDQ_P(accel->pool));
-
-	/* disable ability to receive packets for this pool */
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_VMOLR(accel->pool), 0);
 
 	/* Allow remaining Rx packets to get flushed out of the
 	 * Rx FIFO before we drop the netdev for the ring.
