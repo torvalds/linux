@@ -2676,14 +2676,7 @@ static int bp_interception(struct vcpu_svm *svm)
 
 static int ud_interception(struct vcpu_svm *svm)
 {
-	int er;
-
-	er = emulate_instruction(&svm->vcpu, EMULTYPE_TRAP_UD);
-	if (er == EMULATE_USER_EXIT)
-		return 0;
-	if (er != EMULATE_DONE)
-		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
-	return 1;
+	return handle_ud(&svm->vcpu);
 }
 
 static int ac_interception(struct vcpu_svm *svm)
