@@ -868,7 +868,6 @@ F:	drivers/iio/*/ad*
 F:	drivers/iio/adc/ltc2497*
 X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
-F:	drivers/staging/iio/trigger/iio-trig-bfin-timer.c
 
 ANDES ARCHITECTURE
 M:	Greentime Hu <green.hu@gmail.com>
@@ -2643,51 +2642,6 @@ F:	Documentation/filesystems/bfs.txt
 F:	fs/bfs/
 F:	include/uapi/linux/bfs_fs.h
 
-BLACKFIN ARCHITECTURE
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-T:	git git://git.code.sf.net/p/adi-linux/code
-W:	http://blackfin.uclinux.org
-S:	Orphan
-F:	arch/blackfin/
-
-BLACKFIN EMAC DRIVER
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org
-S:	Orphan
-F:	drivers/net/ethernet/adi/
-
-BLACKFIN MEDIA DRIVER
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org/
-S:	Orphan
-F:	drivers/media/platform/blackfin/
-F:	drivers/media/i2c/adv7183*
-F:	drivers/media/i2c/vs6624*
-
-BLACKFIN RTC DRIVER
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org
-S:	Orphan
-F:	drivers/rtc/rtc-bfin.c
-
-BLACKFIN SDH DRIVER
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org
-S:	Orphan
-F:	drivers/mmc/host/bfin_sdh.c
-
-BLACKFIN SERIAL DRIVER
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org
-S:	Orphan
-F:	drivers/tty/serial/bfin_uart.c
-
-BLACKFIN WATCHDOG DRIVER
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org
-S:	Orphan
-F:	drivers/watchdog/bfin_wdt.c
-
 BLINKM RGB LED DRIVER
 M:	Jan-Simon Moeller <jansimon.moeller@gmx.de>
 S:	Maintained
@@ -3762,16 +3716,6 @@ M:	Nicolas Pitre <nico@linaro.org>
 S:	Maintained
 F:	Documentation/filesystems/cramfs.txt
 F:	fs/cramfs/
-
-CRIS PORT
-M:	Mikael Starvik <starvik@axis.com>
-M:	Jesper Nilsson <jesper.nilsson@axis.com>
-L:	linux-cris-kernel@axis.com
-W:	http://developer.axis.com
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesper/cris.git
-S:	Maintained
-F:	arch/cris/
-F:	drivers/tty/serial/crisv10.*
 
 CRYPTO API
 M:	Herbert Xu <herbert@gondor.apana.org.au>
@@ -5820,10 +5764,6 @@ S:	Supported
 F:	fs/crypto/
 F:	include/linux/fscrypt*.h
 F:	Documentation/filesystems/fscrypt.rst
-
-FUJITSU FR-V (FRV) PORT
-S:	Orphan
-F:	arch/frv/
 
 FUJITSU LAPTOP EXTRAS
 M:	Jonathan Woithe <jwoithe@just42.net>
@@ -8359,11 +8299,6 @@ W:	http://linux-test-project.github.io/
 T:	git git://github.com/linux-test-project/ltp.git
 S:	Maintained
 
-M32R ARCHITECTURE
-W:	http://www.linux-m32r.org/
-S:	Orphan
-F:	arch/m32r/
-
 M68K ARCHITECTURE
 M:	Geert Uytterhoeven <geert@linux-m68k.org>
 L:	linux-m68k@lists.linux-m68k.org
@@ -9130,20 +9065,6 @@ S:	Supported
 F:	drivers/media/platform/meson/ao-cec.c
 F:	Documentation/devicetree/bindings/media/meson-ao-cec.txt
 T:	git git://linuxtv.org/media_tree.git
-
-METAG ARCHITECTURE
-M:	James Hogan <jhogan@kernel.org>
-L:	linux-metag@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jhogan/metag.git
-S:	Odd Fixes
-F:	arch/metag/
-F:	Documentation/metag/
-F:	Documentation/devicetree/bindings/metag/
-F:	Documentation/devicetree/bindings/interrupt-controller/img,*
-F:	drivers/clocksource/metag_generic.c
-F:	drivers/irqchip/irq-metag.c
-F:	drivers/irqchip/irq-metag-ext.c
-F:	drivers/tty/metag_da.c
 
 MICROBLAZE ARCHITECTURE
 M:	Michal Simek <monstr@monstr.eu>
@@ -10462,14 +10383,6 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/panasonic-laptop.c
 
-PANASONIC MN10300/AM33/AM34 PORT
-M:	David Howells <dhowells@redhat.com>
-L:	linux-am33-list@redhat.com (moderated for non-subscribers)
-W:	ftp://ftp.redhat.com/pub/redhat/gnupro/AM33/
-S:	Maintained
-F:	Documentation/mn10300/
-F:	arch/mn10300/
-
 PARALLEL LCD/KEYPAD PANEL DRIVER
 M:	Willy Tarreau <willy@haproxy.com>
 M:	Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
@@ -11072,7 +10985,7 @@ F:	include/linux/pktcdvd.h
 F:	include/uapi/linux/pktcdvd.h
 
 PKUNITY SOC DRIVERS
-M:	Guan Xuetao <gxt@mprc.pku.edu.cn>
+M:	Guan Xuetao <gxt@pku.edu.cn>
 W:	http://mprc.pku.edu.cn/~guanxuetao/linux
 S:	Maintained
 T:	git git://github.com/gxt/linux.git
@@ -12321,13 +12234,6 @@ F:	kernel/sched/
 F:	include/linux/sched.h
 F:	include/uapi/linux/sched.h
 F:	include/linux/wait.h
-
-SCORE ARCHITECTURE
-M:	Chen Liqin <liqin.linux@gmail.com>
-M:	Lennox Wu <lennox.wu@gmail.com>
-W:	http://www.sunplus.com
-S:	Supported
-F:	arch/score/
 
 SCR24X CHIP CARD INTERFACE DRIVER
 M:	Lubomir Rintel <lkundrak@v3.sk>
@@ -13993,19 +13899,6 @@ S:	Orphan
 F:	drivers/net/wireless/ti/
 F:	include/linux/wl12xx.h
 
-TILE ARCHITECTURE
-W:	http://www.mellanox.com/repository/solutions/tile-scm/
-S:	Orphan
-F:	arch/tile/
-F:	drivers/char/tile-srom.c
-F:	drivers/edac/tile_edac.c
-F:	drivers/net/ethernet/tile/
-F:	drivers/rtc/rtc-tile.c
-F:	drivers/tty/hvc/hvc_tile.c
-F:	drivers/tty/serial/tilegx.c
-F:	drivers/usb/host/*-tilegx.c
-F:	include/linux/usb/tilegx.h
-
 TIMEKEEPING, CLOCKSOURCE CORE, NTP, ALARMTIMER
 M:	John Stultz <john.stultz@linaro.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
@@ -14331,7 +14224,7 @@ F:	include/linux/uwb.h
 F:	include/linux/uwb/
 
 UNICORE32 ARCHITECTURE:
-M:	Guan Xuetao <gxt@mprc.pku.edu.cn>
+M:	Guan Xuetao <gxt@pku.edu.cn>
 W:	http://mprc.pku.edu.cn/~guanxuetao/linux
 S:	Maintained
 T:	git git://github.com/gxt/linux.git

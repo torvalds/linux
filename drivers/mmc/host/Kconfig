@@ -646,25 +646,6 @@ config MMC_VIA_SDMMC
 
 	  If unsure, say N.
 
-config SDH_BFIN
-	tristate "Blackfin Secure Digital Host support"
-	depends on (BF54x && !BF544) || (BF51x && !BF512)
-	help
-	  If you say yes here you will get support for the Blackfin on-chip
-	  Secure Digital Host interface.  This includes support for MMC and
-	  SD cards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_sdh.
-
-	  If unsure, say N.
-
-config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
-	bool "Blackfin EZkit Missing SDH_CMD Pull Up Resistor Workaround"
-	depends on SDH_BFIN
-	help
-	  If you say yes here SD-Cards may work on the EZkit.
-
 config MMC_CAVIUM_OCTEON
 	tristate "Cavium OCTEON SD/MMC Card Interface support"
 	depends on CAVIUM_OCTEON_SOC

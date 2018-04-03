@@ -405,10 +405,6 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
 	struct page *map;
 	unsigned long size;
 
-	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
-	if (map)
-		return map;
-
 	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
 	map = memblock_virt_alloc_try_nid(size,
 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
@@ -423,17 +419,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 	void *map;
 	unsigned long pnum;
 	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-
-	map = alloc_remap(nodeid, size * map_count);
-	if (map) {
-		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-			if (!present_section_nr(pnum))
-				continue;
-			map_map[pnum] = map;
-			map += size;
-		}
-		return;
-	}
 
 	size = PAGE_ALIGN(size);
 	map = memblock_virt_alloc_try_nid_raw(size * map_count,

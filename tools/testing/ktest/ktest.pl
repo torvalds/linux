@@ -3683,8 +3683,6 @@ sub read_depends {
     # what directory to look at.
     if ($arch eq "i386" || $arch eq "x86_64") {
 	$arch = "x86";
-    } elsif ($arch =~ /^tile/) {
-	$arch = "tile";
     }
 
     my $kconfig = "$builddir/arch/$arch/Kconfig";

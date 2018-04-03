@@ -2320,25 +2320,6 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82865_HB,
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 			quirk_unhide_mch_dev6);
 
-#ifdef CONFIG_TILEPRO
-/*
- * The Tilera TILEmpower tilepro platform needs to set the link speed
- * to 2.5GT(Giga-Transfers)/s (Gen 1). The default link speed
- * setting is 5GT/s (Gen 2). 0x98 is the Link Control2 PCIe
- * capability register of the PEX8624 PCIe switch. The switch
- * supports link speed auto negotiation, but falsely sets
- * the link speed to 5GT/s.
- */
-static void quirk_tile_plx_gen1(struct pci_dev *dev)
-{
-	if (tile_plx_gen1) {
-		pci_write_config_dword(dev, 0x98, 0x1);
-		mdelay(50);
-	}
-}
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8624, quirk_tile_plx_gen1);
-#endif /* CONFIG_TILEPRO */
-
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
  * PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually

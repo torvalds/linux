@@ -445,24 +445,6 @@ config I2C_BRCMSTB
 
 	  If you do not need I2C interface, say N.
 
-config I2C_BLACKFIN_TWI
-	tristate "Blackfin TWI I2C support"
-	depends on BLACKFIN
-	depends on !BF561 && !BF531 && !BF532 && !BF533
-	help
-	  This is the I2C bus driver for Blackfin on-chip TWI interface.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-bfin-twi.
-
-config I2C_BLACKFIN_TWI_CLK_KHZ
-	int "Blackfin TWI I2C clock (kHz)"
-	depends on I2C_BLACKFIN_TWI
-	range 21 400
-	default 50
-	help
-	  The unit of the TWI clock is kHz.
-
 config I2C_CADENCE
 	tristate "Cadence I2C Controller"
 	depends on ARCH_ZYNQ || ARM64 || XTENSA
@@ -637,7 +619,7 @@ config I2C_IBM_IIC
 
 config I2C_IMG
 	tristate "Imagination Technologies I2C SCB Controller"
-	depends on MIPS || METAG || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	help
 	  Say Y here if you want to use the IMG I2C SCB controller,
 	  available on the TZ1090 and other IMG SoCs.

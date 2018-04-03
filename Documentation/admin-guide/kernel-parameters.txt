@@ -1025,7 +1025,7 @@
 			address. The serial port must already be setup
 			and configured. Options are not yet supported.
 
-	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k,S390]
+	earlyprintk=	[X86,SH,ARM,M68k,S390]
 			earlyprintk=vga
 			earlyprintk=efi
 			earlyprintk=sclp
@@ -1346,10 +1346,6 @@
 	hvc_iucv_allow=	[S390] Comma-separated list of z/VM user IDs.
 			       If specified, z/VM IUCV HVC accepts connections
 			       from listed z/VM user IDs only.
-
-	hwthread_map=	[METAG] Comma-separated list of Linux cpu id to
-			        hardware thread id mappings.
-				Format: <cpu>:<hwthread>
 
 	keep_bootcon	[KNL]
 			Do not unregister boot console at start. This is only
