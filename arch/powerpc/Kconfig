@@ -13,11 +13,8 @@ config 64BIT
 	bool
 	default y if PPC64
 
-config ARCH_PHYS_ADDR_T_64BIT
-       def_bool PPC64 || PHYS_64BIT
-
 config ARCH_DMA_ADDR_T_64BIT
-	def_bool ARCH_PHYS_ADDR_T_64BIT
+	def_bool PHYS_ADDR_T_64BIT
 
 config MMU
 	bool

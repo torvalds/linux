@@ -5,6 +5,8 @@
 
 config RISCV
 	def_bool y
+	# even on 32-bit, physical (and DMA) addresses are > 32-bits
+	select PHYS_ADDR_T_64BIT
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_IRQ
@@ -36,10 +38,6 @@ config RISCV
 	select GENERIC_IRQ_MULTI_HANDLER
 
 config MMU
-	def_bool y
-
-# even on 32-bit, physical (and DMA) addresses are > 32-bits
-config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
 config ZONE_DMA32

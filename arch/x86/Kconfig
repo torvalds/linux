@@ -1451,6 +1451,7 @@ config HIGHMEM
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
+	select PHYS_ADDR_T_64BIT
 	select SWIOTLB
 	---help---
 	  PAE is required for NX support, and furthermore enables
@@ -1477,10 +1478,6 @@ config X86_5LEVEL
 	  information.
 
 	  Say N if unsure.
-
-config ARCH_PHYS_ADDR_T_64BIT
-	def_bool y
-	depends on X86_64 || X86_PAE
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
