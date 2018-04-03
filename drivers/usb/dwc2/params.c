@@ -556,7 +556,7 @@ static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 }
 
 #define CHECK_RANGE(_param, _min, _max, _def) do {			\
-		if ((hsotg->params._param) < (_min) ||			\
+		if ((int)(hsotg->params._param) < (_min) ||		\
 		    (hsotg->params._param) > (_max)) {			\
 			dev_warn(hsotg->dev, "%s: Invalid parameter %s=%d\n", \
 				 __func__, #_param, hsotg->params._param); \
