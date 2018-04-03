@@ -121,7 +121,7 @@ TRACE_EVENT(btrfs_transaction_commit,
 		__entry->root_objectid	= root->root_key.objectid;
 	),
 
-	TP_printk_btrfs("root = %llu(%s), gen = %llu",
+	TP_printk_btrfs("root=%llu(%s) gen=%llu",
 		  show_root_type(__entry->root_objectid),
 		  __entry->generation)
 );
@@ -656,7 +656,7 @@ TRACE_EVENT(btrfs_sync_fs,
 		__entry->wait	= wait;
 	),
 
-	TP_printk_btrfs("wait = %d", __entry->wait)
+	TP_printk_btrfs("wait=%d", __entry->wait)
 );
 
 TRACE_EVENT(btrfs_add_block_group,
