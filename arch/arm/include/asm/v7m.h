@@ -68,6 +68,14 @@
 #define PMSAv7_RBAR		0x9c
 #define PMSAv7_RASR		0xa0
 
+#define PMSAv8_RNR		0x98
+#define PMSAv8_RBAR		0x9c
+#define PMSAv8_RLAR		0xa0
+#define PMSAv8_RBAR_A(n)	(PMSAv8_RBAR + 8*(n))
+#define PMSAv8_RLAR_A(n)	(PMSAv8_RLAR + 8*(n))
+#define PMSAv8_MAIR0		0xc0
+#define PMSAv8_MAIR1		0xc4
+
 /* Cache opeartions */
 #define	V7M_SCB_ICIALLU		0x250	/* I-cache invalidate all to PoU */
 #define	V7M_SCB_ICIMVAU		0x258	/* I-cache invalidate by MVA to PoU */

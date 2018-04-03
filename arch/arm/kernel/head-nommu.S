@@ -132,6 +132,25 @@ M_CLASS(ldr	r3, [r12, 0x50])
 AR_CLASS(mrc	p15, 0, r3, c0, c1, 4)          @ Read ID_MMFR0
 	and	r3, r3, #(MMFR0_PMSA)           @ PMSA field
 	teq	r3, #(MMFR0_PMSAv7)             @ PMSA v7
+	beq	1f
+	teq	r3, #(MMFR0_PMSAv8)		@ PMSA v8
+	/*
+	 * Memory region attributes for PMSAv8:
+	 *
+	 *   n = AttrIndx[2:0]
+	 *                      n       MAIR
+	 *   DEVICE_nGnRnE      000     00000000
+	 *   NORMAL             001     11111111
+	 */
+	ldreq	r3, =PMSAv8_MAIR(0x00, PMSAv8_RGN_DEVICE_nGnRnE) | \
+		     PMSAv8_MAIR(0xff, PMSAv8_RGN_NORMAL)
+AR_CLASS(mcreq	p15, 0, r3, c10, c2, 0)		@ MAIR 0
+M_CLASS(streq	r3, [r12, #PMSAv8_MAIR0])
+	moveq	r3, #0
+AR_CLASS(mcreq	p15, 0, r3, c10, c2, 1)		@ MAIR 1
+M_CLASS(streq	r3, [r12, #PMSAv8_MAIR1])
+
+1:
 #endif
 #ifdef CONFIG_CPU_CP15
 	/*
@@ -235,6 +254,8 @@ M_CLASS(ldr	r0, [r12, 0x50])
 	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
 	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
 	beq	__setup_pmsa_v7
+	teq	r0, #(MMFR0_PMSAv8)		@ PMSA v8
+	beq	__setup_pmsa_v8
 
 	ret	lr
 ENDPROC(__setup_mpu)
@@ -304,6 +325,119 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	ret	lr
 ENDPROC(__setup_pmsa_v7)
 
+ENTRY(__setup_pmsa_v8)
+	mov	r0, #0
+AR_CLASS(mcr	p15, 0, r0, c6, c2, 1)		@ PRSEL
+M_CLASS(str	r0, [r12, #PMSAv8_RNR])
+	isb
+
+#ifdef CONFIG_XIP_KERNEL
+	ldr	r5, =CONFIG_XIP_PHYS_ADDR		@ ROM start
+	ldr     r6, =(_exiprom)				@ ROM end
+	sub	r6, r6, #1
+	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
+
+	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN)
+
+AR_CLASS(mcr	p15, 0, r5, c6, c8, 0)			@ PRBAR0
+AR_CLASS(mcr	p15, 0, r6, c6, c8, 1)			@ PRLAR0
+M_CLASS(str	r5, [r12, #PMSAv8_RBAR_A(0)])
+M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(0)])
+#endif
+
+	ldr	r5, =KERNEL_START
+	ldr	r6, =KERNEL_END
+	sub	r6, r6, #1
+	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
+
+	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_NORMAL) | PMSAv8_LAR_EN)
+
+AR_CLASS(mcr	p15, 0, r5, c6, c8, 4)			@ PRBAR1
+AR_CLASS(mcr	p15, 0, r6, c6, c8, 5)			@ PRLAR1
+M_CLASS(str	r5, [r12, #PMSAv8_RBAR_A(1)])
+M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(1)])
+
+	/* Setup Background: 0x0 - min(KERNEL_START, XIP_PHYS_ADDR) */
+#ifdef CONFIG_XIP_KERNEL
+	ldr	r6, =KERNEL_START
+	ldr	r5, =CONFIG_XIP_PHYS_ADDR
+	cmp	r6, r5
+	movcs	r6, r5
+#else
+	ldr	r6, =KERNEL_START
+#endif
+	cmp	r6, #0
+	beq	1f
+
+	mov	r5, #0
+	sub	r6, r6, #1
+	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
+
+	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED | PMSAv8_BAR_XN)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_DEVICE_nGnRnE) | PMSAv8_LAR_EN)
+
+AR_CLASS(mcr	p15, 0, r5, c6, c9, 0)			@ PRBAR2
+AR_CLASS(mcr	p15, 0, r6, c6, c9, 1)			@ PRLAR2
+M_CLASS(str	r5, [r12, #PMSAv8_RBAR_A(2)])
+M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(2)])
+
+1:
+	/* Setup Background: max(KERNEL_END, _exiprom) - 0xffffffff */
+#ifdef CONFIG_XIP_KERNEL
+	ldr	r5, =KERNEL_END
+	ldr	r6, =(_exiprom)
+	cmp	r5, r6
+	movcc	r5, r6
+#else
+	ldr	r5, =KERNEL_END
+#endif
+	mov	r6, #0xffffffff
+	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
+
+	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED | PMSAv8_BAR_XN)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_DEVICE_nGnRnE) | PMSAv8_LAR_EN)
+
+AR_CLASS(mcr	p15, 0, r5, c6, c9, 4)			@ PRBAR3
+AR_CLASS(mcr	p15, 0, r6, c6, c9, 5)			@ PRLAR3
+M_CLASS(str	r5, [r12, #PMSAv8_RBAR_A(3)])
+M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(3)])
+
+#ifdef CONFIG_XIP_KERNEL
+	/* Setup Background: min(_exiprom, KERNEL_END) - max(KERNEL_START, XIP_PHYS_ADDR) */
+	ldr	r5, =(_exiprom)
+	ldr	r6, =KERNEL_END
+	cmp	r5, r6
+	movcs	r5, r6
+
+	ldr	r6, =KERNEL_START
+	ldr	r0, =CONFIG_XIP_PHYS_ADDR
+	cmp	r6, r0
+	movcc	r6, r0
+
+	sub	r6, r6, #1
+	bic	r6, r6, #(PMSAv8_MINALIGN - 1)
+
+	orr	r5, r5, #(PMSAv8_AP_PL1RW_PL0NA | PMSAv8_RGN_SHARED | PMSAv8_BAR_XN)
+	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_DEVICE_nGnRnE) | PMSAv8_LAR_EN)
+
+#ifdef CONFIG_CPU_V7M
+	/* There is no alias for n == 4 */
+	mov	r0, #4
+	str	r0, [r12, #PMSAv8_RNR]			@ PRSEL
+	isb
+
+	str	r5, [r12, #PMSAv8_RBAR_A(0)]
+	str	r6, [r12, #PMSAv8_RLAR_A(0)]
+#else
+	mcr	p15, 0, r5, c6, c10, 1			@ PRBAR4
+	mcr	p15, 0, r6, c6, c10, 2			@ PRLAR4
+#endif
+#endif
+	ret	lr
+ENDPROC(__setup_pmsa_v8)
+
 #ifdef CONFIG_SMP
 /*
  * r6: pointer at mpu_rgn_info
@@ -319,6 +453,8 @@ ENTRY(__secondary_setup_mpu)
 	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
 	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
 	beq	__secondary_setup_pmsa_v7
+	teq	r0, #(MMFR0_PMSAv8)		@ PMSA v8
+	beq	__secondary_setup_pmsa_v8
 	b	__error_p
 ENDPROC(__secondary_setup_mpu)
 
@@ -361,6 +497,33 @@ ENTRY(__secondary_setup_pmsa_v7)
 	ret	lr
 ENDPROC(__secondary_setup_pmsa_v7)
 
+ENTRY(__secondary_setup_pmsa_v8)
+	ldr	r4, [r6, #MPU_RNG_INFO_USED]
+#ifndef CONFIG_XIP_KERNEL
+	add	r4, r4, #1
+#endif
+	mov	r5, #MPU_RNG_SIZE
+	add	r3, r6, #MPU_RNG_INFO_RNGS
+	mla	r3, r4, r5, r3
+
+1:
+	sub	r3, r3, #MPU_RNG_SIZE
+	sub	r4, r4, #1
+
+	mcr	p15, 0, r4, c6, c2, 1		@ PRSEL
+	isb
+
+	ldr	r5, [r3, #MPU_RGN_PRBAR]
+	ldr	r6, [r3, #MPU_RGN_PRLAR]
+
+	mcr	p15, 0, r5, c6, c3, 0		@ PRBAR
+	mcr	p15, 0, r6, c6, c3, 1           @ PRLAR
+
+	cmp	r4, #0
+	bgt	1b
+
+	ret	lr
+ENDPROC(__secondary_setup_pmsa_v8)
 #endif /* CONFIG_SMP */
 #endif /* CONFIG_ARM_MPU */
 #include "head-common.S"
