@@ -195,67 +195,6 @@ void __init sme_early_init(void)
 		swiotlb_force = SWIOTLB_FORCE;
 }
 
-static void *sev_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		       gfp_t gfp, unsigned long attrs)
-{
-	unsigned long dma_mask;
-	unsigned int order;
-	struct page *page;
-	void *vaddr = NULL;
-
-	dma_mask = dma_alloc_coherent_mask(dev, gfp);
-	order = get_order(size);
-
-	/*
-	 * Memory will be memset to zero after marking decrypted, so don't
-	 * bother clearing it before.
-	 */
-	gfp &= ~__GFP_ZERO;
-
-	page = alloc_pages_node(dev_to_node(dev), gfp, order);
-	if (page) {
-		dma_addr_t addr;
-
-		/*
-		 * Since we will be clearing the encryption bit, check the
-		 * mask with it already cleared.
-		 */
-		addr = __sme_clr(phys_to_dma(dev, page_to_phys(page)));
-		if ((addr + size) > dma_mask) {
-			__free_pages(page, get_order(size));
-		} else {
-			vaddr = page_address(page);
-			*dma_handle = addr;
-		}
-	}
-
-	if (!vaddr)
-		vaddr = swiotlb_alloc_coherent(dev, size, dma_handle, gfp);
-
-	if (!vaddr)
-		return NULL;
-
-	/* Clear the SME encryption bit for DMA use if not swiotlb area */
-	if (!is_swiotlb_buffer(dma_to_phys(dev, *dma_handle))) {
-		set_memory_decrypted((unsigned long)vaddr, 1 << order);
-		memset(vaddr, 0, PAGE_SIZE << order);
-		*dma_handle = __sme_clr(*dma_handle);
-	}
-
-	return vaddr;
-}
-
-static void sev_free(struct device *dev, size_t size, void *vaddr,
-		     dma_addr_t dma_handle, unsigned long attrs)
-{
-	/* Set the SME encryption bit for re-use if not swiotlb area */
-	if (!is_swiotlb_buffer(dma_to_phys(dev, dma_handle)))
-		set_memory_encrypted((unsigned long)vaddr,
-				     1 << get_order(size));
-
-	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
-}
-
 static void __init __set_clr_pte_enc(pte_t *kpte, int level, bool enc)
 {
 	pgprot_t old_prot, new_prot;
@@ -408,20 +347,6 @@ bool sev_active(void)
 }
 EXPORT_SYMBOL(sev_active);
 
-static const struct dma_map_ops sev_dma_ops = {
-	.alloc                  = sev_alloc,
-	.free                   = sev_free,
-	.map_page               = swiotlb_map_page,
-	.unmap_page             = swiotlb_unmap_page,
-	.map_sg                 = swiotlb_map_sg_attrs,
-	.unmap_sg               = swiotlb_unmap_sg_attrs,
-	.sync_single_for_cpu    = swiotlb_sync_single_for_cpu,
-	.sync_single_for_device = swiotlb_sync_single_for_device,
-	.sync_sg_for_cpu        = swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device     = swiotlb_sync_sg_for_device,
-	.mapping_error          = swiotlb_dma_mapping_error,
-};
-
 /* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void)
 {
@@ -432,12 +357,11 @@ void __init mem_encrypt_init(void)
 	swiotlb_update_mem_attributes();
 
 	/*
-	 * With SEV, DMA operations cannot use encryption. New DMA ops
-	 * are required in order to mark the DMA areas as decrypted or
-	 * to use bounce buffers.
+	 * With SEV, DMA operations cannot use encryption, we need to use
+	 * SWIOTLB to bounce buffer DMA operation.
 	 */
 	if (sev_active())
-		dma_ops = &sev_dma_ops;
+		dma_ops = &swiotlb_dma_ops;
 
 	/*
 	 * With SEV, we need to unroll the rep string I/O instructions.
@@ -450,11 +374,3 @@ void __init mem_encrypt_init(void)
 			     : "Secure Memory Encryption (SME)");
 }
 
-void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
-{
-	WARN(PAGE_ALIGN(size) != size,
-	     "size is not page-aligned (%#lx)\n", size);
-
-	/* Make the SWIOTLB buffer area decrypted */
-	set_memory_decrypted((unsigned long)vaddr, size >> PAGE_SHIFT);
-}
