@@ -880,7 +880,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err_free;
 	}
 
-	err = ib_copy_to_udata(udata, resp, sizeof(*resp));
+	err = ib_copy_to_udata(udata, resp, min(udata->outlen, sizeof(*resp)));
 	if (err) {
 		mlx5_ib_dbg(dev, "copy failed\n");
 		goto err_unmap;
@@ -1468,7 +1468,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		return -EOPNOTSUPP;
 	}
 
-	err = ib_copy_to_udata(udata, &resp, min_resp_len);
+	err = ib_copy_to_udata(udata, &resp, min(udata->outlen, sizeof(resp)));
 	if (err) {
 		mlx5_ib_dbg(dev, "copy failed\n");
 		return -EINVAL;

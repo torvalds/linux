@@ -335,6 +335,7 @@ struct mlx5_ib_create_qp_rss {
 
 struct mlx5_ib_create_qp_resp {
 	__u32	bfreg_index;
+	__u32   reserved;
 };
 
 struct mlx5_ib_alloc_mw {
