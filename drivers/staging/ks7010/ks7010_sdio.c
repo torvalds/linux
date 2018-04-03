@@ -665,10 +665,12 @@ static int ks7010_copy_firmware(struct ks_wlan_private *priv,
 		}
 		if (size == 0)
 			break;
+
 		memcpy(rom_buf, fw_entry->data + n, size);
 
 		offset = n;
-		ret = ks7010_sdio_update_index(priv, KS7010_IRAM_ADDRESS + offset);
+		ret = ks7010_sdio_update_index(priv,
+					       KS7010_IRAM_ADDRESS + offset);
 		if (ret)
 			goto free_rom_buf;
 
@@ -676,7 +678,8 @@ static int ks7010_copy_firmware(struct ks_wlan_private *priv,
 		if (ret)
 			goto free_rom_buf;
 
-		ret = ks7010_sdio_data_compare(priv, DATA_WINDOW, rom_buf, size);
+		ret = ks7010_sdio_data_compare(priv,
+					       DATA_WINDOW, rom_buf, size);
 		if (ret)
 			goto free_rom_buf;
 
