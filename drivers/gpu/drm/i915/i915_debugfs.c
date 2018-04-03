@@ -2686,6 +2686,13 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	}
 	mutex_unlock(&dev_priv->psr.lock);
 
+	if (READ_ONCE(dev_priv->psr.debug)) {
+		seq_printf(m, "Last attempted entry at: %lld\n",
+			   dev_priv->psr.last_entry_attempt);
+		seq_printf(m, "Last exit at: %lld\n",
+			   dev_priv->psr.last_exit);
+	}
+
 	intel_runtime_pm_put(dev_priv);
 	return 0;
 }

@@ -611,6 +611,8 @@ struct i915_psr {
 	bool psr2_enabled;
 	u8 sink_sync_latency;
 	bool debug;
+	ktime_t last_entry_attempt;
+	ktime_t last_exit;
 
 	void (*enable_source)(struct intel_dp *,
 			      const struct intel_crtc_state *);

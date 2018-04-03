@@ -129,6 +129,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 {
 	u32 transcoders = BIT(TRANSCODER_EDP);
 	enum transcoder cpu_transcoder;
+	ktime_t time_ns =  ktime_get();
 
 	if (INTEL_GEN(dev_priv) >= 8)
 		transcoders |= BIT(TRANSCODER_A) |
@@ -141,13 +142,17 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 			DRM_DEBUG_KMS("[transcoder %s] PSR aux error\n",
 				      transcoder_name(cpu_transcoder));
 
-		if (psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder))
+		if (psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder)) {
+			dev_priv->psr.last_entry_attempt = time_ns;
 			DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
 				      transcoder_name(cpu_transcoder));
+		}
 
-		if (psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder))
+		if (psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder)) {
+			dev_priv->psr.last_exit = time_ns;
 			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
 				      transcoder_name(cpu_transcoder));
+		}
 	}
 }
 
