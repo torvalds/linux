@@ -666,8 +666,7 @@ TRACE_EVENT(btrfs_add_block_group,
 
 	TP_ARGS(fs_info, block_group, create),
 
-	TP_STRUCT__entry(
-		__array(	u8,	fsid,	BTRFS_FSID_SIZE	)
+	TP_STRUCT__entry_btrfs(
 		__field(	u64,	offset			)
 		__field(	u64,	size			)
 		__field(	u64,	flags			)
@@ -676,8 +675,7 @@ TRACE_EVENT(btrfs_add_block_group,
 		__field(	int,	create			)
 	),
 
-	TP_fast_assign(
-		memcpy(__entry->fsid, fs_info->fsid, BTRFS_FSID_SIZE);
+	TP_fast_assign_btrfs(fs_info,
 		__entry->offset		= block_group->key.objectid;
 		__entry->size		= block_group->key.offset;
 		__entry->flags		= block_group->flags;
@@ -687,9 +685,9 @@ TRACE_EVENT(btrfs_add_block_group,
 		__entry->create		= create;
 	),
 
-	TP_printk("%pU: block_group offset=%llu size=%llu "
+	TP_printk_btrfs("block_group offset=%llu size=%llu "
 		  "flags=%llu(%s) bytes_used=%llu bytes_super=%llu "
-		  "create=%d", __entry->fsid,
+		  "create=%d",
 		  __entry->offset,
 		  __entry->size,
 		  __entry->flags,
@@ -1020,24 +1018,22 @@ TRACE_EVENT(btrfs_trigger_flush,
 
 	TP_ARGS(fs_info, flags, bytes, flush, reason),
 
-	TP_STRUCT__entry(
-		__array(	u8,	fsid,	BTRFS_FSID_SIZE	)
+	TP_STRUCT__entry_btrfs(
 		__field(	u64,	flags			)
 		__field(	u64,	bytes			)
 		__field(	int,	flush			)
 		__string(	reason,	reason			)
 	),
 
-	TP_fast_assign(
-		memcpy(__entry->fsid, fs_info->fsid, BTRFS_FSID_SIZE);
+	TP_fast_assign_btrfs(fs_info,
 		__entry->flags	= flags;
 		__entry->bytes	= bytes;
 		__entry->flush	= flush;
 		__assign_str(reason, reason)
 	),
 
-	TP_printk("%pU: %s: flush=%d(%s) flags=%llu(%s) bytes=%llu",
-		  __entry->fsid, __get_str(reason), __entry->flush,
+	TP_printk_btrfs("%s: flush=%d(%s) flags=%llu(%s) bytes=%llu",
+		  __get_str(reason), __entry->flush,
 		  show_flush_action(__entry->flush),
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
@@ -1061,24 +1057,22 @@ TRACE_EVENT(btrfs_flush_space,
 
 	TP_ARGS(fs_info, flags, num_bytes, state, ret),
 
-	TP_STRUCT__entry(
-		__array(	u8,	fsid,	BTRFS_FSID_SIZE	)
+	TP_STRUCT__entry_btrfs(
 		__field(	u64,	flags			)
 		__field(	u64,	num_bytes		)
 		__field(	int,	state			)
 		__field(	int,	ret			)
 	),
 
-	TP_fast_assign(
-		memcpy(__entry->fsid, fs_info->fsid, BTRFS_FSID_SIZE);
+	TP_fast_assign_btrfs(fs_info,
 		__entry->flags		=	flags;
 		__entry->num_bytes	=	num_bytes;
 		__entry->state		=	state;
 		__entry->ret		=	ret;
 	),
 
-	TP_printk("%pU: state=%d(%s) flags=%llu(%s) num_bytes=%llu ret=%d",
-		  __entry->fsid, __entry->state,
+	TP_printk_btrfs("state=%d(%s) flags=%llu(%s) num_bytes=%llu ret=%d",
+		  __entry->state,
 		  show_flush_state(__entry->state),
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
