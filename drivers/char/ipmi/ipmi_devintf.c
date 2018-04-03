@@ -45,17 +45,17 @@ static void file_receive_handler(struct ipmi_recv_msg *msg,
 	int                      was_empty;
 	unsigned long            flags;
 
-	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
+	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 
-	was_empty = list_empty(&(priv->recv_msgs));
-	list_add_tail(&(msg->link), &(priv->recv_msgs));
+	was_empty = list_empty(&priv->recv_msgs);
+	list_add_tail(&msg->link, &priv->recv_msgs);
 
 	if (was_empty) {
 		wake_up_interruptible(&priv->wait);
 		kill_fasync(&priv->fasync_queue, SIGIO, POLL_IN);
 	}
 
-	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 }
 
 static __poll_t ipmi_poll(struct file *file, poll_table *wait)
@@ -68,7 +68,7 @@ static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 
 	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 
-	if (!list_empty(&(priv->recv_msgs)))
+	if (!list_empty(&priv->recv_msgs))
 		mask |= (EPOLLIN | EPOLLRDNORM);
 
 	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
@@ -110,7 +110,7 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	rv = ipmi_create_user(if_num,
 			      &ipmi_hndlrs,
 			      priv,
-			      &(priv->user));
+			      &priv->user);
 	if (rv) {
 		kfree(priv);
 		goto out;
@@ -118,8 +118,8 @@ static int ipmi_open(struct inode *inode, struct file *file)
 
 	file->private_data = priv;
 
-	spin_lock_init(&(priv->recv_msg_lock));
-	INIT_LIST_HEAD(&(priv->recv_msgs));
+	spin_lock_init(&priv->recv_msg_lock);
+	INIT_LIST_HEAD(&priv->recv_msgs);
 	init_waitqueue_head(&priv->wait);
 	priv->fasync_queue = NULL;
 	mutex_init(&priv->recv_mutex);
@@ -145,7 +145,6 @@ static int ipmi_release(struct inode *inode, struct file *file)
 
 	list_for_each_entry_safe(msg, next, &priv->recv_msgs, link)
 		ipmi_free_recv_msg(msg);
-
 
 	kfree(priv);
 
@@ -189,8 +188,7 @@ static int handle_send_req(ipmi_user_t     user,
 
 		if (copy_from_user(msg.data,
 				   req->msg.data,
-				   req->msg.data_len))
-		{
+				   req->msg.data_len)) {
 			rv = -EFAULT;
 			goto out;
 		}
@@ -233,25 +231,24 @@ static int handle_recv(struct ipmi_file_private *priv,
 	mutex_lock(&priv->recv_mutex);
 
 	/* Grab the message off the list. */
-	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
+	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 	if (list_empty(&(priv->recv_msgs))) {
-		spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+		spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 		rv = -EAGAIN;
 		goto recv_err;
 	}
 	entry = priv->recv_msgs.next;
 	msg = list_entry(entry, struct ipmi_recv_msg, link);
 	list_del(entry);
-	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 
 	addr_len = ipmi_addr_length(msg->addr.addr_type);
-	if (rsp->addr_len < addr_len)
-	{
+	if (rsp->addr_len < addr_len) {
 		rv = -EINVAL;
 		goto recv_putback_on_err;
 	}
 
-	if (copy_to_user(rsp->addr, &(msg->addr), addr_len)) {
+	if (copy_to_user(rsp->addr, &msg->addr, addr_len)) {
 		rv = -EFAULT;
 		goto recv_putback_on_err;
 	}
@@ -273,8 +270,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 		if (copy_to_user(rsp->msg.data,
 				 msg->msg.data,
-				 msg->msg.data_len))
-		{
+				 msg->msg.data_len)) {
 			rv = -EFAULT;
 			goto recv_putback_on_err;
 		}
@@ -294,9 +290,9 @@ static int handle_recv(struct ipmi_file_private *priv,
 recv_putback_on_err:
 	/* If we got an error, put the message back onto
 	   the head of the queue. */
-	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
-	list_add(entry, &(priv->recv_msgs));
-	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+	spin_lock_irqsave(&priv->recv_msg_lock, flags);
+	list_add(entry, &priv->recv_msgs);
+	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 recv_err:
 	mutex_unlock(&priv->recv_mutex);
 	return rv;
