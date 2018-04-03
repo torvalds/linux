@@ -119,7 +119,15 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
-u32 ipl_flags;
+enum {
+	IPL_DEVNO_VALID		= 1,
+	IPL_PARMBLOCK_VALID	= 2,
+};
+
+/*
+ * IPL validity flags
+ */
+static u32 ipl_flags;
 
 enum ipl_method {
 	REIPL_METHOD_CCW_CIO,

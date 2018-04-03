@@ -83,11 +83,6 @@ struct ipl_parameter_block {
 	} ipl_info;
 } __packed __aligned(PAGE_SIZE);
 
-/*
- * IPL validity flags
- */
-extern u32 ipl_flags;
-
 struct save_area;
 struct save_area * __init save_area_alloc(bool is_boot_cpu);
 struct save_area * __init save_area_boot_cpu(void);
@@ -101,11 +96,6 @@ extern void ipl_verify_parameters(void);
 extern void ipl_update_parameters(void);
 extern size_t append_ipl_vmparm(char *, size_t);
 extern size_t append_ipl_scpdata(char *, size_t);
-
-enum {
-	IPL_DEVNO_VALID		= 1,
-	IPL_PARMBLOCK_VALID	= 2,
-};
 
 enum ipl_type {
 	IPL_TYPE_UNKNOWN	= 1,
