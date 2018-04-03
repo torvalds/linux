@@ -24,7 +24,6 @@
 #include <asm/smp.h>
 #include <asm/setup.h>
 #include <asm/cpcmd.h>
-#include <asm/cio.h>
 #include <asm/ebcdic.h>
 #include <asm/reset.h>
 #include <asm/sclp.h>
@@ -119,16 +118,6 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
-enum {
-	IPL_DEVNO_VALID		= 1,
-	IPL_PARMBLOCK_VALID	= 2,
-};
-
-/*
- * IPL validity flags
- */
-static u32 ipl_flags;
-
 enum ipl_method {
 	REIPL_METHOD_CCW_CIO,
 	REIPL_METHOD_CCW_DIAG,
@@ -150,6 +139,7 @@ enum dump_method {
 	DUMP_METHOD_FCP_DIAG,
 };
 
+static int ipl_block_valid;
 static int diag308_set_works;
 
 static struct ipl_parameter_block ipl_block;
@@ -280,17 +270,19 @@ static void make_attrs_ro(struct attribute **attrs)
 
 static __init enum ipl_type get_ipl_type(void)
 {
-	if (!(ipl_flags & IPL_DEVNO_VALID))
+	if (!ipl_block_valid)
 		return IPL_TYPE_UNKNOWN;
-	if (!(ipl_flags & IPL_PARMBLOCK_VALID))
+
+	switch (ipl_block.hdr.pbt) {
+	case DIAG308_IPL_TYPE_CCW:
 		return IPL_TYPE_CCW;
-	if (ipl_block.hdr.version > IPL_MAX_SUPPORTED_VERSION)
-		return IPL_TYPE_UNKNOWN;
-	if (ipl_block.hdr.pbt != DIAG308_IPL_TYPE_FCP)
-		return IPL_TYPE_UNKNOWN;
-	if (ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP)
-		return IPL_TYPE_FCP_DUMP;
-	return IPL_TYPE_FCP;
+	case DIAG308_IPL_TYPE_FCP:
+		if (ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP)
+			return IPL_TYPE_FCP_DUMP;
+		else
+			return IPL_TYPE_FCP;
+	}
+	return IPL_TYPE_UNKNOWN;
 }
 
 struct ipl_info ipl_info;
@@ -1949,30 +1941,15 @@ void __init setup_ipl(void)
 	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
 }
 
-void __init ipl_update_parameters(void)
+void __init ipl_store_parameters(void)
 {
 	int rc;
 
 	rc = diag308(DIAG308_STORE, &ipl_block);
 	if ((rc == DIAG308_RC_OK) || (rc == DIAG308_RC_NOCONFIG))
 		diag308_set_works = 1;
-	if (rc != DIAG308_RC_OK && (ipl_flags & IPL_PARMBLOCK_VALID))
-		memcpy(&ipl_block, (void *)IPL_PARMBLOCK_ORIGIN, PAGE_SIZE);
-}
-
-void __init ipl_verify_parameters(void)
-{
-	struct cio_iplinfo iplinfo;
-
-	if (cio_get_iplinfo(&iplinfo))
-		return;
-
-	ipl_block.ipl_info.ccw.ssid = iplinfo.ssid;
-	ipl_block.ipl_info.ccw.devno = iplinfo.devno;
-	ipl_flags |= IPL_DEVNO_VALID;
-	if (!iplinfo.is_qdio)
-		return;
-	ipl_flags |= IPL_PARMBLOCK_VALID;
+	if (rc == DIAG308_RC_OK && ipl_block.hdr.version <= IPL_MAX_SUPPORTED_VERSION)
+		ipl_block_valid = 1;
 }
 
 static LIST_HEAD(rcall);

@@ -15,8 +15,6 @@
 
 #define NSS_NAME_SIZE	8
 
-#define IPL_PARMBLOCK_ORIGIN	0x2000
-
 #define IPL_PARM_BLK_FCP_LEN (sizeof(struct ipl_list_hdr) + \
 			      sizeof(struct ipl_block_fcp))
 
@@ -92,8 +90,7 @@ void __init save_area_add_vxrs(struct save_area *, __vector128 *vxrs);
 extern void do_reipl(void);
 extern void do_halt(void);
 extern void do_poff(void);
-extern void ipl_verify_parameters(void);
-extern void ipl_update_parameters(void);
+extern void ipl_store_parameters(void);
 extern size_t append_ipl_vmparm(char *, size_t);
 extern size_t append_ipl_scpdata(char *, size_t);
 
