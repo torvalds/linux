@@ -5338,10 +5338,10 @@ static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 	rx_ring->next_to_use = 0;
 }
 
-static int ixgbe_fwd_ring_up(struct net_device *vdev,
+static int ixgbe_fwd_ring_up(struct ixgbe_adapter *adapter,
 			     struct ixgbe_fwd_adapter *accel)
 {
-	struct ixgbe_adapter *adapter = accel->real_adapter;
+	struct net_device *vdev = accel->netdev;
 	int i, baseq, err;
 
 	if (!test_bit(accel->pool, adapter->fwd_bitmask))
@@ -5378,14 +5378,19 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 	return err;
 }
 
-static int ixgbe_upper_dev_walk(struct net_device *upper, void *data)
+static int ixgbe_macvlan_up(struct net_device *vdev, void *data)
 {
-	if (netif_is_macvlan(upper)) {
-		struct ixgbe_fwd_adapter *vadapter = macvlan_accel_priv(upper);
+	struct ixgbe_adapter *adapter = data;
+	struct ixgbe_fwd_adapter *accel;
 
-		if (vadapter)
-			ixgbe_fwd_ring_up(upper, vadapter);
-	}
+	if (!netif_is_macvlan(vdev))
+		return 0;
+
+	accel = macvlan_accel_priv(vdev);
+	if (!accel)
+		return 0;
+
+	ixgbe_fwd_ring_up(adapter, accel);
 
 	return 0;
 }
@@ -5393,7 +5398,7 @@ static int ixgbe_upper_dev_walk(struct net_device *upper, void *data)
 static void ixgbe_configure_dfwd(struct ixgbe_adapter *adapter)
 {
 	netdev_walk_all_upper_dev_rcu(adapter->netdev,
-				      ixgbe_upper_dev_walk, NULL);
+				      ixgbe_macvlan_up, adapter);
 }
 
 static void ixgbe_configure(struct ixgbe_adapter *adapter)
@@ -9792,13 +9797,12 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	adapter->ring_feature[RING_F_VMDQ].limit = limit + 1;
 
 	fwd_adapter->pool = pool;
-	fwd_adapter->real_adapter = adapter;
 
 	/* Force reinit of ring allocation with VMDQ enabled */
 	err = ixgbe_setup_tc(pdev, adapter->hw_tcs);
 
 	if (!err && netif_running(pdev))
-		err = ixgbe_fwd_ring_up(vdev, fwd_adapter);
+		err = ixgbe_fwd_ring_up(adapter, fwd_adapter);
 
 	if (!err)
 		return fwd_adapter;
@@ -9814,7 +9818,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 {
 	struct ixgbe_fwd_adapter *accel = priv;
-	struct ixgbe_adapter *adapter = accel->real_adapter;
+	struct ixgbe_adapter *adapter = netdev_priv(pdev);
 	unsigned int rxbase = accel->rx_base_queue;
 	unsigned int limit, i;
 
