@@ -71,7 +71,7 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 
 		if (!(dev->flags & IFF_LOOPBACK) && sk_mc_loop(sk) &&
-		    ((mroute6_socket(net, skb) &&
+		    ((mroute6_is_socket(net, skb) &&
 		     !(IP6CB(skb)->flags & IP6SKB_FORWARDED)) ||
 		     ipv6_chk_mcast_addr(dev, &ipv6_hdr(skb)->daddr,
 					 &ipv6_hdr(skb)->saddr))) {
@@ -1259,6 +1259,7 @@ static int __ip6_append_data(struct sock *sk,
 	struct ipv6_txoptions *opt = v6_cork->opt;
 	int csummode = CHECKSUM_NONE;
 	unsigned int maxnonfragsize, headersize;
+	unsigned int wmem_alloc_delta = 0;
 
 	skb = skb_peek_tail(queue);
 	if (!skb) {
@@ -1416,11 +1417,10 @@ alloc_new_skb:
 						(flags & MSG_DONTWAIT), &err);
 			} else {
 				skb = NULL;
-				if (refcount_read(&sk->sk_wmem_alloc) <=
+				if (refcount_read(&sk->sk_wmem_alloc) + wmem_alloc_delta <=
 				    2 * sk->sk_sndbuf)
-					skb = sock_wmalloc(sk,
-							   alloclen + hh_len, 1,
-							   sk->sk_allocation);
+					skb = alloc_skb(alloclen + hh_len,
+							sk->sk_allocation);
 				if (unlikely(!skb))
 					err = -ENOBUFS;
 			}
@@ -1479,6 +1479,11 @@ alloc_new_skb:
 			/*
 			 * Put the packet on the pending queue
 			 */
+			if (!skb->destructor) {
+				skb->destructor = sock_wfree;
+				skb->sk = sk;
+				wmem_alloc_delta += skb->truesize;
+			}
 			__skb_queue_tail(queue, skb);
 			continue;
 		}
@@ -1525,12 +1530,13 @@ alloc_new_skb:
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;
-			refcount_add(copy, &sk->sk_wmem_alloc);
+			wmem_alloc_delta += copy;
 		}
 		offset += copy;
 		length -= copy;
 	}
 
+	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return 0;
 
 error_efault:
@@ -1538,6 +1544,7 @@ error_efault:
 error:
 	cork->length -= length;
 	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTDISCARDS);
+	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return err;
 }
 

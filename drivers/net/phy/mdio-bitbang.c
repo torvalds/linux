@@ -113,7 +113,7 @@ static void mdiobb_cmd(struct mdiobb_ctrl *ctrl, int op, u8 phy, u8 reg)
 	for (i = 0; i < 32; i++)
 		mdiobb_send_bit(ctrl, 1);
 
-	/* send the start bit (01) and the read opcode (10) or write (10).
+	/* send the start bit (01) and the read opcode (10) or write (01).
 	   Clause 45 operation uses 00 for the start and 11, 10 for
 	   read/write */
 	mdiobb_send_bit(ctrl, 0);

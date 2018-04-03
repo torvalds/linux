@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
@@ -230,6 +231,8 @@ static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	I40E_PRIV_FLAG("flow-director-atr", I40E_FLAG_FD_ATR_ENABLED, 0),
 	I40E_PRIV_FLAG("veb-stats", I40E_FLAG_VEB_STATS_ENABLED, 0),
 	I40E_PRIV_FLAG("hw-atr-eviction", I40E_FLAG_HW_ATR_EVICT_ENABLED, 0),
+	I40E_PRIV_FLAG("link-down-on-close",
+		       I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED, 0),
 	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX, 0),
 	I40E_PRIV_FLAG("disable-source-pruning",
 		       I40E_FLAG_SOURCE_PRUNING_DISABLED, 0),
@@ -857,7 +860,9 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	if (hw->device_id == I40E_DEV_ID_KX_B ||
 	    hw->device_id == I40E_DEV_ID_KX_C ||
 	    hw->device_id == I40E_DEV_ID_20G_KR2 ||
-	    hw->device_id == I40E_DEV_ID_20G_KR2_A) {
+	    hw->device_id == I40E_DEV_ID_20G_KR2_A ||
+	    hw->device_id == I40E_DEV_ID_25G_B ||
+	    hw->device_id == I40E_DEV_ID_KX_X722) {
 		netdev_info(netdev, "Changing settings is not supported on backplane.\n");
 		return -EOPNOTSUPP;
 	}
@@ -868,22 +873,20 @@ static int i40e_set_link_ksettings(struct net_device *netdev,
 	/* save autoneg out of ksettings */
 	autoneg = copy_ks.base.autoneg;
 
-	memset(&safe_ks, 0, sizeof(safe_ks));
-	/* Get link modes supported by hardware and check against modes
-	 * requested by the user.  Return an error if unsupported mode was set.
-	 */
-	i40e_phy_type_to_ethtool(pf, &safe_ks);
-	if (!bitmap_subset(copy_ks.link_modes.advertising,
-			   safe_ks.link_modes.supported,
-			   __ETHTOOL_LINK_MODE_MASK_NBITS))
-		return -EINVAL;
-
 	/* get our own copy of the bits to check against */
 	memset(&safe_ks, 0, sizeof(struct ethtool_link_ksettings));
 	safe_ks.base.cmd = copy_ks.base.cmd;
 	safe_ks.base.link_mode_masks_nwords =
 		copy_ks.base.link_mode_masks_nwords;
 	i40e_get_link_ksettings(netdev, &safe_ks);
+
+	/* Get link modes supported by hardware and check against modes
+	 * requested by the user.  Return an error if unsupported mode was set.
+	 */
+	if (!bitmap_subset(copy_ks.link_modes.advertising,
+			   safe_ks.link_modes.supported,
+			   __ETHTOOL_LINK_MODE_MASK_NBITS))
+		return -EINVAL;
 
 	/* set autoneg back to what it currently is */
 	copy_ks.base.autoneg = safe_ks.base.autoneg;
@@ -2244,14 +2247,14 @@ static int __i40e_get_coalesce(struct net_device *netdev,
 	rx_ring = vsi->rx_rings[queue];
 	tx_ring = vsi->tx_rings[queue];
 
-	if (ITR_IS_DYNAMIC(rx_ring->rx_itr_setting))
+	if (ITR_IS_DYNAMIC(rx_ring->itr_setting))
 		ec->use_adaptive_rx_coalesce = 1;
 
-	if (ITR_IS_DYNAMIC(tx_ring->tx_itr_setting))
+	if (ITR_IS_DYNAMIC(tx_ring->itr_setting))
 		ec->use_adaptive_tx_coalesce = 1;
 
-	ec->rx_coalesce_usecs = rx_ring->rx_itr_setting & ~I40E_ITR_DYNAMIC;
-	ec->tx_coalesce_usecs = tx_ring->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->rx_coalesce_usecs = rx_ring->itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = tx_ring->itr_setting & ~I40E_ITR_DYNAMIC;
 
 	/* we use the _usecs_high to store/set the interrupt rate limit
 	 * that the hardware supports, that almost but not quite
@@ -2311,34 +2314,35 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_q_vector *q_vector;
-	u16 vector, intrl;
+	u16 intrl;
 
 	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
-	rx_ring->rx_itr_setting = ec->rx_coalesce_usecs;
-	tx_ring->tx_itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->itr_setting = ITR_REG_ALIGN(ec->rx_coalesce_usecs);
+	tx_ring->itr_setting = ITR_REG_ALIGN(ec->tx_coalesce_usecs);
 
 	if (ec->use_adaptive_rx_coalesce)
-		rx_ring->rx_itr_setting |= I40E_ITR_DYNAMIC;
+		rx_ring->itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		rx_ring->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		rx_ring->itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	if (ec->use_adaptive_tx_coalesce)
-		tx_ring->tx_itr_setting |= I40E_ITR_DYNAMIC;
+		tx_ring->itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		tx_ring->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		tx_ring->itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	q_vector = rx_ring->q_vector;
-	q_vector->rx.itr = ITR_TO_REG(rx_ring->rx_itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
+	q_vector->rx.target_itr = ITR_TO_REG(rx_ring->itr_setting);
 
 	q_vector = tx_ring->q_vector;
-	q_vector->tx.itr = ITR_TO_REG(tx_ring->tx_itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
+	q_vector->tx.target_itr = ITR_TO_REG(tx_ring->itr_setting);
 
-	wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
+	/* The interrupt handler itself will take care of programming
+	 * the Tx and Rx ITR values based on the values we have entered
+	 * into the q_vector, no need to write the values now.
+	 */
+
+	wr32(hw, I40E_PFINT_RATEN(q_vector->reg_idx), intrl);
 	i40e_flush(hw);
 }
 
@@ -2364,11 +2368,11 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (queue < 0) {
-		cur_rx_itr = vsi->rx_rings[0]->rx_itr_setting;
-		cur_tx_itr = vsi->tx_rings[0]->tx_itr_setting;
+		cur_rx_itr = vsi->rx_rings[0]->itr_setting;
+		cur_tx_itr = vsi->tx_rings[0]->itr_setting;
 	} else if (queue < vsi->num_queue_pairs) {
-		cur_rx_itr = vsi->rx_rings[queue]->rx_itr_setting;
-		cur_tx_itr = vsi->tx_rings[queue]->tx_itr_setting;
+		cur_rx_itr = vsi->rx_rings[queue]->itr_setting;
+		cur_tx_itr = vsi->tx_rings[queue]->itr_setting;
 	} else {
 		netif_info(pf, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
 			   vsi->num_queue_pairs - 1);
@@ -2396,7 +2400,7 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+	if (ec->rx_coalesce_usecs > I40E_MAX_ITR) {
 		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
@@ -2407,16 +2411,16 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+	if (ec->tx_coalesce_usecs > I40E_MAX_ITR) {
 		netif_info(pf, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
 
 	if (ec->use_adaptive_rx_coalesce && !cur_rx_itr)
-		ec->rx_coalesce_usecs = I40E_MIN_ITR << 1;
+		ec->rx_coalesce_usecs = I40E_MIN_ITR;
 
 	if (ec->use_adaptive_tx_coalesce && !cur_tx_itr)
-		ec->tx_coalesce_usecs = I40E_MIN_ITR << 1;
+		ec->tx_coalesce_usecs = I40E_MIN_ITR;
 
 	intrl_reg = i40e_intrl_usec_to_reg(ec->rx_coalesce_usecs_high);
 	vsi->int_rate_limit = INTRL_REG_TO_USEC(intrl_reg);
@@ -3947,7 +3951,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return -EOPNOTSUPP;
 
-	if (pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED)
+	if (test_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state))
 		return -ENOSPC;
 
 	if (test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state) ||
@@ -4406,6 +4410,8 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	}
 
 flags_complete:
+	changed_flags = orig_flags ^ new_flags;
+
 	/* Before we finalize any flag changes, we need to perform some
 	 * checks to ensure that the changes are supported and safe.
 	 */
@@ -4415,38 +4421,27 @@ flags_complete:
 	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
 		return -EOPNOTSUPP;
 
-	/* Disable FW LLDP not supported if NPAR active or if FW
-	 * API version < 1.7
+	/* If the driver detected FW LLDP was disabled on init, this flag could
+	 * be set, however we do not support _changing_ the flag if NPAR is
+	 * enabled or FW API version < 1.7.  There are situations where older
+	 * FW versions/NPAR enabled PFs could disable LLDP, however we _must_
+	 * not allow the user to enable/disable LLDP with this flag on
+	 * unsupported FW versions.
 	 */
-	if (new_flags & I40E_FLAG_DISABLE_FW_LLDP) {
-		if (pf->hw.func_caps.npar_enable) {
+	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+		if (!(pf->hw_features & I40E_HW_STOPPABLE_FW_LLDP)) {
 			dev_warn(&pf->pdev->dev,
-				 "Unable to stop FW LLDP if NPAR active\n");
-			return -EOPNOTSUPP;
-		}
-
-		if (pf->hw.aq.api_maj_ver < 1 ||
-		    (pf->hw.aq.api_maj_ver == 1 &&
-		     pf->hw.aq.api_min_ver < 7)) {
-			dev_warn(&pf->pdev->dev,
-				 "FW ver does not support stopping FW LLDP\n");
+				 "Device does not support changing FW LLDP\n");
 			return -EOPNOTSUPP;
 		}
 	}
 
-	/* Compare and exchange the new flags into place. If we failed, that
-	 * is if cmpxchg returns anything but the old value, this means that
-	 * something else has modified the flags variable since we copied it
-	 * originally. We'll just punt with an error and log something in the
-	 * message buffer.
+	/* Now that we've checked to ensure that the new flags are valid, load
+	 * them into place. Since we only modify flags either (a) during
+	 * initialization or (b) while holding the RTNL lock, we don't need
+	 * anything fancy here.
 	 */
-	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
-		dev_warn(&pf->pdev->dev,
-			 "Unable to update pf->flags as it was modified by another thread...\n");
-		return -EAGAIN;
-	}
-
-	changed_flags = orig_flags ^ new_flags;
+	pf->flags = new_flags;
 
 	/* Process any additional changes needed as a result of flag changes.
 	 * The changed_flags value reflects the list of bits that were
@@ -4456,7 +4451,7 @@ flags_complete:
 	/* Flush current ATR settings if ATR was disabled */
 	if ((changed_flags & I40E_FLAG_FD_ATR_ENABLED) &&
 	    !(pf->flags & I40E_FLAG_FD_ATR_ENABLED)) {
-		pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
+		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 		set_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 	}
 
@@ -4478,6 +4473,12 @@ flags_complete:
 			/* not a fatal problem, just keep going */
 		}
 	}
+
+	if ((changed_flags & pf->flags &
+	     I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
+	    (pf->flags & I40E_FLAG_MFP_ENABLED))
+		dev_warn(&pf->pdev->dev,
+			 "Turning on link-down-on-close flag may affect other partitions\n");
 
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {

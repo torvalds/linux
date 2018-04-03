@@ -105,8 +105,8 @@
 
 #define IPV6_ADDR_ANY		0x0000U
 
-#define IPV6_ADDR_UNICAST      	0x0001U	
-#define IPV6_ADDR_MULTICAST    	0x0002U	
+#define IPV6_ADDR_UNICAST	0x0001U
+#define IPV6_ADDR_MULTICAST	0x0002U
 
 #define IPV6_ADDR_LOOPBACK	0x0010U
 #define IPV6_ADDR_LINKLOCAL	0x0020U
@@ -379,13 +379,6 @@ static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 	    idev->cnf.accept_ra;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static inline int ip6_frag_mem(struct net *net)
-{
-	return sum_frag_mem_limit(&net->ipv6.frags);
-}
-#endif
-
 #define IPV6_FRAG_HIGH_THRESH	(4 * 1024*1024)	/* 4194304 */
 #define IPV6_FRAG_LOW_THRESH	(3 * 1024*1024)	/* 3145728 */
 #define IPV6_FRAG_TIMEOUT	(60 * HZ)	/* 60 seconds */
@@ -447,7 +440,7 @@ ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
 #endif
 }
 
-static inline void ipv6_addr_prefix(struct in6_addr *pfx, 
+static inline void ipv6_addr_prefix(struct in6_addr *pfx,
 				    const struct in6_addr *addr,
 				    int plen)
 {
@@ -496,7 +489,7 @@ static inline void __ipv6_addr_set_half(__be32 *addr,
 	addr[1] = wl;
 }
 
-static inline void ipv6_addr_set(struct in6_addr *addr, 
+static inline void ipv6_addr_set(struct in6_addr *addr,
 				     __be32 w1, __be32 w2,
 				     __be32 w3, __be32 w4)
 {
@@ -579,17 +572,8 @@ enum ip6_defrag_users {
 	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
 };
 
-struct ip6_create_arg {
-	__be32 id;
-	u32 user;
-	const struct in6_addr *src;
-	const struct in6_addr *dst;
-	int iif;
-	u8 ecn;
-};
-
 void ip6_frag_init(struct inet_frag_queue *q, const void *a);
-bool ip6_frag_match(const struct inet_frag_queue *q, const void *a);
+extern const struct rhashtable_params ip6_rhash_params;
 
 /*
  *	Equivalent of ipv4 struct ip
@@ -597,19 +581,12 @@ bool ip6_frag_match(const struct inet_frag_queue *q, const void *a);
 struct frag_queue {
 	struct inet_frag_queue	q;
 
-	__be32			id;		/* fragment id		*/
-	u32			user;
-	struct in6_addr		saddr;
-	struct in6_addr		daddr;
-
 	int			iif;
-	unsigned int		csum;
 	__u16			nhoffset;
 	u8			ecn;
 };
 
-void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
-			   struct inet_frags *frags);
+void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq);
 
 static inline bool ipv6_addr_any(const struct in6_addr *a)
 {
@@ -732,7 +709,7 @@ static inline int __ipv6_addr_diff32(const void *token1, const void *token2, int
 	}
 
 	/*
-	 *	we should *never* get to this point since that 
+	 *	we should *never* get to this point since that
 	 *	would mean the addrs are equal
 	 *
 	 *	However, we do get to it 8) And exacly, when
@@ -888,6 +865,17 @@ static inline int ip6_default_np_autolabel(struct net *net)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int ip6_multipath_hash_policy(const struct net *net)
+{
+	return net->ipv6.sysctl.multipath_hash_policy;
+}
+#else
+static inline int ip6_multipath_hash_policy(const struct net *net)
+{
+	return 0;
+}
+#endif
 
 /*
  *	Header manipulation
@@ -1055,8 +1043,10 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info);
 void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu);
 
 int inet6_release(struct socket *sock);
+int __inet6_bind(struct sock *sock, struct sockaddr *uaddr, int addr_len,
+		 bool force_bind_address_no_port, bool with_lock);
 int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
-int inet6_getname(struct socket *sock, struct sockaddr *uaddr, int *uaddr_len,
+int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		  int peer);
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 

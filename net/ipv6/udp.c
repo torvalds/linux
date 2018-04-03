@@ -957,6 +957,25 @@ static void udp_v6_flush_pending_frames(struct sock *sk)
 	}
 }
 
+static int udpv6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+			     int addr_len)
+{
+	/* The following checks are replicated from __ip6_datagram_connect()
+	 * and intended to prevent BPF program called below from accessing
+	 * bytes that are out of the bound specified by user in addr_len.
+	 */
+	if (uaddr->sa_family == AF_INET) {
+		if (__ipv6_only_sock(sk))
+			return -EAFNOSUPPORT;
+		return udp_pre_connect(sk, uaddr, addr_len);
+	}
+
+	if (addr_len < SIN6_LEN_RFC2133)
+		return -EINVAL;
+
+	return BPF_CGROUP_RUN_PROG_INET6_CONNECT_LOCK(sk, uaddr);
+}
+
 /**
  *	udp6_hwcsum_outgoing  -  handle outgoing HW checksumming
  *	@sk:	socket we are sending on
@@ -1509,34 +1528,35 @@ void udp6_proc_exit(struct net *net)
 /* ------------------------------------------------------------------------ */
 
 struct proto udpv6_prot = {
-	.name		   = "UDPv6",
-	.owner		   = THIS_MODULE,
-	.close		   = udp_lib_close,
-	.connect	   = ip6_datagram_connect,
-	.disconnect	   = udp_disconnect,
-	.ioctl		   = udp_ioctl,
-	.init		   = udp_init_sock,
-	.destroy	   = udpv6_destroy_sock,
-	.setsockopt	   = udpv6_setsockopt,
-	.getsockopt	   = udpv6_getsockopt,
-	.sendmsg	   = udpv6_sendmsg,
-	.recvmsg	   = udpv6_recvmsg,
-	.release_cb	   = ip6_datagram_release_cb,
-	.hash		   = udp_lib_hash,
-	.unhash		   = udp_lib_unhash,
-	.rehash		   = udp_v6_rehash,
-	.get_port	   = udp_v6_get_port,
-	.memory_allocated  = &udp_memory_allocated,
-	.sysctl_mem	   = sysctl_udp_mem,
-	.sysctl_wmem	   = &sysctl_udp_wmem_min,
-	.sysctl_rmem	   = &sysctl_udp_rmem_min,
-	.obj_size	   = sizeof(struct udp6_sock),
-	.h.udp_table	   = &udp_table,
+	.name			= "UDPv6",
+	.owner			= THIS_MODULE,
+	.close			= udp_lib_close,
+	.pre_connect		= udpv6_pre_connect,
+	.connect		= ip6_datagram_connect,
+	.disconnect		= udp_disconnect,
+	.ioctl			= udp_ioctl,
+	.init			= udp_init_sock,
+	.destroy		= udpv6_destroy_sock,
+	.setsockopt		= udpv6_setsockopt,
+	.getsockopt		= udpv6_getsockopt,
+	.sendmsg		= udpv6_sendmsg,
+	.recvmsg		= udpv6_recvmsg,
+	.release_cb		= ip6_datagram_release_cb,
+	.hash			= udp_lib_hash,
+	.unhash			= udp_lib_unhash,
+	.rehash			= udp_v6_rehash,
+	.get_port		= udp_v6_get_port,
+	.memory_allocated	= &udp_memory_allocated,
+	.sysctl_mem		= sysctl_udp_mem,
+	.sysctl_wmem_offset     = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
+	.sysctl_rmem_offset     = offsetof(struct net, ipv4.sysctl_udp_rmem_min),
+	.obj_size		= sizeof(struct udp6_sock),
+	.h.udp_table		= &udp_table,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_udpv6_setsockopt,
-	.compat_getsockopt = compat_udpv6_getsockopt,
+	.compat_setsockopt	= compat_udpv6_setsockopt,
+	.compat_getsockopt	= compat_udpv6_getsockopt,
 #endif
-	.diag_destroy      = udp_abort,
+	.diag_destroy		= udp_abort,
 };
 
 static struct inet_protosw udpv6_protosw = {

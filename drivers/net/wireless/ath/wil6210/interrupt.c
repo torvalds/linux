@@ -127,7 +127,7 @@ void wil6210_unmask_irq_tx(struct wil6210_priv *wil)
 
 void wil6210_unmask_irq_rx(struct wil6210_priv *wil)
 {
-	bool unmask_rx_htrsh = test_bit(wil_status_fwconnected, wil->status);
+	bool unmask_rx_htrsh = atomic_read(&wil->connected_vifs) > 0;
 
 	wil_w(wil, RGF_DMA_EP_RX_ICR + offsetof(struct RGF_ICR, IMC),
 	      unmask_rx_htrsh ? WIL6210_IMC_RX : WIL6210_IMC_RX_NO_RX_HTRSH);
@@ -188,12 +188,14 @@ void wil_unmask_irq(struct wil6210_priv *wil)
 
 void wil_configure_interrupt_moderation(struct wil6210_priv *wil)
 {
+	struct wireless_dev *wdev = wil->main_ndev->ieee80211_ptr;
+
 	wil_dbg_irq(wil, "configure_interrupt_moderation\n");
 
 	/* disable interrupt moderation for monitor
 	 * to get better timestamp precision
 	 */
-	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
+	if (wdev->iftype == NL80211_IFTYPE_MONITOR)
 		return;
 
 	/* Disable and clear tx counter before (re)configuration */
@@ -340,7 +342,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 
 static void wil_notify_fw_error(struct wil6210_priv *wil)
 {
-	struct device *dev = &wil_to_ndev(wil)->dev;
+	struct device *dev = &wil->main_ndev->dev;
 	char *envp[3] = {
 		[0] = "SOURCE=wil6210",
 		[1] = "EVENT=FW_ERROR",

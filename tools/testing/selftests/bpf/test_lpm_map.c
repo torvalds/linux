@@ -22,10 +22,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 
 #include <bpf/bpf.h>
+
 #include "bpf_util.h"
+#include "bpf_rlimit.h"
 
 struct tlpm_node {
 	struct tlpm_node *next;
@@ -736,16 +737,10 @@ static void test_lpm_multi_thread(void)
 
 int main(void)
 {
-	struct rlimit limit  = { RLIM_INFINITY, RLIM_INFINITY };
-	int i, ret;
+	int i;
 
 	/* we want predictable, pseudo random tests */
 	srand(0xf00ba1);
-
-	/* allow unlimited locked memory */
-	ret = setrlimit(RLIMIT_MEMLOCK, &limit);
-	if (ret < 0)
-		perror("Unable to lift memlock rlimit");
 
 	test_lpm_basic();
 	test_lpm_order();
@@ -755,11 +750,8 @@ int main(void)
 		test_lpm_map(i);
 
 	test_lpm_ipaddr();
-
 	test_lpm_delete();
-
 	test_lpm_get_next_key();
-
 	test_lpm_multi_thread();
 
 	printf("test_lpm: OK\n");

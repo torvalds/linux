@@ -131,7 +131,7 @@ MODULE_VERSION(XGBE_DRV_VERSION);
 MODULE_DESCRIPTION(XGBE_DRV_DESC);
 
 static int debug = -1;
-module_param(debug, int, S_IWUSR | S_IRUGO);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, " Network interface message level setting");
 
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |

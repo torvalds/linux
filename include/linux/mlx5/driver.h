@@ -345,18 +345,20 @@ struct mlx5_buf_list {
 	dma_addr_t		map;
 };
 
-struct mlx5_buf {
-	struct mlx5_buf_list	direct;
-	int			npages;
-	int			size;
-	u8			page_shift;
-};
-
 struct mlx5_frag_buf {
 	struct mlx5_buf_list	*frags;
 	int			npages;
 	int			size;
 	u8			page_shift;
+};
+
+struct mlx5_frag_buf_ctrl {
+	struct mlx5_frag_buf	frag_buf;
+	u32			sz_m1;
+	u32			frag_sz_m1;
+	u8			log_sz;
+	u8			log_stride;
+	u8			log_frag_strides;
 };
 
 struct mlx5_eq_tasklet {
@@ -375,11 +377,18 @@ struct mlx5_eq_pagefault {
 	mempool_t		*pool;
 };
 
+struct mlx5_cq_table {
+	/* protect radix tree */
+	spinlock_t		lock;
+	struct radix_tree_root	tree;
+};
+
 struct mlx5_eq {
 	struct mlx5_core_dev   *dev;
+	struct mlx5_cq_table	cq_table;
 	__be32 __iomem	       *doorbell;
 	u32			cons_index;
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 	int			size;
 	unsigned int		irqn;
 	u8			eqn;
@@ -526,13 +535,6 @@ struct mlx5_core_health {
 	struct delayed_work		recover_work;
 };
 
-struct mlx5_cq_table {
-	/* protect radix tree
-	 */
-	spinlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
 struct mlx5_qp_table {
 	/* protect radix tree
 	 */
@@ -653,10 +655,6 @@ struct mlx5_priv {
 	struct dentry	       *cq_debugfs;
 	struct dentry	       *cmdif_debugfs;
 	/* end: qp staff */
-
-	/* start: cq staff */
-	struct mlx5_cq_table	cq_table;
-	/* end: cq staff */
 
 	/* start: mkey staff */
 	struct mlx5_mkey_table	mkey_table;
@@ -936,9 +934,9 @@ struct mlx5_hca_vport_context {
 	bool			grh_required;
 };
 
-static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
+static inline void *mlx5_buf_offset(struct mlx5_frag_buf *buf, int offset)
 {
-		return buf->direct.buf + offset;
+		return buf->frags->buf + offset;
 }
 
 #define STRUCT_FIELD(header, field) \
@@ -977,6 +975,25 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
+static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
+					      void *cqc)
+{
+	fbc->log_stride	= 6 + MLX5_GET(cqc, cqc, cqe_sz);
+	fbc->log_sz	= MLX5_GET(cqc, cqc, log_cq_size);
+	fbc->sz_m1	= (1 << fbc->log_sz) - 1;
+	fbc->log_frag_strides = PAGE_SHIFT - fbc->log_stride;
+	fbc->frag_sz_m1	= (1 << fbc->log_frag_strides) - 1;
+}
+
+static inline void *mlx5_frag_buf_get_wqe(struct mlx5_frag_buf_ctrl *fbc,
+					  u32 ix)
+{
+	unsigned int frag = (ix >> fbc->log_frag_strides);
+
+	return fbc->frag_buf.frags[frag].buf +
+		((fbc->frag_sz_m1 & ix) << fbc->log_stride);
+}
+
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
@@ -1002,9 +1019,10 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_buf *buf, int node);
-int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, struct mlx5_buf *buf);
-void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf);
+			struct mlx5_frag_buf *buf, int node);
+int mlx5_buf_alloc(struct mlx5_core_dev *dev,
+		   int size, struct mlx5_frag_buf *buf);
+void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
 int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 			     struct mlx5_frag_buf *buf, int node);
 void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
@@ -1049,22 +1067,12 @@ int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
 void mlx5_register_debugfs(void);
 void mlx5_unregister_debugfs(void);
-int mlx5_eq_init(struct mlx5_core_dev *dev);
-void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
-void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
+
+void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas);
 void mlx5_fill_page_frag_array(struct mlx5_frag_buf *frag_buf, __be64 *pas);
-void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced);
-void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
-int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
-		       int nent, u64 mask, const char *name,
-		       enum mlx5_eq_type type);
-int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
-int mlx5_start_eqs(struct mlx5_core_dev *dev);
-void mlx5_stop_eqs(struct mlx5_core_dev *dev);
 int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 		    unsigned int *irqn);
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
@@ -1076,14 +1084,6 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
 
-int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
-void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
-int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		       u32 *out, int outlen);
-int mlx5_eq_debugfs_init(struct mlx5_core_dev *dev);
-void mlx5_eq_debugfs_cleanup(struct mlx5_core_dev *dev);
-int mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
-void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
 int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
 		       int node);
@@ -1223,6 +1223,12 @@ static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
 {
 	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
 }
+
+#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs((mdev)->pdev))
+#define MLX5_VPORT_MANAGER(mdev) \
+	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
+	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
+	 mlx5_core_is_pf(mdev))
 
 static inline int mlx5_get_gid_table_len(u16 param)
 {

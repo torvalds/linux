@@ -649,7 +649,7 @@ static void amd8111e_free_ring(struct amd8111e_priv *lp)
 static int amd8111e_tx(struct net_device *dev)
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
-	int tx_index = lp->tx_complete_idx & TX_RING_DR_MOD_MASK;
+	int tx_index;
 	int status;
 	/* Complete all the transmit packet */
 	while (lp->tx_complete_idx != lp->tx_idx){

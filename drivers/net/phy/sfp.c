@@ -42,6 +42,7 @@ enum {
 
 	SFP_MOD_EMPTY = 0,
 	SFP_MOD_PROBE,
+	SFP_MOD_HPOWER,
 	SFP_MOD_PRESENT,
 	SFP_MOD_ERROR,
 
@@ -86,6 +87,7 @@ static const enum gpiod_flags gpio_flags[] = {
  * access the I2C EEPROM.  However, Avago modules require 300ms.
  */
 #define T_PROBE_INIT	msecs_to_jiffies(300)
+#define T_HPOWER_LEVEL	msecs_to_jiffies(300)
 #define T_PROBE_RETRY	msecs_to_jiffies(100)
 
 /* SFP modules appear to always have their PHY configured for bus address
@@ -110,10 +112,12 @@ struct sfp {
 	struct sfp_bus *sfp_bus;
 	struct phy_device *mod_phy;
 	const struct sff_data *type;
+	u32 max_power_mW;
 
 	unsigned int (*get_state)(struct sfp *);
 	void (*set_state)(struct sfp *, unsigned int);
 	int (*read)(struct sfp *, bool, u8, void *, size_t);
+	int (*write)(struct sfp *, bool, u8, void *, size_t);
 
 	struct gpio_desc *gpio[GPIO_MAX];
 
@@ -201,10 +205,11 @@ static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
 	}
 }
 
-static int sfp__i2c_read(struct i2c_adapter *i2c, u8 bus_addr, u8 dev_addr,
-			 void *buf, size_t len)
+static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
+			size_t len)
 {
 	struct i2c_msg msgs[2];
+	u8 bus_addr = a2 ? 0x51 : 0x50;
 	int ret;
 
 	msgs[0].addr = bus_addr;
@@ -216,17 +221,38 @@ static int sfp__i2c_read(struct i2c_adapter *i2c, u8 bus_addr, u8 dev_addr,
 	msgs[1].len = len;
 	msgs[1].buf = buf;
 
-	ret = i2c_transfer(i2c, msgs, ARRAY_SIZE(msgs));
+	ret = i2c_transfer(sfp->i2c, msgs, ARRAY_SIZE(msgs));
 	if (ret < 0)
 		return ret;
 
 	return ret == ARRAY_SIZE(msgs) ? len : 0;
 }
 
-static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 addr, void *buf,
-			size_t len)
+static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
+	size_t len)
 {
-	return sfp__i2c_read(sfp->i2c, a2 ? 0x51 : 0x50, addr, buf, len);
+	struct i2c_msg msgs[1];
+	u8 bus_addr = a2 ? 0x51 : 0x50;
+	int ret;
+
+	msgs[0].addr = bus_addr;
+	msgs[0].flags = 0;
+	msgs[0].len = 1 + len;
+	msgs[0].buf = kmalloc(1 + len, GFP_KERNEL);
+	if (!msgs[0].buf)
+		return -ENOMEM;
+
+	msgs[0].buf[0] = dev_addr;
+	memcpy(&msgs[0].buf[1], buf, len);
+
+	ret = i2c_transfer(sfp->i2c, msgs, ARRAY_SIZE(msgs));
+
+	kfree(msgs[0].buf);
+
+	if (ret < 0)
+		return ret;
+
+	return ret == ARRAY_SIZE(msgs) ? len : 0;
 }
 
 static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
@@ -239,6 +265,7 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 
 	sfp->i2c = i2c;
 	sfp->read = sfp_i2c_read;
+	sfp->write = sfp_i2c_write;
 
 	i2c_mii = mdio_i2c_alloc(sfp->dev, i2c);
 	if (IS_ERR(i2c_mii))
@@ -272,6 +299,11 @@ static void sfp_set_state(struct sfp *sfp, unsigned int state)
 static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 {
 	return sfp->read(sfp, a2, addr, buf, len);
+}
+
+static int sfp_write(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
+{
+	return sfp->write(sfp, a2, addr, buf, len);
 }
 
 static unsigned int sfp_check(void *buf, size_t len)
@@ -462,41 +494,124 @@ static void sfp_sm_mod_init(struct sfp *sfp)
 		sfp_sm_probe_phy(sfp);
 }
 
+static int sfp_sm_mod_hpower(struct sfp *sfp)
+{
+	u32 power;
+	u8 val;
+	int err;
+
+	power = 1000;
+	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_POWER_DECL))
+		power = 1500;
+	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
+		power = 2000;
+
+	if (sfp->id.ext.sff8472_compliance == SFP_SFF8472_COMPLIANCE_NONE &&
+	    (sfp->id.ext.diagmon & (SFP_DIAGMON_DDM | SFP_DIAGMON_ADDRMODE)) !=
+	    SFP_DIAGMON_DDM) {
+		/* The module appears not to implement bus address 0xa2,
+		 * or requires an address change sequence, so assume that
+		 * the module powers up in the indicated power mode.
+		 */
+		if (power > sfp->max_power_mW) {
+			dev_err(sfp->dev,
+				"Host does not support %u.%uW modules\n",
+				power / 1000, (power / 100) % 10);
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	if (power > sfp->max_power_mW) {
+		dev_warn(sfp->dev,
+			 "Host does not support %u.%uW modules, module left in power mode 1\n",
+			 power / 1000, (power / 100) % 10);
+		return 0;
+	}
+
+	if (power <= 1000)
+		return 0;
+
+	err = sfp_read(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
+	if (err != sizeof(val)) {
+		dev_err(sfp->dev, "Failed to read EEPROM: %d\n", err);
+		err = -EAGAIN;
+		goto err;
+	}
+
+	val |= BIT(0);
+
+	err = sfp_write(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
+	if (err != sizeof(val)) {
+		dev_err(sfp->dev, "Failed to write EEPROM: %d\n", err);
+		err = -EAGAIN;
+		goto err;
+	}
+
+	dev_info(sfp->dev, "Module switched to %u.%uW power level\n",
+		 power / 1000, (power / 100) % 10);
+	return T_HPOWER_LEVEL;
+
+err:
+	return err;
+}
+
 static int sfp_sm_mod_probe(struct sfp *sfp)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
+	bool cotsworks;
 	u8 check;
-	int err;
+	int ret;
 
-	err = sfp_read(sfp, false, 0, &id, sizeof(id));
-	if (err < 0) {
-		dev_err(sfp->dev, "failed to read EEPROM: %d\n", err);
+	ret = sfp_read(sfp, false, 0, &id, sizeof(id));
+	if (ret < 0) {
+		dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
 		return -EAGAIN;
 	}
 
-	if (err != sizeof(id)) {
-		dev_err(sfp->dev, "EEPROM short read: %d\n", err);
+	if (ret != sizeof(id)) {
+		dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
 		return -EAGAIN;
 	}
+
+	/* Cotsworks do not seem to update the checksums when they
+	 * do the final programming with the final module part number,
+	 * serial number and date code.
+	 */
+	cotsworks = !memcmp(id.base.vendor_name, "COTSWORKS       ", 16);
 
 	/* Validate the checksum over the base structure */
 	check = sfp_check(&id.base, sizeof(id.base) - 1);
 	if (check != id.base.cc_base) {
-		dev_err(sfp->dev,
-			"EEPROM base structure checksum failure: 0x%02x\n",
-			check);
-		print_hex_dump(KERN_ERR, "sfp EE: ", DUMP_PREFIX_OFFSET,
-			       16, 1, &id, sizeof(id.base) - 1, true);
-		return -EINVAL;
+		if (cotsworks) {
+			dev_warn(sfp->dev,
+				 "EEPROM base structure checksum failure (0x%02x != 0x%02x)\n",
+				 check, id.base.cc_base);
+		} else {
+			dev_err(sfp->dev,
+				"EEPROM base structure checksum failure: 0x%02x != 0x%02x\n",
+				check, id.base.cc_base);
+			print_hex_dump(KERN_ERR, "sfp EE: ", DUMP_PREFIX_OFFSET,
+				       16, 1, &id, sizeof(id), true);
+			return -EINVAL;
+		}
 	}
 
 	check = sfp_check(&id.ext, sizeof(id.ext) - 1);
 	if (check != id.ext.cc_ext) {
-		dev_err(sfp->dev,
-			"EEPROM extended structure checksum failure: 0x%02x\n",
-			check);
-		memset(&id.ext, 0, sizeof(id.ext));
+		if (cotsworks) {
+			dev_warn(sfp->dev,
+				 "EEPROM extended structure checksum failure (0x%02x != 0x%02x)\n",
+				 check, id.ext.cc_ext);
+		} else {
+			dev_err(sfp->dev,
+				"EEPROM extended structure checksum failure: 0x%02x != 0x%02x\n",
+				check, id.ext.cc_ext);
+			print_hex_dump(KERN_ERR, "sfp EE: ", DUMP_PREFIX_OFFSET,
+				       16, 1, &id, sizeof(id), true);
+			memset(&id.ext, 0, sizeof(id.ext));
+		}
 	}
 
 	sfp->id = id;
@@ -521,7 +636,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 		dev_warn(sfp->dev,
 			 "module address swap to access page 0xA2 is not supported.\n");
 
-	return sfp_module_insert(sfp->sfp_bus, &sfp->id);
+	ret = sfp_module_insert(sfp->sfp_bus, &sfp->id);
+	if (ret < 0)
+		return ret;
+
+	return sfp_sm_mod_hpower(sfp);
 }
 
 static void sfp_sm_mod_remove(struct sfp *sfp)
@@ -560,17 +679,25 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_REMOVE) {
 			sfp_sm_ins_next(sfp, SFP_MOD_EMPTY, 0);
 		} else if (event == SFP_E_TIMEOUT) {
-			int err = sfp_sm_mod_probe(sfp);
+			int val = sfp_sm_mod_probe(sfp);
 
-			if (err == 0)
+			if (val == 0)
 				sfp_sm_ins_next(sfp, SFP_MOD_PRESENT, 0);
-			else if (err == -EAGAIN)
-				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
-			else
+			else if (val > 0)
+				sfp_sm_ins_next(sfp, SFP_MOD_HPOWER, val);
+			else if (val != -EAGAIN)
 				sfp_sm_ins_next(sfp, SFP_MOD_ERROR, 0);
+			else
+				sfp_sm_set_timer(sfp, T_PROBE_RETRY);
 		}
 		break;
 
+	case SFP_MOD_HPOWER:
+		if (event == SFP_E_TIMEOUT) {
+			sfp_sm_ins_next(sfp, SFP_MOD_PRESENT, 0);
+			break;
+		}
+		/* fallthrough */
 	case SFP_MOD_PRESENT:
 	case SFP_MOD_ERROR:
 		if (event == SFP_E_REMOVE) {
@@ -888,6 +1015,14 @@ static int sfp_probe(struct platform_device *pdev)
 	/* Modules that have no detect signal are always present */
 	if (!(sfp->gpio[GPIO_MODDEF0]))
 		sfp->get_state = sff_gpio_get_state;
+
+	device_property_read_u32(&pdev->dev, "maximum-power-milliwatt",
+				 &sfp->max_power_mW);
+	if (!sfp->max_power_mW)
+		sfp->max_power_mW = 1000;
+
+	dev_info(sfp->dev, "Host maximum power %u.%uW\n",
+		 sfp->max_power_mW / 1000, (sfp->max_power_mW / 100) % 10);
 
 	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
 	if (!sfp->sfp_bus)

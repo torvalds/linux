@@ -5603,7 +5603,7 @@ S:	Maintained
 F:	drivers/dma/fsldma.*
 
 FREESCALE eTSEC ETHERNET DRIVER (GIANFAR)
-M:	Claudiu Manoil <claudiu.manoil@freescale.com>
+M:	Claudiu Manoil <claudiu.manoil@nxp.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/freescale/gianfar*
@@ -7025,6 +7025,7 @@ F:	Documentation/networking/ixgbe.txt
 F:	Documentation/networking/ixgbevf.txt
 F:	Documentation/networking/i40e.txt
 F:	Documentation/networking/i40evf.txt
+F:	Documentation/networking/ice.txt
 F:	drivers/net/ethernet/intel/
 F:	drivers/net/ethernet/intel/*/
 F:	include/linux/avf/virtchnl.h
@@ -8578,6 +8579,15 @@ S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-iio-potentiometer-mcp4531
 F:	drivers/iio/potentiometer/mcp4531.c
 
+MCR20A IEEE-802.15.4 RADIO DRIVER
+M:	Xue Liu <liuxuenetmail@gmail.com>
+L:	linux-wpan@vger.kernel.org
+W:	https://github.com/xueliu/mcr20a-linux
+S:	Maintained
+F:	drivers/net/ieee802154/mcr20a.c
+F:	drivers/net/ieee802154/mcr20a.h
+F:	Documentation/devicetree/bindings/net/ieee802154/mcr20a.txt
+
 MEASUREMENT COMPUTING CIO-DAC IIO DRIVER
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 L:	linux-iio@vger.kernel.org
@@ -9120,6 +9130,13 @@ F:	net/dsa/tag_ksz.c
 F:	drivers/net/dsa/microchip/*
 F:	include/linux/platform_data/microchip-ksz.h
 F:	Documentation/devicetree/bindings/net/dsa/ksz.txt
+
+MICROCHIP LAN743X ETHERNET DRIVER
+M:	Bryan Whitehead <bryan.whitehead@microchip.com>
+M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/microchip/lan743x_*
 
 MICROCHIP USB251XB DRIVER
 M:	Richard Leitner <richard.leitner@skidata.com>
@@ -14878,7 +14895,7 @@ F:	drivers/input/mouse/vmmouse.c
 F:	drivers/input/mouse/vmmouse.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
-M:	Shrikrishna Khare <skhare@vmware.com>
+M:	Ronak Doshi <doshir@vmware.com>
 M:	"VMware, Inc." <pv-drivers@vmware.com>
 L:	netdev@vger.kernel.org
 S:	Maintained

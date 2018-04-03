@@ -10,6 +10,8 @@
 #ifndef __HNS3_ENET_H
 #define __HNS3_ENET_H
 
+#include <linux/if_vlan.h>
+
 #include "hnae3.h"
 
 extern const char hns3_driver_version[];
@@ -460,15 +462,21 @@ enum hns3_link_mode_bits {
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
+#define HNS3_INT_ADAPT_DOWN_START	100
+
+struct hns3_enet_coalesce {
+	u16 int_gl;
+	u8 gl_adapt_enable;
+	enum hns3_flow_level_range flow_level;
+};
+
 struct hns3_enet_ring_group {
 	/* array of pointers to rings */
 	struct hns3_enet_ring *ring;
 	u64 total_bytes;	/* total bytes processed this group */
 	u64 total_packets;	/* total packets processed this group */
 	u16 count;
-	enum hns3_flow_level_range flow_level;
-	u16 int_gl;
-	u8 gl_adapt_enable;
+	struct hns3_enet_coalesce coal;
 };
 
 struct hns3_enet_tqp_vector {
@@ -491,6 +499,7 @@ struct hns3_enet_tqp_vector {
 
 	/* when 0 should adjust interrupt coalesce parameter */
 	u8 int_adapt_down;
+	unsigned long last_jiffies;
 } ____cacheline_internodealigned_in_smp;
 
 enum hns3_udp_tnl_type {
@@ -523,8 +532,6 @@ struct hns3_nic_priv {
 	/* The most recently read link state */
 	int link;
 	u64 tx_timeout_count;
-	enum hnae3_reset_type reset_level;
-	unsigned long last_reset_time;
 
 	unsigned long state;
 
@@ -535,6 +542,7 @@ struct hns3_nic_priv {
 	struct notifier_block notifier_block;
 	/* Vxlan/Geneve information */
 	struct hns3_udp_tunnel udp_tnl[HNS3_UDP_TNL_MAX];
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 };
 
 union l3_hdr_info {

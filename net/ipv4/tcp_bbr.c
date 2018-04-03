@@ -97,10 +97,9 @@ struct bbr {
 		packet_conservation:1,  /* use packet conservation? */
 		restore_cwnd:1,	     /* decided to revert cwnd to old value */
 		round_start:1,	     /* start of packet-timed tx->ack round? */
-		tso_segs_goal:7,     /* segments we want in each skb we send */
 		idle_restart:1,	     /* restarting after idle? */
 		probe_rtt_round_done:1,  /* a BBR_PROBE_RTT round at 4 pkts? */
-		unused:5,
+		unused:12,
 		lt_is_sampling:1,    /* taking long-term ("LT") samples now? */
 		lt_rtt_cnt:7,	     /* round trips in long-term interval */
 		lt_use_bw:1;	     /* use lt_bw as our bw estimate? */
@@ -261,23 +260,25 @@ static void bbr_set_pacing_rate(struct sock *sk, u32 bw, int gain)
 		sk->sk_pacing_rate = rate;
 }
 
-/* Return count of segments we want in the skbs we send, or 0 for default. */
-static u32 bbr_tso_segs_goal(struct sock *sk)
+/* override sysctl_tcp_min_tso_segs */
+static u32 bbr_min_tso_segs(struct sock *sk)
 {
-	struct bbr *bbr = inet_csk_ca(sk);
-
-	return bbr->tso_segs_goal;
+	return sk->sk_pacing_rate < (bbr_min_tso_rate >> 3) ? 1 : 2;
 }
 
-static void bbr_set_tso_segs_goal(struct sock *sk)
+static u32 bbr_tso_segs_goal(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct bbr *bbr = inet_csk_ca(sk);
-	u32 min_segs;
+	u32 segs, bytes;
 
-	min_segs = sk->sk_pacing_rate < (bbr_min_tso_rate >> 3) ? 1 : 2;
-	bbr->tso_segs_goal = min(tcp_tso_autosize(sk, tp->mss_cache, min_segs),
-				 0x7FU);
+	/* Sort of tcp_tso_autosize() but ignoring
+	 * driver provided sk_gso_max_size.
+	 */
+	bytes = min_t(u32, sk->sk_pacing_rate >> sk->sk_pacing_shift,
+		      GSO_MAX_SIZE - 1 - MAX_TCP_HEADER);
+	segs = max_t(u32, bytes / tp->mss_cache, bbr_min_tso_segs(sk));
+
+	return min(segs, 0x7FU);
 }
 
 /* Save "last known good" cwnd so we can restore it after losses or PROBE_RTT */
@@ -348,7 +349,7 @@ static u32 bbr_target_cwnd(struct sock *sk, u32 bw, int gain)
 	cwnd = (((w * gain) >> BBR_SCALE) + BW_UNIT - 1) / BW_UNIT;
 
 	/* Allow enough full-sized skbs in flight to utilize end systems. */
-	cwnd += 3 * bbr->tso_segs_goal;
+	cwnd += 3 * bbr_tso_segs_goal(sk);
 
 	/* Reduce delayed ACKs by rounding up cwnd to the next even number. */
 	cwnd = (cwnd + 1) & ~1U;
@@ -730,6 +731,8 @@ static void bbr_check_drain(struct sock *sk, const struct rate_sample *rs)
 		bbr->mode = BBR_DRAIN;	/* drain queue we created */
 		bbr->pacing_gain = bbr_drain_gain;	/* pace slow to drain */
 		bbr->cwnd_gain = bbr_high_gain;	/* maintain cwnd */
+		tcp_sk(sk)->snd_ssthresh =
+				bbr_target_cwnd(sk, bbr_max_bw(sk), BBR_UNIT);
 	}	/* fall through to check if in-flight is already small: */
 	if (bbr->mode == BBR_DRAIN &&
 	    tcp_packets_in_flight(tcp_sk(sk)) <=
@@ -824,7 +827,6 @@ static void bbr_main(struct sock *sk, const struct rate_sample *rs)
 
 	bw = bbr_bw(sk);
 	bbr_set_pacing_rate(sk, bw, bbr->pacing_gain);
-	bbr_set_tso_segs_goal(sk);
 	bbr_set_cwnd(sk, rs, rs->acked_sacked, bw, bbr->cwnd_gain);
 }
 
@@ -834,7 +836,7 @@ static void bbr_init(struct sock *sk)
 	struct bbr *bbr = inet_csk_ca(sk);
 
 	bbr->prior_cwnd = 0;
-	bbr->tso_segs_goal = 0;	 /* default segs per skb until first ACK */
+	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	bbr->rtt_cnt = 0;
 	bbr->next_rtt_delivered = 0;
 	bbr->prev_ca_state = TCP_CA_Open;
@@ -887,7 +889,7 @@ static u32 bbr_undo_cwnd(struct sock *sk)
 static u32 bbr_ssthresh(struct sock *sk)
 {
 	bbr_save_cwnd(sk);
-	return TCP_INFINITE_SSTHRESH;	 /* BBR does not use ssthresh */
+	return tcp_sk(sk)->snd_ssthresh;
 }
 
 static size_t bbr_get_info(struct sock *sk, u32 ext, int *attr,
@@ -936,7 +938,7 @@ static struct tcp_congestion_ops tcp_bbr_cong_ops __read_mostly = {
 	.undo_cwnd	= bbr_undo_cwnd,
 	.cwnd_event	= bbr_cwnd_event,
 	.ssthresh	= bbr_ssthresh,
-	.tso_segs_goal	= bbr_tso_segs_goal,
+	.min_tso_segs	= bbr_min_tso_segs,
 	.get_info	= bbr_get_info,
 	.set_state	= bbr_set_state,
 };

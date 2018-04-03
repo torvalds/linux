@@ -9,6 +9,7 @@ Required properties on all platforms:
 - compatible:	Depending on the platform this should be one of:
 			- "amlogic,meson6-dwmac"
 			- "amlogic,meson8b-dwmac"
+			- "amlogic,meson8m2-dwmac"
 			- "amlogic,meson-gxbb-dwmac"
 		Additionally "snps,dwmac" and any applicable more
 		detailed version number described in net/stmmac.txt
@@ -19,13 +20,13 @@ Required properties on all platforms:
 	configuration (for example the PRG_ETHERNET register range
 	on Meson8b and newer)
 
-Required properties on Meson8b and newer:
+Required properties on Meson8b, Meson8m2, GXBB and newer:
 - clock-names:	Should contain the following:
 		- "stmmaceth" - see stmmac.txt
 		- "clkin0" - first parent clock of the internal mux
 		- "clkin1" - second parent clock of the internal mux
 
-Optional properties on Meson8b and newer:
+Optional properties on Meson8b, Meson8m2, GXBB and newer:
 - amlogic,tx-delay-ns:	The internal RGMII TX clock delay (provided
 			by this driver) in nanoseconds. Allowed values
 			are: 0ns, 2ns, 4ns, 6ns.

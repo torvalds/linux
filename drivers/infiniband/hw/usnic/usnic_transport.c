@@ -174,14 +174,13 @@ void usnic_transport_put_socket(struct socket *sock)
 int usnic_transport_sock_get_addr(struct socket *sock, int *proto,
 					uint32_t *addr, uint16_t *port)
 {
-	int len;
 	int err;
 	struct sockaddr_in sock_addr;
 
 	err = sock->ops->getname(sock,
 				(struct sockaddr *)&sock_addr,
-				&len, 0);
-	if (err)
+				0);
+	if (err < 0)
 		return err;
 
 	if (sock_addr.sin_family != AF_INET)

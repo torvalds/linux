@@ -1217,6 +1217,7 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 		if (ctx->dev)
 			c4iw_remove(ctx);
 		break;
+	case CXGB4_STATE_FATAL_ERROR:
 	case CXGB4_STATE_START_RECOVERY:
 		pr_info("%s: Fatal Error\n", pci_name(ctx->lldi.pdev));
 		if (ctx->dev) {

@@ -417,7 +417,7 @@ static void ks8995_parse_dt(struct ks8995_switch *ks)
 static const struct bin_attribute ks8995_registers_attr = {
 	.attr = {
 		.name   = "registers",
-		.mode   = S_IRUSR | S_IWUSR,
+		.mode   = 0600,
 	},
 	.size   = KS8995_REGS_SIZE,
 	.read   = ks8995_registers_read,

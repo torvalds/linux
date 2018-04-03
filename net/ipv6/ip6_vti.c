@@ -651,7 +651,7 @@ static void vti6_link_config(struct ip6_tnl *t, bool keep_mtu)
 			      (IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL));
 		struct rt6_info *rt = rt6_lookup(t->net,
 						 &p->raddr, &p->laddr,
-						 p->link, strict);
+						 p->link, NULL, strict);
 
 		if (rt)
 			tdev = rt->dst.dev;

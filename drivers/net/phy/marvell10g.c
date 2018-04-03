@@ -71,15 +71,6 @@ static int mv3310_probe(struct phy_device *phydev)
 	return 0;
 }
 
-/*
- * Resetting the MV88X3310 causes it to become non-responsive.  Avoid
- * setting the reset bit(s).
- */
-static int mv3310_soft_reset(struct phy_device *phydev)
-{
-	return 0;
-}
-
 static int mv3310_config_init(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported) = { 0, };
@@ -317,7 +308,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 		if (val < 0)
 			return val;
 
-		/* Read the link partner's 1G advertisment */
+		/* Read the link partner's 1G advertisement */
 		val = phy_read_mmd(phydev, MDIO_MMD_AN, MV_AN_STAT1000);
 		if (val < 0)
 			return val;
@@ -377,7 +368,7 @@ static struct phy_driver mv3310_drivers[] = {
 				  SUPPORTED_10000baseT_Full |
 				  SUPPORTED_Backplane,
 		.probe		= mv3310_probe,
-		.soft_reset	= mv3310_soft_reset,
+		.soft_reset	= gen10g_no_soft_reset,
 		.config_init	= mv3310_config_init,
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,

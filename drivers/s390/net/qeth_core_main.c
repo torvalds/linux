@@ -718,11 +718,8 @@ static int qeth_check_idx_response(struct qeth_card *card,
 
 	QETH_DBF_HEX(CTRL, 2, buffer, QETH_DBF_CTRL_LEN);
 	if ((buffer[2] & 0xc0) == 0xc0) {
-		QETH_DBF_MESSAGE(2, "received an IDX TERMINATE "
-			   "with cause code 0x%02x%s\n",
-			   buffer[4],
-			   ((buffer[4] == 0x22) ?
-			    " -- try another portname" : ""));
+		QETH_DBF_MESSAGE(2, "received an IDX TERMINATE with cause code %#02x\n",
+				 buffer[4]);
 		QETH_CARD_TEXT(card, 2, "ckidxres");
 		QETH_CARD_TEXT(card, 2, " idxterm");
 		QETH_CARD_TEXT_(card, 2, "  rc%d", -EIO);
@@ -2849,7 +2846,8 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	int i;
 
 	if ((card->options.cq == QETH_CQ_ENABLED) && (!buf->rx_skb)) {
-		buf->rx_skb = dev_alloc_skb(QETH_RX_PULL_LEN + ETH_HLEN);
+		buf->rx_skb = netdev_alloc_skb(card->dev,
+					       QETH_RX_PULL_LEN + ETH_HLEN);
 		if (!buf->rx_skb)
 			return 1;
 	}
@@ -2886,8 +2884,8 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 	QETH_DBF_TEXT(SETUP, 2, "initqdqs");
 
 	/* inbound queue */
-	qdio_reset_buffers(card->qdio.in_q->qdio_bufs,
-			   QDIO_MAX_BUFFERS_PER_Q);
+	qdio_reset_buffers(card->qdio.in_q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q);
+	memset(&card->rx, 0, sizeof(struct qeth_rx));
 	qeth_initialize_working_pool_list(card);
 	/*give only as many buffers to hardware as we have buffer pool entries*/
 	for (i = 0; i < card->qdio.in_buf_pool.buf_count - 1; ++i)
@@ -2962,12 +2960,10 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 		enum qeth_ipa_cmds ipacmd, enum qeth_prot_versions prot)
 {
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 
 	iob = qeth_get_buffer(&card->write);
 	if (iob) {
-		cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-		qeth_fill_ipacmd_header(card, cmd, ipacmd, prot);
+		qeth_fill_ipacmd_header(card, __ipa_cmd(iob), ipacmd, prot);
 	} else {
 		dev_warn(&card->gdev->dev,
 			 "The qeth driver ran out of channel command buffers\n");
@@ -3078,7 +3074,7 @@ static struct qeth_cmd_buffer *qeth_get_adapter_cmd(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETADAPTERPARMS,
 				     QETH_PROT_IPV4);
 	if (iob) {
-		cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+		cmd = __ipa_cmd(iob);
 		cmd->data.setadapterparms.hdr.cmdlength = cmdlen;
 		cmd->data.setadapterparms.hdr.command_code = command;
 		cmd->data.setadapterparms.hdr.used_total = 1;
@@ -3220,7 +3216,7 @@ static int qeth_query_setdiagass(struct qeth_card *card)
 	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SET_DIAG_ASS, 0);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.diagass.subcmd_len = 16;
 	cmd->data.diagass.subcmd = QETH_DIAGS_CMD_QUERY;
 	return qeth_send_ipa_cmd(card, iob, qeth_query_setdiagass_cb, NULL);
@@ -3273,7 +3269,7 @@ int qeth_hw_trap(struct qeth_card *card, enum qeth_diags_trap_action action)
 	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SET_DIAG_ASS, 0);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.diagass.subcmd_len = 80;
 	cmd->data.diagass.subcmd = QETH_DIAGS_CMD_TRAP;
 	cmd->data.diagass.type = 1;
@@ -4251,7 +4247,7 @@ void qeth_setadp_promisc_mode(struct qeth_card *card)
 			sizeof(struct qeth_ipacmd_setadpparms_hdr) + 8);
 	if (!iob)
 		return;
-	cmd = (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setadapterparms.data.mode = mode;
 	qeth_send_ipa_cmd(card, iob, qeth_setadp_promisc_mode_cb, NULL);
 }
@@ -4318,7 +4314,7 @@ int qeth_setadpparms_change_macaddr(struct qeth_card *card)
 				   sizeof(struct qeth_change_addr));
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setadapterparms.data.change_addr.cmd = CHANGE_ADDR_READ_MAC;
 	cmd->data.setadapterparms.data.change_addr.addr_size = ETH_ALEN;
 	ether_addr_copy(cmd->data.setadapterparms.data.change_addr.addr,
@@ -4433,7 +4429,7 @@ static int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
 				   sizeof(struct qeth_set_access_ctrl));
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	access_ctrl_req = &cmd->data.setadapterparms.data.set_access_ctrl;
 	access_ctrl_req->subcmd_code = isolation;
 
@@ -4679,7 +4675,7 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 		rc = -ENOMEM;
 		goto out;
 	}
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	memcpy(&cmd->data.setadapterparms.data.snmp, &ureq->cmd, req_len);
 	rc = qeth_send_ipa_snmp_cmd(card, iob, QETH_SETADP_BASE_LEN + req_len,
 				    qeth_snmp_command_cb, (void *)&qinfo);
@@ -4764,7 +4760,7 @@ static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 		rc = -ENOMEM;
 		goto out_free;
 	}
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	oat_req = &cmd->data.setadapterparms.data.query_oat;
 	oat_req->subcmd_code = oat_data.command;
 
@@ -5339,7 +5335,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	} else {
 		unsigned int linear = (use_rx_sg) ? QETH_RX_PULL_LEN : skb_len;
 
-		skb = dev_alloc_skb(linear + headroom);
+		skb = napi_alloc_skb(&card->napi, linear + headroom);
 	}
 	if (!skb)
 		goto no_mem;
@@ -5503,7 +5499,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETASSPARMS, prot);
 
 	if (iob) {
-		cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+		cmd = __ipa_cmd(iob);
 		cmd->data.setassparms.hdr.assist_no = ipa_func;
 		cmd->data.setassparms.hdr.length = 8 + len;
 		cmd->data.setassparms.hdr.command_code = cmd_code;
@@ -5526,7 +5522,7 @@ int qeth_send_setassparms(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 4, "sendassp");
 
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	if (len <= sizeof(__u32))
 		cmd->data.setassparms.data.flags_32bit = (__u32) data;
 	else   /* (len > sizeof(__u32)) */

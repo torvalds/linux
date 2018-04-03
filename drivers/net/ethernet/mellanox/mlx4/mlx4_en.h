@@ -608,6 +608,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_flow_stats_tx tx_flowstats;
 	struct mlx4_en_port_stats port_stats;
 	struct mlx4_en_xdp_stats xdp_stats;
+	struct mlx4_en_phy_stats phy_stats;
 	struct mlx4_en_stats_bitmap stats_bitmap;
 	struct list_head mc_list;
 	struct list_head curr_list;

@@ -80,56 +80,6 @@ long sysctl_sctp_mem[3];
 int sysctl_sctp_rmem[3];
 int sysctl_sctp_wmem[3];
 
-/* Set up the proc fs entry for the SCTP protocol. */
-static int __net_init sctp_proc_init(struct net *net)
-{
-#ifdef CONFIG_PROC_FS
-	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
-	if (!net->sctp.proc_net_sctp)
-		goto out_proc_net_sctp;
-	if (sctp_snmp_proc_init(net))
-		goto out_snmp_proc_init;
-	if (sctp_eps_proc_init(net))
-		goto out_eps_proc_init;
-	if (sctp_assocs_proc_init(net))
-		goto out_assocs_proc_init;
-	if (sctp_remaddr_proc_init(net))
-		goto out_remaddr_proc_init;
-
-	return 0;
-
-out_remaddr_proc_init:
-	sctp_assocs_proc_exit(net);
-out_assocs_proc_init:
-	sctp_eps_proc_exit(net);
-out_eps_proc_init:
-	sctp_snmp_proc_exit(net);
-out_snmp_proc_init:
-	remove_proc_entry("sctp", net->proc_net);
-	net->sctp.proc_net_sctp = NULL;
-out_proc_net_sctp:
-	return -ENOMEM;
-#endif /* CONFIG_PROC_FS */
-	return 0;
-}
-
-/* Clean up the proc fs entry for the SCTP protocol.
- * Note: Do not make this __exit as it is used in the init error
- * path.
- */
-static void sctp_proc_exit(struct net *net)
-{
-#ifdef CONFIG_PROC_FS
-	sctp_snmp_proc_exit(net);
-	sctp_eps_proc_exit(net);
-	sctp_assocs_proc_exit(net);
-	sctp_remaddr_proc_exit(net);
-
-	remove_proc_entry("sctp", net->proc_net);
-	net->sctp.proc_net_sctp = NULL;
-#endif
-}
-
 /* Private helper to extract ipv4 address and stash them in
  * the protocol structure.
  */
@@ -1285,10 +1235,12 @@ static int __net_init sctp_defaults_init(struct net *net)
 	if (status)
 		goto err_init_mibs;
 
+#ifdef CONFIG_PROC_FS
 	/* Initialize proc fs directory.  */
 	status = sctp_proc_init(net);
 	if (status)
 		goto err_init_proc;
+#endif
 
 	sctp_dbg_objcnt_init(net);
 
@@ -1306,8 +1258,10 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	return 0;
 
+#ifdef CONFIG_PROC_FS
 err_init_proc:
 	cleanup_sctp_mibs(net);
+#endif
 err_init_mibs:
 	sctp_sysctl_net_unregister(net);
 err_sysctl_register:
@@ -1320,9 +1274,10 @@ static void __net_exit sctp_defaults_exit(struct net *net)
 	sctp_free_addr_wq(net);
 	sctp_free_local_addr_list(net);
 
-	sctp_dbg_objcnt_exit(net);
-
-	sctp_proc_exit(net);
+#ifdef CONFIG_PROC_FS
+	remove_proc_subtree("sctp", net->proc_net);
+	net->sctp.proc_net_sctp = NULL;
+#endif
 	cleanup_sctp_mibs(net);
 	sctp_sysctl_net_unregister(net);
 }

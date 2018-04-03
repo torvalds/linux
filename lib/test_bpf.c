@@ -6574,6 +6574,93 @@ static bool exclude_test(int test_id)
 	return test_id < test_range[0] || test_id > test_range[1];
 }
 
+static __init struct sk_buff *build_test_skb(void)
+{
+	u32 headroom = NET_SKB_PAD + NET_IP_ALIGN + ETH_HLEN;
+	struct sk_buff *skb[2];
+	struct page *page[2];
+	int i, data_size = 8;
+
+	for (i = 0; i < 2; i++) {
+		page[i] = alloc_page(GFP_KERNEL);
+		if (!page[i]) {
+			if (i == 0)
+				goto err_page0;
+			else
+				goto err_page1;
+		}
+
+		/* this will set skb[i]->head_frag */
+		skb[i] = dev_alloc_skb(headroom + data_size);
+		if (!skb[i]) {
+			if (i == 0)
+				goto err_skb0;
+			else
+				goto err_skb1;
+		}
+
+		skb_reserve(skb[i], headroom);
+		skb_put(skb[i], data_size);
+		skb[i]->protocol = htons(ETH_P_IP);
+		skb_reset_network_header(skb[i]);
+		skb_set_mac_header(skb[i], -ETH_HLEN);
+
+		skb_add_rx_frag(skb[i], 0, page[i], 0, 64, 64);
+		// skb_headlen(skb[i]): 8, skb[i]->head_frag = 1
+	}
+
+	/* setup shinfo */
+	skb_shinfo(skb[0])->gso_size = 1448;
+	skb_shinfo(skb[0])->gso_type = SKB_GSO_TCPV4;
+	skb_shinfo(skb[0])->gso_type |= SKB_GSO_DODGY;
+	skb_shinfo(skb[0])->gso_segs = 0;
+	skb_shinfo(skb[0])->frag_list = skb[1];
+
+	/* adjust skb[0]'s len */
+	skb[0]->len += skb[1]->len;
+	skb[0]->data_len += skb[1]->data_len;
+	skb[0]->truesize += skb[1]->truesize;
+
+	return skb[0];
+
+err_skb1:
+	__free_page(page[1]);
+err_page1:
+	kfree_skb(skb[0]);
+err_skb0:
+	__free_page(page[0]);
+err_page0:
+	return NULL;
+}
+
+static __init int test_skb_segment(void)
+{
+	netdev_features_t features;
+	struct sk_buff *skb, *segs;
+	int ret = -1;
+
+	features = NETIF_F_SG | NETIF_F_GSO_PARTIAL | NETIF_F_IP_CSUM |
+		   NETIF_F_IPV6_CSUM;
+	features |= NETIF_F_RXCSUM;
+	skb = build_test_skb();
+	if (!skb) {
+		pr_info("%s: failed to build_test_skb", __func__);
+		goto done;
+	}
+
+	segs = skb_segment(skb, features);
+	if (!IS_ERR(segs)) {
+		kfree_skb_list(segs);
+		ret = 0;
+		pr_info("%s: success in skb_segment!", __func__);
+	} else {
+		pr_info("%s: failed in skb_segment!", __func__);
+	}
+	kfree_skb(skb);
+done:
+	return ret;
+}
+
 static __init int test_bpf(void)
 {
 	int i, err_cnt = 0, pass_cnt = 0;
@@ -6632,9 +6719,11 @@ static int __init test_bpf_init(void)
 		return ret;
 
 	ret = test_bpf();
-
 	destroy_bpf_tests();
-	return ret;
+	if (ret)
+		return ret;
+
+	return test_skb_segment();
 }
 
 static void __exit test_bpf_exit(void)

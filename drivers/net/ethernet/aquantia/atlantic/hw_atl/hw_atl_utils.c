@@ -505,7 +505,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
+static int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
 {
 	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
 

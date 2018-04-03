@@ -49,7 +49,6 @@ int octeon_setup_response_list(struct octeon_device *oct)
 	INIT_DELAYED_WORK(&cwq->wk.work, oct_poll_req_completion);
 	cwq->wk.ctxptr = oct;
 	oct->cmd_resp_state = OCT_DRV_ONLINE;
-	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(50));
 
 	return ret;
 }
@@ -164,5 +163,8 @@ static void oct_poll_req_completion(struct work_struct *work)
 	struct cavium_wq *cwq = &oct->dma_comp_wq;
 
 	lio_process_ordered_list(oct, 0);
-	queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(50));
+
+	if (atomic_read(&oct->response_list
+			[OCTEON_ORDERED_SC_LIST].pending_req_count))
+		queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(1));
 }

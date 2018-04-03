@@ -263,7 +263,8 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 				    __u32 new_cum_tsn, size_t nstreams,
 				    struct sctp_fwdtsn_skip *skiplist);
-struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc);
+struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc,
+				  __u16 key_id);
 struct sctp_chunk *sctp_make_strreset_req(const struct sctp_association *asoc,
 					  __u16 stream_num, __be16 *stream_list,
 					  bool out, bool in);

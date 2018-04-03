@@ -2617,7 +2617,7 @@ int mem_open(struct inode *inode, struct file *file)
 
 	file->private_data = inode->i_private;
 
-	mem = (uintptr_t)file->private_data & 0x3;
+	mem = (uintptr_t)file->private_data & 0x7;
 	adap = file->private_data - mem;
 
 	(void)t4_fwcache(adap, FW_PARAM_DEV_FWCACHE_FLUSH);
@@ -2630,7 +2630,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 {
 	loff_t pos = *ppos;
 	loff_t avail = file_inode(file)->i_size;
-	unsigned int mem = (uintptr_t)file->private_data & 3;
+	unsigned int mem = (uintptr_t)file->private_data & 0x7;
 	struct adapter *adap = file->private_data - mem;
 	__be32 *data;
 	int ret;
@@ -2752,7 +2752,7 @@ DEFINE_SIMPLE_DEBUGFS_FILE(tid_info);
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
 {
-	debugfs_create_file_size(name, S_IRUSR, adap->debugfs_root,
+	debugfs_create_file_size(name, 0400, adap->debugfs_root,
 				 (void *)adap + idx, &mem_debugfs_fops,
 				 size_mb << 20);
 }
@@ -2947,65 +2947,65 @@ int t4_setup_debugfs(struct adapter *adap)
 	struct dentry *de;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
-		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
-		{ "cim_pif_la", &cim_pif_la_fops, S_IRUSR, 0 },
-		{ "cim_ma_la", &cim_ma_la_fops, S_IRUSR, 0 },
-		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
-		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
-		{ "devlog", &devlog_fops, S_IRUSR, 0 },
-		{ "mboxlog", &mboxlog_fops, S_IRUSR, 0 },
-		{ "mbox0", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 0 },
-		{ "mbox1", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 1 },
-		{ "mbox2", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 2 },
-		{ "mbox3", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 3 },
-		{ "mbox4", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 4 },
-		{ "mbox5", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 5 },
-		{ "mbox6", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 6 },
-		{ "mbox7", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 7 },
-		{ "trace0", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 0 },
-		{ "trace1", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 1 },
-		{ "trace2", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 2 },
-		{ "trace3", &mps_trc_debugfs_fops, S_IRUSR | S_IWUSR, 3 },
-		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
-		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },
-		{ "rss", &rss_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_config", &rss_config_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_key", &rss_key_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_pf_config", &rss_pf_config_debugfs_fops, S_IRUSR, 0 },
-		{ "rss_vf_config", &rss_vf_config_debugfs_fops, S_IRUSR, 0 },
-		{ "sge_qinfo", &sge_qinfo_debugfs_fops, S_IRUSR, 0 },
-		{ "ibq_tp0",  &cim_ibq_fops, S_IRUSR, 0 },
-		{ "ibq_tp1",  &cim_ibq_fops, S_IRUSR, 1 },
-		{ "ibq_ulp",  &cim_ibq_fops, S_IRUSR, 2 },
-		{ "ibq_sge0", &cim_ibq_fops, S_IRUSR, 3 },
-		{ "ibq_sge1", &cim_ibq_fops, S_IRUSR, 4 },
-		{ "ibq_ncsi", &cim_ibq_fops, S_IRUSR, 5 },
-		{ "obq_ulp0", &cim_obq_fops, S_IRUSR, 0 },
-		{ "obq_ulp1", &cim_obq_fops, S_IRUSR, 1 },
-		{ "obq_ulp2", &cim_obq_fops, S_IRUSR, 2 },
-		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
-		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
-		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
-		{ "tp_la", &tp_la_fops, S_IRUSR, 0 },
-		{ "ulprx_la", &ulprx_la_fops, S_IRUSR, 0 },
-		{ "sensors", &sensors_debugfs_fops, S_IRUSR, 0 },
-		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
-		{ "tx_rate", &tx_rate_debugfs_fops, S_IRUSR, 0 },
-		{ "cctrl", &cctrl_tbl_debugfs_fops, S_IRUSR, 0 },
+		{ "cim_la", &cim_la_fops, 0400, 0 },
+		{ "cim_pif_la", &cim_pif_la_fops, 0400, 0 },
+		{ "cim_ma_la", &cim_ma_la_fops, 0400, 0 },
+		{ "cim_qcfg", &cim_qcfg_fops, 0400, 0 },
+		{ "clk", &clk_debugfs_fops, 0400, 0 },
+		{ "devlog", &devlog_fops, 0400, 0 },
+		{ "mboxlog", &mboxlog_fops, 0400, 0 },
+		{ "mbox0", &mbox_debugfs_fops, 0600, 0 },
+		{ "mbox1", &mbox_debugfs_fops, 0600, 1 },
+		{ "mbox2", &mbox_debugfs_fops, 0600, 2 },
+		{ "mbox3", &mbox_debugfs_fops, 0600, 3 },
+		{ "mbox4", &mbox_debugfs_fops, 0600, 4 },
+		{ "mbox5", &mbox_debugfs_fops, 0600, 5 },
+		{ "mbox6", &mbox_debugfs_fops, 0600, 6 },
+		{ "mbox7", &mbox_debugfs_fops, 0600, 7 },
+		{ "trace0", &mps_trc_debugfs_fops, 0600, 0 },
+		{ "trace1", &mps_trc_debugfs_fops, 0600, 1 },
+		{ "trace2", &mps_trc_debugfs_fops, 0600, 2 },
+		{ "trace3", &mps_trc_debugfs_fops, 0600, 3 },
+		{ "l2t", &t4_l2t_fops, 0400, 0},
+		{ "mps_tcam", &mps_tcam_debugfs_fops, 0400, 0 },
+		{ "rss", &rss_debugfs_fops, 0400, 0 },
+		{ "rss_config", &rss_config_debugfs_fops, 0400, 0 },
+		{ "rss_key", &rss_key_debugfs_fops, 0400, 0 },
+		{ "rss_pf_config", &rss_pf_config_debugfs_fops, 0400, 0 },
+		{ "rss_vf_config", &rss_vf_config_debugfs_fops, 0400, 0 },
+		{ "sge_qinfo", &sge_qinfo_debugfs_fops, 0400, 0 },
+		{ "ibq_tp0",  &cim_ibq_fops, 0400, 0 },
+		{ "ibq_tp1",  &cim_ibq_fops, 0400, 1 },
+		{ "ibq_ulp",  &cim_ibq_fops, 0400, 2 },
+		{ "ibq_sge0", &cim_ibq_fops, 0400, 3 },
+		{ "ibq_sge1", &cim_ibq_fops, 0400, 4 },
+		{ "ibq_ncsi", &cim_ibq_fops, 0400, 5 },
+		{ "obq_ulp0", &cim_obq_fops, 0400, 0 },
+		{ "obq_ulp1", &cim_obq_fops, 0400, 1 },
+		{ "obq_ulp2", &cim_obq_fops, 0400, 2 },
+		{ "obq_ulp3", &cim_obq_fops, 0400, 3 },
+		{ "obq_sge",  &cim_obq_fops, 0400, 4 },
+		{ "obq_ncsi", &cim_obq_fops, 0400, 5 },
+		{ "tp_la", &tp_la_fops, 0400, 0 },
+		{ "ulprx_la", &ulprx_la_fops, 0400, 0 },
+		{ "sensors", &sensors_debugfs_fops, 0400, 0 },
+		{ "pm_stats", &pm_stats_debugfs_fops, 0400, 0 },
+		{ "tx_rate", &tx_rate_debugfs_fops, 0400, 0 },
+		{ "cctrl", &cctrl_tbl_debugfs_fops, 0400, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
-		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
+		{ "clip_tbl", &clip_tbl_debugfs_fops, 0400, 0 },
 #endif
-		{ "tids", &tid_info_debugfs_fops, S_IRUSR, 0},
-		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
-		{ "meminfo", &meminfo_fops, S_IRUSR, 0 },
-		{ "crypto", &chcr_stats_debugfs_fops, S_IRUSR, 0 },
+		{ "tids", &tid_info_debugfs_fops, 0400, 0},
+		{ "blocked_fl", &blocked_fl_fops, 0600, 0 },
+		{ "meminfo", &meminfo_fops, 0400, 0 },
+		{ "crypto", &chcr_stats_debugfs_fops, 0400, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.
 	 */
 	static struct t4_debugfs_entry t5_debugfs_files[] = {
-		{ "obq_sge_rx_q0", &cim_obq_fops, S_IRUSR, 6 },
-		{ "obq_sge_rx_q1", &cim_obq_fops, S_IRUSR, 7 },
+		{ "obq_sge_rx_q0", &cim_obq_fops, 0400, 6 },
+		{ "obq_sge_rx_q1", &cim_obq_fops, 0400, 7 },
 	};
 
 	add_debugfs_files(adap,
@@ -3042,13 +3042,19 @@ int t4_setup_debugfs(struct adapter *adap)
 			add_debugfs_mem(adap, "mc", MEM_MC,
 					EXT_MEM_SIZE_G(size));
 		}
+
+		if (i & HMA_MUX_F) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			add_debugfs_mem(adap, "hma", MEM_HMA,
+					EXT_MEM1_SIZE_G(size));
+		}
 	}
 
-	de = debugfs_create_file_size("flash", S_IRUSR, adap->debugfs_root, adap,
+	de = debugfs_create_file_size("flash", 0400, adap->debugfs_root, adap,
 				      &flash_debugfs_fops, adap->params.sf_size);
-	debugfs_create_bool("use_backdoor", S_IWUSR | S_IRUSR,
+	debugfs_create_bool("use_backdoor", 0600,
 			    adap->debugfs_root, &adap->use_bd);
-	debugfs_create_bool("trace_rss", S_IWUSR | S_IRUSR,
+	debugfs_create_bool("trace_rss", 0600,
 			    adap->debugfs_root, &adap->trace_rss);
 
 	return 0;

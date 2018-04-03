@@ -705,7 +705,6 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 		tskb = skb_copy_expand(skb, QCAFRM_HEADER_LEN,
 				       QCAFRM_FOOTER_LEN + pad_len, GFP_ATOMIC);
 		if (!tskb) {
-			netdev_dbg(qca->net_dev, "could not allocate tx_buff\n");
 			qca->stats.out_of_mem++;
 			return NETDEV_TX_BUSY;
 		}

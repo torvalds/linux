@@ -2238,6 +2238,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	rtlpriv->cfg = (struct rtl_hal_cfg *)(id->driver_data);
 	rtlpriv->intf_ops = &rtl_pci_ops;
 	rtlpriv->glb_var = &rtl_global_var;
+	rtl_efuse_ops_init(hw);
 
 	/* MEM map */
 	err = pci_request_regions(pdev, KBUILD_MODNAME);

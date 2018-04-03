@@ -1238,7 +1238,7 @@ out:
  * fields into the sockaddr.
  */
 static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
-			 int *uaddr_len, int peer)
+			 int peer)
 {
 	struct sockaddr_at sat;
 	struct sock *sk = sock->sk;
@@ -1251,7 +1251,6 @@ static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
 		if (atalk_autobind(sk) < 0)
 			goto out;
 
-	*uaddr_len = sizeof(struct sockaddr_at);
 	memset(&sat, 0, sizeof(sat));
 
 	if (peer) {
@@ -1268,9 +1267,9 @@ static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
 		sat.sat_port	    = at->src_port;
 	}
 
-	err = 0;
 	sat.sat_family = AF_APPLETALK;
 	memcpy(uaddr, &sat, sizeof(sat));
+	err = sizeof(struct sockaddr_at);
 
 out:
 	release_sock(sk);

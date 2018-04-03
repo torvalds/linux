@@ -393,6 +393,51 @@ static void general_event_handler(struct mlx5_core_dev *dev,
 	}
 }
 
+/* caller must eventually call mlx5_cq_put on the returned cq */
+static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
+{
+	struct mlx5_cq_table *table = &eq->cq_table;
+	struct mlx5_core_cq *cq = NULL;
+
+	spin_lock(&table->lock);
+	cq = radix_tree_lookup(&table->tree, cqn);
+	if (likely(cq))
+		mlx5_cq_hold(cq);
+	spin_unlock(&table->lock);
+
+	return cq;
+}
+
+static void mlx5_eq_cq_completion(struct mlx5_eq *eq, u32 cqn)
+{
+	struct mlx5_core_cq *cq = mlx5_eq_cq_get(eq, cqn);
+
+	if (unlikely(!cq)) {
+		mlx5_core_warn(eq->dev, "Completion event for bogus CQ 0x%x\n", cqn);
+		return;
+	}
+
+	++cq->arm_sn;
+
+	cq->comp(cq);
+
+	mlx5_cq_put(cq);
+}
+
+static void mlx5_eq_cq_event(struct mlx5_eq *eq, u32 cqn, int event_type)
+{
+	struct mlx5_core_cq *cq = mlx5_eq_cq_get(eq, cqn);
+
+	if (unlikely(!cq)) {
+		mlx5_core_warn(eq->dev, "Async event for bogus CQ 0x%x\n", cqn);
+		return;
+	}
+
+	cq->event(cq, event_type);
+
+	mlx5_cq_put(cq);
+}
+
 static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 {
 	struct mlx5_eq *eq = eq_ptr;
@@ -415,7 +460,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 		switch (eqe->type) {
 		case MLX5_EVENT_TYPE_COMP:
 			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
-			mlx5_cq_completion(dev, cqn);
+			mlx5_eq_cq_completion(eq, cqn);
 			break;
 		case MLX5_EVENT_TYPE_DCT_DRAINED:
 			rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
@@ -472,7 +517,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
 			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrome 0x%x\n",
 				       cqn, eqe->data.cq_err.syndrome);
-			mlx5_cq_event(dev, cqn, eqe->type);
+			mlx5_eq_cq_event(eq, cqn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_PAGE_REQUEST:
@@ -567,6 +612,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name,
 		       enum mlx5_eq_type type)
 {
+	struct mlx5_cq_table *cq_table = &eq->cq_table;
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
 	irq_handler_t handler;
@@ -575,6 +621,11 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	int inlen;
 	u32 *in;
 	int err;
+
+	/* Init CQ table */
+	memset(cq_table, 0, sizeof(*cq_table));
+	spin_lock_init(&cq_table->lock);
+	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 
 	eq->type = type;
 	eq->nent = roundup_pow_of_two(nent + MLX5_NUM_SPARE_EQE);
@@ -669,7 +720,6 @@ err_buf:
 	mlx5_buf_free(dev, &eq->buf);
 	return err;
 }
-EXPORT_SYMBOL_GPL(mlx5_create_map_eq);
 
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 {
@@ -696,7 +746,40 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(mlx5_destroy_unmap_eq);
+
+int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
+{
+	struct mlx5_cq_table *table = &eq->cq_table;
+	int err;
+
+	spin_lock_irq(&table->lock);
+	err = radix_tree_insert(&table->tree, cq->cqn, cq);
+	spin_unlock_irq(&table->lock);
+
+	return err;
+}
+
+int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
+{
+	struct mlx5_cq_table *table = &eq->cq_table;
+	struct mlx5_core_cq *tmp;
+
+	spin_lock_irq(&table->lock);
+	tmp = radix_tree_delete(&table->tree, cq->cqn);
+	spin_unlock_irq(&table->lock);
+
+	if (!tmp) {
+		mlx5_core_warn(eq->dev, "cq 0x%x not found in eq 0x%x tree\n", eq->eqn, cq->cqn);
+		return -ENOENT;
+	}
+
+	if (tmp != cq) {
+		mlx5_core_warn(eq->dev, "corruption on cqn 0x%x in eq 0x%x\n", eq->eqn, cq->cqn);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 int mlx5_eq_init(struct mlx5_core_dev *dev)
 {
@@ -840,4 +923,3 @@ int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
-EXPORT_SYMBOL_GPL(mlx5_core_eq_query);

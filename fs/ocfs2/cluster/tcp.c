@@ -1819,7 +1819,7 @@ int o2net_register_hb_callbacks(void)
 
 static int o2net_accept_one(struct socket *sock, int *more)
 {
-	int ret, slen;
+	int ret;
 	struct sockaddr_in sin;
 	struct socket *new_sock = NULL;
 	struct o2nm_node *node = NULL;
@@ -1864,9 +1864,7 @@ static int o2net_accept_one(struct socket *sock, int *more)
 		goto out;
 	}
 
-	slen = sizeof(sin);
-	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin,
-				       &slen, 1);
+	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin, 1);
 	if (ret < 0)
 		goto out;
 

@@ -159,7 +159,7 @@ struct tipc_bearer {
 	u32 tolerance;
 	u32 domain;
 	u32 identity;
-	struct tipc_link_req *link_req;
+	struct tipc_discoverer *disc;
 	char net_plane;
 	unsigned long up;
 };

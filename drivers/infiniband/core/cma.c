@@ -1334,7 +1334,7 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 			   IPV6_ADDR_LINKLOCAL;
 	struct rt6_info *rt = rt6_lookup(dev_net(net_dev), &dst_addr->sin6_addr,
 					 &src_addr->sin6_addr, net_dev->ifindex,
-					 strict);
+					 NULL, strict);
 	bool ret;
 
 	if (!rt)

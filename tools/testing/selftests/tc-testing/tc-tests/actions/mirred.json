@@ -171,6 +171,198 @@
         ]
     },
     {
+        "id": "8917",
+        "name": "Add mirred mirror action with control pass",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo pass index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 1",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) pass.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "1054",
+        "name": "Add mirred mirror action with control pipe",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo pipe index 15",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 15",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) pipe.*index 15 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "9887",
+        "name": "Add mirred mirror action with control continue",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo continue index 15",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 15",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) continue.*index 15 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "e4aa",
+        "name": "Add mirred mirror action with control reclassify",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo reclassify index 150",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 150",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) reclassify.*index 150 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "ece9",
+        "name": "Add mirred mirror action with control drop",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo drop index 99",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 99",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) drop.*index 99 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "0031",
+        "name": "Add mirred mirror action with control jump",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo jump 10 index 99",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 99",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) jump 10.*index 99 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "407c",
+        "name": "Add mirred mirror action with cookie",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo reclassify cookie aa11bb22cc33dd44ee55",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) reclassify.*cookie aa11bb22cc33dd44ee55",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "8b69",
+        "name": "Add mirred mirror action with maximum index",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo pipe index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action mirred index 4294967295",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) pipe.*index 4294967295",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
         "id": "a70e",
         "name": "Delete mirred mirror action",
         "category": [

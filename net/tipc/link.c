@@ -434,14 +434,16 @@ char *tipc_link_name(struct tipc_link *l)
  */
 bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
-		      int window, u32 session, u32 ownnode, u32 peer,
-		      u16 peer_caps,
+		      int window, u32 session, u32 self,
+		      u32 peer, u8 *peer_id, u16 peer_caps,
 		      struct tipc_link *bc_sndlink,
 		      struct tipc_link *bc_rcvlink,
 		      struct sk_buff_head *inputq,
 		      struct sk_buff_head *namedq,
 		      struct tipc_link **link)
 {
+	char peer_str[NODE_ID_STR_LEN] = {0,};
+	char self_str[NODE_ID_STR_LEN] = {0,};
 	struct tipc_link *l;
 
 	l = kzalloc(sizeof(*l), GFP_ATOMIC);
@@ -450,10 +452,19 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 	*link = l;
 	l->session = session;
 
-	/* Note: peer i/f name is completed by reset/activate message */
-	sprintf(l->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
-		tipc_zone(ownnode), tipc_cluster(ownnode), tipc_node(ownnode),
-		if_name, tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
+	/* Set link name for unicast links only */
+	if (peer_id) {
+		tipc_nodeid2string(self_str, tipc_own_id(net));
+		if (strlen(self_str) > 16)
+			sprintf(self_str, "%x", self);
+		tipc_nodeid2string(peer_str, peer_id);
+		if (strlen(peer_str) > 16)
+			sprintf(peer_str, "%x", peer);
+	}
+	/* Peer i/f name will be completed by reset/activate message */
+	snprintf(l->name, sizeof(l->name), "%s:%s-%s:unknown",
+		 self_str, if_name, peer_str);
+
 	strcpy(l->if_name, if_name);
 	l->addr = peer;
 	l->peer_caps = peer_caps;
@@ -501,7 +512,7 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 	struct tipc_link *l;
 
 	if (!tipc_link_create(net, "", MAX_BEARERS, 0, 'Z', mtu, 0, window,
-			      0, ownnode, peer, peer_caps, bc_sndlink,
+			      0, ownnode, peer, NULL, peer_caps, bc_sndlink,
 			      NULL, inputq, namedq, link))
 		return false;
 
@@ -1800,7 +1811,7 @@ int tipc_link_bc_nack_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 {
-	int max_bulk = TIPC_MAX_PUBLICATIONS / (l->mtu / ITEM_SIZE);
+	int max_bulk = TIPC_MAX_PUBL / (l->mtu / ITEM_SIZE);
 
 	l->window = win;
 	l->backlog[TIPC_LOW_IMPORTANCE].limit      = max_t(u16, 50, win);
@@ -1938,11 +1949,11 @@ msg_full:
 int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 		       struct tipc_link *link, int nlflags)
 {
-	int err;
-	void *hdr;
+	u32 self = tipc_own_addr(net);
 	struct nlattr *attrs;
 	struct nlattr *prop;
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	void *hdr;
+	int err;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  nlflags, TIPC_NL_LINK_GET);
@@ -1955,8 +1966,7 @@ int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 
 	if (nla_put_string(msg->skb, TIPC_NLA_LINK_NAME, link->name))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_DEST,
-			tipc_cluster_mask(tn->own_addr)))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_DEST, tipc_cluster_mask(self)))
 		goto attr_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_MTU, link->mtu))
 		goto attr_msg_full;
@@ -2126,7 +2136,8 @@ void tipc_link_set_tolerance(struct tipc_link *l, u32 tol,
 			     struct sk_buff_head *xmitq)
 {
 	l->tolerance = tol;
-	tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, tol, 0, xmitq);
+	if (link_is_up(l))
+		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, tol, 0, xmitq);
 }
 
 void tipc_link_set_prio(struct tipc_link *l, u32 prio,

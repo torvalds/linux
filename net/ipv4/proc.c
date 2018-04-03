@@ -54,7 +54,6 @@
 static int sockstat_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq->private;
-	unsigned int frag_mem;
 	int orphans, sockets;
 
 	orphans = percpu_counter_sum_positive(&tcp_orphan_count);
@@ -72,8 +71,9 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 		   sock_prot_inuse_get(net, &udplite_prot));
 	seq_printf(seq, "RAW: inuse %d\n",
 		   sock_prot_inuse_get(net, &raw_prot));
-	frag_mem = ip_frag_mem(net);
-	seq_printf(seq,  "FRAG: inuse %u memory %u\n", !!frag_mem, frag_mem);
+	seq_printf(seq,  "FRAG: inuse %u memory %lu\n",
+		   atomic_read(&net->ipv4.frags.rhashtable.nelems),
+		   frag_mem_limit(&net->ipv4.frags));
 	return 0;
 }
 
@@ -521,12 +521,12 @@ static const struct file_operations netstat_seq_fops = {
 
 static __net_init int ip_proc_init_net(struct net *net)
 {
-	if (!proc_create("sockstat", S_IRUGO, net->proc_net,
+	if (!proc_create("sockstat", 0444, net->proc_net,
 			 &sockstat_seq_fops))
 		goto out_sockstat;
-	if (!proc_create("netstat", S_IRUGO, net->proc_net, &netstat_seq_fops))
+	if (!proc_create("netstat", 0444, net->proc_net, &netstat_seq_fops))
 		goto out_netstat;
-	if (!proc_create("snmp", S_IRUGO, net->proc_net, &snmp_seq_fops))
+	if (!proc_create("snmp", 0444, net->proc_net, &snmp_seq_fops))
 		goto out_snmp;
 
 	return 0;
@@ -555,4 +555,3 @@ int __init ip_misc_proc_init(void)
 {
 	return register_pernet_subsys(&ip_proc_ops);
 }
-

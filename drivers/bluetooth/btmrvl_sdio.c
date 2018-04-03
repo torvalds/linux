@@ -689,7 +689,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	int ret, num_blocks, blksz;
 	struct sk_buff *skb = NULL;
 	u32 type;
-	u8 *payload = NULL;
+	u8 *payload;
 	struct hci_dev *hdev = priv->btmrvl_dev.hcidev;
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 
@@ -920,7 +920,7 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 {
 	struct sdio_func *func;
 	u8 reg;
-	int ret = 0;
+	int ret;
 
 	if (!card || !card->func) {
 		BT_ERR("Error: card or function is NULL!");

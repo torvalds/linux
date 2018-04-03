@@ -675,6 +675,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
+		.has_flow_tag = true,
 		.flow_tag = attr->flow_tag,
 		.encap_id = 0,
 	};
@@ -2529,12 +2530,17 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
 			} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
-				if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
-				    tcf_vlan_push_prio(a))
-					return -EOPNOTSUPP;
-
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-				attr->vlan = tcf_vlan_push_vid(a);
+				attr->vlan_vid = tcf_vlan_push_vid(a);
+				if (mlx5_eswitch_vlan_actions_supported(priv->mdev)) {
+					attr->vlan_prio = tcf_vlan_push_prio(a);
+					attr->vlan_proto = tcf_vlan_push_proto(a);
+					if (!attr->vlan_proto)
+						attr->vlan_proto = htons(ETH_P_8021Q);
+				} else if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
+					   tcf_vlan_push_prio(a)) {
+					return -EOPNOTSUPP;
+				}
 			} else { /* action is TCA_VLAN_ACT_MODIFY */
 				return -EOPNOTSUPP;
 			}

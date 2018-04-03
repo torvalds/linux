@@ -604,7 +604,7 @@ mt7530_get_ethtool_stats(struct dsa_switch *ds, int port,
 }
 
 static int
-mt7530_get_sset_count(struct dsa_switch *ds)
+mt7530_get_sset_count(struct dsa_switch *ds, int port)
 {
 	return ARRAY_SIZE(mt7530_mib);
 }

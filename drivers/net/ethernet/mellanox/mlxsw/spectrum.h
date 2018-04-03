@@ -70,16 +70,23 @@
 #define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR "linear"
 #define MLXSW_SP_RESOURCE_NAME_KVD_HASH_SINGLE "hash_single"
 #define MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE "hash_double"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_SINGLES "singles"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_CHUNKS "chunks"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_LARGE_CHUNKS "large_chunks"
 
 enum mlxsw_sp_resource_id {
-	MLXSW_SP_RESOURCE_KVD,
+	MLXSW_SP_RESOURCE_KVD = 1,
 	MLXSW_SP_RESOURCE_KVD_LINEAR,
 	MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
 	MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
+	MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
+	MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
+	MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
 };
 
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
+struct mlxsw_sp_span_entry;
 
 struct mlxsw_sp_upper {
 	struct net_device *dev;
@@ -111,35 +118,13 @@ struct mlxsw_sp_mid {
 	unsigned long *ports_in_mid; /* bits array */
 };
 
-enum mlxsw_sp_span_type {
-	MLXSW_SP_SPAN_EGRESS,
-	MLXSW_SP_SPAN_INGRESS
-};
-
-struct mlxsw_sp_span_inspected_port {
-	struct list_head list;
-	enum mlxsw_sp_span_type type;
-	u8 local_port;
-
-	/* Whether this is a directly bound mirror (port-to-port) or an ACL. */
-	bool bound;
-};
-
-struct mlxsw_sp_span_entry {
-	u8 local_port;
-	bool used;
-	struct list_head bound_ports_list;
-	int ref_count;
-	int id;
-};
-
 enum mlxsw_sp_port_mall_action_type {
 	MLXSW_SP_PORT_MALL_MIRROR,
 	MLXSW_SP_PORT_MALL_SAMPLE,
 };
 
 struct mlxsw_sp_port_mall_mirror_tc_entry {
-	u8 to_local_port;
+	int span_id;
 	bool ingress;
 };
 
@@ -226,6 +211,8 @@ struct mlxsw_sp_port_xstats {
 	u64 wred_drop[TC_MAX_QUEUE];
 	u64 tail_drop[TC_MAX_QUEUE];
 	u64 backlog[TC_MAX_QUEUE];
+	u64 tx_bytes[IEEE_8021QAZ_MAX_TCS];
+	u64 tx_packets[IEEE_8021QAZ_MAX_TCS];
 };
 
 struct mlxsw_sp_port {
@@ -263,6 +250,7 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_qdisc *root_qdisc;
+	struct mlxsw_sp_qdisc *tclass_qdiscs;
 	unsigned acl_rule_count;
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
@@ -400,16 +388,6 @@ struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev);
-int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
-			     struct mlxsw_sp_port *to,
-			     enum mlxsw_sp_span_type type,
-			     bool bind);
-void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from,
-			      u8 destination_port,
-			      enum mlxsw_sp_span_type type,
-			      bool bind);
-struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port);
 
 /* spectrum_dcb.c */
 #ifdef CONFIG_MLXSW_SPECTRUM_DCB
@@ -465,6 +443,7 @@ int mlxsw_sp_kvdl_alloc_size_query(struct mlxsw_sp *mlxsw_sp,
 				   unsigned int entry_count,
 				   unsigned int *p_alloc_size);
 u64 mlxsw_sp_kvdl_occ_get(const struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_kvdl_resources_register(struct mlxsw_core *mlxsw_core);
 
 struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;

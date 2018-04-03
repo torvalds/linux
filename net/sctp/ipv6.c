@@ -952,16 +952,16 @@ static int sctp_inet6_supported_addrs(const struct sctp_sock *opt,
 
 /* Handle SCTP_I_WANT_MAPPED_V4_ADDR for getpeername() and getsockname() */
 static int sctp_getname(struct socket *sock, struct sockaddr *uaddr,
-			int *uaddr_len, int peer)
+			int peer)
 {
 	int rc;
 
-	rc = inet6_getname(sock, uaddr, uaddr_len, peer);
+	rc = inet6_getname(sock, uaddr, peer);
 
-	if (rc != 0)
+	if (rc < 0)
 		return rc;
 
-	*uaddr_len = sctp_v6_addr_to_user(sctp_sk(sock->sk),
+	rc = sctp_v6_addr_to_user(sctp_sk(sock->sk),
 					  (union sctp_addr *)uaddr);
 
 	return rc;

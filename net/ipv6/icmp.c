@@ -522,7 +522,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	fl6.fl6_icmp_type = type;
 	fl6.fl6_icmp_code = code;
 	fl6.flowi6_uid = sock_net_uid(net, NULL);
-	fl6.mp_hash = rt6_multipath_hash(&fl6, skb);
+	fl6.mp_hash = rt6_multipath_hash(net, &fl6, skb, NULL);
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
 	sk = icmpv6_xmit_lock(net);
@@ -629,7 +629,8 @@ int ip6_err_gen_icmpv6_unreach(struct sk_buff *skb, int nhs, int type,
 	skb_pull(skb2, nhs);
 	skb_reset_network_header(skb2);
 
-	rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr, NULL, 0, 0);
+	rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr, NULL, 0,
+			skb, 0);
 
 	if (rt && rt->dst.dev)
 		skb2->dev = rt->dst.dev;

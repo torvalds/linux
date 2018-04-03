@@ -517,6 +517,7 @@ kci_test_gretap()
 	ip link help gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: gretap: iproute2 too old"
+		ip netns del "$testns"
 		return 1
 	fi
 
@@ -543,6 +544,7 @@ kci_test_gretap()
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: gretap"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: gretap"
@@ -565,6 +567,7 @@ kci_test_ip6gretap()
 	ip link help ip6gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6gretap: iproute2 too old"
+		ip netns del "$testns"
 		return 1
 	fi
 
@@ -591,6 +594,7 @@ kci_test_ip6gretap()
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: ip6gretap"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: ip6gretap"
@@ -655,6 +659,7 @@ kci_test_erspan()
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: erspan"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: erspan"
@@ -720,6 +725,7 @@ kci_test_ip6erspan()
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: ip6erspan"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: ip6erspan"

@@ -75,7 +75,8 @@ static inline bool rt6_qualify_for_ecmp(const struct rt6_info *rt)
 void ip6_route_input(struct sk_buff *skb);
 struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct net_device *dev,
-					 struct flowi6 *fl6, int flags);
+					 struct flowi6 *fl6,
+					 const struct sk_buff *skb, int flags);
 
 struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 					 struct flowi6 *fl6, int flags);
@@ -88,9 +89,10 @@ static inline struct dst_entry *ip6_route_output(struct net *net,
 }
 
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
-				   int flags);
+				   const struct sk_buff *skb, int flags);
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
-			       int ifindex, struct flowi6 *fl6, int flags);
+			       int ifindex, struct flowi6 *fl6,
+			       const struct sk_buff *skb, int flags);
 
 void ip6_route_init_special_entries(void);
 int ip6_route_init(void);
@@ -126,8 +128,10 @@ static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
 }
 
 struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
-			    const struct in6_addr *saddr, int oif, int flags);
-u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb);
+			    const struct in6_addr *saddr, int oif,
+			    const struct sk_buff *skb, int flags);
+u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
+		       const struct sk_buff *skb, struct flow_keys *hkeys);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
 
@@ -269,4 +273,5 @@ static inline bool rt6_duplicate_nexthop(struct rt6_info *a, struct rt6_info *b)
 	       ipv6_addr_equal(&a->rt6i_gateway, &b->rt6i_gateway) &&
 	       !lwtunnel_cmp_encap(a->dst.lwtstate, b->dst.lwtstate);
 }
+
 #endif

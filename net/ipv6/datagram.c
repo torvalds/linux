@@ -808,8 +808,9 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
 				if (!(inet_sk(sk)->freebind || inet_sk(sk)->transparent) &&
-				    !ipv6_chk_addr(net, &src_info->ipi6_addr,
-						   strict ? dev : NULL, 0) &&
+				    !ipv6_chk_addr_and_flags(net, &src_info->ipi6_addr,
+							     dev, !strict, 0,
+							     IFA_F_TENTATIVE) &&
 				    !ipv6_chk_acast_addr_src(net, dev,
 							     &src_info->ipi6_addr))
 					err = -EINVAL;

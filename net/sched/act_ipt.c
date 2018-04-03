@@ -196,7 +196,7 @@ err1:
 
 static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a, int ovr,
-			int bind)
+			int bind, struct netlink_ext_ack *extack)
 {
 	return __tcf_ipt_init(net, ipt_net_id, nla, est, a, &act_ipt_ops, ovr,
 			      bind);
@@ -204,7 +204,7 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 
 static int tcf_xt_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a, int ovr,
-		       int bind)
+		       int bind, struct netlink_ext_ack *extack)
 {
 	return __tcf_ipt_init(net, xt_net_id, nla, est, a, &act_xt_ops, ovr,
 			      bind);
@@ -306,14 +306,16 @@ nla_put_failure:
 
 static int tcf_ipt_walker(struct net *net, struct sk_buff *skb,
 			  struct netlink_callback *cb, int type,
-			  const struct tc_action_ops *ops)
+			  const struct tc_action_ops *ops,
+			  struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index,
+			  struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
@@ -354,14 +356,16 @@ static struct pernet_operations ipt_net_ops = {
 
 static int tcf_xt_walker(struct net *net, struct sk_buff *skb,
 			 struct netlink_callback *cb, int type,
-			 const struct tc_action_ops *ops)
+			 const struct tc_action_ops *ops,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index,
+			 struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 

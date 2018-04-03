@@ -120,14 +120,18 @@ do {								\
 #define CPDMA_RXCP		0x60
 
 #define CPSW_POLL_WEIGHT	64
+#define CPSW_RX_VLAN_ENCAP_HDR_SIZE		4
 #define CPSW_MIN_PACKET_SIZE	(VLAN_ETH_ZLEN)
-#define CPSW_MAX_PACKET_SIZE	(VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
+#define CPSW_MAX_PACKET_SIZE	(VLAN_ETH_FRAME_LEN +\
+				 ETH_FCS_LEN +\
+				 CPSW_RX_VLAN_ENCAP_HDR_SIZE)
 
 #define RX_PRIORITY_MAPPING	0x76543210
 #define TX_PRIORITY_MAPPING	0x33221100
 #define CPDMA_TX_PRIORITY_MAP	0x01234567
 
 #define CPSW_VLAN_AWARE		BIT(1)
+#define CPSW_RX_VLAN_ENCAP	BIT(2)
 #define CPSW_ALE_VLAN_AWARE	1
 
 #define CPSW_FIFO_NORMAL_MODE		(0 << 16)
@@ -147,6 +151,18 @@ do {								\
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
 #define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
+
+#define CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT	29
+#define CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK		GENMASK(2, 0)
+#define CPSW_RX_VLAN_ENCAP_HDR_VID_SHIFT	16
+#define CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_SHIFT	8
+#define CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_MSK	GENMASK(1, 0)
+enum {
+	CPSW_RX_VLAN_ENCAP_HDR_PKT_VLAN_TAG = 0,
+	CPSW_RX_VLAN_ENCAP_HDR_PKT_RESERV,
+	CPSW_RX_VLAN_ENCAP_HDR_PKT_PRIO_TAG,
+	CPSW_RX_VLAN_ENCAP_HDR_PKT_UNTAG,
+};
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -718,6 +734,49 @@ static void cpsw_tx_handler(void *token, int len, int status)
 	dev_kfree_skb_any(skb);
 }
 
+static void cpsw_rx_vlan_encap(struct sk_buff *skb)
+{
+	struct cpsw_priv *priv = netdev_priv(skb->dev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	u32 rx_vlan_encap_hdr = *((u32 *)skb->data);
+	u16 vtag, vid, prio, pkt_type;
+
+	/* Remove VLAN header encapsulation word */
+	skb_pull(skb, CPSW_RX_VLAN_ENCAP_HDR_SIZE);
+
+	pkt_type = (rx_vlan_encap_hdr >>
+		    CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_SHIFT) &
+		    CPSW_RX_VLAN_ENCAP_HDR_PKT_TYPE_MSK;
+	/* Ignore unknown & Priority-tagged packets*/
+	if (pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_RESERV ||
+	    pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_PRIO_TAG)
+		return;
+
+	vid = (rx_vlan_encap_hdr >>
+	       CPSW_RX_VLAN_ENCAP_HDR_VID_SHIFT) &
+	       VLAN_VID_MASK;
+	/* Ignore vid 0 and pass packet as is */
+	if (!vid)
+		return;
+	/* Ignore default vlans in dual mac mode */
+	if (cpsw->data.dual_emac &&
+	    vid == cpsw->slaves[priv->emac_port].port_vlan)
+		return;
+
+	prio = (rx_vlan_encap_hdr >>
+		CPSW_RX_VLAN_ENCAP_HDR_PRIO_SHIFT) &
+		CPSW_RX_VLAN_ENCAP_HDR_PRIO_MSK;
+
+	vtag = (prio << VLAN_PRIO_SHIFT) | vid;
+	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
+
+	/* strip vlan tag for VLAN-tagged packet */
+	if (pkt_type == CPSW_RX_VLAN_ENCAP_HDR_PKT_VLAN_TAG) {
+		memmove(skb->data + VLAN_HLEN, skb->data, 2 * ETH_ALEN);
+		skb_pull(skb, VLAN_HLEN);
+	}
+}
+
 static void cpsw_rx_handler(void *token, int len, int status)
 {
 	struct cpdma_chan	*ch;
@@ -752,6 +811,8 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	if (new_skb) {
 		skb_copy_queue_mapping(new_skb, skb);
 		skb_put(skb, len);
+		if (status & CPDMA_RX_VLAN_ENCAP)
+			cpsw_rx_vlan_encap(skb);
 		cpts_rx_timestamp(cpsw->cpts, skb);
 		skb->protocol = eth_type_trans(skb, ndev);
 		netif_receive_skb(skb);
@@ -1407,7 +1468,7 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM, ALE_VLAN_AWARE,
 			     CPSW_ALE_VLAN_AWARE);
 	control_reg = readl(&cpsw->regs->control);
-	control_reg |= CPSW_VLAN_AWARE;
+	control_reg |= CPSW_VLAN_AWARE | CPSW_RX_VLAN_ENCAP;
 	writel(control_reg, &cpsw->regs->control);
 	fifo_mode = (cpsw->data.dual_emac) ? CPSW_FIFO_DUAL_MAC_MODE :
 		     CPSW_FIFO_NORMAL_MODE;
@@ -3123,7 +3184,7 @@ static int cpsw_probe(struct platform_device *pdev)
 			cpsw->quirk_irq = true;
 	}
 
-	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX;
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	ndev->ethtool_ops = &cpsw_ethtool_ops;

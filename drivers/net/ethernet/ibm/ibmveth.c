@@ -82,7 +82,7 @@ module_param(rx_flush, uint, 0644);
 MODULE_PARM_DESC(rx_flush, "Flush receive buffers before use");
 
 static bool old_large_send __read_mostly;
-module_param(old_large_send, bool, S_IRUGO);
+module_param(old_large_send, bool, 0444);
 MODULE_PARM_DESC(old_large_send,
 	"Use old large send method on firmware that supports the new method");
 

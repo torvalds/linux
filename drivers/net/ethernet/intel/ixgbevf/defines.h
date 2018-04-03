@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver

@@ -43,6 +43,7 @@ hostprogs-y += xdp_redirect_cpu
 hostprogs-y += xdp_monitor
 hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
+hostprogs-y += cpustat
 
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
@@ -93,6 +94,7 @@ xdp_redirect_cpu-objs := bpf_load.o $(LIBBPF) xdp_redirect_cpu_user.o
 xdp_monitor-objs := bpf_load.o $(LIBBPF) xdp_monitor_user.o
 xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
+cpustat-objs := bpf_load.o $(LIBBPF) cpustat_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -117,6 +119,7 @@ always += offwaketime_kern.o
 always += spintest_kern.o
 always += map_perf_test_kern.o
 always += test_overhead_tp_kern.o
+always += test_overhead_raw_tp_kern.o
 always += test_overhead_kprobe_kern.o
 always += parse_varlen.o parse_simple.o parse_ldabs.o
 always += test_cgrp2_tc_kern.o
@@ -144,6 +147,7 @@ always += xdp_monitor_kern.o
 always += xdp_rxq_info_kern.o
 always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
+always += cpustat_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -188,6 +192,7 @@ HOSTLOADLIBES_xdp_redirect_cpu += -lelf
 HOSTLOADLIBES_xdp_monitor += -lelf
 HOSTLOADLIBES_xdp_rxq_info += -lelf
 HOSTLOADLIBES_syscall_tp += -lelf
+HOSTLOADLIBES_cpustat += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang

@@ -343,6 +343,7 @@ struct mlx5_ib_sq {
 	struct mlx5_ib_wq	*sq;
 	struct mlx5_ib_ubuffer  ubuffer;
 	struct mlx5_db		*doorbell;
+	struct mlx5_flow_handle	*flow_rule;
 	u32			tisn;
 	u8			state;
 };
@@ -371,7 +372,7 @@ struct mlx5_ib_qp {
 		struct mlx5_ib_rss_qp rss_qp;
 		struct mlx5_ib_dct dct;
 	};
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 
 	struct mlx5_db		db;
 	struct mlx5_ib_wq	rq;
@@ -413,7 +414,7 @@ struct mlx5_ib_qp {
 };
 
 struct mlx5_ib_cq_buf {
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf_ctrl fbc;
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;
@@ -495,7 +496,7 @@ struct mlx5_ib_wc {
 struct mlx5_ib_srq {
 	struct ib_srq		ibsrq;
 	struct mlx5_core_srq	msrq;
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 	struct mlx5_db		db;
 	u64		       *wrid;
 	/* protect SRQ hanlding
@@ -731,7 +732,9 @@ struct mlx5_ib_delay_drop {
 
 enum mlx5_ib_stages {
 	MLX5_IB_STAGE_INIT,
+	MLX5_IB_STAGE_FLOW_DB,
 	MLX5_IB_STAGE_CAPS,
+	MLX5_IB_STAGE_NON_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
 	MLX5_IB_STAGE_ODP,
@@ -744,6 +747,7 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_POST_IB_REG_UMR,
 	MLX5_IB_STAGE_DELAY_DROP,
 	MLX5_IB_STAGE_CLASS_ATTR,
+	MLX5_IB_STAGE_REP_REG,
 	MLX5_IB_STAGE_MAX,
 };
 
@@ -798,7 +802,7 @@ struct mlx5_ib_dev {
 	struct srcu_struct      mr_srcu;
 	u32			null_mkey;
 #endif
-	struct mlx5_ib_flow_db	flow_db;
+	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head	qp_list;
@@ -808,6 +812,7 @@ struct mlx5_ib_dev {
 	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_delay_drop	delay_drop;
 	const struct mlx5_ib_profile	*profile;
+	struct mlx5_eswitch_rep		*rep;
 
 	/* protect the user_td */
 	struct mutex		lb_mutex;
@@ -1049,6 +1054,31 @@ static inline void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 					 int flags) {}
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
+
+/* Needed for rep profile */
+int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_flow_db_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_rep_roce_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_rep_roce_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_dev_res_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_dev_res_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev);
+void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
+		      const struct mlx5_ib_profile *profile,
+		      int stage);
+void *__mlx5_ib_add(struct mlx5_ib_dev *dev,
+		    const struct mlx5_ib_profile *profile);
 
 int mlx5_ib_get_vf_config(struct ib_device *device, int vf,
 			  u8 port, struct ifla_vf_info *info);

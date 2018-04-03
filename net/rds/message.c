@@ -33,6 +33,9 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/skbuff.h>
+#include <linux/list.h>
+#include <linux/errqueue.h>
 
 #include "rds.h"
 
@@ -45,7 +48,6 @@ static unsigned int	rds_exthdr_size[__RDS_EXTHDR_MAX] = {
 [RDS_EXTHDR_GEN_NUM]	= sizeof(u32),
 };
 
-
 void rds_message_addref(struct rds_message *rm)
 {
 	rdsdebug("addref rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
@@ -53,20 +55,107 @@ void rds_message_addref(struct rds_message *rm)
 }
 EXPORT_SYMBOL_GPL(rds_message_addref);
 
+static inline bool rds_zcookie_add(struct rds_msg_zcopy_info *info, u32 cookie)
+{
+	struct rds_zcopy_cookies *ck = &info->zcookies;
+	int ncookies = ck->num;
+
+	if (ncookies == RDS_MAX_ZCOOKIES)
+		return false;
+	ck->cookies[ncookies] = cookie;
+	ck->num =  ++ncookies;
+	return true;
+}
+
+static struct rds_msg_zcopy_info *rds_info_from_znotifier(struct rds_znotifier *znotif)
+{
+	return container_of(znotif, struct rds_msg_zcopy_info, znotif);
+}
+
+void rds_notify_msg_zcopy_purge(struct rds_msg_zcopy_queue *q)
+{
+	unsigned long flags;
+	LIST_HEAD(copy);
+	struct rds_msg_zcopy_info *info, *tmp;
+
+	spin_lock_irqsave(&q->lock, flags);
+	list_splice(&q->zcookie_head, &copy);
+	INIT_LIST_HEAD(&q->zcookie_head);
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	list_for_each_entry_safe(info, tmp, &copy, rs_zcookie_next) {
+		list_del(&info->rs_zcookie_next);
+		kfree(info);
+	}
+}
+
+static void rds_rm_zerocopy_callback(struct rds_sock *rs,
+				     struct rds_znotifier *znotif)
+{
+	struct rds_msg_zcopy_info *info;
+	struct rds_msg_zcopy_queue *q;
+	u32 cookie = znotif->z_cookie;
+	struct rds_zcopy_cookies *ck;
+	struct list_head *head;
+	unsigned long flags;
+
+	mm_unaccount_pinned_pages(&znotif->z_mmp);
+	q = &rs->rs_zcookie_queue;
+	spin_lock_irqsave(&q->lock, flags);
+	head = &q->zcookie_head;
+	if (!list_empty(head)) {
+		info = list_entry(head, struct rds_msg_zcopy_info,
+				  rs_zcookie_next);
+		if (info && rds_zcookie_add(info, cookie)) {
+			spin_unlock_irqrestore(&q->lock, flags);
+			kfree(rds_info_from_znotifier(znotif));
+			/* caller invokes rds_wake_sk_sleep() */
+			return;
+		}
+	}
+
+	info = rds_info_from_znotifier(znotif);
+	ck = &info->zcookies;
+	memset(ck, 0, sizeof(*ck));
+	WARN_ON(!rds_zcookie_add(info, cookie));
+	list_add_tail(&q->zcookie_head, &info->rs_zcookie_next);
+
+	spin_unlock_irqrestore(&q->lock, flags);
+	/* caller invokes rds_wake_sk_sleep() */
+}
+
 /*
  * This relies on dma_map_sg() not touching sg[].page during merging.
  */
 static void rds_message_purge(struct rds_message *rm)
 {
-	unsigned long i;
+	unsigned long i, flags;
+	bool zcopy = false;
 
 	if (unlikely(test_bit(RDS_MSG_PAGEVEC, &rm->m_flags)))
 		return;
 
+	spin_lock_irqsave(&rm->m_rs_lock, flags);
+	if (rm->m_rs) {
+		struct rds_sock *rs = rm->m_rs;
+
+		if (rm->data.op_mmp_znotifier) {
+			zcopy = true;
+			rds_rm_zerocopy_callback(rs, rm->data.op_mmp_znotifier);
+			rds_wake_sk_sleep(rs);
+			rm->data.op_mmp_znotifier = NULL;
+		}
+		sock_put(rds_rs_to_sk(rs));
+		rm->m_rs = NULL;
+	}
+	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
+
 	for (i = 0; i < rm->data.op_nents; i++) {
-		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->data.op_sg[i]));
 		/* XXX will have to put_page for page refs */
-		__free_page(sg_page(&rm->data.op_sg[i]));
+		if (!zcopy)
+			__free_page(sg_page(&rm->data.op_sg[i]));
+		else
+			put_page(sg_page(&rm->data.op_sg[i]));
 	}
 	rm->data.op_nents = 0;
 
@@ -266,7 +355,66 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	return rm;
 }
 
-int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from)
+static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *from)
+{
+	struct scatterlist *sg;
+	int ret = 0;
+	int length = iov_iter_count(from);
+	int total_copied = 0;
+	struct rds_msg_zcopy_info *info;
+
+	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
+
+	/*
+	 * now allocate and copy in the data payload.
+	 */
+	sg = rm->data.op_sg;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&info->rs_zcookie_next);
+	rm->data.op_mmp_znotifier = &info->znotif;
+	if (mm_account_pinned_pages(&rm->data.op_mmp_znotifier->z_mmp,
+				    length)) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	while (iov_iter_count(from)) {
+		struct page *pages;
+		size_t start;
+		ssize_t copied;
+
+		copied = iov_iter_get_pages(from, &pages, PAGE_SIZE,
+					    1, &start);
+		if (copied < 0) {
+			struct mmpin *mmp;
+			int i;
+
+			for (i = 0; i < rm->data.op_nents; i++)
+				put_page(sg_page(&rm->data.op_sg[i]));
+			mmp = &rm->data.op_mmp_znotifier->z_mmp;
+			mm_unaccount_pinned_pages(mmp);
+			ret = -EFAULT;
+			goto err;
+		}
+		total_copied += copied;
+		iov_iter_advance(from, copied);
+		length -= copied;
+		sg_set_page(sg, pages, copied, start);
+		rm->data.op_nents++;
+		sg++;
+	}
+	WARN_ON_ONCE(length != 0);
+	return ret;
+err:
+	kfree(info);
+	rm->data.op_mmp_znotifier = NULL;
+	return ret;
+}
+
+int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
+			       bool zcopy)
 {
 	unsigned long to_copy, nbytes;
 	unsigned long sg_off;
@@ -275,11 +423,12 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from)
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
 
-	/*
-	 * now allocate and copy in the data payload.
-	 */
+	/* now allocate and copy in the data payload.  */
 	sg = rm->data.op_sg;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
+
+	if (zcopy)
+		return rds_message_zcopy_from_user(rm, from);
 
 	while (iov_iter_count(from)) {
 		if (!sg_page(sg)) {

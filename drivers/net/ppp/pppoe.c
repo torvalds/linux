@@ -714,7 +714,7 @@ err_put:
 }
 
 static int pppoe_getname(struct socket *sock, struct sockaddr *uaddr,
-		  int *usockaddr_len, int peer)
+		  int peer)
 {
 	int len = sizeof(struct sockaddr_pppox);
 	struct sockaddr_pppox sp;
@@ -726,9 +726,7 @@ static int pppoe_getname(struct socket *sock, struct sockaddr *uaddr,
 
 	memcpy(uaddr, &sp, len);
 
-	*usockaddr_len = len;
-
-	return 0;
+	return len;
 }
 
 static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
@@ -1144,7 +1142,7 @@ static __net_init int pppoe_init_net(struct net *net)
 
 	rwlock_init(&pn->hash_lock);
 
-	pde = proc_create("pppoe", S_IRUGO, net->proc_net, &pppoe_seq_fops);
+	pde = proc_create("pppoe", 0444, net->proc_net, &pppoe_seq_fops);
 #ifdef CONFIG_PROC_FS
 	if (!pde)
 		return -ENOMEM;

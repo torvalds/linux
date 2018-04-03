@@ -352,6 +352,64 @@ static void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 	link_state->speed = speed;
 }
 
+/* The semantics of the ethtool FEC mode bitmask are not well defined,
+ * particularly the meaning of combinations of bits.  Which means we get to
+ * define our own semantics, as follows:
+ * OFF overrides any other bits, and means "disable all FEC" (with the
+ * exception of 25G KR4/CR4, where it is not possible to reject it if AN
+ * partner requests it).
+ * AUTO on its own means use cable requirements and link partner autoneg with
+ * fw-default preferences for the cable type.
+ * AUTO and either RS or BASER means use the specified FEC type if cable and
+ * link partner support it, otherwise autoneg/fw-default.
+ * RS or BASER alone means use the specified FEC type if cable and link partner
+ * support it and either requests it, otherwise no FEC.
+ * Both RS and BASER (whether AUTO or not) means use FEC if cable and link
+ * partner support it, preferring RS to BASER.
+ */
+static u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
+{
+	u32 ret = 0;
+
+	if (ethtool_cap & ETHTOOL_FEC_OFF)
+		return 0;
+
+	if (ethtool_cap & ETHTOOL_FEC_AUTO)
+		ret |= (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN) |
+		       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN) |
+		       (1 << MC_CMD_PHY_CAP_RS_FEC_LBN);
+	if (ethtool_cap & ETHTOOL_FEC_RS)
+		ret |= (1 << MC_CMD_PHY_CAP_RS_FEC_LBN) |
+		       (1 << MC_CMD_PHY_CAP_RS_FEC_REQUESTED_LBN);
+	if (ethtool_cap & ETHTOOL_FEC_BASER)
+		ret |= (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN) |
+		       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN) |
+		       (1 << MC_CMD_PHY_CAP_BASER_FEC_REQUESTED_LBN) |
+		       (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_REQUESTED_LBN);
+	return ret;
+}
+
+/* Invert ethtool_fec_caps_to_mcdi.  There are two combinations that function
+ * can never produce, (baser xor rs) and neither req; the implementation below
+ * maps both of those to AUTO.  This should never matter, and it's not clear
+ * what a better mapping would be anyway.
+ */
+static u32 mcdi_fec_caps_to_ethtool(u32 caps, bool is_25g)
+{
+	bool rs = caps & (1 << MC_CMD_PHY_CAP_RS_FEC_LBN),
+	     rs_req = caps & (1 << MC_CMD_PHY_CAP_RS_FEC_REQUESTED_LBN),
+	     baser = is_25g ? caps & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN)
+			    : caps & (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN),
+	     baser_req = is_25g ? caps & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_REQUESTED_LBN)
+				: caps & (1 << MC_CMD_PHY_CAP_BASER_FEC_REQUESTED_LBN);
+
+	if (!baser && !rs)
+		return ETHTOOL_FEC_OFF;
+	return (rs_req ? ETHTOOL_FEC_RS : 0) |
+	       (baser_req ? ETHTOOL_FEC_BASER : 0) |
+	       (baser == baser_req && rs == rs_req ? 0 : ETHTOOL_FEC_AUTO);
+}
+
 static int efx_mcdi_phy_probe(struct efx_nic *efx)
 {
 	struct efx_mcdi_phy_data *phy_data;
@@ -438,6 +496,13 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 		MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
 		MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
 
+	/* Record the initial FEC configuration (or nearest approximation
+	 * representable in the ethtool configuration space)
+	 */
+	efx->fec_config = mcdi_fec_caps_to_ethtool(caps,
+						   efx->link_state.speed == 25000 ||
+						   efx->link_state.speed == 50000);
+
 	/* Default to Autonegotiated flow control if the PHY supports it */
 	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
@@ -457,6 +522,8 @@ int efx_mcdi_port_reconfigure(struct efx_nic *efx)
 	u32 caps = (efx->link_advertising[0] ?
 		    ethtool_linkset_to_mcdi_cap(efx->link_advertising) :
 		    phy_cfg->forced_cap);
+
+	caps |= ethtool_fec_caps_to_mcdi(efx->fec_config);
 
 	return efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
 				 efx->loopback_mode, 0);
@@ -584,6 +651,8 @@ efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx,
 		}
 	}
 
+	caps |= ethtool_fec_caps_to_mcdi(efx->fec_config);
+
 	rc = efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
 			       efx->loopback_mode, 0);
 	if (rc)
@@ -596,6 +665,85 @@ efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx,
 		efx_link_clear_advertising(efx);
 		phy_cfg->forced_cap = caps;
 	}
+	return 0;
+}
+
+static int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
+				     struct ethtool_fecparam *fec)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_V2_LEN);
+	u32 caps, active, speed; /* MCDI format */
+	bool is_25g = false;
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < MC_CMD_GET_LINK_OUT_V2_LEN)
+		return -EOPNOTSUPP;
+
+	/* behaviour for 25G/50G links depends on 25G BASER bit */
+	speed = MCDI_DWORD(outbuf, GET_LINK_OUT_V2_LINK_SPEED);
+	is_25g = speed == 25000 || speed == 50000;
+
+	caps = MCDI_DWORD(outbuf, GET_LINK_OUT_V2_CAP);
+	fec->fec = mcdi_fec_caps_to_ethtool(caps, is_25g);
+	/* BASER is never supported on 100G */
+	if (speed == 100000)
+		fec->fec &= ~ETHTOOL_FEC_BASER;
+
+	active = MCDI_DWORD(outbuf, GET_LINK_OUT_V2_FEC_TYPE);
+	switch (active) {
+	case MC_CMD_FEC_NONE:
+		fec->active_fec = ETHTOOL_FEC_OFF;
+		break;
+	case MC_CMD_FEC_BASER:
+		fec->active_fec = ETHTOOL_FEC_BASER;
+		break;
+	case MC_CMD_FEC_RS:
+		fec->active_fec = ETHTOOL_FEC_RS;
+		break;
+	default:
+		netif_warn(efx, hw, efx->net_dev,
+			   "Firmware reports unrecognised FEC_TYPE %u\n",
+			   active);
+		/* We don't know what firmware has picked.  AUTO is as good a
+		 * "can't happen" value as any other.
+		 */
+		fec->active_fec = ETHTOOL_FEC_AUTO;
+		break;
+	}
+
+	return 0;
+}
+
+static int efx_mcdi_phy_set_fecparam(struct efx_nic *efx,
+				     const struct ethtool_fecparam *fec)
+{
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
+	u32 caps;
+	int rc;
+
+	/* Work out what efx_mcdi_phy_set_link_ksettings() would produce from
+	 * saved advertising bits
+	 */
+	if (test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, efx->link_advertising))
+		caps = (ethtool_linkset_to_mcdi_cap(efx->link_advertising) |
+			1 << MC_CMD_PHY_CAP_AN_LBN);
+	else
+		caps = phy_cfg->forced_cap;
+
+	caps |= ethtool_fec_caps_to_mcdi(fec->fec);
+	rc = efx_mcdi_set_link(efx, caps, efx_get_mcdi_phy_flags(efx),
+			       efx->loopback_mode, 0);
+	if (rc)
+		return rc;
+
+	/* Record the new FEC setting for subsequent set_link calls */
+	efx->fec_config = fec->fec;
 	return 0;
 }
 
@@ -977,6 +1125,8 @@ static const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.remove		= efx_mcdi_phy_remove,
 	.get_link_ksettings = efx_mcdi_phy_get_link_ksettings,
 	.set_link_ksettings = efx_mcdi_phy_set_link_ksettings,
+	.get_fecparam	= efx_mcdi_phy_get_fecparam,
+	.set_fecparam	= efx_mcdi_phy_set_fecparam,
 	.test_alive	= efx_mcdi_phy_test_alive,
 	.run_tests	= efx_mcdi_phy_run_tests,
 	.test_name	= efx_mcdi_phy_test_name,

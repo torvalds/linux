@@ -57,20 +57,11 @@ def print_sll(items):
 
 def print_test_case(tcase):
     """ Pretty-printing of a given test case. """
+    print('\n==============\nTest {}\t{}\n'.format(tcase['id'], tcase['name']))
     for k in tcase.keys():
         if (isinstance(tcase[k], list)):
             print(k + ":")
             print_list(tcase[k])
         else:
-            print(k + ": " + tcase[k])
-
-
-def show_test_case_by_id(testlist, caseID):
-    """ Find the specified test case to pretty-print. """
-    if not any(d.get('id', None) == caseID for d in testlist):
-        print("That ID does not exist.")
-        exit(1)
-    else:
-        print_test_case(next((d for d in testlist if d['id'] == caseID)))
-
-
+            if not ((k == 'id') or (k == 'name')):
+                print(k + ": " + str(tcase[k]))

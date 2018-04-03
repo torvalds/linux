@@ -1794,10 +1794,9 @@ static void xs_sock_set_reuseport(struct socket *sock)
 static unsigned short xs_sock_getport(struct socket *sock)
 {
 	struct sockaddr_storage buf;
-	int buflen;
 	unsigned short port = 0;
 
-	if (kernel_getsockname(sock, (struct sockaddr *)&buf, &buflen) < 0)
+	if (kernel_getsockname(sock, (struct sockaddr *)&buf) < 0)
 		goto out;
 	switch (buf.ss_family) {
 	case AF_INET6:

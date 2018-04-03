@@ -90,8 +90,8 @@ static struct net_device *qedr_get_netdev(struct ib_device *dev, u8 port_num)
 	dev_hold(qdev->ndev);
 
 	/* The HW vendor's device driver must guarantee
-	 * that this function returns NULL before the net device reaches
-	 * NETDEV_UNREGISTER_FINAL state.
+	 * that this function returns NULL before the net device has finished
+	 * NETDEV_UNREGISTER state.
 	 */
 	return qdev->ndev;
 }

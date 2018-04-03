@@ -2993,10 +2993,10 @@ static int __net_init igmp_net_init(struct net *net)
 	struct proc_dir_entry *pde;
 	int err;
 
-	pde = proc_create("igmp", S_IRUGO, net->proc_net, &igmp_mc_seq_fops);
+	pde = proc_create("igmp", 0444, net->proc_net, &igmp_mc_seq_fops);
 	if (!pde)
 		goto out_igmp;
-	pde = proc_create("mcfilter", S_IRUGO, net->proc_net,
+	pde = proc_create("mcfilter", 0444, net->proc_net,
 			  &igmp_mcf_seq_fops);
 	if (!pde)
 		goto out_mcfilter;

@@ -363,6 +363,22 @@ static void halbtc_normal_lps(struct btc_coexist *btcoexist)
 	}
 }
 
+static void halbtc_pre_normal_lps(struct btc_coexist *btcoexist)
+{
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+
+	if (btcoexist->bt_info.bt_ctrl_lps) {
+		btcoexist->bt_info.bt_lps_on = false;
+		rtl_lps_leave(rtlpriv->mac80211.hw);
+	}
+}
+
+static void halbtc_post_normal_lps(struct btc_coexist *btcoexist)
+{
+	if (btcoexist->bt_info.bt_ctrl_lps)
+		btcoexist->bt_info.bt_ctrl_lps = false;
+}
+
 static void halbtc_leave_low_power(struct btc_coexist *btcoexist)
 {
 }
@@ -577,6 +593,9 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 			tmp = true;
 		*bool_tmp = tmp;
 		break;
+	case BTC_GET_BL_WIFI_DUAL_BAND_CONNECTED:
+		*u8_tmp = BTC_MULTIPORT_SCC;
+		break;
 	case BTC_GET_BL_WIFI_BUSY:
 		if (halbtc_is_wifi_busy(rtlpriv))
 			*bool_tmp = true;
@@ -637,6 +656,9 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 	case BTC_GET_BL_IS_ASUS_8723B:
 		*bool_tmp = false;
 		break;
+	case BTC_GET_BL_RF4CE_CONNECTED:
+		*bool_tmp = false;
+		break;
 	case BTC_GET_S4_WIFI_RSSI:
 		*s32_tmp = halbtc_get_wifi_rssi(rtlpriv);
 		break;
@@ -676,6 +698,21 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 		break;
 	case BTC_GET_U4_BT_FORBIDDEN_SLOT_VAL:
 		*u32_tmp = halbtc_get_bt_forbidden_slot_val(btcoexist);
+		break;
+	case BTC_GET_U4_WIFI_IQK_TOTAL:
+		*u32_tmp =
+			btcoexist->btc_phydm_query_phy_counter(btcoexist,
+							       DM_INFO_IQK_ALL);
+		break;
+	case BTC_GET_U4_WIFI_IQK_OK:
+		*u32_tmp =
+			btcoexist->btc_phydm_query_phy_counter(btcoexist,
+							       DM_INFO_IQK_OK);
+		break;
+	case BTC_GET_U4_WIFI_IQK_FAIL:
+		*u32_tmp =
+			btcoexist->btc_phydm_query_phy_counter(btcoexist,
+							       DM_INFO_IQK_NG);
 		break;
 	case BTC_GET_U1_WIFI_DOT11_CHNL:
 		*u8_tmp = rtlphy->current_channel;
@@ -787,6 +824,12 @@ static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 		break;
 	case BTC_SET_ACT_NORMAL_LPS:
 		halbtc_normal_lps(btcoexist);
+		break;
+	case BTC_SET_ACT_PRE_NORMAL_LPS:
+		halbtc_pre_normal_lps(btcoexist);
+		break;
+	case BTC_SET_ACT_POST_NORMAL_LPS:
+		halbtc_post_normal_lps(btcoexist);
 		break;
 	case BTC_SET_ACT_DISABLE_LOW_POWER:
 		halbtc_disable_low_power(btcoexist, *bool_tmp);
@@ -1039,6 +1082,28 @@ static void halbtc_fill_h2c_cmd(void *bt_context, u8 element_id,
 					cmd_len, cmd_buf);
 }
 
+void halbtc_send_wifi_port_id_cmd(void *bt_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	u8 cmd_buf[1] = {0};	/* port id [2:0] = 0 */
+
+	rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, H2C_BT_PORT_ID,
+					1, cmd_buf);
+}
+
+void halbtc_set_default_port_id_cmd(void *bt_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	struct ieee80211_hw *hw = rtlpriv->mac80211.hw;
+
+	if (!rtlpriv->cfg->ops->set_default_port_id_cmd)
+		return;
+
+	rtlpriv->cfg->ops->set_default_port_id_cmd(hw);
+}
+
 static
 void halbtc_set_bt_reg(void *btc_context, u8 reg_type, u32 offset, u32 set_val)
 {
@@ -1079,6 +1144,11 @@ static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type,
 	}
 }
 
+static u32 halbtc_get_bt_reg(void *btc_context, u8 reg_type, u32 offset)
+{
+	return 0;
+}
+
 static bool halbtc_under_ips(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -1095,6 +1165,25 @@ static bool halbtc_under_ips(struct btc_coexist *btcoexist)
 	}
 
 	return false;
+}
+
+static
+u32 halbtc_get_phydm_version(void *btc_context)
+{
+	return 0;
+}
+
+static
+void halbtc_phydm_modify_ra_pcr_threshold(void *btc_context,
+					  u8 ra_offset_direction,
+					  u8 ra_threshold_offset)
+{
+}
+
+static
+u32 halbtc_phydm_query_phy_counter(void *btc_context, enum dm_info_query dm_id)
+{
+	return 0;
 }
 
 static u8 halbtc_get_ant_det_val_from_bt(void *btc_context)
@@ -1210,6 +1299,7 @@ bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 	btcoexist->btc_get = halbtc_get;
 	btcoexist->btc_set = halbtc_set;
 	btcoexist->btc_set_bt_reg = halbtc_set_bt_reg;
+	btcoexist->btc_get_bt_reg = halbtc_get_bt_reg;
 
 	btcoexist->bt_info.bt_ctrl_buf_size = false;
 	btcoexist->bt_info.agg_buf_size = 5;
@@ -1220,6 +1310,10 @@ bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 					halbtc_get_bt_coex_supported_feature;
 	btcoexist->btc_get_bt_coex_supported_version =
 					halbtc_get_bt_coex_supported_version;
+	btcoexist->btc_get_bt_phydm_version = halbtc_get_phydm_version;
+	btcoexist->btc_phydm_modify_ra_pcr_threshold =
+					halbtc_phydm_modify_ra_pcr_threshold;
+	btcoexist->btc_phydm_query_phy_counter = halbtc_phydm_query_phy_counter;
 	btcoexist->btc_get_ant_det_val_from_bt = halbtc_get_ant_det_val_from_bt;
 	btcoexist->btc_get_ble_scan_type_from_bt =
 					halbtc_get_ble_scan_type_from_bt;
@@ -1525,7 +1619,8 @@ void exhalbtc_scan_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
 
 void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 {
-	u8 asso_type;
+	u8 asso_type, asso_type_v2;
+	bool wifi_under_5g;
 
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
@@ -1533,10 +1628,17 @@ void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 	if (btcoexist->manual_control)
 		return;
 
-	if (action)
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_UNDER_5G, &wifi_under_5g);
+
+	if (action) {
 		asso_type = BTC_ASSOCIATE_START;
-	else
+		asso_type_v2 = wifi_under_5g ? BTC_ASSOCIATE_5G_START :
+					       BTC_ASSOCIATE_START;
+	} else {
 		asso_type = BTC_ASSOCIATE_FINISH;
+		asso_type_v2 = wifi_under_5g ? BTC_ASSOCIATE_5G_FINISH :
+					       BTC_ASSOCIATE_FINISH;
+	}
 
 	halbtc_leave_low_power(btcoexist);
 

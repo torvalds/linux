@@ -38,15 +38,10 @@
 #include <linux/sched.h>
 #include <linux/if_link.h>
 #include <linux/firmware.h>
+#include <linux/mlx5/cq.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "5.0-0"
-
-#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
-#define MLX5_VPORT_MANAGER(mdev) \
-	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
-	(MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
-	 mlx5_core_is_pf(mdev))
 
 extern uint mlx5_core_debug_mask;
 
@@ -54,6 +49,11 @@ extern uint mlx5_core_debug_mask;
 	dev_dbg(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,		\
 		 __func__, __LINE__, current->pid,			\
 		 ##__VA_ARGS__)
+
+#define mlx5_core_dbg_once(__dev, format, ...)				\
+	dev_dbg_once(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		     __func__, __LINE__, current->pid,			\
+		     ##__VA_ARGS__)
 
 #define mlx5_core_dbg_mask(__dev, mask, format, ...)			\
 do {									\
@@ -115,9 +115,29 @@ int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
 int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
 u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev);
+
+int mlx5_eq_init(struct mlx5_core_dev *dev);
+void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
+int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
+		       int nent, u64 mask, const char *name,
+		       enum mlx5_eq_type type);
+int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
+int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
+int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
+int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
+		       u32 *out, int outlen);
+int mlx5_start_eqs(struct mlx5_core_dev *dev);
+void mlx5_stop_eqs(struct mlx5_core_dev *dev);
 struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
 u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq *eq);
 void mlx5_cq_tasklet_cb(unsigned long data);
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced);
+int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
+void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
+int mlx5_eq_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_eq_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam, u8 feature_group,
 			u8 access_reg_group);
@@ -186,4 +206,5 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 int mlx5_lag_allow(struct mlx5_core_dev *dev);
 int mlx5_lag_forbid(struct mlx5_core_dev *dev);
 
+void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol);
 #endif /* __MLX5_CORE_H__ */

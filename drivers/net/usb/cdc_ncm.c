@@ -58,7 +58,7 @@ static bool prefer_mbim = true;
 #else
 static bool prefer_mbim;
 #endif
-module_param(prefer_mbim, bool, S_IRUGO | S_IWUSR);
+module_param(prefer_mbim, bool, 0644);
 MODULE_PARM_DESC(prefer_mbim, "Prefer MBIM setting on dual NCM/MBIM functions");
 
 static void cdc_ncm_txpath_bh(unsigned long param);
@@ -281,10 +281,10 @@ static ssize_t cdc_ncm_store_tx_timer_usecs(struct device *d,  struct device_att
 	return len;
 }
 
-static DEVICE_ATTR(min_tx_pkt, S_IRUGO | S_IWUSR, cdc_ncm_show_min_tx_pkt, cdc_ncm_store_min_tx_pkt);
-static DEVICE_ATTR(rx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_rx_max, cdc_ncm_store_rx_max);
-static DEVICE_ATTR(tx_max, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_max, cdc_ncm_store_tx_max);
-static DEVICE_ATTR(tx_timer_usecs, S_IRUGO | S_IWUSR, cdc_ncm_show_tx_timer_usecs, cdc_ncm_store_tx_timer_usecs);
+static DEVICE_ATTR(min_tx_pkt, 0644, cdc_ncm_show_min_tx_pkt, cdc_ncm_store_min_tx_pkt);
+static DEVICE_ATTR(rx_max, 0644, cdc_ncm_show_rx_max, cdc_ncm_store_rx_max);
+static DEVICE_ATTR(tx_max, 0644, cdc_ncm_show_tx_max, cdc_ncm_store_tx_max);
+static DEVICE_ATTR(tx_timer_usecs, 0644, cdc_ncm_show_tx_timer_usecs, cdc_ncm_store_tx_timer_usecs);
 
 static ssize_t ndp_to_end_show(struct device *d, struct device_attribute *attr, char *buf)
 {
@@ -335,7 +335,7 @@ static ssize_t cdc_ncm_show_##name(struct device *d, struct device_attribute *at
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0]; \
 	return sprintf(buf, format "\n", tocpu(ctx->ncm_parm.name));	\
 } \
-static DEVICE_ATTR(name, S_IRUGO, cdc_ncm_show_##name, NULL)
+static DEVICE_ATTR(name, 0444, cdc_ncm_show_##name, NULL)
 
 NCM_PARM_ATTR(bmNtbFormatsSupported, "0x%04x", le16_to_cpu);
 NCM_PARM_ATTR(dwNtbInMaxSize, "%u", le32_to_cpu);

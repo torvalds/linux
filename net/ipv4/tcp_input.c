@@ -1358,9 +1358,6 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 	int len;
 	int in_sack;
 
-	if (!sk_can_gso(sk))
-		goto fallback;
-
 	/* Normally R but no L won't result in plain S */
 	if (!dup_sack &&
 	    (TCP_SKB_CB(skb)->sacked & (TCPCB_LOST|TCPCB_SACKED_RETRANS)) == TCPCB_SACKED_RETRANS)
@@ -5862,10 +5859,12 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	tp->rx_opt.saw_tstamp = 0;
 	req = tp->fastopen_rsk;
 	if (req) {
+		bool req_stolen;
+
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
-		if (!tcp_check_req(sk, skb, req, true))
+		if (!tcp_check_req(sk, skb, req, true, &req_stolen))
 			goto discard;
 	}
 

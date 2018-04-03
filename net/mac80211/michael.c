@@ -35,7 +35,7 @@ static void michael_mic_hdr(struct michael_mic_ctx *mctx, const u8 *key,
 	da = ieee80211_get_DA(hdr);
 	sa = ieee80211_get_SA(hdr);
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+		tid = ieee80211_get_tid(hdr);
 	else
 		tid = 0;
 

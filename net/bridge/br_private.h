@@ -410,6 +410,7 @@ struct net_bridge {
 	int offload_fwd_mark;
 #endif
 	bool				neigh_suppress_enabled;
+	bool				mtu_set_by_user;
 	struct hlist_head		fdb_list;
 };
 
@@ -578,7 +579,7 @@ int br_del_bridge(struct net *net, const char *name);
 int br_add_if(struct net_bridge *br, struct net_device *dev,
 	      struct netlink_ext_ack *extack);
 int br_del_if(struct net_bridge *br, struct net_device *dev);
-int br_min_mtu(const struct net_bridge *br);
+void br_mtu_auto_adjust(struct net_bridge *br);
 netdev_features_t br_features_recompute(struct net_bridge *br,
 					netdev_features_t features);
 void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);

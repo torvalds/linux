@@ -1231,7 +1231,7 @@ static const struct sockaddr_in6 rpc_in6addr_loopback = {
  * negative errno is returned.
  */
 static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
-			struct sockaddr *buf, int buflen)
+			struct sockaddr *buf)
 {
 	struct socket *sock;
 	int err;
@@ -1269,7 +1269,7 @@ static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
 		goto out_release;
 	}
 
-	err = kernel_getsockname(sock, buf, &buflen);
+	err = kernel_getsockname(sock, buf);
 	if (err < 0) {
 		dprintk("RPC:       getsockname failed (%d)\n", err);
 		goto out_release;
@@ -1353,7 +1353,7 @@ int rpc_localaddr(struct rpc_clnt *clnt, struct sockaddr *buf, size_t buflen)
 	rcu_read_unlock();
 
 	rpc_set_port(sap, 0);
-	err = rpc_sockname(net, sap, salen, buf, buflen);
+	err = rpc_sockname(net, sap, salen, buf);
 	put_net(net);
 	if (err != 0)
 		/* Couldn't discover local address, return ANYADDR */

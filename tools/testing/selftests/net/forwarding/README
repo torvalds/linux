@@ -1,0 +1,56 @@
+Motivation
+==========
+
+One of the nice things about network namespaces is that they allow one
+to easily create and test complex environments.
+
+Unfortunately, these namespaces can not be used with actual switching
+ASICs, as their ports can not be migrated to other network namespaces
+(NETIF_F_NETNS_LOCAL) and most of them probably do not support the
+L1-separation provided by namespaces.
+
+However, a similar kind of flexibility can be achieved by using VRFs and
+by looping the switch ports together. For example:
+
+                             br0
+                              +
+               vrf-h1         |           vrf-h2
+                 +        +---+----+        +
+                 |        |        |        |
+    192.0.2.1/24 +        +        +        + 192.0.2.2/24
+               swp1     swp2     swp3     swp4
+                 +        +        +        +
+                 |        |        |        |
+                 +--------+        +--------+
+
+The VRFs act as lightweight namespaces representing hosts connected to
+the switch.
+
+This approach for testing switch ASICs has several advantages over the
+traditional method that requires multiple physical machines, to name a
+few:
+
+1. Only the device under test (DUT) is being tested without noise from
+other system.
+
+2. Ability to easily provision complex topologies. Testing bridging
+between 4-ports LAGs or 8-way ECMP requires many physical links that are
+not always available. With the VRF-based approach one merely needs to
+loopback more ports.
+
+These tests are written with switch ASICs in mind, but they can be run
+on any Linux box using veth pairs to emulate physical loopbacks.
+
+Guidelines for Writing Tests
+============================
+
+o Where possible, reuse an existing topology for different tests instead
+  of recreating the same topology.
+o Where possible, IPv6 and IPv4 addresses shall conform to RFC 3849 and
+  RFC 5737, respectively.
+o Where possible, tests shall be written so that they can be reused by
+  multiple topologies and added to lib.sh.
+o Checks shall be added to lib.sh for any external dependencies.
+o Code shall be checked using ShellCheck [1] prior to submission.
+
+1. https://www.shellcheck.net/

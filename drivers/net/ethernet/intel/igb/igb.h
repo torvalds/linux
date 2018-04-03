@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Intel(R) Gigabit Ethernet Linux driver
  * Copyright(c) 2007-2014 Intel Corporation.
  *
@@ -109,6 +110,7 @@ struct vf_data_storage {
 	u16 pf_qos;
 	u16 tx_rate;
 	bool spoofchk_enabled;
+	bool trusted;
 };
 
 /* Number of unicast MAC filters reserved for the PF in the RAR registers */

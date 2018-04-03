@@ -58,7 +58,7 @@ static unsigned int nf_route_table_hook(void *priv,
 	return ret;
 }
 
-static const struct nf_chain_type nft_chain_route_ipv4 = {
+static const struct nft_chain_type nft_chain_route_ipv4 = {
 	.name		= "route",
 	.type		= NFT_CHAIN_T_ROUTE,
 	.family		= NFPROTO_IPV4,
@@ -71,7 +71,9 @@ static const struct nf_chain_type nft_chain_route_ipv4 = {
 
 static int __init nft_chain_route_init(void)
 {
-	return nft_register_chain_type(&nft_chain_route_ipv4);
+	nft_register_chain_type(&nft_chain_route_ipv4);
+
+	return 0;
 }
 
 static void __exit nft_chain_route_exit(void)

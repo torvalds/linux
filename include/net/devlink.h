@@ -234,13 +234,9 @@ struct devlink_dpipe_headers {
 /**
  * struct devlink_resource_ops - resource ops
  * @occ_get: get the occupied size
- * @size_validate: validate the size of the resource before update, reload
- *                 is needed for changes to take place
  */
 struct devlink_resource_ops {
 	u64 (*occ_get)(struct devlink *devlink);
-	int (*size_validate)(struct devlink *devlink, u64 size,
-			     struct netlink_ext_ack *extack);
 };
 
 /**
@@ -410,7 +406,6 @@ extern struct devlink_dpipe_header devlink_dpipe_header_ipv6;
 
 int devlink_resource_register(struct devlink *devlink,
 			      const char *resource_name,
-			      bool top_hierarchy,
 			      u64 resource_size,
 			      u64 resource_id,
 			      u64 parent_resource_id,
@@ -564,7 +559,6 @@ devlink_dpipe_match_put(struct sk_buff *skb,
 static inline int
 devlink_resource_register(struct devlink *devlink,
 			  const char *resource_name,
-			  bool top_hierarchy,
 			  u64 resource_size,
 			  u64 resource_id,
 			  u64 parent_resource_id,

@@ -1340,7 +1340,7 @@ done:
 }
 
 static int hci_sock_getname(struct socket *sock, struct sockaddr *addr,
-			    int *addr_len, int peer)
+			    int peer)
 {
 	struct sockaddr_hci *haddr = (struct sockaddr_hci *)addr;
 	struct sock *sk = sock->sk;
@@ -1360,10 +1360,10 @@ static int hci_sock_getname(struct socket *sock, struct sockaddr *addr,
 		goto done;
 	}
 
-	*addr_len = sizeof(*haddr);
 	haddr->hci_family = AF_BLUETOOTH;
 	haddr->hci_dev    = hdev->id;
 	haddr->hci_channel= hci_pi(sk)->channel;
+	err = sizeof(*haddr);
 
 done:
 	release_sock(sk);

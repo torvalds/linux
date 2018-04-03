@@ -147,6 +147,7 @@ config BT_HCIUART_ATH3K
 config BT_HCIUART_LL
 	bool "HCILL protocol support"
 	depends on BT_HCIUART_SERDEV
+	select BT_HCIUART_H4
 	help
 	  HCILL (HCI Low Level) is a serial protocol for communication
 	  between Bluetooth device and host. This protocol is required for
@@ -242,8 +243,7 @@ config BT_HCIBCM203X
 
 config BT_HCIBPA10X
 	tristate "HCI BPA10x USB driver"
-	depends on USB && BT_HCIUART
-	select BT_HCIUART_H4
+	depends on USB
 	help
 	  Bluetooth HCI BPA10x USB driver.
 	  This driver provides support for the Digianswer BPA 100/105 Bluetooth
@@ -304,22 +304,6 @@ config BT_HCIBLUECARD
 
 	  Say Y here to compile support for HCI BlueCard devices into the
 	  kernel or say M to compile it as module (bluecard_cs).
-
-config BT_HCIBTUART
-	tristate "HCI UART (PC Card) device driver"
-	depends on PCMCIA
-	help
-	  Bluetooth HCI UART (PC Card) driver.
-	  This driver provides support for Bluetooth PCMCIA devices with
-	  an UART interface:
-	     Xircom CreditCard Bluetooth Adapter
-	     Xircom RealPort2 Bluetooth Adapter
-	     Sphinx PICO Card
-	     H-Soft blue+Card
-	     Cyber-blue Compact Flash Card
-
-	  Say Y here to compile support for HCI UART devices into the
-	  kernel or say M to compile it as module (btuart_cs).
 
 config BT_HCIVHCI
 	tristate "HCI VHCI (Virtual HCI device) driver"
@@ -390,6 +374,16 @@ config BT_QCOMSMD
 	  channels to the WCNSS core.
 
 	  Say Y here to compile support for HCI over Qualcomm SMD into the
+	  kernel or say M to compile as a module.
+
+config BT_HCIRSI
+	tristate
+	help
+	  Redpine BT driver.
+	  This driver handles BT traffic from upper layers and pass
+	  to the RSI_91x coex module for further scheduling to device
+
+	  Say Y here to compile support for HCI over Redpine into the
 	  kernel or say M to compile as a module.
 
 endmenu

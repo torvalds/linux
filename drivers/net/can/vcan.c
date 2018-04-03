@@ -65,7 +65,7 @@ MODULE_ALIAS_RTNL_LINK(DRV_NAME);
  */
 
 static bool echo; /* echo testing. Default: 0 (Off) */
-module_param(echo, bool, S_IRUGO);
+module_param(echo, bool, 0444);
 MODULE_PARM_DESC(echo, "Echo sent frames (for testing). Default: 0 (Off)");
 
 

@@ -77,6 +77,7 @@ static int rds_release(struct socket *sock)
 	rds_send_drop_to(rs, NULL);
 	rds_rdma_drop_keys(rs);
 	rds_notify_queue_get(rs, NULL);
+	rds_notify_msg_zcopy_purge(&rs->rs_zcookie_queue);
 
 	spin_lock_bh(&rds_sock_lock);
 	list_del_init(&rs->rs_item);
@@ -110,7 +111,7 @@ void rds_wake_sk_sleep(struct rds_sock *rs)
 }
 
 static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
-		       int *uaddr_len, int peer)
+		       int peer)
 {
 	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
@@ -131,8 +132,7 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 
 	sin->sin_family = AF_INET;
 
-	*uaddr_len = sizeof(*sin);
-	return 0;
+	return sizeof(*sin);
 }
 
 /*
@@ -145,7 +145,7 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
  *  -	to signal that a previously congested destination may have become
  *	uncongested
  *  -	A notification has been queued to the socket (this can be a congestion
- *	update, or a RDMA completion).
+ *	update, or a RDMA completion, or a MSG_ZEROCOPY completion).
  *
  * EPOLLOUT is asserted if there is room on the send queue. This does not mean
  * however, that the next sendmsg() call will succeed. If the application tries
@@ -179,10 +179,13 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 		spin_unlock(&rs->rs_lock);
 	}
 	if (!list_empty(&rs->rs_recv_queue) ||
-	    !list_empty(&rs->rs_notify_queue))
+	    !list_empty(&rs->rs_notify_queue) ||
+	    !list_empty(&rs->rs_zcookie_queue.zcookie_head))
 		mask |= (EPOLLIN | EPOLLRDNORM);
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
 		mask |= (EPOLLOUT | EPOLLWRNORM);
+	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
+		mask |= POLLERR;
 	read_unlock_irqrestore(&rs->rs_recv_lock, flags);
 
 	/* clear state any time we wake a seen-congested socket */
@@ -512,6 +515,7 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	INIT_LIST_HEAD(&rs->rs_recv_queue);
 	INIT_LIST_HEAD(&rs->rs_notify_queue);
 	INIT_LIST_HEAD(&rs->rs_cong_list);
+	rds_message_zcopy_queue_init(&rs->rs_zcookie_queue);
 	spin_lock_init(&rs->rs_rdma_lock);
 	rs->rs_rdma_keys = RB_ROOT;
 	rs->rs_rx_traces = 0;

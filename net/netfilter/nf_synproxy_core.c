@@ -325,7 +325,7 @@ static const struct file_operations synproxy_cpu_seq_fops = {
 
 static int __net_init synproxy_proc_init(struct net *net)
 {
-	if (!proc_create("synproxy", S_IRUGO, net->proc_net_stat,
+	if (!proc_create("synproxy", 0444, net->proc_net_stat,
 			 &synproxy_cpu_seq_fops))
 		return -ENOMEM;
 	return 0;

@@ -1090,6 +1090,10 @@ int __init mac_platform_init(void)
 	    macintosh_config->expansion_type == MAC_EXP_PDS_COMM)
 		platform_device_register_simple("macsonic", -1, NULL, 0);
 
+	if (macintosh_config->expansion_type == MAC_EXP_PDS ||
+	    macintosh_config->expansion_type == MAC_EXP_PDS_COMM)
+		platform_device_register_simple("mac89x0", -1, NULL, 0);
+
 	if (macintosh_config->ether_type == MAC_ETHER_MACE)
 		platform_device_register_simple("macmace", -1, NULL, 0);
 

@@ -84,14 +84,15 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 }
 EXPORT_SYMBOL(cfg80211_ibss_joined);
 
-static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
-				struct net_device *dev,
-				struct cfg80211_ibss_params *params,
-				struct cfg80211_cached_keys *connkeys)
+int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev,
+			 struct cfg80211_ibss_params *params,
+			 struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
+	ASSERT_RTNL();
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (wdev->ssid_len)
@@ -144,23 +145,6 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	wdev->ssid_len = params->ssid_len;
 
 	return 0;
-}
-
-int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev,
-		       struct cfg80211_ibss_params *params,
-		       struct cfg80211_cached_keys *connkeys)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	ASSERT_RTNL();
-
-	wdev_lock(wdev);
-	err = __cfg80211_join_ibss(rdev, dev, params, connkeys);
-	wdev_unlock(wdev);
-
-	return err;
 }
 
 static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
@@ -224,6 +208,7 @@ int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 	if (err)
 		return err;
 
+	wdev->conn_owner_nlportid = 0;
 	__cfg80211_clear_ibss(dev, nowext);
 
 	return 0;

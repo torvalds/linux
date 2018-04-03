@@ -253,6 +253,8 @@ struct mt76_dev {
 	u32 rev;
 	unsigned long state;
 
+	u8 antenna_mask;
+
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
 	struct debugfs_blob_wrapper eeprom;
@@ -423,6 +425,7 @@ void mt76_release_buffered_frames(struct ieee80211_hw *hw,
 void mt76_set_channel(struct mt76_dev *dev);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey);
+void mt76_set_stream_caps(struct mt76_dev *dev, bool vht);
 
 int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid,
 		       u16 ssn, u8 size);

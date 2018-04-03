@@ -679,7 +679,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 		/* Try to guess incoming interface */
 		rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr,
-				NULL, 0, 0);
+				NULL, 0, skb2, 0);
 
 		if (rt && rt->dst.dev)
 			skb2->dev = rt->dst.dev;
@@ -758,9 +758,11 @@ int ip6_tnl_rcv_ctl(struct ip6_tnl *t,
 			ldev = dev_get_by_index_rcu(net, p->link);
 
 		if ((ipv6_addr_is_multicast(laddr) ||
-		     likely(ipv6_chk_addr(net, laddr, ldev, 0))) &&
+		     likely(ipv6_chk_addr_and_flags(net, laddr, ldev, false,
+						    0, IFA_F_TENTATIVE))) &&
 		    ((p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) ||
-		     likely(!ipv6_chk_addr(net, raddr, NULL, 0))))
+		     likely(!ipv6_chk_addr_and_flags(net, raddr, ldev, true,
+						     0, IFA_F_TENTATIVE))))
 			ret = 1;
 	}
 	return ret;
@@ -990,12 +992,14 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 		if (p->link)
 			ldev = dev_get_by_index_rcu(net, p->link);
 
-		if (unlikely(!ipv6_chk_addr(net, laddr, ldev, 0)))
+		if (unlikely(!ipv6_chk_addr_and_flags(net, laddr, ldev, false,
+						      0, IFA_F_TENTATIVE)))
 			pr_warn("%s xmit: Local address not yet configured!\n",
 				p->name);
 		else if (!(p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) &&
 			 !ipv6_addr_is_multicast(raddr) &&
-			 unlikely(ipv6_chk_addr(net, raddr, NULL, 0)))
+			 unlikely(ipv6_chk_addr_and_flags(net, raddr, ldev,
+							  true, 0, IFA_F_TENTATIVE)))
 			pr_warn("%s xmit: Routing loop! Remote address found on this node!\n",
 				p->name);
 		else
@@ -1444,7 +1448,7 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 
 		struct rt6_info *rt = rt6_lookup(t->net,
 						 &p->raddr, &p->laddr,
-						 p->link, strict);
+						 p->link, NULL, strict);
 
 		if (!rt)
 			return;
@@ -2205,6 +2209,8 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 	ip6n->tnls[0] = ip6n->tnls_wc;
 	ip6n->tnls[1] = ip6n->tnls_r_l;
 
+	if (!net_has_fallback_tunnels(net))
+		return 0;
 	err = -ENOMEM;
 	ip6n->fb_tnl_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6tnl0",
 					NET_NAME_UNKNOWN, ip6_tnl_dev_setup);
