@@ -528,6 +528,28 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	return ret;
 }
 
+static int orangefs_fault(struct vm_fault *vmf)
+{
+	struct file *file = vmf->vma->vm_file;
+	int rc;
+	rc = orangefs_inode_getattr(file->f_mapping->host, 0, 1,
+	    STATX_SIZE);
+	if (rc == -ESTALE)
+		rc = -EIO;
+	if (rc) {
+		gossip_err("%s: orangefs_inode_getattr failed, "
+		    "rc:%d:.\n", __func__, rc);
+		return rc;
+	}
+	return filemap_fault(vmf);
+}
+
+const struct vm_operations_struct orangefs_file_vm_ops = {
+	.fault = orangefs_fault,
+	.map_pages = filemap_map_pages,
+	.page_mkwrite = filemap_page_mkwrite,
+};
+
 /*
  * Memory map a region of a file.
  */
@@ -539,12 +561,16 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 			(char *)file->f_path.dentry->d_name.name :
 			(char *)"Unknown"));
 
+	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
+		return -EINVAL;
+
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
 	vma->vm_flags &= ~VM_RAND_READ;
 
-	/* Use readonly mmap since we cannot support writable maps. */
-	return generic_file_readonly_mmap(file, vma);
+	file_accessed(file);
+	vma->vm_ops = &orangefs_file_vm_ops;
+	return 0;
 }
 
 #define mapping_nrpages(idata) ((idata)->nrpages)
