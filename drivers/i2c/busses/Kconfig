@@ -997,6 +997,16 @@ config I2C_SUN6I_P2WI
 	  This interface is used to connect to specific PMIC devices (like the
 	  AXP221).
 
+config I2C_SYNQUACER
+	tristate "Socionext SynQuacer I2C controller"
+	depends on ARCH_SYNQUACER || COMPILE_TEST
+	help
+	  Say Y here to include support for the I2C controller used in some
+	  Fujitsu and Socionext SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-synquacer.
+
 config I2C_TEGRA
 	tristate "NVIDIA Tegra internal I2C controller"
 	depends on ARCH_TEGRA

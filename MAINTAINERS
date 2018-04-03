@@ -12816,6 +12816,13 @@ F:	include/media/soc*
 F:	drivers/media/i2c/soc_camera/
 F:	drivers/media/platform/soc_camera/
 
+SOCIONEXT SYNQUACER I2C DRIVER
+M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-synquacer.c
+F:	Documentation/devicetree/bindings/i2c/i2c-synquacer.txt
+
 SOCIONEXT UNIPHIER SOUND DRIVER
 M:	Katsuhiro Suzuki <suzuki.katsuhiro@socionext.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
