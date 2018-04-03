@@ -1,6 +1,8 @@
-	             Using the Linux Kernel Tracepoints
+==================================
+Using the Linux Kernel Tracepoints
+==================================
 
-			    Mathieu Desnoyers
+:Author: Mathieu Desnoyers
 
 
 This document introduces Linux Kernel Tracepoints and their use. It
@@ -9,8 +11,8 @@ connect probe functions to them and provides some examples of probe
 functions.
 
 
-* Purpose of tracepoints
-
+Purpose of tracepoints
+----------------------
 A tracepoint placed in code provides a hook to call a function (probe)
 that you can provide at runtime. A tracepoint can be "on" (a probe is
 connected to it) or "off" (no probe is attached). When a tracepoint is
@@ -31,8 +33,8 @@ header file.
 They can be used for tracing and performance accounting.
 
 
-* Usage
-
+Usage
+-----
 Two elements are required for tracepoints :
 
 - A tracepoint definition, placed in a header file.
@@ -40,52 +42,53 @@ Two elements are required for tracepoints :
 
 In order to use tracepoints, you should include linux/tracepoint.h.
 
-In include/trace/events/subsys.h :
+In include/trace/events/subsys.h::
 
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM subsys
+	#undef TRACE_SYSTEM
+	#define TRACE_SYSTEM subsys
 
-#if !defined(_TRACE_SUBSYS_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_SUBSYS_H
+	#if !defined(_TRACE_SUBSYS_H) || defined(TRACE_HEADER_MULTI_READ)
+	#define _TRACE_SUBSYS_H
 
-#include <linux/tracepoint.h>
+	#include <linux/tracepoint.h>
 
-DECLARE_TRACE(subsys_eventname,
-	TP_PROTO(int firstarg, struct task_struct *p),
-	TP_ARGS(firstarg, p));
+	DECLARE_TRACE(subsys_eventname,
+		TP_PROTO(int firstarg, struct task_struct *p),
+		TP_ARGS(firstarg, p));
 
-#endif /* _TRACE_SUBSYS_H */
+	#endif /* _TRACE_SUBSYS_H */
 
-/* This part must be outside protection */
-#include <trace/define_trace.h>
+	/* This part must be outside protection */
+	#include <trace/define_trace.h>
 
-In subsys/file.c (where the tracing statement must be added) :
+In subsys/file.c (where the tracing statement must be added)::
 
-#include <trace/events/subsys.h>
+	#include <trace/events/subsys.h>
 
-#define CREATE_TRACE_POINTS
-DEFINE_TRACE(subsys_eventname);
+	#define CREATE_TRACE_POINTS
+	DEFINE_TRACE(subsys_eventname);
 
-void somefct(void)
-{
-	...
-	trace_subsys_eventname(arg, task);
-	...
-}
+	void somefct(void)
+	{
+		...
+		trace_subsys_eventname(arg, task);
+		...
+	}
 
 Where :
-- subsys_eventname is an identifier unique to your event
+  - subsys_eventname is an identifier unique to your event
+
     - subsys is the name of your subsystem.
     - eventname is the name of the event to trace.
 
-- TP_PROTO(int firstarg, struct task_struct *p) is the prototype of the
-  function called by this tracepoint.
+  - `TP_PROTO(int firstarg, struct task_struct *p)` is the prototype of the
+    function called by this tracepoint.
 
-- TP_ARGS(firstarg, p) are the parameters names, same as found in the
-  prototype.
+  - `TP_ARGS(firstarg, p)` are the parameters names, same as found in the
+    prototype.
 
-- if you use the header in multiple source files, #define CREATE_TRACE_POINTS
-  should appear only in one source file.
+  - if you use the header in multiple source files, `#define CREATE_TRACE_POINTS`
+    should appear only in one source file.
 
 Connecting a function (probe) to a tracepoint is done by providing a
 probe (function to call) for the specific tracepoint through
@@ -117,7 +120,7 @@ used to export the defined tracepoints.
 
 If you need to do a bit of work for a tracepoint parameter, and
 that work is only used for the tracepoint, that work can be encapsulated
-within an if statement with the following:
+within an if statement with the following::
 
 	if (trace_foo_bar_enabled()) {
 		int i;
@@ -139,7 +142,7 @@ The advantage of using the trace_<tracepoint>_enabled() is that it uses
 the static_key of the tracepoint to allow the if statement to be implemented
 with jump labels and avoid conditional branches.
 
-Note: The convenience macro TRACE_EVENT provides an alternative way to
+.. note:: The convenience macro TRACE_EVENT provides an alternative way to
       define tracepoints. Check http://lwn.net/Articles/379903,
       http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362
       for a series of articles with more details.

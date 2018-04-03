@@ -1,3 +1,4 @@
+=======================
 Intel(R) Trace Hub (TH)
 =======================
 
@@ -18,13 +19,13 @@ via sysfs attributes.
 
 Currently, the following Intel TH subdevices (blocks) are supported:
   - Software Trace Hub (STH), trace source, which is a System Trace
-  Module (STM) device,
+    Module (STM) device,
   - Memory Storage Unit (MSU), trace output, which allows storing
-  trace hub output in system memory,
+    trace hub output in system memory,
   - Parallel Trace Interface output (PTI), trace output to an external
-  debug host via a PTI port,
+    debug host via a PTI port,
   - Global Trace Hub (GTH), which is a switch and a central component
-  of Intel(R) Trace Hub architecture.
+    of Intel(R) Trace Hub architecture.
 
 Common attributes for output devices are described in
 Documentation/ABI/testing/sysfs-bus-intel_th-output-devices, the most
@@ -65,41 +66,41 @@ allocated, are accessible via /dev/intel_th0/msc{0,1}.
 Quick example
 -------------
 
-# figure out which GTH port is the first memory controller:
+# figure out which GTH port is the first memory controller::
 
-$ cat /sys/bus/intel_th/devices/0-msc0/port
-0
+	$ cat /sys/bus/intel_th/devices/0-msc0/port
+	0
 
-# looks like it's port 0, configure master 33 to send data to port 0:
+# looks like it's port 0, configure master 33 to send data to port 0::
 
-$ echo 0 > /sys/bus/intel_th/devices/0-gth/masters/33
+	$ echo 0 > /sys/bus/intel_th/devices/0-gth/masters/33
 
 # allocate a 2-windowed multiblock buffer on the first memory
-# controller, each with 64 pages:
+# controller, each with 64 pages::
 
-$ echo multi > /sys/bus/intel_th/devices/0-msc0/mode
-$ echo 64,64 > /sys/bus/intel_th/devices/0-msc0/nr_pages
+	$ echo multi > /sys/bus/intel_th/devices/0-msc0/mode
+	$ echo 64,64 > /sys/bus/intel_th/devices/0-msc0/nr_pages
 
-# enable wrapping for this controller, too:
+# enable wrapping for this controller, too::
 
-$ echo 1 > /sys/bus/intel_th/devices/0-msc0/wrap
+	$ echo 1 > /sys/bus/intel_th/devices/0-msc0/wrap
 
-# and enable tracing into this port:
+# and enable tracing into this port::
 
-$ echo 1 > /sys/bus/intel_th/devices/0-msc0/active
+	$ echo 1 > /sys/bus/intel_th/devices/0-msc0/active
 
 # .. send data to master 33, see stm.txt for more details ..
 # .. wait for traces to pile up ..
-# .. and stop the trace:
+# .. and stop the trace::
 
-$ echo 0 > /sys/bus/intel_th/devices/0-msc0/active
+	$ echo 0 > /sys/bus/intel_th/devices/0-msc0/active
 
-# and now you can collect the trace from the device node:
+# and now you can collect the trace from the device node::
 
-$ cat /dev/intel_th0/msc0 > my_stp_trace
+	$ cat /dev/intel_th0/msc0 > my_stp_trace
 
 Host Debugger Mode
-==================
+------------------
 
 It is possible to configure the Trace Hub and control its trace
 capture from a remote debug host, which should be connected via one of

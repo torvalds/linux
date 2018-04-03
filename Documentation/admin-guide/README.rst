@@ -218,6 +218,13 @@ Configuring the kernel
      "make localyesconfig" Similar to localmodconfig, except it will convert
                            all module options to built in (=y) options.
 
+     "make kvmconfig"   Enable additional options for kvm guest kernel support.
+
+     "make xenconfig"   Enable additional options for xen dom0 guest kernel
+                        support.
+
+     "make tinyconfig"  Configure the tiniest possible kernel.
+
    You can find more information on using the Linux kernel config tools
    in Documentation/kbuild/kconfig.txt.
 

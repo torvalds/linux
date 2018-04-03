@@ -200,6 +200,15 @@ statement; in the latter case use braces in both branches:
 		otherwise();
 	}
 
+Also, use braces when a loop contains more than a single simple statement:
+
+.. code-block:: c
+
+	while (condition) {
+		if (test)
+			do_something();
+	}
+
 3.1) Spaces
 ***********
 
