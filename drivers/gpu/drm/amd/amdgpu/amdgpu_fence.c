@@ -131,7 +131,8 @@ static u32 amdgpu_fence_read(struct amdgpu_ring *ring)
  * Emits a fence command on the requested ring (all asics).
  * Returns 0 on success, -ENOMEM on failure.
  */
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f)
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
+		      unsigned flags)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_fence *fence;
@@ -149,7 +150,7 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f)
 		       adev->fence_context + ring->idx,
 		       seq);
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
-			       seq, AMDGPU_FENCE_FLAG_INT);
+			       seq, flags | AMDGPU_FENCE_FLAG_INT);
 
 	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
 	/* This function can't be called concurrently anyway, otherwise

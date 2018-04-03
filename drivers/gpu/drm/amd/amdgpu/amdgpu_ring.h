@@ -42,6 +42,7 @@
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
+#define AMDGPU_FENCE_FLAG_TC_WB_ONLY    (1 << 2)
 
 enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_GFX,
@@ -90,7 +91,8 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   unsigned irq_type);
 void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence);
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence,
+		      unsigned flags);
 int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
