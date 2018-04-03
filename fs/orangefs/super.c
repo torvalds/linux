@@ -594,6 +594,11 @@ void orangefs_kill_sb(struct super_block *sb)
 	/* provided sb cleanup */
 	kill_anon_super(sb);
 
+	if (!ORANGEFS_SB(sb)) {
+		mutex_lock(&orangefs_request_mutex);
+		mutex_unlock(&orangefs_request_mutex);
+		return;
+	}
 	/*
 	 * issue the unmount to userspace to tell it to remove the
 	 * dynamic mount info it has for this superblock
