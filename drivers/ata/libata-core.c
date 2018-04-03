@@ -5240,7 +5240,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	/* Trigger the LED (if available) */
-	ledtrig_disk_activity();
+	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
 	/* XXX: New EH and old EH use different mechanisms to
 	 * synchronize EH with regular execution path.
