@@ -9760,6 +9760,13 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	unsigned int limit;
 	int pool, err;
 
+	/* The hardware supported by ixgbe only filters on the destination MAC
+	 * address. In order to avoid issues we only support offloading modes
+	 * where the hardware can actually provide the functionality.
+	 */
+	if (!macvlan_supports_dest_filter(vdev))
+		return ERR_PTR(-EMEDIUMTYPE);
+
 	/* Hardware has a limited number of available pools. Each VF, and the
 	 * PF require a pool. Check to ensure we don't attempt to use more
 	 * then the available number of pools.

@@ -22,6 +22,7 @@
 #include "fm10k.h"
 #include <linux/vmalloc.h>
 #include <net/udp_tunnel.h>
+#include <linux/if_macvlan.h>
 
 /**
  * fm10k_setup_tx_resources - allocate Tx resources (Descriptors)
@@ -1448,6 +1449,13 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 	struct fm10k_hw *hw = &interface->hw;
 	int size = 0, i;
 	u16 glort;
+
+	/* The hardware supported by fm10k only filters on the destination MAC
+	 * address. In order to avoid issues we only support offloading modes
+	 * where the hardware can actually provide the functionality.
+	 */
+	if (!macvlan_supports_dest_filter(sdev))
+		return ERR_PTR(-EMEDIUMTYPE);
 
 	/* allocate l2 accel structure if it is not available */
 	if (!l2_accel) {
