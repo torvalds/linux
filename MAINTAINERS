@@ -4841,6 +4841,15 @@ S:	Maintained
 F:	drivers/gpu/drm/tinydrm/
 F:	include/drm/tinydrm/
 
+DRM DRIVERS FOR XEN
+M:	Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+L:	dri-devel@lists.freedesktop.org
+L:	xen-devel@lists.xen.org
+S:	Supported
+F:	drivers/gpu/drm/xen/
+F:	Documentation/gpu/xen-front.rst
+
 DRM TTM SUBSYSTEM
 M:	Christian Koenig <christian.koenig@amd.com>
 M:	Roger He <Hongbo.He@amd.com>
