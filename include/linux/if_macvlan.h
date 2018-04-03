@@ -88,4 +88,13 @@ static inline void *macvlan_accel_priv(struct net_device *dev)
 
 	return macvlan->accel_priv;
 }
+
+static inline bool macvlan_supports_dest_filter(struct net_device *dev)
+{
+	struct macvlan_dev *macvlan = netdev_priv(dev);
+
+	return macvlan->mode == MACVLAN_MODE_PRIVATE ||
+	       macvlan->mode == MACVLAN_MODE_VEPA ||
+	       macvlan->mode == MACVLAN_MODE_BRIDGE;
+}
 #endif /* _LINUX_IF_MACVLAN_H */
