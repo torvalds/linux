@@ -147,19 +147,7 @@ static int dw_mci_req_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int dw_mci_req_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dw_mci_req_show, inode->i_private);
-}
-
-static const struct file_operations dw_mci_req_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dw_mci_req_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dw_mci_req);
 
 static int dw_mci_regs_show(struct seq_file *s, void *v)
 {
@@ -178,19 +166,7 @@ static int dw_mci_regs_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int dw_mci_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dw_mci_regs_show, inode->i_private);
-}
-
-static const struct file_operations dw_mci_regs_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dw_mci_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dw_mci_regs);
 
 static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
 {
@@ -2030,7 +2006,6 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			set_bit(EVENT_CMD_COMPLETE, &host->completed_events);
 			err = dw_mci_command_complete(host, cmd);
 			if (cmd == mrq->sbc && !err) {
-				prev_state = state = STATE_SENDING_CMD;
 				__dw_mci_start_request(host, host->slot,
 						       mrq->cmd);
 				goto unlock;
@@ -2826,6 +2801,10 @@ static int dw_mci_init_slot_caps(struct dw_mci_slot *slot)
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
 
+	mmc->f_min = DW_MCI_FREQ_MIN;
+	if (!mmc->f_max)
+		mmc->f_max = DW_MCI_FREQ_MAX;
+
 	/* Process SDIO IRQs through the sdio_irq_work. */
 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
 		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
@@ -2838,7 +2817,6 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	struct mmc_host *mmc;
 	struct dw_mci_slot *slot;
 	int ret;
-	u32 freq[2];
 
 	mmc = mmc_alloc_host(sizeof(struct dw_mci_slot), host->dev);
 	if (!mmc)
@@ -2852,16 +2830,6 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	host->slot = slot;
 
 	mmc->ops = &dw_mci_ops;
-	if (device_property_read_u32_array(host->dev, "clock-freq-min-max",
-					   freq, 2)) {
-		mmc->f_min = DW_MCI_FREQ_MIN;
-		mmc->f_max = DW_MCI_FREQ_MAX;
-	} else {
-		dev_info(host->dev,
-			"'clock-freq-min-max' property was deprecated.\n");
-		mmc->f_min = freq[0];
-		mmc->f_max = freq[1];
-	}
 
 	/*if there are external regulators, get them*/
 	ret = mmc_regulator_get_supply(mmc);
@@ -3159,10 +3127,6 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		if (PTR_ERR(pdata->rstc) == -EPROBE_DEFER)
 			return ERR_PTR(-EPROBE_DEFER);
 	}
-
-	/* find out number of slots supported */
-	if (!device_property_read_u32(dev, "num-slots", &pdata->num_slots))
-		dev_info(dev, "'num-slots' was deprecated.\n");
 
 	if (device_property_read_u32(dev, "fifo-depth", &pdata->fifo_depth))
 		dev_info(dev,

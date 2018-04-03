@@ -922,7 +922,6 @@
 			#size-cells = <0>;
 			cd-inverted;
 			compatible = "hisilicon,hi3660-dw-mshc";
-			num-slots = <1>;
 			bus-width = <0x4>;
 			disable-wp;
 			cap-sd-highspeed;
@@ -960,7 +959,6 @@
 			compatible = "hisilicon,hi3660-dw-mshc";
 			reg = <0x0 0xff3ff000 0x0 0x1000>;
 			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-			num-slots = <1>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SDIO0>,
 				 <&crg_ctrl HI3660_HCLK_GATE_SDIO0>;
 			clock-names = "ciu", "biu";
