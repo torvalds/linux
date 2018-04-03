@@ -75,6 +75,9 @@ EXPORT_SYMBOL_GPL(qcom_add_glink_subdev);
  */
 void qcom_remove_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink)
 {
+	if (!glink->node)
+		return;
+
 	rproc_remove_subdev(rproc, &glink->subdev);
 	of_node_put(glink->node);
 }
@@ -165,6 +168,9 @@ EXPORT_SYMBOL_GPL(qcom_add_smd_subdev);
  */
 void qcom_remove_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd)
 {
+	if (!smd->node)
+		return;
+
 	rproc_remove_subdev(rproc, &smd->subdev);
 	of_node_put(smd->node);
 }
