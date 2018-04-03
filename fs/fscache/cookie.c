@@ -557,9 +557,10 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 	 * n_active reaches 0).  This makes sure outstanding reads and writes
 	 * have completed.
 	 */
-	if (!atomic_dec_and_test(&cookie->n_active))
-		wait_on_atomic_t(&cookie->n_active, atomic_t_wait,
-				 TASK_UNINTERRUPTIBLE);
+	if (!atomic_dec_and_test(&cookie->n_active)) {
+		wait_var_event(&cookie->n_active,
+			       !atomic_read(&cookie->n_active));
+	}
 
 	/* Make sure any pending writes are cancelled. */
 	if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX)

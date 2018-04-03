@@ -251,8 +251,7 @@ struct amdgpu_virt {
 	uint32_t gim_feature;
 };
 
-#define AMDGPU_CSA_SIZE    (8 * 1024)
-#define AMDGPU_CSA_VADDR   (AMDGPU_VA_RESERVED_SIZE - AMDGPU_CSA_SIZE)
+#define AMDGPU_CSA_SIZE		(8 * 1024)
 
 #define amdgpu_sriov_enabled(adev) \
 ((adev)->virt.caps & AMDGPU_SRIOV_CAPS_ENABLE_IOV)
@@ -279,6 +278,8 @@ static inline bool is_virtual_machine(void)
 }
 
 struct amdgpu_vm;
+
+uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev);
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
 int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,

@@ -323,13 +323,24 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
 	skb_push(skb, VLAN_HLEN);
 
 	/* Move the mac header sans proto to the beginning of the new header. */
-	memmove(skb->data, skb->data + VLAN_HLEN, mac_len - ETH_TLEN);
+	if (likely(mac_len > ETH_TLEN))
+		memmove(skb->data, skb->data + VLAN_HLEN, mac_len - ETH_TLEN);
 	skb->mac_header -= VLAN_HLEN;
 
 	veth = (struct vlan_ethhdr *)(skb->data + mac_len - ETH_HLEN);
 
 	/* first, the ethernet type */
-	veth->h_vlan_proto = vlan_proto;
+	if (likely(mac_len >= ETH_TLEN)) {
+		/* h_vlan_encapsulated_proto should already be populated, and
+		 * skb->data has space for h_vlan_proto
+		 */
+		veth->h_vlan_proto = vlan_proto;
+	} else {
+		/* h_vlan_encapsulated_proto should not be populated, and
+		 * skb->data has no space for h_vlan_proto
+		 */
+		veth->h_vlan_encapsulated_proto = skb->protocol;
+	}
 
 	/* now, the TCI */
 	veth->h_vlan_TCI = htons(vlan_tci);

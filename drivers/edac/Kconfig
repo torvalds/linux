@@ -317,14 +317,6 @@ config EDAC_CPC925
 	  a companion chip to the PowerPC 970 family of
 	  processors.
 
-config EDAC_TILE
-	tristate "Tilera Memory Controller"
-	depends on TILE
-	default y
-	help
-	  Support for error detection and correction on the
-	  Tilera memory controller.
-
 config EDAC_HIGHBANK_MC
 	tristate "Highbank Memory Controller"
 	depends on ARCH_HIGHBANK

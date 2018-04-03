@@ -30,7 +30,7 @@
 #endif
 
 static int llc_find_offset(int state, int ev_type);
-static void llc_conn_send_pdus(struct sock *sk);
+static int llc_conn_send_pdus(struct sock *sk, struct sk_buff *skb);
 static int llc_conn_service(struct sock *sk, struct sk_buff *skb);
 static int llc_exec_conn_trans_actions(struct sock *sk,
 				       struct llc_conn_state_trans *trans,
@@ -193,11 +193,11 @@ out_skb_put:
 	return rc;
 }
 
-void llc_conn_send_pdu(struct sock *sk, struct sk_buff *skb)
+int llc_conn_send_pdu(struct sock *sk, struct sk_buff *skb)
 {
 	/* queue PDU to send to MAC layer */
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	llc_conn_send_pdus(sk);
+	return llc_conn_send_pdus(sk, skb);
 }
 
 /**
@@ -255,7 +255,7 @@ void llc_conn_resend_i_pdu_as_cmd(struct sock *sk, u8 nr, u8 first_p_bit)
 	if (howmany_resend > 0)
 		llc->vS = (llc->vS + 1) % LLC_2_SEQ_NBR_MODULO;
 	/* any PDUs to re-send are queued up; start sending to MAC */
-	llc_conn_send_pdus(sk);
+	llc_conn_send_pdus(sk, NULL);
 out:;
 }
 
@@ -296,7 +296,7 @@ void llc_conn_resend_i_pdu_as_rsp(struct sock *sk, u8 nr, u8 first_f_bit)
 	if (howmany_resend > 0)
 		llc->vS = (llc->vS + 1) % LLC_2_SEQ_NBR_MODULO;
 	/* any PDUs to re-send are queued up; start sending to MAC */
-	llc_conn_send_pdus(sk);
+	llc_conn_send_pdus(sk, NULL);
 out:;
 }
 
@@ -340,12 +340,16 @@ out:
 /**
  *	llc_conn_send_pdus - Sends queued PDUs
  *	@sk: active connection
+ *	@hold_skb: the skb held by caller, or NULL if does not care
  *
- *	Sends queued pdus to MAC layer for transmission.
+ *	Sends queued pdus to MAC layer for transmission. When @hold_skb is
+ *	NULL, always return 0. Otherwise, return 0 if @hold_skb is sent
+ *	successfully, or 1 for failure.
  */
-static void llc_conn_send_pdus(struct sock *sk)
+static int llc_conn_send_pdus(struct sock *sk, struct sk_buff *hold_skb)
 {
 	struct sk_buff *skb;
+	int ret = 0;
 
 	while ((skb = skb_dequeue(&sk->sk_write_queue)) != NULL) {
 		struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
@@ -357,10 +361,20 @@ static void llc_conn_send_pdus(struct sock *sk)
 			skb_queue_tail(&llc_sk(sk)->pdu_unack_q, skb);
 			if (!skb2)
 				break;
-			skb = skb2;
+			dev_queue_xmit(skb2);
+		} else {
+			bool is_target = skb == hold_skb;
+			int rc;
+
+			if (is_target)
+				skb_get(skb);
+			rc = dev_queue_xmit(skb);
+			if (is_target)
+				ret = rc;
 		}
-		dev_queue_xmit(skb);
 	}
+
+	return ret;
 }
 
 /**

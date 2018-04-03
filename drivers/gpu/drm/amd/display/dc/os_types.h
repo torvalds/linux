@@ -32,7 +32,7 @@
 
 #include <linux/kref.h>
 
-#include "cgs_linux.h"
+#include "cgs_common.h"
 
 #if defined(__BIG_ENDIAN) && !defined(BIGENDIAN_CPU)
 #define BIGENDIAN_CPU

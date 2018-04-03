@@ -66,6 +66,7 @@ enum {
 	GNLD_FEATURE_FAST_PPT_BIT,
 	GNLD_DIDT,
 	GNLD_ACG,
+	GNLD_PCC_LIMIT,
 	GNLD_FEATURES_MAX
 };
 
@@ -188,12 +189,6 @@ struct vega10_vbios_boot_state {
 	uint32_t    soc_clock;
 	uint32_t    dcef_clock;
 };
-
-#define DPMTABLE_OD_UPDATE_SCLK     0x00000001
-#define DPMTABLE_OD_UPDATE_MCLK     0x00000002
-#define DPMTABLE_UPDATE_SCLK        0x00000004
-#define DPMTABLE_UPDATE_MCLK        0x00000008
-#define DPMTABLE_OD_UPDATE_VDDC     0x00000010
 
 struct vega10_smc_state_table {
 	uint32_t        soc_boot_level;
@@ -379,9 +374,6 @@ struct vega10_hwmgr {
 	/* ---- Overdrive next setting ---- */
 	uint32_t                       apply_overdrive_next_settings_mask;
 
-	/* ---- Workload Mask ---- */
-	uint32_t                       workload_mask;
-
 	/* ---- SMU9 ---- */
 	struct smu_features            smu_features[GNLD_FEATURES_MAX];
 	struct vega10_smc_state_table  smc_state_table;
@@ -389,6 +381,7 @@ struct vega10_hwmgr {
 	uint32_t                       config_telemetry;
 	uint32_t                       acg_loop_state;
 	uint32_t                       mem_channels;
+	uint8_t                       custom_profile_mode[4];
 };
 
 #define VEGA10_DPM2_NEAR_TDP_DEC                      10
@@ -447,5 +440,7 @@ int vega10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
+int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
+		bool enable, uint32_t feature_mask);
 
 #endif /* _VEGA10_HWMGR_H_ */

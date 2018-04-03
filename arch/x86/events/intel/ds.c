@@ -935,7 +935,7 @@ void intel_pmu_pebs_add(struct perf_event *event)
 	bool needed_cb = pebs_needs_sched_cb(cpuc);
 
 	cpuc->n_pebs++;
-	if (hwc->flags & PERF_X86_EVENT_FREERUNNING)
+	if (hwc->flags & PERF_X86_EVENT_LARGE_PEBS)
 		cpuc->n_large_pebs++;
 
 	pebs_update_state(needed_cb, cpuc, event->ctx->pmu);
@@ -975,7 +975,7 @@ void intel_pmu_pebs_del(struct perf_event *event)
 	bool needed_cb = pebs_needs_sched_cb(cpuc);
 
 	cpuc->n_pebs--;
-	if (hwc->flags & PERF_X86_EVENT_FREERUNNING)
+	if (hwc->flags & PERF_X86_EVENT_LARGE_PEBS)
 		cpuc->n_large_pebs--;
 
 	pebs_update_state(needed_cb, cpuc, event->ctx->pmu);
@@ -1153,6 +1153,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	if (pebs == NULL)
 		return;
 
+	regs->flags &= ~PERF_EFLAGS_EXACT;
 	sample_type = event->attr.sample_type;
 	dsrc = sample_type & PERF_SAMPLE_DATA_SRC;
 
@@ -1197,7 +1198,6 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	 */
 	*regs = *iregs;
 	regs->flags = pebs->flags;
-	set_linear_ip(regs, pebs->ip);
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
 		regs->ax = pebs->ax;
@@ -1233,13 +1233,22 @@ static void setup_pebs_sample_data(struct perf_event *event,
 #endif
 	}
 
-	if (event->attr.precise_ip > 1 && x86_pmu.intel_cap.pebs_format >= 2) {
-		regs->ip = pebs->real_ip;
-		regs->flags |= PERF_EFLAGS_EXACT;
-	} else if (event->attr.precise_ip > 1 && intel_pmu_pebs_fixup_ip(regs))
-		regs->flags |= PERF_EFLAGS_EXACT;
-	else
-		regs->flags &= ~PERF_EFLAGS_EXACT;
+	if (event->attr.precise_ip > 1) {
+		/* Haswell and later have the eventing IP, so use it: */
+		if (x86_pmu.intel_cap.pebs_format >= 2) {
+			set_linear_ip(regs, pebs->real_ip);
+			regs->flags |= PERF_EFLAGS_EXACT;
+		} else {
+			/* Otherwise use PEBS off-by-1 IP: */
+			set_linear_ip(regs, pebs->ip);
+
+			/* ... and try to fix it up using the LBR entries: */
+			if (intel_pmu_pebs_fixup_ip(regs))
+				regs->flags |= PERF_EFLAGS_EXACT;
+		}
+	} else
+		set_linear_ip(regs, pebs->ip);
+
 
 	if ((sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR)) &&
 	    x86_pmu.intel_cap.pebs_format >= 1)
@@ -1306,17 +1315,93 @@ get_next_pebs_record_by_bit(void *base, void *top, int bit)
 	return NULL;
 }
 
+void intel_pmu_auto_reload_read(struct perf_event *event)
+{
+	WARN_ON(!(event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD));
+
+	perf_pmu_disable(event->pmu);
+	intel_pmu_drain_pebs_buffer();
+	perf_pmu_enable(event->pmu);
+}
+
+/*
+ * Special variant of intel_pmu_save_and_restart() for auto-reload.
+ */
+static int
+intel_pmu_save_and_restart_reload(struct perf_event *event, int count)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	int shift = 64 - x86_pmu.cntval_bits;
+	u64 period = hwc->sample_period;
+	u64 prev_raw_count, new_raw_count;
+	s64 new, old;
+
+	WARN_ON(!period);
+
+	/*
+	 * drain_pebs() only happens when the PMU is disabled.
+	 */
+	WARN_ON(this_cpu_read(cpu_hw_events.enabled));
+
+	prev_raw_count = local64_read(&hwc->prev_count);
+	rdpmcl(hwc->event_base_rdpmc, new_raw_count);
+	local64_set(&hwc->prev_count, new_raw_count);
+
+	/*
+	 * Since the counter increments a negative counter value and
+	 * overflows on the sign switch, giving the interval:
+	 *
+	 *   [-period, 0]
+	 *
+	 * the difference between two consequtive reads is:
+	 *
+	 *   A) value2 - value1;
+	 *      when no overflows have happened in between,
+	 *
+	 *   B) (0 - value1) + (value2 - (-period));
+	 *      when one overflow happened in between,
+	 *
+	 *   C) (0 - value1) + (n - 1) * (period) + (value2 - (-period));
+	 *      when @n overflows happened in between.
+	 *
+	 * Here A) is the obvious difference, B) is the extension to the
+	 * discrete interval, where the first term is to the top of the
+	 * interval and the second term is from the bottom of the next
+	 * interval and C) the extension to multiple intervals, where the
+	 * middle term is the whole intervals covered.
+	 *
+	 * An equivalent of C, by reduction, is:
+	 *
+	 *   value2 - value1 + n * period
+	 */
+	new = ((s64)(new_raw_count << shift) >> shift);
+	old = ((s64)(prev_raw_count << shift) >> shift);
+	local64_add(new - old + count * period, &event->count);
+
+	perf_event_update_userpage(event);
+
+	return 0;
+}
+
 static void __intel_pmu_pebs_event(struct perf_event *event,
 				   struct pt_regs *iregs,
 				   void *base, void *top,
 				   int bit, int count)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	struct perf_sample_data data;
 	struct pt_regs regs;
 	void *at = get_next_pebs_record_by_bit(base, top, bit);
 
-	if (!intel_pmu_save_and_restart(event) &&
-	    !(event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD))
+	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
+		/*
+		 * Now, auto-reload is only enabled in fixed period mode.
+		 * The reload value is always hwc->sample_period.
+		 * May need to change it, if auto-reload is enabled in
+		 * freq mode later.
+		 */
+		intel_pmu_save_and_restart_reload(event, count);
+	} else if (!intel_pmu_save_and_restart(event))
 		return;
 
 	while (count > 1) {
@@ -1368,8 +1453,11 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 		return;
 
 	n = top - at;
-	if (n <= 0)
+	if (n <= 0) {
+		if (event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD)
+			intel_pmu_save_and_restart_reload(event, 0);
 		return;
+	}
 
 	__intel_pmu_pebs_event(event, iregs, at, top, 0, n);
 }
@@ -1392,8 +1480,22 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 	ds->pebs_index = ds->pebs_buffer_base;
 
-	if (unlikely(base >= top))
+	if (unlikely(base >= top)) {
+		/*
+		 * The drain_pebs() could be called twice in a short period
+		 * for auto-reload event in pmu::read(). There are no
+		 * overflows have happened in between.
+		 * It needs to call intel_pmu_save_and_restart_reload() to
+		 * update the event->count for this case.
+		 */
+		for_each_set_bit(bit, (unsigned long *)&cpuc->pebs_enabled,
+				 x86_pmu.max_pebs_events) {
+			event = cpuc->events[bit];
+			if (event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD)
+				intel_pmu_save_and_restart_reload(event, 0);
+		}
 		return;
+	}
 
 	for (at = base; at < top; at += x86_pmu.pebs_record_size) {
 		struct pebs_record_nhm *p = at;
@@ -1530,7 +1632,7 @@ void __init intel_ds_init(void)
 			x86_pmu.pebs_record_size =
 						sizeof(struct pebs_record_skl);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
-			x86_pmu.free_running_flags |= PERF_SAMPLE_TIME;
+			x86_pmu.large_pebs_flags |= PERF_SAMPLE_TIME;
 			break;
 
 		default:

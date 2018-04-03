@@ -392,11 +392,6 @@ config ATMEL_ST
 	help
 	  Support for the Atmel ST timer.
 
-config CLKSRC_METAG_GENERIC
-	def_bool y if METAG
-	help
-	  This option enables support for the Meta per-thread timers.
-
 config CLKSRC_EXYNOS_MCT
 	bool "Exynos multi core timer driver" if COMPILE_TEST
 	depends on ARM || ARM64
@@ -591,5 +586,14 @@ config CLKSRC_ST_LPC
 	help
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
+
+config ATCPIT100_TIMER
+	bool "ATCPIT100 timer driver"
+	depends on NDS32 || COMPILE_TEST
+	depends on HAS_IOMEM
+	select TIMER_OF
+	default NDS32
+	help
+	  This option enables support for the Andestech ATCPIT100 timers.
 
 endmenu

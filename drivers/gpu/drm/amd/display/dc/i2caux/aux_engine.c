@@ -55,6 +55,8 @@ enum {
 
 #define FROM_ENGINE(ptr) \
 	container_of((ptr), struct aux_engine, base)
+#define DC_LOGGER \
+	engine->base.ctx->logger
 
 enum i2caux_engine_type dal_aux_engine_get_engine_type(
 	const struct engine *engine)
@@ -126,20 +128,8 @@ static void process_read_reply(
 			ctx->status =
 				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
 			ctx->operation_succeeded = false;
-		} else if (ctx->returned_byte < ctx->current_read_length) {
-			ctx->current_read_length -= ctx->returned_byte;
-
-			ctx->offset += ctx->returned_byte;
-
-			++ctx->invalid_reply_retry_aux_on_ack;
-
-			if (ctx->invalid_reply_retry_aux_on_ack >
-				AUX_INVALID_REPLY_RETRY_COUNTER) {
-				ctx->status =
-				I2CAUX_TRANSACTION_STATUS_FAILED_PROTOCOL_ERROR;
-				ctx->operation_succeeded = false;
-			}
 		} else {
+			ctx->current_read_length = ctx->returned_byte;
 			ctx->status = I2CAUX_TRANSACTION_STATUS_SUCCEEDED;
 			ctx->transaction_complete = true;
 			ctx->operation_succeeded = true;
@@ -284,6 +274,15 @@ static bool read_command(
 				msleep(engine->delay);
 	} while (ctx.operation_succeeded && !ctx.transaction_complete);
 
+	if (request->payload.address_space ==
+		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
+		DC_LOG_I2C_AUX("READ: addr:0x%x  value:0x%x Result:%d",
+				request->payload.address,
+				request->payload.data[0],
+				ctx.operation_succeeded);
+	}
+
+	request->payload.length = ctx.reply.length;
 	return ctx.operation_succeeded;
 }
 
@@ -483,6 +482,14 @@ static bool write_command(
 			if (ctx.request.type == AUX_TRANSACTION_TYPE_I2C)
 				msleep(engine->delay);
 	} while (ctx.operation_succeeded && !ctx.transaction_complete);
+
+	if (request->payload.address_space ==
+		I2CAUX_TRANSACTION_ADDRESS_SPACE_DPCD) {
+		DC_LOG_I2C_AUX("WRITE: addr:0x%x  value:0x%x Result:%d",
+				request->payload.address,
+				request->payload.data[0],
+				ctx.operation_succeeded);
+	}
 
 	return ctx.operation_succeeded;
 }

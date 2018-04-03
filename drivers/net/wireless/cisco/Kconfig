@@ -33,7 +33,7 @@ config AIRO
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
-	depends on CFG80211 && PCMCIA && (BROKEN || !M32R)
+	depends on CFG80211 && PCMCIA
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV

@@ -82,7 +82,7 @@
 		enable-active-high;
 	};
 
-	reg_usb_otg2_vbus: regulator-usb-otg1-vbus {
+	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg2_vbus";
 		regulator-min-microvolt = <5000000>;

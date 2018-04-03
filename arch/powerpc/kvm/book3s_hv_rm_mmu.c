@@ -473,6 +473,17 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 			trace_tlbie(kvm->arch.lpid, 0, rbvalues[i],
 				kvm->arch.lpid, 0, 0, 0);
 		}
+
+		if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+			/*
+			 * Need the extra ptesync to make sure we don't
+			 * re-order the tlbie
+			 */
+			asm volatile("ptesync": : :"memory");
+			asm volatile(PPC_TLBIE_5(%0,%1,0,0,0) : :
+				     "r" (rbvalues[0]), "r" (kvm->arch.lpid));
+		}
+
 		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 		kvm->arch.tlbie_lock = 0;
 	} else {

@@ -14,7 +14,7 @@ int x2apic_phys;
 
 static struct apic apic_x2apic_phys;
 
-static int set_x2apic_phys_mode(char *arg)
+static int __init set_x2apic_phys_mode(char *arg)
 {
 	x2apic_phys = 1;
 	return 0;

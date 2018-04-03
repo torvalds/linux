@@ -57,7 +57,7 @@ asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, u
 	if ((int)high < 0)
 		return -EINVAL;
 	else
-		return sys_truncate(path, (high << 32) | low);
+		return ksys_truncate(path, (high << 32) | low);
 }
 
 asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low)
@@ -65,7 +65,7 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 	if ((int)high < 0)
 		return -EINVAL;
 	else
-		return sys_ftruncate(fd, (high << 32) | low);
+		return ksys_ftruncate(fd, (high << 32) | low);
 }
 
 static int cp_compat_stat64(struct kstat *stat,
@@ -200,7 +200,7 @@ asmlinkage compat_ssize_t sys32_pread64(unsigned int fd,
 					unsigned long poshi,
 					unsigned long poslo)
 {
-	return sys_pread64(fd, ubuf, count, (poshi << 32) | poslo);
+	return ksys_pread64(fd, ubuf, count, (poshi << 32) | poslo);
 }
 
 asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
@@ -209,7 +209,7 @@ asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
 					 unsigned long poshi,
 					 unsigned long poslo)
 {
-	return sys_pwrite64(fd, ubuf, count, (poshi << 32) | poslo);
+	return ksys_pwrite64(fd, ubuf, count, (poshi << 32) | poslo);
 }
 
 asmlinkage long compat_sys_readahead(int fd,
@@ -217,7 +217,7 @@ asmlinkage long compat_sys_readahead(int fd,
 				     unsigned long offlo,
 				     compat_size_t count)
 {
-	return sys_readahead(fd, (offhi << 32) | offlo, count);
+	return ksys_readahead(fd, (offhi << 32) | offlo, count);
 }
 
 long compat_sys_fadvise64(int fd,
@@ -225,7 +225,7 @@ long compat_sys_fadvise64(int fd,
 			  unsigned long offlo,
 			  compat_size_t len, int advice)
 {
-	return sys_fadvise64_64(fd, (offhi << 32) | offlo, len, advice);
+	return ksys_fadvise64_64(fd, (offhi << 32) | offlo, len, advice);
 }
 
 long compat_sys_fadvise64_64(int fd,
@@ -233,15 +233,15 @@ long compat_sys_fadvise64_64(int fd,
 			     unsigned long lenhi, unsigned long lenlo,
 			     int advice)
 {
-	return sys_fadvise64_64(fd,
-				(offhi << 32) | offlo,
-				(lenhi << 32) | lenlo,
-				advice);
+	return ksys_fadvise64_64(fd,
+				 (offhi << 32) | offlo,
+				 (lenhi << 32) | lenlo,
+				 advice);
 }
 
 long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, unsigned int flags)
 {
-	return sys_sync_file_range(fd,
+	return ksys_sync_file_range(fd,
 				   (off_high << 32) | off_low,
 				   (nb_high << 32) | nb_low,
 				   flags);
@@ -250,6 +250,6 @@ long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned lon
 asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 				     u32 lenhi, u32 lenlo)
 {
-	return sys_fallocate(fd, mode, ((loff_t)offhi << 32) | offlo,
-			     ((loff_t)lenhi << 32) | lenlo);
+	return ksys_fallocate(fd, mode, ((loff_t)offhi << 32) | offlo,
+			      ((loff_t)lenhi << 32) | lenlo);
 }

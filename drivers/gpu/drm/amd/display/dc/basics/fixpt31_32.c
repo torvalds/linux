@@ -593,3 +593,12 @@ uint32_t dal_fixed31_32_clamp_u0d10(
 {
 	return clamp_ux_dy(arg.value, 0, 10, 1);
 }
+
+int32_t dal_fixed31_32_s4d19(
+	struct fixed31_32 arg)
+{
+	if (arg.value < 0)
+		return -(int32_t)ux_dy(dal_fixed31_32_abs(arg).value, 4, 19);
+	else
+		return ux_dy(arg.value, 4, 19);
+}

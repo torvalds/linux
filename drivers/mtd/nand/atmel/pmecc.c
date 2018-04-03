@@ -426,7 +426,7 @@ static int get_strength(struct atmel_pmecc_user *user)
 
 static int get_sectorsize(struct atmel_pmecc_user *user)
 {
-	return user->cache.cfg & PMECC_LOOKUP_TABLE_SIZE_1024 ? 1024 : 512;
+	return user->cache.cfg & PMECC_CFG_SECTOR1024 ? 1024 : 512;
 }
 
 static void atmel_pmecc_gen_syndrome(struct atmel_pmecc_user *user, int sector)

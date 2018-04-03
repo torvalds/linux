@@ -99,7 +99,7 @@ MODULE_LICENSE("GPL");
 that the ne2k probe is the last 8390 based probe to take place (as it
 is at boot) and so the probe will get confused by any other 8390 cards.
 ISA device autoprobes on a running machine are not recommended anyway. */
-#if !defined(MODULE) && (defined(CONFIG_ISA) || defined(CONFIG_M32R))
+#if !defined(MODULE) && defined(CONFIG_ISA)
 /* Do we need a portlist for the ISA auto-probe ? */
 #define NEEDS_PORTLIST
 #endif
@@ -164,12 +164,7 @@ bad_clone_list[] __initdata = {
 #define NESM_START_PG	0x40	/* First page of TX buffer */
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
 
-#if defined(CONFIG_PLAT_MAPPI)
-#  define DCR_VAL 0x4b
-#elif defined(CONFIG_PLAT_OAKS32R)  || \
-   defined(CONFIG_MACH_TX49XX)
-#  define DCR_VAL 0x48		/* 8-bit mode */
-#elif defined(CONFIG_ATARI)	/* 8-bit mode on Atari, normal on Q40 */
+#if defined(CONFIG_ATARI)	/* 8-bit mode on Atari, normal on Q40 */
 #  define DCR_VAL (MACH_IS_ATARI ? 0x48 : 0x49)
 #else
 #  define DCR_VAL 0x49
@@ -422,12 +417,7 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 		stop_page  = NE1SM_STOP_PG;
 	}
 
-#if  defined(CONFIG_PLAT_MAPPI) || defined(CONFIG_PLAT_OAKS32R)
-	neX000 = ((SA_prom[14] == 0x57  &&  SA_prom[15] == 0x57)
-		|| (SA_prom[14] == 0x42 && SA_prom[15] == 0x42));
-#else
 	neX000 = (SA_prom[14] == 0x57  &&  SA_prom[15] == 0x57);
-#endif
 	ctron =  (SA_prom[0] == 0x00 && SA_prom[1] == 0x00 && SA_prom[2] == 0x1d);
 	copam =  (SA_prom[14] == 0x49 && SA_prom[15] == 0x00);
 
@@ -508,18 +498,9 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 
 	dev->base_addr = ioaddr;
 
-#ifdef CONFIG_PLAT_MAPPI
-	outb_p(E8390_NODMA + E8390_PAGE1 + E8390_STOP,
-		ioaddr + E8390_CMD); /* 0x61 */
-	for (i = 0; i < ETH_ALEN; i++) {
-		dev->dev_addr[i] = SA_prom[i]
-			= inb_p(ioaddr + EN1_PHYS_SHIFT(i));
-	}
-#else
 	for (i = 0; i < ETH_ALEN; i++) {
 		dev->dev_addr[i] = SA_prom[i];
 	}
-#endif
 
 	pr_cont("%pM\n", dev->dev_addr);
 

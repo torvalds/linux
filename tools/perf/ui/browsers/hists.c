@@ -2223,7 +2223,7 @@ static int perf_evsel_browser_title(struct hist_browser *browser,
 	u64 nr_events = hists->stats.total_period;
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	const char *ev_name = perf_evsel__name(evsel);
-	char buf[512];
+	char buf[512], sample_freq_str[64] = "";
 	size_t buflen = sizeof(buf);
 	char ref[30] = " show reference callgraph, ";
 	bool enable_ref = false;
@@ -2255,10 +2255,15 @@ static int perf_evsel_browser_title(struct hist_browser *browser,
 	if (symbol_conf.show_ref_callgraph &&
 	    strstr(ev_name, "call-graph=no"))
 		enable_ref = true;
+
+	if (!is_report_browser(hbt))
+		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->attr.sample_freq);
+
 	nr_samples = convert_unit(nr_samples, &unit);
 	printed = scnprintf(bf, size,
-			   "Samples: %lu%c of event '%s',%sEvent count (approx.): %" PRIu64,
-			   nr_samples, unit, ev_name, enable_ref ? ref : " ", nr_events);
+			   "Samples: %lu%c of event%s '%s',%s%sEvent count (approx.): %" PRIu64,
+			   nr_samples, unit, evsel->nr_members > 1 ? "s" : "",
+			   ev_name, sample_freq_str, enable_ref ? ref : " ", nr_events);
 
 
 	if (hists->uid_filter_str)
