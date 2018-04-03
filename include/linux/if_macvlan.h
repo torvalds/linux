@@ -97,4 +97,12 @@ static inline bool macvlan_supports_dest_filter(struct net_device *dev)
 	       macvlan->mode == MACVLAN_MODE_VEPA ||
 	       macvlan->mode == MACVLAN_MODE_BRIDGE;
 }
+
+static inline int macvlan_release_l2fw_offload(struct net_device *dev)
+{
+	struct macvlan_dev *macvlan = netdev_priv(dev);
+
+	macvlan->accel_priv = NULL;
+	return dev_uc_add(macvlan->lowerdev, dev->dev_addr);
+}
 #endif /* _LINUX_IF_MACVLAN_H */
