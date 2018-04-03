@@ -1002,7 +1002,7 @@ TRACE_EVENT(btrfs_space_reservation,
 		__entry->reserve	= reserve;
 	),
 
-	TP_printk_btrfs("%s: %Lu %s %Lu", __get_str(type), __entry->val,
+	TP_printk_btrfs("%s: %llu %s %llu", __get_str(type), __entry->val,
 			__entry->reserve ? "reserve" : "release",
 			__entry->bytes)
 );
@@ -1141,7 +1141,7 @@ TRACE_EVENT(find_free_extent,
 		__entry->data		= data;
 	),
 
-	TP_printk_btrfs("root=%Lu(%s) len=%Lu empty_size=%Lu flags=%Lu(%s)",
+	TP_printk_btrfs("root=%llu(%s) len=%llu empty_size=%llu flags=%llu(%s)",
 		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
 		  __entry->num_bytes, __entry->empty_size, __entry->data,
 		  __print_flags((unsigned long)__entry->data, "|",
@@ -1170,8 +1170,8 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 		__entry->len		= len;
 	),
 
-	TP_printk_btrfs("root=%Lu(%s) block_group=%Lu flags=%Lu(%s) "
-		  "start=%Lu len=%Lu",
+	TP_printk_btrfs("root=%llu(%s) block_group=%llu flags=%llu(%s) "
+		  "start=%llu len=%llu",
 		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
 		  __entry->bg_objectid,
 		  __entry->flags, __print_flags((unsigned long)__entry->flags,
@@ -1222,8 +1222,8 @@ TRACE_EVENT(btrfs_find_cluster,
 		__entry->min_bytes	= min_bytes;
 	),
 
-	TP_printk_btrfs("block_group=%Lu flags=%Lu(%s) start=%Lu len=%Lu "
-		  "empty_size=%Lu min_bytes=%Lu", __entry->bg_objectid,
+	TP_printk_btrfs("block_group=%llu flags=%llu(%s) start=%llu len=%llu "
+		  "empty_size=%llu min_bytes=%llu", __entry->bg_objectid,
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
 				BTRFS_GROUP_FLAGS), __entry->start,
@@ -1244,7 +1244,7 @@ TRACE_EVENT(btrfs_failed_cluster_setup,
 		__entry->bg_objectid	= block_group->key.objectid;
 	),
 
-	TP_printk_btrfs("block_group=%Lu", __entry->bg_objectid)
+	TP_printk_btrfs("block_group=%llu", __entry->bg_objectid)
 );
 
 TRACE_EVENT(btrfs_setup_cluster,
@@ -1273,8 +1273,8 @@ TRACE_EVENT(btrfs_setup_cluster,
 		__entry->bitmap		= bitmap;
 	),
 
-	TP_printk_btrfs("block_group=%Lu flags=%Lu(%s) window_start=%Lu "
-		  "size=%Lu max_size=%Lu bitmap=%d",
+	TP_printk_btrfs("block_group=%llu flags=%llu(%s) window_start=%llu "
+		  "size=%llu max_size=%llu bitmap=%d",
 		  __entry->bg_objectid,
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
