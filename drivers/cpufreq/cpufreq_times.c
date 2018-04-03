@@ -203,8 +203,12 @@ static int uid_time_in_state_seq_show(struct seq_file *m, void *v)
 			if (!freqs || freqs == last_freqs)
 				continue;
 			last_freqs = freqs;
-			for (i = 0; i < freqs->max_state; i++)
+			for (i = 0; i < freqs->max_state; i++) {
+				if (freqs->freq_table[i] ==
+				    CPUFREQ_ENTRY_INVALID)
+					continue;
 				seq_printf(m, " %d", freqs->freq_table[i]);
+			}
 		}
 		seq_putc(m, '\n');
 	}
