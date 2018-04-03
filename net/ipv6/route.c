@@ -2229,6 +2229,23 @@ void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu)
 }
 EXPORT_SYMBOL_GPL(ip6_sk_update_pmtu);
 
+void ip6_sk_dst_store_flow(struct sock *sk, struct dst_entry *dst,
+			   const struct flowi6 *fl6)
+{
+#ifdef CONFIG_IPV6_SUBTREES
+	struct ipv6_pinfo *np = inet6_sk(sk);
+#endif
+
+	ip6_dst_store(sk, dst,
+		      ipv6_addr_equal(&fl6->daddr, &sk->sk_v6_daddr) ?
+		      &sk->sk_v6_daddr : NULL,
+#ifdef CONFIG_IPV6_SUBTREES
+		      ipv6_addr_equal(&fl6->saddr, &np->saddr) ?
+		      &np->saddr :
+#endif
+		      NULL);
+}
+
 /* Handle redirects */
 struct ip6rd_flowi {
 	struct flowi6 fl6;

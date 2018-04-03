@@ -214,6 +214,9 @@ static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 #endif
 }
 
+void ip6_sk_dst_store_flow(struct sock *sk, struct dst_entry *dst,
+			   const struct flowi6 *fl6);
+
 static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
 {
 	struct rt6_info *rt = (struct rt6_info *) skb_dst(skb);
