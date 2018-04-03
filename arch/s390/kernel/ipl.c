@@ -334,7 +334,7 @@ size_t append_ipl_vmparm(char *dest, size_t size)
 	size_t rc;
 
 	rc = 0;
-	if (diag308_set_works && (ipl_block.hdr.pbt == DIAG308_IPL_TYPE_CCW))
+	if (ipl_block_valid && ipl_block.hdr.pbt == DIAG308_IPL_TYPE_CCW)
 		rc = reipl_get_ascii_vmparm(dest, size, &ipl_block);
 	else
 		dest[0] = 0;
@@ -1116,7 +1116,7 @@ static void reipl_block_ccw_fill_parms(struct ipl_parameter_block *ipb)
 	ipb->hdr.flags = DIAG308_FLAGS_LP_VALID;
 
 	/* VM PARM */
-	if (MACHINE_IS_VM && diag308_set_works &&
+	if (MACHINE_IS_VM && ipl_block_valid &&
 	    (ipl_block.ipl_info.ccw.vm_flags & DIAG308_VM_FLAGS_VP_VALID)) {
 
 		ipb->ipl_info.ccw.vm_flags |= DIAG308_VM_FLAGS_VP_VALID;
@@ -1835,10 +1835,8 @@ static int __init s390_ipl_init(void)
 	 * case the system is booted from HMC. Fortunately in this case
 	 * READ SCP info provides the correct value.
 	 */
-	if (memcmp(sclp_ipl_info.loadparm, str, sizeof(str)) == 0 &&
-	    diag308_set_works)
-		memcpy(sclp_ipl_info.loadparm, ipl_block.hdr.loadparm,
-		       LOADPARM_LEN);
+	if (memcmp(sclp_ipl_info.loadparm, str, sizeof(str)) == 0 && ipl_block_valid)
+		memcpy(sclp_ipl_info.loadparm, ipl_block.hdr.loadparm, LOADPARM_LEN);
 	shutdown_actions_init();
 	shutdown_triggers_init();
 	return 0;
