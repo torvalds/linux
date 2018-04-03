@@ -1780,9 +1780,6 @@ config SECCOMP
 config SWIOTLB
 	def_bool y
 
-config IOMMU_HELPER
-	def_bool SWIOTLB
-
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	help

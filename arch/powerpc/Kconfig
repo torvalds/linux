@@ -483,7 +483,6 @@ config IOMMU_HELPER
 config SWIOTLB
 	bool "SWIOTLB support"
 	default n
-	select IOMMU_HELPER
 	---help---
 	  Support for IO bounce buffering for systems without an IOMMU.
 	  This allows us to DMA to the full physical address space on

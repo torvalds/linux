@@ -934,7 +934,7 @@ config SWIOTLB
 
 config IOMMU_HELPER
 	def_bool y
-	depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU
+	depends on CALGARY_IOMMU || GART_IOMMU
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"

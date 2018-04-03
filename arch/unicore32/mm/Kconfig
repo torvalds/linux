@@ -44,9 +44,6 @@ config SWIOTLB
 	def_bool y
 	select DMA_DIRECT_OPS
 
-config IOMMU_HELPER
-	def_bool SWIOTLB
-
 config NEED_SG_DMA_LENGTH
 	def_bool SWIOTLB
 
