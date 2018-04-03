@@ -541,12 +541,10 @@ mt76_check_ps(struct mt76_dev *dev, struct sk_buff *skb)
 	if (!!test_bit(MT_WCID_FLAG_PS, &wcid->flags) == ps)
 		return;
 
-	if (ps) {
+	if (ps)
 		set_bit(MT_WCID_FLAG_PS, &wcid->flags);
-		mt76_stop_tx_queues(dev, sta, true);
-	} else {
+	else
 		clear_bit(MT_WCID_FLAG_PS, &wcid->flags);
-	}
 
 	ieee80211_sta_ps_transition(sta, ps);
 	dev->drv->sta_ps(dev, sta, ps);
