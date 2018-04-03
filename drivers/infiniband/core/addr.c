@@ -585,28 +585,30 @@ static void process_one_req(struct work_struct *_work)
 		} else if (req->status == -ENODATA) {
 			/* requeue the work for retrying again */
 			spin_lock_bh(&lock);
-			set_timeout(req, req->timeout);
+			if (!list_empty(&req->list))
+				set_timeout(req, req->timeout);
 			spin_unlock_bh(&lock);
 			return;
 		}
 	}
-	spin_lock_bh(&lock);
-	list_del(&req->list);
-	spin_unlock_bh(&lock);
-
-	/*
-	 * Although the work will normally have been canceled by the
-	 * workqueue, it can still be requeued as long as it is on the
-	 * req_list, so it could have been requeued before we grabbed &lock.
-	 * We need to cancel it after it is removed from req_list to really be
-	 * sure it is safe to free.
-	 */
-	cancel_delayed_work(&req->work);
 
 	req->callback(req->status, (struct sockaddr *)&req->src_addr,
 		req->addr, req->context);
-	put_client(req->client);
-	kfree(req);
+	req->callback = NULL;
+
+	spin_lock_bh(&lock);
+	if (!list_empty(&req->list)) {
+		/*
+		 * Although the work will normally have been canceled by the
+		 * workqueue, it can still be requeued as long as it is on the
+		 * req_list.
+		 */
+		cancel_delayed_work(&req->work);
+		list_del_init(&req->list);
+		put_client(req->client);
+		kfree(req);
+	}
+	spin_unlock_bh(&lock);
 }
 
 int rdma_resolve_ip(struct rdma_addr_client *client,
@@ -691,17 +693,37 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
 {
 	struct addr_req *req, *temp_req;
+	struct addr_req *found = NULL;
 
 	spin_lock_bh(&lock);
 	list_for_each_entry_safe(req, temp_req, &req_list, list) {
 		if (req->addr == addr) {
-			req->status = -ECANCELED;
-			req->timeout = jiffies;
-			set_timeout(req, req->timeout);
+			/*
+			 * Removing from the list means we take ownership of
+			 * the req
+			 */
+			list_del_init(&req->list);
+			found = req;
 			break;
 		}
 	}
 	spin_unlock_bh(&lock);
+
+	if (!found)
+		return;
+
+	/*
+	 * sync canceling the work after removing it from the req_list
+	 * guarentees no work is running and none will be started.
+	 */
+	cancel_delayed_work_sync(&found->work);
+
+	if (found->callback)
+		found->callback(-ECANCELED, (struct sockaddr *)&found->src_addr,
+			      found->addr, found->context);
+
+	put_client(found->client);
+	kfree(found);
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
