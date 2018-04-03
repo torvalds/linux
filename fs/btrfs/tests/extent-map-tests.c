@@ -91,7 +91,7 @@ static void test_case_1(struct btrfs_fs_info *fs_info,
 	em->len = len;
 	em->block_start = start;
 	em->block_len = len;
-	ret = btrfs_add_extent_mapping(em_tree, &em, em->start, em->len);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	if (ret)
 		test_msg("case1 [%llu %llu]: ret %d\n", start, start + len, ret);
 	if (em &&
@@ -155,7 +155,7 @@ static void test_case_2(struct btrfs_fs_info *fs_info,
 	em->len = SZ_1K;
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
-	ret = btrfs_add_extent_mapping(em_tree, &em, em->start, em->len);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	if (ret)
 		test_msg("case2 [0 1K]: ret %d\n", ret);
 	if (em &&
@@ -201,7 +201,7 @@ static void __test_case_3(struct btrfs_fs_info *fs_info,
 	em->len = SZ_16K;
 	em->block_start = 0;
 	em->block_len = SZ_16K;
-	ret = btrfs_add_extent_mapping(em_tree, &em, start, len);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	if (ret)
 		test_msg("case3 [0x%llx 0x%llx): ret %d\n",
 			 start, start + len, ret);
@@ -288,7 +288,7 @@ static void __test_case_4(struct btrfs_fs_info *fs_info,
 	em->len = SZ_32K;
 	em->block_start = 0;
 	em->block_len = SZ_32K;
-	ret = btrfs_add_extent_mapping(em_tree, &em, start, len);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	if (ret)
 		test_msg("case4 [0x%llx 0x%llx): ret %d\n",
 			 start, len, ret);

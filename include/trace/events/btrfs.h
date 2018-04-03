@@ -256,11 +256,13 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 
 TRACE_EVENT(btrfs_handle_em_exist,
 
-	TP_PROTO(const struct extent_map *existing, const struct extent_map *map, u64 start, u64 len),
+	TP_PROTO(struct btrfs_fs_info *fs_info,
+		const struct extent_map *existing, const struct extent_map *map,
+		u64 start, u64 len),
 
-	TP_ARGS(existing, map, start, len),
+	TP_ARGS(fs_info, existing, map, start, len),
 
-	TP_STRUCT__entry(
+	TP_STRUCT__entry_btrfs(
 		__field(	u64,  e_start		)
 		__field(	u64,  e_len		)
 		__field(	u64,  map_start		)
@@ -269,7 +271,7 @@ TRACE_EVENT(btrfs_handle_em_exist,
 		__field(	u64,  len		)
 	),
 
-	TP_fast_assign(
+	TP_fast_assign_btrfs(fs_info,
 		__entry->e_start	= existing->start;
 		__entry->e_len		= existing->len;
 		__entry->map_start	= map->start;
@@ -278,7 +280,7 @@ TRACE_EVENT(btrfs_handle_em_exist,
 		__entry->len		= len;
 	),
 
-	TP_printk("start=%llu len=%llu "
+	TP_printk_btrfs("start=%llu len=%llu "
 		  "existing(start=%llu len=%llu) "
 		  "em(start=%llu len=%llu)",
 		  __entry->start,

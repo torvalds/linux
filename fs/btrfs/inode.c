@@ -7083,7 +7083,7 @@ insert:
 
 	err = 0;
 	write_lock(&em_tree->lock);
-	err = btrfs_add_extent_mapping(em_tree, &em, start, len);
+	err = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	write_unlock(&em_tree->lock);
 out:
 
