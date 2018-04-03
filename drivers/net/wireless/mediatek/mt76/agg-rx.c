@@ -273,7 +273,7 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 
 	spin_unlock_bh(&tid->lock);
 
-	cancel_delayed_work_sync(&tid->reorder_work);
+	cancel_delayed_work(&tid->reorder_work);
 }
 
 void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno)
