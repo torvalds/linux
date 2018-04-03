@@ -21,7 +21,7 @@ struct macvlan_dev {
 	struct hlist_node	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
-	void			*fwd_priv;
+	void			*accel_priv;
 	struct vlan_pcpu_stats __percpu *pcpu_stats;
 
 	DECLARE_BITMAP(mc_filter, MACVLAN_MC_FILTER_SZ);
@@ -86,4 +86,10 @@ macvlan_dev_real_dev(const struct net_device *dev)
 }
 #endif
 
+static inline void *macvlan_accel_priv(struct net_device *dev)
+{
+	struct macvlan_dev *macvlan = netdev_priv(dev);
+
+	return macvlan->accel_priv;
+}
 #endif /* _LINUX_IF_MACVLAN_H */

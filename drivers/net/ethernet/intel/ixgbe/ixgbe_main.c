@@ -5398,10 +5398,9 @@ static int ixgbe_fwd_ring_up(struct net_device *vdev,
 static int ixgbe_upper_dev_walk(struct net_device *upper, void *data)
 {
 	if (netif_is_macvlan(upper)) {
-		struct macvlan_dev *dfwd = netdev_priv(upper);
-		struct ixgbe_fwd_adapter *vadapter = dfwd->fwd_priv;
+		struct ixgbe_fwd_adapter *vadapter = macvlan_accel_priv(upper);
 
-		if (dfwd->fwd_priv)
+		if (vadapter)
 			ixgbe_fwd_ring_up(upper, vadapter);
 	}
 
@@ -8983,13 +8982,12 @@ struct upper_walk_data {
 static int get_macvlan_queue(struct net_device *upper, void *_data)
 {
 	if (netif_is_macvlan(upper)) {
-		struct macvlan_dev *dfwd = netdev_priv(upper);
-		struct ixgbe_fwd_adapter *vadapter = dfwd->fwd_priv;
+		struct ixgbe_fwd_adapter *vadapter = macvlan_accel_priv(upper);
 		struct upper_walk_data *data = _data;
 		struct ixgbe_adapter *adapter = data->adapter;
 		int ifindex = data->ifindex;
 
-		if (vadapter && vadapter->netdev->ifindex == ifindex) {
+		if (vadapter && upper->ifindex == ifindex) {
 			data->queue = adapter->rx_ring[vadapter->rx_base_queue]->reg_idx;
 			data->action = data->queue;
 			return 1;
