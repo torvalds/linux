@@ -639,40 +639,22 @@ err_free_read_buf:
 	return ret;
 }
 
-static int ks7010_upload_firmware(struct ks_sdio_card *card)
+static int ks7010_copy_firmware(struct ks_wlan_private *priv,
+				const struct firmware *fw_entry)
 {
-	struct ks_wlan_private *priv = card->priv;
-	unsigned int size, offset, n = 0;
-	unsigned char *rom_buf;
-	unsigned char byte = 0;
-	int ret;
 	unsigned int length;
-	const struct firmware *fw_entry = NULL;
+	unsigned int size;
+	unsigned int offset;
+	unsigned int n = 0;
+	unsigned char *rom_buf;
+	int ret;
 
 	rom_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
 	if (!rom_buf)
 		return -ENOMEM;
 
-	sdio_claim_host(card->func);
-
-	/* Firmware running ? */
-	ret = ks7010_sdio_readb(priv, GCR_A, &byte);
-	if (ret)
-		goto release_host_and_free;
-	if (byte == GCR_A_RUN) {
-		netdev_dbg(priv->net_dev, "MAC firmware running ...\n");
-		ret = -EBUSY;
-		goto release_host_and_free;
-	}
-
-	ret = request_firmware(&fw_entry, ROM_FILE,
-			       &priv->ks_sdio_card->func->dev);
-	if (ret)
-		goto release_host_and_free;
-
 	length = fw_entry->size;
 
-	n = 0;
 	do {
 		if (length >= ROM_BUFF_SIZE) {
 			size = ROM_BUFF_SIZE;
@@ -688,21 +670,54 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 		offset = n;
 		ret = ks7010_sdio_update_index(priv, KS7010_IRAM_ADDRESS + offset);
 		if (ret)
-			goto release_firmware;
+			goto free_rom_buf;
 
 		ret = ks7010_sdio_write(priv, DATA_WINDOW, rom_buf, size);
 		if (ret)
-			goto release_firmware;
+			goto free_rom_buf;
 
 		ret = ks7010_sdio_data_compare(priv, DATA_WINDOW, rom_buf, size);
 		if (ret)
-			goto release_firmware;
+			goto free_rom_buf;
 
 		n += size;
 
 	} while (size);
 
 	ret = ks7010_sdio_writeb(priv, GCR_A, GCR_A_REMAP);
+
+free_rom_buf:
+	kfree(rom_buf);
+	return ret;
+}
+
+static int ks7010_upload_firmware(struct ks_sdio_card *card)
+{
+	struct ks_wlan_private *priv = card->priv;
+	unsigned int n;
+	unsigned char byte = 0;
+	int ret;
+	const struct firmware *fw_entry = NULL;
+
+
+	sdio_claim_host(card->func);
+
+	/* Firmware running ? */
+	ret = ks7010_sdio_readb(priv, GCR_A, &byte);
+	if (ret)
+		goto release_host;
+	if (byte == GCR_A_RUN) {
+		netdev_dbg(priv->net_dev, "MAC firmware running ...\n");
+		ret = -EBUSY;
+		goto release_host;
+	}
+
+	ret = request_firmware(&fw_entry, ROM_FILE,
+			       &priv->ks_sdio_card->func->dev);
+	if (ret)
+		goto release_host;
+
+	ret = ks7010_copy_firmware(priv, fw_entry);
 	if (ret)
 		goto release_firmware;
 
@@ -726,9 +741,8 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 
  release_firmware:
 	release_firmware(fw_entry);
- release_host_and_free:
+ release_host:
 	sdio_release_host(card->func);
-	kfree(rom_buf);
 
 	return ret;
 }
