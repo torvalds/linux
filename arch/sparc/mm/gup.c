@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/rwsem.h>
 #include <asm/pgtable.h>
+#include <asm/adi.h>
 
 /*
  * The performance critical leaf functions are made noinline otherwise gcc
@@ -201,6 +202,24 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	pgd_t *pgdp;
 	int nr = 0;
 
+#ifdef CONFIG_SPARC64
+	if (adi_capable()) {
+		long addr = start;
+
+		/* If userspace has passed a versioned address, kernel
+		 * will not find it in the VMAs since it does not store
+		 * the version tags in the list of VMAs. Storing version
+		 * tags in list of VMAs is impractical since they can be
+		 * changed any time from userspace without dropping into
+		 * kernel. Any address search in VMAs will be done with
+		 * non-versioned addresses. Ensure the ADI version bits
+		 * are dropped here by sign extending the last bit before
+		 * ADI bits. IOMMU does not implement version tags.
+		 */
+		addr = (addr << (long)adi_nbits()) >> (long)adi_nbits();
+		start = addr;
+	}
+#endif
 	start &= PAGE_MASK;
 	addr = start;
 	len = (unsigned long) nr_pages << PAGE_SHIFT;
@@ -231,6 +250,24 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	pgd_t *pgdp;
 	int nr = 0;
 
+#ifdef CONFIG_SPARC64
+	if (adi_capable()) {
+		long addr = start;
+
+		/* If userspace has passed a versioned address, kernel
+		 * will not find it in the VMAs since it does not store
+		 * the version tags in the list of VMAs. Storing version
+		 * tags in list of VMAs is impractical since they can be
+		 * changed any time from userspace without dropping into
+		 * kernel. Any address search in VMAs will be done with
+		 * non-versioned addresses. Ensure the ADI version bits
+		 * are dropped here by sign extending the last bit before
+		 * ADI bits. IOMMU does not implements version tags,
+		 */
+		addr = (addr << (long)adi_nbits()) >> (long)adi_nbits();
+		start = addr;
+	}
+#endif
 	start &= PAGE_MASK;
 	addr = start;
 	len = (unsigned long) nr_pages << PAGE_SHIFT;
