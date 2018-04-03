@@ -953,6 +953,7 @@ static int wcn36xx_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&wcn->conf_mutex);
 
+	vif_priv->bss_index = WCN36XX_HAL_BSS_INVALID_IDX;
 	list_add(&vif_priv->list, &wcn->vif_list);
 	wcn36xx_smd_add_sta_self(wcn, vif);
 

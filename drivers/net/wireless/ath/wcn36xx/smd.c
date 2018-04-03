@@ -1446,6 +1446,10 @@ int wcn36xx_smd_delete_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 	int ret = 0;
 
 	mutex_lock(&wcn->hal_mutex);
+
+	if (vif_priv->bss_index == WCN36XX_HAL_BSS_INVALID_IDX)
+		goto out;
+
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_DELETE_BSS_REQ);
 
 	msg_body.bss_index = vif_priv->bss_index;
@@ -1464,6 +1468,8 @@ int wcn36xx_smd_delete_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 		wcn36xx_err("hal_delete_bss response failed err=%d\n", ret);
 		goto out;
 	}
+
+	vif_priv->bss_index = WCN36XX_HAL_BSS_INVALID_IDX;
 out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
