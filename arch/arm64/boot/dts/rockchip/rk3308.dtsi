@@ -835,7 +835,7 @@
 	};
 
 	mac: ethernet@ff4e0000 {
-		compatible = "rockchip,px3308-mac";
+		compatible = "rockchip,rk3308-mac";
 		reg = <0x0 0xff4e0000 0x0 0x10000>;
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
