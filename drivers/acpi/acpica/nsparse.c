@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: nsparse - namespace interface to AML parser
  *
- *****************************************************************************/
-
-/*
  * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -61,8 +27,17 @@ ACPI_MODULE_NAME("nsparse")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Load ACPI/AML table by executing the entire table as a
- *              term_list.
+ * DESCRIPTION: Load ACPI/AML table by executing the entire table as a single
+ *              large control method.
+ *
+ * NOTE: The point of this is to execute any module-level code in-place
+ * as the table is parsed. Some AML code depends on this behavior.
+ *
+ * It is a run-time option at this time, but will eventually become
+ * the default.
+ *
+ * Note: This causes the table to only have a single-pass parse.
+ * However, this is compatible with other ACPI implementations.
  *
  ******************************************************************************/
 acpi_status
@@ -112,8 +87,10 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 		goto cleanup;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-			  "Create table code block: %p\n", method_obj));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+			      "%s: Create table pseudo-method for [%4.4s] @%p, method %p\n",
+			      ACPI_GET_FUNCTION_NAME, table->signature, table,
+			      method_obj));
 
 	method_obj->method.aml_start = aml_start;
 	method_obj->method.aml_length = aml_length;
@@ -264,8 +241,21 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	ACPI_FUNCTION_TRACE(ns_parse_table);
 
-	if (acpi_gbl_parse_table_as_term_list) {
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start load pass\n"));
+	if (acpi_gbl_execute_tables_as_methods) {
+		/*
+		 * This case executes the AML table as one large control method.
+		 * The point of this is to execute any module-level code in-place
+		 * as the table is parsed. Some AML code depends on this behavior.
+		 *
+		 * It is a run-time option at this time, but will eventually become
+		 * the default.
+		 *
+		 * Note: This causes the table to only have a single-pass parse.
+		 * However, this is compatible with other ACPI implementations.
+		 */
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+				      "%s: **** Start table execution pass\n",
+				      ACPI_GET_FUNCTION_NAME));
 
 		status = acpi_ns_execute_table(table_index, start_node);
 		if (ACPI_FAILURE(status)) {
