@@ -183,7 +183,8 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 				const struct i915_request *last,
 				int prio)
 {
-	return engine->i915->preempt_context && prio > max(rq_prio(last), 0);
+	return (intel_engine_has_preemption(engine) &&
+		__execlists_need_preempt(prio, rq_prio(last)));
 }
 
 /**
@@ -2117,11 +2118,13 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->unpark = NULL;
 
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
+	if (engine->i915->preempt_context)
+		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 
 	engine->i915->caps.scheduler =
 		I915_SCHEDULER_CAP_ENABLED |
 		I915_SCHEDULER_CAP_PRIORITY;
-	if (engine->i915->preempt_context)
+	if (intel_engine_has_preemption(engine))
 		engine->i915->caps.scheduler |= I915_SCHEDULER_CAP_PREEMPTION;
 }
 

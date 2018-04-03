@@ -657,6 +657,16 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 	port_set(port, i915_request_get(rq));
 }
 
+static inline int rq_prio(const struct i915_request *rq)
+{
+	return rq->priotree.priority;
+}
+
+static inline int port_prio(const struct execlist_port *port)
+{
+	return rq_prio(port_request(port));
+}
+
 static void guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -672,12 +682,12 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
 	if (port_isset(port)) {
-		if (engine->i915->preempt_context) {
+		if (intel_engine_has_preemption(engine)) {
 			struct guc_preempt_work *preempt_work =
 				&engine->i915->guc.preempt_work[engine->id];
+			int prio = execlists->queue_priority;
 
-			if (execlists->queue_priority >
-			    max(port_request(port)->priotree.priority, 0)) {
+			if (__execlists_need_preempt(prio, port_prio(port))) {
 				execlists_set_active(execlists,
 						     EXECLISTS_ACTIVE_PREEMPT);
 				queue_work(engine->i915->guc.preempt_wq,

@@ -562,6 +562,7 @@ struct intel_engine_cs {
 
 #define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
+#define I915_ENGINE_HAS_PREEMPTION   BIT(2)
 	unsigned int flags;
 
 	/*
@@ -621,14 +622,27 @@ struct intel_engine_cs {
 	} stats;
 };
 
-static inline bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine)
+static inline bool
+intel_engine_needs_cmd_parser(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_NEEDS_CMD_PARSER;
 }
 
-static inline bool intel_engine_supports_stats(struct intel_engine_cs *engine)
+static inline bool
+intel_engine_supports_stats(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_SUPPORTS_STATS;
+}
+
+static inline bool
+intel_engine_has_preemption(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_HAS_PREEMPTION;
+}
+
+static inline bool __execlists_need_preempt(int prio, int last)
+{
+	return prio > max(0, last);
 }
 
 static inline void
