@@ -3,7 +3,6 @@
  * IOMMU helper functions for the free area management
  */
 
-#include <linux/export.h>
 #include <linux/bitmap.h>
 #include <linux/bug.h>
 
@@ -38,4 +37,3 @@ again:
 	}
 	return -1;
 }
-EXPORT_SYMBOL(iommu_area_alloc);
