@@ -68,14 +68,6 @@ ENTRY(stext)
 	beq	__error_p				@ yes, error 'p'
 
 #ifdef CONFIG_ARM_MPU
-	/* Calculate the size of a region covering just the kernel */
-	ldr	r5, =PLAT_PHYS_OFFSET		@ Region start: PHYS_OFFSET
-	ldr     r6, =(_end)			@ Cover whole kernel
-	sub	r6, r6, r5			@ Minimum size of region to map
-	clz	r6, r6				@ Region size must be 2^N...
-	rsb	r6, r6, #31			@ ...so round up region size
-	lsl	r6, r6, #MPU_RSR_SZ		@ Put size in right field
-	orr	r6, r6, #(1 << MPU_RSR_EN)	@ Set region enabled bit
 	bl	__setup_mpu
 #endif
 
@@ -110,8 +102,6 @@ ENTRY(secondary_startup)
 	ldr	r7, __secondary_data
 
 #ifdef CONFIG_ARM_MPU
-	/* Use MPU region info supplied by __cpu_up */
-	ldr	r6, [r7]			@ get secondary_data.mpu_rgn_info
 	bl      __secondary_setup_mpu		@ Initialize the MPU
 #endif
 
@@ -184,7 +174,7 @@ ENDPROC(__after_proc_init)
 .endm
 
 /* Setup a single MPU region, either D or I side (D-side for unified) */
-.macro setup_region bar, acr, sr, side = MPU_DATA_SIDE, unused
+.macro setup_region bar, acr, sr, side = PMSAv7_DATA_SIDE, unused
 	mcr	p15, 0, \bar, c6, c1, (0 + \side)	@ I/DRBAR
 	mcr	p15, 0, \acr, c6, c1, (4 + \side)	@ I/DRACR
 	mcr	p15, 0, \sr, c6, c1, (2 + \side)		@ I/DRSR
@@ -192,14 +182,14 @@ ENDPROC(__after_proc_init)
 #else
 .macro set_region_nr tmp, rgnr, base
 	mov	\tmp, \rgnr
-	str     \tmp, [\base, #MPU_RNR]
+	str     \tmp, [\base, #PMSAv7_RNR]
 .endm
 
 .macro setup_region bar, acr, sr, unused, base
 	lsl     \acr, \acr, #16
 	orr     \acr, \acr, \sr
-	str     \bar, [\base, #MPU_RBAR]
-	str     \acr, [\base, #MPU_RASR]
+	str     \bar, [\base, #PMSAv7_RBAR]
+	str     \acr, [\base, #PMSAv7_RASR]
 .endm
 
 #endif
@@ -210,7 +200,7 @@ ENDPROC(__after_proc_init)
  * Region 2: Normal, Shared, cacheable for RAM. From PHYS_OFFSET, size from r6
  * Region 3: Normal, shared, inaccessible from PL0 to protect the vectors page
  *
- * r6: Value to be written to DRSR (and IRSR if required) for MPU_RAM_REGION
+ * r6: Value to be written to DRSR (and IRSR if required) for PMSAv7_RAM_REGION
 */
 
 ENTRY(__setup_mpu)
@@ -223,7 +213,20 @@ AR_CLASS(mrc	p15, 0, r0, c0, c1, 4)		@ Read ID_MMFR0
 M_CLASS(ldr	r0, [r12, 0x50])
 	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
 	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
-	bxne	lr
+	beq	__setup_pmsa_v7
+
+	ret	lr
+ENDPROC(__setup_mpu)
+
+ENTRY(__setup_pmsa_v7)
+	/* Calculate the size of a region covering just the kernel */
+	ldr	r5, =PLAT_PHYS_OFFSET		@ Region start: PHYS_OFFSET
+	ldr     r6, =(_end)			@ Cover whole kernel
+	sub	r6, r6, r5			@ Minimum size of region to map
+	clz	r6, r6				@ Region size must be 2^N...
+	rsb	r6, r6, #31			@ ...so round up region size
+	lsl	r6, r6, #PMSAv7_RSR_SZ		@ Put size in right field
+	orr	r6, r6, #(1 << PMSAv7_RSR_EN)	@ Set region enabled bit
 
 	/* Determine whether the D/I-side memory map is unified. We set the
 	 * flags here and continue to use them for the rest of this function */
@@ -234,47 +237,47 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	tst	r0, #MPUIR_nU			@ MPUIR_nU = 0 for unified
 
 	/* Setup second region first to free up r6 */
-	set_region_nr r0, #MPU_RAM_REGION, r12
+	set_region_nr r0, #PMSAv7_RAM_REGION, r12
 	isb
 	/* Full access from PL0, PL1, shared for CONFIG_SMP, cacheable */
 	ldr	r0, =PLAT_PHYS_OFFSET		@ RAM starts at PHYS_OFFSET
-	ldr	r5,=(MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL)
+	ldr	r5,=(PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_NORMAL)
 
-	setup_region r0, r5, r6, MPU_DATA_SIDE, r12	@ PHYS_OFFSET, shared, enabled
+	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ PHYS_OFFSET, shared, enabled
 	beq	1f					@ Memory-map not unified
-	setup_region r0, r5, r6, MPU_INSTR_SIDE, r12	@ PHYS_OFFSET, shared, enabled
+	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ PHYS_OFFSET, shared, enabled
 1:	isb
 
 	/* First/background region */
-	set_region_nr r0, #MPU_BG_REGION, r12
+	set_region_nr r0, #PMSAv7_BG_REGION, r12
 	isb
 	/* Execute Never,  strongly ordered, inaccessible to PL0, rw PL1  */
 	mov	r0, #0				@ BG region starts at 0x0
-	ldr	r5,=(MPU_ACR_XN | MPU_RGN_STRONGLY_ORDERED | MPU_AP_PL1RW_PL0NA)
-	mov	r6, #MPU_RSR_ALL_MEM		@ 4GB region, enabled
+	ldr	r5,=(PMSAv7_ACR_XN | PMSAv7_RGN_STRONGLY_ORDERED | PMSAv7_AP_PL1RW_PL0NA)
+	mov	r6, #PMSAv7_RSR_ALL_MEM		@ 4GB region, enabled
 
-	setup_region r0, r5, r6, MPU_DATA_SIDE, r12	@ 0x0, BG region, enabled
+	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ 0x0, BG region, enabled
 	beq	2f					@ Memory-map not unified
-	setup_region r0, r5, r6, MPU_INSTR_SIDE r12	@ 0x0, BG region, enabled
+	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE r12	@ 0x0, BG region, enabled
 2:	isb
 
 #ifdef CONFIG_XIP_KERNEL
-	set_region_nr r0, #MPU_ROM_REGION, r12
+	set_region_nr r0, #PMSAv7_ROM_REGION, r12
 	isb
 
-	ldr	r5,=(MPU_AP_PL1RO_PL0NA | MPU_RGN_NORMAL)
+	ldr	r5,=(PMSAv7_AP_PL1RO_PL0NA | PMSAv7_RGN_NORMAL)
 
 	ldr	r0, =CONFIG_XIP_PHYS_ADDR		@ ROM start
 	ldr     r6, =(_exiprom)				@ ROM end
 	sub	r6, r6, r0				@ Minimum size of region to map
 	clz	r6, r6					@ Region size must be 2^N...
 	rsb	r6, r6, #31				@ ...so round up region size
-	lsl	r6, r6, #MPU_RSR_SZ			@ Put size in right field
-	orr	r6, r6, #(1 << MPU_RSR_EN)		@ Set region enabled bit
+	lsl	r6, r6, #PMSAv7_RSR_SZ			@ Put size in right field
+	orr	r6, r6, #(1 << PMSAv7_RSR_EN)		@ Set region enabled bit
 
-	setup_region r0, r5, r6, MPU_DATA_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
+	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
 	beq	3f					@ Memory-map not unified
-	setup_region r0, r5, r6, MPU_INSTR_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
+	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
 3:	isb
 #endif
 
@@ -291,7 +294,7 @@ M_CLASS(str	r0, [r12, #MPU_CTRL])
 	isb
 
 	ret	lr
-ENDPROC(__setup_mpu)
+ENDPROC(__setup_pmsa_v7)
 
 #ifdef CONFIG_SMP
 /*
@@ -299,12 +302,21 @@ ENDPROC(__setup_mpu)
  */
 
 ENTRY(__secondary_setup_mpu)
+	/* Use MPU region info supplied by __cpu_up */
+	ldr	r6, [r7]			@ get secondary_data.mpu_rgn_info
+
 	/* Probe for v7 PMSA compliance */
 	mrc	p15, 0, r0, c0, c1, 4		@ Read ID_MMFR0
 	and	r0, r0, #(MMFR0_PMSA)		@ PMSA field
 	teq	r0, #(MMFR0_PMSAv7)		@ PMSA v7
-	bne	__error_p
+	beq	__secondary_setup_pmsa_v7
+	b	__error_p
+ENDPROC(__secondary_setup_mpu)
 
+/*
+ * r6: pointer at mpu_rgn_info
+ */
+ENTRY(__secondary_setup_pmsa_v7)
 	/* Determine whether the D/I-side memory map is unified. We set the
 	 * flags here and continue to use them for the rest of this function */
 	mrc	p15, 0, r0, c0, c0, 4		@ MPUIR
@@ -328,9 +340,9 @@ ENTRY(__secondary_setup_mpu)
 	ldr	r6, [r3, #MPU_RGN_DRSR]
 	ldr	r5, [r3, #MPU_RGN_DRACR]
 
-	setup_region r0, r5, r6, MPU_DATA_SIDE
+	setup_region r0, r5, r6, PMSAv7_DATA_SIDE
 	beq	2f
-	setup_region r0, r5, r6, MPU_INSTR_SIDE
+	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE
 2:	isb
 
 	mrc	p15, 0, r0, c0, c0, 4		@ Reevaluate the MPUIR
@@ -345,7 +357,7 @@ ENTRY(__secondary_setup_mpu)
 	isb
 
 	ret	lr
-ENDPROC(__secondary_setup_mpu)
+ENDPROC(__secondary_setup_pmsa_v7)
 
 #endif /* CONFIG_SMP */
 #endif /* CONFIG_ARM_MPU */
