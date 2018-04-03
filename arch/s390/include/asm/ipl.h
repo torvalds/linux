@@ -29,10 +29,6 @@
 
 #define IPL_MAX_SUPPORTED_VERSION (0)
 
-#define IPL_PARMBLOCK_START	((struct ipl_parameter_block *) \
-				 IPL_PARMBLOCK_ORIGIN)
-#define IPL_PARMBLOCK_SIZE	(IPL_PARMBLOCK_START->hdr.len)
-
 struct ipl_list_hdr {
 	u32 len;
 	u8  reserved1[3];
@@ -83,6 +79,7 @@ struct ipl_parameter_block {
 	union {
 		struct ipl_block_fcp fcp;
 		struct ipl_block_ccw ccw;
+		char raw[PAGE_SIZE - sizeof(struct ipl_list_hdr)];
 	} ipl_info;
 } __packed __aligned(PAGE_SIZE);
 

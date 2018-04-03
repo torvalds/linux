@@ -274,17 +274,15 @@ static void make_attrs_ro(struct attribute **attrs)
 
 static __init enum ipl_type get_ipl_type(void)
 {
-	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
-
 	if (!(ipl_flags & IPL_DEVNO_VALID))
 		return IPL_TYPE_UNKNOWN;
 	if (!(ipl_flags & IPL_PARMBLOCK_VALID))
 		return IPL_TYPE_CCW;
-	if (ipl->hdr.version > IPL_MAX_SUPPORTED_VERSION)
+	if (ipl_block.hdr.version > IPL_MAX_SUPPORTED_VERSION)
 		return IPL_TYPE_UNKNOWN;
-	if (ipl->hdr.pbt != DIAG308_IPL_TYPE_FCP)
+	if (ipl_block.hdr.pbt != DIAG308_IPL_TYPE_FCP)
 		return IPL_TYPE_UNKNOWN;
-	if (ipl->ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP)
+	if (ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP)
 		return IPL_TYPE_FCP_DUMP;
 	return IPL_TYPE_FCP;
 }
@@ -415,14 +413,13 @@ static struct kobj_attribute sys_ipl_vm_parm_attr =
 static ssize_t sys_ipl_device_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *page)
 {
-	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
-
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
 		return sprintf(page, "0.%x.%04x\n", ipl_ssid, ipl_devno);
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
-		return sprintf(page, "0.0.%04x\n", ipl->ipl_info.fcp.devno);
+		return sprintf(page, "0.0.%04x\n",
+			       ipl_block.ipl_info.fcp.devno);
 	default:
 		return 0;
 	}
@@ -435,8 +432,8 @@ static ssize_t ipl_parameter_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *attr, char *buf,
 				  loff_t off, size_t count)
 {
-	return memory_read_from_buffer(buf, count, &off, IPL_PARMBLOCK_START,
-					IPL_PARMBLOCK_SIZE);
+	return memory_read_from_buffer(buf, count, &off, &ipl_block,
+				       ipl_block.hdr.len);
 }
 static struct bin_attribute ipl_parameter_attr =
 	__BIN_ATTR(binary_parameter, S_IRUGO, ipl_parameter_read, NULL,
@@ -446,8 +443,8 @@ static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *attr, char *buf,
 				 loff_t off, size_t count)
 {
-	unsigned int size = IPL_PARMBLOCK_START->ipl_info.fcp.scp_data_len;
-	void *scp_data = &IPL_PARMBLOCK_START->ipl_info.fcp.scp_data;
+	unsigned int size = ipl_block.ipl_info.fcp.scp_data_len;
+	void *scp_data = &ipl_block.ipl_info.fcp.scp_data;
 
 	return memory_read_from_buffer(buf, count, &off, scp_data, size);
 }
@@ -462,14 +459,14 @@ static struct bin_attribute *ipl_fcp_bin_attrs[] = {
 
 /* FCP ipl device attributes */
 
-DEFINE_IPL_ATTR_RO(ipl_fcp, wwpn, "0x%016llx\n", (unsigned long long)
-		   IPL_PARMBLOCK_START->ipl_info.fcp.wwpn);
-DEFINE_IPL_ATTR_RO(ipl_fcp, lun, "0x%016llx\n", (unsigned long long)
-		   IPL_PARMBLOCK_START->ipl_info.fcp.lun);
-DEFINE_IPL_ATTR_RO(ipl_fcp, bootprog, "%lld\n", (unsigned long long)
-		   IPL_PARMBLOCK_START->ipl_info.fcp.bootprog);
-DEFINE_IPL_ATTR_RO(ipl_fcp, br_lba, "%lld\n", (unsigned long long)
-		   IPL_PARMBLOCK_START->ipl_info.fcp.br_lba);
+DEFINE_IPL_ATTR_RO(ipl_fcp, wwpn, "0x%016llx\n",
+		   (unsigned long long)ipl_block.ipl_info.fcp.wwpn);
+DEFINE_IPL_ATTR_RO(ipl_fcp, lun, "0x%016llx\n",
+		   (unsigned long long)ipl_block.ipl_info.fcp.lun);
+DEFINE_IPL_ATTR_RO(ipl_fcp, bootprog, "%lld\n",
+		   (unsigned long long)ipl_block.ipl_info.fcp.bootprog);
+DEFINE_IPL_ATTR_RO(ipl_fcp, br_lba, "%lld\n",
+		   (unsigned long long)ipl_block.ipl_info.fcp.br_lba);
 
 static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *page)
@@ -1219,7 +1216,7 @@ static int __init reipl_fcp_init(void)
 	}
 
 	if (ipl_info.type == IPL_TYPE_FCP) {
-		memcpy(reipl_block_fcp, IPL_PARMBLOCK_START, PAGE_SIZE);
+		memcpy(reipl_block_fcp, &ipl_block, sizeof(ipl_block));
 		/*
 		 * Fix loadparm: There are systems where the (SCSI) LOADPARM
 		 * is invalid in the SCSI IPL parameter block, so take it
@@ -1922,6 +1919,8 @@ static struct notifier_block on_panic_nb = {
 
 void __init setup_ipl(void)
 {
+	BUILD_BUG_ON(sizeof(struct ipl_parameter_block) != PAGE_SIZE);
+
 	ipl_info.type = get_ipl_type();
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
@@ -1931,10 +1930,9 @@ void __init setup_ipl(void)
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		ipl_info.data.fcp.dev_id.ssid = 0;
-		ipl_info.data.fcp.dev_id.devno =
-			IPL_PARMBLOCK_START->ipl_info.fcp.devno;
-		ipl_info.data.fcp.wwpn = IPL_PARMBLOCK_START->ipl_info.fcp.wwpn;
-		ipl_info.data.fcp.lun = IPL_PARMBLOCK_START->ipl_info.fcp.lun;
+		ipl_info.data.fcp.dev_id.devno = ipl_block.ipl_info.fcp.devno;
+		ipl_info.data.fcp.wwpn = ipl_block.ipl_info.fcp.wwpn;
+		ipl_info.data.fcp.lun = ipl_block.ipl_info.fcp.lun;
 		break;
 	case IPL_TYPE_NSS:
 	case IPL_TYPE_UNKNOWN:
@@ -1951,6 +1949,8 @@ void __init ipl_update_parameters(void)
 	rc = diag308(DIAG308_STORE, &ipl_block);
 	if ((rc == DIAG308_RC_OK) || (rc == DIAG308_RC_NOCONFIG))
 		diag308_set_works = 1;
+	if (rc != DIAG308_RC_OK && (ipl_flags & IPL_PARMBLOCK_VALID))
+		memcpy(&ipl_block, (void *)IPL_PARMBLOCK_ORIGIN, PAGE_SIZE);
 }
 
 void __init ipl_verify_parameters(void)
