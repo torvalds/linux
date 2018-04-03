@@ -125,11 +125,24 @@ __secondary_data:
  */
 	.text
 __after_proc_init:
+#ifdef CONFIG_ARM_MPU
+M_CLASS(movw	r12, #:lower16:BASEADDR_V7M_SCB)
+M_CLASS(movt	r12, #:upper16:BASEADDR_V7M_SCB)
+M_CLASS(ldr	r3, [r12, 0x50])
+AR_CLASS(mrc	p15, 0, r3, c0, c1, 4)          @ Read ID_MMFR0
+	and	r3, r3, #(MMFR0_PMSA)           @ PMSA field
+	teq	r3, #(MMFR0_PMSAv7)             @ PMSA v7
+#endif
 #ifdef CONFIG_CPU_CP15
 	/*
 	 * CP15 system control register value returned in r0 from
 	 * the CPU init function.
 	 */
+
+#ifdef CONFIG_ARM_MPU
+	biceq	r0, r0, #CR_BR			@ Disable the 'default mem-map'
+	orreq	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
+#endif
 #if defined(CONFIG_ALIGNMENT_TRAP) && __LINUX_ARM_ARCH__ < 6
 	orr	r0, r0, #CR_A
 #else
@@ -145,7 +158,15 @@ __after_proc_init:
 	bic	r0, r0, #CR_I
 #endif
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
+	isb
 #elif defined (CONFIG_CPU_V7M)
+#ifdef CONFIG_ARM_MPU
+	ldreq	r3, [r12, MPU_CTRL]
+	biceq	r3, #MPU_CTRL_PRIVDEFENA
+	orreq	r3, #MPU_CTRL_ENABLE
+	streq	r3, [r12, MPU_CTRL]
+	isb
+#endif
 	/* For V7M systems we want to modify the CCR similarly to the SCTLR */
 #ifdef CONFIG_CPU_DCACHE_DISABLE
 	bic	r0, r0, #V7M_SCB_CCR_DC
@@ -156,9 +177,7 @@ __after_proc_init:
 #ifdef CONFIG_CPU_ICACHE_DISABLE
 	bic	r0, r0, #V7M_SCB_CCR_IC
 #endif
-	movw	r3, #:lower16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
-	movt	r3, #:upper16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
-	str	r0, [r3]
+	str	r0, [r12, V7M_SCB_CCR]
 #endif /* CONFIG_CPU_CP15 elif CONFIG_CPU_V7M */
 	ret	lr
 ENDPROC(__after_proc_init)
@@ -282,19 +301,6 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
 3:	isb
 #endif
-
-	/* Enable the MPU */
-AR_CLASS(mrc	p15, 0, r0, c1, c0, 0)		@ Read SCTLR
-AR_CLASS(bic	r0, r0, #CR_BR)			@ Disable the 'default mem-map'
-AR_CLASS(orr	r0, r0, #CR_M)			@ Set SCTRL.M (MPU on)
-AR_CLASS(mcr	p15, 0, r0, c1, c0, 0)		@ Enable MPU
-
-M_CLASS(ldr	r0, [r12, #MPU_CTRL])
-M_CLASS(bic	r0, #MPU_CTRL_PRIVDEFENA)
-M_CLASS(orr	r0, #MPU_CTRL_ENABLE)
-M_CLASS(str	r0, [r12, #MPU_CTRL])
-	isb
-
 	ret	lr
 ENDPROC(__setup_pmsa_v7)
 
@@ -351,13 +357,6 @@ ENTRY(__secondary_setup_pmsa_v7)
 	mrc	p15, 0, r0, c0, c0, 4		@ Reevaluate the MPUIR
 	cmp	r4, #0
 	bgt	1b
-
-	/* Enable the MPU */
-	mrc	p15, 0, r0, c1, c0, 0		@ Read SCTLR
-	bic	r0, r0, #CR_BR			@ Disable the 'default mem-map'
-	orr	r0, r0, #CR_M			@ Set SCTRL.M (MPU on)
-	mcr	p15, 0, r0, c1, c0, 0		@ Enable MPU
-	isb
 
 	ret	lr
 ENDPROC(__secondary_setup_pmsa_v7)
