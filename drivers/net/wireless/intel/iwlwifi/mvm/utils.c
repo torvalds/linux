@@ -720,19 +720,15 @@ static bool iwl_mvm_update_txq_mapping(struct iwl_mvm *mvm, int queue,
 int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
 			    u8 sta_id, u8 tid, unsigned int timeout)
 {
-	struct iwl_tx_queue_cfg_cmd cmd = {
-		.flags = cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE),
-		.sta_id = sta_id,
-		.tid = tid,
-	};
 	int queue, size = IWL_DEFAULT_QUEUE_SIZE;
 
-	if (cmd.tid == IWL_MAX_TID_COUNT) {
-		cmd.tid = IWL_MGMT_TID;
+	if (tid == IWL_MAX_TID_COUNT) {
+		tid = IWL_MGMT_TID;
 		size = IWL_MGMT_QUEUE_SIZE;
 	}
-	queue = iwl_trans_txq_alloc(mvm->trans, (void *)&cmd,
-				    SCD_QUEUE_CFG, size, timeout);
+	queue = iwl_trans_txq_alloc(mvm->trans,
+				    cpu_to_le16(TX_QUEUE_CFG_ENABLE_QUEUE),
+				    sta_id, tid, SCD_QUEUE_CFG, size, timeout);
 
 	if (queue < 0) {
 		IWL_DEBUG_TX_QUEUES(mvm,

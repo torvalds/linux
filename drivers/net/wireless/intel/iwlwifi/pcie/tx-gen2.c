@@ -1065,8 +1065,8 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 	iwl_wake_queue(trans, txq);
 }
 
-static void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
-					  struct iwl_txq *txq)
+void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
+				   struct iwl_txq *txq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct device *dev = trans->dev;
@@ -1120,23 +1120,13 @@ static void iwl_pcie_gen2_txq_free(struct iwl_trans *trans, int txq_id)
 	clear_bit(txq_id, trans_pcie->queue_used);
 }
 
-int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
-				 struct iwl_tx_queue_cfg_cmd *cmd,
-				 int cmd_id, int size,
-				 unsigned int timeout)
+int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
+				     struct iwl_txq **intxq, int size,
+				     unsigned int timeout)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue_cfg_rsp *rsp;
-	struct iwl_txq *txq;
-	struct iwl_host_cmd hcmd = {
-		.id = cmd_id,
-		.len = { sizeof(*cmd) },
-		.data = { cmd, },
-		.flags = CMD_WANT_SKB,
-	};
-	int ret, qid;
-	u32 wr_ptr;
+	int ret;
 
+	struct iwl_txq *txq;
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
 		return -ENOMEM;
@@ -1164,20 +1154,30 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	txq->wd_timeout = msecs_to_jiffies(timeout);
 
-	cmd->tfdq_addr = cpu_to_le64(txq->dma_addr);
-	cmd->byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
-	cmd->cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(size));
+	*intxq = txq;
+	return 0;
 
-	ret = iwl_trans_send_cmd(trans, &hcmd);
-	if (ret)
-		goto error;
+error:
+	iwl_pcie_gen2_txq_free_memory(trans, txq);
+	return ret;
+}
 
-	if (WARN_ON(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp))) {
+int iwl_trans_pcie_txq_alloc_response(struct iwl_trans *trans,
+				      struct iwl_txq *txq,
+				      struct iwl_host_cmd *hcmd)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_tx_queue_cfg_rsp *rsp;
+	int ret, qid;
+	u32 wr_ptr;
+
+	if (WARN_ON(iwl_rx_packet_payload_len(hcmd->resp_pkt) !=
+		    sizeof(*rsp))) {
 		ret = -EINVAL;
 		goto error_free_resp;
 	}
 
-	rsp = (void *)hcmd.resp_pkt->data;
+	rsp = (void *)hcmd->resp_pkt->data;
 	qid = le16_to_cpu(rsp->queue_number);
 	wr_ptr = le16_to_cpu(rsp->write_pointer);
 
@@ -1204,11 +1204,48 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 			   (txq->write_ptr) | (qid << 16));
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
 
-	iwl_free_resp(&hcmd);
+	iwl_free_resp(hcmd);
 	return qid;
 
 error_free_resp:
-	iwl_free_resp(&hcmd);
+	iwl_free_resp(hcmd);
+	iwl_pcie_gen2_txq_free_memory(trans, txq);
+	return ret;
+}
+
+int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
+				 __le16 flags, u8 sta_id, u8 tid,
+				 int cmd_id, int size,
+				 unsigned int timeout)
+{
+	struct iwl_txq *txq = NULL;
+	struct iwl_tx_queue_cfg_cmd cmd = {
+		.flags = flags,
+		.sta_id = sta_id,
+		.tid = tid,
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = cmd_id,
+		.len = { sizeof(cmd) },
+		.data = { &cmd, },
+		.flags = CMD_WANT_SKB,
+	};
+	int ret;
+
+	ret = iwl_trans_pcie_dyn_txq_alloc_dma(trans, &txq, size, timeout);
+	if (ret)
+		return ret;
+
+	cmd.tfdq_addr = cpu_to_le64(txq->dma_addr);
+	cmd.byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
+	cmd.cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(size));
+
+	ret = iwl_trans_send_cmd(trans, &hcmd);
+	if (ret)
+		goto error;
+
+	return iwl_trans_pcie_txq_alloc_response(trans, txq, &hcmd);
+
 error:
 	iwl_pcie_gen2_txq_free_memory(trans, txq);
 	return ret;

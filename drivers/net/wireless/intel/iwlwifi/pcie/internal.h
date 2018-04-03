@@ -1036,8 +1036,16 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power);
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 				 const struct fw_img *fw, bool run_in_rfkill);
 void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr);
+void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
+				   struct iwl_txq *txq);
+int iwl_trans_pcie_dyn_txq_alloc_dma(struct iwl_trans *trans,
+				     struct iwl_txq **intxq, int size,
+				     unsigned int timeout);
+int iwl_trans_pcie_txq_alloc_response(struct iwl_trans *trans,
+				      struct iwl_txq *txq,
+				      struct iwl_host_cmd *hcmd);
 int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
-				 struct iwl_tx_queue_cfg_cmd *cmd,
+				 __le16 flags, u8 sta_id, u8 tid,
 				 int cmd_id, int size,
 				 unsigned int timeout);
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue);
