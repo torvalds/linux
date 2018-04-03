@@ -14,35 +14,37 @@
 
 static void btrfs_assert_tree_read_locked(struct extent_buffer *eb);
 
-/*
- * if we currently have a spinning reader or writer lock
- * (indicated by the rw flag) this will bump the count
- * of blocking holders and drop the spinlock.
- */
-void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
+void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
 {
 	/*
-	 * no lock is required.  The lock owner may change if
-	 * we have a read lock, but it won't change to or away
-	 * from us.  If we have the write lock, we are the owner
-	 * and it'll never change.
+	 * No lock is required.  The lock owner may change if we have a read
+	 * lock, but it won't change to or away from us.  If we have the write
+	 * lock, we are the owner and it'll never change.
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
-	if (rw == BTRFS_WRITE_LOCK) {
-		if (atomic_read(&eb->blocking_writers) == 0) {
-			WARN_ON(atomic_read(&eb->spinning_writers) != 1);
-			atomic_dec(&eb->spinning_writers);
-			btrfs_assert_tree_locked(eb);
-			atomic_inc(&eb->blocking_writers);
-			write_unlock(&eb->lock);
-		}
-	} else if (rw == BTRFS_READ_LOCK) {
-		btrfs_assert_tree_read_locked(eb);
-		atomic_inc(&eb->blocking_readers);
-		WARN_ON(atomic_read(&eb->spinning_readers) == 0);
-		atomic_dec(&eb->spinning_readers);
-		read_unlock(&eb->lock);
+	btrfs_assert_tree_read_locked(eb);
+	atomic_inc(&eb->blocking_readers);
+	WARN_ON(atomic_read(&eb->spinning_readers) == 0);
+	atomic_dec(&eb->spinning_readers);
+	read_unlock(&eb->lock);
+}
+
+void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
+{
+	/*
+	 * No lock is required.  The lock owner may change if we have a read
+	 * lock, but it won't change to or away from us.  If we have the write
+	 * lock, we are the owner and it'll never change.
+	 */
+	if (eb->lock_nested && current->pid == eb->lock_owner)
+		return;
+	if (atomic_read(&eb->blocking_writers) == 0) {
+		WARN_ON(atomic_read(&eb->spinning_writers) != 1);
+		atomic_dec(&eb->spinning_writers);
+		btrfs_assert_tree_locked(eb);
+		atomic_inc(&eb->blocking_writers);
+		write_unlock(&eb->lock);
 	}
 }
 
