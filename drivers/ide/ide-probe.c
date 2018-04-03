@@ -805,9 +805,6 @@ static int ide_init_queue(ide_drive_t *drive)
 	/* assign drive queue */
 	drive->queue = q;
 
-	/* needs drive->queue to be set */
-	ide_toggle_bounce(drive, 1);
-
 	return 0;
 }
 
