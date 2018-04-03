@@ -397,7 +397,7 @@ size_t append_ipl_scpdata(char *dest, size_t len)
 	size_t rc;
 
 	rc = 0;
-	if (ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP)
+	if (ipl_block_valid && ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP)
 		rc = reipl_append_ascii_scpdata(dest, len, &ipl_block);
 	else
 		dest[0] = 0;
