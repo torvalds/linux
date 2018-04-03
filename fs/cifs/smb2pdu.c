@@ -3454,7 +3454,7 @@ static int
 build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 		   int outbuf_len, u64 persistent_fid, u64 volatile_fid)
 {
-	struct TCP_Server_Info *server = tcon->ses->server;
+	struct TCP_Server_Info *server;
 	int rc;
 	struct smb2_query_info_req *req;
 	unsigned int total_len;
@@ -3463,6 +3463,8 @@ build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon, int level,
 
 	if ((tcon->ses == NULL) || (tcon->ses->server == NULL))
 		return -EIO;
+
+	server = tcon->ses->server;
 
 	rc = smb2_plain_req_init(SMB2_QUERY_INFO, tcon, (void **) &req,
 			     &total_len);
