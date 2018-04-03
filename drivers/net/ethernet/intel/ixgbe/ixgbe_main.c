@@ -4900,36 +4900,6 @@ int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter,
 	return -ENOMEM;
 }
 
-/**
- * ixgbe_write_uc_addr_list - write unicast addresses to RAR table
- * @netdev: network interface device structure
- * @vfn: pool to associate with unicast addresses
- *
- * Writes unicast address list to the RAR table.
- * Returns: -ENOMEM on failure/insufficient address space
- *                0 on no addresses written
- *                X on writing X addresses to the RAR table
- **/
-static int ixgbe_write_uc_addr_list(struct net_device *netdev, int vfn)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	int count = 0;
-
-	/* return ENOMEM indicating insufficient memory for addresses */
-	if (netdev_uc_count(netdev) > ixgbe_available_rars(adapter, vfn))
-		return -ENOMEM;
-
-	if (!netdev_uc_empty(netdev)) {
-		struct netdev_hw_addr *ha;
-		netdev_for_each_uc_addr(ha, netdev) {
-			ixgbe_del_mac_filter(adapter, ha->addr, vfn);
-			ixgbe_add_mac_filter(adapter, ha->addr, vfn);
-			count++;
-		}
-	}
-	return count;
-}
-
 static int ixgbe_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -5328,7 +5298,6 @@ static void ixgbe_macvlan_set_rx_mode(struct net_device *dev, unsigned int pool,
 		vmolr |= IXGBE_VMOLR_ROMPE;
 		hw->mac.ops.update_mc_addr_list(hw, dev);
 	}
-	ixgbe_write_uc_addr_list(adapter->netdev, pool);
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(pool), vmolr);
 }
 
