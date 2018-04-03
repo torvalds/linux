@@ -42,6 +42,25 @@ static void need_waiter(ipmi_smi_t intf);
 static int handle_one_recv_msg(ipmi_smi_t          intf,
 			       struct ipmi_smi_msg *msg);
 
+#ifdef DEBUG
+static void ipmi_debug_msg(const char *title, unsigned char *data,
+			   unsigned int len)
+{
+	int i, pos;
+	char buf[100];
+
+	pos = snprintf(buf, sizeof(buf), "%s: ", title);
+	for (i = 0; i < len; i++)
+		pos += snprintf(buf + pos, sizeof(buf) - pos,
+				" %2.2x", data[i]);
+	pr_debug("%s\n", buf);
+}
+#else
+static void ipmi_debug_msg(const char *title, unsigned char *data,
+			   unsigned int len)
+{ }
+#endif
+
 static int initialized;
 
 enum ipmi_panic_event_op {
@@ -2051,14 +2070,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 		goto out_err;
 	}
 
-#ifdef DEBUG_MSGING
-	{
-		int m;
-		for (m = 0; m < smi_msg->data_size; m++)
-			printk(" %2.2x", smi_msg->data[m]);
-		printk("\n");
-	}
-#endif
+	ipmi_debug_msg("Send", smi_msg->data, smi_msg->data_size);
 
 	smi_send(intf, intf->handlers, smi_msg, priority);
 	rcu_read_unlock();
@@ -3736,15 +3748,8 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 		msg->data[10] = ipmb_checksum(&(msg->data[6]), 4);
 		msg->data_size = 11;
 
-#ifdef DEBUG_MSGING
-	{
-		int m;
-		printk("Invalid command:");
-		for (m = 0; m < msg->data_size; m++)
-			printk(" %2.2x", msg->data[m]);
-		printk("\n");
-	}
-#endif
+		ipmi_debug_msg("Invalid command:", msg->data, msg->data_size);
+
 		rcu_read_lock();
 		if (!intf->in_shutdown) {
 			smi_send(intf, intf->handlers, msg, 0);
@@ -4247,13 +4252,7 @@ static int handle_one_recv_msg(ipmi_smi_t          intf,
 	int requeue;
 	int chan;
 
-#ifdef DEBUG_MSGING
-	int m;
-	printk("Recv:");
-	for (m = 0; m < msg->rsp_size; m++)
-		printk(" %2.2x", msg->rsp[m]);
-	printk("\n");
-#endif
+	ipmi_debug_msg("Recv:", msg->rsp, msg->rsp_size);
 	if (msg->rsp_size < 2) {
 		/* Message is too small to be correct. */
 		dev_warn(intf->si_dev,
@@ -4614,15 +4613,8 @@ smi_from_recv_msg(ipmi_smi_t intf, struct ipmi_recv_msg *recv_msg,
 	smi_msg->data_size = recv_msg->msg.data_len;
 	smi_msg->msgid = STORE_SEQ_IN_MSGID(seq, seqid);
 
-#ifdef DEBUG_MSGING
-	{
-		int m;
-		printk("Resend: ");
-		for (m = 0; m < smi_msg->data_size; m++)
-			printk(" %2.2x", smi_msg->data[m]);
-		printk("\n");
-	}
-#endif
+	ipmi_debug_msg("Resend: ", smi_msg->data, smi_msg->data_size);
+
 	return smi_msg;
 }
 
