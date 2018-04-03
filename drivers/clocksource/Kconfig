@@ -592,4 +592,13 @@ config CLKSRC_ST_LPC
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
 
+config ATCPIT100_TIMER
+	bool "ATCPIT100 timer driver"
+	depends on NDS32 || COMPILE_TEST
+	depends on HAS_IOMEM
+	select TIMER_OF
+	default NDS32
+	help
+	  This option enables support for the Andestech ATCPIT100 timers.
+
 endmenu
