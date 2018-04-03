@@ -185,13 +185,18 @@ static void cpuidle_idle_call(void)
 	} else {
 		bool stop_tick = true;
 
-		tick_nohz_idle_stop_tick();
-		rcu_idle_enter();
-
 		/*
 		 * Ask the cpuidle framework to choose a convenient idle state.
 		 */
 		next_state = cpuidle_select(drv, dev, &stop_tick);
+
+		if (stop_tick)
+			tick_nohz_idle_stop_tick();
+		else
+			tick_nohz_idle_retain_tick();
+
+		rcu_idle_enter();
+
 		entered_state = call_cpuidle(drv, dev, next_state);
 		/*
 		 * Give the governor an opportunity to reflect on the outcome

@@ -913,16 +913,19 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 
 static void __tick_nohz_idle_stop_tick(struct tick_sched *ts)
 {
-	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 	ktime_t expires;
 	int cpu = smp_processor_id();
 
-	WARN_ON_ONCE(ts->timer_expires_base);
-
-	if (!can_stop_idle_tick(cpu, ts))
-		goto out;
-
-	expires = tick_nohz_next_event(ts, cpu);
+	/*
+	 * If tick_nohz_get_sleep_length() ran tick_nohz_next_event(), the
+	 * tick timer expiration time is known already.
+	 */
+	if (ts->timer_expires_base)
+		expires = ts->timer_expires;
+	else if (can_stop_idle_tick(cpu, ts))
+		expires = tick_nohz_next_event(ts, cpu);
+	else
+		return;
 
 	ts->idle_calls++;
 
@@ -941,9 +944,6 @@ static void __tick_nohz_idle_stop_tick(struct tick_sched *ts)
 	} else {
 		tick_nohz_retain_tick(ts);
 	}
-
-out:
-	ts->sleep_length = ktime_sub(dev->next_event, ts->idle_entrytime);
 }
 
 /**
@@ -954,6 +954,16 @@ out:
 void tick_nohz_idle_stop_tick(void)
 {
 	__tick_nohz_idle_stop_tick(this_cpu_ptr(&tick_cpu_sched));
+}
+
+void tick_nohz_idle_retain_tick(void)
+{
+	tick_nohz_retain_tick(this_cpu_ptr(&tick_cpu_sched));
+	/*
+	 * Undo the effect of get_next_timer_interrupt() called from
+	 * tick_nohz_next_event().
+	 */
+	timer_clear_idle();
 }
 
 /**
@@ -1012,15 +1022,42 @@ bool tick_nohz_idle_got_tick(void)
 }
 
 /**
- * tick_nohz_get_sleep_length - return the length of the current sleep
+ * tick_nohz_get_sleep_length - return the expected length of the current sleep
  *
  * Called from power state control code with interrupts disabled
  */
 ktime_t tick_nohz_get_sleep_length(void)
 {
+	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
+	int cpu = smp_processor_id();
+	/*
+	 * The idle entry time is expected to be a sufficient approximation of
+	 * the current time at this point.
+	 */
+	ktime_t now = ts->idle_entrytime;
+	ktime_t next_event;
 
-	return ts->sleep_length;
+	WARN_ON_ONCE(!ts->inidle);
+
+	if (!can_stop_idle_tick(cpu, ts))
+		goto out_dev;
+
+	next_event = tick_nohz_next_event(ts, cpu);
+	if (!next_event)
+		goto out_dev;
+
+	/*
+	 * If the next highres timer to expire is earlier than next_event, the
+	 * idle governor needs to know that.
+	 */
+	next_event = min_t(u64, next_event,
+			   hrtimer_next_event_without(&ts->sched_timer));
+
+	return ktime_sub(next_event, now);
+
+out_dev:
+	return ktime_sub(dev->next_event, now);
 }
 
 /**
