@@ -274,7 +274,6 @@ mt76x2_phy_set_txpower_regs(struct mt76x2_dev *dev, enum nl80211_band band)
 			mt76_wr(dev, MT_TX_ALC_CFG_2, 0x1b0f0400);
 			mt76_wr(dev, MT_TX_ALC_CFG_3, 0x1b0f0476);
 		}
-		mt76_wr(dev, MT_TX_ALC_CFG_4, 0);
 
 		if (mt76x2_ext_pa_enabled(dev, band))
 			pa_mode_adj = 0x04000000;
