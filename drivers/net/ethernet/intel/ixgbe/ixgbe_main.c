@@ -5344,15 +5344,11 @@ static int ixgbe_fwd_ring_up(struct ixgbe_adapter *adapter,
 	struct net_device *vdev = accel->netdev;
 	int i, baseq, err;
 
-	if (!test_bit(accel->pool, adapter->fwd_bitmask))
-		return 0;
-
 	baseq = accel->pool * adapter->num_rx_queues_per_pool;
 	netdev_dbg(vdev, "pool %i:%i queues %i:%i\n",
 		   accel->pool, adapter->num_rx_pools,
 		   baseq, baseq + adapter->num_rx_queues_per_pool);
 
-	accel->netdev = vdev;
 	accel->rx_base_queue = baseq;
 	accel->tx_base_queue = baseq;
 
@@ -5372,8 +5368,16 @@ static int ixgbe_fwd_ring_up(struct ixgbe_adapter *adapter,
 	if (err >= 0)
 		return 0;
 
+	/* if we cannot add the MAC rule then disable the offload */
+	macvlan_release_l2fw_offload(vdev);
+
 	for (i = 0; i < adapter->num_rx_queues_per_pool; i++)
 		adapter->rx_ring[baseq + i]->netdev = NULL;
+
+	netdev_err(vdev, "L2FW offload disabled due to L2 filter error\n");
+
+	clear_bit(accel->pool, adapter->fwd_bitmask);
+	kfree(accel);
 
 	return err;
 }
@@ -8799,6 +8803,49 @@ static void ixgbe_set_prio_tc_map(struct ixgbe_adapter *adapter)
 }
 
 #endif /* CONFIG_IXGBE_DCB */
+static int ixgbe_reassign_macvlan_pool(struct net_device *vdev, void *data)
+{
+	struct ixgbe_adapter *adapter = data;
+	struct ixgbe_fwd_adapter *accel;
+	int pool;
+
+	/* we only care about macvlans... */
+	if (!netif_is_macvlan(vdev))
+		return 0;
+
+	/* that have hardware offload enabled... */
+	accel = macvlan_accel_priv(vdev);
+	if (!accel)
+		return 0;
+
+	/* If we can relocate to a different bit do so */
+	pool = find_first_zero_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
+	if (pool < adapter->num_rx_pools) {
+		set_bit(pool, adapter->fwd_bitmask);
+		accel->pool = pool;
+		return 0;
+	}
+
+	/* if we cannot find a free pool then disable the offload */
+	netdev_err(vdev, "L2FW offload disabled due to lack of queue resources\n");
+	macvlan_release_l2fw_offload(vdev);
+	kfree(accel);
+
+	return 0;
+}
+
+static void ixgbe_defrag_macvlan_pools(struct net_device *dev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	/* flush any stale bits out of the fwd bitmask */
+	bitmap_clear(adapter->fwd_bitmask, 1, 63);
+
+	/* walk through upper devices reassigning pools */
+	netdev_walk_all_upper_dev_rcu(dev, ixgbe_reassign_macvlan_pool,
+				      adapter);
+}
+
 /**
  * ixgbe_setup_tc - configure net_device for multiple traffic classes
  *
@@ -8865,6 +8912,8 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 
 #endif /* CONFIG_IXGBE_DCB */
 	ixgbe_init_interrupt_scheme(adapter);
+
+	ixgbe_defrag_macvlan_pools(dev);
 
 	if (netif_running(dev))
 		return ixgbe_open(dev);
@@ -9415,6 +9464,22 @@ static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
 	return features;
 }
 
+static void ixgbe_reset_l2fw_offload(struct ixgbe_adapter *adapter)
+{
+	int rss = min_t(int, ixgbe_max_rss_indices(adapter),
+			num_online_cpus());
+
+	/* go back to full RSS if we're not running SR-IOV */
+	if (!adapter->ring_feature[RING_F_VMDQ].offset)
+		adapter->flags &= ~(IXGBE_FLAG_VMDQ_ENABLED |
+				    IXGBE_FLAG_SRIOV_ENABLED);
+
+	adapter->ring_feature[RING_F_RSS].limit = rss;
+	adapter->ring_feature[RING_F_VMDQ].limit = 1;
+
+	ixgbe_setup_tc(adapter->netdev, adapter->hw_tcs);
+}
+
 static int ixgbe_set_features(struct net_device *netdev,
 			      netdev_features_t features)
 {
@@ -9495,7 +9560,9 @@ static int ixgbe_set_features(struct net_device *netdev,
 		}
 	}
 
-	if (need_reset)
+	if ((changed & NETIF_F_HW_L2FW_DOFFLOAD) && adapter->num_rx_pools > 1)
+		ixgbe_reset_l2fw_offload(adapter);
+	else if (need_reset)
 		ixgbe_do_reset(netdev);
 	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX |
 			    NETIF_F_HW_VLAN_CTAG_FILTER))
@@ -9758,11 +9825,9 @@ static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 
 static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 {
-	struct ixgbe_fwd_adapter *fwd_adapter = NULL;
 	struct ixgbe_adapter *adapter = netdev_priv(pdev);
-	int used_pools = adapter->num_vfs + adapter->num_rx_pools;
+	struct ixgbe_fwd_adapter *accel;
 	int tcs = adapter->hw_tcs ? : 1;
-	unsigned int limit;
 	int pool, err;
 
 	/* The hardware supported by ixgbe only filters on the destination MAC
@@ -9772,47 +9837,73 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	if (!macvlan_supports_dest_filter(vdev))
 		return ERR_PTR(-EMEDIUMTYPE);
 
-	/* Hardware has a limited number of available pools. Each VF, and the
-	 * PF require a pool. Check to ensure we don't attempt to use more
-	 * then the available number of pools.
-	 */
-	if (used_pools >= IXGBE_MAX_VF_FUNCTIONS)
-		return ERR_PTR(-EINVAL);
+	pool = find_first_zero_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
+	if (pool == adapter->num_rx_pools) {
+		u16 used_pools = adapter->num_vfs + adapter->num_rx_pools;
+		u16 reserved_pools;
 
-	if (((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
-	      adapter->num_rx_pools >= (MAX_TX_QUEUES / tcs)) ||
-	    (adapter->num_rx_pools > IXGBE_MAX_MACVLANS))
-		return ERR_PTR(-EBUSY);
+		if (((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
+		     adapter->num_rx_pools >= (MAX_TX_QUEUES / tcs)) ||
+		    adapter->num_rx_pools > IXGBE_MAX_MACVLANS)
+			return ERR_PTR(-EBUSY);
 
-	fwd_adapter = kzalloc(sizeof(*fwd_adapter), GFP_KERNEL);
-	if (!fwd_adapter)
+		/* Hardware has a limited number of available pools. Each VF,
+		 * and the PF require a pool. Check to ensure we don't
+		 * attempt to use more then the available number of pools.
+		 */
+		if (used_pools >= IXGBE_MAX_VF_FUNCTIONS)
+			return ERR_PTR(-EBUSY);
+
+		/* Enable VMDq flag so device will be set in VM mode */
+		adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED |
+				  IXGBE_FLAG_SRIOV_ENABLED;
+
+		/* Try to reserve as many queues per pool as possible,
+		 * we start with the configurations that support 4 queues
+		 * per pools, followed by 2, and then by just 1 per pool.
+		 */
+		if (used_pools < 32 && adapter->num_rx_pools < 16)
+			reserved_pools = min_t(u16,
+					       32 - used_pools,
+					       16 - adapter->num_rx_pools);
+		else if (adapter->num_rx_pools < 32)
+			reserved_pools = min_t(u16,
+					       64 - used_pools,
+					       32 - adapter->num_rx_pools);
+		else
+			reserved_pools = 64 - used_pools;
+
+
+		if (!reserved_pools)
+			return ERR_PTR(-EBUSY);
+
+		adapter->ring_feature[RING_F_VMDQ].limit += reserved_pools;
+
+		/* Force reinit of ring allocation with VMDQ enabled */
+		err = ixgbe_setup_tc(pdev, adapter->hw_tcs);
+		if (err)
+			return ERR_PTR(err);
+
+		if (pool >= adapter->num_rx_pools)
+			return ERR_PTR(-ENOMEM);
+	}
+
+	accel = kzalloc(sizeof(*accel), GFP_KERNEL);
+	if (!accel)
 		return ERR_PTR(-ENOMEM);
 
-	pool = find_first_zero_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
 	set_bit(pool, adapter->fwd_bitmask);
-	limit = find_last_bit(adapter->fwd_bitmask, adapter->num_rx_pools + 1);
+	accel->pool = pool;
+	accel->netdev = vdev;
 
-	/* Enable VMDq flag so device will be set in VM mode */
-	adapter->flags |= IXGBE_FLAG_VMDQ_ENABLED | IXGBE_FLAG_SRIOV_ENABLED;
-	adapter->ring_feature[RING_F_VMDQ].limit = limit + 1;
+	if (!netif_running(pdev))
+		return accel;
 
-	fwd_adapter->pool = pool;
+	err = ixgbe_fwd_ring_up(adapter, accel);
+	if (err)
+		return ERR_PTR(err);
 
-	/* Force reinit of ring allocation with VMDQ enabled */
-	err = ixgbe_setup_tc(pdev, adapter->hw_tcs);
-
-	if (!err && netif_running(pdev))
-		err = ixgbe_fwd_ring_up(adapter, fwd_adapter);
-
-	if (!err)
-		return fwd_adapter;
-
-	/* unwind counter and free adapter struct */
-	netdev_info(pdev,
-		    "%s: dfwd hardware acceleration failed\n", vdev->name);
-	clear_bit(pool, adapter->fwd_bitmask);
-	kfree(fwd_adapter);
-	return ERR_PTR(err);
+	return accel;
 }
 
 static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
@@ -9820,7 +9911,7 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	struct ixgbe_fwd_adapter *accel = priv;
 	struct ixgbe_adapter *adapter = netdev_priv(pdev);
 	unsigned int rxbase = accel->rx_base_queue;
-	unsigned int limit, i;
+	unsigned int i;
 
 	/* delete unicast filter associated with offloaded interface */
 	ixgbe_del_mac_filter(adapter, accel->netdev->dev_addr,
@@ -9844,25 +9935,6 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	}
 
 	clear_bit(accel->pool, adapter->fwd_bitmask);
-	limit = find_last_bit(adapter->fwd_bitmask, adapter->num_rx_pools);
-	adapter->ring_feature[RING_F_VMDQ].limit = limit + 1;
-
-	/* go back to full RSS if we're done with our VMQs */
-	if (adapter->ring_feature[RING_F_VMDQ].limit == 1) {
-		int rss = min_t(int, ixgbe_max_rss_indices(adapter),
-				num_online_cpus());
-
-		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
-		adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
-		adapter->ring_feature[RING_F_RSS].limit = rss;
-	}
-
-	ixgbe_setup_tc(pdev, adapter->hw_tcs);
-	netdev_dbg(pdev, "pool %i:%i queues %i:%i\n",
-		   accel->pool, adapter->num_rx_pools,
-		   accel->rx_base_queue,
-		   accel->rx_base_queue +
-		   adapter->num_rx_queues_per_pool);
 	kfree(accel);
 }
 
