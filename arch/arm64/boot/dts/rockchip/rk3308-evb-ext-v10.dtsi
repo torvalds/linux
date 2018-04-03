@@ -57,7 +57,7 @@
 		prepare-delay-ms = <20>;
 		unprepare-delay-ms = <20>;
 		disable-delay-ms = <20>;
-		//spi-sdo-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		/* spi-sdo-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>; */
 		spi-sdi-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
 		spi-scl-gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
 		spi-cs-gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
@@ -66,12 +66,15 @@
 		rockchip,data-mapping = "vesa";
 		rockchip,data-width = <24>;
 		rockchip,output = "rgb";
+		rgb-mode = "p666";
 		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi_init_cmd>;
 		rockchip,cmd-type = "spi";
 
-		// type:0 is cmd, 1 is data
+		/* type:0 is cmd, 1 is data */
 		panel-init-sequence = [
-			//type delay num val1 val2 val3
+			/* type delay num val1 val2 val3 */
 			  00   00  01  e0
 			  01   00  01  00
 			  01   00  01  07
@@ -120,19 +123,19 @@
 			  00   00  01  36
 			  01   00  01  48
 
-			  00   00  01  3a  //interface mode control
+			  00   00  01  3a  /* interface mode control */
 			  01   00  01  66
 
-			  00   00  01  b0  //interface mode control
+			  00   00  01  b0  /* interface mode control */
 			  01   00  01  00
 
-			  00   00  01  b1  //frame rate 70hz
+			  00   00  01  b1  /* frame rate 70hz */
 			  01   00  01  b0
 			  01   00  01  11
 			  00   00  01  b4
 			  01   00  01  02
-			  00   00  01  B6  //RGB/MCU Interface Control
-			  01   00  01  32  //02 mcu, 32 rgb
+			  00   00  01  B6  /* RGB/MCU Interface Control */
+			  01   00  01  32  /* 02 mcu, 32 rgb */
 			  01   00  01  02
 
 			  00   00  01  b7
@@ -156,7 +159,7 @@
 		];
 
 		panel-exit-sequence = [
-			//type delay num val1 val2 val3
+			/* type delay num val1 val2 val3 */
 			00   0a  01  28
 			00   78  01  10
 		];
@@ -190,7 +193,21 @@
 };
 
 &display_subsystem {
-	status = "ok";
+	status = "okay";
+};
+
+&pinctrl {
+	spi_panel {
+		spi_init_cmd: spi-init-cmd {
+			rockchip,pins =
+				/* spi sdi */
+				<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* spi scl */
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* spi cs */
+				<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm1 {
@@ -214,6 +231,10 @@
 	};
 };
 
+&route_rgb {
+	status = "okay";
+};
+
 &vop {
-	status = "ok";
+	status = "okay";
 };
