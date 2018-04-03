@@ -848,6 +848,33 @@ static void ks7010_sdio_init_irqs(struct sdio_func *func,
 		netdev_err(priv->net_dev, " err : INT_ENABLE\n");
 }
 
+static void ks7010_private_init(struct ks_wlan_private *priv,
+				struct ks_sdio_card *card,
+				struct net_device *netdev)
+{
+	/* private memory initialize */
+	priv->ks_sdio_card = card;
+
+	priv->dev_state = DEVICE_STATE_PREBOOT;
+	priv->net_dev = netdev;
+	priv->firmware_version[0] = '\0';
+	priv->version_size = 0;
+	priv->last_doze = jiffies;
+	priv->last_wakeup = jiffies;
+	memset(&priv->nstats, 0, sizeof(priv->nstats));
+	memset(&priv->wstats, 0, sizeof(priv->wstats));
+
+	/* sleep mode */
+	atomic_set(&priv->sleepstatus.doze_request, 0);
+	atomic_set(&priv->sleepstatus.wakeup_request, 0);
+	atomic_set(&priv->sleepstatus.wakeup_request, 0);
+
+	trx_device_init(priv);
+	hostif_init(priv);
+	ks_wlan_net_start(netdev);
+	ks7010_init_defaults(priv);
+}
+
 static int ks7010_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *device)
 {
@@ -903,28 +930,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	card->priv = priv;
 	SET_NETDEV_DEV(netdev, &card->func->dev);	/* for create sysfs symlinks */
 
-	/* private memory initialize */
-	priv->ks_sdio_card = card;
-
-	priv->dev_state = DEVICE_STATE_PREBOOT;
-	priv->net_dev = netdev;
-	priv->firmware_version[0] = '\0';
-	priv->version_size = 0;
-	priv->last_doze = jiffies;
-	priv->last_wakeup = jiffies;
-	memset(&priv->nstats, 0, sizeof(priv->nstats));
-	memset(&priv->wstats, 0, sizeof(priv->wstats));
-
-	/* sleep mode */
-	atomic_set(&priv->sleepstatus.doze_request, 0);
-	atomic_set(&priv->sleepstatus.wakeup_request, 0);
-	atomic_set(&priv->sleepstatus.wakeup_request, 0);
-
-	trx_device_init(priv);
-	hostif_init(priv);
-	ks_wlan_net_start(netdev);
-
-	ks7010_init_defaults(priv);
+	ks7010_private_init(priv, card, netdev);
 
 	ret = ks7010_upload_firmware(card);
 	if (ret) {
