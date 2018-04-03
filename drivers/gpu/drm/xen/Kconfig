@@ -1,0 +1,30 @@
+config DRM_XEN
+	bool "DRM Support for Xen guest OS"
+	depends on XEN
+	help
+	  Choose this option if you want to enable DRM support
+	  for Xen.
+
+config DRM_XEN_FRONTEND
+	tristate "Para-virtualized frontend driver for Xen guest OS"
+	depends on DRM_XEN
+	depends on DRM
+	select DRM_KMS_HELPER
+	select VIDEOMODE_HELPERS
+	select XEN_XENBUS_FRONTEND
+	help
+	  Choose this option if you want to enable a para-virtualized
+	  frontend DRM/KMS driver for Xen guest OSes.
+
+config DRM_XEN_FRONTEND_CMA
+	bool "Use DRM CMA to allocate dumb buffers"
+	depends on DRM_XEN_FRONTEND
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	help
+	  Use DRM CMA helpers to allocate display buffers.
+	  This is useful for the use-cases when guest driver needs to
+	  share or export buffers to other drivers which only expect
+	  contiguous buffers.
+	  Note: in this mode driver cannot use buffers allocated
+	  by the backend.

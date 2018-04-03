@@ -12,6 +12,7 @@ GPU Driver Documentation
    tve200
    vc4
    bridge/dw-hdmi
+   xen-front
 
 .. only::  subproject and html
 
