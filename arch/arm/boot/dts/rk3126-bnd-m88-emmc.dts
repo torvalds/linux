@@ -11,7 +11,7 @@
 #include <dt-bindings/sensor-dev.h>
 #include "rk3126.dtsi"
 #include "rk312x-android.dtsi"
-#include "rk3126-m708-cif-sensor.dtsi"
+#include "rk3126-m88-cif-sensor.dtsi"
 
 / {
 	model = "Rockchip RK3126 bnd-m88 board";
