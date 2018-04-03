@@ -1479,10 +1479,6 @@ config X86_5LEVEL
 
 	  Say N if unsure.
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-	depends on X86_64 || HIGHMEM64G
-
 config X86_DIRECT_GBPAGES
 	def_bool y
 	depends on X86_64 && !DEBUG_PAGEALLOC

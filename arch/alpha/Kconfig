@@ -66,9 +66,6 @@ config ZONE_DMA
 	bool
 	default y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
 config GENERIC_ISA_DMA
 	bool
 	default y

@@ -235,9 +235,6 @@ config ZONE_DMA32
 config HAVE_GENERIC_GUP
 	def_bool y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
 config SMP
 	def_bool y
 

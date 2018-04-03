@@ -1100,9 +1100,6 @@ config GPIO_TXX9
 config FW_CFE
 	bool
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool (HIGHMEM && PHYS_ADDR_T_64BIT) || 64BIT
-
 config ARCH_SUPPORTS_UPROBES
 	bool
 

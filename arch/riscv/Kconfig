@@ -44,9 +44,6 @@ config ZONE_DMA32
 	bool
 	default y
 
-config ARCH_DMA_ADDR_T_64BIT
-	def_bool y
-
 config PAGE_OFFSET
 	hex
 	default 0xC0000000 if 32BIT && MAXPHYSMEM_2GB

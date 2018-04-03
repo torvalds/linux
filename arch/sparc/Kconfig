@@ -104,10 +104,6 @@ config ARCH_ATU
 	bool
 	default y if SPARC64
 
-config ARCH_DMA_ADDR_T_64BIT
-	bool
-	default y if ARCH_ATU
-
 config STACKTRACE_SUPPORT
 	bool
 	default y if SPARC64
