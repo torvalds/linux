@@ -858,7 +858,8 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	/* interrupt disable */
 	sdio_writeb(func, 0, INT_ENABLE, &ret);
 	if (ret)
-		goto err_free_card;
+		goto err_disable_func;
+
 	sdio_writeb(func, 0xff, INT_PENDING, &ret);
 	if (ret)
 		goto err_disable_func;
