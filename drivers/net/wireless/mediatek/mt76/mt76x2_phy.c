@@ -180,7 +180,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x2_dev *dev)
 	if (mt76x2_channel_silent(dev))
 		return false;
 
-	if (chan->band == NL80211_BAND_2GHZ)
+	if (chan->band == NL80211_BAND_5GHZ)
 		flag |= BIT(0);
 
 	if (mt76x2_ext_pa_enabled(dev, chan->band))
