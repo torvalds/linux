@@ -458,67 +458,56 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static char *_dm_claim_ptr = "I belong to device-mapper";
-
-static int dm_get_bdev_for_ioctl(struct mapped_device *md,
-				 struct block_device **bdev,
-				 fmode_t *mode)
+static int dm_prepare_ioctl(struct mapped_device *md, int *srcu_idx,
+			    struct block_device **bdev, fmode_t *mode)
+	__acquires(md->io_barrier)
 {
 	struct dm_target *tgt;
 	struct dm_table *map;
-	int srcu_idx, r, r2;
+	int r;
 
 retry:
 	r = -ENOTTY;
-	map = dm_get_live_table(md, &srcu_idx);
+	map = dm_get_live_table(md, srcu_idx);
 	if (!map || !dm_table_get_size(map))
-		goto out;
+		return r;
 
 	/* We only support devices that have a single target */
 	if (dm_table_get_num_targets(map) != 1)
-		goto out;
+		return r;
 
 	tgt = dm_table_get_target(map, 0);
 	if (!tgt->type->prepare_ioctl)
-		goto out;
+		return r;
 
-	if (dm_suspended_md(md)) {
-		r = -EAGAIN;
-		goto out;
-	}
+	if (dm_suspended_md(md))
+		return -EAGAIN;
 
 	r = tgt->type->prepare_ioctl(tgt, bdev, mode);
-	if (r < 0)
-		goto out;
-
-	bdgrab(*bdev);
-	r2 = blkdev_get(*bdev, *mode, _dm_claim_ptr);
-	if (r2 < 0) {
-		r = r2;
-		goto out;
-	}
-
-	dm_put_live_table(md, srcu_idx);
-	return r;
-
-out:
-	dm_put_live_table(md, srcu_idx);
 	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+		dm_put_live_table(md, *srcu_idx);
 		msleep(10);
 		goto retry;
 	}
+
 	return r;
+}
+
+static void dm_unprepare_ioctl(struct mapped_device *md, int srcu_idx)
+	__releases(md->io_barrier)
+{
+	dm_put_live_table(md, srcu_idx);
 }
 
 static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
-	int r;
+	int r, srcu_idx;
 
-	r = dm_get_bdev_for_ioctl(md, &bdev, &mode);
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, &mode);
 	if (r < 0)
-		return r;
+		goto out;
 
 	if (r > 0) {
 		/*
@@ -536,7 +525,7 @@ static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 
 	r =  __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 out:
-	blkdev_put(bdev, mode);
+	dm_unprepare_ioctl(md, srcu_idx);
 	return r;
 }
 
@@ -709,6 +698,8 @@ static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 {
 	rcu_read_unlock();
 }
+
+static char *_dm_claim_ptr = "I belong to device-mapper";
 
 /*
  * Open a table device so we can use it as a map destination.
@@ -3044,19 +3035,19 @@ static int dm_pr_reserve(struct block_device *bdev, u64 key, enum pr_type type,
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int r;
+	int r, srcu_idx;
 
-	r = dm_get_bdev_for_ioctl(md, &bdev, &mode);
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, &mode);
 	if (r < 0)
-		return r;
+		goto out;
 
 	ops = bdev->bd_disk->fops->pr_ops;
 	if (ops && ops->pr_reserve)
 		r = ops->pr_reserve(bdev, key, type, flags);
 	else
 		r = -EOPNOTSUPP;
-
-	blkdev_put(bdev, mode);
+out:
+	dm_unprepare_ioctl(md, srcu_idx);
 	return r;
 }
 
@@ -3065,19 +3056,19 @@ static int dm_pr_release(struct block_device *bdev, u64 key, enum pr_type type)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int r;
+	int r, srcu_idx;
 
-	r = dm_get_bdev_for_ioctl(md, &bdev, &mode);
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, &mode);
 	if (r < 0)
-		return r;
+		goto out;
 
 	ops = bdev->bd_disk->fops->pr_ops;
 	if (ops && ops->pr_release)
 		r = ops->pr_release(bdev, key, type);
 	else
 		r = -EOPNOTSUPP;
-
-	blkdev_put(bdev, mode);
+out:
+	dm_unprepare_ioctl(md, srcu_idx);
 	return r;
 }
 
@@ -3087,19 +3078,19 @@ static int dm_pr_preempt(struct block_device *bdev, u64 old_key, u64 new_key,
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int r;
+	int r, srcu_idx;
 
-	r = dm_get_bdev_for_ioctl(md, &bdev, &mode);
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, &mode);
 	if (r < 0)
-		return r;
+		goto out;
 
 	ops = bdev->bd_disk->fops->pr_ops;
 	if (ops && ops->pr_preempt)
 		r = ops->pr_preempt(bdev, old_key, new_key, type, abort);
 	else
 		r = -EOPNOTSUPP;
-
-	blkdev_put(bdev, mode);
+out:
+	dm_unprepare_ioctl(md, srcu_idx);
 	return r;
 }
 
@@ -3108,19 +3099,19 @@ static int dm_pr_clear(struct block_device *bdev, u64 key)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	fmode_t mode;
-	int r;
+	int r, srcu_idx;
 
-	r = dm_get_bdev_for_ioctl(md, &bdev, &mode);
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, &mode);
 	if (r < 0)
-		return r;
+		goto out;
 
 	ops = bdev->bd_disk->fops->pr_ops;
 	if (ops && ops->pr_clear)
 		r = ops->pr_clear(bdev, key);
 	else
 		r = -EOPNOTSUPP;
-
-	blkdev_put(bdev, mode);
+out:
+	dm_unprepare_ioctl(md, srcu_idx);
 	return r;
 }
 
