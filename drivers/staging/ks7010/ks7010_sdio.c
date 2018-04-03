@@ -802,13 +802,38 @@ static void ks7010_init_defaults(struct ks_wlan_private *priv)
 	priv->reg.rate_set.size = 12;
 }
 
+static void ks7010_sdio_init_irqs(struct sdio_func *func,
+				  struct ks_wlan_private *priv)
+{
+	unsigned char byte;
+	int ret;
+
+	/*
+	 * interrupt setting
+	 * clear Interrupt status write
+	 * (ARMtoSD_InterruptPending FN1:00_0024)
+	 */
+	sdio_claim_host(func);
+	ret = ks7010_sdio_writeb(priv, INT_PENDING, 0xff);
+	sdio_release_host(func);
+	if (ret)
+		netdev_err(priv->net_dev, " error : INT_PENDING\n");
+
+	/* enable ks7010sdio interrupt */
+	byte = (INT_GCR_B | INT_READ_STATUS | INT_WRITE_STATUS);
+	sdio_claim_host(func);
+	ret = ks7010_sdio_writeb(priv, INT_ENABLE, byte);
+	sdio_release_host(func);
+	if (ret)
+		netdev_err(priv->net_dev, " err : INT_ENABLE\n");
+}
+
 static int ks7010_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *device)
 {
 	struct ks_wlan_private *priv;
 	struct ks_sdio_card *card;
 	struct net_device *netdev;
-	unsigned char byte;
 	int ret;
 
 	priv = NULL;
@@ -898,21 +923,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 		goto err_free_netdev;
 	}
 
-	/* interrupt setting */
-	/* clear Interrupt status write (ARMtoSD_InterruptPending FN1:00_0024) */
-	sdio_claim_host(func);
-	ret = ks7010_sdio_writeb(priv, INT_PENDING, 0xff);
-	sdio_release_host(func);
-	if (ret)
-		netdev_err(priv->net_dev, " error : INT_PENDING\n");
-
-	/* enable ks7010sdio interrupt */
-	byte = (INT_GCR_B | INT_READ_STATUS | INT_WRITE_STATUS);
-	sdio_claim_host(func);
-	ret = ks7010_sdio_writeb(priv, INT_ENABLE, byte);
-	sdio_release_host(func);
-	if (ret)
-		netdev_err(priv->net_dev, " err : INT_ENABLE\n");
+	ks7010_sdio_init_irqs(func, priv);
 
 	priv->dev_state = DEVICE_STATE_BOOT;
 
