@@ -228,7 +228,7 @@ mt76x2_init_beacon_offsets(struct mt76x2_dev *dev)
 		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
 }
 
-int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
+static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 {
 	static const u8 null_addr[ETH_ALEN] = {};
 	const u8 *macaddr = dev->mt76.macaddr;
