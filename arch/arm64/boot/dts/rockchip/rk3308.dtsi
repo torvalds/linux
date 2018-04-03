@@ -118,7 +118,19 @@
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
+		logo-memory-region = <&drm_logo>;
 		status = "disabled";
+
+		route {
+			route_rgb: route-rgb {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				/* logo,kernel = "logo_kernel.bmp"; */
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vop_out_rgb>;
+			};
+		};
 	};
 
 	fiq_debugger: fiq-debugger {
@@ -153,7 +165,7 @@
 	rgb: rgb {
 		compatible = "rockchip,rk3308-rgb";
 		status = "disabled";
-		pinctrl-names = "lcdc";
+		pinctrl-names = "default";
 		pinctrl-0 = <&lcdc_ctl>;
 
 		ports {
@@ -172,6 +184,17 @@
 				};
 			};
 
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
 
