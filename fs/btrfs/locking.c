@@ -48,11 +48,24 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
 	}
 }
 
-/*
- * if we currently have a blocking lock, take the spinlock
- * and drop our blocking count
- */
-void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
+void btrfs_clear_lock_blocking_read(struct extent_buffer *eb)
+{
+	/*
+	 * No lock is required.  The lock owner may change if we have a read
+	 * lock, but it won't change to or away from us.  If we have the write
+	 * lock, we are the owner and it'll never change.
+	 */
+	if (eb->lock_nested && current->pid == eb->lock_owner)
+		return;
+	BUG_ON(atomic_read(&eb->blocking_readers) == 0);
+	read_lock(&eb->lock);
+	atomic_inc(&eb->spinning_readers);
+	/* atomic_dec_and_test implies a barrier */
+	if (atomic_dec_and_test(&eb->blocking_readers))
+		cond_wake_up_nomb(&eb->read_lock_wq);
+}
+
+void btrfs_clear_lock_blocking_write(struct extent_buffer *eb)
 {
 	/*
 	 * no lock is required.  The lock owner may change if
@@ -62,23 +75,13 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
-
-	if (rw == BTRFS_WRITE_LOCK_BLOCKING) {
-		BUG_ON(atomic_read(&eb->blocking_writers) != 1);
-		write_lock(&eb->lock);
-		WARN_ON(atomic_read(&eb->spinning_writers));
-		atomic_inc(&eb->spinning_writers);
-		/* atomic_dec_and_test implies a barrier */
-		if (atomic_dec_and_test(&eb->blocking_writers))
-			cond_wake_up_nomb(&eb->write_lock_wq);
-	} else if (rw == BTRFS_READ_LOCK_BLOCKING) {
-		BUG_ON(atomic_read(&eb->blocking_readers) == 0);
-		read_lock(&eb->lock);
-		atomic_inc(&eb->spinning_readers);
-		/* atomic_dec_and_test implies a barrier */
-		if (atomic_dec_and_test(&eb->blocking_readers))
-			cond_wake_up_nomb(&eb->read_lock_wq);
-	}
+	BUG_ON(atomic_read(&eb->blocking_writers) != 1);
+	write_lock(&eb->lock);
+	WARN_ON(atomic_read(&eb->spinning_writers));
+	atomic_inc(&eb->spinning_writers);
+	/* atomic_dec_and_test implies a barrier */
+	if (atomic_dec_and_test(&eb->blocking_writers))
+		cond_wake_up_nomb(&eb->write_lock_wq);
 }
 
 /*
