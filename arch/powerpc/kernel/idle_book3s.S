@@ -422,25 +422,24 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 /*
  * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
  * r3 contains desired PSSCR register value.
+ *
+ * Offline (CPU unplug) case also must notify KVM that the CPU is
+ * idle.
  */
 _GLOBAL(power9_offline_stop)
-	std	r3, PACA_REQ_PSSCR(r13)
-	mtspr 	SPRN_PSSCR,r3
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	/* Tell KVM we're entering idle */
+	/*
+	 * Tell KVM we're entering idle.
+	 * This does not have to be done in real mode because the P9 MMU
+	 * is independent per-thread. Some steppings share radix/hash mode
+	 * between threads, but in that case KVM has a barrier sync in real
+	 * mode before and after switching between radix and hash.
+	 */
 	li	r4,KVM_HWTHREAD_IN_IDLE
-	/* DO THIS IN REAL MODE!  See comment above. */
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
-	LOAD_REG_ADDR(r4,power_enter_stop)
-	b	pnv_powersave_common
-	/* No return */
+	/* fall through */
 
-
-/*
- * Entered with MSR[EE]=0 and no soft-masked interrupts pending.
- * r3 contains desired PSSCR register value.
- */
 _GLOBAL(power9_idle_stop)
 	std	r3, PACA_REQ_PSSCR(r13)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
