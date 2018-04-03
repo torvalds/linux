@@ -134,6 +134,10 @@ choice
 		bool "medium any code model"
 endchoice
 
+config MODULE_SECTIONS
+	bool
+	select HAVE_MOD_ARCH_SPECIFIC
+
 choice
 	prompt "Maximum Physical Memory"
 	default MAXPHYSMEM_2GB if 32BIT
@@ -144,6 +148,7 @@ choice
 		bool "2GiB"
 	config MAXPHYSMEM_128GB
 		depends on 64BIT && CMODEL_MEDANY
+		select MODULE_SECTIONS if MODULES
 		bool "128GiB"
 endchoice
 
