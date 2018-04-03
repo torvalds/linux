@@ -58,7 +58,7 @@ static bool validate_clock_source_v2(void *p, int id)
 static bool validate_clock_source_v3(void *p, int id)
 {
 	struct uac3_clock_source_descriptor *cs = p;
-	return cs->bClockID == id;
+	return cs->bLength == sizeof(*cs) && cs->bClockID == id;
 }
 
 static bool validate_clock_selector_v2(void *p, int id)
@@ -71,7 +71,8 @@ static bool validate_clock_selector_v2(void *p, int id)
 static bool validate_clock_selector_v3(void *p, int id)
 {
 	struct uac3_clock_selector_descriptor *cs = p;
-	return cs->bClockID == id;
+	return cs->bLength >= sizeof(*cs) && cs->bClockID == id &&
+		cs->bLength == 11 + cs->bNrInPins;
 }
 
 static bool validate_clock_multiplier_v2(void *p, int id)
@@ -83,7 +84,7 @@ static bool validate_clock_multiplier_v2(void *p, int id)
 static bool validate_clock_multiplier_v3(void *p, int id)
 {
 	struct uac3_clock_multiplier_descriptor *cs = p;
-	return cs->bClockID == id;
+	return cs->bLength == sizeof(*cs) && cs->bClockID == id;
 }
 
 #define DEFINE_FIND_HELPER(name, obj, validator, type)		\
