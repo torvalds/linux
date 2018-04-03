@@ -453,10 +453,13 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 
 	} else {
 		/* 10 segments
-		 * segment is from 2^-10 to 2^0
+		 * segment is from 2^-10 to 2^1
+		 * We include an extra segment for range [2^0, 2^1). This is to
+		 * ensure that colors with normalized values of 1 don't miss the
+		 * LUT.
 		 */
 		region_start = -10;
-		region_end = 0;
+		region_end = 1;
 
 		seg_distr[0] = 4;
 		seg_distr[1] = 4;
@@ -468,7 +471,7 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		seg_distr[7] = 4;
 		seg_distr[8] = 4;
 		seg_distr[9] = 4;
-		seg_distr[10] = -1;
+		seg_distr[10] = 0;
 		seg_distr[11] = -1;
 		seg_distr[12] = -1;
 		seg_distr[13] = -1;
