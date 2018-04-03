@@ -146,6 +146,9 @@ bool __read_mostly enable_vmware_backdoor = false;
 module_param(enable_vmware_backdoor, bool, S_IRUGO);
 EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
 
+static bool __read_mostly force_emulation_prefix = false;
+module_param(force_emulation_prefix, bool, S_IRUGO);
+
 #define KVM_NR_SHARED_MSRS 16
 
 struct kvm_shared_msrs_global {
@@ -4842,9 +4845,20 @@ EXPORT_SYMBOL_GPL(kvm_write_guest_virt_system);
 
 int handle_ud(struct kvm_vcpu *vcpu)
 {
+	int emul_type = EMULTYPE_TRAP_UD;
 	enum emulation_result er;
+	char sig[5]; /* ud2; .ascii "kvm" */
+	struct x86_exception e;
 
-	er = emulate_instruction(vcpu, EMULTYPE_TRAP_UD);
+	if (force_emulation_prefix &&
+	    kvm_read_guest_virt(&vcpu->arch.emulate_ctxt,
+				kvm_get_linear_rip(vcpu), sig, sizeof(sig), &e) == 0 &&
+	    memcmp(sig, "\xf\xbkvm", sizeof(sig)) == 0) {
+		kvm_rip_write(vcpu, kvm_rip_read(vcpu) + sizeof(sig));
+		emul_type = 0;
+	}
+
+	er = emulate_instruction(vcpu, emul_type);
 	if (er == EMULATE_USER_EXIT)
 		return 0;
 	if (er != EMULATE_DONE)
