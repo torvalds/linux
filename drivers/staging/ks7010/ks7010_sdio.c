@@ -730,21 +730,8 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 	return ret;
 }
 
-static void ks7010_card_init(struct ks_wlan_private *priv)
+static void ks7010_sme_enqueue_events(struct ks_wlan_private *priv)
 {
-	init_completion(&priv->confirm_wait);
-
-	/* get mac address & firmware version */
-	hostif_sme_enqueue(priv, SME_START);
-
-	if (!wait_for_completion_interruptible_timeout
-	    (&priv->confirm_wait, 5 * HZ)) {
-		netdev_dbg(priv->net_dev, "wait time out!! SME_START\n");
-	}
-
-	if (priv->mac_address_valid && priv->version_size != 0)
-		priv->dev_state = DEVICE_STATE_PREINIT;
-
 	hostif_sme_enqueue(priv, SME_GET_EEPROM_CKSUM);
 
 	/* load initial wireless parameter */
@@ -763,6 +750,24 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 	hostif_sme_enqueue(priv, SME_RSN_ENABLED_REQUEST);
 	hostif_sme_enqueue(priv, SME_MODE_SET_REQUEST);
 	hostif_sme_enqueue(priv, SME_START_REQUEST);
+}
+
+static void ks7010_card_init(struct ks_wlan_private *priv)
+{
+	init_completion(&priv->confirm_wait);
+
+	/* get mac address & firmware version */
+	hostif_sme_enqueue(priv, SME_START);
+
+	if (!wait_for_completion_interruptible_timeout
+	    (&priv->confirm_wait, 5 * HZ)) {
+		netdev_dbg(priv->net_dev, "wait time out!! SME_START\n");
+	}
+
+	if (priv->mac_address_valid && priv->version_size != 0)
+		priv->dev_state = DEVICE_STATE_PREINIT;
+
+	ks7010_sme_enqueue_events(priv);
 
 	if (!wait_for_completion_interruptible_timeout
 	    (&priv->confirm_wait, 5 * HZ)) {
