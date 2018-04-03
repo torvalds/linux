@@ -19,8 +19,10 @@ Required subnode-properties:
 	Available functions and groups (function: group0, group1...):
 		gpio: cpuclkoutgrp0, udlclkoutgrp0, i2c1grp0, i2c2grp0,
 		      i2c3grp0, i2s0grp0, i2s1grp0, i2srefclkgrp0, spi0grp0,
-		      spi1grp0, pciedebuggrp0, uart0grp0, uart0grp1, uart1grp0,
-		      uart2grp0, uart2grp1, uart3grp0, uart4grp0, uart5grp0
+		      spi1grp0, pciedebuggrp0, uart0grp0, uart0grp1, uart0grp2,
+		      uart1grp0, uart1grp1, uart2grp0, uart2grp1, uart2grp2,
+		      uart3grp0, uart4grp0, uart4grp1, uart5grp0, uart5grp1,
+		      uart5nocts
 		cpuclkout: cpuclkoutgrp0
 		udlclkout: udlclkoutgrp0
 		i2c1: i2c1grp0
@@ -32,12 +34,12 @@ Required subnode-properties:
 		spi0: spi0grp0
 		spi1: spi1grp0
 		pciedebug: pciedebuggrp0
-		uart0: uart0grp0, uart0grp1
-		uart1: uart1grp0
-		uart2: uart2grp0, uart2grp1
+		uart0: uart0grp0, uart0grp1, uart0grp2
+		uart1: uart1grp0, uart1grp1
+		uart2: uart2grp0, uart2grp1, uart2grp2
 		uart3: uart3grp0
-		uart4: uart4grp0
-		uart5: uart5grp0
+		uart4: uart4grp0, uart4grp1
+		uart5: uart5grp0, uart5grp1, uart5nocts
 		nand: nandgrp0
 		sdio0: sdio0grp0
 		sdio1: sdio1grp0
