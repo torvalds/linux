@@ -1116,10 +1116,10 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct dst_entry *dst;
 	struct ipcm6_cookie ipc6;
 	int addr_len = msg->msg_namelen;
+	bool connected = false;
 	int ulen = len;
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int err;
-	int connected = 0;
 	int is_udplite = IS_UDPLITE(sk);
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sockcm_cookie sockc;
@@ -1241,7 +1241,7 @@ do_udp_sendmsg:
 		fl6.fl6_dport = inet->inet_dport;
 		daddr = &sk->sk_v6_daddr;
 		fl6.flowlabel = np->flow_label;
-		connected = 1;
+		connected = true;
 	}
 
 	if (!fl6.flowi6_oif)
@@ -1271,7 +1271,7 @@ do_udp_sendmsg:
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
-		connected = 0;
+		connected = false;
 	}
 	if (!opt) {
 		opt = txopt_get(np);
@@ -1293,11 +1293,11 @@ do_udp_sendmsg:
 
 	final_p = fl6_update_dst(&fl6, opt, &final);
 	if (final_p)
-		connected = 0;
+		connected = false;
 
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr)) {
 		fl6.flowi6_oif = np->mcast_oif;
-		connected = 0;
+		connected = false;
 	} else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
