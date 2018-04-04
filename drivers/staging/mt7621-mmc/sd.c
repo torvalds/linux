@@ -153,7 +153,6 @@
 static struct msdc_regs *msdc_reg[HOST_MAX_NUM];
 #endif
 
-
 static int cd_active_low = 1;
 
 //=================================
@@ -2806,25 +2805,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto release;
 	// mt65xx_irq_unmask(irq); /* --- by chhung */
-
-	if (hw->flags & MSDC_CD_PIN_EN) { /* not set for sdio */
-		if (hw->request_cd_eirq) { /* not set for MT6575 */
-			hw->request_cd_eirq(msdc_eirq_cd, (void *)host); /* msdc_eirq_cd will not be used! */
-		}
-	}
-
-	if (hw->request_sdio_eirq) /* set to combo_sdio_request_eirq() for WIFI */
-		hw->request_sdio_eirq(msdc_eirq_sdio, (void *)host); /* msdc_eirq_sdio() will be called when EIRQ */
-
-	if (hw->register_pm) {/* yes for sdio */
-#ifdef CONFIG_PM
-		hw->register_pm(msdc_pm, (void *)host);  /* combo_sdio_register_pm() */
-#endif
-		if (hw->flags & MSDC_SYS_SUSPEND) { /* will not set for WIFI */
-			ERR_MSG("MSDC_SYS_SUSPEND and register_pm both set");
-		}
-		//mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY; /* pm not controlled by system but by client. */ /* --- by chhung */
-	}
 
 	platform_set_drvdata(pdev, mmc);
 
