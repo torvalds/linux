@@ -18,8 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
@@ -739,27 +737,6 @@ static int zcrypt_requestq_count(void)
 	return requestq_count;
 }
 
-static int zcrypt_count_type(int type)
-{
-	struct zcrypt_card *zc;
-	struct zcrypt_queue *zq;
-	int device_count;
-
-	device_count = 0;
-	spin_lock(&zcrypt_list_lock);
-	for_each_zcrypt_card(zc) {
-		if (zc->card->id != type)
-			continue;
-		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
-				continue;
-			device_count++;
-		}
-	}
-	spin_unlock(&zcrypt_list_lock);
-	return device_count;
-}
-
 static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				  unsigned long arg)
 {
@@ -1092,201 +1069,6 @@ static struct miscdevice zcrypt_misc_device = {
 	.fops	    = &zcrypt_fops,
 };
 
-/*
- * Deprecated /proc entry support.
- */
-static struct proc_dir_entry *zcrypt_entry;
-
-static void sprintcl(struct seq_file *m, unsigned char *addr, unsigned int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		seq_printf(m, "%01x", (unsigned int) addr[i]);
-	seq_putc(m, ' ');
-}
-
-static void sprintrw(struct seq_file *m, unsigned char *addr, unsigned int len)
-{
-	int inl, c, cx;
-
-	seq_printf(m, "	   ");
-	inl = 0;
-	for (c = 0; c < (len / 16); c++) {
-		sprintcl(m, addr+inl, 16);
-		inl += 16;
-	}
-	cx = len%16;
-	if (cx) {
-		sprintcl(m, addr+inl, cx);
-		inl += cx;
-	}
-	seq_putc(m, '\n');
-}
-
-static void sprinthx(unsigned char *title, struct seq_file *m,
-		     unsigned char *addr, unsigned int len)
-{
-	int inl, r, rx;
-
-	seq_printf(m, "\n%s\n", title);
-	inl = 0;
-	for (r = 0; r < (len / 64); r++) {
-		sprintrw(m, addr+inl, 64);
-		inl += 64;
-	}
-	rx = len % 64;
-	if (rx) {
-		sprintrw(m, addr+inl, rx);
-		inl += rx;
-	}
-	seq_putc(m, '\n');
-}
-
-static void sprinthx4(unsigned char *title, struct seq_file *m,
-		      unsigned int *array, unsigned int len)
-{
-	seq_printf(m, "\n%s\n", title);
-	seq_hex_dump(m, "    ", DUMP_PREFIX_NONE, 32, 4, array, len, false);
-	seq_putc(m, '\n');
-}
-
-static int zcrypt_proc_show(struct seq_file *m, void *v)
-{
-	char workarea[sizeof(int) * AP_DEVICES];
-
-	seq_printf(m, "\nzcrypt version: %d.%d.%d\n",
-		   ZCRYPT_VERSION, ZCRYPT_RELEASE, ZCRYPT_VARIANT);
-	seq_printf(m, "Cryptographic domain: %d\n", ap_domain_index);
-	seq_printf(m, "Total device count: %d\n", zcrypt_device_count);
-	seq_printf(m, "PCICA count: %d\n", zcrypt_count_type(ZCRYPT_PCICA));
-	seq_printf(m, "PCICC count: %d\n", zcrypt_count_type(ZCRYPT_PCICC));
-	seq_printf(m, "PCIXCC MCL2 count: %d\n",
-		   zcrypt_count_type(ZCRYPT_PCIXCC_MCL2));
-	seq_printf(m, "PCIXCC MCL3 count: %d\n",
-		   zcrypt_count_type(ZCRYPT_PCIXCC_MCL3));
-	seq_printf(m, "CEX2C count: %d\n", zcrypt_count_type(ZCRYPT_CEX2C));
-	seq_printf(m, "CEX2A count: %d\n", zcrypt_count_type(ZCRYPT_CEX2A));
-	seq_printf(m, "CEX3C count: %d\n", zcrypt_count_type(ZCRYPT_CEX3C));
-	seq_printf(m, "CEX3A count: %d\n", zcrypt_count_type(ZCRYPT_CEX3A));
-	seq_printf(m, "requestq count: %d\n", zcrypt_requestq_count());
-	seq_printf(m, "pendingq count: %d\n", zcrypt_pendingq_count());
-	seq_printf(m, "Total open handles: %d\n\n",
-		   atomic_read(&zcrypt_open_count));
-	zcrypt_status_mask(workarea);
-	sprinthx("Online devices: 1=PCICA 2=PCICC 3=PCIXCC(MCL2) "
-		 "4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A 7=CEX3C 8=CEX3A",
-		 m, workarea, AP_DEVICES);
-	zcrypt_qdepth_mask(workarea);
-	sprinthx("Waiting work element counts", m, workarea, AP_DEVICES);
-	zcrypt_perdev_reqcnt((int *) workarea);
-	sprinthx4("Per-device successfully completed request counts",
-		  m, (unsigned int *) workarea, AP_DEVICES);
-	return 0;
-}
-
-static int zcrypt_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, zcrypt_proc_show, NULL);
-}
-
-static void zcrypt_disable_card(int index)
-{
-	struct zcrypt_card *zc;
-	struct zcrypt_queue *zq;
-
-	spin_lock(&zcrypt_list_lock);
-	for_each_zcrypt_card(zc) {
-		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
-				continue;
-			zq->online = 0;
-			ap_flush_queue(zq->queue);
-		}
-	}
-	spin_unlock(&zcrypt_list_lock);
-}
-
-static void zcrypt_enable_card(int index)
-{
-	struct zcrypt_card *zc;
-	struct zcrypt_queue *zq;
-
-	spin_lock(&zcrypt_list_lock);
-	for_each_zcrypt_card(zc) {
-		for_each_zcrypt_queue(zq, zc) {
-			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
-				continue;
-			zq->online = 1;
-			ap_flush_queue(zq->queue);
-		}
-	}
-	spin_unlock(&zcrypt_list_lock);
-}
-
-static ssize_t zcrypt_proc_write(struct file *file, const char __user *buffer,
-				 size_t count, loff_t *pos)
-{
-	unsigned char *lbuf, *ptr;
-	size_t local_count;
-	int j;
-
-	if (count <= 0)
-		return 0;
-
-#define LBUFSIZE 1200UL
-	lbuf = kmalloc(LBUFSIZE, GFP_KERNEL);
-	if (!lbuf)
-		return 0;
-
-	local_count = min(LBUFSIZE - 1, count);
-	if (copy_from_user(lbuf, buffer, local_count) != 0) {
-		kfree(lbuf);
-		return -EFAULT;
-	}
-	lbuf[local_count] = '\0';
-
-	ptr = strstr(lbuf, "Online devices");
-	if (!ptr)
-		goto out;
-	ptr = strstr(ptr, "\n");
-	if (!ptr)
-		goto out;
-	ptr++;
-
-	if (strstr(ptr, "Waiting work element counts") == NULL)
-		goto out;
-
-	for (j = 0; j < 64 && *ptr; ptr++) {
-		/*
-		 * '0' for no device, '1' for PCICA, '2' for PCICC,
-		 * '3' for PCIXCC_MCL2, '4' for PCIXCC_MCL3,
-		 * '5' for CEX2C and '6' for CEX2A'
-		 * '7' for CEX3C and '8' for CEX3A
-		 */
-		if (*ptr >= '0' && *ptr <= '8')
-			j++;
-		else if (*ptr == 'd' || *ptr == 'D')
-			zcrypt_disable_card(j++);
-		else if (*ptr == 'e' || *ptr == 'E')
-			zcrypt_enable_card(j++);
-		else if (*ptr != ' ' && *ptr != '\t')
-			break;
-	}
-out:
-	kfree(lbuf);
-	return count;
-}
-
-static const struct file_operations zcrypt_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= zcrypt_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= zcrypt_proc_write,
-};
-
 static int zcrypt_rng_device_count;
 static u32 *zcrypt_rng_buffer;
 static int zcrypt_rng_buffer_index;
@@ -1388,27 +1170,15 @@ int __init zcrypt_api_init(void)
 	if (rc)
 		goto out;
 
-	atomic_set(&zcrypt_rescan_req, 0);
-
 	/* Register the request sprayer. */
 	rc = misc_register(&zcrypt_misc_device);
 	if (rc < 0)
 		goto out;
 
-	/* Set up the proc file system */
-	zcrypt_entry = proc_create("driver/z90crypt", 0644, NULL,
-				   &zcrypt_proc_fops);
-	if (!zcrypt_entry) {
-		rc = -ENOMEM;
-		goto out_misc;
-	}
-
 	zcrypt_msgtype6_init();
 	zcrypt_msgtype50_init();
 	return 0;
 
-out_misc:
-	misc_deregister(&zcrypt_misc_device);
 out:
 	return rc;
 }
@@ -1420,7 +1190,6 @@ out:
  */
 void __exit zcrypt_api_exit(void)
 {
-	remove_proc_entry("driver/z90crypt", NULL);
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
