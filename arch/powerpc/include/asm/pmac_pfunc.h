@@ -245,6 +245,7 @@ extern void pmf_put_function(struct pmf_function *func);
 
 extern int pmf_call_one(struct pmf_function *func, struct pmf_args *args);
 
+int pmac_pfunc_base_install(void);
 
 /* Suspend/resume code called by via-pmu directly for now */
 extern void pmac_pfunc_base_suspend(void);
