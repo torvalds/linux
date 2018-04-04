@@ -561,8 +561,6 @@ not_relocated:	mov	r0, #0
 		bl	decompress_kernel
 		bl	cache_clean_flush
 		bl	cache_off
-		mov	r1, r7			@ restore architecture number
-		mov	r2, r8			@ restore atags pointer
 
 #ifdef CONFIG_ARM_VIRT_EXT
 		mrs	r0, spsr		@ Get saved CPU boot mode
@@ -1365,6 +1363,8 @@ __hyp_reentry_vectors:
 
 __enter_kernel:
 		mov	r0, #0			@ must be 0
+		mov	r1, r7			@ restore architecture number
+		mov	r2, r8			@ restore atags pointer
  ARM(		mov	pc, r4		)	@ call kernel
  M_CLASS(	add	r4, r4, #1	)	@ enter in Thumb mode for M class
  THUMB(		bx	r4		)	@ entry point is always ARM for A/R classes
