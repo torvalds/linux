@@ -1012,28 +1012,12 @@ void btrfs_dev_replace_read_unlock(struct btrfs_dev_replace *dev_replace)
 
 void btrfs_dev_replace_write_lock(struct btrfs_dev_replace *dev_replace)
 {
-again:
-	wait_event(dev_replace->read_lock_wq,
-		   atomic_read(&dev_replace->blocking_readers) == 0);
 	down_write(&dev_replace->rwsem);
-	if (atomic_read(&dev_replace->blocking_readers)) {
-		up_write(&dev_replace->rwsem);
-		goto again;
-	}
 }
 
 void btrfs_dev_replace_write_unlock(struct btrfs_dev_replace *dev_replace)
 {
 	up_write(&dev_replace->rwsem);
-}
-
-/* inc blocking cnt and release read lock */
-void btrfs_dev_replace_set_lock_blocking(
-					struct btrfs_dev_replace *dev_replace)
-{
-	/* only set blocking for read lock */
-	atomic_inc(&dev_replace->blocking_readers);
-	up_read(&dev_replace->rwsem);
 }
 
 void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)

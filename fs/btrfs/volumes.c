@@ -6145,10 +6145,12 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 
 	btrfs_dev_replace_read_lock(dev_replace);
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
+	/*
+	 * Hold the semaphore for read during the whole operation, write is
+	 * requested at commit time but must wait.
+	 */
 	if (!dev_replace_is_ongoing)
 		btrfs_dev_replace_read_unlock(dev_replace);
-	else
-		btrfs_dev_replace_set_lock_blocking(dev_replace);
 
 	if (dev_replace_is_ongoing && mirror_num == map->num_stripes + 1 &&
 	    !need_full_stripe(op) && dev_replace->tgtdev != NULL) {
@@ -6343,11 +6345,8 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	}
 out:
 	if (dev_replace_is_ongoing) {
-		ASSERT(atomic_read(&dev_replace->blocking_readers) > 0);
-		btrfs_dev_replace_read_lock(dev_replace);
-		/* Barrier implied by atomic_dec_and_test */
-		if (atomic_dec_and_test(&dev_replace->blocking_readers))
-			cond_wake_up_nomb(&dev_replace->read_lock_wq);
+		lockdep_assert_held(&dev_replace->rwsem);
+		/* Unlock and let waiting writers proceed */
 		btrfs_dev_replace_read_unlock(dev_replace);
 	}
 	free_extent_map(em);
