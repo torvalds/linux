@@ -198,25 +198,6 @@ struct msdc_hw msdc0_hw = {
 //	.flags          = MSDC_SYS_SUSPEND | MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
 
-static struct resource mtk_sd_resources[] = {
-	[0] = {
-		.start  = RALINK_MSDC_BASE,
-		.end    = RALINK_MSDC_BASE + 0x3fff,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = IRQ_SDC,	/*FIXME*/
-		.end    = IRQ_SDC,	/*FIXME*/
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mtk_sd_device = {
-	.name           = "mtk-sd",
-	.id             = 0,
-	.num_resources  = ARRAY_SIZE(mtk_sd_resources),
-	.resource       = mtk_sd_resources,
-};
 /* end of +++ */
 
 static int msdc_rsp[] = {
@@ -2986,14 +2967,11 @@ static int __init mt_msdc_init(void)
 	u32 reg;
 
 	printk("MTK MSDC device init.\n");
-	mtk_sd_device.dev.platform_data = &msdc0_hw;
 
 	// Set the pins for sdxc to sdxc mode
 	//FIXME: this should be done by pinctl and not by the sd driver
 	reg = sdr_read32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
 	sdr_write32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60), reg);
-	//platform_device_register(&mtk_sd_device);
-/* end of +++ */
 
 	ret = platform_driver_register(&mt_msdc_driver);
 	if (ret) {
@@ -3010,7 +2988,6 @@ static int __init mt_msdc_init(void)
 
 static void __exit mt_msdc_exit(void)
 {
-//    platform_device_unregister(&mtk_sd_device);
 	platform_driver_unregister(&mt_msdc_driver);
 }
 
