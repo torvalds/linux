@@ -323,9 +323,7 @@ again:
 	}
 }
 
-int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
-			    struct btrfs_delayed_ref_root *delayed_refs,
-			    u64 seq)
+int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 {
 	struct seq_list *elem;
 	int ret = 0;
@@ -336,10 +334,9 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 					struct seq_list, list);
 		if (seq >= elem->seq) {
 			btrfs_debug(fs_info,
-				"holding back delayed_ref %#x.%x, lowest is %#x.%x (%p)",
+				"holding back delayed_ref %#x.%x, lowest is %#x.%x",
 				(u32)(seq >> 32), (u32)seq,
-				(u32)(elem->seq >> 32), (u32)elem->seq,
-				delayed_refs);
+				(u32)(elem->seq >> 32), (u32)elem->seq);
 			ret = 1;
 		}
 	}
