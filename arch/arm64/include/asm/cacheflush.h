@@ -133,6 +133,9 @@ extern void flush_dcache_page(struct page *);
 
 static inline void __flush_icache_all(void)
 {
+	if (cpus_have_const_cap(ARM64_HAS_CACHE_DIC))
+		return;
+
 	asm("ic	ialluis");
 	dsb(ish);
 }

@@ -26,6 +26,7 @@
 #include <asm/esr.h>
 #include <asm/fpsimd.h>
 #include <asm/signal32.h>
+#include <asm/traps.h>
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
 
@@ -149,7 +150,7 @@ union __fpsimd_vreg {
 static int compat_preserve_vfp_context(struct compat_vfp_sigframe __user *frame)
 {
 	struct user_fpsimd_state const *fpsimd =
-		&current->thread.fpsimd_state.user_fpsimd;
+		&current->thread.uw.fpsimd_state;
 	compat_ulong_t magic = VFP_MAGIC;
 	compat_ulong_t size = VFP_STORAGE_SIZE;
 	compat_ulong_t fpscr, fpexc;
@@ -307,11 +308,7 @@ asmlinkage int compat_sys_sigreturn(struct pt_regs *regs)
 	return regs->regs[0];
 
 badframe:
-	if (show_unhandled_signals)
-		pr_info_ratelimited("%s[%d]: bad frame in %s: pc=%08llx sp=%08llx\n",
-				    current->comm, task_pid_nr(current), __func__,
-				    regs->pc, regs->compat_sp);
-	force_sig(SIGSEGV, current);
+	arm64_notify_segfault(regs->compat_sp);
 	return 0;
 }
 
@@ -344,11 +341,7 @@ asmlinkage int compat_sys_rt_sigreturn(struct pt_regs *regs)
 	return regs->regs[0];
 
 badframe:
-	if (show_unhandled_signals)
-		pr_info_ratelimited("%s[%d]: bad frame in %s: pc=%08llx sp=%08llx\n",
-				    current->comm, task_pid_nr(current), __func__,
-				    regs->pc, regs->compat_sp);
-	force_sig(SIGSEGV, current);
+	arm64_notify_segfault(regs->compat_sp);
 	return 0;
 }
 
