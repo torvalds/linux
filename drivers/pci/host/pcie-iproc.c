@@ -377,14 +377,7 @@ static const u16 iproc_pcie_reg_paxc_v2[] = {
 
 static inline struct iproc_pcie *iproc_data(struct pci_bus *bus)
 {
-	struct iproc_pcie *pcie;
-#ifdef CONFIG_ARM
-	struct pci_sys_data *sys = bus->sysdata;
-
-	pcie = sys->private_data;
-#else
-	pcie = bus->sysdata;
-#endif
+	struct iproc_pcie *pcie = bus->sysdata;
 	return pcie;
 }
 
@@ -1331,7 +1324,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 {
 	struct device *dev;
 	int ret;
-	void *sysdata;
 	struct pci_bus *child;
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 
@@ -1376,13 +1368,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 			goto err_power_off_phy;
 	}
 
-#ifdef CONFIG_ARM
-	pcie->sysdata.private_data = pcie;
-	sysdata = &pcie->sysdata;
-#else
-	sysdata = pcie;
-#endif
-
 	ret = iproc_pcie_check_link(pcie);
 	if (ret) {
 		dev_err(dev, "no PCIe EP device detected\n");
@@ -1399,7 +1384,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	host->busnr = 0;
 	host->dev.parent = dev;
 	host->ops = &iproc_pcie_ops;
-	host->sysdata = sysdata;
+	host->sysdata = pcie;
 	host->map_irq = pcie->map_irq;
 	host->swizzle_irq = pci_common_swizzle;
 
