@@ -342,7 +342,7 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 
 	if (need_lock) {
 		btrfs_tree_read_lock(eb);
-		btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+		btrfs_set_lock_blocking_read(eb);
 	}
 
 	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,

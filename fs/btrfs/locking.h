@@ -53,7 +53,7 @@ static inline void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
 
 static inline void btrfs_set_lock_blocking(struct extent_buffer *eb)
 {
-	btrfs_set_lock_blocking_rw(eb, BTRFS_WRITE_LOCK);
+	btrfs_set_lock_blocking_write(eb);
 }
 
 #endif

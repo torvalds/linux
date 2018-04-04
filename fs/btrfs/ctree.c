@@ -1289,7 +1289,7 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		return eb;
 
 	btrfs_set_path_blocking(path);
-	btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+	btrfs_set_lock_blocking_read(eb);
 
 	if (tm->op == MOD_LOG_KEY_REMOVE_WHILE_FREEING) {
 		BUG_ON(tm->slot != 0);
@@ -1379,7 +1379,7 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		free_extent_buffer(eb_root);
 		eb = alloc_dummy_extent_buffer(fs_info, logical);
 	} else {
-		btrfs_set_lock_blocking_rw(eb_root, BTRFS_READ_LOCK);
+		btrfs_set_lock_blocking_read(eb_root);
 		eb = btrfs_clone_extent_buffer(eb_root);
 		btrfs_tree_read_unlock_blocking(eb_root);
 		free_extent_buffer(eb_root);
