@@ -322,7 +322,7 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	struct device_node *np = dev->of_node;
 
 	if (!pci->dbi_base || !pci->dbi_base2) {
-		dev_err(dev, "dbi_base/deb_base2 is not populated\n");
+		dev_err(dev, "dbi_base/dbi_base2 is not populated\n");
 		return -EINVAL;
 	}
 
