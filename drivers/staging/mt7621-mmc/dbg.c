@@ -226,27 +226,27 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 //========== driver proc interface ===========
 static int msdc_debug_proc_read(struct seq_file *s, void *p)
 {
-	seq_printf(s, "\n=========================================\n");
-	seq_printf(s, "Index<0> + Id + Zone\n");
-	seq_printf(s, "-> PWR<9> WRN<8> | FIO<7> OPS<6> FUN<5> CFG<4> | INT<3> RSP<2> CMD<1> DMA<0>\n");
-	seq_printf(s, "-> echo 0 3 0x3ff >msdc_bebug -> host[3] debug zone set to 0x3ff\n");
+	seq_puts(s, "\n=========================================\n");
+	seq_puts(s, "Index<0> + Id + Zone\n");
+	seq_puts(s, "-> PWR<9> WRN<8> | FIO<7> OPS<6> FUN<5> CFG<4> | INT<3> RSP<2> CMD<1> DMA<0>\n");
+	seq_puts(s, "-> echo 0 3 0x3ff >msdc_bebug -> host[3] debug zone set to 0x3ff\n");
 	seq_printf(s, "-> MSDC[0] Zone: 0x%.8x\n", sd_debug_zone[0]);
 	seq_printf(s, "-> MSDC[1] Zone: 0x%.8x\n", sd_debug_zone[1]);
 	seq_printf(s, "-> MSDC[2] Zone: 0x%.8x\n", sd_debug_zone[2]);
 	seq_printf(s, "-> MSDC[3] Zone: 0x%.8x\n", sd_debug_zone[3]);
 
-	seq_printf(s, "Index<1> + ID:4|Mode:4 + DMA_SIZE\n");
-	seq_printf(s, "-> 0)PIO 1)DMA 2)SIZE\n");
-	seq_printf(s, "-> echo 1 22 0x200 >msdc_bebug -> host[2] size mode, dma when >= 512\n");
+	seq_puts(s, "Index<1> + ID:4|Mode:4 + DMA_SIZE\n");
+	seq_puts(s, "-> 0)PIO 1)DMA 2)SIZE\n");
+	seq_puts(s, "-> echo 1 22 0x200 >msdc_bebug -> host[2] size mode, dma when >= 512\n");
 	seq_printf(s, "-> MSDC[0] mode<%d> size<%d>\n", drv_mode[0], dma_size[0]);
 	seq_printf(s, "-> MSDC[1] mode<%d> size<%d>\n", drv_mode[1], dma_size[1]);
 	seq_printf(s, "-> MSDC[2] mode<%d> size<%d>\n", drv_mode[2], dma_size[2]);
 	seq_printf(s, "-> MSDC[3] mode<%d> size<%d>\n", drv_mode[3], dma_size[3]);
 
-	seq_printf(s, "Index<3> + SDIO_PROFILE + TIME\n");
-	seq_printf(s, "-> echo 3 1 0x1E >msdc_bebug -> enable sdio_profile, 30s\n");
+	seq_puts(s, "Index<3> + SDIO_PROFILE + TIME\n");
+	seq_puts(s, "-> echo 3 1 0x1E >msdc_bebug -> enable sdio_profile, 30s\n");
 	seq_printf(s, "-> SDIO_PROFILE<%d> TIME<%ds>\n", sdio_pro_enable, sdio_pro_time);
-	seq_printf(s, "=========================================\n\n");
+	seq_puts(s, "=========================================\n\n");
 
 	return 0;
 }
