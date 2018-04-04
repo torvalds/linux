@@ -58,6 +58,8 @@ void fscache_cookie_init_once(void *_cookie)
 struct fscache_cookie *__fscache_acquire_cookie(
 	struct fscache_cookie *parent,
 	const struct fscache_cookie_def *def,
+	const void *index_key, size_t index_key_len,
+	const void *aux_data, size_t aux_data_len,
 	void *netfs_data,
 	bool enable)
 {
@@ -69,6 +71,13 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	       parent ? (char *) parent->def->name : "<no-parent>",
 	       def->name, netfs_data, enable);
 
+	if (!index_key || !index_key_len || index_key_len > 255 || aux_data_len > 255)
+		return NULL;
+	if (!aux_data || !aux_data_len) {
+		aux_data = NULL;
+		aux_data_len = 0;
+	}
+
 	fscache_stat(&fscache_n_acquires);
 
 	/* if there's no parent cookie, then we don't create one here either */
@@ -79,11 +88,10 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	}
 
 	/* validate the definition */
-	BUG_ON(!def->get_key);
 	BUG_ON(!def->name[0]);
 
 	BUG_ON(def->type == FSCACHE_COOKIE_TYPE_INDEX &&
-	       parent->def->type != FSCACHE_COOKIE_TYPE_INDEX);
+	       parent->type != FSCACHE_COOKIE_TYPE_INDEX);
 
 	/* allocate and initialise a cookie */
 	cookie = kmem_cache_alloc(fscache_cookie_jar, GFP_KERNEL);
@@ -91,6 +99,25 @@ struct fscache_cookie *__fscache_acquire_cookie(
 		fscache_stat(&fscache_n_acquires_oom);
 		_leave(" [ENOMEM]");
 		return NULL;
+	}
+
+	cookie->key_len		= index_key_len;
+	cookie->aux_len		= aux_data_len;
+
+	if (cookie->key_len <= sizeof(cookie->inline_key)) {
+		memcpy(cookie->inline_key, index_key, cookie->key_len);
+	} else {
+		cookie->key = kmemdup(index_key, cookie->key_len, GFP_KERNEL);
+		if (!cookie->key)
+			goto nomem;
+	}
+
+	if (cookie->aux_len <= sizeof(cookie->inline_aux)) {
+		memcpy(cookie->inline_aux, aux_data, cookie->aux_len);
+	} else {
+		cookie->aux = kmemdup(aux_data, cookie->aux_len, GFP_KERNEL);
+		if (!cookie->aux)
+			goto nomem;
 	}
 
 	atomic_set(&cookie->usage, 1);
@@ -108,12 +135,13 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	cookie->parent		= parent;
 	cookie->netfs_data	= netfs_data;
 	cookie->flags		= (1 << FSCACHE_COOKIE_NO_DATA_YET);
-
+	cookie->type		= def->type;
+	
 	/* radix tree insertion won't use the preallocation pool unless it's
 	 * told it may not wait */
 	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 
-	switch (cookie->def->type) {
+	switch (cookie->type) {
 	case FSCACHE_COOKIE_TYPE_INDEX:
 		fscache_stat(&fscache_n_cookie_index);
 		break;
@@ -131,7 +159,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 		/* if the object is an index then we need do nothing more here
 		 * - we create indices on disk when we need them as an index
 		 * may exist in multiple caches */
-		if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX) {
+		if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
 			if (fscache_acquire_non_index_cookie(cookie) == 0) {
 				set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 			} else {
@@ -150,6 +178,14 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	fscache_stat(&fscache_n_acquires_ok);
 	_leave(" = %p", cookie);
 	return cookie;
+
+nomem:
+	if (cookie->aux_len > sizeof(cookie->inline_aux))
+		kfree(cookie->aux);
+	if (cookie->key_len > sizeof(cookie->inline_key))
+		kfree(cookie->key);
+	kmem_cache_free(fscache_cookie_jar, cookie);
+	return NULL;
 }
 EXPORT_SYMBOL(__fscache_acquire_cookie);
 
@@ -157,6 +193,7 @@ EXPORT_SYMBOL(__fscache_acquire_cookie);
  * Enable a cookie to permit it to accept new operations.
  */
 void __fscache_enable_cookie(struct fscache_cookie *cookie,
+			     const void *aux_data,
 			     bool (*can_enable)(void *data),
 			     void *data)
 {
@@ -167,12 +204,14 @@ void __fscache_enable_cookie(struct fscache_cookie *cookie,
 	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
 			 TASK_UNINTERRUPTIBLE);
 
+	fscache_update_aux(cookie, aux_data);
+
 	if (test_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
 		goto out_unlock;
 
 	if (can_enable && !can_enable(data)) {
 		/* The netfs decided it didn't want to enable after all */
-	} else if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX) {
+	} else if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
 		/* Wait for outstanding disablement to complete */
 		__fscache_wait_on_invalidate(cookie);
 
@@ -431,10 +470,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie)
 	 * there, and if it's doing that, it may as well just retire the
 	 * cookie.
 	 */
-	ASSERTCMP(cookie->def->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
-
-	/* We will be updating the cookie too. */
-	BUG_ON(!cookie->def->get_aux);
+	ASSERTCMP(cookie->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
 
 	/* If there's an object, we tell the object state machine to handle the
 	 * invalidation on our behalf, otherwise there's nothing to do.
@@ -478,7 +514,7 @@ EXPORT_SYMBOL(__fscache_wait_on_invalidate);
 /*
  * update the index entries backing a cookie
  */
-void __fscache_update_cookie(struct fscache_cookie *cookie)
+void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data)
 {
 	struct fscache_object *object;
 
@@ -492,9 +528,9 @@ void __fscache_update_cookie(struct fscache_cookie *cookie)
 
 	_enter("{%s}", cookie->def->name);
 
-	BUG_ON(!cookie->def->get_aux);
-
 	spin_lock(&cookie->lock);
+
+	fscache_update_aux(cookie, aux_data);
 
 	if (fscache_cookie_enabled(cookie)) {
 		/* update the index entry on disk in each cache backing this
@@ -514,7 +550,9 @@ EXPORT_SYMBOL(__fscache_update_cookie);
 /*
  * Disable a cookie to stop it from accepting new requests from the netfs.
  */
-void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
+void __fscache_disable_cookie(struct fscache_cookie *cookie,
+			      const void *aux_data,
+			      bool invalidate)
 {
 	struct fscache_object *object;
 	bool awaken = false;
@@ -533,6 +571,9 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 
 	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
 			 TASK_UNINTERRUPTIBLE);
+
+	fscache_update_aux(cookie, aux_data);
+
 	if (!test_and_clear_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
 		goto out_unlock_enable;
 
@@ -570,7 +611,7 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 	}
 
 	/* Make sure any pending writes are cancelled. */
-	if (cookie->def->type != FSCACHE_COOKIE_TYPE_INDEX)
+	if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX)
 		fscache_invalidate_writes(cookie);
 
 	/* Reset the cookie state if it wasn't relinquished */
@@ -592,7 +633,9 @@ EXPORT_SYMBOL(__fscache_disable_cookie);
  * - all dependents of this cookie must have already been unregistered
  *   (indices/files/pages)
  */
-void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
+void __fscache_relinquish_cookie(struct fscache_cookie *cookie,
+				 const void *aux_data,
+				 bool retire)
 {
 	fscache_stat(&fscache_n_relinquishes);
 	if (retire)
@@ -614,7 +657,7 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
 	if (test_and_set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags))
 		BUG();
 
-	__fscache_disable_cookie(cookie, retire);
+	__fscache_disable_cookie(cookie, aux_data, retire);
 
 	/* Clear pointers back to the netfs */
 	cookie->netfs_data	= NULL;
@@ -656,6 +699,10 @@ void fscache_cookie_put(struct fscache_cookie *cookie,
 
 		parent = cookie->parent;
 		BUG_ON(!hlist_empty(&cookie->backing_objects));
+		if (cookie->aux_len > sizeof(cookie->inline_aux))
+			kfree(cookie->aux);
+		if (cookie->key_len > sizeof(cookie->inline_key))
+			kfree(cookie->key);
 		kmem_cache_free(fscache_cookie_jar, cookie);
 
 		cookie = parent;
@@ -670,7 +717,8 @@ void fscache_cookie_put(struct fscache_cookie *cookie,
  *
  * NOTE: it only serves no-index type
  */
-int __fscache_check_consistency(struct fscache_cookie *cookie)
+int __fscache_check_consistency(struct fscache_cookie *cookie,
+				const void *aux_data)
 {
 	struct fscache_operation *op;
 	struct fscache_object *object;
@@ -679,7 +727,7 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 
 	_enter("%p,", cookie);
 
-	ASSERTCMP(cookie->def->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
+	ASSERTCMP(cookie->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
 
 	if (fscache_wait_for_deferred_lookup(cookie) < 0)
 		return -ERESTARTSYS;
@@ -698,6 +746,8 @@ int __fscache_check_consistency(struct fscache_cookie *cookie)
 	trace_fscache_page_op(cookie, NULL, op, fscache_page_op_check_consistency);
 
 	spin_lock(&cookie->lock);
+
+	fscache_update_aux(cookie, aux_data);
 
 	if (!fscache_cookie_enabled(cookie) ||
 	    hlist_empty(&cookie->backing_objects))

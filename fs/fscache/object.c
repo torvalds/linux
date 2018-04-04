@@ -144,6 +144,7 @@ static void fscache_put_object(struct fscache_object *,
 			       enum fscache_obj_ref_trace);
 static bool fscache_enqueue_dependents(struct fscache_object *, int);
 static void fscache_dequeue_object(struct fscache_object *);
+static void fscache_update_aux_data(struct fscache_object *);
 
 /*
  * we need to notify the parent when an op completes that we had outstanding
@@ -711,6 +712,11 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 	ASSERT(cookie != NULL);
 	ASSERT(!hlist_unhashed(&object->cookie_link));
 
+	if (test_bit(FSCACHE_COOKIE_AUX_UPDATED, &cookie->flags)) {
+		_debug("final update");
+		fscache_update_aux_data(object);
+	}
+
 	/* Make sure the cookie no longer points here and that the netfs isn't
 	 * waiting for us.
 	 */
@@ -1037,6 +1043,17 @@ static const struct fscache_state *fscache_invalidate_object(struct fscache_obje
 }
 
 /*
+ * Update auxiliary data.
+ */
+static void fscache_update_aux_data(struct fscache_object *object)
+{
+	fscache_stat(&fscache_n_updates_run);
+	fscache_stat(&fscache_n_cop_update_object);
+	object->cache->ops->update_object(object);
+	fscache_stat_d(&fscache_n_cop_update_object);
+}
+
+/*
  * Asynchronously update an object.
  */
 static const struct fscache_state *fscache_update_object(struct fscache_object *object,
@@ -1044,10 +1061,7 @@ static const struct fscache_state *fscache_update_object(struct fscache_object *
 {
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
-	fscache_stat(&fscache_n_updates_run);
-	fscache_stat(&fscache_n_cop_update_object);
-	object->cache->ops->update_object(object);
-	fscache_stat_d(&fscache_n_cop_update_object);
+	fscache_update_aux_data(object);
 
 	_leave("");
 	return transit_to(WAIT_FOR_CMD);

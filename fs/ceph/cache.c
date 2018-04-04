@@ -41,34 +41,15 @@ static LIST_HEAD(ceph_fscache_list);
 struct ceph_fscache_entry {
 	struct list_head list;
 	struct fscache_cookie *fscache;
-	struct ceph_fsid fsid;
 	size_t uniq_len;
+	/* The following members must be last */
+	struct ceph_fsid fsid;
 	char uniquifier[0];
 };
-
-static uint16_t ceph_fscache_session_get_key(const void *cookie_netfs_data,
-					     void *buffer, uint16_t maxbuf)
-{
-	const struct ceph_fs_client* fsc = cookie_netfs_data;
-	const char *fscache_uniq = fsc->mount_options->fscache_uniq;
-	uint16_t fsid_len, uniq_len;
-
-	fsid_len = sizeof(fsc->client->fsid);
-	uniq_len = fscache_uniq ? strlen(fscache_uniq) : 0;
-	if (fsid_len + uniq_len > maxbuf)
-		return 0;
-
-	memcpy(buffer, &fsc->client->fsid, fsid_len);
-	if (uniq_len)
-		memcpy(buffer + fsid_len, fscache_uniq, uniq_len);
-
-	return fsid_len + uniq_len;
-}
 
 static const struct fscache_cookie_def ceph_fscache_fsid_object_def = {
 	.name		= "CEPH.fsid",
 	.type		= FSCACHE_COOKIE_TYPE_INDEX,
-	.get_key	= ceph_fscache_session_get_key,
 };
 
 int ceph_fscache_register(void)
@@ -110,16 +91,19 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 		goto out_unlock;
 	}
 
+	memcpy(&ent->fsid, fsid, sizeof(*fsid));
+	if (uniq_len > 0) {
+		memcpy(&ent->uniquifier, fscache_uniq, uniq_len);
+		ent->uniq_len = uniq_len;
+	}
+
 	fsc->fscache = fscache_acquire_cookie(ceph_cache_netfs.primary_index,
 					      &ceph_fscache_fsid_object_def,
+					      &ent->fsid, sizeof(ent->fsid) + uniq_len,
+					      NULL, 0,
 					      fsc, true);
 
 	if (fsc->fscache) {
-		memcpy(&ent->fsid, fsid, sizeof(*fsid));
-		if (uniq_len > 0) {
-			memcpy(&ent->uniquifier, fscache_uniq, uniq_len);
-			ent->uniq_len = uniq_len;
-		}
 		ent->fscache = fsc->fscache;
 		list_add_tail(&ent->list, &ceph_fscache_list);
 	} else {
@@ -131,38 +115,6 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 out_unlock:
 	mutex_unlock(&ceph_fscache_lock);
 	return err;
-}
-
-static uint16_t ceph_fscache_inode_get_key(const void *cookie_netfs_data,
-					   void *buffer, uint16_t maxbuf)
-{
-	const struct ceph_inode_info* ci = cookie_netfs_data;
-	uint16_t klen;
-
-	/* use ceph virtual inode (id + snapshot) */
-	klen = sizeof(ci->i_vino);
-	if (klen > maxbuf)
-		return 0;
-
-	memcpy(buffer, &ci->i_vino, klen);
-	return klen;
-}
-
-static uint16_t ceph_fscache_inode_get_aux(const void *cookie_netfs_data,
-					   void *buffer, uint16_t bufmax)
-{
-	struct ceph_aux_inode aux;
-	const struct ceph_inode_info* ci = cookie_netfs_data;
-	const struct inode* inode = &ci->vfs_inode;
-
-	memset(&aux, 0, sizeof(aux));
-	aux.version = ci->i_version;
-	aux.mtime = inode->i_mtime;
-	aux.size = i_size_read(inode);
-
-	memcpy(buffer, &aux, sizeof(aux));
-
-	return sizeof(aux);
 }
 
 static void ceph_fscache_inode_get_attr(const void *cookie_netfs_data,
@@ -197,9 +149,7 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
 	.name		= "CEPH.inode",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.get_key	= ceph_fscache_inode_get_key,
 	.get_attr	= ceph_fscache_inode_get_attr,
-	.get_aux	= ceph_fscache_inode_get_aux,
 	.check_aux	= ceph_fscache_inode_check_aux,
 };
 
@@ -207,6 +157,7 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_aux_inode aux;
 
 	/* No caching for filesystem */
 	if (!fsc->fscache)
@@ -218,9 +169,15 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 
 	inode_lock_nested(inode, I_MUTEX_CHILD);
 	if (!ci->fscache) {
+		memset(&aux, 0, sizeof(aux));
+		aux.version = ci->i_version;
+		aux.mtime = inode->i_mtime;
+		aux.size = i_size_read(inode);
 		ci->fscache = fscache_acquire_cookie(fsc->fscache,
-					&ceph_fscache_inode_object_def,
-					ci, false);
+						     &ceph_fscache_inode_object_def,
+						     &ci->i_vino, sizeof(ci->i_vino),
+						     &aux, sizeof(aux),
+						     ci, false);
 	}
 	inode_unlock(inode);
 }
@@ -235,7 +192,7 @@ void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
 	ci->fscache = NULL;
 
 	fscache_uncache_all_inode_pages(cookie, &ci->vfs_inode);
-	fscache_relinquish_cookie(cookie, 0);
+	fscache_relinquish_cookie(cookie, &ci->i_vino, false);
 }
 
 static bool ceph_fscache_can_enable(void *data)
@@ -254,11 +211,11 @@ void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp)
 	if (inode_is_open_for_write(inode)) {
 		dout("fscache_file_set_cookie %p %p disabling cache\n",
 		     inode, filp);
-		fscache_disable_cookie(ci->fscache, false);
+		fscache_disable_cookie(ci->fscache, &ci->i_vino, false);
 		fscache_uncache_all_inode_pages(ci->fscache, inode);
 	} else {
-		fscache_enable_cookie(ci->fscache, ceph_fscache_can_enable,
-				inode);
+		fscache_enable_cookie(ci->fscache, &ci->i_vino,
+				      ceph_fscache_can_enable, inode);
 		if (fscache_cookie_enabled(ci->fscache)) {
 			dout("fscache_file_set_cookie %p %p enabling cache\n",
 			     inode, filp);
@@ -385,7 +342,7 @@ void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc)
 		WARN_ON_ONCE(!found);
 		mutex_unlock(&ceph_fscache_lock);
 
-		__fscache_relinquish_cookie(fsc->fscache, 0);
+		__fscache_relinquish_cookie(fsc->fscache, NULL, false);
 	}
 	fsc->fscache = NULL;
 }
@@ -402,7 +359,7 @@ void ceph_fscache_revalidate_cookie(struct ceph_inode_info *ci)
 	 * truncate while the caller holds CEPH_CAP_FILE_RD */
 	mutex_lock(&ci->i_truncate_mutex);
 	if (!cache_valid(ci)) {
-		if (fscache_check_consistency(ci->fscache))
+		if (fscache_check_consistency(ci->fscache, &ci->i_vino))
 			fscache_invalidate(ci->fscache);
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_fscache_gen = ci->i_rdcache_gen;

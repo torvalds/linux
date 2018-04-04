@@ -30,11 +30,11 @@
  */
 static noinline
 void __cachefiles_printk_object(struct cachefiles_object *object,
-				const char *prefix,
-				u8 *keybuf)
+				const char *prefix)
 {
 	struct fscache_cookie *cookie;
-	unsigned keylen, loop;
+	const u8 *k;
+	unsigned loop;
 
 	pr_err("%sobject: OBJ%x\n", prefix, object->fscache.debug_id);
 	pr_err("%sobjstate=%s fl=%lx wbusy=%x ev=%lx[%lx]\n",
@@ -56,23 +56,16 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 		       object->fscache.cookie->parent,
 		       object->fscache.cookie->netfs_data,
 		       object->fscache.cookie->flags);
-		if (keybuf && cookie->def)
-			keylen = cookie->def->get_key(cookie->netfs_data, keybuf,
-						      CACHEFILES_KEYBUF_SIZE);
-		else
-			keylen = 0;
+		pr_err("%skey=[%u] '", prefix, cookie->key_len);
+		k = (cookie->key_len <= sizeof(cookie->inline_key)) ?
+			cookie->inline_key : cookie->key;
+		for (loop = 0; loop < cookie->key_len; loop++)
+			pr_cont("%02x", k[loop]);
+		pr_cont("'\n");
 	} else {
 		pr_err("%scookie=NULL\n", prefix);
-		keylen = 0;
 	}
 	spin_unlock(&object->fscache.lock);
-
-	if (keylen) {
-		pr_err("%skey=[%u] '", prefix, keylen);
-		for (loop = 0; loop < keylen; loop++)
-			pr_cont("%02x", keybuf[loop]);
-		pr_cont("'\n");
-	}
 }
 
 /*
@@ -81,14 +74,10 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 static noinline void cachefiles_printk_object(struct cachefiles_object *object,
 					      struct cachefiles_object *xobject)
 {
-	u8 *keybuf;
-
-	keybuf = kmalloc(CACHEFILES_KEYBUF_SIZE, GFP_NOIO);
 	if (object)
-		__cachefiles_printk_object(object, "", keybuf);
+		__cachefiles_printk_object(object, "");
 	if (xobject)
-		__cachefiles_printk_object(xobject, "x", keybuf);
-	kfree(keybuf);
+		__cachefiles_printk_object(xobject, "x");
 }
 
 /*

@@ -559,6 +559,13 @@ struct afs_fs_cursor {
 #define AFS_FS_CURSOR_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
 };
 
+/*
+ * Cache auxiliary data.
+ */
+struct afs_vnode_cache_aux {
+	u64			data_version;
+} __packed;
+
 #include <trace/events/afs.h>
 
 /*****************************************************************************/

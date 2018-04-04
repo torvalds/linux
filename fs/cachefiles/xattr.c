@@ -113,6 +113,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object,
 	/* attempt to install the cache metadata directly */
 	_debug("SET #%u", auxdata->len);
 
+	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
 			   XATTR_CREATE);
@@ -141,6 +142,7 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	/* attempt to install the cache metadata directly */
 	_debug("SET #%u", auxdata->len);
 
+	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
 			   XATTR_REPLACE);

@@ -342,6 +342,27 @@ void fscache_put_context(struct fscache_cookie *cookie, void *context)
 		cookie->def->put_context(cookie->netfs_data, context);
 }
 
+/*
+ * Update the auxiliary data on a cookie.
+ */
+static inline
+void fscache_update_aux(struct fscache_cookie *cookie, const void *aux_data)
+{
+	void *p;
+
+	if (!aux_data)
+		return;
+	if (cookie->aux_len <= sizeof(cookie->inline_aux))
+		p = cookie->inline_aux;
+	else
+		p = cookie->aux;
+
+	if (memcmp(p, aux_data, cookie->aux_len) != 0) {
+		memcpy(p, aux_data, cookie->aux_len);
+		set_bit(FSCACHE_COOKIE_AUX_UPDATED, &cookie->flags);
+	}
+}
+
 /*****************************************************************************/
 /*
  * debug tracing

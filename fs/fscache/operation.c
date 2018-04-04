@@ -506,7 +506,7 @@ void fscache_put_operation(struct fscache_operation *op)
 	if (!atomic_dec_and_test(&op->usage))
 		return;
 
-	trace_fscache_op(op->object->cookie, op, fscache_op_put);
+	trace_fscache_op(op->object ? op->object->cookie : NULL, op, fscache_op_put);
 
 	_debug("PUT OP");
 	ASSERTIFCMP(op->state != FSCACHE_OP_ST_INITIALISED &&

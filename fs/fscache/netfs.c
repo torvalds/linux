@@ -37,6 +37,19 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 		return -ENOMEM;
 	}
 
+	cookie->key_len = strlen(netfs->name);
+	if (cookie->key_len <= sizeof(cookie->inline_key)) {
+		memcpy(cookie->inline_key, netfs->name, strlen(netfs->name));
+	} else {
+		ret = -ENOMEM;
+		cookie->key = kmemdup(netfs->name, cookie->key_len, GFP_KERNEL);
+		if (!cookie->key)
+			goto nomem;
+	}
+
+	cookie->aux_len = sizeof(netfs->version);
+	memcpy(cookie->inline_aux, &netfs->version, cookie->aux_len);
+
 	/* initialise the primary index cookie */
 	atomic_set(&cookie->usage, 1);
 	atomic_set(&cookie->n_children, 0);
@@ -46,6 +59,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 	cookie->parent		= &fscache_fsdef_index;
 	cookie->netfs_data	= netfs;
 	cookie->flags		= 1 << FSCACHE_COOKIE_ENABLED;
+	cookie->type		= FSCACHE_COOKIE_TYPE_INDEX;
 
 	spin_lock_init(&cookie->lock);
 	spin_lock_init(&cookie->stores_lock);
@@ -73,6 +87,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 already_registered:
 	up_write(&fscache_addremove_sem);
 
+nomem:
 	if (ret < 0)
 		kmem_cache_free(fscache_cookie_jar, cookie);
 
@@ -92,7 +107,7 @@ void __fscache_unregister_netfs(struct fscache_netfs *netfs)
 	down_write(&fscache_addremove_sem);
 
 	list_del(&netfs->link);
-	fscache_relinquish_cookie(netfs->primary_index, 0);
+	fscache_relinquish_cookie(netfs->primary_index, NULL, false);
 
 	up_write(&fscache_addremove_sem);
 
