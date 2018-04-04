@@ -121,7 +121,7 @@
 			timer0: timer@8000 {
 				compatible = "nuvoton,npcm750-timer";
 				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x8000 0x1000>;
+				reg = <0x8000 0x50>;
 				clocks = <&clk 15>;
 			};
 
