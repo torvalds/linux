@@ -1196,7 +1196,7 @@ static void ap_config_timeout(struct timer_list *unused)
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
-int __init ap_debug_init(void)
+static int __init ap_debug_init(void)
 {
 	ap_dbf_info = debug_register("ap", 1, 1,
 				     DBF_MAX_SPRINTF_ARGS * sizeof(long));
@@ -1211,7 +1211,7 @@ int __init ap_debug_init(void)
  *
  * Initializes the module.
  */
-int __init ap_module_init(void)
+static int __init ap_module_init(void)
 {
 	int max_domain_id;
 	int rc, i;
