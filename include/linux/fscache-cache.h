@@ -135,7 +135,8 @@ extern void fscache_op_work_func(struct work_struct *work);
 extern void fscache_enqueue_operation(struct fscache_operation *);
 extern void fscache_op_complete(struct fscache_operation *, bool);
 extern void fscache_put_operation(struct fscache_operation *);
-extern void fscache_operation_init(struct fscache_operation *,
+extern void fscache_operation_init(struct fscache_cookie *,
+				   struct fscache_operation *,
 				   fscache_operation_processor_t,
 				   fscache_operation_cancel_t,
 				   fscache_operation_release_t);

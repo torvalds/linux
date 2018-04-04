@@ -33,6 +33,53 @@ enum fscache_cookie_trace {
 	fscache_cookie_put_parent,
 };
 
+enum fscache_page_trace {
+	fscache_page_cached,
+	fscache_page_inval,
+	fscache_page_maybe_release,
+	fscache_page_radix_clear_store,
+	fscache_page_radix_delete,
+	fscache_page_radix_insert,
+	fscache_page_radix_pend2store,
+	fscache_page_radix_set_pend,
+	fscache_page_uncache,
+	fscache_page_write,
+	fscache_page_write_end,
+	fscache_page_write_end_pend,
+	fscache_page_write_end_noc,
+	fscache_page_write_wait,
+	fscache_page_trace__nr
+};
+
+enum fscache_op_trace {
+	fscache_op_cancel,
+	fscache_op_cancel_all,
+	fscache_op_cancelled,
+	fscache_op_completed,
+	fscache_op_enqueue_async,
+	fscache_op_enqueue_mythread,
+	fscache_op_gc,
+	fscache_op_init,
+	fscache_op_put,
+	fscache_op_run,
+	fscache_op_signal,
+	fscache_op_submit,
+	fscache_op_submit_ex,
+	fscache_op_work,
+	fscache_op_trace__nr
+};
+
+enum fscache_page_op_trace {
+	fscache_page_op_alloc_one,
+	fscache_page_op_attr_changed,
+	fscache_page_op_check_consistency,
+	fscache_page_op_invalidate,
+	fscache_page_op_retr_multi,
+	fscache_page_op_retr_one,
+	fscache_page_op_write_one,
+	fscache_page_op_trace__nr
+};
+
 #endif
 
 /*
@@ -46,6 +93,47 @@ enum fscache_cookie_trace {
 	EM(fscache_cookie_put_relinquish,	"PUT rlq")		\
 	EM(fscache_cookie_put_object,		"PUT obj")		\
 	E_(fscache_cookie_put_parent,		"PUT prn")
+
+#define fscache_page_traces						\
+	EM(fscache_page_cached,			"Cached ")		\
+	EM(fscache_page_inval,			"InvalPg")		\
+	EM(fscache_page_maybe_release,		"MayRels")		\
+	EM(fscache_page_uncache,		"Uncache")		\
+	EM(fscache_page_radix_clear_store,	"RxCStr ")		\
+	EM(fscache_page_radix_delete,		"RxDel  ")		\
+	EM(fscache_page_radix_insert,		"RxIns  ")		\
+	EM(fscache_page_radix_pend2store,	"RxP2S  ")		\
+	EM(fscache_page_radix_set_pend,		"RxSPend ")		\
+	EM(fscache_page_write,			"WritePg")		\
+	EM(fscache_page_write_end,		"EndPgWr")		\
+	EM(fscache_page_write_end_pend,		"EndPgWP")		\
+	EM(fscache_page_write_end_noc,		"EndPgNC")		\
+	E_(fscache_page_write_wait,		"WtOnWrt")
+
+#define fscache_op_traces						\
+	EM(fscache_op_cancel,			"Cancel1")		\
+	EM(fscache_op_cancel_all,		"CancelA")		\
+	EM(fscache_op_cancelled,		"Canclld")		\
+	EM(fscache_op_completed,		"Complet")		\
+	EM(fscache_op_enqueue_async,		"EnqAsyn")		\
+	EM(fscache_op_enqueue_mythread,		"EnqMyTh")		\
+	EM(fscache_op_gc,			"GC     ")		\
+	EM(fscache_op_init,			"Init   ")		\
+	EM(fscache_op_put,			"Put    ")		\
+	EM(fscache_op_run,			"Run    ")		\
+	EM(fscache_op_signal,			"Signal ")		\
+	EM(fscache_op_submit,			"Submit ")		\
+	EM(fscache_op_submit_ex,		"SubmitX")		\
+	E_(fscache_op_work,			"Work   ")
+
+#define fscache_page_op_traces						\
+	EM(fscache_page_op_alloc_one,		"Alloc1 ")		\
+	EM(fscache_page_op_attr_changed,	"AttrChg")		\
+	EM(fscache_page_op_check_consistency,	"CheckCn")		\
+	EM(fscache_page_op_invalidate,		"Inval  ")		\
+	EM(fscache_page_op_retr_multi,		"RetrMul")		\
+	EM(fscache_page_op_retr_one,		"Retr1  ")		\
+	E_(fscache_page_op_write_one,		"Write1 ")
 
 /*
  * Export enum symbols via userspace.
@@ -269,6 +357,170 @@ TRACE_EVENT(fscache_osm,
 				       { true,  " OOB " },
 				       { false, " " }),
 		      __entry->event_num)
+	    );
+
+TRACE_EVENT(fscache_page,
+	    TP_PROTO(struct fscache_cookie *cookie, struct page *page,
+		     enum fscache_page_trace why),
+
+	    TP_ARGS(cookie, page, why),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+		    __field(pgoff_t,			page		)
+		    __field(enum fscache_page_trace,	why		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+		    __entry->page		= page->index;
+		    __entry->why		= why;
+			   ),
+
+	    TP_printk("c=%p %s pg=%lx",
+		      __entry->cookie,
+		      __print_symbolic(__entry->why, fscache_page_traces),
+		      __entry->page)
+	    );
+
+TRACE_EVENT(fscache_check_page,
+	    TP_PROTO(struct fscache_cookie *cookie, struct page *page,
+		     void *val, int n),
+
+	    TP_ARGS(cookie, page, val, n),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+		    __field(void *,			page		)
+		    __field(void *,			val		)
+		    __field(int,			n		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+		    __entry->page		= page;
+		    __entry->val		= val;
+		    __entry->n			= n;
+			   ),
+
+	    TP_printk("c=%p pg=%p val=%p n=%d",
+		      __entry->cookie, __entry->page, __entry->val, __entry->n)
+	    );
+
+TRACE_EVENT(fscache_wake_cookie,
+	    TP_PROTO(struct fscache_cookie *cookie),
+
+	    TP_ARGS(cookie),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+			   ),
+
+	    TP_printk("c=%p", __entry->cookie)
+	    );
+
+TRACE_EVENT(fscache_op,
+	    TP_PROTO(struct fscache_cookie *cookie, struct fscache_operation *op,
+		     enum fscache_op_trace why),
+
+	    TP_ARGS(cookie, op, why),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+		    __field(struct fscache_operation *,	op		)
+		    __field(enum fscache_op_trace,	why		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+		    __entry->op			= op;
+		    __entry->why		= why;
+			   ),
+
+	    TP_printk("c=%p op=%p %s",
+		      __entry->cookie, __entry->op,
+		      __print_symbolic(__entry->why, fscache_op_traces))
+	    );
+
+TRACE_EVENT(fscache_page_op,
+	    TP_PROTO(struct fscache_cookie *cookie, struct page *page,
+		     struct fscache_operation *op, enum fscache_page_op_trace what),
+
+	    TP_ARGS(cookie, page, op, what),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+		    __field(pgoff_t,			page		)
+		    __field(struct fscache_operation *,	op		)
+		    __field(enum fscache_page_op_trace,	what		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+		    __entry->page		= page ? page->index : 0;
+		    __entry->op			= op;
+		    __entry->what		= what;
+			   ),
+
+	    TP_printk("c=%p %s pg=%lx op=%p",
+		      __entry->cookie,
+		      __print_symbolic(__entry->what, fscache_page_op_traces),
+		      __entry->page, __entry->op)
+	    );
+
+TRACE_EVENT(fscache_wrote_page,
+	    TP_PROTO(struct fscache_cookie *cookie, struct page *page,
+		     struct fscache_operation *op, int ret),
+
+	    TP_ARGS(cookie, page, op, ret),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+		    __field(pgoff_t,			page		)
+		    __field(struct fscache_operation *,	op		)
+		    __field(int,			ret		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+		    __entry->page		= page->index;
+		    __entry->op			= op;
+		    __entry->ret		= ret;
+			   ),
+
+	    TP_printk("c=%p pg=%lx op=%p ret=%d",
+		      __entry->cookie, __entry->page, __entry->op, __entry->ret)
+	    );
+
+TRACE_EVENT(fscache_gang_lookup,
+	    TP_PROTO(struct fscache_cookie *cookie, struct fscache_operation *op,
+		     void **results, int n, pgoff_t store_limit),
+
+	    TP_ARGS(cookie, op, results, n, store_limit),
+
+	    TP_STRUCT__entry(
+		    __field(struct fscache_cookie *,	cookie		)
+		    __field(struct fscache_operation *,	op		)
+		    __field(pgoff_t,			results0	)
+		    __field(int,			n		)
+		    __field(pgoff_t,			store_limit	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->cookie		= cookie;
+		    __entry->op			= op;
+		    __entry->results0		= results[0] ? ((struct page *)results[0])->index : (pgoff_t)-1;
+		    __entry->n			= n;
+		    __entry->store_limit	= store_limit;
+			   ),
+
+	    TP_printk("c=%p op=%p r0=%lx n=%d sl=%lx",
+		      __entry->cookie, __entry->op, __entry->results0, __entry->n,
+		      __entry->store_limit)
 	    );
 
 #endif /* _TRACE_FSCACHE_H */

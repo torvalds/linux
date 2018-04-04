@@ -27,6 +27,7 @@ bool __fscache_check_page_write(struct fscache_cookie *cookie, struct page *page
 	rcu_read_lock();
 	val = radix_tree_lookup(&cookie->stores, page->index);
 	rcu_read_unlock();
+	trace_fscache_check_page(cookie, page, val, 0);
 
 	return val != NULL;
 }
@@ -38,6 +39,8 @@ EXPORT_SYMBOL(__fscache_check_page_write);
 void __fscache_wait_on_page_write(struct fscache_cookie *cookie, struct page *page)
 {
 	wait_queue_head_t *wq = bit_waitqueue(&cookie->flags, 0);
+
+	trace_fscache_page(cookie, page, fscache_page_write_wait);
 
 	wait_event(*wq, !__fscache_check_page_write(cookie, page));
 }
@@ -68,6 +71,8 @@ bool __fscache_maybe_release_page(struct fscache_cookie *cookie,
 	void *val;
 
 	_enter("%p,%p,%x", cookie, page, gfp);
+
+	trace_fscache_page(cookie, page, fscache_page_maybe_release);
 
 try_again:
 	rcu_read_lock();
@@ -101,6 +106,7 @@ try_again:
 	}
 
 	xpage = radix_tree_delete(&cookie->stores, page->index);
+	trace_fscache_page(cookie, page, fscache_page_radix_delete);
 	spin_unlock(&cookie->stores_lock);
 
 	if (xpage) {
@@ -112,6 +118,7 @@ try_again:
 	}
 
 	wake_up_bit(&cookie->flags, 0);
+	trace_fscache_wake_cookie(cookie);
 	if (xpage)
 		put_page(xpage);
 	__fscache_uncache_page(cookie, page);
@@ -144,7 +151,7 @@ static void fscache_end_page_write(struct fscache_object *object,
 				   struct page *page)
 {
 	struct fscache_cookie *cookie;
-	struct page *xpage = NULL;
+	struct page *xpage = NULL, *val;
 
 	spin_lock(&object->lock);
 	cookie = object->cookie;
@@ -154,13 +161,24 @@ static void fscache_end_page_write(struct fscache_object *object,
 		spin_lock(&cookie->stores_lock);
 		radix_tree_tag_clear(&cookie->stores, page->index,
 				     FSCACHE_COOKIE_STORING_TAG);
+		trace_fscache_page(cookie, page, fscache_page_radix_clear_store);
 		if (!radix_tree_tag_get(&cookie->stores, page->index,
 					FSCACHE_COOKIE_PENDING_TAG)) {
 			fscache_stat(&fscache_n_store_radix_deletes);
 			xpage = radix_tree_delete(&cookie->stores, page->index);
+			trace_fscache_page(cookie, page, fscache_page_radix_delete);
+			trace_fscache_page(cookie, page, fscache_page_write_end);
+
+			val = radix_tree_lookup(&cookie->stores, page->index);
+			trace_fscache_check_page(cookie, page, val, 1);
+		} else {
+			trace_fscache_page(cookie, page, fscache_page_write_end_pend);
 		}
 		spin_unlock(&cookie->stores_lock);
 		wake_up_bit(&cookie->flags, 0);
+		trace_fscache_wake_cookie(cookie);
+	} else {
+		trace_fscache_page(cookie, page, fscache_page_write_end_noc);
 	}
 	spin_unlock(&object->lock);
 	if (xpage)
@@ -215,7 +233,8 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 		return -ENOMEM;
 	}
 
-	fscache_operation_init(op, fscache_attr_changed_op, NULL, NULL);
+	fscache_operation_init(cookie, op, fscache_attr_changed_op, NULL, NULL);
+	trace_fscache_page_op(cookie, NULL, op, fscache_page_op_attr_changed);
 	op->flags = FSCACHE_OP_ASYNC |
 		(1 << FSCACHE_OP_EXCLUSIVE) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);
@@ -299,7 +318,7 @@ static struct fscache_retrieval *fscache_alloc_retrieval(
 		return NULL;
 	}
 
-	fscache_operation_init(&op->op, NULL,
+	fscache_operation_init(cookie, &op->op, NULL,
 			       fscache_do_cancel_retrieval,
 			       fscache_release_retrieval_op);
 	op->op.flags	= FSCACHE_OP_MYTHREAD |
@@ -370,6 +389,7 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 		fscache_stat(stat_op_waits);
 	if (wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
 			TASK_INTERRUPTIBLE) != 0) {
+		trace_fscache_op(object->cookie, op, fscache_op_signal);
 		ret = fscache_cancel_op(op, false);
 		if (ret == 0)
 			return -ERESTARTSYS;
@@ -391,6 +411,7 @@ check_if_dead:
 	if (unlikely(fscache_object_is_dying(object) ||
 		     fscache_cache_is_broken(object))) {
 		enum fscache_operation_state state = op->state;
+		trace_fscache_op(object->cookie, op, fscache_op_signal);
 		fscache_cancel_op(op, true);
 		if (stat_object_dead)
 			fscache_stat(stat_object_dead);
@@ -445,6 +466,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 		return -ENOMEM;
 	}
 	atomic_set(&op->n_pages, 1);
+	trace_fscache_page_op(cookie, page, &op->op, fscache_page_op_retr_one);
 
 	spin_lock(&cookie->lock);
 
@@ -573,6 +595,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	if (!op)
 		return -ENOMEM;
 	atomic_set(&op->n_pages, *nr_pages);
+	trace_fscache_page_op(cookie, NULL, &op->op, fscache_page_op_retr_multi);
 
 	spin_lock(&cookie->lock);
 
@@ -684,6 +707,7 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	if (!op)
 		return -ENOMEM;
 	atomic_set(&op->n_pages, 1);
+	trace_fscache_page_op(cookie, page, &op->op, fscache_page_op_alloc_one);
 
 	spin_lock(&cookie->lock);
 
@@ -813,9 +837,11 @@ again:
 	fscache_stat(&fscache_n_store_calls);
 
 	/* find a page to store */
+	results[0] = NULL;
 	page = NULL;
 	n = radix_tree_gang_lookup_tag(&cookie->stores, results, 0, 1,
 				       FSCACHE_COOKIE_PENDING_TAG);
+	trace_fscache_gang_lookup(cookie, &op->op, results, n, op->store_limit);
 	if (n != 1)
 		goto superseded;
 	page = results[0];
@@ -825,6 +851,7 @@ again:
 			   FSCACHE_COOKIE_STORING_TAG);
 	radix_tree_tag_clear(&cookie->stores, page->index,
 			     FSCACHE_COOKIE_PENDING_TAG);
+	trace_fscache_page(cookie, page, fscache_page_radix_pend2store);
 
 	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);
@@ -836,6 +863,7 @@ again:
 	fscache_stat(&fscache_n_cop_write_page);
 	ret = object->cache->ops->write_page(op, page);
 	fscache_stat_d(&fscache_n_cop_write_page);
+	trace_fscache_wrote_page(cookie, page, &op->op, ret);
 	fscache_end_page_write(object, page);
 	if (ret < 0) {
 		fscache_abort_object(object);
@@ -849,6 +877,7 @@ again:
 
 discard_page:
 	fscache_stat(&fscache_n_store_pages_over_limit);
+	trace_fscache_wrote_page(cookie, page, &op->op, -ENOBUFS);
 	fscache_end_page_write(object, page);
 	goto again;
 
@@ -887,6 +916,8 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
 		for (i = n - 1; i >= 0; i--) {
 			page = results[i];
 			radix_tree_delete(&cookie->stores, page->index);
+			trace_fscache_page(cookie, page, fscache_page_radix_delete);
+			trace_fscache_page(cookie, page, fscache_page_inval);
 		}
 
 		spin_unlock(&cookie->stores_lock);
@@ -896,6 +927,7 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
 	}
 
 	wake_up_bit(&cookie->flags, 0);
+	trace_fscache_wake_cookie(cookie);
 
 	_leave("");
 }
@@ -954,7 +986,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	if (!op)
 		goto nomem;
 
-	fscache_operation_init(&op->op, fscache_write_op, NULL,
+	fscache_operation_init(cookie, &op->op, fscache_write_op, NULL,
 			       fscache_release_write_op);
 	op->op.flags = FSCACHE_OP_ASYNC |
 		(1 << FSCACHE_OP_WAITING) |
@@ -963,6 +995,8 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	ret = radix_tree_maybe_preload(gfp & ~__GFP_HIGHMEM);
 	if (ret < 0)
 		goto nomem_free;
+
+	trace_fscache_page_op(cookie, page, &op->op, fscache_page_op_write_one);
 
 	ret = -ENOBUFS;
 	spin_lock(&cookie->lock);
@@ -974,6 +1008,8 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 			     struct fscache_object, cookie_link);
 	if (test_bit(FSCACHE_IOERROR, &object->cache->flags))
 		goto nobufs;
+
+	trace_fscache_page(cookie, page, fscache_page_write);
 
 	/* add the page to the pending-storage radix tree on the backing
 	 * object */
@@ -990,8 +1026,10 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 		goto nobufs_unlock_obj;
 	}
 
+	trace_fscache_page(cookie, page, fscache_page_radix_insert);
 	radix_tree_tag_set(&cookie->stores, page->index,
 			   FSCACHE_COOKIE_PENDING_TAG);
+	trace_fscache_page(cookie, page, fscache_page_radix_set_pend);
 	get_page(page);
 
 	/* we only want one writer at a time, but we do need to queue new
@@ -1034,6 +1072,7 @@ already_pending:
 submit_failed:
 	spin_lock(&cookie->stores_lock);
 	radix_tree_delete(&cookie->stores, page->index);
+	trace_fscache_page(cookie, page, fscache_page_radix_delete);
 	spin_unlock(&cookie->stores_lock);
 	wake_cookie = __fscache_unuse_cookie(cookie);
 	put_page(page);
@@ -1079,6 +1118,8 @@ void __fscache_uncache_page(struct fscache_cookie *cookie, struct page *page)
 	/* cache withdrawal may beat us to it */
 	if (!PageFsCache(page))
 		goto done;
+
+	trace_fscache_page(cookie, page, fscache_page_uncache);
 
 	/* get the object */
 	spin_lock(&cookie->lock);
@@ -1127,6 +1168,8 @@ void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page)
 #ifdef CONFIG_FSCACHE_STATS
 	atomic_inc(&fscache_n_marks);
 #endif
+
+	trace_fscache_page(cookie, page, fscache_page_cached);
 
 	_debug("- mark %p{%lx}", page, page->index);
 	if (TestSetPageFsCache(page)) {
