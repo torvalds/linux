@@ -66,7 +66,7 @@ u32 dma_size[4] = {
 	512
 };
 
-msdc_mode drv_mode[4] = {
+enum msdc_mode drv_mode[4] = {
 	MODE_SIZE_DEP, /* using DMA or not depend on the size */
 	MODE_SIZE_DEP,
 	MODE_SIZE_DEP,

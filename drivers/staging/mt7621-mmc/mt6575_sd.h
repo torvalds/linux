@@ -447,7 +447,7 @@ enum {
 /*--------------------------------------------------------------------------*/
 /* Descriptor Structure                                                     */
 /*--------------------------------------------------------------------------*/
-typedef struct {
+struct gpd {
 	u32  hwo:1; /* could be changed by hw */
 	u32  bdp:1;
 	u32  rsv0:6;
@@ -462,9 +462,9 @@ typedef struct {
 	u32  arg;
 	u32  blknum;
 	u32  cmd;
-} gpd_t;
+};
 
-typedef struct {
+struct bd {
 	u32  eol:1;
 	u32  rsv0:7;
 	u32  chksum:8;
@@ -476,13 +476,13 @@ typedef struct {
 	void *ptr;
 	u32  buflen:16;
 	u32  rsv3:16;
-} bd_t;
+};
 
 /*--------------------------------------------------------------------------*/
 /* Register Debugging Structure                                             */
 /*--------------------------------------------------------------------------*/
 
-typedef struct {
+struct msdc_cfg_reg {
 	u32 msdc:1;
 	u32 ckpwn:1;
 	u32 rst:1;
@@ -494,8 +494,9 @@ typedef struct {
 	u32 ckdiv:8;
 	u32 ckmod:2;
 	u32 pad:14;
-} msdc_cfg_reg;
-typedef struct {
+};
+
+struct msdc_iocon_reg {
 	u32 sdr104cksel:1;
 	u32 rsmpl:1;
 	u32 dsmpl:1;
@@ -513,8 +514,9 @@ typedef struct {
 	u32 d7spl:1;
 	u32 riscsz:1;
 	u32 pad2:7;
-} msdc_iocon_reg;
-typedef struct {
+};
+
+struct msdc_ps_reg {
 	u32 cden:1;
 	u32 cdsts:1;
 	u32 pad1:10;
@@ -523,8 +525,9 @@ typedef struct {
 	u32 cmd:1;
 	u32 pad2:6;
 	u32 wp:1;
-} msdc_ps_reg;
-typedef struct {
+};
+
+struct msdc_int_reg {
 	u32 mmcirq:1;
 	u32 cdsc:1;
 	u32 pad1:1;
@@ -543,8 +546,9 @@ typedef struct {
 	u32 datcrc:1;
 	u32 atocmd19done:1;
 	u32 pad2:15;
-} msdc_int_reg;
-typedef struct {
+};
+
+struct msdc_inten_reg {
 	u32 mmcirq:1;
 	u32 cdsc:1;
 	u32 pad1:1;
@@ -563,21 +567,25 @@ typedef struct {
 	u32 datcrc:1;
 	u32 atocmd19done:1;
 	u32 pad2:15;
-} msdc_inten_reg;
-typedef struct {
+};
+
+struct msdc_fifocs_reg {
 	u32 rxcnt:8;
 	u32 pad1:8;
 	u32 txcnt:8;
 	u32 pad2:7;
 	u32 clr:1;
-} msdc_fifocs_reg;
-typedef struct {
+};
+
+struct msdc_txdat_reg {
 	u32 val;
-} msdc_txdat_reg;
-typedef struct {
+};
+
+struct msdc_rxdat_reg {
 	u32 val;
-} msdc_rxdat_reg;
-typedef struct {
+};
+
+struct sdc_cfg_reg {
 	u32 sdiowkup:1;
 	u32 inswkup:1;
 	u32 pad1:14;
@@ -588,8 +596,9 @@ typedef struct {
 	u32 intblkgap:1;
 	u32 pad4:2;
 	u32 dtoc:8;
-} sdc_cfg_reg;
-typedef struct {
+};
+
+struct sdc_cmd_reg {
 	u32 cmd:6;
 	u32 brk:1;
 	u32 rsptyp:3;
@@ -602,43 +611,54 @@ typedef struct {
 	u32 atocmd:2;
 	u32 volswth:1;
 	u32 pad2:1;
-} sdc_cmd_reg;
-typedef struct {
+};
+
+struct sdc_arg_reg {
 	u32 arg;
-} sdc_arg_reg;
-typedef struct {
+};
+
+struct sdc_sts_reg {
 	u32 sdcbusy:1;
 	u32 cmdbusy:1;
 	u32 pad:29;
 	u32 swrcmpl:1;
-} sdc_sts_reg;
-typedef struct {
+};
+
+struct sdc_resp0_reg {
 	u32 val;
-} sdc_resp0_reg;
-typedef struct {
+};
+
+struct sdc_resp1_reg {
 	u32 val;
-} sdc_resp1_reg;
-typedef struct {
+};
+
+struct sdc_resp2_reg {
 	u32 val;
-} sdc_resp2_reg;
-typedef struct {
+};
+
+struct sdc_resp3_reg {
 	u32 val;
-} sdc_resp3_reg;
-typedef struct {
+};
+
+struct sdc_blknum_reg {
 	u32 num;
-} sdc_blknum_reg;
-typedef struct {
+};
+
+struct sdc_csts_reg {
 	u32 sts;
-} sdc_csts_reg;
-typedef struct {
+};
+
+struct sdc_cstsen_reg {
 	u32 sts;
-} sdc_cstsen_reg;
-typedef struct {
+};
+
+struct sdc_datcrcsts_reg {
 	u32 datcrcsts:8;
 	u32 ddrcrcsts:4;
 	u32 pad:20;
-} sdc_datcrcsts_reg;
-typedef struct {
+};
+
+struct emmc_cfg0_reg {
 	u32 bootstart:1;
 	u32 bootstop:1;
 	u32 bootmode:1;
@@ -646,13 +666,15 @@ typedef struct {
 	u32 bootwaidly:3;
 	u32 bootsupp:1;
 	u32 pad2:16;
-} emmc_cfg0_reg;
-typedef struct {
+};
+
+struct emmc_cfg1_reg {
 	u32 bootcrctmc:16;
 	u32 pad:4;
 	u32 bootacktmc:12;
-} emmc_cfg1_reg;
-typedef struct {
+};
+
+struct emmc_sts_reg {
 	u32 bootcrcerr:1;
 	u32 bootackerr:1;
 	u32 bootdattmo:1;
@@ -661,28 +683,35 @@ typedef struct {
 	u32 bootackrcv:1;
 	u32 bootdatrcv:1;
 	u32 pad:25;
-} emmc_sts_reg;
-typedef struct {
+};
+
+struct emmc_iocon_reg {
 	u32 bootrst:1;
 	u32 pad:31;
-} emmc_iocon_reg;
-typedef struct {
+};
+
+struct msdc_acmd_resp_reg {
 	u32 val;
-} msdc_acmd_resp_reg;
-typedef struct {
+};
+
+struct msdc_acmd19_trg_reg {
 	u32 tunesel:4;
 	u32 pad:28;
-} msdc_acmd19_trg_reg;
-typedef struct {
+};
+
+struct msdc_acmd19_sts_reg {
 	u32 val;
-} msdc_acmd19_sts_reg;
-typedef struct {
+};
+
+struct msdc_dma_sa_reg {
 	u32 addr;
-} msdc_dma_sa_reg;
-typedef struct {
+};
+
+struct msdc_dma_ca_reg {
 	u32 addr;
-} msdc_dma_ca_reg;
-typedef struct {
+};
+
+struct msdc_dma_ctrl_reg {
 	u32 start:1;
 	u32 stop:1;
 	u32 resume:1;
@@ -694,23 +723,27 @@ typedef struct {
 	u32 brustsz:3;
 	u32 pad4:1;
 	u32 xfersz:16;
-} msdc_dma_ctrl_reg;
-typedef struct {
+};
+
+struct msdc_dma_cfg_reg {
 	u32 status:1;
 	u32 decsen:1;
 	u32 pad1:2;
 	u32 bdcsen:1;
 	u32 gpdcsen:1;
 	u32 pad2:26;
-} msdc_dma_cfg_reg;
-typedef struct {
+};
+
+struct msdc_dbg_sel_reg {
 	u32 sel:16;
 	u32 pad2:16;
-} msdc_dbg_sel_reg;
-typedef struct {
+};
+
+struct msdc_dbg_out_reg {
 	u32 val;
-} msdc_dbg_out_reg;
-typedef struct {
+};
+
+struct msdc_pad_ctl0_reg {
 	u32 clkdrvn:3;
 	u32 rsv0:1;
 	u32 clkdrvp:3;
@@ -723,8 +756,9 @@ typedef struct {
 	u32 clkies:1;
 	u32 clktdsel:4;
 	u32 clkrdsel:8;
-} msdc_pad_ctl0_reg;
-typedef struct {
+};
+
+struct msdc_pad_ctl1_reg {
 	u32 cmddrvn:3;
 	u32 rsv0:1;
 	u32 cmddrvp:3;
@@ -737,8 +771,9 @@ typedef struct {
 	u32 cmdies:1;
 	u32 cmdtdsel:4;
 	u32 cmdrdsel:8;
-} msdc_pad_ctl1_reg;
-typedef struct {
+};
+
+struct msdc_pad_ctl2_reg {
 	u32 datdrvn:3;
 	u32 rsv0:1;
 	u32 datdrvp:3;
@@ -751,14 +786,16 @@ typedef struct {
 	u32 daties:1;
 	u32 dattdsel:4;
 	u32 datrdsel:8;
-} msdc_pad_ctl2_reg;
-typedef struct {
+};
+
+struct msdc_pad_tune_reg {
 	u32 wrrxdly:3;
 	u32 pad1:5;
 	u32 rdrxdly:8;
 	u32 pad2:16;
-} msdc_pad_tune_reg;
-typedef struct {
+};
+
+struct msdc_dat_rddly0 {
 	u32 dat0:5;
 	u32 rsv0:3;
 	u32 dat1:5;
@@ -767,8 +804,9 @@ typedef struct {
 	u32 rsv2:3;
 	u32 dat3:5;
 	u32 rsv3:3;
-} msdc_dat_rddly0;
-typedef struct {
+};
+
+struct msdc_dat_rddly1 {
 	u32 dat4:5;
 	u32 rsv4:3;
 	u32 dat5:5;
@@ -777,8 +815,9 @@ typedef struct {
 	u32 rsv6:3;
 	u32 dat7:5;
 	u32 rsv7:3;
-} msdc_dat_rddly1;
-typedef struct {
+};
+
+struct msdc_hw_dbg_reg {
 	u32 dbg0sel:8;
 	u32 dbg1sel:6;
 	u32 pad1:2;
@@ -786,66 +825,68 @@ typedef struct {
 	u32 pad2:2;
 	u32 dbg3sel:6;
 	u32 pad3:2;
-} msdc_hw_dbg_reg;
-typedef struct {
+};
+
+struct msdc_version_reg {
 	u32 val;
-} msdc_version_reg;
-typedef struct {
+};
+
+struct msdc_eco_ver_reg {
 	u32 val;
-} msdc_eco_ver_reg;
+};
 
 struct msdc_regs {
-	msdc_cfg_reg        msdc_cfg;      /* base+0x00h */
-	msdc_iocon_reg      msdc_iocon;    /* base+0x04h */
-	msdc_ps_reg         msdc_ps;       /* base+0x08h */
-	msdc_int_reg        msdc_int;      /* base+0x0ch */
-	msdc_inten_reg      msdc_inten;    /* base+0x10h */
-	msdc_fifocs_reg     msdc_fifocs;   /* base+0x14h */
-	msdc_txdat_reg      msdc_txdat;    /* base+0x18h */
-	msdc_rxdat_reg      msdc_rxdat;    /* base+0x1ch */
+	struct msdc_cfg_reg        msdc_cfg;      /* base+0x00h */
+	struct msdc_iocon_reg      msdc_iocon;    /* base+0x04h */
+	struct msdc_ps_reg         msdc_ps;       /* base+0x08h */
+	struct msdc_int_reg        msdc_int;      /* base+0x0ch */
+	struct msdc_inten_reg      msdc_inten;    /* base+0x10h */
+	struct msdc_fifocs_reg     msdc_fifocs;   /* base+0x14h */
+	struct msdc_txdat_reg      msdc_txdat;    /* base+0x18h */
+	struct msdc_rxdat_reg      msdc_rxdat;    /* base+0x1ch */
 	u32                 rsv1[4];
-	sdc_cfg_reg         sdc_cfg;       /* base+0x30h */
-	sdc_cmd_reg         sdc_cmd;       /* base+0x34h */
-	sdc_arg_reg         sdc_arg;       /* base+0x38h */
-	sdc_sts_reg         sdc_sts;       /* base+0x3ch */
-	sdc_resp0_reg       sdc_resp0;     /* base+0x40h */
-	sdc_resp1_reg       sdc_resp1;     /* base+0x44h */
-	sdc_resp2_reg       sdc_resp2;     /* base+0x48h */
-	sdc_resp3_reg       sdc_resp3;     /* base+0x4ch */
-	sdc_blknum_reg      sdc_blknum;    /* base+0x50h */
+	struct sdc_cfg_reg         sdc_cfg;       /* base+0x30h */
+	struct sdc_cmd_reg         sdc_cmd;       /* base+0x34h */
+	struct sdc_arg_reg         sdc_arg;       /* base+0x38h */
+	struct sdc_sts_reg         sdc_sts;       /* base+0x3ch */
+	struct sdc_resp0_reg       sdc_resp0;     /* base+0x40h */
+	struct sdc_resp1_reg       sdc_resp1;     /* base+0x44h */
+	struct sdc_resp2_reg       sdc_resp2;     /* base+0x48h */
+	struct sdc_resp3_reg       sdc_resp3;     /* base+0x4ch */
+	struct sdc_blknum_reg      sdc_blknum;    /* base+0x50h */
 	u32                 rsv2[1];
-	sdc_csts_reg        sdc_csts;      /* base+0x58h */
-	sdc_cstsen_reg      sdc_cstsen;    /* base+0x5ch */
-	sdc_datcrcsts_reg   sdc_dcrcsta;   /* base+0x60h */
+	struct sdc_csts_reg        sdc_csts;      /* base+0x58h */
+	struct sdc_cstsen_reg      sdc_cstsen;    /* base+0x5ch */
+	struct sdc_datcrcsts_reg   sdc_dcrcsta;   /* base+0x60h */
 	u32                 rsv3[3];
-	emmc_cfg0_reg       emmc_cfg0;     /* base+0x70h */
-	emmc_cfg1_reg       emmc_cfg1;     /* base+0x74h */
-	emmc_sts_reg        emmc_sts;      /* base+0x78h */
-	emmc_iocon_reg      emmc_iocon;    /* base+0x7ch */
-	msdc_acmd_resp_reg  acmd_resp;     /* base+0x80h */
-	msdc_acmd19_trg_reg acmd19_trg;    /* base+0x84h */
-	msdc_acmd19_sts_reg acmd19_sts;    /* base+0x88h */
+	struct emmc_cfg0_reg       emmc_cfg0;     /* base+0x70h */
+	struct emmc_cfg1_reg       emmc_cfg1;     /* base+0x74h */
+	struct emmc_sts_reg        emmc_sts;      /* base+0x78h */
+	struct emmc_iocon_reg      emmc_iocon;    /* base+0x7ch */
+	struct msdc_acmd_resp_reg  acmd_resp;     /* base+0x80h */
+	struct msdc_acmd19_trg_reg acmd19_trg;    /* base+0x84h */
+	struct msdc_acmd19_sts_reg acmd19_sts;    /* base+0x88h */
 	u32                 rsv4[1];
-	msdc_dma_sa_reg     dma_sa;        /* base+0x90h */
-	msdc_dma_ca_reg     dma_ca;        /* base+0x94h */
-	msdc_dma_ctrl_reg   dma_ctrl;      /* base+0x98h */
-	msdc_dma_cfg_reg    dma_cfg;       /* base+0x9ch */
-	msdc_dbg_sel_reg    dbg_sel;       /* base+0xa0h */
-	msdc_dbg_out_reg    dbg_out;       /* base+0xa4h */
+	struct msdc_dma_sa_reg     dma_sa;        /* base+0x90h */
+	struct msdc_dma_ca_reg     dma_ca;        /* base+0x94h */
+	struct msdc_dma_ctrl_reg   dma_ctrl;      /* base+0x98h */
+	struct msdc_dma_cfg_reg    dma_cfg;       /* base+0x9ch */
+	struct msdc_dbg_sel_reg    dbg_sel;       /* base+0xa0h */
+	struct msdc_dbg_out_reg    dbg_out;       /* base+0xa4h */
 	u32                 rsv5[2];
 	u32                 patch0;        /* base+0xb0h */
 	u32                 patch1;        /* base+0xb4h */
 	u32                 rsv6[10];
-	msdc_pad_ctl0_reg   pad_ctl0;      /* base+0xe0h */
-	msdc_pad_ctl1_reg   pad_ctl1;      /* base+0xe4h */
-	msdc_pad_ctl2_reg   pad_ctl2;      /* base+0xe8h */
-	msdc_pad_tune_reg   pad_tune;      /* base+0xech */
-	msdc_dat_rddly0     dat_rddly0;    /* base+0xf0h */
-	msdc_dat_rddly1     dat_rddly1;    /* base+0xf4h */
-	msdc_hw_dbg_reg     hw_dbg;        /* base+0xf8h */
+	struct msdc_pad_ctl0_reg   pad_ctl0;      /* base+0xe0h */
+	struct msdc_pad_ctl1_reg   pad_ctl1;      /* base+0xe4h */
+	struct msdc_pad_ctl2_reg   pad_ctl2;      /* base+0xe8h */
+	struct msdc_pad_tune_reg   pad_tune;      /* base+0xech */
+	struct msdc_dat_rddly0     dat_rddly0;    /* base+0xf0h */
+	struct msdc_dat_rddly1     dat_rddly1;    /* base+0xf4h */
+	struct msdc_hw_dbg_reg     hw_dbg;        /* base+0xf8h */
 	u32                 rsv7[1];
-	msdc_version_reg    version;       /* base+0x100h */
-	msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
+	struct msdc_version_reg    version;       /* base+0x100h */
+	struct msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
 };
 
 struct scatterlist_ex {
@@ -876,8 +917,8 @@ struct msdc_dma {
 	u32 rsp;                     /* enhanced mode command response */
 	u32 autorsp;                 /* auto command response */
 
-	gpd_t *gpd;                  /* pointer to gpd array */
-	bd_t  *bd;                   /* pointer to bd array */
+	struct gpd *gpd;                  /* pointer to gpd array */
+	struct bd  *bd;                   /* pointer to bd array */
 	dma_addr_t gpd_addr;         /* the physical address of gpd array */
 	dma_addr_t bd_addr;          /* the physical address of bd array */
 	u32 used_gpd;                /* the number of used gpd elements */

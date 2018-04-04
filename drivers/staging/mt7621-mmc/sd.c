@@ -232,21 +232,21 @@ static int msdc_rsp[] = {
 };
 
 /* For Inhanced DMA */
-#define msdc_init_gpd_ex(gpd, extlen, cmd, arg, blknum) \
+#define msdc_init_gpd_ex(_gpd, extlen, cmd, arg, blknum) \
 	do {					    \
-		((gpd_t *)gpd)->extlen = extlen;	    \
-		((gpd_t *)gpd)->cmd    = cmd;	    \
-		((gpd_t *)gpd)->arg    = arg;	    \
-		((gpd_t *)gpd)->blknum = blknum;	    \
+		((struct gpd *)_gpd)->extlen = extlen;	    \
+		((struct gpd *)_gpd)->cmd    = cmd;	    \
+		((struct gpd *)_gpd)->arg    = arg;	    \
+		((struct gpd *)_gpd)->blknum = blknum;	    \
 	} while (0)
 
-#define msdc_init_bd(bd, blkpad, dwpad, dptr, dlen) \
+#define msdc_init_bd(_bd, blkpad, dwpad, dptr, dlen) \
 	do {					    \
 		BUG_ON(dlen > 0xFFFFUL);	    \
-		((bd_t *)bd)->blkpad = blkpad;	    \
-		((bd_t *)bd)->dwpad  = dwpad;	    \
-		((bd_t *)bd)->ptr    = (void *)dptr;  \
-		((bd_t *)bd)->buflen = dlen;	    \
+		((struct bd *)_bd)->blkpad = blkpad;	    \
+		((struct bd *)_bd)->dwpad  = dwpad;	    \
+		((struct bd *)_bd)->ptr    = (void *)dptr;  \
+		((struct bd *)_bd)->buflen = dlen;	    \
 	} while (0)
 
 #define msdc_txfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16)
@@ -1352,9 +1352,9 @@ static void msdc_dma_stop(struct msdc_host *host)
 /* dump a gpd list */
 static void msdc_dma_dump(struct msdc_host *host, struct msdc_dma *dma)
 {
-	gpd_t *gpd = dma->gpd;
-	bd_t   *bd = dma->bd;
-	bd_t   *ptr;
+	struct gpd *gpd = dma->gpd;
+	struct bd   *bd = dma->bd;
+	struct bd   *ptr;
 	int i = 0;
 	int p_to_v;
 
@@ -1427,8 +1427,8 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 	u32 j, num, bdlen;
 	u8  blkpad, dwpad, chksum;
 	struct scatterlist *sg = dma->sg;
-	gpd_t *gpd;
-	bd_t *bd;
+	struct gpd *gpd;
+	struct bd *bd;
 
 	switch (dma->mode) {
 	case MSDC_MODE_DMA_BASIC:
@@ -2708,32 +2708,32 @@ static void msdc_deinit_hw(struct msdc_host *host)
 /* init gpd and bd list in msdc_drv_probe */
 static void msdc_init_gpd_bd(struct msdc_host *host, struct msdc_dma *dma)
 {
-	gpd_t *gpd = dma->gpd;
-	bd_t  *bd  = dma->bd;
-	bd_t  *ptr, *prev;
+	struct gpd *gpd = dma->gpd;
+	struct bd  *bd  = dma->bd;
+	struct bd  *ptr, *prev;
 
 	/* we just support one gpd */
 	int bdlen = MAX_BD_PER_GPD;
 
 	/* init the 2 gpd */
-	memset(gpd, 0, sizeof(gpd_t) * 2);
+	memset(gpd, 0, sizeof(struct gpd) * 2);
 	//gpd->next = (void *)virt_to_phys(gpd + 1); /* pointer to a null gpd, bug! kmalloc <-> virt_to_phys */
 	//gpd->next = (dma->gpd_addr + 1);    /* bug */
-	gpd->next = (void *)((u32)dma->gpd_addr + sizeof(gpd_t));
+	gpd->next = (void *)((u32)dma->gpd_addr + sizeof(struct gpd));
 
 	//gpd->intr = 0;
 	gpd->bdp  = 1;   /* hwo, cs, bd pointer */
 	//gpd->ptr  = (void*)virt_to_phys(bd);
 	gpd->ptr = (void *)dma->bd_addr; /* physical address */
 
-	memset(bd, 0, sizeof(bd_t) * bdlen);
+	memset(bd, 0, sizeof(struct bd) * bdlen);
 	ptr = bd + bdlen - 1;
 	//ptr->eol  = 1;  /* 0 or 1 [Fix me]*/
 	//ptr->next = 0;
 
 	while (ptr != bd) {
 		prev = ptr - 1;
-		prev->next = (void *)(dma->bd_addr + sizeof(bd_t) * (ptr - bd));
+		prev->next = (void *)(dma->bd_addr + sizeof(struct bd) * (ptr - bd));
 		ptr = prev;
 	}
 }
@@ -2834,8 +2834,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc_dev(mmc)->dma_mask = NULL;
 
 	/* using dma_alloc_coherent*/  /* todo: using 1, for all 4 slots */
-	host->dma.gpd = dma_alloc_coherent(NULL, MAX_GPD_NUM * sizeof(gpd_t), &host->dma.gpd_addr, GFP_KERNEL);
-	host->dma.bd =  dma_alloc_coherent(NULL, MAX_BD_NUM  * sizeof(bd_t),  &host->dma.bd_addr,  GFP_KERNEL);
+	host->dma.gpd = dma_alloc_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd), &host->dma.gpd_addr, GFP_KERNEL);
+	host->dma.bd =  dma_alloc_coherent(NULL, MAX_BD_NUM  * sizeof(struct bd),  &host->dma.bd_addr,  GFP_KERNEL);
 	BUG_ON((!host->dma.gpd) || (!host->dma.bd));
 	msdc_init_gpd_bd(host, &host->dma);
 	/*for emmc*/
@@ -2936,8 +2936,8 @@ static int msdc_drv_remove(struct platform_device *pdev)
 #endif
 	free_irq(host->irq, host);
 
-	dma_free_coherent(NULL, MAX_GPD_NUM * sizeof(gpd_t), host->dma.gpd, host->dma.gpd_addr);
-	dma_free_coherent(NULL, MAX_BD_NUM  * sizeof(bd_t),  host->dma.bd,  host->dma.bd_addr);
+	dma_free_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd), host->dma.gpd, host->dma.gpd_addr);
+	dma_free_coherent(NULL, MAX_BD_NUM  * sizeof(struct bd),  host->dma.bd,  host->dma.bd_addr);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 

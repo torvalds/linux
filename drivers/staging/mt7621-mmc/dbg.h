@@ -66,19 +66,20 @@ struct sdio_profile {
 };
 
 //==========================
-typedef enum {
+enum msdc_dbg {
 	SD_TOOL_ZONE = 0,
 	SD_TOOL_DMA_SIZE  = 1,
 	SD_TOOL_PM_ENABLE = 2,
 	SD_TOOL_SDIO_PROFILE = 3,
-} msdc_dbg;
+};
 
-typedef enum {
+enum msdc_mode {
 	MODE_PIO = 0,
 	MODE_DMA = 1,
 	MODE_SIZE_DEP = 2,
-} msdc_mode;
-extern msdc_mode drv_mode[4];
+};
+
+extern enum msdc_mode drv_mode[4];
 extern u32 dma_size[4];
 
 /* Debug message event */
