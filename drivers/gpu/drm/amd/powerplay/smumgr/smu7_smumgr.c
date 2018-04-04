@@ -167,10 +167,6 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	int ret;
 
-	if (!smu7_is_smc_ram_running(hwmgr))
-		return -EINVAL;
-
-
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
@@ -199,10 +195,6 @@ int smu7_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
 {
-	if (!smu7_is_smc_ram_running(hwmgr)) {
-		return -EINVAL;
-	}
-
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, parameter);
