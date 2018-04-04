@@ -982,7 +982,6 @@ again:
 
 void btrfs_dev_replace_write_unlock(struct btrfs_dev_replace *dev_replace)
 {
-	ASSERT(atomic_read(&dev_replace->blocking_readers) == 0);
 	write_unlock(&dev_replace->lock);
 }
 
