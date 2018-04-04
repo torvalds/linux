@@ -217,7 +217,7 @@ xfs_growfs_data_private(
 		}
 
 		agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, bp);
-		for (bucket = 0; bucket < XFS_AGFL_SIZE(mp); bucket++)
+		for (bucket = 0; bucket < xfs_agfl_size(mp); bucket++)
 			agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
 
 		error = xfs_bwrite(bp);

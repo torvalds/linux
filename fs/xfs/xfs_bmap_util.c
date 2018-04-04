@@ -1208,18 +1208,15 @@ xfs_free_file_space(
 
 	/*
 	 * Now that we've unmap all full blocks we'll have to zero out any
-	 * partial block at the beginning and/or end.  xfs_zero_range is
-	 * smart enough to skip any holes, including those we just created,
-	 * but we must take care not to zero beyond EOF and enlarge i_size.
+	 * partial block at the beginning and/or end.  iomap_zero_range is smart
+	 * enough to skip any holes, including those we just created, but we
+	 * must take care not to zero beyond EOF and enlarge i_size.
 	 */
-
 	if (offset >= XFS_ISIZE(ip))
 		return 0;
-
 	if (offset + len > XFS_ISIZE(ip))
 		len = XFS_ISIZE(ip) - offset;
-
-	return xfs_zero_range(ip, offset, len, NULL);
+	return iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
 }
 
 /*
@@ -1899,17 +1896,28 @@ xfs_swap_extents(
 	 * performed with log redo items!
 	 */
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
+		int		w	= XFS_DATA_FORK;
+		uint32_t	ipnext	= XFS_IFORK_NEXTENTS(ip, w);
+		uint32_t	tipnext	= XFS_IFORK_NEXTENTS(tip, w);
+
 		/*
-		 * Conceptually this shouldn't affect the shape of either
-		 * bmbt, but since we atomically move extents one by one,
-		 * we reserve enough space to rebuild both trees.
+		 * Conceptually this shouldn't affect the shape of either bmbt,
+		 * but since we atomically move extents one by one, we reserve
+		 * enough space to rebuild both trees.
 		 */
-		resblks = XFS_SWAP_RMAP_SPACE_RES(mp,
-				XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK),
-				XFS_DATA_FORK) +
-			  XFS_SWAP_RMAP_SPACE_RES(mp,
-				XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK),
-				XFS_DATA_FORK);
+		resblks = XFS_SWAP_RMAP_SPACE_RES(mp, ipnext, w);
+		resblks +=  XFS_SWAP_RMAP_SPACE_RES(mp, tipnext, w);
+
+		/*
+		 * Handle the corner case where either inode might straddle the
+		 * btree format boundary. If so, the inode could bounce between
+		 * btree <-> extent format on unmap -> remap cycles, freeing and
+		 * allocating a bmapbt block each time.
+		 */
+		if (ipnext == (XFS_IFORK_MAXEXT(ip, w) + 1))
+			resblks += XFS_IFORK_MAXEXT(ip, w);
+		if (tipnext == (XFS_IFORK_MAXEXT(tip, w) + 1))
+			resblks += XFS_IFORK_MAXEXT(tip, w);
 	}
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
 	if (error)
@@ -2003,11 +2011,11 @@ xfs_swap_extents(
 		ip->i_cowfp = tip->i_cowfp;
 		tip->i_cowfp = cowfp;
 
-		if (ip->i_cowfp && ip->i_cnextents)
+		if (ip->i_cowfp && ip->i_cowfp->if_bytes)
 			xfs_inode_set_cowblocks_tag(ip);
 		else
 			xfs_inode_clear_cowblocks_tag(ip);
-		if (tip->i_cowfp && tip->i_cnextents)
+		if (tip->i_cowfp && tip->i_cowfp->if_bytes)
 			xfs_inode_set_cowblocks_tag(tip);
 		else
 			xfs_inode_clear_cowblocks_tag(tip);
