@@ -448,34 +448,34 @@ enum {
 /* Descriptor Structure                                                     */
 /*--------------------------------------------------------------------------*/
 typedef struct {
-    u32  hwo:1; /* could be changed by hw */
-    u32  bdp:1;
-    u32  rsv0:6;
-    u32  chksum:8;
-    u32  intr:1;
-    u32  rsv1:15;
-    void *next;
-    void *ptr;
-    u32  buflen:16;
-    u32  extlen:8;
-    u32  rsv2:8;
-    u32  arg;
-    u32  blknum;
-    u32  cmd;
+	u32  hwo:1; /* could be changed by hw */
+	u32  bdp:1;
+	u32  rsv0:6;
+	u32  chksum:8;
+	u32  intr:1;
+	u32  rsv1:15;
+	void *next;
+	void *ptr;
+	u32  buflen:16;
+	u32  extlen:8;
+	u32  rsv2:8;
+	u32  arg;
+	u32  blknum;
+	u32  cmd;
 } gpd_t;
 
 typedef struct {
-    u32  eol:1;
-    u32  rsv0:7;
-    u32  chksum:8;
-    u32  rsv1:1;
-    u32  blkpad:1;
-    u32  dwpad:1;
-    u32  rsv2:13;
-    void *next;
-    void *ptr;
-    u32  buflen:16;
-    u32  rsv3:16;
+	u32  eol:1;
+	u32  rsv0:7;
+	u32  chksum:8;
+	u32  rsv1:1;
+	u32  blkpad:1;
+	u32  dwpad:1;
+	u32  rsv2:13;
+	void *next;
+	void *ptr;
+	u32  buflen:16;
+	u32  rsv3:16;
 } bd_t;
 
 /*--------------------------------------------------------------------------*/
@@ -483,376 +483,376 @@ typedef struct {
 /*--------------------------------------------------------------------------*/
 
 typedef struct {
-    u32 msdc:1;
-    u32 ckpwn:1;
-    u32 rst:1;
-    u32 pio:1;
-    u32 ckdrven:1;
-    u32 start18v:1;
-    u32 pass18v:1;
-    u32 ckstb:1;
-    u32 ckdiv:8;
-    u32 ckmod:2;
-    u32 pad:14;
+	u32 msdc:1;
+	u32 ckpwn:1;
+	u32 rst:1;
+	u32 pio:1;
+	u32 ckdrven:1;
+	u32 start18v:1;
+	u32 pass18v:1;
+	u32 ckstb:1;
+	u32 ckdiv:8;
+	u32 ckmod:2;
+	u32 pad:14;
 } msdc_cfg_reg;
 typedef struct {
-    u32 sdr104cksel:1;
-    u32 rsmpl:1;
-    u32 dsmpl:1;
-    u32 ddlysel:1;
-    u32 ddr50ckd:1;
-    u32 dsplsel:1;
-    u32 pad1:10;
-    u32 d0spl:1;
-    u32 d1spl:1;
-    u32 d2spl:1;
-    u32 d3spl:1;
-    u32 d4spl:1;
-    u32 d5spl:1;
-    u32 d6spl:1;
-    u32 d7spl:1;
-    u32 riscsz:1;
-    u32 pad2:7;
+	u32 sdr104cksel:1;
+	u32 rsmpl:1;
+	u32 dsmpl:1;
+	u32 ddlysel:1;
+	u32 ddr50ckd:1;
+	u32 dsplsel:1;
+	u32 pad1:10;
+	u32 d0spl:1;
+	u32 d1spl:1;
+	u32 d2spl:1;
+	u32 d3spl:1;
+	u32 d4spl:1;
+	u32 d5spl:1;
+	u32 d6spl:1;
+	u32 d7spl:1;
+	u32 riscsz:1;
+	u32 pad2:7;
 } msdc_iocon_reg;
 typedef struct {
-    u32 cden:1;
-    u32 cdsts:1;
-    u32 pad1:10;
-    u32 cddebounce:4;
-    u32 dat:8;
-    u32 cmd:1;
-    u32 pad2:6;
-    u32 wp:1;
+	u32 cden:1;
+	u32 cdsts:1;
+	u32 pad1:10;
+	u32 cddebounce:4;
+	u32 dat:8;
+	u32 cmd:1;
+	u32 pad2:6;
+	u32 wp:1;
 } msdc_ps_reg;
 typedef struct {
-    u32 mmcirq:1;
-    u32 cdsc:1;
-    u32 pad1:1;
-    u32 atocmdrdy:1;
-    u32 atocmdtmo:1;
-    u32 atocmdcrc:1;
-    u32 dmaqempty:1;
-    u32 sdioirq:1;
-    u32 cmdrdy:1;
-    u32 cmdtmo:1;
-    u32 rspcrc:1;
-    u32 csta:1;
-    u32 xfercomp:1;
-    u32 dxferdone:1;
-    u32 dattmo:1;
-    u32 datcrc:1;
-    u32 atocmd19done:1;
-    u32 pad2:15;
+	u32 mmcirq:1;
+	u32 cdsc:1;
+	u32 pad1:1;
+	u32 atocmdrdy:1;
+	u32 atocmdtmo:1;
+	u32 atocmdcrc:1;
+	u32 dmaqempty:1;
+	u32 sdioirq:1;
+	u32 cmdrdy:1;
+	u32 cmdtmo:1;
+	u32 rspcrc:1;
+	u32 csta:1;
+	u32 xfercomp:1;
+	u32 dxferdone:1;
+	u32 dattmo:1;
+	u32 datcrc:1;
+	u32 atocmd19done:1;
+	u32 pad2:15;
 } msdc_int_reg;
 typedef struct {
-    u32 mmcirq:1;
-    u32 cdsc:1;
-    u32 pad1:1;
-    u32 atocmdrdy:1;
-    u32 atocmdtmo:1;
-    u32 atocmdcrc:1;
-    u32 dmaqempty:1;
-    u32 sdioirq:1;
-    u32 cmdrdy:1;
-    u32 cmdtmo:1;
-    u32 rspcrc:1;
-    u32 csta:1;
-    u32 xfercomp:1;
-    u32 dxferdone:1;
-    u32 dattmo:1;
-    u32 datcrc:1;
-    u32 atocmd19done:1;
-    u32 pad2:15;
+	u32 mmcirq:1;
+	u32 cdsc:1;
+	u32 pad1:1;
+	u32 atocmdrdy:1;
+	u32 atocmdtmo:1;
+	u32 atocmdcrc:1;
+	u32 dmaqempty:1;
+	u32 sdioirq:1;
+	u32 cmdrdy:1;
+	u32 cmdtmo:1;
+	u32 rspcrc:1;
+	u32 csta:1;
+	u32 xfercomp:1;
+	u32 dxferdone:1;
+	u32 dattmo:1;
+	u32 datcrc:1;
+	u32 atocmd19done:1;
+	u32 pad2:15;
 } msdc_inten_reg;
 typedef struct {
-    u32 rxcnt:8;
-    u32 pad1:8;
-    u32 txcnt:8;
-    u32 pad2:7;
-    u32 clr:1;
+	u32 rxcnt:8;
+	u32 pad1:8;
+	u32 txcnt:8;
+	u32 pad2:7;
+	u32 clr:1;
 } msdc_fifocs_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_txdat_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_rxdat_reg;
 typedef struct {
-    u32 sdiowkup:1;
-    u32 inswkup:1;
-    u32 pad1:14;
-    u32 buswidth:2;
-    u32 pad2:1;
-    u32 sdio:1;
-    u32 sdioide:1;
-    u32 intblkgap:1;
-    u32 pad4:2;
-    u32 dtoc:8;
+	u32 sdiowkup:1;
+	u32 inswkup:1;
+	u32 pad1:14;
+	u32 buswidth:2;
+	u32 pad2:1;
+	u32 sdio:1;
+	u32 sdioide:1;
+	u32 intblkgap:1;
+	u32 pad4:2;
+	u32 dtoc:8;
 } sdc_cfg_reg;
 typedef struct {
-    u32 cmd:6;
-    u32 brk:1;
-    u32 rsptyp:3;
-    u32 pad1:1;
-    u32 dtype:2;
-    u32 rw:1;
-    u32 stop:1;
-    u32 goirq:1;
-    u32 blklen:12;
-    u32 atocmd:2;
-    u32 volswth:1;
-    u32 pad2:1;
+	u32 cmd:6;
+	u32 brk:1;
+	u32 rsptyp:3;
+	u32 pad1:1;
+	u32 dtype:2;
+	u32 rw:1;
+	u32 stop:1;
+	u32 goirq:1;
+	u32 blklen:12;
+	u32 atocmd:2;
+	u32 volswth:1;
+	u32 pad2:1;
 } sdc_cmd_reg;
 typedef struct {
-    u32 arg;
+	u32 arg;
 } sdc_arg_reg;
 typedef struct {
-    u32 sdcbusy:1;
-    u32 cmdbusy:1;
-    u32 pad:29;
-    u32 swrcmpl:1;
+	u32 sdcbusy:1;
+	u32 cmdbusy:1;
+	u32 pad:29;
+	u32 swrcmpl:1;
 } sdc_sts_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } sdc_resp0_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } sdc_resp1_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } sdc_resp2_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } sdc_resp3_reg;
 typedef struct {
-    u32 num;
+	u32 num;
 } sdc_blknum_reg;
 typedef struct {
-    u32 sts;
+	u32 sts;
 } sdc_csts_reg;
 typedef struct {
-    u32 sts;
+	u32 sts;
 } sdc_cstsen_reg;
 typedef struct {
-    u32 datcrcsts:8;
-    u32 ddrcrcsts:4;
-    u32 pad:20;
+	u32 datcrcsts:8;
+	u32 ddrcrcsts:4;
+	u32 pad:20;
 } sdc_datcrcsts_reg;
 typedef struct {
-    u32 bootstart:1;
-    u32 bootstop:1;
-    u32 bootmode:1;
-    u32 pad1:9;
-    u32 bootwaidly:3;
-    u32 bootsupp:1;
-    u32 pad2:16;
+	u32 bootstart:1;
+	u32 bootstop:1;
+	u32 bootmode:1;
+	u32 pad1:9;
+	u32 bootwaidly:3;
+	u32 bootsupp:1;
+	u32 pad2:16;
 } emmc_cfg0_reg;
 typedef struct {
-    u32 bootcrctmc:16;
-    u32 pad:4;
-    u32 bootacktmc:12;
+	u32 bootcrctmc:16;
+	u32 pad:4;
+	u32 bootacktmc:12;
 } emmc_cfg1_reg;
 typedef struct {
-    u32 bootcrcerr:1;
-    u32 bootackerr:1;
-    u32 bootdattmo:1;
-    u32 bootacktmo:1;
-    u32 bootupstate:1;
-    u32 bootackrcv:1;
-    u32 bootdatrcv:1;
-    u32 pad:25;
+	u32 bootcrcerr:1;
+	u32 bootackerr:1;
+	u32 bootdattmo:1;
+	u32 bootacktmo:1;
+	u32 bootupstate:1;
+	u32 bootackrcv:1;
+	u32 bootdatrcv:1;
+	u32 pad:25;
 } emmc_sts_reg;
 typedef struct {
-    u32 bootrst:1;
-    u32 pad:31;
+	u32 bootrst:1;
+	u32 pad:31;
 } emmc_iocon_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_acmd_resp_reg;
 typedef struct {
-    u32 tunesel:4;
-    u32 pad:28;
+	u32 tunesel:4;
+	u32 pad:28;
 } msdc_acmd19_trg_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_acmd19_sts_reg;
 typedef struct {
-    u32 addr;
+	u32 addr;
 } msdc_dma_sa_reg;
 typedef struct {
-    u32 addr;
+	u32 addr;
 } msdc_dma_ca_reg;
 typedef struct {
-    u32 start:1;
-    u32 stop:1;
-    u32 resume:1;
-    u32 pad1:5;
-    u32 mode:1;
-    u32 pad2:1;
-    u32 lastbuf:1;
-    u32 pad3:1;
-    u32 brustsz:3;
-    u32 pad4:1;
-    u32 xfersz:16;
+	u32 start:1;
+	u32 stop:1;
+	u32 resume:1;
+	u32 pad1:5;
+	u32 mode:1;
+	u32 pad2:1;
+	u32 lastbuf:1;
+	u32 pad3:1;
+	u32 brustsz:3;
+	u32 pad4:1;
+	u32 xfersz:16;
 } msdc_dma_ctrl_reg;
 typedef struct {
-    u32 status:1;
-    u32 decsen:1;
-    u32 pad1:2;
-    u32 bdcsen:1;
-    u32 gpdcsen:1;
-    u32 pad2:26;
+	u32 status:1;
+	u32 decsen:1;
+	u32 pad1:2;
+	u32 bdcsen:1;
+	u32 gpdcsen:1;
+	u32 pad2:26;
 } msdc_dma_cfg_reg;
 typedef struct {
-    u32 sel:16;
-    u32 pad2:16;
+	u32 sel:16;
+	u32 pad2:16;
 } msdc_dbg_sel_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_dbg_out_reg;
 typedef struct {
-    u32 clkdrvn:3;
-    u32 rsv0:1;
-    u32 clkdrvp:3;
-    u32 rsv1:1;
-    u32 clksr:1;
-    u32 rsv2:7;
-    u32 clkpd:1;
-    u32 clkpu:1;
-    u32 clksmt:1;
-    u32 clkies:1;
-    u32 clktdsel:4;
-    u32 clkrdsel:8;
+	u32 clkdrvn:3;
+	u32 rsv0:1;
+	u32 clkdrvp:3;
+	u32 rsv1:1;
+	u32 clksr:1;
+	u32 rsv2:7;
+	u32 clkpd:1;
+	u32 clkpu:1;
+	u32 clksmt:1;
+	u32 clkies:1;
+	u32 clktdsel:4;
+	u32 clkrdsel:8;
 } msdc_pad_ctl0_reg;
 typedef struct {
-    u32 cmddrvn:3;
-    u32 rsv0:1;
-    u32 cmddrvp:3;
-    u32 rsv1:1;
-    u32 cmdsr:1;
-    u32 rsv2:7;
-    u32 cmdpd:1;
-    u32 cmdpu:1;
-    u32 cmdsmt:1;
-    u32 cmdies:1;
-    u32 cmdtdsel:4;
-    u32 cmdrdsel:8;
+	u32 cmddrvn:3;
+	u32 rsv0:1;
+	u32 cmddrvp:3;
+	u32 rsv1:1;
+	u32 cmdsr:1;
+	u32 rsv2:7;
+	u32 cmdpd:1;
+	u32 cmdpu:1;
+	u32 cmdsmt:1;
+	u32 cmdies:1;
+	u32 cmdtdsel:4;
+	u32 cmdrdsel:8;
 } msdc_pad_ctl1_reg;
 typedef struct {
-    u32 datdrvn:3;
-    u32 rsv0:1;
-    u32 datdrvp:3;
-    u32 rsv1:1;
-    u32 datsr:1;
-    u32 rsv2:7;
-    u32 datpd:1;
-    u32 datpu:1;
-    u32 datsmt:1;
-    u32 daties:1;
-    u32 dattdsel:4;
-    u32 datrdsel:8;
+	u32 datdrvn:3;
+	u32 rsv0:1;
+	u32 datdrvp:3;
+	u32 rsv1:1;
+	u32 datsr:1;
+	u32 rsv2:7;
+	u32 datpd:1;
+	u32 datpu:1;
+	u32 datsmt:1;
+	u32 daties:1;
+	u32 dattdsel:4;
+	u32 datrdsel:8;
 } msdc_pad_ctl2_reg;
 typedef struct {
-    u32 wrrxdly:3;
-    u32 pad1:5;
-    u32 rdrxdly:8;
-    u32 pad2:16;
+	u32 wrrxdly:3;
+	u32 pad1:5;
+	u32 rdrxdly:8;
+	u32 pad2:16;
 } msdc_pad_tune_reg;
 typedef struct {
-    u32 dat0:5;
-    u32 rsv0:3;
-    u32 dat1:5;
-    u32 rsv1:3;
-    u32 dat2:5;
-    u32 rsv2:3;
-    u32 dat3:5;
-    u32 rsv3:3;
+	u32 dat0:5;
+	u32 rsv0:3;
+	u32 dat1:5;
+	u32 rsv1:3;
+	u32 dat2:5;
+	u32 rsv2:3;
+	u32 dat3:5;
+	u32 rsv3:3;
 } msdc_dat_rddly0;
 typedef struct {
-    u32 dat4:5;
-    u32 rsv4:3;
-    u32 dat5:5;
-    u32 rsv5:3;
-    u32 dat6:5;
-    u32 rsv6:3;
-    u32 dat7:5;
-    u32 rsv7:3;
+	u32 dat4:5;
+	u32 rsv4:3;
+	u32 dat5:5;
+	u32 rsv5:3;
+	u32 dat6:5;
+	u32 rsv6:3;
+	u32 dat7:5;
+	u32 rsv7:3;
 } msdc_dat_rddly1;
 typedef struct {
-    u32 dbg0sel:8;
-    u32 dbg1sel:6;
-    u32 pad1:2;
-    u32 dbg2sel:6;
-    u32 pad2:2;
-    u32 dbg3sel:6;
-    u32 pad3:2;
+	u32 dbg0sel:8;
+	u32 dbg1sel:6;
+	u32 pad1:2;
+	u32 dbg2sel:6;
+	u32 pad2:2;
+	u32 dbg3sel:6;
+	u32 pad3:2;
 } msdc_hw_dbg_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_version_reg;
 typedef struct {
-    u32 val;
+	u32 val;
 } msdc_eco_ver_reg;
 
 struct msdc_regs {
-    msdc_cfg_reg        msdc_cfg;      /* base+0x00h */
-    msdc_iocon_reg      msdc_iocon;    /* base+0x04h */
-    msdc_ps_reg         msdc_ps;       /* base+0x08h */
-    msdc_int_reg        msdc_int;      /* base+0x0ch */
-    msdc_inten_reg      msdc_inten;    /* base+0x10h */
-    msdc_fifocs_reg     msdc_fifocs;   /* base+0x14h */
-    msdc_txdat_reg      msdc_txdat;    /* base+0x18h */
-    msdc_rxdat_reg      msdc_rxdat;    /* base+0x1ch */
-    u32                 rsv1[4];
-    sdc_cfg_reg         sdc_cfg;       /* base+0x30h */
-    sdc_cmd_reg         sdc_cmd;       /* base+0x34h */
-    sdc_arg_reg         sdc_arg;       /* base+0x38h */
-    sdc_sts_reg         sdc_sts;       /* base+0x3ch */
-    sdc_resp0_reg       sdc_resp0;     /* base+0x40h */
-    sdc_resp1_reg       sdc_resp1;     /* base+0x44h */
-    sdc_resp2_reg       sdc_resp2;     /* base+0x48h */
-    sdc_resp3_reg       sdc_resp3;     /* base+0x4ch */
-    sdc_blknum_reg      sdc_blknum;    /* base+0x50h */
-    u32                 rsv2[1];
-    sdc_csts_reg        sdc_csts;      /* base+0x58h */
-    sdc_cstsen_reg      sdc_cstsen;    /* base+0x5ch */
-    sdc_datcrcsts_reg   sdc_dcrcsta;   /* base+0x60h */
-    u32                 rsv3[3];
-    emmc_cfg0_reg       emmc_cfg0;     /* base+0x70h */
-    emmc_cfg1_reg       emmc_cfg1;     /* base+0x74h */
-    emmc_sts_reg        emmc_sts;      /* base+0x78h */
-    emmc_iocon_reg      emmc_iocon;    /* base+0x7ch */
-    msdc_acmd_resp_reg  acmd_resp;     /* base+0x80h */
-    msdc_acmd19_trg_reg acmd19_trg;    /* base+0x84h */
-    msdc_acmd19_sts_reg acmd19_sts;    /* base+0x88h */
-    u32                 rsv4[1];
-    msdc_dma_sa_reg     dma_sa;        /* base+0x90h */
-    msdc_dma_ca_reg     dma_ca;        /* base+0x94h */
-    msdc_dma_ctrl_reg   dma_ctrl;      /* base+0x98h */
-    msdc_dma_cfg_reg    dma_cfg;       /* base+0x9ch */
-    msdc_dbg_sel_reg    dbg_sel;       /* base+0xa0h */
-    msdc_dbg_out_reg    dbg_out;       /* base+0xa4h */
-    u32                 rsv5[2];
-    u32                 patch0;        /* base+0xb0h */
-    u32                 patch1;        /* base+0xb4h */
-    u32                 rsv6[10];
-    msdc_pad_ctl0_reg   pad_ctl0;      /* base+0xe0h */
-    msdc_pad_ctl1_reg   pad_ctl1;      /* base+0xe4h */
-    msdc_pad_ctl2_reg   pad_ctl2;      /* base+0xe8h */
-    msdc_pad_tune_reg   pad_tune;      /* base+0xech */
-    msdc_dat_rddly0     dat_rddly0;    /* base+0xf0h */
-    msdc_dat_rddly1     dat_rddly1;    /* base+0xf4h */
-    msdc_hw_dbg_reg     hw_dbg;        /* base+0xf8h */
-    u32                 rsv7[1];
-    msdc_version_reg    version;       /* base+0x100h */
-    msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
+	msdc_cfg_reg        msdc_cfg;      /* base+0x00h */
+	msdc_iocon_reg      msdc_iocon;    /* base+0x04h */
+	msdc_ps_reg         msdc_ps;       /* base+0x08h */
+	msdc_int_reg        msdc_int;      /* base+0x0ch */
+	msdc_inten_reg      msdc_inten;    /* base+0x10h */
+	msdc_fifocs_reg     msdc_fifocs;   /* base+0x14h */
+	msdc_txdat_reg      msdc_txdat;    /* base+0x18h */
+	msdc_rxdat_reg      msdc_rxdat;    /* base+0x1ch */
+	u32                 rsv1[4];
+	sdc_cfg_reg         sdc_cfg;       /* base+0x30h */
+	sdc_cmd_reg         sdc_cmd;       /* base+0x34h */
+	sdc_arg_reg         sdc_arg;       /* base+0x38h */
+	sdc_sts_reg         sdc_sts;       /* base+0x3ch */
+	sdc_resp0_reg       sdc_resp0;     /* base+0x40h */
+	sdc_resp1_reg       sdc_resp1;     /* base+0x44h */
+	sdc_resp2_reg       sdc_resp2;     /* base+0x48h */
+	sdc_resp3_reg       sdc_resp3;     /* base+0x4ch */
+	sdc_blknum_reg      sdc_blknum;    /* base+0x50h */
+	u32                 rsv2[1];
+	sdc_csts_reg        sdc_csts;      /* base+0x58h */
+	sdc_cstsen_reg      sdc_cstsen;    /* base+0x5ch */
+	sdc_datcrcsts_reg   sdc_dcrcsta;   /* base+0x60h */
+	u32                 rsv3[3];
+	emmc_cfg0_reg       emmc_cfg0;     /* base+0x70h */
+	emmc_cfg1_reg       emmc_cfg1;     /* base+0x74h */
+	emmc_sts_reg        emmc_sts;      /* base+0x78h */
+	emmc_iocon_reg      emmc_iocon;    /* base+0x7ch */
+	msdc_acmd_resp_reg  acmd_resp;     /* base+0x80h */
+	msdc_acmd19_trg_reg acmd19_trg;    /* base+0x84h */
+	msdc_acmd19_sts_reg acmd19_sts;    /* base+0x88h */
+	u32                 rsv4[1];
+	msdc_dma_sa_reg     dma_sa;        /* base+0x90h */
+	msdc_dma_ca_reg     dma_ca;        /* base+0x94h */
+	msdc_dma_ctrl_reg   dma_ctrl;      /* base+0x98h */
+	msdc_dma_cfg_reg    dma_cfg;       /* base+0x9ch */
+	msdc_dbg_sel_reg    dbg_sel;       /* base+0xa0h */
+	msdc_dbg_out_reg    dbg_out;       /* base+0xa4h */
+	u32                 rsv5[2];
+	u32                 patch0;        /* base+0xb0h */
+	u32                 patch1;        /* base+0xb4h */
+	u32                 rsv6[10];
+	msdc_pad_ctl0_reg   pad_ctl0;      /* base+0xe0h */
+	msdc_pad_ctl1_reg   pad_ctl1;      /* base+0xe4h */
+	msdc_pad_ctl2_reg   pad_ctl2;      /* base+0xe8h */
+	msdc_pad_tune_reg   pad_tune;      /* base+0xech */
+	msdc_dat_rddly0     dat_rddly0;    /* base+0xf0h */
+	msdc_dat_rddly1     dat_rddly1;    /* base+0xf4h */
+	msdc_hw_dbg_reg     hw_dbg;        /* base+0xf8h */
+	u32                 rsv7[1];
+	msdc_version_reg    version;       /* base+0x100h */
+	msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
 };
 
 struct scatterlist_ex {
-    u32 cmd;
-    u32 arg;
-    u32 sglen;
-    struct scatterlist *sg;
+	u32 cmd;
+	u32 arg;
+	u32 sglen;
+	struct scatterlist *sg;
 };
 
 #define DMA_FLAG_NONE       (0x00000000)
@@ -861,118 +861,118 @@ struct scatterlist_ex {
 #define DMA_FLAG_PAD_DWORD  (0x00000004)
 
 struct msdc_dma {
-    u32 flags;                   /* flags */
-    u32 xfersz;                  /* xfer size in bytes */
-    u32 sglen;                   /* size of scatter list */
-    u32 blklen;                  /* block size */
-    struct scatterlist *sg;      /* I/O scatter list */
-    struct scatterlist_ex *esg;  /* extended I/O scatter list */
-    u8  mode;                    /* dma mode        */
-    u8  burstsz;                 /* burst size      */
-    u8  intr;                    /* dma done interrupt */
-    u8  padding;                 /* padding */
-    u32 cmd;                     /* enhanced mode command */
-    u32 arg;                     /* enhanced mode arg */
-    u32 rsp;                     /* enhanced mode command response */
-    u32 autorsp;                 /* auto command response */
+	u32 flags;                   /* flags */
+	u32 xfersz;                  /* xfer size in bytes */
+	u32 sglen;                   /* size of scatter list */
+	u32 blklen;                  /* block size */
+	struct scatterlist *sg;      /* I/O scatter list */
+	struct scatterlist_ex *esg;  /* extended I/O scatter list */
+	u8  mode;                    /* dma mode        */
+	u8  burstsz;                 /* burst size      */
+	u8  intr;                    /* dma done interrupt */
+	u8  padding;                 /* padding */
+	u32 cmd;                     /* enhanced mode command */
+	u32 arg;                     /* enhanced mode arg */
+	u32 rsp;                     /* enhanced mode command response */
+	u32 autorsp;                 /* auto command response */
 
-    gpd_t *gpd;                  /* pointer to gpd array */
-    bd_t  *bd;                   /* pointer to bd array */
-    dma_addr_t gpd_addr;         /* the physical address of gpd array */
-    dma_addr_t bd_addr;          /* the physical address of bd array */
-    u32 used_gpd;                /* the number of used gpd elements */
-    u32 used_bd;                 /* the number of used bd elements */
+	gpd_t *gpd;                  /* pointer to gpd array */
+	bd_t  *bd;                   /* pointer to bd array */
+	dma_addr_t gpd_addr;         /* the physical address of gpd array */
+	dma_addr_t bd_addr;          /* the physical address of bd array */
+	u32 used_gpd;                /* the number of used gpd elements */
+	u32 used_bd;                 /* the number of used bd elements */
 };
 
 struct msdc_host
 {
-    struct msdc_hw              *hw;
+	struct msdc_hw              *hw;
 
-    struct mmc_host             *mmc;           /* mmc structure */
-    struct mmc_command          *cmd;
-    struct mmc_data             *data;
-    struct mmc_request          *mrq;
-    int                         cmd_rsp;
-    int                         cmd_rsp_done;
-    int                         cmd_r1b_done;
+	struct mmc_host             *mmc;           /* mmc structure */
+	struct mmc_command          *cmd;
+	struct mmc_data             *data;
+	struct mmc_request          *mrq;
+	int                         cmd_rsp;
+	int                         cmd_rsp_done;
+	int                         cmd_r1b_done;
 
-    int                         error;
-    spinlock_t                  lock;           /* mutex */
-    struct semaphore            sem;
+	int                         error;
+	spinlock_t                  lock;           /* mutex */
+	struct semaphore            sem;
 
-    u32                         blksz;          /* host block size */
-    u32                         base;           /* host base address */
-    int                         id;             /* host id */
-    int                         pwr_ref;        /* core power reference count */
+	u32                         blksz;          /* host block size */
+	u32                         base;           /* host base address */
+	int                         id;             /* host id */
+	int                         pwr_ref;        /* core power reference count */
 
-    u32                         xfer_size;      /* total transferred size */
+	u32                         xfer_size;      /* total transferred size */
 
-    struct msdc_dma             dma;            /* dma channel */
-    u32                         dma_addr;       /* dma transfer address */
-    u32                         dma_left_size;  /* dma transfer left size */
-    u32                         dma_xfer_size;  /* dma transfer size in bytes */
-    int                         dma_xfer;       /* dma transfer mode */
+	struct msdc_dma             dma;            /* dma channel */
+	u32                         dma_addr;       /* dma transfer address */
+	u32                         dma_left_size;  /* dma transfer left size */
+	u32                         dma_xfer_size;  /* dma transfer size in bytes */
+	int                         dma_xfer;       /* dma transfer mode */
 
-    u32                         timeout_ns;     /* data timeout ns */
-    u32                         timeout_clks;   /* data timeout clks */
+	u32                         timeout_ns;     /* data timeout ns */
+	u32                         timeout_clks;   /* data timeout clks */
 
-    atomic_t                    abort;          /* abort transfer */
+	atomic_t                    abort;          /* abort transfer */
 
-    int                         irq;            /* host interrupt */
+	int                         irq;            /* host interrupt */
 
-    struct tasklet_struct       card_tasklet;
+	struct tasklet_struct       card_tasklet;
 #if 0
-    struct work_struct		card_workqueue;
+	struct work_struct		card_workqueue;
 #else
-    struct delayed_work		card_delaywork;
+	struct delayed_work		card_delaywork;
 #endif
 
-    struct completion           cmd_done;
-    struct completion           xfer_done;
-    struct pm_message           pm_state;
+	struct completion           cmd_done;
+	struct completion           xfer_done;
+	struct pm_message           pm_state;
 
-    u32                         mclk;           /* mmc subsystem clock */
-    u32                         hclk;           /* host clock speed */
-    u32                         sclk;           /* SD/MS clock speed */
-    u8                          core_clkon;     /* Host core clock on ? */
-    u8                          card_clkon;     /* Card clock on ? */
-    u8                          core_power;     /* core power */
-    u8                          power_mode;     /* host power mode */
-    u8                          card_inserted;  /* card inserted ? */
-    u8                          suspend;        /* host suspended ? */
-    u8                          reserved;
-    u8                          app_cmd;        /* for app command */
-    u32                         app_cmd_arg;
-    u64                         starttime;
+	u32                         mclk;           /* mmc subsystem clock */
+	u32                         hclk;           /* host clock speed */
+	u32                         sclk;           /* SD/MS clock speed */
+	u8                          core_clkon;     /* Host core clock on ? */
+	u8                          card_clkon;     /* Card clock on ? */
+	u8                          core_power;     /* core power */
+	u8                          power_mode;     /* host power mode */
+	u8                          card_inserted;  /* card inserted ? */
+	u8                          suspend;        /* host suspended ? */
+	u8                          reserved;
+	u8                          app_cmd;        /* for app command */
+	u32                         app_cmd_arg;
+	u64                         starttime;
 };
 
 static inline unsigned int uffs(unsigned int x)
 {
-    unsigned int r = 1;
+	unsigned int r = 1;
 
-    if (!x)
-        return 0;
-    if (!(x & 0xffff)) {
-        x >>= 16;
-        r += 16;
-    }
-    if (!(x & 0xff)) {
-        x >>= 8;
-        r += 8;
-    }
-    if (!(x & 0xf)) {
-        x >>= 4;
-        r += 4;
-    }
-    if (!(x & 3)) {
-        x >>= 2;
-        r += 2;
-    }
-    if (!(x & 1)) {
-        x >>= 1;
-        r += 1;
-    }
-    return r;
+	if (!x)
+		return 0;
+	if (!(x & 0xffff)) {
+		x >>= 16;
+		r += 16;
+	}
+	if (!(x & 0xff)) {
+		x >>= 8;
+		r += 8;
+	}
+	if (!(x & 0xf)) {
+		x >>= 4;
+		r += 4;
+	}
+	if (!(x & 3)) {
+		x >>= 2;
+		r += 2;
+	}
+	if (!(x & 1)) {
+		x >>= 1;
+		r += 1;
+	}
+	return r;
 }
 #define sdr_read8(reg)           __raw_readb(reg)
 #define sdr_read16(reg)          __raw_readw(reg)
@@ -984,17 +984,17 @@ static inline unsigned int uffs(unsigned int x)
 #define sdr_set_bits(reg,bs)     ((*(volatile u32*)(reg)) |= (u32)(bs))
 #define sdr_clr_bits(reg,bs)     ((*(volatile u32*)(reg)) &= ~((u32)(bs)))
 
-#define sdr_set_field(reg,field,val) \
-    do {	\
-        volatile unsigned int tv = sdr_read32(reg);	\
-        tv &= ~(field); \
-        tv |= ((val) << (uffs((unsigned int)field) - 1)); \
-        sdr_write32(reg,tv); \
-    } while(0)
-#define sdr_get_field(reg,field,val) \
-    do {	\
-        volatile unsigned int tv = sdr_read32(reg);	\
-        val = ((tv & (field)) >> (uffs((unsigned int)field) - 1)); \
-    } while(0)
+#define sdr_set_field(reg,field,val)					\
+do {								\
+	volatile unsigned int tv = sdr_read32(reg);			\
+	tv &= ~(field);							\
+	tv |= ((val) << (uffs((unsigned int)field) - 1));		\
+	sdr_write32(reg,tv);						\
+} while(0)
+#define sdr_get_field(reg,field,val)					\
+do {								\
+	volatile unsigned int tv = sdr_read32(reg);			\
+	val = ((tv & (field)) >> (uffs((unsigned int)field) - 1));	\
+} while(0)
 
 #endif
