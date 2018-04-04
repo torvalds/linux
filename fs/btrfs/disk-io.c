@@ -1121,7 +1121,7 @@ void clean_tree_block(struct btrfs_fs_info *fs_info,
 						 -buf->len,
 						 fs_info->dirty_metadata_batch);
 			/* ugh, clear_extent_buffer_dirty needs to lock the page */
-			btrfs_set_lock_blocking(buf);
+			btrfs_set_lock_blocking_write(buf);
 			clear_extent_buffer_dirty(buf);
 		}
 	}

@@ -1777,7 +1777,7 @@ again:
 	btrfs_node_key_to_cpu(path->nodes[lowest_level], &key, slot);
 
 	eb = btrfs_lock_root_node(dest);
-	btrfs_set_lock_blocking(eb);
+	btrfs_set_lock_blocking_write(eb);
 	level = btrfs_header_level(eb);
 
 	if (level < lowest_level) {
@@ -1790,7 +1790,7 @@ again:
 		ret = btrfs_cow_block(trans, dest, eb, NULL, 0, &eb);
 		BUG_ON(ret);
 	}
-	btrfs_set_lock_blocking(eb);
+	btrfs_set_lock_blocking_write(eb);
 
 	if (next_key) {
 		next_key->objectid = (u64)-1;
@@ -1856,7 +1856,7 @@ again:
 						      slot, &eb);
 				BUG_ON(ret);
 			}
-			btrfs_set_lock_blocking(eb);
+			btrfs_set_lock_blocking_write(eb);
 
 			btrfs_tree_unlock(parent);
 			free_extent_buffer(parent);
@@ -2797,7 +2797,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			goto next;
 		}
 		btrfs_tree_lock(eb);
-		btrfs_set_lock_blocking(eb);
+		btrfs_set_lock_blocking_write(eb);
 
 		if (!node->eb) {
 			ret = btrfs_cow_block(trans, root, eb, upper->eb,

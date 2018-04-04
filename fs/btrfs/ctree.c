@@ -1487,8 +1487,8 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	search_start = buf->start & ~((u64)SZ_1G - 1);
 
 	if (parent)
-		btrfs_set_lock_blocking(parent);
-	btrfs_set_lock_blocking(buf);
+		btrfs_set_lock_blocking_write(parent);
+	btrfs_set_lock_blocking_write(buf);
 
 	/*
 	 * Before CoWing this block for later modification, check if it's
@@ -1590,7 +1590,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	if (parent_nritems <= 1)
 		return 0;
 
-	btrfs_set_lock_blocking(parent);
+	btrfs_set_lock_blocking_write(parent);
 
 	for (i = start_slot; i <= end_slot; i++) {
 		struct btrfs_key first_key;
@@ -1649,7 +1649,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			search_start = last_block;
 
 		btrfs_tree_lock(cur);
-		btrfs_set_lock_blocking(cur);
+		btrfs_set_lock_blocking_write(cur);
 		err = __btrfs_cow_block(trans, root, cur, parent, i,
 					&cur, search_start,
 					min(16 * blocksize,
@@ -1864,7 +1864,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		}
 
 		btrfs_tree_lock(child);
-		btrfs_set_lock_blocking(child);
+		btrfs_set_lock_blocking_write(child);
 		ret = btrfs_cow_block(trans, root, child, mid, 0, &child);
 		if (ret) {
 			btrfs_tree_unlock(child);
@@ -1902,7 +1902,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 	if (left) {
 		btrfs_tree_lock(left);
-		btrfs_set_lock_blocking(left);
+		btrfs_set_lock_blocking_write(left);
 		wret = btrfs_cow_block(trans, root, left,
 				       parent, pslot - 1, &left);
 		if (wret) {
@@ -1917,7 +1917,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 	if (right) {
 		btrfs_tree_lock(right);
-		btrfs_set_lock_blocking(right);
+		btrfs_set_lock_blocking_write(right);
 		wret = btrfs_cow_block(trans, root, right,
 				       parent, pslot + 1, &right);
 		if (wret) {
@@ -2080,7 +2080,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		u32 left_nr;
 
 		btrfs_tree_lock(left);
-		btrfs_set_lock_blocking(left);
+		btrfs_set_lock_blocking_write(left);
 
 		left_nr = btrfs_header_nritems(left);
 		if (left_nr >= BTRFS_NODEPTRS_PER_BLOCK(fs_info) - 1) {
@@ -2135,7 +2135,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		u32 right_nr;
 
 		btrfs_tree_lock(right);
-		btrfs_set_lock_blocking(right);
+		btrfs_set_lock_blocking_write(right);
 
 		right_nr = btrfs_header_nritems(right);
 		if (right_nr >= BTRFS_NODEPTRS_PER_BLOCK(fs_info) - 1) {
@@ -3779,7 +3779,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 		return 1;
 
 	btrfs_tree_lock(right);
-	btrfs_set_lock_blocking(right);
+	btrfs_set_lock_blocking_write(right);
 
 	free_space = btrfs_leaf_free_space(fs_info, right);
 	if (free_space < data_size)
@@ -4013,7 +4013,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		return 1;
 
 	btrfs_tree_lock(left);
-	btrfs_set_lock_blocking(left);
+	btrfs_set_lock_blocking_write(left);
 
 	free_space = btrfs_leaf_free_space(fs_info, left);
 	if (free_space < data_size) {
