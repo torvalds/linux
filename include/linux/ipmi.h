@@ -23,8 +23,10 @@
 struct module;
 struct device;
 
-/* Opaque type for a IPMI message user.  One of these is needed to
-   send and receive messages. */
+/*
+ * Opaque type for a IPMI message user.  One of these is needed to
+ * send and receive messages.
+ */
 typedef struct ipmi_user *ipmi_user_t;
 
 /*
@@ -37,8 +39,10 @@ typedef struct ipmi_user *ipmi_user_t;
 struct ipmi_recv_msg {
 	struct list_head link;
 
-	/* The type of message as defined in the "Receive Types"
-	   defines above. */
+	/*
+	 * The type of message as defined in the "Receive Types"
+	 * defines above.
+	 */
 	int              recv_type;
 
 	ipmi_user_t      user;
@@ -46,19 +50,25 @@ struct ipmi_recv_msg {
 	long             msgid;
 	struct kernel_ipmi_msg  msg;
 
-	/* The user_msg_data is the data supplied when a message was
-	   sent, if this is a response to a sent message.  If this is
-	   not a response to a sent message, then user_msg_data will
-	   be NULL.  If the user above is NULL, then this will be the
-	   intf. */
+	/*
+	 * The user_msg_data is the data supplied when a message was
+	 * sent, if this is a response to a sent message.  If this is
+	 * not a response to a sent message, then user_msg_data will
+	 * be NULL.  If the user above is NULL, then this will be the
+	 * intf.
+	 */
 	void             *user_msg_data;
 
-	/* Call this when done with the message.  It will presumably free
-	   the message and do any other necessary cleanup. */
+	/*
+	 * Call this when done with the message.  It will presumably free
+	 * the message and do any other necessary cleanup.
+	 */
 	void (*done)(struct ipmi_recv_msg *msg);
 
-	/* Place-holder for the data, don't make any assumptions about
-	   the size or existence of this, since it may change. */
+	/*
+	 * Place-holder for the data, don't make any assumptions about
+	 * the size or existence of this, since it may change.
+	 */
 	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
 };
 
@@ -66,16 +76,20 @@ struct ipmi_recv_msg {
 void ipmi_free_recv_msg(struct ipmi_recv_msg *msg);
 
 struct ipmi_user_hndl {
-	/* Routine type to call when a message needs to be routed to
-	   the upper layer.  This will be called with some locks held,
-	   the only IPMI routines that can be called are ipmi_request
-	   and the alloc/free operations.  The handler_data is the
-	   variable supplied when the receive handler was registered. */
+	/*
+	 * Routine type to call when a message needs to be routed to
+	 * the upper layer.  This will be called with some locks held,
+	 * the only IPMI routines that can be called are ipmi_request
+	 * and the alloc/free operations.  The handler_data is the
+	 * variable supplied when the receive handler was registered.
+	 */
 	void (*ipmi_recv_hndl)(struct ipmi_recv_msg *msg,
 			       void                 *user_msg_data);
 
-	/* Called when the interface detects a watchdog pre-timeout.  If
-	   this is NULL, it will be ignored for the user. */
+	/*
+	 * Called when the interface detects a watchdog pre-timeout.  If
+	 * this is NULL, it will be ignored for the user.
+	 */
 	void (*ipmi_watchdog_pretimeout)(void *handler_data);
 
 	/*
@@ -91,12 +105,14 @@ int ipmi_create_user(unsigned int          if_num,
 		     void                  *handler_data,
 		     ipmi_user_t           *user);
 
-/* Destroy the given user of the IPMI layer.  Note that after this
-   function returns, the system is guaranteed to not call any
-   callbacks for the user.  Thus as long as you destroy all the users
-   before you unload a module, you will be safe.  And if you destroy
-   the users before you destroy the callback structures, it should be
-   safe, too. */
+/*
+ * Destroy the given user of the IPMI layer.  Note that after this
+ * function returns, the system is guaranteed to not call any
+ * callbacks for the user.  Thus as long as you destroy all the users
+ * before you unload a module, you will be safe.  And if you destroy
+ * the users before you destroy the callback structures, it should be
+ * safe, too.
+ */
 int ipmi_destroy_user(ipmi_user_t user);
 
 /* Get the IPMI version of the BMC we are talking to. */
@@ -104,12 +120,15 @@ int ipmi_get_version(ipmi_user_t   user,
 		     unsigned char *major,
 		     unsigned char *minor);
 
-/* Set and get the slave address and LUN that we will use for our
-   source messages.  Note that this affects the interface, not just
-   this user, so it will affect all users of this interface.  This is
-   so some initialization code can come in and do the OEM-specific
-   things it takes to determine your address (if not the BMC) and set
-   it for everyone else.  Note that each channel can have its own address. */
+/*
+ * Set and get the slave address and LUN that we will use for our
+ * source messages.  Note that this affects the interface, not just
+ * this user, so it will affect all users of this interface.  This is
+ * so some initialization code can come in and do the OEM-specific
+ * things it takes to determine your address (if not the BMC) and set
+ * it for everyone else.  Note that each channel can have its own
+ * address.
+ */
 int ipmi_set_my_address(ipmi_user_t   user,
 			unsigned int  channel,
 			unsigned char address);
@@ -235,14 +254,18 @@ int ipmi_set_gets_events(ipmi_user_t user, bool val);
 struct ipmi_smi_watcher {
 	struct list_head link;
 
-	/* You must set the owner to the current module, if you are in
-	   a module (generally just set it to "THIS_MODULE"). */
+	/*
+	 * You must set the owner to the current module, if you are in
+	 * a module (generally just set it to "THIS_MODULE").
+	 */
 	struct module *owner;
 
-	/* These two are called with read locks held for the interface
-	   the watcher list.  So you can add and remove users from the
-	   IPMI interface, send messages, etc., but you cannot add
-	   or remove SMI watchers or SMI interfaces. */
+	/*
+	 * These two are called with read locks held for the interface
+	 * the watcher list.  So you can add and remove users from the
+	 * IPMI interface, send messages, etc., but you cannot add
+	 * or remove SMI watchers or SMI interfaces.
+	 */
 	void (*new_smi)(int if_num, struct device *dev);
 	void (*smi_gone)(int if_num);
 };
@@ -250,8 +273,10 @@ struct ipmi_smi_watcher {
 int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher);
 int ipmi_smi_watcher_unregister(struct ipmi_smi_watcher *watcher);
 
-/* The following are various helper functions for dealing with IPMI
-   addresses. */
+/*
+ * The following are various helper functions for dealing with IPMI
+ * addresses.
+ */
 
 /* Return the maximum length of an IPMI address given it's type. */
 unsigned int ipmi_addr_length(int addr_type);
