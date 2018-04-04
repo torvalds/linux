@@ -195,7 +195,6 @@ struct btrfs_inode {
 
 	/* Hook into fs_info->delayed_iputs */
 	struct list_head delayed_iput;
-	long delayed_iput_count;
 
 	/*
 	 * To avoid races between lockless (i_mutex not held) direct IO writes
@@ -364,7 +363,5 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
 			root->objectid, btrfs_ino(inode),
 			logical_start, csum, csum_expected, mirror_num);
 }
-
-bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);
 
 #endif

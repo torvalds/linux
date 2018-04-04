@@ -33,7 +33,7 @@
 #include "locking.h"
 
 
-ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(struct inode *inode, const char *name,
 				void *buffer, size_t size)
 {
 	struct btrfs_dir_item *di;
@@ -233,7 +233,7 @@ out:
 /*
  * @value: "" makes the attribute to empty, NULL removes it
  */
-int __btrfs_setxattr(struct btrfs_trans_handle *trans,
+int btrfs_setxattr(struct btrfs_trans_handle *trans,
 		     struct inode *inode, const char *name,
 		     const void *value, size_t size, int flags)
 {
@@ -374,7 +374,7 @@ static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
 				   const char *name, void *buffer, size_t size)
 {
 	name = xattr_full_name(handler, name);
-	return __btrfs_getxattr(inode, name, buffer, size);
+	return btrfs_getxattr(inode, name, buffer, size);
 }
 
 static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
@@ -383,7 +383,7 @@ static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
 				   size_t size, int flags)
 {
 	name = xattr_full_name(handler, name);
-	return __btrfs_setxattr(NULL, inode, name, buffer, size, flags);
+	return btrfs_setxattr(NULL, inode, name, buffer, size, flags);
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
@@ -448,8 +448,8 @@ static int btrfs_initxattrs(struct inode *inode,
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
-		err = __btrfs_setxattr(trans, inode, name,
-				       xattr->value, xattr->value_len, 0);
+		err = btrfs_setxattr(trans, inode, name, xattr->value,
+				xattr->value_len, 0);
 		kfree(name);
 		if (err < 0)
 			break;

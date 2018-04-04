@@ -290,7 +290,7 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 		/*
 		 * Make sure counter is updated before we wake up waiters.
 		 */
-		smp_mb();
+		smp_mb__after_atomic();
 		if (waitqueue_active(&eb->write_lock_wq))
 			wake_up(&eb->write_lock_wq);
 	} else {

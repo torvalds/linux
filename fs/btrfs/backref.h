@@ -73,7 +73,7 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr);
 
 int __init btrfs_prelim_ref_init(void);
-void btrfs_prelim_ref_exit(void);
+void __cold btrfs_prelim_ref_exit(void);
 
 struct prelim_ref {
 	struct rb_node rbnode;

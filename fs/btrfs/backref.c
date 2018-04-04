@@ -170,7 +170,7 @@ int __init btrfs_prelim_ref_init(void)
 	return 0;
 }
 
-void btrfs_prelim_ref_exit(void)
+void __cold btrfs_prelim_ref_exit(void)
 {
 	kmem_cache_destroy(btrfs_prelim_ref_cache);
 }
@@ -738,7 +738,8 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 		BUG_ON(ref->key_for_search.type);
 		BUG_ON(!ref->wanted_disk_byte);
 
-		eb = read_tree_block(fs_info, ref->wanted_disk_byte, 0);
+		eb = read_tree_block(fs_info, ref->wanted_disk_byte, 0,
+				     ref->level - 1, NULL);
 		if (IS_ERR(eb)) {
 			free_pref(ref);
 			return PTR_ERR(eb);
@@ -773,15 +774,12 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
 	struct btrfs_key key;
 	struct btrfs_key tmp_op_key;
-	struct btrfs_key *op_key = NULL;
 	struct rb_node *n;
 	int count;
 	int ret = 0;
 
-	if (extent_op && extent_op->update_key) {
+	if (extent_op && extent_op->update_key)
 		btrfs_disk_key_to_cpu(&tmp_op_key, &extent_op->key);
-		op_key = &tmp_op_key;
-	}
 
 	spin_lock(&head->lock);
 	for (n = rb_first(&head->ref_tree); n; n = rb_next(n)) {
@@ -1291,7 +1289,8 @@ again:
 			    ref->level == 0) {
 				struct extent_buffer *eb;
 
-				eb = read_tree_block(fs_info, ref->parent, 0);
+				eb = read_tree_block(fs_info, ref->parent, 0,
+						     ref->level, NULL);
 				if (IS_ERR(eb)) {
 					ret = PTR_ERR(eb);
 					goto out;

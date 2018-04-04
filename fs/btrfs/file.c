@@ -1691,7 +1691,7 @@ again:
 				    force_page_uptodate);
 		if (ret) {
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       reserve_bytes);
+						       reserve_bytes, true);
 			break;
 		}
 
@@ -1703,7 +1703,7 @@ again:
 			if (extents_locked == -EAGAIN)
 				goto again;
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       reserve_bytes);
+						       reserve_bytes, true);
 			ret = extents_locked;
 			break;
 		}
@@ -1738,7 +1738,7 @@ again:
 						fs_info->sb->s_blocksize_bits;
 			if (only_release_metadata) {
 				btrfs_delalloc_release_metadata(BTRFS_I(inode),
-								release_bytes);
+							release_bytes, true);
 			} else {
 				u64 __pos;
 
@@ -1747,7 +1747,7 @@ again:
 					(dirty_pages << PAGE_SHIFT);
 				btrfs_delalloc_release_space(inode,
 						data_reserved, __pos,
-						release_bytes);
+						release_bytes, true);
 			}
 		}
 
@@ -1760,7 +1760,8 @@ again:
 		if (extents_locked)
 			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
 					     lockstart, lockend, &cached_state);
-		btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes,
+					       (ret != 0));
 		if (ret) {
 			btrfs_drop_pages(pages, num_pages);
 			break;
@@ -1800,11 +1801,11 @@ again:
 		if (only_release_metadata) {
 			btrfs_end_write_no_snapshotting(root);
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
-					release_bytes);
+					release_bytes, true);
 		} else {
 			btrfs_delalloc_release_space(inode, data_reserved,
 					round_down(pos, fs_info->sectorsize),
-					release_bytes);
+					release_bytes, true);
 		}
 	}
 
@@ -1997,8 +1998,6 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 {
 	struct btrfs_file_private *private = filp->private_data;
 
-	if (private && private->trans)
-		btrfs_ioctl_trans_end(filp);
 	if (private && private->filldir_buf)
 		kfree(private->filldir_buf);
 	kfree(private);
@@ -2190,12 +2189,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	/*
-	 * ok we haven't committed the transaction yet, lets do a commit
-	 */
-	if (file->private_data)
-		btrfs_ioctl_trans_end(file);
-
-	/*
 	 * We use start here because we will need to wait on the IO to complete
 	 * in btrfs_sync_log, which could require joining a transaction (for
 	 * example checking cross references in the nocow path).  If we use join
@@ -2214,7 +2207,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 	trans->sync = true;
 
-	ret = btrfs_log_dentry_safe(trans, root, dentry, start, end, &ctx);
+	ret = btrfs_log_dentry_safe(trans, dentry, start, end, &ctx);
 	if (ret < 0) {
 		/* Fallthrough and commit/free transaction. */
 		ret = 1;
@@ -2482,7 +2475,8 @@ static int btrfs_punch_hole_lock_range(struct inode *inode,
 		if ((!ordered ||
 		    (ordered->file_offset + ordered->len <= lockstart ||
 		     ordered->file_offset > lockend)) &&
-		     !btrfs_page_exists_in_range(inode, lockstart, lockend)) {
+		     !filemap_range_has_page(inode->i_mapping,
+					     lockstart, lockend)) {
 			if (ordered)
 				btrfs_put_ordered_extent(ordered);
 			break;
@@ -3378,7 +3372,7 @@ const struct file_operations btrfs_file_operations = {
 	.dedupe_file_range = btrfs_dedupe_file_range,
 };
 
-void btrfs_auto_defrag_exit(void)
+void __cold btrfs_auto_defrag_exit(void)
 {
 	kmem_cache_destroy(btrfs_inode_defrag_cachep);
 }

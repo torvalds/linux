@@ -39,7 +39,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int level;
 	int next_key_ret = 0;
 	u64 last_ret = 0;
-	u64 min_trans = 0;
 
 	if (root->fs_info->extent_root == root) {
 		/*
@@ -81,7 +80,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	path->keep_locks = 1;
 
-	ret = btrfs_search_forward(root, &key, path, min_trans);
+	ret = btrfs_search_forward(root, &key, path, BTRFS_OLDEST_GENERATION);
 	if (ret < 0)
 		goto out;
 	if (ret > 0) {
@@ -130,7 +129,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	 */
 	path->slots[1] = btrfs_header_nritems(path->nodes[1]);
 	next_key_ret = btrfs_find_next_key(root, path, &key, 1,
-					   min_trans);
+					   BTRFS_OLDEST_GENERATION);
 	if (next_key_ret == 0) {
 		memcpy(&root->defrag_progress, &key, sizeof(key));
 		ret = -EAGAIN;

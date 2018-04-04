@@ -2,7 +2,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/hardirq.h>
 #include "ctree.h"
 #include "extent_map.h"
 #include "compression.h"
@@ -20,7 +19,7 @@ int __init extent_map_init(void)
 	return 0;
 }
 
-void extent_map_exit(void)
+void __cold extent_map_exit(void)
 {
 	kmem_cache_destroy(extent_map_cache);
 }
@@ -552,6 +551,9 @@ int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
 		ret = 0;
 
 		existing = search_extent_mapping(em_tree, start, len);
+
+		trace_btrfs_handle_em_exist(existing, em, start, len);
+
 		/*
 		 * existing will always be non-NULL, since there must be
 		 * extent causing the -EEXIST.

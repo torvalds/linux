@@ -111,10 +111,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 
 int btrfs_inode_delayed_dir_index_count(struct btrfs_inode *inode);
 
-int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info);
-int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info, int nr);
+int btrfs_run_delayed_items(struct btrfs_trans_handle *trans);
+int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans, int nr);
 
 void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info);
 
@@ -151,7 +149,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 
 /* for init */
 int __init btrfs_delayed_inode_init(void);
-void btrfs_delayed_inode_exit(void);
+void __cold btrfs_delayed_inode_exit(void);
 
 /* for debugging */
 void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info);

@@ -25,14 +25,15 @@
  * Will check not only the item pointers, but also every possible member
  * in item data.
  */
-int btrfs_check_leaf_full(struct btrfs_root *root, struct extent_buffer *leaf);
+int btrfs_check_leaf_full(struct btrfs_fs_info *fs_info,
+			  struct extent_buffer *leaf);
 
 /*
  * Less strict leaf checker.
  * Will only check item pointers, not reading item data.
  */
-int btrfs_check_leaf_relaxed(struct btrfs_root *root,
+int btrfs_check_leaf_relaxed(struct btrfs_fs_info *fs_info,
 			     struct extent_buffer *leaf);
-int btrfs_check_node(struct btrfs_root *root, struct extent_buffer *node);
+int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node);
 
 #endif
