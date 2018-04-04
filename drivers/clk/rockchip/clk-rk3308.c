@@ -236,35 +236,35 @@ static struct rockchip_clk_branch rk3308_pdm_fracmux __initdata =
 			RK3308_CLKSEL_CON(46), 15, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s0_8ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s0_8ch_tx_mux", mux_i2s0_8ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S0_8CH_TX_MUX, "clk_i2s0_8ch_tx_mux", mux_i2s0_8ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(52), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s0_8ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s0_8ch_rx_mux", mux_i2s0_8ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S0_8CH_RX_MUX, "clk_i2s0_8ch_rx_mux", mux_i2s0_8ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(54), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s1_8ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s1_8ch_tx_mux", mux_i2s1_8ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S1_8CH_TX_MUX, "clk_i2s1_8ch_tx_mux", mux_i2s1_8ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(56), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s1_8ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s1_8ch_rx_mux", mux_i2s1_8ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S1_8CH_RX_MUX, "clk_i2s1_8ch_rx_mux", mux_i2s1_8ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(58), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s2_8ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s2_8ch_tx_mux", mux_i2s2_8ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S2_8CH_TX_MUX, "clk_i2s2_8ch_tx_mux", mux_i2s2_8ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(60), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s2_8ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s2_8ch_rx_mux", mux_i2s2_8ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S2_8CH_RX_MUX, "clk_i2s2_8ch_rx_mux", mux_i2s2_8ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(62), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s3_8ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s3_8ch_tx_mux", mux_i2s3_8ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S3_8CH_TX_MUX, "clk_i2s3_8ch_tx_mux", mux_i2s3_8ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(64), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s3_8ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s3_8ch_rx_mux", mux_i2s3_8ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S3_8CH_RX_MUX, "clk_i2s3_8ch_rx_mux", mux_i2s3_8ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(66), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3308_i2s0_2ch_fracmux __initdata =
