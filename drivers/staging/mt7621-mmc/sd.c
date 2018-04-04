@@ -2694,10 +2694,9 @@ static void msdc_init_gpd_bd(struct msdc_host *host, struct msdc_dma *dma)
 
 static int msdc_drv_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *res;
 	__iomem void *base;
 	struct mmc_host *mmc;
-	struct resource *mem;
 	struct msdc_host *host;
 	struct msdc_hw *hw;
 	int ret, irq;
@@ -2713,11 +2712,11 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hw   = (struct msdc_hw *)pdev->dev.platform_data;
-	mem  = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq  = platform_get_irq(pdev, 0);
 
 	//BUG_ON((!hw) || (!mem) || (irq < 0)); /* --- by chhung */
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
@@ -2856,9 +2855,6 @@ release:
 	cancel_delayed_work_sync(&host->card_delaywork);
 #endif
 
-	if (mem)
-		release_mem_region(mem->start, mem->end - mem->start + 1);
-
 host_free:
 	mmc_free_host(mmc);
 
@@ -2870,7 +2866,6 @@ static int msdc_drv_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct msdc_host *host;
-	struct resource *mem;
 
 	mmc  = platform_get_drvdata(pdev);
 	BUG_ON(!mmc);
@@ -2893,11 +2888,6 @@ static int msdc_drv_remove(struct platform_device *pdev)
 
 	dma_free_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd), host->dma.gpd, host->dma.gpd_addr);
 	dma_free_coherent(NULL, MAX_BD_NUM  * sizeof(struct bd),  host->dma.bd,  host->dma.bd_addr);
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	if (mem)
-		release_mem_region(mem->start, mem->end - mem->start + 1);
 
 	mmc_free_host(host->mmc);
 
