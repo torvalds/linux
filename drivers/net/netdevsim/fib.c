@@ -230,7 +230,7 @@ static int __net_init nsim_fib_netns_init(struct net *net)
 	return 0;
 }
 
-static struct pernet_operations nsim_fib_net_ops __net_initdata = {
+static struct pernet_operations nsim_fib_net_ops = {
 	.init = nsim_fib_netns_init,
 	.id   = &nsim_fib_net_id,
 	.size = sizeof(struct nsim_fib_data),
