@@ -454,7 +454,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	}
 
 	inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
-		sizeof(u64) * conn->cq.wq_ctrl.frag_buf.npages;
+		sizeof(u64) * conn->cq.wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
@@ -469,12 +469,12 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	MLX5_SET(cqc, cqc, log_cq_size, ilog2(cq_size));
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
 	MLX5_SET(cqc, cqc, uar_page, fdev->conn_res.uar->index);
-	MLX5_SET(cqc, cqc, log_page_size, conn->cq.wq_ctrl.frag_buf.page_shift -
+	MLX5_SET(cqc, cqc, log_page_size, conn->cq.wq_ctrl.buf.page_shift -
 			   MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr, conn->cq.wq_ctrl.db.dma);
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas);
-	mlx5_fill_page_frag_array(&conn->cq.wq_ctrl.frag_buf, pas);
+	mlx5_fill_page_frag_array(&conn->cq.wq_ctrl.buf, pas);
 
 	err = mlx5_core_create_cq(mdev, &conn->cq.mcq, in, inlen);
 	kvfree(in);
@@ -500,7 +500,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	goto out;
 
 err_cqwq:
-	mlx5_cqwq_destroy(&conn->cq.wq_ctrl);
+	mlx5_wq_destroy(&conn->cq.wq_ctrl);
 out:
 	return err;
 }
@@ -510,7 +510,7 @@ static void mlx5_fpga_conn_destroy_cq(struct mlx5_fpga_conn *conn)
 	tasklet_disable(&conn->cq.tasklet);
 	tasklet_kill(&conn->cq.tasklet);
 	mlx5_core_destroy_cq(conn->fdev->mdev, &conn->cq.mcq);
-	mlx5_cqwq_destroy(&conn->cq.wq_ctrl);
+	mlx5_wq_destroy(&conn->cq.wq_ctrl);
 }
 
 static int mlx5_fpga_conn_create_wq(struct mlx5_fpga_conn *conn, void *qpc)
@@ -591,8 +591,8 @@ static int mlx5_fpga_conn_create_qp(struct mlx5_fpga_conn *conn,
 	if (MLX5_CAP_GEN(mdev, cqe_version) == 1)
 		MLX5_SET(qpc, qpc, user_index, 0xFFFFFF);
 
-	mlx5_fill_page_array(&conn->qp.wq_ctrl.buf,
-			     (__be64 *)MLX5_ADDR_OF(create_qp_in, in, pas));
+	mlx5_fill_page_frag_array(&conn->qp.wq_ctrl.buf,
+				  (__be64 *)MLX5_ADDR_OF(create_qp_in, in, pas));
 
 	err = mlx5_core_create_qp(mdev, &conn->qp.mqp, in, inlen);
 	if (err)

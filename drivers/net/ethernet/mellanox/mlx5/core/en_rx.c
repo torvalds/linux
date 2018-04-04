@@ -383,16 +383,16 @@ static inline u16 mlx5e_icosq_wrap_cnt(struct mlx5e_icosq *sq)
 	return sq->pc >> MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
 }
 
-static inline void mlx5e_fill_icosq_edge(struct mlx5e_icosq *sq,
-					 struct mlx5_wq_cyc *wq,
-					 u16 pi)
+static inline void mlx5e_fill_icosq_frag_edge(struct mlx5e_icosq *sq,
+					      struct mlx5_wq_cyc *wq,
+					      u16 pi, u16 frag_pi)
 {
 	struct mlx5e_sq_wqe_info *edge_wi, *wi = &sq->db.ico_wqe[pi];
-	u8 nnops = mlx5_wq_cyc_get_size(wq) - pi;
+	u8 nnops = mlx5_wq_cyc_get_frag_size(wq) - frag_pi;
 
 	edge_wi = wi + nnops;
 
-	/* fill sq edge with nops to avoid wqe wrapping two pages */
+	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
 	for (; wi < edge_wi; wi++) {
 		wi->opcode = MLX5_OPCODE_NOP;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
@@ -407,14 +407,15 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
 	u16 xlt_offset = ix << (MLX5E_LOG_ALIGNED_MPWQE_PPW - 1);
-	u16 pi;
+	u16 pi, frag_pi;
 	int err;
 	int i;
 
 	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	frag_pi = mlx5_wq_cyc_ctr2fragix(wq, sq->pc);
 
-	if (unlikely(pi + MLX5E_UMR_WQEBBS > mlx5_wq_cyc_get_size(wq))) {
-		mlx5e_fill_icosq_edge(sq, wq, pi);
+	if (unlikely(frag_pi + MLX5E_UMR_WQEBBS > mlx5_wq_cyc_get_frag_size(wq))) {
+		mlx5e_fill_icosq_frag_edge(sq, wq, pi, frag_pi);
 		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 	}
 

@@ -983,14 +983,22 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
-static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
-					      void *cqc)
+static inline void mlx5_fill_fbc(u8 log_stride, u8 log_sz,
+				 struct mlx5_frag_buf_ctrl *fbc)
 {
-	fbc->log_stride	= 6 + MLX5_GET(cqc, cqc, cqe_sz);
-	fbc->log_sz	= MLX5_GET(cqc, cqc, log_cq_size);
+	fbc->log_stride = log_stride;
+	fbc->log_sz     = log_sz;
 	fbc->sz_m1	= (1 << fbc->log_sz) - 1;
 	fbc->log_frag_strides = PAGE_SHIFT - fbc->log_stride;
 	fbc->frag_sz_m1	= (1 << fbc->log_frag_strides) - 1;
+}
+
+static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
+					      void *cqc)
+{
+	mlx5_fill_fbc(6 + MLX5_GET(cqc, cqc, cqe_sz),
+		      MLX5_GET(cqc, cqc, log_cq_size),
+		      fbc);
 }
 
 static inline void *mlx5_frag_buf_get_wqe(struct mlx5_frag_buf_ctrl *fbc,
