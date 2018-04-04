@@ -1098,7 +1098,7 @@ static int rk_iommu_of_xlate(struct device *dev,
 	data->iommu = platform_get_drvdata(iommu_dev);
 	dev->archdata.iommu = data;
 
-	of_dev_put(iommu_dev);
+	platform_device_put(iommu_dev);
 
 	return 0;
 }
