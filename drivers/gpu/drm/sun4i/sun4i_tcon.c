@@ -35,6 +35,7 @@
 #include "sun4i_lvds.h"
 #include "sun4i_rgb.h"
 #include "sun4i_tcon.h"
+#include "sun6i_mipi_dsi.h"
 #include "sunxi_engine.h"
 
 static struct drm_connector *sun4i_tcon_get_connector(const struct drm_encoder *encoder)
@@ -169,6 +170,7 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 	case DRM_MODE_ENCODER_LVDS:
 		is_lvds = true;
 		/* Fallthrough */
+	case DRM_MODE_ENCODER_DSI:
 	case DRM_MODE_ENCODER_NONE:
 		channel = 0;
 		break;
@@ -272,6 +274,71 @@ static void sun4i_tcon0_mode_set_common(struct sun4i_tcon *tcon,
 	regmap_write(tcon->regs, SUN4I_TCON0_BASIC0_REG,
 		     SUN4I_TCON0_BASIC0_X(mode->crtc_hdisplay) |
 		     SUN4I_TCON0_BASIC0_Y(mode->crtc_vdisplay));
+}
+
+static void sun4i_tcon0_mode_set_cpu(struct sun4i_tcon *tcon,
+				     struct mipi_dsi_device *device,
+				     const struct drm_display_mode *mode)
+{
+	u8 bpp = mipi_dsi_pixel_format_to_bpp(device->format);
+	u8 lanes = device->lanes;
+	u32 block_space, start_delay;
+	u32 tcon_div;
+
+	tcon->dclk_min_div = 4;
+	tcon->dclk_max_div = 127;
+
+	sun4i_tcon0_mode_set_common(tcon, mode);
+
+	regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
+			   SUN4I_TCON0_CTL_IF_MASK,
+			   SUN4I_TCON0_CTL_IF_8080);
+
+	regmap_write(tcon->regs, SUN4I_TCON_ECC_FIFO_REG,
+		     SUN4I_TCON_ECC_FIFO_EN);
+
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_IF_REG,
+		     SUN4I_TCON0_CPU_IF_MODE_DSI |
+		     SUN4I_TCON0_CPU_IF_TRI_FIFO_FLUSH |
+		     SUN4I_TCON0_CPU_IF_TRI_FIFO_EN |
+		     SUN4I_TCON0_CPU_IF_TRI_EN);
+
+	/*
+	 * This looks suspicious, but it works...
+	 *
+	 * The datasheet says that this should be set higher than 20 *
+	 * pixel cycle, but it's not clear what a pixel cycle is.
+	 */
+	regmap_read(tcon->regs, SUN4I_TCON0_DCLK_REG, &tcon_div);
+	tcon_div &= GENMASK(6, 0);
+	block_space = mode->htotal * bpp / (tcon_div * lanes);
+	block_space -= mode->hdisplay + 40;
+
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_TRI0_REG,
+		     SUN4I_TCON0_CPU_TRI0_BLOCK_SPACE(block_space) |
+		     SUN4I_TCON0_CPU_TRI0_BLOCK_SIZE(mode->hdisplay));
+
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_TRI1_REG,
+		     SUN4I_TCON0_CPU_TRI1_BLOCK_NUM(mode->vdisplay));
+
+	start_delay = (mode->crtc_vtotal - mode->crtc_vdisplay - 10 - 1);
+	start_delay = start_delay * mode->crtc_htotal * 149;
+	start_delay = start_delay / (mode->crtc_clock / 1000) / 8;
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_TRI2_REG,
+		     SUN4I_TCON0_CPU_TRI2_TRANS_START_SET(10) |
+		     SUN4I_TCON0_CPU_TRI2_START_DELAY(start_delay));
+
+	/*
+	 * The Allwinner BSP has a comment that the period should be
+	 * the display clock * 15, but uses an hardcoded 3000...
+	 */
+	regmap_write(tcon->regs, SUN4I_TCON_SAFE_PERIOD_REG,
+		     SUN4I_TCON_SAFE_PERIOD_NUM(3000) |
+		     SUN4I_TCON_SAFE_PERIOD_MODE(3));
+
+	/* Enable the output on the pins */
+	regmap_write(tcon->regs, SUN4I_TCON0_IO_TRI_REG,
+		     0xe0000000);
 }
 
 static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
@@ -539,7 +606,17 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 			 const struct drm_encoder *encoder,
 			 const struct drm_display_mode *mode)
 {
+	struct sun6i_dsi *dsi;
+
 	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_DSI:
+		/*
+		 * This is not really elegant, but it's the "cleaner"
+		 * way I could think of...
+		 */
+		dsi = encoder_to_sun6i_dsi(encoder);
+		sun4i_tcon0_mode_set_cpu(tcon, dsi->device, mode);
+		break;
 	case DRM_MODE_ENCODER_LVDS:
 		sun4i_tcon0_mode_set_lvds(tcon, encoder, mode);
 		break;
