@@ -75,7 +75,7 @@ void v9fs_cache_session_get_cookie(struct v9fs_session_info *v9ses)
 						v9ses->cachetag,
 						strlen(v9ses->cachetag),
 						NULL, 0,
-						v9ses, true);
+						v9ses, 0, true);
 	p9_debug(P9_DEBUG_FSC, "session %p get cookie %p\n",
 		 v9ses, v9ses->fscache);
 }
@@ -88,20 +88,11 @@ void v9fs_cache_session_put_cookie(struct v9fs_session_info *v9ses)
 	v9ses->fscache = NULL;
 }
 
-static void v9fs_cache_inode_get_attr(const void *cookie_netfs_data,
-				      uint64_t *size)
-{
-	const struct v9fs_inode *v9inode = cookie_netfs_data;
-	*size = i_size_read(&v9inode->vfs_inode);
-
-	p9_debug(P9_DEBUG_FSC, "inode %p get attr %llu\n",
-		 &v9inode->vfs_inode, *size);
-}
-
 static enum
 fscache_checkaux v9fs_cache_inode_check_aux(void *cookie_netfs_data,
 					    const void *buffer,
-					    uint16_t buflen)
+					    uint16_t buflen,
+					    loff_t object_size)
 {
 	const struct v9fs_inode *v9inode = cookie_netfs_data;
 
@@ -118,7 +109,6 @@ fscache_checkaux v9fs_cache_inode_check_aux(void *cookie_netfs_data,
 const struct fscache_cookie_def v9fs_cache_inode_index_def = {
 	.name		= "9p.inode",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.get_attr	= v9fs_cache_inode_get_attr,
 	.check_aux	= v9fs_cache_inode_check_aux,
 };
 
@@ -141,7 +131,9 @@ void v9fs_cache_inode_get_cookie(struct inode *inode)
 						  sizeof(v9inode->qid.path),
 						  &v9inode->qid.version,
 						  sizeof(v9inode->qid.version),
-						  v9inode, true);
+						  v9inode,
+						  i_size_read(&v9inode->vfs_inode),
+						  true);
 
 	p9_debug(P9_DEBUG_FSC, "inode %p get cookie %p\n",
 		 inode, v9inode->fscache);
@@ -212,7 +204,9 @@ void v9fs_cache_inode_reset_cookie(struct inode *inode)
 						  sizeof(v9inode->qid.path),
 						  &v9inode->qid.version,
 						  sizeof(v9inode->qid.version),
-						  v9inode, true);
+						  v9inode,
+						  i_size_read(&v9inode->vfs_inode),
+						  true);
 	p9_debug(P9_DEBUG_FSC, "inode %p revalidating cookie old %p new %p\n",
 		 inode, old, v9inode->fscache);
 
@@ -338,7 +332,8 @@ void __v9fs_readpage_to_fscache(struct inode *inode, struct page *page)
 	const struct v9fs_inode *v9inode = V9FS_I(inode);
 
 	p9_debug(P9_DEBUG_FSC, "inode %p page %p\n", inode, page);
-	ret = fscache_write_page(v9inode->fscache, page, GFP_KERNEL);
+	ret = fscache_write_page(v9inode->fscache, page,
+				 i_size_read(&v9inode->vfs_inode), GFP_KERNEL);
 	p9_debug(P9_DEBUG_FSC, "ret =  %d\n", ret);
 	if (ret != 0)
 		v9fs_uncache_page(inode, page);

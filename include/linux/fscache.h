@@ -83,22 +83,15 @@ struct fscache_cookie_def {
 		const void *parent_netfs_data,
 		const void *cookie_netfs_data);
 
-	/* get certain file attributes from the netfs data
-	 * - this function can be absent for an index
-	 * - not permitted to return an error
-	 * - the netfs data from the cookie being used as the source is
-	 *   presented
-	 */
-	void (*get_attr)(const void *cookie_netfs_data, uint64_t *size);
-
 	/* consult the netfs about the state of an object
 	 * - this function can be absent if the index carries no state data
 	 * - the netfs data from the cookie being used as the target is
-	 *   presented, as is the auxiliary data
+	 *   presented, as is the auxiliary data and the object size
 	 */
 	enum fscache_checkaux (*check_aux)(void *cookie_netfs_data,
 					   const void *data,
-					   uint16_t datalen);
+					   uint16_t datalen,
+					   loff_t object_size);
 
 	/* get an extra reference on a read context
 	 * - this function can be absent if the completion function doesn't
@@ -200,7 +193,7 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 	const struct fscache_cookie_def *,
 	const void *, size_t,
 	const void *, size_t,
-	void *, bool);
+	void *, loff_t, bool);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, const void *, bool);
 extern int __fscache_check_consistency(struct fscache_cookie *, const void *);
 extern void __fscache_update_cookie(struct fscache_cookie *, const void *);
@@ -220,7 +213,7 @@ extern int __fscache_read_or_alloc_pages(struct fscache_cookie *,
 					 void *,
 					 gfp_t);
 extern int __fscache_alloc_page(struct fscache_cookie *, struct page *, gfp_t);
-extern int __fscache_write_page(struct fscache_cookie *, struct page *, gfp_t);
+extern int __fscache_write_page(struct fscache_cookie *, struct page *, loff_t, gfp_t);
 extern void __fscache_uncache_page(struct fscache_cookie *, struct page *);
 extern bool __fscache_check_page_write(struct fscache_cookie *, struct page *);
 extern void __fscache_wait_on_page_write(struct fscache_cookie *, struct page *);
@@ -231,7 +224,7 @@ extern void __fscache_uncache_all_inode_pages(struct fscache_cookie *,
 extern void __fscache_readpages_cancel(struct fscache_cookie *cookie,
 				       struct list_head *pages);
 extern void __fscache_disable_cookie(struct fscache_cookie *, const void *, bool);
-extern void __fscache_enable_cookie(struct fscache_cookie *, const void *,
+extern void __fscache_enable_cookie(struct fscache_cookie *, const void *, loff_t,
 				    bool (*)(void *), void *);
 
 /**
@@ -315,6 +308,7 @@ void fscache_release_cache_tag(struct fscache_cache_tag *tag)
  * @aux_data_len: Size of the auxiliary data buffer
  * @netfs_data: An arbitrary piece of data to be kept in the cookie to
  * represent the cache object to the netfs
+ * @object_size: The initial size of object
  * @enable: Whether or not to enable a data cookie immediately
  *
  * This function is used to inform FS-Cache about part of an index hierarchy
@@ -333,13 +327,14 @@ struct fscache_cookie *fscache_acquire_cookie(
 	const void *aux_data,
 	size_t aux_data_len,
 	void *netfs_data,
+	loff_t object_size,
 	bool enable)
 {
 	if (fscache_cookie_valid(parent) && fscache_cookie_enabled(parent))
 		return __fscache_acquire_cookie(parent, def,
 						index_key, index_key_len,
 						aux_data, aux_data_len,
-						netfs_data, enable);
+						netfs_data, object_size, enable);
 	else
 		return NULL;
 }
@@ -660,6 +655,7 @@ void fscache_readpages_cancel(struct fscache_cookie *cookie,
  * fscache_write_page - Request storage of a page in the cache
  * @cookie: The cookie representing the cache object
  * @page: The netfs page to store
+ * @object_size: Updated size of object
  * @gfp: The conditions under which memory allocation should be made
  *
  * Request the contents of the netfs page be written into the cache.  This
@@ -677,10 +673,11 @@ void fscache_readpages_cancel(struct fscache_cookie *cookie,
 static inline
 int fscache_write_page(struct fscache_cookie *cookie,
 		       struct page *page,
+		       loff_t object_size,
 		       gfp_t gfp)
 {
 	if (fscache_cookie_valid(cookie) && fscache_cookie_enabled(cookie))
-		return __fscache_write_page(cookie, page, gfp);
+		return __fscache_write_page(cookie, page, object_size, gfp);
 	else
 		return -ENOBUFS;
 }
@@ -819,6 +816,7 @@ void fscache_disable_cookie(struct fscache_cookie *cookie,
  * fscache_enable_cookie - Reenable a cookie
  * @cookie: The cookie representing the cache object
  * @aux_data: The updated auxiliary data for the cookie (may be NULL)
+ * @object_size: Current size of object
  * @can_enable: A function to permit enablement once lock is held
  * @data: Data for can_enable()
  *
@@ -833,11 +831,13 @@ void fscache_disable_cookie(struct fscache_cookie *cookie,
 static inline
 void fscache_enable_cookie(struct fscache_cookie *cookie,
 			   const void *aux_data,
+			   loff_t object_size,
 			   bool (*can_enable)(void *data),
 			   void *data)
 {
 	if (fscache_cookie_valid(cookie) && !fscache_cookie_enabled(cookie))
-		__fscache_enable_cookie(cookie, aux_data, can_enable, data);
+		__fscache_enable_cookie(cookie, aux_data, object_size,
+					can_enable, data);
 }
 
 #endif /* _LINUX_FSCACHE_H */

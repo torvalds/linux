@@ -182,7 +182,8 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 		goto error;
 
 	xlen--;
-	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen);
+	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen,
+				     i_size_read(d_backing_inode(dentry)));
 	if (validity != FSCACHE_CHECKAUX_OKAY)
 		goto error;
 
@@ -251,7 +252,8 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 		       object->fscache.cookie->def->name, dlen);
 
 		result = fscache_check_aux(&object->fscache,
-					   &auxbuf->data, dlen);
+					   &auxbuf->data, dlen,
+					   i_size_read(d_backing_inode(dentry)));
 
 		switch (result) {
 			/* entry okay as is */

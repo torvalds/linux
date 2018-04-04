@@ -963,6 +963,7 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
  */
 int __fscache_write_page(struct fscache_cookie *cookie,
 			 struct page *page,
+			 loff_t object_size,
 			 gfp_t gfp)
 {
 	struct fscache_storage *op;
@@ -1014,6 +1015,10 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	/* add the page to the pending-storage radix tree on the backing
 	 * object */
 	spin_lock(&object->lock);
+
+	if (object->store_limit_l != object_size)
+		fscache_set_store_limit(object, object_size);
+
 	spin_lock(&cookie->stores_lock);
 
 	_debug("store limit %llx", (unsigned long long) object->store_limit);

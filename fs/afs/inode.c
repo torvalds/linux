@@ -265,7 +265,7 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
 					      &afs_vnode_cache_index_def,
 					      &key, sizeof(key),
 					      &aux, sizeof(aux),
-					      vnode, true);
+					      vnode, vnode->status.size, true);
 #endif
 }
 

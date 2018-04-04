@@ -524,7 +524,7 @@ static int afs_activate_cell(struct afs_net *net, struct afs_cell *cell)
 					     &afs_cell_cache_index_def,
 					     cell->name, strlen(cell->name),
 					     NULL, 0,
-					     cell, true);
+					     cell, 0, true);
 #endif
 	ret = afs_proc_cell_setup(net, cell);
 	if (ret < 0)

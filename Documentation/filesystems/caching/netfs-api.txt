@@ -129,12 +129,10 @@ To define an object, a structure of the following type should be filled out:
 			const void *parent_netfs_data,
 			const void *cookie_netfs_data);
 
-		void (*get_attr)(const void *cookie_netfs_data,
-				 uint64_t *size);
-
 		enum fscache_checkaux (*check_aux)(void *cookie_netfs_data,
 						   const void *data,
-						   uint16_t datalen);
+						   uint16_t datalen,
+						   loff_t object_size);
 
 		void (*get_context)(void *cookie_netfs_data, void *context);
 
@@ -179,16 +177,7 @@ This has the following fields:
      cache in the parent's list will be chosen, or failing that, the first
      cache in the master list.
 
- (4) A function to retrieve attribute data from the netfs [optional].
-
-     This function will be called with the netfs data that was passed to the
-     cookie acquisition function.  It should return the size of the file if
-     this is a data file.  The size may be used to govern how much cache must
-     be reserved for this file in the cache.
-
-     If the function is absent, a file size of 0 is assumed.
-
- (5) A function to check the auxiliary data [optional].
+ (4) A function to check the auxiliary data [optional].
 
      This function will be called to check that a match found in the cache for
      this object is valid.  For instance with AFS it could check the auxiliary
@@ -197,6 +186,9 @@ This has the following fields:
 
      If this function is absent, it will be assumed that matching objects in a
      cache are always valid.
+
+     The function is also passed the cache's idea of the object size and may
+     use this to manage coherency also.
 
      If present, the function should return one of the following values:
 
@@ -207,7 +199,7 @@ This has the following fields:
      This function can also be used to extract data from the auxiliary data in
      the cache and copy it into the netfs's structures.
 
- (6) A pair of functions to manage contexts for the completion callback
+ (5) A pair of functions to manage contexts for the completion callback
      [optional].
 
      The cache read/write functions are passed a context which is then passed
@@ -221,7 +213,7 @@ This has the following fields:
      required for indices as indices may not contain data.  These functions may
      be called in interrupt context and so may not sleep.
 
- (7) A function to mark a page as retaining cache metadata [optional].
+ (6) A function to mark a page as retaining cache metadata [optional].
 
      This is called by the cache to indicate that it is retaining in-memory
      information for this page and that the netfs should uncache the page when
@@ -233,7 +225,7 @@ This has the following fields:
 
      This function is not required for indices as they're not permitted data.
 
- (8) A function to unmark all the pages retaining cache metadata [mandatory].
+ (7) A function to unmark all the pages retaining cache metadata [mandatory].
 
      This is called by FS-Cache to indicate that a backing store is being
      unbound from a cookie and that all the marks on the pages should be
@@ -310,6 +302,7 @@ the path to the file:
 			       const void *aux_data,
 			       size_t aux_data_len,
 			       void *netfs_data,
+			       loff_t object_size,
 			       bool enable);
 
 This function creates an index entry in the index represented by parent,
@@ -325,6 +318,10 @@ typically be used for storing coherency data.
 The netfs may pass an arbitrary value in netfs_data and this will be presented
 to it in the event of any calling back.  This may also be used in tracing or
 logging of messages.
+
+The cache tracks the size of the data attached to an object and this set to be
+object_size.  For indices, this should be 0.  This value will be passed to the
+->check_aux() callback.
 
 Note that this function never returns an error - all errors are handled
 internally.  It may, however, return NULL to indicate no cookie.  It is quite
@@ -349,7 +346,7 @@ entry would have a dependent inode containing volume mappings within this cell:
 				       &afs_cell_cache_index_def,
 				       cell->name, strlen(cell->name),
 				       NULL, 0,
-				       cell, true);
+				       cell, 0, true);
 
 And then a particular volume could be added to that index by ID, creating
 another index for vnodes (AFS inode equivalents):
@@ -359,7 +356,7 @@ another index for vnodes (AFS inode equivalents):
 				       &afs_volume_cache_index_def,
 				       &volume->vid, sizeof(volume->vid),
 				       NULL, 0,
-				       volume, true);
+				       volume, 0, true);
 
 
 ======================
@@ -375,7 +372,7 @@ the object definition should be something other than index type.
 				       &afs_vnode_cache_object_def,
 				       &key, sizeof(key),
 				       &aux, sizeof(aux),
-				       vnode, true);
+				       vnode, vnode->status.size, true);
 
 
 =================================
@@ -393,7 +390,7 @@ it would be some other type of object such as a data file.
 				       &afs_xattr_cache_object_def,
 				       &xattr->name, strlen(xattr->name),
 				       NULL, 0,
-				       xattr, true);
+				       xattr, strlen(xattr->val), true);
 
 Miscellaneous objects might be used to store extended attributes or directory
 entries for example.
@@ -410,8 +407,7 @@ cache to adjust its metadata for data tracking appropriately:
 	int fscache_attr_changed(struct fscache_cookie *cookie);
 
 The cache will return -ENOBUFS if there is no backing cache or if there is no
-space to allocate any extra metadata required in the cache.  The attributes
-will be accessed with the get_attr() cookie definition operation.
+space to allocate any extra metadata required in the cache.
 
 Note that attempts to read or write data pages in the cache over this size may
 be rebuffed with -ENOBUFS.
@@ -536,12 +532,13 @@ written back to the cache:
 
 	int fscache_write_page(struct fscache_cookie *cookie,
 			       struct page *page,
+			       loff_t object_size,
 			       gfp_t gfp);
 
 The cookie argument must specify a data file cookie, the page specified should
 contain the data to be written (and is also used to specify the page number),
-and the gfp argument is used to control how any memory allocations made are
-satisfied.
+object_size is the revised size of the object and the gfp argument is used to
+control how any memory allocations made are satisfied.
 
 The page must have first been read or allocated successfully and must not have
 been uncached before writing is performed.
@@ -735,11 +732,11 @@ still possible to uncache pages and relinquish the cookie.
 
 The initial enablement state is set by fscache_acquire_cookie(), but the cookie
 can be enabled or disabled later.  To disable a cookie, call:
-    
+
 	void fscache_disable_cookie(struct fscache_cookie *cookie,
 				    const void *aux_data,
     				    bool invalidate);
-    
+
 If the cookie is not already disabled, this locks the cookie against other
 enable and disable ops, marks the cookie as being disabled, discards or
 invalidates any backing objects and waits for cessation of activity on any
@@ -748,14 +745,15 @@ associated object before unlocking the cookie.
 All possible failures are handled internally.  The caller should consider
 calling fscache_uncache_all_inode_pages() afterwards to make sure all page
 markings are cleared up.
-    
+
 Cookies can be enabled or reenabled with:
-    
+
     	void fscache_enable_cookie(struct fscache_cookie *cookie,
 				   const void *aux_data,
+				   loff_t object_size,
     				   bool (*can_enable)(void *data),
     				   void *data)
-    
+
 If the cookie is not already enabled, this locks the cookie against other
 enable and disable ops, invokes can_enable() and, if the cookie is not an index
 cookie, will begin the procedure of acquiring backing objects.
@@ -765,6 +763,9 @@ ruling as to whether or not enablement should actually be permitted to begin.
 
 All possible failures are handled internally.  The cookie will only be marked
 as enabled if provisional backing objects are allocated.
+
+The object's data size is updated from object_size and is passed to the
+->check_aux() function.
 
 In both cases, the cookie's auxiliary data buffer is updated from aux_data if
 that is non-NULL inside the enablement lock before proceeding.

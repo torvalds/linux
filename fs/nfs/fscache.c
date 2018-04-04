@@ -86,7 +86,7 @@ void nfs_fscache_get_client_cookie(struct nfs_client *clp)
 					      &nfs_fscache_server_index_def,
 					      &key, len,
 					      NULL, 0,
-					      clp, true);
+					      clp, 0, true);
 	dfprintk(FSCACHE, "NFS: get client cookie (0x%p/0x%p)\n",
 		 clp, clp->fscache);
 }
@@ -188,7 +188,7 @@ void nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq, int 
 					       &nfs_fscache_super_index_def,
 					       key, sizeof(*key) + ulen,
 					       NULL, 0,
-					       nfss, true);
+					       nfss, 0, true);
 	dfprintk(FSCACHE, "NFS: get superblock cookie (0x%p/0x%p)\n",
 		 nfss, nfss->fscache);
 	return;
@@ -237,7 +237,6 @@ void nfs_fscache_init_inode(struct inode *inode)
 		return;
 
 	memset(&auxdata, 0, sizeof(auxdata));
-	auxdata.size = nfsi->vfs_inode.i_size;
 	auxdata.mtime = nfsi->vfs_inode.i_mtime;
 	auxdata.ctime = nfsi->vfs_inode.i_ctime;
 
@@ -248,7 +247,7 @@ void nfs_fscache_init_inode(struct inode *inode)
 					       &nfs_fscache_inode_object_def,
 					       nfsi->fh.data, nfsi->fh.size,
 					       &auxdata, sizeof(auxdata),
-					       nfsi, false);
+					       nfsi, nfsi->vfs_inode.i_size, false);
 }
 
 /*
@@ -263,7 +262,6 @@ void nfs_fscache_clear_inode(struct inode *inode)
 	dfprintk(FSCACHE, "NFS: clear cookie (0x%p/0x%p)\n", nfsi, cookie);
 
 	memset(&auxdata, 0, sizeof(auxdata));
-	auxdata.size = nfsi->vfs_inode.i_size;
 	auxdata.mtime = nfsi->vfs_inode.i_mtime;
 	auxdata.ctime = nfsi->vfs_inode.i_ctime;
 	fscache_relinquish_cookie(cookie, &auxdata, false);
@@ -306,7 +304,6 @@ void nfs_fscache_open_file(struct inode *inode, struct file *filp)
 		return;
 
 	memset(&auxdata, 0, sizeof(auxdata));
-	auxdata.size = nfsi->vfs_inode.i_size;
 	auxdata.mtime = nfsi->vfs_inode.i_mtime;
 	auxdata.ctime = nfsi->vfs_inode.i_ctime;
 
@@ -317,7 +314,7 @@ void nfs_fscache_open_file(struct inode *inode, struct file *filp)
 		fscache_uncache_all_inode_pages(cookie, inode);
 	} else {
 		dfprintk(FSCACHE, "NFS: nfsi 0x%p enabling cache\n", nfsi);
-		fscache_enable_cookie(cookie, &auxdata,
+		fscache_enable_cookie(cookie, &auxdata, nfsi->vfs_inode.i_size,
 				      nfs_fscache_can_enable, inode);
 		if (fscache_cookie_enabled(cookie))
 			set_bit(NFS_INO_FSCACHE, &NFS_I(inode)->flags);
@@ -495,7 +492,8 @@ void __nfs_readpage_to_fscache(struct inode *inode, struct page *page, int sync)
 		 "NFS: readpage_to_fscache(fsc:%p/p:%p(i:%lx f:%lx)/%d)\n",
 		 nfs_i_fscache(inode), page, page->index, page->flags, sync);
 
-	ret = fscache_write_page(nfs_i_fscache(inode), page, GFP_KERNEL);
+	ret = fscache_write_page(nfs_i_fscache(inode), page,
+				 inode->i_size, GFP_KERNEL);
 	dfprintk(FSCACHE,
 		 "NFS:     readpage_to_fscache: p:%p(i:%lu f:%lx) ret %d\n",
 		 page, page->index, page->flags, ret);

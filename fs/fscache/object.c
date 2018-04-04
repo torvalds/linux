@@ -922,7 +922,8 @@ static void fscache_dequeue_object(struct fscache_object *object)
  * and creation).
  */
 enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
-					const void *data, uint16_t datalen)
+					const void *data, uint16_t datalen,
+					loff_t object_size)
 {
 	enum fscache_checkaux result;
 
@@ -932,7 +933,7 @@ enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 	}
 
 	result = object->cookie->def->check_aux(object->cookie->netfs_data,
-						data, datalen);
+						data, datalen, object_size);
 	switch (result) {
 		/* entry okay as is */
 	case FSCACHE_CHECKAUX_OKAY:

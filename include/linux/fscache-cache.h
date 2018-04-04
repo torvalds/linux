@@ -553,7 +553,8 @@ extern bool fscache_object_sleep_till_congested(signed long *timeoutp);
 
 extern enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 					       const void *data,
-					       uint16_t datalen);
+					       uint16_t datalen,
+					       loff_t object_size);
 
 extern void fscache_object_retrying_stale(struct fscache_object *object);
 

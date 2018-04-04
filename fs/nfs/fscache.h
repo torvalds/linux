@@ -68,7 +68,6 @@ struct nfs_fscache_key {
 struct nfs_fscache_inode_auxdata {
 	struct timespec	mtime;
 	struct timespec	ctime;
-	loff_t		size;
 	u64		change_attr;
 };
 

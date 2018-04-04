@@ -441,7 +441,7 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 	loff_t oi_size;
 	int ret;
 
-	_object->cookie->def->get_attr(_object->cookie->netfs_data, &ni_size);
+	ni_size = _object->store_limit_l;
 
 	_enter("{OBJ%x},[%llu]",
 	       _object->debug_id, (unsigned long long) ni_size);
@@ -513,8 +513,7 @@ static void cachefiles_invalidate_object(struct fscache_operation *op)
 	cache = container_of(object->fscache.cache,
 			     struct cachefiles_cache, cache);
 
-	op->object->cookie->def->get_attr(op->object->cookie->netfs_data,
-					  &ni_size);
+	ni_size = op->object->store_limit_l;
 
 	_enter("{OBJ%x},[%llu]",
 	       op->object->debug_id, (unsigned long long)ni_size);

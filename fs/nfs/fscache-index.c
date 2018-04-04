@@ -70,20 +70,6 @@ const struct fscache_cookie_def nfs_fscache_super_index_def = {
 };
 
 /*
- * Get certain file attributes from the netfs data
- * - This function can be absent for an index
- * - Not permitted to return an error
- * - The netfs data from the cookie being used as the source is presented
- */
-static void nfs_fscache_inode_get_attr(const void *cookie_netfs_data,
-				       uint64_t *size)
-{
-	const struct nfs_inode *nfsi = cookie_netfs_data;
-
-	*size = nfsi->vfs_inode.i_size;
-}
-
-/*
  * Consult the netfs about the state of an object
  * - This function can be absent if the index carries no state data
  * - The netfs data from the cookie being used as the target is
@@ -92,7 +78,8 @@ static void nfs_fscache_inode_get_attr(const void *cookie_netfs_data,
 static
 enum fscache_checkaux nfs_fscache_inode_check_aux(void *cookie_netfs_data,
 						  const void *data,
-						  uint16_t datalen)
+						  uint16_t datalen,
+						  loff_t object_size)
 {
 	struct nfs_fscache_inode_auxdata auxdata;
 	struct nfs_inode *nfsi = cookie_netfs_data;
@@ -101,7 +88,6 @@ enum fscache_checkaux nfs_fscache_inode_check_aux(void *cookie_netfs_data,
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	memset(&auxdata, 0, sizeof(auxdata));
-	auxdata.size = nfsi->vfs_inode.i_size;
 	auxdata.mtime = nfsi->vfs_inode.i_mtime;
 	auxdata.ctime = nfsi->vfs_inode.i_ctime;
 
@@ -150,7 +136,6 @@ static void nfs_fh_put_context(void *cookie_netfs_data, void *context)
 const struct fscache_cookie_def nfs_fscache_inode_object_def = {
 	.name		= "NFS.fh",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.get_attr	= nfs_fscache_inode_get_attr,
 	.check_aux	= nfs_fscache_inode_check_aux,
 	.get_context	= nfs_fh_get_context,
 	.put_context	= nfs_fh_put_context,

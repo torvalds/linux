@@ -12,11 +12,10 @@
 #include <linux/sched.h>
 #include "internal.h"
 
-static void afs_vnode_cache_get_attr(const void *cookie_netfs_data,
-				     uint64_t *size);
 static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 						       const void *buffer,
-						       uint16_t buflen);
+						       uint16_t buflen,
+						       loff_t object_size);
 
 struct fscache_netfs afs_cache_netfs = {
 	.name			= "afs",
@@ -36,31 +35,16 @@ struct fscache_cookie_def afs_volume_cache_index_def = {
 struct fscache_cookie_def afs_vnode_cache_index_def = {
 	.name		= "AFS.vnode",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.get_attr	= afs_vnode_cache_get_attr,
 	.check_aux	= afs_vnode_cache_check_aux,
 };
-
-/*
- * provide updated file attributes
- */
-static void afs_vnode_cache_get_attr(const void *cookie_netfs_data,
-				     uint64_t *size)
-{
-	const struct afs_vnode *vnode = cookie_netfs_data;
-
-	_enter("{%x,%x,%llx},",
-	       vnode->fid.vnode, vnode->fid.unique,
-	       vnode->status.data_version);
-
-	*size = vnode->status.size;
-}
 
 /*
  * check that the auxiliary data indicates that the entry is still valid
  */
 static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 						       const void *buffer,
-						       uint16_t buflen)
+						       uint16_t buflen,
+						       loff_t object_size)
 {
 	struct afs_vnode *vnode = cookie_netfs_data;
 	struct afs_vnode_cache_aux aux;

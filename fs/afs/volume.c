@@ -227,7 +227,7 @@ void afs_activate_volume(struct afs_volume *volume)
 					       &afs_volume_cache_index_def,
 					       &volume->vid, sizeof(volume->vid),
 					       NULL, 0,
-					       volume, true);
+					       volume, 0, true);
 #endif
 
 	write_lock(&volume->cell->proc_lock);

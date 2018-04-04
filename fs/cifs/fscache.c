@@ -79,7 +79,7 @@ void cifs_fscache_get_client_cookie(struct TCP_Server_Info *server)
 				       &cifs_fscache_server_index_def,
 				       &key, key_len,
 				       NULL, 0,
-				       server, true);
+				       server, 0, true);
 	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n",
 		 __func__, server, server->fscache);
 }
@@ -109,7 +109,7 @@ void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 				       &cifs_fscache_super_index_def,
 				       sharename, strlen(sharename),
 				       &tcon->resource_id, sizeof(tcon->resource_id),
-				       tcon, true);
+				       tcon, 0, true);
 	kfree(sharename);
 	cifs_dbg(FYI, "%s: (0x%p/0x%p)\n",
 		 __func__, server->fscache, tcon->fscache);
@@ -137,7 +137,7 @@ static void cifs_fscache_acquire_inode_cookie(struct cifsInodeInfo *cifsi,
 				       &cifs_fscache_inode_object_def,
 				       &cifsi->uniqueid, sizeof(cifsi->uniqueid),
 				       &auxdata, sizeof(auxdata),
-				       cifsi, true);
+				       cifsi, cifsi->vfs_inode.i_size, true);
 }
 
 static void cifs_fscache_enable_inode_cookie(struct inode *inode)
@@ -301,13 +301,15 @@ int __cifs_readpages_from_fscache(struct inode *inode,
 
 void __cifs_readpage_to_fscache(struct inode *inode, struct page *page)
 {
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	int ret;
 
 	cifs_dbg(FYI, "%s: (fsc: %p, p: %p, i: %p)\n",
-		 __func__, CIFS_I(inode)->fscache, page, inode);
-	ret = fscache_write_page(CIFS_I(inode)->fscache, page, GFP_KERNEL);
+		 __func__, cifsi->fscache, page, inode);
+	ret = fscache_write_page(cifsi->fscache, page,
+				 cifsi->vfs_inode.i_size, GFP_KERNEL);
 	if (ret != 0)
-		fscache_uncache_page(CIFS_I(inode)->fscache, page);
+		fscache_uncache_page(cifsi->fscache, page);
 }
 
 void __cifs_fscache_readpages_cancel(struct inode *inode, struct list_head *pages)

@@ -16,7 +16,8 @@
 static
 enum fscache_checkaux fscache_fsdef_netfs_check_aux(void *cookie_netfs_data,
 						    const void *data,
-						    uint16_t datalen);
+						    uint16_t datalen,
+						    loff_t object_size);
 
 /*
  * The root index is owned by FS-Cache itself.
@@ -76,7 +77,8 @@ struct fscache_cookie_def fscache_fsdef_netfs_def = {
 static enum fscache_checkaux fscache_fsdef_netfs_check_aux(
 	void *cookie_netfs_data,
 	const void *data,
-	uint16_t datalen)
+	uint16_t datalen,
+	loff_t object_size)
 {
 	struct fscache_netfs *netfs = cookie_netfs_data;
 	uint32_t version;

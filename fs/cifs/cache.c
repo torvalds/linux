@@ -87,7 +87,8 @@ char *extract_sharename(const char *treename)
 static enum
 fscache_checkaux cifs_fscache_super_check_aux(void *cookie_netfs_data,
 					      const void *data,
-					      uint16_t datalen)
+					      uint16_t datalen,
+					      loff_t object_size)
 {
 	struct cifs_fscache_super_auxdata auxdata;
 	const struct cifs_tcon *tcon = cookie_netfs_data;
@@ -113,18 +114,11 @@ const struct fscache_cookie_def cifs_fscache_super_index_def = {
 	.check_aux = cifs_fscache_super_check_aux,
 };
 
-static void
-cifs_fscache_inode_get_attr(const void *cookie_netfs_data, uint64_t *size)
-{
-	const struct cifsInodeInfo *cifsi = cookie_netfs_data;
-
-	*size = cifsi->vfs_inode.i_size;
-}
-
 static enum
 fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
 					      const void *data,
-					      uint16_t datalen)
+					      uint16_t datalen,
+					      loff_t object_size)
 {
 	struct cifs_fscache_inode_auxdata auxdata;
 	struct cifsInodeInfo *cifsi = cookie_netfs_data;
@@ -146,6 +140,5 @@ fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
 const struct fscache_cookie_def cifs_fscache_inode_object_def = {
 	.name		= "CIFS.uniqueid",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.get_attr	= cifs_fscache_inode_get_attr,
 	.check_aux	= cifs_fscache_inode_check_aux,
 };

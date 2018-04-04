@@ -21,7 +21,8 @@ struct kmem_cache *fscache_cookie_jar;
 
 static atomic_t fscache_object_debug_id = ATOMIC_INIT(0);
 
-static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie);
+static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
+					    loff_t object_size);
 static int fscache_alloc_object(struct fscache_cache *cache,
 				struct fscache_cookie *cookie);
 static int fscache_attach_object(struct fscache_cookie *cookie,
@@ -61,6 +62,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	const void *index_key, size_t index_key_len,
 	const void *aux_data, size_t aux_data_len,
 	void *netfs_data,
+	loff_t object_size,
 	bool enable)
 {
 	struct fscache_cookie *cookie;
@@ -160,7 +162,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 		 * - we create indices on disk when we need them as an index
 		 * may exist in multiple caches */
 		if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
-			if (fscache_acquire_non_index_cookie(cookie) == 0) {
+			if (fscache_acquire_non_index_cookie(cookie, object_size) == 0) {
 				set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 			} else {
 				atomic_dec(&parent->n_children);
@@ -194,6 +196,7 @@ EXPORT_SYMBOL(__fscache_acquire_cookie);
  */
 void __fscache_enable_cookie(struct fscache_cookie *cookie,
 			     const void *aux_data,
+			     loff_t object_size,
 			     bool (*can_enable)(void *data),
 			     void *data)
 {
@@ -215,7 +218,7 @@ void __fscache_enable_cookie(struct fscache_cookie *cookie,
 		/* Wait for outstanding disablement to complete */
 		__fscache_wait_on_invalidate(cookie);
 
-		if (fscache_acquire_non_index_cookie(cookie) == 0)
+		if (fscache_acquire_non_index_cookie(cookie, object_size) == 0)
 			set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 	} else {
 		set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
@@ -232,11 +235,11 @@ EXPORT_SYMBOL(__fscache_enable_cookie);
  * - this must make sure the index chain is instantiated and instantiate the
  *   object representation too
  */
-static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
+static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
+					    loff_t object_size)
 {
 	struct fscache_object *object;
 	struct fscache_cache *cache;
-	uint64_t i_size;
 	int ret;
 
 	_enter("");
@@ -275,9 +278,6 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 		return ret;
 	}
 
-	/* pass on how big the object we're caching is supposed to be */
-	cookie->def->get_attr(cookie->netfs_data, &i_size);
-
 	spin_lock(&cookie->lock);
 	if (hlist_empty(&cookie->backing_objects)) {
 		spin_unlock(&cookie->lock);
@@ -287,7 +287,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
 
-	fscache_set_store_limit(object, i_size);
+	fscache_set_store_limit(object, object_size);
 
 	/* initiate the process of looking up all the objects in the chain
 	 * (done by fscache_initialise_object()) */

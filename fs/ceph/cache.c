@@ -27,7 +27,6 @@
 struct ceph_aux_inode {
 	u64 		version;
 	struct timespec	mtime;
-	loff_t          size;
 };
 
 struct fscache_netfs ceph_cache_netfs = {
@@ -101,7 +100,7 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 					      &ceph_fscache_fsid_object_def,
 					      &ent->fsid, sizeof(ent->fsid) + uniq_len,
 					      NULL, 0,
-					      fsc, true);
+					      fsc, 0, true);
 
 	if (fsc->fscache) {
 		ent->fscache = fsc->fscache;
@@ -117,27 +116,21 @@ out_unlock:
 	return err;
 }
 
-static void ceph_fscache_inode_get_attr(const void *cookie_netfs_data,
-					uint64_t *size)
-{
-	const struct ceph_inode_info* ci = cookie_netfs_data;
-	*size = i_size_read(&ci->vfs_inode);
-}
-
 static enum fscache_checkaux ceph_fscache_inode_check_aux(
-	void *cookie_netfs_data, const void *data, uint16_t dlen)
+	void *cookie_netfs_data, const void *data, uint16_t dlen,
+	loff_t object_size)
 {
 	struct ceph_aux_inode aux;
 	struct ceph_inode_info* ci = cookie_netfs_data;
 	struct inode* inode = &ci->vfs_inode;
 
-	if (dlen != sizeof(aux))
+	if (dlen != sizeof(aux) ||
+	    i_size_read(inode) != object_size)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	memset(&aux, 0, sizeof(aux));
 	aux.version = ci->i_version;
 	aux.mtime = inode->i_mtime;
-	aux.size = i_size_read(inode);
 
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
@@ -149,7 +142,6 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
 	.name		= "CEPH.inode",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.get_attr	= ceph_fscache_inode_get_attr,
 	.check_aux	= ceph_fscache_inode_check_aux,
 };
 
@@ -172,12 +164,11 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 		memset(&aux, 0, sizeof(aux));
 		aux.version = ci->i_version;
 		aux.mtime = inode->i_mtime;
-		aux.size = i_size_read(inode);
 		ci->fscache = fscache_acquire_cookie(fsc->fscache,
 						     &ceph_fscache_inode_object_def,
 						     &ci->i_vino, sizeof(ci->i_vino),
 						     &aux, sizeof(aux),
-						     ci, false);
+						     ci, i_size_read(inode), false);
 	}
 	inode_unlock(inode);
 }
@@ -214,7 +205,7 @@ void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp)
 		fscache_disable_cookie(ci->fscache, &ci->i_vino, false);
 		fscache_uncache_all_inode_pages(ci->fscache, inode);
 	} else {
-		fscache_enable_cookie(ci->fscache, &ci->i_vino,
+		fscache_enable_cookie(ci->fscache, &ci->i_vino, i_size_read(inode),
 				      ceph_fscache_can_enable, inode);
 		if (fscache_cookie_enabled(ci->fscache)) {
 			dout("fscache_file_set_cookie %p %p enabling cache\n",
@@ -308,7 +299,8 @@ void ceph_readpage_to_fscache(struct inode *inode, struct page *page)
 	if (!cache_valid(ci))
 		return;
 
-	ret = fscache_write_page(ci->fscache, page, GFP_KERNEL);
+	ret = fscache_write_page(ci->fscache, page, i_size_read(inode),
+				 GFP_KERNEL);
 	if (ret)
 		 fscache_uncache_page(ci->fscache, page);
 }
