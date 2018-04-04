@@ -102,7 +102,7 @@ struct msdc_hw {
     void (*enable_cd_eirq)(void);
     void (*disable_cd_eirq)(void);
     int  (*get_cd_status)(void);
-    
+
     /* power management callback for external module */
     void (*register_pm)(pm_callback_t pm_cb, void *data);
 };
@@ -122,8 +122,8 @@ extern struct mt3326_gps_hardware mt3326_gps_hw;
 
 /* NAND driver */
 struct mt6575_nand_host_hw {
-    unsigned int nfi_bus_width;		    /* NFI_BUS_WIDTH */ 
-	unsigned int nfi_access_timing;		/* NFI_ACCESS_TIMING */  
+    unsigned int nfi_bus_width;		    /* NFI_BUS_WIDTH */
+	unsigned int nfi_access_timing;		/* NFI_ACCESS_TIMING */
 	unsigned int nfi_cs_num;			/* NFI_CS_NUM */
 	unsigned int nand_sec_size;			/* NAND_SECTOR_SIZE */
 	unsigned int nand_sec_shift;		/* NAND_SECTOR_SHIFT */
@@ -134,4 +134,3 @@ struct mt6575_nand_host_hw {
 extern struct mt6575_nand_host_hw mt6575_nand_hw;
 
 #endif /* __ARCH_ARM_MACH_BOARD_H */
-
