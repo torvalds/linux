@@ -156,6 +156,9 @@ show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, highest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_nonlinear_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_freq);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_freq);
+
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, reference_perf);
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, wraparound_time);
 
@@ -183,6 +186,8 @@ static struct attribute *cppc_attrs[] = {
 	&lowest_perf.attr,
 	&lowest_nonlinear_perf.attr,
 	&nominal_perf.attr,
+	&nominal_freq.attr,
+	&lowest_freq.attr,
 	NULL
 };
 
@@ -613,7 +618,6 @@ bool __weak cpc_ffh_supported(void)
 	return false;
 }
 
-
 /**
  * pcc_data_alloc() - Allocate the pcc_data memory for pcc subspace
  *
@@ -641,6 +645,34 @@ int pcc_data_alloc(int pcc_ss_id)
 
 	return 0;
 }
+
+/* Check if CPPC revision + num_ent combination is supported */
+static bool is_cppc_supported(int revision, int num_ent)
+{
+	int expected_num_ent;
+
+	switch (revision) {
+	case CPPC_V2_REV:
+		expected_num_ent = CPPC_V2_NUM_ENT;
+		break;
+	case CPPC_V3_REV:
+		expected_num_ent = CPPC_V3_NUM_ENT;
+		break;
+	default:
+		pr_debug("Firmware exports unsupported CPPC revision: %d\n",
+			revision);
+		return false;
+	}
+
+	if (expected_num_ent != num_ent) {
+		pr_debug("Firmware exports %d entries. Expected: %d for CPPC rev:%d\n",
+			num_ent, expected_num_ent, revision);
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * An example CPC table looks like the following.
  *
@@ -731,14 +763,6 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 				cpc_obj->type);
 		goto out_free;
 	}
-
-	/* Only support CPPCv2. Bail otherwise. */
-	if (num_ent != CPPC_NUM_ENT) {
-		pr_debug("Firmware exports %d entries. Expected: %d\n",
-				num_ent, CPPC_NUM_ENT);
-		goto out_free;
-	}
-
 	cpc_ptr->num_entries = num_ent;
 
 	/* Second entry should be revision. */
@@ -750,12 +774,10 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 				cpc_obj->type);
 		goto out_free;
 	}
+	cpc_ptr->version = cpc_rev;
 
-	if (cpc_rev != CPPC_REV) {
-		pr_debug("Firmware exports revision:%d. Expected:%d\n",
-				cpc_rev, CPPC_REV);
+	if (!is_cppc_supported(cpc_rev, num_ent))
 		goto out_free;
-	}
 
 	/* Iterate through remaining entries in _CPC */
 	for (i = 2; i < num_ent; i++) {
@@ -808,6 +830,18 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		}
 	}
 	per_cpu(cpu_pcc_subspace_idx, pr->id) = pcc_subspace_id;
+
+	/*
+	 * Initialize the remaining cpc_regs as unsupported.
+	 * Example: In case FW exposes CPPC v2, the below loop will initialize
+	 * LOWEST_FREQ and NOMINAL_FREQ regs as unsupported
+	 */
+	for (i = num_ent - 2; i < MAX_CPC_REG_ENT; i++) {
+		cpc_ptr->cpc_regs[i].type = ACPI_TYPE_INTEGER;
+		cpc_ptr->cpc_regs[i].cpc_entry.int_value = 0;
+	}
+
+
 	/* Store CPU Logical ID */
 	cpc_ptr->cpu_id = pr->id;
 
@@ -1037,8 +1071,9 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
 	struct cpc_register_resource *highest_reg, *lowest_reg,
-		*lowest_non_linear_reg, *nominal_reg;
-	u64 high, low, nom, min_nonlinear;
+		*lowest_non_linear_reg, *nominal_reg,
+		*low_freq_reg = NULL, *nom_freq_reg = NULL;
+	u64 high, low, nom, min_nonlinear, low_f = 0, nom_f = 0;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
 	struct cppc_pcc_data *pcc_ss_data;
 	int ret = 0, regs_in_pcc = 0;
@@ -1053,10 +1088,13 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	lowest_reg = &cpc_desc->cpc_regs[LOWEST_PERF];
 	lowest_non_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
 	nominal_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+	low_freq_reg = &cpc_desc->cpc_regs[LOWEST_FREQ];
+	nom_freq_reg = &cpc_desc->cpc_regs[NOMINAL_FREQ];
 
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(highest_reg) || CPC_IN_PCC(lowest_reg) ||
-		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg)) {
+		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg) ||
+		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(nom_freq_reg)) {
 		regs_in_pcc = 1;
 		down_write(&pcc_ss_data->pcc_lock);
 		/* Ring doorbell once to update PCC subspace */
@@ -1080,6 +1118,17 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 
 	if (!high || !low || !nom || !min_nonlinear)
 		ret = -EFAULT;
+
+	/* Read optional lowest and nominal frequencies if present */
+	if (CPC_SUPPORTED(low_freq_reg))
+		cpc_read(cpunum, low_freq_reg, &low_f);
+
+	if (CPC_SUPPORTED(nom_freq_reg))
+		cpc_read(cpunum, nom_freq_reg, &nom_f);
+
+	perf_caps->lowest_freq = low_f;
+	perf_caps->nominal_freq = nom_f;
+
 
 out_err:
 	if (regs_in_pcc)
