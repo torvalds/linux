@@ -101,7 +101,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	 */
 	atomic_set(&cookie->n_active, 1);
 
-	atomic_inc(&parent->usage);
+	fscache_cookie_get(parent, fscache_cookie_get_acquire_parent);
 	atomic_inc(&parent->n_children);
 
 	cookie->def		= def;
@@ -125,6 +125,8 @@ struct fscache_cookie *__fscache_acquire_cookie(
 		break;
 	}
 
+	trace_fscache_acquire(cookie);
+
 	if (enable) {
 		/* if the object is an index then we need do nothing more here
 		 * - we create indices on disk when we need them as an index
@@ -134,7 +136,8 @@ struct fscache_cookie *__fscache_acquire_cookie(
 				set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
 			} else {
 				atomic_dec(&parent->n_children);
-				__fscache_cookie_put(cookie);
+				fscache_cookie_put(cookie,
+						   fscache_cookie_put_acquire_nobufs);
 				fscache_stat(&fscache_n_acquires_nobufs);
 				_leave(" = NULL");
 				return NULL;
@@ -158,6 +161,8 @@ void __fscache_enable_cookie(struct fscache_cookie *cookie,
 			     void *data)
 {
 	_enter("%p", cookie);
+
+	trace_fscache_enable(cookie);
 
 	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
 			 TASK_UNINTERRUPTIBLE);
@@ -318,7 +323,7 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 	 * attached to the cookie */
 	if (fscache_attach_object(cookie, object) < 0) {
 		fscache_stat(&fscache_n_cop_put_object);
-		cache->ops->put_object(object);
+		cache->ops->put_object(object, fscache_obj_put_attach_fail);
 		fscache_stat_d(&fscache_n_cop_put_object);
 	}
 
@@ -338,7 +343,7 @@ object_already_extant:
 
 error_put:
 	fscache_stat(&fscache_n_cop_put_object);
-	cache->ops->put_object(object);
+	cache->ops->put_object(object, fscache_obj_put_alloc_fail);
 	fscache_stat_d(&fscache_n_cop_put_object);
 error:
 	_leave(" = %d", ret);
@@ -398,7 +403,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 
 	/* attach to the cookie */
 	object->cookie = cookie;
-	atomic_inc(&cookie->usage);
+	fscache_cookie_get(cookie, fscache_cookie_get_attach_object);
 	hlist_add_head(&object->cookie_link, &cookie->backing_objects);
 
 	fscache_objlist_add(object);
@@ -516,6 +521,8 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 
 	_enter("%p,%u", cookie, invalidate);
 
+	trace_fscache_disable(cookie);
+
 	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
 
 	if (atomic_read(&cookie->n_children) != 0) {
@@ -601,6 +608,8 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
 	       cookie, cookie->def->name, cookie->netfs_data,
 	       atomic_read(&cookie->n_active), retire);
 
+	trace_fscache_relinquish(cookie, retire);
+
 	/* No further netfs-accessing operations on this cookie permitted */
 	if (test_and_set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags))
 		BUG();
@@ -620,35 +629,38 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
 
 	/* Dispose of the netfs's link to the cookie */
 	ASSERTCMP(atomic_read(&cookie->usage), >, 0);
-	fscache_cookie_put(cookie);
+	fscache_cookie_put(cookie, fscache_cookie_put_relinquish);
 
 	_leave("");
 }
 EXPORT_SYMBOL(__fscache_relinquish_cookie);
 
 /*
- * destroy a cookie
+ * Drop a reference to a cookie.
  */
-void __fscache_cookie_put(struct fscache_cookie *cookie)
+void fscache_cookie_put(struct fscache_cookie *cookie,
+			enum fscache_cookie_trace where)
 {
 	struct fscache_cookie *parent;
+	int usage;
 
 	_enter("%p", cookie);
 
-	for (;;) {
-		_debug("FREE COOKIE %p", cookie);
+	do {
+		usage = atomic_dec_return(&cookie->usage);
+		trace_fscache_cookie(cookie, where, usage);
+
+		if (usage > 0)
+			return;
+		BUG_ON(usage < 0);
+
 		parent = cookie->parent;
 		BUG_ON(!hlist_empty(&cookie->backing_objects));
 		kmem_cache_free(fscache_cookie_jar, cookie);
 
-		if (!parent)
-			break;
-
 		cookie = parent;
-		BUG_ON(atomic_read(&cookie->usage) <= 0);
-		if (!atomic_dec_and_test(&cookie->usage))
-			break;
-	}
+		where = fscache_cookie_put_parent;
+	} while (cookie);
 
 	_leave("");
 }

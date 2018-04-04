@@ -60,7 +60,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 			goto already_registered;
 	}
 
-	atomic_inc(&cookie->parent->usage);
+	fscache_cookie_get(cookie->parent, fscache_cookie_get_register_netfs);
 	atomic_inc(&cookie->parent->n_children);
 
 	netfs->primary_index = cookie;
@@ -68,6 +68,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 	ret = 0;
 
 	pr_notice("Netfs '%s' registered for caching\n", netfs->name);
+	trace_fscache_netfs(netfs);
 
 already_registered:
 	up_write(&fscache_addremove_sem);

@@ -177,10 +177,12 @@ static void cachefiles_lookup_complete(struct fscache_object *_object)
  * increment the usage count on an inode object (may fail if unmounting)
  */
 static
-struct fscache_object *cachefiles_grab_object(struct fscache_object *_object)
+struct fscache_object *cachefiles_grab_object(struct fscache_object *_object,
+					      enum fscache_obj_ref_trace why)
 {
 	struct cachefiles_object *object =
 		container_of(_object, struct cachefiles_object, fscache);
+	int u;
 
 	_enter("{OBJ%x,%d}", _object->debug_id, atomic_read(&object->usage));
 
@@ -188,7 +190,9 @@ struct fscache_object *cachefiles_grab_object(struct fscache_object *_object)
 	ASSERT((atomic_read(&object->usage) & 0xffff0000) != 0x6b6b0000);
 #endif
 
-	atomic_inc(&object->usage);
+	u = atomic_inc_return(&object->usage);
+	trace_cachefiles_ref(object, _object->cookie,
+			     (enum cachefiles_obj_ref_trace)why, u);
 	return &object->fscache;
 }
 
@@ -309,10 +313,12 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 /*
  * dispose of a reference to an object
  */
-static void cachefiles_put_object(struct fscache_object *_object)
+static void cachefiles_put_object(struct fscache_object *_object,
+				  enum fscache_obj_ref_trace why)
 {
 	struct cachefiles_object *object;
 	struct fscache_cache *cache;
+	int u;
 
 	ASSERT(_object);
 
@@ -328,7 +334,11 @@ static void cachefiles_put_object(struct fscache_object *_object)
 	ASSERTIFCMP(object->fscache.parent,
 		    object->fscache.parent->n_children, >, 0);
 
-	if (atomic_dec_and_test(&object->usage)) {
+	u = atomic_dec_return(&object->usage);
+	trace_cachefiles_ref(object, _object->cookie,
+			     (enum cachefiles_obj_ref_trace)why, u);
+	ASSERTCMP(u, !=, -1);
+	if (u == 0) {
 		_debug("- kill object OBJ%x", object->fscache.debug_id);
 
 		ASSERT(!test_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags));

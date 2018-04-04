@@ -138,8 +138,10 @@ static const struct fscache_transition fscache_osm_run_oob[] = {
 	   { 0, NULL }
 };
 
-static int  fscache_get_object(struct fscache_object *);
-static void fscache_put_object(struct fscache_object *);
+static int  fscache_get_object(struct fscache_object *,
+			       enum fscache_obj_ref_trace);
+static void fscache_put_object(struct fscache_object *,
+			       enum fscache_obj_ref_trace);
 static bool fscache_enqueue_dependents(struct fscache_object *, int);
 static void fscache_dequeue_object(struct fscache_object *);
 
@@ -170,6 +172,7 @@ static void fscache_object_sm_dispatcher(struct fscache_object *object)
 	const struct fscache_transition *t;
 	const struct fscache_state *state, *new_state;
 	unsigned long events, event_mask;
+	bool oob;
 	int event = -1;
 
 	ASSERT(object != NULL);
@@ -188,6 +191,7 @@ restart_masked:
 	if (events & object->oob_event_mask) {
 		_debug("{OBJ%x} oob %lx",
 		       object->debug_id, events & object->oob_event_mask);
+		oob = true;
 		for (t = object->oob_table; t->events; t++) {
 			if (events & t->events) {
 				state = t->transit_to;
@@ -199,6 +203,7 @@ restart_masked:
 			}
 		}
 	}
+	oob = false;
 
 	/* Wait states are just transition tables */
 	if (!state->work) {
@@ -207,6 +212,8 @@ restart_masked:
 				if (events & t->events) {
 					new_state = t->transit_to;
 					event = fls(events & t->events) - 1;
+					trace_fscache_osm(object, state,
+							  true, false, event);
 					clear_bit(event, &object->events);
 					_debug("{OBJ%x} ev %d: %s -> %s",
 					       object->debug_id, event,
@@ -226,6 +233,7 @@ restart_masked:
 execute_work_state:
 	_debug("{OBJ%x} exec %s", object->debug_id, state->name);
 
+	trace_fscache_osm(object, state, false, oob, event);
 	new_state = state->work(object, event);
 	event = -1;
 	if (new_state == NO_TRANSIT) {
@@ -279,7 +287,7 @@ static void fscache_object_work_func(struct work_struct *work)
 	start = jiffies;
 	fscache_object_sm_dispatcher(object);
 	fscache_hist(fscache_objs_histogram, start);
-	fscache_put_object(object);
+	fscache_put_object(object, fscache_obj_put_work);
 }
 
 /**
@@ -397,7 +405,7 @@ static const struct fscache_state *fscache_initialise_object(struct fscache_obje
 	fscache_stat(&fscache_n_cop_grab_object);
 	success = false;
 	if (fscache_object_is_live(parent) &&
-	    object->cache->ops->grab_object(object)) {
+	    object->cache->ops->grab_object(object, fscache_obj_get_add_to_deps)) {
 		list_add(&object->dep_link, &parent->dependents);
 		success = true;
 	}
@@ -745,7 +753,7 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 	}
 
 	/* this just shifts the object release to the work processor */
-	fscache_put_object(object);
+	fscache_put_object(object, fscache_obj_put_drop_obj);
 	fscache_stat(&fscache_n_object_dead);
 
 	_leave("");
@@ -755,12 +763,13 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 /*
  * get a ref on an object
  */
-static int fscache_get_object(struct fscache_object *object)
+static int fscache_get_object(struct fscache_object *object,
+			      enum fscache_obj_ref_trace why)
 {
 	int ret;
 
 	fscache_stat(&fscache_n_cop_grab_object);
-	ret = object->cache->ops->grab_object(object) ? 0 : -EAGAIN;
+	ret = object->cache->ops->grab_object(object, why) ? 0 : -EAGAIN;
 	fscache_stat_d(&fscache_n_cop_grab_object);
 	return ret;
 }
@@ -768,10 +777,11 @@ static int fscache_get_object(struct fscache_object *object)
 /*
  * Discard a ref on an object
  */
-static void fscache_put_object(struct fscache_object *object)
+static void fscache_put_object(struct fscache_object *object,
+			       enum fscache_obj_ref_trace why)
 {
 	fscache_stat(&fscache_n_cop_put_object);
-	object->cache->ops->put_object(object);
+	object->cache->ops->put_object(object, why);
 	fscache_stat_d(&fscache_n_cop_put_object);
 }
 
@@ -786,7 +796,7 @@ void fscache_object_destroy(struct fscache_object *object)
 	fscache_objlist_remove(object);
 
 	/* We can get rid of the cookie now */
-	fscache_cookie_put(object->cookie);
+	fscache_cookie_put(object->cookie, fscache_cookie_put_object);
 	object->cookie = NULL;
 }
 EXPORT_SYMBOL(fscache_object_destroy);
@@ -798,7 +808,7 @@ void fscache_enqueue_object(struct fscache_object *object)
 {
 	_enter("{OBJ%x}", object->debug_id);
 
-	if (fscache_get_object(object) >= 0) {
+	if (fscache_get_object(object, fscache_obj_get_queue) >= 0) {
 		wait_queue_head_t *cong_wq =
 			&get_cpu_var(fscache_object_cong_wait);
 
@@ -806,7 +816,7 @@ void fscache_enqueue_object(struct fscache_object *object)
 			if (fscache_object_congested())
 				wake_up(cong_wq);
 		} else
-			fscache_put_object(object);
+			fscache_put_object(object, fscache_obj_put_queue);
 
 		put_cpu_var(fscache_object_cong_wait);
 	}
@@ -866,7 +876,7 @@ static bool fscache_enqueue_dependents(struct fscache_object *object, int event)
 		list_del_init(&dep->dep_link);
 
 		fscache_raise_event(dep, event);
-		fscache_put_object(dep);
+		fscache_put_object(dep, fscache_obj_put_enq_dep);
 
 		if (!list_empty(&object->dependents) && need_resched()) {
 			ret = false;

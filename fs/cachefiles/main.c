@@ -22,6 +22,7 @@
 #include <linux/statfs.h>
 #include <linux/sysctl.h>
 #include <linux/miscdevice.h>
+#define CREATE_TRACE_POINTS
 #include "internal.h"
 
 unsigned cachefiles_debug;

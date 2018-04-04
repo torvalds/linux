@@ -29,6 +29,18 @@ struct fscache_cache_ops;
 struct fscache_object;
 struct fscache_operation;
 
+enum fscache_obj_ref_trace {
+	fscache_obj_get_add_to_deps,
+	fscache_obj_get_queue,
+	fscache_obj_put_alloc_fail,
+	fscache_obj_put_attach_fail,
+	fscache_obj_put_drop_obj,
+	fscache_obj_put_enq_dep,
+	fscache_obj_put_queue,
+	fscache_obj_put_work,
+	fscache_obj_ref__nr_traces
+};
+
 /*
  * cache tag definition
  */
@@ -231,7 +243,8 @@ struct fscache_cache_ops {
 	void (*lookup_complete)(struct fscache_object *object);
 
 	/* increment the usage count on this object (may fail if unmounting) */
-	struct fscache_object *(*grab_object)(struct fscache_object *object);
+	struct fscache_object *(*grab_object)(struct fscache_object *object,
+					      enum fscache_obj_ref_trace why);
 
 	/* pin an object in the cache */
 	int (*pin_object)(struct fscache_object *object);
@@ -254,7 +267,8 @@ struct fscache_cache_ops {
 	void (*drop_object)(struct fscache_object *object);
 
 	/* dispose of a reference to an object */
-	void (*put_object)(struct fscache_object *object);
+	void (*put_object)(struct fscache_object *object,
+			   enum fscache_obj_ref_trace why);
 
 	/* sync a cache */
 	void (*sync_cache)(struct fscache_cache *cache);
