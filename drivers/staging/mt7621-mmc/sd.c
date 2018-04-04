@@ -153,7 +153,6 @@
 static struct msdc_regs *msdc_reg[HOST_MAX_NUM];
 #endif
 
-static int mtk_sw_poll;
 
 static int cd_active_low = 1;
 
@@ -2361,7 +2360,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 
 	/* card change interrupt */
 	if (intsts & MSDC_INT_CDSC) {
-		if (mtk_sw_poll)
+		if (host->mmc->caps & MMC_CAP_NEEDS_POLL)
 			return IRQ_HANDLED;
 		IRQ_MSG("MSDC_INT_CDSC irq<0x%.8x>", intsts);
 #if 0 /* ---/+++ by chhung: fix slot mechanical bounce issue */
@@ -2739,9 +2738,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_SDIO_IRQ;  /* yes for sdio */
 
 	cd_active_low = !of_property_read_bool(pdev->dev.of_node, "mediatek,cd-high");
-	mtk_sw_poll = of_property_read_bool(pdev->dev.of_node, "mediatek,cd-poll");
 
-	if (mtk_sw_poll)
+	if (of_property_read_bool(pdev->dev.of_node, "mediatek,cd-poll"))
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/* MMC core transfer sizes tunable parameters */
