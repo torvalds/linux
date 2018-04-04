@@ -343,6 +343,10 @@ void afs_zap_data(struct afs_vnode *vnode)
 {
 	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
 
+#ifdef CONFIG_AFS_FSCACHE
+	fscache_invalidate(vnode->cache);
+#endif
+
 	/* nuke all the non-dirty pages that aren't locked, mapped or being
 	 * written back in a regular file and completely discard the pages in a
 	 * directory or symlink */
