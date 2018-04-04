@@ -359,7 +359,7 @@ static inline void dont_mount(struct dentry *dentry)
 
 extern void __d_lookup_done(struct dentry *);
 
-static inline int d_in_lookup(struct dentry *dentry)
+static inline int d_in_lookup(const struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_PAR_LOOKUP;
 }
@@ -487,7 +487,7 @@ static inline bool d_really_is_positive(const struct dentry *dentry)
 	return dentry->d_inode != NULL;
 }
 
-static inline int simple_positive(struct dentry *dentry)
+static inline int simple_positive(const struct dentry *dentry)
 {
 	return d_really_is_positive(dentry) && !d_unhashed(dentry);
 }
