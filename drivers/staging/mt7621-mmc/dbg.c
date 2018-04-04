@@ -83,147 +83,147 @@ struct sdio_profile sdio_perfomance = {0};
 #if 0 /* --- chhung */
 void msdc_init_gpt(void)
 {
-    GPT_CONFIG config;
+	GPT_CONFIG config;
 
-    config.num  = GPT6;
-    config.mode = GPT_FREE_RUN;
-    config.clkSrc = GPT_CLK_SRC_SYS;
-    config.clkDiv = GPT_CLK_DIV_1;   /* 13MHz GPT6 */
+	config.num  = GPT6;
+	config.mode = GPT_FREE_RUN;
+	config.clkSrc = GPT_CLK_SRC_SYS;
+	config.clkDiv = GPT_CLK_DIV_1;   /* 13MHz GPT6 */
 
-    if (GPT_Config(config) == FALSE )
-        return;
+	if (GPT_Config(config) == FALSE )
+		return;
 
-    GPT_Start(GPT6);
+	GPT_Start(GPT6);
 }
 #endif /* end of --- */
 
 u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 {
-    u32 ret = 0;
+	u32 ret = 0;
 
-    if (new_H32 == old_H32) {
-        ret = new_L32 - old_L32;
-    } else if(new_H32 == (old_H32 + 1)) {
-        if (new_L32 > old_L32) {
-            printk("msdc old_L<0x%x> new_L<0x%x>\n", old_L32, new_L32);
-        }
-        ret = (0xffffffff - old_L32);
-        ret += new_L32;
-    } else {
-        printk("msdc old_H<0x%x> new_H<0x%x>\n", old_H32, new_H32);
-    }
+	if (new_H32 == old_H32) {
+		ret = new_L32 - old_L32;
+	} else if(new_H32 == (old_H32 + 1)) {
+		if (new_L32 > old_L32) {
+			printk("msdc old_L<0x%x> new_L<0x%x>\n", old_L32, new_L32);
+		}
+		ret = (0xffffffff - old_L32);
+		ret += new_L32;
+	} else {
+		printk("msdc old_H<0x%x> new_H<0x%x>\n", old_H32, new_H32);
+	}
 
-    return ret;
+	return ret;
 }
 
 void msdc_sdio_profile(struct sdio_profile* result)
 {
-    struct cmd_profile*  cmd;
-    u32 i;
+	struct cmd_profile*  cmd;
+	u32 i;
 
-    printk("sdio === performance dump ===\n");
-    printk("sdio === total execute tick<%d> time<%dms> Tx<%dB> Rx<%dB>\n",
-                    result->total_tc, result->total_tc / TICKS_ONE_MS,
-                    result->total_tx_bytes, result->total_rx_bytes);
+	printk("sdio === performance dump ===\n");
+	printk("sdio === total execute tick<%d> time<%dms> Tx<%dB> Rx<%dB>\n",
+		result->total_tc, result->total_tc / TICKS_ONE_MS,
+		result->total_tx_bytes, result->total_rx_bytes);
 
-    /* CMD52 Dump */
-    cmd = &result->cmd52_rx;
-    printk("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
-                    cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count);
-    cmd = &result->cmd52_tx;
-    printk("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
-                    cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count);
+	/* CMD52 Dump */
+	cmd = &result->cmd52_rx;
+	printk("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
+	       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count);
+	cmd = &result->cmd52_tx;
+	printk("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
+	       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count);
 
-    /* CMD53 Rx bytes + block mode */
-    for (i=0; i<512; i++) {
-        cmd = &result->cmd53_rx_byte[i];
-        if (cmd->count) {
-            printk("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-                             cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-                             cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
-        }
-    }
-    for (i=0; i<100; i++) {
-        cmd = &result->cmd53_rx_blk[i];
-        if (cmd->count) {
-            printk("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-                             cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-                             cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
-        }
-    }
+	/* CMD53 Rx bytes + block mode */
+	for (i=0; i<512; i++) {
+		cmd = &result->cmd53_rx_byte[i];
+		if (cmd->count) {
+			printk("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+		}
+	}
+	for (i=0; i<100; i++) {
+		cmd = &result->cmd53_rx_blk[i];
+		if (cmd->count) {
+			printk("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+		}
+	}
 
-    /* CMD53 Tx bytes + block mode */
-    for (i=0; i<512; i++) {
-        cmd = &result->cmd53_tx_byte[i];
-        if (cmd->count) {
-            printk("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-                             cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-                             cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
-        }
-    }
-    for (i=0; i<100; i++) {
-        cmd = &result->cmd53_tx_blk[i];
-        if (cmd->count) {
-            printk("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-                             cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-                             cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
-        }
-    }
+	/* CMD53 Tx bytes + block mode */
+	for (i=0; i<512; i++) {
+		cmd = &result->cmd53_tx_byte[i];
+		if (cmd->count) {
+			printk("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+		}
+	}
+	for (i=0; i<100; i++) {
+		cmd = &result->cmd53_tx_blk[i];
+		if (cmd->count) {
+			printk("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+		}
+	}
 
-    printk("sdio === performance dump done ===\n");
+	printk("sdio === performance dump done ===\n");
 }
 
 //========= sdio command table ===========
 void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 {
-    struct sdio_profile* result = &sdio_perfomance;
-    struct cmd_profile*  cmd;
-    u32 block;
+	struct sdio_profile* result = &sdio_perfomance;
+	struct cmd_profile*  cmd;
+	u32 block;
 
-    if (sdio_pro_enable == 0) {
-        return;
-    }
+	if (sdio_pro_enable == 0) {
+		return;
+	}
 
-    if (opcode == 52) {
-        cmd = bRx ?  &result->cmd52_rx : &result->cmd52_tx;
-    } else if (opcode == 53) {
-        if (sizes < 512) {
-            cmd = bRx ?  &result->cmd53_rx_byte[sizes] : &result->cmd53_tx_byte[sizes];
-        } else {
-            block = sizes / 512;
-            if (block >= 99) {
-               printk("cmd53 error blocks\n");
-               while(1);
-            }
-            cmd = bRx ?  &result->cmd53_rx_blk[block] : &result->cmd53_tx_blk[block];
-        }
-    } else {
-        return;
-    }
+	if (opcode == 52) {
+		cmd = bRx ?  &result->cmd52_rx : &result->cmd52_tx;
+	} else if (opcode == 53) {
+		if (sizes < 512) {
+			cmd = bRx ?  &result->cmd53_rx_byte[sizes] : &result->cmd53_tx_byte[sizes];
+		} else {
+			block = sizes / 512;
+			if (block >= 99) {
+				printk("cmd53 error blocks\n");
+				while(1);
+			}
+			cmd = bRx ?  &result->cmd53_rx_blk[block] : &result->cmd53_tx_blk[block];
+		}
+	} else {
+		return;
+	}
 
-    /* update the members */
-    if (ticks > cmd->max_tc){
-        cmd->max_tc = ticks;
-    }
-    if (cmd->min_tc == 0 || ticks < cmd->min_tc) {
-        cmd->min_tc = ticks;
-    }
-    cmd->tot_tc += ticks;
-    cmd->tot_bytes += sizes;
-    cmd->count ++;
+	/* update the members */
+	if (ticks > cmd->max_tc){
+		cmd->max_tc = ticks;
+	}
+	if (cmd->min_tc == 0 || ticks < cmd->min_tc) {
+		cmd->min_tc = ticks;
+	}
+	cmd->tot_tc += ticks;
+	cmd->tot_bytes += sizes;
+	cmd->count ++;
 
-    if (bRx) {
-        result->total_rx_bytes += sizes;
-    } else {
-        result->total_tx_bytes += sizes;
-    }
-    result->total_tc += ticks;
+	if (bRx) {
+		result->total_rx_bytes += sizes;
+	} else {
+		result->total_tx_bytes += sizes;
+	}
+	result->total_tc += ticks;
 
-    /* dump when total_tc > 30s */
-    if (result->total_tc >= sdio_pro_time * TICKS_ONE_MS * 1000) {
-        msdc_sdio_profile(result);
-        memset(result, 0 , sizeof(struct sdio_profile));
-    }
+	/* dump when total_tc > 30s */
+	if (result->total_tc >= sdio_pro_time * TICKS_ONE_MS * 1000) {
+		msdc_sdio_profile(result);
+		memset(result, 0 , sizeof(struct sdio_profile));
+	}
 }
 
 //========== driver proc interface ===========
@@ -255,7 +255,7 @@ static int msdc_debug_proc_read(struct seq_file *s, void *p)
 }
 
 static ssize_t msdc_debug_proc_write(struct file *file,
-			const char __user *buf, size_t count, loff_t *data)
+				const char __user *buf, size_t count, loff_t *data)
 {
 	int ret;
 
@@ -336,12 +336,12 @@ static const struct file_operations msdc_debug_fops = {
 
 int msdc_debug_proc_init(void)
 {
-    struct proc_dir_entry *de = proc_create("msdc_debug", 0667, NULL, &msdc_debug_fops);
+	struct proc_dir_entry *de = proc_create("msdc_debug", 0667, NULL, &msdc_debug_fops);
 
-    if (!de || IS_ERR(de))
-	printk("!! Create MSDC debug PROC fail !!\n");
+	if (!de || IS_ERR(de))
+		printk("!! Create MSDC debug PROC fail !!\n");
 
-    return 0 ;
+	return 0 ;
 }
 EXPORT_SYMBOL_GPL(msdc_debug_proc_init);
 #endif
