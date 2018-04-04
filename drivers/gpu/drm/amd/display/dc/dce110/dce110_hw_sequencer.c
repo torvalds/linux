@@ -1471,6 +1471,17 @@ static void disable_vga_and_power_gate_all_controllers(
 	}
 }
 
+static bool is_eDP_lid_closed(struct dc_state *context)
+{
+	int i;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
+			return context->streams[i]->lid_state_closed;
+	}
+	return false;
+}
+
 static struct dc_link *get_link_for_edp_not_in_use(
 		struct dc *dc,
 		struct dc_state *context)
@@ -1505,20 +1516,17 @@ static struct dc_link *get_link_for_edp_not_in_use(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
-	struct dc_bios *dcb = dc->ctx->dc_bios;
-
-	/* vbios already light up eDP, so we can leverage vbios and skip eDP
+	/* check eDP lid state:
+	 * If lid is open, vbios already light up eDP, so we can leverage vbios and skip eDP
 	 * programming
 	 */
-	bool can_eDP_fast_boot_optimize =
-			(dcb->funcs->get_vga_enabled_displays(dc->ctx->dc_bios) == ATOM_DISPLAY_LCD1_ACTIVE);
-
-	/* if OS doesn't light up eDP and eDP link is available, we want to disable */
+	bool lid_state_closed = is_eDP_lid_closed(context);
 	struct dc_link *edp_link_to_turnoff = NULL;
 
-	if (can_eDP_fast_boot_optimize) {
+	if (!lid_state_closed) {
 		edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
 
+		/* if OS doesn't light up eDP and eDP link is available, we want to disable */
 		if (!edp_link_to_turnoff)
 			dc->apply_edp_fast_boot_optimization = true;
 	}
