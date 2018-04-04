@@ -286,6 +286,11 @@ config IRQ_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
 
+config MSCC_OCELOT_IRQ
+	bool
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+
 config MVEBU_GICP
 	bool
 
@@ -350,5 +355,14 @@ config GOLDFISH_PIC
        help
          Say yes here to enable Goldfish interrupt controller driver used
          for Goldfish based virtual platforms.
+
+config QCOM_PDC
+	bool "QCOM PDC"
+	depends on ARCH_QCOM
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Power Domain Controller driver to manage and configure wakeup
+	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
 endmenu
