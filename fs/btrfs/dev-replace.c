@@ -1002,12 +1002,12 @@ int btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 
 void btrfs_dev_replace_read_lock(struct btrfs_dev_replace *dev_replace)
 {
-	read_lock(&dev_replace->lock);
+	down_read(&dev_replace->rwsem);
 }
 
 void btrfs_dev_replace_read_unlock(struct btrfs_dev_replace *dev_replace)
 {
-	read_unlock(&dev_replace->lock);
+	up_read(&dev_replace->rwsem);
 }
 
 void btrfs_dev_replace_write_lock(struct btrfs_dev_replace *dev_replace)
@@ -1015,16 +1015,16 @@ void btrfs_dev_replace_write_lock(struct btrfs_dev_replace *dev_replace)
 again:
 	wait_event(dev_replace->read_lock_wq,
 		   atomic_read(&dev_replace->blocking_readers) == 0);
-	write_lock(&dev_replace->lock);
+	down_write(&dev_replace->rwsem);
 	if (atomic_read(&dev_replace->blocking_readers)) {
-		write_unlock(&dev_replace->lock);
+		up_write(&dev_replace->rwsem);
 		goto again;
 	}
 }
 
 void btrfs_dev_replace_write_unlock(struct btrfs_dev_replace *dev_replace)
 {
-	write_unlock(&dev_replace->lock);
+	up_write(&dev_replace->rwsem);
 }
 
 /* inc blocking cnt and release read lock */
@@ -1033,7 +1033,7 @@ void btrfs_dev_replace_set_lock_blocking(
 {
 	/* only set blocking for read lock */
 	atomic_inc(&dev_replace->blocking_readers);
-	read_unlock(&dev_replace->lock);
+	up_read(&dev_replace->rwsem);
 }
 
 void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
