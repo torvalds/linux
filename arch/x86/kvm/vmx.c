@@ -2351,7 +2351,9 @@ static unsigned long segment_base(u16 selector)
 static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+#ifdef CONFIG_X86_64
 	int cpu = raw_smp_processor_id();
+#endif
 	int i;
 
 	if (vmx->host_state.loaded)
