@@ -68,43 +68,43 @@ typedef void (*pm_callback_t)(pm_message_t state, void *data);
 #define MSDC_RST_PIN        (4)
 
 enum {
-    MSDC_CLKSRC_48MHZ = 0,
+	MSDC_CLKSRC_48MHZ = 0,
 //    MSDC_CLKSRC_26MHZ = 0,
 //    MSDC_CLKSRC_197MHZ = 1,
 //    MSDC_CLKSRC_208MHZ = 2
 };
 
 struct msdc_hw {
-    unsigned char  clk_src;          /* host clock source */
-    unsigned char  cmd_edge;         /* command latch edge */
-    unsigned char  data_edge;        /* data latch edge */
-    unsigned char  clk_drv;          /* clock pad driving */
-    unsigned char  cmd_drv;          /* command pad driving */
-    unsigned char  dat_drv;          /* data pad driving */
-    unsigned long  flags;            /* hardware capability flags */
-    unsigned long  data_pins;        /* data pins */
-    unsigned long  data_offset;      /* data address offset */
+	unsigned char  clk_src;          /* host clock source */
+	unsigned char  cmd_edge;         /* command latch edge */
+	unsigned char  data_edge;        /* data latch edge */
+	unsigned char  clk_drv;          /* clock pad driving */
+	unsigned char  cmd_drv;          /* command pad driving */
+	unsigned char  dat_drv;          /* data pad driving */
+	unsigned long  flags;            /* hardware capability flags */
+	unsigned long  data_pins;        /* data pins */
+	unsigned long  data_offset;      /* data address offset */
 
-    /* config gpio pull mode */
-    void (*config_gpio_pin)(int type, int pull);
+	/* config gpio pull mode */
+	void (*config_gpio_pin)(int type, int pull);
 
-    /* external power control for card */
-    void (*ext_power_on)(void);
-    void (*ext_power_off)(void);
+	/* external power control for card */
+	void (*ext_power_on)(void);
+	void (*ext_power_off)(void);
 
-    /* external sdio irq operations */
-    void (*request_sdio_eirq)(sdio_irq_handler_t sdio_irq_handler, void *data);
-    void (*enable_sdio_eirq)(void);
-    void (*disable_sdio_eirq)(void);
+	/* external sdio irq operations */
+	void (*request_sdio_eirq)(sdio_irq_handler_t sdio_irq_handler, void *data);
+	void (*enable_sdio_eirq)(void);
+	void (*disable_sdio_eirq)(void);
 
-    /* external cd irq operations */
-    void (*request_cd_eirq)(sdio_irq_handler_t cd_irq_handler, void *data);
-    void (*enable_cd_eirq)(void);
-    void (*disable_cd_eirq)(void);
-    int  (*get_cd_status)(void);
+	/* external cd irq operations */
+	void (*request_cd_eirq)(sdio_irq_handler_t cd_irq_handler, void *data);
+	void (*enable_cd_eirq)(void);
+	void (*disable_cd_eirq)(void);
+	int  (*get_cd_status)(void);
 
-    /* power management callback for external module */
-    void (*register_pm)(pm_callback_t pm_cb, void *data);
+	/* power management callback for external module */
+	void (*register_pm)(pm_callback_t pm_cb, void *data);
 };
 
 extern struct msdc_hw msdc0_hw;
@@ -115,14 +115,14 @@ extern struct msdc_hw msdc3_hw;
 /*GPS driver*/
 #define GPS_FLAG_FORCE_OFF  0x0001
 struct mt3326_gps_hardware {
-    int (*ext_power_on)(int);
-    int (*ext_power_off)(int);
+	int (*ext_power_on)(int);
+	int (*ext_power_off)(int);
 };
 extern struct mt3326_gps_hardware mt3326_gps_hw;
 
 /* NAND driver */
 struct mt6575_nand_host_hw {
-    unsigned int nfi_bus_width;		    /* NFI_BUS_WIDTH */
+	unsigned int nfi_bus_width;		    /* NFI_BUS_WIDTH */
 	unsigned int nfi_access_timing;		/* NFI_ACCESS_TIMING */
 	unsigned int nfi_cs_num;			/* NFI_CS_NUM */
 	unsigned int nand_sec_size;			/* NAND_SECTOR_SIZE */
