@@ -185,7 +185,7 @@ static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
 {
 	atomic_sub(n_pages, &op->n_pages);
 	if (atomic_read(&op->n_pages) <= 0)
-		fscache_op_complete(&op->op, true);
+		fscache_op_complete(&op->op, false);
 }
 
 /**
