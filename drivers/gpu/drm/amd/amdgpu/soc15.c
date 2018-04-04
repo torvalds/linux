@@ -51,6 +51,7 @@
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
 #include "df_v1_7.h"
+#include "df_v3_6.h"
 #include "vega10_ih.h"
 #include "sdma_v4_0.h"
 #include "uvd_v7_0.h"
@@ -501,7 +502,10 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	else
 		adev->nbio_funcs = &nbio_v6_1_funcs;
 
-	adev->df_funcs = &df_v1_7_funcs;
+	if (adev->asic_type == CHIP_VEGA20)
+		adev->df_funcs = &df_v3_6_funcs;
+	else
+		adev->df_funcs = &df_v1_7_funcs;
 	adev->nbio_funcs->detect_hw_virt(adev);
 
 	if (amdgpu_sriov_vf(adev))
