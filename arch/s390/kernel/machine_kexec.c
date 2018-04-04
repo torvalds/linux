@@ -252,6 +252,7 @@ void machine_shutdown(void)
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
+	set_os_info_reipl_block();
 }
 
 /*

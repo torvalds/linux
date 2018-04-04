@@ -913,11 +913,10 @@ static struct attribute_group reipl_nss_attr_group = {
 	.attrs = reipl_nss_attrs,
 };
 
-static void set_reipl_block_actual(struct ipl_parameter_block *reipl_block)
+void set_os_info_reipl_block(void)
 {
-	reipl_block_actual = reipl_block;
 	os_info_entry_add(OS_INFO_REIPL_BLOCK, reipl_block_actual,
-			  reipl_block->hdr.len);
+			  reipl_block_actual->hdr.len);
 }
 
 /* reipl type */
@@ -930,18 +929,18 @@ static int reipl_set_type(enum ipl_type type)
 	switch(type) {
 	case IPL_TYPE_CCW:
 		reipl_method = REIPL_METHOD_CCW_DIAG;
-		set_reipl_block_actual(reipl_block_ccw);
+		reipl_block_actual = reipl_block_ccw;
 		break;
 	case IPL_TYPE_FCP:
 		reipl_method = REIPL_METHOD_FCP_DIAG;
-		set_reipl_block_actual(reipl_block_fcp);
+		reipl_block_actual = reipl_block_fcp;
 		break;
 	case IPL_TYPE_FCP_DUMP:
 		reipl_method = REIPL_METHOD_FCP_DUMP;
 		break;
 	case IPL_TYPE_NSS:
 		reipl_method = REIPL_METHOD_NSS_DIAG;
-		set_reipl_block_actual(reipl_block_nss);
+		reipl_block_actual = reipl_block_nss;
 		break;
 	case IPL_TYPE_UNKNOWN:
 		reipl_method = REIPL_METHOD_DEFAULT;

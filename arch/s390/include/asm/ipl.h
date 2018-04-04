@@ -120,6 +120,7 @@ struct ipl_info
 
 extern struct ipl_info ipl_info;
 extern void setup_ipl(void);
+extern void set_os_info_reipl_block(void);
 
 /*
  * DIAG 308 support
