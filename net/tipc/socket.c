@@ -3280,7 +3280,8 @@ int tipc_sk_fill_sock_diag(struct sk_buff *skb, struct tipc_sock *tsk,
 	    nla_put_u32(skb, TIPC_NLA_SOCK_TIPC_STATE, (u32)sk->sk_state) ||
 	    nla_put_u32(skb, TIPC_NLA_SOCK_INO, sock_i_ino(sk)) ||
 	    nla_put_u32(skb, TIPC_NLA_SOCK_UID,
-			from_kuid_munged(sk_user_ns(sk), sock_i_uid(sk))) ||
+			from_kuid_munged(sk_user_ns(NETLINK_CB(skb).sk),
+					 sock_i_uid(sk))) ||
 	    nla_put_u64_64bit(skb, TIPC_NLA_SOCK_COOKIE,
 			      tipc_diag_gen_cookie(sk),
 			      TIPC_NLA_SOCK_PAD))
