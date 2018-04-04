@@ -277,7 +277,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	struct ocxl_context *ctx = file->private_data;
 	struct ocxl_kernel_event_header header;
 	ssize_t rc;
-	size_t used = 0;
+	ssize_t used = 0;
 	DEFINE_WAIT(event_wait);
 
 	memset(&header, 0, sizeof(header));

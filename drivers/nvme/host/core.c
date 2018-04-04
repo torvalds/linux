@@ -120,8 +120,12 @@ int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 	int ret;
 
 	ret = nvme_reset_ctrl(ctrl);
-	if (!ret)
+	if (!ret) {
 		flush_work(&ctrl->reset_work);
+		if (ctrl->state != NVME_CTRL_LIVE)
+			ret = -ENETRESET;
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_reset_ctrl_sync);
@@ -265,7 +269,7 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 	switch (new_state) {
 	case NVME_CTRL_ADMIN_ONLY:
 		switch (old_state) {
-		case NVME_CTRL_RECONNECTING:
+		case NVME_CTRL_CONNECTING:
 			changed = true;
 			/* FALLTHRU */
 		default:
@@ -276,7 +280,7 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		switch (old_state) {
 		case NVME_CTRL_NEW:
 		case NVME_CTRL_RESETTING:
-		case NVME_CTRL_RECONNECTING:
+		case NVME_CTRL_CONNECTING:
 			changed = true;
 			/* FALLTHRU */
 		default:
@@ -294,9 +298,9 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 			break;
 		}
 		break;
-	case NVME_CTRL_RECONNECTING:
+	case NVME_CTRL_CONNECTING:
 		switch (old_state) {
-		case NVME_CTRL_LIVE:
+		case NVME_CTRL_NEW:
 		case NVME_CTRL_RESETTING:
 			changed = true;
 			/* FALLTHRU */
@@ -309,7 +313,7 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		case NVME_CTRL_LIVE:
 		case NVME_CTRL_ADMIN_ONLY:
 		case NVME_CTRL_RESETTING:
-		case NVME_CTRL_RECONNECTING:
+		case NVME_CTRL_CONNECTING:
 			changed = true;
 			/* FALLTHRU */
 		default:
@@ -518,9 +522,11 @@ static blk_status_t nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 		u64 slba = nvme_block_nr(ns, bio->bi_iter.bi_sector);
 		u32 nlb = bio->bi_iter.bi_size >> ns->lba_shift;
 
-		range[n].cattr = cpu_to_le32(0);
-		range[n].nlb = cpu_to_le32(nlb);
-		range[n].slba = cpu_to_le64(slba);
+		if (n < segments) {
+			range[n].cattr = cpu_to_le32(0);
+			range[n].nlb = cpu_to_le32(nlb);
+			range[n].slba = cpu_to_le64(slba);
+		}
 		n++;
 	}
 
@@ -794,13 +800,9 @@ static void nvme_keep_alive_end_io(struct request *rq, blk_status_t status)
 
 static int nvme_keep_alive(struct nvme_ctrl *ctrl)
 {
-	struct nvme_command c;
 	struct request *rq;
 
-	memset(&c, 0, sizeof(c));
-	c.common.opcode = nvme_admin_keep_alive;
-
-	rq = nvme_alloc_request(ctrl->admin_q, &c, BLK_MQ_REQ_RESERVED,
+	rq = nvme_alloc_request(ctrl->admin_q, &ctrl->ka_cmd, BLK_MQ_REQ_RESERVED,
 			NVME_QID_ANY);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
@@ -832,6 +834,8 @@ void nvme_start_keep_alive(struct nvme_ctrl *ctrl)
 		return;
 
 	INIT_DELAYED_WORK(&ctrl->ka_work, nvme_keep_alive_work);
+	memset(&ctrl->ka_cmd, 0, sizeof(ctrl->ka_cmd));
+	ctrl->ka_cmd.common.opcode = nvme_admin_keep_alive;
 	schedule_delayed_work(&ctrl->ka_work, ctrl->kato * HZ);
 }
 EXPORT_SYMBOL_GPL(nvme_start_keep_alive);
@@ -1117,14 +1121,19 @@ static u32 nvme_passthru_start(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 
 static void nvme_update_formats(struct nvme_ctrl *ctrl)
 {
-	struct nvme_ns *ns;
+	struct nvme_ns *ns, *next;
+	LIST_HEAD(rm_list);
 
 	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
-		if (ns->disk && nvme_revalidate_disk(ns->disk))
-			nvme_ns_remove(ns);
+		if (ns->disk && nvme_revalidate_disk(ns->disk)) {
+			list_move_tail(&ns->list, &rm_list);
+		}
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
+
+	list_for_each_entry_safe(ns, next, &rm_list, list)
+		nvme_ns_remove(ns);
 }
 
 static void nvme_passthru_end(struct nvme_ctrl *ctrl, u32 effects)
@@ -2687,7 +2696,7 @@ static ssize_t nvme_sysfs_show_state(struct device *dev,
 		[NVME_CTRL_LIVE]	= "live",
 		[NVME_CTRL_ADMIN_ONLY]	= "only-admin",
 		[NVME_CTRL_RESETTING]	= "resetting",
-		[NVME_CTRL_RECONNECTING]= "reconnecting",
+		[NVME_CTRL_CONNECTING]	= "connecting",
 		[NVME_CTRL_DELETING]	= "deleting",
 		[NVME_CTRL_DEAD]	= "dead",
 	};

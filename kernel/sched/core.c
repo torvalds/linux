@@ -2601,19 +2601,31 @@ static inline void finish_task(struct task_struct *prev)
 #endif
 }
 
-static inline void finish_lock_switch(struct rq *rq)
+static inline void
+prepare_lock_switch(struct rq *rq, struct task_struct *next, struct rq_flags *rf)
 {
+	/*
+	 * Since the runqueue lock will be released by the next
+	 * task (which is an invalid locking op but in the case
+	 * of the scheduler it's an obvious special-case), so we
+	 * do an early lockdep release here:
+	 */
+	rq_unpin_lock(rq, rf);
+	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
 #ifdef CONFIG_DEBUG_SPINLOCK
 	/* this is a valid case when another task releases the spinlock */
-	rq->lock.owner = current;
+	rq->lock.owner = next;
 #endif
+}
+
+static inline void finish_lock_switch(struct rq *rq)
+{
 	/*
 	 * If we are tracking spinlock dependencies then we have to
 	 * fix up the runqueue lock - which gets 'carried over' from
 	 * prev into current:
 	 */
 	spin_acquire(&rq->lock.dep_map, 0, 0, _THIS_IP_);
-
 	raw_spin_unlock_irq(&rq->lock);
 }
 
@@ -2844,14 +2856,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 
 	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 
-	/*
-	 * Since the runqueue lock will be released by the next
-	 * task (which is an invalid locking op but in the case
-	 * of the scheduler it's an obvious special-case), so we
-	 * do an early lockdep release here:
-	 */
-	rq_unpin_lock(rq, rf);
-	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
+	prepare_lock_switch(rq, next, rf);
 
 	/* Here we just switch the register state and the stack. */
 	switch_to(prev, next, prev);

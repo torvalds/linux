@@ -716,7 +716,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	__be64 *ptr;
 	sector_t lblock;
 	sector_t lend;
-	int ret;
+	int ret = 0;
 	int eob;
 	unsigned int len;
 	struct buffer_head *bh;
@@ -728,12 +728,14 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 		goto out;
 	}
 
-	if ((flags & IOMAP_REPORT) && gfs2_is_stuffed(ip)) {
-		gfs2_stuffed_iomap(inode, iomap);
-		if (pos >= iomap->length)
-			return -ENOENT;
-		ret = 0;
-		goto out;
+	if (gfs2_is_stuffed(ip)) {
+		if (flags & IOMAP_REPORT) {
+			gfs2_stuffed_iomap(inode, iomap);
+			if (pos >= iomap->length)
+				ret = -ENOENT;
+			goto out;
+		}
+		BUG_ON(!(flags & IOMAP_WRITE));
 	}
 
 	lblock = pos >> inode->i_blkbits;
@@ -744,7 +746,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	iomap->type = IOMAP_HOLE;
 	iomap->length = (u64)(lend - lblock) << inode->i_blkbits;
 	iomap->flags = IOMAP_F_MERGED;
-	bmap_lock(ip, 0);
+	bmap_lock(ip, flags & IOMAP_WRITE);
 
 	/*
 	 * Directory data blocks have a struct gfs2_meta_header header, so the
@@ -787,27 +789,28 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 		iomap->flags |= IOMAP_F_BOUNDARY;
 	iomap->length = (u64)len << inode->i_blkbits;
 
-	ret = 0;
-
 out_release:
 	release_metapath(&mp);
-	bmap_unlock(ip, 0);
+	bmap_unlock(ip, flags & IOMAP_WRITE);
 out:
 	trace_gfs2_iomap_end(ip, iomap, ret);
 	return ret;
 
 do_alloc:
-	if (!(flags & IOMAP_WRITE)) {
-		if (pos >= i_size_read(inode)) {
+	if (flags & IOMAP_WRITE) {
+		ret = gfs2_iomap_alloc(inode, iomap, flags, &mp);
+	} else if (flags & IOMAP_REPORT) {
+		loff_t size = i_size_read(inode);
+		if (pos >= size)
 			ret = -ENOENT;
-			goto out_release;
-		}
-		ret = 0;
-		iomap->length = hole_size(inode, lblock, &mp);
-		goto out_release;
+		else if (height <= ip->i_height)
+			iomap->length = hole_size(inode, lblock, &mp);
+		else
+			iomap->length = size - pos;
+	} else {
+		if (height <= ip->i_height)
+			iomap->length = hole_size(inode, lblock, &mp);
 	}
-
-	ret = gfs2_iomap_alloc(inode, iomap, flags, &mp);
 	goto out_release;
 }
 

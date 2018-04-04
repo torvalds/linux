@@ -23,7 +23,8 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) &&  defined(CONFIG_PPC_64K_PAGES)
+#if (defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)) && \
+	defined(CONFIG_PPC_64K_PAGES)
 /*
  * only with hash 64k we need to use the second half of pmd page table
  * to store pointer to deposited pgtable_t
@@ -31,6 +32,16 @@
 #define H_PMD_CACHE_INDEX	(H_PMD_INDEX_SIZE + 1)
 #else
 #define H_PMD_CACHE_INDEX	H_PMD_INDEX_SIZE
+#endif
+/*
+ * We store the slot details in the second half of page table.
+ * Increase the pud level table so that hugetlb ptes can be stored
+ * at pud level.
+ */
+#if defined(CONFIG_HUGETLB_PAGE) &&  defined(CONFIG_PPC_64K_PAGES)
+#define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE + 1)
+#else
+#define H_PUD_CACHE_INDEX	(H_PUD_INDEX_SIZE)
 #endif
 /*
  * Define the address range of the kernel non-linear virtual area

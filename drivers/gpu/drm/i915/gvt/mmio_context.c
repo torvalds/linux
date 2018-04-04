@@ -118,6 +118,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS, HALF_SLICE_CHICKEN3, 0xffff, true}, /* 0xe184 */
 	{RCS, GEN9_HALF_SLICE_CHICKEN5, 0xffff, true}, /* 0xe188 */
 	{RCS, GEN9_HALF_SLICE_CHICKEN7, 0xffff, true}, /* 0xe194 */
+	{RCS, GEN8_ROW_CHICKEN, 0xffff, true}, /* 0xe4f0 */
 	{RCS, TRVATTL3PTRDW(0), 0, false}, /* 0x4de0 */
 	{RCS, TRVATTL3PTRDW(1), 0, false}, /* 0x4de4 */
 	{RCS, TRNULLDETCT, 0, false}, /* 0x4de8 */

@@ -1426,7 +1426,7 @@ EXC_COMMON_BEGIN(soft_nmi_common)
  *   triggered and won't automatically refire.
  * - If it was a HMI we return immediately since we handled it in realmode
  *   and it won't refire.
- * - else we hard disable and return.
+ * - Else it is one of PACA_IRQ_MUST_HARD_MASK, so hard disable and return.
  * This is called with r10 containing the value to OR to the paca field.
  */
 #define MASKED_INTERRUPT(_H)				\
@@ -1441,8 +1441,8 @@ masked_##_H##interrupt:					\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
 	b	MASKED_DEC_HANDLER_LABEL;		\
-1:	andi.	r10,r10,(PACA_IRQ_DBELL|PACA_IRQ_HMI);	\
-	bne	2f;					\
+1:	andi.	r10,r10,PACA_IRQ_MUST_HARD_MASK;	\
+	beq	2f;					\
 	mfspr	r10,SPRN_##_H##SRR1;			\
 	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
 	mtspr	SPRN_##_H##SRR1,r10;			\

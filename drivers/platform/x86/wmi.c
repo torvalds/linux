@@ -933,7 +933,7 @@ static int wmi_dev_probe(struct device *dev)
 			goto probe_failure;
 		}
 
-		buf = kmalloc(strlen(wdriver->driver.name) + 4, GFP_KERNEL);
+		buf = kmalloc(strlen(wdriver->driver.name) + 5, GFP_KERNEL);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto probe_string_failure;

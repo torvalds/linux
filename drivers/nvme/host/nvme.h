@@ -123,7 +123,7 @@ enum nvme_ctrl_state {
 	NVME_CTRL_LIVE,
 	NVME_CTRL_ADMIN_ONLY,    /* Only admin queue live */
 	NVME_CTRL_RESETTING,
-	NVME_CTRL_RECONNECTING,
+	NVME_CTRL_CONNECTING,
 	NVME_CTRL_DELETING,
 	NVME_CTRL_DEAD,
 };
@@ -183,6 +183,7 @@ struct nvme_ctrl {
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
 
 	/* Power saving configuration */

@@ -333,7 +333,7 @@ TRACE_EVENT(render_mmio,
 	TP_PROTO(int old_id, int new_id, char *action, unsigned int reg,
 		 unsigned int old_val, unsigned int new_val),
 
-	TP_ARGS(old_id, new_id, action, reg, new_val, old_val),
+	TP_ARGS(old_id, new_id, action, reg, old_val, new_val),
 
 	TP_STRUCT__entry(
 		__field(int, old_id)

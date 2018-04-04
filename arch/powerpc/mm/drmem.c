@@ -216,6 +216,8 @@ static void __init __walk_drmem_v1_lmbs(const __be32 *prop, const __be32 *usm,
 	u32 i, n_lmbs;
 
 	n_lmbs = of_read_number(prop++, 1);
+	if (n_lmbs == 0)
+		return;
 
 	for (i = 0; i < n_lmbs; i++) {
 		read_drconf_v1_cell(&lmb, &prop);
@@ -245,6 +247,8 @@ static void __init __walk_drmem_v2_lmbs(const __be32 *prop, const __be32 *usm,
 	u32 i, j, lmb_sets;
 
 	lmb_sets = of_read_number(prop++, 1);
+	if (lmb_sets == 0)
+		return;
 
 	for (i = 0; i < lmb_sets; i++) {
 		read_drconf_v2_cell(&dr_cell, &prop);
@@ -354,6 +358,8 @@ static void __init init_drmem_v1_lmbs(const __be32 *prop)
 	struct drmem_lmb *lmb;
 
 	drmem_info->n_lmbs = of_read_number(prop++, 1);
+	if (drmem_info->n_lmbs == 0)
+		return;
 
 	drmem_info->lmbs = kcalloc(drmem_info->n_lmbs, sizeof(*lmb),
 				   GFP_KERNEL);
@@ -373,6 +379,8 @@ static void __init init_drmem_v2_lmbs(const __be32 *prop)
 	int lmb_index;
 
 	lmb_sets = of_read_number(prop++, 1);
+	if (lmb_sets == 0)
+		return;
 
 	/* first pass, calculate the number of LMBs */
 	p = prop;

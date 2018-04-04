@@ -715,26 +715,9 @@ union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int
 	return perf_mmap__read_forward(md);
 }
 
-union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
-{
-	struct perf_mmap *md = &evlist->mmap[idx];
-
-	/*
-	 * No need to check messup for backward ring buffer:
-	 * We can always read arbitrary long data from a backward
-	 * ring buffer unless we forget to pause it before reading.
-	 */
-	return perf_mmap__read_backward(md);
-}
-
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
 	return perf_evlist__mmap_read_forward(evlist, idx);
-}
-
-void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
-{
-	perf_mmap__read_catchup(&evlist->mmap[idx]);
 }
 
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)

@@ -572,7 +572,7 @@ asmlinkage void __weak plat_wired_tlb_setup(void)
 	 */
 }
 
-void __init bmips_cpu_setup(void)
+void bmips_cpu_setup(void)
 {
 	void __iomem __maybe_unused *cbr = BMIPS_GET_CBR();
 	u32 __maybe_unused cfg;
