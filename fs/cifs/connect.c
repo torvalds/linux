@@ -775,7 +775,8 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int pdu_length = get_rfc1002_length(buf);
 
 	/* make sure this will fit in a large buffer */
-	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) - 4) {
+	if (pdu_length > CIFSMaxBufSize + MAX_HEADER_SIZE(server) -
+		server->vals->header_preamble_size) {
 		cifs_dbg(VFS, "SMB response too long (%u bytes)\n", pdu_length);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
@@ -791,7 +792,9 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	/* now read the rest */
 	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
-				pdu_length - HEADER_SIZE(server) + 1 + 4);
+				       pdu_length - HEADER_SIZE(server) + 1
+				       + server->vals->header_preamble_size);
+
 	if (length < 0)
 		return length;
 	server->total_read += length;
@@ -884,7 +887,8 @@ cifs_demultiplex_thread(void *p)
 			continue;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < HEADER_SIZE(server) - 1 - 4) {
+		if (pdu_length < HEADER_SIZE(server) - 1 -
+		    server->vals->header_preamble_size) {
 			cifs_dbg(VFS, "SMB response too short (%u bytes)\n",
 				 pdu_length);
 			cifs_reconnect(server);
@@ -893,8 +897,10 @@ cifs_demultiplex_thread(void *p)
 		}
 
 		/* read down to the MID */
-		length = cifs_read_from_socket(server, buf + 4,
-					       HEADER_SIZE(server) - 1 - 4);
+		length = cifs_read_from_socket(server,
+			     buf + server->vals->header_preamble_size,
+			     HEADER_SIZE(server) - 1
+			     - server->vals->header_preamble_size);
 		if (length < 0)
 			continue;
 		server->total_read += length;
@@ -4306,7 +4312,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		 server->sec_mode, server->capabilities, server->timeAdj);
 
 	if (ses->auth_key.response) {
-		cifs_dbg(VFS, "Free previous auth_key.response = %p\n",
+		cifs_dbg(FYI, "Free previous auth_key.response = %p\n",
 			 ses->auth_key.response);
 		kfree(ses->auth_key.response);
 		ses->auth_key.response = NULL;

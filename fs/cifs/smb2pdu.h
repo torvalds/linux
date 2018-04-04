@@ -249,6 +249,8 @@ struct smb2_negotiate_req {
 /* SecurityMode flags */
 #define	SMB2_NEGOTIATE_SIGNING_ENABLED	0x0001
 #define SMB2_NEGOTIATE_SIGNING_REQUIRED	0x0002
+#define SMB2_SEC_MODE_FLAGS_ALL		0x0003
+
 /* Capabilities flags */
 #define SMB2_GLOBAL_CAP_DFS		0x00000001
 #define SMB2_GLOBAL_CAP_LEASING		0x00000002 /* Resp only New to SMB2.1 */
@@ -264,6 +266,7 @@ struct smb2_negotiate_req {
 #define SMB311_SALT_SIZE			32
 /* Hash Algorithm Types */
 #define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)
+#define SMB2_PREAUTH_HASH_SIZE 64
 
 struct smb2_preauth_neg_context {
 	__le16	ContextType; /* 1 */
