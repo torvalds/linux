@@ -3127,10 +3127,14 @@ sub config_bisect_end {
 
 sub run_config_bisect {
     my ($good, $bad, $last_result) = @_;
+    my $reset = "";
     my $cmd;
     my $ret;
 
-    run_command "$builddir/tools/testing/ktest/config-bisect.pl -b $outputdir $good $bad $last_result", 1;
+    if (!length($last_result)) {
+	$reset = "-r";
+    }
+    run_command "$builddir/tools/testing/ktest/config-bisect.pl $reset -b $outputdir $good $bad $last_result", 1;
 
     # config-bisect returns:
     #   0 if there is more to bisect

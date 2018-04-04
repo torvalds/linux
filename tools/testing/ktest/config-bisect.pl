@@ -52,11 +52,11 @@
 
 # If "good" or "bad" is not stated at the end, it will copy the good and
 # bad configs to the .tmp versions. If a .tmp version already exists, it will
-# warn before writing over them. If the last config is labeled "good", then
-# it will copy it to the good .tmp version. If the last config is labeled
-# "bad", it will copy it to the bad .tmp version. It will continue this until
-# it can not merge the two any more without the result being equal to either
-# the good or bad .tmp configs.
+# warn before writing over them (-r will not warn, and just write over them).
+# If the last config is labeled "good", then it will copy it to the good .tmp
+# version. If the last config is labeled "bad", it will copy it to the bad
+# .tmp version. It will continue this until it can not merge the two any more
+# without the result being equal to either the good or bad .tmp configs.
 
 my $start = 0;
 my $val = "";
@@ -67,6 +67,7 @@ my $tree = $pwd;
 my $build;
 
 my $output_config;
+my $reset_bisect;
 
 sub usage {
     print << "EOF"
@@ -654,6 +655,10 @@ while ($#ARGV >= 0) {
 	$tree = $val;
     }
 
+    elsif ($opt eq "-r") {
+	$reset_bisect = 1;
+    }
+
     elsif ($opt eq "-h") {
 	usage;
     }
@@ -721,8 +726,10 @@ if ($start) {
 	    $p = "$p$bad exists\n";
 	}
 
-	if (!read_yn "${p}Overwrite and start new bisect anyway?") {
-	    exit (-1);
+	if (!defined($reset_bisect)) {
+	    if (!read_yn "${p}Overwrite and start new bisect anyway?") {
+		exit (-1);
+	    }
 	}
     }
     run_command "cp $good_start $good" or die "failed to copy to $good\n";
