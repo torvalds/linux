@@ -150,7 +150,7 @@
 			};
 
 			serial0: serial@1000 {
-				compatible = "ns16550a";
+				compatible = "nuvoton,npcm750-uart";
 				reg = <0x1000 0x1000>;
 				clocks = <&clk 14>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
@@ -159,7 +159,7 @@
 			};
 
 			serial1: serial@2000 {
-				compatible = "ns16550a";
+				compatible = "nuvoton,npcm750-uart";
 				reg = <0x2000 0x1000>;
 				clocks = <&clk 14>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
@@ -168,7 +168,7 @@
 			};
 
 			serial2: serial@3000 {
-				compatible = "ns16550a";
+				compatible = "nuvoton,npcm750-uart";
 				reg = <0x3000 0x1000>;
 				clocks = <&clk 14>;
 				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
@@ -177,7 +177,7 @@
 			};
 
 			serial3: serial@4000 {
-				compatible = "ns16550a";
+				compatible = "nuvoton,npcm750-uart";
 				reg = <0x4000 0x1000>;
 				clocks = <&clk 14>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
