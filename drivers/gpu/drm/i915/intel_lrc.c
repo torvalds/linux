@@ -2609,3 +2609,7 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 		}
 	}
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/intel_lrc.c"
+#endif
