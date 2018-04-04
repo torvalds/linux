@@ -194,7 +194,8 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 			block = sizes / 512;
 			if (block >= 99) {
 				printk("cmd53 error blocks\n");
-				while (1);
+				while (1)
+					;
 			}
 			cmd = bRx ?  &result->cmd53_rx_blk[block] : &result->cmd53_tx_blk[block];
 		}
@@ -264,11 +265,14 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 	int id, zone;
 	int mode, size;
 
-	if (count == 0)return -1;
-	if (count > 255)count = 255;
+	if (count == 0)
+		return -1;
+	if (count > 255)
+		count = 255;
 
 	ret = copy_from_user(cmd_buf, buf, count);
-	if (ret < 0)return -1;
+	if (ret < 0)
+		return -1;
 
 	cmd_buf[count] = '\0';
 	printk("msdc Write %s\n", cmd_buf);
@@ -276,7 +280,9 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 	sscanf(cmd_buf, "%x %x %x", &cmd, &p1, &p2);
 
 	if (cmd == SD_TOOL_ZONE) {
-		id = p1; zone = p2; zone &= 0x3ff;
+		id = p1;
+		zone = p2;
+		zone &= 0x3ff;
 		printk("msdc host_id<%d> zone<0x%.8x>\n", id, zone);
 		if (id >= 0 && id <= 3) {
 			sd_debug_zone[id] = zone;
@@ -289,7 +295,9 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 			printk("msdc host_id error when set debug zone\n");
 		}
 	} else if (cmd == SD_TOOL_DMA_SIZE) {
-		id = p1 >> 4;  mode = (p1 & 0xf); size = p2;
+		id = p1 >> 4;
+		mode = (p1 & 0xf);
+		size = p2;
 		if (id >= 0 && id <= 3) {
 			drv_mode[id] = mode;
 			dma_size[id] = p2;
@@ -310,7 +318,10 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 				gpt_enable = 1;
 			}
 			sdio_pro_enable = 1;
-			if (p2 == 0) p2 = 1; if (p2 >= 30) p2 = 30;
+			if (p2 == 0)
+				p2 = 1;
+			if (p2 >= 30)
+				p2 = 30;
 			sdio_pro_time = p2;
 		}	else if (p1 == 0) {
 			/* todo */

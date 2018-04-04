@@ -263,7 +263,8 @@ static int msdc_rsp[] = {
 	do {								\
 		int backup = cnt;					\
 		while (retry) {						\
-			if (!(expr)) break;				\
+			if (!(expr))					\
+				break;					\
 			if (cnt-- == 0) {				\
 				retry--; mdelay(1); cnt = backup;	\
 			}						\
@@ -694,7 +695,8 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 	sdr_set_field(MSDC_CFG, MSDC_CFG_CKDIV, div);
 
 	/* wait clock stable */
-	while (!(sdr_read32(MSDC_CFG) & MSDC_CFG_CKSTB));
+	while (!(sdr_read32(MSDC_CFG) & MSDC_CFG_CKSTB))
+		;
 
 	host->sclk = sclk;
 	host->mclk = hz;
@@ -1245,7 +1247,8 @@ end:
 	N_MSG(FIO, "        PIO Read<%d>bytes", size);
 
 	sdr_clr_bits(MSDC_INTEN, wints);
-	if (data->error) ERR_MSG("read pio data->error<%d> left<%d> size<%d>", data->error, left, size);
+	if (data->error)
+		ERR_MSG("read pio data->error<%d> left<%d> size<%d>", data->error, left, size);
 	return data->error;
 }
 
@@ -1300,7 +1303,8 @@ static int msdc_pio_write(struct msdc_host *host, struct mmc_data *data)
 end:
 	data->bytes_xfered += size;
 	N_MSG(FIO, "        PIO Write<%d>bytes", size);
-	if (data->error) ERR_MSG("write pio data->error<%d>", data->error);
+	if (data->error)
+		ERR_MSG("write pio data->error<%d>", data->error);
 
 	sdr_clr_bits(MSDC_INTEN, wints);
 	return data->error;
@@ -1340,7 +1344,8 @@ static void msdc_dma_stop(struct msdc_host *host)
 	//while (sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS);
 
 	sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_STOP, 1);
-	while (sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS);
+	while (sdr_read32(MSDC_DMA_CFG) & MSDC_DMA_CFG_STS)
+		;
 
 	//dsb(); /* --- by chhung */
 	sdr_clr_bits(MSDC_INTEN, wints); /* Not just xfer_comp */
@@ -1733,9 +1738,12 @@ done:
 #endif
 #endif /* end of --- */
 
-	if (mrq->cmd->error) host->error = 0x001;
-	if (mrq->data && mrq->data->error) host->error |= 0x010;
-	if (mrq->stop && mrq->stop->error) host->error |= 0x100;
+	if (mrq->cmd->error)
+		host->error = 0x001;
+	if (mrq->data && mrq->data->error)
+		host->error |= 0x010;
+	if (mrq->stop && mrq->stop->error)
+		host->error |= 0x100;
 
 	//if (host->error) ERR_MSG("host->error<%d>", host->error);
 
@@ -1868,7 +1876,8 @@ static int msdc_tune_bread(struct mmc_host *mmc, struct mmc_request *mrq)
 			result = msdc_do_request(mmc, mrq);
 
 			sdr_get_field(SDC_DCRC_STS, SDC_DCRC_STS_POS | SDC_DCRC_STS_NEG, dcrc); /* RO */
-			if (!ddr) dcrc &= ~SDC_DCRC_STS_NEG;
+			if (!ddr)
+				dcrc &= ~SDC_DCRC_STS_NEG;
 			ERR_MSG("TUNE_BREAD<%s> dcrc<0x%x> DATRDDLY0/1<0x%x><0x%x> dsmpl<0x%x>",
 				(result == 0 && dcrc == 0) ? "PASS" : "FAIL", dcrc,
 				sdr_read32(MSDC_DAT_RDDLY0), sdr_read32(MSDC_DAT_RDDLY1), cur_dsmpl);
@@ -2063,7 +2072,8 @@ static int msdc_check_busy(struct mmc_host *mmc, struct msdc_host *host)
 
 	do {
 		err = msdc_get_card_status(mmc, host, &status);
-		if (err) return err;
+		if (err)
+			return err;
 		/* need cmd12? */
 		ERR_MSG("cmd<13> resp<0x%x>", status);
 	} while (R1_CURRENT_STATE(status) == 7);
@@ -2755,7 +2765,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 
 	/* Allocate MMC host for this device */
 	mmc = mmc_alloc_host(sizeof(struct msdc_host), &pdev->dev);
-	if (!mmc) return -ENOMEM;
+	if (!mmc)
+		return -ENOMEM;
 
 	hw   = (struct msdc_hw *)pdev->dev.platform_data;
 	mem  = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2854,7 +2865,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	else
 		ret = request_irq((unsigned int)irq, msdc_irq, IRQF_TRIGGER_LOW, dev_name(&pdev->dev), host);
 
-	if (ret) goto release;
+	if (ret)
+		goto release;
 	// mt65xx_irq_unmask(irq); /* --- by chhung */
 
 	if (hw->flags & MSDC_CD_PIN_EN) { /* not set for sdio */
@@ -2879,7 +2891,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mmc);
 
 	ret = mmc_add_host(mmc);
-	if (ret) goto free_irq;
+	if (ret)
+		goto free_irq;
 
 	/* Config card detection pin and enable interrupts */
 	if (hw->flags & MSDC_CD_PIN_EN) {  /* set for card */

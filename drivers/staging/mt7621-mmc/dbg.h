@@ -105,7 +105,8 @@ extern unsigned int sd_debug_zone[4];
 do { \
 	if (x) { \
 		printk("[BUG] %s LINE:%d FILE:%s\n", #x, __LINE__, __FILE__); \
-		while (1); \
+		while (1)						\
+			;						\
 	} \
 } while (0)
 #endif /* end of +++ */
