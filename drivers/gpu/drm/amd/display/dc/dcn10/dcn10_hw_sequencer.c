@@ -311,7 +311,16 @@ void dcn10_log_hw_state(struct dc *dc)
 		print_rq_dlg_ttu_regs(dc_ctx, &s);
 		DTN_INFO("\n");
 	}
-	DTN_INFO("\n");
+
+	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
+		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
+			dc->current_state->bw.dcn.calc_clk.dcfclk_khz,
+			dc->current_state->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
+			dc->current_state->bw.dcn.calc_clk.dispclk_khz,
+			dc->current_state->bw.dcn.calc_clk.dppclk_khz,
+			dc->current_state->bw.dcn.calc_clk.max_supported_dppclk_khz,
+			dc->current_state->bw.dcn.calc_clk.fclk_khz,
+			dc->current_state->bw.dcn.calc_clk.socclk_khz);
 
 	log_mpc_crc(dc);
 
