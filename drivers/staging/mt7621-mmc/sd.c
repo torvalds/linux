@@ -2963,10 +2963,7 @@ static struct platform_driver mt_msdc_driver = {
 static int __init mt_msdc_init(void)
 {
 	int ret;
-/* +++ by chhung */
 	u32 reg;
-
-	printk("MTK MSDC device init.\n");
 
 	// Set the pins for sdxc to sdxc mode
 	//FIXME: this should be done by pinctl and not by the sd driver
@@ -2978,7 +2975,6 @@ static int __init mt_msdc_init(void)
 		printk(KERN_ERR DRV_NAME ": Can't register driver");
 		return ret;
 	}
-	printk(KERN_INFO DRV_NAME ": MediaTek MT6575 MSDC Driver\n");
 
 #if defined(MT6575_SD_DEBUG)
 	msdc_debug_proc_init();
