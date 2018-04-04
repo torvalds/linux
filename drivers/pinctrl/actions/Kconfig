@@ -1,0 +1,12 @@
+config PINCTRL_OWL
+	bool
+	depends on (ARCH_ACTIONS || COMPILE_TEST) && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+
+config PINCTRL_S900
+	bool "Actions Semi S900 pinctrl driver"
+	select PINCTRL_OWL
+	help
+	  Say Y here to enable Actions Semi S900 pinctrl driver
