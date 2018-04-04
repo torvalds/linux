@@ -901,7 +901,6 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	/* Allocate Port Struct */
 	hsdevp = kzalloc(sizeof(*hsdevp), GFP_KERNEL);
 	if (!hsdevp) {
-		dev_err(ap->dev, "%s: kmalloc failed for hsdevp\n", __func__);
 		err = -ENOMEM;
 		goto CLEANUP;
 	}

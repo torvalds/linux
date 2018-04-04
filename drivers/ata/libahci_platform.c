@@ -25,6 +25,7 @@
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_platform.h>
+#include <linux/reset.h>
 #include "ahci.h"
 
 static void ahci_host_stop(struct ata_host *host);
@@ -195,7 +196,8 @@ EXPORT_SYMBOL_GPL(ahci_platform_disable_regulators);
  * following order:
  * 1) Regulator
  * 2) Clocks (through ahci_platform_enable_clks)
- * 3) Phys
+ * 3) Resets
+ * 4) Phys
  *
  * If resource enabling fails at any point the previous enabled resources
  * are disabled in reverse order.
@@ -215,11 +217,18 @@ int ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
 	if (rc)
 		goto disable_regulator;
 
-	rc = ahci_platform_enable_phys(hpriv);
+	rc = reset_control_deassert(hpriv->rsts);
 	if (rc)
 		goto disable_clks;
 
+	rc = ahci_platform_enable_phys(hpriv);
+	if (rc)
+		goto disable_resets;
+
 	return 0;
+
+disable_resets:
+	reset_control_assert(hpriv->rsts);
 
 disable_clks:
 	ahci_platform_disable_clks(hpriv);
@@ -239,11 +248,14 @@ EXPORT_SYMBOL_GPL(ahci_platform_enable_resources);
  * following order:
  * 1) Phys
  * 2) Clocks (through ahci_platform_disable_clks)
- * 3) Regulator
+ * 3) Resets
+ * 4) Regulator
  */
 void ahci_platform_disable_resources(struct ahci_host_priv *hpriv)
 {
 	ahci_platform_disable_phys(hpriv);
+
+	reset_control_assert(hpriv->rsts);
 
 	ahci_platform_disable_clks(hpriv);
 
@@ -391,6 +403,12 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 			break;
 		}
 		hpriv->clks[i] = clk;
+	}
+
+	hpriv->rsts = devm_reset_control_array_get_optional_shared(dev);
+	if (IS_ERR(hpriv->rsts)) {
+		rc = PTR_ERR(hpriv->rsts);
+		goto err_out;
 	}
 
 	hpriv->nports = child_nodes = of_get_child_count(dev->of_node);
