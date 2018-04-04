@@ -43,10 +43,12 @@ enum drm_sched_priority {
 };
 
 /**
- * A scheduler entity is a wrapper around a job queue or a group
- * of other entities. Entities take turns emitting jobs from their
- * job queues to corresponding hardware ring based on scheduling
- * policy.
+ * drm_sched_entity - A wrapper around a job queue (typically attached
+ * to the DRM file_priv).
+ *
+ * Entities will emit jobs in order to their corresponding hardware
+ * ring, and the scheduler will alternate between entities based on
+ * scheduling policy.
 */
 struct drm_sched_entity {
 	struct list_head		list;
@@ -78,7 +80,18 @@ struct drm_sched_rq {
 
 struct drm_sched_fence {
 	struct dma_fence		scheduled;
+
+	/* This fence is what will be signaled by the scheduler when
+	 * the job is completed.
+	 *
+	 * When setting up an out fence for the job, you should use
+	 * this, since it's available immediately upon
+	 * drm_sched_job_init(), and the fence returned by the driver
+	 * from run_job() won't be created until the dependencies have
+	 * resolved.
+	 */
 	struct dma_fence		finished;
+
 	struct dma_fence_cb		cb;
 	struct dma_fence		*parent;
 	struct drm_gpu_scheduler	*sched;
@@ -88,6 +101,13 @@ struct drm_sched_fence {
 
 struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
 
+/**
+ * drm_sched_job - A job to be run by an entity.
+ *
+ * A job is created by the driver using drm_sched_job_init(), and
+ * should call drm_sched_entity_push_job() once it wants the scheduler
+ * to schedule the job.
+ */
 struct drm_sched_job {
 	struct spsc_node		queue_node;
 	struct drm_gpu_scheduler	*sched;
@@ -112,10 +132,28 @@ static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
  * these functions should be implemented in driver side
 */
 struct drm_sched_backend_ops {
+	/* Called when the scheduler is considering scheduling this
+	 * job next, to get another struct dma_fence for this job to
+	 * block on.  Once it returns NULL, run_job() may be called.
+	 */
 	struct dma_fence *(*dependency)(struct drm_sched_job *sched_job,
 					struct drm_sched_entity *s_entity);
+
+	/* Called to execute the job once all of the dependencies have
+	 * been resolved.  This may be called multiple times, if
+	 * timedout_job() has happened and drm_sched_job_recovery()
+	 * decides to try it again.
+	 */
 	struct dma_fence *(*run_job)(struct drm_sched_job *sched_job);
+
+	/* Called when a job has taken too long to execute, to trigger
+	 * GPU recovery.
+	 */
 	void (*timedout_job)(struct drm_sched_job *sched_job);
+
+	/* Called once the job's finished fence has been signaled and
+	 * it's time to clean it up.
+	 */
 	void (*free_job)(struct drm_sched_job *sched_job);
 };
 
