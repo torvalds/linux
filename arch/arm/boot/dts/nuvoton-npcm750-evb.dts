@@ -18,6 +18,10 @@
 	};
 };
 
+&watchdog1 {
+	status = "okay";
+};
+
 &serial0 {
 	status = "okay";
 };
