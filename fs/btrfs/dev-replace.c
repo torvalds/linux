@@ -545,8 +545,8 @@ int btrfs_dev_replace_by_ioctl(struct btrfs_fs_info *fs_info,
 static void btrfs_rm_dev_replace_blocked(struct btrfs_fs_info *fs_info)
 {
 	set_bit(BTRFS_FS_STATE_DEV_REPLACING, &fs_info->fs_state);
-	wait_event(fs_info->replace_wait, !percpu_counter_sum(
-		   &fs_info->bio_counter));
+	wait_event(fs_info->dev_replace.replace_wait, !percpu_counter_sum(
+		   &fs_info->dev_replace.bio_counter));
 }
 
 /*
@@ -555,7 +555,7 @@ static void btrfs_rm_dev_replace_blocked(struct btrfs_fs_info *fs_info)
 static void btrfs_rm_dev_replace_unblocked(struct btrfs_fs_info *fs_info)
 {
 	clear_bit(BTRFS_FS_STATE_DEV_REPLACING, &fs_info->fs_state);
-	wake_up(&fs_info->replace_wait);
+	wake_up(&fs_info->dev_replace.replace_wait);
 }
 
 static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
@@ -997,25 +997,25 @@ void btrfs_dev_replace_set_lock_blocking(
 
 void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
 {
-	percpu_counter_inc(&fs_info->bio_counter);
+	percpu_counter_inc(&fs_info->dev_replace.bio_counter);
 }
 
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)
 {
-	percpu_counter_sub(&fs_info->bio_counter, amount);
-	cond_wake_up_nomb(&fs_info->replace_wait);
+	percpu_counter_sub(&fs_info->dev_replace.bio_counter, amount);
+	cond_wake_up_nomb(&fs_info->dev_replace.replace_wait);
 }
 
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info)
 {
 	while (1) {
-		percpu_counter_inc(&fs_info->bio_counter);
+		percpu_counter_inc(&fs_info->dev_replace.bio_counter);
 		if (likely(!test_bit(BTRFS_FS_STATE_DEV_REPLACING,
 				     &fs_info->fs_state)))
 			break;
 
 		btrfs_bio_counter_dec(fs_info);
-		wait_event(fs_info->replace_wait,
+		wait_event(fs_info->dev_replace.replace_wait,
 			   !test_bit(BTRFS_FS_STATE_DEV_REPLACING,
 				     &fs_info->fs_state));
 	}

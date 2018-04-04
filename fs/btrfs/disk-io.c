@@ -2156,7 +2156,7 @@ static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
 	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
 	rwlock_init(&fs_info->dev_replace.lock);
 	atomic_set(&fs_info->dev_replace.blocking_readers, 0);
-	init_waitqueue_head(&fs_info->replace_wait);
+	init_waitqueue_head(&fs_info->dev_replace.replace_wait);
 	init_waitqueue_head(&fs_info->dev_replace.read_lock_wq);
 }
 
@@ -2646,7 +2646,8 @@ int open_ctree(struct super_block *sb,
 		goto fail_dirty_metadata_bytes;
 	}
 
-	ret = percpu_counter_init(&fs_info->bio_counter, 0, GFP_KERNEL);
+	ret = percpu_counter_init(&fs_info->dev_replace.bio_counter, 0,
+			GFP_KERNEL);
 	if (ret) {
 		err = ret;
 		goto fail_delalloc_bytes;
@@ -3307,7 +3308,7 @@ fail_iput:
 
 	iput(fs_info->btree_inode);
 fail_bio_counter:
-	percpu_counter_destroy(&fs_info->bio_counter);
+	percpu_counter_destroy(&fs_info->dev_replace.bio_counter);
 fail_delalloc_bytes:
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
 fail_dirty_metadata_bytes:
@@ -4016,7 +4017,7 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
-	percpu_counter_destroy(&fs_info->bio_counter);
+	percpu_counter_destroy(&fs_info->dev_replace.bio_counter);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 
 	btrfs_free_stripe_hash_table(fs_info);
