@@ -332,7 +332,6 @@ enum {
 	EF10_STAT_fec_corrected_symbols_lane1,
 	EF10_STAT_fec_corrected_symbols_lane2,
 	EF10_STAT_fec_corrected_symbols_lane3,
-	EF10_STAT_ctpio_dmabuf_start,
 	EF10_STAT_ctpio_vi_busy_fallback,
 	EF10_STAT_ctpio_long_write_success,
 	EF10_STAT_ctpio_missing_dbell_fail,
