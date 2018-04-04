@@ -105,25 +105,10 @@ static inline bool pci_power_manageable(struct pci_dev *pci_dev)
 	return !pci_has_subordinate(pci_dev) || pci_dev->bridge_d3;
 }
 
-struct pci_vpd_ops {
-	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
-	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
-	int (*set_size)(struct pci_dev *dev, size_t len);
-};
-
-struct pci_vpd {
-	const struct pci_vpd_ops *ops;
-	struct bin_attribute *attr;	/* Descriptor for sysfs VPD entry */
-	struct mutex	lock;
-	unsigned int	len;
-	u16		flag;
-	u8		cap;
-	u8		busy:1;
-	u8		valid:1;
-};
-
 int pci_vpd_init(struct pci_dev *dev);
 void pci_vpd_release(struct pci_dev *dev);
+void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev);
+void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev);
 
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS

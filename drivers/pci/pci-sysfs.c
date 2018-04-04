@@ -955,38 +955,6 @@ static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static ssize_t read_vpd_attr(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
-			     loff_t off, size_t count)
-{
-	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
-
-	if (bin_attr->size > 0) {
-		if (off > bin_attr->size)
-			count = 0;
-		else if (count > bin_attr->size - off)
-			count = bin_attr->size - off;
-	}
-
-	return pci_read_vpd(dev, off, count, buf);
-}
-
-static ssize_t write_vpd_attr(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *bin_attr, char *buf,
-			      loff_t off, size_t count)
-{
-	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
-
-	if (bin_attr->size > 0) {
-		if (off > bin_attr->size)
-			count = 0;
-		else if (count > bin_attr->size - off)
-			count = bin_attr->size - off;
-	}
-
-	return pci_write_vpd(dev, off, count, buf);
-}
-
 #ifdef HAVE_PCI_LEGACY
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
@@ -1490,29 +1458,8 @@ static struct device_attribute reset_attr = __ATTR(reset, 0200, NULL, reset_stor
 static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 {
 	int retval;
-	struct bin_attribute *attr;
 
-	/* If the device has VPD, try to expose it in sysfs. */
-	if (dev->vpd) {
-		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
-		if (!attr)
-			return -ENOMEM;
-
-		sysfs_bin_attr_init(attr);
-		attr->size = 0;
-		attr->attr.name = "vpd";
-		attr->attr.mode = S_IRUSR | S_IWUSR;
-		attr->read = read_vpd_attr;
-		attr->write = write_vpd_attr;
-		retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
-		if (retval) {
-			kfree(attr);
-			return retval;
-		}
-		dev->vpd->attr = attr;
-	}
-
-	/* Active State Power Management */
+	pcie_vpd_create_sysfs_dev_files(dev);
 	pcie_aspm_create_sysfs_dev_files(dev);
 
 	if (dev->reset_fn) {
@@ -1524,11 +1471,7 @@ static int pci_create_capabilities_sysfs(struct pci_dev *dev)
 
 error:
 	pcie_aspm_remove_sysfs_dev_files(dev);
-	if (dev->vpd && dev->vpd->attr) {
-		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
-		kfree(dev->vpd->attr);
-	}
-
+	pcie_vpd_remove_sysfs_dev_files(dev);
 	return retval;
 }
 
@@ -1602,11 +1545,7 @@ err:
 
 static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
 {
-	if (dev->vpd && dev->vpd->attr) {
-		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
-		kfree(dev->vpd->attr);
-	}
-
+	pcie_vpd_remove_sysfs_dev_files(dev);
 	pcie_aspm_remove_sysfs_dev_files(dev);
 	if (dev->reset_fn) {
 		device_remove_file(&dev->dev, &reset_attr);
