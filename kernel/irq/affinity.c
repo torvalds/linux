@@ -108,7 +108,7 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	int affv = nvecs - affd->pre_vectors - affd->post_vectors;
 	int last_affv = affv + affd->pre_vectors;
 	nodemask_t nodemsk = NODE_MASK_NONE;
-	struct cpumask *masks;
+	struct cpumask *masks = NULL;
 	cpumask_var_t nmsk, *node_to_possible_cpumask;
 
 	/*
@@ -121,13 +121,13 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
 		return NULL;
 
-	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
-	if (!masks)
-		goto out;
-
 	node_to_possible_cpumask = alloc_node_to_possible_cpumask();
 	if (!node_to_possible_cpumask)
-		goto out;
+		goto outcpumsk;
+
+	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
+	if (!masks)
+		goto outnodemsk;
 
 	/* Fill out vectors at the beginning that don't need affinity */
 	for (curvec = 0; curvec < affd->pre_vectors; curvec++)
@@ -192,8 +192,9 @@ done:
 	/* Fill out vectors at the end that don't need affinity */
 	for (; curvec < nvecs; curvec++)
 		cpumask_copy(masks + curvec, irq_default_affinity);
+outnodemsk:
 	free_node_to_possible_cpumask(node_to_possible_cpumask);
-out:
+outcpumsk:
 	free_cpumask_var(nmsk);
 	return masks;
 }
