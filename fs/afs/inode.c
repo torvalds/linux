@@ -327,7 +327,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 	/* failure */
 bad_inode:
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vnode->cache, 0);
+	fscache_relinquish_cookie(vnode->cache, ret == -ENOENT);
 	vnode->cache = NULL;
 #endif
 	iget_failed(inode);
@@ -511,7 +511,8 @@ void afs_evict_inode(struct inode *inode)
 	}
 
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vnode->cache, 0);
+	fscache_relinquish_cookie(vnode->cache,
+				  test_bit(AFS_VNODE_DELETED, &vnode->flags));
 	vnode->cache = NULL;
 #endif
 
