@@ -301,7 +301,7 @@ enum {
 #define SDC_CFG_INSWKUP         (0x1  << 1)     /* RW */
 #define SDC_CFG_BUSWIDTH        (0x3  << 16)    /* RW */
 #define SDC_CFG_SDIO            (0x1  << 19)    /* RW */
-#define SDC_CFG_SDIOIDE         (0x1  << 20)    /* RW */      
+#define SDC_CFG_SDIOIDE         (0x1  << 20)    /* RW */
 #define SDC_CFG_INTATGAP        (0x1  << 21)    /* RW */
 #define SDC_CFG_DTOC            (0xffUL << 24)  /* RW */
 
@@ -493,7 +493,7 @@ typedef struct {
     u32 ckstb:1;
     u32 ckdiv:8;
     u32 ckmod:2;
-    u32 pad:14;		
+    u32 pad:14;
 } msdc_cfg_reg;
 typedef struct {
     u32 sdr104cksel:1;
@@ -597,7 +597,7 @@ typedef struct {
     u32 dtype:2;
     u32 rw:1;
     u32 stop:1;
-    u32 goirq:1;    
+    u32 goirq:1;
     u32 blklen:12;
     u32 atocmd:2;
     u32 volswth:1;
@@ -616,16 +616,16 @@ typedef struct {
     u32 val;
 } sdc_resp0_reg;
 typedef struct {
-    u32 val;	
+    u32 val;
 } sdc_resp1_reg;
 typedef struct {
-    u32 val;	
+    u32 val;
 } sdc_resp2_reg;
 typedef struct {
-    u32 val;	
+    u32 val;
 } sdc_resp3_reg;
 typedef struct {
-    u32 num;	
+    u32 num;
 } sdc_blknum_reg;
 typedef struct {
     u32 sts;
@@ -717,7 +717,7 @@ typedef struct {
     u32 rsv1:1;
     u32 clksr:1;
     u32 rsv2:7;
-    u32 clkpd:1;    
+    u32 clkpd:1;
     u32 clkpu:1;
     u32 clksmt:1;
     u32 clkies:1;
@@ -726,12 +726,12 @@ typedef struct {
 } msdc_pad_ctl0_reg;
 typedef struct {
     u32 cmddrvn:3;
-    u32 rsv0:1;    
+    u32 rsv0:1;
     u32 cmddrvp:3;
     u32 rsv1:1;
     u32 cmdsr:1;
     u32 rsv2:7;
-    u32 cmdpd:1;    
+    u32 cmdpd:1;
     u32 cmdpu:1;
     u32 cmdsmt:1;
     u32 cmdies:1;
@@ -745,7 +745,7 @@ typedef struct {
     u32 rsv1:1;
     u32 datsr:1;
     u32 rsv2:7;
-    u32 datpd:1;    
+    u32 datpd:1;
     u32 datpu:1;
     u32 datsmt:1;
     u32 daties:1;
@@ -766,7 +766,7 @@ typedef struct {
     u32 dat2:5;
     u32 rsv2:3;
     u32 dat3:5;
-    u32 rsv3:3;    
+    u32 rsv3:3;
 } msdc_dat_rddly0;
 typedef struct {
     u32 dat4:5;
@@ -843,7 +843,7 @@ struct msdc_regs {
     msdc_dat_rddly0     dat_rddly0;    /* base+0xf0h */
     msdc_dat_rddly1     dat_rddly1;    /* base+0xf4h */
     msdc_hw_dbg_reg     hw_dbg;        /* base+0xf8h */
-    u32                 rsv7[1];       
+    u32                 rsv7[1];
     msdc_version_reg    version;       /* base+0x100h */
     msdc_eco_ver_reg    eco_ver;       /* base+0x104h */
 };
@@ -891,17 +891,17 @@ struct msdc_host
     struct mmc_host             *mmc;           /* mmc structure */
     struct mmc_command          *cmd;
     struct mmc_data             *data;
-    struct mmc_request          *mrq; 
+    struct mmc_request          *mrq;
     int                         cmd_rsp;
     int                         cmd_rsp_done;
     int                         cmd_r1b_done;
 
-    int                         error; 
+    int                         error;
     spinlock_t                  lock;           /* mutex */
-    struct semaphore            sem; 
+    struct semaphore            sem;
 
     u32                         blksz;          /* host block size */
-    u32                         base;           /* host base address */    
+    u32                         base;           /* host base address */
     int                         id;             /* host id */
     int                         pwr_ref;        /* core power reference count */
 
@@ -922,9 +922,9 @@ struct msdc_host
 
     struct tasklet_struct       card_tasklet;
 #if 0
-    struct work_struct  	card_workqueue;
+    struct work_struct		card_workqueue;
 #else
-    struct delayed_work  	card_delaywork;
+    struct delayed_work		card_delaywork;
 #endif
 
     struct completion           cmd_done;
@@ -932,17 +932,17 @@ struct msdc_host
     struct pm_message           pm_state;
 
     u32                         mclk;           /* mmc subsystem clock */
-    u32                         hclk;           /* host clock speed */		
+    u32                         hclk;           /* host clock speed */
     u32                         sclk;           /* SD/MS clock speed */
     u8                          core_clkon;     /* Host core clock on ? */
     u8                          card_clkon;     /* Card clock on ? */
-    u8                          core_power;     /* core power */    
+    u8                          core_power;     /* core power */
     u8                          power_mode;     /* host power mode */
     u8                          card_inserted;  /* card inserted ? */
-    u8                          suspend;        /* host suspended ? */    
+    u8                          suspend;        /* host suspended ? */
     u8                          reserved;
-    u8                          app_cmd;        /* for app command */     
-    u32                         app_cmd_arg;    
+    u8                          app_cmd;        /* for app command */
+    u32                         app_cmd_arg;
     u64                         starttime;
 };
 
@@ -998,4 +998,3 @@ static inline unsigned int uffs(unsigned int x)
     } while(0)
 
 #endif
-
