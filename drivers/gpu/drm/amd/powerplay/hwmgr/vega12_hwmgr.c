@@ -1113,8 +1113,7 @@ static uint32_t vega12_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 	return (mem_clk * 100);
 }
 
-static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr,
-		struct pp_gpu_power *query)
+static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr, uint32_t *query)
 {
 #if 0
 	uint32_t value;
@@ -1126,7 +1125,7 @@ static int vega12_get_gpu_power(struct pp_hwmgr *hwmgr,
 
 	vega12_read_arg_from_smc(hwmgr, &value);
 	/* power value is an integer */
-	query->average_gpu_power = value << 8;
+	*query = value << 8;
 #endif
 	return 0;
 }
@@ -1235,12 +1234,8 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		if (*size < sizeof(struct pp_gpu_power))
-			ret = -EINVAL;
-		else {
-			*size = sizeof(struct pp_gpu_power);
-			ret = vega12_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
-		}
+		ret = vega12_get_gpu_power(hwmgr, (uint32_t *)value);
+
 		break;
 	default:
 		ret = -EINVAL;

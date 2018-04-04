@@ -3781,16 +3781,18 @@ static uint32_t vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 }
 
 static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
-		struct pp_gpu_power *query)
+		uint32_t *query)
 {
 	uint32_t value;
+
+	if (!query)
+		return -EINVAL;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrPkgPwr);
 	value = smum_get_argument(hwmgr);
 
-	/* power value is an integer */
-	memset(query, 0, sizeof *query);
-	query->average_gpu_power = value << 8;
+	/* SMC returning actual watts, keep consistent with legacy asics, low 8 bit as 8 fractional bits */
+	*query = value << 8;
 
 	return 0;
 }
@@ -3840,12 +3842,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		if (*size < sizeof(struct pp_gpu_power))
-			ret = -EINVAL;
-		else {
-			*size = sizeof(struct pp_gpu_power);
-			ret = vega10_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
-		}
+		ret = vega10_get_gpu_power(hwmgr, (uint32_t *)value);
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_PLANE0_CURRENTVID) &
