@@ -60,13 +60,6 @@
 #include <linux/pm.h>
 #include <linux/of.h>
 
-#define MSDC_SMPL_FALLING   (1)
-#define MSDC_CD_PIN_EN      (1 << 0)  /* card detection pin is wired   */
-#define MSDC_WP_PIN_EN      (1 << 1)  /* write protection pin is wired */
-#define MSDC_REMOVABLE      (1 << 5)  /* removable slot                */
-#define MSDC_SYS_SUSPEND    (1 << 6)  /* suspended by system           */
-#define MSDC_HIGHSPEED      (1 << 7)
-
 //#define IRQ_SDC 14	//MT7620 /*FIXME*/
 #ifdef CONFIG_SOC_MT7621
 #define RALINK_SYSCTL_BASE		0xbe000000
