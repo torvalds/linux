@@ -116,16 +116,38 @@ MODULE_PARM_DESC(panic_op, "Sets if the IPMI driver will attempt to store panic 
 static struct proc_dir_entry *proc_ipmi_root;
 #endif /* CONFIG_IPMI_PROC_INTERFACE */
 
-/* Remain in auto-maintenance mode for this amount of time (in ms). */
-#define IPMI_MAINTENANCE_MODE_TIMEOUT 30000
-
 #define MAX_EVENTS_IN_QUEUE	25
+
+/* Remain in auto-maintenance mode for this amount of time (in ms). */
+static unsigned long maintenance_mode_timeout_ms = 30000;
+module_param(maintenance_mode_timeout_ms, ulong, 0644);
+MODULE_PARM_DESC(maintenance_mode_timeout_ms,
+		 "The time (milliseconds) after the last maintenance message that the connection stays in maintenance mode.");
 
 /*
  * Don't let a message sit in a queue forever, always time it with at lest
  * the max message timer.  This is in milliseconds.
  */
 #define MAX_MSG_TIMEOUT		60000
+
+/*
+ * Timeout times below are in milliseconds, and are done off a 1
+ * second timer.  So setting the value to 1000 would mean anything
+ * between 0 and 1000ms.  So really the only reasonable minimum
+ * setting it 2000ms, which is between 1 and 2 seconds.
+ */
+
+/* The default timeout for message retries. */
+static unsigned long default_retry_ms = 2000;
+module_param(default_retry_ms, ulong, 0644);
+MODULE_PARM_DESC(default_retry_ms,
+		 "The time (milliseconds) between retry sends");
+
+/* The default maximum number of retries */
+static unsigned int default_max_retries = 4;
+module_param(default_max_retries, uint, 0644);
+MODULE_PARM_DESC(default_max_retries,
+		 "The time (milliseconds) between retry sends in maintenance mode");
 
 /* Call every ~1000 ms. */
 #define IPMI_TIMEOUT_TIME	1000
@@ -884,6 +906,11 @@ static int intf_next_seq(ipmi_smi_t           intf,
 	int          rv = 0;
 	unsigned int i;
 
+	if (timeout == 0)
+		timeout = default_retry_ms;
+	if (retries < 0)
+		retries = default_max_retries;
+
 	for (i = intf->curr_seq; (i+1)%IPMI_IPMB_NUM_SEQ != intf->curr_seq;
 					i = (i+1)%IPMI_IPMB_NUM_SEQ) {
 		if (!intf->seq_table[i].inuse)
@@ -1636,6 +1663,14 @@ static void smi_send(ipmi_smi_t intf, const struct ipmi_smi_handlers *handlers,
 		handlers->sender(intf->send_info, smi_msg);
 }
 
+static bool is_maintenance_mode_cmd(struct kernel_ipmi_msg *msg)
+{
+	return (((msg->netfn == IPMI_NETFN_APP_REQUEST)
+		 && ((msg->cmd == IPMI_COLD_RESET_CMD)
+		     || (msg->cmd == IPMI_WARM_RESET_CMD)))
+		|| (msg->netfn == IPMI_NETFN_FIRMWARE_REQUEST));
+}
+
 /*
  * Separate from ipmi_request so that the user does not have to be
  * supplied in certain circumstances (mainly at panic time).  If
@@ -1728,13 +1763,10 @@ static int i_ipmi_request(ipmi_user_t          user,
 			goto out_err;
 		}
 
-		if (((msg->netfn == IPMI_NETFN_APP_REQUEST)
-		      && ((msg->cmd == IPMI_COLD_RESET_CMD)
-			  || (msg->cmd == IPMI_WARM_RESET_CMD)))
-		     || (msg->netfn == IPMI_NETFN_FIRMWARE_REQUEST)) {
+		if (is_maintenance_mode_cmd(msg)) {
 			spin_lock_irqsave(&intf->maintenance_mode_lock, flags);
 			intf->auto_maintenance_timeout
-				= IPMI_MAINTENANCE_MODE_TIMEOUT;
+				= maintenance_mode_timeout_ms;
 			if (!intf->maintenance_mode
 			    && !intf->maintenance_mode_enable) {
 				intf->maintenance_mode_enable = true;
@@ -1779,26 +1811,16 @@ static int i_ipmi_request(ipmi_user_t          user,
 			goto out_err;
 		}
 
-		if (retries < 0) {
-		    if (addr->addr_type == IPMI_IPMB_BROADCAST_ADDR_TYPE)
-			retries = 0; /* Don't retry broadcasts. */
-		    else
-			retries = 4;
-		}
 		if (addr->addr_type == IPMI_IPMB_BROADCAST_ADDR_TYPE) {
-		    /*
-		     * Broadcasts add a zero at the beginning of the
-		     * message, but otherwise is the same as an IPMB
-		     * address.
-		     */
-		    addr->addr_type = IPMI_IPMB_ADDR_TYPE;
-		    broadcast = 1;
+			/*
+			 * Broadcasts add a zero at the beginning of the
+			 * message, but otherwise is the same as an IPMB
+			 * address.
+			 */
+			addr->addr_type = IPMI_IPMB_ADDR_TYPE;
+			broadcast = 1;
+			retries = 0; /* Don't retry broadcasts. */
 		}
-
-
-		/* Default to 1 second retries. */
-		if (retry_time_ms == 0)
-		    retry_time_ms = 1000;
 
 		/*
 		 * 9 for the header and 1 for the checksum, plus
@@ -1913,12 +1935,6 @@ static int i_ipmi_request(ipmi_user_t          user,
 			rv = -EINVAL;
 			goto out_err;
 		}
-
-		retries = 4;
-
-		/* Default to 1 second retries. */
-		if (retry_time_ms == 0)
-		    retry_time_ms = 1000;
 
 		/* 11 for the header and 1 for the checksum. */
 		if ((msg->data_len + 12) > IPMI_MAX_MSG_LENGTH) {
