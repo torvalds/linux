@@ -81,7 +81,6 @@ struct msdc_hw {
 	unsigned char  cmd_drv;          /* command pad driving */
 	unsigned char  dat_drv;          /* data pad driving */
 	unsigned long  flags;            /* hardware capability flags */
-	unsigned long  data_pins;        /* data pins */
 	unsigned long  data_offset;      /* data address offset */
 
 	/* config gpio pull mode */
