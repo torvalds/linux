@@ -3864,36 +3864,6 @@ void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
 		indirection_rqt[i] = i % num_channels;
 }
 
-static int mlx5e_get_pci_bw(struct mlx5_core_dev *mdev, u32 *pci_bw)
-{
-	enum pcie_link_width width;
-	enum pci_bus_speed speed;
-	int err = 0;
-
-	err = pcie_get_minimum_link(mdev->pdev, &speed, &width);
-	if (err)
-		return err;
-
-	if (speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN)
-		return -EINVAL;
-
-	switch (speed) {
-	case PCIE_SPEED_2_5GT:
-		*pci_bw = 2500 * width;
-		break;
-	case PCIE_SPEED_5_0GT:
-		*pci_bw = 5000 * width;
-		break;
-	case PCIE_SPEED_8_0GT:
-		*pci_bw = 8000 * width;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static bool cqe_compress_heuristic(u32 link_speed, u32 pci_bw)
 {
 	return (link_speed && pci_bw &&
@@ -3979,7 +3949,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	params->num_tc       = 1;
 
 	mlx5e_get_max_linkspeed(mdev, &link_speed);
-	mlx5e_get_pci_bw(mdev, &pci_bw);
+	pci_bw = pcie_bandwidth_available(mdev->pdev, NULL, NULL, NULL);
 	mlx5_core_dbg(mdev, "Max link speed = %d, PCI BW = %d\n",
 		      link_speed, pci_bw);
 

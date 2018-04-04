@@ -76,6 +76,7 @@ static const char *pci_bus_speed_strings[] = {
 	"2.5 GT/s PCIe",	/* 0x14 */
 	"5.0 GT/s PCIe",	/* 0x15 */
 	"8.0 GT/s PCIe",	/* 0x16 */
+	"16.0 GT/s PCIe",	/* 0x17 */
 };
 
 static ssize_t bus_speed_read(enum pci_bus_speed speed, char *buf)
