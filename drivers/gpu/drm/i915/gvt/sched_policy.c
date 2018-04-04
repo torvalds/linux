@@ -66,6 +66,7 @@ struct gvt_sched_data {
 	struct hrtimer timer;
 	unsigned long period;
 	struct list_head lru_runq_head;
+	ktime_t expire_time;
 };
 
 static void vgpu_update_timeslice(struct intel_vgpu *pre_vgpu)
@@ -226,14 +227,18 @@ out:
 void intel_gvt_schedule(struct intel_gvt *gvt)
 {
 	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
-	static uint64_t timer_check;
 
 	mutex_lock(&gvt->lock);
 
 	if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
 				(void *)&gvt->service_request)) {
-		if (!(timer_check++ % GVT_TS_BALANCE_PERIOD_MS))
+		ktime_t cur_time = ktime_get();
+
+		if (cur_time >= sched_data->expire_time) {
 			gvt_balance_timeslice(sched_data);
+			sched_data->expire_time = ktime_add_ms(
+				cur_time, GVT_TS_BALANCE_PERIOD_MS);
+		}
 	}
 	clear_bit(INTEL_GVT_REQUEST_EVENT_SCHED, (void *)&gvt->service_request);
 
