@@ -1545,7 +1545,8 @@ alloc_new_skb:
 		length -= copy;
 	}
 
-	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
+	if (wmem_alloc_delta)
+		refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
 	return 0;
 
 error_efault:
