@@ -21,10 +21,16 @@ Orangefs features include:
   * Stateless
 
 
-MAILING LIST
-============
+MAILING LIST ARCHIVES
+=====================
 
-http://beowulf-underground.org/mailman/listinfo/pvfs2-users
+http://lists.orangefs.org/pipermail/devel_lists.orangefs.org/
+
+
+MAILING LIST SUBMISSIONS
+========================
+
+devel@lists.orangefs.org
 
 
 DOCUMENTATION
@@ -123,16 +129,17 @@ Start the server.
 
 /opt/osf/sbin/pvfs2-server /etc/pvfs2.conf
 
-Now the server is running.  At this point you might like to
-prove things are working with.
+Now the server should be running. Pvfs2-ls is a simple
+test to verify that the server is running.
 
 /opt/ofs/bin/pvfs2-ls /pvfsmnt
 
-If stuff seems to be working, turn on the client core.
+If stuff seems to be working, load the kernel module and
+turn on the client core.
 
 /opt/ofs/sbin/pvfs2-client -p /opt/osf/sbin/pvfs2-client-core
 
-Mount your filesystem (load the kernel module first if necessary).
+Mount your filesystem.
 
 mount -t pvfs2 tcp://localhost:3334/orangefs /pvfsmnt
 
