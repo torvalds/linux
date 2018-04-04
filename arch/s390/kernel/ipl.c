@@ -117,27 +117,12 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
-enum ipl_method {
-	REIPL_METHOD_CCW_DIAG,
-	REIPL_METHOD_FCP_DIAG,
-	REIPL_METHOD_FCP_DUMP,
-	REIPL_METHOD_NSS_DIAG,
-	REIPL_METHOD_DEFAULT,
-};
-
-enum dump_method {
-	DUMP_METHOD_NONE,
-	DUMP_METHOD_CCW_DIAG,
-	DUMP_METHOD_FCP_DIAG,
-};
-
 static int ipl_block_valid;
 static struct ipl_parameter_block ipl_block;
 
 static int reipl_capabilities = IPL_TYPE_UNKNOWN;
 
 static enum ipl_type reipl_type = IPL_TYPE_UNKNOWN;
-static enum ipl_method reipl_method = REIPL_METHOD_DEFAULT;
 static struct ipl_parameter_block *reipl_block_fcp;
 static struct ipl_parameter_block *reipl_block_ccw;
 static struct ipl_parameter_block *reipl_block_nss;
@@ -145,7 +130,6 @@ static struct ipl_parameter_block *reipl_block_actual;
 
 static int dump_capabilities = DUMP_TYPE_NONE;
 static enum dump_type dump_type = DUMP_TYPE_NONE;
-static enum dump_method dump_method = DUMP_METHOD_NONE;
 static struct ipl_parameter_block *dump_block_fcp;
 static struct ipl_parameter_block *dump_block_ccw;
 
@@ -928,25 +912,16 @@ static int reipl_set_type(enum ipl_type type)
 
 	switch(type) {
 	case IPL_TYPE_CCW:
-		reipl_method = REIPL_METHOD_CCW_DIAG;
 		reipl_block_actual = reipl_block_ccw;
 		break;
 	case IPL_TYPE_FCP:
-		reipl_method = REIPL_METHOD_FCP_DIAG;
 		reipl_block_actual = reipl_block_fcp;
 		break;
-	case IPL_TYPE_FCP_DUMP:
-		reipl_method = REIPL_METHOD_FCP_DUMP;
-		break;
 	case IPL_TYPE_NSS:
-		reipl_method = REIPL_METHOD_NSS_DIAG;
 		reipl_block_actual = reipl_block_nss;
 		break;
-	case IPL_TYPE_UNKNOWN:
-		reipl_method = REIPL_METHOD_DEFAULT;
-		break;
 	default:
-		BUG();
+		break;
 	}
 	reipl_type = type;
 	return 0;
@@ -981,23 +956,23 @@ static struct kset *reipl_fcp_kset;
 
 static void __reipl_run(void *unused)
 {
-	switch (reipl_method) {
-	case REIPL_METHOD_CCW_DIAG:
+	switch (reipl_type) {
+	case IPL_TYPE_CCW:
 		diag308(DIAG308_SET, reipl_block_ccw);
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
-	case REIPL_METHOD_FCP_DIAG:
+	case IPL_TYPE_FCP:
 		diag308(DIAG308_SET, reipl_block_fcp);
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
-	case REIPL_METHOD_NSS_DIAG:
+	case IPL_TYPE_NSS:
 		diag308(DIAG308_SET, reipl_block_nss);
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
-	case REIPL_METHOD_DEFAULT:
+	case IPL_TYPE_UNKNOWN:
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
-	case REIPL_METHOD_FCP_DUMP:
+	case IPL_TYPE_FCP_DUMP:
 		break;
 	}
 	disabled_wait((unsigned long) __builtin_return_address(0));
@@ -1230,16 +1205,6 @@ static int dump_set_type(enum dump_type type)
 {
 	if (!(dump_capabilities & type))
 		return -EINVAL;
-	switch (type) {
-	case DUMP_TYPE_CCW:
-		dump_method = DUMP_METHOD_CCW_DIAG;
-		break;
-	case DUMP_TYPE_FCP:
-		dump_method = DUMP_METHOD_FCP_DIAG;
-		break;
-	default:
-		dump_method = DUMP_METHOD_NONE;
-	}
 	dump_type = type;
 	return 0;
 }
@@ -1282,11 +1247,11 @@ static void diag308_dump(void *dump_block)
 
 static void __dump_run(void *unused)
 {
-	switch (dump_method) {
-	case DUMP_METHOD_CCW_DIAG:
+	switch (dump_type) {
+	case DUMP_TYPE_CCW:
 		diag308_dump(dump_block_ccw);
 		break;
-	case DUMP_METHOD_FCP_DIAG:
+	case DUMP_TYPE_FCP:
 		diag308_dump(dump_block_fcp);
 		break;
 	default:
@@ -1296,7 +1261,7 @@ static void __dump_run(void *unused)
 
 static void dump_run(struct shutdown_trigger *trigger)
 {
-	if (dump_method == DUMP_METHOD_NONE)
+	if (dump_type == DUMP_TYPE_NONE)
 		return;
 	smp_send_stop();
 	smp_call_ipl_cpu(__dump_run, NULL);
