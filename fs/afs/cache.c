@@ -29,7 +29,7 @@ static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 
 struct fscache_netfs afs_cache_netfs = {
 	.name			= "afs",
-	.version		= 1,
+	.version		= 2,
 };
 
 struct fscache_cookie_def afs_cell_cache_index_def = {
@@ -103,7 +103,9 @@ static uint16_t afs_vnode_cache_get_key(const void *cookie_netfs_data,
 {
 	const struct afs_vnode *vnode = cookie_netfs_data;
 	struct {
-		u32 vnode_id[3];
+		u32 vnode_id;
+		u32 unique;
+		u32 vnode_id_ext[2];	/* Allow for a 96-bit key */
 	} __packed key;
 
 	_enter("{%x,%x,%llx},%p,%u",
@@ -112,9 +114,10 @@ static uint16_t afs_vnode_cache_get_key(const void *cookie_netfs_data,
 
 	/* Allow for a 96-bit key */
 	memset(&key, 0, sizeof(key));
-	key.vnode_id[0] = vnode->fid.vnode;
-	key.vnode_id[1] = 0;
-	key.vnode_id[2] = 0;
+	key.vnode_id		= vnode->fid.vnode;
+	key.unique		= vnode->fid.unique;
+	key.vnode_id_ext[0]	= 0;
+	key.vnode_id_ext[1]	= 0;
 
 	if (sizeof(key) > bufmax)
 		return 0;
@@ -140,7 +143,6 @@ static void afs_vnode_cache_get_attr(const void *cookie_netfs_data,
 
 struct afs_vnode_cache_aux {
 	u64 data_version;
-	u32 fid_unique;
 } __packed;
 
 /*
@@ -156,9 +158,7 @@ static uint16_t afs_vnode_cache_get_aux(const void *cookie_netfs_data,
 	       vnode->fid.vnode, vnode->fid.unique, vnode->status.data_version,
 	       buffer, bufmax);
 
-	memset(&aux, 0, sizeof(aux));
 	aux.data_version = vnode->status.data_version;
-	aux.fid_unique = vnode->fid.unique;
 
 	if (bufmax < sizeof(aux))
 		return 0;
@@ -186,12 +186,6 @@ static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 	/* check the size of the data is what we're expecting */
 	if (buflen != sizeof(aux)) {
 		_leave(" = OBSOLETE [len %hx != %zx]", buflen, sizeof(aux));
-		return FSCACHE_CHECKAUX_OBSOLETE;
-	}
-
-	if (vnode->fid.unique != aux.fid_unique) {
-		_leave(" = OBSOLETE [uniq %x != %x]",
-		       aux.fid_unique, vnode->fid.unique);
 		return FSCACHE_CHECKAUX_OBSOLETE;
 	}
 
