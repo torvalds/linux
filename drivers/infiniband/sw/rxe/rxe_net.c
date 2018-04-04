@@ -707,7 +707,7 @@ out:
 	return NOTIFY_OK;
 }
 
-struct notifier_block rxe_net_notifier = {
+static struct notifier_block rxe_net_notifier = {
 	.notifier_call = rxe_notify,
 };
 
