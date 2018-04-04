@@ -371,9 +371,9 @@
 		mpu-level_shifter = <0>;
 		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
 		orientation-x= <0>;
-		orientation-y= <1>;
-		orientation-z= <0>;
-		support-hw-poweroff = <1>;
+		orientation-y= <0>;
+		orientation-z= <1>;
+		support-hw-poweroff = <0>;
 		mpu-debug = <1>;
 	};
 
