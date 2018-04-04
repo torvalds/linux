@@ -36,7 +36,7 @@ nf_nat_redirect_ipv4(struct sk_buff *skb,
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	__be32 newdst;
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 
 	WARN_ON(hooknum != NF_INET_PRE_ROUTING &&
 		hooknum != NF_INET_LOCAL_OUT);
@@ -82,10 +82,10 @@ EXPORT_SYMBOL_GPL(nf_nat_redirect_ipv4);
 static const struct in6_addr loopback_addr = IN6ADDR_LOOPBACK_INIT;
 
 unsigned int
-nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range *range,
+nf_nat_redirect_ipv6(struct sk_buff *skb, const struct nf_nat_range2 *range,
 		     unsigned int hooknum)
 {
-	struct nf_nat_range newrange;
+	struct nf_nat_range2 newrange;
 	struct in6_addr newdst;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;

@@ -7,7 +7,7 @@ struct nf_nat_l3proto {
 	u8	l3proto;
 
 	bool	(*in_range)(const struct nf_conntrack_tuple *t,
-			    const struct nf_nat_range *range);
+			    const struct nf_nat_range2 *range);
 
 	u32 	(*secure_port)(const struct nf_conntrack_tuple *t, __be16);
 
@@ -33,7 +33,7 @@ struct nf_nat_l3proto {
 				  struct flowi *fl);
 
 	int	(*nlattr_to_range)(struct nlattr *tb[],
-				   struct nf_nat_range *range);
+				   struct nf_nat_range2 *range);
 };
 
 int nf_nat_l3proto_register(const struct nf_nat_l3proto *);

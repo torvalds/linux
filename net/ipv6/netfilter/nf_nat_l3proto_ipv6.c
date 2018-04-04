@@ -62,7 +62,7 @@ static void nf_nat_ipv6_decode_session(struct sk_buff *skb,
 #endif
 
 static bool nf_nat_ipv6_in_range(const struct nf_conntrack_tuple *t,
-				 const struct nf_nat_range *range)
+				 const struct nf_nat_range2 *range)
 {
 	return ipv6_addr_cmp(&t->src.u3.in6, &range->min_addr.in6) >= 0 &&
 	       ipv6_addr_cmp(&t->src.u3.in6, &range->max_addr.in6) <= 0;
@@ -151,7 +151,7 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int nf_nat_ipv6_nlattr_to_range(struct nlattr *tb[],
-				       struct nf_nat_range *range)
+				       struct nf_nat_range2 *range)
 {
 	if (tb[CTA_NAT_V6_MINIP]) {
 		nla_memcpy(&range->min_addr.ip6, tb[CTA_NAT_V6_MINIP],

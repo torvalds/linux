@@ -63,7 +63,7 @@ static void nf_nat_ipv4_decode_session(struct sk_buff *skb,
 #endif /* CONFIG_XFRM */
 
 static bool nf_nat_ipv4_in_range(const struct nf_conntrack_tuple *t,
-				 const struct nf_nat_range *range)
+				 const struct nf_nat_range2 *range)
 {
 	return ntohl(t->src.u3.ip) >= ntohl(range->min_addr.ip) &&
 	       ntohl(t->src.u3.ip) <= ntohl(range->max_addr.ip);
@@ -143,7 +143,7 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
-				       struct nf_nat_range *range)
+				       struct nf_nat_range2 *range)
 {
 	if (tb[CTA_NAT_V4_MINIP]) {
 		range->min_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MINIP]);
