@@ -411,7 +411,7 @@ sint rtw_enqueue_recvbuf_to_head(struct recv_buf *precvbuf, struct __queue *queu
 sint rtw_enqueue_recvbuf(struct recv_buf *precvbuf, struct __queue *queue);
 struct recv_buf *rtw_dequeue_recvbuf (struct __queue *queue);
 
-void rtw_reordering_ctrl_timeout_handler(void *pcontext);
+void rtw_reordering_ctrl_timeout_handler(struct timer_list *t);
 
 __inline static u8 *get_rxmem(union recv_frame *precvframe)
 {

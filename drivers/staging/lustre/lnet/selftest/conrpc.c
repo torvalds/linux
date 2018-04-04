@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -128,7 +129,7 @@ lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned int feats,
 	spin_unlock(&console_session.ses_rpc_lock);
 
 	if (!crpc) {
-		LIBCFS_ALLOC(crpc, sizeof(*crpc));
+		crpc = kzalloc(sizeof(*crpc), GFP_NOFS);
 		if (!crpc)
 			return -ENOMEM;
 	}
@@ -139,7 +140,7 @@ lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned int feats,
 		return 0;
 	}
 
-	LIBCFS_FREE(crpc, sizeof(*crpc));
+	kfree(crpc);
 
 	return rc;
 }
@@ -249,7 +250,7 @@ lstcon_rpc_trans_prep(struct list_head *translist, int transop,
 	}
 
 	/* create a trans group */
-	LIBCFS_ALLOC(trans, sizeof(*trans));
+	trans = kzalloc(sizeof(*trans), GFP_NOFS);
 	if (!trans)
 		return -ENOMEM;
 
@@ -584,7 +585,7 @@ lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans)
 	CDEBUG(D_NET, "Transaction %s destroyed with %d pending RPCs\n",
 	       lstcon_rpc_trans_name(trans->tas_opc), count);
 
-	LIBCFS_FREE(trans, sizeof(*trans));
+	kfree(trans);
 }
 
 int
@@ -1368,7 +1369,7 @@ lstcon_rpc_cleanup_wait(void)
 
 	list_for_each_entry_safe(crpc, temp, &zlist, crp_link) {
 		list_del(&crpc->crp_link);
-		LIBCFS_FREE(crpc, sizeof(struct lstcon_rpc));
+		kfree(crpc);
 	}
 }
 

@@ -3,7 +3,7 @@
  * (C) Copyright 2007-2011 Reuuimlla Technology Co., Ltd.
  * (C) Copyright 2007-2011 Aaron Maoye <leafy.myeh@reuuimllatech.com>
  * (C) Copyright 2013-2014 O2S GmbH <www.o2s.ch>
- * (C) Copyright 2013-2014 David Lanzend�rfer <david.lanzendoerfer@o2s.ch>
+ * (C) Copyright 2013-2014 David Lanzendörfer <david.lanzendoerfer@o2s.ch>
  * (C) Copyright 2013-2014 Hans de Goede <hdegoede@redhat.com>
  * (C) Copyright 2017 Sootech SA
  *
@@ -1175,11 +1175,8 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		return -EINVAL;
 
 	ret = mmc_regulator_get_supply(host->mmc);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get vmmc supply\n");
+	if (ret)
 		return ret;
-	}
 
 	host->reg_base = devm_ioremap_resource(&pdev->dev,
 			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
@@ -1258,6 +1255,11 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		goto error_assert_reset;
 
 	host->irq = platform_get_irq(pdev, 0);
+	if (host->irq <= 0) {
+		ret = -EINVAL;
+		goto error_assert_reset;
+	}
+
 	return devm_request_threaded_irq(&pdev->dev, host->irq, sunxi_mmc_irq,
 			sunxi_mmc_handle_manual_stop, 0, "sunxi-mmc", host);
 
@@ -1396,5 +1398,5 @@ module_platform_driver(sunxi_mmc_driver);
 
 MODULE_DESCRIPTION("Allwinner's SD/MMC Card Controller Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("David Lanzend�rfer <david.lanzendoerfer@o2s.ch>");
+MODULE_AUTHOR("David Lanzendörfer <david.lanzendoerfer@o2s.ch>");
 MODULE_ALIAS("platform:sunxi-mmc");

@@ -402,6 +402,26 @@ OPTIONS
 	stop time is not given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
+	Also support time percent with multiple time range. Time string is
+	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
+
+	For example:
+	Select the second 10% time slice:
+
+	  perf report --time 10%/2
+
+	Select from 0% to 10% time slice:
+
+	  perf report --time 0%-10%
+
+	Select the first and second 10% time slices:
+
+	  perf report --time 10%/1,10%/2
+
+	Select from 0% to 10% and 30% to 40% slices:
+
+	  perf report --time 0%-10%,30%-40%
+
 --itrace::
 	Options for decoding instruction tracing data. The options are:
 
@@ -434,10 +454,26 @@ include::itrace.txt[]
 
 --inline::
 	If a callgraph address belongs to an inlined function, the inline stack
-	will be printed. Each entry is function name or file/line.
+	will be printed. Each entry is function name or file/line. Enabled by
+	default, disable with --no-inline.
+
+--mmaps::
+	Show --tasks output plus mmap information in a format similar to
+	/proc/<PID>/maps.
+
+	Please note that not all mmaps are stored, options affecting which ones
+	are include 'perf record --data', for instance.
+
+--stats::
+	Display overall events statistics without any further processing.
+	(like the one at the end of the perf report -D command)
+
+--tasks::
+	Display monitored tasks stored in perf data. Displaying pid/tid/ppid
+	plus the command string aligned to distinguish parent and child tasks.
 
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO
 --------
-linkperf:perf-stat[1], linkperf:perf-annotate[1]
+linkperf:perf-stat[1], linkperf:perf-annotate[1], linkperf:perf-record[1]

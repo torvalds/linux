@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos4 SoC series common device tree source
  *
@@ -13,10 +14,6 @@
  * Note: This file does not include device nodes for all the controllers in
  * Exynos4 SoCs. As device tree coverage for Exynos4 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/clock/exynos4.h>
@@ -55,7 +52,7 @@
 		serial3 = &serial_3;
 	};
 
-	clock_audss: clock-controller@03810000 {
+	clock_audss: clock-controller@3810000 {
 		compatible = "samsung,exynos4210-audss-clock";
 		reg = <0x03810000 0x0C>;
 		#clock-cells = <1>;
@@ -64,7 +61,7 @@
 		clock-names = "pll_ref", "pll_in", "sclk_audio", "sclk_pcm_in";
 	};
 
-	i2s0: i2s@03830000 {
+	i2s0: i2s@3830000 {
 		compatible = "samsung,s5pv210-i2s";
 		reg = <0x03830000 0x100>;
 		clocks = <&clock_audss EXYNOS_I2S_BUS>,
@@ -101,28 +98,28 @@
 		syscon = <&pmu_system_controller>;
 	};
 
-	pd_mfc: mfc-power-domain@10023C40 {
+	pd_mfc: mfc-power-domain@10023c40 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C40 0x20>;
 		#power-domain-cells = <0>;
 		label = "MFC";
 	};
 
-	pd_g3d: g3d-power-domain@10023C60 {
+	pd_g3d: g3d-power-domain@10023c60 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C60 0x20>;
 		#power-domain-cells = <0>;
 		label = "G3D";
 	};
 
-	pd_lcd0: lcd0-power-domain@10023C80 {
+	pd_lcd0: lcd0-power-domain@10023c80 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C80 0x20>;
 		#power-domain-cells = <0>;
 		label = "LCD0";
 	};
 
-	pd_tv: tv-power-domain@10023C20 {
+	pd_tv: tv-power-domain@10023c20 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C20 0x20>;
 		#power-domain-cells = <0>;
@@ -130,21 +127,21 @@
 		label = "TV";
 	};
 
-	pd_cam: cam-power-domain@10023C00 {
+	pd_cam: cam-power-domain@10023c00 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C00 0x20>;
 		#power-domain-cells = <0>;
 		label = "CAM";
 	};
 
-	pd_gps: gps-power-domain@10023CE0 {
+	pd_gps: gps-power-domain@10023ce0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CE0 0x20>;
 		#power-domain-cells = <0>;
 		label = "GPS";
 	};
 
-	pd_gps_alive: gps-alive-power-domain@10023D00 {
+	pd_gps_alive: gps-alive-power-domain@10023d00 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023D00 0x20>;
 		#power-domain-cells = <0>;
@@ -184,7 +181,7 @@
 		interrupt-parent = <&gic>;
 	};
 
-	dsi_0: dsi@11C80000 {
+	dsi_0: dsi@11c80000 {
 		compatible = "samsung,exynos4210-mipi-dsi";
 		reg = <0x11C80000 0x10000>;
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
@@ -297,7 +294,7 @@
 		status = "disabled";
 	};
 
-	keypad: keypad@100A0000 {
+	keypad: keypad@100a0000 {
 		compatible = "samsung,s5pv210-keypad";
 		reg = <0x100A0000 0x100>;
 		interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
@@ -342,7 +339,7 @@
 		status = "disabled";
 	};
 
-	exynos_usbphy: exynos-usbphy@125B0000 {
+	exynos_usbphy: exynos-usbphy@125b0000 {
 		compatible = "samsung,exynos4210-usb2-phy";
 		reg = <0x125B0000 0x100>;
 		samsung,pmureg-phandle = <&pmu_system_controller>;
@@ -538,7 +535,7 @@
 		status = "disabled";
 	};
 
-	i2c_4: i2c@138A0000 {
+	i2c_4: i2c@138a0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -551,7 +548,7 @@
 		status = "disabled";
 	};
 
-	i2c_5: i2c@138B0000 {
+	i2c_5: i2c@138b0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -564,7 +561,7 @@
 		status = "disabled";
 	};
 
-	i2c_6: i2c@138C0000 {
+	i2c_6: i2c@138c0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -577,7 +574,7 @@
 		status = "disabled";
 	};
 
-	i2c_7: i2c@138D0000 {
+	i2c_7: i2c@138d0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -590,7 +587,7 @@
 		status = "disabled";
 	};
 
-	i2c_8: i2c@138E0000 {
+	i2c_8: i2c@138e0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-hdmiphy-i2c";
@@ -651,7 +648,7 @@
 		status = "disabled";
 	};
 
-	pwm: pwm@139D0000 {
+	pwm: pwm@139d0000 {
 		compatible = "samsung,exynos4210-pwm";
 		reg = <0x139D0000 0x1000>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
@@ -720,7 +717,7 @@
 		status = "disabled";
 	};
 
-	tmu: tmu@100C0000 {
+	tmu: tmu@100c0000 {
 		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
@@ -743,7 +740,7 @@
 		iommus = <&sysmmu_rotator>;
 	};
 
-	hdmi: hdmi@12D00000 {
+	hdmi: hdmi@12d00000 {
 		compatible = "samsung,exynos4210-hdmi";
 		reg = <0x12D00000 0x70000>;
 		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
@@ -755,10 +752,11 @@
 		phy = <&hdmi_i2c_phy>;
 		power-domains = <&pd_tv>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
-	hdmicec: cec@100B0000 {
+	hdmicec: cec@100b0000 {
 		compatible = "samsung,s5p-cec";
 		reg = <0x100B0000 0x200>;
 		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
@@ -771,7 +769,7 @@
 		status = "disabled";
 	};
 
-	mixer: mixer@12C10000 {
+	mixer: mixer@12c10000 {
 		compatible = "samsung,exynos4210-mixer";
 		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		reg = <0x12C10000 0x2100>, <0x12c00000 0x300>;
@@ -910,7 +908,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_tv: sysmmu@12E20000 {
+	sysmmu_tv: sysmmu@12e20000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x12E20000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -921,7 +919,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc0: sysmmu@11A20000 {
+	sysmmu_fimc0: sysmmu@11a20000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x11A20000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -932,7 +930,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc1: sysmmu@11A30000 {
+	sysmmu_fimc1: sysmmu@11a30000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x11A30000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -943,7 +941,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc2: sysmmu@11A40000 {
+	sysmmu_fimc2: sysmmu@11a40000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x11A40000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -954,7 +952,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc3: sysmmu@11A50000 {
+	sysmmu_fimc3: sysmmu@11a50000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x11A50000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -965,7 +963,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_jpeg: sysmmu@11A60000 {
+	sysmmu_jpeg: sysmmu@11a60000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x11A60000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -976,7 +974,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_rotator: sysmmu@12A30000 {
+	sysmmu_rotator: sysmmu@12a30000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x12A30000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -986,7 +984,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimd0: sysmmu@11E20000 {
+	sysmmu_fimd0: sysmmu@11e20000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x11E20000 0x1000>;
 		interrupt-parent = <&combiner>;

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -64,7 +56,7 @@ static int __init test_async_probe_init(void)
 						      NULL, 0);
 	if (IS_ERR(async_dev_1)) {
 		error = PTR_ERR(async_dev_1);
-		pr_err("failed to create async_dev_1: %d", error);
+		pr_err("failed to create async_dev_1: %d\n", error);
 		return error;
 	}
 
@@ -91,7 +83,7 @@ static int __init test_async_probe_init(void)
 						      NULL, 0);
 	if (IS_ERR(async_dev_2)) {
 		error = PTR_ERR(async_dev_2);
-		pr_err("failed to create async_dev_2: %d", error);
+		pr_err("failed to create async_dev_2: %d\n", error);
 		goto err_unregister_async_driver;
 	}
 
@@ -118,7 +110,7 @@ static int __init test_async_probe_init(void)
 						     NULL, 0);
 	if (IS_ERR(sync_dev_1)) {
 		error = PTR_ERR(sync_dev_1);
-		pr_err("failed to create sync_dev_1: %d", error);
+		pr_err("failed to create sync_dev_1: %d\n", error);
 		goto err_unregister_sync_driver;
 	}
 

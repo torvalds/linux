@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -277,10 +277,7 @@ acpi_db_convert_to_object(acpi_object_type type,
 	default:
 
 		object->type = ACPI_TYPE_INTEGER;
-		status = acpi_ut_strtoul64(string,
-					   (acpi_gbl_integer_byte_width |
-					    ACPI_STRTOUL_BASE16),
-					   &object->integer.value);
+		status = acpi_ut_strtoul64(string, &object->integer.value);
 		break;
 	}
 

@@ -8,6 +8,7 @@ menu "Platform options"
 
 config OPT_LIB_FUNCTION
 	bool "Optimalized lib function"
+	depends on CPU_LITTLE_ENDIAN
 	default y
 	help
 	  Allows turn on optimalized library function (memcpy and memmove).

@@ -17,6 +17,7 @@ static struct mb_cmd_name {
 	{MBC_GET_PORT_DATABASE,		"GPDB"},
 	{MBC_GET_ID_LIST,		"GIDList"},
 	{MBC_GET_LINK_PRIV_STATS,	"Stats"},
+	{MBC_GET_RESOURCE_COUNTS,	"ResCnt"},
 };
 
 static const char *mb_to_str(uint16_t cmd)
@@ -1782,13 +1783,13 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 	    "Entered %s.\n", __func__);
 
 	pd24 = NULL;
-	pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
 	if (pd  == NULL) {
 		ql_log(ql_log_warn, vha, 0x1050,
 		    "Failed to allocate port database structure.\n");
+		fcport->query = 0;
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(pd, 0, max(PORT_DATABASE_SIZE, PORT_DATABASE_24XX_SIZE));
 
 	mcp->mb[0] = MBC_GET_PORT_DATABASE;
 	if (opt != 0 && !IS_FWI2_CAPABLE(ha))
@@ -1823,17 +1824,32 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		uint64_t zero = 0;
+		u8 current_login_state, last_login_state;
+
 		pd24 = (struct port_database_24xx *) pd;
 
 		/* Check for logged in state. */
-		if (pd24->current_login_state != PDS_PRLI_COMPLETE &&
-		    pd24->last_login_state != PDS_PRLI_COMPLETE) {
-			ql_dbg(ql_dbg_mbx, vha, 0x1051,
-			    "Unable to verify login-state (%x/%x) for "
-			    "loop_id %x.\n", pd24->current_login_state,
-			    pd24->last_login_state, fcport->loop_id);
+		if (fcport->fc4f_nvme) {
+			current_login_state = pd24->current_login_state >> 4;
+			last_login_state = pd24->last_login_state >> 4;
+		} else {
+			current_login_state = pd24->current_login_state & 0xf;
+			last_login_state = pd24->last_login_state & 0xf;
+		}
+		fcport->current_login_state = pd24->current_login_state;
+		fcport->last_login_state = pd24->last_login_state;
+
+		/* Check for logged in state. */
+		if (current_login_state != PDS_PRLI_COMPLETE &&
+		    last_login_state != PDS_PRLI_COMPLETE) {
+			ql_dbg(ql_dbg_mbx, vha, 0x119a,
+			    "Unable to verify login-state (%x/%x) for loop_id %x.\n",
+			    current_login_state, last_login_state,
+			    fcport->loop_id);
 			rval = QLA_FUNCTION_FAILED;
-			goto gpd_error_out;
+
+			if (!fcport->query)
+				goto gpd_error_out;
 		}
 
 		if (fcport->loop_id == FC_NO_LOOP_ID ||
@@ -1912,6 +1928,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 
 gpd_error_out:
 	dma_pool_free(ha->s_dma_pool, pd, pd_dma);
+	fcport->query = 0;
 
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1052,
@@ -2255,13 +2272,12 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	else
 		req = ha->req_q_map[0];
 
-	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
+	lg = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
 		ql_log(ql_log_warn, vha, 0x1062,
 		    "Failed to allocate login IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
@@ -2525,13 +2541,12 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x106d,
 	    "Entered %s.\n", __func__);
 
-	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
+	lg = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
 		ql_log(ql_log_warn, vha, 0x106e,
 		    "Failed to allocate logout IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
 	req = vha->req;
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
@@ -2820,13 +2835,12 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *vha, char *pos_map)
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x107f,
 	    "Entered %s.\n", __func__);
 
-	pmap = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pmap_dma);
+	pmap = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pmap_dma);
 	if (pmap  == NULL) {
 		ql_log(ql_log_warn, vha, 0x1080,
 		    "Memory alloc failed.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(pmap, 0, FCAL_MAP_SIZE);
 
 	mcp->mb[0] = MBC_GET_FC_AL_POSITION_MAP;
 	mcp->mb[2] = MSW(pmap_dma);
@@ -3014,13 +3028,12 @@ qla24xx_abort_command(srb_t *sp)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	abt = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
+	abt = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
 	if (abt == NULL) {
 		ql_log(ql_log_warn, vha, 0x108d,
 		    "Failed to allocate abort IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(abt, 0, sizeof(struct abort_entry_24xx));
 
 	abt->entry_type = ABORT_IOCB_TYPE;
 	abt->entry_count = 1;
@@ -3098,13 +3111,12 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 		rsp = req->rsp;
 	}
 
-	tsk = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
+	tsk = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
 	if (tsk == NULL) {
 		ql_log(ql_log_warn, vha, 0x1093,
 		    "Failed to allocate task management IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
-	memset(tsk, 0, sizeof(struct tsk_mgmt_cmd));
 
 	tsk->p.tsk.entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->p.tsk.entry_count = 1;
@@ -3720,6 +3732,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	unsigned long   flags;
 	int found;
 	port_id_t id;
+	struct fc_port *fcport;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b6,
 	    "Entered %s.\n", __func__);
@@ -3742,7 +3755,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    "Primary port id %02x%02x%02x.\n",
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
-
+		ha->current_topology = ISP_CFG_NL;
 		qlt_update_host_map(vha, id);
 
 	} else if (rptid_entry->format == 1) {
@@ -3753,7 +3766,41 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			rptid_entry->vp_status,
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
+		ql_dbg(ql_dbg_async, vha, 0x5075,
+		   "Format 1: Remote WWPN %8phC.\n",
+		   rptid_entry->u.f1.port_name);
 
+		ql_dbg(ql_dbg_async, vha, 0x5075,
+		   "Format 1: WWPN %8phC.\n",
+		   vha->port_name);
+
+		/* N2N.  direct connect */
+		if (IS_QLA27XX(ha) &&
+		    ((rptid_entry->u.f1.flags>>1) & 0x7) == 2) {
+			/* if our portname is higher then initiate N2N login */
+			if (wwn_to_u64(vha->port_name) >
+			    wwn_to_u64(rptid_entry->u.f1.port_name)) {
+				// ??? qlt_update_host_map(vha, id);
+				vha->n2n_id = 0x1;
+				ql_dbg(ql_dbg_async, vha, 0x5075,
+				    "Format 1: Setting n2n_update_needed for id %d\n",
+				    vha->n2n_id);
+			} else {
+				ql_dbg(ql_dbg_async, vha, 0x5075,
+				    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
+				    rptid_entry->u.f1.port_name);
+			}
+
+			memcpy(vha->n2n_port_name, rptid_entry->u.f1.port_name,
+			    WWN_SIZE);
+			set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
+			set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
+			set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
+			return;
+		}
+
+		ha->flags.gpsc_supported = 1;
+		ha->current_topology = ISP_CFG_F;
 		/* buffer to buffer credit flag */
 		vha->flags.bbcr_enable = (rptid_entry->u.f1.bbcr & 0xf) != 0;
 
@@ -3819,6 +3866,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    rptid_entry->u.f2.port_name);
 
 		/* N2N.  direct connect */
+		ha->current_topology = ISP_CFG_N;
+		ha->flags.rida_fmt2 = 1;
 		vha->d_id.b.domain = rptid_entry->port_id[2];
 		vha->d_id.b.area = rptid_entry->port_id[1];
 		vha->d_id.b.al_pa = rptid_entry->port_id[0];
@@ -3826,6 +3875,40 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		qlt_update_vp_map(vha, SET_AL_PA);
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			fcport->scan_state = QLA_FCPORT_SCAN;
+		}
+
+		fcport = qla2x00_find_fcport_by_wwpn(vha,
+		    rptid_entry->u.f2.port_name, 1);
+
+		if (fcport) {
+			fcport->plogi_nack_done_deadline = jiffies + HZ;
+			fcport->scan_state = QLA_FCPORT_FOUND;
+			switch (fcport->disc_state) {
+			case DSC_DELETED:
+				ql_dbg(ql_dbg_disc, vha, 0x210d,
+				    "%s %d %8phC login\n",
+				    __func__, __LINE__, fcport->port_name);
+				qla24xx_fcport_handle_login(vha, fcport);
+				break;
+			case DSC_DELETE_PEND:
+				break;
+			default:
+				qlt_schedule_sess_for_deletion(fcport);
+				break;
+			}
+		} else {
+			id.b.al_pa  = rptid_entry->u.f2.remote_nport_id[0];
+			id.b.area   = rptid_entry->u.f2.remote_nport_id[1];
+			id.b.domain = rptid_entry->u.f2.remote_nport_id[2];
+			qla24xx_post_newsess_work(vha, &id,
+			    rptid_entry->u.f2.port_name,
+			    rptid_entry->u.f2.node_name,
+			    NULL,
+			    FC4_TYPE_UNKNOWN);
+		}
 	}
 }
 
@@ -3856,14 +3939,13 @@ qla24xx_modify_vp_config(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10bb,
 	    "Entered %s.\n", __func__);
 
-	vpmod = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &vpmod_dma);
+	vpmod = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &vpmod_dma);
 	if (!vpmod) {
 		ql_log(ql_log_warn, vha, 0x10bc,
 		    "Failed to allocate modify VP IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
-	memset(vpmod, 0, sizeof(struct vp_config_entry_24xx));
 	vpmod->entry_type = VP_CONFIG_IOCB_TYPE;
 	vpmod->entry_count = 1;
 	vpmod->command = VCT_COMMAND_MOD_ENABLE_VPS;
@@ -3898,84 +3980,6 @@ qla24xx_modify_vp_config(scsi_qla_host_t *vha)
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_INITIALIZING);
 	}
 	dma_pool_free(ha->s_dma_pool, vpmod, vpmod_dma);
-
-	return rval;
-}
-
-/*
- * qla24xx_control_vp
- *	Enable a virtual port for given host
- *
- * Input:
- *	ha = adapter block pointer.
- *	vhba = virtual adapter (unused)
- *	index = index number for enabled VP
- *
- * Returns:
- *	qla2xxx local function return status code.
- *
- * Context:
- *	Kernel context.
- */
-int
-qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
-{
-	int		rval;
-	int		map, pos;
-	struct vp_ctrl_entry_24xx   *vce;
-	dma_addr_t	vce_dma;
-	struct qla_hw_data *ha = vha->hw;
-	int	vp_index = vha->vp_idx;
-	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-
-	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10c1,
-	    "Entered %s enabling index %d.\n", __func__, vp_index);
-
-	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
-		return QLA_PARAMETER_ERROR;
-
-	vce = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &vce_dma);
-	if (!vce) {
-		ql_log(ql_log_warn, vha, 0x10c2,
-		    "Failed to allocate VP control IOCB.\n");
-		return QLA_MEMORY_ALLOC_FAILED;
-	}
-	memset(vce, 0, sizeof(struct vp_ctrl_entry_24xx));
-
-	vce->entry_type = VP_CTRL_IOCB_TYPE;
-	vce->entry_count = 1;
-	vce->command = cpu_to_le16(cmd);
-	vce->vp_count = cpu_to_le16(1);
-
-	/* index map in firmware starts with 1; decrement index
-	 * this is ok as we never use index 0
-	 */
-	map = (vp_index - 1) / 8;
-	pos = (vp_index - 1) & 7;
-	mutex_lock(&ha->vport_lock);
-	vce->vp_idx_map[map] |= 1 << pos;
-	mutex_unlock(&ha->vport_lock);
-
-	rval = qla2x00_issue_iocb(base_vha, vce, vce_dma, 0);
-	if (rval != QLA_SUCCESS) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c3,
-		    "Failed to issue VP control IOCB (%x).\n", rval);
-	} else if (vce->entry_status != 0) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c4,
-		    "Failed to complete IOCB -- error status (%x).\n",
-		    vce->entry_status);
-		rval = QLA_FUNCTION_FAILED;
-	} else if (vce->comp_status != cpu_to_le16(CS_COMPLETE)) {
-		ql_dbg(ql_dbg_mbx, vha, 0x10c5,
-		    "Failed to complete IOCB -- completion status (%x).\n",
-		    le16_to_cpu(vce->comp_status));
-		rval = QLA_FUNCTION_FAILED;
-	} else {
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10c6,
-		    "Done %s.\n", __func__);
-	}
-
-	dma_pool_free(ha->s_dma_pool, vce, vce_dma);
 
 	return rval;
 }
@@ -4588,6 +4592,48 @@ qla25xx_set_driver_version(scsi_qla_host_t *vha, char *version)
 	}
 
 	dma_pool_free(ha->s_dma_pool, str, str_dma);
+
+	return rval;
+}
+
+int
+qla24xx_get_port_login_templ(scsi_qla_host_t *vha, dma_addr_t buf_dma,
+			     void *buf, uint16_t bufsiz)
+{
+	int rval, i;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	uint32_t	*bp;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1159,
+	    "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_GET_RNID_PARAMS;
+	mcp->mb[1] = RNID_TYPE_PORT_LOGIN << 8;
+	mcp->mb[2] = MSW(buf_dma);
+	mcp->mb[3] = LSW(buf_dma);
+	mcp->mb[6] = MSW(MSD(buf_dma));
+	mcp->mb[7] = LSW(MSD(buf_dma));
+	mcp->mb[8] = bufsiz/4;
+	mcp->out_mb = MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x115a,
+		    "Failed=%x mb[0]=%x,%x.\n", rval, mcp->mb[0], mcp->mb[1]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x115b,
+		    "Done %s.\n", __func__);
+		bp = (uint32_t *) buf;
+		for (i = 0; i < (bufsiz-4)/4; i++, bp++)
+			*bp = cpu_to_be32(*bp);
+	}
 
 	return rval;
 }
@@ -6025,13 +6071,12 @@ int qla24xx_gpdb_wait(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	if (!vha->hw->flags.fw_started)
 		goto done;
 
-	pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
 	if (pd  == NULL) {
 		ql_log(ql_log_warn, vha, 0xd047,
 		    "Failed to allocate port database structure.\n");
 		goto done_free_sp;
 	}
-	memset(pd, 0, max(PORT_DATABASE_SIZE, PORT_DATABASE_24XX_SIZE));
 
 	memset(&mc, 0, sizeof(mc));
 	mc.mb[0] = MBC_GET_PORT_DATABASE;
@@ -6078,8 +6123,7 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	}
 
 	/* Check for logged in state. */
-	if (current_login_state != PDS_PRLI_COMPLETE &&
-	    last_login_state != PDS_PRLI_COMPLETE) {
+	if (current_login_state != PDS_PRLI_COMPLETE) {
 		ql_dbg(ql_dbg_mbx, vha, 0x119a,
 		    "Unable to verify login-state (%x/%x) for loop_id %x.\n",
 		    current_login_state, last_login_state, fcport->loop_id);
@@ -6266,5 +6310,34 @@ qla2x00_read_sfp_dev(struct scsi_qla_host *vha, char *buf, int count)
 		offset += SFP_BLOCK_SIZE;
 	}
 
+	return rval;
+}
+
+int qla24xx_res_count_wait(struct scsi_qla_host *vha,
+    uint16_t *out_mb, int out_mb_sz)
+{
+	int rval = QLA_FUNCTION_FAILED;
+	mbx_cmd_t mc;
+
+	if (!vha->hw->flags.fw_started)
+		goto done;
+
+	memset(&mc, 0, sizeof(mc));
+	mc.mb[0] = MBC_GET_RESOURCE_COUNTS;
+
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			"%s:  fail\n", __func__);
+	} else {
+		if (out_mb_sz <= SIZEOF_IOCB_MB_REG)
+			memcpy(out_mb, mc.mb, out_mb_sz);
+		else
+			memcpy(out_mb, mc.mb, SIZEOF_IOCB_MB_REG);
+
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			"%s:  done\n", __func__);
+	}
+done:
 	return rval;
 }

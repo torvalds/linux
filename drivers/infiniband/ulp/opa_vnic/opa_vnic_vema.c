@@ -186,6 +186,7 @@ static inline void vema_get_pod_values(struct opa_veswport_info *port_info)
 		cpu_to_be16(OPA_VNIC_MAX_SMAC_LIMIT);
 	port_info->vport.oper_state = OPA_VNIC_STATE_DROP_ALL;
 	port_info->vport.config_state = OPA_VNIC_STATE_DROP_ALL;
+	port_info->vesw.eth_mtu = cpu_to_be16(ETH_DATA_LEN);
 }
 
 /**
@@ -709,7 +710,7 @@ vema_get_port(struct opa_vnic_ctrl_port *cport, u8 port_num)
 
 /**
  * opa_vnic_vema_send_trap -- This function sends a trap to the EM
- * @cport: pointer to vnic control port
+ * @adapter: pointer to vnic adapter
  * @data: pointer to trap data filled by calling function
  * @lid:  issuers lid (encap_slid from vesw_port_info)
  *

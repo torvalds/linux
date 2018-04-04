@@ -197,7 +197,7 @@ Valid values for pin and group names are:
 
 Example:
 
-	pinctrl: pinctrl@02005800 {
+	pinctrl: pinctrl@2005800 {
 		#gpio-range-cells = <3>;
 		compatible = "img,tz1090-pinctrl";
 		reg = <0x02005800 0xe4>;
@@ -221,7 +221,7 @@ Example board file extract:
 		};
 	};
 
-	uart@02004b00 {
+	uart@2004b00 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_default>;
 	};

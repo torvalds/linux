@@ -235,6 +235,45 @@ struct ixgbe_thermal_sensor_data {
 	struct ixgbe_thermal_diode_data sensor[IXGBE_MAX_SENSORS];
 };
 
+#define NVM_OROM_OFFSET		0x17
+#define NVM_OROM_BLK_LOW	0x83
+#define NVM_OROM_BLK_HI		0x84
+#define NVM_OROM_PATCH_MASK	0xFF
+#define NVM_OROM_SHIFT		8
+
+#define NVM_VER_MASK		0x00FF	/* version mask */
+#define NVM_VER_SHIFT		8	/* version bit shift */
+#define NVM_OEM_PROD_VER_PTR	0x1B /* OEM Product version block pointer */
+#define NVM_OEM_PROD_VER_CAP_OFF 0x1 /* OEM Product version format offset */
+#define NVM_OEM_PROD_VER_OFF_L	0x2  /* OEM Product version offset low */
+#define NVM_OEM_PROD_VER_OFF_H	0x3  /* OEM Product version offset high */
+#define NVM_OEM_PROD_VER_CAP_MASK 0xF /* OEM Product version cap mask */
+#define NVM_OEM_PROD_VER_MOD_LEN 0x3 /* OEM Product version module length */
+#define NVM_ETK_OFF_LOW		0x2D /* version low order word */
+#define NVM_ETK_OFF_HI		0x2E /* version high order word */
+#define NVM_ETK_SHIFT		16   /* high version word shift */
+#define NVM_VER_INVALID		0xFFFF
+#define NVM_ETK_VALID		0x8000
+#define NVM_INVALID_PTR		0xFFFF
+#define NVM_VER_SIZE		32   /* version sting size */
+
+struct ixgbe_nvm_version {
+	u32 etk_id;
+	u8  nvm_major;
+	u16 nvm_minor;
+	u8  nvm_id;
+
+	bool oem_valid;
+	u8   oem_major;
+	u8   oem_minor;
+	u16  oem_release;
+
+	bool or_valid;
+	u8  or_major;
+	u16 or_build;
+	u8  or_patch;
+};
+
 /* Interrupt Registers */
 #define IXGBE_EICR      0x00800
 #define IXGBE_EICS      0x00808
@@ -2321,11 +2360,6 @@ enum {
 #define IXGBE_TXD_CMD_VLE    0x40000000 /* Add VLAN tag */
 #define IXGBE_TXD_STAT_DD    0x00000001 /* Descriptor Done */
 
-#define IXGBE_RXDADV_IPSEC_STATUS_SECP                  0x00020000
-#define IXGBE_RXDADV_IPSEC_ERROR_INVALID_PROTOCOL       0x08000000
-#define IXGBE_RXDADV_IPSEC_ERROR_INVALID_LENGTH         0x10000000
-#define IXGBE_RXDADV_IPSEC_ERROR_AUTH_FAILED            0x18000000
-#define IXGBE_RXDADV_IPSEC_ERROR_BIT_MASK               0x18000000
 /* Multiple Transmit Queue Command Register */
 #define IXGBE_MTQC_RT_ENA       0x1 /* DCB Enable */
 #define IXGBE_MTQC_VT_ENA       0x2 /* VMDQ2 Enable */
@@ -2377,6 +2411,9 @@ enum {
 #define IXGBE_RXDADV_ERR_LE     0x02000000 /* Length Error */
 #define IXGBE_RXDADV_ERR_PE     0x08000000 /* Packet Error */
 #define IXGBE_RXDADV_ERR_OSE    0x10000000 /* Oversize Error */
+#define IXGBE_RXDADV_ERR_IPSEC_INV_PROTOCOL  0x08000000 /* overlap ERR_PE  */
+#define IXGBE_RXDADV_ERR_IPSEC_INV_LENGTH    0x10000000 /* overlap ERR_OSE */
+#define IXGBE_RXDADV_ERR_IPSEC_AUTH_FAILED   0x18000000
 #define IXGBE_RXDADV_ERR_USE    0x20000000 /* Undersize Error */
 #define IXGBE_RXDADV_ERR_TCPE   0x40000000 /* TCP/UDP Checksum Error */
 #define IXGBE_RXDADV_ERR_IPE    0x80000000 /* IP Checksum Error */
@@ -2398,6 +2435,7 @@ enum {
 #define IXGBE_RXDADV_STAT_FCSTAT_FCPRSP 0x00000020 /* 10: Recv. FCP_RSP */
 #define IXGBE_RXDADV_STAT_FCSTAT_DDP    0x00000030 /* 11: Ctxt w/ DDP */
 #define IXGBE_RXDADV_STAT_TS		0x00010000 /* IEEE 1588 Time Stamp */
+#define IXGBE_RXDADV_STAT_SECP		0x00020000 /* IPsec/MACsec pkt found */
 
 /* PSRTYPE bit definitions */
 #define IXGBE_PSRTYPE_TCPHDR    0x00000010
@@ -2464,13 +2502,6 @@ enum {
 #define IXGBE_RXDADV_PKTTYPE_ETQF_MASK  0x00000070 /* ETQF has 8 indices */
 #define IXGBE_RXDADV_PKTTYPE_ETQF_SHIFT 4          /* Right-shift 4 bits */
 
-/* Security Processing bit Indication */
-#define IXGBE_RXDADV_LNKSEC_STATUS_SECP         0x00020000
-#define IXGBE_RXDADV_LNKSEC_ERROR_NO_SA_MATCH   0x08000000
-#define IXGBE_RXDADV_LNKSEC_ERROR_REPLAY_ERROR  0x10000000
-#define IXGBE_RXDADV_LNKSEC_ERROR_BIT_MASK      0x18000000
-#define IXGBE_RXDADV_LNKSEC_ERROR_BAD_SIG       0x18000000
-
 /* Masks to determine if packets should be dropped due to frame errors */
 #define IXGBE_RXD_ERR_FRAME_ERR_MASK ( \
 				      IXGBE_RXD_ERR_CE | \
@@ -2484,6 +2515,8 @@ enum {
 				      IXGBE_RXDADV_ERR_LE | \
 				      IXGBE_RXDADV_ERR_PE | \
 				      IXGBE_RXDADV_ERR_OSE | \
+				      IXGBE_RXDADV_ERR_IPSEC_INV_PROTOCOL | \
+				      IXGBE_RXDADV_ERR_IPSEC_INV_LENGTH | \
 				      IXGBE_RXDADV_ERR_USE)
 
 /* Multicast bit mask */
@@ -2862,7 +2895,7 @@ union ixgbe_adv_rx_desc {
 /* Context descriptors */
 struct ixgbe_adv_tx_context_desc {
 	__le32 vlan_macip_lens;
-	__le32 seqnum_seed;
+	__le32 fceof_saidx;
 	__le32 type_tucmd_mlhl;
 	__le32 mss_l4len_idx;
 };
@@ -2893,6 +2926,7 @@ struct ixgbe_adv_tx_context_desc {
 				 IXGBE_ADVTXD_POPTS_SHIFT)
 #define IXGBE_ADVTXD_POPTS_TXSM (IXGBE_TXD_POPTS_TXSM << \
 				 IXGBE_ADVTXD_POPTS_SHIFT)
+#define IXGBE_ADVTXD_POPTS_IPSEC     0x00000400 /* IPSec offload request */
 #define IXGBE_ADVTXD_POPTS_ISCO_1ST  0x00000000 /* 1st TSO of iSCSI PDU */
 #define IXGBE_ADVTXD_POPTS_ISCO_MDL  0x00000800 /* Middle TSO of iSCSI PDU */
 #define IXGBE_ADVTXD_POPTS_ISCO_LAST 0x00001000 /* Last TSO of iSCSI PDU */
@@ -2908,7 +2942,6 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ADVTXD_TUCMD_L4T_SCTP  0x00001000  /* L4 Packet TYPE of SCTP */
 #define IXGBE_ADVTXD_TUCMD_L4T_RSV     0x00001800 /* RSV L4 Packet TYPE */
 #define IXGBE_ADVTXD_TUCMD_MKRREQ    0x00002000 /*Req requires Markers and CRC*/
-#define IXGBE_ADVTXD_POPTS_IPSEC      0x00000400 /* IPSec offload request */
 #define IXGBE_ADVTXD_TUCMD_IPSEC_TYPE_ESP 0x00002000 /* IPSec Type ESP */
 #define IXGBE_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN 0x00004000/* ESP Encrypt Enable */
 #define IXGBE_ADVTXT_TUCMD_FCOE      0x00008000       /* FCoE Frame Type */

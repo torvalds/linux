@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Base port operations for 8250/16550-type serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *  Split from 8250_core.c, Copyright (C) 2001 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * A note about mapbase / membase
  *
@@ -445,7 +441,6 @@ static void io_serial_out(struct uart_port *p, int offset, int value)
 }
 
 static int serial8250_default_handle_irq(struct uart_port *port);
-static int exar_handle_irq(struct uart_port *port);
 
 static void set_io_from_upio(struct uart_port *p)
 {
@@ -1516,7 +1511,6 @@ static inline void __stop_tx(struct uart_8250_port *p)
 			return;
 
 		em485->active_timer = NULL;
-		hrtimer_cancel(&em485->start_tx_timer);
 
 		__stop_tx_rs485(p);
 	}
@@ -1580,8 +1574,6 @@ static inline void start_tx_rs485(struct uart_port *port)
 		serial8250_stop_rx(&up->port);
 
 	em485->active_timer = NULL;
-	if (hrtimer_is_queued(&em485->stop_tx_timer))
-		hrtimer_cancel(&em485->stop_tx_timer);
 
 	mcr = serial8250_in_MCR(up);
 	if (!!(up->port.rs485.flags & SER_RS485_RTS_ON_SEND) !=
@@ -1887,26 +1879,6 @@ static int serial8250_default_handle_irq(struct uart_port *port)
 	ret = serial8250_handle_irq(port, iir);
 
 	serial8250_rpm_put(up);
-	return ret;
-}
-
-/*
- * These Exar UARTs have an extra interrupt indicator that could
- * fire for a few unimplemented interrupts.  One of which is a
- * wakeup event when coming out of sleep.  Put this here just
- * to be on the safe side that these interrupts don't go unhandled.
- */
-static int exar_handle_irq(struct uart_port *port)
-{
-	unsigned int iir = serial_port_in(port, UART_IIR);
-	int ret = 0;
-
-	if (((port->type == PORT_XR17V35X) || (port->type == PORT_XR17D15X)) &&
-	    serial_port_in(port, UART_EXAR_INT0) != 0)
-		ret = 1;
-
-	ret |= serial8250_handle_irq(port, iir);
-
 	return ret;
 }
 
@@ -2586,8 +2558,11 @@ static void serial8250_set_divisor(struct uart_port *port, unsigned int baud,
 	serial_dl_write(up, quot);
 
 	/* XR17V35x UARTs have an extra fractional divisor register (DLD) */
-	if (up->port.type == PORT_XR17V35X)
+	if (up->port.type == PORT_XR17V35X) {
+		/* Preserve bits not related to baudrate; DLD[7:4]. */
+		quot_frac |= serial_port_in(port, 0x2) & 0xf0;
 		serial_port_out(port, 0x2, quot_frac);
+	}
 }
 
 static unsigned int serial8250_get_baud_rate(struct uart_port *port,
@@ -2601,7 +2576,7 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 	 * causing transmission errors.
 	 */
 	return uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / 0xffff,
+				  port->uartclk / 16 / UART_DIV_MAX,
 				  port->uartclk);
 }
 
@@ -3070,11 +3045,6 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 
 	if (port->type == PORT_UNKNOWN)
 		serial8250_release_std_resource(up);
-
-	/* Fixme: probably not the best place for this */
-	if ((port->type == PORT_XR17V35X) ||
-	   (port->type == PORT_XR17D15X))
-		port->handle_irq = exar_handle_irq;
 
 	register_dev_spec_attr_grp(up);
 	up->fcr = uart_config[up->port.type].fcr;

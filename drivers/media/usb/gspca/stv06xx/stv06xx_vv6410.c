@@ -129,7 +129,7 @@ static int vv6410_start(struct sd *sd)
 	u32 priv = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
 	if (priv & VV6410_SUBSAMPLE) {
-		PDEBUG(D_CONF, "Enabling subsampling");
+		gspca_dbg(gspca_dev, D_CONF, "Enabling subsampling\n");
 		stv06xx_write_bridge(sd, STV_Y_CTRL, 0x02);
 		stv06xx_write_bridge(sd, STV_X_CTRL, 0x06);
 
@@ -150,7 +150,7 @@ static int vv6410_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	PDEBUG(D_STREAM, "Starting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Starting stream\n");
 
 	return 0;
 }
@@ -169,7 +169,7 @@ static int vv6410_stop(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	PDEBUG(D_STREAM, "Halting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Halting stream\n");
 
 	return 0;
 }
@@ -203,7 +203,7 @@ static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		i2c_data &= ~VV6410_HFLIP;
 
-	PDEBUG(D_CONF, "Set horizontal flip to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set horizontal flip to %d\n", val);
 	err = stv06xx_write_sensor(sd, VV6410_DATAFORMAT, i2c_data);
 
 	return (err < 0) ? err : 0;
@@ -224,7 +224,7 @@ static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		i2c_data &= ~VV6410_VFLIP;
 
-	PDEBUG(D_CONF, "Set vertical flip to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set vertical flip to %d\n", val);
 	err = stv06xx_write_sensor(sd, VV6410_DATAFORMAT, i2c_data);
 
 	return (err < 0) ? err : 0;
@@ -235,7 +235,7 @@ static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set analog gain to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set analog gain to %d\n", val);
 	err = stv06xx_write_sensor(sd, VV6410_ANALOGGAIN, 0xf0 | (val & 0xf));
 
 	return (err < 0) ? err : 0;
@@ -252,8 +252,8 @@ static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	fine = val % VV6410_CIF_LINELENGTH;
 	coarse = min(512, val / VV6410_CIF_LINELENGTH);
 
-	PDEBUG(D_CONF, "Set coarse exposure to %d, fine exposure to %d",
-	       coarse, fine);
+	gspca_dbg(gspca_dev, D_CONF, "Set coarse exposure to %d, fine exposure to %d\n",
+		  coarse, fine);
 
 	err = stv06xx_write_sensor(sd, VV6410_FINEH, fine >> 8);
 	if (err < 0)

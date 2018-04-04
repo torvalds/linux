@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * File: device_main.c
  *
@@ -547,7 +538,7 @@ static void device_init_rd0_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->opts.rx_descs0;
 	     i ++, curr += sizeof(struct vnt_rx_desc)) {
 		desc = &priv->aRD0Ring[i];
-		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_ATOMIC);
+		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_KERNEL);
 
 		if (!device_alloc_rx_buf(priv, desc))
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
@@ -571,7 +562,7 @@ static void device_init_rd1_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->opts.rx_descs1;
 	     i ++, curr += sizeof(struct vnt_rx_desc)) {
 		desc = &priv->aRD1Ring[i];
-		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_ATOMIC);
+		desc->rd_info = kzalloc(sizeof(*desc->rd_info), GFP_KERNEL);
 
 		if (!device_alloc_rx_buf(priv, desc))
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
@@ -629,7 +620,7 @@ static void device_init_td0_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->opts.tx_descs[0];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		desc = &priv->apTD0Rings[i];
-		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_ATOMIC);
+		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 
 		desc->td_info->buf = priv->tx0_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma0 + i * PKT_BUF_SZ;
@@ -654,7 +645,7 @@ static void device_init_td1_ring(struct vnt_private *priv)
 	for (i = 0; i < priv->opts.tx_descs[1];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		desc = &priv->apTD1Rings[i];
-		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_ATOMIC);
+		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 
 		desc->td_info->buf = priv->tx1_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma1 + i * PKT_BUF_SZ;
@@ -1693,9 +1684,10 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 	MACbShutdown(priv);
 
 	pci_disable_device(pcid);
-	pci_set_power_state(pcid, pci_choose_state(pcid, state));
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	pci_set_power_state(pcid, pci_choose_state(pcid, state));
 
 	return 0;
 }

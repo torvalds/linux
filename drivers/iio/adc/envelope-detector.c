@@ -322,7 +322,6 @@ static const struct iio_chan_spec envelope_detector_iio_channel = {
 
 static const struct iio_info envelope_detector_info = {
 	.read_raw = &envelope_detector_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int envelope_detector_probe(struct platform_device *pdev)

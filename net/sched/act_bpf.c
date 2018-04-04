@@ -49,11 +49,11 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 	filter = rcu_dereference(prog->filter);
 	if (at_ingress) {
 		__skb_push(skb, skb->mac_len);
-		bpf_compute_data_end(skb);
+		bpf_compute_data_pointers(skb);
 		filter_res = BPF_PROG_RUN(filter, skb);
 		__skb_pull(skb, skb->mac_len);
 	} else {
-		bpf_compute_data_end(skb);
+		bpf_compute_data_pointers(skb);
 		filter_res = BPF_PROG_RUN(filter, skb);
 	}
 	rcu_read_unlock();
@@ -357,7 +357,7 @@ out:
 	return ret;
 }
 
-static void tcf_bpf_cleanup(struct tc_action *act, int bind)
+static void tcf_bpf_cleanup(struct tc_action *act)
 {
 	struct tcf_bpf_cfg tmp;
 
@@ -398,19 +398,17 @@ static __net_init int bpf_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, bpf_net_id);
 
-	return tc_action_net_init(tn, &act_bpf_ops, net);
+	return tc_action_net_init(tn, &act_bpf_ops);
 }
 
-static void __net_exit bpf_exit_net(struct net *net)
+static void __net_exit bpf_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, bpf_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, bpf_net_id);
 }
 
 static struct pernet_operations bpf_net_ops = {
 	.init = bpf_init_net,
-	.exit = bpf_exit_net,
+	.exit_batch = bpf_exit_net,
 	.id   = &bpf_net_id,
 	.size = sizeof(struct tc_action_net),
 };

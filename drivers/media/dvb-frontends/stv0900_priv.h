@@ -243,7 +243,7 @@ struct stv0900_init_params{
 
 	u8	tun1_maddress;
 	int	tuner1_adc;
-	int 	tuner1_type;
+	int	tuner1_type;
 
 	/* IQ from the tuner1 to the demod */
 	enum stv0900_iq_inversion	tun1_iq_inv;

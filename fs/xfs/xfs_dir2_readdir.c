@@ -41,7 +41,7 @@ static unsigned char xfs_dir3_filetype_table[] = {
 	DT_FIFO, DT_SOCK, DT_LNK, DT_WHT,
 };
 
-static unsigned char
+unsigned char
 xfs_dir3_get_dtype(
 	struct xfs_mount	*mp,
 	uint8_t			filetype)
@@ -152,7 +152,6 @@ xfs_dir2_block_getdents(
 	struct xfs_inode	*dp = args->dp;	/* incore directory inode */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	struct xfs_buf		*bp;		/* buffer for block */
-	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_dir2_data_entry_t	*dep;		/* block data entry */
 	xfs_dir2_data_unused_t	*dup;		/* block unused entry */
 	char			*endptr;	/* end of the data entries */
@@ -185,9 +184,8 @@ xfs_dir2_block_getdents(
 	/*
 	 * Set up values for the loop.
 	 */
-	btp = xfs_dir2_block_tail_p(geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
-	endptr = (char *)xfs_dir2_block_leaf_p(btp);
+	endptr = xfs_dir3_data_endp(geo, hdr);
 
 	/*
 	 * Loop over the data portion of the block.
@@ -266,7 +264,7 @@ xfs_dir2_leaf_readbuf(
 	xfs_dablk_t		next_ra;
 	xfs_dablk_t		map_off;
 	xfs_dablk_t		last_da;
-	xfs_extnum_t		idx;
+	struct xfs_iext_cursor	icur;
 	int			ra_want;
 	int			error = 0;
 
@@ -283,7 +281,7 @@ xfs_dir2_leaf_readbuf(
 	 */
 	last_da = xfs_dir2_byte_to_da(geo, XFS_DIR2_LEAF_OFFSET);
 	map_off = xfs_dir2_db_to_da(geo, xfs_dir2_byte_to_db(geo, *cur_off));
-	if (!xfs_iext_lookup_extent(dp, ifp, map_off, &idx, &map))
+	if (!xfs_iext_lookup_extent(dp, ifp, map_off, &icur, &map))
 		goto out;
 	if (map.br_startoff >= last_da)
 		goto out;
@@ -311,7 +309,7 @@ xfs_dir2_leaf_readbuf(
 	if (next_ra >= last_da)
 		goto out_no_ra;
 	if (map.br_blockcount < geo->fsbcount &&
-	    !xfs_iext_get_extent(ifp, ++idx, &map))
+	    !xfs_iext_next_extent(ifp, &icur, &map))
 		goto out_no_ra;
 	if (map.br_startoff >= last_da)
 		goto out_no_ra;
@@ -334,7 +332,7 @@ xfs_dir2_leaf_readbuf(
 			ra_want -= geo->fsbcount;
 			next_ra += geo->fsbcount;
 		}
-		if (!xfs_iext_get_extent(ifp, ++idx, &map)) {
+		if (!xfs_iext_next_extent(ifp, &icur, &map)) {
 			*ra_blk = last_da;
 			break;
 		}

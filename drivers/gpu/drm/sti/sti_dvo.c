@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>
@@ -463,11 +463,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 	bridge->driver_private = dvo;
 	bridge->funcs = &sti_dvo_bridge_funcs;
 	bridge->of_node = dvo->dev.of_node;
-	err = drm_bridge_add(bridge);
-	if (err) {
-		DRM_ERROR("Failed to add bridge\n");
-		return err;
-	}
+	drm_bridge_add(bridge);
 
 	err = drm_bridge_attach(encoder, bridge, NULL);
 	if (err) {

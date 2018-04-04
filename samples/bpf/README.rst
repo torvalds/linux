@@ -64,3 +64,13 @@ It is also possible to point make to the newly compiled 'llc' or
 'clang' command via redefining LLC or CLANG on the make command line::
 
  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
+
+Cross compiling samples
+-----------------------
+In order to cross-compile, say for arm64 targets, export CROSS_COMPILE and ARCH
+environment variables before calling make. This will direct make to build
+samples for the cross target.
+
+export ARCH=arm64
+export CROSS_COMPILE="aarch64-linux-gnu-"
+make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang

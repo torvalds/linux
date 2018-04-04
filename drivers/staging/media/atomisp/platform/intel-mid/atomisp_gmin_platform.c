@@ -4,10 +4,10 @@
 #include <linux/efi.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <media/v4l2-subdev.h>
 #include <linux/mfd/intel_soc_pmic.h>
-#include "../../include/linux/vlv2_plat_clock.h"
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
@@ -17,11 +17,7 @@
 
 #define MAX_SUBDEVS 8
 
-/* Should be defined in vlv2_plat_clock API, isn't: */
-#define VLV2_CLK_PLL_19P2MHZ 1
-#define VLV2_CLK_XTAL_19P2MHZ 0
-#define VLV2_CLK_ON      1
-#define VLV2_CLK_OFF     2
+#define VLV2_CLK_PLL_19P2MHZ 1 /* XTAL on CHT */
 #define ELDO1_SEL_REG	0x19
 #define ELDO1_1P8V	0x16
 #define ELDO1_CTRL_SHIFT 0x00
@@ -33,6 +29,8 @@ struct gmin_subdev {
 	struct v4l2_subdev *subdev;
 	int clock_num;
 	int clock_src;
+	bool clock_on;
+	struct clk *pmc_clk;
 	struct gpio_desc *gpio0;
 	struct gpio_desc *gpio1;
 	struct regulator *v1p8_reg;
@@ -108,49 +106,6 @@ const struct atomisp_platform_data *atomisp_get_platform_data(void)
 }
 EXPORT_SYMBOL_GPL(atomisp_get_platform_data);
 
-static int af_power_ctrl(struct v4l2_subdev *subdev, int flag)
-{
-	struct gmin_subdev *gs = find_gmin_subdev(subdev);
-
-	if (gs && gs->v2p8_vcm_on == flag)
-		return 0;
-	gs->v2p8_vcm_on = flag;
-
-	/*
-	 * The power here is used for dw9817,
-	 * regulator is from rear sensor
-	 */
-	if (gs->v2p8_vcm_reg) {
-		if (flag)
-			return regulator_enable(gs->v2p8_vcm_reg);
-		else
-			return regulator_disable(gs->v2p8_vcm_reg);
-	}
-	return 0;
-}
-
-/*
- * Used in a handful of modules.  Focus motor control, I think.  Note
- * that there is no configurability in the API, so this needs to be
- * fixed where it is used.
- *
- * struct camera_af_platform_data {
- *     int (*power_ctrl)(struct v4l2_subdev *subdev, int flag);
- * };
- *
- * Note that the implementation in MCG platform_camera.c is stubbed
- * out anyway (i.e. returns zero from the callback) on BYT.  So
- * neither needed on gmin platforms or supported upstream.
- */
-const struct camera_af_platform_data *camera_get_af_platform_data(void)
-{
-	static struct camera_af_platform_data afpd = {
-		.power_ctrl = af_power_ctrl,
-	};
-	return &afpd;
-}
-EXPORT_SYMBOL_GPL(camera_get_af_platform_data);
-
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 				struct camera_sensor_platform_data *plat_data,
 				enum intel_v4l2_subdev_type type)
@@ -159,7 +114,7 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	struct i2c_board_info *bi;
 	struct gmin_subdev *gs;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
 
 	dev_info(&client->dev, "register atomisp i2c module type %d\n", type);
 
@@ -169,9 +124,7 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	 * tickled during suspend/resume.  This has caused power and
 	 * performance issues on multiple devices.
 	 */
-	adev = ACPI_COMPANION(&client->dev);
-	if (adev)
-		adev->power.flags.power_resources = 0;
+	adev->power.flags.power_resources = 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
 		if (!pdata.subdevs[i].type)
@@ -256,7 +209,7 @@ struct gmin_cfg_var {
 	const char *name, *val;
 };
 
-static const struct gmin_cfg_var ffrd8_vars[] = {
+static struct gmin_cfg_var ffrd8_vars[] = {
 	{ "INTCF1B:00_ImxId",    "0x134" },
 	{ "INTCF1B:00_CsiPort",  "1" },
 	{ "INTCF1B:00_CsiLanes", "4" },
@@ -267,14 +220,14 @@ static const struct gmin_cfg_var ffrd8_vars[] = {
 /* Cribbed from MCG defaults in the mt9m114 driver, not actually verified
  * vs. T100 hardware
  */
-static const struct gmin_cfg_var t100_vars[] = {
+static struct gmin_cfg_var t100_vars[] = {
 	{ "INT33F0:00_CsiPort",  "0" },
 	{ "INT33F0:00_CsiLanes", "1" },
 	{ "INT33F0:00_CamClk",   "1" },
 	{},
 };
 
-static const struct gmin_cfg_var mrd7_vars[] = {
+static struct gmin_cfg_var mrd7_vars[] = {
 	{"INT33F8:00_CamType", "1"},
 	{"INT33F8:00_CsiPort", "1"},
 	{"INT33F8:00_CsiLanes", "2"},
@@ -290,7 +243,7 @@ static const struct gmin_cfg_var mrd7_vars[] = {
 	{},
 };
 
-static const struct gmin_cfg_var ecs7_vars[] = {
+static struct gmin_cfg_var ecs7_vars[] = {
 	{"INT33BE:00_CsiPort", "1"},
 	{"INT33BE:00_CsiLanes", "2"},
 	{"INT33BE:00_CsiFmt", "13"},
@@ -305,8 +258,7 @@ static const struct gmin_cfg_var ecs7_vars[] = {
 	{},
 };
 
-
-static const struct gmin_cfg_var i8880_vars[] = {
+static struct gmin_cfg_var i8880_vars[] = {
 	{"XXOV2680:00_CsiPort", "1"},
 	{"XXOV2680:00_CsiLanes", "1"},
 	{"XXOV2680:00_CamClk", "0"},
@@ -316,17 +268,45 @@ static const struct gmin_cfg_var i8880_vars[] = {
 	{},
 };
 
-static const struct {
-	const char *dmi_board_name;
-	const struct gmin_cfg_var *vars;
-} hard_vars[] = {
-	{ "BYT-T FFD8", ffrd8_vars },
-	{ "T100TA", t100_vars },
-	{ "MRD7", mrd7_vars },
-	{ "ST70408", ecs7_vars },
-	{ "VTA0803", i8880_vars },
+static const struct dmi_system_id gmin_vars[] = {
+	{
+		.ident = "BYT-T FFD8",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
+		},
+		.driver_data = ffrd8_vars,
+	},
+	{
+		.ident = "T100TA",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "T100TA"),
+		},
+		.driver_data = t100_vars,
+	},
+	{
+		.ident = "MRD7",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "TABLET"),
+			DMI_MATCH(DMI_BOARD_VERSION, "MRD 7"),
+		},
+		.driver_data = mrd7_vars,
+	},
+	{
+		.ident = "ST70408",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "ST70408"),
+		},
+		.driver_data = ecs7_vars,
+	},
+	{
+		.ident = "VTA0803",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "VTA0803"),
+		},
+		.driver_data = i8880_vars,
+	},
+	{}
 };
-
 
 #define GMIN_CFG_VAR_EFI_GUID EFI_GUID(0xecb54cd9, 0xe5ae, 0x4fdc, \
 				       0xa9, 0x71, 0xe8, 0x77,	   \
@@ -334,15 +314,8 @@ static const struct {
 
 #define CFG_VAR_NAME_MAX 64
 
-static int gmin_platform_init(struct i2c_client *client)
-{
-	return 0;
-}
-
-static int gmin_platform_deinit(void)
-{
-	return 0;
-}
+#define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
+static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
 
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
@@ -374,24 +347,45 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 							VLV2_CLK_PLL_19P2MHZ);
 	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, "CsiPort", 0);
 	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, "CsiLanes", 1);
+
+	/* get PMC clock with clock framework */
+	snprintf(gmin_pmc_clk_name,
+		 sizeof(gmin_pmc_clk_name),
+		 "%s_%d", "pmc_plt_clk", gmin_subdevs[i].clock_num);
+
+	gmin_subdevs[i].pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
+	if (IS_ERR(gmin_subdevs[i].pmc_clk)) {
+		ret = PTR_ERR(gmin_subdevs[i].pmc_clk);
+
+		dev_err(dev,
+			"Failed to get clk from %s : %d\n",
+			gmin_pmc_clk_name,
+			ret);
+
+		return NULL;
+	}
+
+	/*
+	 * The firmware might enable the clock at
+	 * boot (this information may or may not
+	 * be reflected in the enable clock register).
+	 * To change the rate we must disable the clock
+	 * first to cover these cases. Due to common
+	 * clock framework restrictions that do not allow
+	 * to disable a clock that has not been enabled,
+	 * we need to enable the clock first.
+	 */
+	ret = clk_prepare_enable(gmin_subdevs[i].pmc_clk);
+	if (!ret)
+		clk_disable_unprepare(gmin_subdevs[i].pmc_clk);
+
 	gmin_subdevs[i].gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
-	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
-
-	if (!IS_ERR(gmin_subdevs[i].gpio0)) {
-		ret = gpiod_direction_output(gmin_subdevs[i].gpio0, 0);
-		if (ret)
-			dev_err(dev, "gpio0 set output failed: %d\n", ret);
-	} else {
+	if (IS_ERR(gmin_subdevs[i].gpio0))
 		gmin_subdevs[i].gpio0 = NULL;
-	}
 
-	if (!IS_ERR(gmin_subdevs[i].gpio1)) {
-		ret = gpiod_direction_output(gmin_subdevs[i].gpio1, 0);
-		if (ret)
-			dev_err(dev, "gpio1 set output failed: %d\n", ret);
-	} else {
+	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
+	if (IS_ERR(gmin_subdevs[i].gpio1))
 		gmin_subdevs[i].gpio1 = NULL;
-	}
 
 	if (pmic_id == PMIC_REGULATOR) {
 		gmin_subdevs[i].v1p8_reg = regulator_get(dev, "V1P8SX");
@@ -425,7 +419,7 @@ static int gmin_gpio0_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 
-	if (gs && gs->gpio0) {
+	if (gs) {
 		gpiod_set_value(gs->gpio0, on);
 		return 0;
 	}
@@ -436,7 +430,7 @@ static int gmin_gpio1_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 
-	if (gs && gs->gpio1) {
+	if (gs) {
 		gpiod_set_value(gs->gpio1, on);
 		return 0;
 	}
@@ -539,13 +533,27 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	int ret = 0;
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 
-	if (on)
-		ret = vlv2_plat_set_clock_freq(gs->clock_num, gs->clock_src);
-	if (ret)
-		return ret;
-	return vlv2_plat_configure_clock(gs->clock_num,
-					 on ? VLV2_CLK_ON : VLV2_CLK_OFF);
+	if (gs->clock_on == !!on)
+		return 0;
+
+	if (on) {
+		ret = clk_set_rate(gs->pmc_clk, gs->clock_src);
+
+		if (ret)
+			dev_err(&client->dev, "unable to set PMC rate %d\n",
+				gs->clock_src);
+
+		ret = clk_prepare_enable(gs->pmc_clk);
+		if (ret == 0)
+			gs->clock_on = true;
+	} else {
+		clk_disable_unprepare(gs->pmc_clk);
+		gs->clock_on = false;
+	}
+
+	return ret;
 }
 
 static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
@@ -592,8 +600,6 @@ static struct camera_sensor_platform_data gmin_plat = {
 	.v2p8_ctrl = gmin_v2p8_ctrl,
 	.v1p2_ctrl = gmin_v1p2_ctrl,
 	.flisclk_ctrl = gmin_flisclk_ctrl,
-	.platform_init = gmin_platform_init,
-	.platform_deinit = gmin_platform_deinit,
 	.csi_cfg = gmin_csi_cfg,
 	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };
@@ -625,17 +631,41 @@ int atomisp_gmin_register_vcm_control(struct camera_vcm_control *vcmCtrl)
 }
 EXPORT_SYMBOL_GPL(atomisp_gmin_register_vcm_control);
 
+static int gmin_get_hardcoded_var(struct gmin_cfg_var *varlist,
+				  const char *var8, char *out, size_t *out_len)
+{
+	struct gmin_cfg_var *gv;
+
+	for (gv = varlist; gv->name; gv++) {
+		size_t vl;
+
+		if (strcmp(var8, gv->name))
+			continue;
+
+		vl = strlen(gv->val);
+		if (vl > *out_len - 1)
+			return -ENOSPC;
+
+		strcpy(out, gv->val);
+		*out_len = vl;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 /* Retrieves a device-specific configuration variable.  The dev
  * argument should be a device with an ACPI companion, as all
  * configuration is based on firmware ID.
  */
-int gmin_get_config_var(struct device *dev, const char *var, char *out,
-			size_t *out_len)
+static int gmin_get_config_var(struct device *dev, const char *var,
+			       char *out, size_t *out_len)
 {
 	char var8[CFG_VAR_NAME_MAX];
 	efi_char16_t var16[CFG_VAR_NAME_MAX];
 	struct efivar_entry *ev;
-	int i, j, ret;
+	const struct dmi_system_id *id;
+	int i, ret;
 
 	if (dev && ACPI_COMPANION(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
@@ -652,28 +682,9 @@ int gmin_get_config_var(struct device *dev, const char *var, char *out,
 	 * Some device firmwares lack the ability to set EFI variables at
 	 * runtime.
 	 */
-	for (i = 0; i < ARRAY_SIZE(hard_vars); i++) {
-		if (dmi_match(DMI_BOARD_NAME, hard_vars[i].dmi_board_name)) {
-			for (j = 0; hard_vars[i].vars[j].name; j++) {
-				size_t vl;
-				const struct gmin_cfg_var *gv;
-
-				gv = &hard_vars[i].vars[j];
-				vl = strlen(gv->val);
-
-				if (strcmp(var8, gv->name))
-					continue;
-				if (vl > *out_len - 1)
-					return -ENOSPC;
-
-				memcpy(out, gv->val, min(*out_len, vl+1));
-				out[*out_len-1] = 0;
-				*out_len = vl;
-
-				return 0;
-			}
-		}
-	}
+	id = dmi_first_match(gmin_vars);
+	if (id)
+		return gmin_get_hardcoded_var(id->driver_data, var8, out, out_len);
 
 	/* Our variable names are ASCII by construction, but EFI names
 	 * are wide chars.  Convert and zero-pad.
@@ -712,7 +723,6 @@ int gmin_get_config_var(struct device *dev, const char *var, char *out,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(gmin_get_config_var);
 
 int gmin_get_var_int(struct device *dev, const char *var, int def)
 {
@@ -739,10 +749,8 @@ int camera_sensor_csi(struct v4l2_subdev *sd, u32 port,
 
 	if (flag) {
 		csi = kzalloc(sizeof(*csi), GFP_KERNEL);
-		if (!csi) {
-			dev_err(&client->dev, "out of memory\n");
+		if (!csi)
 			return -ENOMEM;
-		}
 		csi->port = port;
 		csi->num_lanes = lanes;
 		csi->input_format = format;

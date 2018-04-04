@@ -106,8 +106,8 @@ static int slip_esc6(unsigned char *p, unsigned char *d, int len);
 static void slip_unesc6(struct slip *sl, unsigned char c);
 #endif
 #ifdef CONFIG_SLIP_SMART
-static void sl_keepalive(unsigned long sls);
-static void sl_outfill(unsigned long sls);
+static void sl_keepalive(struct timer_list *t);
+static void sl_outfill(struct timer_list *t);
 static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
 
@@ -731,7 +731,7 @@ static void sl_sync(void)
 
 
 /* Find a free SLIP channel, and link in this `tty' line. */
-static struct slip *sl_alloc(dev_t line)
+static struct slip *sl_alloc(void)
 {
 	int i;
 	char name[IFNAMSIZ];
@@ -763,12 +763,8 @@ static struct slip *sl_alloc(dev_t line)
 	sl->mode        = SL_MODE_DEFAULT;
 #ifdef CONFIG_SLIP_SMART
 	/* initialize timer_list struct */
-	init_timer(&sl->keepalive_timer);
-	sl->keepalive_timer.data = (unsigned long)sl;
-	sl->keepalive_timer.function = sl_keepalive;
-	init_timer(&sl->outfill_timer);
-	sl->outfill_timer.data = (unsigned long)sl;
-	sl->outfill_timer.function = sl_outfill;
+	timer_setup(&sl->keepalive_timer, sl_keepalive, 0);
+	timer_setup(&sl->outfill_timer, sl_outfill, 0);
 #endif
 	slip_devs[i] = dev;
 	return sl;
@@ -813,7 +809,7 @@ static int slip_open(struct tty_struct *tty)
 
 	/* OK.  Find a free SLIP channel to use. */
 	err = -ENFILE;
-	sl = sl_alloc(tty_devnum(tty));
+	sl = sl_alloc();
 	if (sl == NULL)
 		goto err_exit;
 
@@ -1392,9 +1388,9 @@ module_exit(slip_exit);
  * added by Stanislav Voronyi. All changes before marked VSV
  */
 
-static void sl_outfill(unsigned long sls)
+static void sl_outfill(struct timer_list *t)
 {
-	struct slip *sl = (struct slip *)sls;
+	struct slip *sl = from_timer(sl, t, outfill_timer);
 
 	spin_lock(&sl->lock);
 
@@ -1423,9 +1419,9 @@ out:
 	spin_unlock(&sl->lock);
 }
 
-static void sl_keepalive(unsigned long sls)
+static void sl_keepalive(struct timer_list *t)
 {
-	struct slip *sl = (struct slip *)sls;
+	struct slip *sl = from_timer(sl, t, keepalive_timer);
 
 	spin_lock(&sl->lock);
 

@@ -205,6 +205,7 @@ struct perf_sample {
 	u32 flags;
 	u16 insn_len;
 	u8  cpumode;
+	u16 misc;
 	char insn[MAX_INSN];
 	void *raw_data;
 	struct ip_callchain *callchain;
@@ -681,7 +682,8 @@ int perf_event__synthesize_cpu_map(struct perf_tool *tool,
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine, bool mmap_data,
-				   unsigned int proc_map_timeout);
+				   unsigned int proc_map_timeout,
+				   unsigned int nr_threads_synthesize);
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine);
@@ -773,8 +775,7 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 				     u64 read_format);
 int perf_event__synthesize_sample(union perf_event *event, u64 type,
 				  u64 read_format,
-				  const struct perf_sample *sample,
-				  bool swapped);
+				  const struct perf_sample *sample);
 
 pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 				  union perf_event *event, pid_t pid,

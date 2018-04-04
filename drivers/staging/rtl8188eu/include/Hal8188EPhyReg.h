@@ -136,7 +136,8 @@
 #define	rCCK0_CCA			0xa08
 
 /* AGC default value, saturation level Antenna Diversity, RX AGC, LNA Threshold,
- * RX LNA Threshold useless now. Not the same as 90 series */
+ * RX LNA Threshold useless now. Not the same as 90 series
+ */
 #define	rCCK0_RxAGC1			0xa0c
 #define	rCCK0_RxAGC2			0xa10	/* AGC & DAGC */
 

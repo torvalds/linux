@@ -954,9 +954,7 @@ void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 				   struct pf_update_ramrod_data *p_dest)
 {
 	struct protocol_dcb_data *p_dcb_data;
-	bool update_flag = false;
-
-	p_dest->pf_id = p_src->pf_id;
+	u8 update_flag;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_FCOE].update;
 	p_dest->update_fcoe_dcb_data_mode = update_flag;
@@ -1277,11 +1275,10 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_ATOMIC);
+	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_ATOMIC);
 	if (!dcbx_info)
 		return NULL;
 
-	memset(dcbx_info, 0, sizeof(*dcbx_info));
 	if (qed_dcbx_query_params(hwfn, dcbx_info, type)) {
 		kfree(dcbx_info);
 		return NULL;
@@ -2308,7 +2305,7 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 
 	DP_VERBOSE(hwfn, QED_MSG_DCB, "selector = %d protocol = %d pri = %d\n",
 		   app->selector, app->protocol, app->priority);
-	if (app->priority < 0 || app->priority >= QED_MAX_PFC_PRIORITIES) {
+	if (app->priority >= QED_MAX_PFC_PRIORITIES) {
 		DP_INFO(hwfn, "Invalid priority %d\n", app->priority);
 		return -EINVAL;
 	}

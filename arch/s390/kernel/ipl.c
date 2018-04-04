@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    ipl/reipl/dump support for Linux on s390.
  *
@@ -118,13 +119,9 @@ static char *dump_type_str(enum dump_type type)
 	}
 }
 
-/*
- * Must be in data section since the bss section
- * is not cleared when these are accessed.
- */
-static u8 ipl_ssid __section(.data) = 0;
-static u16 ipl_devno __section(.data) = 0;
-u32 ipl_flags __section(.data) = 0;
+static u8 ipl_ssid;
+static u16 ipl_devno;
+u32 ipl_flags;
 
 enum ipl_method {
 	REIPL_METHOD_CCW_CIO,
@@ -147,7 +144,7 @@ enum dump_method {
 	DUMP_METHOD_FCP_DIAG,
 };
 
-static int diag308_set_works = 0;
+static int diag308_set_works;
 
 static struct ipl_parameter_block ipl_block;
 
@@ -279,8 +276,6 @@ static __init enum ipl_type get_ipl_type(void)
 {
 	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
 
-	if (ipl_flags & IPL_NSS_VALID)
-		return IPL_TYPE_NSS;
 	if (!(ipl_flags & IPL_DEVNO_VALID))
 		return IPL_TYPE_UNKNOWN;
 	if (!(ipl_flags & IPL_PARMBLOCK_VALID))
@@ -533,22 +528,6 @@ static struct attribute_group ipl_ccw_attr_group_lpar = {
 	.attrs = ipl_ccw_attrs_lpar
 };
 
-/* NSS ipl device attributes */
-
-DEFINE_IPL_ATTR_RO(ipl_nss, name, "%s\n", kernel_nss_name);
-
-static struct attribute *ipl_nss_attrs[] = {
-	&sys_ipl_type_attr.attr,
-	&sys_ipl_nss_name_attr.attr,
-	&sys_ipl_ccw_loadparm_attr.attr,
-	&sys_ipl_vm_parm_attr.attr,
-	NULL,
-};
-
-static struct attribute_group ipl_nss_attr_group = {
-	.attrs = ipl_nss_attrs,
-};
-
 /* UNKNOWN ipl device attributes */
 
 static struct attribute *ipl_unknown_attrs[] = {
@@ -564,6 +543,7 @@ static struct kset *ipl_kset;
 
 static void __ipl_run(void *unused)
 {
+	__bpon();
 	diag308(DIAG308_LOAD_CLEAR, NULL);
 	if (MACHINE_IS_VM)
 		__cpcmd("IPL", NULL, 0, NULL);
@@ -597,9 +577,6 @@ static int __init ipl_init(void)
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_fcp_attr_group);
-		break;
-	case IPL_TYPE_NSS:
-		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_nss_attr_group);
 		break;
 	default:
 		rc = sysfs_create_group(&ipl_kset->kobj,
@@ -1172,18 +1149,6 @@ static int __init reipl_nss_init(void)
 		return rc;
 
 	reipl_block_ccw_init(reipl_block_nss);
-	if (ipl_info.type == IPL_TYPE_NSS) {
-		memset(reipl_block_nss->ipl_info.ccw.nss_name,
-			' ', NSS_NAME_SIZE);
-		memcpy(reipl_block_nss->ipl_info.ccw.nss_name,
-			kernel_nss_name, strlen(kernel_nss_name));
-		ASCEBC(reipl_block_nss->ipl_info.ccw.nss_name, NSS_NAME_SIZE);
-		reipl_block_nss->ipl_info.ccw.vm_flags |=
-			DIAG308_VM_FLAGS_NSS_VALID;
-
-		reipl_block_ccw_fill_parms(reipl_block_nss);
-	}
-
 	reipl_capabilities |= IPL_TYPE_NSS;
 	return 0;
 }
@@ -1971,9 +1936,6 @@ void __init setup_ipl(void)
 		ipl_info.data.fcp.lun = IPL_PARMBLOCK_START->ipl_info.fcp.lun;
 		break;
 	case IPL_TYPE_NSS:
-		strncpy(ipl_info.data.nss.name, kernel_nss_name,
-			sizeof(ipl_info.data.nss.name));
-		break;
 	case IPL_TYPE_UNKNOWN:
 		/* We have no info to copy */
 		break;

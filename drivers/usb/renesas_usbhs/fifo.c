@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -103,8 +94,6 @@ static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, node);
 }
 
-static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
-			      struct usbhs_fifo *fifo);
 static void usbhsf_fifo_unselect(struct usbhs_pipe *pipe,
 				 struct usbhs_fifo *fifo);
 static struct dma_chan *usbhsf_dma_chan_get(struct usbhs_fifo *fifo,
@@ -133,9 +122,10 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 			chan = usbhsf_dma_chan_get(fifo, pkt);
 		if (chan) {
 			dmaengine_terminate_all(chan);
-			usbhsf_fifo_clear(pipe, fifo);
 			usbhsf_dma_unmap(pkt);
 		}
+
+		usbhs_pipe_clear_without_sequence(pipe, 0, 0);
 
 		__usbhsf_pkt_del(pkt);
 	}
@@ -265,15 +255,9 @@ static void usbhsf_send_terminator(struct usbhs_pipe *pipe,
 static int usbhsf_fifo_barrier(struct usbhs_priv *priv,
 			       struct usbhs_fifo *fifo)
 {
-	int timeout = 1024;
-
-	do {
-		/* The FIFO port is accessible */
-		if (usbhs_read(priv, fifo->ctr) & FRDY)
-			return 0;
-
-		udelay(10);
-	} while (timeout--);
+	/* The FIFO port is accessible */
+	if (usbhs_read(priv, fifo->ctr) & FRDY)
+		return 0;
 
 	return -EBUSY;
 }
@@ -287,8 +271,8 @@ static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
 	if (!usbhs_pipe_is_dcp(pipe)) {
 		/*
 		 * This driver checks the pipe condition first to avoid -EBUSY
-		 * from usbhsf_fifo_barrier() with about 10 msec delay in
-		 * the interrupt handler if the pipe is RX direction and empty.
+		 * from usbhsf_fifo_barrier() if the pipe is RX direction and
+		 * empty.
 		 */
 		if (usbhs_pipe_is_dir_in(pipe))
 			ret = usbhs_pipe_is_accessible(pipe);
@@ -998,6 +982,10 @@ static int usbhsf_dma_prepare_pop_with_usb_dmac(struct usbhs_pkt *pkt,
 	if ((uintptr_t)pkt->buf & (USBHS_USB_DMAC_XFER_SIZE - 1))
 		goto usbhsf_pio_prepare_pop;
 
+	/* return at this time if the pipe is running */
+	if (usbhs_pipe_is_running(pipe))
+		return 0;
+
 	usbhs_pipe_config_change_bfre(pipe, 1);
 
 	ret = usbhsf_fifo_select(pipe, fifo, 0);
@@ -1188,6 +1176,7 @@ static int usbhsf_dma_pop_done_with_usb_dmac(struct usbhs_pkt *pkt,
 	usbhsf_fifo_clear(pipe, fifo);
 	pkt->actual = usbhs_dma_calc_received_size(pkt, chan, rcv_len);
 
+	usbhs_pipe_running(pipe, 0);
 	usbhsf_dma_stop(pipe, fifo);
 	usbhsf_dma_unmap(pkt);
 	usbhsf_fifo_unselect(pipe, pipe->fifo);

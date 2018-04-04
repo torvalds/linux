@@ -32,6 +32,7 @@
 #include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/spi-fsl-dspi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/time.h>
 
@@ -148,6 +149,11 @@ static const struct fsl_dspi_devtype_data ls1021a_v1_data = {
 
 static const struct fsl_dspi_devtype_data ls2085a_data = {
 	.trans_mode = DSPI_TCFQ_MODE,
+	.max_clock_factor = 8,
+};
+
+static const struct fsl_dspi_devtype_data coldfire_data = {
+	.trans_mode = DSPI_EOQ_MODE,
 	.max_clock_factor = 8,
 };
 
@@ -741,6 +747,7 @@ static int dspi_setup(struct spi_device *spi)
 {
 	struct chip_data *chip;
 	struct fsl_dspi *dspi = spi_master_get_devdata(spi->master);
+	struct fsl_dspi_platform_data *pdata;
 	u32 cs_sck_delay = 0, sck_cs_delay = 0;
 	unsigned char br = 0, pbr = 0, pcssck = 0, cssck = 0;
 	unsigned char pasc = 0, asc = 0, fmsz = 0;
@@ -761,11 +768,18 @@ static int dspi_setup(struct spi_device *spi)
 			return -ENOMEM;
 	}
 
-	of_property_read_u32(spi->dev.of_node, "fsl,spi-cs-sck-delay",
-			&cs_sck_delay);
+	pdata = dev_get_platdata(&dspi->pdev->dev);
 
-	of_property_read_u32(spi->dev.of_node, "fsl,spi-sck-cs-delay",
-			&sck_cs_delay);
+	if (!pdata) {
+		of_property_read_u32(spi->dev.of_node, "fsl,spi-cs-sck-delay",
+				&cs_sck_delay);
+
+		of_property_read_u32(spi->dev.of_node, "fsl,spi-sck-cs-delay",
+				&sck_cs_delay);
+	} else {
+		cs_sck_delay = pdata->cs_sck_delay;
+		sck_cs_delay = pdata->sck_cs_delay;
+	}
 
 	chip->mcr_val = SPI_MCR_MASTER | SPI_MCR_PCSIS |
 		SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
@@ -889,10 +903,9 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 }
 
 static const struct of_device_id fsl_dspi_dt_ids[] = {
-	{ .compatible = "fsl,vf610-dspi", .data = (void *)&vf610_data, },
-	{ .compatible = "fsl,ls1021a-v1.0-dspi",
-		.data = (void *)&ls1021a_v1_data, },
-	{ .compatible = "fsl,ls2085a-dspi", .data = (void *)&ls2085a_data, },
+	{ .compatible = "fsl,vf610-dspi", .data = &vf610_data, },
+	{ .compatible = "fsl,ls1021a-v1.0-dspi", .data = &ls1021a_v1_data, },
+	{ .compatible = "fsl,ls2085a-dspi", .data = &ls2085a_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_dspi_dt_ids);
@@ -949,6 +962,7 @@ static int dspi_probe(struct platform_device *pdev)
 	struct fsl_dspi *dspi;
 	struct resource *res;
 	void __iomem *base;
+	struct fsl_dspi_platform_data *pdata;
 	int ret = 0, cs_num, bus_num;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct fsl_dspi));
@@ -965,29 +979,38 @@ static int dspi_probe(struct platform_device *pdev)
 	master->dev.of_node = pdev->dev.of_node;
 
 	master->cleanup = dspi_cleanup;
-	master->mode_bits = SPI_CPOL | SPI_CPHA;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 	master->bits_per_word_mask = SPI_BPW_MASK(4) | SPI_BPW_MASK(8) |
 					SPI_BPW_MASK(16);
 
-	ret = of_property_read_u32(np, "spi-num-chipselects", &cs_num);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't get spi-num-chipselects\n");
-		goto out_master_put;
-	}
-	master->num_chipselect = cs_num;
+	pdata = dev_get_platdata(&pdev->dev);
+	if (pdata) {
+		master->num_chipselect = pdata->cs_num;
+		master->bus_num = pdata->bus_num;
 
-	ret = of_property_read_u32(np, "bus-num", &bus_num);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't get bus-num\n");
-		goto out_master_put;
-	}
-	master->bus_num = bus_num;
+		dspi->devtype_data = &coldfire_data;
+	} else {
 
-	dspi->devtype_data = of_device_get_match_data(&pdev->dev);
-	if (!dspi->devtype_data) {
-		dev_err(&pdev->dev, "can't get devtype_data\n");
-		ret = -EFAULT;
-		goto out_master_put;
+		ret = of_property_read_u32(np, "spi-num-chipselects", &cs_num);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "can't get spi-num-chipselects\n");
+			goto out_master_put;
+		}
+		master->num_chipselect = cs_num;
+
+		ret = of_property_read_u32(np, "bus-num", &bus_num);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "can't get bus-num\n");
+			goto out_master_put;
+		}
+		master->bus_num = bus_num;
+
+		dspi->devtype_data = of_device_get_match_data(&pdev->dev);
+		if (!dspi->devtype_data) {
+			dev_err(&pdev->dev, "can't get devtype_data\n");
+			ret = -EFAULT;
+			goto out_master_put;
+		}
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

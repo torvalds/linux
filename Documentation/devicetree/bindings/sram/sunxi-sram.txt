@@ -47,7 +47,7 @@ This valid values for this argument are:
 
 Example
 -------
-sram-controller@01c00000 {
+sram-controller@1c00000 {
 	compatible = "allwinner,sun4i-a10-sram-controller";
 	reg = <0x01c00000 0x30>;
 	#address-cells = <1>;
@@ -68,7 +68,7 @@ sram-controller@01c00000 {
 	};
 };
 
-emac: ethernet@01c0b000 {
+emac: ethernet@1c0b000 {
 	compatible = "allwinner,sun4i-a10-emac";
 	...
 

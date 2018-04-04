@@ -93,7 +93,7 @@ static void delayed_event_release(struct mlx5_device_context *dev_ctx,
 	list_splice_init(&priv->waiting_events_list, &temp);
 	if (!dev_ctx->context)
 		goto out;
-	list_for_each_entry_safe(de, n, &priv->waiting_events_list, list)
+	list_for_each_entry_safe(de, n, &temp, list)
 		dev_ctx->intf->event(dev, dev_ctx->context, de->event, de->param);
 
 out:

@@ -33,6 +33,7 @@ void xen_resume_notifier_unregister(struct notifier_block *nb);
 bool xen_vcpu_stolen(int vcpu);
 void xen_setup_runstate_info(int cpu);
 void xen_time_setup_guest(void);
+void xen_manage_runstate_time(int action);
 void xen_get_runstate_snapshot(struct vcpu_runstate_info *res);
 u64 xen_steal_clock(int cpu);
 
@@ -104,6 +105,8 @@ int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
 			       struct page **pages);
 int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int numpgs, struct page **pages);
+
+#ifdef CONFIG_XEN_AUTO_XLATE
 int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      unsigned long addr,
 			      xen_pfn_t *gfn, int nr,
@@ -112,6 +115,28 @@ int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      struct page **pages);
 int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 			      int nr, struct page **pages);
+#else
+/*
+ * These two functions are called from arch/x86/xen/mmu.c and so stubs
+ * are needed for a configuration not specifying CONFIG_XEN_AUTO_XLATE.
+ */
+static inline int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
+					    unsigned long addr,
+					    xen_pfn_t *gfn, int nr,
+					    int *err_ptr, pgprot_t prot,
+					    unsigned int domid,
+					    struct page **pages)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
+					    int nr, struct page **pages)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 int xen_xlate_map_ballooned_pages(xen_pfn_t **pfns, void **vaddr,
 				  unsigned long nr_grant_frames);
 

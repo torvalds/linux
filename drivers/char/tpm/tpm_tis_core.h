@@ -79,6 +79,11 @@ enum tis_defaults {
 #define	TPM_DID_VID(l)			(0x0F00 | ((l) << 12))
 #define	TPM_RID(l)			(0x0F04 | ((l) << 12))
 
+#define LPC_CNTRL_OFFSET		0x84
+#define LPC_CLKRUN_EN			(1 << 2)
+#define INTEL_LEGACY_BLK_BASE_ADDR	0xFED08000
+#define ILB_REMAP_SIZE			0x100
+
 enum tpm_tis_flags {
 	TPM_TIS_ITPM_WORKAROUND		= BIT(0),
 };
@@ -89,6 +94,8 @@ struct tpm_tis_data {
 	int irq;
 	bool irq_tested;
 	unsigned int flags;
+	void __iomem *ilb_base_addr;
+	u16 clkrun_enabled;
 	wait_queue_head_t int_queue;
 	wait_queue_head_t read_queue;
 	const struct tpm_tis_phy_ops *phy_ops;
@@ -98,7 +105,7 @@ struct tpm_tis_phy_ops {
 	int (*read_bytes)(struct tpm_tis_data *data, u32 addr, u16 len,
 			  u8 *result);
 	int (*write_bytes)(struct tpm_tis_data *data, u32 addr, u16 len,
-			   u8 *value);
+			   const u8 *value);
 	int (*read16)(struct tpm_tis_data *data, u32 addr, u16 *result);
 	int (*read32)(struct tpm_tis_data *data, u32 addr, u32 *result);
 	int (*write32)(struct tpm_tis_data *data, u32 addr, u32 src);
@@ -128,7 +135,7 @@ static inline int tpm_tis_read32(struct tpm_tis_data *data, u32 addr,
 }
 
 static inline int tpm_tis_write_bytes(struct tpm_tis_data *data, u32 addr,
-				      u16 len, u8 *value)
+				      u16 len, const u8 *value)
 {
 	return data->phy_ops->write_bytes(data, addr, len, value);
 }
@@ -142,6 +149,15 @@ static inline int tpm_tis_write32(struct tpm_tis_data *data, u32 addr,
 				  u32 value)
 {
 	return data->phy_ops->write32(data, addr, value);
+}
+
+static inline bool is_bsw(void)
+{
+#ifdef CONFIG_X86
+	return ((boot_cpu_data.x86_model == INTEL_FAM6_ATOM_AIRMONT) ? 1 : 0);
+#else
+	return false;
+#endif
 }
 
 void tpm_tis_remove(struct tpm_chip *chip);

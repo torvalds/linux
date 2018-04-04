@@ -29,6 +29,24 @@ config CRYPTO_SHA2_ARM64_CE
 	select CRYPTO_HASH
 	select CRYPTO_SHA256_ARM64
 
+config CRYPTO_SHA512_ARM64_CE
+	tristate "SHA-384/SHA-512 digest algorithm (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_SHA512_ARM64
+
+config CRYPTO_SHA3_ARM64
+	tristate "SHA3 digest algorithm (ARMv8.2 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_SHA3
+
+config CRYPTO_SM3_ARM64_CE
+	tristate "SM3 digest algorithm (ARMv8.2 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_SM3
+
 config CRYPTO_GHASH_ARM64_CE
 	tristate "GHASH/AES-GCM using ARMv8 Crypto Extensions"
 	depends on KERNEL_MODE_NEON

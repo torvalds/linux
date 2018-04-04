@@ -2235,9 +2235,9 @@ static void send_listen(capidrv_contr *card)
 	send_message(card, &cmdcmsg);
 }
 
-static void listentimerfunc(unsigned long x)
+static void listentimerfunc(struct timer_list *t)
 {
-	capidrv_contr *card = (capidrv_contr *)x;
+	capidrv_contr *card = from_timer(card, t, listentimer);
 	if (card->state != ST_LISTEN_NONE && card->state != ST_LISTEN_ACTIVE)
 		printk(KERN_ERR "%s: controller dead ??\n", card->name);
 	send_listen(card);
@@ -2264,7 +2264,7 @@ static int capidrv_addcontr(u16 contr, struct capi_profile *profp)
 		return -1;
 	}
 	card->owner = THIS_MODULE;
-	setup_timer(&card->listentimer, listentimerfunc, (unsigned long)card);
+	timer_setup(&card->listentimer, listentimerfunc, 0);
 	strcpy(card->name, id);
 	card->contrnr = contr;
 	card->nbchan = profp->nbchannel;

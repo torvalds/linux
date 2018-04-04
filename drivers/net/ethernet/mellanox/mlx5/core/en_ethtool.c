@@ -31,7 +31,6 @@
  */
 
 #include "en.h"
-#include "en_accel/ipsec.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -136,59 +135,15 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT);
 }
 
-static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
-{
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u8 pfc_en_tx;
-	u8 pfc_en_rx;
-	int err;
-
-	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return 0;
-
-	err = mlx5_query_port_pfc(mdev, &pfc_en_tx, &pfc_en_rx);
-
-	return err ? 0 : pfc_en_tx | pfc_en_rx;
-}
-
-static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
-{
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 rx_pause;
-	u32 tx_pause;
-	int err;
-
-	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return false;
-
-	err = mlx5_query_port_pause(mdev, &rx_pause, &tx_pause);
-
-	return err ? false : rx_pause | tx_pause;
-}
-
-#define MLX5E_NUM_Q_CNTRS(priv) (NUM_Q_COUNTERS * (!!priv->q_counter))
-#define MLX5E_NUM_RQ_STATS(priv) (NUM_RQ_STATS * (priv)->channels.num)
-#define MLX5E_NUM_SQ_STATS(priv) \
-	(NUM_SQ_STATS * (priv)->channels.num * (priv)->channels.params.num_tc)
-#define MLX5E_NUM_PFC_COUNTERS(priv) \
-	((mlx5e_query_global_pause_combined(priv) + hweight8(mlx5e_query_pfc_combined(priv))) * \
-	  NUM_PPORT_PER_PRIO_PFC_COUNTERS)
-
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
+	int i, num_stats = 0;
+
 	switch (sset) {
 	case ETH_SS_STATS:
-		return NUM_SW_COUNTERS +
-		       MLX5E_NUM_Q_CNTRS(priv) +
-		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS(priv) +
-		       NUM_PCIE_COUNTERS(priv) +
-		       MLX5E_NUM_RQ_STATS(priv) +
-		       MLX5E_NUM_SQ_STATS(priv) +
-		       MLX5E_NUM_PFC_COUNTERS(priv) +
-		       ARRAY_SIZE(mlx5e_pme_status_desc) +
-		       ARRAY_SIZE(mlx5e_pme_error_desc) +
-		       mlx5e_ipsec_get_count(priv);
-
+		for (i = 0; i < mlx5e_num_stats_grps; i++)
+			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
+		return num_stats;
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
 	case ETH_SS_TEST:
@@ -208,104 +163,10 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 
 static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 {
-	int i, j, tc, prio, idx = 0;
-	unsigned long pfc_combined;
+	int i, idx = 0;
 
-	/* SW counters */
-	for (i = 0; i < NUM_SW_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, sw_stats_desc[i].format);
-
-	/* Q counters */
-	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, q_stats_desc[i].format);
-
-	/* VPORT counters */
-	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       vport_stats_desc[i].format);
-
-	/* PPORT counters */
-	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_802_3_stats_desc[i].format);
-
-	for (i = 0; i < NUM_PPORT_2863_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_2863_stats_desc[i].format);
-
-	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_2819_stats_desc[i].format);
-
-	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_phy_statistical_stats_desc[i].format);
-
-	for (i = 0; i < NUM_PPORT_ETH_EXT_COUNTERS(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_eth_ext_stats_desc[i].format);
-
-	for (i = 0; i < NUM_PCIE_PERF_COUNTERS(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pcie_perf_stats_desc[i].format);
-
-	for (i = 0; i < NUM_PCIE_PERF_COUNTERS64(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pcie_perf_stats_desc64[i].format);
-
-	for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pcie_perf_stall_stats_desc[i].format);
-
-	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
-		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
-			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				pport_per_prio_traffic_stats_desc[i].format, prio);
-	}
-
-	pfc_combined = mlx5e_query_pfc_combined(priv);
-	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
-		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
-			char pfc_string[ETH_GSTRING_LEN];
-
-			snprintf(pfc_string, sizeof(pfc_string), "prio%d", prio);
-			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				pport_per_prio_pfc_stats_desc[i].format, pfc_string);
-		}
-	}
-
-	if (mlx5e_query_global_pause_combined(priv)) {
-		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
-			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				pport_per_prio_pfc_stats_desc[i].format, "global");
-		}
-	}
-
-	/* port module event counters */
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_status_desc[i].format);
-
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_error_desc[i].format);
-
-	/* IPSec counters */
-	idx += mlx5e_ipsec_get_strings(priv, data + idx * ETH_GSTRING_LEN);
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return;
-
-	/* per channel counters */
-	for (i = 0; i < priv->channels.num; i++)
-		for (j = 0; j < NUM_RQ_STATS; j++)
-			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				rq_stats_desc[j].format, i);
-
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++)
-		for (i = 0; i < priv->channels.num; i++)
-			for (j = 0; j < NUM_SQ_STATS; j++)
-				sprintf(data + (idx++) * ETH_GSTRING_LEN,
-					sq_stats_desc[j].format,
-					priv->channel_tc2txq[i][tc]);
+	for (i = 0; i < mlx5e_num_stats_grps; i++)
+		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
 }
 
 void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
@@ -340,113 +201,17 @@ static void mlx5e_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 				     struct ethtool_stats *stats, u64 *data)
 {
-	struct mlx5e_channels *channels;
-	struct mlx5_priv *mlx5_priv;
-	int i, j, tc, prio, idx = 0;
-	unsigned long pfc_combined;
+	int i, idx = 0;
 
 	if (!data)
 		return;
 
 	mutex_lock(&priv->state_lock);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_update_stats(priv, true);
-	channels = &priv->channels;
+	mlx5e_update_stats(priv);
 	mutex_unlock(&priv->state_lock);
 
-	for (i = 0; i < NUM_SW_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.sw,
-						   sw_stats_desc, i);
-
-	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
-		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
-						   q_stats_desc, i);
-
-	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vport.query_vport_out,
-						  vport_stats_desc, i);
-
-	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.IEEE_802_3_counters,
-						  pport_802_3_stats_desc, i);
-
-	for (i = 0; i < NUM_PPORT_2863_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.RFC_2863_counters,
-						  pport_2863_stats_desc, i);
-
-	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.RFC_2819_counters,
-						  pport_2819_stats_desc, i);
-
-	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv); i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.phy_statistical_counters,
-						  pport_phy_statistical_stats_desc, i);
-
-	for (i = 0; i < NUM_PPORT_ETH_EXT_COUNTERS(priv); i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.eth_ext_counters,
-						  pport_eth_ext_stats_desc, i);
-
-	for (i = 0; i < NUM_PCIE_PERF_COUNTERS(priv); i++)
-		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
-						  pcie_perf_stats_desc, i);
-
-	for (i = 0; i < NUM_PCIE_PERF_COUNTERS64(priv); i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pcie.pcie_perf_counters,
-						  pcie_perf_stats_desc64, i);
-
-	for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS(priv); i++)
-		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
-						  pcie_perf_stall_stats_desc, i);
-
-	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
-		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
-			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
-						 pport_per_prio_traffic_stats_desc, i);
-	}
-
-	pfc_combined = mlx5e_query_pfc_combined(priv);
-	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
-		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
-			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
-							  pport_per_prio_pfc_stats_desc, i);
-		}
-	}
-
-	if (mlx5e_query_global_pause_combined(priv)) {
-		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
-			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
-							  pport_per_prio_pfc_stats_desc, i);
-		}
-	}
-
-	/* port module event counters */
-	mlx5_priv =  &priv->mdev->priv;
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
-						   mlx5e_pme_status_desc, i);
-
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
-						   mlx5e_pme_error_desc, i);
-
-	/* IPSec counters */
-	idx += mlx5e_ipsec_get_stats(priv, data + idx);
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return;
-
-	/* per channel counters */
-	for (i = 0; i < channels->num; i++)
-		for (j = 0; j < NUM_RQ_STATS; j++)
-			data[idx++] =
-			       MLX5E_READ_CTR64_CPU(&channels->c[i]->rq.stats,
-						    rq_stats_desc, j);
-
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++)
-		for (i = 0; i < channels->num; i++)
-			for (j = 0; j < NUM_SQ_STATS; j++)
-				data[idx++] = MLX5E_READ_CTR64_CPU(&channels->c[i]->sq[tc].stats,
-								   sq_stats_desc, j);
+	for (i = 0; i < mlx5e_num_stats_grps; i++)
+		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
 }
 
 static void mlx5e_get_ethtool_stats(struct net_device *dev,
@@ -530,7 +295,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	struct mlx5e_channels new_channels = {};
 	u32 rx_pending_wqes;
 	u32 min_rq_size;
-	u32 max_rq_size;
 	u8 log_rq_size;
 	u8 log_sq_size;
 	u32 num_mtts;
@@ -549,8 +313,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 
 	min_rq_size = mlx5e_rx_wqes_to_packets(priv, rq_wq_type,
 					       1 << mlx5_min_log_rq_size(rq_wq_type));
-	max_rq_size = mlx5e_rx_wqes_to_packets(priv, rq_wq_type,
-					       1 << mlx5_max_log_rq_size(rq_wq_type));
 	rx_pending_wqes = mlx5e_packets_to_rx_wqes(priv, rq_wq_type,
 						   param->rx_pending);
 
@@ -558,12 +320,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 		netdev_info(priv->netdev, "%s: rx_pending (%d) < min (%d)\n",
 			    __func__, param->rx_pending,
 			    min_rq_size);
-		return -EINVAL;
-	}
-	if (param->rx_pending > max_rq_size) {
-		netdev_info(priv->netdev, "%s: rx_pending (%d) > max (%d)\n",
-			    __func__, param->rx_pending,
-			    max_rq_size);
 		return -EINVAL;
 	}
 
@@ -579,12 +335,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 		netdev_info(priv->netdev, "%s: tx_pending (%d) < min (%d)\n",
 			    __func__, param->tx_pending,
 			    1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE);
-		return -EINVAL;
-	}
-	if (param->tx_pending > (1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE)) {
-		netdev_info(priv->netdev, "%s: tx_pending (%d) > max (%d)\n",
-			    __func__, param->tx_pending,
-			    1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE);
 		return -EINVAL;
 	}
 
@@ -714,7 +464,7 @@ int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 	coal->rx_max_coalesced_frames = priv->channels.params.rx_cq_moderation.pkts;
 	coal->tx_coalesce_usecs       = priv->channels.params.tx_cq_moderation.usec;
 	coal->tx_max_coalesced_frames = priv->channels.params.tx_cq_moderation.pkts;
-	coal->use_adaptive_rx_coalesce = priv->channels.params.rx_am_enabled;
+	coal->use_adaptive_rx_coalesce = priv->channels.params.rx_dim_enabled;
 
 	return 0;
 }
@@ -768,7 +518,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	new_channels.params.tx_cq_moderation.pkts = coal->tx_max_coalesced_frames;
 	new_channels.params.rx_cq_moderation.usec = coal->rx_coalesce_usecs;
 	new_channels.params.rx_cq_moderation.pkts = coal->rx_max_coalesced_frames;
-	new_channels.params.rx_am_enabled         = !!coal->use_adaptive_rx_coalesce;
+	new_channels.params.rx_dim_enabled        = !!coal->use_adaptive_rx_coalesce;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -776,7 +526,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	}
 	/* we are opened */
 
-	reset = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_am_enabled;
+	reset = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_dim_enabled;
 	if (!reset) {
 		mlx5e_set_priv_channels_coalesce(priv, coal);
 		priv->channels.params = new_channels.params;
@@ -1417,14 +1167,15 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 			      struct ethtool_ts_info *info)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	int ret;
 
 	ret = ethtool_op_get_ts_info(priv->netdev, info);
 	if (ret)
 		return ret;
 
-	info->phc_index = priv->tstamp.ptp ?
-			  ptp_clock_index(priv->tstamp.ptp) : -1;
+	info->phc_index = mdev->clock.ptp ?
+			  ptp_clock_index(mdev->clock.ptp) : -1;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return 0;
@@ -1573,6 +1324,16 @@ static int mlx5e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	return mlx5_set_port_wol(mdev, mlx5_wol_mode);
 }
 
+static u32 mlx5e_get_msglevel(struct net_device *dev)
+{
+	return ((struct mlx5e_priv *)netdev_priv(dev))->msglevel;
+}
+
+static void mlx5e_set_msglevel(struct net_device *dev, u32 val)
+{
+	((struct mlx5e_priv *)netdev_priv(dev))->msglevel = val;
+}
+
 static int mlx5e_set_phys_id(struct net_device *dev,
 			     enum ethtool_phys_id_state state)
 {
@@ -1677,29 +1438,36 @@ static int mlx5e_get_module_eeprom(struct net_device *netdev,
 
 typedef int (*mlx5e_pflag_handler)(struct net_device *netdev, bool enable);
 
-static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
+static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
+				     bool is_rx_cq)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_channels new_channels = {};
-	bool rx_mode_changed;
-	u8 rx_cq_period_mode;
+	bool mode_changed;
+	u8 cq_period_mode, current_cq_period_mode;
 	int err = 0;
 
-	rx_cq_period_mode = enable ?
+	cq_period_mode = enable ?
 		MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 		MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-	rx_mode_changed = rx_cq_period_mode != priv->channels.params.rx_cq_period_mode;
+	current_cq_period_mode = is_rx_cq ?
+		priv->channels.params.rx_cq_moderation.cq_period_mode :
+		priv->channels.params.tx_cq_moderation.cq_period_mode;
+	mode_changed = cq_period_mode != current_cq_period_mode;
 
-	if (rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
+	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE &&
 	    !MLX5_CAP_GEN(mdev, cq_period_start_from_cqe))
 		return -EOPNOTSUPP;
 
-	if (!rx_mode_changed)
+	if (!mode_changed)
 		return 0;
 
 	new_channels.params = priv->channels.params;
-	mlx5e_set_rx_cq_mode_params(&new_channels.params, rx_cq_period_mode);
+	if (is_rx_cq)
+		mlx5e_set_rx_cq_mode_params(&new_channels.params, cq_period_mode);
+	else
+		mlx5e_set_tx_cq_mode_params(&new_channels.params, cq_period_mode);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -1712,6 +1480,16 @@ static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
 
 	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 	return 0;
+}
+
+static int set_pflag_tx_cqe_based_moder(struct net_device *netdev, bool enable)
+{
+	return set_pflag_cqe_based_moder(netdev, enable, false);
+}
+
+static int set_pflag_rx_cqe_based_moder(struct net_device *netdev, bool enable)
+{
+	return set_pflag_cqe_based_moder(netdev, enable, true);
 }
 
 int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val)
@@ -1729,8 +1507,10 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	new_channels.params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
 
-	mlx5e_set_rq_type_params(priv->mdev, &new_channels.params,
-				 new_channels.params.rq_wq_type);
+	new_channels.params.mpwqe_log_stride_sz =
+		MLX5E_MPWQE_STRIDE_SZ(priv->mdev, new_val);
+	new_channels.params.mpwqe_log_num_strides =
+		MLX5_MPWRQ_LOG_WQE_SZ - new_channels.params.mpwqe_log_stride_sz;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -1742,6 +1522,10 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 		return err;
 
 	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
+	mlx5e_dbg(DRV, priv, "MLX5E: RxCqeCmprss was turned %s\n",
+		  MLX5E_GET_PFLAG(&priv->channels.params,
+				  MLX5E_PFLAG_RX_CQE_COMPRESS) ? "ON" : "OFF");
+
 	return 0;
 }
 
@@ -1754,7 +1538,7 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 	if (!MLX5_CAP_GEN(mdev, cqe_compression))
 		return -EOPNOTSUPP;
 
-	if (enable && priv->tstamp.hwtstamp_config.rx_filter != HWTSTAMP_FILTER_NONE) {
+	if (enable && priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE) {
 		netdev_err(netdev, "Can't enable cqe compression while timestamping is enabled.\n");
 		return -EINVAL;
 	}
@@ -1798,6 +1582,12 @@ static int mlx5e_set_priv_flags(struct net_device *netdev, u32 pflags)
 	err = mlx5e_handle_pflag(netdev, pflags,
 				 MLX5E_PFLAG_RX_CQE_BASED_MODER,
 				 set_pflag_rx_cqe_based_moder);
+	if (err)
+		goto out;
+
+	err = mlx5e_handle_pflag(netdev, pflags,
+				 MLX5E_PFLAG_TX_CQE_BASED_MODER,
+				 set_pflag_tx_cqe_based_moder);
 	if (err)
 		goto out;
 
@@ -1905,4 +1695,7 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_priv_flags    = mlx5e_get_priv_flags,
 	.set_priv_flags    = mlx5e_set_priv_flags,
 	.self_test         = mlx5e_self_test,
+	.get_msglevel      = mlx5e_get_msglevel,
+	.set_msglevel      = mlx5e_set_msglevel,
+
 };

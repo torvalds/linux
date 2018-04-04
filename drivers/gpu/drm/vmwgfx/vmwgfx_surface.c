@@ -700,6 +700,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_surface_create_req *req = &arg->req;
 	struct drm_vmw_surface_arg *rep = &arg->rep;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	int ret;
 	int i, j;
 	uint32_t cur_bo_offset;
@@ -741,7 +745,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   size, false, true);
+				   size, &ctx);
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for surface"
@@ -904,7 +908,7 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		if (ACCESS_ONCE(vmw_fpriv(file_priv)->locked_master)) {
+		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
 			DRM_ERROR("Locked master refused legacy "
 				  "surface reference.\n");
 			return -EACCES;
@@ -1479,6 +1483,10 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_user_surface *user_srf;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	struct vmw_surface *srf;
 	int ret;
 	u32 num_layers;
@@ -1525,7 +1533,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 		return ret;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   user_accounting_size, false, true);
+				   user_accounting_size, &ctx);
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Out of graphics memory for surface"

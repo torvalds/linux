@@ -583,7 +583,7 @@ static struct mtd_erase_region_info erase_regions[] = {
 	}
 };
 
-static struct mtd_partition lart_partitions[] = {
+static const struct mtd_partition lart_partitions[] = {
 	/* blob */
 	{
 		.name	= "blob",

@@ -608,7 +608,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 	for (i = 0; i < NBANK(chip); i++) {
 		while (pending[i]) {
 			level = __ffs(pending[i]);
-			handle_nested_irq(irq_find_mapping(chip->gpio_chip.irqdomain,
+			handle_nested_irq(irq_find_mapping(chip->gpio_chip.irq.domain,
 							level + (BANK_SZ * i)));
 			pending[i] &= ~(1 << level);
 			nhandled++;
@@ -947,7 +947,7 @@ static const struct of_device_id pca953x_dt_ids[] = {
 	{ .compatible = "ti,tca6416", .data = OF_953X(16, PCA_INT), },
 	{ .compatible = "ti,tca6424", .data = OF_953X(24, PCA_INT), },
 
-	{ .compatible = "onsemi,pca9654", .data = OF_953X( 8, PCA_INT), },
+	{ .compatible = "onnn,pca9654", .data = OF_953X( 8, PCA_INT), },
 
 	{ .compatible = "exar,xra1202", .data = OF_953X( 8, 0), },
 	{ }

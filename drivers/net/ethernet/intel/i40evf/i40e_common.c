@@ -284,6 +284,8 @@ const char *i40evf_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 		return "I40E_NOT_SUPPORTED";
 	case I40E_ERR_FIRMWARE_API_VERSION:
 		return "I40E_ERR_FIRMWARE_API_VERSION";
+	case I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR:
+		return "I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR";
 	}
 
 	snprintf(hw->err_str, sizeof(hw->err_str), "%d", stat_err);
@@ -1042,6 +1044,75 @@ do_retry:
 }
 
 /**
+ * i40evf_aq_set_phy_register
+ * @hw: pointer to the hw struct
+ * @phy_select: select which phy should be accessed
+ * @dev_addr: PHY device address
+ * @reg_addr: PHY register address
+ * @reg_val: new register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Reset the external PHY.
+ **/
+i40e_status i40evf_aq_set_phy_register(struct i40e_hw *hw,
+				       u8 phy_select, u8 dev_addr,
+				       u32 reg_addr, u32 reg_val,
+				       struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_phy_register_access *cmd =
+		(struct i40e_aqc_phy_register_access *)&desc.params.raw;
+	i40e_status status;
+
+	i40evf_fill_default_direct_cmd_desc(&desc,
+					    i40e_aqc_opc_set_phy_register);
+
+	cmd->phy_interface = phy_select;
+	cmd->dev_address = dev_addr;
+	cmd->reg_address = cpu_to_le32(reg_addr);
+	cmd->reg_value = cpu_to_le32(reg_val);
+
+	status = i40evf_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40evf_aq_get_phy_register
+ * @hw: pointer to the hw struct
+ * @phy_select: select which phy should be accessed
+ * @dev_addr: PHY device address
+ * @reg_addr: PHY register address
+ * @reg_val: read register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Reset the external PHY.
+ **/
+i40e_status i40evf_aq_get_phy_register(struct i40e_hw *hw,
+				       u8 phy_select, u8 dev_addr,
+				       u32 reg_addr, u32 *reg_val,
+				       struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_phy_register_access *cmd =
+		(struct i40e_aqc_phy_register_access *)&desc.params.raw;
+	i40e_status status;
+
+	i40evf_fill_default_direct_cmd_desc(&desc,
+					    i40e_aqc_opc_get_phy_register);
+
+	cmd->phy_interface = phy_select;
+	cmd->dev_address = dev_addr;
+	cmd->reg_address = cpu_to_le32(reg_addr);
+
+	status = i40evf_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+	if (!status)
+		*reg_val = le32_to_cpu(cmd->reg_value);
+
+	return status;
+}
+
+/**
  * i40e_aq_send_msg_to_pf
  * @hw: pointer to the hardware structure
  * @v_opcode: opcodes for VF-PF communication
@@ -1133,7 +1204,7 @@ i40e_status i40e_vf_reset(struct i40e_hw *hw)
 }
 
 /**
- * i40evf_aq_write_ppp - Write pipeline personalization profile (ppp)
+ * i40evf_aq_write_ddp - Write dynamic device personalization (ddp)
  * @hw: pointer to the hw struct
  * @buff: command buffer (size in bytes = buff_size)
  * @buff_size: buffer size in bytes
@@ -1143,7 +1214,7 @@ i40e_status i40e_vf_reset(struct i40e_hw *hw)
  * @cmd_details: pointer to command details structure or NULL
  **/
 enum
-i40e_status_code i40evf_aq_write_ppp(struct i40e_hw *hw, void *buff,
+i40e_status_code i40evf_aq_write_ddp(struct i40e_hw *hw, void *buff,
 				     u16 buff_size, u32 track_id,
 				     u32 *error_offset, u32 *error_info,
 				     struct i40e_asq_cmd_details *cmd_details)
@@ -1152,7 +1223,7 @@ i40e_status_code i40evf_aq_write_ppp(struct i40e_hw *hw, void *buff,
 	struct i40e_aqc_write_personalization_profile *cmd =
 		(struct i40e_aqc_write_personalization_profile *)
 		&desc.params.raw;
-	struct i40e_aqc_write_ppp_resp *resp;
+	struct i40e_aqc_write_ddp_resp *resp;
 	i40e_status status;
 
 	i40evf_fill_default_direct_cmd_desc(&desc,
@@ -1168,7 +1239,7 @@ i40e_status_code i40evf_aq_write_ppp(struct i40e_hw *hw, void *buff,
 
 	status = i40evf_asq_send_command(hw, &desc, buff, buff_size, cmd_details);
 	if (!status) {
-		resp = (struct i40e_aqc_write_ppp_resp *)&desc.params.raw;
+		resp = (struct i40e_aqc_write_ddp_resp *)&desc.params.raw;
 		if (error_offset)
 			*error_offset = le32_to_cpu(resp->error_offset);
 		if (error_info)
@@ -1179,16 +1250,16 @@ i40e_status_code i40evf_aq_write_ppp(struct i40e_hw *hw, void *buff,
 }
 
 /**
- * i40evf_aq_get_ppp_list - Read pipeline personalization profile (ppp)
+ * i40evf_aq_get_ddp_list - Read dynamic device personalization (ddp)
  * @hw: pointer to the hw struct
  * @buff: command buffer (size in bytes = buff_size)
  * @buff_size: buffer size in bytes
  * @cmd_details: pointer to command details structure or NULL
  **/
 enum
-i40e_status_code i40evf_aq_get_ppp_list(struct i40e_hw *hw, void *buff,
+i40e_status_code i40evf_aq_get_ddp_list(struct i40e_hw *hw, void *buff,
 					u16 buff_size, u8 flags,
-				      struct i40e_asq_cmd_details *cmd_details)
+				       struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_get_applied_profiles *cmd =
@@ -1261,11 +1332,6 @@ i40evf_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 	u32 offset = 0, info = 0;
 	u32 i;
 
-	if (!track_id) {
-		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Track_id can't be 0.");
-		return I40E_NOT_SUPPORTED;
-	}
-
 	dev_cnt = profile->device_table_count;
 
 	for (i = 0; i < dev_cnt; i++) {
@@ -1275,7 +1341,7 @@ i40evf_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 				break;
 	}
 	if (i == dev_cnt) {
-		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Device doesn't support PPP");
+		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Device doesn't support DDP");
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
 	}
 
@@ -1294,7 +1360,7 @@ i40evf_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 			sizeof(struct i40e_profile_section_header);
 
 		/* Write profile */
-		status = i40evf_aq_write_ppp(hw, (void *)sec, (u16)section_size,
+		status = i40evf_aq_write_ddp(hw, (void *)sec, (u16)section_size,
 					     track_id, &offset, &info, NULL);
 		if (status) {
 			i40e_debug(hw, I40E_DEBUG_PACKAGE,
@@ -1336,10 +1402,10 @@ i40evf_add_pinfo_to_list(struct i40e_hw *hw,
 					     sec->section.offset);
 	pinfo->track_id = track_id;
 	pinfo->version = profile->version;
-	pinfo->op = I40E_PPP_ADD_TRACKID;
-	memcpy(pinfo->name, profile->name, I40E_PPP_NAME_SIZE);
+	pinfo->op = I40E_DDP_ADD_TRACKID;
+	memcpy(pinfo->name, profile->name, I40E_DDP_NAME_SIZE);
 
-	status = i40evf_aq_write_ppp(hw, (void *)sec, sec->data_end,
+	status = i40evf_aq_write_ddp(hw, (void *)sec, sec->data_end,
 				     track_id, &offset, &info, NULL);
 	return status;
 }

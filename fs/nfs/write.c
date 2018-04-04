@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/freezer.h>
 #include <linux/wait.h>
+#include <linux/iversion.h>
 
 #include <linux/uaccess.h>
 
@@ -487,10 +488,8 @@ try_again:
 	}
 
 	ret = nfs_page_group_lock(head);
-	if (ret < 0) {
-		nfs_unlock_and_release_request(head);
-		return ERR_PTR(ret);
-	}
+	if (ret < 0)
+		goto release_request;
 
 	/* lock each request in the page group */
 	total_bytes = head->wb_bytes;
@@ -515,8 +514,7 @@ try_again:
 			if (ret < 0) {
 				nfs_unroll_locks(inode, head, subreq);
 				nfs_release_request(subreq);
-				nfs_unlock_and_release_request(head);
-				return ERR_PTR(ret);
+				goto release_request;
 			}
 		}
 		/*
@@ -532,8 +530,8 @@ try_again:
 			nfs_page_group_unlock(head);
 			nfs_unroll_locks(inode, head, subreq);
 			nfs_unlock_and_release_request(subreq);
-			nfs_unlock_and_release_request(head);
-			return ERR_PTR(-EIO);
+			ret = -EIO;
+			goto release_request;
 		}
 	}
 
@@ -576,6 +574,10 @@ try_again:
 	/* still holds ref on head from nfs_page_find_head_request
 	 * and still has lock on head from lock loop */
 	return head;
+
+release_request:
+	nfs_unlock_and_release_request(head);
+	return ERR_PTR(ret);
 }
 
 static void nfs_write_error_remove_page(struct nfs_page *req)
@@ -752,11 +754,8 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	 */
 	spin_lock(&mapping->private_lock);
 	if (!nfs_have_writebacks(inode) &&
-	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE)) {
-		spin_lock(&inode->i_lock);
-		inode->i_version++;
-		spin_unlock(&inode->i_lock);
-	}
+	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
+		inode_inc_iversion_raw(inode);
 	if (likely(!PageSwapCache(req->wb_page))) {
 		set_bit(PG_MAPPED, &req->wb_flags);
 		SetPagePrivate(req->wb_page);
@@ -1836,6 +1835,8 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		set_bit(NFS_CONTEXT_RESEND_WRITES, &req->wb_context->flags);
 	next:
 		nfs_unlock_and_release_request(req);
+		/* Latency breaker */
+		cond_resched();
 	}
 	nfss = NFS_SERVER(data->inode);
 	if (atomic_long_read(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
@@ -1889,6 +1890,8 @@ int nfs_commit_inode(struct inode *inode, int how)
 	if (res)
 		error = nfs_generic_commit_list(inode, &head, how, &cinfo);
 	nfs_commit_end(cinfo.mds);
+	if (res == 0)
+		return res;
 	if (error < 0)
 		goto out_error;
 	if (!may_wait)

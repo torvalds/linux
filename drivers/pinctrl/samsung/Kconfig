@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Samsung Pin control drivers
 #
@@ -29,7 +30,7 @@ config PINCTRL_EXYNOS5440
 
 config PINCTRL_S3C24XX
 	bool "Samsung S3C24XX SoC pinctrl driver"
-	depends on ARCH_S3C24XX
+	depends on ARCH_S3C24XX && OF
 	select PINCTRL_SAMSUNG
 
 config PINCTRL_S3C64XX

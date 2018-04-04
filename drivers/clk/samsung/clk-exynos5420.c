@@ -600,8 +600,7 @@ static const struct samsung_mux_clock exynos5420_mux_clks[] __initconst = {
 				TOP_SPARE2, 4, 1),
 
 	MUX(0, "mout_aclk400_isp", mout_group1_p, SRC_TOP0, 0, 2),
-	MUX_A(0, "mout_aclk400_mscl", mout_group1_p,
-				SRC_TOP0, 4, 2, "aclk400_mscl"),
+	MUX(0, "mout_aclk400_mscl", mout_group1_p, SRC_TOP0, 4, 2),
 	MUX(0, "mout_aclk400_wcore", mout_group1_p, SRC_TOP0, 16, 2),
 	MUX(0, "mout_aclk100_noc", mout_group1_p, SRC_TOP0, 20, 2),
 
@@ -998,7 +997,7 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(0, "aclk400_isp", "mout_user_aclk400_isp",
 			GATE_BUS_TOP, 16, 0, 0),
 	GATE(0, "aclk400_mscl", "mout_user_aclk400_mscl",
-			GATE_BUS_TOP, 17, 0, 0),
+			GATE_BUS_TOP, 17, CLK_IS_CRITICAL, 0),
 	GATE(0, "aclk200_disp1", "mout_user_aclk200_disp1",
 			GATE_BUS_TOP, 18, CLK_IS_CRITICAL, 0),
 	GATE(CLK_SCLK_MPHY_IXTAL24, "sclk_mphy_ixtal24", "mphy_refclk_ixtal24",

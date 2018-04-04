@@ -91,7 +91,7 @@ struct cec_event_entry {
 };
 
 #define CEC_NUM_CORE_EVENTS 2
-#define CEC_NUM_EVENTS CEC_EVENT_PIN_CEC_HIGH
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_HPD_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -122,6 +122,7 @@ struct cec_adap_ops {
 	/* Low-level callbacks */
 	int (*adap_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
+	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
@@ -191,11 +192,6 @@ struct cec_adapter {
 
 	u32 tx_timeouts;
 
-#ifdef CONFIG_MEDIA_CEC_RC
-	bool rc_repeating;
-	int rc_last_scancode;
-	u64 rc_last_keypress;
-#endif
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
 #endif
@@ -227,6 +223,18 @@ static inline bool cec_has_log_addr(const struct cec_adapter *adap, u8 log_addr)
 static inline bool cec_is_sink(const struct cec_adapter *adap)
 {
 	return adap->phys_addr == 0;
+}
+
+/**
+ * cec_is_registered() - is the CEC adapter registered?
+ *
+ * @adap:	the CEC adapter, may be NULL.
+ *
+ * Return: true if the adapter is registered, false otherwise.
+ */
+static inline bool cec_is_registered(const struct cec_adapter *adap)
+{
+	return adap && adap->devnode.registered;
 }
 
 #define cec_phys_addr_exp(pa) \
@@ -295,6 +303,16 @@ static inline void cec_received_msg(struct cec_adapter *adap,
  */
 void cec_queue_pin_cec_event(struct cec_adapter *adap,
 			     bool is_high, ktime_t ts);
+
+/**
+ * cec_queue_pin_hpd_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the HPD pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
 
 /**
  * cec_get_edid_phys_addr() - find and return the physical address
@@ -417,6 +435,10 @@ static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
 
 static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 {
+	if (parent)
+		*parent = phys_addr;
+	if (port)
+		*port = 0;
 	return 0;
 }
 

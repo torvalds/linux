@@ -125,7 +125,7 @@ static int __init owl_timer_init(struct device_node *node)
 
 	owl_timer_base = of_io_request_and_map(node, 0, "owl-timer");
 	if (IS_ERR(owl_timer_base)) {
-		pr_err("Can't map timer registers");
+		pr_err("Can't map timer registers\n");
 		return PTR_ERR(owl_timer_base);
 	}
 
@@ -134,7 +134,7 @@ static int __init owl_timer_init(struct device_node *node)
 
 	timer1_irq = of_irq_get_byname(node, "timer1");
 	if (timer1_irq <= 0) {
-		pr_err("Can't parse timer1 IRQ");
+		pr_err("Can't parse timer1 IRQ\n");
 		return -EINVAL;
 	}
 
@@ -168,5 +168,6 @@ static int __init owl_timer_init(struct device_node *node)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(owl_s500, "actions,s500-timer", owl_timer_init);
-CLOCKSOURCE_OF_DECLARE(owl_s900, "actions,s900-timer", owl_timer_init);
+TIMER_OF_DECLARE(owl_s500, "actions,s500-timer", owl_timer_init);
+TIMER_OF_DECLARE(owl_s700, "actions,s700-timer", owl_timer_init);
+TIMER_OF_DECLARE(owl_s900, "actions,s900-timer", owl_timer_init);

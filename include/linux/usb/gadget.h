@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * <linux/usb/gadget.h>
  *
@@ -188,6 +189,8 @@ struct usb_ep_caps {
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep_list:the gadget's ep_list holds all of its endpoints
  * @caps:The structure describing types and directions supported by endoint.
+ * @enabled: The current endpoint enabled/disabled state.
+ * @claimed: True if this endpoint is claimed by a function.
  * @maxpacket:The maximum packet size used on this endpoint.  The initial
  *	value can sometimes be reduced (hardware allowing), according to
  *	the endpoint descriptor used to configure the endpoint.
@@ -327,6 +330,7 @@ struct usb_gadget_ops {
  * @name: Identifies the controller hardware type.  Used in diagnostics
  *	and sometimes configuration.
  * @dev: Driver model state for this abstract device.
+ * @isoch_delay: value from Set Isoch Delay request. Only valid on SS/SSP
  * @out_epnum: last used out ep number
  * @in_epnum: last used in ep number
  * @mA: last set mA value
@@ -349,6 +353,9 @@ struct usb_gadget_ops {
  *	or B-Peripheral wants to take host role.
  * @quirk_ep_out_aligned_size: epout requires buffer size to be aligned to
  *	MaxPacketSize.
+ * @quirk_altset_not_supp: UDC controller doesn't support alt settings.
+ * @quirk_stall_not_supp: UDC controller doesn't support stalling.
+ * @quirk_zlp_not_supp: UDC controller doesn't support ZLP.
  * @quirk_avoids_skb_reserve: udc/platform wants to avoid skb_reserve() in
  *	u_ether.c to improve performance.
  * @is_selfpowered: if the gadget is self-powered.
@@ -388,6 +395,7 @@ struct usb_gadget {
 	enum usb_device_state		state;
 	const char			*name;
 	struct device			dev;
+	unsigned			isoch_delay;
 	unsigned			out_epnum;
 	unsigned			in_epnum;
 	unsigned			mA;

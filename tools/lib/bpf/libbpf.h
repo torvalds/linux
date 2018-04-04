@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: LGPL-2.1 */
+
 /*
  * Common eBPF ELF object loading operations.
  *
@@ -42,6 +44,8 @@ enum libbpf_errno {
 	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
 	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
 	LIBBPF_ERRNO__PROGTYPE,	/* Kernel doesn't support this program type */
+	LIBBPF_ERRNO__WRNGPID,	/* Wrong pid in netlink message */
+	LIBBPF_ERRNO__INVSEQ,	/* Invalid netlink sequence */
 	__LIBBPF_ERRNO__END,
 };
 
@@ -207,6 +211,7 @@ struct bpf_map_def {
 	unsigned int key_size;
 	unsigned int value_size;
 	unsigned int max_entries;
+	unsigned int map_flags;
 };
 
 /*
@@ -245,4 +250,6 @@ long libbpf_get_error(const void *ptr);
 
 int bpf_prog_load(const char *file, enum bpf_prog_type type,
 		  struct bpf_object **pobj, int *prog_fd);
+
+int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
 #endif

@@ -1,7 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
- * Copyright (c) 2016-2017 Broadcom Limited
+ * Copyright (c) 2016-2018 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,10 +12,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.8.0"
+#define DRV_MODULE_VERSION	"1.9.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	8
+#define DRV_VER_MIN	9
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
@@ -23,6 +23,8 @@
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/switchdev.h>
+#include <net/xdp.h>
+#include <linux/net_dim.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -607,6 +609,17 @@ struct bnxt_tx_ring_info {
 	struct bnxt_ring_struct	tx_ring_struct;
 };
 
+struct bnxt_coal {
+	u16			coal_ticks;
+	u16			coal_ticks_irq;
+	u16			coal_bufs;
+	u16			coal_bufs_irq;
+			/* RING_IDLE enabled when coal ticks < idle_thresh  */
+	u16			idle_thresh;
+	u8			bufs_per_record;
+	u8			budget;
+};
+
 struct bnxt_tpa_info {
 	void			*data;
 	u8			*data_ptr;
@@ -664,11 +677,19 @@ struct bnxt_rx_ring_info {
 
 	struct bnxt_ring_struct	rx_ring_struct;
 	struct bnxt_ring_struct	rx_agg_ring_struct;
+	struct xdp_rxq_info	xdp_rxq;
 };
 
 struct bnxt_cp_ring_info {
 	u32			cp_raw_cons;
 	void __iomem		*cp_doorbell;
+
+	struct bnxt_coal	rx_ring_coal;
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			event_ctr;
+
+	struct net_dim		dim;
 
 	struct tx_cmp		*cp_desc_ring[MAX_CP_PAGES];
 
@@ -755,19 +776,38 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 };
 
+struct bnxt_hw_resc {
+	u16	min_rsscos_ctxs;
+	u16	max_rsscos_ctxs;
+	u16	min_cp_rings;
+	u16	max_cp_rings;
+	u16	resv_cp_rings;
+	u16	min_tx_rings;
+	u16	max_tx_rings;
+	u16	resv_tx_rings;
+	u16	min_rx_rings;
+	u16	max_rx_rings;
+	u16	resv_rx_rings;
+	u16	min_hw_ring_grps;
+	u16	max_hw_ring_grps;
+	u16	resv_hw_ring_grps;
+	u16	min_l2_ctxs;
+	u16	max_l2_ctxs;
+	u16	min_vnics;
+	u16	max_vnics;
+	u16	resv_vnics;
+	u16	min_stat_ctxs;
+	u16	max_stat_ctxs;
+	u16	max_irqs;
+};
+
 #if defined(CONFIG_BNXT_SRIOV)
 struct bnxt_vf_info {
 	u16	fw_fid;
-	u8	mac_addr[ETH_ALEN];
-	u16	max_rsscos_ctxs;
-	u16	max_cp_rings;
-	u16	max_tx_rings;
-	u16	max_rx_rings;
-	u16	max_hw_ring_grps;
-	u16	max_l2_ctxs;
-	u16	max_irqs;
-	u16	max_vnics;
-	u16	max_stat_ctxs;
+	u8	mac_addr[ETH_ALEN];	/* PF assigned MAC Address */
+	u8	vf_mac_addr[ETH_ALEN];	/* VF assigned MAC address, only
+					 * stored by PF.
+					 */
 	u16	vlan;
 	u32	flags;
 #define BNXT_VF_QOS		0x1
@@ -788,15 +828,6 @@ struct bnxt_pf_info {
 	u16	fw_fid;
 	u16	port_id;
 	u8	mac_addr[ETH_ALEN];
-	u16	max_rsscos_ctxs;
-	u16	max_cp_rings;
-	u16	max_tx_rings; /* HW assigned max tx rings for this PF */
-	u16	max_rx_rings; /* HW assigned max rx rings for this PF */
-	u16	max_hw_ring_grps;
-	u16	max_irqs;
-	u16	max_l2_ctxs;
-	u16	max_vnics;
-	u16	max_stat_ctxs;
 	u32	first_vf_id;
 	u16	active_vfs;
 	u16	max_vfs;
@@ -808,6 +839,9 @@ struct bnxt_pf_info {
 	u32	max_rx_wm_flows;
 	unsigned long	*vf_event_bmap;
 	u16	hwrm_cmd_req_pages;
+	u8	vf_resv_strategy;
+#define BNXT_VF_RESV_STRATEGY_MAXIMAL	0
+#define BNXT_VF_RESV_STRATEGY_MINIMAL	1
 	void			*hwrm_cmd_req_addr[4];
 	dma_addr_t		hwrm_cmd_req_dma_addr[4];
 	struct bnxt_vf_info	*vf;
@@ -944,6 +978,11 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_tc_flow_stats {
+	u64		packets;
+	u64		bytes;
+};
+
 struct bnxt_tc_info {
 	bool				enabled;
 
@@ -954,11 +993,28 @@ struct bnxt_tc_info {
 	/* hash table to store L2 keys of TC flows */
 	struct rhashtable		l2_table;
 	struct rhashtable_params	l2_ht_params;
+	/* hash table to store L2 keys for TC tunnel decap */
+	struct rhashtable		decap_l2_table;
+	struct rhashtable_params	decap_l2_ht_params;
+	/* hash table to store tunnel decap entries */
+	struct rhashtable		decap_table;
+	struct rhashtable_params	decap_ht_params;
+	/* hash table to store tunnel encap entries */
+	struct rhashtable		encap_table;
+	struct rhashtable_params	encap_ht_params;
 
 	/* lock to atomically add/del an l2 node when a flow is
 	 * added or deleted.
 	 */
 	struct mutex			lock;
+
+	/* Fields used for batching stats query */
+	struct rhashtable_iter		iter;
+#define BNXT_FLOW_STATS_BATCH_MAX	10
+	struct bnxt_tc_stats_batch {
+		void			  *flow_node;
+		struct bnxt_tc_flow_stats hw_stats;
+	} stats_batch[BNXT_FLOW_STATS_BATCH_MAX];
 
 	/* Stat counter mask (width) */
 	u64				bytes_mask;
@@ -1013,6 +1069,7 @@ struct bnxt {
 #define CHIP_NUM_5745X		0xd730
 
 #define CHIP_NUM_58802		0xd802
+#define CHIP_NUM_58804		0xd804
 #define CHIP_NUM_58808		0xd808
 
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
@@ -1048,6 +1105,7 @@ struct bnxt {
 
 #define BNXT_CHIP_NUM_588XX(chip_num)		\
 	((chip_num) == CHIP_NUM_58802 ||	\
+	 (chip_num) == CHIP_NUM_58804 ||        \
 	 (chip_num) == CHIP_NUM_58808)
 
 	struct net_device	*dev;
@@ -1091,6 +1149,8 @@ struct bnxt {
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
 	#define BNXT_FLAG_FW_DCBX_AGENT	0x800000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
+	#define BNXT_FLAG_DIM		0x2000000
+	#define BNXT_FLAG_NEW_RM	0x8000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -1150,7 +1210,6 @@ struct bnxt {
 	int			tx_nr_rings;
 	int			tx_nr_rings_per_tc;
 	int			tx_nr_rings_xdp;
-	int			tx_reserved_rings;
 
 	int			tx_wake_thresh;
 	int			tx_push_thresh;
@@ -1170,6 +1229,7 @@ struct bnxt {
 	int			nr_vnics;
 	u32			rss_hash_cfg;
 
+	u16			max_mtu;
 	u8			max_tc;
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
@@ -1232,14 +1292,8 @@ struct bnxt {
 	u8			port_count;
 	u16			br_mode;
 
-	u16			rx_coal_ticks;
-	u16			rx_coal_ticks_irq;
-	u16			rx_coal_bufs;
-	u16			rx_coal_bufs_irq;
-	u16			tx_coal_ticks;
-	u16			tx_coal_ticks_irq;
-	u16			tx_coal_bufs;
-	u16			tx_coal_bufs_irq;
+	struct bnxt_coal	rx_coal;
+	struct bnxt_coal	tx_coal;
 
 #define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 
@@ -1265,7 +1319,9 @@ struct bnxt {
 #define BNXT_GENEVE_ADD_PORT_SP_EVENT	12
 #define BNXT_GENEVE_DEL_PORT_SP_EVENT	13
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
+#define BNXT_FLOW_STATS_SP_EVENT	15
 
+	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
 	int			nr_vfs;
@@ -1315,7 +1371,8 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
-	struct bnxt_tc_info	tc_info;
+	u8			switch_id[8];
+	struct bnxt_tc_info	*tc_info;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
@@ -1390,6 +1447,9 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 		     int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
-void bnxt_restore_pf_fw_resources(struct bnxt *bp);
+int bnxt_restore_pf_fw_resources(struct bnxt *bp);
 int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr);
+void bnxt_dim_work(struct work_struct *work);
+int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi);
+
 #endif

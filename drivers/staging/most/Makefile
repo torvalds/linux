@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-$(CONFIG_MOSTCORE)	+= mostcore/
-obj-$(CONFIG_AIM_CDEV)	+= aim-cdev/
-obj-$(CONFIG_AIM_NETWORK)	+= aim-network/
-obj-$(CONFIG_AIM_SOUND)	+= aim-sound/
-obj-$(CONFIG_AIM_V4L2)	+= aim-v4l2/
-obj-$(CONFIG_HDM_DIM2)	+= hdm-dim2/
-obj-$(CONFIG_HDM_I2C)	+= hdm-i2c/
-obj-$(CONFIG_HDM_USB)	+= hdm-usb/
+obj-$(CONFIG_MOST) += most_core.o
+most_core-y := core.o
+ccflags-y += -Idrivers/staging/
+
+obj-$(CONFIG_MOST_CDEV)	+= cdev/
+obj-$(CONFIG_MOST_NET)	+= net/
+obj-$(CONFIG_MOST_SOUND)	+= sound/
+obj-$(CONFIG_MOST_VIDEO)	+= video/
+obj-$(CONFIG_MOST_DIM2)	+= dim2/
+obj-$(CONFIG_MOST_I2C)	+= i2c/
+obj-$(CONFIG_MOST_USB)	+= usb/

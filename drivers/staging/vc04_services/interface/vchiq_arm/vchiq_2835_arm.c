@@ -59,10 +59,10 @@
 #define BELL0	0x00
 #define BELL2	0x08
 
-typedef struct vchiq_2835_state_struct {
+struct vchiq_2835_state {
 	int inited;
 	VCHIQ_ARM_STATE_T arm_state;
-} VCHIQ_2835_ARM_STATE_T;
+};
 
 struct vchiq_pagelist_info {
 	PAGELIST_T *pagelist;
@@ -84,16 +84,13 @@ static char *g_free_fragments;
 static struct semaphore g_free_fragments_sema;
 static struct device *g_dev;
 
-extern int vchiq_arm_log_level;
-
 static DEFINE_SEMAPHORE(g_free_fragments_mutex);
 
 static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id);
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type,
-		struct task_struct *task);
+create_pagelist(char __user *buf, size_t count, unsigned short type);
 
 static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
@@ -206,25 +203,30 @@ VCHIQ_STATUS_T
 vchiq_platform_init_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
+	struct vchiq_2835_state *platform_state;
 
-	state->platform_state = kzalloc(sizeof(VCHIQ_2835_ARM_STATE_T), GFP_KERNEL);
-	((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited = 1;
-	status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->arm_state);
+	state->platform_state = kzalloc(sizeof(*platform_state), GFP_KERNEL);
+	platform_state = (struct vchiq_2835_state *)state->platform_state;
+
+	platform_state->inited = 1;
+	status = vchiq_arm_init_state(state, &platform_state->arm_state);
+
 	if (status != VCHIQ_SUCCESS)
-	{
-		((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited = 0;
-	}
+		platform_state->inited = 0;
+
 	return status;
 }
 
 VCHIQ_ARM_STATE_T*
 vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 {
-	if (!((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited)
-	{
-		BUG();
-	}
-	return &((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->arm_state;
+	struct vchiq_2835_state *platform_state;
+
+	platform_state   = (struct vchiq_2835_state *)state->platform_state;
+
+	WARN_ON_ONCE(!platform_state->inited);
+
+	return &platform_state->arm_state;
 }
 
 void
@@ -251,8 +253,7 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	pagelistinfo = create_pagelist((char __user *)offset, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
 				       ? PAGELIST_READ
-				       : PAGELIST_WRITE,
-				       current);
+				       : PAGELIST_WRITE);
 
 	if (!pagelistinfo)
 		return VCHIQ_ERROR;
@@ -383,16 +384,15 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 }
 
 /* There is a potential problem with partial cache lines (pages?)
-** at the ends of the block when reading. If the CPU accessed anything in
-** the same line (page?) then it may have pulled old data into the cache,
-** obscuring the new data underneath. We can solve this by transferring the
-** partial cache lines separately, and allowing the ARM to copy into the
-** cached area.
-*/
+ * at the ends of the block when reading. If the CPU accessed anything in
+ * the same line (page?) then it may have pulled old data into the cache,
+ * obscuring the new data underneath. We can solve this by transferring the
+ * partial cache lines separately, and allowing the ARM to copy into the
+ * cached area.
+ */
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type,
-		struct task_struct *task)
+create_pagelist(char __user *buf, size_t count, unsigned short type)
 {
 	PAGELIST_T *pagelist;
 	struct vchiq_pagelist_info *pagelistinfo;
@@ -415,15 +415,15 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 			sizeof(struct vchiq_pagelist_info);
 
 	/* Allocate enough storage to hold the page pointers and the page
-	** list
-	*/
+	 * list
+	 */
 	pagelist = dma_zalloc_coherent(g_dev,
 				       pagelist_size,
 				       &dma_addr,
 				       GFP_KERNEL);
 
-	vchiq_log_trace(vchiq_arm_log_level, "create_pagelist - %pK",
-			pagelist);
+	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK", __func__, pagelist);
+
 	if (!pagelist)
 		return NULL;
 
@@ -472,24 +472,19 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		}
 		/* do not try and release vmalloc pages */
 	} else {
-		down_read(&task->mm->mmap_sem);
-		actual_pages = get_user_pages(
-					  (unsigned long)buf & PAGE_MASK,
+		actual_pages = get_user_pages_fast(
+				          (unsigned long)buf & PAGE_MASK,
 					  num_pages,
-					  (type == PAGELIST_READ) ? FOLL_WRITE : 0,
-					  pages,
-					  NULL /*vmas */);
-		up_read(&task->mm->mmap_sem);
+					  type == PAGELIST_READ,
+					  pages);
 
 		if (actual_pages != num_pages) {
 			vchiq_log_info(vchiq_arm_log_level,
-				       "create_pagelist - only %d/%d pages locked",
-				       actual_pages,
-				       num_pages);
+				       "%s - only %d/%d pages locked",
+				       __func__, actual_pages, num_pages);
 
 			/* This is probably due to the process being killed */
-			while (actual_pages > 0)
-			{
+			while (actual_pages > 0) {
 				actual_pages--;
 				put_page(pages[actual_pages]);
 			}

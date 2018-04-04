@@ -193,7 +193,6 @@ static int ad5449_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5449_info = {
 	.read_raw = ad5449_read_raw,
 	.write_raw = ad5449_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define AD5449_CHANNEL(chan, bits) {				\

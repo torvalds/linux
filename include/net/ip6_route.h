@@ -66,6 +66,12 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
+static inline bool rt6_qualify_for_ecmp(const struct rt6_info *rt)
+{
+	return (rt->rt6i_flags & (RTF_GATEWAY|RTF_ADDRCONF|RTF_DYNAMIC)) ==
+	       RTF_GATEWAY;
+}
+
 void ip6_route_input(struct sk_buff *skb);
 struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct net_device *dev,
@@ -95,6 +101,11 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 int ip6_route_add(struct fib6_config *cfg, struct netlink_ext_ack *extack);
 int ip6_ins_rt(struct rt6_info *);
 int ip6_del_rt(struct rt6_info *);
+
+void rt6_flush_exceptions(struct rt6_info *rt);
+int rt6_remove_exception_rt(struct rt6_info *rt);
+void rt6_age_exceptions(struct rt6_info *rt, struct fib6_gc_args *gc_args,
+			unsigned long now);
 
 static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
 				      const struct in6_addr *daddr,
@@ -160,10 +171,13 @@ struct rt6_rtnl_dump_arg {
 };
 
 int rt6_dump_route(struct rt6_info *rt, void *p_arg);
-void rt6_ifdown(struct net *net, struct net_device *dev);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
+void rt6_sync_up(struct net_device *dev, unsigned int nh_flags);
+void rt6_disable_ip(struct net_device *dev, unsigned long event);
+void rt6_sync_down_dev(struct net_device *dev, unsigned long event);
+void rt6_multipath_rebalance(struct rt6_info *rt);
 
 static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
 {

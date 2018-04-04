@@ -123,13 +123,6 @@ struct dn_scp                                   /* Session Control Port */
 	unsigned long keepalive;
 	void (*keepalive_fxn)(struct sock *sk);
 
-	/*
-	 * This stuff is for the fast timer for delayed acks
-	 */
-	struct timer_list delack_timer;
-	int delack_pending;
-	void (*delack_fxn)(struct sock *sk);
-
 };
 
 static inline struct dn_scp *DN_SK(struct sock *sk)

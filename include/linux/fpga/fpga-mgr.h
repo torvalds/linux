@@ -1,7 +1,8 @@
 /*
  * FPGA Framework
  *
- *  Copyright (C) 2013-2015 Altera Corporation
+ *  Copyright (C) 2013-2016 Altera Corporation
+ *  Copyright (C) 2017 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -15,11 +16,11 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/mutex.h>
-#include <linux/platform_device.h>
-
 #ifndef _LINUX_FPGA_MGR_H
 #define _LINUX_FPGA_MGR_H
+
+#include <linux/mutex.h>
+#include <linux/platform_device.h>
 
 struct fpga_manager;
 struct sg_table;
@@ -83,12 +84,26 @@ enum fpga_mgr_states {
  * @disable_timeout_us: maximum time to disable traffic through bridge (uSec)
  * @config_complete_timeout_us: maximum time for FPGA to switch to operating
  *	   status in the write_complete op.
+ * @firmware_name: name of FPGA image firmware file
+ * @sgt: scatter/gather table containing FPGA image
+ * @buf: contiguous buffer containing FPGA image
+ * @count: size of buf
+ * @dev: device that owns this
+ * @overlay: Device Tree overlay
  */
 struct fpga_image_info {
 	u32 flags;
 	u32 enable_timeout_us;
 	u32 disable_timeout_us;
 	u32 config_complete_timeout_us;
+	char *firmware_name;
+	struct sg_table *sgt;
+	const char *buf;
+	size_t count;
+	struct device *dev;
+#ifdef CONFIG_OF
+	struct device_node *overlay;
+#endif
 };
 
 /**
@@ -100,6 +115,7 @@ struct fpga_image_info {
  * @write_sg: write the scatter list of configuration data to the FPGA
  * @write_complete: set FPGA to operating state after writing is done
  * @fpga_remove: optional: Set FPGA into a specific state during driver remove
+ * @groups: optional attribute groups.
  *
  * fpga_manager_ops are the low level functions implemented by a specific
  * fpga manager driver.  The optional ones are tested for NULL before being
@@ -116,6 +132,7 @@ struct fpga_manager_ops {
 	int (*write_complete)(struct fpga_manager *mgr,
 			      struct fpga_image_info *info);
 	void (*fpga_remove)(struct fpga_manager *mgr);
+	const struct attribute_group **groups;
 };
 
 /**
@@ -138,14 +155,14 @@ struct fpga_manager {
 
 #define to_fpga_manager(d) container_of(d, struct fpga_manager, dev)
 
-int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
-		      const char *buf, size_t count);
-int fpga_mgr_buf_load_sg(struct fpga_manager *mgr, struct fpga_image_info *info,
-			 struct sg_table *sgt);
+struct fpga_image_info *fpga_image_info_alloc(struct device *dev);
 
-int fpga_mgr_firmware_load(struct fpga_manager *mgr,
-			   struct fpga_image_info *info,
-			   const char *image_name);
+void fpga_image_info_free(struct fpga_image_info *info);
+
+int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info);
+
+int fpga_mgr_lock(struct fpga_manager *mgr);
+void fpga_mgr_unlock(struct fpga_manager *mgr);
 
 struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
 

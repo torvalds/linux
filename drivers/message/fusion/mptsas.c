@@ -1165,7 +1165,6 @@ mptsas_schedule_target_reset(void *iocp)
 	 * issue target reset to next device in the queue
 	 */
 
-	head = &hd->target_reset_list;
 	if (list_empty(head))
 		return;
 

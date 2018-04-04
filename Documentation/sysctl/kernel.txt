@@ -34,6 +34,7 @@ show up in /proc/sys/kernel:
 - hostname
 - hotplug
 - hardlockup_all_cpu_backtrace
+- hardlockup_panic
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
@@ -313,6 +314,19 @@ will be initiated.
 1: on detection capture more debug information.
 ==============================================================
 
+hardlockup_panic:
+
+This parameter can be used to control whether the kernel panics
+when a hard lockup is detected.
+
+   0 - don't panic on hard lockup
+   1 - panic on hard lockup
+
+See Documentation/lockup-watchdogs.txt for more information.  This can
+also be set using the nmi_watchdog kernel parameter.
+
+==============================================================
+
 hotplug:
 
 Path for the hotplug policy agent.
@@ -377,7 +391,8 @@ kptr_restrict:
 This toggle indicates whether restrictions are placed on
 exposing kernel addresses via /proc and other interfaces.
 
-When kptr_restrict is set to (0), the default, there are no restrictions.
+When kptr_restrict is set to 0 (the default) the address is hashed before
+printing. (This is the equivalent to %p.)
 
 When kptr_restrict is set to (1), kernel pointers printed using the %pK
 format specifier will be replaced with 0's unless the user has CAP_SYSLOG

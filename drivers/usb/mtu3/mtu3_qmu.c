@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_qmu.c - Queue Management Unit driver for device controller
  *
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 /*
@@ -40,7 +31,58 @@
 #define GPD_FLAGS_IOC	BIT(7)
 
 #define GPD_EXT_FLAG_ZLP	BIT(5)
+#define GPD_EXT_NGP(x)		(((x) & 0xf) << 4)
+#define GPD_EXT_BUF(x)		(((x) & 0xf) << 0)
 
+#define HILO_GEN64(hi, lo) (((u64)(hi) << 32) + (lo))
+#define HILO_DMA(hi, lo)	\
+	((dma_addr_t)HILO_GEN64((le32_to_cpu(hi)), (le32_to_cpu(lo))))
+
+static dma_addr_t read_txq_cur_addr(void __iomem *mbase, u8 epnum)
+{
+	u32 txcpr;
+	u32 txhiar;
+
+	txcpr = mtu3_readl(mbase, USB_QMU_TQCPR(epnum));
+	txhiar = mtu3_readl(mbase, USB_QMU_TQHIAR(epnum));
+
+	return HILO_DMA(QMU_CUR_GPD_ADDR_HI(txhiar), txcpr);
+}
+
+static dma_addr_t read_rxq_cur_addr(void __iomem *mbase, u8 epnum)
+{
+	u32 rxcpr;
+	u32 rxhiar;
+
+	rxcpr = mtu3_readl(mbase, USB_QMU_RQCPR(epnum));
+	rxhiar = mtu3_readl(mbase, USB_QMU_RQHIAR(epnum));
+
+	return HILO_DMA(QMU_CUR_GPD_ADDR_HI(rxhiar), rxcpr);
+}
+
+static void write_txq_start_addr(void __iomem *mbase, u8 epnum, dma_addr_t dma)
+{
+	u32 tqhiar;
+
+	mtu3_writel(mbase, USB_QMU_TQSAR(epnum),
+		    cpu_to_le32(lower_32_bits(dma)));
+	tqhiar = mtu3_readl(mbase, USB_QMU_TQHIAR(epnum));
+	tqhiar &= ~QMU_START_ADDR_HI_MSK;
+	tqhiar |= QMU_START_ADDR_HI(upper_32_bits(dma));
+	mtu3_writel(mbase, USB_QMU_TQHIAR(epnum), tqhiar);
+}
+
+static void write_rxq_start_addr(void __iomem *mbase, u8 epnum, dma_addr_t dma)
+{
+	u32 rqhiar;
+
+	mtu3_writel(mbase, USB_QMU_RQSAR(epnum),
+		    cpu_to_le32(lower_32_bits(dma)));
+	rqhiar = mtu3_readl(mbase, USB_QMU_RQHIAR(epnum));
+	rqhiar &= ~QMU_START_ADDR_HI_MSK;
+	rqhiar |= QMU_START_ADDR_HI(upper_32_bits(dma));
+	mtu3_writel(mbase, USB_QMU_RQHIAR(epnum), rqhiar);
+}
 
 static struct qmu_gpd *gpd_dma_to_virt(struct mtu3_gpd_ring *ring,
 		dma_addr_t dma_addr)
@@ -193,21 +235,27 @@ static int mtu3_prepare_tx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	struct qmu_gpd *gpd = ring->enqueue;
 	struct usb_request *req = &mreq->request;
+	dma_addr_t enq_dma;
+	u16 ext_addr;
 
 	/* set all fields to zero as default value */
 	memset(gpd, 0, sizeof(*gpd));
 
-	gpd->buffer = cpu_to_le32((u32)req->dma);
+	gpd->buffer = cpu_to_le32(lower_32_bits(req->dma));
+	ext_addr = GPD_EXT_BUF(upper_32_bits(req->dma));
 	gpd->buf_len = cpu_to_le16(req->length);
 	gpd->flag |= GPD_FLAGS_IOC;
 
 	/* get the next GPD */
 	enq = advance_enq_gpd(ring);
-	dev_dbg(mep->mtu->dev, "TX-EP%d queue gpd=%p, enq=%p\n",
-		mep->epnum, gpd, enq);
+	enq_dma = gpd_virt_to_dma(ring, enq);
+	dev_dbg(mep->mtu->dev, "TX-EP%d queue gpd=%p, enq=%p, qdma=%pad\n",
+		mep->epnum, gpd, enq, &enq_dma);
 
 	enq->flag &= ~GPD_FLAGS_HWO;
-	gpd->next_gpd = cpu_to_le32((u32)gpd_virt_to_dma(ring, enq));
+	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
+	ext_addr |= GPD_EXT_NGP(upper_32_bits(enq_dma));
+	gpd->tx_ext_addr = cpu_to_le16(ext_addr);
 
 	if (req->zero)
 		gpd->ext_flag |= GPD_EXT_FLAG_ZLP;
@@ -226,21 +274,27 @@ static int mtu3_prepare_rx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	struct qmu_gpd *gpd = ring->enqueue;
 	struct usb_request *req = &mreq->request;
+	dma_addr_t enq_dma;
+	u16 ext_addr;
 
 	/* set all fields to zero as default value */
 	memset(gpd, 0, sizeof(*gpd));
 
-	gpd->buffer = cpu_to_le32((u32)req->dma);
+	gpd->buffer = cpu_to_le32(lower_32_bits(req->dma));
+	ext_addr = GPD_EXT_BUF(upper_32_bits(req->dma));
 	gpd->data_buf_len = cpu_to_le16(req->length);
 	gpd->flag |= GPD_FLAGS_IOC;
 
 	/* get the next GPD */
 	enq = advance_enq_gpd(ring);
-	dev_dbg(mep->mtu->dev, "RX-EP%d queue gpd=%p, enq=%p\n",
-		mep->epnum, gpd, enq);
+	enq_dma = gpd_virt_to_dma(ring, enq);
+	dev_dbg(mep->mtu->dev, "RX-EP%d queue gpd=%p, enq=%p, qdma=%pad\n",
+		mep->epnum, gpd, enq, &enq_dma);
 
 	enq->flag &= ~GPD_FLAGS_HWO;
-	gpd->next_gpd = cpu_to_le32((u32)gpd_virt_to_dma(ring, enq));
+	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
+	ext_addr |= GPD_EXT_NGP(upper_32_bits(enq_dma));
+	gpd->rx_ext_addr = cpu_to_le16(ext_addr);
 	gpd->chksum = qmu_calc_checksum((u8 *)gpd);
 	gpd->flag |= GPD_FLAGS_HWO;
 
@@ -267,8 +321,8 @@ int mtu3_qmu_start(struct mtu3_ep *mep)
 
 	if (mep->is_in) {
 		/* set QMU start address */
-		mtu3_writel(mbase, USB_QMU_TQSAR(mep->epnum), ring->dma);
-		mtu3_setbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_DMAREQEN);
+		write_txq_start_addr(mbase, epnum, ring->dma);
+		mtu3_setbits(mbase, MU3D_EP_TXCR0(epnum), TX_DMAREQEN);
 		mtu3_setbits(mbase, U3D_QCR0, QMU_TX_CS_EN(epnum));
 		/* send zero length packet according to ZLP flag in GPD */
 		mtu3_setbits(mbase, U3D_QCR1, QMU_TX_ZLP(epnum));
@@ -282,8 +336,8 @@ int mtu3_qmu_start(struct mtu3_ep *mep)
 		mtu3_writel(mbase, USB_QMU_TQCSR(epnum), QMU_Q_START);
 
 	} else {
-		mtu3_writel(mbase, USB_QMU_RQSAR(mep->epnum), ring->dma);
-		mtu3_setbits(mbase, MU3D_EP_RXCR0(mep->epnum), RX_DMAREQEN);
+		write_rxq_start_addr(mbase, epnum, ring->dma);
+		mtu3_setbits(mbase, MU3D_EP_RXCR0(epnum), RX_DMAREQEN);
 		mtu3_setbits(mbase, U3D_QCR0, QMU_RX_CS_EN(epnum));
 		/* don't expect ZLP */
 		mtu3_clrbits(mbase, U3D_QCR3, QMU_RX_ZLP(epnum));
@@ -353,9 +407,9 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 	struct mtu3_gpd_ring *ring = &mep->gpd_ring;
 	void __iomem *mbase = mtu->mac_base;
 	struct qmu_gpd *gpd_current = NULL;
-	dma_addr_t gpd_dma = mtu3_readl(mbase, USB_QMU_TQCPR(epnum));
 	struct usb_request *req = NULL;
 	struct mtu3_request *mreq;
+	dma_addr_t cur_gpd_dma;
 	u32 txcsr = 0;
 	int ret;
 
@@ -365,7 +419,8 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 	else
 		return;
 
-	gpd_current = gpd_dma_to_virt(ring, gpd_dma);
+	cur_gpd_dma = read_txq_cur_addr(mbase, epnum);
+	gpd_current = gpd_dma_to_virt(ring, cur_gpd_dma);
 
 	if (le16_to_cpu(gpd_current->buf_len) != 0) {
 		dev_err(mtu->dev, "TX EP%d buffer length error(!=0)\n", epnum);
@@ -408,12 +463,13 @@ static void qmu_done_tx(struct mtu3 *mtu, u8 epnum)
 	void __iomem *mbase = mtu->mac_base;
 	struct qmu_gpd *gpd = ring->dequeue;
 	struct qmu_gpd *gpd_current = NULL;
-	dma_addr_t gpd_dma = mtu3_readl(mbase, USB_QMU_TQCPR(epnum));
 	struct usb_request *request = NULL;
 	struct mtu3_request *mreq;
+	dma_addr_t cur_gpd_dma;
 
 	/*transfer phy address got from QMU register to virtual address */
-	gpd_current = gpd_dma_to_virt(ring, gpd_dma);
+	cur_gpd_dma = read_txq_cur_addr(mbase, epnum);
+	gpd_current = gpd_dma_to_virt(ring, cur_gpd_dma);
 
 	dev_dbg(mtu->dev, "%s EP%d, last=%p, current=%p, enq=%p\n",
 		__func__, epnum, gpd, gpd_current, ring->enqueue);
@@ -446,11 +502,12 @@ static void qmu_done_rx(struct mtu3 *mtu, u8 epnum)
 	void __iomem *mbase = mtu->mac_base;
 	struct qmu_gpd *gpd = ring->dequeue;
 	struct qmu_gpd *gpd_current = NULL;
-	dma_addr_t gpd_dma = mtu3_readl(mbase, USB_QMU_RQCPR(epnum));
 	struct usb_request *req = NULL;
 	struct mtu3_request *mreq;
+	dma_addr_t cur_gpd_dma;
 
-	gpd_current = gpd_dma_to_virt(ring, gpd_dma);
+	cur_gpd_dma = read_rxq_cur_addr(mbase, epnum);
+	gpd_current = gpd_dma_to_virt(ring, cur_gpd_dma);
 
 	dev_dbg(mtu->dev, "%s EP%d, last=%p, current=%p, enq=%p\n",
 		__func__, epnum, gpd, gpd_current, ring->enqueue);

@@ -247,7 +247,7 @@ static ssize_t global_rsv_size_show(struct kobject *kobj,
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	return btrfs_show_u64(&block_rsv->size, &block_rsv->lock, buf);
 }
-BTRFS_ATTR(global_rsv_size, global_rsv_size_show);
+BTRFS_ATTR(allocation, global_rsv_size, global_rsv_size_show);
 
 static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 					struct kobj_attribute *a, char *buf)
@@ -256,15 +256,15 @@ static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	return btrfs_show_u64(&block_rsv->reserved, &block_rsv->lock, buf);
 }
-BTRFS_ATTR(global_rsv_reserved, global_rsv_reserved_show);
+BTRFS_ATTR(allocation, global_rsv_reserved, global_rsv_reserved_show);
 
 #define to_space_info(_kobj) container_of(_kobj, struct btrfs_space_info, kobj)
 #define to_raid_kobj(_kobj) container_of(_kobj, struct raid_kobject, kobj)
 
 static ssize_t raid_bytes_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf);
-BTRFS_RAID_ATTR(total_bytes, raid_bytes_show);
-BTRFS_RAID_ATTR(used_bytes, raid_bytes_show);
+BTRFS_ATTR(raid, total_bytes, raid_bytes_show);
+BTRFS_ATTR(raid, used_bytes, raid_bytes_show);
 
 static ssize_t raid_bytes_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
@@ -277,7 +277,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 
 	down_read(&sinfo->groups_sem);
 	list_for_each_entry(block_group, &sinfo->block_groups[index], list) {
-		if (&attr->attr == BTRFS_RAID_ATTR_PTR(total_bytes))
+		if (&attr->attr == BTRFS_ATTR_PTR(raid, total_bytes))
 			val += block_group->key.offset;
 		else
 			val += btrfs_block_group_used(&block_group->item);
@@ -287,8 +287,8 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 }
 
 static struct attribute *raid_attributes[] = {
-	BTRFS_RAID_ATTR_PTR(total_bytes),
-	BTRFS_RAID_ATTR_PTR(used_bytes),
+	BTRFS_ATTR_PTR(raid, total_bytes),
+	BTRFS_ATTR_PTR(raid, used_bytes),
 	NULL
 };
 
@@ -311,7 +311,7 @@ static ssize_t btrfs_space_info_show_##field(struct kobject *kobj,	\
 	struct btrfs_space_info *sinfo = to_space_info(kobj);		\
 	return btrfs_show_u64(&sinfo->field, &sinfo->lock, buf);	\
 }									\
-BTRFS_ATTR(field, btrfs_space_info_show_##field)
+BTRFS_ATTR(space_info, field, btrfs_space_info_show_##field)
 
 static ssize_t btrfs_space_info_show_total_bytes_pinned(struct kobject *kobj,
 						       struct kobj_attribute *a,
@@ -331,19 +331,20 @@ SPACE_INFO_ATTR(bytes_may_use);
 SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
-BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
+BTRFS_ATTR(space_info, total_bytes_pinned,
+	   btrfs_space_info_show_total_bytes_pinned);
 
 static struct attribute *space_info_attrs[] = {
-	BTRFS_ATTR_PTR(flags),
-	BTRFS_ATTR_PTR(total_bytes),
-	BTRFS_ATTR_PTR(bytes_used),
-	BTRFS_ATTR_PTR(bytes_pinned),
-	BTRFS_ATTR_PTR(bytes_reserved),
-	BTRFS_ATTR_PTR(bytes_may_use),
-	BTRFS_ATTR_PTR(bytes_readonly),
-	BTRFS_ATTR_PTR(disk_used),
-	BTRFS_ATTR_PTR(disk_total),
-	BTRFS_ATTR_PTR(total_bytes_pinned),
+	BTRFS_ATTR_PTR(space_info, flags),
+	BTRFS_ATTR_PTR(space_info, total_bytes),
+	BTRFS_ATTR_PTR(space_info, bytes_used),
+	BTRFS_ATTR_PTR(space_info, bytes_pinned),
+	BTRFS_ATTR_PTR(space_info, bytes_reserved),
+	BTRFS_ATTR_PTR(space_info, bytes_may_use),
+	BTRFS_ATTR_PTR(space_info, bytes_readonly),
+	BTRFS_ATTR_PTR(space_info, disk_used),
+	BTRFS_ATTR_PTR(space_info, disk_total),
+	BTRFS_ATTR_PTR(space_info, total_bytes_pinned),
 	NULL,
 };
 
@@ -361,8 +362,8 @@ struct kobj_type space_info_ktype = {
 };
 
 static const struct attribute *allocation_attrs[] = {
-	BTRFS_ATTR_PTR(global_rsv_reserved),
-	BTRFS_ATTR_PTR(global_rsv_size),
+	BTRFS_ATTR_PTR(allocation, global_rsv_reserved),
+	BTRFS_ATTR_PTR(allocation, global_rsv_size),
 	NULL,
 };
 
@@ -415,39 +416,37 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 
 	return len;
 }
-BTRFS_ATTR_RW(label, btrfs_label_show, btrfs_label_store);
+BTRFS_ATTR_RW(, label, btrfs_label_show, btrfs_label_store);
 
 static ssize_t btrfs_nodesize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->nodesize);
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->nodesize);
 }
 
-BTRFS_ATTR(nodesize, btrfs_nodesize_show);
+BTRFS_ATTR(, nodesize, btrfs_nodesize_show);
 
 static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n",
-			fs_info->super_copy->sectorsize);
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->sectorsize);
 }
 
-BTRFS_ATTR(sectorsize, btrfs_sectorsize_show);
+BTRFS_ATTR(, sectorsize, btrfs_sectorsize_show);
 
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n",
-			fs_info->super_copy->sectorsize);
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->sectorsize);
 }
 
-BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
+BTRFS_ATTR(, clone_alignment, btrfs_clone_alignment_show);
 
 static ssize_t quota_override_show(struct kobject *kobj,
 				   struct kobj_attribute *a, char *buf)
@@ -487,14 +486,14 @@ static ssize_t quota_override_store(struct kobject *kobj,
 	return len;
 }
 
-BTRFS_ATTR_RW(quota_override, quota_override_show, quota_override_store);
+BTRFS_ATTR_RW(, quota_override, quota_override_show, quota_override_store);
 
 static const struct attribute *btrfs_attrs[] = {
-	BTRFS_ATTR_PTR(label),
-	BTRFS_ATTR_PTR(nodesize),
-	BTRFS_ATTR_PTR(sectorsize),
-	BTRFS_ATTR_PTR(clone_alignment),
-	BTRFS_ATTR_PTR(quota_override),
+	BTRFS_ATTR_PTR(, label),
+	BTRFS_ATTR_PTR(, nodesize),
+	BTRFS_ATTR_PTR(, sectorsize),
+	BTRFS_ATTR_PTR(, clone_alignment),
+	BTRFS_ATTR_PTR(, quota_override),
 	NULL,
 };
 
@@ -896,7 +895,7 @@ static int btrfs_init_debugfs(void)
 	return 0;
 }
 
-int btrfs_init_sysfs(void)
+int __init btrfs_init_sysfs(void)
 {
 	int ret;
 

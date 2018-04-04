@@ -542,40 +542,40 @@ static long mei_compat_ioctl(struct file *file,
  *
  * Return: poll mask
  */
-static unsigned int mei_poll(struct file *file, poll_table *wait)
+static __poll_t mei_poll(struct file *file, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	bool notify_en;
 
 	if (WARN_ON(!cl || !cl->dev))
-		return POLLERR;
+		return EPOLLERR;
 
 	dev = cl->dev;
 
 	mutex_lock(&dev->device_lock);
 
-	notify_en = cl->notify_en && (req_events & POLLPRI);
+	notify_en = cl->notify_en && (req_events & EPOLLPRI);
 
 	if (dev->dev_state != MEI_DEV_ENABLED ||
 	    !mei_cl_is_connected(cl)) {
-		mask = POLLERR;
+		mask = EPOLLERR;
 		goto out;
 	}
 
 	if (notify_en) {
 		poll_wait(file, &cl->ev_wait, wait);
 		if (cl->notify_ev)
-			mask |= POLLPRI;
+			mask |= EPOLLPRI;
 	}
 
-	if (req_events & (POLLIN | POLLRDNORM)) {
+	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		poll_wait(file, &cl->rx_wait, wait);
 
 		if (!list_empty(&cl->rd_completed))
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		else
 			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
 	}

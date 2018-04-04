@@ -264,7 +264,6 @@ static int mxc4005_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mxc4005_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mxc4005_read_raw,
 	.write_raw	= mxc4005_write_raw,
 	.attrs		= &mxc4005_attrs_group,
@@ -376,7 +375,6 @@ static int mxc4005_trigger_try_reen(struct iio_trigger *trig)
 static const struct iio_trigger_ops mxc4005_trigger_ops = {
 	.set_trigger_state = mxc4005_set_trigger_state,
 	.try_reenable = mxc4005_trigger_try_reen,
-	.owner = THIS_MODULE,
 };
 
 static int mxc4005_chip_init(struct mxc4005_data *data)

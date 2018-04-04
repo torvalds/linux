@@ -145,7 +145,7 @@ static int stmpe_24xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		break;
 
 	case 2:
-		offset = STMPE24XX_PWMIC1;
+		offset = STMPE24XX_PWMIC2;
 		break;
 
 	default:

@@ -262,7 +262,6 @@ static int ad7923_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad7923_info = {
 	.read_raw = &ad7923_read_raw,
 	.update_scan_mode = ad7923_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7923_probe(struct spi_device *spi)

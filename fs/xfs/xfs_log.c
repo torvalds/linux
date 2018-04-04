@@ -22,6 +22,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -608,6 +609,7 @@ xfs_log_mount(
 	xfs_daddr_t	blk_offset,
 	int		num_bblks)
 {
+	bool		fatal = xfs_sb_version_hascrc(&mp->m_sb);
 	int		error = 0;
 	int		min_logfsbs;
 
@@ -659,9 +661,20 @@ xfs_log_mount(
 			 XFS_FSB_TO_B(mp, mp->m_sb.sb_logblocks),
 			 XFS_MAX_LOG_BYTES);
 		error = -EINVAL;
+	} else if (mp->m_sb.sb_logsunit > 1 &&
+		   mp->m_sb.sb_logsunit % mp->m_sb.sb_blocksize) {
+		xfs_warn(mp,
+		"log stripe unit %u bytes must be a multiple of block size",
+			 mp->m_sb.sb_logsunit);
+		error = -EINVAL;
+		fatal = true;
 	}
 	if (error) {
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		/*
+		 * Log check errors are always fatal on v5; or whenever bad
+		 * metadata leads to a crash.
+		 */
+		if (fatal) {
 			xfs_crit(mp, "AAIEEE! Log failed size checks. Abort!");
 			ASSERT(0);
 			goto out_free_log;
@@ -744,6 +757,7 @@ xfs_log_mount_finish(
 {
 	int	error = 0;
 	bool	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
+	bool	recovered = mp->m_log->l_flags & XLOG_RECOVERY_NEEDED;
 
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
@@ -767,18 +781,33 @@ xfs_log_mount_finish(
 	 * something to an unlinked inode, the irele won't cause
 	 * premature truncation and freeing of the inode, which results
 	 * in log recovery failure.  We have to evict the unreferenced
-	 * lru inodes after clearing MS_ACTIVE because we don't
+	 * lru inodes after clearing SB_ACTIVE because we don't
 	 * otherwise clean up the lru if there's a subsequent failure in
 	 * xfs_mountfs, which leads to us leaking the inodes if nothing
 	 * else (e.g. quotacheck) references the inodes before the
 	 * mount failure occurs.
 	 */
-	mp->m_super->s_flags |= MS_ACTIVE;
+	mp->m_super->s_flags |= SB_ACTIVE;
 	error = xlog_recover_finish(mp->m_log);
 	if (!error)
 		xfs_log_work_queue(mp);
-	mp->m_super->s_flags &= ~MS_ACTIVE;
+	mp->m_super->s_flags &= ~SB_ACTIVE;
 	evict_inodes(mp->m_super);
+
+	/*
+	 * Drain the buffer LRU after log recovery. This is required for v4
+	 * filesystems to avoid leaving around buffers with NULL verifier ops,
+	 * but we do it unconditionally to make sure we're always in a clean
+	 * cache state after mount.
+	 *
+	 * Don't push in the error case because the AIL may have pending intents
+	 * that aren't removed until recovery is cancelled.
+	 */
+	if (!error && recovered) {
+		xfs_log_force(mp, XFS_LOG_SYNC);
+		xfs_ail_push_all_sync(mp->m_ail);
+	}
+	xfs_wait_buftarg(mp->m_ddev_targp);
 
 	if (readonly)
 		mp->m_flags |= XFS_MOUNT_RDONLY;
@@ -1018,6 +1047,7 @@ xfs_log_item_init(
 
 	INIT_LIST_HEAD(&item->li_ail);
 	INIT_LIST_HEAD(&item->li_cil);
+	INIT_LIST_HEAD(&item->li_bio_list);
 }
 
 /*
@@ -1213,7 +1243,7 @@ xlog_space_left(
 static void
 xlog_iodone(xfs_buf_t *bp)
 {
-	struct xlog_in_core	*iclog = bp->b_fspriv;
+	struct xlog_in_core	*iclog = bp->b_log_item;
 	struct xlog		*l = iclog->ic_log;
 	int			aborted = 0;
 
@@ -1744,7 +1774,7 @@ STATIC int
 xlog_bdstrat(
 	struct xfs_buf		*bp)
 {
-	struct xlog_in_core	*iclog = bp->b_fspriv;
+	struct xlog_in_core	*iclog = bp->b_log_item;
 
 	xfs_buf_lock(bp);
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
@@ -1890,7 +1920,7 @@ xlog_sync(
 	}
 
 	bp->b_io_length = BTOBB(count);
-	bp->b_fspriv = iclog;
+	bp->b_log_item = iclog;
 	bp->b_flags &= ~XBF_FLUSH;
 	bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE | XBF_FUA);
 
@@ -1929,7 +1959,7 @@ xlog_sync(
 		XFS_BUF_SET_ADDR(bp, 0);	     /* logical 0 */
 		xfs_buf_associate_memory(bp,
 				(char *)&iclog->ic_header + count, split);
-		bp->b_fspriv = iclog;
+		bp->b_log_item = iclog;
 		bp->b_flags &= ~XBF_FLUSH;
 		bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE | XBF_FUA);
 
@@ -2088,7 +2118,9 @@ xlog_print_trans(
 
 	/* dump core transaction and ticket info */
 	xfs_warn(mp, "transaction summary:");
-	xfs_warn(mp, "  flags	= 0x%x", tp->t_flags);
+	xfs_warn(mp, "  log res   = %d", tp->t_log_res);
+	xfs_warn(mp, "  log count = %d", tp->t_log_count);
+	xfs_warn(mp, "  flags     = 0x%x", tp->t_flags);
 
 	xlog_print_tic_res(mp, tp->t_ticket);
 
@@ -2213,7 +2245,7 @@ xlog_write_setup_ophdr(
 		break;
 	default:
 		xfs_warn(log->l_mp,
-			"Bad XFS transaction clientid 0x%x in ticket 0x%p",
+			"Bad XFS transaction clientid 0x%x in ticket "PTR_FMT,
 			ophdr->oh_clientid, ticket);
 		return NULL;
 	}
@@ -3734,7 +3766,7 @@ xlog_ticket_alloc(
  * one of the iclogs.  This uses backup pointers stored in a different
  * part of the log in case we trash the log structure.
  */
-void
+STATIC void
 xlog_verify_dest_ptr(
 	struct xlog	*log,
 	void		*ptr)
@@ -3895,7 +3927,7 @@ xlog_verify_iclog(
 		}
 		if (clientid != XFS_TRANSACTION && clientid != XFS_LOG)
 			xfs_warn(log->l_mp,
-				"%s: invalid clientid %d op 0x%p offset 0x%lx",
+				"%s: invalid clientid %d op "PTR_FMT" offset 0x%lx",
 				__func__, clientid, ophead,
 				(unsigned long)field_offset);
 

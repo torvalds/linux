@@ -160,5 +160,5 @@ STORAGE_CLASS_PIXELGEN_C void pixelgen_ctrl_reg_store(
 
 	ia_css_device_store_uint32(PIXELGEN_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
 }
-/** end of DLI */
+/* end of DLI */
 #endif /* __PIXELGEN_PRIVATE_H_INCLUDED__ */

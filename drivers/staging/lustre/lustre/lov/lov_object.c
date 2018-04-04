@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -1334,7 +1335,7 @@ static int lov_object_fiemap(const struct lu_env *env, struct cl_object *obj,
 	int rc = 0;
 	int cur_stripe;
 	int stripe_count;
-	struct fiemap_state fs = { 0 };
+	struct fiemap_state fs = { NULL };
 
 	lsm = lov_lsm_addref(cl2lov(obj));
 	if (!lsm)

@@ -272,7 +272,7 @@ bail:
 /**
  * rvt_attach_mcast - attach a qp to a multicast group
  * @ibqp: Infiniband qp
- * @igd: multicast guid
+ * @gid: multicast guid
  * @lid: multicast lid
  *
  * Return: 0 on success
@@ -335,7 +335,7 @@ bail_mcast:
 /**
  * rvt_detach_mcast - remove a qp from a multicast group
  * @ibqp: Infiniband qp
- * @igd: multicast guid
+ * @gid: multicast guid
  * @lid: multicast lid
  *
  * Return: 0 on success
@@ -351,7 +351,7 @@ int rvt_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	int last = 0;
 	int ret = 0;
 
-	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET)
+	if (ibqp->qp_num <= 1)
 		return -EINVAL;
 
 	spin_lock_irq(&ibp->lock);

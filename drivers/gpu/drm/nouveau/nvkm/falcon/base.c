@@ -60,7 +60,7 @@ nvkm_falcon_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size, u8 port,
 }
 
 void
-nvkm_falcon_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *inst)
+nvkm_falcon_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *inst)
 {
 	if (!falcon->func->bind_context) {
 		nvkm_error(falcon->user,

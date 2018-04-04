@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <asm/synch.h>
+#include <asm/switch_to.h>
 #include <misc/cxl-base.h>
 
 #include "cxl.h"
@@ -655,6 +656,7 @@ static void update_ivtes_directed(struct cxl_context *ctx)
 static int process_element_entry_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	u32 pid;
+	int rc;
 
 	cxl_assign_psn_space(ctx);
 
@@ -673,7 +675,16 @@ static int process_element_entry_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 		pid = ctx->mm->context.id;
 	}
 
-	ctx->elem->common.tid = 0;
+	/* Assign a unique TIDR (thread id) for the current thread */
+	if (!(ctx->tidr) && (ctx->assign_tidr)) {
+		rc = set_thread_tidr(current);
+		if (rc)
+			return -ENODEV;
+		ctx->tidr = current->thread.tidr;
+		pr_devel("%s: current tidr: %d\n", __func__, ctx->tidr);
+	}
+
+	ctx->elem->common.tid = cpu_to_be32(ctx->tidr);
 	ctx->elem->common.pid = cpu_to_be32(pid);
 
 	ctx->elem->sr = cpu_to_be64(calculate_sr(ctx));
@@ -897,6 +908,14 @@ int cxl_attach_dedicated_process_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 	if (ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes)
 		afu->adapter->native->sl_ops->update_dedicated_ivtes(ctx);
 
+	ctx->elem->software_state = cpu_to_be32(CXL_PE_SOFTWARE_STATE_V);
+	/*
+	 * Ideally we should do a wmb() here to make sure the changes to the
+	 * PE are visible to the card before we call afu_enable.
+	 * On ppc64 though all mmios are preceded by a 'sync' instruction hence
+	 * we dont dont need one here.
+	 */
+
 	result = cxl_ops->afu_reset(afu);
 	if (result)
 		return result;
@@ -1077,13 +1096,11 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx)
 {
-	u64 fir1, fir2, serr;
+	u64 fir1, serr;
 
 	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR1);
-	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR2);
 
 	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
-	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
 	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
 		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
 		cxl_afu_decode_psl_serr(ctx->afu, serr);
@@ -1257,14 +1274,23 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void cxl_native_err_irq_dump_regs(struct cxl *adapter)
+void cxl_native_err_irq_dump_regs_psl9(struct cxl *adapter)
+{
+	u64 fir1;
+
+	fir1 = cxl_p1_read(adapter, CXL_PSL9_FIR1);
+	dev_crit(&adapter->dev, "PSL_FIR: 0x%016llx\n", fir1);
+}
+
+void cxl_native_err_irq_dump_regs_psl8(struct cxl *adapter)
 {
 	u64 fir1, fir2;
 
 	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
-
-	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+	dev_crit(&adapter->dev,
+		 "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n",
+		 fir1, fir2);
 }
 
 static irqreturn_t native_irq_err(int irq, void *data)

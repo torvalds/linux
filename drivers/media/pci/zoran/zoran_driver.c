@@ -2501,22 +2501,22 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	return res;
 }
 
-static unsigned int
+static __poll_t
 zoran_poll (struct file *file,
 	    poll_table  *wait)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	int res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 	int frame;
 	unsigned long flags;
 
 	/* we should check whether buffers are ready to be synced on
 	 * (w/o waits - O_NONBLOCK) here
-	 * if ready for read (sync), return POLLIN|POLLRDNORM,
-	 * if ready for write (sync), return POLLOUT|POLLWRNORM,
-	 * if error, return POLLERR,
-	 * if no buffers queued or so, return POLLNVAL
+	 * if ready for read (sync), return EPOLLIN|EPOLLRDNORM,
+	 * if ready for write (sync), return EPOLLOUT|EPOLLWRNORM,
+	 * if error, return EPOLLERR,
+	 * if no buffers queued or so, return EPOLLNVAL
 	 */
 
 	switch (fh->map_mode) {
@@ -2536,7 +2536,7 @@ zoran_poll (struct file *file,
 		if (fh->buffers.active != ZORAN_FREE &&
 		    /* Buffer ready to DQBUF? */
 		    zr->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
-			res |= POLLIN | POLLRDNORM;
+			res |= EPOLLIN | EPOLLRDNORM;
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
 		break;
@@ -2557,9 +2557,9 @@ zoran_poll (struct file *file,
 		if (fh->buffers.active != ZORAN_FREE &&
 		    zr->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
 			if (fh->map_mode == ZORAN_MAP_MODE_JPG_REC)
-				res |= POLLIN | POLLRDNORM;
+				res |= EPOLLIN | EPOLLRDNORM;
 			else
-				res |= POLLOUT | POLLWRNORM;
+				res |= EPOLLOUT | EPOLLWRNORM;
 		}
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
@@ -2570,7 +2570,7 @@ zoran_poll (struct file *file,
 			KERN_ERR
 			"%s: %s - internal error, unknown map_mode=%d\n",
 			ZR_DEVNAME(zr), __func__, fh->map_mode);
-		res |= POLLERR;
+		res |= EPOLLERR;
 	}
 
 	return res;
@@ -2792,21 +2792,21 @@ zoran_mmap (struct file           *file,
 }
 
 static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
-	.vidioc_querycap    		    = zoran_querycap,
+	.vidioc_querycap		    = zoran_querycap,
 	.vidioc_s_selection		    = zoran_s_selection,
 	.vidioc_g_selection		    = zoran_g_selection,
-	.vidioc_enum_input     		    = zoran_enum_input,
-	.vidioc_g_input      		    = zoran_g_input,
-	.vidioc_s_input      		    = zoran_s_input,
-	.vidioc_enum_output    		    = zoran_enum_output,
-	.vidioc_g_output     		    = zoran_g_output,
-	.vidioc_s_output     		    = zoran_s_output,
+	.vidioc_enum_input		    = zoran_enum_input,
+	.vidioc_g_input			    = zoran_g_input,
+	.vidioc_s_input			    = zoran_s_input,
+	.vidioc_enum_output		    = zoran_enum_output,
+	.vidioc_g_output		    = zoran_g_output,
+	.vidioc_s_output		    = zoran_s_output,
 	.vidioc_g_fbuf			    = zoran_g_fbuf,
 	.vidioc_s_fbuf			    = zoran_s_fbuf,
-	.vidioc_g_std 			    = zoran_g_std,
-	.vidioc_s_std 			    = zoran_s_std,
-	.vidioc_g_jpegcomp 		    = zoran_g_jpegcomp,
-	.vidioc_s_jpegcomp 		    = zoran_s_jpegcomp,
+	.vidioc_g_std			    = zoran_g_std,
+	.vidioc_s_std			    = zoran_s_std,
+	.vidioc_g_jpegcomp		    = zoran_g_jpegcomp,
+	.vidioc_s_jpegcomp		    = zoran_s_jpegcomp,
 	.vidioc_overlay			    = zoran_overlay,
 	.vidioc_reqbufs			    = zoran_reqbufs,
 	.vidioc_querybuf		    = zoran_querybuf,
@@ -2814,18 +2814,18 @@ static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_dqbuf			    = zoran_dqbuf,
 	.vidioc_streamon		    = zoran_streamon,
 	.vidioc_streamoff		    = zoran_streamoff,
-	.vidioc_enum_fmt_vid_cap 	    = zoran_enum_fmt_vid_cap,
-	.vidioc_enum_fmt_vid_out 	    = zoran_enum_fmt_vid_out,
-	.vidioc_enum_fmt_vid_overlay 	    = zoran_enum_fmt_vid_overlay,
-	.vidioc_g_fmt_vid_cap 		    = zoran_g_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap	    = zoran_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out	    = zoran_enum_fmt_vid_out,
+	.vidioc_enum_fmt_vid_overlay	    = zoran_enum_fmt_vid_overlay,
+	.vidioc_g_fmt_vid_cap		    = zoran_g_fmt_vid_cap,
 	.vidioc_g_fmt_vid_out               = zoran_g_fmt_vid_out,
 	.vidioc_g_fmt_vid_overlay           = zoran_g_fmt_vid_overlay,
-	.vidioc_s_fmt_vid_cap  		    = zoran_s_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap		    = zoran_s_fmt_vid_cap,
 	.vidioc_s_fmt_vid_out               = zoran_s_fmt_vid_out,
 	.vidioc_s_fmt_vid_overlay           = zoran_s_fmt_vid_overlay,
-	.vidioc_try_fmt_vid_cap  	    = zoran_try_fmt_vid_cap,
-	.vidioc_try_fmt_vid_out 	    = zoran_try_fmt_vid_out,
-	.vidioc_try_fmt_vid_overlay 	    = zoran_try_fmt_vid_overlay,
+	.vidioc_try_fmt_vid_cap		    = zoran_try_fmt_vid_cap,
+	.vidioc_try_fmt_vid_out		    = zoran_try_fmt_vid_out,
+	.vidioc_try_fmt_vid_overlay	    = zoran_try_fmt_vid_overlay,
 	.vidioc_subscribe_event             = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event           = v4l2_event_unsubscribe,
 };
@@ -2839,7 +2839,7 @@ static const struct v4l2_file_operations zoran_fops = {
 	.poll = zoran_poll,
 };
 
-struct video_device zoran_template = {
+const struct video_device zoran_template = {
 	.name = ZORAN_NAME,
 	.fops = &zoran_fops,
 	.ioctl_ops = &zoran_ioctl_ops,

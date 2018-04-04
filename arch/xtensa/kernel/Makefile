@@ -17,9 +17,6 @@ obj-$(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) += perf_event.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT) += hw_breakpoint.o
 obj-$(CONFIG_S32C1I_SELFTEST) += s32c1i_selftest.o
 
-AFLAGS_head.o += -mtext-section-literals
-AFLAGS_mxhead.o += -mtext-section-literals
-
 # In the Xtensa architecture, assembly generates literals which must always
 # precede the L32R instruction with a relative offset less than 256 kB.
 # Therefore, the .text and .literal section must be combined in parenthesis

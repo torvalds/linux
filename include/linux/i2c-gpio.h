@@ -12,8 +12,6 @@
 
 /**
  * struct i2c_gpio_platform_data - Platform-dependent data for i2c-gpio
- * @sda_pin: GPIO pin ID to use for SDA
- * @scl_pin: GPIO pin ID to use for SCL
  * @udelay: signal toggle delay. SCL frequency is (500 / udelay) kHz
  * @timeout: clock stretching timeout in jiffies. If the slave keeps
  *	SCL low for longer than this, the transfer will time out.
@@ -26,8 +24,6 @@
  * @scl_is_output_only: SCL output drivers cannot be turned off.
  */
 struct i2c_gpio_platform_data {
-	unsigned int	sda_pin;
-	unsigned int	scl_pin;
 	int		udelay;
 	int		timeout;
 	unsigned int	sda_is_open_drain:1;

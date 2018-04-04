@@ -107,11 +107,9 @@ static struct clk *clk_reg_prcc(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = kzalloc(sizeof(struct clk_prcc), GFP_KERNEL);
-	if (!clk) {
-		pr_err("clk_prcc: %s could not allocate clk\n", __func__);
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	if (!clk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	clk->base = ioremap(phy_base, SZ_4K);
 	if (!clk->base)

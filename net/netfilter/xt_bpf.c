@@ -7,6 +7,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/skbuff.h>
@@ -27,11 +29,14 @@ static int __bpf_mt_check_bytecode(struct sock_filter *insns, __u16 len,
 {
 	struct sock_fprog_kern program;
 
+	if (len > XT_BPF_MAX_NUM_INSTR)
+		return -EINVAL;
+
 	program.len = len;
 	program.filter = insns;
 
 	if (bpf_prog_create(ret, &program)) {
-		pr_info("bpf: check failed: parse error\n");
+		pr_info_ratelimited("check failed: parse error\n");
 		return -EINVAL;
 	}
 
@@ -52,18 +57,11 @@ static int __bpf_mt_check_fd(int fd, struct bpf_prog **ret)
 
 static int __bpf_mt_check_path(const char *path, struct bpf_prog **ret)
 {
-	mm_segment_t oldfs = get_fs();
-	int retval, fd;
+	if (strnlen(path, XT_BPF_PATH_MAX) == XT_BPF_PATH_MAX)
+		return -EINVAL;
 
-	set_fs(KERNEL_DS);
-	fd = bpf_obj_get_user(path);
-	set_fs(oldfs);
-	if (fd < 0)
-		return fd;
-
-	retval = __bpf_mt_check_fd(fd, ret);
-	sys_close(fd);
-	return retval;
+	*ret = bpf_prog_get_type_path(path, BPF_PROG_TYPE_SOCKET_FILTER);
+	return PTR_ERR_OR_ZERO(*ret);
 }
 
 static int bpf_mt_check(const struct xt_mtchk_param *par)

@@ -114,6 +114,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_cq *cmd = &req.create_cq;
 	struct pvrdma_cmd_create_cq_resp *resp = &rsp.create_cq_resp;
+	struct pvrdma_create_cq_resp cq_resp = {0};
 	struct pvrdma_create_cq ucmd;
 
 	BUILD_BUG_ON(sizeof(struct pvrdma_cqe) != 64);
@@ -132,8 +133,9 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	}
 
 	cq->ibcq.cqe = entries;
+	cq->is_kernel = !context;
 
-	if (context) {
+	if (!cq->is_kernel) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			ret = -EFAULT;
 			goto err_cq;
@@ -148,8 +150,6 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 
 		npages = ib_umem_page_count(cq->umem);
 	} else {
-		cq->is_kernel = true;
-
 		/* One extra page for shared ring state */
 		npages = 1 + (entries * sizeof(struct pvrdma_cqe) +
 			      PAGE_SIZE - 1) / PAGE_SIZE;
@@ -178,8 +178,8 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	else
 		pvrdma_page_dir_insert_umem(&cq->pdir, cq->umem, 0);
 
-	atomic_set(&cq->refcnt, 1);
-	init_waitqueue_head(&cq->wait);
+	refcount_set(&cq->refcnt, 1);
+	init_completion(&cq->free);
 	spin_lock_init(&cq->cq_lock);
 
 	memset(cmd, 0, sizeof(*cmd));
@@ -198,15 +198,16 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 
 	cq->ibcq.cqe = resp->cqe;
 	cq->cq_handle = resp->cq_handle;
+	cq_resp.cqn = resp->cq_handle;
 	spin_lock_irqsave(&dev->cq_tbl_lock, flags);
 	dev->cq_tbl[cq->cq_handle % dev->dsr->caps.max_cq] = cq;
 	spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
-	if (context) {
+	if (!cq->is_kernel) {
 		cq->uar = &(to_vucontext(context)->uar);
 
 		/* Copy udata back. */
-		if (ib_copy_to_udata(udata, &cq->cq_handle, sizeof(__u32))) {
+		if (ib_copy_to_udata(udata, &cq_resp, sizeof(cq_resp))) {
 			dev_warn(&dev->pdev->dev,
 				 "failed to copy back udata\n");
 			pvrdma_destroy_cq(&cq->ibcq);
@@ -219,7 +220,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 err_page_dir:
 	pvrdma_page_dir_cleanup(dev, &cq->pdir);
 err_umem:
-	if (context)
+	if (!cq->is_kernel)
 		ib_umem_release(cq->umem);
 err_cq:
 	atomic_dec(&dev->num_cqs);
@@ -230,8 +231,9 @@ err_cq:
 
 static void pvrdma_free_cq(struct pvrdma_dev *dev, struct pvrdma_cq *cq)
 {
-	atomic_dec(&cq->refcnt);
-	wait_event(cq->wait, !atomic_read(&cq->refcnt));
+	if (refcount_dec_and_test(&cq->refcnt))
+		complete(&cq->free);
+	wait_for_completion(&cq->free);
 
 	if (!cq->is_kernel)
 		ib_umem_release(cq->umem);

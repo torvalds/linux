@@ -848,7 +848,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 		return 1;
 	}
 
-	mmc_claim_host(card->host);
 	err = mmc_send_status(card, &status);
 	if (err) {
 		pr_err("%s: Get card status fail\n", mmc_hostname(card->host));
@@ -890,7 +889,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	} while (!err);
 
 out:
-	mmc_release_host(card->host);
 	return err;
 }
 
@@ -932,9 +930,7 @@ static int mmc_read_bkops_status(struct mmc_card *card)
 	int err;
 	u8 *ext_csd;
 
-	mmc_claim_host(card->host);
 	err = mmc_get_ext_csd(card, &ext_csd);
-	mmc_release_host(card->host);
 	if (err)
 		return err;
 
@@ -977,7 +973,6 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	    from_exception)
 		return;
 
-	mmc_claim_host(card->host);
 	if (card->ext_csd.raw_bkops_status >= EXT_CSD_BKOPS_LEVEL_2) {
 		timeout = MMC_OPS_TIMEOUT_MS;
 		use_busy_signal = true;
@@ -995,7 +990,7 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 		pr_warn("%s: Error %d starting bkops\n",
 			mmc_hostname(card->host), err);
 		mmc_retune_release(card->host);
-		goto out;
+		return;
 	}
 
 	/*
@@ -1007,9 +1002,8 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 		mmc_card_set_doing_bkops(card);
 	else
 		mmc_retune_release(card->host);
-out:
-	mmc_release_host(card->host);
 }
+EXPORT_SYMBOL(mmc_start_bkops);
 
 /*
  * Flush the cache to the non-volatile storage.

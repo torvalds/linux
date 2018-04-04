@@ -497,9 +497,7 @@ int snd_seq_queue_timer_set_tempo(int queueid, int client,
 		return -EPERM;
 	}
 
-	result = snd_seq_timer_set_tempo(q->timer, info->tempo);
-	if (result >= 0)
-		result = snd_seq_timer_set_ppq(q->timer, info->ppq);
+	result = snd_seq_timer_set_tempo_ppq(q->timer, info->tempo, info->ppq);
 	if (result >= 0 && info->skew_base > 0)
 		result = snd_seq_timer_set_skew(q->timer, info->skew_value,
 						info->skew_base);

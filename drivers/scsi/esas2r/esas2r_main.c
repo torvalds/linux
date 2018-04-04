@@ -1631,23 +1631,21 @@ void esas2r_adapter_tasklet(unsigned long context)
 	}
 }
 
-static void esas2r_timer_callback(unsigned long context);
+static void esas2r_timer_callback(struct timer_list *t);
 
 void esas2r_kickoff_timer(struct esas2r_adapter *a)
 {
-	init_timer(&a->timer);
+	timer_setup(&a->timer, esas2r_timer_callback, 0);
 
-	a->timer.function = esas2r_timer_callback;
-	a->timer.data = (unsigned long)a;
 	a->timer.expires = jiffies +
 			   msecs_to_jiffies(100);
 
 	add_timer(&a->timer);
 }
 
-static void esas2r_timer_callback(unsigned long context)
+static void esas2r_timer_callback(struct timer_list *t)
 {
-	struct esas2r_adapter *a = (struct esas2r_adapter *)context;
+	struct esas2r_adapter *a = from_timer(a, t, timer);
 
 	set_bit(AF2_TIMER_TICK, &a->flags2);
 

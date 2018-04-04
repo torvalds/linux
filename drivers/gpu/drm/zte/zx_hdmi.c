@@ -108,6 +108,7 @@ static int zx_hdmi_config_video_vsi(struct zx_hdmi *hdmi,
 	int ret;
 
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							  &hdmi->connector,
 							  mode);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev, "failed to get vendor infoframe: %d\n",

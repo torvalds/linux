@@ -85,7 +85,7 @@ static struct net_device_stats *get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static void axnet_tx_timeout(struct net_device *dev);
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
-static void ei_watchdog(u_long arg);
+static void ei_watchdog(struct timer_list *t);
 static void axnet_reset_8390(struct net_device *dev);
 
 static int mdio_read(unsigned int addr, int phy_id, int loc);
@@ -483,7 +483,7 @@ static int axnet_open(struct net_device *dev)
     link->open++;
 
     info->link_status = 0x00;
-    setup_timer(&info->watchdog, ei_watchdog, (u_long)dev);
+    timer_setup(&info->watchdog, ei_watchdog, 0);
     mod_timer(&info->watchdog, jiffies + HZ);
 
     return ax_open(dev);
@@ -547,10 +547,10 @@ static irqreturn_t ei_irq_wrapper(int irq, void *dev_id)
     return ax_interrupt(irq, dev_id);
 }
 
-static void ei_watchdog(u_long arg)
+static void ei_watchdog(struct timer_list *t)
 {
-    struct net_device *dev = (struct net_device *)(arg);
-    struct axnet_dev *info = PRIV(dev);
+    struct axnet_dev *info = from_timer(info, t, watchdog);
+    struct net_device *dev = info->p_dev->priv;
     unsigned int nic_base = dev->base_addr;
     unsigned int mii_addr = nic_base + AXNET_MII_EEP;
     u_short link;

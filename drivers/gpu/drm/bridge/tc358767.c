@@ -6,6 +6,8 @@
  *
  * Copyright (C) 2016 Pengutronix, Philipp Zabel <p.zabel@pengutronix.de>
  *
+ * Copyright (C) 2016 Zodiac Inflight Innovations
+ *
  * Initially based on: drivers/gpu/drm/i2c/tda998x_drv.c
  *
  * Copyright (C) 2012 Texas Instruments
@@ -97,7 +99,7 @@
 #define DP0_ACTIVEVAL		0x0650
 #define DP0_SYNCVAL		0x0654
 #define DP0_MISC		0x0658
-#define TU_SIZE_RECOMMENDED		(0x3f << 16) /* LSCLK cycles per TU */
+#define TU_SIZE_RECOMMENDED		(63) /* LSCLK cycles per TU */
 #define BPC_6				(0 << 5)
 #define BPC_8				(1 << 5)
 
@@ -318,7 +320,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 				tmp = (tmp << 8) | buf[i];
 			i++;
 			if (((i % 4) == 0) || (i == size)) {
-				tc_write(DP0_AUXWDATA(i >> 2), tmp);
+				tc_write(DP0_AUXWDATA((i - 1) >> 2), tmp);
 				tmp = 0;
 			}
 		}
@@ -603,8 +605,15 @@ static int tc_get_display_props(struct tc_data *tc)
 	ret = drm_dp_link_probe(&tc->aux, &tc->link.base);
 	if (ret < 0)
 		goto err_dpcd_read;
-	if ((tc->link.base.rate != 162000) && (tc->link.base.rate != 270000))
-		goto err_dpcd_inval;
+	if (tc->link.base.rate != 162000 && tc->link.base.rate != 270000) {
+		dev_dbg(tc->dev, "Falling to 2.7 Gbps rate\n");
+		tc->link.base.rate = 270000;
+	}
+
+	if (tc->link.base.num_lanes > 2) {
+		dev_dbg(tc->dev, "Falling to 2 lanes\n");
+		tc->link.base.num_lanes = 2;
+	}
 
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAX_DOWNSPREAD, tmp);
 	if (ret < 0)
@@ -637,9 +646,6 @@ static int tc_get_display_props(struct tc_data *tc)
 err_dpcd_read:
 	dev_err(tc->dev, "failed to read DPCD: %d\n", ret);
 	return ret;
-err_dpcd_inval:
-	dev_err(tc->dev, "invalid DPCD\n");
-	return -EINVAL;
 }
 
 static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
@@ -655,6 +661,14 @@ static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
 	int lower_margin = mode->vsync_start - mode->vdisplay;
 	int vsync_len = mode->vsync_end - mode->vsync_start;
 
+	/*
+	 * Recommended maximum number of symbols transferred in a transfer unit:
+	 * DIV_ROUND_UP((input active video bandwidth in bytes) * tu_size,
+	 *              (output active video bandwidth in bytes))
+	 * Must be less than tu_size.
+	 */
+	max_tu_symbol = TU_SIZE_RECOMMENDED - 1;
+
 	dev_dbg(tc->dev, "set mode %dx%d\n",
 		mode->hdisplay, mode->vdisplay);
 	dev_dbg(tc->dev, "H margin %d,%d sync %d\n",
@@ -664,13 +678,18 @@ static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
 	dev_dbg(tc->dev, "total: %dx%d\n", mode->htotal, mode->vtotal);
 
 
-	/* LCD Ctl Frame Size */
-	tc_write(VPCTRL0, (0x40 << 20) /* VSDELAY */ |
+	/*
+	 * LCD Ctl Frame Size
+	 * datasheet is not clear of vsdelay in case of DPI
+	 * assume we do not need any delay when DPI is a source of
+	 * sync signals
+	 */
+	tc_write(VPCTRL0, (0 << 20) /* VSDELAY */ |
 		 OPXLFMT_RGB888 | FRMSYNC_DISABLED | MSF_DISABLED);
-	tc_write(HTIM01, (left_margin << 16) |		/* H back porch */
-			 (hsync_len << 0));		/* Hsync */
-	tc_write(HTIM02, (right_margin << 16) |		/* H front porch */
-			 (mode->hdisplay << 0));	/* width */
+	tc_write(HTIM01, (ALIGN(left_margin, 2) << 16) | /* H back porch */
+			 (ALIGN(hsync_len, 2) << 0));	 /* Hsync */
+	tc_write(HTIM02, (ALIGN(right_margin, 2) << 16) |  /* H front porch */
+			 (ALIGN(mode->hdisplay, 2) << 0)); /* width */
 	tc_write(VTIM01, (upper_margin << 16) |		/* V back porch */
 			 (vsync_len << 0));		/* Vsync */
 	tc_write(VTIM02, (lower_margin << 16) |		/* V front porch */
@@ -689,7 +708,7 @@ static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
 	/* DP Main Stream Attributes */
 	vid_sync_dly = hsync_len + left_margin + mode->hdisplay;
 	tc_write(DP0_VIDSYNCDELAY,
-		 (0x003e << 16) |	/* thresh_dly */
+		 (max_tu_symbol << 16) |	/* thresh_dly */
 		 (vid_sync_dly << 0));
 
 	tc_write(DP0_TOTALVAL, (mode->vtotal << 16) | (mode->htotal));
@@ -705,14 +724,8 @@ static int tc_set_video_mode(struct tc_data *tc, struct drm_display_mode *mode)
 	tc_write(DPIPXLFMT, VS_POL_ACTIVE_LOW | HS_POL_ACTIVE_LOW |
 		 DE_POL_ACTIVE_HIGH | SUB_CFG_TYPE_CONFIG1 | DPI_BPP_RGB888);
 
-	/*
-	 * Recommended maximum number of symbols transferred in a transfer unit:
-	 * DIV_ROUND_UP((input active video bandwidth in bytes) * tu_size,
-	 *              (output active video bandwidth in bytes))
-	 * Must be less than tu_size.
-	 */
-	max_tu_symbol = TU_SIZE_RECOMMENDED - 1;
-	tc_write(DP0_MISC, (max_tu_symbol << 23) | TU_SIZE_RECOMMENDED | BPC_8);
+	tc_write(DP0_MISC, (max_tu_symbol << 23) | (TU_SIZE_RECOMMENDED << 16) |
+			   BPC_8);
 
 	return 0;
 err:
@@ -808,8 +821,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 	unsigned int rate;
 	u32 dp_phy_ctrl;
 	int timeout;
-	bool aligned;
-	bool ready;
 	u32 value;
 	int ret;
 	u8 tmp[8];
@@ -954,16 +965,15 @@ static int tc_main_link_setup(struct tc_data *tc)
 		ret = drm_dp_dpcd_read_link_status(aux, tmp + 2);
 		if (ret < 0)
 			goto err_dpcd_read;
-		ready = (tmp[2] == ((DP_CHANNEL_EQ_BITS << 4) | /* Lane1 */
-				     DP_CHANNEL_EQ_BITS));      /* Lane0 */
-		aligned = tmp[4] & DP_INTERLANE_ALIGN_DONE;
-	} while ((--timeout) && !(ready && aligned));
+	} while ((--timeout) &&
+		 !(drm_dp_channel_eq_ok(tmp + 2,  tc->link.base.num_lanes)));
 
 	if (timeout == 0) {
 		/* Read DPCD 0x200-0x201 */
 		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT, tmp, 2);
 		if (ret < 0)
 			goto err_dpcd_read;
+		dev_err(dev, "channel(s) EQ not ok\n");
 		dev_info(dev, "0x0200 SINK_COUNT: 0x%02x\n", tmp[0]);
 		dev_info(dev, "0x0201 DEVICE_SERVICE_IRQ_VECTOR: 0x%02x\n",
 			 tmp[1]);
@@ -974,10 +984,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 		dev_info(dev, "0x0206 ADJUST_REQUEST_LANE0_1: 0x%02x\n",
 			 tmp[6]);
 
-		if (!ready)
-			dev_err(dev, "Lane0/1 not ready\n");
-		if (!aligned)
-			dev_err(dev, "Lane0/1 not aligned\n");
 		return -EAGAIN;
 	}
 
@@ -1099,7 +1105,10 @@ static bool tc_bridge_mode_fixup(struct drm_bridge *bridge,
 static int tc_connector_mode_valid(struct drm_connector *connector,
 				   struct drm_display_mode *mode)
 {
-	/* Accept any mode */
+	/* DPI interface clock limitation: upto 154 MHz */
+	if (mode->clock > 154000)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 

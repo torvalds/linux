@@ -1148,6 +1148,7 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 						rdev->config.cayman.max_shader_engines,
 						CAYMAN_MAX_BACKENDS, disabled_rb_mask);
 	}
+	rdev->config.cayman.backend_map = tmp;
 	WREG32(GB_BACKEND_MAP, tmp);
 
 	cgts_tcc_disable = 0xffff0000;

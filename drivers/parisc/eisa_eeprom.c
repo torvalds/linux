@@ -106,7 +106,7 @@ static int __init eisa_eeprom_init(void)
 		return retval;
 	}
 
-	printk(KERN_INFO "EISA EEPROM at 0x%p\n", eisa_eeprom_addr);
+	printk(KERN_INFO "EISA EEPROM at 0x%px\n", eisa_eeprom_addr);
 	return 0;
 }
 

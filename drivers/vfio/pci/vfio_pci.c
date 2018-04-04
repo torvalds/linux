@@ -207,6 +207,9 @@ static bool vfio_pci_nointx(struct pci_dev *pdev)
 		}
 	}
 
+	if (!pdev->irq)
+		return true;
+
 	return false;
 }
 
@@ -562,46 +565,15 @@ static int vfio_pci_for_each_slot_or_bus(struct pci_dev *pdev,
 	return walk.ret;
 }
 
-static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
-				struct vfio_info_cap *caps)
+static int msix_mmappable_cap(struct vfio_pci_device *vdev,
+			      struct vfio_info_cap *caps)
 {
-	struct vfio_region_info_cap_sparse_mmap *sparse;
-	size_t end, size;
-	int nr_areas = 2, i = 0, ret;
+	struct vfio_info_cap_header header = {
+		.id = VFIO_REGION_INFO_CAP_MSIX_MAPPABLE,
+		.version = 1
+	};
 
-	end = pci_resource_len(vdev->pdev, vdev->msix_bar);
-
-	/* If MSI-X table is aligned to the start or end, only one area */
-	if (((vdev->msix_offset & PAGE_MASK) == 0) ||
-	    (PAGE_ALIGN(vdev->msix_offset + vdev->msix_size) >= end))
-		nr_areas = 1;
-
-	size = sizeof(*sparse) + (nr_areas * sizeof(*sparse->areas));
-
-	sparse = kzalloc(size, GFP_KERNEL);
-	if (!sparse)
-		return -ENOMEM;
-
-	sparse->nr_areas = nr_areas;
-
-	if (vdev->msix_offset & PAGE_MASK) {
-		sparse->areas[i].offset = 0;
-		sparse->areas[i].size = vdev->msix_offset & PAGE_MASK;
-		i++;
-	}
-
-	if (PAGE_ALIGN(vdev->msix_offset + vdev->msix_size) < end) {
-		sparse->areas[i].offset = PAGE_ALIGN(vdev->msix_offset +
-						     vdev->msix_size);
-		sparse->areas[i].size = end - sparse->areas[i].offset;
-		i++;
-	}
-
-	ret = vfio_info_add_capability(caps, VFIO_REGION_INFO_CAP_SPARSE_MMAP,
-				       sparse);
-	kfree(sparse);
-
-	return ret;
+	return vfio_info_add_capability(caps, &header, sizeof(header));
 }
 
 int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
@@ -692,7 +664,7 @@ static long vfio_pci_ioctl(void *device_data,
 			if (vdev->bar_mmap_supported[info.index]) {
 				info.flags |= VFIO_REGION_INFO_FLAG_MMAP;
 				if (info.index == vdev->msix_bar) {
-					ret = msix_sparse_mmap_cap(vdev, &caps);
+					ret = msix_mmappable_cap(vdev, &caps);
 					if (ret)
 						return ret;
 				}
@@ -741,7 +713,9 @@ static long vfio_pci_ioctl(void *device_data,
 			break;
 		default:
 		{
-			struct vfio_region_info_cap_type cap_type;
+			struct vfio_region_info_cap_type cap_type = {
+					.header.id = VFIO_REGION_INFO_CAP_TYPE,
+					.header.version = 1 };
 
 			if (info.index >=
 			    VFIO_PCI_NUM_REGIONS + vdev->num_regions)
@@ -756,9 +730,8 @@ static long vfio_pci_ioctl(void *device_data,
 			cap_type.type = vdev->region[i].type;
 			cap_type.subtype = vdev->region[i].subtype;
 
-			ret = vfio_info_add_capability(&caps,
-						      VFIO_REGION_INFO_CAP_TYPE,
-						      &cap_type);
+			ret = vfio_info_add_capability(&caps, &cap_type.header,
+						       sizeof(cap_type));
 			if (ret)
 				return ret;
 
@@ -1121,22 +1094,6 @@ static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
 
 	if (req_start + req_len > phys_len)
 		return -EINVAL;
-
-	if (index == vdev->msix_bar) {
-		/*
-		 * Disallow mmaps overlapping the MSI-X table; users don't
-		 * get to touch this directly.  We could find somewhere
-		 * else to map the overlap, but page granularity is only
-		 * a recommendation, not a requirement, so the user needs
-		 * to know which bits are real.  Requiring them to mmap
-		 * around the table makes that clear.
-		 */
-
-		/* If neither entirely above nor below, then it overlaps */
-		if (!(req_start >= vdev->msix_offset + vdev->msix_size ||
-		      req_start + req_len <= vdev->msix_offset))
-			return -EINVAL;
-	}
 
 	/*
 	 * Even though we don't make use of the barmap for the mmap,

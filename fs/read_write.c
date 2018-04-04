@@ -635,27 +635,6 @@ SYSCALL_DEFINE4(pwrite64, unsigned int, fd, const char __user *, buf,
 	return ret;
 }
 
-/*
- * Reduce an iovec's length in-place.  Return the resulting number of segments
- */
-unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
-{
-	unsigned long seg = 0;
-	size_t len = 0;
-
-	while (seg < nr_segs) {
-		seg++;
-		if (len + iov->iov_len >= to) {
-			iov->iov_len = to - len;
-			break;
-		}
-		len += iov->iov_len;
-		iov++;
-	}
-	return seg;
-}
-EXPORT_SYMBOL(iov_shorten);
-
 static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 		loff_t *ppos, int type, rwf_t flags)
 {

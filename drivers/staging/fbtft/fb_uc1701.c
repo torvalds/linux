@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the UC1701 LCD Controller
  *
@@ -5,16 +6,6 @@
  * Any pixel value except 0 turns the pixel on.
  *
  * Copyright (C) 2014 Juergen Holzmann
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -127,7 +118,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16 = (u16 *)par->info->screen_buffer;
-	u8 *buf = par->txbuf.buf;
+	u8 *buf;
 	int x, y, i;
 	int ret = 0;
 

@@ -114,7 +114,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 }
 
 static
-void ks_wlan_update_phyinfo_timeout(unsigned long ptr)
+void ks_wlan_update_phyinfo_timeout(struct timer_list *unused)
 {
 	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
 	atomic_set(&update_phyinfo, 0);
@@ -473,13 +473,16 @@ static int ks_wlan_set_rate(struct net_device *dev,
 					priv->reg.rate_set.body[3] =
 					    TX_RATE_11M;
 					i++;
+					/* fall through */
 				case 5500000:
 					priv->reg.rate_set.body[2] = TX_RATE_5M;
 					i++;
+					/* fall through */
 				case 2000000:
 					priv->reg.rate_set.body[1] =
 					    TX_RATE_2M | BASIC_RATE;
 					i++;
+					/* fall through */
 				case 1000000:
 					priv->reg.rate_set.body[0] =
 					    TX_RATE_1M | BASIC_RATE;
@@ -535,14 +538,17 @@ static int ks_wlan_set_rate(struct net_device *dev,
 					priv->reg.rate_set.body[11] =
 					    TX_RATE_54M;
 					i++;
+					/* fall through */
 				case 48000000:
 					priv->reg.rate_set.body[10] =
 					    TX_RATE_48M;
 					i++;
+					/* fall through */
 				case 36000000:
 					priv->reg.rate_set.body[9] =
 					    TX_RATE_36M;
 					i++;
+					/* fall through */
 				case 24000000:
 				case 18000000:
 				case 12000000:
@@ -619,14 +625,17 @@ static int ks_wlan_set_rate(struct net_device *dev,
 						    TX_RATE_6M | BASIC_RATE;
 						i++;
 					}
+					/* fall through */
 				case 5500000:
 					priv->reg.rate_set.body[2] =
 					    TX_RATE_5M | BASIC_RATE;
 					i++;
+					/* fall through */
 				case 2000000:
 					priv->reg.rate_set.body[1] =
 					    TX_RATE_2M | BASIC_RATE;
 					i++;
+					/* fall through */
 				case 1000000:
 					priv->reg.rate_set.body[0] =
 					    TX_RATE_1M | BASIC_RATE;
@@ -2010,6 +2019,7 @@ static int ks_wlan_set_mlme(struct net_device *dev,
 	case IW_MLME_DEAUTH:
 		if (mlme->reason_code == WLAN_REASON_MIC_FAILURE)
 			return 0;
+		/* fall through */
 	case IW_MLME_DISASSOC:
 		mode = 1;
 		return ks_wlan_set_stop_request(dev, NULL, &mode, NULL);
@@ -2941,8 +2951,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* phy information update timer */
 	atomic_set(&update_phyinfo, 0);
-	setup_timer(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout,
-		    (unsigned long)priv);
+	timer_setup(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout, 0);
 
 	/* dummy address set */
 	memcpy(priv->eth_addr, dummy_addr, ETH_ALEN);
@@ -2981,7 +2990,7 @@ int ks_wlan_net_stop(struct net_device *dev)
 /**
  * is_connect_status() - return true if status is 'connected'
  * @status: high bit is used as FORCE_DISCONNECT, low bits used for
- * 	connect status.
+ *	connect status.
  */
 bool is_connect_status(u32 status)
 {
@@ -2991,7 +3000,7 @@ bool is_connect_status(u32 status)
 /**
  * is_disconnect_status() - return true if status is 'disconnected'
  * @status: high bit is used as FORCE_DISCONNECT, low bits used for
- * 	disconnect status.
+ *	disconnect status.
  */
 bool is_disconnect_status(u32 status)
 {

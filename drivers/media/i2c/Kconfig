@@ -354,6 +354,14 @@ config VIDEO_TC358743
 	  To compile this driver as a module, choose M here: the
 	  module will be called tc358743.
 
+config VIDEO_TC358743_CEC
+	bool "Enable Toshiba TC358743 CEC support"
+	depends on VIDEO_TC358743
+	select CEC_CORE
+	---help---
+	  When selected the tc358743 will support the optional
+	  HDMI CEC feature.
+
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -547,6 +555,14 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
+config VIDEO_IMX274
+	tristate "Sony IMX274 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a V4L2 sensor-level driver for the Sony IMX274
+	  CMOS image sensor.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -649,6 +665,14 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_OV7740
+	tristate "OmniVision OV7740 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV7740 VGA camera sensor.
+
 config VIDEO_OV9650
 	tristate "OmniVision OV9650/OV9652 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -660,6 +684,7 @@ config VIDEO_OV13858
 	tristate "OmniVision OV13858 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV13858 camera.
@@ -760,12 +785,12 @@ config VIDEO_S5K6A3
 	  camera sensor.
 
 config VIDEO_S5K4ECGX
-        tristate "Samsung S5K4ECGX sensor support"
-        depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	tristate "Samsung S5K4ECGX sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	select CRC32
-        ---help---
-          This is a V4L2 sensor-level driver for Samsung S5K4ECGX 5M
-          camera sensor with an embedded SoC image signal processor.
+	---help---
+	  This is a V4L2 sensor-level driver for Samsung S5K4ECGX 5M
+	  camera sensor with an embedded SoC image signal processor.
 
 config VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
@@ -795,14 +820,6 @@ config VIDEO_ADP1653
 	---help---
 	  This is a driver for the ADP1653 flash controller. It is used for
 	  example in Nokia N900.
-
-config VIDEO_AS3645A
-	tristate "AS3645A flash driver support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
-	---help---
-	  This is a driver for the AS3645A and LM3555 flash controllers. It has
-	  build in control for flash, torch and indicator LEDs.
 
 config VIDEO_LM3560
 	tristate "LM3560 dual flash driver support"

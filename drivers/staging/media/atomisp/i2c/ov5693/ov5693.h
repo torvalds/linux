@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -34,8 +30,6 @@
 #include <media/media-entity.h>
 
 #include "../../include/linux/atomisp_platform.h"
-
-#define OV5693_NAME		"ov5693"
 
 #define OV5693_POWER_UP_RETRY_NUM 5
 
@@ -227,7 +221,7 @@ struct ov5693_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct camera_sensor_platform_data *platform_data;
-	struct timespec timestamp_t_focus_abs;
+	ktime_t timestamp_t_focus_abs;
 	int vt_pix_clk_freq_mhz;
 	int fmt_idx;
 	int run_mode;
@@ -276,11 +270,6 @@ struct ov5693_write_buffer {
 struct ov5693_write_ctrl {
 	int index;
 	struct ov5693_write_buffer buffer;
-};
-
-static const struct i2c_device_id ov5693_id[] = {
-	{OV5693_NAME, 0},
-	{}
 };
 
 static struct ov5693_reg const ov5693_global_setting[] = {

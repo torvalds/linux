@@ -109,7 +109,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * @vq: vb2_queue ptr
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
- * @sizes[]: contains the size (in bytes) of each plane.
+ * @sizes: contains the size (in bytes) of each plane.
  * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
@@ -167,7 +167,7 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 
 /**
  * vpif_start_streaming : Starts the DMA engine for streaming
- * @vb: ptr to vb2_buffer
+ * @vq: ptr to vb2_buffer
  * @count: number of buffers
  */
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -629,7 +629,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 
 /**
  * vpif_get_default_field() - Get default field type based on interface
- * @vpif_params - ptr to vpif params
+ * @iface: ptr to vpif interface
  */
 static inline enum v4l2_field vpif_get_default_field(
 				struct vpif_interface *iface)
@@ -640,8 +640,8 @@ static inline enum v4l2_field vpif_get_default_field(
 
 /**
  * vpif_config_addr() - function to configure buffer address in vpif
- * @ch - channel ptr
- * @muxmode - channel mux mode
+ * @ch: channel ptr
+ * @muxmode: channel mux mode
  */
 static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 {
@@ -661,9 +661,9 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 
 /**
  * vpif_input_to_subdev() - Maps input to sub device
- * @vpif_cfg - global config ptr
- * @chan_cfg - channel config ptr
- * @input_index - Given input index from application
+ * @vpif_cfg: global config ptr
+ * @chan_cfg: channel config ptr
+ * @input_index: Given input index from application
  *
  * lookup the sub device information for a given input index.
  * we report all the inputs to application. inputs table also
@@ -699,9 +699,9 @@ static int vpif_input_to_subdev(
 
 /**
  * vpif_set_input() - Select an input
- * @vpif_cfg - global config ptr
- * @ch - channel
- * @_index - Given input index from application
+ * @vpif_cfg: global config ptr
+ * @ch: channel
+ * @index: Given input index from application
  *
  * Select the given input.
  */
@@ -792,7 +792,7 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  * vpif_g_std() - get STD handler
  * @file: file ptr
  * @priv: file handle
- * @std_id: ptr to std id
+ * @std: ptr to std id
  */
 static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
@@ -933,7 +933,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
  * vpif_enum_fmt_vid_cap() - ENUM_FMT handler
  * @file: file ptr
  * @priv: file handle
- * @index: input index
+ * @fmt: ptr to V4L2 format descriptor
  */
 static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmt)
@@ -1390,16 +1390,16 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 
 	for (i = 0; i < vpif_obj.config->asd_sizes[0]; i++) {
 		struct v4l2_async_subdev *_asd = vpif_obj.config->asd[i];
-		const struct fwnode_handle *fwnode = _asd->match.fwnode.fwnode;
+		const struct fwnode_handle *fwnode = _asd->match.fwnode;
 
 		if (fwnode == subdev->fwnode) {
 			vpif_obj.sd[i] = subdev;
 			vpif_obj.config->chan_config->inputs[i].subdev_name =
 				(char *)to_of_node(subdev->fwnode)->full_name;
 			vpif_dbg(2, debug,
-				 "%s: setting input %d subdev_name = %pOF\n",
+				 "%s: setting input %d subdev_name = %s\n",
 				 __func__, i,
-				 to_of_node(subdev->fwnode));
+				vpif_obj.config->chan_config->inputs[i].subdev_name);
 			return 0;
 		}
 	}
@@ -1500,6 +1500,11 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 	return vpif_probe_complete();
 }
 
+static const struct v4l2_async_notifier_operations vpif_async_ops = {
+	.bound = vpif_async_bound,
+	.complete = vpif_async_complete,
+};
+
 static struct vpif_capture_config *
 vpif_capture_get_pdata(struct platform_device *pdev)
 {
@@ -1545,6 +1550,8 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 					    sizeof(*chan->inputs) *
 					    VPIF_CAPTURE_NUM_CHANNELS,
 					    GFP_KERNEL);
+		if (!chan->inputs)
+			return NULL;
 
 		chan->input_count++;
 		chan->inputs[i].input.type = V4L2_INPUT_TYPE_CAMERA;
@@ -1588,7 +1595,7 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 		}
 
 		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		pdata->asd[i]->match.fwnode.fwnode = of_fwnode_handle(rem);
+		pdata->asd[i]->match.fwnode = of_fwnode_handle(rem);
 		of_node_put(rem);
 	}
 
@@ -1691,8 +1698,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	} else {
 		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
-		vpif_obj.notifier.bound = vpif_async_bound;
-		vpif_obj.notifier.complete = vpif_async_complete;
+		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {
@@ -1741,6 +1747,7 @@ static int vpif_remove(struct platform_device *device)
 #ifdef CONFIG_PM_SLEEP
 /**
  * vpif_suspend: vpif device suspend
+ * @dev: pointer to &struct device
  */
 static int vpif_suspend(struct device *dev)
 {

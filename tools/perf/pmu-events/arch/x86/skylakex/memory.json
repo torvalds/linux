@@ -214,7 +214,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "HLE_RETIRED.ABORTED",
-        "PublicDescription": "Number of times HLE abort was triggered.",
+        "PublicDescription": "Number of times HLE abort was triggered. (PEBS)",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -239,10 +239,9 @@
     {
         "EventCode": "0xC8",
         "UMask": "0x20",
-        "BriefDescription": "Number of times an HLE execution aborted due to HLE-unfriendly instructions and certain unfriendly events (such as AD assists etc.). ",
+        "BriefDescription": "Number of times an HLE execution aborted due to HLE-unfriendly instructions and certain unfriendly events (such as AD assists etc.).",
         "Counter": "0,1,2,3",
         "EventName": "HLE_RETIRED.ABORTED_UNFRIENDLY",
-        "PublicDescription": "Number of times an HLE execution aborted due to HLE-unfriendly instructions and certain unfriendly events (such as AD assists etc.).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -292,7 +291,7 @@
         "PEBS": "1",
         "Counter": "0,1,2,3",
         "EventName": "RTM_RETIRED.ABORTED",
-        "PublicDescription": "Number of times RTM abort was triggered.",
+        "PublicDescription": "Number of times RTM abort was triggered. (PEBS)",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -466,7 +465,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that miss in the L3. ",
+        "PublicDescription": "Counts demand data reads that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -479,7 +478,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts demand data reads that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -492,7 +491,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts demand data reads that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -505,7 +504,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts demand data reads that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -518,7 +517,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts demand data reads that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -531,7 +530,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts demand data reads that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts demand data reads that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -544,7 +543,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that miss in the L3. ",
+        "PublicDescription": "Counts all demand data writes (RFOs) that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -557,7 +556,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -570,7 +569,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -583,7 +582,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -596,7 +595,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -609,7 +608,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all demand data writes (RFOs) that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -622,7 +621,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that miss in the L3. ",
+        "PublicDescription": "Counts all demand code reads that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -635,7 +634,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand code reads that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -648,7 +647,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand code reads that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -661,7 +660,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all demand code reads that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -674,7 +673,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all demand code reads that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -687,7 +686,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand code reads that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all demand code reads that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -700,7 +699,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss in the L3. ",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -713,7 +712,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -726,7 +725,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -739,7 +738,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -752,7 +751,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -765,7 +764,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -778,7 +777,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss in the L3. ",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -791,7 +790,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -804,7 +803,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -817,7 +816,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -830,7 +829,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -843,7 +842,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -856,7 +855,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss in the L3. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -869,7 +868,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -882,7 +881,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -895,7 +894,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -908,7 +907,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -921,7 +920,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -934,7 +933,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss in the L3. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -947,7 +946,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -960,7 +959,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -973,7 +972,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -986,7 +985,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -999,7 +998,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1012,7 +1011,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss in the L3. ",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1025,7 +1024,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1038,7 +1037,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1051,7 +1050,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1064,7 +1063,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1077,7 +1076,85 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.PF_L1D_AND_SW.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that miss in the L3.",
+        "MSRValue": "0x3fbc008000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.ANY_SNOOP",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that miss the L3 and clean or shared data is transferred from remote cache.",
+        "MSRValue": "0x083fc08000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.REMOTE_HIT_FORWARD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that miss the L3 and the modified data is transferred from remote cache.",
+        "MSRValue": "0x103fc08000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.REMOTE_HITM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that miss the L3 and the data is returned from local or remote dram.",
+        "MSRValue": "0x063fc08000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS.SNOOP_MISS_OR_NO_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that miss the L3 and the data is returned from remote dram.",
+        "MSRValue": "0x063b808000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Offcore": "1",
+        "EventCode": "0xB7, 0xBB",
+        "UMask": "0x1",
+        "BriefDescription": "Counts any other requests that miss the L3 and the data is returned from local dram.",
+        "MSRValue": "0x0604008000 ",
+        "Counter": "0,1,2,3",
+        "EventName": "OFFCORE_RESPONSE.OTHER.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
+        "MSRIndex": "0x1a6,0x1a7",
+        "PublicDescription": "Counts any other requests that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1090,7 +1167,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that miss in the L3. ",
+        "PublicDescription": "Counts all prefetch data reads that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1103,7 +1180,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch data reads that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1116,7 +1193,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1129,7 +1206,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1142,7 +1219,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1155,7 +1232,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all prefetch data reads that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1168,7 +1245,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that miss in the L3. ",
+        "PublicDescription": "Counts prefetch RFOs that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1181,7 +1258,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts prefetch RFOs that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1194,7 +1271,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1207,7 +1284,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1220,7 +1297,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1233,7 +1310,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts prefetch RFOs that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1246,7 +1323,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that miss in the L3. ",
+        "PublicDescription": "Counts all demand & prefetch data reads that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1259,7 +1336,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1272,7 +1349,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1285,7 +1362,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1298,7 +1375,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1311,7 +1388,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the data is returned from local dram. ",
+        "PublicDescription": "Counts all demand & prefetch data reads that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1324,7 +1401,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS.ANY_SNOOP",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that miss in the L3. ",
+        "PublicDescription": "Counts all demand & prefetch RFOs that miss in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1337,7 +1414,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and clean or shared data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and clean or shared data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1350,7 +1427,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the modified data is transferred from remote cache. ",
+        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the modified data is transferred from remote cache. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1363,7 +1440,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the data is returned from local or remote dram. ",
+        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the data is returned from local or remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1376,7 +1453,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS_REMOTE_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the data is returned from remote dram. ",
+        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the data is returned from remote dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     },
@@ -1389,7 +1466,7 @@
         "Counter": "0,1,2,3",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_MISS_LOCAL_DRAM.SNOOP_MISS_OR_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the data is returned from local dram.",
+        "PublicDescription": "Counts all demand & prefetch RFOs that miss the L3 and the data is returned from local dram. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3"
     }

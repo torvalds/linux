@@ -342,6 +342,9 @@ static irqreturn_t intc_irqpin_shared_irq_handler(int irq, void *dev_id)
  */
 static struct lock_class_key intc_irqpin_irq_lock_class;
 
+/* And this is for the request mutex */
+static struct lock_class_key intc_irqpin_irq_request_class;
+
 static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 				      irq_hw_number_t hw)
 {
@@ -352,7 +355,8 @@ static int intc_irqpin_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 	intc_irqpin_dbg(&p->irq[hw], "map");
 	irq_set_chip_data(virq, h->host_data);
-	irq_set_lockdep_class(virq, &intc_irqpin_irq_lock_class);
+	irq_set_lockdep_class(virq, &intc_irqpin_irq_lock_class,
+			      &intc_irqpin_irq_request_class);
 	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
 	return 0;
 }
@@ -389,9 +393,8 @@ MODULE_DEVICE_TABLE(of, intc_irqpin_dt_ids);
 
 static int intc_irqpin_probe(struct platform_device *pdev)
 {
-	const struct intc_irqpin_config *config = NULL;
+	const struct intc_irqpin_config *config;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct intc_irqpin_priv *p;
 	struct intc_irqpin_iomem *i;
 	struct resource *io[INTC_IRQPIN_REG_NR];
@@ -422,11 +425,9 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
 
-	of_id = of_match_device(intc_irqpin_dt_ids, dev);
-	if (of_id && of_id->data) {
-		config = of_id->data;
+	config = of_device_get_match_data(dev);
+	if (config)
 		p->needs_clk = config->needs_clk;
-	}
 
 	p->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(p->clk)) {

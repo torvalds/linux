@@ -441,31 +441,23 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
+	struct drm_crtc_state *crtc_state = NULL;
 	struct drm_framebuffer *new_fb = state->fb;
-	bool visible;
-
-	struct drm_rect src = {
-		.x1 = state->src_x,
-		.y1 = state->src_y,
-		.x2 = state->src_x + state->src_w,
-		.y2 = state->src_y + state->src_h,
-	};
-	struct drm_rect dest = {
-		.x1 = state->crtc_x,
-		.y1 = state->crtc_y,
-		.x2 = state->crtc_x + state->crtc_w,
-		.y2 = state->crtc_y + state->crtc_h,
-	};
-	struct drm_rect clip = dest;
+	struct drm_rect clip = {};
 	int ret;
 
-	ret = drm_plane_helper_check_update(plane, state->crtc, new_fb,
-					    &src, &dest, &clip,
-					    DRM_MODE_ROTATE_0,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &visible);
+	if (state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
 
+	if (crtc_state && crtc_state->enable) {
+		clip.x2 = crtc_state->adjusted_mode.hdisplay;
+		clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	}
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
 
 	if (!ret && new_fb) {
 		struct drm_crtc *crtc = state->crtc;
@@ -475,12 +467,6 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 		struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
 
 		vcs = vmw_connector_state_to_vcs(du->connector.state);
-
-		if ((dest.x2 > new_fb->width ||
-		     dest.y2 > new_fb->height)) {
-			DRM_ERROR("CRTC area outside of framebuffer\n");
-			return -EINVAL;
-		}
 
 		/* Only one active implicit framebuffer at a time. */
 		mutex_lock(&dev_priv->global_kms_state_mutex);
@@ -697,7 +683,6 @@ vmw_du_plane_duplicate_state(struct drm_plane *plane)
 	vps->pinned = 0;
 
 	/* Mapping is managed by prepare_fb/cleanup_fb */
-	memset(&vps->guest_map, 0, sizeof(vps->guest_map));
 	memset(&vps->host_map, 0, sizeof(vps->host_map));
 	vps->cpp = 0;
 
@@ -760,11 +745,6 @@ vmw_du_plane_destroy_state(struct drm_plane *plane,
 
 
 	/* Should have been freed by cleanup_fb */
-	if (vps->guest_map.virtual) {
-		DRM_ERROR("Guest mapping not freed\n");
-		ttm_bo_kunmap(&vps->guest_map);
-	}
-
 	if (vps->host_map.virtual) {
 		DRM_ERROR("Host mapping not freed\n");
 		ttm_bo_kunmap(&vps->host_map);
@@ -1726,7 +1706,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	crtc = drm_crtc_find(dev, arg->crtc_id);
+	crtc = drm_crtc_find(dev, file_priv, arg->crtc_id);
 	if (!crtc) {
 		ret = -ENOENT;
 		goto out;
@@ -1869,7 +1849,7 @@ u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
  */
 int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	return -ENOSYS;
+	return -EINVAL;
 }
 
 /**

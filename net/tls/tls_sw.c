@@ -39,22 +39,6 @@
 
 #include <net/tls.h>
 
-static inline void tls_make_aad(int recv,
-				char *buf,
-				size_t size,
-				char *record_sequence,
-				int record_sequence_size,
-				unsigned char record_type)
-{
-	memcpy(buf, record_sequence, record_sequence_size);
-
-	buf[8] = record_type;
-	buf[9] = TLS_1_2_VERSION_MAJOR;
-	buf[10] = TLS_1_2_VERSION_MINOR;
-	buf[11] = size >> 8;
-	buf[12] = size & 0xFF;
-}
-
 static void trim_sg(struct sock *sk, struct scatterlist *sg,
 		    int *sg_num_elem, unsigned int *sg_size, int target_size)
 {
@@ -219,7 +203,7 @@ static int tls_do_encryption(struct tls_context *tls_ctx,
 	struct aead_request *aead_req;
 	int rc;
 
-	aead_req = kmalloc(req_size, flags);
+	aead_req = kzalloc(req_size, flags);
 	if (!aead_req)
 		return -ENOMEM;
 
@@ -230,7 +214,11 @@ static int tls_do_encryption(struct tls_context *tls_ctx,
 	aead_request_set_ad(aead_req, TLS_AAD_SPACE_SIZE);
 	aead_request_set_crypt(aead_req, ctx->sg_aead_in, ctx->sg_aead_out,
 			       data_len, tls_ctx->iv);
-	rc = crypto_aead_encrypt(aead_req);
+
+	aead_request_set_callback(aead_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  crypto_req_done, &ctx->async_wait);
+
+	rc = crypto_wait_req(crypto_aead_encrypt(aead_req), &ctx->async_wait);
 
 	ctx->sg_encrypted_data[0].offset -= tls_ctx->prepend_size;
 	ctx->sg_encrypted_data[0].length += tls_ctx->prepend_size;
@@ -249,7 +237,7 @@ static int tls_push_record(struct sock *sk, int flags,
 	sg_mark_end(ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem - 1);
 	sg_mark_end(ctx->sg_encrypted_data + ctx->sg_encrypted_num_elem - 1);
 
-	tls_make_aad(0, ctx->aad_space, ctx->sg_plaintext_size,
+	tls_make_aad(ctx->aad_space, ctx->sg_plaintext_size,
 		     tls_ctx->rec_seq, tls_ctx->rec_seq_size,
 		     record_type);
 
@@ -407,7 +395,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	while (msg_data_left(msg)) {
 		if (sk->sk_err) {
-			ret = sk->sk_err;
+			ret = -sk->sk_err;
 			goto send_end;
 		}
 
@@ -560,7 +548,7 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 		size_t copy, required_size;
 
 		if (sk->sk_err) {
-			ret = sk->sk_err;
+			ret = -sk->sk_err;
 			goto sendpage_end;
 		}
 
@@ -593,6 +581,8 @@ alloc_payload:
 		get_page(page);
 		sg = ctx->sg_plaintext_data + ctx->sg_plaintext_num_elem;
 		sg_set_page(sg, page, copy, offset);
+		sg_unmark_end(sg);
+
 		ctx->sg_plaintext_num_elem++;
 
 		sk_mem_charge(sk, copy);
@@ -639,7 +629,7 @@ sendpage_end:
 	return ret;
 }
 
-static void tls_sw_free_resources(struct sock *sk)
+void tls_sw_free_tx_resources(struct sock *sk)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
@@ -650,6 +640,7 @@ static void tls_sw_free_resources(struct sock *sk)
 	tls_free_both_sg(sk);
 
 	kfree(ctx);
+	kfree(tls_ctx);
 }
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
@@ -678,8 +669,9 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
 		goto out;
 	}
 
+	crypto_init_wait(&sw_ctx->async_wait);
+
 	ctx->priv_ctx = (struct tls_offload_context *)sw_ctx;
-	ctx->free_resources = tls_sw_free_resources;
 
 	crypto_info = &ctx->crypto_send;
 	switch (crypto_info->cipher_type) {
@@ -697,18 +689,17 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
 	}
 	default:
 		rc = -EINVAL;
-		goto out;
+		goto free_priv;
 	}
 
 	ctx->prepend_size = TLS_HEADER_SIZE + nonce_size;
 	ctx->tag_size = tag_size;
 	ctx->overhead_size = ctx->prepend_size + ctx->tag_size;
 	ctx->iv_size = iv_size;
-	ctx->iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
-			  GFP_KERNEL);
+	ctx->iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE, GFP_KERNEL);
 	if (!ctx->iv) {
 		rc = -ENOMEM;
-		goto out;
+		goto free_priv;
 	}
 	memcpy(ctx->iv, gcm_128_info->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
 	memcpy(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
@@ -756,7 +747,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
 
 	rc = crypto_aead_setauthsize(sw_ctx->aead_send, ctx->tag_size);
 	if (!rc)
-		goto out;
+		return 0;
 
 free_aead:
 	crypto_free_aead(sw_ctx->aead_send);
@@ -767,6 +758,9 @@ free_rec_seq:
 free_iv:
 	kfree(ctx->iv);
 	ctx->iv = NULL;
+free_priv:
+	kfree(ctx->priv_ctx);
+	ctx->priv_ctx = NULL;
 out:
 	return rc;
 }

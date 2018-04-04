@@ -45,7 +45,7 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    bool interruptible, bool no_wait_gpu,
+		   struct ttm_operation_ctx *ctx,
 		    struct ttm_mem_reg *new_mem)
 {
 	struct ttm_tt *ttm = bo->ttm;
@@ -53,7 +53,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+		ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 
 		if (unlikely(ret != 0)) {
 			if (ret != -ERESTARTSYS)
@@ -73,7 +73,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		return ret;
 
 	if (new_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_tt_bind(ttm, new_mem);
+		ret = ttm_tt_bind(ttm, new_mem, ctx);
 		if (unlikely(ret != 0))
 			return ret;
 	}
@@ -329,7 +329,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 }
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-		       bool interruptible, bool no_wait_gpu,
+		       struct ttm_operation_ctx *ctx,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
@@ -345,7 +345,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	unsigned long add = 0;
 	int dir;
 
-	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -376,7 +376,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	 * TTM might be null for moves within the same region.
 	 */
 	if (ttm && ttm->state == tt_unpopulated) {
-		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
 		if (ret)
 			goto out1;
 	}
@@ -474,6 +474,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);
 	INIT_LIST_HEAD(&fbo->io_reserve_lru);
+	mutex_init(&fbo->wu_mutex);
 	fbo->moving = NULL;
 	drm_vma_node_reset(&fbo->vma_node);
 	atomic_set(&fbo->cpu_writers, 0);
@@ -484,7 +485,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->acc_size = 0;
 	fbo->resv = &fbo->ttm_resv;
 	reservation_object_init(fbo->resv);
-	ret = ww_mutex_trylock(&fbo->resv->lock);
+	ret = reservation_object_trylock(fbo->resv);
 	WARN_ON(!ret);
 
 	*new_obj = fbo;
@@ -544,14 +545,19 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			   unsigned long num_pages,
 			   struct ttm_bo_kmap_obj *map)
 {
-	struct ttm_mem_reg *mem = &bo->mem; pgprot_t prot;
+	struct ttm_mem_reg *mem = &bo->mem;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	struct ttm_tt *ttm = bo->ttm;
+	pgprot_t prot;
 	int ret;
 
 	BUG_ON(!ttm);
 
 	if (ttm->state == tt_unpopulated) {
-		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, &ctx);
 		if (ret)
 			return ret;
 	}
@@ -587,7 +593,6 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 	unsigned long offset, size;
 	int ret;
 
-	BUG_ON(!list_empty(&bo->swap));
 	map->virtual = NULL;
 	map->bo = bo;
 	if (num_pages > bo->num_pages)

@@ -91,12 +91,24 @@ struct v4l2_flash {
 	struct v4l2_ctrl **ctrls;
 };
 
+/**
+ * v4l2_subdev_to_v4l2_flash - Returns a &struct v4l2_flash from the
+ * &struct v4l2_subdev embedded on it.
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ */
 static inline struct v4l2_flash *v4l2_subdev_to_v4l2_flash(
 							struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct v4l2_flash, sd);
 }
 
+/**
+ * v4l2_ctrl_to_v4l2_flash - Returns a &struct v4l2_flash from the
+ * &struct v4l2_ctrl embedded on it.
+ *
+ * @c: pointer to &struct v4l2_ctrl
+ */
 static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
 {
 	return container_of(c->handler, struct v4l2_flash, hdl);

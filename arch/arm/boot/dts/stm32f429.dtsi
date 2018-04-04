@@ -314,7 +314,7 @@
 		};
 
 		usart2: serial@40004400 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40004400 0x400>;
 			interrupts = <38>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART2)>;
@@ -322,7 +322,7 @@
 		};
 
 		usart3: serial@40004800 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40004800 0x400>;
 			interrupts = <39>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART3)>;
@@ -386,7 +386,7 @@
 		};
 
 		usart7: serial@40007800 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40007800 0x400>;
 			interrupts = <82>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART7)>;
@@ -394,7 +394,7 @@
 		};
 
 		usart8: serial@40007c00 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40007c00 0x400>;
 			interrupts = <83>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART8)>;
@@ -444,7 +444,7 @@
 		};
 
 		usart1: serial@40011000 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40011000 0x400>;
 			interrupts = <37>;
 			clocks = <&rcc 0 STM32F4_APB2_CLOCK(USART1)>;
@@ -455,7 +455,7 @@
 		};
 
 		usart6: serial@40011400 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40011400 0x400>;
 			interrupts = <71>;
 			clocks = <&rcc 0 STM32F4_APB2_CLOCK(USART6)>;

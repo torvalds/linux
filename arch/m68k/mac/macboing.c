@@ -48,16 +48,16 @@ static unsigned long mac_bell_phasepersample;
  * some function protos
  */
 static void mac_init_asc( void );
-static void mac_nosound( unsigned long );
+static void mac_nosound(struct timer_list *);
 static void mac_quadra_start_bell( unsigned int, unsigned int, unsigned int );
-static void mac_quadra_ring_bell( unsigned long );
+static void mac_quadra_ring_bell(struct timer_list *);
 static void mac_av_start_bell( unsigned int, unsigned int, unsigned int );
 static void ( *mac_special_bell )( unsigned int, unsigned int, unsigned int );
 
 /*
  * our timer to start/continue/stop the bell
  */
-static DEFINE_TIMER(mac_sound_timer, mac_nosound, 0, 0);
+static DEFINE_TIMER(mac_sound_timer, mac_nosound);
 
 /*
  * Sort of initialize the sound chip (called from mac_mksound on the first
@@ -216,7 +216,7 @@ void mac_mksound( unsigned int freq, unsigned int length )
 /*
  * regular ASC: stop whining ..
  */
-static void mac_nosound( unsigned long ignored )
+static void mac_nosound(struct timer_list *unused)
 {
 	mac_asc_regs[ ASC_ENABLE ] = 0;
 }
@@ -270,7 +270,7 @@ static void mac_quadra_start_bell( unsigned int freq, unsigned int length, unsig
  * already load the wave table, or at least call this one...
  * This piece keeps reloading the wave table until done.
  */
-static void mac_quadra_ring_bell( unsigned long ignored )
+static void mac_quadra_ring_bell(struct timer_list *unused)
 {
 	int	i, count = mac_asc_samplespersec / HZ;
 	unsigned long flags;

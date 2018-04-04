@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB Cypress M8 driver
  *
@@ -5,11 +6,6 @@
  * 	    Lonnie Mendez (dignome@gmail.com)
  *	Copyright (C) 2003,2004
  *	    Neil Whelchel (koyama@firstlight.net)
- *
- * 	This program is free software; you can redistribute it and/or modify
- * 	it under the terms of the GNU General Public License as published by
- * 	the Free Software Foundation; either version 2 of the License, or
- * 	(at your option) any later version.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver

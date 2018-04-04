@@ -573,7 +573,6 @@ static const struct attribute_group hts221_attribute_group = {
 };
 
 static const struct iio_info hts221_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &hts221_attribute_group,
 	.read_raw = hts221_read_raw,
 	.write_raw = hts221_write_raw,
@@ -582,11 +581,25 @@ static const struct iio_info hts221_info = {
 
 static const unsigned long hts221_scan_masks[] = {0x3, 0x0};
 
-int hts221_probe(struct iio_dev *iio_dev)
+int hts221_probe(struct device *dev, int irq, const char *name,
+		 const struct hts221_transfer_function *tf_ops)
 {
-	struct hts221_hw *hw = iio_priv(iio_dev);
+	struct iio_dev *iio_dev;
+	struct hts221_hw *hw;
 	int err;
 	u8 data;
+
+	iio_dev = devm_iio_device_alloc(dev, sizeof(*hw));
+	if (!iio_dev)
+		return -ENOMEM;
+
+	dev_set_drvdata(dev, (void *)iio_dev);
+
+	hw = iio_priv(iio_dev);
+	hw->name = name;
+	hw->dev = dev;
+	hw->irq = irq;
+	hw->tf = tf_ops;
 
 	mutex_init(&hw->lock);
 

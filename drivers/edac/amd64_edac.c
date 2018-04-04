@@ -3147,7 +3147,7 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 	struct amd64_family_type *fam_type = NULL;
 
 	pvt->ext_model  = boot_cpu_data.x86_model >> 4;
-	pvt->stepping	= boot_cpu_data.x86_mask;
+	pvt->stepping	= boot_cpu_data.x86_stepping;
 	pvt->model	= boot_cpu_data.x86_model;
 	pvt->fam	= boot_cpu_data.x86;
 
@@ -3434,8 +3434,13 @@ MODULE_DEVICE_TABLE(x86cpu, amd64_cpuids);
 
 static int __init amd64_edac_init(void)
 {
+	const char *owner;
 	int err = -ENODEV;
 	int i;
+
+	owner = edac_get_owner();
+	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
+		return -EBUSY;
 
 	if (!x86_match_cpu(amd64_cpuids))
 		return -ENODEV;

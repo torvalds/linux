@@ -20,6 +20,7 @@
 #include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/pkeys.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
@@ -37,6 +38,9 @@
 #include <linux/kdebug.h>
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
+#include <linux/smp.h>
+#include <linux/console.h>
+#include <linux/kmsg_dump.h>
 
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
@@ -140,6 +144,28 @@ static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
 static int die_counter;
+
+extern void panic_flush_kmsg_start(void)
+{
+	/*
+	 * These are mostly taken from kernel/panic.c, but tries to do
+	 * relatively minimal work. Don't use delay functions (TB may
+	 * be broken), don't crash dump (need to set a firmware log),
+	 * don't run notifiers. We do want to get some information to
+	 * Linux console.
+	 */
+	console_verbose();
+	bust_spinlocks(1);
+}
+
+extern void panic_flush_kmsg_end(void)
+{
+	printk_safe_flush_on_panic();
+	kmsg_dump(KMSG_DUMP_PANIC);
+	bust_spinlocks(0);
+	debug_locks_off();
+	console_flush_on_panic();
+}
 
 static unsigned long oops_begin(struct pt_regs *regs)
 {
@@ -265,7 +291,9 @@ void user_single_step_siginfo(struct task_struct *tsk,
 	info->si_addr = (void __user *)regs->nip;
 }
 
-void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
+
+void _exception_pkey(int signr, struct pt_regs *regs, int code,
+		unsigned long addr, int key)
 {
 	siginfo_t info;
 	const char fmt32[] = KERN_INFO "%s[%d]: unhandled signal %d " \
@@ -288,11 +316,25 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 		local_irq_enable();
 
 	current->thread.trap_nr = code;
+
+	/*
+	 * Save all the pkey registers AMR/IAMR/UAMOR. Eg: Core dumps need
+	 * to capture the content, if the task gets killed.
+	 */
+	thread_pkey_regs_save(&current->thread);
+
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;
 	info.si_code = code;
 	info.si_addr = (void __user *) addr;
+	info.si_pkey = key;
+
 	force_sig_info(signr, &info, current);
+}
+
+void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
+{
+	_exception_pkey(signr, regs, code, addr, 0);
 }
 
 void system_reset_exception(struct pt_regs *regs)
@@ -336,7 +378,7 @@ void system_reset_exception(struct pt_regs *regs)
 	 * No debugger or crash dump registered, print logs then
 	 * panic.
 	 */
-	__die("System Reset", regs, SIGABRT);
+	die("System Reset", regs, SIGABRT);
 
 	mdelay(2*MSEC_PER_SEC); /* Wait a little while for others to print */
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
@@ -699,12 +741,208 @@ void SMIException(struct pt_regs *regs)
 	die("System Management Interrupt", regs, SIGABRT);
 }
 
+#ifdef CONFIG_VSX
+static void p9_hmi_special_emu(struct pt_regs *regs)
+{
+	unsigned int ra, rb, t, i, sel, instr, rc;
+	const void __user *addr;
+	u8 vbuf[16], *vdst;
+	unsigned long ea, msr, msr_mask;
+	bool swap;
+
+	if (__get_user_inatomic(instr, (unsigned int __user *)regs->nip))
+		return;
+
+	/*
+	 * lxvb16x	opcode: 0x7c0006d8
+	 * lxvd2x	opcode: 0x7c000698
+	 * lxvh8x	opcode: 0x7c000658
+	 * lxvw4x	opcode: 0x7c000618
+	 */
+	if ((instr & 0xfc00073e) != 0x7c000618) {
+		pr_devel("HMI vec emu: not vector CI %i:%s[%d] nip=%016lx"
+			 " instr=%08x\n",
+			 smp_processor_id(), current->comm, current->pid,
+			 regs->nip, instr);
+		return;
+	}
+
+	/* Grab vector registers into the task struct */
+	msr = regs->msr; /* Grab msr before we flush the bits */
+	flush_vsx_to_thread(current);
+	enable_kernel_altivec();
+
+	/*
+	 * Is userspace running with a different endian (this is rare but
+	 * not impossible)
+	 */
+	swap = (msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
+
+	/* Decode the instruction */
+	ra = (instr >> 16) & 0x1f;
+	rb = (instr >> 11) & 0x1f;
+	t = (instr >> 21) & 0x1f;
+	if (instr & 1)
+		vdst = (u8 *)&current->thread.vr_state.vr[t];
+	else
+		vdst = (u8 *)&current->thread.fp_state.fpr[t][0];
+
+	/* Grab the vector address */
+	ea = regs->gpr[rb] + (ra ? regs->gpr[ra] : 0);
+	if (is_32bit_task())
+		ea &= 0xfffffffful;
+	addr = (__force const void __user *)ea;
+
+	/* Check it */
+	if (!access_ok(VERIFY_READ, addr, 16)) {
+		pr_devel("HMI vec emu: bad access %i:%s[%d] nip=%016lx"
+			 " instr=%08x addr=%016lx\n",
+			 smp_processor_id(), current->comm, current->pid,
+			 regs->nip, instr, (unsigned long)addr);
+		return;
+	}
+
+	/* Read the vector */
+	rc = 0;
+	if ((unsigned long)addr & 0xfUL)
+		/* unaligned case */
+		rc = __copy_from_user_inatomic(vbuf, addr, 16);
+	else
+		__get_user_atomic_128_aligned(vbuf, addr, rc);
+	if (rc) {
+		pr_devel("HMI vec emu: page fault %i:%s[%d] nip=%016lx"
+			 " instr=%08x addr=%016lx\n",
+			 smp_processor_id(), current->comm, current->pid,
+			 regs->nip, instr, (unsigned long)addr);
+		return;
+	}
+
+	pr_devel("HMI vec emu: emulated vector CI %i:%s[%d] nip=%016lx"
+		 " instr=%08x addr=%016lx\n",
+		 smp_processor_id(), current->comm, current->pid, regs->nip,
+		 instr, (unsigned long) addr);
+
+	/* Grab instruction "selector" */
+	sel = (instr >> 6) & 3;
+
+	/*
+	 * Check to make sure the facility is actually enabled. This
+	 * could happen if we get a false positive hit.
+	 *
+	 * lxvd2x/lxvw4x always check MSR VSX sel = 0,2
+	 * lxvh8x/lxvb16x check MSR VSX or VEC depending on VSR used sel = 1,3
+	 */
+	msr_mask = MSR_VSX;
+	if ((sel & 1) && (instr & 1)) /* lxvh8x & lxvb16x + VSR >= 32 */
+		msr_mask = MSR_VEC;
+	if (!(msr & msr_mask)) {
+		pr_devel("HMI vec emu: MSR fac clear %i:%s[%d] nip=%016lx"
+			 " instr=%08x msr:%016lx\n",
+			 smp_processor_id(), current->comm, current->pid,
+			 regs->nip, instr, msr);
+		return;
+	}
+
+	/* Do logging here before we modify sel based on endian */
+	switch (sel) {
+	case 0:	/* lxvw4x */
+		PPC_WARN_EMULATED(lxvw4x, regs);
+		break;
+	case 1: /* lxvh8x */
+		PPC_WARN_EMULATED(lxvh8x, regs);
+		break;
+	case 2: /* lxvd2x */
+		PPC_WARN_EMULATED(lxvd2x, regs);
+		break;
+	case 3: /* lxvb16x */
+		PPC_WARN_EMULATED(lxvb16x, regs);
+		break;
+	}
+
+#ifdef __LITTLE_ENDIAN__
+	/*
+	 * An LE kernel stores the vector in the task struct as an LE
+	 * byte array (effectively swapping both the components and
+	 * the content of the components). Those instructions expect
+	 * the components to remain in ascending address order, so we
+	 * swap them back.
+	 *
+	 * If we are running a BE user space, the expectation is that
+	 * of a simple memcpy, so forcing the emulation to look like
+	 * a lxvb16x should do the trick.
+	 */
+	if (swap)
+		sel = 3;
+
+	switch (sel) {
+	case 0:	/* lxvw4x */
+		for (i = 0; i < 4; i++)
+			((u32 *)vdst)[i] = ((u32 *)vbuf)[3-i];
+		break;
+	case 1: /* lxvh8x */
+		for (i = 0; i < 8; i++)
+			((u16 *)vdst)[i] = ((u16 *)vbuf)[7-i];
+		break;
+	case 2: /* lxvd2x */
+		for (i = 0; i < 2; i++)
+			((u64 *)vdst)[i] = ((u64 *)vbuf)[1-i];
+		break;
+	case 3: /* lxvb16x */
+		for (i = 0; i < 16; i++)
+			vdst[i] = vbuf[15-i];
+		break;
+	}
+#else /* __LITTLE_ENDIAN__ */
+	/* On a big endian kernel, a BE userspace only needs a memcpy */
+	if (!swap)
+		sel = 3;
+
+	/* Otherwise, we need to swap the content of the components */
+	switch (sel) {
+	case 0:	/* lxvw4x */
+		for (i = 0; i < 4; i++)
+			((u32 *)vdst)[i] = cpu_to_le32(((u32 *)vbuf)[i]);
+		break;
+	case 1: /* lxvh8x */
+		for (i = 0; i < 8; i++)
+			((u16 *)vdst)[i] = cpu_to_le16(((u16 *)vbuf)[i]);
+		break;
+	case 2: /* lxvd2x */
+		for (i = 0; i < 2; i++)
+			((u64 *)vdst)[i] = cpu_to_le64(((u64 *)vbuf)[i]);
+		break;
+	case 3: /* lxvb16x */
+		memcpy(vdst, vbuf, 16);
+		break;
+	}
+#endif /* !__LITTLE_ENDIAN__ */
+
+	/* Go to next instruction */
+	regs->nip += 4;
+}
+#endif /* CONFIG_VSX */
+
 void handle_hmi_exception(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
+
+#ifdef CONFIG_VSX
+	/* Real mode flagged P9 special emu is needed */
+	if (local_paca->hmi_p9_special_emu) {
+		local_paca->hmi_p9_special_emu = 0;
+
+		/*
+		 * We don't want to take page faults while doing the
+		 * emulation, we just replay the instruction if necessary.
+		 */
+		pagefault_disable();
+		p9_hmi_special_emu(regs);
+		pagefault_enable();
+	}
+#endif /* CONFIG_VSX */
 
 	if (ppc_md.handle_hmi_exception)
 		ppc_md.handle_hmi_exception(regs);
@@ -720,7 +958,7 @@ void unknown_exception(struct pt_regs *regs)
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
 
-	_exception(SIGTRAP, regs, 0, 0);
+	_exception(SIGTRAP, regs, TRAP_FIXME, 0);
 
 	exception_exit(prev_state);
 }
@@ -742,7 +980,7 @@ bail:
 
 void RunModeException(struct pt_regs *regs)
 {
-	_exception(SIGTRAP, regs, 0, 0);
+	_exception(SIGTRAP, regs, TRAP_FIXME, 0);
 }
 
 void single_step_exception(struct pt_regs *regs)
@@ -781,7 +1019,7 @@ static void emulate_single_step(struct pt_regs *regs)
 
 static inline int __parse_fpscr(unsigned long fpscr)
 {
-	int ret = 0;
+	int ret = FPE_FIXME;
 
 	/* Invalid operation */
 	if ((fpscr & FPSCR_VE) && (fpscr & FPSCR_VX))
@@ -1140,13 +1378,8 @@ void program_check_exception(struct pt_regs *regs)
 		 * -  A treclaim is attempted when non transactional.
 		 * -  A tend is illegally attempted.
 		 * -  writing a TM SPR when transactional.
-		 */
-		if (!user_mode(regs) &&
-		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
-			regs->nip += 4;
-			goto bail;
-		}
-		/* If usermode caused this, it's done something illegal and
+		 *
+		 * If usermode caused this, it's done something illegal and
 		 * gets a SIGILL slap on the wrist.  We call it an illegal
 		 * operand to distinguish from the instruction just being bad
 		 * (e.g. executing a 'tend' on a CPU without TM!); it's an
@@ -1372,7 +1605,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	u8 status;
 	bool hv;
 
-	hv = (regs->trap == 0xf80);
+	hv = (TRAP(regs) == 0xf80);
 	if (hv)
 		value = mfspr(SPRN_HFSCR);
 	else
@@ -1487,7 +1720,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
 	/* Reclaim didn't save out any FPRs to transact_fprs. */
 
 	/* Enable FP for the task: */
-	regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+	current->thread.load_fp = 1;
 
 	/* This loads and recheckpoints the FP registers from
 	 * thread.fpr[].  They will remain in registers after the
@@ -1495,15 +1728,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
 	 * If VMX is in use, the VRs now hold checkpointed values,
 	 * so we don't want to load the VRs from the thread_struct.
 	 */
-	tm_recheckpoint(&current->thread, MSR_FP);
-
-	/* If VMX is in use, get the transactional values back */
-	if (regs->msr & MSR_VEC) {
-		msr_check_and_set(MSR_VEC);
-		load_vr_state(&current->thread.vr_state);
-		/* At this point all the VSX state is loaded, so enable it */
-		regs->msr |= MSR_VSX;
-	}
+	tm_recheckpoint(&current->thread);
 }
 
 void altivec_unavailable_tm(struct pt_regs *regs)
@@ -1516,21 +1741,13 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 		 "MSR=%lx\n",
 		 regs->nip, regs->msr);
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
-	regs->msr |= MSR_VEC;
-	tm_recheckpoint(&current->thread, MSR_VEC);
+	current->thread.load_vec = 1;
+	tm_recheckpoint(&current->thread);
 	current->thread.used_vr = 1;
-
-	if (regs->msr & MSR_FP) {
-		msr_check_and_set(MSR_FP);
-		load_fp_state(&current->thread.fp_state);
-		regs->msr |= MSR_VSX;
-	}
 }
 
 void vsx_unavailable_tm(struct pt_regs *regs)
 {
-	unsigned long orig_msr = regs->msr;
-
 	/* See the comments in fp_unavailable_tm().  This works similarly,
 	 * though we're loading both FP and VEC registers in here.
 	 *
@@ -1544,29 +1761,13 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 
 	current->thread.used_vsr = 1;
 
-	/* If FP and VMX are already loaded, we have all the state we need */
-	if ((orig_msr & (MSR_FP | MSR_VEC)) == (MSR_FP | MSR_VEC)) {
-		regs->msr |= MSR_VSX;
-		return;
-	}
-
 	/* This reclaims FP and/or VR regs if they're already enabled */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
 
-	regs->msr |= MSR_VEC | MSR_FP | current->thread.fpexc_mode |
-		MSR_VSX;
+	current->thread.load_vec = 1;
+	current->thread.load_fp = 1;
 
-	/* This loads & recheckpoints FP and VRs; but we have
-	 * to be sure not to overwrite previously-valid state.
-	 */
-	tm_recheckpoint(&current->thread, regs->msr & ~orig_msr);
-
-	msr_check_and_set(orig_msr & (MSR_FP | MSR_VEC));
-
-	if (orig_msr & MSR_FP)
-		load_fp_state(&current->thread.fp_state);
-	if (orig_msr & MSR_VEC)
-		load_vr_state(&current->thread.vr_state);
+	tm_recheckpoint(&current->thread);
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
@@ -1590,34 +1791,34 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
 		current->thread.debug.dbcr2 &= ~DBCR2_DAC12MODE;
 #endif
-		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status,
 			     5);
 		changed |= 0x01;
 	}  else if (debug_status & (DBSR_DAC2R | DBSR_DAC2W)) {
 		dbcr_dac(current) &= ~(DBCR_DAC2R | DBCR_DAC2W);
-		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status,
 			     6);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC1) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC1;
 		dbcr_iac_range(current) &= ~DBCR_IAC12MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status,
 			     1);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC2) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC2;
-		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status,
 			     2);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC3) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC3;
 		dbcr_iac_range(current) &= ~DBCR_IAC34MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status,
 			     3);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC4) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC4;
-		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status,
 			     4);
 		changed |= 0x01;
 	}
@@ -1769,7 +1970,7 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	extern int do_spe_mathemu(struct pt_regs *regs);
 	unsigned long spefscr;
 	int fpexc_mode;
-	int code = 0;
+	int code = FPE_FIXME;
 	int err;
 
 	flush_spe_to_thread(current);
@@ -1838,7 +2039,7 @@ void SPEFloatingPointRoundException(struct pt_regs *regs)
 		printk(KERN_ERR "unrecognized spe instruction "
 		       "in %s at %lx\n", current->comm, regs->nip);
 	} else {
-		_exception(SIGFPE, regs, 0, regs->nip);
+		_exception(SIGFPE, regs, FPE_FIXME, regs->nip);
 		return;
 	}
 }
@@ -1924,6 +2125,10 @@ struct ppc_emulated ppc_emulated = {
 	WARN_EMULATED_SETUP(mfdscr),
 	WARN_EMULATED_SETUP(mtdscr),
 	WARN_EMULATED_SETUP(lq_stq),
+	WARN_EMULATED_SETUP(lxvw4x),
+	WARN_EMULATED_SETUP(lxvh8x),
+	WARN_EMULATED_SETUP(lxvd2x),
+	WARN_EMULATED_SETUP(lxvb16x),
 #endif
 };
 
@@ -1949,13 +2154,13 @@ static int __init ppc_warn_emulated_init(void)
 	if (!dir)
 		return -ENOMEM;
 
-	d = debugfs_create_u32("do_warn", S_IRUGO | S_IWUSR, dir,
+	d = debugfs_create_u32("do_warn", 0644, dir,
 			       &ppc_warn_emulated);
 	if (!d)
 		goto fail;
 
 	for (i = 0; i < sizeof(ppc_emulated)/sizeof(*entries); i++) {
-		d = debugfs_create_u32(entries[i].name, S_IRUGO | S_IWUSR, dir,
+		d = debugfs_create_u32(entries[i].name, 0644, dir,
 				       (u32 *)&entries[i].val.counter);
 		if (!d)
 			goto fail;

@@ -31,7 +31,6 @@ _GLOBAL(__setup_cpu_power7)
 	mfspr	r3,SPRN_LPCR
 	li	r4,(LPCR_LPES1 >> LPCR_LPES_SH)
 	bl	__init_LPCR_ISA206
-	bl	__init_tlb_power7
 	mtlr	r11
 	blr
 
@@ -45,7 +44,6 @@ _GLOBAL(__restore_cpu_power7)
 	mfspr	r3,SPRN_LPCR
 	li	r4,(LPCR_LPES1 >> LPCR_LPES_SH)
 	bl	__init_LPCR_ISA206
-	bl	__init_tlb_power7
 	mtlr	r11
 	blr
 
@@ -64,7 +62,6 @@ _GLOBAL(__setup_cpu_power8)
 	li	r4,0 /* LPES = 0 */
 	bl	__init_LPCR_ISA206
 	bl	__init_HFSCR
-	bl	__init_tlb_power8
 	bl	__init_PMU_HV
 	bl	__init_PMU_HV_ISA207
 	mtlr	r11
@@ -86,7 +83,6 @@ _GLOBAL(__restore_cpu_power8)
 	li	r4,0 /* LPES = 0 */
 	bl	__init_LPCR_ISA206
 	bl	__init_HFSCR
-	bl	__init_tlb_power8
 	bl	__init_PMU_HV
 	bl	__init_PMU_HV_ISA207
 	mtlr	r11
@@ -102,6 +98,7 @@ _GLOBAL(__setup_cpu_power9)
 	li	r0,0
 	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
+	mtspr	SPRN_PID,r0
 	mfspr	r3,SPRN_LPCR
 	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE  | LPCR_HEIC)
 	or	r3, r3, r4
@@ -110,7 +107,6 @@ _GLOBAL(__setup_cpu_power9)
 	li	r4,0 /* LPES = 0 */
 	bl	__init_LPCR_ISA300
 	bl	__init_HFSCR
-	bl	__init_tlb_power9
 	bl	__init_PMU_HV
 	mtlr	r11
 	blr
@@ -126,6 +122,7 @@ _GLOBAL(__restore_cpu_power9)
 	li	r0,0
 	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
+	mtspr	SPRN_PID,r0
 	mfspr   r3,SPRN_LPCR
 	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE | LPCR_HEIC)
 	or	r3, r3, r4
@@ -134,7 +131,6 @@ _GLOBAL(__restore_cpu_power9)
 	li	r4,0 /* LPES = 0 */
 	bl	__init_LPCR_ISA300
 	bl	__init_HFSCR
-	bl	__init_tlb_power9
 	bl	__init_PMU_HV
 	mtlr	r11
 	blr
@@ -191,50 +187,6 @@ __init_HFSCR:
 		      HFSCR_DSCR|HFSCR_VECVSX|HFSCR_FP|HFSCR_EBB|HFSCR_MSGP
 	mtspr	SPRN_HFSCR,r3
 	blr
-
-/*
- * Clear the TLB using the specified IS form of tlbiel instruction
- * (invalidate by congruence class). P7 has 128 CCs., P8 has 512.
- */
-__init_tlb_power7:
-	li	r6,POWER7_TLB_SETS
-	mtctr	r6
-	li	r7,0xc00	/* IS field = 0b11 */
-	ptesync
-2:	tlbiel	r7
-	addi	r7,r7,0x1000
-	bdnz	2b
-	ptesync
-1:	blr
-
-__init_tlb_power8:
-	li	r6,POWER8_TLB_SETS
-	mtctr	r6
-	li	r7,0xc00	/* IS field = 0b11 */
-	ptesync
-2:	tlbiel	r7
-	addi	r7,r7,0x1000
-	bdnz	2b
-	ptesync
-1:	blr
-
-/*
- * Flush the TLB in hash mode. Hash must flush with RIC=2 once for process
- * and one for partition scope to clear process and partition table entries.
- */
-__init_tlb_power9:
-	li	r6,POWER9_TLB_SETS_HASH - 1
-	mtctr	r6
-	li	r7,0xc00	/* IS field = 0b11 */
-	li	r8,0
-	ptesync
-	PPC_TLBIEL(7, 8, 2, 1, 0)
-	PPC_TLBIEL(7, 8, 2, 0, 0)
-2:	addi	r7,r7,0x1000
-	PPC_TLBIEL(7, 8, 0, 0, 0)
-	bdnz	2b
-	ptesync
-1:	blr
 
 __init_PMU_HV:
 	li	r5,0

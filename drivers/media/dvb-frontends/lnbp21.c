@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "lnbp21.h"
 #include "lnbh24.h"
 

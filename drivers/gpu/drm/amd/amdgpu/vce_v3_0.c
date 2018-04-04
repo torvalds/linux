@@ -834,24 +834,24 @@ out:
 }
 
 static void vce_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
 static void vce_v3_0_emit_vm_flush(struct amdgpu_ring *ring,
-			 unsigned int vm_id, uint64_t pd_addr)
+			 unsigned int vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, VCE_CMD_UPDATE_PTB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	amdgpu_ring_write(ring, VCE_CMD_FLUSH_TLB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, VCE_CMD_END);
 }
 

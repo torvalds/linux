@@ -52,6 +52,10 @@ int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 					dlm_config.ci_recover_timer * HZ);
 		if (rv)
 			break;
+		if (test_bit(LSFL_RCOM_WAIT, &ls->ls_flags)) {
+			log_debug(ls, "dlm_wait_function timed out");
+			return -ETIMEDOUT;
+		}
 	}
 
 	if (dlm_recovery_stopped(ls)) {

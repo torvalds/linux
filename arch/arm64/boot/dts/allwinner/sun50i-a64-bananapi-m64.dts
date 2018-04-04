@@ -51,12 +51,33 @@
 	compatible = "sinovoip,bananapi-m64", "allwinner,sun50i-a64";
 
 	aliases {
+		ethernet0 = &emac;
 		serial0 = &uart0;
 		serial1 = &uart1;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		pwr-led {
+			label = "bananapi-m64:red:pwr";
+			gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* PD24 */
+			default-state = "on";
+		};
+
+		green {
+			label = "bananapi-m64:green:user";
+			gpios = <&pio 4 14 GPIO_ACTIVE_HIGH>; /* PE14 */
+		};
+
+		blue {
+			label = "bananapi-m64:blue:user";
+			gpios = <&pio 4 15 GPIO_ACTIVE_HIGH>; /* PE15 */
+		};
 	};
 
 	wifi_pwrseq: wifi_pwrseq {
@@ -69,6 +90,15 @@
 	status = "okay";
 };
 
+&emac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
+	phy-mode = "rgmii";
+	phy-handle = <&ext_rgmii_phy>;
+	phy-supply = <&reg_dc1sw>;
+	status = "okay";
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
@@ -77,6 +107,13 @@
 
 &i2c1_pins {
 	bias-pull-up;
+};
+
+&mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
 };
 
 &mmc0 {
@@ -136,6 +173,17 @@
 
 #include "axp803.dtsi"
 
+&reg_aldo1 {
+	/*
+	 * This regulator also drives the PE pingroup GPIOs,
+	 * which also controls two LEDs.
+	 */
+	regulator-always-on;
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "afvcc-csi";
+};
+
 &reg_aldo2 {
 	regulator-always-on;
 	regulator-min-microvolt = <1800000>;
@@ -151,6 +199,11 @@
 };
 
 &reg_dc1sw {
+	/*
+	 * This regulator also indirectly drives the PD pingroup GPIOs,
+	 * which also controls the power LED.
+	 */
+	regulator-always-on;
 	regulator-name = "vcc-phy";
 };
 

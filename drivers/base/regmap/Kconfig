@@ -20,6 +20,10 @@ config REGMAP_I2C
 	tristate
 	depends on I2C
 
+config REGMAP_SLIMBUS
+	tristate
+	depends on SLIMBUS
+
 config REGMAP_SPI
 	tristate
 	depends on SPI
@@ -37,3 +41,7 @@ config REGMAP_MMIO
 
 config REGMAP_IRQ
 	bool
+
+config REGMAP_SOUNDWIRE
+	tristate
+	depends on SOUNDWIRE_BUS

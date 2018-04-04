@@ -1832,7 +1832,7 @@ int il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd);
  * PCI						     *
  *****************************************************/
 
-void il_bg_watchdog(unsigned long data);
+void il_bg_watchdog(struct timer_list *t);
 u32 il_usecs_to_beacons(struct il_priv *il, u32 usec, u32 beacon_interval);
 __le32 il_add_beacon_time(struct il_priv *il, u32 base, u32 addon,
 			  u32 beacon_interval);

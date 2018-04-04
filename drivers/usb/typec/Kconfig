@@ -1,8 +1,60 @@
 
-menu "USB Power Delivery and Type-C drivers"
+menuconfig TYPEC
+	tristate "USB Type-C Support"
+	help
+	  USB Type-C Specification defines a cable and connector for USB where
+	  only one type of plug is supported on both ends, i.e. there will not
+	  be Type-A plug on one end of the cable and Type-B plug on the other.
+	  Determination of the host-to-device relationship happens through a
+	  specific Configuration Channel (CC) which goes through the USB Type-C
+	  cable. The Configuration Channel may also be used to detect optional
+	  Accessory Modes - Analog Audio and Debug - and if USB Power Delivery
+	  is supported, the Alternate Modes, where the connector is used for
+	  something else then USB communication.
 
-config TYPEC
-	tristate
+	  USB Power Delivery Specification defines a protocol that can be used
+	  to negotiate the voltage and current levels with the connected
+	  partners. USB Power Delivery allows higher voltages then the normal
+	  5V, up to 20V, and current up to 5A over the cable. The USB Power
+	  Delivery protocol is also used to negotiate the optional Alternate
+	  Modes when they are supported. USB Power Delivery does not depend on
+	  USB Type-C connector, however it is mostly used together with USB
+	  Type-C connectors.
+
+	  USB Type-C and USB Power Delivery Specifications define a set of state
+	  machines that need to be implemented in either software or firmware.
+	  Simple USB Type-C PHYs, for example USB Type-C Port Controller
+	  Interface Specification compliant "Port Controllers" need the state
+	  machines to be handled in the OS, but stand-alone USB Type-C and Power
+	  Delivery controllers handle the state machines inside their firmware.
+	  The USB Type-C and Power Delivery controllers usually function
+	  autonomously, and do not necessarily require drivers.
+
+	  Enable this configurations option if you have USB Type-C connectors on
+	  your system and 1) you know your USB Type-C hardware requires OS
+	  control (a driver) to function, or 2) if you need to be able to read
+	  the status of the USB Type-C ports in your system, or 3) if you need
+	  to be able to swap the power role (decide are you supplying or
+	  consuming power over the cable) or data role (host or device) when
+	  both roles are supported.
+
+	  For more information, see the kernel documentation for USB Type-C
+	  Connector Class API (Documentation/driver-api/usb/typec.rst)
+	  <https://www.kernel.org/doc/html/latest/driver-api/usb/typec.html>
+	  and ABI (Documentation/ABI/testing/sysfs-class-typec).
+
+if TYPEC
+
+config TYPEC_TCPM
+	tristate "USB Type-C Port Controller Manager"
+	depends on USB
+	help
+	  The Type-C Port Controller Manager provides a USB PD and USB Type-C
+	  state machine for use with Type-C Port Controllers.
+
+if TYPEC_TCPM
+
+source "drivers/usb/typec/fusb302/Kconfig"
 
 config TYPEC_WCOVE
 	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
@@ -10,7 +62,6 @@ config TYPEC_WCOVE
 	depends on INTEL_SOC_PMIC
 	depends on INTEL_PMC_IPC
 	depends on BXT_WC_PMIC_OPREGION
-	select TYPEC
 	help
 	  This driver adds support for USB Type-C detection on Intel Broxton
 	  platforms that have Intel Whiskey Cove PMIC. The driver can detect the
@@ -19,6 +70,18 @@ config TYPEC_WCOVE
 	  To compile this driver as module, choose M here: the module will be
 	  called typec_wcove
 
+endif # TYPEC_TCPM
+
 source "drivers/usb/typec/ucsi/Kconfig"
 
-endmenu
+config TYPEC_TPS6598X
+	tristate "TI TPS6598x USB Power Delivery controller driver"
+	depends on I2C
+	help
+	  Say Y or M here if your system has TI TPS65982 or TPS65983 USB Power
+	  Delivery controller.
+
+	  If you choose to build this driver as a dynamically linked module, the
+	  module will be called tps6598x.ko.
+
+endif # TYPEC

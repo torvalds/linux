@@ -144,8 +144,8 @@ struct venc_controls {
 	u32 h264_min_qp;
 	u32 h264_max_qp;
 	u32 h264_loop_filter_mode;
-	u32 h264_loop_filter_alpha;
-	u32 h264_loop_filter_beta;
+	s32 h264_loop_filter_alpha;
+	s32 h264_loop_filter_beta;
 
 	u32 vp8_min_qp;
 	u32 vp8_max_qp;
@@ -194,7 +194,6 @@ struct venus_buffer {
  * @fh:	 a holder of v4l file handle structure
  * @streamon_cap: stream on flag for capture queue
  * @streamon_out: stream on flag for output queue
- * @cmd_stop:	a flag to signal encoder/decoder commands
  * @width:	current capture width
  * @height:	current capture height
  * @out_width:	current output width
@@ -258,7 +257,6 @@ struct venus_inst {
 	} controls;
 	struct v4l2_fh fh;
 	unsigned int streamon_cap, streamon_out;
-	bool cmd_stop;
 	u32 width;
 	u32 height;
 	u32 out_width;

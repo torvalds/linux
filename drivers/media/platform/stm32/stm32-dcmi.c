@@ -1495,6 +1495,12 @@ static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations dcmi_graph_notify_ops = {
+	.bound = dcmi_graph_notify_bound,
+	.unbind = dcmi_graph_notify_unbind,
+	.complete = dcmi_graph_notify_complete,
+};
+
 static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 {
 	struct device_node *ep = NULL;
@@ -1514,7 +1520,7 @@ static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 		/* Remote node to connect */
 		dcmi->entity.node = remote;
 		dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		dcmi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		dcmi->entity.asd.match.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }
@@ -1542,9 +1548,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	dcmi->notifier.subdevs = subdevs;
 	dcmi->notifier.num_subdevs = 1;
-	dcmi->notifier.bound = dcmi_graph_notify_bound;
-	dcmi->notifier.unbind = dcmi_graph_notify_unbind;
-	dcmi->notifier.complete = dcmi_graph_notify_complete;
+	dcmi->notifier.ops = &dcmi_graph_notify_ops;
 
 	ret = v4l2_async_notifier_register(&dcmi->v4l2_dev, &dcmi->notifier);
 	if (ret < 0) {

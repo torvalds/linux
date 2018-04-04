@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -500,6 +501,7 @@ int class_procfs_init(void)
 		rc = debugfs_lustre_root ? PTR_ERR(debugfs_lustre_root)
 					 : -ENOMEM;
 		debugfs_lustre_root = NULL;
+		sysfs_remove_group(lustre_kobj, &lustre_attr_group);
 		kobject_put(lustre_kobj);
 		goto out;
 	}
@@ -508,6 +510,7 @@ int class_procfs_init(void)
 				   &obd_device_list_fops);
 	if (IS_ERR_OR_NULL(file)) {
 		rc = file ? PTR_ERR(file) : -ENOMEM;
+		sysfs_remove_group(lustre_kobj, &lustre_attr_group);
 		kobject_put(lustre_kobj);
 		goto out;
 	}
@@ -521,6 +524,7 @@ int class_procfs_clean(void)
 
 	debugfs_lustre_root = NULL;
 
+	sysfs_remove_group(lustre_kobj, &lustre_attr_group);
 	kobject_put(lustre_kobj);
 
 	return 0;

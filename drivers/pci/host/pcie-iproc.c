@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Hauke Mehrtens <hauke@hauke-m.de>
  * Copyright (C) 2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -1097,24 +1089,6 @@ err_ib:
 	return ret;
 }
 
-static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				     struct device_node *node)
-{
-	const int na = 3, ns = 2;
-	int rlen;
-
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
-
-	parser->range = of_get_property(node, "dma-ranges", &rlen);
-	if (!parser->range)
-		return -ENOENT;
-
-	parser->end = parser->range + rlen / sizeof(__be32);
-	return 0;
-}
-
 static int iproc_pcie_map_dma_ranges(struct iproc_pcie *pcie)
 {
 	struct of_pci_range range;
@@ -1122,7 +1096,7 @@ static int iproc_pcie_map_dma_ranges(struct iproc_pcie *pcie)
 	int ret;
 
 	/* Get the dma-ranges from DT */
-	ret = pci_dma_range_parser_init(&parser, pcie->dev->of_node);
+	ret = of_pci_dma_range_parser_init(&parser, pcie->dev->of_node);
 	if (ret)
 		return ret;
 
@@ -1396,9 +1370,11 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 		}
 	}
 
-	ret = iproc_pcie_map_dma_ranges(pcie);
-	if (ret && ret != -ENOENT)
-		goto err_power_off_phy;
+	if (pcie->need_ib_cfg) {
+		ret = iproc_pcie_map_dma_ranges(pcie);
+		if (ret && ret != -ENOENT)
+			goto err_power_off_phy;
+	}
 
 #ifdef CONFIG_ARM
 	pcie->sysdata.private_data = pcie;

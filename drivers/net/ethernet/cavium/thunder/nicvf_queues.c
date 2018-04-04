@@ -759,6 +759,7 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 
 	if (!rq->enable) {
 		nicvf_reclaim_rcv_queue(nic, qs, qidx);
+		xdp_rxq_info_unreg(&rq->xdp_rxq);
 		return;
 	}
 
@@ -770,6 +771,9 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	rq->cont_qs_rbdr_idx = qs->rbdr_cnt - 1;
 	/* all writes of RBDR data to be loaded into L2 Cache as well*/
 	rq->caching = 1;
+
+	/* Driver have no proper error path for failed XDP RX-queue info reg */
+	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx) < 0);
 
 	/* Send a mailbox msg to PF to config RQ */
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_CFG;
@@ -977,6 +981,9 @@ void nicvf_qset_config(struct nicvf *nic, bool enable)
 		qs_cfg->be = 1;
 #endif
 		qs_cfg->vnic = qs->vnic_id;
+		/* Enable Tx timestamping capability */
+		if (nic->ptp_clock)
+			qs_cfg->send_tstmp_ena = 1;
 	}
 	nicvf_send_msg_to_pf(nic, &mbx);
 }
@@ -1355,7 +1362,8 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 
 	/* Offload checksum calculation to HW */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		hdr->csum_l3 = 1; /* Enable IP csum calculation */
+		if (ip.v4->version == 4)
+			hdr->csum_l3 = 1; /* Enable IP csum calculation */
 		hdr->l3_offset = skb_network_offset(skb);
 		hdr->l4_offset = skb_transport_offset(skb);
 
@@ -1383,6 +1391,29 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
 		this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	}
+
+	/* Check if timestamp is requested */
+	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		skb_tx_timestamp(skb);
+		return;
+	}
+
+	/* Tx timestamping not supported along with TSO, so ignore request */
+	if (skb_shinfo(skb)->gso_size)
+		return;
+
+	/* HW supports only a single outstanding packet to timestamp */
+	if (!atomic_add_unless(&nic->pnicvf->tx_ptp_skbs, 1, 1))
+		return;
+
+	/* Mark the SKB for later reference */
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	/* Finally enable timestamp generation
+	 * Since 'post_cqe' is also set, two CQEs will be posted
+	 * for this packet i.e CQE_TYPE_SEND and CQE_TYPE_SEND_PTP.
+	 */
+	hdr->tstmp = 1;
 }
 
 /* SQ GATHER subdescriptor

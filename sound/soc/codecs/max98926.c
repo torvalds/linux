@@ -490,7 +490,7 @@ static int max98926_probe(struct snd_soc_codec *codec)
 	struct max98926_priv *max98926 = snd_soc_codec_get_drvdata(codec);
 
 	max98926->codec = codec;
-	codec->control_data = max98926->regmap;
+
 	/* Hi-Z all the slots */
 	regmap_write(max98926->regmap, MAX98926_DOUT_HIZ_CFG4, 0xF0);
 	return 0;

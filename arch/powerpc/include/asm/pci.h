@@ -28,8 +28,6 @@
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
-struct pci_dev;
-
 /* Values for the `which' argument to sys_pciconfig_iobase syscall.  */
 #define IOBASE_BRIDGE_NUMBER	0
 #define IOBASE_MEMORY		1
@@ -122,6 +120,8 @@ extern int remove_phb_dynamic(struct pci_controller *phb);
 
 extern struct pci_dev *of_create_pci_dev(struct device_node *node,
 					struct pci_bus *bus, int devfn);
+
+extern unsigned int pci_parse_of_flags(u32 addr0, int bridge);
 
 extern void of_scan_pci_bridge(struct pci_dev *dev);
 

@@ -82,6 +82,10 @@ static unsigned int fmax = 515633;
  * @qcom_fifo: enables qcom specific fifo pio read logic.
  * @qcom_dml: enables qcom specific dma glue for dma transfers.
  * @reversed_irq_handling: handle data irq before cmd irq.
+ * @mmcimask1: true if variant have a MMCIMASK1 register.
+ * @start_err: bitmask identifying the STARTBITERR bit inside MMCISTATUS
+ *	       register.
+ * @opendrain: bitmask identifying the OPENDRAIN bit inside MMCIPOWER register
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -111,6 +115,9 @@ struct variant_data {
 	bool			qcom_fifo;
 	bool			qcom_dml;
 	bool			reversed_irq_handling;
+	bool			mmcimask1;
+	u32			start_err;
+	u32			opendrain;
 };
 
 static struct variant_data variant_arm = {
@@ -120,6 +127,9 @@ static struct variant_data variant_arm = {
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
 	.reversed_irq_handling	= true,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 static struct variant_data variant_arm_extended_fifo = {
@@ -128,6 +138,9 @@ static struct variant_data variant_arm_extended_fifo = {
 	.datalength_bits	= 16,
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 static struct variant_data variant_arm_extended_fifo_hwfc = {
@@ -137,6 +150,9 @@ static struct variant_data variant_arm_extended_fifo_hwfc = {
 	.datalength_bits	= 16,
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 static struct variant_data variant_u300 = {
@@ -152,6 +168,9 @@ static struct variant_data variant_u300 = {
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_nomadik = {
@@ -168,6 +187,9 @@ static struct variant_data variant_nomadik = {
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_ux500 = {
@@ -190,6 +212,9 @@ static struct variant_data variant_ux500 = {
 	.busy_detect_flag	= MCI_ST_CARDBUSY,
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -214,6 +239,26 @@ static struct variant_data variant_ux500v2 = {
 	.busy_detect_flag	= MCI_ST_CARDBUSY,
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
+};
+
+static struct variant_data variant_stm32 = {
+	.fifosize		= 32 * 4,
+	.fifohalfsize		= 8 * 4,
+	.clkreg			= MCI_CLK_ENABLE,
+	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
+	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
+	.clkreg_neg_edge_enable	= MCI_ST_UX500_NEG_EDGE,
+	.datalength_bits	= 24,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
+	.st_sdio		= true,
+	.st_clkdiv		= true,
+	.pwrreg_powerup		= MCI_PWR_ON,
+	.f_max			= 48000000,
+	.pwrreg_clkgate		= true,
+	.pwrreg_nopower		= true,
 };
 
 static struct variant_data variant_qcom = {
@@ -232,6 +277,9 @@ static struct variant_data variant_qcom = {
 	.explicit_mclk_control	= true,
 	.qcom_fifo		= true,
 	.qcom_dml		= true,
+	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 /* Busy detection for the ST Micro variant */
@@ -396,6 +444,7 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
 {
 	void __iomem *base = host->base;
+	struct variant_data *variant = host->variant;
 
 	if (host->singleirq) {
 		unsigned int mask0 = readl(base + MMCIMASK0);
@@ -406,7 +455,10 @@ static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
 		writel(mask0, base + MMCIMASK0);
 	}
 
-	writel(mask, base + MMCIMASK1);
+	if (variant->mmcimask1)
+		writel(mask, base + MMCIMASK1);
+
+	host->mask1_reg = mask;
 }
 
 static void mmci_stop_data(struct mmci_host *host)
@@ -921,8 +973,9 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		return;
 
 	/* First check for errors */
-	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_STARTBITERR|
-		      MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
+	if (status & (MCI_DATACRCFAIL | MCI_DATATIMEOUT |
+		      host->variant->start_err |
+		      MCI_TXUNDERRUN | MCI_RXOVERRUN)) {
 		u32 remain, success;
 
 		/* Terminate the DMA transfer */
@@ -1286,7 +1339,7 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		status = readl(host->base + MMCISTATUS);
 
 		if (host->singleirq) {
-			if (status & readl(host->base + MMCIMASK1))
+			if (status & host->mask1_reg)
 				mmci_pio_irq(irq, dev_id);
 
 			status &= ~MCI_IRQ1MASK;
@@ -1429,16 +1482,18 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				~MCI_ST_DATA2DIREN);
 	}
 
-	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
-		if (host->hw_designer != AMBA_VENDOR_ST)
-			pwr |= MCI_ROD;
-		else {
-			/*
-			 * The ST Micro variant use the ROD bit for something
-			 * else and only has OD (Open Drain).
-			 */
-			pwr |= MCI_OD;
-		}
+	if (variant->opendrain) {
+		if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
+			pwr |= variant->opendrain;
+	} else {
+		/*
+		 * If the variant cannot configure the pads by its own, then we
+		 * expect the pinctrl to be able to do that for us
+		 */
+		if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
+			pinctrl_select_state(host->pinctrl, host->pins_opendrain);
+		else
+			pinctrl_select_state(host->pinctrl, host->pins_default);
 	}
 
 	/*
@@ -1583,6 +1638,35 @@ static int mmci_probe(struct amba_device *dev,
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 
+	/*
+	 * Some variant (STM32) doesn't have opendrain bit, nevertheless
+	 * pins can be set accordingly using pinctrl
+	 */
+	if (!variant->opendrain) {
+		host->pinctrl = devm_pinctrl_get(&dev->dev);
+		if (IS_ERR(host->pinctrl)) {
+			dev_err(&dev->dev, "failed to get pinctrl");
+			ret = PTR_ERR(host->pinctrl);
+			goto host_free;
+		}
+
+		host->pins_default = pinctrl_lookup_state(host->pinctrl,
+							  PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(host->pins_default)) {
+			dev_err(mmc_dev(mmc), "Can't select default pins\n");
+			ret = PTR_ERR(host->pins_default);
+			goto host_free;
+		}
+
+		host->pins_opendrain = pinctrl_lookup_state(host->pinctrl,
+							    MMCI_PINCTRL_STATE_OPENDRAIN);
+		if (IS_ERR(host->pins_opendrain)) {
+			dev_err(mmc_dev(mmc), "Can't select opendrain pins\n");
+			ret = PTR_ERR(host->pins_opendrain);
+			goto host_free;
+		}
+	}
+
 	host->hw_designer = amba_manf(dev);
 	host->hw_revision = amba_rev(dev);
 	dev_dbg(mmc_dev(mmc), "designer ID = 0x%02x\n", host->hw_designer);
@@ -1658,7 +1742,7 @@ static int mmci_probe(struct amba_device *dev,
 
 	/* Get regulators and the supported OCR mask */
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto clk_disable;
 
 	if (!mmc->ocr_avail)
@@ -1729,7 +1813,10 @@ static int mmci_probe(struct amba_device *dev,
 	spin_lock_init(&host->lock);
 
 	writel(0, host->base + MMCIMASK0);
-	writel(0, host->base + MMCIMASK1);
+
+	if (variant->mmcimask1)
+		writel(0, host->base + MMCIMASK1);
+
 	writel(0xfff, host->base + MMCICLEAR);
 
 	/*
@@ -1809,6 +1896,7 @@ static int mmci_remove(struct amba_device *dev)
 
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
+		struct variant_data *variant = host->variant;
 
 		/*
 		 * Undo pm_runtime_put() in probe.  We use the _sync
@@ -1819,7 +1907,9 @@ static int mmci_remove(struct amba_device *dev)
 		mmc_remove_host(mmc);
 
 		writel(0, host->base + MMCIMASK0);
-		writel(0, host->base + MMCIMASK1);
+
+		if (variant->mmcimask1)
+			writel(0, host->base + MMCIMASK1);
 
 		writel(0, host->base + MMCICOMMAND);
 		writel(0, host->base + MMCIDATACTRL);
@@ -1950,6 +2040,11 @@ static const struct amba_id mmci_ids[] = {
 		.id     = 0x10480180,
 		.mask   = 0xf0ffffff,
 		.data	= &variant_ux500v2,
+	},
+	{
+		.id     = 0x00880180,
+		.mask   = 0x00ffffff,
+		.data	= &variant_stm32,
 	},
 	/* Qualcomm variants */
 	{

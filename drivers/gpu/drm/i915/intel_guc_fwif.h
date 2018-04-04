@@ -56,10 +56,6 @@
 #define WQ_LEN_SHIFT			16
 #define WQ_NO_WCFLUSH_WAIT		(1 << 27)
 #define WQ_PRESENT_WORKLOAD		(1 << 28)
-#define WQ_WORKLOAD_SHIFT		29
-#define   WQ_WORKLOAD_GENERAL		(0 << WQ_WORKLOAD_SHIFT)
-#define   WQ_WORKLOAD_GPGPU		(1 << WQ_WORKLOAD_SHIFT)
-#define   WQ_WORKLOAD_TOUCH		(2 << WQ_WORKLOAD_SHIFT)
 
 #define WQ_RING_TAIL_SHIFT		20
 #define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
@@ -86,8 +82,8 @@
 #define GUC_CTL_ARAT_LOW		2
 
 #define GUC_CTL_DEVICE_INFO		3
-#define   GUC_CTL_GTTYPE_SHIFT		0
-#define   GUC_CTL_COREFAMILY_SHIFT	7
+#define   GUC_CTL_GT_TYPE_SHIFT		0
+#define   GUC_CTL_CORE_FAMILY_SHIFT	7
 
 #define GUC_CTL_LOG_PARAMS		4
 #define   GUC_LOG_VALID			(1 << 0)
@@ -182,49 +178,49 @@
  */
 
 struct uc_css_header {
-	uint32_t module_type;
+	u32 module_type;
 	/* header_size includes all non-uCode bits, including css_header, rsa
 	 * key, modulus key and exponent data. */
-	uint32_t header_size_dw;
-	uint32_t header_version;
-	uint32_t module_id;
-	uint32_t module_vendor;
+	u32 header_size_dw;
+	u32 header_version;
+	u32 module_id;
+	u32 module_vendor;
 	union {
 		struct {
-			uint8_t day;
-			uint8_t month;
-			uint16_t year;
+			u8 day;
+			u8 month;
+			u16 year;
 		};
-		uint32_t date;
+		u32 date;
 	};
-	uint32_t size_dw; /* uCode plus header_size_dw */
-	uint32_t key_size_dw;
-	uint32_t modulus_size_dw;
-	uint32_t exponent_size_dw;
+	u32 size_dw; /* uCode plus header_size_dw */
+	u32 key_size_dw;
+	u32 modulus_size_dw;
+	u32 exponent_size_dw;
 	union {
 		struct {
-			uint8_t hour;
-			uint8_t min;
-			uint16_t sec;
+			u8 hour;
+			u8 min;
+			u16 sec;
 		};
-		uint32_t time;
+		u32 time;
 	};
 
 	char username[8];
 	char buildnumber[12];
 	union {
 		struct {
-			uint32_t branch_client_version;
-			uint32_t sw_version;
+			u32 branch_client_version;
+			u32 sw_version;
 	} guc;
 		struct {
-			uint32_t sw_version;
-			uint32_t reserved;
+			u32 sw_version;
+			u32 reserved;
 	} huc;
 	};
-	uint32_t prod_preprod_fw;
-	uint32_t reserved[12];
-	uint32_t header_info;
+	u32 prod_preprod_fw;
+	u32 reserved[12];
+	u32 header_info;
 } __packed;
 
 struct guc_doorbell_info {
@@ -388,7 +384,11 @@ struct guc_ct_buffer_desc {
 /* Preempt to idle on quantum expiry */
 #define POLICY_PREEMPT_TO_IDLE		(1<<1)
 
-#define POLICY_MAX_NUM_WI		15
+#define POLICY_MAX_NUM_WI 15
+#define POLICY_DEFAULT_DPC_PROMOTE_TIME_US 500000
+#define POLICY_DEFAULT_EXECUTION_QUANTUM_US 1000000
+#define POLICY_DEFAULT_PREEMPTION_TIME_US 500000
+#define POLICY_DEFAULT_FAULT_TIME_US 250000
 
 struct guc_policy {
 	/* Time for one workload to execute. (in micro seconds) */
@@ -544,9 +544,37 @@ union guc_log_control {
 	u32 value;
 } __packed;
 
+struct guc_ctx_report {
+	u32 report_return_status;
+	u32 reserved1[64];
+	u32 affected_count;
+	u32 reserved2[2];
+} __packed;
+
+/* GuC Shared Context Data Struct */
+struct guc_shared_ctx_data {
+	u32 addr_of_last_preempted_data_low;
+	u32 addr_of_last_preempted_data_high;
+	u32 addr_of_last_preempted_data_high_tmp;
+	u32 padding;
+	u32 is_mapped_to_proxy;
+	u32 proxy_ctx_id;
+	u32 engine_reset_ctx_id;
+	u32 media_reset_count;
+	u32 reserved1[8];
+	u32 uk_last_ctx_switch_reason;
+	u32 was_reset;
+	u32 lrca_gpu_addr;
+	u64 execlist_ctx;
+	u32 reserved2[66];
+	struct guc_ctx_report preempt_ctx_report[GUC_MAX_ENGINES_NUM];
+} __packed;
+
 /* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
 enum intel_guc_action {
 	INTEL_GUC_ACTION_DEFAULT = 0x0,
+	INTEL_GUC_ACTION_REQUEST_PREEMPTION = 0x2,
+	INTEL_GUC_ACTION_REQUEST_ENGINE_RESET = 0x3,
 	INTEL_GUC_ACTION_SAMPLE_FORCEWAKE = 0x6,
 	INTEL_GUC_ACTION_ALLOCATE_DOORBELL = 0x10,
 	INTEL_GUC_ACTION_DEALLOCATE_DOORBELL = 0x20,
@@ -560,6 +588,18 @@ enum intel_guc_action {
 	INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER = 0x4506,
 	INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING = 0x0E000,
 	INTEL_GUC_ACTION_LIMIT
+};
+
+enum intel_guc_preempt_options {
+	INTEL_GUC_PREEMPT_OPTION_DROP_WORK_Q = 0x4,
+	INTEL_GUC_PREEMPT_OPTION_DROP_SUBMIT_Q = 0x8,
+};
+
+enum intel_guc_report_status {
+	INTEL_GUC_REPORT_STATUS_UNKNOWN = 0x0,
+	INTEL_GUC_REPORT_STATUS_ACKED = 0x1,
+	INTEL_GUC_REPORT_STATUS_ERROR = 0x2,
+	INTEL_GUC_REPORT_STATUS_COMPLETE = 0x4,
 };
 
 /*

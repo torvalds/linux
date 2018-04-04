@@ -146,6 +146,10 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int count;
 	struct acpi_hardware_id *id;
 
+	/* Avoid unnecessarily loading modules for non present devices. */
+	if (!acpi_device_is_present(acpi_dev))
+		return 0;
+
 	/*
 	 * Since we skip ACPI_DT_NAMESPACE_HID from the modalias below, 0 should
 	 * be returned if ACPI_DT_NAMESPACE_HID is the only ACPI/PNP ID in the
@@ -353,7 +357,7 @@ static ssize_t real_power_state_show(struct device *dev,
 	return sprintf(buf, "%s\n", acpi_power_state_string(state));
 }
 
-static DEVICE_ATTR(real_power_state, 0444, real_power_state_show, NULL);
+static DEVICE_ATTR_RO(real_power_state);
 
 static ssize_t power_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -363,7 +367,7 @@ static ssize_t power_state_show(struct device *dev,
 	return sprintf(buf, "%s\n", acpi_power_state_string(adev->power.state));
 }
 
-static DEVICE_ATTR(power_state, 0444, power_state_show, NULL);
+static DEVICE_ATTR_RO(power_state);
 
 static ssize_t
 acpi_eject_store(struct device *d, struct device_attribute *attr,
@@ -458,7 +462,7 @@ static ssize_t description_show(struct device *dev,
 
 	return result;
 }
-static DEVICE_ATTR(description, 0444, description_show, NULL);
+static DEVICE_ATTR_RO(description);
 
 static ssize_t
 acpi_device_sun_show(struct device *dev, struct device_attribute *attr,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ST EHCI driver
  *
@@ -6,10 +7,6 @@
  * Author: Peter Griffin <peter.griffin@linaro.org>
  *
  * Derived from ehci-platform.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -26,6 +23,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/ehci_pdriver.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "ehci.h"
 

@@ -8,29 +8,19 @@
  */
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
 	.globl __kernel_getcpu
 	.type  __kernel_getcpu,@function
 __kernel_getcpu:
-	.cfi_startproc
-	ear	%r1,%a4
-	llilh	%r4,0x0100
-	sar	%a4,%r4
+	CFI_STARTPROC
 	la	%r4,0
-	epsw	%r0,0
-	sacf	512
+	sacf	256
 	l	%r5,__VDSO_CPU_NR(%r4)
 	l	%r4,__VDSO_NODE_ID(%r4)
-	tml	%r0,0x4000
-	jo	1f
-	tml	%r0,0x8000
-	jno	0f
-	sacf	256
-	j	1f
-0:	sacf	0
-1:	sar	%a4,%r1
+	sacf	0
 	ltgr	%r2,%r2
 	jz	2f
 	st	%r5,0(%r2)
@@ -39,5 +29,5 @@ __kernel_getcpu:
 	st	%r4,0(%r3)
 3:	lghi	%r2,0
 	br	%r14
-	.cfi_endproc
+	CFI_ENDPROC
 	.size	__kernel_getcpu,.-__kernel_getcpu

@@ -384,6 +384,18 @@ static int wcn36xx_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		list_for_each_entry(tmp, &wcn->vif_list, list) {
+			vif = wcn36xx_priv_to_vif(tmp);
+			if (hw->conf.flags & IEEE80211_CONF_PS) {
+				if (vif->bss_conf.ps) /* ps allowed ? */
+					wcn36xx_pmc_enter_bmps_state(wcn, vif);
+			} else {
+				wcn36xx_pmc_exit_bmps_state(wcn, vif);
+			}
+		}
+	}
+
 	mutex_unlock(&wcn->conf_mutex);
 
 	return 0;
@@ -629,7 +641,6 @@ static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
 			   struct ieee80211_scan_request *hw_req)
 {
 	struct wcn36xx *wcn = hw->priv;
-
 	mutex_lock(&wcn->scan_lock);
 	if (wcn->scan_req) {
 		mutex_unlock(&wcn->scan_lock);
@@ -638,17 +649,28 @@ static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
 
 	wcn->scan_aborted = false;
 	wcn->scan_req = &hw_req->req;
+
 	mutex_unlock(&wcn->scan_lock);
 
-	schedule_work(&wcn->scan_work);
+	if (!get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
+		/* legacy manual/sw scan */
+		schedule_work(&wcn->scan_work);
+		return 0;
+	}
 
-	return 0;
+	return wcn36xx_smd_start_hw_scan(wcn, vif, &hw_req->req);
 }
 
 static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct wcn36xx *wcn = hw->priv;
+
+	if (!wcn36xx_smd_stop_hw_scan(wcn)) {
+		struct cfg80211_scan_info scan_info = { .aborted = true };
+
+		ieee80211_scan_completed(wcn->hw, &scan_info);
+	}
 
 	mutex_lock(&wcn->scan_lock);
 	wcn->scan_aborted = true;
@@ -745,17 +767,6 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			    bss_conf->dtim_period);
 
 		vif_priv->dtim_period = bss_conf->dtim_period;
-	}
-
-	if (changed & BSS_CHANGED_PS) {
-		wcn36xx_dbg(WCN36XX_DBG_MAC,
-			    "mac bss PS set %d\n",
-			    bss_conf->ps);
-		if (bss_conf->ps) {
-			wcn36xx_pmc_enter_bmps_state(wcn, vif);
-		} else {
-			wcn36xx_pmc_exit_bmps_state(wcn, vif);
-		}
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
@@ -1135,7 +1146,8 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
 	wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn_band_2ghz;
-	wcn->hw->wiphy->bands[NL80211_BAND_5GHZ] = &wcn_band_5ghz;
+	if (wcn->rf_id != RF_IRIS_WCN3620)
+		wcn->hw->wiphy->bands[NL80211_BAND_5GHZ] = &wcn_band_5ghz;
 
 	wcn->hw->wiphy->max_scan_ssids = WCN36XX_MAX_SCAN_SSIDS;
 	wcn->hw->wiphy->max_scan_ie_len = WCN36XX_MAX_SCAN_IE_LEN;
@@ -1168,6 +1180,7 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 					  struct platform_device *pdev)
 {
 	struct device_node *mmio_node;
+	struct device_node *iris_node;
 	struct resource *res;
 	int index;
 	int ret;
@@ -1228,6 +1241,14 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 		wcn36xx_err("failed to map dxe memory\n");
 		ret = -ENOMEM;
 		goto unmap_ccu;
+	}
+
+	/* External RF module */
+	iris_node = of_get_child_by_name(mmio_node, "iris");
+	if (iris_node) {
+		if (of_device_is_compatible(iris_node, "qcom,wcn3620"))
+			wcn->rf_id = RF_IRIS_WCN3620;
+		of_node_put(iris_node);
 	}
 
 	of_node_put(mmio_node);

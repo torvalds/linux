@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
@@ -383,7 +383,7 @@ static int gpio_irq_type_unbanked(struct irq_data *data, unsigned trigger)
 	u32 mask;
 
 	d = (struct davinci_gpio_controller *)irq_data_get_irq_handler_data(data);
-	g = (struct davinci_gpio_regs __iomem *)d->regs;
+	g = (struct davinci_gpio_regs __iomem *)d->regs[0];
 	mask = __gpio_mask(data->irq - d->base_irq);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))

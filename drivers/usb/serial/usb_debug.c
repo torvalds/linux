@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Debug cable driver
  *
  * Copyright (C) 2006 Greg Kroah-Hartman <greg@kroah.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  */
 
 #include <linux/gfp.h>
@@ -34,13 +31,15 @@ static const struct usb_device_id id_table[] = {
 };
 
 static const struct usb_device_id dbc_id_table[] = {
-	{ USB_DEVICE(0x1d6b, 0x0004) },
+	{ USB_DEVICE(0x1d6b, 0x0010) },
+	{ USB_DEVICE(0x1d6b, 0x0011) },
 	{ },
 };
 
 static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(0x0525, 0x127a) },
-	{ USB_DEVICE(0x1d6b, 0x0004) },
+	{ USB_DEVICE(0x1d6b, 0x0010) },
+	{ USB_DEVICE(0x1d6b, 0x0011) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table_combined);
@@ -98,4 +97,4 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 module_usb_serial_driver(serial_drivers, id_table_combined);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

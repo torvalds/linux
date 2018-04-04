@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus driver for the log protocol
  *
  * Copyright 2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

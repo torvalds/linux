@@ -77,8 +77,23 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	}
 
 	if (buffer->flags & EFX_TX_BUF_SKB) {
+		struct sk_buff *skb = (struct sk_buff *)buffer->skb;
+
+		EFX_WARN_ON_PARANOID(!pkts_compl || !bytes_compl);
 		(*pkts_compl)++;
-		(*bytes_compl) += buffer->skb->len;
+		(*bytes_compl) += skb->len;
+		if (tx_queue->timestamping &&
+		    (tx_queue->completed_timestamp_major ||
+		     tx_queue->completed_timestamp_minor)) {
+			struct skb_shared_hwtstamps hwtstamp;
+
+			hwtstamp.hwtstamp =
+				efx_ptp_nic_to_kernel_time(tx_queue);
+			skb_tstamp_tx(skb, &hwtstamp);
+
+			tx_queue->completed_timestamp_major = 0;
+			tx_queue->completed_timestamp_minor = 0;
+		}
 		dev_consume_skb_any((struct sk_buff *)buffer->skb);
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
 			   "TX queue %d transmission id %x complete\n",
@@ -136,8 +151,8 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
-	txq1->old_read_count = ACCESS_ONCE(txq1->read_count);
-	txq2->old_read_count = ACCESS_ONCE(txq2->read_count);
+	txq1->old_read_count = READ_ONCE(txq1->read_count);
+	txq2->old_read_count = READ_ONCE(txq2->read_count);
 
 	fill_level = max(txq1->insert_count - txq1->old_read_count,
 			 txq2->insert_count - txq2->old_read_count);
@@ -426,12 +441,14 @@ static int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 {
 	struct efx_tx_buffer *buffer;
+	unsigned int bytes_compl = 0;
+	unsigned int pkts_compl = 0;
 
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
-		efx_dequeue_buffer(tx_queue, buffer, NULL, NULL);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
 	}
 }
 
@@ -663,7 +680,7 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	unsigned tc, num_tc;
 	int rc;
 
-	if (type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_QDISC_MQPRIO)
 		return -EOPNOTSUPP;
 
 	num_tc = mqprio->num_tc;
@@ -752,7 +769,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 
 	/* Check whether the hardware queue is now empty */
 	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
-		tx_queue->old_write_count = ACCESS_ONCE(tx_queue->write_count);
+		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
 		if (tx_queue->read_count == tx_queue->old_write_count) {
 			smp_mb();
 			tx_queue->empty_read_count =
@@ -825,6 +842,11 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->old_read_count = 0;
 	tx_queue->empty_read_count = 0 | EFX_EMPTY_COUNT_VALID;
 	tx_queue->xmit_more_available = false;
+	tx_queue->timestamping = (efx_ptp_use_mac_tx_timestamps(efx) &&
+				  tx_queue->channel == efx_ptp_channel(efx));
+	tx_queue->completed_desc_ptr = tx_queue->ptr_mask;
+	tx_queue->completed_timestamp_major = 0;
+	tx_queue->completed_timestamp_minor = 0;
 
 	/* Set up default function pointers. These may get replaced by
 	 * efx_nic_init_tx() based off NIC/queue capabilities.

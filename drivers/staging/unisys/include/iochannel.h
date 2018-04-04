@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 - 2016 UNISYS CORPORATION
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 #ifndef __IOCHANNEL_H__
@@ -43,8 +33,7 @@
 
 #include <linux/uuid.h>
 #include <linux/skbuff.h>
-
-#include "channel.h"
+#include <linux/visorbus.h>
 
 /*
  * Must increment these whenever you insert or delete fields within this channel
@@ -348,10 +337,9 @@ struct sense_data {
  *		    the start of the NETWORK LAYER HEADER.
  *
  * NOTE:
- * The full packet is described in frags but the ethernet header is
- * separately kept in ethhdr so that uisnic doesn't have "MAP" the
- * guest memory to get to the header. uisnic needs ethhdr to
- * determine how to route the packet.
+ * The full packet is described in frags but the ethernet header is separately
+ * kept in ethhdr so that uisnic doesn't have "MAP" the guest memory to get to
+ * the header. uisnic needs ethhdr to determine how to route the packet.
  */
 struct net_pkt_xmt {
 	int len;

@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -44,7 +44,7 @@ enum ia_css_err ia_css_rmgr_init(void)
 	return err;
 }
 
-/**
+/*
  * @brief Uninitialize resource pool (host)
  */
 void ia_css_rmgr_uninit(void)

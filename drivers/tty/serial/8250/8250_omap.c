@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 8250-core based driver for the OMAP internal UART
  *
@@ -199,7 +200,7 @@ static void omap_8250_get_divisor(struct uart_port *port, unsigned int baud,
 	 * Old custom speed handling.
 	 */
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST) {
-		priv->quot = port->custom_divisor & 0xffff;
+		priv->quot = port->custom_divisor & UART_DIV_MAX;
 		/*
 		 * I assume that nobody is using this. But hey, if somebody
 		 * would like to specify the divisor _and_ the mode then the
@@ -358,7 +359,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 	 * Ask the core to calculate the divisor for us.
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / 0xffff,
+				  port->uartclk / 16 / UART_DIV_MAX,
 				  port->uartclk / 13);
 	omap_8250_get_divisor(port, baud, priv);
 
@@ -413,7 +414,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 	/* Up to here it was mostly serial8250_do_set_termios() */
 
 	/*
-	 * We enable TRIG_GRANU for RX and TX and additionaly we set
+	 * We enable TRIG_GRANU for RX and TX and additionally we set
 	 * SCR_TX_EMPTY bit. The result is the following:
 	 * - RX_TRIGGER amount of bytes in the FIFO will cause an interrupt.
 	 * - less than RX_TRIGGER number of bytes will also cause an interrupt

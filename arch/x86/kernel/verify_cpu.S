@@ -33,7 +33,7 @@
 #include <asm/cpufeatures.h>
 #include <asm/msr-index.h>
 
-verify_cpu:
+ENTRY(verify_cpu)
 	pushf				# Save caller passed flags
 	push	$0			# Kill any dangerous flags
 	popf
@@ -139,3 +139,4 @@ verify_cpu:
 	popf				# Restore caller passed flags
 	xorl %eax, %eax
 	ret
+ENDPROC(verify_cpu)

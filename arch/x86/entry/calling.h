@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/jump_label.h>
 #include <asm/unwind_hints.h>
+#include <asm/cpufeatures.h>
+#include <asm/page_types.h>
+#include <asm/percpu.h>
+#include <asm/asm-offsets.h>
+#include <asm/processor-flags.h>
 
 /*
 
@@ -92,111 +97,78 @@ For 32-bit we have the following conventions - kernel is built with
 
 #define SIZEOF_PTREGS	21*8
 
-	.macro ALLOC_PT_GPREGS_ON_STACK
-	addq	$-(15*8), %rsp
-	.endm
+.macro PUSH_AND_CLEAR_REGS rdx=%rdx rax=%rax save_ret=0
+	/*
+	 * Push registers and sanitize registers of values that a
+	 * speculation attack might otherwise want to exploit. The
+	 * lower registers are likely clobbered well before they
+	 * could be put to use in a speculative execution gadget.
+	 * Interleave XOR with PUSH for better uop scheduling:
+	 */
+	.if \save_ret
+	pushq	%rsi		/* pt_regs->si */
+	movq	8(%rsp), %rsi	/* temporarily store the return address in %rsi */
+	movq	%rdi, 8(%rsp)	/* pt_regs->di (overwriting original return address) */
+	.else
+	pushq   %rdi		/* pt_regs->di */
+	pushq   %rsi		/* pt_regs->si */
+	.endif
+	pushq	\rdx		/* pt_regs->dx */
+	pushq   %rcx		/* pt_regs->cx */
+	pushq   \rax		/* pt_regs->ax */
+	pushq   %r8		/* pt_regs->r8 */
+	xorl	%r8d, %r8d	/* nospec   r8 */
+	pushq   %r9		/* pt_regs->r9 */
+	xorl	%r9d, %r9d	/* nospec   r9 */
+	pushq   %r10		/* pt_regs->r10 */
+	xorl	%r10d, %r10d	/* nospec   r10 */
+	pushq   %r11		/* pt_regs->r11 */
+	xorl	%r11d, %r11d	/* nospec   r11*/
+	pushq	%rbx		/* pt_regs->rbx */
+	xorl    %ebx, %ebx	/* nospec   rbx*/
+	pushq	%rbp		/* pt_regs->rbp */
+	xorl    %ebp, %ebp	/* nospec   rbp*/
+	pushq	%r12		/* pt_regs->r12 */
+	xorl	%r12d, %r12d	/* nospec   r12*/
+	pushq	%r13		/* pt_regs->r13 */
+	xorl	%r13d, %r13d	/* nospec   r13*/
+	pushq	%r14		/* pt_regs->r14 */
+	xorl	%r14d, %r14d	/* nospec   r14*/
+	pushq	%r15		/* pt_regs->r15 */
+	xorl	%r15d, %r15d	/* nospec   r15*/
+	UNWIND_HINT_REGS
+	.if \save_ret
+	pushq	%rsi		/* return address on top of stack */
+	.endif
+.endm
 
-	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
-	.if \r11
-	movq %r11, 6*8+\offset(%rsp)
+.macro POP_REGS pop_rdi=1 skip_r11rcx=0
+	popq %r15
+	popq %r14
+	popq %r13
+	popq %r12
+	popq %rbp
+	popq %rbx
+	.if \skip_r11rcx
+	popq %rsi
+	.else
+	popq %r11
 	.endif
-	.if \r8910
-	movq %r10, 7*8+\offset(%rsp)
-	movq %r9,  8*8+\offset(%rsp)
-	movq %r8,  9*8+\offset(%rsp)
+	popq %r10
+	popq %r9
+	popq %r8
+	popq %rax
+	.if \skip_r11rcx
+	popq %rsi
+	.else
+	popq %rcx
 	.endif
-	.if \rax
-	movq %rax, 10*8+\offset(%rsp)
+	popq %rdx
+	popq %rsi
+	.if \pop_rdi
+	popq %rdi
 	.endif
-	.if \rcx
-	movq %rcx, 11*8+\offset(%rsp)
-	.endif
-	movq %rdx, 12*8+\offset(%rsp)
-	movq %rsi, 13*8+\offset(%rsp)
-	movq %rdi, 14*8+\offset(%rsp)
-	UNWIND_HINT_REGS offset=\offset extra=0
-	.endm
-	.macro SAVE_C_REGS offset=0
-	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_RAX_RCX offset=0
-	SAVE_C_REGS_HELPER \offset, 0, 0, 1, 1
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_R891011
-	SAVE_C_REGS_HELPER 0, 1, 1, 0, 0
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_RCX_R891011
-	SAVE_C_REGS_HELPER 0, 1, 0, 0, 0
-	.endm
-	.macro SAVE_C_REGS_EXCEPT_RAX_RCX_R11
-	SAVE_C_REGS_HELPER 0, 0, 0, 1, 0
-	.endm
-
-	.macro SAVE_EXTRA_REGS offset=0
-	movq %r15, 0*8+\offset(%rsp)
-	movq %r14, 1*8+\offset(%rsp)
-	movq %r13, 2*8+\offset(%rsp)
-	movq %r12, 3*8+\offset(%rsp)
-	movq %rbp, 4*8+\offset(%rsp)
-	movq %rbx, 5*8+\offset(%rsp)
-	UNWIND_HINT_REGS offset=\offset
-	.endm
-
-	.macro RESTORE_EXTRA_REGS offset=0
-	movq 0*8+\offset(%rsp), %r15
-	movq 1*8+\offset(%rsp), %r14
-	movq 2*8+\offset(%rsp), %r13
-	movq 3*8+\offset(%rsp), %r12
-	movq 4*8+\offset(%rsp), %rbp
-	movq 5*8+\offset(%rsp), %rbx
-	UNWIND_HINT_REGS offset=\offset extra=0
-	.endm
-
-	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
-	.if \rstor_r11
-	movq 6*8(%rsp), %r11
-	.endif
-	.if \rstor_r8910
-	movq 7*8(%rsp), %r10
-	movq 8*8(%rsp), %r9
-	movq 9*8(%rsp), %r8
-	.endif
-	.if \rstor_rax
-	movq 10*8(%rsp), %rax
-	.endif
-	.if \rstor_rcx
-	movq 11*8(%rsp), %rcx
-	.endif
-	.if \rstor_rdx
-	movq 12*8(%rsp), %rdx
-	.endif
-	movq 13*8(%rsp), %rsi
-	movq 14*8(%rsp), %rdi
-	UNWIND_HINT_IRET_REGS offset=16*8
-	.endm
-	.macro RESTORE_C_REGS
-	RESTORE_C_REGS_HELPER 1,1,1,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_RAX
-	RESTORE_C_REGS_HELPER 0,1,1,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_RCX
-	RESTORE_C_REGS_HELPER 1,0,1,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_R11
-	RESTORE_C_REGS_HELPER 1,1,0,1,1
-	.endm
-	.macro RESTORE_C_REGS_EXCEPT_RCX_R11
-	RESTORE_C_REGS_HELPER 1,0,0,1,1
-	.endm
-
-	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0
-	subq $-(15*8+\addskip), %rsp
-	.endm
-
-	.macro icebp
-	.byte 0xf1
-	.endm
+.endm
 
 /*
  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
@@ -204,19 +176,156 @@ For 32-bit we have the following conventions - kernel is built with
  * is just setting the LSB, which makes it an invalid stack address and is also
  * a signal to the unwinder that it's a pt_regs pointer in disguise.
  *
- * NOTE: This macro must be used *after* SAVE_EXTRA_REGS because it corrupts
+ * NOTE: This macro must be used *after* PUSH_AND_CLEAR_REGS because it corrupts
  * the original rbp.
  */
 .macro ENCODE_FRAME_POINTER ptregs_offset=0
 #ifdef CONFIG_FRAME_POINTER
-	.if \ptregs_offset
-		leaq \ptregs_offset(%rsp), %rbp
-	.else
-		mov %rsp, %rbp
-	.endif
-	orq	$0x1, %rbp
+	leaq 1+\ptregs_offset(%rsp), %rbp
 #endif
 .endm
+
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+
+/*
+ * PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two
+ * halves:
+ */
+#define PTI_USER_PGTABLE_BIT		PAGE_SHIFT
+#define PTI_USER_PGTABLE_MASK		(1 << PTI_USER_PGTABLE_BIT)
+#define PTI_USER_PCID_BIT		X86_CR3_PTI_PCID_USER_BIT
+#define PTI_USER_PCID_MASK		(1 << PTI_USER_PCID_BIT)
+#define PTI_USER_PGTABLE_AND_PCID_MASK  (PTI_USER_PCID_MASK | PTI_USER_PGTABLE_MASK)
+
+.macro SET_NOFLUSH_BIT	reg:req
+	bts	$X86_CR3_PCID_NOFLUSH_BIT, \reg
+.endm
+
+.macro ADJUST_KERNEL_CR3 reg:req
+	ALTERNATIVE "", "SET_NOFLUSH_BIT \reg", X86_FEATURE_PCID
+	/* Clear PCID and "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
+	andq    $(~PTI_USER_PGTABLE_AND_PCID_MASK), \reg
+.endm
+
+.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+	mov	%cr3, \scratch_reg
+	ADJUST_KERNEL_CR3 \scratch_reg
+	mov	\scratch_reg, %cr3
+.Lend_\@:
+.endm
+
+#define THIS_CPU_user_pcid_flush_mask   \
+	PER_CPU_VAR(cpu_tlbstate) + TLB_STATE_user_pcid_flush_mask
+
+.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+	mov	%cr3, \scratch_reg
+
+	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
+
+	/*
+	 * Test if the ASID needs a flush.
+	 */
+	movq	\scratch_reg, \scratch_reg2
+	andq	$(0x7FF), \scratch_reg		/* mask ASID */
+	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	jnc	.Lnoflush_\@
+
+	/* Flush needed, clear the bit */
+	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	movq	\scratch_reg2, \scratch_reg
+	jmp	.Lwrcr3_pcid_\@
+
+.Lnoflush_\@:
+	movq	\scratch_reg2, \scratch_reg
+	SET_NOFLUSH_BIT \scratch_reg
+
+.Lwrcr3_pcid_\@:
+	/* Flip the ASID to the user version */
+	orq	$(PTI_USER_PCID_MASK), \scratch_reg
+
+.Lwrcr3_\@:
+	/* Flip the PGD to the user version */
+	orq     $(PTI_USER_PGTABLE_MASK), \scratch_reg
+	mov	\scratch_reg, %cr3
+.Lend_\@:
+.endm
+
+.macro SWITCH_TO_USER_CR3_STACK	scratch_reg:req
+	pushq	%rax
+	SWITCH_TO_USER_CR3_NOSTACK scratch_reg=\scratch_reg scratch_reg2=%rax
+	popq	%rax
+.endm
+
+.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
+	ALTERNATIVE "jmp .Ldone_\@", "", X86_FEATURE_PTI
+	movq	%cr3, \scratch_reg
+	movq	\scratch_reg, \save_reg
+	/*
+	 * Test the user pagetable bit. If set, then the user page tables
+	 * are active. If clear CR3 already has the kernel page table
+	 * active.
+	 */
+	bt	$PTI_USER_PGTABLE_BIT, \scratch_reg
+	jnc	.Ldone_\@
+
+	ADJUST_KERNEL_CR3 \scratch_reg
+	movq	\scratch_reg, %cr3
+
+.Ldone_\@:
+.endm
+
+.macro RESTORE_CR3 scratch_reg:req save_reg:req
+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+
+	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
+
+	/*
+	 * KERNEL pages can always resume with NOFLUSH as we do
+	 * explicit flushes.
+	 */
+	bt	$PTI_USER_PGTABLE_BIT, \save_reg
+	jnc	.Lnoflush_\@
+
+	/*
+	 * Check if there's a pending flush for the user ASID we're
+	 * about to set.
+	 */
+	movq	\save_reg, \scratch_reg
+	andq	$(0x7FF), \scratch_reg
+	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	jnc	.Lnoflush_\@
+
+	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	jmp	.Lwrcr3_\@
+
+.Lnoflush_\@:
+	SET_NOFLUSH_BIT \save_reg
+
+.Lwrcr3_\@:
+	/*
+	 * The CR3 write could be avoided when not changing its value,
+	 * but would require a CR3 read *and* a scratch register.
+	 */
+	movq	\save_reg, %cr3
+.Lend_\@:
+.endm
+
+#else /* CONFIG_PAGE_TABLE_ISOLATION=n: */
+
+.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
+.endm
+.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
+.endm
+.macro SWITCH_TO_USER_CR3_STACK scratch_reg:req
+.endm
+.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
+.endm
+.macro RESTORE_CR3 scratch_reg:req save_reg:req
+.endm
+
+#endif
 
 #endif /* CONFIG_X86_64 */
 

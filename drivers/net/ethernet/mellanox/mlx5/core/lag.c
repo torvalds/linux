@@ -137,6 +137,17 @@ int mlx5_cmd_destroy_vport_lag(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_cmd_destroy_vport_lag);
 
+static int mlx5_cmd_query_cong_counter(struct mlx5_core_dev *dev,
+				       bool reset, void *out, int out_size)
+{
+	u32 in[MLX5_ST_SZ_DW(query_cong_statistics_in)] = { };
+
+	MLX5_SET(query_cong_statistics_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_CONG_STATISTICS);
+	MLX5_SET(query_cong_statistics_in, in, clear, reset);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
+}
+
 static struct mlx5_lag *mlx5_lag_dev_get(struct mlx5_core_dev *dev)
 {
 	return dev->priv.lag;
@@ -633,3 +644,48 @@ bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	/* If bonded, we do not add an IB device for PF1. */
 	return false;
 }
+
+int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
+				 u64 *values,
+				 int num_counters,
+				 size_t *offsets)
+{
+	int outlen = MLX5_ST_SZ_BYTES(query_cong_statistics_out);
+	struct mlx5_core_dev *mdev[MLX5_MAX_PORTS];
+	struct mlx5_lag *ldev;
+	int num_ports;
+	int ret, i, j;
+	void *out;
+
+	out = kvzalloc(outlen, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	memset(values, 0, sizeof(*values) * num_counters);
+
+	mutex_lock(&lag_mutex);
+	ldev = mlx5_lag_dev_get(dev);
+	if (ldev && mlx5_lag_is_bonded(ldev)) {
+		num_ports = MLX5_MAX_PORTS;
+		mdev[0] = ldev->pf[0].dev;
+		mdev[1] = ldev->pf[1].dev;
+	} else {
+		num_ports = 1;
+		mdev[0] = dev;
+	}
+
+	for (i = 0; i < num_ports; ++i) {
+		ret = mlx5_cmd_query_cong_counter(mdev[i], false, out, outlen);
+		if (ret)
+			goto unlock;
+
+		for (j = 0; j < num_counters; ++j)
+			values[j] += be64_to_cpup((__be64 *)(out + offsets[j]));
+	}
+
+unlock:
+	mutex_unlock(&lag_mutex);
+	kvfree(out);
+	return ret;
+}
+EXPORT_SYMBOL(mlx5_lag_query_cong_counters);

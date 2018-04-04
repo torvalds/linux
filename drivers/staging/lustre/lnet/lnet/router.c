@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  *
@@ -222,15 +223,12 @@ struct lnet_remotenet *
 lnet_find_net_locked(__u32 net)
 {
 	struct lnet_remotenet *rnet;
-	struct list_head *tmp;
 	struct list_head *rn_list;
 
 	LASSERT(!the_lnet.ln_shutdown);
 
 	rn_list = lnet_net2rnethash(net);
-	list_for_each(tmp, rn_list) {
-		rnet = list_entry(tmp, struct lnet_remotenet, lrn_list);
-
+	list_for_each_entry(rnet, rn_list, lrn_list) {
 		if (rnet->lrn_net == net)
 			return rnet;
 	}
@@ -240,30 +238,25 @@ lnet_find_net_locked(__u32 net)
 static void lnet_shuffle_seed(void)
 {
 	static int seeded;
-	__u32 lnd_type, seed[2];
-	struct timespec64 ts;
 	struct lnet_ni *ni;
-	struct list_head *tmp;
 
 	if (seeded)
 		return;
-
-	cfs_get_random_bytes(seed, sizeof(seed));
 
 	/*
 	 * Nodes with small feet have little entropy
 	 * the NID for this node gives the most entropy in the low bits
 	 */
-	list_for_each(tmp, &the_lnet.ln_nis) {
-		ni = list_entry(tmp, struct lnet_ni, ni_list);
-		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
+	list_for_each_entry(ni, &the_lnet.ln_nis, ni_list) {
+		__u32 lnd_type, seed;
 
-		if (lnd_type != LOLND)
-			seed[0] ^= (LNET_NIDADDR(ni->ni_nid) | lnd_type);
+		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
+		if (lnd_type != LOLND) {
+			seed = (LNET_NIDADDR(ni->ni_nid) | lnd_type);
+			add_device_randomness(&seed, sizeof(seed));
+		}
 	}
 
-	ktime_get_ts64(&ts);
-	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
 	seeded = 1;
 }
 
@@ -281,8 +274,8 @@ lnet_add_route_to_rnet(struct lnet_remotenet *rnet, struct lnet_route *route)
 		len++;
 	}
 
-	/* len+1 positions to add a new entry, also prevents division by 0 */
-	offset = cfs_rand() % (len + 1);
+	/* len+1 positions to add a new entry */
+	offset = prandom_u32_max(len + 1);
 	list_for_each(e, &rnet->lrn_routes) {
 		if (!offset)
 			break;
@@ -322,15 +315,13 @@ lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway,
 		return -EEXIST;
 
 	/* Assume net, route, all new */
-	LIBCFS_ALLOC(route, sizeof(*route));
-	LIBCFS_ALLOC(rnet, sizeof(*rnet));
+	route = kzalloc(sizeof(*route), GFP_NOFS);
+	rnet = kzalloc(sizeof(*rnet), GFP_NOFS);
 	if (!route || !rnet) {
 		CERROR("Out of memory creating route %s %d %s\n",
 		       libcfs_net2str(net), hops, libcfs_nid2str(gateway));
-		if (route)
-			LIBCFS_FREE(route, sizeof(*route));
-		if (rnet)
-			LIBCFS_FREE(rnet, sizeof(*rnet));
+		kfree(route);
+		kfree(rnet);
 		return -ENOMEM;
 	}
 
@@ -346,8 +337,8 @@ lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway,
 	if (rc) {
 		lnet_net_unlock(LNET_LOCK_EX);
 
-		LIBCFS_FREE(route, sizeof(*route));
-		LIBCFS_FREE(rnet, sizeof(*rnet));
+		kfree(route);
+		kfree(rnet);
 
 		if (rc == -EHOSTUNREACH) /* gateway is not on a local net */
 			return rc;	/* ignore the route entry */
@@ -402,11 +393,11 @@ lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway,
 
 	if (!add_route) {
 		rc = -EEXIST;
-		LIBCFS_FREE(route, sizeof(*route));
+		kfree(route);
 	}
 
 	if (rnet != rnet2)
-		LIBCFS_FREE(rnet, sizeof(*rnet));
+		kfree(rnet);
 
 	/* indicate to startup the router checker if configured */
 	wake_up(&the_lnet.ln_rc_waitq);
@@ -524,10 +515,8 @@ lnet_del_route(__u32 net, lnet_nid_t gw_nid)
 
 			lnet_net_unlock(LNET_LOCK_EX);
 
-			LIBCFS_FREE(route, sizeof(*route));
-
-			if (rnet)
-				LIBCFS_FREE(rnet, sizeof(*rnet));
+			kfree(route);
+			kfree(rnet);
 
 			rc = 0;
 			lnet_net_lock(LNET_LOCK_EX);
@@ -895,10 +884,9 @@ lnet_destroy_rc_data(struct lnet_rc_data *rcd)
 		lnet_net_unlock(cpt);
 	}
 
-	if (rcd->rcd_pinginfo)
-		LIBCFS_FREE(rcd->rcd_pinginfo, LNET_PINGINFO_SIZE);
+	kfree(rcd->rcd_pinginfo);
 
-	LIBCFS_FREE(rcd, sizeof(*rcd));
+	kfree(rcd);
 }
 
 static struct lnet_rc_data *
@@ -912,14 +900,14 @@ lnet_create_rc_data_locked(struct lnet_peer *gateway)
 
 	lnet_net_unlock(gateway->lp_cpt);
 
-	LIBCFS_ALLOC(rcd, sizeof(*rcd));
+	rcd = kzalloc(sizeof(*rcd), GFP_NOFS);
 	if (!rcd)
 		goto out;
 
 	LNetInvalidateMDHandle(&rcd->rcd_mdh);
 	INIT_LIST_HEAD(&rcd->rcd_list);
 
-	LIBCFS_ALLOC(pi, LNET_PINGINFO_SIZE);
+	pi = kzalloc(LNET_PINGINFO_SIZE, GFP_NOFS);
 	if (!pi)
 		goto out;
 
@@ -1308,12 +1296,10 @@ rescan:
 void
 lnet_destroy_rtrbuf(struct lnet_rtrbuf *rb, int npages)
 {
-	int sz = offsetof(struct lnet_rtrbuf, rb_kiov[npages]);
-
 	while (--npages >= 0)
 		__free_page(rb->rb_kiov[npages].bv_page);
 
-	LIBCFS_FREE(rb, sz);
+	kfree(rb);
 }
 
 static struct lnet_rtrbuf *
@@ -1325,7 +1311,7 @@ lnet_new_rtrbuf(struct lnet_rtrbufpool *rbp, int cpt)
 	struct lnet_rtrbuf *rb;
 	int i;
 
-	LIBCFS_CPT_ALLOC(rb, lnet_cpt_table(), cpt, sz);
+	rb = kzalloc_cpt(sz, GFP_NOFS, cpt);
 	if (!rb)
 		return NULL;
 
@@ -1339,7 +1325,7 @@ lnet_new_rtrbuf(struct lnet_rtrbufpool *rbp, int cpt)
 			while (--i >= 0)
 				__free_page(rb->rb_kiov[i].bv_page);
 
-			LIBCFS_FREE(rb, sz);
+			kfree(rb);
 			return NULL;
 		}
 

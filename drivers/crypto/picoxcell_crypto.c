@@ -1125,9 +1125,9 @@ static irqreturn_t spacc_spacc_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static void spacc_packet_timeout(unsigned long data)
+static void spacc_packet_timeout(struct timer_list *t)
 {
-	struct spacc_engine *engine = (struct spacc_engine *)data;
+	struct spacc_engine *engine = from_timer(engine, t, packet_timeout);
 
 	spacc_process_done(engine);
 }
@@ -1618,7 +1618,7 @@ MODULE_DEVICE_TABLE(of, spacc_of_id_table);
 
 static int spacc_probe(struct platform_device *pdev)
 {
-	int i, err, ret = -EINVAL;
+	int i, err, ret;
 	struct resource *mem, *irq;
 	struct device_node *np = pdev->dev.of_node;
 	struct spacc_engine *engine = devm_kzalloc(&pdev->dev, sizeof(*engine),
@@ -1679,22 +1679,18 @@ static int spacc_probe(struct platform_device *pdev)
 	engine->clk = clk_get(&pdev->dev, "ref");
 	if (IS_ERR(engine->clk)) {
 		dev_info(&pdev->dev, "clk unavailable\n");
-		device_remove_file(&pdev->dev, &dev_attr_stat_irq_thresh);
 		return PTR_ERR(engine->clk);
 	}
 
 	if (clk_prepare_enable(engine->clk)) {
 		dev_info(&pdev->dev, "unable to prepare/enable clk\n");
-		clk_put(engine->clk);
-		return -EIO;
+		ret = -EIO;
+		goto err_clk_put;
 	}
 
-	err = device_create_file(&pdev->dev, &dev_attr_stat_irq_thresh);
-	if (err) {
-		clk_disable_unprepare(engine->clk);
-		clk_put(engine->clk);
-		return err;
-	}
+	ret = device_create_file(&pdev->dev, &dev_attr_stat_irq_thresh);
+	if (ret)
+		goto err_clk_disable;
 
 
 	/*
@@ -1714,8 +1710,7 @@ static int spacc_probe(struct platform_device *pdev)
 	writel(SPA_IRQ_EN_STAT_EN | SPA_IRQ_EN_GLBL_EN,
 	       engine->regs + SPA_IRQ_EN_REG_OFFSET);
 
-	setup_timer(&engine->packet_timeout, spacc_packet_timeout,
-		    (unsigned long)engine);
+	timer_setup(&engine->packet_timeout, spacc_packet_timeout, 0);
 
 	INIT_LIST_HEAD(&engine->pending);
 	INIT_LIST_HEAD(&engine->completed);
@@ -1726,6 +1721,7 @@ static int spacc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, engine);
 
+	ret = -EINVAL;
 	INIT_LIST_HEAD(&engine->registered_algs);
 	for (i = 0; i < engine->num_algs; ++i) {
 		engine->algs[i].engine = engine;
@@ -1759,6 +1755,16 @@ static int spacc_probe(struct platform_device *pdev)
 			dev_dbg(engine->dev, "registered alg \"%s\"\n",
 				engine->aeads[i].alg.base.cra_name);
 	}
+
+	if (!ret)
+		return 0;
+
+	del_timer_sync(&engine->packet_timeout);
+	device_remove_file(&pdev->dev, &dev_attr_stat_irq_thresh);
+err_clk_disable:
+	clk_disable_unprepare(engine->clk);
+err_clk_put:
+	clk_put(engine->clk);
 
 	return ret;
 }

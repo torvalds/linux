@@ -123,14 +123,15 @@ memory layout to fit in user mode), check KVM_CAP_MIPS_VZ and use the
 flag KVM_VM_MIPS_VZ.
 
 
-4.3 KVM_GET_MSR_INDEX_LIST
+4.3 KVM_GET_MSR_INDEX_LIST, KVM_GET_MSR_FEATURE_INDEX_LIST
 
-Capability: basic
+Capability: basic, KVM_CAP_GET_MSR_FEATURES for KVM_GET_MSR_FEATURE_INDEX_LIST
 Architectures: x86
-Type: system
+Type: system ioctl
 Parameters: struct kvm_msr_list (in/out)
 Returns: 0 on success; -1 on error
 Errors:
+  EFAULT:    the msr index list cannot be read from or written to
   E2BIG:     the msr index list is to be to fit in the array specified by
              the user.
 
@@ -139,15 +140,22 @@ struct kvm_msr_list {
 	__u32 indices[0];
 };
 
-This ioctl returns the guest msrs that are supported.  The list varies
-by kvm version and host processor, but does not change otherwise.  The
-user fills in the size of the indices array in nmsrs, and in return
-kvm adjusts nmsrs to reflect the actual number of msrs and fills in
-the indices array with their numbers.
+The user fills in the size of the indices array in nmsrs, and in return
+kvm adjusts nmsrs to reflect the actual number of msrs and fills in the
+indices array with their numbers.
+
+KVM_GET_MSR_INDEX_LIST returns the guest msrs that are supported.  The list
+varies by kvm version and host processor, but does not change otherwise.
 
 Note: if kvm indicates supports MCE (KVM_CAP_MCE), then the MCE bank MSRs are
 not returned in the MSR list, as different vcpus can have a different number
 of banks, as set via the KVM_X86_SETUP_MCE ioctl.
+
+KVM_GET_MSR_FEATURE_INDEX_LIST returns the list of MSRs that can be passed
+to the KVM_GET_MSRS system ioctl.  This lets userspace probe host capabilities
+and processor features that are exposed via MSRs (e.g., VMX capabilities).
+This list also varies by kvm version and host processor, but does not change
+otherwise.
 
 
 4.4 KVM_CHECK_EXTENSION
@@ -475,14 +483,22 @@ Support for this has been removed.  Use KVM_SET_GUEST_DEBUG instead.
 
 4.18 KVM_GET_MSRS
 
-Capability: basic
+Capability: basic (vcpu), KVM_CAP_GET_MSR_FEATURES (system)
 Architectures: x86
-Type: vcpu ioctl
+Type: system ioctl, vcpu ioctl
 Parameters: struct kvm_msrs (in/out)
-Returns: 0 on success, -1 on error
+Returns: number of msrs successfully returned;
+        -1 on error
 
+When used as a system ioctl:
+Reads the values of MSR-based features that are available for the VM.  This
+is similar to KVM_GET_SUPPORTED_CPUID, but it returns MSR indices and values.
+The list of msr-based features can be obtained using KVM_GET_MSR_FEATURE_INDEX_LIST
+in a system ioctl.
+
+When used as a vcpu ioctl:
 Reads model-specific registers from the vcpu.  Supported msr indices can
-be obtained using KVM_GET_MSR_INDEX_LIST.
+be obtained using KVM_GET_MSR_INDEX_LIST in a system ioctl.
 
 struct kvm_msrs {
 	__u32 nmsrs; /* number of msrs in entries */
@@ -1124,10 +1140,14 @@ guest physical address space and must not conflict with any memory slot
 or any mmio address.  The guest may malfunction if it accesses this memory
 region.
 
+Setting the address to 0 will result in resetting the address to its default
+(0xfffbc000).
+
 This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
 because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
 
+Fails if any VCPU has already been created.
 
 4.41 KVM_SET_BOOT_CPU_ID
 
@@ -1837,6 +1857,7 @@ registers, find a list below:
   PPC	| KVM_REG_PPC_DBSR              | 32
   PPC   | KVM_REG_PPC_TIDR              | 64
   PPC   | KVM_REG_PPC_PSSCR             | 64
+  PPC   | KVM_REG_PPC_DEC_EXPIRY        | 64
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
@@ -2897,13 +2918,18 @@ userspace buffer and its length:
 
 struct kvm_s390_irq_state {
 	__u64 buf;
-	__u32 flags;
+	__u32 flags;        /* will stay unused for compatibility reasons */
 	__u32 len;
-	__u32 reserved[4];
+	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
 
 Userspace passes in the above struct and for each pending interrupt a
 struct kvm_s390_irq is copied to the provided buffer.
+
+The structure contains a flags and a reserved field for future extensions. As
+the kernel never checked for flags == 0 and QEMU never pre-zeroed flags and
+reserved, these fields can not be used in the future without breaking
+compatibility.
 
 If -ENOBUFS is returned the buffer provided was too small and userspace
 may retry with a bigger buffer.
@@ -2928,9 +2954,13 @@ containing a struct kvm_s390_irq_state:
 
 struct kvm_s390_irq_state {
 	__u64 buf;
+	__u32 flags;        /* will stay unused for compatibility reasons */
 	__u32 len;
-	__u32 pad;
+	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
+
+The restrictions for flags and reserved apply as well.
+(see KVM_S390_GET_IRQ_STATE)
 
 The userspace memory referenced by buf contains a struct kvm_s390_irq
 for each interrupt to be injected into the guest.
@@ -3389,6 +3419,103 @@ if the flags field was not 0, with -EFAULT if the userspace address is
 invalid, if invalid pages are written to (e.g. after the end of memory)
 or if no page table is present for the addresses (e.g. when using
 hugepages).
+
+4.109 KVM_PPC_GET_CPU_CHAR
+
+Capability: KVM_CAP_PPC_GET_CPU_CHAR
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_ppc_cpu_char (out)
+Returns: 0 on successful completion
+	 -EFAULT if struct kvm_ppc_cpu_char cannot be written
+
+This ioctl gives userspace information about certain characteristics
+of the CPU relating to speculative execution of instructions and
+possible information leakage resulting from speculative execution (see
+CVE-2017-5715, CVE-2017-5753 and CVE-2017-5754).  The information is
+returned in struct kvm_ppc_cpu_char, which looks like this:
+
+struct kvm_ppc_cpu_char {
+	__u64	character;		/* characteristics of the CPU */
+	__u64	behaviour;		/* recommended software behaviour */
+	__u64	character_mask;		/* valid bits in character */
+	__u64	behaviour_mask;		/* valid bits in behaviour */
+};
+
+For extensibility, the character_mask and behaviour_mask fields
+indicate which bits of character and behaviour have been filled in by
+the kernel.  If the set of defined bits is extended in future then
+userspace will be able to tell whether it is running on a kernel that
+knows about the new bits.
+
+The character field describes attributes of the CPU which can help
+with preventing inadvertent information disclosure - specifically,
+whether there is an instruction to flash-invalidate the L1 data cache
+(ori 30,30,0 or mtspr SPRN_TRIG2,rN), whether the L1 data cache is set
+to a mode where entries can only be used by the thread that created
+them, whether the bcctr[l] instruction prevents speculation, and
+whether a speculation barrier instruction (ori 31,31,0) is provided.
+
+The behaviour field describes actions that software should take to
+prevent inadvertent information disclosure, and thus describes which
+vulnerabilities the hardware is subject to; specifically whether the
+L1 data cache should be flushed when returning to user mode from the
+kernel, and whether a speculation barrier should be placed between an
+array bounds check and the array access.
+
+These fields use the same bit definitions as the new
+H_GET_CPU_CHARACTERISTICS hypercall.
+
+4.110 KVM_MEMORY_ENCRYPT_OP
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: an opaque platform specific structure (in/out)
+Returns: 0 on success; -1 on error
+
+If the platform supports creating encrypted VMs then this ioctl can be used
+for issuing platform-specific memory encryption commands to manage those
+encrypted VMs.
+
+Currently, this ioctl is used for issuing Secure Encrypted Virtualization
+(SEV) commands on AMD Processors. The SEV commands are defined in
+Documentation/virtual/kvm/amd-memory-encryption.txt.
+
+4.111 KVM_MEMORY_ENCRYPT_REG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to register a guest memory region which may
+contain encrypted data (e.g. guest RAM, SMRAM etc).
+
+It is used in the SEV-enabled guest. When encryption is enabled, a guest
+memory region may contain encrypted data. The SEV memory encryption
+engine uses a tweak such that two identical plaintext pages, each at
+different locations will have differing ciphertexts. So swapping or
+moving ciphertext of those pages will not result in plaintext being
+swapped. So relocating (or migrating) physical backing pages for the SEV
+guest will require some additional steps.
+
+Note: The current SEV key management spec does not provide commands to
+swap or migrate (move) ciphertext pages. Hence, for now we pin the guest
+memory region registered with the ioctl.
+
+4.112 KVM_MEMORY_ENCRYPT_UNREG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to unregister the guest memory region registered
+with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
+
 
 5. The kvm_run structure
 ------------------------
@@ -4347,3 +4474,12 @@ This capability indicates that userspace can load HV_X64_MSR_VP_INDEX msr.  Its
 value is used to denote the target vcpu for a SynIC interrupt.  For
 compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
 capability is absent, userspace can still query this msr's value.
+
+8.13 KVM_CAP_S390_AIS_MIGRATION
+
+Architectures: s390
+Parameters: none
+
+This capability indicates if the flic device will be able to get/set the
+AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
+to discover this without having to create a flic device.

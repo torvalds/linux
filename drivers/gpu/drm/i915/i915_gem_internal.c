@@ -27,6 +27,7 @@
 #include "i915_drv.h"
 
 #define QUIET (__GFP_NORETRY | __GFP_NOWARN)
+#define MAYFAIL (__GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
 /* convert swiotlb segment size into sensible units (pages)! */
 #define IO_TLB_SEGPAGES (IO_TLB_SEGSIZE << IO_TLB_SHIFT >> PAGE_SHIFT)
@@ -44,12 +45,12 @@ static void internal_free_pages(struct sg_table *st)
 	kfree(st);
 }
 
-static struct sg_table *
-i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
+static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct sg_table *st;
 	struct scatterlist *sg;
+	unsigned int sg_page_sizes;
 	unsigned int npages;
 	int max_order;
 	gfp_t gfp;
@@ -78,23 +79,25 @@ i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 create_st:
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	npages = obj->base.size / PAGE_SIZE;
 	if (sg_alloc_table(st, npages, GFP_KERNEL)) {
 		kfree(st);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	sg = st->sgl;
 	st->nents = 0;
+	sg_page_sizes = 0;
 
 	do {
 		int order = min(fls(npages) - 1, max_order);
 		struct page *page;
 
 		do {
-			page = alloc_pages(gfp | (order ? QUIET : 0), order);
+			page = alloc_pages(gfp | (order ? QUIET : MAYFAIL),
+					   order);
 			if (page)
 				break;
 			if (!order--)
@@ -105,6 +108,7 @@ create_st:
 		} while (1);
 
 		sg_set_page(sg, page, PAGE_SIZE << order, 0);
+		sg_page_sizes |= PAGE_SIZE << order;
 		st->nents++;
 
 		npages -= 1 << order;
@@ -132,13 +136,17 @@ create_st:
 	 * object are only valid whilst active and pinned.
 	 */
 	obj->mm.madv = I915_MADV_DONTNEED;
-	return st;
+
+	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
+
+	return 0;
 
 err:
 	sg_set_page(sg, NULL, 0, 0);
 	sg_mark_end(sg);
 	internal_free_pages(st);
-	return ERR_PTR(-ENOMEM);
+
+	return -ENOMEM;
 }
 
 static void i915_gem_object_put_pages_internal(struct drm_i915_gem_object *obj,

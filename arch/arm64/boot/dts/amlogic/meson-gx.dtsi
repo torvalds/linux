@@ -211,32 +211,39 @@
 		#size-cells = <2>;
 		ranges;
 
-		cbus: cbus@c1100000 {
+		cbus: bus@c1100000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc1100000 0x0 0x100000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xc1100000 0x0 0x100000>;
 
+			gpio_intc: interrupt-controller@9880 {
+				compatible = "amlogic,meson-gpio-intc";
+				reg = <0x0 0x9880 0x0 0x10>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				amlogic,channel-interrupts = <64 65 66 67 68 69 70 71>;
+				status = "disabled";
+			};
+
 			reset: reset-controller@4404 {
 				compatible = "amlogic,meson-gx-reset", "amlogic,meson-gxbb-reset";
-				reg = <0x0 0x04404 0x0 0x20>;
+				reg = <0x0 0x04404 0x0 0x9c>;
 				#reset-cells = <1>;
 			};
 
 			uart_A: serial@84c0 {
-				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
-				reg = <0x0 0x84c0 0x0 0x14>;
+				compatible = "amlogic,meson-gx-uart";
+				reg = <0x0 0x84c0 0x0 0x18>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
-				clocks = <&xtal>;
 				status = "disabled";
 			};
 
 			uart_B: serial@84dc {
-				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
-				reg = <0x0 0x84dc 0x0 0x14>;
+				compatible = "amlogic,meson-gx-uart";
+				reg = <0x0 0x84dc 0x0 0x18>;
 				interrupts = <GIC_SPI 75 IRQ_TYPE_EDGE_RISING>;
-				clocks = <&xtal>;
 				status = "disabled";
 			};
 
@@ -279,10 +286,9 @@
 			};
 
 			uart_C: serial@8700 {
-				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
-				reg = <0x0 0x8700 0x0 0x14>;
+				compatible = "amlogic,meson-gx-uart";
+				reg = <0x0 0x8700 0x0 0x18>;
 				interrupts = <GIC_SPI 93 IRQ_TYPE_EDGE_RISING>;
-				clocks = <&xtal>;
 				status = "disabled";
 			};
 
@@ -360,7 +366,7 @@
 			};
 		};
 
-		aobus: aobus@c8100000 {
+		aobus: bus@c8100000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc8100000 0x0 0x100000>;
 			#address-cells = <2>;
@@ -370,6 +376,12 @@
 			sysctrl_AO: sys-ctrl@0 {
 				compatible = "amlogic,meson-gx-ao-sysctrl", "syscon", "simple-mfd";
 				reg =  <0x0 0x0 0x0 0x100>;
+
+				pwrc_vpu: power-controller-vpu {
+					compatible = "amlogic,meson-gx-pwrc-vpu";
+					#power-domain-cells = <0>;
+					amlogic,hhi-sysctrl = <&sysctrl>;
+				};
 
 				clkc_AO: clock-controller {
 					compatible = "amlogic,meson-gx-aoclkc";
@@ -391,15 +403,15 @@
 			};
 
 			uart_AO: serial@4c0 {
-				compatible = "amlogic,meson-gx-uart", "amlogic,meson-ao-uart", "amlogic,meson-uart";
-				reg = <0x0 0x004c0 0x0 0x14>;
+				compatible = "amlogic,meson-gx-uart", "amlogic,meson-ao-uart";
+				reg = <0x0 0x004c0 0x0 0x18>;
 				interrupts = <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 
 			uart_AO_B: serial@4e0 {
-				compatible = "amlogic,meson-gx-uart", "amlogic,meson-ao-uart", "amlogic,meson-uart";
-				reg = <0x0 0x004e0 0x0 0x14>;
+				compatible = "amlogic,meson-gx-uart", "amlogic,meson-ao-uart";
+				reg = <0x0 0x004e0 0x0 0x18>;
 				interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
@@ -441,12 +453,17 @@
 			};
 		};
 
-		hiubus: hiubus@c883c000 {
+		hiubus: bus@c883c000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc883c000 0x0 0x2000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xc883c000 0x0 0x2000>;
+
+			sysctrl: system-controller@0 {
+				compatible = "amlogic,meson-gx-hhi-sysctrl", "syscon", "simple-mfd";
+				reg = <0 0 0 0x400>;
+			};
 
 			mailbox: mailbox@404 {
 				compatible = "amlogic,meson-gx-mhu", "amlogic,meson-gxbb-mhu";

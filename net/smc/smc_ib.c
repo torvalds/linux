@@ -141,6 +141,17 @@ out:
 	return rc;
 }
 
+static void smc_ib_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
+{
+	struct smc_link_group *lgr, *l;
+
+	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
+		if (lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
+		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
+			smc_lgr_terminate(lgr);
+	}
+}
+
 /* process context wrapper for might_sleep smc_ib_remember_port_attr */
 static void smc_ib_port_event_work(struct work_struct *work)
 {
@@ -151,6 +162,8 @@ static void smc_ib_port_event_work(struct work_struct *work)
 	for_each_set_bit(port_idx, &smcibdev->port_event_mask, SMC_MAX_PORTS) {
 		smc_ib_remember_port_attr(smcibdev, port_idx + 1);
 		clear_bit(port_idx, &smcibdev->port_event_mask);
+		if (!smc_ib_port_active(smcibdev, port_idx + 1))
+			smc_ib_port_terminate(smcibdev, port_idx + 1);
 	}
 }
 
@@ -165,15 +178,7 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 
 	switch (ibevent->event) {
 	case IB_EVENT_PORT_ERR:
-		port_idx = ibevent->element.port_num - 1;
-		set_bit(port_idx, &smcibdev->port_event_mask);
-		schedule_work(&smcibdev->port_event_work);
-		/* fall through */
 	case IB_EVENT_DEVICE_FATAL:
-		/* tbd in follow-on patch:
-		 * abnormal close of corresponding connections
-		 */
-		break;
 	case IB_EVENT_PORT_ACTIVE:
 		port_idx = ibevent->element.port_num - 1;
 		set_bit(port_idx, &smcibdev->port_event_mask);
@@ -186,7 +191,8 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 
 void smc_ib_dealloc_protection_domain(struct smc_link *lnk)
 {
-	ib_dealloc_pd(lnk->roce_pd);
+	if (lnk->roce_pd)
+		ib_dealloc_pd(lnk->roce_pd);
 	lnk->roce_pd = NULL;
 }
 
@@ -203,14 +209,18 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 
 static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 {
+	struct smc_ib_device *smcibdev =
+		(struct smc_ib_device *)ibevent->device;
+	u8 port_idx;
+
 	switch (ibevent->event) {
 	case IB_EVENT_DEVICE_FATAL:
 	case IB_EVENT_GID_CHANGE:
 	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_QP_ACCESS_ERR:
-		/* tbd in follow-on patch:
-		 * abnormal close of corresponding connections
-		 */
+		port_idx = ibevent->element.port_num - 1;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		schedule_work(&smcibdev->port_event_work);
 		break;
 	default:
 		break;
@@ -219,7 +229,8 @@ static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 
 void smc_ib_destroy_queue_pair(struct smc_link *lnk)
 {
-	ib_destroy_qp(lnk->roce_qp);
+	if (lnk->roce_qp)
+		ib_destroy_qp(lnk->roce_qp);
 	lnk->roce_qp = NULL;
 }
 
@@ -370,26 +381,17 @@ void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
 
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct net_device *ndev;
+	struct ib_gid_attr gattr;
 	int rc;
 
 	rc = ib_query_gid(smcibdev->ibdev, ibport, 0,
-			  &smcibdev->gid[ibport - 1], NULL);
-	/* the SMC protocol requires specification of the roce MAC address;
-	 * if net_device cannot be determined, it can be derived from gid 0
-	 */
-	ndev = smcibdev->ibdev->get_netdev(smcibdev->ibdev, ibport);
-	if (ndev) {
-		memcpy(&smcibdev->mac, ndev->dev_addr, ETH_ALEN);
-		dev_put(ndev);
-	} else if (!rc) {
-		memcpy(&smcibdev->mac[ibport - 1][0],
-		       &smcibdev->gid[ibport - 1].raw[8], 3);
-		memcpy(&smcibdev->mac[ibport - 1][3],
-		       &smcibdev->gid[ibport - 1].raw[13], 3);
-		smcibdev->mac[ibport - 1][0] &= ~0x02;
-	}
-	return rc;
+			  &smcibdev->gid[ibport - 1], &gattr);
+	if (rc || !gattr.ndev)
+		return -ENODEV;
+
+	memcpy(smcibdev->mac[ibport - 1], gattr.ndev->dev_addr, ETH_ALEN);
+	dev_put(gattr.ndev);
+	return 0;
 }
 
 /* Create an identifier unique for this instance of SMC-R.
@@ -420,6 +422,7 @@ int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 			   &smcibdev->pattr[ibport - 1]);
 	if (rc)
 		goto out;
+	/* the SMC protocol requires specification of the RoCE MAC address */
 	rc = smc_ib_fill_gid_and_mac(smcibdev, ibport);
 	if (rc)
 		goto out;
@@ -470,6 +473,7 @@ static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
 {
 	if (!smcibdev->initialized)
 		return;
+	smcibdev->initialized = 0;
 	smc_wr_remove_dev(smcibdev);
 	ib_unregister_event_handler(&smcibdev->event_handler);
 	ib_destroy_cq(smcibdev->roce_cq_recv);

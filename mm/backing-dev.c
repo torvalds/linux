@@ -113,11 +113,23 @@ static const struct file_operations bdi_debug_stats_fops = {
 	.release	= single_release,
 };
 
-static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
 {
+	if (!bdi_debug_root)
+		return -ENOMEM;
+
 	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
+	if (!bdi->debug_dir)
+		return -ENOMEM;
+
 	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
 					       bdi, &bdi_debug_stats_fops);
+	if (!bdi->debug_stats) {
+		debugfs_remove(bdi->debug_dir);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static void bdi_debug_unregister(struct backing_dev_info *bdi)
@@ -129,9 +141,10 @@ static void bdi_debug_unregister(struct backing_dev_info *bdi)
 static inline void bdi_debug_init(void)
 {
 }
-static inline void bdi_debug_register(struct backing_dev_info *bdi,
+static inline int bdi_debug_register(struct backing_dev_info *bdi,
 				      const char *name)
 {
+	return 0;
 }
 static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
 {
@@ -1072,23 +1085,3 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(wait_iff_congested);
-
-int pdflush_proc_obsolete(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	char kbuf[] = "0\n";
-
-	if (*ppos || *lenp < sizeof(kbuf)) {
-		*lenp = 0;
-		return 0;
-	}
-
-	if (copy_to_user(buffer, kbuf, sizeof(kbuf)))
-		return -EFAULT;
-	pr_warn_once("%s exported in /proc is scheduled for removal\n",
-		     table->procname);
-
-	*lenp = 2;
-	*ppos += *lenp;
-	return 2;
-}

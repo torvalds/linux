@@ -32,7 +32,7 @@ bool ima_canonical_fmt;
 static int __init default_canonical_fmt_setup(char *str)
 {
 #ifdef __BIG_ENDIAN
-	ima_canonical_fmt = 1;
+	ima_canonical_fmt = true;
 #endif
 	return 1;
 }
@@ -429,10 +429,10 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 	}
 
 	ima_update_policy();
-#ifndef	CONFIG_IMA_WRITE_POLICY
+#if !defined(CONFIG_IMA_WRITE_POLICY) && !defined(CONFIG_IMA_READ_POLICY)
 	securityfs_remove(ima_policy);
 	ima_policy = NULL;
-#else
+#elif defined(CONFIG_IMA_WRITE_POLICY)
 	clear_bit(IMA_FS_BUSY, &ima_fs_flags);
 #endif
 	return 0;

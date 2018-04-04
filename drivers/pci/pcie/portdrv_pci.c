@@ -150,6 +150,9 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 
 	pci_save_state(dev);
 
+	dev_pm_set_driver_flags(&dev->dev, DPM_FLAG_SMART_SUSPEND |
+					   DPM_FLAG_LEAVE_SUSPENDED);
+
 	if (pci_bridge_d3_possible(dev)) {
 		/*
 		 * Keep the port resumed 100ms to make sure things like
@@ -247,6 +250,7 @@ static struct pci_driver pcie_portdriver = {
 
 	.probe		= pcie_portdrv_probe,
 	.remove		= pcie_portdrv_remove,
+	.shutdown	= pcie_portdrv_remove,
 
 	.err_handler	= &pcie_portdrv_err_handler,
 

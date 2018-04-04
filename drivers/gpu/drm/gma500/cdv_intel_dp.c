@@ -1901,10 +1901,8 @@ cdv_intel_dp_destroy(struct drm_connector *connector)
 
 	if (is_edp(gma_encoder)) {
 	/*	cdv_intel_panel_destroy_backlight(connector->dev); */
-		if (intel_dp->panel_fixed_mode) {
-			kfree(intel_dp->panel_fixed_mode);
-			intel_dp->panel_fixed_mode = NULL;
-		}
+		kfree(intel_dp->panel_fixed_mode);
+		intel_dp->panel_fixed_mode = NULL;
 	}
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_connector_unregister(connector);

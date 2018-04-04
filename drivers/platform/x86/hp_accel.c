@@ -240,6 +240,7 @@ static const struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("HDX18", "HP HDX 18", x_inverted),
 	AXIS_DMI_MATCH("HPB432x", "HP ProBook 432", xy_rotated_left),
 	AXIS_DMI_MATCH("HPB440G3", "HP ProBook 440 G3", x_inverted_usd),
+	AXIS_DMI_MATCH("HPB440G4", "HP ProBook 440 G4", x_inverted),
 	AXIS_DMI_MATCH("HPB442x", "HP ProBook 442", xy_rotated_left),
 	AXIS_DMI_MATCH("HPB452x", "HP ProBook 452", y_inverted),
 	AXIS_DMI_MATCH("HPB522x", "HP ProBook 522", xy_swap),

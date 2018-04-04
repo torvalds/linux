@@ -3,40 +3,42 @@
 #include <linux/log2.h>
 #include "sane_ctype.h"
 
-void print_binary(unsigned char *data, size_t len,
-		  size_t bytes_per_line, print_binary_t printer,
-		  void *extra)
+int binary__fprintf(unsigned char *data, size_t len,
+		    size_t bytes_per_line, binary__fprintf_t printer,
+		    void *extra, FILE *fp)
 {
 	size_t i, j, mask;
+	int printed = 0;
 
 	if (!printer)
-		return;
+		return 0;
 
 	bytes_per_line = roundup_pow_of_two(bytes_per_line);
 	mask = bytes_per_line - 1;
 
-	printer(BINARY_PRINT_DATA_BEGIN, 0, extra);
+	printed += printer(BINARY_PRINT_DATA_BEGIN, 0, extra, fp);
 	for (i = 0; i < len; i++) {
 		if ((i & mask) == 0) {
-			printer(BINARY_PRINT_LINE_BEGIN, -1, extra);
-			printer(BINARY_PRINT_ADDR, i, extra);
+			printed += printer(BINARY_PRINT_LINE_BEGIN, -1, extra, fp);
+			printed += printer(BINARY_PRINT_ADDR, i, extra, fp);
 		}
 
-		printer(BINARY_PRINT_NUM_DATA, data[i], extra);
+		printed += printer(BINARY_PRINT_NUM_DATA, data[i], extra, fp);
 
 		if (((i & mask) == mask) || i == len - 1) {
 			for (j = 0; j < mask-(i & mask); j++)
-				printer(BINARY_PRINT_NUM_PAD, -1, extra);
+				printed += printer(BINARY_PRINT_NUM_PAD, -1, extra, fp);
 
-			printer(BINARY_PRINT_SEP, i, extra);
+			printer(BINARY_PRINT_SEP, i, extra, fp);
 			for (j = i & ~mask; j <= i; j++)
-				printer(BINARY_PRINT_CHAR_DATA, data[j], extra);
+				printed += printer(BINARY_PRINT_CHAR_DATA, data[j], extra, fp);
 			for (j = 0; j < mask-(i & mask); j++)
-				printer(BINARY_PRINT_CHAR_PAD, i, extra);
-			printer(BINARY_PRINT_LINE_END, -1, extra);
+				printed += printer(BINARY_PRINT_CHAR_PAD, i, extra, fp);
+			printed += printer(BINARY_PRINT_LINE_END, -1, extra, fp);
 		}
 	}
-	printer(BINARY_PRINT_DATA_END, -1, extra);
+	printed += printer(BINARY_PRINT_DATA_END, -1, extra, fp);
+	return printed;
 }
 
 int is_printable_array(char *p, unsigned int len)

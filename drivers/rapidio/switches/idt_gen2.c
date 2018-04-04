@@ -458,7 +458,7 @@ static void idtg2_remove(struct rio_dev *rdev)
 	idtg2_sysfs(rdev, false);
 }
 
-static struct rio_device_id idtg2_id_table[] = {
+static const struct rio_device_id idtg2_id_table[] = {
 	{RIO_DEVICE(RIO_DID_IDTCPS1848, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTCPS1616, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTVPS1616, RIO_VID_IDT)},

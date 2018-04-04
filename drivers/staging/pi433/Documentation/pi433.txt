@@ -20,7 +20,7 @@ Discription of driver operation
 a) transmission
 
 Each transmission can take place with a different configuration of the rf
-module. Therfore each application can set its own set of parameters. The driver
+module. Therefore each application can set its own set of parameters. The driver
 takes care, that each transmission takes place with the parameterset of the
 application, that requests the transmission. To allow the transmission to take
 place in the background, a tx thread is introduced.
@@ -33,7 +33,7 @@ there is no receive request or the receiver is still waiting for something in
 the air, the rf module is set to standby, the parameters for transmission gets
 set, the hardware fifo of the rf chip gets preloaded and the transmission gets
 started. Upon hardware fifo threshold interrupt it gets reloaded, thus enabling
-much longer telegrams then hardware fifo size. If the telegram is send and there
+much longer telegrams than the hardware fifo size. If the telegram is sent and there
 is more data available in the kfifo, the procedure is repeated. If not the
 transmission cycle ends.
 
@@ -41,7 +41,7 @@ b) reception
 
 Since there is only one application allowed to receive data at a time, for
 reception there is only one configuration set.
-As soon as an application sets an request for receiving a telegram, the reception
+As soon as an application sets a request for receiving a telegram, the reception
 configuration set is written to the rf module and it gets set into receiving mode.
 Now the driver is waiting, that a predefined RSSI level (signal strength at the
 receiver) is reached. Until this hasn't happened, the reception can be
@@ -69,8 +69,8 @@ PI433_IOC_WR_TX_CFG - set the transmission parameters
 PI433_IOC_RD_RX_CFG - get the receiving parameters from the driver
 PI433_IOC_WR_RX_CFG - set the receiving parameters
 
-The tx configuration is transfered via struct pi433_tx_cfg, the parameterset for transmission.
-It is devided into two sections: rf parameters and packet format.
+The tx configuration is transferred via struct pi433_tx_cfg, the parameterset for transmission.
+It is divided into two sections: rf parameters and packet format.
 
 rf params:
 	frequency
@@ -110,9 +110,9 @@ rf params:
 		ramp12		- amp ramps up in 12us
 		ramp10		- amp ramps up in 10us
 	tx_start_condition
-		fifoLevel	- transmission starts, if fifo is filled to
+		fifo_level	- transmission starts, if fifo is filled to
 				  threshold level
-		fifoNotEmpty	- transmission starts, as soon as there is one
+		fifo_not_empty	- transmission starts, as soon as there is one
 				  byte in internal fifo
 	repetitions
 		This gives the option, to send a telegram multiple times. Default: 1
@@ -123,7 +123,7 @@ packet format:
 		optionOff	- no preamble will be generated
 	enable_sync
 		optionOn	- a sync word will be automatically added to
-				  the telegram after preamble
+				  the telegram after the preamble
 		optionOff	- no sync word will be added
 		Attention: While possible to generate sync without preamble, the
 		receiver won't be able to detect the sync without preamble.
@@ -136,7 +136,7 @@ packet format:
 		Attention: should be used in combination with sync, only
 	enable_address_byte
 		optionOn	- the address byte will be automatically added to the
-				  telgram. It's part of the payload
+				  telegram. It's part of the payload
 		optionOff	- the address byte will not be added to the telegram.
 		The address byte can be used for address filtering, so the receiver
 		will only receive telegrams with a given address byte.
@@ -161,7 +161,7 @@ packet format:
 		one byte, used as address byte on address byte option.
 
 
-The rx configuration is transfered via struct pi433_rx_cfg, the parameterset for receiving. It is devided into two sections: rf parameters and packet format.
+The rx configuration is transferred via struct pi433_rx_cfg, the parameterset for receiving. It is divided into two sections: rf parameters and packet format.
 
 rf params:
 	frequency
@@ -178,7 +178,7 @@ rf params:
 		OOK - on off key
 	rssi_threshold
 		threshold value for the signal strength on the receiver input.
-		If this value is exeeded, a reception cycle starts
+		If this value is exceeded, a reception cycle starts
 		Allowed values: 0...255
 	thresholdDecrement
 		in order to adapt to different levels of singnal strength, over
@@ -198,13 +198,13 @@ rf params:
 		twohundretOhm	- for antennas with an impedance of 200Ohm
 	lnaGain
 		sets the gain of the low noise amp
-		automatic	- lna gain is determed by an agc
+		automatic	- lna gain is determined by an agc
 		max		- lna gain is set to maximum
-		maxMinus6	- lna gain is set to  6db below max
-		maxMinus12	- lna gain is set to 12db below max
-		maxMinus24	- lna gain is set to 24db below max
-		maxMinus36	- lna gain is set to 36db below max
-		maxMinus48	- lna gain is set to 48db below max
+		max_minus_6	- lna gain is set to  6db below max
+		max_minus_12	- lna gain is set to 12db below max
+		max_minus_24	- lna gain is set to 24db below max
+		max_minus_36	- lna gain is set to 36db below max
+		max_minus_48	- lna gain is set to 48db below max
 	bw_mantisse
 		sets the bandwidth of the channel filter - part one: mantisse.
 		mantisse16	- mantisse is set to 16
@@ -232,7 +232,7 @@ rf params:
 			     amount of bytes that were requested by the read request.
 		Attention: should be used in combination with sync, only
 	enable_address_filtering;
-		filteringOff		- no adress filtering will take place
+		filteringOff		- no address filtering will take place
 		nodeAddress		- all telegrams, not matching the node
 					  address will be internally discarded
 		nodeOrBroadcastAddress	- all telegrams, neither matching the
@@ -245,7 +245,7 @@ rf params:
 				  calculated crc doesn't match to two bytes,
 				  that follow the payload, the telegram will be
 				  internally discarded.
-		Attention: This option is only operational, if sync on and fixed length
+		Attention: This option is only operational if sync on and fixed length
 		or length byte is used
 	sync_length
 		Gives the length of the payload.
@@ -255,9 +255,9 @@ rf params:
 		Overrides the telegram length either given by the first byte of
 		payload or by the read request.
 	bytes_to_drop
-		gives the number of bytes, that will be dropped before transfering
+		gives the number of bytes, that will be dropped before transferring
 		data to the read buffer
-		This option is only usefull, if all packet helper are switched
+		This option is only useful if all packet helper are switched
 		off and the rf chip is used in raw receiving mode. This may be
 		needed, if a telegram of a third party device should be received,
 		using a protocol not compatible with the packet engine of the rf69 chip.

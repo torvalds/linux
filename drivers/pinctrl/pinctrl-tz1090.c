@@ -1082,10 +1082,8 @@ static int add_map_configs(struct device *dev,
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
-	if (!dup_configs) {
-		dev_err(dev, "kmemdup(configs) failed\n");
+	if (!dup_configs)
 		return -ENOMEM;
-	}
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
 	(*map)[*num_maps].data.configs.group_or_pin = group;
@@ -1946,10 +1944,9 @@ static int tz1090_pinctrl_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
-	if (!pmx) {
-		dev_err(&pdev->dev, "Can't alloc tz1090_pmx\n");
+	if (!pmx)
 		return -ENOMEM;
-	}
+
 	pmx->dev = &pdev->dev;
 	spin_lock_init(&pmx->lock);
 

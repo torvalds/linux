@@ -60,35 +60,35 @@
 	};
 
 	soc {
-		ocram: sram@00900000 {
+		ocram: sram@900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x20000>;
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
-		aips1: aips-bus@02000000 {
-			iomuxc: iomuxc@020e0000 {
+		aips1: aips-bus@2000000 {
+			iomuxc: iomuxc@20e0000 {
 				compatible = "fsl,imx6dl-iomuxc";
 			};
 
-			pxp: pxp@020f0000 {
+			pxp: pxp@20f0000 {
 				reg = <0x020f0000 0x4000>;
 				interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			epdc: epdc@020f4000 {
+			epdc: epdc@20f4000 {
 				reg = <0x020f4000 0x4000>;
 				interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			lcdif: lcdif@020f8000 {
+			lcdif: lcdif@20f8000 {
 				reg = <0x020f8000 0x4000>;
 				interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
-		aips2: aips-bus@02100000 {
-			i2c4: i2c@021f8000 {
+		aips2: aips-bus@2100000 {
+			i2c4: i2c@21f8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-i2c", "fsl,imx21-i2c";
@@ -170,7 +170,7 @@
 };
 
 &gpr {
-	ipu1_csi0_mux: ipu1_csi0_mux@34 {
+	ipu1_csi0_mux {
 		compatible = "video-mux";
 		mux-controls = <&mux 0>;
 		#address-cells = <1>;
@@ -224,7 +224,7 @@
 		};
 	};
 
-	ipu1_csi1_mux: ipu1_csi1_mux@34 {
+	ipu1_csi1_mux {
 		compatible = "video-mux";
 		mux-controls = <&mux 1>;
 		#address-cells = <1>;
@@ -309,10 +309,12 @@
 		#size-cells = <0>;
 
 		mipi_vc0_to_ipu1_csi0_mux: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&ipu1_csi0_mux_from_mipi_vc0>;
 		};
 
 		mipi_vc0_to_ipu1_csi1_mux: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&ipu1_csi1_mux_from_mipi_vc0>;
 		};
 	};
@@ -323,10 +325,12 @@
 		#size-cells = <0>;
 
 		mipi_vc1_to_ipu1_csi0_mux: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&ipu1_csi0_mux_from_mipi_vc1>;
 		};
 
 		mipi_vc1_to_ipu1_csi1_mux: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&ipu1_csi1_mux_from_mipi_vc1>;
 		};
 	};
@@ -337,10 +341,12 @@
 		#size-cells = <0>;
 
 		mipi_vc2_to_ipu1_csi0_mux: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&ipu1_csi0_mux_from_mipi_vc2>;
 		};
 
 		mipi_vc2_to_ipu1_csi1_mux: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&ipu1_csi1_mux_from_mipi_vc2>;
 		};
 	};
@@ -351,10 +357,12 @@
 		#size-cells = <0>;
 
 		mipi_vc3_to_ipu1_csi0_mux: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&ipu1_csi0_mux_from_mipi_vc3>;
 		};
 
 		mipi_vc3_to_ipu1_csi1_mux: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&ipu1_csi1_mux_from_mipi_vc3>;
 		};
 	};

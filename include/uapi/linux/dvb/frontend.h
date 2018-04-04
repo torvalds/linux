@@ -547,7 +547,10 @@ enum fe_interleaving {
 #define DTV_STAT_ERROR_BLOCK_COUNT	68
 #define DTV_STAT_TOTAL_BLOCK_COUNT	69
 
-#define DTV_MAX_COMMAND		DTV_STAT_TOTAL_BLOCK_COUNT
+/* Physical layer scrambling */
+#define DTV_SCRAMBLING_SEQUENCE_INDEX	70
+
+#define DTV_MAX_COMMAND		DTV_SCRAMBLING_SEQUENCE_INDEX
 
 /**
  * enum fe_pilot - Type of pilot tone
@@ -756,16 +759,15 @@ enum fecap_scale_params {
 /**
  * struct dtv_stats - Used for reading a DTV status property
  *
- * @scale:	Filled with enum fecap_scale_params - the scale
- *		in usage for that parameter
+ * @scale:
+ *	Filled with enum fecap_scale_params - the scale in usage
+ *	for that parameter
  *
- * The ``{unnamed_union}`` may have either one of the values below:
- *
- * %svalue
+ * @svalue:
  *	integer value of the measure, for %FE_SCALE_DECIBEL,
  *	used for dB measures. The unit is 0.001 dB.
  *
- * %uvalue
+ * @uvalue:
  *	unsigned integer value of the measure, used when @scale is
  *	either %FE_SCALE_RELATIVE or %FE_SCALE_COUNTER.
  *
@@ -828,19 +830,19 @@ struct dtv_fe_stats {
 /**
  * struct dtv_property - store one of frontend command and its value
  *
- * @cmd:	Digital TV command.
- * @reserved:	Not used.
- * @u:		Union with the values for the command.
- * @result:	Result of the command set (currently unused).
+ * @cmd:		Digital TV command.
+ * @reserved:		Not used.
+ * @u:			Union with the values for the command.
+ * @u.data:		A unsigned 32 bits integer with command value.
+ * @u.buffer:		Struct to store bigger properties.
+ *			Currently unused.
+ * @u.buffer.data:	an unsigned 32-bits array.
+ * @u.buffer.len:	number of elements of the buffer.
+ * @u.buffer.reserved1:	Reserved.
+ * @u.buffer.reserved2:	Reserved.
+ * @u.st:		a &struct dtv_fe_stats array of statistics.
+ * @result:		Currently unused.
  *
- * The @u union may have either one of the values below:
- *
- * %data
- *	an unsigned 32-bits number.
- * %st
- *	a &struct dtv_fe_stats array of statistics.
- * %buffer
- *	a buffer of up to 32 characters (currently unused).
  */
 struct dtv_property {
 	__u32 cmd;

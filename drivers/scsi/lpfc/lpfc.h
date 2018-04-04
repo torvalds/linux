@@ -23,6 +23,7 @@
 
 #include <scsi/scsi_host.h>
 #include <linux/ktime.h>
+#include <linux/workqueue.h>
 
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
 #define CONFIG_SCSI_LPFC_DEBUG_FS
@@ -54,9 +55,10 @@ struct lpfc_sli2_slim;
 #define LPFC_MAX_SG_SLI4_SEG_CNT_DIF 128 /* sg element count per scsi cmnd */
 #define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
+#define LPFC_MIN_SG_SEG_CNT	32	/* sg element count per scsi cmnd */
 #define LPFC_MAX_SGL_SEG_CNT	512	/* SGL element count per scsi cmnd */
 #define LPFC_MAX_BPL_SEG_CNT	4096	/* BPL element count per scsi cmnd */
-#define LPFC_MAX_NVME_SEG_CNT	128	/* max SGL element cnt per NVME cmnd */
+#define LPFC_MAX_NVME_SEG_CNT	256	/* max SGL element cnt per NVME cmnd */
 
 #define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
@@ -653,6 +655,8 @@ struct lpfc_hba {
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
 
+	struct workqueue_struct *wq;
+
 	struct lpfc_sli sli;
 	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
 	uint32_t sli_rev;		/* SLI2, SLI3, or SLI4 */
@@ -702,7 +706,6 @@ struct lpfc_hba {
 					 * capability
 					 */
 #define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
-#define NVME_XRI_ABORT_EVENT	0x100000
 
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
@@ -942,6 +945,8 @@ struct lpfc_hba {
 	struct list_head lpfc_nvme_buf_list_get;
 	struct list_head lpfc_nvme_buf_list_put;
 	uint32_t total_nvme_bufs;
+	uint32_t get_nvme_bufs;
+	uint32_t put_nvme_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;

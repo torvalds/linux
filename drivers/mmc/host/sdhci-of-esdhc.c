@@ -458,6 +458,33 @@ static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 	return clock / 256 / 16;
 }
 
+static void esdhc_clock_enable(struct sdhci_host *host, bool enable)
+{
+	u32 val;
+	ktime_t timeout;
+
+	val = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
+
+	if (enable)
+		val |= ESDHC_CLOCK_SDCLKEN;
+	else
+		val &= ~ESDHC_CLOCK_SDCLKEN;
+
+	sdhci_writel(host, val, ESDHC_SYSTEM_CONTROL);
+
+	/* Wait max 20 ms */
+	timeout = ktime_add_ms(ktime_get(), 20);
+	val = ESDHC_CLOCK_STABLE;
+	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & val)) {
+		if (ktime_after(ktime_get(), timeout)) {
+			pr_err("%s: Internal clock never stabilised.\n",
+				mmc_hostname(host->mmc));
+			break;
+		}
+		udelay(10);
+	}
+}
+
 static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -469,8 +496,10 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-	if (clock == 0)
+	if (clock == 0) {
+		esdhc_clock_enable(host, false);
 		return;
+	}
 
 	/* Workaround to start pre_div at 2 for VNN < VENDOR_V_23 */
 	if (esdhc->vendor_ver < VENDOR_V_23)
@@ -558,39 +587,20 @@ static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 	sdhci_writel(host, ctrl, ESDHC_PROCTL);
 }
 
-static void esdhc_clock_enable(struct sdhci_host *host, bool enable)
-{
-	u32 val;
-	ktime_t timeout;
-
-	val = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
-
-	if (enable)
-		val |= ESDHC_CLOCK_SDCLKEN;
-	else
-		val &= ~ESDHC_CLOCK_SDCLKEN;
-
-	sdhci_writel(host, val, ESDHC_SYSTEM_CONTROL);
-
-	/* Wait max 20 ms */
-	timeout = ktime_add_ms(ktime_get(), 20);
-	val = ESDHC_CLOCK_STABLE;
-	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & val)) {
-		if (ktime_after(ktime_get(), timeout)) {
-			pr_err("%s: Internal clock never stabilised.\n",
-				mmc_hostname(host->mmc));
-			break;
-		}
-		udelay(10);
-	}
-}
-
 static void esdhc_reset(struct sdhci_host *host, u8 mask)
 {
+	u32 val;
+
 	sdhci_reset(host, mask);
 
 	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+
+	if (mask & SDHCI_RESET_ALL) {
+		val = sdhci_readl(host, ESDHC_TBCTL);
+		val &= ~ESDHC_TB_EN;
+		sdhci_writel(host, val, ESDHC_TBCTL);
+	}
 }
 
 /* The SCFG, Supplemental Configuration Unit, provides SoC specific

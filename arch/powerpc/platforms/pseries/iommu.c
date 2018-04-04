@@ -55,23 +55,23 @@
 
 static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 {
-	struct iommu_table_group *table_group = NULL;
-	struct iommu_table *tbl = NULL;
-	struct iommu_table_group_link *tgl = NULL;
+	struct iommu_table_group *table_group;
+	struct iommu_table *tbl;
+	struct iommu_table_group_link *tgl;
 
 	table_group = kzalloc_node(sizeof(struct iommu_table_group), GFP_KERNEL,
 			   node);
 	if (!table_group)
-		goto fail_exit;
+		return NULL;
 
 	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, node);
 	if (!tbl)
-		goto fail_exit;
+		goto free_group;
 
 	tgl = kzalloc_node(sizeof(struct iommu_table_group_link), GFP_KERNEL,
 			node);
 	if (!tgl)
-		goto fail_exit;
+		goto free_table;
 
 	INIT_LIST_HEAD_RCU(&tbl->it_group_list);
 	kref_init(&tbl->it_kref);
@@ -82,11 +82,10 @@ static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 
 	return table_group;
 
-fail_exit:
-	kfree(tgl);
-	kfree(table_group);
+free_table:
 	kfree(tbl);
-
+free_group:
+	kfree(table_group);
 	return NULL;
 }
 
@@ -817,15 +816,15 @@ static void remove_ddw(struct device_node *np, bool remove_prop)
 	ret = tce_clearrange_multi_pSeriesLP(0,
 		1ULL << (be32_to_cpu(dwp->window_shift) - PAGE_SHIFT), dwp);
 	if (ret)
-		pr_warning("%pOF failed to clear tces in window.\n",
-			 np);
+		pr_warn("%pOF failed to clear tces in window.\n",
+			np);
 	else
 		pr_debug("%pOF successfully cleared tces in window.\n",
 			 np);
 
 	ret = rtas_call(ddw_avail[2], 1, 1, NULL, liobn);
 	if (ret)
-		pr_warning("%pOF: failed to remove direct window: rtas returned "
+		pr_warn("%pOF: failed to remove direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np, ret, ddw_avail[2], liobn);
 	else
@@ -837,7 +836,7 @@ delprop:
 	if (remove_prop)
 		ret = of_remove_property(np, win64);
 	if (ret)
-		pr_warning("%pOF: failed to remove direct window property: %d\n",
+		pr_warn("%pOF: failed to remove direct window property: %d\n",
 			np, ret);
 }
 
@@ -1232,7 +1231,7 @@ static int dma_set_mask_pSeriesLP(struct device *dev, u64 dma_mask)
 			if (dma_offset != 0) {
 				dev_info(dev, "Using 64-bit direct DMA at offset %llx\n", dma_offset);
 				set_dma_offset(dev, dma_offset);
-				set_dma_ops(dev, &dma_direct_ops);
+				set_dma_ops(dev, &dma_nommu_ops);
 				ddw_enabled = true;
 			}
 		}

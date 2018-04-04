@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/delay.h>
@@ -1064,7 +1064,7 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 		if (!copy_node[i]) {
 			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
 						    sizeof(*copy_node[i]),
-						    GFP_KERNEL);
+						    GFP_ATOMIC);
 			if (!copy_node[i])
 				return;
 		}

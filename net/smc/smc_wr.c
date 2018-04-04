@@ -122,6 +122,7 @@ static void smc_wr_tx_tasklet_fn(unsigned long data)
 again:
 	polled++;
 	do {
+		memset(&wc, 0, sizeof(wc));
 		rc = ib_poll_cq(dev->roce_cq_send, SMC_WR_MAX_POLL_CQE, wc);
 		if (polled == 1) {
 			ib_req_notify_cq(dev->roce_cq_send,
@@ -173,9 +174,9 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 			    struct smc_wr_tx_pend_priv **wr_pend_priv)
 {
 	struct smc_wr_tx_pend *wr_pend;
+	u32 idx = link->wr_tx_cnt;
 	struct ib_send_wr *wr_ib;
 	u64 wr_id;
-	u32 idx;
 	int rc;
 
 	*wr_buf = NULL;
@@ -185,21 +186,20 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 		if (rc)
 			return rc;
 	} else {
-		rc = wait_event_interruptible_timeout(
+		struct smc_link_group *lgr;
+
+		lgr = container_of(link, struct smc_link_group,
+				   lnk[SMC_SINGLE_LINK]);
+		rc = wait_event_timeout(
 			link->wr_tx_wait,
+			list_empty(&lgr->list) || /* lgr terminated */
 			(smc_wr_tx_get_free_slot_index(link, &idx) != -EBUSY),
 			SMC_WR_TX_WAIT_FREE_SLOT_TIME);
 		if (!rc) {
 			/* timeout - terminate connections */
-			struct smc_link_group *lgr;
-
-			lgr = container_of(link, struct smc_link_group,
-					   lnk[SMC_SINGLE_LINK]);
 			smc_lgr_terminate(lgr);
 			return -EPIPE;
 		}
-		if (rc == -ERESTARTSYS)
-			return -EINTR;
 		if (idx == link->wr_tx_cnt)
 			return -EPIPE;
 	}
@@ -249,8 +249,14 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 	pend = container_of(priv, struct smc_wr_tx_pend, priv);
 	rc = ib_post_send(link->roce_qp, &link->wr_tx_ibs[pend->idx],
 			  &failed_wr);
-	if (rc)
+	if (rc) {
+		struct smc_link_group *lgr =
+			container_of(link, struct smc_link_group,
+				     lnk[SMC_SINGLE_LINK]);
+
 		smc_wr_tx_put_slot(link, priv);
+		smc_lgr_terminate(lgr);
+	}
 	return rc;
 }
 
@@ -300,41 +306,23 @@ int smc_wr_reg_send(struct smc_link *link, struct ib_mr *mr)
 	return rc;
 }
 
-void smc_wr_tx_dismiss_slots(struct smc_link *link, u8 wr_rx_hdr_type,
+void smc_wr_tx_dismiss_slots(struct smc_link *link, u8 wr_tx_hdr_type,
 			     smc_wr_tx_filter filter,
 			     smc_wr_tx_dismisser dismisser,
 			     unsigned long data)
 {
 	struct smc_wr_tx_pend_priv *tx_pend;
-	struct smc_wr_rx_hdr *wr_rx;
+	struct smc_wr_rx_hdr *wr_tx;
 	int i;
 
 	for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
-		wr_rx = (struct smc_wr_rx_hdr *)&link->wr_rx_bufs[i];
-		if (wr_rx->type != wr_rx_hdr_type)
+		wr_tx = (struct smc_wr_rx_hdr *)&link->wr_tx_bufs[i];
+		if (wr_tx->type != wr_tx_hdr_type)
 			continue;
 		tx_pend = &link->wr_tx_pends[i].priv;
 		if (filter(tx_pend, data))
 			dismisser(tx_pend);
 	}
-}
-
-bool smc_wr_tx_has_pending(struct smc_link *link, u8 wr_rx_hdr_type,
-			   smc_wr_tx_filter filter, unsigned long data)
-{
-	struct smc_wr_tx_pend_priv *tx_pend;
-	struct smc_wr_rx_hdr *wr_rx;
-	int i;
-
-	for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
-		wr_rx = (struct smc_wr_rx_hdr *)&link->wr_rx_bufs[i];
-		if (wr_rx->type != wr_rx_hdr_type)
-			continue;
-		tx_pend = &link->wr_tx_pends[i].priv;
-		if (filter(tx_pend, data))
-			return true;
-	}
-	return false;
 }
 
 /****************************** receive queue ********************************/

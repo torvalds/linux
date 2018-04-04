@@ -28,12 +28,24 @@ static inline unsigned long scu_a9_get_base(void)
 #ifdef CONFIG_HAVE_ARM_SCU
 unsigned int scu_get_core_count(void __iomem *);
 int scu_power_mode(void __iomem *, unsigned int);
+int scu_cpu_power_enable(void __iomem *, unsigned int);
+int scu_get_cpu_power_mode(void __iomem *scu_base, unsigned int logical_cpu);
 #else
 static inline unsigned int scu_get_core_count(void __iomem *scu_base)
 {
 	return 0;
 }
 static inline int scu_power_mode(void __iomem *scu_base, unsigned int mode)
+{
+	return -EINVAL;
+}
+static inline int scu_cpu_power_enable(void __iomem *scu_base,
+				       unsigned int mode)
+{
+	return -EINVAL;
+}
+static inline int scu_get_cpu_power_mode(void __iomem *scu_base,
+					 unsigned int logical_cpu)
 {
 	return -EINVAL;
 }

@@ -88,7 +88,6 @@ struct drm_encoder_funcs {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @crtc: currently bound CRTC
  * @bridge: bridge associated to the encoder
  * @funcs: control functions
  * @helper_private: mid-layer private data
@@ -166,6 +165,11 @@ struct drm_encoder {
 	 */
 	uint32_t possible_clones;
 
+	/**
+	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
+	 * drivers.  Atomic drivers should instead check
+	 * &drm_connector_state.crtc.
+	 */
 	struct drm_crtc *crtc;
 	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
@@ -208,17 +212,19 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 /**
  * drm_encoder_find - find a &drm_encoder
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: encoder id
  *
  * Returns the encoder with @id, NULL if it doesn't exist. Simple wrapper around
  * drm_mode_object_find().
  */
 static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
+						   struct drm_file *file_priv,
 						   uint32_t id)
 {
 	struct drm_mode_object *mo;
 
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_ENCODER);
 
 	return mo ? obj_to_encoder(mo) : NULL;
 }

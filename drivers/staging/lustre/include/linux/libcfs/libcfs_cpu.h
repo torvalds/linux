@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -78,7 +79,7 @@
 /**
  * return cpumask of CPU partition \a cpt
  */
-cpumask_t *cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt);
+cpumask_var_t *cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt);
 /**
  * print string information of cpt-table
  */
@@ -95,7 +96,7 @@ struct cfs_cpt_table {
 	u64			ctb_version;
 };
 
-static inline cpumask_t *
+static inline cpumask_var_t *
 cfs_cpt_cpumask(struct cfs_cpt_table *cptab, int cpt)
 {
 	return NULL;

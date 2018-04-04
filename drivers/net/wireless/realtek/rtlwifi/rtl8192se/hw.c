@@ -1558,17 +1558,17 @@ void rtl92se_card_disable(struct ieee80211_hw *hw)
 	udelay(100);
 }
 
-void rtl92se_interrupt_recognized(struct ieee80211_hw *hw, u32 *p_inta,
-			     u32 *p_intb)
+void rtl92se_interrupt_recognized(struct ieee80211_hw *hw,
+				  struct rtl_int *intvec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	*p_inta = rtl_read_dword(rtlpriv, ISR) & rtlpci->irq_mask[0];
-	rtl_write_dword(rtlpriv, ISR, *p_inta);
+	intvec->inta = rtl_read_dword(rtlpriv, ISR) & rtlpci->irq_mask[0];
+	rtl_write_dword(rtlpriv, ISR, intvec->inta);
 
-	*p_intb = rtl_read_dword(rtlpriv, ISR + 4) & rtlpci->irq_mask[1];
-	rtl_write_dword(rtlpriv, ISR + 4, *p_intb);
+	intvec->intb = rtl_read_dword(rtlpriv, ISR + 4) & rtlpci->irq_mask[1];
+	rtl_write_dword(rtlpriv, ISR + 4, intvec->intb);
 }
 
 void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw)
@@ -2129,7 +2129,7 @@ static void rtl92se_update_hal_rate_table(struct ieee80211_hw *hw,
 
 static void rtl92se_update_hal_rate_mask(struct ieee80211_hw *hw,
 					 struct ieee80211_sta *sta,
-					 u8 rssi_level)
+					 u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -2288,12 +2288,12 @@ static void rtl92se_update_hal_rate_mask(struct ieee80211_hw *hw,
 }
 
 void rtl92se_update_hal_rate_tbl(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level)
+		struct ieee80211_sta *sta, u8 rssi_level, bool update_bw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->dm.useramask)
-		rtl92se_update_hal_rate_mask(hw, sta, rssi_level);
+		rtl92se_update_hal_rate_mask(hw, sta, rssi_level, update_bw);
 	else
 		rtl92se_update_hal_rate_table(hw, sta);
 }

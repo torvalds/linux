@@ -12,8 +12,9 @@ targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
 targets += misc.o piggy.o sizes.h head.o
 
 KBUILD_CFLAGS := -m64 -D__KERNEL__ -O2
-KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
 KBUILD_CFLAGS += $(cflags-y) -fno-delete-null-pointer-checks -msoft-float
+KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 KBUILD_CFLAGS += $(call cc-option,-mpacked-stack)
 KBUILD_CFLAGS += $(call cc-option,-ffreestanding)
 

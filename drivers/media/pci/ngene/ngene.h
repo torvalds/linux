@@ -29,13 +29,13 @@
 
 #include <linux/dvb/frontend.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_ca_en50221.h"
-#include "dvb_frontend.h"
-#include "dvb_ringbuffer.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_ca_en50221.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_ringbuffer.h>
+#include <media/dvb_net.h>
 #include "cxd2099.h"
 
 #define DEVICE_NAME "ngene"

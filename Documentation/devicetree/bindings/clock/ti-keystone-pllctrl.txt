@@ -14,7 +14,7 @@ Required properties:
 
 Example:
 
-pllctrl: pll-controller@0x02310000 {
+pllctrl: pll-controller@02310000 {
 	compatible = "ti,keystone-pllctrl", "syscon";
 	reg = <0x02310000 0x200>;
 };

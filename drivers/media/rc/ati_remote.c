@@ -198,7 +198,7 @@ static const struct ati_receiver_type type_firefly	= {
 	.default_keymap = RC_MAP_SNAPSTREAM_FIREFLY
 };
 
-static struct usb_device_id ati_remote_table[] = {
+static const struct usb_device_id ati_remote_table[] = {
 	{
 		USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),
 		.driver_info = (unsigned long)&type_ati

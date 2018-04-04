@@ -506,7 +506,6 @@ static int vadc_of_xlate(struct iio_dev *indio_dev,
 static const struct iio_info vadc_info = {
 	.read_raw = vadc_read_raw,
 	.of_xlate = vadc_of_xlate,
-	.driver_module = THIS_MODULE,
 };
 
 struct vadc_channels {

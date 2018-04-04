@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-# kbuild trick to avoid linker error. Can be omitted if a module is built.
-obj- := dummy.o
-
 # List of programs to build
 hostprogs-y := test_lru_dist
 hostprogs-y += sock_example
@@ -15,6 +12,7 @@ hostprogs-y += tracex3
 hostprogs-y += tracex4
 hostprogs-y += tracex5
 hostprogs-y += tracex6
+hostprogs-y += tracex7
 hostprogs-y += test_probe_write_user
 hostprogs-y += trace_output
 hostprogs-y += lathist
@@ -29,6 +27,7 @@ hostprogs-y += test_cgrp2_sock
 hostprogs-y += test_cgrp2_sock2
 hostprogs-y += xdp1
 hostprogs-y += xdp2
+hostprogs-y += xdp_router_ipv4
 hostprogs-y += test_current_task_under_cgroup
 hostprogs-y += trace_event
 hostprogs-y += sampleip
@@ -40,11 +39,14 @@ hostprogs-y += per_socket_stats_example
 hostprogs-y += load_sock_ops
 hostprogs-y += xdp_redirect
 hostprogs-y += xdp_redirect_map
+hostprogs-y += xdp_redirect_cpu
 hostprogs-y += xdp_monitor
+hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
 
 # Libbpf dependencies
-LIBBPF := ../../tools/lib/bpf/bpf.o
+LIBBPF := ../../tools/lib/bpf/bpf.o ../../tools/lib/bpf/nlattr.o
+CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
 
 test_lru_dist-objs := test_lru_dist.o $(LIBBPF)
 sock_example-objs := sock_example.o $(LIBBPF)
@@ -58,6 +60,7 @@ tracex3-objs := bpf_load.o $(LIBBPF) tracex3_user.o
 tracex4-objs := bpf_load.o $(LIBBPF) tracex4_user.o
 tracex5-objs := bpf_load.o $(LIBBPF) tracex5_user.o
 tracex6-objs := bpf_load.o $(LIBBPF) tracex6_user.o
+tracex7-objs := bpf_load.o $(LIBBPF) tracex7_user.o
 load_sock_ops-objs := bpf_load.o $(LIBBPF) load_sock_ops.o
 test_probe_write_user-objs := bpf_load.o $(LIBBPF) test_probe_write_user_user.o
 trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o
@@ -68,13 +71,14 @@ map_perf_test-objs := bpf_load.o $(LIBBPF) map_perf_test_user.o
 test_overhead-objs := bpf_load.o $(LIBBPF) test_overhead_user.o
 test_cgrp2_array_pin-objs := $(LIBBPF) test_cgrp2_array_pin.o
 test_cgrp2_attach-objs := $(LIBBPF) test_cgrp2_attach.o
-test_cgrp2_attach2-objs := $(LIBBPF) test_cgrp2_attach2.o cgroup_helpers.o
+test_cgrp2_attach2-objs := $(LIBBPF) test_cgrp2_attach2.o $(CGROUP_HELPERS)
 test_cgrp2_sock-objs := $(LIBBPF) test_cgrp2_sock.o
 test_cgrp2_sock2-objs := bpf_load.o $(LIBBPF) test_cgrp2_sock2.o
 xdp1-objs := bpf_load.o $(LIBBPF) xdp1_user.o
 # reuse xdp1 source intentionally
 xdp2-objs := bpf_load.o $(LIBBPF) xdp1_user.o
-test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) cgroup_helpers.o \
+xdp_router_ipv4-objs := bpf_load.o $(LIBBPF) xdp_router_ipv4_user.o
+test_current_task_under_cgroup-objs := bpf_load.o $(LIBBPF) $(CGROUP_HELPERS) \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := bpf_load.o $(LIBBPF) trace_event_user.o
 sampleip-objs := bpf_load.o $(LIBBPF) sampleip_user.o
@@ -85,7 +89,9 @@ test_map_in_map-objs := bpf_load.o $(LIBBPF) test_map_in_map_user.o
 per_socket_stats_example-objs := $(LIBBPF) cookie_uid_helper_example.o
 xdp_redirect-objs := bpf_load.o $(LIBBPF) xdp_redirect_user.o
 xdp_redirect_map-objs := bpf_load.o $(LIBBPF) xdp_redirect_map_user.o
+xdp_redirect_cpu-objs := bpf_load.o $(LIBBPF) xdp_redirect_cpu_user.o
 xdp_monitor-objs := bpf_load.o $(LIBBPF) xdp_monitor_user.o
+xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
 
 # Tell kbuild to always build the programs
@@ -99,6 +105,7 @@ always += tracex3_kern.o
 always += tracex4_kern.o
 always += tracex5_kern.o
 always += tracex6_kern.o
+always += tracex7_kern.o
 always += sock_flags_kern.o
 always += test_probe_write_user_kern.o
 always += trace_output_kern.o
@@ -115,6 +122,7 @@ always += parse_varlen.o parse_simple.o parse_ldabs.o
 always += test_cgrp2_tc_kern.o
 always += xdp1_kern.o
 always += xdp2_kern.o
+always += xdp_router_ipv4_kern.o
 always += test_current_task_under_cgroup_kern.o
 always += trace_event_kern.o
 always += sampleip_kern.o
@@ -128,9 +136,13 @@ always += tcp_bufs_kern.o
 always += tcp_cong_kern.o
 always += tcp_iw_kern.o
 always += tcp_clamp_kern.o
+always += tcp_basertt_kern.o
 always += xdp_redirect_kern.o
 always += xdp_redirect_map_kern.o
+always += xdp_redirect_cpu_kern.o
 always += xdp_monitor_kern.o
+always += xdp_rxq_info_kern.o
+always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
@@ -150,6 +162,7 @@ HOSTLOADLIBES_tracex3 += -lelf
 HOSTLOADLIBES_tracex4 += -lelf -lrt
 HOSTLOADLIBES_tracex5 += -lelf
 HOSTLOADLIBES_tracex6 += -lelf
+HOSTLOADLIBES_tracex7 += -lelf
 HOSTLOADLIBES_test_cgrp2_sock2 += -lelf
 HOSTLOADLIBES_load_sock_ops += -lelf
 HOSTLOADLIBES_test_probe_write_user += -lelf
@@ -161,6 +174,7 @@ HOSTLOADLIBES_map_perf_test += -lelf -lrt
 HOSTLOADLIBES_test_overhead += -lelf -lrt
 HOSTLOADLIBES_xdp1 += -lelf
 HOSTLOADLIBES_xdp2 += -lelf
+HOSTLOADLIBES_xdp_router_ipv4 += -lelf
 HOSTLOADLIBES_test_current_task_under_cgroup += -lelf
 HOSTLOADLIBES_trace_event += -lelf
 HOSTLOADLIBES_sampleip += -lelf
@@ -170,7 +184,9 @@ HOSTLOADLIBES_xdp_tx_iptunnel += -lelf
 HOSTLOADLIBES_test_map_in_map += -lelf
 HOSTLOADLIBES_xdp_redirect += -lelf
 HOSTLOADLIBES_xdp_redirect_map += -lelf
+HOSTLOADLIBES_xdp_redirect_cpu += -lelf
 HOSTLOADLIBES_xdp_monitor += -lelf
+HOSTLOADLIBES_xdp_rxq_info += -lelf
 HOSTLOADLIBES_syscall_tp += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
@@ -178,13 +194,22 @@ HOSTLOADLIBES_syscall_tp += -lelf
 LLC ?= llc
 CLANG ?= clang
 
+# Detect that we're cross compiling and use the cross compiler
+ifdef CROSS_COMPILE
+HOSTCC = $(CROSS_COMPILE)gcc
+CLANG_ARCH_ARGS = -target $(ARCH)
+endif
+
 # Trick to allow make to be run from this directory
-all:
+all: $(LIBBPF)
 	$(MAKE) -C ../../ $(CURDIR)/
 
 clean:
 	$(MAKE) -C ../../ M=$(CURDIR) clean
 	@rm -f *~
+
+$(LIBBPF): FORCE
+	$(MAKE) -C $(dir $@) $(notdir $@)
 
 $(obj)/syscall_nrs.s:	$(src)/syscall_nrs.c
 	$(call if_changed_dep,cc_s_c)
@@ -225,9 +250,9 @@ $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
 $(obj)/%.o: $(src)/%.c
 	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
 		-I$(srctree)/tools/testing/selftests/bpf/ \
-		-D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
-		-Wno-compare-distinct-pointer-types \
+		-D__KERNEL__ -Wno-unused-value -Wno-pointer-sign \
+		-D__TARGET_ARCH_$(ARCH) -Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member -Wno-tautological-compare \
-		-Wno-unknown-warning-option \
+		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
 		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@

@@ -35,7 +35,7 @@ struct cx18_api_info {
 	u32 cmd;
 	u8 flags;		/* Flags, see above */
 	u8 rpu;			/* Processing unit */
-	const char *name; 	/* The name of the command */
+	const char *name;	/* The name of the command */
 };
 
 #define API_ENTRY(rpu, x, f) { (x), (f), (rpu), #x }
@@ -43,9 +43,9 @@ struct cx18_api_info {
 static const struct cx18_api_info api_info[] = {
 	/* MPEG encoder API */
 	API_ENTRY(CPU, CX18_CPU_SET_CHANNEL_TYPE,		0),
-	API_ENTRY(CPU, CX18_EPU_DEBUG, 				0),
-	API_ENTRY(CPU, CX18_CREATE_TASK, 			0),
-	API_ENTRY(CPU, CX18_DESTROY_TASK, 			0),
+	API_ENTRY(CPU, CX18_EPU_DEBUG,				0),
+	API_ENTRY(CPU, CX18_CREATE_TASK,			0),
+	API_ENTRY(CPU, CX18_DESTROY_TASK,			0),
 	API_ENTRY(CPU, CX18_CPU_CAPTURE_START,                  API_SLOW),
 	API_ENTRY(CPU, CX18_CPU_CAPTURE_STOP,                   API_SLOW),
 	API_ENTRY(CPU, CX18_CPU_CAPTURE_PAUSE,                  0),

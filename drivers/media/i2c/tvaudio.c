@@ -40,8 +40,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
-#include <media/i2c-addr.h>
-
 /* ---------------------------------------------------------------------- */
 /* insmod args                                                            */
 
@@ -136,7 +134,7 @@ struct CHIPSTATE {
 	/* thread */
 	struct task_struct   *thread;
 	struct timer_list    wt;
-	int 		     audmode;
+	int		     audmode;
 };
 
 static inline struct CHIPSTATE *to_state(struct v4l2_subdev *sd)
@@ -300,9 +298,9 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
  *   if available, ...
  */
 
-static void chip_thread_wake(unsigned long data)
+static void chip_thread_wake(struct timer_list *t)
 {
-	struct CHIPSTATE *chip = (struct CHIPSTATE*)data;
+	struct CHIPSTATE *chip = from_timer(chip, t, wt);
 	wake_up_process(chip->thread);
 }
 
@@ -1995,7 +1993,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 	v4l2_ctrl_handler_setup(&chip->hdl);
 
 	chip->thread = NULL;
-	init_timer(&chip->wt);
+	timer_setup(&chip->wt, chip_thread_wake, 0);
 	if (desc->flags & CHIP_NEED_CHECKMODE) {
 		if (!desc->getrxsubchans || !desc->setaudmode) {
 			/* This shouldn't be happen. Warn user, but keep working
@@ -2005,8 +2003,6 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			return 0;
 		}
 		/* start async thread */
-		chip->wt.function = chip_thread_wake;
-		chip->wt.data     = (unsigned long)chip;
 		chip->thread = kthread_run(chip_thread, chip, "%s",
 					   client->name);
 		if (IS_ERR(chip->thread)) {

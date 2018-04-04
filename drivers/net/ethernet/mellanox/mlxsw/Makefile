@@ -18,7 +18,9 @@ mlxsw_spectrum-objs		:= spectrum.o spectrum_buffers.o \
 				   spectrum_kvdl.o spectrum_acl_tcam.o \
 				   spectrum_acl.o spectrum_flower.o \
 				   spectrum_cnt.o spectrum_fid.o \
-				   spectrum_ipip.o
+				   spectrum_ipip.o spectrum_acl_flex_actions.o \
+				   spectrum_mr.o spectrum_mr_tcam.o \
+				   spectrum_qdisc.o
 mlxsw_spectrum-$(CONFIG_MLXSW_SPECTRUM_DCB)	+= spectrum_dcb.o
 mlxsw_spectrum-$(CONFIG_NET_DEVLINK) += spectrum_dpipe.o
 obj-$(CONFIG_MLXSW_MINIMAL)	+= mlxsw_minimal.o

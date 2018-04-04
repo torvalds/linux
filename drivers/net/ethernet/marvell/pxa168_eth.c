@@ -362,9 +362,9 @@ static void rxq_refill(struct net_device *dev)
 	}
 }
 
-static inline void rxq_refill_timer_wrapper(unsigned long data)
+static inline void rxq_refill_timer_wrapper(struct timer_list *t)
 {
-	struct pxa168_eth_private *pep = (void *)data;
+	struct pxa168_eth_private *pep = from_timer(pep, t, timeout);
 	napi_schedule(&pep->napi);
 }
 
@@ -1362,6 +1362,15 @@ static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void pxa168_eth_netpoll(struct net_device *dev)
+{
+	disable_irq(dev->irq);
+	pxa168_eth_int_handler(dev->irq, dev);
+	enable_irq(dev->irq);
+}
+#endif
+
 static void pxa168_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
@@ -1390,6 +1399,9 @@ static const struct net_device_ops pxa168_eth_netdev_ops = {
 	.ndo_do_ioctl		= pxa168_eth_do_ioctl,
 	.ndo_change_mtu		= pxa168_eth_change_mtu,
 	.ndo_tx_timeout		= pxa168_eth_tx_timeout,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller    = pxa168_eth_netpoll,
+#endif
 };
 
 static int pxa168_eth_probe(struct platform_device *pdev)
@@ -1496,9 +1508,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	netif_napi_add(dev, &pep->napi, pxa168_rx_poll, pep->rx_ring_size);
 
 	memset(&pep->timeout, 0, sizeof(struct timer_list));
-	init_timer(&pep->timeout);
-	pep->timeout.function = rxq_refill_timer_wrapper;
-	pep->timeout.data = (unsigned long)pep;
+	timer_setup(&pep->timeout, rxq_refill_timer_wrapper, 0);
 
 	pep->smi_bus = mdiobus_alloc();
 	if (!pep->smi_bus) {

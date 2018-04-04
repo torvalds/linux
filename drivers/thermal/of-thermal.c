@@ -30,7 +30,6 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/string.h>
-#include <linux/thermal.h>
 
 #include "thermal_core.h"
 

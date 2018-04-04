@@ -281,7 +281,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	int ELCR_fallback = 0;
 
 	intsrc.type = MP_INTSRC;
-	intsrc.irqflag = 0;	/* conforming */
+	intsrc.irqflag = MP_IRQTRIG_DEFAULT | MP_IRQPOL_DEFAULT;
 	intsrc.srcbus = 0;
 	intsrc.dstapic = mpc_ioapic_id(0);
 
@@ -324,10 +324,13 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 			 *  copy that information over to the MP table in the
 			 *  irqflag field (level sensitive, active high polarity).
 			 */
-			if (ELCR_trigger(i))
-				intsrc.irqflag = 13;
-			else
-				intsrc.irqflag = 0;
+			if (ELCR_trigger(i)) {
+				intsrc.irqflag = MP_IRQTRIG_LEVEL |
+						 MP_IRQPOL_ACTIVE_HIGH;
+			} else {
+				intsrc.irqflag = MP_IRQTRIG_DEFAULT |
+						 MP_IRQPOL_DEFAULT;
+			}
 		}
 
 		intsrc.srcbusirq = i;
@@ -407,7 +410,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	processor.apicver = mpc_default_type > 4 ? 0x10 : 0x01;
 	processor.cpuflag = CPU_ENABLED;
 	processor.cpufeature = (boot_cpu_data.x86 << 8) |
-	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
+	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_stepping;
 	processor.featureflag = boot_cpu_data.x86_capability[CPUID_1_EDX];
 	processor.reserved[0] = 0;
 	processor.reserved[1] = 0;
@@ -419,7 +422,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	construct_ioapic_table(mpc_default_type);
 
 	lintsrc.type = MP_LINTSRC;
-	lintsrc.irqflag = 0;		/* conforming */
+	lintsrc.irqflag = MP_IRQTRIG_DEFAULT | MP_IRQPOL_DEFAULT;
 	lintsrc.srcbusid = 0;
 	lintsrc.srcbusirq = 0;
 	lintsrc.destapic = MP_APIC_ALL;
@@ -431,6 +434,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 }
 
 static unsigned long mpf_base;
+static bool mpf_found;
 
 static unsigned long __init get_mpc_size(unsigned long physptr)
 {
@@ -504,7 +508,7 @@ void __init default_get_smp_config(unsigned int early)
 	if (!smp_found_config)
 		return;
 
-	if (!mpf_base)
+	if (!mpf_found)
 		return;
 
 	if (acpi_lapic && early)
@@ -593,6 +597,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 			smp_found_config = 1;
 #endif
 			mpf_base = base;
+			mpf_found = true;
 
 			pr_info("found SMP MP-table at [mem %#010lx-%#010lx] mapped at [%p]\n",
 				base, base + sizeof(*mpf) - 1, mpf);
@@ -662,7 +667,7 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 	if (m->irqtype != mp_INT)
 		return 0;
 
-	if (m->irqflag != 0x0f)
+	if (m->irqflag != (MP_IRQTRIG_LEVEL | MP_IRQPOL_ACTIVE_LOW))
 		return 0;
 
 	/* not legacy */
@@ -671,7 +676,8 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 		if (mp_irqs[i].irqtype != mp_INT)
 			continue;
 
-		if (mp_irqs[i].irqflag != 0x0f)
+		if (mp_irqs[i].irqflag != (MP_IRQTRIG_LEVEL |
+					   MP_IRQPOL_ACTIVE_LOW))
 			continue;
 
 		if (mp_irqs[i].srcbus != m->srcbus)
@@ -782,7 +788,8 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 		if (mp_irqs[i].irqtype != mp_INT)
 			continue;
 
-		if (mp_irqs[i].irqflag != 0x0f)
+		if (mp_irqs[i].irqflag != (MP_IRQTRIG_LEVEL |
+					   MP_IRQPOL_ACTIVE_LOW))
 			continue;
 
 		if (nr_m_spare > 0) {
@@ -858,7 +865,7 @@ static int __init update_mp_table(void)
 	if (!enable_update_mptable)
 		return 0;
 
-	if (!mpf_base)
+	if (!mpf_found)
 		return 0;
 
 	mpf = early_memremap(mpf_base, sizeof(*mpf));

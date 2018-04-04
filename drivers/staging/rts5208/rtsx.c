@@ -275,23 +275,6 @@ static int rtsx_acquire_irq(struct rtsx_dev *dev)
 	return 0;
 }
 
-int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val)
-{
-	struct pci_dev *pdev;
-	u8 data;
-	u8 devfn = (dev << 3) | func;
-
-	pdev = pci_get_bus_and_slot(bus, devfn);
-	if (!pdev)
-		return -1;
-
-	pci_read_config_byte(pdev, offset, &data);
-	if (val)
-		*val = data;
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 /*
  * power management

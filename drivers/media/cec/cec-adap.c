@@ -86,7 +86,7 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
 	static const u8 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 64, 64,
+		1, 1, 64, 64, 8, 8,
 	};
 	struct cec_event_entry *entry;
 	unsigned int ev_idx = new_ev->event - 1;
@@ -169,6 +169,22 @@ void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	mutex_unlock(&adap->devnode.lock);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_cec_event);
+
+/* Notify userspace that the HPD pin changed state at the given time. */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+{
+	struct cec_event ev = {
+		.event = is_high ? CEC_EVENT_PIN_HPD_HIGH :
+				   CEC_EVENT_PIN_HPD_LOW,
+	};
+	struct cec_fh *fh;
+
+	mutex_lock(&adap->devnode.lock);
+	list_for_each_entry(fh, &adap->devnode.fhs, list)
+		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
+	mutex_unlock(&adap->devnode.lock);
+}
+EXPORT_SYMBOL_GPL(cec_queue_pin_hpd_event);
 
 /*
  * Queue a new message for this filehandle.
@@ -524,7 +540,7 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 	unsigned int attempts_made = arb_lost_cnt + nack_cnt +
 				     low_drive_cnt + error_cnt;
 
-	dprintk(2, "%s: status %02x\n", __func__, status);
+	dprintk(2, "%s: status 0x%02x\n", __func__, status);
 	if (attempts_made < 1)
 		attempts_made = 1;
 
@@ -1772,9 +1788,6 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	int la_idx = cec_log_addr2idx(adap, dest_laddr);
 	bool from_unregistered = init_laddr == 0xf;
 	struct cec_msg tx_cec_msg = { };
-#ifdef CONFIG_MEDIA_CEC_RC
-	int scancode;
-#endif
 
 	dprintk(2, "%s: %*ph\n", __func__, msg->len, msg->msg);
 
@@ -1870,9 +1883,11 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 */
 		case 0x60:
 			if (msg->len == 2)
-				scancode = msg->msg[2];
+				rc_keydown(adap->rc, RC_PROTO_CEC,
+					   msg->msg[2], 0);
 			else
-				scancode = msg->msg[2] << 8 | msg->msg[3];
+				rc_keydown(adap->rc, RC_PROTO_CEC,
+					   msg->msg[2] << 8 | msg->msg[3], 0);
 			break;
 		/*
 		 * Other function messages that are not handled.
@@ -1885,54 +1900,11 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 */
 		case 0x56: case 0x57:
 		case 0x67: case 0x68: case 0x69: case 0x6a:
-			scancode = -1;
 			break;
 		default:
-			scancode = msg->msg[2];
+			rc_keydown(adap->rc, RC_PROTO_CEC, msg->msg[2], 0);
 			break;
 		}
-
-		/* Was repeating, but keypress timed out */
-		if (adap->rc_repeating && !adap->rc->keypressed) {
-			adap->rc_repeating = false;
-			adap->rc_last_scancode = -1;
-		}
-		/* Different keypress from last time, ends repeat mode */
-		if (adap->rc_last_scancode != scancode) {
-			rc_keyup(adap->rc);
-			adap->rc_repeating = false;
-		}
-		/* We can't handle this scancode */
-		if (scancode < 0) {
-			adap->rc_last_scancode = scancode;
-			break;
-		}
-
-		/* Send key press */
-		rc_keydown(adap->rc, RC_PROTO_CEC, scancode, 0);
-
-		/* When in repeating mode, we're done */
-		if (adap->rc_repeating)
-			break;
-
-		/*
-		 * We are not repeating, but the new scancode is
-		 * the same as the last one, and this second key press is
-		 * within 550 ms (the 'Follower Safety Timeout') from the
-		 * previous key press, so we now enable the repeating mode.
-		 */
-		if (adap->rc_last_scancode == scancode &&
-		    msg->rx_ts - adap->rc_last_keypress < 550 * NSEC_PER_MSEC) {
-			adap->rc_repeating = true;
-			break;
-		}
-		/*
-		 * Not in repeating mode, so avoid triggering repeat mode
-		 * by calling keyup.
-		 */
-		rc_keyup(adap->rc);
-		adap->rc_last_scancode = scancode;
-		adap->rc_last_keypress = msg->rx_ts;
 #endif
 		break;
 
@@ -1942,8 +1914,6 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 			break;
 #ifdef CONFIG_MEDIA_CEC_RC
 		rc_keyup(adap->rc);
-		adap->rc_repeating = false;
-		adap->rc_last_scancode = -1;
 #endif
 		break;
 
@@ -2035,6 +2005,29 @@ void cec_monitor_all_cnt_dec(struct cec_adapter *adap)
 	adap->monitor_all_cnt--;
 	if (adap->monitor_all_cnt == 0)
 		WARN_ON(call_op(adap, adap_monitor_all_enable, 0));
+}
+
+/*
+ * Helper functions to keep track of the 'monitor pin' use count.
+ *
+ * These functions are called with adap->lock held.
+ */
+int cec_monitor_pin_cnt_inc(struct cec_adapter *adap)
+{
+	int ret = 0;
+
+	if (adap->monitor_pin_cnt == 0)
+		ret = call_op(adap, adap_monitor_pin_enable, 1);
+	if (ret == 0)
+		adap->monitor_pin_cnt++;
+	return ret;
+}
+
+void cec_monitor_pin_cnt_dec(struct cec_adapter *adap)
+{
+	adap->monitor_pin_cnt--;
+	if (adap->monitor_pin_cnt == 0)
+		WARN_ON(call_op(adap, adap_monitor_pin_enable, 0));
 }
 
 #ifdef CONFIG_DEBUG_FS

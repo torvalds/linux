@@ -1,0 +1,36 @@
+AF_VSOCK test suite
+-------------------
+These tests exercise net/vmw_vsock/ host<->guest sockets for VMware, KVM, and
+Hyper-V.
+
+The following tests are available:
+
+  * vsock_diag_test - vsock_diag.ko module for listing open sockets
+
+The following prerequisite steps are not automated and must be performed prior
+to running tests:
+
+1. Build the kernel and these tests.
+2. Install the kernel and tests on the host.
+3. Install the kernel and tests inside the guest.
+4. Boot the guest and ensure that the AF_VSOCK transport is enabled.
+
+Invoke test binaries in both directions as follows:
+
+  # host=server, guest=client
+  (host)# $TEST_BINARY --mode=server \
+                       --control-port=1234 \
+                       --peer-cid=3
+  (guest)# $TEST_BINARY --mode=client \
+                        --control-host=$HOST_IP \
+                        --control-port=1234 \
+                        --peer-cid=2
+
+  # host=client, guest=server
+  (guest)# $TEST_BINARY --mode=server \
+                        --control-port=1234 \
+                        --peer-cid=2
+  (host)# $TEST_BINARY --mode=client \
+                       --control-port=$GUEST_IP \
+                       --control-port=1234 \
+                       --peer-cid=3

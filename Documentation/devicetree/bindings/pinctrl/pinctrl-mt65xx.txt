@@ -81,12 +81,12 @@ Examples:
 		reg = <0 0x10005000 0 0x1000>;
 	};
 
-	syscfg_pctl_b: syscfg_pctl_b@1020C020 {
+	syscfg_pctl_b: syscfg_pctl_b@1020c020 {
 		compatible = "mediatek,mt8135-pctl-b-syscfg", "syscon";
 		reg = <0 0x1020C020 0 0x1000>;
 	};
 
-	pinctrl@01c20800 {
+	pinctrl@1c20800 {
 		compatible = "mediatek,mt8135-pinctrl";
 		reg = <0 0x1000B000 0 0x1000>;
 		mediatek,pctl-regmap = <&syscfg_pctl_a &syscfg_pctl_b>;

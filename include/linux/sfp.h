@@ -3,7 +3,7 @@
 
 #include <linux/phy.h>
 
-struct __packed sfp_eeprom_base {
+struct sfp_eeprom_base {
 	u8 phys_id;
 	u8 phys_ext_id;
 	u8 connector;
@@ -165,13 +165,47 @@ struct __packed sfp_eeprom_base {
 	char vendor_rev[4];
 	union {
 		__be16 optical_wavelength;
-		u8 cable_spec;
-	};
+		__be16 cable_compliance;
+		struct {
+#if defined __BIG_ENDIAN_BITFIELD
+			u8 reserved60_2:6;
+			u8 fc_pi_4_app_h:1;
+			u8 sff8431_app_e:1;
+			u8 reserved61:8;
+#elif defined __LITTLE_ENDIAN_BITFIELD
+			u8 sff8431_app_e:1;
+			u8 fc_pi_4_app_h:1;
+			u8 reserved60_2:6;
+			u8 reserved61:8;
+#else
+#error Unknown Endian
+#endif
+		} __packed passive;
+		struct {
+#if defined __BIG_ENDIAN_BITFIELD
+			u8 reserved60_4:4;
+			u8 fc_pi_4_lim:1;
+			u8 sff8431_lim:1;
+			u8 fc_pi_4_app_h:1;
+			u8 sff8431_app_e:1;
+			u8 reserved61:8;
+#elif defined __LITTLE_ENDIAN_BITFIELD
+			u8 sff8431_app_e:1;
+			u8 fc_pi_4_app_h:1;
+			u8 sff8431_lim:1;
+			u8 fc_pi_4_lim:1;
+			u8 reserved60_4:4;
+			u8 reserved61:8;
+#else
+#error Unknown Endian
+#endif
+		} __packed active;
+	} __packed;
 	u8 reserved62;
 	u8 cc_base;
-};
+} __packed;
 
-struct __packed sfp_eeprom_ext {
+struct sfp_eeprom_ext {
 	__be16 options;
 	u8 br_max;
 	u8 br_min;
@@ -181,12 +215,21 @@ struct __packed sfp_eeprom_ext {
 	u8 enhopts;
 	u8 sff8472_compliance;
 	u8 cc_ext;
-};
+} __packed;
 
-struct __packed sfp_eeprom_id {
+/**
+ * struct sfp_eeprom_id - raw SFP module identification information
+ * @base: base SFP module identification structure
+ * @ext: extended SFP module identification structure
+ *
+ * See the SFF-8472 specification and related documents for the definition
+ * of these structure members. This can be obtained from
+ * ftp://ftp.seagate.com/sff
+ */
+struct sfp_eeprom_id {
 	struct sfp_eeprom_base base;
 	struct sfp_eeprom_ext ext;
-};
+} __packed;
 
 /* SFP EEPROM registers */
 enum {
@@ -222,6 +265,7 @@ enum {
 	SFP_SFF8472_COMPLIANCE		= 0x5e,
 	SFP_CC_EXT			= 0x5f,
 
+	SFP_PHYS_ID_SFF			= 0x02,
 	SFP_PHYS_ID_SFP			= 0x03,
 	SFP_PHYS_EXT_ID_SFP		= 0x04,
 	SFP_CONNECTOR_UNSPEC		= 0x00,
@@ -347,19 +391,32 @@ enum {
 	SFP_PAGE			= 0x7f,
 };
 
-struct device_node;
+struct fwnode_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
 struct net_device;
 struct sfp_bus;
 
+/**
+ * struct sfp_upstream_ops - upstream operations structure
+ * @module_insert: called after a module has been detected to determine
+ *   whether the module is supported for the upstream device.
+ * @module_remove: called after the module has been removed.
+ * @link_down: called when the link is non-operational for whatever
+ *   reason.
+ * @link_up: called when the link is operational.
+ * @connect_phy: called when an I2C accessible PHY has been detected
+ *   on the module.
+ * @disconnect_phy: called when a module with an I2C accessible PHY has
+ *   been removed.
+ */
 struct sfp_upstream_ops {
-	int (*module_insert)(void *, const struct sfp_eeprom_id *id);
-	void (*module_remove)(void *);
-	void (*link_down)(void *);
-	void (*link_up)(void *);
-	int (*connect_phy)(void *, struct phy_device *);
-	void (*disconnect_phy)(void *);
+	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
+	void (*module_remove)(void *priv);
+	void (*link_down)(void *priv);
+	void (*link_up)(void *priv);
+	int (*connect_phy)(void *priv, struct phy_device *);
+	void (*disconnect_phy)(void *priv);
 };
 
 #if IS_ENABLED(CONFIG_SFP)
@@ -375,7 +432,7 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data);
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
-struct sfp_bus *sfp_register_upstream(struct device_node *np,
+struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
 				      struct net_device *ndev, void *upstream,
 				      const struct sfp_upstream_ops *ops);
 void sfp_unregister_upstream(struct sfp_bus *bus);
@@ -419,7 +476,8 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_register_upstream(struct device_node *np,
+static inline struct sfp_bus *sfp_register_upstream(
+	struct fwnode_handle *fwnode,
 	struct net_device *ndev, void *upstream,
 	const struct sfp_upstream_ops *ops)
 {

@@ -49,7 +49,6 @@
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/atomic.h>
-#include <asm/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/in.h>
 #include <linux/list.h>
@@ -130,6 +129,11 @@ static inline int tipc_netid(struct net *net)
 static inline struct list_head *tipc_nodes(struct net *net)
 {
 	return &tipc_net(net)->node_list;
+}
+
+static inline struct tipc_server *tipc_topsrv(struct net *net)
+{
+	return tipc_net(net)->topsrv;
 }
 
 static inline unsigned int tipc_hashfn(u32 addr)

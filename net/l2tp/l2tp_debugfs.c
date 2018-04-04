@@ -53,7 +53,7 @@ static void l2tp_dfs_next_tunnel(struct l2tp_dfs_seq_data *pd)
 
 static void l2tp_dfs_next_session(struct l2tp_dfs_seq_data *pd)
 {
-	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx, true);
+	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx);
 	pd->session_idx++;
 
 	if (pd->session == NULL) {
@@ -180,8 +180,8 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   offset %hu l2specific %hu/%hu\n",
-		   session->offset, session->l2specific_type, session->l2specific_len);
+	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
+		   session->l2specific_type, l2tp_get_l2specific_len(session));
 	if (session->cookie_len) {
 		seq_printf(m, "   cookie %02x%02x%02x%02x",
 			   session->cookie[0], session->cookie[1],
@@ -241,8 +241,6 @@ static int l2tp_dfs_seq_show(struct seq_file *m, void *v)
 		l2tp_dfs_seq_tunnel_show(m, pd->tunnel);
 	} else {
 		l2tp_dfs_seq_session_show(m, pd->session);
-		if (pd->session->deref)
-			pd->session->deref(pd->session);
 		l2tp_session_dec_refcount(pd->session);
 	}
 

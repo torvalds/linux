@@ -1,7 +1,7 @@
 /*
  * TFP410 DPI-to-DVI encoder driver
  *
- * Copyright (C) 2013 Texas Instruments
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -173,7 +173,8 @@ static int tfp410_probe_of(struct platform_device *pdev)
 	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
 		ddata->pd_gpio = gpio;
 	} else {
-		dev_err(&pdev->dev, "failed to parse PD gpio\n");
+		if (gpio != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to parse PD gpio\n");
 		return gpio;
 	}
 

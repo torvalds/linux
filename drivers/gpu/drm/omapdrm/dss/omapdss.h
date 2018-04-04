@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Texas Instruments
+ * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -395,6 +395,7 @@ struct omapdss_hdmi_ops {
 			    struct videomode *vm);
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
+	void (*lost_hotplug)(struct omap_dss_device *dssdev);
 	bool (*detect)(struct omap_dss_device *dssdev);
 
 	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
@@ -562,6 +563,8 @@ struct omap_dss_driver {
 			    struct videomode *vm);
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
+	void (*get_size)(struct omap_dss_device *dssdev,
+			 unsigned int *width, unsigned int *height);
 
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
@@ -584,9 +587,6 @@ struct omap_dss_driver {
 
 bool omapdss_is_initialized(void);
 
-int omap_dss_register_driver(struct omap_dss_driver *);
-void omap_dss_unregister_driver(struct omap_dss_driver *);
-
 int omapdss_register_display(struct omap_dss_device *dssdev);
 void omapdss_unregister_display(struct omap_dss_device *dssdev);
 
@@ -594,9 +594,6 @@ struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
 #define for_each_dss_dev(d) while ((d = omap_dss_get_next_device(d)) != NULL)
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
-struct omap_dss_device *omap_dss_find_device(void *data,
-		int (*match)(struct omap_dss_device *dssdev, void *data));
-
 
 int omap_dss_get_num_overlay_managers(void);
 
@@ -693,6 +690,8 @@ struct dispc_ops {
 
 	int (*get_num_ovls)(void);
 	int (*get_num_mgrs)(void);
+
+	u32 (*get_memory_bandwidth_limit)(void);
 
 	void (*mgr_enable)(enum omap_channel channel, bool enable);
 	bool (*mgr_is_enabled)(enum omap_channel channel);

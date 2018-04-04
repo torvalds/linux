@@ -2280,9 +2280,11 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int i, ret;
 
-	priv->core.arizona->dapm = dapm;
+	arizona->dapm = dapm;
+	snd_soc_codec_init_regmap(codec, arizona->regmap);
 
 	ret = arizona_init_spk(codec);
 	if (ret < 0)
@@ -2290,7 +2292,6 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
-	arizona_init_notifiers(codec);
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
@@ -2345,17 +2346,9 @@ static unsigned int wm5110_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_6R,
 };
 
-static struct regmap *wm5110_get_regmap(struct device *dev)
-{
-	struct wm5110_priv *priv = dev_get_drvdata(dev);
-
-	return priv->core.arizona->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.probe = wm5110_codec_probe,
 	.remove = wm5110_codec_remove,
-	.get_regmap = wm5110_get_regmap,
 
 	.idle_bias_off = true,
 
@@ -2397,6 +2390,14 @@ static int wm5110_probe(struct platform_device *pdev)
 	if (wm5110 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5110);
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_of_get_audio_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	wm5110->core.arizona = arizona;
 	wm5110->core.num_inputs = 8;
@@ -2454,6 +2455,11 @@ static int wm5110_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	arizona_init_common(arizona);
+
+	ret = arizona_init_vol_limit(arizona);
+	if (ret < 0)
+		goto err_dsp_irq;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		goto err_dsp_irq;

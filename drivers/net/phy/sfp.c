@@ -1,5 +1,5 @@
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -88,18 +88,20 @@ static const enum gpiod_flags gpio_flags[] = {
 #define T_PROBE_INIT	msecs_to_jiffies(300)
 #define T_PROBE_RETRY	msecs_to_jiffies(100)
 
-/*
- * SFP modules appear to always have their PHY configured for bus address
+/* SFP modules appear to always have their PHY configured for bus address
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
  */
 #define SFP_PHY_ADDR	22
 
-/*
- * Give this long for the PHY to reset.
- */
+/* Give this long for the PHY to reset. */
 #define T_PHY_RESET_MS	50
 
 static DEFINE_MUTEX(sfp_mutex);
+
+struct sff_data {
+	unsigned int gpios;
+	bool (*module_supported)(const struct sfp_eeprom_id *id);
+};
 
 struct sfp {
 	struct device *dev;
@@ -107,6 +109,7 @@ struct sfp {
 	struct mii_bus *i2c_mii;
 	struct sfp_bus *sfp_bus;
 	struct phy_device *mod_phy;
+	const struct sff_data *type;
 
 	unsigned int (*get_state)(struct sfp *);
 	void (*set_state)(struct sfp *, unsigned int);
@@ -126,6 +129,36 @@ struct sfp {
 	struct sfp_eeprom_id id;
 };
 
+static bool sff_module_supported(const struct sfp_eeprom_id *id)
+{
+	return id->base.phys_id == SFP_PHYS_ID_SFF &&
+	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
+}
+
+static const struct sff_data sff_data = {
+	.gpios = SFP_F_LOS | SFP_F_TX_FAULT | SFP_F_TX_DISABLE,
+	.module_supported = sff_module_supported,
+};
+
+static bool sfp_module_supported(const struct sfp_eeprom_id *id)
+{
+	return id->base.phys_id == SFP_PHYS_ID_SFP &&
+	       id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP;
+}
+
+static const struct sff_data sfp_data = {
+	.gpios = SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT |
+		 SFP_F_TX_DISABLE | SFP_F_RATE_SELECT,
+	.module_supported = sfp_module_supported,
+};
+
+static const struct of_device_id sfp_of_match[] = {
+	{ .compatible = "sff,sff", .data = &sff_data, },
+	{ .compatible = "sff,sfp", .data = &sfp_data, },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sfp_of_match);
+
 static unsigned long poll_jiffies;
 
 static unsigned int sfp_gpio_get_state(struct sfp *sfp)
@@ -144,16 +177,21 @@ static unsigned int sfp_gpio_get_state(struct sfp *sfp)
 	return state;
 }
 
+static unsigned int sff_gpio_get_state(struct sfp *sfp)
+{
+	return sfp_gpio_get_state(sfp) | SFP_F_PRESENT;
+}
+
 static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
 {
 	if (state & SFP_F_PRESENT) {
 		/* If the module is present, drive the signals */
 		if (sfp->gpio[GPIO_TX_DISABLE])
 			gpiod_direction_output(sfp->gpio[GPIO_TX_DISABLE],
-						state & SFP_F_TX_DISABLE);
+					       state & SFP_F_TX_DISABLE);
 		if (state & SFP_F_RATE_SELECT)
 			gpiod_direction_output(sfp->gpio[GPIO_RATE_SELECT],
-						state & SFP_F_RATE_SELECT);
+					       state & SFP_F_RATE_SELECT);
 	} else {
 		/* Otherwise, let them float to the pull-ups */
 		if (sfp->gpio[GPIO_TX_DISABLE])
@@ -164,7 +202,7 @@ static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
 }
 
 static int sfp__i2c_read(struct i2c_adapter *i2c, u8 bus_addr, u8 dev_addr,
-	void *buf, size_t len)
+			 void *buf, size_t len)
 {
 	struct i2c_msg msgs[2];
 	int ret;
@@ -186,7 +224,7 @@ static int sfp__i2c_read(struct i2c_adapter *i2c, u8 bus_addr, u8 dev_addr,
 }
 
 static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 addr, void *buf,
-	size_t len)
+			size_t len)
 {
 	return sfp__i2c_read(sfp->i2c, a2 ? 0x51 : 0x50, addr, buf, len);
 }
@@ -219,7 +257,6 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 
 	return 0;
 }
-
 
 /* Interface */
 static unsigned int sfp_get_state(struct sfp *sfp)
@@ -295,7 +332,8 @@ static void sfp_sm_next(struct sfp *sfp, unsigned int state,
 	sfp_sm_set_timer(sfp, timeout);
 }
 
-static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state, unsigned int timeout)
+static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state,
+			    unsigned int timeout)
 {
 	sfp->sm_mod_state = state;
 	sfp_sm_set_timer(sfp, timeout);
@@ -318,12 +356,12 @@ static void sfp_sm_probe_phy(struct sfp *sfp)
 	msleep(T_PHY_RESET_MS);
 
 	phy = mdiobus_scan(sfp->i2c_mii, SFP_PHY_ADDR);
-	if (IS_ERR(phy)) {
-		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
+	if (phy == ERR_PTR(-ENODEV)) {
+		dev_info(sfp->dev, "no PHY detected\n");
 		return;
 	}
-	if (!phy) {
-		dev_info(sfp->dev, "no PHY detected\n");
+	if (IS_ERR(phy)) {
+		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
 		return;
 	}
 
@@ -354,12 +392,13 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 {
 	unsigned int los = sfp->state & SFP_F_LOS;
 
-	/* FIXME: what if neither SFP_OPTIONS_LOS_INVERTED nor
-	 * SFP_OPTIONS_LOS_NORMAL are set?  For now, we assume
-	 * the same as SFP_OPTIONS_LOS_NORMAL set.
+	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
+	 * are set, we assume that no LOS signal is available.
 	 */
-	if (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED)
+	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
 		los ^= SFP_F_LOS;
+	else if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL)))
+		los = 0;
 
 	if (los)
 		sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
@@ -367,10 +406,27 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 		sfp_sm_link_up(sfp);
 }
 
+static bool sfp_los_event_active(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_LOW) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_HIGH);
+}
+
+static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_HIGH) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_LOW);
+}
+
 static void sfp_sm_fault(struct sfp *sfp, bool warn)
 {
 	if (sfp->sm_retries && !--sfp->sm_retries) {
-		dev_err(sfp->dev, "module persistently indicates fault, disabling\n");
+		dev_err(sfp->dev,
+			"module persistently indicates fault, disabling\n");
 		sfp_sm_next(sfp, SFP_S_TX_DISABLE, 0);
 	} else {
 		if (warn)
@@ -410,11 +466,6 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
-	char vendor[17];
-	char part[17];
-	char sn[17];
-	char date[9];
-	char rev[5];
 	u8 check;
 	int err;
 
@@ -450,26 +501,25 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 
 	sfp->id = id;
 
-	memcpy(vendor, sfp->id.base.vendor_name, 16);
-	vendor[16] = '\0';
-	memcpy(part, sfp->id.base.vendor_pn, 16);
-	part[16] = '\0';
-	memcpy(rev, sfp->id.base.vendor_rev, 4);
-	rev[4] = '\0';
-	memcpy(sn, sfp->id.ext.vendor_sn, 16);
-	sn[16] = '\0';
-	memcpy(date, sfp->id.ext.datecode, 8);
-	date[8] = '\0';
+	dev_info(sfp->dev, "module %.*s %.*s rev %.*s sn %.*s dc %.*s\n",
+		 (int)sizeof(id.base.vendor_name), id.base.vendor_name,
+		 (int)sizeof(id.base.vendor_pn), id.base.vendor_pn,
+		 (int)sizeof(id.base.vendor_rev), id.base.vendor_rev,
+		 (int)sizeof(id.ext.vendor_sn), id.ext.vendor_sn,
+		 (int)sizeof(id.ext.datecode), id.ext.datecode);
 
-	dev_info(sfp->dev, "module %s %s rev %s sn %s dc %s\n", vendor, part, rev, sn, date);
-
-	/* We only support SFP modules, not the legacy GBIC modules. */
-	if (sfp->id.base.phys_id != SFP_PHYS_ID_SFP ||
-	    sfp->id.base.phys_ext_id != SFP_PHYS_EXT_ID_SFP) {
-		dev_err(sfp->dev, "module is not SFP - phys id 0x%02x 0x%02x\n",
+	/* Check whether we support this module */
+	if (!sfp->type->module_supported(&sfp->id)) {
+		dev_err(sfp->dev,
+			"module is not supported - phys id 0x%02x 0x%02x\n",
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
 		return -EINVAL;
 	}
+
+	/* If the module requires address swap mode, warn about it */
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
+		dev_warn(sfp->dev,
+			 "module address swap to access page 0xA2 is not supported.\n");
 
 	return sfp_module_insert(sfp->sfp_bus, &sfp->id);
 }
@@ -582,9 +632,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 	case SFP_S_WAIT_LOS:
 		if (event == SFP_E_TX_FAULT)
 			sfp_sm_fault(sfp, true);
-		else if (event ==
-			 (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
-			  SFP_E_LOS_HIGH : SFP_E_LOS_LOW))
+		else if (sfp_los_event_inactive(sfp, event))
 			sfp_sm_link_up(sfp);
 		break;
 
@@ -592,9 +640,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_TX_FAULT) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_fault(sfp, true);
-		} else if (event ==
-			   (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
-			    SFP_E_LOS_LOW : SFP_E_LOS_HIGH)) {
+		} else if (sfp_los_event_active(sfp, event)) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
 		}
@@ -640,7 +686,8 @@ static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 {
 	/* locking... and check module is present */
 
-	if (sfp->id.ext.sff8472_compliance) {
+	if (sfp->id.ext.sff8472_compliance &&
+	    !(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)) {
 		modinfo->type = ETH_MODULE_SFF_8472;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 	} else {
@@ -651,7 +698,7 @@ static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 }
 
 static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
-	u8 *data)
+			     u8 *data)
 {
 	unsigned int first, last, len;
 	int ret;
@@ -665,20 +712,19 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 		len = min_t(unsigned int, last, ETH_MODULE_SFF_8079_LEN);
 		len -= first;
 
-		ret = sfp->read(sfp, false, first, data, len);
+		ret = sfp_read(sfp, false, first, data, len);
 		if (ret < 0)
 			return ret;
 
 		first += len;
 		data += len;
 	}
-	if (first >= ETH_MODULE_SFF_8079_LEN &&
-	    first < ETH_MODULE_SFF_8472_LEN) {
+	if (first < ETH_MODULE_SFF_8472_LEN && last > ETH_MODULE_SFF_8079_LEN) {
 		len = min_t(unsigned int, last, ETH_MODULE_SFF_8472_LEN);
 		len -= first;
 		first -= ETH_MODULE_SFF_8079_LEN;
 
-		ret = sfp->read(sfp, true, first, data, len);
+		ret = sfp_read(sfp, true, first, data, len);
 		if (ret < 0)
 			return ret;
 	}
@@ -783,6 +829,7 @@ static void sfp_cleanup(void *data)
 
 static int sfp_probe(struct platform_device *pdev)
 {
+	const struct sff_data *sff;
 	struct sfp *sfp;
 	bool poll = false;
 	int irq, err, i;
@@ -797,9 +844,18 @@ static int sfp_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
+	sff = sfp->type = &sfp_data;
+
 	if (pdev->dev.of_node) {
 		struct device_node *node = pdev->dev.of_node;
+		const struct of_device_id *id;
 		struct device_node *np;
+
+		id = of_match_node(sfp_of_match, node);
+		if (WARN_ON(!id))
+			return -EINVAL;
+
+		sff = sfp->type = id->data;
 
 		np = of_parse_phandle(node, "i2c-bus", 0);
 		if (np) {
@@ -816,17 +872,22 @@ static int sfp_probe(struct platform_device *pdev)
 				return err;
 			}
 		}
+	}
 
-		for (i = 0; i < GPIO_MAX; i++) {
+	for (i = 0; i < GPIO_MAX; i++)
+		if (sff->gpios & BIT(i)) {
 			sfp->gpio[i] = devm_gpiod_get_optional(sfp->dev,
 					   gpio_of_names[i], gpio_flags[i]);
 			if (IS_ERR(sfp->gpio[i]))
 				return PTR_ERR(sfp->gpio[i]);
 		}
 
-		sfp->get_state = sfp_gpio_get_state;
-		sfp->set_state = sfp_gpio_set_state;
-	}
+	sfp->get_state = sfp_gpio_get_state;
+	sfp->set_state = sfp_gpio_set_state;
+
+	/* Modules that have no detect signal are always present */
+	if (!(sfp->gpio[GPIO_MODDEF0]))
+		sfp->get_state = sff_gpio_get_state;
 
 	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
 	if (!sfp->sfp_bus)
@@ -880,12 +941,6 @@ static int sfp_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id sfp_of_match[] = {
-	{ .compatible = "sff,sfp", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, sfp_of_match);
 
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,

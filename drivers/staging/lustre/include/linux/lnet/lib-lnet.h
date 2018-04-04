@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -180,21 +181,6 @@ lnet_net_lock_current(void)
 
 #define MAX_PORTALS		64
 
-static inline struct lnet_eq *
-lnet_eq_alloc(void)
-{
-	struct lnet_eq *eq;
-
-	LIBCFS_ALLOC(eq, sizeof(*eq));
-	return eq;
-}
-
-static inline void
-lnet_eq_free(struct lnet_eq *eq)
-{
-	LIBCFS_FREE(eq, sizeof(*eq));
-}
-
 static inline struct lnet_libmd *
 lnet_md_alloc(struct lnet_md *umd)
 {
@@ -210,7 +196,7 @@ lnet_md_alloc(struct lnet_md *umd)
 		size = offsetof(struct lnet_libmd, md_iov.iov[niov]);
 	}
 
-	LIBCFS_ALLOC(md, size);
+	md = kzalloc(size, GFP_NOFS);
 
 	if (md) {
 		/* Set here in case of early free */
@@ -220,52 +206,6 @@ lnet_md_alloc(struct lnet_md *umd)
 	}
 
 	return md;
-}
-
-static inline void
-lnet_md_free(struct lnet_libmd *md)
-{
-	unsigned int size;
-
-	if (md->md_options & LNET_MD_KIOV)
-		size = offsetof(struct lnet_libmd, md_iov.kiov[md->md_niov]);
-	else
-		size = offsetof(struct lnet_libmd, md_iov.iov[md->md_niov]);
-
-	LIBCFS_FREE(md, size);
-}
-
-static inline struct lnet_me *
-lnet_me_alloc(void)
-{
-	struct lnet_me *me;
-
-	LIBCFS_ALLOC(me, sizeof(*me));
-	return me;
-}
-
-static inline void
-lnet_me_free(struct lnet_me *me)
-{
-	LIBCFS_FREE(me, sizeof(*me));
-}
-
-static inline struct lnet_msg *
-lnet_msg_alloc(void)
-{
-	struct lnet_msg *msg;
-
-	LIBCFS_ALLOC(msg, sizeof(*msg));
-
-	/* no need to zero, LIBCFS_ALLOC does for us */
-	return msg;
-}
-
-static inline void
-lnet_msg_free(struct lnet_msg *msg)
-{
-	LASSERT(!msg->msg_onactivelist);
-	LIBCFS_FREE(msg, sizeof(*msg));
 }
 
 struct lnet_libhandle *lnet_res_lh_lookup(struct lnet_res_container *rec,

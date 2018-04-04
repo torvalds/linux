@@ -52,7 +52,7 @@
 /* partition_info gives details on the logical partitions that the split the
  * single flash device into. If the size if zero we use up to the end of the
  * device. */
-static struct mtd_partition partition_info[]={
+static const struct mtd_partition partition_info[] = {
     {
 	    .name = "NetSc520 boot kernel",
 	    .offset = 0,

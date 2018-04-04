@@ -170,12 +170,13 @@ out:
 }
 EXPORT_SYMBOL(ip6_expire_frag_queue);
 
-static void ip6_frag_expire(unsigned long data)
+static void ip6_frag_expire(struct timer_list *t)
 {
+	struct inet_frag_queue *frag = from_timer(frag, t, timer);
 	struct frag_queue *fq;
 	struct net *net;
 
-	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
+	fq = container_of(frag, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, ipv6.frags);
 
 	ip6_expire_frag_queue(net, fq, &ip6_frags);

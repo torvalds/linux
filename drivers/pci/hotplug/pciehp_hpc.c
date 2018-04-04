@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PCI Express PCI Hot Plug Driver
  *
@@ -7,21 +8,6 @@
  * Copyright (C) 2003-2004 Intel Corporation
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <greg@kroah.com>,<kristen.c.accardi@intel.com>
  *
@@ -50,14 +36,13 @@ static irqreturn_t pcie_isr(int irq, void *dev_id);
 static void start_int_poll_timer(struct controller *ctrl, int sec);
 
 /* This is the interrupt polling timeout function. */
-static void int_poll_timeout(unsigned long data)
+static void int_poll_timeout(struct timer_list *t)
 {
-	struct controller *ctrl = (struct controller *)data;
+	struct controller *ctrl = from_timer(ctrl, t, poll_timer);
 
 	/* Poll for interrupt events.  regs == NULL => polling */
 	pcie_isr(0, ctrl);
 
-	init_timer(&ctrl->poll_timer);
 	if (!pciehp_poll_time)
 		pciehp_poll_time = 2; /* default polling interval is 2 sec */
 
@@ -71,8 +56,6 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 	if ((sec <= 0) || (sec > 60))
 		sec = 2;
 
-	ctrl->poll_timer.function = &int_poll_timeout;
-	ctrl->poll_timer.data = (unsigned long)ctrl;
 	ctrl->poll_timer.expires = jiffies + sec * HZ;
 	add_timer(&ctrl->poll_timer);
 }
@@ -83,7 +66,7 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 
 	/* Install interrupt polling timer. Start with 10 sec delay */
 	if (pciehp_poll_mode) {
-		init_timer(&ctrl->poll_timer);
+		timer_setup(&ctrl->poll_timer, int_poll_timeout, 0);
 		start_int_poll_timer(ctrl, 10);
 		return 0;
 	}
@@ -764,8 +747,7 @@ int pciehp_reset_slot(struct slot *slot, int probe)
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, ctrl_mask);
 	if (pciehp_poll_mode)
-		int_poll_timeout(ctrl->poll_timer.data);
-
+		int_poll_timeout(&ctrl->poll_timer);
 	return 0;
 }
 
@@ -795,7 +777,7 @@ static int pcie_init_slot(struct controller *ctrl)
 	if (!slot)
 		return -ENOMEM;
 
-	slot->wq = alloc_workqueue("pciehp-%u", 0, 0, PSN(ctrl));
+	slot->wq = alloc_ordered_workqueue("pciehp-%u", 0, PSN(ctrl));
 	if (!slot->wq)
 		goto abort;
 
@@ -842,15 +824,21 @@ struct controller *pcie_init(struct pcie_device *dev)
 	struct pci_dev *pdev = dev->port;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
-	if (!ctrl) {
-		dev_err(&dev->device, "%s: Out of memory\n", __func__);
+	if (!ctrl)
 		goto abort;
-	}
+
 	ctrl->pcie = dev;
 	pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &slot_cap);
 
 	if (pdev->hotplug_user_indicators)
 		slot_cap &= ~(PCI_EXP_SLTCAP_AIP | PCI_EXP_SLTCAP_PIP);
+
+	/*
+	 * We assume no Thunderbolt controllers support Command Complete events,
+	 * but some controllers falsely claim they do.
+	 */
+	if (pdev->is_thunderbolt)
+		slot_cap |= PCI_EXP_SLTCAP_NCCS;
 
 	ctrl->slot_cap = slot_cap;
 	mutex_init(&ctrl->ctrl_lock);
@@ -862,11 +850,16 @@ struct controller *pcie_init(struct pcie_device *dev)
 	if (link_cap & PCI_EXP_LNKCAP_DLLLARC)
 		ctrl->link_active_reporting = 1;
 
-	/* Clear all remaining event bits in Slot Status register */
+	/*
+	 * Clear all remaining event bits in Slot Status register except
+	 * Presence Detect Changed. We want to make sure possible
+	 * hotplug event is triggered when the interrupt is unmasked so
+	 * that we don't lose that event.
+	 */
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
 		PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
-		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
-		PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
+		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_CC |
+		PCI_EXP_SLTSTA_DLLSC);
 
 	ctrl_info(ctrl, "Slot #%d AttnBtn%c PwrCtrl%c MRL%c AttnInd%c PwrInd%c HotPlug%c Surprise%c Interlock%c NoCompl%c LLActRep%c\n",
 		(slot_cap & PCI_EXP_SLTCAP_PSN) >> 19,

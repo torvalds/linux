@@ -644,6 +644,7 @@ static void ast_crtc_commit(struct drm_crtc *crtc)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0);
+	ast_crtc_load_lut(crtc);
 }
 
 
@@ -713,7 +714,7 @@ static struct drm_encoder *ast_best_single_encoder(struct drm_connector *connect
 	int enc_id = connector->encoder_ids[0];
 	/* pick the encoder ids */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 	return NULL;
 }
 

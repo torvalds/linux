@@ -14,7 +14,7 @@
 #include "dsi_cfg.h"
 
 static const char * const dsi_v2_bus_clk_names[] = {
-	"core_mmss_clk", "iface_clk", "bus_clk",
+	"core_mmss", "iface", "bus",
 };
 
 static const struct msm_dsi_config apq8064_dsi_cfg = {
@@ -34,7 +34,7 @@ static const struct msm_dsi_config apq8064_dsi_cfg = {
 };
 
 static const char * const dsi_6g_bus_clk_names[] = {
-	"mdp_core_clk", "iface_clk", "bus_clk", "core_mmss_clk",
+	"mdp_core", "iface", "bus", "core_mmss",
 };
 
 static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
@@ -55,7 +55,7 @@ static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
 };
 
 static const char * const dsi_8916_bus_clk_names[] = {
-	"mdp_core_clk", "iface_clk", "bus_clk",
+	"mdp_core", "iface", "bus",
 };
 
 static const struct msm_dsi_config msm8916_dsi_cfg = {
@@ -99,7 +99,7 @@ static const struct msm_dsi_config msm8994_dsi_cfg = {
  * without it too. Figure out why it doesn't enable and uncomment below
  */
 static const char * const dsi_8996_bus_clk_names[] = {
-	"mdp_core_clk", "iface_clk", "bus_clk", /* "core_mmss_clk", */
+	"mdp_core", "iface", "bus", /* "core_mmss", */
 };
 
 static const struct msm_dsi_config msm8996_dsi_cfg = {

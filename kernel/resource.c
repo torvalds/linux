@@ -397,7 +397,30 @@ static int find_next_iomem_res(struct resource *res, unsigned long desc,
 		res->start = p->start;
 	if (res->end > p->end)
 		res->end = p->end;
+	res->flags = p->flags;
+	res->desc = p->desc;
 	return 0;
+}
+
+static int __walk_iomem_res_desc(struct resource *res, unsigned long desc,
+				 bool first_level_children_only,
+				 void *arg,
+				 int (*func)(struct resource *, void *))
+{
+	u64 orig_end = res->end;
+	int ret = -1;
+
+	while ((res->start < res->end) &&
+	       !find_next_iomem_res(res, desc, first_level_children_only)) {
+		ret = (*func)(res, arg);
+		if (ret)
+			break;
+
+		res->start = res->end + 1;
+		res->end = orig_end;
+	}
+
+	return ret;
 }
 
 /*
@@ -415,29 +438,15 @@ static int find_next_iomem_res(struct resource *res, unsigned long desc,
  * <linux/ioport.h> and set it in 'desc' of a target resource entry.
  */
 int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
-		u64 end, void *arg, int (*func)(u64, u64, void *))
+		u64 end, void *arg, int (*func)(struct resource *, void *))
 {
 	struct resource res;
-	u64 orig_end;
-	int ret = -1;
 
 	res.start = start;
 	res.end = end;
 	res.flags = flags;
-	orig_end = res.end;
 
-	while ((res.start < res.end) &&
-		(!find_next_iomem_res(&res, desc, false))) {
-
-		ret = (*func)(res.start, res.end, arg);
-		if (ret)
-			break;
-
-		res.start = res.end + 1;
-		res.end = orig_end;
-	}
-
-	return ret;
+	return __walk_iomem_res_desc(&res, desc, false, arg, func);
 }
 
 /*
@@ -448,25 +457,33 @@ int walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start,
  * ranges.
  */
 int walk_system_ram_res(u64 start, u64 end, void *arg,
-				int (*func)(u64, u64, void *))
+				int (*func)(struct resource *, void *))
 {
 	struct resource res;
-	u64 orig_end;
-	int ret = -1;
 
 	res.start = start;
 	res.end = end;
 	res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
-	orig_end = res.end;
-	while ((res.start < res.end) &&
-		(!find_next_iomem_res(&res, IORES_DESC_NONE, true))) {
-		ret = (*func)(res.start, res.end, arg);
-		if (ret)
-			break;
-		res.start = res.end + 1;
-		res.end = orig_end;
-	}
-	return ret;
+
+	return __walk_iomem_res_desc(&res, IORES_DESC_NONE, true,
+				     arg, func);
+}
+
+/*
+ * This function calls the @func callback against all memory ranges, which
+ * are ranges marked as IORESOURCE_MEM and IORESOUCE_BUSY.
+ */
+int walk_mem_res(u64 start, u64 end, void *arg,
+		 int (*func)(struct resource *, void *))
+{
+	struct resource res;
+
+	res.start = start;
+	res.end = end;
+	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
+	return __walk_iomem_res_desc(&res, IORES_DESC_NONE, true,
+				     arg, func);
 }
 
 #if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
@@ -508,6 +525,7 @@ static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
 {
 	return 1;
 }
+
 /*
  * This generic page_is_ram() returns true if specified address is
  * registered as System RAM in iomem_resource list.
@@ -1004,6 +1022,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 	struct resource *conflict;
 	struct resource *res = alloc_resource(GFP_ATOMIC);
 	struct resource *next_res = NULL;
+	int type = resource_type(root);
 
 	if (!res)
 		return;
@@ -1011,7 +1030,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 	res->name = name;
 	res->start = start;
 	res->end = end;
-	res->flags = IORESOURCE_BUSY;
+	res->flags = type | IORESOURCE_BUSY;
 	res->desc = IORES_DESC_NONE;
 
 	while (1) {
@@ -1046,7 +1065,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 				next_res->name = name;
 				next_res->start = conflict->end + 1;
 				next_res->end = end;
-				next_res->flags = IORESOURCE_BUSY;
+				next_res->flags = type | IORESOURCE_BUSY;
 				next_res->desc = IORES_DESC_NONE;
 			}
 		} else {
@@ -1460,7 +1479,7 @@ void __devm_release_region(struct device *dev, struct resource *parent,
 EXPORT_SYMBOL(__devm_release_region);
 
 /*
- * Called from init/main.c to reserve IO ports.
+ * Reserve I/O ports or memory based on "reserve=" kernel parameter.
  */
 #define MAXRESERVE 4
 static int __init reserve_setup(char *str)
@@ -1471,26 +1490,38 @@ static int __init reserve_setup(char *str)
 	for (;;) {
 		unsigned int io_start, io_num;
 		int x = reserved;
+		struct resource *parent;
 
-		if (get_option (&str, &io_start) != 2)
+		if (get_option(&str, &io_start) != 2)
 			break;
-		if (get_option (&str, &io_num)   == 0)
+		if (get_option(&str, &io_num) == 0)
 			break;
 		if (x < MAXRESERVE) {
 			struct resource *res = reserve + x;
+
+			/*
+			 * If the region starts below 0x10000, we assume it's
+			 * I/O port space; otherwise assume it's memory.
+			 */
+			if (io_start < 0x10000) {
+				res->flags = IORESOURCE_IO;
+				parent = &ioport_resource;
+			} else {
+				res->flags = IORESOURCE_MEM;
+				parent = &iomem_resource;
+			}
 			res->name = "reserved";
 			res->start = io_start;
 			res->end = io_start + io_num - 1;
-			res->flags = IORESOURCE_BUSY;
+			res->flags |= IORESOURCE_BUSY;
 			res->desc = IORES_DESC_NONE;
 			res->child = NULL;
-			if (request_resource(res->start >= 0x10000 ? &iomem_resource : &ioport_resource, res) == 0)
+			if (request_resource(parent, res) == 0)
 				reserved = x+1;
 		}
 	}
 	return 1;
 }
-
 __setup("reserve=", reserve_setup);
 
 /*
@@ -1545,17 +1576,17 @@ static int strict_iomem_checks;
 
 /*
  * check if an address is reserved in the iomem resource tree
- * returns 1 if reserved, 0 if not reserved.
+ * returns true if reserved, false if not reserved.
  */
-int iomem_is_exclusive(u64 addr)
+bool iomem_is_exclusive(u64 addr)
 {
 	struct resource *p = &iomem_resource;
-	int err = 0;
+	bool err = false;
 	loff_t l;
 	int size = PAGE_SIZE;
 
 	if (!strict_iomem_checks)
-		return 0;
+		return false;
 
 	addr = addr & PAGE_MASK;
 
@@ -1578,7 +1609,7 @@ int iomem_is_exclusive(u64 addr)
 			continue;
 		if (IS_ENABLED(CONFIG_IO_STRICT_DEVMEM)
 				|| p->flags & IORESOURCE_EXCLUSIVE) {
-			err = 1;
+			err = true;
 			break;
 		}
 	}

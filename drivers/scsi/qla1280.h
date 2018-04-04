@@ -1055,6 +1055,7 @@ struct scsi_qla_host {
 	struct list_head done_q;	/* Done queue */
 
 	struct completion *mailbox_wait;
+	struct timer_list mailbox_timer;
 
 	volatile struct {
 		uint32_t online:1;			/* 0 */

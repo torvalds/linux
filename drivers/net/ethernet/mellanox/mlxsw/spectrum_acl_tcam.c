@@ -154,10 +154,6 @@ struct mlxsw_sp_acl_tcam_group {
 	struct list_head region_list;
 	unsigned int region_count;
 	struct rhashtable chunk_ht;
-	struct {
-		u16 local_port;
-		bool ingress;
-	} bound;
 	struct mlxsw_sp_acl_tcam_group_ops *ops;
 	const struct mlxsw_sp_acl_tcam_pattern *patterns;
 	unsigned int patterns_count;
@@ -262,35 +258,29 @@ static void mlxsw_sp_acl_tcam_group_del(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_group_bind(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_tcam_group *group,
-			     struct net_device *dev, bool ingress)
+			     struct mlxsw_sp_port *mlxsw_sp_port,
+			     bool ingress)
 {
-	struct mlxsw_sp_port *mlxsw_sp_port;
 	char ppbt_pl[MLXSW_REG_PPBT_LEN];
 
-	if (!mlxsw_sp_port_dev_check(dev))
-		return -EINVAL;
-
-	mlxsw_sp_port = netdev_priv(dev);
-	group->bound.local_port = mlxsw_sp_port->local_port;
-	group->bound.ingress = ingress;
-	mlxsw_reg_ppbt_pack(ppbt_pl,
-			    group->bound.ingress ? MLXSW_REG_PXBT_E_IACL :
-						   MLXSW_REG_PXBT_E_EACL,
-			    MLXSW_REG_PXBT_OP_BIND, group->bound.local_port,
+	mlxsw_reg_ppbt_pack(ppbt_pl, ingress ? MLXSW_REG_PXBT_E_IACL :
+					       MLXSW_REG_PXBT_E_EACL,
+			    MLXSW_REG_PXBT_OP_BIND, mlxsw_sp_port->local_port,
 			    group->id);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbt), ppbt_pl);
 }
 
 static void
 mlxsw_sp_acl_tcam_group_unbind(struct mlxsw_sp *mlxsw_sp,
-			       struct mlxsw_sp_acl_tcam_group *group)
+			       struct mlxsw_sp_acl_tcam_group *group,
+			       struct mlxsw_sp_port *mlxsw_sp_port,
+			       bool ingress)
 {
 	char ppbt_pl[MLXSW_REG_PPBT_LEN];
 
-	mlxsw_reg_ppbt_pack(ppbt_pl,
-			    group->bound.ingress ? MLXSW_REG_PXBT_E_IACL :
-						   MLXSW_REG_PXBT_E_EACL,
-			    MLXSW_REG_PXBT_OP_UNBIND, group->bound.local_port,
+	mlxsw_reg_ppbt_pack(ppbt_pl, ingress ? MLXSW_REG_PXBT_E_IACL :
+					       MLXSW_REG_PXBT_E_EACL,
+			    MLXSW_REG_PXBT_OP_UNBIND, mlxsw_sp_port->local_port,
 			    group->id);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbt), ppbt_pl);
 }
@@ -608,7 +598,10 @@ mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_rulei_create;
 	}
 
-	mlxsw_sp_acl_rulei_act_continue(rulei);
+	err = mlxsw_sp_acl_rulei_act_continue(rulei);
+	if (WARN_ON(err))
+		goto err_rulei_act_continue;
+
 	err = mlxsw_sp_acl_rulei_commit(rulei);
 	if (err)
 		goto err_rulei_commit;
@@ -623,6 +616,7 @@ mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 
 err_rule_insert:
 err_rulei_commit:
+err_rulei_act_continue:
 	mlxsw_sp_acl_rulei_destroy(rulei);
 err_rulei_create:
 	parman_item_remove(region->parman, parman_prio, parman_item);
@@ -1052,21 +1046,25 @@ mlxsw_sp_acl_tcam_flower_ruleset_del(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_flower_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 				      void *ruleset_priv,
-				      struct net_device *dev, bool ingress)
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      bool ingress)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
 	return mlxsw_sp_acl_tcam_group_bind(mlxsw_sp, &ruleset->group,
-					    dev, ingress);
+					    mlxsw_sp_port, ingress);
 }
 
 static void
 mlxsw_sp_acl_tcam_flower_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
-					void *ruleset_priv)
+					void *ruleset_priv,
+					struct mlxsw_sp_port *mlxsw_sp_port,
+					bool ingress)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group);
+	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group,
+				       mlxsw_sp_port, ingress);
 }
 
 static u16

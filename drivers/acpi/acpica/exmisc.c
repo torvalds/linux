@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -330,7 +330,7 @@ acpi_ex_do_logical_op(u16 opcode,
 	case ACPI_TYPE_INTEGER:
 
 		status = acpi_ex_convert_to_integer(operand1, &local_operand1,
-						    ACPI_STRTOUL_BASE16);
+						    ACPI_IMPLICIT_CONVERSION);
 		break;
 
 	case ACPI_TYPE_STRING:

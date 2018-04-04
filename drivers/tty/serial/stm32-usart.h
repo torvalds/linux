@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) Maxime Coquelin 2015
  * Copyright (C) STMicroelectronics SA 2017
  * Authors:  Maxime Coquelin <mcoquelin.stm32@gmail.com>
  *	     Gerald Baeza <gerald_baeza@yahoo.fr>
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #define DRIVER_NAME "stm32-usart"
@@ -236,7 +236,7 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_ICR_CMCF		BIT(17)		/* F7 */
 #define USART_ICR_WUCF		BIT(20)		/* H7 */
 
-#define STM32_SERIAL_NAME "ttyS"
+#define STM32_SERIAL_NAME "ttySTM"
 #define STM32_MAX_PORTS 8
 
 #define RX_BUF_L 200		 /* dma rx buffer length     */

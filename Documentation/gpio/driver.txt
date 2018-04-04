@@ -88,6 +88,10 @@ ending up in the pin control back-end "behind" the GPIO controller, usually
 closer to the actual pins. This way the pin controller can manage the below
 listed GPIO configurations.
 
+If a pin controller back-end is used, the GPIO controller or hardware
+description needs to provide "GPIO ranges" mapping the GPIO line offsets to pin
+numbers on the pin controller so they can properly cross-reference each other.
+
 
 GPIOs with debounce support
 ---------------------------
@@ -254,7 +258,7 @@ GPIO irqchips usually fall in one of two categories:
 	static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
 		unsigned long wa_lock_flags;
 		raw_spin_lock_irqsave(&bank->wa_lock, wa_lock_flags);
-		generic_handle_irq(irq_find_mapping(bank->chip.irqdomain, bit));
+		generic_handle_irq(irq_find_mapping(bank->chip.irq.domain, bit));
 		raw_spin_unlock_irqrestore(&bank->wa_lock, wa_lock_flags);
 
 * GENERIC CHAINED GPIO irqchips: these are the same as "CHAINED GPIO irqchips",
@@ -313,8 +317,8 @@ symbol:
   mark all the child IRQs as having the other IRQ as parent.
 
 If there is a need to exclude certain GPIOs from the IRQ domain, you can
-set .irq_need_valid_mask of the gpiochip before gpiochip_add_data() is
-called. This allocates an .irq_valid_mask with as many bits set as there
+set .irq.need_valid_mask of the gpiochip before gpiochip_add_data() is
+called. This allocates an .irq.valid_mask with as many bits set as there
 are GPIOs in the chip. Drivers can exclude GPIOs by clearing bits from this
 mask. The mask must be filled in before gpiochip_irqchip_add() or
 gpiochip_irqchip_add_nested() is called.

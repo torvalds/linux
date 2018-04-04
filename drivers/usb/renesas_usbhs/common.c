@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -26,6 +17,7 @@
 #include "common.h"
 #include "rcar2.h"
 #include "rcar3.h"
+#include "rza.h"
 
 /*
  *		image of renesas_usbhs
@@ -486,12 +478,20 @@ static const struct of_device_id usbhs_of_match[] = {
 		.data = (void *)USBHS_TYPE_RCAR_GEN3,
 	},
 	{
+		.compatible = "renesas,usbhs-r8a77995",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+	},
+	{
 		.compatible = "renesas,rcar-gen2-usbhs",
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{
 		.compatible = "renesas,rcar-gen3-usbhs",
 		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+	},
+	{
+		.compatible = "renesas,rza1-usbhs",
+		.data = (void *)USBHS_TYPE_RZA1,
 	},
 	{ },
 };
@@ -501,7 +501,6 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 {
 	struct renesas_usbhs_platform_info *info;
 	struct renesas_usbhs_driver_param *dparam;
-	const struct of_device_id *of_id = of_match_device(usbhs_of_match, dev);
 	u32 tmp;
 	int gpio;
 
@@ -510,7 +509,7 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		return NULL;
 
 	dparam = &info->driver_param;
-	dparam->type = of_id ? (uintptr_t)of_id->data : 0;
+	dparam->type = (uintptr_t)of_device_get_match_data(dev);
 	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
 	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
@@ -519,15 +518,24 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		dparam->enable_gpio = gpio;
 
 	if (dparam->type == USBHS_TYPE_RCAR_GEN2 ||
-	    dparam->type == USBHS_TYPE_RCAR_GEN3)
+	    dparam->type == USBHS_TYPE_RCAR_GEN3 ||
+	    dparam->type == USBHS_TYPE_RCAR_GEN3_WITH_PLL) {
 		dparam->has_usb_dmac = 1;
+		dparam->pipe_configs = usbhsc_new_pipe;
+		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+	}
+
+	if (dparam->type == USBHS_TYPE_RZA1) {
+		dparam->pipe_configs = usbhsc_new_pipe;
+		dparam->pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+	}
 
 	return info;
 }
 
 static int usbhs_probe(struct platform_device *pdev)
 {
-	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
+	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
 	struct renesas_usbhs_driver_callback *dfunc;
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
@@ -577,17 +585,24 @@ static int usbhs_probe(struct platform_device *pdev)
 	switch (priv->dparam.type) {
 	case USBHS_TYPE_RCAR_GEN2:
 		priv->pfunc = usbhs_rcar2_ops;
-		if (!priv->dparam.pipe_configs) {
-			priv->dparam.pipe_configs = usbhsc_new_pipe;
-			priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
-		}
 		break;
 	case USBHS_TYPE_RCAR_GEN3:
 		priv->pfunc = usbhs_rcar3_ops;
-		if (!priv->dparam.pipe_configs) {
-			priv->dparam.pipe_configs = usbhsc_new_pipe;
-			priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+		break;
+	case USBHS_TYPE_RCAR_GEN3_WITH_PLL:
+		priv->pfunc = usbhs_rcar3_with_pll_ops;
+		if (!IS_ERR_OR_NULL(priv->edev)) {
+			priv->nb.notifier_call = priv->pfunc.notifier;
+			ret = devm_extcon_register_notifier(&pdev->dev,
+							    priv->edev,
+							    EXTCON_USB_HOST,
+							    &priv->nb);
+			if (ret < 0)
+				dev_err(&pdev->dev, "no notifier registered\n");
 		}
+		break;
+	case USBHS_TYPE_RZA1:
+		priv->pfunc = usbhs_rza1_ops;
 		break;
 	default:
 		if (!info->platform_callback.get_id) {
@@ -710,7 +725,7 @@ probe_end_pipe_exit:
 static int usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
-	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
+	struct renesas_usbhs_platform_info *info = renesas_usbhs_get_info(pdev);
 	struct renesas_usbhs_driver_callback *dfunc = &info->driver_callback;
 
 	dev_dbg(&pdev->dev, "usb remove\n");

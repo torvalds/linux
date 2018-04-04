@@ -51,7 +51,7 @@
 #include <linux/jiffies.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stv0299.h"
 
 struct stv0299_state {
@@ -368,7 +368,7 @@ static int stv0299_set_voltage(struct dvb_frontend *fe,
 	reg0x08 = stv0299_readreg (state, 0x08);
 	reg0x0c = stv0299_readreg (state, 0x0c);
 
-	/**
+	/*
 	 *  H/V switching over OP0, OP1 and OP2 are LNB power enable bits
 	 */
 	reg0x0c &= 0x0f;

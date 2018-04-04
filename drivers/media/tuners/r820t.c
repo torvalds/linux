@@ -1,36 +1,24 @@
-/*
- * Rafael Micro R820T driver
- *
- * Copyright (C) 2013 Mauro Carvalho Chehab
- *
- * This driver was written from scratch, based on an existing driver
- * that it is part of rtl-sdr git tree, released under GPLv2:
- *	https://groups.google.com/forum/#!topic/ultra-cheap-sdr/Y3rBEOFtHug
- *	https://github.com/n1gp/gr-baz
- *
- * From what I understood from the threads, the original driver was converted
- * to userspace from a Realtek tree. I couldn't find the original tree.
- * However, the original driver look awkward on my eyes. So, I decided to
- * write a new version from it from the scratch, while trying to reproduce
- * everything found there.
- *
- * TODO:
- *	After locking, the original driver seems to have some routines to
- *		improve reception. This was not implemented here yet.
- *
- *	RF Gain set/get is not implemented.
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+// Rafael Micro R820T driver
+//
+// Copyright (C) 2013 Mauro Carvalho Chehab
+//
+// This driver was written from scratch, based on an existing driver
+// that it is part of rtl-sdr git tree, released under GPLv2:
+//	https://groups.google.com/forum/#!topic/ultra-cheap-sdr/Y3rBEOFtHug
+//	https://github.com/n1gp/gr-baz
+//
+// From what I understood from the threads, the original driver was converted
+// to userspace from a Realtek tree. I couldn't find the original tree.
+// However, the original driver look awkward on my eyes. So, I decided to
+// write a new version from it from the scratch, while trying to reproduce
+// everything found there.
+//
+// TODO:
+//	After locking, the original driver seems to have some routines to
+//		improve reception. This was not implemented here yet.
+//
+//	RF Gain set/get is not implemented.
 
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
@@ -396,9 +384,11 @@ static int r820t_write(struct r820t_priv *priv, u8 reg, const u8 *val,
 	return 0;
 }
 
-static int r820t_write_reg(struct r820t_priv *priv, u8 reg, u8 val)
+static inline int r820t_write_reg(struct r820t_priv *priv, u8 reg, u8 val)
 {
-	return r820t_write(priv, reg, &val, 1);
+	u8 tmp = val; /* work around GCC PR81715 with asan-stack=1 */
+
+	return r820t_write(priv, reg, &tmp, 1);
 }
 
 static int r820t_read_cache_reg(struct r820t_priv *priv, int reg)
@@ -411,17 +401,18 @@ static int r820t_read_cache_reg(struct r820t_priv *priv, int reg)
 		return -EINVAL;
 }
 
-static int r820t_write_reg_mask(struct r820t_priv *priv, u8 reg, u8 val,
+static inline int r820t_write_reg_mask(struct r820t_priv *priv, u8 reg, u8 val,
 				u8 bit_mask)
 {
+	u8 tmp = val;
 	int rc = r820t_read_cache_reg(priv, reg);
 
 	if (rc < 0)
 		return rc;
 
-	val = (rc & ~bit_mask) | (val & bit_mask);
+	tmp = (rc & ~bit_mask) | (tmp & bit_mask);
 
-	return r820t_write(priv, reg, &val, 1);
+	return r820t_write(priv, reg, &tmp, 1);
 }
 
 static int r820t_read(struct r820t_priv *priv, u8 reg, u8 *val, int len)
@@ -2388,4 +2379,4 @@ EXPORT_SYMBOL_GPL(r820t_attach);
 
 MODULE_DESCRIPTION("Rafael Micro r820t silicon tuner driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

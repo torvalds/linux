@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB
  *
@@ -16,6 +17,7 @@
  */
 #ifndef RENESAS_USB_H
 #define RENESAS_USB_H
+#include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 
@@ -97,6 +99,13 @@ struct renesas_usbhs_platform_callback {
 	 * VBUS control is needed for Host
 	 */
 	int (*set_vbus)(struct platform_device *pdev, int enable);
+
+	/*
+	 * option:
+	 * extcon notifier to set host/peripheral mode.
+	 */
+	int (*notifier)(struct notifier_block *nb, unsigned long event,
+			void *data);
 };
 
 /*
@@ -183,8 +192,10 @@ struct renesas_usbhs_driver_param {
 #define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
 };
 
-#define USBHS_TYPE_RCAR_GEN2	1
-#define USBHS_TYPE_RCAR_GEN3	2
+#define USBHS_TYPE_RCAR_GEN2		1
+#define USBHS_TYPE_RCAR_GEN3		2
+#define USBHS_TYPE_RCAR_GEN3_WITH_PLL	3
+#define USBHS_TYPE_RZA1			4
 
 /*
  * option:

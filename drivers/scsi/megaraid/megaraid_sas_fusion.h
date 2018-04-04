@@ -51,6 +51,8 @@
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
 #define MAX_MSIX_QUEUES_FUSION			    128
+#define RDPQ_MAX_INDEX_IN_ONE_CHUNK		    16
+#define RDPQ_MAX_CHUNK_COUNT (MAX_MSIX_QUEUES_FUSION / RDPQ_MAX_INDEX_IN_ONE_CHUNK)
 
 /* Invader defines */
 #define MPI2_TYPE_CUDA				    0x2
@@ -103,12 +105,8 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define THRESHOLD_REPLY_COUNT 50
 #define RAID_1_PEER_CMDS 2
 #define JBOD_MAPS_COUNT	2
-
-enum MR_FUSION_ADAPTER_TYPE {
-	THUNDERBOLT_SERIES = 0,
-	INVADER_SERIES = 1,
-	VENTURA_SERIES = 2,
-};
+#define MEGASAS_REDUCE_QD_COUNT 64
+#define IOC_INIT_FRAME_SIZE 4096
 
 /*
  * Raid Context structure which describes MegaRAID specific IO Parameters
@@ -1270,6 +1268,12 @@ struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY {
 	u32 Reserved2;
 };
 
+struct rdpq_alloc_detail {
+	struct dma_pool *dma_pool_ptr;
+	dma_addr_t	pool_entry_phys;
+	union MPI2_REPLY_DESCRIPTORS_UNION *pool_entry_virt;
+};
+
 struct fusion_context {
 	struct megasas_cmd_fusion **cmd_list;
 	dma_addr_t req_frames_desc_phys;
@@ -1282,9 +1286,14 @@ struct fusion_context {
 	struct dma_pool *sg_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
+	u8 *sense;
+	dma_addr_t sense_phys_addr;
+
 	dma_addr_t reply_frames_desc_phys[MAX_MSIX_QUEUES_FUSION];
 	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc[MAX_MSIX_QUEUES_FUSION];
+	struct rdpq_alloc_detail rdpq_tracker[RDPQ_MAX_CHUNK_COUNT];
 	struct dma_pool *reply_frames_desc_pool;
+	struct dma_pool *reply_frames_desc_pool_align;
 
 	u16 last_reply_idx[MAX_MSIX_QUEUES_FUSION];
 
@@ -1318,9 +1327,13 @@ struct fusion_context {
 	u8 fast_path_io;
 	struct LD_LOAD_BALANCE_INFO *load_balance_info;
 	u32 load_balance_info_pages;
-	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
-	u8 adapter_type;
+	LD_SPAN_INFO *log_to_span;
+	u32 log_to_span_pages;
 	struct LD_STREAM_DETECT **stream_detect_by_ld;
+	dma_addr_t ioc_init_request_phys;
+	struct MPI2_IOC_INIT_REQUEST *ioc_init_request;
+	struct megasas_cmd *ioc_init_cmd;
+
 };
 
 union desc_value {
@@ -1329,6 +1342,12 @@ union desc_value {
 		__le32 low;
 		__le32 high;
 	} u;
+};
+
+enum CMD_RET_VALUES {
+	REFIRE_CMD = 1,
+	COMPLETE_CMD = 2,
+	RETURN_CMD = 3,
 };
 
 void megasas_free_cmds_fusion(struct megasas_instance *instance);

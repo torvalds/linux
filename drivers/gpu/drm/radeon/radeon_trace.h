@@ -205,5 +205,5 @@ DEFINE_EVENT(radeon_semaphore_request, radeon_semaphore_wait,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/radeon
 #include <trace/define_trace.h>

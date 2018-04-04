@@ -51,10 +51,23 @@
 #include <rdma/rdmavt_qp.h>
 #include "verbs.h"
 #include "sdma.h"
+#include "verbs_txreq.h"
 
 extern unsigned int hfi1_qp_table_size;
 
 extern const struct rvt_operation_params hfi1_post_parms[];
+
+/*
+ * Send if not busy or waiting for I/O and either
+ * a RC response is pending or we can process send work requests.
+ */
+static inline int hfi1_send_ok(struct rvt_qp *qp)
+{
+	return !(qp->s_flags & (RVT_S_BUSY | RVT_S_ANY_WAIT_IO)) &&
+		(verbs_txreq_queued(qp) ||
+		(qp->s_flags & RVT_S_RESP_PENDING) ||
+		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
+}
 
 /*
  * free_ahg - clear ahg from QP

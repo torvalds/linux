@@ -146,7 +146,6 @@ struct hv_netvsc_packet {
 
 struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
-	int  ring_size;
 	u32  num_chn;
 	u32  send_sections;
 	u32  recv_sections;
@@ -179,7 +178,7 @@ struct rndis_device {
 
 	u8 hw_mac_adr[ETH_ALEN];
 	u8 rss_key[NETVSC_HASH_KEYLEN];
-	u16 ind_table[ITAB_NUM];
+	u16 rx_table[ITAB_NUM];
 };
 
 
@@ -188,18 +187,22 @@ struct rndis_message;
 struct netvsc_device;
 struct net_device_context;
 
+extern u32 netvsc_ring_bytes;
+extern struct reciprocal_value netvsc_ring_reciprocal;
+
 struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
 int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx);
 void netvsc_device_remove(struct hv_device *device);
-int netvsc_send(struct net_device_context *ndc,
+int netvsc_send(struct net_device *net,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *page_buffer,
 		struct sk_buff *skb);
-void netvsc_linkstatus_callback(struct hv_device *device_obj,
+void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp);
 int netvsc_recv_callback(struct net_device *net,
+			 struct netvsc_device *nvdev,
 			 struct vmbus_channel *channel,
 			 void  *data, u32 len,
 			 const struct ndis_tcp_ip_checksum_info *csum_info,
@@ -220,7 +223,6 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 			       const u8 *key);
 int rndis_filter_receive(struct net_device *ndev,
 			 struct netvsc_device *net_dev,
-			 struct hv_device *dev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
@@ -635,16 +637,33 @@ struct nvsp_message {
 #define NETVSC_MTU 65535
 #define NETVSC_MTU_MIN ETH_MIN_MTU
 
-#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16)	/* 16MB */
-#define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024*1024*15)  /* 15MB */
-#define NETVSC_SEND_BUFFER_SIZE			(1024 * 1024 * 15)   /* 15MB */
+/* Max buffer sizes allowed by a host */
+#define NETVSC_RECEIVE_BUFFER_SIZE		(1024 * 1024 * 31) /* 31MB */
+#define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024 * 1024 * 15) /* 15MB */
+#define NETVSC_RECEIVE_BUFFER_DEFAULT		(1024 * 1024 * 16)
+
+#define NETVSC_SEND_BUFFER_SIZE			(1024 * 1024 * 15)  /* 15MB */
+#define NETVSC_SEND_BUFFER_DEFAULT		(1024 * 1024)
+
 #define NETVSC_INVALID_INDEX			-1
 
 #define NETVSC_SEND_SECTION_SIZE		6144
 #define NETVSC_RECV_SECTION_SIZE		1728
 
+/* Default size of TX buf: 1MB, RX buf: 16MB */
+#define NETVSC_MIN_TX_SECTIONS	10
+#define NETVSC_DEFAULT_TX	(NETVSC_SEND_BUFFER_DEFAULT \
+				 / NETVSC_SEND_SECTION_SIZE)
+#define NETVSC_MIN_RX_SECTIONS	10
+#define NETVSC_DEFAULT_RX	(NETVSC_RECEIVE_BUFFER_DEFAULT \
+				 / NETVSC_RECV_SECTION_SIZE)
+
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 #define NETVSC_SEND_BUFFER_ID			0
+
+#define NETVSC_SUPPORTED_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | \
+				      NETIF_F_TSO | NETIF_F_IPV6_CSUM | \
+				      NETIF_F_TSO6)
 
 #define VRSS_SEND_TAB_SIZE 16  /* must be power of 2 */
 #define VRSS_CHANNEL_MAX 64
@@ -686,6 +705,9 @@ struct netvsc_ethtool_stats {
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
+	unsigned long rx_no_memory;
+	unsigned long stop_queue;
+	unsigned long wake_queue;
 };
 
 struct netvsc_vf_pcpu_stats {
@@ -701,6 +723,14 @@ struct netvsc_reconfig {
 	struct list_head list;
 	u32 event;
 };
+
+/* L4 hash bits for different protocols */
+#define HV_TCP4_L4HASH 1
+#define HV_TCP6_L4HASH 2
+#define HV_UDP4_L4HASH 4
+#define HV_UDP6_L4HASH 8
+#define HV_DEFAULT_L4HASH (HV_TCP4_L4HASH | HV_TCP6_L4HASH | HV_UDP4_L4HASH | \
+			   HV_UDP6_L4HASH)
 
 /* The context of the netvsc device  */
 struct net_device_context {
@@ -721,13 +751,12 @@ struct net_device_context {
 
 	u32 tx_checksum_mask;
 
-	u32 tx_send_table[VRSS_SEND_TAB_SIZE];
+	u32 tx_table[VRSS_SEND_TAB_SIZE];
 
 	/* Ethtool settings */
-	bool udp4_l4_hash;
-	bool udp6_l4_hash;
 	u8 duplex;
 	u32 speed;
+	u32 l4_hash; /* L4 hash settings */
 	struct netvsc_ethtool_stats eth_stats;
 
 	/* State to manage the associated VF interface. */
@@ -791,12 +820,8 @@ struct netvsc_device {
 
 	struct rndis_device *extension;
 
-	int ring_size;
-
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
-
-	atomic_t open_cnt;
 
 	struct netvsc_channel chan_table[VRSS_CHANNEL_MAX];
 
@@ -1411,32 +1436,6 @@ struct rndis_message {
 #define RNDIS_MESSAGE_SIZE(msg)				\
 	(sizeof(msg) + (sizeof(struct rndis_message) -	\
 	 sizeof(union rndis_message_container)))
-
-/* get pointer to info buffer with message pointer */
-#define MESSAGE_TO_INFO_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->info_buf_offset)
-
-/* get pointer to status buffer with message pointer */
-#define MESSAGE_TO_STATUS_BUFFER(msg)			\
-	(((unsigned char *)(msg)) + msg->status_buf_offset)
-
-/* get pointer to OOBD buffer with message pointer */
-#define MESSAGE_TO_OOBD_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->oob_data_offset)
-
-/* get pointer to data buffer with message pointer */
-#define MESSAGE_TO_DATA_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->per_pkt_info_offset)
-
-/* get pointer to contained message from NDIS_MESSAGE pointer */
-#define RNDIS_MESSAGE_PTR_TO_MESSAGE_PTR(rndis_msg)		\
-	((void *) &rndis_msg->msg)
-
-/* get pointer to contained message from NDIS_MESSAGE pointer */
-#define RNDIS_MESSAGE_RAW_PTR_TO_MESSAGE_PTR(rndis_msg)	\
-	((void *) rndis_msg)
-
-
 
 #define RNDIS_HEADER_SIZE	(sizeof(struct rndis_message) - \
 				 sizeof(union rndis_message_container))

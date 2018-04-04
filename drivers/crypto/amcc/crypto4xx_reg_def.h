@@ -121,13 +121,15 @@
 #define PPC4XX_PD_SIZE				6
 #define PPC4XX_CTX_DONE_INT			0x2000
 #define PPC4XX_PD_DONE_INT			0x8000
+#define PPC4XX_TMO_ERR_INT			0x40000
 #define PPC4XX_BYTE_ORDER			0x22222
 #define PPC4XX_INTERRUPT_CLR			0x3ffff
 #define PPC4XX_PRNG_CTRL_AUTO_EN		0x3
 #define PPC4XX_DC_3DES_EN			1
 #define PPC4XX_TRNG_EN				0x00020000
-#define PPC4XX_INT_DESCR_CNT			4
+#define PPC4XX_INT_DESCR_CNT			7
 #define PPC4XX_INT_TIMEOUT_CNT			0
+#define PPC4XX_INT_TIMEOUT_CNT_REVB		0x3FF
 #define PPC4XX_INT_CFG				1
 /**
  * all follow define are ad hoc
@@ -261,6 +263,9 @@ union ce_pd_ctl {
 	} bf;
 	u32 w;
 } __attribute__((packed));
+#define PD_CTL_HASH_FINAL	BIT(4)
+#define PD_CTL_PE_DONE		BIT(1)
+#define PD_CTL_HOST_READY	BIT(0)
 
 union ce_pd_ctl_len {
 	struct {

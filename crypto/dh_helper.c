@@ -28,12 +28,12 @@ static inline const u8 *dh_unpack_data(void *dst, const void *src, size_t size)
 	return src + size;
 }
 
-static inline int dh_data_size(const struct dh *p)
+static inline unsigned int dh_data_size(const struct dh *p)
 {
 	return p->key_size + p->p_size + p->g_size;
 }
 
-int crypto_dh_key_len(const struct dh *p)
+unsigned int crypto_dh_key_len(const struct dh *p)
 {
 	return DH_KPP_SECRET_MIN_SIZE + dh_data_size(p);
 }
@@ -83,12 +83,28 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 	if (secret.len != crypto_dh_key_len(params))
 		return -EINVAL;
 
+	/*
+	 * Don't permit the buffer for 'key' or 'g' to be larger than 'p', since
+	 * some drivers assume otherwise.
+	 */
+	if (params->key_size > params->p_size ||
+	    params->g_size > params->p_size)
+		return -EINVAL;
+
 	/* Don't allocate memory. Set pointers to data within
 	 * the given buffer
 	 */
 	params->key = (void *)ptr;
 	params->p = (void *)(ptr + params->key_size);
 	params->g = (void *)(ptr + params->key_size + params->p_size);
+
+	/*
+	 * Don't permit 'p' to be 0.  It's not a prime number, and it's subject
+	 * to corner cases such as 'mod 0' being undefined or
+	 * crypto_kpp_maxsize() returning 0.
+	 */
+	if (memchr_inv(params->p, 0, params->p_size) == NULL)
+		return -EINVAL;
 
 	return 0;
 }

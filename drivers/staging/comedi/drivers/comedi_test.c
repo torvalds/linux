@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/comedi_test.c
  *
@@ -11,16 +12,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -93,6 +84,7 @@ struct waveform_private {
 	unsigned int ai_scan_period;	/* AI scan period in usec */
 	unsigned int ai_convert_period;	/* AI conversion period in usec */
 	struct timer_list ao_timer;	/* timer for AO commands */
+	struct comedi_device *dev;	/* parent comedi device */
 	u64 ao_last_scan_time;		/* time of previous AO scan in usec */
 	unsigned int ao_scan_period;	/* AO scan period in usec */
 	unsigned short ao_loopbacks[N_CHANS];
@@ -201,10 +193,10 @@ static unsigned short fake_waveform(struct comedi_device *dev,
  * It should run in the background; therefore it is scheduled by
  * a timer mechanism.
  */
-static void waveform_ai_timer(unsigned long arg)
+static void waveform_ai_timer(struct timer_list *t)
 {
-	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct waveform_private *devpriv = dev->private;
+	struct waveform_private *devpriv = from_timer(devpriv, t, ai_timer);
+	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -438,10 +430,10 @@ static int waveform_ai_insn_read(struct comedi_device *dev,
  * This is the background routine to handle AO commands, scheduled by
  * a timer mechanism.
  */
-static void waveform_ao_timer(unsigned long arg)
+static void waveform_ao_timer(struct timer_list *t)
 {
-	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct waveform_private *devpriv = dev->private;
+	struct waveform_private *devpriv = from_timer(devpriv, t, ao_timer);
+	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -686,8 +678,9 @@ static int waveform_common_attach(struct comedi_device *dev,
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
-	setup_timer(&devpriv->ai_timer, waveform_ai_timer, (unsigned long)dev);
-	setup_timer(&devpriv->ao_timer, waveform_ao_timer, (unsigned long)dev);
+	devpriv->dev = dev;
+	timer_setup(&devpriv->ai_timer, waveform_ai_timer, 0);
+	timer_setup(&devpriv->ao_timer, waveform_ao_timer, 0);
 
 	dev_info(dev->class_dev,
 		 "%s: %u microvolt, %u microsecond waveform attached\n",

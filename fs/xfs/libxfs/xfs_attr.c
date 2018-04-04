@@ -212,6 +212,7 @@ xfs_attr_set(
 	int			flags)
 {
 	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_buf		*leaf_bp = NULL;
 	struct xfs_da_args	args;
 	struct xfs_defer_ops	dfops;
 	struct xfs_trans_res	tres;
@@ -327,9 +328,16 @@ xfs_attr_set(
 		 * GROT: another possible req'mt for a double-split btree op.
 		 */
 		xfs_defer_init(args.dfops, args.firstblock);
-		error = xfs_attr_shortform_to_leaf(&args);
+		error = xfs_attr_shortform_to_leaf(&args, &leaf_bp);
 		if (error)
 			goto out_defer_cancel;
+		/*
+		 * Prevent the leaf buffer from being unlocked so that a
+		 * concurrent AIL push cannot grab the half-baked leaf
+		 * buffer and run into problems with the write verifier.
+		 */
+		xfs_trans_bhold(args.trans, leaf_bp);
+		xfs_defer_bjoin(args.dfops, leaf_bp);
 		xfs_defer_ijoin(args.dfops, dp);
 		error = xfs_defer_finish(&args.trans, args.dfops);
 		if (error)
@@ -337,13 +345,14 @@ xfs_attr_set(
 
 		/*
 		 * Commit the leaf transformation.  We'll need another (linked)
-		 * transaction to add the new attribute to the leaf.
+		 * transaction to add the new attribute to the leaf, which
+		 * means that we have to hold & join the leaf buffer here too.
 		 */
-
 		error = xfs_trans_roll_inode(&args.trans, dp);
 		if (error)
 			goto out;
-
+		xfs_trans_bjoin(args.trans, leaf_bp);
+		leaf_bp = NULL;
 	}
 
 	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
@@ -374,8 +383,9 @@ xfs_attr_set(
 
 out_defer_cancel:
 	xfs_defer_cancel(&dfops);
-	args.trans = NULL;
 out:
+	if (leaf_bp)
+		xfs_trans_brelse(args.trans, leaf_bp);
 	if (args.trans)
 		xfs_trans_cancel(args.trans);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
@@ -707,7 +717,6 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 	return error;
 out_defer_cancel:
 	xfs_defer_cancel(args->dfops);
-	args->trans = NULL;
 	return error;
 }
 
@@ -760,7 +769,6 @@ xfs_attr_leaf_removename(xfs_da_args_t *args)
 	return 0;
 out_defer_cancel:
 	xfs_defer_cancel(args->dfops);
-	args->trans = NULL;
 	return error;
 }
 
@@ -1035,7 +1043,6 @@ out:
 	return retval;
 out_defer_cancel:
 	xfs_defer_cancel(args->dfops);
-	args->trans = NULL;
 	goto out;
 }
 
@@ -1176,7 +1183,6 @@ out:
 	return error;
 out_defer_cancel:
 	xfs_defer_cancel(args->dfops);
-	args->trans = NULL;
 	goto out;
 }
 

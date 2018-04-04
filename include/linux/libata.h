@@ -522,6 +522,7 @@ enum ata_lpm_policy {
 	ATA_LPM_UNKNOWN,
 	ATA_LPM_MAX_POWER,
 	ATA_LPM_MED_POWER,
+	ATA_LPM_MED_POWER_WITH_DIPM, /* Med power + DIPM as win IRST does */
 	ATA_LPM_MIN_POWER,
 };
 

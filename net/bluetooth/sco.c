@@ -73,9 +73,9 @@ struct sco_pinfo {
 #define SCO_CONN_TIMEOUT	(HZ * 40)
 #define SCO_DISCONN_TIMEOUT	(HZ * 2)
 
-static void sco_sock_timeout(unsigned long arg)
+static void sco_sock_timeout(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)arg;
+	struct sock *sk = from_timer(sk, t, sk_timer);
 
 	BT_DBG("sock %p state %d", sk, sk->sk_state);
 
@@ -487,7 +487,7 @@ static struct sock *sco_sock_alloc(struct net *net, struct socket *sock,
 
 	sco_pi(sk)->setting = BT_VOICE_CVSD_16BIT;
 
-	setup_timer(&sk->sk_timer, sco_sock_timeout, (unsigned long)sk);
+	timer_setup(&sk->sk_timer, sco_sock_timeout, 0);
 
 	bt_sock_link(&sco_sk_list, sk);
 	return sk;

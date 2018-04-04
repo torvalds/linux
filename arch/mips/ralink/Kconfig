@@ -31,7 +31,6 @@ choice
 
 	config SOC_RT305X
 		bool "RT305x"
-		select USB_ARCH_HAS_HCD
 
 	config SOC_RT3883
 		bool "RT3883"

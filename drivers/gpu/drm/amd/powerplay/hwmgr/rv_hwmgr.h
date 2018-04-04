@@ -283,6 +283,8 @@ struct rv_hwmgr {
 	uint32_t                        vclk_soft_min;
 	uint32_t                        dclk_soft_min;
 	uint32_t                        gfx_actual_soft_min_freq;
+	uint32_t                        gfx_min_freq_limit;
+	uint32_t                        gfx_max_freq_limit;
 
 	bool                           vcn_power_gated;
 	bool                           vcn_dpg_mode;
@@ -293,11 +295,28 @@ struct rv_hwmgr {
 	DpmClocks_t                       clock_table;
 
 	uint32_t active_process_mask;
-	bool need_min_deep_sleep_dcefclk; /* disabled by default */
+	bool need_min_deep_sleep_dcefclk;
+	uint32_t                             deep_sleep_dcefclk;
+	uint32_t                             num_active_display;
 };
 
 struct pp_hwmgr;
 
 int rv_init_function_pointers(struct pp_hwmgr *hwmgr);
+
+/* UMD PState Raven Msg Parameters in MHz */
+#define RAVEN_UMD_PSTATE_GFXCLK                 700
+#define RAVEN_UMD_PSTATE_SOCCLK                 626
+#define RAVEN_UMD_PSTATE_FCLK                   933
+#define RAVEN_UMD_PSTATE_VCE                    0x03C00320
+
+#define RAVEN_UMD_PSTATE_PEAK_GFXCLK            1100
+#define RAVEN_UMD_PSTATE_PEAK_SOCCLK            757
+#define RAVEN_UMD_PSTATE_PEAK_FCLK              1200
+
+#define RAVEN_UMD_PSTATE_MIN_GFXCLK             200
+#define RAVEN_UMD_PSTATE_MIN_FCLK               400
+#define RAVEN_UMD_PSTATE_MIN_SOCCLK             200
+#define RAVEN_UMD_PSTATE_MIN_VCE                0x0190012C
 
 #endif

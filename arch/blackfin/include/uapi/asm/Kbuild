@@ -3,6 +3,7 @@ include include/uapi/asm-generic/Kbuild.asm
 
 generic-y += auxvec.h
 generic-y += bitsperlong.h
+generic-y += bpf_perf_event.h
 generic-y += errno.h
 generic-y += ioctl.h
 generic-y += ipcbuf.h

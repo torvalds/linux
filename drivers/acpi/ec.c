@@ -486,8 +486,11 @@ static inline void __acpi_ec_enable_event(struct acpi_ec *ec)
 {
 	if (!test_and_set_bit(EC_FLAGS_QUERY_ENABLED, &ec->flags))
 		ec_log_drv("event unblocked");
-	if (!test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
-		advance_transaction(ec);
+	/*
+	 * Unconditionally invoke this once after enabling the event
+	 * handling mechanism to detect the pending events.
+	 */
+	advance_transaction(ec);
 }
 
 static inline void __acpi_ec_disable_event(struct acpi_ec *ec)
@@ -1456,11 +1459,10 @@ static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
 			if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
 			    ec->reference_count >= 1)
 				acpi_ec_enable_gpe(ec, true);
-
-			/* EC is fully operational, allow queries */
-			acpi_ec_enable_event(ec);
 		}
 	}
+	/* EC is fully operational, allow queries */
+	acpi_ec_enable_event(ec);
 
 	return 0;
 }
@@ -1514,7 +1516,7 @@ static int acpi_ec_setup(struct acpi_ec *ec, bool handle_events)
 	}
 
 	acpi_handle_info(ec->handle,
-			 "GPE=0x%lx, EC_CMD/EC_SC=0x%lx, EC_DATA=0x%lx\n",
+			 "GPE=0x%x, EC_CMD/EC_SC=0x%lx, EC_DATA=0x%lx\n",
 			 ec->gpe, ec->command_addr, ec->data_addr);
 	return ret;
 }
@@ -1595,32 +1597,41 @@ static int acpi_ec_add(struct acpi_device *device)
 {
 	struct acpi_ec *ec = NULL;
 	int ret;
+	bool is_ecdt = false;
+	acpi_status status;
 
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
-	ec = acpi_ec_alloc();
-	if (!ec)
-		return -ENOMEM;
-	if (ec_parse_device(device->handle, 0, ec, NULL) !=
-		AE_CTRL_TERMINATE) {
+	if (!strcmp(acpi_device_hid(device), ACPI_ECDT_HID)) {
+		is_ecdt = true;
+		ec = boot_ec;
+	} else {
+		ec = acpi_ec_alloc();
+		if (!ec)
+			return -ENOMEM;
+		status = ec_parse_device(device->handle, 0, ec, NULL);
+		if (status != AE_CTRL_TERMINATE) {
 			ret = -EINVAL;
 			goto err_alloc;
+		}
 	}
 
 	if (acpi_is_boot_ec(ec)) {
-		boot_ec_is_ecdt = false;
-		/*
-		 * Trust PNP0C09 namespace location rather than ECDT ID.
-		 *
-		 * But trust ECDT GPE rather than _GPE because of ASUS quirks,
-		 * so do not change boot_ec->gpe to ec->gpe.
-		 */
-		boot_ec->handle = ec->handle;
-		acpi_handle_debug(ec->handle, "duplicated.\n");
-		acpi_ec_free(ec);
-		ec = boot_ec;
-		ret = acpi_config_boot_ec(ec, ec->handle, true, false);
+		boot_ec_is_ecdt = is_ecdt;
+		if (!is_ecdt) {
+			/*
+			 * Trust PNP0C09 namespace location rather than
+			 * ECDT ID. But trust ECDT GPE rather than _GPE
+			 * because of ASUS quirks, so do not change
+			 * boot_ec->gpe to ec->gpe.
+			 */
+			boot_ec->handle = ec->handle;
+			acpi_handle_debug(ec->handle, "duplicated.\n");
+			acpi_ec_free(ec);
+			ec = boot_ec;
+		}
+		ret = acpi_config_boot_ec(ec, ec->handle, true, is_ecdt);
 	} else
 		ret = acpi_ec_setup(ec, true);
 	if (ret)
@@ -1633,8 +1644,10 @@ static int acpi_ec_add(struct acpi_device *device)
 	ret = !!request_region(ec->command_addr, 1, "EC cmd");
 	WARN(!ret, "Could not request EC cmd io port 0x%lx", ec->command_addr);
 
-	/* Reprobe devices depending on the EC */
-	acpi_walk_dep_device_list(ec->handle);
+	if (!is_ecdt) {
+		/* Reprobe devices depending on the EC */
+		acpi_walk_dep_device_list(ec->handle);
+	}
 	acpi_handle_debug(ec->handle, "enumerated.\n");
 	return 0;
 
@@ -1690,6 +1703,7 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 
 static const struct acpi_device_id ec_device_ids[] = {
 	{"PNP0C09", 0},
+	{ACPI_ECDT_HID, 0},
 	{"", 0},
 };
 
@@ -1762,11 +1776,14 @@ static int __init acpi_ec_ecdt_start(void)
 	 * Note: ec->handle can be valid if this function is called after
 	 * acpi_ec_add(), hence the fast path.
 	 */
-	if (boot_ec->handle != ACPI_ROOT_OBJECT)
-		handle = boot_ec->handle;
-	else if (!acpi_ec_ecdt_get_handle(&handle))
-		return -ENODEV;
-	return acpi_config_boot_ec(boot_ec, handle, true, true);
+	if (boot_ec->handle == ACPI_ROOT_OBJECT) {
+		if (!acpi_ec_ecdt_get_handle(&handle))
+			return -ENODEV;
+		boot_ec->handle = handle;
+	}
+
+	/* Register to ACPI bus with PM ops attached */
+	return acpi_bus_register_early_device(ACPI_BUS_TYPE_ECDT_EC);
 }
 
 #if 0
@@ -1910,12 +1927,18 @@ static int acpi_ec_suspend_noirq(struct device *dev)
 	    ec->reference_count >= 1)
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 
+	if (acpi_sleep_no_ec_events())
+		acpi_ec_enter_noirq(ec);
+
 	return 0;
 }
 
 static int acpi_ec_resume_noirq(struct device *dev)
 {
 	struct acpi_ec *ec = acpi_driver_data(to_acpi_device(dev));
+
+	if (acpi_sleep_no_ec_events())
+		acpi_ec_leave_noirq(ec);
 
 	if (ec_no_wakeup && test_bit(EC_FLAGS_STARTED, &ec->flags) &&
 	    ec->reference_count >= 1)
@@ -1939,7 +1962,8 @@ static const struct dev_pm_ops acpi_ec_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend, acpi_ec_resume)
 };
 
-static int param_set_event_clearing(const char *val, struct kernel_param *kp)
+static int param_set_event_clearing(const char *val,
+				    const struct kernel_param *kp)
 {
 	int result = 0;
 
@@ -1957,7 +1981,8 @@ static int param_set_event_clearing(const char *val, struct kernel_param *kp)
 	return result;
 }
 
-static int param_get_event_clearing(char *buffer, struct kernel_param *kp)
+static int param_get_event_clearing(char *buffer,
+				    const struct kernel_param *kp)
 {
 	switch (ec_event_clearing) {
 	case ACPI_EC_EVT_TIMING_STATUS:
@@ -2018,6 +2043,12 @@ int __init acpi_ec_init(void)
 
 	/* Drivers must be started after acpi_ec_query_init() */
 	dsdt_fail = acpi_bus_register_driver(&acpi_ec_driver);
+	/*
+	 * Register ECDT to ACPI bus only when PNP0C09 probe fails. This is
+	 * useful for platforms (confirmed on ASUS X550ZE) with valid ECDT
+	 * settings but invalid DSDT settings.
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=196847
+	 */
 	ecdt_fail = acpi_ec_ecdt_start();
 	return ecdt_fail && dsdt_fail ? -ENODEV : 0;
 }

@@ -54,18 +54,6 @@ struct block_device *I_BDEV(struct inode *inode)
 }
 EXPORT_SYMBOL(I_BDEV);
 
-void __vfs_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	printk_ratelimited("%sVFS (%s): %pV\n", prefix, sb->s_id, &vaf);
-	va_end(args);
-}
-
 static void bdev_write_inode(struct block_device *bdev)
 {
 	struct inode *inode = bdev->bd_inode;
@@ -249,7 +237,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		if (!READ_ONCE(bio.bi_private))
 			break;
 		if (!(iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_mq_poll(bdev_get_queue(bdev), qc))
+		    !blk_poll(bdev_get_queue(bdev), qc))
 			io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
@@ -414,7 +402,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 			break;
 
 		if (!(iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_mq_poll(bdev_get_queue(bdev), qc))
+		    !blk_poll(bdev_get_queue(bdev), qc))
 			io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
@@ -674,7 +662,7 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return result;
 
-	result = blk_queue_enter(bdev->bd_queue, false);
+	result = blk_queue_enter(bdev->bd_queue, 0);
 	if (result)
 		return result;
 	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, false);
@@ -710,7 +698,7 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return -EOPNOTSUPP;
-	result = blk_queue_enter(bdev->bd_queue, false);
+	result = blk_queue_enter(bdev->bd_queue, 0);
 	if (result)
 		return result;
 
@@ -1070,6 +1058,27 @@ retry:
 	return 0;
 }
 
+static struct gendisk *bdev_get_gendisk(struct block_device *bdev, int *partno)
+{
+	struct gendisk *disk = get_gendisk(bdev->bd_dev, partno);
+
+	if (!disk)
+		return NULL;
+	/*
+	 * Now that we hold gendisk reference we make sure bdev we looked up is
+	 * not stale. If it is, it means device got removed and created before
+	 * we looked up gendisk and we fail open in such case. Associating
+	 * unhashed bdev with newly created gendisk could lead to two bdevs
+	 * (and thus two independent caches) being associated with one device
+	 * which is bad.
+	 */
+	if (inode_unhashed(bdev->bd_inode)) {
+		put_disk_and_module(disk);
+		return NULL;
+	}
+	return disk;
+}
+
 /**
  * bd_start_claiming - start claiming a block device
  * @bdev: block device of interest
@@ -1106,7 +1115,7 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	 * @bdev might not have been initialized properly yet, look up
 	 * and grab the outer block device the hard way.
 	 */
-	disk = get_gendisk(bdev->bd_dev, &partno);
+	disk = bdev_get_gendisk(bdev, &partno);
 	if (!disk)
 		return ERR_PTR(-ENXIO);
 
@@ -1123,8 +1132,7 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	else
 		whole = bdgrab(bdev);
 
-	module_put(disk->fops->owner);
-	put_disk(disk);
+	put_disk_and_module(disk);
 	if (!whole)
 		return ERR_PTR(-ENOMEM);
 
@@ -1419,10 +1427,10 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 {
 	struct gendisk *disk;
-	struct module *owner;
 	int ret;
 	int partno;
 	int perm = 0;
+	bool first_open = false;
 
 	if (mode & FMODE_READ)
 		perm |= MAY_READ;
@@ -1442,14 +1450,14 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
  restart:
 
 	ret = -ENXIO;
-	disk = get_gendisk(bdev->bd_dev, &partno);
+	disk = bdev_get_gendisk(bdev, &partno);
 	if (!disk)
 		goto out;
-	owner = disk->fops->owner;
 
 	disk_block_events(disk);
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
+		first_open = true;
 		bdev->bd_disk = disk;
 		bdev->bd_queue = disk->queue;
 		bdev->bd_contains = bdev;
@@ -1475,8 +1483,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					bdev->bd_queue = NULL;
 					mutex_unlock(&bdev->bd_mutex);
 					disk_unblock_events(disk);
-					put_disk(disk);
-					module_put(owner);
+					put_disk_and_module(disk);
 					goto restart;
 				}
 			}
@@ -1536,15 +1543,15 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (ret)
 				goto out_unlock_bdev;
 		}
-		/* only one opener holds refs to the module and disk */
-		put_disk(disk);
-		module_put(owner);
 	}
 	bdev->bd_openers++;
 	if (for_part)
 		bdev->bd_part_count++;
 	mutex_unlock(&bdev->bd_mutex);
 	disk_unblock_events(disk);
+	/* only one opener holds refs to the module and disk */
+	if (!first_open)
+		put_disk_and_module(disk);
 	return 0;
 
  out_clear:
@@ -1558,8 +1565,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
 	disk_unblock_events(disk);
-	put_disk(disk);
-	module_put(owner);
+	put_disk_and_module(disk);
  out:
 	bdput(bdev);
 
@@ -1782,8 +1788,6 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 			disk->fops->release(disk, mode);
 	}
 	if (!bdev->bd_openers) {
-		struct module *owner = disk->fops->owner;
-
 		disk_put_part(bdev->bd_part);
 		bdev->bd_part = NULL;
 		bdev->bd_disk = NULL;
@@ -1791,8 +1795,7 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
 
-		put_disk(disk);
-		module_put(owner);
+		put_disk_and_module(disk);
 	}
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);

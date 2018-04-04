@@ -294,7 +294,7 @@ static int microread_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id microread_i2c_id[] = {
+static const struct i2c_device_id microread_i2c_id[] = {
 	{ MICROREAD_I2C_DRIVER_NAME, 0},
 	{ }
 };

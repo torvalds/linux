@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) Atmel Corporation.  All rights reserved.
  *
@@ -374,7 +375,7 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 
 	data = cpu_to_le32(data);
 
-	if ((addr >= 0xf0) && (addr <= 0xff)) {
+	if (addr >= 0xf0 && addr <= 0xff) {
 		struct sdio_cmd52 cmd;
 
 		cmd.read_write = 1;
@@ -514,7 +515,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	int ret;
 
-	if ((addr >= 0xf0) && (addr <= 0xff)) {
+	if (addr >= 0xf0 && addr <= 0xff) {
 		struct sdio_cmd52 cmd;
 
 		cmd.read_write = 0;

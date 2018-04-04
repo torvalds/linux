@@ -590,12 +590,12 @@ static int s3c_camif_close(struct file *file)
 	return ret;
 }
 
-static unsigned int s3c_camif_poll(struct file *file,
+static __poll_t s3c_camif_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct camif_vp *vp = video_drvdata(file);
 	struct camif_dev *camif = vp->camif;
-	int ret;
+	__poll_t ret;
 
 	mutex_lock(&camif->lock);
 	if (vp->owner && vp->owner != file->private_data)

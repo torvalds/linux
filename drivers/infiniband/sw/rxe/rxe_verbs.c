@@ -271,13 +271,12 @@ static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 		return err;
 	}
 
-	err = rxe_av_from_attr(rxe, rdma_ah_get_port_num(attr), av, attr);
-	if (!err)
-		err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
+	rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
+	rxe_av_fill_ip_info(av, attr, &sgid_attr, &sgid);
 
 	if (sgid_attr.ndev)
 		dev_put(sgid_attr.ndev);
-	return err;
+	return 0;
 }
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
@@ -335,12 +334,11 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 
 static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
-	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);
 
 	memset(attr, 0, sizeof(*attr));
 	attr->type = ibah->type;
-	rxe_av_to_attr(rxe, &ah->av, attr);
+	rxe_av_to_attr(&ah->av, attr);
 	return 0;
 }
 
@@ -644,6 +642,7 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 		switch (wr->opcode) {
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			wr->ex.imm_data = ibwr->ex.imm_data;
+			/* fall through */
 		case IB_WR_RDMA_READ:
 		case IB_WR_RDMA_WRITE:
 			wr->wr.rdma.remote_addr = rdma_wr(ibwr)->remote_addr;
@@ -813,6 +812,8 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
 			(queue_count(qp->sq.queue) > 1);
 
 	rxe_run_task(&qp->req.task, must_sched);
+	if (unlikely(qp->req.state == QP_STATE_ERROR))
+		rxe_run_task(&qp->comp.task, 1);
 
 	return err;
 }
@@ -1191,6 +1192,7 @@ int rxe_register_device(struct rxe_dev *rxe)
 	int err;
 	int i;
 	struct ib_device *dev = &rxe->ib_dev;
+	struct crypto_shash *tfm;
 
 	strlcpy(dev->name, "rxe%d", IB_DEVICE_NAME_MAX);
 	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
@@ -1288,12 +1290,13 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->get_hw_stats = rxe_ib_get_hw_stats;
 	dev->alloc_hw_stats = rxe_ib_alloc_hw_stats;
 
-	rxe->tfm = crypto_alloc_shash("crc32", 0, 0);
-	if (IS_ERR(rxe->tfm)) {
+	tfm = crypto_alloc_shash("crc32", 0, 0);
+	if (IS_ERR(tfm)) {
 		pr_err("failed to allocate crc algorithm err:%ld\n",
-		       PTR_ERR(rxe->tfm));
-		return PTR_ERR(rxe->tfm);
+		       PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
+	rxe->tfm = tfm;
 
 	err = ib_register_device(dev, NULL);
 	if (err) {

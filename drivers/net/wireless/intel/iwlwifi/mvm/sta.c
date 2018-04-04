@@ -252,9 +252,11 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
-static void iwl_mvm_rx_agg_session_expired(unsigned long data)
+static void iwl_mvm_rx_agg_session_expired(struct timer_list *t)
 {
-	struct iwl_mvm_baid_data __rcu **rcu_ptr = (void *)data;
+	struct iwl_mvm_baid_data *data =
+		from_timer(data, t, session_timer);
+	struct iwl_mvm_baid_data __rcu **rcu_ptr = data->rcu_ptr;
 	struct iwl_mvm_baid_data *ba_data;
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvm_sta;
@@ -644,8 +646,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 
 	/* Redirect to lower AC */
 	iwl_mvm_reconfig_scd(mvm, queue, iwl_mvm_ac_to_tx_fifo[ac],
-			     cmd.sta_id, tid, LINK_QUAL_AGG_FRAME_LIMIT_DEF,
-			     ssn);
+			     cmd.sta_id, tid, IWL_FRAME_LIMIT, ssn);
 
 	/* Update AC marking of the queue */
 	spin_lock_bh(&mvm->queue_info_lock);
@@ -1258,6 +1259,14 @@ static void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 							 mvm_sta->sta_id,
 							 i, wdg_timeout);
 			tid_data->txq_id = txq_id;
+
+			/*
+			 * Since we don't set the seq number after reset, and HW
+			 * sets it now, FW reset will cause the seq num to start
+			 * at 0 again, so driver will need to update it
+			 * internally as well, so it keeps in sync with real val
+			 */
+			tid_data->seq_number = 0;
 		} else {
 			u16 seq = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
@@ -1429,6 +1438,13 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		if (ret)
 			goto err;
 	}
+
+	/*
+	 * if rs is registered with mac80211, then "add station" will be handled
+	 * via the corresponding ops, otherwise need to notify rate scaling here
+	 */
+	if (iwl_mvm_has_tlc_offload(mvm))
+		iwl_mvm_rs_add_sta(mvm, mvm_sta);
 
 update_fw:
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, sta_update, sta_flags);
@@ -1700,29 +1716,29 @@ void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
 	sta->sta_id = IWL_MVM_INVALID_STA;
 }
 
-static void iwl_mvm_enable_aux_queue(struct iwl_mvm *mvm)
+static void iwl_mvm_enable_aux_snif_queue(struct iwl_mvm *mvm, u16 *queue,
+					  u8 sta_id, u8 fifo)
 {
 	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
 					mvm->cfg->base_params->wd_timeout :
 					IWL_WATCHDOG_DISABLED;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		int queue = iwl_mvm_tvqm_enable_txq(mvm, mvm->aux_queue,
-						    mvm->aux_sta.sta_id,
-						    IWL_MAX_TID_COUNT,
-						    wdg_timeout);
-		mvm->aux_queue = queue;
+		int tvqm_queue =
+			iwl_mvm_tvqm_enable_txq(mvm, *queue, sta_id,
+						IWL_MAX_TID_COUNT,
+						wdg_timeout);
+		*queue = tvqm_queue;
 	} else {
 		struct iwl_trans_txq_scd_cfg cfg = {
-			.fifo = IWL_MVM_TX_FIFO_MCAST,
-			.sta_id = mvm->aux_sta.sta_id,
+			.fifo = fifo,
+			.sta_id = sta_id,
 			.tid = IWL_MAX_TID_COUNT,
 			.aggregate = false,
 			.frame_limit = IWL_FRAME_LIMIT,
 		};
 
-		iwl_mvm_enable_txq(mvm, mvm->aux_queue, mvm->aux_queue, 0, &cfg,
-				   wdg_timeout);
+		iwl_mvm_enable_txq(mvm, *queue, *queue, 0, &cfg, wdg_timeout);
 	}
 }
 
@@ -1741,7 +1757,9 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
 	if (!iwl_mvm_has_new_tx_api(mvm))
-		iwl_mvm_enable_aux_queue(mvm);
+		iwl_mvm_enable_aux_snif_queue(mvm, &mvm->aux_queue,
+					      mvm->aux_sta.sta_id,
+					      IWL_MVM_TX_FIFO_MCAST);
 
 	ret = iwl_mvm_add_int_sta_common(mvm, &mvm->aux_sta, NULL,
 					 MAC_INDEX_AUX, 0);
@@ -1751,11 +1769,13 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	}
 
 	/*
-	 * For a000 firmware and on we cannot add queue to a station unknown
+	 * For 22000 firmware and on we cannot add queue to a station unknown
 	 * to firmware so enable queue here - after the station was added
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm))
-		iwl_mvm_enable_aux_queue(mvm);
+		iwl_mvm_enable_aux_snif_queue(mvm, &mvm->aux_queue,
+					      mvm->aux_sta.sta_id,
+					      IWL_MVM_TX_FIFO_MCAST);
 
 	return 0;
 }
@@ -1763,10 +1783,31 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 int iwl_mvm_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
-	return iwl_mvm_add_int_sta_common(mvm, &mvm->snif_sta, vif->addr,
+
+	/* Map snif queue to fifo - must happen before adding snif station */
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		iwl_mvm_enable_aux_snif_queue(mvm, &mvm->snif_queue,
+					      mvm->snif_sta.sta_id,
+					      IWL_MVM_TX_FIFO_BE);
+
+	ret = iwl_mvm_add_int_sta_common(mvm, &mvm->snif_sta, vif->addr,
 					 mvmvif->id, 0);
+	if (ret)
+		return ret;
+
+	/*
+	 * For 22000 firmware and on we cannot add queue to a station unknown
+	 * to firmware so enable queue here - after the station was added
+	 */
+	if (iwl_mvm_has_new_tx_api(mvm))
+		iwl_mvm_enable_aux_snif_queue(mvm, &mvm->snif_queue,
+					      mvm->snif_sta.sta_id,
+					      IWL_MVM_TX_FIFO_BE);
+
+	return 0;
 }
 
 int iwl_mvm_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -1775,6 +1816,8 @@ int iwl_mvm_rm_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	iwl_mvm_disable_txq(mvm, mvm->snif_queue, mvm->snif_queue,
+			    IWL_MAX_TID_COUNT, 0);
 	ret = iwl_mvm_rm_sta_common(mvm, mvm->snif_sta.sta_id);
 	if (ret)
 		IWL_WARN(mvm, "Failed sending remove station\n");
@@ -1849,7 +1892,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return ret;
 
 	/*
-	 * For a000 firmware and on we cannot add queue to a station unknown
+	 * For 22000 firmware and on we cannot add queue to a station unknown
 	 * to firmware so enable queue here - after the station was added
 	 */
 	if (iwl_mvm_has_new_tx_api(mvm)) {
@@ -2028,7 +2071,7 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	/*
 	 * Enable cab queue after the ADD_STA command is sent.
-	 * This is needed for a000 firmware which won't accept SCD_QUEUE_CFG
+	 * This is needed for 22000 firmware which won't accept SCD_QUEUE_CFG
 	 * command with unknown station id, and for FW that doesn't support
 	 * station API since the cab queue is not included in the
 	 * tfd_queue_mask.
@@ -2104,6 +2147,8 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		int j;
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
+		struct iwl_mvm_reorder_buf_entry *entries =
+			&data->entries[i * data->entries_per_queue];
 
 		spin_lock_bh(&reorder_buf->lock);
 		if (likely(!reorder_buf->num_stored)) {
@@ -2119,7 +2164,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		WARN_ON(1);
 
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_purge(&reorder_buf->entries[j]);
+			__skb_queue_purge(&entries[j].e.frames);
 		/*
 		 * Prevent timer re-arm. This prevents a very far fetched case
 		 * where we timed out on the notification. There may be prior
@@ -2135,7 +2180,6 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
-					u32 sta_id,
 					struct iwl_mvm_baid_data *data,
 					u16 ssn, u8 buf_size)
 {
@@ -2144,23 +2188,22 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
+		struct iwl_mvm_reorder_buf_entry *entries =
+			&data->entries[i * data->entries_per_queue];
 		int j;
 
 		reorder_buf->num_stored = 0;
 		reorder_buf->head_sn = ssn;
 		reorder_buf->buf_size = buf_size;
 		/* rx reorder timer */
-		reorder_buf->reorder_timer.function =
-			iwl_mvm_reorder_timer_expired;
-		reorder_buf->reorder_timer.data = (unsigned long)reorder_buf;
-		init_timer(&reorder_buf->reorder_timer);
+		timer_setup(&reorder_buf->reorder_timer,
+			    iwl_mvm_reorder_timer_expired, 0);
 		spin_lock_init(&reorder_buf->lock);
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
-		reorder_buf->sta_id = sta_id;
 		reorder_buf->valid = false;
 		for (j = 0; j < reorder_buf->buf_size; j++)
-			__skb_queue_head_init(&reorder_buf->entries[j]);
+			__skb_queue_head_init(&entries[j].e.frames);
 	}
 }
 
@@ -2181,16 +2224,44 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 
 	if (iwl_mvm_has_new_rx_api(mvm) && start) {
+		u16 reorder_buf_size = buf_size * sizeof(baid_data->entries[0]);
+
+		/* sparse doesn't like the __align() so don't check */
+#ifndef __CHECKER__
+		/*
+		 * The division below will be OK if either the cache line size
+		 * can be divided by the entry size (ALIGN will round up) or if
+		 * if the entry size can be divided by the cache line size, in
+		 * which case the ALIGN() will do nothing.
+		 */
+		BUILD_BUG_ON(SMP_CACHE_BYTES % sizeof(baid_data->entries[0]) &&
+			     sizeof(baid_data->entries[0]) % SMP_CACHE_BYTES);
+#endif
+
+		/*
+		 * Upward align the reorder buffer size to fill an entire cache
+		 * line for each queue, to avoid sharing cache lines between
+		 * different queues.
+		 */
+		reorder_buf_size = ALIGN(reorder_buf_size, SMP_CACHE_BYTES);
+
 		/*
 		 * Allocate here so if allocation fails we can bail out early
 		 * before starting the BA session in the firmware
 		 */
 		baid_data = kzalloc(sizeof(*baid_data) +
 				    mvm->trans->num_rx_queues *
-				    sizeof(baid_data->reorder_buf[0]),
+				    reorder_buf_size,
 				    GFP_KERNEL);
 		if (!baid_data)
 			return -ENOMEM;
+
+		/*
+		 * This division is why we need the above BUILD_BUG_ON(),
+		 * if that doesn't hold then this will not be right.
+		 */
+		baid_data->entries_per_queue =
+			reorder_buf_size / sizeof(baid_data->entries[0]);
 	}
 
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
@@ -2249,9 +2320,9 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid_data->baid = baid;
 		baid_data->timeout = timeout;
 		baid_data->last_rx = jiffies;
-		setup_timer(&baid_data->session_timer,
-			    iwl_mvm_rx_agg_session_expired,
-			    (unsigned long)&mvm->baid_map[baid]);
+		baid_data->rcu_ptr = &mvm->baid_map[baid];
+		timer_setup(&baid_data->session_timer,
+			    iwl_mvm_rx_agg_session_expired, 0);
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
 		baid_data->sta_id = mvm_sta->sta_id;
@@ -2261,8 +2332,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			mod_timer(&baid_data->session_timer,
 				  TU_TO_EXP_TIME(timeout * 2));
 
-		iwl_mvm_init_reorder_buffer(mvm, mvm_sta->sta_id,
-					    baid_data, ssn, buf_size);
+		iwl_mvm_init_reorder_buffer(mvm, baid_data, ssn, buf_size);
 		/*
 		 * protect the BA data with RCU to cover a case where our
 		 * internal RX sync mechanism will timeout (not that it's
@@ -2467,7 +2537,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    tid_data->next_reclaimed);
 
 	/*
-	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
@@ -2512,14 +2582,15 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		.aggregate = true,
 	};
 
+	/*
+	 * When FW supports TLC_OFFLOAD, it also implements Tx aggregation
+	 * manager, so this function should never be called in this case.
+	 */
+	if (WARN_ON_ONCE(iwl_mvm_has_tlc_offload(mvm)))
+		return -EINVAL;
+
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
-
-	if (!mvm->trans->cfg->gen2)
-		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
-	else
-		buf_size = min_t(int, buf_size,
-				 LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF);
 
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
@@ -2532,10 +2603,17 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		/*
-		 * If no queue iwl_mvm_sta_tx_agg_start() would have failed so
-		 * no need to check queue's status
+		 * If there is no queue for this tid, iwl_mvm_sta_tx_agg_start()
+		 * would have failed, so if we are here there is no need to
+		 * allocate a queue.
+		 * However, if aggregation size is different than the default
+		 * size, the scheduler should be reconfigured.
+		 * We cannot do this with the new TX API, so return unsupported
+		 * for now, until it will be offloaded to firmware..
+		 * Note that if SCD default value changes - this condition
+		 * should be updated as well.
 		 */
-		if (buf_size < mvmsta->max_agg_bufsize)
+		if (buf_size < IWL_FRAME_LIMIT)
 			return -ENOTSUPP;
 
 		ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
@@ -2558,7 +2636,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Only reconfig the SCD for the queue if the window size has
 	 * changed from current (become smaller)
 	 */
-	if (!alloc_queue && buf_size < mvmsta->max_agg_bufsize) {
+	if (!alloc_queue && buf_size < IWL_FRAME_LIMIT) {
 		/*
 		 * If reconfiguring an existing queue, it first must be
 		 * drained
@@ -2608,12 +2686,12 @@ out:
 	 */
 	mvmsta->max_agg_bufsize =
 		min(mvmsta->max_agg_bufsize, buf_size);
-	mvmsta->lq_sta.lq.agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
+	mvmsta->lq_sta.rs_drv.lq.agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
 
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);
 
-	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, false);
+	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.rs_drv.lq, false);
 }
 
 static void iwl_mvm_unreserve_agg_queue(struct iwl_mvm *mvm,
@@ -3551,7 +3629,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	u16 sn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 
 	/*
-	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	if (mvm->trans->cfg->gen2)

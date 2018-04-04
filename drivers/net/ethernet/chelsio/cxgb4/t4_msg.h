@@ -50,6 +50,7 @@ enum {
 	CPL_RX_DATA_ACK       = 0xD,
 	CPL_TX_PKT            = 0xE,
 	CPL_L2T_WRITE_REQ     = 0x12,
+	CPL_SMT_WRITE_REQ     = 0x14,
 	CPL_TID_RELEASE       = 0x1A,
 	CPL_TX_DATA_ISO	      = 0x1F,
 
@@ -60,6 +61,7 @@ enum {
 	CPL_PEER_CLOSE        = 0x26,
 	CPL_ABORT_REQ_RSS     = 0x2B,
 	CPL_ABORT_RPL_RSS     = 0x2D,
+	CPL_SMT_WRITE_RPL     = 0x2E,
 
 	CPL_RX_PHYS_ADDR      = 0x30,
 	CPL_CLOSE_CON_RPL     = 0x32,
@@ -105,6 +107,7 @@ enum {
 
 	CPL_FW6_MSG           = 0xE0,
 	CPL_FW6_PLD           = 0xE1,
+	CPL_TX_TNL_LSO        = 0xEC,
 	CPL_TX_PKT_LSO        = 0xED,
 	CPL_TX_PKT_XT         = 0xEE,
 
@@ -284,6 +287,7 @@ struct work_request_hdr {
 
 #define RX_CHANNEL_S    26
 #define RX_CHANNEL_V(x) ((x) << RX_CHANNEL_S)
+#define RX_CHANNEL_F	RX_CHANNEL_V(1U)
 
 #define WND_SCALE_EN_S    28
 #define WND_SCALE_EN_V(x) ((x) << WND_SCALE_EN_S)
@@ -312,6 +316,10 @@ struct cpl_pass_open_req {
 #define DELACK_S    5
 #define DELACK_V(x) ((x) << DELACK_S)
 #define DELACK_F    DELACK_V(1U)
+
+#define NON_OFFLOAD_S		7
+#define NON_OFFLOAD_V(x)	((x) << NON_OFFLOAD_S)
+#define NON_OFFLOAD_F		NON_OFFLOAD_V(1U)
 
 #define DSCP_S    22
 #define DSCP_M    0x3F
@@ -681,8 +689,8 @@ struct cpl_set_tcb_field {
 };
 
 /* cpl_set_tcb_field.word_cookie fields */
-#define TCB_WORD_S    0
-#define TCB_WORD(x)   ((x) << TCB_WORD_S)
+#define TCB_WORD_S	0
+#define TCB_WORD_V(x)	((x) << TCB_WORD_S)
 
 #define TCB_COOKIE_S    5
 #define TCB_COOKIE_M    0x7
@@ -1266,6 +1274,44 @@ struct cpl_l2t_write_rpl {
 	u8 rsvd[3];
 };
 
+struct cpl_smt_write_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 params;
+	__be16 pfvf1;
+	u8 src_mac1[6];
+	__be16 pfvf0;
+	u8 src_mac0[6];
+};
+
+struct cpl_t6_smt_write_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 params;
+	__be64 tag;
+	__be16 pfvf0;
+	u8 src_mac0[6];
+	__be32 local_ip;
+	__be32 rsvd;
+};
+
+struct cpl_smt_write_rpl {
+	union opcode_tid ot;
+	u8 status;
+	u8 rsvd[3];
+};
+
+/* cpl_smt_{read,write}_req.params fields */
+#define SMTW_OVLAN_IDX_S	16
+#define SMTW_OVLAN_IDX_V(x)	((x) << SMTW_OVLAN_IDX_S)
+
+#define SMTW_IDX_S	20
+#define SMTW_IDX_V(x)	((x) << SMTW_IDX_S)
+
+#define SMTW_NORPL_S	31
+#define SMTW_NORPL_V(x)	((x) << SMTW_NORPL_S)
+#define SMTW_NORPL_F	SMTW_NORPL_V(1U)
+
 struct cpl_rdma_terminate {
 	union opcode_tid ot;
 	__be16 rsvd;
@@ -1433,6 +1479,169 @@ struct ulp_txpkt {
 #define ULP_TXPKT_RO_S      3
 #define ULP_TXPKT_RO_V(x) ((x) << ULP_TXPKT_RO_S)
 #define ULP_TXPKT_RO_F ULP_TXPKT_RO_V(1U)
+
+enum cpl_tx_tnl_lso_type {
+	TX_TNL_TYPE_OPAQUE,
+	TX_TNL_TYPE_NVGRE,
+	TX_TNL_TYPE_VXLAN,
+	TX_TNL_TYPE_GENEVE,
+};
+
+struct cpl_tx_tnl_lso {
+	__be32 op_to_IpIdSplitOut;
+	__be16 IpIdOffsetOut;
+	__be16 UdpLenSetOut_to_TnlHdrLen;
+	__be64 r1;
+	__be32 Flow_to_TcpHdrLen;
+	__be16 IpIdOffset;
+	__be16 IpIdSplit_to_Mss;
+	__be32 TCPSeqOffset;
+	__be32 EthLenOffset_Size;
+	/* encapsulated CPL (TX_PKT_XT) follows here */
+};
+
+#define CPL_TX_TNL_LSO_OPCODE_S		24
+#define CPL_TX_TNL_LSO_OPCODE_M		0xff
+#define CPL_TX_TNL_LSO_OPCODE_V(x)      ((x) << CPL_TX_TNL_LSO_OPCODE_S)
+#define CPL_TX_TNL_LSO_OPCODE_G(x)      \
+	(((x) >> CPL_TX_TNL_LSO_OPCODE_S) & CPL_TX_TNL_LSO_OPCODE_M)
+
+#define CPL_TX_TNL_LSO_FIRST_S		23
+#define CPL_TX_TNL_LSO_FIRST_M		0x1
+#define CPL_TX_TNL_LSO_FIRST_V(x)	((x) << CPL_TX_TNL_LSO_FIRST_S)
+#define CPL_TX_TNL_LSO_FIRST_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_FIRST_S) & CPL_TX_TNL_LSO_FIRST_M)
+#define CPL_TX_TNL_LSO_FIRST_F		CPL_TX_TNL_LSO_FIRST_V(1U)
+
+#define CPL_TX_TNL_LSO_LAST_S		22
+#define CPL_TX_TNL_LSO_LAST_M		0x1
+#define CPL_TX_TNL_LSO_LAST_V(x)	((x) << CPL_TX_TNL_LSO_LAST_S)
+#define CPL_TX_TNL_LSO_LAST_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_LAST_S) & CPL_TX_TNL_LSO_LAST_M)
+#define CPL_TX_TNL_LSO_LAST_F		CPL_TX_TNL_LSO_LAST_V(1U)
+
+#define CPL_TX_TNL_LSO_ETHHDRLENXOUT_S	21
+#define CPL_TX_TNL_LSO_ETHHDRLENXOUT_M	0x1
+#define CPL_TX_TNL_LSO_ETHHDRLENXOUT_V(x) \
+	((x) << CPL_TX_TNL_LSO_ETHHDRLENXOUT_S)
+#define CPL_TX_TNL_LSO_ETHHDRLENXOUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_ETHHDRLENXOUT_S) & \
+	 CPL_TX_TNL_LSO_ETHHDRLENXOUT_M)
+#define CPL_TX_TNL_LSO_ETHHDRLENXOUT_F CPL_TX_TNL_LSO_ETHHDRLENXOUT_V(1U)
+
+#define CPL_TX_TNL_LSO_IPV6OUT_S	20
+#define CPL_TX_TNL_LSO_IPV6OUT_M	0x1
+#define CPL_TX_TNL_LSO_IPV6OUT_V(x)	((x) << CPL_TX_TNL_LSO_IPV6OUT_S)
+#define CPL_TX_TNL_LSO_IPV6OUT_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_IPV6OUT_S) & CPL_TX_TNL_LSO_IPV6OUT_M)
+#define CPL_TX_TNL_LSO_IPV6OUT_F        CPL_TX_TNL_LSO_IPV6OUT_V(1U)
+
+#define CPL_TX_TNL_LSO_ETHHDRLEN_S	16
+#define CPL_TX_TNL_LSO_ETHHDRLEN_M	0xf
+#define CPL_TX_TNL_LSO_ETHHDRLEN_V(x)	((x) << CPL_TX_TNL_LSO_ETHHDRLEN_S)
+#define CPL_TX_TNL_LSO_ETHHDRLEN_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_ETHHDRLEN_S) & CPL_TX_TNL_LSO_ETHHDRLEN_M)
+
+#define CPL_TX_TNL_LSO_IPHDRLEN_S	4
+#define CPL_TX_TNL_LSO_IPHDRLEN_M	0xfff
+#define CPL_TX_TNL_LSO_IPHDRLEN_V(x)	((x) << CPL_TX_TNL_LSO_IPHDRLEN_S)
+#define CPL_TX_TNL_LSO_IPHDRLEN_G(x)    \
+	(((x) >> CPL_TX_TNL_LSO_IPHDRLEN_S) & CPL_TX_TNL_LSO_IPHDRLEN_M)
+
+#define CPL_TX_TNL_LSO_TCPHDRLEN_S	0
+#define CPL_TX_TNL_LSO_TCPHDRLEN_M	0xf
+#define CPL_TX_TNL_LSO_TCPHDRLEN_V(x)	((x) << CPL_TX_TNL_LSO_TCPHDRLEN_S)
+#define CPL_TX_TNL_LSO_TCPHDRLEN_G(x)   \
+	(((x) >> CPL_TX_TNL_LSO_TCPHDRLEN_S) & CPL_TX_TNL_LSO_TCPHDRLEN_M)
+
+#define CPL_TX_TNL_LSO_MSS_S            0
+#define CPL_TX_TNL_LSO_MSS_M            0x3fff
+#define CPL_TX_TNL_LSO_MSS_V(x)         ((x) << CPL_TX_TNL_LSO_MSS_S)
+#define CPL_TX_TNL_LSO_MSS_G(x)         \
+	(((x) >> CPL_TX_TNL_LSO_MSS_S) & CPL_TX_TNL_LSO_MSS_M)
+
+#define CPL_TX_TNL_LSO_SIZE_S		0
+#define CPL_TX_TNL_LSO_SIZE_M		0xfffffff
+#define CPL_TX_TNL_LSO_SIZE_V(x)	((x) << CPL_TX_TNL_LSO_SIZE_S)
+#define CPL_TX_TNL_LSO_SIZE_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_SIZE_S) & CPL_TX_TNL_LSO_SIZE_M)
+
+#define CPL_TX_TNL_LSO_ETHHDRLENOUT_S   16
+#define CPL_TX_TNL_LSO_ETHHDRLENOUT_M   0xf
+#define CPL_TX_TNL_LSO_ETHHDRLENOUT_V(x) \
+	((x) << CPL_TX_TNL_LSO_ETHHDRLENOUT_S)
+#define CPL_TX_TNL_LSO_ETHHDRLENOUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_ETHHDRLENOUT_S) & CPL_TX_TNL_LSO_ETHHDRLENOUT_M)
+
+#define CPL_TX_TNL_LSO_IPHDRLENOUT_S    4
+#define CPL_TX_TNL_LSO_IPHDRLENOUT_M    0xfff
+#define CPL_TX_TNL_LSO_IPHDRLENOUT_V(x) ((x) << CPL_TX_TNL_LSO_IPHDRLENOUT_S)
+#define CPL_TX_TNL_LSO_IPHDRLENOUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_IPHDRLENOUT_S) & CPL_TX_TNL_LSO_IPHDRLENOUT_M)
+
+#define CPL_TX_TNL_LSO_IPHDRCHKOUT_S    3
+#define CPL_TX_TNL_LSO_IPHDRCHKOUT_M    0x1
+#define CPL_TX_TNL_LSO_IPHDRCHKOUT_V(x) ((x) << CPL_TX_TNL_LSO_IPHDRCHKOUT_S)
+#define CPL_TX_TNL_LSO_IPHDRCHKOUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_IPHDRCHKOUT_S) & CPL_TX_TNL_LSO_IPHDRCHKOUT_M)
+#define CPL_TX_TNL_LSO_IPHDRCHKOUT_F    CPL_TX_TNL_LSO_IPHDRCHKOUT_V(1U)
+
+#define CPL_TX_TNL_LSO_IPLENSETOUT_S	2
+#define CPL_TX_TNL_LSO_IPLENSETOUT_M	0x1
+#define CPL_TX_TNL_LSO_IPLENSETOUT_V(x) ((x) << CPL_TX_TNL_LSO_IPLENSETOUT_S)
+#define CPL_TX_TNL_LSO_IPLENSETOUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_IPLENSETOUT_S) & CPL_TX_TNL_LSO_IPLENSETOUT_M)
+#define CPL_TX_TNL_LSO_IPLENSETOUT_F	CPL_TX_TNL_LSO_IPLENSETOUT_V(1U)
+
+#define CPL_TX_TNL_LSO_IPIDINCOUT_S	1
+#define CPL_TX_TNL_LSO_IPIDINCOUT_M	0x1
+#define CPL_TX_TNL_LSO_IPIDINCOUT_V(x)  ((x) << CPL_TX_TNL_LSO_IPIDINCOUT_S)
+#define CPL_TX_TNL_LSO_IPIDINCOUT_G(x)  \
+	(((x) >> CPL_TX_TNL_LSO_IPIDINCOUT_S) & CPL_TX_TNL_LSO_IPIDINCOUT_M)
+#define CPL_TX_TNL_LSO_IPIDINCOUT_F     CPL_TX_TNL_LSO_IPIDINCOUT_V(1U)
+
+#define CPL_TX_TNL_LSO_UDPCHKCLROUT_S   14
+#define CPL_TX_TNL_LSO_UDPCHKCLROUT_M   0x1
+#define CPL_TX_TNL_LSO_UDPCHKCLROUT_V(x) \
+	((x) << CPL_TX_TNL_LSO_UDPCHKCLROUT_S)
+#define CPL_TX_TNL_LSO_UDPCHKCLROUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_UDPCHKCLROUT_S) & \
+	 CPL_TX_TNL_LSO_UDPCHKCLROUT_M)
+#define CPL_TX_TNL_LSO_UDPCHKCLROUT_F   CPL_TX_TNL_LSO_UDPCHKCLROUT_V(1U)
+
+#define CPL_TX_TNL_LSO_UDPLENSETOUT_S   15
+#define CPL_TX_TNL_LSO_UDPLENSETOUT_M   0x1
+#define CPL_TX_TNL_LSO_UDPLENSETOUT_V(x) \
+	((x) << CPL_TX_TNL_LSO_UDPLENSETOUT_S)
+#define CPL_TX_TNL_LSO_UDPLENSETOUT_G(x) \
+	(((x) >> CPL_TX_TNL_LSO_UDPLENSETOUT_S) & \
+	 CPL_TX_TNL_LSO_UDPLENSETOUT_M)
+#define CPL_TX_TNL_LSO_UDPLENSETOUT_F   CPL_TX_TNL_LSO_UDPLENSETOUT_V(1U)
+
+#define CPL_TX_TNL_LSO_TNLTYPE_S	12
+#define CPL_TX_TNL_LSO_TNLTYPE_M	0x3
+#define CPL_TX_TNL_LSO_TNLTYPE_V(x)	((x) << CPL_TX_TNL_LSO_TNLTYPE_S)
+#define CPL_TX_TNL_LSO_TNLTYPE_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_TNLTYPE_S) & CPL_TX_TNL_LSO_TNLTYPE_M)
+
+#define S_CPL_TX_TNL_LSO_ETHHDRLEN	16
+#define M_CPL_TX_TNL_LSO_ETHHDRLEN	0xf
+#define V_CPL_TX_TNL_LSO_ETHHDRLEN(x)	((x) << S_CPL_TX_TNL_LSO_ETHHDRLEN)
+#define G_CPL_TX_TNL_LSO_ETHHDRLEN(x)	\
+	(((x) >> S_CPL_TX_TNL_LSO_ETHHDRLEN) & M_CPL_TX_TNL_LSO_ETHHDRLEN)
+
+#define CPL_TX_TNL_LSO_TNLHDRLEN_S      0
+#define CPL_TX_TNL_LSO_TNLHDRLEN_M      0xfff
+#define CPL_TX_TNL_LSO_TNLHDRLEN_V(x)	((x) << CPL_TX_TNL_LSO_TNLHDRLEN_S)
+#define CPL_TX_TNL_LSO_TNLHDRLEN_G(x)   \
+	(((x) >> CPL_TX_TNL_LSO_TNLHDRLEN_S) & CPL_TX_TNL_LSO_TNLHDRLEN_M)
+
+#define CPL_TX_TNL_LSO_IPV6_S		20
+#define CPL_TX_TNL_LSO_IPV6_M		0x1
+#define CPL_TX_TNL_LSO_IPV6_V(x)	((x) << CPL_TX_TNL_LSO_IPV6_S)
+#define CPL_TX_TNL_LSO_IPV6_G(x)	\
+	(((x) >> CPL_TX_TNL_LSO_IPV6_S) & CPL_TX_TNL_LSO_IPV6_M)
+#define CPL_TX_TNL_LSO_IPV6_F		CPL_TX_TNL_LSO_IPV6_V(1U)
 
 #define ULP_TX_SC_MORE_S 23
 #define ULP_TX_SC_MORE_V(x) ((x) << ULP_TX_SC_MORE_S)

@@ -576,13 +576,6 @@ static void psb_fbdev_fini(struct drm_device *dev)
 	dev_priv->fbdev = NULL;
 }
 
-static void psbfb_output_poll_changed(struct drm_device *dev)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_fbdev *fbdev = (struct psb_fbdev *)dev_priv->fbdev;
-	drm_fb_helper_hotplug_event(&fbdev->psb_fb_helper);
-}
-
 /**
  *	psb_user_framebuffer_create_handle - add hamdle to a framebuffer
  *	@fb: framebuffer
@@ -623,7 +616,7 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 static const struct drm_mode_config_funcs psb_mode_funcs = {
 	.fb_create = psb_user_framebuffer_create,
-	.output_poll_changed = psbfb_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 static void psb_setup_outputs(struct drm_device *dev)

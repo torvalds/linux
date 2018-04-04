@@ -300,7 +300,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 {
 	struct imx_ic_priv *ic_priv = v4l2_get_subdevdata(sd);
 	struct prp_priv *priv = ic_priv->prp_priv;
-	struct imx_media_subdev *csi;
+	struct v4l2_subdev *csi;
 	int ret;
 
 	ret = v4l2_subdev_link_validate_default(sd, link,
@@ -320,9 +320,10 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 		 * the ->PRPENC link cannot be enabled if the source
 		 * is the VDIC
 		 */
-		if (priv->sink_sd_prpenc)
+		if (priv->sink_sd_prpenc) {
 			ret = -EINVAL;
-		goto out;
+			goto out;
+		}
 	} else {
 		/* the source is a CSI */
 		if (!csi) {
@@ -332,7 +333,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 	}
 
 	if (csi) {
-		switch (csi->sd->grp_id) {
+		switch (csi->grp_id) {
 		case IMX_MEDIA_GRP_ID_CSI0:
 			priv->csi_id = 0;
 			break;

@@ -46,6 +46,9 @@
 /* Max default timeout in ms, */
 #define I40E_MAX_NVM_TIMEOUT		18000
 
+/* Max timeout in ms for the phy to respond */
+#define I40E_MAX_PHY_TIMEOUT		500
+
 /* Switch from ms to the 1usec global time (this is the GTIME resolution) */
 #define I40E_MS_TO_GTIME(time)		((time) * 1000)
 
@@ -358,6 +361,7 @@ enum i40e_nvmupd_cmd {
 	I40E_NVMUPD_STATUS,
 	I40E_NVMUPD_EXEC_AQ,
 	I40E_NVMUPD_GET_AQ_RESULT,
+	I40E_NVMUPD_GET_AQ_EVENT,
 };
 
 enum i40e_nvmupd_state {
@@ -377,15 +381,21 @@ enum i40e_nvmupd_state {
 
 #define I40E_NVM_MOD_PNT_MASK 0xFF
 
-#define I40E_NVM_TRANS_SHIFT	8
-#define I40E_NVM_TRANS_MASK	(0xf << I40E_NVM_TRANS_SHIFT)
-#define I40E_NVM_CON		0x0
-#define I40E_NVM_SNT		0x1
-#define I40E_NVM_LCB		0x2
-#define I40E_NVM_SA		(I40E_NVM_SNT | I40E_NVM_LCB)
-#define I40E_NVM_ERA		0x4
-#define I40E_NVM_CSUM		0x8
-#define I40E_NVM_EXEC		0xf
+#define I40E_NVM_TRANS_SHIFT			8
+#define I40E_NVM_TRANS_MASK			(0xf << I40E_NVM_TRANS_SHIFT)
+#define I40E_NVM_PRESERVATION_FLAGS_SHIFT	12
+#define I40E_NVM_PRESERVATION_FLAGS_MASK \
+				(0x3 << I40E_NVM_PRESERVATION_FLAGS_SHIFT)
+#define I40E_NVM_PRESERVATION_FLAGS_SELECTED	0x01
+#define I40E_NVM_PRESERVATION_FLAGS_ALL		0x02
+#define I40E_NVM_CON				0x0
+#define I40E_NVM_SNT				0x1
+#define I40E_NVM_LCB				0x2
+#define I40E_NVM_SA				(I40E_NVM_SNT | I40E_NVM_LCB)
+#define I40E_NVM_ERA				0x4
+#define I40E_NVM_CSUM				0x8
+#define I40E_NVM_AQE				0xe
+#define I40E_NVM_EXEC				0xf
 
 #define I40E_NVM_ADAPT_SHIFT	16
 #define I40E_NVM_ADAPT_MASK	(0xffff << I40E_NVM_ADAPT_SHIFT)
@@ -400,6 +410,18 @@ struct i40e_nvm_access {
 	u32 data_size;	/* in bytes */
 	u8 data[1];
 };
+
+/* (Q)SFP module access definitions */
+#define I40E_I2C_EEPROM_DEV_ADDR	0xA0
+#define I40E_I2C_EEPROM_DEV_ADDR2	0xA2
+#define I40E_MODULE_TYPE_ADDR		0x00
+#define I40E_MODULE_REVISION_ADDR	0x01
+#define I40E_MODULE_SFF_8472_COMP	0x5E
+#define I40E_MODULE_SFF_8472_SWAP	0x5C
+#define I40E_MODULE_SFF_ADDR_MODE	0x04
+#define I40E_MODULE_TYPE_QSFP_PLUS	0x0D
+#define I40E_MODULE_TYPE_QSFP28		0x11
+#define I40E_MODULE_QSFP_MAX_LEN	640
 
 /* PCI bus types */
 enum i40e_bus_type {
@@ -546,6 +568,7 @@ struct i40e_hw {
 	/* state of nvm update process */
 	enum i40e_nvmupd_state nvmupd_state;
 	struct i40e_aq_desc nvm_wb_desc;
+	struct i40e_aq_desc nvm_aq_event_desc;
 	struct i40e_virt_mem nvm_buff;
 	bool nvm_release_on_done;
 	u16 nvm_wait_opcode;
@@ -556,10 +579,18 @@ struct i40e_hw {
 	/* LLDP/DCBX Status */
 	u16 dcbx_status;
 
+#define I40E_HW_FLAG_802_1AD_CAPABLE        BIT_ULL(1)
+#define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
+
 	/* DCBX info */
 	struct i40e_dcbx_config local_dcbx_config; /* Oper/Local Cfg */
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
 	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
+
+	/* Used in set switch config AQ command */
+	u16 switch_tag;
+	u16 first_tag;
+	u16 second_tag;
 
 	/* debug mask */
 	u32 debug_mask;
@@ -1399,19 +1430,19 @@ enum i40e_reset_type {
 #define I40E_FD_INSET_FLEX_WORD57_MASK		(0x1ULL << \
 					I40E_FD_INSET_FLEX_WORD57_SHIFT)
 
-/* Version format for PPP */
-struct i40e_ppp_version {
+/* Version format for Dynamic Device Personalization(DDP) */
+struct i40e_ddp_version {
 	u8 major;
 	u8 minor;
 	u8 update;
 	u8 draft;
 };
 
-#define I40E_PPP_NAME_SIZE	32
+#define I40E_DDP_NAME_SIZE	32
 
 /* Package header */
 struct i40e_package_header {
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 segment_count;
 	u32 segment_offset[1];
 };
@@ -1423,16 +1454,16 @@ struct i40e_generic_seg_header {
 #define SEGMENT_TYPE_I40E	0x00000011
 #define SEGMENT_TYPE_X722	0x00000012
 	u32 type;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 size;
-	char name[I40E_PPP_NAME_SIZE];
+	char name[I40E_DDP_NAME_SIZE];
 };
 
 struct i40e_metadata_segment {
 	struct i40e_generic_seg_header header;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 track_id;
-	char name[I40E_PPP_NAME_SIZE];
+	char name[I40E_DDP_NAME_SIZE];
 };
 
 struct i40e_device_id_entry {
@@ -1442,8 +1473,8 @@ struct i40e_device_id_entry {
 
 struct i40e_profile_segment {
 	struct i40e_generic_seg_header header;
-	struct i40e_ppp_version version;
-	char name[I40E_PPP_NAME_SIZE];
+	struct i40e_ddp_version version;
+	char name[I40E_DDP_NAME_SIZE];
 	u32 device_table_count;
 	struct i40e_device_id_entry device_table[1];
 };
@@ -1470,11 +1501,11 @@ struct i40e_profile_section_header {
 
 struct i40e_profile_info {
 	u32 track_id;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u8 op;
-#define I40E_PPP_ADD_TRACKID		0x01
-#define I40E_PPP_REMOVE_TRACKID	0x02
+#define I40E_DDP_ADD_TRACKID		0x01
+#define I40E_DDP_REMOVE_TRACKID	0x02
 	u8 reserved[7];
-	u8 name[I40E_PPP_NAME_SIZE];
+	u8 name[I40E_DDP_NAME_SIZE];
 };
 #endif /* _I40E_TYPE_H_ */

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * bcm63xx_udc.c -- BCM63xx UDC high/full speed USB device controller
  *
  * Copyright (C) 2012 Kevin Cernekee <cernekee@gmail.com>
  * Copyright (C) 2012 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitops.h>
@@ -2389,10 +2385,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		goto out_uninit;
 	}
 	if (devm_request_irq(dev, irq, &bcm63xx_udc_ctrl_isr, 0,
-			     dev_name(dev), udc) < 0) {
-		dev_err(dev, "error requesting IRQ #%d\n", irq);
-		goto out_uninit;
-	}
+			     dev_name(dev), udc) < 0)
+		goto report_request_failure;
 
 	/* IRQ resources #1-6: data interrupts for IUDMA channels 0-5 */
 	for (i = 0; i < BCM63XX_NUM_IUDMA; i++) {
@@ -2402,10 +2396,8 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 			goto out_uninit;
 		}
 		if (devm_request_irq(dev, irq, &bcm63xx_udc_data_isr, 0,
-				     dev_name(dev), &udc->iudma[i]) < 0) {
-			dev_err(dev, "error requesting IRQ #%d\n", irq);
-			goto out_uninit;
-		}
+				     dev_name(dev), &udc->iudma[i]) < 0)
+			goto report_request_failure;
 	}
 
 	bcm63xx_udc_init_debugfs(udc);
@@ -2417,6 +2409,10 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 out_uninit:
 	bcm63xx_uninit_udc_hw(udc);
 	return rc;
+
+report_request_failure:
+	dev_err(dev, "error requesting IRQ #%d\n", irq);
+	goto out_uninit;
 }
 
 /**

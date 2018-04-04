@@ -189,6 +189,7 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	 * packet data. This counter is applicable only for Lancer adapters.
 	 */
 	{DRVSTAT_TX_INFO(tx_internal_parity_err)},
+	{DRVSTAT_TX_INFO(tx_sge_err)},
 	{DRVSTAT_TX_INFO(tx_bytes)},
 	{DRVSTAT_TX_INFO(tx_pkts)},
 	{DRVSTAT_TX_INFO(tx_vxlan_offload_pkts)},

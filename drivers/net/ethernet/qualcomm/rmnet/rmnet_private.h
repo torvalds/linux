@@ -19,23 +19,11 @@
 #define RMNET_TX_QUEUE_LEN         1000
 
 /* Constants */
-#define RMNET_EGRESS_FORMAT__RESERVED__         BIT(0)
-#define RMNET_EGRESS_FORMAT_MAP                 BIT(1)
-#define RMNET_EGRESS_FORMAT_AGGREGATION         BIT(2)
-#define RMNET_EGRESS_FORMAT_MUXING              BIT(3)
-#define RMNET_EGRESS_FORMAT_MAP_CKSUMV3         BIT(4)
-#define RMNET_EGRESS_FORMAT_MAP_CKSUMV4         BIT(5)
+#define RMNET_INGRESS_FORMAT_DEAGGREGATION      BIT(0)
+#define RMNET_INGRESS_FORMAT_MAP_COMMANDS       BIT(1)
+#define RMNET_INGRESS_FORMAT_MAP_CKSUMV4        BIT(2)
+#define RMNET_EGRESS_FORMAT_MAP_CKSUMV4         BIT(3)
 
-#define RMNET_INGRESS_FIX_ETHERNET              BIT(0)
-#define RMNET_INGRESS_FORMAT_MAP                BIT(1)
-#define RMNET_INGRESS_FORMAT_DEAGGREGATION      BIT(2)
-#define RMNET_INGRESS_FORMAT_DEMUXING           BIT(3)
-#define RMNET_INGRESS_FORMAT_MAP_COMMANDS       BIT(4)
-#define RMNET_INGRESS_FORMAT_MAP_CKSUMV3        BIT(5)
-#define RMNET_INGRESS_FORMAT_MAP_CKSUMV4        BIT(6)
-
-/* Pass the frame up the stack with no modifications to skb->dev */
-#define RMNET_EPMODE_NONE (0)
 /* Replace skb->dev to a virtual rmnet device and pass up the stack */
 #define RMNET_EPMODE_VND (1)
 /* Pass the frame directly to another device with dev_queue_xmit() */

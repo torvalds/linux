@@ -4844,9 +4844,9 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
  * we reset the firmware. If everything is fine just rearm the timer.
  */
 void
-il_bg_watchdog(unsigned long data)
+il_bg_watchdog(struct timer_list *t)
 {
-	struct il_priv *il = (struct il_priv *)data;
+	struct il_priv *il = from_timer(il, t, watchdog);
 	int cnt;
 	unsigned long timeout;
 

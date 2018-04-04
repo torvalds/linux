@@ -26,7 +26,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/compat.h>
 
-#include <asm/poll.h>
+#include <linux/poll.h>
 #include <asm/siginfo.h>
 #include <linux/uaccess.h>
 
@@ -418,7 +418,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_ADD_SEALS:
 	case F_GET_SEALS:
-		err = shmem_fcntl(filp, cmd, arg);
+		err = memfd_fcntl(filp, cmd, arg);
 		break;
 	case F_GET_RW_HINT:
 	case F_SET_RW_HINT:
@@ -563,6 +563,9 @@ static int put_compat_flock64(const struct flock *kfl, struct compat_flock64 __u
 {
 	struct compat_flock64 fl;
 
+	BUILD_BUG_ON(sizeof(kfl->l_start) > sizeof(ufl->l_start));
+	BUILD_BUG_ON(sizeof(kfl->l_len) > sizeof(ufl->l_len));
+
 	memset(&fl, 0, sizeof(struct compat_flock64));
 	copy_flock_fields(&fl, kfl);
 	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock64)))
@@ -632,9 +635,8 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		if (err)
 			break;
 		err = fixup_compat_flock(&flock);
-		if (err)
-			return err;
-		err = put_compat_flock(&flock, compat_ptr(arg));
+		if (!err)
+			err = put_compat_flock(&flock, compat_ptr(arg));
 		break;
 	case F_GETLK64:
 	case F_OFD_GETLK:
@@ -642,12 +644,8 @@ COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		if (err)
 			break;
 		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
-		if (err)
-			break;
-		err = fixup_compat_flock(&flock);
-		if (err)
-			return err;
-		err = put_compat_flock64(&flock, compat_ptr(arg));
+		if (!err)
+			err = put_compat_flock64(&flock, compat_ptr(arg));
 		break;
 	case F_SETLK:
 	case F_SETLKW:
@@ -692,13 +690,13 @@ COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
 
 /* Table to convert sigio signal codes into poll band bitmaps */
 
-static const long band_table[NSIGPOLL] = {
-	POLLIN | POLLRDNORM,			/* POLL_IN */
-	POLLOUT | POLLWRNORM | POLLWRBAND,	/* POLL_OUT */
-	POLLIN | POLLRDNORM | POLLMSG,		/* POLL_MSG */
-	POLLERR,				/* POLL_ERR */
-	POLLPRI | POLLRDBAND,			/* POLL_PRI */
-	POLLHUP | POLLERR			/* POLL_HUP */
+static const __poll_t band_table[NSIGPOLL] = {
+	EPOLLIN | EPOLLRDNORM,			/* POLL_IN */
+	EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND,	/* POLL_OUT */
+	EPOLLIN | EPOLLRDNORM | EPOLLMSG,		/* POLL_MSG */
+	EPOLLERR,				/* POLL_ERR */
+	EPOLLPRI | EPOLLRDBAND,			/* POLL_PRI */
+	EPOLLHUP | EPOLLERR			/* POLL_HUP */
 };
 
 static inline int sigio_perm(struct task_struct *p,
@@ -725,7 +723,7 @@ static void send_sigio_to_task(struct task_struct *p,
 	 * F_SETSIG can change ->signum lockless in parallel, make
 	 * sure we read it once and use the same value throughout.
 	 */
-	int signum = ACCESS_ONCE(fown->signum);
+	int signum = READ_ONCE(fown->signum);
 
 	if (!sigio_perm(p, fown, signum))
 		return;
@@ -739,6 +737,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
+			clear_siginfo(&si);
 			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
@@ -760,7 +759,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else
-				si.si_band = band_table[reason - POLL_IN];
+				si.si_band = mangle_poll(band_table[reason - POLL_IN]);
 			si.si_fd    = fd;
 			if (!do_send_sig_info(signum, &si, p, group))
 				break;

@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -480,8 +476,6 @@ static int ov8858_priv_int_data_init(struct v4l2_subdev *sd)
 	if (!dev->otp_data) {
 		dev->otp_data = devm_kzalloc(&client->dev, size, GFP_KERNEL);
 		if (!dev->otp_data) {
-			dev_err(&client->dev, "%s: can't allocate memory",
-				__func__);
 			r = -ENOMEM;
 			goto error3;
 		}
@@ -714,10 +708,6 @@ static int __power_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->power_ctrl)
-		return dev->platform_data->power_ctrl(sd, flag);
-
 	if (dev->platform_data->v1p2_ctrl) {
 		ret = dev->platform_data->v1p2_ctrl(sd, flag);
 		if (ret) {
@@ -768,10 +758,6 @@ static int __gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 
 	if (!client || !dev || !dev->platform_data)
 		return -ENODEV;
-
-	/* Non-gmin platforms use the legacy callback */
-	if (dev->platform_data->gpio_ctrl)
-		return dev->platform_data->gpio_ctrl(sd, flag);
 
 	if (dev->platform_data->gpio0_ctrl)
 		return dev->platform_data->gpio0_ctrl(sd, flag);
@@ -1575,15 +1561,6 @@ static int ov8858_s_config(struct v4l2_subdev *sd,
 
 	mutex_lock(&dev->input_lock);
 
-	if (dev->platform_data->platform_init) {
-		ret = dev->platform_data->platform_init(client);
-		if (ret) {
-			mutex_unlock(&dev->input_lock);
-			dev_err(&client->dev, "platform init error %d!\n", ret);
-			return ret;
-		}
-	}
-
 	ret = __ov8858_s_power(sd, 1);
 	if (ret) {
 		dev_err(&client->dev, "power-up error %d!\n", ret);
@@ -1628,8 +1605,6 @@ fail_detect:
 fail_csi_cfg:
 	__ov8858_s_power(sd, 0);
 fail_update:
-	if (dev->platform_data->platform_deinit)
-		dev->platform_data->platform_deinit();
 	mutex_unlock(&dev->input_lock);
 	dev_err(&client->dev, "sensor power-gating failed\n");
 	return ret;
@@ -1930,8 +1905,6 @@ static int ov8858_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov8858_device *dev = to_ov8858_sensor(sd);
-	if (dev->platform_data->platform_deinit)
-		dev->platform_data->platform_deinit();
 
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
@@ -2082,8 +2055,7 @@ static const struct v4l2_ctrl_config ctrls[] = {
 	}
 };
 
-static int ov8858_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov8858_probe(struct i2c_client *client)
 {
 	struct ov8858_device *dev;
 	unsigned int i;
@@ -2094,44 +2066,39 @@ static int ov8858_probe(struct i2c_client *client,
 
 	/* allocate sensor device & init sub device */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&client->dev, "%s: out of memory\n", __func__);
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	mutex_init(&dev->input_lock);
 
-	if (id)
-		dev->i2c_id = id->driver_data;
 	dev->fmt_idx = 0;
 	dev->sensor_id = OV_ID_DEFAULT;
 	dev->vcm_driver = &ov8858_vcms[OV8858_ID_DEFAULT];
 
 	v4l2_i2c_subdev_init(&(dev->sd), client, &ov8858_ops);
 
-	if (ACPI_COMPANION(&client->dev)) {
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_bggr);
-		if (!pdata) {
-			dev_err(&client->dev,
-				"%s: failed to get acpi platform data\n",
-				__func__);
-			goto out_free;
-		}
-		ret = ov8858_s_config(&dev->sd, client->irq, pdata);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to set config\n", __func__);
-			goto out_free;
-		}
-		ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to register subdev\n", __func__);
-			goto out_free;
-		}
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_10,
+					  atomisp_bayer_order_bggr);
+	if (!pdata) {
+		dev_err(&client->dev,
+			"%s: failed to get acpi platform data\n",
+			__func__);
+		goto out_free;
 	}
+	ret = ov8858_s_config(&dev->sd, client->irq, pdata);
+	if (ret) {
+		dev_err(&client->dev,
+			"%s: failed to set config\n", __func__);
+		goto out_free;
+	}
+	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	if (ret) {
+		dev_err(&client->dev,
+			"%s: failed to register subdev\n", __func__);
+		goto out_free;
+	}
+
 	/*
 	 * sd->name is updated with sensor driver name by the v4l2.
 	 * change it to sensor name in this case.
@@ -2182,40 +2149,21 @@ out_free:
 	return ret;
 }
 
-static const struct i2c_device_id ov8858_id[] = {
-	{OV8858_NAME, 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, ov8858_id);
-
 static const struct acpi_device_id ov8858_acpi_match[] = {
 	{"INT3477"},
 	{},
 };
+MODULE_DEVICE_TABLE(acpi, ov8858_acpi_match);
 
 static struct i2c_driver ov8858_driver = {
 	.driver = {
-		.name = OV8858_NAME,
-		.acpi_match_table = ACPI_PTR(ov8858_acpi_match),
+		.name = "ov8858",
+		.acpi_match_table = ov8858_acpi_match,
 	},
-	.probe = ov8858_probe,
+	.probe_new = ov8858_probe,
 	.remove = ov8858_remove,
-	.id_table = ov8858_id,
 };
-
-static __init int ov8858_init_mod(void)
-{
-	return i2c_add_driver(&ov8858_driver);
-}
-
-static __exit void ov8858_exit_mod(void)
-{
-	i2c_del_driver(&ov8858_driver);
-}
-
-module_init(ov8858_init_mod);
-module_exit(ov8858_exit_mod);
+module_i2c_driver(ov8858_driver);
 
 MODULE_DESCRIPTION("A low-level driver for Omnivision OV8858 sensors");
 MODULE_LICENSE("GPL");

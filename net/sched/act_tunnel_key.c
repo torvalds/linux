@@ -201,7 +201,7 @@ err_out:
 	return ret;
 }
 
-static void tunnel_key_release(struct tc_action *a, int bind)
+static void tunnel_key_release(struct tc_action *a)
 {
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params;
@@ -322,19 +322,17 @@ static __net_init int tunnel_key_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
 
-	return tc_action_net_init(tn, &act_tunnel_key_ops, net);
+	return tc_action_net_init(tn, &act_tunnel_key_ops);
 }
 
-static void __net_exit tunnel_key_exit_net(struct net *net)
+static void __net_exit tunnel_key_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, tunnel_key_net_id);
 }
 
 static struct pernet_operations tunnel_key_net_ops = {
 	.init = tunnel_key_init_net,
-	.exit = tunnel_key_exit_net,
+	.exit_batch = tunnel_key_exit_net,
 	.id   = &tunnel_key_net_id,
 	.size = sizeof(struct tc_action_net),
 };

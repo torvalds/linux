@@ -227,8 +227,7 @@
 	};
 
 	pio: pinctrl@10005000 {
-		compatible = "mediatek,mt7623-pinctrl",
-			     "mediatek,mt2701-pinctrl";
+		compatible = "mediatek,mt7623-pinctrl";
 		reg = <0 0x1000b000 0 0x1000>;
 		mediatek,pctl-regmap = <&syscfg_pctl_a>;
 		pins-are-numbered;
@@ -544,7 +543,9 @@
 			     "mediatek,mt2701-audio";
 		reg = <0 0x11220000 0 0x2000>,
 		      <0 0x112a0000 0 0x20000>;
-		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
+		interrupts =  <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>,
+			      <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names	= "afe", "asys";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
 
 		clocks = <&infracfg CLK_INFRA_AUDIO>,
@@ -640,7 +641,7 @@
 
 	mmc0: mmc@11230000 {
 		compatible = "mediatek,mt7623-mmc",
-			     "mediatek,mt8135-mmc";
+			     "mediatek,mt2701-mmc";
 		reg = <0 0x11230000 0 0x1000>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_MSDC30_0>,
@@ -651,7 +652,7 @@
 
 	mmc1: mmc@11240000 {
 		compatible = "mediatek,mt7623-mmc",
-			     "mediatek,mt8135-mmc";
+			     "mediatek,mt2701-mmc";
 		reg = <0 0x11240000 0 0x1000>;
 		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_MSDC30_1>,
@@ -678,7 +679,7 @@
 		interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&hifsys CLK_HIFSYS_USB0PHY>,
 			 <&topckgen CLK_TOP_ETHIF_SEL>;
-		clock-names = "sys_ck", "free_ck";
+		clock-names = "sys_ck", "ref_ck";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
 		phys = <&u2port0 PHY_TYPE_USB2>, <&u3port0 PHY_TYPE_USB3>;
 		status = "disabled";
@@ -688,8 +689,6 @@
 		compatible = "mediatek,mt7623-u3phy",
 			     "mediatek,mt2701-u3phy";
 		reg = <0 0x1a1c4000 0 0x0700>;
-		clocks = <&clk26m>;
-		clock-names = "u3phya_ref";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -697,12 +696,16 @@
 
 		u2port0: usb-phy@1a1c4800 {
 			reg = <0 0x1a1c4800 0 0x0100>;
+			clocks = <&topckgen CLK_TOP_USB_PHY48M>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
 
 		u3port0: usb-phy@1a1c4900 {
 			reg = <0 0x1a1c4900 0 0x0700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
@@ -717,7 +720,7 @@
 		interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&hifsys CLK_HIFSYS_USB1PHY>,
 			 <&topckgen CLK_TOP_ETHIF_SEL>;
-		clock-names = "sys_ck", "free_ck";
+		clock-names = "sys_ck", "ref_ck";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
 		phys = <&u2port1 PHY_TYPE_USB2>, <&u3port1 PHY_TYPE_USB3>;
 		status = "disabled";
@@ -727,8 +730,6 @@
 		compatible = "mediatek,mt7623-u3phy",
 			     "mediatek,mt2701-u3phy";
 		reg = <0 0x1a244000 0 0x0700>;
-		clocks = <&clk26m>;
-		clock-names = "u3phya_ref";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -736,12 +737,16 @@
 
 		u2port1: usb-phy@1a244800 {
 			reg = <0 0x1a244800 0 0x0100>;
+			clocks = <&topckgen CLK_TOP_USB_PHY48M>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
 
 		u3port1: usb-phy@1a244900 {
 			reg = <0 0x1a244900 0 0x0700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
@@ -753,6 +758,7 @@
 			     "syscon";
 		reg = <0 0x1b000000 0 0x1000>;
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	eth: ethernet@1b100000 {
@@ -782,16 +788,15 @@
 	};
 
 	crypto: crypto@1b240000 {
-		compatible = "mediatek,mt7623-crypto";
+		compatible = "mediatek,eip97-crypto";
 		reg = <0 0x1b240000 0 0x20000>;
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 83 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 84 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 97 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&topckgen CLK_TOP_ETHIF_SEL>,
-			 <&ethsys CLK_ETHSYS_CRYPTO>;
-		clock-names = "ethif","cryp";
+		clocks = <&ethsys CLK_ETHSYS_CRYPTO>;
+		clock-names = "cryp";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
 		status = "disabled";
 	};

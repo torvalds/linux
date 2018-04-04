@@ -5,6 +5,7 @@
 menuconfig RMNET
 	tristate "RmNet MAP driver"
 	default n
+	select GRO_CELLS
 	---help---
 	  If you select this, you will enable the RMNET module which is used
 	  for handling data in the multiplexing and aggregation protocol (MAP)

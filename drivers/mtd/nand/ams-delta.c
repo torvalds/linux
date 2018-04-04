@@ -41,7 +41,7 @@ static struct mtd_info *ams_delta_mtd = NULL;
  * Define partitions for flash devices
  */
 
-static struct mtd_partition partition_info[] = {
+static const struct mtd_partition partition_info[] = {
 	{ .name		= "Kernel",
 	  .offset	= 0,
 	  .size		= 3 * SZ_1M + SZ_512K },

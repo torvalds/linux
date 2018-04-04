@@ -1,22 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas USB3.0 Peripheral driver (USB gadget)
  *
- * Copyright (C) 2015  Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * Copyright (C) 2015-2017  Renesas Electronics Corporation
  */
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sizes.h>
@@ -254,7 +252,7 @@
 #define USB3_EP0_SS_MAX_PACKET_SIZE	512
 #define USB3_EP0_HSFS_MAX_PACKET_SIZE	64
 #define USB3_EP0_BUF_SIZE		8
-#define USB3_MAX_NUM_PIPES		30
+#define USB3_MAX_NUM_PIPES		6	/* This includes PIPE 0 */
 #define USB3_WAIT_US			3
 #define USB3_DMA_NUM_SETTING_AREA	4
 /*
@@ -334,6 +332,7 @@ struct renesas_usb3 {
 	struct usb_gadget_driver *driver;
 	struct extcon_dev *extcon;
 	struct work_struct extcon_work;
+	struct phy *phy;
 
 	struct renesas_usb3_ep *usb3_ep;
 	int num_usb3_eps;
@@ -2056,7 +2055,7 @@ static u32 usb3_calc_rammap_val(struct renesas_usb3_ep *usb3_ep,
 				const struct usb_endpoint_descriptor *desc)
 {
 	int i;
-	const u32 max_packet_array[] = {8, 16, 32, 64, 512};
+	static const u32 max_packet_array[] = {8, 16, 32, 64, 512};
 	u32 mpkt = PN_RAMMAP_MPKT(1024);
 
 	for (i = 0; i < ARRAY_SIZE(max_packet_array); i++) {
@@ -2239,7 +2238,9 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 	/* hook up the driver */
 	usb3->driver = driver;
 
-	pm_runtime_enable(usb3_to_dev(usb3));
+	if (usb3->phy)
+		phy_init(usb3->phy);
+
 	pm_runtime_get_sync(usb3_to_dev(usb3));
 
 	renesas_usb3_init_controller(usb3);
@@ -2256,8 +2257,10 @@ static int renesas_usb3_stop(struct usb_gadget *gadget)
 	usb3->driver = NULL;
 	renesas_usb3_stop_controller(usb3);
 
+	if (usb3->phy)
+		phy_exit(usb3->phy);
+
 	pm_runtime_put(usb3_to_dev(usb3));
-	pm_runtime_disable(usb3_to_dev(usb3));
 
 	return 0;
 }
@@ -2405,6 +2408,9 @@ static int renesas_usb3_remove(struct platform_device *pdev)
 	renesas_usb3_dma_free_prd(usb3, &pdev->dev);
 
 	__renesas_usb3_ep_free_request(usb3->ep0_req);
+	if (usb3->phy)
+		phy_put(usb3->phy);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -2560,20 +2566,15 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3;
 	struct resource *res;
-	const struct of_device_id *match;
 	int irq, ret;
 	const struct renesas_usb3_priv *priv;
 	const struct soc_device_attribute *attr;
-
-	match = of_match_node(usb3_of_match, pdev->dev.of_node);
-	if (!match)
-		return -ENODEV;
 
 	attr = soc_device_match(renesas_usb3_quirks_match);
 	if (attr)
 		priv = attr->data;
 	else
-		priv = match->data;
+		priv = of_device_get_match_data(&pdev->dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -2635,11 +2636,20 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_dev_create;
 
+	/*
+	 * This is an optional. So, if this driver cannot get a phy,
+	 * this driver will not handle a phy anymore.
+	 */
+	usb3->phy = devm_phy_get(&pdev->dev, "usb");
+	if (IS_ERR(usb3->phy))
+		usb3->phy = NULL;
+
 	usb3->workaround_for_vbus = priv->workaround_for_vbus;
 
 	renesas_usb3_debugfs_init(usb3, &pdev->dev);
 
-	dev_info(&pdev->dev, "probed\n");
+	dev_info(&pdev->dev, "probed%s\n", usb3->phy ? " with phy" : "");
+	pm_runtime_enable(usb3_to_dev(usb3));
 
 	return 0;
 
@@ -2655,11 +2665,49 @@ err_alloc_prd:
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int renesas_usb3_suspend(struct device *dev)
+{
+	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!usb3->driver)
+		return 0;
+
+	renesas_usb3_stop_controller(usb3);
+	if (usb3->phy)
+		phy_exit(usb3->phy);
+	pm_runtime_put(dev);
+
+	return 0;
+}
+
+static int renesas_usb3_resume(struct device *dev)
+{
+	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!usb3->driver)
+		return 0;
+
+	if (usb3->phy)
+		phy_init(usb3->phy);
+	pm_runtime_get_sync(dev);
+	renesas_usb3_init_controller(usb3);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(renesas_usb3_pm_ops, renesas_usb3_suspend,
+			renesas_usb3_resume);
+
 static struct platform_driver renesas_usb3_driver = {
 	.probe		= renesas_usb3_probe,
 	.remove		= renesas_usb3_remove,
 	.driver		= {
 		.name =	(char *)udc_name,
+		.pm		= &renesas_usb3_pm_ops,
 		.of_match_table = of_match_ptr(usb3_of_match),
 	},
 };

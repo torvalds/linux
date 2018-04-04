@@ -12,7 +12,7 @@ Required properties:
 			  registers
 - interrupt-controller:	Identifies the node as an interrupt controller
 - #interrupt-cells:	Specifies the number of cells needed to encode an
-			  interrupt source. The value shall be 1
+			  interrupt source. The value shall be 2
 
 Please refer to interrupts.txt in this directory for details of the common
 Interrupt Controllers bindings used by client devices.
@@ -32,6 +32,6 @@ local_intc: local_intc {
 	compatible = "brcm,bcm2836-l1-intc";
 	reg = <0x40000000 0x100>;
 	interrupt-controller;
-	#interrupt-cells = <1>;
+	#interrupt-cells = <2>;
 	interrupt-parent = <&local_intc>;
 };

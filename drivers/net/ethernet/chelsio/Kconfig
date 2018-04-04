@@ -69,6 +69,7 @@ config CHELSIO_T4
 	depends on PCI && (IPV6 || IPV6=n)
 	select FW_LOADER
 	select MDIO
+	select ZLIB_DEFLATE
 	---help---
 	  This driver supports Chelsio T4, T5 & T6 based gigabit, 10Gb Ethernet
 	  adapter and T5/T6 based 40Gb and T6 based 25Gb, 50Gb and 100Gb

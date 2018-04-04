@@ -474,7 +474,7 @@ int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
 	if (time_is_before_jiffies(ioat_chan->timer.expires)
 	    && timer_pending(&ioat_chan->timer)) {
 		mod_timer(&ioat_chan->timer, jiffies + COMPLETION_TIMEOUT);
-		ioat_timer_event((unsigned long)ioat_chan);
+		ioat_timer_event(&ioat_chan->timer);
 	}
 
 	return -ENOMEM;
@@ -597,7 +597,6 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 	for (i = 0; i < active && !seen_current; i++) {
 		struct dma_async_tx_descriptor *tx;
 
-		smp_read_barrier_depends();
 		prefetch(ioat_get_ring_ent(ioat_chan, idx + i + 1));
 		desc = ioat_get_ring_ent(ioat_chan, idx + i);
 		dump_desc_dbg(ioat_chan, desc);
@@ -715,7 +714,6 @@ static void ioat_abort_descs(struct ioatdma_chan *ioat_chan)
 	for (i = 1; i < active; i++) {
 		struct dma_async_tx_descriptor *tx;
 
-		smp_read_barrier_depends();
 		prefetch(ioat_get_ring_ent(ioat_chan, idx + i + 1));
 		desc = ioat_get_ring_ent(ioat_chan, idx + i);
 
@@ -862,9 +860,9 @@ static void check_active(struct ioatdma_chan *ioat_chan)
 		mod_timer(&ioat_chan->timer, jiffies + IDLE_TIMEOUT);
 }
 
-void ioat_timer_event(unsigned long data)
+void ioat_timer_event(struct timer_list *t)
 {
-	struct ioatdma_chan *ioat_chan = to_ioat_chan((void *)data);
+	struct ioatdma_chan *ioat_chan = from_timer(ioat_chan, t, timer);
 	dma_addr_t phys_complete;
 	u64 status;
 

@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is part of STM32 DAC driver
  *
  * Copyright (C) 2017, STMicroelectronics - All Rights Reserved
  * Authors: Amelie Delaunay <amelie.delaunay@st.com>
  *	    Fabrice Gasnier <fabrice.gasnier@st.com>
- *
- * License type: GPLv2
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bitfield.h>
@@ -156,7 +143,6 @@ static const struct iio_info stm32_dac_iio_info = {
 	.read_raw = stm32_dac_read_raw,
 	.write_raw = stm32_dac_write_raw,
 	.debugfs_reg_access = stm32_dac_debugfs_reg_access,
-	.driver_module = THIS_MODULE,
 };
 
 static const char * const stm32_dac_powerdown_modes[] = {

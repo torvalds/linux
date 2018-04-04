@@ -52,7 +52,7 @@ static void ircomm_tty_getvalue_confirm(int result, __u16 obj_id,
 					struct ias_value *value, void *priv);
 static void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self,
 					    int timeout);
-static void ircomm_tty_watchdog_timer_expired(void *data);
+static void ircomm_tty_watchdog_timer_expired(struct timer_list *timer);
 
 static int ircomm_tty_state_idle(struct ircomm_tty_cb *self,
 				 IRCOMM_TTY_EVENT event,
@@ -587,7 +587,7 @@ static void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self,
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
-	irda_start_timer(&self->watchdog_timer, timeout, (void *) self,
+	irda_start_timer(&self->watchdog_timer, timeout,
 			 ircomm_tty_watchdog_timer_expired);
 }
 
@@ -597,9 +597,9 @@ static void ircomm_tty_start_watchdog_timer(struct ircomm_tty_cb *self,
  *    Called when the connect procedure have taken to much time.
  *
  */
-static void ircomm_tty_watchdog_timer_expired(void *data)
+static void ircomm_tty_watchdog_timer_expired(struct timer_list *t)
 {
-	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) data;
+	struct ircomm_tty_cb *self = from_timer(self, t, watchdog_timer);
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);

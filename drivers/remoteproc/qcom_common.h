@@ -27,10 +27,6 @@ struct qcom_rproc_ssr {
 	const char *name;
 };
 
-struct resource_table *qcom_mdt_find_rsc_table(struct rproc *rproc,
-					       const struct firmware *fw,
-					       int *tablesz);
-
 void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink);
 void qcom_remove_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink);
 

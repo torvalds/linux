@@ -49,7 +49,7 @@ static struct mtd_info *uclinux_ram_mtdinfo;
 
 /****************************************************************************/
 
-static struct mtd_partition uclinux_romfs[] = {
+static const struct mtd_partition uclinux_romfs[] = {
 	{ .name = "ROMfs" }
 };
 

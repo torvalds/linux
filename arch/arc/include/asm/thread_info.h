@@ -62,9 +62,6 @@ struct thread_info {
 	.addr_limit = KERNEL_DS,		\
 }
 
-#define init_thread_info    (init_thread_union.thread_info)
-#define init_stack          (init_thread_union.stack)
-
 static inline __attribute_const__ struct thread_info *current_thread_info(void)
 {
 	register unsigned long sp asm("sp");

@@ -268,9 +268,9 @@ void ax25_destroy_socket(ax25_cb *);
 /*
  *	Handler for deferred kills.
  */
-static void ax25_destroy_timer(unsigned long data)
+static void ax25_destroy_timer(struct timer_list *t)
 {
-	ax25_cb *ax25=(ax25_cb *)data;
+	ax25_cb *ax25 = from_timer(ax25, t, dtimer);
 	struct sock *sk;
 
 	sk=ax25->sk;
@@ -326,8 +326,7 @@ void ax25_destroy_socket(ax25_cb *ax25)
 	if (ax25->sk != NULL) {
 		if (sk_has_allocations(ax25->sk)) {
 			/* Defer: outstanding buffers */
-			setup_timer(&ax25->dtimer, ax25_destroy_timer,
-					(unsigned long)ax25);
+			timer_setup(&ax25->dtimer, ax25_destroy_timer, 0);
 			ax25->dtimer.expires  = jiffies + 2 * HZ;
 			add_timer(&ax25->dtimer);
 		} else {
@@ -1932,7 +1931,6 @@ static int ax25_info_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ax25_info_fops = {
-	.owner = THIS_MODULE,
 	.open = ax25_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

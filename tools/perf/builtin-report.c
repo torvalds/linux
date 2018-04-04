@@ -15,6 +15,7 @@
 #include "util/color.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/err.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
 #include "util/values.h"
@@ -51,6 +52,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <linux/mman.h>
 
 struct report {
 	struct perf_tool	tool;
@@ -60,6 +62,9 @@ struct report {
 	bool			show_threads;
 	bool			inverted_callchain;
 	bool			mem_mode;
+	bool			stats_mode;
+	bool			tasks_mode;
+	bool			mmaps_mode;
 	bool			header;
 	bool			header_only;
 	bool			nonany_branch_mode;
@@ -69,7 +74,9 @@ struct report {
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
 	const char		*time_str;
-	struct perf_time_interval ptime;
+	struct perf_time_interval *ptime_range;
+	int			range_size;
+	int			range_num;
 	float			min_percent;
 	u64			nr_entries;
 	u64			queue_size;
@@ -162,12 +169,28 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct report *rep = arg;
 	struct branch_info *bi;
+	struct perf_sample *sample = iter->sample;
+	struct perf_evsel *evsel = iter->evsel;
+	int err;
+
+	if (!ui__has_annotation())
+		return 0;
+
+	hist__account_cycles(sample->branch_stack, al, sample,
+			     rep->nonany_branch_mode);
 
 	bi = he->branch_info;
+	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
+	if (err)
+		goto out;
+
+	err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
+
 	branch_type_count(&rep->brtype_stat, &bi->flags,
 			  bi->from.addr, bi->to.addr);
 
-	return 0;
+out:
+	return err;
 }
 
 static int process_sample_event(struct perf_tool *tool,
@@ -186,8 +209,10 @@ static int process_sample_event(struct perf_tool *tool,
 	};
 	int ret = 0;
 
-	if (perf_time__skip_sample(&rep->ptime, sample->time))
+	if (perf_time__ranges_skip_sample(rep->ptime_range, rep->range_num,
+					  sample->time)) {
 		return 0;
+	}
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -258,7 +283,7 @@ static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
 	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
-	bool is_pipe = perf_data_file__is_pipe(session->file);
+	bool is_pipe = perf_data__is_pipe(session->data);
 
 	if (session->itrace_synth_opts->callchain ||
 	    (!is_pipe &&
@@ -312,9 +337,10 @@ static int report__setup_sample_type(struct report *rep)
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
-		    (sample_type & PERF_SAMPLE_STACK_USER))
+		    (sample_type & PERF_SAMPLE_STACK_USER)) {
 			callchain_param.record_mode = CALLCHAIN_DWARF;
-		else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+			dwarf_callchain_users = true;
+		} else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 			callchain_param.record_mode = CALLCHAIN_LBR;
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
@@ -376,6 +402,9 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
 	if (evname != NULL)
 		ret += fprintf(fp, " of event '%s'", evname);
+
+	if (rep->time_str)
+		ret += fprintf(fp, " (time slices: %s)", rep->time_str);
 
 	if (symbol_conf.show_ref_callgraph &&
 	    strstr(evname, "call-graph=no")) {
@@ -441,6 +470,9 @@ static void report__warn_kptr_restrict(const struct report *rep)
 	struct map *kernel_map = machine__kernel_map(&rep->session->machines.host);
 	struct kmap *kernel_kmap = kernel_map ? map__kmap(kernel_map) : NULL;
 
+	if (perf_evlist__exclude_kernel(rep->session->evlist))
+		return;
+
 	if (kernel_map == NULL ||
 	    (kernel_map->dso->hit &&
 	     (kernel_kmap->ref_reloc_sym == NULL ||
@@ -498,7 +530,8 @@ static int report__browse_hists(struct report *rep)
 	case 1:
 		ret = perf_evlist__tui_browse_hists(evlist, help, NULL,
 						    rep->min_percent,
-						    &session->header.env);
+						    &session->header.env,
+						    true);
 		/*
 		 * Usually "ret" is the last pressed key, and we only
 		 * care if the key notifies us to switch data file.
@@ -564,12 +597,180 @@ static void report__output_resort(struct report *rep)
 	ui_progress__finish();
 }
 
+static void stats_setup(struct report *rep)
+{
+	memset(&rep->tool, 0, sizeof(rep->tool));
+	rep->tool.no_warn = true;
+}
+
+static int stats_print(struct report *rep)
+{
+	struct perf_session *session = rep->session;
+
+	perf_session__fprintf_nr_events(session, stdout);
+	return 0;
+}
+
+static void tasks_setup(struct report *rep)
+{
+	memset(&rep->tool, 0, sizeof(rep->tool));
+	if (rep->mmaps_mode) {
+		rep->tool.mmap = perf_event__process_mmap;
+		rep->tool.mmap2 = perf_event__process_mmap2;
+	}
+	rep->tool.comm = perf_event__process_comm;
+	rep->tool.exit = perf_event__process_exit;
+	rep->tool.fork = perf_event__process_fork;
+	rep->tool.no_warn = true;
+}
+
+struct task {
+	struct thread		*thread;
+	struct list_head	 list;
+	struct list_head	 children;
+};
+
+static struct task *tasks_list(struct task *task, struct machine *machine)
+{
+	struct thread *parent_thread, *thread = task->thread;
+	struct task   *parent_task;
+
+	/* Already listed. */
+	if (!list_empty(&task->list))
+		return NULL;
+
+	/* Last one in the chain. */
+	if (thread->ppid == -1)
+		return task;
+
+	parent_thread = machine__find_thread(machine, -1, thread->ppid);
+	if (!parent_thread)
+		return ERR_PTR(-ENOENT);
+
+	parent_task = thread__priv(parent_thread);
+	list_add_tail(&task->list, &parent_task->children);
+	return tasks_list(parent_task, machine);
+}
+
+static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
+{
+	size_t printed = 0;
+	struct rb_node *nd;
+
+	for (nd = rb_first(&maps->entries); nd; nd = rb_next(nd)) {
+		struct map *map = rb_entry(nd, struct map, rb_node);
+
+		printed += fprintf(fp, "%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
+				   indent, "", map->start, map->end,
+				   map->prot & PROT_READ ? 'r' : '-',
+				   map->prot & PROT_WRITE ? 'w' : '-',
+				   map->prot & PROT_EXEC ? 'x' : '-',
+				   map->flags & MAP_SHARED ? 's' : 'p',
+				   map->pgoff,
+				   map->ino, map->dso->name);
+	}
+
+	return printed;
+}
+
+static int map_groups__fprintf_task(struct map_groups *mg, int indent, FILE *fp)
+{
+	int printed = 0, i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += maps__fprintf_task(&mg->maps[i], indent, fp);
+	return printed;
+}
+
+static void task__print_level(struct task *task, FILE *fp, int level)
+{
+	struct thread *thread = task->thread;
+	struct task *child;
+	int comm_indent = fprintf(fp, "  %8d %8d %8d |%*s",
+				  thread->pid_, thread->tid, thread->ppid,
+				  level, "");
+
+	fprintf(fp, "%s\n", thread__comm_str(thread));
+
+	map_groups__fprintf_task(thread->mg, comm_indent, fp);
+
+	if (!list_empty(&task->children)) {
+		list_for_each_entry(child, &task->children, list)
+			task__print_level(child, fp, level + 1);
+	}
+}
+
+static int tasks_print(struct report *rep, FILE *fp)
+{
+	struct perf_session *session = rep->session;
+	struct machine      *machine = &session->machines.host;
+	struct task *tasks, *task;
+	unsigned int nr = 0, itask = 0, i;
+	struct rb_node *nd;
+	LIST_HEAD(list);
+
+	/*
+	 * No locking needed while accessing machine->threads,
+	 * because --tasks is single threaded command.
+	 */
+
+	/* Count all the threads. */
+	for (i = 0; i < THREADS__TABLE_SIZE; i++)
+		nr += machine->threads[i].nr;
+
+	tasks = malloc(sizeof(*tasks) * nr);
+	if (!tasks)
+		return -ENOMEM;
+
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		struct threads *threads = &machine->threads[i];
+
+		for (nd = rb_first(&threads->entries); nd; nd = rb_next(nd)) {
+			task = tasks + itask++;
+
+			task->thread = rb_entry(nd, struct thread, rb_node);
+			INIT_LIST_HEAD(&task->children);
+			INIT_LIST_HEAD(&task->list);
+			thread__set_priv(task->thread, task);
+		}
+	}
+
+	/*
+	 * Iterate every task down to the unprocessed parent
+	 * and link all in task children list. Task with no
+	 * parent is added into 'list'.
+	 */
+	for (itask = 0; itask < nr; itask++) {
+		task = tasks + itask;
+
+		if (!list_empty(&task->list))
+			continue;
+
+		task = tasks_list(task, machine);
+		if (IS_ERR(task)) {
+			pr_err("Error: failed to process tasks\n");
+			free(tasks);
+			return PTR_ERR(task);
+		}
+
+		if (task)
+			list_add_tail(&task->list, &list);
+	}
+
+	fprintf(fp, "# %8s %8s %8s  %s\n", "pid", "tid", "ppid", "comm");
+
+	list_for_each_entry(task, &list, list)
+		task__print_level(task, fp, 0);
+
+	free(tasks);
+	return 0;
+}
+
 static int __cmd_report(struct report *rep)
 {
 	int ret;
 	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
-	struct perf_data_file *file = session->file;
+	struct perf_data *data = session->data;
 
 	signal(SIGINT, sig_handler);
 
@@ -595,11 +796,23 @@ static int __cmd_report(struct report *rep)
 		return ret;
 	}
 
+	if (rep->stats_mode)
+		stats_setup(rep);
+
+	if (rep->tasks_mode)
+		tasks_setup(rep);
+
 	ret = perf_session__process_events(session);
 	if (ret) {
 		ui__error("failed to process sample\n");
 		return ret;
 	}
+
+	if (rep->stats_mode)
+		return stats_print(rep);
+
+	if (rep->tasks_mode)
+		return tasks_print(rep, stdout);
 
 	report__warn_kptr_restrict(rep);
 
@@ -638,7 +851,7 @@ static int __cmd_report(struct report *rep)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {
-		ui__error("The %s file has no samples!\n", file->path);
+		ui__error("The %s file has no samples!\n", data->file.path);
 		return 0;
 	}
 
@@ -757,6 +970,9 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "stats", &report.stats_mode, "Display event stats"),
+	OPT_BOOLEAN(0, "tasks", &report.tasks_mode, "Display recorded tasks"),
+	OPT_BOOLEAN(0, "mmaps", &report.mmaps_mode, "Display recorded tasks memory maps"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
@@ -880,7 +1096,7 @@ int cmd_report(int argc, const char **argv)
 		    "Show inline function"),
 	OPT_END()
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	int ret = hists__init();
@@ -904,6 +1120,9 @@ int cmd_report(int argc, const char **argv)
 		report.symbol_filter_str = argv[0];
 	}
 
+	if (report.mmaps_mode)
+		report.tasks_mode = true;
+
 	if (quiet)
 		perf_quiet_option();
 
@@ -917,13 +1136,6 @@ int cmd_report(int argc, const char **argv)
 		pr_err("Invalid file: %s\n", symbol_conf.kallsyms_name);
 		return -EINVAL;
 	}
-
-	if (report.use_stdio)
-		use_browser = 0;
-	else if (report.use_tui)
-		use_browser = 1;
-	else if (report.use_gtk)
-		use_browser = 2;
 
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
@@ -941,11 +1153,11 @@ int cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
-	file.path  = input_name;
-	file.force = symbol_conf.force;
+	data.file.path = input_name;
+	data.force     = symbol_conf.force;
 
 repeat:
-	session = perf_session__new(&file, false, &report.tool);
+	session = perf_session__new(&data, false, &report.tool);
 	if (session == NULL)
 		return -1;
 
@@ -1011,6 +1223,13 @@ repeat:
 		perf_hpp_list.need_collapse = true;
 	}
 
+	if (report.use_stdio)
+		use_browser = 0;
+	else if (report.use_tui)
+		use_browser = 1;
+	else if (report.use_gtk)
+		use_browser = 2;
+
 	/* Force tty output for header output and per-thread stat. */
 	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
@@ -1018,6 +1237,12 @@ repeat:
 		report.tool.show_feat_hdr = SHOW_FEAT_HEADER;
 	if (report.show_full_info)
 		report.tool.show_feat_hdr = SHOW_FEAT_HEADER_FULL_INFO;
+	if (report.stats_mode || report.tasks_mode)
+		use_browser = 0;
+	if (report.stats_mode && report.tasks_mode) {
+		pr_err("Error: --tasks and --mmaps can't be used together with --stats\n");
+		goto error;
+	}
 
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
@@ -1040,7 +1265,8 @@ repeat:
 			ret = 0;
 			goto error;
 		}
-	} else if (use_browser == 0 && !quiet) {
+	} else if (use_browser == 0 && !quiet &&
+		   !report.stats_mode && !report.tasks_mode) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);
 	}
@@ -1074,9 +1300,36 @@ repeat:
 	if (symbol__init(&session->header.env) < 0)
 		goto error;
 
-	if (perf_time__parse_str(&report.ptime, report.time_str) != 0) {
-		pr_err("Invalid time string\n");
-		return -EINVAL;
+	report.ptime_range = perf_time__range_alloc(report.time_str,
+						    &report.range_size);
+	if (!report.ptime_range) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	if (perf_time__parse_str(report.ptime_range, report.time_str) != 0) {
+		if (session->evlist->first_sample_time == 0 &&
+		    session->evlist->last_sample_time == 0) {
+			pr_err("HINT: no first/last sample time found in perf data.\n"
+			       "Please use latest perf binary to execute 'perf record'\n"
+			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
+			ret = -EINVAL;
+			goto error;
+		}
+
+		report.range_num = perf_time__percent_parse_str(
+					report.ptime_range, report.range_size,
+					report.time_str,
+					session->evlist->first_sample_time,
+					session->evlist->last_sample_time);
+
+		if (report.range_num < 0) {
+			pr_err("Invalid time string\n");
+			ret = -EINVAL;
+			goto error;
+		}
+	} else {
+		report.range_num = 1;
 	}
 
 	sort__setup_elide(stdout);
@@ -1089,6 +1342,8 @@ repeat:
 		ret = 0;
 
 error:
+	zfree(&report.ptime_range);
+
 	perf_session__delete(session);
 	return ret;
 }

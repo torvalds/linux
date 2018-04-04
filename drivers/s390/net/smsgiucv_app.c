@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Deliver z/VM CP special messages (SMSG) as uevents.
  *

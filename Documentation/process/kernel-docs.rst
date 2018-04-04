@@ -58,7 +58,7 @@ On-line docs
     * Title: **Linux Kernel Mailing List Glossary**
 
       :Author: various
-      :URL: http://kernelnewbies.org/glossary/
+      :URL: https://kernelnewbies.org/KernelGlossary
       :Date: rolling version
       :Keywords: glossary, terms, linux-kernel.
       :Description: From the introduction: "This glossary is intended as

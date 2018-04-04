@@ -319,7 +319,8 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 		unsigned int j;
 
-		if (plane->plane.state->crtc != &rcrtc->crtc)
+		if (plane->plane.state->crtc != &rcrtc->crtc ||
+		    !plane->plane.state->visible)
 			continue;
 
 		/* Insert the plane in the sorted planes array. */
@@ -555,41 +556,6 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);
 
 	rcar_du_group_start_stop(rcrtc->group, false);
-}
-
-void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc)
-{
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
-		rcar_du_vsp_disable(rcrtc);
-
-	rcar_du_crtc_stop(rcrtc);
-	rcar_du_crtc_put(rcrtc);
-}
-
-void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
-{
-	unsigned int i;
-
-	if (!rcrtc->crtc.state->active)
-		return;
-
-	rcar_du_crtc_get(rcrtc);
-	rcar_du_crtc_setup(rcrtc);
-
-	/* Commit the planes state. */
-	if (!rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE)) {
-		for (i = 0; i < rcrtc->group->num_planes; ++i) {
-			struct rcar_du_plane *plane = &rcrtc->group->planes[i];
-
-			if (plane->plane.state->crtc != &rcrtc->crtc)
-				continue;
-
-			rcar_du_plane_setup(plane);
-		}
-	}
-
-	rcar_du_crtc_update_planes(rcrtc);
-	rcar_du_crtc_start(rcrtc);
 }
 
 /* -----------------------------------------------------------------------------

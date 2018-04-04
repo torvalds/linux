@@ -14,14 +14,29 @@ struct ovl_config {
 	char *workdir;
 	bool default_permissions;
 	bool redirect_dir;
+	bool redirect_follow;
+	const char *redirect_mode;
 	bool index;
+	bool nfs_export;
+};
+
+struct ovl_layer {
+	struct vfsmount *mnt;
+	dev_t pseudo_dev;
+	/* Index of this layer in fs root (upper == 0) */
+	int idx;
+};
+
+struct ovl_path {
+	struct ovl_layer *layer;
+	struct dentry *dentry;
 };
 
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
 	unsigned numlower;
-	struct vfsmount **lower_mnt;
+	struct ovl_layer *lower_layers;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */
@@ -46,16 +61,20 @@ struct ovl_fs {
 struct ovl_entry {
 	union {
 		struct {
-			unsigned long has_upper;
-			bool opaque;
+			unsigned long flags;
 		};
 		struct rcu_head rcu;
 	};
 	unsigned numlower;
-	struct path lowerstack[];
+	struct ovl_path lowerstack[];
 };
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
+
+static inline struct ovl_entry *OVL_E(struct dentry *dentry)
+{
+	return (struct ovl_entry *) dentry->d_fsdata;
+}
 
 struct ovl_inode {
 	struct ovl_dir_cache *cache;
@@ -77,5 +96,5 @@ static inline struct ovl_inode *OVL_I(struct inode *inode)
 
 static inline struct dentry *ovl_upperdentry_dereference(struct ovl_inode *oi)
 {
-	return lockless_dereference(oi->__upperdentry);
+	return READ_ONCE(oi->__upperdentry);
 }

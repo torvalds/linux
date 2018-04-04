@@ -294,6 +294,12 @@ static void drm_dp_encode_sideband_req(struct drm_dp_sideband_msg_req_body *req,
 		memcpy(&buf[idx], req->u.i2c_write.bytes, req->u.i2c_write.num_bytes);
 		idx += req->u.i2c_write.num_bytes;
 		break;
+
+	case DP_POWER_DOWN_PHY:
+	case DP_POWER_UP_PHY:
+		buf[idx] = (req->u.port_num.port_number & 0xf) << 4;
+		idx++;
+		break;
 	}
 	raw->cur_len = idx;
 }
@@ -538,6 +544,21 @@ fail_len:
 	return false;
 }
 
+static bool drm_dp_sideband_parse_power_updown_phy_ack(struct drm_dp_sideband_msg_rx *raw,
+						       struct drm_dp_sideband_msg_reply_body *repmsg)
+{
+	int idx = 1;
+
+	repmsg->u.port_number.port_number = (raw->msg[idx] >> 4) & 0xf;
+	idx++;
+	if (idx > raw->curlen) {
+		DRM_DEBUG_KMS("power up/down phy parse length fail %d %d\n",
+			      idx, raw->curlen);
+		return false;
+	}
+	return true;
+}
+
 static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
 					struct drm_dp_sideband_msg_reply_body *msg)
 {
@@ -567,6 +588,9 @@ static bool drm_dp_sideband_parse_reply(struct drm_dp_sideband_msg_rx *raw,
 		return drm_dp_sideband_parse_enum_path_resources_ack(raw, msg);
 	case DP_ALLOCATE_PAYLOAD:
 		return drm_dp_sideband_parse_allocate_payload_ack(raw, msg);
+	case DP_POWER_DOWN_PHY:
+	case DP_POWER_UP_PHY:
+		return drm_dp_sideband_parse_power_updown_phy_ack(raw, msg);
 	default:
 		DRM_ERROR("Got unknown reply 0x%02x\n", msg->req_type);
 		return false;
@@ -688,6 +712,22 @@ static int build_allocate_payload(struct drm_dp_sideband_msg_tx *msg, int port_n
 	req.u.allocate_payload.number_sdp_streams = number_sdp_streams;
 	memcpy(req.u.allocate_payload.sdp_stream_sink, sdp_stream_sink,
 		   number_sdp_streams);
+	drm_dp_encode_sideband_req(&req, msg);
+	msg->path_msg = true;
+	return 0;
+}
+
+static int build_power_updown_phy(struct drm_dp_sideband_msg_tx *msg,
+				  int port_num, bool power_up)
+{
+	struct drm_dp_sideband_msg_req_body req;
+
+	if (power_up)
+		req.req_type = DP_POWER_UP_PHY;
+	else
+		req.req_type = DP_POWER_DOWN_PHY;
+
+	req.u.port_num.port_number = port_num;
 	drm_dp_encode_sideband_req(&req, msg);
 	msg->path_msg = true;
 	return 0;
@@ -1723,6 +1763,40 @@ fail_put:
 	drm_dp_put_port(port);
 	return ret;
 }
+
+int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_port *port, bool power_up)
+{
+	struct drm_dp_sideband_msg_tx *txmsg;
+	int len, ret;
+
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (!port)
+		return -EINVAL;
+
+	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	if (!txmsg) {
+		drm_dp_put_port(port);
+		return -ENOMEM;
+	}
+
+	txmsg->dst = port->parent;
+	len = build_power_updown_phy(txmsg, port->port_num, power_up);
+	drm_dp_queue_down_tx(mgr, txmsg);
+
+	ret = drm_dp_mst_wait_tx_reply(port->parent, txmsg);
+	if (ret > 0) {
+		if (txmsg->reply.reply_type == 1)
+			ret = -EINVAL;
+		else
+			ret = 0;
+	}
+	kfree(txmsg);
+	drm_dp_put_port(port);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_dp_send_power_updown_phy);
 
 static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 				       int id,

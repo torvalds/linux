@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -55,8 +56,8 @@ lnet_peer_tables_create(void)
 	cfs_percpt_for_each(ptable, i, the_lnet.ln_peer_tables) {
 		INIT_LIST_HEAD(&ptable->pt_deathrow);
 
-		LIBCFS_CPT_ALLOC(hash, lnet_cpt_table(), i,
-				 LNET_PEER_HASH_SIZE * sizeof(*hash));
+		hash = kvmalloc_cpt(LNET_PEER_HASH_SIZE * sizeof(*hash),
+				    GFP_KERNEL, i);
 		if (!hash) {
 			CERROR("Failed to create peer hash table\n");
 			lnet_peer_tables_destroy();
@@ -93,7 +94,7 @@ lnet_peer_tables_destroy(void)
 		for (j = 0; j < LNET_PEER_HASH_SIZE; j++)
 			LASSERT(list_empty(&hash[j]));
 
-		LIBCFS_FREE(hash, LNET_PEER_HASH_SIZE * sizeof(*hash));
+		kvfree(hash);
 	}
 
 	cfs_percpt_free(the_lnet.ln_peer_tables);
@@ -211,7 +212,7 @@ lnet_peer_tables_cleanup(struct lnet_ni *ni)
 
 	list_for_each_entry_safe(lp, temp, &deathrow, lp_hashlist) {
 		list_del(&lp->lp_hashlist);
-		LIBCFS_FREE(lp, sizeof(*lp));
+		kfree(lp);
 	}
 }
 
@@ -296,7 +297,7 @@ lnet_nid2peer_locked(struct lnet_peer **lpp, lnet_nid_t nid, int cpt)
 	if (lp)
 		memset(lp, 0, sizeof(*lp));
 	else
-		LIBCFS_CPT_ALLOC(lp, lnet_cpt_table(), cpt2, sizeof(*lp));
+		lp = kzalloc_cpt(sizeof(*lp), GFP_NOFS, cpt2);
 
 	if (!lp) {
 		rc = -ENOMEM;

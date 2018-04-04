@@ -1,25 +1,25 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Userland implementation of gettimeofday() for 32 bits processes in a
  * s390 kernel for use in the vDSO
  *
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
 	.globl __kernel_gettimeofday
 	.type  __kernel_gettimeofday,@function
 __kernel_gettimeofday:
-	.cfi_startproc
+	CFI_STARTPROC
 	ahi	%r15,-16
+	CFI_ADJUST_CFA_OFFSET 16
+	CFI_VAL_OFFSET 15, -160
 	basr	%r5,0
 0:	al	%r5,13f-0b(%r5)			/* get &_vdso_data */
 1:	ltr	%r3,%r3				/* check if tz is NULL */
@@ -92,9 +92,11 @@ __kernel_gettimeofday:
 	st	%r0,4(%r2)			/* store tv->tv_usec */
 10:	slr	%r2,%r2
 	ahi	%r15,16
+	CFI_ADJUST_CFA_OFFSET -16
+	CFI_RESTORE 15
 	br	%r14
+	CFI_ENDPROC
 11:	.long	1000000000
 12:	.long	274877907
 13:	.long	_vdso_data - 0b
-	.cfi_endproc
 	.size	__kernel_gettimeofday,.-__kernel_gettimeofday

@@ -1,14 +1,9 @@
-/* winfast-usbii-deluxe.h - Keytable for winfast_usbii_deluxe Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// winfast-usbii-deluxe.h - Keytable for winfast_usbii_deluxe Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -42,7 +37,7 @@ static struct rc_map_table winfast_usbii_deluxe[] = {
 	{ 0x60, KEY_CHANNELDOWN},	/* CHANNELDOWN */
 	{ 0x61, KEY_LAST},		/* LAST CHANNEL (RECALL) */
 
-	{ 0x72, KEY_VIDEO}, 		/* INPUT MODES (TV/FM) */
+	{ 0x72, KEY_VIDEO},		/* INPUT MODES (TV/FM) */
 
 	{ 0x70, KEY_POWER2},		/* TV ON/OFF */
 

@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/slab.h>
 
 #include <linux/sm501.h>
@@ -1107,14 +1108,6 @@ static void sm501_gpio_remove(struct sm501_devdata *sm)
 	kfree(gpio->regs_res);
 }
 
-static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
-{
-	struct sm501_gpio *gpio = &sm->gpio;
-	int base = (pin < 32) ? gpio->low.gpio.base : gpio->high.gpio.base;
-
-	return (pin % 32) + base;
-}
-
 static inline int sm501_gpio_isregistered(struct sm501_devdata *sm)
 {
 	return sm->gpio.registered;
@@ -1129,11 +1122,6 @@ static inline void sm501_gpio_remove(struct sm501_devdata *sm)
 {
 }
 
-static inline int sm501_gpio_pin2nr(struct sm501_devdata *sm, unsigned int pin)
-{
-	return -1;
-}
-
 static inline int sm501_gpio_isregistered(struct sm501_devdata *sm)
 {
 	return 0;
@@ -1145,20 +1133,37 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 {
 	struct i2c_gpio_platform_data *icd;
 	struct platform_device *pdev;
+	struct gpiod_lookup_table *lookup;
 
 	pdev = sm501_create_subdev(sm, "i2c-gpio", 0,
 				   sizeof(struct i2c_gpio_platform_data));
 	if (!pdev)
 		return -ENOMEM;
 
+	/* Create a gpiod lookup using gpiochip-local offsets */
+	lookup = devm_kzalloc(&pdev->dev,
+			      sizeof(*lookup) + 3 * sizeof(struct gpiod_lookup),
+			      GFP_KERNEL);
+	lookup->dev_id = "i2c-gpio";
+	if (iic->pin_sda < 32)
+		lookup->table[0].chip_label = "SM501-LOW";
+	else
+		lookup->table[0].chip_label = "SM501-HIGH";
+	lookup->table[0].chip_hwnum = iic->pin_sda % 32;
+	lookup->table[0].con_id = NULL;
+	lookup->table[0].idx = 0;
+	lookup->table[0].flags = GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN;
+	if (iic->pin_scl < 32)
+		lookup->table[1].chip_label = "SM501-LOW";
+	else
+		lookup->table[1].chip_label = "SM501-HIGH";
+	lookup->table[1].chip_hwnum = iic->pin_scl % 32;
+	lookup->table[1].con_id = NULL;
+	lookup->table[1].idx = 1;
+	lookup->table[1].flags = GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN;
+	gpiod_add_lookup_table(lookup);
+
 	icd = dev_get_platdata(&pdev->dev);
-
-	/* We keep the pin_sda and pin_scl fields relative in case the
-	 * same platform data is passed to >1 SM501.
-	 */
-
-	icd->sda_pin = sm501_gpio_pin2nr(sm, iic->pin_sda);
-	icd->scl_pin = sm501_gpio_pin2nr(sm, iic->pin_scl);
 	icd->timeout = iic->timeout;
 	icd->udelay = iic->udelay;
 
@@ -1170,9 +1175,9 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 
 	pdev->id = iic->bus_num;
 
-	dev_info(sm->dev, "registering i2c-%d: sda=%d (%d), scl=%d (%d)\n",
+	dev_info(sm->dev, "registering i2c-%d: sda=%d, scl=%d\n",
 		 iic->bus_num,
-		 icd->sda_pin, iic->pin_sda, icd->scl_pin, iic->pin_scl);
+		 iic->pin_sda, iic->pin_scl);
 
 	return sm501_register_device(sm, pdev);
 }

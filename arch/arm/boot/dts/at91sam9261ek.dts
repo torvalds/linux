@@ -15,6 +15,14 @@
 	chosen {
 		bootargs = "rootfstype=ubifs ubi.mtd=5 root=ubi0:rootfs rw";
 		stdout-path = "serial0:115200n8";
+
+		clocksource {
+			timer = <&timer0>;
+		};
+
+		clockevent {
+			timer = <&timer1>;
+		};
 	};
 
 	memory {
@@ -32,11 +40,11 @@
 	};
 
 	ahb {
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			status = "okay";
 		};
 
-		fb0: fb@0x00600000 {
+		fb0: fb@600000 {
 			display = <&display0>;
 			atmel,power-control-gpio = <&pioA 12 GPIO_ACTIVE_LOW>;
 			status = "okay";
@@ -125,6 +133,18 @@
 		};
 
 		apb {
+			tcb0: timer@fffa0000 {
+				timer0: timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer1: timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usb1: gadget@fffa4000 {
 				atmel,vbus-gpio = <&pioB 29 GPIO_ACTIVE_HIGH>;
 				status = "okay";

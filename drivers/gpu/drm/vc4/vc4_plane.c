@@ -23,6 +23,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
+#include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -85,7 +86,6 @@ static const struct hvs_format {
 	u32 hvs; /* HVS_FORMAT_* */
 	u32 pixel_order;
 	bool has_alpha;
-	bool flip_cbcr;
 } hvs_formats[] = {
 	{
 		.drm = DRM_FORMAT_XRGB8888, .hvs = HVS_PIXEL_FORMAT_RGBA8888,
@@ -120,30 +120,52 @@ static const struct hvs_format {
 		.pixel_order = HVS_PIXEL_ORDER_ABGR, .has_alpha = false,
 	},
 	{
+		.drm = DRM_FORMAT_RGB888, .hvs = HVS_PIXEL_FORMAT_RGB888,
+		.pixel_order = HVS_PIXEL_ORDER_XRGB, .has_alpha = false,
+	},
+	{
+		.drm = DRM_FORMAT_BGR888, .hvs = HVS_PIXEL_FORMAT_RGB888,
+		.pixel_order = HVS_PIXEL_ORDER_XBGR, .has_alpha = false,
+	},
+	{
 		.drm = DRM_FORMAT_YUV422,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
 	},
 	{
 		.drm = DRM_FORMAT_YVU422,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE,
-		.flip_cbcr = true,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
 	},
 	{
 		.drm = DRM_FORMAT_YUV420,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
 	},
 	{
 		.drm = DRM_FORMAT_YVU420,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE,
-		.flip_cbcr = true,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
 	},
 	{
 		.drm = DRM_FORMAT_NV12,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
+	},
+	{
+		.drm = DRM_FORMAT_NV21,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
 	},
 	{
 		.drm = DRM_FORMAT_NV16,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
+	},
+	{
+		.drm = DRM_FORMAT_NV61,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
 	},
 };
 
@@ -547,14 +569,24 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		tiling = SCALER_CTL0_TILING_LINEAR;
 		pitch0 = VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH);
 		break;
-	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
+
+	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
+		/* For T-tiled, the FB pitch is "how many bytes from
+		 * one row to the next, such that pitch * tile_h ==
+		 * tile_size * tiles_per_row."
+		 */
+		u32 tile_size_shift = 12; /* T tiles are 4kb */
+		u32 tile_h_shift = 5; /* 16 and 32bpp are 32 pixels high */
+		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
+
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
 
-		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET),
-			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L),
-			  VC4_SET_FIELD((vc4_state->src_w[0] + 31) >> 5,
-					SCALER_PITCH0_TILE_WIDTH_R));
+		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET) |
+			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L) |
+			  VC4_SET_FIELD(tiles_w, SCALER_PITCH0_TILE_WIDTH_R));
 		break;
+	}
+
 	default:
 		DRM_DEBUG_KMS("Unsupported FB tiling flag 0x%16llx",
 			      (long long)fb->modifier);
@@ -606,15 +638,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 * The pointers may be any byte address.
 	 */
 	vc4_state->ptr0_offset = vc4_state->dlist_count;
-	if (!format->flip_cbcr) {
-		for (i = 0; i < num_planes; i++)
-			vc4_dlist_write(vc4_state, vc4_state->offsets[i]);
-	} else {
-		WARN_ON_ONCE(num_planes != 3);
-		vc4_dlist_write(vc4_state, vc4_state->offsets[0]);
-		vc4_dlist_write(vc4_state, vc4_state->offsets[2]);
-		vc4_dlist_write(vc4_state, vc4_state->offsets[1]);
-	}
+	for (i = 0; i < num_planes; i++)
+		vc4_dlist_write(vc4_state, vc4_state->offsets[i]);
 
 	/* Pointer Context Word 0/1/2: Written by the HVS */
 	for (i = 0; i < num_planes; i++)
@@ -764,21 +789,40 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 {
 	struct vc4_bo *bo;
 	struct dma_fence *fence;
+	int ret;
 
 	if ((plane->state->fb == state->fb) || !state->fb)
 		return 0;
 
 	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
+
+	ret = vc4_bo_inc_usecnt(bo);
+	if (ret)
+		return ret;
+
 	fence = reservation_object_get_excl_rcu(bo->resv);
 	drm_atomic_set_fence_for_plane(state, fence);
 
 	return 0;
 }
 
+static void vc4_cleanup_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct vc4_bo *bo;
+
+	if (plane->state->fb == state->fb || !state->fb)
+		return;
+
+	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
+	vc4_bo_dec_usecnt(bo);
+}
+
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_check = vc4_plane_atomic_check,
 	.atomic_update = vc4_plane_atomic_update,
 	.prepare_fb = vc4_prepare_fb,
+	.cleanup_fb = vc4_cleanup_fb,
 };
 
 static void vc4_plane_destroy(struct drm_plane *plane)

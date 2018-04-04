@@ -6,8 +6,13 @@
 	#size-cells = <1>;
 	interrupt-parent = <&pic>;
 
+	aliases {
+		uart0 = &serial0;
+	};
+
 	chosen {
-		bootargs = "console=uart,mmio,0x90000000,115200";
+		bootargs = "earlycon";
+		stdout-path = "uart0:115200";
 	};
 
 	memory@0 {

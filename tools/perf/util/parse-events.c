@@ -4,6 +4,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/param.h>
 #include "term.h"
 #include "../perf.h"
@@ -29,6 +32,7 @@
 #include "probe-file.h"
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"
+#include "metricgroup.h"
 
 #define MAX_NAME_LEN 100
 
@@ -1115,6 +1119,7 @@ do {								\
 	INIT_LIST_HEAD(&__t->list);				\
 	__t->type       = PERF_EVSEL__CONFIG_TERM_ ## __type;	\
 	__t->val.__name = __val;				\
+	__t->weak	= term->weak;				\
 	list_add_tail(&__t->list, head_terms);			\
 } while (0)
 
@@ -1220,11 +1225,17 @@ static int __parse_events_add_pmu(struct parse_events_state *parse_state,
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
+	struct parse_events_error *err = parse_state->error;
 	LIST_HEAD(config_terms);
 
 	pmu = perf_pmu__find(name);
-	if (!pmu)
+	if (!pmu) {
+		if (asprintf(&err->str,
+				"Cannot find PMU `%s'. Missing kernel support?",
+				name) < 0)
+			err->str = NULL;
 		return -EINVAL;
+	}
 
 	if (pmu->default_config) {
 		memcpy(&attr, pmu->default_config,
@@ -1368,6 +1379,7 @@ struct event_modifier {
 	int exclude_GH;
 	int sample_read;
 	int pinned;
+	int weak;
 };
 
 static int get_event_modifier(struct event_modifier *mod, char *str,
@@ -1386,6 +1398,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 
 	int exclude = eu | ek | eh;
 	int exclude_GH = evsel ? evsel->exclude_GH : 0;
+	int weak = 0;
 
 	memset(mod, 0, sizeof(*mod));
 
@@ -1423,6 +1436,8 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 			sample_read = 1;
 		} else if (*str == 'D') {
 			pinned = 1;
+		} else if (*str == 'W') {
+			weak = 1;
 		} else
 			break;
 
@@ -1453,6 +1468,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	mod->exclude_GH = exclude_GH;
 	mod->sample_read = sample_read;
 	mod->pinned = pinned;
+	mod->weak = weak;
 
 	return 0;
 }
@@ -1466,7 +1482,7 @@ static int check_modifier(char *str)
 	char *p = str;
 
 	/* The sizeof includes 0 byte as well. */
-	if (strlen(str) > (sizeof("ukhGHpppPSDI") - 1))
+	if (strlen(str) > (sizeof("ukhGHpppPSDIW") - 1))
 		return -1;
 
 	while (*p) {
@@ -1506,6 +1522,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->exclude_GH          = mod.exclude_GH;
 		evsel->sample_read         = mod.sample_read;
 		evsel->precise_max         = mod.precise_max;
+		evsel->weak_group	   = mod.weak;
 
 		if (perf_evsel__is_group_leader(evsel))
 			evsel->attr.pinned = mod.pinned;
@@ -1728,8 +1745,8 @@ static int get_term_width(void)
 	return ws.ws_col > MAX_WIDTH ? MAX_WIDTH : ws.ws_col;
 }
 
-static void parse_events_print_error(struct parse_events_error *err,
-				     const char *event)
+void parse_events_print_error(struct parse_events_error *err,
+			      const char *event)
 {
 	const char *str = "invalid or unsupported event: ";
 	char _buf[MAX_WIDTH];
@@ -1784,8 +1801,6 @@ static void parse_events_print_error(struct parse_events_error *err,
 		zfree(&err->str);
 		zfree(&err->help);
 	}
-
-	fprintf(stderr, "Run 'perf list' for a list of valid events\n");
 }
 
 #undef MAX_WIDTH
@@ -1797,8 +1812,10 @@ int parse_events_option(const struct option *opt, const char *str,
 	struct parse_events_error err = { .idx = 0, };
 	int ret = parse_events(evlist, str, &err);
 
-	if (ret)
+	if (ret) {
 		parse_events_print_error(&err, str);
+		fprintf(stderr, "Run 'perf list' for a list of valid events\n");
+	}
 
 	return ret;
 }
@@ -2376,6 +2393,8 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 	print_tracepoint_events(NULL, NULL, name_only);
 
 	print_sdt_events(NULL, NULL, name_only);
+
+	metricgroup__print(true, true, NULL, name_only);
 }
 
 int parse_events__is_hardcoded_term(struct parse_events_term *term)
@@ -2395,6 +2414,7 @@ static int new_term(struct parse_events_term **_term,
 
 	*term = *temp;
 	INIT_LIST_HEAD(&term->list);
+	term->weak = false;
 
 	switch (term->type_val) {
 	case PARSE_EVENTS__TERM_TYPE_NUM:

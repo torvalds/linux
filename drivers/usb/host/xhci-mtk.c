@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MediaTek xHCI Host Controller Driver
  *
  * Copyright (c) 2015 MediaTek Inc.
  * Author:
  *  Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/clk.h>
@@ -43,6 +34,7 @@
 
 /* ip_pw_sts1 register */
 #define STS1_IP_SLEEP_STS	BIT(30)
+#define STS1_U3_MAC_RST	BIT(16)
 #define STS1_XHCI_RST		BIT(11)
 #define STS1_SYS125_RST	BIT(10)
 #define STS1_REF_RST		BIT(8)
@@ -65,32 +57,28 @@
 /* u2_phy_pll register */
 #define CTRL_U2_FORCE_PLL_STB	BIT(28)
 
-#define PERI_WK_CTRL0		0x400
-#define UWK_CTR0_0P_LS_PE	BIT(8)  /* posedge */
-#define UWK_CTR0_0P_LS_NE	BIT(7)  /* negedge for 0p linestate*/
-#define UWK_CTL1_1P_LS_C(x)	(((x) & 0xf) << 1)
-#define UWK_CTL1_1P_LS_E	BIT(0)
+/* usb remote wakeup registers in syscon */
+/* mt8173 etc */
+#define PERI_WK_CTRL1	0x4
+#define WC1_IS_C(x)	(((x) & 0xf) << 26)  /* cycle debounce */
+#define WC1_IS_EN	BIT(25)
+#define WC1_IS_P	BIT(6)  /* polarity for ip sleep */
 
-#define PERI_WK_CTRL1		0x404
-#define UWK_CTL1_IS_C(x)	(((x) & 0xf) << 26)
-#define UWK_CTL1_IS_E		BIT(25)
-#define UWK_CTL1_0P_LS_C(x)	(((x) & 0xf) << 21)
-#define UWK_CTL1_0P_LS_E	BIT(20)
-#define UWK_CTL1_IDDIG_C(x)	(((x) & 0xf) << 11)  /* cycle debounce */
-#define UWK_CTL1_IDDIG_E	BIT(10) /* enable debounce */
-#define UWK_CTL1_IDDIG_P	BIT(9)  /* polarity */
-#define UWK_CTL1_0P_LS_P	BIT(7)
-#define UWK_CTL1_IS_P		BIT(6)  /* polarity for ip sleep */
+/* mt2712 etc */
+#define PERI_SSUSB_SPM_CTRL	0x0
+#define SSC_IP_SLEEP_EN	BIT(4)
+#define SSC_SPM_INT_EN		BIT(1)
 
-enum ssusb_wakeup_src {
-	SSUSB_WK_IP_SLEEP = 1,
-	SSUSB_WK_LINE_STATE = 2,
+enum ssusb_uwk_vers {
+	SSUSB_UWK_V1 = 1,
+	SSUSB_UWK_V2,
 };
 
 static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 {
 	struct mu3c_ippc_regs __iomem *ippc = mtk->ippc_regs;
 	u32 value, check_val;
+	int u3_ports_disabed = 0;
 	int ret;
 	int i;
 
@@ -102,8 +90,13 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	value &= ~CTRL1_IP_HOST_PDN;
 	writel(value, &ippc->ip_pw_ctr1);
 
-	/* power on and enable all u3 ports */
+	/* power on and enable u3 ports except skipped ones */
 	for (i = 0; i < mtk->num_u3_ports; i++) {
+		if ((0x1 << i) & mtk->u3p_dis_msk) {
+			u3_ports_disabed++;
+			continue;
+		}
+
 		value = readl(&ippc->u3_ctrl_p[i]);
 		value &= ~(CTRL_U3_PORT_PDN | CTRL_U3_PORT_DIS);
 		value |= CTRL_U3_PORT_HOST_SEL;
@@ -125,6 +118,9 @@ static int xhci_mtk_host_enable(struct xhci_hcd_mtk *mtk)
 	check_val = STS1_SYSPLL_STABLE | STS1_REF_RST |
 			STS1_SYS125_RST | STS1_XHCI_RST;
 
+	if (mtk->num_u3_ports > u3_ports_disabed)
+		check_val |= STS1_U3_MAC_RST;
+
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
 			  (check_val == (value & check_val)), 100, 20000);
 	if (ret) {
@@ -145,8 +141,11 @@ static int xhci_mtk_host_disable(struct xhci_hcd_mtk *mtk)
 	if (!mtk->has_ippc)
 		return 0;
 
-	/* power down all u3 ports */
+	/* power down u3 ports except skipped ones */
 	for (i = 0; i < mtk->num_u3_ports; i++) {
+		if ((0x1 << i) & mtk->u3p_dis_msk)
+			continue;
+
 		value = readl(&ippc->u3_ctrl_p[i]);
 		value |= CTRL_U3_PORT_PDN;
 		writel(value, &ippc->u3_ctrl_p[i]);
@@ -208,6 +207,41 @@ static int xhci_mtk_ssusb_config(struct xhci_hcd_mtk *mtk)
 	return xhci_mtk_host_enable(mtk);
 }
 
+/* ignore the error if the clock does not exist */
+static struct clk *optional_clk_get(struct device *dev, const char *id)
+{
+	struct clk *opt_clk;
+
+	opt_clk = devm_clk_get(dev, id);
+	/* ignore error number except EPROBE_DEFER */
+	if (IS_ERR(opt_clk) && (PTR_ERR(opt_clk) != -EPROBE_DEFER))
+		opt_clk = NULL;
+
+	return opt_clk;
+}
+
+static int xhci_mtk_clks_get(struct xhci_hcd_mtk *mtk)
+{
+	struct device *dev = mtk->dev;
+
+	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
+	if (IS_ERR(mtk->sys_clk)) {
+		dev_err(dev, "fail to get sys_ck\n");
+		return PTR_ERR(mtk->sys_clk);
+	}
+
+	mtk->ref_clk = optional_clk_get(dev, "ref_ck");
+	if (IS_ERR(mtk->ref_clk))
+		return PTR_ERR(mtk->ref_clk);
+
+	mtk->mcu_clk = optional_clk_get(dev, "mcu_ck");
+	if (IS_ERR(mtk->mcu_clk))
+		return PTR_ERR(mtk->mcu_clk);
+
+	mtk->dma_clk = optional_clk_get(dev, "dma_ck");
+	return PTR_ERR_OR_ZERO(mtk->dma_clk);
+}
+
 static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 {
 	int ret;
@@ -224,160 +258,91 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 		goto sys_clk_err;
 	}
 
-	if (mtk->wakeup_src) {
-		ret = clk_prepare_enable(mtk->wk_deb_p0);
-		if (ret) {
-			dev_err(mtk->dev, "failed to enable wk_deb_p0\n");
-			goto usb_p0_err;
-		}
-
-		ret = clk_prepare_enable(mtk->wk_deb_p1);
-		if (ret) {
-			dev_err(mtk->dev, "failed to enable wk_deb_p1\n");
-			goto usb_p1_err;
-		}
+	ret = clk_prepare_enable(mtk->mcu_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable mcu_clk\n");
+		goto mcu_clk_err;
 	}
+
+	ret = clk_prepare_enable(mtk->dma_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable dma_clk\n");
+		goto dma_clk_err;
+	}
+
 	return 0;
 
-usb_p1_err:
-	clk_disable_unprepare(mtk->wk_deb_p0);
-usb_p0_err:
+dma_clk_err:
+	clk_disable_unprepare(mtk->mcu_clk);
+mcu_clk_err:
 	clk_disable_unprepare(mtk->sys_clk);
 sys_clk_err:
 	clk_disable_unprepare(mtk->ref_clk);
 ref_clk_err:
-	return -EINVAL;
+	return ret;
 }
 
 static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
 {
-	if (mtk->wakeup_src) {
-		clk_disable_unprepare(mtk->wk_deb_p1);
-		clk_disable_unprepare(mtk->wk_deb_p0);
-	}
+	clk_disable_unprepare(mtk->dma_clk);
+	clk_disable_unprepare(mtk->mcu_clk);
 	clk_disable_unprepare(mtk->sys_clk);
 	clk_disable_unprepare(mtk->ref_clk);
 }
 
 /* only clocks can be turn off for ip-sleep wakeup mode */
-static void usb_wakeup_ip_sleep_en(struct xhci_hcd_mtk *mtk)
+static void usb_wakeup_ip_sleep_set(struct xhci_hcd_mtk *mtk, bool enable)
 {
-	u32 tmp;
-	struct regmap *pericfg = mtk->pericfg;
+	u32 reg, msk, val;
 
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_IS_P;
-	tmp &= ~(UWK_CTL1_IS_C(0xf));
-	tmp |= UWK_CTL1_IS_C(0x8);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp | UWK_CTL1_IS_E);
-
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	dev_dbg(mtk->dev, "%s(): WK_CTRL1[P6,E25,C26:29]=%#x\n",
-		__func__, tmp);
-}
-
-static void usb_wakeup_ip_sleep_dis(struct xhci_hcd_mtk *mtk)
-{
-	u32 tmp;
-
-	regmap_read(mtk->pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_IS_E;
-	regmap_write(mtk->pericfg, PERI_WK_CTRL1, tmp);
-}
-
-/*
-* for line-state wakeup mode, phy's power should not power-down
-* and only support cable plug in/out
-*/
-static void usb_wakeup_line_state_en(struct xhci_hcd_mtk *mtk)
-{
-	u32 tmp;
-	struct regmap *pericfg = mtk->pericfg;
-
-	/* line-state of u2-port0 */
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_0P_LS_P;
-	tmp &= ~(UWK_CTL1_0P_LS_C(0xf));
-	tmp |= UWK_CTL1_0P_LS_C(0x8);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp);
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp | UWK_CTL1_0P_LS_E);
-
-	/* line-state of u2-port1 */
-	regmap_read(pericfg, PERI_WK_CTRL0, &tmp);
-	tmp &= ~(UWK_CTL1_1P_LS_C(0xf));
-	tmp |= UWK_CTL1_1P_LS_C(0x8);
-	regmap_write(pericfg, PERI_WK_CTRL0, tmp);
-	regmap_write(pericfg, PERI_WK_CTRL0, tmp | UWK_CTL1_1P_LS_E);
-}
-
-static void usb_wakeup_line_state_dis(struct xhci_hcd_mtk *mtk)
-{
-	u32 tmp;
-	struct regmap *pericfg = mtk->pericfg;
-
-	/* line-state of u2-port0 */
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_0P_LS_E;
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp);
-
-	/* line-state of u2-port1 */
-	regmap_read(pericfg, PERI_WK_CTRL0, &tmp);
-	tmp &= ~UWK_CTL1_1P_LS_E;
-	regmap_write(pericfg, PERI_WK_CTRL0, tmp);
-}
-
-static void usb_wakeup_enable(struct xhci_hcd_mtk *mtk)
-{
-	if (mtk->wakeup_src == SSUSB_WK_IP_SLEEP)
-		usb_wakeup_ip_sleep_en(mtk);
-	else if (mtk->wakeup_src == SSUSB_WK_LINE_STATE)
-		usb_wakeup_line_state_en(mtk);
-}
-
-static void usb_wakeup_disable(struct xhci_hcd_mtk *mtk)
-{
-	if (mtk->wakeup_src == SSUSB_WK_IP_SLEEP)
-		usb_wakeup_ip_sleep_dis(mtk);
-	else if (mtk->wakeup_src == SSUSB_WK_LINE_STATE)
-		usb_wakeup_line_state_dis(mtk);
+	switch (mtk->uwk_vers) {
+	case SSUSB_UWK_V1:
+		reg = mtk->uwk_reg_base + PERI_WK_CTRL1;
+		msk = WC1_IS_EN | WC1_IS_C(0xf) | WC1_IS_P;
+		val = enable ? (WC1_IS_EN | WC1_IS_C(0x8)) : 0;
+		break;
+	case SSUSB_UWK_V2:
+		reg = mtk->uwk_reg_base + PERI_SSUSB_SPM_CTRL;
+		msk = SSC_IP_SLEEP_EN | SSC_SPM_INT_EN;
+		val = enable ? msk : 0;
+		break;
+	default:
+		return;
+	}
+	regmap_update_bits(mtk->uwk, reg, msk, val);
 }
 
 static int usb_wakeup_of_property_parse(struct xhci_hcd_mtk *mtk,
 				struct device_node *dn)
 {
-	struct device *dev = mtk->dev;
+	struct of_phandle_args args;
+	int ret;
 
-	/*
-	* wakeup function is optional, so it is not an error if this property
-	* does not exist, and in such case, no need to get relative
-	* properties anymore.
-	*/
-	of_property_read_u32(dn, "mediatek,wakeup-src", &mtk->wakeup_src);
-	if (!mtk->wakeup_src)
+	/* Wakeup function is optional */
+	mtk->uwk_en = of_property_read_bool(dn, "wakeup-source");
+	if (!mtk->uwk_en)
 		return 0;
 
-	mtk->wk_deb_p0 = devm_clk_get(dev, "wakeup_deb_p0");
-	if (IS_ERR(mtk->wk_deb_p0)) {
-		dev_err(dev, "fail to get wakeup_deb_p0\n");
-		return PTR_ERR(mtk->wk_deb_p0);
-	}
+	ret = of_parse_phandle_with_fixed_args(dn,
+				"mediatek,syscon-wakeup", 2, 0, &args);
+	if (ret)
+		return ret;
 
-	mtk->wk_deb_p1 = devm_clk_get(dev, "wakeup_deb_p1");
-	if (IS_ERR(mtk->wk_deb_p1)) {
-		dev_err(dev, "fail to get wakeup_deb_p1\n");
-		return PTR_ERR(mtk->wk_deb_p1);
-	}
+	mtk->uwk_reg_base = args.args[0];
+	mtk->uwk_vers = args.args[1];
+	mtk->uwk = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	dev_info(mtk->dev, "uwk - reg:0x%x, version:%d\n",
+			mtk->uwk_reg_base, mtk->uwk_vers);
 
-	mtk->pericfg = syscon_regmap_lookup_by_phandle(dn,
-						"mediatek,syscon-wakeup");
-	if (IS_ERR(mtk->pericfg)) {
-		dev_err(dev, "fail to get pericfg regs\n");
-		return PTR_ERR(mtk->pericfg);
-	}
+	return PTR_ERR_OR_ZERO(mtk->uwk);
 
-	return 0;
+}
+
+static void usb_wakeup_set(struct xhci_hcd_mtk *mtk, bool enable)
+{
+	if (mtk->uwk_en)
+		usb_wakeup_ip_sleep_set(mtk, enable);
 }
 
 static int xhci_mtk_setup(struct usb_hcd *hcd);
@@ -492,7 +457,6 @@ static void xhci_mtk_quirks(struct device *dev, struct xhci_hcd *xhci)
 /* called during probe() after chip reset completes */
 static int xhci_mtk_setup(struct usb_hcd *hcd)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_hcd_mtk *mtk = hcd_to_mtk(hcd);
 	int ret;
 
@@ -507,8 +471,6 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 		return ret;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		mtk->num_u3_ports = xhci->num_usb3_ports;
-		mtk->num_u2_ports = xhci->num_usb2_ports;
 		ret = xhci_mtk_sch_init(mtk);
 		if (ret)
 			return ret;
@@ -552,30 +514,20 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 		return PTR_ERR(mtk->vusb33);
 	}
 
-	mtk->sys_clk = devm_clk_get(dev, "sys_ck");
-	if (IS_ERR(mtk->sys_clk)) {
-		dev_err(dev, "fail to get sys_ck\n");
-		return PTR_ERR(mtk->sys_clk);
-	}
-
-	/*
-	 * reference clock is usually a "fixed-clock", make it optional
-	 * for backward compatibility and ignore the error if it does
-	 * not exist.
-	 */
-	mtk->ref_clk = devm_clk_get(dev, "ref_ck");
-	if (IS_ERR(mtk->ref_clk)) {
-		if (PTR_ERR(mtk->ref_clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-
-		mtk->ref_clk = NULL;
-	}
-
-	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
-
-	ret = usb_wakeup_of_property_parse(mtk, node);
+	ret = xhci_mtk_clks_get(mtk);
 	if (ret)
 		return ret;
+
+	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");
+	/* optional property, ignore the error if it does not exist */
+	of_property_read_u32(node, "mediatek,u3p-dis-msk",
+			     &mtk->u3p_dis_msk);
+
+	ret = usb_wakeup_of_property_parse(mtk, node);
+	if (ret) {
+		dev_err(dev, "failed to parse uwk property\n");
+		return ret;
+	}
 
 	mtk->num_phys = of_count_phandle_with_args(node,
 			"phys", "#phy-cells");
@@ -606,14 +558,9 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
-	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret)
 		goto disable_clk;
-
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-	else
-		dma_set_mask(dev, DMA_BIT_MASK(32));
 
 	hcd = usb_create_hcd(driver, dev, dev_name(dev));
 	if (!hcd) {
@@ -670,6 +617,15 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 
 	xhci = hcd_to_xhci(hcd);
 	xhci->main_hcd = hcd;
+
+	/*
+	 * imod_interval is the interrupt moderation value in nanoseconds.
+	 * The increment interval is 8 times as much as that defined in
+	 * the xHCI spec on MTK's controller.
+	 */
+	xhci->imod_interval = 5000;
+	device_property_read_u32(dev, "imod-interval-ns", &xhci->imod_interval);
+
 	xhci->shared_hcd = usb_create_shared_hcd(driver, dev,
 			dev_name(dev), hcd);
 	if (!xhci->shared_hcd) {
@@ -764,7 +720,7 @@ static int __maybe_unused xhci_mtk_suspend(struct device *dev)
 	xhci_mtk_host_disable(mtk);
 	xhci_mtk_phy_power_off(mtk);
 	xhci_mtk_clks_disable(mtk);
-	usb_wakeup_enable(mtk);
+	usb_wakeup_set(mtk, true);
 	return 0;
 }
 
@@ -774,7 +730,7 @@ static int __maybe_unused xhci_mtk_resume(struct device *dev)
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
-	usb_wakeup_disable(mtk);
+	usb_wakeup_set(mtk, false);
 	xhci_mtk_clks_enable(mtk);
 	xhci_mtk_phy_power_on(mtk);
 	xhci_mtk_host_enable(mtk);

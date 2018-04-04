@@ -395,10 +395,10 @@ static void fb_flashcursor(struct work_struct *work)
 	console_unlock();
 }
 
-static void cursor_timer_handler(unsigned long dev_addr)
+static void cursor_timer_handler(struct timer_list *t)
 {
-	struct fb_info *info = (struct fb_info *) dev_addr;
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_ops *ops = from_timer(ops, t, cursor_timer);
+	struct fb_info *info = ops->info;
 
 	queue_work(system_power_efficient_wq, &info->queue);
 	mod_timer(&ops->cursor_timer, jiffies + ops->cur_blink_jiffies);
@@ -414,8 +414,7 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 		if (!info->queue.func)
 			INIT_WORK(&info->queue, fb_flashcursor);
 
-		setup_timer(&ops->cursor_timer, cursor_timer_handler,
-			    (unsigned long) info);
+		timer_setup(&ops->cursor_timer, cursor_timer_handler, 0);
 		mod_timer(&ops->cursor_timer, jiffies + ops->cur_blink_jiffies);
 		ops->flags |= FBCON_FLAGS_CURSOR_TIMER;
 	}
@@ -714,6 +713,7 @@ static int con2fb_acquire_newinfo(struct vc_data *vc, struct fb_info *info,
 
 	if (!err) {
 		ops->cur_blink_jiffies = HZ / 5;
+		ops->info = info;
 		info->fbcon_par = ops;
 
 		if (vc)
@@ -962,11 +962,15 @@ static const char *fbcon_startup(void)
 	ops->graphics = 1;
 	ops->cur_rotate = -1;
 	ops->cur_blink_jiffies = HZ / 5;
+	ops->info = info;
 	info->fbcon_par = ops;
-	if (initial_rotation != -1)
-		p->con_rotate = initial_rotation;
-	else
-		p->con_rotate = fbcon_platform_get_rotate(info);
+
+	p->con_rotate = initial_rotation;
+	if (p->con_rotate == -1)
+		p->con_rotate = info->fbcon_rotate_hint;
+	if (p->con_rotate == -1)
+		p->con_rotate = FB_ROTATE_UR;
+
 	set_blitting_type(vc, info);
 
 	if (info->fix.type != FB_TYPE_TEXT) {
@@ -1103,10 +1107,13 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	ops = info->fbcon_par;
 	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
-	if (initial_rotation != -1)
-		p->con_rotate = initial_rotation;
-	else
-		p->con_rotate = fbcon_platform_get_rotate(info);
+
+	p->con_rotate = initial_rotation;
+	if (p->con_rotate == -1)
+		p->con_rotate = info->fbcon_rotate_hint;
+	if (p->con_rotate == -1)
+		p->con_rotate = FB_ROTATE_UR;
+
 	set_blitting_type(vc, info);
 
 	cols = vc->vc_cols;

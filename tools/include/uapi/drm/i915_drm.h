@@ -86,6 +86,62 @@ enum i915_mocs_table_index {
 	I915_MOCS_CACHED,
 };
 
+/*
+ * Different engines serve different roles, and there may be more than one
+ * engine serving each role. enum drm_i915_gem_engine_class provides a
+ * classification of the role of the engine, which may be used when requesting
+ * operations to be performed on a certain subset of engines, or for providing
+ * information about that group.
+ */
+enum drm_i915_gem_engine_class {
+	I915_ENGINE_CLASS_RENDER	= 0,
+	I915_ENGINE_CLASS_COPY		= 1,
+	I915_ENGINE_CLASS_VIDEO		= 2,
+	I915_ENGINE_CLASS_VIDEO_ENHANCE	= 3,
+
+	I915_ENGINE_CLASS_INVALID	= -1
+};
+
+/**
+ * DOC: perf_events exposed by i915 through /sys/bus/event_sources/drivers/i915
+ *
+ */
+
+enum drm_i915_pmu_engine_sample {
+	I915_SAMPLE_BUSY = 0,
+	I915_SAMPLE_WAIT = 1,
+	I915_SAMPLE_SEMA = 2
+};
+
+#define I915_PMU_SAMPLE_BITS (4)
+#define I915_PMU_SAMPLE_MASK (0xf)
+#define I915_PMU_SAMPLE_INSTANCE_BITS (8)
+#define I915_PMU_CLASS_SHIFT \
+	(I915_PMU_SAMPLE_BITS + I915_PMU_SAMPLE_INSTANCE_BITS)
+
+#define __I915_PMU_ENGINE(class, instance, sample) \
+	((class) << I915_PMU_CLASS_SHIFT | \
+	(instance) << I915_PMU_SAMPLE_BITS | \
+	(sample))
+
+#define I915_PMU_ENGINE_BUSY(class, instance) \
+	__I915_PMU_ENGINE(class, instance, I915_SAMPLE_BUSY)
+
+#define I915_PMU_ENGINE_WAIT(class, instance) \
+	__I915_PMU_ENGINE(class, instance, I915_SAMPLE_WAIT)
+
+#define I915_PMU_ENGINE_SEMA(class, instance) \
+	__I915_PMU_ENGINE(class, instance, I915_SAMPLE_SEMA)
+
+#define __I915_PMU_OTHER(x) (__I915_PMU_ENGINE(0xff, 0xff, 0xf) + 1 + (x))
+
+#define I915_PMU_ACTUAL_FREQUENCY	__I915_PMU_OTHER(0)
+#define I915_PMU_REQUESTED_FREQUENCY	__I915_PMU_OTHER(1)
+#define I915_PMU_INTERRUPTS		__I915_PMU_OTHER(2)
+#define I915_PMU_RC6_RESIDENCY		__I915_PMU_OTHER(3)
+
+#define I915_PMU_LAST I915_PMU_RC6_RESIDENCY
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use
@@ -397,10 +453,20 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_MIN_EU_IN_POOL	 39
 #define I915_PARAM_MMAP_GTT_VERSION	 40
 
-/* Query whether DRM_I915_GEM_EXECBUFFER2 supports user defined execution
+/*
+ * Query whether DRM_I915_GEM_EXECBUFFER2 supports user defined execution
  * priorities and the driver will attempt to execute batches in priority order.
+ * The param returns a capability bitmask, nonzero implies that the scheduler
+ * is enabled, with different features present according to the mask.
+ *
+ * The initial priority for each batch is supplied by the context and is
+ * controlled via I915_CONTEXT_PARAM_PRIORITY.
  */
 #define I915_PARAM_HAS_SCHEDULER	 41
+#define   I915_SCHEDULER_CAP_ENABLED	(1ul << 0)
+#define   I915_SCHEDULER_CAP_PRIORITY	(1ul << 1)
+#define   I915_SCHEDULER_CAP_PREEMPTION	(1ul << 2)
+
 #define I915_PARAM_HUC_STATUS		 42
 
 /* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to opt-out of
@@ -439,6 +505,27 @@ typedef struct drm_i915_irq_wait {
  * drm_i915_gem_exec_fence structures.  See I915_EXEC_FENCE_ARRAY.
  */
 #define I915_PARAM_HAS_EXEC_FENCE_ARRAY  49
+
+/*
+ * Query whether every context (both per-file default and user created) is
+ * isolated (insofar as HW supports). If this parameter is not true, then
+ * freshly created contexts may inherit values from an existing context,
+ * rather than default HW values. If true, it also ensures (insofar as HW
+ * supports) that all state set by this context will not leak to any other
+ * context.
+ *
+ * As not every engine across every gen support contexts, the returned
+ * value reports the support of context isolation for individual engines by
+ * returning a bitmask of each engine class set to true if that class supports
+ * isolation.
+ */
+#define I915_PARAM_HAS_CONTEXT_ISOLATION 50
+
+/* Frequency of the command streamer timestamps given by the *_TIMESTAMP
+ * registers. This used to be fixed per platform but from CNL onwards, this
+ * might vary depending on the parts.
+ */
+#define I915_PARAM_CS_TIMESTAMP_FREQUENCY 51
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -829,6 +916,7 @@ struct drm_i915_gem_exec_fence {
 
 #define I915_EXEC_FENCE_WAIT            (1<<0)
 #define I915_EXEC_FENCE_SIGNAL          (1<<1)
+#define __I915_EXEC_FENCE_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_SIGNAL << 1))
 	__u32 flags;
 };
 
@@ -1308,14 +1396,16 @@ struct drm_i915_reg_read {
 	 * be specified
 	 */
 	__u64 offset;
+#define I915_REG_READ_8B_WA (1ul << 0)
+
 	__u64 val; /* Return value */
 };
 /* Known registers:
  *
  * Render engine timestamp - 0x2358 + 64bit - gen7+
  * - Note this register returns an invalid value if using the default
- *   single instruction 8byte read, in order to workaround that use
- *   offset (0x2538 | 1) instead.
+ *   single instruction 8byte read, in order to workaround that pass
+ *   flag I915_REG_READ_8B_WA in offset field.
  *
  */
 
@@ -1358,6 +1448,10 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
 #define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
 #define I915_CONTEXT_PARAM_BANNABLE	0x5
+#define I915_CONTEXT_PARAM_PRIORITY	0x6
+#define   I915_CONTEXT_MAX_USER_PRIORITY	1023 /* inclusive */
+#define   I915_CONTEXT_DEFAULT_PRIORITY		0
+#define   I915_CONTEXT_MIN_USER_PRIORITY	-1023 /* inclusive */
 	__u64 value;
 };
 
@@ -1509,9 +1603,14 @@ struct drm_i915_perf_oa_config {
 	__u32 n_boolean_regs;
 	__u32 n_flex_regs;
 
-	__u64 __user mux_regs_ptr;
-	__u64 __user boolean_regs_ptr;
-	__u64 __user flex_regs_ptr;
+	/*
+	 * These fields are pointers to tuples of u32 values (register
+	 * address, value). For example the expected length of the buffer
+	 * pointed by mux_regs_ptr is (2 * sizeof(u32) * n_mux_regs).
+	 */
+	__u64 mux_regs_ptr;
+	__u64 boolean_regs_ptr;
+	__u64 flex_regs_ptr;
 };
 
 #if defined(__cplusplus)

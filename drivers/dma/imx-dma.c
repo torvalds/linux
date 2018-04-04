@@ -364,9 +364,9 @@ static void imxdma_disable_hw(struct imxdma_channel *imxdmac)
 	local_irq_restore(flags);
 }
 
-static void imxdma_watchdog(unsigned long data)
+static void imxdma_watchdog(struct timer_list *t)
 {
-	struct imxdma_channel *imxdmac = (struct imxdma_channel *)data;
+	struct imxdma_channel *imxdmac = from_timer(imxdmac, t, watchdog);
 	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	int channel = imxdmac->channel;
 
@@ -765,7 +765,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 		if (!desc)
 			break;
-		__memzero(&desc->desc, sizeof(struct dma_async_tx_descriptor));
+		memset(&desc->desc, 0, sizeof(struct dma_async_tx_descriptor));
 		dma_async_tx_descriptor_init(&desc->desc, chan);
 		desc->desc.tx_submit = imxdma_tx_submit;
 		/* txd.flags will be overwritten in prep funcs */
@@ -1153,9 +1153,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 			}
 
 			imxdmac->irq = irq + i;
-			init_timer(&imxdmac->watchdog);
-			imxdmac->watchdog.function = &imxdma_watchdog;
-			imxdmac->watchdog.data = (unsigned long)imxdmac;
+			timer_setup(&imxdmac->watchdog, imxdma_watchdog, 0);
 		}
 
 		imxdmac->imxdma = imxdma;

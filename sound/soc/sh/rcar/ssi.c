@@ -79,8 +79,8 @@ struct rsnd_ssi {
 	int irq;
 	unsigned int usrcnt;
 
+	/* for PIO */
 	int byte_pos;
-	int period_pos;
 	int byte_per_period;
 	int next_period_byte;
 };
@@ -101,9 +101,6 @@ struct rsnd_ssi {
 #define rsnd_ssi_get(priv, id) ((struct rsnd_ssi *)(priv->ssi) + id)
 #define rsnd_ssi_nr(priv) ((priv)->ssi_nr)
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
-#define rsnd_ssi_flags_has(p, f) ((p)->flags & f)
-#define rsnd_ssi_flags_set(p, f) ((p)->flags |= f)
-#define rsnd_ssi_flags_del(p, f) ((p)->flags = ((p)->flags & ~f))
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
 #define rsnd_ssi_is_multi_slave(mod, io) \
 	(rsnd_ssi_multi_slaves(io) & (1 << rsnd_mod_id(mod)))
@@ -116,10 +113,10 @@ int rsnd_ssi_hdmi_port(struct rsnd_dai_stream *io)
 	struct rsnd_mod *mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	if (rsnd_ssi_flags_has(ssi, RSND_SSI_HDMI0))
+	if (rsnd_flags_has(ssi, RSND_SSI_HDMI0))
 		return RSND_SSI_HDMI_PORT0;
 
-	if (rsnd_ssi_flags_has(ssi, RSND_SSI_HDMI1))
+	if (rsnd_flags_has(ssi, RSND_SSI_HDMI1))
 		return RSND_SSI_HDMI_PORT1;
 
 	return 0;
@@ -134,7 +131,7 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 	if (!rsnd_ssi_is_dma_mode(mod))
 		return 0;
 
-	if (!(rsnd_ssi_flags_has(ssi, RSND_SSI_NO_BUSIF)))
+	if (!(rsnd_flags_has(ssi, RSND_SSI_NO_BUSIF)))
 		use_busif = 1;
 	if (rsnd_io_to_mod_src(io))
 		use_busif = 1;
@@ -198,10 +195,15 @@ static u32 rsnd_ssi_run_mods(struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
 	struct rsnd_mod *ssi_parent_mod = rsnd_io_to_mod_ssip(io);
+	u32 mods;
 
-	return rsnd_ssi_multi_slaves_runtime(io) |
-		1 << rsnd_mod_id(ssi_mod) |
-		1 << rsnd_mod_id(ssi_parent_mod);
+	mods = rsnd_ssi_multi_slaves_runtime(io) |
+		1 << rsnd_mod_id(ssi_mod);
+
+	if (ssi_parent_mod)
+		mods |= 1 << rsnd_mod_id(ssi_parent_mod);
+
+	return mods;
 }
 
 u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io)
@@ -369,11 +371,11 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	if (rsnd_io_is_play(io))
 		cr_own |= TRMD;
 
-	switch (runtime->sample_bits) {
+	switch (snd_pcm_format_width(runtime->format)) {
 	case 16:
 		cr_own |= DWL_16;
 		break;
-	case 32:
+	case 24:
 		cr_own |= DWL_24;
 		break;
 	}
@@ -412,59 +414,6 @@ static void rsnd_ssi_register_setup(struct rsnd_mod *mod)
 					ssi->cr_en);
 }
 
-static void rsnd_ssi_pointer_init(struct rsnd_mod *mod,
-				  struct rsnd_dai_stream *io)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-
-	ssi->byte_pos		= 0;
-	ssi->period_pos		= 0;
-	ssi->byte_per_period	= runtime->period_size *
-				  runtime->channels *
-				  samples_to_bytes(runtime, 1);
-	ssi->next_period_byte	= ssi->byte_per_period;
-}
-
-static int rsnd_ssi_pointer_offset(struct rsnd_mod *mod,
-				   struct rsnd_dai_stream *io,
-				   int additional)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	int pos = ssi->byte_pos + additional;
-
-	pos %= (runtime->periods * ssi->byte_per_period);
-
-	return pos;
-}
-
-static bool rsnd_ssi_pointer_update(struct rsnd_mod *mod,
-				    struct rsnd_dai_stream *io,
-				    int byte)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-
-	ssi->byte_pos += byte;
-
-	if (ssi->byte_pos >= ssi->next_period_byte) {
-		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-
-		ssi->period_pos++;
-		ssi->next_period_byte += ssi->byte_per_period;
-
-		if (ssi->period_pos >= runtime->periods) {
-			ssi->byte_pos = 0;
-			ssi->period_pos = 0;
-			ssi->next_period_byte = ssi->byte_per_period;
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
 /*
  *	SSI mod common functions
  */
@@ -477,8 +426,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
-
-	rsnd_ssi_pointer_init(mod, io);
 
 	ssi->usrcnt++;
 
@@ -601,15 +548,18 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
-	/*
-	 * disable all IRQ,
-	 * and, wait all data was sent
-	 */
 	cr  =	ssi->cr_own	|
 		ssi->cr_clk;
 
-	rsnd_mod_write(mod, SSICR, cr | EN);
-	rsnd_ssi_status_check(mod, DIRQ);
+	/*
+	 * disable all IRQ,
+	 * Playback: Wait all data was sent
+	 * Capture:  It might not receave data. Do nothing
+	 */
+	if (rsnd_io_is_play(io)) {
+		rsnd_mod_write(mod, SSICR, cr | EN);
+		rsnd_ssi_status_check(mod, DIRQ);
+	}
 
 	/*
 	 * disable SSI,
@@ -647,6 +597,8 @@ static int rsnd_ssi_irq(struct rsnd_mod *mod,
 	return 0;
 }
 
+static bool rsnd_ssi_pio_interrupt(struct rsnd_mod *mod,
+				   struct rsnd_dai_stream *io);
 static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io)
 {
@@ -665,30 +617,8 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	status = rsnd_ssi_status_get(mod);
 
 	/* PIO only */
-	if (!is_dma && (status & DIRQ)) {
-		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-		u32 *buf = (u32 *)(runtime->dma_area +
-				   rsnd_ssi_pointer_offset(mod, io, 0));
-		int shift = 0;
-
-		switch (runtime->sample_bits) {
-		case 32:
-			shift = 8;
-			break;
-		}
-
-		/*
-		 * 8/16/32 data can be assesse to TDR/RDR register
-		 * directly as 32bit data
-		 * see rsnd_ssi_init()
-		 */
-		if (rsnd_io_is_play(io))
-			rsnd_mod_write(mod, SSITDR, (*buf) << shift);
-		else
-			*buf = (rsnd_mod_read(mod, SSIRDR) >> shift);
-
-		elapsed = rsnd_ssi_pointer_update(mod, io, sizeof(*buf));
-	}
+	if (!is_dma && (status & DIRQ))
+		elapsed = rsnd_ssi_pio_interrupt(mod, io);
 
 	/* DMA only */
 	if (is_dma && (status & (UIRQ | OIRQ)))
@@ -793,13 +723,13 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	 * But it don't need to call request_irq() many times.
 	 * Let's control it by RSND_SSI_PROBED flag.
 	 */
-	if (!rsnd_ssi_flags_has(ssi, RSND_SSI_PROBED)) {
+	if (!rsnd_flags_has(ssi, RSND_SSI_PROBED)) {
 		ret = request_irq(ssi->irq,
 				  rsnd_ssi_interrupt,
 				  IRQF_SHARED,
 				  dev_name(dev), mod);
 
-		rsnd_ssi_flags_set(ssi, RSND_SSI_PROBED);
+		rsnd_flags_set(ssi, RSND_SSI_PROBED);
 	}
 
 	return ret;
@@ -817,23 +747,87 @@ static int rsnd_ssi_common_remove(struct rsnd_mod *mod,
 		return 0;
 
 	/* PIO will request IRQ again */
-	if (rsnd_ssi_flags_has(ssi, RSND_SSI_PROBED)) {
+	if (rsnd_flags_has(ssi, RSND_SSI_PROBED)) {
 		free_irq(ssi->irq, mod);
 
-		rsnd_ssi_flags_del(ssi, RSND_SSI_PROBED);
+		rsnd_flags_del(ssi, RSND_SSI_PROBED);
 	}
 
 	return 0;
 }
 
-static int rsnd_ssi_pointer(struct rsnd_mod *mod,
+/*
+ *	SSI PIO functions
+ */
+static bool rsnd_ssi_pio_interrupt(struct rsnd_mod *mod,
+				   struct rsnd_dai_stream *io)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	u32 *buf = (u32 *)(runtime->dma_area + ssi->byte_pos);
+	int shift = 0;
+	int byte_pos;
+	bool elapsed = false;
+
+	if (snd_pcm_format_width(runtime->format) == 24)
+		shift = 8;
+
+	/*
+	 * 8/16/32 data can be assesse to TDR/RDR register
+	 * directly as 32bit data
+	 * see rsnd_ssi_init()
+	 */
+	if (rsnd_io_is_play(io))
+		rsnd_mod_write(mod, SSITDR, (*buf) << shift);
+	else
+		*buf = (rsnd_mod_read(mod, SSIRDR) >> shift);
+
+	byte_pos = ssi->byte_pos + sizeof(*buf);
+
+	if (byte_pos >= ssi->next_period_byte) {
+		int period_pos = byte_pos / ssi->byte_per_period;
+
+		if (period_pos >= runtime->periods) {
+			byte_pos = 0;
+			period_pos = 0;
+		}
+
+		ssi->next_period_byte = (period_pos + 1) * ssi->byte_per_period;
+
+		elapsed = true;
+	}
+
+	WRITE_ONCE(ssi->byte_pos, byte_pos);
+
+	return elapsed;
+}
+
+static int rsnd_ssi_pio_init(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
+			     struct rsnd_priv *priv)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	if (!rsnd_ssi_is_parent(mod, io)) {
+		ssi->byte_pos		= 0;
+		ssi->byte_per_period	= runtime->period_size *
+					  runtime->channels *
+					  samples_to_bytes(runtime, 1);
+		ssi->next_period_byte	= ssi->byte_per_period;
+	}
+
+	return rsnd_ssi_init(mod, io, priv);
+}
+
+static int rsnd_ssi_pio_pointer(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    snd_pcm_uframes_t *pointer)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 
-	*pointer = bytes_to_frames(runtime, ssi->byte_pos);
+	*pointer = bytes_to_frames(runtime, READ_ONCE(ssi->byte_pos));
 
 	return 0;
 }
@@ -842,12 +836,12 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_common_probe,
 	.remove	= rsnd_ssi_common_remove,
-	.init	= rsnd_ssi_init,
+	.init	= rsnd_ssi_pio_init,
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
 	.irq	= rsnd_ssi_irq,
-	.pointer= rsnd_ssi_pointer,
+	.pointer = rsnd_ssi_pio_pointer,
 	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
 };
@@ -1003,13 +997,13 @@ static void __rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
 	ssi  = rsnd_mod_to_ssi(mod);
 
 	if (strstr(remote_ep->full_name, "hdmi0")) {
-		rsnd_ssi_flags_set(ssi, RSND_SSI_HDMI0);
+		rsnd_flags_set(ssi, RSND_SSI_HDMI0);
 		dev_dbg(dev, "%s[%d] connected to HDMI0\n",
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 
 	if (strstr(remote_ep->full_name, "hdmi1")) {
-		rsnd_ssi_flags_set(ssi, RSND_SSI_HDMI1);
+		rsnd_flags_set(ssi, RSND_SSI_HDMI1);
 		dev_dbg(dev, "%s[%d] connected to HDMI1\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
@@ -1042,7 +1036,7 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	return !!(rsnd_ssi_flags_has(ssi, RSND_SSI_CLK_PIN_SHARE));
+	return !!(rsnd_flags_has(ssi, RSND_SSI_CLK_PIN_SHARE));
 }
 
 static u32 *rsnd_ssi_get_status(struct rsnd_dai_stream *io,
@@ -1112,6 +1106,9 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 	i = 0;
 	for_each_child_of_node(node, np) {
+		if (!of_device_is_available(np))
+			goto skip;
+
 		ssi = rsnd_ssi_get(priv, i);
 
 		snprintf(name, RSND_SSI_NAME_SIZE, "%s.%d",
@@ -1125,10 +1122,10 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		}
 
 		if (of_get_property(np, "shared-pin", NULL))
-			rsnd_ssi_flags_set(ssi, RSND_SSI_CLK_PIN_SHARE);
+			rsnd_flags_set(ssi, RSND_SSI_CLK_PIN_SHARE);
 
 		if (of_get_property(np, "no-busif", NULL))
-			rsnd_ssi_flags_set(ssi, RSND_SSI_NO_BUSIF);
+			rsnd_flags_set(ssi, RSND_SSI_NO_BUSIF);
 
 		ssi->irq = irq_of_parse_and_map(np, 0);
 		if (!ssi->irq) {
@@ -1148,7 +1145,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
-
+skip:
 		i++;
 	}
 

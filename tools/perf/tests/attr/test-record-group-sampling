@@ -23,7 +23,7 @@ sample_type=343
 
 # PERF_FORMAT_ID | PERF_FORMAT_GROUP
 read_format=12
-
+task=0
 mmap=0
 comm=0
 enable_on_exec=0

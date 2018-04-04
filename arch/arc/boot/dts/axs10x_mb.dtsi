@@ -16,6 +16,12 @@
 		ranges = <0x00000000 0x0 0xe0000000 0x10000000>;
 		interrupt-parent = <&mb_intc>;
 
+		creg_rst: reset-controller@11220 {
+			compatible = "snps,axs10x-reset";
+			#reset-cells = <1>;
+			reg = <0x11220 0x4>;
+		};
+
 		i2sclk: i2sclk@100a0 {
 			compatible = "snps,axs10x-i2s-pll-clock";
 			reg = <0x100a0 0x10>;
@@ -73,6 +79,8 @@
 			clocks = <&apbclk>;
 			clock-names = "stmmaceth";
 			max-speed = <100>;
+			resets = <&creg_rst 5>;
+			reset-names = "stmmaceth";
 		};
 
 		ehci@0x40000 {
@@ -206,13 +214,13 @@
 			};
 
 			eeprom@0x54{
-				compatible = "24c01";
+				compatible = "atmel,24c01";
 				reg = <0x54>;
 				pagesize = <0x8>;
 			};
 
 			eeprom@0x57{
-				compatible = "24c04";
+				compatible = "atmel,24c04";
 				reg = <0x57>;
 				pagesize = <0x8>;
 			};

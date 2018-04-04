@@ -514,7 +514,8 @@
 	sound {
 		compatible = "rockchip,rk3399-gru-sound";
 		rockchip,cpu = <&i2s0 &i2s2>;
-		rockchip,codec = <&max98357a &headsetcodec &codec>;
+		rockchip,codec = <&max98357a &headsetcodec
+				  &codec &wacky_spi_audio>;
 	};
 };
 
@@ -854,6 +855,20 @@ ap_i2c_audio: &i2c8 {
 			compatible = "google,cros-ec-pwm";
 			#pwm-cells = <1>;
 		};
+
+		usbc_extcon0: extcon@0 {
+			compatible = "google,extcon-usbc-cros-ec";
+			google,usb-port-id = <0>;
+
+			#extcon-cells = <0>;
+		};
+
+		usbc_extcon1: extcon@1 {
+			compatible = "google,extcon-usbc-cros-ec";
+			google,usb-port-id = <1>;
+
+			#extcon-cells = <0>;
+		};
 	};
 };
 
@@ -862,6 +877,16 @@ ap_i2c_audio: &i2c8 {
 
 	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
+};
+
+&tcphy0 {
+	status = "okay";
+	extcon = <&usbc_extcon0>;
+};
+
+&tcphy1 {
+	status = "okay";
+	extcon = <&usbc_extcon1>;
 };
 
 &u2phy0 {
@@ -910,6 +935,7 @@ ap_i2c_audio: &i2c8 {
 
 &usbdrd3_0 {
 	status = "okay";
+	extcon = <&usbc_extcon0>;
 };
 
 &usbdrd_dwc3_0 {
@@ -919,11 +945,28 @@ ap_i2c_audio: &i2c8 {
 
 &usbdrd3_1 {
 	status = "okay";
+	extcon = <&usbc_extcon1>;
 };
 
 &usbdrd_dwc3_1 {
 	status = "okay";
 	dr_mode = "host";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
 };
 
 #include <arm/cros-ec-keyboard.dtsi>

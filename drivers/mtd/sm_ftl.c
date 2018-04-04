@@ -989,9 +989,9 @@ restart:
 
 
 /* flush timer, runs a second after last write */
-static void sm_cache_flush_timer(unsigned long data)
+static void sm_cache_flush_timer(struct timer_list *t)
 {
-	struct sm_ftl *ftl = (struct sm_ftl *)data;
+	struct sm_ftl *ftl = from_timer(ftl, t, timer);
 	queue_work(cache_flush_workqueue, &ftl->flush_work);
 }
 
@@ -1139,7 +1139,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 
 	mutex_init(&ftl->mutex);
-	setup_timer(&ftl->timer, sm_cache_flush_timer, (unsigned long)ftl);
+	timer_setup(&ftl->timer, sm_cache_flush_timer, 0);
 	INIT_WORK(&ftl->flush_work, sm_cache_flush_work);
 	init_completion(&ftl->erase_completion);
 

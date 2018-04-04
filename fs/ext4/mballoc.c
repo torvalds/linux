@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2003-2006, Cluster File Systems, Inc, info@clusterfs.com
  * Written by Alex Tomas <alex@clusterfs.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-
  */
 
 
@@ -769,10 +757,10 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 	clear_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
 
 	period = get_cycles() - period;
-	spin_lock(&EXT4_SB(sb)->s_bal_lock);
-	EXT4_SB(sb)->s_mb_buddies_generated++;
-	EXT4_SB(sb)->s_mb_generation_time += period;
-	spin_unlock(&EXT4_SB(sb)->s_bal_lock);
+	spin_lock(&sbi->s_bal_lock);
+	sbi->s_mb_buddies_generated++;
+	sbi->s_mb_generation_time += period;
+	spin_unlock(&sbi->s_bal_lock);
 }
 
 static void mb_regenerate_buddy(struct ext4_buddy *e4b)
@@ -1459,7 +1447,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 		ext4_fsblk_t blocknr;
 
 		blocknr = ext4_group_first_block_no(sb, e4b->bd_group);
-		blocknr += EXT4_C2B(EXT4_SB(sb), block);
+		blocknr += EXT4_C2B(sbi, block);
 		ext4_grp_locked_error(sb, e4b->bd_group,
 				      inode ? inode->i_ino : 0,
 				      blocknr,
@@ -4850,9 +4838,9 @@ do_more:
 	if (in_range(ext4_block_bitmap(sb, gdp), block, count) ||
 	    in_range(ext4_inode_bitmap(sb, gdp), block, count) ||
 	    in_range(block, ext4_inode_table(sb, gdp),
-		     EXT4_SB(sb)->s_itb_per_group) ||
+		     sbi->s_itb_per_group) ||
 	    in_range(block + count - 1, ext4_inode_table(sb, gdp),
-		     EXT4_SB(sb)->s_itb_per_group)) {
+		     sbi->s_itb_per_group)) {
 
 		ext4_error(sb, "Freeing blocks in system zone - "
 			   "Block = %llu, count = %lu", block, count);
@@ -4994,8 +4982,11 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_buddy e4b;
-	int err = 0, ret, blk_free_count;
-	ext4_grpblk_t blocks_freed;
+	int err = 0, ret, free_clusters_count;
+	ext4_grpblk_t clusters_freed;
+	ext4_fsblk_t first_cluster = EXT4_B2C(sbi, block);
+	ext4_fsblk_t last_cluster = EXT4_B2C(sbi, block + count - 1);
+	unsigned long cluster_count = last_cluster - first_cluster + 1;
 
 	ext4_debug("Adding block(s) %llu-%llu\n", block, block + count - 1);
 
@@ -5007,8 +4998,8 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	 * Check to see if we are freeing blocks across a group
 	 * boundary.
 	 */
-	if (bit + count > EXT4_BLOCKS_PER_GROUP(sb)) {
-		ext4_warning(sb, "too much blocks added to group %u",
+	if (bit + cluster_count > EXT4_CLUSTERS_PER_GROUP(sb)) {
+		ext4_warning(sb, "too many blocks added to group %u",
 			     block_group);
 		err = -EINVAL;
 		goto error_return;
@@ -5054,14 +5045,14 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	if (err)
 		goto error_return;
 
-	for (i = 0, blocks_freed = 0; i < count; i++) {
+	for (i = 0, clusters_freed = 0; i < cluster_count; i++) {
 		BUFFER_TRACE(bitmap_bh, "clear bit");
 		if (!mb_test_bit(bit + i, bitmap_bh->b_data)) {
 			ext4_error(sb, "bit already cleared for block %llu",
 				   (ext4_fsblk_t)(block + i));
 			BUFFER_TRACE(bitmap_bh, "bit already cleared");
 		} else {
-			blocks_freed++;
+			clusters_freed++;
 		}
 	}
 
@@ -5075,19 +5066,20 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	 * them with group lock_held
 	 */
 	ext4_lock_group(sb, block_group);
-	mb_clear_bits(bitmap_bh->b_data, bit, count);
-	mb_free_blocks(NULL, &e4b, bit, count);
-	blk_free_count = blocks_freed + ext4_free_group_clusters(sb, desc);
-	ext4_free_group_clusters_set(sb, desc, blk_free_count);
+	mb_clear_bits(bitmap_bh->b_data, bit, cluster_count);
+	mb_free_blocks(NULL, &e4b, bit, cluster_count);
+	free_clusters_count = clusters_freed +
+		ext4_free_group_clusters(sb, desc);
+	ext4_free_group_clusters_set(sb, desc, free_clusters_count);
 	ext4_block_bitmap_csum_set(sb, block_group, desc, bitmap_bh);
 	ext4_group_desc_csum_set(sb, block_group, desc);
 	ext4_unlock_group(sb, block_group);
 	percpu_counter_add(&sbi->s_freeclusters_counter,
-			   EXT4_NUM_B2C(sbi, blocks_freed));
+			   clusters_freed);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
-		atomic64_add(EXT4_NUM_B2C(sbi, blocks_freed),
+		atomic64_add(clusters_freed,
 			     &sbi->s_flex_groups[flex_group].free_clusters);
 	}
 

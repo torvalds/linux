@@ -24,6 +24,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -677,8 +678,7 @@ out:
  *	@root		radix tree root
  */
 static inline bool radix_tree_shrink(struct radix_tree_root *root,
-				     radix_tree_update_node_t update_node,
-				     void *private)
+				     radix_tree_update_node_t update_node)
 {
 	bool shrunk = false;
 
@@ -739,7 +739,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
 		if (!radix_tree_is_internal_node(child)) {
 			node->slots[0] = (void __rcu *)RADIX_TREE_RETRY;
 			if (update_node)
-				update_node(node, private);
+				update_node(node);
 		}
 
 		WARN_ON_ONCE(!list_empty(&node->private_list));
@@ -752,7 +752,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
 
 static bool delete_node(struct radix_tree_root *root,
 			struct radix_tree_node *node,
-			radix_tree_update_node_t update_node, void *private)
+			radix_tree_update_node_t update_node)
 {
 	bool deleted = false;
 
@@ -762,8 +762,8 @@ static bool delete_node(struct radix_tree_root *root,
 		if (node->count) {
 			if (node_to_entry(node) ==
 					rcu_dereference_raw(root->rnode))
-				deleted |= radix_tree_shrink(root, update_node,
-								private);
+				deleted |= radix_tree_shrink(root,
+								update_node);
 			return deleted;
 		}
 
@@ -1173,7 +1173,6 @@ static int calculate_count(struct radix_tree_root *root,
  * @slot:		pointer to slot in @node
  * @item:		new item to store in the slot.
  * @update_node:	callback for changing leaf nodes
- * @private:		private data to pass to @update_node
  *
  * For use with __radix_tree_lookup().  Caller must hold tree write locked
  * across slot lookup and replacement.
@@ -1181,7 +1180,7 @@ static int calculate_count(struct radix_tree_root *root,
 void __radix_tree_replace(struct radix_tree_root *root,
 			  struct radix_tree_node *node,
 			  void __rcu **slot, void *item,
-			  radix_tree_update_node_t update_node, void *private)
+			  radix_tree_update_node_t update_node)
 {
 	void *old = rcu_dereference_raw(*slot);
 	int exceptional = !!radix_tree_exceptional_entry(item) -
@@ -1201,9 +1200,9 @@ void __radix_tree_replace(struct radix_tree_root *root,
 		return;
 
 	if (update_node)
-		update_node(node, private);
+		update_node(node);
 
-	delete_node(root, node, update_node, private);
+	delete_node(root, node, update_node);
 }
 
 /**
@@ -1225,7 +1224,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
 void radix_tree_replace_slot(struct radix_tree_root *root,
 			     void __rcu **slot, void *item)
 {
-	__radix_tree_replace(root, NULL, slot, item, NULL, NULL);
+	__radix_tree_replace(root, NULL, slot, item, NULL);
 }
 EXPORT_SYMBOL(radix_tree_replace_slot);
 
@@ -1242,7 +1241,7 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
 				const struct radix_tree_iter *iter,
 				void __rcu **slot, void *item)
 {
-	__radix_tree_replace(root, iter->node, slot, item, NULL, NULL);
+	__radix_tree_replace(root, iter->node, slot, item, NULL);
 }
 
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
@@ -1972,7 +1971,6 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
  *	@root:		radix tree root
  *	@node:		node containing @index
  *	@update_node:	callback for changing leaf nodes
- *	@private:	private data to pass to @update_node
  *
  *	After clearing the slot at @index in @node from radix tree
  *	rooted at @root, call this function to attempt freeing the
@@ -1980,10 +1978,9 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
  */
 void __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node,
-			      radix_tree_update_node_t update_node,
-			      void *private)
+			      radix_tree_update_node_t update_node)
 {
-	delete_node(root, node, update_node, private);
+	delete_node(root, node, update_node);
 }
 
 static bool __radix_tree_delete(struct radix_tree_root *root,
@@ -2001,7 +1998,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
 			node_tag_clear(root, node, tag, offset);
 
 	replace_slot(slot, NULL, node, -1, exceptional);
-	return node && delete_node(root, node, NULL, NULL);
+	return node && delete_node(root, node, NULL);
 }
 
 /**
@@ -2128,7 +2125,7 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
 		preempt_enable();
 
 	if (!this_cpu_read(ida_bitmap)) {
-		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
+		struct ida_bitmap *bitmap = kzalloc(sizeof(*bitmap), gfp);
 		if (!bitmap)
 			return 0;
 		if (this_cpu_cmpxchg(ida_bitmap, NULL, bitmap))
@@ -2139,7 +2136,7 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
 }
 EXPORT_SYMBOL(ida_pre_get);
 
-void __rcu **idr_get_free_cmn(struct radix_tree_root *root,
+void __rcu **idr_get_free(struct radix_tree_root *root,
 			      struct radix_tree_iter *iter, gfp_t gfp,
 			      unsigned long max)
 {

@@ -32,44 +32,44 @@
 #define NUMBER_OF_TCINV_POINTS 9
 #define NUMBER_OF_FCINV_POINTS 9
 
-const int16_t chgrinv_x[NUMBER_OF_CHGRINV_POINTS] = {
+static const int16_t chgrinv_x[NUMBER_OF_CHGRINV_POINTS] = {
 0, 16, 64, 144, 272, 448, 672, 976,
 1376, 1888, 2528, 3312, 4256, 5376, 6688};
 
-const int16_t chgrinv_a[NUMBER_OF_CHGRINV_POINTS] = {
+static const int16_t chgrinv_a[NUMBER_OF_CHGRINV_POINTS] = {
 -7171, -256, -29, -3456, -1071, -475, -189, -102,
 -48, -38, -10, -9, -7, -6, 0};
 
-const int16_t chgrinv_b[NUMBER_OF_CHGRINV_POINTS] = {
+static const int16_t chgrinv_b[NUMBER_OF_CHGRINV_POINTS] = {
 8191, 1021, 256, 114, 60, 37, 24, 17,
 12, 9, 6, 5, 4, 3, 2};
 
-const int16_t chgrinv_c[NUMBER_OF_CHGRINV_POINTS] = {
+static const int16_t chgrinv_c[NUMBER_OF_CHGRINV_POINTS] = {
 1, 1, 1, 0, 0, 0, 0, 0,
 0, 0, 0, 0, 0, 0, 0};
 
-const int16_t tcinv_x[NUMBER_OF_TCINV_POINTS] = {
+static const int16_t tcinv_x[NUMBER_OF_TCINV_POINTS] = {
 0, 4, 11, 23, 42, 68, 102, 148, 205};
 
-const int16_t tcinv_a[NUMBER_OF_TCINV_POINTS] = {
+static const int16_t tcinv_a[NUMBER_OF_TCINV_POINTS] = {
 -6364, -631, -126, -34, -13, -6, -4452, -2156, 0};
 
-const int16_t tcinv_b[NUMBER_OF_TCINV_POINTS] = {
+static const int16_t tcinv_b[NUMBER_OF_TCINV_POINTS] = {
 8191, 1828, 726, 352, 197, 121, 80, 55, 40};
 
-const int16_t tcinv_c[NUMBER_OF_TCINV_POINTS] = {
+static const int16_t tcinv_c[NUMBER_OF_TCINV_POINTS] = {
 1, 1, 1, 1, 1, 1, 0, 0, 0};
 
-const int16_t fcinv_x[NUMBER_OF_FCINV_POINTS] = {
+static const int16_t fcinv_x[NUMBER_OF_FCINV_POINTS] = {
 0, 80, 216, 456, 824, 1344, 2040, 2952, 4096};
 
-const int16_t fcinv_a[NUMBER_OF_FCINV_POINTS] = {
+static const int16_t fcinv_a[NUMBER_OF_FCINV_POINTS] = {
 -5244, -486, -86, -2849, -961, -400, -180, -86, 0};
 
-const int16_t fcinv_b[NUMBER_OF_FCINV_POINTS] = {
+static const int16_t fcinv_b[NUMBER_OF_FCINV_POINTS] = {
 8191, 1637, 607, 287, 159, 98, 64, 44, 32};
 
-const int16_t fcinv_c[NUMBER_OF_FCINV_POINTS] = {
+static const int16_t fcinv_c[NUMBER_OF_FCINV_POINTS] = {
 1, 1, 1, 0, 0, 0, 0, 0, 0};
 
 

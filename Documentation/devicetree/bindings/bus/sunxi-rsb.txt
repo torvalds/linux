@@ -28,7 +28,7 @@ which can normally be found in the datasheet.
 
 Example:
 
-	rsb@01f03400 {
+	rsb@1f03400 {
 		compatible = "allwinner,sun8i-a23-rsb";
 		reg = <0x01f03400 0x400>;
 		interrupts = <0 39 4>;

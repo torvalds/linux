@@ -9,23 +9,48 @@
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 #include <linux/of_platform.h>
+#include <dt-bindings/clock/dm814.h>
 
 #include "clock.h"
 
+static const struct omap_clkctrl_reg_data dm814_default_clkctrl_regs[] __initconst = {
+	{ DM814_USB_OTG_HS_CLKCTRL, NULL, CLKF_SW_SUP, "pll260dcoclkldo" },
+	{ 0 },
+};
+
+static const struct omap_clkctrl_reg_data dm814_alwon_clkctrl_regs[] __initconst = {
+	{ DM814_UART1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
+	{ DM814_UART2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
+	{ DM814_UART3_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
+	{ DM814_GPIO1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk6_ck" },
+	{ DM814_GPIO2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk6_ck" },
+	{ DM814_I2C1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
+	{ DM814_I2C2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
+	{ DM814_WD_TIMER_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "sysclk18_ck" },
+	{ DM814_MCSPI1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk10_ck" },
+	{ DM814_GPMC_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk6_ck" },
+	{ DM814_CPGMAC0_CLKCTRL, NULL, CLKF_SW_SUP, "cpsw_125mhz_gclk" },
+	{ DM814_MPU_CLKCTRL, NULL, CLKF_SW_SUP, "mpu_ck" },
+	{ DM814_RTC_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_NO_IDLEST, "sysclk18_ck" },
+	{ DM814_TPCC_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
+	{ DM814_TPTC0_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
+	{ DM814_TPTC1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
+	{ DM814_TPTC2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
+	{ DM814_TPTC3_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk4_ck" },
+	{ DM814_MMC1_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk8_ck" },
+	{ DM814_MMC2_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk8_ck" },
+	{ DM814_MMC3_CLKCTRL, NULL, CLKF_SW_SUP, "sysclk8_ck" },
+	{ 0 },
+};
+
+const struct omap_clkctrl_data dm814_clkctrl_data[] __initconst = {
+	{ 0x48180500, dm814_default_clkctrl_regs },
+	{ 0x48181400, dm814_alwon_clkctrl_regs },
+	{ 0 },
+};
+
 static struct ti_dt_clk dm814_clks[] = {
-	DT_CLK(NULL, "devosc_ck", "devosc_ck"),
-	DT_CLK(NULL, "mpu_ck", "mpu_ck"),
-	DT_CLK(NULL, "sysclk4_ck", "sysclk4_ck"),
-	DT_CLK(NULL, "sysclk5_ck", "sysclk5_ck"),
-	DT_CLK(NULL, "sysclk6_ck", "sysclk6_ck"),
-	DT_CLK(NULL, "sysclk8_ck", "sysclk8_ck"),
-	DT_CLK(NULL, "sysclk10_ck", "sysclk10_ck"),
-	DT_CLK(NULL, "sysclk18_ck", "sysclk18_ck"),
 	DT_CLK(NULL, "timer_sys_ck", "devosc_ck"),
-	DT_CLK(NULL, "timer1_fck", "timer1_fck"),
-	DT_CLK(NULL, "timer2_fck", "timer2_fck"),
-	DT_CLK(NULL, "cpsw_125mhz_gclk", "cpsw_125mhz_gclk"),
-	DT_CLK(NULL, "cpsw_cpts_rft_clk", "cpsw_cpts_rft_clk"),
 	{ .node_name = NULL },
 };
 
@@ -83,6 +108,7 @@ int __init dm814x_dt_clk_init(void)
 {
 	ti_dt_clocks_register(dm814_clks);
 	omap2_clk_disable_autoidle_all();
+	ti_clk_add_aliases();
 	omap2_clk_enable_init_clocks(NULL, 0);
 	timer_clocks_initialized = true;
 

@@ -84,8 +84,9 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_ffree = -1;
 	buf->f_namelen = NAME_MAX;
 
-	/* leave fsid little-endian, regardless of host endianness */
-	fsid = *(u64 *)(&monmap->fsid) ^ *((u64 *)&monmap->fsid + 1);
+	/* Must convert the fsid, for consistent values across arches */
+	fsid = le64_to_cpu(*(__le64 *)(&monmap->fsid)) ^
+	       le64_to_cpu(*((__le64 *)&monmap->fsid + 1));
 	buf->f_fsid.val[0] = fsid & 0xffffffff;
 	buf->f_fsid.val[1] = fsid >> 32;
 
@@ -224,6 +225,7 @@ static int parse_fsopt_token(char *c, void *private)
 			return -ENOMEM;
 		break;
 	case Opt_mds_namespace:
+		kfree(fsopt->mds_namespace);
 		fsopt->mds_namespace = kstrndup(argstr[0].from,
 						argstr[0].to-argstr[0].from,
 						GFP_KERNEL);
@@ -231,6 +233,7 @@ static int parse_fsopt_token(char *c, void *private)
 			return -ENOMEM;
 		break;
 	case Opt_fscache_uniq:
+		kfree(fsopt->fscache_uniq);
 		fsopt->fscache_uniq = kstrndup(argstr[0].from,
 					       argstr[0].to-argstr[0].from,
 					       GFP_KERNEL);
@@ -330,11 +333,11 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	case Opt_acl:
-		fsopt->sb_flags |= MS_POSIXACL;
+		fsopt->sb_flags |= SB_POSIXACL;
 		break;
 #endif
 	case Opt_noacl:
-		fsopt->sb_flags &= ~MS_POSIXACL;
+		fsopt->sb_flags &= ~SB_POSIXACL;
 		break;
 	default:
 		BUG_ON(token);
@@ -519,7 +522,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",nopoolperm");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
-	if (fsopt->sb_flags & MS_POSIXACL)
+	if (fsopt->sb_flags & SB_POSIXACL)
 		seq_puts(m, ",acl");
 	else
 		seq_puts(m, ",noacl");
@@ -710,14 +713,17 @@ static int __init init_caches(void)
 		goto bad_dentry;
 
 	ceph_file_cachep = KMEM_CACHE(ceph_file_info, SLAB_MEM_SPREAD);
-
 	if (!ceph_file_cachep)
 		goto bad_file;
 
-	if ((error = ceph_fscache_register()))
-		goto bad_file;
+	error = ceph_fscache_register();
+	if (error)
+		goto bad_fscache;
 
 	return 0;
+
+bad_fscache:
+	kmem_cache_destroy(ceph_file_cachep);
 bad_file:
 	kmem_cache_destroy(ceph_dentry_cachep);
 bad_dentry:
@@ -835,7 +841,6 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc)
 	int err;
 	unsigned long started = jiffies;  /* note the start time */
 	struct dentry *root;
-	int first = 0;   /* first vfsmount for this super_block */
 
 	dout("mount start %p\n", fsc);
 	mutex_lock(&fsc->client->mount_mutex);
@@ -860,17 +865,17 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc)
 			path = fsc->mount_options->server_path + 1;
 			dout("mount opening path %s\n", path);
 		}
+
+		err = ceph_fs_debugfs_init(fsc);
+		if (err < 0)
+			goto out;
+
 		root = open_root_dentry(fsc, path, started);
 		if (IS_ERR(root)) {
 			err = PTR_ERR(root);
 			goto out;
 		}
 		fsc->sb->s_root = dget(root);
-		first = 1;
-
-		err = ceph_fs_debugfs_init(fsc);
-		if (err < 0)
-			goto fail;
 	} else {
 		root = dget(fsc->sb->s_root);
 	}
@@ -880,11 +885,6 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc)
 	mutex_unlock(&fsc->client->mount_mutex);
 	return root;
 
-fail:
-	if (first) {
-		dput(fsc->sb->s_root);
-		fsc->sb->s_root = NULL;
-	}
 out:
 	mutex_unlock(&fsc->client->mount_mutex);
 	return ERR_PTR(err);
@@ -987,7 +987,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 	dout("ceph_mount\n");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
-	flags |= MS_POSIXACL;
+	flags |= SB_POSIXACL;
 #endif
 	err = parse_mount_options(&fsopt, &opt, flags, data, dev_name);
 	if (err < 0) {

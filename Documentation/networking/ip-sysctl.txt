@@ -289,8 +289,7 @@ tcp_ecn_fallback - BOOLEAN
 	Default: 1 (fallback enabled)
 
 tcp_fack - BOOLEAN
-	Enable FACK congestion avoidance and fast retransmission.
-	The value is not used, if tcp_sack is not enabled.
+	This is a legacy option, it has no effect anymore.
 
 tcp_fin_timeout - INTEGER
 	The length of time an orphaned (no longer referenced by any
@@ -454,6 +453,7 @@ tcp_recovery - INTEGER
 
 	RACK: 0x1 enables the RACK loss detection for fast detection of lost
 	      retransmissions and tail drops.
+	RACK: 0x2 makes RACK's reordering window static (min_rtt/4).
 
 	Default: 0x1
 
@@ -508,7 +508,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	min: Minimal size of receive buffer used by TCP sockets.
 	It is guaranteed to each TCP socket, even under moderate memory
 	pressure.
-	Default: 1 page
+	Default: 4K
 
 	default: initial size of receive buffer used by TCP sockets.
 	This value overrides net.core.rmem_default used by other protocols.
@@ -606,6 +606,7 @@ tcp_fastopen_blackhole_timeout_sec - INTEGER
 	This time period will grow exponentially when more blackhole issues
 	get detected right after Fastopen is re-enabled and will reset to
 	initial value when the blackhole issue goes away.
+	0 to disable the blackhole detection.
 	By default, it is set to 1hr.
 
 tcp_syn_retries - INTEGER
@@ -666,7 +667,7 @@ tcp_window_scaling - BOOLEAN
 tcp_wmem - vector of 3 INTEGERs: min, default, max
 	min: Amount of memory reserved for send buffers for TCP sockets.
 	Each TCP socket has rights to use it due to fact of its birth.
-	Default: 1 page
+	Default: 4K
 
 	default: initial size of send buffer used by TCP sockets.  This
 	value overrides net.core.wmem_default used by other protocols.
@@ -1385,6 +1386,30 @@ mld_qrv - INTEGER
 	Default: 2 (as specified by RFC3810 9.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
 
+max_dst_opts_cnt - INTEGER
+	Maximum number of non-padding TLVs allowed in a Destination
+	options extension header. If this value is less than zero
+	then unknown options are disallowed and the number of known
+	TLVs allowed is the absolute value of this number.
+	Default: 8
+
+max_hbh_opts_cnt - INTEGER
+	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
+	options extension header. If this value is less than zero
+	then unknown options are disallowed and the number of known
+	TLVs allowed is the absolute value of this number.
+	Default: 8
+
+max dst_opts_len - INTEGER
+	Maximum length allowed for a Destination options extension
+	header.
+	Default: INT_MAX (unlimited)
+
+max hbh_opts_len - INTEGER
+	Maximum length allowed for a Hop-by-Hop options extension
+	header.
+	Default: INT_MAX (unlimited)
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER
@@ -1706,6 +1731,15 @@ ndisc_notify - BOOLEAN
 	0 - (default): do nothing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
+
+ndisc_tclass - INTEGER
+	The IPv6 Traffic Class to use by default when sending IPv6 Neighbor
+	Discovery (Router Solicitation, Router Advertisement, Neighbor
+	Solicitation, Neighbor Advertisement, Redirect) messages.
+	These 8 bits can be interpreted as 6 high order bits holding the DSCP
+	value and 2 low order bits representing ECN (which you probably want
+	to leave cleared).
+	0 - (default)
 
 mldv1_unsolicited_report_interval - INTEGER
 	The interval in milliseconds in which the next unsolicited

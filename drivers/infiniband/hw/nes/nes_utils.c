@@ -740,11 +740,11 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 /**
  * nes_mh_fix
  */
-void nes_mh_fix(unsigned long parm)
+void nes_mh_fix(struct timer_list *t)
 {
+	struct nes_adapter *nesadapter = from_timer(nesadapter, t, mh_timer);
+	struct nes_device *nesdev = nesadapter->nesdev;
 	unsigned long flags;
-	struct nes_device *nesdev = (struct nes_device *)parm;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_vnic *nesvnic;
 	u32 used_chunks_tx;
 	u32 temp_used_chunks_tx;
@@ -753,7 +753,6 @@ void nes_mh_fix(unsigned long parm)
 	u32 mac_tx_frames_low;
 	u32 mac_tx_frames_high;
 	u32 mac_tx_pauses;
-	u32 serdes_status;
 	u32 reset_value;
 	u32 tx_control;
 	u32 tx_config;
@@ -846,7 +845,7 @@ void nes_mh_fix(unsigned long parm)
 		}
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, 0x00000008);
-		serdes_status = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0);
+		nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0);
 
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP0, 0x000bdef7);
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_DRIVE0, 0x9ce73000);
@@ -859,7 +858,7 @@ void nes_mh_fix(unsigned long parm)
 		} else {
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_CONTROL0, 0xf0042222);
 		}
-		serdes_status = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_STATUS0);
+		nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_RX_EQ_STATUS0);
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL0, 0x000000ff);
 
 		nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONTROL, tx_control);
@@ -881,17 +880,16 @@ no_mh_work:
 /**
  * nes_clc
  */
-void nes_clc(unsigned long parm)
+void nes_clc(struct timer_list *t)
 {
+	struct nes_adapter *nesadapter = from_timer(nesadapter, t, lc_timer);
 	unsigned long flags;
-	struct nes_device *nesdev = (struct nes_device *)parm;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 
 	spin_lock_irqsave(&nesadapter->phy_lock, flags);
-    nesadapter->link_interrupt_count[0] = 0;
-    nesadapter->link_interrupt_count[1] = 0;
-    nesadapter->link_interrupt_count[2] = 0;
-    nesadapter->link_interrupt_count[3] = 0;
+	nesadapter->link_interrupt_count[0] = 0;
+	nesadapter->link_interrupt_count[1] = 0;
+	nesadapter->link_interrupt_count[2] = 0;
+	nesadapter->link_interrupt_count[3] = 0;
 	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 
 	nesadapter->lc_timer.expires = jiffies + 3600 * HZ;  /* 1 hour */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  *
@@ -90,13 +91,13 @@ static int __proc_lnet_stats(void *data, int write,
 
 	/* read */
 
-	LIBCFS_ALLOC(ctrs, sizeof(*ctrs));
+	ctrs = kzalloc(sizeof(*ctrs), GFP_NOFS);
 	if (!ctrs)
 		return -ENOMEM;
 
-	LIBCFS_ALLOC(tmpstr, tmpsiz);
+	tmpstr = kmalloc(tmpsiz, GFP_KERNEL);
 	if (!tmpstr) {
-		LIBCFS_FREE(ctrs, sizeof(*ctrs));
+		kfree(ctrs);
 		return -ENOMEM;
 	}
 
@@ -117,8 +118,8 @@ static int __proc_lnet_stats(void *data, int write,
 		rc = cfs_trace_copyout_string(buffer, nob,
 					      tmpstr + pos, "\n");
 
-	LIBCFS_FREE(tmpstr, tmpsiz);
-	LIBCFS_FREE(ctrs, sizeof(*ctrs));
+	kfree(tmpstr);
+	kfree(ctrs);
 	return rc;
 }
 
@@ -150,7 +151,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 	if (!*lenp)
 		return 0;
 
-	LIBCFS_ALLOC(tmpstr, tmpsiz);
+	tmpstr = kmalloc(tmpsiz, GFP_KERNEL);
 	if (!tmpstr)
 		return -ENOMEM;
 
@@ -182,7 +183,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 
 		if (ver != LNET_PROC_VERSION(the_lnet.ln_remote_nets_version)) {
 			lnet_net_unlock(0);
-			LIBCFS_FREE(tmpstr, tmpsiz);
+			kfree(tmpstr);
 			return -ESTALE;
 		}
 
@@ -247,7 +248,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 		}
 	}
 
-	LIBCFS_FREE(tmpstr, tmpsiz);
+	kfree(tmpstr);
 
 	if (!rc)
 		*lenp = len;
@@ -274,7 +275,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 	if (!*lenp)
 		return 0;
 
-	LIBCFS_ALLOC(tmpstr, tmpsiz);
+	tmpstr = kmalloc(tmpsiz, GFP_KERNEL);
 	if (!tmpstr)
 		return -ENOMEM;
 
@@ -302,7 +303,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 		if (ver != LNET_PROC_VERSION(the_lnet.ln_routers_version)) {
 			lnet_net_unlock(0);
 
-			LIBCFS_FREE(tmpstr, tmpsiz);
+			kfree(tmpstr);
 			return -ESTALE;
 		}
 
@@ -384,7 +385,7 @@ static int proc_lnet_routers(struct ctl_table *table, int write,
 		}
 	}
 
-	LIBCFS_FREE(tmpstr, tmpsiz);
+	kfree(tmpstr);
 
 	if (!rc)
 		*lenp = len;
@@ -417,7 +418,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 		return 0;
 	}
 
-	LIBCFS_ALLOC(tmpstr, tmpsiz);
+	tmpstr = kmalloc(tmpsiz, GFP_KERNEL);
 	if (!tmpstr)
 		return -ENOMEM;
 
@@ -447,7 +448,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 
 		if (ver != LNET_PROC_VERSION(ptable->pt_version)) {
 			lnet_net_unlock(cpt);
-			LIBCFS_FREE(tmpstr, tmpsiz);
+			kfree(tmpstr);
 			return -ESTALE;
 		}
 
@@ -555,7 +556,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 			*ppos = LNET_PROC_POS_MAKE(cpt, ver, hash, hoff);
 	}
 
-	LIBCFS_FREE(tmpstr, tmpsiz);
+	kfree(tmpstr);
 
 	if (!rc)
 		*lenp = len;
@@ -578,7 +579,7 @@ static int __proc_lnet_buffers(void *data, int write,
 
 	/* (4 %d) * 4 * LNET_CPT_NUMBER */
 	tmpsiz = 64 * (LNET_NRBPOOLS + 1) * LNET_CPT_NUMBER;
-	LIBCFS_ALLOC(tmpstr, tmpsiz);
+	tmpstr = kvmalloc(tmpsiz, GFP_KERNEL);
 	if (!tmpstr)
 		return -ENOMEM;
 
@@ -617,7 +618,7 @@ static int __proc_lnet_buffers(void *data, int write,
 		rc = cfs_trace_copyout_string(buffer, nob,
 					      tmpstr + pos, NULL);
 
-	LIBCFS_FREE(tmpstr, tmpsiz);
+	kvfree(tmpstr);
 	return rc;
 }
 
@@ -642,7 +643,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 	if (!*lenp)
 		return 0;
 
-	LIBCFS_ALLOC(tmpstr, tmpsiz);
+	tmpstr = kvmalloc(tmpsiz, GFP_KERNEL);
 	if (!tmpstr)
 		return -ENOMEM;
 
@@ -743,7 +744,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 			*ppos += 1;
 	}
 
-	LIBCFS_FREE(tmpstr, tmpsiz);
+	kvfree(tmpstr);
 
 	if (!rc)
 		*lenp = len;
@@ -794,7 +795,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	int rc;
 	int i;
 
-	LIBCFS_ALLOC(buf, buf_len);
+	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -828,7 +829,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	if (rc < 0)
 		goto out;
 
-	tmp = cfs_trimwhite(buf);
+	tmp = strim(buf);
 
 	rc = -EINVAL;
 	lnet_res_lock(0);
@@ -842,7 +843,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	}
 	lnet_res_unlock(0);
 out:
-	LIBCFS_FREE(buf, buf_len);
+	kfree(buf);
 	return rc;
 }
 

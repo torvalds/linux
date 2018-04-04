@@ -594,7 +594,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops at91_adc_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &at91_adc_configure_trigger,
 };
 
@@ -976,7 +975,6 @@ static int at91_adc_probe_pdata(struct at91_adc_state *st,
 }
 
 static const struct iio_info at91_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &at91_adc_read_raw,
 };
 
@@ -1179,9 +1177,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	st->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(st->reg_base)) {
+	if (IS_ERR(st->reg_base))
 		return PTR_ERR(st->reg_base);
-	}
+
 
 	/*
 	 * Disable all IRQs before setting up the handler

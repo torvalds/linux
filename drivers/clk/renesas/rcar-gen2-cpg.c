@@ -262,10 +262,9 @@ static unsigned int cpg_pll0_div __initdata;
 static u32 cpg_mode __initdata;
 
 struct clk * __init rcar_gen2_cpg_clk_register(struct device *dev,
-					       const struct cpg_core_clk *core,
-					       const struct cpg_mssr_info *info,
-					       struct clk **clks,
-					       void __iomem *base)
+	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
+	struct clk **clks, void __iomem *base,
+	struct raw_notifier_head *notifiers)
 {
 	const struct clk_div_table *table = NULL;
 	const struct clk *parent;

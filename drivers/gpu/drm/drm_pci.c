@@ -274,7 +274,7 @@ err_agp:
 	drm_pci_agp_destroy(dev);
 	pci_disable_device(pdev);
 err_free:
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_pci_dev);

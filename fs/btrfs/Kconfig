@@ -38,9 +38,6 @@ config BTRFS_FS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
 	  If you don't know what Access Control Lists are, say N
 
 config BTRFS_FS_CHECK_INTEGRITY
@@ -89,5 +86,16 @@ config BTRFS_ASSERT
 	help
 	  Enable run-time assertion checking.  This will result in panics if
 	  any of the assertions trip.  This is meant for btrfs developers only.
+
+	  If unsure, say N.
+
+config BTRFS_FS_REF_VERIFY
+	bool "Btrfs with the ref verify tool compiled in"
+	depends on BTRFS_FS
+	default n
+	help
+	  Enable run-time extent reference verification instrumentation.  This
+	  is meant to be used by btrfs developers for tracking down extent
+	  reference problems or verifying they didn't break something.
 
 	  If unsure, say N.

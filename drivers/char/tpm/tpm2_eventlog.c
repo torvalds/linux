@@ -21,9 +21,9 @@
 #include <linux/security.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 /*
  * calc_tpm2_event_size() - calculate the event size, where event

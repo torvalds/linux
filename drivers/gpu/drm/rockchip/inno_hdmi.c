@@ -224,7 +224,7 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 		break;
 
 	default:
-		dev_err(hdmi->dev, "Unknown power mode %d\n", mode);
+		DRM_DEV_ERROR(hdmi->dev, "Unknown power mode %d\n", mode);
 	}
 }
 
@@ -282,6 +282,7 @@ static int inno_hdmi_config_video_vsi(struct inno_hdmi *hdmi,
 	int rc;
 
 	rc = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							 &hdmi->connector,
 							 mode);
 
 	return inno_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_VSI,
@@ -742,8 +743,9 @@ static int inno_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	hdmi_writeb(hdmi, HDMI_INTERRUPT_STATUS1, m_INT_EDID_READY);
 
 	for (i = 0; i < num; i++) {
-		dev_dbg(hdmi->dev, "xfer: num: %d/%d, len: %d, flags: %#x\n",
-			i + 1, num, msgs[i].len, msgs[i].flags);
+		DRM_DEV_DEBUG(hdmi->dev,
+			      "xfer: num: %d/%d, len: %d, flags: %#x\n",
+			      i + 1, num, msgs[i].len, msgs[i].flags);
 
 		if (msgs[i].flags & I2C_M_RD)
 			ret = inno_hdmi_i2c_read(hdmi, &msgs[i]);
@@ -806,7 +808,7 @@ static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
 
 	hdmi->i2c = i2c;
 
-	dev_info(hdmi->dev, "registered %s I2C bus driver\n", adap->name);
+	DRM_DEV_INFO(hdmi->dev, "registered %s I2C bus driver\n", adap->name);
 
 	return adap;
 }
@@ -838,13 +840,14 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi->pclk = devm_clk_get(hdmi->dev, "pclk");
 	if (IS_ERR(hdmi->pclk)) {
-		dev_err(hdmi->dev, "Unable to get HDMI pclk clk\n");
+		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI pclk clk\n");
 		return PTR_ERR(hdmi->pclk);
 	}
 
 	ret = clk_prepare_enable(hdmi->pclk);
 	if (ret) {
-		dev_err(hdmi->dev, "Cannot enable HDMI pclk clock: %d\n", ret);
+		DRM_DEV_ERROR(hdmi->dev,
+			      "Cannot enable HDMI pclk clock: %d\n", ret);
 		return ret;
 	}
 

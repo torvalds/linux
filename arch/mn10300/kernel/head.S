@@ -434,14 +434,6 @@ ENTRY(empty_zero_page)
 	.space PAGE_SIZE
 
 	.balign PAGE_SIZE
-ENTRY(empty_bad_page)
-	.space PAGE_SIZE
-
-	.balign PAGE_SIZE
-ENTRY(empty_bad_pte_table)
-	.space PAGE_SIZE
-
-	.balign PAGE_SIZE
 ENTRY(large_page_table)
 	.space PAGE_SIZE
 

@@ -101,6 +101,9 @@ struct parse_events_term {
 	/* error string indexes for within parsed string */
 	int err_term;
 	int err_val;
+
+	/* Coming from implicit alias */
+	bool weak;
 };
 
 struct parse_events_error {
@@ -202,6 +205,9 @@ int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
+
+void parse_events_print_error(struct parse_events_error *err,
+			      const char *event);
 
 #ifdef HAVE_LIBELF_SUPPORT
 /*

@@ -40,6 +40,10 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_TUNNEL_OFFLOADS	= 1 << 2,
+	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
+	MLX5_QP_FLAG_TYPE_DCT		= 1 << 4,
+	MLX5_QP_FLAG_TYPE_DCI		= 1 << 5,
 };
 
 enum {
@@ -120,10 +124,12 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u8	cqe_version;
 	__u8	cmds_supp_uhw;
 	__u8	eth_min_inline;
-	__u8	reserved2;
+	__u8	clock_info_versions;
 	__u64	hca_core_clock_offset;
 	__u32	log_uar_size;
 	__u32	num_uars_per_page;
+	__u32	num_dyn_bfregs;
+	__u32	reserved3;
 };
 
 struct mlx5_ib_alloc_pd_resp {
@@ -191,6 +197,32 @@ struct mlx5_ib_sw_parsing_caps {
 	__u32 supported_qpts;
 };
 
+struct mlx5_ib_striding_rq_caps {
+	__u32 min_single_stride_log_num_of_bytes;
+	__u32 max_single_stride_log_num_of_bytes;
+	__u32 min_single_wqe_log_num_of_strides;
+	__u32 max_single_wqe_log_num_of_strides;
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
+	 */
+	__u32 supported_qpts;
+	__u32 reserved;
+};
+
+enum mlx5_ib_query_dev_resp_flags {
+	/* Support 128B CQE compression */
+	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP = 1 << 0,
+	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD  = 1 << 1,
+};
+
+enum mlx5_ib_tunnel_offloads {
+	MLX5_IB_TUNNELED_OFFLOADS_VXLAN  = 1 << 0,
+	MLX5_IB_TUNNELED_OFFLOADS_GRE    = 1 << 1,
+	MLX5_IB_TUNNELED_OFFLOADS_GENEVE = 1 << 2
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
@@ -199,8 +231,15 @@ struct mlx5_ib_query_device_resp {
 	struct	mlx5_ib_cqe_comp_caps cqe_comp_caps;
 	struct	mlx5_packet_pacing_caps packet_pacing_caps;
 	__u32	mlx5_ib_support_multi_pkt_send_wqes;
-	__u32	reserved;
+	__u32	flags; /* Use enum mlx5_ib_query_dev_resp_flags */
 	struct mlx5_ib_sw_parsing_caps sw_parsing_caps;
+	struct mlx5_ib_striding_rq_caps striding_rq_caps;
+	__u32	tunnel_offloads_caps; /* enum mlx5_ib_tunnel_offloads */
+	__u32	reserved;
+};
+
+enum mlx5_ib_create_cq_flags {
+	MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD	= 1 << 0,
 };
 
 struct mlx5_ib_create_cq {
@@ -209,7 +248,7 @@ struct mlx5_ib_create_cq {
 	__u32	cqe_size;
 	__u8    cqe_comp_en;
 	__u8    cqe_comp_res_format;
-	__u16	reserved; /* explicit padding (optional on i386) */
+	__u16	flags;
 };
 
 struct mlx5_ib_create_cq_resp {
@@ -246,8 +285,11 @@ struct mlx5_ib_create_qp {
 	__u32	rq_wqe_shift;
 	__u32	flags;
 	__u32	uidx;
-	__u32	reserved0;
-	__u64	sq_buf_addr;
+	__u32	bfreg_index;
+	union {
+		__u64	sq_buf_addr;
+		__u64	access_key;
+	};
 };
 
 /* RX Hash function flags */
@@ -271,7 +313,9 @@ enum mlx5_rx_hash_fields {
 	MLX5_RX_HASH_SRC_PORT_TCP	= 1 << 4,
 	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
-	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7
+	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	/* Save bits for future fields */
+	MLX5_RX_HASH_INNER		= (1UL << 31),
 };
 
 struct mlx5_ib_create_qp_rss {
@@ -281,7 +325,7 @@ struct mlx5_ib_create_qp_rss {
 	__u8 reserved[6];
 	__u8 rx_hash_key[128]; /* valid only for Toeplitz */
 	__u32   comp_mask;
-	__u32   reserved1;
+	__u32	flags;
 };
 
 struct mlx5_ib_create_qp_resp {
@@ -295,6 +339,10 @@ struct mlx5_ib_alloc_mw {
 	__u16	reserved2;
 };
 
+enum mlx5_ib_create_wq_mask {
+	MLX5_IB_CREATE_WQ_STRIDING_RQ	= (1 << 0),
+};
+
 struct mlx5_ib_create_wq {
 	__u64   buf_addr;
 	__u64   db_addr;
@@ -303,13 +351,20 @@ struct mlx5_ib_create_wq {
 	__u32   user_index;
 	__u32   flags;
 	__u32   comp_mask;
-	__u32   reserved;
+	__u32	single_stride_log_num_of_bytes;
+	__u32	single_wqe_log_num_of_strides;
+	__u32	two_byte_shift_en;
 };
 
 struct mlx5_ib_create_ah_resp {
 	__u32	response_length;
 	__u8	dmac[ETH_ALEN];
 	__u8	reserved[6];
+};
+
+struct mlx5_ib_modify_qp_resp {
+	__u32	response_length;
+	__u32	dctn;
 };
 
 struct mlx5_ib_create_wq_resp {
@@ -325,5 +380,37 @@ struct mlx5_ib_create_rwq_ind_tbl_resp {
 struct mlx5_ib_modify_wq {
 	__u32	comp_mask;
 	__u32	reserved;
+};
+
+struct mlx5_ib_clock_info {
+	__u32 sign;
+	__u32 resv;
+	__u64 nsec;
+	__u64 cycles;
+	__u64 frac;
+	__u32 mult;
+	__u32 shift;
+	__u64 mask;
+	__u64 overflow_period;
+};
+
+enum mlx5_ib_mmap_cmd {
+	MLX5_IB_MMAP_REGULAR_PAGE               = 0,
+	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES       = 1,
+	MLX5_IB_MMAP_WC_PAGE                    = 2,
+	MLX5_IB_MMAP_NC_PAGE                    = 3,
+	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
+	MLX5_IB_MMAP_CORE_CLOCK                 = 5,
+	MLX5_IB_MMAP_ALLOC_WC                   = 6,
+	MLX5_IB_MMAP_CLOCK_INFO                 = 7,
+};
+
+enum {
+	MLX5_IB_CLOCK_INFO_KERNEL_UPDATING = 1,
+};
+
+/* Bit indexes for the mlx5_alloc_ucontext_resp.clock_info_versions bitmap */
+enum {
+	MLX5_IB_CLOCK_INFO_V1              = 0,
 };
 #endif /* MLX5_ABI_USER_H */

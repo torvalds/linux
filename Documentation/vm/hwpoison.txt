@@ -104,7 +104,7 @@ madvise(MADV_HWPOISON, ....)
 
 hwpoison-inject module through debugfs
 
-/sys/debug/hwpoison/
+/sys/kernel/debug/hwpoison/
 
 corrupt-pfn
 

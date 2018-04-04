@@ -146,7 +146,7 @@ struct vxlanhdr_gpe {
 		np_applied:1,
 		instance_applied:1,
 		version:2,
-reserved_flags2:2;
+		reserved_flags2:2;
 #elif defined(__BIG_ENDIAN_BITFIELD)
 	u8	reserved_flags2:2,
 		version:2,
@@ -301,7 +301,7 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 		l4_hdr = ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
-		return features;;
+		return features;
 	}
 
 	if ((l4_hdr == IPPROTO_UDP) &&

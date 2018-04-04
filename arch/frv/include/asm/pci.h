@@ -17,11 +17,7 @@
 #include <linux/scatterlist.h>
 #include <asm-generic/pci.h>
 
-struct pci_dev;
-
 #define pcibios_assign_all_busses()	0
-
-extern void pcibios_set_master(struct pci_dev *dev);
 
 #ifdef CONFIG_MMU
 extern void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle);

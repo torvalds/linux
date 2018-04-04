@@ -134,12 +134,6 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	ws = bt_wait_ptr(bt, data->hctx);
 	drop_ctx = data->ctx == NULL;
 	do {
-		prepare_to_wait(&ws->wait, &wait, TASK_UNINTERRUPTIBLE);
-
-		tag = __blk_mq_get_tag(data, bt);
-		if (tag != -1)
-			break;
-
 		/*
 		 * We're out of tags on this hardware queue, kick any
 		 * pending IO submits before going to sleep waiting for
@@ -151,6 +145,13 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		 * Retry tag allocation after running the hardware queue,
 		 * as running the queue may also have found completions.
 		 */
+		tag = __blk_mq_get_tag(data, bt);
+		if (tag != -1)
+			break;
+
+		prepare_to_wait_exclusive(&ws->wait, &wait,
+						TASK_UNINTERRUPTIBLE);
+
 		tag = __blk_mq_get_tag(data, bt);
 		if (tag != -1)
 			break;
@@ -298,12 +299,12 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 }
 EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
 
-int blk_mq_reinit_tagset(struct blk_mq_tag_set *set,
-			 int (reinit_request)(void *, struct request *))
+int blk_mq_tagset_iter(struct blk_mq_tag_set *set, void *data,
+			 int (fn)(void *, struct request *))
 {
 	int i, j, ret = 0;
 
-	if (WARN_ON_ONCE(!reinit_request))
+	if (WARN_ON_ONCE(!fn))
 		goto out;
 
 	for (i = 0; i < set->nr_hw_queues; i++) {
@@ -316,8 +317,7 @@ int blk_mq_reinit_tagset(struct blk_mq_tag_set *set,
 			if (!tags->static_rqs[j])
 				continue;
 
-			ret = reinit_request(set->driver_data,
-					     tags->static_rqs[j]);
+			ret = fn(data, tags->static_rqs[j]);
 			if (ret)
 				goto out;
 		}
@@ -326,7 +326,7 @@ int blk_mq_reinit_tagset(struct blk_mq_tag_set *set,
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blk_mq_reinit_tagset);
+EXPORT_SYMBOL_GPL(blk_mq_tagset_iter);
 
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 		void *priv)

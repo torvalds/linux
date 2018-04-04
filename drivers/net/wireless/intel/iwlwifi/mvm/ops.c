@@ -86,6 +86,7 @@
 #include "time-event.h"
 #include "fw-api.h"
 #include "fw/api/scan.h"
+#include "fw/acpi.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -126,11 +127,8 @@ static int __init iwl_mvm_init(void)
 	}
 
 	ret = iwl_opmode_register("iwlmvm", &iwl_mvm_ops);
-
-	if (ret) {
+	if (ret)
 		pr_err("Unable to register MVM op_mode: %d\n", ret);
-		iwl_mvm_rate_control_unregister();
-	}
 
 	return ret;
 }
@@ -423,8 +421,6 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
  * Access is done through binary search
  */
 static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
-	HCMD_NAME(LINK_QUALITY_MEASUREMENT_CMD),
-	HCMD_NAME(LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_NOA_NOTIF),
 };
 
@@ -490,18 +486,21 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 static void iwl_mvm_async_handlers_wk(struct work_struct *wk);
 static void iwl_mvm_d0i3_exit_work(struct work_struct *wk);
 
-static u32 calc_min_backoff(struct iwl_trans *trans, const struct iwl_cfg *cfg)
+static u32 iwl_mvm_min_backoff(struct iwl_mvm *mvm)
 {
-	const struct iwl_pwr_tx_backoff *pwr_tx_backoff = cfg->pwr_tx_backoffs;
+	const struct iwl_pwr_tx_backoff *backoff = mvm->cfg->pwr_tx_backoffs;
+	u64 dflt_pwr_limit;
 
-	if (!pwr_tx_backoff)
+	if (!backoff)
 		return 0;
 
-	while (pwr_tx_backoff->pwr) {
-		if (trans->dflt_pwr_limit >= pwr_tx_backoff->pwr)
-			return pwr_tx_backoff->backoff;
+	dflt_pwr_limit = iwl_acpi_get_pwr_limit(mvm->dev);
 
-		pwr_tx_backoff++;
+	while (backoff->pwr) {
+		if (dflt_pwr_limit >= backoff->pwr)
+			return backoff->backoff;
+
+		backoff++;
 	}
 
 	return 0;
@@ -603,7 +602,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->fw = fw;
 	mvm->hw = hw;
 
-	iwl_fw_runtime_init(&mvm->fwrt, trans, fw, &iwl_mvm_fwrt_ops, mvm);
+	iwl_fw_runtime_init(&mvm->fwrt, trans, fw, &iwl_mvm_fwrt_ops, mvm,
+			    dbgfs_dir);
 
 	mvm->init_status = 0;
 
@@ -622,6 +622,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->fw_restart = iwlwifi_mod_params.fw_restart ? -1 : 0;
 
 	mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
+	mvm->snif_queue = IWL_MVM_DQA_INJECT_MONITOR_QUEUE;
 	mvm->probe_queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 	mvm->p2p_dev_queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
 
@@ -701,7 +702,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
 					  driver_data[2]);
 
-	trans_cfg.sdio_adma_addr = fw->sdio_adma_addr;
 	trans_cfg.sw_csum_tx = IWL_MVM_SW_TX_CSUM_OFFLOAD;
 
 	/* Set a short watchdog for the command queue */
@@ -748,7 +748,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
 	err = iwl_run_init_mvm_ucode(mvm, true);
-	if (!iwlmvm_mod_params.init_dbg)
+	if (!iwlmvm_mod_params.init_dbg || !err)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
 	mutex_unlock(&mvm->mutex);
@@ -771,7 +771,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto out_free;
 	mvm->hw_registered = true;
 
-	min_backoff = calc_min_backoff(trans, cfg);
+	min_backoff = iwl_mvm_min_backoff(mvm);
 	iwl_mvm_thermal_initialize(mvm, min_backoff);
 
 	err = iwl_mvm_dbgfs_register(mvm, dbgfs_dir);
@@ -802,6 +802,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_mvm_leds_exit(mvm);
 	iwl_mvm_thermal_exit(mvm);
  out_free:
+	iwl_fw_runtime_exit(&mvm->fwrt);
 	iwl_fw_flush_dump(&mvm->fwrt);
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -842,7 +843,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
 	kfree(mvm->d3_resume_sram);
 #endif
-
+	iwl_fw_runtime_exit(&mvm->fwrt);
 	iwl_trans_op_mode_leave(mvm->trans);
 
 	iwl_phy_db_free(mvm->phy_db);
@@ -1019,6 +1020,8 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
+	else if (cmd == WIDE_ID(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF))
+		iwl_mvm_tlc_update_notif(mvm, pkt);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
@@ -1118,7 +1121,7 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
 static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	bool calibrating = ACCESS_ONCE(mvm->calibrating);
+	bool calibrating = READ_ONCE(mvm->calibrating);
 
 	if (state)
 		set_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);

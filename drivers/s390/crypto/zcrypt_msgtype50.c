@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  zcrypt 2.1.0
  *
@@ -9,20 +10,6 @@
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
  *				  Ralph Wuerthner <rwuerthn@de.ibm.com>
  *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define KMSG_COMPONENT "zcrypt"
@@ -240,8 +227,7 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		mod = meb2->modulus + sizeof(meb2->modulus) - mod_len;
 		exp = meb2->exponent + sizeof(meb2->exponent) - mod_len;
 		inp = meb2->message + sizeof(meb2->message) - mod_len;
-	} else {
-		/* mod_len > 256 = 4096 bit RSA Key */
+	} else if (mod_len <= 512) {
 		struct type50_meb3_msg *meb3 = ap_msg->message;
 		memset(meb3, 0, sizeof(*meb3));
 		ap_msg->length = sizeof(*meb3);
@@ -251,7 +237,8 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_queue *zq,
 		mod = meb3->modulus + sizeof(meb3->modulus) - mod_len;
 		exp = meb3->exponent + sizeof(meb3->exponent) - mod_len;
 		inp = meb3->message + sizeof(meb3->message) - mod_len;
-	}
+	} else
+		return -EINVAL;
 
 	if (copy_from_user(mod, mex->n_modulus, mod_len) ||
 	    copy_from_user(exp, mex->b_key, mod_len) ||

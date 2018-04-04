@@ -98,6 +98,11 @@ static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
 	struct orc_entry *orc;
 	struct rela *rela;
 
+	if (!insn_sec->sym) {
+		WARN("missing symbol for section %s", insn_sec->name);
+		return -1;
+	}
+
 	/* populate ORC data */
 	orc = (struct orc_entry *)u_sec->data->d_buf + idx;
 	memcpy(orc, o, sizeof(*orc));
@@ -165,6 +170,8 @@ int create_orc_sections(struct objtool_file *file)
 
 	/* create .orc_unwind_ip and .rela.orc_unwind_ip sections */
 	sec = elf_create_section(file->elf, ".orc_unwind_ip", sizeof(int), idx);
+	if (!sec)
+		return -1;
 
 	ip_relasec = elf_create_rela_section(file->elf, sec);
 	if (!ip_relasec)

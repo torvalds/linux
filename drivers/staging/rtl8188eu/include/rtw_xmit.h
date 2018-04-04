@@ -115,11 +115,13 @@ struct pkt_attrib {
 	u16	seqnum;
 	u16	hdrlen;		/* the WLAN Header Len */
 	u32	pktlen;		/* the original 802.3 pkt raw_data len (not include
-				 * ether_hdr data) */
+				 * ether_hdr data)
+				 */
 	u32	last_txcmdsz;
 	u8	nr_frags;
 	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
-				 * indicate the encrypt algorith */
+				 * indicate the encrypt algorith
+				 */
 	u8	iv_len;
 	u8	icv_len;
 	u8	iv[18];
@@ -234,7 +236,8 @@ struct sta_xmit_priv {
 	spinlock_t lock;
 	int	option;
 	int	apsd_setting;	/* When bit mask is on, the associated edca
-				 * queue supports APSD. */
+				 * queue supports APSD.
+				 */
 	struct tx_servq	be_q;			/* priority == 0,3 */
 	struct tx_servq	bk_q;			/* priority == 1,2 */
 	struct tx_servq	vi_q;			/* priority == 4,5 */
@@ -280,7 +283,8 @@ struct	xmit_priv {
 	u8	hwxmit_entry;
 	u8	wmm_para_seq[4];/* sequence for wmm ac parameter strength
 				 * from large to small. it's value is 0->vo,
-				 * 1->vi, 2->be, 3->bk. */
+				 * 1->vi, 2->be, 3->bk.
+				 */
 	u8		txirp_cnt;/*  */
 	struct tasklet_struct xmit_tasklet;
 	/* per AC pending irp */

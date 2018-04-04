@@ -59,6 +59,7 @@
 #define ARM_MMU500_ACTLR_CPRE		(1 << 1)
 
 #define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
+#define ARM_MMU500_ACR_S2CRB_TLBEN	(1 << 10)
 #define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
 
 #define TLB_LOOP_TIMEOUT		1000000	/* 1s! */
@@ -118,14 +119,6 @@ enum arm_smmu_implementation {
 	ARM_MMU500,
 	CAVIUM_SMMUV2,
 };
-
-/* Until ACPICA headers cover IORT rev. C */
-#ifndef ACPI_IORT_SMMU_CORELINK_MMU401
-#define ACPI_IORT_SMMU_CORELINK_MMU401	0x4
-#endif
-#ifndef ACPI_IORT_SMMU_CAVIUM_THUNDERX
-#define ACPI_IORT_SMMU_CAVIUM_THUNDERX	0x5
-#endif
 
 struct arm_smmu_s2cr {
 	struct iommu_group		*group;
@@ -250,6 +243,7 @@ enum arm_smmu_domain_stage {
 struct arm_smmu_domain {
 	struct arm_smmu_device		*smmu;
 	struct io_pgtable_ops		*pgtbl_ops;
+	const struct iommu_gather_ops	*tlb_ops;
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
 	struct mutex			init_mutex; /* Protects smmu pointer */
@@ -735,7 +729,6 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	enum io_pgtable_fmt fmt;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
-	const struct iommu_gather_ops *tlb_ops;
 
 	mutex_lock(&smmu_domain->init_mutex);
 	if (smmu_domain->smmu)
@@ -813,7 +806,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 			ias = min(ias, 32UL);
 			oas = min(oas, 32UL);
 		}
-		tlb_ops = &arm_smmu_s1_tlb_ops;
+		smmu_domain->tlb_ops = &arm_smmu_s1_tlb_ops;
 		break;
 	case ARM_SMMU_DOMAIN_NESTED:
 		/*
@@ -833,9 +826,9 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 			oas = min(oas, 40UL);
 		}
 		if (smmu->version == ARM_SMMU_V2)
-			tlb_ops = &arm_smmu_s2_tlb_ops_v2;
+			smmu_domain->tlb_ops = &arm_smmu_s2_tlb_ops_v2;
 		else
-			tlb_ops = &arm_smmu_s2_tlb_ops_v1;
+			smmu_domain->tlb_ops = &arm_smmu_s2_tlb_ops_v1;
 		break;
 	default:
 		ret = -EINVAL;
@@ -863,7 +856,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
-		.tlb		= tlb_ops,
+		.tlb		= smmu_domain->tlb_ops,
 		.iommu_dev	= smmu->dev,
 	};
 
@@ -1259,6 +1252,14 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 	return ops->unmap(ops, iova, size);
 }
 
+static void arm_smmu_iotlb_sync(struct iommu_domain *domain)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	if (smmu_domain->tlb_ops)
+		smmu_domain->tlb_ops->tlb_sync(smmu_domain);
+}
+
 static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 					      dma_addr_t iova)
 {
@@ -1562,6 +1563,8 @@ static struct iommu_ops arm_smmu_ops = {
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
 	.map_sg			= default_iommu_map_sg,
+	.flush_iotlb_all	= arm_smmu_iotlb_sync,
+	.iotlb_sync		= arm_smmu_iotlb_sync,
 	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.add_device		= arm_smmu_add_device,
 	.remove_device		= arm_smmu_remove_device,
@@ -1606,7 +1609,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		 * Allow unmatched Stream IDs to allocate bypass
 		 * TLB entries for reduced latency.
 		 */
-		reg |= ARM_MMU500_ACR_SMTNMB_TLBEN;
+		reg |= ARM_MMU500_ACR_SMTNMB_TLBEN | ARM_MMU500_ACR_S2CRB_TLBEN;
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
 
@@ -2208,12 +2211,12 @@ static struct platform_driver arm_smmu_driver = {
 };
 module_platform_driver(arm_smmu_driver);
 
-IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1", NULL);
-IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2", NULL);
-IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400", NULL);
-IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401", NULL);
-IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500", NULL);
-IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2", NULL);
+IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1");
+IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2");
+IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400");
+IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401");
+IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500");
+IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2");
 
 MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");

@@ -18,6 +18,17 @@ static inline int rt_task(struct task_struct *p)
 	return rt_prio(p->prio);
 }
 
+static inline bool task_is_realtime(struct task_struct *tsk)
+{
+	int policy = tsk->policy;
+
+	if (policy == SCHED_FIFO || policy == SCHED_RR)
+		return true;
+	if (policy == SCHED_DEADLINE)
+		return true;
+	return false;
+}
+
 #ifdef CONFIG_RT_MUTEXES
 /*
  * Must hold either p->pi_lock or task_rq(p)->lock.

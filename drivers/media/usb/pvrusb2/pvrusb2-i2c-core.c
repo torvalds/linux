@@ -585,17 +585,10 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
 							RC_PROTO_BIT_RC6_6A_32;
 		init_data->name = hdw->hdw_desc->description;
-		/* IR Receiver */
-		info.addr          = 0x71;
+		/* IR Transceiver */
+		info.addr = 0x71;
 		info.platform_data = init_data;
-		strlcpy(info.type, "ir_rx_z8f0811_haup", I2C_NAME_SIZE);
-		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
-			   info.type, info.addr);
-		i2c_new_device(&hdw->i2c_adap, &info);
-		/* IR Trasmitter */
-		info.addr          = 0x70;
-		info.platform_data = init_data;
-		strlcpy(info.type, "ir_tx_z8f0811_haup", I2C_NAME_SIZE);
+		strlcpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
 		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
 			   info.type, info.addr);
 		i2c_new_device(&hdw->i2c_adap, &info);

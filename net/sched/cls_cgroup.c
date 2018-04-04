@@ -60,15 +60,21 @@ static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
 
+static void __cls_cgroup_destroy(struct cls_cgroup_head *head)
+{
+	tcf_exts_destroy(&head->exts);
+	tcf_em_tree_destroy(&head->ematches);
+	tcf_exts_put_net(&head->exts);
+	kfree(head);
+}
+
 static void cls_cgroup_destroy_work(struct work_struct *work)
 {
 	struct cls_cgroup_head *head = container_of(work,
 						    struct cls_cgroup_head,
 						    work);
 	rtnl_lock();
-	tcf_exts_destroy(&head->exts);
-	tcf_em_tree_destroy(&head->ematches);
-	kfree(head);
+	__cls_cgroup_destroy(head);
 	rtnl_unlock();
 }
 
@@ -85,7 +91,8 @@ static void cls_cgroup_destroy_rcu(struct rcu_head *root)
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     void **arg, bool ovr)
+			     void **arg, bool ovr,
+			     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
@@ -115,7 +122,8 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &new->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &new->exts, ovr,
+				extack);
 	if (err < 0)
 		goto errout;
 
@@ -124,8 +132,10 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 
 	rcu_assign_pointer(tp->root, new);
-	if (head)
+	if (head) {
+		tcf_exts_get_net(&head->exts);
 		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
+	}
 	return 0;
 errout:
 	tcf_exts_destroy(&new->exts);
@@ -133,16 +143,22 @@ errout:
 	return err;
 }
 
-static void cls_cgroup_destroy(struct tcf_proto *tp)
+static void cls_cgroup_destroy(struct tcf_proto *tp,
+			       struct netlink_ext_ack *extack)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
 	/* Head can still be NULL due to cls_cgroup_init(). */
-	if (head)
-		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
+	if (head) {
+		if (tcf_exts_get_net(&head->exts))
+			call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
+		else
+			__cls_cgroup_destroy(head);
+	}
 }
 
-static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last,
+			     struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

@@ -71,6 +71,7 @@ struct brcmf_bus_dcmd {
  * @wowl_config: specify if dongle is configured for wowl when going to suspend
  * @get_ramsize: obtain size of device memory.
  * @get_memdump: obtain device memory dump in provided buffer.
+ * @get_fwname: obtain firmware name.
  *
  * This structure provides an abstract interface towards the
  * bus specific driver. For control messages to common driver
@@ -87,6 +88,8 @@ struct brcmf_bus_ops {
 	void (*wowl_config)(struct device *dev, bool enabled);
 	size_t (*get_ramsize)(struct device *dev);
 	int (*get_memdump)(struct device *dev, void *data, size_t len);
+	int (*get_fwname)(struct device *dev, uint chip, uint chiprev,
+			  unsigned char *fw_name);
 };
 
 
@@ -222,6 +225,13 @@ int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
 		return -EOPNOTSUPP;
 
 	return bus->ops->get_memdump(bus->dev, data, len);
+}
+
+static inline
+int brcmf_bus_get_fwname(struct brcmf_bus *bus, uint chip, uint chiprev,
+			 unsigned char *fw_name)
+{
+	return bus->ops->get_fwname(bus->dev, chip, chiprev, fw_name);
 }
 
 /*

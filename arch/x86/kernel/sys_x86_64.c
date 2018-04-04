@@ -188,6 +188,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	if (len > TASK_SIZE)
 		return -ENOMEM;
 
+	/* No address checking. See comment at mmap_address_hint_valid() */
 	if (flags & MAP_FIXED)
 		return addr;
 
@@ -197,12 +198,15 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 	/* requesting a specific address */
 	if (addr) {
-		addr = PAGE_ALIGN(addr);
+		addr &= PAGE_MASK;
+		if (!mmap_address_hint_valid(addr, len))
+			goto get_unmapped_area;
+
 		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr &&
-				(!vma || addr + len <= vm_start_gap(vma)))
+		if (!vma || addr + len <= vm_start_gap(vma))
 			return addr;
 	}
+get_unmapped_area:
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;

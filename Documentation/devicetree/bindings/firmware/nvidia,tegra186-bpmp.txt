@@ -66,7 +66,7 @@ See ".../sram/sram.txt" for the bindings.
 
 Example:
 
-hsp_top0: hsp@03c00000 {
+hsp_top0: hsp@3c00000 {
 	...
 	#mbox-cells = <2>;
 };

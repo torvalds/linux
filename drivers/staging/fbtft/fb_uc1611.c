@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the UltraChip UC1611 LCD controller
  *
  * The display is 4-bit grayscale (16 shades) 240x160.
  *
  * Copyright (C) 2015 Henri Chain
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -225,7 +216,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	u8 *buf8 = par->txbuf.buf;
 	u16 *buf16 = par->txbuf.buf;
 	int line_length = par->info->fix.line_length;
-	int y_start = (offset / line_length);
+	int y_start = offset / line_length;
 	int y_end = (offset + len - 1) / line_length;
 	int x, y, i;
 	int ret = 0;

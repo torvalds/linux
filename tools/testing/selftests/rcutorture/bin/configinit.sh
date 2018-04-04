@@ -32,7 +32,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/configinit.sh.$$
+T=${TMPDIR-/tmp}/configinit.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
@@ -51,7 +51,7 @@ then
 			mkdir $builddir
 		fi
 	else
-		echo Bad build directory: \"$builddir\"
+		echo Bad build directory: \"$buildloc\"
 		exit 2
 	fi
 fi

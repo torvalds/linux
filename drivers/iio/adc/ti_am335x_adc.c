@@ -523,7 +523,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 	}
 	am335x_tsc_se_adc_done(adc_dev->mfd_tscadc);
 
-	if (found == false)
+	if (!found)
 		ret =  -EBUSY;
 
 err_unlock:
@@ -533,7 +533,6 @@ err_unlock:
 
 static const struct iio_info tiadc_info = {
 	.read_raw = &tiadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int tiadc_request_dma(struct platform_device *pdev,

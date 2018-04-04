@@ -153,7 +153,6 @@ static struct phy_driver microchip_phy_driver[] = {
 
 	.config_init	= genphy_config_init,
 	.config_aneg	= lan88xx_config_aneg,
-	.read_status	= genphy_read_status,
 
 	.ack_interrupt	= lan88xx_phy_ack_interrupt,
 	.config_intr	= lan88xx_phy_config_intr,

@@ -490,7 +490,7 @@ static int clariion_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h) , GFP_KERNEL);
 	if (!h)
-		return -ENOMEM;
+		return SCSI_DH_NOMEM;
 	h->lun_state = CLARIION_LUN_UNINITIALIZED;
 	h->default_sp = CLARIION_UNBOUND_LU;
 	h->current_sp = CLARIION_UNBOUND_LU;
@@ -510,11 +510,11 @@ static int clariion_bus_attach(struct scsi_device *sdev)
 		    h->default_sp + 'A');
 
 	sdev->handler_data = h;
-	return 0;
+	return SCSI_DH_OK;
 
 failed:
 	kfree(h);
-	return -EINVAL;
+	return err;
 }
 
 static void clariion_bus_detach(struct scsi_device *sdev)

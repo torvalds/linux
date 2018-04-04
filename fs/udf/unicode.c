@@ -200,7 +200,7 @@ static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
 	cmp_id = ocu[0];
 	if (cmp_id != 8 && cmp_id != 16) {
 		memset(str_o, 0, str_max_len);
-		pr_err("unknown compression code (%d)\n", cmp_id);
+		pr_err("unknown compression code (%u)\n", cmp_id);
 		return -EINVAL;
 	}
 	u_ch = cmp_id >> 3;

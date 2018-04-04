@@ -1,6 +1,7 @@
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
+#include <xen/xen.h>
 
 #include <asm/fpu/internal.h>
 #include <asm/traps.h>
@@ -20,16 +21,16 @@ ex_fixup_handler(const struct exception_table_entry *x)
 	return (ex_handler_t)((unsigned long)&x->handler + x->handler);
 }
 
-bool ex_handler_default(const struct exception_table_entry *fixup,
-		       struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_default(const struct exception_table_entry *fixup,
+				  struct pt_regs *regs, int trapnr)
 {
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
 EXPORT_SYMBOL(ex_handler_default);
 
-bool ex_handler_fault(const struct exception_table_entry *fixup,
-		     struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_fault(const struct exception_table_entry *fixup,
+				struct pt_regs *regs, int trapnr)
 {
 	regs->ip = ex_fixup_addr(fixup);
 	regs->ax = trapnr;
@@ -41,8 +42,8 @@ EXPORT_SYMBOL_GPL(ex_handler_fault);
  * Handler for UD0 exception following a failed test against the
  * result of a refcount inc/dec/add/sub.
  */
-bool ex_handler_refcount(const struct exception_table_entry *fixup,
-			 struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_refcount(const struct exception_table_entry *fixup,
+				   struct pt_regs *regs, int trapnr)
 {
 	/* First unconditionally saturate the refcount. */
 	*(int *)regs->cx = INT_MIN / 2;
@@ -67,17 +68,22 @@ bool ex_handler_refcount(const struct exception_table_entry *fixup,
 	 * wrapped around) will be set. Additionally, seeing the refcount
 	 * reach 0 will set ZF (Zero Flag: result was zero). In each of
 	 * these cases we want a report, since it's a boundary condition.
-	 *
+	 * The SF case is not reported since it indicates post-boundary
+	 * manipulations below zero or above INT_MAX. And if none of the
+	 * flags are set, something has gone very wrong, so report it.
 	 */
 	if (regs->flags & (X86_EFLAGS_OF | X86_EFLAGS_ZF)) {
 		bool zero = regs->flags & X86_EFLAGS_ZF;
 
 		refcount_error_report(regs, zero ? "hit zero" : "overflow");
+	} else if ((regs->flags & X86_EFLAGS_SF) == 0) {
+		/* Report if none of OF, ZF, nor SF are set. */
+		refcount_error_report(regs, "unexpected saturation");
 	}
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(ex_handler_refcount);
+EXPORT_SYMBOL(ex_handler_refcount);
 
 /*
  * Handler for when we fail to restore a task's FPU state.  We should never get
@@ -89,8 +95,8 @@ EXPORT_SYMBOL_GPL(ex_handler_refcount);
  * of vulnerability by restoring from the initial state (essentially, zeroing
  * out all the FPU registers) if we can't restore from the task's FPU state.
  */
-bool ex_handler_fprestore(const struct exception_table_entry *fixup,
-			  struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_fprestore(const struct exception_table_entry *fixup,
+				    struct pt_regs *regs, int trapnr)
 {
 	regs->ip = ex_fixup_addr(fixup);
 
@@ -102,8 +108,8 @@ bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL_GPL(ex_handler_fprestore);
 
-bool ex_handler_ext(const struct exception_table_entry *fixup,
-		   struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_ext(const struct exception_table_entry *fixup,
+			      struct pt_regs *regs, int trapnr)
 {
 	/* Special hack for uaccess_err */
 	current->thread.uaccess_err = 1;
@@ -112,8 +118,8 @@ bool ex_handler_ext(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_ext);
 
-bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
-			     struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
+				       struct pt_regs *regs, int trapnr)
 {
 	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pF)\n",
 			 (unsigned int)regs->cx, regs->ip, (void *)regs->ip))
@@ -127,8 +133,8 @@ bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_rdmsr_unsafe);
 
-bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
-			     struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
+				       struct pt_regs *regs, int trapnr)
 {
 	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pF)\n",
 			 (unsigned int)regs->cx, (unsigned int)regs->dx,
@@ -141,8 +147,8 @@ bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_wrmsr_unsafe);
 
-bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
-			 struct pt_regs *regs, int trapnr)
+__visible bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
+				   struct pt_regs *regs, int trapnr)
 {
 	if (static_cpu_has(X86_BUG_NULL_SEG))
 		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
@@ -151,7 +157,7 @@ bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 }
 EXPORT_SYMBOL(ex_handler_clear_fs);
 
-bool ex_has_fault_handler(unsigned long ip)
+__visible bool ex_has_fault_handler(unsigned long ip)
 {
 	const struct exception_table_entry *e;
 	ex_handler_t handler;
@@ -207,8 +213,9 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 * Old CPUs leave the high bits of CS on the stack
 	 * undefined.  I'm not sure which CPUs do this, but at least
 	 * the 486 DX works this way.
+	 * Xen pv domains are not using the default __KERNEL_CS.
 	 */
-	if (regs->cs != __KERNEL_CS)
+	if (!xen_pv_domain() && regs->cs != __KERNEL_CS)
 		goto fail;
 
 	/*

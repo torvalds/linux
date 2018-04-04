@@ -118,7 +118,7 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from);
 static int sock_mmap(struct file *file, struct vm_area_struct *vma);
 
 static int sock_close(struct inode *inode, struct file *file);
-static unsigned int sock_poll(struct file *file,
+static __poll_t sock_poll(struct file *file,
 			      struct poll_table_struct *wait);
 static long sock_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
@@ -161,12 +161,6 @@ static const struct file_operations socket_file_ops = {
 
 static DEFINE_SPINLOCK(net_family_lock);
 static const struct net_proto_family __rcu *net_families[NPROTO] __read_mostly;
-
-/*
- *	Statistics counters of the socket lists
- */
-
-static DEFINE_PER_CPU(int, sockets_in_use);
 
 /*
  * Support routines.
@@ -406,8 +400,10 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 		name.len = strlen(name.name);
 	}
 	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry))
+	if (unlikely(!path.dentry)) {
+		sock_release(sock);
 		return ERR_PTR(-ENOMEM);
+	}
 	path.mnt = mntget(sock_mnt);
 
 	d_instantiate(path.dentry, SOCK_INODE(sock));
@@ -415,9 +411,11 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
 		  &socket_file_ops);
 	if (IS_ERR(file)) {
-		/* drop dentry, keep inode */
+		/* drop dentry, keep inode for a bit */
 		ihold(d_inode(path.dentry));
 		path_put(&path);
+		/* ... and now kill it properly */
+		sock_release(sock);
 		return file;
 	}
 
@@ -432,8 +430,10 @@ static int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
 	int fd = get_unused_fd_flags(flags);
-	if (unlikely(fd < 0))
+	if (unlikely(fd < 0)) {
+		sock_release(sock);
 		return fd;
+	}
 
 	newfile = sock_alloc_file(sock, flags, NULL);
 	if (likely(!IS_ERR(newfile))) {
@@ -568,14 +568,12 @@ struct socket *sock_alloc(void)
 
 	sock = SOCKET_I(inode);
 
-	kmemcheck_annotate_bitfield(sock, type);
 	inode->i_ino = get_next_ino();
 	inode->i_mode = S_IFSOCK | S_IRWXUGO;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_op = &sockfs_inode_ops;
 
-	this_cpu_add(sockets_in_use, 1);
 	return sock;
 }
 EXPORT_SYMBOL(sock_alloc);
@@ -602,7 +600,6 @@ void sock_release(struct socket *sock)
 	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
 
-	this_cpu_sub(sockets_in_use, 1);
 	if (!sock->file) {
 		iput(SOCK_INODE(sock));
 		return;
@@ -964,9 +961,28 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
 	 * If this ioctl is unknown try to hand it down
 	 * to the NIC driver.
 	 */
-	if (err == -ENOIOCTLCMD)
-		err = dev_ioctl(net, cmd, argp);
+	if (err != -ENOIOCTLCMD)
+		return err;
 
+	if (cmd == SIOCGIFCONF) {
+		struct ifconf ifc;
+		if (copy_from_user(&ifc, argp, sizeof(struct ifconf)))
+			return -EFAULT;
+		rtnl_lock();
+		err = dev_ifconf(net, &ifc, sizeof(struct ifreq));
+		rtnl_unlock();
+		if (!err && copy_to_user(argp, &ifc, sizeof(struct ifconf)))
+			err = -EFAULT;
+	} else {
+		struct ifreq ifr;
+		bool need_copyout;
+		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+			return -EFAULT;
+		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+		if (!err && need_copyout)
+			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+				return -EFAULT;
+	}
 	return err;
 }
 
@@ -991,12 +1007,19 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	sock = file->private_data;
 	sk = sock->sk;
 	net = sock_net(sk);
-	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
-		err = dev_ioctl(net, cmd, argp);
+	if (unlikely(cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))) {
+		struct ifreq ifr;
+		bool need_copyout;
+		if (copy_from_user(&ifr, argp, sizeof(struct ifreq)))
+			return -EFAULT;
+		err = dev_ioctl(net, cmd, &ifr, &need_copyout);
+		if (!err && need_copyout)
+			if (copy_to_user(argp, &ifr, sizeof(struct ifreq)))
+				return -EFAULT;
 	} else
 #ifdef CONFIG_WEXT_CORE
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
-		err = dev_ioctl(net, cmd, argp);
+		err = wext_handle_ioctl(net, cmd, argp);
 	} else
 #endif
 		switch (cmd) {
@@ -1092,9 +1115,9 @@ out_release:
 EXPORT_SYMBOL(sock_create_lite);
 
 /* No kernel lock held - perfect */
-static unsigned int sock_poll(struct file *file, poll_table *wait)
+static __poll_t sock_poll(struct file *file, poll_table *wait)
 {
-	unsigned int busy_flag = 0;
+	__poll_t busy_flag = 0;
 	struct socket *sock;
 
 	/*
@@ -1331,19 +1354,9 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
-		goto out;
+		return retval;
 
-	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
-	if (retval < 0)
-		goto out_release;
-
-out:
-	/* It may be already another descriptor 8) Not kernel problem. */
-	return retval;
-
-out_release:
-	sock_release(sock);
-	return retval;
+	return sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 }
 
 /*
@@ -1367,87 +1380,72 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
 	/*
+	 * reserve descriptors and make sure we won't fail
+	 * to return them to userland.
+	 */
+	fd1 = get_unused_fd_flags(flags);
+	if (unlikely(fd1 < 0))
+		return fd1;
+
+	fd2 = get_unused_fd_flags(flags);
+	if (unlikely(fd2 < 0)) {
+		put_unused_fd(fd1);
+		return fd2;
+	}
+
+	err = put_user(fd1, &usockvec[0]);
+	if (err)
+		goto out;
+
+	err = put_user(fd2, &usockvec[1]);
+	if (err)
+		goto out;
+
+	/*
 	 * Obtain the first socket and check if the underlying protocol
 	 * supports the socketpair call.
 	 */
 
 	err = sock_create(family, type, protocol, &sock1);
-	if (err < 0)
+	if (unlikely(err < 0))
 		goto out;
 
 	err = sock_create(family, type, protocol, &sock2);
-	if (err < 0)
-		goto out_release_1;
-
-	err = sock1->ops->socketpair(sock1, sock2);
-	if (err < 0)
-		goto out_release_both;
-
-	fd1 = get_unused_fd_flags(flags);
-	if (unlikely(fd1 < 0)) {
-		err = fd1;
-		goto out_release_both;
+	if (unlikely(err < 0)) {
+		sock_release(sock1);
+		goto out;
 	}
 
-	fd2 = get_unused_fd_flags(flags);
-	if (unlikely(fd2 < 0)) {
-		err = fd2;
-		goto out_put_unused_1;
+	err = sock1->ops->socketpair(sock1, sock2);
+	if (unlikely(err < 0)) {
+		sock_release(sock2);
+		sock_release(sock1);
+		goto out;
 	}
 
 	newfile1 = sock_alloc_file(sock1, flags, NULL);
 	if (IS_ERR(newfile1)) {
 		err = PTR_ERR(newfile1);
-		goto out_put_unused_both;
+		sock_release(sock2);
+		goto out;
 	}
 
 	newfile2 = sock_alloc_file(sock2, flags, NULL);
 	if (IS_ERR(newfile2)) {
 		err = PTR_ERR(newfile2);
-		goto out_fput_1;
+		fput(newfile1);
+		goto out;
 	}
-
-	err = put_user(fd1, &usockvec[0]);
-	if (err)
-		goto out_fput_both;
-
-	err = put_user(fd2, &usockvec[1]);
-	if (err)
-		goto out_fput_both;
 
 	audit_fd_pair(fd1, fd2);
 
 	fd_install(fd1, newfile1);
 	fd_install(fd2, newfile2);
-	/* fd1 and fd2 may be already another descriptors.
-	 * Not kernel problem.
-	 */
-
 	return 0;
 
-out_fput_both:
-	fput(newfile2);
-	fput(newfile1);
-	put_unused_fd(fd2);
-	put_unused_fd(fd1);
-	goto out;
-
-out_fput_1:
-	fput(newfile1);
-	put_unused_fd(fd2);
-	put_unused_fd(fd1);
-	sock_release(sock2);
-	goto out;
-
-out_put_unused_both:
-	put_unused_fd(fd2);
-out_put_unused_1:
-	put_unused_fd(fd1);
-out_release_both:
-	sock_release(sock2);
-out_release_1:
-	sock_release(sock1);
 out:
+	put_unused_fd(fd2);
+	put_unused_fd(fd1);
 	return err;
 }
 
@@ -1563,7 +1561,6 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	if (IS_ERR(newfile)) {
 		err = PTR_ERR(newfile);
 		put_unused_fd(newfd);
-		sock_release(newsock);
 		goto out_put;
 	}
 
@@ -2645,17 +2642,8 @@ core_initcall(sock_init);	/* early initcall */
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)
 {
-	int cpu;
-	int counter = 0;
-
-	for_each_possible_cpu(cpu)
-	    counter += per_cpu(sockets_in_use, cpu);
-
-	/* It can be negative, by the way. 8) */
-	if (counter < 0)
-		counter = 0;
-
-	seq_printf(seq, "sockets: used %d\n", counter);
+	seq_printf(seq, "sockets: used %d\n",
+		   sock_inuse_get(seq->private));
 }
 #endif				/* CONFIG_PROC_FS */
 
@@ -2692,89 +2680,25 @@ static int do_siocgstampns(struct net *net, struct socket *sock,
 	return err;
 }
 
-static int dev_ifname32(struct net *net, struct compat_ifreq __user *uifr32)
-{
-	struct ifreq __user *uifr;
-	int err;
-
-	uifr = compat_alloc_user_space(sizeof(struct ifreq));
-	if (copy_in_user(uifr, uifr32, sizeof(struct compat_ifreq)))
-		return -EFAULT;
-
-	err = dev_ioctl(net, SIOCGIFNAME, uifr);
-	if (err)
-		return err;
-
-	if (copy_in_user(uifr32, uifr, sizeof(struct compat_ifreq)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int dev_ifconf(struct net *net, struct compat_ifconf __user *uifc32)
+static int compat_dev_ifconf(struct net *net, struct compat_ifconf __user *uifc32)
 {
 	struct compat_ifconf ifc32;
 	struct ifconf ifc;
-	struct ifconf __user *uifc;
-	struct compat_ifreq __user *ifr32;
-	struct ifreq __user *ifr;
-	unsigned int i, j;
 	int err;
 
 	if (copy_from_user(&ifc32, uifc32, sizeof(struct compat_ifconf)))
 		return -EFAULT;
 
-	memset(&ifc, 0, sizeof(ifc));
-	if (ifc32.ifcbuf == 0) {
-		ifc32.ifc_len = 0;
-		ifc.ifc_len = 0;
-		ifc.ifc_req = NULL;
-		uifc = compat_alloc_user_space(sizeof(struct ifconf));
-	} else {
-		size_t len = ((ifc32.ifc_len / sizeof(struct compat_ifreq)) + 1) *
-			sizeof(struct ifreq);
-		uifc = compat_alloc_user_space(sizeof(struct ifconf) + len);
-		ifc.ifc_len = len;
-		ifr = ifc.ifc_req = (void __user *)(uifc + 1);
-		ifr32 = compat_ptr(ifc32.ifcbuf);
-		for (i = 0; i < ifc32.ifc_len; i += sizeof(struct compat_ifreq)) {
-			if (copy_in_user(ifr, ifr32, sizeof(struct compat_ifreq)))
-				return -EFAULT;
-			ifr++;
-			ifr32++;
-		}
-	}
-	if (copy_to_user(uifc, &ifc, sizeof(struct ifconf)))
-		return -EFAULT;
+	ifc.ifc_len = ifc32.ifc_len;
+	ifc.ifc_req = compat_ptr(ifc32.ifcbuf);
 
-	err = dev_ioctl(net, SIOCGIFCONF, uifc);
+	rtnl_lock();
+	err = dev_ifconf(net, &ifc, sizeof(struct compat_ifreq));
+	rtnl_unlock();
 	if (err)
 		return err;
 
-	if (copy_from_user(&ifc, uifc, sizeof(struct ifconf)))
-		return -EFAULT;
-
-	ifr = ifc.ifc_req;
-	ifr32 = compat_ptr(ifc32.ifcbuf);
-	for (i = 0, j = 0;
-	     i + sizeof(struct compat_ifreq) <= ifc32.ifc_len && j < ifc.ifc_len;
-	     i += sizeof(struct compat_ifreq), j += sizeof(struct ifreq)) {
-		if (copy_in_user(ifr32, ifr, sizeof(struct compat_ifreq)))
-			return -EFAULT;
-		ifr32++;
-		ifr++;
-	}
-
-	if (ifc32.ifcbuf == 0) {
-		/* Translate from 64-bit structure multiple to
-		 * a 32-bit one.
-		 */
-		i = ifc.ifc_len;
-		i = ((i / sizeof(struct ifreq)) * sizeof(struct compat_ifreq));
-		ifc32.ifc_len = i;
-	} else {
-		ifc32.ifc_len = i;
-	}
+	ifc32.ifc_len = ifc.ifc_len;
 	if (copy_to_user(uifc32, &ifc32, sizeof(struct compat_ifconf)))
 		return -EFAULT;
 
@@ -2785,9 +2709,9 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 {
 	struct compat_ethtool_rxnfc __user *compat_rxnfc;
 	bool convert_in = false, convert_out = false;
-	size_t buf_size = ALIGN(sizeof(struct ifreq), 8);
-	struct ethtool_rxnfc __user *rxnfc;
-	struct ifreq __user *ifr;
+	size_t buf_size = 0;
+	struct ethtool_rxnfc __user *rxnfc = NULL;
+	struct ifreq ifr;
 	u32 rule_cnt = 0, actual_rule_cnt;
 	u32 ethcmd;
 	u32 data;
@@ -2824,18 +2748,14 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 	case ETHTOOL_SRXCLSRLDEL:
 		buf_size += sizeof(struct ethtool_rxnfc);
 		convert_in = true;
+		rxnfc = compat_alloc_user_space(buf_size);
 		break;
 	}
 
-	ifr = compat_alloc_user_space(buf_size);
-	rxnfc = (void __user *)ifr + ALIGN(sizeof(struct ifreq), 8);
-
-	if (copy_in_user(&ifr->ifr_name, &ifr32->ifr_name, IFNAMSIZ))
+	if (copy_from_user(&ifr.ifr_name, &ifr32->ifr_name, IFNAMSIZ))
 		return -EFAULT;
 
-	if (put_user(convert_in ? rxnfc : compat_ptr(data),
-		     &ifr->ifr_ifru.ifru_data))
-		return -EFAULT;
+	ifr.ifr_data = convert_in ? rxnfc : (void __user *)compat_rxnfc;
 
 	if (convert_in) {
 		/* We expect there to be holes between fs.m_ext and
@@ -2863,7 +2783,7 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 			return -EFAULT;
 	}
 
-	ret = dev_ioctl(net, SIOCETHTOOL, ifr);
+	ret = dev_ioctl(net, SIOCETHTOOL, &ifr, NULL);
 	if (ret)
 		return ret;
 
@@ -2904,113 +2824,43 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 
 static int compat_siocwandev(struct net *net, struct compat_ifreq __user *uifr32)
 {
-	void __user *uptr;
 	compat_uptr_t uptr32;
-	struct ifreq __user *uifr;
+	struct ifreq ifr;
+	void __user *saved;
+	int err;
 
-	uifr = compat_alloc_user_space(sizeof(*uifr));
-	if (copy_in_user(uifr, uifr32, sizeof(struct compat_ifreq)))
+	if (copy_from_user(&ifr, uifr32, sizeof(struct compat_ifreq)))
 		return -EFAULT;
 
 	if (get_user(uptr32, &uifr32->ifr_settings.ifs_ifsu))
 		return -EFAULT;
 
-	uptr = compat_ptr(uptr32);
+	saved = ifr.ifr_settings.ifs_ifsu.raw_hdlc;
+	ifr.ifr_settings.ifs_ifsu.raw_hdlc = compat_ptr(uptr32);
 
-	if (put_user(uptr, &uifr->ifr_settings.ifs_ifsu.raw_hdlc))
-		return -EFAULT;
-
-	return dev_ioctl(net, SIOCWANDEV, uifr);
-}
-
-static int bond_ioctl(struct net *net, unsigned int cmd,
-			 struct compat_ifreq __user *ifr32)
-{
-	struct ifreq kifr;
-	mm_segment_t old_fs;
-	int err;
-
-	switch (cmd) {
-	case SIOCBONDENSLAVE:
-	case SIOCBONDRELEASE:
-	case SIOCBONDSETHWADDR:
-	case SIOCBONDCHANGEACTIVE:
-		if (copy_from_user(&kifr, ifr32, sizeof(struct compat_ifreq)))
-			return -EFAULT;
-
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		err = dev_ioctl(net, cmd,
-				(struct ifreq __user __force *) &kifr);
-		set_fs(old_fs);
-
-		return err;
-	default:
-		return -ENOIOCTLCMD;
+	err = dev_ioctl(net, SIOCWANDEV, &ifr, NULL);
+	if (!err) {
+		ifr.ifr_settings.ifs_ifsu.raw_hdlc = saved;
+		if (copy_to_user(uifr32, &ifr, sizeof(struct compat_ifreq)))
+			err = -EFAULT;
 	}
+	return err;
 }
 
 /* Handle ioctls that use ifreq::ifr_data and just need struct ifreq converted */
 static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 				 struct compat_ifreq __user *u_ifreq32)
 {
-	struct ifreq __user *u_ifreq64;
-	char tmp_buf[IFNAMSIZ];
-	void __user *data64;
+	struct ifreq ifreq;
 	u32 data32;
 
-	if (copy_from_user(&tmp_buf[0], &(u_ifreq32->ifr_ifrn.ifrn_name[0]),
-			   IFNAMSIZ))
+	if (copy_from_user(ifreq.ifr_name, u_ifreq32->ifr_name, IFNAMSIZ))
 		return -EFAULT;
-	if (get_user(data32, &u_ifreq32->ifr_ifru.ifru_data))
+	if (get_user(data32, &u_ifreq32->ifr_data))
 		return -EFAULT;
-	data64 = compat_ptr(data32);
+	ifreq.ifr_data = compat_ptr(data32);
 
-	u_ifreq64 = compat_alloc_user_space(sizeof(*u_ifreq64));
-
-	if (copy_to_user(&u_ifreq64->ifr_ifrn.ifrn_name[0], &tmp_buf[0],
-			 IFNAMSIZ))
-		return -EFAULT;
-	if (put_user(data64, &u_ifreq64->ifr_ifru.ifru_data))
-		return -EFAULT;
-
-	return dev_ioctl(net, cmd, u_ifreq64);
-}
-
-static int dev_ifsioc(struct net *net, struct socket *sock,
-			 unsigned int cmd, struct compat_ifreq __user *uifr32)
-{
-	struct ifreq __user *uifr;
-	int err;
-
-	uifr = compat_alloc_user_space(sizeof(*uifr));
-	if (copy_in_user(uifr, uifr32, sizeof(*uifr32)))
-		return -EFAULT;
-
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)uifr);
-
-	if (!err) {
-		switch (cmd) {
-		case SIOCGIFFLAGS:
-		case SIOCGIFMETRIC:
-		case SIOCGIFMTU:
-		case SIOCGIFMEM:
-		case SIOCGIFHWADDR:
-		case SIOCGIFINDEX:
-		case SIOCGIFADDR:
-		case SIOCGIFBRDADDR:
-		case SIOCGIFDSTADDR:
-		case SIOCGIFNETMASK:
-		case SIOCGIFPFLAGS:
-		case SIOCGIFTXQLEN:
-		case SIOCGMIIPHY:
-		case SIOCGMIIREG:
-			if (copy_in_user(uifr32, uifr, sizeof(*uifr32)))
-				err = -EFAULT;
-			break;
-		}
-	}
-	return err;
+	return dev_ioctl(net, cmd, &ifreq, NULL);
 }
 
 static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
@@ -3018,7 +2868,6 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 {
 	struct ifreq ifr;
 	struct compat_ifmap __user *uifmap32;
-	mm_segment_t old_fs;
 	int err;
 
 	uifmap32 = &uifr32->ifr_ifru.ifru_map;
@@ -3032,10 +2881,7 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 	if (err)
 		return -EFAULT;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = dev_ioctl(net, cmd, (void  __user __force *)&ifr);
-	set_fs(old_fs);
+	err = dev_ioctl(net, cmd, &ifr, NULL);
 
 	if (cmd == SIOCGIFMAP && !err) {
 		err = copy_to_user(uifr32, &ifr, sizeof(ifr.ifr_name));
@@ -3168,10 +3014,8 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCSIFBR:
 	case SIOCGIFBR:
 		return old_bridge_ioctl(argp);
-	case SIOCGIFNAME:
-		return dev_ifname32(net, argp);
 	case SIOCGIFCONF:
-		return dev_ifconf(net, argp);
+		return compat_dev_ifconf(net, argp);
 	case SIOCETHTOOL:
 		return ethtool_ioctl(net, argp);
 	case SIOCWANDEV:
@@ -3179,11 +3023,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGIFMAP:
 	case SIOCSIFMAP:
 		return compat_sioc_ifmap(net, cmd, argp);
-	case SIOCBONDENSLAVE:
-	case SIOCBONDRELEASE:
-	case SIOCBONDSETHWADDR:
-	case SIOCBONDCHANGEACTIVE:
-		return bond_ioctl(net, cmd, argp);
 	case SIOCADDRT:
 	case SIOCDELRT:
 		return routing_ioctl(net, sock, cmd, argp);
@@ -3243,12 +3082,15 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		return dev_ifsioc(net, sock, cmd, argp);
-
 	case SIOCSARP:
 	case SIOCGARP:
 	case SIOCDARP:
 	case SIOCATMARK:
+	case SIOCBONDENSLAVE:
+	case SIOCBONDRELEASE:
+	case SIOCBONDSETHWADDR:
+	case SIOCBONDCHANGEACTIVE:
+	case SIOCGIFNAME:
 		return sock_do_ioctl(net, sock, cmd, arg);
 	}
 
@@ -3402,19 +3244,6 @@ int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
 	return sock_no_sendpage_locked(sk, page, offset, size, flags);
 }
 EXPORT_SYMBOL(kernel_sendpage_locked);
-
-int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg)
-{
-	mm_segment_t oldfs = get_fs();
-	int err;
-
-	set_fs(KERNEL_DS);
-	err = sock->ops->ioctl(sock, cmd, arg);
-	set_fs(oldfs);
-
-	return err;
-}
-EXPORT_SYMBOL(kernel_sock_ioctl);
 
 int kernel_sock_shutdown(struct socket *sock, enum sock_shutdown_cmd how)
 {

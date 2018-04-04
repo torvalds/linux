@@ -107,6 +107,8 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	phys_addr_t p = *ppos;
 	ssize_t read, sz;
 	void *ptr;
+	char *bounce;
+	int err;
 
 	if (p != *ppos)
 		return 0;
@@ -129,15 +131,22 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	}
 #endif
 
+	bounce = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!bounce)
+		return -ENOMEM;
+
 	while (count > 0) {
 		unsigned long remaining;
 		int allowed;
 
 		sz = size_inside_page(p, count);
 
+		err = -EPERM;
 		allowed = page_is_allowed(p >> PAGE_SHIFT);
 		if (!allowed)
-			return -EPERM;
+			goto failed;
+
+		err = -EFAULT;
 		if (allowed == 2) {
 			/* Show zeros for restricted memory. */
 			remaining = clear_user(buf, sz);
@@ -149,24 +158,32 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 			 */
 			ptr = xlate_dev_mem_ptr(p);
 			if (!ptr)
-				return -EFAULT;
+				goto failed;
 
-			remaining = copy_to_user(buf, ptr, sz);
-
+			err = probe_kernel_read(bounce, ptr, sz);
 			unxlate_dev_mem_ptr(p, ptr);
+			if (err)
+				goto failed;
+
+			remaining = copy_to_user(buf, bounce, sz);
 		}
 
 		if (remaining)
-			return -EFAULT;
+			goto failed;
 
 		buf += sz;
 		p += sz;
 		count -= sz;
 		read += sz;
 	}
+	kfree(bounce);
 
 	*ppos += read;
 	return read;
+
+failed:
+	kfree(bounce);
+	return err;
 }
 
 static ssize_t write_mem(struct file *file, const char __user *buf,
@@ -342,6 +359,10 @@ static int mmap_mem(struct file *file, struct vm_area_struct *vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
 	phys_addr_t offset = (phys_addr_t)vma->vm_pgoff << PAGE_SHIFT;
+
+	/* Does it even fit in phys_addr_t? */
+	if (offset >> PAGE_SHIFT != vma->vm_pgoff)
+		return -EINVAL;
 
 	/* It's illegal to wrap around the end of the physical address space. */
 	if (offset + (phys_addr_t)size - 1 < offset)

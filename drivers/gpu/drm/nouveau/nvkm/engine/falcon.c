@@ -99,7 +99,7 @@ nvkm_falcon_fini(struct nvkm_engine *engine, bool suspend)
 	const u32 base = falcon->addr;
 
 	if (!suspend) {
-		nvkm_memory_del(&falcon->core);
+		nvkm_memory_unref(&falcon->core);
 		if (falcon->external) {
 			vfree(falcon->data.data);
 			vfree(falcon->code.data);

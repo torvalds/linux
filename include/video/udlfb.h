@@ -19,7 +19,7 @@ struct dloarea {
 
 struct urb_node {
 	struct list_head entry;
-	struct dlfb_data *dev;
+	struct dlfb_data *dlfb;
 	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
@@ -35,7 +35,6 @@ struct urb_list {
 
 struct dlfb_data {
 	struct usb_device *udev;
-	struct device *gdev; /* &udev->dev */
 	struct fb_info *info;
 	struct urb_list urbs;
 	struct kref kref;

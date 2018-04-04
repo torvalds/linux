@@ -29,13 +29,8 @@ then
 	exit 1
 fi
 builddir=${2}
-if test -z "$builddir" -o ! -d "$builddir" -o ! -w "$builddir"
-then
-	echo "kvm-build.sh :$builddir: Not a writable directory, cannot build into it"
-	exit 1
-fi
 
-T=/tmp/test-linux.sh.$$
+T=${TMPDIR-/tmp}/test-linux.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 

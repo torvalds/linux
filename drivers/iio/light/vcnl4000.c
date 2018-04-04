@@ -155,7 +155,6 @@ static int vcnl4000_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info vcnl4000_info = {
 	.read_raw = vcnl4000_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int vcnl4000_probe(struct i2c_client *client,

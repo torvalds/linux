@@ -7,6 +7,7 @@
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && HAS_DMA
+	select DRM_PANEL_ORIENTATION_QUIRKS
 	select HDMI
 	select FB_CMDLINE
 	select I2C
@@ -110,7 +111,7 @@ config DRM_FBDEV_OVERALLOC
 
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
-	depends on DRM_KMS_HELPER
+	depends on DRM
 	help
 	  Say Y here, if you want to use EDID data to be loaded from the
 	  /lib/firmware directory or one of the provided built-in
@@ -149,6 +150,10 @@ config DRM_VM
 	bool
 	depends on DRM && MMU
 
+config DRM_SCHED
+	tristate
+	depends on DRM
+
 source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
@@ -178,18 +183,22 @@ config DRM_AMDGPU
 	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
+	select DRM_SCHED
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
 	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
+	select CHASH
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
 
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+
+source "drivers/gpu/drm/amd/lib/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 
@@ -278,6 +287,8 @@ source "drivers/gpu/drm/tinydrm/Kconfig"
 
 source "drivers/gpu/drm/pl111/Kconfig"
 
+source "drivers/gpu/drm/tve200/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
@@ -356,6 +367,10 @@ config DRM_SAVAGE
 	  chipset. If M is selected the module will be called savage.
 
 endif # DRM_LEGACY
+
+# Separate option because drm_panel_orientation_quirks.c is shared with fbdev
+config DRM_PANEL_ORIENTATION_QUIRKS
+	tristate
 
 config DRM_LIB_RANDOM
 	bool

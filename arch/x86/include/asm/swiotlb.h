@@ -28,8 +28,6 @@ static inline void pci_swiotlb_late_init(void)
 }
 #endif
 
-static inline void dma_mark_clean(void *addr, size_t size) {}
-
 extern void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags,
 					unsigned long attrs);

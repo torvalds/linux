@@ -56,9 +56,62 @@ expression x;
  x = devm_ioport_map(...)
 )
 
+@safe depends on context || org || report exists@
+expression x;
+position p;
+@@
+
+(
+ x = kmalloc(...)
+|
+ x = kvasprintf(...)
+|
+ x = kasprintf(...)
+|
+ x = kzalloc(...)
+|
+ x = kmalloc_array(...)
+|
+ x = kcalloc(...)
+|
+ x = kstrdup(...)
+|
+ x = kmemdup(...)
+|
+ x = get_free_pages(...)
+|
+ x = request_irq(...)
+|
+ x = ioremap(...)
+|
+ x = ioremap_nocache(...)
+|
+ x = ioport_map(...)
+)
+...
+(
+ kfree@p(x)
+|
+ kzfree@p(x)
+|
+ __krealloc@p(x, ...)
+|
+ krealloc@p(x, ...)
+|
+ free_pages@p(x, ...)
+|
+ free_page@p(x)
+|
+ free_irq@p(x)
+|
+ iounmap@p(x)
+|
+ ioport_unmap@p(x)
+)
+
 @pb@
 expression r.x;
-position p;
+position p != safe.p;
 @@
 
 (

@@ -153,6 +153,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 		switch (nexthdr) {
 		case NEXTHDR_FRAGMENT:
 			onlyproto = 1;
+			/* fall through */
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
@@ -264,7 +265,7 @@ static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 			in6_dev_put(xdst->u.rt6.rt6i_idev);
 			xdst->u.rt6.rt6i_idev = loopback_idev;
 			in6_dev_hold(loopback_idev);
-			xdst = (struct xfrm_dst *)xdst->u.dst.child;
+			xdst = (struct xfrm_dst *)xfrm_dst_child(&xdst->u.dst);
 		} while (xdst->u.dst.xfrm);
 
 		__in6_dev_put(loopback_idev);

@@ -28,6 +28,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dcbnl.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -109,6 +110,21 @@ enum hnae3_media_type {
 	HNAE3_MEDIA_TYPE_BACKPLANE,
 };
 
+enum hnae3_reset_notify_type {
+	HNAE3_UP_CLIENT,
+	HNAE3_DOWN_CLIENT,
+	HNAE3_INIT_CLIENT,
+	HNAE3_UNINIT_CLIENT,
+};
+
+enum hnae3_reset_type {
+	HNAE3_FUNC_RESET,
+	HNAE3_CORE_RESET,
+	HNAE3_GLOBAL_RESET,
+	HNAE3_IMP_RESET,
+	HNAE3_NONE_RESET,
+};
+
 struct hnae3_vector_info {
 	u8 __iomem *io_addr;
 	int vector;
@@ -117,11 +133,16 @@ struct hnae3_vector_info {
 #define HNAE3_RING_TYPE_B 0
 #define HNAE3_RING_TYPE_TX 0
 #define HNAE3_RING_TYPE_RX 1
+#define HNAE3_RING_GL_IDX_S 0
+#define HNAE3_RING_GL_IDX_M GENMASK(1, 0)
+#define HNAE3_RING_GL_RX 0
+#define HNAE3_RING_GL_TX 1
 
 struct hnae3_ring_chain_node {
 	struct hnae3_ring_chain_node *next;
 	u32 tqp_index;
 	u32 flag;
+	u32 int_gl_idx;
 };
 
 #define HNAE3_IS_TX_RING(node) \
@@ -131,6 +152,9 @@ struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
 	void (*link_status_change)(struct hnae3_handle *handle, bool state);
+	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
+	int (*reset_notify)(struct hnae3_handle *handle,
+			    enum hnae3_reset_notify_type type);
 };
 
 #define HNAE3_CLIENT_NAME_LENGTH 16
@@ -255,10 +279,14 @@ struct hnae3_ae_dev {
  *   Get firmware version
  * get_mdix_mode()
  *   Get media typr of phy
+ * enable_vlan_filter()
+ *   Enable vlan filter
  * set_vlan_filter()
  *   Set vlan filter config of Ports
  * set_vf_vlan_filter()
  *   Set vlan filter config of vf
+ * enable_hw_strip_rxvtag()
+ *   Enable/disable hardware strip vlan tag of packets received
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -328,7 +356,8 @@ struct hnae3_ae_ops {
 			    u32 stringset, u8 *data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);
 
-	void (*get_regs)(struct hnae3_handle *handle, void *data);
+	void (*get_regs)(struct hnae3_handle *handle, u32 *version,
+			 void *data);
 	int (*get_regs_len)(struct hnae3_handle *handle);
 
 	u32 (*get_rss_key_size)(struct hnae3_handle *handle);
@@ -337,6 +366,10 @@ struct hnae3_ae_ops {
 		       u8 *hfunc);
 	int (*set_rss)(struct hnae3_handle *handle, const u32 *indir,
 		       const u8 *key, const u8 hfunc);
+	int (*set_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
+	int (*get_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
 
 	int (*get_tc_size)(struct hnae3_handle *handle);
 
@@ -357,10 +390,38 @@ struct hnae3_ae_ops {
 	void (*get_mdix_mode)(struct hnae3_handle *handle,
 			      u8 *tp_mdix_ctrl, u8 *tp_mdix);
 
+	void (*enable_vlan_filter)(struct hnae3_handle *handle, bool enable);
 	int (*set_vlan_filter)(struct hnae3_handle *handle, __be16 proto,
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
+	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
+	void (*reset_event)(struct hnae3_handle *handle,
+			    enum hnae3_reset_type reset);
+	void (*get_channels)(struct hnae3_handle *handle,
+			     struct ethtool_channels *ch);
+	void (*get_tqps_and_rss_info)(struct hnae3_handle *h,
+				      u16 *free_tqps, u16 *max_rss_size);
+	int (*set_channels)(struct hnae3_handle *handle, u32 new_tqps_num);
+	void (*get_flowctrl_adv)(struct hnae3_handle *handle,
+				 u32 *flowctrl_adv);
+	int (*set_led_id)(struct hnae3_handle *handle,
+			  enum ethtool_phys_id_state status);
+};
+
+struct hnae3_dcb_ops {
+	/* IEEE 802.1Qaz std */
+	int (*ieee_getets)(struct hnae3_handle *, struct ieee_ets *);
+	int (*ieee_setets)(struct hnae3_handle *, struct ieee_ets *);
+	int (*ieee_getpfc)(struct hnae3_handle *, struct ieee_pfc *);
+	int (*ieee_setpfc)(struct hnae3_handle *, struct ieee_pfc *);
+
+	/* DCBX configuration */
+	u8   (*getdcbx)(struct hnae3_handle *);
+	u8   (*setdcbx)(struct hnae3_handle *, u8);
+
+	int (*map_update)(struct hnae3_handle *);
+	int (*setup_tc)(struct hnae3_handle *, u8, u8 *);
 };
 
 struct hnae3_ae_algo {
@@ -394,6 +455,9 @@ struct hnae3_knic_private_info {
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
+	const struct hnae3_dcb_ops *dcb_ops;
+
+	u16 int_rl_setting;
 };
 
 struct hnae3_roce_private_info {
@@ -411,9 +475,10 @@ struct hnae3_unic_private_info {
 	struct hnae3_queue **tqp;  /* array base of all TQPs of this instance */
 };
 
-#define HNAE3_SUPPORT_MAC_LOOPBACK    1
-#define HNAE3_SUPPORT_PHY_LOOPBACK    2
-#define HNAE3_SUPPORT_SERDES_LOOPBACK 4
+#define HNAE3_SUPPORT_MAC_LOOPBACK    BIT(0)
+#define HNAE3_SUPPORT_PHY_LOOPBACK    BIT(1)
+#define HNAE3_SUPPORT_SERDES_LOOPBACK BIT(2)
+#define HNAE3_SUPPORT_VF	      BIT(3)
 
 struct hnae3_handle {
 	struct hnae3_client *client;

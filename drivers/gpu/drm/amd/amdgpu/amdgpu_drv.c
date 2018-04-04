@@ -69,9 +69,13 @@
  * - 3.17.0 - Add AMDGPU_NUM_VRAM_CPU_PAGE_FAULTS.
  * - 3.18.0 - Export gpu always on cu bitmap
  * - 3.19.0 - Add support for UVD MJPEG decode
+ * - 3.20.0 - Add support for local BOs
+ * - 3.21.0 - Add DRM_AMDGPU_FENCE_TO_HANDLE ioctl
+ * - 3.22.0 - Add DRM_AMDGPU_SCHED ioctl
+ * - 3.23.0 - Add query for VRAM lost counter
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	19
+#define KMS_DRIVER_MINOR	23
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -86,12 +90,12 @@ int amdgpu_disp_priority = 0;
 int amdgpu_hw_i2c = 0;
 int amdgpu_pcie_gen2 = -1;
 int amdgpu_msi = -1;
-int amdgpu_lockup_timeout = 0;
+int amdgpu_lockup_timeout = 10000;
 int amdgpu_dpm = -1;
 int amdgpu_fw_load_type = -1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
-unsigned amdgpu_ip_block_mask = 0xffffffff;
+uint amdgpu_ip_block_mask = 0xffffffff;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
 int amdgpu_vm_size = -1;
@@ -102,18 +106,20 @@ int amdgpu_vm_debug = 0;
 int amdgpu_vram_page_split = 512;
 int amdgpu_vm_update_mode = -1;
 int amdgpu_exp_hw_support = 0;
+int amdgpu_dc = -1;
+int amdgpu_dc_log = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_no_evict = 0;
 int amdgpu_direct_gma_size = 0;
-unsigned amdgpu_pcie_gen_cap = 0;
-unsigned amdgpu_pcie_lane_cap = 0;
-unsigned amdgpu_cg_mask = 0xffffffff;
-unsigned amdgpu_pg_mask = 0xffffffff;
-unsigned amdgpu_sdma_phase_quantum = 32;
+uint amdgpu_pcie_gen_cap = 0;
+uint amdgpu_pcie_lane_cap = 0;
+uint amdgpu_cg_mask = 0xffffffff;
+uint amdgpu_pg_mask = 0xffffffff;
+uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
-unsigned amdgpu_pp_feature_mask = 0xffffffff;
+uint amdgpu_pp_feature_mask = 0xffffffff;
 int amdgpu_ngg = 0;
 int amdgpu_prim_buf_per_se = 0;
 int amdgpu_pos_buf_per_se = 0;
@@ -121,6 +127,8 @@ int amdgpu_cntl_sb_buf_per_se = 0;
 int amdgpu_param_buf_per_se = 0;
 int amdgpu_job_hang_limit = 0;
 int amdgpu_lbpw = -1;
+int amdgpu_compute_multipipe = -1;
+int amdgpu_gpu_recovery = -1; /* auto */
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -158,7 +166,7 @@ module_param_named(pcie_gen2, amdgpu_pcie_gen2, int, 0444);
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, amdgpu_msi, int, 0444);
 
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default 0 = disable)");
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms > 0 (default 10000)");
 module_param_named(lockup_timeout, amdgpu_lockup_timeout, int, 0444);
 
 MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
@@ -205,6 +213,12 @@ module_param_named(vram_page_split, amdgpu_vram_page_split, int, 0444);
 
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
+
+MODULE_PARM_DESC(dc, "Display Core driver (1 = enable, 0 = disable, -1 = auto (default))");
+module_param_named(dc, amdgpu_dc, int, 0444);
+
+MODULE_PARM_DESC(dc_log, "Display Core Log Level (0 = minimal (default), 1 = chatty");
+module_param_named(dc_log, amdgpu_dc_log, int, 0444);
 
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 32)");
 module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
@@ -264,6 +278,12 @@ module_param_named(job_hang_limit, amdgpu_job_hang_limit, int ,0444);
 MODULE_PARM_DESC(lbpw, "Load Balancing Per Watt (LBPW) support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(lbpw, amdgpu_lbpw, int, 0444);
 
+MODULE_PARM_DESC(compute_multipipe, "Force compute queues to be spread across pipes (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(compute_multipipe, amdgpu_compute_multipipe, int, 0444);
+
+MODULE_PARM_DESC(gpu_recovery, "Enable GPU recovery mechanism, (1 = enable, 0 = disable, -1 = auto");
+module_param_named(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
+
 #ifdef CONFIG_DRM_AMDGPU_SI
 
 #if defined(CONFIG_DRM_RADEON) || defined(CONFIG_DRM_RADEON_MODULE)
@@ -289,7 +309,6 @@ MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)
 
 module_param_named(cik_support, amdgpu_cik_support, int, 0444);
 #endif
-
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
@@ -510,17 +529,17 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6997, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	{0x1002, 0x699F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	/* Vega 10 */
-	{0x1002, 0x6860, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6861, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6862, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6863, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6864, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6867, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6868, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6860, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6861, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6862, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6863, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6864, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6867, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6868, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
 	/* Raven */
-	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
 
 	{0, 0, 0}
 };
@@ -550,12 +569,13 @@ static int amdgpu_kick_out_firmware_fb(struct pci_dev *pdev)
 	return 0;
 }
 
+
 static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct drm_device *dev;
 	unsigned long flags = ent->driver_data;
-	int ret;
+	int ret, retry = 0;
 
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {
 		DRM_INFO("This hardware requires experimental hardware support.\n"
@@ -588,8 +608,14 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
+retry_init:
 	ret = drm_dev_register(dev, ent->driver_data);
-	if (ret)
+	if (ret == -EAGAIN && ++retry <= 3) {
+		DRM_INFO("retry init %d\n", retry);
+		/* Don't request EX mode too frequently which is attacking */
+		msleep(5000);
+		goto retry_init;
+	} else if (ret)
 		goto err_pci;
 
 	return 0;
@@ -608,6 +634,8 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	drm_dev_unref(dev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 static void
@@ -621,7 +649,7 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	 * unfortunately we can't detect certain
 	 * hypervisors so just do this all the time.
 	 */
-	amdgpu_suspend(adev);
+	amdgpu_device_ip_suspend(adev);
 }
 
 static int amdgpu_pmops_suspend(struct device *dev)
@@ -826,9 +854,6 @@ static struct drm_driver kms_driver = {
 	.disable_vblank = amdgpu_disable_vblank_kms,
 	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 	.get_scanout_position = amdgpu_get_crtc_scanout_position,
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = amdgpu_debugfs_init,
-#endif
 	.irq_preinstall = amdgpu_irq_preinstall,
 	.irq_postinstall = amdgpu_irq_postinstall,
 	.irq_uninstall = amdgpu_irq_uninstall,
@@ -852,6 +877,7 @@ static struct drm_driver kms_driver = {
 	.gem_prime_import_sg_table = amdgpu_gem_prime_import_sg_table,
 	.gem_prime_vmap = amdgpu_gem_prime_vmap,
 	.gem_prime_vunmap = amdgpu_gem_prime_vunmap,
+	.gem_prime_mmap = amdgpu_gem_prime_mmap,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -887,10 +913,6 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_fence;
 
-	r = amd_sched_fence_slab_init();
-	if (r)
-		goto error_sched;
-
 	if (vgacon_text_force()) {
 		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
 		return -EINVAL;
@@ -902,9 +924,6 @@ static int __init amdgpu_init(void)
 	amdgpu_register_atpx_handler();
 	/* let modprobe override vga console setting */
 	return pci_register_driver(pdriver);
-
-error_sched:
-	amdgpu_fence_slab_fini();
 
 error_fence:
 	amdgpu_sync_fini();
@@ -919,7 +938,6 @@ static void __exit amdgpu_exit(void)
 	pci_unregister_driver(pdriver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
-	amd_sched_fence_slab_fini();
 	amdgpu_fence_slab_fini();
 }
 

@@ -25,6 +25,7 @@ enum wb_state {
 	WB_shutting_down,	/* wb_shutdown() in progress */
 	WB_writeback_running,	/* Writeback is in progress */
 	WB_has_dirty_io,	/* Dirty inodes on ->b_{dirty|io|more_io} */
+	WB_start_all,		/* nr_pages == 0 (all) work pending */
 };
 
 enum wb_congested_state {
@@ -43,6 +44,28 @@ enum wb_stat_item {
 };
 
 #define WB_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
+
+/*
+ * why some writeback work was initiated
+ */
+enum wb_reason {
+	WB_REASON_BACKGROUND,
+	WB_REASON_VMSCAN,
+	WB_REASON_SYNC,
+	WB_REASON_PERIODIC,
+	WB_REASON_LAPTOP_TIMER,
+	WB_REASON_FREE_MORE_MEM,
+	WB_REASON_FS_FREE_SPACE,
+	/*
+	 * There is no bdi forker thread any more and works are done
+	 * by emergency worker, however, this is TPs userland visible
+	 * and we'll be exposing exactly the same information,
+	 * so it has a mismatch name.
+	 */
+	WB_REASON_FORKER_THREAD,
+
+	WB_REASON_MAX,
+};
 
 /*
  * For cgroup writeback, multiple wb's may map to the same blkcg.  Those
@@ -116,6 +139,7 @@ struct bdi_writeback {
 
 	struct fprop_local_percpu completions;
 	int dirty_exceeded;
+	enum wb_reason start_all_reason;
 
 	spinlock_t work_lock;		/* protects work_list & dwork scheduling */
 	struct list_head work_list;

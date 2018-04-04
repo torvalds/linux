@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cdc-wdm.c
  *
@@ -483,7 +484,7 @@ static ssize_t wdm_read
 	if (rv < 0)
 		return -ERESTARTSYS;
 
-	cntr = ACCESS_ONCE(desc->length);
+	cntr = READ_ONCE(desc->length);
 	if (cntr == 0) {
 		desc->read = 0;
 retry:
@@ -594,24 +595,24 @@ static int wdm_flush(struct file *file, fl_owner_t id)
 	return usb_translate_errors(desc->werr);
 }
 
-static unsigned int wdm_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t wdm_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct wdm_device *desc = file->private_data;
 	unsigned long flags;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	spin_lock_irqsave(&desc->iuspin, flags);
 	if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
-		mask = POLLHUP | POLLERR;
+		mask = EPOLLHUP | EPOLLERR;
 		spin_unlock_irqrestore(&desc->iuspin, flags);
 		goto desc_out;
 	}
 	if (test_bit(WDM_READ, &desc->flags))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 	if (desc->rerr || desc->werr)
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	if (!test_bit(WDM_IN_USE, &desc->flags))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock_irqrestore(&desc->iuspin, flags);
 
 	poll_wait(file, &desc->wait, wait);

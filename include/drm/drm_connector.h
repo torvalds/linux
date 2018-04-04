@@ -24,6 +24,7 @@
 #define __DRM_CONNECTOR_H__
 
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/ctype.h>
 #include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
@@ -176,6 +177,35 @@ enum drm_link_status {
 };
 
 /**
+ * enum drm_panel_orientation - panel_orientation info for &drm_display_info
+ *
+ * This enum is used to track the (LCD) panel orientation. There are no
+ * separate #defines for the uapi!
+ *
+ * @DRM_MODE_PANEL_ORIENTATION_UNKNOWN: The drm driver has not provided any
+ *					panel orientation information (normal
+ *					for non panels) in this case the "panel
+ *					orientation" connector prop will not be
+ *					attached.
+ * @DRM_MODE_PANEL_ORIENTATION_NORMAL:	The top side of the panel matches the
+ *					top side of the device's casing.
+ * @DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP: The top side of the panel matches the
+ *					bottom side of the device's casing, iow
+ *					the panel is mounted upside-down.
+ * @DRM_MODE_PANEL_ORIENTATION_LEFT_UP:	The left side of the panel matches the
+ *					top side of the device's casing.
+ * @DRM_MODE_PANEL_ORIENTATION_RIGHT_UP: The right side of the panel matches the
+ *					top side of the device's casing.
+ */
+enum drm_panel_orientation {
+	DRM_MODE_PANEL_ORIENTATION_UNKNOWN = -1,
+	DRM_MODE_PANEL_ORIENTATION_NORMAL = 0,
+	DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP,
+	DRM_MODE_PANEL_ORIENTATION_LEFT_UP,
+	DRM_MODE_PANEL_ORIENTATION_RIGHT_UP,
+};
+
+/**
  * struct drm_display_info - runtime data about the connected sink
  *
  * Describes a given display (e.g. CRT or flat panel) and its limitations. For
@@ -221,6 +251,15 @@ struct drm_display_info {
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
 #define DRM_COLOR_FORMAT_YCRCB420	(1<<3)
+
+	/**
+	 * @panel_orientation: Read only connector property for built-in panels,
+	 * indicating the orientation of the panel vs the device's casing.
+	 * drm_connector_init() sets this to DRM_MODE_PANEL_ORIENTATION_UNKNOWN.
+	 * When not UNKNOWN this gets used by the drm_fb_helpers to rotate the
+	 * fb to compensate and gets exported as prop to userspace.
+	 */
+	int panel_orientation;
 
 	/**
 	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
@@ -270,6 +309,11 @@ struct drm_display_info {
 	bool dvi_dual;
 
 	/**
+	 * @has_hdmi_infoframe: Does the sink support the HDMI infoframe?
+	 */
+	bool has_hdmi_infoframe;
+
+	/**
 	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
 	 * more stuff redundant with @bus_formats.
 	 */
@@ -284,6 +328,11 @@ struct drm_display_info {
 	 * @hdmi: advance features of a HDMI sink.
 	 */
 	struct drm_hdmi_info hdmi;
+
+	/**
+	 * @non_desktop: Non desktop display (HMD).
+	 */
+	bool non_desktop;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -346,6 +395,13 @@ struct drm_connector_state {
 	enum drm_link_status link_status;
 
 	struct drm_atomic_state *state;
+
+	/**
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions.
+	 *
+	 * Is only set when @crtc is NULL.
+	 */
+	struct drm_crtc_commit *commit;
 
 	struct drm_tv_connector_state tv;
 
@@ -692,7 +748,6 @@ struct drm_cmdline_mode {
  * @force: a DRM_FORCE_<foo> state for forced mode sets
  * @override_edid: has the EDID been overwritten through debugfs for testing?
  * @encoder_ids: valid encoders for this connector
- * @encoder: encoder driving this connector, if any
  * @eld: EDID-like data, if present
  * @latency_present: AV delay info from ELD, if found
  * @video_latency: video latency info from ELD, if found
@@ -862,7 +917,13 @@ struct drm_connector {
 
 #define DRM_CONNECTOR_MAX_ENCODER 3
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
-	struct drm_encoder *encoder; /* currently active encoder */
+	/**
+	 * @encoder: Currently bound encoder driving this connector, if any.
+	 * Only really meaningful for non-atomic drivers. Atomic drivers should
+	 * instead look at &drm_connector_state.best_encoder, and in case they
+	 * need the CRTC driving this output, &drm_connector_state.crtc.
+	 */
+	struct drm_encoder *encoder;
 
 #define MAX_ELD_BYTES	128
 	/* EDID bits */
@@ -888,8 +949,7 @@ struct drm_connector {
 	 * This is protected by @drm_mode_config.connection_mutex. Note that
 	 * nonblocking atomic commits access the current connector state without
 	 * taking locks. Either by going through the &struct drm_atomic_state
-	 * pointers, see for_each_connector_in_state(),
-	 * for_each_oldnew_connector_in_state(),
+	 * pointers, see for_each_oldnew_connector_in_state(),
 	 * for_each_old_connector_in_state() and
 	 * for_each_new_connector_in_state(). Or through careful ordering of
 	 * atomic commit operations as implemented in the atomic helpers, see
@@ -905,6 +965,15 @@ struct drm_connector {
 	uint8_t num_h_tile, num_v_tile;
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
+
+	/**
+	 * @free_node:
+	 *
+	 * List used only by &drm_connector_iter to be able to clean up a
+	 * connector from any context, in conjunction with
+	 * &drm_mode_config.connector_free_work.
+	 */
+	struct llist_node free_node;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
@@ -927,16 +996,18 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 /**
  * drm_connector_lookup - lookup connector object
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: connector object id
  *
  * This function looks up the connector object specified by id
  * add takes a reference to it.
  */
 static inline struct drm_connector *drm_connector_lookup(struct drm_device *dev,
+		struct drm_file *file_priv,
 		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CONNECTOR);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_CONNECTOR);
 	return mo ? obj_to_connector(mo) : NULL;
 }
 
@@ -1012,6 +1083,8 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
 void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
 						 uint64_t link_status);
+int drm_connector_init_panel_orientation_property(
+	struct drm_connector *connector, int width, int height);
 
 /**
  * struct drm_tile_group - Tile group metadata

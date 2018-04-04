@@ -135,9 +135,9 @@ static struct fasync_struct *rtc_async_queue;
 static DECLARE_WAIT_QUEUE_HEAD(rtc_wait);
 
 #ifdef RTC_IRQ
-static void rtc_dropped_irq(unsigned long data);
+static void rtc_dropped_irq(struct timer_list *unused);
 
-static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq, 0, 0);
+static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq);
 #endif
 
 static ssize_t rtc_read(struct file *file, char __user *buf,
@@ -147,7 +147,7 @@ static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static void rtc_get_rtc_time(struct rtc_time *rtc_tm);
 
 #ifdef RTC_IRQ
-static unsigned int rtc_poll(struct file *file, poll_table *wait);
+static __poll_t rtc_poll(struct file *file, poll_table *wait);
 #endif
 
 static void get_rtc_alm_time(struct rtc_time *alm_tm);
@@ -790,7 +790,7 @@ no_irq:
 }
 
 #ifdef RTC_IRQ
-static unsigned int rtc_poll(struct file *file, poll_table *wait)
+static __poll_t rtc_poll(struct file *file, poll_table *wait)
 {
 	unsigned long l;
 
@@ -804,7 +804,7 @@ static unsigned int rtc_poll(struct file *file, poll_table *wait)
 	spin_unlock_irq(&rtc_lock);
 
 	if (l != 0)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 #endif
@@ -1171,7 +1171,7 @@ module_exit(rtc_exit);
  *	for something that requires a steady > 1KHz signal anyways.)
  */
 
-static void rtc_dropped_irq(unsigned long data)
+static void rtc_dropped_irq(struct timer_list *unused)
 {
 	unsigned long freq;
 

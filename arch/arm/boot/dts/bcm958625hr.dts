@@ -49,7 +49,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x60000000 0x80000000>;
+		reg = <0x60000000 0x20000000>;
 	};
 
 	gpio-restart {
@@ -174,10 +174,6 @@
 };
 
 &sata_phy1 {
-	status = "okay";
-};
-
-&sata {
 	status = "okay";
 };
 

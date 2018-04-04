@@ -201,11 +201,8 @@ to_intel_sdvo_connector(struct drm_connector *connector)
 	return container_of(connector, struct intel_sdvo_connector, base.base);
 }
 
-static struct intel_sdvo_connector_state *
-to_intel_sdvo_connector_state(struct drm_connector_state *conn_state)
-{
-	return container_of(conn_state, struct intel_sdvo_connector_state, base.base);
-}
+#define to_intel_sdvo_connector_state(conn_state) \
+	container_of((conn_state), struct intel_sdvo_connector_state, base.base)
 
 static bool
 intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags);
@@ -998,7 +995,7 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
-					 struct intel_crtc_state *pipe_config)
+					 const struct intel_crtc_state *pipe_config)
 {
 	uint8_t sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
 	union hdmi_infoframe frame;
@@ -1032,7 +1029,7 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo,
-				     struct drm_connector_state *conn_state)
+				     const struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo_tv_format format;
 	uint32_t format_map;
@@ -1202,9 +1199,9 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	} while (0)
 
 static void intel_sdvo_update_props(struct intel_sdvo *intel_sdvo,
-				    struct intel_sdvo_connector_state *sdvo_state)
+				    const struct intel_sdvo_connector_state *sdvo_state)
 {
-	struct drm_connector_state *conn_state = &sdvo_state->base.base;
+	const struct drm_connector_state *conn_state = &sdvo_state->base.base;
 	struct intel_sdvo_connector *intel_sdvo_conn =
 		to_intel_sdvo_connector(conn_state->connector);
 	uint16_t val;
@@ -1258,14 +1255,15 @@ static void intel_sdvo_update_props(struct intel_sdvo *intel_sdvo,
 }
 
 static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
-				  struct intel_crtc_state *crtc_state,
-				  struct drm_connector_state *conn_state)
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
-	struct intel_sdvo_connector_state *sdvo_state = to_intel_sdvo_connector_state(conn_state);
-	struct drm_display_mode *mode = &crtc_state->base.mode;
+	const struct intel_sdvo_connector_state *sdvo_state =
+		to_intel_sdvo_connector_state(conn_state);
+	const struct drm_display_mode *mode = &crtc_state->base.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
@@ -1431,6 +1429,8 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	u8 val;
 	bool ret;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_SDVO);
+
 	sdvox = I915_READ(intel_sdvo->sdvo_reg);
 
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
@@ -1507,12 +1507,12 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 }
 
 static void intel_disable_sdvo(struct intel_encoder *encoder,
-			       struct intel_crtc_state *old_crtc_state,
-			       struct drm_connector_state *conn_state)
+			       const struct intel_crtc_state *old_crtc_state,
+			       const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	u32 temp;
 
 	intel_sdvo_set_active_outputs(intel_sdvo, 0);
@@ -1552,26 +1552,26 @@ static void intel_disable_sdvo(struct intel_encoder *encoder,
 }
 
 static void pch_disable_sdvo(struct intel_encoder *encoder,
-			     struct intel_crtc_state *old_crtc_state,
-			     struct drm_connector_state *old_conn_state)
+			     const struct intel_crtc_state *old_crtc_state,
+			     const struct drm_connector_state *old_conn_state)
 {
 }
 
 static void pch_post_disable_sdvo(struct intel_encoder *encoder,
-				  struct intel_crtc_state *old_crtc_state,
-				  struct drm_connector_state *old_conn_state)
+				  const struct intel_crtc_state *old_crtc_state,
+				  const struct drm_connector_state *old_conn_state)
 {
 	intel_disable_sdvo(encoder, old_crtc_state, old_conn_state);
 }
 
 static void intel_enable_sdvo(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config,
-			      struct drm_connector_state *conn_state)
+			      const struct intel_crtc_state *pipe_config,
+			      const struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	u32 temp;
 	bool input1, input2;
 	int i;

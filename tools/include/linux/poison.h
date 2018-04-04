@@ -15,6 +15,10 @@
 # define POISON_POINTER_DELTA 0
 #endif
 
+#ifdef __cplusplus
+#define LIST_POISON1  NULL
+#define LIST_POISON2  NULL
+#else
 /*
  * These are non-NULL pointers that will result in page faults
  * under normal circumstances, used to verify that nobody uses
@@ -22,6 +26,7 @@
  */
 #define LIST_POISON1  ((void *) 0x100 + POISON_POINTER_DELTA)
 #define LIST_POISON2  ((void *) 0x200 + POISON_POINTER_DELTA)
+#endif
 
 /********** include/linux/timer.h **********/
 /*

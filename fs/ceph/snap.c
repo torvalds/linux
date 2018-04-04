@@ -922,13 +922,17 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			/*
 			 * Move the inode to the new realm
 			 */
-			spin_lock(&realm->inodes_with_caps_lock);
+			oldrealm = ci->i_snap_realm;
+			spin_lock(&oldrealm->inodes_with_caps_lock);
 			list_del_init(&ci->i_snap_realm_item);
+			spin_unlock(&oldrealm->inodes_with_caps_lock);
+
+			spin_lock(&realm->inodes_with_caps_lock);
 			list_add(&ci->i_snap_realm_item,
 				 &realm->inodes_with_caps);
-			oldrealm = ci->i_snap_realm;
 			ci->i_snap_realm = realm;
 			spin_unlock(&realm->inodes_with_caps_lock);
+
 			spin_unlock(&ci->i_ceph_lock);
 
 			ceph_get_snap_realm(mdsc, realm);

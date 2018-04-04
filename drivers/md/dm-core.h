@@ -29,7 +29,6 @@ struct dm_kobject_holder {
  * DM targets must _not_ deference a mapped_device to directly access its members!
  */
 struct mapped_device {
-	struct srcu_struct io_barrier;
 	struct mutex suspend_lock;
 
 	/*
@@ -92,8 +91,7 @@ struct mapped_device {
 	/*
 	 * io objects are allocated from here.
 	 */
-	mempool_t *io_pool;
-
+	struct bio_set *io_bs;
 	struct bio_set *bs;
 
 	/*
@@ -127,10 +125,10 @@ struct mapped_device {
 	struct blk_mq_tag_set *tag_set;
 	bool use_blk_mq:1;
 	bool init_tio_pdu:1;
+
+	struct srcu_struct io_barrier;
 };
 
-void dm_init_md_queue(struct mapped_device *md);
-void dm_init_normal_md_queue(struct mapped_device *md);
 int md_in_flight(struct mapped_device *md);
 void disable_write_same(struct mapped_device *md);
 void disable_write_zeroes(struct mapped_device *md);

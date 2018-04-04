@@ -84,6 +84,8 @@ config SPARC64
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select GENERIC_TIME_VSYSCALL
+	select ARCH_CLOCKSOURCE_DATA
 
 config ARCH_DEFCONFIG
 	string
@@ -91,9 +93,6 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
 config ARCH_PROC_KCORE_TEXT
-	def_bool y
-
-config CPU_BIG_ENDIAN
 	def_bool y
 
 config CPU_BIG_ENDIAN
@@ -431,6 +430,8 @@ config SPARC_LEON
 	depends on SPARC32
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_UHCI_BIG_ENDIAN_MMIO
+	select USB_UHCI_BIG_ENDIAN_DESC
 	---help---
 	  If you say Y here if you are running on a SPARC-LEON processor.
 	  The LEON processor is a synthesizable VHDL model of the

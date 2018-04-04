@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -63,33 +63,6 @@ void ath10k_sta_update_rx_duration(struct ath10k *ar,
 		ath10k_sta_update_extd_stats_rx_duration(ar, stats);
 	else
 		ath10k_sta_update_stats_rx_duration(ar, stats);
-}
-
-void ath10k_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta,
-			   struct station_info *sinfo)
-{
-	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
-	struct ath10k *ar = arsta->arvif->ar;
-
-	if (!ath10k_peer_stats_enabled(ar))
-		return;
-
-	sinfo->rx_duration = arsta->rx_duration;
-	sinfo->filled |= 1ULL << NL80211_STA_INFO_RX_DURATION;
-
-	if (!arsta->txrate.legacy && !arsta->txrate.nss)
-		return;
-
-	if (arsta->txrate.legacy) {
-		sinfo->txrate.legacy = arsta->txrate.legacy;
-	} else {
-		sinfo->txrate.mcs = arsta->txrate.mcs;
-		sinfo->txrate.nss = arsta->txrate.nss;
-		sinfo->txrate.bw = arsta->txrate.bw;
-	}
-	sinfo->txrate.flags = arsta->txrate.flags;
-	sinfo->filled |= 1ULL << NL80211_STA_INFO_TX_BITRATE;
 }
 
 static ssize_t ath10k_dbg_sta_read_aggr_mode(struct file *file,

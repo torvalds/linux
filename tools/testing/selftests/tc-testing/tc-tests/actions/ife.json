@@ -1,0 +1,52 @@
+[
+    {
+        "id": "a568",
+        "name": "Add action with ife type",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action ife encode type 0xDEAD index 1"
+        ],
+        "cmdUnderTest": "$TC actions get action ife index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "type 0xDEAD",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "b983",
+        "name": "Add action without ife type",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action ife encode index 1"
+        ],
+        "cmdUnderTest": "$TC actions get action ife index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action ife index 1",
+        "matchPattern": "type 0xED3E",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    }
+]

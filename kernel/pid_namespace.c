@@ -21,6 +21,7 @@
 #include <linux/export.h>
 #include <linux/sched/task.h>
 #include <linux/sched/signal.h>
+#include <linux/idr.h>
 
 struct pid_cache {
 	int nr_ids;
@@ -98,7 +99,6 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	struct pid_namespace *ns;
 	unsigned int level = parent_pid_ns->level + 1;
 	struct ucounts *ucounts;
-	int i;
 	int err;
 
 	err = -EINVAL;
@@ -117,17 +117,15 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (ns == NULL)
 		goto out_dec;
 
-	ns->pidmap[0].page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!ns->pidmap[0].page)
-		goto out_free;
+	idr_init(&ns->idr);
 
 	ns->pid_cachep = create_pid_cachep(level + 1);
 	if (ns->pid_cachep == NULL)
-		goto out_free_map;
+		goto out_free_idr;
 
 	err = ns_alloc_inum(&ns->ns);
 	if (err)
-		goto out_free_map;
+		goto out_free_idr;
 	ns->ns.ops = &pidns_operations;
 
 	kref_init(&ns->kref);
@@ -135,20 +133,13 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
-	ns->nr_hashed = PIDNS_HASH_ADDING;
+	ns->pid_allocated = PIDNS_ADDING;
 	INIT_WORK(&ns->proc_work, proc_cleanup_work);
-
-	set_bit(0, ns->pidmap[0].page);
-	atomic_set(&ns->pidmap[0].nr_free, BITS_PER_PAGE - 1);
-
-	for (i = 1; i < PIDMAP_ENTRIES; i++)
-		atomic_set(&ns->pidmap[i].nr_free, BITS_PER_PAGE);
 
 	return ns;
 
-out_free_map:
-	kfree(ns->pidmap[0].page);
-out_free:
+out_free_idr:
+	idr_destroy(&ns->idr);
 	kmem_cache_free(pid_ns_cachep, ns);
 out_dec:
 	dec_pid_namespaces(ucounts);
@@ -168,11 +159,9 @@ static void delayed_free_pidns(struct rcu_head *p)
 
 static void destroy_pid_namespace(struct pid_namespace *ns)
 {
-	int i;
-
 	ns_free_inum(&ns->ns);
-	for (i = 0; i < PIDMAP_ENTRIES; i++)
-		kfree(ns->pidmap[i].page);
+
+	idr_destroy(&ns->idr);
 	call_rcu(&ns->rcu, delayed_free_pidns);
 }
 
@@ -213,6 +202,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	int rc;
 	struct task_struct *task, *me = current;
 	int init_pids = thread_group_leader(me) ? 1 : 2;
+	struct pid *pid;
 
 	/* Don't allow any more processes into the pid namespace */
 	disable_pid_allocation(pid_ns);
@@ -239,20 +229,16 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * 	  maintain a tasklist for each pid namespace.
 	 *
 	 */
+	rcu_read_lock();
 	read_lock(&tasklist_lock);
-	nr = next_pidmap(pid_ns, 1);
-	while (nr > 0) {
-		rcu_read_lock();
-
-		task = pid_task(find_vpid(nr), PIDTYPE_PID);
+	nr = 2;
+	idr_for_each_entry_continue(&pid_ns->idr, pid, nr) {
+		task = pid_task(pid, PIDTYPE_PID);
 		if (task && !__fatal_signal_pending(task))
 			send_sig_info(SIGKILL, SEND_SIG_FORCED, task);
-
-		rcu_read_unlock();
-
-		nr = next_pidmap(pid_ns, nr);
 	}
 	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	/*
 	 * Reap the EXIT_ZOMBIE children we had before we ignored SIGCHLD.
@@ -268,7 +254,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * sys_wait4() above can't reap the EXIT_DEAD children but we do not
 	 * really care, we could reparent them to the global init. We could
 	 * exit and reap ->child_reaper even if it is not the last thread in
-	 * this pid_ns, free_pid(nr_hashed == 0) calls proc_cleanup_work(),
+	 * this pid_ns, free_pid(pid_allocated == 0) calls proc_cleanup_work(),
 	 * pid_ns can not go away until proc_kill_sb() drops the reference.
 	 *
 	 * But this ns can also have other tasks injected by setns()+fork().
@@ -282,7 +268,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 */
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (pid_ns->nr_hashed == init_pids)
+		if (pid_ns->pid_allocated == init_pids)
 			break;
 		schedule();
 	}
@@ -301,6 +287,7 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 {
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
 	struct ctl_table tmp = *table;
+	int ret, next;
 
 	if (write && !ns_capable(pid_ns->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
@@ -311,8 +298,14 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 	 * it should synchronize its usage with external means.
 	 */
 
-	tmp.data = &pid_ns->last_pid;
-	return proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	next = idr_get_cursor(&pid_ns->idr) - 1;
+
+	tmp.data = &next;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (!ret && write)
+		idr_set_cursor(&pid_ns->idr, next + 1);
+
+	return ret;
 }
 
 extern int pid_max;

@@ -58,7 +58,7 @@
 	soc {
 		aips-bus@40000000 {
 
-			intc: interrupt-controller@40002000 {
+			intc: interrupt-controller@40003000 {
 				compatible = "arm,cortex-a9-gic";
 				#interrupt-cells = <3>;
 				interrupt-controller;

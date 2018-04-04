@@ -45,7 +45,7 @@
 struct gf100_gr_data {
 	u32 size;
 	u32 align;
-	u32 access;
+	bool priv;
 };
 
 struct gf100_gr_mmio {
@@ -137,6 +137,7 @@ struct gf100_gr_func {
 	int (*rops)(struct gf100_gr *);
 	int ppc_nr;
 	const struct gf100_grctx_func *grctx;
+	const struct nvkm_therm_clkgate_pack *clkgate_pack;
 	struct nvkm_sclass sclass[];
 };
 
@@ -156,18 +157,20 @@ int gp100_gr_init(struct gf100_gr *);
 void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
+#include <core/object.h>
 
 struct gf100_gr_chan {
 	struct nvkm_object object;
 	struct gf100_gr *gr;
+	struct nvkm_vmm *vmm;
 
 	struct nvkm_memory *mmio;
-	struct nvkm_vma mmio_vma;
+	struct nvkm_vma *mmio_vma;
 	int mmio_nr;
 
 	struct {
 		struct nvkm_memory *mem;
-		struct nvkm_vma vma;
+		struct nvkm_vma *vma;
 	} data[4];
 };
 
@@ -253,6 +256,7 @@ extern const struct gf100_gr_init gf100_gr_init_mpc_0[];
 extern const struct gf100_gr_init gf100_gr_init_be_0[];
 extern const struct gf100_gr_init gf100_gr_init_fe_1[];
 extern const struct gf100_gr_init gf100_gr_init_pe_1[];
+void gf100_gr_init_gpc_mmu(struct gf100_gr *);
 
 extern const struct gf100_gr_init gf104_gr_init_ds_0[];
 extern const struct gf100_gr_init gf104_gr_init_tex_0[];

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/core/usb.c
  *
@@ -13,7 +14,6 @@
  * (C) Copyright Greg Kroah-Hartman 2002-2003
  *
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  *
  * NOTE! This is not actually a driver at all, rather this is
  * just a collection of helper routines that implement the
@@ -645,8 +645,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 			raw_port = usb_hcd_find_raw_port_number(usb_hcd,
 				port1);
 		}
-		dev->dev.of_node = usb_of_get_child_node(parent->dev.of_node,
-				raw_port);
+		dev->dev.of_node = usb_of_get_device_node(parent, raw_port);
 
 		/* hub driver sets up TT records */
 	}

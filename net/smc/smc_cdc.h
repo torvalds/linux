@@ -207,13 +207,13 @@ static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 
 struct smc_cdc_tx_pend;
 
-int smc_cdc_get_free_slot(struct smc_link *link, struct smc_wr_buf **wr_buf,
+int smc_cdc_get_free_slot(struct smc_connection *conn,
+			  struct smc_wr_buf **wr_buf,
 			  struct smc_cdc_tx_pend **pend);
 void smc_cdc_tx_dismiss_slots(struct smc_connection *conn);
 int smc_cdc_msg_send(struct smc_connection *conn, struct smc_wr_buf *wr_buf,
 		     struct smc_cdc_tx_pend *pend);
 int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn);
-bool smc_cdc_tx_has_pending(struct smc_connection *conn);
 int smc_cdc_init(void) __init;
 
 #endif /* SMC_CDC_H */

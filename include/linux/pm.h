@@ -550,6 +550,38 @@ struct pm_subsys_data {
 #endif
 };
 
+/*
+ * Driver flags to control system suspend/resume behavior.
+ *
+ * These flags can be set by device drivers at the probe time.  They need not be
+ * cleared by the drivers as the driver core will take care of that.
+ *
+ * NEVER_SKIP: Do not skip all system suspend/resume callbacks for the device.
+ * SMART_PREPARE: Check the return value of the driver's ->prepare callback.
+ * SMART_SUSPEND: No need to resume the device from runtime suspend.
+ * LEAVE_SUSPENDED: Avoid resuming the device during system resume if possible.
+ *
+ * Setting SMART_PREPARE instructs bus types and PM domains which may want
+ * system suspend/resume callbacks to be skipped for the device to return 0 from
+ * their ->prepare callbacks if the driver's ->prepare callback returns 0 (in
+ * other words, the system suspend/resume callbacks can only be skipped for the
+ * device if its driver doesn't object against that).  This flag has no effect
+ * if NEVER_SKIP is set.
+ *
+ * Setting SMART_SUSPEND instructs bus types and PM domains which may want to
+ * runtime resume the device upfront during system suspend that doing so is not
+ * necessary from the driver's perspective.  It also may cause them to skip
+ * invocations of the ->suspend_late and ->suspend_noirq callbacks provided by
+ * the driver if they decide to leave the device in runtime suspend.
+ *
+ * Setting LEAVE_SUSPENDED informs the PM core and middle-layer code that the
+ * driver prefers the device to be left in suspend after system resume.
+ */
+#define DPM_FLAG_NEVER_SKIP		BIT(0)
+#define DPM_FLAG_SMART_PREPARE		BIT(1)
+#define DPM_FLAG_SMART_SUSPEND		BIT(2)
+#define DPM_FLAG_LEAVE_SUSPENDED	BIT(3)
+
 struct dev_pm_info {
 	pm_message_t		power_state;
 	unsigned int		can_wakeup:1;
@@ -561,6 +593,7 @@ struct dev_pm_info {
 	bool			is_late_suspended:1;
 	bool			early_init:1;	/* Owned by the PM core */
 	bool			direct_complete:1;	/* Owned by the PM core */
+	u32			driver_flags;
 	spinlock_t		lock;
 #ifdef CONFIG_PM_SLEEP
 	struct list_head	entry;
@@ -569,6 +602,8 @@ struct dev_pm_info {
 	bool			wakeup_path:1;
 	bool			syscore:1;
 	bool			no_pm_callbacks:1;	/* Owned by the PM core */
+	unsigned int		must_resume:1;	/* Owned by the PM core */
+	unsigned int		may_skip_resume:1;	/* Set by subsystems */
 #else
 	unsigned int		should_wakeup:1;
 #endif
@@ -736,7 +771,10 @@ extern int pm_generic_poweroff_noirq(struct device *dev);
 extern int pm_generic_poweroff_late(struct device *dev);
 extern int pm_generic_poweroff(struct device *dev);
 extern void pm_generic_complete(struct device *dev);
-extern void pm_complete_with_resume_check(struct device *dev);
+
+extern void dev_pm_skip_next_resume_phases(struct device *dev);
+extern bool dev_pm_may_skip_resume(struct device *dev);
+extern bool dev_pm_smart_suspend_and_suspended(struct device *dev);
 
 #else /* !CONFIG_PM_SLEEP */
 

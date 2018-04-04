@@ -170,9 +170,11 @@ ether3_setbuffer(struct net_device *dev, buffer_rw_t read, int start)
 /*
  * Switch LED off...
  */
-static void ether3_ledoff(unsigned long data)
+static void ether3_ledoff(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct dev_priv *private = from_timer(private, t, timer);
+	struct net_device *dev = private->dev;
+
 	ether3_outw(priv(dev)->regs.config2 |= CFG2_CTRLO, REG_CONFIG2);
 }
 
@@ -183,8 +185,6 @@ static inline void ether3_ledon(struct net_device *dev)
 {
 	del_timer(&priv(dev)->timer);
 	priv(dev)->timer.expires = jiffies + HZ / 50; /* leave on for 1/50th second */
-	priv(dev)->timer.data = (unsigned long)dev;
-	priv(dev)->timer.function = ether3_ledoff;
 	add_timer(&priv(dev)->timer);
 	if (priv(dev)->regs.config2 & CFG2_CTRLO)
 		ether3_outw(priv(dev)->regs.config2 &= ~CFG2_CTRLO, REG_CONFIG2);
@@ -783,7 +783,8 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	ether3_addr(dev->dev_addr, ec);
 
-	init_timer(&priv(dev)->timer);
+	priv(dev)->dev = dev;
+	timer_setup(&priv(dev)->timer, ether3_ledoff, 0);
 
 	/* Reset card...
 	 */

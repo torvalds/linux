@@ -165,6 +165,7 @@ struct dev_priv {
     unsigned char tx_tail;		/* buffer nr of transmitting packet	 */
     unsigned int rx_head;		/* address to fetch next packet from	 */
     struct timer_list timer;
+    struct net_device *dev;
     int broken;				/* 0 = ok, 1 = something went wrong	 */
 };
 

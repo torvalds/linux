@@ -328,14 +328,22 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	return;
 
  failure_handling:
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
-		      intel_connector->base.base.id,
-		      intel_connector->base.name,
-		      intel_dp->link_rate, intel_dp->lane_count);
-	if (!intel_dp_get_link_train_fallback_values(intel_dp,
-						     intel_dp->link_rate,
-						     intel_dp->lane_count))
-		/* Schedule a Hotplug Uevent to userspace to start modeset */
-		schedule_work(&intel_connector->modeset_retry_work);
+	/* Dont fallback and prune modes if its eDP */
+	if (!intel_dp_is_edp(intel_dp)) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
+			      intel_connector->base.base.id,
+			      intel_connector->base.name,
+			      intel_dp->link_rate, intel_dp->lane_count);
+		if (!intel_dp_get_link_train_fallback_values(intel_dp,
+							     intel_dp->link_rate,
+							     intel_dp->lane_count))
+			/* Schedule a Hotplug Uevent to userspace to start modeset */
+			schedule_work(&intel_connector->modeset_retry_work);
+	} else {
+		DRM_ERROR("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
+			  intel_connector->base.base.id,
+			  intel_connector->base.name,
+			  intel_dp->link_rate, intel_dp->lane_count);
+	}
 	return;
 }

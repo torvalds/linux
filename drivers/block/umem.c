@@ -718,7 +718,7 @@ static void check_batteries(struct cardinfo *card)
 		set_fault_to_battery_status(card);
 }
 
-static void check_all_batteries(unsigned long ptr)
+static void check_all_batteries(struct timer_list *unused)
 {
 	int i;
 
@@ -738,8 +738,7 @@ static void check_all_batteries(unsigned long ptr)
 
 static void init_battery_timer(void)
 {
-	init_timer(&battery_timer);
-	battery_timer.function = check_all_batteries;
+	timer_setup(&battery_timer, check_all_batteries, 0);
 	battery_timer.expires = jiffies + (HZ * 60);
 	add_timer(&battery_timer);
 }

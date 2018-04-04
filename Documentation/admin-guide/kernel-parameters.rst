@@ -109,6 +109,7 @@ parameter is applicable::
 	IPV6	IPv6 support is enabled.
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
+	ISOL	CPU Isolation is enabled.
 	JOY	Appropriate joystick support is enabled.
 	KGDB	Kernel debugger support is enabled.
 	KVM	Kernel Virtual Machine support is enabled.

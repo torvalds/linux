@@ -91,7 +91,6 @@
 #include <linux/stacktrace.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>
-#include <linux/hardirq.h>
 #include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/mmzone.h>
@@ -110,7 +109,6 @@
 #include <linux/atomic.h>
 
 #include <linux/kasan.h>
-#include <linux/kmemcheck.h>
 #include <linux/kmemleak.h>
 #include <linux/memory_hotplug.h>
 
@@ -128,7 +126,7 @@
 /* GFP bitmask for kmemleak internal allocations */
 #define gfp_kmemleak_mask(gfp)	(((gfp) & (GFP_KERNEL | GFP_ATOMIC)) | \
 				 __GFP_NORETRY | __GFP_NOMEMALLOC | \
-				 __GFP_NOWARN)
+				 __GFP_NOWARN | __GFP_NOFAIL)
 
 /* scanning area inside a memory block */
 struct kmemleak_scan_area {
@@ -1238,9 +1236,6 @@ static bool update_checksum(struct kmemleak_object *object)
 {
 	u32 old_csum = object->checksum;
 
-	if (!kmemcheck_is_obj_initialized(object->pointer, object->size))
-		return false;
-
 	kasan_disable_current();
 	object->checksum = crc32(0, (void *)object->pointer, object->size);
 	kasan_enable_current();
@@ -1313,11 +1308,6 @@ static void scan_block(void *_start, void *_end,
 
 		if (scan_should_stop())
 			break;
-
-		/* don't scan uninitialized memory */
-		if (!kmemcheck_is_obj_initialized((unsigned long)ptr,
-						  BYTES_PER_POINTER))
-			continue;
 
 		kasan_disable_current();
 		pointer = *ptr;
@@ -1532,6 +1522,8 @@ static void kmemleak_scan(void)
 			if (page_count(page) == 0)
 				continue;
 			scan_block(page, page + 1, NULL);
+			if (!(pfn & 63))
+				cond_resched();
 		}
 	}
 	put_online_mems();
@@ -2104,7 +2096,7 @@ static int __init kmemleak_late_init(void)
 		return -ENOMEM;
 	}
 
-	dentry = debugfs_create_file("kmemleak", S_IRUGO, NULL, NULL,
+	dentry = debugfs_create_file("kmemleak", 0644, NULL, NULL,
 				     &kmemleak_fops);
 	if (!dentry)
 		pr_warn("Failed to create the debugfs kmemleak file\n");

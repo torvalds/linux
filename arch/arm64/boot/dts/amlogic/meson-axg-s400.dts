@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/dts-v1/;
+
+#include "meson-axg.dtsi"
+
+/ {
+	compatible = "amlogic,s400", "amlogic,a113d", "amlogic,meson-axg";
+	model = "Amlogic Meson AXG S400 Development Board";
+
+	aliases {
+		serial0 = &uart_AO;
+	};
+};
+
+&ethmac {
+	status = "okay";
+	phy-mode = "rgmii";
+	pinctrl-0 = <&eth_rgmii_y_pins>;
+	pinctrl-names = "default";
+};
+
+&uart_AO {
+	status = "okay";
+};
+
+&ir {
+	status = "okay";
+	pinctrl-0 = <&remote_input_ao_pins>;
+	pinctrl-names = "default";
+};

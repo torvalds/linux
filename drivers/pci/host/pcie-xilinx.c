@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PCIe host controller driver for Xilinx AXI PCIe Bridge
  *
@@ -7,11 +8,6 @@
  *
  * Bits taken from Synopsys DesignWare Host controller driver and
  * ARM PCI Host generic driver.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/interrupt.h>
@@ -129,7 +125,7 @@ static inline void pcie_write(struct xilinx_pcie_port *port, u32 val, u32 reg)
 	writel(val, port->reg_base + reg);
 }
 
-static inline bool xilinx_pcie_link_is_up(struct xilinx_pcie_port *port)
+static inline bool xilinx_pcie_link_up(struct xilinx_pcie_port *port)
 {
 	return (pcie_read(port, XILINX_PCIE_REG_PSCR) &
 		XILINX_PCIE_REG_PSCR_LNKUP) ? 1 : 0;
@@ -165,7 +161,7 @@ static bool xilinx_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 
 	/* Check if link is up when trying to access downstream ports */
 	if (bus->number != port->root_busno)
-		if (!xilinx_pcie_link_is_up(port))
+		if (!xilinx_pcie_link_up(port))
 			return false;
 
 	/* Only one device down on each root port */
@@ -541,7 +537,7 @@ static void xilinx_pcie_init_port(struct xilinx_pcie_port *port)
 {
 	struct device *dev = port->dev;
 
-	if (xilinx_pcie_link_is_up(port))
+	if (xilinx_pcie_link_up(port))
 		dev_info(dev, "PCIe Link is UP\n");
 	else
 		dev_info(dev, "PCIe Link is DOWN\n");

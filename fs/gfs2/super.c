@@ -754,17 +754,26 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
 	struct backing_dev_info *bdi = inode_to_bdi(metamapping->host);
 	int ret = 0;
+	bool flush_all = (wbc->sync_mode == WB_SYNC_ALL || gfs2_is_jdata(ip));
 
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		gfs2_log_flush(GFS2_SB(inode), ip->i_gl, NORMAL_FLUSH);
+	if (flush_all)
+		gfs2_log_flush(GFS2_SB(inode), ip->i_gl,
+			       GFS2_LOG_HEAD_FLUSH_NORMAL |
+			       GFS2_LFC_WRITE_INODE);
 	if (bdi->wb.dirty_exceeded)
 		gfs2_ail1_flush(sdp, wbc);
 	else
 		filemap_fdatawrite(metamapping);
-	if (wbc->sync_mode == WB_SYNC_ALL)
+	if (flush_all)
 		ret = filemap_fdatawait(metamapping);
 	if (ret)
 		mark_inode_dirty_sync(inode);
+	else {
+		spin_lock(&inode->i_lock);
+		if (!(inode->i_flags & I_DIRTY))
+			gfs2_ordered_del_inode(ip);
+		spin_unlock(&inode->i_lock);
+	}
 	return ret;
 }
 
@@ -852,7 +861,8 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	gfs2_quota_sync(sdp->sd_vfs, 0);
 	gfs2_statfs_sync(sdp->sd_vfs, 0);
 
-	gfs2_log_flush(sdp, NULL, SHUTDOWN_FLUSH);
+	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SHUTDOWN |
+		       GFS2_LFC_MAKE_FS_RO);
 	wait_event(sdp->sd_reserving_log_wait, atomic_read(&sdp->sd_reserving_log) == 0);
 	gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_blks_free) == sdp->sd_jdesc->jd_blocks);
 
@@ -945,7 +955,8 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
 
 	gfs2_quota_sync(sb, -1);
 	if (wait)
-		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+			       GFS2_LFC_SYNC_FS);
 	return sdp->sd_log_error;
 }
 
@@ -1255,10 +1266,10 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 		return -EINVAL;
 
 	if (sdp->sd_args.ar_spectator)
-		*flags |= MS_RDONLY;
+		*flags |= SB_RDONLY;
 
-	if ((sb->s_flags ^ *flags) & MS_RDONLY) {
-		if (*flags & MS_RDONLY)
+	if ((sb->s_flags ^ *flags) & SB_RDONLY) {
+		if (*flags & SB_RDONLY)
 			error = gfs2_make_fs_ro(sdp);
 		else
 			error = gfs2_make_fs_rw(sdp);
@@ -1268,9 +1279,9 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	sdp->sd_args = args;
 	if (sdp->sd_args.ar_posix_acl)
-		sb->s_flags |= MS_POSIXACL;
+		sb->s_flags |= SB_POSIXACL;
 	else
-		sb->s_flags &= ~MS_POSIXACL;
+		sb->s_flags &= ~SB_POSIXACL;
 	if (sdp->sd_args.ar_nobarrier)
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 	else
@@ -1649,7 +1660,8 @@ alloc_failed:
 	goto out_unlock;
 
 out_truncate:
-	gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
+	gfs2_log_flush(sdp, ip->i_gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
+		       GFS2_LFC_EVICT_INODE);
 	metamapping = gfs2_glock2aspace(ip->i_gl);
 	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
 		filemap_fdatawrite(metamapping);

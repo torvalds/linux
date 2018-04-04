@@ -487,6 +487,7 @@ static unsigned long exynos_dwmmc_caps[4] = {
 
 static const struct dw_mci_drv_data exynos_drv_data = {
 	.caps			= exynos_dwmmc_caps,
+	.num_caps		= ARRAY_SIZE(exynos_dwmmc_caps),
 	.init			= dw_mci_exynos_priv_init,
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,

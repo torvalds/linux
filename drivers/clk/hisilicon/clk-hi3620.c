@@ -415,7 +415,7 @@ static int mmc_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	return mmc_clk_set_timing(hw, rate);
 }
 
-static struct clk_ops clk_mmc_ops = {
+static const struct clk_ops clk_mmc_ops = {
 	.prepare = mmc_clk_prepare,
 	.determine_rate = mmc_clk_determine_rate,
 	.set_rate = mmc_clk_set_rate,

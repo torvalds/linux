@@ -218,7 +218,6 @@ static const struct iio_chan_spec mpl3115_channels[] = {
 
 static const struct iio_info mpl3115_info = {
 	.read_raw = &mpl3115_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int mpl3115_probe(struct i2c_client *client,

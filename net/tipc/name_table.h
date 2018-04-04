@@ -40,6 +40,7 @@
 struct tipc_subscription;
 struct tipc_plist;
 struct tipc_nlist;
+struct tipc_group;
 
 /*
  * TIPC name types reserved for internal TIPC use (both current and planned)
@@ -99,11 +100,15 @@ struct name_table {
 int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
-int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
-			      u32 limit, struct list_head *dports);
+int tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
+			   u32 scope, bool exact, struct list_head *dports);
+void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
+			      u32 type, u32 domain);
 void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, u32 domain,
-				   struct tipc_nlist *nodes);
+				   u32 upper, struct tipc_nlist *nodes);
+bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
+			 struct list_head *dsts, int *dstcnt, u32 exclude,
+			 bool all);
 struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 					 u32 upper, u32 scope, u32 port_ref,
 					 u32 key);
@@ -115,21 +120,27 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 					     u32 lower, u32 node, u32 ref,
 					     u32 key);
-void tipc_nametbl_subscribe(struct tipc_subscription *s);
+void tipc_nametbl_subscribe(struct tipc_subscription *s, bool status);
 void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);
 void tipc_nametbl_stop(struct net *net);
 
-struct u32_item {
+struct tipc_dest {
 	struct list_head list;
-	u32 value;
+	union {
+		struct {
+			u32 port;
+			u32 node;
+		};
+		u64 value;
+	};
 };
 
-bool u32_push(struct list_head *l, u32 value);
-u32 u32_pop(struct list_head *l);
-bool u32_find(struct list_head *l, u32 value);
-bool u32_del(struct list_head *l, u32 value);
-void u32_list_purge(struct list_head *l);
-int u32_list_len(struct list_head *l);
+struct tipc_dest *tipc_dest_find(struct list_head *l, u32 node, u32 port);
+bool tipc_dest_push(struct list_head *l, u32 node, u32 port);
+bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port);
+bool tipc_dest_del(struct list_head *l, u32 node, u32 port);
+void tipc_dest_list_purge(struct list_head *l);
+int tipc_dest_list_len(struct list_head *l);
 
 #endif

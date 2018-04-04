@@ -155,21 +155,19 @@ static void destroy_super_rcu(struct rcu_head *head)
 	schedule_work(&s->destroy_work);
 }
 
-/**
- *	destroy_super	-	frees a superblock
- *	@s: superblock to free
- *
- *	Frees a superblock.
- */
-static void destroy_super(struct super_block *s)
+/* Free a superblock that has never been seen by anyone */
+static void destroy_unused_super(struct super_block *s)
 {
+	if (!s)
+		return;
+	up_write(&s->s_umount);
 	list_lru_destroy(&s->s_dentry_lru);
 	list_lru_destroy(&s->s_inode_lru);
 	security_sb_free(s);
-	WARN_ON(!list_empty(&s->s_mounts));
 	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
-	call_rcu(&s->rcu, destroy_super_rcu);
+	/* no delays needed */
+	destroy_super_work(&s->destroy_work);
 }
 
 /**
@@ -193,34 +191,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 
 	INIT_LIST_HEAD(&s->s_mounts);
 	s->s_user_ns = get_user_ns(user_ns);
-
-	if (security_sb_alloc(s))
-		goto fail;
-
-	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
-		if (__percpu_init_rwsem(&s->s_writers.rw_sem[i],
-					sb_writers_name[i],
-					&type->s_writers_key[i]))
-			goto fail;
-	}
-	init_waitqueue_head(&s->s_writers.wait_unfrozen);
-	s->s_bdi = &noop_backing_dev_info;
-	s->s_flags = flags;
-	if (s->s_user_ns != &init_user_ns)
-		s->s_iflags |= SB_I_NODEV;
-	INIT_HLIST_NODE(&s->s_instances);
-	INIT_HLIST_BL_HEAD(&s->s_anon);
-	mutex_init(&s->s_sync_lock);
-	INIT_LIST_HEAD(&s->s_inodes);
-	spin_lock_init(&s->s_inode_list_lock);
-	INIT_LIST_HEAD(&s->s_inodes_wb);
-	spin_lock_init(&s->s_inode_wblist_lock);
-
-	if (list_lru_init_memcg(&s->s_dentry_lru))
-		goto fail;
-	if (list_lru_init_memcg(&s->s_inode_lru))
-		goto fail;
-
 	init_rwsem(&s->s_umount);
 	lockdep_set_class(&s->s_umount, &type->s_umount_key);
 	/*
@@ -239,6 +209,33 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	 * subclass.
 	 */
 	down_write_nested(&s->s_umount, SINGLE_DEPTH_NESTING);
+
+	if (security_sb_alloc(s))
+		goto fail;
+
+	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
+		if (__percpu_init_rwsem(&s->s_writers.rw_sem[i],
+					sb_writers_name[i],
+					&type->s_writers_key[i]))
+			goto fail;
+	}
+	init_waitqueue_head(&s->s_writers.wait_unfrozen);
+	s->s_bdi = &noop_backing_dev_info;
+	s->s_flags = flags;
+	if (s->s_user_ns != &init_user_ns)
+		s->s_iflags |= SB_I_NODEV;
+	INIT_HLIST_NODE(&s->s_instances);
+	INIT_HLIST_BL_HEAD(&s->s_roots);
+	mutex_init(&s->s_sync_lock);
+	INIT_LIST_HEAD(&s->s_inodes);
+	spin_lock_init(&s->s_inode_list_lock);
+	INIT_LIST_HEAD(&s->s_inodes_wb);
+	spin_lock_init(&s->s_inode_wblist_lock);
+
+	if (list_lru_init_memcg(&s->s_dentry_lru))
+		goto fail;
+	if (list_lru_init_memcg(&s->s_inode_lru))
+		goto fail;
 	s->s_count = 1;
 	atomic_set(&s->s_active, 1);
 	mutex_init(&s->s_vfs_rename_mutex);
@@ -257,7 +254,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	return s;
 
 fail:
-	destroy_super(s);
+	destroy_unused_super(s);
 	return NULL;
 }
 
@@ -266,11 +263,17 @@ fail:
 /*
  * Drop a superblock's refcount.  The caller must hold sb_lock.
  */
-static void __put_super(struct super_block *sb)
+static void __put_super(struct super_block *s)
 {
-	if (!--sb->s_count) {
-		list_del_init(&sb->s_list);
-		destroy_super(sb);
+	if (!--s->s_count) {
+		list_del_init(&s->s_list);
+		WARN_ON(s->s_dentry_lru.node);
+		WARN_ON(s->s_inode_lru.node);
+		WARN_ON(!list_empty(&s->s_mounts));
+		security_sb_free(s);
+		put_user_ns(s->s_user_ns);
+		kfree(s->s_subtype);
+		call_rcu(&s->rcu, destroy_super_rcu);
 	}
 }
 
@@ -485,19 +488,12 @@ retry:
 				continue;
 			if (user_ns != old->s_user_ns) {
 				spin_unlock(&sb_lock);
-				if (s) {
-					up_write(&s->s_umount);
-					destroy_super(s);
-				}
+				destroy_unused_super(s);
 				return ERR_PTR(-EBUSY);
 			}
 			if (!grab_super(old))
 				goto retry;
-			if (s) {
-				up_write(&s->s_umount);
-				destroy_super(s);
-				s = NULL;
-			}
+			destroy_unused_super(s);
 			return old;
 		}
 	}
@@ -512,8 +508,7 @@ retry:
 	err = set(s, data);
 	if (err) {
 		spin_unlock(&sb_lock);
-		up_write(&s->s_umount);
-		destroy_super(s);
+		destroy_unused_super(s);
 		return ERR_PTR(err);
 	}
 	s->s_type = type;
@@ -522,7 +517,11 @@ retry:
 	hlist_add_head(&s->s_instances, &type->fs_supers);
 	spin_unlock(&sb_lock);
 	get_filesystem(type);
-	register_shrinker(&s->s_shrink);
+	err = register_shrinker(&s->s_shrink);
+	if (err) {
+		deactivate_locked_super(s);
+		s = ERR_PTR(err);
+	}
 	return s;
 }
 

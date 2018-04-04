@@ -16,7 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "dib7000m.h"
 

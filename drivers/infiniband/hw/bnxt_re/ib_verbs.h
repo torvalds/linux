@@ -68,6 +68,15 @@ struct bnxt_re_ah {
 	struct bnxt_qplib_ah	qplib_ah;
 };
 
+struct bnxt_re_srq {
+	struct bnxt_re_dev	*rdev;
+	u32			srq_limit;
+	struct ib_srq		ib_srq;
+	struct bnxt_qplib_srq	qplib_srq;
+	struct ib_umem		*umem;
+	spinlock_t		lock;		/* protect srq */
+};
+
 struct bnxt_re_qp {
 	struct list_head	list;
 	struct bnxt_re_dev	*rdev;
@@ -80,6 +89,8 @@ struct bnxt_re_qp {
 	/* QP1 */
 	u32			send_psn;
 	struct ib_ud_header	qp1_hdr;
+	struct bnxt_re_cq	*scq;
+	struct bnxt_re_cq	*rcq;
 };
 
 struct bnxt_re_cq {
@@ -143,6 +154,7 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 		       struct ib_port_attr *port_attr);
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable);
+void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 		       u16 index, u16 *pkey);
 int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
@@ -164,6 +176,16 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_destroy_ah(struct ib_ah *ah);
+struct ib_srq *bnxt_re_create_srq(struct ib_pd *pd,
+				  struct ib_srq_init_attr *srq_init_attr,
+				  struct ib_udata *udata);
+int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
+		       enum ib_srq_attr_mask srq_attr_mask,
+		       struct ib_udata *udata);
+int bnxt_re_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
+int bnxt_re_destroy_srq(struct ib_srq *srq);
+int bnxt_re_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *recv_wr,
+			  struct ib_recv_wr **bad_recv_wr);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *qp_init_attr,
 				struct ib_udata *udata);

@@ -35,8 +35,7 @@
 #define rs_smp_mb() do {} while (0)
 #endif
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *) &(x))
-#define READ_ONCE(x) ACCESS_ONCE(x)
-#define WRITE_ONCE(x, val) (ACCESS_ONCE(x) = (val))
+#define READ_ONCE(x) (*(volatile typeof(x) *) &(x))
+#define WRITE_ONCE(x) ((*(volatile typeof(x) *) &(x)) = (val))
 
 #endif

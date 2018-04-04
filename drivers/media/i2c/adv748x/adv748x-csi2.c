@@ -223,13 +223,12 @@ static const struct v4l2_subdev_ops adv748x_csi2_ops = {
 
 int adv748x_csi2_set_pixelrate(struct v4l2_subdev *sd, s64 rate)
 {
-	struct v4l2_ctrl *ctrl;
+	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
 
-	ctrl = v4l2_ctrl_find(sd->ctrl_handler, V4L2_CID_PIXEL_RATE);
-	if (!ctrl)
+	if (!tx->pixel_rate)
 		return -EINVAL;
 
-	return v4l2_ctrl_s_ctrl_int64(ctrl, rate);
+	return v4l2_ctrl_s_ctrl_int64(tx->pixel_rate, rate);
 }
 
 static int adv748x_csi2_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -251,8 +250,10 @@ static int adv748x_csi2_init_controls(struct adv748x_csi2 *tx)
 
 	v4l2_ctrl_handler_init(&tx->ctrl_hdl, 1);
 
-	v4l2_ctrl_new_std(&tx->ctrl_hdl, &adv748x_csi2_ctrl_ops,
-			  V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
+	tx->pixel_rate = v4l2_ctrl_new_std(&tx->ctrl_hdl,
+					   &adv748x_csi2_ctrl_ops,
+					   V4L2_CID_PIXEL_RATE, 1, INT_MAX,
+					   1, 1);
 
 	tx->sd.ctrl_handler = &tx->ctrl_hdl;
 	if (tx->ctrl_hdl.error) {

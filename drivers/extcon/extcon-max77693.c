@@ -26,7 +26,7 @@
 #include <linux/mfd/max77693.h>
 #include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77693-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/regmap.h>
 #include <linux/irqdomain.h>
 
@@ -266,7 +266,7 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 static int max77693_muic_set_path(struct max77693_muic_info *info,
 		u8 val, bool attached)
 {
-	int ret = 0;
+	int ret;
 	unsigned int ctrl1, ctrl2 = 0;
 
 	if (attached)

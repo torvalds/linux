@@ -305,6 +305,7 @@ ENDPROC_CFI(os_hpmc)
 
 
 	__INITRODATA
+	.align 4
 	.export os_hpmc_size
 os_hpmc_size:
 	.word .os_hpmc_end-.os_hpmc

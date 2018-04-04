@@ -77,6 +77,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_af_ops		   Operations which are AF_INET{4,6} specific
  * @icsk_ulp_ops	   Pluggable ULP control hook
  * @icsk_ulp_data	   ULP private data
+ * @icsk_listen_portaddr_node	hash to the portaddr listener hashtable
  * @icsk_ca_state:	   Congestion control state
  * @icsk_retransmits:	   Number of unrecovered [RTO] timeouts
  * @icsk_pending:	   Scheduled timer event
@@ -101,6 +102,7 @@ struct inet_connection_sock {
 	const struct inet_connection_sock_af_ops *icsk_af_ops;
 	const struct tcp_ulp_ops  *icsk_ulp_ops;
 	void			  *icsk_ulp_data;
+	struct hlist_node         icsk_listen_portaddr_node;
 	unsigned int		  (*icsk_sync_mss)(struct sock *sk, u32 pmtu);
 	__u8			  icsk_ca_state:6,
 				  icsk_ca_setsockopt:1,
@@ -169,9 +171,9 @@ enum inet_csk_ack_state_t {
 };
 
 void inet_csk_init_xmit_timers(struct sock *sk,
-			       void (*retransmit_handler)(unsigned long),
-			       void (*delack_handler)(unsigned long),
-			       void (*keepalive_handler)(unsigned long));
+			       void (*retransmit_handler)(struct timer_list *),
+			       void (*delack_handler)(struct timer_list *),
+			       void (*keepalive_handler)(struct timer_list *));
 void inet_csk_clear_xmit_timers(struct sock *sk);
 
 static inline void inet_csk_schedule_ack(struct sock *sk)
@@ -305,10 +307,10 @@ void inet_csk_prepare_forced_close(struct sock *sk);
 /*
  * LISTEN is a special case for poll..
  */
-static inline unsigned int inet_csk_listen_poll(const struct sock *sk)
+static inline __poll_t inet_csk_listen_poll(const struct sock *sk)
 {
 	return !reqsk_queue_empty(&inet_csk(sk)->icsk_accept_queue) ?
-			(POLLIN | POLLRDNORM) : 0;
+			(EPOLLIN | EPOLLRDNORM) : 0;
 }
 
 int inet_csk_listen_start(struct sock *sk, int backlog);

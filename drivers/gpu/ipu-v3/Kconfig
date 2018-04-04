@@ -1,7 +1,9 @@
 config IMX_IPUV3_CORE
 	tristate "IPUv3 core support"
-	depends on SOC_IMX5 || SOC_IMX6Q || ARCH_MULTIPLATFORM
+	depends on SOC_IMX5 || SOC_IMX6Q || ARCH_MULTIPLATFORM || COMPILE_TEST
 	depends on DRM || !DRM # if DRM=m, this can't be 'y'
+	select BITREVERSE
+	select GENERIC_ALLOCATOR if DRM
 	select GENERIC_IRQ_CHIP
 	help
 	  Choose this if you have a i.MX5/6 system and want to use the Image

@@ -114,9 +114,16 @@
 					};
 				};
 				gmii_default_pins: pinctrl-gmii {
+					/*
+					 * Only activate GMAC0 by default since
+					 * GMAC1 will overlap with 8 GPIO lines
+					 * gpio2a, gpio2b. Overlay groups with
+					 * "gmii_gmac0_grp", "gmii_gmac1_grp" for
+					 * both ethernet interfaces.
+					 */
 					mux {
 						function = "gmii";
-						groups = "gmiigrp";
+						groups = "gmii_gmac0_grp";
 					};
 				};
 				pci_default_pins: pinctrl-pci {
@@ -140,6 +147,12 @@
 					mux1 {
 						function = "ide";
 						groups = "idegrp";
+					};
+				};
+				tvc_default_pins: pinctrl-tvc {
+					mux {
+						function = "tvc";
+						groups = "tvcgrp";
 					};
 				};
 			};
@@ -310,6 +323,41 @@
 			};
 		};
 
+		ethernet@60000000 {
+			compatible = "cortina,gemini-ethernet";
+			reg = <0x60000000 0x4000>, /* Global registers, queue */
+			      <0x60004000 0x2000>, /* V-bit */
+			      <0x60006000 0x2000>; /* A-bit */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmii_default_pins>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gmac0: ethernet-port@0 {
+				compatible = "cortina,gemini-ethernet-port";
+				reg = <0x60008000 0x2000>, /* Port 0 DMA/TOE */
+				      <0x6000a000 0x2000>; /* Port 0 GMAC */
+				interrupt-parent = <&intcon>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon GEMINI_RESET_GMAC0>;
+				clocks = <&syscon GEMINI_CLK_GATE_GMAC0>;
+				clock-names = "PCLK";
+			};
+
+			gmac1: ethernet-port@1 {
+				compatible = "cortina,gemini-ethernet-port";
+				reg = <0x6000c000 0x2000>, /* Port 1 DMA/TOE */
+				      <0x6000e000 0x2000>; /* Port 1 GMAC */
+				interrupt-parent = <&intcon>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon GEMINI_RESET_GMAC1>;
+				clocks = <&syscon GEMINI_CLK_GATE_GMAC1>;
+				clock-names = "PCLK";
+			};
+		};
+
 		ata@63000000 {
 			compatible = "cortina,gemini-pata", "faraday,ftide010";
 			reg = <0x63000000 0x1000>;
@@ -347,6 +395,21 @@
 			memcpy-burst-size = <256>;
 			memcpy-bus-width = <32>;
 			#dma-cells = <2>;
+		};
+
+		display-controller@6a000000 {
+			compatible = "cortina,gemini-tvc", "faraday,tve200";
+			reg = <0x6a000000 0x1000>;
+			interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_TVC>;
+			clocks = <&syscon GEMINI_CLK_GATE_TVC>,
+				 <&syscon GEMINI_CLK_TVC>;
+			clock-names = "PCLK", "TVE";
+			pinctrl-names = "default";
+			pinctrl-0 = <&tvc_default_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 	};
 };

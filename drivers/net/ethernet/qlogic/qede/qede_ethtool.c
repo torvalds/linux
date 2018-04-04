@@ -940,6 +940,9 @@ int qede_change_mtu(struct net_device *ndev, int new_mtu)
 	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 		   "Configuring MTU size of %d\n", new_mtu);
 
+	if (new_mtu > PAGE_SIZE)
+		ndev->features &= ~NETIF_F_GRO_HW;
+
 	/* Set the mtu field and re-start the interface if needed */
 	args.u.mtu = new_mtu;
 	args.func = &qede_update_mtu;

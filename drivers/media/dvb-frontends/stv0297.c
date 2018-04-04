@@ -27,7 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stv0297.h"
 
 struct stv0297_state {

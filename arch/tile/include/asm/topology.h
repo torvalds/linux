@@ -29,12 +29,6 @@ static inline int cpu_to_node(int cpu)
 	return cpu_2_node[cpu];
 }
 
-/*
- * Returns the number of the node containing Node 'node'.
- * This architecture is flat, so it is a pretty simple function!
- */
-#define parent_node(node) (node)
-
 /* Returns a bitmask of CPUs on Node 'node'. */
 static inline const struct cpumask *cpumask_of_node(int node)
 {

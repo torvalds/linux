@@ -241,9 +241,9 @@ void nr_destroy_socket(struct sock *);
 /*
  *	Handler for deferred kills.
  */
-static void nr_destroy_timer(unsigned long data)
+static void nr_destroy_timer(struct timer_list *t)
 {
-	struct sock *sk=(struct sock *)data;
+	struct sock *sk = from_timer(sk, t, sk_timer);
 	bh_lock_sock(sk);
 	sock_hold(sk);
 	nr_destroy_socket(sk);
@@ -1344,7 +1344,6 @@ static int nr_info_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nr_info_fops = {
-	.owner = THIS_MODULE,
 	.open = nr_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

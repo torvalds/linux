@@ -37,9 +37,11 @@
 #define SUN8I_SYSCLK_CTL_SYSCLK_SRC			0
 #define SUN8I_MOD_CLK_ENA				0x010
 #define SUN8I_MOD_CLK_ENA_AIF1				15
+#define SUN8I_MOD_CLK_ENA_ADC				3
 #define SUN8I_MOD_CLK_ENA_DAC				2
 #define SUN8I_MOD_RST_CTL				0x014
 #define SUN8I_MOD_RST_CTL_AIF1				15
+#define SUN8I_MOD_RST_CTL_ADC				3
 #define SUN8I_MOD_RST_CTL_DAC				2
 #define SUN8I_SYS_SR_CTRL				0x018
 #define SUN8I_SYS_SR_CTRL_AIF1_FS			12
@@ -54,9 +56,25 @@
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ		4
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_16		(1 << 4)
 #define SUN8I_AIF1CLK_CTRL_AIF1_DATA_FMT		2
+#define SUN8I_AIF1_ADCDAT_CTRL				0x044
+#define SUN8I_AIF1_ADCDAT_CTRL_AIF1_DA0L_ENA		15
+#define SUN8I_AIF1_ADCDAT_CTRL_AIF1_DA0R_ENA		14
 #define SUN8I_AIF1_DACDAT_CTRL				0x048
 #define SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0L_ENA		15
 #define SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0R_ENA		14
+#define SUN8I_AIF1_MXR_SRC				0x04c
+#define SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_AIF1DA0L	15
+#define SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_AIF2DACL	14
+#define SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_ADCL		13
+#define SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_AIF2DACR	12
+#define SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_AIF1DA0R	11
+#define SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_AIF2DACR	10
+#define SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_ADCR		9
+#define SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_AIF2DACL	8
+#define SUN8I_ADC_DIG_CTRL				0x100
+#define SUN8I_ADC_DIG_CTRL_ENDA			15
+#define SUN8I_ADC_DIG_CTRL_ADOUT_DTS			2
+#define SUN8I_ADC_DIG_CTRL_ADOUT_DLY			1
 #define SUN8I_DAC_DIG_CTRL				0x120
 #define SUN8I_DAC_DIG_CTRL_ENDA			15
 #define SUN8I_DAC_MXR_SRC				0x130
@@ -73,6 +91,7 @@
 #define SUN8I_SYS_SR_CTRL_AIF2_FS_MASK		GENMASK(11, 8)
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK	GENMASK(5, 4)
 #define SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK	GENMASK(8, 6)
+#define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK	GENMASK(12, 9)
 
 struct sun8i_codec {
 	struct device	*dev;
@@ -170,11 +189,11 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	/* clock masters */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS: /* DAI Slave */
-		value = 0x0; /* Codec Master */
+	case SND_SOC_DAIFMT_CBS_CFS: /* Codec slave, DAI master */
+		value = 0x1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM: /* DAI Master */
-		value = 0x1; /* Codec Slave */
+	case SND_SOC_DAIFMT_CBM_CFM: /* Codec Master, DAI slave */
+		value = 0x0;
 		break;
 	default:
 		return -EINVAL;
@@ -197,9 +216,20 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV),
 			   value << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV);
+
+	/*
+	 * It appears that the DAI and the codec don't share the same
+	 * polarity for the LRCK signal when they mean 'normal' and
+	 * 'inverted' in the datasheet.
+	 *
+	 * Since the DAI here is our regular i2s driver that have been
+	 * tested with way more codecs than just this one, it means
+	 * that the codec probably gets it backward, and we have to
+	 * invert the value here.
+	 */
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV),
-			   value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
+			   !value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
 
 	/* DAI format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -226,12 +256,57 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+struct sun8i_codec_clk_div {
+	u8	div;
+	u8	val;
+};
+
+static const struct sun8i_codec_clk_div sun8i_codec_bclk_div[] = {
+	{ .div = 1,	.val = 0 },
+	{ .div = 2,	.val = 1 },
+	{ .div = 4,	.val = 2 },
+	{ .div = 6,	.val = 3 },
+	{ .div = 8,	.val = 4 },
+	{ .div = 12,	.val = 5 },
+	{ .div = 16,	.val = 6 },
+	{ .div = 24,	.val = 7 },
+	{ .div = 32,	.val = 8 },
+	{ .div = 48,	.val = 9 },
+	{ .div = 64,	.val = 10 },
+	{ .div = 96,	.val = 11 },
+	{ .div = 128,	.val = 12 },
+	{ .div = 192,	.val = 13 },
+};
+
+static u8 sun8i_codec_get_bclk_div(struct sun8i_codec *scodec,
+				   unsigned int rate,
+				   unsigned int word_size)
+{
+	unsigned long clk_rate = clk_get_rate(scodec->clk_module);
+	unsigned int div = clk_rate / rate / word_size / 2;
+	unsigned int best_val = 0, best_diff = ~0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sun8i_codec_bclk_div); i++) {
+		const struct sun8i_codec_clk_div *bdiv = &sun8i_codec_bclk_div[i];
+		unsigned int diff = abs(bdiv->div - div);
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			best_val = bdiv->val;
+		}
+	}
+
+	return best_val;
+}
+
 static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
 	struct sun8i_codec *scodec = snd_soc_codec_get_drvdata(dai->codec);
 	int sample_rate;
+	u8 bclk_div;
 
 	/*
 	 * The CPU DAI handles only a sample of 16 bits. Configure the
@@ -240,6 +315,11 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK,
 			   SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_16);
+
+	bclk_div = sun8i_codec_get_bclk_div(scodec, params_rate(params), 16);
+	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
+			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
+			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
 
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK,
@@ -276,9 +356,29 @@ static const struct snd_kcontrol_new sun8i_dac_mixer_controls[] = {
 			SUN8I_DAC_MXR_SRC_DACR_MXR_SRC_ADCR, 1, 0),
 };
 
+static const struct snd_kcontrol_new sun8i_input_mixer_controls[] = {
+	SOC_DAPM_DOUBLE("AIF1 Slot 0 Digital ADC Capture Switch",
+			SUN8I_AIF1_MXR_SRC,
+			SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_AIF1DA0L,
+			SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_AIF1DA0R, 1, 0),
+	SOC_DAPM_DOUBLE("AIF2 Digital ADC Capture Switch", SUN8I_AIF1_MXR_SRC,
+			SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_AIF2DACL,
+			SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_AIF2DACR, 1, 0),
+	SOC_DAPM_DOUBLE("AIF1 Data Digital ADC Capture Switch",
+			SUN8I_AIF1_MXR_SRC,
+			SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_ADCL,
+			SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_ADCR, 1, 0),
+	SOC_DAPM_DOUBLE("AIF2 Inv Digital ADC Capture Switch",
+			SUN8I_AIF1_MXR_SRC,
+			SUN8I_AIF1_MXR_SRC_AD0L_MXL_SRC_AIF2DACR,
+			SUN8I_AIF1_MXR_SRC_AD0R_MXR_SRC_AIF2DACL, 1, 0),
+};
+
 static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
-	/* Digital parts of the DACs */
+	/* Digital parts of the DACs and ADC */
 	SND_SOC_DAPM_SUPPLY("DAC", SUN8I_DAC_DIG_CTRL, SUN8I_DAC_DIG_CTRL_ENDA,
+			    0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC", SUN8I_ADC_DIG_CTRL, SUN8I_ADC_DIG_CTRL_ENDA,
 			    0, NULL, 0),
 
 	/* Analog DAC AIF */
@@ -289,17 +389,31 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_AIF1_DACDAT_CTRL,
 			    SUN8I_AIF1_DACDAT_CTRL_AIF1_DA0R_ENA, 0),
 
-	/* DAC Mixers */
+	/* Analog ADC AIF */
+	SND_SOC_DAPM_AIF_IN("AIF1 Slot 0 Left ADC", "Capture", 0,
+			    SUN8I_AIF1_ADCDAT_CTRL,
+			    SUN8I_AIF1_ADCDAT_CTRL_AIF1_DA0L_ENA, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1 Slot 0 Right ADC", "Capture", 0,
+			    SUN8I_AIF1_ADCDAT_CTRL,
+			    SUN8I_AIF1_ADCDAT_CTRL_AIF1_DA0R_ENA, 0),
+
+	/* DAC and ADC Mixers */
 	SOC_MIXER_ARRAY("Left Digital DAC Mixer", SND_SOC_NOPM, 0, 0,
 			sun8i_dac_mixer_controls),
 	SOC_MIXER_ARRAY("Right Digital DAC Mixer", SND_SOC_NOPM, 0, 0,
 			sun8i_dac_mixer_controls),
+	SOC_MIXER_ARRAY("Left Digital ADC Mixer", SND_SOC_NOPM, 0, 0,
+			sun8i_input_mixer_controls),
+	SOC_MIXER_ARRAY("Right Digital ADC Mixer", SND_SOC_NOPM, 0, 0,
+			sun8i_input_mixer_controls),
 
 	/* Clocks */
 	SND_SOC_DAPM_SUPPLY("MODCLK AFI1", SUN8I_MOD_CLK_ENA,
 			    SUN8I_MOD_CLK_ENA_AIF1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("MODCLK DAC", SUN8I_MOD_CLK_ENA,
 			    SUN8I_MOD_CLK_ENA_DAC, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MODCLK ADC", SUN8I_MOD_CLK_ENA,
+			    SUN8I_MOD_CLK_ENA_ADC, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("AIF1", SUN8I_SYSCLK_CTL,
 			    SUN8I_SYSCLK_CTL_AIF1CLK_ENA, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("SYSCLK", SUN8I_SYSCLK_CTL,
@@ -316,6 +430,12 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_MOD_RST_CTL_AIF1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("RST DAC", SUN8I_MOD_RST_CTL,
 			    SUN8I_MOD_RST_CTL_DAC, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("RST ADC", SUN8I_MOD_RST_CTL,
+			    SUN8I_MOD_RST_CTL_ADC, 0, NULL, 0),
+
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Mic", NULL),
+
 };
 
 static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
@@ -325,10 +445,15 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	{ "RST AIF1", NULL, "AIF1 PLL" },
 	{ "MODCLK AFI1", NULL, "RST AIF1" },
 	{ "DAC", NULL, "MODCLK AFI1" },
+	{ "ADC", NULL, "MODCLK AFI1" },
 
 	{ "RST DAC", NULL, "SYSCLK" },
 	{ "MODCLK DAC", NULL, "RST DAC" },
 	{ "DAC", NULL, "MODCLK DAC" },
+
+	{ "RST ADC", NULL, "SYSCLK" },
+	{ "MODCLK ADC", NULL, "RST ADC" },
+	{ "ADC", NULL, "MODCLK ADC" },
 
 	/* DAC Routes */
 	{ "AIF1 Slot 0 Right", NULL, "DAC" },
@@ -339,6 +464,12 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	  "AIF1 Slot 0 Left"},
 	{ "Right Digital DAC Mixer", "AIF1 Slot 0 Digital DAC Playback Switch",
 	  "AIF1 Slot 0 Right"},
+
+	/* ADC routes */
+	{ "Left Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch",
+	  "AIF1 Slot 0 Left ADC" },
+	{ "Right Digital ADC Mixer", "AIF1 Data Digital ADC Capture Switch",
+	  "AIF1 Slot 0 Right ADC" },
 };
 
 static const struct snd_soc_dai_ops sun8i_codec_dai_ops = {
@@ -355,6 +486,15 @@ static struct snd_soc_dai_driver sun8i_codec_dai = {
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	/* capture capabilities */
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.sig_bits = 24,
 	},
 	/* pcm operations */
 	.ops = &sun8i_codec_dai_ops,

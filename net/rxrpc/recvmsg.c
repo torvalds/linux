@@ -40,7 +40,9 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 	sk = &rx->sk;
 	if (rx && sk->sk_state < RXRPC_CLOSE) {
 		if (call->notify_rx) {
+			spin_lock_bh(&call->notify_lock);
 			call->notify_rx(sk, call, call->user_call_ID);
+			spin_unlock_bh(&call->notify_lock);
 		} else {
 			write_lock_bh(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
@@ -142,11 +144,13 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
+#if 0 // TODO: May want to transmit final ACK under some circumstances anyway
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
 				  rxrpc_propose_ack_terminal_ack);
-		rxrpc_send_ack_packet(call, false);
+		rxrpc_send_ack_packet(call, false, NULL);
 	}
+#endif
 
 	write_lock_bh(&call->state_lock);
 
@@ -159,7 +163,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 		call->tx_phase = true;
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
-		call->ack_at = call->expire_at;
+		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
 		write_unlock_bh(&call->state_lock);
 		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial, false, true,
 				  rxrpc_propose_ack_processing_op);
@@ -215,10 +219,10 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		    after_eq(top, call->ackr_seen + 2) ||
 		    (hard_ack == top && after(hard_ack, call->ackr_consumed)))
 			rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial,
-					  true, false,
+					  true, true,
 					  rxrpc_propose_ack_rotate_rx);
-		if (call->ackr_reason)
-			rxrpc_send_ack_packet(call, false);
+		if (call->ackr_reason && call->ackr_reason != RXRPC_ACK_DELAY)
+			rxrpc_send_ack_packet(call, false, NULL);
 	}
 }
 
@@ -513,9 +517,10 @@ try_again:
 			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
 				       sizeof(unsigned int), &id32);
 		} else {
+			unsigned long idl = call->user_call_ID;
+
 			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
-				       sizeof(unsigned long),
-				       &call->user_call_ID);
+				       sizeof(unsigned long), &idl);
 		}
 		if (ret < 0)
 			goto error_unlock_call;
@@ -607,6 +612,7 @@ wait_error:
  * @_offset: The running offset into the buffer.
  * @want_more: True if more data is expected to be read
  * @_abort: Where the abort code is stored if -ECONNABORTED is returned
+ * @_service: Where to store the actual service ID (may be upgraded)
  *
  * Allow a kernel service to receive data and pick up information about the
  * state of a call.  Returns 0 if got what was asked for and there's more
@@ -624,7 +630,7 @@ wait_error:
  */
 int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 			   void *buf, size_t size, size_t *_offset,
-			   bool want_more, u32 *_abort)
+			   bool want_more, u32 *_abort, u16 *_service)
 {
 	struct iov_iter iter;
 	struct kvec iov;
@@ -680,6 +686,8 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 read_phase_complete:
 	ret = 1;
 out:
+	if (_service)
+		*_service = call->service_id;
 	mutex_unlock(&call->user_mutex);
 	_leave(" = %d [%zu,%d]", ret, *_offset, *_abort);
 	return ret;

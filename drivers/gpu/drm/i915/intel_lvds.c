@@ -125,6 +125,8 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	u32 tmp, flags = 0;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_LVDS);
+
 	tmp = I915_READ(lvds_encoder->reg);
 	if (tmp & LVDS_HSYNC_POLARITY)
 		flags |= DRM_MODE_FLAG_NHSYNC;
@@ -229,8 +231,8 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 }
 
 static void intel_pre_enable_lvds(struct intel_encoder *encoder,
-				  struct intel_crtc_state *pipe_config,
-				  struct drm_connector_state *conn_state)
+				  const struct intel_crtc_state *pipe_config,
+				  const struct drm_connector_state *conn_state)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -306,8 +308,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
  * Sets the power state for the panel.
  */
 static void intel_enable_lvds(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config,
-			      struct drm_connector_state *conn_state)
+			      const struct intel_crtc_state *pipe_config,
+			      const struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
@@ -324,8 +326,8 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 }
 
 static void intel_disable_lvds(struct intel_encoder *encoder,
-			       struct intel_crtc_state *old_crtc_state,
-			       struct drm_connector_state *old_conn_state)
+			       const struct intel_crtc_state *old_crtc_state,
+			       const struct drm_connector_state *old_conn_state)
 {
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -339,8 +341,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder,
 }
 
 static void gmch_disable_lvds(struct intel_encoder *encoder,
-			      struct intel_crtc_state *old_crtc_state,
-			      struct drm_connector_state *old_conn_state)
+			      const struct intel_crtc_state *old_crtc_state,
+			      const struct drm_connector_state *old_conn_state)
 
 {
 	intel_panel_disable_backlight(old_conn_state);
@@ -349,15 +351,15 @@ static void gmch_disable_lvds(struct intel_encoder *encoder,
 }
 
 static void pch_disable_lvds(struct intel_encoder *encoder,
-			     struct intel_crtc_state *old_crtc_state,
-			     struct drm_connector_state *old_conn_state)
+			     const struct intel_crtc_state *old_crtc_state,
+			     const struct drm_connector_state *old_conn_state)
 {
 	intel_panel_disable_backlight(old_conn_state);
 }
 
 static void pch_post_disable_lvds(struct intel_encoder *encoder,
-				  struct intel_crtc_state *old_crtc_state,
-				  struct drm_connector_state *old_conn_state)
+				  const struct intel_crtc_state *old_crtc_state,
+				  const struct drm_connector_state *old_conn_state)
 {
 	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
 }
@@ -880,8 +882,8 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* use the module option value if specified */
-	if (i915.lvds_channel_mode > 0)
-		return i915.lvds_channel_mode == 2;
+	if (i915_modparams.lvds_channel_mode > 0)
+		return i915_modparams.lvds_channel_mode == 2;
 
 	/* single channel LVDS is limited to 112 MHz */
 	if (lvds_encoder->attached_connector->base.panel.fixed_mode->clock
@@ -939,10 +941,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
-	struct intel_crtc *crtc;
 	i915_reg_t lvds_reg;
 	u32 lvds;
-	int pipe;
 	u8 pin;
 	u32 allowed_scalers;
 
@@ -1113,22 +1113,11 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 * on.  If so, assume that whatever is currently programmed is the
 	 * correct mode.
 	 */
-
-	/* Ironlake: FIXME if still fail, not try pipe mode now */
-	if (HAS_PCH_SPLIT(dev_priv))
-		goto failed;
-
-	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
-	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-
-	if (crtc && (lvds & LVDS_PORT_EN)) {
-		fixed_mode = intel_crtc_mode_get(dev, &crtc->base);
-		if (fixed_mode) {
-			DRM_DEBUG_KMS("using current (BIOS) mode: ");
-			drm_mode_debug_printmodeline(fixed_mode);
-			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-			goto out;
-		}
+	fixed_mode = intel_encoder_current_mode(intel_encoder);
+	if (fixed_mode) {
+		DRM_DEBUG_KMS("using current (BIOS) mode: ");
+		drm_mode_debug_printmodeline(fixed_mode);
+		fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 
 	/* If we still don't have a mode after all that, give up. */

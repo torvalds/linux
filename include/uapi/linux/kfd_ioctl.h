@@ -58,7 +58,8 @@ struct kfd_ioctl_create_queue_args {
 	__u64 eop_buffer_address;	/* to KFD */
 	__u64 eop_buffer_size;	/* to KFD */
 	__u64 ctx_save_restore_address; /* to KFD */
-	__u64 ctx_save_restore_size;	/* to KFD */
+	__u32 ctx_save_restore_size;	/* to KFD */
+	__u32 ctl_stack_size;		/* to KFD */
 };
 
 struct kfd_ioctl_destroy_queue_args {
@@ -169,7 +170,7 @@ struct kfd_ioctl_dbg_wave_control_args {
 #define KFD_IOC_WAIT_RESULT_TIMEOUT		1
 #define KFD_IOC_WAIT_RESULT_FAIL		2
 
-#define KFD_SIGNAL_EVENT_LIMIT			256
+#define KFD_SIGNAL_EVENT_LIMIT			4096
 
 struct kfd_ioctl_create_event_args {
 	__u64 event_page_offset;	/* from KFD */
@@ -233,32 +234,39 @@ struct kfd_ioctl_wait_events_args {
 };
 
 struct kfd_ioctl_set_scratch_backing_va_args {
-	uint64_t va_addr;	/* to KFD */
-	uint32_t gpu_id;	/* to KFD */
-	uint32_t pad;
+	__u64 va_addr;	/* to KFD */
+	__u32 gpu_id;	/* to KFD */
+	__u32 pad;
 };
 
 struct kfd_ioctl_get_tile_config_args {
 	/* to KFD: pointer to tile array */
-	uint64_t tile_config_ptr;
+	__u64 tile_config_ptr;
 	/* to KFD: pointer to macro tile array */
-	uint64_t macro_tile_config_ptr;
+	__u64 macro_tile_config_ptr;
 	/* to KFD: array size allocated by user mode
 	 * from KFD: array size filled by kernel
 	 */
-	uint32_t num_tile_configs;
+	__u32 num_tile_configs;
 	/* to KFD: array size allocated by user mode
 	 * from KFD: array size filled by kernel
 	 */
-	uint32_t num_macro_tile_configs;
+	__u32 num_macro_tile_configs;
 
-	uint32_t gpu_id;		/* to KFD */
-	uint32_t gb_addr_config;	/* from KFD */
-	uint32_t num_banks;		/* from KFD */
-	uint32_t num_ranks;		/* from KFD */
+	__u32 gpu_id;		/* to KFD */
+	__u32 gb_addr_config;	/* from KFD */
+	__u32 num_banks;		/* from KFD */
+	__u32 num_ranks;		/* from KFD */
 	/* struct size can be extended later if needed
 	 * without breaking ABI compatibility
 	 */
+};
+
+struct kfd_ioctl_set_trap_handler_args {
+	uint64_t tba_addr;		/* to KFD */
+	uint64_t tma_addr;		/* to KFD */
+	uint32_t gpu_id;		/* to KFD */
+	uint32_t pad;
 };
 
 #define AMDKFD_IOCTL_BASE 'K'
@@ -321,7 +329,10 @@ struct kfd_ioctl_get_tile_config_args {
 #define AMDKFD_IOC_GET_TILE_CONFIG                                      \
 		AMDKFD_IOWR(0x12, struct kfd_ioctl_get_tile_config_args)
 
+#define AMDKFD_IOC_SET_TRAP_HANDLER		\
+		AMDKFD_IOW(0x13, struct kfd_ioctl_set_trap_handler_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x13
+#define AMDKFD_COMMAND_END		0x14
 
 #endif

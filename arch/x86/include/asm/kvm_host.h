@@ -86,7 +86,7 @@
 			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR | X86_CR4_PCIDE \
 			  | X86_CR4_OSXSAVE | X86_CR4_SMEP | X86_CR4_FSGSBASE \
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_LA57 | X86_CR4_VMXE \
-			  | X86_CR4_SMAP | X86_CR4_PKE))
+			  | X86_CR4_SMAP | X86_CR4_PKE | X86_CR4_UMIP))
 
 #define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
 
@@ -504,8 +504,10 @@ struct kvm_vcpu_arch {
 	int mp_state;
 	u64 ia32_misc_enable_msr;
 	u64 smbase;
+	u64 smi_count;
 	bool tpr_access_reporting;
 	u64 ia32_xss;
+	u64 microcode_version;
 
 	/*
 	 * Paging state of the vcpu
@@ -536,7 +538,20 @@ struct kvm_vcpu_arch {
 	struct kvm_mmu_memory_cache mmu_page_cache;
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
 
+	/*
+	 * QEMU userspace and the guest each have their own FPU state.
+	 * In vcpu_run, we switch between the user and guest FPU contexts.
+	 * While running a VCPU, the VCPU thread will have the guest FPU
+	 * context.
+	 *
+	 * Note that while the PKRU state lives inside the fpu registers,
+	 * it is switched out separately at VMENTER and VMEXIT time. The
+	 * "guest_fpu" state here contains the guest FPU context, with the
+	 * host PRKU bits.
+	 */
+	struct fpu user_fpu;
 	struct fpu guest_fpu;
+
 	u64 xcr0;
 	u64 guest_supported_xcr0;
 	u32 guest_xstate_size;
@@ -747,6 +762,15 @@ enum kvm_irqchip_mode {
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
+struct kvm_sev_info {
+	bool active;		/* SEV enabled guest */
+	unsigned int asid;	/* ASID used for this guest */
+	unsigned int handle;	/* SEV firmware handle */
+	int fd;			/* SEV device fd */
+	unsigned long pages_locked; /* Number of pages locked */
+	struct list_head regions_list;  /* List of registered regions */
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -834,6 +858,8 @@ struct kvm_arch {
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
+
+	struct kvm_sev_info sev_info;
 };
 
 struct kvm_vm_stat {
@@ -870,7 +896,6 @@ struct kvm_vcpu_stat {
 	u64 request_irq_exits;
 	u64 irq_exits;
 	u64 host_state_reload;
-	u64 efer_reload;
 	u64 fpu_reload;
 	u64 insn_emulation;
 	u64 insn_emulation_fail;
@@ -952,7 +977,7 @@ struct kvm_x86_ops {
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 
-	void (*tlb_flush)(struct kvm_vcpu *vcpu);
+	void (*tlb_flush)(struct kvm_vcpu *vcpu, bool invalidate_gpa);
 
 	void (*run)(struct kvm_vcpu *vcpu);
 	int (*handle_exit)(struct kvm_vcpu *vcpu);
@@ -1004,6 +1029,7 @@ struct kvm_x86_ops {
 	void (*handle_external_intr)(struct kvm_vcpu *vcpu);
 	bool (*mpx_supported)(void);
 	bool (*xsaves_supported)(void);
+	bool (*umip_emulated)(void);
 
 	int (*check_nested_events)(struct kvm_vcpu *vcpu, bool external_intr);
 
@@ -1061,6 +1087,17 @@ struct kvm_x86_ops {
 	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
+
+	int (*smi_allowed)(struct kvm_vcpu *vcpu);
+	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
+	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
+	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
+
+	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
+	int (*mem_enc_reg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
+	int (*mem_enc_unreg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
+
+	int (*get_msr_feature)(struct kvm_msr_entry *entry);
 };
 
 struct kvm_arch_async_pf {
@@ -1156,7 +1193,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
 static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 			int emulation_type)
 {
-	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
+	return x86_emulate_instruction(vcpu, 0,
+			emulation_type | EMULTYPE_NO_REEXECUTE, NULL, 0);
 }
 
 void kvm_enable_efer_bits(u64);
@@ -1419,11 +1457,14 @@ static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 static inline int kvm_cpu_get_apicid(int mps_cpu)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
-	return __default_cpu_present_to_apicid(mps_cpu);
+	return default_cpu_present_to_apicid(mps_cpu);
 #else
 	WARN_ON_ONCE(1);
 	return BAD_APICID;
 #endif
 }
+
+#define put_smstate(type, buf, offset, val)                      \
+	*(type *)((buf) + (offset) - 0x7e00) = val
 
 #endif /* _ASM_X86_KVM_HOST_H */

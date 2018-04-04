@@ -657,7 +657,6 @@ static int exynos_adc_reg_access(struct iio_dev *indio_dev,
 static const struct iio_info exynos_adc_iio_info = {
 	.read_raw = &exynos_read_raw,
 	.debugfs_reg_access = &exynos_adc_reg_access,
-	.driver_module = THIS_MODULE,
 };
 
 #define ADC_CHANNEL(_index, _id) {			\

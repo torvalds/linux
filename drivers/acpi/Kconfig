@@ -79,7 +79,17 @@ config ACPI_DEBUGGER_USER
 endif
 
 config ACPI_SPCR_TABLE
+	bool "ACPI Serial Port Console Redirection Support"
+	default y if X86
+	help
+	  Enable support for Serial Port Console Redirection (SPCR) Table.
+	  This table provides information about the configuration of the
+	  earlycon console.
+
+config ACPI_LPIT
 	bool
+	depends on X86_64
+	default y
 
 config ACPI_SLEEP
 	bool
@@ -356,22 +366,6 @@ config ACPI_PCI_SLOT
 	  i.e., segment/bus/device/function tuples, with physical slots in
 	  the system.  If you are unsure, say N.
 
-config X86_PM_TIMER
-	bool "Power Management Timer Support" if EXPERT
-	depends on X86
-	default y
-	help
-	  The Power Management Timer is available on all ACPI-capable,
-	  in most cases even if ACPI is unusable or blacklisted.
-
-	  This timing source is not affected by power management features
-	  like aggressive processor idling, throttling, frequency and/or
-	  voltage scaling, unlike the commonly used Time Stamp Counter
-	  (TSC) timing source.
-
-	  You should nearly always say Y here because many modern
-	  systems require this timer. 
-
 config ACPI_CONTAINER
 	bool "Container and Module Devices"
 	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU)
@@ -522,6 +516,12 @@ config CHT_WC_PMIC_OPREGION
 	help
 	  This config adds ACPI operation region support for CHT Whiskey Cove PMIC.
 
+config CHT_DC_TI_PMIC_OPREGION
+	bool "ACPI operation region support for Dollar Cove TI PMIC"
+	depends on INTEL_SOC_PMIC_CHTDC_TI
+	help
+	  This config adds ACPI operation region support for Dollar Cove TI PMIC.
+
 endif
 
 config ACPI_CONFIGFS
@@ -536,4 +536,36 @@ if ARM64
 source "drivers/acpi/arm64/Kconfig"
 endif
 
+config TPS68470_PMIC_OPREGION
+	bool "ACPI operation region support for TPS68470 PMIC"
+	depends on MFD_TPS68470
+	help
+	  This config adds ACPI operation region support for TI TPS68470 PMIC.
+	  TPS68470 device is an advanced power management unit that powers
+	  a Compact Camera Module (CCM), generates clocks for image sensors,
+	  drives a dual LED for flash and incorporates two LED drivers for
+	  general purpose indicators.
+	  This driver enables ACPI operation region support control voltage
+	  regulators and clocks.
+
+	  This option is a bool as it provides an ACPI operation
+	  region, which must be available before any of the devices
+	  using this, are probed.
+
 endif	# ACPI
+
+config X86_PM_TIMER
+	bool "Power Management Timer Support" if EXPERT
+	depends on X86 && (ACPI || JAILHOUSE_GUEST)
+	default y
+	help
+	  The Power Management Timer is available on all ACPI-capable,
+	  in most cases even if ACPI is unusable or blacklisted.
+
+	  This timing source is not affected by power management features
+	  like aggressive processor idling, throttling, frequency and/or
+	  voltage scaling, unlike the commonly used Time Stamp Counter
+	  (TSC) timing source.
+
+	  You should nearly always say Y here because many modern
+	  systems require this timer.

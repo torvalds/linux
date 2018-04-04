@@ -1086,8 +1086,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 
 		struct fb_deferred_io *fbdefio;
 
-		fbdefio = kzalloc(sizeof(struct fb_deferred_io), GFP_KERNEL);
-
+		fbdefio = kzalloc(sizeof(*fbdefio), GFP_KERNEL);
 		if (fbdefio) {
 			fbdefio->delay = UFX_DEFIO_WRITE_DELAY;
 			fbdefio->deferred_io = ufx_dpy_deferred_io;
@@ -1875,7 +1874,7 @@ static int ufx_alloc_urb_list(struct ufx_data *dev, int count, size_t size)
 	INIT_LIST_HEAD(&dev->urbs.list);
 
 	while (i < count) {
-		unode = kzalloc(sizeof(struct urb_node), GFP_KERNEL);
+		unode = kzalloc(sizeof(*unode), GFP_KERNEL);
 		if (!unode)
 			break;
 		unode->dev = dev;

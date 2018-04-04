@@ -65,7 +65,7 @@ struct sockaddr_l2tpip6 {
  * TUNNEL_MODIFY	- CONN_ID, udpcsum
  * TUNNEL_GETSTATS	- CONN_ID, (stats)
  * TUNNEL_GET		- CONN_ID, (...)
- * SESSION_CREATE	- SESSION_ID, PW_TYPE, offset, data_seq, cookie, peer_cookie, offset, l2spec
+ * SESSION_CREATE	- SESSION_ID, PW_TYPE, data_seq, cookie, peer_cookie, l2spec
  * SESSION_DELETE	- SESSION_ID
  * SESSION_MODIFY	- SESSION_ID, data_seq
  * SESSION_GET		- SESSION_ID, (...)
@@ -94,10 +94,10 @@ enum {
 	L2TP_ATTR_NONE,			/* no data */
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
-	L2TP_ATTR_OFFSET,		/* u16 */
+	L2TP_ATTR_OFFSET,		/* u16 (not used) */
 	L2TP_ATTR_DATA_SEQ,		/* u16 */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
-	L2TP_ATTR_L2SPEC_LEN,		/* u8, enum l2tp_l2spec_type */
+	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
 	L2TP_ATTR_IFNAME,		/* string */
 	L2TP_ATTR_CONN_ID,		/* u32 */

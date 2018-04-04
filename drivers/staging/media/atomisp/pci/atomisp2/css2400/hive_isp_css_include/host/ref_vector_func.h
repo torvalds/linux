@@ -15,20 +15,19 @@
 #ifndef _REF_VECTOR_FUNC_H_INCLUDED_
 #define _REF_VECTOR_FUNC_H_INCLUDED_
 
-#include "storage_class.h"
 
 #ifdef INLINE_VECTOR_FUNC
-#define STORAGE_CLASS_REF_VECTOR_FUNC_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_REF_VECTOR_DATA_H STORAGE_CLASS_INLINE_DATA
+#define STORAGE_CLASS_REF_VECTOR_FUNC_H static inline
+#define STORAGE_CLASS_REF_VECTOR_DATA_H static inline_DATA
 #else /* INLINE_VECTOR_FUNC */
-#define STORAGE_CLASS_REF_VECTOR_FUNC_H STORAGE_CLASS_EXTERN
-#define STORAGE_CLASS_REF_VECTOR_DATA_H STORAGE_CLASS_EXTERN_DATA
+#define STORAGE_CLASS_REF_VECTOR_FUNC_H extern
+#define STORAGE_CLASS_REF_VECTOR_DATA_H extern_DATA
 #endif  /* INLINE_VECTOR_FUNC */
 
 
 #include "ref_vector_func_types.h"
 
-/** @brief Doubling multiply accumulate with saturation
+/* @brief Doubling multiply accumulate with saturation
  *
  * @param[in] acc accumulator
  * @param[in] a multiply input
@@ -45,7 +44,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector2w OP_1w_maccd_sat(
 	tvector1w a,
 	tvector1w b );
 
-/** @brief Doubling multiply accumulate
+/* @brief Doubling multiply accumulate
  *
  * @param[in] acc accumulator
  * @param[in] a multiply input
@@ -62,7 +61,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector2w OP_1w_maccd(
 	tvector1w a,
 	tvector1w b );
 
-/** @brief Re-aligning multiply
+/* @brief Re-aligning multiply
  *
  * @param[in] a multiply input
  * @param[in] b multiply input
@@ -79,7 +78,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_mul_realigning(
 	tvector1w b,
 	tscalar1w shift );
 
-/** @brief Leading bit index
+/* @brief Leading bit index
  *
  * @param[in] a 	input
  *
@@ -93,7 +92,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_mul_realigning(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_lod(
 		tvector1w a);
 
-/** @brief Config Unit Input Processing
+/* @brief Config Unit Input Processing
  *
  * @param[in] a 	    input
  * @param[in] input_scale   input scaling factor
@@ -112,7 +111,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_input_scaling_offset_clamping(
 	tscalar1w_5bit_signed input_scale,
 	tscalar1w_5bit_signed input_offset);
 
-/** @brief Config Unit Output Processing
+/* @brief Config Unit Output Processing
  *
  * @param[in] a 	     output
  * @param[in] output_scale   output scaling factor
@@ -128,7 +127,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_output_scaling_clamping(
 	tvector1w a,
 	tscalar1w_5bit_signed output_scale);
 
-/** @brief Config Unit Piecewiselinear estimation
+/* @brief Config Unit Piecewiselinear estimation
  *
  * @param[in] a 	          input
  * @param[in] config_points   config parameter structure
@@ -144,7 +143,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_piecewise_estimation(
 	tvector1w a,
 	ref_config_points config_points);
 
-/** @brief Fast Config Unit
+/* @brief Fast Config Unit
  *
  * @param[in] x 		input
  * @param[in] init_vectors	LUT data structure
@@ -162,7 +161,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H  tvector1w OP_1w_XCU(
 	xcu_ref_init_vectors init_vectors);
 
 
-/** @brief LXCU
+/* @brief LXCU
  *
  * @param[in] x 		input
  * @param[in] init_vectors 	LUT data structure
@@ -181,7 +180,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_LXCU(
 	tvector1w x,
 	xcu_ref_init_vectors init_vectors);
 
-/** @brief Coring
+/* @brief Coring
  *
  * @param[in] coring_vec   Amount of coring based on brightness level
  * @param[in] filt_input   Vector of input pixels on which Coring is applied
@@ -197,7 +196,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w coring(
 	tvector1w filt_input,
 	tscalar1w m_CnrCoring0 );
 
-/** @brief Normalised FIR with coefficients [3,4,1]
+/* @brief Normalised FIR with coefficients [3,4,1]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -210,7 +209,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w coring(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_5dB_m90_nrm (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with coefficients [1,4,3]
+/* @brief Normalised FIR with coefficients [1,4,3]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -223,7 +222,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_5dB_m90_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_5dB_p90_nrm (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with coefficients [1,2,1]
+/* @brief Normalised FIR with coefficients [1,2,1]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -235,7 +234,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_5dB_p90_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with coefficients [13,16,3]
+/* @brief Normalised FIR with coefficients [13,16,3]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -247,7 +246,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph0 (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with coefficients [9,16,7]
+/* @brief Normalised FIR with coefficients [9,16,7]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -259,7 +258,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph0 (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph1 (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with coefficients [5,16,11]
+/* @brief Normalised FIR with coefficients [5,16,11]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -271,7 +270,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph1 (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph2 (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with coefficients [1,16,15]
+/* @brief Normalised FIR with coefficients [1,16,15]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -283,7 +282,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph2 (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph3 (
 	const s_1w_1x3_matrix		m);
 
-/** @brief Normalised FIR with programable phase shift
+/* @brief Normalised FIR with programable phase shift
  *
  * @param[in] m	1x3 matrix with pixels
  * @param[in] coeff	phase shift
@@ -296,7 +295,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_ph3 (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_6dB_nrm_calc_coeff (
 	const s_1w_1x3_matrix		m, tscalar1w_3bit coeff);
 
-/** @brief 3 tap FIR with coefficients [1,1,1]
+/* @brief 3 tap FIR with coefficients [1,1,1]
  *
  * @param[in] m	1x3 matrix with pixels
  *
@@ -309,7 +308,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x3m_9dB_nrm (
 	const s_1w_1x3_matrix		m);
 
 #ifdef ISP2401
-/** @brief      symmetric 3 tap FIR acts as LPF or BSF
+/* @brief      symmetric 3 tap FIR acts as LPF or BSF
  *
  * @param[in] m 1x3 matrix with pixels
  * @param[in] k filter coefficient shift
@@ -337,7 +336,7 @@ sym_fir1x3m_lpf_bsf(s_1w_1x3_matrix m,
 		    tscalar_bool bsf_flag);
 #endif
 
-/** @brief Normalised 2D FIR with coefficients  [1;2;1] * [1,2,1]
+/* @brief Normalised 2D FIR with coefficients  [1;2;1] * [1,2,1]
  *
  * @param[in] m	3x3 matrix with pixels
  *
@@ -354,7 +353,7 @@ sym_fir1x3m_lpf_bsf(s_1w_1x3_matrix m,
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir3x3m_6dB_nrm (
 	const s_1w_3x3_matrix		m);
 
-/** @brief Normalised 2D FIR with coefficients  [1;1;1] * [1,1,1]
+/* @brief Normalised 2D FIR with coefficients  [1;1;1] * [1,1,1]
  *
  * @param[in] m	3x3 matrix with pixels
  *
@@ -372,7 +371,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir3x3m_6dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir3x3m_9dB_nrm (
 	const s_1w_3x3_matrix		m);
 
-/** @brief Normalised dual output 2D FIR with coefficients  [1;2;1] * [1,2,1]
+/* @brief Normalised dual output 2D FIR with coefficients  [1;2;1] * [1,2,1]
  *
  * @param[in] m	4x3 matrix with pixels
  *
@@ -392,7 +391,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir3x3m_9dB_nrm (
  STORAGE_CLASS_REF_VECTOR_FUNC_H s_1w_2x1_matrix fir3x3m_6dB_out2x1_nrm (
 	const s_1w_4x3_matrix		m);
 
-/** @brief Normalised dual output 2D FIR with coefficients [1;1;1] * [1,1,1]
+/* @brief Normalised dual output 2D FIR with coefficients [1;1;1] * [1,1,1]
  *
  * @param[in] m	4x3 matrix with pixels
  *
@@ -412,7 +411,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir3x3m_9dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H s_1w_2x1_matrix fir3x3m_9dB_out2x1_nrm (
 	const s_1w_4x3_matrix		m);
 
-/** @brief Normalised 2D FIR 5x5
+/* @brief Normalised 2D FIR 5x5
  *
  * @param[in] m	5x5 matrix with pixels
  *
@@ -430,7 +429,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H s_1w_2x1_matrix fir3x3m_9dB_out2x1_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir5x5m_15dB_nrm (
 	const s_1w_5x5_matrix	m);
 
-/** @brief Normalised FIR 1x5
+/* @brief Normalised FIR 1x5
  *
  * @param[in] m	1x5 matrix with pixels
  *
@@ -448,7 +447,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir5x5m_15dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x5m_12dB_nrm (
 	const s_1w_1x5_matrix m);
 
-/** @brief Normalised 2D FIR 5x5
+/* @brief Normalised 2D FIR 5x5
  *
  * @param[in] m	5x5 matrix with pixels
  *
@@ -466,7 +465,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x5m_12dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir5x5m_12dB_nrm (
 	const s_1w_5x5_matrix m);
 
-/** @brief Approximate averaging FIR 1x5
+/* @brief Approximate averaging FIR 1x5
  *
  * @param[in] m	1x5 matrix with pixels
  *
@@ -480,7 +479,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir5x5m_12dB_nrm (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x5m_box (
 	s_1w_1x5_matrix m);
 
-/** @brief Approximate averaging FIR 1x9
+/* @brief Approximate averaging FIR 1x9
  *
  * @param[in] m	1x9 matrix with pixels
  *
@@ -494,7 +493,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x5m_box (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x9m_box (
 	s_1w_1x9_matrix m);
 
-/** @brief Approximate averaging FIR 1x11
+/* @brief Approximate averaging FIR 1x11
  *
  * @param[in] m	1x11 matrix with pixels
  *
@@ -508,7 +507,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x9m_box (
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w fir1x11m_box (
 	s_1w_1x11_matrix m);
 
-/** @brief Symmetric 7 tap filter with normalization
+/* @brief Symmetric 7 tap filter with normalization
  *
  *  @param[in] in 1x7 matrix with pixels
  *  @param[in] coeff 1x4 matrix with coefficients
@@ -529,7 +528,7 @@ fir1x7m_sym_nrm(s_1w_1x7_matrix in,
 		s_1w_1x4_matrix coeff,
 		tvector1w out_shift);
 
-/** @brief Symmetric 7 tap filter with normalization at input side
+/* @brief Symmetric 7 tap filter with normalization at input side
  *
  *  @param[in] in 1x7 matrix with pixels
  *  @param[in] coeff 1x4 matrix with coefficients
@@ -550,7 +549,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
 fir1x7m_sym_innrm_approx(s_1w_1x7_matrix in,
 			 s_1w_1x4_matrix coeff);
 
-/** @brief Symmetric 7 tap filter with normalization at output side
+/* @brief Symmetric 7 tap filter with normalization at output side
  *
  *  @param[in] in 1x7 matrix with pixels
  *  @param[in] coeff 1x4 matrix with coefficients
@@ -572,7 +571,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
 fir1x7m_sym_outnrm_approx(s_1w_1x7_matrix in,
 			 s_1w_1x4_matrix coeff);
 
-/** @brief 4 tap filter with normalization
+/* @brief 4 tap filter with normalization
  *
  *  @param[in] in 1x4 matrix with pixels
  *  @param[in] coeff 1x4 matrix with coefficients
@@ -589,7 +588,7 @@ fir1x4m_nrm(s_1w_1x4_matrix in,
 		s_1w_1x4_matrix coeff,
 		tvector1w out_shift);
 
-/** @brief 4 tap filter with normalization for half pixel interpolation
+/* @brief 4 tap filter with normalization for half pixel interpolation
  *
  *  @param[in] in 1x4 matrix with pixels
  *
@@ -605,7 +604,7 @@ fir1x4m_nrm(s_1w_1x4_matrix in,
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
 fir1x4m_bicubic_bezier_half(s_1w_1x4_matrix in);
 
-/** @brief 4 tap filter with normalization for quarter pixel interpolation
+/* @brief 4 tap filter with normalization for quarter pixel interpolation
  *
  *  @param[in] in 1x4 matrix with pixels
  *  @param[in] coeff 1x4 matrix with coefficients
@@ -627,7 +626,7 @@ fir1x4m_bicubic_bezier_quarter(s_1w_1x4_matrix in,
 			s_1w_1x4_matrix coeff);
 
 
-/** @brief Symmetric 3 tap filter with normalization
+/* @brief Symmetric 3 tap filter with normalization
  *
  *  @param[in] in 1x3 matrix with pixels
  *  @param[in] coeff 1x2 matrix with coefficients
@@ -647,7 +646,7 @@ fir1x3m_sym_nrm(s_1w_1x3_matrix in,
 		s_1w_1x2_matrix coeff,
 		tvector1w out_shift);
 
-/** @brief Symmetric 3 tap filter with normalization
+/* @brief Symmetric 3 tap filter with normalization
  *
  *  @param[in] in 1x3 matrix with pixels
  *  @param[in] coeff 1x2 matrix with coefficients
@@ -667,7 +666,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
 fir1x3m_sym_nrm_approx(s_1w_1x3_matrix in,
 		       s_1w_1x2_matrix coeff);
 
-/** @brief Mean of 1x3 matrix
+/* @brief Mean of 1x3 matrix
  *
  *  @param[in] m 1x3 matrix with pixels
  *
@@ -679,7 +678,7 @@ fir1x3m_sym_nrm_approx(s_1w_1x3_matrix in,
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x3m(
 	s_1w_1x3_matrix m);
 
-/** @brief Mean of 3x3 matrix
+/* @brief Mean of 3x3 matrix
  *
  *  @param[in] m 3x3 matrix with pixels
  *
@@ -691,7 +690,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x3m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean3x3m(
 	s_1w_3x3_matrix m);
 
-/** @brief Mean of 1x4 matrix
+/* @brief Mean of 1x4 matrix
  *
  *  @param[in] m 1x4 matrix with pixels
  *
@@ -702,7 +701,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean3x3m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x4m(
 	s_1w_1x4_matrix m);
 
-/** @brief Mean of 4x4 matrix
+/* @brief Mean of 4x4 matrix
  *
  *  @param[in] m 4x4 matrix with pixels
  *
@@ -713,7 +712,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x4m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean4x4m(
 	s_1w_4x4_matrix m);
 
-/** @brief Mean of 2x3 matrix
+/* @brief Mean of 2x3 matrix
  *
  *  @param[in] m 2x3 matrix with pixels
  *
@@ -725,7 +724,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean4x4m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean2x3m(
 	s_1w_2x3_matrix m);
 
-/** @brief Mean of 1x5 matrix
+/* @brief Mean of 1x5 matrix
  *
  *  @param[in] m 1x5 matrix with pixels
  *
@@ -736,7 +735,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean2x3m(
 */
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x5m(s_1w_1x5_matrix m);
 
-/** @brief Mean of 1x6 matrix
+/* @brief Mean of 1x6 matrix
  *
  *  @param[in] m 1x6 matrix with pixels
  *
@@ -748,7 +747,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x5m(s_1w_1x5_matrix m);
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x6m(
 	s_1w_1x6_matrix m);
 
-/** @brief Mean of 5x5 matrix
+/* @brief Mean of 5x5 matrix
  *
  *  @param[in] m 5x5 matrix with pixels
  *
@@ -760,7 +759,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean1x6m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean5x5m(
 	s_1w_5x5_matrix m);
 
-/** @brief Mean of 6x6 matrix
+/* @brief Mean of 6x6 matrix
  *
  *  @param[in] m 6x6 matrix with pixels
  *
@@ -772,7 +771,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean5x5m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean6x6m(
 	s_1w_6x6_matrix m);
 
-/** @brief Minimum of 4x4 matrix
+/* @brief Minimum of 4x4 matrix
  *
  *  @param[in] m 4x4 matrix with pixels
  *
@@ -784,7 +783,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w mean6x6m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w min4x4m(
 	s_1w_4x4_matrix m);
 
-/** @brief Maximum of 4x4 matrix
+/* @brief Maximum of 4x4 matrix
  *
  *  @param[in] m 4x4 matrix with pixels
  *
@@ -796,7 +795,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w min4x4m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w max4x4m(
 	s_1w_4x4_matrix m);
 
-/** @brief SAD between two 3x3 matrices
+/* @brief SAD between two 3x3 matrices
  *
  *  @param[in] a 3x3 matrix with pixels
  *
@@ -814,7 +813,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w sad3x3m_precise(
 	s_1w_3x3_matrix a,
 	s_1w_3x3_matrix b);
 
-/** @brief SAD between two 3x3 matrices
+/* @brief SAD between two 3x3 matrices
  *
  *  @param[in] a 3x3 matrix with pixels
  *
@@ -834,7 +833,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w sad3x3m(
 	s_1w_3x3_matrix a,
 	s_1w_3x3_matrix b);
 
-/** @brief SAD between two 5x5 matrices
+/* @brief SAD between two 5x5 matrices
  *
  *  @param[in] a 5x5 matrix with pixels
  *
@@ -848,7 +847,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w sad5x5m(
 	s_1w_5x5_matrix a,
 	s_1w_5x5_matrix b);
 
-/** @brief Absolute gradient between two sets of 1x5 matrices
+/* @brief Absolute gradient between two sets of 1x5 matrices
  *
  *  @param[in] m0 first set of 1x5 matrix with pixels
  *  @param[in] m1 second set of 1x5 matrix with pixels
@@ -861,7 +860,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w sad5x5m(
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w
 absgrad1x5m(s_1w_1x5_matrix m0, s_1w_1x5_matrix m1);
 
-/** @brief Bi-linear Interpolation optimized(approximate)
+/* @brief Bi-linear Interpolation optimized(approximate)
  *
  * @param[in] a input0
  * @param[in] b input1
@@ -883,7 +882,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_bilinear_interpol_approx_c(
 	tvector1w b,
 	tscalar1w_weight c);
 
-/** @brief Bi-linear Interpolation optimized(approximate)
+/* @brief Bi-linear Interpolation optimized(approximate)
  *
  * @param[in] a input0
  * @param[in] b input1
@@ -905,7 +904,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_bilinear_interpol_approx(
 	tvector1w b,
 	tvector1w_weight c);
 
-/** @brief Bi-linear Interpolation
+/* @brief Bi-linear Interpolation
  *
  * @param[in] a input0
  * @param[in] b input1
@@ -926,7 +925,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_bilinear_interpol(
 	tvector1w b,
 	tscalar1w_weight c);
 
-/** @brief Generic Block Matching Algorithm
+/* @brief Generic Block Matching Algorithm
  * @param[in] search_window pointer to input search window of 16x16 pixels
  * @param[in] ref_block pointer to input reference block of 8x8 pixels, where N<=M
  * @param[in] output pointer to output sads
@@ -955,9 +954,9 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H int generic_block_matching_algorithm(
 	tscalar1w_4bit_bma_shift shift);
 
 #ifndef ISP2401
-/** @brief OP_1w_asp_bma_16_1_32way
+/* @brief OP_1w_asp_bma_16_1_32way
 #else
-/** @brief OP_1w_asp_bma_16_1_32way_nomask
+/* @brief OP_1w_asp_bma_16_1_32way_nomask
 #endif
  *
  * @param[in] search_area input search window of 16x16 pixels
@@ -985,9 +984,9 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_16_1 OP_1w_asp_bma_16_1_32way_nomask(
 	tscalar1w_4bit_bma_shift shift);
 
 #ifndef ISP2401
-/** @brief OP_1w_asp_bma_16_2_32way
+/* @brief OP_1w_asp_bma_16_2_32way
 #else
-/** @brief OP_1w_asp_bma_16_2_32way_nomask
+/* @brief OP_1w_asp_bma_16_2_32way_nomask
 #endif
  *
  * @param[in] search_area input search window of 16x16 pixels
@@ -1012,9 +1011,9 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_16_2 OP_1w_asp_bma_16_2_32way_nomask(
 	ref_block_8x8 input_block,
 	tscalar1w_4bit_bma_shift shift);
 #ifndef ISP2401
-/** @brief OP_1w_asp_bma_14_1_32way
+/* @brief OP_1w_asp_bma_14_1_32way
 #else
-/** @brief OP_1w_asp_bma_14_1_32way_nomask
+/* @brief OP_1w_asp_bma_14_1_32way_nomask
 #endif
  *
  * @param[in] search_area input search block of 16x16 pixels with search window of 14x14 pixels
@@ -1042,9 +1041,9 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_1 OP_1w_asp_bma_14_1_32way_nomask(
 	tscalar1w_4bit_bma_shift shift);
 
 #ifndef ISP2401
-/** @brief OP_1w_asp_bma_14_2_32way
+/* @brief OP_1w_asp_bma_14_2_32way
 #else
-/** @brief OP_1w_asp_bma_14_2_32way_nomask
+/* @brief OP_1w_asp_bma_14_2_32way_nomask
 #endif
  *
  * @param[in] search_area input search block of 16x16 pixels with search window of 14x14 pixels
@@ -1070,7 +1069,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_2 OP_1w_asp_bma_14_2_32way_nomask(
 	tscalar1w_4bit_bma_shift shift);
 
 #ifdef ISP2401
-/** @brief multiplex addition and passing
+/* @brief multiplex addition and passing
  *
  *  @param[in] _a first pixel
  *  @param[in] _b second pixel
@@ -1088,7 +1087,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_cond_add(
 
 #endif
 #ifdef HAS_bfa_unit
-/** @brief OP_1w_single_bfa_7x7
+/* @brief OP_1w_single_bfa_7x7
  *
  * @param[in] weights - spatial and range weight lut
  * @param[in] threshold - threshold plane, for range weight scaling
@@ -1116,7 +1115,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bfa_7x7_output OP_1w_single_bfa_7x7(
 	tvector1w central_pix,
 	s_1w_7x7_matrix src_plane);
 
-/** @brief OP_1w_joint_bfa_7x7
+/* @brief OP_1w_joint_bfa_7x7
  *
  * @param[in] weights - spatial and range weight lut
  * @param[in] threshold0 - 1st threshold plane, for range weight scaling
@@ -1150,7 +1149,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bfa_7x7_output OP_1w_joint_bfa_7x7(
 	tvector1w central_pix1,
 	s_1w_7x7_matrix src1_plane);
 
-/** @brief bbb_bfa_gen_spatial_weight_lut
+/* @brief bbb_bfa_gen_spatial_weight_lut
  *
  * @param[in] in - 7x7 matrix of spatial weights
  * @param[in] out - generated LUT
@@ -1164,7 +1163,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H void bbb_bfa_gen_spatial_weight_lut(
 	s_1w_7x7_matrix in,
 	tvector1w out[BFA_MAX_KWAY]);
 
-/** @brief bbb_bfa_gen_range_weight_lut
+/* @brief bbb_bfa_gen_range_weight_lut
  *
  * @param[in] in - input range weight,
  * @param[in] out - generated LUT
@@ -1185,7 +1184,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H void bbb_bfa_gen_range_weight_lut(
 #endif
 
 #ifdef ISP2401
-/** @brief OP_1w_imax32
+/* @brief OP_1w_imax32
  *
  * @param[in] src - structure that holds an array of 32 elements.
  *
@@ -1196,7 +1195,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H void bbb_bfa_gen_range_weight_lut(
 STORAGE_CLASS_REF_VECTOR_FUNC_H int OP_1w_imax32(
 	imax32_ref_in_vector src);
 
-/** @brief OP_1w_imaxidx32
+/* @brief OP_1w_imaxidx32
  *
  * @param[in] src - structure that holds a vector of elements.
  *

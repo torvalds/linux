@@ -19,7 +19,7 @@
 };
 
 &leds0 {
-	status = "ok";
+	status = "okay";
 	brcm,serial-leds;
 	brcm,serial-dat-low;
 	brcm,serial-shift-inv;

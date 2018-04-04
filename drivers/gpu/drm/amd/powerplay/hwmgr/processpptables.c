@@ -24,7 +24,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-
+#include <drm/amdgpu_drm.h>
 #include "processpptables.h"
 #include <atom-types.h>
 #include <atombios.h>
@@ -394,8 +394,8 @@ static int get_clock_voltage_dependency_table(struct pp_hwmgr *hwmgr,
 		dep_table->entries[i].clk =
 			((unsigned long)table->entries[i].ucClockHigh << 16) |
 			le16_to_cpu(table->entries[i].usClockLow);
-			dep_table->entries[i].v =
-				(unsigned long)le16_to_cpu(table->entries[i].usVoltage);
+		dep_table->entries[i].v =
+			(unsigned long)le16_to_cpu(table->entries[i].usVoltage);
 	}
 
 	*ptable = dep_table;
@@ -790,6 +790,39 @@ static const ATOM_PPLIB_STATE_V2 *get_state_entry_v2(
 	return pstate;
 }
 
+static const unsigned char soft_dummy_pp_table[] = {
+	0xe1, 0x01, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x4a, 0x00, 0x6c, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x42, 0x00, 0x02, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,
+	0x00, 0x4e, 0x00, 0x88, 0x00, 0x00, 0x9e, 0x00, 0x17, 0x00, 0x00, 0x00, 0x9e, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x02, 0x02, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x08, 0x04, 0x00, 0x00, 0x00, 0x00,
+	0x07, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+	0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x18, 0x05, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1a, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe1, 0x00, 0x43, 0x01, 0x00, 0x00, 0x00, 0x00,
+	0x8e, 0x01, 0x00, 0x00, 0xb8, 0x01, 0x00, 0x00, 0x08, 0x30, 0x75, 0x00, 0x80, 0x00, 0xa0, 0x8c,
+	0x00, 0x7e, 0x00, 0x71, 0xa5, 0x00, 0x7c, 0x00, 0xe5, 0xc8, 0x00, 0x70, 0x00, 0x91, 0xf4, 0x00,
+	0x64, 0x00, 0x40, 0x19, 0x01, 0x5a, 0x00, 0x0e, 0x28, 0x01, 0x52, 0x00, 0x80, 0x38, 0x01, 0x4a,
+	0x00, 0x00, 0x09, 0x30, 0x75, 0x00, 0x30, 0x75, 0x00, 0x40, 0x9c, 0x00, 0x40, 0x9c, 0x00, 0x59,
+	0xd8, 0x00, 0x59, 0xd8, 0x00, 0x91, 0xf4, 0x00, 0x91, 0xf4, 0x00, 0x0e, 0x28, 0x01, 0x0e, 0x28,
+	0x01, 0x90, 0x5f, 0x01, 0x90, 0x5f, 0x01, 0x00, 0x77, 0x01, 0x00, 0x77, 0x01, 0xca, 0x91, 0x01,
+	0xca, 0x91, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x80, 0x00, 0x00, 0x7e, 0x00, 0x01,
+	0x7c, 0x00, 0x02, 0x70, 0x00, 0x03, 0x64, 0x00, 0x04, 0x5a, 0x00, 0x05, 0x52, 0x00, 0x06, 0x4a,
+	0x00, 0x07, 0x08, 0x08, 0x00, 0x08, 0x00, 0x01, 0x02, 0x02, 0x02, 0x01, 0x02, 0x02, 0x02, 0x03,
+	0x02, 0x04, 0x02, 0x00, 0x08, 0x40, 0x9c, 0x00, 0x30, 0x75, 0x00, 0x74, 0xb5, 0x00, 0xa0, 0x8c,
+	0x00, 0x60, 0xea, 0x00, 0x74, 0xb5, 0x00, 0x0e, 0x28, 0x01, 0x60, 0xea, 0x00, 0x90, 0x5f, 0x01,
+	0x40, 0x19, 0x01, 0xb2, 0xb0, 0x01, 0x90, 0x5f, 0x01, 0xc0, 0xd4, 0x01, 0x00, 0x77, 0x01, 0x5e,
+	0xff, 0x01, 0xca, 0x91, 0x01, 0x08, 0x80, 0x00, 0x00, 0x7e, 0x00, 0x01, 0x7c, 0x00, 0x02, 0x70,
+	0x00, 0x03, 0x64, 0x00, 0x04, 0x5a, 0x00, 0x05, 0x52, 0x00, 0x06, 0x4a, 0x00, 0x07, 0x00, 0x08,
+	0x80, 0x00, 0x30, 0x75, 0x00, 0x7e, 0x00, 0x40, 0x9c, 0x00, 0x7c, 0x00, 0x59, 0xd8, 0x00, 0x70,
+	0x00, 0xdc, 0x0b, 0x01, 0x64, 0x00, 0x80, 0x38, 0x01, 0x5a, 0x00, 0x80, 0x38, 0x01, 0x52, 0x00,
+	0x80, 0x38, 0x01, 0x4a, 0x00, 0x80, 0x38, 0x01, 0x08, 0x30, 0x75, 0x00, 0x80, 0x00, 0xa0, 0x8c,
+	0x00, 0x7e, 0x00, 0x71, 0xa5, 0x00, 0x7c, 0x00, 0xe5, 0xc8, 0x00, 0x74, 0x00, 0x91, 0xf4, 0x00,
+	0x66, 0x00, 0x40, 0x19, 0x01, 0x58, 0x00, 0x0e, 0x28, 0x01, 0x52, 0x00, 0x80, 0x38, 0x01, 0x4a,
+	0x00
+};
 
 static const ATOM_PPLIB_POWERPLAYTABLE *get_powerplay_table(
 				     struct pp_hwmgr *hwmgr)
@@ -799,12 +832,17 @@ static const ATOM_PPLIB_POWERPLAYTABLE *get_powerplay_table(
 	uint16_t size;
 
 	if (!table_addr) {
-		table_addr = cgs_atom_get_data_table(hwmgr->device,
-				GetIndexIntoMasterTable(DATA, PowerPlayInfo),
-				&size, &frev, &crev);
-
-		hwmgr->soft_pp_table = table_addr;
-		hwmgr->soft_pp_table_size = size;
+		if (hwmgr->chip_id == CHIP_RAVEN) {
+			table_addr = &soft_dummy_pp_table[0];
+			hwmgr->soft_pp_table = &soft_dummy_pp_table[0];
+			hwmgr->soft_pp_table_size = sizeof(soft_dummy_pp_table);
+		} else {
+			table_addr = cgs_atom_get_data_table(hwmgr->device,
+					GetIndexIntoMasterTable(DATA, PowerPlayInfo),
+					&size, &frev, &crev);
+			hwmgr->soft_pp_table = table_addr;
+			hwmgr->soft_pp_table_size = size;
+		}
 	}
 
 	return (const ATOM_PPLIB_POWERPLAYTABLE *)table_addr;
@@ -924,14 +962,13 @@ int pp_tables_get_entry(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	if ((0 == result) &&
-		(0 != (ps->classification.flags & PP_StateClassificationFlag_Boot)))
-		result = hwmgr->hwmgr_func->patch_boot_state(hwmgr, &(ps->hardware));
+	if ((0 == result) && (0 != (ps->classification.flags & PP_StateClassificationFlag_Boot))) {
+		if (hwmgr->chip_family < AMDGPU_FAMILY_RV)
+			result = hwmgr->hwmgr_func->patch_boot_state(hwmgr, &(ps->hardware));
+	}
 
 	return result;
 }
-
-
 
 static int init_powerplay_tables(
 			struct pp_hwmgr *hwmgr,
@@ -1005,7 +1042,7 @@ static int init_overdrive_limits_V2_1(struct pp_hwmgr *hwmgr,
 static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 			const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table)
 {
-	int result;
+	int result = 0;
 	uint8_t frev, crev;
 	uint16_t size;
 
@@ -1615,85 +1652,53 @@ static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	if (hwmgr->chip_id == CHIP_RAVEN)
 		return 0;
 
-	if (NULL != hwmgr->dyn_state.vddc_dependency_on_sclk) {
-		kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
-		hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
+	hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddci_dependency_on_mclk) {
-		kfree(hwmgr->dyn_state.vddci_dependency_on_mclk);
-		hwmgr->dyn_state.vddci_dependency_on_mclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddci_dependency_on_mclk);
+	hwmgr->dyn_state.vddci_dependency_on_mclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddc_dependency_on_mclk) {
-		kfree(hwmgr->dyn_state.vddc_dependency_on_mclk);
-		hwmgr->dyn_state.vddc_dependency_on_mclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_dependency_on_mclk);
+	hwmgr->dyn_state.vddc_dependency_on_mclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.mvdd_dependency_on_mclk) {
-		kfree(hwmgr->dyn_state.mvdd_dependency_on_mclk);
-		hwmgr->dyn_state.mvdd_dependency_on_mclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.mvdd_dependency_on_mclk);
+	hwmgr->dyn_state.mvdd_dependency_on_mclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.valid_mclk_values) {
-		kfree(hwmgr->dyn_state.valid_mclk_values);
-		hwmgr->dyn_state.valid_mclk_values = NULL;
-	}
+	kfree(hwmgr->dyn_state.valid_mclk_values);
+	hwmgr->dyn_state.valid_mclk_values = NULL;
 
-	if (NULL != hwmgr->dyn_state.valid_sclk_values) {
-		kfree(hwmgr->dyn_state.valid_sclk_values);
-		hwmgr->dyn_state.valid_sclk_values = NULL;
-	}
+	kfree(hwmgr->dyn_state.valid_sclk_values);
+	hwmgr->dyn_state.valid_sclk_values = NULL;
 
-	if (NULL != hwmgr->dyn_state.cac_leakage_table) {
-		kfree(hwmgr->dyn_state.cac_leakage_table);
-		hwmgr->dyn_state.cac_leakage_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.cac_leakage_table);
+	hwmgr->dyn_state.cac_leakage_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddc_phase_shed_limits_table) {
-		kfree(hwmgr->dyn_state.vddc_phase_shed_limits_table);
-		hwmgr->dyn_state.vddc_phase_shed_limits_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_phase_shed_limits_table);
+	hwmgr->dyn_state.vddc_phase_shed_limits_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.vce_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.vce_clock_voltage_dependency_table);
-		hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.vce_clock_voltage_dependency_table);
+	hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.uvd_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.uvd_clock_voltage_dependency_table);
-		hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.uvd_clock_voltage_dependency_table);
+	hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.samu_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.samu_clock_voltage_dependency_table);
-		hwmgr->dyn_state.samu_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.samu_clock_voltage_dependency_table);
+	hwmgr->dyn_state.samu_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.acp_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.acp_clock_voltage_dependency_table);
-		hwmgr->dyn_state.acp_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.acp_clock_voltage_dependency_table);
+	hwmgr->dyn_state.acp_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.cac_dtp_table) {
-		kfree(hwmgr->dyn_state.cac_dtp_table);
-		hwmgr->dyn_state.cac_dtp_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.cac_dtp_table);
+	hwmgr->dyn_state.cac_dtp_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.ppm_parameter_table) {
-		kfree(hwmgr->dyn_state.ppm_parameter_table);
-		hwmgr->dyn_state.ppm_parameter_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.ppm_parameter_table);
+	hwmgr->dyn_state.ppm_parameter_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.vdd_gfx_dependency_on_sclk) {
-		kfree(hwmgr->dyn_state.vdd_gfx_dependency_on_sclk);
-		hwmgr->dyn_state.vdd_gfx_dependency_on_sclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vdd_gfx_dependency_on_sclk);
+	hwmgr->dyn_state.vdd_gfx_dependency_on_sclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vq_budgeting_table) {
-		kfree(hwmgr->dyn_state.vq_budgeting_table);
-		hwmgr->dyn_state.vq_budgeting_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.vq_budgeting_table);
+	hwmgr->dyn_state.vq_budgeting_table = NULL;
 
 	return 0;
 }

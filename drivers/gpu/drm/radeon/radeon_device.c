@@ -392,37 +392,6 @@ void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell)
 		__clear_bit(doorbell, rdev->doorbell.used);
 }
 
-/**
- * radeon_doorbell_get_kfd_info - Report doorbell configuration required to
- *                                setup KFD
- *
- * @rdev: radeon_device pointer
- * @aperture_base: output returning doorbell aperture base physical address
- * @aperture_size: output returning doorbell aperture size in bytes
- * @start_offset: output returning # of doorbell bytes reserved for radeon.
- *
- * Radeon and the KFD share the doorbell aperture. Radeon sets it up,
- * takes doorbells required for its own rings and reports the setup to KFD.
- * Radeon reserved doorbells are at the start of the doorbell aperture.
- */
-void radeon_doorbell_get_kfd_info(struct radeon_device *rdev,
-				  phys_addr_t *aperture_base,
-				  size_t *aperture_size,
-				  size_t *start_offset)
-{
-	/* The first num_doorbells are used by radeon.
-	 * KFD takes whatever's left in the aperture. */
-	if (rdev->doorbell.size > rdev->doorbell.num_doorbells * sizeof(u32)) {
-		*aperture_base = rdev->doorbell.base;
-		*aperture_size = rdev->doorbell.size;
-		*start_offset = rdev->doorbell.num_doorbells * sizeof(u32);
-	} else {
-		*aperture_base = 0;
-		*aperture_size = 0;
-		*start_offset = 0;
-	}
-}
-
 /*
  * radeon_wb_*()
  * Writeback is the the method by which the the GPU updates special pages
@@ -1341,7 +1310,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->gpu_clock_mutex);
 	mutex_init(&rdev->srbm_mutex);
-	mutex_init(&rdev->grbm_idx_mutex);
 	init_rwsem(&rdev->pm.mclk_lock);
 	init_rwsem(&rdev->exclusive_lock);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
@@ -1397,6 +1365,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	if ((rdev->flags & RADEON_IS_PCI) &&
 	    (rdev->family <= CHIP_RS740))
 		rdev->need_dma32 = true;
+#ifdef CONFIG_PPC64
+	if (rdev->family == CHIP_CEDAR)
+		rdev->need_dma32 = true;
+#endif
 
 	dma_bits = rdev->need_dma32 ? 32 : 40;
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));

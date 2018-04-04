@@ -377,6 +377,8 @@ symbolic names, e.g. on x86, ax, si. To list the available registers use
 --intr-regs=\?. To name registers, pass a comma separated list such as
 --intr-regs=ax,bx. The list of register is architecture dependent.
 
+--user-regs::
+Capture user registers at sample time. Same arguments as -I.
 
 --running-time::
 Record running and enabled time for read events (:S)
@@ -427,6 +429,9 @@ Configure all used events to run in user space.
 
 --timestamp-filename
 Append timestamp to output file name.
+
+--timestamp-boundary::
+Record timestamp boundary (time of first/last samples).
 
 --switch-output[=mode]::
 Generate multiple perf.data files, timestamp prefixed, switching to a new one

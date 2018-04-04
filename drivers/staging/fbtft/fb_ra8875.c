@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FBTFT driver for the RA8875 LCD Controller
  * Copyright by Pf@nne & NOTRO
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -253,7 +244,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16;
-	__be16 *txbuf16 = par->txbuf.buf;
+	__be16 *txbuf16;
 	size_t remain;
 	size_t to_copy;
 	size_t tx_array_size;
@@ -267,10 +258,10 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	remain = len / 2;
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	tx_array_size = par->txbuf.len / 2;
-		txbuf16 = par->txbuf.buf + 1;
-		tx_array_size -= 2;
-		*(u8 *)(par->txbuf.buf) = 0x00;
-		startbyte_size = 1;
+	txbuf16 = par->txbuf.buf + 1;
+	tx_array_size -= 2;
+	*(u8 *)(par->txbuf.buf) = 0x00;
+	startbyte_size = 1;
 
 	while (remain) {
 		to_copy = min(tx_array_size, remain);

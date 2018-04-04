@@ -48,9 +48,6 @@ config XFS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
 	  If you don't know what Access Control Lists are, say N.
 
 config XFS_RT
@@ -68,6 +65,23 @@ config XFS_RT
 	  to applications via the inherit-realtime directory inode flag.
 
 	  See the xfs man page in section 5 for additional information.
+
+	  If unsure, say N.
+
+config XFS_ONLINE_SCRUB
+	bool "XFS online metadata check support"
+	default n
+	depends on XFS_FS
+	help
+	  If you say Y here you will be able to check metadata on a
+	  mounted XFS filesystem.  This feature is intended to reduce
+	  filesystem downtime by supplementing xfs_repair.  The key
+	  advantage here is to look for problems proactively so that
+	  they can be dealt with in a controlled manner.
+
+	  This feature is considered EXPERIMENTAL.  Use with caution!
+
+	  See the xfs_scrub man page in section 8 for additional information.
 
 	  If unsure, say N.
 

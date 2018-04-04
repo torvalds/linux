@@ -1549,16 +1549,13 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 	rhashtable_walk_enter(&gl_hash_table, &iter);
 
 	do {
-		gl = ERR_PTR(rhashtable_walk_start(&iter));
-		if (IS_ERR(gl))
-			goto walk_stop;
+		rhashtable_walk_start(&iter);
 
 		while ((gl = rhashtable_walk_next(&iter)) && !IS_ERR(gl))
 			if (gl->gl_name.ln_sbd == sdp &&
 			    lockref_get_not_dead(&gl->gl_lockref))
 				examiner(gl);
 
-walk_stop:
 		rhashtable_walk_stop(&iter);
 	} while (cond_resched(), gl == ERR_PTR(-EAGAIN));
 
@@ -1924,19 +1921,29 @@ void gfs2_glock_exit(void)
 	destroy_workqueue(gfs2_delete_workqueue);
 }
 
-static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
+static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)
 {
-	while ((gi->gl = rhashtable_walk_next(&gi->hti))) {
-		if (IS_ERR(gi->gl)) {
-			if (PTR_ERR(gi->gl) == -EAGAIN)
-				continue;
-			gi->gl = NULL;
-			return;
+	if (n == 0)
+		gi->gl = rhashtable_walk_peek(&gi->hti);
+	else {
+		gi->gl = rhashtable_walk_next(&gi->hti);
+		n--;
+	}
+	for (;;) {
+		if (IS_ERR_OR_NULL(gi->gl)) {
+			if (!gi->gl)
+				return;
+			if (PTR_ERR(gi->gl) != -EAGAIN) {
+				gi->gl = NULL;
+				return;
+			}
+			n = 0;
+		} else if (gi->sdp == gi->gl->gl_name.ln_sbd &&
+			   !__lockref_is_dead(&gi->gl->gl_lockref)) {
+			if (!n--)
+				break;
 		}
-		/* Skip entries for other sb and dead entries */
-		if (gi->sdp == gi->gl->gl_name.ln_sbd &&
-		    !__lockref_is_dead(&gi->gl->gl_lockref))
-			return;
+		gi->gl = rhashtable_walk_next(&gi->hti);
 	}
 }
 
@@ -1944,18 +1951,24 @@ static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
 	struct gfs2_glock_iter *gi = seq->private;
-	loff_t n = *pos;
+	loff_t n;
 
-	rhashtable_walk_enter(&gl_hash_table, &gi->hti);
-	if (rhashtable_walk_start(&gi->hti) != 0)
-		return NULL;
+	/*
+	 * We can either stay where we are, skip to the next hash table
+	 * entry, or start from the beginning.
+	 */
+	if (*pos < gi->last_pos) {
+		rhashtable_walk_exit(&gi->hti);
+		rhashtable_walk_enter(&gl_hash_table, &gi->hti);
+		n = *pos + 1;
+	} else {
+		n = *pos - gi->last_pos;
+	}
 
-	do {
-		gfs2_glock_iter_next(gi);
-	} while (gi->gl && n--);
+	rhashtable_walk_start(&gi->hti);
 
+	gfs2_glock_iter_next(gi, n);
 	gi->last_pos = *pos;
-
 	return gi->gl;
 }
 
@@ -1966,8 +1979,7 @@ static void *gfs2_glock_seq_next(struct seq_file *seq, void *iter_ptr,
 
 	(*pos)++;
 	gi->last_pos = *pos;
-	gfs2_glock_iter_next(gi);
-
+	gfs2_glock_iter_next(gi, 1);
 	return gi->gl;
 }
 
@@ -1978,7 +1990,6 @@ static void gfs2_glock_seq_stop(struct seq_file *seq, void *iter_ptr)
 
 	gi->gl = NULL;
 	rhashtable_walk_stop(&gi->hti);
-	rhashtable_walk_exit(&gi->hti);
 }
 
 static int gfs2_glock_seq_show(struct seq_file *seq, void *iter_ptr)
@@ -2044,7 +2055,13 @@ static int __gfs2_glocks_open(struct inode *inode, struct file *file,
 		seq->buf = kmalloc(GFS2_SEQ_GOODSIZE, GFP_KERNEL | __GFP_NOWARN);
 		if (seq->buf)
 			seq->size = GFS2_SEQ_GOODSIZE;
+		/*
+		 * Initially, we are "before" the first hash table entry; the
+		 * first call to rhashtable_walk_next gets us the first entry.
+		 */
+		gi->last_pos = -1;
 		gi->gl = NULL;
+		rhashtable_walk_enter(&gl_hash_table, &gi->hti);
 	}
 	return ret;
 }
@@ -2060,6 +2077,7 @@ static int gfs2_glocks_release(struct inode *inode, struct file *file)
 	struct gfs2_glock_iter *gi = seq->private;
 
 	gi->gl = NULL;
+	rhashtable_walk_exit(&gi->hti);
 	return seq_release_private(inode, file);
 }
 

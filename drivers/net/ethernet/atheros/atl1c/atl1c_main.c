@@ -222,9 +222,10 @@ static u32 atl1c_wait_until_idle(struct atl1c_hw *hw, u32 modu_ctrl)
  * atl1c_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
-static void atl1c_phy_config(unsigned long data)
+static void atl1c_phy_config(struct timer_list *t)
 {
-	struct atl1c_adapter *adapter = (struct atl1c_adapter *) data;
+	struct atl1c_adapter *adapter = from_timer(adapter, t,
+						   phy_config_timer);
 	struct atl1c_hw *hw = &adapter->hw;
 	unsigned long flags;
 
@@ -2613,8 +2614,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->mii.phy_id_mask = 0x1f;
 	adapter->mii.reg_num_mask = MDIO_CTRL_REG_MASK;
 	netif_napi_add(netdev, &adapter->napi, atl1c_clean, 64);
-	setup_timer(&adapter->phy_config_timer, atl1c_phy_config,
-			(unsigned long)adapter);
+	timer_setup(&adapter->phy_config_timer, atl1c_phy_config, 0);
 	/* setup the private structure */
 	err = atl1c_sw_init(adapter);
 	if (err) {

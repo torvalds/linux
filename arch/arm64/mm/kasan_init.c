@@ -11,6 +11,7 @@
  */
 
 #define pr_fmt(fmt) "kasan: " fmt
+#include <linux/bootmem.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/sched/task.h>
@@ -35,77 +36,118 @@ static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
  * with the physical address from __pa_symbol.
  */
 
-static void __init kasan_early_pte_populate(pmd_t *pmd, unsigned long addr,
-					unsigned long end)
+static phys_addr_t __init kasan_alloc_zeroed_page(int node)
 {
-	pte_t *pte;
-	unsigned long next;
-
-	if (pmd_none(*pmd))
-		__pmd_populate(pmd, __pa_symbol(kasan_zero_pte), PMD_TYPE_TABLE);
-
-	pte = pte_offset_kimg(pmd, addr);
-	do {
-		next = addr + PAGE_SIZE;
-		set_pte(pte, pfn_pte(sym_to_pfn(kasan_zero_page),
-					PAGE_KERNEL));
-	} while (pte++, addr = next, addr != end && pte_none(*pte));
+	void *p = memblock_virt_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
+					      __pa(MAX_DMA_ADDRESS),
+					      MEMBLOCK_ALLOC_ACCESSIBLE, node);
+	return __pa(p);
 }
 
-static void __init kasan_early_pmd_populate(pud_t *pud,
-					unsigned long addr,
-					unsigned long end)
+static pte_t *__init kasan_pte_offset(pmd_t *pmdp, unsigned long addr, int node,
+				      bool early)
 {
-	pmd_t *pmd;
+	if (pmd_none(READ_ONCE(*pmdp))) {
+		phys_addr_t pte_phys = early ? __pa_symbol(kasan_zero_pte)
+					     : kasan_alloc_zeroed_page(node);
+		__pmd_populate(pmdp, pte_phys, PMD_TYPE_TABLE);
+	}
+
+	return early ? pte_offset_kimg(pmdp, addr)
+		     : pte_offset_kernel(pmdp, addr);
+}
+
+static pmd_t *__init kasan_pmd_offset(pud_t *pudp, unsigned long addr, int node,
+				      bool early)
+{
+	if (pud_none(READ_ONCE(*pudp))) {
+		phys_addr_t pmd_phys = early ? __pa_symbol(kasan_zero_pmd)
+					     : kasan_alloc_zeroed_page(node);
+		__pud_populate(pudp, pmd_phys, PMD_TYPE_TABLE);
+	}
+
+	return early ? pmd_offset_kimg(pudp, addr) : pmd_offset(pudp, addr);
+}
+
+static pud_t *__init kasan_pud_offset(pgd_t *pgdp, unsigned long addr, int node,
+				      bool early)
+{
+	if (pgd_none(READ_ONCE(*pgdp))) {
+		phys_addr_t pud_phys = early ? __pa_symbol(kasan_zero_pud)
+					     : kasan_alloc_zeroed_page(node);
+		__pgd_populate(pgdp, pud_phys, PMD_TYPE_TABLE);
+	}
+
+	return early ? pud_offset_kimg(pgdp, addr) : pud_offset(pgdp, addr);
+}
+
+static void __init kasan_pte_populate(pmd_t *pmdp, unsigned long addr,
+				      unsigned long end, int node, bool early)
+{
 	unsigned long next;
+	pte_t *ptep = kasan_pte_offset(pmdp, addr, node, early);
 
-	if (pud_none(*pud))
-		__pud_populate(pud, __pa_symbol(kasan_zero_pmd), PMD_TYPE_TABLE);
+	do {
+		phys_addr_t page_phys = early ? __pa_symbol(kasan_zero_page)
+					      : kasan_alloc_zeroed_page(node);
+		next = addr + PAGE_SIZE;
+		set_pte(ptep, pfn_pte(__phys_to_pfn(page_phys), PAGE_KERNEL));
+	} while (ptep++, addr = next, addr != end && pte_none(READ_ONCE(*ptep)));
+}
 
-	pmd = pmd_offset_kimg(pud, addr);
+static void __init kasan_pmd_populate(pud_t *pudp, unsigned long addr,
+				      unsigned long end, int node, bool early)
+{
+	unsigned long next;
+	pmd_t *pmdp = kasan_pmd_offset(pudp, addr, node, early);
+
 	do {
 		next = pmd_addr_end(addr, end);
-		kasan_early_pte_populate(pmd, addr, next);
-	} while (pmd++, addr = next, addr != end && pmd_none(*pmd));
+		kasan_pte_populate(pmdp, addr, next, node, early);
+	} while (pmdp++, addr = next, addr != end && pmd_none(READ_ONCE(*pmdp)));
 }
 
-static void __init kasan_early_pud_populate(pgd_t *pgd,
-					unsigned long addr,
-					unsigned long end)
+static void __init kasan_pud_populate(pgd_t *pgdp, unsigned long addr,
+				      unsigned long end, int node, bool early)
 {
-	pud_t *pud;
 	unsigned long next;
+	pud_t *pudp = kasan_pud_offset(pgdp, addr, node, early);
 
-	if (pgd_none(*pgd))
-		__pgd_populate(pgd, __pa_symbol(kasan_zero_pud), PUD_TYPE_TABLE);
-
-	pud = pud_offset_kimg(pgd, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		kasan_early_pmd_populate(pud, addr, next);
-	} while (pud++, addr = next, addr != end && pud_none(*pud));
+		kasan_pmd_populate(pudp, addr, next, node, early);
+	} while (pudp++, addr = next, addr != end && pud_none(READ_ONCE(*pudp)));
 }
 
-static void __init kasan_map_early_shadow(void)
+static void __init kasan_pgd_populate(unsigned long addr, unsigned long end,
+				      int node, bool early)
 {
-	unsigned long addr = KASAN_SHADOW_START;
-	unsigned long end = KASAN_SHADOW_END;
 	unsigned long next;
-	pgd_t *pgd;
+	pgd_t *pgdp;
 
-	pgd = pgd_offset_k(addr);
+	pgdp = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		kasan_early_pud_populate(pgd, addr, next);
-	} while (pgd++, addr = next, addr != end);
+		kasan_pud_populate(pgdp, addr, next, node, early);
+	} while (pgdp++, addr = next, addr != end);
 }
 
+/* The early shadow maps everything to a single page of zeroes */
 asmlinkage void __init kasan_early_init(void)
 {
-	BUILD_BUG_ON(KASAN_SHADOW_OFFSET != KASAN_SHADOW_END - (1UL << 61));
+	BUILD_BUG_ON(KASAN_SHADOW_OFFSET !=
+		KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
-	kasan_map_early_shadow();
+	kasan_pgd_populate(KASAN_SHADOW_START, KASAN_SHADOW_END, NUMA_NO_NODE,
+			   true);
+}
+
+/* Set up full kasan mappings, ensuring that the mapped pages are zeroed */
+static void __init kasan_map_populate(unsigned long start, unsigned long end,
+				      int node)
+{
+	kasan_pgd_populate(start & PAGE_MASK, PAGE_ALIGN(end), node, false);
 }
 
 /*
@@ -113,14 +155,14 @@ asmlinkage void __init kasan_early_init(void)
  */
 void __init kasan_copy_shadow(pgd_t *pgdir)
 {
-	pgd_t *pgd, *pgd_new, *pgd_end;
+	pgd_t *pgdp, *pgdp_new, *pgdp_end;
 
-	pgd = pgd_offset_k(KASAN_SHADOW_START);
-	pgd_end = pgd_offset_k(KASAN_SHADOW_END);
-	pgd_new = pgd_offset_raw(pgdir, KASAN_SHADOW_START);
+	pgdp = pgd_offset_k(KASAN_SHADOW_START);
+	pgdp_end = pgd_offset_k(KASAN_SHADOW_END);
+	pgdp_new = pgd_offset_raw(pgdir, KASAN_SHADOW_START);
 	do {
-		set_pgd(pgd_new, *pgd);
-	} while (pgd++, pgd_new++, pgd != pgd_end);
+		set_pgd(pgdp_new, READ_ONCE(*pgdp));
+	} while (pgdp++, pgdp_new++, pgdp != pgdp_end);
 }
 
 static void __init clear_pgds(unsigned long start,
@@ -142,8 +184,8 @@ void __init kasan_init(void)
 	struct memblock_region *reg;
 	int i;
 
-	kimg_shadow_start = (u64)kasan_mem_to_shadow(_text);
-	kimg_shadow_end = (u64)kasan_mem_to_shadow(_end);
+	kimg_shadow_start = (u64)kasan_mem_to_shadow(_text) & PAGE_MASK;
+	kimg_shadow_end = PAGE_ALIGN((u64)kasan_mem_to_shadow(_end));
 
 	mod_shadow_start = (u64)kasan_mem_to_shadow((void *)MODULES_VADDR);
 	mod_shadow_end = (u64)kasan_mem_to_shadow((void *)MODULES_END);
@@ -161,19 +203,8 @@ void __init kasan_init(void)
 
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
-	vmemmap_populate(kimg_shadow_start, kimg_shadow_end,
-			 pfn_to_nid(virt_to_pfn(lm_alias(_text))));
-
-	/*
-	 * vmemmap_populate() has populated the shadow region that covers the
-	 * kernel image with SWAPPER_BLOCK_SIZE mappings, so we have to round
-	 * the start and end addresses to SWAPPER_BLOCK_SIZE as well, to prevent
-	 * kasan_populate_zero_shadow() from replacing the page table entries
-	 * (PMD or PTE) at the edges of the shadow region for the kernel
-	 * image.
-	 */
-	kimg_shadow_start = round_down(kimg_shadow_start, SWAPPER_BLOCK_SIZE);
-	kimg_shadow_end = round_up(kimg_shadow_end, SWAPPER_BLOCK_SIZE);
+	kasan_map_populate(kimg_shadow_start, kimg_shadow_end,
+			   pfn_to_nid(virt_to_pfn(lm_alias(_text))));
 
 	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
 				   (void *)mod_shadow_start);
@@ -191,9 +222,9 @@ void __init kasan_init(void)
 		if (start >= end)
 			break;
 
-		vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
-				(unsigned long)kasan_mem_to_shadow(end),
-				pfn_to_nid(virt_to_pfn(start)));
+		kasan_map_populate((unsigned long)kasan_mem_to_shadow(start),
+				   (unsigned long)kasan_mem_to_shadow(end),
+				   pfn_to_nid(virt_to_pfn(start)));
 	}
 
 	/*

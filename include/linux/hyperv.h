@@ -127,28 +127,6 @@ struct hv_ring_buffer_info {
 	u32 priv_read_index;
 };
 
-/*
- *
- * hv_get_ringbuffer_availbytes()
- *
- * Get number of bytes available to read and to write to
- * for the specified ring buffer
- */
-static inline void
-hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
-			     u32 *read, u32 *write)
-{
-	u32 read_loc, write_loc, dsize;
-
-	/* Capture the read/write indices before they changed */
-	read_loc = rbi->ring_buffer->read_index;
-	write_loc = rbi->ring_buffer->write_index;
-	dsize = rbi->ring_datasize;
-
-	*write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
-		read_loc - write_loc;
-	*read = dsize - *write;
-}
 
 static inline u32 hv_get_bytes_to_read(const struct hv_ring_buffer_info *rbi)
 {
@@ -708,6 +686,7 @@ struct vmbus_channel {
 	u8 monitor_bit;
 
 	bool rescind; /* got rescind msg */
+	struct completion rescind_event;
 
 	u32 ringbuffer_gpadlhandle;
 
@@ -718,6 +697,10 @@ struct vmbus_channel {
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 
 	struct vmbus_close_msg close_msg;
+
+	/* Statistics */
+	u64	interrupts;	/* Host to Guest interrupts */
+	u64	sig_events;	/* Guest to Host events */
 
 	/* Channel callback's invoked in softirq context */
 	struct tasklet_struct callback_event;
@@ -827,6 +810,11 @@ struct vmbus_channel {
 	 * gone through grace period.
 	 */
 	struct rcu_head rcu;
+
+	/*
+	 * For sysfs per-channel properties.
+	 */
+	struct kobject			kobj;
 
 	/*
 	 * For performance critical channels (storage, networking
@@ -1089,6 +1077,7 @@ struct hv_device {
 	struct device device;
 
 	struct vmbus_channel *channel;
+	struct kset	     *channels_kset;
 };
 
 

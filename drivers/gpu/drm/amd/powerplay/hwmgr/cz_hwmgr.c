@@ -162,8 +162,8 @@ static uint32_t cz_get_max_sclk_level(struct pp_hwmgr *hwmgr)
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
 	if (cz_hwmgr->max_sclk_level == 0) {
-		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetMaxSclkLevel);
-		cz_hwmgr->max_sclk_level = smum_get_argument(hwmgr->smumgr) + 1;
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxSclkLevel);
+		cz_hwmgr->max_sclk_level = smum_get_argument(hwmgr) + 1;
 	}
 
 	return cz_hwmgr->max_sclk_level;
@@ -440,14 +440,7 @@ static int cz_construct_boot_state(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int cz_tf_reset_active_process_mask(struct pp_hwmgr *hwmgr, void *input,
-					void *output, void *storage, int result)
-{
-	return 0;
-}
-
-static int cz_tf_upload_pptable_to_smu(struct pp_hwmgr *hwmgr, void *input,
-				       void *output, void *storage, int result)
+static int cz_upload_pptable_to_smu(struct pp_hwmgr *hwmgr)
 {
 	struct SMU8_Fusion_ClkTable *clock_table;
 	int ret;
@@ -469,7 +462,7 @@ static int cz_tf_upload_pptable_to_smu(struct pp_hwmgr *hwmgr, void *input,
 	if (!hwmgr->need_pp_table_upload)
 		return 0;
 
-	ret = smum_download_powerplay_table(hwmgr->smumgr, &table);
+	ret = smum_download_powerplay_table(hwmgr, &table);
 
 	PP_ASSERT_WITH_CODE((0 == ret && NULL != table),
 			    "Fail to get clock table from SMU!", return -EINVAL;);
@@ -561,13 +554,12 @@ static int cz_tf_upload_pptable_to_smu(struct pp_hwmgr *hwmgr, void *input,
 			(uint8_t)dividers.pll_post_divider;
 
 	}
-	ret = smum_upload_powerplay_table(hwmgr->smumgr);
+	ret = smum_upload_powerplay_table(hwmgr);
 
 	return ret;
 }
 
-static int cz_tf_init_sclk_limit(struct pp_hwmgr *hwmgr, void *input,
-				 void *output, void *storage, int result)
+static int cz_init_sclk_limit(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_clock_voltage_dependency_table *table =
@@ -593,8 +585,7 @@ static int cz_tf_init_sclk_limit(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-static int cz_tf_init_uvd_limit(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int cz_init_uvd_limit(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_uvd_clock_voltage_dependency_table *table =
@@ -607,8 +598,8 @@ static int cz_tf_init_uvd_limit(struct pp_hwmgr *hwmgr, void *input,
 	cz_hwmgr->uvd_dpm.soft_min_clk = 0;
 	cz_hwmgr->uvd_dpm.hard_min_clk = 0;
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetMaxUvdLevel);
-	level = smum_get_argument(hwmgr->smumgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxUvdLevel);
+	level = smum_get_argument(hwmgr);
 
 	if (level < table->count)
 		clock = table->entries[level].vclk;
@@ -621,8 +612,7 @@ static int cz_tf_init_uvd_limit(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-static int cz_tf_init_vce_limit(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int cz_init_vce_limit(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_vce_clock_voltage_dependency_table *table =
@@ -635,8 +625,8 @@ static int cz_tf_init_vce_limit(struct pp_hwmgr *hwmgr, void *input,
 	cz_hwmgr->vce_dpm.soft_min_clk = 0;
 	cz_hwmgr->vce_dpm.hard_min_clk = 0;
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetMaxEclkLevel);
-	level = smum_get_argument(hwmgr->smumgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxEclkLevel);
+	level = smum_get_argument(hwmgr);
 
 	if (level < table->count)
 		clock = table->entries[level].ecclk;
@@ -649,8 +639,7 @@ static int cz_tf_init_vce_limit(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-static int cz_tf_init_acp_limit(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int cz_init_acp_limit(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_acp_clock_voltage_dependency_table *table =
@@ -663,8 +652,8 @@ static int cz_tf_init_acp_limit(struct pp_hwmgr *hwmgr, void *input,
 	cz_hwmgr->acp_dpm.soft_min_clk = 0;
 	cz_hwmgr->acp_dpm.hard_min_clk = 0;
 
-	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetMaxAclkLevel);
-	level = smum_get_argument(hwmgr->smumgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxAclkLevel);
+	level = smum_get_argument(hwmgr);
 
 	if (level < table->count)
 		clock = table->entries[level].acpclk;
@@ -676,8 +665,7 @@ static int cz_tf_init_acp_limit(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-static int cz_tf_init_power_gate_state(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static void cz_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -686,22 +674,16 @@ static int cz_tf_init_power_gate_state(struct pp_hwmgr *hwmgr, void *input,
 	cz_hwmgr->samu_power_gated = false;
 	cz_hwmgr->acp_power_gated = false;
 	cz_hwmgr->pgacpinit = true;
-
-	return 0;
 }
 
-static int cz_tf_init_sclk_threshold(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static void cz_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
 	cz_hwmgr->low_sclk_interrupt_threshold = 0;
-
-	return 0;
 }
-static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+
+static int cz_update_sclk_limit(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_clock_voltage_dependency_table *table =
@@ -722,12 +704,12 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 
 	clock = hwmgr->display_config.min_core_set_clock;
 	if (clock == 0)
-		pr_info("min_core_set_clock not set\n");
+		pr_debug("min_core_set_clock not set\n");
 
 	if (cz_hwmgr->sclk_dpm.hard_min_clk != clock) {
 		cz_hwmgr->sclk_dpm.hard_min_clk = clock;
 
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSclkHardMin,
 						 cz_get_sclk_level(hwmgr,
 					cz_hwmgr->sclk_dpm.hard_min_clk,
@@ -746,14 +728,11 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 
 		if (clock < stable_pstate_sclk)
 			clock = stable_pstate_sclk;
-	} else {
-		if (clock < hwmgr->gfx_arbiter.sclk)
-			clock = hwmgr->gfx_arbiter.sclk;
 	}
 
 	if (cz_hwmgr->sclk_dpm.soft_min_clk != clock) {
 		cz_hwmgr->sclk_dpm.soft_min_clk = clock;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSclkSoftMin,
 						cz_get_sclk_level(hwmgr,
 					cz_hwmgr->sclk_dpm.soft_min_clk,
@@ -764,7 +743,7 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 				    PHM_PlatformCaps_StablePState) &&
 			 cz_hwmgr->sclk_dpm.soft_max_clk != clock) {
 		cz_hwmgr->sclk_dpm.soft_max_clk = clock;
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetSclkSoftMax,
 						cz_get_sclk_level(hwmgr,
 					cz_hwmgr->sclk_dpm.soft_max_clk,
@@ -774,9 +753,7 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int cz_tf_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+static int cz_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_SclkDeepSleep)) {
@@ -786,7 +763,7 @@ static int cz_tf_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr,
 
 		PP_DBG_LOG("Setting Deep Sleep Clock: %d\n", clks);
 
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepSclk,
 				clks);
 	}
@@ -794,49 +771,16 @@ static int cz_tf_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int cz_tf_set_watermark_threshold(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+static int cz_set_watermark_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr =
 				  (struct cz_hwmgr *)(hwmgr->backend);
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetWatermarkFrequency,
 					cz_hwmgr->sclk_dpm.soft_max_clk);
 
 	return 0;
-}
-
-static int cz_tf_set_enabled_levels(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
-{
-	return 0;
-}
-
-
-static int cz_tf_enable_nb_dpm(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
-{
-	int ret = 0;
-
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-	unsigned long dpm_features = 0;
-
-	if (!cz_hwmgr->is_nb_dpm_enabled) {
-		PP_DBG_LOG("enabling ALL SMU features.\n");
-		dpm_features |= NB_DPM_MASK;
-		ret = smum_send_msg_to_smc_with_parameter(
-							  hwmgr->smumgr,
-							  PPSMC_MSG_EnableAllSmuFeatures,
-							  dpm_features);
-		if (ret == 0)
-			cz_hwmgr->is_nb_dpm_enabled = true;
-	}
-
-	return ret;
 }
 
 static int cz_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable, bool lock)
@@ -847,13 +791,13 @@ static int cz_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable, b
 		if (enable) {
 			PP_DBG_LOG("enable Low Memory PState.\n");
 
-			return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			return smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_EnableLowMemoryPstate,
 						(lock ? 1 : 0));
 		} else {
 			PP_DBG_LOG("disable Low Memory PState.\n");
 
-			return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			return smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_DisableLowMemoryPstate,
 						(lock ? 1 : 0));
 		}
@@ -862,9 +806,49 @@ static int cz_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable, b
 	return 0;
 }
 
-static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+static int cz_disable_nb_dpm(struct pp_hwmgr *hwmgr)
+{
+	int ret = 0;
+
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	unsigned long dpm_features = 0;
+
+	if (cz_hwmgr->is_nb_dpm_enabled) {
+		cz_nbdpm_pstate_enable_disable(hwmgr, true, true);
+		dpm_features |= NB_DPM_MASK;
+		ret = smum_send_msg_to_smc_with_parameter(
+							  hwmgr,
+							  PPSMC_MSG_DisableAllSmuFeatures,
+							  dpm_features);
+		if (ret == 0)
+			cz_hwmgr->is_nb_dpm_enabled = false;
+	}
+
+	return ret;
+}
+
+static int cz_enable_nb_dpm(struct pp_hwmgr *hwmgr)
+{
+	int ret = 0;
+
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	unsigned long dpm_features = 0;
+
+	if (!cz_hwmgr->is_nb_dpm_enabled) {
+		PP_DBG_LOG("enabling ALL SMU features.\n");
+		dpm_features |= NB_DPM_MASK;
+		ret = smum_send_msg_to_smc_with_parameter(
+							  hwmgr,
+							  PPSMC_MSG_EnableAllSmuFeatures,
+							  dpm_features);
+		if (ret == 0)
+			cz_hwmgr->is_nb_dpm_enabled = true;
+	}
+
+	return ret;
+}
+
+static int cz_update_low_mem_pstate(struct pp_hwmgr *hwmgr, const void *input)
 {
 	bool disable_switch;
 	bool enable_low_mem_state;
@@ -886,64 +870,64 @@ static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static const struct phm_master_table_item cz_set_power_state_list[] = {
-	{ .tableFunction = cz_tf_update_sclk_limit },
-	{ .tableFunction = cz_tf_set_deep_sleep_sclk_threshold },
-	{ .tableFunction = cz_tf_set_watermark_threshold },
-	{ .tableFunction = cz_tf_set_enabled_levels },
-	{ .tableFunction = cz_tf_enable_nb_dpm },
-	{ .tableFunction = cz_tf_update_low_mem_pstate },
-	{ }
+static int cz_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
+{
+	int ret = 0;
+
+	cz_update_sclk_limit(hwmgr);
+	cz_set_deep_sleep_sclk_threshold(hwmgr);
+	cz_set_watermark_threshold(hwmgr);
+	ret = cz_enable_nb_dpm(hwmgr);
+	if (ret)
+		return ret;
+	cz_update_low_mem_pstate(hwmgr, input);
+
+	return 0;
 };
 
-static const struct phm_master_table_header cz_set_power_state_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	cz_set_power_state_list
-};
 
-static const struct phm_master_table_item cz_setup_asic_list[] = {
-	{ .tableFunction = cz_tf_reset_active_process_mask },
-	{ .tableFunction = cz_tf_upload_pptable_to_smu },
-	{ .tableFunction = cz_tf_init_sclk_limit },
-	{ .tableFunction = cz_tf_init_uvd_limit },
-	{ .tableFunction = cz_tf_init_vce_limit },
-	{ .tableFunction = cz_tf_init_acp_limit },
-	{ .tableFunction = cz_tf_init_power_gate_state },
-	{ .tableFunction = cz_tf_init_sclk_threshold },
-	{ }
-};
+static int cz_setup_asic_task(struct pp_hwmgr *hwmgr)
+{
+	int ret;
 
-static const struct phm_master_table_header cz_setup_asic_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	cz_setup_asic_list
-};
+	ret = cz_upload_pptable_to_smu(hwmgr);
+	if (ret)
+		return ret;
+	ret = cz_init_sclk_limit(hwmgr);
+	if (ret)
+		return ret;
+	ret = cz_init_uvd_limit(hwmgr);
+	if (ret)
+		return ret;
+	ret = cz_init_vce_limit(hwmgr);
+	if (ret)
+		return ret;
+	ret = cz_init_acp_limit(hwmgr);
+	if (ret)
+		return ret;
 
-static int cz_tf_power_up_display_clock_sys_pll(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+	cz_init_power_gate_state(hwmgr);
+	cz_init_sclk_threshold(hwmgr);
+
+	return 0;
+}
+
+static void cz_power_up_display_clock_sys_pll(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+
 	hw_data->disp_clk_bypass_pending = false;
 	hw_data->disp_clk_bypass = false;
-
-	return 0;
 }
 
-static int cz_tf_clear_nb_dpm_flag(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+static void cz_clear_nb_dpm_flag(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
-	hw_data->is_nb_dpm_enabled = false;
 
-	return 0;
+	hw_data->is_nb_dpm_enabled = false;
 }
 
-static int cz_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+static void cz_reset_cc6_data(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -951,63 +935,68 @@ static int cz_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
 	hw_data->cc6_settings.cpu_pstate_separation_time = 0;
 	hw_data->cc6_settings.cpu_cc6_disable = false;
 	hw_data->cc6_settings.cpu_pstate_disable = false;
-
-	return 0;
 }
 
-static const struct phm_master_table_item cz_power_down_asic_list[] = {
-	{ .tableFunction = cz_tf_power_up_display_clock_sys_pll },
-	{ .tableFunction = cz_tf_clear_nb_dpm_flag },
-	{ .tableFunction = cz_tf_reset_cc6_data },
-	{ }
+static int cz_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	cz_power_up_display_clock_sys_pll(hwmgr);
+	cz_clear_nb_dpm_flag(hwmgr);
+	cz_reset_cc6_data(hwmgr);
+	return 0;
 };
 
-static const struct phm_master_table_header cz_power_down_asic_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	cz_power_down_asic_list
-};
-
-static int cz_tf_program_voting_clients(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static void cz_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
 	PHMCZ_WRITE_SMC_REGISTER(hwmgr->device, CG_FREQ_TRAN_VOTING_0,
 				PPCZ_VOTINGRIGHTSCLIENTS_DFLT0);
-	return 0;
 }
 
-static int cz_tf_start_dpm(struct pp_hwmgr *hwmgr, void *input, void *output,
-			   void *storage, int result)
+static void cz_clear_voting_clients(struct pp_hwmgr *hwmgr)
 {
-	int res = 0xff;
+	PHMCZ_WRITE_SMC_REGISTER(hwmgr->device, CG_FREQ_TRAN_VOTING_0, 0);
+}
+
+static int cz_start_dpm(struct pp_hwmgr *hwmgr)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+
+	cz_hwmgr->dpm_flags |= DPMFlags_SCLK_Enabled;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_EnableAllSmuFeatures,
+				SCLK_DPM_MASK);
+}
+
+static int cz_stop_dpm(struct pp_hwmgr *hwmgr)
+{
+	int ret = 0;
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	unsigned long dpm_features = 0;
 
-	cz_hwmgr->dpm_flags |= DPMFlags_SCLK_Enabled;
-	dpm_features |= SCLK_DPM_MASK;
-
-	res = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-				PPSMC_MSG_EnableAllSmuFeatures,
-				dpm_features);
-
-	return res;
+	if (cz_hwmgr->dpm_flags & DPMFlags_SCLK_Enabled) {
+		dpm_features |= SCLK_DPM_MASK;
+		cz_hwmgr->dpm_flags &= ~DPMFlags_SCLK_Enabled;
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DisableAllSmuFeatures,
+					dpm_features);
+	}
+	return ret;
 }
 
-static int cz_tf_program_bootup_state(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int cz_program_bootup_state(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = cz_hwmgr->sys_info.bootup_engine_clock;
 	cz_hwmgr->sclk_dpm.soft_max_clk = cz_hwmgr->sys_info.bootup_engine_clock;
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
 				cz_get_sclk_level(hwmgr,
 				cz_hwmgr->sclk_dpm.soft_min_clk,
 				PPSMC_MSG_SetSclkSoftMin));
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				cz_get_sclk_level(hwmgr,
 				cz_hwmgr->sclk_dpm.soft_max_clk,
@@ -1016,13 +1005,11 @@ static int cz_tf_program_bootup_state(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-static int cz_tf_reset_acp_boot_level(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static void cz_reset_acp_boot_level(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
 	cz_hwmgr->acp_boot_level = 0xff;
-	return 0;
 }
 
 static bool cz_dpm_check_smu_features(struct pp_hwmgr *hwmgr,
@@ -1031,67 +1018,52 @@ static bool cz_dpm_check_smu_features(struct pp_hwmgr *hwmgr,
 	int result;
 	unsigned long features;
 
-	result = smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_GetFeatureStatus, 0);
+	result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetFeatureStatus, 0);
 	if (result == 0) {
-		features = smum_get_argument(hwmgr->smumgr);
+		features = smum_get_argument(hwmgr);
 		if (features & check_feature)
 			return true;
 	}
 
-	return result;
+	return false;
 }
 
-static int cz_tf_check_for_dpm_disabled(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static bool cz_check_for_dpm_enabled(struct pp_hwmgr *hwmgr)
 {
 	if (cz_dpm_check_smu_features(hwmgr, SMU_EnabledFeatureScoreboard_SclkDpmOn))
-		return PP_Result_TableImmediateExit;
-	return 0;
+		return true;
+	return false;
 }
 
-static int cz_tf_enable_didt(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int cz_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	/* TO DO */
-	return 0;
-}
+	if (!cz_check_for_dpm_enabled(hwmgr)) {
+		pr_info("dpm has been disabled\n");
+		return 0;
+	}
+	cz_disable_nb_dpm(hwmgr);
 
-static int cz_tf_check_for_dpm_enabled(struct pp_hwmgr *hwmgr,
-						void *input, void *output,
-						void *storage, int result)
+	cz_clear_voting_clients(hwmgr);
+	if (cz_stop_dpm(hwmgr))
+		return -EINVAL;
+
+	return 0;
+};
+
+static int cz_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	if (!cz_dpm_check_smu_features(hwmgr,
-			     SMU_EnabledFeatureScoreboard_SclkDpmOn))
-		return PP_Result_TableImmediateExit;
+	if (cz_check_for_dpm_enabled(hwmgr)) {
+		pr_info("dpm has been enabled\n");
+		return 0;
+	}
+
+	cz_program_voting_clients(hwmgr);
+	if (cz_start_dpm(hwmgr))
+		return -EINVAL;
+	cz_program_bootup_state(hwmgr);
+	cz_reset_acp_boot_level(hwmgr);
+
 	return 0;
-}
-
-static const struct phm_master_table_item cz_disable_dpm_list[] = {
-	{ .tableFunction = cz_tf_check_for_dpm_enabled },
-	{ },
-};
-
-
-static const struct phm_master_table_header cz_disable_dpm_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	cz_disable_dpm_list
-};
-
-static const struct phm_master_table_item cz_enable_dpm_list[] = {
-	{ .tableFunction = cz_tf_check_for_dpm_disabled },
-	{ .tableFunction = cz_tf_program_voting_clients },
-	{ .tableFunction = cz_tf_start_dpm },
-	{ .tableFunction = cz_tf_program_bootup_state },
-	{ .tableFunction = cz_tf_enable_didt },
-	{ .tableFunction = cz_tf_reset_acp_boot_level },
-	{ },
-};
-
-static const struct phm_master_table_header cz_enable_dpm_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	cz_enable_dpm_list
 };
 
 static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
@@ -1110,13 +1082,7 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	uint32_t  num_of_active_displays = 0;
 	struct cgs_display_info info = {0};
 
-	cz_ps->evclk = hwmgr->vce_arbiter.evclk;
-	cz_ps->ecclk = hwmgr->vce_arbiter.ecclk;
-
 	cz_ps->need_dfs_bypass = true;
-
-	cz_hwmgr->video_start = (hwmgr->uvd_arbiter.vclk != 0 || hwmgr->uvd_arbiter.dclk != 0 ||
-				hwmgr->vce_arbiter.evclk != 0 || hwmgr->vce_arbiter.ecclk != 0);
 
 	cz_hwmgr->battery_state = (PP_StateUILabel_Battery == prequest_ps->classification.ui_label);
 
@@ -1130,15 +1096,16 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 		clocks.memoryClock = hwmgr->dyn_state.max_clock_voltage_on_ac.mclk;
 
-	if (clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
-		clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
-
 	force_high = (clocks.memoryClock > cz_hwmgr->sys_info.nbp_memory_clock[CZ_NUM_NBPMEMORYCLOCK - 1])
 			|| (num_of_active_displays >= 3);
 
 	cz_ps->action = cz_current_ps->action;
 
-	if (!force_high && (cz_ps->action == FORCE_HIGH))
+	if (hwmgr->request_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+		cz_nbdpm_pstate_enable_disable(hwmgr, false, false);
+	else if (hwmgr->request_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD)
+		cz_nbdpm_pstate_enable_disable(hwmgr, false, true);
+	else if (!force_high && (cz_ps->action == FORCE_HIGH))
 		cz_ps->action = CANCEL_FORCE_HIGH;
 	else if (force_high && (cz_ps->action != FORCE_HIGH))
 		cz_ps->action = FORCE_HIGH;
@@ -1173,62 +1140,16 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	cz_construct_boot_state(hwmgr);
 
-	result = phm_construct_table(hwmgr, &cz_setup_asic_master,
-				&(hwmgr->setup_asic));
-	if (result != 0) {
-		pr_err("Fail to construct setup ASIC\n");
-		return result;
-	}
-
-	result = phm_construct_table(hwmgr, &cz_power_down_asic_master,
-				&(hwmgr->power_down_asic));
-	if (result != 0) {
-		pr_err("Fail to construct power down ASIC\n");
-		return result;
-	}
-
-	result = phm_construct_table(hwmgr, &cz_disable_dpm_master,
-				&(hwmgr->disable_dynamic_state_management));
-	if (result != 0) {
-		pr_err("Fail to disable_dynamic_state\n");
-		return result;
-	}
-	result = phm_construct_table(hwmgr, &cz_enable_dpm_master,
-				&(hwmgr->enable_dynamic_state_management));
-	if (result != 0) {
-		pr_err("Fail to enable_dynamic_state\n");
-		return result;
-	}
-	result = phm_construct_table(hwmgr, &cz_set_power_state_master,
-				&(hwmgr->set_power_state));
-	if (result != 0) {
-		pr_err("Fail to construct set_power_state\n");
-		return result;
-	}
 	hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =  CZ_MAX_HARDWARE_POWERLEVELS;
 
-	result = phm_construct_table(hwmgr, &cz_phm_enable_clock_power_gatings_master, &(hwmgr->enable_clock_power_gatings));
-	if (result != 0) {
-		pr_err("Fail to construct enable_clock_power_gatings\n");
-		return result;
-	}
 	return result;
 }
 
 static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr != NULL) {
-		phm_destroy_table(hwmgr, &(hwmgr->enable_clock_power_gatings));
-		phm_destroy_table(hwmgr, &(hwmgr->set_power_state));
-		phm_destroy_table(hwmgr, &(hwmgr->enable_dynamic_state_management));
-		phm_destroy_table(hwmgr, &(hwmgr->disable_dynamic_state_management));
-		phm_destroy_table(hwmgr, &(hwmgr->power_down_asic));
-		phm_destroy_table(hwmgr, &(hwmgr->setup_asic));
-
-		if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
-			kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-			hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
-		}
+		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
 
 		kfree(hwmgr->backend);
 		hwmgr->backend = NULL;
@@ -1240,13 +1161,13 @@ static int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetSclkSoftMin,
 					cz_get_sclk_level(hwmgr,
 					cz_hwmgr->sclk_dpm.soft_max_clk,
 					PPSMC_MSG_SetSclkSoftMin));
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				cz_get_sclk_level(hwmgr,
 				cz_hwmgr->sclk_dpm.soft_max_clk,
@@ -1278,13 +1199,13 @@ static int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 	cz_hwmgr->sclk_dpm.soft_max_clk = clock;
 	cz_hwmgr->sclk_dpm.hard_max_clk = clock;
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
 				cz_get_sclk_level(hwmgr,
 				cz_hwmgr->sclk_dpm.soft_min_clk,
 				PPSMC_MSG_SetSclkSoftMin));
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				cz_get_sclk_level(hwmgr,
 				cz_hwmgr->sclk_dpm.soft_max_clk,
@@ -1297,13 +1218,13 @@ static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetSclkSoftMax,
 			cz_get_sclk_level(hwmgr,
 			cz_hwmgr->sclk_dpm.soft_min_clk,
 			PPSMC_MSG_SetSclkSoftMax));
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
 				cz_get_sclk_level(hwmgr,
 				cz_hwmgr->sclk_dpm.soft_min_clk,
@@ -1312,106 +1233,25 @@ static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int cz_phm_force_dpm_sclk(struct pp_hwmgr *hwmgr, uint32_t sclk)
-{
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-				PPSMC_MSG_SetSclkSoftMin,
-				cz_get_sclk_level(hwmgr,
-				sclk,
-				PPSMC_MSG_SetSclkSoftMin));
-
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-				PPSMC_MSG_SetSclkSoftMax,
-				cz_get_sclk_level(hwmgr,
-				sclk,
-				PPSMC_MSG_SetSclkSoftMax));
-	return 0;
-}
-
-static int cz_get_profiling_clk(struct pp_hwmgr *hwmgr, uint32_t *sclk)
-{
-	struct phm_clock_voltage_dependency_table *table =
-		hwmgr->dyn_state.vddc_dependency_on_sclk;
-	int32_t tmp_sclk;
-	int32_t count;
-
-	tmp_sclk = table->entries[table->count-1].clk * 70 / 100;
-
-	for (count = table->count-1; count >= 0; count--) {
-		if (tmp_sclk >= table->entries[count].clk) {
-			tmp_sclk = table->entries[count].clk;
-			*sclk = tmp_sclk;
-			break;
-		}
-	}
-	if (count < 0)
-		*sclk = table->entries[0].clk;
-
-	return 0;
-}
-
 static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
-	uint32_t sclk = 0;
 	int ret = 0;
-	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
-
-	if (level == hwmgr->dpm_level)
-		return ret;
-
-	if (!(hwmgr->dpm_level & profile_mode_mask)) {
-		/* enter profile mode, save current level, disable gfx cg*/
-		if (level & profile_mode_mask) {
-			hwmgr->saved_dpm_level = hwmgr->dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-						AMD_IP_BLOCK_TYPE_GFX,
-						AMD_CG_STATE_UNGATE);
-		}
-	} else {
-		/* exit profile mode, restore level, enable gfx cg*/
-		if (!(level & profile_mode_mask)) {
-			if (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
-				level = hwmgr->saved_dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-					AMD_IP_BLOCK_TYPE_GFX,
-					AMD_CG_STATE_GATE);
-		}
-	}
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		ret = cz_phm_force_dpm_highest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		ret = cz_phm_force_dpm_lowest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		ret = cz_phm_unforce_dpm_levels(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
-		break;
-	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
-		ret = cz_get_profiling_clk(hwmgr, &sclk);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
-		cz_phm_force_dpm_sclk(hwmgr, sclk);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
-		hwmgr->dpm_level = level;
-		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
@@ -1422,27 +1262,18 @@ static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_UVDPowerGating))
-		return smum_send_msg_to_smc(hwmgr->smumgr,
-						     PPSMC_MSG_UVDPowerOFF);
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
+		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
 	return 0;
 }
 
 int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_UVDPowerGating)) {
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				  PHM_PlatformCaps_UVDDynamicPowerGating)) {
-			return smum_send_msg_to_smc_with_parameter(
-								hwmgr->smumgr,
-						   PPSMC_MSG_UVDPowerON, 1);
-		} else {
-			return smum_send_msg_to_smc_with_parameter(
-								hwmgr->smumgr,
-						   PPSMC_MSG_UVDPowerON, 0);
-		}
+	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
+		return smum_send_msg_to_smc_with_parameter(
+			hwmgr,
+			PPSMC_MSG_UVDPowerON,
+			PP_CAP(PHM_PlatformCaps_UVDDynamicPowerGating) ? 1 : 0);
 	}
 
 	return 0;
@@ -1456,16 +1287,16 @@ int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 
 	if (!bgate) {
 		/* Stable Pstate is enabled and we need to set the UVD DPM to highest level */
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_StablePState)) {
+		if (PP_CAP(PHM_PlatformCaps_StablePState) ||
+		    hwmgr->en_umd_pstate) {
 			cz_hwmgr->uvd_dpm.hard_min_clk =
 				   ptable->entries[ptable->count - 1].vclk;
 
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-						     PPSMC_MSG_SetUvdHardMin,
-						      cz_get_uvd_level(hwmgr,
-					     cz_hwmgr->uvd_dpm.hard_min_clk,
-						   PPSMC_MSG_SetUvdHardMin));
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetUvdHardMin,
+				cz_get_uvd_level(hwmgr,
+					cz_hwmgr->uvd_dpm.hard_min_clk,
+					PPSMC_MSG_SetUvdHardMin));
 
 			cz_enable_disable_uvd_dpm(hwmgr, true);
 		} else {
@@ -1485,63 +1316,52 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 
 	/* Stable Pstate is enabled and we need to set the VCE DPM to highest level */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_StablePState)) {
+	if (PP_CAP(PHM_PlatformCaps_StablePState) ||
+	    hwmgr->en_umd_pstate) {
 		cz_hwmgr->vce_dpm.hard_min_clk =
 				  ptable->entries[ptable->count - 1].ecclk;
 
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					PPSMC_MSG_SetEclkHardMin,
-					cz_get_eclk_level(hwmgr,
-					     cz_hwmgr->vce_dpm.hard_min_clk,
-						PPSMC_MSG_SetEclkHardMin));
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetEclkHardMin,
+			cz_get_eclk_level(hwmgr,
+				cz_hwmgr->vce_dpm.hard_min_clk,
+				PPSMC_MSG_SetEclkHardMin));
 	} else {
-		/*Program HardMin based on the vce_arbiter.ecclk */
-		if (hwmgr->vce_arbiter.ecclk == 0) {
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					    PPSMC_MSG_SetEclkHardMin, 0);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetEclkHardMin, 0);
 		/* disable ECLK DPM 0. Otherwise VCE could hang if
 		 * switching SCLK from DPM 0 to 6/7 */
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetEclkSoftMin, 1);
-		} else {
-			cz_hwmgr->vce_dpm.hard_min_clk = hwmgr->vce_arbiter.ecclk;
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-						PPSMC_MSG_SetEclkHardMin,
-						cz_get_eclk_level(hwmgr,
-						cz_hwmgr->vce_dpm.hard_min_clk,
-						PPSMC_MSG_SetEclkHardMin));
-		}
 	}
 	return 0;
 }
 
 int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_VCEPowerGating))
-		return smum_send_msg_to_smc(hwmgr->smumgr,
+	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
+		return smum_send_msg_to_smc(hwmgr,
 						     PPSMC_MSG_VCEPowerOFF);
 	return 0;
 }
 
 int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
 {
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_VCEPowerGating))
-		return smum_send_msg_to_smc(hwmgr->smumgr,
+	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
+		return smum_send_msg_to_smc(hwmgr,
 						     PPSMC_MSG_VCEPowerON);
 	return 0;
 }
 
-static int cz_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t cz_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
 	return cz_hwmgr->sys_info.bootup_uma_clock;
 }
 
-static int cz_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t cz_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state  *ps;
 	struct cz_power_state  *cz_ps;
@@ -1679,7 +1499,7 @@ static void cz_hw_print_display_cfg(
 		PP_DBG_LOG("SetDisplaySizePowerParams data: 0x%X\n",
 			data);
 
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SetDisplaySizePowerParams,
 						data);
 	}
@@ -1744,10 +1564,10 @@ static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
 
 	switch (type) {
 	case PP_SCLK:
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMin,
 				mask);
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetSclkSoftMax,
 				mask);
 		break;
@@ -1989,7 +1809,7 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = 0;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
+		result = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetAverageGraphicsActivity);
 		if (0 == result) {
 			activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
 			activity_percent = activity_percent > 100 ? 100 : activity_percent;
@@ -2012,10 +1832,36 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	}
 }
 
+static int cz_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+					uint32_t virtual_addr_low,
+					uint32_t virtual_addr_hi,
+					uint32_t mc_addr_low,
+					uint32_t mc_addr_hi,
+					uint32_t size)
+{
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrHiVirtual,
+					mc_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrLoVirtual,
+					mc_addr_low);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrHiPhysical,
+					virtual_addr_hi);
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramAddrLoPhysical,
+					virtual_addr_low);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_DramBufferSize,
+					size);
+	return 0;
+}
+
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
-	.asic_setup = NULL,
 	.apply_state_adjust_rules = cz_apply_state_adjust_rules,
 	.force_dpm_level = cz_dpm_force_dpm_level,
 	.get_power_state_size = cz_get_power_state_size,
@@ -2036,7 +1882,14 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.get_current_shallow_sleep_clocks = cz_get_current_shallow_sleep_clocks,
 	.get_clock_by_type = cz_get_clock_by_type,
 	.get_max_high_clocks = cz_get_max_high_clocks,
+	.get_temperature = cz_thermal_get_temperature,
 	.read_sensor = cz_read_sensor,
+	.power_off_asic = cz_power_off_asic,
+	.asic_setup = cz_setup_asic_task,
+	.dynamic_state_management_enable = cz_enable_dpm_tasks,
+	.power_state_set = cz_set_power_state_tasks,
+	.dynamic_state_management_disable = cz_disable_dpm_tasks,
+	.notify_cac_buffer_info = cz_notify_cac_buffer_info,
 };
 
 int cz_init_function_pointers(struct pp_hwmgr *hwmgr)

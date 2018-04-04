@@ -351,7 +351,9 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "Unsupported MF mode, init as DEFAULT\n");
 		p_ramrod->mf_mode = MF_NPAR;
 	}
-	p_ramrod->outer_tag = p_hwfn->hw_info.ovlan;
+
+	p_ramrod->outer_tag_config.outer_tag.tci =
+		cpu_to_le16(p_hwfn->hw_info.ovlan);
 
 	/* Place EQ address in RAMROD */
 	DMA_REGPAIR_LE(p_ramrod->event_ring_pbl_addr,
@@ -377,6 +379,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->personality = PERSONALITY_ISCSI;
 		break;
 	case QED_PCI_ETH_ROCE:
+	case QED_PCI_ETH_IWARP:
 		p_ramrod->personality = PERSONALITY_RDMA_AND_ETH;
 		break;
 	default:
@@ -395,8 +398,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->hsi_fp_ver.minor_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MINOR;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-		   "Setting event_ring_sb [id %04x index %02x], outer_tag [%d]\n",
-		   sb, sb_index, p_ramrod->outer_tag);
+		   "Setting event_ring_sb [id %04x index %02x], outer_tag.tci [%d]\n",
+		   sb, sb_index, p_ramrod->outer_tag_config.outer_tag.tci);
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 

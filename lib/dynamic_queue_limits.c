@@ -21,7 +21,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 	unsigned int ovlimit, completed, num_queued;
 	bool all_prev_completed;
 
-	num_queued = ACCESS_ONCE(dql->num_queued);
+	num_queued = READ_ONCE(dql->num_queued);
 
 	/* Can't complete more than what's in queue */
 	BUG_ON(count > num_queued - dql->num_completed);
@@ -128,12 +128,11 @@ void dql_reset(struct dql *dql)
 }
 EXPORT_SYMBOL(dql_reset);
 
-int dql_init(struct dql *dql, unsigned hold_time)
+void dql_init(struct dql *dql, unsigned int hold_time)
 {
 	dql->max_limit = DQL_MAX_LIMIT;
 	dql->min_limit = 0;
 	dql->slack_hold_time = hold_time;
 	dql_reset(dql);
-	return 0;
 }
 EXPORT_SYMBOL(dql_init);

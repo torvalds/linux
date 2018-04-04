@@ -258,21 +258,18 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	/* if this frame is an echo, */
 	if ((rx_msg_flags & PUCAN_MSG_LOOPED_BACK) &&
 	    !(rx_msg_flags & PUCAN_MSG_SELF_RECEIVE)) {
-		int n;
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->echo_lock, flags);
-		n = can_get_echo_skb(priv->ndev, msg->client);
+		can_get_echo_skb(priv->ndev, msg->client);
 		spin_unlock_irqrestore(&priv->echo_lock, flags);
 
 		/* count bytes of the echo instead of skb */
 		stats->tx_bytes += cf_len;
 		stats->tx_packets++;
 
-		if (n) {
-			/* restart tx queue only if a slot is free */
-			netif_wake_queue(priv->ndev);
-		}
+		/* restart tx queue (a slot is free) */
+		netif_wake_queue(priv->ndev);
 
 		return 0;
 	}

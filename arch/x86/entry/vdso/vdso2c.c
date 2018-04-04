@@ -65,6 +65,7 @@
 
 #include <linux/elf.h>
 #include <linux/types.h>
+#include <linux/kernel.h>
 
 const char *outfilename;
 
@@ -151,7 +152,7 @@ extern void bad_put_le(void);
 	PLE(x, val, 64, PLE(x, val, 32, PLE(x, val, 16, LAST_PLE(x, val))))
 
 
-#define NSYMS (sizeof(required_syms) / sizeof(required_syms[0]))
+#define NSYMS ARRAY_SIZE(required_syms)
 
 #define BITSFUNC3(name, bits, suffix) name##bits##suffix
 #define BITSFUNC2(name, bits, suffix) BITSFUNC3(name, bits, suffix)

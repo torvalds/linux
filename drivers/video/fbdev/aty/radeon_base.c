@@ -583,8 +583,8 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 	int hTotal, vTotal, num, denom, m, n;
 	unsigned long long hz, vclk;
 	long xtal;
-	struct timeval start_tv, stop_tv;
-	long total_secs, total_usecs;
+	ktime_t start_time, stop_time;
+	u64 total_usecs;
 	int i;
 
 	/* Ugh, we cut interrupts, bad bad bad, but we want some precision
@@ -600,7 +600,7 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 		if (((INREG(CRTC_VLINE_CRNT_VLINE) >> 16) & 0x3ff) == 0)
 			break;
 
-	do_gettimeofday(&start_tv);
+	start_time = ktime_get();
 
 	for(i=0; i<1000000; i++)
 		if (((INREG(CRTC_VLINE_CRNT_VLINE) >> 16) & 0x3ff) != 0)
@@ -610,18 +610,14 @@ static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 		if (((INREG(CRTC_VLINE_CRNT_VLINE) >> 16) & 0x3ff) == 0)
 			break;
 	
-	do_gettimeofday(&stop_tv);
+	stop_time = ktime_get();
 	
 	local_irq_enable();
 
-	total_secs = stop_tv.tv_sec - start_tv.tv_sec;
-	if (total_secs > 10)
+	total_usecs = ktime_us_delta(stop_time, start_time);
+	if (total_usecs >= 10 * USEC_PER_SEC || total_usecs == 0)
 		return -1;
-	total_usecs = stop_tv.tv_usec - start_tv.tv_usec;
-	total_usecs += total_secs * 1000000;
-	if (total_usecs < 0)
-		total_usecs = -total_usecs;
-	hz = 1000000/total_usecs;
+	hz = USEC_PER_SEC/(u32)total_usecs;
  
 	hTotal = ((INREG(CRTC_H_TOTAL_DISP) & 0x1ff) + 1) * 8;
 	vTotal = ((INREG(CRTC_V_TOTAL_DISP) & 0x3ff) + 1);
@@ -1454,9 +1450,9 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 /*
  * Timer function for delayed LVDS panel power up/down
  */
-static void radeon_lvds_timer_func(unsigned long data)
+static void radeon_lvds_timer_func(struct timer_list *t)
 {
-	struct radeonfb_info *rinfo = (struct radeonfb_info *)data;
+	struct radeonfb_info *rinfo = from_timer(rinfo, t, lvds_timer);
 
 	radeon_engine_idle();
 
@@ -1534,7 +1530,7 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs *regs,
 				 unsigned long freq)
 {
-	const struct {
+	static const struct {
 		int divider;
 		int bitvalue;
 	} *post_div,
@@ -2291,9 +2287,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	rinfo->pdev = pdev;
 	
 	spin_lock_init(&rinfo->reg_lock);
-	init_timer(&rinfo->lvds_timer);
-	rinfo->lvds_timer.function = radeon_lvds_timer_func;
-	rinfo->lvds_timer.data = (unsigned long)rinfo;
+	timer_setup(&rinfo->lvds_timer, radeon_lvds_timer_func, 0);
 
 	c1 = ent->device >> 8;
 	c2 = ent->device & 0xff;

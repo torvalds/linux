@@ -205,6 +205,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>; /* GPIO_16 */
 		vcc-supply = <&vaux2>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host VBUS supply
@@ -626,7 +627,7 @@
 
 	lcd: lcd@1 {
 		reg = <1>;	/* CS1 */
-		compatible =	"omapdss,tpo,td043mtea1";
+		compatible =	"tpo,td043mtea1";
 		spi-max-frequency = <100000>;
 		spi-cpol;
 		spi-cpha;

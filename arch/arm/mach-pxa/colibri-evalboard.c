@@ -19,7 +19,7 @@
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <asm/io.h>
 
 #include "pxa27x.h"

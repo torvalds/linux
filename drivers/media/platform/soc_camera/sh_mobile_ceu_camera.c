@@ -451,13 +451,18 @@ static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct list_head *buf_head, *tmp;
+	struct vb2_v4l2_buffer *vbuf;
 
 	spin_lock_irq(&pcdev->lock);
 
 	pcdev->active = NULL;
 
-	list_for_each_safe(buf_head, tmp, &pcdev->capture)
+	list_for_each_safe(buf_head, tmp, &pcdev->capture) {
+		vbuf = &list_entry(buf_head, struct sh_mobile_ceu_buffer,
+				   queue)->vb;
+		vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
 		list_del_init(buf_head);
+	}
 
 	spin_unlock_irq(&pcdev->lock);
 
@@ -1553,7 +1558,7 @@ static int sh_mobile_ceu_set_liveselection(struct soc_camera_device *icd,
 	return ret;
 }
 
-static unsigned int sh_mobile_ceu_poll(struct file *file, poll_table *pt)
+static __poll_t sh_mobile_ceu_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 

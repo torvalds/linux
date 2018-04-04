@@ -52,7 +52,7 @@ static const char *const sctp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS  * 24 HOURS
 
-static unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] __read_mostly = {
+static const unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] = {
 	[SCTP_CONNTRACK_CLOSED]			= 10 SECS,
 	[SCTP_CONNTRACK_COOKIE_WAIT]		= 3 SECS,
 	[SCTP_CONNTRACK_COOKIE_ECHOED]		= 3 SECS,
@@ -306,7 +306,6 @@ static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
 	enum sctp_conntrack new_state, old_state;
@@ -522,8 +521,7 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 	}
 	return NF_ACCEPT;
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_SCTP))
-		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_SCTP, "%s", logmsg);
 	return -NF_ACCEPT;
 }
 
@@ -580,6 +578,11 @@ static const struct nla_policy sctp_nla_policy[CTA_PROTOINFO_SCTP_MAX+1] = {
 	[CTA_PROTOINFO_SCTP_VTAG_REPLY]     = { .type = NLA_U32 },
 };
 
+#define SCTP_NLATTR_SIZE ( \
+		NLA_ALIGN(NLA_HDRLEN + 1) + \
+		NLA_ALIGN(NLA_HDRLEN + 4) + \
+		NLA_ALIGN(NLA_HDRLEN + 4))
+
 static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 {
 	struct nlattr *attr = cda[CTA_PROTOINFO_SCTP];
@@ -609,12 +612,6 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	spin_unlock_bh(&ct->lock);
 
 	return 0;
-}
-
-static int sctp_nlattr_size(void)
-{
-	return nla_total_size(0)	/* CTA_PROTOINFO_SCTP */
-		+ nla_policy_len(sctp_nla_policy, CTA_PROTOINFO_SCTP_MAX + 1);
 }
 #endif
 
@@ -780,7 +777,7 @@ static struct nf_proto_net *sctp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.sctp.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 = {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_SCTP,
 	.pkt_to_tuple 		= sctp_pkt_to_tuple,
@@ -795,8 +792,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	.nlattr_size		= SCTP_NLATTR_SIZE,
 	.to_nlattr		= sctp_to_nlattr,
-	.nlattr_size		= sctp_nlattr_size,
 	.from_nlattr		= nlattr_to_sctp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
@@ -817,7 +814,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp4);
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 = {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_SCTP,
 	.pkt_to_tuple 		= sctp_pkt_to_tuple,
@@ -832,8 +829,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	.nlattr_size		= SCTP_NLATTR_SIZE,
 	.to_nlattr		= sctp_to_nlattr,
-	.nlattr_size		= sctp_nlattr_size,
 	.from_nlattr		= nlattr_to_sctp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,

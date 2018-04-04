@@ -155,6 +155,7 @@ struct in_ifaddr {
 struct in_validator_info {
 	__be32			ivi_addr;
 	struct in_device	*ivi_dev;
+	struct netlink_ext_ack	*extack;
 };
 
 int register_inetaddr_notifier(struct notifier_block *nb);
@@ -172,7 +173,7 @@ static inline struct net_device *ip_dev_find(struct net *net, __be32 addr)
 }
 
 int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
-int devinet_ioctl(struct net *net, unsigned int cmd, void __user *);
+int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *);
 void devinet_init(void);
 struct in_device *inetdev_by_index(struct net *, int);
 __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope);
@@ -180,6 +181,7 @@ __be32 inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst,
 			 __be32 local, int scope);
 struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
 				    __be32 mask);
+struct in_ifaddr *inet_lookup_ifaddr_rcu(struct net *net, __be32 addr);
 static __inline__ bool inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
 {
 	return !((addr^ifa->ifa_address)&ifa->ifa_mask);

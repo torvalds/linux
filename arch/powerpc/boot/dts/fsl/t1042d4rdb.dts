@@ -77,23 +77,23 @@
 			};
 
 			mdio0: mdio@fc000 {
-				phy_sgmii_0: ethernet-phy@02 {
+				phy_sgmii_0: ethernet-phy@2 {
 					reg = <0x02>;
 				};
 
-				phy_sgmii_1: ethernet-phy@03 {
+				phy_sgmii_1: ethernet-phy@3 {
 					reg = <0x03>;
 				};
 
-				phy_sgmii_2: ethernet-phy@01 {
+				phy_sgmii_2: ethernet-phy@1 {
 					reg = <0x01>;
 				};
 
-				phy_rgmii_0: ethernet-phy@04 {
+				phy_rgmii_0: ethernet-phy@4 {
 					reg = <0x04>;
 				};
 
-				phy_rgmii_1: ethernet-phy@05 {
+				phy_rgmii_1: ethernet-phy@5 {
 					reg = <0x05>;
 				};
 			};

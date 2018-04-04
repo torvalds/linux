@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_hid.c -- USB HID function driver
  *
  * Copyright (C) 2010 Fabien Chouteau <fabien.chouteau@barco.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -417,19 +413,19 @@ release_write_pending_unlocked:
 	return status;
 }
 
-static unsigned int f_hidg_poll(struct file *file, poll_table *wait)
+static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 {
 	struct f_hidg	*hidg  = file->private_data;
-	unsigned int	ret = 0;
+	__poll_t	ret = 0;
 
 	poll_wait(file, &hidg->read_queue, wait);
 	poll_wait(file, &hidg->write_queue, wait);
 
 	if (WRITE_COND)
-		ret |= POLLOUT | POLLWRNORM;
+		ret |= EPOLLOUT | EPOLLWRNORM;
 
 	if (READ_COND)
-		ret |= POLLIN | POLLRDNORM;
+		ret |= EPOLLIN | EPOLLRDNORM;
 
 	return ret;
 }
@@ -992,7 +988,7 @@ static struct configfs_attribute *hid_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type hid_func_type = {
+static const struct config_item_type hid_func_type = {
 	.ct_item_ops	= &hidg_item_ops,
 	.ct_attrs	= hid_attrs,
 	.ct_owner	= THIS_MODULE,

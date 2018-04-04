@@ -173,7 +173,6 @@ static int ti_adc_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info ti_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = ti_adc_read_raw,
 };
 

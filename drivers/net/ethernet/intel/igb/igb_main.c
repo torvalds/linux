@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
+#include <net/pkt_sched.h>
 #include <linux/net_tstamp.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
@@ -62,6 +63,17 @@
 #define BUILD 0
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
+
+enum queue_mode {
+	QUEUE_MODE_STRICT_PRIORITY,
+	QUEUE_MODE_STREAM_RESERVATION,
+};
+
+enum tx_queue_prio {
+	TX_QUEUE_PRIO_HIGH,
+	TX_QUEUE_PRIO_LOW,
+};
+
 char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
@@ -133,8 +145,8 @@ static void igb_clean_all_rx_rings(struct igb_adapter *);
 static void igb_clean_tx_ring(struct igb_ring *);
 static void igb_clean_rx_ring(struct igb_ring *);
 static void igb_set_rx_mode(struct net_device *);
-static void igb_update_phy_info(unsigned long);
-static void igb_watchdog(unsigned long);
+static void igb_update_phy_info(struct timer_list *);
+static void igb_watchdog(struct timer_list *);
 static void igb_watchdog_task(struct work_struct *);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static void igb_get_stats64(struct net_device *dev,
@@ -750,7 +762,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 u32 igb_rd32(struct e1000_hw *hw, u32 reg)
 {
 	struct igb_adapter *igb = container_of(hw, struct igb_adapter, hw);
-	u8 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
 
 	if (E1000_REMOVED(hw_addr))
@@ -1271,6 +1283,12 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = txr_idx;
 
+		ring->cbs_enable = false;
+		ring->idleslope = 0;
+		ring->sendslope = 0;
+		ring->hicredit = 0;
+		ring->locredit = 0;
+
 		u64_stats_init(&ring->tx_syncp);
 		u64_stats_init(&ring->tx_syncp2);
 
@@ -1598,6 +1616,298 @@ static void igb_get_hw_control(struct igb_adapter *adapter)
 			ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
 }
 
+static void enable_fqtss(struct igb_adapter *adapter, bool enable)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct e1000_hw *hw = &adapter->hw;
+
+	WARN_ON(hw->mac.type != e1000_i210);
+
+	if (enable)
+		adapter->flags |= IGB_FLAG_FQTSS;
+	else
+		adapter->flags &= ~IGB_FLAG_FQTSS;
+
+	if (netif_running(netdev))
+		schedule_work(&adapter->reset_task);
+}
+
+static bool is_fqtss_enabled(struct igb_adapter *adapter)
+{
+	return (adapter->flags & IGB_FLAG_FQTSS) ? true : false;
+}
+
+static void set_tx_desc_fetch_prio(struct e1000_hw *hw, int queue,
+				   enum tx_queue_prio prio)
+{
+	u32 val;
+
+	WARN_ON(hw->mac.type != e1000_i210);
+	WARN_ON(queue < 0 || queue > 4);
+
+	val = rd32(E1000_I210_TXDCTL(queue));
+
+	if (prio == TX_QUEUE_PRIO_HIGH)
+		val |= E1000_TXDCTL_PRIORITY;
+	else
+		val &= ~E1000_TXDCTL_PRIORITY;
+
+	wr32(E1000_I210_TXDCTL(queue), val);
+}
+
+static void set_queue_mode(struct e1000_hw *hw, int queue, enum queue_mode mode)
+{
+	u32 val;
+
+	WARN_ON(hw->mac.type != e1000_i210);
+	WARN_ON(queue < 0 || queue > 1);
+
+	val = rd32(E1000_I210_TQAVCC(queue));
+
+	if (mode == QUEUE_MODE_STREAM_RESERVATION)
+		val |= E1000_TQAVCC_QUEUEMODE;
+	else
+		val &= ~E1000_TQAVCC_QUEUEMODE;
+
+	wr32(E1000_I210_TQAVCC(queue), val);
+}
+
+/**
+ *  igb_configure_cbs - Configure Credit-Based Shaper (CBS)
+ *  @adapter: pointer to adapter struct
+ *  @queue: queue number
+ *  @enable: true = enable CBS, false = disable CBS
+ *  @idleslope: idleSlope in kbps
+ *  @sendslope: sendSlope in kbps
+ *  @hicredit: hiCredit in bytes
+ *  @locredit: loCredit in bytes
+ *
+ *  Configure CBS for a given hardware queue. When disabling, idleslope,
+ *  sendslope, hicredit, locredit arguments are ignored. Returns 0 if
+ *  success. Negative otherwise.
+ **/
+static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
+			      bool enable, int idleslope, int sendslope,
+			      int hicredit, int locredit)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct e1000_hw *hw = &adapter->hw;
+	u32 tqavcc;
+	u16 value;
+
+	WARN_ON(hw->mac.type != e1000_i210);
+	WARN_ON(queue < 0 || queue > 1);
+
+	if (enable) {
+		set_tx_desc_fetch_prio(hw, queue, TX_QUEUE_PRIO_HIGH);
+		set_queue_mode(hw, queue, QUEUE_MODE_STREAM_RESERVATION);
+
+		/* According to i210 datasheet section 7.2.7.7, we should set
+		 * the 'idleSlope' field from TQAVCC register following the
+		 * equation:
+		 *
+		 * For 100 Mbps link speed:
+		 *
+		 *     value = BW * 0x7735 * 0.2                          (E1)
+		 *
+		 * For 1000Mbps link speed:
+		 *
+		 *     value = BW * 0x7735 * 2                            (E2)
+		 *
+		 * E1 and E2 can be merged into one equation as shown below.
+		 * Note that 'link-speed' is in Mbps.
+		 *
+		 *     value = BW * 0x7735 * 2 * link-speed
+		 *                           --------------               (E3)
+		 *                                1000
+		 *
+		 * 'BW' is the percentage bandwidth out of full link speed
+		 * which can be found with the following equation. Note that
+		 * idleSlope here is the parameter from this function which
+		 * is in kbps.
+		 *
+		 *     BW =     idleSlope
+		 *          -----------------                             (E4)
+		 *          link-speed * 1000
+		 *
+		 * That said, we can come up with a generic equation to
+		 * calculate the value we should set it TQAVCC register by
+		 * replacing 'BW' in E3 by E4. The resulting equation is:
+		 *
+		 * value =     idleSlope     * 0x7735 * 2 * link-speed
+		 *         -----------------            --------------    (E5)
+		 *         link-speed * 1000                 1000
+		 *
+		 * 'link-speed' is present in both sides of the fraction so
+		 * it is canceled out. The final equation is the following:
+		 *
+		 *     value = idleSlope * 61034
+		 *             -----------------                          (E6)
+		 *                  1000000
+		 *
+		 * NOTE: For i210, given the above, we can see that idleslope
+		 *       is represented in 16.38431 kbps units by the value at
+		 *       the TQAVCC register (1Gbps / 61034), which reduces
+		 *       the granularity for idleslope increments.
+		 *       For instance, if you want to configure a 2576kbps
+		 *       idleslope, the value to be written on the register
+		 *       would have to be 157.23. If rounded down, you end
+		 *       up with less bandwidth available than originally
+		 *       required (~2572 kbps). If rounded up, you end up
+		 *       with a higher bandwidth (~2589 kbps). Below the
+		 *       approach we take is to always round up the
+		 *       calculated value, so the resulting bandwidth might
+		 *       be slightly higher for some configurations.
+		 */
+		value = DIV_ROUND_UP_ULL(idleslope * 61034ULL, 1000000);
+
+		tqavcc = rd32(E1000_I210_TQAVCC(queue));
+		tqavcc &= ~E1000_TQAVCC_IDLESLOPE_MASK;
+		tqavcc |= value;
+		wr32(E1000_I210_TQAVCC(queue), tqavcc);
+
+		wr32(E1000_I210_TQAVHC(queue), 0x80000000 + hicredit * 0x7735);
+	} else {
+		set_tx_desc_fetch_prio(hw, queue, TX_QUEUE_PRIO_LOW);
+		set_queue_mode(hw, queue, QUEUE_MODE_STRICT_PRIORITY);
+
+		/* Set idleSlope to zero. */
+		tqavcc = rd32(E1000_I210_TQAVCC(queue));
+		tqavcc &= ~E1000_TQAVCC_IDLESLOPE_MASK;
+		wr32(E1000_I210_TQAVCC(queue), tqavcc);
+
+		/* Set hiCredit to zero. */
+		wr32(E1000_I210_TQAVHC(queue), 0);
+	}
+
+	/* XXX: In i210 controller the sendSlope and loCredit parameters from
+	 * CBS are not configurable by software so we don't do any 'controller
+	 * configuration' in respect to these parameters.
+	 */
+
+	netdev_dbg(netdev, "CBS %s: queue %d idleslope %d sendslope %d hiCredit %d locredit %d\n",
+		   (enable) ? "enabled" : "disabled", queue,
+		   idleslope, sendslope, hicredit, locredit);
+}
+
+static int igb_save_cbs_params(struct igb_adapter *adapter, int queue,
+			       bool enable, int idleslope, int sendslope,
+			       int hicredit, int locredit)
+{
+	struct igb_ring *ring;
+
+	if (queue < 0 || queue > adapter->num_tx_queues)
+		return -EINVAL;
+
+	ring = adapter->tx_ring[queue];
+
+	ring->cbs_enable = enable;
+	ring->idleslope = idleslope;
+	ring->sendslope = sendslope;
+	ring->hicredit = hicredit;
+	ring->locredit = locredit;
+
+	return 0;
+}
+
+static bool is_any_cbs_enabled(struct igb_adapter *adapter)
+{
+	struct igb_ring *ring;
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		ring = adapter->tx_ring[i];
+
+		if (ring->cbs_enable)
+			return true;
+	}
+
+	return false;
+}
+
+static void igb_setup_tx_mode(struct igb_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct e1000_hw *hw = &adapter->hw;
+	u32 val;
+
+	/* Only i210 controller supports changing the transmission mode. */
+	if (hw->mac.type != e1000_i210)
+		return;
+
+	if (is_fqtss_enabled(adapter)) {
+		int i, max_queue;
+
+		/* Configure TQAVCTRL register: set transmit mode to 'Qav',
+		 * set data fetch arbitration to 'round robin' and set data
+		 * transfer arbitration to 'credit shaper algorithm.
+		 */
+		val = rd32(E1000_I210_TQAVCTRL);
+		val |= E1000_TQAVCTRL_XMIT_MODE | E1000_TQAVCTRL_DATATRANARB;
+		val &= ~E1000_TQAVCTRL_DATAFETCHARB;
+		wr32(E1000_I210_TQAVCTRL, val);
+
+		/* Configure Tx and Rx packet buffers sizes as described in
+		 * i210 datasheet section 7.2.7.7.
+		 */
+		val = rd32(E1000_TXPBS);
+		val &= ~I210_TXPBSIZE_MASK;
+		val |= I210_TXPBSIZE_PB0_8KB | I210_TXPBSIZE_PB1_8KB |
+			I210_TXPBSIZE_PB2_4KB | I210_TXPBSIZE_PB3_4KB;
+		wr32(E1000_TXPBS, val);
+
+		val = rd32(E1000_RXPBS);
+		val &= ~I210_RXPBSIZE_MASK;
+		val |= I210_RXPBSIZE_PB_32KB;
+		wr32(E1000_RXPBS, val);
+
+		/* Section 8.12.9 states that MAX_TPKT_SIZE from DTXMXPKTSZ
+		 * register should not exceed the buffer size programmed in
+		 * TXPBS. The smallest buffer size programmed in TXPBS is 4kB
+		 * so according to the datasheet we should set MAX_TPKT_SIZE to
+		 * 4kB / 64.
+		 *
+		 * However, when we do so, no frame from queue 2 and 3 are
+		 * transmitted.  It seems the MAX_TPKT_SIZE should not be great
+		 * or _equal_ to the buffer size programmed in TXPBS. For this
+		 * reason, we set set MAX_ TPKT_SIZE to (4kB - 1) / 64.
+		 */
+		val = (4096 - 1) / 64;
+		wr32(E1000_I210_DTXMXPKTSZ, val);
+
+		/* Since FQTSS mode is enabled, apply any CBS configuration
+		 * previously set. If no previous CBS configuration has been
+		 * done, then the initial configuration is applied, which means
+		 * CBS is disabled.
+		 */
+		max_queue = (adapter->num_tx_queues < I210_SR_QUEUES_NUM) ?
+			    adapter->num_tx_queues : I210_SR_QUEUES_NUM;
+
+		for (i = 0; i < max_queue; i++) {
+			struct igb_ring *ring = adapter->tx_ring[i];
+
+			igb_configure_cbs(adapter, i, ring->cbs_enable,
+					  ring->idleslope, ring->sendslope,
+					  ring->hicredit, ring->locredit);
+		}
+	} else {
+		wr32(E1000_RXPBS, I210_RXPBSIZE_DEFAULT);
+		wr32(E1000_TXPBS, I210_TXPBSIZE_DEFAULT);
+		wr32(E1000_I210_DTXMXPKTSZ, I210_DTXMXPKTSZ_DEFAULT);
+
+		val = rd32(E1000_I210_TQAVCTRL);
+		/* According to Section 8.12.21, the other flags we've set when
+		 * enabling FQTSS are not relevant when disabling FQTSS so we
+		 * don't set they here.
+		 */
+		val &= ~E1000_TQAVCTRL_XMIT_MODE;
+		wr32(E1000_I210_TQAVCTRL, val);
+	}
+
+	netdev_dbg(netdev, "FQTSS %s\n", (is_fqtss_enabled(adapter)) ?
+		   "enabled" : "disabled");
+}
+
 /**
  *  igb_configure - configure the hardware for RX and TX
  *  @adapter: private board structure
@@ -1609,6 +1919,7 @@ static void igb_configure(struct igb_adapter *adapter)
 
 	igb_get_hw_control(adapter);
 	igb_set_rx_mode(netdev);
+	igb_setup_tx_mode(adapter);
 
 	igb_restore_vlan(adapter);
 
@@ -2150,6 +2461,55 @@ igb_features_check(struct sk_buff *skb, struct net_device *dev,
 	return features;
 }
 
+static int igb_offload_cbs(struct igb_adapter *adapter,
+			   struct tc_cbs_qopt_offload *qopt)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int err;
+
+	/* CBS offloading is only supported by i210 controller. */
+	if (hw->mac.type != e1000_i210)
+		return -EOPNOTSUPP;
+
+	/* CBS offloading is only supported by queue 0 and queue 1. */
+	if (qopt->queue < 0 || qopt->queue > 1)
+		return -EINVAL;
+
+	err = igb_save_cbs_params(adapter, qopt->queue, qopt->enable,
+				  qopt->idleslope, qopt->sendslope,
+				  qopt->hicredit, qopt->locredit);
+	if (err)
+		return err;
+
+	if (is_fqtss_enabled(adapter)) {
+		igb_configure_cbs(adapter, qopt->queue, qopt->enable,
+				  qopt->idleslope, qopt->sendslope,
+				  qopt->hicredit, qopt->locredit);
+
+		if (!is_any_cbs_enabled(adapter))
+			enable_fqtss(adapter, false);
+
+	} else {
+		enable_fqtss(adapter, true);
+	}
+
+	return 0;
+}
+
+static int igb_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			void *type_data)
+{
+	struct igb_adapter *adapter = netdev_priv(dev);
+
+	switch (type) {
+	case TC_SETUP_QDISC_CBS:
+		return igb_offload_cbs(adapter, type_data);
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
@@ -2175,6 +2535,7 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_set_features	= igb_set_features,
 	.ndo_fdb_add		= igb_ndo_fdb_add,
 	.ndo_features_check	= igb_features_check,
+	.ndo_setup_tc		= igb_setup_tc,
 };
 
 /**
@@ -2538,10 +2899,8 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		wr32(E1000_TXPBS, I210_TXPBSIZE_DEFAULT);
 	}
 
-	setup_timer(&adapter->watchdog_timer, igb_watchdog,
-		    (unsigned long) adapter);
-	setup_timer(&adapter->phy_info_timer, igb_update_phy_info,
-		    (unsigned long) adapter);
+	timer_setup(&adapter->watchdog_timer, igb_watchdog, 0);
+	timer_setup(&adapter->phy_info_timer, igb_update_phy_info, 0);
 
 	INIT_WORK(&adapter->reset_task, igb_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igb_watchdog_task);
@@ -2855,8 +3214,6 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	/* if allocation failed then we do not support SR-IOV */
 	if (!adapter->vf_data) {
 		adapter->vfs_allocated_count = 0;
-		dev_err(&pdev->dev,
-			"Unable to allocate memory for VF Data Storage\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -3028,10 +3385,10 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 #endif /* CONFIG_PCI_IOV */
 }
 
-static void igb_init_queue_configuration(struct igb_adapter *adapter)
+unsigned int igb_get_max_rss_queues(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 max_rss_queues;
+	unsigned int max_rss_queues;
 
 	/* Determine the maximum number of RSS queues supported. */
 	switch (hw->mac.type) {
@@ -3062,6 +3419,14 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
 		break;
 	}
 
+	return max_rss_queues;
+}
+
+static void igb_init_queue_configuration(struct igb_adapter *adapter)
+{
+	u32 max_rss_queues;
+
+	max_rss_queues = igb_get_max_rss_queues(adapter);
 	adapter->rss_queues = min_t(u32, max_rss_queues, num_online_cpus());
 
 	igb_set_flag_queue_pairs(adapter, max_rss_queues);
@@ -3162,6 +3527,8 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	/* Setup and initialize a copy of the hw vlan table array */
 	adapter->shadow_vfta = kcalloc(E1000_VLAN_FILTER_TBL_SIZE, sizeof(u32),
 				       GFP_ATOMIC);
+	if (!adapter->shadow_vfta)
+		return -ENOMEM;
 
 	/* This call may decrease the number of queues */
 	if (igb_init_interrupt_scheme(adapter, true)) {
@@ -3329,7 +3696,7 @@ static int __igb_close(struct net_device *netdev, bool suspending)
 
 int igb_close(struct net_device *netdev)
 {
-	if (netif_device_present(netdev))
+	if (netif_device_present(netdev) || netdev->dismantle)
 		return __igb_close(netdev, false);
 	return 0;
 }
@@ -4423,9 +4790,9 @@ static void igb_spoof_check(struct igb_adapter *adapter)
 /* Need to wait a few seconds after link up to get diagnostic information from
  * the phy
  */
-static void igb_update_phy_info(unsigned long data)
+static void igb_update_phy_info(struct timer_list *t)
 {
-	struct igb_adapter *adapter = (struct igb_adapter *) data;
+	struct igb_adapter *adapter = from_timer(adapter, t, phy_info_timer);
 	igb_get_phy_info(&adapter->hw);
 }
 
@@ -4512,9 +4879,9 @@ static void igb_check_lvmmc(struct igb_adapter *adapter)
  *  igb_watchdog - Timer Call-back
  *  @data: pointer to adapter cast into an unsigned long
  **/
-static void igb_watchdog(unsigned long data)
+static void igb_watchdog(struct timer_list *t)
 {
-	struct igb_adapter *adapter = (struct igb_adapter *)data;
+	struct igb_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
 }
@@ -6970,7 +7337,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector, int napi_budget)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
@@ -8371,7 +8738,8 @@ static void igb_rar_set_index(struct igb_adapter *adapter, u32 index)
 
 	/* Indicate to hardware the Address is Valid. */
 	if (adapter->mac_table[index].state & IGB_MAC_STATE_IN_USE) {
-		rar_high |= E1000_RAH_AV;
+		if (is_valid_ether_addr(addr))
+			rar_high |= E1000_RAH_AV;
 
 		if (hw->mac.type == e1000_82575)
 			rar_high |= E1000_RAH_POOL_1 *
@@ -8409,17 +8777,36 @@ static int igb_set_vf_mac(struct igb_adapter *adapter,
 static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	if (!is_valid_ether_addr(mac) || (vf >= adapter->vfs_allocated_count))
+
+	if (vf >= adapter->vfs_allocated_count)
 		return -EINVAL;
-	adapter->vf_data[vf].flags |= IGB_VF_FLAG_PF_SET_MAC;
-	dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n", mac, vf);
-	dev_info(&adapter->pdev->dev,
-		 "Reload the VF driver to make this change effective.");
-	if (test_bit(__IGB_DOWN, &adapter->state)) {
-		dev_warn(&adapter->pdev->dev,
-			 "The VF MAC address has been set, but the PF device is not up.\n");
-		dev_warn(&adapter->pdev->dev,
-			 "Bring the PF device up before attempting to use the VF device.\n");
+
+	/* Setting the VF MAC to 0 reverts the IGB_VF_FLAG_PF_SET_MAC
+	 * flag and allows to overwrite the MAC via VF netdev.  This
+	 * is necessary to allow libvirt a way to restore the original
+	 * MAC after unbinding vfio-pci and reloading igbvf after shutting
+	 * down a VM.
+	 */
+	if (is_zero_ether_addr(mac)) {
+		adapter->vf_data[vf].flags &= ~IGB_VF_FLAG_PF_SET_MAC;
+		dev_info(&adapter->pdev->dev,
+			 "remove administratively set MAC on VF %d\n",
+			 vf);
+	} else if (is_valid_ether_addr(mac)) {
+		adapter->vf_data[vf].flags |= IGB_VF_FLAG_PF_SET_MAC;
+		dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n",
+			 mac, vf);
+		dev_info(&adapter->pdev->dev,
+			 "Reload the VF driver to make this change effective.");
+		/* Generate additional warning if PF is down */
+		if (test_bit(__IGB_DOWN, &adapter->state)) {
+			dev_warn(&adapter->pdev->dev,
+				 "The VF MAC address has been set, but the PF device is not up.\n");
+			dev_warn(&adapter->pdev->dev,
+				 "Bring the PF device up before attempting to use the VF device.\n");
+		}
+	} else {
+		return -EINVAL;
 	}
 	return igb_set_vf_mac(adapter, vf, mac);
 }

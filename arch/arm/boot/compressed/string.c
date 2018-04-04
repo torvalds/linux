@@ -130,8 +130,3 @@ void *memset(void *s, int c, size_t count)
 		*xs++ = c;
 	return s;
 }
-
-void __memzero(void *s, size_t count)
-{
-	memset(s, 0, count);
-}

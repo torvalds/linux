@@ -271,7 +271,6 @@ static const struct iio_chan_spec jsa1212_channels[] = {
 };
 
 static const struct iio_info jsa1212_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &jsa1212_read_raw,
 };
 

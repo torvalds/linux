@@ -58,7 +58,8 @@ struct LED_871x {
 
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
 	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
-				   * either RTW_LED_ON or RTW_LED_OFF are. */
+						   * either RTW_LED_ON or RTW_LED_OFF are.
+						   */
 
 	u8 bLedOn; /*  true if LED is ON, false if LED is OFF. */
 
@@ -75,7 +76,8 @@ struct LED_871x {
 	u8 bLedLinkBlinkInProgress;
 	u8 bLedScanBlinkInProgress;
 	struct work_struct BlinkWorkItem; /* Workitem used by BlinkTimer to
-					   * manipulate H/W to blink LED. */
+					   * manipulate H/W to blink LED.
+					   */
 };
 
 #define IS_LED_WPS_BLINKING(_LED_871x)					\
@@ -91,7 +93,6 @@ struct led_priv {
 	/* add for led control */
 };
 
-void BlinkTimerCallback(unsigned long data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x *pLed);

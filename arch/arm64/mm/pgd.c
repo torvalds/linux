@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 
-static struct kmem_cache *pgd_cache;
+static struct kmem_cache *pgd_cache __ro_after_init;
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -48,6 +48,14 @@ void __init pgd_cache_init(void)
 {
 	if (PGD_SIZE == PAGE_SIZE)
 		return;
+
+#ifdef CONFIG_ARM64_PA_BITS_52
+	/*
+	 * With 52-bit physical addresses, the architecture requires the
+	 * top-level table to be aligned to at least 64 bytes.
+	 */
+	BUILD_BUG_ON(PGD_SIZE < 64);
+#endif
 
 	/*
 	 * Naturally aligned pgds required by the architecture.

@@ -164,13 +164,13 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	struct sk_buff *skbcopy;
 	struct rt2x00dump_hdr *dump_hdr;
-	struct timeval timestamp;
+	struct timespec64 timestamp;
 	u32 data_len;
 
 	if (likely(!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)))
 		return;
 
-	do_gettimeofday(&timestamp);
+	ktime_get_ts64(&timestamp);
 
 	if (skb_queue_len(&intf->frame_dump_skbqueue) > 20) {
 		rt2x00_dbg(rt2x00dev, "txrx dump queue length exceeded\n");
@@ -200,7 +200,8 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->queue_index = entry->queue->qid;
 	dump_hdr->entry_index = entry->entry_idx;
 	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
-	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
+	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_nsec /
+					       NSEC_PER_USEC);
 
 	if (!(skbdesc->flags & SKBDESC_DESC_IN_SKB))
 		skb_put_data(skbcopy, skbdesc->desc, skbdesc->desc_len);
@@ -300,7 +301,7 @@ exit:
 	return status;
 }
 
-static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
+static __poll_t rt2x00debug_poll_queue_dump(struct file *file,
 						poll_table *wait)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
@@ -308,7 +309,7 @@ static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
 	poll_wait(file, &intf->frame_dump_waitqueue, wait);
 
 	if (!skb_queue_empty(&intf->frame_dump_skbqueue))
-		return POLLOUT | POLLWRNORM;
+		return EPOLLOUT | EPOLLWRNORM;
 
 	return 0;
 }

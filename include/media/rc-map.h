@@ -10,59 +10,7 @@
  */
 
 #include <linux/input.h>
-
-/**
- * enum rc_proto - the Remote Controller protocol
- *
- * @RC_PROTO_UNKNOWN: Protocol not known
- * @RC_PROTO_OTHER: Protocol known but proprietary
- * @RC_PROTO_RC5: Philips RC5 protocol
- * @RC_PROTO_RC5X_20: Philips RC5x 20 bit protocol
- * @RC_PROTO_RC5_SZ: StreamZap variant of RC5
- * @RC_PROTO_JVC: JVC protocol
- * @RC_PROTO_SONY12: Sony 12 bit protocol
- * @RC_PROTO_SONY15: Sony 15 bit protocol
- * @RC_PROTO_SONY20: Sony 20 bit protocol
- * @RC_PROTO_NEC: NEC protocol
- * @RC_PROTO_NECX: Extended NEC protocol
- * @RC_PROTO_NEC32: NEC 32 bit protocol
- * @RC_PROTO_SANYO: Sanyo protocol
- * @RC_PROTO_MCIR2_KBD: RC6-ish MCE keyboard
- * @RC_PROTO_MCIR2_MSE: RC6-ish MCE mouse
- * @RC_PROTO_RC6_0: Philips RC6-0-16 protocol
- * @RC_PROTO_RC6_6A_20: Philips RC6-6A-20 protocol
- * @RC_PROTO_RC6_6A_24: Philips RC6-6A-24 protocol
- * @RC_PROTO_RC6_6A_32: Philips RC6-6A-32 protocol
- * @RC_PROTO_RC6_MCE: MCE (Philips RC6-6A-32 subtype) protocol
- * @RC_PROTO_SHARP: Sharp protocol
- * @RC_PROTO_XMP: XMP protocol
- * @RC_PROTO_CEC: CEC protocol
- */
-enum rc_proto {
-	RC_PROTO_UNKNOWN	= 0,
-	RC_PROTO_OTHER		= 1,
-	RC_PROTO_RC5		= 2,
-	RC_PROTO_RC5X_20	= 3,
-	RC_PROTO_RC5_SZ		= 4,
-	RC_PROTO_JVC		= 5,
-	RC_PROTO_SONY12		= 6,
-	RC_PROTO_SONY15		= 7,
-	RC_PROTO_SONY20		= 8,
-	RC_PROTO_NEC		= 9,
-	RC_PROTO_NECX		= 10,
-	RC_PROTO_NEC32		= 11,
-	RC_PROTO_SANYO		= 12,
-	RC_PROTO_MCIR2_KBD	= 13,
-	RC_PROTO_MCIR2_MSE	= 14,
-	RC_PROTO_RC6_0		= 15,
-	RC_PROTO_RC6_6A_20	= 16,
-	RC_PROTO_RC6_6A_24	= 17,
-	RC_PROTO_RC6_6A_32	= 18,
-	RC_PROTO_RC6_MCE	= 19,
-	RC_PROTO_SHARP		= 20,
-	RC_PROTO_XMP		= 21,
-	RC_PROTO_CEC		= 22,
-};
+#include <uapi/linux/lirc.h>
 
 #define RC_PROTO_BIT_NONE		0ULL
 #define RC_PROTO_BIT_UNKNOWN		BIT_ULL(RC_PROTO_UNKNOWN)
@@ -211,6 +159,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_ALINK_DTU_M               "rc-alink-dtu-m"
 #define RC_MAP_ANYSEE                    "rc-anysee"
 #define RC_MAP_APAC_VIEWCOMP             "rc-apac-viewcomp"
+#define RC_MAP_ASTROMETA_T2HYBRID        "rc-astrometa-t2hybrid"
 #define RC_MAP_ASUS_PC39                 "rc-asus-pc39"
 #define RC_MAP_ASUS_PS3_100              "rc-asus-ps3-100"
 #define RC_MAP_ATI_TV_WONDER_HD_600      "rc-ati-tv-wonder-hd-600"
@@ -258,6 +207,8 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_GENIUS_TVGO_A11MCE        "rc-genius-tvgo-a11mce"
 #define RC_MAP_GOTVIEW7135               "rc-gotview7135"
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge"
+#define RC_MAP_HISI_POPLAR               "rc-hisi-poplar"
+#define RC_MAP_HISI_TV_DEMO              "rc-hisi-tv-demo"
 #define RC_MAP_IMON_MCE                  "rc-imon-mce"
 #define RC_MAP_IMON_PAD                  "rc-imon-pad"
 #define RC_MAP_IODATA_BCTV7E             "rc-iodata-bctv7e"
@@ -300,6 +251,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_REDDO                     "rc-reddo"
 #define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
+#define RC_MAP_TANGO                     "rc-tango"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
 #define RC_MAP_TECHNISAT_TS35            "rc-technisat-ts35"
 #define RC_MAP_TECHNISAT_USB2            "rc-technisat-usb2"

@@ -922,6 +922,7 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		AR_IMR_RXERR |
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
+	u32 msi_cfg = 0;
 
 	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
 	    AR_SREV_9561(ah))
@@ -929,28 +930,46 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		imr_reg |= AR_IMR_RXOK_HP;
-		if (ah->config.rx_intr_mitigation)
+		if (ah->config.rx_intr_mitigation) {
 			imr_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
-		else
+			msi_cfg |= AR_INTCFG_MSI_RXINTM | AR_INTCFG_MSI_RXMINTR;
+		} else {
 			imr_reg |= AR_IMR_RXOK_LP;
-
+			msi_cfg |= AR_INTCFG_MSI_RXOK;
+		}
 	} else {
-		if (ah->config.rx_intr_mitigation)
+		if (ah->config.rx_intr_mitigation) {
 			imr_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
-		else
+			msi_cfg |= AR_INTCFG_MSI_RXINTM | AR_INTCFG_MSI_RXMINTR;
+		} else {
 			imr_reg |= AR_IMR_RXOK;
+			msi_cfg |= AR_INTCFG_MSI_RXOK;
+		}
 	}
 
-	if (ah->config.tx_intr_mitigation)
+	if (ah->config.tx_intr_mitigation) {
 		imr_reg |= AR_IMR_TXINTM | AR_IMR_TXMINTR;
-	else
+		msi_cfg |= AR_INTCFG_MSI_TXINTM | AR_INTCFG_MSI_TXMINTR;
+	} else {
 		imr_reg |= AR_IMR_TXOK;
+		msi_cfg |= AR_INTCFG_MSI_TXOK;
+	}
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_IMR, imr_reg);
 	ah->imrs2_reg |= AR_IMR_S2_GTT;
 	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
+
+	if (ah->msi_enabled) {
+		ah->msi_reg = REG_READ(ah, AR_PCIE_MSI);
+		ah->msi_reg |= AR_PCIE_MSI_HW_DBI_WR_EN;
+		ah->msi_reg &= AR_PCIE_MSI_HW_INT_PENDING_ADDR_MSI_64;
+		REG_WRITE(ah, AR_INTCFG, msi_cfg);
+		ath_dbg(ath9k_hw_common(ah), ANY,
+			"value of AR_INTCFG=0x%X, msi_cfg=0x%X\n",
+			REG_READ(ah, AR_INTCFG), msi_cfg);
+	}
 
 	if (!AR_SREV_9100(ah)) {
 		REG_WRITE(ah, AR_INTR_SYNC_CAUSE, 0xFFFFFFFF);

@@ -64,6 +64,12 @@ void clear_page_mlock(struct page *page)
 	mod_zone_page_state(page_zone(page), NR_MLOCK,
 			    -hpage_nr_pages(page));
 	count_vm_event(UNEVICTABLE_PGCLEARED);
+	/*
+	 * The previous TestClearPageMlocked() corresponds to the smp_mb()
+	 * in __pagevec_lru_add_fn().
+	 *
+	 * See __pagevec_lru_add_fn for more explanation.
+	 */
 	if (!isolate_lru_page(page)) {
 		putback_lru_page(page);
 	} else {
@@ -157,7 +163,7 @@ static void __munlock_isolation_failed(struct page *page)
 
 /**
  * munlock_vma_page - munlock a vma page
- * @page - page to be unlocked, either a normal page or THP page head
+ * @page: page to be unlocked, either a normal page or THP page head
  *
  * returns the size of the page as a page mask (0 for normal page,
  *         HPAGE_PMD_NR - 1 for THP head page)
@@ -289,7 +295,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 	struct pagevec pvec_putback;
 	int pgrescued = 0;
 
-	pagevec_init(&pvec_putback, 0);
+	pagevec_init(&pvec_putback);
 
 	/* Phase 1: page isolation */
 	spin_lock_irq(zone_lru_lock(zone));
@@ -448,7 +454,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		struct pagevec pvec;
 		struct zone *zone;
 
-		pagevec_init(&pvec, 0);
+		pagevec_init(&pvec);
 		/*
 		 * Although FOLL_DUMP is intended for get_dump_page(),
 		 * it just so happens that its special treatment of the
@@ -670,8 +676,6 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 	if (!can_do_mlock())
 		return -EPERM;
 
-	lru_add_drain_all();	/* flush pagevec */
-
 	len = PAGE_ALIGN(len + (offset_in_page(start)));
 	start &= PAGE_MASK;
 
@@ -781,7 +785,7 @@ static int apply_mlockall_flags(int flags)
 
 		/* Ignore errors */
 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
-		cond_resched_rcu_qs();
+		cond_resched();
 	}
 out:
 	return 0;
@@ -797,9 +801,6 @@ SYSCALL_DEFINE1(mlockall, int, flags)
 
 	if (!can_do_mlock())
 		return -EPERM;
-
-	if (flags & MCL_CURRENT)
-		lru_add_drain_all();	/* flush pagevec */
 
 	lock_limit = rlimit(RLIMIT_MEMLOCK);
 	lock_limit >>= PAGE_SHIFT;

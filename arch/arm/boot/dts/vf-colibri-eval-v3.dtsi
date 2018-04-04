@@ -140,7 +140,7 @@
 
 	/* M41T0M6 real time clock on carrier board */
 	rtc: m41t0m6@68 {
-		compatible = "st,m41t00";
+		compatible = "st,m41t0";
 		reg = <0x68>;
 	};
 };

@@ -1,0 +1,26 @@
+Socionext EVEA - UniPhier SoC internal codec driver
+
+Required properties:
+- compatible      : should be "socionext,uniphier-evea".
+- reg             : offset and length of the register set for the device.
+- clock-names     : should include following entries:
+                    "evea", "exiv"
+- clocks          : a list of phandle, should contain an entry for each
+                    entries in clock-names.
+- reset-names     : should include following entries:
+                    "evea", "exiv", "adamv"
+- resets          : a list of phandle, should contain reset entries of
+                    reset-names.
+- #sound-dai-cells: should be 1.
+
+Example:
+
+	codec {
+		compatible = "socionext,uniphier-evea";
+		reg = <0x57900000 0x1000>;
+		clock-names = "evea", "exiv";
+		clocks = <&sys_clk 41>, <&sys_clk 42>;
+		reset-names = "evea", "exiv", "adamv";
+		resets = <&sys_rst 41>, <&sys_rst 42>, <&adamv_rst 0>;
+		#sound-dai-cells = <1>;
+	};

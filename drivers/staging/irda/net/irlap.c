@@ -148,14 +148,14 @@ struct irlap_cb *irlap_open(struct net_device *dev, struct qos_info *qos,
 	/* Copy to the driver */
 	memcpy(dev->dev_addr, &self->saddr, 4);
 
-	init_timer(&self->slot_timer);
-	init_timer(&self->query_timer);
-	init_timer(&self->discovery_timer);
-	init_timer(&self->final_timer);
-	init_timer(&self->poll_timer);
-	init_timer(&self->wd_timer);
-	init_timer(&self->backoff_timer);
-	init_timer(&self->media_busy_timer);
+	timer_setup(&self->slot_timer, NULL, 0);
+	timer_setup(&self->query_timer, NULL, 0);
+	timer_setup(&self->discovery_timer, NULL, 0);
+	timer_setup(&self->final_timer, NULL, 0);
+	timer_setup(&self->poll_timer, NULL, 0);
+	timer_setup(&self->wd_timer, NULL, 0);
+	timer_setup(&self->backoff_timer, NULL, 0);
+	timer_setup(&self->media_busy_timer, NULL, 0);
 
 	irlap_apply_default_connection_parameters(self);
 

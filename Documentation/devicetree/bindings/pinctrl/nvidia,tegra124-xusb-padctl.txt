@@ -97,7 +97,7 @@ SoC file extract:
 Board file extract:
 -------------------
 
-	pcie-controller@01003000 {
+	pcie-controller@1003000 {
 		...
 
 		phys = <&padctl 0>;

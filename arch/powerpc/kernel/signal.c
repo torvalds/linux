@@ -103,7 +103,7 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 static void do_signal(struct task_struct *tsk)
 {
 	sigset_t *oldset = sigmask_to_save();
-	struct ksignal ksig;
+	struct ksignal ksig = { .sig = 0 };
 	int ret;
 	int is32 = is_32bit_task();
 
@@ -153,6 +153,9 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	if (thread_info_flags & _TIF_UPROBE)
 		uprobe_notify_resume(regs);
 
+	if (thread_info_flags & _TIF_PATCH_PENDING)
+		klp_update_patch_state(current);
+
 	if (thread_info_flags & _TIF_SIGPENDING) {
 		BUG_ON(regs != current->thread.regs);
 		do_signal(current);
@@ -162,9 +165,6 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
-
-	if (thread_info_flags & _TIF_PATCH_PENDING)
-		klp_update_patch_state(current);
 
 	user_enter();
 }

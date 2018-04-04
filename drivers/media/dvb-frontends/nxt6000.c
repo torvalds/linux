@@ -27,7 +27,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "nxt6000_priv.h"
 #include "nxt6000.h"
 

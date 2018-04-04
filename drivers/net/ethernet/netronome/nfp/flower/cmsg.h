@@ -39,8 +39,9 @@
 #include <linux/types.h>
 
 #include "../nfp_app.h"
+#include "../nfpcore/nfp_cpp.h"
 
-#define NFP_FLOWER_LAYER_META		BIT(0)
+#define NFP_FLOWER_LAYER_EXT_META	BIT(0)
 #define NFP_FLOWER_LAYER_PORT		BIT(1)
 #define NFP_FLOWER_LAYER_MAC		BIT(2)
 #define NFP_FLOWER_LAYER_TP		BIT(3)
@@ -49,12 +50,16 @@
 #define NFP_FLOWER_LAYER_CT		BIT(6)
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
 
-#define NFP_FLOWER_LAYER_ETHER		BIT(3)
-#define NFP_FLOWER_LAYER_ARP		BIT(4)
+#define NFP_FLOWER_LAYER2_GENEVE	BIT(5)
 
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
 #define NFP_FLOWER_MASK_VLAN_VID	GENMASK(11, 0)
+
+#define NFP_FLOWER_MASK_MPLS_LB		GENMASK(31, 12)
+#define NFP_FLOWER_MASK_MPLS_TC		GENMASK(11, 9)
+#define NFP_FLOWER_MASK_MPLS_BOS	BIT(8)
+#define NFP_FLOWER_MASK_MPLS_Q		BIT(0)
 
 #define NFP_FL_SC_ACT_DROP		0x80000000
 #define NFP_FL_SC_ACT_USER		0x7D000000
@@ -67,13 +72,18 @@
 #define NFP_FL_LW_SIZ			2
 
 /* Action opcodes */
-#define NFP_FL_ACTION_OPCODE_OUTPUT	0
-#define NFP_FL_ACTION_OPCODE_PUSH_VLAN	1
-#define NFP_FL_ACTION_OPCODE_POP_VLAN	2
-#define NFP_FL_ACTION_OPCODE_NUM	32
-
-#define NFP_FL_ACT_JMP_ID		GENMASK(15, 8)
-#define NFP_FL_ACT_LEN_LW		GENMASK(7, 0)
+#define NFP_FL_ACTION_OPCODE_OUTPUT		0
+#define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
+#define NFP_FL_ACTION_OPCODE_POP_VLAN		2
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
+#define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
+#define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
+#define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
+#define NFP_FL_ACTION_OPCODE_SET_IPV6_DST	12
+#define NFP_FL_ACTION_OPCODE_SET_UDP		14
+#define NFP_FL_ACTION_OPCODE_SET_TCP		15
+#define NFP_FL_ACTION_OPCODE_PRE_TUNNEL		17
+#define NFP_FL_ACTION_OPCODE_NUM		32
 
 #define NFP_FL_OUT_FLAGS_LAST		BIT(15)
 #define NFP_FL_OUT_FLAGS_USE_TUN	BIT(4)
@@ -83,36 +93,92 @@
 #define NFP_FL_PUSH_VLAN_CFI		BIT(12)
 #define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
 
+/* Tunnel ports */
+#define NFP_FL_PORT_TYPE_TUN		0x50000000
+#define NFP_FL_IPV4_TUNNEL_TYPE		GENMASK(7, 4)
+#define NFP_FL_IPV4_PRE_TUN_INDEX	GENMASK(2, 0)
+
+#define nfp_flower_cmsg_warn(app, fmt, args...)                         \
+	do {                                                            \
+		if (net_ratelimit())                                    \
+			nfp_warn((app)->cpp, fmt, ## args);             \
+	} while (0)
+
+enum nfp_flower_tun_type {
+	NFP_FL_TUNNEL_NONE =	0,
+	NFP_FL_TUNNEL_VXLAN =	2,
+	NFP_FL_TUNNEL_GENEVE =	4,
+};
+
+struct nfp_fl_act_head {
+	u8 jump_id;
+	u8 len_lw;
+};
+
+struct nfp_fl_set_eth {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	u8 eth_addr_mask[ETH_ALEN * 2];
+	u8 eth_addr_val[ETH_ALEN * 2];
+};
+
+struct nfp_fl_set_ip4_addrs {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be32 ipv4_src_mask;
+	__be32 ipv4_src;
+	__be32 ipv4_dst_mask;
+	__be32 ipv4_dst;
+};
+
+struct nfp_fl_set_ipv6_addr {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	struct {
+		__be32 mask;
+		__be32 exact;
+	} ipv6[4];
+};
+
+struct nfp_fl_set_tport {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	u8 tp_port_mask[4];
+	u8 tp_port_val[4];
+};
+
 struct nfp_fl_output {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 flags;
 	__be32 port;
 };
 
 struct nfp_fl_push_vlan {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 	__be16 vlan_tpid;
 	__be16 vlan_tci;
 };
 
 struct nfp_fl_pop_vlan {
-	__be16 a_op;
+	struct nfp_fl_act_head head;
 	__be16 reserved;
 };
 
-/* Metadata without L2 (1W/4B)
- * ----------------------------------------------------------------
- *    3                   2                   1
- *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |  key_layers   |    mask_id    |           reserved            |
- * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- */
-struct nfp_flower_meta_one {
-	u8 nfp_flow_key_layer;
-	u8 mask_id;
-	u16 reserved;
+struct nfp_fl_pre_tunnel {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be32 ipv4_dst;
+	/* reserved for use with IPv6 addresses */
+	__be32 extra[3];
+};
+
+struct nfp_fl_set_ipv4_udp_tun {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be64 tun_id __packed;
+	__be32 tun_type_index;
+	__be32 extra[3];
 };
 
 /* Metadata with L2 (1W/4B)
@@ -126,10 +192,22 @@ struct nfp_flower_meta_one {
  *                           NOTE: |             TCI               |
  *                                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-struct nfp_flower_meta_two {
+struct nfp_flower_meta_tci {
 	u8 nfp_flow_key_layer;
 	u8 mask_id;
 	__be16 tci;
+};
+
+/* Extended metadata for additional key_layers (1W/4B)
+ * ----------------------------------------------------------------
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                      nfp_flow_key_layer2                      |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct nfp_flower_ext_meta {
+	__be32 nfp_flow_key_layer2;
 };
 
 /* Port details (1W/4B)
@@ -230,6 +308,31 @@ struct nfp_flower_ipv6 {
 	struct in6_addr ipv6_dst;
 };
 
+/* Flow Frame IPv4 UDP TUNNEL --> Tunnel details (4W/16B)
+ * -----------------------------------------------------------------
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                         ipv4_addr_src                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                         ipv4_addr_dst                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                            Reserved                           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                            Reserved                           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     VNI                       |   Reserved    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct nfp_flower_ipv4_udp_tun {
+	__be32 ip_src;
+	__be32 ip_dst;
+	__be32 reserved[2];
+	__be32 tun_id;
+};
+
+#define NFP_FL_TUN_VNI_OFFSET 8
+
 /* The base header for a control message packet.
  * Defines an 8-bit version, and an 8-bit type, padded
  * to a 32-bit word. Rest of the packet is type-specific.
@@ -247,8 +350,14 @@ struct nfp_flower_cmsg_hdr {
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
+	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
+	NFP_FLOWER_CMSG_TYPE_NO_NEIGH =		10,
+	NFP_FLOWER_CMSG_TYPE_TUN_MAC =		11,
+	NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS =	12,
+	NFP_FLOWER_CMSG_TYPE_TUN_NEIGH =	13,
+	NFP_FLOWER_CMSG_TYPE_TUN_IPS =		14,
 	NFP_FLOWER_CMSG_TYPE_FLOW_STATS =	15,
 	NFP_FLOWER_CMSG_TYPE_PORT_ECHO =	16,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
@@ -278,10 +387,20 @@ struct nfp_flower_cmsg_portmod {
 
 #define NFP_FLOWER_CMSG_PORTMOD_INFO_LINK	BIT(0)
 
+/* NFP_FLOWER_CMSG_TYPE_PORT_REIFY */
+struct nfp_flower_cmsg_portreify {
+	__be32 portnum;
+	u16 reserved;
+	__be16 info;
+};
+
+#define NFP_FLOWER_CMSG_PORTREIFY_INFO_EXIST	BIT(0)
+
 enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
 	NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT =	0x1,
 	NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT =	0x2,
+	NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT =  0x3,
 };
 
 enum nfp_flower_cmsg_port_vnic_type {
@@ -323,6 +442,11 @@ static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 	return (unsigned char *)skb->data + NFP_FLOWER_CMSG_HLEN;
 }
 
+static inline int nfp_flower_cmsg_get_data_len(struct sk_buff *skb)
+{
+	return skb->len - NFP_FLOWER_CMSG_HLEN;
+}
+
 struct sk_buff *
 nfp_flower_cmsg_mac_repr_start(struct nfp_app *app, unsigned int num_ports);
 void
@@ -330,10 +454,11 @@ nfp_flower_cmsg_mac_repr_add(struct sk_buff *skb, unsigned int idx,
 			     unsigned int nbi, unsigned int nbi_port,
 			     unsigned int phys_port);
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
+int nfp_flower_cmsg_portreify(struct nfp_repr *repr, bool exists);
 void nfp_flower_cmsg_process_rx(struct work_struct *work);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
 struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
-		      enum nfp_flower_cmsg_type_port type);
+		      enum nfp_flower_cmsg_type_port type, gfp_t flag);
 
 #endif

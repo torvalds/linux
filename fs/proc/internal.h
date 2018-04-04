@@ -31,24 +31,28 @@ struct mempolicy;
  * subdir_node is used to build the rb tree "subdir" of the parent.
  */
 struct proc_dir_entry {
+	/*
+	 * number of callers into module in progress;
+	 * negative -> it's going away RSN
+	 */
+	atomic_t in_use;
+	atomic_t count;		/* use count */
+	struct list_head pde_openers;	/* who did ->open, but not ->release */
+	/* protects ->pde_openers and all struct pde_opener instances */
+	spinlock_t pde_unload_lock;
+	struct completion *pde_unload_completion;
+	const struct inode_operations *proc_iops;
+	const struct file_operations *proc_fops;
+	void *data;
 	unsigned int low_ino;
-	umode_t mode;
 	nlink_t nlink;
 	kuid_t uid;
 	kgid_t gid;
 	loff_t size;
-	const struct inode_operations *proc_iops;
-	const struct file_operations *proc_fops;
 	struct proc_dir_entry *parent;
 	struct rb_root_cached subdir;
 	struct rb_node subdir_node;
-	void *data;
-	atomic_t count;		/* use count */
-	atomic_t in_use;	/* number of callers into module in progress; */
-			/* negative -> it's going away RSN */
-	struct completion *pde_unload_completion;
-	struct list_head pde_openers;	/* who did ->open, but not ->release */
-	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
+	umode_t mode;
 	u8 namelen;
 	char name[];
 } __randomize_layout;
@@ -100,31 +104,10 @@ static inline struct task_struct *get_proc_task(struct inode *inode)
 	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
 }
 
-void task_dump_owner(struct task_struct *task, mode_t mode,
+void task_dump_owner(struct task_struct *task, umode_t mode,
 		     kuid_t *ruid, kgid_t *rgid);
 
-static inline unsigned name_to_int(const struct qstr *qstr)
-{
-	const char *name = qstr->name;
-	int len = qstr->len;
-	unsigned n = 0;
-
-	if (len > 1 && *name == '0')
-		goto out;
-	while (len-- > 0) {
-		unsigned c = *name++ - '0';
-		if (c > 9)
-			goto out;
-		if (n >= (~0U-9)/10)
-			goto out;
-		n *= 10;
-		n += c;
-	}
-	return n;
-out:
-	return ~0U;
-}
-
+unsigned name_to_int(const struct qstr *qstr);
 /*
  * Offset of the first process in the /proc root directory..
  */
@@ -170,10 +153,9 @@ extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, i
  * generic.c
  */
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
-extern struct dentry *proc_lookup_de(struct proc_dir_entry *, struct inode *,
-				     struct dentry *);
+struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_entry *);
 extern int proc_readdir(struct file *, struct dir_context *);
-extern int proc_readdir_de(struct proc_dir_entry *, struct file *, struct dir_context *);
+int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *);
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 {

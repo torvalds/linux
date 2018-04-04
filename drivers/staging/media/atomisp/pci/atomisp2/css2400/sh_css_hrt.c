@@ -80,5 +80,5 @@ enum ia_css_err sh_css_hrt_sp_wait(void)
 		hrt_sleep();
 	}
 
-return IA_CSS_SUCCESS;
+	return IA_CSS_SUCCESS;
 }

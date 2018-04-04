@@ -20,6 +20,98 @@
 
 static DEFINE_IDA(tb_domain_ida);
 
+static bool match_service_id(const struct tb_service_id *id,
+			     const struct tb_service *svc)
+{
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_KEY) {
+		if (strcmp(id->protocol_key, svc->key))
+			return false;
+	}
+
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_ID) {
+		if (id->protocol_id != svc->prtcid)
+			return false;
+	}
+
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_VERSION) {
+		if (id->protocol_version != svc->prtcvers)
+			return false;
+	}
+
+	if (id->match_flags & TBSVC_MATCH_PROTOCOL_VERSION) {
+		if (id->protocol_revision != svc->prtcrevs)
+			return false;
+	}
+
+	return true;
+}
+
+static const struct tb_service_id *__tb_service_match(struct device *dev,
+						      struct device_driver *drv)
+{
+	struct tb_service_driver *driver;
+	const struct tb_service_id *ids;
+	struct tb_service *svc;
+
+	svc = tb_to_service(dev);
+	if (!svc)
+		return NULL;
+
+	driver = container_of(drv, struct tb_service_driver, driver);
+	if (!driver->id_table)
+		return NULL;
+
+	for (ids = driver->id_table; ids->match_flags != 0; ids++) {
+		if (match_service_id(ids, svc))
+			return ids;
+	}
+
+	return NULL;
+}
+
+static int tb_service_match(struct device *dev, struct device_driver *drv)
+{
+	return !!__tb_service_match(dev, drv);
+}
+
+static int tb_service_probe(struct device *dev)
+{
+	struct tb_service *svc = tb_to_service(dev);
+	struct tb_service_driver *driver;
+	const struct tb_service_id *id;
+
+	driver = container_of(dev->driver, struct tb_service_driver, driver);
+	id = __tb_service_match(dev, &driver->driver);
+
+	return driver->probe(svc, id);
+}
+
+static int tb_service_remove(struct device *dev)
+{
+	struct tb_service *svc = tb_to_service(dev);
+	struct tb_service_driver *driver;
+
+	driver = container_of(dev->driver, struct tb_service_driver, driver);
+	if (driver->remove)
+		driver->remove(svc);
+
+	return 0;
+}
+
+static void tb_service_shutdown(struct device *dev)
+{
+	struct tb_service_driver *driver;
+	struct tb_service *svc;
+
+	svc = tb_to_service(dev);
+	if (!svc || !dev->driver)
+		return;
+
+	driver = container_of(dev->driver, struct tb_service_driver, driver);
+	if (driver->shutdown)
+		driver->shutdown(svc);
+}
+
 static const char * const tb_security_names[] = {
 	[TB_SECURITY_NONE] = "none",
 	[TB_SECURITY_USER] = "user",
@@ -52,6 +144,10 @@ static const struct attribute_group *domain_attr_groups[] = {
 
 struct bus_type tb_bus_type = {
 	.name = "thunderbolt",
+	.match = tb_service_match,
+	.probe = tb_service_probe,
+	.remove = tb_service_remove,
+	.shutdown = tb_service_shutdown,
 };
 
 static void tb_domain_release(struct device *dev)
@@ -128,17 +224,26 @@ err_free:
 	return NULL;
 }
 
-static void tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
+static bool tb_domain_event_cb(void *data, enum tb_cfg_pkg_type type,
 			       const void *buf, size_t size)
 {
 	struct tb *tb = data;
 
 	if (!tb->cm_ops->handle_event) {
 		tb_warn(tb, "domain does not have event handler\n");
-		return;
+		return true;
 	}
 
-	tb->cm_ops->handle_event(tb, type, buf, size);
+	switch (type) {
+	case TB_CFG_PKG_XDOMAIN_REQ:
+	case TB_CFG_PKG_XDOMAIN_RESP:
+		return tb_xdomain_handle_request(tb, type, buf, size);
+
+	default:
+		tb->cm_ops->handle_event(tb, type, buf, size);
+	}
+
+	return true;
 }
 
 /**
@@ -443,9 +548,92 @@ int tb_domain_disconnect_pcie_paths(struct tb *tb)
 	return tb->cm_ops->disconnect_pcie_paths(tb);
 }
 
+/**
+ * tb_domain_approve_xdomain_paths() - Enable DMA paths for XDomain
+ * @tb: Domain enabling the DMA paths
+ * @xd: XDomain DMA paths are created to
+ *
+ * Calls connection manager specific method to enable DMA paths to the
+ * XDomain in question.
+ *
+ * Return: 0% in case of success and negative errno otherwise. In
+ * particular returns %-ENOTSUPP if the connection manager
+ * implementation does not support XDomains.
+ */
+int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	if (!tb->cm_ops->approve_xdomain_paths)
+		return -ENOTSUPP;
+
+	return tb->cm_ops->approve_xdomain_paths(tb, xd);
+}
+
+/**
+ * tb_domain_disconnect_xdomain_paths() - Disable DMA paths for XDomain
+ * @tb: Domain disabling the DMA paths
+ * @xd: XDomain whose DMA paths are disconnected
+ *
+ * Calls connection manager specific method to disconnect DMA paths to
+ * the XDomain in question.
+ *
+ * Return: 0% in case of success and negative errno otherwise. In
+ * particular returns %-ENOTSUPP if the connection manager
+ * implementation does not support XDomains.
+ */
+int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	if (!tb->cm_ops->disconnect_xdomain_paths)
+		return -ENOTSUPP;
+
+	return tb->cm_ops->disconnect_xdomain_paths(tb, xd);
+}
+
+static int disconnect_xdomain(struct device *dev, void *data)
+{
+	struct tb_xdomain *xd;
+	struct tb *tb = data;
+	int ret = 0;
+
+	xd = tb_to_xdomain(dev);
+	if (xd && xd->tb == tb)
+		ret = tb_xdomain_disable_paths(xd);
+
+	return ret;
+}
+
+/**
+ * tb_domain_disconnect_all_paths() - Disconnect all paths for the domain
+ * @tb: Domain whose paths are disconnected
+ *
+ * This function can be used to disconnect all paths (PCIe, XDomain) for
+ * example in preparation for host NVM firmware upgrade. After this is
+ * called the paths cannot be established without resetting the switch.
+ *
+ * Return: %0 in case of success and negative errno otherwise.
+ */
+int tb_domain_disconnect_all_paths(struct tb *tb)
+{
+	int ret;
+
+	ret = tb_domain_disconnect_pcie_paths(tb);
+	if (ret)
+		return ret;
+
+	return bus_for_each_dev(&tb_bus_type, NULL, tb, disconnect_xdomain);
+}
+
 int tb_domain_init(void)
 {
-	return bus_register(&tb_bus_type);
+	int ret;
+
+	ret = tb_xdomain_init();
+	if (ret)
+		return ret;
+	ret = bus_register(&tb_bus_type);
+	if (ret)
+		tb_xdomain_exit();
+
+	return ret;
 }
 
 void tb_domain_exit(void)
@@ -453,4 +641,5 @@ void tb_domain_exit(void)
 	bus_unregister(&tb_bus_type);
 	ida_destroy(&tb_domain_ida);
 	tb_switch_exit();
+	tb_xdomain_exit();
 }

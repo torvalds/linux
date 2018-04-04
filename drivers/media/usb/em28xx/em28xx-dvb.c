@@ -28,9 +28,9 @@
 #include <linux/usb.h>
 
 #include <media/v4l2-common.h>
-#include <dvb_demux.h>
-#include <dvb_net.h>
-#include <dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dmxdev.h>
 #include <media/tuner.h>
 #include "tuner-simple.h"
 #include <linux/gpio.h>
@@ -112,10 +112,10 @@ static inline void print_err_status(struct em28xx *dev,
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronuously";
+		errmsg = "unlinked synchronously";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronuously";
+		errmsg = "unlinked asynchronously";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
@@ -2105,6 +2105,8 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 		}
 	}
 
+	em28xx_unregister_dvb(dvb);
+
 	/* remove I2C SEC */
 	client = dvb->i2c_client_sec;
 	if (client) {
@@ -2126,7 +2128,6 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 		i2c_unregister_device(client);
 	}
 
-	em28xx_unregister_dvb(dvb);
 	kfree(dvb);
 	dev->dvb = NULL;
 	kref_put(&dev->ref, em28xx_free_device);

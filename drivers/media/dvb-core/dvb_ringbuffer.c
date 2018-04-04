@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 
-#include "dvb_ringbuffer.h"
+#include <media/dvb_ringbuffer.h>
 
 #define PKT_READY 0
 #define PKT_DISPOSED 1
@@ -66,12 +66,12 @@ ssize_t dvb_ringbuffer_free(struct dvb_ringbuffer *rbuf)
 {
 	ssize_t free;
 
-	/* ACCESS_ONCE() to load read pointer on writer side
+	/* READ_ONCE() to load read pointer on writer side
 	 * this pairs with smp_store_release() in dvb_ringbuffer_read(),
 	 * dvb_ringbuffer_read_user(), dvb_ringbuffer_flush(),
 	 * or dvb_ringbuffer_reset()
 	 */
-	free = ACCESS_ONCE(rbuf->pread) - rbuf->pwrite;
+	free = READ_ONCE(rbuf->pread) - rbuf->pwrite;
 	if (free <= 0)
 		free += rbuf->size;
 	return free-1;
@@ -143,7 +143,7 @@ ssize_t dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf, u8 __user *buf, si
 		todo -= split;
 		/* smp_store_release() for read pointer update to ensure
 		 * that buf is not overwritten until read is complete,
-		 * this pairs with ACCESS_ONCE() in dvb_ringbuffer_free()
+		 * this pairs with READ_ONCE() in dvb_ringbuffer_free()
 		 */
 		smp_store_release(&rbuf->pread, 0);
 	}
@@ -168,7 +168,7 @@ void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
 		todo -= split;
 		/* smp_store_release() for read pointer update to ensure
 		 * that buf is not overwritten until read is complete,
-		 * this pairs with ACCESS_ONCE() in dvb_ringbuffer_free()
+		 * this pairs with READ_ONCE() in dvb_ringbuffer_free()
 		 */
 		smp_store_release(&rbuf->pread, 0);
 	}

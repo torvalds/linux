@@ -757,8 +757,8 @@ that your datasheet calls "GPIO mode", but actually is just an electrical
 configuration for a certain device. See the section below named
 "GPIO mode pitfalls" for more details on this scenario.
 
-The public pinmux API contains two functions named pinctrl_request_gpio()
-and pinctrl_free_gpio(). These two functions shall *ONLY* be called from
+The public pinmux API contains two functions named pinctrl_gpio_request()
+and pinctrl_gpio_free(). These two functions shall *ONLY* be called from
 gpiolib-based drivers as part of their gpio_request() and
 gpio_free() semantics. Likewise the pinctrl_gpio_direction_[input|output]
 shall only be called from within respective gpio_direction_[input|output]
@@ -790,7 +790,7 @@ gpiolib driver and the affected GPIO range, pin offset and desired direction
 will be passed along to this function.
 
 Alternatively to using these special functions, it is fully allowed to use
-named functions for each GPIO pin, the pinctrl_request_gpio() will attempt to
+named functions for each GPIO pin, the pinctrl_gpio_request() will attempt to
 obtain the function "gpioN" where "N" is the global GPIO pin number if no
 special GPIO-handler is registered.
 

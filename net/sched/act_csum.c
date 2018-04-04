@@ -49,6 +49,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 			 int bind)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
+	struct tcf_csum_params *params_old, *params_new;
 	struct nlattr *tb[TCA_CSUM_MAX + 1];
 	struct tc_csum *parm;
 	struct tcf_csum *p;
@@ -67,7 +68,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 
 	if (!tcf_idr_check(tn, parm->index, a, bind)) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_csum_ops, bind, false);
+				     &act_csum_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
@@ -80,10 +81,21 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 	}
 
 	p = to_tcf_csum(*a);
-	spin_lock_bh(&p->tcf_lock);
-	p->tcf_action = parm->action;
-	p->update_flags = parm->update_flags;
-	spin_unlock_bh(&p->tcf_lock);
+	ASSERT_RTNL();
+
+	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
+	if (unlikely(!params_new)) {
+		if (ret == ACT_P_CREATED)
+			tcf_idr_release(*a, bind);
+		return -ENOMEM;
+	}
+	params_old = rtnl_dereference(p->params);
+
+	params_new->action = parm->action;
+	params_new->update_flags = parm->update_flags;
+	rcu_assign_pointer(p->params, params_new);
+	if (params_old)
+		kfree_rcu(params_old, rcu);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -229,6 +241,9 @@ static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
 	const struct iphdr *iph;
 	u16 ul;
 
+	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
+		return 1;
+
 	/*
 	 * Support both UDP and UDPLITE checksum algorithms, Don't use
 	 * udph->len to get the real length without any protocol check,
@@ -281,6 +296,9 @@ static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
 	struct udphdr *udph;
 	const struct ipv6hdr *ip6h;
 	u16 ul;
+
+	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
+		return 1;
 
 	/*
 	 * Support both UDP and UDPLITE checksum algorithms, Don't use
@@ -533,19 +551,21 @@ static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
 	struct tcf_csum *p = to_tcf_csum(a);
-	int action;
+	struct tcf_csum_params *params;
 	u32 update_flags;
+	int action;
 
-	spin_lock(&p->tcf_lock);
+	rcu_read_lock();
+	params = rcu_dereference(p->params);
+
 	tcf_lastuse_update(&p->tcf_tm);
-	bstats_update(&p->tcf_bstats, skb);
-	action = p->tcf_action;
-	update_flags = p->update_flags;
-	spin_unlock(&p->tcf_lock);
+	bstats_cpu_update(this_cpu_ptr(p->common.cpu_bstats), skb);
 
+	action = params->action;
 	if (unlikely(action == TC_ACT_SHOT))
-		goto drop;
+		goto drop_stats;
 
+	update_flags = params->update_flags;
 	switch (tc_skb_protocol(skb)) {
 	case cpu_to_be16(ETH_P_IP):
 		if (!tcf_csum_ipv4(skb, update_flags))
@@ -557,13 +577,16 @@ static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
 		break;
 	}
 
+unlock:
+	rcu_read_unlock();
 	return action;
 
 drop:
-	spin_lock(&p->tcf_lock);
-	p->tcf_qstats.drops++;
-	spin_unlock(&p->tcf_lock);
-	return TC_ACT_SHOT;
+	action = TC_ACT_SHOT;
+
+drop_stats:
+	qstats_drop_inc(this_cpu_ptr(p->common.cpu_qstats));
+	goto unlock;
 }
 
 static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
@@ -571,14 +594,17 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_csum *p = to_tcf_csum(a);
+	struct tcf_csum_params *params;
 	struct tc_csum opt = {
-		.update_flags = p->update_flags,
 		.index   = p->tcf_index,
-		.action  = p->tcf_action,
 		.refcnt  = p->tcf_refcnt - ref,
 		.bindcnt = p->tcf_bindcnt - bind,
 	};
 	struct tcf_t t;
+
+	params = rtnl_dereference(p->params);
+	opt.action = params->action;
+	opt.update_flags = params->update_flags;
 
 	if (nla_put(skb, TCA_CSUM_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -592,6 +618,15 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
+}
+
+static void tcf_csum_cleanup(struct tc_action *a)
+{
+	struct tcf_csum *p = to_tcf_csum(a);
+	struct tcf_csum_params *params;
+
+	params = rcu_dereference_protected(p->params, 1);
+	kfree_rcu(params, rcu);
 }
 
 static int tcf_csum_walker(struct net *net, struct sk_buff *skb,
@@ -617,6 +652,7 @@ static struct tc_action_ops act_csum_ops = {
 	.act		= tcf_csum,
 	.dump		= tcf_csum_dump,
 	.init		= tcf_csum_init,
+	.cleanup	= tcf_csum_cleanup,
 	.walk		= tcf_csum_walker,
 	.lookup		= tcf_csum_search,
 	.size		= sizeof(struct tcf_csum),
@@ -626,19 +662,17 @@ static __net_init int csum_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, csum_net_id);
 
-	return tc_action_net_init(tn, &act_csum_ops, net);
+	return tc_action_net_init(tn, &act_csum_ops);
 }
 
-static void __net_exit csum_exit_net(struct net *net)
+static void __net_exit csum_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, csum_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, csum_net_id);
 }
 
 static struct pernet_operations csum_net_ops = {
 	.init = csum_init_net,
-	.exit = csum_exit_net,
+	.exit_batch = csum_exit_net,
 	.id   = &csum_net_id,
 	.size = sizeof(struct tc_action_net),
 };

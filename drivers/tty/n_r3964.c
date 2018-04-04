@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /* r3964 linediscipline for linux
  *
  * -----------------------------------------------------------
@@ -5,9 +6,6 @@
  * Philips Automation Projects
  * Kassel (Germany)
  * -----------------------------------------------------------
- * This software may be used and distributed according to the terms of
- * the GNU General Public License, incorporated herein by reference.
- *
  * Author:
  * L. Haag
  *
@@ -117,7 +115,7 @@ static void retry_transmit(struct r3964_info *pInfo);
 static void transmit_block(struct r3964_info *pInfo);
 static void receive_char(struct r3964_info *pInfo, const unsigned char c);
 static void receive_error(struct r3964_info *pInfo, const char flag);
-static void on_timeout(unsigned long priv);
+static void on_timeout(struct timer_list *t);
 static int enable_signals(struct r3964_info *pInfo, struct pid *pid, int arg);
 static int read_telegram(struct r3964_info *pInfo, struct pid *pid,
 		unsigned char __user * buf);
@@ -137,7 +135,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 static int r3964_ioctl(struct tty_struct *tty, struct file *file,
 		unsigned int cmd, unsigned long arg);
 static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old);
-static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
+static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 		struct poll_table_struct *wait);
 static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		char *fp, int count);
@@ -690,9 +688,9 @@ static void receive_error(struct r3964_info *pInfo, const char flag)
 	}
 }
 
-static void on_timeout(unsigned long priv)
+static void on_timeout(struct timer_list *t)
 {
-	struct r3964_info *pInfo = (void *)priv;
+	struct r3964_info *pInfo = from_timer(pInfo, t, tmr);
 
 	switch (pInfo->state) {
 	case R3964_TX_REQUEST:
@@ -995,7 +993,7 @@ static int r3964_open(struct tty_struct *tty)
 	tty->disc_data = pInfo;
 	tty->receive_room = 65536;
 
-	setup_timer(&pInfo->tmr, on_timeout, (unsigned long)pInfo);
+	timer_setup(&pInfo->tmr, on_timeout, 0);
 
 	return 0;
 }
@@ -1218,14 +1216,14 @@ static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old)
 }
 
 /* Called without the kernel lock held - fine */
-static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
+static __poll_t r3964_poll(struct tty_struct *tty, struct file *file,
 			struct poll_table_struct *wait)
 {
 	struct r3964_info *pInfo = tty->disc_data;
 	struct r3964_client_info *pClient;
 	struct r3964_message *pMsg = NULL;
 	unsigned long flags;
-	int result = POLLOUT;
+	__poll_t result = EPOLLOUT;
 
 	TRACE_L("POLL");
 
@@ -1236,7 +1234,7 @@ static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
 		pMsg = pClient->first_msg;
 		spin_unlock_irqrestore(&pInfo->lock, flags);
 		if (pMsg)
-			result |= POLLIN | POLLRDNORM;
+			result |= EPOLLIN | EPOLLRDNORM;
 	} else {
 		result = -EINVAL;
 	}

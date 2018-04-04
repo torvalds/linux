@@ -19,7 +19,7 @@ Optional properties:
 
 Example:
 
-	ocotp: ocotp@021bc000 {
+	ocotp: ocotp@21bc000 {
 		compatible = "fsl,imx6q-ocotp", "syscon";
 		reg = <0x021bc000 0x4000>;
 		clocks = <&clks IMX6QDL_CLK_IIM>;

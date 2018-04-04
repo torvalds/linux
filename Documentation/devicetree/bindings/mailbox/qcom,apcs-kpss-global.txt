@@ -15,11 +15,20 @@ platforms.
 	Usage: required
 	Value type: <prop-encoded-array>
 	Definition: must specify the base address and size of the global block
+- clocks:
+	Usage: required if #clocks-cells property is present
+	Value type: <phandle>
+	Definition: phandle to the input PLL, which feeds the APCS mux/divider
 
 - #mbox-cells:
 	Usage: required
 	Value type: <u32>
 	Definition: as described in mailbox.txt, must be 1
+
+- #clock-cells:
+	Usage: optional
+	Value type: <u32>
+	Definition: as described in clock.txt, must be 0
 
 
 = EXAMPLE
@@ -44,3 +53,12 @@ GLINK RPM referencing the "rpm_hlos" doorbell therein.
 		mbox-names = "rpm_hlos";
 	};
 
+Below is another example of the APCS binding on MSM8916 platforms:
+
+	apcs: mailbox@b011000 {
+		compatible = "qcom,msm8916-apcs-kpss-global";
+		reg = <0xb011000 0x1000>;
+		#mbox-cells = <1>;
+		clocks = <&a53pll>;
+		#clock-cells = <0>;
+	};

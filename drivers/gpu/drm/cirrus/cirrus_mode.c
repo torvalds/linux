@@ -294,22 +294,7 @@ static void cirrus_crtc_prepare(struct drm_crtc *crtc)
 {
 }
 
-/*
- * This is called after a mode is programmed. It should reverse anything done
- * by the prepare function
- */
-static void cirrus_crtc_commit(struct drm_crtc *crtc)
-{
-}
-
-/*
- * The core can pass us a set of gamma values to program. We actually only
- * use this for 8-bit mode so can't perform smooth fades on deeper modes,
- * but it's a requirement that we provide the function
- */
-static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t size,
-				 struct drm_modeset_acquire_ctx *ctx)
+static void cirrus_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct cirrus_device *cdev = dev->dev_private;
@@ -317,7 +302,7 @@ static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 	int i;
 
 	if (!crtc->enabled)
-		return 0;
+		return;
 
 	r = crtc->gamma_store;
 	g = r + crtc->gamma_size;
@@ -330,6 +315,27 @@ static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 		WREG8(PALETTE_DATA, *g++ >> 8);
 		WREG8(PALETTE_DATA, *b++ >> 8);
 	}
+}
+
+/*
+ * This is called after a mode is programmed. It should reverse anything done
+ * by the prepare function
+ */
+static void cirrus_crtc_commit(struct drm_crtc *crtc)
+{
+	cirrus_crtc_load_lut(crtc);
+}
+
+/*
+ * The core can pass us a set of gamma values to program. We actually only
+ * use this for 8-bit mode so can't perform smooth fades on deeper modes,
+ * but it's a requirement that we provide the function
+ */
+static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				 u16 *blue, uint32_t size,
+				 struct drm_modeset_acquire_ctx *ctx)
+{
+	cirrus_crtc_load_lut(crtc);
 
 	return 0;
 }
@@ -457,7 +463,7 @@ static struct drm_encoder *cirrus_connector_best_encoder(struct drm_connector
 	int enc_id = connector->encoder_ids[0];
 	/* pick the encoder ids */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 	return NULL;
 }
 

@@ -97,6 +97,10 @@
 #include "predict.h"
 #include "ipa-utils.h"
 
+#if BUILDING_GCC_VERSION >= 8000
+#include "stringpool.h"
+#endif
+
 #if BUILDING_GCC_VERSION >= 4009
 #include "attribs.h"
 #include "varasm.h"

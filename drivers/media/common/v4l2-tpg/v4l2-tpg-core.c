@@ -21,7 +21,7 @@
  */
 
 #include <linux/module.h>
-#include <media/v4l2-tpg.h>
+#include <media/tpg/v4l2-tpg.h>
 
 /* Must remain in sync with enum tpg_pattern */
 const char * const tpg_pattern_strings[] = {
@@ -238,6 +238,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->color_enc = TGP_COLOR_ENC_RGB;
 		break;
 	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y10:
+	case V4L2_PIX_FMT_Y12:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
 		tpg->color_enc = TGP_COLOR_ENC_LUMA;
@@ -352,6 +354,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV555:
 	case V4L2_PIX_FMT_YUV565:
+	case V4L2_PIX_FMT_Y10:
+	case V4L2_PIX_FMT_Y12:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
 		tpg->twopixelsize[0] = 2 * 2;
@@ -1055,6 +1059,14 @@ static void gen_twopix(struct tpg_data *tpg,
 	switch (tpg->fourcc) {
 	case V4L2_PIX_FMT_GREY:
 		buf[0][offset] = r_y_h;
+		break;
+	case V4L2_PIX_FMT_Y10:
+		buf[0][offset] = (r_y_h << 2) & 0xff;
+		buf[0][offset+1] = r_y_h >> 6;
+		break;
+	case V4L2_PIX_FMT_Y12:
+		buf[0][offset] = (r_y_h << 4) & 0xff;
+		buf[0][offset+1] = r_y_h >> 4;
 		break;
 	case V4L2_PIX_FMT_Y16:
 		/*

@@ -39,6 +39,18 @@
 				status = "okay";
 			};
 
+			tcb0: timer@fff7c000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usart1: serial@fff90000 {
 				pinctrl-0 =
 					<&pinctrl_usart1
@@ -220,7 +232,7 @@
 			};
 		};
 
-		fb0: fb@0x00500000 {
+		fb0: fb@500000 {
 			display = <&display0>;
 			status = "okay";
 
@@ -290,14 +302,14 @@
 			};
 		};
 
-		usb0: ohci@00700000 {
+		usb0: ohci@700000 {
 			status = "okay";
 			num-ports = <2>;
 			atmel,vbus-gpio = <&pioD 1 GPIO_ACTIVE_LOW
 					   &pioD 3 GPIO_ACTIVE_LOW>;
 		};
 
-		usb1: ehci@00800000 {
+		usb1: ehci@800000 {
 			status = "okay";
 		};
 	};

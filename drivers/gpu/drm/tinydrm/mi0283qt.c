@@ -9,6 +9,8 @@
  * (at your option) any later version.
  */
 
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/tinydrm/ili9341.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
@@ -31,7 +33,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 
 	ret = regulator_enable(mipi->regulator);
 	if (ret) {
-		dev_err(dev, "Failed to enable regulator %d\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to enable regulator %d\n", ret);
 		return ret;
 	}
 
@@ -42,7 +44,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 	mipi_dbi_hw_reset(mipi);
 	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
 	if (ret) {
-		dev_err(dev, "Error sending command %d\n", ret);
+		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
 		regulator_disable(mipi->regulator);
 		return ret;
 	}
@@ -139,7 +141,7 @@ static struct drm_driver mi0283qt_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= tinydrm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
 	.desc			= "Multi-Inno MI0283QT",
@@ -163,7 +165,6 @@ MODULE_DEVICE_TABLE(spi, mi0283qt_id);
 static int mi0283qt_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct tinydrm_device *tdev;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
@@ -175,13 +176,13 @@ static int mi0283qt_probe(struct spi_device *spi)
 
 	mipi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
-		dev_err(dev, "Failed to get gpio 'reset'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
 		return PTR_ERR(mipi->reset);
 	}
 
 	dc = devm_gpiod_get_optional(dev, "dc", GPIOD_OUT_LOW);
 	if (IS_ERR(dc)) {
-		dev_err(dev, "Failed to get gpio 'dc'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'dc'\n");
 		return PTR_ERR(dc);
 	}
 
@@ -215,20 +216,9 @@ static int mi0283qt_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	tdev = &mipi->tinydrm;
-
-	ret = devm_tinydrm_register(tdev);
-	if (ret)
-		return ret;
-
 	spi_set_drvdata(spi, mipi);
 
-	DRM_DEBUG_DRIVER("Initialized %s:%s @%uMHz on minor %d\n",
-			 tdev->drm->driver->name, dev_name(dev),
-			 spi->max_speed_hz / 1000000,
-			 tdev->drm->primary->index);
-
-	return 0;
+	return devm_tinydrm_register(&mipi->tinydrm);
 }
 
 static void mi0283qt_shutdown(struct spi_device *spi)
@@ -243,7 +233,7 @@ static int __maybe_unused mi0283qt_pm_suspend(struct device *dev)
 	struct mipi_dbi *mipi = dev_get_drvdata(dev);
 	int ret;
 
-	ret = tinydrm_suspend(&mipi->tinydrm);
+	ret = drm_mode_config_helper_suspend(mipi->tinydrm.drm);
 	if (ret)
 		return ret;
 
@@ -261,7 +251,9 @@ static int __maybe_unused mi0283qt_pm_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	return tinydrm_resume(&mipi->tinydrm);
+	drm_mode_config_helper_resume(mipi->tinydrm.drm);
+
+	return 0;
 }
 
 static const struct dev_pm_ops mi0283qt_pm_ops = {

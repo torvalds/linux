@@ -1,35 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MUSB OTG driver core code
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- * NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
- * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 /*
@@ -485,9 +460,9 @@ void musb_load_testpacket(struct musb *musb)
 /*
  * Handles OTG hnp timeouts, such as b_ase0_brst
  */
-static void musb_otg_timer_func(unsigned long data)
+static void musb_otg_timer_func(struct timer_list *t)
 {
-	struct musb	*musb = (struct musb *)data;
+	struct musb	*musb = from_timer(musb, t, otg_timer);
 	unsigned long	flags;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -767,6 +742,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_B_IDLE:
 			if (!musb->is_active)
 				break;
+			/* fall through */
 		case OTG_STATE_B_PERIPHERAL:
 			musb_g_suspend(musb);
 			musb->is_active = musb->g.b_hnp_enable;
@@ -1711,7 +1687,7 @@ EXPORT_SYMBOL_GPL(musb_mailbox);
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
-musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb *musb = dev_to_musb(dev);
 	unsigned long flags;
@@ -1725,7 +1701,7 @@ musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-musb_mode_store(struct device *dev, struct device_attribute *attr,
+mode_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1745,10 +1721,10 @@ musb_mode_store(struct device *dev, struct device_attribute *attr,
 
 	return (status == 0) ? n : status;
 }
-static DEVICE_ATTR(mode, 0644, musb_mode_show, musb_mode_store);
+static DEVICE_ATTR_RW(mode);
 
 static ssize_t
-musb_vbus_store(struct device *dev, struct device_attribute *attr,
+vbus_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1772,7 +1748,7 @@ musb_vbus_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
+vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
@@ -1797,13 +1773,12 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
 			vbus ? "on" : "off", val);
 }
-static DEVICE_ATTR(vbus, 0644, musb_vbus_show, musb_vbus_store);
+static DEVICE_ATTR_RW(vbus);
 
 /* Gadget drivers can't know that a host is connected so they might want
  * to start SRP, but users can.  This allows userspace to trigger SRP.
  */
-static ssize_t
-musb_srp_store(struct device *dev, struct device_attribute *attr,
+static ssize_t srp_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
 	struct musb	*musb = dev_to_musb(dev);
@@ -1820,7 +1795,7 @@ musb_srp_store(struct device *dev, struct device_attribute *attr,
 
 	return n;
 }
-static DEVICE_ATTR(srp, 0644, NULL, musb_srp_store);
+static DEVICE_ATTR_WO(srp);
 
 static struct attribute *musb_attributes[] = {
 	&dev_attr_mode.attr,
@@ -2330,7 +2305,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail3;
 
-	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
+	timer_setup(&musb->otg_timer, musb_otg_timer_func, 0);
 
 	/* attach to the IRQ */
 	if (request_irq(nIrq, musb->isr, IRQF_SHARED, dev_name(dev), musb)) {
@@ -2733,7 +2708,8 @@ static int musb_resume(struct device *dev)
 	if ((devctl & mask) != (musb->context.devctl & mask))
 		musb->port1_status = 0;
 
-	musb_start(musb);
+	musb_enable_interrupts(musb);
+	musb_platform_enable(musb);
 
 	spin_lock_irqsave(&musb->lock, flags);
 	error = musb_run_resume_work(musb);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "S/390 block device drivers"
 	depends on S390 && BLOCK
 
@@ -15,6 +16,7 @@ config BLK_DEV_XPRAM
 config DCSSBLK
 	def_tristate m
 	select DAX
+	select FS_DAX_LIMITED
 	prompt "DCSSBLK support"
 	depends on S390 && BLOCK
 	help

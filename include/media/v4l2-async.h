@@ -28,7 +28,7 @@ struct v4l2_async_notifier;
  *	in order to identify a match
  *
  * @V4L2_ASYNC_MATCH_CUSTOM: Match will use the logic provided by &struct
- * 	v4l2_async_subdev.match ops
+ *	v4l2_async_subdev.match ops
  * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
  * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
@@ -48,18 +48,43 @@ enum v4l2_async_match_type {
  *
  * @match_type:	type of match that will be used
  * @match:	union of per-bus type matching data sets
+ * @match.fwnode:
+ *		pointer to &struct fwnode_handle to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_FWNODE.
+ * @match.device_name:
+ *		string containing the device name to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_DEVNAME.
+ * @match.i2c:	embedded struct with I2C parameters to be matched.
+ *		Both @match.i2c.adapter_id and @match.i2c.address
+ *		should be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.i2c.adapter_id:
+ *		I2C adapter ID to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.i2c.address:
+ *		I2C address to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.custom:
+ *		Driver-specific match criteria.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_CUSTOM.
+ * @match.custom.match:
+ *		Driver-specific match function to be used if
+ *		%V4L2_ASYNC_MATCH_CUSTOM.
+ * @match.custom.priv:
+ *		Driver-specific private struct with match parameters
+ *		to be used if %V4L2_ASYNC_MATCH_CUSTOM.
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
  *		probed, to a notifier->waiting list
+ *
+ * When this struct is used as a member in a driver specific struct,
+ * the driver specific struct shall contain the &struct
+ * v4l2_async_subdev as its first member.
  */
 struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
 	union {
-		struct {
-			struct fwnode_handle *fwnode;
-		} fwnode;
-		struct {
-			const char *name;
-		} device_name;
+		struct fwnode_handle *fwnode;
+		const char *device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;
@@ -76,25 +101,13 @@ struct v4l2_async_subdev {
 };
 
 /**
- * struct v4l2_async_notifier - v4l2_device notifier data
- *
- * @num_subdevs: number of subdevices
- * @subdevs:	array of pointers to subdevice descriptors
- * @v4l2_dev:	pointer to struct v4l2_device
- * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
- * @done:	list of struct v4l2_subdev, already probed
- * @list:	member in a global list of notifiers
- * @bound:	a subdevice driver has successfully probed one of subdevices
- * @complete:	all subdevices have been probed successfully
+ * struct v4l2_async_notifier_operations - Asynchronous V4L2 notifier operations
+ * @bound:	a subdevice driver has successfully probed one of the subdevices
+ * @complete:	All subdevices have been probed successfully. The complete
+ *		callback is only executed for the root notifier.
  * @unbind:	a subdevice is leaving
  */
-struct v4l2_async_notifier {
-	unsigned int num_subdevs;
-	struct v4l2_async_subdev **subdevs;
-	struct v4l2_device *v4l2_dev;
-	struct list_head waiting;
-	struct list_head done;
-	struct list_head list;
+struct v4l2_async_notifier_operations {
 	int (*bound)(struct v4l2_async_notifier *notifier,
 		     struct v4l2_subdev *subdev,
 		     struct v4l2_async_subdev *asd);
@@ -102,6 +115,33 @@ struct v4l2_async_notifier {
 	void (*unbind)(struct v4l2_async_notifier *notifier,
 		       struct v4l2_subdev *subdev,
 		       struct v4l2_async_subdev *asd);
+};
+
+/**
+ * struct v4l2_async_notifier - v4l2_device notifier data
+ *
+ * @ops:	notifier operations
+ * @num_subdevs: number of subdevices used in the subdevs array
+ * @max_subdevs: number of subdevices allocated in the subdevs array
+ * @subdevs:	array of pointers to subdevice descriptors
+ * @v4l2_dev:	v4l2_device of the root notifier, NULL otherwise
+ * @sd:		sub-device that registered the notifier, NULL otherwise
+ * @parent:	parent notifier
+ * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
+ * @done:	list of struct v4l2_subdev, already probed
+ * @list:	member in a global list of notifiers
+ */
+struct v4l2_async_notifier {
+	const struct v4l2_async_notifier_operations *ops;
+	unsigned int num_subdevs;
+	unsigned int max_subdevs;
+	struct v4l2_async_subdev **subdevs;
+	struct v4l2_device *v4l2_dev;
+	struct v4l2_subdev *sd;
+	struct v4l2_async_notifier *parent;
+	struct list_head waiting;
+	struct list_head done;
+	struct list_head list;
 };
 
 /**
@@ -114,6 +154,16 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 				 struct v4l2_async_notifier *notifier);
 
 /**
+ * v4l2_async_subdev_notifier_register - registers a subdevice asynchronous
+ *					 notifier for a sub-device
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @notifier: pointer to &struct v4l2_async_notifier
+ */
+int v4l2_async_subdev_notifier_register(struct v4l2_subdev *sd,
+					struct v4l2_async_notifier *notifier);
+
+/**
  * v4l2_async_notifier_unregister - unregisters a subdevice asynchronous notifier
  *
  * @notifier: pointer to &struct v4l2_async_notifier
@@ -121,16 +171,54 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier);
 
 /**
+ * v4l2_async_notifier_cleanup - clean up notifier resources
+ * @notifier: the notifier the resources of which are to be cleaned up
+ *
+ * Release memory resources related to a notifier, including the async
+ * sub-devices allocated for the purposes of the notifier but not the notifier
+ * itself. The user is responsible for calling this function to clean up the
+ * notifier after calling @v4l2_async_notifier_parse_fwnode_endpoints or
+ * @v4l2_fwnode_reference_parse_sensor_common.
+ *
+ * There is no harm from calling v4l2_async_notifier_cleanup in other
+ * cases as long as its memory has been zeroed after it has been
+ * allocated.
+ */
+void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier);
+
+/**
  * v4l2_async_register_subdev - registers a sub-device to the asynchronous
- * 	subdevice framework
+ *	subdevice framework
  *
  * @sd: pointer to &struct v4l2_subdev
  */
 int v4l2_async_register_subdev(struct v4l2_subdev *sd);
 
 /**
+ * v4l2_async_register_subdev_sensor_common - registers a sensor sub-device to
+ *					      the asynchronous sub-device
+ *					      framework and parse set up common
+ *					      sensor related devices
+ *
+ * @sd: pointer to struct &v4l2_subdev
+ *
+ * This function is just like v4l2_async_register_subdev() with the exception
+ * that calling it will also parse firmware interfaces for remote references
+ * using v4l2_async_notifier_parse_fwnode_sensor_common() and registers the
+ * async sub-devices. The sub-device is similarly unregistered by calling
+ * v4l2_async_unregister_subdev().
+ *
+ * While registered, the subdev module is marked as in-use.
+ *
+ * An error is returned if the module is no longer loaded on any attempts
+ * to register it.
+ */
+int __must_check v4l2_async_register_subdev_sensor_common(
+	struct v4l2_subdev *sd);
+
+/**
  * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous
- * 	subdevice framework
+ *	subdevice framework
  *
  * @sd: pointer to &struct v4l2_subdev
  */

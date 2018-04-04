@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
-rc-core-objs	:= rc-main.o rc-ir-raw.o
 
 obj-y += keymaps/
 
 obj-$(CONFIG_RC_CORE) += rc-core.o
-obj-$(CONFIG_LIRC) += lirc_dev.o
+rc-core-y := rc-main.o rc-ir-raw.o
+rc-core-$(CONFIG_LIRC) += lirc_dev.o
 obj-$(CONFIG_IR_NEC_DECODER) += ir-nec-decoder.o
 obj-$(CONFIG_IR_RC5_DECODER) += ir-rc5-decoder.o
 obj-$(CONFIG_IR_RC6_DECODER) += ir-rc6-decoder.o
@@ -13,7 +13,6 @@ obj-$(CONFIG_IR_SONY_DECODER) += ir-sony-decoder.o
 obj-$(CONFIG_IR_SANYO_DECODER) += ir-sanyo-decoder.o
 obj-$(CONFIG_IR_SHARP_DECODER) += ir-sharp-decoder.o
 obj-$(CONFIG_IR_MCE_KBD_DECODER) += ir-mce_kbd-decoder.o
-obj-$(CONFIG_IR_LIRC_CODEC) += ir-lirc-codec.o
 obj-$(CONFIG_IR_XMP_DECODER) += ir-xmp-decoder.o
 
 # stand-alone IR receivers/transmitters
@@ -45,3 +44,4 @@ obj-$(CONFIG_IR_SERIAL) += serial_ir.o
 obj-$(CONFIG_IR_SIR) += sir_ir.o
 obj-$(CONFIG_IR_MTK) += mtk-cir.o
 obj-$(CONFIG_IR_ZX) += zx-irdec.o
+obj-$(CONFIG_IR_TANGO) += tango-ir.o

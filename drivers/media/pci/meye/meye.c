@@ -1423,14 +1423,14 @@ static long vidioc_default(struct file *file, void *fh, bool valid_prio,
 
 }
 
-static unsigned int meye_poll(struct file *file, poll_table *wait)
+static __poll_t meye_poll(struct file *file, poll_table *wait)
 {
-	unsigned int res = v4l2_ctrl_poll(file, wait);
+	__poll_t res = v4l2_ctrl_poll(file, wait);
 
 	mutex_lock(&meye.lock);
 	poll_wait(file, &meye.proc_list, wait);
 	if (kfifo_len(&meye.doneq))
-		res |= POLLIN | POLLRDNORM;
+		res |= EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&meye.lock);
 	return res;
 }
@@ -1536,7 +1536,7 @@ static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 static const struct video_device meye_template = {
 	.name		= "meye",
 	.fops		= &meye_fops,
-	.ioctl_ops 	= &meye_ioctl_ops,
+	.ioctl_ops	= &meye_ioctl_ops,
 	.release	= video_device_release_empty,
 };
 
@@ -1626,35 +1626,31 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	meye.mchip_dev = pcidev;
 
 	meye.grab_temp = vmalloc(MCHIP_NB_PAGES_MJPEG * PAGE_SIZE);
-	if (!meye.grab_temp) {
-		v4l2_err(v4l2_dev, "grab buffer allocation failed\n");
+	if (!meye.grab_temp)
 		goto outvmalloc;
-	}
 
 	spin_lock_init(&meye.grabq_lock);
 	if (kfifo_alloc(&meye.grabq, sizeof(int) * MEYE_MAX_BUFNBRS,
-				GFP_KERNEL)) {
-		v4l2_err(v4l2_dev, "fifo allocation failed\n");
+			GFP_KERNEL))
 		goto outkfifoalloc1;
-	}
+
 	spin_lock_init(&meye.doneq_lock);
 	if (kfifo_alloc(&meye.doneq, sizeof(int) * MEYE_MAX_BUFNBRS,
-				GFP_KERNEL)) {
-		v4l2_err(v4l2_dev, "fifo allocation failed\n");
+			GFP_KERNEL))
 		goto outkfifoalloc2;
-	}
 
 	meye.vdev = meye_template;
 	meye.vdev.v4l2_dev = &meye.v4l2_dev;
 
-	ret = -EIO;
-	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
+	ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1);
+	if (ret) {
 		v4l2_err(v4l2_dev, "meye: unable to power on the camera\n");
 		v4l2_err(v4l2_dev, "meye: did you enable the camera in sonypi using the module options ?\n");
 		goto outsonypienable;
 	}
 
-	if ((ret = pci_enable_device(meye.mchip_dev))) {
+	ret = pci_enable_device(meye.mchip_dev);
+	if (ret) {
 		v4l2_err(v4l2_dev, "meye: pci_enable_device failed\n");
 		goto outenabledev;
 	}

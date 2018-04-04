@@ -251,6 +251,9 @@ enum {
 	AHCI_HFLAG_YES_ALPM		= (1 << 23), /* force ALPM cap on */
 	AHCI_HFLAG_NO_WRITE_TO_RO	= (1 << 24), /* don't write to read
 							only registers */
+	AHCI_HFLAG_IS_MOBILE		= (1 << 25), /* mobile chipset, use
+							SATA_MOBILE_LPM_POLICY
+							as default lpm_policy */
 
 	/* ap->flags bits */
 
@@ -303,6 +306,7 @@ struct ahci_em_priv {
 	unsigned long saved_activity;
 	unsigned long activity;
 	unsigned long led_state;
+	struct ata_link *link;
 };
 
 struct ahci_port_priv {

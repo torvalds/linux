@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ACPI PCI HotPlug glue functions to ACPI CA subsystem
  *
@@ -10,21 +11,6 @@
  * Copyright (C) 2005 Intel Corporation
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <kristen.c.accardi@intel.com>
  *
@@ -462,18 +448,15 @@ static void enable_slot(struct acpiphp_slot *slot)
 	acpiphp_rescan_slot(slot);
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
-		list_for_each_entry(dev, &bus->devices, bus_list) {
+		for_each_pci_bridge(dev, bus) {
 			if (PCI_SLOT(dev->devfn) != slot->device)
 				continue;
 
-			if (pci_is_bridge(dev)) {
-				max = pci_scan_bridge(bus, dev, max, pass);
-				if (pass && dev->subordinate) {
-					check_hotplug_bridge(slot, dev);
-					pcibios_resource_survey_bus(dev->subordinate);
-					__pci_bus_size_bridges(dev->subordinate,
-							       &add_list);
-				}
+			max = pci_scan_bridge(bus, dev, max, pass);
+			if (pass && dev->subordinate) {
+				check_hotplug_bridge(slot, dev);
+				pcibios_resource_survey_bus(dev->subordinate);
+				__pci_bus_size_bridges(dev->subordinate, &add_list);
 			}
 		}
 	}
@@ -814,10 +797,8 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 
 	handle = adev->handle;
 	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
-	if (!bridge) {
-		acpi_handle_err(handle, "No memory for bridge object\n");
+	if (!bridge)
 		return;
-	}
 
 	INIT_LIST_HEAD(&bridge->slots);
 	kref_init(&bridge->ref);

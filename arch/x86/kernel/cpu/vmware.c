@@ -205,10 +205,10 @@ static bool __init vmware_legacy_x2apic_available(void)
 	       (eax & (1 << VMWARE_PORT_CMD_LEGACY_X2APIC)) != 0;
 }
 
-const __refconst struct hypervisor_x86 x86_hyper_vmware = {
+const __initconst struct hypervisor_x86 x86_hyper_vmware = {
 	.name			= "VMware",
 	.detect			= vmware_platform,
-	.init_platform		= vmware_platform_setup,
-	.x2apic_available	= vmware_legacy_x2apic_available,
+	.type			= X86_HYPER_VMWARE,
+	.init.init_platform	= vmware_platform_setup,
+	.init.x2apic_available	= vmware_legacy_x2apic_available,
 };
-EXPORT_SYMBOL(x86_hyper_vmware);

@@ -99,6 +99,10 @@ static struct notifier_block i40iw_net_notifier = {
 	.notifier_call = i40iw_net_event
 };
 
+static struct notifier_block i40iw_netdevice_notifier = {
+	.notifier_call = i40iw_netdevice_event
+};
+
 /**
  * i40iw_find_i40e_handler - find a handler given a client info
  * @ldev: pointer to a client info
@@ -353,6 +357,8 @@ static void i40iw_dele_ceqs(struct i40iw_device *iwdev)
 		i40iw_disable_irq(dev, msix_vec, (void *)iwceq);
 		i40iw_destroy_ceq(iwdev, iwceq);
 	}
+
+	iwdev->sc_dev.ceq_valid = false;
 }
 
 /**
@@ -481,6 +487,7 @@ static enum i40iw_status_code i40iw_create_hmc_objs(struct i40iw_device *iwdev,
 	for (i = 0; i < IW_HMC_OBJ_TYPE_NUM; i++) {
 		info.rsrc_type = iw_hmc_obj_types[i];
 		info.count = dev->hmc_info->hmc_obj[info.rsrc_type].cnt;
+		info.add_sd_cnt = 0;
 		status = i40iw_create_hmc_obj_type(dev, &info);
 		if (status) {
 			i40iw_pr_err("create obj type %d status = %d\n",
@@ -605,7 +612,7 @@ static enum i40iw_status_code i40iw_create_cqp(struct i40iw_device *iwdev)
 	INIT_LIST_HEAD(&cqp->cqp_avail_reqs);
 	INIT_LIST_HEAD(&cqp->cqp_pending_reqs);
 	/* init the waitq of the cqp_requests and add them to the list */
-	for (i = 0; i < I40IW_CQP_SW_SQSIZE_2048; i++) {
+	for (i = 0; i < sqsize; i++) {
 		init_waitqueue_head(&cqp->cqp_requests[i].waitq);
 		list_add_tail(&cqp->cqp_requests[i].list, &cqp->cqp_avail_reqs);
 	}
@@ -810,17 +817,16 @@ static enum i40iw_status_code i40iw_setup_ceqs(struct i40iw_device *iwdev,
 		i40iw_enable_intr(&iwdev->sc_dev, msix_vec->idx);
 		iwdev->ceqs_count++;
 	}
-
 exit:
-	if (status) {
-		if (!iwdev->ceqs_count) {
-			kfree(iwdev->ceqlist);
-			iwdev->ceqlist = NULL;
-		} else {
-			status = 0;
-		}
+	if (status && !iwdev->ceqs_count) {
+		kfree(iwdev->ceqlist);
+		iwdev->ceqlist = NULL;
+		return status;
+	} else {
+		iwdev->sc_dev.ceq_valid = true;
+		return 0;
 	}
-	return status;
+
 }
 
 /**
@@ -958,17 +964,32 @@ static enum i40iw_status_code i40iw_initialize_ieq(struct i40iw_device *iwdev)
 	memset(&info, 0, sizeof(info));
 	info.type = I40IW_PUDA_RSRC_TYPE_IEQ;
 	info.cq_id = 2;
-	info.qp_id = iwdev->sc_dev.exception_lan_queue;
+	info.qp_id = iwdev->vsi.exception_lan_queue;
 	info.count = 1;
 	info.pd_id = 2;
 	info.sq_size = 8192;
 	info.rq_size = 8192;
-	info.buf_size = 2048;
-	info.tx_buf_cnt = 16384;
+	info.buf_size = iwdev->vsi.mtu + VLAN_ETH_HLEN;
+	info.tx_buf_cnt = 4096;
 	status = i40iw_puda_create_rsrc(&iwdev->vsi, &info);
 	if (status)
 		i40iw_pr_err("ieq create fail\n");
 	return status;
+}
+
+/**
+ * i40iw_reinitialize_ieq - destroy and re-create ieq
+ * @dev: iwarp device
+ */
+void i40iw_reinitialize_ieq(struct i40iw_sc_dev *dev)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+
+	i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_IEQ, false);
+	if (i40iw_initialize_ieq(iwdev)) {
+		iwdev->reset = true;
+		i40iw_request_reset(iwdev);
+	}
 }
 
 /**
@@ -1269,7 +1290,7 @@ static void i40iw_wait_pe_ready(struct i40iw_hw *hw)
 			      __LINE__, statuscpu2);
 		if ((statuscpu0 == 0x80) && (statuscpu1 == 0x80) && (statuscpu2 == 0x80))
 			break;	/* SUCCESS */
-		mdelay(1000);
+		msleep(1000);
 		retrycount++;
 	} while (retrycount < 14);
 	i40iw_wr32(hw, 0xb4040, 0x4C104C5);
@@ -1327,8 +1348,8 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	info.bar0 = ldev->hw_addr;
 	info.hw = &iwdev->hw;
 	info.debug_mask = debug;
-	l2params.mss =
-		(ldev->params.mtu) ? ldev->params.mtu - I40IW_MTU_TO_MSS : I40IW_DEFAULT_MSS;
+	l2params.mtu =
+		(ldev->params.mtu) ? ldev->params.mtu : I40IW_DEFAULT_MTU;
 	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++) {
 		qset = ldev->params.qos.prio_qos[i].qs_handle;
 		l2params.qs_handle_list[i] = qset;
@@ -1338,7 +1359,6 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 			iwdev->dcb = true;
 	}
 	i40iw_pr_info("DCB is set/clear = %d\n", iwdev->dcb);
-	info.exception_lan_queue = 1;
 	info.vchnl_send = i40iw_virtchnl_send;
 	status = i40iw_device_init(&iwdev->sc_dev, &info);
 
@@ -1348,6 +1368,7 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	vsi_info.dev = &iwdev->sc_dev;
 	vsi_info.back_vsi = (void *)iwdev;
 	vsi_info.params = &l2params;
+	vsi_info.exception_lan_queue = 1;
 	i40iw_sc_vsi_init(&iwdev->vsi, &vsi_info);
 
 	if (dev->is_pf) {
@@ -1377,6 +1398,7 @@ static void i40iw_register_notifiers(void)
 	register_inetaddr_notifier(&i40iw_inetaddr_notifier);
 	register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
 	register_netevent_notifier(&i40iw_net_notifier);
+	register_netdevice_notifier(&i40iw_netdevice_notifier);
 }
 
 /**
@@ -1388,6 +1410,7 @@ static void i40iw_unregister_notifiers(void)
 	unregister_netevent_notifier(&i40iw_net_notifier);
 	unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
 	unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
+	unregister_netdevice_notifier(&i40iw_netdevice_notifier);
 }
 
 /**
@@ -1748,7 +1771,7 @@ static void i40iw_l2param_change(struct i40e_info *ldev, struct i40e_client *cli
 	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++)
 		l2params->qs_handle_list[i] = params->qos.prio_qos[i].qs_handle;
 
-	l2params->mss = (params->mtu) ? params->mtu - I40IW_MTU_TO_MSS : iwdev->vsi.mss;
+	l2params->mtu = (params->mtu) ? params->mtu : iwdev->vsi.mtu;
 
 	INIT_WORK(&work->work, i40iw_l2params_worker);
 	queue_work(iwdev->param_wq, &work->work);
@@ -1777,7 +1800,7 @@ static void i40iw_close(struct i40e_info *ldev, struct i40e_client *client, bool
 	if (reset)
 		iwdev->reset = true;
 
-	i40iw_cm_disconnect_all(iwdev);
+	i40iw_cm_teardown_connections(iwdev, NULL, NULL, true);
 	destroy_workqueue(iwdev->virtchnl_wq);
 	i40iw_deinit_device(iwdev);
 }

@@ -54,7 +54,7 @@ Optional properties:
 
 
 Example:
-	i2c@12CA0000 {
+	i2c@12ca0000 {
 		compatible = "acme,some-i2c-device";
 		#address-cells = <1>;
 		#size-cells = <0>;

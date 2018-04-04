@@ -2115,7 +2115,7 @@ static void max98090_pll_work(struct work_struct *work)
 	if (!snd_soc_codec_is_active(codec))
 		return;
 
-	dev_info(codec->dev, "PLL unlocked\n");
+	dev_info_ratelimited(codec->dev, "PLL unlocked\n");
 
 	/* Toggle shutdown OFF then ON */
 	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,

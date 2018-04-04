@@ -60,8 +60,22 @@ static int ccu_reset_reset(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static int ccu_reset_status(struct reset_controller_dev *rcdev,
+			    unsigned long id)
+{
+	struct ccu_reset *ccu = rcdev_to_ccu_reset(rcdev);
+	const struct ccu_reset_map *map = &ccu->reset_map[id];
+
+	/*
+	 * The reset control API expects 0 if reset is not asserted,
+	 * which is the opposite of what our hardware uses.
+	 */
+	return !(map->bit & readl(ccu->base + map->reg));
+}
+
 const struct reset_control_ops ccu_reset_ops = {
 	.assert		= ccu_reset_assert,
 	.deassert	= ccu_reset_deassert,
 	.reset		= ccu_reset_reset,
+	.status		= ccu_reset_status,
 };

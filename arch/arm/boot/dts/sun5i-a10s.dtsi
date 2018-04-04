@@ -76,14 +76,14 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@01c00000 {
-		hdmi: hdmi@01c16000 {
+	soc@1c00000 {
+		hdmi: hdmi@1c16000 {
 			compatible = "allwinner,sun5i-a10s-hdmi";
 			reg = <0x01c16000 0x1000>;
 			interrupts = <58>;
 			clocks = <&ccu CLK_AHB_HDMI>, <&ccu CLK_HDMI>,
-				 <&ccu 9>,
-				 <&ccu 16>;
+				 <&ccu CLK_PLL_VIDEO0_2X>,
+				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "pll-0", "pll-1";
 			dmas = <&dma SUN4I_DMA_NORMAL 16>,
 			       <&dma SUN4I_DMA_NORMAL 16>,
@@ -111,7 +111,7 @@
 			};
 		};
 
-		pwm: pwm@01c20e00 {
+		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a10s-pwm";
 			reg = <0x01c20e00 0xc>;
 			clocks = <&ccu CLK_HOSC>;

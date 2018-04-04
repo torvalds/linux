@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24123.h"
 
 #define XTAL 10111000

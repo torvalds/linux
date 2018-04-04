@@ -70,75 +70,6 @@ struct rt_signal_frame32 {
 	/* __siginfo_rwin_t * */u32 rwin_save;
 } __attribute__((aligned(8)));
 
-int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-{
-	int err;
-
-	if (!access_ok(VERIFY_WRITE, to, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
-	/* If you change siginfo_t structure, please be sure
-	   this code is fixed accordingly.
-	   It should never copy any pad contained in the structure
-	   to avoid security leaks, but must copy the generic
-	   3 ints plus the relevant union member.
-	   This routine must convert siginfo from 64bit to 32bit as well
-	   at the same time.  */
-	err = __put_user(from->si_signo, &to->si_signo);
-	err |= __put_user(from->si_errno, &to->si_errno);
-	err |= __put_user(from->si_code, &to->si_code);
-	if (from->si_code < 0)
-		err |= __copy_to_user(&to->_sifields._pad, &from->_sifields._pad, SI_PAD_SIZE);
-	else {
-		switch (siginfo_layout(from->si_signo, from->si_code)) {
-		case SIL_TIMER:
-			err |= __put_user(from->si_tid, &to->si_tid);
-			err |= __put_user(from->si_overrun, &to->si_overrun);
-			err |= __put_user(from->si_int, &to->si_int);
-			break;
-		case SIL_CHLD:
-			err |= __put_user(from->si_utime, &to->si_utime);
-			err |= __put_user(from->si_stime, &to->si_stime);
-			err |= __put_user(from->si_status, &to->si_status);
-		default:
-		case SIL_KILL:
-			err |= __put_user(from->si_pid, &to->si_pid);
-			err |= __put_user(from->si_uid, &to->si_uid);
-			break;
-		case SIL_FAULT:
-			err |= __put_user(from->si_trapno, &to->si_trapno);
-			err |= __put_user((unsigned long)from->si_addr, &to->si_addr);
-			break;
-		case SIL_POLL:
-			err |= __put_user(from->si_band, &to->si_band);
-			err |= __put_user(from->si_fd, &to->si_fd);
-			break;
-		case SIL_RT:
-			err |= __put_user(from->si_pid, &to->si_pid);
-			err |= __put_user(from->si_uid, &to->si_uid);
-			err |= __put_user(from->si_int, &to->si_int);
-			break;
-		}
-	}
-	return err;
-}
-
-/* CAUTION: This is just a very minimalist implementation for the
- *          sake of compat_sys_rt_sigqueueinfo()
- */
-int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
-{
-	if (!access_ok(VERIFY_WRITE, from, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
-	if (copy_from_user(to, from, 3*sizeof(int)) ||
-	    copy_from_user(to->_sifields._pad, from->_sifields._pad,
-			   SI_PAD_SIZE))
-		return -EFAULT;
-
-	return 0;
-}
-
 /* Checks if the fp is valid.  We always build signal frames which are
  * 16-byte aligned, therefore we can always enforce that the restore
  * frame has that property as well.
@@ -249,7 +180,6 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	compat_uptr_t fpu_save;
 	compat_uptr_t rwin_save;
 	sigset_t set;
-	compat_sigset_t seta;
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
@@ -312,7 +242,7 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	err |= __get_user(fpu_save, &sf->fpu_save);
 	if (!err && fpu_save)
 		err |= restore_fpu_state(regs, compat_ptr(fpu_save));
-	err |= copy_from_user(&seta, &sf->mask, sizeof(compat_sigset_t));
+	err |= get_compat_sigset(&set, &sf->mask);
 	err |= compat_restore_altstack(&sf->stack);
 	if (err)
 		goto segv;
@@ -323,7 +253,6 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 			goto segv;
 	}
 
-	set.sig[0] = seta.sig[0] + (((long)seta.sig[1]) << 32);
 	set_current_blocked(&set);
 	return;
 segv:
@@ -555,7 +484,6 @@ static int setup_rt_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	void __user *tail;
 	int sigframe_size;
 	u32 psr;
-	compat_sigset_t seta;
 
 	/* 1. Make sure everything is clean */
 	synchronize_user_stack();
@@ -625,9 +553,7 @@ static int setup_rt_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	/* Setup sigaltstack */
 	err |= __compat_save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
 
-	seta.sig[1] = (oldset->sig[0] >> 32);
-	seta.sig[0] = oldset->sig[0];
-	err |= __copy_to_user(&sf->mask, &seta, sizeof(compat_sigset_t));
+	err |= put_compat_sigset(&sf->mask, oldset, sizeof(compat_sigset_t));
 
 	if (!wsaved) {
 		err |= copy_in_user((u32 __user *)sf,

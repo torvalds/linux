@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Platform support for Mellanox hardware
+#
+
+menuconfig MELLANOX_PLATFORM
+	bool "Platform support for Mellanox hardware"
+	depends on X86 || ARM || COMPILE_TEST
+	---help---
+	  Say Y here to get to see options for platform support for
+	  Mellanox systems. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if MELLANOX_PLATFORM
+
+config MLXREG_HOTPLUG
+	tristate "Mellanox platform hotplug driver support"
+	depends on REGMAP
+	depends on HWMON
+	depends on I2C
+	---help---
+	  This driver handles hot-plug events for the power suppliers, power
+	  cables and fans on the wide range Mellanox IB and Ethernet systems.
+
+endif # MELLANOX_PLATFORM

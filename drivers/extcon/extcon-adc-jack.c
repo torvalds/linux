@@ -26,7 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/iio/consumer.h>
 #include <linux/extcon/extcon-adc-jack.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 /**
  * struct adc_jack_data - internal data for adc_jack device driver
@@ -144,7 +144,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 		return err;
 
 	data->irq = platform_get_irq(pdev, 0);
-	if (!data->irq) {
+	if (data->irq < 0) {
 		dev_err(&pdev->dev, "platform_get_irq failed\n");
 		return -ENODEV;
 	}

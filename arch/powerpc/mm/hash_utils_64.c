@@ -21,6 +21,7 @@
 #undef DEBUG
 #undef DEBUG_LOW
 
+#define pr_fmt(fmt) "hash-mmu: " fmt
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/sched/mm.h>
@@ -35,6 +36,7 @@
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
+#include <linux/pkeys.h>
 
 #include <asm/debugfs.h>
 #include <asm/processor.h>
@@ -231,6 +233,7 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		 */
 		rflags |= HPTE_R_M;
 
+	rflags |= pte_to_hpte_pkey_bits(pteflags);
 	return rflags;
 }
 
@@ -605,7 +608,7 @@ static void init_hpte_page_sizes(void)
 			continue;	/* not a supported page size */
 		for (ap = bp; ap < MMU_PAGE_COUNT; ++ap) {
 			penc = mmu_psize_defs[bp].penc[ap];
-			if (penc == -1)
+			if (penc == -1 || !mmu_psize_defs[ap].shift)
 				continue;
 			shift = mmu_psize_defs[ap].shift - LP_SHIFT;
 			if (shift <= 0)
@@ -771,7 +774,7 @@ void resize_hpt_for_hotplug(unsigned long new_mem_size)
 		int rc;
 
 		rc = mmu_hash_ops.resize_hpt(target_hpt_shift);
-		if (rc)
+		if (rc && (rc != -ENODEV))
 			printk(KERN_WARNING
 			       "Unable to resize hash page table to target order %d: %d\n",
 			       target_hpt_shift, rc);
@@ -978,8 +981,9 @@ void __init hash__early_init_devtree(void)
 
 void __init hash__early_init_mmu(void)
 {
+#ifndef CONFIG_PPC_64K_PAGES
 	/*
-	 * We have code in __hash_page_64K() and elsewhere, which assumes it can
+	 * We have code in __hash_page_4K() and elsewhere, which assumes it can
 	 * do the following:
 	 *   new_pte |= (slot << H_PAGE_F_GIX_SHIFT) & (H_PAGE_F_SECOND | H_PAGE_F_GIX);
 	 *
@@ -990,6 +994,7 @@ void __init hash__early_init_mmu(void)
 	 * with a BUILD_BUG_ON().
 	 */
 	BUILD_BUG_ON(H_PAGE_F_SECOND != (1ul  << (H_PAGE_F_GIX_SHIFT + 3)));
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	htab_init_page_sizes();
 
@@ -1003,6 +1008,7 @@ void __init hash__early_init_mmu(void)
 	__pmd_index_size = H_PMD_INDEX_SIZE;
 	__pud_index_size = H_PUD_INDEX_SIZE;
 	__pgd_index_size = H_PGD_INDEX_SIZE;
+	__pud_cache_index = H_PUD_CACHE_INDEX;
 	__pmd_cache_index = H_PMD_CACHE_INDEX;
 	__pte_table_size = H_PTE_TABLE_SIZE;
 	__pmd_table_size = H_PMD_TABLE_SIZE;
@@ -1048,6 +1054,10 @@ void __init hash__early_init_mmu(void)
 	pr_info("Initializing hash mmu with SLB\n");
 	/* Initialize SLB management */
 	slb_initialize();
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206)
+			&& cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 
 #ifdef CONFIG_SMP
@@ -1067,6 +1077,10 @@ void hash__early_init_mmu_secondary(void)
 	}
 	/* Initialize SLB */
 	slb_initialize();
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206)
+			&& cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 #endif /* CONFIG_SMP */
 
@@ -1568,6 +1582,30 @@ out_exit:
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_PPC_MEM_KEYS
+/*
+ * Return the protection key associated with the given address and the
+ * mm_struct.
+ */
+u16 get_mm_addr_key(struct mm_struct *mm, unsigned long address)
+{
+	pte_t *ptep;
+	u16 pkey = 0;
+	unsigned long flags;
+
+	if (!mm || !mm->pgd)
+		return 0;
+
+	local_irq_save(flags);
+	ptep = find_linux_pte(mm->pgd, address, NULL, NULL);
+	if (ptep)
+		pkey = pte_to_pkey_bits(pte_val(READ_ONCE(*ptep)));
+	local_irq_restore(flags);
+
+	return pkey;
+}
+#endif /* CONFIG_PPC_MEM_KEYS */
+
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 static inline void tm_flush_hash_page(int local)
 {
@@ -1591,29 +1629,42 @@ static inline void tm_flush_hash_page(int local)
 }
 #endif
 
+/*
+ * Return the global hash slot, corresponding to the given PTE, which contains
+ * the HPTE.
+ */
+unsigned long pte_get_hash_gslot(unsigned long vpn, unsigned long shift,
+		int ssize, real_pte_t rpte, unsigned int subpg_index)
+{
+	unsigned long hash, gslot, hidx;
+
+	hash = hpt_hash(vpn, shift, ssize);
+	hidx = __rpte_to_hidx(rpte, subpg_index);
+	if (hidx & _PTEIDX_SECONDARY)
+		hash = ~hash;
+	gslot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+	gslot += hidx & _PTEIDX_GROUP_IX;
+	return gslot;
+}
+
 /* WARNING: This is called from hash_low_64.S, if you change this prototype,
  *          do not forget to update the assembly call site !
  */
 void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 		     unsigned long flags)
 {
-	unsigned long hash, index, shift, hidx, slot;
+	unsigned long index, shift, gslot;
 	int local = flags & HPTE_LOCAL_UPDATE;
 
 	DBG_LOW("flush_hash_page(vpn=%016lx)\n", vpn);
 	pte_iterate_hashed_subpages(pte, psize, vpn, index, shift) {
-		hash = hpt_hash(vpn, shift, ssize);
-		hidx = __rpte_to_hidx(pte, index);
-		if (hidx & _PTEIDX_SECONDARY)
-			hash = ~hash;
-		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += hidx & _PTEIDX_GROUP_IX;
-		DBG_LOW(" sub %ld: hash=%lx, hidx=%lx\n", index, slot, hidx);
+		gslot = pte_get_hash_gslot(vpn, shift, ssize, pte, index);
+		DBG_LOW(" sub %ld: gslot=%lx\n", index, gslot);
 		/*
 		 * We use same base page size and actual psize, because we don't
 		 * use these functions for hugepage
 		 */
-		mmu_hash_ops.hpte_invalidate(slot, vpn, psize, psize,
+		mmu_hash_ops.hpte_invalidate(gslot, vpn, psize, psize,
 					     ssize, local);
 	} pte_iterate_hashed_end();
 
@@ -1824,16 +1875,24 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 */
 	BUG_ON(first_memblock_base != 0);
 
-	/* On LPAR systems, the first entry is our RMA region,
-	 * non-LPAR 64-bit hash MMU systems don't have a limitation
-	 * on real mode access, but using the first entry works well
-	 * enough. We also clamp it to 1G to avoid some funky things
-	 * such as RTAS bugs etc...
+	/*
+	 * On virtualized systems the first entry is our RMA region aka VRMA,
+	 * non-virtualized 64-bit hash MMU systems don't have a limitation
+	 * on real mode access.
+	 *
+	 * For guests on platforms before POWER9, we clamp the it limit to 1G
+	 * to avoid some funky things such as RTAS bugs etc...
 	 */
-	ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
+	if (!early_cpu_has_feature(CPU_FTR_HVMODE)) {
+		ppc64_rma_size = first_memblock_size;
+		if (!early_cpu_has_feature(CPU_FTR_ARCH_300))
+			ppc64_rma_size = min_t(u64, ppc64_rma_size, 0x40000000);
 
-	/* Finally limit subsequent allocations */
-	memblock_set_current_limit(ppc64_rma_size);
+		/* Finally limit subsequent allocations */
+		memblock_set_current_limit(ppc64_rma_size);
+	} else {
+		ppc64_rma_size = ULONG_MAX;
+	}
 }
 
 #ifdef CONFIG_DEBUG_FS

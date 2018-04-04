@@ -224,7 +224,7 @@ out:
 	return ret;
 }
 
-static struct dma_fence_ops vmw_fence_ops = {
+static const struct dma_fence_ops vmw_fence_ops = {
 	.get_driver_name = vmw_fence_get_driver_name,
 	.get_timeline_name = vmw_fence_get_timeline_name,
 	.enable_signaling = vmw_fence_enable_signaling,
@@ -588,6 +588,10 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	struct vmw_user_fence *ufence;
 	struct vmw_fence_obj *tmp;
 	struct ttm_mem_global *mem_glob = vmw_mem_glob(fman->dev_priv);
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	int ret;
 
 	/*
@@ -596,7 +600,7 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 	 */
 
 	ret = ttm_mem_global_alloc(mem_glob, fman->user_fence_size,
-				   false, false);
+				   &ctx);
 	if (unlikely(ret != 0))
 		return ret;
 

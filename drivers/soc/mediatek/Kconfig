@@ -1,9 +1,11 @@
 #
 # MediaTek SoC drivers
 #
+menu "MediaTek SoC drivers"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+
 config MTK_INFRACFG
 	bool "MediaTek INFRACFG Support"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select REGMAP
 	help
 	  Say yes here to add support for the MediaTek INFRACFG controller. The
@@ -12,7 +14,6 @@ config MTK_INFRACFG
 
 config MTK_PMIC_WRAP
 	tristate "MediaTek PMIC Wrapper Support"
-	depends on ARCH_MEDIATEK
 	depends on RESET_CONTROLLER
 	select REGMAP
 	help
@@ -22,7 +23,6 @@ config MTK_PMIC_WRAP
 
 config MTK_SCPSYS
 	bool "MediaTek SCPSYS Support"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
 	default ARCH_MEDIATEK
 	select REGMAP
 	select MTK_INFRACFG
@@ -30,3 +30,5 @@ config MTK_SCPSYS
 	help
 	  Say yes here to add support for the MediaTek SCPSYS power domain
 	  driver.
+
+endmenu

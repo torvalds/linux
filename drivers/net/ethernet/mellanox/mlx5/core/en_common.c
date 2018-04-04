@@ -134,6 +134,7 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
+	memset(res, 0, sizeof(*res));
 }
 
 int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
@@ -169,4 +170,16 @@ out:
 		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
 
 	return err;
+}
+
+u8 mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev)
+{
+	u8 min_inline_mode;
+
+	mlx5_query_min_inline(mdev, &min_inline_mode);
+	if (min_inline_mode == MLX5_INLINE_MODE_NONE &&
+	    !MLX5_CAP_ETH(mdev, wqe_vlan_insert))
+		min_inline_mode = MLX5_INLINE_MODE_L2;
+
+	return min_inline_mode;
 }

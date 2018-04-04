@@ -50,6 +50,67 @@
 		vmmc-supply = <&vdd_sd>;
 	};
 
+	pcie@10003000 {
+		status = "okay";
+
+		dvdd-pex-supply = <&vdd_pex>;
+		hvdd-pex-pll-supply = <&vdd_1v8>;
+		hvdd-pex-supply = <&vdd_1v8>;
+		vddio-pexctl-aud-supply = <&vdd_1v8>;
+
+		pci@1,0 {
+			nvidia,num-lanes = <4>;
+			status = "okay";
+		};
+
+		pci@2,0 {
+			nvidia,num-lanes = <0>;
+			status = "disabled";
+		};
+
+		pci@3,0 {
+			nvidia,num-lanes = <1>;
+			status = "disabled";
+		};
+	};
+
+	host1x@13e00000 {
+		status = "okay";
+
+		dpaux@15040000 {
+			status = "okay";
+		};
+
+		display-hub@15200000 {
+			status = "okay";
+		};
+
+		dsi@15300000 {
+			status = "disabled";
+		};
+
+		sor@15540000 {
+			status = "disabled";
+
+			nvidia,dpaux = <&dpaux1>;
+		};
+
+		sor@15580000 {
+			status = "okay";
+
+			avdd-io-supply = <&vdd_hdmi_1v05>;
+			vdd-pll-supply = <&vdd_1v8_ap>;
+			hdmi-supply = <&vdd_hdmi>;
+
+			nvidia,ddc-i2c-bus = <&ddc>;
+			nvidia,hpd-gpio = <&gpio TEGRA_MAIN_GPIO(P, 1) GPIO_ACTIVE_LOW>;
+		};
+
+		dpaux@155c0000 {
+			status = "okay";
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -95,6 +156,20 @@
 			enable-active-high;
 
 			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_hdmi: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
+
+			regulator-name = "VDD_HDMI_5V0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
 		};
 	};
 };

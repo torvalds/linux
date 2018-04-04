@@ -204,10 +204,17 @@ CONTENTS
  It does so by decrementing the runtime of the executing task Ti at a pace equal
  to
 
-           dq = -max{ Ui, (1 - Uinact) } dt
+           dq = -max{ Ui / Umax, (1 - Uinact - Uextra) } dt
 
- where Uinact is the inactive utilization, computed as (this_bq - running_bw),
- and Ui is the bandwidth of task Ti.
+ where:
+
+  - Ui is the bandwidth of task Ti;
+  - Umax is the maximum reclaimable utilization (subjected to RT throttling
+    limits);
+  - Uinact is the (per runqueue) inactive utilization, computed as
+    (this_bq - running_bw);
+  - Uextra is the (per runqueue) extra reclaimable utilization
+    (subjected to RT throttling limits).
 
 
  Let's now see a trivial example of two deadline tasks with runtime equal

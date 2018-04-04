@@ -126,18 +126,6 @@ static inline const char *acpi_get_enable_method(int cpu)
  */
 #define acpi_disable_cmcff 1
 pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
-
-/*
- * Despite its name, this function must still broadcast the TLB
- * invalidation in order to ensure other CPUs don't end up with junk
- * entries as a result of speculation. Unusually, its also called in
- * IRQ context (ghes_iounmap_irq) so if we ever need to use IPIs for
- * TLB broadcasting, then we're in trouble here.
- */
-static inline void arch_apei_flush_tlb_one(unsigned long addr)
-{
-	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-}
 #endif /* CONFIG_ACPI_APEI */
 
 #ifdef CONFIG_ACPI_NUMA

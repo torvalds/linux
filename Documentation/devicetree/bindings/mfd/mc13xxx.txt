@@ -113,7 +113,6 @@ MC13892 regulators:
 Examples:
 
 ecspi@70010000 { /* ECSPI1 */
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 24 0>, /* GPIO4_24 */
 		   <&gpio4 25 0>; /* GPIO4_25 */
 
@@ -131,7 +130,7 @@ ecspi@70010000 { /* ECSPI1 */
 			#size-cells = <0>;
 			led-control = <0x000 0x000 0x0e0 0x000>;
 
-			sysled {
+			sysled@3 {
 				reg = <3>;
 				label = "system:red:live";
 				linux,default-trigger = "heartbeat";

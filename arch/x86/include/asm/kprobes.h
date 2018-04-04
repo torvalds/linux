@@ -58,14 +58,16 @@ extern __visible kprobe_opcode_t optprobe_template_call[];
 extern __visible kprobe_opcode_t optprobe_template_end[];
 #define MAX_OPTIMIZED_LENGTH (MAX_INSN_SIZE + RELATIVE_ADDR_SIZE)
 #define MAX_OPTINSN_SIZE 				\
-	(((unsigned long)&optprobe_template_end -	\
-	  (unsigned long)&optprobe_template_entry) +	\
+	(((unsigned long)optprobe_template_end -	\
+	  (unsigned long)optprobe_template_entry) +	\
 	 MAX_OPTIMIZED_LENGTH + RELATIVEJUMP_SIZE)
 
 extern const int kretprobe_blacklist_size;
 
 void arch_remove_kprobe(struct kprobe *p);
 asmlinkage void kretprobe_trampoline(void);
+
+extern void arch_kprobe_override_function(struct pt_regs *regs);
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {

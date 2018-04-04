@@ -372,7 +372,6 @@ static int ti_ads7950_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ti_ads7950_info = {
 	.read_raw		= &ti_ads7950_read_raw,
 	.update_scan_mode	= ti_ads7950_update_scan_mode,
-	.driver_module		= THIS_MODULE,
 };
 
 static int ti_ads7950_probe(struct spi_device *spi)

@@ -40,11 +40,19 @@
 };
 
 &ethsc {
-	interrupts = <0 48 4>;
+	interrupts = <0 8>;
 };
 
 &serial0 {
 	status = "okay";
+};
+
+&gpio {
+	xirq0 {
+		gpio-hog;
+		gpios = <UNIPHIER_GPIO_IRQ(0) 0>;
+		input;
+	};
 };
 
 &i2c0 {

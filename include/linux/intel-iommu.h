@@ -83,7 +83,9 @@
 /*
  * Decoding Capability Register
  */
+#define cap_5lp_support(c)	(((c) >> 60) & 1)
 #define cap_pi_support(c)	(((c) >> 59) & 1)
+#define cap_fl1gp_support(c)	(((c) >> 56) & 1)
 #define cap_read_drain(c)	(((c) >> 55) & 1)
 #define cap_write_drain(c)	(((c) >> 54) & 1)
 #define cap_max_amask_val(c)	(((c) >> 48) & 0x3f)
@@ -212,6 +214,7 @@
 #define DMA_FSTS_IQE (1 << 4)
 #define DMA_FSTS_ICE (1 << 5)
 #define DMA_FSTS_ITE (1 << 6)
+#define DMA_FSTS_PRO (1 << 7)
 #define dma_fsts_fault_record_index(s) (((s) >> 8) & 0xff)
 
 /* FRCD_REG, 32 bits access */

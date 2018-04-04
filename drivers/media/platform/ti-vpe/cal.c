@@ -28,10 +28,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
-#include <media/v4l2-event.h>
-#include <media/v4l2-common.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 #include "cal_regs.h"
@@ -1522,6 +1519,11 @@ static int cal_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations cal_async_ops = {
+	.bound = cal_async_bound,
+	.complete = cal_async_complete,
+};
+
 static int cal_complete_ctx(struct cal_ctx *ctx)
 {
 	struct video_device *vfd;
@@ -1700,7 +1702,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 		goto cleanup_exit;
 	}
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	asd->match.fwnode.fwnode = of_fwnode_handle(sensor_node);
+	asd->match.fwnode = of_fwnode_handle(sensor_node);
 
 	remote_ep = of_graph_get_remote_endpoint(ep_node);
 	if (!remote_ep) {
@@ -1736,8 +1738,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	ctx->asd_list[0] = asd;
 	ctx->notifier.subdevs = ctx->asd_list;
 	ctx->notifier.num_subdevs = 1;
-	ctx->notifier.bound = cal_async_bound;
-	ctx->notifier.complete = cal_async_complete;
+	ctx->notifier.ops = &cal_async_ops;
 	ret = v4l2_async_notifier_register(&ctx->v4l2_dev,
 					   &ctx->notifier);
 	if (ret) {

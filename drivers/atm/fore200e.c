@@ -358,26 +358,33 @@ fore200e_shutdown(struct fore200e* fore200e)
     case FORE200E_STATE_COMPLETE:
 	kfree(fore200e->stats);
 
+	/* fall through */
     case FORE200E_STATE_IRQ:
 	free_irq(fore200e->irq, fore200e->atm_dev);
 
+	/* fall through */
     case FORE200E_STATE_ALLOC_BUF:
 	fore200e_free_rx_buf(fore200e);
 
+	/* fall through */
     case FORE200E_STATE_INIT_BSQ:
 	fore200e_uninit_bs_queue(fore200e);
 
+	/* fall through */
     case FORE200E_STATE_INIT_RXQ:
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_rxq.status);
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_rxq.rpd);
 
+	/* fall through */
     case FORE200E_STATE_INIT_TXQ:
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_txq.status);
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_txq.tpd);
 
+	/* fall through */
     case FORE200E_STATE_INIT_CMDQ:
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_cmdq.status);
 
+	/* fall through */
     case FORE200E_STATE_INITIALIZE:
 	/* nothing to do for that state */
 
@@ -390,6 +397,7 @@ fore200e_shutdown(struct fore200e* fore200e)
     case FORE200E_STATE_MAP:
 	fore200e->bus->unmap(fore200e);
 
+	/* fall through */
     case FORE200E_STATE_CONFIGURE:
 	/* nothing to do for that state */
 
@@ -3075,8 +3083,8 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 	    ASSERT(fore200e_vcc);
 
 	    len = sprintf(page,
-			  "  %08x  %03d %05d %1d   %09lu %05d/%05d      %09lu %05d/%05d\n",
-			  (u32)(unsigned long)vcc,
+			  "  %pK  %03d %05d %1d   %09lu %05d/%05d      %09lu %05d/%05d\n",
+			  vcc,
 			  vcc->vpi, vcc->vci, fore200e_atm2fore_aal(vcc->qos.aal),
 			  fore200e_vcc->tx_pdu,
 			  fore200e_vcc->tx_min_pdu > 0xFFFF ? 0 : fore200e_vcc->tx_min_pdu,

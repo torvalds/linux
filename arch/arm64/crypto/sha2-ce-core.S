@@ -53,6 +53,7 @@
 	/*
 	 * The SHA-256 round constants
 	 */
+	.section	".rodata", "a"
 	.align		4
 .Lsha2_rcon:
 	.word		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5
@@ -76,9 +77,10 @@
 	 * void sha2_ce_transform(struct sha256_ce_state *sst, u8 const *src,
 	 *			  int blocks)
 	 */
+	.text
 ENTRY(sha2_ce_transform)
 	/* load round constants */
-	adr		x8, .Lsha2_rcon
+	adr_l		x8, .Lsha2_rcon
 	ld1		{ v0.4s- v3.4s}, [x8], #64
 	ld1		{ v4.4s- v7.4s}, [x8], #64
 	ld1		{ v8.4s-v11.4s}, [x8], #64

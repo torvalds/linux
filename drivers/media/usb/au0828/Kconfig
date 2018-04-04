@@ -1,7 +1,7 @@
 
 config VIDEO_AU0828
 	tristate "Auvitek AU0828 support"
-	depends on I2C && INPUT && DVB_CORE && USB
+	depends on I2C && INPUT && DVB_CORE && USB && VIDEO_V4L2
 	select I2C_ALGOBIT
 	select VIDEO_TVEEPROM
 	select VIDEOBUF2_VMALLOC

@@ -52,8 +52,3 @@ void arch_apei_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 	apei_mce_report_mem_error(sev, mem_err);
 #endif
 }
-
-void arch_apei_flush_tlb_one(unsigned long addr)
-{
-	__flush_tlb_one(addr);
-}

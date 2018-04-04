@@ -113,8 +113,6 @@ static struct omap_hwmod omap3xxx_iva_hwmod = {
 	.prcm = {
 		.omap2 = {
 			.module_offs = OMAP3430_IVA2_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_IVA2_SHIFT,
 		},
@@ -188,8 +186,6 @@ static struct omap_hwmod omap3xxx_timer1_hwmod = {
 	.main_clk	= "gpt1_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT1_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT1_SHIFT,
@@ -206,8 +202,6 @@ static struct omap_hwmod omap3xxx_timer2_hwmod = {
 	.main_clk	= "gpt2_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT2_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT2_SHIFT,
@@ -223,8 +217,6 @@ static struct omap_hwmod omap3xxx_timer3_hwmod = {
 	.main_clk	= "gpt3_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT3_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT3_SHIFT,
@@ -240,8 +232,6 @@ static struct omap_hwmod omap3xxx_timer4_hwmod = {
 	.main_clk	= "gpt4_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT4_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT4_SHIFT,
@@ -257,8 +247,6 @@ static struct omap_hwmod omap3xxx_timer5_hwmod = {
 	.main_clk	= "gpt5_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT5_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT5_SHIFT,
@@ -275,8 +263,6 @@ static struct omap_hwmod omap3xxx_timer6_hwmod = {
 	.main_clk	= "gpt6_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT6_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT6_SHIFT,
@@ -293,8 +279,6 @@ static struct omap_hwmod omap3xxx_timer7_hwmod = {
 	.main_clk	= "gpt7_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT7_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT7_SHIFT,
@@ -311,8 +295,6 @@ static struct omap_hwmod omap3xxx_timer8_hwmod = {
 	.main_clk	= "gpt8_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT8_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT8_SHIFT,
@@ -329,8 +311,6 @@ static struct omap_hwmod omap3xxx_timer9_hwmod = {
 	.main_clk	= "gpt9_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT9_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT9_SHIFT,
@@ -347,8 +327,6 @@ static struct omap_hwmod omap3xxx_timer10_hwmod = {
 	.main_clk	= "gpt10_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT10_SHIFT,
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT10_SHIFT,
@@ -365,8 +343,6 @@ static struct omap_hwmod omap3xxx_timer11_hwmod = {
 	.main_clk	= "gpt11_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT11_SHIFT,
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT11_SHIFT,
@@ -384,8 +360,6 @@ static struct omap_hwmod omap3xxx_timer12_hwmod = {
 	.main_clk	= "gpt12_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPT12_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPT12_SHIFT,
@@ -439,8 +413,6 @@ static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
 	.main_clk	= "wdt2_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_WDT2_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_WDT2_SHIFT,
@@ -461,8 +433,6 @@ static struct omap_hwmod omap3xxx_uart1_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_UART1_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_UART1_SHIFT,
 		},
@@ -478,8 +448,6 @@ static struct omap_hwmod omap3xxx_uart2_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_UART2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_UART2_SHIFT,
 		},
@@ -496,8 +464,6 @@ static struct omap_hwmod omap3xxx_uart3_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = OMAP3430_PER_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_UART3_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_UART3_SHIFT,
 		},
@@ -515,8 +481,6 @@ static struct omap_hwmod omap36xx_uart4_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = OMAP3430_PER_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3630_EN_UART4_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3630_EN_UART4_SHIFT,
 		},
@@ -546,8 +510,6 @@ static struct omap_hwmod am35xx_uart4_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = AM35XX_EN_UART4_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = AM35XX_ST_UART4_SHIFT,
 		},
@@ -563,12 +525,6 @@ static struct omap_hwmod_class i2c_class = {
 	.sysc	= &i2c_sysc,
 	.rev	= OMAP_I2C_IP_VERSION_1,
 	.reset	= &omap_i2c_reset,
-};
-
-static struct omap_hwmod_dma_info omap3xxx_dss_sdma_chs[] = {
-	{ .name = "dispc", .dma_req = 5 },
-	{ .name = "dsi1", .dma_req = 74 },
-	{ .dma_req = -1, },
 };
 
 /* dss */
@@ -587,14 +543,10 @@ static struct omap_hwmod omap3430es1_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_DSS1_SHIFT,
 			.module_offs = OMAP3430_DSS_MOD,
 			.idlest_reg_id = 1,
-			.idlest_stdby_bit = OMAP3430ES1_ST_DSS_SHIFT,
 		},
 	},
 	.opt_clks	= dss_opt_clks,
@@ -607,15 +559,11 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_DSS1_SHIFT,
 			.module_offs = OMAP3430_DSS_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430ES2_ST_DSS_IDLE_SHIFT,
-			.idlest_stdby_bit = OMAP3430ES2_ST_DSS_STDBY_SHIFT,
 		},
 	},
 	.opt_clks	= dss_opt_clks,
@@ -647,12 +595,9 @@ static struct omap_hwmod_class omap3_dispc_hwmod_class = {
 static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap3_dispc_hwmod_class,
-	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_DSS1_SHIFT,
 			.module_offs = OMAP3430_DSS_MOD,
 		},
 	},
@@ -692,8 +637,6 @@ static struct omap_hwmod omap3xxx_dss_dsi1_hwmod = {
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_DSS1_SHIFT,
 			.module_offs = OMAP3430_DSS_MOD,
 		},
 	},
@@ -712,8 +655,6 @@ static struct omap_hwmod omap3xxx_dss_rfbi_hwmod = {
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_DSS1_SHIFT,
 			.module_offs = OMAP3430_DSS_MOD,
 		},
 	},
@@ -733,8 +674,6 @@ static struct omap_hwmod omap3xxx_dss_venc_hwmod = {
 	.main_clk	= "dss_tv_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_DSS1_SHIFT,
 			.module_offs = OMAP3430_DSS_MOD,
 		},
 	},
@@ -756,8 +695,6 @@ static struct omap_hwmod omap3xxx_i2c1_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_I2C1_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_I2C1_SHIFT,
 		},
@@ -779,8 +716,6 @@ static struct omap_hwmod omap3xxx_i2c2_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_I2C2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_I2C2_SHIFT,
 		},
@@ -804,8 +739,6 @@ static struct omap_hwmod omap3xxx_i2c3_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_I2C3_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_I2C3_SHIFT,
 		},
@@ -855,8 +788,6 @@ static struct omap_hwmod omap3xxx_gpio1_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPIO1_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPIO1_SHIFT,
@@ -879,8 +810,6 @@ static struct omap_hwmod omap3xxx_gpio2_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPIO2_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPIO2_SHIFT,
@@ -903,8 +832,6 @@ static struct omap_hwmod omap3xxx_gpio3_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPIO3_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPIO3_SHIFT,
@@ -927,8 +854,6 @@ static struct omap_hwmod omap3xxx_gpio4_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPIO4_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPIO4_SHIFT,
@@ -952,8 +877,6 @@ static struct omap_hwmod omap3xxx_gpio5_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(gpio5_opt_clks),
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPIO5_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPIO5_SHIFT,
@@ -977,8 +900,6 @@ static struct omap_hwmod omap3xxx_gpio6_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(gpio6_opt_clks),
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_GPIO6_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_GPIO6_SHIFT,
@@ -1017,13 +938,10 @@ static struct omap_hwmod_class omap3xxx_dma_hwmod_class = {
 static struct omap_hwmod omap3xxx_dma_system_hwmod = {
 	.name		= "dma",
 	.class		= &omap3xxx_dma_hwmod_class,
-	.mpu_irqs	= omap2_dma_system_irqs,
 	.main_clk	= "core_l3_ick",
 	.prcm = {
 		.omap2 = {
 			.module_offs		= CORE_MOD,
-			.prcm_reg_id		= 1,
-			.module_bit		= OMAP3430_ST_SDMA_SHIFT,
 			.idlest_reg_id		= 1,
 			.idlest_idle_bit	= OMAP3430_ST_SDMA_SHIFT,
 		},
@@ -1070,8 +988,6 @@ static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 	.main_clk	= "mcbsp1_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCBSP1_SHIFT,
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCBSP1_SHIFT,
@@ -1093,8 +1009,6 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 	.main_clk	= "mcbsp2_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCBSP2_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCBSP2_SHIFT,
@@ -1117,8 +1031,6 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 	.main_clk	= "mcbsp3_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCBSP3_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCBSP3_SHIFT,
@@ -1138,8 +1050,6 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 	.main_clk	= "mcbsp4_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCBSP4_SHIFT,
 			.module_offs = OMAP3430_PER_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCBSP4_SHIFT,
@@ -1158,8 +1068,6 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 	.main_clk	= "mcbsp5_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCBSP5_SHIFT,
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCBSP5_SHIFT,
@@ -1200,10 +1108,6 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 };
 
 /* SR common */
-static struct omap_hwmod_sysc_fields omap34xx_sr_sysc_fields = {
-	.clkact_shift	= 20,
-};
-
 static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
 	.sysc_offs	= 0x24,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_NO_CACHE),
@@ -1214,11 +1118,6 @@ static struct omap_hwmod_class omap34xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap34xx_sr_sysc,
 	.rev  = 1,
-};
-
-static struct omap_hwmod_sysc_fields omap36xx_sr_sysc_fields = {
-	.sidle_shift	= 24,
-	.enwkup_shift	= 26,
 };
 
 static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
@@ -1247,8 +1146,6 @@ static struct omap_hwmod omap34xx_sr1_hwmod = {
 	.main_clk	= "sr1_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_SR1_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_SR1_SHIFT,
@@ -1264,8 +1161,6 @@ static struct omap_hwmod omap36xx_sr1_hwmod = {
 	.main_clk	= "sr1_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_SR1_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_SR1_SHIFT,
@@ -1286,8 +1181,6 @@ static struct omap_hwmod omap34xx_sr2_hwmod = {
 	.main_clk	= "sr2_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_SR2_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_SR2_SHIFT,
@@ -1303,8 +1196,6 @@ static struct omap_hwmod omap36xx_sr2_hwmod = {
 	.main_clk	= "sr2_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_SR2_SHIFT,
 			.module_offs = WKUP_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_EN_SR2_SHIFT,
@@ -1340,8 +1231,6 @@ static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 	.main_clk	= "mailboxes_ick",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MAILBOXES_SHIFT,
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MAILBOXES_SHIFT,
@@ -1383,8 +1272,6 @@ static struct omap_hwmod omap34xx_mcspi1 = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCSPI1_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCSPI1_SHIFT,
 		},
@@ -1404,8 +1291,6 @@ static struct omap_hwmod omap34xx_mcspi2 = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCSPI2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCSPI2_SHIFT,
 		},
@@ -1427,8 +1312,6 @@ static struct omap_hwmod omap34xx_mcspi3 = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCSPI3_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCSPI3_SHIFT,
 		},
@@ -1450,8 +1333,6 @@ static struct omap_hwmod omap34xx_mcspi4 = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCSPI4_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MCSPI4_SHIFT,
 		},
@@ -1485,12 +1366,9 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 	.main_clk	= "hsotgusb_ick",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_HSOTGUSB_SHIFT,
 			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT,
-			.idlest_stdby_bit = OMAP3430ES2_ST_HSOTGUSB_STDBY_SHIFT,
 		},
 	},
 	.class		= &usbotg_class,
@@ -1565,8 +1443,6 @@ static struct omap_hwmod omap3xxx_pre_es3_mmc1_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MMC1_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MMC1_SHIFT,
 		},
@@ -1583,8 +1459,6 @@ static struct omap_hwmod omap3xxx_es3plus_mmc1_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MMC1_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MMC1_SHIFT,
 		},
@@ -1614,8 +1488,6 @@ static struct omap_hwmod omap3xxx_pre_es3_mmc2_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MMC2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MMC2_SHIFT,
 		},
@@ -1632,8 +1504,6 @@ static struct omap_hwmod omap3xxx_es3plus_mmc2_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MMC2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MMC2_SHIFT,
 		},
@@ -1656,8 +1526,7 @@ static struct omap_hwmod omap3xxx_mmc3_hwmod = {
 	.main_clk	= "mmchs3_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MMC3_SHIFT,
+			.module_offs = CORE_MOD,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_MMC3_SHIFT,
 		},
@@ -1697,11 +1566,8 @@ static struct omap_hwmod omap3xxx_usb_host_hs_hwmod = {
 	.prcm = {
 		.omap2 = {
 			.module_offs = OMAP3430ES2_USBHOST_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430ES2_EN_USBHOST1_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430ES2_ST_USBHOST_IDLE_SHIFT,
-			.idlest_stdby_bit = OMAP3430ES2_ST_USBHOST_STDBY_SHIFT,
 		},
 	},
 
@@ -1775,8 +1641,6 @@ static struct omap_hwmod omap3xxx_usb_tll_hs_hwmod = {
 	.prcm = {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 3,
-			.module_bit = OMAP3430ES2_EN_USBTLL_SHIFT,
 			.idlest_reg_id = 3,
 			.idlest_idle_bit = OMAP3430ES2_ST_USBTLL_SHIFT,
 		},
@@ -1789,8 +1653,6 @@ static struct omap_hwmod omap3xxx_hdq1w_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_HDQ_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_HDQ_SHIFT,
 		},
@@ -1816,8 +1678,6 @@ static struct omap_hwmod omap3xxx_sad2d_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_SAD2D_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_SAD2D_SHIFT,
 		},
@@ -1851,8 +1711,6 @@ static struct omap_hwmod omap3xxx_counter_32k_hwmod = {
 	.prcm		= {
 		.omap2	= {
 			.module_offs = WKUP_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_ST_32KSYNC_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_32KSYNC_SHIFT,
 		},
@@ -2108,20 +1966,10 @@ static struct omap_hwmod_ocp_if omap3_l4_core__i2c3 = {
 };
 
 /* L4 CORE -> SR1 interface */
-static struct omap_hwmod_addr_space omap3_sr1_addr_space[] = {
-	{
-		.pa_start	= OMAP34XX_SR1_BASE,
-		.pa_end		= OMAP34XX_SR1_BASE + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
-
 static struct omap_hwmod_ocp_if omap34xx_l4_core__sr1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_sr1_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr1_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2129,25 +1977,15 @@ static struct omap_hwmod_ocp_if omap36xx_l4_core__sr1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap36xx_sr1_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr1_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
-/* L4 CORE -> SR1 interface */
-static struct omap_hwmod_addr_space omap3_sr2_addr_space[] = {
-	{
-		.pa_start	= OMAP34XX_SR2_BASE,
-		.pa_end		= OMAP34XX_SR2_BASE + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
+/* L4 CORE -> SR2 interface */
 
 static struct omap_hwmod_ocp_if omap34xx_l4_core__sr2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_sr2_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr2_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2155,7 +1993,6 @@ static struct omap_hwmod_ocp_if omap36xx_l4_core__sr2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap36xx_sr2_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr2_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2484,7 +2321,6 @@ static struct omap_hwmod omap3xxx_mmu_iva_hwmod = {
 	.prcm = {
 		.omap2 = {
 			.module_offs = OMAP3430_IVA2_MOD,
-			.module_bit = OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_IVA2_SHIFT,
 		},
@@ -2524,21 +2360,11 @@ static struct omap_hwmod_ocp_if omap3xxx_dma_system__l3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap3xxx_dma_system_addrs[] = {
-	{
-		.pa_start	= 0x48056000,
-		.pa_end		= 0x48056fff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
-
 /* l4_cfg -> dma_system */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dma_system = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dma_system_hwmod,
 	.clk		= "core_l4_ick",
-	.addr		= omap3xxx_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -2772,12 +2598,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l3_main__gpmc = {
 };
 
 /* l4_core -> SHAM2 (SHA1/MD5) (similar to omap24xx) */
-static struct omap_hwmod_sysc_fields omap3_sham_sysc_fields = {
-	.sidle_shift	= 4,
-	.srst_shift	= 1,
-	.autoidle_shift	= 0,
-};
-
 static struct omap_hwmod_class_sysconfig omap3_sham_sysc = {
 	.rev_offs	= 0x5c,
 	.sysc_offs	= 0x60,
@@ -2800,8 +2620,6 @@ static struct omap_hwmod omap3xxx_sham_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_SHA12_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_SHA12_SHIFT,
 		},
@@ -2818,12 +2636,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__sham = {
 };
 
 /* l4_core -> AES */
-static struct omap_hwmod_sysc_fields omap3xxx_aes_sysc_fields = {
-	.sidle_shift	= 6,
-	.srst_shift	= 1,
-	.autoidle_shift	= 0,
-};
-
 static struct omap_hwmod_class_sysconfig omap3_aes_sysc = {
 	.rev_offs	= 0x44,
 	.sysc_offs	= 0x48,
@@ -2846,8 +2658,6 @@ static struct omap_hwmod omap3xxx_aes_hwmod = {
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_AES2_SHIFT,
 			.idlest_reg_id = 1,
 			.idlest_idle_bit = OMAP3430_ST_AES2_SHIFT,
 		},
@@ -2890,8 +2700,6 @@ static struct omap_hwmod omap3xxx_ssi_hwmod = {
 	.main_clk	= "ssi_ssr_fck",
 	.prcm		= {
 		.omap2 = {
-			.prcm_reg_id		= 1,
-			.module_bit		= OMAP3430_EN_SSI_SHIFT,
 			.module_offs		= CORE_MOD,
 			.idlest_reg_id		= 1,
 			.idlest_idle_bit	= OMAP3430ES2_ST_SSI_IDLE_SHIFT,
@@ -3148,7 +2956,7 @@ int __init omap3xxx_hwmod_init(void)
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL, **h_gp = NULL, **h_sham = NULL;
 	struct omap_hwmod_ocp_if **h_aes = NULL;
-	struct device_node *bus = NULL;
+	struct device_node *bus;
 	unsigned int rev;
 
 	omap_hwmod_init();
@@ -3208,18 +3016,14 @@ int __init omap3xxx_hwmod_init(void)
 
 	if (h_sham && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "sham")) {
 		r = omap_hwmod_register_links(h_sham);
-		if (r < 0) {
-			of_node_put(bus);
-			return r;
-		}
+		if (r < 0)
+			goto put_node;
 	}
 
 	if (h_aes && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "aes")) {
 		r = omap_hwmod_register_links(h_aes);
-		if (r < 0) {
-			of_node_put(bus);
-			return r;
-		}
+		if (r < 0)
+			goto put_node;
 	}
 	of_node_put(bus);
 
@@ -3269,5 +3073,9 @@ int __init omap3xxx_hwmod_init(void)
 	 */
 	r = omap_hwmod_register_links(omap3xxx_dss_hwmod_ocp_ifs);
 
+	return r;
+
+put_node:
+	of_node_put(bus);
 	return r;
 }

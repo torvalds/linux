@@ -57,7 +57,7 @@ static bool bL_switching_enabled;
 #define VIRT_FREQ(cluster, freq)    ((cluster == A7_CLUSTER) ? freq >> 1 : freq)
 
 static struct thermal_cooling_device *cdev[MAX_CLUSTERS];
-static struct cpufreq_arm_bL_ops *arm_bL_ops;
+static const struct cpufreq_arm_bL_ops *arm_bL_ops;
 static struct clk *clk[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS + 1];
 static atomic_t cluster_usage[MAX_CLUSTERS + 1];
@@ -213,6 +213,7 @@ static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 {
 	u32 cpu = policy->cpu, cur_cluster, new_cluster, actual_cluster;
 	unsigned int freqs_new;
+	int ret;
 
 	cur_cluster = cpu_to_cluster(cpu);
 	new_cluster = actual_cluster = per_cpu(physical_cluster, cpu);
@@ -229,7 +230,14 @@ static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	return bL_cpufreq_set_rate(cpu, actual_cluster, new_cluster, freqs_new);
+	ret = bL_cpufreq_set_rate(cpu, actual_cluster, new_cluster, freqs_new);
+
+	if (!ret) {
+		arch_set_freq_scale(policy->related_cpus, freqs_new,
+				    policy->cpuinfo.max_freq);
+	}
+
+	return ret;
 }
 
 static inline u32 get_table_count(struct cpufreq_frequency_table *table)
@@ -518,34 +526,13 @@ static int bL_cpufreq_exit(struct cpufreq_policy *policy)
 
 static void bL_cpufreq_ready(struct cpufreq_policy *policy)
 {
-	struct device *cpu_dev = get_cpu_device(policy->cpu);
 	int cur_cluster = cpu_to_cluster(policy->cpu);
-	struct device_node *np;
 
 	/* Do not register a cpu_cooling device if we are in IKS mode */
 	if (cur_cluster >= MAX_CLUSTERS)
 		return;
 
-	np = of_node_get(cpu_dev->of_node);
-	if (WARN_ON(!np))
-		return;
-
-	if (of_find_property(np, "#cooling-cells", NULL)) {
-		u32 power_coefficient = 0;
-
-		of_property_read_u32(np, "dynamic-power-coefficient",
-				     &power_coefficient);
-
-		cdev[cur_cluster] = of_cpufreq_power_cooling_register(np,
-				policy, power_coefficient, NULL);
-		if (IS_ERR(cdev[cur_cluster])) {
-			dev_err(cpu_dev,
-				"running cpufreq without cooling device: %ld\n",
-				PTR_ERR(cdev[cur_cluster]));
-			cdev[cur_cluster] = NULL;
-		}
-	}
-	of_node_put(np);
+	cdev[cur_cluster] = of_cpufreq_cooling_register(policy);
 }
 
 static struct cpufreq_driver bL_cpufreq_driver = {
@@ -609,7 +596,7 @@ static int __bLs_register_notifier(void) { return 0; }
 static int __bLs_unregister_notifier(void) { return 0; }
 #endif
 
-int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
+int bL_cpufreq_register(const struct cpufreq_arm_bL_ops *ops)
 {
 	int ret, i;
 
@@ -653,7 +640,7 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 }
 EXPORT_SYMBOL_GPL(bL_cpufreq_register);
 
-void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops)
+void bL_cpufreq_unregister(const struct cpufreq_arm_bL_ops *ops)
 {
 	if (arm_bL_ops != ops) {
 		pr_err("%s: Registered with: %s, can't unregister, exiting\n",

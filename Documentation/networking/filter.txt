@@ -1134,7 +1134,7 @@ The verifier's knowledge about the variable offset consists of:
 mask and value; no bit should ever be 1 in both.  For example, if a byte is read
 into a register from memory, the register's top 56 bits are known zero, while
 the low 8 are unknown - which is represented as the tnum (0x0; 0xff).  If we
-then OR this with 0x40, we get (0x40; 0xcf), then if we add 1 we get (0x0;
+then OR this with 0x40, we get (0x40; 0xbf), then if we add 1 we get (0x0;
 0x1ff), because of potential carries.
 Besides arithmetic, the register state can also be updated by conditional
 branches.  For instance, if a SCALAR_VALUE is compared > 8, in the 'true' branch

@@ -111,7 +111,7 @@ unsigned int ia_css_util_input_format_bpp(
 		break;
 
 	}
-return rval;
+	return rval;
 }
 
 enum ia_css_err ia_css_util_check_vf_info(

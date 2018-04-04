@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_dr.c - dual role switch and host glue layer
  *
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/clk.h>
@@ -27,110 +18,77 @@
 #include "mtu3.h"
 #include "mtu3_dr.h"
 
-#define PERI_WK_CTRL1		0x404
-#define UWK_CTL1_IS_C(x)	(((x) & 0xf) << 26)
-#define UWK_CTL1_IS_E		BIT(25)
-#define UWK_CTL1_IDDIG_C(x)	(((x) & 0xf) << 11)  /* cycle debounce */
-#define UWK_CTL1_IDDIG_E	BIT(10) /* enable debounce */
-#define UWK_CTL1_IDDIG_P	BIT(9)  /* polarity */
-#define UWK_CTL1_IS_P		BIT(6)  /* polarity for ip sleep */
+/* mt8173 etc */
+#define PERI_WK_CTRL1	0x4
+#define WC1_IS_C(x)	(((x) & 0xf) << 26)  /* cycle debounce */
+#define WC1_IS_EN	BIT(25)
+#define WC1_IS_P	BIT(6)  /* polarity for ip sleep */
+
+/* mt2712 etc */
+#define PERI_SSUSB_SPM_CTRL	0x0
+#define SSC_IP_SLEEP_EN	BIT(4)
+#define SSC_SPM_INT_EN		BIT(1)
+
+enum ssusb_uwk_vers {
+	SSUSB_UWK_V1 = 1,
+	SSUSB_UWK_V2,
+};
 
 /*
  * ip-sleep wakeup mode:
  * all clocks can be turn off, but power domain should be kept on
  */
-static void ssusb_wakeup_ip_sleep_en(struct ssusb_mtk *ssusb)
+static void ssusb_wakeup_ip_sleep_set(struct ssusb_mtk *ssusb, bool enable)
 {
-	u32 tmp;
-	struct regmap *pericfg = ssusb->pericfg;
+	u32 reg, msk, val;
 
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_IS_P;
-	tmp &= ~(UWK_CTL1_IS_C(0xf));
-	tmp |= UWK_CTL1_IS_C(0x8);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp);
-	regmap_write(pericfg, PERI_WK_CTRL1, tmp | UWK_CTL1_IS_E);
-
-	regmap_read(pericfg, PERI_WK_CTRL1, &tmp);
-	dev_dbg(ssusb->dev, "%s(): WK_CTRL1[P6,E25,C26:29]=%#x\n",
-		__func__, tmp);
-}
-
-static void ssusb_wakeup_ip_sleep_dis(struct ssusb_mtk *ssusb)
-{
-	u32 tmp;
-
-	regmap_read(ssusb->pericfg, PERI_WK_CTRL1, &tmp);
-	tmp &= ~UWK_CTL1_IS_E;
-	regmap_write(ssusb->pericfg, PERI_WK_CTRL1, tmp);
+	switch (ssusb->uwk_vers) {
+	case SSUSB_UWK_V1:
+		reg = ssusb->uwk_reg_base + PERI_WK_CTRL1;
+		msk = WC1_IS_EN | WC1_IS_C(0xf) | WC1_IS_P;
+		val = enable ? (WC1_IS_EN | WC1_IS_C(0x8)) : 0;
+		break;
+	case SSUSB_UWK_V2:
+		reg = ssusb->uwk_reg_base + PERI_SSUSB_SPM_CTRL;
+		msk = SSC_IP_SLEEP_EN | SSC_SPM_INT_EN;
+		val = enable ? msk : 0;
+		break;
+	default:
+		return;
+	}
+	regmap_update_bits(ssusb->uwk, reg, msk, val);
 }
 
 int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 				struct device_node *dn)
 {
-	struct device *dev = ssusb->dev;
-
-	/*
-	 * Wakeup function is optional, so it is not an error if this property
-	 * does not exist, and in such case, no need to get relative
-	 * properties anymore.
-	 */
-	ssusb->wakeup_en = of_property_read_bool(dn, "mediatek,enable-wakeup");
-	if (!ssusb->wakeup_en)
-		return 0;
-
-	ssusb->wk_deb_p0 = devm_clk_get(dev, "wakeup_deb_p0");
-	if (IS_ERR(ssusb->wk_deb_p0)) {
-		dev_err(dev, "fail to get wakeup_deb_p0\n");
-		return PTR_ERR(ssusb->wk_deb_p0);
-	}
-
-	if (of_property_read_bool(dn, "wakeup_deb_p1")) {
-		ssusb->wk_deb_p1 = devm_clk_get(dev, "wakeup_deb_p1");
-		if (IS_ERR(ssusb->wk_deb_p1)) {
-			dev_err(dev, "fail to get wakeup_deb_p1\n");
-			return PTR_ERR(ssusb->wk_deb_p1);
-		}
-	}
-
-	ssusb->pericfg = syscon_regmap_lookup_by_phandle(dn,
-						"mediatek,syscon-wakeup");
-	if (IS_ERR(ssusb->pericfg)) {
-		dev_err(dev, "fail to get pericfg regs\n");
-		return PTR_ERR(ssusb->pericfg);
-	}
-
-	return 0;
-}
-
-static int ssusb_wakeup_clks_enable(struct ssusb_mtk *ssusb)
-{
+	struct of_phandle_args args;
 	int ret;
 
-	ret = clk_prepare_enable(ssusb->wk_deb_p0);
-	if (ret) {
-		dev_err(ssusb->dev, "failed to enable wk_deb_p0\n");
-		goto usb_p0_err;
-	}
+	/* wakeup function is optional */
+	ssusb->uwk_en = of_property_read_bool(dn, "wakeup-source");
+	if (!ssusb->uwk_en)
+		return 0;
 
-	ret = clk_prepare_enable(ssusb->wk_deb_p1);
-	if (ret) {
-		dev_err(ssusb->dev, "failed to enable wk_deb_p1\n");
-		goto usb_p1_err;
-	}
+	ret = of_parse_phandle_with_fixed_args(dn,
+				"mediatek,syscon-wakeup", 2, 0, &args);
+	if (ret)
+		return ret;
 
-	return 0;
+	ssusb->uwk_reg_base = args.args[0];
+	ssusb->uwk_vers = args.args[1];
+	ssusb->uwk = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	dev_info(ssusb->dev, "uwk - reg:0x%x, version:%d\n",
+			ssusb->uwk_reg_base, ssusb->uwk_vers);
 
-usb_p1_err:
-	clk_disable_unprepare(ssusb->wk_deb_p0);
-usb_p0_err:
-	return -EINVAL;
+	return PTR_ERR_OR_ZERO(ssusb->uwk);
 }
 
-static void ssusb_wakeup_clks_disable(struct ssusb_mtk *ssusb)
+void ssusb_wakeup_set(struct ssusb_mtk *ssusb, bool enable)
 {
-	clk_disable_unprepare(ssusb->wk_deb_p1);
-	clk_disable_unprepare(ssusb->wk_deb_p0);
+	if (ssusb->uwk_en)
+		ssusb_wakeup_ip_sleep_set(ssusb, enable);
 }
 
 static void host_ports_num_get(struct ssusb_mtk *ssusb)
@@ -151,6 +109,7 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	void __iomem *ibase = ssusb->ippc_base;
 	int num_u3p = ssusb->u3_ports;
 	int num_u2p = ssusb->u2_ports;
+	int u3_ports_disabed;
 	u32 check_clk;
 	u32 value;
 	int i;
@@ -158,8 +117,14 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	/* power on host ip */
 	mtu3_clrbits(ibase, U3D_SSUSB_IP_PW_CTRL1, SSUSB_IP_HOST_PDN);
 
-	/* power on and enable all u3 ports */
+	/* power on and enable u3 ports except skipped ones */
+	u3_ports_disabed = 0;
 	for (i = 0; i < num_u3p; i++) {
+		if ((0x1 << i) & ssusb->u3p_dis_msk) {
+			u3_ports_disabed++;
+			continue;
+		}
+
 		value = mtu3_readl(ibase, SSUSB_U3_CTRL(i));
 		value &= ~(SSUSB_U3_PORT_PDN | SSUSB_U3_PORT_DIS);
 		value |= SSUSB_U3_PORT_HOST_SEL;
@@ -175,7 +140,7 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	}
 
 	check_clk = SSUSB_XHCI_RST_B_STS;
-	if (num_u3p)
+	if (num_u3p > u3_ports_disabed)
 		check_clk = SSUSB_U3_MAC_RST_B_STS;
 
 	return ssusb_check_clocks(ssusb, check_clk);
@@ -190,8 +155,11 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 	int ret;
 	int i;
 
-	/* power down and disable all u3 ports */
+	/* power down and disable u3 ports except skipped ones */
 	for (i = 0; i < num_u3p; i++) {
+		if ((0x1 << i) & ssusb->u3p_dis_msk)
+			continue;
+
 		value = mtu3_readl(ibase, SSUSB_U3_CTRL(i));
 		value |= SSUSB_U3_PORT_PDN;
 		value |= suspend ? 0 : SSUSB_U3_PORT_DIS;
@@ -223,6 +191,8 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 
 static void ssusb_host_setup(struct ssusb_mtk *ssusb)
 {
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+
 	host_ports_num_get(ssusb);
 
 	/*
@@ -230,6 +200,9 @@ static void ssusb_host_setup(struct ssusb_mtk *ssusb)
 	 * if support OTG, gadget driver will switch port0 to device mode
 	 */
 	ssusb_host_enable(ssusb);
+
+	if (otg_sx->manual_drd_enabled)
+		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
 
 	/* if port0 supports dual-role, works as host mode by default */
 	ssusb_set_vbus(&ssusb->otg_switch, 1);
@@ -272,23 +245,4 @@ void ssusb_host_exit(struct ssusb_mtk *ssusb)
 {
 	of_platform_depopulate(ssusb->dev);
 	ssusb_host_cleanup(ssusb);
-}
-
-int ssusb_wakeup_enable(struct ssusb_mtk *ssusb)
-{
-	int ret = 0;
-
-	if (ssusb->wakeup_en) {
-		ret = ssusb_wakeup_clks_enable(ssusb);
-		ssusb_wakeup_ip_sleep_en(ssusb);
-	}
-	return ret;
-}
-
-void ssusb_wakeup_disable(struct ssusb_mtk *ssusb)
-{
-	if (ssusb->wakeup_en) {
-		ssusb_wakeup_ip_sleep_dis(ssusb);
-		ssusb_wakeup_clks_disable(ssusb);
-	}
 }

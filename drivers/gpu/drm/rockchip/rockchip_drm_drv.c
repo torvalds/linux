@@ -58,7 +58,7 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 
 	ret = iommu_attach_device(private->domain, dev);
 	if (ret) {
-		dev_err(dev, "Failed to attach iommu device\n");
+		DRM_DEV_ERROR(dev, "Failed to attach iommu device\n");
 		return ret;
 	}
 
@@ -207,13 +207,6 @@ static void rockchip_drm_unbind(struct device *dev)
 	drm_dev_unref(drm_dev);
 }
 
-static void rockchip_drm_lastclose(struct drm_device *dev)
-{
-	struct rockchip_drm_private *priv = dev->dev_private;
-
-	drm_fb_helper_restore_fbdev_mode_unlocked(&priv->fbdev_helper);
-}
-
 static const struct file_operations rockchip_drm_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -228,7 +221,7 @@ static const struct file_operations rockchip_drm_driver_fops = {
 static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
 				  DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose		= rockchip_drm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,
@@ -373,8 +366,9 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
 		if (!iommu || !of_device_is_available(iommu->parent)) {
-			dev_dbg(dev, "no iommu attached for %pOF, using non-iommu buffers\n",
-				port->parent);
+			DRM_DEV_DEBUG(dev,
+				      "no iommu attached for %pOF, using non-iommu buffers\n",
+				      port->parent);
 			/*
 			 * if there is a crtc not support iommu, force set all
 			 * crtc use non-iommu buffer.
@@ -389,12 +383,13 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 	}
 
 	if (i == 0) {
-		dev_err(dev, "missing 'ports' property\n");
+		DRM_DEV_ERROR(dev, "missing 'ports' property\n");
 		return -ENODEV;
 	}
 
 	if (!found) {
-		dev_err(dev, "No available vop found for display-subsystem.\n");
+		DRM_DEV_ERROR(dev,
+			      "No available vop found for display-subsystem.\n");
 		return -ENODEV;
 	}
 
@@ -453,6 +448,8 @@ static int __init rockchip_drm_init(void)
 
 	num_rockchip_sub_drivers = 0;
 	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_DRM_ROCKCHIP);
+	ADD_ROCKCHIP_SUB_DRIVER(rockchip_lvds_driver,
+				CONFIG_ROCKCHIP_LVDS);
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_dp_driver,
 				CONFIG_ROCKCHIP_ANALOGIX_DP);
 	ADD_ROCKCHIP_SUB_DRIVER(cdn_dp_driver, CONFIG_ROCKCHIP_CDN_DP);

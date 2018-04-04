@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -145,7 +146,7 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 		return -EINVAL;
 	}
 
-	LIBCFS_ALLOC(*hdr_pp, hdr.ioc_len);
+	*hdr_pp = kvmalloc(hdr.ioc_len, GFP_KERNEL);
 	if (!*hdr_pp)
 		return -ENOMEM;
 
@@ -163,7 +164,7 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 	return 0;
 
 free:
-	LIBCFS_FREE(*hdr_pp, hdr.ioc_len);
+	kvfree(*hdr_pp);
 	return err;
 }
 

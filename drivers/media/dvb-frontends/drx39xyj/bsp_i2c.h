@@ -52,7 +52,7 @@ struct i2c_device_addr {
 };
 
 
-/**
+/*
 * \def IS_I2C_10BIT( addr )
 * \brief Determine if I2C address 'addr' is a 10 bits address or not.
 * \param addr The I2C address.
@@ -67,7 +67,7 @@ struct i2c_device_addr {
 Exported FUNCTIONS
 ------------------------------------------------------------------------------*/
 
-/**
+/*
 * \fn drxbsp_i2c_init()
 * \brief Initialize I2C communication module.
 * \return drx_status_t Return status.
@@ -76,7 +76,7 @@ Exported FUNCTIONS
 */
 	drx_status_t drxbsp_i2c_init(void);
 
-/**
+/*
 * \fn drxbsp_i2c_term()
 * \brief Terminate I2C communication module.
 * \return drx_status_t Return status.
@@ -85,7 +85,7 @@ Exported FUNCTIONS
 */
 	drx_status_t drxbsp_i2c_term(void);
 
-/**
+/*
 * \fn drx_status_t drxbsp_i2c_write_read( struct i2c_device_addr *w_dev_addr,
 *                                       u16 w_count,
 *                                       u8 *wData,
@@ -121,7 +121,7 @@ Exported FUNCTIONS
 					 struct i2c_device_addr *r_dev_addr,
 					 u16 r_count, u8 *r_data);
 
-/**
+/*
 * \fn drxbsp_i2c_error_text()
 * \brief Returns a human readable error.
 * Counter part of numerical drx_i2c_error_g.
@@ -130,7 +130,7 @@ Exported FUNCTIONS
 */
 	char *drxbsp_i2c_error_text(void);
 
-/**
+/*
 * \var drx_i2c_error_g;
 * \brief I2C specific error codes, platform dependent.
 */

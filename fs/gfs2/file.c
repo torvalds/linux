@@ -60,9 +60,7 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int whence)
 	loff_t error;
 
 	switch (whence) {
-	case SEEK_END: /* These reference inode->i_size */
-	case SEEK_DATA:
-	case SEEK_HOLE:
+	case SEEK_END:
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
 					   &i_gh);
 		if (!error) {
@@ -70,8 +68,21 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int whence)
 			gfs2_glock_dq_uninit(&i_gh);
 		}
 		break;
+
+	case SEEK_DATA:
+		error = gfs2_seek_data(file, offset);
+		break;
+
+	case SEEK_HOLE:
+		error = gfs2_seek_hole(file, offset);
+		break;
+
 	case SEEK_CUR:
 	case SEEK_SET:
+		/*
+		 * These don't reference inode->i_size and don't depend on the
+		 * block mapping, so we don't need the glock.
+		 */
 		error = generic_file_llseek(file, offset, whence);
 		break;
 	default:
@@ -108,45 +119,22 @@ static int gfs2_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /**
- * fsflags_cvt
- * @table: A table of 32 u32 flags
- * @val: a 32 bit value to convert
+ * fsflag_gfs2flag
  *
- * This function can be used to convert between fsflags values and
- * GFS2's own flags values.
- *
- * Returns: the converted flags
+ * The FS_JOURNAL_DATA_FL flag maps to GFS2_DIF_INHERIT_JDATA for directories,
+ * and to GFS2_DIF_JDATA for non-directories.
  */
-static u32 fsflags_cvt(const u32 *table, u32 val)
-{
-	u32 res = 0;
-	while(val) {
-		if (val & 1)
-			res |= *table;
-		table++;
-		val >>= 1;
-	}
-	return res;
-}
-
-static const u32 fsflags_to_gfs2[32] = {
-	[3] = GFS2_DIF_SYNC,
-	[4] = GFS2_DIF_IMMUTABLE,
-	[5] = GFS2_DIF_APPENDONLY,
-	[7] = GFS2_DIF_NOATIME,
-	[12] = GFS2_DIF_EXHASH,
-	[14] = GFS2_DIF_INHERIT_JDATA,
-	[17] = GFS2_DIF_TOPDIR,
-};
-
-static const u32 gfs2_to_fsflags[32] = {
-	[gfs2fl_Sync] = FS_SYNC_FL,
-	[gfs2fl_Immutable] = FS_IMMUTABLE_FL,
-	[gfs2fl_AppendOnly] = FS_APPEND_FL,
-	[gfs2fl_NoAtime] = FS_NOATIME_FL,
-	[gfs2fl_ExHash] = FS_INDEX_FL,
-	[gfs2fl_TopLevel] = FS_TOPDIR_FL,
-	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
+static struct {
+	u32 fsflag;
+	u32 gfsflag;
+} fsflag_gfs2flag[] = {
+	{FS_SYNC_FL, GFS2_DIF_SYNC},
+	{FS_IMMUTABLE_FL, GFS2_DIF_IMMUTABLE},
+	{FS_APPEND_FL, GFS2_DIF_APPENDONLY},
+	{FS_NOATIME_FL, GFS2_DIF_NOATIME},
+	{FS_INDEX_FL, GFS2_DIF_EXHASH},
+	{FS_TOPDIR_FL, GFS2_DIF_TOPDIR},
+	{FS_JOURNAL_DATA_FL, GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA},
 };
 
 static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
@@ -154,17 +142,23 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	struct inode *inode = file_inode(filp);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
-	int error;
-	u32 fsflags;
+	int i, error;
+	u32 gfsflags, fsflags = 0;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
 	error = gfs2_glock_nq(&gh);
 	if (error)
 		goto out_uninit;
 
-	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_diskflags);
-	if (!S_ISDIR(inode->i_mode) && ip->i_diskflags & GFS2_DIF_JDATA)
-		fsflags |= FS_JOURNAL_DATA_FL;
+	gfsflags = ip->i_diskflags;
+	if (S_ISDIR(inode->i_mode))
+		gfsflags &= ~GFS2_DIF_JDATA;
+	else
+		gfsflags &= ~GFS2_DIF_INHERIT_JDATA;
+	for (i = 0; i < ARRAY_SIZE(fsflag_gfs2flag); i++)
+		if (gfsflags & fsflag_gfs2flag[i].gfsflag)
+			fsflags |= fsflag_gfs2flag[i].fsflag;
+
 	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
@@ -199,7 +193,6 @@ void gfs2_set_inode_flags(struct inode *inode)
 			     GFS2_DIF_APPENDONLY|		\
 			     GFS2_DIF_NOATIME|			\
 			     GFS2_DIF_SYNC|			\
-			     GFS2_DIF_SYSTEM|			\
 			     GFS2_DIF_TOPDIR|			\
 			     GFS2_DIF_INHERIT_JDATA)
 
@@ -238,10 +231,6 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
-	error = -EINVAL;
-	if ((new_flags ^ flags) & ~GFS2_FLAGS_USER_SET)
-		goto out;
-
 	error = -EPERM;
 	if (IS_IMMUTABLE(inode) && (new_flags & GFS2_DIF_IMMUTABLE))
 		goto out;
@@ -256,14 +245,18 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 			goto out;
 	}
 	if ((flags ^ new_flags) & GFS2_DIF_JDATA) {
-		if (flags & GFS2_DIF_JDATA)
-			gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
+		if (new_flags & GFS2_DIF_JDATA)
+			gfs2_log_flush(sdp, ip->i_gl,
+				       GFS2_LOG_HEAD_FLUSH_NORMAL |
+				       GFS2_LFC_SET_FLAGS);
 		error = filemap_fdatawrite(inode->i_mapping);
 		if (error)
 			goto out;
 		error = filemap_fdatawait(inode->i_mapping);
 		if (error)
 			goto out;
+		if (new_flags & GFS2_DIF_JDATA)
+			gfs2_ordered_del_inode(ip);
 	}
 	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (error)
@@ -271,6 +264,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
 		goto out_trans_end;
+	inode->i_ctime = current_time(inode);
 	gfs2_trans_add_meta(ip->i_gl, bh);
 	ip->i_diskflags = new_flags;
 	gfs2_dinode_out(ip, bh->b_data);
@@ -289,19 +283,33 @@ out_drop_write:
 static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 {
 	struct inode *inode = file_inode(filp);
-	u32 fsflags, gfsflags;
+	u32 fsflags, gfsflags = 0;
+	u32 mask;
+	int i;
 
 	if (get_user(fsflags, ptr))
 		return -EFAULT;
 
-	gfsflags = fsflags_cvt(fsflags_to_gfs2, fsflags);
-	if (!S_ISDIR(inode->i_mode)) {
-		gfsflags &= ~GFS2_DIF_TOPDIR;
-		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
-			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
-		return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_SYSTEM);
+	for (i = 0; i < ARRAY_SIZE(fsflag_gfs2flag); i++) {
+		if (fsflags & fsflag_gfs2flag[i].fsflag) {
+			fsflags &= ~fsflag_gfs2flag[i].fsflag;
+			gfsflags |= fsflag_gfs2flag[i].gfsflag;
+		}
 	}
-	return do_gfs2_set_flags(filp, gfsflags, ~(GFS2_DIF_SYSTEM | GFS2_DIF_JDATA));
+	if (fsflags || gfsflags & ~GFS2_FLAGS_USER_SET)
+		return -EINVAL;
+
+	mask = GFS2_FLAGS_USER_SET;
+	if (S_ISDIR(inode->i_mode)) {
+		mask &= ~GFS2_DIF_JDATA;
+	} else {
+		/* The GFS2_DIF_TOPDIR flag is only valid for directories. */
+		if (gfsflags & GFS2_DIF_TOPDIR)
+			return -EINVAL;
+		mask &= ~(GFS2_DIF_TOPDIR | GFS2_DIF_INHERIT_JDATA);
+	}
+
+	return do_gfs2_set_flags(filp, gfsflags, mask);
 }
 
 static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -918,7 +926,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	struct gfs2_holder gh;
 	int ret;
 
-	if (mode & ~FALLOC_FL_KEEP_SIZE)
+	if (mode & ~(FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 	/* fallocate is needed by gfs2_grow to reserve space in the rindex */
 	if (gfs2_is_jdata(ip) && inode != sdp->sd_rindex)
@@ -942,13 +950,18 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	if (ret)
 		goto out_unlock;
 
-	ret = gfs2_rsqa_alloc(ip);
-	if (ret)
-		goto out_putw;
+	if (mode & FALLOC_FL_PUNCH_HOLE) {
+		ret = __gfs2_punch_hole(file, offset, len);
+	} else {
+		ret = gfs2_rsqa_alloc(ip);
+		if (ret)
+			goto out_putw;
 
-	ret = __gfs2_fallocate(file, mode, offset, len);
-	if (ret)
-		gfs2_rs_deltree(&ip->i_res);
+		ret = __gfs2_fallocate(file, mode, offset, len);
+
+		if (ret)
+			gfs2_rs_deltree(&ip->i_res);
+	}
 
 out_putw:
 	put_write_access(inode);

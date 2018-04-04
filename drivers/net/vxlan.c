@@ -874,8 +874,8 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 			      const unsigned char *addr, union vxlan_addr ip,
-			      __be16 port, __be32 src_vni, u32 vni, u32 ifindex,
-			      u16 vid)
+			      __be16 port, __be32 src_vni, __be32 vni,
+			      u32 ifindex, u16 vid)
 {
 	struct vxlan_fdb *f;
 	struct vxlan_rdst *rd = NULL;
@@ -1623,26 +1623,19 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 static int neigh_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct nd_msg *msg;
-	const struct ipv6hdr *iphdr;
 	const struct in6_addr *daddr;
-	struct neighbour *n;
+	const struct ipv6hdr *iphdr;
 	struct inet6_dev *in6_dev;
+	struct neighbour *n;
+	struct nd_msg *msg;
 
 	in6_dev = __in6_dev_get(dev);
 	if (!in6_dev)
 		goto out;
 
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr) + sizeof(struct nd_msg)))
-		goto out;
-
 	iphdr = ipv6_hdr(skb);
 	daddr = &iphdr->daddr;
-
 	msg = (struct nd_msg *)(iphdr + 1);
-	if (msg->icmph.icmp6_code != 0 ||
-	    msg->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION)
-		goto out;
 
 	if (ipv6_addr_loopback(daddr) ||
 	    ipv6_addr_is_multicast(&msg->target))
@@ -2162,6 +2155,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		ndst = &rt->dst;
+		if (skb_dst(skb)) {
+			int mtu = dst_mtu(ndst) - VXLAN_HEADROOM;
+
+			skb_dst_update_pmtu(skb, mtu);
+		}
+
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
 		err = vxlan_build_skb(skb, ndst, sizeof(struct iphdr),
@@ -2195,6 +2194,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 						    ndst, rt6i_flags);
 			if (err)
 				goto out_unlock;
+		}
+
+		if (skb_dst(skb)) {
+			int mtu = dst_mtu(ndst) - VXLAN6_HEADROOM;
+
+			skb_dst_update_pmtu(skb, mtu);
 		}
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
@@ -2240,11 +2245,11 @@ tx_error:
 static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-	const struct ip_tunnel_info *info;
-	struct ethhdr *eth;
-	bool did_rsc = false;
 	struct vxlan_rdst *rdst, *fdst = NULL;
+	const struct ip_tunnel_info *info;
+	bool did_rsc = false;
 	struct vxlan_fdb *f;
+	struct ethhdr *eth;
 	__be32 vni = 0;
 
 	info = skb_tunnel_info(skb);
@@ -2269,12 +2274,14 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ntohs(eth->h_proto) == ETH_P_ARP)
 			return arp_reduce(dev, skb, vni);
 #if IS_ENABLED(CONFIG_IPV6)
-		else if (ntohs(eth->h_proto) == ETH_P_IPV6) {
-			struct ipv6hdr *hdr, _hdr;
-			if ((hdr = skb_header_pointer(skb,
-						      skb_network_offset(skb),
-						      sizeof(_hdr), &_hdr)) &&
-			    hdr->nexthdr == IPPROTO_ICMPV6)
+		else if (ntohs(eth->h_proto) == ETH_P_IPV6 &&
+			 pskb_may_pull(skb, sizeof(struct ipv6hdr) +
+					    sizeof(struct nd_msg)) &&
+			 ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6) {
+			struct nd_msg *m = (struct nd_msg *)(ipv6_hdr(skb) + 1);
+
+			if (m->icmph.icmp6_code == 0 &&
+			    m->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
 				return neigh_reduce(dev, skb, vni);
 		}
 #endif
@@ -2325,9 +2332,9 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* Walk the forwarding table and purge stale entries */
-static void vxlan_cleanup(unsigned long arg)
+static void vxlan_cleanup(struct timer_list *t)
 {
-	struct vxlan_dev *vxlan = (struct vxlan_dev *) arg;
+	struct vxlan_dev *vxlan = from_timer(vxlan, t, age_timer);
 	unsigned long next_timer = jiffies + FDB_AGE_INTERVAL;
 	unsigned int h;
 
@@ -2647,9 +2654,7 @@ static void vxlan_setup(struct net_device *dev)
 	INIT_LIST_HEAD(&vxlan->next);
 	spin_lock_init(&vxlan->hash_lock);
 
-	init_timer_deferrable(&vxlan->age_timer);
-	vxlan->age_timer.function = vxlan_cleanup;
-	vxlan->age_timer.data = (unsigned long) vxlan;
+	timer_setup(&vxlan->age_timer, vxlan_cleanup, TIMER_DEFERRABLE);
 
 	vxlan->dev = dev;
 
@@ -3110,6 +3115,11 @@ static void vxlan_config_apply(struct net_device *dev,
 
 		max_mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM :
 					   VXLAN_HEADROOM);
+		if (max_mtu < ETH_MIN_MTU)
+			max_mtu = ETH_MIN_MTU;
+
+		if (!changelink && !conf->mtu)
+			dev->mtu = max_mtu;
 	}
 
 	if (dev->mtu > max_mtu)
@@ -3699,17 +3709,16 @@ static __net_init int vxlan_init_net(struct net *net)
 	return 0;
 }
 
-static void __net_exit vxlan_exit_net(struct net *net)
+static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_dev *vxlan, *next;
 	struct net_device *dev, *aux;
-	LIST_HEAD(list);
+	unsigned int h;
 
-	rtnl_lock();
 	for_each_netdev_safe(net, dev, aux)
 		if (dev->rtnl_link_ops == &vxlan_link_ops)
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(dev, head);
 
 	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next) {
 		/* If vxlan->dev is in the same netns, it has already been added
@@ -3717,9 +3726,22 @@ static void __net_exit vxlan_exit_net(struct net *net)
 		 */
 		if (!net_eq(dev_net(vxlan->dev), net)) {
 			gro_cells_destroy(&vxlan->gro_cells);
-			unregister_netdevice_queue(vxlan->dev, &list);
+			unregister_netdevice_queue(vxlan->dev, head);
 		}
 	}
+
+	for (h = 0; h < PORT_HASH_SIZE; ++h)
+		WARN_ON_ONCE(!hlist_empty(&vn->sock_list[h]));
+}
+
+static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
+{
+	struct net *net;
+	LIST_HEAD(list);
+
+	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		vxlan_destroy_tunnels(net, &list);
 
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
@@ -3727,7 +3749,7 @@ static void __net_exit vxlan_exit_net(struct net *net)
 
 static struct pernet_operations vxlan_net_ops = {
 	.init = vxlan_init_net,
-	.exit = vxlan_exit_net,
+	.exit_batch = vxlan_exit_batch_net,
 	.id   = &vxlan_net_id,
 	.size = sizeof(struct vxlan_net),
 };

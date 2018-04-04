@@ -30,31 +30,8 @@
 #define RCU_TRACE(stmt)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/*
- * Process-level increment to ->dynticks_nesting field.  This allows for
- * architectures that use half-interrupts and half-exceptions from
- * process context.
- *
- * DYNTICK_TASK_NEST_MASK defines a field of width DYNTICK_TASK_NEST_WIDTH
- * that counts the number of process-based reasons why RCU cannot
- * consider the corresponding CPU to be idle, and DYNTICK_TASK_NEST_VALUE
- * is the value used to increment or decrement this field.
- *
- * The rest of the bits could in principle be used to count interrupts,
- * but this would mean that a negative-one value in the interrupt
- * field could incorrectly zero out the DYNTICK_TASK_NEST_MASK field.
- * We therefore provide a two-bit guard field defined by DYNTICK_TASK_MASK
- * that is set to DYNTICK_TASK_FLAG upon initial exit from idle.
- * The DYNTICK_TASK_EXIT_IDLE value is thus the combined value used upon
- * initial exit from idle.
- */
-#define DYNTICK_TASK_NEST_WIDTH 7
-#define DYNTICK_TASK_NEST_VALUE ((LLONG_MAX >> DYNTICK_TASK_NEST_WIDTH) + 1)
-#define DYNTICK_TASK_NEST_MASK  (LLONG_MAX - DYNTICK_TASK_NEST_VALUE + 1)
-#define DYNTICK_TASK_FLAG	   ((DYNTICK_TASK_NEST_VALUE / 8) * 2)
-#define DYNTICK_TASK_MASK	   ((DYNTICK_TASK_NEST_VALUE / 8) * 3)
-#define DYNTICK_TASK_EXIT_IDLE	   (DYNTICK_TASK_NEST_VALUE + \
-				    DYNTICK_TASK_FLAG)
+/* Offset to allow for unmatched rcu_irq_{enter,exit}(). */
+#define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 
 /*
@@ -203,6 +180,21 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 extern int rcu_cpu_stall_suppress;
 int rcu_jiffies_till_stall_check(void);
 
+#define rcu_ftrace_dump_stall_suppress() \
+do { \
+	if (!rcu_cpu_stall_suppress) \
+		rcu_cpu_stall_suppress = 3; \
+} while (0)
+
+#define rcu_ftrace_dump_stall_unsuppress() \
+do { \
+	if (rcu_cpu_stall_suppress == 3) \
+		rcu_cpu_stall_suppress = 0; \
+} while (0)
+
+#else /* #endif #ifdef CONFIG_RCU_STALL_COMMON */
+#define rcu_ftrace_dump_stall_suppress()
+#define rcu_ftrace_dump_stall_unsuppress()
 #endif /* #ifdef CONFIG_RCU_STALL_COMMON */
 
 /*
@@ -220,8 +212,12 @@ do { \
 	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
 	\
 	if (!atomic_read(&___rfd_beenhere) && \
-	    !atomic_xchg(&___rfd_beenhere, 1)) \
+	    !atomic_xchg(&___rfd_beenhere, 1)) { \
+		tracing_off(); \
+		rcu_ftrace_dump_stall_suppress(); \
 		ftrace_dump(oops_dump_mode); \
+		rcu_ftrace_dump_stall_unsuppress(); \
+	} \
 } while (0)
 
 void rcu_early_boot_tests(void);

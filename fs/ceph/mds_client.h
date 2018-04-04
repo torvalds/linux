@@ -444,4 +444,7 @@ ceph_mdsc_open_export_target_session(struct ceph_mds_client *mdsc, int target);
 extern void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
 					  struct ceph_mds_session *session);
 
+extern int ceph_trim_caps(struct ceph_mds_client *mdsc,
+			  struct ceph_mds_session *session,
+			  int max_caps);
 #endif

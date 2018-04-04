@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dpi.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -52,8 +50,6 @@ struct dpi_data {
 	int data_lines;
 
 	struct omap_dss_device output;
-
-	bool port_initialized;
 };
 
 static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
@@ -566,8 +562,8 @@ static int dpi_verify_pll(struct dss_pll *pll)
 }
 
 static const struct soc_device_attribute dpi_soc_devices[] = {
-	{ .family = "OMAP3[456]*" },
-	{ .family = "[AD]M37*" },
+	{ .machine = "OMAP3[456]*" },
+	{ .machine = "[AD]M37*" },
 	{ /* sentinel */ }
 };
 
@@ -786,8 +782,6 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port,
 
 	dpi_init_output_port(dpi, port);
 
-	dpi->port_initialized = true;
-
 	return 0;
 
 err_datalines:
@@ -800,7 +794,7 @@ void dpi_uninit_port(struct device_node *port)
 {
 	struct dpi_data *dpi = port->data;
 
-	if (!dpi->port_initialized)
+	if (!dpi)
 		return;
 
 	dpi_uninit_output_port(port);

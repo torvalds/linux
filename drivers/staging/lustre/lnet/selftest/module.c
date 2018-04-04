@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -46,8 +47,8 @@ enum {
 
 static int lst_init_step = LST_INIT_NONE;
 
-struct cfs_wi_sched *lst_sched_serial;
-struct cfs_wi_sched **lst_sched_test;
+struct workqueue_struct *lst_serial_wq;
+struct workqueue_struct **lst_test_wq;
 
 static void
 lnet_selftest_exit(void)
@@ -57,25 +58,26 @@ lnet_selftest_exit(void)
 	switch (lst_init_step) {
 	case LST_INIT_CONSOLE:
 		lstcon_console_fini();
+		/* fall through */
 	case LST_INIT_FW:
 		sfw_shutdown();
+		/* fall through */
 	case LST_INIT_RPC:
 		srpc_shutdown();
+		/* fall through */
 	case LST_INIT_WI_TEST:
 		for (i = 0;
 		     i < cfs_cpt_number(lnet_cpt_table()); i++) {
-			if (!lst_sched_test[i])
+			if (!lst_test_wq[i])
 				continue;
-			cfs_wi_sched_destroy(lst_sched_test[i]);
+			destroy_workqueue(lst_test_wq[i]);
 		}
-		LIBCFS_FREE(lst_sched_test,
-			    sizeof(lst_sched_test[0]) *
-			    cfs_cpt_number(lnet_cpt_table()));
-		lst_sched_test = NULL;
-
+		kvfree(lst_test_wq);
+		lst_test_wq = NULL;
+		/* fall through */
 	case LST_INIT_WI_SERIAL:
-		cfs_wi_sched_destroy(lst_sched_serial);
-		lst_sched_serial = NULL;
+		destroy_workqueue(lst_serial_wq);
+		lst_serial_wq = NULL;
 	case LST_INIT_NONE:
 		break;
 	default:
@@ -87,34 +89,44 @@ static int
 lnet_selftest_init(void)
 {
 	int nscheds;
-	int rc;
+	int rc = -ENOMEM;
 	int i;
 
-	rc = cfs_wi_sched_create("lst_s", lnet_cpt_table(), CFS_CPT_ANY,
-				 1, &lst_sched_serial);
-	if (rc) {
+	lst_serial_wq = alloc_ordered_workqueue("lst_s", 0);
+	if (!lst_serial_wq) {
 		CERROR("Failed to create serial WI scheduler for LST\n");
-		return rc;
+		return -ENOMEM;
 	}
 	lst_init_step = LST_INIT_WI_SERIAL;
 
 	nscheds = cfs_cpt_number(lnet_cpt_table());
-	LIBCFS_ALLOC(lst_sched_test, sizeof(lst_sched_test[0]) * nscheds);
-	if (!lst_sched_test)
+	lst_test_wq = kvmalloc_array(nscheds, sizeof(lst_test_wq[0]),
+					GFP_KERNEL | __GFP_ZERO);
+	if (!lst_test_wq) {
+		rc = -ENOMEM;
 		goto error;
+	}
 
 	lst_init_step = LST_INIT_WI_TEST;
 	for (i = 0; i < nscheds; i++) {
 		int nthrs = cfs_cpt_weight(lnet_cpt_table(), i);
+		struct workqueue_attrs attrs = {0};
+		cpumask_var_t *mask = cfs_cpt_cpumask(lnet_cpt_table(), i);
 
 		/* reserve at least one CPU for LND */
 		nthrs = max(nthrs - 1, 1);
-		rc = cfs_wi_sched_create("lst_t", lnet_cpt_table(), i,
-					 nthrs, &lst_sched_test[i]);
-		if (rc) {
+		lst_test_wq[i] = alloc_workqueue("lst_t", WQ_UNBOUND, nthrs);
+		if (!lst_test_wq[i]) {
 			CWARN("Failed to create CPU partition affinity WI scheduler %d for LST\n",
 			      i);
+			rc = -ENOMEM;
 			goto error;
+		}
+
+		if (mask && alloc_cpumask_var(&attrs.cpumask, GFP_KERNEL)) {
+			cpumask_copy(attrs.cpumask, *mask);
+			apply_workqueue_attrs(lst_test_wq[i], &attrs);
+			free_cpumask_var(attrs.cpumask);
 		}
 	}
 

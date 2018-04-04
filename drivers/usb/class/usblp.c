@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * usblp.c
  *
@@ -29,22 +30,6 @@
  *	v0.13 - alloc space for statusbuf (<status> not on stack);
  *		use usb_alloc_coherent() for read buf & write buf;
  *      none  - Maintained in Linux kernel after v0.13
- */
-
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/module.h>
@@ -484,9 +469,9 @@ static int usblp_release(struct inode *inode, struct file *file)
 }
 
 /* No kernel lock - fine */
-static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t usblp_poll(struct file *file, struct poll_table_struct *wait)
 {
-	int ret;
+	__poll_t ret;
 	unsigned long flags;
 
 	struct usblp *usblp = file->private_data;
@@ -494,8 +479,8 @@ static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait
 	poll_wait(file, &usblp->rwait, wait);
 	poll_wait(file, &usblp->wwait, wait);
 	spin_lock_irqsave(&usblp->lock, flags);
-	ret = ((usblp->bidir && usblp->rcomplete) ? POLLIN  | POLLRDNORM : 0) |
-	   ((usblp->no_paper || usblp->wcomplete) ? POLLOUT | POLLWRNORM : 0);
+	ret = ((usblp->bidir && usblp->rcomplete) ? EPOLLIN  | EPOLLRDNORM : 0) |
+	   ((usblp->no_paper || usblp->wcomplete) ? EPOLLOUT | EPOLLWRNORM : 0);
 	spin_unlock_irqrestore(&usblp->lock, flags);
 	return ret;
 }
@@ -1081,7 +1066,7 @@ static struct usb_class_driver usblp_class = {
 	.minor_base =	USBLP_MINOR_BASE,
 };
 
-static ssize_t usblp_show_ieee1284_id(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t ieee1284_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usblp *usblp = usb_get_intfdata(intf);
@@ -1093,7 +1078,7 @@ static ssize_t usblp_show_ieee1284_id(struct device *dev, struct device_attribut
 	return sprintf(buf, "%s", usblp->device_id_string+2);
 }
 
-static DEVICE_ATTR(ieee1284_id, S_IRUGO, usblp_show_ieee1284_id, NULL);
+static DEVICE_ATTR_RO(ieee1284_id);
 
 static int usblp_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)

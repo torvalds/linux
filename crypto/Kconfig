@@ -106,6 +106,7 @@ config CRYPTO_KPP
 config CRYPTO_ACOMP2
 	tristate
 	select CRYPTO_ALGAPI2
+	select SGL_ALLOC
 
 config CRYPTO_ACOMP
 	tristate
@@ -130,7 +131,7 @@ config CRYPTO_DH
 
 config CRYPTO_ECDH
 	tristate "ECDH algorithm"
-	select CRYTPO_KPP
+	select CRYPTO_KPP
 	select CRYPTO_RNG_DEFAULT
 	help
 	  Generic implementation of the ECDH algorithm
@@ -860,6 +861,17 @@ config CRYPTO_SHA3
 	  References:
 	  http://keccak.noekeon.org/
 
+config CRYPTO_SM3
+	tristate "SM3 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
+	  It is part of the Chinese Commercial Cryptography suite.
+
+	  References:
+	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
+	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
+
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
 	select CRYPTO_HASH
@@ -1328,6 +1340,7 @@ config CRYPTO_SALSA20_586
 	tristate "Salsa20 stream cipher algorithm (i586)"
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_SALSA20
 	help
 	  Salsa20 stream cipher algorithm.
 
@@ -1341,6 +1354,7 @@ config CRYPTO_SALSA20_X86_64
 	tristate "Salsa20 stream cipher algorithm (x86_64)"
 	depends on (X86 || UML_X86) && 64BIT
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_SALSA20
 	help
 	  Salsa20 stream cipher algorithm.
 

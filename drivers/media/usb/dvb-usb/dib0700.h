@@ -51,6 +51,8 @@ struct dib0700_state {
 	int (*read_status)(struct dvb_frontend *, enum fe_status *);
 	int (*sleep)(struct dvb_frontend* fe);
 	u8 buf[255];
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
 };
 
 extern int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,

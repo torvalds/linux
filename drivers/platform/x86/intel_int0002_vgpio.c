@@ -119,7 +119,7 @@ static irqreturn_t int0002_irq(int irq, void *data)
 	if (!(gpe_sts_reg & GPE0A_PME_B0_STS_BIT))
 		return IRQ_NONE;
 
-	generic_handle_irq(irq_find_mapping(chip->irqdomain,
+	generic_handle_irq(irq_find_mapping(chip->irq.domain,
 					    GPE0A_PME_B0_VIRT_GPIO_PIN));
 
 	pm_system_wakeup();
@@ -165,7 +165,7 @@ static int int0002_probe(struct platform_device *pdev)
 	chip->direction_output = int0002_gpio_direction_output;
 	chip->base = -1;
 	chip->ngpio = GPE0A_PME_B0_VIRT_GPIO_PIN + 1;
-	chip->irq_need_valid_mask = true;
+	chip->irq.need_valid_mask = true;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, chip, NULL);
 	if (ret) {
@@ -173,14 +173,14 @@ static int int0002_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bitmap_clear(chip->irq_valid_mask, 0, GPE0A_PME_B0_VIRT_GPIO_PIN);
+	bitmap_clear(chip->irq.valid_mask, 0, GPE0A_PME_B0_VIRT_GPIO_PIN);
 
 	/*
 	 * We manually request the irq here instead of passing a flow-handler
 	 * to gpiochip_set_chained_irqchip, because the irq is shared.
 	 */
 	ret = devm_request_irq(dev, irq, int0002_irq,
-			       IRQF_SHARED | IRQF_NO_THREAD, "INT0002", chip);
+			       IRQF_SHARED, "INT0002", chip);
 	if (ret) {
 		dev_err(dev, "Error requesting IRQ %d: %d\n", irq, ret);
 		return ret;

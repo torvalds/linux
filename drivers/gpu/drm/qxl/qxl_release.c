@@ -154,7 +154,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 		return handle;
 	}
 	*ret = release;
-	QXL_INFO(qdev, "allocated release %d\n", handle);
+	DRM_DEBUG_DRIVER("allocated release %d\n", handle);
 	release->id = handle;
 	return handle;
 }
@@ -179,8 +179,7 @@ void
 qxl_release_free(struct qxl_device *qdev,
 		 struct qxl_release *release)
 {
-	QXL_INFO(qdev, "release %d, type %d\n", release->id,
-		 release->type);
+	DRM_DEBUG_DRIVER("release %d, type %d\n", release->id, release->type);
 
 	if (release->surface_release_id)
 		qxl_surface_id_dealloc(qdev, release->surface_release_id);
@@ -231,12 +230,12 @@ int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo)
 
 static int qxl_release_validate_bo(struct qxl_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	int ret;
 
 	if (!bo->pin_count) {
 		qxl_ttm_placement_from_domain(bo, bo->type, false);
-		ret = ttm_bo_validate(&bo->tbo, &bo->placement,
-				      true, false);
+		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		if (ret)
 			return ret;
 	}
@@ -469,7 +468,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 
 		reservation_object_add_shared_fence(bo->resv, &release->base);
 		ttm_bo_add_to_lru(bo);
-		__ttm_bo_unreserve(bo);
+		reservation_object_unlock(bo->resv);
 	}
 	spin_unlock(&glob->lru_lock);
 	ww_acquire_fini(&release->ticket);

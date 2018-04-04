@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Kernel Probes (KProbes)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright IBM Corp. 2002, 2006
  *
@@ -33,7 +20,6 @@
 #include <linux/ftrace.h>
 #include <asm/set_memory.h>
 #include <asm/sections.h>
-#include <linux/uaccess.h>
 #include <asm/dis.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
@@ -161,8 +147,6 @@ struct swap_insn_args {
 
 static int swap_instruction(void *data)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long status = kcb->kprobe_status;
 	struct swap_insn_args *args = data;
 	struct ftrace_insn new_insn, *insn;
 	struct kprobe *p = args->p;
@@ -185,9 +169,7 @@ static int swap_instruction(void *data)
 			ftrace_generate_nop_insn(&new_insn);
 	}
 skip_ftrace:
-	kcb->kprobe_status = KPROBE_SWAP_INST;
 	s390_kernel_write(p->addr, &new_insn, len);
-	kcb->kprobe_status = status;
 	return 0;
 }
 NOKPROBE_SYMBOL(swap_instruction);
@@ -299,7 +281,7 @@ static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 		 * is a BUG. The code path resides in the .kprobes.text
 		 * section and is executed with interrupts disabled.
 		 */
-		printk(KERN_EMERG "Invalid kprobe detected at %p.\n", p->addr);
+		pr_err("Invalid kprobe detected.\n");
 		dump_kprobe(p);
 		BUG();
 	}
@@ -574,9 +556,6 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 	const struct exception_table_entry *entry;
 
 	switch(kcb->kprobe_status) {
-	case KPROBE_SWAP_INST:
-		/* We are here because the instruction replacement failed */
-		return 0;
 	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
 		/*

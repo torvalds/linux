@@ -30,6 +30,8 @@
 #define IBMVNIC_DRIVER_VERSION	"1.0.1"
 #define IBMVNIC_INVALID_MAP	-1
 #define IBMVNIC_STATS_TIMEOUT	1
+#define IBMVNIC_INIT_FAILED	2
+
 /* basic structures plus 100 2k buffers */
 #define IBMVNIC_IO_ENTITLEMENT_DEFAULT	610305
 
@@ -37,7 +39,13 @@
 #define IBMVNIC_RX_WEIGHT		16
 /* when changing this, update IBMVNIC_IO_ENTITLEMENT_DEFAULT */
 #define IBMVNIC_BUFFS_PER_POOL	100
-#define IBMVNIC_MAX_TX_QUEUES	5
+#define IBMVNIC_MAX_QUEUES	10
+
+#define IBMVNIC_TSO_BUF_SZ	65536
+#define IBMVNIC_TSO_BUFS	64
+
+#define IBMVNIC_MAX_LTB_SIZE ((1 << (MAX_ORDER - 1)) * PAGE_SIZE)
+#define IBMVNIC_BUFFER_HLEN 500
 
 struct ibmvnic_login_buffer {
 	__be32 len;
@@ -49,6 +57,8 @@ struct ibmvnic_login_buffer {
 	__be32 off_rxcomp_subcrqs;
 	__be32 login_rsp_ioba;
 	__be32 login_rsp_len;
+	__be32 client_data_offset;
+	__be32 client_data_len;
 } __packed __aligned(8);
 
 struct ibmvnic_login_rsp_buffer {
@@ -550,6 +560,12 @@ struct ibmvnic_multicast_ctrl {
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
 
+struct ibmvnic_get_vpd_size {
+	u8 first;
+	u8 cmd;
+	u8 reserved[14];
+} __packed __aligned(8);
+
 struct ibmvnic_get_vpd_size_rsp {
 	u8 first;
 	u8 cmd;
@@ -565,6 +581,13 @@ struct ibmvnic_get_vpd {
 	__be32 ioba;
 	__be32 len;
 	u8 reserved[4];
+} __packed __aligned(8);
+
+struct ibmvnic_get_vpd_rsp {
+	u8 first;
+	u8 cmd;
+	u8 reserved[10];
+	struct ibmvnic_rc rc;
 } __packed __aligned(8);
 
 struct ibmvnic_acl_change_indication {
@@ -692,10 +715,10 @@ union ibmvnic_crq {
 	struct ibmvnic_change_mac_addr change_mac_addr_rsp;
 	struct ibmvnic_multicast_ctrl multicast_ctrl;
 	struct ibmvnic_multicast_ctrl multicast_ctrl_rsp;
-	struct ibmvnic_generic_crq get_vpd_size;
+	struct ibmvnic_get_vpd_size get_vpd_size;
 	struct ibmvnic_get_vpd_size_rsp get_vpd_size_rsp;
 	struct ibmvnic_get_vpd get_vpd;
-	struct ibmvnic_generic_crq get_vpd_rsp;
+	struct ibmvnic_get_vpd_rsp get_vpd_rsp;
 	struct ibmvnic_acl_change_indication acl_change_indication;
 	struct ibmvnic_acl_query acl_query;
 	struct ibmvnic_generic_crq acl_query_rsp;
@@ -896,6 +919,8 @@ struct ibmvnic_tx_pool {
 	wait_queue_head_t ibmvnic_tx_comp_q;
 	struct task_struct *work_thread;
 	struct ibmvnic_long_term_buff long_term_buff;
+	struct ibmvnic_long_term_buff tso_ltb;
+	int tso_index;
 };
 
 struct ibmvnic_rx_buff {
@@ -927,6 +952,12 @@ struct ibmvnic_error_buff {
 	__be32 error_id;
 };
 
+struct ibmvnic_vpd {
+	unsigned char *buff;
+	dma_addr_t dma_addr;
+	u64 len;
+};
+
 enum vnic_state {VNIC_PROBING = 1,
 		 VNIC_PROBED,
 		 VNIC_OPENING,
@@ -940,11 +971,21 @@ enum ibmvnic_reset_reason {VNIC_RESET_FAILOVER = 1,
 			   VNIC_RESET_MOBILITY,
 			   VNIC_RESET_FATAL,
 			   VNIC_RESET_NON_FATAL,
-			   VNIC_RESET_TIMEOUT};
+			   VNIC_RESET_TIMEOUT,
+			   VNIC_RESET_CHANGE_PARAM};
 
 struct ibmvnic_rwi {
 	enum ibmvnic_reset_reason reset_reason;
 	struct list_head list;
+};
+
+struct ibmvnic_tunables {
+	u64 rx_queues;
+	u64 tx_queues;
+	u64 rx_entries;
+	u64 tx_entries;
+	u64 mtu;
+	struct sockaddr mac;
 };
 
 struct ibmvnic_adapter {
@@ -957,6 +998,10 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
+
+	/* Vital Product Data (VPD) */
+	struct ibmvnic_vpd *vpd;
+	char fw_version[32];
 
 	/* Statistics */
 	struct ibmvnic_statistics stats;
@@ -1007,6 +1052,10 @@ struct ibmvnic_adapter {
 	struct completion fw_done;
 	int fw_done_rc;
 
+	struct completion reset_done;
+	int reset_done_rc;
+	bool wait_for_reset;
+
 	/* partner capabilities */
 	u64 min_tx_queues;
 	u64 min_rx_queues;
@@ -1042,6 +1091,8 @@ struct ibmvnic_adapter {
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
 	u8 map_id;
+	u64 num_active_rx_pools;
+	u64 num_active_tx_pools;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
@@ -1051,4 +1102,9 @@ struct ibmvnic_adapter {
 	struct work_struct ibmvnic_reset;
 	bool resetting;
 	bool napi_enabled, from_passive_init;
+
+	bool mac_change_pending;
+
+	struct ibmvnic_tunables desired;
+	struct ibmvnic_tunables fallback;
 };

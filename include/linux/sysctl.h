@@ -213,6 +213,11 @@ static inline struct ctl_table_header *register_sysctl_paths(
 	return NULL;
 }
 
+static inline struct ctl_table_header *register_sysctl(const char *path, struct ctl_table *table)
+{
+	return NULL;
+}
+
 static inline void unregister_sysctl_table(struct ctl_table_header * table)
 {
 }

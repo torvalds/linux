@@ -115,7 +115,7 @@ static struct configfs_attribute *childless_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type childless_type = {
+static const struct config_item_type childless_type = {
 	.ct_attrs	= childless_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -193,7 +193,7 @@ static struct configfs_item_operations simple_child_item_ops = {
 	.release		= simple_child_release,
 };
 
-static struct config_item_type simple_child_type = {
+static const struct config_item_type simple_child_type = {
 	.ct_item_ops	= &simple_child_item_ops,
 	.ct_attrs	= simple_child_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -261,7 +261,7 @@ static struct configfs_group_operations simple_children_group_ops = {
 	.make_item	= simple_children_make_item,
 };
 
-static struct config_item_type simple_children_type = {
+static const struct config_item_type simple_children_type = {
 	.ct_item_ops	= &simple_children_item_ops,
 	.ct_group_ops	= &simple_children_group_ops,
 	.ct_attrs	= simple_children_attrs,
@@ -331,7 +331,7 @@ static struct configfs_group_operations group_children_group_ops = {
 	.make_group	= group_children_make_group,
 };
 
-static struct config_item_type group_children_type = {
+static const struct config_item_type group_children_type = {
 	.ct_group_ops	= &group_children_group_ops,
 	.ct_attrs	= group_children_attrs,
 	.ct_owner	= THIS_MODULE,

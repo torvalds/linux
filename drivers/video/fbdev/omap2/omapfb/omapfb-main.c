@@ -1477,7 +1477,7 @@ static int omapfb_alloc_fbmem_display(struct fb_info *fbi, unsigned long size,
 static int omapfb_parse_vram_param(const char *param, int max_entries,
 		unsigned long *sizes, unsigned long *paddrs)
 {
-	int fbnum;
+	unsigned int fbnum;
 	unsigned long size;
 	unsigned long paddr = 0;
 	char *p, *start;

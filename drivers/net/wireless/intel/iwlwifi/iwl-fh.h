@@ -121,7 +121,7 @@
 #define FH_MEM_CBBC_16_19_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xC00)
 #define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
 #define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
-/* a000 TFD table address, 64 bit */
+/* 22000 TFD table address, 64 bit */
 #define TFH_TFDQ_CBB_TABLE			(0x1C00)
 
 /* Find TFD CB base pointer for given queue */
@@ -140,7 +140,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 	return FH_MEM_CBBC_20_31_LOWER_BOUND + 4 * (chnl - 20);
 }
 
-/* a000 configuration registers */
+/* 22000 configuration registers */
 
 /*
  * TFH Configuration register.
@@ -697,8 +697,8 @@ struct iwl_tfh_tb {
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
  * contiguous 256 TFDs.
- * For pre a000 HW it is 256 x 128 bytes-per-TFD = 32 KBytes
- * For a000 HW and on it is 256 x 256 bytes-per-TFD = 65 KBytes
+ * For pre 22000 HW it is 256 x 128 bytes-per-TFD = 32 KBytes
+ * For 22000 HW and on it is 256 x 256 bytes-per-TFD = 65 KBytes
  *
  * Driver must indicate the physical address of the base of each
  * circular buffer via the FH_MEM_CBBC_QUEUE registers.
@@ -750,10 +750,10 @@ struct iwl_tfh_tfd {
 /**
  * struct iwlagn_schedq_bc_tbl scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
- * For devices up to a000:
+ * For devices up to 22000:
  * @tfd_offset  0-12 - tx command byte count
  *		12-16 - station index
- * For a000 and on:
+ * For 22000 and on:
  * @tfd_offset  0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved

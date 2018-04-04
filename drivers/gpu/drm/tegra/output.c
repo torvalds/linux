@@ -9,7 +9,11 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
+
 #include "drm.h"
+#include "dc.h"
+
+#include <media/cec-notifier.h>
 
 int tegra_output_connector_get_modes(struct drm_connector *connector)
 {
@@ -32,11 +36,11 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	else if (output->ddc)
 		edid = drm_get_edid(connector, output->ddc);
 
+	cec_notifier_set_phys_addr_from_edid(output->notifier, edid);
 	drm_mode_connector_update_edid_property(connector, edid);
 
 	if (edid) {
 		err = drm_add_edid_modes(connector, edid);
-		drm_edid_to_eld(connector, edid);
 		kfree(edid);
 	}
 
@@ -67,6 +71,9 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 		else
 			status = connector_status_connected;
 	}
+
+	if (status != connector_status_connected)
+		cec_notifier_phys_addr_invalidate(output->notifier);
 
 	return status;
 }
@@ -212,4 +219,26 @@ void tegra_output_exit(struct tegra_output *output)
 
 	if (output->panel)
 		drm_panel_detach(output->panel);
+}
+
+void tegra_output_find_possible_crtcs(struct tegra_output *output,
+				      struct drm_device *drm)
+{
+	struct device *dev = output->dev;
+	struct drm_crtc *crtc;
+	unsigned int mask = 0;
+
+	drm_for_each_crtc(crtc, drm) {
+		struct tegra_dc *dc = to_tegra_dc(crtc);
+
+		if (tegra_dc_has_output(dc, dev))
+			mask |= drm_crtc_mask(crtc);
+	}
+
+	if (mask == 0) {
+		dev_warn(dev, "missing output definition for heads in DT\n");
+		mask = 0x3;
+	}
+
+	output->encoder.possible_crtcs = mask;
 }

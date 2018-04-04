@@ -565,9 +565,9 @@ static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 /*
  *  Linux entry point of the timer handler
  */
-static void sym53c8xx_timer(unsigned long npref)
+static void sym53c8xx_timer(struct timer_list *t)
 {
-	struct sym_hcb *np = (struct sym_hcb *)npref;
+	struct sym_hcb *np = from_timer(np, t, s.timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(np->s.host->host_lock, flags);
@@ -1351,9 +1351,7 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 	/*
 	 *  Start the timer daemon
 	 */
-	init_timer(&np->s.timer);
-	np->s.timer.data     = (unsigned long) np;
-	np->s.timer.function = sym53c8xx_timer;
+	timer_setup(&np->s.timer, sym53c8xx_timer, 0);
 	np->s.lasttime=0;
 	sym_timer (np);
 

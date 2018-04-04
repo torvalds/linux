@@ -20,16 +20,16 @@ Required Properties:
 		(CMT1 on sh73a0 and r8a7740)
 		This is a fallback for the above renesas,cmt-48-* entries.
 
-    - "renesas,cmt0-r8a73a4" for the 32-bit CMT0 device included in r8a73a4.
-    - "renesas,cmt1-r8a73a4" for the 48-bit CMT1 device included in r8a73a4.
-    - "renesas,cmt0-r8a7790" for the 32-bit CMT0 device included in r8a7790.
-    - "renesas,cmt1-r8a7790" for the 48-bit CMT1 device included in r8a7790.
-    - "renesas,cmt0-r8a7791" for the 32-bit CMT0 device included in r8a7791.
-    - "renesas,cmt1-r8a7791" for the 48-bit CMT1 device included in r8a7791.
-    - "renesas,cmt0-r8a7793" for the 32-bit CMT0 device included in r8a7793.
-    - "renesas,cmt1-r8a7793" for the 48-bit CMT1 device included in r8a7793.
-    - "renesas,cmt0-r8a7794" for the 32-bit CMT0 device included in r8a7794.
-    - "renesas,cmt1-r8a7794" for the 48-bit CMT1 device included in r8a7794.
+    - "renesas,r8a73a4-cmt0" for the 32-bit CMT0 device included in r8a73a4.
+    - "renesas,r8a73a4-cmt1" for the 48-bit CMT1 device included in r8a73a4.
+    - "renesas,r8a7790-cmt0" for the 32-bit CMT0 device included in r8a7790.
+    - "renesas,r8a7790-cmt1" for the 48-bit CMT1 device included in r8a7790.
+    - "renesas,r8a7791-cmt0" for the 32-bit CMT0 device included in r8a7791.
+    - "renesas,r8a7791-cmt1" for the 48-bit CMT1 device included in r8a7791.
+    - "renesas,r8a7793-cmt0" for the 32-bit CMT0 device included in r8a7793.
+    - "renesas,r8a7793-cmt1" for the 48-bit CMT1 device included in r8a7793.
+    - "renesas,r8a7794-cmt0" for the 32-bit CMT0 device included in r8a7794.
+    - "renesas,r8a7794-cmt1" for the 48-bit CMT1 device included in r8a7794.
 
     - "renesas,rcar-gen2-cmt0" for 32-bit CMT0 devices included in R-Car Gen2.
     - "renesas,rcar-gen2-cmt1" for 48-bit CMT1 devices included in R-Car Gen2.
@@ -46,7 +46,7 @@ Required Properties:
 Example: R8A7790 (R-Car H2) CMT0 and CMT1 nodes
 
 	cmt0: timer@ffca0000 {
-		compatible = "renesas,cmt0-r8a7790", "renesas,rcar-gen2-cmt0";
+		compatible = "renesas,r8a7790-cmt0", "renesas,rcar-gen2-cmt0";
 		reg = <0 0xffca0000 0 0x1004>;
 		interrupts = <0 142 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 142 IRQ_TYPE_LEVEL_HIGH>;
@@ -55,7 +55,7 @@ Example: R8A7790 (R-Car H2) CMT0 and CMT1 nodes
 	};
 
 	cmt1: timer@e6130000 {
-		compatible = "renesas,cmt1-r8a7790", "renesas,rcar-gen2-cmt1";
+		compatible = "renesas,r8a7790-cmt1", "renesas,rcar-gen2-cmt1";
 		reg = <0 0xe6130000 0 0x1004>;
 		interrupts = <0 120 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 121 IRQ_TYPE_LEVEL_HIGH>,

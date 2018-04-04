@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_REF_TYPES_H
 #define __IA_CSS_REF_TYPES_H
 
-/** Reference frame
+/* Reference frame
  *
  *  ISP block: reference frame
  */

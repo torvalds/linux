@@ -209,12 +209,12 @@ static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
 
 	old_irr = ioapic->irr;
 	ioapic->irr |= mask;
-	if (edge)
+	if (edge) {
 		ioapic->irr_delivered &= ~mask;
-	if ((edge && old_irr == ioapic->irr) ||
-	    (!edge && entry.fields.remote_irr)) {
-		ret = 0;
-		goto out;
+		if (old_irr == ioapic->irr) {
+			ret = 0;
+			goto out;
+		}
 	}
 
 	ret = ioapic_service(ioapic, irq, line_status);
@@ -257,8 +257,7 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 		    index == RTC_GSI) {
 			if (kvm_apic_match_dest(vcpu, NULL, 0,
 			             e->fields.dest_id, e->fields.dest_mode) ||
-			    (e->fields.trig_mode == IOAPIC_EDGE_TRIG &&
-			     kvm_apic_pending_eoi(vcpu, e->fields.vector)))
+			    kvm_apic_pending_eoi(vcpu, e->fields.vector))
 				__set_bit(e->fields.vector,
 					  ioapic_handled_vectors);
 		}
@@ -277,6 +276,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 {
 	unsigned index;
 	bool mask_before, mask_after;
+	int old_remote_irr, old_delivery_status;
 	union kvm_ioapic_redirect_entry *e;
 
 	switch (ioapic->ioregsel) {
@@ -299,14 +299,28 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 			return;
 		e = &ioapic->redirtbl[index];
 		mask_before = e->fields.mask;
+		/* Preserve read-only fields */
+		old_remote_irr = e->fields.remote_irr;
+		old_delivery_status = e->fields.delivery_status;
 		if (ioapic->ioregsel & 1) {
 			e->bits &= 0xffffffff;
 			e->bits |= (u64) val << 32;
 		} else {
 			e->bits &= ~0xffffffffULL;
 			e->bits |= (u32) val;
-			e->fields.remote_irr = 0;
 		}
+		e->fields.remote_irr = old_remote_irr;
+		e->fields.delivery_status = old_delivery_status;
+
+		/*
+		 * Some OSes (Linux, Xen) assume that Remote IRR bit will
+		 * be cleared by IOAPIC hardware when the entry is configured
+		 * as edge-triggered. This behavior is used to simulate an
+		 * explicit EOI on IOAPICs that don't have the EOI register.
+		 */
+		if (e->fields.trig_mode == IOAPIC_EDGE_TRIG)
+			e->fields.remote_irr = 0;
+
 		mask_after = e->fields.mask;
 		if (mask_before != mask_after)
 			kvm_fire_mask_notifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
@@ -324,7 +338,9 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	struct kvm_lapic_irq irqe;
 	int ret;
 
-	if (entry->fields.mask)
+	if (entry->fields.mask ||
+	    (entry->fields.trig_mode == IOAPIC_LEVEL_TRIG &&
+	    entry->fields.remote_irr))
 		return -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "

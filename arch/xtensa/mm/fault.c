@@ -25,8 +25,6 @@
 DEFINE_PER_CPU(unsigned long, asid_cache) = ASID_USER_FIRST;
 void bad_page_fault(struct pt_regs*, unsigned long, int);
 
-#undef DEBUG_PAGE_FAULT
-
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -68,10 +66,10 @@ void do_page_fault(struct pt_regs *regs)
 		    exccause == EXCCAUSE_ITLB_MISS ||
 		    exccause == EXCCAUSE_FETCH_CACHE_ATTRIBUTE) ? 1 : 0;
 
-#ifdef DEBUG_PAGE_FAULT
-	printk("[%s:%d:%08x:%d:%08x:%s%s]\n", current->comm, current->pid,
-	       address, exccause, regs->pc, is_write? "w":"", is_exec? "x":"");
-#endif
+	pr_debug("[%s:%d:%08x:%d:%08lx:%s%s]\n",
+		 current->comm, current->pid,
+		 address, exccause, regs->pc,
+		 is_write ? "w" : "", is_exec ? "x" : "");
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -247,10 +245,8 @@ bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* Are we prepared to handle this kernel fault?  */
 	if ((entry = search_exception_tables(regs->pc)) != NULL) {
-#ifdef DEBUG_PAGE_FAULT
-		printk(KERN_DEBUG "%s: Exception at pc=%#010lx (%lx)\n",
-				current->comm, regs->pc, entry->fixup);
-#endif
+		pr_debug("%s: Exception at pc=%#010lx (%lx)\n",
+			 current->comm, regs->pc, entry->fixup);
 		current->thread.bad_uaddr = address;
 		regs->pc = entry->fixup;
 		return;
@@ -259,9 +255,9 @@ bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 	/* Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
-	printk(KERN_ALERT "Unable to handle kernel paging request at virtual "
-	       "address %08lx\n pc = %08lx, ra = %08lx\n",
-	       address, regs->pc, regs->areg[0]);
+	pr_alert("Unable to handle kernel paging request at virtual "
+		 "address %08lx\n pc = %08lx, ra = %08lx\n",
+		 address, regs->pc, regs->areg[0]);
 	die("Oops", regs, sig);
 	do_exit(sig);
 }

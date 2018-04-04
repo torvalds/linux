@@ -398,8 +398,7 @@ aoecmd_ata_rw(struct aoedev *d)
 
 	skb = skb_clone(f->skb, GFP_ATOMIC);
 	if (skb) {
-		do_gettimeofday(&f->sent);
-		f->sent_jiffs = (u32) jiffies;
+		f->sent = ktime_get();
 		__skb_queue_head_init(&queue);
 		__skb_queue_tail(&queue, skb);
 		aoenet_xmit(&queue);
@@ -489,8 +488,7 @@ resend(struct aoedev *d, struct frame *f)
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return;
-	do_gettimeofday(&f->sent);
-	f->sent_jiffs = (u32) jiffies;
+	f->sent = ktime_get();
 	__skb_queue_head_init(&queue);
 	__skb_queue_tail(&queue, skb);
 	aoenet_xmit(&queue);
@@ -499,33 +497,17 @@ resend(struct aoedev *d, struct frame *f)
 static int
 tsince_hr(struct frame *f)
 {
-	struct timeval now;
-	int n;
+	u64 delta = ktime_to_ns(ktime_sub(ktime_get(), f->sent));
 
-	do_gettimeofday(&now);
-	n = now.tv_usec - f->sent.tv_usec;
-	n += (now.tv_sec - f->sent.tv_sec) * USEC_PER_SEC;
+	/* delta is normally under 4.2 seconds, avoid 64-bit division */
+	if (likely(delta <= UINT_MAX))
+		return (u32)delta / NSEC_PER_USEC;
 
-	if (n < 0)
-		n = -n;
+	/* avoid overflow after 71 minutes */
+	if (delta > ((u64)INT_MAX * NSEC_PER_USEC))
+		return INT_MAX;
 
-	/* For relatively long periods, use jiffies to avoid
-	 * discrepancies caused by updates to the system time.
-	 *
-	 * On system with HZ of 1000, 32-bits is over 49 days
-	 * worth of jiffies, or over 71 minutes worth of usecs.
-	 *
-	 * Jiffies overflow is handled by subtraction of unsigned ints:
-	 * (gdb) print (unsigned) 2 - (unsigned) 0xfffffffe
-	 * $3 = 4
-	 * (gdb)
-	 */
-	if (n > USEC_PER_SEC / 4) {
-		n = ((u32) jiffies) - f->sent_jiffs;
-		n *= USEC_PER_SEC / HZ;
-	}
-
-	return n;
+	return div_u64(delta, NSEC_PER_USEC);
 }
 
 static int
@@ -589,7 +571,6 @@ reassign_frame(struct frame *f)
 	nf->waited = 0;
 	nf->waited_total = f->waited_total;
 	nf->sent = f->sent;
-	nf->sent_jiffs = f->sent_jiffs;
 	f->skb = skb;
 
 	return nf;
@@ -633,8 +614,7 @@ probe(struct aoetgt *t)
 
 	skb = skb_clone(f->skb, GFP_ATOMIC);
 	if (skb) {
-		do_gettimeofday(&f->sent);
-		f->sent_jiffs = (u32) jiffies;
+		f->sent = ktime_get();
 		__skb_queue_head_init(&queue);
 		__skb_queue_tail(&queue, skb);
 		aoenet_xmit(&queue);
@@ -744,7 +724,7 @@ count_targets(struct aoedev *d, int *untainted)
 }
 
 static void
-rexmit_timer(ulong vp)
+rexmit_timer(struct timer_list *timer)
 {
 	struct aoedev *d;
 	struct aoetgt *t;
@@ -758,7 +738,7 @@ rexmit_timer(ulong vp)
 	int utgts;	/* number of aoetgt descriptors (not slots) */
 	int since;
 
-	d = (struct aoedev *) vp;
+	d = from_timer(d, timer, timer);
 
 	spin_lock_irqsave(&d->lock, flags);
 
@@ -1432,10 +1412,8 @@ aoecmd_ata_id(struct aoedev *d)
 	d->timer.function = rexmit_timer;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
-	if (skb) {
-		do_gettimeofday(&f->sent);
-		f->sent_jiffs = (u32) jiffies;
-	}
+	if (skb)
+		f->sent = ktime_get();
 
 	return skb;
 }

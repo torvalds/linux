@@ -33,8 +33,6 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
-#include "cros_ec_dev.h"
-
 /* Rate-limit the lightbar interface to prevent DoS. */
 static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
 
@@ -414,6 +412,7 @@ error:
 
 	return ret;
 }
+EXPORT_SYMBOL(lb_manual_suspend_ctrl);
 
 int lb_suspend(struct cros_ec_dev *ec)
 {
@@ -422,6 +421,7 @@ int lb_suspend(struct cros_ec_dev *ec)
 
 	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_SUSPEND);
 }
+EXPORT_SYMBOL(lb_suspend);
 
 int lb_resume(struct cros_ec_dev *ec)
 {
@@ -430,6 +430,7 @@ int lb_resume(struct cros_ec_dev *ec)
 
 	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_RESUME);
 }
+EXPORT_SYMBOL(lb_resume);
 
 static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
@@ -622,3 +623,4 @@ struct attribute_group cros_ec_lightbar_attr_group = {
 	.attrs = __lb_cmds_attrs,
 	.is_visible = cros_ec_lightbar_attrs_are_visible,
 };
+EXPORT_SYMBOL(cros_ec_lightbar_attr_group);

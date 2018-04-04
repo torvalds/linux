@@ -41,7 +41,7 @@ Optional properties (all):
 
 Example for I2C:
 
-i2c@12CA0000 {
+i2c@12ca0000 {
 	cros-ec@1e {
 		reg = <0x1e>;
 		compatible = "google,cros-ec-i2c";

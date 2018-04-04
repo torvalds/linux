@@ -22,10 +22,12 @@
 
 #include "vsock_addr.h"
 
-/* vsock-specific sock->sk_state constants */
-#define VSOCK_SS_LISTEN 255
-
 #define LAST_RESERVED_PORT 1023
+
+#define VSOCK_HASH_SIZE         251
+extern struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
+extern struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
+extern spinlock_t vsock_table_lock;
 
 #define vsock_sk(__sk)    ((struct vsock_sock *)__sk)
 #define sk_vsock(__vsk)   (&(__vsk)->sk)
@@ -174,6 +176,18 @@ void vsock_core_exit(void);
 const struct vsock_transport *vsock_core_get_transport(void);
 
 /**** UTILS ****/
+
+/* vsock_table_lock must be held */
+static inline bool __vsock_in_bound_table(struct vsock_sock *vsk)
+{
+	return !list_empty(&vsk->bound_table);
+}
+
+/* vsock_table_lock must be held */
+static inline bool __vsock_in_connected_table(struct vsock_sock *vsk)
+{
+	return !list_empty(&vsk->connected_table);
+}
 
 void vsock_release_pending(struct sock *pending);
 void vsock_add_pending(struct sock *listener, struct sock *pending);

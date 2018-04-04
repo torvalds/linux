@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Google Snow board device tree source
  *
  * Copyright (c) 2012 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -261,10 +258,10 @@
 };
 
 &hdmi {
+	status = "okay";
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
-	phy = <&hdmiphy>;
 	ddc = <&i2c_2>;
 	hdmi-en-supply = <&tps65090_fet7>;
 	vdd-supply = <&ldo8_reg>;
@@ -281,7 +278,7 @@
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
 
-	max77686: max77686@09 {
+	max77686: max77686@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_NONE>;
@@ -450,13 +447,9 @@
 
 &i2c_2 {
 	status = "okay";
+	/* used by HDMI DDC */
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
-
-	hdmiddc@50 {
-		compatible = "samsung,exynos4210-hdmiddc";
-		reg = <0x50>;
-	};
 };
 
 &i2c_3 {
@@ -514,16 +507,16 @@
 
 &i2c_8 {
 	status = "okay";
+	/* used by HDMI PHY */
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
-
-	hdmiphy: hdmiphy@38 {
-		compatible = "samsung,exynos4212-hdmiphy";
-		reg = <0x38>;
-	};
 };
 
 &i2s0 {
+	status = "okay";
+};
+
+&mixer {
 	status = "okay";
 };
 

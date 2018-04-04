@@ -1,7 +1,9 @@
 Renesas MSIOF spi controller
 
 Required properties:
-- compatible           : "renesas,msiof-r8a7790" (R-Car H2)
+- compatible           : "renesas,msiof-r8a7743" (RZ/G1M)
+			 "renesas,msiof-r8a7745" (RZ/G1E)
+			 "renesas,msiof-r8a7790" (R-Car H2)
 			 "renesas,msiof-r8a7791" (R-Car M2-W)
 			 "renesas,msiof-r8a7792" (R-Car V2H)
 			 "renesas,msiof-r8a7793" (R-Car M2-N)
@@ -10,7 +12,7 @@ Required properties:
 			 "renesas,msiof-r8a7796" (R-Car M3-W)
 			 "renesas,msiof-sh73a0" (SH-Mobile AG5)
 			 "renesas,sh-mobile-msiof" (generic SH-Mobile compatibile device)
-			 "renesas,rcar-gen2-msiof" (generic R-Car Gen2 compatible device)
+			 "renesas,rcar-gen2-msiof" (generic R-Car Gen2 and RZ/G1 compatible device)
 			 "renesas,rcar-gen3-msiof" (generic R-Car Gen3 compatible device)
 			 "renesas,sh-msiof"      (deprecated)
 
@@ -34,7 +36,21 @@ Required properties:
 
 Optional properties:
 - clocks               : Must contain a reference to the functional clock.
-- num-cs               : Total number of chip-selects (default is 1)
+- num-cs               : Total number of chip selects (default is 1).
+			 Up to 3 native chip selects are supported:
+			   0: MSIOF_SYNC
+			   1: MSIOF_SS1
+			   2: MSIOF_SS2
+			 Hardware limitations related to chip selects:
+			   - Native chip selects are always deasserted in
+			     between transfers that are part of the same
+			     message.  Use cs-gpios to work around this.
+			   - All slaves using native chip selects must use the
+			     same spi-cs-high configuration.  Use cs-gpios to
+			     work around this.
+			   - When using GPIO chip selects, at least one native
+			     chip select must be left unused, as it will be
+			     driven anyway.
 - dmas                 : Must contain a list of two references to DMA
 			 specifiers, one for transmission, and one for
 			 reception.

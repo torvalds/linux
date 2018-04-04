@@ -173,8 +173,6 @@ static int get_vddc_lookup_table(
 	if (NULL == table)
 		return -ENOMEM;
 
-	memset(table, 0x00, table_size);
-
 	table->count = vddc_lookup_pp_tables->ucNumEntries;
 
 	for (i = 0; i < vddc_lookup_pp_tables->ucNumEntries; i++) {
@@ -335,8 +333,6 @@ static int get_valid_clk(
 	if (NULL == table)
 		return -ENOMEM;
 
-	memset(table, 0x00, table_size);
-
 	table->count = (uint32_t)clk_volt_pp_table->count;
 
 	for (i = 0; i < table->count; i++) {
@@ -390,8 +386,6 @@ static int get_mclk_voltage_dependency_table(
 	if (NULL == mclk_table)
 		return -ENOMEM;
 
-	memset(mclk_table, 0x00, table_size);
-
 	mclk_table->count = (uint32_t)mclk_dep_table->ucNumEntries;
 
 	for (i = 0; i < mclk_dep_table->ucNumEntries; i++) {
@@ -439,8 +433,6 @@ static int get_sclk_voltage_dependency_table(
 		if (NULL == sclk_table)
 			return -ENOMEM;
 
-		memset(sclk_table, 0x00, table_size);
-
 		sclk_table->count = (uint32_t)tonga_table->ucNumEntries;
 
 		for (i = 0; i < tonga_table->ucNumEntries; i++) {
@@ -472,8 +464,6 @@ static int get_sclk_voltage_dependency_table(
 
 		if (NULL == sclk_table)
 			return -ENOMEM;
-
-		memset(sclk_table, 0x00, table_size);
 
 		sclk_table->count = (uint32_t)polaris_table->ucNumEntries;
 
@@ -525,8 +515,6 @@ static int get_pcie_table(
 		if (pcie_table == NULL)
 			return -ENOMEM;
 
-		memset(pcie_table, 0x00, table_size);
-
 		/*
 		* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
 		* Since first PCIE entry is for ULV, #pcie has to be <= SclkLevel + 1.
@@ -535,8 +523,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 		for (i = 0; i < pcie_count; i++) {
@@ -567,8 +554,6 @@ static int get_pcie_table(
 		if (pcie_table == NULL)
 			return -ENOMEM;
 
-		memset(pcie_table, 0x00, table_size);
-
 		/*
 		* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
 		* Since first PCIE entry is for ULV, #pcie has to be <= SclkLevel + 1.
@@ -577,8 +562,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 
@@ -615,16 +599,12 @@ static int get_cac_tdp_table(
 	if (NULL == tdp_table)
 		return -ENOMEM;
 
-	memset(tdp_table, 0x00, table_size);
-
 	hwmgr->dyn_state.cac_dtp_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == hwmgr->dyn_state.cac_dtp_table) {
 		kfree(tdp_table);
 		return -ENOMEM;
 	}
-
-	memset(hwmgr->dyn_state.cac_dtp_table, 0x00, table_size);
 
 	if (table->ucRevId < 3) {
 		const ATOM_Tonga_PowerTune_Table *tonga_table =
@@ -724,8 +704,6 @@ static int get_mm_clock_voltage_table(
 
 	if (NULL == mm_table)
 		return -ENOMEM;
-
-	memset(mm_table, 0x00, table_size);
 
 	mm_table->count = mm_dependency_table->ucNumEntries;
 
@@ -850,9 +828,9 @@ static int init_over_drive_limits(
 		const ATOM_Tonga_POWERPLAYTABLE *powerplay_table)
 {
 	hwmgr->platform_descriptor.overdriveLimit.engineClock =
-		le16_to_cpu(powerplay_table->ulMaxODEngineClock);
+		le32_to_cpu(powerplay_table->ulMaxODEngineClock);
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock =
-		le16_to_cpu(powerplay_table->ulMaxODMemoryClock);
+		le32_to_cpu(powerplay_table->ulMaxODMemoryClock);
 
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;

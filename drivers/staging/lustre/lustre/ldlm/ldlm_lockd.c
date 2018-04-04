@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -184,7 +185,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 			LASSERT(lock->l_lvb_data);
 
 			if (unlikely(lock->l_lvb_len < lvb_len)) {
-				LDLM_ERROR(lock, "Replied LVB is larger than expectation, expected = %d, replied = %d",
+				LDLM_ERROR(lock,
+					   "Replied LVB is larger than expectation, expected = %d, replied = %d",
 					   lock->l_lvb_len, lvb_len);
 				rc = -EINVAL;
 				goto out;
@@ -598,7 +600,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 
 	lock = ldlm_handle2lock_long(&dlm_req->lock_handle[0], 0);
 	if (!lock) {
-		CDEBUG(D_DLMTRACE, "callback on lock %#llx - lock disappeared\n",
+		CDEBUG(D_DLMTRACE,
+		       "callback on lock %#llx - lock disappeared\n",
 		       dlm_req->lock_handle[0].cookie);
 		rc = ldlm_callback_reply(req, -EINVAL);
 		ldlm_callback_errmsg(req, "Operate with invalid parameter", rc,
@@ -693,13 +696,13 @@ static int ldlm_bl_get_work(struct ldlm_bl_pool *blp,
 	/* process a request from the blp_list at least every blp_num_threads */
 	if (!list_empty(&blp->blp_list) &&
 	    (list_empty(&blp->blp_prio_list) || num_bl == 0))
-		blwi = list_entry(blp->blp_list.next,
-				  struct ldlm_bl_work_item, blwi_entry);
+		blwi = list_first_entry(&blp->blp_list,
+					struct ldlm_bl_work_item, blwi_entry);
 	else
 		if (!list_empty(&blp->blp_prio_list))
-			blwi = list_entry(blp->blp_prio_list.next,
-					  struct ldlm_bl_work_item,
-					  blwi_entry);
+			blwi = list_first_entry(&blp->blp_prio_list,
+						struct ldlm_bl_work_item,
+						blwi_entry);
 
 	if (blwi) {
 		if (++num_bl >= num_th)
@@ -1090,8 +1093,10 @@ static int ldlm_cleanup(void)
 		kset_unregister(ldlm_ns_kset);
 	if (ldlm_svc_kset)
 		kset_unregister(ldlm_svc_kset);
-	if (ldlm_kobj)
+	if (ldlm_kobj) {
+		sysfs_remove_group(ldlm_kobj, &ldlm_attr_group);
 		kobject_put(ldlm_kobj);
+	}
 
 	ldlm_debugfs_cleanup();
 

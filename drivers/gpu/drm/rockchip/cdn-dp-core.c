@@ -276,23 +276,13 @@ static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 
 		dp->sink_has_audio = drm_detect_monitor_audio(edid);
 		ret = drm_add_edid_modes(connector, edid);
-		if (ret) {
+		if (ret)
 			drm_mode_connector_update_edid_property(connector,
 								edid);
-			drm_edid_to_eld(connector, edid);
-		}
 	}
 	mutex_unlock(&dp->lock);
 
 	return ret;
-}
-
-static struct drm_encoder *
-cdn_dp_connector_best_encoder(struct drm_connector *connector)
-{
-	struct cdn_dp_device *dp = connector_to_dp(connector);
-
-	return &dp->encoder;
 }
 
 static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
@@ -346,7 +336,6 @@ static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
 
 static struct drm_connector_helper_funcs cdn_dp_connector_helper_funcs = {
 	.get_modes = cdn_dp_connector_get_modes,
-	.best_encoder = cdn_dp_connector_best_encoder,
 	.mode_valid = cdn_dp_connector_mode_valid,
 };
 

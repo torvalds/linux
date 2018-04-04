@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2003 Digi International (www.digi.com)
  *	Scott H Kilau <Scott_Kilau at digi dot com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- * PURPOSE.  See the GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -397,7 +388,7 @@ static void cls_assert_modem_signals(struct channel_t *ch)
 	writeb(out, &ch->ch_cls_uart->mcr);
 
 	/* Give time for the UART to actually drop the signals */
-	udelay(10);
+	usleep_range(10, 20);
 }
 
 static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
@@ -1123,30 +1114,6 @@ static void cls_send_immediate_char(struct channel_t *ch, unsigned char c)
 	writeb(c, &ch->ch_cls_uart->txrx);
 }
 
-static void cls_vpd(struct dgnc_board *brd)
-{
-	ulong           vpdbase;        /* Start of io base of the card */
-	u8 __iomem           *re_map_vpdbase;/* Remapped memory of the card */
-	int i = 0;
-
-	vpdbase = pci_resource_start(brd->pdev, 3);
-	if (!vpdbase)
-		return;
-
-	re_map_vpdbase = ioremap(vpdbase, 0x400);
-
-	if (!re_map_vpdbase)
-		return;
-
-	for (i = 0; i < 0x40; i++) {
-		brd->vpd[i] = readb(re_map_vpdbase + i);
-		pr_info("%x ", brd->vpd[i]);
-	}
-	pr_info("\n");
-
-	iounmap(re_map_vpdbase);
-}
-
 struct board_ops dgnc_cls_ops = {
 	.tasklet =			cls_tasklet,
 	.intr =				cls_intr,
@@ -1154,7 +1121,6 @@ struct board_ops dgnc_cls_ops = {
 	.uart_off =			cls_uart_off,
 	.drain =			cls_drain,
 	.param =			cls_param,
-	.vpd =				cls_vpd,
 	.assert_modem_signals =		cls_assert_modem_signals,
 	.flush_uart_write =		cls_flush_uart_write,
 	.flush_uart_read =		cls_flush_uart_read,

@@ -331,7 +331,7 @@ bcm47xx_leds_linksys_wrt54g3gv2[] __initconst = {
 /* Verified on: WRT54GS V1.0 */
 static const struct gpio_led
 bcm47xx_leds_linksys_wrt54g_type_0101[] __initconst = {
-	BCM47XX_GPIO_LED(0, "green", "wlan", 0, LEDS_GPIO_DEFSTATE_OFF),
+	BCM47XX_GPIO_LED(0, "green", "wlan", 1, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(1, "green", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(7, "green", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
 };

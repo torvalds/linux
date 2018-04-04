@@ -177,7 +177,6 @@ static int als_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info als_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &als_read_raw,
 	.write_raw = &als_write_raw,
 };

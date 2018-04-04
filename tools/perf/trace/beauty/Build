@@ -1,7 +1,10 @@
 libperf-y += clone.o
 libperf-y += fcntl.o
+libperf-y += flock.o
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))
 libperf-y += ioctl.o
 endif
+libperf-y += kcmp.o
 libperf-y += pkey_alloc.o
+libperf-y += prctl.o
 libperf-y += statx.o

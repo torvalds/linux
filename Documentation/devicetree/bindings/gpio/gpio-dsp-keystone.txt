@@ -25,7 +25,7 @@ Please refer to gpio.txt in this directory for details of the common GPIO
 bindings used by client devices.
 
 Example:
-	dspgpio0: keystone_dsp_gpio@02620240 {
+	dspgpio0: keystone_dsp_gpio@2620240 {
 		compatible = "ti,keystone-dsp-gpio";
 		ti,syscon-dev = <&devctrl 0x240>;
 		gpio-controller;

@@ -255,21 +255,14 @@ static tree handle_latent_entropy_attribute(tree *node, tree name,
 	return NULL_TREE;
 }
 
-static struct attribute_spec latent_entropy_attr = {
-	.name				= "latent_entropy",
-	.min_length			= 0,
-	.max_length			= 0,
-	.decl_required			= true,
-	.type_required			= false,
-	.function_type_required		= false,
-	.handler			= handle_latent_entropy_attribute,
-#if BUILDING_GCC_VERSION >= 4007
-	.affects_type_identity		= false
-#endif
-};
+static struct attribute_spec latent_entropy_attr = { };
 
 static void register_attributes(void *event_data __unused, void *data __unused)
 {
+	latent_entropy_attr.name		= "latent_entropy";
+	latent_entropy_attr.decl_required	= true;
+	latent_entropy_attr.handler		= handle_latent_entropy_attribute;
+
 	register_attribute(&latent_entropy_attr);
 }
 

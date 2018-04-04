@@ -699,7 +699,7 @@ static void os_area_queue_work_handler(struct work_struct *work)
 
 	error = update_flash_db();
 	if (error)
-		pr_warning("%s: Could not update FLASH ROM\n", __func__);
+		pr_warn("%s: Could not update FLASH ROM\n", __func__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 }

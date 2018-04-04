@@ -26,10 +26,10 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	int re;
 	int rs;
 	u64 rm;
-	unsigned lxm;
-	unsigned hxm;
-	unsigned lym;
-	unsigned hym;
+	unsigned int lxm;
+	unsigned int hxm;
+	unsigned int lym;
+	unsigned int hym;
 	u64 lrm;
 	u64 hrm;
 	u64 t;
@@ -101,6 +101,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		DPDNORMX;
+		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		DPDNORMY;
@@ -127,9 +128,6 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	/*
 	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
 	 */
-
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
 
 	lxm = xm;
 	hxm = xm >> 32;

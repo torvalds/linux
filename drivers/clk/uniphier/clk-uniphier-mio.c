@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/stddef.h>
+
 #include "clk-uniphier.h"
 
 #define UNIPHIER_MIO_CLK_SD_FIXED					\
@@ -73,15 +75,12 @@
 #define UNIPHIER_MIO_CLK_USB2_PHY(idx, ch)				\
 	UNIPHIER_CLK_GATE("usb2" #ch "-phy", (idx), "usb2", 0x20 + 0x200 * (ch), 29)
 
-#define UNIPHIER_MIO_CLK_DMAC(idx)					\
-	UNIPHIER_CLK_GATE("miodmac", (idx), "stdmac", 0x20, 25)
-
 const struct uniphier_clk_data uniphier_ld4_mio_clk_data[] = {
 	UNIPHIER_MIO_CLK_SD_FIXED,
 	UNIPHIER_MIO_CLK_SD(0, 0),
 	UNIPHIER_MIO_CLK_SD(1, 1),
 	UNIPHIER_MIO_CLK_SD(2, 2),
-	UNIPHIER_MIO_CLK_DMAC(7),
+	UNIPHIER_CLK_GATE("miodmac", 7, NULL, 0x20, 25),
 	UNIPHIER_MIO_CLK_USB2(8, 0),
 	UNIPHIER_MIO_CLK_USB2(9, 1),
 	UNIPHIER_MIO_CLK_USB2(10, 2),

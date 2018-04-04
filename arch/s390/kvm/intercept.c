@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * in-kernel handling for sie intercepts
  *
  * Copyright IBM Corp. 2008, 2014
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -18,27 +15,12 @@
 #include <asm/kvm_host.h>
 #include <asm/asm-offsets.h>
 #include <asm/irq.h>
+#include <asm/sysinfo.h>
 
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace.h"
 #include "trace-s390.h"
-
-
-static const intercept_handler_t instruction_handlers[256] = {
-	[0x01] = kvm_s390_handle_01,
-	[0x82] = kvm_s390_handle_lpsw,
-	[0x83] = kvm_s390_handle_diag,
-	[0xaa] = kvm_s390_handle_aa,
-	[0xae] = kvm_s390_handle_sigp,
-	[0xb2] = kvm_s390_handle_b2,
-	[0xb6] = kvm_s390_handle_stctl,
-	[0xb7] = kvm_s390_handle_lctl,
-	[0xb9] = kvm_s390_handle_b9,
-	[0xe3] = kvm_s390_handle_e3,
-	[0xe5] = kvm_s390_handle_e5,
-	[0xeb] = kvm_s390_handle_eb,
-};
 
 u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu)
 {
@@ -131,16 +113,39 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 
 static int handle_instruction(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
 	vcpu->stat.exit_instruction++;
 	trace_kvm_s390_intercept_instruction(vcpu,
 					     vcpu->arch.sie_block->ipa,
 					     vcpu->arch.sie_block->ipb);
-	handler = instruction_handlers[vcpu->arch.sie_block->ipa >> 8];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
+
+	switch (vcpu->arch.sie_block->ipa >> 8) {
+	case 0x01:
+		return kvm_s390_handle_01(vcpu);
+	case 0x82:
+		return kvm_s390_handle_lpsw(vcpu);
+	case 0x83:
+		return kvm_s390_handle_diag(vcpu);
+	case 0xaa:
+		return kvm_s390_handle_aa(vcpu);
+	case 0xae:
+		return kvm_s390_handle_sigp(vcpu);
+	case 0xb2:
+		return kvm_s390_handle_b2(vcpu);
+	case 0xb6:
+		return kvm_s390_handle_stctl(vcpu);
+	case 0xb7:
+		return kvm_s390_handle_lctl(vcpu);
+	case 0xb9:
+		return kvm_s390_handle_b9(vcpu);
+	case 0xe3:
+		return kvm_s390_handle_e3(vcpu);
+	case 0xe5:
+		return kvm_s390_handle_e5(vcpu);
+	case 0xeb:
+		return kvm_s390_handle_eb(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int inject_prog_on_prog_intercept(struct kvm_vcpu *vcpu)
@@ -358,6 +363,61 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 		return kvm_s390_handle_sigp_pei(vcpu);
 
 	return -EOPNOTSUPP;
+}
+
+/*
+ * Handle the sthyi instruction that provides the guest with system
+ * information, like current CPU resources available at each level of
+ * the machine.
+ */
+int handle_sthyi(struct kvm_vcpu *vcpu)
+{
+	int reg1, reg2, r = 0;
+	u64 code, addr, cc = 0, rc = 0;
+	struct sthyi_sctns *sctns = NULL;
+
+	if (!test_kvm_facility(vcpu->kvm, 74))
+		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+
+	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
+	code = vcpu->run->s.regs.gprs[reg1];
+	addr = vcpu->run->s.regs.gprs[reg2];
+
+	vcpu->stat.instruction_sthyi++;
+	VCPU_EVENT(vcpu, 3, "STHYI: fc: %llu addr: 0x%016llx", code, addr);
+	trace_kvm_s390_handle_sthyi(vcpu, code, addr);
+
+	if (reg1 == reg2 || reg1 & 1 || reg2 & 1)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	if (code & 0xffff) {
+		cc = 3;
+		rc = 4;
+		goto out;
+	}
+
+	if (addr & ~PAGE_MASK)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	sctns = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!sctns)
+		return -ENOMEM;
+
+	cc = sthyi_fill(sctns, &rc);
+
+out:
+	if (!cc) {
+		r = write_guest(vcpu, addr, reg2, sctns, PAGE_SIZE);
+		if (r) {
+			free_page((unsigned long)sctns);
+			return kvm_s390_inject_prog_cond(vcpu, r);
+		}
+	}
+
+	free_page((unsigned long)sctns);
+	vcpu->run->s.regs.gprs[reg2 + 1] = rc;
+	kvm_s390_set_psw_cc(vcpu, cc);
+	return r;
 }
 
 static int handle_operexc(struct kvm_vcpu *vcpu)

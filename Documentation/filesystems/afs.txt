@@ -7,6 +7,7 @@ Contents:
  - Overview.
  - Usage.
  - Mountpoints.
+ - Dynamic root.
  - Proc filesystem.
  - The cell database.
  - Security.
@@ -91,8 +92,8 @@ Filesystems can be mounted anywhere by commands similar to the following:
 	mount -t afs "#root.cell." /afs/cambridge
 
 Where the initial character is either a hash or a percent symbol depending on
-whether you definitely want a R/W volume (hash) or whether you'd prefer a R/O
-volume, but are willing to use a R/W volume instead (percent).
+whether you definitely want a R/W volume (percent) or whether you'd prefer a
+R/O volume, but are willing to use a R/W volume instead (hash).
 
 The name of the volume can be suffixes with ".backup" or ".readonly" to
 specify connection to only volumes of those types.
@@ -125,6 +126,22 @@ This can be used by the administrator to attempt to unmount the whole AFS tree
 mounted on /afs in one go by doing:
 
 	umount /afs
+
+
+============
+DYNAMIC ROOT
+============
+
+A mount option is available to create a serverless mount that is only usable
+for dynamic lookup.  Creating such a mount can be done by, for example:
+
+	mount -t afs none /afs -o dyn
+
+This creates a mount that just has an empty directory at the root.  Attempting
+to look up a name in this directory will cause a mountpoint to be created that
+looks up a cell of the same name, for example:
+
+	ls /afs/grand.central.org/
 
 
 ===============

@@ -1739,7 +1739,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 	spin_lock(&mapping->private_lock);
 	if (unlikely(!page_has_buffers(page))) {
 		spin_unlock(&mapping->private_lock);
-		bh = head = alloc_page_buffers(page, bh_size, 1);
+		bh = head = alloc_page_buffers(page, bh_size, true);
 		spin_lock(&mapping->private_lock);
 		if (likely(!page_has_buffers(page))) {
 			struct buffer_head *tail;

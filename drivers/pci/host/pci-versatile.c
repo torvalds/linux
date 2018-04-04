@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2004 Koninklijke Philips Electronics NV
  *
  * Conversion to platform driver and DT:
  * Copyright 2014 Linaro Ltd.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * 14/04/2005 Initial version, colin.king@philips.com
  */
@@ -202,7 +194,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	writel(0, versatile_cfg_base[0] + PCI_INTERRUPT_LINE);
 
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS);
-	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	list_splice_init(&pci_res, &bridge->windows);
 	bridge->dev.parent = dev;

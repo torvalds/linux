@@ -22,7 +22,7 @@ struct scsi_dev_info_list {
 	struct list_head dev_info_list;
 	char vendor[8];
 	char model[16];
-	unsigned flags;
+	blist_flags_t flags;
 	unsigned compatible; /* for use with scsi_static_device_list entries */
 };
 
@@ -34,8 +34,7 @@ struct scsi_dev_info_list_table {
 };
 
 
-static const char spaces[] = "                "; /* 16 of them */
-static unsigned scsi_default_dev_flags;
+static blist_flags_t scsi_default_dev_flags;
 static LIST_HEAD(scsi_dev_info_list);
 static char scsi_dev_flags[256];
 
@@ -52,7 +51,7 @@ static struct {
 	char *vendor;
 	char *model;
 	char *revision;	/* revision known to be bad, unused */
-	unsigned flags;
+	blist_flags_t flags;
 } scsi_static_device_list[] __initdata = {
 	/*
 	 * The following devices are known not to tolerate a lun != 0 scan
@@ -109,8 +108,8 @@ static struct {
 	 * seagate controller, which causes SCSI code to reset bus.
 	 */
 	{"HP", "C1750A", "3226", BLIST_NOLUN},		/* scanjet iic */
-	{"HP", "C1790A", "", BLIST_NOLUN},		/* scanjet iip */
-	{"HP", "C2500A", "", BLIST_NOLUN},		/* scanjet iicx */
+	{"HP", "C1790A", NULL, BLIST_NOLUN},		/* scanjet iip */
+	{"HP", "C2500A", NULL, BLIST_NOLUN},		/* scanjet iicx */
 	{"MEDIAVIS", "CDR-H93MV", "1.31", BLIST_NOLUN},	/* locks up */
 	{"MICROTEK", "ScanMaker II", "5.61", BLIST_NOLUN},	/* responds to all lun */
 	{"MITSUMI", "CD-R CR-2201CS", "6119", BLIST_NOLUN},	/* locks up */
@@ -120,7 +119,7 @@ static struct {
 	{"QUANTUM", "FIREBALL ST4.3S", "0F0C", BLIST_NOLUN},	/* locks up */
 	{"RELISYS", "Scorpio", NULL, BLIST_NOLUN},	/* responds to all lun */
 	{"SANKYO", "CP525", "6.64", BLIST_NOLUN},	/* causes failed REQ SENSE, extra reset */
-	{"TEXEL", "CD-ROM", "1.06", BLIST_NOLUN},
+	{"TEXEL", "CD-ROM", "1.06", BLIST_NOLUN | BLIST_BORKEN},
 	{"transtec", "T5008", "0001", BLIST_NOREPORTLUN },
 	{"YAMAHA", "CDR100", "1.00", BLIST_NOLUN},	/* locks up */
 	{"YAMAHA", "CDR102", "1.00", BLIST_NOLUN},	/* locks up */
@@ -135,6 +134,7 @@ static struct {
 	{"3PARdata", "VV", NULL, BLIST_REPORTLUN2},
 	{"ADAPTEC", "AACRAID", NULL, BLIST_FORCELUN},
 	{"ADAPTEC", "Adaptec 5400S", NULL, BLIST_FORCELUN},
+	{"AIX", "VDASD", NULL, BLIST_TRY_VPD_PAGES},
 	{"AFT PRO", "-IX CF", "0.0>", BLIST_FORCELUN},
 	{"BELKIN", "USB 2 HS-CF", "1.95",  BLIST_FORCELUN | BLIST_INQUIRY_36},
 	{"BROWNIE", "1200U3P", NULL, BLIST_NOREPORTLUN},
@@ -158,10 +158,10 @@ static struct {
 	{"DELL", "PSEUDO DEVICE .", NULL, BLIST_SPARSELUN},	/* Dell PV 530F */
 	{"DELL", "PV530F", NULL, BLIST_SPARSELUN},
 	{"DELL", "PERCRAID", NULL, BLIST_FORCELUN},
-	{"DGC", "RAID", NULL, BLIST_SPARSELUN},	/* Dell PV 650F, storage on LUN 0 */
-	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* Dell PV 650F, no storage on LUN 0 */
+	{"DGC", "RAID", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, storage on LUN 0 */
+	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, no storage on LUN 0 */
 	{"EMC",  "Invista", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN | BLIST_FORCELUN},
+	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN | BLIST_REPORTLUN2},
 	{"EMULEX", "MD21/S2     ESDI", NULL, BLIST_SINGLELUN},
 	{"easyRAID", "16P", NULL, BLIST_NOREPORTLUN},
 	{"easyRAID", "X6P", NULL, BLIST_NOREPORTLUN},
@@ -174,22 +174,21 @@ static struct {
 	{"HITACHI", "DF500", "*", BLIST_REPORTLUN2},
 	{"HITACHI", "DISK-SUBSYSTEM", "*", BLIST_REPORTLUN2},
 	{"HITACHI", "HUS1530", "*", BLIST_NO_DIF},
-	{"HITACHI", "OPEN-", "*", BLIST_REPORTLUN2},
+	{"HITACHI", "OPEN-", "*", BLIST_REPORTLUN2 | BLIST_TRY_VPD_PAGES},
 	{"HITACHI", "OP-C-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HITACHI", "3380-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HITACHI", "3390-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HITACHI", "6586-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HITACHI", "6588-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HP", "A6189A", NULL, BLIST_SPARSELUN | BLIST_LARGELUN},	/* HP VA7400 */
-	{"HP", "OPEN-", "*", BLIST_REPORTLUN2}, /* HP XP Arrays */
+	{"HP", "OPEN-", "*", BLIST_REPORTLUN2 | BLIST_TRY_VPD_PAGES}, /* HP XP Arrays */
 	{"HP", "NetRAID-4M", NULL, BLIST_FORCELUN},
 	{"HP", "HSV100", NULL, BLIST_REPORTLUN2 | BLIST_NOSTARTONADD},
 	{"HP", "C1557A", NULL, BLIST_FORCELUN},
 	{"HP", "C3323-300", "4269", BLIST_NOTQ},
 	{"HP", "C5713A", NULL, BLIST_NOREPORTLUN},
-	{"HP", "DF400", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HP", "DF500", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HP", "DF600", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
+	{"HP", "DF400", "*", BLIST_REPORTLUN2},
+	{"HP", "DF500", "*", BLIST_REPORTLUN2},
 	{"HP", "OP-C-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HP", "3380-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HP", "3390-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
@@ -255,7 +254,6 @@ static struct {
 	{"ST650211", "CF", NULL, BLIST_RETRY_HWERROR},
 	{"SUN", "T300", "*", BLIST_SPARSELUN},
 	{"SUN", "T4", "*", BLIST_SPARSELUN},
-	{"TEXEL", "CD-ROM", "1.06", BLIST_BORKEN},
 	{"Tornado-", "F4", "*", BLIST_NOREPORTLUN},
 	{"TOSHIBA", "CDROM", NULL, BLIST_ISROM},
 	{"TOSHIBA", "CD-ROM", NULL, BLIST_ISROM},
@@ -297,20 +295,13 @@ static void scsi_strcpy_devinfo(char *name, char *to, size_t to_length,
 	size_t from_length;
 
 	from_length = strlen(from);
-	strncpy(to, from, min(to_length, from_length));
-	if (from_length < to_length) {
-		if (compatible) {
-			/*
-			 * NUL terminate the string if it is short.
-			 */
-			to[from_length] = '\0';
-		} else {
-			/* 
-			 * space pad the string if it is short. 
-			 */
-			strncpy(&to[from_length], spaces,
-				to_length - from_length);
-		}
+	/* This zero-pads the destination */
+	strncpy(to, from, to_length);
+	if (from_length < to_length && !compatible) {
+		/*
+		 * space pad the string if it is short.
+		 */
+		memset(&to[from_length], ' ', to_length - from_length);
 	}
 	if (from_length > to_length)
 		 printk(KERN_WARNING "%s: %s string '%s' is too long\n",
@@ -326,15 +317,15 @@ static void scsi_strcpy_devinfo(char *name, char *to, size_t to_length,
  * @flags:	if strflags NULL, use this flag value
  *
  * Description:
- * 	Create and add one dev_info entry for @vendor, @model, @strflags or
- * 	@flag. If @compatible, add to the tail of the list, do not space
- * 	pad, and set devinfo->compatible. The scsi_static_device_list entries
- * 	are added with @compatible 1 and @clfags NULL.
+ *	Create and add one dev_info entry for @vendor, @model, @strflags or
+ *	@flag. If @compatible, add to the tail of the list, do not space
+ *	pad, and set devinfo->compatible. The scsi_static_device_list entries
+ *	are added with @compatible 1 and @clfags NULL.
  *
  * Returns: 0 OK, -error on failure.
  **/
 static int scsi_dev_info_list_add(int compatible, char *vendor, char *model,
-			    char *strflags, int flags)
+			    char *strflags, blist_flags_t flags)
 {
 	return scsi_dev_info_list_add_keyed(compatible, vendor, model,
 					    strflags, flags,
@@ -351,16 +342,17 @@ static int scsi_dev_info_list_add(int compatible, char *vendor, char *model,
  * @key:	specify list to use
  *
  * Description:
- * 	Create and add one dev_info entry for @vendor, @model,
- * 	@strflags or @flag in list specified by @key. If @compatible,
- * 	add to the tail of the list, do not space pad, and set
- * 	devinfo->compatible. The scsi_static_device_list entries are
- * 	added with @compatible 1 and @clfags NULL.
+ *	Create and add one dev_info entry for @vendor, @model,
+ *	@strflags or @flag in list specified by @key. If @compatible,
+ *	add to the tail of the list, do not space pad, and set
+ *	devinfo->compatible. The scsi_static_device_list entries are
+ *	added with @compatible 1 and @clfags NULL.
  *
  * Returns: 0 OK, -error on failure.
  **/
 int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
-				 char *strflags, int flags, int key)
+				 char *strflags, blist_flags_t flags,
+				 enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *devinfo;
 	struct scsi_dev_info_list_table *devinfo_table =
@@ -381,10 +373,8 @@ int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
 			    model, compatible);
 
 	if (strflags)
-		devinfo->flags = simple_strtoul(strflags, NULL, 0);
-	else
-		devinfo->flags = flags;
-
+		flags = (__force blist_flags_t)simple_strtoul(strflags, NULL, 0);
+	devinfo->flags = flags;
 	devinfo->compatible = compatible;
 
 	if (compatible)
@@ -400,23 +390,23 @@ EXPORT_SYMBOL(scsi_dev_info_list_add_keyed);
 
 /**
  * scsi_dev_info_list_find - find a matching dev_info list entry.
- * @vendor:	vendor string
- * @model:	model (product) string
+ * @vendor:	full vendor string
+ * @model:	full model (product) string
  * @key:	specify list to use
  *
  * Description:
  *	Finds the first dev_info entry matching @vendor, @model
- * 	in list specified by @key.
+ *	in list specified by @key.
  *
  * Returns: pointer to matching entry, or ERR_PTR on failure.
  **/
 static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
-		const char *model, int key)
+		const char *model, enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *devinfo;
 	struct scsi_dev_info_list_table *devinfo_table =
 		scsi_devinfo_lookup_by_key(key);
-	size_t vmax, mmax;
+	size_t vmax, mmax, mlen;
 	const char *vskip, *mskip;
 
 	if (IS_ERR(devinfo_table))
@@ -455,22 +445,26 @@ static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
 			    dev_info_list) {
 		if (devinfo->compatible) {
 			/*
-			 * Behave like the older version of get_device_flags.
+			 * vendor strings must be an exact match
 			 */
-			if (memcmp(devinfo->vendor, vskip, vmax) ||
-					(vmax < sizeof(devinfo->vendor) &&
-						devinfo->vendor[vmax]))
+			if (vmax != strnlen(devinfo->vendor,
+					    sizeof(devinfo->vendor)) ||
+			    memcmp(devinfo->vendor, vskip, vmax))
 				continue;
-			if (memcmp(devinfo->model, mskip, mmax) ||
-					(mmax < sizeof(devinfo->model) &&
-						devinfo->model[mmax]))
+
+			/*
+			 * @model specifies the full string, and
+			 * must be larger or equal to devinfo->model
+			 */
+			mlen = strnlen(devinfo->model, sizeof(devinfo->model));
+			if (mmax < mlen || memcmp(devinfo->model, mskip, mlen))
 				continue;
 			return devinfo;
 		} else {
 			if (!memcmp(devinfo->vendor, vendor,
-				     sizeof(devinfo->vendor)) &&
-			     !memcmp(devinfo->model, model,
-				      sizeof(devinfo->model)))
+				    sizeof(devinfo->vendor)) &&
+			    !memcmp(devinfo->model, model,
+				    sizeof(devinfo->model)))
 				return devinfo;
 		}
 	}
@@ -490,7 +484,8 @@ static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
  *
  * Returns: 0 OK, -error on failure.
  **/
-int scsi_dev_info_list_del_keyed(char *vendor, char *model, int key)
+int scsi_dev_info_list_del_keyed(char *vendor, char *model,
+				 enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *found;
 
@@ -509,10 +504,10 @@ EXPORT_SYMBOL(scsi_dev_info_list_del_keyed);
  * @dev_list:	string of device flags to add
  *
  * Description:
- * 	Parse dev_list, and add entries to the scsi_dev_info_list.
- * 	dev_list is of the form "vendor:product:flag,vendor:product:flag".
- * 	dev_list is modified via strsep. Can be called for command line
- * 	addition, for proc or mabye a sysfs interface.
+ *	Parse dev_list, and add entries to the scsi_dev_info_list.
+ *	dev_list is of the form "vendor:product:flag,vendor:product:flag".
+ *	dev_list is modified via strsep. Can be called for command line
+ *	addition, for proc or mabye a sysfs interface.
  *
  * Returns: 0 if OK, -error on failure.
  **/
@@ -567,9 +562,9 @@ static int scsi_dev_info_list_add_str(char *dev_list)
  *     matching flags value, else return the host or global default
  *     settings.  Called during scan time.
  **/
-int scsi_get_device_flags(struct scsi_device *sdev,
-			  const unsigned char *vendor,
-			  const unsigned char *model)
+blist_flags_t scsi_get_device_flags(struct scsi_device *sdev,
+				    const unsigned char *vendor,
+				    const unsigned char *model)
 {
 	return scsi_get_device_flags_keyed(sdev, vendor, model,
 					   SCSI_DEVINFO_GLOBAL);
@@ -589,23 +584,18 @@ int scsi_get_device_flags(struct scsi_device *sdev,
  *     flags value, else return the host or global default settings.
  *     Called during scan time.
  **/
-int scsi_get_device_flags_keyed(struct scsi_device *sdev,
+blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
 				const unsigned char *vendor,
 				const unsigned char *model,
-				int key)
+				enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *devinfo;
-	int err;
 
 	devinfo = scsi_dev_info_list_find(vendor, model, key);
 	if (!IS_ERR(devinfo))
 		return devinfo->flags;
 
-	err = PTR_ERR(devinfo);
-	if (err != -ENOENT)
-		return err;
-
-	/* nothing found, return nothing */
+	/* key or device not found: return nothing */
 	if (key != SCSI_DEVINFO_GLOBAL)
 		return 0;
 
@@ -702,7 +692,7 @@ static int proc_scsi_devinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &scsi_devinfo_seq_ops);
 }
 
-/* 
+/*
  * proc_scsi_dev_info_write - allow additions to scsi_dev_info_list via /proc.
  *
  * Description: Adds a black/white list entry for vendor and model with an
@@ -779,7 +769,7 @@ void scsi_exit_devinfo(void)
  * Adds the requested list, returns zero on success, -EEXIST if the
  * key is already registered to a list, or other error on failure.
  */
-int scsi_dev_info_add_list(int key, const char *name)
+int scsi_dev_info_add_list(enum scsi_devinfo_key key, const char *name)
 {
 	struct scsi_dev_info_list_table *devinfo_table =
 		scsi_devinfo_lookup_by_key(key);
@@ -811,7 +801,7 @@ EXPORT_SYMBOL(scsi_dev_info_add_list);
  * frees the list itself.  Returns 0 on success or -EINVAL if the key
  * can't be found.
  */
-int scsi_dev_info_remove_list(int key)
+int scsi_dev_info_remove_list(enum scsi_devinfo_key key)
 {
 	struct list_head *lh, *lh_next;
 	struct scsi_dev_info_list_table *devinfo_table =
@@ -841,8 +831,8 @@ EXPORT_SYMBOL(scsi_dev_info_remove_list);
  * scsi_init_devinfo - set up the dynamic device list.
  *
  * Description:
- * 	Add command line entries from scsi_dev_flags, then add
- * 	scsi_static_device_list entries to the scsi device info list.
+ *	Add command line entries from scsi_dev_flags, then add
+ *	scsi_static_device_list entries to the scsi device info list.
  */
 int __init scsi_init_devinfo(void)
 {

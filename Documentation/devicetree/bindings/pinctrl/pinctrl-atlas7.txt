@@ -96,14 +96,14 @@ For example, pinctrl might have subnodes like the following:
 
 For a specific board, if it wants to use sd1,
 it can add the following to its board-specific .dts file.
-sd1: sd@0x12340000 {
+sd1: sd@12340000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_pmx0>;
 }
 
 or
 
-sd1: sd@0x12340000 {
+sd1: sd@12340000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_pmx1>;
 }

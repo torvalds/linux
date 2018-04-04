@@ -55,7 +55,7 @@ Examples:
 
 [hwmod populated DMA resources]
 
-	mmc1: mmc@0x4809c000 {
+	mmc1: mmc@4809c000 {
 		compatible = "ti,omap4-hsmmc";
 		reg = <0x4809c000 0x400>;
 		ti,hwmods = "mmc1";
@@ -67,7 +67,7 @@ Examples:
 
 [generic DMA request binding]
 
-	mmc1: mmc@0x4809c000 {
+	mmc1: mmc@4809c000 {
 		compatible = "ti,omap4-hsmmc";
 		reg = <0x4809c000 0x400>;
 		ti,hwmods = "mmc1";

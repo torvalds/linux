@@ -15,7 +15,7 @@ Required properties:
 
 Example:
 
-	ccn@0x2000000000 {
+	ccn@2000000000 {
 		compatible = "arm,ccn-504";
 		reg = <0x20 0x00000000 0 0x1000000>;
 		interrupts = <0 181 4>;

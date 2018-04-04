@@ -99,13 +99,13 @@ static ssize_t media_write(struct file *filp, const char __user *buf,
 	return devnode->fops->write(filp, buf, sz, off);
 }
 
-static unsigned int media_poll(struct file *filp,
+static __poll_t media_poll(struct file *filp,
 			       struct poll_table_struct *poll)
 {
 	struct media_devnode *devnode = media_devnode_data(filp);
 
 	if (!media_devnode_is_registered(devnode))
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 	if (!devnode->fops->poll)
 		return DEFAULT_POLLMASK;
 	return devnode->fops->poll(filp, poll);

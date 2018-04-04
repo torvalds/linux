@@ -1,5 +1,5 @@
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -517,8 +517,8 @@ s32 fm10k_get_host_state_generic(struct fm10k_hw *hw, bool *host_ready)
 		goto out;
 	}
 
-	/* verify Mailbox is still valid */
-	if (!mbx->ops.tx_ready(mbx, FM10K_VFMBX_MSG_MTU))
+	/* verify Mailbox is still open */
+	if (mbx->state != FM10K_STATE_OPEN)
 		goto out;
 
 	/* interface cannot receive traffic without logical ports */

@@ -641,6 +641,8 @@ niagara4_patch:
 	 nop
 	call	niagara4_patch_pageops
 	 nop
+	call	niagara4_patch_fls
+	 nop
 
 	ba,a,pt	%xcc, 80f
 	 nop

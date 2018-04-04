@@ -26,6 +26,7 @@ struct ovl_cache_entry {
 	struct list_head l_node;
 	struct rb_node node;
 	struct ovl_cache_entry *next_maybe_whiteout;
+	bool is_upper;
 	bool is_whiteout;
 	char name[];
 };
@@ -158,6 +159,7 @@ static struct ovl_cache_entry *ovl_cache_entry_new(struct ovl_readdir_data *rdd,
 	/* Defer setting d_ino for upper entry to ovl_iterate() */
 	if (ovl_calc_d_ino(rdd, p))
 		p->ino = 0;
+	p->is_upper = rdd->is_upper;
 	p->is_whiteout = false;
 
 	if (d_type == DT_CHR) {
@@ -316,21 +318,37 @@ static inline int ovl_dir_read(struct path *realpath,
 	return err;
 }
 
+/*
+ * Can we iterate real dir directly?
+ *
+ * Non-merge dir may contain whiteouts from a time it was a merge upper, before
+ * lower dir was removed under it and possibly before it was rotated from upper
+ * to lower layer.
+ */
+static bool ovl_dir_is_real(struct dentry *dir)
+{
+	return !ovl_test_flag(OVL_WHITEOUTS, d_inode(dir));
+}
+
 static void ovl_dir_reset(struct file *file)
 {
 	struct ovl_dir_file *od = file->private_data;
 	struct ovl_dir_cache *cache = od->cache;
 	struct dentry *dentry = file->f_path.dentry;
-	enum ovl_path_type type = ovl_path_type(dentry);
+	bool is_real;
 
 	if (cache && ovl_dentry_version_get(dentry) != cache->version) {
 		ovl_cache_put(od, dentry);
 		od->cache = NULL;
 		od->cursor = NULL;
 	}
-	WARN_ON(!od->is_real && !OVL_TYPE_MERGE(type));
-	if (od->is_real && OVL_TYPE_MERGE(type))
+	is_real = ovl_dir_is_real(dentry);
+	if (od->is_real != is_real) {
+		/* is_real can only become false when dir is copied up */
+		if (WARN_ON(is_real))
+			return;
 		od->is_real = false;
+	}
 }
 
 static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list,
@@ -481,7 +499,7 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("overlay: failed to look up (%s) for ino (%i)\n",
+	pr_warn_ratelimited("overlayfs: failed to look up (%s) for ino (%i)\n",
 			    p->name, err);
 	goto out;
 }
@@ -575,8 +593,15 @@ static struct ovl_dir_cache *ovl_cache_get_impure(struct path *path)
 		return ERR_PTR(res);
 	}
 	if (list_empty(&cache->entries)) {
-		/* Good oportunity to get rid of an unnecessary "impure" flag */
-		ovl_do_removexattr(ovl_dentry_upper(dentry), OVL_XATTR_IMPURE);
+		/*
+		 * A good opportunity to get rid of an unneeded "impure" flag.
+		 * Removing the "impure" xattr is best effort.
+		 */
+		if (!ovl_want_write(dentry)) {
+			ovl_do_removexattr(ovl_dentry_upper(dentry),
+					   OVL_XATTR_IMPURE);
+			ovl_drop_write(dentry);
+		}
 		ovl_clear_flag(OVL_IMPURE, d_inode(dentry));
 		kfree(cache);
 		return NULL;
@@ -645,7 +670,10 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 			return PTR_ERR(rdt.cache);
 	}
 
-	return iterate_dir(od->realfile, &rdt.ctx);
+	err = iterate_dir(od->realfile, &rdt.ctx);
+	ctx->pos = rdt.ctx.pos;
+
+	return err;
 }
 
 
@@ -748,13 +776,17 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	struct dentry *dentry = file->f_path.dentry;
 	struct file *realfile = od->realfile;
 
+	/* Nothing to sync for lower */
+	if (!OVL_TYPE_UPPER(ovl_path_type(dentry)))
+		return 0;
+
 	/*
 	 * Need to check if we started out being a lower dir, but got copied up
 	 */
-	if (!od->is_upper && OVL_TYPE_UPPER(ovl_path_type(dentry))) {
+	if (!od->is_upper) {
 		struct inode *inode = file_inode(file);
 
-		realfile = lockless_dereference(od->upperfile);
+		realfile = READ_ONCE(od->upperfile);
 		if (!realfile) {
 			struct path upperpath;
 
@@ -816,7 +848,7 @@ static int ovl_dir_open(struct inode *inode, struct file *file)
 		return PTR_ERR(realfile);
 	}
 	od->realfile = realfile;
-	od->is_real = !OVL_TYPE_MERGE(type);
+	od->is_real = ovl_dir_is_real(file->f_path.dentry);
 	od->is_upper = OVL_TYPE_UPPER(type);
 	file->private_data = od;
 
@@ -835,27 +867,41 @@ const struct file_operations ovl_dir_operations = {
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
 {
 	int err;
-	struct ovl_cache_entry *p;
+	struct ovl_cache_entry *p, *n;
 	struct rb_root root = RB_ROOT;
+	const struct cred *old_cred;
 
+	old_cred = ovl_override_creds(dentry->d_sb);
 	err = ovl_dir_read_merged(dentry, list, &root);
+	revert_creds(old_cred);
 	if (err)
 		return err;
 
 	err = 0;
 
-	list_for_each_entry(p, list, l_node) {
-		if (p->is_whiteout)
-			continue;
+	list_for_each_entry_safe(p, n, list, l_node) {
+		/*
+		 * Select whiteouts in upperdir, they should
+		 * be cleared when deleting this directory.
+		 */
+		if (p->is_whiteout) {
+			if (p->is_upper)
+				continue;
+			goto del_entry;
+		}
 
 		if (p->name[0] == '.') {
 			if (p->len == 1)
-				continue;
+				goto del_entry;
 			if (p->len == 2 && p->name[1] == '.')
-				continue;
+				goto del_entry;
 		}
 		err = -ENOTEMPTY;
 		break;
+
+del_entry:
+		list_del(&p->l_node);
+		kfree(p);
 	}
 
 	return err;
@@ -869,7 +915,7 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 	list_for_each_entry(p, list, l_node) {
 		struct dentry *dentry;
 
-		if (!p->is_whiteout)
+		if (WARN_ON(!p->is_whiteout || !p->is_upper))
 			continue;
 
 		dentry = lookup_one_len(p->name, upper, p->len);
@@ -984,13 +1030,13 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 	}
 }
 
-int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
-			 struct path *lowerstack, unsigned int numlower)
+int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 {
 	int err;
+	struct dentry *indexdir = ofs->indexdir;
 	struct dentry *index = NULL;
-	struct inode *dir = dentry->d_inode;
-	struct path path = { .mnt = mnt, .dentry = dentry };
+	struct inode *dir = indexdir->d_inode;
+	struct path path = { .mnt = ofs->upper_mnt, .dentry = indexdir };
 	LIST_HEAD(list);
 	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
@@ -1014,19 +1060,40 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 			if (p->len == 2 && p->name[1] == '.')
 				continue;
 		}
-		index = lookup_one_len(p->name, dentry, p->len);
+		index = lookup_one_len(p->name, indexdir, p->len);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
 			index = NULL;
 			break;
 		}
-		err = ovl_verify_index(index, lowerstack, numlower);
-		/* Cleanup stale and orphan index entries */
-		if (err && (err == -ESTALE || err == -ENOENT))
+		err = ovl_verify_index(ofs, index);
+		if (!err) {
+			goto next;
+		} else if (err == -ESTALE) {
+			/* Cleanup stale index entries */
 			err = ovl_cleanup(dir, index);
+		} else if (err != -ENOENT) {
+			/*
+			 * Abort mount to avoid corrupting the index if
+			 * an incompatible index entry was found or on out
+			 * of memory.
+			 */
+			break;
+		} else if (ofs->config.nfs_export) {
+			/*
+			 * Whiteout orphan index to block future open by
+			 * handle after overlay nlink dropped to zero.
+			 */
+			err = ovl_cleanup_and_whiteout(indexdir, dir, index);
+		} else {
+			/* Cleanup orphan index entries */
+			err = ovl_cleanup(dir, index);
+		}
+
 		if (err)
 			break;
 
+next:
 		dput(index);
 		index = NULL;
 	}

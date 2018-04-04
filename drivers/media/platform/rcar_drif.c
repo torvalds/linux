@@ -630,7 +630,7 @@ static int rcar_drif_enable_rx(struct rcar_drif_sdr *sdr)
 {
 	unsigned int i;
 	u32 ctr;
-	int ret;
+	int ret = -EINVAL;
 
 	/*
 	 * When both internal channels are enabled, they can be synchronized
@@ -1107,7 +1107,7 @@ static int rcar_drif_notify_bound(struct v4l2_async_notifier *notifier,
 	struct rcar_drif_sdr *sdr =
 		container_of(notifier, struct rcar_drif_sdr, notifier);
 
-	if (sdr->ep.asd.match.fwnode.fwnode !=
+	if (sdr->ep.asd.match.fwnode !=
 	    of_fwnode_handle(subdev->dev->of_node)) {
 		rdrif_err(sdr, "subdev %s cannot bind\n", subdev->name);
 		return -EINVAL;
@@ -1185,6 +1185,12 @@ error:
 	return ret;
 }
 
+static const struct v4l2_async_notifier_operations rcar_drif_notify_ops = {
+	.bound = rcar_drif_notify_bound,
+	.unbind = rcar_drif_notify_unbind,
+	.complete = rcar_drif_notify_complete,
+};
+
 /* Read endpoint properties */
 static void rcar_drif_get_ep_properties(struct rcar_drif_sdr *sdr,
 					struct fwnode_handle *fwnode)
@@ -1229,7 +1235,7 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 		return -EINVAL;
 	}
 
-	sdr->ep.asd.match.fwnode.fwnode = fwnode;
+	sdr->ep.asd.match.fwnode = fwnode;
 	sdr->ep.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	notifier->num_subdevs++;
 
@@ -1347,9 +1353,7 @@ static int rcar_drif_sdr_probe(struct rcar_drif_sdr *sdr)
 	if (ret)
 		goto error;
 
-	sdr->notifier.bound = rcar_drif_notify_bound;
-	sdr->notifier.unbind = rcar_drif_notify_unbind;
-	sdr->notifier.complete = rcar_drif_notify_complete;
+	sdr->notifier.ops = &rcar_drif_notify_ops;
 
 	/* Register notifier */
 	ret = v4l2_async_notifier_register(&sdr->v4l2_dev, &sdr->notifier);

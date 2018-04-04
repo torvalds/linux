@@ -201,7 +201,7 @@ static inline u16 get_cap_info(u8 *data)
 
 	st = get_sub_type(data);
 
-	if ((st == BEACON) || (st == PROBE_RSP))
+	if (st == BEACON || st == PROBE_RSP)
 		index += TIME_STAMP_LEN + BEACON_INTERVAL_LEN;
 
 	cap_info  = data[index];

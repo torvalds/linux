@@ -272,9 +272,8 @@
 		#size-cells = <0>;
 		compatible = "i2c-gpio";
 		status = "disabled";
-		gpios = <&gpio1 17 GPIO_ACTIVE_HIGH /* sda */
-			 &gpio1 16 GPIO_ACTIVE_HIGH /* scl */
-			>;
+		sda-gpios = <&gpio1 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio1 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <5>;
 	};
 
@@ -316,11 +315,8 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	clocks = <&mstp7_clks R8A7790_CLK_DU0>,
-		 <&mstp7_clks R8A7790_CLK_DU1>,
-		 <&mstp7_clks R8A7790_CLK_DU2>,
-		 <&mstp7_clks R8A7790_CLK_LVDS0>,
-		 <&mstp7_clks R8A7790_CLK_LVDS1>,
+	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>, <&cpg CPG_MOD 722>,
+		 <&cpg CPG_MOD 726>, <&cpg CPG_MOD 725>,
 		 <&x13_clk>, <&x2_clk>;
 	clock-names = "du.0", "du.1", "du.2", "lvds.0", "lvds.1",
 		      "dclkin.0", "dclkin.1";

@@ -251,14 +251,6 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 			return PTR_ERR(io);
 		}
 
-		err = i915_vma_get_fence(vma);
-		if (err) {
-			pr_err("Failed to get fence for partial view: offset=%lu\n",
-			       page);
-			i915_vma_unpin_iomap(vma);
-			return err;
-		}
-
 		iowrite32(page, io + n * PAGE_SIZE/sizeof(*io));
 		i915_vma_unpin_iomap(vma);
 
@@ -325,6 +317,7 @@ static int igt_partial_tiling(void *arg)
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	if (1) {
 		IGT_TIMEOUT(end);
@@ -426,6 +419,7 @@ next_tiling: ;
 	}
 
 out_unlock:
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 out:

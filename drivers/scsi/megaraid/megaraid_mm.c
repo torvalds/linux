@@ -35,7 +35,7 @@ static int kioc_to_mimd(uioc_t *, mimd_t __user *);
 static int handle_drvrcmd(void __user *, uint8_t, int *);
 static int lld_ioctl(mraid_mmadp_t *, uioc_t *);
 static void ioctl_done(uioc_t *);
-static void lld_timedout(unsigned long);
+static void lld_timedout(struct timer_list *);
 static void hinfo_to_cinfo(mraid_hba_info_t *, mcontroller_t *);
 static mraid_mmadp_t *mraid_mm_get_adapter(mimd_t __user *, int *);
 static uioc_t *mraid_mm_alloc_kioc(mraid_mmadp_t *);
@@ -686,8 +686,7 @@ static int
 lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 {
 	int			rval;
-	struct timer_list	timer;
-	struct timer_list	*tp = NULL;
+	struct uioc_timeout	timeout = { };
 
 	kioc->status	= -ENODATA;
 	rval		= adp->issue_uioc(adp->drvr_data, kioc, IOCTL_ISSUE);
@@ -698,14 +697,12 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 	 * Start the timer
 	 */
 	if (adp->timeout > 0) {
-		tp		= &timer;
-		init_timer(tp);
+		timeout.uioc = kioc;
+		timer_setup_on_stack(&timeout.timer, lld_timedout, 0);
 
-		tp->function	= lld_timedout;
-		tp->data	= (unsigned long)kioc;
-		tp->expires	= jiffies + adp->timeout * HZ;
+		timeout.timer.expires	= jiffies + adp->timeout * HZ;
 
-		add_timer(tp);
+		add_timer(&timeout.timer);
 	}
 
 	/*
@@ -713,8 +710,9 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 	 * call, the ioctl either completed successfully or timedout.
 	 */
 	wait_event(wait_q, (kioc->status != -ENODATA));
-	if (tp) {
-		del_timer_sync(tp);
+	if (timeout.timer.function) {
+		del_timer_sync(&timeout.timer);
+		destroy_timer_on_stack(&timeout.timer);
 	}
 
 	/*
@@ -783,12 +781,13 @@ ioctl_done(uioc_t *kioc)
 
 /**
  * lld_timedout	- callback from the expired timer
- * @ptr		: ioctl packet that timed out
+ * @t		: timer that timed out
  */
 static void
-lld_timedout(unsigned long ptr)
+lld_timedout(struct timer_list *t)
 {
-	uioc_t *kioc	= (uioc_t *)ptr;
+	struct uioc_timeout *timeout = from_timer(timeout, t, timer);
+	uioc_t *kioc	= timeout->uioc;
 
 	kioc->status 	= -ETIME;
 	kioc->timedout	= 1;

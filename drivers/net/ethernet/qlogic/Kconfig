@@ -85,6 +85,7 @@ config QED
 	tristate "QLogic QED 25/40/100Gb core driver"
 	depends on PCI
 	select ZLIB_INFLATE
+	select CRC8
 	---help---
 	  This enables the support for ...
 
@@ -115,6 +116,9 @@ config QED_ISCSI
 	bool
 
 config QED_FCOE
+	bool
+
+config QED_OOO
 	bool
 
 endif # NET_VENDOR_QLOGIC

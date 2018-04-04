@@ -233,6 +233,13 @@ typedef struct xfs_fsop_resblks {
 #define XFS_MAX_LOG_BLOCKS	(1024 * 1024ULL)
 #define XFS_MIN_LOG_BYTES	(10 * 1024 * 1024ULL)
 
+/*
+ * Limits on sb_agblocks/sb_agblklog -- mkfs won't format AGs smaller than
+ * 16MB or larger than 1TB.
+ */
+#define XFS_MIN_AG_BYTES	(1ULL << 24)	/* 16 MB */
+#define XFS_MAX_AG_BYTES	(1ULL << 40)	/* 1 TB */
+
 /* keep the maximum size under 2^31 by a small amount */
 #define XFS_MAX_LOG_BYTES \
 	((2 * 1024 * 1024 * 1024ULL) - XFS_MIN_LOG_BYTES)
@@ -468,6 +475,82 @@ typedef struct xfs_swapext
 #define XFS_FSOP_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
 #define XFS_FSOP_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
 
+/* metadata scrubbing */
+struct xfs_scrub_metadata {
+	__u32 sm_type;		/* What to check? */
+	__u32 sm_flags;		/* flags; see below. */
+	__u64 sm_ino;		/* inode number. */
+	__u32 sm_gen;		/* inode generation. */
+	__u32 sm_agno;		/* ag number. */
+	__u64 sm_reserved[5];	/* pad to 64 bytes */
+};
+
+/*
+ * Metadata types and flags for scrub operation.
+ */
+
+/* Scrub subcommands. */
+#define XFS_SCRUB_TYPE_PROBE	0	/* presence test ioctl */
+#define XFS_SCRUB_TYPE_SB	1	/* superblock */
+#define XFS_SCRUB_TYPE_AGF	2	/* AG free header */
+#define XFS_SCRUB_TYPE_AGFL	3	/* AG free list */
+#define XFS_SCRUB_TYPE_AGI	4	/* AG inode header */
+#define XFS_SCRUB_TYPE_BNOBT	5	/* freesp by block btree */
+#define XFS_SCRUB_TYPE_CNTBT	6	/* freesp by length btree */
+#define XFS_SCRUB_TYPE_INOBT	7	/* inode btree */
+#define XFS_SCRUB_TYPE_FINOBT	8	/* free inode btree */
+#define XFS_SCRUB_TYPE_RMAPBT	9	/* reverse mapping btree */
+#define XFS_SCRUB_TYPE_REFCNTBT	10	/* reference count btree */
+#define XFS_SCRUB_TYPE_INODE	11	/* inode record */
+#define XFS_SCRUB_TYPE_BMBTD	12	/* data fork block mapping */
+#define XFS_SCRUB_TYPE_BMBTA	13	/* attr fork block mapping */
+#define XFS_SCRUB_TYPE_BMBTC	14	/* CoW fork block mapping */
+#define XFS_SCRUB_TYPE_DIR	15	/* directory */
+#define XFS_SCRUB_TYPE_XATTR	16	/* extended attribute */
+#define XFS_SCRUB_TYPE_SYMLINK	17	/* symbolic link */
+#define XFS_SCRUB_TYPE_PARENT	18	/* parent pointers */
+#define XFS_SCRUB_TYPE_RTBITMAP	19	/* realtime bitmap */
+#define XFS_SCRUB_TYPE_RTSUM	20	/* realtime summary */
+#define XFS_SCRUB_TYPE_UQUOTA	21	/* user quotas */
+#define XFS_SCRUB_TYPE_GQUOTA	22	/* group quotas */
+#define XFS_SCRUB_TYPE_PQUOTA	23	/* project quotas */
+
+/* Number of scrub subcommands. */
+#define XFS_SCRUB_TYPE_NR	24
+
+/* i: Repair this metadata. */
+#define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
+
+/* o: Metadata object needs repair. */
+#define XFS_SCRUB_OFLAG_CORRUPT		(1 << 1)
+
+/*
+ * o: Metadata object could be optimized.  It's not corrupt, but
+ *    we could improve on it somehow.
+ */
+#define XFS_SCRUB_OFLAG_PREEN		(1 << 2)
+
+/* o: Cross-referencing failed. */
+#define XFS_SCRUB_OFLAG_XFAIL		(1 << 3)
+
+/* o: Metadata object disagrees with cross-referenced metadata. */
+#define XFS_SCRUB_OFLAG_XCORRUPT	(1 << 4)
+
+/* o: Scan was not complete. */
+#define XFS_SCRUB_OFLAG_INCOMPLETE	(1 << 5)
+
+/* o: Metadata object looked funny but isn't corrupt. */
+#define XFS_SCRUB_OFLAG_WARNING		(1 << 6)
+
+#define XFS_SCRUB_FLAGS_IN	(XFS_SCRUB_IFLAG_REPAIR)
+#define XFS_SCRUB_FLAGS_OUT	(XFS_SCRUB_OFLAG_CORRUPT | \
+				 XFS_SCRUB_OFLAG_PREEN | \
+				 XFS_SCRUB_OFLAG_XFAIL | \
+				 XFS_SCRUB_OFLAG_XCORRUPT | \
+				 XFS_SCRUB_OFLAG_INCOMPLETE | \
+				 XFS_SCRUB_OFLAG_WARNING)
+#define XFS_SCRUB_FLAGS_ALL	(XFS_SCRUB_FLAGS_IN | XFS_SCRUB_FLAGS_OUT)
+
 /*
  * ioctl limits
  */
@@ -511,6 +594,7 @@ typedef struct xfs_swapext
 #define XFS_IOC_ZERO_RANGE	_IOW ('X', 57, struct xfs_flock64)
 #define XFS_IOC_FREE_EOFBLOCKS	_IOR ('X', 58, struct xfs_fs_eofblocks)
 /*	XFS_IOC_GETFSMAP ------ hoisted 59         */
+#define XFS_IOC_SCRUB_METADATA	_IOWR('X', 60, struct xfs_scrub_metadata)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s

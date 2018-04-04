@@ -88,6 +88,7 @@ static const struct renesas_sdhi_of_data of_rcar_gen3_compatible = {
 static const struct of_device_id renesas_sdhi_internal_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a7795", .data = &of_rcar_gen3_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_gen3_compatible, },
+	{ .compatible = "renesas,rcar-gen3-sdhi", .data = &of_rcar_gen3_compatible, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, renesas_sdhi_internal_dmac_of_match);
@@ -102,6 +103,8 @@ renesas_sdhi_internal_dmac_dm_write(struct tmio_mmc_host *host,
 static void
 renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
+
 	if (!host->chan_tx || !host->chan_rx)
 		return;
 
@@ -109,8 +112,8 @@ renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 		renesas_sdhi_internal_dmac_dm_write(host, DM_CM_INFO1,
 						    INFO1_CLEAR);
 
-	if (host->dma->enable)
-		host->dma->enable(host, enable);
+	if (priv->dma_priv.enable)
+		priv->dma_priv.enable(host, enable);
 }
 
 static void
@@ -129,7 +132,9 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host) {
 
 static void
 renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host) {
-	tasklet_schedule(&host->dma_complete);
+	struct renesas_sdhi *priv = host_to_priv(host);
+
+	tasklet_schedule(&priv->dma_priv.dma_complete);
 }
 
 static void
@@ -219,10 +224,12 @@ static void
 renesas_sdhi_internal_dmac_request_dma(struct tmio_mmc_host *host,
 				       struct tmio_mmc_data *pdata)
 {
+	struct renesas_sdhi *priv = host_to_priv(host);
+
 	/* Each value is set to non-zero to assume "enabling" each DMA */
 	host->chan_rx = host->chan_tx = (void *)0xdeadbeaf;
 
-	tasklet_init(&host->dma_complete,
+	tasklet_init(&priv->dma_priv.dma_complete,
 		     renesas_sdhi_internal_dmac_complete_tasklet_fn,
 		     (unsigned long)host);
 	tasklet_init(&host->dma_issue,
@@ -254,6 +261,7 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
         { .soc_id = "r8a7795", .revision = "ES1.*" },
         { .soc_id = "r8a7795", .revision = "ES2.0" },
         { .soc_id = "r8a7796", .revision = "ES1.0" },
+        { .soc_id = "r8a77995", .revision = "ES1.0" },
         { /* sentinel */ }
 };
 

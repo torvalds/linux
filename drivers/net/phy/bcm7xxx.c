@@ -611,8 +611,6 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.features	= PHY_GBIT_FEATURES,				\
 	.flags		= PHY_IS_INTERNAL,				\
 	.config_init	= bcm7xxx_28nm_config_init,			\
-	.config_aneg	= genphy_config_aneg,				\
-	.read_status	= genphy_read_status,				\
 	.resume		= bcm7xxx_28nm_resume,				\
 	.get_tunable	= bcm7xxx_28nm_get_tunable,			\
 	.set_tunable	= bcm7xxx_28nm_set_tunable,			\
@@ -630,8 +628,6 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.features	= PHY_BASIC_FEATURES,				\
 	.flags		= PHY_IS_INTERNAL,				\
 	.config_init	= bcm7xxx_28nm_ephy_config_init,		\
-	.config_aneg	= genphy_config_aneg,				\
-	.read_status	= genphy_read_status,				\
 	.resume		= bcm7xxx_28nm_ephy_resume,			\
 	.get_sset_count	= bcm_phy_get_sset_count,			\
 	.get_strings	= bcm_phy_get_strings,				\
@@ -647,8 +643,6 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.features       = PHY_BASIC_FEATURES,				\
 	.flags          = PHY_IS_INTERNAL,				\
 	.config_init    = bcm7xxx_config_init,				\
-	.config_aneg    = genphy_config_aneg,				\
-	.read_status    = genphy_read_status,				\
 	.suspend        = bcm7xxx_suspend,				\
 	.resume         = bcm7xxx_config_init,				\
 }

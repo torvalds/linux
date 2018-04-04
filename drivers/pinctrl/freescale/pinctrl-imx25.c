@@ -309,7 +309,7 @@ static const struct pinctrl_pin_desc imx25_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX25_PAD_BOOT_MODE1),
 };
 
-static struct imx_pinctrl_soc_info imx25_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx25_pinctrl_info = {
 	.pins = imx25_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx25_pinctrl_pads),
 };

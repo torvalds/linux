@@ -19,7 +19,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -153,8 +153,9 @@ static int int3496_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* queue initial processing of id-pin */
+	/* process id-pin so that we start with the right status */
 	queue_delayed_work(system_wq, &data->work, 0);
+	flush_delayed_work(&data->work);
 
 	platform_set_drvdata(pdev, data);
 

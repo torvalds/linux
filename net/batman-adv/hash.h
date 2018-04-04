@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2006-2017  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
@@ -45,10 +46,18 @@ typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *,
 typedef u32 (*batadv_hashdata_choose_cb)(const void *, u32);
 typedef void (*batadv_hashdata_free_cb)(struct hlist_node *, void *);
 
+/**
+ * struct batadv_hashtable - Wrapper of simple hlist based hashtable
+ */
 struct batadv_hashtable {
-	struct hlist_head *table;   /* the hashtable itself with the buckets */
-	spinlock_t *list_locks;     /* spinlock for each hash list entry */
-	u32 size;		    /* size of hashtable */
+	/** @table: the hashtable itself with the buckets */
+	struct hlist_head *table;
+
+	/** @list_locks: spinlock for each hash list entry */
+	spinlock_t *list_locks;
+
+	/** @size: size of hashtable */
+	u32 size;
 };
 
 /* allocates and clears the hash */
@@ -62,7 +71,7 @@ void batadv_hash_set_lock_class(struct batadv_hashtable *hash,
 void batadv_hash_destroy(struct batadv_hashtable *hash);
 
 /**
- *	batadv_hash_add - adds data to the hashtable
+ *	batadv_hash_add() - adds data to the hashtable
  *	@hash: storage hash table
  *	@compare: callback to determine if 2 hash elements are identical
  *	@choose: callback calculating the hash index
@@ -112,8 +121,15 @@ out:
 	return ret;
 }
 
-/* removes data from hash, if found. data could be the structure you use with
- * just the key filled, we just need the key for comparing.
+/**
+ * batadv_hash_remove() - Removes data from hash, if found
+ * @hash: hash table
+ * @compare: callback to determine if 2 hash elements are identical
+ * @choose: callback calculating the hash index
+ * @data: data passed to the aforementioned callbacks as argument
+ *
+ * ata could be the structure you use with  just the key filled, we just need
+ * the key for comparing.
  *
  * Return: returns pointer do data on success, so you can remove the used
  * structure yourself, or NULL on error

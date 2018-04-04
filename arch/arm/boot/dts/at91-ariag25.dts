@@ -58,6 +58,18 @@
 				};
 			};
 
+			tcb0: timer@f8008000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			i2c0: i2c@f8010000 {
 				status = "okay";
 			};
@@ -147,12 +159,12 @@
 			};
 		};
 
-		usb0: ohci@00600000 {
+		usb0: ohci@600000 {
 			status = "okay";
 			num-ports = <3>;
 		};
 
-		usb1: ehci@00700000 {
+		usb1: ehci@700000 {
 			status = "okay";
 		};
 	};

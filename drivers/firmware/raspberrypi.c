@@ -174,7 +174,7 @@ rpi_firmware_print_firmware_revision(struct rpi_firmware *fw)
 	if (ret == 0) {
 		struct tm tm;
 
-		time_to_tm(packet, 0, &tm);
+		time64_to_tm(packet, 0, &tm);
 
 		dev_info(fw->cl.dev,
 			 "Attached to firmware from %04ld-%02d-%02d %02d:%02d\n",

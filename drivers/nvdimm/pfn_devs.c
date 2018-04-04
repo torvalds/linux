@@ -282,8 +282,16 @@ static struct attribute *nd_pfn_attributes[] = {
 	NULL,
 };
 
+static umode_t pfn_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	if (a == &dev_attr_resource.attr)
+		return 0400;
+	return a->mode;
+}
+
 struct attribute_group nd_pfn_attribute_group = {
 	.attrs = nd_pfn_attributes,
+	.is_visible = pfn_visible,
 };
 
 static const struct attribute_group *nd_pfn_attribute_groups[] = {
@@ -356,9 +364,9 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	u64 checksum, offset;
-	unsigned long align;
 	enum nd_pfn_mode mode;
 	struct nd_namespace_io *nsio;
+	unsigned long align, start_pad;
 	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	const u8 *parent_uuid = nd_dev_to_uuid(&ndns->dev);
@@ -402,6 +410,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 
 	align = le32_to_cpu(pfn_sb->align);
 	offset = le64_to_cpu(pfn_sb->dataoff);
+	start_pad = le32_to_cpu(pfn_sb->start_pad);
 	if (align == 0)
 		align = 1UL << ilog2(offset);
 	mode = le32_to_cpu(pfn_sb->mode);
@@ -460,7 +469,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -EBUSY;
 	}
 
-	if ((align && !IS_ALIGNED(offset, align))
+	if ((align && !IS_ALIGNED(nsio->res.start + offset + start_pad, align))
 			|| !IS_ALIGNED(offset, PAGE_SIZE)) {
 		dev_err(&nd_pfn->dev,
 				"bad offset: %#llx dax disabled align: %#lx\n",
@@ -533,9 +542,10 @@ static unsigned long init_altmap_reserve(resource_size_t base)
 	return reserve;
 }
 
-static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
-		struct resource *res, struct vmem_altmap *altmap)
+static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 {
+	struct resource *res = &pgmap->res;
+	struct vmem_altmap *altmap = &pgmap->altmap;
 	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
 	u64 offset = le64_to_cpu(pfn_sb->dataoff);
 	u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
@@ -552,11 +562,13 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
 	res->start += start_pad;
 	res->end -= end_trunc;
 
+	pgmap->type = MEMORY_DEVICE_HOST;
+
 	if (nd_pfn->mode == PFN_MODE_RAM) {
 		if (offset < SZ_8K)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
-		altmap = NULL;
+		pgmap->altmap_valid = false;
 	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
 		nd_pfn->npfns = PFN_SECTION_ALIGN_UP((resource_size(res)
 					- offset) / PAGE_SIZE);
@@ -568,10 +580,17 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
 		memcpy(altmap, &__altmap, sizeof(*altmap));
 		altmap->free = PHYS_PFN(offset - SZ_8K);
 		altmap->alloc = 0;
+		pgmap->altmap_valid = true;
 	} else
-		return ERR_PTR(-ENXIO);
+		return -ENXIO;
 
-	return altmap;
+	return 0;
+}
+
+static u64 phys_pmem_align_down(struct nd_pfn *nd_pfn, u64 phys)
+{
+	return min_t(u64, PHYS_SECTION_ALIGN_DOWN(phys),
+			ALIGN_DOWN(phys, nd_pfn->align));
 }
 
 static int nd_pfn_init(struct nd_pfn *nd_pfn)
@@ -629,13 +648,16 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	start = nsio->res.start;
 	size = PHYS_SECTION_ALIGN_UP(start + size) - start;
 	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
-				IORES_DESC_NONE) == REGION_MIXED) {
+				IORES_DESC_NONE) == REGION_MIXED
+			|| !IS_ALIGNED(start + resource_size(&nsio->res),
+				nd_pfn->align)) {
 		size = resource_size(&nsio->res);
-		end_trunc = start + size - PHYS_SECTION_ALIGN_DOWN(start + size);
+		end_trunc = start + size - phys_pmem_align_down(nd_pfn,
+				start + size);
 	}
 
 	if (start_pad + end_trunc)
-		dev_info(&nd_pfn->dev, "%s section collision, truncate %d bytes\n",
+		dev_info(&nd_pfn->dev, "%s alignment collision, truncate %d bytes\n",
 				dev_name(&ndns->dev), start_pad + end_trunc);
 
 	/*
@@ -690,19 +712,18 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
  * Determine the effective resource range and vmem_altmap from an nd_pfn
  * instance.
  */
-struct vmem_altmap *nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
-		struct resource *res, struct vmem_altmap *altmap)
+int nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 {
 	int rc;
 
 	if (!nd_pfn->uuid || !nd_pfn->ndns)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	rc = nd_pfn_init(nd_pfn);
 	if (rc)
-		return ERR_PTR(rc);
+		return rc;
 
-	/* we need a valid pfn_sb before we can init a vmem_altmap */
-	return __nvdimm_setup_pfn(nd_pfn, res, altmap);
+	/* we need a valid pfn_sb before we can init a dev_pagemap */
+	return __nvdimm_setup_pfn(nd_pfn, pgmap);
 }
 EXPORT_SYMBOL_GPL(nvdimm_setup_pfn);

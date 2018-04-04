@@ -4,6 +4,7 @@
  *
  * See COPYING in top-level directory.
  */
+#include <linux/kernel.h>
 #include "protocol.h"
 #include "orangefs-kernel.h"
 #include "orangefs-dev-proto.h"
@@ -229,25 +230,42 @@ static int orangefs_inode_type(enum orangefs_ds_type objtype)
 		return -1;
 }
 
-static int orangefs_inode_is_stale(struct inode *inode, int new,
+static void orangefs_make_bad_inode(struct inode *inode)
+{
+	if (is_root_handle(inode)) {
+		/*
+		 * if this occurs, the pvfs2-client-core was killed but we
+		 * can't afford to lose the inode operations and such
+		 * associated with the root handle in any case.
+		 */
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "*** NOT making bad root inode %pU\n",
+			     get_khandle_from_ino(inode));
+	} else {
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "*** making bad inode %pU\n",
+			     get_khandle_from_ino(inode));
+		make_bad_inode(inode);
+	}
+}
+
+static int orangefs_inode_is_stale(struct inode *inode,
     struct ORANGEFS_sys_attr_s *attrs, char *link_target)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	int type = orangefs_inode_type(attrs->objtype);
-	if (!new) {
-		/*
-		 * If the inode type or symlink target have changed then this
-		 * inode is stale.
-		 */
-		if (type == -1 || !(inode->i_mode & type)) {
-			orangefs_make_bad_inode(inode);
-			return 1;
-		}
-		if (type == S_IFLNK && strncmp(orangefs_inode->link_target,
-		    link_target, ORANGEFS_NAME_MAX)) {
-			orangefs_make_bad_inode(inode);
-			return 1;
-		}
+	/*
+	 * If the inode type or symlink target have changed then this
+	 * inode is stale.
+	 */
+	if (type == -1 || !(inode->i_mode & type)) {
+		orangefs_make_bad_inode(inode);
+		return 1;
+	}
+	if (type == S_IFLNK && strncmp(orangefs_inode->link_target,
+	    link_target, ORANGEFS_NAME_MAX)) {
+		orangefs_make_bad_inode(inode);
+		return 1;
 	}
 	return 0;
 }
@@ -293,16 +311,18 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	if (ret != 0)
 		goto out;
 
-	type = orangefs_inode_type(new_op->
-	    downcall.resp.getattr.attributes.objtype);
-	ret = orangefs_inode_is_stale(inode, new,
-	    &new_op->downcall.resp.getattr.attributes,
-	    new_op->downcall.resp.getattr.link_target);
-	if (ret) {
-		ret = -ESTALE;
-		goto out;
+	if (!new) {
+		ret = orangefs_inode_is_stale(inode,
+		    &new_op->downcall.resp.getattr.attributes,
+		    new_op->downcall.resp.getattr.link_target);
+		if (ret) {
+			ret = -ESTALE;
+			goto out;
+		}
 	}
 
+	type = orangefs_inode_type(new_op->
+	    downcall.resp.getattr.attributes.objtype);
 	switch (type) {
 	case S_IFREG:
 		inode->i_flags = orangefs_inode_flags(&new_op->
@@ -347,6 +367,12 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 			inode->i_link = orangefs_inode->link_target;
 		}
 		break;
+	/* i.e. -1 */
+	default:
+		/* XXX: ESTALE?  This is what is done if it is not new. */
+		orangefs_make_bad_inode(inode);
+		ret = -ESTALE;
+		goto out;
 	}
 
 	inode->i_uid = make_kuid(&init_user_ns, new_op->
@@ -400,7 +426,7 @@ int orangefs_inode_check_changed(struct inode *inode)
 	if (ret != 0)
 		goto out;
 
-	ret = orangefs_inode_is_stale(inode, 0,
+	ret = orangefs_inode_is_stale(inode,
 	    &new_op->downcall.resp.getattr.attributes,
 	    new_op->downcall.resp.getattr.link_target);
 out:
@@ -437,110 +463,10 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 
 	op_release(new_op);
 
-	/*
-	 * successful setattr should clear the atime, mtime and
-	 * ctime flags.
-	 */
-	if (ret == 0) {
-		ClearAtimeFlag(orangefs_inode);
-		ClearMtimeFlag(orangefs_inode);
-		ClearCtimeFlag(orangefs_inode);
-		ClearModeFlag(orangefs_inode);
+	if (ret == 0)
 		orangefs_inode->getattr_time = jiffies - 1;
-	}
 
 	return ret;
-}
-
-int orangefs_flush_inode(struct inode *inode)
-{
-	/*
-	 * If it is a dirty inode, this function gets called.
-	 * Gather all the information that needs to be setattr'ed
-	 * Right now, this will only be used for mode, atime, mtime
-	 * and/or ctime.
-	 */
-	struct iattr wbattr;
-	int ret;
-	int mtime_flag;
-	int ctime_flag;
-	int atime_flag;
-	int mode_flag;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-
-	memset(&wbattr, 0, sizeof(wbattr));
-
-	/*
-	 * check inode flags up front, and clear them if they are set.  This
-	 * will prevent multiple processes from all trying to flush the same
-	 * inode if they call close() simultaneously
-	 */
-	mtime_flag = MtimeFlag(orangefs_inode);
-	ClearMtimeFlag(orangefs_inode);
-	ctime_flag = CtimeFlag(orangefs_inode);
-	ClearCtimeFlag(orangefs_inode);
-	atime_flag = AtimeFlag(orangefs_inode);
-	ClearAtimeFlag(orangefs_inode);
-	mode_flag = ModeFlag(orangefs_inode);
-	ClearModeFlag(orangefs_inode);
-
-	/*  -- Lazy atime,mtime and ctime update --
-	 * Note: all times are dictated by server in the new scheme
-	 * and not by the clients
-	 *
-	 * Also mode updates are being handled now..
-	 */
-
-	if (mtime_flag)
-		wbattr.ia_valid |= ATTR_MTIME;
-	if (ctime_flag)
-		wbattr.ia_valid |= ATTR_CTIME;
-	if (atime_flag)
-		wbattr.ia_valid |= ATTR_ATIME;
-
-	if (mode_flag) {
-		wbattr.ia_mode = inode->i_mode;
-		wbattr.ia_valid |= ATTR_MODE;
-	}
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "*********** orangefs_flush_inode: %pU "
-		     "(ia_valid %d)\n",
-		     get_khandle_from_ino(inode),
-		     wbattr.ia_valid);
-	if (wbattr.ia_valid == 0) {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "orangefs_flush_inode skipping setattr()\n");
-		return 0;
-	}
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_flush_inode (%pU) writing mode %o\n",
-		     get_khandle_from_ino(inode),
-		     inode->i_mode);
-
-	ret = orangefs_inode_setattr(inode, &wbattr);
-
-	return ret;
-}
-
-void orangefs_make_bad_inode(struct inode *inode)
-{
-	if (is_root_handle(inode)) {
-		/*
-		 * if this occurs, the pvfs2-client-core was killed but we
-		 * can't afford to lose the inode operations and such
-		 * associated with the root handle in any case.
-		 */
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** NOT making bad root inode %pU\n",
-			     get_khandle_from_ino(inode));
-	} else {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** making bad inode %pU\n",
-			     get_khandle_from_ino(inode));
-		make_bad_inode(inode);
-	}
 }
 
 /*
@@ -606,7 +532,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	/* Convert ORANGEFS encoded errno values into regular errno values. */
 	} else if ((-error_code) & ORANGEFS_ERROR_BIT) {
 		i = (-error_code) & ~(ORANGEFS_ERROR_BIT|ORANGEFS_ERROR_CLASS_BITS);
-		if (i < sizeof(PINT_errno_mapping)/sizeof(*PINT_errno_mapping))
+		if (i < ARRAY_SIZE(PINT_errno_mapping))
 			error_code = -PINT_errno_mapping[i];
 		else
 			error_code = -EINVAL;
@@ -617,6 +543,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 */
 	} else {
 		gossip_err("orangefs: orangefs_normalize_to_errno: got error code which is not from ORANGEFS.\n");
+		error_code = -EINVAL;
 	}
 	return error_code;
 }

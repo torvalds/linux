@@ -575,11 +575,9 @@ static int ti_iodelay_pinconf_group_get(struct pinctrl_dev *pctldev,
 					unsigned long *config)
 {
 	struct ti_iodelay_device *iod;
-	struct device *dev;
 	struct ti_iodelay_pingroup *group;
 
 	iod = pinctrl_dev_get_drvdata(pctldev);
-	dev = iod->dev;
 	group = ti_iodelay_get_pingroup(iod, selector);
 
 	if (!group)
@@ -693,12 +691,10 @@ static void ti_iodelay_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 					      unsigned int selector)
 {
 	struct ti_iodelay_device *iod;
-	struct device *dev;
 	struct ti_iodelay_pingroup *group;
 	int i;
 
 	iod = pinctrl_dev_get_drvdata(pctldev);
-	dev = iod->dev;
 	group = ti_iodelay_get_pingroup(iod, selector);
 	if (!group)
 		return;

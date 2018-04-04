@@ -56,7 +56,6 @@ enum i40e_vf_states {
 	I40E_VF_STATE_INIT = 0,
 	I40E_VF_STATE_ACTIVE,
 	I40E_VF_STATE_IWARPENA,
-	I40E_VF_STATE_FCOEENA,
 	I40E_VF_STATE_DISABLED,
 	I40E_VF_STATE_MC_PROMISC,
 	I40E_VF_STATE_UC_PROMISC,
@@ -97,6 +96,7 @@ struct i40e_vf {
 	u16 lan_vsi_id;		/* ID as used by firmware */
 
 	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */
+	u8 num_req_queues;	/* num of requested qps */
 	u64 num_mdd_events;	/* num of mdd events detected */
 	/* num of continuous malformed or invalid msgs detected */
 	u64 num_invalid_msgs;
@@ -121,8 +121,8 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs);
 int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 			   u32 v_retval, u8 *msg, u16 msglen);
 int i40e_vc_process_vflr_event(struct i40e_pf *pf);
-void i40e_reset_vf(struct i40e_vf *vf, bool flr);
-void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr);
+bool i40e_reset_vf(struct i40e_vf *vf, bool flr);
+bool i40e_reset_all_vfs(struct i40e_pf *pf, bool flr);
 void i40e_vc_notify_vf_reset(struct i40e_vf *vf);
 
 /* VF configuration related iplink handlers */

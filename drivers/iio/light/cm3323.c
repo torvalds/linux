@@ -211,7 +211,6 @@ static int cm3323_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info cm3323_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= cm3323_read_raw,
 	.write_raw	= cm3323_write_raw,
 	.attrs		= &cm3323_attribute_group,

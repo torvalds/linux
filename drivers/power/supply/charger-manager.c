@@ -578,7 +578,7 @@ static int check_charging_duration(struct charger_manager *cm)
 	} else if (is_ext_pwr_online(cm) && !cm->charger_enabled) {
 		duration = curr - cm->charging_end_time;
 
-		if (duration > desc->charging_max_duration_ms &&
+		if (duration > desc->discharging_max_duration_ms &&
 				is_ext_pwr_online(cm)) {
 			dev_info(cm->dev, "Discharging duration exceed %ums\n",
 				 desc->discharging_max_duration_ms);

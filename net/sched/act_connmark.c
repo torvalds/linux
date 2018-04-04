@@ -206,19 +206,17 @@ static __net_init int connmark_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, connmark_net_id);
 
-	return tc_action_net_init(tn, &act_connmark_ops, net);
+	return tc_action_net_init(tn, &act_connmark_ops);
 }
 
-static void __net_exit connmark_exit_net(struct net *net)
+static void __net_exit connmark_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, connmark_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, connmark_net_id);
 }
 
 static struct pernet_operations connmark_net_ops = {
 	.init = connmark_init_net,
-	.exit = connmark_exit_net,
+	.exit_batch = connmark_exit_net,
 	.id   = &connmark_net_id,
 	.size = sizeof(struct tc_action_net),
 };

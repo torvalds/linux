@@ -37,6 +37,7 @@ config EXT4_FS
 	select CRC16
 	select CRYPTO
 	select CRYPTO_CRC32C
+	select FS_IOMAP
 	help
 	  This is the next generation of the ext3 filesystem.
 
@@ -80,9 +81,6 @@ config EXT4_FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
 
 	  If you don't know what Access Control Lists are, say N
 

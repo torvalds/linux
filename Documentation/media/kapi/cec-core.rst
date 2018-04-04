@@ -103,6 +103,7 @@ your driver:
 		/* Low-level callbacks */
 		int (*adap_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
+		int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
@@ -142,6 +143,19 @@ called if the CEC_CAP_MONITOR_ALL capability is set. This callback is optional
 (some hardware may always be in 'monitor all' mode).
 
 Note that adap_monitor_all_enable must return 0 if enable is false.
+
+
+To enable/disable the 'monitor pin' mode:
+
+.. c:function::
+	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
+
+If enabled, then the adapter should be put in a mode to also monitor CEC pin
+changes. Not all hardware supports this and this function is only called if
+the CEC_CAP_MONITOR_PIN capability is set. This callback is optional
+(some hardware may always be in 'monitor pin' mode).
+
+Note that adap_monitor_pin_enable must return 0 if enable is false.
 
 
 To program a new logical address:
@@ -227,8 +241,8 @@ CEC_TX_STATUS_LOW_DRIVE:
 	retransmission.
 
 CEC_TX_STATUS_ERROR:
-	some unspecified error occurred: this can be one of
-	the previous two if the hardware cannot differentiate or something
+	some unspecified error occurred: this can be one of ARB_LOST
+	or LOW_DRIVE if the hardware cannot differentiate or something
 	else entirely.
 
 CEC_TX_STATUS_MAX_RETRIES:
@@ -237,6 +251,9 @@ CEC_TX_STATUS_MAX_RETRIES:
 	retrying messages. If set, then the framework assumes that it
 	doesn't have to make another attempt to transmit the message
 	since the hardware did that already.
+
+The hardware must be able to differentiate between OK, NACK and 'something
+else'.
 
 The \*_cnt arguments are the number of error conditions that were seen.
 This may be 0 if no information is available. Drivers that do not support

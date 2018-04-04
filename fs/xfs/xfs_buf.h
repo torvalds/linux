@@ -140,6 +140,7 @@ struct xfs_buf_ops {
 	char *name;
 	void (*verify_read)(struct xfs_buf *);
 	void (*verify_write)(struct xfs_buf *);
+	xfs_failaddr_t (*verify_struct)(struct xfs_buf *bp);
 };
 
 typedef struct xfs_buf {
@@ -175,7 +176,8 @@ typedef struct xfs_buf {
 	struct workqueue_struct	*b_ioend_wq;	/* I/O completion wq */
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
-	void			*b_fspriv;
+	void			*b_log_item;
+	struct list_head	b_li_list;	/* Log items list head */
 	struct xfs_trans	*b_transp;
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
@@ -315,7 +317,9 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_buf *bp);
 extern void xfs_buf_ioend(struct xfs_buf *bp);
-extern void xfs_buf_ioerror(xfs_buf_t *, int);
+extern void __xfs_buf_ioerror(struct xfs_buf *bp, int error,
+		xfs_failaddr_t failaddr);
+#define xfs_buf_ioerror(bp, err) __xfs_buf_ioerror((bp), (err), __this_address)
 extern void xfs_buf_ioerror_alert(struct xfs_buf *, const char *func);
 extern void xfs_buf_submit(struct xfs_buf *bp);
 extern int xfs_buf_submit_wait(struct xfs_buf *bp);
@@ -352,10 +356,7 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_ADDR(bp)		((bp)->b_maps[0].bm_bn)
 #define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
 
-static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
-{
-	atomic_set(&bp->b_lru_ref, lru_ref);
-}
+void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
 
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 {

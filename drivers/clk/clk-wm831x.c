@@ -52,7 +52,7 @@ static const struct clk_ops wm831x_xtal_ops = {
 	.recalc_rate = wm831x_xtal_recalc_rate,
 };
 
-static struct clk_init_data wm831x_xtal_init = {
+static const struct clk_init_data wm831x_xtal_init = {
 	.name = "xtal",
 	.ops = &wm831x_xtal_ops,
 };
@@ -225,7 +225,7 @@ static const struct clk_ops wm831x_fll_ops = {
 	.get_parent = wm831x_fll_get_parent,
 };
 
-static struct clk_init_data wm831x_fll_init = {
+static const struct clk_init_data wm831x_fll_init = {
 	.name = "fll",
 	.ops = &wm831x_fll_ops,
 	.parent_names = wm831x_fll_parents,
@@ -338,7 +338,7 @@ static const struct clk_ops wm831x_clkout_ops = {
 	.set_parent = wm831x_clkout_set_parent,
 };
 
-static struct clk_init_data wm831x_clkout_init = {
+static const struct clk_init_data wm831x_clkout_init = {
 	.name = "clkout",
 	.ops = &wm831x_clkout_ops,
 	.parent_names = wm831x_clkout_parents,

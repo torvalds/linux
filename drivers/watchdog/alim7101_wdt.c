@@ -70,8 +70,8 @@ module_param(use_gpio, int, 0);
 MODULE_PARM_DESC(use_gpio,
 		"Use the gpio watchdog (required by old cobalt boards).");
 
-static void wdt_timer_ping(unsigned long);
-static DEFINE_TIMER(timer, wdt_timer_ping, 0, 1);
+static void wdt_timer_ping(struct timer_list *);
+static DEFINE_TIMER(timer, wdt_timer_ping);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;
@@ -87,7 +87,7 @@ MODULE_PARM_DESC(nowayout,
  *	Whack the dog
  */
 
-static void wdt_timer_ping(unsigned long data)
+static void wdt_timer_ping(struct timer_list *unused)
 {
 	/* If we got a heartbeat pulse within the WDT_US_INTERVAL
 	 * we agree to ping the WDT

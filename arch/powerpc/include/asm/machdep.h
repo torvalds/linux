@@ -76,6 +76,7 @@ struct machdep_calls {
 
 	void __noreturn	(*restart)(char *cmd);
 	void __noreturn (*halt)(void);
+	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
 
 	long		(*time_init)(void); /* Optional, may be NULL */
@@ -172,11 +173,19 @@ struct machdep_calls {
 	/* Called after scan and before resource survey */
 	void (*pcibios_fixup_phb)(struct pci_controller *hose);
 
+	/*
+	 * Called after device has been added to bus and
+	 * before sysfs has been created.
+	 */
+	void (*pcibios_bus_add_device)(struct pci_dev *pdev);
+
 	resource_size_t (*pcibios_default_alignment)(void);
 
 #ifdef CONFIG_PCI_IOV
 	void (*pcibios_fixup_sriov)(struct pci_dev *pdev);
 	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resno);
+	int (*pcibios_sriov_enable)(struct pci_dev *pdev, u16 num_vfs);
+	int (*pcibios_sriov_disable)(struct pci_dev *pdev);
 #endif /* CONFIG_PCI_IOV */
 
 	/* Called to shutdown machine specific hardware not already controlled

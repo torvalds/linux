@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_hw_regs.h - MediaTek USB3 DRD register and field definitions
  *
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef _SSUSB_HW_REGS_H_
@@ -58,6 +49,8 @@
 #define U3D_QCR1		(SSUSB_DEV_BASE + 0x0404)
 #define U3D_QCR2		(SSUSB_DEV_BASE + 0x0408)
 #define U3D_QCR3		(SSUSB_DEV_BASE + 0x040C)
+#define U3D_TXQHIAR1		(SSUSB_DEV_BASE + 0x0484)
+#define U3D_RXQHIAR1		(SSUSB_DEV_BASE + 0x04C4)
 
 #define U3D_TXQCSR1		(SSUSB_DEV_BASE + 0x0510)
 #define U3D_TXQSAR1		(SSUSB_DEV_BASE + 0x0514)
@@ -189,6 +182,13 @@
 #define QMU_RX_COZ(x)		(BIT(16) << (x))
 #define QMU_RX_ZLP(x)		(BIT(0) << (x))
 
+/* U3D_TXQHIAR1 */
+/* U3D_RXQHIAR1 */
+#define QMU_LAST_DONE_PTR_HI(x)	(((x) >> 16) & 0xf)
+#define QMU_CUR_GPD_ADDR_HI(x)	(((x) >> 8) & 0xf)
+#define QMU_START_ADDR_HI_MSK	GENMASK(3, 0)
+#define QMU_START_ADDR_HI(x)	(((x) & 0xf) << 0)
+
 /* U3D_TXQCSR1 */
 /* U3D_RXQCSR1 */
 #define QMU_Q_ACTIVE		BIT(15)
@@ -225,6 +225,7 @@
 #define CAP_TX_EP_NUM(x)	((x) & 0x1f)
 
 /* U3D_MISC_CTRL */
+#define DMA_ADDR_36BIT		BIT(31)
 #define VBUS_ON			BIT(1)
 #define VBUS_FRC_EN		BIT(0)
 
@@ -457,11 +458,14 @@
 #define SSUSB_VBUS_CHG_INT_B_EN		BIT(6)
 
 /* U3D_SSUSB_U3_CTRL_0P */
+#define SSUSB_U3_PORT_SSP_SPEED	BIT(9)
 #define SSUSB_U3_PORT_HOST_SEL		BIT(2)
 #define SSUSB_U3_PORT_PDN		BIT(1)
 #define SSUSB_U3_PORT_DIS		BIT(0)
 
 /* U3D_SSUSB_U2_CTRL_0P */
+#define SSUSB_U2_PORT_RG_IDDIG		BIT(12)
+#define SSUSB_U2_PORT_FORCE_IDDIG	BIT(11)
 #define SSUSB_U2_PORT_VBUSVALID	BIT(9)
 #define SSUSB_U2_PORT_OTG_SEL		BIT(7)
 #define SSUSB_U2_PORT_HOST		BIT(2)

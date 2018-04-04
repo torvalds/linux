@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/pkeys.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/export.h>
@@ -93,11 +94,11 @@ static int hash__init_new_context(struct mm_struct *mm)
 		return index;
 
 	/*
-	 * We do switch_slb() early in fork, even before we setup the
-	 * mm->context.addr_limit. Default to max task size so that we copy the
-	 * default values to paca which will help us to handle slb miss early.
+	 * In the case of exec, use the default limit,
+	 * otherwise inherit it from the mm we are duplicating.
 	 */
-	mm->context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	if (!mm->context.slb_addr_limit)
+		mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
 
 	/*
 	 * The old code would re-promote on fork, we don't do that when using
@@ -118,6 +119,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 
 	subpage_prot_init_new_context(mm);
 
+	pkey_mm_init(mm);
 	return index;
 }
 
@@ -200,7 +202,7 @@ static void destroy_pagetable_page(struct mm_struct *mm)
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
 	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
 		pgtable_page_dtor(page);
-		free_hot_cold_page(page, 0);
+		free_unref_page(page);
 	}
 }
 
@@ -216,19 +218,34 @@ void destroy_context(struct mm_struct *mm)
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	WARN_ON_ONCE(!list_empty(&mm->context.iommu_group_mem_list));
 #endif
+	if (radix_enabled())
+		WARN_ON(process_tb[mm->context.id].prtb0 != 0);
+	else
+		subpage_prot_free(mm);
+	destroy_pagetable_page(mm);
+	__destroy_context(mm->context.id);
+	mm->context.id = MMU_NO_CONTEXT;
+}
+
+void arch_exit_mmap(struct mm_struct *mm)
+{
 	if (radix_enabled()) {
 		/*
 		 * Radix doesn't have a valid bit in the process table
 		 * entries. However we know that at least P9 implementation
 		 * will avoid caching an entry with an invalid RTS field,
 		 * and 0 is invalid. So this will do.
+		 *
+		 * This runs before the "fullmm" tlb flush in exit_mmap,
+		 * which does a RIC=2 tlbie to clear the process table
+		 * entry. See the "fullmm" comments in tlb-radix.c.
+		 *
+		 * No barrier required here after the store because
+		 * this process will do the invalidate, which starts with
+		 * ptesync.
 		 */
 		process_tb[mm->context.id].prtb0 = 0;
-	} else
-		subpage_prot_free(mm);
-	destroy_pagetable_page(mm);
-	__destroy_context(mm->context.id);
-	mm->context.id = MMU_NO_CONTEXT;
+	}
 }
 
 #ifdef CONFIG_PPC_RADIX_MMU

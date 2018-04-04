@@ -48,7 +48,6 @@
 #include "csio_hw.h"
 
 #define CSIO_DRV_AUTHOR			"Chelsio Communications"
-#define CSIO_DRV_LICENSE		"Dual BSD/GPL"
 #define CSIO_DRV_DESC			"Chelsio FCoE driver"
 #define CSIO_DRV_VERSION		"1.0.0-ko"
 

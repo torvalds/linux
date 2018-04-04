@@ -1168,7 +1168,7 @@ void hns_set_led_opt(struct hns_mac_cb *mac_cb)
 int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 			enum hnae_led_state status)
 {
-	if (!mac_cb || !mac_cb->cpld_ctrl)
+	if (!mac_cb)
 		return 0;
 
 	return mac_cb->dsaf_dev->misc_op->cpld_set_led_id(mac_cb, status);

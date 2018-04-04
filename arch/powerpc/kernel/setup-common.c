@@ -242,14 +242,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned short maj;
 	unsigned short min;
 
-	/* We only show online cpus: disable preempt (overzealous, I
-	 * knew) to prevent cpu going down. */
-	preempt_disable();
-	if (!cpu_online(cpu_id)) {
-		preempt_enable();
-		return 0;
-	}
-
 #ifdef CONFIG_SMP
 	pvr = per_cpu(cpu_pvr, cpu_id);
 #else
@@ -354,12 +346,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   loops_per_jiffy / (500000/HZ),
 		   (loops_per_jiffy / (5000/HZ)) % 100);
 #endif
-
-#ifdef CONFIG_SMP
 	seq_printf(m, "\n");
-#endif
-
-	preempt_enable();
 
 	/* If this is the last cpu, print the summary */
 	if (cpumask_next(cpu_id, cpu_online_mask) >= nr_cpu_ids)
@@ -390,10 +377,10 @@ static void c_stop(struct seq_file *m, void *v)
 }
 
 const struct seq_operations cpuinfo_op = {
-	.start =c_start,
-	.next =	c_next,
-	.stop =	c_stop,
-	.show =	show_cpuinfo,
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= show_cpuinfo,
 };
 
 void __init check_for_initrd(void)
@@ -470,13 +457,13 @@ static void __init cpu_init_thread_core_maps(int tpc)
  */
 void __init smp_setup_cpu_maps(void)
 {
-	struct device_node *dn = NULL;
+	struct device_node *dn;
 	int cpu = 0;
 	int nthreads = 1;
 
 	DBG("smp_setup_cpu_maps()\n");
 
-	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < nr_cpu_ids) {
+	for_each_node_by_type(dn, "cpu") {
 		const __be32 *intserv;
 		__be32 cpu_be;
 		int j, len;
@@ -515,6 +502,11 @@ void __init smp_setup_cpu_maps(void)
 			set_hard_smp_processor_id(cpu, be32_to_cpu(intserv[j]));
 			set_cpu_possible(cpu, true);
 			cpu++;
+		}
+
+		if (cpu >= nr_cpu_ids) {
+			of_node_put(dn);
+			break;
 		}
 	}
 
@@ -704,6 +696,30 @@ int check_legacy_ioport(unsigned long base_port)
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
+static int ppc_panic_event(struct notifier_block *this,
+                             unsigned long event, void *ptr)
+{
+	/*
+	 * If firmware-assisted dump has been registered then trigger
+	 * firmware-assisted dump and let firmware handle everything else.
+	 */
+	crash_fadump(NULL, ptr);
+	ppc_md.panic(ptr);  /* May not return */
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ppc_panic_block = {
+	.notifier_call = ppc_panic_event,
+	.priority = INT_MIN /* may not return; must be done last */
+};
+
+void __init setup_panic(void)
+{
+	if (!ppc_md.panic)
+		return;
+	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
+}
+
 #ifdef CONFIG_CHECK_CACHE_COHERENCY
 /*
  * For platforms that have configurable cache-coherency.  This function
@@ -767,13 +783,13 @@ void arch_setup_pdev_archdata(struct platform_device *pdev)
 {
 	pdev->archdata.dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &pdev->archdata.dma_mask;
- 	set_dma_ops(&pdev->dev, &dma_direct_ops);
+ 	set_dma_ops(&pdev->dev, &dma_nommu_ops);
 }
 
 static __init void print_system_info(void)
 {
 	pr_info("-----------------------------------------------------\n");
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
 #endif
 #ifdef CONFIG_PPC_STD_MMU_32
@@ -800,7 +816,7 @@ static __init void print_system_info(void)
 	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
 #endif
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (htab_address)
 		pr_info("htab_address      = 0x%p\n", htab_address);
 	if (htab_hash_mask)
@@ -847,6 +863,9 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Probe the machine type, establish ppc_md. */
 	probe_machine();
+
+	/* Setup panic notifier if requested by the platform. */
+	setup_panic();
 
 	/*
 	 * Configure ppc_md.power_save (ppc32 only, 64-bit machines do
@@ -898,7 +917,8 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_PPC_MM_SLICES
 #ifdef CONFIG_PPC64
-	init_mm.context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	if (!radix_enabled())
+		init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
 #else
 #error	"context.addr_limit not initialized."
 #endif

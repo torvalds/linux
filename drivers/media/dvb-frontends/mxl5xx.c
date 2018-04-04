@@ -33,7 +33,7 @@
 #include <asm/div64.h>
 #include <asm/unaligned.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl5xx.h"
 #include "mxl5xx_regs.h"
 #include "mxl5xx_defs.h"
@@ -43,7 +43,7 @@
 #define BYTE2(v) ((v >> 16) & 0xff)
 #define BYTE3(v) ((v >> 24) & 0xff)
 
-LIST_HEAD(mxllist);
+static LIST_HEAD(mxllist);
 
 struct mxl_base {
 	struct list_head     mxllist;
@@ -636,16 +636,9 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 		if (r)
 			return r;
 		state->tune_time = jiffies;
-		return 0;
 	}
-	if (*status & FE_HAS_LOCK)
-		return 0;
 
-	r = read_status(fe, status);
-	if (r)
-		return r;
-
-	return 0;
+	return read_status(fe, status);
 }
 
 static enum fe_code_rate conv_fec(enum MXL_HYDRA_FEC_E fec)

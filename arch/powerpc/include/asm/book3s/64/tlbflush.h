@@ -8,6 +8,44 @@
 #include <asm/book3s/64/tlbflush-hash.h>
 #include <asm/book3s/64/tlbflush-radix.h>
 
+/* TLB flush actions. Used as argument to tlbiel_all() */
+enum {
+	TLB_INVAL_SCOPE_GLOBAL = 0,	/* invalidate all TLBs */
+	TLB_INVAL_SCOPE_LPID = 1,	/* invalidate TLBs for current LPID */
+};
+
+#ifdef CONFIG_PPC_NATIVE
+static inline void tlbiel_all(void)
+{
+	/*
+	 * This is used for host machine check and bootup.
+	 *
+	 * This uses early_radix_enabled and implementations use
+	 * early_cpu_has_feature etc because that works early in boot
+	 * and this is the machine check path which is not performance
+	 * critical.
+	 */
+	if (early_radix_enabled())
+		radix__tlbiel_all(TLB_INVAL_SCOPE_GLOBAL);
+	else
+		hash__tlbiel_all(TLB_INVAL_SCOPE_GLOBAL);
+}
+#else
+static inline void tlbiel_all(void) { BUG(); };
+#endif
+
+static inline void tlbiel_all_lpid(bool radix)
+{
+	/*
+	 * This is used for guest machine check.
+	 */
+	if (radix)
+		radix__tlbiel_all(TLB_INVAL_SCOPE_LPID);
+	else
+		hash__tlbiel_all(TLB_INVAL_SCOPE_LPID);
+}
+
+
 #define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
 static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 				       unsigned long start, unsigned long end)
@@ -58,6 +96,13 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 	return hash__local_flush_tlb_page(vma, vmaddr);
 }
 
+static inline void local_flush_all_mm(struct mm_struct *mm)
+{
+	if (radix_enabled())
+		return radix__local_flush_all_mm(mm);
+	return hash__local_flush_all_mm(mm);
+}
+
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
@@ -80,9 +125,17 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 		return radix__flush_tlb_page(vma, vmaddr);
 	return hash__flush_tlb_page(vma, vmaddr);
 }
+
+static inline void flush_all_mm(struct mm_struct *mm)
+{
+	if (radix_enabled())
+		return radix__flush_all_mm(mm);
+	return hash__flush_all_mm(mm);
+}
 #else
 #define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
 #define flush_tlb_page(vma, addr)	local_flush_tlb_page(vma, addr)
+#define flush_all_mm(mm)		local_flush_all_mm(mm)
 #endif /* CONFIG_SMP */
 /*
  * flush the page walk cache for the address

@@ -380,11 +380,10 @@ static int ocrdma_alloc_q(struct ocrdma_dev *dev,
 	q->len = len;
 	q->entry_size = entry_size;
 	q->size = len * entry_size;
-	q->va = dma_alloc_coherent(&dev->nic_info.pdev->dev, q->size,
-				   &q->dma, GFP_KERNEL);
+	q->va = dma_zalloc_coherent(&dev->nic_info.pdev->dev, q->size,
+				    &q->dma, GFP_KERNEL);
 	if (!q->va)
 		return -ENOMEM;
-	memset(q->va, 0, q->size);
 	return 0;
 }
 
@@ -1093,7 +1092,7 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 		rsp = &mqe->u.rsp;
 
 	if (cqe_status || ext_status) {
-		pr_err("%s() cqe_status=0x%x, ext_status=0x%x,",
+		pr_err("%s() cqe_status=0x%x, ext_status=0x%x,\n",
 		       __func__, cqe_status, ext_status);
 		if (rsp) {
 			/* This is for embedded cmds. */
@@ -1819,12 +1818,11 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 		return -ENOMEM;
 	ocrdma_init_mch(&cmd->cmd.req, OCRDMA_CMD_CREATE_CQ,
 			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
-	cq->va = dma_alloc_coherent(&pdev->dev, cq->len, &cq->pa, GFP_KERNEL);
+	cq->va = dma_zalloc_coherent(&pdev->dev, cq->len, &cq->pa, GFP_KERNEL);
 	if (!cq->va) {
 		status = -ENOMEM;
 		goto mem_err;
 	}
-	memset(cq->va, 0, cq->len);
 	page_size = cq->len / hw_pages;
 	cmd->cmd.pgsz_pgcnt = (page_size / OCRDMA_MIN_Q_PAGE_SIZE) <<
 					OCRDMA_CREATE_CQ_PAGE_SIZE_SHIFT;
@@ -1947,7 +1945,7 @@ mbx_err:
 
 int ocrdma_mbx_dealloc_lkey(struct ocrdma_dev *dev, int fr_mr, u32 lkey)
 {
-	int status = -ENOMEM;
+	int status;
 	struct ocrdma_dealloc_lkey *cmd;
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_DEALLOC_LKEY, sizeof(*cmd));
@@ -1956,9 +1954,7 @@ int ocrdma_mbx_dealloc_lkey(struct ocrdma_dev *dev, int fr_mr, u32 lkey)
 	cmd->lkey = lkey;
 	cmd->rsvd_frmr = fr_mr ? 1 : 0;
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
-	if (status)
-		goto mbx_err;
-mbx_err:
+
 	kfree(cmd);
 	return status;
 }
@@ -2214,10 +2210,9 @@ static int ocrdma_set_create_qp_sq_cmd(struct ocrdma_create_qp_req *cmd,
 	qp->sq.max_cnt = max_wqe_allocated;
 	len = (hw_pages * hw_page_size);
 
-	qp->sq.va = dma_alloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
+	qp->sq.va = dma_zalloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
 	if (!qp->sq.va)
 		return -EINVAL;
-	memset(qp->sq.va, 0, len);
 	qp->sq.len = len;
 	qp->sq.pa = pa;
 	qp->sq.entry_size = dev->attr.wqe_size;
@@ -2265,10 +2260,9 @@ static int ocrdma_set_create_qp_rq_cmd(struct ocrdma_create_qp_req *cmd,
 	qp->rq.max_cnt = max_rqe_allocated;
 	len = (hw_pages * hw_page_size);
 
-	qp->rq.va = dma_alloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
+	qp->rq.va = dma_zalloc_coherent(&pdev->dev, len, &pa, GFP_KERNEL);
 	if (!qp->rq.va)
 		return -ENOMEM;
-	memset(qp->rq.va, 0, len);
 	qp->rq.pa = pa;
 	qp->rq.len = len;
 	qp->rq.entry_size = dev->attr.rqe_size;
@@ -2322,11 +2316,10 @@ static int ocrdma_set_create_qp_ird_cmd(struct ocrdma_create_qp_req *cmd,
 	if (dev->attr.ird == 0)
 		return 0;
 
-	qp->ird_q_va = dma_alloc_coherent(&pdev->dev, ird_q_len,
-					&pa, GFP_KERNEL);
+	qp->ird_q_va = dma_zalloc_coherent(&pdev->dev, ird_q_len, &pa,
+					   GFP_KERNEL);
 	if (!qp->ird_q_va)
 		return -ENOMEM;
-	memset(qp->ird_q_va, 0, ird_q_len);
 	ocrdma_build_q_pages(&cmd->ird_addr[0], dev->attr.num_ird_pages,
 			     pa, ird_page_size);
 	for (; i < ird_q_len / dev->attr.rqe_size; i++) {
@@ -3186,8 +3179,8 @@ void ocrdma_eqd_set_task(struct work_struct *work)
 {
 	struct ocrdma_dev *dev =
 		container_of(work, struct ocrdma_dev, eqd_work.work);
-	struct ocrdma_eq *eq = 0;
-	int i, num = 0, status = -EINVAL;
+	struct ocrdma_eq *eq = NULL;
+	int i, num = 0;
 	u64 eq_intr;
 
 	for (i = 0; i < dev->eq_cnt; i++) {
@@ -3209,7 +3202,7 @@ void ocrdma_eqd_set_task(struct work_struct *work)
 	}
 
 	if (num)
-		status = ocrdma_modify_eqd(dev, &dev->eq_tbl[0], num);
+		ocrdma_modify_eqd(dev, &dev->eq_tbl[0], num);
 	schedule_delayed_work(&dev->eqd_work, msecs_to_jiffies(1000));
 }
 

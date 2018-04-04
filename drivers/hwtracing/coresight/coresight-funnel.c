@@ -214,10 +214,8 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 	desc.dev = dev;
 	desc.groups = coresight_funnel_groups;
 	drvdata->csdev = coresight_register(&desc);
-	if (IS_ERR(drvdata->csdev))
-		return PTR_ERR(drvdata->csdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(drvdata->csdev);
 }
 
 #ifdef CONFIG_PM
@@ -248,8 +246,8 @@ static const struct dev_pm_ops funnel_dev_pm_ops = {
 
 static const struct amba_id funnel_ids[] = {
 	{
-		.id     = 0x0003b908,
-		.mask   = 0x0003ffff,
+		.id     = 0x000bb908,
+		.mask   = 0x000fffff,
 	},
 	{
 		/* Coresight SoC-600 */

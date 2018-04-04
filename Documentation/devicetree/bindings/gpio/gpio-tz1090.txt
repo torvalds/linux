@@ -59,7 +59,7 @@ Required properties:
 
 Example:
 
-	gpios: gpio-controller@02005800 {
+	gpios: gpio-controller@2005800 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "img,tz1090-gpio";

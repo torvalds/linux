@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Broadcom BM2835 V4L2 driver
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
  *
  * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
  *          Dave Stevenson <dsteve@broadcom.com>
@@ -618,8 +615,8 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 	struct mmal_msg_context *msg_context;
 	u32 handle;
 
-	pr_debug("buffer_to_host_cb: instance:%p msg:%p msg_len:%d\n",
-		 instance, msg, msg_len);
+	pr_debug("%s: instance:%p msg:%p msg_len:%d\n",
+		 __func__, instance, msg, msg_len);
 
 	if (msg->u.buffer_from_host.drvbuf.magic == MMAL_MAGIC) {
 		handle = msg->u.buffer_from_host.drvbuf.client_context;
@@ -1360,8 +1357,7 @@ static int port_action_handle(struct vchiq_mmal_instance *instance,
 
 	ret = -rmsg->u.port_action_reply.status;
 
-	pr_debug("%s:result:%d component:0x%x port:%d action:%s(%d)" \
-		 " connect component:0x%x connect port:%d\n",
+	pr_debug("%s:result:%d component:0x%x port:%d action:%s(%d) connect component:0x%x connect port:%d\n",
 		 __func__,
 		 ret, port->component->handle, port->handle,
 		 port_action_type_names[action_type],
@@ -1963,7 +1959,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 
 	status = vchi_service_close(instance->handle);
 	if (status != 0)
-		pr_err("mmal-vchiq: VCHIQ close failed");
+		pr_err("mmal-vchiq: VCHIQ close failed\n");
 
 	mutex_unlock(&instance->vchiq_mutex);
 

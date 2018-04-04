@@ -235,10 +235,7 @@ struct revmap_entry {
  */
 #define KVMPPC_RMAP_LOCK_BIT	63
 #define KVMPPC_RMAP_RC_SHIFT	32
-#define KVMPPC_RMAP_CHG_SHIFT	48
 #define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
-#define KVMPPC_RMAP_CHANGED	(HPTE_R_C << KVMPPC_RMAP_RC_SHIFT)
-#define KVMPPC_RMAP_CHG_ORDER	(0x3ful << KVMPPC_RMAP_CHG_SHIFT)
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
@@ -276,7 +273,7 @@ struct kvm_arch {
 	int tlbie_lock;
 	unsigned long lpcr;
 	unsigned long vrma_slb_v;
-	int hpte_setup_done;
+	int mmu_ready;
 	atomic_t vcpus_running;
 	u32 online_vcores;
 	atomic_t hpte_mod_interest;
@@ -284,6 +281,7 @@ struct kvm_arch {
 	cpumask_t cpu_in_guest;
 	u8 radix;
 	u8 fwnmi_enabled;
+	bool threads_indep;
 	pgd_t *pgtable;
 	u64 process_table;
 	struct dentry *debugfs_dir;
@@ -692,6 +690,7 @@ struct kvm_vcpu_arch {
 	u8 mmio_vsx_offset;
 	u8 mmio_vsx_copy_type;
 	u8 mmio_vsx_tx_sx_enabled;
+	u8 mmio_vmx_copy_nums;
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;
@@ -711,6 +710,7 @@ struct kvm_vcpu_arch {
 	u8 ceded;
 	u8 prodded;
 	u8 doorbell_request;
+	u8 irq_pending; /* Used by XIVE to signal pending guest irqs */
 	u32 last_inst;
 
 	struct swait_queue_head *wqp;
@@ -740,8 +740,11 @@ struct kvm_vcpu_arch {
 	struct kvmppc_icp *icp; /* XICS presentation controller */
 	struct kvmppc_xive_vcpu *xive_vcpu; /* XIVE virtual CPU data */
 	__be32 xive_cam_word;    /* Cooked W2 in proper endian with valid bit */
-	u32 xive_pushed;	 /* Is the VP pushed on the physical CPU ? */
+	u8 xive_pushed;		 /* Is the VP pushed on the physical CPU ? */
+	u8 xive_esc_on;		 /* Is the escalation irq enabled ? */
 	union xive_tma_w01 xive_saved_state; /* W0..1 of XIVE thread state */
+	u64 xive_esc_raddr;	 /* Escalation interrupt ESB real addr */
+	u64 xive_esc_vaddr;	 /* Escalation interrupt ESB virt addr */
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -802,6 +805,7 @@ struct kvm_vcpu_arch {
 #define KVM_MMIO_REG_QPR	0x0040
 #define KVM_MMIO_REG_FQPR	0x0060
 #define KVM_MMIO_REG_VSX	0x0080
+#define KVM_MMIO_REG_VMX	0x00c0
 
 #define __KVM_HAVE_ARCH_WQP
 #define __KVM_HAVE_CREATE_DEVICE

@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * File: card.c
  * Purpose: Provide functions to setup NIC operation mode
@@ -382,11 +372,13 @@ void vnt_update_ifs(struct vnt_private *priv)
 			priv->difs -= 1;
 			break;
 		}
+		/* fall through */
 	case RF_AIROHA7230:
 	case RF_AL2230:
 	case RF_AL2230S:
 		if (priv->bb_type != BB_TYPE_11B)
 			break;
+		/* fall through */
 	case RF_RFMD2959:
 	case RF_VT3226:
 	case RF_VT3342A0:

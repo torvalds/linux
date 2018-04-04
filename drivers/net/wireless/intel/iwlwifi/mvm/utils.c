@@ -278,8 +278,8 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	u8 ind = last_idx;
 	int i;
 
-	for (i = 0; i < RATE_MCS_ANT_NUM; i++) {
-		ind = (ind + 1) % RATE_MCS_ANT_NUM;
+	for (i = 0; i < MAX_RS_ANT_NUM; i++) {
+		ind = (ind + 1) % MAX_RS_ANT_NUM;
 		if (valid & BIT(ind))
 			return ind;
 	}
@@ -455,20 +455,12 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_umac_error_event_table table;
-	u32 base;
 
-	base = mvm->umac_error_event_table;
-
-	if (base < 0x800000) {
-		IWL_ERR(mvm,
-			"Not valid error log pointer 0x%08X for %s uCode\n",
-			base,
-			(mvm->fwrt.cur_fw_img == IWL_UCODE_INIT)
-			? "Init" : "RT");
+	if (!mvm->support_umac_log)
 		return;
-	}
 
-	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+	iwl_trans_read_mem_bytes(trans, mvm->umac_error_event_table, &table,
+				 sizeof(table));
 
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
@@ -524,8 +516,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 		IWL_ERR(trans, "HW error, resetting before reading\n");
 
 		/* reset the device */
-		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-		usleep_range(5000, 6000);
+		iwl_trans_sw_reset(trans);
 
 		/* set INIT_DONE flag */
 		iwl_set_bit(trans, CSR_GP_CNTRL,
@@ -603,13 +594,18 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
+	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
+		IWL_ERR(mvm,
+			"DEVICE_ENABLED bit is not set. Aborting dump.\n");
+		return;
+	}
+
 	iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[0]);
 
 	if (mvm->error_event_table[1])
 		iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[1]);
 
-	if (mvm->support_umac_log)
-		iwl_mvm_dump_umac_error_log(mvm);
+	iwl_mvm_dump_umac_error_log(mvm);
 }
 
 int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq)
@@ -915,7 +911,8 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);
@@ -1034,11 +1031,33 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int res;
+	bool low_latency;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_mvm_vif_low_latency(mvmvif) == prev)
+	low_latency = iwl_mvm_vif_low_latency(mvmvif);
+
+	if (low_latency == prev)
 		return 0;
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA)) {
+		struct iwl_mac_low_latency_cmd cmd = {
+			.mac_id = cpu_to_le32(mvmvif->id)
+		};
+
+		if (low_latency) {
+			/* currently we don't care about the direction */
+			cmd.low_latency_rx = 1;
+			cmd.low_latency_tx = 1;
+		}
+		res = iwl_mvm_send_cmd_pdu(mvm,
+					   iwl_cmd_id(LOW_LATENCY_CMD,
+						      MAC_CONF_GROUP, 0),
+					   0, sizeof(cmd), &cmd);
+		if (res)
+			IWL_ERR(mvm, "Failed to send low latency command\n");
+	}
 
 	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)
@@ -1143,9 +1162,18 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 	unsigned int default_timeout =
 		cmd_q ? IWL_DEF_WD_TIMEOUT : mvm->cfg->base_params->wd_timeout;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS))
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
+		/*
+		 * We can't know when the station is asleep or awake, so we
+		 * must disable the queue hang detection.
+		 */
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
+		    vif && vif->type == NL80211_IFTYPE_AP)
+			return IWL_WATCHDOG_DISABLED;
 		return iwlmvm_mod_params.tfd_q_hang_detect ?
 			default_timeout : IWL_WATCHDOG_DISABLED;
+	}
 
 	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
 	txq_timer = (void *)trigger->data;
@@ -1172,6 +1200,8 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 		return le32_to_cpu(txq_timer->p2p_go);
 	case NL80211_IFTYPE_P2P_DEVICE:
 		return le32_to_cpu(txq_timer->p2p_device);
+	case NL80211_IFTYPE_MONITOR:
+		return default_timeout;
 	default:
 		WARN_ON(1);
 		return mvm->cfg->base_params->wd_timeout;
@@ -1368,6 +1398,31 @@ void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 	rcu_read_unlock();
 }
 
+void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  const struct ieee80211_sta *sta,
+					  u16 tid)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_ba *ba_trig;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
+	ba_trig = (void *)trig->data;
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
+					   ieee80211_vif_to_wdev(vif), trig))
+		return;
+
+	if (!(le16_to_cpu(ba_trig->frame_timeout) & BIT(tid)))
+		return;
+
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+				"Frame from %pM timed out, tid %d",
+				sta->addr, tid);
+}
+
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 {
 	bool ps_disabled;
@@ -1388,75 +1443,4 @@ void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 		mvm->ps_disabled = ps_disabled;
 		iwl_mvm_power_update_device(mvm);
 	}
-}
-
-int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
-			 enum iwl_lqm_cmd_operatrions operation,
-			 u32 duration, u32 timeout)
-{
-	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_link_qual_msrmnt_cmd cmd = {
-		.cmd_operation = cpu_to_le32(operation),
-		.mac_id = cpu_to_le32(mvm_vif->id),
-		.measurement_time = cpu_to_le32(duration),
-		.timeout = cpu_to_le32(timeout),
-	};
-	u32 cmdid =
-		iwl_cmd_id(LINK_QUALITY_MEASUREMENT_CMD, MAC_CONF_GROUP, 0);
-	int ret;
-
-	if (!fw_has_capa(&mvm_vif->mvm->fw->ucode_capa,
-			 IWL_UCODE_TLV_CAPA_LQM_SUPPORT))
-		return -EOPNOTSUPP;
-
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
-		return -EINVAL;
-
-	switch (operation) {
-	case LQM_CMD_OPERATION_START_MEASUREMENT:
-		if (iwl_mvm_lqm_active(mvm_vif->mvm))
-			return -EBUSY;
-		if (!vif->bss_conf.assoc)
-			return -EINVAL;
-		mvm_vif->lqm_active = true;
-		break;
-	case LQM_CMD_OPERATION_STOP_MEASUREMENT:
-		if (!iwl_mvm_lqm_active(mvm_vif->mvm))
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = iwl_mvm_send_cmd_pdu(mvm_vif->mvm, cmdid, 0, sizeof(cmd),
-				   &cmd);
-
-	/* command failed - roll back lqm_active state */
-	if (ret) {
-		mvm_vif->lqm_active =
-			operation == LQM_CMD_OPERATION_STOP_MEASUREMENT;
-	}
-
-	return ret;
-}
-
-static void iwl_mvm_lqm_active_iterator(void *_data, u8 *mac,
-					struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvm_vif = iwl_mvm_vif_from_mac80211(vif);
-	bool *lqm_active = _data;
-
-	*lqm_active = *lqm_active || mvm_vif->lqm_active;
-}
-
-bool iwl_mvm_lqm_active(struct iwl_mvm *mvm)
-{
-	bool ret = false;
-
-	lockdep_assert_held(&mvm->mutex);
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_lqm_active_iterator, &ret);
-
-	return ret;
 }

@@ -55,12 +55,18 @@
  *
  *  For pSeries or server processors:
  *   1. The MMU is off & open firmware is running in real mode.
- *   2. The kernel is entered at __start
+ *   2. The primary CPU enters at __start.
+ *   3. If the RTAS supports "query-cpu-stopped-state", then secondary
+ *      CPUs will enter as directed by "start-cpu" RTAS call, which is
+ *      generic_secondary_smp_init, with PIR in r3.
+ *   4. Else the secondary CPUs will enter at secondary_hold (0x60) as
+ *      directed by the "start-cpu" RTS call, with PIR in r3.
  * -or- For OPAL entry:
- *   1. The MMU is off, processor in HV mode, primary CPU enters at 0
- *      with device-tree in gpr3. We also get OPAL base in r8 and
- *	entry in r9 for debugging purposes
- *   2. Secondary processors enter at 0x60 with PIR in gpr3
+ *   1. The MMU is off, processor in HV mode.
+ *   2. The primary CPU enters at 0 with device-tree in r3, OPAL base
+ *      in r8, and entry in r9 for debugging purposes.
+ *   3. Secondary CPUs enter as directed by OPAL_START_CPU call, which
+ *      is at generic_secondary_smp_init, with PIR in r3.
  *
  *  For Book3E processors:
  *   1. The MMU is on running in AS0 in a state defined in ePAPR
@@ -759,8 +765,8 @@ _GLOBAL(pmac_secondary_start)
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
 	 */
-	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13)
+	li	r0,IRQS_DISABLED
+	stb	r0,PACAIRQSOFTMASK(r13)
 	li	r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 
@@ -816,7 +822,8 @@ __secondary_start:
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
 	 */
-	stb	r7,PACASOFTIRQEN(r13)
+	li	r7,IRQS_DISABLED
+	stb	r7,PACAIRQSOFTMASK(r13)
 	li	r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 
@@ -982,8 +989,8 @@ start_here_common:
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
 	 */
-	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13)
+	li	r0,IRQS_DISABLED
+	stb	r0,PACAIRQSOFTMASK(r13)
 	li	r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 

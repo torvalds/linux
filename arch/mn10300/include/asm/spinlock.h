@@ -84,6 +84,7 @@ static inline void arch_spin_lock_flags(arch_spinlock_t *lock,
 		: "d" (flags), "a"(&lock->slock), "i"(EPSW_IE | MN10300_CLI_LEVEL)
 		: "memory", "cc");
 }
+#define arch_spin_lock_flags	arch_spin_lock_flags
 
 #ifdef __KERNEL__
 
@@ -97,18 +98,6 @@ static inline void arch_spin_lock_flags(arch_spinlock_t *lock,
  * irq-safe write-lock, but readers can get non-irqsafe
  * read-locks.
  */
-
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_read_can_lock(x) ((int)(x)->lock > 0)
-
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-#define arch_write_can_lock(x) ((x)->lock == RW_LOCK_BIAS)
 
 /*
  * On mn10300, we implement read-write locks as a 32-bit counter
@@ -182,9 +171,6 @@ static inline int arch_write_trylock(arch_rwlock_t *lock)
 	atomic_add(RW_LOCK_BIAS, count);
 	return 0;
 }
-
-#define arch_read_lock_flags(lock, flags)  arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #define _raw_spin_relax(lock)	cpu_relax()
 #define _raw_read_relax(lock)	cpu_relax()

@@ -586,7 +586,7 @@ static int atmel_validate_channel(struct atmel_private *priv, int channel);
 static void atmel_management_frame(struct atmel_private *priv,
 				   struct ieee80211_hdr *header,
 				   u16 frame_len, u8 rssi);
-static void atmel_management_timer(u_long a);
+static void atmel_management_timer(struct timer_list *t);
 static void atmel_send_command(struct atmel_private *priv, int command,
 			       void *cmd, int cmd_size);
 static int atmel_send_command_wait(struct atmel_private *priv, int command,
@@ -1579,11 +1579,9 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	priv->default_beacon_period = priv->beacon_period = 100;
 	priv->listen_interval = 1;
 
-	init_timer(&priv->management_timer);
+	timer_setup(&priv->management_timer, atmel_management_timer, 0);
 	spin_lock_init(&priv->irqlock);
 	spin_lock_init(&priv->timerlock);
-	priv->management_timer.function = atmel_management_timer;
-	priv->management_timer.data = (unsigned long) dev;
 
 	dev->netdev_ops = &atmel_netdev_ops;
 	dev->wireless_handlers = &atmel_handler_def;
@@ -3435,10 +3433,9 @@ static void atmel_management_frame(struct atmel_private *priv,
 }
 
 /* run when timer expires */
-static void atmel_management_timer(u_long a)
+static void atmel_management_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) a;
-	struct atmel_private *priv = netdev_priv(dev);
+	struct atmel_private *priv = from_timer(priv, t, management_timer);
 	unsigned long flags;
 
 	/* Check if the card has been yanked. */

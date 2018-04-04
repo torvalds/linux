@@ -23,12 +23,10 @@ o	A CPU looping with preemption disabled.  This condition can
 o	A CPU looping with bottom halves disabled.  This condition can
 	result in RCU-sched and RCU-bh stalls.
 
-o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the
-	kernel without invoking schedule().  Note that cond_resched()
-	does not necessarily prevent RCU CPU stall warnings.  Therefore,
-	if the looping in the kernel is really expected and desirable
-	behavior, you might need to replace some of the cond_resched()
-	calls with calls to cond_resched_rcu_qs().
+o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the kernel
+	without invoking schedule().  If the looping in the kernel is
+	really expected and desirable behavior, you might need to add
+	some calls to cond_resched().
 
 o	Booting Linux using a console connection that is too slow to
 	keep up with the boot-time console-message rate.  For example,
@@ -40,7 +38,9 @@ o	Booting Linux using a console connection that is too slow to
 o	Anything that prevents RCU's grace-period kthreads from running.
 	This can result in the "All QSes seen" console-log message.
 	This message will include information on when the kthread last
-	ran and how often it should be expected to run.
+	ran and how often it should be expected to run.  It can also
+	result in the "rcu_.*kthread starved for" console-log message,
+	which will include additional debugging information.
 
 o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU
@@ -59,6 +59,20 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 	system will eventually run out of memory and hang.  In the
 	CONFIG_PREEMPT_RCU case, you might see stall-warning
 	messages.
+
+o	A periodic interrupt whose handler takes longer than the time
+	interval between successive pairs of interrupts.  This can
+	prevent RCU's kthreads and softirq handlers from running.
+	Note that certain high-overhead debugging options, for example
+	the function_graph tracer, can result in interrupt handler taking
+	considerably longer than normal, which can in turn result in
+	RCU CPU stall warnings.
+
+o	Testing a workload on a fast system, tuning the stall-warning
+	timeout down to just barely avoid RCU CPU stall warnings, and then
+	running the same workload with the same stall-warning timeout on a
+	slow system.  Note that thermal throttling and on-demand governors
+	can cause a single system to be sometimes fast and sometimes slow!
 
 o	A hardware or software issue shuts off the scheduler-clock
 	interrupt on a CPU that is not in dyntick-idle mode.  This
@@ -155,67 +169,32 @@ Interpreting RCU's CPU Stall-Detector "Splats"
 For non-RCU-tasks flavors of RCU, when a CPU detects that it is stalling,
 it will print a message similar to the following:
 
-INFO: rcu_sched_state detected stall on CPU 5 (t=2500 jiffies)
+	INFO: rcu_sched detected stalls on CPUs/tasks:
+	2-...: (3 GPs behind) idle=06c/0/0 softirq=1453/1455 fqs=0
+	16-...: (0 ticks this GP) idle=81c/0/0 softirq=764/764 fqs=0
+	(detected by 32, t=2603 jiffies, g=7073, c=7072, q=625)
 
-This message indicates that CPU 5 detected that it was causing a stall,
-and that the stall was affecting RCU-sched.  This message will normally be
-followed by a stack dump of the offending CPU.  On TREE_RCU kernel builds,
-RCU and RCU-sched are implemented by the same underlying mechanism,
-while on PREEMPT_RCU kernel builds, RCU is instead implemented
-by rcu_preempt_state.
-
-On the other hand, if the offending CPU fails to print out a stall-warning
-message quickly enough, some other CPU will print a message similar to
-the following:
-
-INFO: rcu_bh_state detected stalls on CPUs/tasks: { 3 5 } (detected by 2, 2502 jiffies)
-
-This message indicates that CPU 2 detected that CPUs 3 and 5 were both
-causing stalls, and that the stall was affecting RCU-bh.  This message
+This message indicates that CPU 32 detected that CPUs 2 and 16 were both
+causing stalls, and that the stall was affecting RCU-sched.  This message
 will normally be followed by stack dumps for each CPU.  Please note that
-PREEMPT_RCU builds can be stalled by tasks as well as by CPUs,
-and that the tasks will be indicated by PID, for example, "P3421".
-It is even possible for a rcu_preempt_state stall to be caused by both
-CPUs -and- tasks, in which case the offending CPUs and tasks will all
-be called out in the list.
+PREEMPT_RCU builds can be stalled by tasks as well as by CPUs, and that
+the tasks will be indicated by PID, for example, "P3421".  It is even
+possible for a rcu_preempt_state stall to be caused by both CPUs -and-
+tasks, in which case the offending CPUs and tasks will all be called
+out in the list.
 
-Finally, if the grace period ends just as the stall warning starts
-printing, there will be a spurious stall-warning message:
-
-INFO: rcu_bh_state detected stalls on CPUs/tasks: { } (detected by 4, 2502 jiffies)
-
-This is rare, but does happen from time to time in real life.  It is also
-possible for a zero-jiffy stall to be flagged in this case, depending
-on how the stall warning and the grace-period initialization happen to
-interact.  Please note that it is not possible to entirely eliminate this
-sort of false positive without resorting to things like stop_machine(),
-which is overkill for this sort of problem.
-
-Recent kernels will print a long form of the stall-warning message:
-
-	INFO: rcu_preempt detected stall on CPU
-	0: (63959 ticks this GP) idle=241/3fffffffffffffff/0 softirq=82/543
-	   (t=65000 jiffies)
-
-In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed:
-
-	INFO: rcu_preempt detected stall on CPU
-	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 nonlazy_posted: 25 .D
-	   (t=65000 jiffies)
-
-The "(64628 ticks this GP)" indicates that this CPU has taken more
-than 64,000 scheduling-clock interrupts during the current stalled
-grace period.  If the CPU was not yet aware of the current grace
-period (for example, if it was offline), then this part of the message
-indicates how many grace periods behind the CPU is.
+CPU 2's "(3 GPs behind)" indicates that this CPU has not interacted with
+the RCU core for the past three grace periods.  In contrast, CPU 16's "(0
+ticks this GP)" indicates that this CPU has not taken any scheduling-clock
+interrupts during the current stalled grace period.
 
 The "idle=" portion of the message prints the dyntick-idle state.
 The hex number before the first "/" is the low-order 12 bits of the
-dynticks counter, which will have an even-numbered value if the CPU is
-in dyntick-idle mode and an odd-numbered value otherwise.  The hex
-number between the two "/"s is the value of the nesting, which will
-be a small positive number if in the idle loop and a very large positive
-number (as shown above) otherwise.
+dynticks counter, which will have an even-numbered value if the CPU
+is in dyntick-idle mode and an odd-numbered value otherwise.  The hex
+number between the two "/"s is the value of the nesting, which will be
+a small non-negative number if in the idle loop (as shown above) and a
+very large positive number otherwise.
 
 The "softirq=" portion of the message tracks the number of RCU softirq
 handlers that the stalled CPU has executed.  The number before the "/"
@@ -230,24 +209,72 @@ handlers are no longer able to execute on this CPU.  This can happen if
 the stalled CPU is spinning with interrupts are disabled, or, in -rt
 kernels, if a high-priority process is starving RCU's softirq handler.
 
-For CONFIG_RCU_FAST_NO_HZ kernels, the "last_accelerate:" prints the
-low-order 16 bits (in hex) of the jiffies counter when this CPU last
-invoked rcu_try_advance_all_cbs() from rcu_needs_cpu() or last invoked
-rcu_accelerate_cbs() from rcu_prepare_for_idle().  The "nonlazy_posted:"
-prints the number of non-lazy callbacks posted since the last call to
-rcu_needs_cpu().  Finally, an "L" indicates that there are currently
-no non-lazy callbacks ("." is printed otherwise, as shown above) and
-"D" indicates that dyntick-idle processing is enabled ("." is printed
-otherwise, for example, if disabled via the "nohz=" kernel boot parameter).
+The "fps=" shows the number of force-quiescent-state idle/offline
+detection passes that the grace-period kthread has made across this
+CPU since the last time that this CPU noted the beginning of a grace
+period.
+
+The "detected by" line indicates which CPU detected the stall (in this
+case, CPU 32), how many jiffies have elapsed since the start of the
+grace period (in this case 2603), the number of the last grace period
+to start and to complete (7073 and 7072, respectively), and an estimate
+of the total number of RCU callbacks queued across all CPUs (625 in
+this case).
+
+In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed
+for each CPU:
+
+	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 nonlazy_posted: 25 .D
+
+The "last_accelerate:" prints the low-order 16 bits (in hex) of the
+jiffies counter when this CPU last invoked rcu_try_advance_all_cbs()
+from rcu_needs_cpu() or last invoked rcu_accelerate_cbs() from
+rcu_prepare_for_idle().  The "nonlazy_posted:" prints the number
+of non-lazy callbacks posted since the last call to rcu_needs_cpu().
+Finally, an "L" indicates that there are currently no non-lazy callbacks
+("." is printed otherwise, as shown above) and "D" indicates that
+dyntick-idle processing is enabled ("." is printed otherwise, for example,
+if disabled via the "nohz=" kernel boot parameter).
+
+If the grace period ends just as the stall warning starts printing,
+there will be a spurious stall-warning message, which will include
+the following:
+
+	INFO: Stall ended before state dump start
+
+This is rare, but does happen from time to time in real life.  It is also
+possible for a zero-jiffy stall to be flagged in this case, depending
+on how the stall warning and the grace-period initialization happen to
+interact.  Please note that it is not possible to entirely eliminate this
+sort of false positive without resorting to things like stop_machine(),
+which is overkill for this sort of problem.
+
+If all CPUs and tasks have passed through quiescent states, but the
+grace period has nevertheless failed to end, the stall-warning splat
+will include something like the following:
+
+	All QSes seen, last rcu_preempt kthread activity 23807 (4297905177-4297881370), jiffies_till_next_fqs=3, root ->qsmask 0x0
+
+The "23807" indicates that it has been more than 23 thousand jiffies
+since the grace-period kthread ran.  The "jiffies_till_next_fqs"
+indicates how frequently that kthread should run, giving the number
+of jiffies between force-quiescent-state scans, in this case three,
+which is way less than 23807.  Finally, the root rcu_node structure's
+->qsmask field is printed, which will normally be zero.
 
 If the relevant grace-period kthread has been unable to run prior to
-the stall warning, the following additional line is printed:
+the stall warning, as was the case in the "All QSes seen" line above,
+the following additional line is printed:
 
-	rcu_preempt kthread starved for 2023 jiffies!
+	kthread starved for 23807 jiffies! g7073 c7072 f0x0 RCU_GP_WAIT_FQS(3) ->state=0x1
 
-Starving the grace-period kthreads of CPU time can of course result in
-RCU CPU stall warnings even when all CPUs and tasks have passed through
-the required quiescent states.
+Starving the grace-period kthreads of CPU time can of course result
+in RCU CPU stall warnings even when all CPUs and tasks have passed
+through the required quiescent states.  The "g" and "c" numbers flag the
+number of the last grace period started and completed, respectively,
+the "f" precedes the ->gp_flags command to the grace-period kthread,
+the "RCU_GP_WAIT_FQS" indicates that the kthread is waiting for a short
+timeout, and the "state" precedes value of the task_struct ->state field.
 
 
 Multiple Warnings From One Stall
@@ -264,13 +291,28 @@ Stall Warnings for Expedited Grace Periods
 If an expedited grace period detects a stall, it will place a message
 like the following in dmesg:
 
-	INFO: rcu_sched detected expedited stalls on CPUs: { 1 2 6 } 26009 jiffies s: 1043
+	INFO: rcu_sched detected expedited stalls on CPUs/tasks: { 7-... } 21119 jiffies s: 73 root: 0x2/.
 
-This indicates that CPUs 1, 2, and 6 have failed to respond to a
-reschedule IPI, that the expedited grace period has been going on for
-26,009 jiffies, and that the expedited grace-period sequence counter is
-1043.  The fact that this last value is odd indicates that an expedited
-grace period is in flight.
+This indicates that CPU 7 has failed to respond to a reschedule IPI.
+The three periods (".") following the CPU number indicate that the CPU
+is online (otherwise the first period would instead have been "O"),
+that the CPU was online at the beginning of the expedited grace period
+(otherwise the second period would have instead been "o"), and that
+the CPU has been online at least once since boot (otherwise, the third
+period would instead have been "N").  The number before the "jiffies"
+indicates that the expedited grace period has been going on for 21,119
+jiffies.  The number following the "s:" indicates that the expedited
+grace-period sequence counter is 73.  The fact that this last value is
+odd indicates that an expedited grace period is in flight.  The number
+following "root:" is a bitmask that indicates which children of the root
+rcu_node structure correspond to CPUs and/or tasks that are blocking the
+current expedited grace period.  If the tree had more than one level,
+additional hex numbers would be printed for the states of the other
+rcu_node structures in the tree.
+
+As with normal grace periods, PREEMPT_RCU builds can be stalled by
+tasks as well as by CPUs, and that the tasks will be indicated by PID,
+for example, "P3421".
 
 It is entirely possible to see stall warnings from normal and from
-expedited grace periods at about the same time from the same run.
+expedited grace periods at about the same time during the same run.

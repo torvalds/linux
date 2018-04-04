@@ -1,39 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- * * Neither the name of the above-listed copyright holders nor the
- * names of any contributors may be used to endorse or promote products
- * derived from this software without specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation, either version 2 of that License or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/kernel.h>
 #include "../include/mc.h"
-#include "dprc.h"
-
-#include "dprc-cmd.h"
+#include "fsl-mc-private.h"
 
 /**
  * dprc_open() - Open DPRC object for use
@@ -71,7 +43,7 @@ int dprc_open(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_open);
+EXPORT_SYMBOL_GPL(dprc_open);
 
 /**
  * dprc_close() - Close the control session of the object
@@ -97,53 +69,7 @@ int dprc_close(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dprc_close);
-
-/**
- * dprc_get_irq() - Get IRQ information from the DPRC.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPRC object
- * @irq_index:	The interrupt index to configure
- * @type:	Interrupt type: 0 represents message interrupt
- *		type (both irq_addr and irq_val are valid)
- * @irq_cfg:	IRQ attributes
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dprc_get_irq(struct fsl_mc_io *mc_io,
-		 u32 cmd_flags,
-		 u16 token,
-		 u8 irq_index,
-		 int *type,
-		 struct dprc_irq_cfg *irq_cfg)
-{
-	struct mc_command cmd = { 0 };
-	struct dprc_cmd_get_irq *cmd_params;
-	struct dprc_rsp_get_irq *rsp_params;
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_IRQ,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dprc_cmd_get_irq *)cmd.params;
-	cmd_params->irq_index = irq_index;
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dprc_rsp_get_irq *)cmd.params;
-	irq_cfg->val = le32_to_cpu(rsp_params->irq_val);
-	irq_cfg->paddr = le64_to_cpu(rsp_params->irq_addr);
-	irq_cfg->irq_num = le32_to_cpu(rsp_params->irq_num);
-	*type = le32_to_cpu(rsp_params->type);
-
-	return 0;
-}
+EXPORT_SYMBOL_GPL(dprc_close);
 
 /**
  * dprc_set_irq() - Set IRQ information for the DPRC to trigger an interrupt.
@@ -179,45 +105,6 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
 }
 
 /**
- * dprc_get_irq_enable() - Get overall interrupt state.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPRC object
- * @irq_index:  The interrupt index to configure
- * @en:		Returned interrupt state - enable = 1, disable = 0
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dprc_get_irq_enable(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u8 *en)
-{
-	struct mc_command cmd = { 0 };
-	struct dprc_cmd_get_irq_enable *cmd_params;
-	struct dprc_rsp_get_irq_enable *rsp_params;
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_IRQ_ENABLE,
-					  cmd_flags, token);
-	cmd_params = (struct dprc_cmd_get_irq_enable *)cmd.params;
-	cmd_params->irq_index = irq_index;
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dprc_rsp_get_irq_enable *)cmd.params;
-	*en = rsp_params->enabled & DPRC_ENABLE;
-
-	return 0;
-}
-
-/**
  * dprc_set_irq_enable() - Set overall interrupt state.
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -250,48 +137,6 @@ int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
-}
-
-/**
- * dprc_get_irq_mask() - Get interrupt mask.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPRC object
- * @irq_index:	The interrupt index to configure
- * @mask:	Returned event mask to trigger interrupt
- *
- * Every interrupt can have up to 32 causes and the interrupt model supports
- * masking/unmasking each cause independently
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dprc_get_irq_mask(struct fsl_mc_io *mc_io,
-		      u32 cmd_flags,
-		      u16 token,
-		      u8 irq_index,
-		      u32 *mask)
-{
-	struct mc_command cmd = { 0 };
-	struct dprc_cmd_get_irq_mask *cmd_params;
-	struct dprc_rsp_get_irq_mask *rsp_params;
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_IRQ_MASK,
-					  cmd_flags, token);
-	cmd_params = (struct dprc_cmd_get_irq_mask *)cmd.params;
-	cmd_params->irq_index = irq_index;
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dprc_rsp_get_irq_mask *)cmd.params;
-	*mask = le32_to_cpu(rsp_params->mask);
-
-	return 0;
 }
 
 /**
@@ -475,7 +320,7 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj_count);
+EXPORT_SYMBOL_GPL(dprc_get_obj_count);
 
 /**
  * dprc_get_obj() - Get general information on an object
@@ -531,7 +376,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 	obj_desc->label[15] = '\0';
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj);
+EXPORT_SYMBOL_GPL(dprc_get_obj);
 
 /**
  * dprc_set_obj_irq() - Set IRQ information for object to trigger an interrupt.
@@ -572,104 +417,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-EXPORT_SYMBOL(dprc_set_obj_irq);
-
-/**
- * dprc_get_obj_irq() - Get IRQ information from object.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPRC object
- * @obj_type:	Type od the object to get its IRQ
- * @obj_id:	ID of the object to get its IRQ
- * @irq_index:	The interrupt index to configure
- * @type:	Interrupt type: 0 represents message interrupt
- *		type (both irq_addr and irq_val are valid)
- * @irq_cfg:	The returned IRQ attributes
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
-		     u32 cmd_flags,
-		     u16 token,
-		     char *obj_type,
-		     int obj_id,
-		     u8 irq_index,
-		     int *type,
-		     struct dprc_irq_cfg *irq_cfg)
-{
-	struct mc_command cmd = { 0 };
-	struct dprc_cmd_get_obj_irq *cmd_params;
-	struct dprc_rsp_get_obj_irq *rsp_params;
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_OBJ_IRQ,
-					  cmd_flags,
-					  token);
-	cmd_params = (struct dprc_cmd_get_obj_irq *)cmd.params;
-	cmd_params->obj_id = cpu_to_le32(obj_id);
-	cmd_params->irq_index = irq_index;
-	strncpy(cmd_params->obj_type, obj_type, 16);
-	cmd_params->obj_type[15] = '\0';
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dprc_rsp_get_obj_irq *)cmd.params;
-	irq_cfg->val = le32_to_cpu(rsp_params->irq_val);
-	irq_cfg->paddr = le64_to_cpu(rsp_params->irq_addr);
-	irq_cfg->irq_num = le32_to_cpu(rsp_params->irq_num);
-	*type = le32_to_cpu(rsp_params->type);
-
-	return 0;
-}
-EXPORT_SYMBOL(dprc_get_obj_irq);
-
-/**
- * dprc_get_res_count() - Obtains the number of free resources that are assigned
- *		to this container, by pool type
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPRC object
- * @type:	pool type
- * @res_count:	Returned number of free resources of the given
- *			resource type that are assigned to this DPRC
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dprc_get_res_count(struct fsl_mc_io *mc_io,
-		       u32 cmd_flags,
-		       u16 token,
-		       char *type,
-		       int *res_count)
-{
-	struct mc_command cmd = { 0 };
-	struct dprc_cmd_get_res_count *cmd_params;
-	struct dprc_rsp_get_res_count *rsp_params;
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPRC_CMDID_GET_RES_COUNT,
-					  cmd_flags, token);
-	cmd_params = (struct dprc_cmd_get_res_count *)cmd.params;
-	strncpy(cmd_params->type, type, 16);
-	cmd_params->type[15] = '\0';
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dprc_rsp_get_res_count *)cmd.params;
-	*res_count = le32_to_cpu(rsp_params->res_count);
-
-	return 0;
-}
-EXPORT_SYMBOL(dprc_get_res_count);
+EXPORT_SYMBOL_GPL(dprc_set_obj_irq);
 
 /**
  * dprc_get_obj_region() - Get region information for a specified object.
@@ -717,7 +465,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
-EXPORT_SYMBOL(dprc_get_obj_region);
+EXPORT_SYMBOL_GPL(dprc_get_obj_region);
 
 /**
  * dprc_get_api_version - Get Data Path Resource Container API version

@@ -100,6 +100,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:
 	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
 	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
+	case DRM_VC4_PARAM_SUPPORTS_MADVISE:
 		args->value = true;
 		break;
 	default:
@@ -110,12 +111,11 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void vc4_lastclose(struct drm_device *dev)
-{
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
-	drm_fbdev_cma_restore_mode(vc4->fbdev);
-}
+static const struct vm_operations_struct vc4_vm_ops = {
+	.fault = vc4_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
 
 static const struct file_operations vc4_drm_fops = {
 	.owner = THIS_MODULE,
@@ -142,6 +142,7 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_SET_TILING, vc4_set_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_GET_TILING, vc4_get_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_LABEL_BO, vc4_label_bo_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_GEM_MADVISE, vc4_gem_madvise_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
@@ -151,7 +152,7 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_HAVE_IRQ |
 			    DRIVER_RENDER |
 			    DRIVER_PRIME),
-	.lastclose = vc4_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.irq_handler = vc4_irq,
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,
@@ -166,7 +167,7 @@ static struct drm_driver vc4_drm_driver = {
 
 	.gem_create_object = vc4_create_object,
 	.gem_free_object_unlocked = vc4_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
+	.gem_vm_ops = &vc4_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -293,12 +294,10 @@ static void vc4_drm_unbind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = platform_get_drvdata(pdev);
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_fini(vc4->fbdev);
+	drm_fb_cma_fbdev_fini(drm);
 
 	drm_mode_config_cleanup(drm);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -9,9 +10,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/amba/bus.h>
 
 #include <asm/errno.h>
 #include "of_private.h"
@@ -101,11 +100,7 @@ int of_dma_configure(struct device *dev, struct device_node *np)
 		 * DMA configuration regardless of whether "dma-ranges" is
 		 * correctly specified or not.
 		 */
-		if (!dev_is_pci(dev) &&
-#ifdef CONFIG_ARM_AMBA
-		    dev->bus != &amba_bustype &&
-#endif
-		    dev->bus != &platform_bus_type)
+		if (!dev->bus->force_dma)
 			return ret == -ENODEV ? 0 : ret;
 
 		dma_addr = offset = 0;

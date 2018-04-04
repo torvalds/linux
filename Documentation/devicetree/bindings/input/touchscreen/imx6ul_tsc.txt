@@ -21,7 +21,7 @@ Optional properties:
   each read. Valid values are 1, 4, 8, 16 and 32.
 
 Example:
-	tsc: tsc@02040000 {
+	tsc: tsc@2040000 {
 		compatible = "fsl,imx6ul-tsc";
 		reg = <0x02040000 0x4000>, <0x0219c000 0x4000>;
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,

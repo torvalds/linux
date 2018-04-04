@@ -33,7 +33,7 @@ bits:	Is pair of bit location and number of bits, which specifies offset
 For example:
 
 	/* Provider */
-	qfprom: qfprom@00700000 {
+	qfprom: qfprom@700000 {
 		...
 
 		/* Data cells */

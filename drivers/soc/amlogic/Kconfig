@@ -9,4 +9,25 @@ config MESON_GX_SOCINFO
 	  Say yes to support decoding of Amlogic Meson GX SoC family
 	  information about the type, package and version.
 
+config MESON_GX_PM_DOMAINS
+	bool "Amlogic Meson GX Power Domains driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on PM && OF
+	default ARCH_MESON
+	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS_OF
+	help
+	  Say yes to expose Amlogic Meson GX Power Domains as
+	  Generic Power Domains.
+
+config MESON_MX_SOCINFO
+	bool "Amlogic Meson MX SoC Information driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	default ARCH_MESON
+	select SOC_BUS
+	help
+	  Say yes to support decoding of Amlogic Meson6, Meson8,
+	  Meson8b and Meson8m2 SoC family information about the type
+	  and version.
+
 endmenu

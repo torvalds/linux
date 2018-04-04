@@ -7,6 +7,7 @@
 #include <linux/nmi.h>
 #include <asm/io.h>
 #include <asm/hyperv.h>
+#include <asm/nospec-branch.h>
 
 /*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
@@ -159,6 +160,7 @@ static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 #define hv_set_synint_state(int_num, val) wrmsrl(int_num, val)
 
 void hyperv_callback_vector(void);
+void hyperv_reenlightenment_vector(void);
 #ifdef CONFIG_TRACING
 #define trace_hyperv_callback_vector hyperv_callback_vector
 #endif
@@ -186,10 +188,11 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 		return U64_MAX;
 
 	__asm__ __volatile__("mov %4, %%r8\n"
-			     "call *%5"
+			     CALL_NOSPEC
 			     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
 			       "+c" (control), "+d" (input_address)
-			     :  "r" (output_address), "m" (hv_hypercall_pg)
+			     :  "r" (output_address),
+				THUNK_TARGET(hv_hypercall_pg)
 			     : "cc", "memory", "r8", "r9", "r10", "r11");
 #else
 	u32 input_address_hi = upper_32_bits(input_address);
@@ -200,13 +203,13 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	if (!hv_hypercall_pg)
 		return U64_MAX;
 
-	__asm__ __volatile__("call *%7"
+	__asm__ __volatile__(CALL_NOSPEC
 			     : "=A" (hv_status),
 			       "+c" (input_address_lo), ASM_CALL_CONSTRAINT
 			     : "A" (control),
 			       "b" (input_address_hi),
 			       "D"(output_address_hi), "S"(output_address_lo),
-			       "m" (hv_hypercall_pg)
+			       THUNK_TARGET(hv_hypercall_pg)
 			     : "cc", "memory");
 #endif /* !x86_64 */
 	return hv_status;
@@ -227,10 +230,10 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 
 #ifdef CONFIG_X86_64
 	{
-		__asm__ __volatile__("call *%4"
+		__asm__ __volatile__(CALL_NOSPEC
 				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
 				       "+c" (control), "+d" (input1)
-				     : "m" (hv_hypercall_pg)
+				     : THUNK_TARGET(hv_hypercall_pg)
 				     : "cc", "r8", "r9", "r10", "r11");
 	}
 #else
@@ -238,13 +241,13 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 		u32 input1_hi = upper_32_bits(input1);
 		u32 input1_lo = lower_32_bits(input1);
 
-		__asm__ __volatile__ ("call *%5"
+		__asm__ __volatile__ (CALL_NOSPEC
 				      : "=A"(hv_status),
 					"+c"(input1_lo),
 					ASM_CALL_CONSTRAINT
 				      :	"A" (control),
 					"b" (input1_hi),
-					"m" (hv_hypercall_pg)
+					THUNK_TARGET(hv_hypercall_pg)
 				      : "cc", "edi", "esi");
 	}
 #endif
@@ -311,21 +314,30 @@ static inline int hv_cpu_number_to_vp_number(int cpu_number)
 void hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
 void hyper_alloc_mmu(void);
-void hyperv_report_panic(struct pt_regs *regs);
-bool hv_is_hypercall_page_setup(void);
+void hyperv_report_panic(struct pt_regs *regs, long err);
+bool hv_is_hyperv_initialized(void);
 void hyperv_cleanup(void);
+
+void hyperv_reenlightenment_intr(struct pt_regs *regs);
+void set_hv_tscchange_cb(void (*cb)(void));
+void clear_hv_tscchange_cb(void);
+void hyperv_stop_tsc_emulation(void);
 #else /* CONFIG_HYPERV */
 static inline void hyperv_init(void) {}
-static inline bool hv_is_hypercall_page_setup(void) { return false; }
+static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline void hyperv_cleanup(void) {}
 static inline void hyperv_setup_mmu_ops(void) {}
+static inline void set_hv_tscchange_cb(void (*cb)(void)) {}
+static inline void clear_hv_tscchange_cb(void) {}
+static inline void hyperv_stop_tsc_emulation(void) {};
 #endif /* CONFIG_HYPERV */
 
 #ifdef CONFIG_HYPERV_TSCPAGE
 struct ms_hyperv_tsc_page *hv_get_tsc_page(void);
-static inline u64 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
+static inline u64 hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg,
+				       u64 *cur_tsc)
 {
-	u64 scale, offset, cur_tsc;
+	u64 scale, offset;
 	u32 sequence;
 
 	/*
@@ -356,7 +368,7 @@ static inline u64 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
 
 		scale = READ_ONCE(tsc_pg->tsc_scale);
 		offset = READ_ONCE(tsc_pg->tsc_offset);
-		cur_tsc = rdtsc_ordered();
+		*cur_tsc = rdtsc_ordered();
 
 		/*
 		 * Make sure we read sequence after we read all other values
@@ -366,13 +378,27 @@ static inline u64 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
 
 	} while (READ_ONCE(tsc_pg->tsc_sequence) != sequence);
 
-	return mul_u64_u64_shr(cur_tsc, scale, 64) + offset;
+	return mul_u64_u64_shr(*cur_tsc, scale, 64) + offset;
+}
+
+static inline u64 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
+{
+	u64 cur_tsc;
+
+	return hv_read_tsc_page_tsc(tsc_pg, &cur_tsc);
 }
 
 #else
 static inline struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
 	return NULL;
+}
+
+static inline u64 hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg,
+				       u64 *cur_tsc)
+{
+	BUG();
+	return U64_MAX;
 }
 #endif
 #endif

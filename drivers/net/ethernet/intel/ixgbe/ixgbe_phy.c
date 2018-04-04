@@ -378,7 +378,7 @@ static s32 ixgbe_get_phy_id(struct ixgbe_hw *hw)
 
 /**
  *  ixgbe_get_phy_type_from_id - Get the phy type
- *  @hw: pointer to hardware structure
+ *  @phy_id: hardware phy id
  *
  **/
 static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
@@ -489,6 +489,7 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
  *  the SWFW lock
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit address of PHY register to read
+ *  @device_type: 5 bit device type
  *  @phy_data: Pointer to read data from PHY register
  **/
 s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
@@ -564,6 +565,7 @@ s32 ixgbe_read_phy_reg_mdi(struct ixgbe_hw *hw, u32 reg_addr, u32 device_type,
  *  using the SWFW lock - this function is needed in most cases
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit address of PHY register to read
+ *  @device_type: 5 bit device type
  *  @phy_data: Pointer to read data from PHY register
  **/
 s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
@@ -763,6 +765,7 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
  *  ixgbe_setup_phy_link_speed_generic - Sets the auto advertised capabilities
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
+ *  @autoneg_wait_to_complete: unused
  **/
 s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
 				       ixgbe_link_speed speed,
@@ -861,6 +864,8 @@ s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
 /**
  *  ixgbe_check_phy_link_tnx - Determine link and speed status
  *  @hw: pointer to hardware structure
+ *  @speed: link speed
+ *  @link_up: status of link
  *
  *  Reads the VS1 register to determine if link is up and the current speed for
  *  the PHY.
@@ -1667,7 +1672,7 @@ s32 ixgbe_read_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
  *  ixgbe_read_i2c_sff8472_generic - Reads 8 bit word over I2C interface
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset at address 0xA2
- *  @eeprom_data: value read
+ *  @sff8472_data: value read
  *
  *  Performs byte read operation to SFP module's SFF-8472 data over I2C
  **/
@@ -1714,6 +1719,7 @@ static bool ixgbe_is_sfp_probe(struct ixgbe_hw *hw, u8 offset, u8 addr)
  *  ixgbe_read_i2c_byte_generic_int - Reads 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to read
+ *  @dev_addr: device address
  *  @data: value read
  *  @lock: true if to take and release semaphore
  *
@@ -1804,6 +1810,7 @@ fail:
  *  ixgbe_read_i2c_byte_generic - Reads 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to read
+ *  @dev_addr: device address
  *  @data: value read
  *
  *  Performs byte read operation to SFP module's EEPROM over I2C interface at
@@ -1820,6 +1827,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
  *  ixgbe_read_i2c_byte_generic_unlocked - Reads 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to read
+ *  @dev_addr: device address
  *  @data: value read
  *
  *  Performs byte read operation to SFP module's EEPROM over I2C interface at
@@ -1836,6 +1844,7 @@ s32 ixgbe_read_i2c_byte_generic_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
  *  ixgbe_write_i2c_byte_generic_int - Writes 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to write
+ *  @dev_addr: device address
  *  @data: value to write
  *  @lock: true if to take and release semaphore
  *
@@ -1904,6 +1913,7 @@ fail:
  *  ixgbe_write_i2c_byte_generic - Writes 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to write
+ *  @dev_addr: device address
  *  @data: value to write
  *
  *  Performs byte write operation to SFP module's EEPROM over I2C interface at
@@ -1920,6 +1930,7 @@ s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
  *  ixgbe_write_i2c_byte_generic_unlocked - Writes 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to write
+ *  @dev_addr: device address
  *  @data: value to write
  *
  *  Performs byte write operation to SFP module's EEPROM over I2C interface at

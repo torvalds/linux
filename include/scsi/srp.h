@@ -129,6 +129,23 @@ struct srp_login_req {
 	u8	target_port_id[16];
 };
 
+/**
+ * struct srp_login_req_rdma - RDMA/CM login parameters.
+ *
+ * RDMA/CM over InfiniBand can only carry 92 - 36 = 56 bytes of private
+ * data. The %srp_login_req_rdma structure contains the same information as
+ * %srp_login_req but with the reserved data removed.
+ */
+struct srp_login_req_rdma {
+	u64	tag;
+	__be16	req_buf_fmt;
+	u8	req_flags;
+	u8	opcode;
+	__be32	req_it_iu_len;
+	u8	initiator_port_id[16];
+	u8	target_port_id[16];
+};
+
 /*
  * The SRP spec defines the size of the LOGIN_RSP structure to be 52
  * bytes, so it needs to be packed to avoid having it padded to 56

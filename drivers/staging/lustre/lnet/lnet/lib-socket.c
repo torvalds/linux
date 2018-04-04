@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -70,16 +71,12 @@ lnet_sock_ioctl(int cmd, unsigned long arg)
 	}
 
 	sock_filp = sock_alloc_file(sock, 0, NULL);
-	if (IS_ERR(sock_filp)) {
-		sock_release(sock);
-		rc = PTR_ERR(sock_filp);
-		goto out;
-	}
+	if (IS_ERR(sock_filp))
+		return PTR_ERR(sock_filp);
 
 	rc = kernel_sock_unlocked_ioctl(sock_filp, cmd, arg);
 
 	fput(sock_filp);
-out:
 	return rc;
 }
 
@@ -173,7 +170,7 @@ lnet_ipif_enumerate(char ***namesp)
 			      nalloc);
 		}
 
-		LIBCFS_ALLOC(ifr, nalloc * sizeof(*ifr));
+		ifr = kzalloc(nalloc * sizeof(*ifr), GFP_KERNEL);
 		if (!ifr) {
 			CERROR("ENOMEM enumerating up to %d interfaces\n",
 			       nalloc);
@@ -198,14 +195,14 @@ lnet_ipif_enumerate(char ***namesp)
 		if (nfound < nalloc || toobig)
 			break;
 
-		LIBCFS_FREE(ifr, nalloc * sizeof(*ifr));
+		kfree(ifr);
 		nalloc *= 2;
 	}
 
 	if (!nfound)
 		goto out1;
 
-	LIBCFS_ALLOC(names, nfound * sizeof(*names));
+	names = kzalloc(nfound * sizeof(*names), GFP_KERNEL);
 	if (!names) {
 		rc = -ENOMEM;
 		goto out1;
@@ -221,7 +218,7 @@ lnet_ipif_enumerate(char ***namesp)
 			goto out2;
 		}
 
-		LIBCFS_ALLOC(names[i], IFNAMSIZ);
+		names[i] = kmalloc(IFNAMSIZ, GFP_KERNEL);
 		if (!names[i]) {
 			rc = -ENOMEM;
 			goto out2;
@@ -238,7 +235,7 @@ out2:
 	if (rc < 0)
 		lnet_ipif_free_enumeration(names, nfound);
 out1:
-	LIBCFS_FREE(ifr, nalloc * sizeof(*ifr));
+	kfree(ifr);
 out0:
 	return rc;
 }
@@ -252,9 +249,9 @@ lnet_ipif_free_enumeration(char **names, int n)
 	LASSERT(n > 0);
 
 	for (i = 0; i < n && names[i]; i++)
-		LIBCFS_FREE(names[i], IFNAMSIZ);
+		kfree(names[i]);
 
-	LIBCFS_FREE(names, n * sizeof(*names));
+	kfree(names);
 }
 EXPORT_SYMBOL(lnet_ipif_free_enumeration);
 
@@ -317,19 +314,20 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 	long jiffies_left = timeout * msecs_to_jiffies(MSEC_PER_SEC);
 	unsigned long then;
 	struct timeval tv;
+	struct kvec  iov = {
+		.iov_base = buffer,
+		.iov_len  = nob
+	};
+	struct msghdr msg = {
+		.msg_flags = 0
+	};
 
 	LASSERT(nob > 0);
 	LASSERT(jiffies_left > 0);
 
-	for (;;) {
-		struct kvec  iov = {
-			.iov_base = buffer,
-			.iov_len  = nob
-		};
-		struct msghdr msg = {
-			.msg_flags = 0
-		};
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, nob);
 
+	for (;;) {
 		/* Set receive timeout to remaining time */
 		jiffies_to_timeval(jiffies_left, &tv);
 		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
@@ -341,7 +339,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 		}
 
 		then = jiffies;
-		rc = kernel_recvmsg(sock, &msg, &iov, 1, nob, 0);
+		rc = sock_recvmsg(sock, &msg, 0);
 		jiffies_left -= jiffies - then;
 
 		if (rc < 0)
@@ -350,10 +348,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 		if (!rc)
 			return -ECONNRESET;
 
-		buffer = ((char *)buffer) + rc;
-		nob -= rc;
-
-		if (!nob)
+		if (!msg_data_left(&msg))
 			return 0;
 
 		if (jiffies_left <= 0)

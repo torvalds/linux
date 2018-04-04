@@ -77,9 +77,8 @@ int __ref cb_alloc(struct pcmcia_socket *s)
 
 	max = bus->busn_res.start;
 	for (pass = 0; pass < 2; pass++)
-		list_for_each_entry(dev, &bus->devices, bus_list)
-			if (pci_is_bridge(dev))
-				max = pci_scan_bridge(bus, dev, max, pass);
+		for_each_pci_bridge(dev, bus)
+			max = pci_scan_bridge(bus, dev, max, pass);
 
 	/*
 	 * Size all resources below the CardBus controller.

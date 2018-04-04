@@ -1617,7 +1617,7 @@ void ia_css_debug_print_sp_debug_state(const struct sh_css_sp_debug_state
 
 #elif SP_DEBUG == SP_DEBUG_TRACE
 
-/**
+/*
  * This is just an example how TRACE_FILE_ID (see ia_css_debug.sp.h) will
  * me mapped on the file name string.
  *
@@ -2267,7 +2267,7 @@ void ia_css_debug_dump_debug_info(const char *context)
 	return;
 }
 
-/** this function is for debug use, it can make SP go to sleep
+/* this function is for debug use, it can make SP go to sleep
   state after each frame, then user can dump the stable SP dmem.
   this function can be called after ia_css_start_sp()
   and before sh_css_init_buffer_queues()
@@ -2526,7 +2526,7 @@ void ia_css_debug_dump_ddr_debug_queue(void)
 }
 */
 
-/**
+/*
  * @brief Initialize the debug mode.
  * Refer to "ia_css_debug.h" for more details.
  */
@@ -2537,7 +2537,7 @@ bool ia_css_debug_mode_init(void)
 	return rc;
 }
 
-/**
+/*
  * @brief Disable the DMA channel.
  * Refer to "ia_css_debug.h" for more details.
  */
@@ -2552,7 +2552,7 @@ ia_css_debug_mode_disable_dma_channel(int dma_id,
 	return rc;
 }
 
-/**
+/*
  * @brief Enable the DMA channel.
  * Refer to "ia_css_debug.h" for more details.
  */
@@ -2567,6 +2567,7 @@ ia_css_debug_mode_enable_dma_channel(int dma_id,
 	return rc;
 }
 
+static
 void dtrace_dot(const char *fmt, ...)
 {
 	va_list ap;

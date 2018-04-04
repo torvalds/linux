@@ -12,7 +12,7 @@
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 
-static unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
+static const unsigned int nf_ct_generic_timeout = 600*HZ;
 
 static bool nf_generic_should_process(u8 proto)
 {
@@ -60,7 +60,6 @@ static int generic_packet(struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
-			  u_int8_t pf,
 			  unsigned int *timeout)
 {
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
@@ -164,7 +163,7 @@ static struct nf_proto_net *generic_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.generic.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic =
 {
 	.l3proto		= PF_UNSPEC,
 	.l4proto		= 255,

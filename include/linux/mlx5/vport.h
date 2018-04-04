@@ -116,4 +116,8 @@ int mlx5_core_modify_hca_vport_context(struct mlx5_core_dev *dev,
 				       struct mlx5_hca_vport_context *req);
 int mlx5_nic_vport_update_local_lb(struct mlx5_core_dev *mdev, bool enable);
 int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev, bool *status);
+
+int mlx5_nic_vport_affiliate_multiport(struct mlx5_core_dev *master_mdev,
+				       struct mlx5_core_dev *port_mdev);
+int mlx5_nic_vport_unaffiliate_multiport(struct mlx5_core_dev *port_mdev);
 #endif /* __MLX5_VPORT_H__ */

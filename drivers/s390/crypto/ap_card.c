@@ -57,7 +57,7 @@ static ssize_t ap_functions_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%08X\n", ac->functions);
 }
 
-static DEVICE_ATTR(ap_functions, 0444, ap_functions_show, NULL);
+static DEVICE_ATTR_RO(ap_functions);
 
 static ssize_t ap_req_count_show(struct device *dev,
 				 struct device_attribute *attr,
@@ -171,22 +171,20 @@ static void ap_card_device_release(struct device *dev)
 	kfree(ac);
 }
 
-struct ap_card *ap_card_create(int id, int queue_depth, int device_type,
-			       unsigned int functions)
+struct ap_card *ap_card_create(int id, int queue_depth, int raw_type,
+			       int comp_type, unsigned int functions)
 {
 	struct ap_card *ac;
 
 	ac = kzalloc(sizeof(*ac), GFP_KERNEL);
 	if (!ac)
 		return NULL;
+	INIT_LIST_HEAD(&ac->list);
 	INIT_LIST_HEAD(&ac->queues);
 	ac->ap_dev.device.release = ap_card_device_release;
 	ac->ap_dev.device.type = &ap_card_type;
-	ac->ap_dev.device_type = device_type;
-	/* CEX6 toleration: map to CEX5 */
-	if (device_type == AP_DEVICE_TYPE_CEX6)
-		ac->ap_dev.device_type = AP_DEVICE_TYPE_CEX5;
-	ac->raw_hwtype = device_type;
+	ac->ap_dev.device_type = comp_type;
+	ac->raw_hwtype = raw_type;
 	ac->queue_depth = queue_depth;
 	ac->functions = functions;
 	ac->id = id;

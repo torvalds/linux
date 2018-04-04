@@ -27,6 +27,14 @@ config USB_XHCI_HCD
 	  module will be called xhci-hcd.
 
 if USB_XHCI_HCD
+config USB_XHCI_DBGCAP
+	bool "xHCI support for debug capability"
+	depends on TTY
+	---help---
+	  Say 'Y' to enable the support for the xHCI debug capability. Make
+	  sure that your xHCI host supports the extended debug capability and
+	  you want a TTY serial device based on the xHCI debug capability
+	  before enabling this option. If unsure, say 'N'.
 
 config USB_XHCI_PCI
        tristate
@@ -45,12 +53,12 @@ config USB_XHCI_PLATFORM
 	  If unsure, say N.
 
 config USB_XHCI_MTK
-	tristate "xHCI support for Mediatek MT65xx/MT7621"
+	tristate "xHCI support for MediaTek SoCs"
 	select MFD_SYSCON
 	depends on (MIPS && SOC_MT7621) || ARCH_MEDIATEK || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
-	  found in Mediatek MT65xx SoCs.
+	  found in MediaTek SoCs.
 	  If unsure, say N.
 
 config USB_XHCI_MVEBU
@@ -221,18 +229,6 @@ config USB_EHCI_HCD_AT91
         ---help---
           Enables support for the on-chip EHCI controller on
           Atmel chips.
-
-config USB_EHCI_MSM
-	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
-	depends on ARCH_QCOM
-	select USB_EHCI_ROOT_HUB_TT
-	---help---
-	  Enables support for the USB Host controller present on the
-	  Qualcomm chipsets. Root Hub has inbuilt TT.
-	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS, and power management.
-	  This driver is not supported on boards like trout which
-	  has an external PHY.
 
 config USB_EHCI_TEGRA
        tristate "NVIDIA Tegra HCD support"
@@ -636,14 +632,6 @@ config USB_UHCI_PLATFORM
 config USB_UHCI_ASPEED
        bool
        default y if ARCH_ASPEED
-
-config USB_UHCI_BIG_ENDIAN_MMIO
-	bool
-	default y if SPARC_LEON
-
-config USB_UHCI_BIG_ENDIAN_DESC
-	bool
-	default y if SPARC_LEON
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"

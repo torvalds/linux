@@ -1178,18 +1178,16 @@ fs_initcall(vmcore_init);
 /* Cleanup function for vmcore module. */
 void vmcore_cleanup(void)
 {
-	struct list_head *pos, *next;
-
 	if (proc_vmcore) {
 		proc_remove(proc_vmcore);
 		proc_vmcore = NULL;
 	}
 
 	/* clear the vmcore list. */
-	list_for_each_safe(pos, next, &vmcore_list) {
+	while (!list_empty(&vmcore_list)) {
 		struct vmcore *m;
 
-		m = list_entry(pos, struct vmcore, list);
+		m = list_first_entry(&vmcore_list, struct vmcore, list);
 		list_del(&m->list);
 		kfree(m);
 	}

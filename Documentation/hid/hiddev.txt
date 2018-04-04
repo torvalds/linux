@@ -12,7 +12,7 @@ To support these disparate requirements, the Linux USB system provides
 HID events to two separate interfaces:
 * the input subsystem, which converts HID events into normal input
 device interfaces (such as keyboard, mouse and joystick) and a
-normalised event interface - see Documentation/input/input.txt
+normalised event interface - see Documentation/input/input.rst
 * the hiddev interface, which provides fairly raw HID events
 
 The data flow for a HID event produced by a device is something like

@@ -76,7 +76,8 @@ int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
 		ret = -errno;
-		fprintf(stderr, "Failed to open %s\n", chrdev_name);
+		fprintf(stderr, "Failed to open %s, %s\n",
+			chrdev_name, strerror(errno));
 		goto exit_close_error;
 	}
 
@@ -92,8 +93,8 @@ int gpiotools_request_linehandle(const char *device_name, unsigned int *lines,
 	ret = ioctl(fd, GPIO_GET_LINEHANDLE_IOCTL, &req);
 	if (ret == -1) {
 		ret = -errno;
-		fprintf(stderr, "Failed to issue GET LINEHANDLE IOCTL (%d)\n",
-			ret);
+		fprintf(stderr, "Failed to issue %s (%d), %s\n",
+			"GPIO_GET_LINEHANDLE_IOCTL", ret, strerror(errno));
 	}
 
 exit_close_error:
@@ -118,8 +119,9 @@ int gpiotools_set_values(const int fd, struct gpiohandle_data *data)
 	ret = ioctl(fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, data);
 	if (ret == -1) {
 		ret = -errno;
-		fprintf(stderr, "Failed to issue %s (%d)\n",
-			"GPIOHANDLE_SET_LINE_VALUES_IOCTL", ret);
+		fprintf(stderr, "Failed to issue %s (%d), %s\n",
+			"GPIOHANDLE_SET_LINE_VALUES_IOCTL", ret,
+			strerror(errno));
 	}
 
 	return ret;
@@ -141,8 +143,9 @@ int gpiotools_get_values(const int fd, struct gpiohandle_data *data)
 	ret = ioctl(fd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, data);
 	if (ret == -1) {
 		ret = -errno;
-		fprintf(stderr, "Failed to issue %s (%d)\n",
-			"GPIOHANDLE_GET_LINE_VALUES_IOCTL", ret);
+		fprintf(stderr, "Failed to issue %s (%d), %s\n",
+			"GPIOHANDLE_GET_LINE_VALUES_IOCTL", ret,
+			strerror(errno));
 	}
 
 	return ret;

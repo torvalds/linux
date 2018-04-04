@@ -6,7 +6,7 @@
 #include <asm/orc_types.h>
 
 struct mod_arch_specific {
-#ifdef CONFIG_ORC_UNWINDER
+#ifdef CONFIG_UNWINDER_ORC
 	unsigned int num_orcs;
 	int *orc_unwind_ip;
 	struct orc_entry *orc_unwind;

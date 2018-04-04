@@ -2,6 +2,7 @@
 #ifndef __NVKM_RAMHT_H__
 #define __NVKM_RAMHT_H__
 #include <core/gpuobj.h>
+struct nvkm_object;
 
 struct nvkm_ramht_data {
 	struct nvkm_gpuobj *inst;

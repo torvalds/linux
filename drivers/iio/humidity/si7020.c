@@ -108,7 +108,6 @@ static const struct iio_chan_spec si7020_channels[] = {
 
 static const struct iio_info si7020_info = {
 	.read_raw = si7020_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int si7020_probe(struct i2c_client *client,

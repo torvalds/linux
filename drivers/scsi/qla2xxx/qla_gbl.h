@@ -45,6 +45,8 @@ extern int qla2x00_fabric_login(scsi_qla_host_t *, fc_port_t *, uint16_t *);
 extern int qla2x00_local_device_login(scsi_qla_host_t *, fc_port_t *);
 
 extern int qla24xx_els_dcmd_iocb(scsi_qla_host_t *, int, port_id_t);
+extern int qla24xx_els_dcmd2_iocb(scsi_qla_host_t *, int, fc_port_t *,
+				  port_id_t);
 
 extern void qla2x00_update_fcports(scsi_qla_host_t *);
 
@@ -64,6 +66,7 @@ extern void qla84xx_put_chip(struct scsi_qla_host *);
 extern int qla2x00_async_login(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_async_logout(struct scsi_qla_host *, fc_port_t *);
+extern int qla2x00_async_prlo(struct scsi_qla_host *, fc_port_t *);
 extern int qla2x00_async_adisc(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_async_tm_cmd(fc_port_t *, uint32_t, uint32_t, uint32_t);
@@ -102,11 +105,18 @@ int qla24xx_async_gpdb(struct scsi_qla_host *, fc_port_t *, u8);
 int qla24xx_async_prli(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
 	struct imm_ntfy_from_isp *, int);
-int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *,
-    void *);
+int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *, u8*,
+    void *, u8);
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_detect_sfp(scsi_qla_host_t *vha);
 int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
+void qla2x00_async_prlo_done(struct scsi_qla_host *, fc_port_t *,
+    uint16_t *);
+extern int qla2x00_post_async_prlo_work(struct scsi_qla_host *, fc_port_t *,
+    uint16_t *);
+extern int qla2x00_post_async_prlo_done_work(struct scsi_qla_host *,
+    fc_port_t *, uint16_t *);
+
 /*
  * Global Data in qla_os.c source file.
  */
@@ -145,6 +155,8 @@ extern int ql2xmvasynctoatio;
 extern int ql2xuctrlirq;
 extern int ql2xnvmeenable;
 extern int ql2xautodetectsfp;
+extern int ql2xenablemsix;
+extern int qla2xuseresexchforels;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -200,14 +212,15 @@ void qla2x00_handle_login_done_event(struct scsi_qla_host *, fc_port_t *,
 	uint16_t *);
 int qla24xx_post_gnl_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_abort_cmd(srb_t *);
+int qla24xx_post_relogin_work(struct scsi_qla_host *vha);
 
 /*
  * Global Functions in qla_mid.c source file.
  */
 extern struct scsi_host_template qla2xxx_driver_template;
 extern struct scsi_transport_template *qla2xxx_transport_vport_template;
-extern void qla2x00_timer(scsi_qla_host_t *);
-extern void qla2x00_start_timer(scsi_qla_host_t *, void *, unsigned long);
+extern void qla2x00_timer(struct timer_list *);
+extern void qla2x00_start_timer(scsi_qla_host_t *, unsigned long);
 extern void qla24xx_deallocate_vp_id(scsi_qla_host_t *);
 extern int qla24xx_disable_vp (scsi_qla_host_t *);
 extern int qla24xx_enable_vp (scsi_qla_host_t *);
@@ -486,9 +499,12 @@ int qla24xx_gidlist_wait(struct scsi_qla_host *, void *, dma_addr_t,
     uint16_t *);
 int __qla24xx_parse_gpdb(struct scsi_qla_host *, fc_port_t *,
 	struct port_database_24xx *);
+int qla24xx_get_port_login_templ(scsi_qla_host_t *, dma_addr_t,
+				 void *, uint16_t);
 
 extern int qla27xx_get_zio_threshold(scsi_qla_host_t *, uint16_t *);
 extern int qla27xx_set_zio_threshold(scsi_qla_host_t *, uint16_t);
+int qla24xx_res_count_wait(struct scsi_qla_host *, uint16_t *, int);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.
@@ -634,14 +650,26 @@ extern void qla2x00_free_fcport(fc_port_t *);
 
 extern int qla24xx_post_gpnid_work(struct scsi_qla_host *, port_id_t *);
 extern int qla24xx_async_gpnid(scsi_qla_host_t *, port_id_t *);
-void qla24xx_async_gpnid_done(scsi_qla_host_t *, srb_t*);
 void qla24xx_handle_gpnid_event(scsi_qla_host_t *, struct event_arg *);
 
 int qla24xx_post_gpsc_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_gpsc(scsi_qla_host_t *, fc_port_t *);
+void qla24xx_handle_gpsc_event(scsi_qla_host_t *, struct event_arg *);
 int qla2x00_mgmt_svr_login(scsi_qla_host_t *);
 void qla24xx_handle_gffid_event(scsi_qla_host_t *vha, struct event_arg *ea);
 int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport);
+int qla24xx_async_gpnft(scsi_qla_host_t *, u8);
+void qla24xx_async_gpnft_done(scsi_qla_host_t *, srb_t *);
+void qla24xx_async_gnnft_done(scsi_qla_host_t *, srb_t *);
+int qla24xx_async_gnnid(scsi_qla_host_t *, fc_port_t *);
+void qla24xx_handle_gnnid_event(scsi_qla_host_t *, struct event_arg *);
+int qla24xx_post_gnnid_work(struct scsi_qla_host *, fc_port_t *);
+int qla24xx_post_gfpnid_work(struct scsi_qla_host *, fc_port_t *);
+int qla24xx_async_gfpnid(scsi_qla_host_t *, fc_port_t *);
+void qla24xx_handle_gfpnid_event(scsi_qla_host_t *, struct event_arg *);
+void qla24xx_sp_unmap(scsi_qla_host_t *, srb_t *);
+void qla_scan_work_fn(struct work_struct *);
+
 /*
  * Global Function Prototypes in qla_attr.c source file.
  */
@@ -753,7 +781,7 @@ extern int qla82xx_restart_isp(scsi_qla_host_t *);
 /* IOCB related functions */
 extern int qla82xx_start_scsi(srb_t *);
 extern void qla2x00_sp_free(void *);
-extern void qla2x00_sp_timeout(unsigned long);
+extern void qla2x00_sp_timeout(struct timer_list *);
 extern void qla2x00_bsg_job_done(void *, int);
 extern void qla2x00_bsg_sp_free(void *);
 extern void qla2x00_start_iocbs(struct scsi_qla_host *, struct req_que *);
@@ -859,8 +887,7 @@ void qla24xx_do_nack_work(struct scsi_qla_host *, struct qla_work_evt *);
 void qlt_plogi_ack_link(struct scsi_qla_host *, struct qlt_plogi_ack_t *,
 	struct fc_port *, enum qlt_plogi_link_t);
 void qlt_plogi_ack_unref(struct scsi_qla_host *, struct qlt_plogi_ack_t *);
-extern void qlt_schedule_sess_for_deletion(struct fc_port *, bool);
-extern void qlt_schedule_sess_for_deletion_lock(struct fc_port *);
+extern void qlt_schedule_sess_for_deletion(struct fc_port *);
 extern struct fc_port *qlt_find_sess_invalidate_other(scsi_qla_host_t *,
 	uint64_t wwn, port_id_t port_id, uint16_t loop_id, struct fc_port **);
 void qla24xx_delete_sess_fn(struct work_struct *);

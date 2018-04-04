@@ -3420,7 +3420,7 @@ iscsi_get_host_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 
 	shost = scsi_host_lookup(ev->u.get_host_stats.host_no);
 	if (!shost) {
-		pr_err("%s: failed. Cound not find host no %u\n",
+		pr_err("%s: failed. Could not find host no %u\n",
 		       __func__, ev->u.get_host_stats.host_no);
 		return -ENODEV;
 	}

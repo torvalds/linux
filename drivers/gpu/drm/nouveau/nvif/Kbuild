@@ -2,4 +2,7 @@ nvif-y := nvif/object.o
 nvif-y += nvif/client.o
 nvif-y += nvif/device.o
 nvif-y += nvif/driver.o
+nvif-y += nvif/mem.o
+nvif-y += nvif/mmu.o
 nvif-y += nvif/notify.o
+nvif-y += nvif/vmm.o

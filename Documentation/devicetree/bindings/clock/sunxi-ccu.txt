@@ -36,7 +36,7 @@ For the PRCM CCUs on A83T/H3/A64, two more clocks are needed:
 - "iosc": the SoC's internal frequency oscillator
 
 Example for generic CCU:
-ccu: clock@01c20000 {
+ccu: clock@1c20000 {
 	compatible = "allwinner,sun8i-h3-ccu";
 	reg = <0x01c20000 0x400>;
 	clocks = <&osc24M>, <&osc32k>;
@@ -46,7 +46,7 @@ ccu: clock@01c20000 {
 };
 
 Example for PRCM CCU:
-r_ccu: clock@01f01400 {
+r_ccu: clock@1f01400 {
 	compatible = "allwinner,sun50i-a64-r-ccu";
 	reg = <0x01f01400 0x100>;
 	clocks = <&osc24M>, <&osc32k>, <&iosc>, <&ccu CLK_PLL_PERIPH0>;

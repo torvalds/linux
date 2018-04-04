@@ -4,6 +4,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 
 static int max_memory = 32;
 
@@ -86,13 +87,11 @@ static struct saa7146_format formats[] = {
    due to this, it's impossible to provide additional *packed* formats, which are simply byte swapped
    (like V4L2_PIX_FMT_YUYV) ... 8-( */
 
-static int NUM_FORMATS = sizeof(formats)/sizeof(struct saa7146_format);
-
 struct saa7146_format* saa7146_format_by_fourcc(struct saa7146_dev *dev, int fourcc)
 {
-	int i, j = NUM_FORMATS;
+	int i;
 
-	for (i = 0; i < j; i++) {
+	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (formats[i].pixelformat == fourcc) {
 			return formats+i;
 		}
@@ -524,7 +523,7 @@ static int vidioc_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuf
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
-	if (f->index >= NUM_FORMATS)
+	if (f->index >= ARRAY_SIZE(formats))
 		return -EINVAL;
 	strlcpy((char *)f->description, formats[f->index].name,
 			sizeof(f->description));
@@ -1002,9 +1001,9 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_try_fmt_vid_overlay  = vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay    = vidioc_s_fmt_vid_overlay,
 
-	.vidioc_overlay 	     = vidioc_overlay,
-	.vidioc_g_fbuf  	     = vidioc_g_fbuf,
-	.vidioc_s_fbuf  	     = vidioc_s_fbuf,
+	.vidioc_overlay		     = vidioc_overlay,
+	.vidioc_g_fbuf		     = vidioc_g_fbuf,
+	.vidioc_s_fbuf		     = vidioc_s_fbuf,
 	.vidioc_reqbufs              = vidioc_reqbufs,
 	.vidioc_querybuf             = vidioc_querybuf,
 	.vidioc_qbuf                 = vidioc_qbuf,
@@ -1013,7 +1012,7 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_s_std                = vidioc_s_std,
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
-	.vidioc_g_parm 		     = vidioc_g_parm,
+	.vidioc_g_parm		     = vidioc_g_parm,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 };
@@ -1201,8 +1200,7 @@ static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 {
 	INIT_LIST_HEAD(&vv->video_dmaq.queue);
 
-	setup_timer(&vv->video_dmaq.timeout, saa7146_buffer_timeout,
-		    (unsigned long)(&vv->video_dmaq));
+	timer_setup(&vv->video_dmaq.timeout, saa7146_buffer_timeout, 0);
 	vv->video_dmaq.dev              = dev;
 
 	/* set some default values */
@@ -1303,7 +1301,7 @@ out:
 	return ret;
 }
 
-struct saa7146_use_ops saa7146_video_uops = {
+const struct saa7146_use_ops saa7146_video_uops = {
 	.init = video_init,
 	.open = video_open,
 	.release = video_close,

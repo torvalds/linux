@@ -805,7 +805,7 @@ static int avm_pnp_setup(struct IsdnCardState *cs)
 			cs->hw.avm.cfg_reg =
 				pnp_port_start(pnp_avm_d, 0);
 			cs->irq = pnp_irq(pnp_avm_d, 0);
-			if (!cs->irq) {
+			if (cs->irq == -1) {
 				printk(KERN_ERR "FritzPnP:No IRQ\n");
 				return (0);
 			}

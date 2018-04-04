@@ -168,7 +168,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct hash_ipportnet4_elem e = { .cidr = HOST_MASK - 1 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 ip = 0, ip_to = 0, p = 0, port, port_to;
-	u32 ip2_from = 0, ip2_to = 0, ip2_last, ip2;
+	u32 ip2_from = 0, ip2_to = 0, ip2;
 	bool with_ports = false;
 	u8 cidr;
 	int ret;
@@ -269,22 +269,21 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		ip_set_mask_from_to(ip2_from, ip2_to, e.cidr + 1);
 	}
 
-	if (retried)
+	if (retried) {
 		ip = ntohl(h->next.ip);
+		p = ntohs(h->next.port);
+		ip2 = ntohl(h->next.ip2);
+	} else {
+		p = port;
+		ip2 = ip2_from;
+	}
 	for (; ip <= ip_to; ip++) {
 		e.ip = htonl(ip);
-		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
-						       : port;
 		for (; p <= port_to; p++) {
 			e.port = htons(p);
-			ip2 = retried &&
-			      ip == ntohl(h->next.ip) &&
-			      p == ntohs(h->next.port)
-				? ntohl(h->next.ip2) : ip2_from;
-			while (ip2 <= ip2_to) {
+			do {
 				e.ip2 = htonl(ip2);
-				ip2_last = ip_set_range_to_cidr(ip2, ip2_to,
-								&cidr);
+				ip2 = ip_set_range_to_cidr(ip2, ip2_to, &cidr);
 				e.cidr = cidr - 1;
 				ret = adtfn(set, &e, &ext, &ext, flags);
 
@@ -292,9 +291,10 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 					return ret;
 
 				ret = 0;
-				ip2 = ip2_last + 1;
-			}
+			} while (ip2++ < ip2_to);
+			ip2 = ip2_from;
 		}
+		p = port;
 	}
 	return ret;
 }
@@ -434,7 +434,7 @@ hash_ipportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(tb[IPSET_ATTR_IP_TO]))
 		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
 	if (unlikely(tb[IPSET_ATTR_CIDR])) {
-		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
+		cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
 		if (cidr != HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;

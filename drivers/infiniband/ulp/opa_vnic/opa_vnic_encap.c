@@ -139,6 +139,7 @@ void opa_vnic_release_mac_tbl(struct opa_vnic_adapter *adapter)
 	rcu_assign_pointer(adapter->mactbl, NULL);
 	synchronize_rcu();
 	opa_vnic_free_mac_tbl(mactbl);
+	adapter->info.vport.mac_tbl_digest = 0;
 	mutex_unlock(&adapter->mactbl_lock);
 }
 
@@ -405,6 +406,42 @@ u8 opa_vnic_get_vl(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 	return vl;
 }
 
+/* opa_vnic_get_rc - return the routing control */
+static u8 opa_vnic_get_rc(struct __opa_veswport_info *info,
+			  struct sk_buff *skb)
+{
+	u8 proto, rout_ctrl;
+
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IPV6):
+		proto = ipv6_hdr(skb)->nexthdr;
+		if (proto == IPPROTO_TCP)
+			rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc,
+							  IPV6_TCP);
+		else if (proto == IPPROTO_UDP)
+			rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc,
+							  IPV6_UDP);
+		else
+			rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc, IPV6);
+		break;
+	case htons(ETH_P_IP):
+		proto = ip_hdr(skb)->protocol;
+		if (proto == IPPROTO_TCP)
+			rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc,
+							  IPV4_TCP);
+		else if (proto == IPPROTO_UDP)
+			rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc,
+							  IPV4_UDP);
+		else
+			rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc, IPV4);
+		break;
+	default:
+		rout_ctrl = OPA_VNIC_ENCAP_RC_EXT(info->vesw.rc, DEFAULT);
+	}
+
+	return rout_ctrl;
+}
+
 /* opa_vnic_calc_entropy - calculate the packet entropy */
 u8 opa_vnic_calc_entropy(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 {
@@ -447,7 +484,7 @@ void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 {
 	struct __opa_veswport_info *info = &adapter->info;
 	struct opa_vnic_skb_mdata *mdata;
-	u8 def_port, sc, entropy, *hdr;
+	u8 def_port, sc, rc, entropy, *hdr;
 	u16 len, l4_hdr;
 	u32 dlid;
 
@@ -458,6 +495,7 @@ void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 	len = opa_vnic_wire_length(skb);
 	dlid = opa_vnic_get_dlid(adapter, skb, def_port);
 	sc = opa_vnic_get_sc(info, skb);
+	rc = opa_vnic_get_rc(info, skb);
 	l4_hdr = info->vesw.vesw_id;
 
 	mdata = skb_push(skb, sizeof(*mdata));
@@ -470,6 +508,6 @@ void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb)
 	}
 
 	opa_vnic_make_header(hdr, info->vport.encap_slid, dlid, len,
-			     info->vesw.pkey, entropy, sc, 0,
+			     info->vesw.pkey, entropy, sc, rc,
 			     OPA_VNIC_L4_ETHR, l4_hdr);
 }

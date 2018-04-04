@@ -15,7 +15,7 @@
  *
  */
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "ttusbdecfe.h"
 
 

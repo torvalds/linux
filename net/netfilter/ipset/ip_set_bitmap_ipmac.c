@@ -52,6 +52,7 @@ struct bitmap_ipmac {
 	u32 elements;		/* number of max elements in the set */
 	size_t memsize;		/* members size */
 	struct timer_list gc;	/* garbage collector */
+	struct ip_set *set;	/* attached to this ip_set */
 	unsigned char extensions[0]	/* MAC + data extensions */
 		__aligned(__alignof__(u64));
 };
@@ -307,6 +308,7 @@ init_map_ipmac(struct ip_set *set, struct bitmap_ipmac *map,
 	map->elements = elements;
 	set->timeout = IPSET_NO_TIMEOUT;
 
+	map->set = set;
 	set->data = map;
 	set->family = NFPROTO_IPV4;
 
@@ -335,12 +337,8 @@ bitmap_ipmac_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &last_ip);
 		if (ret)
 			return ret;
-		if (first_ip > last_ip) {
-			u32 tmp = first_ip;
-
-			first_ip = last_ip;
-			last_ip = tmp;
-		}
+		if (first_ip > last_ip)
+			swap(first_ip, last_ip);
 	} else if (tb[IPSET_ATTR_CIDR]) {
 		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 

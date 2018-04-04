@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * amd5536.c -- AMD 5536 UDC high/full speed USB device controller
  *
  * Copyright (C) 2005-2007 AMD (http://www.amd.com)
  * Author: Thomas Dahlmann
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /*
@@ -1733,7 +1729,7 @@ static void udc_soft_reset(struct udc *dev)
 }
 
 /* RDE timer callback to set RDE bit */
-static void udc_timer_function(unsigned long v)
+static void udc_timer_function(struct timer_list *unused)
 {
 	u32 tmp;
 
@@ -1813,7 +1809,7 @@ static void udc_handle_halt_state(struct udc_ep *ep)
 }
 
 /* Stall timer callback to poll S bit and set it again after */
-static void udc_pollstall_timer_function(unsigned long v)
+static void udc_pollstall_timer_function(struct timer_list *unused)
 {
 	struct udc_ep *ep;
 	int halted = 0;
@@ -3067,14 +3063,12 @@ void udc_remove(struct udc *dev)
 	stop_timer++;
 	if (timer_pending(&udc_timer))
 		wait_for_completion(&on_exit);
-	if (udc_timer.data)
-		del_timer_sync(&udc_timer);
+	del_timer_sync(&udc_timer);
 	/* remove pollstall timer */
 	stop_pollstall_timer++;
 	if (timer_pending(&udc_pollstall_timer))
 		wait_for_completion(&on_pollstall_exit);
-	if (udc_pollstall_timer.data)
-		del_timer_sync(&udc_pollstall_timer);
+	del_timer_sync(&udc_pollstall_timer);
 	udc = NULL;
 }
 EXPORT_SYMBOL_GPL(udc_remove);
@@ -3164,10 +3158,6 @@ int udc_probe(struct udc *dev)
 	u32		reg;
 	int		retval;
 
-	/* mark timer as not initialized */
-	udc_timer.data = 0;
-	udc_pollstall_timer.data = 0;
-
 	/* device struct setup */
 	dev->gadget.ops = &udc_ops;
 
@@ -3207,13 +3197,8 @@ int udc_probe(struct udc *dev)
 		goto finished;
 
 	/* timer init */
-	init_timer(&udc_timer);
-	udc_timer.function = udc_timer_function;
-	udc_timer.data = 1;
-	/* timer pollstall init */
-	init_timer(&udc_pollstall_timer);
-	udc_pollstall_timer.function = udc_pollstall_timer_function;
-	udc_pollstall_timer.data = 1;
+	timer_setup(&udc_timer, udc_timer_function, 0);
+	timer_setup(&udc_pollstall_timer, udc_pollstall_timer_function, 0);
 
 	/* set SD */
 	reg = readl(&dev->regs->ctl);

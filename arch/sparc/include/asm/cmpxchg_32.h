@@ -63,6 +63,9 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 			(unsigned long)_n_, sizeof(*(ptr)));		\
 })
 
+u64 __cmpxchg_u64(u64 *ptr, u64 old, u64 new);
+#define cmpxchg64(ptr, old, new)	__cmpxchg_u64(ptr, old, new)
+
 #include <asm-generic/cmpxchg-local.h>
 
 /*

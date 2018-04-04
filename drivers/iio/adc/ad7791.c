@@ -308,13 +308,11 @@ static const struct iio_info ad7791_info = {
 	.read_raw = &ad7791_read_raw,
 	.attrs = &ad7791_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info ad7791_no_filter_info = {
 	.read_raw = &ad7791_read_raw,
 	.validate_trigger = ad_sd_validate_trigger,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7791_setup(struct ad7791_state *st,

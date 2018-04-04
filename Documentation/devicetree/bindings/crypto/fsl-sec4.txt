@@ -456,7 +456,7 @@ System ON/OFF key driver
       Definition: this is phandle to the register map node.
 
 EXAMPLE:
-	snvs-pwrkey@0x020cc000 {
+	snvs-pwrkey@020cc000 {
 		compatible = "fsl,sec-v4.0-pwrkey";
 		regmap = <&snvs>;
 		interrupts = <0 4 0x4>
@@ -545,7 +545,7 @@ FULL EXAMPLE
 			interrupts = <93 2>;
 		};
 
-		snvs-pwrkey@0x020cc000 {
+		snvs-pwrkey@020cc000 {
 			compatible = "fsl,sec-v4.0-pwrkey";
 			regmap = <&sec_mon>;
 			interrupts = <0 4 0x4>;

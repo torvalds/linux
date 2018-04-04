@@ -9,7 +9,10 @@
 
 #include <asm/boot.h>
 #include <asm/asm.h>
+#include <asm/msr.h>
 #include <asm/page_types.h>
+#include <asm/percpu.h>
+#include <asm/unwind_hints.h>
 
 #include <xen/interface/elfnote.h>
 #include <xen/interface/features.h>
@@ -20,6 +23,7 @@
 #ifdef CONFIG_XEN_PV
 	__INIT
 ENTRY(startup_xen)
+	UNWIND_HINT_EMPTY
 	cld
 
 	/* Clear .bss */
@@ -33,22 +37,39 @@ ENTRY(startup_xen)
 	mov %_ASM_SI, xen_start_info
 	mov $init_thread_union+THREAD_SIZE, %_ASM_SP
 
-	jmp xen_start_kernel
+#ifdef CONFIG_X86_64
+	/* Set up %gs.
+	 *
+	 * The base of %gs always points to the bottom of the irqstack
+	 * union.  If the stack protector canary is enabled, it is
+	 * located at %gs:40.  Note that, on SMP, the boot cpu uses
+	 * init data section till per cpu areas are set up.
+	 */
+	movl	$MSR_GS_BASE,%ecx
+	movq	$INIT_PER_CPU_VAR(irq_stack_union),%rax
+	cdq
+	wrmsr
+#endif
 
+	jmp xen_start_kernel
+END(startup_xen)
 	__FINIT
 #endif
 
 .pushsection .text
 	.balign PAGE_SIZE
 ENTRY(hypercall_page)
-	.skip PAGE_SIZE
+	.rept (PAGE_SIZE / 32)
+		UNWIND_HINT_EMPTY
+		.skip 32
+	.endr
 
 #define HYPERCALL(n) \
 	.equ xen_hypercall_##n, hypercall_page + __HYPERVISOR_##n * 32; \
 	.type xen_hypercall_##n, @function; .size xen_hypercall_##n, 32
 #include <asm/xen-hypercalls.h>
 #undef HYPERCALL
-
+END(hypercall_page)
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")

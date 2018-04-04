@@ -56,6 +56,15 @@ struct mwifiex_fw_data {
 	u8 data[1];
 } __packed;
 
+struct mwifiex_fw_dump_header {
+	__le16          seq_num;
+	__le16          reserved;
+	__le16          type;
+	__le16          len;
+} __packed;
+
+#define FW_DUMP_INFO_ENDED 0x0002
+
 #define MWIFIEX_FW_DNLD_CMD_1 0x1
 #define MWIFIEX_FW_DNLD_CMD_5 0x5
 #define MWIFIEX_FW_DNLD_CMD_6 0x6
@@ -225,7 +234,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define IS_11N_ENABLED(priv) ((priv->adapter->config_bands & BAND_GN || \
 			priv->adapter->config_bands & BAND_AN) && \
-			priv->curr_bss_params.bss_descriptor.bcn_ht_cap)
+			priv->curr_bss_params.bss_descriptor.bcn_ht_cap && \
+			!priv->curr_bss_params.bss_descriptor.disable_11n)
 #define INITIATOR_BIT(DelBAParamSet) (((DelBAParamSet) &\
 			BIT(DELBA_INITIATOR_POS)) >> DELBA_INITIATOR_POS)
 
@@ -238,6 +248,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_DRCS_ENABLED(FwCapInfo) (FwCapInfo & BIT(15))
 #define ISSUPP_SDIO_SPA_ENABLED(FwCapInfo) (FwCapInfo & BIT(16))
 #define ISSUPP_ADHOC_ENABLED(FwCapInfo) (FwCapInfo & BIT(25))
+#define ISSUPP_RANDOM_MAC(FwCapInfo) (FwCapInfo & BIT(27))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
@@ -398,6 +409,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_TDLS_CONFIG                       0x0100
 #define HostCmd_CMD_MC_POLICY                         0x0121
 #define HostCmd_CMD_TDLS_OPER                         0x0122
+#define HostCmd_CMD_FW_DUMP_EVENT		      0x0125
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
 #define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
 #define HostCmd_CMD_PACKET_AGGR_CTRL		      0x0251
@@ -568,6 +580,7 @@ enum mwifiex_channel_flags {
 #define EVENT_BG_SCAN_STOPPED           0x00000065
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 #define EVENT_MULTI_CHAN_INFO           0x0000006a
+#define EVENT_FW_DUMP_INFO		0x00000073
 #define EVENT_TX_STATUS_REPORT		0x00000074
 #define EVENT_BT_COEX_WLAN_PARA_CHANGE	0X00000076
 

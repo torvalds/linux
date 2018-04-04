@@ -16,7 +16,7 @@
 #include <linux/jiffies.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "si21xx.h"
 
 #define	REVISION_REG			0x00

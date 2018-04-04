@@ -329,7 +329,7 @@ static void aux_read(struct nand_chip *chip, u8 **buf, int len, int *pos)
 
 	if (!*buf) {
 		/* skip over "len" bytes */
-		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, *pos, -1);
+		nand_change_read_column_op(chip, *pos, NULL, 0, false);
 	} else {
 		tango_read_buf(mtd, *buf, len);
 		*buf += len;
@@ -344,7 +344,7 @@ static void aux_write(struct nand_chip *chip, const u8 **buf, int len, int *pos)
 
 	if (!*buf) {
 		/* skip over "len" bytes */
-		chip->cmdfunc(mtd, NAND_CMD_RNDIN, *pos, -1);
+		nand_change_write_column_op(chip, *pos, NULL, 0, false);
 	} else {
 		tango_write_buf(mtd, *buf, len);
 		*buf += len;
@@ -427,7 +427,7 @@ static void raw_write(struct nand_chip *chip, const u8 *buf, const u8 *oob)
 static int tango_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 			       u8 *buf, int oob_required, int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	raw_read(chip, buf, chip->oob_poi);
 	return 0;
 }
@@ -435,23 +435,15 @@ static int tango_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 static int tango_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				const u8 *buf, int oob_required, int page)
 {
-	int status;
-
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0, page);
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	raw_write(chip, buf, chip->oob_poi);
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-
-	status = chip->waitfunc(mtd, chip);
-	if (status & NAND_STATUS_FAIL)
-		return -EIO;
-
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int tango_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			  int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	raw_read(chip, NULL, chip->oob_poi);
 	return 0;
 }
@@ -459,11 +451,9 @@ static int tango_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 static int tango_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0, page);
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	raw_write(chip, NULL, chip->oob_poi);
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	chip->waitfunc(mtd, chip);
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int oob_ecc(struct mtd_info *mtd, int idx, struct mtd_oob_region *res)
@@ -590,7 +580,6 @@ static int chip_init(struct device *dev, struct device_node *np)
 	ecc->write_page = tango_write_page;
 	ecc->read_oob = tango_read_oob;
 	ecc->write_oob = tango_write_oob;
-	ecc->options = NAND_ECC_CUSTOM_PAGE_ACCESS;
 
 	err = nand_scan_tail(mtd);
 	if (err)

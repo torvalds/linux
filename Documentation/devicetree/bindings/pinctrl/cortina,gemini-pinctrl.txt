@@ -9,8 +9,17 @@ The pin controller node must be a subnode of the system controller node.
 Required properties:
 - compatible: "cortina,gemini-pinctrl"
 
-Subnodes of the pin controller contain pin control multiplexing set-up.
-Please refer to pinctrl-bindings.txt for generic pin multiplexing nodes.
+Subnodes of the pin controller contain pin control multiplexing set-up
+and pin configuration of individual pins.
+
+Please refer to pinctrl-bindings.txt for generic pin multiplexing nodes
+and generic pin config nodes.
+
+Supported configurations:
+- skew-delay is supported on the Ethernet pins
+- drive-strength with 4, 8, 12 or 16 mA as argument is supported for
+  entire groups on the groups "idegrp", "gmii_gmac0_grp", "gmii_gmac1_grp"
+  and "pcigrp".
 
 Example:
 

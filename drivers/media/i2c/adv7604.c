@@ -1948,7 +1948,7 @@ static int adv76xx_set_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	info = adv76xx_format_info(state, format->format.code);
-	if (info == NULL)
+	if (!info)
 		info = adv76xx_format_info(state, MEDIA_BUS_FMT_YUYV8_2X8);
 
 	adv76xx_fill_format(state, &format->format);
@@ -1982,6 +1982,7 @@ static void adv76xx_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 			 __func__);
 		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_ARB_LOST,
 				  1, 0, 0, 0);
+		return;
 	}
 	if (tx_raw_status & 0x04) {
 		u8 status;
@@ -2256,7 +2257,7 @@ static int adv76xx_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		return 0;
 	}
 
-	if (data == NULL)
+	if (!data)
 		return -ENODATA;
 
 	if (edid->start_block >= state->edid.blocks)
@@ -3316,10 +3317,8 @@ static int adv76xx_probe(struct i2c_client *client,
 			client->addr << 1);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		v4l_err(client, "Could not allocate adv76xx_state memory!\n");
+	if (!state)
 		return -ENOMEM;
-	}
 
 	state->i2c_clients[ADV76XX_PAGE_IO] = client;
 
@@ -3482,7 +3481,7 @@ static int adv76xx_probe(struct i2c_client *client,
 		state->i2c_clients[i] =
 			adv76xx_dummy_client(sd, state->pdata.i2c_addresses[i],
 					     0xf2 + i);
-		if (state->i2c_clients[i] == NULL) {
+		if (!state->i2c_clients[i]) {
 			err = -ENOMEM;
 			v4l2_err(sd, "failed to create i2c client %u\n", i);
 			goto err_i2c;

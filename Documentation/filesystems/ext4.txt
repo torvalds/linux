@@ -94,10 +94,10 @@ Note: More extensive information for getting started with ext4 can be
 * ability to pack bitmaps and inode tables into larger virtual groups via the
   flex_bg feature
 * large file support
-* Inode allocation using large virtual block groups via flex_bg
+* inode allocation using large virtual block groups via flex_bg
 * delayed allocation
 * large block (up to pagesize) support
-* efficient new ordered mode in JBD2 and ext4(avoid using buffer head to force
+* efficient new ordered mode in JBD2 and ext4 (avoid using buffer head to force
   the ordering)
 
 [1] Filesystems with a block size of 1k may see a limit imposed by the
@@ -105,7 +105,7 @@ directory hash tree having a maximum depth of two.
 
 2.2 Candidate features for future inclusion
 
-* Online defrag (patches available but not well tested)
+* online defrag (patches available but not well tested)
 * reduced mke2fs time via lazy itable initialization in conjunction with
   the uninit_bg feature (capability to do this is available in e2fsprogs
   but a kernel thread to do lazy zeroing of unused inode table blocks
@@ -202,15 +202,14 @@ inode_readahead_blks=n	This tuning parameter controls the maximum
 			the buffer cache.  The default value is 32 blocks.
 
 nouser_xattr		Disables Extended User Attributes.  See the
-			attr(5) manual page and http://acl.bestbits.at/
-			for more information about extended attributes.
+			attr(5) manual page for more information about
+			extended attributes.
 
 noacl			This option disables POSIX Access Control List
 			support. If ACL support is enabled in the kernel
 			configuration (CONFIG_EXT4_FS_POSIX_ACL), ACL is
 			enabled by default on mount. See the acl(5) manual
-			page and http://acl.bestbits.at/ for more information
-			about acl.
+			page for more information about acl.
 
 bsddf		(*)	Make 'df' act like BSD.
 minixdf			Make 'df' act like Minix.
@@ -233,7 +232,7 @@ data_err=ignore(*)	Just print an error message if an error occurs
 data_err=abort		Abort the journal if an error occurs in a file
 			data buffer in ordered mode.
 
-grpid			Give objects the same group ID as their creator.
+grpid			New objects have the group ID of their parent.
 bsdgroups
 
 nogrpid		(*)	New objects have the group ID of their creator.
@@ -602,7 +601,7 @@ Table of Ext4 specific ioctls
 			      bitmaps and inode table, the userspace tool thus
 			      just passes the new number of blocks.
 
-EXT4_IOC_SWAP_BOOT	      Swap i_blocks and associated attributes
+ EXT4_IOC_SWAP_BOOT	      Swap i_blocks and associated attributes
 			      (like i_blocks, i_size, i_flags, ...) from
 			      the specified inode with inode
 			      EXT4_BOOT_LOADER_INO (#5). This is typically

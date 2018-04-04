@@ -107,7 +107,7 @@ static unsigned long clk_pllv1_recalc_rate(struct clk_hw *hw,
 	return ull;
 }
 
-static struct clk_ops clk_pllv1_ops = {
+static const struct clk_ops clk_pllv1_ops = {
 	.recalc_rate = clk_pllv1_recalc_rate,
 };
 

@@ -40,7 +40,7 @@ struct smu_table_entry {
 	uint32_t table_addr_high;
 	uint32_t table_addr_low;
 	uint8_t *table;
-	uint32_t handle;
+	unsigned long handle;
 };
 
 struct smu_table_array {
@@ -51,11 +51,11 @@ struct rv_smumgr {
 	struct smu_table_array            smu_tables;
 };
 
-int rv_read_arg_from_smc(struct pp_smumgr *smumgr, uint32_t *arg);
-bool rv_is_smc_ram_running(struct pp_smumgr *smumgr);
-int rv_copy_table_from_smc(struct pp_smumgr *smumgr,
+int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg);
+bool rv_is_smc_ram_running(struct pp_hwmgr *hwmgr);
+int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
-int rv_copy_table_to_smc(struct pp_smumgr *smumgr,
+int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
 
 

@@ -67,8 +67,8 @@ static struct watchdog_device wdt_dev;
 static struct resource wdt_res;
 static void __iomem *wdt_mem;
 static unsigned int mmio;
-static void wdt_timer_tick(unsigned long data);
-static DEFINE_TIMER(timer, wdt_timer_tick, 0, 0);
+static void wdt_timer_tick(struct timer_list *unused);
+static DEFINE_TIMER(timer, wdt_timer_tick);
 					/* The timer that pings the watchdog */
 static unsigned long next_heartbeat;	/* the next_heartbeat for the timer */
 
@@ -88,7 +88,7 @@ static inline void wdt_reset(void)
  *     then the external/userspace heartbeat).
  *  2) the watchdog timer has been stopped by userspace.
  */
-static void wdt_timer_tick(unsigned long data)
+static void wdt_timer_tick(struct timer_list *unused)
 {
 	if (time_before(jiffies, next_heartbeat) ||
 	   (!watchdog_active(&wdt_dev))) {

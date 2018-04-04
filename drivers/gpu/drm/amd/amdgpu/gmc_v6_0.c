@@ -222,13 +222,8 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	if (mc->mc_vram_size > 0xFFC0000000ULL) {
-		dev_warn(adev->dev, "limiting VRAM\n");
-		mc->real_vram_size = 0xFFC0000000ULL;
-		mc->mc_vram_size = 0xFFC0000000ULL;
-	}
-	amdgpu_vram_location(adev, &adev->mc, base);
-	amdgpu_gart_location(adev, mc);
+	amdgpu_device_vram_location(adev, &adev->mc, base);
+	amdgpu_device_gart_location(adev, mc);
 }
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
@@ -283,6 +278,7 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 
 	u32 tmp;
 	int chansize, numchan;
+	int r;
 
 	tmp = RREG32(mmMC_ARB_RAMCFG);
 	if (tmp & (1 << 11)) {
@@ -324,12 +320,17 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 		break;
 	}
 	adev->mc.vram_width = numchan * chansize;
-	/* Could aper size report 0 ? */
-	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 	/* size in MB on si */
 	adev->mc.mc_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	adev->mc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_device_resize_fb_bar(adev);
+		if (r)
+			return r;
+	}
+	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
+	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 	adev->mc.visible_vram_size = adev->mc.aper_size;
 
 	/* set the gart size */
@@ -394,10 +395,10 @@ static uint64_t gmc_v6_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
-static uint64_t gmc_v6_0_get_vm_pde(struct amdgpu_device *adev, uint64_t addr)
+static void gmc_v6_0_get_vm_pde(struct amdgpu_device *adev, int level,
+				uint64_t *addr, uint64_t *flags)
 {
-	BUG_ON(addr & 0xFFFFFF0000000FFFULL);
-	return addr;
+	BUG_ON(*addr & 0xFFFFFF0000000FFFULL);
 }
 
 static void gmc_v6_0_set_fault_enable_default(struct amdgpu_device *adev,
@@ -831,8 +832,7 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_vm_adjust_size(adev, 64, 4);
-	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
+	amdgpu_vm_adjust_size(adev, 64, 9, 1, 40);
 
 	adev->mc.mc_mask = 0xffffffffffULL;
 
@@ -877,7 +877,6 @@ static int gmc_v6_0_sw_init(void *handle)
 	 * amdkfd will use VMIDs 8-15
 	 */
 	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 1;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
@@ -897,10 +896,12 @@ static int gmc_v6_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
 	gmc_v6_0_gart_fini(adev);
-	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
+	release_firmware(adev->mc.fw);
+	adev->mc.fw = NULL;
 
 	return 0;
 }
@@ -955,7 +956,7 @@ static int gmc_v6_0_resume(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_vm_reset_all_ids(adev);
+	amdgpu_vmid_reset_all(adev);
 
 	return 0;
 }

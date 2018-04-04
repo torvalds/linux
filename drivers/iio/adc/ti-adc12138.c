@@ -164,7 +164,7 @@ static int __adc12138_start_conv(struct adc12138 *adc,
 				 void *data, int len)
 
 {
-	const u8 ch_to_mux[] = { 0, 4, 1, 5, 2, 6, 3, 7 };
+	static const u8 ch_to_mux[] = { 0, 4, 1, 5, 2, 6, 3, 7 };
 	u8 mode = (ch_to_mux[channel->channel] << 4) |
 		  (channel->differential ? 0 : 0x80);
 
@@ -277,7 +277,6 @@ static int adc12138_read_raw(struct iio_dev *iio,
 
 static const struct iio_info adc12138_info = {
 	.read_raw = adc12138_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int adc12138_init(struct adc12138 *adc)

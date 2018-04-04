@@ -33,7 +33,6 @@ config PPC_85xx
 config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
-	select PPC_LIB_RHEAP
 	select SYS_SUPPORTS_HUGETLBFS
 
 config 40x
@@ -168,13 +167,6 @@ config PPC_FPU
 	bool
 	default y if PPC64
 
-config PPC_8xx_PERF_EVENT
-	bool "PPC 8xx perf events"
-	depends on PPC_8xx && PERF_EVENTS
-	help
-	  This is Performance Events support for PPC 8xx. The 8xx doesn't
-	  have a PMU but some events are emulated using 8xx features.
-
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"
 	depends on E500 || PPC_83xx
@@ -295,10 +287,6 @@ config PPC_STD_MMU_32
 	def_bool y
 	depends on PPC_STD_MMU && PPC32
 
-config PPC_STD_MMU_64
-	def_bool y
-	depends on PPC_STD_MMU && PPC64
-
 config PPC_RADIX_MMU
 	bool "Radix MMU Support"
 	depends on PPC_BOOK3S_64
@@ -308,6 +296,19 @@ config PPC_RADIX_MMU
 	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
 	  is only implemented by IBM Power9 CPUs, if you don't have one of them
 	  you can probably disable this.
+
+config PPC_RADIX_MMU_DEFAULT
+	bool "Default to using the Radix MMU when possible"
+	depends on PPC_RADIX_MMU
+	default y
+	help
+	  When the hardware supports the Radix MMU, default to using it unless
+	  "disable_radix[=yes]" is specified on the kernel command line.
+
+	  If this option is disabled, the Hash MMU will be used by default,
+	  unless "disable_radix=no" is specified on the kernel command line.
+
+	  If you're unsure, say Y.
 
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	def_bool y
@@ -324,7 +325,7 @@ config PPC_BOOK3E_MMU
 
 config PPC_MM_SLICES
 	bool
-	default y if PPC_STD_MMU_64
+	default y if PPC_BOOK3S_64
 	default n
 
 config PPC_HAVE_PMU_SUPPORT

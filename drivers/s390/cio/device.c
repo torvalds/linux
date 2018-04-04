@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  *  bus driver for ccw devices
  *
@@ -5,8 +6,6 @@
  *    Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * License: GPL
  */
 
 #define KMSG_COMPONENT "cio"
@@ -142,7 +141,7 @@ static void io_subchannel_shutdown(struct subchannel *);
 static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
-static void recovery_func(unsigned long data);
+static void recovery_func(struct timer_list *unused);
 
 static struct css_device_id io_subchannel_ids[] = {
 	{ .match_flags = 0x1, .type = SUBCHANNEL_TYPE_IO, },
@@ -194,7 +193,7 @@ int __init io_subchannel_init(void)
 {
 	int ret;
 
-	setup_timer(&recovery_timer, recovery_func, 0);
+	timer_setup(&recovery_timer, recovery_func, 0);
 	ret = bus_register(&ccw_bus_type);
 	if (ret)
 		return ret;
@@ -598,13 +597,13 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%02x\n", sch->vpm);
 }
 
-static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
-static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
-static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
-static DEVICE_ATTR(online, 0644, online_show, online_store);
+static DEVICE_ATTR_RO(devtype);
+static DEVICE_ATTR_RO(cutype);
+static DEVICE_ATTR_RO(modalias);
+static DEVICE_ATTR_RW(online);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
-static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
+static DEVICE_ATTR_RO(vpm);
 
 static struct attribute *io_subchannel_attrs[] = {
 	&dev_attr_logging.attr,
@@ -726,7 +725,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	INIT_WORK(&priv->todo_work, ccw_device_todo);
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
-	init_timer(&priv->timer);
+	timer_setup(&priv->timer, ccw_device_timeout, 0);
 
 	atomic_set(&priv->onoff, 0);
 	cdev->ccwlock = sch->lock;
@@ -1271,7 +1270,7 @@ static void recovery_work_func(struct work_struct *unused)
 
 static DECLARE_WORK(recovery_work, recovery_work_func);
 
-static void recovery_func(unsigned long data)
+static void recovery_func(struct timer_list *unused)
 {
 	/*
 	 * We can't do our recovery in softirq context and it's not

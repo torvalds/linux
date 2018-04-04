@@ -19,7 +19,7 @@ Recommended properties :
 
 Example:
 
-spi1: spi@0x4000c400 { /* USART1 */
+spi1: spi@4000c400 { /* USART1 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 	compatible = "energymicro,efm32-spi";

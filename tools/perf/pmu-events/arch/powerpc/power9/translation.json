@@ -90,11 +90,6 @@
     "BriefDescription": "stcx failed"
   },
   {,
-    "EventCode": "0x20112",
-    "EventName": "PM_MRK_NTF_FIN",
-    "BriefDescription": "Marked next to finish instruction finished"
-  },
-  {,
     "EventCode": "0x300F0",
     "EventName": "PM_ST_MISS_L1",
     "BriefDescription": "Store Missed L1"

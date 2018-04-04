@@ -71,7 +71,7 @@ via fw_create_instance(). This call creates a new struct device named after
 the firmware requested, and establishes it in the device hierarchy by
 associating the device used to make the request as the device's parent.
 The sysfs directory's file attributes are defined and controlled through
-the new device's class (firmare_class) and group (fw_dev_attr_groups).
+the new device's class (firmware_class) and group (fw_dev_attr_groups).
 This is actually where the original firmware_class.c file name comes from,
 as originally the only firmware loading mechanism available was the
 mechanism we now use as a fallback mechanism.

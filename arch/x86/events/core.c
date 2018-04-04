@@ -2118,7 +2118,7 @@ static int x86_pmu_event_init(struct perf_event *event)
 			event->destroy(event);
 	}
 
-	if (ACCESS_ONCE(x86_pmu.attr_rdpmc))
+	if (READ_ONCE(x86_pmu.attr_rdpmc))
 		event->hw.flags |= PERF_X86_EVENT_RDPMC_ALLOWED;
 
 	return err;
@@ -2371,7 +2371,7 @@ static unsigned long get_segment_base(unsigned int segment)
 		struct ldt_struct *ldt;
 
 		/* IRQs are off, so this synchronizes with smp_store_release */
-		ldt = lockless_dereference(current->active_mm->context.ldt);
+		ldt = READ_ONCE(current->active_mm->context.ldt);
 		if (!ldt || idx >= ldt->nr_entries)
 			return 0;
 

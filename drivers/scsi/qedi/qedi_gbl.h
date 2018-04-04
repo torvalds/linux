@@ -52,11 +52,12 @@ void qedi_update_itt_map(struct qedi_ctx *qedi, u32 tid, u32 proto_itt,
 void qedi_get_proto_itt(struct qedi_ctx *qedi, u32 tid, u32 *proto_itt);
 void qedi_get_task_tid(struct qedi_ctx *qedi, u32 itt, int16_t *tid);
 void qedi_process_iscsi_error(struct qedi_endpoint *ep,
-			      struct async_data *data);
+			      struct iscsi_eqe_data *data);
 void qedi_start_conn_recovery(struct qedi_ctx *qedi,
 			      struct qedi_conn *qedi_conn);
 struct qedi_conn *qedi_get_conn_from_id(struct qedi_ctx *qedi, u32 iscsi_cid);
-void qedi_process_tcp_error(struct qedi_endpoint *ep, struct async_data *data);
+void qedi_process_tcp_error(struct qedi_endpoint *ep,
+			    struct iscsi_eqe_data *data);
 void qedi_mark_device_missing(struct iscsi_cls_session *cls_session);
 void qedi_mark_device_available(struct iscsi_cls_session *cls_session);
 void qedi_reset_host_mtu(struct qedi_ctx *qedi, u16 mtu);

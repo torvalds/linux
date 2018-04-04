@@ -17,7 +17,7 @@
 #ifndef TDA18218_H
 #define TDA18218_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct tda18218_config {
 	u8 i2c_address;

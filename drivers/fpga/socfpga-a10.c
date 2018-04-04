@@ -519,8 +519,14 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	return fpga_mgr_register(dev, "SoCFPGA Arria10 FPGA Manager",
+	ret = fpga_mgr_register(dev, "SoCFPGA Arria10 FPGA Manager",
 				 &socfpga_a10_fpga_mgr_ops, priv);
+	if (ret) {
+		clk_disable_unprepare(priv->clk);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int socfpga_a10_fpga_remove(struct platform_device *pdev)

@@ -219,7 +219,7 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
 	if (OVERLAY_NEEDS_PHYSICAL(dev_priv))
 		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_handle->vaddr;
 	else
-		regs = io_mapping_map_wc(&dev_priv->ggtt.mappable,
+		regs = io_mapping_map_wc(&dev_priv->ggtt.iomap,
 					 overlay->flip_addr,
 					 PAGE_SIZE);
 
@@ -1134,7 +1134,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	if (!params)
 		return -ENOMEM;
 
-	drmmode_crtc = drm_crtc_find(dev, put_image_rec->crtc_id);
+	drmmode_crtc = drm_crtc_find(dev, file_priv, put_image_rec->crtc_id);
 	if (!drmmode_crtc) {
 		ret = -ENOENT;
 		goto out_free;
@@ -1508,7 +1508,7 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 		regs = (struct overlay_registers __iomem *)
 			overlay->reg_bo->phys_handle->vaddr;
 	else
-		regs = io_mapping_map_atomic_wc(&dev_priv->ggtt.mappable,
+		regs = io_mapping_map_atomic_wc(&dev_priv->ggtt.iomap,
 						overlay->flip_addr);
 
 	return regs;

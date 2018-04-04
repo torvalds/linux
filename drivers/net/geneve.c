@@ -825,6 +825,13 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
+	if (skb_dst(skb)) {
+		int mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr) -
+			  GENEVE_BASE_HLEN - info->options_len - 14;
+
+		skb_dst_update_pmtu(skb, mtu);
+	}
+
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	if (geneve->collect_md) {
 		tos = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
@@ -863,6 +870,13 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	dst = geneve_get_v6_dst(skb, dev, gs6, &fl6, info);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
+
+	if (skb_dst(skb)) {
+		int mtu = dst_mtu(dst) - sizeof(struct ipv6hdr) -
+			  GENEVE_BASE_HLEN - info->options_len - 14;
+
+		skb_dst_update_pmtu(skb, mtu);
+	}
 
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	if (geneve->collect_md) {
@@ -1134,24 +1148,11 @@ static struct geneve_dev *geneve_find_dev(struct geneve_net *gn,
 	return t;
 }
 
-static bool is_all_zero(const u8 *fp, size_t size)
-{
-	int i;
-
-	for (i = 0; i < size; i++)
-		if (fp[i])
-			return false;
-	return true;
-}
-
 static bool is_tnl_info_zero(const struct ip_tunnel_info *info)
 {
-	if (info->key.tun_id || info->key.tun_flags || info->key.tos ||
-	    info->key.ttl || info->key.label || info->key.tp_src ||
-	    !is_all_zero((const u8 *)&info->key.u, sizeof(info->key.u)))
-		return false;
-	else
-		return true;
+	return !(info->key.tun_id || info->key.tun_flags || info->key.tos ||
+		 info->key.ttl || info->key.label || info->key.tp_src ||
+		 memchr_inv(&info->key.u, 0, sizeof(info->key.u)));
 }
 
 static bool geneve_dst_addr_equal(struct ip_tunnel_info *a,
@@ -1350,21 +1351,33 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]) {
+#if IS_ENABLED(CONFIG_IPV6)
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_ZERO_CSUM6_TX;
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]))
 			info->key.tun_flags &= ~TUNNEL_CSUM;
+#else
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX],
+				    "IPv6 support not enabled in the kernel");
+		return -EPFNOSUPPORT;
+#endif
 	}
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX]) {
+#if IS_ENABLED(CONFIG_IPV6)
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_ZERO_CSUM6_RX;
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX]))
 			*use_udp6_rx_checksums = false;
+#else
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX],
+				    "IPv6 support not enabled in the kernel");
+		return -EPFNOSUPPORT;
+#endif
 	}
 
 	return 0;
@@ -1503,6 +1516,7 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct geneve_dev *geneve = netdev_priv(dev);
 	struct ip_tunnel_info *info = &geneve->info;
+	bool metadata = geneve->collect_md;
 	__u8 tmp_vni[3];
 	__u32 vni;
 
@@ -1511,32 +1525,24 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_GENEVE_ID, vni))
 		goto nla_put_failure;
 
-	if (rtnl_dereference(geneve->sock4)) {
+	if (!metadata && ip_tunnel_info_af(info) == AF_INET) {
 		if (nla_put_in_addr(skb, IFLA_GENEVE_REMOTE,
 				    info->key.u.ipv4.dst))
 			goto nla_put_failure;
-
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_CSUM,
 			       !!(info->key.tun_flags & TUNNEL_CSUM)))
 			goto nla_put_failure;
 
-	}
-
 #if IS_ENABLED(CONFIG_IPV6)
-	if (rtnl_dereference(geneve->sock6)) {
+	} else if (!metadata) {
 		if (nla_put_in6_addr(skb, IFLA_GENEVE_REMOTE6,
 				     &info->key.u.ipv6.dst))
 			goto nla_put_failure;
-
 		if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
 			       !(info->key.tun_flags & TUNNEL_CSUM)))
 			goto nla_put_failure;
-
-		if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
-			       !geneve->use_udp6_rx_checksums))
-			goto nla_put_failure;
-	}
 #endif
+	}
 
 	if (nla_put_u8(skb, IFLA_GENEVE_TTL, info->key.ttl) ||
 	    nla_put_u8(skb, IFLA_GENEVE_TOS, info->key.tos) ||
@@ -1546,10 +1552,15 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_be16(skb, IFLA_GENEVE_PORT, info->key.tp_dst))
 		goto nla_put_failure;
 
-	if (geneve->collect_md) {
-		if (nla_put_flag(skb, IFLA_GENEVE_COLLECT_METADATA))
-			goto nla_put_failure;
-	}
+	if (metadata && nla_put_flag(skb, IFLA_GENEVE_COLLECT_METADATA))
+		goto nla_put_failure;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
+		       !geneve->use_udp6_rx_checksums))
+		goto nla_put_failure;
+#endif
+
 	return 0;
 
 nla_put_failure:
@@ -1641,19 +1652,16 @@ static __net_init int geneve_init_net(struct net *net)
 	return 0;
 }
 
-static void __net_exit geneve_exit_net(struct net *net)
+static void geneve_destroy_tunnels(struct net *net, struct list_head *head)
 {
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_dev *geneve, *next;
 	struct net_device *dev, *aux;
-	LIST_HEAD(list);
-
-	rtnl_lock();
 
 	/* gather any geneve devices that were moved into this ns */
 	for_each_netdev_safe(net, dev, aux)
 		if (dev->rtnl_link_ops == &geneve_link_ops)
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(dev, head);
 
 	/* now gather any other geneve devices that were created in this ns */
 	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next) {
@@ -1661,8 +1669,20 @@ static void __net_exit geneve_exit_net(struct net *net)
 		 * to the list by the previous loop.
 		 */
 		if (!net_eq(dev_net(geneve->dev), net))
-			unregister_netdevice_queue(geneve->dev, &list);
+			unregister_netdevice_queue(geneve->dev, head);
 	}
+
+	WARN_ON_ONCE(!list_empty(&gn->sock_list));
+}
+
+static void __net_exit geneve_exit_batch_net(struct list_head *net_list)
+{
+	struct net *net;
+	LIST_HEAD(list);
+
+	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		geneve_destroy_tunnels(net, &list);
 
 	/* unregister the devices gathered above */
 	unregister_netdevice_many(&list);
@@ -1671,7 +1691,7 @@ static void __net_exit geneve_exit_net(struct net *net)
 
 static struct pernet_operations geneve_net_ops = {
 	.init = geneve_init_net,
-	.exit = geneve_exit_net,
+	.exit_batch = geneve_exit_batch_net,
 	.id   = &geneve_net_id,
 	.size = sizeof(struct geneve_net),
 };

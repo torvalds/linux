@@ -170,10 +170,10 @@ static void vlsi_proc_pdev(struct seq_file *seq, struct pci_dev *pdev)
 	seq_printf(seq, "pci-power-state: %u\n", (unsigned) pdev->current_state);
 	seq_printf(seq, "resources: irq=%u / io=0x%04x / dma_mask=0x%016Lx\n",
 		   pdev->irq, (unsigned)pci_resource_start(pdev, 0), (unsigned long long)pdev->dma_mask);
-	seq_printf(seq, "hw registers: ");
+	seq_puts(seq, "hw registers: ");
 	for (i = 0; i < 0x20; i++)
 		seq_printf(seq, "%02x", (unsigned)inb((iobase+i)));
-	seq_printf(seq, "\n");
+	seq_putc(seq, '\n');
 }
 		
 static void vlsi_proc_ndev(struct seq_file *seq, struct net_device *ndev)
@@ -193,7 +193,7 @@ static void vlsi_proc_ndev(struct seq_file *seq, struct net_device *ndev)
 	if (!netif_running(ndev))
 		return;
 
-	seq_printf(seq, "\nhw-state:\n");
+	seq_puts(seq, "\nhw-state:\n");
 	pci_read_config_byte(idev->pdev, VLSI_PCI_IRMISC, &byte);
 	seq_printf(seq, "IRMISC:%s%s%s uart%s",
 		(byte&IRMISC_IRRAIL) ? " irrail" : "",
@@ -274,7 +274,7 @@ static void vlsi_proc_ndev(struct seq_file *seq, struct net_device *ndev)
 	word = inw(iobase+VLSI_PIO_RCVBCNT) & RCVBCNT_MASK;
 	seq_printf(seq, "RCVBCNT: rx-fifo filling level = %u\n", word);
 
-	seq_printf(seq, "\nsw-state:\n");
+	seq_puts(seq, "\nsw-state:\n");
 	seq_printf(seq, "IrPHY setup: %d baud - %s encoding\n", idev->baud, 
 		(idev->mode==IFF_SIR)?"SIR":((idev->mode==IFF_MIR)?"MIR":"FIR"));
 	sec = div_s64_rem(ktime_us_delta(ktime_get(), idev->last_rx),
@@ -305,10 +305,10 @@ static void vlsi_proc_ring(struct seq_file *seq, struct vlsi_ring *r)
 	t = atomic_read(&r->tail) & r->mask;
 	seq_printf(seq, "head = %d / tail = %d ", h, t);
 	if (h == t)
-		seq_printf(seq, "(empty)\n");
+		seq_puts(seq, "(empty)\n");
 	else {
 		if (((t+1)&r->mask) == h)
-			seq_printf(seq, "(full)\n");
+			seq_puts(seq, "(full)\n");
 		else
 			seq_printf(seq, "(level = %d)\n", ((unsigned)(t-h) & r->mask)); 
 		rd = &r->rd[h];
@@ -355,13 +355,13 @@ static int vlsi_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "\nPCI controller down - resume_ok = %d\n",
 				idev->resume_ok);
 		if (netif_running(ndev) && idev->rx_ring && idev->tx_ring) {
-			seq_printf(seq, "\n--------- RX ring -----------\n\n");
+			seq_puts(seq, "\n--------- RX ring -----------\n\n");
 			vlsi_proc_ring(seq, idev->rx_ring);
-			seq_printf(seq, "\n--------- TX ring -----------\n\n");
+			seq_puts(seq, "\n--------- TX ring -----------\n\n");
 			vlsi_proc_ring(seq, idev->tx_ring);
 		}
 	}
-	seq_printf(seq, "\n");
+	seq_putc(seq, '\n');
 	spin_unlock_irqrestore(&idev->lock, flags);
 
 	return 0;

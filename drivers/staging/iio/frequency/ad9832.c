@@ -290,7 +290,6 @@ static const struct attribute_group ad9832_attribute_group = {
 
 static const struct iio_info ad9832_info = {
 	.attrs = &ad9832_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad9832_probe(struct spi_device *spi)

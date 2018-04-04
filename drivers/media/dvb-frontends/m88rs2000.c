@@ -31,7 +31,7 @@
 #include <linux/types.h>
 
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "m88rs2000.h"
 
 struct m88rs2000_state {
@@ -630,13 +630,16 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return -ENODEV;
 
-	if (fe->ops.tuner_ops.get_frequency)
+	if (fe->ops.tuner_ops.get_frequency) {
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_freq);
 
-	if (ret < 0)
-		return -ENODEV;
+		if (ret < 0)
+			return -ENODEV;
 
-	offset = (s16)((s32)tuner_freq - c->frequency);
+		offset = (s16)((s32)tuner_freq - c->frequency);
+	} else {
+		offset = 0;
+	}
 
 	/* default mclk value 96.4285 * 2 * 1000 = 192857 */
 	if (((c->frequency % 192857) >= (192857 - 3000)) ||

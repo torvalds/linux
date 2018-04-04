@@ -282,7 +282,6 @@ static int magn_3d_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info magn_3d_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &magn_3d_read_raw,
 	.write_raw = &magn_3d_write_raw,
 };

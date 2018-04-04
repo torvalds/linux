@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/module.h>
@@ -59,6 +60,8 @@
 #define CCS811_MODE_IAQ_60SEC	0x30
 #define CCS811_MODE_RAW_DATA	0x40
 
+#define CCS811_MEAS_MODE_INTERRUPT	BIT(3)
+
 #define CCS811_VOLTAGE_MASK	0x3FF
 
 struct ccs811_reading {
@@ -73,6 +76,8 @@ struct ccs811_data {
 	struct i2c_client *client;
 	struct mutex lock; /* Protect readings */
 	struct ccs811_reading buffer;
+	struct iio_trigger *drdy_trig;
+	bool drdy_trig_on;
 };
 
 static const struct iio_chan_spec ccs811_channels[] = {
@@ -91,7 +96,6 @@ static const struct iio_chan_spec ccs811_channels[] = {
 		.channel2 = IIO_MOD_CO2,
 		.modified = 1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-				      BIT(IIO_CHAN_INFO_OFFSET) |
 				      BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = 0,
 		.scan_type = {
@@ -193,10 +197,14 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 		mutex_lock(&data->lock);
 		ret = ccs811_get_measurement(data);
 		if (ret < 0) {
 			mutex_unlock(&data->lock);
+			iio_device_release_direct_mode(indio_dev);
 			return ret;
 		}
 
@@ -228,6 +236,7 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 			ret = -EINVAL;
 		}
 		mutex_unlock(&data->lock);
+		iio_device_release_direct_mode(indio_dev);
 
 		return ret;
 
@@ -245,24 +254,18 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 			switch (chan->channel2) {
 			case IIO_MOD_CO2:
 				*val = 0;
-				*val2 = 12834;
+				*val2 = 100;
 				return IIO_VAL_INT_PLUS_MICRO;
 			case IIO_MOD_VOC:
 				*val = 0;
-				*val2 = 84246;
-				return IIO_VAL_INT_PLUS_MICRO;
+				*val2 = 100;
+				return IIO_VAL_INT_PLUS_NANO;
 			default:
 				return -EINVAL;
 			}
 		default:
 			return -EINVAL;
 		}
-	case IIO_CHAN_INFO_OFFSET:
-		if (!(chan->type == IIO_CONCENTRATION &&
-		      chan->channel2 == IIO_MOD_CO2))
-			return -EINVAL;
-		*val = -400;
-		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -270,7 +273,31 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info ccs811_info = {
 	.read_raw = ccs811_read_raw,
-	.driver_module = THIS_MODULE,
+};
+
+static int ccs811_set_trigger_state(struct iio_trigger *trig,
+				    bool state)
+{
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+	struct ccs811_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(data->client, CCS811_MEAS_MODE);
+	if (ret < 0)
+		return ret;
+
+	if (state)
+		ret |= CCS811_MEAS_MODE_INTERRUPT;
+	else
+		ret &= ~CCS811_MEAS_MODE_INTERRUPT;
+
+	data->drdy_trig_on = state;
+
+	return i2c_smbus_write_byte_data(data->client, CCS811_MEAS_MODE, ret);
+}
+
+static const struct iio_trigger_ops ccs811_trigger_ops = {
+	.set_trigger_state = ccs811_set_trigger_state,
 };
 
 static irqreturn_t ccs811_trigger_handler(int irq, void *p)
@@ -294,6 +321,17 @@ static irqreturn_t ccs811_trigger_handler(int irq, void *p)
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ccs811_data_rdy_trigger_poll(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct ccs811_data *data = iio_priv(indio_dev);
+
+	if (data->drdy_trig_on)
+		iio_trigger_poll(data->drdy_trig);
 
 	return IRQ_HANDLED;
 }
@@ -346,16 +384,48 @@ static int ccs811_probe(struct i2c_client *client,
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ccs811_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	indio_dev->channels = ccs811_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ccs811_channels);
+
+	if (client->irq > 0) {
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						ccs811_data_rdy_trigger_poll,
+						NULL,
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"ccs811_irq", indio_dev);
+		if (ret) {
+			dev_err(&client->dev, "irq request error %d\n", -ret);
+			goto err_poweroff;
+		}
+
+		data->drdy_trig = devm_iio_trigger_alloc(&client->dev,
+							 "%s-dev%d",
+							 indio_dev->name,
+							 indio_dev->id);
+		if (!data->drdy_trig) {
+			ret = -ENOMEM;
+			goto err_poweroff;
+		}
+
+		data->drdy_trig->dev.parent = &client->dev;
+		data->drdy_trig->ops = &ccs811_trigger_ops;
+		iio_trigger_set_drvdata(data->drdy_trig, indio_dev);
+		indio_dev->trig = data->drdy_trig;
+		iio_trigger_get(indio_dev->trig);
+		ret = iio_trigger_register(data->drdy_trig);
+		if (ret)
+			goto err_poweroff;
+	}
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 					 ccs811_trigger_handler, NULL);
 
 	if (ret < 0) {
 		dev_err(&client->dev, "triggered buffer setup failed\n");
-		goto err_poweroff;
+		goto err_trigger_unregister;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -367,6 +437,9 @@ static int ccs811_probe(struct i2c_client *client,
 
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
+err_trigger_unregister:
+	if (data->drdy_trig)
+		iio_trigger_unregister(data->drdy_trig);
 err_poweroff:
 	i2c_smbus_write_byte_data(client, CCS811_MEAS_MODE, CCS811_MODE_IDLE);
 
@@ -376,9 +449,12 @@ err_poweroff:
 static int ccs811_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ccs811_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
+	if (data->drdy_trig)
+		iio_trigger_unregister(data->drdy_trig);
 
 	return i2c_smbus_write_byte_data(client, CCS811_MEAS_MODE,
 					 CCS811_MODE_IDLE);

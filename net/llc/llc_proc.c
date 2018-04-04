@@ -225,7 +225,6 @@ static int llc_seq_core_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations llc_seq_socket_fops = {
-	.owner		= THIS_MODULE,
 	.open		= llc_seq_socket_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -233,7 +232,6 @@ static const struct file_operations llc_seq_socket_fops = {
 };
 
 static const struct file_operations llc_seq_core_fops = {
-	.owner		= THIS_MODULE,
 	.open		= llc_seq_core_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

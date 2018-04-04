@@ -39,25 +39,26 @@ static void fake_free_pages(struct drm_i915_gem_object *obj,
 	kfree(pages);
 }
 
-static struct sg_table *
-fake_get_pages(struct drm_i915_gem_object *obj)
+static int fake_get_pages(struct drm_i915_gem_object *obj)
 {
 #define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY)
 #define PFN_BIAS 0x1000
 	struct sg_table *pages;
 	struct scatterlist *sg;
+	unsigned int sg_page_sizes;
 	typeof(obj->base.size) rem;
 
 	pages = kmalloc(sizeof(*pages), GFP);
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	rem = round_up(obj->base.size, BIT(31)) >> 31;
 	if (sg_alloc_table(pages, rem, GFP)) {
 		kfree(pages);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
+	sg_page_sizes = 0;
 	rem = obj->base.size;
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
@@ -66,13 +67,17 @@ fake_get_pages(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
+		sg_page_sizes |= len;
 
 		rem -= len;
 	}
 	GEM_BUG_ON(rem);
 
 	obj->mm.madv = I915_MADV_DONTNEED;
-	return pages;
+
+	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+
+	return 0;
 #undef GFP
 }
 
@@ -211,13 +216,21 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		hole_size = (hole_end - hole_start) >> size;
 		if (hole_size > KMALLOC_MAX_SIZE / sizeof(u32))
 			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
-		count = hole_size;
-		do {
-			count >>= 1;
-			order = i915_random_order(count, &prng);
-		} while (!order && count);
-		if (!order)
+		count = hole_size >> 1;
+		if (!count) {
+			pr_debug("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
+				 __func__, hole_start, hole_end, size, hole_size);
 			break;
+		}
+
+		do {
+			order = i915_random_order(count, &prng);
+			if (order)
+				break;
+		} while (count >>= 1);
+		if (!count)
+			return -ENOMEM;
+		GEM_BUG_ON(!order);
 
 		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
 		GEM_BUG_ON(hole_start + count * BIT_ULL(size) > hole_end);
@@ -262,7 +275,9 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			mock_vma.node.size = BIT_ULL(size);
 			mock_vma.node.start = addr;
 
+			intel_runtime_pm_get(i915);
 			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
+			intel_runtime_pm_put(i915);
 		}
 		count = n;
 
@@ -692,18 +707,26 @@ static int drunk_hole(struct drm_i915_private *i915,
 		unsigned int *order, count, n;
 		struct i915_vma *vma;
 		u64 hole_size;
-		int err;
+		int err = -ENODEV;
 
 		hole_size = (hole_end - hole_start) >> size;
 		if (hole_size > KMALLOC_MAX_SIZE / sizeof(u32))
 			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
-		count = hole_size;
-		do {
-			count >>= 1;
-			order = i915_random_order(count, &prng);
-		} while (!order && count);
-		if (!order)
+		count = hole_size >> 1;
+		if (!count) {
+			pr_debug("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
+				 __func__, hole_start, hole_end, size, hole_size);
 			break;
+		}
+
+		do {
+			order = i915_random_order(count, &prng);
+			if (order)
+				break;
+		} while (count >>= 1);
+		if (!count)
+			return -ENOMEM;
+		GEM_BUG_ON(!order);
 
 		/* Ignore allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
@@ -951,7 +974,7 @@ static int exercise_ggtt(struct drm_i915_private *i915,
 	u64 hole_start, hole_end, last = 0;
 	struct drm_mm_node *node;
 	IGT_TIMEOUT(end_time);
-	int err;
+	int err = 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
 restart:
@@ -1042,6 +1065,7 @@ static int igt_ggtt_page(void *arg)
 		goto out_remove;
 	}
 
+	intel_runtime_pm_get(i915);
 	for (n = 0; n < count; n++) {
 		u64 offset = tmp.start + order[n] * PAGE_SIZE;
 		u32 __iomem *vaddr;
@@ -1050,7 +1074,7 @@ static int igt_ggtt_page(void *arg)
 				       i915_gem_object_get_dma_address(obj, 0),
 				       offset, I915_CACHE_NONE, 0);
 
-		vaddr = io_mapping_map_atomic_wc(&ggtt->mappable, offset);
+		vaddr = io_mapping_map_atomic_wc(&ggtt->iomap, offset);
 		iowrite32(n, vaddr + n);
 		io_mapping_unmap_atomic(vaddr);
 
@@ -1068,7 +1092,7 @@ static int igt_ggtt_page(void *arg)
 				       i915_gem_object_get_dma_address(obj, 0),
 				       offset, I915_CACHE_NONE, 0);
 
-		vaddr = io_mapping_map_atomic_wc(&ggtt->mappable, offset);
+		vaddr = io_mapping_map_atomic_wc(&ggtt->iomap, offset);
 		val = ioread32(vaddr + n);
 		io_mapping_unmap_atomic(vaddr);
 
@@ -1081,6 +1105,7 @@ static int igt_ggtt_page(void *arg)
 			break;
 		}
 	}
+	intel_runtime_pm_put(i915);
 
 	kfree(order);
 out_remove:
@@ -1155,7 +1180,7 @@ static int igt_gtt_reserve(void *arg)
 	struct drm_i915_gem_object *obj, *on;
 	LIST_HEAD(objects);
 	u64 total;
-	int err;
+	int err = -ENODEV;
 
 	/* i915_gem_gtt_reserve() tries to reserve the precise range
 	 * for the node, and evicts if it has to. So our test checks that
@@ -1346,7 +1371,7 @@ static int igt_gtt_insert(void *arg)
 	}, *ii;
 	LIST_HEAD(objects);
 	u64 total;
-	int err;
+	int err = -ENODEV;
 
 	/* i915_gem_gtt_insert() tries to allocate some free space in the GTT
 	 * to the node, evicting if required.

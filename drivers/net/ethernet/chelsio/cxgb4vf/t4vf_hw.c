@@ -1812,7 +1812,7 @@ int t4vf_eth_eq_free(struct adapter *adapter, unsigned int eqid)
  *
  *	Returns a string representation of the Link Down Reason Code.
  */
-const char *t4vf_link_down_rc_str(unsigned char link_down_rc)
+static const char *t4vf_link_down_rc_str(unsigned char link_down_rc)
 {
 	static const char * const reason[] = {
 		"Link Down",
@@ -1838,8 +1838,8 @@ const char *t4vf_link_down_rc_str(unsigned char link_down_rc)
  *
  *	Processes a GET_PORT_INFO FW reply message.
  */
-void t4vf_handle_get_port_info(struct port_info *pi,
-			       const struct fw_port_cmd *cmd)
+static void t4vf_handle_get_port_info(struct port_info *pi,
+				      const struct fw_port_cmd *cmd)
 {
 	int action = FW_PORT_CMD_ACTION_G(be32_to_cpu(cmd->action_to_len16));
 	struct adapter *adapter = pi->adapter;
@@ -2146,4 +2146,32 @@ int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
 	}
 
 	return ret;
+}
+
+/**
+ *	t4vf_get_vf_vlan_acl - Get the VLAN ID to be set to
+ *                             the VI of this VF.
+ *	@adapter: The adapter
+ *
+ *	Find the VLAN ID to be set to the VF's VI. The requested VLAN ID
+ *	is from the host OS via callback in the PF driver.
+ */
+int t4vf_get_vf_vlan_acl(struct adapter *adapter)
+{
+	struct fw_acl_vlan_cmd cmd;
+	int vlan = 0;
+	int ret = 0;
+
+	cmd.op_to_vfn = htonl(FW_CMD_OP_V(FW_ACL_VLAN_CMD) |
+			      FW_CMD_REQUEST_F | FW_CMD_READ_F);
+
+	/* Note: Do not enable the ACL */
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+
+	ret = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &cmd);
+
+	if (!ret)
+		vlan = be16_to_cpu(cmd.vlanid[0]);
+
+	return vlan;
 }

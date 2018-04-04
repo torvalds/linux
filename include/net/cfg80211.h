@@ -815,6 +815,8 @@ struct cfg80211_csa_settings {
 	u8 count;
 };
 
+#define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
+
 /**
  * struct iface_combination_params - input parameters for interface combinations
  *
@@ -1773,6 +1775,8 @@ enum cfg80211_signal_type {
  *	by %parent_bssid.
  * @parent_bssid: the BSS according to which %parent_tsf is set. This is set to
  *	the BSS that requested the scan in which the beacon/probe was received.
+ * @chains: bitmask for filled values in @chain_signal.
+ * @chain_signal: per-chain signal strength of last received BSS in dBm.
  */
 struct cfg80211_inform_bss {
 	struct ieee80211_channel *chan;
@@ -1781,6 +1785,8 @@ struct cfg80211_inform_bss {
 	u64 boottime_ns;
 	u64 parent_tsf;
 	u8 parent_bssid[ETH_ALEN] __aligned(2);
+	u8 chains;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
 
 /**
@@ -1824,6 +1830,8 @@ struct cfg80211_bss_ies {
  *	that holds the beacon data. @beacon_ies is still valid, of course, and
  *	points to the same data as hidden_beacon_bss->beacon_ies in that case.
  * @signal: signal strength value (type depends on the wiphy's signal_type)
+ * @chains: bitmask for filled values in @chain_signal.
+ * @chain_signal: per-chain signal strength of last received BSS in dBm.
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
@@ -1842,6 +1850,8 @@ struct cfg80211_bss {
 	u16 capability;
 
 	u8 bssid[ETH_ALEN];
+	u8 chains;
+	s8 chain_signal[IEEE80211_MAX_CHAINS];
 
 	u8 priv[0] __aligned(sizeof(void *));
 };
@@ -2021,6 +2031,9 @@ struct cfg80211_disassoc_request {
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
+ * @wep_keys: static WEP keys, if not NULL points to an array of
+ * 	CFG80211_MAX_WEP_KEYS WEP keys
+ * @wep_tx_key: key index (0..3) of the default TX static WEP key
  */
 struct cfg80211_ibss_params {
 	const u8 *ssid;
@@ -2037,6 +2050,8 @@ struct cfg80211_ibss_params {
 	int mcast_rate[NUM_NL80211_BANDS];
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
+	struct key_params *wep_keys;
+	int wep_tx_key;
 };
 
 /**
@@ -3226,7 +3241,6 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_IBSS_RSN: The device supports IBSS RSN.
  * @WIPHY_FLAG_MESH_AUTH: The device supports mesh authentication by routing
  *	auth frames to userspace. See @NL80211_MESH_SETUP_USERSPACE_AUTH.
- * @WIPHY_FLAG_SUPPORTS_SCHED_SCAN: The device supports scheduled scans.
  * @WIPHY_FLAG_SUPPORTS_FW_ROAM: The device supports roaming feature in the
  *	firmware.
  * @WIPHY_FLAG_AP_UAPSD: The device supports uapsd on AP.
@@ -4347,19 +4361,6 @@ static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 }
 
 /**
- * ieee80211_data_from_8023 - convert an 802.3 frame to 802.11
- * @skb: the 802.3 frame
- * @addr: the device MAC address
- * @iftype: the virtual interface type
- * @bssid: the network bssid (used only for iftype STATION and ADHOC)
- * @qos: build 802.11 QoS data frame
- * Return: 0 on success, or a negative error code.
- */
-int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
-			     enum nl80211_iftype iftype, const u8 *bssid,
-			     bool qos);
-
-/**
  * ieee80211_amsdu_to_8023s - decode an IEEE 802.11n A-MSDU frame
  *
  * Decode an IEEE 802.11 A-MSDU and convert it to a list of 802.3 frames.
@@ -5441,9 +5442,6 @@ cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
- * @authorized: true if the 802.1X authentication was done by the driver or is
- *	not needed (e.g., when Fast Transition protocol was used), false
- *	otherwise. Ignored for networks that don't use 802.1X authentication.
  */
 struct cfg80211_roam_info {
 	struct ieee80211_channel *channel;
@@ -5453,7 +5451,6 @@ struct cfg80211_roam_info {
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
-	bool authorized;
 };
 
 /**
@@ -5476,6 +5473,23 @@ struct cfg80211_roam_info {
  */
 void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 		     gfp_t gfp);
+
+/**
+ * cfg80211_port_authorized - notify cfg80211 of successful security association
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the AP
+ * @gfp: allocation flags
+ *
+ * This function should be called by a driver that supports 4 way handshake
+ * offload after a security association was successfully established (i.e.,
+ * the 4 way handshake was completed successfully). The call to this function
+ * should be preceded with a call to cfg80211_connect_result(),
+ * cfg80211_connect_done(), cfg80211_connect_bss() or cfg80211_roamed() to
+ * indicate the 802.11 association.
+ */
+void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
+			      gfp_t gfp);
 
 /**
  * cfg80211_disconnected - notify cfg80211 that connection was dropped
@@ -5576,7 +5590,7 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @wdev: wireless device receiving the frame
  * @freq: Frequency on which the frame was received in MHz
- * @sig_dbm: signal strength in mBm, or 0 if unknown
+ * @sig_dbm: signal strength in dBm, or 0 if unknown
  * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @flags: flags, as defined in enum nl80211_rxmgmt_flags
@@ -5755,7 +5769,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  * @frame: the frame
  * @len: length of the frame
  * @freq: frequency the frame was received on
- * @sig_dbm: signal strength in mBm, or 0 if unknown
+ * @sig_dbm: signal strength in dBm, or 0 if unknown
  *
  * Use this function to report to userspace when a beacon was
  * received. It is not useful to call this when there is no
@@ -5934,7 +5948,8 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
  * @ies: the IE buffer
  * @ielen: the length of the IE buffer
  * @ids: an array with element IDs that are allowed before
- *	the split
+ *	the split. A WLAN_EID_EXTENSION value means that the next
+ *	EID in the list is a sub-element of the EXTENSION IE.
  * @n_ids: the size of the element ID array
  * @after_ric: array IE types that come after the RIC element
  * @n_after_ric: size of the @after_ric array
@@ -5965,7 +5980,8 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
  * @ies: the IE buffer
  * @ielen: the length of the IE buffer
  * @ids: an array with element IDs that are allowed before
- *	the split
+ *	the split. A WLAN_EID_EXTENSION value means that the next
+ *	EID in the list is a sub-element of the EXTENSION IE.
  * @n_ids: the size of the element ID array
  * @offset: offset where to start splitting in the buffer
  *

@@ -9,6 +9,7 @@ menuconfig ARCH_MESON
 	select PINCTRL_MESON
 	select COMMON_CLK
 	select COMMON_CLK_AMLOGIC
+	select HAVE_ARM_SCU if SMP
 
 if ARCH_MESON
 
@@ -22,11 +23,13 @@ config MACH_MESON8
 	default ARCH_MESON
 	select MESON6_TIMER
 	select COMMON_CLK_MESON8B
+	select MESON_IRQ_GPIO
 
 config MACH_MESON8B
 	bool "Amlogic Meson8b SoCs support"
 	default ARCH_MESON
 	select MESON6_TIMER
 	select COMMON_CLK_MESON8B
+	select MESON_IRQ_GPIO
 
 endif

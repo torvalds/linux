@@ -23,6 +23,7 @@
 #include <linux/xattr.h>
 #include <linux/security.h>
 #include <linux/posix_acl_xattr.h>
+#include <linux/iversion.h>
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
@@ -267,7 +268,6 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct btrfs_key key;
 	struct inode *inode = d_inode(dentry);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path;
 	int ret = 0;
@@ -335,11 +335,6 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			u16 data_len = btrfs_dir_data_len(leaf, di);
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			unsigned long name_ptr = (unsigned long)(di + 1);
-
-			if (verify_dir_item(fs_info, leaf, slot, di)) {
-				ret = -EIO;
-				goto err;
-			}
 
 			total_size += name_len + 1;
 			/*

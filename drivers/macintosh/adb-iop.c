@@ -30,8 +30,6 @@
 
 /*#define DEBUG_ADB_IOP*/
 
-extern void iop_ism_irq(int, void *);
-
 static struct adb_request *current_req;
 static struct adb_request *last_req;
 #if 0
@@ -266,7 +264,7 @@ int adb_iop_autopoll(int devs)
 void adb_iop_poll(void)
 {
 	if (adb_iop_state == idle) adb_iop_start();
-	iop_ism_irq(0, (void *) ADB_IOP);
+	iop_ism_irq_poll(ADB_IOP);
 }
 
 int adb_iop_reset_bus(void)

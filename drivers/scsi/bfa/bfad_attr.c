@@ -487,7 +487,6 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) vport->drv_port.im_port;
 	struct bfad_s *bfad = im_port->bfad;
-	struct bfad_port_s *port;
 	struct bfa_fcs_vport_s *fcs_vport;
 	struct Scsi_Host *vshost;
 	wwn_t   pwwn;
@@ -501,8 +500,6 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 		kfree(vport);
 		return 0;
 	}
-
-	port = im_port->port;
 
 	vshost = vport->drv_port.im_port->shost;
 	u64_to_wwn(fc_host_port_name(vshost), (u8 *)&pwwn);
@@ -843,7 +840,7 @@ bfad_im_symbolic_name_show(struct device *dev, struct device_attribute *attr,
 	char symname[BFA_SYMNAME_MAXLEN];
 
 	bfa_fcs_lport_get_attr(&bfad->bfa_fcs.fabric.bport, &port_attr);
-	strncpy(symname, port_attr.port_cfg.sym_name.symname,
+	strlcpy(symname, port_attr.port_cfg.sym_name.symname,
 			BFA_SYMNAME_MAXLEN);
 	return snprintf(buf, PAGE_SIZE, "%s\n", symname);
 }

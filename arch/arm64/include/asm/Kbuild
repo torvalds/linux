@@ -1,5 +1,4 @@
 generic-y += bugs.h
-generic-y += clkdev.h
 generic-y += delay.h
 generic-y += div64.h
 generic-y += dma.h
@@ -16,6 +15,7 @@ generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
 generic-y += msi.h
 generic-y += preempt.h
+generic-y += qrwlock.h
 generic-y += rwsem.h
 generic-y += segment.h
 generic-y += serial.h

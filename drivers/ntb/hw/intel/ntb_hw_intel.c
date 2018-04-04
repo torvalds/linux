@@ -74,12 +74,6 @@ MODULE_AUTHOR("Intel Corporation");
 #define bar0_off(base, bar) ((base) + ((bar) << 2))
 #define bar2_off(base, bar) bar0_off(base, (bar) - 2)
 
-static const struct intel_ntb_reg atom_reg;
-static const struct intel_ntb_alt_reg atom_pri_reg;
-static const struct intel_ntb_alt_reg atom_sec_reg;
-static const struct intel_ntb_alt_reg atom_b2b_reg;
-static const struct intel_ntb_xlat_reg atom_pri_xlat;
-static const struct intel_ntb_xlat_reg atom_sec_xlat;
 static const struct intel_ntb_reg xeon_reg;
 static const struct intel_ntb_alt_reg xeon_pri_reg;
 static const struct intel_ntb_alt_reg xeon_sec_reg;
@@ -183,15 +177,6 @@ static inline void _iowrite64(u64 val, void __iomem *mmio)
 }
 #endif
 #endif
-
-static inline int pdev_is_atom(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_BWD:
-		return 1;
-	}
-	return 0;
-}
 
 static inline int pdev_is_xeon(struct pci_dev *pdev)
 {
@@ -1006,8 +991,7 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 {
 	struct intel_ntb_dev *ndev = filp->private_data;
 
-	if (pdev_is_xeon(ndev->ntb.pdev) ||
-	    pdev_is_atom(ndev->ntb.pdev))
+	if (pdev_is_xeon(ndev->ntb.pdev))
 		return ndev_ntb_debugfs_read(filp, ubuf, count, offp);
 	else if (pdev_is_skx_xeon(ndev->ntb.pdev))
 		return ndev_ntb3_debugfs_read(filp, ubuf, count, offp);
@@ -1439,242 +1423,6 @@ static int intel_ntb_peer_spad_write(struct ntb_dev *ntb, int pidx,
 			       ndev->peer_reg->spad);
 }
 
-/* ATOM */
-
-static u64 atom_db_ioread(void __iomem *mmio)
-{
-	return ioread64(mmio);
-}
-
-static void atom_db_iowrite(u64 bits, void __iomem *mmio)
-{
-	iowrite64(bits, mmio);
-}
-
-static int atom_poll_link(struct intel_ntb_dev *ndev)
-{
-	u32 ntb_ctl;
-
-	ntb_ctl = ioread32(ndev->self_mmio + ATOM_NTBCNTL_OFFSET);
-
-	if (ntb_ctl == ndev->ntb_ctl)
-		return 0;
-
-	ndev->ntb_ctl = ntb_ctl;
-
-	ndev->lnk_sta = ioread32(ndev->self_mmio + ATOM_LINK_STATUS_OFFSET);
-
-	return 1;
-}
-
-static int atom_link_is_up(struct intel_ntb_dev *ndev)
-{
-	return ATOM_NTB_CTL_ACTIVE(ndev->ntb_ctl);
-}
-
-static int atom_link_is_err(struct intel_ntb_dev *ndev)
-{
-	if (ioread32(ndev->self_mmio + ATOM_LTSSMSTATEJMP_OFFSET)
-	    & ATOM_LTSSMSTATEJMP_FORCEDETECT)
-		return 1;
-
-	if (ioread32(ndev->self_mmio + ATOM_IBSTERRRCRVSTS0_OFFSET)
-	    & ATOM_IBIST_ERR_OFLOW)
-		return 1;
-
-	return 0;
-}
-
-static inline enum ntb_topo atom_ppd_topo(struct intel_ntb_dev *ndev, u32 ppd)
-{
-	struct device *dev = &ndev->ntb.pdev->dev;
-
-	switch (ppd & ATOM_PPD_TOPO_MASK) {
-	case ATOM_PPD_TOPO_B2B_USD:
-		dev_dbg(dev, "PPD %d B2B USD\n", ppd);
-		return NTB_TOPO_B2B_USD;
-
-	case ATOM_PPD_TOPO_B2B_DSD:
-		dev_dbg(dev, "PPD %d B2B DSD\n", ppd);
-		return NTB_TOPO_B2B_DSD;
-
-	case ATOM_PPD_TOPO_PRI_USD:
-	case ATOM_PPD_TOPO_PRI_DSD: /* accept bogus PRI_DSD */
-	case ATOM_PPD_TOPO_SEC_USD:
-	case ATOM_PPD_TOPO_SEC_DSD: /* accept bogus SEC_DSD */
-		dev_dbg(dev, "PPD %d non B2B disabled\n", ppd);
-		return NTB_TOPO_NONE;
-	}
-
-	dev_dbg(dev, "PPD %d invalid\n", ppd);
-	return NTB_TOPO_NONE;
-}
-
-static void atom_link_hb(struct work_struct *work)
-{
-	struct intel_ntb_dev *ndev = hb_ndev(work);
-	struct device *dev = &ndev->ntb.pdev->dev;
-	unsigned long poll_ts;
-	void __iomem *mmio;
-	u32 status32;
-
-	poll_ts = ndev->last_ts + ATOM_LINK_HB_TIMEOUT;
-
-	/* Delay polling the link status if an interrupt was received,
-	 * unless the cached link status says the link is down.
-	 */
-	if (time_after(poll_ts, jiffies) && atom_link_is_up(ndev)) {
-		schedule_delayed_work(&ndev->hb_timer, poll_ts - jiffies);
-		return;
-	}
-
-	if (atom_poll_link(ndev))
-		ntb_link_event(&ndev->ntb);
-
-	if (atom_link_is_up(ndev) || !atom_link_is_err(ndev)) {
-		schedule_delayed_work(&ndev->hb_timer, ATOM_LINK_HB_TIMEOUT);
-		return;
-	}
-
-	/* Link is down with error: recover the link! */
-
-	mmio = ndev->self_mmio;
-
-	/* Driver resets the NTB ModPhy lanes - magic! */
-	iowrite8(0xe0, mmio + ATOM_MODPHY_PCSREG6);
-	iowrite8(0x40, mmio + ATOM_MODPHY_PCSREG4);
-	iowrite8(0x60, mmio + ATOM_MODPHY_PCSREG4);
-	iowrite8(0x60, mmio + ATOM_MODPHY_PCSREG6);
-
-	/* Driver waits 100ms to allow the NTB ModPhy to settle */
-	msleep(100);
-
-	/* Clear AER Errors, write to clear */
-	status32 = ioread32(mmio + ATOM_ERRCORSTS_OFFSET);
-	dev_dbg(dev, "ERRCORSTS = %x\n", status32);
-	status32 &= PCI_ERR_COR_REP_ROLL;
-	iowrite32(status32, mmio + ATOM_ERRCORSTS_OFFSET);
-
-	/* Clear unexpected electrical idle event in LTSSM, write to clear */
-	status32 = ioread32(mmio + ATOM_LTSSMERRSTS0_OFFSET);
-	dev_dbg(dev, "LTSSMERRSTS0 = %x\n", status32);
-	status32 |= ATOM_LTSSMERRSTS0_UNEXPECTEDEI;
-	iowrite32(status32, mmio + ATOM_LTSSMERRSTS0_OFFSET);
-
-	/* Clear DeSkew Buffer error, write to clear */
-	status32 = ioread32(mmio + ATOM_DESKEWSTS_OFFSET);
-	dev_dbg(dev, "DESKEWSTS = %x\n", status32);
-	status32 |= ATOM_DESKEWSTS_DBERR;
-	iowrite32(status32, mmio + ATOM_DESKEWSTS_OFFSET);
-
-	status32 = ioread32(mmio + ATOM_IBSTERRRCRVSTS0_OFFSET);
-	dev_dbg(dev, "IBSTERRRCRVSTS0 = %x\n", status32);
-	status32 &= ATOM_IBIST_ERR_OFLOW;
-	iowrite32(status32, mmio + ATOM_IBSTERRRCRVSTS0_OFFSET);
-
-	/* Releases the NTB state machine to allow the link to retrain */
-	status32 = ioread32(mmio + ATOM_LTSSMSTATEJMP_OFFSET);
-	dev_dbg(dev, "LTSSMSTATEJMP = %x\n", status32);
-	status32 &= ~ATOM_LTSSMSTATEJMP_FORCEDETECT;
-	iowrite32(status32, mmio + ATOM_LTSSMSTATEJMP_OFFSET);
-
-	/* There is a potential race between the 2 NTB devices recovering at the
-	 * same time.  If the times are the same, the link will not recover and
-	 * the driver will be stuck in this loop forever.  Add a random interval
-	 * to the recovery time to prevent this race.
-	 */
-	schedule_delayed_work(&ndev->hb_timer, ATOM_LINK_RECOVERY_TIME
-			      + prandom_u32() % ATOM_LINK_RECOVERY_TIME);
-}
-
-static int atom_init_isr(struct intel_ntb_dev *ndev)
-{
-	int rc;
-
-	rc = ndev_init_isr(ndev, 1, ATOM_DB_MSIX_VECTOR_COUNT,
-			   ATOM_DB_MSIX_VECTOR_SHIFT, ATOM_DB_TOTAL_SHIFT);
-	if (rc)
-		return rc;
-
-	/* ATOM doesn't have link status interrupt, poll on that platform */
-	ndev->last_ts = jiffies;
-	INIT_DELAYED_WORK(&ndev->hb_timer, atom_link_hb);
-	schedule_delayed_work(&ndev->hb_timer, ATOM_LINK_HB_TIMEOUT);
-
-	return 0;
-}
-
-static void atom_deinit_isr(struct intel_ntb_dev *ndev)
-{
-	cancel_delayed_work_sync(&ndev->hb_timer);
-	ndev_deinit_isr(ndev);
-}
-
-static int atom_init_ntb(struct intel_ntb_dev *ndev)
-{
-	ndev->mw_count = ATOM_MW_COUNT;
-	ndev->spad_count = ATOM_SPAD_COUNT;
-	ndev->db_count = ATOM_DB_COUNT;
-
-	switch (ndev->ntb.topo) {
-	case NTB_TOPO_B2B_USD:
-	case NTB_TOPO_B2B_DSD:
-		ndev->self_reg = &atom_pri_reg;
-		ndev->peer_reg = &atom_b2b_reg;
-		ndev->xlat_reg = &atom_sec_xlat;
-
-		/* Enable Bus Master and Memory Space on the secondary side */
-		iowrite16(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER,
-			  ndev->self_mmio + ATOM_SPCICMD_OFFSET);
-
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	ndev->db_valid_mask = BIT_ULL(ndev->db_count) - 1;
-
-	return 0;
-}
-
-static int atom_init_dev(struct intel_ntb_dev *ndev)
-{
-	u32 ppd;
-	int rc;
-
-	rc = pci_read_config_dword(ndev->ntb.pdev, ATOM_PPD_OFFSET, &ppd);
-	if (rc)
-		return -EIO;
-
-	ndev->ntb.topo = atom_ppd_topo(ndev, ppd);
-	if (ndev->ntb.topo == NTB_TOPO_NONE)
-		return -EINVAL;
-
-	rc = atom_init_ntb(ndev);
-	if (rc)
-		return rc;
-
-	rc = atom_init_isr(ndev);
-	if (rc)
-		return rc;
-
-	if (ndev->ntb.topo != NTB_TOPO_SEC) {
-		/* Initiate PCI-E link training */
-		rc = pci_write_config_dword(ndev->ntb.pdev, ATOM_PPD_OFFSET,
-					    ppd | ATOM_PPD_INIT_LINK);
-		if (rc)
-			return rc;
-	}
-
-	return 0;
-}
-
-static void atom_deinit_dev(struct intel_ntb_dev *ndev)
-{
-	atom_deinit_isr(ndev);
-}
-
 /* Skylake Xeon NTB */
 
 static int skx_poll_link(struct intel_ntb_dev *ndev)
@@ -1742,89 +1490,18 @@ static int skx_setup_b2b_mw(struct intel_ntb_dev *ndev,
 {
 	struct pci_dev *pdev;
 	void __iomem *mmio;
-	resource_size_t bar_size;
 	phys_addr_t bar_addr;
-	int b2b_bar;
-	u8 bar_sz;
 
 	pdev = ndev->ntb.pdev;
 	mmio = ndev->self_mmio;
 
-	if (ndev->b2b_idx == UINT_MAX) {
-		dev_dbg(&pdev->dev, "not using b2b mw\n");
-		b2b_bar = 0;
-		ndev->b2b_off = 0;
-	} else {
-		b2b_bar = ndev_mw_to_bar(ndev, ndev->b2b_idx);
-		if (b2b_bar < 0)
-			return -EIO;
-
-		dev_dbg(&pdev->dev, "using b2b mw bar %d\n", b2b_bar);
-
-		bar_size = pci_resource_len(ndev->ntb.pdev, b2b_bar);
-
-		dev_dbg(&pdev->dev, "b2b bar size %#llx\n", bar_size);
-
-		if (b2b_mw_share && ((bar_size >> 1) >= XEON_B2B_MIN_SIZE)) {
-			dev_dbg(&pdev->dev, "b2b using first half of bar\n");
-			ndev->b2b_off = bar_size >> 1;
-		} else if (bar_size >= XEON_B2B_MIN_SIZE) {
-			dev_dbg(&pdev->dev, "b2b using whole bar\n");
-			ndev->b2b_off = 0;
-			--ndev->mw_count;
-		} else {
-			dev_dbg(&pdev->dev, "b2b bar size is too small\n");
-			return -EIO;
-		}
-	}
-
-	/*
-	 * Reset the secondary bar sizes to match the primary bar sizes,
-	 * except disable or halve the size of the b2b secondary bar.
-	 */
-	pci_read_config_byte(pdev, SKX_IMBAR1SZ_OFFSET, &bar_sz);
-	dev_dbg(&pdev->dev, "IMBAR1SZ %#x\n", bar_sz);
-	if (b2b_bar == 1) {
-		if (ndev->b2b_off)
-			bar_sz -= 1;
-		else
-			bar_sz = 0;
-	}
-
-	pci_write_config_byte(pdev, SKX_EMBAR1SZ_OFFSET, bar_sz);
-	pci_read_config_byte(pdev, SKX_EMBAR1SZ_OFFSET, &bar_sz);
-	dev_dbg(&pdev->dev, "EMBAR1SZ %#x\n", bar_sz);
-
-	pci_read_config_byte(pdev, SKX_IMBAR2SZ_OFFSET, &bar_sz);
-	dev_dbg(&pdev->dev, "IMBAR2SZ %#x\n", bar_sz);
-	if (b2b_bar == 2) {
-		if (ndev->b2b_off)
-			bar_sz -= 1;
-		else
-			bar_sz = 0;
-	}
-
-	pci_write_config_byte(pdev, SKX_EMBAR2SZ_OFFSET, bar_sz);
-	pci_read_config_byte(pdev, SKX_EMBAR2SZ_OFFSET, &bar_sz);
-	dev_dbg(&pdev->dev, "EMBAR2SZ %#x\n", bar_sz);
-
-	/* SBAR01 hit by first part of the b2b bar */
-	if (b2b_bar == 0)
-		bar_addr = addr->bar0_addr;
-	else if (b2b_bar == 1)
-		bar_addr = addr->bar2_addr64;
-	else if (b2b_bar == 2)
-		bar_addr = addr->bar4_addr64;
-	else
-		return -EIO;
-
 	/* setup incoming bar limits == base addrs (zero length windows) */
-	bar_addr = addr->bar2_addr64 + (b2b_bar == 1 ? ndev->b2b_off : 0);
+	bar_addr = addr->bar2_addr64;
 	iowrite64(bar_addr, mmio + SKX_IMBAR1XLMT_OFFSET);
 	bar_addr = ioread64(mmio + SKX_IMBAR1XLMT_OFFSET);
 	dev_dbg(&pdev->dev, "IMBAR1XLMT %#018llx\n", bar_addr);
 
-	bar_addr = addr->bar4_addr64 + (b2b_bar == 2 ? ndev->b2b_off : 0);
+	bar_addr = addr->bar4_addr64;
 	iowrite64(bar_addr, mmio + SKX_IMBAR2XLMT_OFFSET);
 	bar_addr = ioread64(mmio + SKX_IMBAR2XLMT_OFFSET);
 	dev_dbg(&pdev->dev, "IMBAR2XLMT %#018llx\n", bar_addr);
@@ -2657,6 +2334,10 @@ static int intel_ntb_init_pci(struct intel_ntb_dev *ndev, struct pci_dev *pdev)
 			goto err_dma_mask;
 		dev_warn(&pdev->dev, "Cannot DMA consistent highmem\n");
 	}
+	rc = dma_coerce_mask_and_coherent(&ndev->ntb.dev,
+					  dma_get_mask(&pdev->dev));
+	if (rc)
+		goto err_dma_mask;
 
 	ndev->self_mmio = pci_iomap(pdev, 0, 0);
 	if (!ndev->self_mmio) {
@@ -2729,24 +2410,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 
 	node = dev_to_node(&pdev->dev);
 
-	if (pdev_is_atom(pdev)) {
-		ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
-		if (!ndev) {
-			rc = -ENOMEM;
-			goto err_ndev;
-		}
-
-		ndev_init_struct(ndev, pdev);
-
-		rc = intel_ntb_init_pci(ndev, pdev);
-		if (rc)
-			goto err_init_pci;
-
-		rc = atom_init_dev(ndev);
-		if (rc)
-			goto err_init_dev;
-
-	} else if (pdev_is_xeon(pdev)) {
+	if (pdev_is_xeon(pdev)) {
 		ndev = kzalloc_node(sizeof(*ndev), GFP_KERNEL, node);
 		if (!ndev) {
 			rc = -ENOMEM;
@@ -2802,9 +2466,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 
 err_register:
 	ndev_deinit_debugfs(ndev);
-	if (pdev_is_atom(pdev))
-		atom_deinit_dev(ndev);
-	else if (pdev_is_xeon(pdev) || pdev_is_skx_xeon(pdev))
+	if (pdev_is_xeon(pdev) || pdev_is_skx_xeon(pdev))
 		xeon_deinit_dev(ndev);
 err_init_dev:
 	intel_ntb_deinit_pci(ndev);
@@ -2820,40 +2482,11 @@ static void intel_ntb_pci_remove(struct pci_dev *pdev)
 
 	ntb_unregister_device(&ndev->ntb);
 	ndev_deinit_debugfs(ndev);
-	if (pdev_is_atom(pdev))
-		atom_deinit_dev(ndev);
-	else if (pdev_is_xeon(pdev) || pdev_is_skx_xeon(pdev))
+	if (pdev_is_xeon(pdev) || pdev_is_skx_xeon(pdev))
 		xeon_deinit_dev(ndev);
 	intel_ntb_deinit_pci(ndev);
 	kfree(ndev);
 }
-
-static const struct intel_ntb_reg atom_reg = {
-	.poll_link		= atom_poll_link,
-	.link_is_up		= atom_link_is_up,
-	.db_ioread		= atom_db_ioread,
-	.db_iowrite		= atom_db_iowrite,
-	.db_size		= sizeof(u64),
-	.ntb_ctl		= ATOM_NTBCNTL_OFFSET,
-	.mw_bar			= {2, 4},
-};
-
-static const struct intel_ntb_alt_reg atom_pri_reg = {
-	.db_bell		= ATOM_PDOORBELL_OFFSET,
-	.db_mask		= ATOM_PDBMSK_OFFSET,
-	.spad			= ATOM_SPAD_OFFSET,
-};
-
-static const struct intel_ntb_alt_reg atom_b2b_reg = {
-	.db_bell		= ATOM_B2B_DOORBELL_OFFSET,
-	.spad			= ATOM_B2B_SPAD_OFFSET,
-};
-
-static const struct intel_ntb_xlat_reg atom_sec_xlat = {
-	/* FIXME : .bar0_base	= ATOM_SBAR0BASE_OFFSET, */
-	/* FIXME : .bar2_limit	= ATOM_SBAR2LMT_OFFSET, */
-	.bar2_xlat		= ATOM_SBAR2XLAT_OFFSET,
-};
 
 static const struct intel_ntb_reg xeon_reg = {
 	.poll_link		= xeon_poll_link,
@@ -3011,7 +2644,6 @@ static const struct file_operations intel_ntb_debugfs_info = {
 };
 
 static const struct pci_device_id intel_ntb_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_BWD)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_JSF)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_SNB)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_IVT)},

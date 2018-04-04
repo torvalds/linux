@@ -1,0 +1,61 @@
+Amlogic Meson Power Controller
+==============================
+
+The Amlogic Meson SoCs embeds an internal Power domain controller.
+
+VPU Power Domain
+----------------
+
+The Video Processing Unit power domain is controlled by this power controller,
+but the domain requires some external resources to meet the correct power
+sequences.
+The bindings must respect the power domain bindings as described in the file
+power_domain.txt
+
+Device Tree Bindings:
+---------------------
+
+Required properties:
+- compatible: should be "amlogic,meson-gx-pwrc-vpu" for the Meson GX SoCs
+- #power-domain-cells: should be 0
+- amlogic,hhi-sysctrl: phandle to the HHI sysctrl node
+- resets: phandles to the reset lines needed for this power demain sequence
+	as described in ../reset/reset.txt
+- clocks: from common clock binding: handle to VPU and VAPB clocks
+- clock-names: from common clock binding: must contain "vpu", "vapb"
+	corresponding to entry in the clocks property.
+
+Parent node should have the following properties :
+- compatible: "amlogic,meson-gx-ao-sysctrl", "syscon", "simple-mfd"
+- reg: base address and size of the AO system control register space.
+
+Example:
+-------
+
+ao_sysctrl: sys-ctrl@0 {
+	compatible = "amlogic,meson-gx-ao-sysctrl", "syscon", "simple-mfd";
+	reg =  <0x0 0x0 0x0 0x100>;
+
+	pwrc_vpu: power-controller-vpu {
+		compatible = "amlogic,meson-gx-pwrc-vpu";
+		#power-domain-cells = <0>;
+		amlogic,hhi-sysctrl = <&sysctrl>;
+		resets = <&reset RESET_VIU>,
+			 <&reset RESET_VENC>,
+			 <&reset RESET_VCBUS>,
+			 <&reset RESET_BT656>,
+			 <&reset RESET_DVIN_RESET>,
+			 <&reset RESET_RDMA>,
+			 <&reset RESET_VENCI>,
+			 <&reset RESET_VENCP>,
+			 <&reset RESET_VDAC>,
+			 <&reset RESET_VDI6>,
+			 <&reset RESET_VENCL>,
+			 <&reset RESET_VID_LOCK>;
+		clocks = <&clkc CLKID_VPU>,
+			 <&clkc CLKID_VAPB>;
+		clock-names = "vpu", "vapb";
+	};
+};
+
+

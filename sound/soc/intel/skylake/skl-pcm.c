@@ -355,7 +355,8 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	}
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
-	skl_tplg_d0i3_put(skl, mconfig->d0i3_caps);
+	if (mconfig)
+		skl_tplg_d0i3_put(skl, mconfig->d0i3_caps);
 
 	kfree(dma_params);
 }
@@ -536,7 +537,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
+	link = snd_hdac_ext_bus_get_link(ebus, codec_dai->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -619,7 +620,7 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 
 	link_dev->link_prepared = 0;
 
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
+	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec_dai->component->name);
 	if (!link)
 		return -EINVAL;
 
@@ -652,7 +653,7 @@ static const struct snd_soc_dai_ops skl_link_dai_ops = {
 	.trigger = skl_link_pcm_trigger,
 };
 
-static struct snd_soc_dai_driver skl_platform_dai[] = {
+static struct snd_soc_dai_driver skl_fe_dai[] = {
 {
 	.name = "System Pin",
 	.ops = &skl_pcm_dai_ops,
@@ -796,8 +797,10 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.sig_bits = 32,
 	},
 },
+};
 
 /* BE CPU  Dais */
+static struct snd_soc_dai_driver skl_platform_dai[] = {
 {
 	.name = "SSP0 Pin",
 	.ops = &skl_be_ssp_dai_ops,
@@ -974,6 +977,14 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 },
 };
+
+int skl_dai_load(struct snd_soc_component *cmp,
+		 struct snd_soc_dai_driver *pcm_dai)
+{
+	pcm_dai->ops = &skl_pcm_dai_ops;
+
+	return 0;
+}
 
 static int skl_platform_open(struct snd_pcm_substream *substream)
 {
@@ -1332,7 +1343,11 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			return -EIO;
 		}
 
+		/* disable dynamic clock gating during fw and lib download */
+		skl->skl_sst->enable_miscbdcge(platform->dev, false);
+
 		ret = ops->init_fw(platform->dev, skl->skl_sst);
+		skl->skl_sst->enable_miscbdcge(platform->dev, true);
 		if (ret < 0) {
 			dev_err(platform->dev, "Failed to boot first fw: %d\n", ret);
 			return ret;
@@ -1340,6 +1355,12 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 		skl_populate_modules(skl);
 		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 		skl_dsp_enable_notification(skl->skl_sst, false);
+
+		if (skl->cfg.astate_cfg != NULL) {
+			skl_dsp_set_astate_cfg(skl->skl_sst,
+					skl->cfg.astate_cfg->count,
+					skl->cfg.astate_cfg);
+		}
 	}
 	pm_runtime_mark_last_busy(platform->dev);
 	pm_runtime_put_autosuspend(platform->dev);
@@ -1362,6 +1383,8 @@ int skl_platform_register(struct device *dev)
 	int ret;
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
 	struct skl *skl = ebus_to_skl(ebus);
+	struct snd_soc_dai_driver *dais;
+	int num_dais = ARRAY_SIZE(skl_platform_dai);
 
 	INIT_LIST_HEAD(&skl->ppl_list);
 	INIT_LIST_HEAD(&skl->bind_list);
@@ -1371,14 +1394,38 @@ int skl_platform_register(struct device *dev)
 		dev_err(dev, "soc platform registration failed %d\n", ret);
 		return ret;
 	}
-	ret = snd_soc_register_component(dev, &skl_component,
-				skl_platform_dai,
-				ARRAY_SIZE(skl_platform_dai));
-	if (ret) {
-		dev_err(dev, "soc component registration failed %d\n", ret);
-		snd_soc_unregister_platform(dev);
+
+	skl->dais = kmemdup(skl_platform_dai, sizeof(skl_platform_dai),
+			    GFP_KERNEL);
+	if (!skl->dais) {
+		ret = -ENOMEM;
+		goto err;
 	}
 
+	if (!skl->use_tplg_pcm) {
+		dais = krealloc(skl->dais, sizeof(skl_fe_dai) +
+				sizeof(skl_platform_dai), GFP_KERNEL);
+		if (!dais) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		skl->dais = dais;
+		memcpy(&skl->dais[ARRAY_SIZE(skl_platform_dai)], skl_fe_dai,
+		       sizeof(skl_fe_dai));
+		num_dais += ARRAY_SIZE(skl_fe_dai);
+	}
+
+	ret = snd_soc_register_component(dev, &skl_component,
+					 skl->dais, num_dais);
+	if (ret) {
+		dev_err(dev, "soc component registration failed %d\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	snd_soc_unregister_platform(dev);
 	return ret;
 
 }
@@ -1398,5 +1445,7 @@ int skl_platform_unregister(struct device *dev)
 
 	snd_soc_unregister_component(dev);
 	snd_soc_unregister_platform(dev);
+	kfree(skl->dais);
+
 	return 0;
 }

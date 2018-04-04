@@ -24,8 +24,8 @@
 
 #include "kbuffer.h"
 
-#define MISSING_EVENTS (1 << 31)
-#define MISSING_STORED (1 << 30)
+#define MISSING_EVENTS (1UL << 31)
+#define MISSING_STORED (1UL << 30)
 
 #define COMMIT_MASK ((1 << 27) - 1)
 

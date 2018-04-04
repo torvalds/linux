@@ -184,6 +184,7 @@ static int ci_set_overdrive_target_tdp(struct radeon_device *rdev,
 				       u32 target_tdp);
 static int ci_update_uvd_dpm(struct radeon_device *rdev, bool gate);
 
+static PPSMC_Result ci_send_msg_to_smc(struct radeon_device *rdev, PPSMC_Msg msg);
 static PPSMC_Result ci_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 						      PPSMC_Msg msg, u32 parameter);
 
@@ -1650,6 +1651,27 @@ static int ci_notify_hw_of_power_source(struct radeon_device *rdev,
 	return 0;
 }
 #endif
+
+static PPSMC_Result ci_send_msg_to_smc(struct radeon_device *rdev, PPSMC_Msg msg)
+{
+	u32 tmp;
+	int i;
+
+	if (!ci_is_smc_running(rdev))
+		return PPSMC_Result_Failed;
+
+	WREG32(SMC_MESSAGE_0, msg);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(SMC_RESP_0);
+		if (tmp != 0)
+			break;
+		udelay(1);
+	}
+	tmp = RREG32(SMC_RESP_0);
+
+	return (PPSMC_Result)tmp;
+}
 
 static PPSMC_Result ci_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 						      PPSMC_Msg msg, u32 parameter)

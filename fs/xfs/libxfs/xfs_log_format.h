@@ -264,7 +264,7 @@ typedef struct xfs_trans_header {
  * (if any) is indicated in the ilf_dsize field.  Changes to this structure
  * must be added on to the end.
  */
-typedef struct xfs_inode_log_format {
+struct xfs_inode_log_format {
 	uint16_t		ilf_type;	/* inode log item type */
 	uint16_t		ilf_size;	/* size of this item */
 	uint32_t		ilf_fields;	/* flags for fields logged */
@@ -274,12 +274,12 @@ typedef struct xfs_inode_log_format {
 	uint64_t		ilf_ino;	/* inode number */
 	union {
 		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
+		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */
 	int32_t			ilf_boffset;	/* off of inode in buffer */
-} xfs_inode_log_format_t;
+};
 
 /*
  * Old 32 bit systems will log in this format without the 64 bit
@@ -295,7 +295,7 @@ struct xfs_inode_log_format_32 {
 	uint64_t		ilf_ino;	/* inode number */
 	union {
 		uint32_t	ilfu_rdev;	/* rdev value for dev inode*/
-		uuid_t		ilfu_uuid;	/* mount point value */
+		uint8_t		__pad[16];	/* unused */
 	} ilf_u;
 	int64_t			ilf_blkno;	/* blkno of inode buffer */
 	int32_t			ilf_len;	/* len of inode buffer */
@@ -311,7 +311,7 @@ struct xfs_inode_log_format_32 {
 #define	XFS_ILOG_DEXT	0x004	/* log i_df.if_extents */
 #define	XFS_ILOG_DBROOT	0x008	/* log i_df.i_broot */
 #define	XFS_ILOG_DEV	0x010	/* log the dev field */
-#define	XFS_ILOG_UUID	0x020	/* log the uuid field */
+#define	XFS_ILOG_UUID	0x020	/* added long ago, but never used */
 #define	XFS_ILOG_ADATA	0x040	/* log i_af.if_data */
 #define	XFS_ILOG_AEXT	0x080	/* log i_af.if_extents */
 #define	XFS_ILOG_ABROOT	0x100	/* log i_af.i_broot */
@@ -329,9 +329,9 @@ struct xfs_inode_log_format_32 {
 
 #define	XFS_ILOG_NONCORE	(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT | XFS_ILOG_DEV | \
-				 XFS_ILOG_UUID | XFS_ILOG_ADATA | \
-				 XFS_ILOG_AEXT | XFS_ILOG_ABROOT | \
-				 XFS_ILOG_DOWNER | XFS_ILOG_AOWNER)
+				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
+				 XFS_ILOG_ABROOT | XFS_ILOG_DOWNER | \
+				 XFS_ILOG_AOWNER)
 
 #define	XFS_ILOG_DFORK		(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT)
@@ -341,10 +341,10 @@ struct xfs_inode_log_format_32 {
 
 #define	XFS_ILOG_ALL		(XFS_ILOG_CORE | XFS_ILOG_DDATA | \
 				 XFS_ILOG_DEXT | XFS_ILOG_DBROOT | \
-				 XFS_ILOG_DEV | XFS_ILOG_UUID | \
-				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
-				 XFS_ILOG_ABROOT | XFS_ILOG_TIMESTAMP | \
-				 XFS_ILOG_DOWNER | XFS_ILOG_AOWNER)
+				 XFS_ILOG_DEV | XFS_ILOG_ADATA | \
+				 XFS_ILOG_AEXT | XFS_ILOG_ABROOT | \
+				 XFS_ILOG_TIMESTAMP | XFS_ILOG_DOWNER | \
+				 XFS_ILOG_AOWNER)
 
 static inline int xfs_ilog_fbroot(int w)
 {

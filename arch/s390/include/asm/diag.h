@@ -229,12 +229,54 @@ struct diag204_x_phys_block {
 } __packed;
 
 enum diag26c_sc {
+	DIAG26C_PORT_VNIC    = 0x00000024,
 	DIAG26C_MAC_SERVICES = 0x00000030
 };
 
 enum diag26c_version {
-	DIAG26C_VERSION2 = 0x00000002	/* z/VM 5.4.0 */
+	DIAG26C_VERSION2	 = 0x00000002,	/* z/VM 5.4.0 */
+	DIAG26C_VERSION6_VM65918 = 0x00020006	/* z/VM 6.4.0 + VM65918 */
 };
+
+#define DIAG26C_VNIC_INFO	0x0002
+struct diag26c_vnic_req {
+	u32	resp_buf_len;
+	u32	resp_version;
+	u16	req_format;
+	u16	vlan_id;
+	u64	sys_name;
+	u8	res[2];
+	u16	devno;
+} __packed __aligned(8);
+
+#define VNIC_INFO_PROT_L3	1
+#define VNIC_INFO_PROT_L2	2
+/* Note: this is the bare minimum, use it for uninitialized VNICs only. */
+struct diag26c_vnic_resp {
+	u32	version;
+	u32	entry_cnt;
+	/* VNIC info: */
+	u32	next_entry;
+	u64	owner;
+	u16	devno;
+	u8	status;
+	u8	type;
+	u64	lan_owner;
+	u64	lan_name;
+	u64	port_name;
+	u8	port_type;
+	u8	ext_status:6;
+	u8	protocol:2;
+	u16	base_devno;
+	u32	port_num;
+	u32	ifindex;
+	u32	maxinfo;
+	u32	dev_count;
+	/* 3x device info: */
+	u8	dev_info1[28];
+	u8	dev_info2[28];
+	u8	dev_info3[28];
+} __packed __aligned(8);
 
 #define DIAG26C_GET_MAC	0x0000
 struct diag26c_mac_req {

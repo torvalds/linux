@@ -286,7 +286,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -ENOENT;
@@ -369,7 +369,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	fb = drm_framebuffer_lookup(dev, arg->fb_id);
+	fb = drm_framebuffer_lookup(dev, file_priv, arg->fb_id);
 	if (!fb) {
 		DRM_ERROR("Invalid framebuffer id.\n");
 		ret = -ENOENT;
@@ -412,7 +412,7 @@ out_clips:
  * Wrapper around the drm_poll function that makes sure the device is
  * processing the fifo if drm_poll decides to wait.
  */
-unsigned int vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
+__poll_t vmw_fops_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv =

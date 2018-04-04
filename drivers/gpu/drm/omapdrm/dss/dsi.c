@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dsi.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -4095,7 +4093,7 @@ static void dsi_update_screen_dispc(struct platform_device *dsidev)
 }
 
 #ifdef DSI_CATCH_MISSING_TE
-static void dsi_te_timeout(unsigned long arg)
+static void dsi_te_timeout(struct timer_list *unused)
 {
 	DSSERR("TE not received for 250ms!\n");
 }
@@ -5449,9 +5447,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 			     dsi_framedone_timeout_work_callback);
 
 #ifdef DSI_CATCH_MISSING_TE
-	init_timer(&dsi->te_timer);
-	dsi->te_timer.function = dsi_te_timeout;
-	dsi->te_timer.data = 0;
+	timer_setup(&dsi->te_timer, dsi_te_timeout, 0);
 #endif
 
 	dsi_mem = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");
@@ -5662,7 +5658,7 @@ static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_resume = dsi_runtime_resume,
 };
 
-static struct platform_driver omap_dsihw_driver = {
+struct platform_driver omap_dsihw_driver = {
 	.probe		= dsi_probe,
 	.remove		= dsi_remove,
 	.driver         = {
@@ -5672,13 +5668,3 @@ static struct platform_driver omap_dsihw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init dsi_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dsihw_driver);
-}
-
-void dsi_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dsihw_driver);
-}

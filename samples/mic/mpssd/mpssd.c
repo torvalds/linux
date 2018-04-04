@@ -65,7 +65,7 @@ static struct mic_info mic_list;
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)        _ALIGN(addr, PAGE_SIZE)
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
 
 #define GSO_ENABLED		1
 #define MAX_GSO_SIZE		(64 * 1024)
@@ -382,7 +382,7 @@ disp_iovec(struct mic_info *mic, struct mic_copy_desc *copy,
 
 static inline __u16 read_avail_idx(struct mic_vring *vr)
 {
-	return ACCESS_ONCE(vr->info->avail_idx);
+	return READ_ONCE(vr->info->avail_idx);
 }
 
 static inline void txrx_prepare(int type, bool tx, struct mic_vring *vr,
@@ -523,7 +523,7 @@ spin_for_descriptors(struct mic_info *mic, struct mic_vring *vr)
 {
 	__u16 avail_idx = read_avail_idx(vr);
 
-	while (avail_idx == le16toh(ACCESS_ONCE(vr->vr.avail->idx))) {
+	while (avail_idx == le16toh(READ_ONCE(vr->vr.avail->idx))) {
 #ifdef DEBUG
 		mpsslog("%s %s waiting for desc avail %d info_avail %d\n",
 			mic->name, __func__,

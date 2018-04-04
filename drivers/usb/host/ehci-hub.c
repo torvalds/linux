@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2001-2004 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* this file is part of ehci-hcd.c */
@@ -787,12 +774,12 @@ static struct urb *request_single_step_set_feature_urb(
 	atomic_inc(&urb->use_count);
 	atomic_inc(&urb->dev->urbnum);
 	urb->setup_dma = dma_map_single(
-			hcd->self.controller,
+			hcd->self.sysdev,
 			urb->setup_packet,
 			sizeof(struct usb_ctrlrequest),
 			DMA_TO_DEVICE);
 	urb->transfer_dma = dma_map_single(
-			hcd->self.controller,
+			hcd->self.sysdev,
 			urb->transfer_buffer,
 			urb->transfer_buffer_length,
 			DMA_FROM_DEVICE);

@@ -195,6 +195,9 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	unsigned long next, limit;
 	int err;
 
+	if (radix_enabled())
+		return -ENOENT;
+
 	/* Check parameters */
 	if ((addr & ~PAGE_MASK) || (len & ~PAGE_MASK) ||
 	    addr >= mm->task_size || len >= mm->task_size ||

@@ -2,7 +2,6 @@
 /*
  * Architecture specific OF callbacks.
  */
-#include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -37,11 +36,6 @@ void __init early_init_dt_scan_chosen_arch(unsigned long node)
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	BUG();
-}
-
-void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	return __alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS));
 }
 
 void __init add_dtb(u64 data)

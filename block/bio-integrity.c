@@ -374,7 +374,6 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 /**
  * __bio_integrity_endio - Integrity I/O completion function
  * @bio:	Protected bio
- * @error:	Pointer to errno
  *
  * Description: Completion for integrity I/O
  *
@@ -485,11 +484,8 @@ EXPORT_SYMBOL(bioset_integrity_create);
 
 void bioset_integrity_free(struct bio_set *bs)
 {
-	if (bs->bio_integrity_pool)
-		mempool_destroy(bs->bio_integrity_pool);
-
-	if (bs->bvec_integrity_pool)
-		mempool_destroy(bs->bvec_integrity_pool);
+	mempool_destroy(bs->bio_integrity_pool);
+	mempool_destroy(bs->bvec_integrity_pool);
 }
 EXPORT_SYMBOL(bioset_integrity_free);
 

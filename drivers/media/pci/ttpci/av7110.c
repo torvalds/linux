@@ -53,7 +53,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "ttpci-eeprom.h"
 #include "av7110.h"
@@ -324,14 +324,15 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 		}
 		return dvbdmxfilter->feed->cb.sec(buffer1, buffer1_len,
 						  buffer2, buffer2_len,
-						  &dvbdmxfilter->filter);
+						  &dvbdmxfilter->filter, NULL);
 	case DMX_TYPE_TS:
 		if (!(dvbdmxfilter->feed->ts_type & TS_PACKET))
 			return 0;
 		if (dvbdmxfilter->feed->ts_type & TS_PAYLOAD_ONLY)
 			return dvbdmxfilter->feed->cb.ts(buffer1, buffer1_len,
 							 buffer2, buffer2_len,
-							 &dvbdmxfilter->feed->feed.ts);
+							 &dvbdmxfilter->feed->feed.ts,
+							 NULL);
 		else
 			av7110_p2t_write(buffer1, buffer1_len,
 					 dvbdmxfilter->feed->pid,
@@ -347,9 +348,9 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 static inline void print_time(char *s)
 {
 #ifdef DEBUG_TIMING
-	struct timeval tv;
-	do_gettimeofday(&tv);
-	printk("%s: %d.%d\n", s, (int)tv.tv_sec, (int)tv.tv_usec);
+	struct timespec64 ts;
+	ktime_get_real_ts64(&ts);
+	printk("%s: %lld.%09ld\n", s, (s64)ts.tv_sec, ts.tv_nsec);
 #endif
 }
 
@@ -1224,7 +1225,7 @@ static int budget_start_feed(struct dvb_demux_feed *feed)
 	dprintk(2, "av7110: %p\n", budget);
 
 	spin_lock(&budget->feedlock1);
-	feed->pusi_seen = 0; /* have a clean section start */
+	feed->pusi_seen = false; /* have a clean section start */
 	status = start_ts_capture(budget);
 	spin_unlock(&budget->feedlock1);
 	return status;

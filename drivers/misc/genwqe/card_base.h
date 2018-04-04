@@ -47,13 +47,13 @@
 #define GENWQE_CARD_NO_MAX		(16 * GENWQE_MAX_FUNCS)
 
 /* Compile parameters, some of them appear in debugfs for later adjustment */
-#define genwqe_ddcb_max			32 /* DDCBs on the work-queue */
-#define genwqe_polling_enabled		0  /* in case of irqs not working */
-#define genwqe_ddcb_software_timeout	10 /* timeout per DDCB in seconds */
-#define genwqe_kill_timeout		8  /* time until process gets killed */
-#define genwqe_vf_jobtimeout_msec	250  /* 250 msec */
-#define genwqe_pf_jobtimeout_msec	8000 /* 8 sec should be ok */
-#define genwqe_health_check_interval	4 /* <= 0: disabled */
+#define GENWQE_DDCB_MAX			32 /* DDCBs on the work-queue */
+#define GENWQE_POLLING_ENABLED		0  /* in case of irqs not working */
+#define GENWQE_DDCB_SOFTWARE_TIMEOUT	10 /* timeout per DDCB in seconds */
+#define GENWQE_KILL_TIMEOUT		8  /* time until process gets killed */
+#define GENWQE_VF_JOBTIMEOUT_MSEC	250  /* 250 msec */
+#define GENWQE_PF_JOBTIMEOUT_MSEC	8000 /* 8 sec should be ok */
+#define GENWQE_HEALTH_CHECK_INTERVAL	4 /* <= 0: disabled */
 
 /* Sysfs attribute groups used when we create the genwqe device */
 extern const struct attribute_group *genwqe_attribute_groups[];
@@ -182,6 +182,7 @@ struct dma_mapping {
 
 	struct list_head card_list;	/* list of usr_maps for card */
 	struct list_head pin_list;	/* list of pinned memory for dev */
+	int write;			/* writable map? useful in unmapping */
 };
 
 static inline void genwqe_mapping_init(struct dma_mapping *m,
@@ -189,6 +190,7 @@ static inline void genwqe_mapping_init(struct dma_mapping *m,
 {
 	memset(m, 0, sizeof(*m));
 	m->type = type;
+	m->write = 1; /* Assume the maps we create are R/W */
 }
 
 /**
@@ -347,6 +349,7 @@ enum genwqe_requ_state {
  * @user_size:      size of user-space memory area
  * @page:           buffer for partial pages if needed
  * @page_dma_addr:  dma address partial pages
+ * @write:          should we write it back to userspace?
  */
 struct genwqe_sgl {
 	dma_addr_t sgl_dma_addr;
@@ -355,6 +358,8 @@ struct genwqe_sgl {
 
 	void __user *user_addr; /* user-space base-address */
 	size_t user_size;       /* size of memory area */
+
+	int write;
 
 	unsigned long nr_pages;
 	unsigned long fpage_offs;
@@ -369,7 +374,7 @@ struct genwqe_sgl {
 };
 
 int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
-			  void __user *user_addr, size_t user_size);
+			  void __user *user_addr, size_t user_size, int write);
 
 int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		     dma_addr_t *dma_list);
@@ -485,11 +490,9 @@ int  genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len);
 
 /* Memory allocation/deallocation; dma address handling */
 int  genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m,
-		      void *uaddr, unsigned long size,
-		      struct ddcb_requ *req);
+		      void *uaddr, unsigned long size);
 
-int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
-			struct ddcb_requ *req);
+int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m);
 
 static inline bool dma_mapping_used(struct dma_mapping *m)
 {

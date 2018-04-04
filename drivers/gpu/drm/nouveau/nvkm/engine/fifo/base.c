@@ -27,6 +27,7 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/notify.h>
+#include <subdev/mc.h>
 
 #include <nvif/event.h>
 #include <nvif/unpack.h>
@@ -278,6 +279,12 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 	return 0;
 }
 
+static void
+nvkm_fifo_preinit(struct nvkm_engine *engine)
+{
+	nvkm_mc_reset(engine->subdev.device, NVKM_ENGINE_FIFO);
+}
+
 static int
 nvkm_fifo_init(struct nvkm_engine *engine)
 {
@@ -302,6 +309,7 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 static const struct nvkm_engine_func
 nvkm_fifo = {
 	.dtor = nvkm_fifo_dtor,
+	.preinit = nvkm_fifo_preinit,
 	.oneinit = nvkm_fifo_oneinit,
 	.init = nvkm_fifo_init,
 	.fini = nvkm_fifo_fini,

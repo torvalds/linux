@@ -2304,8 +2304,8 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	vpfe_dbg(1, vpfe, "vpfe_async_bound\n");
 
 	for (i = 0; i < ARRAY_SIZE(vpfe->cfg->asd); i++) {
-		if (vpfe->cfg->asd[i]->match.fwnode.fwnode ==
-		    asd[i].match.fwnode.fwnode) {
+		if (vpfe->cfg->asd[i]->match.fwnode ==
+		    asd[i].match.fwnode) {
 			sdinfo = &vpfe->cfg->sub_devs[i];
 			vpfe->sd[i] = subdev;
 			vpfe->sd[i]->grp_id = sdinfo->grp_id;
@@ -2417,6 +2417,11 @@ static int vpfe_async_complete(struct v4l2_async_notifier *notifier)
 	return vpfe_probe_complete(vpfe);
 }
 
+static const struct v4l2_async_notifier_operations vpfe_async_ops = {
+	.bound = vpfe_async_bound,
+	.complete = vpfe_async_complete,
+};
+
 static struct vpfe_config *
 vpfe_get_pdata(struct platform_device *pdev)
 {
@@ -2505,7 +2510,7 @@ vpfe_get_pdata(struct platform_device *pdev)
 		}
 
 		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		pdata->asd[i]->match.fwnode.fwnode = of_fwnode_handle(rem);
+		pdata->asd[i]->match.fwnode = of_fwnode_handle(rem);
 		of_node_put(rem);
 	}
 
@@ -2590,8 +2595,7 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	vpfe->notifier.subdevs = vpfe->cfg->asd;
 	vpfe->notifier.num_subdevs = ARRAY_SIZE(vpfe->cfg->asd);
-	vpfe->notifier.bound = vpfe_async_bound;
-	vpfe->notifier.complete = vpfe_async_complete;
+	vpfe->notifier.ops = &vpfe_async_ops;
 	ret = v4l2_async_notifier_register(&vpfe->v4l2_dev,
 						&vpfe->notifier);
 	if (ret) {

@@ -429,11 +429,11 @@ static void irda_selective_discovery_indication(discinfo_t *discovery,
  * We were waiting for a node to be discovered, but nothing has come up
  * so far. Wake up the user and tell him that we failed...
  */
-static void irda_discovery_timeout(u_long priv)
+static void irda_discovery_timeout(struct timer_list *t)
 {
 	struct irda_sock *self;
 
-	self = (struct irda_sock *) priv;
+	self = from_timer(self, t, watchdog);
 	BUG_ON(self == NULL);
 
 	/* Nothing for the caller */
@@ -1737,28 +1737,28 @@ static int irda_shutdown(struct socket *sock, int how)
 /*
  * Function irda_poll (file, sock, wait)
  */
-static unsigned int irda_poll(struct file * file, struct socket *sock,
+static __poll_t irda_poll(struct file * file, struct socket *sock,
 			      poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *self = irda_sk(sk);
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	/* Exceptional events? */
 	if (sk->sk_err)
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	if (sk->sk_shutdown & RCV_SHUTDOWN) {
 		pr_debug("%s(), POLLHUP\n", __func__);
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	}
 
 	/* Readable? */
 	if (!skb_queue_empty(&sk->sk_receive_queue)) {
 		pr_debug("Socket is readable\n");
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
 	/* Connection-based need to check for termination and startup */
@@ -1766,14 +1766,14 @@ static unsigned int irda_poll(struct file * file, struct socket *sock,
 	case SOCK_STREAM:
 		if (sk->sk_state == TCP_CLOSE) {
 			pr_debug("%s(), POLLHUP\n", __func__);
-			mask |= POLLHUP;
+			mask |= EPOLLHUP;
 		}
 
 		if (sk->sk_state == TCP_ESTABLISHED) {
 			if ((self->tx_flow == FLOW_START) &&
 			    sock_writeable(sk))
 			{
-				mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+				mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 			}
 		}
 		break;
@@ -1781,12 +1781,12 @@ static unsigned int irda_poll(struct file * file, struct socket *sock,
 		if ((self->tx_flow == FLOW_START) &&
 		    sock_writeable(sk))
 		{
-			mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+			mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 		}
 		break;
 	case SOCK_DGRAM:
 		if (sock_writeable(sk))
-			mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+			mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 		break;
 	default:
 		break;
@@ -2505,8 +2505,7 @@ bed:
 
 			/* Set watchdog timer to expire in <val> ms. */
 			self->errno = 0;
-			setup_timer(&self->watchdog, irda_discovery_timeout,
-					(unsigned long)self);
+			timer_setup(&self->watchdog, irda_discovery_timeout, 0);
 			mod_timer(&self->watchdog,
 				  jiffies + msecs_to_jiffies(val));
 

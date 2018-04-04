@@ -21,18 +21,26 @@
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/code-patching.h>
+#include <asm/setup.h>
 
-static int __patch_instruction(unsigned int *addr, unsigned int instr)
+static int __patch_instruction(unsigned int *exec_addr, unsigned int instr,
+			       unsigned int *patch_addr)
 {
 	int err;
 
-	__put_user_size(instr, addr, 4, err);
+	__put_user_size(instr, patch_addr, 4, err);
 	if (err)
 		return err;
 
-	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" :: "r" (addr));
+	asm ("dcbst 0, %0; sync; icbi 0,%1; sync; isync" :: "r" (patch_addr),
+							    "r" (exec_addr));
 
 	return 0;
+}
+
+int raw_patch_instruction(unsigned int *addr, unsigned int instr)
+{
+	return __patch_instruction(addr, instr, addr);
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
@@ -137,7 +145,7 @@ static inline int unmap_patch_area(unsigned long addr)
 int patch_instruction(unsigned int *addr, unsigned int instr)
 {
 	int err;
-	unsigned int *dest = NULL;
+	unsigned int *patch_addr = NULL;
 	unsigned long flags;
 	unsigned long text_poke_addr;
 	unsigned long kaddr = (unsigned long)addr;
@@ -146,12 +154,9 @@ int patch_instruction(unsigned int *addr, unsigned int instr)
 	 * During early early boot patch_instruction is called
 	 * when text_poke_area is not ready, but we still need
 	 * to allow patching. We just do the plain old patching
-	 * We use slab_is_available and per cpu read * via this_cpu_read
-	 * of text_poke_area. Per-CPU areas might not be up early
-	 * this can create problems with just using this_cpu_read()
 	 */
-	if (!slab_is_available() || !this_cpu_read(text_poke_area))
-		return __patch_instruction(addr, instr);
+	if (!this_cpu_read(text_poke_area))
+		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
 
@@ -161,17 +166,10 @@ int patch_instruction(unsigned int *addr, unsigned int instr)
 		goto out;
 	}
 
-	dest = (unsigned int *)(text_poke_addr) +
+	patch_addr = (unsigned int *)(text_poke_addr) +
 			((kaddr & ~PAGE_MASK) / sizeof(unsigned int));
 
-	/*
-	 * We use __put_user_size so that we can handle faults while
-	 * writing to dest and return err to handle faults gracefully
-	 */
-	__put_user_size(instr, dest, 4, err);
-	if (!err)
-		asm ("dcbst 0, %0; sync; icbi 0,%0; icbi 0,%1; sync; isync"
-			::"r" (dest), "r"(addr));
+	__patch_instruction(addr, instr, patch_addr);
 
 	err = unmap_patch_area(text_poke_addr);
 	if (err)
@@ -186,7 +184,7 @@ out:
 
 int patch_instruction(unsigned int *addr, unsigned int instr)
 {
-	return __patch_instruction(addr, instr);
+	return raw_patch_instruction(addr, instr);
 }
 
 #endif /* CONFIG_STRICT_KERNEL_RWX */
@@ -302,6 +300,11 @@ int instr_is_relative_branch(unsigned int instr)
 		return 0;
 
 	return instr_is_branch_iform(instr) || instr_is_branch_bform(instr);
+}
+
+int instr_is_relative_link_branch(unsigned int instr)
+{
+	return instr_is_relative_branch(instr) && (instr & BRANCH_SET_LINK);
 }
 
 static unsigned long branch_iform_target(const unsigned int *instr)

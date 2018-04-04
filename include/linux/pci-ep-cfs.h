@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /**
  * PCI Endpoint ConfigFS header file
  *
  * Copyright (C) 2017 Texas Instruments
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 of
- * the License as published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_PCI_EP_CFS_H

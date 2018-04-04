@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
+#include <linux/hwspinlock.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -413,6 +414,54 @@ static unsigned int regmap_parse_64_native(const void *buf)
 }
 #endif
 
+static void regmap_lock_hwlock(void *__map)
+{
+	struct regmap *map = __map;
+
+	hwspin_lock_timeout(map->hwlock, UINT_MAX);
+}
+
+static void regmap_lock_hwlock_irq(void *__map)
+{
+	struct regmap *map = __map;
+
+	hwspin_lock_timeout_irq(map->hwlock, UINT_MAX);
+}
+
+static void regmap_lock_hwlock_irqsave(void *__map)
+{
+	struct regmap *map = __map;
+
+	hwspin_lock_timeout_irqsave(map->hwlock, UINT_MAX,
+				    &map->spinlock_flags);
+}
+
+static void regmap_unlock_hwlock(void *__map)
+{
+	struct regmap *map = __map;
+
+	hwspin_unlock(map->hwlock);
+}
+
+static void regmap_unlock_hwlock_irq(void *__map)
+{
+	struct regmap *map = __map;
+
+	hwspin_unlock_irq(map->hwlock);
+}
+
+static void regmap_unlock_hwlock_irqrestore(void *__map)
+{
+	struct regmap *map = __map;
+
+	hwspin_unlock_irqrestore(map->hwlock, &map->spinlock_flags);
+}
+
+static void regmap_lock_unlock_none(void *__map)
+{
+
+}
+
 static void regmap_lock_mutex(void *__map)
 {
 	struct regmap *map = __map;
@@ -623,10 +672,44 @@ struct regmap *__regmap_init(struct device *dev,
 		goto err;
 	}
 
-	if (config->lock && config->unlock) {
+	if (config->name) {
+		map->name = kstrdup_const(config->name, GFP_KERNEL);
+		if (!map->name) {
+			ret = -ENOMEM;
+			goto err_map;
+		}
+	}
+
+	if (config->disable_locking) {
+		map->lock = map->unlock = regmap_lock_unlock_none;
+		regmap_debugfs_disable(map);
+	} else if (config->lock && config->unlock) {
 		map->lock = config->lock;
 		map->unlock = config->unlock;
 		map->lock_arg = config->lock_arg;
+	} else if (config->use_hwlock) {
+		map->hwlock = hwspin_lock_request_specific(config->hwlock_id);
+		if (!map->hwlock) {
+			ret = -ENXIO;
+			goto err_name;
+		}
+
+		switch (config->hwlock_mode) {
+		case HWLOCK_IRQSTATE:
+			map->lock = regmap_lock_hwlock_irqsave;
+			map->unlock = regmap_unlock_hwlock_irqrestore;
+			break;
+		case HWLOCK_IRQ:
+			map->lock = regmap_lock_hwlock_irq;
+			map->unlock = regmap_unlock_hwlock_irq;
+			break;
+		default:
+			map->lock = regmap_lock_hwlock;
+			map->unlock = regmap_unlock_hwlock;
+			break;
+		}
+
+		map->lock_arg = map;
 	} else {
 		if ((bus && bus->fast_io) ||
 		    config->fast_io) {
@@ -688,14 +771,15 @@ struct regmap *__regmap_init(struct device *dev,
 	map->volatile_reg = config->volatile_reg;
 	map->precious_reg = config->precious_reg;
 	map->cache_type = config->cache_type;
-	map->name = config->name;
 
 	spin_lock_init(&map->async_lock);
 	INIT_LIST_HEAD(&map->async_list);
 	INIT_LIST_HEAD(&map->async_free);
 	init_waitqueue_head(&map->async_waitq);
 
-	if (config->read_flag_mask || config->write_flag_mask) {
+	if (config->read_flag_mask ||
+	    config->write_flag_mask ||
+	    config->zero_flag_mask) {
 		map->read_flag_mask = config->read_flag_mask;
 		map->write_flag_mask = config->write_flag_mask;
 	} else if (bus) {
@@ -729,7 +813,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_write = regmap_format_2_6_write;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 
@@ -739,7 +823,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_write = regmap_format_4_12_write;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 
@@ -749,7 +833,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_write = regmap_format_7_9_write;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 
@@ -759,7 +843,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_write = regmap_format_10_14_write;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 
@@ -779,13 +863,13 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_reg = regmap_format_16_native;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 
 	case 24:
 		if (reg_endian != REGMAP_ENDIAN_BIG)
-			goto err_map;
+			goto err_hwlock;
 		map->format.format_reg = regmap_format_24;
 		break;
 
@@ -801,7 +885,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_reg = regmap_format_32_native;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 
@@ -818,13 +902,13 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.format_reg = regmap_format_64_native;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 #endif
 
 	default:
-		goto err_map;
+		goto err_hwlock;
 	}
 
 	if (val_endian == REGMAP_ENDIAN_NATIVE)
@@ -853,12 +937,12 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.parse_val = regmap_parse_16_native;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 	case 24:
 		if (val_endian != REGMAP_ENDIAN_BIG)
-			goto err_map;
+			goto err_hwlock;
 		map->format.format_val = regmap_format_24;
 		map->format.parse_val = regmap_parse_24;
 		break;
@@ -879,7 +963,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.parse_val = regmap_parse_32_native;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 #ifdef CONFIG_64BIT
@@ -900,7 +984,7 @@ struct regmap *__regmap_init(struct device *dev,
 			map->format.parse_val = regmap_parse_64_native;
 			break;
 		default:
-			goto err_map;
+			goto err_hwlock;
 		}
 		break;
 #endif
@@ -909,18 +993,18 @@ struct regmap *__regmap_init(struct device *dev,
 	if (map->format.format_write) {
 		if ((reg_endian != REGMAP_ENDIAN_BIG) ||
 		    (val_endian != REGMAP_ENDIAN_BIG))
-			goto err_map;
+			goto err_hwlock;
 		map->use_single_write = true;
 	}
 
 	if (!map->format.format_write &&
 	    !(map->format.format_reg && map->format.format_val))
-		goto err_map;
+		goto err_hwlock;
 
 	map->work_buf = kzalloc(map->format.buf_size, GFP_KERNEL);
 	if (map->work_buf == NULL) {
 		ret = -ENOMEM;
-		goto err_map;
+		goto err_hwlock;
 	}
 
 	if (map->format.format_write) {
@@ -1041,6 +1125,11 @@ err_regcache:
 err_range:
 	regmap_range_exit(map);
 	kfree(map->work_buf);
+err_hwlock:
+	if (map->hwlock)
+		hwspin_lock_free(map->hwlock);
+err_name:
+	kfree_const(map->name);
 err_map:
 	kfree(map);
 err:
@@ -1228,6 +1317,9 @@ void regmap_exit(struct regmap *map)
 		kfree(async->work_buf);
 		kfree(async);
 	}
+	if (map->hwlock)
+		hwspin_lock_free(map->hwlock);
+	kfree_const(map->name);
 	kfree(map);
 }
 EXPORT_SYMBOL_GPL(regmap_exit);
@@ -2344,13 +2436,15 @@ static int _regmap_bus_read(void *context, unsigned int reg,
 {
 	int ret;
 	struct regmap *map = context;
+	void *work_val = map->work_buf + map->format.reg_bytes +
+		map->format.pad_bytes;
 
 	if (!map->format.parse_val)
 		return -EINVAL;
 
-	ret = _regmap_raw_read(map, reg, map->work_buf, map->format.val_bytes);
+	ret = _regmap_raw_read(map, reg, work_val, map->format.val_bytes);
 	if (ret == 0)
-		*val = map->format.parse_val(map->work_buf);
+		*val = map->format.parse_val(work_val);
 
 	return ret;
 }

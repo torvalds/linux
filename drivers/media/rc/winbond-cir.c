@@ -1044,7 +1044,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->irq = pnp_irq(device, 0);
 
 	if (data->wbase == 0 || data->ebase == 0 ||
-	    data->sbase == 0 || data->irq == 0) {
+	    data->sbase == 0 || data->irq == -1) {
 		err = -ENODEV;
 		dev_err(dev, "Invalid resources\n");
 		goto exit_free_data;

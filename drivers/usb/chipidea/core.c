@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * core.c - ChipIdea USB IP core family device controller
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
  *
  * Author: David Lopo
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -838,7 +835,7 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 	}
 }
 
-static ssize_t ci_role_show(struct device *dev, struct device_attribute *attr,
+static ssize_t role_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
@@ -849,7 +846,7 @@ static ssize_t ci_role_show(struct device *dev, struct device_attribute *attr,
 	return 0;
 }
 
-static ssize_t ci_role_store(struct device *dev,
+static ssize_t role_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
@@ -880,7 +877,7 @@ static ssize_t ci_role_store(struct device *dev,
 
 	return (ret == 0) ? n : ret;
 }
-static DEVICE_ATTR(role, 0644, ci_role_show, ci_role_store);
+static DEVICE_ATTR_RW(role);
 
 static struct attribute *ci_attrs[] = {
 	&dev_attr_role.attr,

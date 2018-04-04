@@ -3304,6 +3304,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->ethtool_ops = &cxgb_ethtool_ops;
 		netdev->min_mtu = 81;
 		netdev->max_mtu = ETH_MAX_MTU;
+		netdev->dev_port = pi->port_id;
 	}
 
 	pci_set_drvdata(pdev, adapter);

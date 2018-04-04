@@ -20,6 +20,8 @@
 #ifndef __ASM_KVM_BOOK3S_64_H__
 #define __ASM_KVM_BOOK3S_64_H__
 
+#include <linux/string.h>
+#include <asm/bitops.h>
 #include <asm/book3s/64/mmu-hash.h>
 
 /* Power architecture requires HPT is at least 256kiB, at most 64TiB */
@@ -107,18 +109,100 @@ static inline void __unlock_hpte(__be64 *hpte, unsigned long hpte_v)
 	hpte[0] = cpu_to_be64(hpte_v);
 }
 
+/*
+ * These functions encode knowledge of the POWER7/8/9 hardware
+ * interpretations of the HPTE LP (large page size) field.
+ */
+static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
+{
+	unsigned int lphi;
+
+	if (!(h & HPTE_V_LARGE))
+		return 12;	/* 4kB */
+	lphi = (l >> 16) & 0xf;
+	switch ((l >> 12) & 0xf) {
+	case 0:
+		return !lphi ? 24 : 0;		/* 16MB */
+		break;
+	case 1:
+		return 16;			/* 64kB */
+		break;
+	case 3:
+		return !lphi ? 34 : 0;		/* 16GB */
+		break;
+	case 7:
+		return (16 << 8) + 12;		/* 64kB in 4kB */
+		break;
+	case 8:
+		if (!lphi)
+			return (24 << 8) + 16;	/* 16MB in 64kkB */
+		if (lphi == 3)
+			return (24 << 8) + 12;	/* 16MB in 4kB */
+		break;
+	}
+	return 0;
+}
+
+static inline int kvmppc_hpte_base_page_shift(unsigned long h, unsigned long l)
+{
+	return kvmppc_hpte_page_shifts(h, l) & 0xff;
+}
+
+static inline int kvmppc_hpte_actual_page_shift(unsigned long h, unsigned long l)
+{
+	int tmp = kvmppc_hpte_page_shifts(h, l);
+
+	if (tmp >= 0x100)
+		tmp >>= 8;
+	return tmp;
+}
+
+static inline unsigned long kvmppc_actual_pgsz(unsigned long v, unsigned long r)
+{
+	int shift = kvmppc_hpte_actual_page_shift(v, r);
+
+	if (shift)
+		return 1ul << shift;
+	return 0;
+}
+
+static inline int kvmppc_pgsize_lp_encoding(int base_shift, int actual_shift)
+{
+	switch (base_shift) {
+	case 12:
+		switch (actual_shift) {
+		case 12:
+			return 0;
+		case 16:
+			return 7;
+		case 24:
+			return 0x38;
+		}
+		break;
+	case 16:
+		switch (actual_shift) {
+		case 16:
+			return 1;
+		case 24:
+			return 8;
+		}
+		break;
+	case 24:
+		return 0;
+	}
+	return -1;
+}
+
 static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 					     unsigned long pte_index)
 {
-	int i, b_psize = MMU_PAGE_4K, a_psize = MMU_PAGE_4K;
-	unsigned int penc;
+	int a_pgshift, b_pgshift;
 	unsigned long rb = 0, va_low, sllp;
-	unsigned int lp = (r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
-	if (v & HPTE_V_LARGE) {
-		i = hpte_page_sizes[lp];
-		b_psize = i & 0xf;
-		a_psize = i >> 4;
+	b_pgshift = a_pgshift = kvmppc_hpte_page_shifts(v, r);
+	if (a_pgshift >= 0x100) {
+		b_pgshift &= 0xff;
+		a_pgshift >>= 8;
 	}
 
 	/*
@@ -152,37 +236,33 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		va_low ^= v >> (SID_SHIFT_1T - 16);
 	va_low &= 0x7ff;
 
-	switch (b_psize) {
-	case MMU_PAGE_4K:
-		sllp = get_sllp_encoding(a_psize);
-		rb |= sllp << 5;	/*  AP field */
+	if (b_pgshift <= 12) {
+		if (a_pgshift > 12) {
+			sllp = (a_pgshift == 16) ? 5 : 4;
+			rb |= sllp << 5;	/*  AP field */
+		}
 		rb |= (va_low & 0x7ff) << 12;	/* remaining 11 bits of AVA */
-		break;
-	default:
-	{
+	} else {
 		int aval_shift;
 		/*
 		 * remaining bits of AVA/LP fields
 		 * Also contain the rr bits of LP
 		 */
-		rb |= (va_low << mmu_psize_defs[b_psize].shift) & 0x7ff000;
+		rb |= (va_low << b_pgshift) & 0x7ff000;
 		/*
 		 * Now clear not needed LP bits based on actual psize
 		 */
-		rb &= ~((1ul << mmu_psize_defs[a_psize].shift) - 1);
+		rb &= ~((1ul << a_pgshift) - 1);
 		/*
 		 * AVAL field 58..77 - base_page_shift bits of va
 		 * we have space for 58..64 bits, Missing bits should
 		 * be zero filled. +1 is to take care of L bit shift
 		 */
-		aval_shift = 64 - (77 - mmu_psize_defs[b_psize].shift) + 1;
+		aval_shift = 64 - (77 - b_pgshift) + 1;
 		rb |= ((va_low << aval_shift) & 0xfe);
 
 		rb |= 1;		/* L field */
-		penc = mmu_psize_defs[b_psize].penc[a_psize];
-		rb |= penc << 12;	/* LP field */
-		break;
-	}
+		rb |= r & 0xff000 & ((1ul << a_pgshift) - 1); /* LP field */
 	}
 	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/* B field */
 	return rb;
@@ -368,6 +448,28 @@ static inline unsigned long kvmppc_hpt_mask(struct kvm_hpt_info *hpt)
 {
 	/* 128 (2**7) bytes in each HPTEG */
 	return (1UL << (hpt->order - 7)) - 1;
+}
+
+/* Set bits in a dirty bitmap, which is in LE format */
+static inline void set_dirty_bits(unsigned long *map, unsigned long i,
+				  unsigned long npages)
+{
+
+	if (npages >= 8)
+		memset((char *)map + i / 8, 0xff, npages / 8);
+	else
+		for (; npages; ++i, --npages)
+			__set_bit_le(i, map);
+}
+
+static inline void set_dirty_bits_atomic(unsigned long *map, unsigned long i,
+					 unsigned long npages)
+{
+	if (npages >= 8)
+		memset((char *)map + i / 8, 0xff, npages / 8);
+	else
+		for (; npages; ++i, --npages)
+			set_bit_le(i, map);
 }
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */

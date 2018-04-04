@@ -311,7 +311,6 @@ static inline int bfchg_mem_test_and_change_bit(int nr,
  *	functions.
  */
 #if defined(CONFIG_CPU_HAS_NO_BITFIELDS)
-#include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/ffz.h>
 #else
 
@@ -440,6 +439,8 @@ static inline unsigned long ffz(unsigned long word)
 }
 
 #endif
+
+#include <asm-generic/bitops/find.h>
 
 #ifdef __KERNEL__
 

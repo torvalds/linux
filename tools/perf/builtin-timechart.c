@@ -1601,13 +1601,15 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 		{ "syscalls:sys_exit_pselect6",		process_exit_poll },
 		{ "syscalls:sys_exit_select",		process_exit_poll },
 	};
-	struct perf_data_file file = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = tchart->force,
+	struct perf_data data = {
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = tchart->force,
 	};
 
-	struct perf_session *session = perf_session__new(&file, false,
+	struct perf_session *session = perf_session__new(&data, false,
 							 &tchart->tool);
 	int ret = -EINVAL;
 
@@ -1617,7 +1619,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	symbol__init(&session->header.env);
 
 	(void)perf_header__process_sections(&session->header,
-					    perf_data_file__fd(session->file),
+					    perf_data__fd(session->data),
 					    tchart,
 					    process_header);
 
@@ -1732,8 +1734,10 @@ static int timechart__io_record(int argc, const char **argv)
 	if (rec_argv == NULL)
 		return -ENOMEM;
 
-	if (asprintf(&filter, "common_pid != %d", getpid()) < 0)
+	if (asprintf(&filter, "common_pid != %d", getpid()) < 0) {
+		free(rec_argv);
 		return -ENOMEM;
+	}
 
 	p = rec_argv;
 	for (i = 0; i < common_args_nr; i++)

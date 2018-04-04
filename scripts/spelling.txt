@@ -1187,6 +1187,10 @@ unknonw||unknown
 unknow||unknown
 unkown||unknown
 unneded||unneeded
+unneccecary||unnecessary
+unneccesary||unnecessary
+unneccessary||unnecessary
+unnecesary||unnecessary
 unneedingly||unnecessarily
 unnsupported||unsupported
 unmached||unmatched

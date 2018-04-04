@@ -1686,6 +1686,7 @@ enum ethtool_reset_flags {
 	ETH_RESET_PHY		= 1 << 6,	/* Transceiver/PHY */
 	ETH_RESET_RAM		= 1 << 7,	/* RAM shared between
 						 * multiple components */
+	ETH_RESET_AP		= 1 << 8,	/* Application processor */
 
 	ETH_RESET_DEDICATED	= 0x0000ffff,	/* All components dedicated to
 						 * this interface */

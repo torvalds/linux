@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/relay.h>
+#include <linux/dmi.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "ath9k.h"
@@ -75,6 +76,10 @@ MODULE_PARM_DESC(use_chanctx, "Enable channel context for concurrency");
 
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
+int ath9k_use_msi;
+module_param_named(use_msi, ath9k_use_msi, int, 0444);
+MODULE_PARM_DESC(use_msi, "Use MSI instead of INTx if possible");
+
 bool is_ath9k_unloaded;
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -91,6 +96,56 @@ static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
 	{ .throughput = 300 * 1024, .blink_time = 50 },
 };
 #endif
+
+static int __init set_use_msi(const struct dmi_system_id *dmi)
+{
+	ath9k_use_msi = 1;
+	return 1;
+}
+
+static const struct dmi_system_id ath9k_quirks[] __initconst = {
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Inspiron 24-3460",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 24-3460"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Vostro 3262",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3262"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Inspiron 3472",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 3472"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Vostro 15-3572",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 15-3572"),
+		},
+	},
+	{
+		.callback = set_use_msi,
+		.ident = "Dell Inspiron 14-3473",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 14-3473"),
+		},
+	},
+	{}
+};
 
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
@@ -117,7 +172,7 @@ static const struct ath_ps_ops ath9k_ps_ops = {
 
 static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 {
-	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
@@ -132,7 +187,7 @@ static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 
 static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 {
-	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	u32 val;
@@ -172,7 +227,7 @@ static unsigned int __ath9k_reg_rmw(struct ath_softc *sc, u32 reg_offset,
 
 static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
 {
-	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	unsigned long uninitialized_var(flags);
@@ -275,7 +330,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	if (!dd->dd_desc)
 		return -ENOMEM;
 
-	ds = (u8 *) dd->dd_desc;
+	ds = dd->dd_desc;
 	ath_dbg(common, CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
 		name, ds, (u32) dd->dd_desc_len,
 		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
@@ -369,7 +424,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int i = 0;
 
-	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
+	timer_setup(&common->ani.timer, ath_ani_calibrate, 0);
 
 	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
@@ -678,7 +733,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
 		     (unsigned long)sc);
 
-	setup_timer(&sc->sleep_timer, ath_ps_full_sleep, (unsigned long)sc);
+	timer_setup(&sc->sleep_timer, ath_ps_full_sleep, 0);
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);
@@ -1099,6 +1154,8 @@ static int __init ath9k_init(void)
 		error = -ENODEV;
 		goto err_pci_exit;
 	}
+
+	dmi_check_system(ath9k_quirks);
 
 	return 0;
 

@@ -14,7 +14,7 @@ Required properties:
 
 example:
 
-src: src@020d8000 {
+src: src@20d8000 {
         compatible = "fsl,imx6q-src";
         reg = <0x020d8000 0x4000>;
         interrupts = <0 91 0x04 0 96 0x04>;
@@ -33,10 +33,10 @@ reset.txt
 
 example:
 
-        ipu1: ipu@02400000 {
+        ipu1: ipu@2400000 {
                 resets = <&src 2>;
         };
-        ipu2: ipu@02800000 {
+        ipu2: ipu@2800000 {
                 resets = <&src 4>;
         };
 

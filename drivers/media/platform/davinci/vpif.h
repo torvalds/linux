@@ -226,11 +226,11 @@ static inline void vpif_clr_bit(u32 reg, u32 bit)
 	(VPIF_INT_BOTH << VPIF_CH1_INT_CTRL_SHIFT)), VPIF_CH1_CTRL))
 
 /* enabled interrupt on both the fields on vpid_ch0_ctrl register */
-#define channel2_intr_assert() 	(regw((regr(VPIF_CH2_CTRL)|\
+#define channel2_intr_assert()	(regw((regr(VPIF_CH2_CTRL)|\
 	(VPIF_INT_BOTH << VPIF_CH2_INT_CTRL_SHIFT)), VPIF_CH2_CTRL))
 
 /* enabled interrupt on both the fields on vpid_ch1_ctrl register */
-#define channel3_intr_assert() 	(regw((regr(VPIF_CH3_CTRL)|\
+#define channel3_intr_assert()	(regw((regr(VPIF_CH3_CTRL)|\
 	(VPIF_INT_BOTH << VPIF_CH3_INT_CTRL_SHIFT)), VPIF_CH3_CTRL))
 
 #define VPIF_CH_FID_MASK	(0x20)

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/pci/pcie/aer/aerdrv_core.c
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * This file implements the core part of PCIe AER. When a PCIe
  * error is delivered, an error message will be collected and printed to
@@ -226,9 +223,8 @@ static bool find_source_device(struct pci_dev *parent,
 	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
 
 	if (!e_info->error_dev_num) {
-		dev_printk(KERN_DEBUG, &parent->dev,
-				"can't find device of ID%04x\n",
-				e_info->id);
+		pci_printk(KERN_DEBUG, parent, "can't find device of ID%04x\n",
+			   e_info->id);
 		return false;
 	}
 	return true;
@@ -256,7 +252,7 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 			 * of a driver for this device is unaware of
 			 * its hw state.
 			 */
-			dev_printk(KERN_DEBUG, &dev->dev, "device has %s\n",
+			pci_printk(KERN_DEBUG, dev, "device has %s\n",
 				   dev->driver ?
 				   "no AER-aware driver" : "no driver");
 		}
@@ -278,6 +274,7 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 	} else {
 		err_handler = dev->driver->err_handler;
 		vote = err_handler->error_detected(dev, result_data->state);
+		pci_uevent_ers(dev, PCI_ERS_RESULT_NONE);
 	}
 
 	result_data->result = merge_result(result_data->result, vote);
@@ -341,6 +338,7 @@ static int report_resume(struct pci_dev *dev, void *data)
 
 	err_handler = dev->driver->err_handler;
 	err_handler->resume(dev);
+	pci_uevent_ers(dev, PCI_ERS_RESULT_RECOVERED);
 out:
 	device_unlock(&dev->dev);
 	return 0;
@@ -364,7 +362,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 {
 	struct aer_broadcast_data result_data;
 
-	dev_printk(KERN_DEBUG, &dev->dev, "broadcast %s message\n", error_mesg);
+	pci_printk(KERN_DEBUG, dev, "broadcast %s message\n", error_mesg);
 	result_data.state = state;
 	if (cb == report_error_detected)
 		result_data.result = PCI_ERS_RESULT_CAN_RECOVER;
@@ -390,7 +388,14 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 		 * If the error is reported by an end point, we think this
 		 * error is related to the upstream link of the end point.
 		 */
-		pci_walk_bus(dev->bus, cb, &result_data);
+		if (state == pci_channel_io_normal)
+			/*
+			 * the error is non fatal so the bus is ok, just invoke
+			 * the callback for the function that logged the error.
+			 */
+			cb(dev, &result_data);
+		else
+			pci_walk_bus(dev->bus, cb, &result_data);
 	}
 
 	return result_data.result;
@@ -406,7 +411,7 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
 	pci_reset_bridge_secondary_bus(dev);
-	dev_printk(KERN_DEBUG, &dev->dev, "downstream link has been reset\n");
+	pci_printk(KERN_DEBUG, dev, "downstream link has been reset\n");
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -458,15 +463,13 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 	} else if (udev->has_secondary_link) {
 		status = default_reset_link(udev);
 	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			"no link-reset support at upstream device %s\n",
+		pci_printk(KERN_DEBUG, dev, "no link-reset support at upstream device %s\n",
 			pci_name(udev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
 	if (status != PCI_ERS_RESULT_RECOVERED) {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			"link reset at upstream device %s failed\n",
+		pci_printk(KERN_DEBUG, dev, "link reset at upstream device %s failed\n",
 			pci_name(udev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
@@ -530,12 +533,13 @@ static void do_recovery(struct pci_dev *dev, int severity)
 				"resume",
 				report_resume);
 
-	dev_info(&dev->dev, "AER: Device recovery successful\n");
+	pci_info(dev, "AER: Device recovery successful\n");
 	return;
 
 failed:
+	pci_uevent_ers(dev, PCI_ERS_RESULT_DISCONNECT);
 	/* TODO: Should kernel panic here? */
-	dev_info(&dev->dev, "AER: Device recovery failed\n");
+	pci_info(dev, "AER: Device recovery failed\n");
 }
 
 /**
@@ -626,7 +630,8 @@ static void aer_recover_work_func(struct work_struct *work)
 			continue;
 		}
 		cper_print_aer(pdev, entry.severity, entry.regs);
-		do_recovery(pdev, entry.severity);
+		if (entry.severity != AER_CORRECTABLE)
+			do_recovery(pdev, entry.severity);
 		pci_dev_put(pdev);
 	}
 }
@@ -653,7 +658,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 
 	/* The device might not support AER */
 	if (!pos)
-		return 1;
+		return 0;
 
 	if (info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS,

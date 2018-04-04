@@ -4,15 +4,18 @@
  * Copyright (C) 2016 CoreOS, Inc
  * Copyright (C) 2017 Google, Inc.
  *     Matthew Garrett <mjg59@google.com>
+ *     Thiebaud Weksteen <tweek@google.com>
  *
  * This file is part of the Linux kernel, and is made available under the
  * terms of the GNU General Public License version 2.
  */
 #include <linux/efi.h>
+#include <linux/tpm_eventlog.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
 
+#ifdef CONFIG_RESET_ATTACK_MITIGATION
 static const efi_char16_t efi_MemoryOverWriteRequest_name[] = {
 	'M', 'e', 'm', 'o', 'r', 'y', 'O', 'v', 'e', 'r', 'w', 'r', 'i', 't',
 	'e', 'R', 'e', 'q', 'u', 'e', 's', 't', 'C', 'o', 'n', 't', 'r', 'o',
@@ -55,4 +58,82 @@ void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg)
 		    EFI_VARIABLE_NON_VOLATILE |
 		    EFI_VARIABLE_BOOTSERVICE_ACCESS |
 		    EFI_VARIABLE_RUNTIME_ACCESS, sizeof(val), &val);
+}
+
+#endif
+
+void efi_retrieve_tpm2_eventlog_1_2(efi_system_table_t *sys_table_arg)
+{
+	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
+	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
+	efi_status_t status;
+	efi_physical_addr_t log_location, log_last_entry;
+	struct linux_efi_tpm_eventlog *log_tbl;
+	unsigned long first_entry_addr, last_entry_addr;
+	size_t log_size, last_entry_size;
+	efi_bool_t truncated;
+	void *tcg2_protocol;
+
+	status = efi_call_early(locate_protocol, &tcg2_guid, NULL,
+				&tcg2_protocol);
+	if (status != EFI_SUCCESS)
+		return;
+
+	status = efi_call_proto(efi_tcg2_protocol, get_event_log, tcg2_protocol,
+				EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2,
+				&log_location, &log_last_entry, &truncated);
+	if (status != EFI_SUCCESS)
+		return;
+
+	if (!log_location)
+		return;
+	first_entry_addr = (unsigned long) log_location;
+
+	/*
+	 * We populate the EFI table even if the logs are empty.
+	 */
+	if (!log_last_entry) {
+		log_size = 0;
+	} else {
+		last_entry_addr = (unsigned long) log_last_entry;
+		/*
+		 * get_event_log only returns the address of the last entry.
+		 * We need to calculate its size to deduce the full size of
+		 * the logs.
+		 */
+		last_entry_size = sizeof(struct tcpa_event) +
+			((struct tcpa_event *) last_entry_addr)->event_size;
+		log_size = log_last_entry - log_location + last_entry_size;
+	}
+
+	/* Allocate space for the logs and copy them. */
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+				sizeof(*log_tbl) + log_size,
+				(void **) &log_tbl);
+
+	if (status != EFI_SUCCESS) {
+		efi_printk(sys_table_arg,
+			   "Unable to allocate memory for event log\n");
+		return;
+	}
+
+	memset(log_tbl, 0, sizeof(*log_tbl) + log_size);
+	log_tbl->size = log_size;
+	log_tbl->version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
+	memcpy(log_tbl->log, (void *) first_entry_addr, log_size);
+
+	status = efi_call_early(install_configuration_table,
+				&linux_eventlog_guid, log_tbl);
+	if (status != EFI_SUCCESS)
+		goto err_free;
+	return;
+
+err_free:
+	efi_call_early(free_pool, log_tbl);
+}
+
+void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
+{
+	/* Only try to retrieve the logs in 1.2 format. */
+	efi_retrieve_tpm2_eventlog_1_2(sys_table_arg);
 }

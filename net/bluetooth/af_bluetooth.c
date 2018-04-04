@@ -421,7 +421,7 @@ out:
 }
 EXPORT_SYMBOL(bt_sock_stream_recvmsg);
 
-static inline unsigned int bt_accept_poll(struct sock *parent)
+static inline __poll_t bt_accept_poll(struct sock *parent)
 {
 	struct bt_sock *s, *n;
 	struct sock *sk;
@@ -431,17 +431,17 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 		if (sk->sk_state == BT_CONNECTED ||
 		    (test_bit(BT_SK_DEFER_SETUP, &bt_sk(parent)->flags) &&
 		     sk->sk_state == BT_CONNECT2))
-			return POLLIN | POLLRDNORM;
+			return EPOLLIN | EPOLLRDNORM;
 	}
 
 	return 0;
 }
 
-unsigned int bt_sock_poll(struct file *file, struct socket *sock,
+__poll_t bt_sock_poll(struct file *file, struct socket *sock,
 			  poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -451,20 +451,20 @@ unsigned int bt_sock_poll(struct file *file, struct socket *sock,
 		return bt_accept_poll(sk);
 
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
-		mask |= POLLERR |
-			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? POLLPRI : 0);
+		mask |= EPOLLERR |
+			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? EPOLLPRI : 0);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
+		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
 
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (sk->sk_state == BT_CLOSED)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 
 	if (sk->sk_state == BT_CONNECT ||
 			sk->sk_state == BT_CONNECT2 ||
@@ -472,7 +472,7 @@ unsigned int bt_sock_poll(struct file *file, struct socket *sock,
 		return mask;
 
 	if (!test_bit(BT_SK_SUSPEND, &bt_sk(sk)->flags) && sock_writeable(sk))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 	else
 		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
@@ -766,43 +766,39 @@ static int __init bt_init(void)
 		return err;
 
 	err = sock_register(&bt_sock_family_ops);
-	if (err < 0) {
-		bt_sysfs_cleanup();
-		return err;
-	}
+	if (err)
+		goto cleanup_sysfs;
 
 	BT_INFO("HCI device and connection manager initialized");
 
 	err = hci_sock_init();
-	if (err < 0)
-		goto error;
+	if (err)
+		goto unregister_socket;
 
 	err = l2cap_init();
-	if (err < 0)
-		goto sock_err;
+	if (err)
+		goto cleanup_socket;
 
 	err = sco_init();
-	if (err < 0) {
-		l2cap_exit();
-		goto sock_err;
-	}
+	if (err)
+		goto cleanup_cap;
 
 	err = mgmt_init();
-	if (err < 0) {
-		sco_exit();
-		l2cap_exit();
-		goto sock_err;
-	}
+	if (err)
+		goto cleanup_sco;
 
 	return 0;
 
-sock_err:
+cleanup_sco:
+	sco_exit();
+cleanup_cap:
+	l2cap_exit();
+cleanup_socket:
 	hci_sock_cleanup();
-
-error:
+unregister_socket:
 	sock_unregister(PF_BLUETOOTH);
+cleanup_sysfs:
 	bt_sysfs_cleanup();
-
 	return err;
 }
 

@@ -1,0 +1,22 @@
+Mediatek jpgdecsys controller
+============================
+
+The Mediatek jpgdecsys controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be:
+	- "mediatek,mt2712-jpgdecsys", "syscon"
+- #clock-cells: Must be 1
+
+The jpgdecsys controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+jpgdecsys: syscon@19000000 {
+	compatible = "mediatek,mt2712-jpgdecsys", "syscon";
+	reg = <0 0x19000000 0 0x1000>;
+	#clock-cells = <1>;
+};

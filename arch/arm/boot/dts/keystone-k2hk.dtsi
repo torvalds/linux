@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
- *
  * Keystone 2 Kepler/Hawking soc specific device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 
 #include <dt-bindings/reset/ti-syscon.h>
@@ -55,11 +52,12 @@
 		rproc6 = &dsp6;
 		rproc7 = &dsp7;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2hk-clocks.dtsi"
 
-		msm_ram: msmram@0c000000 {
+		msm_ram: msmram@c000000 {
 			compatible = "mmio-sram";
 			reg = <0x0c000000 0x600000>;
 			ranges = <0x0 0x0c000000 0x600000>;
@@ -71,7 +69,7 @@
 			};
 		};
 
-		psc: power-sleep-controller@02350000 {
+		psc: power-sleep-controller@2350000 {
 			pscrst: reset-controller {
 				compatible = "ti,k2hk-pscrst", "ti,syscon-reset";
 				#reset-cells = <1>;
@@ -89,7 +87,7 @@
 			};
 		};
 
-		dspgpio0: keystone_dsp_gpio@02620240 {
+		dspgpio0: keystone_dsp_gpio@2620240 {
 			compatible = "ti,keystone-dsp-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -273,7 +271,7 @@
 			status = "disabled";
 		};
 
-		mdio: mdio@02090300 {
+		mdio: mdio@2090300 {
 			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -284,5 +282,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2hk-netcp.dtsi"
-	};
 };

@@ -243,8 +243,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
 
 	/* Get the physical addresses of the source buffer */
-	num_pinned = get_user_pages_unlocked(param.local_vaddr - lb_offset,
-		num_pages, pages, (param.source == -1) ? 0 : FOLL_WRITE);
+	num_pinned = get_user_pages_fast(param.local_vaddr - lb_offset,
+		num_pages, param.source != -1, pages);
 
 	if (num_pinned != num_pages) {
 		/* get_user_pages() failed */
@@ -565,16 +565,16 @@ static irqreturn_t fsl_hv_state_change_isr(int irq, void *data)
 /*
  * Returns a bitmask indicating whether a read will block
  */
-static unsigned int fsl_hv_poll(struct file *filp, struct poll_table_struct *p)
+static __poll_t fsl_hv_poll(struct file *filp, struct poll_table_struct *p)
 {
 	struct doorbell_queue *dbq = filp->private_data;
 	unsigned long flags;
-	unsigned int mask;
+	__poll_t mask;
 
 	spin_lock_irqsave(&dbq->lock, flags);
 
 	poll_wait(filp, &dbq->wait, p);
-	mask = (dbq->head == dbq->tail) ? 0 : (POLLIN | POLLRDNORM);
+	mask = (dbq->head == dbq->tail) ? 0 : (EPOLLIN | EPOLLRDNORM);
 
 	spin_unlock_irqrestore(&dbq->lock, flags);
 

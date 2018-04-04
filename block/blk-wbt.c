@@ -178,12 +178,11 @@ void wbt_done(struct rq_wb *rwb, struct blk_issue_stat *stat)
 
 		if (wbt_is_read(stat))
 			wb_timestamp(rwb, &rwb->last_comp);
-		wbt_clear_state(stat);
 	} else {
 		WARN_ON_ONCE(stat == rwb->sync_cookie);
 		__wbt_done(rwb, wbt_stat_to_mask(stat));
-		wbt_clear_state(stat);
 	}
+	wbt_clear_state(stat);
 }
 
 /*
@@ -261,7 +260,7 @@ static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 
 static u64 rwb_sync_issue_lat(struct rq_wb *rwb)
 {
-	u64 now, issue = ACCESS_ONCE(rwb->sync_issue);
+	u64 now, issue = READ_ONCE(rwb->sync_issue);
 
 	if (!issue || !rwb->sync_cookie)
 		return 0;
@@ -482,7 +481,7 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 
 	/*
 	 * At this point we know it's a buffered write. If this is
-	 * kswapd trying to free memory, or REQ_SYNC is set, set, then
+	 * kswapd trying to free memory, or REQ_SYNC is set, then
 	 * it's WB_SYNC_ALL writeback, and we'll use the max limit for
 	 * that. If the write is marked as a background write, then use
 	 * the idle limit, or go to normal if we haven't had competing
@@ -654,7 +653,7 @@ void wbt_set_write_cache(struct rq_wb *rwb, bool write_cache_on)
 }
 
 /*
- * Disable wbt, if enabled by default. Only called from CFQ.
+ * Disable wbt, if enabled by default.
  */
 void wbt_disable_default(struct request_queue *q)
 {
@@ -698,7 +697,15 @@ u64 wbt_default_latency_nsec(struct request_queue *q)
 
 static int wbt_data_dir(const struct request *rq)
 {
-	return rq_data_dir(rq);
+	const int op = req_op(rq);
+
+	if (op == REQ_OP_READ)
+		return READ;
+	else if (op == REQ_OP_WRITE || op == REQ_OP_FLUSH)
+		return WRITE;
+
+	/* don't account */
+	return -1;
 }
 
 int wbt_init(struct request_queue *q)
@@ -723,8 +730,6 @@ int wbt_init(struct request_queue *q)
 		init_waitqueue_head(&rwb->rq_wait[i].wait);
 	}
 
-	rwb->wc = 1;
-	rwb->queue_depth = RWB_DEF_DEPTH;
 	rwb->last_comp = rwb->last_issue = jiffies;
 	rwb->queue = q;
 	rwb->win_nsec = RWB_WINDOW_NSEC;

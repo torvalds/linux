@@ -105,7 +105,14 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
 			uint32_t wptr_shift, uint32_t wptr_mask,
 			struct mm_struct *mm);
-static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
+static int kgd_hqd_dump(struct kgd_dev *kgd,
+			uint32_t pipe_id, uint32_t queue_id,
+			uint32_t (**dump)[2], uint32_t *n_regs);
+static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
+			     uint32_t __user *wptr, struct mm_struct *mm);
+static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
+			     uint32_t engine_id, uint32_t queue_id,
+			     uint32_t (**dump)[2], uint32_t *n_regs);
 static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
@@ -166,15 +173,19 @@ static int get_tile_config(struct kgd_dev *kgd,
 static const struct kfd2kgd_calls kfd2kgd = {
 	.init_gtt_mem_allocation = alloc_gtt_mem,
 	.free_gtt_mem = free_gtt_mem,
-	.get_vmem_size = get_vmem_size,
+	.get_local_mem_info = get_local_mem_info,
 	.get_gpu_clock_counter = get_gpu_clock_counter,
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
+	.alloc_pasid = amdgpu_pasid_alloc,
+	.free_pasid = amdgpu_pasid_free,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_pipeline = kgd_init_pipeline,
 	.init_interrupts = kgd_init_interrupts,
 	.hqd_load = kgd_hqd_load,
 	.hqd_sdma_load = kgd_hqd_sdma_load,
+	.hqd_dump = kgd_hqd_dump,
+	.hqd_sdma_dump = kgd_hqd_sdma_dump,
 	.hqd_is_occupied = kgd_hqd_is_occupied,
 	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
@@ -189,6 +200,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_fw_version = get_fw_version,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.get_tile_config = get_tile_config,
+	.get_cu_info = get_cu_info,
+	.get_vram_usage = amdgpu_amdkfd_get_vram_usage
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)
@@ -336,6 +349,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	struct cik_mqd *m;
 	uint32_t *mqd_hqd;
 	uint32_t reg, wptr_val, data;
+	bool valid_wptr = false;
 
 	m = get_mqd(mqd);
 
@@ -354,7 +368,14 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
 	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, data);
 
-	if (read_user_wptr(mm, wptr, wptr_val))
+	/* read_user_ptr may take the mm->mmap_sem.
+	 * release srbm_mutex to avoid circular dependency between
+	 * srbm_mutex->mm_sem->reservation_ww_class_mutex->srbm_mutex.
+	 */
+	release_queue(kgd);
+	valid_wptr = read_user_wptr(mm, wptr, wptr_val);
+	acquire_queue(kgd, pipe_id, queue_id);
+	if (valid_wptr)
 		WREG32(mmCP_HQD_PQ_WPTR, (wptr_val << wptr_shift) & wptr_mask);
 
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
@@ -365,35 +386,129 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	return 0;
 }
 
-static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd)
+static int kgd_hqd_dump(struct kgd_dev *kgd,
+			uint32_t pipe_id, uint32_t queue_id,
+			uint32_t (**dump)[2], uint32_t *n_regs)
+{
+	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+	uint32_t i = 0, reg;
+#define HQD_N_REGS (35+4)
+#define DUMP_REG(addr) do {				\
+		if (WARN_ON_ONCE(i >= HQD_N_REGS))	\
+			break;				\
+		(*dump)[i][0] = (addr) << 2;		\
+		(*dump)[i++][1] = RREG32(addr);		\
+	} while (0)
+
+	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
+	if (*dump == NULL)
+		return -ENOMEM;
+
+	acquire_queue(kgd, pipe_id, queue_id);
+
+	DUMP_REG(mmCOMPUTE_STATIC_THREAD_MGMT_SE0);
+	DUMP_REG(mmCOMPUTE_STATIC_THREAD_MGMT_SE1);
+	DUMP_REG(mmCOMPUTE_STATIC_THREAD_MGMT_SE2);
+	DUMP_REG(mmCOMPUTE_STATIC_THREAD_MGMT_SE3);
+
+	for (reg = mmCP_MQD_BASE_ADDR; reg <= mmCP_MQD_CONTROL; reg++)
+		DUMP_REG(reg);
+
+	release_queue(kgd);
+
+	WARN_ON_ONCE(i != HQD_N_REGS);
+	*n_regs = i;
+
+	return 0;
+}
+
+static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
+			     uint32_t __user *wptr, struct mm_struct *mm)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct cik_sdma_rlc_registers *m;
+	unsigned long end_jiffies;
 	uint32_t sdma_base_addr;
+	uint32_t data;
 
 	m = get_sdma_mqd(mqd);
 	sdma_base_addr = get_sdma_base_addr(m);
 
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+		m->sdma_rlc_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
+
+	end_jiffies = msecs_to_jiffies(2000) + jiffies;
+	while (true) {
+		data = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
+			break;
+		if (time_after(jiffies, end_jiffies))
+			return -ETIME;
+		usleep_range(500, 1000);
+	}
+	if (m->sdma_engine_id) {
+		data = RREG32(mmSDMA1_GFX_CONTEXT_CNTL);
+		data = REG_SET_FIELD(data, SDMA1_GFX_CONTEXT_CNTL,
+				RESUME_CTX, 0);
+		WREG32(mmSDMA1_GFX_CONTEXT_CNTL, data);
+	} else {
+		data = RREG32(mmSDMA0_GFX_CONTEXT_CNTL);
+		data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
+				RESUME_CTX, 0);
+		WREG32(mmSDMA0_GFX_CONTEXT_CNTL, data);
+	}
+
+	data = REG_SET_FIELD(m->sdma_rlc_doorbell, SDMA0_RLC0_DOORBELL,
+			     ENABLE, 1);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, data);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, m->sdma_rlc_rb_rptr);
+
+	if (read_user_wptr(mm, wptr, data))
+		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, data);
+	else
+		WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR,
+		       m->sdma_rlc_rb_rptr);
+
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_VIRTUAL_ADDR,
-			m->sdma_rlc_virtual_addr);
-
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE,
-			m->sdma_rlc_rb_base);
-
+				m->sdma_rlc_virtual_addr);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, m->sdma_rlc_rb_base);
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE_HI,
 			m->sdma_rlc_rb_base_hi);
-
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
 			m->sdma_rlc_rb_rptr_addr_lo);
-
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
 			m->sdma_rlc_rb_rptr_addr_hi);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL,
-			m->sdma_rlc_doorbell);
+	data = REG_SET_FIELD(m->sdma_rlc_rb_cntl, SDMA0_RLC0_RB_CNTL,
+			     RB_ENABLE, 1);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL, data);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
-			m->sdma_rlc_rb_cntl);
+	return 0;
+}
+
+static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
+			     uint32_t engine_id, uint32_t queue_id,
+			     uint32_t (**dump)[2], uint32_t *n_regs)
+{
+	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+	uint32_t sdma_offset = engine_id * SDMA1_REGISTER_OFFSET +
+		queue_id * KFD_CIK_SDMA_QUEUE_OFFSET;
+	uint32_t i = 0, reg;
+#undef HQD_N_REGS
+#define HQD_N_REGS (19+4)
+
+	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
+	if (*dump == NULL)
+		return -ENOMEM;
+
+	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
+		DUMP_REG(sdma_offset + reg);
+	for (reg = mmSDMA0_RLC0_VIRTUAL_ADDR; reg <= mmSDMA0_RLC0_WATERMARK;
+	     reg++)
+		DUMP_REG(sdma_offset + reg);
+
+	WARN_ON_ONCE(i != HQD_N_REGS);
+	*n_regs = i;
 
 	return 0;
 }
@@ -544,7 +659,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	struct cik_sdma_rlc_registers *m;
 	uint32_t sdma_base_addr;
 	uint32_t temp;
-	int timeout = utimeout;
+	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
 
 	m = get_sdma_mqd(mqd);
 	sdma_base_addr = get_sdma_base_addr(m);
@@ -557,16 +672,17 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (temp & SDMA0_STATUS_REG__RB_CMD_IDLE__SHIFT)
 			break;
-		if (timeout <= 0)
+		if (time_after(jiffies, end_jiffies))
 			return -ETIME;
-		msleep(20);
-		timeout -= 20;
+		usleep_range(500, 1000);
 	}
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, 0);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL) |
+		SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK);
+
+	m->sdma_rlc_rb_rptr = RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR);
 
 	return 0;
 }

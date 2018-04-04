@@ -17,6 +17,7 @@
 #include <drv_types.h>
 #include <rtw_debug.h>
 #include <hal_data.h>
+#include <linux/kernel.h>
 
 u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			    u8 TxNum, enum RATE_SECTION RateSection)
@@ -65,8 +66,7 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			DBG_871X("Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-
-		};
+		}
 	} else if (Band == BAND_ON_5G) {
 		switch (RateSection) {
 		case OFDM:
@@ -100,7 +100,7 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			DBG_871X("Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-		};
+		}
 	} else
 		DBG_871X("Invalid Band %d in PHY_GetTxPowerByRateBase()\n", Band);
 
@@ -160,7 +160,7 @@ phy_SetTxPowerByRateBase(
 			DBG_871X("Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in phy_SetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-		};
+		}
 	} else if (Band == BAND_ON_5G) {
 		switch (RateSection) {
 		case OFDM:
@@ -194,7 +194,7 @@ phy_SetTxPowerByRateBase(
 			DBG_871X("Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in phy_SetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-		};
+		}
 	} else
 		DBG_871X("Invalid Band %d in phy_SetTxPowerByRateBase()\n", Band);
 }
@@ -335,7 +335,7 @@ u8 PHY_GetRateSectionIndexOfTxPowerByRate(
 		default:
 			DBG_871X("Invalid RegAddr 0x3%x in PHY_GetRateSectionIndexOfTxPowerByRate()", RegAddr);
 			break;
-		};
+		}
 	}
 
 	return index;
@@ -725,7 +725,7 @@ PHY_GetRateValuesOfTxPowerByRate(
 	default:
 		DBG_871X("Invalid RegAddr 0x%x in %s()\n", RegAddr, __func__);
 		break;
-	};
+	}
 }
 
 static void PHY_StoreTxPowerByRateNew(
@@ -860,7 +860,7 @@ struct adapter *padapter
 			for (txNum = RF_1TX; txNum < RF_MAX_TX_NUM; ++txNum) {
 				/*  CCK */
 				base = PHY_GetTxPowerByRate(padapter, band, path, txNum, MGN_11M);
-				for (i = 0; i < sizeof(cckRates); ++i) {
+				for (i = 0; i < ARRAY_SIZE(cckRates); ++i) {
 					value = PHY_GetTxPowerByRate(padapter, band, path, txNum, cckRates[i]);
 					PHY_SetTxPowerByRate(padapter, band, path, txNum, cckRates[i], value - base);
 				}
@@ -939,58 +939,78 @@ void PHY_SetTxPowerIndexByRateSection(
 	if (RateSection == CCK) {
 		u8 cckRates[]   = {MGN_1M, MGN_2M, MGN_5_5M, MGN_11M};
 		if (pHalData->CurrentBandType == BAND_ON_2_4G)
-			PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									  cckRates, sizeof(cckRates)/sizeof(u8));
+			PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+						     pHalData->CurrentChannelBW,
+						     Channel, cckRates,
+						     ARRAY_SIZE(cckRates));
 
 	} else if (RateSection == OFDM) {
 		u8 ofdmRates[]  = {MGN_6M, MGN_9M, MGN_12M, MGN_18M, MGN_24M, MGN_36M, MGN_48M, MGN_54M};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									 ofdmRates, sizeof(ofdmRates)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, ofdmRates,
+					       ARRAY_SIZE(ofdmRates));
 
 	} else if (RateSection == HT_MCS0_MCS7) {
 		u8 htRates1T[]  = {MGN_MCS0, MGN_MCS1, MGN_MCS2, MGN_MCS3, MGN_MCS4, MGN_MCS5, MGN_MCS6, MGN_MCS7};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									 htRates1T, sizeof(htRates1T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, htRates1T,
+					       ARRAY_SIZE(htRates1T));
 
 	} else if (RateSection == HT_MCS8_MCS15) {
 		u8 htRates2T[]  = {MGN_MCS8, MGN_MCS9, MGN_MCS10, MGN_MCS11, MGN_MCS12, MGN_MCS13, MGN_MCS14, MGN_MCS15};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									 htRates2T, sizeof(htRates2T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, htRates2T,
+					       ARRAY_SIZE(htRates2T));
 
 	} else if (RateSection == HT_MCS16_MCS23) {
 		u8 htRates3T[]  = {MGN_MCS16, MGN_MCS17, MGN_MCS18, MGN_MCS19, MGN_MCS20, MGN_MCS21, MGN_MCS22, MGN_MCS23};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									 htRates3T, sizeof(htRates3T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, htRates3T,
+					       ARRAY_SIZE(htRates3T));
 
 	} else if (RateSection == HT_MCS24_MCS31) {
 		u8 htRates4T[]  = {MGN_MCS24, MGN_MCS25, MGN_MCS26, MGN_MCS27, MGN_MCS28, MGN_MCS29, MGN_MCS30, MGN_MCS31};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									 htRates4T, sizeof(htRates4T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, htRates4T,
+					       ARRAY_SIZE(htRates4T));
 
 	} else if (RateSection == VHT_1SSMCS0_1SSMCS9) {
 		u8 vhtRates1T[] = {MGN_VHT1SS_MCS0, MGN_VHT1SS_MCS1, MGN_VHT1SS_MCS2, MGN_VHT1SS_MCS3, MGN_VHT1SS_MCS4,
 				MGN_VHT1SS_MCS5, MGN_VHT1SS_MCS6, MGN_VHT1SS_MCS7, MGN_VHT1SS_MCS8, MGN_VHT1SS_MCS9};
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-									vhtRates1T, sizeof(vhtRates1T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, vhtRates1T,
+					       ARRAY_SIZE(vhtRates1T));
 
 	} else if (RateSection == VHT_2SSMCS0_2SSMCS9) {
 		u8 vhtRates2T[] = {MGN_VHT2SS_MCS0, MGN_VHT2SS_MCS1, MGN_VHT2SS_MCS2, MGN_VHT2SS_MCS3, MGN_VHT2SS_MCS4,
 				MGN_VHT2SS_MCS5, MGN_VHT2SS_MCS6, MGN_VHT2SS_MCS7, MGN_VHT2SS_MCS8, MGN_VHT2SS_MCS9};
 
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-								  vhtRates2T, sizeof(vhtRates2T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, vhtRates2T,
+					       ARRAY_SIZE(vhtRates2T));
 	} else if (RateSection == VHT_3SSMCS0_3SSMCS9) {
 		u8 vhtRates3T[] = {MGN_VHT3SS_MCS0, MGN_VHT3SS_MCS1, MGN_VHT3SS_MCS2, MGN_VHT3SS_MCS3, MGN_VHT3SS_MCS4,
 				MGN_VHT3SS_MCS5, MGN_VHT3SS_MCS6, MGN_VHT3SS_MCS7, MGN_VHT3SS_MCS8, MGN_VHT3SS_MCS9};
 
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-								  vhtRates3T, sizeof(vhtRates3T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, vhtRates3T,
+					       ARRAY_SIZE(vhtRates3T));
 	} else if (RateSection == VHT_4SSMCS0_4SSMCS9) {
 		u8 vhtRates4T[] = {MGN_VHT4SS_MCS0, MGN_VHT4SS_MCS1, MGN_VHT4SS_MCS2, MGN_VHT4SS_MCS3, MGN_VHT4SS_MCS4,
 				MGN_VHT4SS_MCS5, MGN_VHT4SS_MCS6, MGN_VHT4SS_MCS7, MGN_VHT4SS_MCS8, MGN_VHT4SS_MCS9};
 
-		PHY_SetTxPowerIndexByRateArray(padapter, RFPath, pHalData->CurrentChannelBW, Channel,
-								  vhtRates4T, sizeof(vhtRates4T)/sizeof(u8));
+		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
+					       pHalData->CurrentChannelBW,
+					       Channel, vhtRates4T,
+					       ARRAY_SIZE(vhtRates4T));
 	} else
 		DBG_871X("Invalid RateSection %d in %s", RateSection, __func__);
 }
@@ -1012,7 +1032,7 @@ static bool phy_GetChnlIndex(u8 Channel, u8 *ChannelIdx)
 	} else {
 		bIn24G = false;
 
-		for (i = 0; i < sizeof(channel5G)/sizeof(u8); ++i) {
+		for (i = 0; i < ARRAY_SIZE(channel5G); ++i) {
 			if (channel5G[i] == Channel) {
 				*ChannelIdx = i;
 				return bIn24G;
@@ -1149,7 +1169,7 @@ u8 PHY_GetTxPowerIndexBase(
 		} else if (BandWidth == CHANNEL_WIDTH_80) { /*  BW80-1S, BW80-2S */
 			/*  <20121220, Kordan> Get the index of array "Index5G_BW80_Base". */
 			u8 channel5G_80M[CHANNEL_MAX_NUMBER_5G_80M] = {42, 58, 106, 122, 138, 155, 171};
-			for (i = 0; i < sizeof(channel5G_80M)/sizeof(u8); ++i)
+			for (i = 0; i < ARRAY_SIZE(channel5G_80M); ++i)
 				if (channel5G_80M[i] == Channel)
 					chnlIdx = i;
 
@@ -1453,8 +1473,7 @@ u8 PHY_GetRateIndexOfTxPowerByRate(u8 Rate)
 	default:
 		DBG_871X("Invalid rate 0x%x in %s\n", Rate, __func__);
 		break;
-	};
-
+	}
 	return index;
 }
 
@@ -1588,7 +1607,7 @@ static s8 phy_GetChannelIndexOfTxPowerLimit(u8 Band, u8 Channel)
 	if (Band == BAND_ON_2_4G)
 		channelIndex = Channel - 1;
 	else if (Band == BAND_ON_5G) {
-		for (i = 0; i < sizeof(channel5G)/sizeof(u8); ++i) {
+		for (i = 0; i < ARRAY_SIZE(channel5G); ++i) {
 			if (channel5G[i] == Channel)
 				channelIndex = i;
 		}

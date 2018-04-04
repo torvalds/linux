@@ -178,7 +178,7 @@ matter is (1) kernel developers tend to be busy, (2) there is no shortage
 of people with grand plans and little code (or even prospect of code) to
 back them up, and (3) nobody is obligated to review or comment on ideas
 posted by others.  Beyond that, high-level designs often hide problems
-which are only reviewed when somebody actually tries to implement those
+which are only revealed when somebody actually tries to implement those
 designs; for that reason, kernel developers would rather see the code.
 
 If a request-for-comments posting yields little in the way of comments, do

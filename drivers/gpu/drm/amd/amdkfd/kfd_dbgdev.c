@@ -95,7 +95,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	ib_packet->bitfields3.ib_base_hi = largep->u.high_part;
 
 	ib_packet->control = (1 << 23) | (1 << 31) |
-			((size_in_bytes / sizeof(uint32_t)) & 0xfffff);
+			((size_in_bytes / 4) & 0xfffff);
 
 	ib_packet->bitfields5.pasid = pasid;
 
@@ -126,8 +126,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 	rm_packet->header.opcode = IT_RELEASE_MEM;
 	rm_packet->header.type = PM4_TYPE_3;
-	rm_packet->header.count = sizeof(struct pm4__release_mem) /
-					sizeof(unsigned int) - 2;
+	rm_packet->header.count = sizeof(struct pm4__release_mem) / 4 - 2;
 
 	rm_packet->bitfields2.event_type = CACHE_FLUSH_AND_INV_TS_EVENT;
 	rm_packet->bitfields2.event_index =
@@ -184,9 +183,10 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	struct kernel_queue *kq = NULL;
 	int status;
 
+	properties.type = KFD_QUEUE_TYPE_DIQ;
+
 	status = pqm_create_queue(dbgdev->pqm, dbgdev->dev, NULL,
-				&properties, 0, KFD_QUEUE_TYPE_DIQ,
-				&qid);
+				&properties, &qid);
 
 	if (status) {
 		pr_err("Failed to create DIQ\n");
@@ -651,8 +651,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	packets_vec[0].header.opcode = IT_SET_UCONFIG_REG;
 	packets_vec[0].header.type = PM4_TYPE_3;
 	packets_vec[0].bitfields2.reg_offset =
-			GRBM_GFX_INDEX / (sizeof(uint32_t)) -
-				USERCONFIG_REG_BASE;
+			GRBM_GFX_INDEX / 4 - USERCONFIG_REG_BASE;
 
 	packets_vec[0].bitfields2.insert_vmid = 0;
 	packets_vec[0].reg_data[0] = reg_gfx_index.u32All;
@@ -660,8 +659,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	packets_vec[1].header.count = 1;
 	packets_vec[1].header.opcode = IT_SET_CONFIG_REG;
 	packets_vec[1].header.type = PM4_TYPE_3;
-	packets_vec[1].bitfields2.reg_offset = SQ_CMD / (sizeof(uint32_t)) -
-						AMD_CONFIG_REG_BASE;
+	packets_vec[1].bitfields2.reg_offset = SQ_CMD / 4 - AMD_CONFIG_REG_BASE;
 
 	packets_vec[1].bitfields2.vmid_shift = SQ_CMD_VMID_OFFSET;
 	packets_vec[1].bitfields2.insert_vmid = 1;
@@ -677,8 +675,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 
 	packets_vec[2].ordinal1 = packets_vec[0].ordinal1;
 	packets_vec[2].bitfields2.reg_offset =
-				GRBM_GFX_INDEX / (sizeof(uint32_t)) -
-					USERCONFIG_REG_BASE;
+				GRBM_GFX_INDEX / 4 - USERCONFIG_REG_BASE;
 
 	packets_vec[2].bitfields2.insert_vmid = 0;
 	packets_vec[2].reg_data[0] = reg_gfx_index.u32All;
@@ -769,13 +766,8 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct kfd_process_device *pdd;
 	struct dbg_wave_control_info wac_info;
-	int temp;
-	int first_vmid_to_scan = 8;
-	int last_vmid_to_scan = 15;
-
-	first_vmid_to_scan = ffs(dev->shared_resources.compute_vmid_bitmap) - 1;
-	temp = dev->shared_resources.compute_vmid_bitmap >> first_vmid_to_scan;
-	last_vmid_to_scan = first_vmid_to_scan + ffz(temp);
+	int first_vmid_to_scan = dev->vm_info.first_vmid_kfd;
+	int last_vmid_to_scan = dev->vm_info.last_vmid_kfd;
 
 	reg_sq_cmd.u32All = 0;
 	status = 0;

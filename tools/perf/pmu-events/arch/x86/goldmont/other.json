@@ -1,6 +1,36 @@
 [
     {
         "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
+        "EventCode": "0x86",
+        "Counter": "0,1,2,3",
+        "UMask": "0x0",
+        "EventName": "FETCH_STALL.ALL",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Cycles code-fetch stalled due to any reason."
+    },
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",
+        "EventCode": "0x86",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "FETCH_STALL.ITLB_FILL_PENDING_CYCLES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Cycles code-fetch stalled due to an outstanding ITLB miss."
+    },
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend due to either a full resource  in the backend (RESOURCE_FULL) or due to the processor recovering from some event (RECOVERY).",
+        "EventCode": "0xCA",
+        "Counter": "0,1,2,3",
+        "UMask": "0x0",
+        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.ANY",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Unfilled issue slots per cycle"
+    },
+    {
+        "CollectPEBSRecord": "1",
         "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed because of a full resource in the backend.  Including but not limited to resources such as the Re-order Buffer (ROB), reservation stations (RS), load/store buffers, physical registers, or any other needed machine resource that is currently unavailable.   Note that uops must be available for consumption in order for this event to fire.  If a uop is not available (Instruction Queue is empty), this event will not count.",
         "EventCode": "0xCA",
         "Counter": "0,1,2,3",
@@ -20,24 +50,24 @@
         "BriefDescription": "Unfilled issue slots per cycle to recover"
     },
     {
-        "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of issue slots per core cycle that were not consumed by the backend due to either a full resource  in the backend (RESOURCE_FULL) or due to the processor recovering from some event (RECOVERY).",
-        "EventCode": "0xCA",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "ISSUE_SLOTS_NOT_CONSUMED.ANY",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Unfilled issue slots per cycle"
-    },
-    {
         "CollectPEBSRecord": "2",
         "PublicDescription": "Counts hardware interrupts received by the processor.",
         "EventCode": "0xCB",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "HW_INTERRUPTS.RECEIVED",
+        "SampleAfterValue": "203",
+        "BriefDescription": "Hardware interrupts received"
+    },
+    {
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
+        "EventCode": "0xCB",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "HW_INTERRUPTS.MASKED",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Hardware interrupts received (Precise event capable)"
+        "BriefDescription": "Cycles hardware interrupts are masked"
     },
     {
         "CollectPEBSRecord": "2",
@@ -47,6 +77,6 @@
         "UMask": "0x4",
         "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Cycles pending interrupts are masked (Precise event capable)"
+        "BriefDescription": "Cycles pending interrupts are masked"
     }
 ]

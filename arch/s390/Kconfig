@@ -68,6 +68,7 @@ config S390
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	select ARCH_HAS_KCOV
@@ -107,12 +108,10 @@ config S390
 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
 	select ARCH_SUPPORTS_ATOMIC_RMW
-	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
-	select ARCH_WANTS_PROT_NUMA_PROT_NONE
 	select ARCH_WANTS_UBSAN_NO_NULL
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
@@ -139,15 +138,15 @@ config S390
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
-	select DMA_NOOP_OPS
+	select DMA_DIRECT_OPS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
-	select HAVE_EXIT_THREAD
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_GCC_PLUGINS
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -158,6 +157,8 @@ config S390
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
@@ -538,6 +539,51 @@ config ARCH_RANDOM
 
 	  If unsure, say Y.
 
+config KERNEL_NOBP
+	def_bool n
+	prompt "Enable modified branch prediction for the kernel by default"
+	help
+	  If this option is selected the kernel will switch to a modified
+	  branch prediction mode if the firmware interface is available.
+	  The modified branch prediction mode improves the behaviour in
+	  regard to speculative execution.
+
+	  With the option enabled the kernel parameter "nobp=0" or "nospec"
+	  can be used to run the kernel in the normal branch prediction mode.
+
+	  With the option disabled the modified branch prediction mode is
+	  enabled with the "nobp=1" kernel parameter.
+
+	  If unsure, say N.
+
+config EXPOLINE
+	def_bool n
+	prompt "Avoid speculative indirect branches in the kernel"
+	help
+	  Compile the kernel with the expoline compiler options to guard
+	  against kernel-to-user data leaks by avoiding speculative indirect
+	  branches.
+	  Requires a compiler with -mindirect-branch=thunk support for full
+	  protection. The kernel may run slower.
+
+	  If unsure, say N.
+
+choice
+	prompt "Expoline default"
+	depends on EXPOLINE
+	default EXPOLINE_FULL
+
+config EXPOLINE_OFF
+	bool "spectre_v2=off"
+
+config EXPOLINE_MEDIUM
+	bool "spectre_v2=auto"
+
+config EXPOLINE_FULL
+	bool "spectre_v2=on"
+
+endchoice
+
 endmenu
 
 menu "Memory setup"
@@ -809,18 +855,6 @@ config PFAULT
 	  Everybody who wants to run Linux under VM != VM4.2 should select
 	  this option.
 
-config SHARED_KERNEL
-	bool "VM shared kernel support"
-	depends on !JUMP_LABEL
-	help
-	  Select this option, if you want to share the text segment of the
-	  Linux kernel between different VM guests. This reduces memory
-	  usage with lots of guests but greatly increases kernel size.
-	  Also if a kernel was IPL'ed from a shared segment the kexec system
-	  call will not work.
-	  You should only select this option if you know what you are
-	  doing and want to exploit this feature.
-
 config CMM
 	def_tristate n
 	prompt "Cooperative memory management"
@@ -929,18 +963,5 @@ config S390_GUEST
 
 	  Select this option if you want to run the kernel as a guest under
 	  the KVM hypervisor.
-
-config S390_GUEST_OLD_TRANSPORT
-	def_bool y
-	prompt "Guest support for old s390 virtio transport (DEPRECATED)"
-	depends on S390_GUEST
-	help
-	  Enable this option to add support for the old s390-virtio
-	  transport (i.e. virtio devices NOT based on virtio-ccw). This
-	  type of virtio devices is only available on the experimental
-	  kuli userspace or with old (< 2.6) qemu. If you are running
-	  with a modern version of qemu (which supports virtio-ccw since
-	  1.4 and uses it by default since version 2.4), you probably won't
-	  need this.
 
 endmenu

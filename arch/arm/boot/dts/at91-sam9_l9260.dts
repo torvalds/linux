@@ -32,6 +32,18 @@
 
 	ahb {
 		apb {
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			mmc0: mmc@fffa8000 {
 				pinctrl-0 = <
 					&pinctrl_board_mmc0

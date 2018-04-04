@@ -15,7 +15,7 @@ Optional properties:
 
 Example:
 
-	dma: dma-controller@801C0000 {
+	dma: dma-controller@801c0000 {
 		compatible = "stericsson,db8500-dma40", "stericsson,dma40";
 		reg = <0x801C0000 0x1000  0x40010000 0x800>;
 		reg-names = "base", "lcpa";

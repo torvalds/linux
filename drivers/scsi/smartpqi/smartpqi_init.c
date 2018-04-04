@@ -40,11 +40,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.1.2-125"
+#define DRIVER_VERSION		"1.1.2-126"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		1
 #define DRIVER_RELEASE		2
-#define DRIVER_REVISION		125
+#define DRIVER_REVISION		126
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
@@ -1078,9 +1078,9 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 
 bad_raid_map:
 	dev_warn(&ctrl_info->pci_dev->dev,
-		"scsi %d:%d:%d:%d %s\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, device->lun, err_msg);
+		"logical device %08x%08x %s\n",
+		*((u32 *)&device->scsi3addr),
+		*((u32 *)&device->scsi3addr[4]), err_msg);
 
 	return -EINVAL;
 }
@@ -2860,11 +2860,12 @@ out:
 
 #define PQI_HEARTBEAT_TIMER_INTERVAL	(10 * HZ)
 
-static void pqi_heartbeat_timer_handler(unsigned long data)
+static void pqi_heartbeat_timer_handler(struct timer_list *t)
 {
 	int num_interrupts;
 	u32 heartbeat_count;
-	struct pqi_ctrl_info *ctrl_info = (struct pqi_ctrl_info *)data;
+	struct pqi_ctrl_info *ctrl_info = from_timer(ctrl_info, t,
+						     heartbeat_timer);
 
 	pqi_check_ctrl_health(ctrl_info);
 	if (pqi_ctrl_offline(ctrl_info))
@@ -2902,8 +2903,6 @@ static void pqi_start_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 
 	ctrl_info->heartbeat_timer.expires =
 		jiffies + PQI_HEARTBEAT_TIMER_INTERVAL;
-	ctrl_info->heartbeat_timer.data = (unsigned long)ctrl_info;
-	ctrl_info->heartbeat_timer.function = pqi_heartbeat_timer_handler;
 	add_timer(&ctrl_info->heartbeat_timer);
 }
 
@@ -6465,7 +6464,7 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 	INIT_DELAYED_WORK(&ctrl_info->rescan_work, pqi_rescan_worker);
 	INIT_DELAYED_WORK(&ctrl_info->update_time_work, pqi_update_time_worker);
 
-	init_timer(&ctrl_info->heartbeat_timer);
+	timer_setup(&ctrl_info->heartbeat_timer, pqi_heartbeat_timer_handler, 0);
 	INIT_WORK(&ctrl_info->ctrl_offline_work, pqi_ctrl_offline_worker);
 
 	sema_init(&ctrl_info->sync_request_sem,
@@ -6923,6 +6922,14 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x1301)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1302)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1303)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,

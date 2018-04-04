@@ -168,7 +168,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
 		return -1;
 	}
 
-	__flush_tlb_one(f->addr);
+	__flush_tlb_one_kernel(f->addr);
 	return 0;
 }
 
@@ -435,17 +435,18 @@ int register_kmmio_probe(struct kmmio_probe *p)
 	unsigned long flags;
 	int ret = 0;
 	unsigned long size = 0;
+	unsigned long addr = p->addr & PAGE_MASK;
 	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
 	unsigned int l;
 	pte_t *pte;
 
 	spin_lock_irqsave(&kmmio_lock, flags);
-	if (get_kmmio_probe(p->addr)) {
+	if (get_kmmio_probe(addr)) {
 		ret = -EEXIST;
 		goto out;
 	}
 
-	pte = lookup_address(p->addr, &l);
+	pte = lookup_address(addr, &l);
 	if (!pte) {
 		ret = -EINVAL;
 		goto out;
@@ -454,7 +455,7 @@ int register_kmmio_probe(struct kmmio_probe *p)
 	kmmio_count++;
 	list_add_rcu(&p->list, &kmmio_probes);
 	while (size < size_lim) {
-		if (add_kmmio_fault_page(p->addr + size))
+		if (add_kmmio_fault_page(addr + size))
 			pr_err("Unable to set page fault.\n");
 		size += page_level_size(l);
 	}
@@ -528,19 +529,20 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
 {
 	unsigned long flags;
 	unsigned long size = 0;
+	unsigned long addr = p->addr & PAGE_MASK;
 	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
 	struct kmmio_fault_page *release_list = NULL;
 	struct kmmio_delayed_release *drelease;
 	unsigned int l;
 	pte_t *pte;
 
-	pte = lookup_address(p->addr, &l);
+	pte = lookup_address(addr, &l);
 	if (!pte)
 		return;
 
 	spin_lock_irqsave(&kmmio_lock, flags);
 	while (size < size_lim) {
-		release_kmmio_fault_page(p->addr + size, &release_list);
+		release_kmmio_fault_page(addr + size, &release_list);
 		size += page_level_size(l);
 	}
 	list_del_rcu(&p->list);

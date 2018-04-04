@@ -75,7 +75,7 @@ int nft_redir_init(const struct nft_ctx *ctx,
 			return -EINVAL;
 	}
 
-	return nf_ct_netns_get(ctx->net, ctx->afi->family);
+	return nf_ct_netns_get(ctx->net, ctx->family);
 }
 EXPORT_SYMBOL_GPL(nft_redir_init);
 

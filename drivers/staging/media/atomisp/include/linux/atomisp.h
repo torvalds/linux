@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 #ifdef CSS15
@@ -72,7 +68,9 @@
 #define V4L2_MBUS_FMT_CUSTOM_RGB32	0x800a
 
 /* Custom media bus format for M10MO RAW capture */
+#if 0
 #define V4L2_MBUS_FMT_CUSTOM_M10MO_RAW	0x800b
+#endif
 
 /* Configuration used by Bayer noise reduction and YCC noise reduction */
 struct atomisp_nr_config {
@@ -212,14 +210,14 @@ struct atomisp_dis_vector {
 };
 
 
-/** DVS 2.0 Coefficient types. This structure contains 4 pointers to
+/* DVS 2.0 Coefficient types. This structure contains 4 pointers to
  *  arrays that contain the coeffients for each type.
  */
 struct atomisp_dvs2_coef_types {
-	short __user *odd_real; /**< real part of the odd coefficients*/
-	short __user *odd_imag; /**< imaginary part of the odd coefficients*/
-	short __user *even_real;/**< real part of the even coefficients*/
-	short __user *even_imag;/**< imaginary part of the even coefficients*/
+	short __user *odd_real; /** real part of the odd coefficients*/
+	short __user *odd_imag; /** imaginary part of the odd coefficients*/
+	short __user *even_real;/** real part of the even coefficients*/
+	short __user *even_imag;/** imaginary part of the even coefficients*/
 };
 
 /*
@@ -227,10 +225,10 @@ struct atomisp_dvs2_coef_types {
  * arrays that contain the statistics for each type.
  */
 struct atomisp_dvs2_stat_types {
-	int __user *odd_real; /**< real part of the odd statistics*/
-	int __user *odd_imag; /**< imaginary part of the odd statistics*/
-	int __user *even_real;/**< real part of the even statistics*/
-	int __user *even_imag;/**< imaginary part of the even statistics*/
+	int __user *odd_real; /** real part of the odd statistics*/
+	int __user *odd_imag; /** imaginary part of the odd statistics*/
+	int __user *even_real;/** real part of the even statistics*/
+	int __user *even_imag;/** imaginary part of the even statistics*/
 };
 
 struct atomisp_dis_coefficients {
@@ -394,16 +392,16 @@ struct atomisp_metadata_config {
  * Generic resolution structure.
  */
 struct atomisp_resolution {
-	uint32_t width;  /**< Width */
-	uint32_t height; /**< Height */
+	uint32_t width;  /** Width */
+	uint32_t height; /** Height */
 };
 
 /*
  * This specifies the coordinates (x,y)
  */
 struct atomisp_zoom_point {
-	int32_t x; /**< x coordinate */
-	int32_t y; /**< y coordinate */
+	int32_t x; /** x coordinate */
+	int32_t y; /** y coordinate */
 };
 
 /*
@@ -415,9 +413,9 @@ struct atomisp_zoom_region {
 };
 
 struct atomisp_dz_config {
-	uint32_t dx; /**< Horizontal zoom factor */
-	uint32_t dy; /**< Vertical zoom factor */
-	struct atomisp_zoom_region zoom_region; /**< region for zoom */
+	uint32_t dx; /** Horizontal zoom factor */
+	uint32_t dy; /** Vertical zoom factor */
+	struct atomisp_zoom_region zoom_region; /** region for zoom */
 };
 
 struct atomisp_parm {
@@ -762,7 +760,7 @@ enum atomisp_acc_arg_type {
 	ATOMISP_ACC_ARG_FRAME	     /* Frame argument */
 };
 
-/** ISP memories, isp2400 */
+/* ISP memories, isp2400 */
 enum atomisp_acc_memory {
 	ATOMISP_ACC_MEMORY_PMEM0 = 0,
 	ATOMISP_ACC_MEMORY_DMEM0,

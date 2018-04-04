@@ -474,9 +474,8 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 		new = ocfs2_get_system_file_inode(osb, i, osb->slot_num);
 		if (!new) {
 			ocfs2_release_system_inodes(osb);
-			status = -EINVAL;
+			status = ocfs2_is_soft_readonly(osb) ? -EROFS : -EINVAL;
 			mlog_errno(status);
-			/* FIXME: Should ERROR_RO_FS */
 			mlog(ML_ERROR, "Unable to load system inode %d, "
 			     "possibly corrupt fs?", i);
 			goto bail;
@@ -505,7 +504,7 @@ static int ocfs2_init_local_system_inodes(struct ocfs2_super *osb)
 		new = ocfs2_get_system_file_inode(osb, i, osb->slot_num);
 		if (!new) {
 			ocfs2_release_system_inodes(osb);
-			status = -EINVAL;
+			status = ocfs2_is_soft_readonly(osb) ? -EROFS : -EINVAL;
 			mlog(ML_ERROR, "status=%d, sysfile=%d, slot=%d\n",
 			     status, i, osb->slot_num);
 			goto bail;
@@ -675,9 +674,9 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	/* We're going to/from readonly mode. */
-	if ((bool)(*flags & MS_RDONLY) != sb_rdonly(sb)) {
+	if ((bool)(*flags & SB_RDONLY) != sb_rdonly(sb)) {
 		/* Disable quota accounting before remounting RO */
-		if (*flags & MS_RDONLY) {
+		if (*flags & SB_RDONLY) {
 			ret = ocfs2_susp_quotas(osb, 0);
 			if (ret < 0)
 				goto out;
@@ -691,8 +690,8 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 			goto unlock_osb;
 		}
 
-		if (*flags & MS_RDONLY) {
-			sb->s_flags |= MS_RDONLY;
+		if (*flags & SB_RDONLY) {
+			sb->s_flags |= SB_RDONLY;
 			osb->osb_flags |= OCFS2_OSB_SOFT_RO;
 		} else {
 			if (osb->osb_flags & OCFS2_OSB_ERROR_FS) {
@@ -709,14 +708,14 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 				ret = -EINVAL;
 				goto unlock_osb;
 			}
-			sb->s_flags &= ~MS_RDONLY;
+			sb->s_flags &= ~SB_RDONLY;
 			osb->osb_flags &= ~OCFS2_OSB_SOFT_RO;
 		}
 		trace_ocfs2_remount(sb->s_flags, osb->osb_flags, *flags);
 unlock_osb:
 		spin_unlock(&osb->osb_lock);
 		/* Enable quota accounting after remounting RW */
-		if (!ret && !(*flags & MS_RDONLY)) {
+		if (!ret && !(*flags & SB_RDONLY)) {
 			if (sb_any_quota_suspended(sb))
 				ret = ocfs2_susp_quotas(osb, 1);
 			else
@@ -724,7 +723,7 @@ unlock_osb:
 			if (ret < 0) {
 				/* Return back changes... */
 				spin_lock(&osb->osb_lock);
-				sb->s_flags |= MS_RDONLY;
+				sb->s_flags |= SB_RDONLY;
 				osb->osb_flags |= OCFS2_OSB_SOFT_RO;
 				spin_unlock(&osb->osb_lock);
 				goto out;
@@ -744,9 +743,9 @@ unlock_osb:
 		if (!ocfs2_is_hard_readonly(osb))
 			ocfs2_set_journal_params(osb);
 
-		sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+		sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 			((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) ?
-							MS_POSIXACL : 0);
+							SB_POSIXACL : 0);
 	}
 out:
 	return ret;
@@ -1057,10 +1056,10 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
 
-	sb->s_flags = (sb->s_flags & ~(MS_POSIXACL | MS_NOSEC)) |
-		((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
+	sb->s_flags = (sb->s_flags & ~(SB_POSIXACL | SB_NOSEC)) |
+		((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) ? SB_POSIXACL : 0);
 
-	/* Hard readonly mode only if: bdev_read_only, MS_RDONLY,
+	/* Hard readonly mode only if: bdev_read_only, SB_RDONLY,
 	 * heartbeat=none */
 	if (bdev_read_only(sb->s_bdev)) {
 		if (!sb_rdonly(sb)) {
@@ -1208,14 +1207,15 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 read_super_error:
 	brelse(bh);
 
+	if (status)
+		mlog_errno(status);
+
 	if (osb) {
 		atomic_set(&osb->vol_state, VOLUME_DISABLED);
 		wake_up(&osb->osb_mount_event);
 		ocfs2_dismount_volume(sb, 1);
 	}
 
-	if (status)
-		mlog_errno(status);
 	return status;
 }
 
@@ -1843,6 +1843,9 @@ static int ocfs2_mount_volume(struct super_block *sb)
 	status = ocfs2_dlm_init(osb);
 	if (status < 0) {
 		mlog_errno(status);
+		if (status == -EBADR && ocfs2_userspace_stack(osb))
+			mlog(ML_ERROR, "couldn't mount because cluster name on"
+			" disk does not match the running cluster name.\n");
 		goto leave;
 	}
 
@@ -2057,7 +2060,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 	sb->s_xattr = ocfs2_xattr_handlers;
 	sb->s_time_gran = 1;
-	sb->s_flags |= MS_NOATIME;
+	sb->s_flags |= SB_NOATIME;
 	/* this is needed to support O_LARGEFILE */
 	cbits = le32_to_cpu(di->id2.i_super.s_clustersize_bits);
 	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
@@ -2521,10 +2524,8 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	/* This function assumes that the caller has the main osb resource */
 
 	/* ocfs2_initializer_super have already created this workqueue */
-	if (osb->ocfs2_wq) {
-		flush_workqueue(osb->ocfs2_wq);
+	if (osb->ocfs2_wq)
 		destroy_workqueue(osb->ocfs2_wq);
-	}
 
 	ocfs2_free_slot_info(osb);
 
@@ -2570,7 +2571,7 @@ static int ocfs2_handle_error(struct super_block *sb)
 			return rv;
 
 		pr_crit("OCFS2: File system is now read-only.\n");
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		ocfs2_set_ro_flag(osb, 0);
 	}
 

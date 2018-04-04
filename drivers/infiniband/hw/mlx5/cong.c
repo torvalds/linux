@@ -247,21 +247,30 @@ static void mlx5_ib_set_cc_param_mask_val(void *field, int offset,
 	}
 }
 
-static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, int offset, u32 *var)
+static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
+				 int offset, u32 *var)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_cong_params_out);
 	void *out;
 	void *field;
 	int err;
 	enum mlx5_ib_cong_node_type node;
+	struct mlx5_core_dev *mdev;
+
+	/* Takes a 1-based port number */
+	mdev = mlx5_ib_get_native_port_mdev(dev, port_num + 1, NULL);
+	if (!mdev)
+		return -ENODEV;
 
 	out = kvzalloc(outlen, GFP_KERNEL);
-	if (!out)
-		return -ENOMEM;
+	if (!out) {
+		err = -ENOMEM;
+		goto alloc_err;
+	}
 
 	node = mlx5_ib_param_to_node(offset);
 
-	err = mlx5_cmd_query_cong_params(dev->mdev, node, out, outlen);
+	err = mlx5_cmd_query_cong_params(mdev, node, out, outlen);
 	if (err)
 		goto free;
 
@@ -270,21 +279,32 @@ static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, int offset, u32 *var)
 
 free:
 	kvfree(out);
+alloc_err:
+	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
 	return err;
 }
 
-static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, int offset, u32 var)
+static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
+				 int offset, u32 var)
 {
 	int inlen = MLX5_ST_SZ_BYTES(modify_cong_params_in);
 	void *in;
 	void *field;
 	enum mlx5_ib_cong_node_type node;
+	struct mlx5_core_dev *mdev;
 	u32 attr_mask = 0;
 	int err;
 
+	/* Takes a 1-based port number */
+	mdev = mlx5_ib_get_native_port_mdev(dev, port_num + 1, NULL);
+	if (!mdev)
+		return -ENODEV;
+
 	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
+	if (!in) {
+		err = -ENOMEM;
+		goto alloc_err;
+	}
 
 	MLX5_SET(modify_cong_params_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_CONG_PARAMS);
@@ -299,8 +319,10 @@ static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, int offset, u32 var)
 	MLX5_SET(field_select_r_roce_rp, field, field_select_r_roce_rp,
 		 attr_mask);
 
-	err = mlx5_cmd_modify_cong_params(dev->mdev, in, inlen);
+	err = mlx5_cmd_modify_cong_params(mdev, in, inlen);
 	kvfree(in);
+alloc_err:
+	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
 	return err;
 }
 
@@ -324,7 +346,7 @@ static ssize_t set_param(struct file *filp, const char __user *buf,
 	if (kstrtou32(lbuf, 0, &var))
 		return -EINVAL;
 
-	ret = mlx5_ib_set_cc_params(param->dev, offset, var);
+	ret = mlx5_ib_set_cc_params(param->dev, param->port_num, offset, var);
 	return ret ? ret : count;
 }
 
@@ -340,7 +362,7 @@ static ssize_t get_param(struct file *filp, char __user *buf, size_t count,
 	if (*pos)
 		return 0;
 
-	ret = mlx5_ib_get_cc_params(param->dev, offset, &var);
+	ret = mlx5_ib_get_cc_params(param->dev, param->port_num, offset, &var);
 	if (ret)
 		return ret;
 
@@ -362,44 +384,51 @@ static const struct file_operations dbg_cc_fops = {
 	.read	= get_param,
 };
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev)
+void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	if (!mlx5_debugfs_root ||
-	    !dev->dbg_cc_params ||
-	    !dev->dbg_cc_params->root)
+	    !dev->port[port_num].dbg_cc_params ||
+	    !dev->port[port_num].dbg_cc_params->root)
 		return;
 
-	debugfs_remove_recursive(dev->dbg_cc_params->root);
-	kfree(dev->dbg_cc_params);
-	dev->dbg_cc_params = NULL;
+	debugfs_remove_recursive(dev->port[port_num].dbg_cc_params->root);
+	kfree(dev->port[port_num].dbg_cc_params);
+	dev->port[port_num].dbg_cc_params = NULL;
 }
 
-int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev)
+int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
+	struct mlx5_core_dev *mdev;
 	int i;
 
 	if (!mlx5_debugfs_root)
 		goto out;
 
-	if (!MLX5_CAP_GEN(dev->mdev, cc_query_allowed) ||
-	    !MLX5_CAP_GEN(dev->mdev, cc_modify_allowed))
+	/* Takes a 1-based port number */
+	mdev = mlx5_ib_get_native_port_mdev(dev, port_num + 1, NULL);
+	if (!mdev)
 		goto out;
+
+	if (!MLX5_CAP_GEN(mdev, cc_query_allowed) ||
+	    !MLX5_CAP_GEN(mdev, cc_modify_allowed))
+		goto put_mdev;
 
 	dbg_cc_params = kzalloc(sizeof(*dbg_cc_params), GFP_KERNEL);
 	if (!dbg_cc_params)
-		goto out;
+		goto err;
 
-	dev->dbg_cc_params = dbg_cc_params;
+	dev->port[port_num].dbg_cc_params = dbg_cc_params;
 
 	dbg_cc_params->root = debugfs_create_dir("cc_params",
-						 dev->mdev->priv.dbg_root);
+						 mdev->priv.dbg_root);
 	if (!dbg_cc_params->root)
 		goto err;
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
 		dbg_cc_params->params[i].offset = i;
 		dbg_cc_params->params[i].dev = dev;
+		dbg_cc_params->params[i].port_num = port_num;
 		dbg_cc_params->params[i].dentry =
 			debugfs_create_file(mlx5_ib_dbg_cc_name[i],
 					    0600, dbg_cc_params->root,
@@ -408,11 +437,17 @@ int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev)
 		if (!dbg_cc_params->params[i].dentry)
 			goto err;
 	}
-out:	return 0;
+
+put_mdev:
+	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
+out:
+	return 0;
 
 err:
 	mlx5_ib_warn(dev, "cong debugfs failure\n");
-	mlx5_ib_cleanup_cong_debugfs(dev);
+	mlx5_ib_cleanup_cong_debugfs(dev, port_num);
+	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
+
 	/*
 	 * We don't want to fail driver if debugfs failed to initialize,
 	 * so we are not forwarding error to the user.

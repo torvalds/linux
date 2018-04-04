@@ -33,7 +33,6 @@ static int dev_pm_attach_wake_irq(struct device *dev, int irq,
 				  struct wake_irq *wirq)
 {
 	unsigned long flags;
-	int err;
 
 	if (!dev || !wirq)
 		return -EINVAL;
@@ -45,12 +44,11 @@ static int dev_pm_attach_wake_irq(struct device *dev, int irq,
 		return -EEXIST;
 	}
 
-	err = device_wakeup_attach_irq(dev, wirq);
-	if (!err)
-		dev->power.wakeirq = wirq;
+	dev->power.wakeirq = wirq;
+	device_wakeup_attach_irq(dev, wirq);
 
 	spin_unlock_irqrestore(&dev->power.lock, flags);
-	return err;
+	return 0;
 }
 
 /**
@@ -323,7 +321,8 @@ void dev_pm_arm_wake_irq(struct wake_irq *wirq)
 		return;
 
 	if (device_may_wakeup(wirq->dev)) {
-		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED)
+		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED &&
+		    !pm_runtime_status_suspended(wirq->dev))
 			enable_irq(wirq->irq);
 
 		enable_irq_wake(wirq->irq);
@@ -345,7 +344,8 @@ void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
 	if (device_may_wakeup(wirq->dev)) {
 		disable_irq_wake(wirq->irq);
 
-		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED)
+		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED &&
+		    !pm_runtime_status_suspended(wirq->dev))
 			disable_irq_nosync(wirq->irq);
 	}
 }

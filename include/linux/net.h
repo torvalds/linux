@@ -22,7 +22,6 @@
 #include <linux/random.h>
 #include <linux/wait.h>
 #include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
-#include <linux/kmemcheck.h>
 #include <linux/rcupdate.h>
 #include <linux/once.h>
 #include <linux/fs.h>
@@ -111,9 +110,7 @@ struct socket_wq {
 struct socket {
 	socket_state		state;
 
-	kmemcheck_bitfield_begin(type);
 	short			type;
-	kmemcheck_bitfield_end(type);
 
 	unsigned long		flags;
 
@@ -150,7 +147,7 @@ struct proto_ops {
 	int		(*getname)   (struct socket *sock,
 				      struct sockaddr *addr,
 				      int *sockaddr_len, int peer);
-	unsigned int	(*poll)	     (struct file *file, struct socket *sock,
+	__poll_t	(*poll)	     (struct file *file, struct socket *sock,
 				      struct poll_table_struct *wait);
 	int		(*ioctl)     (struct socket *sock, unsigned int cmd,
 				      unsigned long arg);
@@ -309,7 +306,6 @@ int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 		    size_t size, int flags);
 int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
 			   size_t size, int flags);
-int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg);
 int kernel_sock_shutdown(struct socket *sock, enum sock_shutdown_cmd how);
 
 /* Routine returns the IP overhead imposed by a (caller-protected) socket. */

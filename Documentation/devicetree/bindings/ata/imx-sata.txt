@@ -25,7 +25,7 @@ Optional properties:
 
 Examples:
 
-sata@02200000 {
+sata@2200000 {
 	compatible = "fsl,imx6q-ahci";
 	reg = <0x02200000 0x4000>;
 	interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;

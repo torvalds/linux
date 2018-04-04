@@ -1,6 +1,6 @@
 /*
- * Copyright (C) Amelie Delaunay 2016
- * Author:  Amelie Delaunay <amelie.delaunay@st.com>
+ * Copyright (C) STMicroelectronics SA 2017
+ * Author:  Amelie Delaunay <amelie.delaunay@st.com> for STMicroelectronics.
  * License terms:  GNU General Public License (GPL), version 2
  */
 

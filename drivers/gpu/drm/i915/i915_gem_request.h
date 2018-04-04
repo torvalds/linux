@@ -30,6 +30,8 @@
 #include "i915_gem.h"
 #include "i915_sw_fence.h"
 
+#include <uapi/drm/i915_drm.h>
+
 struct drm_file;
 struct drm_i915_gem_object;
 struct drm_i915_gem_request;
@@ -69,9 +71,14 @@ struct i915_priotree {
 	struct list_head waiters_list; /* those after us, they depend upon us */
 	struct list_head link;
 	int priority;
-#define I915_PRIORITY_MAX 1024
-#define I915_PRIORITY_NORMAL 0
-#define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
+};
+
+enum {
+	I915_PRIORITY_MIN = I915_CONTEXT_MIN_USER_PRIORITY - 1,
+	I915_PRIORITY_NORMAL = I915_CONTEXT_DEFAULT_PRIORITY,
+	I915_PRIORITY_MAX = I915_CONTEXT_MAX_USER_PRIORITY + 1,
+
+	I915_PRIORITY_INVALID = INT_MIN
 };
 
 struct i915_gem_capture_list {
@@ -197,6 +204,8 @@ struct drm_i915_gem_request {
 	struct list_head client_link;
 };
 
+#define I915_FENCE_GFP (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
+
 extern const struct dma_fence_ops i915_fence_ops;
 
 static inline bool dma_fence_is_i915(const struct dma_fence *fence)
@@ -313,26 +322,6 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 }
 
 static inline bool
-__i915_gem_request_started(const struct drm_i915_gem_request *req, u32 seqno)
-{
-	GEM_BUG_ON(!seqno);
-	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 seqno - 1);
-}
-
-static inline bool
-i915_gem_request_started(const struct drm_i915_gem_request *req)
-{
-	u32 seqno;
-
-	seqno = i915_gem_request_global_seqno(req);
-	if (!seqno)
-		return false;
-
-	return __i915_gem_request_started(req, seqno);
-}
-
-static inline bool
 __i915_gem_request_completed(const struct drm_i915_gem_request *req, u32 seqno)
 {
 	GEM_BUG_ON(!seqno);
@@ -350,21 +339,6 @@ i915_gem_request_completed(const struct drm_i915_gem_request *req)
 		return false;
 
 	return __i915_gem_request_completed(req, seqno);
-}
-
-bool __i915_spin_request(const struct drm_i915_gem_request *request,
-			 u32 seqno, int state, unsigned long timeout_us);
-static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
-				     int state, unsigned long timeout_us)
-{
-	u32 seqno;
-
-	seqno = i915_gem_request_global_seqno(request);
-	if (!seqno)
-		return 0;
-
-	return (__i915_gem_request_started(request, seqno) &&
-		__i915_spin_request(request, seqno, state, timeout_us));
 }
 
 /* We treat requests as fences. This is not be to confused with our

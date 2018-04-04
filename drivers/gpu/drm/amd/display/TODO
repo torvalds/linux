@@ -1,0 +1,110 @@
+===============================================================================
+TODOs
+===============================================================================
+
+1. Base this on drm-next - WIP
+
+
+2. Cleanup commit history
+
+
+3. WIP - Drop page flip helper and use DRM's version
+
+
+4. DONE - Flatten all DC objects
+    * dc_stream/core_stream/stream should just be dc_stream
+    * Same for other DC objects
+
+    "Is there any major reason to keep all those abstractions?
+
+    Could you collapse everything into struct dc_stream?
+
+    I haven't looked recently but I didn't get the impression there was a
+    lot of design around what was public/protected, more whatever needed
+    to be used by someone else was in public."
+    ~ Dave Airlie
+
+
+5. DONE - Rename DC objects to align more with DRM
+    * dc_surface -> dc_plane_state
+    * dc_stream -> dc_stream_state
+
+
+6. DONE - Per-plane and per-stream validation
+
+
+7. WIP - Per-plane and per-stream commit
+
+
+8. WIP - Split pipe_ctx into plane and stream resource structs
+
+
+9. Attach plane and stream reources to state object instead of validate_context
+
+
+10. Remove dc_edid_caps and drm_helpers_parse_edid_caps
+    * Use drm_display_info instead
+    * Remove DC's edid quirks and rely on DRM's quirks (add quirks if needed)
+
+    "Making sure you use the sink-specific helper libraries and kernel
+    subsystems, since there's really no good reason to have 2nd
+    implementation of those in the kernel. Looks likes that's done for mst
+    and edid parsing. There's still a bit a midlayer feeling to the edid
+    parsing side (e.g. dc_edid_caps and dm_helpers_parse_edid_caps, I
+    think it'd be much better if you convert that over to reading stuff
+    from drm_display_info and if needed, push stuff into the core). Also,
+    I can't come up with a good reason why DC needs all this (except to
+    reimplement half of our edid quirk table, which really isn't a good
+    idea). Might be good if you put this onto the list of things to fix
+    long-term, but imo not a blocker. Definitely make sure new stuff
+    doesn't slip in (i.e. if you start adding edid quirks to DC instead of
+    the drm core, refactoring to use the core edid stuff was pointless)."
+    ~ Daniel Vetter
+
+
+11. Remove dc/i2caux. This folder can be somewhat misleading. It's basically an
+overy complicated HW programming function for sendind and receiving i2c/aux
+commands. We can greatly simplify that and move it into dc/dceXYZ like other
+HW blocks.
+
+12. drm_modeset_lock in MST should no longer be needed in recent kernels
+    * Adopt appropriate locking scheme
+
+13. get_modes and best_encoder callbacks look a bit funny. Can probably rip out
+a few indirections, and consider removing entirely and using the
+drm_atomic_helper_best_encoder default behaviour.
+
+14. core/dc_debug.c, consider switching to the atomic state debug helpers and
+moving all your driver state printing into the various atomic_print_state
+callbacks. There's also plans to expose this stuff in a standard way across all
+drivers, to make debugging userspace compositors easier across different hw.
+
+15. Move DP/HDMI dual mode adaptors to drm_dp_dual_mode_helper.c. See
+dal_ddc_service_i2c_query_dp_dual_mode_adaptor.
+
+16. Move to core SCDC helpers (I think those are new since initial DC review).
+
+17. There's still a pretty massive layer cake around dp aux and DPCD handling,
+with like 3 levels of abstraction and using your own structures instead of the
+stuff in drm_dp_helper.h. drm_dp_helper.h isn't really great and already has 2
+incompatible styles, just means more reasons not to add a third (or well third
+one gets to do the cleanup refactor).
+
+18. There's a pile of sink handling code, both for DP and HDMI where I didn't
+immediately recognize the standard. I think long term it'd be best for the drm
+subsystem if we try to move as much of that into helpers/core as possible, and
+share it with drivers. But that's a very long term goal, and by far not just an
+issue with DC - other drivers, especially around DP sink handling, are equally
+guilty.
+
+19. The DC logger is still a rather sore thing, but I know that the DRM_DEBUG
+stuff just isn't up to the challenges either. We need to figure out something
+that integrates better with DRM and linux debug printing, while not being
+useless with filtering output. dynamic debug printing might be an option.
+
+20. Use kernel i2c device to program HDMI retimer. Some boards have an HDMI
+retimer that we need to program to pass PHY compliance. Currently that's
+bypassing the i2c device and goes directly to HW. This should be changed.
+
+21. Remove vector.c from dc/basics. It's used in DDC code which can probably
+be simplified enough to no longer need a vector implementation.

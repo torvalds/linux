@@ -123,8 +123,10 @@ config I2C_I801
 	    Wildcat Point (PCH)
 	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
+	    Braswell (SOC)
 	    Sunrise Point-H (PCH)
 	    Sunrise Point-LP (PCH)
+	    Kaby Lake-H (PCH)
 	    DNV (SOC)
 	    Broxton (SOC)
 	    Lewisburg (PCH)
@@ -197,6 +199,11 @@ config I2C_CHT_WC
 	  If you say yes to this option, support will be included for the
 	  SMBus controller found in the Intel Cherry Trail Whiskey Cove PMIC
 	  found on some Intel Cherry Trail systems.
+
+	  Note this controller is hooked up to a TI bq24292i charger-IC,
+	  combined with a FUSB302 Type-C port-controller as such it is advised
+	  to also select CONFIG_CHARGER_BQ24190=m and CONFIG_TYPEC_FUSB302=m
+	  (the fusb302 driver currently is in drivers/staging).
 
 config I2C_NFORCE2
 	tristate "Nvidia nForce2, nForce3 and nForce4"
@@ -597,6 +604,14 @@ config I2C_GPIO
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
 	  arch-neutral GPIO API to control the SCL and SDA lines.
+
+config I2C_GPIO_FAULT_INJECTOR
+	bool "GPIO-based fault injector"
+	depends on I2C_GPIO
+	help
+	  This adds some functionality to the i2c-gpio driver which can inject
+	  faults to an I2C bus, so another bus master can be stress-tested.
+	  This is for debugging. If unsure, say 'no'.
 
 config I2C_HIGHLANDER
 	tristate "Highlander FPGA SMBus interface"

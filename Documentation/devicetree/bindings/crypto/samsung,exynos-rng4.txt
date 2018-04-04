@@ -1,0 +1,19 @@
+Exynos Pseudo Random Number Generator
+
+Required properties:
+
+- compatible  : One of:
+                - "samsung,exynos4-rng" for Exynos4210 and Exynos4412
+                - "samsung,exynos5250-prng" for Exynos5250+
+- reg         : Specifies base physical address and size of the registers map.
+- clocks      : Phandle to clock-controller plus clock-specifier pair.
+- clock-names : "secss" as a clock name.
+
+Example:
+
+	rng@10830400 {
+		compatible = "samsung,exynos4-rng";
+		reg = <0x10830400 0x200>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+	};

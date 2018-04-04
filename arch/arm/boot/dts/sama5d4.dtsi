@@ -113,7 +113,7 @@
 		};
 	};
 
-	ns_sram: sram@00210000 {
+	ns_sram: sram@210000 {
 		compatible = "mmio-sram";
 		reg = <0x00210000 0x10000>;
 	};
@@ -130,7 +130,7 @@
 			reg = <0x100000 0x2400>;
 		};
 
-		usb0: gadget@00400000 {
+		usb0: gadget@400000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "atmel,sama5d3-udc";
@@ -260,7 +260,7 @@
 			};
 		};
 
-		usb1: ohci@00500000 {
+		usb1: ohci@500000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00500000 0x100000>;
 			interrupts = <46 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -269,7 +269,7 @@
 			status = "disabled";
 		};
 
-		usb2: ehci@00600000 {
+		usb2: ehci@600000 {
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00600000 0x100000>;
 			interrupts = <46 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -278,7 +278,7 @@
 			status = "disabled";
 		};
 
-		L2: cache-controller@00a00000 {
+		L2: cache-controller@a00000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a00000 0x1000>;
 			interrupts = <67 IRQ_TYPE_LEVEL_HIGH 4>;
@@ -960,7 +960,9 @@
 			};
 
 			tcb0: timer@f801c000 {
-				compatible = "atmel,at91sam9x5-tcb";
+				compatible = "atmel,at91sam9x5-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xf801c000 0x100>;
 				interrupts = <40 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb0_clk>, <&clk32k>;
@@ -1188,10 +1190,22 @@
 			};
 
 			tcb1: timer@fc020000 {
-				compatible = "atmel,at91sam9x5-tcb";
+				compatible = "atmel,at91sam9x5-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfc020000 0x100>;
 				interrupts = <41 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb1_clk>, <&clk32k>;
+				clock-names = "t0_clk", "slow_clk";
+			};
+
+			tcb2: timer@fc024000 {
+				compatible = "atmel,at91sam9x5-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xfc024000 0x100>;
+				interrupts = <42 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&tcb2_clk>, <&clk32k>;
 				clock-names = "t0_clk", "slow_clk";
 			};
 

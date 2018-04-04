@@ -319,6 +319,7 @@ static void update_network(struct wlan_bssid_ex *dst,
 			   struct _adapter *padapter)
 {
 	u32 last_evm = 0, tmpVal;
+	struct smooth_rssi_data *sqd = &padapter->recvpriv.signal_qual_data;
 
 	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) &&
 	    is_same_network(&(padapter->mlmepriv.cur_network.network), src)) {
@@ -326,17 +327,13 @@ static void update_network(struct wlan_bssid_ex *dst,
 		    PHY_LINKQUALITY_SLID_WIN_MAX) {
 			padapter->recvpriv.signal_qual_data.total_num =
 				   PHY_LINKQUALITY_SLID_WIN_MAX;
-			last_evm = padapter->recvpriv.signal_qual_data.
-				   elements[padapter->recvpriv.
-				   signal_qual_data.index];
+			last_evm = sqd->elements[sqd->index];
 			padapter->recvpriv.signal_qual_data.total_val -=
 				 last_evm;
 		}
 		padapter->recvpriv.signal_qual_data.total_val += src->Rssi;
 
-		padapter->recvpriv.signal_qual_data.
-			  elements[padapter->recvpriv.signal_qual_data.
-			  index++] = src->Rssi;
+		sqd->elements[sqd->index++] = src->Rssi;
 		if (padapter->recvpriv.signal_qual_data.index >=
 		    PHY_LINKQUALITY_SLID_WIN_MAX)
 			padapter->recvpriv.signal_qual_data.index = 0;
@@ -574,10 +571,10 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
 				if (r8712_select_and_join_from_scan(pmlmepriv)
-				    == _SUCCESS)
+				    == _SUCCESS) {
 					mod_timer(&pmlmepriv->assoc_timer, jiffies +
 						  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
-				else {
+				} else {
 					struct wlan_bssid_ex *pdev_network =
 					  &(adapter->registrypriv.dev_network);
 					u8 *pibss =

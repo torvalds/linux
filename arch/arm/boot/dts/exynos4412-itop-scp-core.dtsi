@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TOPEET's Exynos4412 based itop board device tree source
  *
@@ -7,10 +8,6 @@
  *
  * Device tree source file for TOPEET iTop Exynos 4412 SCP package core
  * board which is based on Samsung's Exynos4412 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/clock/samsung,s2mps11.h>
@@ -26,7 +23,7 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
-	firmware@0203F000 {
+	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203F000 0x1000>;
 	};

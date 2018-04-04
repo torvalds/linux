@@ -26,26 +26,32 @@
 struct user_namespace init_user_ns = {
 	.uid_map = {
 		.nr_extents = 1,
-		.extent[0] = {
-			.first = 0,
-			.lower_first = 0,
-			.count = 4294967295U,
+		{
+			.extent[0] = {
+				.first = 0,
+				.lower_first = 0,
+				.count = 4294967295U,
+			},
 		},
 	},
 	.gid_map = {
 		.nr_extents = 1,
-		.extent[0] = {
-			.first = 0,
-			.lower_first = 0,
-			.count = 4294967295U,
+		{
+			.extent[0] = {
+				.first = 0,
+				.lower_first = 0,
+				.count = 4294967295U,
+			},
 		},
 	},
 	.projid_map = {
 		.nr_extents = 1,
-		.extent[0] = {
-			.first = 0,
-			.lower_first = 0,
-			.count = 4294967295U,
+		{
+			.extent[0] = {
+				.first = 0,
+				.lower_first = 0,
+				.count = 4294967295U,
+			},
 		},
 	},
 	.count = ATOMIC_INIT(3),
@@ -95,6 +101,7 @@ struct user_struct root_user = {
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
 	.uid		= GLOBAL_ROOT_UID,
+	.ratelimit	= RATELIMIT_STATE_INIT(root_user.ratelimit, 0, 0),
 };
 
 /*
@@ -185,6 +192,8 @@ struct user_struct *alloc_uid(kuid_t uid)
 
 		new->uid = uid;
 		atomic_set(&new->__count, 1);
+		ratelimit_state_init(&new->ratelimit, HZ, 100);
+		ratelimit_set_flags(&new->ratelimit, RATELIMIT_MSG_ON_RELEASE);
 
 		/*
 		 * Before adding this, check whether we raced

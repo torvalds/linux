@@ -89,6 +89,7 @@ struct sctp_stream;
 #include <net/sctp/tsnmap.h>
 #include <net/sctp/ulpevent.h>
 #include <net/sctp/ulpqueue.h>
+#include <net/sctp/stream_interleave.h>
 
 /* Structures useful for managing bind/connect. */
 
@@ -202,11 +203,16 @@ struct sctp_sock {
 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
 
-	struct sctp_initmsg initmsg;
 	struct sctp_rtoinfo rtoinfo;
 	struct sctp_paddrparams paddrparam;
-	struct sctp_event_subscribe subscribe;
 	struct sctp_assocparams assocparams;
+
+	/*
+	 * These two structures must be grouped together for the usercopy
+	 * whitelist region.
+	 */
+	struct sctp_event_subscribe subscribe;
+	struct sctp_initmsg initmsg;
 
 	int user_frag;
 
@@ -217,6 +223,7 @@ struct sctp_sock {
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,
+		strm_interleave:1,
 		recvrcvinfo:1,
 		recvnxtinfo:1,
 		data_ready_signalled:1;
@@ -380,6 +387,7 @@ struct sctp_sender_hb_info {
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp);
+int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid);
 void sctp_stream_free(struct sctp_stream *stream);
 void sctp_stream_clear(struct sctp_stream *stream);
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
@@ -395,6 +403,28 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 /* Skip over this ssn and all below. */
 #define sctp_ssn_skip(stream, type, sid, ssn) \
 	((stream)->type[sid].ssn = ssn + 1)
+
+/* What is the current MID number for this stream? */
+#define sctp_mid_peek(stream, type, sid) \
+	((stream)->type[sid].mid)
+
+/* Return the next MID number for this stream.  */
+#define sctp_mid_next(stream, type, sid) \
+	((stream)->type[sid].mid++)
+
+/* Skip over this mid and all below. */
+#define sctp_mid_skip(stream, type, sid, mid) \
+	((stream)->type[sid].mid = mid + 1)
+
+#define sctp_stream_in(asoc, sid) (&(asoc)->stream.in[sid])
+
+/* What is the current MID_uo number for this stream? */
+#define sctp_mid_uo_peek(stream, type, sid) \
+	((stream)->type[sid].mid_uo)
+
+/* Return the next MID_uo number for this stream.  */
+#define sctp_mid_uo_next(stream, type, sid) \
+	((stream)->type[sid].mid_uo++)
 
 /*
  * Pointers to address related SCTP functions.
@@ -502,7 +532,8 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
-	   can_delay;	    /* should this message be Nagle delayed */
+	   can_delay:1,	/* should this message be Nagle delayed */
+	   abandoned:1;	/* should this message be abandoned */
 };
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
@@ -529,8 +560,12 @@ struct sctp_chunk {
 	/* How many times this chunk have been sent, for prsctp RTX policy */
 	int sent_count;
 
-	/* This is our link to the per-transport transmitted list.  */
-	struct list_head transmitted_list;
+	union {
+		/* This is our link to the per-transport transmitted list.  */
+		struct list_head transmitted_list;
+		/* List in specific stream outq */
+		struct list_head stream_list;
+	};
 
 	/* This field is used by chunks that hold fragmented data.
 	 * For the first fragment this is the list that holds the rest of
@@ -568,6 +603,8 @@ struct sctp_chunk {
 		struct sctp_addiphdr *addip_hdr;
 		struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 		struct sctp_authhdr *auth_hdr;
+		struct sctp_idatahdr *idata_hdr;
+		struct sctp_ifwdtsn_hdr *ifwdtsn_hdr;
 	} subh;
 
 	__u8 *chunk_end;
@@ -614,6 +651,7 @@ struct sctp_chunk {
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
+#define has_mid has_ssn
 		singleton:1,		/* Only chunk in the packet? */
 		end_of_packet:1,	/* Last chunk in the packet? */
 		ecn_ce_done:1,		/* Have we processed the ECN CE bit? */
@@ -639,6 +677,11 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *,
 void sctp_init_addrs(struct sctp_chunk *, union sctp_addr *,
 		     union sctp_addr *);
 const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
+
+static inline __u16 sctp_chunk_stream_no(struct sctp_chunk *ch)
+{
+	return ntohs(ch->subh.data_hdr->stream);
+}
 
 enum {
 	SCTP_ADDR_NEW,		/* new address added to assoc/ep */
@@ -955,7 +998,7 @@ void sctp_transport_burst_limited(struct sctp_transport *);
 void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);
 void sctp_transport_reset(struct sctp_transport *t);
-void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu);
+bool sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu);
 void sctp_transport_immediate_rtx(struct sctp_transport *);
 void sctp_transport_dst_release(struct sctp_transport *t);
 void sctp_transport_dst_confirm(struct sctp_transport *t);
@@ -1012,6 +1055,9 @@ struct sctp_outq {
 	/* Data pending that has never been transmitted.  */
 	struct list_head out_chunk_list;
 
+	/* Stream scheduler being used */
+	struct sctp_sched_ops *sched;
+
 	unsigned int out_qlen;	/* Total length of queued data chunks. */
 
 	/* Error of send failed, may used in SCTP_SEND_FAILED event. */
@@ -1059,6 +1105,7 @@ void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
 		       struct sctp_sndrcvinfo *sinfo, int msg_len);
+void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 /* Uncork and flush an outqueue.  */
 static inline void sctp_outq_cork(struct sctp_outq *q)
 {
@@ -1315,15 +1362,53 @@ struct sctp_inithdr_host {
 	__u32 initial_tsn;
 };
 
+struct sctp_stream_priorities {
+	/* List of priorities scheduled */
+	struct list_head prio_sched;
+	/* List of streams scheduled */
+	struct list_head active;
+	/* The next stream stream in line */
+	struct sctp_stream_out_ext *next;
+	__u16 prio;
+};
+
+struct sctp_stream_out_ext {
+	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
+	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+	struct list_head outq; /* chunks enqueued by this stream */
+	union {
+		struct {
+			/* Scheduled streams list */
+			struct list_head prio_list;
+			struct sctp_stream_priorities *prio_head;
+		};
+		/* Fields used by RR scheduler */
+		struct {
+			struct list_head rr_list;
+		};
+	};
+};
+
 struct sctp_stream_out {
-	__u16	ssn;
-	__u8	state;
-	__u64	abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
-	__u64	abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 mid_uo;
+	struct sctp_stream_out_ext *ext;
+	__u8 state;
 };
 
 struct sctp_stream_in {
-	__u16	ssn;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 mid_uo;
+	__u32 fsn;
+	__u32 fsn_uo;
+	char pd_mode;
+	char pd_mode_uo;
 };
 
 struct sctp_stream {
@@ -1331,10 +1416,47 @@ struct sctp_stream {
 	struct sctp_stream_in *in;
 	__u16 outcnt;
 	__u16 incnt;
+	/* Current stream being sent, if any */
+	struct sctp_stream_out *out_curr;
+	union {
+		/* Fields used by priority scheduler */
+		struct {
+			/* List of priorities scheduled */
+			struct list_head prio_list;
+		};
+		/* Fields used by RR scheduler */
+		struct {
+			/* List of streams scheduled */
+			struct list_head rr_list;
+			/* The next stream stream in line */
+			struct sctp_stream_out_ext *rr_next;
+		};
+	};
+	struct sctp_stream_interleave *si;
 };
 
 #define SCTP_STREAM_CLOSED		0x00
 #define SCTP_STREAM_OPEN		0x01
+
+static inline __u16 sctp_datachk_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len;
+}
+
+static inline __u16 sctp_datahdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len - sizeof(struct sctp_chunkhdr);
+}
+
+static inline __u16 sctp_ftsnchk_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len;
+}
+
+static inline __u16 sctp_ftsnhdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len - sizeof(struct sctp_chunkhdr);
+}
 
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
@@ -1884,6 +2006,7 @@ struct sctp_association {
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
 	     force_delay:1,
+	     intl_enable:1,
 	     prsctp_enable:1,
 	     reconf_enable:1;
 

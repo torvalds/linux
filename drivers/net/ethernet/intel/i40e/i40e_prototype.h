@@ -190,7 +190,7 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
 						u16 flags,
-						u16 valid_flags,
+						u16 valid_flags, u8 mode,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_request_resource(struct i40e_hw *hw,
 				enum i40e_aq_resources_ids resource,
@@ -214,7 +214,7 @@ i40e_status i40e_aq_discover_capabilities(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 				u32 offset, u16 length, void *data,
-				bool last_command,
+				bool last_command, u8 preservation_flags,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 				u8 mib_type, void *buff, u16 buff_size,
@@ -225,6 +225,10 @@ i40e_status i40e_aq_cfg_lldp_mib_change_event(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 				struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_set_dcb_parameters(struct i40e_hw *hw,
+				       bool dcb_enable,
+				       struct i40e_asq_cmd_details
+				       *cmd_details);
 i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_cee_dcb_config(struct i40e_hw *hw,
@@ -283,6 +287,22 @@ i40e_status i40e_aq_query_switch_comp_bw_config(struct i40e_hw *hw,
 		struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_resume_port_tx(struct i40e_hw *hw,
 				   struct i40e_asq_cmd_details *cmd_details);
+i40e_status
+i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
+			     struct i40e_aqc_cloud_filters_element_bb *filters,
+			     u8 filter_count);
+enum i40e_status_code
+i40e_aq_add_cloud_filters(struct i40e_hw *hw, u16 vsi,
+			  struct i40e_aqc_cloud_filters_element_data *filters,
+			  u8 filter_count);
+enum i40e_status_code
+i40e_aq_rem_cloud_filters(struct i40e_hw *hw, u16 vsi,
+			  struct i40e_aqc_cloud_filters_element_data *filters,
+			  u8 filter_count);
+i40e_status
+i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
+			     struct i40e_aqc_cloud_filters_element_bb *filters,
+			     u8 filter_count);
 i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
 			       struct i40e_lldp_variables *lldp_cfg);
 /* i40e_common */
@@ -317,7 +337,9 @@ i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 				struct i40e_nvm_access *cmd,
 				u8 *bytes, int *);
-void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode);
+void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
+				  struct i40e_aq_desc *desc);
+void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw);
 void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status);
 
 extern struct i40e_rx_ptype_decoded i40e_ptype_lookup[];
@@ -325,6 +347,37 @@ extern struct i40e_rx_ptype_decoded i40e_ptype_lookup[];
 static inline struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
 {
 	return i40e_ptype_lookup[ptype];
+}
+
+/**
+ * i40e_virtchnl_link_speed - Convert AdminQ link_speed to virtchnl definition
+ * @link_speed: the speed to convert
+ *
+ * Returns the link_speed in terms of the virtchnl interface, for use in
+ * converting link_speed as reported by the AdminQ into the format used for
+ * talking to virtchnl devices. If we can't represent the link speed properly,
+ * report LINK_SPEED_UNKNOWN.
+ **/
+static inline enum virtchnl_link_speed
+i40e_virtchnl_link_speed(enum i40e_aq_link_speed link_speed)
+{
+	switch (link_speed) {
+	case I40E_LINK_SPEED_100MB:
+		return VIRTCHNL_LINK_SPEED_100MB;
+	case I40E_LINK_SPEED_1GB:
+		return VIRTCHNL_LINK_SPEED_1GB;
+	case I40E_LINK_SPEED_10GB:
+		return VIRTCHNL_LINK_SPEED_10GB;
+	case I40E_LINK_SPEED_40GB:
+		return VIRTCHNL_LINK_SPEED_40GB;
+	case I40E_LINK_SPEED_20GB:
+		return VIRTCHNL_LINK_SPEED_20GB;
+	case I40E_LINK_SPEED_25GB:
+		return VIRTCHNL_LINK_SPEED_25GB;
+	case I40E_LINK_SPEED_UNKNOWN:
+	default:
+		return VIRTCHNL_LINK_SPEED_UNKNOWN;
+	}
 }
 
 /* prototype for functions used for SW locks */
@@ -360,6 +413,15 @@ i40e_status i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
 				u32 reg_addr, u32 reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
 void i40e_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val);
+i40e_status i40e_aq_set_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+i40e_status i40e_aq_get_phy_register(struct i40e_hw *hw,
+				     u8 phy_select, u8 dev_addr,
+				     u32 reg_addr, u32 *reg_val,
+				     struct i40e_asq_cmd_details *cmd_details);
+
 i40e_status i40e_read_phy_register_clause22(struct i40e_hw *hw,
 					    u16 reg, u8 phy_addr, u16 *value);
 i40e_status i40e_write_phy_register_clause22(struct i40e_hw *hw,
@@ -375,13 +437,15 @@ i40e_status i40e_write_phy_register(struct i40e_hw *hw, u8 page, u16 reg,
 u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num);
 i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
 				    u32 time, u32 interval);
-i40e_status i40e_aq_write_ppp(struct i40e_hw *hw, void *buff,
+i40e_status i40e_aq_write_ddp(struct i40e_hw *hw, void *buff,
 			      u16 buff_size, u32 track_id,
 			      u32 *error_offset, u32 *error_info,
-			      struct i40e_asq_cmd_details *cmd_details);
-i40e_status i40e_aq_get_ppp_list(struct i40e_hw *hw, void *buff,
+			      struct i40e_asq_cmd_details *
+			      cmd_details);
+i40e_status i40e_aq_get_ddp_list(struct i40e_hw *hw, void *buff,
 				 u16 buff_size, u8 flags,
-				 struct i40e_asq_cmd_details *cmd_details);
+				 struct i40e_asq_cmd_details *
+				 cmd_details);
 struct i40e_generic_seg_header *
 i40e_find_segment_in_package(u32 segment_type,
 			     struct i40e_package_header *pkg_header);

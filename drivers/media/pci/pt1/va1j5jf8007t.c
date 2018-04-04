@@ -4,7 +4,7 @@
  * Copyright (C) 2009 HIRANO Takahito <hiranotaka@zng.info>
  *
  * based on pt1dvr - http://pt1dvr.sourceforge.jp/
- * 	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
+ *	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "va1j5jf8007t.h"
 
 enum va1j5jf8007t_tune_state {

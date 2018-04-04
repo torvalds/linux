@@ -6,7 +6,6 @@
 /* glibc 2.20 deprecates _BSD_SOURCE in favour of _DEFAULT_SOURCE */
 #define _DEFAULT_SOURCE 1
 
-#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -36,7 +35,6 @@ bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
 int copyfile_mode(const char *from, const char *to, mode_t mode);
 int copyfile_ns(const char *from, const char *to, struct nsinfo *nsi);
-int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
 
 ssize_t readn(int fd, void *buf, size_t n);
 ssize_t writen(int fd, const void *buf, size_t n);
@@ -63,6 +61,21 @@ int sched_getcpu(void);
 
 #ifndef HAVE_SETNS_SUPPORT
 int setns(int fd, int nstype);
+#endif
+
+extern bool perf_singlethreaded;
+
+void perf_set_singlethreaded(void);
+void perf_set_multithreaded(void);
+
+#ifndef O_CLOEXEC
+#ifdef __sparc__
+#define O_CLOEXEC      0x400000
+#elif defined(__alpha__) || defined(__hppa__)
+#define O_CLOEXEC      010000000
+#else
+#define O_CLOEXEC      02000000
+#endif
 #endif
 
 #endif /* GIT_COMPAT_UTIL_H */

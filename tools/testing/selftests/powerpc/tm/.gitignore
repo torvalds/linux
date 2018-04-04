@@ -12,3 +12,5 @@ tm-signal-context-chk-gpr
 tm-signal-context-chk-vmx
 tm-signal-context-chk-vsx
 tm-vmx-unavail
+tm-unavailable
+tm-trap

@@ -46,7 +46,7 @@
 #define STV0299_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define STV0299_LOCKOUTPUT_0  0
 #define STV0299_LOCKOUTPUT_1  1

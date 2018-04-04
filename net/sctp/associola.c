@@ -149,8 +149,7 @@ static struct sctp_association *sctp_association_init(
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
-		setup_timer(&asoc->timers[i], sctp_timer_events[i],
-				(unsigned long)asoc);
+		timer_setup(&asoc->timers[i], sctp_timer_events[i], 0);
 
 	/* Pull default initialization values from the sock options.
 	 * Note: This assumes that the values have already been
@@ -862,7 +861,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		event = sctp_ulpevent_make_peer_addr_change(asoc, &addr,
 					0, spc_state, error, GFP_ATOMIC);
 		if (event)
-			sctp_ulpq_tail_event(&asoc->ulpq, event);
+			asoc->stream.si->enqueue_event(&asoc->ulpq, event);
 	}
 
 	/* Select new active and retran paths. */

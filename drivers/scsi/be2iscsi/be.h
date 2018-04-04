@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Broadcom. All Rights Reserved.
+ * Copyright 2017 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
@@ -81,12 +81,12 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 /*ISCSI */
 
 struct be_aic_obj {		/* Adaptive interrupt coalescing (AIC) info */
-	u32 min_eqd;		/* in usecs */
-	u32 max_eqd;		/* in usecs */
-	u32 prev_eqd;		/* in usecs */
-	u32 et_eqd;		/* configured val when aic is off */
-	ulong jiffies;
-	u64 eq_prev;		/* Used to calculate eqe */
+	unsigned long jiffies;
+	u32 eq_prev;		/* Used to calculate eqe */
+	u32 prev_eqd;
+#define BEISCSI_EQ_DELAY_MIN	0
+#define BEISCSI_EQ_DELAY_DEF	32
+#define BEISCSI_EQ_DELAY_MAX	128
 };
 
 struct be_eq_obj {
@@ -148,9 +148,8 @@ struct be_ctrl_info {
 /* TAG is from 1...MAX_MCC_CMD, MASK includes MAX_MCC_CMD */
 #define MCC_Q_CMD_TAG_MASK	((MAX_MCC_CMD << 1) - 1)
 
-#define PAGE_SHIFT_4K 12
-#define PAGE_SIZE_4K (1 << PAGE_SHIFT_4K)
-#define mcc_timeout		120000 /* 12s timeout */
+#define PAGE_SHIFT_4K		12
+#define PAGE_SIZE_4K		(1 << PAGE_SHIFT_4K)
 
 /* Returns number of pages spanned by the data starting at the given addr */
 #define PAGES_4K_SPANNED(_address, size)				\

@@ -43,6 +43,7 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;	/* gpio_62 */
+		#phy-cells = <0>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&hsusb1phy_pins>;

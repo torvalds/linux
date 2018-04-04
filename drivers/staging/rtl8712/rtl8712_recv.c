@@ -149,7 +149,7 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 	list_add_tail(&(precvframe->u.hdr.list), &pfree_recv_queue->queue);
 	if (padapter != NULL) {
 		if (pfree_recv_queue == &precvpriv->free_recv_queue)
-				precvpriv->free_recvframe_cnt++;
+			precvpriv->free_recvframe_cnt++;
 	}
 	spin_unlock_irqrestore(&pfree_recv_queue->lock, irqL);
 	return _SUCCESS;
@@ -883,10 +883,10 @@ static void query_rx_phy_status(struct _adapter *padapter,
 	 * from 0~100. It is assigned to the BSS List in
 	 * GetValueFromBeaconOrProbeRsp().
 	 */
-	if (bcck_rate)
+	if (bcck_rate) {
 		prframe->u.hdr.attrib.signal_strength =
 			 (u8)r8712_signal_scale_mapping(pwdb_all);
-	else {
+	} else {
 		if (rf_rx_num != 0)
 			prframe->u.hdr.attrib.signal_strength =
 				 (u8)(r8712_signal_scale_mapping(total_rssi /=
@@ -899,6 +899,7 @@ static void process_link_qual(struct _adapter *padapter,
 {
 	u32	last_evm = 0, tmpVal;
 	struct rx_pkt_attrib *pattrib;
+	struct smooth_rssi_data *sqd = &padapter->recvpriv.signal_qual_data;
 
 	if (prframe == NULL || padapter == NULL)
 		return;
@@ -907,27 +908,18 @@ static void process_link_qual(struct _adapter *padapter,
 		/*
 		 * 1. Record the general EVM to the sliding window.
 		 */
-		if (padapter->recvpriv.signal_qual_data.total_num++ >=
-				  PHY_LINKQUALITY_SLID_WIN_MAX) {
-			padapter->recvpriv.signal_qual_data.total_num =
-				  PHY_LINKQUALITY_SLID_WIN_MAX;
-			last_evm = padapter->recvpriv.signal_qual_data.elements
-				  [padapter->recvpriv.signal_qual_data.index];
-			padapter->recvpriv.signal_qual_data.total_val -=
-				  last_evm;
+		if (sqd->total_num++ >= PHY_LINKQUALITY_SLID_WIN_MAX) {
+			sqd->total_num = PHY_LINKQUALITY_SLID_WIN_MAX;
+			last_evm = sqd->elements[sqd->index];
+			sqd->total_val -= last_evm;
 		}
-		padapter->recvpriv.signal_qual_data.total_val +=
-			  pattrib->signal_qual;
-		padapter->recvpriv.signal_qual_data.elements[padapter->
-			  recvpriv.signal_qual_data.index++] =
-			  pattrib->signal_qual;
-		if (padapter->recvpriv.signal_qual_data.index >=
-		    PHY_LINKQUALITY_SLID_WIN_MAX)
-			padapter->recvpriv.signal_qual_data.index = 0;
+		sqd->total_val += pattrib->signal_qual;
+		sqd->elements[sqd->index++] = pattrib->signal_qual;
+		if (sqd->index >= PHY_LINKQUALITY_SLID_WIN_MAX)
+			sqd->index = 0;
 
 		/* <1> Showed on UI for user, in percentage. */
-		tmpVal = padapter->recvpriv.signal_qual_data.total_val /
-			 padapter->recvpriv.signal_qual_data.total_num;
+		tmpVal = sqd->total_val / sqd->total_num;
 		padapter->recvpriv.signal = (u8)tmpVal;
 	}
 }
@@ -936,25 +928,18 @@ static void process_rssi(struct _adapter *padapter, union recv_frame *prframe)
 {
 	u32 last_rssi, tmp_val;
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
+	struct smooth_rssi_data *ssd = &padapter->recvpriv.signal_strength_data;
 
-	if (padapter->recvpriv.signal_strength_data.total_num++ >=
-	    PHY_RSSI_SLID_WIN_MAX) {
-		padapter->recvpriv.signal_strength_data.total_num =
-			 PHY_RSSI_SLID_WIN_MAX;
-		last_rssi = padapter->recvpriv.signal_strength_data.elements
-			    [padapter->recvpriv.signal_strength_data.index];
-		padapter->recvpriv.signal_strength_data.total_val -= last_rssi;
+	if (ssd->total_num++ >= PHY_RSSI_SLID_WIN_MAX) {
+		ssd->total_num = PHY_RSSI_SLID_WIN_MAX;
+		last_rssi = ssd->elements[ssd->index];
+		ssd->total_val -= last_rssi;
 	}
-	padapter->recvpriv.signal_strength_data.total_val +=
-			pattrib->signal_strength;
-	padapter->recvpriv.signal_strength_data.elements[padapter->recvpriv.
-			signal_strength_data.index++] =
-			pattrib->signal_strength;
-	if (padapter->recvpriv.signal_strength_data.index >=
-	    PHY_RSSI_SLID_WIN_MAX)
-		padapter->recvpriv.signal_strength_data.index = 0;
-	tmp_val = padapter->recvpriv.signal_strength_data.total_val /
-		  padapter->recvpriv.signal_strength_data.total_num;
+	ssd->total_val += pattrib->signal_strength;
+	ssd->elements[ssd->index++] = pattrib->signal_strength;
+	if (ssd->index >= PHY_RSSI_SLID_WIN_MAX)
+		ssd->index = 0;
+	tmp_val = ssd->total_val / ssd->total_num;
 	padapter->recvpriv.rssi = (s8)translate2dbm(padapter, (u8)tmp_val);
 }
 

@@ -61,7 +61,8 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 };
 
 static const struct nla_policy nfc_sdp_genl_policy[NFC_SDP_ATTR_MAX + 1] = {
-	[NFC_SDP_ATTR_URI] = { .type = NLA_STRING },
+	[NFC_SDP_ATTR_URI] = { .type = NLA_STRING,
+			       .len = U8_MAX - 4 },
 	[NFC_SDP_ATTR_SAP] = { .type = NLA_U8 },
 };
 
@@ -75,7 +76,7 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	genl_dump_check_consistent(cb, hdr, &nfc_genl_family);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put_u32(msg, NFC_ATTR_TARGET_INDEX, target->idx) ||
 	    nla_put_u32(msg, NFC_ATTR_PROTOCOLS, target->supported_protocols) ||
@@ -603,7 +604,7 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 		return -EMSGSIZE;
 
 	if (cb)
-		genl_dump_check_consistent(cb, hdr, &nfc_genl_family);
+		genl_dump_check_consistent(cb, hdr);
 
 	if (nfc_genl_setup_device_added(dev, msg))
 		goto nla_put_failure;
@@ -923,6 +924,30 @@ static int nfc_genl_activate_target(struct sk_buff *skb, struct genl_info *info)
 
 	nfc_deactivate_target(dev, target_idx, NFC_TARGET_MODE_SLEEP);
 	rc = nfc_activate_target(dev, target_idx, protocol);
+
+	nfc_put_device(dev);
+	return rc;
+}
+
+static int nfc_genl_deactivate_target(struct sk_buff *skb,
+				      struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	u32 device_idx, target_idx;
+	int rc;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+		return -EINVAL;
+
+	device_idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(device_idx);
+	if (!dev)
+		return -ENODEV;
+
+	target_idx = nla_get_u32(info->attrs[NFC_ATTR_TARGET_INDEX]);
+
+	rc = nfc_deactivate_target(dev, target_idx, NFC_TARGET_MODE_SLEEP);
 
 	nfc_put_device(dev);
 	return rc;
@@ -1332,7 +1357,7 @@ static int nfc_genl_send_se(struct sk_buff *msg, struct nfc_dev *dev,
 			goto nla_put_failure;
 
 		if (cb)
-			genl_dump_check_consistent(cb, hdr, &nfc_genl_family);
+			genl_dump_check_consistent(cb, hdr);
 
 		if (nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx) ||
 		    nla_put_u32(msg, NFC_ATTR_SE_INDEX, se->idx) ||
@@ -1749,6 +1774,11 @@ static const struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_VENDOR,
 		.doit = nfc_genl_vendor_cmd,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_DEACTIVATE_TARGET,
+		.doit = nfc_genl_deactivate_target,
 		.policy = nfc_genl_policy,
 	},
 };

@@ -173,7 +173,7 @@ static ssize_t codec_reg_show(struct device *dev,
 	return soc_codec_reg_show(rtd->codec, buf, PAGE_SIZE, 0);
 }
 
-static DEVICE_ATTR(codec_reg, 0444, codec_reg_show, NULL);
+static DEVICE_ATTR_RO(codec_reg);
 
 static ssize_t pmdown_time_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -213,7 +213,7 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_pmdown_time.attr)
 		return attr->mode; /* always visible */
-	return rtd->codec ? attr->mode : 0; /* enabled only with codec */
+	return rtd->num_codecs ? attr->mode : 0; /* enabled only with codec */
 }
 
 static const struct attribute_group soc_dapm_dev_group = {
@@ -349,120 +349,84 @@ static void soc_init_codec_debugfs(struct snd_soc_component *component)
 			"ASoC: Failed to create codec register debugfs file\n");
 }
 
-static ssize_t codec_list_read_file(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos)
+static int codec_list_seq_show(struct seq_file *m, void *v)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct snd_soc_codec *codec;
-
-	if (!buf)
-		return -ENOMEM;
 
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(codec, &codec_list, list) {
-		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-			       codec->component.name);
-		if (len >= 0)
-			ret += len;
-		if (ret > PAGE_SIZE) {
-			ret = PAGE_SIZE;
-			break;
-		}
-	}
+	list_for_each_entry(codec, &codec_list, list)
+		seq_printf(m, "%s\n", codec->component.name);
 
 	mutex_unlock(&client_mutex);
 
-	if (ret >= 0)
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int codec_list_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, codec_list_seq_show, NULL);
 }
 
 static const struct file_operations codec_list_fops = {
-	.read = codec_list_read_file,
-	.llseek = default_llseek,/* read accesses f_pos */
+	.open = codec_list_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-static ssize_t dai_list_read_file(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
+static int dai_list_seq_show(struct seq_file *m, void *v)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
 
-	if (!buf)
-		return -ENOMEM;
-
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(component, &component_list, list) {
-		list_for_each_entry(dai, &component->dai_list, list) {
-			len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-				dai->name);
-			if (len >= 0)
-				ret += len;
-			if (ret > PAGE_SIZE) {
-				ret = PAGE_SIZE;
-				break;
-			}
-		}
-	}
+	list_for_each_entry(component, &component_list, list)
+		list_for_each_entry(dai, &component->dai_list, list)
+			seq_printf(m, "%s\n", dai->name);
 
 	mutex_unlock(&client_mutex);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int dai_list_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dai_list_seq_show, NULL);
 }
 
 static const struct file_operations dai_list_fops = {
-	.read = dai_list_read_file,
-	.llseek = default_llseek,/* read accesses f_pos */
+	.open = dai_list_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-static ssize_t platform_list_read_file(struct file *file,
-				       char __user *user_buf,
-				       size_t count, loff_t *ppos)
+static int platform_list_seq_show(struct seq_file *m, void *v)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct snd_soc_platform *platform;
-
-	if (!buf)
-		return -ENOMEM;
 
 	mutex_lock(&client_mutex);
 
-	list_for_each_entry(platform, &platform_list, list) {
-		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-			       platform->component.name);
-		if (len >= 0)
-			ret += len;
-		if (ret > PAGE_SIZE) {
-			ret = PAGE_SIZE;
-			break;
-		}
-	}
+	list_for_each_entry(platform, &platform_list, list)
+		seq_printf(m, "%s\n", platform->component.name);
 
 	mutex_unlock(&client_mutex);
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int platform_list_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, platform_list_seq_show, NULL);
 }
 
 static const struct file_operations platform_list_fops = {
-	.read = platform_list_read_file,
-	.llseek = default_llseek,/* read accesses f_pos */
+	.open = platform_list_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static void soc_init_card_debugfs(struct snd_soc_card *card)
@@ -490,7 +454,6 @@ static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
 {
 	debugfs_remove_recursive(card->debugfs_card_root);
 }
-
 
 static void snd_soc_debugfs_init(void)
 {
@@ -590,14 +553,23 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_rtdcom_list *rtdcom;
 
+	if (!driver_name)
+		return NULL;
+
 	for_each_rtdcom(rtd, rtdcom) {
-		if ((rtdcom->component->driver->name == driver_name) ||
-		    strcmp(rtdcom->component->driver->name, driver_name) == 0)
+		const char *component_name = rtdcom->component->driver->name;
+
+		if (!component_name)
+			continue;
+
+		if ((component_name == driver_name) ||
+		    strcmp(component_name, driver_name) == 0)
 			return rtdcom->component;
 	}
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(snd_soc_rtdcom_lookup);
 
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream)
@@ -614,6 +586,8 @@ struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_substream);
 
+static const struct snd_soc_ops null_snd_soc_ops;
+
 static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	struct snd_soc_card *card, struct snd_soc_dai_link *dai_link)
 {
@@ -626,6 +600,9 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	INIT_LIST_HEAD(&rtd->component_list);
 	rtd->card = card;
 	rtd->dai_link = dai_link;
+	if (!rtd->dai_link->ops)
+		rtd->dai_link->ops = &null_snd_soc_ops;
+
 	rtd->codec_dais = kzalloc(sizeof(struct snd_soc_dai *) *
 					dai_link->num_codecs,
 					GFP_KERNEL);
@@ -639,8 +616,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 
 static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 {
-	if (rtd && rtd->codec_dais)
-		kfree(rtd->codec_dais);
+	kfree(rtd->codec_dais);
 	snd_soc_rtdcom_del_all(rtd);
 	kfree(rtd);
 }
@@ -1388,6 +1364,17 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	return 0;
 }
 
+void snd_soc_disconnect_sync(struct device *dev)
+{
+	struct snd_soc_component *component = snd_soc_lookup_component(dev, NULL);
+
+	if (!component || !component->card)
+		return;
+
+	snd_card_disconnect_sync(component->card->snd_card);
+}
+EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
+
 /**
  * snd_soc_add_dai_link - Add a DAI link dynamically
  * @card: The ASoC card to which the DAI link is added
@@ -1941,7 +1928,9 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	/* Flip the polarity for the "CPU" end of a CODEC<->CODEC link */
-	if (cpu_dai->codec) {
+	/* the component which has non_legacy_dai_naming is Codec */
+	if (cpu_dai->codec ||
+	    cpu_dai->component->driver->non_legacy_dai_naming) {
 		unsigned int inv_dai_fmt;
 
 		inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
@@ -2632,7 +2621,7 @@ EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
 int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	unsigned int freq, int dir)
 {
-	if (dai->driver && dai->driver->ops->set_sysclk)
+	if (dai->driver->ops->set_sysclk)
 		return dai->driver->ops->set_sysclk(dai, clk_id, freq, dir);
 
 	return snd_soc_component_set_sysclk(dai->component, clk_id, 0,
@@ -2700,7 +2689,7 @@ EXPORT_SYMBOL_GPL(snd_soc_component_set_sysclk);
 int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
 	int div_id, int div)
 {
-	if (dai->driver && dai->driver->ops->set_clkdiv)
+	if (dai->driver->ops->set_clkdiv)
 		return dai->driver->ops->set_clkdiv(dai, div_id, div);
 	else
 		return -EINVAL;
@@ -2720,7 +2709,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_clkdiv);
 int snd_soc_dai_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	unsigned int freq_in, unsigned int freq_out)
 {
-	if (dai->driver && dai->driver->ops->set_pll)
+	if (dai->driver->ops->set_pll)
 		return dai->driver->ops->set_pll(dai, pll_id, source,
 					 freq_in, freq_out);
 
@@ -2786,7 +2775,7 @@ EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
  */
 int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
-	if (dai->driver && dai->driver->ops->set_bclk_ratio)
+	if (dai->driver->ops->set_bclk_ratio)
 		return dai->driver->ops->set_bclk_ratio(dai, ratio);
 	else
 		return -EINVAL;
@@ -2796,7 +2785,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
 /**
  * snd_soc_dai_set_fmt - configure DAI hardware audio format.
  * @dai: DAI
- * @fmt: SND_SOC_DAIFMT_ format value.
+ * @fmt: SND_SOC_DAIFMT_* format value.
  *
  * Configures the DAI hardware format and clocking.
  */
@@ -2860,7 +2849,7 @@ static int snd_soc_xlate_tdm_slot_mask(unsigned int slots,
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	if (dai->driver && dai->driver->ops->xlate_tdm_slot_mask)
+	if (dai->driver->ops->xlate_tdm_slot_mask)
 		dai->driver->ops->xlate_tdm_slot_mask(slots,
 						&tx_mask, &rx_mask);
 	else
@@ -2869,7 +2858,7 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	dai->tx_mask = tx_mask;
 	dai->rx_mask = rx_mask;
 
-	if (dai->driver && dai->driver->ops->set_tdm_slot)
+	if (dai->driver->ops->set_tdm_slot)
 		return dai->driver->ops->set_tdm_slot(dai, tx_mask, rx_mask,
 				slots, slot_width);
 	else
@@ -2893,7 +2882,7 @@ int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
 	unsigned int tx_num, unsigned int *tx_slot,
 	unsigned int rx_num, unsigned int *rx_slot)
 {
-	if (dai->driver && dai->driver->ops->set_channel_map)
+	if (dai->driver->ops->set_channel_map)
 		return dai->driver->ops->set_channel_map(dai, tx_num, tx_slot,
 			rx_num, rx_slot);
 	else
@@ -2910,7 +2899,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_channel_map);
  */
 int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
-	if (dai->driver && dai->driver->ops->set_tristate)
+	if (dai->driver->ops->set_tristate)
 		return dai->driver->ops->set_tristate(dai, tristate);
 	else
 		return -EINVAL;
@@ -3145,7 +3134,7 @@ static struct snd_soc_dai *soc_add_dai(struct snd_soc_component *component,
 	if (!dai->driver->ops)
 		dai->driver->ops = &null_dai_ops;
 
-	list_add(&dai->list, &component->dai_list);
+	list_add_tail(&dai->list, &component->dai_list);
 	component->num_dai++;
 
 	dev_dbg(dev, "ASoC: Registered DAI '%s'\n", dai->name);
@@ -3171,8 +3160,6 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	int ret;
 
 	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
-
-	component->dai_drv = dai_drv;
 
 	for (i = 0; i < count; i++) {
 
@@ -3250,6 +3237,30 @@ static int snd_soc_component_stream_event(struct snd_soc_dapm_context *dapm,
 	return component->driver->stream_event(component, event);
 }
 
+static int snd_soc_component_drv_pcm_new(struct snd_soc_component *component,
+					struct snd_soc_pcm_runtime *rtd)
+{
+	if (component->driver->pcm_new)
+		return component->driver->pcm_new(rtd);
+
+	return 0;
+}
+
+static void snd_soc_component_drv_pcm_free(struct snd_soc_component *component,
+					  struct snd_pcm *pcm)
+{
+	if (component->driver->pcm_free)
+		component->driver->pcm_free(pcm);
+}
+
+static int snd_soc_component_set_bias_level(struct snd_soc_dapm_context *dapm,
+					enum snd_soc_bias_level level)
+{
+	struct snd_soc_component *component = dapm->component;
+
+	return component->driver->set_bias_level(component, level);
+}
+
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
 {
@@ -3270,16 +3281,21 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->set_sysclk = component->driver->set_sysclk;
 	component->set_pll = component->driver->set_pll;
 	component->set_jack = component->driver->set_jack;
+	component->pcm_new = snd_soc_component_drv_pcm_new;
+	component->pcm_free = snd_soc_component_drv_pcm_free;
 
 	dapm = snd_soc_component_get_dapm(component);
 	dapm->dev = dev;
 	dapm->component = component;
 	dapm->bias_level = SND_SOC_BIAS_OFF;
-	dapm->idle_bias_off = true;
+	dapm->idle_bias_off = !driver->idle_bias_on;
+	dapm->suspend_bias_off = driver->suspend_bias_off;
 	if (driver->seq_notifier)
 		dapm->seq_notifier = snd_soc_component_seq_notifier;
 	if (driver->stream_event)
 		dapm->stream_event = snd_soc_component_stream_event;
+	if (driver->set_bias_level)
+		dapm->set_bias_level = snd_soc_component_set_bias_level;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	mutex_init(&component->io_mutex);
@@ -3371,19 +3387,49 @@ static void snd_soc_component_del_unlocked(struct snd_soc_component *component)
 	list_del(&component->list);
 }
 
-int snd_soc_register_component(struct device *dev,
-			       const struct snd_soc_component_driver *component_driver,
-			       struct snd_soc_dai_driver *dai_drv,
-			       int num_dai)
-{
-	struct snd_soc_component *component;
-	int ret;
+#define ENDIANNESS_MAP(name) \
+	(SNDRV_PCM_FMTBIT_##name##LE | SNDRV_PCM_FMTBIT_##name##BE)
+static u64 endianness_format_map[] = {
+	ENDIANNESS_MAP(S16_),
+	ENDIANNESS_MAP(U16_),
+	ENDIANNESS_MAP(S24_),
+	ENDIANNESS_MAP(U24_),
+	ENDIANNESS_MAP(S32_),
+	ENDIANNESS_MAP(U32_),
+	ENDIANNESS_MAP(S24_3),
+	ENDIANNESS_MAP(U24_3),
+	ENDIANNESS_MAP(S20_3),
+	ENDIANNESS_MAP(U20_3),
+	ENDIANNESS_MAP(S18_3),
+	ENDIANNESS_MAP(U18_3),
+	ENDIANNESS_MAP(FLOAT_),
+	ENDIANNESS_MAP(FLOAT64_),
+	ENDIANNESS_MAP(IEC958_SUBFRAME_),
+};
 
-	component = kzalloc(sizeof(*component), GFP_KERNEL);
-	if (!component) {
-		dev_err(dev, "ASoC: Failed to allocate memory\n");
-		return -ENOMEM;
-	}
+/*
+ * Fix up the DAI formats for endianness: codecs don't actually see
+ * the endianness of the data but we're using the CPU format
+ * definitions which do need to include endianness so we ensure that
+ * codec DAIs always have both big and little endian variants set.
+ */
+static void convert_endianness_formats(struct snd_soc_pcm_stream *stream)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(endianness_format_map); i++)
+		if (stream->formats & endianness_format_map[i])
+			stream->formats |= endianness_format_map[i];
+}
+
+int snd_soc_add_component(struct device *dev,
+			struct snd_soc_component *component,
+			const struct snd_soc_component_driver *component_driver,
+			struct snd_soc_dai_driver *dai_drv,
+			int num_dai)
+{
+	int ret;
+	int i;
 
 	ret = snd_soc_component_initialize(component, component_driver, dev);
 	if (ret)
@@ -3392,7 +3438,15 @@ int snd_soc_register_component(struct device *dev,
 	component->ignore_pmdown_time = true;
 	component->registered_as_component = true;
 
-	ret = snd_soc_register_dais(component, dai_drv, num_dai, true);
+	if (component_driver->endianness) {
+		for (i = 0; i < num_dai; i++) {
+			convert_endianness_formats(&dai_drv[i].playback);
+			convert_endianness_formats(&dai_drv[i].capture);
+		}
+	}
+
+	ret = snd_soc_register_dais(component, dai_drv, num_dai,
+				    !component_driver->non_legacy_dai_naming);
 	if (ret < 0) {
 		dev_err(dev, "ASoC: Failed to register DAIs: %d\n", ret);
 		goto err_cleanup;
@@ -3407,6 +3461,22 @@ err_cleanup:
 err_free:
 	kfree(component);
 	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_add_component);
+
+int snd_soc_register_component(struct device *dev,
+			const struct snd_soc_component_driver *component_driver,
+			struct snd_soc_dai_driver *dai_drv,
+			int num_dai)
+{
+	struct snd_soc_component *component;
+
+	component = kzalloc(sizeof(*component), GFP_KERNEL);
+	if (!component)
+		return -ENOMEM;
+
+	return snd_soc_add_component(dev, component, component_driver,
+				     dai_drv, num_dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component);
 
@@ -3448,6 +3518,32 @@ void snd_soc_unregister_component(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
+struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
+						   const char *driver_name)
+{
+	struct snd_soc_component *component;
+	struct snd_soc_component *ret;
+
+	ret = NULL;
+	mutex_lock(&client_mutex);
+	list_for_each_entry(component, &component_list, list) {
+		if (dev != component->dev)
+			continue;
+
+		if (driver_name &&
+		    (driver_name != component->driver->name) &&
+		    (strcmp(component->driver->name, driver_name) != 0))
+			continue;
+
+		ret = component;
+		break;
+	}
+	mutex_unlock(&client_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
+
 static int snd_soc_platform_drv_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
@@ -3460,6 +3556,26 @@ static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
 	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
 
 	platform->driver->remove(platform);
+}
+
+static int snd_soc_platform_drv_pcm_new(struct snd_soc_component *component,
+					struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	if (platform->driver->pcm_new)
+		return platform->driver->pcm_new(rtd);
+
+	return 0;
+}
+
+static void snd_soc_platform_drv_pcm_free(struct snd_soc_component *component,
+					  struct snd_pcm *pcm)
+{
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(component);
+
+	if (platform->driver->pcm_free)
+		platform->driver->pcm_free(pcm);
 }
 
 /**
@@ -3485,6 +3601,10 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		platform->component.probe = snd_soc_platform_drv_probe;
 	if (platform_drv->remove)
 		platform->component.remove = snd_soc_platform_drv_remove;
+	if (platform_drv->pcm_new)
+		platform->component.pcm_new = snd_soc_platform_drv_pcm_new;
+	if (platform_drv->pcm_free)
+		platform->component.pcm_free = snd_soc_platform_drv_pcm_free;
 
 #ifdef CONFIG_DEBUG_FS
 	platform->component.debugfs_prefix = "platform";
@@ -3581,39 +3701,6 @@ void snd_soc_unregister_platform(struct device *dev)
 	kfree(platform);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
-
-static u64 codec_format_map[] = {
-	SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE,
-	SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE,
-	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE,
-	SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_U24_BE,
-	SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE,
-	SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE,
-	SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_U24_3BE,
-	SNDRV_PCM_FMTBIT_U24_3LE | SNDRV_PCM_FMTBIT_U24_3BE,
-	SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE,
-	SNDRV_PCM_FMTBIT_U20_3LE | SNDRV_PCM_FMTBIT_U20_3BE,
-	SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE,
-	SNDRV_PCM_FMTBIT_U18_3LE | SNDRV_PCM_FMTBIT_U18_3BE,
-	SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE,
-	SNDRV_PCM_FMTBIT_FLOAT64_LE | SNDRV_PCM_FMTBIT_FLOAT64_BE,
-	SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE
-	| SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_BE,
-};
-
-/* Fix up the DAI formats for endianness: codecs don't actually see
- * the endianness of the data but we're using the CPU format
- * definitions which do need to include endianness so we ensure that
- * codec DAIs always have both big and little endian variants set.
- */
-static void fixup_codec_formats(struct snd_soc_pcm_stream *stream)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(codec_format_map); i++)
-		if (stream->formats & codec_format_map[i])
-			stream->formats |= codec_format_map[i];
-}
 
 static int snd_soc_codec_drv_probe(struct snd_soc_component *component)
 {
@@ -3765,8 +3852,8 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.regmap = codec_drv->get_regmap(dev);
 
 	for (i = 0; i < num_dai; i++) {
-		fixup_codec_formats(&dai_drv[i].playback);
-		fixup_codec_formats(&dai_drv[i].capture);
+		convert_endianness_formats(&dai_drv[i].playback);
+		convert_endianness_formats(&dai_drv[i].capture);
 	}
 
 	ret = snd_soc_register_dais(&codec->component, dai_drv, num_dai, false);
@@ -4250,6 +4337,7 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 							     args,
 							     dai_name);
 		} else {
+			struct snd_soc_dai *dai;
 			int id = -1;
 
 			switch (args->args_count) {
@@ -4271,7 +4359,14 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 
 			ret = 0;
 
-			*dai_name = pos->dai_drv[id].name;
+			/* find target DAI */
+			list_for_each_entry(dai, &pos->dai_list, list) {
+				if (id == 0)
+					break;
+				id--;
+			}
+
+			*dai_name = dai->driver->name;
 			if (!*dai_name)
 				*dai_name = pos->name;
 		}

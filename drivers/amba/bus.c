@@ -195,6 +195,7 @@ struct bus_type amba_bustype = {
 	.match		= amba_match,
 	.uevent		= amba_uevent,
 	.pm		= &amba_pm,
+	.force_dma	= true,
 };
 
 static int __init amba_init(void)

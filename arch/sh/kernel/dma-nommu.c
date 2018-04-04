@@ -9,6 +9,7 @@
  */
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <asm/cacheflush.h>
 
 static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 				 unsigned long offset, size_t size,
@@ -20,7 +21,7 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 	WARN_ON(size == 0);
 
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		dma_cache_sync(dev, page_address(page) + offset, size, dir);
+		sh_sync_dma_for_device(page_address(page) + offset, size, dir);
 
 	return addr;
 }
@@ -38,7 +39,7 @@ static int nommu_map_sg(struct device *dev, struct scatterlist *sg,
 		BUG_ON(!sg_page(s));
 
 		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-			dma_cache_sync(dev, sg_virt(s), s->length, dir);
+			sh_sync_dma_for_device(sg_virt(s), s->length, dir);
 
 		s->dma_address = sg_phys(s);
 		s->dma_length = s->length;
@@ -48,20 +49,20 @@ static int nommu_map_sg(struct device *dev, struct scatterlist *sg,
 }
 
 #ifdef CONFIG_DMA_NONCOHERENT
-static void nommu_sync_single(struct device *dev, dma_addr_t addr,
+static void nommu_sync_single_for_device(struct device *dev, dma_addr_t addr,
 			      size_t size, enum dma_data_direction dir)
 {
-	dma_cache_sync(dev, phys_to_virt(addr), size, dir);
+	sh_sync_dma_for_device(phys_to_virt(addr), size, dir);
 }
 
-static void nommu_sync_sg(struct device *dev, struct scatterlist *sg,
+static void nommu_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 			  int nelems, enum dma_data_direction dir)
 {
 	struct scatterlist *s;
 	int i;
 
 	for_each_sg(sg, s, nelems, i)
-		dma_cache_sync(dev, sg_virt(s), s->length, dir);
+		sh_sync_dma_for_device(sg_virt(s), s->length, dir);
 }
 #endif
 
@@ -71,8 +72,8 @@ const struct dma_map_ops nommu_dma_ops = {
 	.map_page		= nommu_map_page,
 	.map_sg			= nommu_map_sg,
 #ifdef CONFIG_DMA_NONCOHERENT
-	.sync_single_for_device	= nommu_sync_single,
-	.sync_sg_for_device	= nommu_sync_sg,
+	.sync_single_for_device	= nommu_sync_single_for_device,
+	.sync_sg_for_device	= nommu_sync_sg_for_device,
 #endif
 	.is_phys		= 1,
 };

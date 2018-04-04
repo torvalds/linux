@@ -114,7 +114,7 @@ void rtl8822be_led_control(struct ieee80211_hw *hw, enum led_ctl_mode ledaction)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 
-	if ((ppsc->rfoff_reason > RF_CHANGE_BY_PS) &&
+	if (ppsc->rfoff_reason > RF_CHANGE_BY_PS &&
 	    (ledaction == LED_CTL_TX || ledaction == LED_CTL_RX ||
 	     ledaction == LED_CTL_SITE_SURVEY || ledaction == LED_CTL_LINK ||
 	     ledaction == LED_CTL_NO_LINK ||

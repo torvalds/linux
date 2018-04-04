@@ -76,12 +76,12 @@ static void iriap_connect_confirm(void *instance, void *sap,
 static int iriap_data_indication(void *instance, void *sap,
 				 struct sk_buff *skb);
 
-static void iriap_watchdog_timer_expired(void *data);
+static void iriap_watchdog_timer_expired(struct timer_list *t);
 
 static inline void iriap_start_watchdog_timer(struct iriap_cb *self,
 					      int timeout)
 {
-	irda_start_timer(&self->watchdog_timer, timeout, self,
+	irda_start_timer(&self->watchdog_timer, timeout,
 			 iriap_watchdog_timer_expired);
 }
 
@@ -199,7 +199,7 @@ struct iriap_cb *iriap_open(__u8 slsap_sel, int mode, void *priv,
 	 * we connect, so this must have a sane value... Jean II */
 	self->max_header_size = LMP_MAX_HEADER;
 
-	init_timer(&self->watchdog_timer);
+	timer_setup(&self->watchdog_timer, NULL, 0);
 
 	hashbin_insert(iriap, (irda_queue_t *) self, (long) self, NULL);
 
@@ -946,9 +946,9 @@ void iriap_call_indication(struct iriap_cb *self, struct sk_buff *skb)
  *    Query has taken too long time, so abort
  *
  */
-static void iriap_watchdog_timer_expired(void *data)
+static void iriap_watchdog_timer_expired(struct timer_list *t)
 {
-	struct iriap_cb *self = (struct iriap_cb *) data;
+	struct iriap_cb *self = from_timer(self, t, watchdog_timer);
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);

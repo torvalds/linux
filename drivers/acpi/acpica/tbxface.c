@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -173,10 +173,13 @@ acpi_status ACPI_INIT_FUNCTION acpi_reallocate_root_table(void)
 	ACPI_FUNCTION_TRACE(acpi_reallocate_root_table);
 
 	/*
-	 * Only reallocate the root table if the host provided a static buffer
-	 * for the table array in the call to acpi_initialize_tables.
+	 * If there are tables unverified, it is required to reallocate the
+	 * root table list to clean up invalid table entries. Otherwise only
+	 * reallocate the root table list if the host provided a static buffer
+	 * for the table array in the call to acpi_initialize_tables().
 	 */
-	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
+	if ((acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) &&
+	    acpi_gbl_enable_table_validation) {
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 

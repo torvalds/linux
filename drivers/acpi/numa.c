@@ -460,8 +460,7 @@ int __init acpi_numa_init(void)
 					srat_proc, ARRAY_SIZE(srat_proc), 0);
 
 		cnt = acpi_table_parse_srat(ACPI_SRAT_TYPE_MEMORY_AFFINITY,
-					    acpi_parse_memory_affinity,
-					    NR_NODE_MEMBLKS);
+					    acpi_parse_memory_affinity, 0);
 	}
 
 	/* SLIT: System Locality Information Table */

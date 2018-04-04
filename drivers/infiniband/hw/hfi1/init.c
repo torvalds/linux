@@ -123,8 +123,6 @@ MODULE_PARM_DESC(user_credit_return_threshold, "Credit return threshold for user
 static inline u64 encode_rcv_header_entry_size(u16 size);
 
 static struct idr hfi1_unit_table;
-u32 hfi1_cpulist_count;
-unsigned long *hfi1_cpulist;
 
 static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 			     struct hfi1_pportdata *ppd)
@@ -174,7 +172,7 @@ int hfi1_create_kctxts(struct hfi1_devdata *dd)
 	u16 i;
 	int ret;
 
-	dd->rcd = kzalloc_node(dd->num_rcv_contexts * sizeof(*dd->rcd),
+	dd->rcd = kcalloc_node(dd->num_rcv_contexts, sizeof(*dd->rcd),
 			       GFP_KERNEL, dd->node);
 	if (!dd->rcd)
 		return -ENOMEM;
@@ -283,6 +281,27 @@ static int allocate_rcd_index(struct hfi1_devdata *dd,
 	*index = ctxt;
 
 	return 0;
+}
+
+/**
+ * hfi1_rcd_get_by_index_safe - validate the ctxt index before accessing the
+ * array
+ * @dd: pointer to a valid devdata structure
+ * @ctxt: the index of an possilbe rcd
+ *
+ * This is a wrapper for hfi1_rcd_get_by_index() to validate that the given
+ * ctxt index is valid.
+ *
+ * The caller is responsible for making the _put().
+ *
+ */
+struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
+						 u16 ctxt)
+{
+	if (ctxt < dd->num_rcv_contexts)
+		return hfi1_rcd_get_by_index(dd, ctxt);
+
+	return NULL;
 }
 
 /**
@@ -420,15 +439,16 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		 * The resulting value will be rounded down to the closest
 		 * multiple of dd->rcv_entries.group_size.
 		 */
-		rcd->egrbufs.buffers = kzalloc_node(
-			rcd->egrbufs.count * sizeof(*rcd->egrbufs.buffers),
-			GFP_KERNEL, numa);
+		rcd->egrbufs.buffers =
+			kcalloc_node(rcd->egrbufs.count,
+				     sizeof(*rcd->egrbufs.buffers),
+				     GFP_KERNEL, numa);
 		if (!rcd->egrbufs.buffers)
 			goto bail;
-		rcd->egrbufs.rcvtids = kzalloc_node(
-				rcd->egrbufs.count *
-				sizeof(*rcd->egrbufs.rcvtids),
-				GFP_KERNEL, numa);
+		rcd->egrbufs.rcvtids =
+			kcalloc_node(rcd->egrbufs.count,
+				     sizeof(*rcd->egrbufs.rcvtids),
+				     GFP_KERNEL, numa);
 		if (!rcd->egrbufs.rcvtids)
 			goto bail;
 		rcd->egrbufs.size = eager_buffer_size;
@@ -618,6 +638,15 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
 	ppd->port = port; /* IB port number, not index */
+	ppd->prev_link_width = LINK_WIDTH_DEFAULT;
+	/*
+	 * There are C_VL_COUNT number of PortVLXmitWait counters.
+	 * Adding 1 to C_VL_COUNT to include the PortXmitWait counter.
+	 */
+	for (i = 0; i < C_VL_COUNT + 1; i++) {
+		ppd->port_vl_xmit_wait_last[i] = 0;
+		ppd->vl_xmit_flit_cnt[i] = 0;
+	}
 
 	default_pkey_idx = 1;
 
@@ -1006,7 +1035,7 @@ static void stop_timers(struct hfi1_devdata *dd)
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
-		if (ppd->led_override_timer.data) {
+		if (ppd->led_override_timer.function) {
 			del_timer_sync(&ppd->led_override_timer);
 			atomic_set(&ppd->led_override_timer_active, 0);
 		}
@@ -1039,8 +1068,9 @@ static void shutdown_device(struct hfi1_devdata *dd)
 	}
 	dd->flags &= ~HFI1_INITTED;
 
-	/* mask interrupts, but not errors */
+	/* mask and clean up interrupts, but not errors */
 	set_intr_state(dd, 0);
+	hfi1_clean_up_interrupts(dd);
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
@@ -1198,6 +1228,8 @@ static void __hfi1_free_devdata(struct kobject *kobj)
 	free_percpu(dd->int_counter);
 	free_percpu(dd->rcv_limit);
 	free_percpu(dd->send_schedule);
+	free_percpu(dd->tx_opstats);
+	sdma_clean(dd, dd->num_sdma);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
 }
 
@@ -1252,6 +1284,8 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 			       "Could not allocate unit ID: error %d\n", -ret);
 		goto bail;
 	}
+	rvt_set_ibdev_name(&dd->verbs_dev.rdi, "%s_%d", class_name(), dd->unit);
+
 	/*
 	 * Initialize all locks for the device. This needs to be as early as
 	 * possible so locks are usable.
@@ -1272,39 +1306,27 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	dd->int_counter = alloc_percpu(u64);
 	if (!dd->int_counter) {
 		ret = -ENOMEM;
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
 	dd->rcv_limit = alloc_percpu(u64);
 	if (!dd->rcv_limit) {
 		ret = -ENOMEM;
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate per-cpu rcv_limit\n");
 		goto bail;
 	}
 
 	dd->send_schedule = alloc_percpu(u64);
 	if (!dd->send_schedule) {
 		ret = -ENOMEM;
-		hfi1_early_err(&pdev->dev,
-			       "Could not allocate per-cpu int_counter\n");
 		goto bail;
 	}
 
-	if (!hfi1_cpulist_count) {
-		u32 count = num_online_cpus();
-
-		hfi1_cpulist = kcalloc(BITS_TO_LONGS(count), sizeof(long),
-				       GFP_KERNEL);
-		if (hfi1_cpulist)
-			hfi1_cpulist_count = count;
-		else
-			hfi1_early_err(
-			&pdev->dev,
-			"Could not alloc cpulist info, cpu affinity might be wrong\n");
+	dd->tx_opstats = alloc_percpu(struct hfi1_opcode_stats_perctx);
+	if (!dd->tx_opstats) {
+		ret = -ENOMEM;
+		goto bail;
 	}
+
 	kobject_init(&dd->kobj, &hfi1_devdata_type);
 	return dd;
 
@@ -1477,8 +1499,6 @@ static void __exit hfi1_mod_cleanup(void)
 	node_affinity_destroy();
 	hfi1_wss_exit();
 	hfi1_dbg_exit();
-	hfi1_cpulist_count = 0;
-	kfree(hfi1_cpulist);
 
 	idr_destroy(&hfi1_unit_table);
 	dispose_firmware();	/* asymmetric with obtain_firmware() */
@@ -1696,6 +1716,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dd_dev_err(dd, "Failed to create /dev devices: %d\n", -j);
 
 	if (initfail || ret) {
+		hfi1_clean_up_interrupts(dd);
 		stop_timers(dd);
 		flush_workqueue(ib_wq);
 		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
@@ -1801,8 +1822,7 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 		amt = PAGE_ALIGN(rcd->rcvhdrq_cnt * rcd->rcvhdrqentsize *
 				 sizeof(u32));
 
-		if ((rcd->ctxt < dd->first_dyn_alloc_ctxt) ||
-		    (rcd->sc && (rcd->sc->type == SC_KERNEL)))
+		if (rcd->ctxt < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
 			gfp_flags = GFP_KERNEL;
 		else
 			gfp_flags = GFP_USER;

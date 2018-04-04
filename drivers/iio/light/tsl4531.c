@@ -144,7 +144,6 @@ static const struct iio_info tsl4531_info = {
 	.read_raw = tsl4531_read_raw,
 	.write_raw = tsl4531_write_raw,
 	.attrs = &tsl4531_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int tsl4531_check_id(struct i2c_client *client)

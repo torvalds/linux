@@ -7,8 +7,10 @@ of the EMIF IP and memory parts attached to it.
 
 Required properties:
 - compatible	: Should be of the form "ti,emif-<ip-rev>" where <ip-rev>
-  is the IP revision of the specific EMIF instance.
-		  For am437x should be ti,emif-am4372.
+  is the IP revision of the specific EMIF instance. For newer controllers,
+  compatible should be one of the following:
+  	     "ti,emif-am3352"
+	     "ti,emif-am4372"
 
 - phy-type	: <u32> indicating the DDR phy type. Following are the
   allowed values
@@ -20,6 +22,13 @@ Required properties:
 - ti,hwmods	: For TI hwmods processing and omap device creation
   the value shall be "emif<n>" where <n> is the number of the EMIF
   instance with base 1.
+
+Required only for "ti,emif-am3352" and "ti,emif-am4372":
+- sram			: Phandles for generic sram driver nodes,
+  first should be type 'protect-exec' for the driver to use to copy
+  and run PM functions, second should be regular pool to be used for
+  data region for code. See Documentation/devicetree/bindings/sram/sram.txt
+  for more details.
 
 Optional properties:
 - cs1-used		: Have this property if CS1 of this EMIF
@@ -42,9 +51,9 @@ Optional properties:
 - hw-caps-temp-alert	: Have this property if the controller
   has capability for generating SDRAM temperature alerts
 
-Example:
+-Examples:
 
-emif1: emif@0x4c000000 {
+emif1: emif@4c000000 {
 	compatible	= "ti,emif-4d";
 	ti,hwmods	= "emif2";
 	phy-type	= <1>;
@@ -53,4 +62,12 @@ emif1: emif@0x4c000000 {
 	hw-caps-read-idle-ctrl;
 	hw-caps-ll-interface;
 	hw-caps-temp-alert;
+};
+
+/* From am33xx.dtsi */
+emif: emif@4c000000 {
+        compatible = "ti,emif-am3352";
+        reg =   <0x4C000000 0x1000>;
+        sram = <&pm_sram_code
+                &pm_sram_data>;
 };

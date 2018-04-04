@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,10 +61,10 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
  *
  * PARAMETERS:  handle              - Object handle (optional)
  *              pathname            - Object pathname (optional)
- *              external_params     - List of parameters to pass to method,
+ *              external_params     - List of parameters to pass to a method,
  *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
- *              return_buffer       - Where to put method's return value (if
+ *              return_buffer       - Where to put the object's return value (if
  *                                    any). If NULL, no value is returned.
  *              return_type         - Expected type of return object
  *
@@ -100,13 +100,14 @@ acpi_evaluate_object_typed(acpi_handle handle,
 		free_buffer_on_error = TRUE;
 	}
 
+	/* Get a handle here, in order to build an error message if needed */
+
+	target_handle = handle;
 	if (pathname) {
 		status = acpi_get_handle(handle, pathname, &target_handle);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
-	} else {
-		target_handle = handle;
 	}
 
 	full_pathname = acpi_ns_get_external_pathname(target_handle);

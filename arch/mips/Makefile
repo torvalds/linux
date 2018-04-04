@@ -15,7 +15,7 @@
 archscripts: scripts_basic
 	$(Q)$(MAKE) $(build)=arch/mips/boot/tools relocs
 
-KBUILD_DEFCONFIG := ip22_defconfig
+KBUILD_DEFCONFIG := 32r2el_defconfig
 
 #
 # Select the object file format to substitute into the linker script.
@@ -216,6 +216,12 @@ cflags-$(toolchain-msa)			+= -DTOOLCHAIN_SUPPORTS_MSA
 endif
 toolchain-virt				:= $(call cc-option-yn,$(mips-cflags) -mvirt)
 cflags-$(toolchain-virt)		+= -DTOOLCHAIN_SUPPORTS_VIRT
+# For -mmicromips, use -Wa,-fatal-warnings to catch unsupported -mxpa which
+# only warns
+xpa-cflags-y				:= $(mips-cflags)
+xpa-cflags-$(micromips-ase)		+= -mmicromips -Wa$(comma)-fatal-warnings
+toolchain-xpa				:= $(call cc-option-yn,$(xpa-cflags-y) -mxpa)
+cflags-$(toolchain-xpa)			+= -DTOOLCHAIN_SUPPORTS_XPA
 
 #
 # Firmware support
@@ -228,7 +234,7 @@ libs-y				+= arch/mips/fw/lib/
 #
 # Kernel compression
 #
-ifdef SYS_SUPPORTS_ZBOOT
+ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 COMPRESSION_FNAME		= vmlinuz
 else
 COMPRESSION_FNAME		= vmlinux
@@ -544,3 +550,7 @@ sead3_defconfig:
 .PHONY: sead3micro_defconfig
 sead3micro_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3
+
+.PHONY: xilfpga_defconfig
+xilfpga_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=xilfpga

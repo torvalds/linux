@@ -179,4 +179,6 @@ int intel_vgpu_init_display(struct intel_vgpu *vgpu, u64 resolution);
 void intel_vgpu_reset_display(struct intel_vgpu *vgpu);
 void intel_vgpu_clean_display(struct intel_vgpu *vgpu);
 
+int pipe_is_enabled(struct intel_vgpu *vgpu, int pipe);
+
 #endif

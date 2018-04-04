@@ -25,5 +25,6 @@ extern void iscsi_post_login_handler(struct iscsi_np *, struct iscsi_conn *, u8)
 extern void iscsi_target_login_sess_out(struct iscsi_conn *, struct iscsi_np *,
 				bool, bool);
 extern int iscsi_target_login_thread(void *);
+extern void iscsi_handle_login_thread_timeout(struct timer_list *t);
 
 #endif   /*** ISCSI_TARGET_LOGIN_H ***/

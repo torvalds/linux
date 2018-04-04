@@ -21,59 +21,22 @@ nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 {
 	struct nft_pktinfo pkt;
 
+	nft_set_pktinfo(&pkt, skb, state);
+
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		nft_set_pktinfo_ipv4_validate(&pkt, skb, state);
+		nft_set_pktinfo_ipv4_validate(&pkt, skb);
 		break;
 	case htons(ETH_P_IPV6):
-		nft_set_pktinfo_ipv6_validate(&pkt, skb, state);
+		nft_set_pktinfo_ipv6_validate(&pkt, skb);
 		break;
 	default:
-		nft_set_pktinfo_unspec(&pkt, skb, state);
+		nft_set_pktinfo_unspec(&pkt, skb);
 		break;
 	}
 
 	return nft_do_chain(&pkt, priv);
 }
-
-static struct nft_af_info nft_af_netdev __read_mostly = {
-	.family		= NFPROTO_NETDEV,
-	.nhooks		= NF_NETDEV_NUMHOOKS,
-	.owner		= THIS_MODULE,
-	.flags		= NFT_AF_NEEDS_DEV,
-	.nops		= 1,
-	.hooks		= {
-		[NF_NETDEV_INGRESS]	= nft_do_chain_netdev,
-	},
-};
-
-static int nf_tables_netdev_init_net(struct net *net)
-{
-	net->nft.netdev = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
-	if (net->nft.netdev == NULL)
-		return -ENOMEM;
-
-	memcpy(net->nft.netdev, &nft_af_netdev, sizeof(nft_af_netdev));
-
-	if (nft_register_afinfo(net, net->nft.netdev) < 0)
-		goto err;
-
-	return 0;
-err:
-	kfree(net->nft.netdev);
-	return -ENOMEM;
-}
-
-static void nf_tables_netdev_exit_net(struct net *net)
-{
-	nft_unregister_afinfo(net, net->nft.netdev);
-	kfree(net->nft.netdev);
-}
-
-static struct pernet_operations nf_tables_netdev_net_ops = {
-	.init	= nf_tables_netdev_init_net,
-	.exit	= nf_tables_netdev_exit_net,
-};
 
 static const struct nf_chain_type nft_filter_chain_netdev = {
 	.name		= "filter",
@@ -81,6 +44,9 @@ static const struct nf_chain_type nft_filter_chain_netdev = {
 	.family		= NFPROTO_NETDEV,
 	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_NETDEV_INGRESS),
+	.hooks		= {
+		[NF_NETDEV_INGRESS]	= nft_do_chain_netdev,
+	},
 };
 
 static void nft_netdev_event(unsigned long event, struct net_device *dev,
@@ -96,7 +62,7 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 		__nft_release_basechain(ctx);
 		break;
 	case NETDEV_CHANGENAME:
-		if (dev->ifindex != basechain->ops[0].dev->ifindex)
+		if (dev->ifindex != basechain->ops.dev->ifindex)
 			return;
 
 		strncpy(basechain->dev_name, dev->name, IFNAMSIZ);
@@ -108,7 +74,6 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 				  unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct nft_af_info *afi;
 	struct nft_table *table;
 	struct nft_chain *chain, *nr;
 	struct nft_ctx ctx = {
@@ -120,20 +85,18 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_for_each_entry(afi, &dev_net(dev)->nft.af_info, list) {
-		ctx.afi = afi;
-		if (afi->family != NFPROTO_NETDEV)
+	list_for_each_entry(table, &ctx.net->nft.tables, list) {
+		if (table->family != NFPROTO_NETDEV)
 			continue;
 
-		list_for_each_entry(table, &afi->tables, list) {
-			ctx.table = table;
-			list_for_each_entry_safe(chain, nr, &table->chains, list) {
-				if (!nft_is_base_chain(chain))
-					continue;
+		ctx.family = table->family;
+		ctx.table = table;
+		list_for_each_entry_safe(chain, nr, &table->chains, list) {
+			if (!nft_is_base_chain(chain))
+				continue;
 
-				ctx.chain = chain;
-				nft_netdev_event(event, dev, &ctx);
-			}
+			ctx.chain = chain;
+			nft_netdev_event(event, dev, &ctx);
 		}
 	}
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
@@ -153,27 +116,21 @@ static int __init nf_tables_netdev_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_pernet_subsys(&nf_tables_netdev_net_ops);
-	if (ret)
-		goto err1;
-
 	ret = register_netdevice_notifier(&nf_tables_netdev_notifier);
 	if (ret)
-		goto err2;
+		goto err_register_netdevice_notifier;
 
 	return 0;
 
-err2:
-	unregister_pernet_subsys(&nf_tables_netdev_net_ops);
-err1:
+err_register_netdevice_notifier:
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
+
 	return ret;
 }
 
 static void __exit nf_tables_netdev_exit(void)
 {
 	unregister_netdevice_notifier(&nf_tables_netdev_notifier);
-	unregister_pernet_subsys(&nf_tables_netdev_net_ops);
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
 }
 
@@ -182,4 +139,4 @@ module_exit(nf_tables_netdev_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
-MODULE_ALIAS_NFT_FAMILY(5); /* NFPROTO_NETDEV */
+MODULE_ALIAS_NFT_CHAIN(5, "filter"); /* NFPROTO_NETDEV */

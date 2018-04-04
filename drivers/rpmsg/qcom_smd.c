@@ -200,6 +200,7 @@ struct qcom_smd_channel {
 	char *name;
 	enum smd_channel_state state;
 	enum smd_channel_state remote_state;
+	wait_queue_head_t state_change_event;
 
 	struct smd_channel_info_pair *info;
 	struct smd_channel_info_word_pair *info_word;
@@ -570,13 +571,15 @@ static bool qcom_smd_channel_intr(struct qcom_smd_channel *channel)
 	if (remote_state != channel->remote_state) {
 		channel->remote_state = remote_state;
 		need_state_scan = true;
+
+		wake_up_interruptible_all(&channel->state_change_event);
 	}
 	/* Indicate that we have seen any state change */
 	SET_RX_CHANNEL_FLAG(channel, fSTATE, 0);
 
 	/* Signal waiting qcom_smd_send() about the interrupt */
 	if (!GET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR))
-		wake_up_interruptible(&channel->fblockread_event);
+		wake_up_interruptible_all(&channel->fblockread_event);
 
 	/* Don't consume any data until we've opened the channel */
 	if (channel->state != SMD_CHANNEL_OPENED)
@@ -740,26 +743,35 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	if (ret)
 		return ret;
 
-	while (qcom_smd_get_tx_avail(channel) < tlen) {
+	while (qcom_smd_get_tx_avail(channel) < tlen &&
+	       channel->state == SMD_CHANNEL_OPENED) {
 		if (!wait) {
 			ret = -EAGAIN;
-			goto out;
-		}
-
-		if (channel->state != SMD_CHANNEL_OPENED) {
-			ret = -EPIPE;
-			goto out;
+			goto out_unlock;
 		}
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 0);
+
+		/* Wait without holding the tx_lock */
+		mutex_unlock(&channel->tx_lock);
 
 		ret = wait_event_interruptible(channel->fblockread_event,
 				       qcom_smd_get_tx_avail(channel) >= tlen ||
 				       channel->state != SMD_CHANNEL_OPENED);
 		if (ret)
-			goto out;
+			return ret;
+
+		ret = mutex_lock_interruptible(&channel->tx_lock);
+		if (ret)
+			return ret;
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 1);
+	}
+
+	/* Fail if the channel was closed */
+	if (channel->state != SMD_CHANNEL_OPENED) {
+		ret = -EPIPE;
+		goto out_unlock;
 	}
 
 	SET_TX_CHANNEL_FLAG(channel, fTAIL, 0);
@@ -774,7 +786,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 
 	qcom_smd_signal_channel(channel);
 
-out:
+out_unlock:
 	mutex_unlock(&channel->tx_lock);
 
 	return ret;
@@ -786,7 +798,9 @@ out:
 static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
 				 rpmsg_rx_cb_t cb)
 {
+	struct qcom_smd_edge *edge = channel->edge;
 	size_t bb_size;
+	int ret;
 
 	/*
 	 * Packets are maximum 4k, but reduce if the fifo is smaller
@@ -798,9 +812,33 @@ static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
 
 	qcom_smd_channel_set_callback(channel, cb);
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENING);
+
+	/* Wait for remote to enter opening or opened */
+	ret = wait_event_interruptible_timeout(channel->state_change_event,
+			channel->remote_state == SMD_CHANNEL_OPENING ||
+			channel->remote_state == SMD_CHANNEL_OPENED,
+			HZ);
+	if (!ret) {
+		dev_err(&edge->dev, "remote side did not enter opening state\n");
+		goto out_close_timeout;
+	}
+
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_OPENED);
 
+	/* Wait for remote to enter opened */
+	ret = wait_event_interruptible_timeout(channel->state_change_event,
+			channel->remote_state == SMD_CHANNEL_OPENED,
+			HZ);
+	if (!ret) {
+		dev_err(&edge->dev, "remote side did not enter open state\n");
+		goto out_close_timeout;
+	}
+
 	return 0;
+
+out_close_timeout:
+	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSED);
+	return -ETIMEDOUT;
 }
 
 /*
@@ -919,17 +957,17 @@ static int qcom_smd_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_smd_send(qsept->qsch, data, len, false);
 }
 
-static unsigned int qcom_smd_poll(struct rpmsg_endpoint *ept,
+static __poll_t qcom_smd_poll(struct rpmsg_endpoint *ept,
 				  struct file *filp, poll_table *wait)
 {
 	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
 	struct qcom_smd_channel *channel = qsept->qsch;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &channel->fblockread_event, wait);
 
 	if (qcom_smd_get_tx_avail(channel) > 20)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
 }
@@ -1055,6 +1093,7 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 	mutex_init(&channel->tx_lock);
 	spin_lock_init(&channel->recv_lock);
 	init_waitqueue_head(&channel->fblockread_event);
+	init_waitqueue_head(&channel->state_change_event);
 
 	info = qcom_smem_get(edge->remote_pid, smem_info_item, &info_size);
 	if (IS_ERR(info)) {
@@ -1161,7 +1200,7 @@ static void qcom_channel_scan_worker(struct work_struct *work)
 			dev_dbg(&edge->dev, "new channel found: '%s'\n", channel->name);
 			set_bit(i, edge->allocated[tbl]);
 
-			wake_up_interruptible(&edge->new_channel_event);
+			wake_up_interruptible_all(&edge->new_channel_event);
 		}
 	}
 
@@ -1193,11 +1232,6 @@ static void qcom_channel_state_worker(struct work_struct *work)
 	spin_lock_irqsave(&edge->channels_lock, flags);
 	list_for_each_entry(channel, &edge->channels, list) {
 		if (channel->state != SMD_CHANNEL_CLOSED)
-			continue;
-
-		remote_state = GET_RX_CHANNEL_INFO(channel, state);
-		if (remote_state != SMD_CHANNEL_OPENING &&
-		    remote_state != SMD_CHANNEL_OPENED)
 			continue;
 
 		if (channel->registered)

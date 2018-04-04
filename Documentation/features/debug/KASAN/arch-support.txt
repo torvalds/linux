@@ -34,6 +34,6 @@
     |        tile: | TODO |
     |          um: | TODO |
     |   unicore32: | TODO |
-    |         x86: |  ok  |
-    |      xtensa: | TODO |
+    |         x86: |  ok  | 64-bit only
+    |      xtensa: |  ok  |
     -----------------------

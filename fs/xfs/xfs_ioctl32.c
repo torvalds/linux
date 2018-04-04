@@ -37,6 +37,7 @@
 #include "xfs_ioctl.h"
 #include "xfs_ioctl32.h"
 #include "xfs_trace.h"
+#include "xfs_sb.h"
 
 #define  _NATIVE_IOC(cmd, type) \
 	  _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(type))
@@ -66,7 +67,7 @@ xfs_compat_ioc_fsgeometry_v1(
 	xfs_fsop_geom_t		  fsgeo;
 	int			  error;
 
-	error = xfs_fs_geometry(mp, &fsgeo, 3);
+	error = xfs_fs_geometry(&mp->m_sb, &fsgeo, 3);
 	if (error)
 		return error;
 	/* The 32-bit variant simply has some padding at the end */
@@ -556,6 +557,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_ERROR_INJECTION:
 	case XFS_IOC_ERROR_CLEARALL:
 	case FS_IOC_GETFSMAP:
+	case XFS_IOC_SCRUB_METADATA:
 		return xfs_file_ioctl(filp, cmd, p);
 #ifndef BROKEN_X86_ALIGNMENT
 	/* These are handled fine if no alignment issues */

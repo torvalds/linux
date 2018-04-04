@@ -66,12 +66,17 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			    1000 * adjusted_mode->crtc_htotal);
 }
 
+/* FIXME: We should instead only take spinlocks once for the entire update
+ * instead of once per mmio. */
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+#define VBLANK_EVASION_TIME_US 250
+#else
 #define VBLANK_EVASION_TIME_US 100
+#endif
 
 /**
  * intel_pipe_update_start() - start update of a set of display registers
- * @crtc: the crtc of which the registers are going to be updated
- * @start_vbl_count: vblank counter return pointer used for error checking
+ * @new_crtc_state: the new crtc state
  *
  * Mark the start of an update to pipe registers that should be updated
  * atomically regarding vblank. If the next vblank will happens within
@@ -79,18 +84,18 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
  *
  * After a successful call to this function, interrupts will be disabled
  * until a subsequent call to intel_pipe_update_end(). That is done to
- * avoid random delays. The value written to @start_vbl_count should be
- * supplied to intel_pipe_update_end() for error checking.
+ * avoid random delays.
  */
-void intel_pipe_update_start(struct intel_crtc *crtc)
+void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &new_crtc_state->base.adjusted_mode;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	bool need_vlv_dsi_wa = (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-		intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DSI);
+		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 	DEFINE_WAIT(wait);
 
 	vblank_start = adjusted_mode->crtc_vblank_start;
@@ -170,15 +175,15 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 /**
  * intel_pipe_update_end() - end update of a set of display registers
- * @crtc: the crtc of which the registers were updated
- * @start_vbl_count: start vblank counter (used for error checking)
+ * @new_crtc_state: the new crtc state
  *
  * Mark the end of an update started with intel_pipe_update_start(). This
  * re-enables interrupts and verifies the update was actually completed
- * before a vblank using the value of @start_vbl_count.
+ * before a vblank.
  */
-void intel_pipe_update_end(struct intel_crtc *crtc)
+void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	enum pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
@@ -191,14 +196,14 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 	 * Would be slightly nice to just grab the vblank count and arm the
 	 * event outside of the critical section - the spinlock might spin for a
 	 * while ... */
-	if (crtc->base.state->event) {
+	if (new_crtc_state->base.event) {
 		WARN_ON(drm_crtc_vblank_get(&crtc->base) != 0);
 
 		spin_lock(&crtc->base.dev->event_lock);
-		drm_crtc_arm_vblank_event(&crtc->base, crtc->base.state->event);
+		drm_crtc_arm_vblank_event(&crtc->base, new_crtc_state->base.event);
 		spin_unlock(&crtc->base.dev->event_lock);
 
-		crtc->base.state->event = NULL;
+		new_crtc_state->base.event = NULL;
 	}
 
 	local_irq_enable();
@@ -225,7 +230,7 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 #endif
 }
 
-static void
+void
 skl_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
@@ -258,13 +263,9 @@ skl_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
-			      PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			      PLANE_COLOR_PIPE_CSC_ENABLE |
-			      PLANE_COLOR_PLANE_GAMMA_DISABLE);
-	}
-
+			      plane_state->color_ctl);
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
 		I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), key->max_value);
@@ -306,7 +307,7 @@ skl_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void
+void
 skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -322,6 +323,26 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	POSTING_READ_FW(PLANE_SURF(pipe, plane_id));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+bool
+skl_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(PLANE_CTL(pipe, plane_id)) & PLANE_CTL_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void
@@ -501,6 +522,26 @@ vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static bool
+vlv_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(SPCNTR(pipe, plane_id)) & SP_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
+}
+
 static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -641,6 +682,25 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static bool
+ivb_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret =  I915_READ(SPRCTL(pipe)) & SPRITE_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
+}
+
 static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -770,6 +830,25 @@ g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	POSTING_READ_FW(DVSSURF(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+static bool
+g4x_plane_get_hw_state(struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum intel_display_power_domain power_domain;
+	enum pipe pipe = plane->pipe;
+	bool ret;
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+
+	ret = I915_READ(DVSCNTR(pipe)) & DVS_ENABLE;
+
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static int
@@ -973,6 +1052,9 @@ intel_check_sprite_plane(struct intel_plane *plane,
 		state->ctl = g4x_sprite_ctl(crtc_state, state);
 	}
 
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		state->color_ctl = glk_plane_color_ctl(crtc_state, state);
+
 	return 0;
 }
 
@@ -995,7 +1077,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		return -EINVAL;
 
-	plane = drm_plane_find(dev, set->plane_id);
+	plane = drm_plane_find(dev, file_priv, set->plane_id);
 	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY)
 		return -ENOENT;
 
@@ -1227,6 +1309,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
+		intel_plane->get_hw_state = skl_plane_get_hw_state;
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
@@ -1237,6 +1320,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
+		intel_plane->get_hw_state = skl_plane_get_hw_state;
 
 		plane_formats = skl_plane_formats;
 		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
@@ -1247,6 +1331,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = vlv_update_plane;
 		intel_plane->disable_plane = vlv_disable_plane;
+		intel_plane->get_hw_state = vlv_plane_get_hw_state;
 
 		plane_formats = vlv_plane_formats;
 		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
@@ -1262,6 +1347,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
+		intel_plane->get_hw_state = ivb_plane_get_hw_state;
 
 		plane_formats = snb_plane_formats;
 		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
@@ -1272,6 +1358,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		intel_plane->update_plane = g4x_update_plane;
 		intel_plane->disable_plane = g4x_disable_plane;
+		intel_plane->get_hw_state = g4x_plane_get_hw_state;
 
 		modifiers = i9xx_plane_format_modifiers;
 		if (IS_GEN6(dev_priv)) {
@@ -1297,7 +1384,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	}
 
 	intel_plane->pipe = pipe;
-	intel_plane->plane = plane;
+	intel_plane->i9xx_plane = plane;
 	intel_plane->id = PLANE_SPRITE0 + plane;
 	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER_SPRITE(pipe, plane);
 	intel_plane->check_plane = intel_check_sprite_plane;

@@ -50,6 +50,9 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 
+#define DEV_CREATE_FLAG_MASK \
+	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
+
 struct bpf_dtab_netdev {
 	struct net_device *dev;
 	struct bpf_dtab *dtab;
@@ -83,20 +86,14 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
-	    attr->value_size != 4 || attr->map_flags & ~BPF_F_NUMA_NODE)
+	    attr->value_size != 4 || attr->map_flags & ~DEV_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
 	dtab = kzalloc(sizeof(*dtab), GFP_USER);
 	if (!dtab)
 		return ERR_PTR(-ENOMEM);
 
-	/* mandatory map attributes */
-	dtab->map.map_type = attr->map_type;
-	dtab->map.key_size = attr->key_size;
-	dtab->map.value_size = attr->value_size;
-	dtab->map.max_entries = attr->max_entries;
-	dtab->map.map_flags = attr->map_flags;
-	dtab->map.numa_node = bpf_map_attr_numa_node(attr);
+	bpf_map_init_from_attr(&dtab->map, attr);
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) dtab->map.max_entries * sizeof(struct bpf_dtab_netdev *);

@@ -183,6 +183,7 @@ EXPORT_SYMBOL(v4l2_m2m_get_curr_priv);
 
 /**
  * v4l2_m2m_try_run() - select next job to perform and run it if possible
+ * @m2m_dev: per-device context
  *
  * Get next transaction (if present) from the waiting jobs list and run it.
  */
@@ -281,6 +282,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_try_schedule);
 
 /**
  * v4l2_m2m_cancel_job() - cancel pending jobs for the context
+ * @m2m_ctx: m2m context with jobs to be canceled
  *
  * In case of streamoff or release called on any context,
  * 1] If the context is currently running, then abort job will be called
@@ -498,24 +500,24 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_streamoff);
 
-unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+__poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 			   struct poll_table_struct *wait)
 {
 	struct video_device *vfd = video_devdata(file);
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct vb2_queue *src_q, *dst_q;
 	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
-	unsigned int rc = 0;
+	__poll_t rc = 0;
 	unsigned long flags;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
 
 		if (v4l2_event_pending(fh))
-			rc = POLLPRI;
-		else if (req_events & POLLPRI)
+			rc = EPOLLPRI;
+		else if (req_events & EPOLLPRI)
 			poll_wait(file, &fh->wait, wait);
-		if (!(req_events & (POLLOUT | POLLWRNORM | POLLIN | POLLRDNORM)))
+		if (!(req_events & (EPOLLOUT | EPOLLWRNORM | EPOLLIN | EPOLLRDNORM)))
 			return rc;
 	}
 
@@ -529,7 +531,7 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	 */
 	if ((!src_q->streaming || list_empty(&src_q->queued_list))
 		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
-		rc |= POLLERR;
+		rc |= EPOLLERR;
 		goto end;
 	}
 
@@ -546,7 +548,7 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		 */
 		if (dst_q->last_buffer_dequeued) {
 			spin_unlock_irqrestore(&dst_q->done_lock, flags);
-			return rc | POLLIN | POLLRDNORM;
+			return rc | EPOLLIN | EPOLLRDNORM;
 		}
 
 		poll_wait(file, &dst_q->done_wq, wait);
@@ -559,7 +561,7 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 						done_entry);
 	if (src_vb && (src_vb->state == VB2_BUF_STATE_DONE
 			|| src_vb->state == VB2_BUF_STATE_ERROR))
-		rc |= POLLOUT | POLLWRNORM;
+		rc |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock_irqrestore(&src_q->done_lock, flags);
 
 	spin_lock_irqsave(&dst_q->done_lock, flags);
@@ -568,7 +570,7 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 						done_entry);
 	if (dst_vb && (dst_vb->state == VB2_BUF_STATE_DONE
 			|| dst_vb->state == VB2_BUF_STATE_ERROR))
-		rc |= POLLIN | POLLRDNORM;
+		rc |= EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 
 end:
@@ -792,11 +794,11 @@ int v4l2_m2m_fop_mmap(struct file *file, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_fop_mmap);
 
-unsigned int v4l2_m2m_fop_poll(struct file *file, poll_table *wait)
+__poll_t v4l2_m2m_fop_poll(struct file *file, poll_table *wait)
 {
 	struct v4l2_fh *fh = file->private_data;
 	struct v4l2_m2m_ctx *m2m_ctx = fh->m2m_ctx;
-	unsigned int ret;
+	__poll_t ret;
 
 	if (m2m_ctx->q_lock)
 		mutex_lock(m2m_ctx->q_lock);

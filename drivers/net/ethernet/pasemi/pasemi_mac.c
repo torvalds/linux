@@ -212,9 +212,7 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -ENOENT;
 	}
 
-	if (sscanf(maddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-		   &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5])
-	    != ETH_ALEN) {
+	if (!mac_pton(maddr, addr)) {
 		dev_warn(&pdev->dev,
 			 "can't parse mac address, not configuring\n");
 		return -EINVAL;
@@ -943,9 +941,9 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 
 #define TX_CLEAN_INTERVAL HZ
 
-static void pasemi_mac_tx_timer(unsigned long data)
+static void pasemi_mac_tx_timer(struct timer_list *t)
 {
-	struct pasemi_mac_txring *txring = (struct pasemi_mac_txring *)data;
+	struct pasemi_mac_txring *txring = from_timer(txring, t, clean_timer);
 	struct pasemi_mac *mac = txring->mac;
 
 	pasemi_mac_clean_tx(txring);
@@ -1199,8 +1197,7 @@ static int pasemi_mac_open(struct net_device *dev)
 	if (dev->phydev)
 		phy_start(dev->phydev);
 
-	setup_timer(&mac->tx->clean_timer, pasemi_mac_tx_timer,
-		    (unsigned long)mac->tx);
+	timer_setup(&mac->tx->clean_timer, pasemi_mac_tx_timer, 0);
 	mod_timer(&mac->tx->clean_timer, jiffies + HZ);
 
 	return 0;

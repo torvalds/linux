@@ -36,6 +36,8 @@
 
 #include "i915_drv.h"
 #include "gvt.h"
+#include <linux/vfio.h>
+#include <linux/mdev.h>
 
 struct intel_gvt_host intel_gvt_host;
 
@@ -43,6 +45,129 @@ static const char * const supported_hypervisors[] = {
 	[INTEL_GVT_HYPERVISOR_XEN] = "XEN",
 	[INTEL_GVT_HYPERVISOR_KVM] = "KVM",
 };
+
+static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,
+		const char *name)
+{
+	int i;
+	struct intel_vgpu_type *t;
+	const char *driver_name = dev_driver_string(
+			&gvt->dev_priv->drm.pdev->dev);
+
+	for (i = 0; i < gvt->num_types; i++) {
+		t = &gvt->types[i];
+		if (!strncmp(t->name, name + strlen(driver_name) + 1,
+			sizeof(t->name)))
+			return t;
+	}
+
+	return NULL;
+}
+
+static ssize_t available_instances_show(struct kobject *kobj,
+					struct device *dev, char *buf)
+{
+	struct intel_vgpu_type *type;
+	unsigned int num = 0;
+	void *gvt = kdev_to_i915(dev)->gvt;
+
+	type = intel_gvt_find_vgpu_type(gvt, kobject_name(kobj));
+	if (!type)
+		num = 0;
+	else
+		num = type->avail_instance;
+
+	return sprintf(buf, "%u\n", num);
+}
+
+static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
+		char *buf)
+{
+	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
+}
+
+static ssize_t description_show(struct kobject *kobj, struct device *dev,
+		char *buf)
+{
+	struct intel_vgpu_type *type;
+	void *gvt = kdev_to_i915(dev)->gvt;
+
+	type = intel_gvt_find_vgpu_type(gvt, kobject_name(kobj));
+	if (!type)
+		return 0;
+
+	return sprintf(buf, "low_gm_size: %dMB\nhigh_gm_size: %dMB\n"
+		       "fence: %d\nresolution: %s\n"
+		       "weight: %d\n",
+		       BYTES_TO_MB(type->low_gm_size),
+		       BYTES_TO_MB(type->high_gm_size),
+		       type->fence, vgpu_edid_str(type->resolution),
+		       type->weight);
+}
+
+static MDEV_TYPE_ATTR_RO(available_instances);
+static MDEV_TYPE_ATTR_RO(device_api);
+static MDEV_TYPE_ATTR_RO(description);
+
+static struct attribute *gvt_type_attrs[] = {
+	&mdev_type_attr_available_instances.attr,
+	&mdev_type_attr_device_api.attr,
+	&mdev_type_attr_description.attr,
+	NULL,
+};
+
+static struct attribute_group *gvt_vgpu_type_groups[] = {
+	[0 ... NR_MAX_INTEL_VGPU_TYPES - 1] = NULL,
+};
+
+static bool intel_get_gvt_attrs(struct attribute ***type_attrs,
+		struct attribute_group ***intel_vgpu_type_groups)
+{
+	*type_attrs = gvt_type_attrs;
+	*intel_vgpu_type_groups = gvt_vgpu_type_groups;
+	return true;
+}
+
+static bool intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt)
+{
+	int i, j;
+	struct intel_vgpu_type *type;
+	struct attribute_group *group;
+
+	for (i = 0; i < gvt->num_types; i++) {
+		type = &gvt->types[i];
+
+		group = kzalloc(sizeof(struct attribute_group), GFP_KERNEL);
+		if (WARN_ON(!group))
+			goto unwind;
+
+		group->name = type->name;
+		group->attrs = gvt_type_attrs;
+		gvt_vgpu_type_groups[i] = group;
+	}
+
+	return true;
+
+unwind:
+	for (j = 0; j < i; j++) {
+		group = gvt_vgpu_type_groups[j];
+		kfree(group);
+	}
+
+	return false;
+}
+
+static void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
+{
+	int i;
+	struct attribute_group *group;
+
+	for (i = 0; i < gvt->num_types; i++) {
+		group = gvt_vgpu_type_groups[i];
+		gvt_vgpu_type_groups[i] = NULL;
+		kfree(group);
+	}
+}
 
 static const struct intel_gvt_ops intel_gvt_ops = {
 	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
@@ -54,6 +179,11 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 	.vgpu_reset = intel_gvt_reset_vgpu,
 	.vgpu_activate = intel_gvt_activate_vgpu,
 	.vgpu_deactivate = intel_gvt_deactivate_vgpu,
+	.gvt_find_vgpu_type = intel_gvt_find_vgpu_type,
+	.get_gvt_attrs = intel_get_gvt_attrs,
+	.vgpu_query_plane = intel_vgpu_query_plane,
+	.vgpu_get_dmabuf = intel_vgpu_get_dmabuf,
+	.write_protect_handler = intel_vgpu_write_protect_handler,
 };
 
 /**
@@ -111,7 +241,7 @@ static void init_device_info(struct intel_gvt *gvt)
 	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
 		|| IS_KABYLAKE(gvt->dev_priv)) {
 		info->max_support_vgpus = 8;
-		info->cfg_space_size = 256;
+		info->cfg_space_size = PCI_CFG_SPACE_EXP_SIZE;
 		info->mmio_size = 2 * 1024 * 1024;
 		info->mmio_bar = 0;
 		info->gtt_start_offset = 8 * 1024 * 1024;
@@ -191,17 +321,18 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!gvt))
 		return;
 
+	intel_gvt_debugfs_clean(gvt);
 	clean_service_thread(gvt);
 	intel_gvt_clean_cmd_parser(gvt);
 	intel_gvt_clean_sched_policy(gvt);
 	intel_gvt_clean_workload_scheduler(gvt);
-	intel_gvt_clean_opregion(gvt);
 	intel_gvt_clean_gtt(gvt);
 	intel_gvt_clean_irq(gvt);
 	intel_gvt_clean_mmio_info(gvt);
 	intel_gvt_free_firmware(gvt);
 
 	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
+	intel_gvt_cleanup_vgpu_type_groups(gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
 	idr_destroy(&gvt->vgpu_idr);
@@ -256,6 +387,8 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_idr;
 
+	intel_gvt_init_engine_mmio_context(gvt);
+
 	ret = intel_gvt_load_firmware(gvt);
 	if (ret)
 		goto out_clean_mmio_info;
@@ -268,13 +401,9 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_irq;
 
-	ret = intel_gvt_init_opregion(gvt);
-	if (ret)
-		goto out_clean_gtt;
-
 	ret = intel_gvt_init_workload_scheduler(gvt);
 	if (ret)
-		goto out_clean_opregion;
+		goto out_clean_gtt;
 
 	ret = intel_gvt_init_sched_policy(gvt);
 	if (ret)
@@ -292,6 +421,12 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_thread;
 
+	ret = intel_gvt_init_vgpu_type_groups(gvt);
+	if (ret == false) {
+		gvt_err("failed to init vgpu type groups: %d\n", ret);
+		goto out_clean_types;
+	}
+
 	ret = intel_gvt_hypervisor_host_init(&dev_priv->drm.pdev->dev, gvt,
 				&intel_gvt_ops);
 	if (ret) {
@@ -307,6 +442,10 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	}
 	gvt->idle_vgpu = vgpu;
 
+	ret = intel_gvt_debugfs_init(gvt);
+	if (ret)
+		gvt_err("debugfs registeration failed, go on.\n");
+
 	gvt_dbg_core("gvt device initialization is done\n");
 	dev_priv->gvt = gvt;
 	return 0;
@@ -321,8 +460,6 @@ out_clean_sched_policy:
 	intel_gvt_clean_sched_policy(gvt);
 out_clean_workload_scheduler:
 	intel_gvt_clean_workload_scheduler(gvt);
-out_clean_opregion:
-	intel_gvt_clean_opregion(gvt);
 out_clean_gtt:
 	intel_gvt_clean_gtt(gvt);
 out_clean_irq:

@@ -3198,19 +3198,28 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 
 int pm8001_mpi_local_phy_ctl(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
+	u32 tag;
 	struct local_phy_ctl_resp *pPayload =
 		(struct local_phy_ctl_resp *)(piomb + 4);
 	u32 status = le32_to_cpu(pPayload->status);
 	u32 phy_id = le32_to_cpu(pPayload->phyop_phyid) & ID_BITS;
 	u32 phy_op = le32_to_cpu(pPayload->phyop_phyid) & OP_BITS;
+	tag = le32_to_cpu(pPayload->tag);
 	if (status != 0) {
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("%x phy execute %x phy op failed!\n",
 			phy_id, phy_op));
-	} else
+	} else {
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("%x phy execute %x phy op success!\n",
 			phy_id, phy_op));
+		pm8001_ha->phy[phy_id].reset_success = true;
+	}
+	if (pm8001_ha->phy[phy_id].enable_completion) {
+		complete(pm8001_ha->phy[phy_id].enable_completion);
+		pm8001_ha->phy[phy_id].enable_completion = NULL;
+	}
+	pm8001_tag_free(pm8001_ha, tag);
 	return 0;
 }
 

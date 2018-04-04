@@ -157,7 +157,7 @@ static inline int sync_data_avail(struct sync_port *port);
 
 static int sync_serial_open(struct inode *inode, struct file *file);
 static int sync_serial_release(struct inode *inode, struct file *file);
-static unsigned int sync_serial_poll(struct file *filp, poll_table *wait);
+static __poll_t sync_serial_poll(struct file *filp, poll_table *wait);
 
 static long sync_serial_ioctl(struct file *file,
 	unsigned int cmd, unsigned long arg);
@@ -654,28 +654,28 @@ static int sync_serial_release(struct inode *inode, struct file *file)
 
 
 
-static unsigned int sync_serial_poll(struct file *file, poll_table *wait)
+static __poll_t sync_serial_poll(struct file *file, poll_table *wait)
 {
 	int dev = MINOR(file_inode(file)->i_rdev);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct sync_port *port;
-	DEBUGPOLL(static unsigned int prev_mask = 0);
+	DEBUGPOLL(static __poll_t prev_mask = 0);
 
 	port = &ports[dev];
 	poll_wait(file, &port->out_wait_q, wait);
 	poll_wait(file, &port->in_wait_q, wait);
 	/* Some room to write */
 	if (port->out_count < OUT_BUFFER_SIZE)
-		mask |=  POLLOUT | POLLWRNORM;
+		mask |=  EPOLLOUT | EPOLLWRNORM;
 	/* At least an inbufchunk of data */
 	if (sync_data_avail(port) >= port->inbufchunk)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	DEBUGPOLL(if (mask != prev_mask)
 		printk(KERN_DEBUG "sync_serial_poll: mask 0x%08X %s %s\n",
 			mask,
-			mask & POLLOUT ? "POLLOUT" : "",
-			mask & POLLIN ? "POLLIN" : "");
+			mask & EPOLLOUT ? "POLLOUT" : "",
+			mask & EPOLLIN ? "POLLIN" : "");
 		prev_mask = mask;
 	);
 	return mask;

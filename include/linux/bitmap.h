@@ -22,65 +22,83 @@
  * See lib/bitmap.c for more details.
  */
 
-/*
+/**
+ * DOC: bitmap overview
+ *
  * The available bitmap operations and their rough meaning in the
  * case that the bitmap is a single unsigned long are thus:
  *
  * Note that nbits should be always a compile time evaluable constant.
  * Otherwise many inlines will generate horrible code.
  *
- * bitmap_zero(dst, nbits)			*dst = 0UL
- * bitmap_fill(dst, nbits)			*dst = ~0UL
- * bitmap_copy(dst, src, nbits)			*dst = *src
- * bitmap_and(dst, src1, src2, nbits)		*dst = *src1 & *src2
- * bitmap_or(dst, src1, src2, nbits)		*dst = *src1 | *src2
- * bitmap_xor(dst, src1, src2, nbits)		*dst = *src1 ^ *src2
- * bitmap_andnot(dst, src1, src2, nbits)	*dst = *src1 & ~(*src2)
- * bitmap_complement(dst, src, nbits)		*dst = ~(*src)
- * bitmap_equal(src1, src2, nbits)		Are *src1 and *src2 equal?
- * bitmap_intersects(src1, src2, nbits) 	Do *src1 and *src2 overlap?
- * bitmap_subset(src1, src2, nbits)		Is *src1 a subset of *src2?
- * bitmap_empty(src, nbits)			Are all bits zero in *src?
- * bitmap_full(src, nbits)			Are all bits set in *src?
- * bitmap_weight(src, nbits)			Hamming Weight: number set bits
- * bitmap_set(dst, pos, nbits)			Set specified bit area
- * bitmap_clear(dst, pos, nbits)		Clear specified bit area
- * bitmap_find_next_zero_area(buf, len, pos, n, mask)	Find bit free area
- * bitmap_find_next_zero_area_off(buf, len, pos, n, mask)	as above
- * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
- * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
- * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
- * bitmap_bitremap(oldbit, old, new, nbits)	newbit = map(old, new)(oldbit)
- * bitmap_onto(dst, orig, relmap, nbits)	*dst = orig relative to relmap
- * bitmap_fold(dst, orig, sz, nbits)		dst bits = orig bits mod sz
- * bitmap_parse(buf, buflen, dst, nbits)	Parse bitmap dst from kernel buf
- * bitmap_parse_user(ubuf, ulen, dst, nbits)	Parse bitmap dst from user buf
- * bitmap_parselist(buf, dst, nbits)		Parse bitmap dst from kernel buf
- * bitmap_parselist_user(buf, dst, nbits)	Parse bitmap dst from user buf
- * bitmap_find_free_region(bitmap, bits, order)	Find and allocate bit region
- * bitmap_release_region(bitmap, pos, order)	Free specified bit region
- * bitmap_allocate_region(bitmap, pos, order)	Allocate specified bit region
- * bitmap_from_u32array(dst, nbits, buf, nwords) *dst = *buf (nwords 32b words)
- * bitmap_to_u32array(buf, nwords, src, nbits)	*buf = *dst (nwords 32b words)
- */
-
-/*
- * Also the following operations in asm/bitops.h apply to bitmaps.
+ * ::
  *
- * set_bit(bit, addr)			*addr |= bit
- * clear_bit(bit, addr)			*addr &= ~bit
- * change_bit(bit, addr)		*addr ^= bit
- * test_bit(bit, addr)			Is bit set in *addr?
- * test_and_set_bit(bit, addr)		Set bit and return old value
- * test_and_clear_bit(bit, addr)	Clear bit and return old value
- * test_and_change_bit(bit, addr)	Change bit and return old value
- * find_first_zero_bit(addr, nbits)	Position first zero bit in *addr
- * find_first_bit(addr, nbits)		Position first set bit in *addr
- * find_next_zero_bit(addr, nbits, bit)	Position next zero bit in *addr >= bit
- * find_next_bit(addr, nbits, bit)	Position next set bit in *addr >= bit
+ *  bitmap_zero(dst, nbits)                     *dst = 0UL
+ *  bitmap_fill(dst, nbits)                     *dst = ~0UL
+ *  bitmap_copy(dst, src, nbits)                *dst = *src
+ *  bitmap_and(dst, src1, src2, nbits)          *dst = *src1 & *src2
+ *  bitmap_or(dst, src1, src2, nbits)           *dst = *src1 | *src2
+ *  bitmap_xor(dst, src1, src2, nbits)          *dst = *src1 ^ *src2
+ *  bitmap_andnot(dst, src1, src2, nbits)       *dst = *src1 & ~(*src2)
+ *  bitmap_complement(dst, src, nbits)          *dst = ~(*src)
+ *  bitmap_equal(src1, src2, nbits)             Are *src1 and *src2 equal?
+ *  bitmap_intersects(src1, src2, nbits)        Do *src1 and *src2 overlap?
+ *  bitmap_subset(src1, src2, nbits)            Is *src1 a subset of *src2?
+ *  bitmap_empty(src, nbits)                    Are all bits zero in *src?
+ *  bitmap_full(src, nbits)                     Are all bits set in *src?
+ *  bitmap_weight(src, nbits)                   Hamming Weight: number set bits
+ *  bitmap_set(dst, pos, nbits)                 Set specified bit area
+ *  bitmap_clear(dst, pos, nbits)               Clear specified bit area
+ *  bitmap_find_next_zero_area(buf, len, pos, n, mask)  Find bit free area
+ *  bitmap_find_next_zero_area_off(buf, len, pos, n, mask)  as above
+ *  bitmap_shift_right(dst, src, n, nbits)      *dst = *src >> n
+ *  bitmap_shift_left(dst, src, n, nbits)       *dst = *src << n
+ *  bitmap_remap(dst, src, old, new, nbits)     *dst = map(old, new)(src)
+ *  bitmap_bitremap(oldbit, old, new, nbits)    newbit = map(old, new)(oldbit)
+ *  bitmap_onto(dst, orig, relmap, nbits)       *dst = orig relative to relmap
+ *  bitmap_fold(dst, orig, sz, nbits)           dst bits = orig bits mod sz
+ *  bitmap_parse(buf, buflen, dst, nbits)       Parse bitmap dst from kernel buf
+ *  bitmap_parse_user(ubuf, ulen, dst, nbits)   Parse bitmap dst from user buf
+ *  bitmap_parselist(buf, dst, nbits)           Parse bitmap dst from kernel buf
+ *  bitmap_parselist_user(buf, dst, nbits)      Parse bitmap dst from user buf
+ *  bitmap_find_free_region(bitmap, bits, order)  Find and allocate bit region
+ *  bitmap_release_region(bitmap, pos, order)   Free specified bit region
+ *  bitmap_allocate_region(bitmap, pos, order)  Allocate specified bit region
+ *  bitmap_from_arr32(dst, buf, nbits)          Copy nbits from u32[] buf to dst
+ *  bitmap_to_arr32(buf, src, nbits)            Copy nbits from buf to u32[] dst
+ *
+ * Note, bitmap_zero() and bitmap_fill() operate over the region of
+ * unsigned longs, that is, bits behind bitmap till the unsigned long
+ * boundary will be zeroed or filled as well. Consider to use
+ * bitmap_clear() or bitmap_set() to make explicit zeroing or filling
+ * respectively.
  */
 
-/*
+/**
+ * DOC: bitmap bitops
+ *
+ * Also the following operations in asm/bitops.h apply to bitmaps.::
+ *
+ *  set_bit(bit, addr)                  *addr |= bit
+ *  clear_bit(bit, addr)                *addr &= ~bit
+ *  change_bit(bit, addr)               *addr ^= bit
+ *  test_bit(bit, addr)                 Is bit set in *addr?
+ *  test_and_set_bit(bit, addr)         Set bit and return old value
+ *  test_and_clear_bit(bit, addr)       Clear bit and return old value
+ *  test_and_change_bit(bit, addr)      Change bit and return old value
+ *  find_first_zero_bit(addr, nbits)    Position first zero bit in *addr
+ *  find_first_bit(addr, nbits)         Position first set bit in *addr
+ *  find_next_zero_bit(addr, nbits, bit)
+ *                                      Position next zero bit in *addr >= bit
+ *  find_next_bit(addr, nbits, bit)     Position next set bit in *addr >= bit
+ *  find_next_and_bit(addr1, addr2, nbits, bit)
+ *                                      Same as find_next_bit, but in
+ *                                      (*addr1 & *addr2)
+ *
+ */
+
+/**
+ * DOC: declare bitmap
  * The DECLARE_BITMAP(name,bits) macro, in linux/types.h, can be used
  * to declare an array named 'name' of just enough unsigned longs to
  * contain all bit positions from 0 to 'bits' - 1.
@@ -165,14 +183,7 @@ extern void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 extern int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order);
 extern void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order);
 extern int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order);
-extern unsigned int bitmap_from_u32array(unsigned long *bitmap,
-					 unsigned int nbits,
-					 const u32 *buf,
-					 unsigned int nwords);
-extern unsigned int bitmap_to_u32array(u32 *buf,
-				       unsigned int nwords,
-				       const unsigned long *bitmap,
-				       unsigned int nbits);
+
 #ifdef __BIG_ENDIAN
 extern void bitmap_copy_le(unsigned long *dst, const unsigned long *src, unsigned int nbits);
 #else
@@ -200,12 +211,12 @@ static inline void bitmap_zero(unsigned long *dst, unsigned int nbits)
 
 static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
 {
-	unsigned int nlongs = BITS_TO_LONGS(nbits);
-	if (!small_const_nbits(nbits)) {
-		unsigned int len = (nlongs - 1) * sizeof(unsigned long);
-		memset(dst, 0xff,  len);
+	if (small_const_nbits(nbits))
+		*dst = ~0UL;
+	else {
+		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		memset(dst, 0xff, len);
 	}
-	dst[nlongs - 1] = BITMAP_LAST_WORD_MASK(nbits);
 }
 
 static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
@@ -218,6 +229,35 @@ static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
 		memcpy(dst, src, len);
 	}
 }
+
+/*
+ * Copy bitmap and clear tail bits in last word.
+ */
+static inline void bitmap_copy_clear_tail(unsigned long *dst,
+		const unsigned long *src, unsigned int nbits)
+{
+	bitmap_copy(dst, src, nbits);
+	if (nbits % BITS_PER_LONG)
+		dst[nbits / BITS_PER_LONG] &= BITMAP_LAST_WORD_MASK(nbits);
+}
+
+/*
+ * On 32-bit systems bitmaps are represented as u32 arrays internally, and
+ * therefore conversion is not needed when copying data from/to arrays of u32.
+ */
+#if BITS_PER_LONG == 64
+extern void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
+							unsigned int nbits);
+extern void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap,
+							unsigned int nbits);
+#else
+#define bitmap_from_arr32(bitmap, buf, nbits)			\
+	bitmap_copy_clear_tail((unsigned long *) (bitmap),	\
+			(const unsigned long *) (buf), (nbits))
+#define bitmap_to_arr32(buf, bitmap, nbits)			\
+	bitmap_copy_clear_tail((unsigned long *) (buf),		\
+			(const unsigned long *) (bitmap), (nbits))
+#endif
 
 static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)
@@ -361,8 +401,9 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
 	return __bitmap_parse(buf, buflen, 0, maskp, nmaskbits);
 }
 
-/*
+/**
  * BITMAP_FROM_U64() - Represent u64 value in the format suitable for bitmap.
+ * @n: u64 value
  *
  * Linux bitmaps are internally arrays of unsigned longs, i.e. 32-bit
  * integers in 32-bit environment, and 64-bit integers in 64-bit one.
@@ -393,14 +434,14 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
 				((unsigned long) ((u64)(n) >> 32))
 #endif
 
-/*
+/**
  * bitmap_from_u64 - Check and swap words within u64.
  *  @mask: source bitmap
  *  @dst:  destination bitmap
  *
- * In 32-bit Big Endian kernel, when using (u32 *)(&val)[*]
+ * In 32-bit Big Endian kernel, when using ``(u32 *)(&val)[*]``
  * to read u64 mask, we will get the wrong word.
- * That is "(u32 *)(&val)[0]" gets the upper 32 bits,
+ * That is ``(u32 *)(&val)[0]`` gets the upper 32 bits,
  * but we expect the lower 32-bits of u64.
  */
 static inline void bitmap_from_u64(unsigned long *dst, u64 mask)

@@ -750,6 +750,7 @@
 			reg = <0x10120000 0x1000>;
 			interrupt-names = "combined";
 			interrupts = <14>;
+			interrupt-parent = <&vica>;
 			clocks = <&clcdclk>, <&hclkclcd>;
 			clock-names = "clcdclk", "apb_pclk";
 			status = "disabled";

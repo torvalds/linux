@@ -31,10 +31,15 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <net/ipv6.h>
 
 #include "cxgb4.h"
 #include "t4_regs.h"
+#include "t4_tcb.h"
+#include "t4_values.h"
+#include "clip_tbl.h"
 #include "l2t.h"
+#include "smt.h"
 #include "t4fw_api.h"
 #include "cxgb4_filter.h"
 
@@ -46,6 +51,194 @@ static inline bool is_field_set(u32 val, u32 mask)
 static inline bool unsupported(u32 conf, u32 conf_mask, u32 val, u32 mask)
 {
 	return !(conf & conf_mask) && is_field_set(val, mask);
+}
+
+static int set_tcb_field(struct adapter *adap, struct filter_entry *f,
+			 unsigned int ftid,  u16 word, u64 mask, u64 val,
+			 int no_reply)
+{
+	struct cpl_set_tcb_field *req;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	req = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*req));
+	memset(req, 0, sizeof(*req));
+	INIT_TP_WR_CPL(req, CPL_SET_TCB_FIELD, ftid);
+	req->reply_ctrl = htons(REPLY_CHAN_V(0) |
+				QUEUENO_V(adap->sge.fw_evtq.abs_id) |
+				NO_REPLY_V(no_reply));
+	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(ftid));
+	req->mask = cpu_to_be64(mask);
+	req->val = cpu_to_be64(val);
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
+	t4_ofld_send(adap, skb);
+	return 0;
+}
+
+/* Set one of the t_flags bits in the TCB.
+ */
+static int set_tcb_tflag(struct adapter *adap, struct filter_entry *f,
+			 unsigned int ftid, unsigned int bit_pos,
+			 unsigned int val, int no_reply)
+{
+	return set_tcb_field(adap, f, ftid,  TCB_T_FLAGS_W, 1ULL << bit_pos,
+			     (unsigned long long)val << bit_pos, no_reply);
+}
+
+static void mk_abort_req_ulp(struct cpl_abort_req *abort_req, unsigned int tid)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)abort_req;
+	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
+
+	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
+	txpkt->len = htonl(DIV_ROUND_UP(sizeof(*abort_req), 16));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
+	sc->len = htonl(sizeof(*abort_req) - sizeof(struct work_request_hdr));
+	OPCODE_TID(abort_req) = htonl(MK_OPCODE_TID(CPL_ABORT_REQ, tid));
+	abort_req->rsvd0 = htonl(0);
+	abort_req->rsvd1 = 0;
+	abort_req->cmd = CPL_ABORT_NO_RST;
+}
+
+static void mk_abort_rpl_ulp(struct cpl_abort_rpl *abort_rpl, unsigned int tid)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)abort_rpl;
+	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
+
+	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
+	txpkt->len = htonl(DIV_ROUND_UP(sizeof(*abort_rpl), 16));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
+	sc->len = htonl(sizeof(*abort_rpl) - sizeof(struct work_request_hdr));
+	OPCODE_TID(abort_rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
+	abort_rpl->rsvd0 = htonl(0);
+	abort_rpl->rsvd1 = 0;
+	abort_rpl->cmd = CPL_ABORT_NO_RST;
+}
+
+static void mk_set_tcb_ulp(struct filter_entry *f,
+			   struct cpl_set_tcb_field *req,
+			   unsigned int word, u64 mask, u64 val,
+			   u8 cookie, int no_reply)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
+	struct ulptx_idata *sc = (struct ulptx_idata *)(txpkt + 1);
+
+	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
+	txpkt->len = htonl(DIV_ROUND_UP(sizeof(*req), 16));
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
+	sc->len = htonl(sizeof(*req) - sizeof(struct work_request_hdr));
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, f->tid));
+	req->reply_ctrl = htons(NO_REPLY_V(no_reply) | REPLY_CHAN_V(0) |
+				QUEUENO_V(0));
+	req->word_cookie = htons(TCB_WORD_V(word) | TCB_COOKIE_V(cookie));
+	req->mask = cpu_to_be64(mask);
+	req->val = cpu_to_be64(val);
+	sc = (struct ulptx_idata *)(req + 1);
+	sc->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
+	sc->len = htonl(0);
+}
+
+static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
+{
+	int err;
+
+	/* do a set-tcb for smac-sel and CWR bit.. */
+	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
+	if (err)
+		goto smac_err;
+
+	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
+			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
+			    TCB_SMAC_SEL_V(f->smt->idx), 1);
+	if (!err)
+		return 0;
+
+smac_err:
+	dev_err(adap->pdev_dev, "filter %u smac config failed with error %u\n",
+		f->tid, err);
+	return err;
+}
+
+static void set_nat_params(struct adapter *adap, struct filter_entry *f,
+			   unsigned int tid, bool dip, bool sip, bool dp,
+			   bool sp)
+{
+	if (dip) {
+		if (f->fs.type) {
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W,
+				      WORD_MASK, f->fs.nat_lip[15] |
+				      f->fs.nat_lip[14] << 8 |
+				      f->fs.nat_lip[13] << 16 |
+				      f->fs.nat_lip[12] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 1,
+				      WORD_MASK, f->fs.nat_lip[11] |
+				      f->fs.nat_lip[10] << 8 |
+				      f->fs.nat_lip[9] << 16 |
+				      f->fs.nat_lip[8] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 2,
+				      WORD_MASK, f->fs.nat_lip[7] |
+				      f->fs.nat_lip[6] << 8 |
+				      f->fs.nat_lip[5] << 16 |
+				      f->fs.nat_lip[4] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_SND_UNA_RAW_W + 3,
+				      WORD_MASK, f->fs.nat_lip[3] |
+				      f->fs.nat_lip[2] << 8 |
+				      f->fs.nat_lip[1] << 16 |
+				      f->fs.nat_lip[0] << 24, 1);
+		} else {
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG3_LEN_RAW_W,
+				      WORD_MASK, f->fs.nat_lip[3] |
+				      f->fs.nat_lip[2] << 8 |
+				      f->fs.nat_lip[1] << 16 |
+				      f->fs.nat_lip[0] << 24, 1);
+		}
+	}
+
+	if (sip) {
+		if (f->fs.type) {
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W,
+				      WORD_MASK, f->fs.nat_fip[15] |
+				      f->fs.nat_fip[14] << 8 |
+				      f->fs.nat_fip[13] << 16 |
+				      f->fs.nat_fip[12] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 1,
+				      WORD_MASK, f->fs.nat_fip[11] |
+				      f->fs.nat_fip[10] << 8 |
+				      f->fs.nat_fip[9] << 16 |
+				      f->fs.nat_fip[8] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 2,
+				      WORD_MASK, f->fs.nat_fip[7] |
+				      f->fs.nat_fip[6] << 8 |
+				      f->fs.nat_fip[5] << 16 |
+				      f->fs.nat_fip[4] << 24, 1);
+
+			set_tcb_field(adap, f, tid, TCB_RX_FRAG2_PTR_RAW_W + 3,
+				      WORD_MASK, f->fs.nat_fip[3] |
+				      f->fs.nat_fip[2] << 8 |
+				      f->fs.nat_fip[1] << 16 |
+				      f->fs.nat_fip[0] << 24, 1);
+
+		} else {
+			set_tcb_field(adap, f, tid,
+				      TCB_RX_FRAG3_START_IDX_OFFSET_RAW_W,
+				      WORD_MASK, f->fs.nat_fip[3] |
+				      f->fs.nat_fip[2] << 8 |
+				      f->fs.nat_fip[1] << 16 |
+				      f->fs.nat_fip[0] << 24, 1);
+		}
+	}
+
+	set_tcb_field(adap, f, tid, TCB_PDU_HDR_LEN_W, WORD_MASK,
+		      (dp ? f->fs.nat_lport : 0) |
+		      (sp ? f->fs.nat_fport << 16 : 0), 1);
 }
 
 /* Validate filter spec against configuration done on the card. */
@@ -148,7 +341,130 @@ static int get_filter_steerq(struct net_device *dev,
 	return iq;
 }
 
-static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family)
+static int get_filter_count(struct adapter *adapter, unsigned int fidx,
+			    u64 *pkts, u64 *bytes, bool hash)
+{
+	unsigned int tcb_base, tcbaddr;
+	unsigned int word_offset;
+	struct filter_entry *f;
+	__be64 be64_byte_count;
+	int ret;
+
+	tcb_base = t4_read_reg(adapter, TP_CMM_TCB_BASE_A);
+	if (is_hashfilter(adapter) && hash) {
+		if (fidx < adapter->tids.ntids) {
+			f = adapter->tids.tid_tab[fidx];
+			if (!f)
+				return -EINVAL;
+		} else {
+			return -E2BIG;
+		}
+	} else {
+		if ((fidx != (adapter->tids.nftids +
+			      adapter->tids.nsftids - 1)) &&
+		    fidx >= adapter->tids.nftids)
+			return -E2BIG;
+
+		f = &adapter->tids.ftid_tab[fidx];
+		if (!f->valid)
+			return -EINVAL;
+	}
+	tcbaddr = tcb_base + f->tid * TCB_SIZE;
+
+	spin_lock(&adapter->win0_lock);
+	if (is_t4(adapter->params.chip)) {
+		__be64 be64_count;
+
+		/* T4 doesn't maintain byte counts in hw */
+		*bytes = 0;
+
+		/* Get pkts */
+		word_offset = 4;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be64_count),
+				   (__be32 *)&be64_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*pkts = be64_to_cpu(be64_count);
+	} else {
+		__be32 be32_count;
+
+		/* Get bytes */
+		word_offset = 4;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be64_byte_count),
+				   &be64_byte_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*bytes = be64_to_cpu(be64_byte_count);
+
+		/* Get pkts */
+		word_offset = 6;
+		ret = t4_memory_rw(adapter, MEMWIN_NIC, MEM_EDC0,
+				   tcbaddr + (word_offset * sizeof(__be32)),
+				   sizeof(be32_count),
+				   &be32_count,
+				   T4_MEMORY_READ);
+		if (ret < 0)
+			goto out;
+		*pkts = (u64)be32_to_cpu(be32_count);
+	}
+
+out:
+	spin_unlock(&adapter->win0_lock);
+	return ret;
+}
+
+int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
+			      u64 *hitcnt, u64 *bytecnt, bool hash)
+{
+	struct adapter *adapter = netdev2adap(dev);
+
+	return get_filter_count(adapter, fidx, hitcnt, bytecnt, hash);
+}
+
+int cxgb4_get_free_ftid(struct net_device *dev, int family)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tid_info *t = &adap->tids;
+	int ftid;
+
+	spin_lock_bh(&t->ftid_lock);
+	if (family == PF_INET) {
+		ftid = find_first_zero_bit(t->ftid_bmap, t->nftids);
+		if (ftid >= t->nftids)
+			ftid = -1;
+	} else {
+		if (is_t6(adap->params.chip)) {
+			ftid = bitmap_find_free_region(t->ftid_bmap,
+						       t->nftids, 1);
+			if (ftid < 0)
+				goto out_unlock;
+
+			/* this is only a lookup, keep the found region
+			 * unallocated
+			 */
+			bitmap_release_region(t->ftid_bmap, ftid, 1);
+		} else {
+			ftid = bitmap_find_free_region(t->ftid_bmap,
+						       t->nftids, 2);
+			if (ftid < 0)
+				goto out_unlock;
+
+			bitmap_release_region(t->ftid_bmap, ftid, 2);
+		}
+	}
+out_unlock:
+	spin_unlock_bh(&t->ftid_lock);
+	return ftid;
+}
+
+static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family,
+			  unsigned int chip_ver)
 {
 	spin_lock_bh(&t->ftid_lock);
 
@@ -157,22 +473,31 @@ static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family)
 		return -EBUSY;
 	}
 
-	if (family == PF_INET)
+	if (family == PF_INET) {
 		__set_bit(fidx, t->ftid_bmap);
-	else
-		bitmap_allocate_region(t->ftid_bmap, fidx, 2);
+	} else {
+		if (chip_ver < CHELSIO_T6)
+			bitmap_allocate_region(t->ftid_bmap, fidx, 2);
+		else
+			bitmap_allocate_region(t->ftid_bmap, fidx, 1);
+	}
 
 	spin_unlock_bh(&t->ftid_lock);
 	return 0;
 }
 
-static void cxgb4_clear_ftid(struct tid_info *t, int fidx, int family)
+static void cxgb4_clear_ftid(struct tid_info *t, int fidx, int family,
+			     unsigned int chip_ver)
 {
 	spin_lock_bh(&t->ftid_lock);
-	if (family == PF_INET)
+	if (family == PF_INET) {
 		__clear_bit(fidx, t->ftid_bmap);
-	else
-		bitmap_release_region(t->ftid_bmap, fidx, 2);
+	} else {
+		if (chip_ver < CHELSIO_T6)
+			bitmap_release_region(t->ftid_bmap, fidx, 2);
+		else
+			bitmap_release_region(t->ftid_bmap, fidx, 1);
+	}
 	spin_unlock_bh(&t->ftid_lock);
 }
 
@@ -191,7 +516,8 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 		return -ENOMEM;
 
 	fwr = __skb_put(skb, len);
-	t4_mk_filtdelwr(f->tid, fwr, adapter->sge.fw_evtq.abs_id);
+	t4_mk_filtdelwr(f->tid, fwr, (adapter->flags & SHUTTING_DOWN) ? -1
+			: adapter->sge.fw_evtq.abs_id);
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
 	 * When we get the Work Request Reply we'll clear the pending status.
@@ -210,7 +536,7 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 int set_filter_wr(struct adapter *adapter, int fidx)
 {
 	struct filter_entry *f = &adapter->tids.ftid_tab[fidx];
-	struct fw_filter_wr *fwr;
+	struct fw_filter2_wr *fwr;
 	struct sk_buff *skb;
 
 	skb = alloc_skb(sizeof(*fwr), GFP_KERNEL);
@@ -231,6 +557,21 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		}
 	}
 
+	/* If the new filter requires loopback Source MAC rewriting then
+	 * we need to allocate a SMT entry for the filter.
+	 */
+	if (f->fs.newsmac) {
+		f->smt = cxgb4_smt_alloc_switching(f->dev, f->fs.smac);
+		if (!f->smt) {
+			if (f->l2t) {
+				cxgb4_l2t_release(f->l2t);
+				f->l2t = NULL;
+			}
+			kfree_skb(skb);
+			return -ENOMEM;
+		}
+	}
+
 	fwr = __skb_put_zero(skb, sizeof(*fwr));
 
 	/* It would be nice to put most of the following in t4_hw.c but most
@@ -241,7 +582,10 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	 * filter specification structure but for now it's easiest to simply
 	 * put this fairly direct code in line ...
 	 */
-	fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
+	if (adapter->params.filter2_wr_support)
+		fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER2_WR));
+	else
+		fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
 	fwr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*fwr) / 16));
 	fwr->tid_to_iq =
 		htonl(FW_FILTER_WR_TID_V(f->tid) |
@@ -256,7 +600,6 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
 		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
 		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
-		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
 		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
 		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
@@ -303,8 +646,18 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 	fwr->lpm = htons(f->fs.mask.lport);
 	fwr->fp = htons(f->fs.val.fport);
 	fwr->fpm = htons(f->fs.mask.fport);
-	if (f->fs.newsmac)
-		memcpy(fwr->sma, f->fs.smac, sizeof(fwr->sma));
+
+	if (adapter->params.filter2_wr_support) {
+		fwr->natmode_to_ulp_type =
+			FW_FILTER2_WR_ULP_TYPE_V(f->fs.nat_mode ?
+						 ULP_MODE_TCPDDP :
+						 ULP_MODE_NONE) |
+			FW_FILTER2_WR_NATMODE_V(f->fs.nat_mode);
+		memcpy(fwr->newlip, f->fs.nat_lip, sizeof(fwr->newlip));
+		memcpy(fwr->newfip, f->fs.nat_fip, sizeof(fwr->newfip));
+		fwr->newlport = htons(f->fs.nat_lport);
+		fwr->newfport = htons(f->fs.nat_fport);
+	}
 
 	/* Mark the filter as "pending" and ship off the Filter Work Request.
 	 * When we get the Work Request Reply we'll clear the pending status.
@@ -354,13 +707,17 @@ int delete_filter(struct adapter *adapter, unsigned int fidx)
 void clear_filter(struct adapter *adap, struct filter_entry *f)
 {
 	/* If the new or old filter have loopback rewriteing rules then we'll
-	 * need to free any existing Layer Two Table (L2T) entries of the old
-	 * filter rule.  The firmware will handle freeing up any Source MAC
-	 * Table (SMT) entries used for rewriting Source MAC Addresses in
-	 * loopback rules.
+	 * need to free any existing L2T, SMT, CLIP entries of filter
+	 * rule.
 	 */
 	if (f->l2t)
 		cxgb4_l2t_release(f->l2t);
+
+	if (f->smt)
+		cxgb4_smt_release(f->smt);
+
+	if ((f->fs.hash || is_t6(adap->params.chip)) && f->fs.type)
+		cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
 
 	/* The zeroing of the filter rule below clears the filter valid,
 	 * pending, locked flags, l2t pointer, etc. so it's all we need for
@@ -431,6 +788,418 @@ static void fill_default_mask(struct ch_filter_specification *fs)
 		fs->mask.fport = ~0;
 }
 
+static bool is_addr_all_mask(u8 *ipmask, int family)
+{
+	if (family == AF_INET) {
+		struct in_addr *addr;
+
+		addr = (struct in_addr *)ipmask;
+		if (addr->s_addr == 0xffffffff)
+			return true;
+	} else if (family == AF_INET6) {
+		struct in6_addr *addr6;
+
+		addr6 = (struct in6_addr *)ipmask;
+		if (addr6->s6_addr32[0] == 0xffffffff &&
+		    addr6->s6_addr32[1] == 0xffffffff &&
+		    addr6->s6_addr32[2] == 0xffffffff &&
+		    addr6->s6_addr32[3] == 0xffffffff)
+			return true;
+	}
+	return false;
+}
+
+static bool is_inaddr_any(u8 *ip, int family)
+{
+	int addr_type;
+
+	if (family == AF_INET) {
+		struct in_addr *addr;
+
+		addr = (struct in_addr *)ip;
+		if (addr->s_addr == htonl(INADDR_ANY))
+			return true;
+	} else if (family == AF_INET6) {
+		struct in6_addr *addr6;
+
+		addr6 = (struct in6_addr *)ip;
+		addr_type = ipv6_addr_type((const struct in6_addr *)
+					   &addr6);
+		if (addr_type == IPV6_ADDR_ANY)
+			return true;
+	}
+	return false;
+}
+
+bool is_filter_exact_match(struct adapter *adap,
+			   struct ch_filter_specification *fs)
+{
+	struct tp_params *tp = &adap->params.tp;
+	u64 hash_filter_mask = tp->hash_filter_mask;
+	u32 mask;
+
+	if (!is_hashfilter(adap))
+		return false;
+
+	if (fs->type) {
+		if (is_inaddr_any(fs->val.fip, AF_INET6) ||
+		    !is_addr_all_mask(fs->mask.fip, AF_INET6))
+			return false;
+
+		if (is_inaddr_any(fs->val.lip, AF_INET6) ||
+		    !is_addr_all_mask(fs->mask.lip, AF_INET6))
+			return false;
+	} else {
+		if (is_inaddr_any(fs->val.fip, AF_INET) ||
+		    !is_addr_all_mask(fs->mask.fip, AF_INET))
+			return false;
+
+		if (is_inaddr_any(fs->val.lip, AF_INET) ||
+		    !is_addr_all_mask(fs->mask.lip, AF_INET))
+			return false;
+	}
+
+	if (!fs->val.lport || fs->mask.lport != 0xffff)
+		return false;
+
+	if (!fs->val.fport || fs->mask.fport != 0xffff)
+		return false;
+
+	if (tp->fcoe_shift >= 0) {
+		mask = (hash_filter_mask >> tp->fcoe_shift) & FT_FCOE_W;
+		if (mask && !fs->mask.fcoe)
+			return false;
+	}
+
+	if (tp->port_shift >= 0) {
+		mask = (hash_filter_mask >> tp->port_shift) & FT_PORT_W;
+		if (mask && !fs->mask.iport)
+			return false;
+	}
+
+	if (tp->vnic_shift >= 0) {
+		mask = (hash_filter_mask >> tp->vnic_shift) & FT_VNIC_ID_W;
+
+		if ((adap->params.tp.ingress_config & VNIC_F)) {
+			if (mask && !fs->mask.pfvf_vld)
+				return false;
+		} else {
+			if (mask && !fs->mask.ovlan_vld)
+				return false;
+		}
+	}
+
+	if (tp->vlan_shift >= 0) {
+		mask = (hash_filter_mask >> tp->vlan_shift) & FT_VLAN_W;
+		if (mask && !fs->mask.ivlan)
+			return false;
+	}
+
+	if (tp->tos_shift >= 0) {
+		mask = (hash_filter_mask >> tp->tos_shift) & FT_TOS_W;
+		if (mask && !fs->mask.tos)
+			return false;
+	}
+
+	if (tp->protocol_shift >= 0) {
+		mask = (hash_filter_mask >> tp->protocol_shift) & FT_PROTOCOL_W;
+		if (mask && !fs->mask.proto)
+			return false;
+	}
+
+	if (tp->ethertype_shift >= 0) {
+		mask = (hash_filter_mask >> tp->ethertype_shift) &
+			FT_ETHERTYPE_W;
+		if (mask && !fs->mask.ethtype)
+			return false;
+	}
+
+	if (tp->macmatch_shift >= 0) {
+		mask = (hash_filter_mask >> tp->macmatch_shift) & FT_MACMATCH_W;
+		if (mask && !fs->mask.macidx)
+			return false;
+	}
+
+	if (tp->matchtype_shift >= 0) {
+		mask = (hash_filter_mask >> tp->matchtype_shift) &
+			FT_MPSHITTYPE_W;
+		if (mask && !fs->mask.matchtype)
+			return false;
+	}
+	if (tp->frag_shift >= 0) {
+		mask = (hash_filter_mask >> tp->frag_shift) &
+			FT_FRAGMENTATION_W;
+		if (mask && !fs->mask.frag)
+			return false;
+	}
+	return true;
+}
+
+static u64 hash_filter_ntuple(struct ch_filter_specification *fs,
+			      struct net_device *dev)
+{
+	struct adapter *adap = netdev2adap(dev);
+	struct tp_params *tp = &adap->params.tp;
+	u64 ntuple = 0;
+
+	/* Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && fs->mask.ivlan)
+		ntuple |= (FT_VLAN_VLD_F | fs->val.ivlan) << tp->vlan_shift;
+
+	if (tp->port_shift >= 0 && fs->mask.iport)
+		ntuple |= (u64)fs->val.iport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0) {
+		if (!fs->val.proto)
+			ntuple |= (u64)IPPROTO_TCP << tp->protocol_shift;
+		else
+			ntuple |= (u64)fs->val.proto << tp->protocol_shift;
+	}
+
+	if (tp->tos_shift >= 0 && fs->mask.tos)
+		ntuple |= (u64)(fs->val.tos) << tp->tos_shift;
+
+	if (tp->vnic_shift >= 0) {
+		if ((adap->params.tp.ingress_config & VNIC_F) &&
+		    fs->mask.pfvf_vld)
+			ntuple |= (u64)((fs->val.pfvf_vld << 16) |
+					(fs->val.pf << 13) |
+					(fs->val.vf)) << tp->vnic_shift;
+		else
+			ntuple |= (u64)((fs->val.ovlan_vld << 16) |
+					(fs->val.ovlan)) << tp->vnic_shift;
+	}
+
+	if (tp->macmatch_shift >= 0 && fs->mask.macidx)
+		ntuple |= (u64)(fs->val.macidx) << tp->macmatch_shift;
+
+	if (tp->ethertype_shift >= 0 && fs->mask.ethtype)
+		ntuple |= (u64)(fs->val.ethtype) << tp->ethertype_shift;
+
+	if (tp->matchtype_shift >= 0 && fs->mask.matchtype)
+		ntuple |= (u64)(fs->val.matchtype) << tp->matchtype_shift;
+
+	if (tp->frag_shift >= 0 && fs->mask.frag)
+		ntuple |= (u64)(fs->val.frag) << tp->frag_shift;
+
+	if (tp->fcoe_shift >= 0 && fs->mask.fcoe)
+		ntuple |= (u64)(fs->val.fcoe) << tp->fcoe_shift;
+	return ntuple;
+}
+
+static void mk_act_open_req6(struct filter_entry *f, struct sk_buff *skb,
+			     unsigned int qid_filterid, struct adapter *adap)
+{
+	struct cpl_t6_act_open_req6 *t6req = NULL;
+	struct cpl_act_open_req6 *req = NULL;
+
+	t6req = (struct cpl_t6_act_open_req6 *)__skb_put(skb, sizeof(*t6req));
+	INIT_TP_WR(t6req, 0);
+	req = (struct cpl_act_open_req6 *)t6req;
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6, qid_filterid));
+	req->local_port = cpu_to_be16(f->fs.val.lport);
+	req->peer_port = cpu_to_be16(f->fs.val.fport);
+	req->local_ip_hi = *(__be64 *)(&f->fs.val.lip);
+	req->local_ip_lo = *(((__be64 *)&f->fs.val.lip) + 1);
+	req->peer_ip_hi = *(__be64 *)(&f->fs.val.fip);
+	req->peer_ip_lo = *(((__be64 *)&f->fs.val.fip) + 1);
+	req->opt0 = cpu_to_be64(NAGLE_V(f->fs.newvlan == VLAN_REMOVE ||
+					f->fs.newvlan == VLAN_REWRITE) |
+				DELACK_V(f->fs.hitcnts) |
+				L2T_IDX_V(f->l2t ? f->l2t->idx : 0) |
+				SMAC_SEL_V((cxgb4_port_viid(f->dev) &
+					    0x7F) << 1) |
+				TX_CHAN_V(f->fs.eport) |
+				NO_CONG_V(f->fs.rpttid) |
+				ULP_MODE_V(f->fs.nat_mode ?
+					   ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+				TCAM_BYPASS_F | NON_OFFLOAD_F);
+	t6req->params = cpu_to_be64(FILTER_TUPLE_V(hash_filter_ntuple(&f->fs,
+								      f->dev)));
+	t6req->opt2 = htonl(RSS_QUEUE_VALID_F |
+			    RSS_QUEUE_V(f->fs.iq) |
+			    TX_QUEUE_V(f->fs.nat_mode) |
+			    T5_OPT_2_VALID_F |
+			    RX_CHANNEL_F |
+			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
+					 (f->fs.dirsteer << 1)) |
+			    PACE_V((f->fs.maskhash) |
+				   ((f->fs.dirsteerhash) << 1)) |
+			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
+}
+
+static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
+			    unsigned int qid_filterid, struct adapter *adap)
+{
+	struct cpl_t6_act_open_req *t6req = NULL;
+	struct cpl_act_open_req *req = NULL;
+
+	t6req = (struct cpl_t6_act_open_req *)__skb_put(skb, sizeof(*t6req));
+	INIT_TP_WR(t6req, 0);
+	req = (struct cpl_act_open_req *)t6req;
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, qid_filterid));
+	req->local_port = cpu_to_be16(f->fs.val.lport);
+	req->peer_port = cpu_to_be16(f->fs.val.fport);
+	req->local_ip = f->fs.val.lip[0] | f->fs.val.lip[1] << 8 |
+		f->fs.val.lip[2] << 16 | f->fs.val.lip[3] << 24;
+	req->peer_ip = f->fs.val.fip[0] | f->fs.val.fip[1] << 8 |
+		f->fs.val.fip[2] << 16 | f->fs.val.fip[3] << 24;
+	req->opt0 = cpu_to_be64(NAGLE_V(f->fs.newvlan == VLAN_REMOVE ||
+					f->fs.newvlan == VLAN_REWRITE) |
+				DELACK_V(f->fs.hitcnts) |
+				L2T_IDX_V(f->l2t ? f->l2t->idx : 0) |
+				SMAC_SEL_V((cxgb4_port_viid(f->dev) &
+					    0x7F) << 1) |
+				TX_CHAN_V(f->fs.eport) |
+				NO_CONG_V(f->fs.rpttid) |
+				ULP_MODE_V(f->fs.nat_mode ?
+					   ULP_MODE_TCPDDP : ULP_MODE_NONE) |
+				TCAM_BYPASS_F | NON_OFFLOAD_F);
+
+	t6req->params = cpu_to_be64(FILTER_TUPLE_V(hash_filter_ntuple(&f->fs,
+								      f->dev)));
+	t6req->opt2 = htonl(RSS_QUEUE_VALID_F |
+			    RSS_QUEUE_V(f->fs.iq) |
+			    TX_QUEUE_V(f->fs.nat_mode) |
+			    T5_OPT_2_VALID_F |
+			    RX_CHANNEL_F |
+			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
+					 (f->fs.dirsteer << 1)) |
+			    PACE_V((f->fs.maskhash) |
+				   ((f->fs.dirsteerhash) << 1)) |
+			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
+}
+
+static int cxgb4_set_hash_filter(struct net_device *dev,
+				 struct ch_filter_specification *fs,
+				 struct filter_ctx *ctx)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	struct tid_info *t = &adapter->tids;
+	struct filter_entry *f;
+	struct sk_buff *skb;
+	int iq, atid, size;
+	int ret = 0;
+	u32 iconf;
+
+	fill_default_mask(fs);
+	ret = validate_filter(dev, fs);
+	if (ret)
+		return ret;
+
+	iq = get_filter_steerq(dev, fs);
+	if (iq < 0)
+		return iq;
+
+	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	if (!f)
+		return -ENOMEM;
+
+	f->fs = *fs;
+	f->ctx = ctx;
+	f->dev = dev;
+	f->fs.iq = iq;
+
+	/* If the new filter requires loopback Destination MAC and/or VLAN
+	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
+	 * the filter.
+	 */
+	if (f->fs.newdmac || f->fs.newvlan) {
+		/* allocate L2T entry for new filter */
+		f->l2t = t4_l2t_alloc_switching(adapter, f->fs.vlan,
+						f->fs.eport, f->fs.dmac);
+		if (!f->l2t) {
+			ret = -ENOMEM;
+			goto out_err;
+		}
+	}
+
+	/* If the new filter requires loopback Source MAC rewriting then
+	 * we need to allocate a SMT entry for the filter.
+	 */
+	if (f->fs.newsmac) {
+		f->smt = cxgb4_smt_alloc_switching(f->dev, f->fs.smac);
+		if (!f->smt) {
+			if (f->l2t) {
+				cxgb4_l2t_release(f->l2t);
+				f->l2t = NULL;
+			}
+			ret = -ENOMEM;
+			goto free_l2t;
+		}
+	}
+
+	atid = cxgb4_alloc_atid(t, f);
+	if (atid < 0) {
+		ret = atid;
+		goto free_smt;
+	}
+
+	iconf = adapter->params.tp.ingress_config;
+	if (iconf & VNIC_F) {
+		f->fs.val.ovlan = (fs->val.pf << 13) | fs->val.vf;
+		f->fs.mask.ovlan = (fs->mask.pf << 13) | fs->mask.vf;
+		f->fs.val.ovlan_vld = fs->val.pfvf_vld;
+		f->fs.mask.ovlan_vld = fs->mask.pfvf_vld;
+	}
+
+	size = sizeof(struct cpl_t6_act_open_req);
+	if (f->fs.type) {
+		ret = cxgb4_clip_get(f->dev, (const u32 *)&f->fs.val.lip, 1);
+		if (ret)
+			goto free_atid;
+
+		skb = alloc_skb(size, GFP_KERNEL);
+		if (!skb) {
+			ret = -ENOMEM;
+			goto free_clip;
+		}
+
+		mk_act_open_req6(f, skb,
+				 ((adapter->sge.fw_evtq.abs_id << 14) | atid),
+				 adapter);
+	} else {
+		skb = alloc_skb(size, GFP_KERNEL);
+		if (!skb) {
+			ret = -ENOMEM;
+			goto free_atid;
+		}
+
+		mk_act_open_req(f, skb,
+				((adapter->sge.fw_evtq.abs_id << 14) | atid),
+				adapter);
+	}
+
+	f->pending = 1;
+	set_wr_txq(skb, CPL_PRIORITY_SETUP, f->fs.val.iport & 0x3);
+	t4_ofld_send(adapter, skb);
+	return 0;
+
+free_clip:
+	cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
+
+free_atid:
+	cxgb4_free_atid(t, atid);
+
+free_smt:
+	if (f->smt) {
+		cxgb4_smt_release(f->smt);
+		f->smt = NULL;
+	}
+
+free_l2t:
+	if (f->l2t) {
+		cxgb4_l2t_release(f->l2t);
+		f->l2t = NULL;
+	}
+
+out_err:
+	kfree(f);
+	return ret;
+}
+
 /* Check a Chelsio Filter Request for validity, convert it into our internal
  * format and send it to the hardware.  Return 0 on success, an error number
  * otherwise.  We attach any provided filter operation context to the internal
@@ -442,10 +1211,19 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct filter_ctx *ctx)
 {
 	struct adapter *adapter = netdev2adap(dev);
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	unsigned int max_fidx, fidx;
 	struct filter_entry *f;
 	u32 iconf;
 	int iq, ret;
+
+	if (fs->hash) {
+		if (is_hashfilter(adapter))
+			return cxgb4_set_hash_filter(dev, fs, ctx);
+		netdev_err(dev, "%s: Exact-match filters only supported with Hash Filter configuration\n",
+			   __func__);
+		return -EINVAL;
+	}
 
 	max_fidx = adapter->tids.nftids;
 	if (filter_id != (max_fidx + adapter->tids.nsftids - 1) &&
@@ -470,12 +1248,18 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	 * insertion.
 	 */
 	if (fs->type == 0) { /* IPv4 */
-		/* If our IPv4 filter isn't being written to a
-		 * multiple of four filter index and there's an IPv6
-		 * filter at the multiple of 4 base slot, then we
-		 * prevent insertion.
+		/* For T6, If our IPv4 filter isn't being written to a
+		 * multiple of two filter index and there's an IPv6
+		 * filter at the multiple of 2 base slot, then we need
+		 * to delete that IPv6 filter ...
+		 * For adapters below T6, IPv6 filter occupies 4 entries.
+		 * Hence we need to delete the filter in multiple of 4 slot.
 		 */
-		fidx = filter_id & ~0x3;
+		if (chip_ver < CHELSIO_T6)
+			fidx = filter_id & ~0x3;
+		else
+			fidx = filter_id & ~0x1;
+
 		if (fidx != filter_id &&
 		    adapter->tids.ftid_tab[fidx].fs.type) {
 			f = &adapter->tids.ftid_tab[fidx];
@@ -487,23 +1271,42 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 			}
 		}
 	} else { /* IPv6 */
-		/* Ensure that the IPv6 filter is aligned on a
-		 * multiple of 4 boundary.
-		 */
-		if (filter_id & 0x3) {
-			dev_err(adapter->pdev_dev,
-				"Invalid location. IPv6 must be aligned on a 4-slot boundary\n");
-			return -EINVAL;
-		}
+		if (chip_ver < CHELSIO_T6) {
+			/* Ensure that the IPv6 filter is aligned on a
+			 * multiple of 4 boundary.
+			 */
+			if (filter_id & 0x3) {
+				dev_err(adapter->pdev_dev,
+					"Invalid location. IPv6 must be aligned on a 4-slot boundary\n");
+				return -EINVAL;
+			}
 
-		/* Check all except the base overlapping IPv4 filter slots. */
-		for (fidx = filter_id + 1; fidx < filter_id + 4; fidx++) {
+			/* Check all except the base overlapping IPv4 filter
+			 * slots.
+			 */
+			for (fidx = filter_id + 1; fidx < filter_id + 4;
+			     fidx++) {
+				f = &adapter->tids.ftid_tab[fidx];
+				if (f->valid) {
+					dev_err(adapter->pdev_dev,
+						"Invalid location.  IPv6 requires 4 slots and an IPv4 filter exists at %u\n",
+						fidx);
+					return -EBUSY;
+				}
+			}
+		} else {
+			/* For T6, CLIP being enabled, IPv6 filter would occupy
+			 * 2 entries.
+			 */
+			if (filter_id & 0x1)
+				return -EINVAL;
+			/* Check overlapping IPv4 filter slot */
+			fidx = filter_id + 1;
 			f = &adapter->tids.ftid_tab[fidx];
 			if (f->valid) {
-				dev_err(adapter->pdev_dev,
-					"Invalid location.  IPv6 requires 4 slots and an IPv4 filter exists at %u\n",
-					fidx);
-				return -EINVAL;
+				pr_err("%s: IPv6 filter requires 2 indices. IPv4 filter already present at %d. Please remove IPv4 filter first.\n",
+				       __func__, fidx);
+				return -EBUSY;
 			}
 		}
 	}
@@ -517,16 +1320,18 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 
 	fidx = filter_id + adapter->tids.ftid_base;
 	ret = cxgb4_set_ftid(&adapter->tids, filter_id,
-			     fs->type ? PF_INET6 : PF_INET);
+			     fs->type ? PF_INET6 : PF_INET,
+			     chip_ver);
 	if (ret)
 		return ret;
 
-	/* Check to make sure the filter requested is writable ... */
+	/* Check t  make sure the filter requested is writable ... */
 	ret = writable_filter(f);
 	if (ret) {
 		/* Clear the bits we have set above */
 		cxgb4_clear_ftid(&adapter->tids, filter_id,
-				 fs->type ? PF_INET6 : PF_INET);
+				 fs->type ? PF_INET6 : PF_INET,
+				 chip_ver);
 		return ret;
 	}
 
@@ -535,6 +1340,17 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	 */
 	if (f->valid)
 		clear_filter(adapter, f);
+
+	if (is_t6(adapter->params.chip) && fs->type &&
+	    ipv6_addr_type((const struct in6_addr *)fs->val.lip) !=
+	    IPV6_ADDR_ANY) {
+		ret = cxgb4_clip_get(dev, (const u32 *)&fs->val.lip, 1);
+		if (ret) {
+			cxgb4_clear_ftid(&adapter->tids, filter_id, PF_INET6,
+					 chip_ver);
+			return ret;
+		}
+	}
 
 	/* Convert the filter specification into our internal format.
 	 * We copy the PF/VF specification into the Outer VLAN field
@@ -561,11 +1377,73 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	ret = set_filter_wr(adapter, filter_id);
 	if (ret) {
 		cxgb4_clear_ftid(&adapter->tids, filter_id,
-				 fs->type ? PF_INET6 : PF_INET);
+				 fs->type ? PF_INET6 : PF_INET,
+				 chip_ver);
 		clear_filter(adapter, f);
 	}
 
 	return ret;
+}
+
+static int cxgb4_del_hash_filter(struct net_device *dev, int filter_id,
+				 struct filter_ctx *ctx)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	struct tid_info *t = &adapter->tids;
+	struct cpl_abort_req *abort_req;
+	struct cpl_abort_rpl *abort_rpl;
+	struct cpl_set_tcb_field *req;
+	struct ulptx_idata *aligner;
+	struct work_request_hdr *wr;
+	struct filter_entry *f;
+	struct sk_buff *skb;
+	unsigned int wrlen;
+	int ret;
+
+	netdev_dbg(dev, "%s: filter_id = %d ; nftids = %d\n",
+		   __func__, filter_id, adapter->tids.nftids);
+
+	if (filter_id > adapter->tids.ntids)
+		return -E2BIG;
+
+	f = lookup_tid(t, filter_id);
+	if (!f) {
+		netdev_err(dev, "%s: no filter entry for filter_id = %d",
+			   __func__, filter_id);
+		return -EINVAL;
+	}
+
+	ret = writable_filter(f);
+	if (ret)
+		return ret;
+
+	if (!f->valid)
+		return -EINVAL;
+
+	f->ctx = ctx;
+	f->pending = 1;
+	wrlen = roundup(sizeof(*wr) + (sizeof(*req) + sizeof(*aligner))
+			+ sizeof(*abort_req) + sizeof(*abort_rpl), 16);
+	skb = alloc_skb(wrlen, GFP_KERNEL);
+	if (!skb) {
+		netdev_err(dev, "%s: could not allocate skb ..\n", __func__);
+		return -ENOMEM;
+	}
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, f->fs.val.iport & 0x3);
+	req = (struct cpl_set_tcb_field *)__skb_put(skb, wrlen);
+	INIT_ULPTX_WR(req, wrlen, 0, 0);
+	wr = (struct work_request_hdr *)req;
+	wr++;
+	req = (struct cpl_set_tcb_field *)wr;
+	mk_set_tcb_ulp(f, req, TCB_RSS_INFO_W, TCB_RSS_INFO_V(TCB_RSS_INFO_M),
+		       TCB_RSS_INFO_V(adapter->sge.fw_evtq.abs_id), 0, 1);
+	aligner = (struct ulptx_idata *)(req + 1);
+	abort_req = (struct cpl_abort_req *)(aligner + 1);
+	mk_abort_req_ulp(abort_req, f->tid);
+	abort_rpl = (struct cpl_abort_rpl *)(abort_req + 1);
+	mk_abort_rpl_ulp(abort_rpl, f->tid);
+	t4_ofld_send(adapter, skb);
+	return 0;
 }
 
 /* Check a delete filter request for validity and send it to the hardware.
@@ -574,12 +1452,22 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
  * facilitate signaling completion of the operation.
  */
 int __cxgb4_del_filter(struct net_device *dev, int filter_id,
+		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx)
 {
 	struct adapter *adapter = netdev2adap(dev);
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	struct filter_entry *f;
 	unsigned int max_fidx;
 	int ret;
+
+	if (fs && fs->hash) {
+		if (is_hashfilter(adapter))
+			return cxgb4_del_hash_filter(dev, filter_id, ctx);
+		netdev_err(dev, "%s: Exact-match filters only supported with Hash Filter configuration\n",
+			   __func__);
+		return -EINVAL;
+	}
 
 	max_fidx = adapter->tids.nftids;
 	if (filter_id != (max_fidx + adapter->tids.nsftids - 1) &&
@@ -594,7 +1482,8 @@ int __cxgb4_del_filter(struct net_device *dev, int filter_id,
 	if (f->valid) {
 		f->ctx = ctx;
 		cxgb4_clear_ftid(&adapter->tids, filter_id,
-				 f->fs.type ? PF_INET6 : PF_INET);
+				 f->fs.type ? PF_INET6 : PF_INET,
+				 chip_ver);
 		return del_filter_wr(adapter, filter_id);
 	}
 
@@ -631,14 +1520,19 @@ out:
 	return ret;
 }
 
-int cxgb4_del_filter(struct net_device *dev, int filter_id)
+int cxgb4_del_filter(struct net_device *dev, int filter_id,
+		     struct ch_filter_specification *fs)
 {
 	struct filter_ctx ctx;
 	int ret;
 
+	/* If we are shutting down the adapter do not wait for completion */
+	if (netdev2adap(dev)->flags & SHUTTING_DOWN)
+		return __cxgb4_del_filter(dev, filter_id, fs, NULL);
+
 	init_completion(&ctx.completion);
 
-	ret = __cxgb4_del_filter(dev, filter_id, &ctx);
+	ret = __cxgb4_del_filter(dev, filter_id, fs, &ctx);
 	if (ret)
 		goto out;
 
@@ -650,6 +1544,157 @@ int cxgb4_del_filter(struct net_device *dev, int filter_id)
 	ret = ctx.result;
 out:
 	return ret;
+}
+
+static int configure_filter_tcb(struct adapter *adap, unsigned int tid,
+				struct filter_entry *f)
+{
+	if (f->fs.hitcnts)
+		set_tcb_field(adap, f, tid, TCB_TIMESTAMP_W,
+			      TCB_TIMESTAMP_V(TCB_TIMESTAMP_M) |
+			      TCB_RTT_TS_RECENT_AGE_V(TCB_RTT_TS_RECENT_AGE_M),
+			      TCB_TIMESTAMP_V(0ULL) |
+			      TCB_RTT_TS_RECENT_AGE_V(0ULL),
+			      1);
+
+	if (f->fs.newdmac)
+		set_tcb_tflag(adap, f, tid, TF_CCTRL_ECE_S, 1,
+			      1);
+
+	if (f->fs.newvlan == VLAN_INSERT ||
+	    f->fs.newvlan == VLAN_REWRITE)
+		set_tcb_tflag(adap, f, tid, TF_CCTRL_RFR_S, 1,
+			      1);
+	if (f->fs.newsmac)
+		configure_filter_smac(adap, f);
+
+	if (f->fs.nat_mode) {
+		switch (f->fs.nat_mode) {
+		case NAT_MODE_DIP:
+			set_nat_params(adap, f, tid, true, false, false, false);
+			break;
+
+		case NAT_MODE_DIP_DP:
+			set_nat_params(adap, f, tid, true, false, true, false);
+			break;
+
+		case NAT_MODE_DIP_DP_SIP:
+			set_nat_params(adap, f, tid, true, true, true, false);
+			break;
+		case NAT_MODE_DIP_DP_SP:
+			set_nat_params(adap, f, tid, true, false, true, true);
+			break;
+
+		case NAT_MODE_SIP_SP:
+			set_nat_params(adap, f, tid, false, true, false, true);
+			break;
+
+		case NAT_MODE_DIP_SIP_SP:
+			set_nat_params(adap, f, tid, true, true, false, true);
+			break;
+
+		case NAT_MODE_ALL:
+			set_nat_params(adap, f, tid, true, true, true, true);
+			break;
+
+		default:
+			pr_err("%s: Invalid NAT mode: %d\n",
+			       __func__, f->fs.nat_mode);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+void hash_del_filter_rpl(struct adapter *adap,
+			 const struct cpl_abort_rpl_rss *rpl)
+{
+	unsigned int status = rpl->status;
+	struct tid_info *t = &adap->tids;
+	unsigned int tid = GET_TID(rpl);
+	struct filter_ctx *ctx = NULL;
+	struct filter_entry *f;
+
+	dev_dbg(adap->pdev_dev, "%s: status = %u; tid = %u\n",
+		__func__, status, tid);
+
+	f = lookup_tid(t, tid);
+	if (!f) {
+		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+			__func__);
+		return;
+	}
+	ctx = f->ctx;
+	f->ctx = NULL;
+	clear_filter(adap, f);
+	cxgb4_remove_tid(t, 0, tid, 0);
+	kfree(f);
+	if (ctx) {
+		ctx->result = 0;
+		complete(&ctx->completion);
+	}
+}
+
+void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
+{
+	unsigned int ftid = TID_TID_G(AOPEN_ATID_G(ntohl(rpl->atid_status)));
+	unsigned int status  = AOPEN_STATUS_G(ntohl(rpl->atid_status));
+	struct tid_info *t = &adap->tids;
+	unsigned int tid = GET_TID(rpl);
+	struct filter_ctx *ctx = NULL;
+	struct filter_entry *f;
+
+	dev_dbg(adap->pdev_dev, "%s: tid = %u; atid = %u; status = %u\n",
+		__func__, tid, ftid, status);
+
+	f = lookup_atid(t, ftid);
+	if (!f) {
+		dev_err(adap->pdev_dev, "%s:could not find filter entry",
+			__func__);
+		return;
+	}
+	ctx = f->ctx;
+	f->ctx = NULL;
+
+	switch (status) {
+	case CPL_ERR_NONE:
+		f->tid = tid;
+		f->pending = 0;
+		f->valid = 1;
+		cxgb4_insert_tid(t, f, f->tid, 0);
+		cxgb4_free_atid(t, ftid);
+		if (ctx) {
+			ctx->tid = f->tid;
+			ctx->result = 0;
+		}
+		if (configure_filter_tcb(adap, tid, f)) {
+			clear_filter(adap, f);
+			cxgb4_remove_tid(t, 0, tid, 0);
+			kfree(f);
+			if (ctx) {
+				ctx->result = -EINVAL;
+				complete(&ctx->completion);
+			}
+			return;
+		}
+		break;
+
+	default:
+		dev_err(adap->pdev_dev, "%s: filter creation PROBLEM; status = %u\n",
+			__func__, status);
+
+		if (ctx) {
+			if (status == CPL_ERR_TCAM_FULL)
+				ctx->result = -EAGAIN;
+			else
+				ctx->result = -EINVAL;
+		}
+		clear_filter(adap, f);
+		cxgb4_free_atid(t, ftid);
+		kfree(f);
+	}
+	if (ctx)
+		complete(&ctx->completion);
 }
 
 /* Handle a filter write/deletion reply. */
@@ -690,19 +1735,23 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 			clear_filter(adap, f);
 			if (ctx)
 				ctx->result = 0;
-		} else if (ret == FW_FILTER_WR_SMT_TBL_FULL) {
-			dev_err(adap->pdev_dev, "filter %u setup failed due to full SMT\n",
-				idx);
-			clear_filter(adap, f);
-			if (ctx)
-				ctx->result = -ENOMEM;
 		} else if (ret == FW_FILTER_WR_FLT_ADDED) {
-			f->smtidx = (be64_to_cpu(rpl->oldval) >> 24) & 0xff;
-			f->pending = 0;  /* asynchronous setup completed */
-			f->valid = 1;
-			if (ctx) {
-				ctx->result = 0;
-				ctx->tid = idx;
+			int err = 0;
+
+			if (f->fs.newsmac)
+				err = configure_filter_smac(adap, f);
+
+			if (!err) {
+				f->pending = 0;  /* async setup completed */
+				f->valid = 1;
+				if (ctx) {
+					ctx->result = 0;
+					ctx->tid = idx;
+				}
+			} else {
+				clear_filter(adap, f);
+				if (ctx)
+					ctx->result = err;
 			}
 		} else {
 			/* Something went wrong.  Issue a warning about the
@@ -717,4 +1766,26 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 		if (ctx)
 			complete(&ctx->completion);
 	}
+}
+
+int init_hash_filter(struct adapter *adap)
+{
+	/* On T6, verify the necessary register configs and warn the user in
+	 * case of improper config
+	 */
+	if (is_t6(adap->params.chip)) {
+		if (TCAM_ACTV_HIT_G(t4_read_reg(adap, LE_DB_RSP_CODE_0_A)) != 4)
+			goto err;
+
+		if (HASH_ACTV_HIT_G(t4_read_reg(adap, LE_DB_RSP_CODE_1_A)) != 4)
+			goto err;
+	} else {
+		dev_err(adap->pdev_dev, "Hash filter supported only on T6\n");
+		return -EINVAL;
+	}
+	adap->params.hash_filter = 1;
+	return 0;
+err:
+	dev_warn(adap->pdev_dev, "Invalid hash filter config!\n");
+	return -EINVAL;
 }

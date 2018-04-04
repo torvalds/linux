@@ -9,8 +9,8 @@
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
@@ -26,7 +26,7 @@ static void armada_drm_unref_work(struct work_struct *work)
 	struct drm_framebuffer *fb;
 
 	while (kfifo_get(&priv->fb_unref, &fb))
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 }
 
 /* Must be called with dev->event_lock held */
@@ -55,23 +55,16 @@ static struct drm_ioctl_desc armada_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ARMADA_GEM_PWRITE, armada_gem_pwrite_ioctl, 0),
 };
 
-static void armada_drm_lastclose(struct drm_device *dev)
-{
-	armada_fbdev_lastclose(dev);
-}
-
 DEFINE_DRM_GEM_FOPS(armada_drm_fops);
 
 static struct drm_driver armada_drm_driver = {
-	.lastclose		= armada_drm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= armada_gem_prime_export,
 	.gem_prime_import	= armada_gem_prime_import,
 	.dumb_create		= armada_gem_dumb_create,
-	.dumb_map_offset	= armada_gem_dumb_map_offset,
-	.dumb_destroy		= armada_gem_dumb_destroy,
 	.gem_vm_ops		= &armada_gem_vm_ops,
 	.major			= 1,
 	.minor			= 0,

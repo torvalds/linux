@@ -21,7 +21,7 @@
 #ifndef __MANTIS_VP1034_H
 #define __MANTIS_VP1034_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mantis_common.h"
 
 

@@ -154,6 +154,7 @@ struct mlxsw_pci {
 		} comp;
 	} cmd;
 	struct mlxsw_bus_info bus_info;
+	const struct pci_device_id *id;
 };
 
 static void mlxsw_pci_queue_tasklet_schedule(struct mlxsw_pci_queue *q)
@@ -1052,38 +1053,18 @@ static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
 }
 
 static int
-mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_config_profile *profile,
+mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_pci *mlxsw_pci,
+				const struct mlxsw_config_profile *profile,
 				struct mlxsw_res *res)
 {
-	u32 single_size, double_size, linear_size;
+	u64 single_size, double_size, linear_size;
+	int err;
 
-	if (!MLXSW_RES_VALID(res, KVD_SINGLE_MIN_SIZE) ||
-	    !MLXSW_RES_VALID(res, KVD_DOUBLE_MIN_SIZE) ||
-	    !profile->used_kvd_split_data)
-		return -EIO;
-
-	linear_size = profile->kvd_linear_size;
-
-	/* The hash part is what left of the kvd without the
-	 * linear part. It is split to the single size and
-	 * double size by the parts ratio from the profile.
-	 * Both sizes must be a multiplications of the
-	 * granularity from the profile.
-	 */
-	double_size = MLXSW_RES_GET(res, KVD_SIZE) - linear_size;
-	double_size *= profile->kvd_hash_double_parts;
-	double_size /= profile->kvd_hash_double_parts +
-		       profile->kvd_hash_single_parts;
-	double_size /= profile->kvd_hash_granularity;
-	double_size *= profile->kvd_hash_granularity;
-	single_size = MLXSW_RES_GET(res, KVD_SIZE) - double_size -
-		      linear_size;
-
-	/* Check results are legal. */
-	if (single_size < MLXSW_RES_GET(res, KVD_SINGLE_MIN_SIZE) ||
-	    double_size < MLXSW_RES_GET(res, KVD_DOUBLE_MIN_SIZE) ||
-	    MLXSW_RES_GET(res, KVD_SIZE) < linear_size)
-		return -EIO;
+	err = mlxsw_core_kvd_sizes_get(mlxsw_pci->core, profile,
+				       &single_size, &double_size,
+				       &linear_size);
+	if (err)
+		return err;
 
 	MLXSW_RES_SET(res, KVD_SINGLE_SIZE, single_size);
 	MLXSW_RES_SET(res, KVD_DOUBLE_SIZE, double_size);
@@ -1184,7 +1165,7 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			mbox, profile->adaptive_routing_group_cap);
 	}
 	if (MLXSW_RES_VALID(res, KVD_SIZE)) {
-		err = mlxsw_pci_profile_get_kvd_sizes(profile, res);
+		err = mlxsw_pci_profile_get_kvd_sizes(mlxsw_pci, profile, res);
 		if (err)
 			return err;
 
@@ -1622,16 +1603,6 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	return err;
 }
 
-static const struct mlxsw_bus mlxsw_pci_bus = {
-	.kind			= "pci",
-	.init			= mlxsw_pci_init,
-	.fini			= mlxsw_pci_fini,
-	.skb_transmit_busy	= mlxsw_pci_skb_transmit_busy,
-	.skb_transmit		= mlxsw_pci_skb_transmit,
-	.cmd_exec		= mlxsw_pci_cmd_exec,
-	.features		= MLXSW_BUS_F_TXRX,
-};
-
 static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
 			      const struct pci_device_id *id)
 {
@@ -1643,7 +1614,12 @@ static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
 		return 0;
 	}
 
-	wmb(); /* reset needs to be written before we read control register */
+	/* Reset needs to be written before we read control register, and
+	 * we must wait for the HW to become responsive once again
+	 */
+	wmb();
+	msleep(MLXSW_PCI_SW_RESET_WAIT_MSECS);
+
 	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
 	do {
 		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
@@ -1654,6 +1630,41 @@ static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
 	} while (time_before(jiffies, end));
 	return 0;
 }
+
+static void mlxsw_pci_free_irq_vectors(struct mlxsw_pci *mlxsw_pci)
+{
+	pci_free_irq_vectors(mlxsw_pci->pdev);
+}
+
+static int mlxsw_pci_alloc_irq_vectors(struct mlxsw_pci *mlxsw_pci)
+{
+	int err;
+
+	err = pci_alloc_irq_vectors(mlxsw_pci->pdev, 1, 1, PCI_IRQ_MSIX);
+	if (err < 0)
+		dev_err(&mlxsw_pci->pdev->dev, "MSI-X init failed\n");
+	return err;
+}
+
+static void mlxsw_pci_reset(void *bus_priv)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+
+	mlxsw_pci_free_irq_vectors(mlxsw_pci);
+	mlxsw_pci_sw_reset(mlxsw_pci, mlxsw_pci->id);
+	mlxsw_pci_alloc_irq_vectors(mlxsw_pci);
+}
+
+static const struct mlxsw_bus mlxsw_pci_bus = {
+	.kind			= "pci",
+	.init			= mlxsw_pci_init,
+	.fini			= mlxsw_pci_fini,
+	.skb_transmit_busy	= mlxsw_pci_skb_transmit_busy,
+	.skb_transmit		= mlxsw_pci_skb_transmit,
+	.cmd_exec		= mlxsw_pci_cmd_exec,
+	.features		= MLXSW_BUS_F_TXRX,
+	.reset			= mlxsw_pci_reset,
+};
 
 static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1716,7 +1727,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_sw_reset;
 	}
 
-	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSIX);
+	err = mlxsw_pci_alloc_irq_vectors(mlxsw_pci);
 	if (err < 0) {
 		dev_err(&pdev->dev, "MSI-X init failed\n");
 		goto err_msix_init;
@@ -1725,9 +1736,11 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->bus_info.device_kind = driver_name;
 	mlxsw_pci->bus_info.device_name = pci_name(mlxsw_pci->pdev);
 	mlxsw_pci->bus_info.dev = &pdev->dev;
+	mlxsw_pci->id = id;
 
 	err = mlxsw_core_bus_device_register(&mlxsw_pci->bus_info,
-					     &mlxsw_pci_bus, mlxsw_pci);
+					     &mlxsw_pci_bus, mlxsw_pci, false,
+					     NULL);
 	if (err) {
 		dev_err(&pdev->dev, "cannot register bus device\n");
 		goto err_bus_device_register;
@@ -1736,7 +1749,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_bus_device_register:
-	pci_free_irq_vectors(mlxsw_pci->pdev);
+	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 err_msix_init:
 err_sw_reset:
 	iounmap(mlxsw_pci->hw_addr);
@@ -1755,8 +1768,8 @@ static void mlxsw_pci_remove(struct pci_dev *pdev)
 {
 	struct mlxsw_pci *mlxsw_pci = pci_get_drvdata(pdev);
 
-	mlxsw_core_bus_device_unregister(mlxsw_pci->core);
-	pci_free_irq_vectors(mlxsw_pci->pdev);
+	mlxsw_core_bus_device_unregister(mlxsw_pci->core, false);
+	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 	iounmap(mlxsw_pci->hw_addr);
 	pci_release_regions(mlxsw_pci->pdev);
 	pci_disable_device(mlxsw_pci->pdev);

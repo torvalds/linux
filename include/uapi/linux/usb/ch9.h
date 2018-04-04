@@ -144,6 +144,10 @@
 #define	TEST_PACKET	4
 #define	TEST_FORCE_EN	5
 
+/* Status Type */
+#define USB_STATUS_TYPE_STANDARD	0
+#define USB_STATUS_TYPE_PTM		1
+
 /*
  * New Feature Selectors as added by USB 3.0
  * See USB 3.0 spec Table 9-7
@@ -876,6 +880,8 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__u8  bReserved;
 } __attribute__((packed));
 
+#define USB_DT_USB_WIRELESS_CAP_SIZE	11
+
 /* USB 2.0 Extension descriptor */
 #define	USB_CAP_TYPE_EXT		2
 
@@ -1068,11 +1074,12 @@ struct usb_ptm_cap_descriptor {
 	__u8  bDevCapabilityType;
 } __attribute__((packed));
 
+#define USB_DT_USB_PTM_ID_SIZE		3
 /*
  * The size of the descriptor for the Sublink Speed Attribute Count
- * (SSAC) specified in bmAttributes[4:0].
+ * (SSAC) specified in bmAttributes[4:0]. SSAC is zero-based
  */
-#define USB_DT_USB_SSP_CAP_SIZE(ssac)	(16 + ssac * 4)
+#define USB_DT_USB_SSP_CAP_SIZE(ssac)	(12 + (ssac + 1) * 4)
 
 /*-------------------------------------------------------------------------*/
 

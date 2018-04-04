@@ -104,7 +104,7 @@ struct pxa3xx_gcu_priv {
 	wait_queue_head_t	  wait_idle;
 	wait_queue_head_t	  wait_free;
 	spinlock_t		  spinlock;
-	struct timeval 		  base_time;
+	struct timespec64	  base_time;
 
 	struct pxa3xx_gcu_batch *free;
 	struct pxa3xx_gcu_batch *ready;
@@ -126,18 +126,20 @@ gc_writel(struct pxa3xx_gcu_priv *priv, unsigned int off, unsigned long val)
 
 #define QPRINT(priv, level, msg)					\
 	do {								\
-		struct timeval tv;					\
+		struct timespec64 ts;					\
 		struct pxa3xx_gcu_shared *shared = priv->shared;	\
 		u32 base = gc_readl(priv, REG_GCRBBR);			\
 									\
-		do_gettimeofday(&tv);					\
+		ktime_get_ts64(&ts);					\
+		ts = timespec64_sub(ts, priv->base_time);		\
 									\
-		printk(level "%ld.%03ld.%03ld - %-17s: %-21s (%s, "	\
+		printk(level "%lld.%03ld.%03ld - %-17s: %-21s (%s, "	\
 			"STATUS "					\
 			"0x%02lx, B 0x%08lx [%ld], E %5ld, H %5ld, "	\
 			"T %5ld)\n",					\
-			tv.tv_sec - priv->base_time.tv_sec,		\
-			tv.tv_usec / 1000, tv.tv_usec % 1000,		\
+			(s64)(ts.tv_sec),				\
+			ts.tv_nsec / NSEC_PER_MSEC,			\
+			(ts.tv_nsec % NSEC_PER_MSEC) / USEC_PER_MSEC,	\
 			__func__, msg,					\
 			shared->hw_running ? "running" : "   idle",	\
 			gc_readl(priv, REG_GCISCR),			\
@@ -164,7 +166,7 @@ pxa3xx_gcu_reset(struct pxa3xx_gcu_priv *priv)
 	priv->shared->buffer_phys = priv->shared_phys;
 	priv->shared->magic = PXA3XX_GCU_SHARED_MAGIC;
 
-	do_gettimeofday(&priv->base_time);
+	ktime_get_ts64(&priv->base_time);
 
 	/* set up the ring buffer pointers */
 	gc_writel(priv, REG_GCRBLR, 0);
@@ -512,28 +514,26 @@ pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 
 #ifdef PXA3XX_GCU_DEBUG_TIMER
 static struct timer_list pxa3xx_gcu_debug_timer;
+static struct pxa3xx_gcu_priv *debug_timer_priv;
 
-static void pxa3xx_gcu_debug_timedout(unsigned long ptr)
+static void pxa3xx_gcu_debug_timedout(struct timer_list *unused)
 {
-	struct pxa3xx_gcu_priv *priv = (struct pxa3xx_gcu_priv *) ptr;
+	struct pxa3xx_gcu_priv *priv = debug_timer_priv;
 
 	QERROR("Timer DUMP");
 
-	/* init the timer structure */
-	init_timer(&pxa3xx_gcu_debug_timer);
-	pxa3xx_gcu_debug_timer.function = pxa3xx_gcu_debug_timedout;
-	pxa3xx_gcu_debug_timer.data = ptr;
-	pxa3xx_gcu_debug_timer.expires = jiffies + 5*HZ; /* one second */
-
-	add_timer(&pxa3xx_gcu_debug_timer);
+	mod_timer(&pxa3xx_gcu_debug_timer, jiffies + 5 * HZ);
 }
 
-static void pxa3xx_gcu_init_debug_timer(void)
+static void pxa3xx_gcu_init_debug_timer(struct pxa3xx_gcu_priv *priv)
 {
-	pxa3xx_gcu_debug_timedout((unsigned long) &pxa3xx_gcu_debug_timer);
+	/* init the timer structure */
+	debug_timer_priv = priv;
+	timer_setup(&pxa3xx_gcu_debug_timer, pxa3xx_gcu_debug_timedout, 0);
+	pxa3xx_gcu_debug_timedout(NULL);
 }
 #else
-static inline void pxa3xx_gcu_init_debug_timer(void) {}
+static inline void pxa3xx_gcu_init_debug_timer(struct pxa3xx_gcu_priv *priv) {}
 #endif
 
 static int
@@ -670,7 +670,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	priv->resource_mem = r;
 	pxa3xx_gcu_reset(priv);
-	pxa3xx_gcu_init_debug_timer();
+	pxa3xx_gcu_init_debug_timer(priv);
 
 	dev_info(dev, "registered @0x%p, DMA 0x%p (%d bytes), IRQ %d\n",
 			(void *) r->start, (void *) priv->shared_phys,

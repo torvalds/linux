@@ -79,7 +79,7 @@ static int xlnx_pr_decoupler_enable_show(struct fpga_bridge *bridge)
 	return !status;
 }
 
-static struct fpga_bridge_ops xlnx_pr_decoupler_br_ops = {
+static const struct fpga_bridge_ops xlnx_pr_decoupler_br_ops = {
 	.enable_set = xlnx_pr_decoupler_enable_set,
 	.enable_show = xlnx_pr_decoupler_enable_show,
 };

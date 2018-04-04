@@ -15,6 +15,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
@@ -95,6 +96,9 @@ struct ak4613_priv {
 	struct mutex lock;
 	const struct ak4613_interface *iface;
 	struct snd_pcm_hw_constraint_list constraint;
+	struct work_struct dummy_write_work;
+	struct snd_soc_component *component;
+	unsigned int rate;
 	unsigned int sysclk;
 
 	unsigned int fmt;
@@ -392,6 +396,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
+	priv->rate = rate;
 
 	/*
 	 * FIXME
@@ -467,11 +472,83 @@ static int ak4613_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static void ak4613_dummy_write(struct work_struct *work)
+{
+	struct ak4613_priv *priv = container_of(work,
+						struct ak4613_priv,
+						dummy_write_work);
+	struct snd_soc_component *component = priv->component;
+	unsigned int mgmt1;
+	unsigned int mgmt3;
+
+	/*
+	 * PW_MGMT1 / PW_MGMT3 needs dummy write at least after 5 LR clocks
+	 *
+	 * Note
+	 *
+	 * To avoid extra delay, we want to avoid preemption here,
+	 * but we can't. Because it uses I2C access which is using IRQ
+	 * and sleep. Thus, delay might be more than 5 LR clocks
+	 * see also
+	 *	ak4613_dai_trigger()
+	 */
+	udelay(5000000 / priv->rate);
+
+	snd_soc_component_read(component, PW_MGMT1, &mgmt1);
+	snd_soc_component_read(component, PW_MGMT3, &mgmt3);
+
+	snd_soc_component_write(component, PW_MGMT1, mgmt1);
+	snd_soc_component_write(component, PW_MGMT3, mgmt3);
+}
+
+static int ak4613_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+			      struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct ak4613_priv *priv = snd_soc_codec_get_drvdata(codec);
+
+	/*
+	 * FIXME
+	 *
+	 * PW_MGMT1 / PW_MGMT3 needs dummy write at least after 5 LR clocks
+	 * from Power Down Release. Otherwise, Playback volume will be 0dB.
+	 * To avoid complex multiple delay/dummy_write method from
+	 * ak4613_set_bias_level() / SND_SOC_DAPM_DAC_E("DACx", ...),
+	 * call it once here.
+	 *
+	 * But, unfortunately, we can't "write" here because here is atomic
+	 * context (It uses I2C access for writing).
+	 * Thus, use schedule_work() to switching to normal context
+	 * immediately.
+	 *
+	 * Note
+	 *
+	 * Calling ak4613_dummy_write() function might be delayed.
+	 * In such case, ak4613 volume might be temporarily 0dB when
+	 * beggining of playback.
+	 * see also
+	 *	ak4613_dummy_write()
+	 */
+
+	if ((cmd != SNDRV_PCM_TRIGGER_START) &&
+	    (cmd != SNDRV_PCM_TRIGGER_RESUME))
+		return 0;
+
+	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return  0;
+
+	priv->component = &codec->component;
+	schedule_work(&priv->dummy_write_work);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops ak4613_dai_ops = {
 	.startup	= ak4613_dai_startup,
 	.shutdown	= ak4613_dai_shutdown,
 	.set_sysclk	= ak4613_dai_set_sysclk,
 	.set_fmt	= ak4613_dai_set_fmt,
+	.trigger	= ak4613_dai_trigger,
 	.hw_params	= ak4613_dai_hw_params,
 };
 
@@ -590,6 +667,7 @@ static int ak4613_i2c_probe(struct i2c_client *i2c,
 	priv->iface		= NULL;
 	priv->cnt		= 0;
 	priv->sysclk		= 0;
+	INIT_WORK(&priv->dummy_write_work, ak4613_dummy_write);
 
 	mutex_init(&priv->lock);
 

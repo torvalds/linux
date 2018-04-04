@@ -19,7 +19,40 @@
 
 #include "sdhci.h"
 #include "sdhci-pci.h"
-#include "sdhci-pci-o2micro.h"
+
+/*
+ * O2Micro device registers
+ */
+
+#define O2_SD_MISC_REG5		0x64
+#define O2_SD_LD0_CTRL		0x68
+#define O2_SD_DEV_CTRL		0x88
+#define O2_SD_LOCK_WP		0xD3
+#define O2_SD_TEST_REG		0xD4
+#define O2_SD_FUNC_REG0		0xDC
+#define O2_SD_MULTI_VCC3V	0xEE
+#define O2_SD_CLKREQ		0xEC
+#define O2_SD_CAPS		0xE0
+#define O2_SD_ADMA1		0xE2
+#define O2_SD_ADMA2		0xE7
+#define O2_SD_INF_MOD		0xF1
+#define O2_SD_MISC_CTRL4	0xFC
+#define O2_SD_TUNING_CTRL	0x300
+#define O2_SD_PLL_SETTING	0x304
+#define O2_SD_CLK_SETTING	0x328
+#define O2_SD_CAP_REG2		0x330
+#define O2_SD_CAP_REG0		0x334
+#define O2_SD_UHS1_CAP_SETTING	0x33C
+#define O2_SD_DELAY_CTRL	0x350
+#define O2_SD_UHS2_L1_CTRL	0x35C
+#define O2_SD_FUNC_REG3		0x3E0
+#define O2_SD_FUNC_REG4		0x3E4
+#define O2_SD_LED_ENABLE	BIT(6)
+#define O2_SD_FREG0_LEDOFF	BIT(13)
+#define O2_SD_FREG4_ENABLE_CLK_SET	BIT(22)
+
+#define O2_SD_VENDOR_SETTING	0x110
+#define O2_SD_VENDOR_SETTING2	0x1C8
 
 static void o2_pci_set_baseclk(struct sdhci_pci_chip *chip, u32 value)
 {

@@ -27,7 +27,9 @@ The Meson SPICC is generic SPI controller for general purpose Full-Duplex
 communications with dedicated 16 words RX/TX PIO FIFOs.
 
 Required properties:
- - compatible: should be "amlogic,meson-gx-spicc" on Amlogic GX SoCs.
+ - compatible: should be:
+	"amlogic,meson-gx-spicc" on Amlogic GX and compatible SoCs.
+	"amlogic,meson-axg-spicc" on Amlogic AXG and compatible SoCs
  - reg: physical base address and length of the controller registers
  - interrupts: The interrupt specifier
  - clock-names: Must contain "core"

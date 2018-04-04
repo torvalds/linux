@@ -28,7 +28,7 @@
 
 static DEFINE_RWLOCK(proc_subdir_lock);
 
-static int proc_match(unsigned int len, const char *name, struct proc_dir_entry *de)
+static int proc_match(const char *name, struct proc_dir_entry *de, unsigned int len)
 {
 	if (len < de->namelen)
 		return -1;
@@ -60,7 +60,7 @@ static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
 		struct proc_dir_entry *de = rb_entry(node,
 						     struct proc_dir_entry,
 						     subdir_node);
-		int result = proc_match(len, name, de);
+		int result = proc_match(name, de, len);
 
 		if (result < 0)
 			node = node->rb_left;
@@ -84,7 +84,7 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 		struct proc_dir_entry *this = rb_entry(*new,
 						       struct proc_dir_entry,
 						       subdir_node);
-		int result = proc_match(de->namelen, de->name, this);
+		int result = proc_match(de->name, this, de->namelen);
 
 		parent = *new;
 		if (result < 0)
@@ -211,8 +211,8 @@ void proc_free_inum(unsigned int inum)
  * Don't create negative dentries here, return -ENOENT by hand
  * instead.
  */
-struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
-		struct dentry *dentry)
+struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
+			      struct proc_dir_entry *de)
 {
 	struct inode *inode;
 
@@ -235,7 +235,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
 		unsigned int flags)
 {
-	return proc_lookup_de(PDE(dir), dir, dentry);
+	return proc_lookup_de(dir, dentry, PDE(dir));
 }
 
 /*
@@ -247,8 +247,8 @@ struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
  * value of the readdir() call, as long as it's non-negative
  * for success..
  */
-int proc_readdir_de(struct proc_dir_entry *de, struct file *file,
-		    struct dir_context *ctx)
+int proc_readdir_de(struct file *file, struct dir_context *ctx,
+		    struct proc_dir_entry *de)
 {
 	int i;
 
@@ -292,7 +292,7 @@ int proc_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 
-	return proc_readdir_de(PDE(inode), file, ctx);
+	return proc_readdir_de(file, ctx, PDE(inode));
 }
 
 /*

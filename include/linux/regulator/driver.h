@@ -214,6 +214,8 @@ struct regulator_ops {
 	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
 
+	int (*resume_early)(struct regulator_dev *rdev);
+
 	int (*set_pull_down) (struct regulator_dev *);
 };
 

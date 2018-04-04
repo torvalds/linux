@@ -88,7 +88,7 @@ void vtime_flush(struct task_struct *tsk)
 	}
 
 	if (ti->softirq_time) {
-		delta = cycle_to_nsec(ti->softirq_time));
+		delta = cycle_to_nsec(ti->softirq_time);
 		account_system_index_time(tsk, delta, CPUTIME_SOFTIRQ);
 	}
 
@@ -430,30 +430,32 @@ void update_vsyscall_tz(void)
 {
 }
 
-void update_vsyscall_old(struct timespec *wall, struct timespec *wtm,
-			 struct clocksource *c, u32 mult, u64 cycle_last)
+void update_vsyscall(struct timekeeper *tk)
 {
 	write_seqcount_begin(&fsyscall_gtod_data.seq);
 
-        /* copy fsyscall clock data */
-        fsyscall_gtod_data.clk_mask = c->mask;
-        fsyscall_gtod_data.clk_mult = mult;
-        fsyscall_gtod_data.clk_shift = c->shift;
-        fsyscall_gtod_data.clk_fsys_mmio = c->archdata.fsys_mmio;
-        fsyscall_gtod_data.clk_cycle_last = cycle_last;
+	/* copy vsyscall data */
+	fsyscall_gtod_data.clk_mask = tk->tkr_mono.mask;
+	fsyscall_gtod_data.clk_mult = tk->tkr_mono.mult;
+	fsyscall_gtod_data.clk_shift = tk->tkr_mono.shift;
+	fsyscall_gtod_data.clk_fsys_mmio = tk->tkr_mono.clock->archdata.fsys_mmio;
+	fsyscall_gtod_data.clk_cycle_last = tk->tkr_mono.cycle_last;
 
-	/* copy kernel time structures */
-        fsyscall_gtod_data.wall_time.tv_sec = wall->tv_sec;
-        fsyscall_gtod_data.wall_time.tv_nsec = wall->tv_nsec;
-	fsyscall_gtod_data.monotonic_time.tv_sec = wtm->tv_sec
-							+ wall->tv_sec;
-	fsyscall_gtod_data.monotonic_time.tv_nsec = wtm->tv_nsec
-							+ wall->tv_nsec;
+	fsyscall_gtod_data.wall_time.sec = tk->xtime_sec;
+	fsyscall_gtod_data.wall_time.snsec = tk->tkr_mono.xtime_nsec;
+
+	fsyscall_gtod_data.monotonic_time.sec = tk->xtime_sec
+					      + tk->wall_to_monotonic.tv_sec;
+	fsyscall_gtod_data.monotonic_time.snsec = tk->tkr_mono.xtime_nsec
+						+ ((u64)tk->wall_to_monotonic.tv_nsec
+							<< tk->tkr_mono.shift);
 
 	/* normalize */
-	while (fsyscall_gtod_data.monotonic_time.tv_nsec >= NSEC_PER_SEC) {
-		fsyscall_gtod_data.monotonic_time.tv_nsec -= NSEC_PER_SEC;
-		fsyscall_gtod_data.monotonic_time.tv_sec++;
+	while (fsyscall_gtod_data.monotonic_time.snsec >=
+					(((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
+		fsyscall_gtod_data.monotonic_time.snsec -=
+					((u64)NSEC_PER_SEC) << tk->tkr_mono.shift;
+		fsyscall_gtod_data.monotonic_time.sec++;
 	}
 
 	write_seqcount_end(&fsyscall_gtod_data.seq);

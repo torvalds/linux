@@ -104,7 +104,7 @@ kmem_zone_init(int size, char *zone_name)
 }
 
 static inline kmem_zone_t *
-kmem_zone_init_flags(int size, char *zone_name, unsigned long flags,
+kmem_zone_init_flags(int size, char *zone_name, slab_flags_t flags,
 		     void (*construct)(void *))
 {
 	return kmem_cache_create(zone_name, size, 0, flags, construct);
@@ -119,8 +119,7 @@ kmem_zone_free(kmem_zone_t *zone, void *ptr)
 static inline void
 kmem_zone_destroy(kmem_zone_t *zone)
 {
-	if (zone)
-		kmem_cache_destroy(zone);
+	kmem_cache_destroy(zone);
 }
 
 extern void *kmem_zone_alloc(kmem_zone_t *, xfs_km_flags_t);

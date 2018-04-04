@@ -172,6 +172,17 @@ config NET_SCH_TBF
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_tbf.
 
+config NET_SCH_CBS
+	tristate "Credit Based Shaper (CBS)"
+	---help---
+	  Say Y here if you want to use the Credit Based Shaper (CBS) packet
+	  scheduling algorithm.
+
+	  See the top of <file:net/sched/sch_cbs.c> for more details.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_cbs.
+
 config NET_SCH_GRED
 	tristate "Generic Random Early Detection (GRED)"
 	---help---
@@ -846,17 +857,14 @@ config NET_ACT_TUNNEL_KEY
 config NET_IFE_SKBMARK
         tristate "Support to encoding decoding skb mark on IFE action"
         depends on NET_ACT_IFE
-        ---help---
 
 config NET_IFE_SKBPRIO
         tristate "Support to encoding decoding skb prio on IFE action"
         depends on NET_ACT_IFE
-        ---help---
 
 config NET_IFE_SKBTCINDEX
         tristate "Support to encoding decoding skb tcindex on IFE action"
         depends on NET_ACT_IFE
-        ---help---
 
 config NET_CLS_IND
 	bool "Incoming device classification"

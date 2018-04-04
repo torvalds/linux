@@ -54,7 +54,6 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(NOMERGES),
 	QUEUE_FLAG_NAME(SAME_COMP),
 	QUEUE_FLAG_NAME(FAIL_IO),
-	QUEUE_FLAG_NAME(STACKABLE),
 	QUEUE_FLAG_NAME(NONROT),
 	QUEUE_FLAG_NAME(IO_STAT),
 	QUEUE_FLAG_NAME(DISCARD),
@@ -75,6 +74,7 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(REGISTERED),
 	QUEUE_FLAG_NAME(SCSI_PASSTHROUGH),
 	QUEUE_FLAG_NAME(QUIESCED),
+	QUEUE_FLAG_NAME(PREEMPT_ONLY),
 };
 #undef QUEUE_FLAG_NAME
 
@@ -180,7 +180,6 @@ static const char *const hctx_state_name[] = {
 	HCTX_STATE_NAME(STOPPED),
 	HCTX_STATE_NAME(TAG_ACTIVE),
 	HCTX_STATE_NAME(SCHED_RESTART),
-	HCTX_STATE_NAME(TAG_WAITING),
 	HCTX_STATE_NAME(START_ON_RUN),
 };
 #undef HCTX_STATE_NAME
@@ -290,16 +289,11 @@ static const char *const rqf_name[] = {
 	RQF_NAME(HASHED),
 	RQF_NAME(STATS),
 	RQF_NAME(SPECIAL_PAYLOAD),
+	RQF_NAME(ZONE_WRITE_LOCKED),
+	RQF_NAME(MQ_TIMEOUT_EXPIRED),
+	RQF_NAME(MQ_POLL_SLEPT),
 };
 #undef RQF_NAME
-
-#define RQAF_NAME(name) [REQ_ATOM_##name] = #name
-static const char *const rqaf_name[] = {
-	RQAF_NAME(COMPLETE),
-	RQAF_NAME(STARTED),
-	RQAF_NAME(POLL_SLEPT),
-};
-#undef RQAF_NAME
 
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
@@ -317,8 +311,7 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
-	seq_puts(m, ", .atomic_flags=");
-	blk_flags_show(m, rq->atomic_flags, rqaf_name, ARRAY_SIZE(rqaf_name));
+	seq_printf(m, ", complete=%d", blk_rq_is_complete(rq));
 	seq_printf(m, ", .tag=%d, .internal_tag=%d", rq->tag,
 		   rq->internal_tag);
 	if (mq_ops->show_rq)
@@ -410,7 +403,7 @@ static void hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
 	const struct show_busy_params *params = data;
 
 	if (blk_mq_map_queue(rq->q, rq->mq_ctx->cpu) == params->hctx &&
-	    test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+	    blk_mq_rq_state(rq) != MQ_RQ_IDLE)
 		__blk_mq_debugfs_rq_show(params->m,
 					 list_entry_rq(&rq->queuelist));
 }
@@ -704,7 +697,11 @@ static ssize_t blk_mq_debugfs_write(struct file *file, const char __user *buf,
 	const struct blk_mq_debugfs_attr *attr = m->private;
 	void *data = d_inode(file->f_path.dentry->d_parent)->i_private;
 
-	if (!attr->write)
+	/*
+	 * Attributes that only implement .seq_ops are read-only and 'attr' is
+	 * the same with 'data' in this case.
+	 */
+	if (attr == data || !attr->write)
 		return -EPERM;
 
 	return attr->write(data, buf, count, ppos);

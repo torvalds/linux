@@ -1,2 +1,6 @@
+menu "NVME Support"
+
 source "drivers/nvme/host/Kconfig"
 source "drivers/nvme/target/Kconfig"
+
+endmenu

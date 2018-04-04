@@ -29,6 +29,7 @@ enum cpuid_leafs
 	CPUID_8000_000A_EDX,
 	CPUID_7_ECX,
 	CPUID_8000_0007_EBX,
+	CPUID_7_EDX,
 };
 
 #ifdef CONFIG_X86_FEATURE_NAMES
@@ -79,8 +80,9 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 15, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 16, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 17, feature_bit) ||	\
+	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 18, feature_bit) ||	\
 	   REQUIRED_MASK_CHECK					  ||	\
-	   BUILD_BUG_ON_ZERO(NCAPINTS != 18))
+	   BUILD_BUG_ON_ZERO(NCAPINTS != 19))
 
 #define DISABLED_MASK_BIT_SET(feature_bit)				\
 	 ( CHECK_BIT_IN_MASK_WORD(DISABLED_MASK,  0, feature_bit) ||	\
@@ -101,8 +103,9 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 15, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 16, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 17, feature_bit) ||	\
+	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 18, feature_bit) ||	\
 	   DISABLED_MASK_CHECK					  ||	\
-	   BUILD_BUG_ON_ZERO(NCAPINTS != 18))
+	   BUILD_BUG_ON_ZERO(NCAPINTS != 19))
 
 #define cpu_has(c, bit)							\
 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
@@ -126,15 +129,16 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
 #define set_cpu_cap(c, bit)	set_bit(bit, (unsigned long *)((c)->x86_capability))
-#define clear_cpu_cap(c, bit)	clear_bit(bit, (unsigned long *)((c)->x86_capability))
-#define setup_clear_cpu_cap(bit) do { \
-	clear_cpu_cap(&boot_cpu_data, bit);	\
-	set_bit(bit, (unsigned long *)cpu_caps_cleared); \
-} while (0)
+
+extern void setup_clear_cpu_cap(unsigned int bit);
+extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
+
 #define setup_force_cpu_cap(bit) do { \
 	set_cpu_cap(&boot_cpu_data, bit);	\
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
+
+#define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_X86_FAST_FEATURE_TESTS)
 /*
@@ -144,45 +148,46 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
  */
 static __always_inline __pure bool _static_cpu_has(u16 bit)
 {
-		asm_volatile_goto("1: jmp 6f\n"
-			 "2:\n"
-			 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
-			         "((5f-4f) - (2b-1b)),0x90\n"
-			 "3:\n"
-			 ".section .altinstructions,\"a\"\n"
-			 " .long 1b - .\n"		/* src offset */
-			 " .long 4f - .\n"		/* repl offset */
-			 " .word %P1\n"			/* always replace */
-			 " .byte 3b - 1b\n"		/* src len */
-			 " .byte 5f - 4f\n"		/* repl len */
-			 " .byte 3b - 2b\n"		/* pad len */
-			 ".previous\n"
-			 ".section .altinstr_replacement,\"ax\"\n"
-			 "4: jmp %l[t_no]\n"
-			 "5:\n"
-			 ".previous\n"
-			 ".section .altinstructions,\"a\"\n"
-			 " .long 1b - .\n"		/* src offset */
-			 " .long 0\n"			/* no replacement */
-			 " .word %P0\n"			/* feature bit */
-			 " .byte 3b - 1b\n"		/* src len */
-			 " .byte 0\n"			/* repl len */
-			 " .byte 0\n"			/* pad len */
-			 ".previous\n"
-			 ".section .altinstr_aux,\"ax\"\n"
-			 "6:\n"
-			 " testb %[bitnum],%[cap_byte]\n"
-			 " jnz %l[t_yes]\n"
-			 " jmp %l[t_no]\n"
-			 ".previous\n"
-			 : : "i" (bit), "i" (X86_FEATURE_ALWAYS),
-			     [bitnum] "i" (1 << (bit & 7)),
-			     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
-			 : : t_yes, t_no);
-	t_yes:
-		return true;
-	t_no:
-		return false;
+	asm_volatile_goto("1: jmp 6f\n"
+		 "2:\n"
+		 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
+			 "((5f-4f) - (2b-1b)),0x90\n"
+		 "3:\n"
+		 ".section .altinstructions,\"a\"\n"
+		 " .long 1b - .\n"		/* src offset */
+		 " .long 4f - .\n"		/* repl offset */
+		 " .word %P[always]\n"		/* always replace */
+		 " .byte 3b - 1b\n"		/* src len */
+		 " .byte 5f - 4f\n"		/* repl len */
+		 " .byte 3b - 2b\n"		/* pad len */
+		 ".previous\n"
+		 ".section .altinstr_replacement,\"ax\"\n"
+		 "4: jmp %l[t_no]\n"
+		 "5:\n"
+		 ".previous\n"
+		 ".section .altinstructions,\"a\"\n"
+		 " .long 1b - .\n"		/* src offset */
+		 " .long 0\n"			/* no replacement */
+		 " .word %P[feature]\n"		/* feature bit */
+		 " .byte 3b - 1b\n"		/* src len */
+		 " .byte 0\n"			/* repl len */
+		 " .byte 0\n"			/* pad len */
+		 ".previous\n"
+		 ".section .altinstr_aux,\"ax\"\n"
+		 "6:\n"
+		 " testb %[bitnum],%[cap_byte]\n"
+		 " jnz %l[t_yes]\n"
+		 " jmp %l[t_no]\n"
+		 ".previous\n"
+		 : : [feature]  "i" (bit),
+		     [always]   "i" (X86_FEATURE_ALWAYS),
+		     [bitnum]   "i" (1 << (bit & 7)),
+		     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
+		 : : t_yes, t_no);
+t_yes:
+	return true;
+t_no:
+	return false;
 }
 
 #define static_cpu_has(bit)					\

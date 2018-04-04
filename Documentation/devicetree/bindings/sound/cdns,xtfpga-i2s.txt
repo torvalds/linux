@@ -9,7 +9,7 @@ Required properties:
 
 Examples:
 
-	i2s0: xtfpga-i2s@0d080000 {
+	i2s0: xtfpga-i2s@d080000 {
 		#sound-dai-cells = <0>;
 		compatible = "cdns,xtfpga-i2s";
 		reg = <0x0d080000 0x40>;

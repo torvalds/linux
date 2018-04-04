@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/iversion.h>
 
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
@@ -347,7 +348,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	nfs4_stateid_copy(&delegation->stateid, &res->delegation);
 	delegation->type = res->delegation_type;
 	delegation->pagemod_limit = res->pagemod_limit;
-	delegation->change_attr = inode->i_version;
+	delegation->change_attr = inode_peek_iversion_raw(inode);
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
 	delegation->flags = 1<<NFS_DELEGATION_REFERENCED;
@@ -1037,6 +1038,33 @@ int nfs_delegations_present(struct nfs_client *clp)
 			break;
 		}
 	rcu_read_unlock();
+	return ret;
+}
+
+/**
+ * nfs4_refresh_delegation_stateid - Update delegation stateid seqid
+ * @dst: stateid to refresh
+ * @inode: inode to check
+ *
+ * Returns "true" and updates "dst->seqid" * if inode had a delegation
+ * that matches our delegation stateid. Otherwise "false" is returned.
+ */
+bool nfs4_refresh_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
+{
+	struct nfs_delegation *delegation;
+	bool ret = false;
+	if (!inode)
+		goto out;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (delegation != NULL &&
+	    nfs4_stateid_match_other(dst, &delegation->stateid)) {
+		dst->seqid = delegation->stateid.seqid;
+		return ret;
+	}
+	rcu_read_unlock();
+out:
 	return ret;
 }
 

@@ -37,9 +37,12 @@ enum AFS_FS_Operations {
 	FSLOOKUP		= 161,	/* AFS lookup file in directory */
 	FSFETCHDATA64		= 65537, /* AFS Fetch file data */
 	FSSTOREDATA64		= 65538, /* AFS Store file data */
+	FSGIVEUPALLCALLBACKS	= 65539, /* AFS Give up all outstanding callbacks on a server */
+	FSGETCAPABILITIES	= 65540, /* Probe and get the capabilities of a fileserver */
 };
 
 enum AFS_FS_Errors {
+	VRESTARTING	= -100,	/* Server is restarting */
 	VSALVAGE	= 101,	/* volume needs salvaging */
 	VNOVNODE	= 102,	/* no such file/dir (vnode) */
 	VNOVOL		= 103,	/* no such volume or volume unavailable */
@@ -51,6 +54,9 @@ enum AFS_FS_Errors {
 	VOVERQUOTA	= 109,	/* volume's maximum quota exceeded */
 	VBUSY		= 110,	/* volume is temporarily unavailable */
 	VMOVED		= 111,	/* volume moved to new server - ask this FS where */
+	VIO		= 112,	/* I/O error in volume */
+	VSALVAGING	= 113,	/* Volume is being salvaged */
+	VRESTRICTED	= 120,	/* Volume is restricted from using  */
 };
 
 #endif /* AFS_FS_H */

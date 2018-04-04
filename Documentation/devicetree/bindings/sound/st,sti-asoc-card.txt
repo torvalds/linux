@@ -51,7 +51,7 @@ Optional properties:
 
 Example:
 
-	sti_uni_player1: sti-uni-player@0x8D81000 {
+	sti_uni_player1: sti-uni-player@8d81000 {
 		compatible = "st,stih407-uni-player-hdmi";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
@@ -63,7 +63,7 @@ Example:
 		st,tdm-mode = <1>;
 	};
 
-	sti_uni_player2: sti-uni-player@0x8D82000 {
+	sti_uni_player2: sti-uni-player@8d82000 {
 		compatible = "st,stih407-uni-player-pcm-out";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
@@ -74,7 +74,7 @@ Example:
 		dma-names = "tx";
 	};
 
-	sti_uni_player3: sti-uni-player@0x8D85000 {
+	sti_uni_player3: sti-uni-player@8d85000 {
 		compatible = "st,stih407-uni-player-spdif";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
@@ -85,7 +85,7 @@ Example:
 		dma-names = "tx";
 	};
 
-	sti_uni_reader1: sti-uni-reader@0x8D84000 {
+	sti_uni_reader1: sti-uni-reader@8d84000 {
 		compatible = "st,stih407-uni-reader-hdmi";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;

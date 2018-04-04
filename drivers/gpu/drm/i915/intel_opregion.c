@@ -32,6 +32,8 @@
 
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
+
+#include "intel_opregion.h"
 #include "i915_drv.h"
 #include "intel_drv.h"
 
@@ -367,7 +369,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	if (intel_encoder->type == INTEL_OUTPUT_DSI)
 		port = 0;
 	else
-		port = intel_ddi_get_encoder_port(intel_encoder);
+		port = intel_encoder->port;
 
 	if (port == PORT_E)  {
 		port = 0;
@@ -383,7 +385,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	case INTEL_OUTPUT_ANALOG:
 		type = DISPLAY_TYPE_CRT;
 		break;
-	case INTEL_OUTPUT_UNKNOWN:
+	case INTEL_OUTPUT_DDI:
 	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_DP_MST:
@@ -921,7 +923,7 @@ static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	const struct firmware *fw = NULL;
-	const char *name = i915.vbt_firmware;
+	const char *name = i915_modparams.vbt_firmware;
 	int ret;
 
 	if (!name || !*name)

@@ -27,6 +27,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_modeset_helper.h>
 
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
@@ -188,29 +189,19 @@ static struct drm_driver fsl_dcu_drm_driver = {
 static int fsl_dcu_drm_pm_suspend(struct device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev_get_drvdata(dev);
+	int ret;
 
 	if (!fsl_dev)
 		return 0;
 
 	disable_irq(fsl_dev->irq);
-	drm_kms_helper_poll_disable(fsl_dev->drm);
 
-	console_lock();
-	drm_fbdev_cma_set_suspend(fsl_dev->fbdev, 1);
-	console_unlock();
-
-	fsl_dev->state = drm_atomic_helper_suspend(fsl_dev->drm);
-	if (IS_ERR(fsl_dev->state)) {
-		console_lock();
-		drm_fbdev_cma_set_suspend(fsl_dev->fbdev, 0);
-		console_unlock();
-
-		drm_kms_helper_poll_enable(fsl_dev->drm);
+	ret = drm_mode_config_helper_suspend(fsl_dev->drm);
+	if (ret) {
 		enable_irq(fsl_dev->irq);
-		return PTR_ERR(fsl_dev->state);
+		return ret;
 	}
 
-	clk_disable_unprepare(fsl_dev->pix_clk);
 	clk_disable_unprepare(fsl_dev->clk);
 
 	return 0;
@@ -233,14 +224,9 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	if (fsl_dev->tcon)
 		fsl_tcon_bypass_enable(fsl_dev->tcon);
 	fsl_dcu_drm_init_planes(fsl_dev->drm);
-	drm_atomic_helper_resume(fsl_dev->drm, fsl_dev->state);
-
-	console_lock();
-	drm_fbdev_cma_set_suspend(fsl_dev->fbdev, 0);
-	console_unlock();
-
-	drm_kms_helper_poll_enable(fsl_dev->drm);
 	enable_irq(fsl_dev->irq);
+
+	drm_mode_config_helper_resume(fsl_dev->drm);
 
 	return 0;
 }

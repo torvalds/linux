@@ -10,13 +10,30 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of demand Data Read requests that hit L2 cache. Only not rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
-        "UMask": "0x41",
-        "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
+        "UMask": "0x22",
+        "EventName": "L2_RQSTS.RFO_MISS",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "BriefDescription": "RFO requests that miss L2 cache.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x24",
+        "EventName": "L2_RQSTS.CODE_RD_MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "L2 cache misses when fetching instructions.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x27",
+        "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Demand requests that miss L2 cache.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -27,6 +44,43 @@
         "EventName": "L2_RQSTS.L2_PF_MISS",
         "SampleAfterValue": "200003",
         "BriefDescription": "L2 prefetch requests that miss L2 cache",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x3f",
+        "EventName": "L2_RQSTS.MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "All requests that miss L2 cache.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts the number of demand Data Read requests that hit L2 cache. Only not rejected loads are counted.",
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x41",
+        "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x42",
+        "EventName": "L2_RQSTS.RFO_HIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "RFO requests that hit L2 cache.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0x44",
+        "EventName": "L2_RQSTS.CODE_RD_HIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "L2 cache hits when fetching instructions, code reads.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -70,6 +124,15 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0xe7",
+        "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Demand requests to L2 cache.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "This event counts the total number of requests from the L2 hardware prefetchers.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
@@ -77,6 +140,15 @@
         "EventName": "L2_RQSTS.ALL_PF",
         "SampleAfterValue": "200003",
         "BriefDescription": "Requests from L2 hardware prefetchers",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x24",
+        "Counter": "0,1,2,3",
+        "UMask": "0xff",
+        "EventName": "L2_RQSTS.REFERENCES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "All L2 requests.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -131,6 +203,27 @@
         "CounterHTOff": "2"
     },
     {
+        "EventCode": "0x48",
+        "Counter": "2",
+        "UMask": "0x1",
+        "AnyThread": "1",
+        "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
+        "CounterMask": "1",
+        "CounterHTOff": "2"
+    },
+    {
+        "EventCode": "0x48",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "L1D_PEND_MISS.FB_FULL",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "This event counts L1D data line replacements including opportunistic replacements, and replacements that require stall-for-replace or block-for-replace.",
         "EventCode": "0x51",
         "Counter": "0,1,2,3",
@@ -152,7 +245,30 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The \"Offcore outstanding\" state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "PublicDescription": "This event counts cycles when offcore outstanding Demand Data Read transactions are present in the super queue (SQ). A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation).",
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "BDM76",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when offcore outstanding Demand Data Read transactions are present in SuperQueue (SQ), queue to uncore",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "Errata": "BDM76",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
+        "CounterMask": "6",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts the number of offcore outstanding Code Reads transactions in the super queue every cycle. The Offcore outstanding state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
         "EventCode": "0x60",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
@@ -174,6 +290,18 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "This event counts the number of offcore outstanding demand rfo Reads transactions in the super queue every cycle. The Offcore outstanding state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
+        "EventCode": "0x60",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "Errata": "BDM76",
+        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "This event counts the number of offcore outstanding cacheable Core Data Read transactions in the super queue every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
         "EventCode": "0x60",
         "Counter": "0,1,2,3",
@@ -185,18 +313,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts cycles when offcore outstanding Demand Data Read transactions are present in the super queue (SQ). A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation).",
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Errata": "BDM76",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when offcore outstanding Demand Data Read transactions are present in SuperQueue (SQ), queue to uncore",
-        "CounterMask": "1",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "PublicDescription": "This event counts cycles when offcore outstanding cacheable Core Data Read transactions are present in the super queue. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
         "EventCode": "0x60",
         "Counter": "0,1,2,3",
@@ -205,18 +321,6 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Cycles when offcore outstanding cacheable Core Data Read transactions are present in SuperQueue (SQ), queue to uncore",
-        "CounterMask": "1",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "This event counts the number of offcore outstanding demand rfo Reads transactions in the super queue every cycle. The \"Offcore outstanding\" state of the transaction lasts from the L2 miss until the sending transaction completion to requestor (SQ deallocation). See the corresponding Umask under OFFCORE_REQUESTS.",
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "Errata": "BDM76",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Offcore outstanding demand rfo reads transactions in SuperQueue (SQ), queue to uncore, every cycle",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -261,7 +365,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable \"Demands\" and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable Demands and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "EventCode": "0xB0",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
@@ -281,152 +385,161 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0xB7, 0xBB",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "OFFCORE_RESPONSE",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts load uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x11",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_LOADS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops that miss the STLB.",
+        "BriefDescription": "Retired load uops that miss the STLB. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts store uops with true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts store uops true STLB miss retired to the architected path. True STLB miss is an uop triggering page walk that gets completed without blocks, and later gets retired. This page walk can end up with or without a fault.",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x12",
         "EventName": "MEM_UOPS_RETIRED.STLB_MISS_STORES",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired store uops that miss the STLB.",
+        "BriefDescription": "Retired store uops that miss the STLB. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
         "L1_Hit_Indication": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts load uops with locked access retired to the architected path.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops with locked access retired to the architected path.",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x21",
         "Errata": "BDM35",
         "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Retired load uops with locked access.",
+        "BriefDescription": "Retired load uops with locked access. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts line-splitted load uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts line-splitted load uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x41",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops that split across a cacheline boundary.",
+        "BriefDescription": "Retired load uops that split across a cacheline boundary.(Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts line-splitted store uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts line-splitted store uops retired to the architected path. A line split is across 64B cache-line which includes a page split (4K).",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x42",
         "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired store uops that split across a cacheline boundary.",
+        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
         "L1_Hit_Indication": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This event counts load uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event counts AVX-256bit load/store double-pump memory uops as a single uop at retirement. This event also counts SW prefetches.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts load uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event ?ounts AVX-256bit load/store double-pump memory uops as a single uop at retirement. This event also counts SW prefetches.",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x81",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "All retired load uops.",
+        "BriefDescription": "All retired load uops. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This event counts store uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event counts AVX-256bit load/store double-pump memory uops as a single uop at retirement.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts store uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event ?ounts AVX-256bit load/store double-pump memory uops as a single uop at retirement.",
         "EventCode": "0xD0",
         "Counter": "0,1,2,3",
         "UMask": "0x82",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "All retired store uops.",
+        "BriefDescription": "Retired store uops that split across a cacheline boundary. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
         "L1_Hit_Indication": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data source were hits in the nearest-level (L1) cache.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load. This event also counts SW prefetches independent of the actual data source.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Retired load uops with L1 cache hits as data sources.",
+        "BriefDescription": "Retired load uops with L1 cache hits as data sources. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were hits in the mid-level (L2) cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the mid-level (L2) cache.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "Errata": "BDM35",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops with L2 cache hits as data sources.",
+        "BriefDescription": "Retired load uops with L2 cache hits as data sources. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "SampleAfterValue": "50021",
-        "BriefDescription": "Retired load uops which data sources were data hits in L3 without snoops required.",
+        "BriefDescription": "Hit in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops misses in L1 cache as data sources.",
+        "BriefDescription": "Retired load uops misses in L1 cache as data sources. Uses PEBS.",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
         "SampleAfterValue": "50021",
-        "BriefDescription": "Miss in mid-level (L2) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Retired load uops with L2 cache misses as data sources. Uses PEBS.",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
@@ -438,84 +551,83 @@
         "Errata": "BDM100, BDE70",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_MISS",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source.",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS).",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready.",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_MISS",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HIT",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache.",
+        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were HitM responses from a core on same socket (shared L3).",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were HitM responses from a core on same socket (shared L3).",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HITM",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were HitM responses from shared L3.",
+        "BriefDescription": "Retired load uops which data sources were HitM responses from shared L3. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_NONE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required.",
+        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "Retired load uop whose Data Source was: local DRAM either Snoop not needed or Snoop Miss (RspI).",
+        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does not include hardware prefetches. This is a precise event.",
         "EventCode": "0xD3",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "Errata": "BDE70, BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.LOCAL_DRAM",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Data from local DRAM either Snoop not needed or Snoop Miss (RspI)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
@@ -659,119 +771,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x42",
-        "EventName": "L2_RQSTS.RFO_HIT",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "RFO requests that hit L2 cache.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x22",
-        "EventName": "L2_RQSTS.RFO_MISS",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "RFO requests that miss L2 cache.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x44",
-        "EventName": "L2_RQSTS.CODE_RD_HIT",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "L2 cache hits when fetching instructions, code reads.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x24",
-        "EventName": "L2_RQSTS.CODE_RD_MISS",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "L2 cache misses when fetching instructions.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x27",
-        "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Demand requests that miss L2 cache.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0xe7",
-        "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "Demand requests to L2 cache.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0x3f",
-        "EventName": "L2_RQSTS.MISS",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "All requests that miss L2 cache.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x24",
-        "Counter": "0,1,2,3",
-        "UMask": "0xff",
-        "EventName": "L2_RQSTS.REFERENCES",
-        "SampleAfterValue": "200003",
-        "BriefDescription": "All L2 requests.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "OFFCORE_RESPONSE",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0x60",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Errata": "BDM76",
-        "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD_GE_6",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with at least 6 offcore outstanding Demand Data Read transactions in uncore queue.",
-        "CounterMask": "6",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x48",
-        "Counter": "2",
-        "UMask": "0x1",
-        "AnyThread": "1",
-        "EventName": "L1D_PEND_MISS.PENDING_CYCLES_ANY",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles with L1D load Misses outstanding from any thread on physical core.",
-        "CounterMask": "1",
-        "CounterHTOff": "2"
-    },
-    {
-        "EventCode": "0x48",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "L1D_PEND_MISS.FB_FULL",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
-        "CounterMask": "1",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
+        "PublicDescription": "Counts demand data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010001 ",
         "Counter": "0,1,2,3",
@@ -784,6 +784,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020001 ",
         "Counter": "0,1,2,3",
@@ -796,6 +797,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020001 ",
         "Counter": "0,1,2,3",
@@ -808,6 +810,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020001 ",
         "Counter": "0,1,2,3",
@@ -820,6 +823,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020001 ",
         "Counter": "0,1,2,3",
@@ -832,6 +836,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020001 ",
         "Counter": "0,1,2,3",
@@ -844,6 +849,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020001 ",
         "Counter": "0,1,2,3",
@@ -856,6 +862,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts demand data reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0001 ",
         "Counter": "0,1,2,3",
@@ -868,6 +875,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts demand data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0001 ",
         "Counter": "0,1,2,3",
@@ -880,6 +888,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts demand data reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0001 ",
         "Counter": "0,1,2,3",
@@ -892,6 +901,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts demand data reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0001 ",
         "Counter": "0,1,2,3",
@@ -904,6 +914,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0001 ",
         "Counter": "0,1,2,3",
@@ -916,6 +927,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts demand data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0001 ",
         "Counter": "0,1,2,3",
@@ -928,6 +940,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand data writes (RFOs) that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010002 ",
         "Counter": "0,1,2,3",
@@ -940,6 +953,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0002 ",
         "Counter": "0,1,2,3",
@@ -952,6 +966,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0002 ",
         "Counter": "0,1,2,3",
@@ -964,6 +979,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0002 ",
         "Counter": "0,1,2,3",
@@ -976,6 +992,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0002 ",
         "Counter": "0,1,2,3",
@@ -988,6 +1005,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0002 ",
         "Counter": "0,1,2,3",
@@ -1000,6 +1018,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand data writes (RFOs) that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0002 ",
         "Counter": "0,1,2,3",
@@ -1012,6 +1031,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand code reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010004 ",
         "Counter": "0,1,2,3",
@@ -1024,6 +1044,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020004 ",
         "Counter": "0,1,2,3",
@@ -1036,6 +1057,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020004 ",
         "Counter": "0,1,2,3",
@@ -1048,6 +1070,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020004 ",
         "Counter": "0,1,2,3",
@@ -1060,6 +1083,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020004 ",
         "Counter": "0,1,2,3",
@@ -1072,6 +1096,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020004 ",
         "Counter": "0,1,2,3",
@@ -1084,6 +1109,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020004 ",
         "Counter": "0,1,2,3",
@@ -1096,6 +1122,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand code reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0004 ",
         "Counter": "0,1,2,3",
@@ -1108,6 +1135,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand code reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0004 ",
         "Counter": "0,1,2,3",
@@ -1120,6 +1148,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand code reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0004 ",
         "Counter": "0,1,2,3",
@@ -1132,6 +1161,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand code reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0004 ",
         "Counter": "0,1,2,3",
@@ -1144,6 +1174,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0004 ",
         "Counter": "0,1,2,3",
@@ -1156,6 +1187,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand code reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0004 ",
         "Counter": "0,1,2,3",
@@ -1168,6 +1200,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts writebacks (modified to exclusive) that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010008 ",
         "Counter": "0,1,2,3",
@@ -1180,6 +1213,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020008 ",
         "Counter": "0,1,2,3",
@@ -1192,6 +1226,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020008 ",
         "Counter": "0,1,2,3",
@@ -1204,6 +1239,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020008 ",
         "Counter": "0,1,2,3",
@@ -1216,6 +1252,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020008 ",
         "Counter": "0,1,2,3",
@@ -1228,6 +1265,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020008 ",
         "Counter": "0,1,2,3",
@@ -1240,6 +1278,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020008 ",
         "Counter": "0,1,2,3",
@@ -1252,6 +1291,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts writebacks (modified to exclusive) that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0008 ",
         "Counter": "0,1,2,3",
@@ -1264,6 +1304,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts writebacks (modified to exclusive) that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0008 ",
         "Counter": "0,1,2,3",
@@ -1276,6 +1317,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts writebacks (modified to exclusive) that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0008 ",
         "Counter": "0,1,2,3",
@@ -1288,6 +1330,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts writebacks (modified to exclusive) that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0008 ",
         "Counter": "0,1,2,3",
@@ -1300,6 +1343,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0008 ",
         "Counter": "0,1,2,3",
@@ -1312,6 +1356,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts writebacks (modified to exclusive) that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0008 ",
         "Counter": "0,1,2,3",
@@ -1324,6 +1369,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010010 ",
         "Counter": "0,1,2,3",
@@ -1336,6 +1382,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020010 ",
         "Counter": "0,1,2,3",
@@ -1348,6 +1395,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020010 ",
         "Counter": "0,1,2,3",
@@ -1360,6 +1408,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020010 ",
         "Counter": "0,1,2,3",
@@ -1372,6 +1421,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020010 ",
         "Counter": "0,1,2,3",
@@ -1384,6 +1434,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020010 ",
         "Counter": "0,1,2,3",
@@ -1396,6 +1447,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020010 ",
         "Counter": "0,1,2,3",
@@ -1408,6 +1460,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0010 ",
         "Counter": "0,1,2,3",
@@ -1420,6 +1473,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0010 ",
         "Counter": "0,1,2,3",
@@ -1432,6 +1486,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0010 ",
         "Counter": "0,1,2,3",
@@ -1444,6 +1499,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0010 ",
         "Counter": "0,1,2,3",
@@ -1456,6 +1512,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0010 ",
         "Counter": "0,1,2,3",
@@ -1468,6 +1525,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to L2) data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0010 ",
         "Counter": "0,1,2,3",
@@ -1480,6 +1538,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010020 ",
         "Counter": "0,1,2,3",
@@ -1492,6 +1551,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020020 ",
         "Counter": "0,1,2,3",
@@ -1504,6 +1564,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020020 ",
         "Counter": "0,1,2,3",
@@ -1516,6 +1577,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020020 ",
         "Counter": "0,1,2,3",
@@ -1528,6 +1590,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020020 ",
         "Counter": "0,1,2,3",
@@ -1540,6 +1603,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020020 ",
         "Counter": "0,1,2,3",
@@ -1552,6 +1616,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020020 ",
         "Counter": "0,1,2,3",
@@ -1564,6 +1629,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0020 ",
         "Counter": "0,1,2,3",
@@ -1576,6 +1642,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0020 ",
         "Counter": "0,1,2,3",
@@ -1588,6 +1655,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0020 ",
         "Counter": "0,1,2,3",
@@ -1600,6 +1668,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0020 ",
         "Counter": "0,1,2,3",
@@ -1612,6 +1681,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0020 ",
         "Counter": "0,1,2,3",
@@ -1624,6 +1694,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to L2) RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0020 ",
         "Counter": "0,1,2,3",
@@ -1636,6 +1707,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010040 ",
         "Counter": "0,1,2,3",
@@ -1648,6 +1720,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020040 ",
         "Counter": "0,1,2,3",
@@ -1660,6 +1733,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020040 ",
         "Counter": "0,1,2,3",
@@ -1672,6 +1746,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020040 ",
         "Counter": "0,1,2,3",
@@ -1684,6 +1759,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020040 ",
         "Counter": "0,1,2,3",
@@ -1696,6 +1772,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020040 ",
         "Counter": "0,1,2,3",
@@ -1708,6 +1785,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020040 ",
         "Counter": "0,1,2,3",
@@ -1720,6 +1798,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0040 ",
         "Counter": "0,1,2,3",
@@ -1732,6 +1811,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0040 ",
         "Counter": "0,1,2,3",
@@ -1744,6 +1824,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0040 ",
         "Counter": "0,1,2,3",
@@ -1756,6 +1837,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0040 ",
         "Counter": "0,1,2,3",
@@ -1768,6 +1850,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0040 ",
         "Counter": "0,1,2,3",
@@ -1780,6 +1863,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) code reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0040 ",
         "Counter": "0,1,2,3",
@@ -1792,6 +1876,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010080 ",
         "Counter": "0,1,2,3",
@@ -1804,6 +1889,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020080 ",
         "Counter": "0,1,2,3",
@@ -1816,6 +1902,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020080 ",
         "Counter": "0,1,2,3",
@@ -1828,6 +1915,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020080 ",
         "Counter": "0,1,2,3",
@@ -1840,6 +1928,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020080 ",
         "Counter": "0,1,2,3",
@@ -1852,6 +1941,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020080 ",
         "Counter": "0,1,2,3",
@@ -1864,6 +1954,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020080 ",
         "Counter": "0,1,2,3",
@@ -1876,6 +1967,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0080 ",
         "Counter": "0,1,2,3",
@@ -1888,6 +1980,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0080 ",
         "Counter": "0,1,2,3",
@@ -1900,6 +1993,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0080 ",
         "Counter": "0,1,2,3",
@@ -1912,6 +2006,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0080 ",
         "Counter": "0,1,2,3",
@@ -1924,6 +2019,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0080 ",
         "Counter": "0,1,2,3",
@@ -1936,6 +2032,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0080 ",
         "Counter": "0,1,2,3",
@@ -1948,6 +2045,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010100 ",
         "Counter": "0,1,2,3",
@@ -1960,6 +2058,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020100 ",
         "Counter": "0,1,2,3",
@@ -1972,6 +2071,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020100 ",
         "Counter": "0,1,2,3",
@@ -1984,6 +2084,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020100 ",
         "Counter": "0,1,2,3",
@@ -1996,6 +2097,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020100 ",
         "Counter": "0,1,2,3",
@@ -2008,6 +2110,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020100 ",
         "Counter": "0,1,2,3",
@@ -2020,6 +2123,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020100 ",
         "Counter": "0,1,2,3",
@@ -2032,6 +2136,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0100 ",
         "Counter": "0,1,2,3",
@@ -2044,6 +2149,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0100 ",
         "Counter": "0,1,2,3",
@@ -2056,6 +2162,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0100 ",
         "Counter": "0,1,2,3",
@@ -2068,6 +2175,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0100 ",
         "Counter": "0,1,2,3",
@@ -2080,6 +2188,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0100 ",
         "Counter": "0,1,2,3",
@@ -2092,6 +2201,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch (that bring data to LLC only) RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0100 ",
         "Counter": "0,1,2,3",
@@ -2104,6 +2214,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010200 ",
         "Counter": "0,1,2,3",
@@ -2116,6 +2227,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020200 ",
         "Counter": "0,1,2,3",
@@ -2128,6 +2240,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020200 ",
         "Counter": "0,1,2,3",
@@ -2140,6 +2253,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020200 ",
         "Counter": "0,1,2,3",
@@ -2152,6 +2266,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020200 ",
         "Counter": "0,1,2,3",
@@ -2164,6 +2279,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020200 ",
         "Counter": "0,1,2,3",
@@ -2176,6 +2292,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020200 ",
         "Counter": "0,1,2,3",
@@ -2188,6 +2305,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0200 ",
         "Counter": "0,1,2,3",
@@ -2200,6 +2318,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0200 ",
         "Counter": "0,1,2,3",
@@ -2212,6 +2331,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0200 ",
         "Counter": "0,1,2,3",
@@ -2224,6 +2344,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0200 ",
         "Counter": "0,1,2,3",
@@ -2236,6 +2357,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0200 ",
         "Counter": "0,1,2,3",
@@ -2248,6 +2370,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch (that bring data to LLC only) code reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0200 ",
         "Counter": "0,1,2,3",
@@ -2260,6 +2383,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts any other requests that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000018000 ",
         "Counter": "0,1,2,3",
@@ -2272,6 +2396,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080028000 ",
         "Counter": "0,1,2,3",
@@ -2284,6 +2409,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100028000 ",
         "Counter": "0,1,2,3",
@@ -2296,6 +2422,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200028000 ",
         "Counter": "0,1,2,3",
@@ -2308,6 +2435,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400028000 ",
         "Counter": "0,1,2,3",
@@ -2320,6 +2448,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000028000 ",
         "Counter": "0,1,2,3",
@@ -2332,6 +2461,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80028000 ",
         "Counter": "0,1,2,3",
@@ -2344,6 +2474,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts any other requests that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c8000 ",
         "Counter": "0,1,2,3",
@@ -2356,6 +2487,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts any other requests that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c8000 ",
         "Counter": "0,1,2,3",
@@ -2368,6 +2500,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts any other requests that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c8000 ",
         "Counter": "0,1,2,3",
@@ -2380,6 +2513,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts any other requests that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c8000 ",
         "Counter": "0,1,2,3",
@@ -2392,6 +2526,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c8000 ",
         "Counter": "0,1,2,3",
@@ -2404,6 +2539,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts any other requests that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c8000 ",
         "Counter": "0,1,2,3",
@@ -2416,6 +2552,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010090 ",
         "Counter": "0,1,2,3",
@@ -2428,6 +2565,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020090 ",
         "Counter": "0,1,2,3",
@@ -2440,6 +2578,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020090 ",
         "Counter": "0,1,2,3",
@@ -2452,6 +2591,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020090 ",
         "Counter": "0,1,2,3",
@@ -2464,6 +2604,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020090 ",
         "Counter": "0,1,2,3",
@@ -2476,6 +2617,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020090 ",
         "Counter": "0,1,2,3",
@@ -2488,6 +2630,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020090 ",
         "Counter": "0,1,2,3",
@@ -2500,6 +2643,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0090 ",
         "Counter": "0,1,2,3",
@@ -2512,6 +2656,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0090 ",
         "Counter": "0,1,2,3",
@@ -2524,6 +2669,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0090 ",
         "Counter": "0,1,2,3",
@@ -2536,6 +2682,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0090 ",
         "Counter": "0,1,2,3",
@@ -2548,6 +2695,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0090 ",
         "Counter": "0,1,2,3",
@@ -2560,6 +2708,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0090 ",
         "Counter": "0,1,2,3",
@@ -2572,6 +2721,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010120 ",
         "Counter": "0,1,2,3",
@@ -2584,6 +2734,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020120 ",
         "Counter": "0,1,2,3",
@@ -2596,6 +2747,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020120 ",
         "Counter": "0,1,2,3",
@@ -2608,6 +2760,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020120 ",
         "Counter": "0,1,2,3",
@@ -2620,6 +2773,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020120 ",
         "Counter": "0,1,2,3",
@@ -2632,6 +2786,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020120 ",
         "Counter": "0,1,2,3",
@@ -2644,6 +2799,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020120 ",
         "Counter": "0,1,2,3",
@@ -2656,6 +2812,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0120 ",
         "Counter": "0,1,2,3",
@@ -2668,6 +2825,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0120 ",
         "Counter": "0,1,2,3",
@@ -2680,6 +2838,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0120 ",
         "Counter": "0,1,2,3",
@@ -2692,6 +2851,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0120 ",
         "Counter": "0,1,2,3",
@@ -2704,6 +2864,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0120 ",
         "Counter": "0,1,2,3",
@@ -2716,6 +2877,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts prefetch RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0120 ",
         "Counter": "0,1,2,3",
@@ -2728,6 +2890,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch code reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010240 ",
         "Counter": "0,1,2,3",
@@ -2740,6 +2903,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020240 ",
         "Counter": "0,1,2,3",
@@ -2752,6 +2916,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020240 ",
         "Counter": "0,1,2,3",
@@ -2764,6 +2929,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020240 ",
         "Counter": "0,1,2,3",
@@ -2776,6 +2942,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020240 ",
         "Counter": "0,1,2,3",
@@ -2788,6 +2955,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020240 ",
         "Counter": "0,1,2,3",
@@ -2800,6 +2968,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020240 ",
         "Counter": "0,1,2,3",
@@ -2812,6 +2981,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch code reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0240 ",
         "Counter": "0,1,2,3",
@@ -2824,6 +2994,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch code reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0240 ",
         "Counter": "0,1,2,3",
@@ -2836,6 +3007,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch code reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0240 ",
         "Counter": "0,1,2,3",
@@ -2848,6 +3020,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch code reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0240 ",
         "Counter": "0,1,2,3",
@@ -2860,6 +3033,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0240 ",
         "Counter": "0,1,2,3",
@@ -2872,6 +3046,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all prefetch code reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0240 ",
         "Counter": "0,1,2,3",
@@ -2884,6 +3059,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch data reads that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010091 ",
         "Counter": "0,1,2,3",
@@ -2896,6 +3072,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020091 ",
         "Counter": "0,1,2,3",
@@ -2908,6 +3085,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020091 ",
         "Counter": "0,1,2,3",
@@ -2920,6 +3098,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020091 ",
         "Counter": "0,1,2,3",
@@ -2932,6 +3111,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020091 ",
         "Counter": "0,1,2,3",
@@ -2944,6 +3124,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020091 ",
         "Counter": "0,1,2,3",
@@ -2956,6 +3137,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020091 ",
         "Counter": "0,1,2,3",
@@ -2968,6 +3150,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0091 ",
         "Counter": "0,1,2,3",
@@ -2980,6 +3163,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0091 ",
         "Counter": "0,1,2,3",
@@ -2992,6 +3176,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0091 ",
         "Counter": "0,1,2,3",
@@ -3004,6 +3189,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0091 ",
         "Counter": "0,1,2,3",
@@ -3016,6 +3202,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0091 ",
         "Counter": "0,1,2,3",
@@ -3028,6 +3215,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch data reads that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0091 ",
         "Counter": "0,1,2,3",
@@ -3040,6 +3228,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch RFOs that have any response type. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0000010122 ",
         "Counter": "0,1,2,3",
@@ -3052,6 +3241,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0080020122 ",
         "Counter": "0,1,2,3",
@@ -3064,6 +3254,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0100020122 ",
         "Counter": "0,1,2,3",
@@ -3076,6 +3267,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0200020122 ",
         "Counter": "0,1,2,3",
@@ -3088,6 +3280,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x0400020122 ",
         "Counter": "0,1,2,3",
@@ -3100,6 +3293,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x1000020122 ",
         "Counter": "0,1,2,3",
@@ -3112,6 +3306,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f80020122 ",
         "Counter": "0,1,2,3",
@@ -3124,6 +3319,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 with no details on snoop-related information. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x00803c0122 ",
         "Counter": "0,1,2,3",
@@ -3136,6 +3332,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x01003c0122 ",
         "Counter": "0,1,2,3",
@@ -3148,6 +3345,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 with a snoop miss response. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x02003c0122 ",
         "Counter": "0,1,2,3",
@@ -3160,6 +3358,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3 and the snoops to sibling cores hit in either E/S state and the line is not forwarded. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x04003c0122 ",
         "Counter": "0,1,2,3",
@@ -3172,6 +3371,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "tbd Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x10003c0122 ",
         "Counter": "0,1,2,3",
@@ -3184,6 +3384,7 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
+        "PublicDescription": "Counts all demand & prefetch RFOs that hit in the L3. Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "EventCode": "0xB7, 0xBB",
         "MSRValue": "0x3f803c0122 ",
         "Counter": "0,1,2,3",

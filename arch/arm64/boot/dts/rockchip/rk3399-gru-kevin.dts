@@ -93,6 +93,18 @@
 		pwm-delay-us = <10000>;
 	};
 
+	edp_panel: edp-panel {
+		compatible = "sharp,lq123p1jx31", "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&pp3300_disp>;
+
+		ports {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
 	thermistor_ppvar_bigcpu: thermistor-ppvar-bigcpu {
 		compatible = "murata,ncp15wb473";
 		pullup-uv = <1800000>;
@@ -249,6 +261,10 @@ ap_i2c_dig: &i2c2 {
 		pinctrl-0 = <&trackpad_int_l>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		linux,gpio-keymap = <KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     BTN_LEFT>;
 		wakeup-source;
 	};
 };
@@ -261,6 +277,23 @@ ap_i2c_dig: &i2c2 {
 		pinctrl-0 = <&touch_int_l>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&edp {
+	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
 	};
 };
 

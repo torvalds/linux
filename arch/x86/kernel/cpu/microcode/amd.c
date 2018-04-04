@@ -470,6 +470,7 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 #define F14H_MPB_MAX_SIZE 1824
 #define F15H_MPB_MAX_SIZE 4096
 #define F16H_MPB_MAX_SIZE 3458
+#define F17H_MPB_MAX_SIZE 3200
 
 	switch (family) {
 	case 0x14:
@@ -480,6 +481,9 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 		break;
 	case 0x16:
 		max_size = F16H_MPB_MAX_SIZE;
+		break;
+	case 0x17:
+		max_size = F17H_MPB_MAX_SIZE;
 		break;
 	default:
 		max_size = F1XH_MPB_MAX_SIZE;
@@ -494,7 +498,7 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 	return patch_size;
 }
 
-static int apply_microcode_amd(int cpu)
+static enum ucode_state apply_microcode_amd(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct microcode_amd *mc_amd;
@@ -508,7 +512,7 @@ static int apply_microcode_amd(int cpu)
 
 	p = find_patch(cpu);
 	if (!p)
-		return 0;
+		return UCODE_NFOUND;
 
 	mc_amd  = p->data;
 	uci->mc = p->data;
@@ -519,13 +523,13 @@ static int apply_microcode_amd(int cpu)
 	if (rev >= mc_amd->hdr.patch_id) {
 		c->microcode = rev;
 		uci->cpu_sig.rev = rev;
-		return 0;
+		return UCODE_OK;
 	}
 
 	if (__apply_microcode_amd(mc_amd)) {
 		pr_err("CPU%d: update failed for patch_level=0x%08x\n",
 			cpu, mc_amd->hdr.patch_id);
-		return -1;
+		return UCODE_ERROR;
 	}
 	pr_info("CPU%d: new patch_level=0x%08x\n", cpu,
 		mc_amd->hdr.patch_id);
@@ -533,7 +537,7 @@ static int apply_microcode_amd(int cpu)
 	uci->cpu_sig.rev = mc_amd->hdr.patch_id;
 	c->microcode = mc_amd->hdr.patch_id;
 
-	return 0;
+	return UCODE_UPDATED;
 }
 
 static int install_equiv_cpu_table(const u8 *buf)

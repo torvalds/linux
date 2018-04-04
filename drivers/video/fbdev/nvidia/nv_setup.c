@@ -264,7 +264,8 @@ static void nv10GetConfig(struct nvidia_par *par)
 	}
 #endif
 
-	dev = pci_get_bus_and_slot(0, 1);
+	dev = pci_get_domain_bus_and_slot(pci_domain_nr(par->pci_dev->bus),
+					  0, 1);
 	if ((par->Chipset & 0xffff) == 0x01a0) {
 		u32 amt;
 

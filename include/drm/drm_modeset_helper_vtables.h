@@ -314,7 +314,7 @@ struct drm_crtc_helper_funcs {
 	 * implementation in drm_atomic_helper_check().
 	 *
 	 * When using drm_atomic_helper_check_planes() this hook is called
-	 * after the &drm_plane_helper_funcs.atomc_check hook for planes, which
+	 * after the &drm_plane_helper_funcs.atomic_check hook for planes, which
 	 * allows drivers to assign shared resources requested by planes in this
 	 * callback here. For more complicated dependencies the driver can call
 	 * the provided check helpers multiple times until the computed state
@@ -800,9 +800,6 @@ struct drm_connector_helper_funcs {
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred
 	 * one using drm_set_preferred_mode().
-	 *
-	 * Finally drivers that support audio probably want to update the ELD
-	 * data, too, using drm_edid_to_eld().
 	 *
 	 * This function is only called after the @detect hook has indicated
 	 * that a sink is connected and when the EDID isn't overridden through

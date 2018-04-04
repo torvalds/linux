@@ -1,6 +1,6 @@
 config INFINIBAND_CXGB3
 	tristate "Chelsio RDMA Driver"
-	depends on CHELSIO_T3 && INET
+	depends on CHELSIO_T3
 	select GENERIC_ALLOCATOR
 	---help---
 	  This is an iWARP/RDMA driver for the Chelsio T3 1GbE and

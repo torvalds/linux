@@ -302,23 +302,24 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 	mutex_lock(&chip->lock);
 	regval |= chip->config;
 	ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG, regval);
-	if (ret < 0) {
-		mutex_unlock(&chip->lock);
-		return ret;
-	}
+	if (ret < 0)
+		goto unlock;
 
 	do {
 		msleep(20);
 		ret = i2c_smbus_read_byte_data(chip->client, AD7746_REG_CFG);
-		if (ret < 0) {
-			mutex_unlock(&chip->lock);
-			return ret;
-		}
+		if (ret < 0)
+			goto unlock;
+
 	} while ((ret == regval) && timeout--);
 
 	mutex_unlock(&chip->lock);
 
 	return len;
+
+unlock:
+	mutex_unlock(&chip->lock);
+	return ret;
 }
 
 static ssize_t ad7746_start_offset_calib(struct device *dev,
@@ -667,7 +668,6 @@ static const struct iio_info ad7746_info = {
 	.attrs = &ad7746_attribute_group,
 	.read_raw = ad7746_read_raw,
 	.write_raw = ad7746_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 /*

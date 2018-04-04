@@ -22,13 +22,13 @@
 
 #include "platform_support.h"			/* hrt_sleep() */
 
-STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
+static inline void irq_wait_for_write_complete(
 	const irq_ID_t		ID);
 
-STORAGE_CLASS_INLINE bool any_irq_channel_enabled(
+static inline bool any_irq_channel_enabled(
 	const irq_ID_t				ID);
 
-STORAGE_CLASS_INLINE irq_ID_t virq_get_irq_id(
+static inline irq_ID_t virq_get_irq_id(
 	const virq_id_t		irq_ID,
 	unsigned int		*channel_ID);
 
@@ -69,7 +69,7 @@ void irq_clear_all(
 
 	irq_reg_store(ID,
 		_HRT_IRQ_CONTROLLER_CLEAR_REG_IDX, mask);
-return;
+	return;
 }
 
 /*
@@ -114,7 +114,7 @@ void irq_enable_channel(
 
 	irq_wait_for_write_complete(ID);
 
-return;
+	return;
 }
 
 void irq_enable_pulse(
@@ -129,7 +129,7 @@ void irq_enable_pulse(
 	/* output is given as edge, not pulse */
 	irq_reg_store(ID,
 		_HRT_IRQ_CONTROLLER_EDGE_NOT_PULSE_REG_IDX, edge_out);
-return;
+	return;
 }
 
 void irq_disable_channel(
@@ -160,7 +160,7 @@ void irq_disable_channel(
 
 	irq_wait_for_write_complete(ID);
 
-return;
+	return;
 }
 
 enum hrt_isp_css_irq_status irq_get_channel_id(
@@ -195,7 +195,7 @@ enum hrt_isp_css_irq_status irq_get_channel_id(
 	if (irq_id != NULL)
 		*irq_id = (unsigned int)idx;
 
-return status;
+	return status;
 }
 
 static const hrt_address IRQ_REQUEST_ADDR[N_IRQ_SW_CHANNEL_ID] = {
@@ -220,7 +220,7 @@ void irq_raise(
 		(unsigned int)addr, 1);
 	gp_device_reg_store(GP_DEVICE0_ID,
 		(unsigned int)addr, 0);
-return;
+	return;
 }
 
 void irq_controller_get_state(
@@ -240,7 +240,7 @@ void irq_controller_get_state(
 		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX);
 	state->irq_level_not_pulse = irq_reg_load(ID,
 		_HRT_IRQ_CONTROLLER_EDGE_NOT_PULSE_REG_IDX);
-return;
+	return;
 }
 
 bool any_virq_signal(void)
@@ -248,7 +248,7 @@ bool any_virq_signal(void)
 	unsigned int irq_status = irq_reg_load(IRQ0_ID,
 		_HRT_IRQ_CONTROLLER_STATUS_REG_IDX);
 
-return (irq_status != 0);
+	return (irq_status != 0);
 }
 
 void cnd_virq_enable_channel(
@@ -279,7 +279,7 @@ void cnd_virq_enable_channel(
 			irq_disable_channel(IRQ0_ID, IRQ_NESTING_ID[ID]);
 		}
 	}
-return;
+	return;
 }
 
 
@@ -290,7 +290,7 @@ void virq_clear_all(void)
 	for (irq_id = (irq_ID_t)0; irq_id < N_IRQ_ID; irq_id++) {
 		irq_clear_all(irq_id);
 	}
-return;
+	return;
 }
 
 enum hrt_isp_css_irq_status virq_get_channel_signals(
@@ -320,7 +320,7 @@ enum hrt_isp_css_irq_status virq_get_channel_signals(
 		}
 	}
 
-return irq_status;
+	return irq_status;
 }
 
 void virq_clear_info(
@@ -333,7 +333,7 @@ void virq_clear_info(
 	for (ID = (irq_ID_t)0 ; ID < N_IRQ_ID; ID++) {
 			irq_info->irq_status_reg[ID] = 0;
 	}
-return;
+	return;
 }
 
 enum hrt_isp_css_irq_status virq_get_channel_id(
@@ -403,10 +403,10 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 	if (irq_id != NULL)
 		*irq_id = (virq_id_t)idx;
 
-return status;
+	return status;
 }
 
-STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
+static inline void irq_wait_for_write_complete(
 	const irq_ID_t		ID)
 {
 	assert(ID < N_IRQ_ID);
@@ -415,7 +415,7 @@ STORAGE_CLASS_INLINE void irq_wait_for_write_complete(
 		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX*sizeof(hrt_data));
 }
 
-STORAGE_CLASS_INLINE bool any_irq_channel_enabled(
+static inline bool any_irq_channel_enabled(
 	const irq_ID_t				ID)
 {
 	hrt_data	en_reg;
@@ -425,10 +425,10 @@ STORAGE_CLASS_INLINE bool any_irq_channel_enabled(
 	en_reg = irq_reg_load(ID,
 		_HRT_IRQ_CONTROLLER_ENABLE_REG_IDX);
 
-return (en_reg != 0);
+	return (en_reg != 0);
 }
 
-STORAGE_CLASS_INLINE irq_ID_t virq_get_irq_id(
+static inline irq_ID_t virq_get_irq_id(
 	const virq_id_t		irq_ID,
 	unsigned int		*channel_ID)
 {
@@ -444,5 +444,5 @@ STORAGE_CLASS_INLINE irq_ID_t virq_get_irq_id(
 
 	*channel_ID = (unsigned int)irq_ID - IRQ_N_ID_OFFSET[ID];
 
-return ID;
+	return ID;
 }

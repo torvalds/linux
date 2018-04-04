@@ -21,7 +21,6 @@
  *
  * To do:
  * - add interconnect error log structures
- * - add pinmuxing
  * - init_conn_id_bit (CONNID_BIT_VECTOR)
  * - implement default hwmod SMS/SDRC flags?
  * - move Linux-specific data ("non-ROM data") out
@@ -38,9 +37,15 @@
 
 struct omap_device;
 
-extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type1;
-extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
-extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
+extern struct sysc_regbits omap_hwmod_sysc_type1;
+extern struct sysc_regbits omap_hwmod_sysc_type2;
+extern struct sysc_regbits omap_hwmod_sysc_type3;
+extern struct sysc_regbits omap34xx_sr_sysc_fields;
+extern struct sysc_regbits omap36xx_sr_sysc_fields;
+extern struct sysc_regbits omap3_sham_sysc_fields;
+extern struct sysc_regbits omap3xxx_aes_sysc_fields;
+extern struct sysc_regbits omap_hwmod_sysc_type_mcasp;
+extern struct sysc_regbits omap_hwmod_sysc_type_usb_host_fs;
 
 /*
  * OCP SYSCONFIG bit shifts/masks TYPE1. These are for IPs compliant
@@ -151,50 +156,6 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
 #endif
 
 /**
- * struct omap_hwmod_mux_info - hwmod specific mux configuration
- * @pads:              array of omap_device_pad entries
- * @nr_pads:           number of omap_device_pad entries
- *
- * Note that this is currently built during init as needed.
- */
-struct omap_hwmod_mux_info {
-	int				nr_pads;
-	struct omap_device_pad		*pads;
-	int				nr_pads_dynamic;
-	struct omap_device_pad		**pads_dynamic;
-	int				*irqs;
-	bool				enabled;
-};
-
-/**
- * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
- * @name: name of the IRQ channel (module local name)
- * @irq: IRQ channel ID (should be non-negative except -1 = terminator)
- *
- * @name should be something short, e.g., "tx" or "rx".  It is for use
- * by platform_get_resource_byname().  It is defined locally to the
- * hwmod.
- */
-struct omap_hwmod_irq_info {
-	const char	*name;
-	s16		irq;
-};
-
-/**
- * struct omap_hwmod_dma_info - DMA channels used by the hwmod
- * @name: name of the DMA channel (module local name)
- * @dma_req: DMA request ID (should be non-negative except -1 = terminator)
- *
- * @name should be something short, e.g., "tx" or "rx".  It is for use
- * by platform_get_resource_byname().  It is defined locally to the
- * hwmod.
- */
-struct omap_hwmod_dma_info {
-	const char	*name;
-	s16		dma_req;
-};
-
-/**
  * struct omap_hwmod_rst_info - IPs reset lines use by hwmod
  * @name: name of the reset line (module local name)
  * @rst_shift: Offset of the reset bit
@@ -242,34 +203,6 @@ struct omap_hwmod_omap2_firewall {
 	u8 l4_prot_group;
 	u8 flags;
 };
-
-
-/*
- * omap_hwmod_addr_space.flags bits
- *
- * ADDR_MAP_ON_INIT: Map this address space during omap_hwmod init.
- * ADDR_TYPE_RT: Address space contains module register target data.
- */
-#define ADDR_MAP_ON_INIT	(1 << 0)	/* XXX does not belong */
-#define ADDR_TYPE_RT		(1 << 1)
-
-/**
- * struct omap_hwmod_addr_space - address space handled by the hwmod
- * @name: name of the address space
- * @pa_start: starting physical address
- * @pa_end: ending physical address
- * @flags: (see omap_hwmod_addr_space.flags macros above)
- *
- * Address space doesn't necessarily follow physical interconnect
- * structure.  GPMC is one example.
- */
-struct omap_hwmod_addr_space {
-	const char *name;
-	u32 pa_start;
-	u32 pa_end;
-	u8 flags;
-};
-
 
 /*
  * omap_hwmod_ocp_if.user bits: these indicate the initiators that use this
@@ -358,26 +291,6 @@ struct omap_hwmod_ocp_if {
 #define CLOCKACT_TEST_NONE	0x3
 
 /**
- * struct omap_hwmod_sysc_fields - hwmod OCP_SYSCONFIG register field offsets.
- * @midle_shift: Offset of the midle bit
- * @clkact_shift: Offset of the clockactivity bit
- * @sidle_shift: Offset of the sidle bit
- * @enwkup_shift: Offset of the enawakeup bit
- * @srst_shift: Offset of the softreset bit
- * @autoidle_shift: Offset of the autoidle bit
- * @dmadisable_shift: Offset of the dmadisable bit
- */
-struct omap_hwmod_sysc_fields {
-	u8 midle_shift;
-	u8 clkact_shift;
-	u8 sidle_shift;
-	u8 enwkup_shift;
-	u8 srst_shift;
-	u8 autoidle_shift;
-	u8 dmadisable_shift;
-};
-
-/**
  * struct omap_hwmod_class_sysconfig - hwmod class OCP_SYS* data
  * @rev_offs: IP block revision register offset (from module base addr)
  * @sysc_offs: OCP_SYSCONFIG register offset (from module base addr)
@@ -408,7 +321,7 @@ struct omap_hwmod_class_sysconfig {
 	u32 sysc_offs;
 	u32 syss_offs;
 	u16 sysc_flags;
-	struct omap_hwmod_sysc_fields *sysc_fields;
+	struct sysc_regbits *sysc_fields;
 	u8 srst_udelay;
 	u8 idlemodes;
 };
@@ -416,11 +329,8 @@ struct omap_hwmod_class_sysconfig {
 /**
  * struct omap_hwmod_omap2_prcm - OMAP2/3-specific PRCM data
  * @module_offs: PRCM submodule offset from the start of the PRM/CM
- * @prcm_reg_id: PRCM register ID (e.g., 3 for CM_AUTOIDLE3)
- * @module_bit: register bit shift for AUTOIDLE, WKST, WKEN, GRPSEL regs
  * @idlest_reg_id: IDLEST register ID (e.g., 3 for CM_IDLEST3)
  * @idlest_idle_bit: register bit shift for CM_IDLEST slave idle bit
- * @idlest_stdby_bit: register bit shift for CM_IDLEST master standby bit
  *
  * @prcm_reg_id and @module_bit are specific to the AUTOIDLE, WKST,
  * WKEN, GRPSEL registers.  In an ideal world, no extra information
@@ -430,11 +340,8 @@ struct omap_hwmod_class_sysconfig {
  */
 struct omap_hwmod_omap2_prcm {
 	s16 module_offs;
-	u8 prcm_reg_id;
-	u8 module_bit;
 	u8 idlest_reg_id;
 	u8 idlest_idle_bit;
-	u8 idlest_stdby_bit;
 };
 
 /*
@@ -446,9 +353,12 @@ struct omap_hwmod_omap2_prcm {
  * HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET: Some IP blocks have a valid CLKCTRL
  *	offset of zero; this flag bit should be set in those cases to
  *	distinguish from hwmods that have no clkctrl offset.
+ * HWMOD_OMAP4_CLKFWK_CLKCTR_CLOCK: Module clockctrl clock is managed
+ *	by the common clock framework and not hwmod.
  */
 #define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
 #define HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET		(1 << 1)
+#define HWMOD_OMAP4_CLKFWK_CLKCTR_CLOCK		(1 << 2)
 
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
@@ -626,8 +536,6 @@ struct omap_hwmod_class {
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
  * @od: struct omap_device currently associated with this hwmod (internal use)
- * @mpu_irqs: ptr to an array of MPU IRQs
- * @sdma_reqs: ptr to an array of System DMA request IDs
  * @prcm: PRCM data pertaining to this hwmod
  * @main_clk: main clock: OMAP clock name
  * @_clk: pointer to the main struct clk (filled in at runtime)
@@ -670,9 +578,6 @@ struct omap_hwmod {
 	const char			*name;
 	struct omap_hwmod_class		*class;
 	struct omap_device		*od;
-	struct omap_hwmod_mux_info	*mux;
-	struct omap_hwmod_irq_info	*mpu_irqs;
-	struct omap_hwmod_dma_info	*sdma_reqs;
 	struct omap_hwmod_rst_info	*rst_lines;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;
@@ -691,7 +596,6 @@ struct omap_hwmod {
 	struct lock_class_key		hwmod_key; /* unique lock class */
 	struct list_head		node;
 	struct omap_hwmod_ocp_if	*_mpu_port;
-	unsigned int			(*xlate_irq)(unsigned int);
 	u32				flags;
 	u8				mpu_rt_idx;
 	u8				response_lat;
@@ -705,11 +609,16 @@ struct omap_hwmod {
 	struct omap_hwmod		*parent_hwmod;
 };
 
+struct device_node;
+
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);
 
 int __init omap_hwmod_setup_one(const char *name);
+int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
+				  struct device_node *np,
+				  struct resource *res);
 
 int omap_hwmod_enable(struct omap_hwmod *oh);
 int omap_hwmod_idle(struct omap_hwmod *oh);
@@ -724,7 +633,6 @@ int omap_hwmod_softreset(struct omap_hwmod *oh);
 
 int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags);
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res);
-int omap_hwmod_fill_dma_resources(struct omap_hwmod *oh, struct resource *res);
 int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 				   const char *name, struct resource *res);
 

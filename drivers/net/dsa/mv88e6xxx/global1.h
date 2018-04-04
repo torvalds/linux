@@ -29,9 +29,9 @@
 #define MV88E6XXX_G1_STS_IRQ_AVB			8
 #define MV88E6XXX_G1_STS_IRQ_DEVICE			7
 #define MV88E6XXX_G1_STS_IRQ_STATS			6
-#define MV88E6XXX_G1_STS_IRQ_VTU_PROBLEM		5
+#define MV88E6XXX_G1_STS_IRQ_VTU_PROB			5
 #define MV88E6XXX_G1_STS_IRQ_VTU_DONE			4
-#define MV88E6XXX_G1_STS_IRQ_ATU_PROBLEM		3
+#define MV88E6XXX_G1_STS_IRQ_ATU_PROB			3
 #define MV88E6XXX_G1_STS_IRQ_ATU_DONE			2
 #define MV88E6XXX_G1_STS_IRQ_TCAM_DONE			1
 #define MV88E6XXX_G1_STS_IRQ_EEPROM_DONE		0
@@ -82,6 +82,10 @@
 #define MV88E6XXX_G1_VTU_OP_VTU_GET_NEXT	0x4000
 #define MV88E6XXX_G1_VTU_OP_STU_LOAD_PURGE	0x5000
 #define MV88E6XXX_G1_VTU_OP_STU_GET_NEXT	0x6000
+#define MV88E6XXX_G1_VTU_OP_GET_CLR_VIOLATION	0x7000
+#define MV88E6XXX_G1_VTU_OP_MEMBER_VIOLATION	BIT(6)
+#define MV88E6XXX_G1_VTU_OP_MISS_VIOLATION	BIT(5)
+#define MV88E6XXX_G1_VTU_OP_SPID_MASK		0xf
 
 /* Offset 0x06: VTU VID Register */
 #define MV88E6XXX_G1_VTU_VID		0x06
@@ -122,6 +126,10 @@
 #define MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_ALL_DB		0x5000
 #define MV88E6XXX_G1_ATU_OP_FLUSH_MOVE_NON_STATIC_DB	0x6000
 #define MV88E6XXX_G1_ATU_OP_GET_CLR_VIOLATION		0x7000
+#define MV88E6XXX_G1_ATU_OP_AGE_OUT_VIOLATION		BIT(7)
+#define MV88E6XXX_G1_ATU_OP_MEMBER_VIOLATION		BIT(6)
+#define MV88E6XXX_G1_ATU_OP_MISS_VIOLTATION		BIT(5)
+#define MV88E6XXX_G1_ATU_OP_FULL_VIOLATION		BIT(4)
 
 /* Offset 0x0C: ATU Data Register */
 #define MV88E6XXX_G1_ATU_DATA				0x0c
@@ -235,8 +243,10 @@ int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6320_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
+int mv88e6095_g1_stats_set_histogram(struct mv88e6xxx_chip *chip);
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val);
+int mv88e6xxx_g1_stats_clear(struct mv88e6xxx_chip *chip);
 int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
@@ -253,6 +263,8 @@ int mv88e6xxx_g1_atu_loadpurge(struct mv88e6xxx_chip *chip, u16 fid,
 int mv88e6xxx_g1_atu_flush(struct mv88e6xxx_chip *chip, u16 fid, bool all);
 int mv88e6xxx_g1_atu_remove(struct mv88e6xxx_chip *chip, u16 fid, int port,
 			    bool all);
+int mv88e6xxx_g1_atu_prob_irq_setup(struct mv88e6xxx_chip *chip);
+void mv88e6xxx_g1_atu_prob_irq_free(struct mv88e6xxx_chip *chip);
 
 int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
@@ -267,5 +279,7 @@ int mv88e6390_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 int mv88e6390_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 			       struct mv88e6xxx_vtu_entry *entry);
 int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_g1_vtu_prob_irq_setup(struct mv88e6xxx_chip *chip);
+void mv88e6xxx_g1_vtu_prob_irq_free(struct mv88e6xxx_chip *chip);
 
 #endif /* _MV88E6XXX_GLOBAL1_H */

@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics 2016
  *
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com>
  *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/iio/iio.h>
@@ -355,7 +355,6 @@ static const struct attribute_group *stm32_trigger_attr_groups[] = {
 };
 
 static const struct iio_trigger_ops timer_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
@@ -493,7 +492,6 @@ static int stm32_counter_validate_trigger(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info stm32_trigger_info = {
-	.driver_module = THIS_MODULE,
 	.validate_trigger = stm32_counter_validate_trigger,
 	.read_raw = stm32_counter_read_raw,
 	.write_raw = stm32_counter_write_raw

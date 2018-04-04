@@ -1,14 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # DPAA2 fsl-mc bus
 #
 # Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
 #
-# This file is released under the GPLv2
-#
 
 config FSL_MC_BUS
 	bool "QorIQ DPAA2 fsl-mc bus driver"
-	depends on OF && (ARCH_LAYERSCAPE || (COMPILE_TEST && (ARM || ARM64 || X86 || PPC)))
+	depends on OF && (ARCH_LAYERSCAPE || (COMPILE_TEST && (ARM || ARM64 || X86_LOCAL_APIC || PPC)))
 	select GENERIC_MSI_IRQ_DOMAIN
 	help
 	  Driver to enable the bus infrastructure for the QorIQ DPAA2

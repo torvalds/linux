@@ -65,6 +65,14 @@ config OMAP4_DSS_HDMI
 	help
 	  HDMI support for OMAP4 based SoCs.
 
+config OMAP4_DSS_HDMI_CEC
+	bool "Enable HDMI CEC support for OMAP4"
+	depends on OMAP4_DSS_HDMI
+	select CEC_CORE
+	default y
+	---help---
+	  When selected the HDMI transmitter will support the CEC feature.
+
 config OMAP5_DSS_HDMI
 	bool "HDMI support for OMAP5"
 	default n

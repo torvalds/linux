@@ -7,8 +7,11 @@
  * Based on "omap4.dtsi"
  */
 
+#include <dt-bindings/bus/ti-sysc.h>
+#include <dt-bindings/clock/dra7.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/dra.h>
+#include <dt-bindings/clock/dra7.h>
 
 #define MAX_SOURCES 400
 
@@ -92,6 +95,8 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
+
+			vbb-supply = <&abb_mpu>;
 		};
 	};
 
@@ -101,15 +106,25 @@
 
 		opp_nom-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <1060000 850000 1150000>;
+			opp-microvolt = <1060000 850000 1150000>,
+					<1060000 850000 1150000>;
 			opp-supported-hw = <0xFF 0x01>;
 			opp-suspend;
 		};
 
 		opp_od-1176000000 {
 			opp-hz = /bits/ 64 <1176000000>;
-			opp-microvolt = <1160000 885000 1160000>;
+			opp-microvolt = <1160000 885000 1160000>,
+					<1160000 885000 1160000>;
+
 			opp-supported-hw = <0xFF 0x02>;
+		};
+
+		opp_high@1500000000 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <1210000 950000 1250000>,
+					<1210000 950000 1250000>;
+			opp-supported-hw = <0xFF 0x04>;
 		};
 	};
 
@@ -170,7 +185,7 @@
 						pbias_mmc_reg: pbias_mmc_omap5 {
 							regulator-name = "pbias_mmc_omap5";
 							regulator-min-microvolt = <1800000>;
-							regulator-max-microvolt = <3000000>;
+							regulator-max-microvolt = <3300000>;
 						};
 					};
 
@@ -224,8 +239,12 @@
 			};
 
 			cm_core_aon: cm_core_aon@5000 {
-				compatible = "ti,dra7-cm-core-aon";
+				compatible = "ti,dra7-cm-core-aon",
+					      "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
 				reg = <0x5000 0x2000>;
+				ranges = <0 0x5000 0x2000>;
 
 				cm_core_aon_clocks: clocks {
 					#address-cells = <1>;
@@ -237,8 +256,11 @@
 			};
 
 			cm_core: cm_core@8000 {
-				compatible = "ti,dra7-cm-core";
+				compatible = "ti,dra7-cm-core", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
 				reg = <0x8000 0x3000>;
+				ranges = <0 0x8000 0x3000>;
 
 				cm_core_clocks: clocks {
 					#address-cells = <1>;
@@ -263,9 +285,12 @@
 			};
 
 			prm: prm@6000 {
-				compatible = "ti,dra7-prm";
+				compatible = "ti,dra7-prm", "simple-bus";
 				reg = <0x6000 0x3000>;
 				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x6000 0x3000>;
 
 				prm_clocks: clocks {
 					#address-cells = <1>;
@@ -293,7 +318,6 @@
 			 * node and enable pcie1_ep mode.
 			 */
 			pcie1_rc: pcie@51000000 {
-				compatible = "ti,dra7-pcie";
 				reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
 				reg-names = "rc_dbics", "ti_conf", "config";
 				interrupts = <0 232 0x4>, <0 233 0x4>;
@@ -323,7 +347,6 @@
 			};
 
 			pcie1_ep: pcie_ep@51000000 {
-				compatible = "ti,dra7-pcie-ep";
 				reg = <0x51000000 0x28>, <0x51002000 0x14c>, <0x51001000 0x28>, <0x1000 0x10000000>;
 				reg-names = "ep_dbics", "ti_conf", "ep_dbics2", "addr_space";
 				interrupts = <0 232 0x4>;
@@ -345,8 +368,7 @@
 			ranges = <0x51800000 0x51800000 0x3000
 				  0x0	     0x30000000 0x10000000>;
 			status = "disabled";
-			pcie@51800000 {
-				compatible = "ti,dra7-pcie";
+			pcie2_rc: pcie@51800000 {
 				reg = <0x51800000 0x2000>, <0x51802000 0x14c>, <0x1000 0x2000>;
 				reg-names = "rc_dbics", "ti_conf", "config";
 				interrupts = <0 355 0x4>, <0 356 0x4>;
@@ -457,6 +479,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <127>;
+			ti,hwmods = "dma_system";
 		};
 
 		edma: edma@43300000 {
@@ -875,6 +898,8 @@
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
+			clock-names = "fck";
+			clocks = <&wkupaon_clkctrl DRA7_TIMER1_CLKCTRL 24>;
 		};
 
 		timer2: timer@48032000 {
@@ -1067,6 +1092,13 @@
 			status = "disabled";
 			pbias-supply = <&pbias_mmc_reg>;
 			max-frequency = <192000000>;
+		};
+
+		hdqw1w: 1w@480b2000 {
+			compatible = "ti,omap3-1w";
+			reg = <0x480b2000 0x1000>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "hdq1w";
 		};
 
 		mmc2: mmc@480b4000 {
@@ -1350,7 +1382,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "qspi";
-			clocks = <&qspi_gfclk_div>;
+			clocks = <&l4per_clkctrl DRA7_QSPI_CLKCTRL 25>;
 			clock-names = "fck";
 			num-cs = <4>;
 			interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
@@ -1365,14 +1397,15 @@
 			ranges;
 			reg = <0x4a090000 0x20>;
 			ti,hwmods = "ocp2scp3";
-			sata_phy: phy@4A096000 {
+			sata_phy: phy@4a096000 {
 				compatible = "ti,phy-pipe3-sata";
 				reg = <0x4A096000 0x80>, /* phy_rx */
 				      <0x4A096400 0x64>, /* phy_tx */
 				      <0x4A096800 0x40>; /* pll_ctrl */
 				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
 				syscon-phy-power = <&scm_conf 0x374>;
-				clocks = <&sys_clkin1>, <&sata_ref_clk>;
+				clocks = <&sys_clkin1>,
+					 <&l3init_clkctrl DRA7_SATA_CLKCTRL 8>;
 				clock-names = "sysclk", "refclk";
 				syscon-pllreset = <&scm_conf 0x3fc>;
 				#phy-cells = <0>;
@@ -1387,9 +1420,9 @@
 				syscon-pcs = <&scm_conf_pcie 0x10>;
 				clocks = <&dpll_pcie_ref_ck>,
 					 <&dpll_pcie_ref_m2ldo_ck>,
-					 <&optfclk_pciephy1_32khz>,
-					 <&optfclk_pciephy1_clk>,
-					 <&optfclk_pciephy1_div_clk>,
+					 <&l3init_clkctrl DRA7_PCIE1_CLKCTRL 8>,
+					 <&l3init_clkctrl DRA7_PCIE1_CLKCTRL 9>,
+					 <&l3init_clkctrl DRA7_PCIE1_CLKCTRL 10>,
 					 <&optfclk_pciephy_div>,
 					 <&sys_clkin1>;
 				clock-names = "dpll_ref", "dpll_ref_m2",
@@ -1407,9 +1440,9 @@
 				syscon-pcs = <&scm_conf_pcie 0x10>;
 				clocks = <&dpll_pcie_ref_ck>,
 					 <&dpll_pcie_ref_m2ldo_ck>,
-					 <&optfclk_pciephy2_32khz>,
-					 <&optfclk_pciephy2_clk>,
-					 <&optfclk_pciephy2_div_clk>,
+					 <&l3init_clkctrl DRA7_PCIE2_CLKCTRL 8>,
+					 <&l3init_clkctrl DRA7_PCIE2_CLKCTRL 9>,
+					 <&l3init_clkctrl DRA7_PCIE2_CLKCTRL 10>,
 					 <&optfclk_pciephy_div>,
 					 <&sys_clkin1>;
 				clock-names = "dpll_ref", "dpll_ref_m2",
@@ -1426,7 +1459,7 @@
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&sata_phy>;
 			phy-names = "sata-phy";
-			clocks = <&sata_ref_clk>;
+			clocks = <&l3init_clkctrl DRA7_SATA_CLKCTRL 8>;
 			ti,hwmods = "sata";
 			ports-implemented = <0x1>;
 		};
@@ -1454,7 +1487,7 @@
 				reg = <0x4a084000 0x400>;
 				syscon-phy-power = <&scm_conf 0x300>;
 				clocks = <&usb_phy1_always_on_clk32k>,
-					 <&usb_otg_ss1_refclk960m>;
+					 <&l3init_clkctrl DRA7_USB_OTG_SS1_CLKCTRL 8>;
 				clock-names =	"wkupclk",
 						"refclk";
 				#phy-cells = <0>;
@@ -1466,7 +1499,7 @@
 				reg = <0x4a085000 0x400>;
 				syscon-phy-power = <&scm_conf 0xe74>;
 				clocks = <&usb_phy2_always_on_clk32k>,
-					 <&usb_otg_ss2_refclk960m>;
+					 <&l3init_clkctrl DRA7_USB_OTG_SS2_CLKCTRL 8>;
 				clock-names =	"wkupclk",
 						"refclk";
 				#phy-cells = <0>;
@@ -1481,12 +1514,50 @@
 				syscon-phy-power = <&scm_conf 0x370>;
 				clocks = <&usb_phy3_always_on_clk32k>,
 					 <&sys_clkin1>,
-					 <&usb_otg_ss1_refclk960m>;
+					 <&l3init_clkctrl DRA7_USB_OTG_SS1_CLKCTRL 8>;
 				clock-names =	"wkupclk",
 						"sysclk",
 						"refclk";
 				#phy-cells = <0>;
 			};
+		};
+
+		target-module@4a0dd000 {
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x4a0dd038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&coreaon_clkctrl DRA7_SMARTREFLEX_CORE_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0dd000 0x001000>;
+
+			/* SmartReflex child device marked reserved in TRM */
+		};
+
+		target-module@4a0d9000 {
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
+			ti,hwmods = "smartreflex_mpu";
+			reg = <0x4a0d9038 0x4>;
+			reg-names = "sysc";
+			ti,sysc-mask = <SYSC_OMAP3_SR_ENAWAKEUP>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&coreaon_clkctrl DRA7_SMARTREFLEX_MPU_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0d9000 0x001000>;
+
+			/* SmartReflex child device marked reserved in TRM */
 		};
 
 		omap_dwc3_1: omap_dwc3_1@48880000 {
@@ -1513,6 +1584,7 @@
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
 				snps,dis_u2_susphy_quirk;
+				snps,dis_metastability_quirk;
 			};
 		};
 
@@ -1602,7 +1674,7 @@
 			ti,hwmods = "atl";
 			ti,provided-clocks = <&atl_clkin0_ck>, <&atl_clkin1_ck>,
 					     <&atl_clkin2_ck>, <&atl_clkin3_ck>;
-			clocks = <&atl_gfclk_mux>;
+			clocks = <&atl_clkctrl DRA7_ATL_CLKCTRL 26>;
 			clock-names = "fck";
 			status = "disabled";
 		};
@@ -1618,8 +1690,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 129 1>, <&edma_xbar 128 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp1_aux_gfclk_mux>, <&mcasp1_ahclkx_mux>,
-				 <&mcasp1_ahclkr_mux>;
+			clocks = <&ipu_clkctrl DRA7_MCASP1_CLKCTRL 22>, <&ipu_clkctrl DRA7_MCASP1_CLKCTRL 24>,
+				 <&ipu_clkctrl DRA7_MCASP1_CLKCTRL 28>;
 			clock-names = "fck", "ahclkx", "ahclkr";
 			status = "disabled";
 		};
@@ -1635,8 +1707,9 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 131 1>, <&edma_xbar 130 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp2_aux_gfclk_mux>, <&mcasp2_ahclkx_mux>,
-				 <&mcasp2_ahclkr_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP2_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP2_CLKCTRL 24>,
+				 <&l4per_clkctrl DRA7_MCASP2_CLKCTRL 28>;
 			clock-names = "fck", "ahclkx", "ahclkr";
 			status = "disabled";
 		};
@@ -1652,7 +1725,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 133 1>, <&edma_xbar 132 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp3_aux_gfclk_mux>, <&mcasp3_ahclkx_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 24>;
 			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
@@ -1668,7 +1742,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 135 1>, <&edma_xbar 134 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp4_aux_gfclk_mux>, <&mcasp4_ahclkx_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP4_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP4_CLKCTRL 24>;
 			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
@@ -1684,7 +1759,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 137 1>, <&edma_xbar 136 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp5_aux_gfclk_mux>, <&mcasp5_ahclkx_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP5_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP5_CLKCTRL 24>;
 			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
@@ -1700,7 +1776,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 139 1>, <&edma_xbar 138 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp6_aux_gfclk_mux>, <&mcasp6_ahclkx_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP6_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP6_CLKCTRL 24>;
 			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
@@ -1716,7 +1793,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 141 1>, <&edma_xbar 140 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp7_aux_gfclk_mux>, <&mcasp7_ahclkx_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP7_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP7_CLKCTRL 24>;
 			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
@@ -1732,7 +1810,8 @@
 			interrupt-names = "tx", "rx";
 			dmas = <&edma_xbar 143 1>, <&edma_xbar 142 1>;
 			dma-names = "tx", "rx";
-			clocks = <&mcasp8_aux_gfclk_mux>, <&mcasp8_ahclkx_mux>;
+			clocks = <&l4per_clkctrl DRA7_MCASP8_CLKCTRL 22>,
+				 <&l4per_clkctrl DRA7_MCASP8_CLKCTRL 24>;
 			clock-names = "fck", "ahclkx";
 			status = "disabled";
 		};
@@ -1754,7 +1833,7 @@
 		mac: ethernet@48484000 {
 			compatible = "ti,dra7-cpsw","ti,cpsw";
 			ti,hwmods = "gmac";
-			clocks = <&gmac_main_clk>, <&gmac_rft_clk_mux>;
+			clocks = <&gmac_main_clk>, <&l3init_clkctrl DRA7_GMAC_CLKCTRL 25>;
 			clock-names = "fck", "cpts";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
@@ -1824,7 +1903,7 @@
 			reg = <0x4ae3c000 0x2000>;
 			syscon-raminit = <&scm_conf 0x558 0>;
 			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&dcan1_sys_clk_mux>;
+			clocks = <&wkupaon_clkctrl DRA7_DCAN1_CLKCTRL 24>;
 			status = "disabled";
 		};
 
@@ -1855,7 +1934,7 @@
 				reg = <0x58001000 0x1000>;
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				ti,hwmods = "dss_dispc";
-				clocks = <&dss_dss_clk>;
+				clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>;
 				clock-names = "fck";
 				/* CTRL_CORE_SMA_SW_1 */
 				syscon-pol = <&scm_conf 0x534>;
@@ -1871,8 +1950,11 @@
 				interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 				ti,hwmods = "dss_hdmi";
-				clocks = <&dss_48mhz_clk>, <&dss_hdmi_clk>;
+				clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
+					 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 10>;
 				clock-names = "fck", "sys_clk";
+				dmas = <&sdma_xbar 76>;
+				dma-names = "audio_tx";
 			};
 		};
 
@@ -2018,6 +2100,19 @@
 			clocks = <&l3_iclk_div>;
 			clock-names = "fck";
 		};
+
+		opp_supply_mpu: opp-supply@4a003b20 {
+			compatible = "ti,omap5-opp-supply";
+			reg = <0x4a003b20 0xc>;
+			ti,efuse-settings = <
+			/* uV   offset */
+			1060000 0x0
+			1160000 0x4
+			1210000 0x8
+			>;
+			ti,absolute-max-voltage-uv = <1500000>;
+		};
+
 	};
 
 	thermal_zones: thermal-zones {
@@ -2055,4 +2150,20 @@
 	temperature = <120000>; /* milli Celsius */
 };
 
-/include/ "dra7xx-clocks.dtsi"
+#include "dra7xx-clocks.dtsi"
+
+&core_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&gpu_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&dspeve_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&iva_crit {
+	temperature = <120000>; /* milli Celsius */
+};

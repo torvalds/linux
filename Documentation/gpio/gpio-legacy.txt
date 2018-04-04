@@ -273,8 +273,8 @@ easily, gating off unused clocks.
 
 For GPIOs that use pins known to the pinctrl subsystem, that subsystem should
 be informed of their use; a gpiolib driver's .request() operation may call
-pinctrl_request_gpio(), and a gpiolib driver's .free() operation may call
-pinctrl_free_gpio(). The pinctrl subsystem allows a pinctrl_request_gpio()
+pinctrl_gpio_request(), and a gpiolib driver's .free() operation may call
+pinctrl_gpio_free(). The pinctrl subsystem allows a pinctrl_gpio_request()
 to succeed concurrently with a pin or pingroup being "owned" by a device for
 pin multiplexing.
 
@@ -448,8 +448,8 @@ together with an optional gpio feature. We have already covered the
 case where e.g. a GPIO controller need to reserve a pin or set the
 direction of a pin by calling any of:
 
-pinctrl_request_gpio()
-pinctrl_free_gpio()
+pinctrl_gpio_request()
+pinctrl_gpio_free()
 pinctrl_gpio_direction_input()
 pinctrl_gpio_direction_output()
 
@@ -466,7 +466,7 @@ gpio (under gpiolib) is still maintained by gpio drivers. It may happen
 that different pin ranges in a SoC is managed by different gpio drivers.
 
 This makes it logical to let gpio drivers announce their pin ranges to
-the pin ctrl subsystem before it will call 'pinctrl_request_gpio' in order
+the pin ctrl subsystem before it will call 'pinctrl_gpio_request' in order
 to request the corresponding pin to be prepared by the pinctrl subsystem
 before any gpio usage.
 

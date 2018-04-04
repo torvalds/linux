@@ -216,10 +216,9 @@ may need to abort DMA operations and revert to PIO for the transfer, in
 which case a virtual mapping of the page is required. For SCSI it is also
 done in some scenarios where the low level driver cannot be trusted to
 handle a single sg entry correctly. The driver is expected to perform the
-kmaps as needed on such occasions using the __bio_kmap_atomic and bio_kmap_irq
-routines as appropriate. A driver could also use the blk_queue_bounce()
-routine on its own to bounce highmem i/o to low memory for specific requests
-if so desired.
+kmaps as needed on such occasions as appropriate. A driver could also use
+the blk_queue_bounce() routine on its own to bounce highmem i/o to low
+memory for specific requests if so desired.
 
 iii. The i/o scheduler algorithm itself can be replaced/set as appropriate
 
@@ -1137,8 +1136,8 @@ use dma_map_sg for scatter gather) to be able to ship it to the driver. For
 PIO drivers (or drivers that need to revert to PIO transfer once in a
 while (IDE for example)), where the CPU is doing the actual data
 transfer a virtual mapping is needed. If the driver supports highmem I/O,
-(Sec 1.1, (ii) ) it needs to use __bio_kmap_atomic and bio_kmap_irq to
-temporarily map a bio into the virtual address space.
+(Sec 1.1, (ii) ) it needs to use kmap_atomic or similar to temporarily map
+a bio into the virtual address space.
 
 
 8. Prior/Related/Impacted patches

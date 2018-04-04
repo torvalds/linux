@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,8 +78,8 @@ acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
 
 		/* String-to-Integer conversion */
 
-		status = acpi_ut_strtoul64(original_object->string.pointer,
-					   acpi_gbl_integer_byte_width, &value);
+		status =
+		    acpi_ut_strtoul64(original_object->string.pointer, &value);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
@@ -495,7 +495,8 @@ acpi_ns_convert_to_reference(struct acpi_namespace_node *scope,
 
 		/* Check if we are resolving a named reference within a package */
 
-		ACPI_ERROR_NAMESPACE(original_object->string.pointer, status);
+		ACPI_ERROR_NAMESPACE(&scope_info,
+				     original_object->string.pointer, status);
 		goto error_exit;
 	}
 

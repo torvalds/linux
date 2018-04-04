@@ -2958,6 +2958,10 @@ static unsigned long intel_pmu_free_running_flags(struct perf_event *event)
 
 	if (event->attr.use_clockid)
 		flags &= ~PERF_SAMPLE_TIME;
+	if (!event->attr.exclude_kernel)
+		flags &= ~PERF_SAMPLE_REGS_USER;
+	if (event->attr.sample_regs_user & ~PEBS_REGS)
+		flags &= ~(PERF_SAMPLE_REGS_USER | PERF_SAMPLE_REGS_INTR);
 	return flags;
 }
 
@@ -3555,7 +3559,7 @@ static int intel_snb_pebs_broken(int cpu)
 		break;
 
 	case INTEL_FAM6_SANDYBRIDGE_X:
-		switch (cpu_data(cpu).x86_mask) {
+		switch (cpu_data(cpu).x86_stepping) {
 		case 6: rev = 0x618; break;
 		case 7: rev = 0x70c; break;
 		}
@@ -3730,6 +3734,19 @@ EVENT_ATTR_STR(cycles-t,	cycles_t,	"event=0x3c,in_tx=1");
 EVENT_ATTR_STR(cycles-ct,	cycles_ct,	"event=0x3c,in_tx=1,in_tx_cp=1");
 
 static struct attribute *hsw_events_attrs[] = {
+	EVENT_PTR(mem_ld_hsw),
+	EVENT_PTR(mem_st_hsw),
+	EVENT_PTR(td_slots_issued),
+	EVENT_PTR(td_slots_retired),
+	EVENT_PTR(td_fetch_bubbles),
+	EVENT_PTR(td_total_slots),
+	EVENT_PTR(td_total_slots_scale),
+	EVENT_PTR(td_recovery_bubbles),
+	EVENT_PTR(td_recovery_bubbles_scale),
+	NULL
+};
+
+static struct attribute *hsw_tsx_events_attrs[] = {
 	EVENT_PTR(tx_start),
 	EVENT_PTR(tx_commit),
 	EVENT_PTR(tx_abort),
@@ -3742,17 +3759,15 @@ static struct attribute *hsw_events_attrs[] = {
 	EVENT_PTR(el_conflict),
 	EVENT_PTR(cycles_t),
 	EVENT_PTR(cycles_ct),
-	EVENT_PTR(mem_ld_hsw),
-	EVENT_PTR(mem_st_hsw),
-	EVENT_PTR(td_slots_issued),
-	EVENT_PTR(td_slots_retired),
-	EVENT_PTR(td_fetch_bubbles),
-	EVENT_PTR(td_total_slots),
-	EVENT_PTR(td_total_slots_scale),
-	EVENT_PTR(td_recovery_bubbles),
-	EVENT_PTR(td_recovery_bubbles_scale),
 	NULL
 };
+
+static __init struct attribute **get_hsw_events_attrs(void)
+{
+	return boot_cpu_has(X86_FEATURE_RTM) ?
+		merge_attr(hsw_events_attrs, hsw_tsx_events_attrs) :
+		hsw_events_attrs;
+}
 
 static ssize_t freeze_on_smi_show(struct device *cdev,
 				  struct device_attribute *attr,
@@ -3832,6 +3847,8 @@ static struct attribute *intel_pmu_attrs[] = {
 
 __init int intel_pmu_init(void)
 {
+	struct attribute **extra_attr = NULL;
+	struct attribute **to_free = NULL;
 	union cpuid10_edx edx;
 	union cpuid10_eax eax;
 	union cpuid10_ebx ebx;
@@ -3839,7 +3856,6 @@ __init int intel_pmu_init(void)
 	unsigned int unused;
 	struct extra_reg *er;
 	int version, i;
-	struct attribute **extra_attr = NULL;
 	char *name;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
@@ -4182,7 +4198,7 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = hsw_get_event_constraints;
-		x86_pmu.cpu_events = hsw_events_attrs;
+		x86_pmu.cpu_events = get_hsw_events_attrs();
 		x86_pmu.lbr_double_abort = true;
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
@@ -4221,7 +4237,7 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = hsw_get_event_constraints;
-		x86_pmu.cpu_events = hsw_events_attrs;
+		x86_pmu.cpu_events = get_hsw_events_attrs();
 		x86_pmu.limit_period = bdw_limit_period;
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
@@ -4279,7 +4295,8 @@ __init int intel_pmu_init(void)
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
 		extra_attr = merge_attr(extra_attr, skl_format_attr);
-		x86_pmu.cpu_events = hsw_events_attrs;
+		to_free = extra_attr;
+		x86_pmu.cpu_events = get_hsw_events_attrs();
 		intel_pmu_pebs_data_source_skl(
 			boot_cpu_data.x86_model == INTEL_FAM6_SKYLAKE_X);
 		pr_cont("Skylake events, ");
@@ -4386,6 +4403,7 @@ __init int intel_pmu_init(void)
 		pr_cont("full-width counters, ");
 	}
 
+	kfree(to_free);
 	return 0;
 }
 

@@ -1050,10 +1050,8 @@ static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
 	info->nmux = size / gpio_banks;
 
 	info->mux_mask = devm_kzalloc(info->dev, sizeof(u32) * size, GFP_KERNEL);
-	if (!info->mux_mask) {
-		dev_err(info->dev, "could not alloc mux_mask\n");
+	if (!info->mux_mask)
 		return -ENOMEM;
-	}
 
 	ret = of_property_read_u32_array(np, "atmel,mux-mask",
 					  info->mux_mask, size);
@@ -1603,7 +1601,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(n, &isr, BITS_PER_LONG) {
 			generic_handle_irq(irq_find_mapping(
-					   gpio_chip->irqdomain, n));
+					   gpio_chip->irq.domain, n));
 		}
 	}
 	chained_irq_exit(chip, desc);

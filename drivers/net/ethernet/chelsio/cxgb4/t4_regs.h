@@ -45,6 +45,9 @@
 #define PF_BASE(idx) (PF0_BASE + (idx) * PF_STRIDE)
 #define PF_REG(idx, reg) (PF_BASE(idx) + (reg))
 
+#define NUM_CIM_CTL_TSCH_CHANNEL_INSTANCES 4
+#define NUM_CIM_CTL_TSCH_CHANNEL_TSCH_CLASS_INSTANCES 16
+
 #define MYPORT_BASE 0x1c000
 #define MYPORT_REG(reg_addr) (MYPORT_BASE + (reg_addr))
 
@@ -64,6 +67,9 @@
 #define EDC_BIST_STATUS_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
 
 #define PCIE_FW_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
+
+#define NUM_LE_DB_DBGI_REQ_DATA_INSTANCES 17
+#define NUM_LE_DB_DBGI_RSP_DATA_INSTANCES 17
 
 #define SGE_PF_KDOORBELL_A 0x0
 
@@ -149,6 +155,23 @@
 #define T6_DBVFIFO_SIZE_S    0
 #define T6_DBVFIFO_SIZE_M    0x1fffU
 #define T6_DBVFIFO_SIZE_G(x) (((x) >> T6_DBVFIFO_SIZE_S) & T6_DBVFIFO_SIZE_M)
+
+#define SGE_CTXT_CMD_A 0x11fc
+
+#define BUSY_S    31
+#define BUSY_V(x) ((x) << BUSY_S)
+#define BUSY_F    BUSY_V(1U)
+
+#define CTXTTYPE_S    24
+#define CTXTTYPE_M    0x3U
+#define CTXTTYPE_V(x) ((x) << CTXTTYPE_S)
+
+#define CTXTQID_S    0
+#define CTXTQID_M    0x1ffffU
+#define CTXTQID_V(x) ((x) << CTXTQID_S)
+
+#define SGE_CTXT_DATA0_A 0x1200
+#define SGE_CTXT_DATA5_A 0x1214
 
 #define GLOBALENABLE_S    0
 #define GLOBALENABLE_V(x) ((x) << GLOBALENABLE_S)
@@ -319,6 +342,16 @@
 
 #define SGE_IMSG_CTXT_BADDR_A 0x1088
 #define SGE_FLM_CACHE_BADDR_A 0x108c
+#define SGE_FLM_CFG_A 0x1090
+
+#define NOHDR_S    18
+#define NOHDR_V(x) ((x) << NOHDR_S)
+#define NOHDR_F    NOHDR_V(1U)
+
+#define HDRSTARTFLQ_S    11
+#define HDRSTARTFLQ_M    0x7U
+#define HDRSTARTFLQ_G(x) (((x) >> HDRSTARTFLQ_S) & HDRSTARTFLQ_M)
+
 #define SGE_INGRESS_RX_THRESHOLD_A 0x10a0
 
 #define THRESHOLD_0_S    24
@@ -931,6 +964,10 @@
 
 #define MA_EXT_MEMORY1_BAR_A 0x7808
 
+#define HMA_MUX_S    5
+#define HMA_MUX_V(x) ((x) << HMA_MUX_S)
+#define HMA_MUX_F    HMA_MUX_V(1U)
+
 #define EXT_MEM1_BASE_S    16
 #define EXT_MEM1_BASE_M    0xfffU
 #define EXT_MEM1_BASE_G(x) (((x) >> EXT_MEM1_BASE_S) & EXT_MEM1_BASE_M)
@@ -1415,6 +1452,7 @@
 #define ROWINDEX_V(x) ((x) << ROWINDEX_S)
 
 #define TP_CCTRL_TABLE_A	0x7ddc
+#define TP_PACE_TABLE_A 0x7dd8
 #define TP_MTU_TABLE_A		0x7de4
 
 #define MTUINDEX_S    24
@@ -1446,6 +1484,17 @@
 #define LKPTBLQUEUE0_S    0
 #define LKPTBLQUEUE0_M    0x3ffU
 #define LKPTBLQUEUE0_G(x) (((x) >> LKPTBLQUEUE0_S) & LKPTBLQUEUE0_M)
+
+#define TP_TM_PIO_ADDR_A 0x7e18
+#define TP_TM_PIO_DATA_A 0x7e1c
+#define TP_MOD_CONFIG_A 0x7e24
+
+#define TIMERMODE_S    8
+#define TIMERMODE_M    0xffU
+#define TIMERMODE_G(x) (((x) >> TIMERMODE_S) & TIMERMODE_M)
+
+#define TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR_A 0x3
+#define TP_TX_MOD_Q1_Q0_RATE_LIMIT_A 0x8
 
 #define TP_PIO_ADDR_A	0x7e40
 #define TP_PIO_DATA_A	0x7e44
@@ -1626,6 +1675,10 @@
 #define IESPI_PAR_ERROR_S    1
 #define IESPI_PAR_ERROR_V(x) ((x) << IESPI_PAR_ERROR_S)
 #define IESPI_PAR_ERROR_F    IESPI_PAR_ERROR_V(1U)
+
+#define ULP_TX_LA_RDPTR_0_A 0x8ec0
+#define ULP_TX_LA_RDDATA_0_A 0x8ec4
+#define ULP_TX_LA_WRPTR_0_A 0x8ec8
 
 #define PMRX_E_PCMD_PAR_ERROR_S    0
 #define PMRX_E_PCMD_PAR_ERROR_V(x) ((x) << PMRX_E_PCMD_PAR_ERROR_S)
@@ -2257,6 +2310,35 @@
 #define CHNENABLE_V(x) ((x) << CHNENABLE_S)
 #define CHNENABLE_F    CHNENABLE_V(1U)
 
+#define LE_DB_DBGI_CONFIG_A 0x19cf0
+
+#define DBGICMDBUSY_S    3
+#define DBGICMDBUSY_V(x) ((x) << DBGICMDBUSY_S)
+#define DBGICMDBUSY_F    DBGICMDBUSY_V(1U)
+
+#define DBGICMDSTRT_S    2
+#define DBGICMDSTRT_V(x) ((x) << DBGICMDSTRT_S)
+#define DBGICMDSTRT_F    DBGICMDSTRT_V(1U)
+
+#define DBGICMDMODE_S    0
+#define DBGICMDMODE_M    0x3U
+#define DBGICMDMODE_V(x) ((x) << DBGICMDMODE_S)
+
+#define LE_DB_DBGI_REQ_TCAM_CMD_A 0x19cf4
+
+#define DBGICMD_S    20
+#define DBGICMD_M    0xfU
+#define DBGICMD_V(x) ((x) << DBGICMD_S)
+
+#define DBGITID_S    0
+#define DBGITID_M    0xfffffU
+#define DBGITID_V(x) ((x) << DBGITID_S)
+
+#define LE_DB_DBGI_REQ_DATA_A 0x19d00
+#define LE_DB_DBGI_RSP_STATUS_A 0x19d94
+
+#define LE_DB_DBGI_RSP_DATA_A 0x19da0
+
 #define PRTENABLE_S    29
 #define PRTENABLE_V(x) ((x) << PRTENABLE_S)
 #define PRTENABLE_F    PRTENABLE_V(1U)
@@ -2429,9 +2511,43 @@
 #define MPS_RX_MAC_BG_PG_CNT0_A 0x11208
 #define MPS_RX_LPBK_BG_PG_CNT0_A 0x11218
 
+#define MPS_RX_VXLAN_TYPE_A 0x11234
+
+#define VXLAN_EN_S    16
+#define VXLAN_EN_V(x) ((x) << VXLAN_EN_S)
+#define VXLAN_EN_F    VXLAN_EN_V(1U)
+
+#define VXLAN_S    0
+#define VXLAN_M    0xffffU
+#define VXLAN_V(x) ((x) << VXLAN_S)
+#define VXLAN_G(x) (((x) >> VXLAN_S) & VXLAN_M)
+
+#define MPS_RX_GENEVE_TYPE_A 0x11238
+
+#define GENEVE_EN_S    16
+#define GENEVE_EN_V(x) ((x) << GENEVE_EN_S)
+#define GENEVE_EN_F    GENEVE_EN_V(1U)
+
+#define GENEVE_S    0
+#define GENEVE_M    0xffffU
+#define GENEVE_V(x) ((x) << GENEVE_S)
+#define GENEVE_G(x) (((x) >> GENEVE_S) & GENEVE_M)
+
 #define MPS_CLS_TCAM_Y_L_A 0xf000
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
+
+#define CTLREQID_S    30
+#define CTLREQID_V(x) ((x) << CTLREQID_S)
+
+#define MPS_VF_RPLCT_MAP0_A 0x1111c
+#define MPS_VF_RPLCT_MAP1_A 0x11120
+#define MPS_VF_RPLCT_MAP2_A 0x11124
+#define MPS_VF_RPLCT_MAP3_A 0x11128
+#define MPS_VF_RPLCT_MAP4_A 0x11300
+#define MPS_VF_RPLCT_MAP5_A 0x11304
+#define MPS_VF_RPLCT_MAP6_A 0x11308
+#define MPS_VF_RPLCT_MAP7_A 0x1130c
 
 #define VIDL_S    16
 #define VIDL_M    0xffffU
@@ -2443,7 +2559,13 @@
 
 #define DATAPORTNUM_S    12
 #define DATAPORTNUM_M    0xfU
+#define DATAPORTNUM_V(x) ((x) << DATAPORTNUM_S)
 #define DATAPORTNUM_G(x) (((x) >> DATAPORTNUM_S) & DATAPORTNUM_M)
+
+#define DATALKPTYPE_S    10
+#define DATALKPTYPE_M    0x3U
+#define DATALKPTYPE_V(x) ((x) << DATALKPTYPE_S)
+#define DATALKPTYPE_G(x) (((x) >> DATALKPTYPE_S) & DATALKPTYPE_M)
 
 #define DATADIPHIT_S    8
 #define DATADIPHIT_V(x) ((x) << DATADIPHIT_S)
@@ -2456,6 +2578,10 @@
 #define DATAVIDH1_S    0
 #define DATAVIDH1_M    0x7fU
 #define DATAVIDH1_G(x) (((x) >> DATAVIDH1_S) & DATAVIDH1_M)
+
+#define MPS_CLS_TCAM_RDATA0_REQ_ID1_A 0xf020
+#define MPS_CLS_TCAM_RDATA1_REQ_ID1_A 0xf024
+#define MPS_CLS_TCAM_RDATA2_REQ_ID1_A 0xf028
 
 #define USED_S    16
 #define USED_M    0x7ffU
@@ -2850,10 +2976,20 @@
 #define T6_LIPMISS_F    T6_LIPMISS_V(1U)
 
 #define LE_DB_CONFIG_A 0x19c04
+#define LE_DB_ROUTING_TABLE_INDEX_A 0x19c10
+#define LE_DB_ACTIVE_TABLE_START_INDEX_A 0x19c10
+#define LE_DB_FILTER_TABLE_INDEX_A 0x19c14
 #define LE_DB_SERVER_INDEX_A 0x19c18
 #define LE_DB_SRVR_START_INDEX_A 0x19c18
+#define LE_DB_CLIP_TABLE_INDEX_A 0x19c1c
 #define LE_DB_ACT_CNT_IPV4_A 0x19c20
 #define LE_DB_ACT_CNT_IPV6_A 0x19c24
+#define LE_DB_HASH_CONFIG_A 0x19c28
+
+#define HASHTIDSIZE_S    16
+#define HASHTIDSIZE_M    0x3fU
+#define HASHTIDSIZE_G(x) (((x) >> HASHTIDSIZE_S) & HASHTIDSIZE_M)
+
 #define LE_DB_HASH_TID_BASE_A 0x19c30
 #define LE_DB_HASH_TBL_BASE_ADDR_A 0x19c30
 #define LE_DB_INT_CAUSE_A 0x19c3c
@@ -2899,6 +3035,23 @@
 #define SSRAMINTPERR_S    10
 #define SSRAMINTPERR_V(x) ((x) << SSRAMINTPERR_S)
 #define SSRAMINTPERR_F    SSRAMINTPERR_V(1U)
+
+#define LE_DB_RSP_CODE_0_A	0x19c74
+
+#define TCAM_ACTV_HIT_S		0
+#define TCAM_ACTV_HIT_M		0x1fU
+#define TCAM_ACTV_HIT_V(x)	((x) << TCAM_ACTV_HIT_S)
+#define TCAM_ACTV_HIT_G(x)	(((x) >> TCAM_ACTV_HIT_S) & TCAM_ACTV_HIT_M)
+
+#define LE_DB_RSP_CODE_1_A     0x19c78
+
+#define HASH_ACTV_HIT_S		25
+#define HASH_ACTV_HIT_M		0x1fU
+#define HASH_ACTV_HIT_V(x)	((x) << HASH_ACTV_HIT_S)
+#define HASH_ACTV_HIT_G(x)	(((x) >> HASH_ACTV_HIT_S) & HASH_ACTV_HIT_M)
+
+#define LE_3_DB_HASH_MASK_GEN_IPV4_T6_A	0x19eac
+#define LE_4_DB_HASH_MASK_GEN_IPV4_T6_A	0x19eb0
 
 #define NCSI_INT_CAUSE_A 0x1a0d8
 

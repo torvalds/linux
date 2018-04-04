@@ -197,10 +197,10 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
 
 	/*
-	 * Restore per-cpu operation.  smp_store_release() is paired with
-	 * smp_read_barrier_depends() in __ref_is_percpu() and guarantees
-	 * that the zeroing is visible to all percpu accesses which can see
-	 * the following __PERCPU_REF_ATOMIC clearing.
+	 * Restore per-cpu operation.  smp_store_release() is paired
+	 * with READ_ONCE() in __ref_is_percpu() and guarantees that the
+	 * zeroing is visible to all percpu accesses which can see the
+	 * following __PERCPU_REF_ATOMIC clearing.
 	 */
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(percpu_count, cpu) = 0;

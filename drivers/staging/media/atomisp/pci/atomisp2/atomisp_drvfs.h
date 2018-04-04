@@ -12,18 +12,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
 #ifndef	__ATOMISP_DRVFS_H__
 #define	__ATOMISP_DRVFS_H__
 
-extern int atomisp_drvfs_init(struct pci_driver *drv, struct atomisp_device
-				*isp);
-extern void atomisp_drvfs_exit(void);
+int atomisp_drvfs_init(struct device_driver *drv, struct atomisp_device *isp);
+void atomisp_drvfs_exit(void);
 
 #endif /* __ATOMISP_DRVFS_H__ */

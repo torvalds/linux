@@ -16,7 +16,8 @@
 #include <linux/log2.h>
 #include <linux/rcupdate.h>
 #include <linux/cred.h>
-
+#include <asm/switch_to.h>
+#include <asm/ppc-opcode.h>
 #include "vas.h"
 #include "copy-paste.h"
 
@@ -39,6 +40,16 @@ static void compute_paste_address(struct vas_window *window, u64 *addr, int *len
 
 	pr_debug("Txwin #%d: Paste addr 0x%llx\n", winid, *addr);
 }
+
+u64 vas_win_paste_addr(struct vas_window *win)
+{
+	u64 addr;
+
+	compute_paste_address(win, &addr, NULL);
+
+	return addr;
+}
+EXPORT_SYMBOL(vas_win_paste_addr);
 
 static inline void get_hvwc_mmio_bar(struct vas_window *window,
 			u64 *start, int *len)
@@ -145,23 +156,37 @@ static void unmap_paste_region(struct vas_window *window)
 }
 
 /*
- * Unmap the MMIO regions for a window.
+ * Unmap the MMIO regions for a window. Hold the vas_mutex so we don't
+ * unmap when the window's debugfs dir is in use. This serializes close
+ * of a window even on another VAS instance but since its not a critical
+ * path, just minimize the time we hold the mutex for now. We can add
+ * a per-instance mutex later if necessary.
  */
 static void unmap_winctx_mmio_bars(struct vas_window *window)
 {
 	int len;
+	void *uwc_map;
+	void *hvwc_map;
 	u64 busaddr_start;
 
-	if (window->hvwc_map) {
+	mutex_lock(&vas_mutex);
+
+	hvwc_map = window->hvwc_map;
+	window->hvwc_map = NULL;
+
+	uwc_map = window->uwc_map;
+	window->uwc_map = NULL;
+
+	mutex_unlock(&vas_mutex);
+
+	if (hvwc_map) {
 		get_hvwc_mmio_bar(window, &busaddr_start, &len);
-		unmap_region(window->hvwc_map, busaddr_start, len);
-		window->hvwc_map = NULL;
+		unmap_region(hvwc_map, busaddr_start, len);
 	}
 
-	if (window->uwc_map) {
+	if (uwc_map) {
 		get_uwc_mmio_bar(window, &busaddr_start, &len);
-		unmap_region(window->uwc_map, busaddr_start, len);
-		window->uwc_map = NULL;
+		unmap_region(uwc_map, busaddr_start, len);
 	}
 }
 
@@ -528,6 +553,9 @@ static void vas_window_free(struct vas_window *window)
 	struct vas_instance *vinst = window->vinst;
 
 	unmap_winctx_mmio_bars(window);
+
+	vas_window_free_dbgdir(window);
+
 	kfree(window);
 
 	vas_release_window_id(&vinst->ida, winid);
@@ -552,6 +580,8 @@ static struct vas_window *vas_window_alloc(struct vas_instance *vinst)
 	if (map_winctx_mmio_bars(window))
 		goto out_free;
 
+	vas_window_init_dbgdir(window);
+
 	return window;
 
 out_free:
@@ -569,6 +599,32 @@ static void put_rx_win(struct vas_window *rxwin)
 }
 
 /*
+ * Find the user space receive window given the @pswid.
+ *      - We must have a valid vasid and it must belong to this instance.
+ *        (so both send and receive windows are on the same VAS instance)
+ *      - The window must refer to an OPEN, FTW, RECEIVE window.
+ *
+ * NOTE: We access ->windows[] table and assume that vinst->mutex is held.
+ */
+static struct vas_window *get_user_rxwin(struct vas_instance *vinst, u32 pswid)
+{
+	int vasid, winid;
+	struct vas_window *rxwin;
+
+	decode_pswid(pswid, &vasid, &winid);
+
+	if (vinst->vas_id != vasid)
+		return ERR_PTR(-EINVAL);
+
+	rxwin = vinst->windows[winid];
+
+	if (!rxwin || rxwin->tx_win || rxwin->cop != VAS_COP_TYPE_FTW)
+		return ERR_PTR(-EINVAL);
+
+	return rxwin;
+}
+
+/*
  * Get the VAS receive window associated with NX engine identified
  * by @cop and if applicable, @pswid.
  *
@@ -581,10 +637,10 @@ static struct vas_window *get_vinst_rxwin(struct vas_instance *vinst,
 
 	mutex_lock(&vinst->mutex);
 
-	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI)
-		rxwin = vinst->rxwin[cop] ?: ERR_PTR(-EINVAL);
+	if (cop == VAS_COP_TYPE_FTW)
+		rxwin = get_user_rxwin(vinst, pswid);
 	else
-		rxwin = ERR_PTR(-EINVAL);
+		rxwin = vinst->rxwin[cop] ?: ERR_PTR(-EINVAL);
 
 	if (!IS_ERR(rxwin))
 		atomic_inc(&rxwin->num_txwins);
@@ -674,15 +730,18 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 
 	winctx->rx_fifo = rxattr->rx_fifo;
 	winctx->rx_fifo_size = rxattr->rx_fifo_size;
-	winctx->wcreds_max = rxattr->wcreds_max ?: VAS_WCREDS_DEFAULT;
+	winctx->wcreds_max = rxwin->wcreds_max;
 	winctx->pin_win = rxattr->pin_win;
 
 	winctx->nx_win = rxattr->nx_win;
 	winctx->fault_win = rxattr->fault_win;
+	winctx->user_win = rxattr->user_win;
+	winctx->rej_no_credit = rxattr->rej_no_credit;
 	winctx->rx_word_mode = rxattr->rx_win_ord_mode;
 	winctx->tx_word_mode = rxattr->tx_win_ord_mode;
 	winctx->rx_wcred_mode = rxattr->rx_wcred_mode;
 	winctx->tx_wcred_mode = rxattr->tx_wcred_mode;
+	winctx->notify_early = rxattr->notify_early;
 
 	if (winctx->nx_win) {
 		winctx->data_stamp = true;
@@ -723,7 +782,10 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 static bool rx_win_args_valid(enum vas_cop_type cop,
 			struct vas_rx_win_attr *attr)
 {
-	dump_rx_win_attr(attr);
+	pr_debug("Rxattr: fault %d, notify %d, intr %d, early %d, fifo %d\n",
+			attr->fault_win, attr->notify_disable,
+			attr->intr_disable, attr->notify_early,
+			attr->rx_fifo_size);
 
 	if (cop >= VAS_COP_TYPE_MAX)
 		return false;
@@ -733,6 +795,9 @@ static bool rx_win_args_valid(enum vas_cop_type cop,
 		return false;
 
 	if (attr->rx_fifo_size > VAS_RX_FIFO_SIZE_MAX)
+		return false;
+
+	if (attr->wcreds_max > VAS_RX_WCREDS_MAX)
 		return false;
 
 	if (attr->nx_win) {
@@ -835,6 +900,7 @@ struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 	rxwin->nx_win = rxattr->nx_win;
 	rxwin->user_win = rxattr->user_win;
 	rxwin->cop = cop;
+	rxwin->wcreds_max = rxattr->wcreds_max ?: VAS_WCREDS_DEFAULT;
 	if (rxattr->user_win)
 		rxwin->pid = task_pid_vnr(current);
 
@@ -884,21 +950,23 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 	 */
 	memset(winctx, 0, sizeof(struct vas_winctx));
 
-	winctx->wcreds_max = txattr->wcreds_max ?: VAS_WCREDS_DEFAULT;
+	winctx->wcreds_max = txwin->wcreds_max;
 
 	winctx->user_win = txattr->user_win;
 	winctx->nx_win = txwin->rxwin->nx_win;
 	winctx->pin_win = txattr->pin_win;
+	winctx->rej_no_credit = txattr->rej_no_credit;
+	winctx->rsvd_txbuf_enable = txattr->rsvd_txbuf_enable;
 
 	winctx->rx_wcred_mode = txattr->rx_wcred_mode;
 	winctx->tx_wcred_mode = txattr->tx_wcred_mode;
 	winctx->rx_word_mode = txattr->rx_win_ord_mode;
 	winctx->tx_word_mode = txattr->tx_win_ord_mode;
+	winctx->rsvd_txbuf_count = txattr->rsvd_txbuf_count;
 
-	if (winctx->nx_win) {
+	winctx->intr_disable = true;
+	if (winctx->nx_win)
 		winctx->data_stamp = true;
-		winctx->intr_disable = true;
-	}
 
 	winctx->lpid = txattr->lpid;
 	winctx->pidr = txattr->pidr;
@@ -921,6 +989,9 @@ static bool tx_win_args_valid(enum vas_cop_type cop,
 	if (cop > VAS_COP_TYPE_MAX)
 		return false;
 
+	if (attr->wcreds_max > VAS_TX_WCREDS_MAX)
+		return false;
+
 	if (attr->user_win &&
 			(cop != VAS_COP_TYPE_FTW || attr->rsvd_txbuf_count))
 		return false;
@@ -940,6 +1011,14 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 	if (!tx_win_args_valid(cop, attr))
 		return ERR_PTR(-EINVAL);
 
+	/*
+	 * If caller did not specify a vasid but specified the PSWID of a
+	 * receive window (applicable only to FTW windows), use the vasid
+	 * from that receive window.
+	 */
+	if (vasid == -1 && attr->pswid)
+		decode_pswid(attr->pswid, &vasid, NULL);
+
 	vinst = find_vas_instance(vasid);
 	if (!vinst) {
 		pr_devel("vasid %d not found!\n", vasid);
@@ -958,11 +1037,13 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		goto put_rxwin;
 	}
 
+	txwin->cop = cop;
 	txwin->tx_win = 1;
 	txwin->rxwin = rxwin;
 	txwin->nx_win = txwin->rxwin->nx_win;
 	txwin->pid = attr->pid;
 	txwin->user_win = attr->user_win;
+	txwin->wcreds_max = attr->wcreds_max ?: VAS_WCREDS_DEFAULT;
 
 	init_winctx_for_txwin(txwin, attr, &winctx);
 
@@ -982,6 +1063,14 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 			rc = PTR_ERR(txwin->paste_kaddr);
 			goto free_window;
 		}
+	} else {
+		/*
+		 * A user mapping must ensure that context switch issues
+		 * CP_ABORT for this thread.
+		 */
+		rc = set_thread_uses_vas();
+		if (rc)
+			goto free_window;
 	}
 
 	set_vinst_win(vinst, txwin);
@@ -1038,50 +1127,110 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 	else
 		rc = -EINVAL;
 
-	print_fifo_msg_count(txwin);
+	pr_debug("Txwin #%d: Msg count %llu\n", txwin->winid,
+			read_hvwc_reg(txwin, VREG(LRFIFO_PUSH)));
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(vas_paste_crb);
 
+/*
+ * If credit checking is enabled for this window, poll for the return
+ * of window credits (i.e for NX engines to process any outstanding CRBs).
+ * Since NX-842 waits for the CRBs to be processed before closing the
+ * window, we should not have to wait for too long.
+ *
+ * TODO: We retry in 10ms intervals now. We could/should probably peek at
+ *	the VAS_LRFIFO_PUSH_OFFSET register to get an estimate of pending
+ *	CRBs on the FIFO and compute the delay dynamically on each retry.
+ *	But that is not really needed until we support NX-GZIP access from
+ *	user space. (NX-842 driver waits for CSB and Fast thread-wakeup
+ *	doesn't use credit checking).
+ */
+static void poll_window_credits(struct vas_window *window)
+{
+	u64 val;
+	int creds, mode;
+
+	val = read_hvwc_reg(window, VREG(WINCTL));
+	if (window->tx_win)
+		mode = GET_FIELD(VAS_WINCTL_TX_WCRED_MODE, val);
+	else
+		mode = GET_FIELD(VAS_WINCTL_RX_WCRED_MODE, val);
+
+	if (!mode)
+		return;
+retry:
+	if (window->tx_win) {
+		val = read_hvwc_reg(window, VREG(TX_WCRED));
+		creds = GET_FIELD(VAS_TX_WCRED, val);
+	} else {
+		val = read_hvwc_reg(window, VREG(LRX_WCRED));
+		creds = GET_FIELD(VAS_LRX_WCRED, val);
+	}
+
+	if (creds < window->wcreds_max) {
+		val = 0;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(10));
+		goto retry;
+	}
+}
+
+/*
+ * Wait for the window to go to "not-busy" state. It should only take a
+ * short time to queue a CRB, so window should not be busy for too long.
+ * Trying 5ms intervals.
+ */
 static void poll_window_busy_state(struct vas_window *window)
 {
 	int busy;
 	u64 val;
 
 retry:
-	/*
-	 * Poll Window Busy flag
-	 */
 	val = read_hvwc_reg(window, VREG(WIN_STATUS));
 	busy = GET_FIELD(VAS_WIN_BUSY, val);
 	if (busy) {
 		val = 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ);
+		schedule_timeout(msecs_to_jiffies(5));
 		goto retry;
 	}
 }
 
+/*
+ * Have the hardware cast a window out of cache and wait for it to
+ * be completed.
+ *
+ * NOTE: It can take a relatively long time to cast the window context
+ *	out of the cache. It is not strictly necessary to cast out if:
+ *
+ *	- we clear the "Pin Window" bit (so hardware is free to evict)
+ *
+ *	- we re-initialize the window context when it is reassigned.
+ *
+ *	We do the former in vas_win_close() and latter in vas_win_open().
+ *	So, ignoring the cast-out for now. We can add it as needed. If
+ *	casting out becomes necessary we should consider offloading the
+ *	job to a worker thread, so the window close can proceed quickly.
+ */
 static void poll_window_castout(struct vas_window *window)
 {
-	int cached;
+	/* stub for now */
+}
+
+/*
+ * Unpin and close a window so no new requests are accepted and the
+ * hardware can evict this window from cache if necessary.
+ */
+static void unpin_close_window(struct vas_window *window)
+{
 	u64 val;
 
-	/* Cast window context out of the cache */
-retry:
-	val = read_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL));
-	cached = GET_FIELD(VAS_WIN_CACHE_STATUS, val);
-	if (cached) {
-		val = 0ULL;
-		val = SET_FIELD(VAS_CASTOUT_REQ, val, 1);
-		val = SET_FIELD(VAS_PUSH_TO_MEM, val, 0);
-		write_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL), val);
-
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ);
-		goto retry;
-	}
+	val = read_hvwc_reg(window, VREG(WINCTL));
+	val = SET_FIELD(VAS_WINCTL_PIN, val, 0);
+	val = SET_FIELD(VAS_WINCTL_OPEN, val, 0);
+	write_hvwc_reg(window, VREG(WINCTL), val);
 }
 
 /*
@@ -1098,8 +1247,6 @@ retry:
  */
 int vas_win_close(struct vas_window *window)
 {
-	u64 val;
-
 	if (!window)
 		return 0;
 
@@ -1115,11 +1262,9 @@ int vas_win_close(struct vas_window *window)
 
 	poll_window_busy_state(window);
 
-	/* Unpin window from cache and close it */
-	val = read_hvwc_reg(window, VREG(WINCTL));
-	val = SET_FIELD(VAS_WINCTL_PIN, val, 0);
-	val = SET_FIELD(VAS_WINCTL_OPEN, val, 0);
-	write_hvwc_reg(window, VREG(WINCTL), val);
+	unpin_close_window(window);
+
+	poll_window_credits(window);
 
 	poll_window_castout(window);
 
@@ -1132,3 +1277,12 @@ int vas_win_close(struct vas_window *window)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vas_win_close);
+
+/*
+ * Return a system-wide unique window id for the window @win.
+ */
+u32 vas_win_id(struct vas_window *win)
+{
+	return encode_pswid(win->vinst->vas_id, win->winid);
+}
+EXPORT_SYMBOL_GPL(vas_win_id);

@@ -20,6 +20,7 @@
 #include <linux/radix-tree.h>
 #include <linux/blkdev.h>
 #include <linux/atomic.h>
+#include <linux/kthread.h>
 
 /* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
@@ -224,22 +225,16 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct blkcg, css) : NULL;
 }
 
-static inline struct blkcg *task_blkcg(struct task_struct *tsk)
-{
-	return css_to_blkcg(task_css(tsk, io_cgrp_id));
-}
-
 static inline struct blkcg *bio_blkcg(struct bio *bio)
 {
+	struct cgroup_subsys_state *css;
+
 	if (bio && bio->bi_css)
 		return css_to_blkcg(bio->bi_css);
-	return task_blkcg(current);
-}
-
-static inline struct cgroup_subsys_state *
-task_get_blkcg_css(struct task_struct *task)
-{
-	return task_get_css(task, io_cgrp_id);
+	css = kthread_blkcg();
+	if (css)
+		return css_to_blkcg(css);
+	return css_to_blkcg(task_css(current, io_cgrp_id));
 }
 
 /**
@@ -665,12 +660,14 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 static inline void blkg_rwstat_add_aux(struct blkg_rwstat *to,
 				       struct blkg_rwstat *from)
 {
-	struct blkg_rwstat v = blkg_rwstat_read(from);
+	u64 sum[BLKG_RWSTAT_NR];
 	int i;
 
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_add(atomic64_read(&v.aux_cnt[i]) +
-			     atomic64_read(&from->aux_cnt[i]),
+		sum[i] = percpu_counter_sum_positive(&from->cpu_cnt[i]);
+
+	for (i = 0; i < BLKG_RWSTAT_NR; i++)
+		atomic64_add(sum[i] + atomic64_read(&from->aux_cnt[i]),
 			     &to->aux_cnt[i]);
 }
 
@@ -735,12 +732,6 @@ struct blkcg_policy {
 };
 
 #define blkcg_root_css	((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
-
-static inline struct cgroup_subsys_state *
-task_get_blkcg_css(struct task_struct *task)
-{
-	return NULL;
-}
 
 #ifdef CONFIG_BLOCK
 

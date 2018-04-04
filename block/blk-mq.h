@@ -3,6 +3,7 @@
 #define INT_BLK_MQ_H
 
 #include "blk-stat.h"
+#include "blk-mq-tag.h"
 
 struct blk_mq_tag_set;
 
@@ -26,16 +27,30 @@ struct blk_mq_ctx {
 	struct kobject		kobj;
 } ____cacheline_aligned_in_smp;
 
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
+/*
+ * Bits for request->gstate.  The lower two bits carry MQ_RQ_* state value
+ * and the upper bits the generation number.
+ */
+enum mq_rq_state {
+	MQ_RQ_IDLE		= 0,
+	MQ_RQ_IN_FLIGHT		= 1,
+	MQ_RQ_COMPLETE		= 2,
+
+	MQ_RQ_STATE_BITS	= 2,
+	MQ_RQ_STATE_MASK	= (1 << MQ_RQ_STATE_BITS) - 1,
+	MQ_RQ_GEN_INC		= 1 << MQ_RQ_STATE_BITS,
+};
+
 void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
-bool blk_mq_dispatch_rq_list(struct request_queue *, struct list_head *);
+bool blk_mq_dispatch_rq_list(struct request_queue *, struct list_head *, bool);
 void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list);
-bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx);
 bool blk_mq_get_driver_tag(struct request *rq, struct blk_mq_hw_ctx **hctx,
 				bool wait);
+struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
+					struct blk_mq_ctx *start);
 
 /*
  * Internal helpers for allocating/freeing the request map
@@ -55,9 +70,12 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
  */
 void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 				bool at_head);
-void blk_mq_request_bypass_insert(struct request *rq);
+void blk_mq_request_bypass_insert(struct request *rq, bool run_queue);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
+
+/* Used by blk_insert_cloned_request() to issue request directly */
+blk_status_t blk_mq_request_issue_directly(struct request *rq);
 
 /*
  * CPU -> queue mappings
@@ -80,9 +98,40 @@ extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 
-extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
-
 void blk_mq_release(struct request_queue *q);
+
+/**
+ * blk_mq_rq_state() - read the current MQ_RQ_* state of a request
+ * @rq: target request.
+ */
+static inline int blk_mq_rq_state(struct request *rq)
+{
+	return READ_ONCE(rq->gstate) & MQ_RQ_STATE_MASK;
+}
+
+/**
+ * blk_mq_rq_update_state() - set the current MQ_RQ_* state of a request
+ * @rq: target request.
+ * @state: new state to set.
+ *
+ * Set @rq's state to @state.  The caller is responsible for ensuring that
+ * there are no other updaters.  A request can transition into IN_FLIGHT
+ * only from IDLE and doing so increments the generation number.
+ */
+static inline void blk_mq_rq_update_state(struct request *rq,
+					  enum mq_rq_state state)
+{
+	u64 old_val = READ_ONCE(rq->gstate);
+	u64 new_val = (old_val & ~MQ_RQ_STATE_MASK) | state;
+
+	if (state == MQ_RQ_IN_FLIGHT) {
+		WARN_ON_ONCE((old_val & MQ_RQ_STATE_MASK) != MQ_RQ_IDLE);
+		new_val += MQ_RQ_GEN_INC;
+	}
+
+	/* avoid exposing interim values */
+	WRITE_ONCE(rq->gstate, new_val);
+}
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 					   unsigned int cpu)
@@ -109,7 +158,7 @@ static inline void blk_mq_put_ctx(struct blk_mq_ctx *ctx)
 struct blk_mq_alloc_data {
 	/* input parameter */
 	struct request_queue *q;
-	unsigned int flags;
+	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
 
 	/* input & output parameter */
@@ -137,5 +186,54 @@ static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
 
 void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
 			unsigned int inflight[2]);
+
+static inline void blk_mq_put_dispatch_budget(struct blk_mq_hw_ctx *hctx)
+{
+	struct request_queue *q = hctx->queue;
+
+	if (q->mq_ops->put_budget)
+		q->mq_ops->put_budget(hctx);
+}
+
+static inline bool blk_mq_get_dispatch_budget(struct blk_mq_hw_ctx *hctx)
+{
+	struct request_queue *q = hctx->queue;
+
+	if (q->mq_ops->get_budget)
+		return q->mq_ops->get_budget(hctx);
+	return true;
+}
+
+static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
+					   struct request *rq)
+{
+	blk_mq_put_tag(hctx, hctx->tags, rq->mq_ctx, rq->tag);
+	rq->tag = -1;
+
+	if (rq->rq_flags & RQF_MQ_INFLIGHT) {
+		rq->rq_flags &= ~RQF_MQ_INFLIGHT;
+		atomic_dec(&hctx->nr_active);
+	}
+}
+
+static inline void blk_mq_put_driver_tag_hctx(struct blk_mq_hw_ctx *hctx,
+				       struct request *rq)
+{
+	if (rq->tag == -1 || rq->internal_tag == -1)
+		return;
+
+	__blk_mq_put_driver_tag(hctx, rq);
+}
+
+static inline void blk_mq_put_driver_tag(struct request *rq)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	if (rq->tag == -1 || rq->internal_tag == -1)
+		return;
+
+	hctx = blk_mq_map_queue(rq->q, rq->mq_ctx->cpu);
+	__blk_mq_put_driver_tag(hctx, rq);
+}
 
 #endif

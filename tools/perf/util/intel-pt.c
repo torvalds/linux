@@ -104,8 +104,6 @@ struct intel_pt {
 	u64 pwrx_id;
 	u64 cbr_id;
 
-	bool synth_needs_swap;
-
 	u64 tsc_bit;
 	u64 mtc_bit;
 	u64 mtc_freq_bits;
@@ -271,7 +269,7 @@ next:
 	ptq->buffer = buffer;
 
 	if (!buffer->data) {
-		int fd = perf_data_file__fd(ptq->pt->session->file);
+		int fd = perf_data__fd(ptq->pt->session->data);
 
 		buffer->data = auxtrace_buffer__get_data(buffer, fd);
 		if (!buffer->data)
@@ -1101,11 +1099,10 @@ static void intel_pt_prep_b_sample(struct intel_pt *pt,
 }
 
 static int intel_pt_inject_event(union perf_event *event,
-				 struct perf_sample *sample, u64 type,
-				 bool swapped)
+				 struct perf_sample *sample, u64 type)
 {
 	event->header.size = perf_event__sample_event_size(sample, type, 0);
-	return perf_event__synthesize_sample(event, type, 0, sample, swapped);
+	return perf_event__synthesize_sample(event, type, 0, sample);
 }
 
 static inline int intel_pt_opt_inject(struct intel_pt *pt,
@@ -1115,7 +1112,7 @@ static inline int intel_pt_opt_inject(struct intel_pt *pt,
 	if (!pt->synth_opts.inject)
 		return 0;
 
-	return intel_pt_inject_event(event, sample, type, pt->synth_needs_swap);
+	return intel_pt_inject_event(event, sample, type);
 }
 
 static int intel_pt_deliver_synth_b_event(struct intel_pt *pt,
@@ -2084,10 +2081,10 @@ static int intel_pt_process_auxtrace_event(struct perf_session *session,
 	if (!pt->data_queued) {
 		struct auxtrace_buffer *buffer;
 		off_t data_offset;
-		int fd = perf_data_file__fd(session->file);
+		int fd = perf_data__fd(session->data);
 		int err;
 
-		if (perf_data_file__is_pipe(session->file)) {
+		if (perf_data__is_pipe(session->data)) {
 			data_offset = 0;
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
@@ -2328,8 +2325,6 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		intel_pt_set_event_name(evlist, id, "pwrx");
 		id += 1;
 	}
-
-	pt->synth_needs_swap = evsel->needs_swap;
 
 	return 0;
 }

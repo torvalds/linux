@@ -1,0 +1,414 @@
+# bpftool(8) bash completion                               -*- shell-script -*-
+#
+# Copyright (C) 2017 Netronome Systems, Inc.
+#
+# This software is dual licensed under the GNU General License
+# Version 2, June 1991 as shown in the file COPYING in the top-level
+# directory of this source tree or the BSD 2-Clause License provided
+# below.  You have the option to license this software under the
+# complete terms of either license.
+#
+# The BSD 2-Clause License:
+#
+#     Redistribution and use in source and binary forms, with or
+#     without modification, are permitted provided that the following
+#     conditions are met:
+#
+#      1. Redistributions of source code must retain the above
+#         copyright notice, this list of conditions and the following
+#         disclaimer.
+#
+#      2. Redistributions in binary form must reproduce the above
+#         copyright notice, this list of conditions and the following
+#         disclaimer in the documentation and/or other materials
+#         provided with the distribution.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# Author: Quentin Monnet <quentin.monnet@netronome.com>
+
+# Takes a list of words in argument; each one of them is added to COMPREPLY if
+# it is not already present on the command line. Returns no value.
+_bpftool_once_attr()
+{
+    local w idx found
+    for w in $*; do
+        found=0
+        for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
+            if [[ $w == ${words[idx]} ]]; then
+                found=1
+                break
+            fi
+        done
+        [[ $found -eq 0 ]] && \
+            COMPREPLY+=( $( compgen -W "$w" -- "$cur" ) )
+    done
+}
+
+# Takes a list of words as argument; if any of those words is present on the
+# command line, return 0. Otherwise, return 1.
+_bpftool_search_list()
+{
+    local w idx
+    for w in $*; do
+        for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
+            [[ $w == ${words[idx]} ]] && return 0
+        done
+    done
+    return 1
+}
+
+# Takes a list of words in argument; adds them all to COMPREPLY if none of them
+# is already present on the command line. Returns no value.
+_bpftool_one_of_list()
+{
+    _bpftool_search_list $* && return 1
+    COMPREPLY+=( $( compgen -W "$*" -- "$cur" ) )
+}
+
+_bpftool_get_map_ids()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp map  2>&1 | \
+        command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
+}
+
+_bpftool_get_prog_ids()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
+        command sed -n 's/.*"id": \(.*\),$/\1/p' )" -- "$cur" ) )
+}
+
+_bpftool_get_prog_tags()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
+        command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
+}
+
+# For bpftool map update: retrieve type of the map to update.
+_bpftool_map_update_map_type()
+{
+    local keyword ref
+    for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
+        if [[ ${words[$((idx-2))]} == "update" ]]; then
+            keyword=${words[$((idx-1))]}
+            ref=${words[$((idx))]}
+        fi
+    done
+    [[ -z $ref ]] && return 0
+
+    local type
+    type=$(bpftool -jp map show $keyword $ref | \
+        command sed -n 's/.*"type": "\(.*\)",$/\1/p')
+    printf $type
+}
+
+_bpftool_map_update_get_id()
+{
+    # Is it the map to update, or a map to insert into the map to update?
+    # Search for "value" keyword.
+    local idx value
+    for (( idx=7; idx < ${#words[@]}-1; idx++ )); do
+        if [[ ${words[idx]} == "value" ]]; then
+            value=1
+            break
+        fi
+    done
+    [[ $value -eq 0 ]] && _bpftool_get_map_ids && return 0
+
+    # Id to complete is for a value. It can be either prog id or map id. This
+    # depends on the type of the map to update.
+    local type=$(_bpftool_map_update_map_type)
+    case $type in
+        array_of_maps|hash_of_maps)
+            _bpftool_get_map_ids
+            return 0
+            ;;
+        prog_array)
+            _bpftool_get_prog_ids
+            return 0
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+}
+
+_bpftool()
+{
+    local cur prev words objword
+    _init_completion || return
+
+    # Deal with simplest keywords
+    case $prev in
+        help|key|opcodes)
+            return 0
+            ;;
+        tag)
+            _bpftool_get_prog_tags
+            return 0
+            ;;
+        file|pinned)
+            _filedir
+            return 0
+            ;;
+        batch)
+            COMPREPLY=( $( compgen -W 'file' -- "$cur" ) )
+            return 0
+            ;;
+    esac
+
+    # Search for object and command
+    local object command cmdword
+    for (( cmdword=1; cmdword < ${#words[@]}-1; cmdword++ )); do
+        [[ -n $object ]] && command=${words[cmdword]} && break
+        [[ ${words[cmdword]} != -* ]] && object=${words[cmdword]}
+    done
+
+    if [[ -z $object ]]; then
+        case $cur in
+            -*)
+                local c='--version --json --pretty'
+                COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
+                return 0
+                ;;
+            *)
+                COMPREPLY=( $( compgen -W "$( bpftool help 2>&1 | \
+                    command sed \
+                    -e '/OBJECT := /!d' \
+                    -e 's/.*{//' \
+                    -e 's/}.*//' \
+                    -e 's/|//g' )" -- "$cur" ) )
+                COMPREPLY+=( $( compgen -W 'batch help' -- "$cur" ) )
+                return 0
+                ;;
+        esac
+    fi
+
+    [[ $command == help ]] && return 0
+
+    # Completion depends on object and command in use
+    case $object in
+        prog)
+            case $prev in
+                id)
+                    _bpftool_get_prog_ids
+                    return 0
+                    ;;
+            esac
+
+            local PROG_TYPE='id pinned tag'
+            case $command in
+                show|list)
+                    [[ $prev != "$command" ]] && return 0
+                    COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                    return 0
+                    ;;
+                dump)
+                    case $prev in
+                        $command)
+                            COMPREPLY+=( $( compgen -W "xlated jited" -- \
+                                "$cur" ) )
+                            return 0
+                            ;;
+                        xlated|jited)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
+                                "$cur" ) )
+                            return 0
+                            ;;
+                    *)
+                            _bpftool_once_attr 'file'
+                            COMPREPLY+=( $( compgen -W 'opcodes' -- \
+                                "$cur" ) )
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                pin)
+                    if [[ $prev == "$command" ]]; then
+                        COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                    else
+                        _filedir
+                    fi
+                    return 0
+                    ;;
+                load)
+                    _filedir
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'dump help pin load \
+                            show list' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        map)
+            local MAP_TYPE='id pinned'
+            case $command in
+                show|list|dump)
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_map_ids
+                            return 0
+                            ;;
+                        *)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                lookup|getnext|delete)
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_map_ids
+                            return 0
+                            ;;
+                        key)
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'key'
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                update)
+                    case $prev in
+                        $command)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_map_update_get_id
+                            return 0
+                            ;;
+                        key)
+                            return 0
+                            ;;
+                        value)
+                            # We can have bytes, or references to a prog or a
+                            # map, depending on the type of the map to update.
+                            case $(_bpftool_map_update_map_type) in
+                                array_of_maps|hash_of_maps)
+                                    local MAP_TYPE='id pinned'
+                                    COMPREPLY+=( $( compgen -W "$MAP_TYPE" \
+                                        -- "$cur" ) )
+                                    return 0
+                                    ;;
+                                prog_array)
+                                    local PROG_TYPE='id pinned tag'
+                                    COMPREPLY+=( $( compgen -W "$PROG_TYPE" \
+                                        -- "$cur" ) )
+                                    return 0
+                                    ;;
+                                *)
+                                    return 0
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        *)
+                            _bpftool_once_attr 'key'
+                            local UPDATE_FLAGS='any exist noexist'
+                            for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
+                                if [[ ${words[idx]} == 'value' ]]; then
+                                    # 'value' is present, but is not the last
+                                    # word i.e. we can now have UPDATE_FLAGS.
+                                    _bpftool_one_of_list "$UPDATE_FLAGS"
+                                    return 0
+                                fi
+                            done
+                            for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
+                                if [[ ${words[idx]} == 'key' ]]; then
+                                    # 'key' is present, but is not the last
+                                    # word i.e. we can now have 'value'.
+                                    _bpftool_once_attr 'value'
+                                    return 0
+                                fi
+                            done
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                pin)
+                    if [[ $prev == "$command" ]]; then
+                        COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                    else
+                        _filedir
+                    fi
+                    return 0
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'delete dump getnext help \
+                            lookup pin show list update' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        cgroup)
+            case $command in
+                show|list)
+                    _filedir
+                    return 0
+                    ;;
+                attach|detach)
+                    local ATTACH_TYPES='ingress egress sock_create sock_ops \
+                        device'
+                    local ATTACH_FLAGS='multi override'
+                    local PROG_TYPE='id pinned tag'
+                    case $prev in
+                        $command)
+                            _filedir
+                            return 0
+                            ;;
+                        ingress|egress|sock_create|sock_ops|device)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
+                                "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_prog_ids
+                            return 0
+                            ;;
+                        *)
+                            if ! _bpftool_search_list "$ATTACH_TYPES"; then
+                                COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- \
+                                    "$cur" ) )
+                            elif [[ "$command" == "attach" ]]; then
+                                # We have an attach type on the command line,
+                                # but it is not the previous word, or
+                                # "id|pinned|tag" (we already checked for
+                                # that). This should only leave the case when
+                                # we need attach flags for "attach" commamnd.
+                                _bpftool_one_of_list "$ATTACH_FLAGS"
+                            fi
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help attach detach \
+                            show list' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+    esac
+} &&
+complete -F _bpftool bpftool
+
+# ex: ts=4 sw=4 et filetype=sh

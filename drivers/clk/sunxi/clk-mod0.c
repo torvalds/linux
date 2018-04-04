@@ -15,7 +15,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -155,7 +154,6 @@ static DEFINE_SPINLOCK(sun5i_a13_mbus_lock);
 
 static void __init sun5i_a13_mbus_setup(struct device_node *node)
 {
-	struct clk *mbus;
 	void __iomem *reg;
 
 	reg = of_iomap(node, 0);
@@ -164,12 +162,9 @@ static void __init sun5i_a13_mbus_setup(struct device_node *node)
 		return;
 	}
 
-	mbus = sunxi_factors_register(node, &sun4i_a10_mod0_data,
-				      &sun5i_a13_mbus_lock, reg);
-
 	/* The MBUS clocks needs to be always enabled */
-	__clk_get(mbus);
-	clk_prepare_enable(mbus);
+	sunxi_factors_register_critical(node, &sun4i_a10_mod0_data,
+					&sun5i_a13_mbus_lock, reg);
 }
 CLK_OF_DECLARE(sun5i_a13_mbus, "allwinner,sun5i-a13-mbus-clk", sun5i_a13_mbus_setup);
 

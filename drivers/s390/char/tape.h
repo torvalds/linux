@@ -129,6 +129,7 @@ struct tape_request {
 	int options;			/* options for execution. */
 	int retries;			/* retry counter for error recovery. */
 	int rescnt;			/* residual count from devstat. */
+	struct timer_list timer;	/* timer for std_assign_timeout(). */
 
 	/* Callback for delivering final status. */
 	void (*callback)(struct tape_request *, void *);

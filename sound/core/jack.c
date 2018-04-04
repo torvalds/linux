@@ -310,7 +310,7 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  * @type:    Jack report type for this key
  * @keytype: Input layer key type to be reported
  *
- * Map a SND_JACK_BTN_ button type to an input layer key, allowing
+ * Map a SND_JACK_BTN_* button type to an input layer key, allowing
  * reporting of keys on accessories via the jack abstraction.  If no
  * mapping is provided but keys are enabled in the jack type then
  * BTN_n numeric buttons will be reported.

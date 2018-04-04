@@ -24,6 +24,7 @@ Optional properties:
 	- dma-names: "rx" for RX channel, "tx" for TX channel.
 - atmel,fifo-size: maximum number of data the RX and TX FIFOs can store for FIFO
   capable USARTs.
+- rs485-rts-delay, rs485-rx-during-tx, linux,rs485-enabled-at-boot-time: see rs485.txt
 
 <chip> compatible description:
 - at91rm9200:  legacy USART support

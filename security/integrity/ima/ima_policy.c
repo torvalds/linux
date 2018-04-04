@@ -40,6 +40,8 @@
 #define APPRAISE	0x0004	/* same as IMA_APPRAISE */
 #define DONT_APPRAISE	0x0008
 #define AUDIT		0x0040
+#define HASH		0x0100
+#define DONT_HASH	0x0200
 
 #define INVALID_PCR(a) (((a) < 0) || \
 	(a) >= (FIELD_SIZEOF(struct integrity_iint_cache, measured_pcrs) * 8))
@@ -196,9 +198,9 @@ static int __init policy_setup(char *str)
 		if ((strcmp(p, "tcb") == 0) && !ima_policy)
 			ima_policy = DEFAULT_TCB;
 		else if (strcmp(p, "appraise_tcb") == 0)
-			ima_use_appraise_tcb = 1;
+			ima_use_appraise_tcb = true;
 		else if (strcmp(p, "secure_boot") == 0)
-			ima_use_secure_boot = 1;
+			ima_use_secure_boot = true;
 	}
 
 	return 1;
@@ -207,7 +209,7 @@ __setup("ima_policy=", policy_setup);
 
 static int __init default_appraise_policy_setup(char *str)
 {
-	ima_use_appraise_tcb = 1;
+	ima_use_appraise_tcb = true;
 	return 1;
 }
 __setup("ima_appraise_tcb", default_appraise_policy_setup);
@@ -380,8 +382,10 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		action |= entry->flags & IMA_ACTION_FLAGS;
 
 		action |= entry->action & IMA_DO_MASK;
-		if (entry->action & IMA_APPRAISE)
+		if (entry->action & IMA_APPRAISE) {
 			action |= get_subaction(entry, func);
+			action ^= IMA_HASH;
+		}
 
 		if (entry->action & IMA_DO_MASK)
 			actmask &= ~(entry->action | entry->action << 1);
@@ -521,7 +525,7 @@ enum {
 	Opt_err = -1,
 	Opt_measure = 1, Opt_dont_measure,
 	Opt_appraise, Opt_dont_appraise,
-	Opt_audit,
+	Opt_audit, Opt_hash, Opt_dont_hash,
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
 	Opt_func, Opt_mask, Opt_fsmagic,
@@ -538,6 +542,8 @@ static match_table_t policy_tokens = {
 	{Opt_appraise, "appraise"},
 	{Opt_dont_appraise, "dont_appraise"},
 	{Opt_audit, "audit"},
+	{Opt_hash, "hash"},
+	{Opt_dont_hash, "dont_hash"},
 	{Opt_obj_user, "obj_user=%s"},
 	{Opt_obj_role, "obj_role=%s"},
 	{Opt_obj_type, "obj_type=%s"},
@@ -671,6 +677,22 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 
 			entry->action = AUDIT;
 			break;
+		case Opt_hash:
+			ima_log_string(ab, "action", "hash");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
+			entry->action = HASH;
+			break;
+		case Opt_dont_hash:
+			ima_log_string(ab, "action", "dont_hash");
+
+			if (entry->action != UNKNOWN)
+				result = -EINVAL;
+
+			entry->action = DONT_HASH;
+			break;
 		case Opt_func:
 			ima_log_string(ab, "func", args[0].from);
 
@@ -743,7 +765,7 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_fsuuid:
 			ima_log_string(ab, "fsuuid", args[0].from);
 
-			if (uuid_is_null(&entry->fsuuid)) {
+			if (!uuid_is_null(&entry->fsuuid)) {
 				result = -EINVAL;
 				break;
 			}
@@ -1040,6 +1062,10 @@ int ima_policy_show(struct seq_file *m, void *v)
 		seq_puts(m, pt(Opt_dont_appraise));
 	if (entry->action & AUDIT)
 		seq_puts(m, pt(Opt_audit));
+	if (entry->action & HASH)
+		seq_puts(m, pt(Opt_hash));
+	if (entry->action & DONT_HASH)
+		seq_puts(m, pt(Opt_dont_hash));
 
 	seq_puts(m, " ");
 

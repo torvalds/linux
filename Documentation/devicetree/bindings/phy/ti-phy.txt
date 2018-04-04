@@ -120,7 +120,7 @@ usb3phy@4a084400 {
 			"refclk";
 };
 
-sata_phy: phy@4A096000 {
+sata_phy: phy@4a096000 {
 	compatible = "ti,phy-pipe3-sata";
 	reg = <0x4A096000 0x80>, /* phy_rx */
 	      <0x4A096400 0x64>, /* phy_tx */

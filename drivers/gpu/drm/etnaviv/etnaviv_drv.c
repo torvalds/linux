@@ -23,6 +23,7 @@
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
+#include "etnaviv_perfmon.h"
 
 #ifdef CONFIG_DRM_ETNAVIV_REGISTER_LOGGING
 static bool reglog;
@@ -171,7 +172,7 @@ static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
-	struct etnaviv_cmdbuf *buf = gpu->buffer;
+	struct etnaviv_cmdbuf *buf = &gpu->buffer;
 	u32 size = buf->size;
 	u32 *ptr = buf->vaddr;
 	u32 i;
@@ -451,6 +452,40 @@ static int etnaviv_ioctl_gem_wait(struct drm_device *dev, void *data,
 	return ret;
 }
 
+static int etnaviv_ioctl_pm_query_dom(struct drm_device *dev, void *data,
+	struct drm_file *file)
+{
+	struct etnaviv_drm_private *priv = dev->dev_private;
+	struct drm_etnaviv_pm_domain *args = data;
+	struct etnaviv_gpu *gpu;
+
+	if (args->pipe >= ETNA_MAX_PIPES)
+		return -EINVAL;
+
+	gpu = priv->gpu[args->pipe];
+	if (!gpu)
+		return -ENXIO;
+
+	return etnaviv_pm_query_dom(gpu, args);
+}
+
+static int etnaviv_ioctl_pm_query_sig(struct drm_device *dev, void *data,
+	struct drm_file *file)
+{
+	struct etnaviv_drm_private *priv = dev->dev_private;
+	struct drm_etnaviv_pm_signal *args = data;
+	struct etnaviv_gpu *gpu;
+
+	if (args->pipe >= ETNA_MAX_PIPES)
+		return -EINVAL;
+
+	gpu = priv->gpu[args->pipe];
+	if (!gpu)
+		return -ENXIO;
+
+	return etnaviv_pm_query_sig(gpu, args);
+}
+
 static const struct drm_ioctl_desc etnaviv_ioctls[] = {
 #define ETNA_IOCTL(n, func, flags) \
 	DRM_IOCTL_DEF_DRV(ETNAVIV_##n, etnaviv_ioctl_##func, flags)
@@ -463,6 +498,8 @@ static const struct drm_ioctl_desc etnaviv_ioctls[] = {
 	ETNA_IOCTL(WAIT_FENCE,   wait_fence,   DRM_AUTH|DRM_RENDER_ALLOW),
 	ETNA_IOCTL(GEM_USERPTR,  gem_userptr,  DRM_AUTH|DRM_RENDER_ALLOW),
 	ETNA_IOCTL(GEM_WAIT,     gem_wait,     DRM_AUTH|DRM_RENDER_ALLOW),
+	ETNA_IOCTL(PM_QUERY_DOM, pm_query_dom, DRM_AUTH|DRM_RENDER_ALLOW),
+	ETNA_IOCTL(PM_QUERY_SIG, pm_query_sig, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -513,7 +550,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 1,
+	.minor              = 2,
 };
 
 /*
@@ -537,12 +574,6 @@ static int etnaviv_bind(struct device *dev)
 	}
 	drm->dev_private = priv;
 
-	priv->wq = alloc_ordered_workqueue("etnaviv", 0);
-	if (!priv->wq) {
-		ret = -ENOMEM;
-		goto out_wq;
-	}
-
 	mutex_init(&priv->gem_lock);
 	INIT_LIST_HEAD(&priv->gem_list);
 	priv->num_gpus = 0;
@@ -564,9 +595,6 @@ static int etnaviv_bind(struct device *dev)
 out_register:
 	component_unbind_all(dev, drm);
 out_bind:
-	flush_workqueue(priv->wq);
-	destroy_workqueue(priv->wq);
-out_wq:
 	kfree(priv);
 out_unref:
 	drm_dev_unref(drm);
@@ -580,9 +608,6 @@ static void etnaviv_unbind(struct device *dev)
 	struct etnaviv_drm_private *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
-
-	flush_workqueue(priv->wq);
-	destroy_workqueue(priv->wq);
 
 	component_unbind_all(dev, drm);
 

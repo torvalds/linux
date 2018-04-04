@@ -24,16 +24,15 @@
 #include <linux/mman.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/idr.h>
 
 /*
- * This extension supports a kernel level doorbells management for
- * the kernel queues.
- * Basically the last doorbells page is devoted to kernel queues
- * and that's assures that any user process won't get access to the
- * kernel doorbells page
+ * This extension supports a kernel level doorbells management for the
+ * kernel queues using the first doorbell page reserved for the kernel.
  */
 
-#define KERNEL_DOORBELL_PASID 1
+static DEFINE_IDA(doorbell_ida);
+static unsigned int max_doorbell_slices;
 #define KFD_SIZE_OF_DOORBELL_IN_BYTES 4
 
 /*
@@ -84,13 +83,16 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 			(doorbell_aperture_size - doorbell_start_offset) /
 						doorbell_process_allocation();
 	else
-		doorbell_process_limit = 0;
+		return -ENOSPC;
+
+	if (!max_doorbell_slices ||
+	    doorbell_process_limit < max_doorbell_slices)
+		max_doorbell_slices = doorbell_process_limit;
 
 	kfd->doorbell_base = kfd->shared_resources.doorbell_physical_address +
 				doorbell_start_offset;
 
 	kfd->doorbell_id_offset = doorbell_start_offset / sizeof(u32);
-	kfd->doorbell_process_limit = doorbell_process_limit - 1;
 
 	kfd->doorbell_kernel_ptr = ioremap(kfd->doorbell_base,
 						doorbell_process_allocation());
@@ -114,8 +116,7 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 	pr_debug("doorbell aperture size  == 0x%08lX\n",
 			kfd->shared_resources.doorbell_aperture_size);
 
-	pr_debug("doorbell kernel address == 0x%08lX\n",
-			(uintptr_t)kfd->doorbell_kernel_ptr);
+	pr_debug("doorbell kernel address == %p\n", kfd->doorbell_kernel_ptr);
 
 	return 0;
 }
@@ -185,16 +186,15 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 		return NULL;
 
 	/*
-	 * Calculating the kernel doorbell offset using "faked" kernel
-	 * pasid that allocated for kernel queues only
+	 * Calculating the kernel doorbell offset using the first
+	 * doorbell page.
 	 */
-	*doorbell_off = KERNEL_DOORBELL_PASID * (doorbell_process_allocation() /
-							sizeof(u32)) + inx;
+	*doorbell_off = kfd->doorbell_id_offset + inx;
 
 	pr_debug("Get kernel queue doorbell\n"
 			 "     doorbell offset   == 0x%08X\n"
-			 "     kernel address    == 0x%08lX\n",
-		*doorbell_off, (uintptr_t)(kfd->doorbell_kernel_ptr + inx));
+			 "     kernel address    == %p\n",
+		*doorbell_off, (kfd->doorbell_kernel_ptr + inx));
 
 	return kfd->doorbell_kernel_ptr + inx;
 }
@@ -214,7 +214,7 @@ inline void write_kernel_doorbell(u32 __iomem *db, u32 value)
 {
 	if (db) {
 		writel(value, db);
-		pr_debug("Writing %d to doorbell address 0x%p\n", value, db);
+		pr_debug("Writing %d to doorbell address %p\n", value, db);
 	}
 }
 
@@ -228,11 +228,12 @@ unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
 {
 	/*
 	 * doorbell_id_offset accounts for doorbells taken by KGD.
-	 * pasid * doorbell_process_allocation/sizeof(u32) adjusts
-	 * to the process's doorbells
+	 * index * doorbell_process_allocation/sizeof(u32) adjusts to
+	 * the process's doorbells.
 	 */
 	return kfd->doorbell_id_offset +
-		process->pasid * (doorbell_process_allocation()/sizeof(u32)) +
+		process->doorbell_index
+		* doorbell_process_allocation() / sizeof(u32) +
 		queue_id;
 }
 
@@ -250,5 +251,21 @@ phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
 					struct kfd_process *process)
 {
 	return dev->doorbell_base +
-		process->pasid * doorbell_process_allocation();
+		process->doorbell_index * doorbell_process_allocation();
+}
+
+int kfd_alloc_process_doorbells(struct kfd_process *process)
+{
+	int r = ida_simple_get(&doorbell_ida, 1, max_doorbell_slices,
+				GFP_KERNEL);
+	if (r > 0)
+		process->doorbell_index = r;
+
+	return r;
+}
+
+void kfd_free_process_doorbells(struct kfd_process *process)
+{
+	if (process->doorbell_index)
+		ida_simple_remove(&doorbell_ida, process->doorbell_index);
 }

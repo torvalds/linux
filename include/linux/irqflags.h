@@ -27,24 +27,19 @@
 # define trace_hardirq_enter()			\
 do {						\
 	current->hardirq_context++;		\
-	crossrelease_hist_start(XHLOCK_HARD);	\
 } while (0)
 # define trace_hardirq_exit()			\
 do {						\
 	current->hardirq_context--;		\
-	crossrelease_hist_end(XHLOCK_HARD);	\
 } while (0)
 # define lockdep_softirq_enter()		\
 do {						\
 	current->softirq_context++;		\
-	crossrelease_hist_start(XHLOCK_SOFT);	\
 } while (0)
 # define lockdep_softirq_exit()			\
 do {						\
 	current->softirq_context--;		\
-	crossrelease_hist_end(XHLOCK_SOFT);	\
 } while (0)
-# define INIT_TRACE_IRQFLAGS	.softirqs_enabled = 1,
 #else
 # define trace_hardirqs_on()		do { } while (0)
 # define trace_hardirqs_off()		do { } while (0)
@@ -58,7 +53,6 @@ do {						\
 # define trace_hardirq_exit()		do { } while (0)
 # define lockdep_softirq_enter()	do { } while (0)
 # define lockdep_softirq_exit()		do { } while (0)
-# define INIT_TRACE_IRQFLAGS
 #endif
 
 #if defined(CONFIG_IRQSOFF_TRACER) || \

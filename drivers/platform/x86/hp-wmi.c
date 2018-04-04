@@ -297,7 +297,7 @@ static int hp_wmi_hw_state(int mask)
 	if (state < 0)
 		return state;
 
-	return state & 0x1;
+	return !!(state & mask);
 }
 
 static int __init hp_wmi_bios_2008_later(void)

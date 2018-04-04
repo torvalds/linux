@@ -20,6 +20,10 @@ config BLK_DEV_NULL_BLK
 	tristate "Null test block driver"
 	select CONFIGFS_FS
 
+config BLK_DEV_NULL_BLK_FAULT_INJECTION
+	bool "Support fault injection for Null test block driver"
+	depends on BLK_DEV_NULL_BLK && FAULT_INJECTION
+
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
 	depends on ARCH_MAY_HAVE_PC_FDC
@@ -68,9 +72,13 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
+config CDROM
+	tristate
+
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
 	depends on SH_DREAMCAST
+	select CDROM
 	select BLK_SCSI_REQUEST # only for the generic cdrom code
 	help
 	  A standard SEGA Dreamcast comes with a modified CD ROM drive called a
@@ -298,7 +306,6 @@ config BLK_DEV_SX8
 
 config BLK_DEV_RAM
 	tristate "RAM block device support"
-	select DAX if BLK_DEV_RAM_DAX
 	---help---
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
@@ -334,20 +341,10 @@ config BLK_DEV_RAM_SIZE
 	  The default value is 4096 kilobytes. Only change this if you know
 	  what you are doing.
 
-config BLK_DEV_RAM_DAX
-	bool "Support Direct Access (DAX) to RAM block devices"
-	depends on BLK_DEV_RAM && FS_DAX
-	default n
-	help
-	  Support filesystems using DAX to access RAM block devices.  This
-	  avoids double-buffering data in the page cache before copying it
-	  to the block device.  Answering Y will slightly enlarge the kernel,
-	  and will prevent RAM block device backing store memory from being
-	  allocated from highmem (only a problem for highmem systems).
-
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	select CDROM
 	select BLK_SCSI_REQUEST
 	help
 	  Note: This driver is deprecated and will be removed from the

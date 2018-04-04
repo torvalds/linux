@@ -112,6 +112,7 @@ struct sunxi_pinctrl_desc {
 	unsigned			irq_banks;
 	unsigned			irq_bank_base;
 	bool				irq_read_needs_mux;
+	bool				disable_strict_mode;
 };
 
 struct sunxi_pinctrl_function {

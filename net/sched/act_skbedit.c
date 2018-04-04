@@ -238,19 +238,17 @@ static __net_init int skbedit_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 
-	return tc_action_net_init(tn, &act_skbedit_ops, net);
+	return tc_action_net_init(tn, &act_skbedit_ops);
 }
 
-static void __net_exit skbedit_exit_net(struct net *net)
+static void __net_exit skbedit_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, skbedit_net_id);
 }
 
 static struct pernet_operations skbedit_net_ops = {
 	.init = skbedit_init_net,
-	.exit = skbedit_exit_net,
+	.exit_batch = skbedit_exit_net,
 	.id   = &skbedit_net_id,
 	.size = sizeof(struct tc_action_net),
 };

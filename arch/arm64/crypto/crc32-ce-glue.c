@@ -185,6 +185,7 @@ static struct shash_alg crc32_pmull_algs[] = { {
 	.base.cra_name		= "crc32",
 	.base.cra_driver_name	= "crc32-arm64-ce",
 	.base.cra_priority	= 200,
+	.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 	.base.cra_blocksize	= 1,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -200,6 +201,7 @@ static struct shash_alg crc32_pmull_algs[] = { {
 	.base.cra_name		= "crc32c",
 	.base.cra_driver_name	= "crc32c-arm64-ce",
 	.base.cra_priority	= 200,
+	.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 	.base.cra_blocksize	= 1,
 	.base.cra_module	= THIS_MODULE,
 } };

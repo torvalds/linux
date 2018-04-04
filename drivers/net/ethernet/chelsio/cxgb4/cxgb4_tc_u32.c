@@ -114,14 +114,14 @@ static int fill_action_fields(struct adapter *adap,
 
 		/* Re-direct to specified port in hardware. */
 		if (is_tcf_mirred_egress_redirect(a)) {
-			struct net_device *n_dev;
-			unsigned int i, index;
+			struct net_device *n_dev, *target_dev;
 			bool found = false;
+			unsigned int i;
 
-			index = tcf_mirred_ifindex(a);
+			target_dev = tcf_mirred_dev(a);
 			for_each_port(adap, i) {
 				n_dev = adap->port[i];
-				if (index == n_dev->ifindex) {
+				if (target_dev == n_dev) {
 					fs->action = FILTER_SWITCH;
 					fs->eport = i;
 					found = true;
@@ -380,7 +380,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 			return -EINVAL;
 	}
 
-	ret = cxgb4_del_filter(dev, filter_id);
+	ret = cxgb4_del_filter(dev, filter_id, NULL);
 	if (ret)
 		goto out;
 
@@ -399,7 +399,7 @@ int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 				if (!test_bit(j, link->tid_map))
 					continue;
 
-				ret = __cxgb4_del_filter(dev, j, NULL);
+				ret = __cxgb4_del_filter(dev, j, NULL, NULL);
 				if (ret)
 					goto out;
 

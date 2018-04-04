@@ -30,7 +30,7 @@
 #include <linux/i2c.h>
 
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "s5h1420.h"
 #include "s5h1420_priv.h"
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -235,7 +236,7 @@ static int class_attach(struct lustre_cfg *lcfg)
 	uuid = lustre_cfg_string(lcfg, 2);
 
 	CDEBUG(D_IOCTL, "attach type %s name: %s uuid: %s\n",
-	       MKSTR(typename), MKSTR(name), MKSTR(uuid));
+	       typename, name, uuid);
 
 	obd = class_newdev(typename, name);
 	if (IS_ERR(obd)) {

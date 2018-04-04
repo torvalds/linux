@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,9 +164,12 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 	beacon_int = mvm->noa_vif->bss_conf.beacon_int;
 
 	for (i = 0; i < MAX_BINDINGS; i++) {
-		u32 id_n_c = le32_to_cpu(cmd->quotas[i].id_and_color);
+		struct iwl_time_quota_data *data =
+					iwl_mvm_quota_cmd_get_quota(mvm, cmd,
+								    i);
+		u32 id_n_c = le32_to_cpu(data->id_and_color);
 		u32 id = (id_n_c & FW_CTXT_ID_MSK) >> FW_CTXT_ID_POS;
-		u32 quota = le32_to_cpu(cmd->quotas[i].quota);
+		u32 quota = le32_to_cpu(data->quota);
 
 		if (id != phy_id)
 			continue;
@@ -175,9 +178,9 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		quota /= beacon_int;
 
 		IWL_DEBUG_QUOTA(mvm, "quota: adjust for NoA from %d to %d\n",
-				le32_to_cpu(cmd->quotas[i].quota), quota);
+				le32_to_cpu(data->quota), quota);
 
-		cmd->quotas[i].quota = cpu_to_le32(quota);
+		data->quota = cpu_to_le32(quota);
 	}
 #endif
 }
@@ -194,9 +197,14 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		.disabled_vif = disabled_vif,
 	};
 	struct iwl_time_quota_cmd *last = &mvm->last_quota_cmd;
+	struct iwl_time_quota_data *qdata, *last_data;
 	bool send = false;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA))
+		return 0;
 
 	/* update all upon completion */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
@@ -216,7 +224,8 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 	 */
 	num_active_macs = 0;
 	for (i = 0; i < MAX_BINDINGS; i++) {
-		cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
+		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, i);
+		qdata->id_and_color = cpu_to_le32(FW_CTXT_INVALID);
 		num_active_macs += data.n_interfaces[i];
 	}
 
@@ -265,14 +274,16 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		if (data.colors[i] < 0)
 			continue;
 
-		cmd.quotas[idx].id_and_color =
+		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, idx);
+
+		qdata->id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(i, data.colors[i]));
 
 		if (data.n_interfaces[i] <= 0)
-			cmd.quotas[idx].quota = cpu_to_le32(0);
+			qdata->quota = cpu_to_le32(0);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		else if (data.dbgfs_min[i])
-			cmd.quotas[idx].quota =
+			qdata->quota =
 				cpu_to_le32(data.dbgfs_min[i] * QUOTA_100 / 100);
 #endif
 		else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
@@ -283,24 +294,25 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			 * the minimal required quota for the low latency
 			 * binding.
 			 */
-			cmd.quotas[idx].quota = cpu_to_le32(QUOTA_LOWLAT_MIN);
+			qdata->quota = cpu_to_le32(QUOTA_LOWLAT_MIN);
 		else
-			cmd.quotas[idx].quota =
+			qdata->quota =
 				cpu_to_le32(quota * data.n_interfaces[i]);
 
-		WARN_ONCE(le32_to_cpu(cmd.quotas[idx].quota) > QUOTA_100,
+		WARN_ONCE(le32_to_cpu(qdata->quota) > QUOTA_100,
 			  "Binding=%d, quota=%u > max=%u\n",
-			  idx, le32_to_cpu(cmd.quotas[idx].quota), QUOTA_100);
+			  idx, le32_to_cpu(qdata->quota), QUOTA_100);
 
-		cmd.quotas[idx].max_duration = cpu_to_le32(0);
+		qdata->max_duration = cpu_to_le32(0);
 
 		idx++;
 	}
 
 	/* Give the remainder of the session to the first data binding */
 	for (i = 0; i < MAX_BINDINGS; i++) {
-		if (le32_to_cpu(cmd.quotas[i].quota) != 0) {
-			le32_add_cpu(&cmd.quotas[i].quota, quota_rem);
+		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, i);
+		if (le32_to_cpu(qdata->quota) != 0) {
+			le32_add_cpu(&qdata->quota, quota_rem);
 			IWL_DEBUG_QUOTA(mvm,
 					"quota: giving remainder of %d to binding %d\n",
 					quota_rem, i);
@@ -312,17 +324,19 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 
 	/* check that we have non-zero quota for all valid bindings */
 	for (i = 0; i < MAX_BINDINGS; i++) {
-		if (cmd.quotas[i].id_and_color != last->quotas[i].id_and_color)
+		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, i);
+		last_data = iwl_mvm_quota_cmd_get_quota(mvm, last, i);
+		if (qdata->id_and_color != last_data->id_and_color)
 			send = true;
-		if (cmd.quotas[i].max_duration != last->quotas[i].max_duration)
+		if (qdata->max_duration != last_data->max_duration)
 			send = true;
-		if (abs((int)le32_to_cpu(cmd.quotas[i].quota) -
-			(int)le32_to_cpu(last->quotas[i].quota))
+		if (abs((int)le32_to_cpu(qdata->quota) -
+			(int)le32_to_cpu(last_data->quota))
 						> IWL_MVM_QUOTA_THRESHOLD)
 			send = true;
-		if (cmd.quotas[i].id_and_color == cpu_to_le32(FW_CTXT_INVALID))
+		if (qdata->id_and_color == cpu_to_le32(FW_CTXT_INVALID))
 			continue;
-		WARN_ONCE(cmd.quotas[i].quota == 0,
+		WARN_ONCE(qdata->quota == 0,
 			  "zero quota on binding %d\n", i);
 	}
 
@@ -334,7 +348,8 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		return 0;
 	}
 
-	err = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0, sizeof(cmd), &cmd);
+	err = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
+				   iwl_mvm_quota_cmd_size(mvm), &cmd);
 
 	if (err)
 		IWL_ERR(mvm, "Failed to send quota: %d\n", err);

@@ -169,7 +169,7 @@ static void tsi568_remove(struct rio_dev *rdev)
 	spin_unlock(&rdev->rswitch->lock);
 }
 
-static struct rio_device_id tsi568_id_table[] = {
+static const struct rio_device_id tsi568_id_table[] = {
 	{RIO_DEVICE(RIO_DID_TSI568, RIO_VID_TUNDRA)},
 	{ 0, }	/* terminate list */
 };

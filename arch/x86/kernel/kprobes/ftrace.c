@@ -26,7 +26,7 @@
 #include "common.h"
 
 static nokprobe_inline
-int __skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+void __skip_singlestep(struct kprobe *p, struct pt_regs *regs,
 		      struct kprobe_ctlblk *kcb, unsigned long orig_ip)
 {
 	/*
@@ -41,33 +41,31 @@ int __skip_singlestep(struct kprobe *p, struct pt_regs *regs,
 	__this_cpu_write(current_kprobe, NULL);
 	if (orig_ip)
 		regs->ip = orig_ip;
-	return 1;
 }
 
 int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
 		    struct kprobe_ctlblk *kcb)
 {
-	if (kprobe_ftrace(p))
-		return __skip_singlestep(p, regs, kcb, 0);
-	else
-		return 0;
+	if (kprobe_ftrace(p)) {
+		__skip_singlestep(p, regs, kcb, 0);
+		preempt_enable_no_resched();
+		return 1;
+	}
+	return 0;
 }
 NOKPROBE_SYMBOL(skip_singlestep);
 
-/* Ftrace callback handler for kprobes */
+/* Ftrace callback handler for kprobes -- called under preepmt disabed */
 void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 			   struct ftrace_ops *ops, struct pt_regs *regs)
 {
 	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
-	unsigned long flags;
 
-	/* Disable irq for emulating a breakpoint and avoiding preempt */
-	local_irq_save(flags);
-
+	/* Preempt is disabled by ftrace */
 	p = get_kprobe((kprobe_opcode_t *)ip);
 	if (unlikely(!p) || kprobe_disabled(p))
-		goto end;
+		return;
 
 	kcb = get_kprobe_ctlblk();
 	if (kprobe_running()) {
@@ -77,17 +75,19 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		/* Kprobe handler expects regs->ip = ip + 1 as breakpoint hit */
 		regs->ip = ip + sizeof(kprobe_opcode_t);
 
+		/* To emulate trap based kprobes, preempt_disable here */
+		preempt_disable();
 		__this_cpu_write(current_kprobe, p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-		if (!p->pre_handler || !p->pre_handler(p, regs))
+		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			__skip_singlestep(p, regs, kcb, orig_ip);
+			preempt_enable_no_resched();
+		}
 		/*
 		 * If pre_handler returns !0, it sets regs->ip and
-		 * resets current kprobe.
+		 * resets current kprobe, and keep preempt count +1.
 		 */
 	}
-end:
-	local_irq_restore(flags);
 }
 NOKPROBE_SYMBOL(kprobe_ftrace_handler);
 

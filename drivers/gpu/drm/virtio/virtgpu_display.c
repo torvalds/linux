@@ -53,7 +53,7 @@ static void virtio_gpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct virtio_gpu_framebuffer *virtio_gpu_fb
 		= to_virtio_gpu_framebuffer(fb);
 
-	drm_gem_object_unreference_unlocked(virtio_gpu_fb->obj);
+	drm_gem_object_put_unlocked(virtio_gpu_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(virtio_gpu_fb);
 }
@@ -71,7 +71,19 @@ virtio_gpu_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	return virtio_gpu_surface_dirty(virtio_gpu_fb, clips, num_clips);
 }
 
+static int
+virtio_gpu_framebuffer_create_handle(struct drm_framebuffer *fb,
+				     struct drm_file *file_priv,
+				     unsigned int *handle)
+{
+	struct virtio_gpu_framebuffer *virtio_gpu_fb =
+		to_virtio_gpu_framebuffer(fb);
+
+	return drm_gem_handle_create(file_priv, virtio_gpu_fb->obj, handle);
+}
+
 static const struct drm_framebuffer_funcs virtio_gpu_fb_funcs = {
+	.create_handle = virtio_gpu_framebuffer_create_handle,
 	.destroy = virtio_gpu_user_framebuffer_destroy,
 	.dirty = virtio_gpu_framebuffer_surface_dirty,
 };
@@ -327,7 +339,7 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 	ret = virtio_gpu_framebuffer_init(dev, virtio_gpu_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(virtio_gpu_fb);
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return NULL;
 	}
 

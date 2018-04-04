@@ -428,13 +428,13 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	default:
 		dn = dccp_pernet(net);
 		if (dn->dccp_loose == 0) {
-			msg = "nf_ct_dccp: not picking up existing connection ";
+			msg = "not picking up existing connection ";
 			goto out_invalid;
 		}
 	case CT_DCCP_REQUEST:
 		break;
 	case CT_DCCP_INVALID:
-		msg = "nf_ct_dccp: invalid state transition ";
+		msg = "invalid state transition ";
 		goto out_invalid;
 	}
 
@@ -447,9 +447,7 @@ static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(net, nf_ct_l3num(ct), 0, skb, NULL, NULL,
-			      NULL, "%s", msg);
+	nf_ct_l4proto_log_invalid(skb, ct, "%s", msg);
 	return false;
 }
 
@@ -469,10 +467,8 @@ static unsigned int *dccp_get_timeouts(struct net *net)
 
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
-	struct net *net = nf_ct_net(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	struct dccp_hdr _dh, *dh;
 	u_int8_t type, old_state, new_state;
@@ -534,15 +530,11 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		ct->proto.dccp.last_pkt = type;
 
 		spin_unlock_bh(&ct->lock);
-		if (LOG_INVALID(net, IPPROTO_DCCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_dccp: invalid packet ignored ");
+		nf_ct_l4proto_log_invalid(skb, ct, "%s", "invalid packet");
 		return NF_ACCEPT;
 	case CT_DCCP_INVALID:
 		spin_unlock_bh(&ct->lock);
-		if (LOG_INVALID(net, IPPROTO_DCCP))
-			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_dccp: invalid state transition ");
+		nf_ct_l4proto_log_invalid(skb, ct, "%s", "invalid state transition");
 		return -NF_ACCEPT;
 	}
 
@@ -604,8 +596,7 @@ static int dccp_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 
 out_invalid:
-	if (LOG_INVALID(net, IPPROTO_DCCP))
-		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", msg);
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_DCCP, "%s", msg);
 	return -NF_ACCEPT;
 }
 
@@ -663,6 +654,12 @@ static const struct nla_policy dccp_nla_policy[CTA_PROTOINFO_DCCP_MAX + 1] = {
 	[CTA_PROTOINFO_DCCP_PAD]	= { .type = NLA_UNSPEC },
 };
 
+#define DCCP_NLATTR_SIZE ( \
+	NLA_ALIGN(NLA_HDRLEN + 1) + \
+	NLA_ALIGN(NLA_HDRLEN + 1) + \
+	NLA_ALIGN(NLA_HDRLEN + sizeof(u64)) + \
+	NLA_ALIGN(NLA_HDRLEN + 0))
+
 static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 {
 	struct nlattr *attr = cda[CTA_PROTOINFO_DCCP];
@@ -700,13 +697,6 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 	spin_unlock_bh(&ct->lock);
 	return 0;
 }
-
-static int dccp_nlattr_size(void)
-{
-	return nla_total_size(0)	/* CTA_PROTOINFO_DCCP */
-		+ nla_policy_len(dccp_nla_policy, CTA_PROTOINFO_DCCP_MAX + 1);
-}
-
 #endif
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
@@ -871,7 +861,7 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.dccp.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
@@ -885,8 +875,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.print_conntrack	= dccp_print_conntrack,
 #endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	.nlattr_size		= DCCP_NLATTR_SIZE,
 	.to_nlattr		= dccp_to_nlattr,
-	.nlattr_size		= dccp_nlattr_size,
 	.from_nlattr		= nlattr_to_dccp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
@@ -907,7 +897,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
@@ -921,8 +911,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.print_conntrack	= dccp_print_conntrack,
 #endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	.nlattr_size		= DCCP_NLATTR_SIZE,
 	.to_nlattr		= dccp_to_nlattr,
-	.nlattr_size		= dccp_nlattr_size,
 	.from_nlattr		= nlattr_to_dccp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,

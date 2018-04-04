@@ -156,6 +156,7 @@
 #define PCLK_ISP		366
 #define PCLK_VIP		367
 #define PCLK_WDT		368
+#define PCLK_EFUSE256		369
 
 /* hclk gates */
 #define HCLK_SFC		448

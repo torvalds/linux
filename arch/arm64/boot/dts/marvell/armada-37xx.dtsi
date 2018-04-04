@@ -55,6 +55,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {
@@ -64,6 +65,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0>;
+			clocks = <&nb_periph_clk 16>;
 			enable-method = "psci";
 		};
 	};
@@ -134,8 +136,24 @@
 
 			uart0: serial@12000 {
 				compatible = "marvell,armada-3700-uart";
-				reg = <0x12000 0x400>;
-				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x12000 0x200>;
+				clocks = <&xtalclk>;
+				interrupts =
+				<GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "uart-sum", "uart-tx", "uart-rx";
+				status = "disabled";
+			};
+
+			uart1: serial@12200 {
+				compatible = "marvell,armada-3700-uart-ext";
+				reg = <0x12200 0x30>;
+				clocks = <&xtalclk>;
+				interrupts =
+				<GIC_SPI 30 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 31 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "uart-tx", "uart-rx";
 				status = "disabled";
 			};
 
@@ -183,7 +201,6 @@
 					<GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
-
 				};
 
 				xtalclk: xtal-clk {
@@ -216,6 +233,12 @@
 					groups = "uart2";
 					function = "uart";
 				};
+			};
+
+			nb_pm: syscon@14000 {
+				compatible = "marvell,armada-3700-nb-pm",
+					     "syscon";
+				reg = <0x14000 0x60>;
 			};
 
 			pinctrl_sb: pinctrl@18800 {
@@ -291,6 +314,20 @@
 				xor11 {
 					interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				};
+			};
+
+			crypto: crypto@90000 {
+				compatible = "inside-secure,safexcel-eip97";
+				reg = <0x90000 0x20000>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "mem", "ring0", "ring1",
+						  "ring2", "ring3", "eip";
+				clocks = <&nb_periph_clk 15>;
 			};
 
 			sdhci1: sdhci@d0000 {

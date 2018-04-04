@@ -105,9 +105,9 @@ SECTIONS
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
 			IDMAP_TEXT
-			__exception_text_start = .;
-			*(.exception.text)
-			__exception_text_end = .;
+			__entry_text_start = .;
+			*(.entry.text)
+			__entry_text_end = .;
 			IRQENTRY_TEXT
 			SOFTIRQENTRY_TEXT
 			TEXT_TEXT
@@ -215,14 +215,9 @@ SECTIONS
 		*(.pv_table)
 		__pv_table_end = .;
 	}
-	.init.data : {
-		INIT_DATA
-		INIT_SETUP(16)
-		INIT_CALLS
-		CON_INITCALL
-		SECURITY_INITCALL
-		INIT_RAM_FS
-	}
+
+	INIT_DATA_SECTION(16)
+
 	.exit.data : {
 		ARM_EXIT_KEEP(EXIT_DATA)
 	}
@@ -237,33 +232,10 @@ SECTIONS
 	. = ALIGN(THREAD_SIZE);
 #endif
 	__init_end = .;
-	__data_loc = .;
 
-	.data : AT(__data_loc) {
-		_data = .;		/* address in memory */
-		_sdata = .;
-
-		/*
-		 * first, the init task union, aligned
-		 * to an 8192 byte boundary.
-		 */
-		INIT_TASK_DATA(THREAD_SIZE)
-
-		NOSAVE_DATA
-		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
-		READ_MOSTLY_DATA(L1_CACHE_BYTES)
-
-		/*
-		 * and the usual data section
-		 */
-		DATA_DATA
-		CONSTRUCTORS
-
-		_edata = .;
-	}
-	_edata_loc = __data_loc + SIZEOF(.data);
-
-	BUG_TABLE
+	_sdata = .;
+	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+	_edata = .;
 
 #ifdef CONFIG_HAVE_TCM
         /*

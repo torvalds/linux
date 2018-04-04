@@ -17,7 +17,7 @@ Optional properties:
 Example 1:
 
 &i2c {
-	ak4648: ak4648@0x12 {
+	ak4648: ak4648@12 {
 		compatible = "asahi-kasei,ak4642";
 		reg = <0x12>;
 	};

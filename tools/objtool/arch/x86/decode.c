@@ -19,9 +19,9 @@
 #include <stdlib.h>
 
 #define unlikely(cond) (cond)
-#include "insn/insn.h"
-#include "insn/inat.c"
-#include "insn/insn.c"
+#include <asm/insn.h>
+#include "lib/inat.c"
+#include "lib/insn.c"
 
 #include "../../elf.h"
 #include "../../arch.h"
@@ -138,7 +138,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			*type = INSN_STACK;
 			op->src.type = OP_SRC_ADD;
 			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			op->dest.type = OP_SRC_REG;
+			op->dest.type = OP_DEST_REG;
 			op->dest.reg = CFI_SP;
 		}
 		break;

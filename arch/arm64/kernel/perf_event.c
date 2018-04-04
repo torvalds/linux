@@ -262,12 +262,6 @@ static const unsigned armv8_a73_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 
 	[C(L1D)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_L1D_CACHE_RD,
 	[C(L1D)][C(OP_WRITE)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_L1D_CACHE_WR,
-
-	[C(NODE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
-	[C(NODE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
-
-	[C(NODE)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_RD,
-	[C(NODE)][C(OP_WRITE)][C(RESULT_ACCESS)] = ARMV8_IMPDEF_PERFCTR_BUS_ACCESS_WR,
 };
 
 static const unsigned armv8_thunder_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
@@ -914,9 +908,9 @@ static void __armv8pmu_probe_pmu(void *info)
 	int pmuver;
 
 	dfr0 = read_sysreg(id_aa64dfr0_el1);
-	pmuver = cpuid_feature_extract_signed_field(dfr0,
+	pmuver = cpuid_feature_extract_unsigned_field(dfr0,
 			ID_AA64DFR0_PMUVER_SHIFT);
-	if (pmuver < 1)
+	if (pmuver == 0xf || pmuver == 0)
 		return;
 
 	probe->present = true;
@@ -931,9 +925,8 @@ static void __armv8pmu_probe_pmu(void *info)
 	pmceid[0] = read_sysreg(pmceid0_el0);
 	pmceid[1] = read_sysreg(pmceid1_el0);
 
-	bitmap_from_u32array(cpu_pmu->pmceid_bitmap,
-			     ARMV8_PMUV3_MAX_COMMON_EVENTS, pmceid,
-			     ARRAY_SIZE(pmceid));
+	bitmap_from_arr32(cpu_pmu->pmceid_bitmap,
+			     pmceid, ARMV8_PMUV3_MAX_COMMON_EVENTS);
 }
 
 static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)

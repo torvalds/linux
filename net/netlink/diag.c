@@ -115,11 +115,7 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	if (!s_num)
 		rhashtable_walk_enter(&tbl->hash, hti);
 
-	ret = rhashtable_walk_start(hti);
-	if (ret == -EAGAIN)
-		ret = 0;
-	if (ret)
-		goto stop;
+	rhashtable_walk_start(hti);
 
 	while ((nlsk = rhashtable_walk_next(hti))) {
 		if (IS_ERR(nlsk)) {
@@ -146,8 +142,8 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 	}
 
-stop:
 	rhashtable_walk_stop(hti);
+
 	if (ret)
 		goto done;
 

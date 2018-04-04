@@ -117,10 +117,9 @@ static inline unsigned int tipc_node(__u32 addr)
 /*
  * Publication scopes when binding port names and port name sequences
  */
-
-#define TIPC_ZONE_SCOPE		1
-#define TIPC_CLUSTER_SCOPE	2
-#define TIPC_NODE_SCOPE		3
+#define TIPC_ZONE_SCOPE         1
+#define TIPC_CLUSTER_SCOPE      2
+#define TIPC_NODE_SCOPE         3
 
 /*
  * Limiting values for messages
@@ -232,6 +231,21 @@ struct sockaddr_tipc {
 #define TIPC_SOCK_RECVQ_DEPTH	132	/* Default: none (read only) */
 #define TIPC_MCAST_BROADCAST    133     /* Default: TIPC selects. No arg */
 #define TIPC_MCAST_REPLICAST    134     /* Default: TIPC selects. No arg */
+#define TIPC_GROUP_JOIN         135     /* Takes struct tipc_group_req* */
+#define TIPC_GROUP_LEAVE        136     /* No argument */
+
+/*
+ * Flag values
+ */
+#define TIPC_GROUP_LOOPBACK     0x1  /* Receive copy of sent msg when match */
+#define TIPC_GROUP_MEMBER_EVTS  0x2  /* Receive membership events in socket */
+
+struct tipc_group_req {
+	__u32 type;      /* group id */
+	__u32 instance;  /* member id */
+	__u32 scope;     /* zone/cluster/node */
+	__u32 flags;
+};
 
 /*
  * Maximum sizes of TIPC bearer-related names (including terminating NULL)

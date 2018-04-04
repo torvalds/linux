@@ -127,7 +127,7 @@ int __init early_init_dt_scan_opal(unsigned long node,
 
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
 		powerpc_firmware_features |= FW_FEATURE_OPAL;
-		pr_info("OPAL detected !\n");
+		pr_debug("OPAL detected !\n");
 	} else {
 		panic("OPAL != V3 detected, no longer supported.\n");
 	}
@@ -239,8 +239,8 @@ int opal_message_notifier_register(enum opal_msg_type msg_type,
 					struct notifier_block *nb)
 {
 	if (!nb || msg_type >= OPAL_MSG_TYPE_MAX) {
-		pr_warning("%s: Invalid arguments, msg_type:%d\n",
-			   __func__, msg_type);
+		pr_warn("%s: Invalid arguments, msg_type:%d\n",
+			__func__, msg_type);
 		return -EINVAL;
 	}
 
@@ -281,8 +281,8 @@ static void opal_handle_message(void)
 
 	/* check for errors. */
 	if (ret) {
-		pr_warning("%s: Failed to retrieve opal message, err=%lld\n",
-				__func__, ret);
+		pr_warn("%s: Failed to retrieve opal message, err=%lld\n",
+			__func__, ret);
 		return;
 	}
 
@@ -461,24 +461,14 @@ static int opal_recover_mce(struct pt_regs *regs,
 
 void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 {
-	/*
-	 * This is mostly taken from kernel/panic.c, but tries to do
-	 * relatively minimal work. Don't use delay functions (TB may
-	 * be broken), don't crash dump (need to set a firmware log),
-	 * don't run notifiers. We do want to get some information to
-	 * Linux console.
-	 */
-	console_verbose();
-	bust_spinlocks(1);
+	panic_flush_kmsg_start();
+
 	pr_emerg("Hardware platform error: %s\n", msg);
 	if (regs)
 		show_regs(regs);
 	smp_send_stop();
-	printk_safe_flush_on_panic();
-	kmsg_dump(KMSG_DUMP_PANIC);
-	bust_spinlocks(0);
-	debug_locks_off();
-	console_flush_on_panic();
+
+	panic_flush_kmsg_end();
 
 	/*
 	 * Don't bother to shut things down because this will
@@ -998,6 +988,7 @@ int opal_error_code(int rc)
 
 	case OPAL_PARAMETER:		return -EINVAL;
 	case OPAL_ASYNC_COMPLETION:	return -EINPROGRESS;
+	case OPAL_BUSY:
 	case OPAL_BUSY_EVENT:		return -EBUSY;
 	case OPAL_NO_MEM:		return -ENOMEM;
 	case OPAL_PERMISSION:		return -EPERM;
@@ -1037,3 +1028,4 @@ EXPORT_SYMBOL_GPL(opal_write_oppanel_async);
 /* Export this for KVM */
 EXPORT_SYMBOL_GPL(opal_int_set_mfrr);
 EXPORT_SYMBOL_GPL(opal_int_eoi);
+EXPORT_SYMBOL_GPL(opal_error_code);

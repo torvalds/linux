@@ -174,6 +174,11 @@ enum trace_reg {
 	TRACE_REG_PERF_UNREGISTER,
 	TRACE_REG_PERF_OPEN,
 	TRACE_REG_PERF_CLOSE,
+	/*
+	 * These (ADD/DEL) use a 'boolean' return value, where 1 (true) means a
+	 * custom action was taken and the default action is not to be
+	 * performed.
+	 */
 	TRACE_REG_PERF_ADD,
 	TRACE_REG_PERF_DEL,
 #endif
@@ -272,13 +277,36 @@ struct trace_event_call {
 #ifdef CONFIG_PERF_EVENTS
 	int				perf_refcount;
 	struct hlist_head __percpu	*perf_events;
-	struct bpf_prog			*prog;
-	struct perf_event		*bpf_prog_owner;
+	struct bpf_prog_array __rcu	*prog_array;
 
 	int	(*perf_perm)(struct trace_event_call *,
 			     struct perf_event *);
 #endif
 };
+
+#ifdef CONFIG_PERF_EVENTS
+static inline bool bpf_prog_array_valid(struct trace_event_call *call)
+{
+	/*
+	 * This inline function checks whether call->prog_array
+	 * is valid or not. The function is called in various places,
+	 * outside rcu_read_lock/unlock, as a heuristic to speed up execution.
+	 *
+	 * If this function returns true, and later call->prog_array
+	 * becomes false inside rcu_read_lock/unlock region,
+	 * we bail out then. If this function return false,
+	 * there is a risk that we might miss a few events if the checking
+	 * were delayed until inside rcu_read_lock/unlock region and
+	 * call->prog_array happened to become non-NULL then.
+	 *
+	 * Here, READ_ONCE() is used instead of rcu_access_pointer().
+	 * rcu_access_pointer() requires the actual definition of
+	 * "struct bpf_prog_array" while READ_ONCE() only needs
+	 * a declaration of the same type.
+	 */
+	return !!READ_ONCE(call->prog_array);
+}
+#endif
 
 static inline const char *
 trace_event_name(struct trace_event_call *call)
@@ -436,11 +464,28 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 }
 
 #ifdef CONFIG_BPF_EVENTS
-unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx);
+unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx);
+int perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog);
+void perf_event_detach_bpf_prog(struct perf_event *event);
+int perf_event_query_prog_array(struct perf_event *event, void __user *info);
 #else
-static inline unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx)
+static inline unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 {
 	return 1;
+}
+
+static inline int
+perf_event_attach_bpf_prog(struct perf_event *event, struct bpf_prog *prog)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void perf_event_detach_bpf_prog(struct perf_event *event) { }
+
+static inline int
+perf_event_query_prog_array(struct perf_event *event, void __user *info)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 
@@ -489,6 +534,7 @@ do {									\
 struct perf_event;
 
 DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
+DECLARE_PER_CPU(int, bpf_kprobe_override);
 
 extern int  perf_trace_init(struct perf_event *event);
 extern void perf_trace_destroy(struct perf_event *event);
@@ -508,10 +554,11 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u16 type,
 		       u64 count, struct pt_regs *regs, void *head,
-		       struct task_struct *task, struct perf_event *event)
+		       struct task_struct *task)
 {
-	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task, event);
+	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task);
 }
+
 #endif
 
 #endif /* _LINUX_TRACE_EVENT_H */

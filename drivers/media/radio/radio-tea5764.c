@@ -417,7 +417,7 @@ static const struct v4l2_ioctl_ops tea5764_ioctl_ops = {
 static const struct video_device tea5764_radio_template = {
 	.name		= "TEA5764 FM-Radio",
 	.fops           = &tea5764_fops,
-	.ioctl_ops 	= &tea5764_ioctl_ops,
+	.ioctl_ops	= &tea5764_ioctl_ops,
 	.release	= video_device_release_empty,
 };
 

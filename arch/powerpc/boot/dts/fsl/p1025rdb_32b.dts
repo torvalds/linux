@@ -106,7 +106,7 @@
 				interrupts = <4 1 0 0>;
 				reg = <0x6>;
 			};
-			qe_phy1: ethernet-phy@03 {
+			qe_phy1: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
 				interrupts = <5 1 0 0>;
 				reg = <0x3>;

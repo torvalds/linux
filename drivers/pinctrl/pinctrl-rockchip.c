@@ -136,7 +136,7 @@ struct rockchip_drv {
  * @iomux: array describing the 4 iomux sources of the bank
  * @drv: array describing the 4 drive strength sources of the bank
  * @pull_type: array describing the 4 pull type sources of the bank
- * @valid: are all necessary informations present
+ * @valid: is all necessary information present
  * @of_node: dt node of this bank
  * @drvdata: common pinctrl basedata
  * @domain: irqdomain of the gpio bank
@@ -884,6 +884,24 @@ static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 	},
 };
 
+static struct rockchip_mux_route_data rk3288_mux_route_data[] = {
+	{
+		/* edphdmi_cecinoutt1 */
+		.bank_num = 7,
+		.pin = 16,
+		.func = 2,
+		.route_offset = 0x264,
+		.route_val = BIT(16 + 12) | BIT(12),
+	}, {
+		/* edphdmi_cecinout */
+		.bank_num = 7,
+		.pin = 23,
+		.func = 4,
+		.route_offset = 0x264,
+		.route_val = BIT(16 + 12),
+	},
+};
+
 static struct rockchip_mux_route_data rk3328_mux_route_data[] = {
 	{
 		/* uart2dbg_rxm0 */
@@ -900,12 +918,19 @@ static struct rockchip_mux_route_data rk3328_mux_route_data[] = {
 		.route_offset = 0x50,
 		.route_val = BIT(16) | BIT(16 + 1) | BIT(0),
 	}, {
-		/* gmac-m1-optimized_rxd0 */
+		/* gmac-m1_rxd0 */
 		.bank_num = 1,
 		.pin = 11,
 		.func = 2,
 		.route_offset = 0x50,
-		.route_val = BIT(16 + 2) | BIT(16 + 10) | BIT(2) | BIT(10),
+		.route_val = BIT(16 + 2) | BIT(2),
+	}, {
+		/* gmac-m1-optimized_rxd3 */
+		.bank_num = 1,
+		.pin = 14,
+		.func = 2,
+		.route_offset = 0x50,
+		.route_val = BIT(16 + 10) | BIT(10),
 	}, {
 		/* pdm_sdi0m0 */
 		.bank_num = 2,
@@ -1963,7 +1988,7 @@ static int rockchip_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 		info->functions[selector].name, info->groups[group].name);
 
 	/*
-	 * for each pin in the pin group selected, program the correspoding pin
+	 * for each pin in the pin group selected, program the corresponding
 	 * pin function number in the config register.
 	 */
 	for (cnt = 0; cnt < info->groups[group].npins; cnt++) {
@@ -1989,8 +2014,16 @@ static int rockchip_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
 	u32 data;
+	int ret;
 
+	ret = clk_enable(bank->clk);
+	if (ret < 0) {
+		dev_err(bank->drvdata->dev,
+			"failed to enable clock for bank %s\n", bank->name);
+		return ret;
+	}
 	data = readl_relaxed(bank->reg_base + GPIO_SWPORT_DDR);
+	clk_disable(bank->clk);
 
 	return !(data & BIT(offset));
 }
@@ -2375,18 +2408,14 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 	info->functions = devm_kzalloc(dev, info->nfunctions *
 					      sizeof(struct rockchip_pmx_func),
 					      GFP_KERNEL);
-	if (!info->functions) {
-		dev_err(dev, "failed to allocate memory for function list\n");
+	if (!info->functions)
 		return -EINVAL;
-	}
 
 	info->groups = devm_kzalloc(dev, info->ngroups *
 					    sizeof(struct rockchip_pin_group),
 					    GFP_KERNEL);
-	if (!info->groups) {
-		dev_err(dev, "failed allocate memory for ping group list\n");
+	if (!info->groups)
 		return -EINVAL;
-	}
 
 	i = 0;
 
@@ -2422,10 +2451,9 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
 			info->ctrl->nr_pins, GFP_KERNEL);
-	if (!pindesc) {
-		dev_err(&pdev->dev, "mem alloc for pin descriptors failed\n");
+	if (!pindesc)
 		return -ENOMEM;
-	}
+
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = info->ctrl->nr_pins;
 
@@ -2507,7 +2535,7 @@ static int rockchip_gpio_get(struct gpio_chip *gc, unsigned offset)
 
 /*
  * gpiolib gpio_direction_input callback function. The setting of the pin
- * mux function as 'gpio input' will be handled by the pinctrl susbsystem
+ * mux function as 'gpio input' will be handled by the pinctrl subsystem
  * interface.
  */
 static int rockchip_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -2517,7 +2545,7 @@ static int rockchip_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 
 /*
  * gpiolib gpio_direction_output callback function. The setting of the pin
- * mux function as 'gpio output' will be handled by the pinctrl susbsystem
+ * mux function as 'gpio output' will be handled by the pinctrl subsystem
  * interface.
  */
 static int rockchip_gpio_direction_output(struct gpio_chip *gc,
@@ -3138,7 +3166,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	info = devm_kzalloc(dev, sizeof(struct rockchip_pinctrl), GFP_KERNEL);
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -3391,6 +3419,8 @@ static struct rockchip_pin_ctrl rk3288_pin_ctrl = {
 		.type			= RK3288,
 		.grf_mux_offset		= 0x0,
 		.pmu_mux_offset		= 0x84,
+		.iomux_routes		= rk3288_mux_route_data,
+		.niomux_routes		= ARRAY_SIZE(rk3288_mux_route_data),
 		.pull_calc_reg		= rk3288_calc_pull_reg_and_bit,
 		.drv_calc_reg		= rk3288_calc_drv_reg_and_bit,
 };
@@ -3456,8 +3486,8 @@ static struct rockchip_pin_bank rk3399_pin_banks[] = {
 							 DRV_TYPE_IO_1V8_ONLY,
 							 DRV_TYPE_IO_DEFAULT,
 							 DRV_TYPE_IO_DEFAULT,
-							 0x0,
-							 0x8,
+							 0x80,
+							 0x88,
 							 -1,
 							 -1,
 							 PULL_TYPE_IO_1V8_ONLY,
@@ -3473,10 +3503,10 @@ static struct rockchip_pin_bank rk3399_pin_banks[] = {
 					DRV_TYPE_IO_1V8_OR_3V0,
 					DRV_TYPE_IO_1V8_OR_3V0,
 					DRV_TYPE_IO_1V8_OR_3V0,
-					0x20,
-					0x28,
-					0x30,
-					0x38
+					0xa0,
+					0xa8,
+					0xb0,
+					0xb8
 					),
 	PIN_BANK_DRV_FLAGS_PULL_FLAGS(2, 32, "gpio2", DRV_TYPE_IO_1V8_OR_3V0,
 				      DRV_TYPE_IO_1V8_OR_3V0,

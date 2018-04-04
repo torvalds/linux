@@ -5,6 +5,7 @@
 #include <linux/math64.h>
 #include <linux/log2.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "qcom-vadc-common.h"
 
@@ -229,3 +230,6 @@ int qcom_vadc_decimation_from_dt(u32 value)
 	return __ffs64(value / VADC_DECIMATION_MIN);
 }
 EXPORT_SYMBOL(qcom_vadc_decimation_from_dt);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Qualcomm ADC common functionality");

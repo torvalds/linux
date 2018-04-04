@@ -48,6 +48,9 @@ static struct cxgb4_uld_info chcr_uld_info = {
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+	.tx_handler = chcr_uld_tx_handler,
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 };
 
 struct uld_ctx *assign_chcr_device(void)
@@ -154,16 +157,20 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 	struct uld_ctx *u_ctx;
 
 	/* Create the device and add it in the device list */
+	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	/* Create the device and add it in the device list */
 	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
 	if (!u_ctx) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;
 	}
-	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE)) {
-		u_ctx = ERR_PTR(-ENOMEM);
-		goto out;
-	}
 	u_ctx->lldi = *lld;
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+	if (lld->crypto & ULP_CRYPTO_IPSEC_INLINE)
+		chcr_add_xfrmops(lld);
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 out:
 	return u_ctx;
 }
@@ -186,6 +193,13 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 		work_handlers[rpl->opcode](dev, pgl->va);
 	return 0;
 }
+
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
+{
+	return chcr_ipsec_xmit(skb, dev);
+}
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 
 static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 {
@@ -224,7 +238,7 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 static int __init chcr_crypto_init(void)
 {
 	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
-		pr_err("ULD register fail: No chcr crypto support in cxgb4");
+		pr_err("ULD register fail: No chcr crypto support in cxgb4\n");
 
 	return 0;
 }

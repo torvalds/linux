@@ -95,7 +95,6 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info adxl345_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= adxl345_read_raw,
 };
 

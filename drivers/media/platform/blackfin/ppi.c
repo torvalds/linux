@@ -52,7 +52,7 @@ static irqreturn_t ppi_irq_err(int irq, void *dev_id)
 		struct bfin_ppi_regs *reg = info->base;
 		unsigned short status;
 
-		/* register on bf561 is cleared when read 
+		/* register on bf561 is cleared when read
 		 * others are W1C
 		 */
 		status = bfin_read16(&reg->status);
@@ -338,7 +338,6 @@ struct ppi_if *ppi_create_instance(struct platform_device *pdev,
 	ppi = kzalloc(sizeof(*ppi), GFP_KERNEL);
 	if (!ppi) {
 		peripheral_free_list(info->pin_req);
-		dev_err(&pdev->dev, "unable to allocate memory for ppi handle\n");
 		return NULL;
 	}
 	ppi->ops = &ppi_ops;

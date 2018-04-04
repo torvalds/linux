@@ -96,10 +96,6 @@ static void mcf54xx_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
-#ifdef CONFIG_MMU
-	cf_bootmem_alloc();
-	mmu_context_init();
-#endif
 	mach_reset = mcf54xx_reset;
 	mach_sched_init = hw_timer_init;
 	m54xx_uarts_init();

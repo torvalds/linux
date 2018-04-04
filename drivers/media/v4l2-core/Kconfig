@@ -7,6 +7,7 @@ config VIDEO_V4L2
 	tristate
 	depends on (I2C || I2C=n) && VIDEO_DEV
 	select RATIONAL
+	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
 	default (I2C || I2C=n) && VIDEO_DEV
 
 config VIDEO_ADV_DEBUG
@@ -41,8 +42,8 @@ config VIDEO_TUNER
 
 # Used by drivers that need v4l2-mem2mem.ko
 config V4L2_MEM2MEM_DEV
-        tristate
-        depends on VIDEOBUF2_CORE
+	tristate
+	depends on VIDEOBUF2_CORE
 
 # Used by LED subsystem flash drivers
 config V4L2_FLASH_LED_CLASS
@@ -79,35 +80,3 @@ config VIDEOBUF_DMA_CONTIG
 config VIDEOBUF_DVB
 	tristate
 	select VIDEOBUF_GEN
-
-# Used by drivers that need Videobuf2 modules
-config VIDEOBUF2_CORE
-	select DMA_SHARED_BUFFER
-	tristate
-
-config VIDEOBUF2_MEMOPS
-	tristate
-	select FRAME_VECTOR
-
-config VIDEOBUF2_DMA_CONTIG
-	tristate
-	depends on HAS_DMA
-	select VIDEOBUF2_CORE
-	select VIDEOBUF2_MEMOPS
-	select DMA_SHARED_BUFFER
-
-config VIDEOBUF2_VMALLOC
-	tristate
-	select VIDEOBUF2_CORE
-	select VIDEOBUF2_MEMOPS
-	select DMA_SHARED_BUFFER
-
-config VIDEOBUF2_DMA_SG
-	tristate
-	depends on HAS_DMA
-	select VIDEOBUF2_CORE
-	select VIDEOBUF2_MEMOPS
-
-config VIDEOBUF2_DVB
-	tristate
-	select VIDEOBUF2_CORE

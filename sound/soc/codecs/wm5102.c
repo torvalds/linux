@@ -1935,7 +1935,10 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int ret;
+
+	snd_soc_codec_init_regmap(codec, arizona->regmap);
 
 	ret = wm_adsp2_codec_probe(&priv->core.adsp[0], codec);
 	if (ret)
@@ -1951,7 +1954,6 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	arizona_init_gpio(codec);
-	arizona_init_notifiers(codec);
 
 	snd_soc_component_disable_pin(component, "HAPTICS");
 
@@ -1990,17 +1992,9 @@ static unsigned int wm5102_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-static struct regmap *wm5102_get_regmap(struct device *dev)
-{
-	struct wm5102_priv *priv = dev_get_drvdata(dev);
-
-	return priv->core.arizona->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	.probe = wm5102_codec_probe,
 	.remove = wm5102_codec_remove,
-	.get_regmap = wm5102_get_regmap,
 
 	.idle_bias_off = true,
 
@@ -2042,6 +2036,14 @@ static int wm5102_probe(struct platform_device *pdev)
 	if (wm5102 == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5102);
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_of_get_audio_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	mutex_init(&arizona->dac_comp_lock);
 
@@ -2098,6 +2100,11 @@ static int wm5102_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	arizona_init_common(arizona);
+
+	ret = arizona_init_vol_limit(arizona);
+	if (ret < 0)
+		goto err_dsp_irq;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		goto err_dsp_irq;

@@ -1,13 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
- *
- * EXYNOS - CPU PMU(Power Management Unit) support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com/
+//
+// EXYNOS - CPU PMU(Power Management Unit) support
 
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -60,12 +56,6 @@ void exynos_sys_powerdown_conf(enum sys_powerdown mode)
 
 	if (pmu_data->powerdown_conf_extra)
 		pmu_data->powerdown_conf_extra(mode);
-
-	if (pmu_data->pmu_config_extra) {
-		for (i = 0; pmu_data->pmu_config_extra[i].offset != PMU_TABLE_END; i++)
-			pmu_raw_writel(pmu_data->pmu_config_extra[i].val[mode],
-					pmu_data->pmu_config_extra[i].offset);
-	}
 }
 
 /*
@@ -88,9 +78,6 @@ static const struct of_device_id exynos_pmu_of_device_ids[] = {
 	}, {
 		.compatible = "samsung,exynos4210-pmu",
 		.data = exynos_pmu_data_arm_ptr(exynos4210_pmu_data),
-	}, {
-		.compatible = "samsung,exynos4212-pmu",
-		.data = exynos_pmu_data_arm_ptr(exynos4212_pmu_data),
 	}, {
 		.compatible = "samsung,exynos4412-pmu",
 		.data = exynos_pmu_data_arm_ptr(exynos4412_pmu_data),

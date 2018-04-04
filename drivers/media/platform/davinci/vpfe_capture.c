@@ -26,8 +26,8 @@
  *
  *
  *    decoder(TVP5146/		YUV/
- * 	     MT9T001)   -->  Raw Bayer RGB ---> MUX -> VPFE (CCDC/ISIF)
- *    				data input              |      |
+ *	     MT9T001)   -->  Raw Bayer RGB ---> MUX -> VPFE (CCDC/ISIF)
+ *				data input              |      |
  *							V      |
  *						      SDRAM    |
  *							       V
@@ -47,7 +47,7 @@
  *    block such as IPIPE (on DM355 only).
  *
  *    Features supported
- *  		- MMAP IO
+ *		- MMAP IO
  *		- Capture using TVP5146 over BT.656
  *		- support for interfacing decoders using sub device model
  *		- Work with DM355 or DM6446 CCDC to do Raw Bayer RGB/YUV
@@ -115,7 +115,7 @@ static struct vpfe_config_params config_params = {
 };
 
 /* ccdc device registered */
-static struct ccdc_hw_device *ccdc_dev;
+static const struct ccdc_hw_device *ccdc_dev;
 /* lock for accessing ccdc information */
 static DEFINE_MUTEX(ccdc_lock);
 /* ccdc configuration */
@@ -203,7 +203,7 @@ static const struct vpfe_pixel_format *vpfe_lookup_pix_format(u32 pix_format)
  * vpfe_register_ccdc_device. CCDC module calls this to
  * register with vpfe capture
  */
-int vpfe_register_ccdc_device(struct ccdc_hw_device *dev)
+int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev)
 {
 	int ret = 0;
 	printk(KERN_NOTICE "vpfe_register_ccdc_device: %s\n", dev->name);
@@ -259,7 +259,7 @@ EXPORT_SYMBOL(vpfe_register_ccdc_device);
  * vpfe_unregister_ccdc_device. CCDC module calls this to
  * unregister with vpfe capture
  */
-void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev)
+void vpfe_unregister_ccdc_device(const struct ccdc_hw_device *dev)
 {
 	if (!dev) {
 		printk(KERN_ERR "invalid ccdc device ptr\n");
@@ -730,7 +730,7 @@ static int vpfe_mmap(struct file *file, struct vm_area_struct *vma)
 /*
  * vpfe_poll: It is used for select/poll system call
  */
-static unsigned int vpfe_poll(struct file *file, poll_table *wait)
+static __poll_t vpfe_poll(struct file *file, poll_table *wait)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
@@ -1794,7 +1794,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
 	vfd->tvnorms		= 0;
-	vfd->v4l2_dev 		= &vpfe_dev->v4l2_dev;
+	vfd->v4l2_dev		= &vpfe_dev->v4l2_dev;
 	snprintf(vfd->name, sizeof(vfd->name),
 		 "%s_V%d.%d.%d",
 		 CAPTURE_DRV_NAME,

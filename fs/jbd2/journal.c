@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * linux/fs/jbd2/journal.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1998
  *
  * Copyright 1998 Red Hat corp --- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * Generic filesystem journal-writing code; part of the ext2fs
  * journaling system.
@@ -165,11 +162,11 @@ static void jbd2_superblock_csum_set(journal_t *j, journal_superblock_t *sb)
  * Helper function used to manage commit timeouts
  */
 
-static void commit_timeout(unsigned long __data)
+static void commit_timeout(struct timer_list *t)
 {
-	struct task_struct * p = (struct task_struct *) __data;
+	journal_t *journal = from_timer(journal, t, j_commit_timer);
 
-	wake_up_process(p);
+	wake_up_process(journal->j_task);
 }
 
 /*
@@ -197,8 +194,7 @@ static int kjournald2(void *arg)
 	 * Set up an interval timer which can be used to trigger a commit wakeup
 	 * after the commit interval expires
 	 */
-	setup_timer(&journal->j_commit_timer, commit_timeout,
-			(unsigned long)current);
+	timer_setup(&journal->j_commit_timer, commit_timeout, 0);
 
 	set_freezable();
 
@@ -737,6 +733,23 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 		err = -EIO;
 	return err;
 }
+
+/* Return 1 when transaction with given tid has already committed. */
+int jbd2_transaction_committed(journal_t *journal, tid_t tid)
+{
+	int ret = 1;
+
+	read_lock(&journal->j_state_lock);
+	if (journal->j_running_transaction &&
+	    journal->j_running_transaction->t_tid == tid)
+		ret = 0;
+	if (journal->j_committing_transaction &&
+	    journal->j_committing_transaction->t_tid == tid)
+		ret = 0;
+	read_unlock(&journal->j_state_lock);
+	return ret;
+}
+EXPORT_SYMBOL(jbd2_transaction_committed);
 
 /*
  * When this function returns the transaction corresponding to tid

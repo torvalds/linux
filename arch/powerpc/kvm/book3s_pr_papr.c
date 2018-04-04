@@ -419,6 +419,8 @@ int kvmppc_hcall_impl_pr(unsigned long cmd)
 	case H_PROTECT:
 	case H_BULK_REMOVE:
 	case H_PUT_TCE:
+	case H_PUT_TCE_INDIRECT:
+	case H_STUFF_TCE:
 	case H_CEDE:
 	case H_LOGICAL_CI_LOAD:
 	case H_LOGICAL_CI_STORE:

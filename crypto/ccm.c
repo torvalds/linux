@@ -363,7 +363,7 @@ static int crypto_ccm_decrypt(struct aead_request *req)
 	unsigned int cryptlen = req->cryptlen;
 	u8 *authtag = pctx->auth_tag;
 	u8 *odata = pctx->odata;
-	u8 *iv = req->iv;
+	u8 *iv = pctx->idata;
 	int err;
 
 	cryptlen -= authsize;
@@ -378,6 +378,8 @@ static int crypto_ccm_decrypt(struct aead_request *req)
 	dst = pctx->src;
 	if (req->src != req->dst)
 		dst = pctx->dst;
+
+	memcpy(iv, req->iv, 16);
 
 	skcipher_request_set_tfm(skreq, ctx->ctr);
 	skcipher_request_set_callback(skreq, pctx->flags,

@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bpf.h>
+#include <net/xdp.h>
 #include <linux/qed/qede_rdma.h>
 #include <linux/io.h>
 #ifdef CONFIG_RFS_ACCEL
@@ -52,9 +53,9 @@
 #include <linux/qed/qed_eth_if.h>
 
 #define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		10
-#define QEDE_REVISION_VERSION		10
-#define QEDE_ENGINEERING_VERSION	21
+#define QEDE_MINOR_VERSION		33
+#define QEDE_REVISION_VERSION		0
+#define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
 		__stringify(QEDE_REVISION_VERSION) "."		\
@@ -345,6 +346,7 @@ struct qede_rx_queue {
 	u64 xdp_no_pass;
 
 	void *handle;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 union db_prod {
@@ -494,6 +496,8 @@ int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid);
 void qede_vlan_mark_nonconfigured(struct qede_dev *edev);
 int qede_configure_vlan_filters(struct qede_dev *edev);
 
+netdev_features_t qede_fix_features(struct net_device *dev,
+				    netdev_features_t features);
 int qede_set_features(struct net_device *dev, netdev_features_t features);
 void qede_set_rx_mode(struct net_device *ndev);
 void qede_config_rx_mode(struct net_device *ndev);
@@ -503,7 +507,7 @@ void qede_fill_rss_params(struct qede_dev *edev,
 void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti);
 void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti);
 
-int qede_xdp(struct net_device *dev, struct netdev_xdp *xdp);
+int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #ifdef CONFIG_DCB
 void qede_set_dcbnl_ops(struct net_device *ndev);

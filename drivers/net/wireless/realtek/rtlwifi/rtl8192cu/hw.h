@@ -104,6 +104,6 @@ void rtl92c_fill_h2c_cmd(struct ieee80211_hw *hw,
 bool rtl92cu_phy_mac_config(struct ieee80211_hw *hw);
 void rtl92cu_update_hal_rate_tbl(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,
-				 u8 rssi_level);
+				 u8 rssi_level, bool update_bw);
 
 #endif

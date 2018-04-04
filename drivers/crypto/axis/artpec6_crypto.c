@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 
 #include <crypto/aes.h>
+#include <crypto/gcm.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
@@ -1934,7 +1935,7 @@ static int artpec6_crypto_prepare_aead(struct aead_request *areq)
 
 	memcpy(req_ctx->hw_ctx.J0, areq->iv, crypto_aead_ivsize(cipher));
 	// The HW omits the initial increment of the counter field.
-	crypto_inc(req_ctx->hw_ctx.J0+12, 4);
+	memcpy(req_ctx->hw_ctx.J0 + GCM_AES_IV_SIZE, "\x00\x00\x00\x01", 4);
 
 	ret = artpec6_crypto_setup_out_descr(common, &req_ctx->hw_ctx,
 		sizeof(struct artpec6_crypto_aead_hw_ctx), false, false);
@@ -2072,9 +2073,9 @@ static void artpec6_crypto_process_queue(struct artpec6_crypto *ac)
 		del_timer(&ac->timer);
 }
 
-static void artpec6_crypto_timeout(unsigned long data)
+static void artpec6_crypto_timeout(struct timer_list *t)
 {
-	struct artpec6_crypto *ac = (struct artpec6_crypto *) data;
+	struct artpec6_crypto *ac = from_timer(ac, t, timer);
 
 	dev_info_ratelimited(artpec6_crypto_dev, "timeout\n");
 
@@ -2956,7 +2957,7 @@ static struct aead_alg aead_algos[] = {
 		.setkey = artpec6_crypto_aead_set_key,
 		.encrypt = artpec6_crypto_aead_encrypt,
 		.decrypt = artpec6_crypto_aead_decrypt,
-		.ivsize = AES_BLOCK_SIZE,
+		.ivsize = GCM_AES_IV_SIZE,
 		.maxauthsize = AES_BLOCK_SIZE,
 
 		.base = {
@@ -3041,9 +3042,6 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	variant = (enum artpec6_crypto_variant)match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -3063,7 +3061,7 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	spin_lock_init(&ac->queue_lock);
 	INIT_LIST_HEAD(&ac->queue);
 	INIT_LIST_HEAD(&ac->pending);
-	setup_timer(&ac->timer, artpec6_crypto_timeout, (unsigned long) ac);
+	timer_setup(&ac->timer, artpec6_crypto_timeout, 0);
 
 	ac->base = base;
 

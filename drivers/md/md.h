@@ -237,6 +237,12 @@ enum mddev_flags {
 				 */
 	MD_HAS_PPL,		/* The raid array has PPL feature set */
 	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
+	MD_ALLOW_SB_UPDATE,	/* md_check_recovery is allowed to update
+				 * the metadata without taking reconfig_mutex.
+				 */
+	MD_UPDATING_SB,		/* md_check_recovery is updating the metadata
+				 * without explicitly holding reconfig_mutex.
+				 */
 };
 
 enum mddev_sb_flags {
@@ -462,6 +468,8 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
+
+	bool	has_superblocks:1;
 };
 
 enum recovery_flags {
@@ -479,6 +487,7 @@ enum recovery_flags {
 	MD_RECOVERY_RESHAPE,	/* A reshape is happening */
 	MD_RECOVERY_FROZEN,	/* User request to abort, and not restart, any action */
 	MD_RECOVERY_ERROR,	/* sync-action interrupted because io-error */
+	MD_RECOVERY_WAIT,	/* waiting for pers->start() to finish */
 };
 
 static inline int __must_check mddev_lock(struct mddev *mddev)
@@ -492,11 +501,6 @@ static inline int __must_check mddev_lock(struct mddev *mddev)
 static inline void mddev_lock_nointr(struct mddev *mddev)
 {
 	mutex_lock(&mddev->reconfig_mutex);
-}
-
-static inline int mddev_is_locked(struct mddev *mddev)
-{
-	return mutex_is_locked(&mddev->reconfig_mutex);
 }
 
 static inline int mddev_trylock(struct mddev *mddev)
@@ -522,7 +526,13 @@ struct md_personality
 	struct list_head list;
 	struct module *owner;
 	bool (*make_request)(struct mddev *mddev, struct bio *bio);
+	/*
+	 * start up works that do NOT require md_thread. tasks that
+	 * requires md_thread should go into start()
+	 */
 	int (*run)(struct mddev *mddev);
+	/* start up works that require md threads */
+	int (*start)(struct mddev *mddev);
 	void (*free)(struct mddev *mddev, void *priv);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
 	/* error_handler must set ->faulty and clear ->in_sync
@@ -538,12 +548,11 @@ struct md_personality
 	int (*check_reshape) (struct mddev *mddev);
 	int (*start_reshape) (struct mddev *mddev);
 	void (*finish_reshape) (struct mddev *mddev);
-	/* quiesce moves between quiescence states
-	 * 0 - fully active
-	 * 1 - no new requests allowed
-	 * others - reserved
+	/* quiesce suspends or resumes internal processing.
+	 * 1 - stop new actions and wait for action io to complete
+	 * 0 - return to normal behaviour
 	 */
-	void (*quiesce) (struct mddev *mddev, int state);
+	void (*quiesce) (struct mddev *mddev, int quiesce);
 	/* takeover is used to transition an array from one
 	 * personality to another.  The new personality must be able
 	 * to handle the data in the current layout.
@@ -687,6 +696,7 @@ extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 
 extern void mddev_init(struct mddev *mddev);
 extern int md_run(struct mddev *mddev);
+extern int md_start(struct mddev *mddev);
 extern void md_stop(struct mddev *mddev);
 extern void md_stop_writes(struct mddev *mddev);
 extern int md_rdev_init(struct md_rdev *rdev);
@@ -702,6 +712,7 @@ extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void md_kick_rdev_from_array(struct md_rdev * rdev);
 struct md_rdev *md_find_rdev_nr_rcu(struct mddev *mddev, int nr);
+struct md_rdev *md_find_rdev_rcu(struct mddev *mddev, dev_t dev);
 
 static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 {

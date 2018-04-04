@@ -95,6 +95,9 @@
 #define DROP_PACKET_OFF		0
 #define DROP_PACKET_ON		1
 
+#define NEIGHBOR_TYPE_HFI		0
+#define NEIGHBOR_TYPE_SWITCH	1
+
 extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_KGET_MASK(mask, cap) ((mask) & HFI1_CAP_##cap)
 #define HFI1_CAP_UGET_MASK(mask, cap) \
@@ -164,9 +167,7 @@ extern const struct pci_error_handlers hfi1_pci_err_handler;
  * Below contains all data related to a single context (formerly called port).
  */
 
-#ifdef CONFIG_DEBUG_FS
 struct hfi1_opcode_stats_perctx;
-#endif
 
 struct ctxt_eager_bufs {
 	ssize_t size;            /* total size of eager buffers */
@@ -283,7 +284,7 @@ struct hfi1_ctxtdata {
 	u64 imask;	/* clear interrupt mask */
 	int ireg;	/* clear interrupt register */
 	unsigned numa_id; /* numa node of this context */
-	/* verbs stats per CTX */
+	/* verbs rx_stats per rcd */
 	struct hfi1_opcode_stats_perctx *opstats;
 
 	/* Is ASPM interrupt supported for this context */
@@ -340,6 +341,7 @@ struct hfi1_packet {
 	u32 slid;
 	u16 tlen;
 	s16 etail;
+	u16 pkey;
 	u8 hlen;
 	u8 numpkt;
 	u8 rsize;
@@ -350,8 +352,7 @@ struct hfi1_packet {
 	u8 sc;
 	u8 sl;
 	u8 opcode;
-	bool becn;
-	bool fecn;
+	bool migrated;
 };
 
 /* Packet types */
@@ -390,6 +391,7 @@ struct hfi1_packet {
 /*
  * OPA 16B L2/L4 Encodings
  */
+#define OPA_16B_L4_9B		0x00
 #define OPA_16B_L2_TYPE		0x02
 #define OPA_16B_L4_IB_LOCAL	0x09
 #define OPA_16B_L4_IB_GLOBAL	0x0A
@@ -535,6 +537,8 @@ struct rvt_sge_state;
 #define HLS_UP (HLS_UP_INIT | HLS_UP_ARMED | HLS_UP_ACTIVE)
 #define HLS_DOWN ~(HLS_UP)
 
+#define HLS_DEFAULT HLS_DN_POLL
+
 /* use this MTU size if none other is given */
 #define HFI1_DEFAULT_ACTIVE_MTU 10240
 /* use this MTU size as the default maximum */
@@ -616,7 +620,6 @@ struct hfi1_msix_entry {
 	enum irq_type type;
 	int irq;
 	void *arg;
-	char name[MAX_NAME_SIZE];
 	cpumask_t mask;
 	struct irq_affinity_notify notify;
 };
@@ -855,6 +858,13 @@ struct hfi1_pportdata {
 	struct work_struct linkstate_active_work;
 	/* Does this port need to prescan for FECNs */
 	bool cc_prescan;
+	/*
+	 * Sample sendWaitCnt & sendWaitVlCnt during link transition
+	 * and counter request.
+	 */
+	u64 port_vl_xmit_wait_last[C_VL_COUNT + 1];
+	u16 prev_link_width;
+	u64 vl_xmit_flit_cnt[C_VL_COUNT + 1];
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
@@ -1047,6 +1057,8 @@ struct hfi1_devdata {
 	u64 z_send_schedule;
 
 	u64 __percpu *send_schedule;
+	/* number of reserved contexts for VNIC usage */
+	u16 num_vnic_contexts;
 	/* number of receive contexts in use by the driver */
 	u32 num_rcv_contexts;
 	/* number of pio send contexts in use by the driver */
@@ -1109,8 +1121,7 @@ struct hfi1_devdata {
 	u16 rcvegrbufsize_shift;
 	/* both sides of the PCIe link are gen3 capable */
 	u8 link_gen3_capable;
-	/* default link down value (poll/sleep) */
-	u8 link_default;
+	u8 dc_shutdown;
 	/* localbus width (1, 2,4,8,16,32) from config space  */
 	u32 lbus_width;
 	/* localbus speed in MHz */
@@ -1127,7 +1138,6 @@ struct hfi1_devdata {
 	u16 pcie_lnkctl;
 	u16 pcie_devctl2;
 	u32 pci_msix0;
-	u32 pci_lnkctl3;
 	u32 pci_tph2;
 
 	/*
@@ -1183,7 +1193,6 @@ struct hfi1_devdata {
 
 	/* INTx information */
 	u32 requested_intx_irq;		/* did we request one? */
-	char intx_name[MAX_NAME_SIZE];	/* INTx name */
 
 	/* general interrupt: mask of handled interrupts */
 	u64 gi_mask[CCE_NUM_INT_CSRS];
@@ -1274,6 +1283,8 @@ struct hfi1_devdata {
 	/* receive context data */
 	struct hfi1_ctxtdata **rcd;
 	u64 __percpu *int_counter;
+	/* verbs tx opcode stats */
+	struct hfi1_opcode_stats_perctx __percpu *tx_opstats;
 	/* device (not port) flags, basically device capabilities */
 	u16 flags;
 	/* Number of physical ports available */
@@ -1295,7 +1306,6 @@ struct hfi1_devdata {
 	u8 oui1;
 	u8 oui2;
 	u8 oui3;
-	u8 dc_shutdown;
 
 	/* Timer and counter used to detect RcvBufOvflCnt changes */
 	struct timer_list rcverr_timer;
@@ -1373,8 +1383,12 @@ struct hfi1_filedata {
 extern struct list_head hfi1_dev_list;
 extern spinlock_t hfi1_devs_lock;
 struct hfi1_devdata *hfi1_lookup(int unit);
-extern u32 hfi1_cpulist_count;
-extern unsigned long *hfi1_cpulist;
+
+static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)
+{
+	return (uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
+		HFI1_MAX_SHARED_CTXTS;
+}
 
 int hfi1_init(struct hfi1_devdata *dd, int reinit);
 int hfi1_count_active_units(void);
@@ -1396,6 +1410,8 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
 void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
+						 u16 ctxt);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
@@ -1531,11 +1547,6 @@ typedef void (*hfi1_handle_cnp)(struct hfi1_ibport *ibp, struct rvt_qp *qp,
 				u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
 				u8 sc5, const struct ib_grh *old_grh);
 
-/* We support only two types - 9B and 16B for now */
-static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
-	[HFI1_PKT_TYPE_9B] = &return_cnp,
-	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
-};
 #define PKEY_CHECK_INVALID -1
 int egress_pkey_check(struct hfi1_pportdata *ppd, u32 slid, u16 pkey,
 		      u8 sc5, int8_t s_pkey_index);
@@ -1619,7 +1630,7 @@ static int ingress_pkey_table_search(struct hfi1_pportdata *ppd, u16 pkey)
  * the 'error info' for this failure.
  */
 static void ingress_pkey_table_fail(struct hfi1_pportdata *ppd, u16 pkey,
-				    u16 slid)
+				    u32 slid)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 
@@ -1775,19 +1786,15 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
-	struct ib_other_headers *ohdr = pkt->ohdr;
-
-	u32 bth1;
-	bool becn = false;
-	bool fecn = false;
+	bool becn;
+	bool fecn;
 
 	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
 		fecn = hfi1_16B_get_fecn(pkt->hdr);
 		becn = hfi1_16B_get_becn(pkt->hdr);
 	} else {
-		bth1 = be32_to_cpu(ohdr->bth[1]);
-		fecn = bth1 & IB_FECN_SMASK;
-		becn = bth1 & IB_BECN_SMASK;
+		fecn = ib_bth_get_fecn(pkt->ohdr);
+		becn = ib_bth_get_becn(pkt->ohdr);
 	}
 	if (unlikely(fecn || becn)) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
@@ -1953,6 +1960,7 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
 int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent);
+void hfi1_clean_up_interrupts(struct hfi1_devdata *dd);
 void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
@@ -1967,8 +1975,6 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			      table_type, int table_index, int field_index,
 			      u32 *data, u32 len);
 
-const char *get_unit_name(int unit);
-const char *get_card_name(struct rvt_dev_info *rdi);
 struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi);
 
 /*
@@ -2118,39 +2124,42 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 
 #define dd_dev_emerg(dd, fmt, ...) \
 	dev_emerg(&(dd)->pcidev->dev, "%s: " fmt, \
-		  get_unit_name((dd)->unit), ##__VA_ARGS__)
+		  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_err(dd, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_err_ratelimited(dd, fmt, ...) \
 	dev_err_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+			    rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), \
+			    ##__VA_ARGS__)
 
 #define dd_dev_warn(dd, fmt, ...) \
 	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+		 rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_warn_ratelimited(dd, fmt, ...) \
 	dev_warn_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+			     rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), \
+			     ##__VA_ARGS__)
 
 #define dd_dev_info(dd, fmt, ...) \
 	dev_info(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+		 rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_info_ratelimited(dd, fmt, ...) \
 	dev_info_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+			     rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), \
+			     ##__VA_ARGS__)
 
 #define dd_dev_dbg(dd, fmt, ...) \
 	dev_dbg(&(dd)->pcidev->dev, "%s: " fmt, \
-		get_unit_name((dd)->unit), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define hfi1_dev_porterr(dd, port, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: port %u: " fmt, \
-			get_unit_name((dd)->unit), (port), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), (port), ##__VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...
@@ -2411,7 +2420,7 @@ static inline void hfi1_make_ib_hdr(struct ib_header *hdr,
 static inline void hfi1_make_16b_hdr(struct hfi1_16b_header *hdr,
 				     u32 slid, u32 dlid,
 				     u16 len, u16 pkey,
-				     u8 becn, u8 fecn, u8 l4,
+				     bool becn, bool fecn, u8 l4,
 				     u8 sc)
 {
 	u32 lrh0 = 0;

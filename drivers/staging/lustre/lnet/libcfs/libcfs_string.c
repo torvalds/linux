@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -136,26 +137,6 @@ out:
 }
 EXPORT_SYMBOL(cfs_firststr);
 
-char *
-cfs_trimwhite(char *str)
-{
-	char *end;
-
-	while (isspace(*str))
-		str++;
-
-	end = str + strlen(str);
-	while (end > str) {
-		if (!isspace(end[-1]))
-			break;
-		end--;
-	}
-
-	*end = 0;
-	return str;
-}
-EXPORT_SYMBOL(cfs_trimwhite);
-
 /**
  * Extracts tokens from strings.
  *
@@ -279,7 +260,7 @@ cfs_range_expr_parse(struct cfs_lstr *src, unsigned int min, unsigned int max,
 	struct cfs_range_expr *re;
 	struct cfs_lstr tok;
 
-	LIBCFS_ALLOC(re, sizeof(*re));
+	re = kzalloc(sizeof(*re), GFP_NOFS);
 	if (!re)
 		return -ENOMEM;
 
@@ -332,7 +313,7 @@ cfs_range_expr_parse(struct cfs_lstr *src, unsigned int min, unsigned int max,
 	return 0;
 
  failed:
-	LIBCFS_FREE(re, sizeof(*re));
+	kfree(re);
 	return -EINVAL;
 }
 
@@ -456,7 +437,7 @@ cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, u32 **valpp)
 		return -EINVAL;
 	}
 
-	LIBCFS_ALLOC(val, sizeof(val[0]) * count);
+	val = kvmalloc_array(count, sizeof(val[0]), GFP_KERNEL | __GFP_ZERO);
 	if (!val)
 		return -ENOMEM;
 
@@ -487,10 +468,10 @@ cfs_expr_list_free(struct cfs_expr_list *expr_list)
 		expr = list_entry(expr_list->el_exprs.next,
 				  struct cfs_range_expr, re_link);
 		list_del(&expr->re_link);
-		LIBCFS_FREE(expr, sizeof(*expr));
+		kfree(expr);
 	}
 
-	LIBCFS_FREE(expr_list, sizeof(*expr_list));
+	kfree(expr_list);
 }
 EXPORT_SYMBOL(cfs_expr_list_free);
 
@@ -509,7 +490,7 @@ cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 	struct cfs_lstr	src;
 	int rc;
 
-	LIBCFS_ALLOC(expr_list, sizeof(*expr_list));
+	expr_list = kzalloc(sizeof(*expr_list), GFP_NOFS);
 	if (!expr_list)
 		return -ENOMEM;
 

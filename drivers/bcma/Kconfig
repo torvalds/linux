@@ -11,14 +11,15 @@ menuconfig BCMA
 	  Bus driver for Broadcom specific Advanced Microcontroller Bus
 	  Architecture.
 
+if BCMA
+
 # Support for Block-I/O. SELECT this from the driver that needs it.
 config BCMA_BLOCKIO
 	bool
-	depends on BCMA
 
 config BCMA_HOST_PCI_POSSIBLE
 	bool
-	depends on BCMA && PCI = y
+	depends on PCI = y
 	default y
 
 config BCMA_HOST_PCI
@@ -29,7 +30,6 @@ config BCMA_HOST_PCI
 
 config BCMA_HOST_SOC
 	bool "Support for BCMA in a SoC"
-	depends on BCMA
 	help
 	  Host interface for a Broadcom AIX bus directly mapped into
 	  the memory. This only works with the Broadcom SoCs from the
@@ -39,7 +39,7 @@ config BCMA_HOST_SOC
 
 config BCMA_DRIVER_PCI
 	bool "BCMA Broadcom PCI core driver"
-	depends on BCMA && PCI
+	depends on PCI
 	default y
 	help
 	  BCMA bus may have many versions of PCIe core. This driver
@@ -55,13 +55,13 @@ config BCMA_DRIVER_PCI
 
 config BCMA_DRIVER_PCI_HOSTMODE
 	bool "Driver for PCI core working in hostmode"
-	depends on BCMA && MIPS && BCMA_DRIVER_PCI
+	depends on MIPS && BCMA_DRIVER_PCI && PCI_DRIVERS_LEGACY
 	help
 	  PCI core hostmode operation (external PCI bus).
 
 config BCMA_DRIVER_MIPS
 	bool "BCMA Broadcom MIPS core driver"
-	depends on BCMA && MIPS
+	depends on MIPS
 	help
 	  Driver for the Broadcom MIPS core attached to Broadcom specific
 	  Advanced Microcontroller Bus.
@@ -92,7 +92,6 @@ config BCMA_NFLASH
 
 config BCMA_DRIVER_GMAC_CMN
 	bool "BCMA Broadcom GBIT MAC COMMON core driver"
-	depends on BCMA
 	help
 	  Driver for the Broadcom GBIT MAC COMMON core attached to Broadcom
 	  specific Advanced Microcontroller Bus.
@@ -101,7 +100,7 @@ config BCMA_DRIVER_GMAC_CMN
 
 config BCMA_DRIVER_GPIO
 	bool "BCMA GPIO driver"
-	depends on BCMA && GPIOLIB
+	depends on GPIOLIB
 	select GPIOLIB_IRQCHIP if BCMA_HOST_SOC
 	help
 	  Driver to provide access to the GPIO pins of the bcma bus.
@@ -110,8 +109,9 @@ config BCMA_DRIVER_GPIO
 
 config BCMA_DEBUG
 	bool "BCMA debugging"
-	depends on BCMA
 	help
 	  This turns on additional debugging messages.
 
 	  If unsure, say N
+
+endif # BCMA

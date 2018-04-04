@@ -222,6 +222,9 @@ static enum pin_config_param pcs_bias[] = {
  */
 static struct lock_class_key pcs_lock_class;
 
+/* Class for the IRQ request mutex */
+static struct lock_class_key pcs_request_class;
+
 /*
  * REVISIT: Reads and writes could eventually use regmap or something
  * generic. But at least on omaps, some mux registers are performance
@@ -873,13 +876,13 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 	int i = 0, nconfs = 0;
 	unsigned long *settings = NULL, *s = NULL;
 	struct pcs_conf_vals *conf = NULL;
-	struct pcs_conf_type prop2[] = {
+	static const struct pcs_conf_type prop2[] = {
 		{ "pinctrl-single,drive-strength", PIN_CONFIG_DRIVE_STRENGTH, },
 		{ "pinctrl-single,slew-rate", PIN_CONFIG_SLEW_RATE, },
 		{ "pinctrl-single,input-schmitt", PIN_CONFIG_INPUT_SCHMITT, },
 		{ "pinctrl-single,low-power-mode", PIN_CONFIG_LOW_POWER_MODE, },
 	};
-	struct pcs_conf_type prop4[] = {
+	static const struct pcs_conf_type prop4[] = {
 		{ "pinctrl-single,bias-pullup", PIN_CONFIG_BIAS_PULL_UP, },
 		{ "pinctrl-single,bias-pulldown", PIN_CONFIG_BIAS_PULL_DOWN, },
 		{ "pinctrl-single,input-schmitt-enable",
@@ -1459,8 +1462,6 @@ static void pcs_irq_chain_handler(struct irq_desc *desc)
 	pcs_irq_handle(pcs_soc);
 	/* REVISIT: export and add handle_bad_irq(irq, desc)? */
 	chained_irq_exit(chip, desc);
-
-	return;
 }
 
 static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
@@ -1486,7 +1487,7 @@ static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, pcs_soc);
 	irq_set_chip_and_handler(irq, &pcs->chip,
 				 handle_level_irq);
-	irq_set_lockdep_class(irq, &pcs_lock_class);
+	irq_set_lockdep_class(irq, &pcs_lock_class, &pcs_request_class);
 	irq_set_noprobe(irq);
 
 	return 0;
@@ -1646,10 +1647,9 @@ static int pcs_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	pcs = devm_kzalloc(&pdev->dev, sizeof(*pcs), GFP_KERNEL);
-	if (!pcs) {
-		dev_err(&pdev->dev, "could not allocate\n");
+	if (!pcs)
 		return -ENOMEM;
-	}
+
 	pcs->dev = &pdev->dev;
 	pcs->np = np;
 	raw_spin_lock_init(&pcs->lock);
@@ -1774,8 +1774,7 @@ static int pcs_probe(struct platform_device *pdev)
 			dev_warn(pcs->dev, "initialized with no interrupts\n");
 	}
 
-	dev_info(pcs->dev, "%i pins at pa %p size %u\n",
-		 pcs->desc.npins, pcs->base, pcs->size);
+	dev_info(pcs->dev, "%i pins, size %u\n", pcs->desc.npins, pcs->size);
 
 	return pinctrl_enable(pcs->pctl);
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config CRYPTO_DEV_CCREE
 	tristate "Support for ARM TrustZone CryptoCell C7XX family of Crypto accelerators"
 	depends on CRYPTO && CRYPTO_HW && OF && HAS_DMA

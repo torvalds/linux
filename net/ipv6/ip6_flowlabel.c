@@ -46,8 +46,8 @@
 static atomic_t fl_size = ATOMIC_INIT(0);
 static struct ip6_flowlabel __rcu *fl_ht[FL_HASH_MASK+1];
 
-static void ip6_fl_gc(unsigned long dummy);
-static DEFINE_TIMER(ip6_fl_gc_timer, ip6_fl_gc, 0, 0);
+static void ip6_fl_gc(struct timer_list *unused);
+static DEFINE_TIMER(ip6_fl_gc_timer, ip6_fl_gc);
 
 /* FL hash table lock: it protects only of GC */
 
@@ -127,7 +127,7 @@ static void fl_release(struct ip6_flowlabel *fl)
 	spin_unlock_bh(&ip6_fl_lock);
 }
 
-static void ip6_fl_gc(unsigned long dummy)
+static void ip6_fl_gc(struct timer_list *unused)
 {
 	int i;
 	unsigned long now = jiffies;
@@ -836,7 +836,6 @@ static int ip6fl_seq_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ip6fl_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	ip6fl_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,

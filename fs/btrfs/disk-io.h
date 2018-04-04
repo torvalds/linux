@@ -149,6 +149,9 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid);
 int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
+struct extent_map *btree_get_extent(struct btrfs_inode *inode,
+		struct page *page, size_t pg_offset, u64 start, u64 len,
+		int create);
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int __init btrfs_end_io_wq_init(void);
 void btrfs_end_io_wq_exit(void);

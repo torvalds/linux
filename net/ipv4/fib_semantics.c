@@ -601,17 +601,9 @@ static void fib_rebalance(struct fib_info *fi)
 		atomic_set(&nexthop_nh->nh_upper_bound, upper_bound);
 	} endfor_nexthops(fi);
 }
-
-static inline void fib_add_weight(struct fib_info *fi,
-				  const struct fib_nh *nh)
-{
-	fi->fib_weight += nh->nh_weight;
-}
-
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
 
 #define fib_rebalance(fi) do { } while (0)
-#define fib_add_weight(fi, nh) do { } while (0)
 
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
@@ -654,6 +646,11 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
 					    fi->fib_nh, cfg, extack))
 				return 1;
 		}
+#ifdef CONFIG_IP_ROUTE_CLASSID
+		if (cfg->fc_flow &&
+		    cfg->fc_flow != fi->fib_nh->nh_tclassid)
+			return 1;
+#endif
 		if ((!cfg->fc_oif || cfg->fc_oif == fi->fib_nh->nh_oif) &&
 		    (!cfg->fc_gw  || cfg->fc_gw == fi->fib_nh->nh_gw))
 			return 0;
@@ -706,7 +703,7 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 
 	nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
 		int type = nla_type(nla);
-		u32 val;
+		u32 fi_val, val;
 
 		if (!type)
 			continue;
@@ -718,12 +715,16 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
 			bool ecn_ca = false;
 
 			nla_strlcpy(tmp, nla, sizeof(tmp));
-			val = tcp_ca_get_key_by_name(tmp, &ecn_ca);
+			val = tcp_ca_get_key_by_name(fi->fib_net, tmp, &ecn_ca);
 		} else {
 			val = nla_get_u32(nla);
 		}
 
-		if (fi->fib_metrics->metrics[type - 1] != val)
+		fi_val = fi->fib_metrics->metrics[type - 1];
+		if (type == RTAX_FEATURES)
+			fi_val &= ~DST_FEATURE_ECN_CA;
+
+		if (fi_val != val)
 			return false;
 	}
 
@@ -774,8 +775,8 @@ bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
  *					|
  *					|-> {local prefix} (terminal node)
  */
-static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
-			struct fib_nh *nh, struct netlink_ext_ack *extack)
+static int fib_check_nh(struct fib_config *cfg, struct fib_nh *nh,
+			struct netlink_ext_ack *extack)
 {
 	int err = 0;
 	struct net *net;
@@ -1038,7 +1039,7 @@ fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 			char tmp[TCP_CA_NAME_MAX];
 
 			nla_strlcpy(tmp, nla, sizeof(tmp));
-			val = tcp_ca_get_key_by_name(tmp, &ecn_ca);
+			val = tcp_ca_get_key_by_name(fi->fib_net, tmp, &ecn_ca);
 			if (val == TCP_CA_UNSPEC)
 				return -EINVAL;
 		} else {
@@ -1258,7 +1259,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		int linkdown = 0;
 
 		change_nexthops(fi) {
-			err = fib_check_nh(cfg, fi, nexthop_nh, extack);
+			err = fib_check_nh(cfg, nexthop_nh, extack);
 			if (err != 0)
 				goto failure;
 			if (nexthop_nh->nh_flags & RTNH_F_LINKDOWN)
@@ -1275,7 +1276,6 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 
 	change_nexthops(fi) {
 		fib_info_update_nh_saddr(net, nexthop_nh);
-		fib_add_weight(fi, nexthop_nh);
 	} endfor_nexthops(fi)
 
 	fib_rebalance(fi);

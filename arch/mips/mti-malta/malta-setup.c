@@ -47,31 +47,31 @@ static struct resource standard_io_resources[] = {
 		.name = "dma1",
 		.start = 0x00,
 		.end = 0x1f,
-		.flags = IORESOURCE_BUSY
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
 	},
 	{
 		.name = "timer",
 		.start = 0x40,
 		.end = 0x5f,
-		.flags = IORESOURCE_BUSY
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
 	},
 	{
 		.name = "keyboard",
 		.start = 0x60,
 		.end = 0x6f,
-		.flags = IORESOURCE_BUSY
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
 	},
 	{
 		.name = "dma page reg",
 		.start = 0x80,
 		.end = 0x8f,
-		.flags = IORESOURCE_BUSY
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
 	},
 	{
 		.name = "dma2",
 		.start = 0xc0,
 		.end = 0xdf,
-		.flags = IORESOURCE_BUSY
+		.flags = IORESOURCE_IO | IORESOURCE_BUSY
 	},
 };
 

@@ -78,9 +78,9 @@ static int iio_bfin_tmr_set_state(struct iio_trigger *trig, bool state)
 	return 0;
 }
 
-static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
-					    struct device_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t frequency_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct bfin_tmr_state *st = iio_trigger_get_drvdata(trig);
@@ -116,9 +116,9 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 	return count;
 }
 
-static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static ssize_t frequency_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct bfin_tmr_state *st = iio_trigger_get_drvdata(trig);
@@ -133,8 +133,7 @@ static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
 	return sprintf(buf, "%lu\n", val);
 }
 
-static DEVICE_ATTR(frequency, 0644, iio_bfin_tmr_frequency_show,
-		   iio_bfin_tmr_frequency_store);
+static DEVICE_ATTR_RW(frequency);
 
 static struct attribute *iio_bfin_tmr_trigger_attrs[] = {
 	&dev_attr_frequency.attr,
@@ -172,7 +171,6 @@ static int iio_bfin_tmr_get_number(int irq)
 }
 
 static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = iio_bfin_tmr_set_state,
 };
 
@@ -188,9 +186,9 @@ static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	st->irq = platform_get_irq(pdev, 0);
-	if (!st->irq) {
+	if (st->irq < 0) {
 		dev_err(&pdev->dev, "No IRQs specified");
-		return -ENODEV;
+		return st->irq;
 	}
 
 	ret = iio_bfin_tmr_get_number(st->irq);

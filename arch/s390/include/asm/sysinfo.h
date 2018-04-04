@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * definition for store system information stsi
  *
  * Copyright IBM Corp. 2001, 2008
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Ulrich Weigand <weigand@de.ibm.com>
  *		 Christian Borntraeger <borntraeger@de.ibm.com>
@@ -24,7 +21,8 @@ struct sysinfo_1_1_1 {
 	unsigned char :8;
 	unsigned char ccr;
 	unsigned char cai;
-	char reserved_0[28];
+	char reserved_0[20];
+	unsigned long lic;
 	char manufacturer[16];
 	char type[4];
 	char reserved_1[12];
@@ -156,7 +154,8 @@ static inline unsigned char topology_mnest_limit(void)
 struct topology_core {
 	unsigned char nl;
 	unsigned char reserved0[3];
-	unsigned char :6;
+	unsigned char :5;
+	unsigned char d:1;
 	unsigned char pp:2;
 	unsigned char reserved1;
 	unsigned short origin;
@@ -198,4 +197,5 @@ struct service_level {
 int register_service_level(struct service_level *);
 int unregister_service_level(struct service_level *);
 
+int sthyi_fill(void *dst, u64 *rc);
 #endif /* __ASM_S390_SYSINFO_H */

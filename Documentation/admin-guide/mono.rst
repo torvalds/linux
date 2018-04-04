@@ -9,14 +9,14 @@ This will allow you to execute Mono-based .NET binaries just like any
 other program after you have done the following:
 
 1) You MUST FIRST install the Mono CLR support, either by downloading
-   a binary package, a source tarball or by installing from CVS. Binary
+   a binary package, a source tarball or by installing from Git. Binary
    packages for several distributions can be found at:
 
-	http://go-mono.com/download.html
+	http://www.mono-project.com/download/
 
    Instructions for compiling Mono can be found at:
 
-	http://www.go-mono.com/compiling.html
+	http://www.mono-project.com/docs/compiling-mono/linux/
 
    Once the Mono CLR support has been installed, just check that
    ``/usr/bin/mono`` (which could be located elsewhere, for example

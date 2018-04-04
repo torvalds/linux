@@ -77,8 +77,8 @@ static int psci_ops_check(void)
 	return 0;
 }
 
-static int find_clusters(const struct cpumask *cpus,
-			 const struct cpumask **clusters)
+static int find_cpu_groups(const struct cpumask *cpus,
+			   const struct cpumask **cpu_groups)
 {
 	unsigned int nb = 0;
 	cpumask_var_t tmp;
@@ -88,11 +88,11 @@ static int find_clusters(const struct cpumask *cpus,
 	cpumask_copy(tmp, cpus);
 
 	while (!cpumask_empty(tmp)) {
-		const struct cpumask *cluster =
+		const struct cpumask *cpu_group =
 			topology_core_cpumask(cpumask_any(tmp));
 
-		clusters[nb++] = cluster;
-		cpumask_andnot(tmp, tmp, cluster);
+		cpu_groups[nb++] = cpu_group;
+		cpumask_andnot(tmp, tmp, cpu_group);
 	}
 
 	free_cpumask_var(tmp);
@@ -170,24 +170,24 @@ static int hotplug_tests(void)
 {
 	int err;
 	cpumask_var_t offlined_cpus;
-	int i, nb_cluster;
-	const struct cpumask **clusters;
+	int i, nb_cpu_group;
+	const struct cpumask **cpu_groups;
 	char *page_buf;
 
 	err = -ENOMEM;
 	if (!alloc_cpumask_var(&offlined_cpus, GFP_KERNEL))
 		return err;
-	/* We may have up to nb_available_cpus clusters. */
-	clusters = kmalloc_array(nb_available_cpus, sizeof(*clusters),
-				 GFP_KERNEL);
-	if (!clusters)
+	/* We may have up to nb_available_cpus cpu_groups. */
+	cpu_groups = kmalloc_array(nb_available_cpus, sizeof(*cpu_groups),
+				   GFP_KERNEL);
+	if (!cpu_groups)
 		goto out_free_cpus;
 	page_buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!page_buf)
-		goto out_free_clusters;
+		goto out_free_cpu_groups;
 
 	err = 0;
-	nb_cluster = find_clusters(cpu_online_mask, clusters);
+	nb_cpu_group = find_cpu_groups(cpu_online_mask, cpu_groups);
 
 	/*
 	 * Of course the last CPU cannot be powered down and cpu_down() should
@@ -197,30 +197,28 @@ static int hotplug_tests(void)
 	err += down_and_up_cpus(cpu_online_mask, offlined_cpus);
 
 	/*
-	 * Take down CPUs by cluster this time. When the last CPU is turned
-	 * off, the cluster itself should shut down.
+	 * Take down CPUs by cpu group this time. When the last CPU is turned
+	 * off, the cpu group itself should shut down.
 	 */
-	for (i = 0; i < nb_cluster; ++i) {
-		int cluster_id =
-			topology_physical_package_id(cpumask_any(clusters[i]));
+	for (i = 0; i < nb_cpu_group; ++i) {
 		ssize_t len = cpumap_print_to_pagebuf(true, page_buf,
-						      clusters[i]);
+						      cpu_groups[i]);
 		/* Remove trailing newline. */
 		page_buf[len - 1] = '\0';
-		pr_info("Trying to turn off and on again cluster %d "
-			"(CPUs %s)\n", cluster_id, page_buf);
-		err += down_and_up_cpus(clusters[i], offlined_cpus);
+		pr_info("Trying to turn off and on again group %d (CPUs %s)\n",
+			i, page_buf);
+		err += down_and_up_cpus(cpu_groups[i], offlined_cpus);
 	}
 
 	free_page((unsigned long)page_buf);
-out_free_clusters:
-	kfree(clusters);
+out_free_cpu_groups:
+	kfree(cpu_groups);
 out_free_cpus:
 	free_cpumask_var(offlined_cpus);
 	return err;
 }
 
-static void dummy_callback(unsigned long ignored) {}
+static void dummy_callback(struct timer_list *unused) {}
 
 static int suspend_cpu(int index, bool broadcast)
 {
@@ -287,7 +285,7 @@ static int suspend_test_thread(void *arg)
 	pr_info("CPU %d entering suspend cycles, states 1 through %d\n",
 		cpu, drv->state_count - 1);
 
-	setup_timer_on_stack(&wakeup_timer, dummy_callback, 0);
+	timer_setup_on_stack(&wakeup_timer, dummy_callback, 0);
 	for (i = 0; i < NUM_SUSPEND_CYCLE; ++i) {
 		int index;
 		/*
@@ -340,6 +338,7 @@ static int suspend_test_thread(void *arg)
 	 * later.
 	 */
 	del_timer(&wakeup_timer);
+	destroy_timer_on_stack(&wakeup_timer);
 
 	if (atomic_dec_return_relaxed(&nb_active_threads) == 0)
 		complete(&suspend_threads_done);

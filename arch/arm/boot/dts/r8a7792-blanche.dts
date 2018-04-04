@@ -310,8 +310,7 @@
 	pinctrl-0 = <&du0_pins &du1_pins>;
 	pinctrl-names = "default";
 
-	clocks = <&mstp7_clks R8A7792_CLK_DU0>, <&mstp7_clks R8A7792_CLK_DU1>,
-		 <&x1_clk>, <&x2_clk>;
+	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>, <&x1_clk>, <&x2_clk>;
 	clock-names = "du.0", "du.1", "dclkin.0", "dclkin.1";
 	status = "okay";
 

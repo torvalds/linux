@@ -26,6 +26,9 @@
 #include <sys/timerfd.h>
 #endif
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <linux/kernel.h>
 #include <linux/time64.h>
@@ -35,7 +38,6 @@
 #include <termios.h>
 #include <semaphore.h>
 #include <signal.h>
-#include <pthread.h>
 #include <math.h>
 
 static const char *get_filename_for_perf_kvm(void)
@@ -742,20 +744,20 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 				   u64 *mmap_time)
 {
 	union perf_event *event;
-	struct perf_sample sample;
+	u64 timestamp;
 	s64 n = 0;
 	int err;
 
 	*mmap_time = ULLONG_MAX;
 	while ((event = perf_evlist__mmap_read(kvm->evlist, idx)) != NULL) {
-		err = perf_evlist__parse_sample(kvm->evlist, event, &sample);
+		err = perf_evlist__parse_sample_timestamp(kvm->evlist, event, &timestamp);
 		if (err) {
 			perf_evlist__mmap_consume(kvm->evlist, idx);
 			pr_err("Failed to parse sample\n");
 			return -1;
 		}
 
-		err = perf_session__queue_event(kvm->session, event, &sample, 0);
+		err = perf_session__queue_event(kvm->session, event, timestamp, 0);
 		/*
 		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
@@ -769,7 +771,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 
 		/* save time stamp of our first sample for this mmap */
 		if (n == 0)
-			*mmap_time = sample.time;
+			*mmap_time = timestamp;
 
 		/* limit events per mmap handled all at once */
 		n++;
@@ -1045,7 +1047,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 		goto out;
 	}
 
-	if (perf_evlist__mmap(evlist, kvm->opts.mmap_pages, false) < 0) {
+	if (perf_evlist__mmap(evlist, kvm->opts.mmap_pages) < 0) {
 		ui__error("Failed to mmap the events: %s\n",
 			  str_error_r(errno, sbuf, sizeof(sbuf)));
 		perf_evlist__close(evlist);
@@ -1069,10 +1071,12 @@ static int read_events(struct perf_kvm_stat *kvm)
 		.namespaces		= perf_event__process_namespaces,
 		.ordered_events		= true,
 	};
-	struct perf_data_file file = {
-		.path = kvm->file_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = kvm->force,
+	struct perf_data file = {
+		.file      = {
+			.path = kvm->file_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = kvm->force,
 	};
 
 	kvm->tool = eops;
@@ -1360,7 +1364,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		"perf kvm stat live [<options>]",
 		NULL
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_WRITE,
 	};
 
@@ -1434,7 +1438,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * perf session
 	 */
-	kvm->session = perf_session__new(&file, false, &kvm->tool);
+	kvm->session = perf_session__new(&data, false, &kvm->tool);
 	if (kvm->session == NULL) {
 		err = -1;
 		goto out;
@@ -1443,7 +1447,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	perf_session__set_id_hdr_size(kvm->session);
 	ordered_events__set_copy_on_queue(&kvm->session->ordered_events, true);
 	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
-				    kvm->evlist->threads, false, kvm->opts.proc_map_timeout);
+				    kvm->evlist->threads, false,
+				    kvm->opts.proc_map_timeout, 1);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;

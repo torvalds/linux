@@ -70,6 +70,10 @@
 #define OMAP_RTC_COMP_MSB_REG		0x50
 #define OMAP_RTC_OSC_REG		0x54
 
+#define OMAP_RTC_SCRATCH0_REG		0x60
+#define OMAP_RTC_SCRATCH1_REG		0x64
+#define OMAP_RTC_SCRATCH2_REG		0x68
+
 #define OMAP_RTC_KICK0_REG		0x6c
 #define OMAP_RTC_KICK1_REG		0x70
 
@@ -667,6 +671,45 @@ static struct pinctrl_desc rtc_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static int omap_rtc_scratch_read(void *priv, unsigned int offset, void *_val,
+				 size_t bytes)
+{
+	struct omap_rtc	*rtc = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; i++)
+		val[i] = rtc_readl(rtc,
+				   OMAP_RTC_SCRATCH0_REG + offset + (i * 4));
+
+	return 0;
+}
+
+static int omap_rtc_scratch_write(void *priv, unsigned int offset, void *_val,
+				  size_t bytes)
+{
+	struct omap_rtc	*rtc = priv;
+	u32 *val = _val;
+	int i;
+
+	rtc->type->unlock(rtc);
+	for (i = 0; i < bytes / 4; i++)
+		rtc_writel(rtc,
+			   OMAP_RTC_SCRATCH0_REG + offset + (i * 4), val[i]);
+	rtc->type->lock(rtc);
+
+	return 0;
+}
+
+static struct nvmem_config omap_rtc_nvmem_config = {
+	.name = "omap_rtc_scratch",
+	.word_size = 4,
+	.stride = 4,
+	.size = OMAP_RTC_KICK0_REG - OMAP_RTC_SCRATCH0_REG,
+	.reg_read = omap_rtc_scratch_read,
+	.reg_write = omap_rtc_scratch_write,
+};
+
 static int omap_rtc_probe(struct platform_device *pdev)
 {
 	struct omap_rtc	*rtc;
@@ -710,8 +753,10 @@ static int omap_rtc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(rtc->base))
+	if (IS_ERR(rtc->base)) {
+		clk_disable_unprepare(rtc->clk);
 		return PTR_ERR(rtc->base);
+	}
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -797,12 +842,15 @@ static int omap_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-			&omap_rtc_ops, THIS_MODULE);
+	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
 		goto err;
 	}
+
+	rtc->rtc->ops = &omap_rtc_ops;
+	omap_rtc_nvmem_config.priv = rtc;
+	rtc->rtc->nvmem_config = &omap_rtc_nvmem_config;
 
 	/* handle periodic and alarm irqs */
 	ret = devm_request_irq(&pdev->dev, rtc->irq_timer, rtc_irq, 0,
@@ -830,12 +878,18 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	rtc->pctldev = pinctrl_register(&rtc_pinctrl_desc, &pdev->dev, rtc);
 	if (IS_ERR(rtc->pctldev)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
-		return PTR_ERR(rtc->pctldev);
+		ret = PTR_ERR(rtc->pctldev);
+		goto err;
 	}
+
+	ret = rtc_register_device(rtc->rtc);
+	if (ret)
+		goto err;
 
 	return 0;
 
 err:
+	clk_disable_unprepare(rtc->clk);
 	device_init_wakeup(&pdev->dev, false);
 	rtc->type->lock(rtc);
 	pm_runtime_put_sync(&pdev->dev);

@@ -6,6 +6,7 @@
 #include <time.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "perf.h"
 #include "debug.h"
@@ -60,11 +61,10 @@ static int parse_timestr_sec_nsec(struct perf_time_interval *ptime,
 	return 0;
 }
 
-int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
+static int split_start_end(char **start, char **end, const char *ostr, char ch)
 {
 	char *start_str, *end_str;
 	char *d, *str;
-	int rc = 0;
 
 	if (ostr == NULL || *ostr == '\0')
 		return 0;
@@ -74,25 +74,35 @@ int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
 	if (str == NULL)
 		return -ENOMEM;
 
-	ptime->start = 0;
-	ptime->end = 0;
-
-	/* str has the format: <start>,<stop>
-	 * variations: <start>,
-	 *             ,<stop>
-	 *             ,
-	 */
 	start_str = str;
-	d = strchr(start_str, ',');
+	d = strchr(start_str, ch);
 	if (d) {
 		*d = '\0';
 		++d;
 	}
 	end_str = d;
 
+	*start = start_str;
+	*end = end_str;
+
+	return 0;
+}
+
+int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
+{
+	char *start_str = NULL, *end_str;
+	int rc;
+
+	rc = split_start_end(&start_str, &end_str, ostr, ',');
+	if (rc || !start_str)
+		return rc;
+
+	ptime->start = 0;
+	ptime->end = 0;
+
 	rc = parse_timestr_sec_nsec(ptime, start_str, end_str);
 
-	free(str);
+	free(start_str);
 
 	/* make sure end time is after start time if it was given */
 	if (rc == 0 && ptime->end && ptime->end < ptime->start)
@@ -102,6 +112,245 @@ int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
 	pr_debug("end time %" PRIu64 "\n", ptime->end);
 
 	return rc;
+}
+
+static int parse_percent(double *pcnt, char *str)
+{
+	char *c, *endptr;
+	double d;
+
+	c = strchr(str, '%');
+	if (c)
+		*c = '\0';
+	else
+		return -1;
+
+	d = strtod(str, &endptr);
+	if (endptr != str + strlen(str))
+		return -1;
+
+	*pcnt = d / 100.0;
+	return 0;
+}
+
+static int percent_slash_split(char *str, struct perf_time_interval *ptime,
+			       u64 start, u64 end)
+{
+	char *p, *end_str;
+	double pcnt, start_pcnt, end_pcnt;
+	u64 total = end - start;
+	int i;
+
+	/*
+	 * Example:
+	 * 10%/2: select the second 10% slice and the third 10% slice
+	 */
+
+	/* We can modify this string since the original one is copied */
+	p = strchr(str, '/');
+	if (!p)
+		return -1;
+
+	*p = '\0';
+	if (parse_percent(&pcnt, str) < 0)
+		return -1;
+
+	p++;
+	i = (int)strtol(p, &end_str, 10);
+	if (*end_str)
+		return -1;
+
+	if (pcnt <= 0.0)
+		return -1;
+
+	start_pcnt = pcnt * (i - 1);
+	end_pcnt = pcnt * i;
+
+	if (start_pcnt < 0.0 || start_pcnt > 1.0 ||
+	    end_pcnt < 0.0 || end_pcnt > 1.0) {
+		return -1;
+	}
+
+	ptime->start = start + round(start_pcnt * total);
+	ptime->end = start + round(end_pcnt * total);
+
+	return 0;
+}
+
+static int percent_dash_split(char *str, struct perf_time_interval *ptime,
+			      u64 start, u64 end)
+{
+	char *start_str = NULL, *end_str;
+	double start_pcnt, end_pcnt;
+	u64 total = end - start;
+	int ret;
+
+	/*
+	 * Example: 0%-10%
+	 */
+
+	ret = split_start_end(&start_str, &end_str, str, '-');
+	if (ret || !start_str)
+		return ret;
+
+	if ((parse_percent(&start_pcnt, start_str) != 0) ||
+	    (parse_percent(&end_pcnt, end_str) != 0)) {
+		free(start_str);
+		return -1;
+	}
+
+	free(start_str);
+
+	if (start_pcnt < 0.0 || start_pcnt > 1.0 ||
+	    end_pcnt < 0.0 || end_pcnt > 1.0 ||
+	    start_pcnt > end_pcnt) {
+		return -1;
+	}
+
+	ptime->start = start + round(start_pcnt * total);
+	ptime->end = start + round(end_pcnt * total);
+
+	return 0;
+}
+
+typedef int (*time_pecent_split)(char *, struct perf_time_interval *,
+				 u64 start, u64 end);
+
+static int percent_comma_split(struct perf_time_interval *ptime_buf, int num,
+			       const char *ostr, u64 start, u64 end,
+			       time_pecent_split func)
+{
+	char *str, *p1, *p2;
+	int len, ret, i = 0;
+
+	str = strdup(ostr);
+	if (str == NULL)
+		return -ENOMEM;
+
+	len = strlen(str);
+	p1 = str;
+
+	while (p1 < str + len) {
+		if (i >= num) {
+			free(str);
+			return -1;
+		}
+
+		p2 = strchr(p1, ',');
+		if (p2)
+			*p2 = '\0';
+
+		ret = (func)(p1, &ptime_buf[i], start, end);
+		if (ret < 0) {
+			free(str);
+			return -1;
+		}
+
+		pr_debug("start time %d: %" PRIu64 ", ", i, ptime_buf[i].start);
+		pr_debug("end time %d: %" PRIu64 "\n", i, ptime_buf[i].end);
+
+		i++;
+
+		if (p2)
+			p1 = p2 + 1;
+		else
+			break;
+	}
+
+	free(str);
+	return i;
+}
+
+static int one_percent_convert(struct perf_time_interval *ptime_buf,
+			       const char *ostr, u64 start, u64 end, char *c)
+{
+	char *str;
+	int len = strlen(ostr), ret;
+
+	/*
+	 * c points to '%'.
+	 * '%' should be the last character
+	 */
+	if (ostr + len - 1 != c)
+		return -1;
+
+	/*
+	 * Construct a string like "xx%/1"
+	 */
+	str = malloc(len + 3);
+	if (str == NULL)
+		return -ENOMEM;
+
+	memcpy(str, ostr, len);
+	strcpy(str + len, "/1");
+
+	ret = percent_slash_split(str, ptime_buf, start, end);
+	if (ret == 0)
+		ret = 1;
+
+	free(str);
+	return ret;
+}
+
+int perf_time__percent_parse_str(struct perf_time_interval *ptime_buf, int num,
+				 const char *ostr, u64 start, u64 end)
+{
+	char *c;
+
+	/*
+	 * ostr example:
+	 * 10%/2,10%/3: select the second 10% slice and the third 10% slice
+	 * 0%-10%,30%-40%: multiple time range
+	 * 50%: just one percent
+	 */
+
+	memset(ptime_buf, 0, sizeof(*ptime_buf) * num);
+
+	c = strchr(ostr, '/');
+	if (c) {
+		return percent_comma_split(ptime_buf, num, ostr, start,
+					   end, percent_slash_split);
+	}
+
+	c = strchr(ostr, '-');
+	if (c) {
+		return percent_comma_split(ptime_buf, num, ostr, start,
+					   end, percent_dash_split);
+	}
+
+	c = strchr(ostr, '%');
+	if (c)
+		return one_percent_convert(ptime_buf, ostr, start, end, c);
+
+	return -1;
+}
+
+struct perf_time_interval *perf_time__range_alloc(const char *ostr, int *size)
+{
+	const char *p1, *p2;
+	int i = 1;
+	struct perf_time_interval *ptime;
+
+	/*
+	 * At least allocate one time range.
+	 */
+	if (!ostr)
+		goto alloc;
+
+	p1 = ostr;
+	while (p1 < ostr + strlen(ostr)) {
+		p2 = strchr(p1, ',');
+		if (!p2)
+			break;
+
+		p1 = p2 + 1;
+		i++;
+	}
+
+alloc:
+	*size = i;
+	ptime = calloc(i, sizeof(*ptime));
+	return ptime;
 }
 
 bool perf_time__skip_sample(struct perf_time_interval *ptime, u64 timestamp)
@@ -117,6 +366,34 @@ bool perf_time__skip_sample(struct perf_time_interval *ptime, u64 timestamp)
 	}
 
 	return false;
+}
+
+bool perf_time__ranges_skip_sample(struct perf_time_interval *ptime_buf,
+				   int num, u64 timestamp)
+{
+	struct perf_time_interval *ptime;
+	int i;
+
+	if ((timestamp == 0) || (num == 0))
+		return false;
+
+	if (num == 1)
+		return perf_time__skip_sample(&ptime_buf[0], timestamp);
+
+	/*
+	 * start/end of multiple time ranges must be valid.
+	 */
+	for (i = 0; i < num; i++) {
+		ptime = &ptime_buf[i];
+
+		if (timestamp >= ptime->start &&
+		    ((timestamp < ptime->end && i < num - 1) ||
+		     (timestamp <= ptime->end && i == num - 1))) {
+			break;
+		}
+	}
+
+	return (i == num) ? true : false;
 }
 
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz)

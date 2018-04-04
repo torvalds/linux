@@ -558,7 +558,7 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 	 * have completed.
 	 */
 	if (!atomic_dec_and_test(&cookie->n_active))
-		wait_on_atomic_t(&cookie->n_active, fscache_wait_atomic_t,
+		wait_on_atomic_t(&cookie->n_active, atomic_t_wait,
 				 TASK_UNINTERRUPTIBLE);
 
 	/* Make sure any pending writes are cancelled. */

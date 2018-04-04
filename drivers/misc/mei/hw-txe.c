@@ -1127,7 +1127,9 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 	if (test_and_clear_bit(TXE_INTR_OUT_DB_BIT, &hw->intr_cause)) {
 		/* Read from TXE */
 		rets = mei_irq_read_handler(dev, &cmpl_list, &slots);
-		if (rets && dev->dev_state != MEI_DEV_RESETTING) {
+		if (rets &&
+		    (dev->dev_state != MEI_DEV_RESETTING &&
+		     dev->dev_state != MEI_DEV_POWER_DOWN)) {
 			dev_err(dev->dev,
 				"mei_irq_read_handler ret = %d.\n", rets);
 

@@ -1220,6 +1220,7 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
 	u8 dai_clk_mode = 0, dai_ctrl = 0;
+	u8 dai_offset = 0;
 
 	/* Set master/slave mode */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1234,17 +1235,46 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	/* Set clock normal/inverted */
-	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-	case SND_SOC_DAIFMT_NB_NF:
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_LEFT_J:
+	case SND_SOC_DAIFMT_RIGHT_J:
+		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+		case SND_SOC_DAIFMT_NB_NF:
+			break;
+		case SND_SOC_DAIFMT_NB_IF:
+			dai_clk_mode |= DA7213_DAI_WCLK_POL_INV;
+			break;
+		case SND_SOC_DAIFMT_IB_NF:
+			dai_clk_mode |= DA7213_DAI_CLK_POL_INV;
+			break;
+		case SND_SOC_DAIFMT_IB_IF:
+			dai_clk_mode |= DA7213_DAI_WCLK_POL_INV |
+					DA7213_DAI_CLK_POL_INV;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
-	case SND_SOC_DAIFMT_NB_IF:
-		dai_clk_mode |= DA7213_DAI_WCLK_POL_INV;
-		break;
-	case SND_SOC_DAIFMT_IB_NF:
-		dai_clk_mode |= DA7213_DAI_CLK_POL_INV;
-		break;
-	case SND_SOC_DAIFMT_IB_IF:
-		dai_clk_mode |= DA7213_DAI_WCLK_POL_INV | DA7213_DAI_CLK_POL_INV;
+	case SND_SOC_DAI_FORMAT_DSP_A:
+	case SND_SOC_DAI_FORMAT_DSP_B:
+		/* The bclk is inverted wrt ASoC conventions */
+		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+		case SND_SOC_DAIFMT_NB_NF:
+			dai_clk_mode |= DA7213_DAI_CLK_POL_INV;
+			break;
+		case SND_SOC_DAIFMT_NB_IF:
+			dai_clk_mode |= DA7213_DAI_WCLK_POL_INV |
+					DA7213_DAI_CLK_POL_INV;
+			break;
+		case SND_SOC_DAIFMT_IB_NF:
+			break;
+		case SND_SOC_DAIFMT_IB_IF:
+			dai_clk_mode |= DA7213_DAI_WCLK_POL_INV;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -1261,6 +1291,13 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_RIGHT_J:
 		dai_ctrl |= DA7213_DAI_FORMAT_RIGHT_J;
 		break;
+	case SND_SOC_DAI_FORMAT_DSP_A: /* L data MSB after FRM LRC */
+		dai_ctrl |= DA7213_DAI_FORMAT_DSP;
+		dai_offset = 1;
+		break;
+	case SND_SOC_DAI_FORMAT_DSP_B: /* L data MSB during FRM LRC */
+		dai_ctrl |= DA7213_DAI_FORMAT_DSP;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1271,6 +1308,7 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	snd_soc_write(codec, DA7213_DAI_CLK_MODE, dai_clk_mode);
 	snd_soc_update_bits(codec, DA7213_DAI_CTRL, DA7213_DAI_FORMAT_MASK,
 			    dai_ctrl);
+	snd_soc_write(codec, DA7213_DAI_OFFSET, dai_offset);
 
 	return 0;
 }
@@ -1616,10 +1654,8 @@ static struct da7213_platform_data
 	u32 fw_val32;
 
 	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_warn(codec->dev, "Failed to allocate memory for pdata\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	if (device_property_read_u32(dev, "dlg,micbias1-lvl", &fw_val32) >= 0)
 		pdata->micbias1_lvl = da7213_of_micbias_lvl(codec, fw_val32);
@@ -1817,8 +1853,7 @@ static int da7213_i2c_probe(struct i2c_client *i2c,
 	struct da7213_priv *da7213;
 	int ret;
 
-	da7213 = devm_kzalloc(&i2c->dev, sizeof(struct da7213_priv),
-			      GFP_KERNEL);
+	da7213 = devm_kzalloc(&i2c->dev, sizeof(*da7213), GFP_KERNEL);
 	if (!da7213)
 		return -ENOMEM;
 

@@ -652,12 +652,13 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 				return -1;
 		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
 			   is_multicast_ether_addr(hdr->addr1)) {
-			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
+			u8 ap_sta_id = READ_ONCE(mvmvif->ap_sta_id);
 
 			if (ap_sta_id != IWL_MVM_INVALID_STA)
 				sta_id = ap_sta_id;
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
-			queue = mvm->aux_queue;
+			queue = mvm->snif_queue;
+			sta_id = mvm->snif_sta.sta_id;
 		}
 	}
 
@@ -700,7 +701,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
 		tcp_hdrlen(skb);
 
-	dbg_max_amsdu_len = ACCESS_ONCE(mvm->max_amsdu_len);
+	dbg_max_amsdu_len = READ_ONCE(mvm->max_amsdu_len);
 
 	if (!sta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
@@ -887,10 +888,9 @@ static void iwl_mvm_tx_add_stream(struct iwl_mvm *mvm,
 	/*
 	 * The first deferred frame should've stopped the MAC queues, so we
 	 * should never get a second deferred frame for the RA/TID.
+	 * In case of GSO the first packet may have been split, so don't warn.
 	 */
-	if (!WARN(skb_queue_len(deferred_tx_frames) != 1,
-		  "RATID %d/%d has %d deferred frames\n", mvm_sta->sta_id, tid,
-		  skb_queue_len(deferred_tx_frames))) {
+	if (skb_queue_len(deferred_tx_frames) == 1) {
 		iwl_mvm_stop_mac_queues(mvm, BIT(mac_queue));
 		schedule_work(&mvm->add_stream_wk);
 	}
@@ -1131,7 +1131,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	}
 
 	/*
-	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
@@ -1594,8 +1594,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
 		mvmsta->tid_data[tid].lq_color =
-			(tx_resp->tlc_info & TX_RES_RATE_TABLE_COLOR_MSK) >>
-			TX_RES_RATE_TABLE_COLOR_POS;
+			TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
 	}
 
 	rcu_read_unlock();
@@ -1624,7 +1623,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	int freed;
 
 	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT ||
-		      tid >= IWL_MAX_TID_COUNT,
+		      tid > IWL_MAX_TID_COUNT,
 		      "sta_id %d tid %d", sta_id, tid))
 		return;
 
@@ -1679,7 +1678,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		if (ieee80211_is_data_qos(hdr->frame_control))
 			freed++;
 		else
-			WARN_ON_ONCE(1);
+			WARN_ON_ONCE(tid != IWL_MAX_TID_COUNT);
 
 		iwl_trans_free_tx_cmd(mvm->trans, info->driver_data[1]);
 
@@ -1719,8 +1718,11 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		ba_info->band = chanctx_conf->def.chan->band;
 		iwl_mvm_hwrate_to_tx_status(rate, ba_info);
 
-		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
-		iwl_mvm_rs_tx_status(mvm, sta, tid, ba_info, false);
+		if (!iwl_mvm_has_tlc_offload(mvm)) {
+			IWL_DEBUG_TX_REPLY(mvm,
+					   "No reclaim. Update rs directly\n");
+			iwl_mvm_rs_tx_status(mvm, sta, tid, ba_info, false);
+		}
 	}
 
 out:
@@ -1746,6 +1748,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		struct iwl_mvm_compressed_ba_notif *ba_res =
 			(void *)pkt->data;
+		u8 lq_color = TX_RES_RATE_TABLE_COL_GET(ba_res->tlc_rate_info);
 		int i;
 
 		sta_id = ba_res->sta_id;
@@ -1759,18 +1762,31 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		if (!le16_to_cpu(ba_res->tfd_cnt))
 			goto out;
 
+		rcu_read_lock();
+
+		mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, sta_id);
+		if (!mvmsta)
+			goto out_unlock;
+
 		/* Free per TID */
 		for (i = 0; i < le16_to_cpu(ba_res->tfd_cnt); i++) {
 			struct iwl_mvm_compressed_ba_tfd *ba_tfd =
 				&ba_res->tfd[i];
 
-			iwl_mvm_tx_reclaim(mvm, sta_id, ba_tfd->tid,
+			tid = ba_tfd->tid;
+			if (tid == IWL_MGMT_TID)
+				tid = IWL_MAX_TID_COUNT;
+
+			mvmsta->tid_data[i].lq_color = lq_color;
+			iwl_mvm_tx_reclaim(mvm, sta_id, tid,
 					   (int)(le16_to_cpu(ba_tfd->q_num)),
 					   le16_to_cpu(ba_tfd->tfd_index),
 					   &ba_info,
 					   le32_to_cpu(ba_res->tx_rate));
 		}
 
+out_unlock:
+		rcu_read_unlock();
 out:
 		IWL_DEBUG_TX_REPLY(mvm,
 				   "BA_NOTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",

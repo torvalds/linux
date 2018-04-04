@@ -28,7 +28,7 @@ static ssize_t pblk_sysfs_luns_show(struct pblk *pblk, char *page)
 	ssize_t sz = 0;
 	int i;
 
-	for (i = 0; i < geo->nr_luns; i++) {
+	for (i = 0; i < geo->all_luns; i++) {
 		int active = 1;
 
 		rlun = &pblk->luns[i];
@@ -49,11 +49,12 @@ static ssize_t pblk_sysfs_luns_show(struct pblk *pblk, char *page)
 
 static ssize_t pblk_sysfs_rate_limiter(struct pblk *pblk, char *page)
 {
-	int free_blocks, total_blocks;
+	int free_blocks, free_user_blocks, total_blocks;
 	int rb_user_max, rb_user_cnt;
 	int rb_gc_max, rb_gc_cnt, rb_budget, rb_state;
 
-	free_blocks = atomic_read(&pblk->rl.free_blocks);
+	free_blocks = pblk_rl_nr_free_blks(&pblk->rl);
+	free_user_blocks = pblk_rl_nr_user_free_blks(&pblk->rl);
 	rb_user_max = pblk->rl.rb_user_max;
 	rb_user_cnt = atomic_read(&pblk->rl.rb_user_cnt);
 	rb_gc_max = pblk->rl.rb_gc_max;
@@ -64,16 +65,16 @@ static ssize_t pblk_sysfs_rate_limiter(struct pblk *pblk, char *page)
 	total_blocks = pblk->rl.total_blocks;
 
 	return snprintf(page, PAGE_SIZE,
-		"u:%u/%u,gc:%u/%u(%u/%u)(stop:<%u,full:>%u,free:%d/%d)-%d\n",
+		"u:%u/%u,gc:%u/%u(%u)(stop:<%u,full:>%u,free:%d/%d/%d)-%d\n",
 				rb_user_cnt,
 				rb_user_max,
 				rb_gc_cnt,
 				rb_gc_max,
 				rb_state,
 				rb_budget,
-				pblk->rl.low,
 				pblk->rl.high,
 				free_blocks,
+				free_user_blocks,
 				total_blocks,
 				READ_ONCE(pblk->rl.rb_user_active));
 }
@@ -238,7 +239,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 
 	sz = snprintf(page, PAGE_SIZE - sz,
 		"line: nluns:%d, nblks:%d, nsecs:%d\n",
-		geo->nr_luns, lm->blk_per_line, lm->sec_per_line);
+		geo->all_luns, lm->blk_per_line, lm->sec_per_line);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"lines:d:%d,l:%d-f:%d,m:%d/%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
@@ -253,7 +254,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"GC: full:%d, high:%d, mid:%d, low:%d, empty:%d, queue:%d\n",
 			gc_full, gc_high, gc_mid, gc_low, gc_empty,
-			atomic_read(&pblk->gc.inflight_gc));
+			atomic_read(&pblk->gc.read_inflight_gc));
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"data (%d) cur:%d, left:%d, vsc:%d, s:%d, map:%d/%d (%d)\n",
@@ -287,7 +288,7 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 				"blk_line:%d, sec_line:%d, sec_blk:%d\n",
 					lm->blk_per_line,
 					lm->sec_per_line,
-					geo->sec_per_blk);
+					geo->sec_per_chk);
 
 	return sz;
 }

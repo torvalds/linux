@@ -112,8 +112,6 @@ typedef uint16_t	xfs_qwarncnt_t;
 #define XFS_QMOPT_PQUOTA	0x0000008 /* project dquot requested */
 #define XFS_QMOPT_FORCE_RES	0x0000010 /* ignore quota limits */
 #define XFS_QMOPT_SBVERSION	0x0000040 /* change superblock version num */
-#define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if needed */
-#define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot if damaged */
 #define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
 #define XFS_QMOPT_ENOSPC	0x0004000 /* enospc instead of edquot (prj) */
 #define XFS_QMOPT_DQNEXT	0x0008000 /* return next dquot >= this ID */
@@ -153,8 +151,11 @@ typedef uint16_t	xfs_qwarncnt_t;
 		(XFS_QMOPT_UQUOTA | XFS_QMOPT_PQUOTA | XFS_QMOPT_GQUOTA)
 #define XFS_QMOPT_RESBLK_MASK	(XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_RES_RTBLKS)
 
-extern int xfs_dqcheck(struct xfs_mount *mp, xfs_disk_dquot_t *ddq,
-		       xfs_dqid_t id, uint type, uint flags, const char *str);
+extern xfs_failaddr_t xfs_dquot_verify(struct xfs_mount *mp,
+		struct xfs_disk_dquot *ddq, xfs_dqid_t id, uint type,
+		uint flags);
 extern int xfs_calc_dquots_per_chunk(unsigned int nbblks);
+extern int xfs_dquot_repair(struct xfs_mount *mp, struct xfs_disk_dquot *ddq,
+		xfs_dqid_t id, uint type);
 
 #endif	/* __XFS_QUOTA_H__ */

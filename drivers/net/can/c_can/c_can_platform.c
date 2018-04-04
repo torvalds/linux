@@ -320,7 +320,6 @@ static int c_can_plat_probe(struct platform_device *pdev)
 		break;
 	case BOSCH_D_CAN:
 		priv->regs = reg_map_d_can;
-		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
 		priv->write_reg = c_can_plat_write_reg_aligned_to_16bit;
 		priv->read_reg32 = d_can_plat_read_reg32;

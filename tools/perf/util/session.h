@@ -33,13 +33,13 @@ struct perf_session {
 	void			*one_mmap_addr;
 	u64			one_mmap_offset;
 	struct ordered_events	ordered_events;
-	struct perf_data_file	*file;
+	struct perf_data	*data;
 	struct perf_tool	*tool;
 };
 
 struct perf_tool;
 
-struct perf_session *perf_session__new(struct perf_data_file *file,
+struct perf_session *perf_session__new(struct perf_data *data,
 				       bool repipe, struct perf_tool *tool);
 void perf_session__delete(struct perf_session *session);
 
@@ -53,7 +53,7 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 int perf_session__process_events(struct perf_session *session);
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      struct perf_sample *sample, u64 file_offset);
+			      u64 timestamp, u64 file_offset);
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
 
@@ -114,7 +114,7 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 
 extern volatile int session_done;
 
-#define session_done()	ACCESS_ONCE(session_done)
+#define session_done()	READ_ONCE(session_done)
 
 int perf_session__deliver_synth_event(struct perf_session *session,
 				      union perf_event *event,

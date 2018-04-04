@@ -6,21 +6,33 @@
  *
  * There appears to be several different data paths through the PHY which
  * are automatically managed by the PHY.  The following has been determined
- * via observation and experimentation:
+ * via observation and experimentation for a setup using single-lane Serdes:
  *
  *       SGMII PHYXS -- BASE-T PCS -- 10G PMA -- AN -- Copper (for <= 1G)
  *  10GBASE-KR PHYXS -- BASE-T PCS -- 10G PMA -- AN -- Copper (for 10G)
  *  10GBASE-KR PHYXS -- BASE-R PCS -- Fiber
  *
+ * With XAUI, observation shows:
+ *
+ *        XAUI PHYXS -- <appropriate PCS as above>
+ *
+ * and no switching of the host interface mode occurs.
+ *
  * If both the fiber and copper ports are connected, the first to gain
  * link takes priority and the other port is completely locked out.
  */
 #include <linux/phy.h>
+#include <linux/marvell_phy.h>
 
 enum {
 	MV_PCS_BASE_T		= 0x0000,
 	MV_PCS_BASE_R		= 0x1000,
 	MV_PCS_1000BASEX	= 0x2000,
+
+	MV_PCS_PAIRSWAP		= 0x8182,
+	MV_PCS_PAIRSWAP_MASK	= 0x0003,
+	MV_PCS_PAIRSWAP_AB	= 0x0002,
+	MV_PCS_PAIRSWAP_NONE	= 0x0003,
 
 	/* These registers appear at 0x800X and 0xa00X - the 0xa00X control
 	 * registers appear to set themselves to the 0x800X when AN is
@@ -28,13 +40,6 @@ enum {
 	 */
 	MV_AN_CTRL1000		= 0x8000, /* 1000base-T control register */
 	MV_AN_STAT1000		= 0x8001, /* 1000base-T status register */
-
-	/* This register appears to reflect the copper status */
-	MV_AN_RESULT		= 0xa016,
-	MV_AN_RESULT_SPD_10	= BIT(12),
-	MV_AN_RESULT_SPD_100	= BIT(13),
-	MV_AN_RESULT_SPD_1000	= BIT(14),
-	MV_AN_RESULT_SPD_10000	= BIT(15),
 };
 
 static int mv3310_modify(struct phy_device *phydev, int devad, u16 reg,
@@ -83,7 +88,6 @@ static int mv3310_config_init(struct phy_device *phydev)
 
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
-	    phydev->interface != PHY_INTERFACE_MODE_XGMII &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_RXAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
@@ -149,12 +153,18 @@ static int mv3310_config_init(struct phy_device *phydev)
 		if (val & MDIO_PMA_EXTABLE_1000BKX)
 			__set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 				  supported);
-		if (val & MDIO_PMA_EXTABLE_100BTX)
+		if (val & MDIO_PMA_EXTABLE_100BTX) {
 			__set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 				  supported);
-		if (val & MDIO_PMA_EXTABLE_10BT)
+			__set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				  supported);
+		}
+		if (val & MDIO_PMA_EXTABLE_10BT) {
 			__set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
 				  supported);
+			__set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				  supported);
+		}
 	}
 
 	if (!ethtool_convert_link_mode_to_legacy_u32(&mask, supported))
@@ -173,6 +183,9 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	bool changed = false;
 	u32 advertising;
 	int ret;
+
+	/* We don't support manual MDI control */
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
 	if (phydev->autoneg == AUTONEG_DISABLE) {
 		ret = genphy_c45_pma_setup_forced(phydev);
@@ -232,6 +245,24 @@ static int mv3310_aneg_done(struct phy_device *phydev)
 	return genphy_c45_aneg_done(phydev);
 }
 
+static void mv3310_update_interface(struct phy_device *phydev)
+{
+	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
+	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
+		/* The PHY automatically switches its serdes interface (and
+		 * active PHYXS instance) between Cisco SGMII and 10GBase-KR
+		 * modes according to the speed.  Florian suggests setting
+		 * phydev->interface to communicate this to the MAC. Only do
+		 * this if we are already in either SGMII or 10GBase-KR mode.
+		 */
+		if (phydev->speed == SPEED_10000)
+			phydev->interface = PHY_INTERFACE_MODE_10GKR;
+		else if (phydev->speed >= SPEED_10 &&
+			 phydev->speed < SPEED_10000)
+			phydev->interface = PHY_INTERFACE_MODE_SGMII;
+	}
+}
+
 /* 10GBASE-ER,LR,LRM,SR do not support autonegotiation. */
 static int mv3310_read_10gbr_status(struct phy_device *phydev)
 {
@@ -239,8 +270,7 @@ static int mv3310_read_10gbr_status(struct phy_device *phydev)
 	phydev->speed = SPEED_10000;
 	phydev->duplex = DUPLEX_FULL;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
+	mv3310_update_interface(phydev);
 
 	return 0;
 }
@@ -263,6 +293,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 	phydev->link = 0;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
+	phydev->mdix = 0;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_BASE_R + MDIO_STAT1);
 	if (val < 0)
@@ -293,22 +324,8 @@ static int mv3310_read_status(struct phy_device *phydev)
 
 		phydev->lp_advertising |= mii_stat1000_to_ethtool_lpa_t(val);
 
-		if (phydev->autoneg == AUTONEG_ENABLE) {
-			val = phy_read_mmd(phydev, MDIO_MMD_AN, MV_AN_RESULT);
-			if (val < 0)
-				return val;
-
-			if (val & MV_AN_RESULT_SPD_10000)
-				phydev->speed = SPEED_10000;
-			else if (val & MV_AN_RESULT_SPD_1000)
-				phydev->speed = SPEED_1000;
-			else if (val & MV_AN_RESULT_SPD_100)
-				phydev->speed = SPEED_100;
-			else if (val & MV_AN_RESULT_SPD_10)
-				phydev->speed = SPEED_10;
-
-			phydev->duplex = DUPLEX_FULL;
-		}
+		if (phydev->autoneg == AUTONEG_ENABLE)
+			phy_resolve_aneg_linkmode(phydev);
 	}
 
 	if (phydev->autoneg != AUTONEG_ENABLE) {
@@ -317,20 +334,29 @@ static int mv3310_read_status(struct phy_device *phydev)
 			return val;
 	}
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
-	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
-		/* The PHY automatically switches its serdes interface (and
-		 * active PHYXS instance) between Cisco SGMII and 10GBase-KR
-		 * modes according to the speed.  Florian suggests setting
-		 * phydev->interface to communicate this to the MAC. Only do
-		 * this if we are already in either SGMII or 10GBase-KR mode.
-		 */
-		if (phydev->speed == SPEED_10000)
-			phydev->interface = PHY_INTERFACE_MODE_10GKR;
-		else if (phydev->speed >= SPEED_10 &&
-			 phydev->speed < SPEED_10000)
-			phydev->interface = PHY_INTERFACE_MODE_SGMII;
+	if (phydev->speed == SPEED_10000) {
+		val = genphy_c45_read_mdix(phydev);
+		if (val < 0)
+			return val;
+	} else {
+		val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_PAIRSWAP);
+		if (val < 0)
+			return val;
+
+		switch (val & MV_PCS_PAIRSWAP_MASK) {
+		case MV_PCS_PAIRSWAP_AB:
+			phydev->mdix = ETH_TP_MDI_X;
+			break;
+		case MV_PCS_PAIRSWAP_NONE:
+			phydev->mdix = ETH_TP_MDI;
+			break;
+		default:
+			phydev->mdix = ETH_TP_MDI_INVALID;
+			break;
+		}
 	}
+
+	mv3310_update_interface(phydev);
 
 	return 0;
 }
@@ -338,10 +364,12 @@ static int mv3310_read_status(struct phy_device *phydev)
 static struct phy_driver mv3310_drivers[] = {
 	{
 		.phy_id		= 0x002b09aa,
-		.phy_id_mask	= 0xffffffff,
+		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
 		.features	= SUPPORTED_10baseT_Full |
+				  SUPPORTED_10baseT_Half |
 				  SUPPORTED_100baseT_Full |
+				  SUPPORTED_100baseT_Half |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_Autoneg |
 				  SUPPORTED_TP |
@@ -360,7 +388,7 @@ static struct phy_driver mv3310_drivers[] = {
 module_phy_driver(mv3310_drivers);
 
 static struct mdio_device_id __maybe_unused mv3310_tbl[] = {
-	{ 0x002b09aa, 0xffffffff },
+	{ 0x002b09aa, MARVELL_PHY_ID_MASK },
 	{ },
 };
 MODULE_DEVICE_TABLE(mdio, mv3310_tbl);

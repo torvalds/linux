@@ -32,7 +32,7 @@ Optional properties:
 
 Example:
 
-	ufsphy1: ufsphy@0xfc597000 {
+	ufsphy1: ufsphy@fc597000 {
 		compatible = "qcom,ufs-phy-qmp-20nm";
 		reg = <0xfc597000 0x800>;
 		reg-names = "phy_mem";
@@ -53,7 +53,7 @@ Example:
 			<&clock_gcc clk_gcc_ufs_rx_cfg_clk>;
 	};
 
-	ufshc@0xfc598000 {
+	ufshc@fc598000 {
 		...
 		phys = <&ufsphy1>;
 		phy-names = "ufsphy";

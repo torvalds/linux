@@ -275,7 +275,7 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
  * primitives such as list_add_rcu() as long as it's guarded by rcu_read_lock().
  */
 #define list_entry_rcu(ptr, type, member) \
-	container_of(lockless_dereference(ptr), type, member)
+	container_of(READ_ONCE(ptr), type, member)
 
 /*
  * Where are list_empty_rcu() and list_first_entry_rcu()?
@@ -368,7 +368,7 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
  * example is when items are added to the list, but never deleted.
  */
 #define list_entry_lockless(ptr, type, member) \
-	container_of((typeof(ptr))lockless_dereference(ptr), type, member)
+	container_of((typeof(ptr))READ_ONCE(ptr), type, member)
 
 /**
  * list_for_each_entry_lockless - iterate over rcu list of given type

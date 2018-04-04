@@ -190,7 +190,6 @@ skl_tplg_free_pipe_mcps(struct skl *skl, struct skl_module_cfg *mconfig)
 	u8 res_idx = mconfig->res_idx;
 	struct skl_module_res *res = &mconfig->module->resources[res_idx];
 
-	res = &mconfig->module->resources[res_idx];
 	skl->resource.mcps -= res->cps;
 }
 
@@ -2036,21 +2035,45 @@ static int skl_tplg_add_pipe(struct device *dev,
 	return 0;
 }
 
-static int skl_tplg_fill_pin(struct device *dev, u32 tkn,
-			struct skl_module_pin *m_pin,
-			int pin_index, u32 value)
+static int skl_tplg_get_uuid(struct device *dev, u8 *guid,
+	      struct snd_soc_tplg_vendor_uuid_elem *uuid_tkn)
 {
-	switch (tkn) {
+	if (uuid_tkn->token == SKL_TKN_UUID) {
+		memcpy(guid, &uuid_tkn->uuid, 16);
+		return 0;
+	}
+
+	dev_err(dev, "Not an UUID token %d\n", uuid_tkn->token);
+
+	return -EINVAL;
+}
+
+static int skl_tplg_fill_pin(struct device *dev,
+			struct snd_soc_tplg_vendor_value_elem *tkn_elem,
+			struct skl_module_pin *m_pin,
+			int pin_index)
+{
+	int ret;
+
+	switch (tkn_elem->token) {
 	case SKL_TKN_U32_PIN_MOD_ID:
-		m_pin[pin_index].id.module_id = value;
+		m_pin[pin_index].id.module_id = tkn_elem->value;
 		break;
 
 	case SKL_TKN_U32_PIN_INST_ID:
-		m_pin[pin_index].id.instance_id = value;
+		m_pin[pin_index].id.instance_id = tkn_elem->value;
+		break;
+
+	case SKL_TKN_UUID:
+		ret = skl_tplg_get_uuid(dev, m_pin[pin_index].id.mod_uuid.b,
+			(struct snd_soc_tplg_vendor_uuid_elem *)tkn_elem);
+		if (ret < 0)
+			return ret;
+
 		break;
 
 	default:
-		dev_err(dev, "%d Not a pin token\n", value);
+		dev_err(dev, "%d Not a pin token\n", tkn_elem->token);
 		return -EINVAL;
 	}
 
@@ -2083,9 +2106,7 @@ static int skl_tplg_fill_pins_info(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = skl_tplg_fill_pin(dev, tkn_elem->token,
-			m_pin, pin_count, tkn_elem->value);
-
+	ret = skl_tplg_fill_pin(dev, tkn_elem, m_pin, pin_count);
 	if (ret < 0)
 		return ret;
 
@@ -2168,19 +2189,6 @@ static int skl_tplg_widget_fill_fmt(struct device *dev,
 	}
 
 	return skl_tplg_fill_fmt(dev, dst_fmt, tkn, val);
-}
-
-static int skl_tplg_get_uuid(struct device *dev, struct skl_module_cfg *mconfig,
-	      struct snd_soc_tplg_vendor_uuid_elem *uuid_tkn)
-{
-	if (uuid_tkn->token == SKL_TKN_UUID)
-		memcpy(&mconfig->guid, &uuid_tkn->uuid, 16);
-	else {
-		dev_err(dev, "Not an UUID token tkn %d\n", uuid_tkn->token);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static void skl_tplg_fill_pin_dynamic_val(
@@ -2382,7 +2390,7 @@ static int skl_tplg_get_token(struct device *dev,
 	case SKL_TKN_U32_MAX_MCPS:
 	case SKL_TKN_U32_OBS:
 	case SKL_TKN_U32_IBS:
-		ret = skl_tplg_fill_res_tkn(dev, tkn_elem, res, dir, pin_index);
+		ret = skl_tplg_fill_res_tkn(dev, tkn_elem, res, pin_index, dir);
 		if (ret < 0)
 			return ret;
 
@@ -2488,6 +2496,7 @@ static int skl_tplg_get_token(struct device *dev,
 
 	case SKL_TKN_U32_PIN_MOD_ID:
 	case SKL_TKN_U32_PIN_INST_ID:
+	case SKL_TKN_UUID:
 		ret = skl_tplg_fill_pins_info(dev,
 				mconfig, tkn_elem, dir,
 				pin_index);
@@ -2550,6 +2559,7 @@ static int skl_tplg_get_tokens(struct device *dev,
 	struct snd_soc_tplg_vendor_value_elem *tkn_elem;
 	int tkn_count = 0, ret;
 	int off = 0, tuple_size = 0;
+	bool is_module_guid = true;
 
 	if (block_size <= 0)
 		return -EINVAL;
@@ -2565,7 +2575,15 @@ static int skl_tplg_get_tokens(struct device *dev,
 			continue;
 
 		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
-			ret = skl_tplg_get_uuid(dev, mconfig, array->uuid);
+			if (is_module_guid) {
+				ret = skl_tplg_get_uuid(dev, mconfig->guid,
+							array->uuid);
+				is_module_guid = false;
+			} else {
+				ret = skl_tplg_get_token(dev, array->value, skl,
+							 mconfig);
+			}
+
 			if (ret < 0)
 				return ret;
 
@@ -2889,7 +2907,7 @@ static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 		break;
 
 	default:
-		dev_warn(bus->dev, "Control load not supported %d:%d:%d\n",
+		dev_dbg(bus->dev, "Control load not supported %d:%d:%d\n",
 			hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		break;
 	}
@@ -3037,11 +3055,13 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
 		struct skl *skl)
 {
-	int tkn_count = 0, ret;
+	int tkn_count = 0, ret, size;
 	static int mod_idx, res_val_idx, intf_val_idx, dir, pin_idx;
 	struct skl_module_res *res = NULL;
 	struct skl_module_iface *fmt = NULL;
 	struct skl_module *mod = NULL;
+	static struct skl_astate_param *astate_table;
+	static int astate_cfg_idx, count;
 	int i;
 
 	if (skl->modules) {
@@ -3072,6 +3092,46 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 
 	case SKL_TKN_MM_U8_MOD_IDX:
 		mod_idx = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_COUNT:
+		if (astate_table != NULL) {
+			dev_err(dev, "More than one entry for A-State count");
+			return -EINVAL;
+		}
+
+		if (tkn_elem->value > SKL_MAX_ASTATE_CFG) {
+			dev_err(dev, "Invalid A-State count %d\n",
+				tkn_elem->value);
+			return -EINVAL;
+		}
+
+		size = tkn_elem->value * sizeof(struct skl_astate_param) +
+				sizeof(count);
+		skl->cfg.astate_cfg = devm_kzalloc(dev, size, GFP_KERNEL);
+		if (!skl->cfg.astate_cfg)
+			return -ENOMEM;
+
+		astate_table = skl->cfg.astate_cfg->astate_table;
+		count = skl->cfg.astate_cfg->count = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_IDX:
+		if (tkn_elem->value >= count) {
+			dev_err(dev, "Invalid A-State index %d\n",
+				tkn_elem->value);
+			return -EINVAL;
+		}
+
+		astate_cfg_idx = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_KCPS:
+		astate_table[astate_cfg_idx].kcps = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_CLK_SRC:
+		astate_table[astate_cfg_idx].clk_src = tkn_elem->value;
 		break;
 
 	case SKL_TKN_U8_IN_PIN_TYPE:
@@ -3331,6 +3391,7 @@ static struct snd_soc_tplg_ops skl_tplg_ops  = {
 	.io_ops = skl_tplg_kcontrol_ops,
 	.io_ops_count = ARRAY_SIZE(skl_tplg_kcontrol_ops),
 	.manifest = skl_manifest_load,
+	.dai_load = skl_dai_load,
 };
 
 /*
@@ -3404,7 +3465,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 
 	ret = request_firmware(&fw, skl->tplg_name, bus->dev);
 	if (ret < 0) {
-		dev_err(bus->dev, "tplg fw %s load failed with %d\n",
+		dev_info(bus->dev, "tplg fw %s load failed with %d, falling back to dfw_sst.bin",
 				skl->tplg_name, ret);
 		ret = request_firmware(&fw, "dfw_sst.bin", bus->dev);
 		if (ret < 0) {

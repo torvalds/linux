@@ -49,20 +49,20 @@
  */
 static inline int zmii_valid_mode(int mode)
 {
-	return  mode == PHY_MODE_MII ||
-		mode == PHY_MODE_RMII ||
-		mode == PHY_MODE_SMII ||
-		mode == PHY_MODE_NA;
+	return  mode == PHY_INTERFACE_MODE_MII ||
+		mode == PHY_INTERFACE_MODE_RMII ||
+		mode == PHY_INTERFACE_MODE_SMII ||
+		mode == PHY_INTERFACE_MODE_NA;
 }
 
 static inline const char *zmii_mode_name(int mode)
 {
 	switch (mode) {
-	case PHY_MODE_MII:
+	case PHY_INTERFACE_MODE_MII:
 		return "MII";
-	case PHY_MODE_RMII:
+	case PHY_INTERFACE_MODE_RMII:
 		return "RMII";
-	case PHY_MODE_SMII:
+	case PHY_INTERFACE_MODE_SMII:
 		return "SMII";
 	default:
 		BUG();
@@ -72,11 +72,11 @@ static inline const char *zmii_mode_name(int mode)
 static inline u32 zmii_mode_mask(int mode, int input)
 {
 	switch (mode) {
-	case PHY_MODE_MII:
+	case PHY_INTERFACE_MODE_MII:
 		return ZMII_FER_MII(input);
-	case PHY_MODE_RMII:
+	case PHY_INTERFACE_MODE_RMII:
 		return ZMII_FER_RMII(input);
-	case PHY_MODE_SMII:
+	case PHY_INTERFACE_MODE_SMII:
 		return ZMII_FER_SMII(input);
 	default:
 		return 0;
@@ -106,27 +106,27 @@ int zmii_attach(struct platform_device *ofdev, int input, int *mode)
 	 * Please, always specify PHY mode in your board port to avoid
 	 * any surprises.
 	 */
-	if (dev->mode == PHY_MODE_NA) {
-		if (*mode == PHY_MODE_NA) {
+	if (dev->mode == PHY_INTERFACE_MODE_NA) {
+		if (*mode == PHY_INTERFACE_MODE_NA) {
 			u32 r = dev->fer_save;
 
 			ZMII_DBG(dev, "autodetecting mode, FER = 0x%08x" NL, r);
 
 			if (r & (ZMII_FER_MII(0) | ZMII_FER_MII(1)))
-				dev->mode = PHY_MODE_MII;
+				dev->mode = PHY_INTERFACE_MODE_MII;
 			else if (r & (ZMII_FER_RMII(0) | ZMII_FER_RMII(1)))
-				dev->mode = PHY_MODE_RMII;
+				dev->mode = PHY_INTERFACE_MODE_RMII;
 			else
-				dev->mode = PHY_MODE_SMII;
-		} else
+				dev->mode = PHY_INTERFACE_MODE_SMII;
+		} else {
 			dev->mode = *mode;
-
+		}
 		printk(KERN_NOTICE "%pOF: bridge in %s mode\n",
 		       ofdev->dev.of_node,
 		       zmii_mode_name(dev->mode));
 	} else {
 		/* All inputs must use the same mode */
-		if (*mode != PHY_MODE_NA && *mode != dev->mode) {
+		if (*mode != PHY_INTERFACE_MODE_NA && *mode != dev->mode) {
 			printk(KERN_ERR
 			       "%pOF: invalid mode %d specified for input %d\n",
 			       ofdev->dev.of_node, *mode, input);
@@ -246,7 +246,7 @@ static int zmii_probe(struct platform_device *ofdev)
 
 	mutex_init(&dev->lock);
 	dev->ofdev = ofdev;
-	dev->mode = PHY_MODE_NA;
+	dev->mode = PHY_INTERFACE_MODE_NA;
 
 	rc = -ENXIO;
 	if (of_address_to_resource(np, 0, &regs)) {

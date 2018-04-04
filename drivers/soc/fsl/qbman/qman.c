@@ -41,6 +41,43 @@
 
 /* Portal register assists */
 
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+/* Cache-inhibited register offsets */
+#define QM_REG_EQCR_PI_CINH	0x3000
+#define QM_REG_EQCR_CI_CINH	0x3040
+#define QM_REG_EQCR_ITR		0x3080
+#define QM_REG_DQRR_PI_CINH	0x3100
+#define QM_REG_DQRR_CI_CINH	0x3140
+#define QM_REG_DQRR_ITR		0x3180
+#define QM_REG_DQRR_DCAP	0x31C0
+#define QM_REG_DQRR_SDQCR	0x3200
+#define QM_REG_DQRR_VDQCR	0x3240
+#define QM_REG_DQRR_PDQCR	0x3280
+#define QM_REG_MR_PI_CINH	0x3300
+#define QM_REG_MR_CI_CINH	0x3340
+#define QM_REG_MR_ITR		0x3380
+#define QM_REG_CFG		0x3500
+#define QM_REG_ISR		0x3600
+#define QM_REG_IER		0x3640
+#define QM_REG_ISDR		0x3680
+#define QM_REG_IIR		0x36C0
+#define QM_REG_ITPR		0x3740
+
+/* Cache-enabled register offsets */
+#define QM_CL_EQCR		0x0000
+#define QM_CL_DQRR		0x1000
+#define QM_CL_MR		0x2000
+#define QM_CL_EQCR_PI_CENA	0x3000
+#define QM_CL_EQCR_CI_CENA	0x3040
+#define QM_CL_DQRR_PI_CENA	0x3100
+#define QM_CL_DQRR_CI_CENA	0x3140
+#define QM_CL_MR_PI_CENA	0x3300
+#define QM_CL_MR_CI_CENA	0x3340
+#define QM_CL_CR		0x3800
+#define QM_CL_RR0		0x3900
+#define QM_CL_RR1		0x3940
+
+#else
 /* Cache-inhibited register offsets */
 #define QM_REG_EQCR_PI_CINH	0x0000
 #define QM_REG_EQCR_CI_CINH	0x0004
@@ -75,6 +112,7 @@
 #define QM_CL_CR		0x3800
 #define QM_CL_RR0		0x3900
 #define QM_CL_RR1		0x3940
+#endif
 
 /*
  * BTW, the drivers (and h/w programming model) already obtain the required
@@ -300,7 +338,8 @@ struct qm_mc {
 };
 
 struct qm_addr {
-	void __iomem *ce;	/* cache-enabled */
+	void *ce;		/* cache-enabled */
+	__be32 *ce_be;		/* same value as above but for direct access */
 	void __iomem *ci;	/* cache-inhibited */
 };
 
@@ -321,12 +360,12 @@ struct qm_portal {
 /* Cache-inhibited register access. */
 static inline u32 qm_in(struct qm_portal *p, u32 offset)
 {
-	return be32_to_cpu(__raw_readl(p->addr.ci + offset));
+	return ioread32be(p->addr.ci + offset);
 }
 
 static inline void qm_out(struct qm_portal *p, u32 offset, u32 val)
 {
-	__raw_writel(cpu_to_be32(val), p->addr.ci + offset);
+	iowrite32be(val, p->addr.ci + offset);
 }
 
 /* Cache Enabled Portal Access */
@@ -342,7 +381,7 @@ static inline void qm_cl_touch_ro(struct qm_portal *p, u32 offset)
 
 static inline u32 qm_ce_in(struct qm_portal *p, u32 offset)
 {
-	return be32_to_cpu(__raw_readl(p->addr.ce + offset));
+	return be32_to_cpu(*(p->addr.ce_be + (offset/4)));
 }
 
 /* --- EQCR API --- */
@@ -646,11 +685,7 @@ static inline void qm_dqrr_pvb_update(struct qm_portal *portal)
 	 */
 	dpaa_invalidate_touch_ro(res);
 #endif
-	/*
-	 *  when accessing 'verb', use __raw_readb() to ensure that compiler
-	 * inlining doesn't try to optimise out "excess reads".
-	 */
-	if ((__raw_readb(&res->verb) & QM_DQRR_VERB_VBIT) == dqrr->vbit) {
+	if ((res->verb & QM_DQRR_VERB_VBIT) == dqrr->vbit) {
 		dqrr->pi = (dqrr->pi + 1) & (QM_DQRR_SIZE - 1);
 		if (!dqrr->pi)
 			dqrr->vbit ^= QM_DQRR_VERB_VBIT;
@@ -777,11 +812,8 @@ static inline void qm_mr_pvb_update(struct qm_portal *portal)
 	union qm_mr_entry *res = qm_cl(mr->ring, mr->pi);
 
 	DPAA_ASSERT(mr->pmode == qm_mr_pvb);
-	/*
-	 *  when accessing 'verb', use __raw_readb() to ensure that compiler
-	 * inlining doesn't try to optimise out "excess reads".
-	 */
-	if ((__raw_readb(&res->verb) & QM_MR_VERB_VBIT) == mr->vbit) {
+
+	if ((res->verb & QM_MR_VERB_VBIT) == mr->vbit) {
 		mr->pi = (mr->pi + 1) & (QM_MR_SIZE - 1);
 		if (!mr->pi)
 			mr->vbit ^= QM_MR_VERB_VBIT;
@@ -822,7 +854,7 @@ static inline int qm_mc_init(struct qm_portal *portal)
 
 	mc->cr = portal->addr.ce + QM_CL_CR;
 	mc->rr = portal->addr.ce + QM_CL_RR0;
-	mc->rridx = (__raw_readb(&mc->cr->_ncw_verb) & QM_MCC_VERB_VBIT)
+	mc->rridx = (mc->cr->_ncw_verb & QM_MCC_VERB_VBIT)
 		    ? 0 : 1;
 	mc->vbit = mc->rridx ? QM_MCC_VERB_VBIT : 0;
 #ifdef CONFIG_FSL_DPAA_CHECKING
@@ -880,7 +912,7 @@ static inline union qm_mc_result *qm_mc_result(struct qm_portal *portal)
 	 * its command is submitted and completed. This includes the valid-bit,
 	 * in case you were wondering...
 	 */
-	if (!__raw_readb(&rr->verb)) {
+	if (!rr->verb) {
 		dpaa_invalidate_touch_ro(rr);
 		return NULL;
 	}
@@ -909,12 +941,12 @@ static inline int qm_mc_result_timeout(struct qm_portal *portal,
 
 static inline void fq_set(struct qman_fq *fq, u32 mask)
 {
-	set_bits(mask, &fq->flags);
+	fq->flags |= mask;
 }
 
 static inline void fq_clear(struct qman_fq *fq, u32 mask)
 {
-	clear_bits(mask, &fq->flags);
+	fq->flags &= ~mask;
 }
 
 static inline int fq_isset(struct qman_fq *fq, u32 mask)
@@ -1084,11 +1116,7 @@ loop:
 		 * entries well before the ring has been fully consumed, so
 		 * we're being *really* paranoid here.
 		 */
-		u64 now, then = jiffies;
-
-		do {
-			now = jiffies;
-		} while ((then + 10000) > now);
+		msleep(1);
 		msg = qm_mr_current(p);
 		if (!msg)
 			return 0;
@@ -1124,8 +1152,9 @@ static int qman_create_portal(struct qman_portal *portal,
 	 * config, everything that follows depends on it and "config" is more
 	 * for (de)reference
 	 */
-	p->addr.ce = c->addr_virt[DPAA_PORTAL_CE];
-	p->addr.ci = c->addr_virt[DPAA_PORTAL_CI];
+	p->addr.ce = c->addr_virt_ce;
+	p->addr.ce_be = c->addr_virt_ce;
+	p->addr.ci = c->addr_virt_ci;
 	/*
 	 * If CI-stashing is used, the current defaults use a threshold of 3,
 	 * and stash with high-than-DQRR priority.
@@ -1566,7 +1595,7 @@ void qman_p_irqsource_add(struct qman_portal *p, u32 bits)
 	unsigned long irqflags;
 
 	local_irq_save(irqflags);
-	set_bits(bits & QM_PIRQ_VISIBLE, &p->irq_sources);
+	p->irq_sources |= bits & QM_PIRQ_VISIBLE;
 	qm_out(&p->p, QM_REG_IER, p->irq_sources);
 	local_irq_restore(irqflags);
 }
@@ -1589,7 +1618,7 @@ void qman_p_irqsource_remove(struct qman_portal *p, u32 bits)
 	 */
 	local_irq_save(irqflags);
 	bits &= QM_PIRQ_VISIBLE;
-	clear_bits(bits, &p->irq_sources);
+	p->irq_sources &= ~bits;
 	qm_out(&p->p, QM_REG_IER, p->irq_sources);
 	ier = qm_in(&p->p, QM_REG_IER);
 	/*

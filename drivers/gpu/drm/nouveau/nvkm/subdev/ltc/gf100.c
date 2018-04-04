@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 
+#include <core/memory.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -152,7 +153,10 @@ gf100_ltc_flush(struct nvkm_ltc *ltc)
 int
 gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 {
-	struct nvkm_ram *ram = ltc->subdev.device->fb->ram;
+	struct nvkm_device *device = ltc->subdev.device;
+	struct nvkm_fb *fb = device->fb;
+	struct nvkm_ram *ram = fb->ram;
+	u32 bits = (nvkm_rd32(device, 0x100c80) & 0x00001000) ? 16 : 17;
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
 
@@ -164,8 +168,8 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
 	ltc->num_tags = (ram->size >> 17) / 4;
-	if (ltc->num_tags > (1 << 17))
-		ltc->num_tags = 1 << 17; /* we have 17 bits in PTE */
+	if (ltc->num_tags > (1 << bits))
+		ltc->num_tags = 1 << bits; /* we have 16/17 bits in PTE */
 	ltc->num_tags = (ltc->num_tags + 63) & ~63; /* round up to 64 */
 
 	tag_align = ltc->ltc_nr * 0x800;
@@ -181,14 +185,13 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	 */
 	tag_size  = (ltc->num_tags / 64) * 0x6000 + tag_margin;
 	tag_size += tag_align;
-	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nvkm_mm_tail(&ram->vram, 1, 1, tag_size, tag_size, 1,
-			   &ltc->tag_ram);
+	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, 0x01, 12, tag_size,
+			   true, true, &ltc->tag_ram);
 	if (ret) {
 		ltc->num_tags = 0;
 	} else {
-		u64 tag_base = ((u64)ltc->tag_ram->offset << 12) + tag_margin;
+		u64 tag_base = nvkm_memory_addr(ltc->tag_ram) + tag_margin;
 
 		tag_base += tag_align - 1;
 		do_div(tag_base, tag_align);
@@ -197,7 +200,8 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	}
 
 mm_init:
-	return nvkm_mm_init(&ltc->tags, 0, ltc->num_tags, 1);
+	nvkm_mm_fini(&fb->tags);
+	return nvkm_mm_init(&fb->tags, 0, 0, ltc->num_tags, 1);
 }
 
 int

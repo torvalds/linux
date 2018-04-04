@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -50,7 +51,7 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 		return NULL;
 	}
 
-	LIBCFS_ALLOC(cptab, sizeof(*cptab));
+	cptab = kzalloc(sizeof(*cptab), GFP_NOFS);
 	if (cptab) {
 		cptab->ctb_version = CFS_CPU_VERSION_MAGIC;
 		node_set(0, cptab->ctb_nodemask);
@@ -66,7 +67,7 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
 	LASSERT(cptab->ctb_version == CFS_CPU_VERSION_MAGIC);
 
-	LIBCFS_FREE(cptab, sizeof(*cptab));
+	kfree(cptab);
 }
 EXPORT_SYMBOL(cfs_cpt_table_free);
 
@@ -112,7 +113,7 @@ cfs_cpt_nodemask(struct cfs_cpt_table *cptab, int cpt)
 {
 	return &cptab->ctb_nodemask;
 }
-EXPORT_SYMBOL(cfs_cpt_cpumask);
+EXPORT_SYMBOL(cfs_cpt_nodemask);
 
 int
 cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)

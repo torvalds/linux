@@ -35,7 +35,8 @@
 
 /*  This value is tested by WiFi 11n Test Plan 5.2.3. */
 /*  This test verifies the WLAN NIC can update the NAV through sending
- *  the CTS with large duration. */
+ *  the CTS with large duration.
+ */
 #define	WiFiNavUpperUs				30000	/*  30 ms */
 
 enum WIFI_FRAME_TYPE {
@@ -459,14 +460,14 @@ static inline int IsFrameTypeCtrl(unsigned char *pframe)
 #define _IEEE8021X_PSK_			2	/*  WPA with pre-shared key */
 
 /*
-#define _NO_PRIVACY_			0
-#define _WEP_40_PRIVACY_		1
-#define _TKIP_PRIVACY_			2
-#define _WRAP_PRIVACY_			3
-#define _CCMP_PRIVACY_			4
-#define _WEP_104_PRIVACY_		5
-#define _WEP_WPA_MIXED_PRIVACY_ 6	WEP + WPA
-*/
+ * #define _NO_PRIVACY_			0
+ * #define _WEP_40_PRIVACY_		1
+ * #define _TKIP_PRIVACY_		2
+ * #define _WRAP_PRIVACY_		3
+ * #define _CCMP_PRIVACY_		4
+ * #define _WEP_104_PRIVACY_		5
+ * #define _WEP_WPA_MIXED_PRIVACY_ 6	WEP + WPA
+ */
 
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM
@@ -771,10 +772,12 @@ enum ht_cap_ampdu_factor {
 #define	P2P_PROVISIONING_SCAN_CNT		3
 
 /* default value, used when: (1)p2p disabled or (2)p2p enabled
- * but only do 1 scan phase */
+ * but only do 1 scan phase
+ */
 #define	P2P_FINDPHASE_EX_NONE		0
 /*  used when p2p enabled and want to do 1 scan phase and
- *  P2P_FINDPHASE_EX_MAX-1 find phase */
+ *  P2P_FINDPHASE_EX_MAX-1 find phase
+ */
 #define	P2P_FINDPHASE_EX_FULL		1
 #define	P2P_FINDPHASE_EX_SOCIAL_FIRST	(P2P_FINDPHASE_EX_FULL+1)
 #define	P2P_FINDPHASE_EX_MAX		4

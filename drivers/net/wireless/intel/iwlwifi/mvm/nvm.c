@@ -73,6 +73,7 @@
 #include "iwl-eeprom-read.h"
 #include "iwl-nvm-parse.h"
 #include "iwl-prph.h"
+#include "fw/acpi.h"
 
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
@@ -784,7 +785,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 		return -EIO;
 
 	if (iwl_mvm_is_wifi_mcc_supported(mvm) &&
-	    !iwl_get_bios_mcc(mvm->dev, mcc)) {
+	    !iwl_acpi_get_mcc(mvm->dev, mcc)) {
 		kfree(regd);
 		regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc,
 					     MCC_SOURCE_BIOS, NULL);

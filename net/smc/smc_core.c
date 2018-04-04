@@ -128,6 +128,8 @@ static void smc_lgr_free_work(struct work_struct *work)
 	bool conns;
 
 	spin_lock_bh(&smc_lgr_list.lock);
+	if (list_empty(&lgr->list))
+		goto free;
 	read_lock_bh(&lgr->conns_lock);
 	conns = RB_EMPTY_ROOT(&lgr->conns_all);
 	read_unlock_bh(&lgr->conns_lock);
@@ -136,6 +138,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 		return;
 	}
 	list_del_init(&lgr->list); /* remove from smc_lgr_list */
+free:
 	spin_unlock_bh(&smc_lgr_list.lock);
 	smc_lgr_free(lgr);
 }
@@ -231,9 +234,7 @@ static void smc_buf_unuse(struct smc_connection *conn)
 /* remove a finished connection from its link group */
 void smc_conn_free(struct smc_connection *conn)
 {
-	struct smc_link_group *lgr = conn->lgr;
-
-	if (!lgr)
+	if (!conn->lgr)
 		return;
 	smc_cdc_tx_dismiss_slots(conn);
 	smc_lgr_unregister_conn(conn);
@@ -327,13 +328,17 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	while (node) {
 		conn = rb_entry(node, struct smc_connection, alert_node);
 		smc = container_of(conn, struct smc_sock, conn);
-		sock_hold(&smc->sk);
+		sock_hold(&smc->sk); /* sock_put in close work */
+		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		__smc_lgr_unregister_conn(conn);
-		schedule_work(&conn->close_work);
-		sock_put(&smc->sk);
+		write_unlock_bh(&lgr->conns_lock);
+		if (!schedule_work(&conn->close_work))
+			sock_put(&smc->sk);
+		write_lock_bh(&lgr->conns_lock);
 		node = rb_first(&lgr->conns_all);
 	}
 	write_unlock_bh(&lgr->conns_lock);
+	wake_up(&lgr->lnk[SMC_SINGLE_LINK].wr_reg_wait);
 }
 
 /* Determine vlan of internal TCP socket.
@@ -381,10 +386,14 @@ static int smc_link_determine_gid(struct smc_link_group *lgr)
 		if (ib_query_gid(lnk->smcibdev->ibdev, lnk->ibport, i, &gid,
 				 &gattr))
 			continue;
-		if (gattr.ndev &&
-		    (vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id)) {
-			lnk->gid = gid;
-			return 0;
+		if (gattr.ndev) {
+			if (is_vlan_dev(gattr.ndev) &&
+			    vlan_dev_vlan_id(gattr.ndev) == lgr->vlan_id) {
+				lnk->gid = gid;
+				dev_put(gattr.ndev);
+				return 0;
+			}
+			dev_put(gattr.ndev);
 		}
 	}
 	return -ENODEV;
@@ -558,7 +567,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 {
 	struct smc_connection *conn = &smc->conn;
 	struct smc_link_group *lgr = conn->lgr;
-	struct smc_buf_desc *buf_desc = NULL;
+	struct smc_buf_desc *buf_desc = ERR_PTR(-ENOMEM);
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
 	int sk_buf_size;
@@ -571,7 +580,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 		/* use socket send buffer size (w/o overhead) as start value */
 		sk_buf_size = smc->sk.sk_sndbuf / 2;
 
-	for (bufsize_short = smc_compress_bufsize(smc->sk.sk_sndbuf / 2);
+	for (bufsize_short = smc_compress_bufsize(sk_buf_size);
 	     bufsize_short >= 0; bufsize_short--) {
 
 		if (is_rmb) {

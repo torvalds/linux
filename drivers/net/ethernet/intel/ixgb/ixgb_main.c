@@ -83,7 +83,7 @@ static void ixgb_setup_rctl(struct ixgb_adapter *adapter);
 static void ixgb_clean_tx_ring(struct ixgb_adapter *adapter);
 static void ixgb_clean_rx_ring(struct ixgb_adapter *adapter);
 static void ixgb_set_multi(struct net_device *netdev);
-static void ixgb_watchdog(unsigned long data);
+static void ixgb_watchdog(struct timer_list *t);
 static netdev_tx_t ixgb_xmit_frame(struct sk_buff *skb,
 				   struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
@@ -508,9 +508,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->part_num = ixgb_get_ee_pba_number(&adapter->hw);
 
-	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = ixgb_watchdog;
-	adapter->watchdog_timer.data = (unsigned long)adapter;
+	timer_setup(&adapter->watchdog_timer, ixgb_watchdog, 0);
 
 	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
 
@@ -1152,9 +1150,9 @@ alloc_failed:
  **/
 
 static void
-ixgb_watchdog(unsigned long data)
+ixgb_watchdog(struct timer_list *t)
 {
-	struct ixgb_adapter *adapter = (struct ixgb_adapter *)data;
+	struct ixgb_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 	struct net_device *netdev = adapter->netdev;
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;
 

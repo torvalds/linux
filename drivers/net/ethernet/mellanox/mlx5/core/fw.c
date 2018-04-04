@@ -106,6 +106,13 @@ static int mlx5_get_mcam_reg(struct mlx5_core_dev *dev)
 				   MLX5_MCAM_REGS_FIRST_128);
 }
 
+static int mlx5_get_qcam_reg(struct mlx5_core_dev *dev)
+{
+	return mlx5_query_qcam_reg(dev, dev->caps.qcam,
+				   MLX5_QCAM_FEATURE_ENHANCED_FEATURES,
+				   MLX5_QCAM_REGS_FIRST_128);
+}
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -182,15 +189,26 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, mcam_reg))
 		mlx5_get_mcam_reg(dev);
 
+	if (MLX5_CAP_GEN(dev, qcam_reg))
+		mlx5_get_qcam_reg(dev);
+
 	return 0;
 }
 
-int mlx5_cmd_init_hca(struct mlx5_core_dev *dev)
+int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id)
 {
 	u32 out[MLX5_ST_SZ_DW(init_hca_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(init_hca_in)]   = {0};
+	int i;
 
 	MLX5_SET(init_hca_in, in, opcode, MLX5_CMD_OP_INIT_HCA);
+
+	if (MLX5_CAP_GEN(dev, sw_owner_id)) {
+		for (i = 0; i < 4; i++)
+			MLX5_ARRAY_SET(init_hca_in, in, sw_owner_id, i,
+				       sw_owner_id[i]);
+	}
+
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 

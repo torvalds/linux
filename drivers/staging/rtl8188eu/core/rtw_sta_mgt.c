@@ -239,8 +239,8 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 		}
 
 		/* init for DM */
-		psta->rssi_stat.UndecoratedSmoothedPWDB = (-1);
-		psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
+		psta->rssi_stat.UndecoratedSmoothedPWDB = -1;
+		psta->rssi_stat.UndecoratedSmoothedCCK = -1;
 
 		/* init for the sequence number of received management frame */
 		psta->RxMgmtFrameSeqNum = 0xffff;

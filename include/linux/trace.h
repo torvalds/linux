@@ -18,7 +18,7 @@
  */
 struct trace_export {
 	struct trace_export __rcu	*next;
-	void (*write)(const void *, unsigned int);
+	void (*write)(struct trace_export *, const void *, unsigned int);
 };
 
 int register_ftrace_export(struct trace_export *export);

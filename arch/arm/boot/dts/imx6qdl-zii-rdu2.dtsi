@@ -49,6 +49,7 @@
 
 	aliases {
 		mdio-gpio0 = &mdio1;
+		rtc0 = &ds1341;
 	};
 
 	mdio1: mdio {
@@ -390,7 +391,7 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
-	pmic@08 {
+	pmic@8 {
 		compatible = "fsl,pfuze100";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pfuze100_irq>;
@@ -501,7 +502,7 @@
 		reg = <0x54>;
 	};
 
-	rtc@68 {
+	ds1341: rtc@68 {
 		compatible = "dallas,ds1341";
 		reg = <0x68>;
 	};
@@ -543,7 +544,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>;
+			syna,nosleep-mode = <2>;
 		};
 
 		rmi4-f11@11 {
@@ -580,6 +581,17 @@
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	host@0 {
+		reg = <0 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		i210: i210@0 {
+			reg = <0 0 0 0 0>;
+		};
+	};
 };
 
 &usdhc2 {
@@ -728,6 +740,7 @@
 
 &usbh1 {
 	vbus-supply = <&reg_5p0v_main>;
+	disable-over-current;
 	status = "okay";
 };
 

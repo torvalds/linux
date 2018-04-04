@@ -45,7 +45,7 @@ Optional Properties specific to linux:
 
 
 Example:
-	keypad@100A0000 {
+	keypad@100a0000 {
 		compatible = "samsung,s5pv210-keypad";
 		reg = <0x100A0000 0x100>;
 		interrupts = <173>;

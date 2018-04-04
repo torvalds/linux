@@ -177,6 +177,7 @@
 
 	phy0: ethernet-phy@0 {
 		reg = <0>;
+		reset-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -196,7 +197,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	ak8963: ak8963@0d {
+	ak8963: ak8963@d {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0d>;
 		interrupt-parent = <&gpio4>;

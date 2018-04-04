@@ -39,7 +39,7 @@ enum jvc_state {
 /**
  * ir_jvc_decode() - Decode one JVC pulse or space
  * @dev:	the struct rc_dev descriptor of the device
- * @duration:   the struct ir_raw_event descriptor of the pulse/space
+ * @ev:   the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
@@ -212,6 +212,7 @@ static struct ir_raw_handler jvc_handler = {
 	.protocols	= RC_PROTO_BIT_JVC,
 	.decode		= ir_jvc_decode,
 	.encode		= ir_jvc_encode,
+	.carrier	= 38000,
 };
 
 static int __init ir_jvc_decode_init(void)

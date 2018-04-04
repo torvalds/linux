@@ -21,8 +21,6 @@
 
 #include "bpf_jit64.h"
 
-int bpf_jit_enable __read_mostly;
-
 static void bpf_jit_fill_ill_insns(void *area, unsigned int size)
 {
 	memset32(area, BREAKPOINT_INSTRUCTION, size/4);
@@ -69,7 +67,7 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 static int bpf_jit_stack_local(struct codegen_context *ctx)
 {
 	if (bpf_has_stack_frame(ctx))
-		return STACK_FRAME_MIN_SIZE + MAX_BPF_STACK;
+		return STACK_FRAME_MIN_SIZE + ctx->stack_size;
 	else
 		return -(BPF_PPC_STACK_SAVE + 16);
 }
@@ -82,8 +80,9 @@ static int bpf_jit_stack_tailcallcnt(struct codegen_context *ctx)
 static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 {
 	if (reg >= BPF_PPC_NVR_MIN && reg < 32)
-		return (bpf_has_stack_frame(ctx) ? BPF_PPC_STACKFRAME : 0)
-							- (8 * (32 - reg));
+		return (bpf_has_stack_frame(ctx) ?
+			(BPF_PPC_STACKFRAME + ctx->stack_size) : 0)
+				- (8 * (32 - reg));
 
 	pr_err("BPF JIT is asking about unknown registers");
 	BUG();
@@ -134,7 +133,7 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
 		}
 
-		PPC_BPF_STLU(1, 1, -BPF_PPC_STACKFRAME);
+		PPC_BPF_STLU(1, 1, -(BPF_PPC_STACKFRAME + ctx->stack_size));
 	}
 
 	/*
@@ -161,7 +160,7 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	/* Setup frame pointer to point to the bpf stack area */
 	if (bpf_is_seen_register(ctx, BPF_REG_FP))
 		PPC_ADDI(b2p[BPF_REG_FP], 1,
-				STACK_FRAME_MIN_SIZE + MAX_BPF_STACK);
+				STACK_FRAME_MIN_SIZE + ctx->stack_size);
 }
 
 static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx)
@@ -183,7 +182,7 @@ static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx
 
 	/* Tear down our stack frame */
 	if (bpf_has_stack_frame(ctx)) {
-		PPC_ADDI(1, 1, BPF_PPC_STACKFRAME);
+		PPC_ADDI(1, 1, BPF_PPC_STACKFRAME + ctx->stack_size);
 		if (ctx->seen & SEEN_FUNC) {
 			PPC_BPF_LL(0, 1, PPC_LR_STKOFF);
 			PPC_MTLR(0);
@@ -382,10 +381,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_DIV | BPF_X: /* (u32) dst /= (u32) src */
 		case BPF_ALU | BPF_MOD | BPF_X: /* (u32) dst %= (u32) src */
-			PPC_CMPWI(src_reg, 0);
-			PPC_BCC_SHORT(COND_NE, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
 			if (BPF_OP(code) == BPF_MOD) {
 				PPC_DIVWU(b2p[TMP_REG_1], dst_reg, src_reg);
 				PPC_MULW(b2p[TMP_REG_1], src_reg,
@@ -396,10 +391,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_DIV | BPF_X: /* dst /= src */
 		case BPF_ALU64 | BPF_MOD | BPF_X: /* dst %= src */
-			PPC_CMPDI(src_reg, 0);
-			PPC_BCC_SHORT(COND_NE, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
 			if (BPF_OP(code) == BPF_MOD) {
 				PPC_DIVD(b2p[TMP_REG_1], dst_reg, src_reg);
 				PPC_MULD(b2p[TMP_REG_1], src_reg,
@@ -762,7 +753,8 @@ emit_clear:
 			func = (u8 *) __bpf_call_base + imm;
 
 			/* Save skb pointer if we need to re-cache skb data */
-			if (bpf_helper_changes_pkt_data(func))
+			if ((ctx->seen & SEEN_SKB) &&
+			    bpf_helper_changes_pkt_data(func))
 				PPC_BPF_STL(3, 1, bpf_jit_stack_local(ctx));
 
 			bpf_jit_emit_func_call(image, ctx, (u64)func);
@@ -771,7 +763,8 @@ emit_clear:
 			PPC_MR(b2p[BPF_REG_0], 3);
 
 			/* refresh skb cache */
-			if (bpf_helper_changes_pkt_data(func)) {
+			if ((ctx->seen & SEEN_SKB) &&
+			    bpf_helper_changes_pkt_data(func)) {
 				/* reload skb pointer to r3 */
 				PPC_BPF_LL(3, 1, bpf_jit_stack_local(ctx));
 				bpf_jit_emit_skb_loads(image, ctx);
@@ -992,7 +985,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	struct bpf_prog *tmp_fp;
 	bool bpf_blinded = false;
 
-	if (!bpf_jit_enable)
+	if (!fp->jit_requested)
 		return org_fp;
 
 	tmp_fp = bpf_jit_blind_constants(org_fp);
@@ -1012,6 +1005,9 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 
 	memset(&cgctx, 0, sizeof(struct codegen_context));
+
+	/* Make sure that the stack is quadword aligned. */
+	cgctx.stack_size = round_up(fp->aux->stack_depth, 16);
 
 	/* Scouting faux-generate pass 0 */
 	if (bpf_jit_build_body(fp, 0, &cgctx, addrs)) {

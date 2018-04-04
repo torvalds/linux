@@ -1,26 +1,11 @@
-/* linux/arch/arm/mach-s3c2416/s3c2416.c
- *
- * Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>,
- *	as part of OpenInkpot project
- * Copyright (c) 2009 Promwad Innovation Company
- *	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>
- *
- * Samsung S3C2416 Mobile CPU support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>,
+//	as part of OpenInkpot project
+// Copyright (c) 2009 Promwad Innovation Company
+//	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>
+//
+// Samsung S3C2416 Mobile CPU support
 
 #include <linux/kernel.h>
 #include <linux/types.h>

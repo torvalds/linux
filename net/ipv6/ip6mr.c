@@ -120,7 +120,7 @@ static void mrt6msg_netlink_event(struct mr6_table *mrt, struct sk_buff *pkt);
 static int ip6mr_rtm_dumproute(struct sk_buff *skb,
 			       struct netlink_callback *cb);
 static void mroute_clean_tables(struct mr6_table *mrt, bool all);
-static void ipmr_expire_process(unsigned long arg);
+static void ipmr_expire_process(struct timer_list *t);
 
 #ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
 #define ip6mr_for_each_table(mrt, net) \
@@ -320,8 +320,7 @@ static struct mr6_table *ip6mr_new_table(struct net *net, u32 id)
 
 	INIT_LIST_HEAD(&mrt->mfc6_unres_queue);
 
-	setup_timer(&mrt->ipmr_expire_timer, ipmr_expire_process,
-		    (unsigned long)mrt);
+	timer_setup(&mrt->ipmr_expire_timer, ipmr_expire_process, 0);
 
 #ifdef CONFIG_IPV6_PIMSM_V2
 	mrt->mroute_reg_vif_num = -1;
@@ -478,7 +477,6 @@ static int ip6mr_vif_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ip6mr_vif_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = ip6mr_vif_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -496,6 +494,7 @@ static void *ipmr_mfc_seq_start(struct seq_file *seq, loff_t *pos)
 		return ERR_PTR(-ENOENT);
 
 	it->mrt = mrt;
+	it->cache = NULL;
 	return *pos ? ipmr_mfc_seq_idx(net, seq->private, *pos - 1)
 		: SEQ_START_TOKEN;
 }
@@ -610,7 +609,6 @@ static int ipmr_mfc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ip6mr_mfc_fops = {
-	.owner	 = THIS_MODULE,
 	.open    = ipmr_mfc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -888,9 +886,9 @@ static void ipmr_do_expire_process(struct mr6_table *mrt)
 		mod_timer(&mrt->ipmr_expire_timer, jiffies + expires);
 }
 
-static void ipmr_expire_process(unsigned long arg)
+static void ipmr_expire_process(struct timer_list *t)
 {
-	struct mr6_table *mrt = (struct mr6_table *)arg;
+	struct mr6_table *mrt = from_timer(mrt, t, ipmr_expire_timer);
 
 	if (!spin_trylock(&mfc_unres_lock)) {
 		mod_timer(&mrt->ipmr_expire_timer, jiffies + 1);
@@ -1426,10 +1424,13 @@ int __init ip6_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IP6MR, RTM_GETROUTE, NULL,
-		      ip6mr_rtm_dumproute, 0);
-	return 0;
+	err = rtnl_register_module(THIS_MODULE, RTNL_FAMILY_IP6MR, RTM_GETROUTE,
+				   NULL, ip6mr_rtm_dumproute, 0);
+	if (err == 0)
+		return 0;
+
 #ifdef CONFIG_IPV6_PIMSM_V2
+	inet6_del_protocol(&pim6_protocol, IPPROTO_PIM);
 add_proto_fail:
 	unregister_netdevice_notifier(&ip6_mr_notifier);
 #endif
@@ -1617,6 +1618,10 @@ int ip6mr_sk_done(struct sock *sk)
 	struct net *net = sock_net(sk);
 	struct mr6_table *mrt;
 
+	if (sk->sk_type != SOCK_RAW ||
+	    inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
+		return err;
+
 	rtnl_lock();
 	ip6mr_for_each_table(mrt, net) {
 		if (sk == mrt->mroute6_sk) {
@@ -1722,6 +1727,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	case MRT6_ADD_MFC:
 	case MRT6_DEL_MFC:
 		parent = -1;
+		/* fall through */
 	case MRT6_ADD_MFC_PROXY:
 	case MRT6_DEL_MFC_PROXY:
 		if (optlen < sizeof(mfc))

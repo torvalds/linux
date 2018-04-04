@@ -17,14 +17,14 @@
 #include <linux/dvb/net.h>
 #include <linux/mutex.h>
 
-#include "dvbdev.h"
-#include "demux.h"
-#include "dvb_demux.h"
-#include "dmxdev.h"
+#include <media/dvbdev.h>
+#include <media/demux.h>
+#include <media/dvb_demux.h>
+#include <media/dmxdev.h>
 #include "dvb_filter.h"
-#include "dvb_net.h"
-#include "dvb_ringbuffer.h"
-#include "dvb_frontend.h"
+#include <media/dvb_net.h>
+#include <media/dvb_ringbuffer.h>
+#include <media/dvb_frontend.h>
 #include "ves1820.h"
 #include "ves1x93.h"
 #include "stv0299.h"
@@ -52,7 +52,7 @@ extern int av7110_debug;
 enum {AV_PES_STREAM, PS_STREAM, TS_STREAM, PES_STREAM};
 
 enum av7110_video_mode {
-	AV7110_VIDEO_MODE_PAL 	= 0,
+	AV7110_VIDEO_MODE_PAL	= 0,
 	AV7110_VIDEO_MODE_NTSC	= 1
 };
 

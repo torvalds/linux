@@ -70,16 +70,14 @@
 #define LUSTRE_EROFS		30	/* Read-only file system */
 #define LUSTRE_EMLINK		31	/* Too many links */
 #define LUSTRE_EPIPE		32	/* Broken pipe */
-#define LUSTRE_EDOM		33	/* Math argument out of domain of
-					   func */
+#define LUSTRE_EDOM		33	/* Math argument out of func domain */
 #define LUSTRE_ERANGE		34	/* Math result not representable */
 #define LUSTRE_EDEADLK		35	/* Resource deadlock would occur */
 #define LUSTRE_ENAMETOOLONG	36	/* File name too long */
 #define LUSTRE_ENOLCK		37	/* No record locks available */
 #define LUSTRE_ENOSYS		38	/* Function not implemented */
 #define LUSTRE_ENOTEMPTY	39	/* Directory not empty */
-#define LUSTRE_ELOOP		40	/* Too many symbolic links
-					   encountered */
+#define LUSTRE_ELOOP		40	/* Too many symbolic links found */
 #define LUSTRE_ENOMSG		42	/* No message of desired type */
 #define LUSTRE_EIDRM		43	/* Identifier removed */
 #define LUSTRE_ECHRNG		44	/* Channel number out of range */
@@ -112,23 +110,17 @@
 #define LUSTRE_EMULTIHOP	72	/* Multihop attempted */
 #define LUSTRE_EDOTDOT		73	/* RFS specific error */
 #define LUSTRE_EBADMSG		74	/* Not a data message */
-#define LUSTRE_EOVERFLOW	75	/* Value too large for defined data
-					   type */
+#define LUSTRE_EOVERFLOW	75	/* Value too large for data type */
 #define LUSTRE_ENOTUNIQ		76	/* Name not unique on network */
 #define LUSTRE_EBADFD		77	/* File descriptor in bad state */
 #define LUSTRE_EREMCHG		78	/* Remote address changed */
-#define LUSTRE_ELIBACC		79	/* Can not access a needed shared
-					   library */
-#define LUSTRE_ELIBBAD		80	/* Accessing a corrupted shared
-					   library */
+#define LUSTRE_ELIBACC		79	/* Can't access needed shared library */
+#define LUSTRE_ELIBBAD		80	/* Access corrupted shared library */
 #define LUSTRE_ELIBSCN		81	/* .lib section in a.out corrupted */
-#define LUSTRE_ELIBMAX		82	/* Attempting to link in too many shared
-					   libraries */
-#define LUSTRE_ELIBEXEC		83	/* Cannot exec a shared library
-					   directly */
+#define LUSTRE_ELIBMAX		82	/* Trying to link too many libraries */
+#define LUSTRE_ELIBEXEC		83	/* Cannot exec a shared lib directly */
 #define LUSTRE_EILSEQ		84	/* Illegal byte sequence */
-#define LUSTRE_ERESTART		85	/* Interrupted system call should be
-					   restarted */
+#define LUSTRE_ERESTART		85	/* Restart interrupted system call */
 #define LUSTRE_ESTRPIPE		86	/* Streams pipe error */
 #define LUSTRE_EUSERS		87	/* Too many users */
 #define LUSTRE_ENOTSOCK		88	/* Socket operation on non-socket */
@@ -138,26 +130,20 @@
 #define LUSTRE_ENOPROTOOPT	92	/* Protocol not available */
 #define LUSTRE_EPROTONOSUPPORT	93	/* Protocol not supported */
 #define LUSTRE_ESOCKTNOSUPPORT	94	/* Socket type not supported */
-#define LUSTRE_EOPNOTSUPP	95	/* Operation not supported on transport
-					   endpoint */
+#define LUSTRE_EOPNOTSUPP	95	/* Operation not supported */
 #define LUSTRE_EPFNOSUPPORT	96	/* Protocol family not supported */
-#define LUSTRE_EAFNOSUPPORT	97	/* Address family not supported by
-					   protocol */
+#define LUSTRE_EAFNOSUPPORT	97	/* Address family not supported */
 #define LUSTRE_EADDRINUSE	98	/* Address already in use */
 #define LUSTRE_EADDRNOTAVAIL	99	/* Cannot assign requested address */
 #define LUSTRE_ENETDOWN		100	/* Network is down */
 #define LUSTRE_ENETUNREACH	101	/* Network is unreachable */
-#define LUSTRE_ENETRESET	102	/* Network dropped connection because of
-					   reset */
+#define LUSTRE_ENETRESET	102	/* Network connection drop for reset */
 #define LUSTRE_ECONNABORTED	103	/* Software caused connection abort */
 #define LUSTRE_ECONNRESET	104	/* Connection reset by peer */
 #define LUSTRE_ENOBUFS		105	/* No buffer space available */
-#define LUSTRE_EISCONN		106	/* Transport endpoint is already
-					   connected */
-#define LUSTRE_ENOTCONN		107	/* Transport endpoint is not
-					   connected */
-#define LUSTRE_ESHUTDOWN	108	/* Cannot send after transport endpoint
-					   shutdown */
+#define LUSTRE_EISCONN		106	/* Transport endpoint is connected */
+#define LUSTRE_ENOTCONN		107	/* Transport endpoint not connected */
+#define LUSTRE_ESHUTDOWN	108	/* Cannot send after shutdown */
 #define LUSTRE_ETOOMANYREFS	109	/* Too many references: cannot splice */
 #define LUSTRE_ETIMEDOUT	110	/* Connection timed out */
 #define LUSTRE_ECONNREFUSED	111	/* Connection refused */
@@ -185,8 +171,7 @@
 #define LUSTRE_ERESTARTNOINTR	513
 #define LUSTRE_ERESTARTNOHAND	514	/* restart if no handler.. */
 #define LUSTRE_ENOIOCTLCMD	515	/* No ioctl command */
-#define LUSTRE_ERESTART_RESTARTBLOCK 516 /* restart by calling
-					    sys_restart_syscall */
+#define LUSTRE_ERESTART_RESTARTBLOCK 516 /* restart via sys_restart_syscall */
 #define LUSTRE_EBADHANDLE	521	/* Illegal NFS file handle */
 #define LUSTRE_ENOTSYNC		522	/* Update synchronization mismatch */
 #define LUSTRE_EBADCOOKIE	523	/* Cookie is stale */
@@ -194,10 +179,8 @@
 #define LUSTRE_ETOOSMALL	525	/* Buffer or request is too small */
 #define LUSTRE_ESERVERFAULT	526	/* An untranslatable error occurred */
 #define LUSTRE_EBADTYPE		527	/* Type not supported by server */
-#define LUSTRE_EJUKEBOX		528	/* Request initiated, but will not
-					   complete before timeout */
-#define LUSTRE_EIOCBQUEUED	529	/* iocb queued, will get completion
-					   event */
+#define LUSTRE_EJUKEBOX		528	/* Request won't finish until timeout */
+#define LUSTRE_EIOCBQUEUED	529	/* iocb queued await completion event */
 #define LUSTRE_EIOCBRETRY	530	/* iocb queued, will trigger a retry */
 
 /*

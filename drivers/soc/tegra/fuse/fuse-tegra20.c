@@ -59,7 +59,7 @@ static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 
 	mutex_lock(&fuse->apbdma.lock);
 
-	fuse->apbdma.config.src_addr = fuse->apbdma.phys + FUSE_BEGIN + offset;
+	fuse->apbdma.config.src_addr = fuse->phys + FUSE_BEGIN + offset;
 
 	err = dmaengine_slave_config(fuse->apbdma.chan, &fuse->apbdma.config);
 	if (err)
@@ -96,6 +96,13 @@ out:
 	return value;
 }
 
+static bool dma_filter(struct dma_chan *chan, void *filter_param)
+{
+	struct device_node *np = chan->device->dev->of_node;
+
+	return of_device_is_compatible(np, "nvidia,tegra20-apbdma");
+}
+
 static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 {
 	dma_cap_mask_t mask;
@@ -103,7 +110,7 @@ static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	fuse->apbdma.chan = dma_request_channel(mask, NULL, NULL);
+	fuse->apbdma.chan = __dma_request_channel(&mask, dma_filter, NULL);
 	if (!fuse->apbdma.chan)
 		return -EPROBE_DEFER;
 
@@ -119,6 +126,8 @@ static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 	fuse->apbdma.config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	fuse->apbdma.config.src_maxburst = 1;
 	fuse->apbdma.config.dst_maxburst = 1;
+	fuse->apbdma.config.direction = DMA_DEV_TO_MEM;
+	fuse->apbdma.config.device_fc = false;
 
 	init_completion(&fuse->apbdma.wait);
 	mutex_init(&fuse->apbdma.lock);

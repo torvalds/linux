@@ -51,6 +51,8 @@ struct intel_function {
  * @reg_num: GPI_IS register number
  * @base: Starting pin of this group
  * @size: Size of this group (maximum is 32).
+ * @gpio_base: Starting GPIO base of this group (%0 if matches with @base,
+ *	       and %-1 if no GPIO mapping should be created)
  * @padown_num: PAD_OWN register number (assigned by the core driver)
  *
  * If pad groups of a community are not the same size, use this structure
@@ -60,6 +62,7 @@ struct intel_padgroup {
 	unsigned reg_num;
 	unsigned base;
 	unsigned size;
+	int gpio_base;
 	unsigned padown_num;
 };
 
@@ -73,6 +76,8 @@ struct intel_padgroup {
  * @hostown_offset: Register offset of HOSTSW_OWN from @regs. If %0 then it
  *                  is assumed that the host owns the pin (rather than
  *                  ACPI).
+ * @is_offset: Register offset of GPI_IS from @regs. If %0 then uses the
+ *             default (%0x100).
  * @ie_offset: Register offset of GPI_IE from @regs.
  * @pin_base: Starting pin of pins in this community
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
@@ -98,6 +103,7 @@ struct intel_community {
 	unsigned padown_offset;
 	unsigned padcfglock_offset;
 	unsigned hostown_offset;
+	unsigned is_offset;
 	unsigned ie_offset;
 	unsigned pin_base;
 	unsigned gpp_size;

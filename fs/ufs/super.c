@@ -88,6 +88,7 @@
 #include <linux/log2.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/iversion.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -282,7 +283,7 @@ void ufs_error (struct super_block * sb, const char * function,
 		usb1->fs_clean = UFS_FSBAD;
 		ubh_mark_buffer_dirty(USPI_UBH(uspi));
 		ufs_mark_sb_dirty(sb);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	}
 	va_start(args, fmt);
 	vaf.fmt = fmt;
@@ -320,7 +321,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 	pr_crit("panic (device %s): %s: %pV\n",
 		sb->s_id, function, &vaf);
 	va_end(args);
@@ -905,7 +906,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=old is supported read-only\n");
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 		}
 		break;
 	
@@ -921,7 +922,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=nextstep is supported read-only\n");
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 		}
 		break;
 	
@@ -937,7 +938,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=nextstep-cd is supported read-only\n");
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 		}
 		break;
 	
@@ -953,7 +954,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=openstep is supported read-only\n");
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 		}
 		break;
 	
@@ -968,7 +969,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!sb_rdonly(sb)) {
 			if (!silent)
 				pr_info("ufstype=hp is supported read-only\n");
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
  		}
  		break;
 	default:
@@ -1125,21 +1126,21 @@ magic_found:
 			break;
 		case UFS_FSACTIVE:
 			pr_err("%s(): fs is active\n", __func__);
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			break;
 		case UFS_FSBAD:
 			pr_err("%s(): fs is bad\n", __func__);
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			break;
 		default:
 			pr_err("%s(): can't grok fs_clean 0x%x\n",
 			       __func__, usb1->fs_clean);
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			break;
 		}
 	} else {
 		pr_err("%s(): fs needs fsck\n", __func__);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	}
 
 	/*
@@ -1328,7 +1329,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		return -EINVAL;
 	}
 
-	if ((bool)(*mount_flags & MS_RDONLY) == sb_rdonly(sb)) {
+	if ((bool)(*mount_flags & SB_RDONLY) == sb_rdonly(sb)) {
 		UFS_SB(sb)->s_mount_opt = new_mount_opt;
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return 0;
@@ -1337,7 +1338,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	/*
 	 * fs was mouted as rw, remounting ro
 	 */
-	if (*mount_flags & MS_RDONLY) {
+	if (*mount_flags & SB_RDONLY) {
 		ufs_put_super_internal(sb);
 		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
@@ -1346,7 +1347,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 			ufs_set_fs_state(sb, usb1, usb3,
 				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
 		ubh_mark_buffer_dirty (USPI_UBH(uspi));
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	} else {
 	/*
 	 * fs was mounted as ro, remounting rw
@@ -1370,7 +1371,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 			mutex_unlock(&UFS_SB(sb)->s_lock);
 			return -EPERM;
 		}
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 #endif
 	}
 	UFS_SB(sb)->s_mount_opt = new_mount_opt;
@@ -1440,7 +1441,7 @@ static struct inode *ufs_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 
-	ei->vfs_inode.i_version = 1;
+	inode_set_iversion(&ei->vfs_inode, 1);
 	seqlock_init(&ei->meta_lock);
 	mutex_init(&ei->truncate_mutex);
 	return &ei->vfs_inode;
@@ -1466,11 +1467,14 @@ static void init_once(void *foo)
 
 static int __init init_inodecache(void)
 {
-	ufs_inode_cachep = kmem_cache_create("ufs_inode_cache",
-					     sizeof(struct ufs_inode_info),
-					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-					     init_once);
+	ufs_inode_cachep = kmem_cache_create_usercopy("ufs_inode_cache",
+				sizeof(struct ufs_inode_info), 0,
+				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
+					SLAB_ACCOUNT),
+				offsetof(struct ufs_inode_info, i_u1.i_symlink),
+				sizeof_field(struct ufs_inode_info,
+					i_u1.i_symlink),
+				init_once);
 	if (ufs_inode_cachep == NULL)
 		return -ENOMEM;
 	return 0;

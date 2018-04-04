@@ -37,7 +37,7 @@
 		};
 	};
 
-	cpu_opp: opp_table {
+	cpu_opp: opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -119,7 +119,7 @@
 			clock-frequency = <20000000>;
 		};
 
-		arm_timer_clk: arm_timer_clk {
+		arm_timer_clk: arm-timer {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
@@ -166,6 +166,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart0>;
 			clocks = <&peri_clk 0>;
+			resets = <&peri_rst 0>;
 		};
 
 		serial1: serial@54006900 {
@@ -176,6 +177,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart1>;
 			clocks = <&peri_clk 1>;
+			resets = <&peri_rst 1>;
 		};
 
 		serial2: serial@54006a00 {
@@ -186,6 +188,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart2>;
 			clocks = <&peri_clk 2>;
+			resets = <&peri_rst 2>;
 		};
 
 		serial3: serial@54006b00 {
@@ -196,6 +199,21 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart3>;
 			clocks = <&peri_clk 3>;
+			resets = <&peri_rst 3>;
+		};
+
+		gpio: gpio@55000000 {
+			compatible = "socionext,uniphier-gpio";
+			reg = <0x55000000 0x200>;
+			interrupt-parent = <&aidet>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 0>;
+			gpio-ranges-group-names = "gpio_range";
+			ngpios = <248>;
+			socionext,interrupt-ranges = <0 48 16>, <16 154 5>;
 		};
 
 		i2c0: i2c@58780000 {
@@ -208,6 +226,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c0>;
 			clocks = <&peri_clk 4>;
+			resets = <&peri_rst 4>;
 			clock-frequency = <100000>;
 		};
 
@@ -221,6 +240,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c1>;
 			clocks = <&peri_clk 5>;
+			resets = <&peri_rst 5>;
 			clock-frequency = <100000>;
 		};
 
@@ -234,6 +254,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c2>;
 			clocks = <&peri_clk 6>;
+			resets = <&peri_rst 6>;
 			clock-frequency = <100000>;
 		};
 
@@ -247,6 +268,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c3>;
 			clocks = <&peri_clk 7>;
+			resets = <&peri_rst 7>;
 			clock-frequency = <100000>;
 		};
 
@@ -260,6 +282,7 @@
 			#size-cells = <0>;
 			interrupts = <0 25 4>;
 			clocks = <&peri_clk 9>;
+			resets = <&peri_rst 9>;
 			clock-frequency = <400000>;
 		};
 
@@ -271,6 +294,7 @@
 			#size-cells = <0>;
 			interrupts = <0 26 4>;
 			clocks = <&peri_clk 10>;
+			resets = <&peri_rst 10>;
 			clock-frequency = <400000>;
 		};
 
@@ -331,6 +355,39 @@
 			};
 		};
 
+		soc-glue@5f900000 {
+			compatible = "socionext,uniphier-pro5-soc-glue-debug",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x5f900000 0x2000>;
+
+			efuse@100 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x100 0x28>;
+			};
+
+			efuse@130 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x130 0x8>;
+			};
+
+			efuse@200 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x200 0x28>;
+			};
+
+			efuse@300 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x300 0x14>;
+			};
+
+			efuse@400 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x400 0x8>;
+			};
+		};
+
 		aidet: aidet@5fc20000 {
 			compatible = "socionext,uniphier-pro5-aidet";
 			reg = <0x5fc20000 0x200>;
@@ -385,6 +442,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand2cs>;
 			clocks = <&sys_clk 2>;
+			resets = <&sys_rst 2>;
 		};
 	};
 };

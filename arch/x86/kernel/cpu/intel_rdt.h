@@ -7,11 +7,14 @@
 #include <linux/jump_label.h>
 
 #define IA32_L3_QOS_CFG		0xc81
+#define IA32_L2_QOS_CFG		0xc82
 #define IA32_L3_CBM_BASE	0xc90
 #define IA32_L2_CBM_BASE	0xd10
 #define IA32_MBA_THRTL_BASE	0xd50
 
 #define L3_QOS_CDP_ENABLE	0x01ULL
+
+#define L2_QOS_CDP_ENABLE	0x01ULL
 
 /*
  * Event IDs are used to program IA32_QM_EVTSEL before reading event
@@ -127,12 +130,15 @@ struct rdtgroup {
 #define RFTYPE_BASE			BIT(1)
 #define RF_CTRLSHIFT			4
 #define RF_MONSHIFT			5
+#define RF_TOPSHIFT			6
 #define RFTYPE_CTRL			BIT(RF_CTRLSHIFT)
 #define RFTYPE_MON			BIT(RF_MONSHIFT)
+#define RFTYPE_TOP			BIT(RF_TOPSHIFT)
 #define RFTYPE_RES_CACHE		BIT(8)
 #define RFTYPE_RES_MB			BIT(9)
 #define RF_CTRL_INFO			(RFTYPE_INFO | RFTYPE_CTRL)
 #define RF_MON_INFO			(RFTYPE_INFO | RFTYPE_MON)
+#define RF_TOP_INFO			(RFTYPE_INFO | RFTYPE_TOP)
 #define RF_CTRL_BASE			(RFTYPE_BASE | RFTYPE_CTRL)
 
 /* List of all resource groups */
@@ -354,6 +360,8 @@ enum {
 	RDT_RESOURCE_L3DATA,
 	RDT_RESOURCE_L3CODE,
 	RDT_RESOURCE_L2,
+	RDT_RESOURCE_L2DATA,
+	RDT_RESOURCE_L2CODE,
 	RDT_RESOURCE_MBA,
 
 	/* Must be the last */
@@ -408,6 +416,10 @@ union cpuid_0x10_x_edx {
 	} split;
 	unsigned int full;
 };
+
+void rdt_last_cmd_clear(void);
+void rdt_last_cmd_puts(const char *s);
+void rdt_last_cmd_printf(const char *fmt, ...);
 
 void rdt_ctrl_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);

@@ -97,15 +97,11 @@ config HANDLE_DOMAIN_IRQ
 config IRQ_TIMINGS
 	bool
 
-config IRQ_DOMAIN_DEBUG
-	bool "Expose hardware/virtual IRQ mapping via debugfs"
-	depends on IRQ_DOMAIN && DEBUG_FS
-	help
-	  This option will show the mapping relationship between hardware irq
-	  numbers and Linux irq numbers. The mapping is exposed via debugfs
-	  in the file "irq_domain_mapping".
+config GENERIC_IRQ_MATRIX_ALLOCATOR
+	bool
 
-	  If you don't know what this means you don't need it.
+config GENERIC_IRQ_RESERVATION_MODE
+	bool
 
 # Support forced irq threading
 config IRQ_FORCED_THREADING

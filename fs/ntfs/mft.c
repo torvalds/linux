@@ -507,7 +507,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 	if (unlikely(!page_has_buffers(page))) {
 		struct buffer_head *tail;
 
-		bh = head = alloc_page_buffers(page, blocksize, 1);
+		bh = head = alloc_page_buffers(page, blocksize, true);
 		do {
 			set_buffer_uptodate(bh);
 			tail = bh;
@@ -2641,12 +2641,6 @@ mft_rec_already_initialized:
 			goto undo_mftbmp_alloc;
 		}
 		vi->i_ino = bit;
-		/*
-		 * This is for checking whether an inode has changed w.r.t. a
-		 * file so that the file can be updated if necessary (compare
-		 * with f_version).
-		 */
-		vi->i_version = 1;
 
 		/* The owner and group come from the ntfs volume. */
 		vi->i_uid = vol->uid;

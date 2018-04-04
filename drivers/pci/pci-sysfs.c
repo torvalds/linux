@@ -278,6 +278,16 @@ static ssize_t subordinate_bus_number_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(subordinate_bus_number);
 
+static ssize_t ari_enabled_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pci_ari_enabled(pci_dev->bus));
+}
+static DEVICE_ATTR_RO(ari_enabled);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -348,7 +358,7 @@ static ssize_t numa_node_store(struct device *dev,
 		return -EINVAL;
 
 	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-	dev_alert(&pdev->dev, FW_BUG "Overriding NUMA node to %d.  Contact your vendor for updates.",
+	pci_alert(pdev, FW_BUG "Overriding NUMA node to %d.  Contact your vendor for updates.",
 		  node);
 
 	dev->numa_node = node;
@@ -411,7 +421,7 @@ static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 	 */
 	if (!subordinate) {
 		pdev->no_msi = !val;
-		dev_info(&pdev->dev, "MSI/MSI-X %s for future drivers\n",
+		pci_info(pdev, "MSI/MSI-X %s for future drivers\n",
 			 val ? "allowed" : "disallowed");
 		return count;
 	}
@@ -613,7 +623,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 
 	/* is PF driver loaded w/callback */
 	if (!pdev->driver || !pdev->driver->sriov_configure) {
-		dev_info(&pdev->dev, "Driver doesn't support SRIOV configuration via sysfs\n");
+		pci_info(pdev, "Driver doesn't support SRIOV configuration via sysfs\n");
 		ret = -ENOENT;
 		goto exit;
 	}
@@ -626,7 +636,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 
 	/* enable VFs */
 	if (pdev->sriov->num_VFs) {
-		dev_warn(&pdev->dev, "%d VFs already enabled. Disable before enabling %d VFs\n",
+		pci_warn(pdev, "%d VFs already enabled. Disable before enabling %d VFs\n",
 			 pdev->sriov->num_VFs, num_vfs);
 		ret = -EBUSY;
 		goto exit;
@@ -637,7 +647,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 		goto exit;
 
 	if (ret != num_vfs)
-		dev_warn(&pdev->dev, "%d VFs requested; only %d enabled\n",
+		pci_warn(pdev, "%d VFs requested; only %d enabled\n",
 			 num_vfs, ret);
 
 exit:
@@ -647,6 +657,33 @@ exit:
 		return ret;
 
 	return count;
+}
+
+static ssize_t sriov_offset_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pdev->sriov->offset);
+}
+
+static ssize_t sriov_stride_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pdev->sriov->stride);
+}
+
+static ssize_t sriov_vf_device_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf(buf, "%x\n", pdev->sriov->vf_device);
 }
 
 static ssize_t sriov_drivers_autoprobe_show(struct device *dev,
@@ -677,6 +714,9 @@ static struct device_attribute sriov_totalvfs_attr = __ATTR_RO(sriov_totalvfs);
 static struct device_attribute sriov_numvfs_attr =
 		__ATTR(sriov_numvfs, (S_IRUGO|S_IWUSR|S_IWGRP),
 		       sriov_numvfs_show, sriov_numvfs_store);
+static struct device_attribute sriov_offset_attr = __ATTR_RO(sriov_offset);
+static struct device_attribute sriov_stride_attr = __ATTR_RO(sriov_stride);
+static struct device_attribute sriov_vf_device_attr = __ATTR_RO(sriov_vf_device);
 static struct device_attribute sriov_drivers_autoprobe_attr =
 		__ATTR(sriov_drivers_autoprobe, (S_IRUGO|S_IWUSR|S_IWGRP),
 		       sriov_drivers_autoprobe_show, sriov_drivers_autoprobe_store);
@@ -756,6 +796,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_devspec.attr,
 #endif
 	&dev_attr_driver_override.attr,
+	&dev_attr_ari_enabled.attr,
 	NULL,
 };
 
@@ -1186,14 +1227,9 @@ static int pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	if (res->flags & IORESOURCE_MEM && iomem_is_exclusive(res->start))
 		return -EINVAL;
 
-	if (!pci_mmap_fits(pdev, bar, vma, PCI_MMAP_SYSFS)) {
-		WARN(1, "process \"%s\" tried to map 0x%08lx bytes at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
-			current->comm, vma->vm_end-vma->vm_start, vma->vm_pgoff,
-			pci_name(pdev), bar,
-			(u64)pci_resource_start(pdev, bar),
-			(u64)pci_resource_len(pdev, bar));
+	if (!pci_mmap_fits(pdev, bar, vma, PCI_MMAP_SYSFS))
 		return -EINVAL;
-	}
+
 	mmap_type = res->flags & IORESOURCE_MEM ? pci_mmap_mem : pci_mmap_io;
 
 	return pci_mmap_resource_range(pdev, bar, vma, mmap_type, write_combine);
@@ -1749,6 +1785,9 @@ static const struct attribute_group pci_dev_hp_attr_group = {
 static struct attribute *sriov_dev_attrs[] = {
 	&sriov_totalvfs_attr.attr,
 	&sriov_numvfs_attr.attr,
+	&sriov_offset_attr.attr,
+	&sriov_stride_attr.attr,
+	&sriov_vf_device_attr.attr,
 	&sriov_drivers_autoprobe_attr.attr,
 	NULL,
 };
@@ -1796,6 +1835,6 @@ static const struct attribute_group *pci_dev_attr_groups[] = {
 	NULL,
 };
 
-struct device_type pci_dev_type = {
+const struct device_type pci_dev_type = {
 	.groups = pci_dev_attr_groups,
 };

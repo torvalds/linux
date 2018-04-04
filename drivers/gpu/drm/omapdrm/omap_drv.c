@@ -1,7 +1,5 @@
 /*
- * drivers/gpu/drm/omapdrm/omap_drv.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -45,14 +43,6 @@
  *    connector:   dssdev.. manager can be attached/detached from different
  *                 devices
  */
-
-static void omap_fb_output_poll_changed(struct drm_device *dev)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	DBG("dev=%p", dev);
-	if (priv->fbdev)
-		drm_fb_helper_hotplug_event(priv->fbdev);
-}
 
 static void omap_atomic_wait_for_completion(struct drm_device *dev,
 					    struct drm_atomic_state *old_state)
@@ -132,7 +122,7 @@ static const struct drm_mode_config_helper_funcs omap_mode_config_helper_funcs =
 
 static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
-	.output_poll_changed = omap_fb_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -467,28 +457,6 @@ static int dev_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-/**
- * lastclose - clean up after all DRM clients have exited
- * @dev: DRM device
- *
- * Take care of cleaning up after all DRM clients have exited.  In the
- * mode setting case, we want to restore the kernel's initial mode (just
- * in case the last client left us in a bad state).
- */
-static void dev_lastclose(struct drm_device *dev)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	int ret;
-
-	DBG("lastclose: dev=%p", dev);
-
-	if (priv->fbdev) {
-		ret = drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
-		if (ret)
-			DBG("failed to restore crtc mode");
-	}
-}
-
 static const struct vm_operations_struct omap_gem_vm_ops = {
 	.fault = omap_gem_fault,
 	.open = drm_gem_vm_open,
@@ -511,7 +479,7 @@ static struct drm_driver omap_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM  | DRIVER_PRIME |
 		DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = dev_open,
-	.lastclose = dev_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
 #endif
@@ -592,6 +560,11 @@ static int pdev_probe(struct platform_device *pdev)
 
 	ddev->dev_private = priv;
 	platform_set_drvdata(pdev, ddev);
+
+	/* Get memory bandwidth limits */
+	if (priv->dispc_ops->get_memory_bandwidth_limit)
+		priv->max_bandwidth =
+				priv->dispc_ops->get_memory_bandwidth_limit();
 
 	omap_gem_init(ddev);
 
@@ -740,7 +713,7 @@ static int omap_drm_resume(struct device *dev)
 
 	drm_kms_helper_poll_enable(drm_dev);
 
-	return omap_gem_resume(dev);
+	return omap_gem_resume(drm_dev);
 }
 #endif
 

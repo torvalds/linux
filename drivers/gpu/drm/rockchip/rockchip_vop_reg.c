@@ -149,6 +149,34 @@ static const struct vop_data rk3036_vop = {
 	.win_size = ARRAY_SIZE(rk3036_vop_win_data),
 };
 
+static const struct vop_win_phy rk3126_win1_data = {
+	.data_formats = formats_win_lite,
+	.nformats = ARRAY_SIZE(formats_win_lite),
+	.enable = VOP_REG(RK3036_SYS_CTRL, 0x1, 1),
+	.format = VOP_REG(RK3036_SYS_CTRL, 0x7, 6),
+	.rb_swap = VOP_REG(RK3036_SYS_CTRL, 0x1, 19),
+	.dsp_info = VOP_REG(RK3126_WIN1_DSP_INFO, 0x0fff0fff, 0),
+	.dsp_st = VOP_REG(RK3126_WIN1_DSP_ST, 0x1fff1fff, 0),
+	.yrgb_mst = VOP_REG(RK3126_WIN1_MST, 0xffffffff, 0),
+	.yrgb_vir = VOP_REG(RK3036_WIN1_VIR, 0xffff, 0),
+};
+
+static const struct vop_win_data rk3126_vop_win_data[] = {
+	{ .base = 0x00, .phy = &rk3036_win0_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .base = 0x00, .phy = &rk3126_win1_data,
+	  .type = DRM_PLANE_TYPE_CURSOR },
+};
+
+static const struct vop_data rk3126_vop = {
+	.intr = &rk3036_intr,
+	.common = &rk3036_common,
+	.modeset = &rk3036_modeset,
+	.output = &rk3036_output,
+	.win = rk3126_vop_win_data,
+	.win_size = ARRAY_SIZE(rk3126_vop_win_data),
+};
+
 static const struct vop_scl_extension rk3288_win_full_scl_ext = {
 	.cbcr_vsd_mode = VOP_REG(RK3288_WIN0_CTRL1, 0x1, 31),
 	.cbcr_vsu_mode = VOP_REG(RK3288_WIN0_CTRL1, 0x1, 30),
@@ -510,6 +538,8 @@ static const struct vop_data rk3328_vop = {
 static const struct of_device_id vop_driver_dt_match[] = {
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
+	{ .compatible = "rockchip,rk3126-vop",
+	  .data = &rk3126_vop },
 	{ .compatible = "rockchip,rk3288-vop",
 	  .data = &rk3288_vop },
 	{ .compatible = "rockchip,rk3368-vop",
@@ -533,7 +563,7 @@ static int vop_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	if (!dev->of_node) {
-		dev_err(dev, "can't find vop devices\n");
+		DRM_DEV_ERROR(dev, "can't find vop devices\n");
 		return -ENODEV;
 	}
 

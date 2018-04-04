@@ -3,6 +3,7 @@
 #define __ASM_GENERIC_QRWLOCK_TYPES_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
 #include <asm/spinlock_types.h>
 
 /*
@@ -10,12 +11,23 @@
  */
 
 typedef struct qrwlock {
-	atomic_t		cnts;
+	union {
+		atomic_t cnts;
+		struct {
+#ifdef __LITTLE_ENDIAN
+			u8 wlocked;	/* Locked for write? */
+			u8 __lstate[3];
+#else
+			u8 __lstate[3];
+			u8 wlocked;	/* Locked for write? */
+#endif
+		};
+	};
 	arch_spinlock_t		wait_lock;
 } arch_rwlock_t;
 
 #define	__ARCH_RW_LOCK_UNLOCKED {		\
-	.cnts = ATOMIC_INIT(0),			\
+	{ .cnts = ATOMIC_INIT(0), },		\
 	.wait_lock = __ARCH_SPIN_LOCK_UNLOCKED,	\
 }
 

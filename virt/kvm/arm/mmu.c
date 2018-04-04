@@ -509,8 +509,6 @@ static void unmap_hyp_range(pgd_t *pgdp, phys_addr_t start, u64 size)
  */
 void free_hyp_pgds(void)
 {
-	unsigned long addr;
-
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
 	if (boot_hyp_pgd) {
@@ -521,10 +519,10 @@ void free_hyp_pgds(void)
 
 	if (hyp_pgd) {
 		unmap_hyp_range(hyp_pgd, hyp_idmap_start, PAGE_SIZE);
-		for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
-			unmap_hyp_range(hyp_pgd, kern_hyp_va(addr), PGDIR_SIZE);
-		for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
-			unmap_hyp_range(hyp_pgd, kern_hyp_va(addr), PGDIR_SIZE);
+		unmap_hyp_range(hyp_pgd, kern_hyp_va(PAGE_OFFSET),
+				(uintptr_t)high_memory - PAGE_OFFSET);
+		unmap_hyp_range(hyp_pgd, kern_hyp_va(VMALLOC_START),
+				VMALLOC_END - VMALLOC_START);
 
 		free_pages((unsigned long)hyp_pgd, hyp_pgd_order);
 		hyp_pgd = NULL;
@@ -623,7 +621,7 @@ static int create_hyp_pud_mappings(pgd_t *pgd, unsigned long start,
 	return 0;
 }
 
-static int __create_hyp_mappings(pgd_t *pgdp,
+static int __create_hyp_mappings(pgd_t *pgdp, unsigned long ptrs_per_pgd,
 				 unsigned long start, unsigned long end,
 				 unsigned long pfn, pgprot_t prot)
 {
@@ -636,7 +634,7 @@ static int __create_hyp_mappings(pgd_t *pgdp,
 	addr = start & PAGE_MASK;
 	end = PAGE_ALIGN(end);
 	do {
-		pgd = pgdp + pgd_index(addr);
+		pgd = pgdp + ((addr >> PGDIR_SHIFT) & (ptrs_per_pgd - 1));
 
 		if (pgd_none(*pgd)) {
 			pud = pud_alloc_one(NULL, addr);
@@ -699,8 +697,8 @@ int create_hyp_mappings(void *from, void *to, pgprot_t prot)
 		int err;
 
 		phys_addr = kvm_kaddr_to_phys(from + virt_addr - start);
-		err = __create_hyp_mappings(hyp_pgd, virt_addr,
-					    virt_addr + PAGE_SIZE,
+		err = __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD,
+					    virt_addr, virt_addr + PAGE_SIZE,
 					    __phys_to_pfn(phys_addr),
 					    prot);
 		if (err)
@@ -731,7 +729,7 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 	if (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1))
 		return -EINVAL;
 
-	return __create_hyp_mappings(hyp_pgd, start, end,
+	return __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD, start, end,
 				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
 }
 
@@ -924,6 +922,25 @@ static int stage2_set_pmd_huge(struct kvm *kvm, struct kvm_mmu_memory_cache
 
 	kvm_set_pmd(pmd, *new_pmd);
 	return 0;
+}
+
+static bool stage2_is_exec(struct kvm *kvm, phys_addr_t addr)
+{
+	pmd_t *pmdp;
+	pte_t *ptep;
+
+	pmdp = stage2_get_pmd(kvm, NULL, addr);
+	if (!pmdp || pmd_none(*pmdp) || !pmd_present(*pmdp))
+		return false;
+
+	if (pmd_thp_or_huge(*pmdp))
+		return kvm_s2pmd_exec(pmdp);
+
+	ptep = pte_offset_kernel(pmdp, addr);
+	if (!ptep || pte_none(*ptep) || !pte_present(*ptep))
+		return false;
+
+	return kvm_s2pte_exec(ptep);
 }
 
 static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
@@ -1257,10 +1274,14 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
-static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, kvm_pfn_t pfn,
-				      unsigned long size)
+static void clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
-	__coherent_cache_guest_page(vcpu, pfn, size);
+	__clean_dcache_guest_page(pfn, size);
+}
+
+static void invalidate_icache_guest_page(kvm_pfn_t pfn, unsigned long size)
+{
+	__invalidate_icache_guest_page(pfn, size);
 }
 
 static void kvm_send_hwpoison_signal(unsigned long address,
@@ -1286,7 +1307,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  unsigned long fault_status)
 {
 	int ret;
-	bool write_fault, writable, hugetlb = false, force_pte = false;
+	bool write_fault, exec_fault, writable, hugetlb = false, force_pte = false;
 	unsigned long mmu_seq;
 	gfn_t gfn = fault_ipa >> PAGE_SHIFT;
 	struct kvm *kvm = vcpu->kvm;
@@ -1298,7 +1319,10 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	unsigned long flags = 0;
 
 	write_fault = kvm_is_write_fault(vcpu);
-	if (fault_status == FSC_PERM && !write_fault) {
+	exec_fault = kvm_vcpu_trap_is_iabt(vcpu);
+	VM_BUG_ON(write_fault && exec_fault);
+
+	if (fault_status == FSC_PERM && !write_fault && !exec_fault) {
 		kvm_err("Unexpected L2 read permission error\n");
 		return -EFAULT;
 	}
@@ -1312,7 +1336,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 	}
 
-	if (is_vm_hugetlb_page(vma) && !logging_active) {
+	if (vma_kernel_pagesize(vma) == PMD_SIZE && !logging_active) {
 		hugetlb = true;
 		gfn = (fault_ipa & PMD_MASK) >> PAGE_SHIFT;
 	} else {
@@ -1391,7 +1415,19 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			new_pmd = kvm_s2pmd_mkwrite(new_pmd);
 			kvm_set_pfn_dirty(pfn);
 		}
-		coherent_cache_guest_page(vcpu, pfn, PMD_SIZE);
+
+		if (fault_status != FSC_PERM)
+			clean_dcache_guest_page(pfn, PMD_SIZE);
+
+		if (exec_fault) {
+			new_pmd = kvm_s2pmd_mkexec(new_pmd);
+			invalidate_icache_guest_page(pfn, PMD_SIZE);
+		} else if (fault_status == FSC_PERM) {
+			/* Preserve execute if XN was already cleared */
+			if (stage2_is_exec(kvm, fault_ipa))
+				new_pmd = kvm_s2pmd_mkexec(new_pmd);
+		}
+
 		ret = stage2_set_pmd_huge(kvm, memcache, fault_ipa, &new_pmd);
 	} else {
 		pte_t new_pte = pfn_pte(pfn, mem_type);
@@ -1401,7 +1437,19 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			kvm_set_pfn_dirty(pfn);
 			mark_page_dirty(kvm, gfn);
 		}
-		coherent_cache_guest_page(vcpu, pfn, PAGE_SIZE);
+
+		if (fault_status != FSC_PERM)
+			clean_dcache_guest_page(pfn, PAGE_SIZE);
+
+		if (exec_fault) {
+			new_pte = kvm_s2pte_mkexec(new_pte);
+			invalidate_icache_guest_page(pfn, PAGE_SIZE);
+		} else if (fault_status == FSC_PERM) {
+			/* Preserve execute if XN was already cleared */
+			if (stage2_is_exec(kvm, fault_ipa))
+				new_pte = kvm_s2pte_mkexec(new_pte);
+		}
+
 		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte, flags);
 	}
 
@@ -1737,7 +1785,7 @@ static int kvm_map_idmap_text(pgd_t *pgd)
 	int err;
 
 	/* Create the idmap in the boot page tables */
-	err = 	__create_hyp_mappings(pgd,
+	err = 	__create_hyp_mappings(pgd, __kvm_idmap_ptrs_per_pgd(),
 				      hyp_idmap_start, hyp_idmap_end,
 				      __phys_to_pfn(hyp_idmap_start),
 				      PAGE_HYP_EXEC);

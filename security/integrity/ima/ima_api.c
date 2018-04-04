@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
+#include <linux/iversion.h>
 
 #include "ima.h"
 
@@ -174,7 +175,7 @@ err_out:
  */
 int ima_get_action(struct inode *inode, int mask, enum ima_hooks func, int *pcr)
 {
-	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
+	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE | IMA_HASH;
 
 	flags &= ima_policy_flag;
 
@@ -199,42 +200,59 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_path.dentry->d_name.name;
 	int result = 0;
+	int length;
+	void *tmpbuf;
+	u64 i_version;
 	struct {
 		struct ima_digest_data hdr;
 		char digest[IMA_MAX_DIGEST_SIZE];
 	} hash;
 
-	if (!(iint->flags & IMA_COLLECTED)) {
-		u64 i_version = file_inode(file)->i_version;
+	if (iint->flags & IMA_COLLECTED)
+		goto out;
 
-		if (file->f_flags & O_DIRECT) {
-			audit_cause = "failed(directio)";
-			result = -EACCES;
-			goto out;
-		}
+	/*
+	 * Dectecting file change is based on i_version. On filesystems
+	 * which do not support i_version, support is limited to an initial
+	 * measurement/appraisal/audit.
+	 */
+	i_version = inode_query_iversion(inode);
+	hash.hdr.algo = algo;
 
-		hash.hdr.algo = algo;
+	/* Initialize hash digest to 0's in case of failure */
+	memset(&hash.digest, 0, sizeof(hash.digest));
 
-		result = (!buf) ?  ima_calc_file_hash(file, &hash.hdr) :
-			ima_calc_buffer_hash(buf, size, &hash.hdr);
-		if (!result) {
-			int length = sizeof(hash.hdr) + hash.hdr.length;
-			void *tmpbuf = krealloc(iint->ima_hash, length,
-						GFP_NOFS);
-			if (tmpbuf) {
-				iint->ima_hash = tmpbuf;
-				memcpy(iint->ima_hash, &hash, length);
-				iint->version = i_version;
-				iint->flags |= IMA_COLLECTED;
-			} else
-				result = -ENOMEM;
-		}
+	if (buf)
+		result = ima_calc_buffer_hash(buf, size, &hash.hdr);
+	else
+		result = ima_calc_file_hash(file, &hash.hdr);
+
+	if (result && result != -EBADF && result != -EINVAL)
+		goto out;
+
+	length = sizeof(hash.hdr) + hash.hdr.length;
+	tmpbuf = krealloc(iint->ima_hash, length, GFP_NOFS);
+	if (!tmpbuf) {
+		result = -ENOMEM;
+		goto out;
 	}
+
+	iint->ima_hash = tmpbuf;
+	memcpy(iint->ima_hash, &hash, length);
+	iint->version = i_version;
+
+	/* Possibly temporary failure due to type of read (eg. O_DIRECT) */
+	if (!result)
+		iint->flags |= IMA_COLLECTED;
 out:
-	if (result)
+	if (result) {
+		if (file->f_flags & O_DIRECT)
+			audit_cause = "failed(directio)";
+
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
 				    filename, "collect_data", audit_cause,
 				    result, 0);
+	}
 	return result;
 }
 
@@ -278,7 +296,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	}
 
 	result = ima_store_template(entry, violation, inode, filename, pcr);
-	if (!result || result == -EEXIST) {
+	if ((!result || result == -EEXIST) && !(file->f_flags & O_DIRECT)) {
 		iint->flags |= IMA_MEASURED;
 		iint->measured_pcrs |= (0x1 << pcr);
 	}

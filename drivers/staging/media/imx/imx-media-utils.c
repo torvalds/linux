@@ -668,38 +668,35 @@ void imx_media_grp_id_to_sd_name(char *sd_name, int sz, u32 grp_id, int ipu_id)
 }
 EXPORT_SYMBOL_GPL(imx_media_grp_id_to_sd_name);
 
-struct imx_media_subdev *
-imx_media_find_subdev_by_sd(struct imx_media_dev *imxmd,
-			    struct v4l2_subdev *sd)
+struct v4l2_subdev *
+imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
+				struct fwnode_handle *fwnode)
 {
-	struct imx_media_subdev *imxsd;
-	int i;
+	struct v4l2_subdev *sd;
 
-	for (i = 0; i < imxmd->num_subdevs; i++) {
-		imxsd = &imxmd->subdev[i];
-		if (sd == imxsd->sd)
-			return imxsd;
+	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+		if (sd->fwnode == fwnode)
+			return sd;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_sd);
+EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_fwnode);
 
-struct imx_media_subdev *
-imx_media_find_subdev_by_id(struct imx_media_dev *imxmd, u32 grp_id)
+struct v4l2_subdev *
+imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
+				 const char *devname)
 {
-	struct imx_media_subdev *imxsd;
-	int i;
+	struct v4l2_subdev *sd;
 
-	for (i = 0; i < imxmd->num_subdevs; i++) {
-		imxsd = &imxmd->subdev[i];
-		if (imxsd->sd && imxsd->sd->grp_id == grp_id)
-			return imxsd;
+	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+		if (!strcmp(devname, dev_name(sd->dev)))
+			return sd;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_id);
+EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_devname);
 
 /*
  * Adds a video device to the master video device list. This is called by
@@ -708,32 +705,21 @@ EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_id);
 int imx_media_add_video_device(struct imx_media_dev *imxmd,
 			       struct imx_media_video_dev *vdev)
 {
-	int vdev_idx, ret = 0;
-
 	mutex_lock(&imxmd->mutex);
 
-	vdev_idx = imxmd->num_vdevs;
-	if (vdev_idx >= IMX_MEDIA_MAX_VDEVS) {
-		dev_err(imxmd->md.dev,
-			"%s: too many video devices! can't add %s\n",
-			__func__, vdev->vfd->name);
-		ret = -ENOSPC;
-		goto out;
-	}
+	list_add_tail(&vdev->list, &imxmd->vdev_list);
 
-	imxmd->vdev[vdev_idx] = vdev;
-	imxmd->num_vdevs++;
-out:
 	mutex_unlock(&imxmd->mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_media_add_video_device);
 
 /*
- * Search upstream or downstream for a subdevice in the current pipeline
+ * Search upstream/downstream for a subdevice in the current pipeline
  * with given grp_id, starting from start_entity. Returns the subdev's
- * source/sink pad that it was reached from. Must be called with
- * mdev->graph_mutex held.
+ * source/sink pad that it was reached from. If grp_id is zero, just
+ * returns the nearest source/sink pad to start_entity. Must be called
+ * with mdev->graph_mutex held.
  */
 static struct media_pad *
 find_pipeline_pad(struct imx_media_dev *imxmd,
@@ -756,11 +742,16 @@ find_pipeline_pad(struct imx_media_dev *imxmd,
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			continue;
 
-		sd = media_entity_to_v4l2_subdev(pad->entity);
-		if (sd->grp_id & grp_id)
-			return pad;
+		if (grp_id != 0) {
+			sd = media_entity_to_v4l2_subdev(pad->entity);
+			if (sd->grp_id & grp_id)
+				return pad;
 
-		return find_pipeline_pad(imxmd, pad->entity, grp_id, upstream);
+			return find_pipeline_pad(imxmd, pad->entity,
+						 grp_id, upstream);
+		} else {
+			return pad;
+		}
 	}
 
 	return NULL;
@@ -789,7 +780,6 @@ find_upstream_subdev(struct imx_media_dev *imxmd,
 	return pad ? media_entity_to_v4l2_subdev(pad->entity) : NULL;
 }
 
-
 /*
  * Find the upstream mipi-csi2 virtual channel reached from the given
  * start entity in the current pipeline.
@@ -814,11 +804,30 @@ int imx_media_find_mipi_csi2_channel(struct imx_media_dev *imxmd,
 EXPORT_SYMBOL_GPL(imx_media_find_mipi_csi2_channel);
 
 /*
+ * Find a source pad reached upstream from the given start entity in
+ * the current pipeline. Must be called with mdev->graph_mutex held.
+ */
+struct media_pad *
+imx_media_find_upstream_pad(struct imx_media_dev *imxmd,
+			    struct media_entity *start_entity,
+			    u32 grp_id)
+{
+	struct media_pad *pad;
+
+	pad = find_pipeline_pad(imxmd, start_entity, grp_id, true);
+	if (!pad)
+		return ERR_PTR(-ENODEV);
+
+	return pad;
+}
+EXPORT_SYMBOL_GPL(imx_media_find_upstream_pad);
+
+/*
  * Find a subdev reached upstream from the given start entity in
  * the current pipeline.
  * Must be called with mdev->graph_mutex held.
  */
-struct imx_media_subdev *
+struct v4l2_subdev *
 imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 			       struct media_entity *start_entity,
 			       u32 grp_id)
@@ -829,32 +838,9 @@ imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 	if (!sd)
 		return ERR_PTR(-ENODEV);
 
-	return imx_media_find_subdev_by_sd(imxmd, sd);
+	return sd;
 }
 EXPORT_SYMBOL_GPL(imx_media_find_upstream_subdev);
-
-struct imx_media_subdev *
-__imx_media_find_sensor(struct imx_media_dev *imxmd,
-			struct media_entity *start_entity)
-{
-	return imx_media_find_upstream_subdev(imxmd, start_entity,
-					      IMX_MEDIA_GRP_ID_SENSOR);
-}
-EXPORT_SYMBOL_GPL(__imx_media_find_sensor);
-
-struct imx_media_subdev *
-imx_media_find_sensor(struct imx_media_dev *imxmd,
-		      struct media_entity *start_entity)
-{
-	struct imx_media_subdev *sensor;
-
-	mutex_lock(&imxmd->md.graph_mutex);
-	sensor = __imx_media_find_sensor(imxmd, start_entity);
-	mutex_unlock(&imxmd->md.graph_mutex);
-
-	return sensor;
-}
-EXPORT_SYMBOL_GPL(imx_media_find_sensor);
 
 /*
  * Turn current pipeline streaming on/off starting from entity.

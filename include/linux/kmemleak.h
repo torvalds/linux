@@ -48,14 +48,14 @@ extern void kmemleak_not_leak_phys(phys_addr_t phys) __ref;
 extern void kmemleak_ignore_phys(phys_addr_t phys) __ref;
 
 static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
-					    int min_count, unsigned long flags,
+					    int min_count, slab_flags_t flags,
 					    gfp_t gfp)
 {
 	if (!(flags & SLAB_NOLEAKTRACE))
 		kmemleak_alloc(ptr, size, min_count, gfp);
 }
 
-static inline void kmemleak_free_recursive(const void *ptr, unsigned long flags)
+static inline void kmemleak_free_recursive(const void *ptr, slab_flags_t flags)
 {
 	if (!(flags & SLAB_NOLEAKTRACE))
 		kmemleak_free(ptr);
@@ -76,7 +76,7 @@ static inline void kmemleak_alloc(const void *ptr, size_t size, int min_count,
 {
 }
 static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
-					    int min_count, unsigned long flags,
+					    int min_count, slab_flags_t flags,
 					    gfp_t gfp)
 {
 }
@@ -94,7 +94,7 @@ static inline void kmemleak_free(const void *ptr)
 static inline void kmemleak_free_part(const void *ptr, size_t size)
 {
 }
-static inline void kmemleak_free_recursive(const void *ptr, unsigned long flags)
+static inline void kmemleak_free_recursive(const void *ptr, slab_flags_t flags)
 {
 }
 static inline void kmemleak_free_percpu(const void __percpu *ptr)

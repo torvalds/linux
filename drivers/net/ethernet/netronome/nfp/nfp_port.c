@@ -32,6 +32,7 @@
  */
 
 #include <linux/lockdep.h>
+#include <linux/netdevice.h>
 #include <net/switchdev.h>
 
 #include "nfpcore/nfp_cpp.h"
@@ -98,6 +99,23 @@ int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		return -EOPNOTSUPP;
 
 	return nfp_app_setup_tc(port->app, netdev, type, type_data);
+}
+
+int nfp_port_set_features(struct net_device *netdev, netdev_features_t features)
+{
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!port)
+		return 0;
+
+	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
+	    port->tc_offload_cnt) {
+		netdev_err(netdev, "Cannot disable HW TC offload while offloads active\n");
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 struct nfp_port *

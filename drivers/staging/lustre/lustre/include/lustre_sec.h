@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -340,8 +341,8 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd);
 #define SPTLRPC_MAX_PAYLOAD     (1024)
 
 struct vfs_cred {
-	uint32_t	vc_uid;
-	uint32_t	vc_gid;
+	u32	vc_uid;
+	u32	vc_gid;
 };
 
 struct ptlrpc_ctx_ops {

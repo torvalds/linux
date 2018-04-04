@@ -27,8 +27,6 @@ struct bcm53xxspi {
 	struct bcma_device *core;
 	struct spi_master *master;
 	void __iomem *mmio_base;
-
-	size_t read_offset;
 	bool bspi;				/* Boot SPI mode with memory mapping */
 };
 
@@ -172,8 +170,6 @@ static void bcm53xxspi_buf_write(struct bcm53xxspi *b53spi, u8 *w_buf,
 
 	if (!cont)
 		bcm53xxspi_write(b53spi, B53SPI_MSPI_WRITE_LOCK, 0);
-
-	b53spi->read_offset = len;
 }
 
 static void bcm53xxspi_buf_read(struct bcm53xxspi *b53spi, u8 *r_buf,
@@ -182,10 +178,10 @@ static void bcm53xxspi_buf_read(struct bcm53xxspi *b53spi, u8 *r_buf,
 	u32 tmp;
 	int i;
 
-	for (i = 0; i < b53spi->read_offset + len; i++) {
+	for (i = 0; i < len; i++) {
 		tmp = B53SPI_CDRAM_CONT | B53SPI_CDRAM_PCS_DISABLE_ALL |
 		      B53SPI_CDRAM_PCS_DSCK;
-		if (!cont && i == b53spi->read_offset + len - 1)
+		if (!cont && i == len - 1)
 			tmp &= ~B53SPI_CDRAM_CONT;
 		tmp &= ~0x1;
 		/* Command Register File */
@@ -194,8 +190,7 @@ static void bcm53xxspi_buf_read(struct bcm53xxspi *b53spi, u8 *r_buf,
 
 	/* Set queue pointers */
 	bcm53xxspi_write(b53spi, B53SPI_MSPI_NEWQP, 0);
-	bcm53xxspi_write(b53spi, B53SPI_MSPI_ENDQP,
-			 b53spi->read_offset + len - 1);
+	bcm53xxspi_write(b53spi, B53SPI_MSPI_ENDQP, len - 1);
 
 	if (cont)
 		bcm53xxspi_write(b53spi, B53SPI_MSPI_WRITE_LOCK, 1);
@@ -214,13 +209,11 @@ static void bcm53xxspi_buf_read(struct bcm53xxspi *b53spi, u8 *r_buf,
 		bcm53xxspi_write(b53spi, B53SPI_MSPI_WRITE_LOCK, 0);
 
 	for (i = 0; i < len; ++i) {
-		int offset = b53spi->read_offset + i;
+		u16 reg = B53SPI_MSPI_RXRAM + 4 * (1 + i * 2);
 
 		/* Data stored in the transmit register file LSB */
-		r_buf[i] = (u8)bcm53xxspi_read(b53spi, B53SPI_MSPI_RXRAM + 4 * (1 + offset * 2));
+		r_buf[i] = (u8)bcm53xxspi_read(b53spi, reg);
 	}
-
-	b53spi->read_offset = 0;
 }
 
 static int bcm53xxspi_transfer_one(struct spi_master *master,
@@ -238,7 +231,8 @@ static int bcm53xxspi_transfer_one(struct spi_master *master,
 		left = t->len;
 		while (left) {
 			size_t to_write = min_t(size_t, 16, left);
-			bool cont = left - to_write > 0;
+			bool cont = !spi_transfer_is_last(master, t) ||
+				    left - to_write > 0;
 
 			bcm53xxspi_buf_write(b53spi, buf, to_write, cont);
 			left -= to_write;
@@ -250,9 +244,9 @@ static int bcm53xxspi_transfer_one(struct spi_master *master,
 		buf = (u8 *)t->rx_buf;
 		left = t->len;
 		while (left) {
-			size_t to_read = min_t(size_t, 16 - b53spi->read_offset,
-					       left);
-			bool cont = left - to_read > 0;
+			size_t to_read = min_t(size_t, 16, left);
+			bool cont = !spi_transfer_is_last(master, t) ||
+				    left - to_read > 0;
 
 			bcm53xxspi_buf_read(b53spi, buf, to_read, cont);
 			left -= to_read;

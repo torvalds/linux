@@ -18,8 +18,16 @@
 #include <linux/io.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
+#include <linux/spi/mmc_spi.h>
+#include <linux/mmc/host.h>
+#include <linux/platform_data/spi-ep93xx.h>
 
+#include <mach/gpio-ep93xx.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -28,6 +36,9 @@
 #include "soc.h"
 #include "ts72xx.h"
 
+/*************************************************************************
+ * IO map
+ *************************************************************************/
 static struct map_desc ts72xx_io_desc[] __initdata = {
 	{
 		.virtual	= (unsigned long)TS72XX_MODEL_VIRT_BASE,
@@ -43,6 +54,11 @@ static struct map_desc ts72xx_io_desc[] __initdata = {
 		.virtual	= (unsigned long)TS72XX_OPTIONS2_VIRT_BASE,
 		.pfn		= __phys_to_pfn(TS72XX_OPTIONS2_PHYS_BASE),
 		.length		= TS72XX_OPTIONS2_SIZE,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)TS72XX_CPLDVER_VIRT_BASE,
+		.pfn		= __phys_to_pfn(TS72XX_CPLDVER_PHYS_BASE),
+		.length		= TS72XX_CPLDVER_SIZE,
 		.type		= MT_DEVICE,
 	}
 };
@@ -120,8 +136,6 @@ static struct platform_nand_data ts72xx_nand_data = {
 		.nr_chips	= 1,
 		.chip_offset	= 0,
 		.chip_delay	= 15,
-		.partitions	= ts72xx_nand_parts,
-		.nr_partitions	= ARRAY_SIZE(ts72xx_nand_parts),
 	},
 	.ctrl = {
 		.cmd_ctrl	= ts72xx_nand_hwcontrol,
@@ -145,8 +159,8 @@ static struct platform_device ts72xx_nand_flash = {
 	.num_resources		= ARRAY_SIZE(ts72xx_nand_resource),
 };
 
-
-static void __init ts72xx_register_flash(void)
+void __init ts72xx_register_flash(struct mtd_partition *parts, int n,
+				  resource_size_t start)
 {
 	/*
 	 * TS7200 has NOR flash all other TS72xx board have NAND flash.
@@ -154,15 +168,11 @@ static void __init ts72xx_register_flash(void)
 	if (board_is_ts7200()) {
 		ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
 	} else {
-		resource_size_t start;
-
-		if (is_ts9420_installed())
-			start = EP93XX_CS7_PHYS_BASE;
-		else
-			start = EP93XX_CS6_PHYS_BASE;
-
 		ts72xx_nand_resource[0].start = start;
 		ts72xx_nand_resource[0].end = start + SZ_16M - 1;
+
+		ts72xx_nand_data.chip.partitions = parts;
+		ts72xx_nand_data.chip.nr_partitions = n;
 
 		platform_device_register(&ts72xx_nand_flash);
 	}
@@ -186,30 +196,97 @@ static struct platform_device ts72xx_rtc_device = {
 	.num_resources 	= ARRAY_SIZE(ts72xx_rtc_resources),
 };
 
+/*************************************************************************
+ * Watchdog (in CPLD)
+ *************************************************************************/
+#define TS72XX_WDT_CONTROL_PHYS_BASE	(EP93XX_CS2_PHYS_BASE + 0x03800000)
+#define TS72XX_WDT_FEED_PHYS_BASE	(EP93XX_CS2_PHYS_BASE + 0x03c00000)
+
 static struct resource ts72xx_wdt_resources[] = {
-	{
-		.start	= TS72XX_WDT_CONTROL_PHYS_BASE,
-		.end	= TS72XX_WDT_CONTROL_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= TS72XX_WDT_FEED_PHYS_BASE,
-		.end	= TS72XX_WDT_FEED_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(TS72XX_WDT_CONTROL_PHYS_BASE, 0x01),
+	DEFINE_RES_MEM(TS72XX_WDT_FEED_PHYS_BASE, 0x01),
 };
 
 static struct platform_device ts72xx_wdt_device = {
 	.name		= "ts72xx-wdt",
 	.id		= -1,
-	.num_resources 	= ARRAY_SIZE(ts72xx_wdt_resources),
 	.resource	= ts72xx_wdt_resources,
+	.num_resources	= ARRAY_SIZE(ts72xx_wdt_resources),
 };
 
+/*************************************************************************
+ * ETH
+ *************************************************************************/
 static struct ep93xx_eth_data __initdata ts72xx_eth_data = {
 	.phy_id		= 1,
 };
 
+/*************************************************************************
+ * SPI SD/MMC host
+ *************************************************************************/
+#define BK3_EN_SDCARD_PHYS_BASE         0x12400000
+#define BK3_EN_SDCARD_PWR 0x0
+#define BK3_DIS_SDCARD_PWR 0x0C
+static void bk3_mmc_spi_setpower(struct device *dev, unsigned int vdd)
+{
+	void __iomem *pwr_sd = ioremap(BK3_EN_SDCARD_PHYS_BASE, SZ_4K);
+
+	if (!pwr_sd) {
+		pr_err("Failed to enable SD card power!");
+		return;
+	}
+
+	pr_debug("%s: SD card pwr %s VDD:0x%x\n", __func__,
+		 !!vdd ? "ON" : "OFF", vdd);
+
+	if (!!vdd)
+		__raw_writeb(BK3_EN_SDCARD_PWR, pwr_sd);
+	else
+		__raw_writeb(BK3_DIS_SDCARD_PWR, pwr_sd);
+
+	iounmap(pwr_sd);
+}
+
+static struct mmc_spi_platform_data bk3_spi_mmc_data = {
+	.detect_delay	= 500,
+	.powerup_msecs	= 100,
+	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.caps		= MMC_CAP_NONREMOVABLE,
+	.setpower       = bk3_mmc_spi_setpower,
+};
+
+/*************************************************************************
+ * SPI Bus - SD card access
+ *************************************************************************/
+static struct spi_board_info bk3_spi_board_info[] __initdata = {
+	{
+		.modalias		= "mmc_spi",
+		.platform_data		= &bk3_spi_mmc_data,
+		.max_speed_hz		= 7.4E6,
+		.bus_num		= 0,
+		.chip_select		= 0,
+		.mode			= SPI_MODE_0,
+	},
+};
+
+/*
+ * This is a stub -> the FGPIO[3] pin is not connected on the schematic
+ * The all work is performed automatically by !SPI_FRAME (SFRM1) and
+ * goes through CPLD
+ */
+static int bk3_spi_chipselects[] __initdata = {
+	EP93XX_GPIO_LINE_F(3),
+};
+
+static struct ep93xx_spi_info bk3_spi_master __initdata = {
+	.chipselect	= bk3_spi_chipselects,
+	.num_chipselect = ARRAY_SIZE(bk3_spi_chipselects),
+	.use_dma	= 1,
+};
+
+/*************************************************************************
+ * TS72XX support code
+ *************************************************************************/
 #if IS_ENABLED(CONFIG_FPGA_MGR_TS73XX)
 
 /* Relative to EP93XX_CS1_PHYS_BASE */
@@ -232,10 +309,33 @@ static struct platform_device ts73xx_fpga_device = {
 
 #endif
 
+/*************************************************************************
+ * SPI Bus
+ *************************************************************************/
+static struct spi_board_info ts72xx_spi_devices[] __initdata = {
+	{
+		.modalias		= "tmp122",
+		.max_speed_hz		= 2 * 1000 * 1000,
+		.bus_num		= 0,
+		.chip_select		= 0,
+	},
+};
+
+static int ts72xx_spi_chipselects[] __initdata = {
+	EP93XX_GPIO_LINE_F(2),		/* DIO_17 */
+};
+
+static struct ep93xx_spi_info ts72xx_spi_info __initdata = {
+	.chipselect	= ts72xx_spi_chipselects,
+	.num_chipselect	= ARRAY_SIZE(ts72xx_spi_chipselects),
+};
+
 static void __init ts72xx_init_machine(void)
 {
 	ep93xx_init_devices();
-	ts72xx_register_flash();
+	ts72xx_register_flash(ts72xx_nand_parts, ARRAY_SIZE(ts72xx_nand_parts),
+			      is_ts9420_installed() ?
+			      EP93XX_CS7_PHYS_BASE : EP93XX_CS6_PHYS_BASE);
 	platform_device_register(&ts72xx_rtc_device);
 	platform_device_register(&ts72xx_wdt_device);
 
@@ -244,6 +344,8 @@ static void __init ts72xx_init_machine(void)
 	if (board_is_ts7300())
 		platform_device_register(&ts73xx_fpga_device);
 #endif
+	ep93xx_register_spi(&ts72xx_spi_info, ts72xx_spi_devices,
+			    ARRAY_SIZE(ts72xx_spi_devices));
 }
 
 MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
@@ -253,6 +355,69 @@ MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	.init_irq	= ep93xx_init_irq,
 	.init_time	= ep93xx_timer_init,
 	.init_machine	= ts72xx_init_machine,
+	.init_late	= ep93xx_init_late,
+	.restart	= ep93xx_restart,
+MACHINE_END
+
+/*************************************************************************
+ * EP93xx I2S audio peripheral handling
+ *************************************************************************/
+static struct resource ep93xx_i2s_resource[] = {
+	DEFINE_RES_MEM(EP93XX_I2S_PHYS_BASE, 0x100),
+	DEFINE_RES_IRQ_NAMED(IRQ_EP93XX_SAI, "spilink i2s slave"),
+};
+
+static struct platform_device ep93xx_i2s_device = {
+	.name		= "ep93xx-spilink-i2s",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_i2s_resource),
+	.resource	= ep93xx_i2s_resource,
+};
+
+/*************************************************************************
+ * BK3 support code
+ *************************************************************************/
+static struct mtd_partition bk3_nand_parts[] = {
+	{
+		.name		= "System",
+		.offset	= 0x00000000,
+		.size		= 0x01e00000,
+	}, {
+		.name		= "Data",
+		.offset	= 0x01e00000,
+		.size		= 0x05f20000
+	}, {
+		.name		= "RedBoot",
+		.offset	= 0x07d20000,
+		.size		= 0x002e0000,
+		.mask_flags	= MTD_WRITEABLE,	/* force RO */
+	},
+};
+
+static void __init bk3_init_machine(void)
+{
+	ep93xx_init_devices();
+
+	ts72xx_register_flash(bk3_nand_parts, ARRAY_SIZE(bk3_nand_parts),
+			      EP93XX_CS6_PHYS_BASE);
+
+	ep93xx_register_eth(&ts72xx_eth_data, 1);
+
+	ep93xx_register_spi(&bk3_spi_master, bk3_spi_board_info,
+			    ARRAY_SIZE(bk3_spi_board_info));
+
+	/* Configure ep93xx's I2S to use AC97 pins */
+	ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_I2SONAC97);
+	platform_device_register(&ep93xx_i2s_device);
+}
+
+MACHINE_START(BK3, "Liebherr controller BK3.1")
+	/* Maintainer: Lukasz Majewski <lukma@denx.de> */
+	.atag_offset	= 0x100,
+	.map_io		= ts72xx_map_io,
+	.init_irq	= ep93xx_init_irq,
+	.init_time	= ep93xx_timer_init,
+	.init_machine	= bk3_init_machine,
 	.init_late	= ep93xx_init_late,
 	.restart	= ep93xx_restart,
 MACHINE_END

@@ -100,20 +100,26 @@ struct rt_pmkid_list {
 
 struct security_priv {
 	u32	  dot11AuthAlgrthm;	/*  802.11 auth, could be open,
-					 * shared, 8021x and authswitch */
+					 * shared, 8021x and authswitch
+					 */
 	u32	  dot11PrivacyAlgrthm;	/*  This specify the privacy for
-					 * shared auth. algorithm. */
+					 * shared auth. algorithm.
+					 */
 	/* WEP */
 	u32	  dot11PrivacyKeyIndex;	/*  this is only valid for legendary
-					 * wep, 0~3 for key id.(tx key index) */
+					 * wep, 0~3 for key id.(tx key index)
+					 */
 	union Keytype dot11DefKey[4];	/*  this is only valid for def. key */
 	u32	dot11DefKeylen[4];
 	u32 dot118021XGrpPrivacy;	/*  This specify the privacy algthm.
-					 * used for Grp key */
+					 * used for Grp key
+					 */
 	u32	dot118021XGrpKeyid;	/*  key id used for Grp Key
-					 * ( tx key index) */
+					 * ( tx key index)
+					 */
 	union Keytype	dot118021XGrpKey[4];	/*  802.1x Group Key,
-						 * for inx0 and inx1 */
+						 * for inx0 and inx1
+						 */
 	union Keytype	dot118021XGrptxmickey[4];
 	union Keytype	dot118021XGrprxmickey[4];
 	union pn48	dot11Grptxpn;		/* PN48 used for Grp Key xmit.*/
@@ -134,10 +140,12 @@ struct security_priv {
 	u8	bcheck_grpkey;
 	u8	bgrpkey_handshake;
 	s32	hw_decrypted;/* if the rx packets is hw_decrypted==false,i
-			      * it means the hw has not been ready. */
+			      * it means the hw has not been ready.
+			      */
 
 	/* keeps the auth_type & enc_status from upper layer
-	 * ioctl(wpa_supplicant or wzc) */
+	 * ioctl(wpa_supplicant or wzc)
+	 */
 	u32 ndisauthtype;	/*  NDIS_802_11_AUTHENTICATION_MODE */
 	u32 ndisencryptstatus;	/*  NDIS_802_11_ENCRYPTION_STATUS */
 	struct wlan_bssid_ex sec_bss;  /* for joinbss (h2c buffer) usage */
@@ -256,7 +264,8 @@ static inline u32 rotr(u32 val, int bits)
 /* ===== start - public domain SHA256 implementation ===== */
 
 /* This is based on SHA256 implementation in LibTomCrypt that was released into
- * public domain by Tom St Denis. */
+ * public domain by Tom St Denis.
+ */
 
 /* the K array */
 static const unsigned long K[64] = {

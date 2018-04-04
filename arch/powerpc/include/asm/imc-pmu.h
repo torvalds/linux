@@ -21,11 +21,6 @@
 #include <asm/opal.h>
 
 /*
- * For static allocation of some of the structures.
- */
-#define IMC_MAX_PMUS			32
-
-/*
  * Compatibility macros for IMC devices
  */
 #define IMC_DTB_COMPAT			"ibm,opal-in-memory-counters"
@@ -38,6 +33,13 @@
  */
 #define THREAD_IMC_LDBAR_MASK           0x0003ffffffffe000ULL
 #define THREAD_IMC_ENABLE               0x8000000000000000ULL
+
+/*
+ * For debugfs interface for imc-mode and imc-command
+ */
+#define IMC_CNTL_BLK_OFFSET		0x3FC00
+#define IMC_CNTL_BLK_CMD_OFFSET		8
+#define IMC_CNTL_BLK_MODE_OFFSET	32
 
 /*
  * Structure to hold memory address information for imc units.
@@ -76,7 +78,7 @@ struct imc_events {
 struct imc_pmu {
 	struct pmu pmu;
 	struct imc_mem_info *mem_info;
-	struct imc_events **events;
+	struct imc_events *events;
 	/*
 	 * Attribute groups for the PMU. Slot 0 used for
 	 * format attribute, slot 1 used for cpusmask attribute,
@@ -125,4 +127,5 @@ enum {
 extern int init_imc_pmu(struct device_node *parent,
 				struct imc_pmu *pmu_ptr, int pmu_id);
 extern void thread_imc_disable(void);
+extern int get_max_nest_dev(void);
 #endif /* __ASM_POWERPC_IMC_PMU_H */

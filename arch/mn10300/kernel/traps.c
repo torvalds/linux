@@ -22,7 +22,6 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/kallsyms.h>
 #include <linux/pci.h>
 #include <linux/kdebug.h>
 #include <linux/bug.h>
@@ -262,8 +261,7 @@ void show_trace(unsigned long *sp)
 				raslot = ULONG_MAX;
 			else
 				printk(" ?");
-			print_symbol(" %s", addr);
-			printk("\n");
+			printk(" %pS\n", (void *)addr);
 		}
 	}
 

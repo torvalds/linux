@@ -162,6 +162,12 @@ restart:
 		goto out;
 	}
 
+	if (rds_destroy_pending(cp->cp_conn)) {
+		release_in_xmit(cp);
+		ret = -ENETUNREACH; /* dont requeue send work */
+		goto out;
+	}
+
 	/*
 	 * we record the send generation after doing the xmit acquire.
 	 * if someone else manages to jump in and do some work, we'll use
@@ -437,7 +443,12 @@ over_batch:
 		    !list_empty(&cp->cp_send_queue)) && !raced) {
 			if (batch_count < send_batch_count)
 				goto restart;
-			queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+			rcu_read_lock();
+			if (rds_destroy_pending(cp->cp_conn))
+				ret = -ENETUNREACH;
+			else
+				queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+			rcu_read_unlock();
 		} else if (raced) {
 			rds_stats_inc(s_send_lock_queue_raced);
 		}
@@ -1009,6 +1020,9 @@ static int rds_rdma_bytes(struct msghdr *msg, size_t *rdma_bytes)
 			continue;
 
 		if (cmsg->cmsg_type == RDS_CMSG_RDMA_ARGS) {
+			if (cmsg->cmsg_len <
+			    CMSG_LEN(sizeof(struct rds_rdma_args)))
+				return -EINVAL;
 			args = CMSG_DATA(cmsg);
 			*rdma_bytes += args->remote_vec.bytes;
 		}
@@ -1148,6 +1162,11 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	else
 		cpath = &conn->c_path[0];
 
+	if (rds_destroy_pending(conn)) {
+		ret = -EAGAIN;
+		goto out;
+	}
+
 	rds_conn_path_connect_if_down(cpath);
 
 	ret = rds_cong_wait(conn->c_fcong, dport, nonblock, rs);
@@ -1187,9 +1206,17 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	rds_stats_inc(s_send_queued);
 
 	ret = rds_send_xmit(cpath);
-	if (ret == -ENOMEM || ret == -EAGAIN)
-		queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
-
+	if (ret == -ENOMEM || ret == -EAGAIN) {
+		ret = 0;
+		rcu_read_lock();
+		if (rds_destroy_pending(cpath->cp_conn))
+			ret = -ENETUNREACH;
+		else
+			queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
+		rcu_read_unlock();
+	}
+	if (ret)
+		goto out;
 	rds_message_put(rm);
 	return payload_len;
 
@@ -1267,7 +1294,10 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 	rds_stats_inc(s_send_pong);
 
 	/* schedule the send work on rds_wq */
-	queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+	rcu_read_lock();
+	if (!rds_destroy_pending(cp->cp_conn))
+		queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+	rcu_read_unlock();
 
 	rds_message_put(rm);
 	return 0;

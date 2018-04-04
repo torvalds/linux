@@ -1816,6 +1816,10 @@
 #define RT5670_ZCD_HP_DIS			(0x0 << 15)
 #define RT5670_ZCD_HP_EN			(0x1 << 15)
 
+/* General Control 3 (0xfc) */
+#define RT5670_TDM_DATA_MODE_SEL		(0x1 << 11)
+#define RT5670_TDM_DATA_MODE_NOR		(0x0 << 11)
+#define RT5670_TDM_DATA_MODE_50FS		(0x1 << 11)
 
 /* Codec Private Register definition */
 /* 3D Speaker Control (0x63) */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Compaq Hot Plug Controller Driver
  *
@@ -6,21 +7,6 @@
  * Copyright (C) 2001 IBM Corp.
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <greg@kroah.com>
  *
@@ -661,9 +647,8 @@ static int ctrl_slot_setup(struct controller *ctrl,
 
 		slot->p_sm_slot = slot_entry;
 
-		init_timer(&slot->task_event);
+		timer_setup(&slot->task_event, cpqhp_pushbutton_thread, 0);
 		slot->task_event.expires = jiffies + 5 * HZ;
-		slot->task_event.function = cpqhp_pushbutton_thread;
 
 		/*FIXME: these capabilities aren't used but if they are
 		 *	 they need to be correctly implemented
@@ -836,7 +821,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bus = pdev->subordinate;
 	if (!bus) {
-		dev_notice(&pdev->dev, "the device is not a bridge, skipping\n");
+		pci_notice(pdev, "the device is not a bridge, skipping\n");
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
@@ -884,7 +869,6 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ctrl = kzalloc(sizeof(struct controller), GFP_KERNEL);
 	if (!ctrl) {
-		err("%s : out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto err_disable_device;
 	}

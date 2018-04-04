@@ -717,7 +717,7 @@ static const struct of_device_id ingenic_pinctrl_of_match[] = {
 	{},
 };
 
-int ingenic_pinctrl_probe(struct platform_device *pdev)
+static int ingenic_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ingenic_pinctrl *jzpc;
@@ -736,10 +736,8 @@ int ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	base = devm_ioremap_resource(dev,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0));
-	if (IS_ERR(base)) {
-		dev_err(dev, "Failed to ioremap registers\n");
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	jzpc->map = devm_regmap_init_mmio(dev, base,
 			&ingenic_pinctrl_regmap_config);

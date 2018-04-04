@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 {
 	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_status status = AE_OK;
-	u32 enable_mask;
+	u64 enable_mask;
 	u32 register_bit;
 
 	ACPI_FUNCTION_ENTRY();
@@ -214,7 +214,7 @@ acpi_status
 acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
 		       acpi_event_status *event_status)
 {
-	u32 in_byte;
+	u64 in_byte;
 	u32 register_bit;
 	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_event_status local_event_status = 0;

@@ -77,6 +77,27 @@ applicable everywhere (see syntax).
   Optionally, dependencies only for this default value can be added with
   "if".
 
+ The default value deliberately defaults to 'n' in order to avoid bloating the
+ build. With few exceptions, new config options should not change this. The
+ intent is for "make oldconfig" to add as little as possible to the config from
+ release to release.
+
+ Note:
+	Things that merit "default y/m" include:
+
+	a) A new Kconfig option for something that used to always be built
+	   should be "default y".
+
+	b) A new gatekeeping Kconfig option that hides/shows other Kconfig
+	   options (but does not generate any code of its own), should be
+	   "default y" so people will see those other options.
+
+	c) Sub-driver behavior or similar options for a driver that is
+	   "default n". This allows you to provide sane defaults.
+
+	d) Hardware or infrastructure that everybody expects, such as CONFIG_NET
+	   or CONFIG_BLOCK. These are rare exceptions.
+
 - type definition + default value:
 	"def_bool"/"def_tristate" <expr> ["if" <expr>]
   This is a shorthand notation for a type definition plus a value.
@@ -200,10 +221,14 @@ module state. Dependency expressions have the following syntax:
 <expr> ::= <symbol>                             (1)
            <symbol> '=' <symbol>                (2)
            <symbol> '!=' <symbol>               (3)
-           '(' <expr> ')'                       (4)
-           '!' <expr>                           (5)
-           <expr> '&&' <expr>                   (6)
-           <expr> '||' <expr>                   (7)
+           <symbol1> '<' <symbol2>              (4)
+           <symbol1> '>' <symbol2>              (4)
+           <symbol1> '<=' <symbol2>             (4)
+           <symbol1> '>=' <symbol2>             (4)
+           '(' <expr> ')'                       (5)
+           '!' <expr>                           (6)
+           <expr> '&&' <expr>                   (7)
+           <expr> '||' <expr>                   (8)
 
 Expressions are listed in decreasing order of precedence. 
 
@@ -214,10 +239,13 @@ Expressions are listed in decreasing order of precedence.
     otherwise 'n'.
 (3) If the values of both symbols are equal, it returns 'n',
     otherwise 'y'.
-(4) Returns the value of the expression. Used to override precedence.
-(5) Returns the result of (2-/expr/).
-(6) Returns the result of min(/expr/, /expr/).
-(7) Returns the result of max(/expr/, /expr/).
+(4) If value of <symbol1> is respectively lower, greater, lower-or-equal,
+    or greater-or-equal than value of <symbol2>, it returns 'y',
+    otherwise 'n'.
+(5) Returns the value of the expression. Used to override precedence.
+(6) Returns the result of (2-/expr/).
+(7) Returns the result of min(/expr/, /expr/).
+(8) Returns the result of max(/expr/, /expr/).
 
 An expression can have a value of 'n', 'm' or 'y' (or 0, 1, 2
 respectively for calculations). A menu entry becomes visible when its

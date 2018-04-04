@@ -52,53 +52,52 @@ static const enum cz_scratch_entry firmware_list[] = {
 	CZ_SCRATCH_ENTRY_UCODE_ID_RLC_G,
 };
 
-static int cz_smum_get_argument(struct pp_smumgr *smumgr)
+static int cz_smum_get_argument(struct pp_hwmgr *hwmgr)
 {
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	return cgs_read_register(smumgr->device,
+	return cgs_read_register(hwmgr->device,
 					mmSMU_MP1_SRBM2P_ARG_0);
 }
 
-static int cz_send_msg_to_smc_async(struct pp_smumgr *smumgr,
-								uint16_t msg)
+static int cz_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	int result = 0;
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	result = SMUM_WAIT_FIELD_UNEQUAL(smumgr,
+	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 	if (result != 0) {
 		pr_err("cz_send_msg_to_smc_async (0x%04x) failed\n", msg);
 		return result;
 	}
 
-	cgs_write_register(smumgr->device, mmSMU_MP1_SRBM2P_RESP_0, 0);
-	cgs_write_register(smumgr->device, mmSMU_MP1_SRBM2P_MSG_0, msg);
+	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_RESP_0, 0);
+	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_MSG_0, msg);
 
 	return 0;
 }
 
 /* Send a message to the SMC, and wait for its response.*/
-static int cz_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
+static int cz_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	int result = 0;
 
-	result = cz_send_msg_to_smc_async(smumgr, msg);
+	result = cz_send_msg_to_smc_async(hwmgr, msg);
 	if (result != 0)
 		return result;
 
-	return SMUM_WAIT_FIELD_UNEQUAL(smumgr,
+	return PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 }
 
-static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
+static int cz_set_smc_sram_address(struct pp_hwmgr *hwmgr,
 				     uint32_t smc_address, uint32_t limit)
 {
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
 	if (0 != (3 & smc_address)) {
@@ -111,39 +110,39 @@ static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
 		return -EINVAL;
 	}
 
-	cgs_write_register(smumgr->device, mmMP0PUB_IND_INDEX_0,
+	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX_0,
 				SMN_MP1_SRAM_START_ADDR + smc_address);
 
 	return 0;
 }
 
-static int cz_write_smc_sram_dword(struct pp_smumgr *smumgr,
+static int cz_write_smc_sram_dword(struct pp_hwmgr *hwmgr,
 		uint32_t smc_address, uint32_t value, uint32_t limit)
 {
 	int result;
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	result = cz_set_smc_sram_address(smumgr, smc_address, limit);
+	result = cz_set_smc_sram_address(hwmgr, smc_address, limit);
 	if (!result)
-		cgs_write_register(smumgr->device, mmMP0PUB_IND_DATA_0, value);
+		cgs_write_register(hwmgr->device, mmMP0PUB_IND_DATA_0, value);
 
 	return result;
 }
 
-static int cz_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
+static int cz_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					  uint16_t msg, uint32_t parameter)
 {
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	cgs_write_register(smumgr->device, mmSMU_MP1_SRBM2P_ARG_0, parameter);
+	cgs_write_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0, parameter);
 
-	return cz_send_msg_to_smc(smumgr, msg);
+	return cz_send_msg_to_smc(hwmgr, msg);
 }
 
-static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
+static int cz_check_fw_load_finish(struct pp_hwmgr *hwmgr,
 				   uint32_t firmware)
 {
 	int i;
@@ -151,19 +150,19 @@ static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
 			 SMU8_FIRMWARE_HEADER_LOCATION +
 			 offsetof(struct SMU8_Firmware_Header, UcodeLoadStatus);
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	cgs_write_register(smumgr->device, mmMP0PUB_IND_INDEX, index);
+	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
 
-	for (i = 0; i < smumgr->usec_timeout; i++) {
+	for (i = 0; i < hwmgr->usec_timeout; i++) {
 		if (firmware ==
-			(cgs_read_register(smumgr->device, mmMP0PUB_IND_DATA) & firmware))
+			(cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA) & firmware))
 			break;
 		udelay(1);
 	}
 
-	if (i >= smumgr->usec_timeout) {
+	if (i >= hwmgr->usec_timeout) {
 		pr_err("SMU check loaded firmware failed.\n");
 		return -EINVAL;
 	}
@@ -171,7 +170,7 @@ static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
 	return 0;
 }
 
-static int cz_load_mec_firmware(struct pp_smumgr *smumgr)
+static int cz_load_mec_firmware(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg_data;
 	uint32_t tmp;
@@ -179,44 +178,44 @@ static int cz_load_mec_firmware(struct pp_smumgr *smumgr)
 	struct cgs_firmware_info info = {0};
 	struct cz_smumgr *cz_smu;
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	cz_smu = (struct cz_smumgr *)smumgr->backend;
-	ret = cgs_get_firmware_info(smumgr->device,
+	cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
+	ret = cgs_get_firmware_info(hwmgr->device,
 						CGS_UCODE_ID_CP_MEC, &info);
 
 	if (ret)
 		return -EINVAL;
 
 	/* Disable MEC parsing/prefetching */
-	tmp = cgs_read_register(smumgr->device,
+	tmp = cgs_read_register(hwmgr->device,
 					mmCP_MEC_CNTL);
-	tmp = SMUM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME1_HALT, 1);
-	tmp = SMUM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME2_HALT, 1);
-	cgs_write_register(smumgr->device, mmCP_MEC_CNTL, tmp);
+	tmp = PHM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME1_HALT, 1);
+	tmp = PHM_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME2_HALT, 1);
+	cgs_write_register(hwmgr->device, mmCP_MEC_CNTL, tmp);
 
-	tmp = cgs_read_register(smumgr->device,
+	tmp = cgs_read_register(hwmgr->device,
 					mmCP_CPC_IC_BASE_CNTL);
 
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, ATC, 0);
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
-	tmp = SMUM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, MTYPE, 1);
-	cgs_write_register(smumgr->device, mmCP_CPC_IC_BASE_CNTL, tmp);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, ATC, 0);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
+	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, MTYPE, 1);
+	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_CNTL, tmp);
 
 	reg_data = smu_lower_32_bits(info.mc_addr) &
-			SMUM_FIELD_MASK(CP_CPC_IC_BASE_LO, IC_BASE_LO);
-	cgs_write_register(smumgr->device, mmCP_CPC_IC_BASE_LO, reg_data);
+			PHM_FIELD_MASK(CP_CPC_IC_BASE_LO, IC_BASE_LO);
+	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_LO, reg_data);
 
 	reg_data = smu_upper_32_bits(info.mc_addr) &
-			SMUM_FIELD_MASK(CP_CPC_IC_BASE_HI, IC_BASE_HI);
-	cgs_write_register(smumgr->device, mmCP_CPC_IC_BASE_HI, reg_data);
+			PHM_FIELD_MASK(CP_CPC_IC_BASE_HI, IC_BASE_HI);
+	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_HI, reg_data);
 
 	return 0;
 }
 
-static uint8_t cz_translate_firmware_enum_to_arg(struct pp_smumgr *smumgr,
+static uint8_t cz_translate_firmware_enum_to_arg(struct pp_hwmgr *hwmgr,
 			enum cz_scratch_entry firmware_enum)
 {
 	uint8_t ret = 0;
@@ -226,7 +225,7 @@ static uint8_t cz_translate_firmware_enum_to_arg(struct pp_smumgr *smumgr,
 		ret = UCODE_ID_SDMA0;
 		break;
 	case CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1:
-		if (smumgr->chip_id == CHIP_STONEY)
+		if (hwmgr->chip_id == CHIP_STONEY)
 			ret = UCODE_ID_SDMA0;
 		else
 			ret = UCODE_ID_SDMA1;
@@ -244,7 +243,7 @@ static uint8_t cz_translate_firmware_enum_to_arg(struct pp_smumgr *smumgr,
 		ret = UCODE_ID_CP_MEC_JT1;
 		break;
 	case CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2:
-		if (smumgr->chip_id == CHIP_STONEY)
+		if (hwmgr->chip_id == CHIP_STONEY)
 			ret = UCODE_ID_CP_MEC_JT1;
 		else
 			ret = UCODE_ID_CP_MEC_JT2;
@@ -326,17 +325,17 @@ static enum cgs_ucode_id cz_convert_fw_type_to_cgs(uint32_t fw_type)
 }
 
 static int cz_smu_populate_single_scratch_task(
-			struct pp_smumgr *smumgr,
+			struct pp_hwmgr *hwmgr,
 			enum cz_scratch_entry fw_enum,
 			uint8_t type, bool is_last)
 {
 	uint8_t i;
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	struct TOC *toc = (struct TOC *)cz_smu->toc_buffer.kaddr;
 	struct SMU_Task *task = &toc->tasks[cz_smu->toc_entry_used_count++];
 
 	task->type = type;
-	task->arg = cz_translate_firmware_enum_to_arg(smumgr, fw_enum);
+	task->arg = cz_translate_firmware_enum_to_arg(hwmgr, fw_enum);
 	task->next = is_last ? END_OF_TASK_LIST : cz_smu->toc_entry_used_count;
 
 	for (i = 0; i < cz_smu->scratch_buffer_length; i++)
@@ -363,17 +362,17 @@ static int cz_smu_populate_single_scratch_task(
 }
 
 static int cz_smu_populate_single_ucode_load_task(
-					struct pp_smumgr *smumgr,
+					struct pp_hwmgr *hwmgr,
 					enum cz_scratch_entry fw_enum,
 					bool is_last)
 {
 	uint8_t i;
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	struct TOC *toc = (struct TOC *)cz_smu->toc_buffer.kaddr;
 	struct SMU_Task *task = &toc->tasks[cz_smu->toc_entry_used_count++];
 
 	task->type = TASK_TYPE_UCODE_LOAD;
-	task->arg = cz_translate_firmware_enum_to_arg(smumgr, fw_enum);
+	task->arg = cz_translate_firmware_enum_to_arg(hwmgr, fw_enum);
 	task->next = is_last ? END_OF_TASK_LIST : cz_smu->toc_entry_used_count;
 
 	for (i = 0; i < cz_smu->driver_buffer_length; i++)
@@ -392,22 +391,22 @@ static int cz_smu_populate_single_ucode_load_task(
 	return 0;
 }
 
-static int cz_smu_construct_toc_for_rlc_aram_save(struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc_for_rlc_aram_save(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 
 	cz_smu->toc_entry_aram = cz_smu->toc_entry_used_count;
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_ARAM,
 				TASK_TYPE_UCODE_SAVE, true);
 
 	return 0;
 }
 
-static int cz_smu_initialize_toc_empty_job_list(struct pp_smumgr *smumgr)
+static int cz_smu_initialize_toc_empty_job_list(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	struct TOC *toc = (struct TOC *)cz_smu->toc_buffer.kaddr;
 
 	for (i = 0; i < NUM_JOBLIST_ENTRIES; i++)
@@ -416,17 +415,17 @@ static int cz_smu_initialize_toc_empty_job_list(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static int cz_smu_construct_toc_for_vddgfx_enter(struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc_for_vddgfx_enter(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	struct TOC *toc = (struct TOC *)cz_smu->toc_buffer.kaddr;
 
 	toc->JobList[JOB_GFX_SAVE] = (uint8_t)cz_smu->toc_entry_used_count;
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				    CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
 				    TASK_TYPE_UCODE_SAVE, false);
 
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				    CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_DRAM,
 				    TASK_TYPE_UCODE_SAVE, true);
 
@@ -434,121 +433,120 @@ static int cz_smu_construct_toc_for_vddgfx_enter(struct pp_smumgr *smumgr)
 }
 
 
-static int cz_smu_construct_toc_for_vddgfx_exit(struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc_for_vddgfx_exit(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	struct TOC *toc = (struct TOC *)cz_smu->toc_buffer.kaddr;
 
 	toc->JobList[JOB_GFX_RESTORE] = (uint8_t)cz_smu->toc_entry_used_count;
 
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_CE, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_PFP, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_ME, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
 
-	if (smumgr->chip_id == CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
+	if (hwmgr->chip_id == CHIP_STONEY)
+		cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
 	else
-		cz_smu_populate_single_ucode_load_task(smumgr,
+		cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2, false);
 
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_G, false);
 
 	/* populate scratch */
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
 				TASK_TYPE_UCODE_LOAD, false);
 
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_ARAM,
 				TASK_TYPE_UCODE_LOAD, false);
 
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_DRAM,
 				TASK_TYPE_UCODE_LOAD, true);
 
 	return 0;
 }
 
-static int cz_smu_construct_toc_for_power_profiling(
-						 struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc_for_power_profiling(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 
 	cz_smu->toc_entry_power_profiling_index = cz_smu->toc_entry_used_count;
 
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_POWER_PROFILING,
 				TASK_TYPE_INITIALIZE, true);
 	return 0;
 }
 
-static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc_for_bootup(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 
 	cz_smu->toc_entry_initialize_index = cz_smu->toc_entry_used_count;
 
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
-	if (smumgr->chip_id != CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
+	if (hwmgr->chip_id != CHIP_STONEY)
+		cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_CE, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_PFP, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_ME, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	if (smumgr->chip_id != CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
+	if (hwmgr->chip_id != CHIP_STONEY)
+		cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2, false);
-	cz_smu_populate_single_ucode_load_task(smumgr,
+	cz_smu_populate_single_ucode_load_task(hwmgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_RLC_G, true);
 
 	return 0;
 }
 
-static int cz_smu_construct_toc_for_clock_table(struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc_for_clock_table(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 
 	cz_smu->toc_entry_clock_table = cz_smu->toc_entry_used_count;
 
-	cz_smu_populate_single_scratch_task(smumgr,
+	cz_smu_populate_single_scratch_task(hwmgr,
 				CZ_SCRATCH_ENTRY_SMU8_FUSION_CLKTABLE,
 				TASK_TYPE_INITIALIZE, true);
 
 	return 0;
 }
 
-static int cz_smu_construct_toc(struct pp_smumgr *smumgr)
+static int cz_smu_construct_toc(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 
 	cz_smu->toc_entry_used_count = 0;
-	cz_smu_initialize_toc_empty_job_list(smumgr);
-	cz_smu_construct_toc_for_rlc_aram_save(smumgr);
-	cz_smu_construct_toc_for_vddgfx_enter(smumgr);
-	cz_smu_construct_toc_for_vddgfx_exit(smumgr);
-	cz_smu_construct_toc_for_power_profiling(smumgr);
-	cz_smu_construct_toc_for_bootup(smumgr);
-	cz_smu_construct_toc_for_clock_table(smumgr);
+	cz_smu_initialize_toc_empty_job_list(hwmgr);
+	cz_smu_construct_toc_for_rlc_aram_save(hwmgr);
+	cz_smu_construct_toc_for_vddgfx_enter(hwmgr);
+	cz_smu_construct_toc_for_vddgfx_exit(hwmgr);
+	cz_smu_construct_toc_for_power_profiling(hwmgr);
+	cz_smu_construct_toc_for_bootup(hwmgr);
+	cz_smu_construct_toc_for_clock_table(hwmgr);
 
 	return 0;
 }
 
-static int cz_smu_populate_firmware_entries(struct pp_smumgr *smumgr)
+static int cz_smu_populate_firmware_entries(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	uint32_t firmware_type;
 	uint32_t i;
 	int ret;
@@ -559,12 +557,12 @@ static int cz_smu_populate_firmware_entries(struct pp_smumgr *smumgr)
 
 	for (i = 0; i < ARRAY_SIZE(firmware_list); i++) {
 
-		firmware_type = cz_translate_firmware_enum_to_arg(smumgr,
+		firmware_type = cz_translate_firmware_enum_to_arg(hwmgr,
 					firmware_list[i]);
 
 		ucode_id = cz_convert_fw_type_to_cgs(firmware_type);
 
-		ret = cgs_get_firmware_info(smumgr->device,
+		ret = cgs_get_firmware_info(hwmgr->device,
 							ucode_id, &info);
 
 		if (ret == 0) {
@@ -585,12 +583,12 @@ static int cz_smu_populate_firmware_entries(struct pp_smumgr *smumgr)
 }
 
 static int cz_smu_populate_single_scratch_entry(
-				struct pp_smumgr *smumgr,
+				struct pp_hwmgr *hwmgr,
 				enum cz_scratch_entry scratch_type,
 				uint32_t ulsize_byte,
 				struct cz_buffer_entry *entry)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	long long mc_addr =
 			((long long)(cz_smu->smu_buffer.mc_addr_high) << 32)
 			| cz_smu->smu_buffer.mc_addr_low;
@@ -611,9 +609,9 @@ static int cz_smu_populate_single_scratch_entry(
 	return 0;
 }
 
-static int cz_download_pptable_settings(struct pp_smumgr *smumgr, void **table)
+static int cz_download_pptable_settings(struct pp_hwmgr *hwmgr, void **table)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	unsigned long i;
 
 	for (i = 0; i < cz_smu->scratch_buffer_length; i++) {
@@ -624,25 +622,25 @@ static int cz_download_pptable_settings(struct pp_smumgr *smumgr, void **table)
 
 	*table = (struct SMU8_Fusion_ClkTable *)cz_smu->scratch_buffer[i].kaddr;
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrHi,
 				cz_smu->scratch_buffer[i].mc_addr_high);
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrLo,
 				cz_smu->scratch_buffer[i].mc_addr_low);
 
-	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
+	cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_clock_table);
 
-	cz_send_msg_to_smc(smumgr, PPSMC_MSG_ClkTableXferToDram);
+	cz_send_msg_to_smc(hwmgr, PPSMC_MSG_ClkTableXferToDram);
 
 	return 0;
 }
 
-static int cz_upload_pptable_settings(struct pp_smumgr *smumgr)
+static int cz_upload_pptable_settings(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	unsigned long i;
 
 	for (i = 0; i < cz_smu->scratch_buffer_length; i++) {
@@ -651,66 +649,79 @@ static int cz_upload_pptable_settings(struct pp_smumgr *smumgr)
 			break;
 	}
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrHi,
 				cz_smu->scratch_buffer[i].mc_addr_high);
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrLo,
 				cz_smu->scratch_buffer[i].mc_addr_low);
 
-	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
+	cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_clock_table);
 
-	cz_send_msg_to_smc(smumgr, PPSMC_MSG_ClkTableXferToSmu);
+	cz_send_msg_to_smc(hwmgr, PPSMC_MSG_ClkTableXferToSmu);
 
 	return 0;
 }
 
-static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
+static int cz_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)(smumgr->backend);
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)(hwmgr->smu_backend);
 	uint32_t smc_address;
 
-	if (!smumgr->reload_fw) {
+	if (!hwmgr->reload_fw) {
 		pr_info("skip reloading...\n");
 		return 0;
 	}
 
-	cz_smu_populate_firmware_entries(smumgr);
+	cz_smu_populate_firmware_entries(hwmgr);
 
-	cz_smu_construct_toc(smumgr);
+	cz_smu_construct_toc(hwmgr);
 
 	smc_address = SMU8_FIRMWARE_HEADER_LOCATION +
 		offsetof(struct SMU8_Firmware_Header, UcodeLoadStatus);
 
-	cz_write_smc_sram_dword(smumgr, smc_address, 0, smc_address+4);
+	cz_write_smc_sram_dword(hwmgr, smc_address, 0, smc_address+4);
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DriverDramAddrHi,
 					cz_smu->toc_buffer.mc_addr_high);
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DriverDramAddrLo,
 					cz_smu->toc_buffer.mc_addr_low);
 
-	cz_send_msg_to_smc(smumgr, PPSMC_MSG_InitJobs);
+	cz_send_msg_to_smc(hwmgr, PPSMC_MSG_InitJobs);
 
-	cz_send_msg_to_smc_with_parameter(smumgr,
+	cz_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_ExecuteJob,
 					cz_smu->toc_entry_aram);
-	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
+	cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_power_profiling_index);
 
-	return cz_send_msg_to_smc_with_parameter(smumgr,
+	return cz_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_ExecuteJob,
 					cz_smu->toc_entry_initialize_index);
 }
 
-static int cz_start_smu(struct pp_smumgr *smumgr)
+static int cz_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 	uint32_t fw_to_check = 0;
+	struct cgs_firmware_info info = {0};
+	uint32_t index = SMN_MP1_SRAM_START_ADDR +
+			 SMU8_FIRMWARE_HEADER_LOCATION +
+			 offsetof(struct SMU8_Firmware_Header, Version);
+
+
+	if (hwmgr == NULL || hwmgr->device == NULL)
+		return -EINVAL;
+
+	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
+	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
+	info.version = hwmgr->smu_version >> 8;
+	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
 
 	fw_to_check = UCODE_ID_RLC_G_MASK |
 			UCODE_ID_SDMA0_MASK |
@@ -721,23 +732,23 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 			UCODE_ID_CP_MEC_JT1_MASK |
 			UCODE_ID_CP_MEC_JT2_MASK;
 
-	if (smumgr->chip_id == CHIP_STONEY)
+	if (hwmgr->chip_id == CHIP_STONEY)
 		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
 
-	ret = cz_request_smu_load_fw(smumgr);
+	ret = cz_request_smu_load_fw(hwmgr);
 	if (ret)
 		pr_err("SMU firmware load failed\n");
 
-	cz_check_fw_load_finish(smumgr, fw_to_check);
+	cz_check_fw_load_finish(hwmgr, fw_to_check);
 
-	ret = cz_load_mec_firmware(smumgr);
+	ret = cz_load_mec_firmware(hwmgr);
 	if (ret)
 		pr_err("Mec Firmware load failed\n");
 
 	return ret;
 }
 
-static int cz_smu_init(struct pp_smumgr *smumgr)
+static int cz_smu_init(struct pp_hwmgr *hwmgr)
 {
 	uint64_t mc_addr = 0;
 	int ret = 0;
@@ -747,7 +758,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 	if (cz_smu == NULL)
 		return -ENOMEM;
 
-	smumgr->backend = cz_smu;
+	hwmgr->smu_backend = cz_smu;
 
 	cz_smu->toc_buffer.data_size = 4096;
 	cz_smu->smu_buffer.data_size =
@@ -757,7 +768,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		ALIGN(sizeof(struct SMU8_MultimediaPowerLogData), 32) +
 		ALIGN(sizeof(struct SMU8_Fusion_ClkTable), 32);
 
-	ret = smu_allocate_memory(smumgr->device,
+	ret = smu_allocate_memory(hwmgr->device,
 				cz_smu->toc_buffer.data_size,
 				CGS_GPU_MEM_TYPE__GART_CACHEABLE,
 				PAGE_SIZE,
@@ -770,7 +781,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 	cz_smu->toc_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
 	cz_smu->toc_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
 
-	ret = smu_allocate_memory(smumgr->device,
+	ret = smu_allocate_memory(hwmgr->device,
 				cz_smu->smu_buffer.data_size,
 				CGS_GPU_MEM_TYPE__GART_CACHEABLE,
 				PAGE_SIZE,
@@ -783,7 +794,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 	cz_smu->smu_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
 	cz_smu->smu_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
 
-	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
+	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
 		UCODE_ID_RLC_SCRATCH_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
@@ -791,14 +802,14 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		return -1;
 	}
 
-	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
+	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_ARAM,
 		UCODE_ID_RLC_SRM_ARAM_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
 		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
-	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
+	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_DRAM,
 		UCODE_ID_RLC_SRM_DRAM_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
@@ -806,7 +817,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		return -1;
 	}
 
-	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
+	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_POWER_PROFILING,
 		sizeof(struct SMU8_MultimediaPowerLogData),
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
@@ -814,7 +825,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		return -1;
 	}
 
-	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
+	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_SMU8_FUSION_CLKTABLE,
 		sizeof(struct SMU8_Fusion_ClkTable),
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
@@ -825,18 +836,18 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static int cz_smu_fini(struct pp_smumgr *smumgr)
+static int cz_smu_fini(struct pp_hwmgr *hwmgr)
 {
 	struct cz_smumgr *cz_smu;
 
-	if (smumgr == NULL || smumgr->device == NULL)
+	if (hwmgr == NULL || hwmgr->device == NULL)
 		return -EINVAL;
 
-	cz_smu = (struct cz_smumgr *)smumgr->backend;
+	cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	if (cz_smu) {
-		cgs_free_gpu_mem(smumgr->device,
+		cgs_free_gpu_mem(hwmgr->device,
 				cz_smu->toc_buffer.handle);
-		cgs_free_gpu_mem(smumgr->device,
+		cgs_free_gpu_mem(hwmgr->device,
 				cz_smu->smu_buffer.handle);
 		kfree(cz_smu);
 	}

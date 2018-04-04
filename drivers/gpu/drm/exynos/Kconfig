@@ -3,6 +3,7 @@ config DRM_EXYNOS
 	depends on OF && DRM && (ARCH_S3C64XX || ARCH_EXYNOS || ARCH_MULTIPLATFORM)
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
+	select SND_SOC_HDMI_CODEC if SND_SOC
 	help
 	  Choose this option if you have a Samsung SoC EXYNOS chipset.
 	  If M is selected the module will be called exynosdrm.
@@ -94,26 +95,21 @@ config DRM_EXYNOS_G2D
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
 
-config DRM_EXYNOS_IPP
-	bool "Image Post Processor"
-	help
-	  Choose this option if you want to use IPP feature for DRM.
-
 config DRM_EXYNOS_FIMC
 	bool "FIMC"
-	depends on DRM_EXYNOS_IPP && MFD_SYSCON
+	depends on BROKEN && MFD_SYSCON
 	help
 	  Choose this option if you want to use Exynos FIMC for DRM.
 
 config DRM_EXYNOS_ROTATOR
 	bool "Rotator"
-	depends on DRM_EXYNOS_IPP
+	depends on BROKEN
 	help
 	  Choose this option if you want to use Exynos Rotator for DRM.
 
 config DRM_EXYNOS_GSC
 	bool "GScaler"
-	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5 && VIDEO_SAMSUNG_EXYNOS_GSC=n
+	depends on BROKEN && ARCH_EXYNOS5 && VIDEO_SAMSUNG_EXYNOS_GSC=n
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.
 

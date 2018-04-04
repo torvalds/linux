@@ -20,6 +20,7 @@
 #include <linux/clk-provider.h>
 
 struct clk;
+struct clk_onecell_data;
 
 #define MAX_MUX_GATE_BIT	31
 #define INVALID_MUX_GATE_BIT	(MAX_MUX_GATE_BIT + 1)
@@ -207,6 +208,8 @@ struct mtk_pll_data {
 	uint32_t en_mask;
 	uint32_t pd_reg;
 	uint32_t tuner_reg;
+	uint32_t tuner_en_reg;
+	uint8_t tuner_en_bit;
 	int pd_shift;
 	unsigned int flags;
 	const struct clk_ops *ops;
@@ -216,6 +219,7 @@ struct mtk_pll_data {
 	uint32_t pcw_reg;
 	int pcw_shift;
 	const struct mtk_pll_div_table *div_table;
+	const char *parent_name;
 };
 
 void mtk_clk_register_plls(struct device_node *node,
@@ -225,14 +229,7 @@ void mtk_clk_register_plls(struct device_node *node,
 struct clk *mtk_clk_register_ref2usb_tx(const char *name,
 			const char *parent_name, void __iomem *reg);
 
-#ifdef CONFIG_RESET_CONTROLLER
 void mtk_register_reset_controller(struct device_node *np,
 			unsigned int num_regs, int regofs);
-#else
-static inline void mtk_register_reset_controller(struct device_node *np,
-			unsigned int num_regs, int regofs)
-{
-}
-#endif
 
 #endif /* __DRV_CLK_MTK_H */

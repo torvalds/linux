@@ -1202,10 +1202,14 @@ struct vmw_ctx_binding_state *
 vmw_binding_state_alloc(struct vmw_private *dev_priv)
 {
 	struct vmw_ctx_binding_state *cbs;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	int ret;
 
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), sizeof(*cbs),
-				   false, false);
+				&ctx);
 	if (ret)
 		return ERR_PTR(ret);
 

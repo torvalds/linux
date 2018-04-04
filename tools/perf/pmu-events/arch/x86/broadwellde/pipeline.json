@@ -3,31 +3,41 @@
         "EventCode": "0x00",
         "UMask": "0x1",
         "BriefDescription": "Instructions retired from execution.",
-        "Counter": "Fixed counter 1",
+        "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
         "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. \nNotes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. \nCounting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "Fixed counter 0"
+    },
+    {
+        "EventCode": "0x00",
+        "UMask": "0x2",
+        "BriefDescription": "Core cycles when the thread is not in halt state",
+        "Counter": "Fixed counter 1",
+        "EventName": "CPU_CLK_UNHALTED.THREAD",
+        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "Fixed counter 1"
     },
     {
         "EventCode": "0x00",
         "UMask": "0x2",
-        "BriefDescription": "Core cycles when the thread is not in halt state",
-        "Counter": "Fixed counter 2",
-        "EventName": "CPU_CLK_UNHALTED.THREAD",
-        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "Counter": "Fixed counter 1",
+        "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
+        "AnyThread": "1",
         "SampleAfterValue": "2000003",
-        "CounterHTOff": "Fixed counter 2"
+        "CounterHTOff": "Fixed counter 1"
     },
     {
         "EventCode": "0x00",
         "UMask": "0x3",
         "BriefDescription": "Reference cycles when the core is not in halt state.",
-        "Counter": "Fixed counter 3",
+        "Counter": "Fixed counter 2",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. \nNote: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  This event is clocked by base clock (100 Mhz) on Sandy Bridge. The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
         "SampleAfterValue": "2000003",
-        "CounterHTOff": "Fixed counter 3"
+        "CounterHTOff": "Fixed counter 2"
     },
     {
         "EventCode": "0x03",
@@ -60,22 +70,33 @@
     },
     {
         "EventCode": "0x0D",
-        "UMask": "0x8",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the thread",
+        "UMask": "0x3",
+        "BriefDescription": "Core cycles the allocator was stalled due to recovery from earlier clear event for this thread (e.g. misprediction or memory nuke)",
         "Counter": "0,1,2,3",
-        "EventName": "INT_MISC.RAT_STALL_CYCLES",
-        "PublicDescription": "This event counts the number of cycles during which Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the current thread. This also includes the cycles during which the Allocator is serving another thread.",
+        "EventName": "INT_MISC.RECOVERY_CYCLES",
+        "CounterMask": "1",
+        "PublicDescription": "Cycles checkpoints in Resource Allocation Table (RAT) are recovering from JEClear or machine clear.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x0D",
         "UMask": "0x3",
-        "BriefDescription": "Number of cycles waiting for the checkpoints in Resource Allocation Table (RAT) to be recovered after Nuke due to all other cases except JEClear (e.g. whenever a ucode assist is needed like SSE exception, memory disambiguation, etc...)",
+        "BriefDescription": "Core cycles the allocator was stalled due to recovery from earlier clear event for any thread running on the physical core (e.g. misprediction or memory nuke).",
         "Counter": "0,1,2,3",
-        "EventName": "INT_MISC.RECOVERY_CYCLES",
+        "EventName": "INT_MISC.RECOVERY_CYCLES_ANY",
+        "AnyThread": "1",
         "CounterMask": "1",
-        "PublicDescription": "Cycles checkpoints in Resource Allocation Table (RAT) are recovering from JEClear or machine clear.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x0D",
+        "UMask": "0x8",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the thread",
+        "Counter": "0,1,2,3",
+        "EventName": "INT_MISC.RAT_STALL_CYCLES",
+        "PublicDescription": "This event counts the number of cycles during which Resource Allocation Table (RAT) external stall is sent to Instruction Decode Queue (IDQ) for the current thread. This also includes the cycles during which the Allocator is serving another thread.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -88,6 +109,18 @@
         "PublicDescription": "This event counts the number of Uops issued by the Resource Allocation Table (RAT) to the reservation station (RS).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "Invert": "1",
+        "EventCode": "0x0E",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_ISSUED.STALL_CYCLES",
+        "CounterMask": "1",
+        "PublicDescription": "This event counts cycles during which the Resource Allocation Table (RAT) does not issue any Uops to the reservation station (RS) for the current thread.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
     },
     {
         "EventCode": "0x0E",
@@ -118,24 +151,32 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "Invert": "1",
-        "EventCode": "0x0E",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_ISSUED.STALL_CYCLES",
-        "CounterMask": "1",
-        "PublicDescription": "This event counts cycles during which the Resource Allocation Table (RAT) does not issue any Uops to the reservation station (RS) for the current thread.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
         "EventCode": "0x14",
         "UMask": "0x1",
         "BriefDescription": "Cycles when divider is busy executing divide operations",
         "Counter": "0,1,2,3",
         "EventName": "ARITH.FPU_DIV_ACTIVE",
         "PublicDescription": "This event counts the number of the divide operations executed. Uses edge-detect and a cmask value of 1 on ARITH.FPU_DIV_ACTIVE to get the number of the divide operations executed.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x3C",
+        "UMask": "0x0",
+        "BriefDescription": "Thread cycles when thread is not in halt state",
+        "Counter": "0,1,2,3",
+        "EventName": "CPU_CLK_UNHALTED.THREAD_P",
+        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x3C",
+        "UMask": "0x0",
+        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
+        "Counter": "0,1,2,3",
+        "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
+        "AnyThread": "1",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -150,6 +191,36 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0x3C",
+        "UMask": "0x1",
+        "BriefDescription": "Reference cycles when the at least one thread on the physical core is unhalted (counts at 100 MHz rate).",
+        "Counter": "0,1,2,3",
+        "EventName": "CPU_CLK_THREAD_UNHALTED.REF_XCLK_ANY",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x3C",
+        "UMask": "0x1",
+        "BriefDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate)",
+        "Counter": "0,1,2,3",
+        "EventName": "CPU_CLK_UNHALTED.REF_XCLK",
+        "PublicDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate).",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x3C",
+        "UMask": "0x1",
+        "BriefDescription": "Reference cycles when the at least one thread on the physical core is unhalted (counts at 100 MHz rate).",
+        "Counter": "0,1,2,3",
+        "EventName": "CPU_CLK_UNHALTED.REF_XCLK_ANY",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "EventCode": "0x3c",
         "UMask": "0x2",
         "BriefDescription": "Count XClk pulses when this thread is unhalted and the other thread is halted.",
@@ -157,6 +228,15 @@
         "EventName": "CPU_CLK_THREAD_UNHALTED.ONE_THREAD_ACTIVE",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0x3C",
+        "UMask": "0x2",
+        "BriefDescription": "Count XClk pulses when this thread is unhalted and the other thread is halted.",
+        "Counter": "0,1,2,3",
+        "EventName": "CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x4c",
@@ -222,6 +302,18 @@
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
         "PublicDescription": "This event counts cycles during which the reservation station (RS) is empty for the thread.\nNote: In ST-mode, not active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
         "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EdgeDetect": "1",
+        "Invert": "1",
+        "EventCode": "0x5E",
+        "UMask": "0x1",
+        "BriefDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to precisely locate Frontend Latency Bound issues.",
+        "Counter": "0,1,2,3",
+        "EventName": "RS_EVENTS.EMPTY_END",
+        "CounterMask": "1",
+        "SampleAfterValue": "200003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -406,6 +498,15 @@
     },
     {
         "EventCode": "0x89",
+        "UMask": "0xa0",
+        "BriefDescription": "Taken speculative and retired mispredicted indirect calls.",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_NEAR_CALL",
+        "SampleAfterValue": "200003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x89",
         "UMask": "0xc1",
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
         "Counter": "0,1,2,3",
@@ -435,11 +536,41 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "EventCode": "0xA0",
+        "UMask": "0x3",
+        "BriefDescription": "Micro-op dispatches cancelled due to insufficient SIMD physical register file read ports",
+        "Counter": "0,1,2,3",
+        "EventName": "UOP_DISPATCHES_CANCELLED.SIMD_PRF",
+        "PublicDescription": "This event counts the number of micro-operations cancelled after they were dispatched from the scheduler to the execution units when the total number of physical register read ports across all dispatch ports exceeds the read bandwidth of the physical register file.  The SIMD_PRF subevent applies to the following instructions: VDPPS, DPPS, VPCMPESTRI, PCMPESTRI, VPCMPESTRM, PCMPESTRM, VFMADD*, VFMADDSUB*, VFMSUB*, VMSUBADD*, VFNMADD*, VFNMSUB*.  See the Broadwell Optimization Guide for more information.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
         "EventCode": "0xA1",
         "UMask": "0x1",
         "BriefDescription": "Cycles per thread when uops are executed in port 0",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_0",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 0.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles per core when uops are exectuted in port 0.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_0_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles per thread when uops are executed in port 0",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_0",
         "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 0.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
@@ -456,10 +587,50 @@
     },
     {
         "EventCode": "0xA1",
+        "UMask": "0x2",
+        "BriefDescription": "Cycles per core when uops are exectuted in port 1.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_1_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x2",
+        "BriefDescription": "Cycles per thread when uops are executed in port 1",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_1",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 1.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
         "UMask": "0x4",
         "BriefDescription": "Cycles per thread when uops are executed in port 2",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_2",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 2.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x4",
+        "BriefDescription": "Cycles per core when uops are dispatched to port 2.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_2_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x4",
+        "BriefDescription": "Cycles per thread when uops are executed in port 2",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_2",
         "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 2.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
@@ -476,10 +647,50 @@
     },
     {
         "EventCode": "0xA1",
+        "UMask": "0x8",
+        "BriefDescription": "Cycles per core when uops are dispatched to port 3.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_3_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x8",
+        "BriefDescription": "Cycles per thread when uops are executed in port 3",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_3",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 3.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
         "UMask": "0x10",
         "BriefDescription": "Cycles per thread when uops are executed in port 4",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_4",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 4.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x10",
+        "BriefDescription": "Cycles per core when uops are exectuted in port 4.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_4_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x10",
+        "BriefDescription": "Cycles per thread when uops are executed in port 4",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_4",
         "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 4.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
@@ -496,6 +707,26 @@
     },
     {
         "EventCode": "0xA1",
+        "UMask": "0x20",
+        "BriefDescription": "Cycles per core when uops are exectuted in port 5.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_5_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x20",
+        "BriefDescription": "Cycles per thread when uops are executed in port 5",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_5",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 5.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
         "UMask": "0x40",
         "BriefDescription": "Cycles per thread when uops are executed in port 6",
         "Counter": "0,1,2,3",
@@ -506,10 +737,50 @@
     },
     {
         "EventCode": "0xA1",
+        "UMask": "0x40",
+        "BriefDescription": "Cycles per core when uops are exectuted in port 6.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_6_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x40",
+        "BriefDescription": "Cycles per thread when uops are executed in port 6",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_6",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 6.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
         "UMask": "0x80",
         "BriefDescription": "Cycles per thread when uops are executed in port 7",
         "Counter": "0,1,2,3",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_7",
+        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 7.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x80",
+        "BriefDescription": "Cycles per core when uops are dispatched to port 7.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_7_CORE",
+        "AnyThread": "1",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA1",
+        "UMask": "0x80",
+        "BriefDescription": "Cycles per thread when uops are executed in port 7",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_EXECUTED_PORT.PORT_7",
         "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 7.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
@@ -567,14 +838,13 @@
     },
     {
         "EventCode": "0xA3",
-        "UMask": "0x8",
-        "BriefDescription": "Cycles while L1 cache miss demand load is outstanding.",
-        "Counter": "2",
-        "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_PENDING",
-        "CounterMask": "8",
-        "PublicDescription": "Counts number of cycles the CPU has at least one pending  demand load request missing the L1 data cache.",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles while L2 cache miss demand load is outstanding.",
+        "Counter": "0,1,2,3",
+        "EventName": "CYCLE_ACTIVITY.CYCLES_L2_MISS",
+        "CounterMask": "1",
         "SampleAfterValue": "2000003",
-        "CounterHTOff": "2"
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xA3",
@@ -589,14 +859,34 @@
     },
     {
         "EventCode": "0xA3",
+        "UMask": "0x2",
+        "BriefDescription": "Cycles while memory subsystem has an outstanding load.",
+        "Counter": "0,1,2,3",
+        "EventName": "CYCLE_ACTIVITY.CYCLES_MEM_ANY",
+        "CounterMask": "2",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xA3",
         "UMask": "0x4",
-        "BriefDescription": "Total execution stalls",
+        "BriefDescription": "This event increments by 1 for every cycle where there was no execute for this thread.",
         "Counter": "0,1,2,3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_NO_EXECUTE",
         "CounterMask": "4",
         "PublicDescription": "Counts number of cycles nothing is executed on any execution port.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xA3",
+        "UMask": "0x4",
+        "BriefDescription": "Total execution stalls.",
+        "Counter": "0,1,2,3",
+        "EventName": "CYCLE_ACTIVITY.STALLS_TOTAL",
+        "CounterMask": "4",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xA3",
@@ -611,6 +901,16 @@
     },
     {
         "EventCode": "0xA3",
+        "UMask": "0x5",
+        "BriefDescription": "Execution stalls while L2 cache miss demand load is outstanding.",
+        "Counter": "0,1,2,3",
+        "EventName": "CYCLE_ACTIVITY.STALLS_L2_MISS",
+        "CounterMask": "5",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA3",
         "UMask": "0x6",
         "BriefDescription": "Execution stalls while memory subsystem has an outstanding load.",
         "Counter": "0,1,2,3",
@@ -619,6 +919,37 @@
         "PublicDescription": "Counts number of cycles nothing is executed on any execution port, while there was at least one pending demand load request.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xA3",
+        "UMask": "0x6",
+        "BriefDescription": "Execution stalls while memory subsystem has an outstanding load.",
+        "Counter": "0,1,2,3",
+        "EventName": "CYCLE_ACTIVITY.STALLS_MEM_ANY",
+        "CounterMask": "6",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA3",
+        "UMask": "0x8",
+        "BriefDescription": "Cycles while L1 cache miss demand load is outstanding.",
+        "Counter": "2",
+        "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_PENDING",
+        "CounterMask": "8",
+        "PublicDescription": "Counts number of cycles the CPU has at least one pending  demand load request missing the L1 data cache.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "2"
+    },
+    {
+        "EventCode": "0xA3",
+        "UMask": "0x8",
+        "BriefDescription": "Cycles while L1 cache miss demand load is outstanding.",
+        "Counter": "2",
+        "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_MISS",
+        "CounterMask": "8",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "2"
     },
     {
         "EventCode": "0xA3",
@@ -632,12 +963,41 @@
         "CounterHTOff": "2"
     },
     {
+        "EventCode": "0xA3",
+        "UMask": "0xc",
+        "BriefDescription": "Execution stalls while L1 cache miss demand load is outstanding.",
+        "Counter": "2",
+        "EventName": "CYCLE_ACTIVITY.STALLS_L1D_MISS",
+        "CounterMask": "12",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "2"
+    },
+    {
         "EventCode": "0xA8",
         "UMask": "0x1",
         "BriefDescription": "Number of Uops delivered by the LSD.",
         "Counter": "0,1,2,3",
         "EventName": "LSD.UOPS",
-        "PublicDescription": "Number of Uops delivered by the LSD. ",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA8",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles 4 Uops delivered by the LSD, but didn't come from the decoder.",
+        "Counter": "0,1,2,3",
+        "EventName": "LSD.CYCLES_4_UOPS",
+        "CounterMask": "4",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xA8",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles Uops delivered by the LSD, but didn't come from the decoder.",
+        "Counter": "0,1,2,3",
+        "EventName": "LSD.CYCLES_ACTIVE",
+        "CounterMask": "1",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -652,16 +1012,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "EventCode": "0xB1",
-        "UMask": "0x2",
-        "BriefDescription": "Number of uops executed on the core.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED.CORE",
-        "PublicDescription": "Number of uops executed from any thread.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "Invert": "1",
         "EventCode": "0xB1",
         "UMask": "0x1",
@@ -672,375 +1022,6 @@
         "PublicDescription": "This event counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xC0",
-        "UMask": "0x0",
-        "BriefDescription": "Number of instructions retired. General Counter   - architectural event",
-        "Counter": "0,1,2,3",
-        "EventName": "INST_RETIRED.ANY_P",
-        "Errata": "BDM61",
-        "PublicDescription": "This event counts the number of instructions (EOMs) retired. Counting covers macro-fused instructions individually (that is, increments by two).",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC0",
-        "UMask": "0x2",
-        "BriefDescription": "FP operations  retired. X87 FP operations that have no exceptions:",
-        "Counter": "0,1,2,3",
-        "EventName": "INST_RETIRED.X87",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts FP operations retired. For X87 FP operations that have no exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC0",
-        "UMask": "0x1",
-        "BriefDescription": "Precise instruction retired event with HW to reduce effect of PEBS shadow in IP distribution",
-        "PEBS": "2",
-        "Counter": "1",
-        "EventName": "INST_RETIRED.PREC_DIST",
-        "Errata": "BDM11, BDM55",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts instructions retired.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "1"
-    },
-    {
-        "EventCode": "0xC1",
-        "UMask": "0x40",
-        "BriefDescription": "Number of times any microcode assist is invoked by HW upon uop writeback.",
-        "Counter": "0,1,2,3",
-        "EventName": "OTHER_ASSISTS.ANY_WB_ASSIST",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC2",
-        "UMask": "0x1",
-        "BriefDescription": "Actually retired uops.",
-        "Data_LA": "1",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_RETIRED.ALL",
-        "PublicDescription": "This event counts all actually retired uops. Counting increments by two for micro-fused uops, and by one for macro-fused and other uops. Maximal increment value for one cycle is eight.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC2",
-        "UMask": "0x2",
-        "BriefDescription": "Retirement slots used.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_RETIRED.RETIRE_SLOTS",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts the number of retirement slots used.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "Invert": "1",
-        "EventCode": "0xC2",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles without actually retired uops.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_RETIRED.STALL_CYCLES",
-        "CounterMask": "1",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts cycles without actually retired uops.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "Invert": "1",
-        "EventCode": "0xC2",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles with less than 10 actually retired uops.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
-        "CounterMask": "10",
-        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to non PEBS uops retired event.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xC3",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles there was a Nuke. Account for both thread-specific and All Thread Nukes.",
-        "Counter": "0,1,2,3",
-        "EventName": "MACHINE_CLEARS.CYCLES",
-        "PublicDescription": "This event counts both thread-specific (TS) and all-thread (AT) nukes.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC3",
-        "UMask": "0x4",
-        "BriefDescription": "Self-modifying code (SMC) detected.",
-        "Counter": "0,1,2,3",
-        "EventName": "MACHINE_CLEARS.SMC",
-        "PublicDescription": "This event counts self-modifying code (SMC) detected, which causes a machine clear.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC3",
-        "UMask": "0x20",
-        "BriefDescription": "This event counts the number of executed Intel AVX masked load operations that refer to an illegal address range with the mask bits set to 0.",
-        "Counter": "0,1,2,3",
-        "EventName": "MACHINE_CLEARS.MASKMOV",
-        "PublicDescription": "Maskmov false fault - counts number of time ucode passes through Maskmov flow due to instruction's mask being 0 while the flow was completed without raising a fault.",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x1",
-        "BriefDescription": "Conditional branch instructions retired.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.CONDITIONAL",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts conditional branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x2",
-        "BriefDescription": "Direct and indirect near call instructions retired.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.NEAR_CALL",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts both direct and indirect near call instructions retired.",
-        "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x0",
-        "BriefDescription": "All (macro) branch instructions retired.",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
-        "PublicDescription": "This event counts all (macro) branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x8",
-        "BriefDescription": "Return instructions retired.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.NEAR_RETURN",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts return instructions retired.",
-        "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x10",
-        "BriefDescription": "Not taken branch instructions retired.",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.NOT_TAKEN",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts not taken branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x20",
-        "BriefDescription": "Taken branch instructions retired.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts taken branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x40",
-        "BriefDescription": "Far branch instructions retired.",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.FAR_BRANCH",
-        "Errata": "BDW98",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts far branch instructions retired.",
-        "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC4",
-        "UMask": "0x4",
-        "BriefDescription": "All (macro) branch instructions retired. (Precise Event - PEBS)",
-        "PEBS": "2",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_INST_RETIRED.ALL_BRANCHES_PEBS",
-        "Errata": "BDW98",
-        "PublicDescription": "This is a precise version of BR_INST_RETIRED.ALL_BRANCHES that counts all (macro) branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xC5",
-        "UMask": "0x1",
-        "BriefDescription": "Mispredicted conditional branch instructions retired.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_MISP_RETIRED.CONDITIONAL",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted conditional branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC5",
-        "UMask": "0x0",
-        "BriefDescription": "All mispredicted macro branch instructions retired.",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
-        "PublicDescription": "This event counts all mispredicted macro branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC5",
-        "UMask": "0x8",
-        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_MISP_RETIRED.RET",
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
-        "SampleAfterValue": "100007",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC5",
-        "UMask": "0x4",
-        "BriefDescription": "Mispredicted macro branch instructions retired. (Precise Event - PEBS)",
-        "PEBS": "2",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES_PEBS",
-        "PublicDescription": "This is a precise version of BR_MISP_RETIRED.ALL_BRANCHES that counts all mispredicted macro branch instructions retired.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xCC",
-        "UMask": "0x20",
-        "BriefDescription": "Count cases of saving new LBR",
-        "Counter": "0,1,2,3",
-        "EventName": "ROB_MISC_EVENTS.LBR_INSERTS",
-        "PublicDescription": "This event counts cases of saving new LBR records by hardware. This assumes proper enabling of LBRs and takes into account LBR filtering done by the LBR_SELECT register.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x3C",
-        "UMask": "0x0",
-        "BriefDescription": "Thread cycles when thread is not in halt state",
-        "Counter": "0,1,2,3",
-        "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x89",
-        "UMask": "0xa0",
-        "BriefDescription": "Taken speculative and retired mispredicted indirect calls.",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_NEAR_CALL",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 0.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_0_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x2",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 1.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_1_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x4",
-        "BriefDescription": "Cycles per core when uops are dispatched to port 2.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_2_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x8",
-        "BriefDescription": "Cycles per core when uops are dispatched to port 3.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_3_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x10",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 4.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_4_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x20",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 5.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_5_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x40",
-        "BriefDescription": "Cycles per core when uops are exectuted in port 6.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_6_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x80",
-        "BriefDescription": "Cycles per core when uops are dispatched to port 7.",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_7_CORE",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xC5",
-        "UMask": "0x20",
-        "BriefDescription": "number of near branch instructions retired that were mispredicted and taken.",
-        "PEBS": "1",
-        "Counter": "0,1,2,3",
-        "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
-        "PublicDescription": "Number of near branch instructions retired that were mispredicted and taken.",
-        "SampleAfterValue": "400009",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0xB1",
@@ -1083,255 +1064,12 @@
         "CounterHTOff": "0,1,2,3"
     },
     {
-        "EventCode": "0xe6",
-        "UMask": "0x1f",
-        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
-        "Counter": "0,1,2,3",
-        "EventName": "BACLEARS.ANY",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA3",
-        "UMask": "0x8",
-        "BriefDescription": "Cycles while L1 cache miss demand load is outstanding.",
-        "Counter": "2",
-        "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_MISS",
-        "CounterMask": "8",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "2"
-    },
-    {
-        "EventCode": "0xA3",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles while L2 cache miss demand load is outstanding.",
-        "Counter": "0,1,2,3",
-        "EventName": "CYCLE_ACTIVITY.CYCLES_L2_MISS",
-        "CounterMask": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA3",
+        "EventCode": "0xB1",
         "UMask": "0x2",
-        "BriefDescription": "Cycles while memory subsystem has an outstanding load.",
+        "BriefDescription": "Number of uops executed on the core.",
         "Counter": "0,1,2,3",
-        "EventName": "CYCLE_ACTIVITY.CYCLES_MEM_ANY",
-        "CounterMask": "2",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xA3",
-        "UMask": "0x4",
-        "BriefDescription": "Total execution stalls.",
-        "Counter": "0,1,2,3",
-        "EventName": "CYCLE_ACTIVITY.STALLS_TOTAL",
-        "CounterMask": "4",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA3",
-        "UMask": "0xc",
-        "BriefDescription": "Execution stalls while L1 cache miss demand load is outstanding.",
-        "Counter": "2",
-        "EventName": "CYCLE_ACTIVITY.STALLS_L1D_MISS",
-        "CounterMask": "12",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "2"
-    },
-    {
-        "EventCode": "0xA3",
-        "UMask": "0x5",
-        "BriefDescription": "Execution stalls while L2 cache miss demand load is outstanding.",
-        "Counter": "0,1,2,3",
-        "EventName": "CYCLE_ACTIVITY.STALLS_L2_MISS",
-        "CounterMask": "5",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA3",
-        "UMask": "0x6",
-        "BriefDescription": "Execution stalls while memory subsystem has an outstanding load.",
-        "Counter": "0,1,2,3",
-        "EventName": "CYCLE_ACTIVITY.STALLS_MEM_ANY",
-        "CounterMask": "6",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EdgeDetect": "1",
-        "EventCode": "0xC3",
-        "UMask": "0x1",
-        "BriefDescription": "Number of machine clears (nukes) of any type.",
-        "Counter": "0,1,2,3",
-        "EventName": "MACHINE_CLEARS.COUNT",
-        "CounterMask": "1",
-        "SampleAfterValue": "100003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA8",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles 4 Uops delivered by the LSD, but didn't come from the decoder.",
-        "Counter": "0,1,2,3",
-        "EventName": "LSD.CYCLES_4_UOPS",
-        "CounterMask": "4",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EdgeDetect": "1",
-        "Invert": "1",
-        "EventCode": "0x5E",
-        "UMask": "0x1",
-        "BriefDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to precisely locate Frontend Latency Bound issues.",
-        "Counter": "0,1,2,3",
-        "EventName": "RS_EVENTS.EMPTY_END",
-        "CounterMask": "1",
-        "SampleAfterValue": "200003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA8",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles Uops delivered by the LSD, but didn't come from the decoder.",
-        "Counter": "0,1,2,3",
-        "EventName": "LSD.CYCLES_ACTIVE",
-        "CounterMask": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x1",
-        "BriefDescription": "Cycles per thread when uops are executed in port 0",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_0",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 0.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x2",
-        "BriefDescription": "Cycles per thread when uops are executed in port 1",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_1",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 1.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x4",
-        "BriefDescription": "Cycles per thread when uops are executed in port 2",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_2",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 2.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x8",
-        "BriefDescription": "Cycles per thread when uops are executed in port 3",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_3",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 3.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x10",
-        "BriefDescription": "Cycles per thread when uops are executed in port 4",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_4",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 4.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x20",
-        "BriefDescription": "Cycles per thread when uops are executed in port 5",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_5",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 5.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x40",
-        "BriefDescription": "Cycles per thread when uops are executed in port 6",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_6",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 6.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA1",
-        "UMask": "0x80",
-        "BriefDescription": "Cycles per thread when uops are executed in port 7",
-        "Counter": "0,1,2,3",
-        "EventName": "UOPS_EXECUTED_PORT.PORT_7",
-        "PublicDescription": "This event counts, on the per-thread basis, cycles during which uops are dispatched from the Reservation Station (RS) to port 7.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0xA0",
-        "UMask": "0x3",
-        "BriefDescription": "Micro-op dispatches cancelled due to insufficient SIMD physical register file read ports",
-        "Counter": "0,1,2,3",
-        "EventName": "UOP_DISPATCHES_CANCELLED.SIMD_PRF",
-        "PublicDescription": "This event counts the number of micro-operations cancelled after they were dispatched from the scheduler to the execution units when the total number of physical register read ports across all dispatch ports exceeds the read bandwidth of the physical register file.  The SIMD_PRF subevent applies to the following instructions: VDPPS, DPPS, VPCMPESTRI, PCMPESTRI, VPCMPESTRM, PCMPESTRM, VFMADD*, VFMADDSUB*, VFMSUB*, VMSUBADD*, VFNMADD*, VFNMSUB*.  See the Broadwell Optimization Guide for more information.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0x00",
-        "UMask": "0x2",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
-        "Counter": "Fixed counter 2",
-        "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "Fixed counter 2"
-    },
-    {
-        "EventCode": "0x3C",
-        "UMask": "0x0",
-        "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
-        "Counter": "0,1,2,3",
-        "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x3C",
-        "UMask": "0x1",
-        "BriefDescription": "Reference cycles when the at least one thread on the physical core is unhalted (counts at 100 MHz rate).",
-        "Counter": "0,1,2,3",
-        "EventName": "CPU_CLK_THREAD_UNHALTED.REF_XCLK_ANY",
-        "AnyThread": "1",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x0D",
-        "UMask": "0x3",
-        "BriefDescription": "Core cycles the allocator was stalled due to recovery from earlier clear event for any thread running on the physical core (e.g. misprediction or memory nuke).",
-        "Counter": "0,1,2,3",
-        "EventName": "INT_MISC.RECOVERY_CYCLES_ANY",
-        "AnyThread": "1",
-        "CounterMask": "1",
+        "EventName": "UOPS_EXECUTED.CORE",
+        "PublicDescription": "Number of uops executed from any thread.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -1386,32 +1124,304 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "EventCode": "0x3C",
-        "UMask": "0x1",
-        "BriefDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate)",
+        "EventCode": "0xC0",
+        "UMask": "0x0",
+        "BriefDescription": "Number of instructions retired. General Counter   - architectural event",
         "Counter": "0,1,2,3",
-        "EventName": "CPU_CLK_UNHALTED.REF_XCLK",
-        "PublicDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate).",
+        "EventName": "INST_RETIRED.ANY_P",
+        "Errata": "BDM61",
+        "PublicDescription": "This event counts the number of instructions (EOMs) retired. Counting covers macro-fused instructions individually (that is, increments by two).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "EventCode": "0x3C",
+        "EventCode": "0xC0",
         "UMask": "0x1",
-        "BriefDescription": "Reference cycles when the at least one thread on the physical core is unhalted (counts at 100 MHz rate).",
-        "Counter": "0,1,2,3",
-        "EventName": "CPU_CLK_UNHALTED.REF_XCLK_ANY",
-        "AnyThread": "1",
+        "BriefDescription": "Precise instruction retired event with HW to reduce effect of PEBS shadow in IP distribution",
+        "PEBS": "2",
+        "Counter": "1",
+        "EventName": "INST_RETIRED.PREC_DIST",
+        "Errata": "BDM11, BDM55",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts instructions retired.",
         "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "CounterHTOff": "1"
     },
     {
-        "EventCode": "0x3C",
+        "EventCode": "0xC0",
         "UMask": "0x2",
-        "BriefDescription": "Count XClk pulses when this thread is unhalted and the other thread is halted.",
+        "BriefDescription": "FP operations  retired. X87 FP operations that have no exceptions:",
         "Counter": "0,1,2,3",
-        "EventName": "CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE",
+        "EventName": "INST_RETIRED.X87",
+        "PublicDescription": "This event counts FP operations retired. For X87 FP operations that have no exceptions counting also includes flows that have several X87, or flows that use X87 uops in the exception handling.",
         "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC1",
+        "UMask": "0x40",
+        "BriefDescription": "Number of times any microcode assist is invoked by HW upon uop writeback.",
+        "Counter": "0,1,2,3",
+        "EventName": "OTHER_ASSISTS.ANY_WB_ASSIST",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC2",
+        "UMask": "0x1",
+        "BriefDescription": "Actually retired uops. (Precise Event - PEBS)",
+        "Data_LA": "1",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_RETIRED.ALL",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts all actually retired uops. Counting increments by two for micro-fused uops, and by one for macro-fused and other uops. Maximal increment value for one cycle is eight.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "Invert": "1",
+        "EventCode": "0xC2",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles without actually retired uops.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_RETIRED.STALL_CYCLES",
+        "CounterMask": "1",
+        "PublicDescription": "This event counts cycles without actually retired uops.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "Invert": "1",
+        "EventCode": "0xC2",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles with less than 10 actually retired uops.",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
+        "CounterMask": "10",
+        "PublicDescription": "Number of cycles using always true condition (uops_ret < 16) applied to non PEBS uops retired event.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC2",
+        "UMask": "0x2",
+        "BriefDescription": "Retirement slots used. (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "UOPS_RETIRED.RETIRE_SLOTS",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts the number of retirement slots used.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC3",
+        "UMask": "0x1",
+        "BriefDescription": "Cycles there was a Nuke. Account for both thread-specific and All Thread Nukes.",
+        "Counter": "0,1,2,3",
+        "EventName": "MACHINE_CLEARS.CYCLES",
+        "PublicDescription": "This event counts both thread-specific (TS) and all-thread (AT) nukes.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EdgeDetect": "1",
+        "EventCode": "0xC3",
+        "UMask": "0x1",
+        "BriefDescription": "Number of machine clears (nukes) of any type.",
+        "Counter": "0,1,2,3",
+        "EventName": "MACHINE_CLEARS.COUNT",
+        "CounterMask": "1",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC3",
+        "UMask": "0x4",
+        "BriefDescription": "Self-modifying code (SMC) detected.",
+        "Counter": "0,1,2,3",
+        "EventName": "MACHINE_CLEARS.SMC",
+        "PublicDescription": "This event counts self-modifying code (SMC) detected, which causes a machine clear.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC3",
+        "UMask": "0x20",
+        "BriefDescription": "This event counts the number of executed Intel AVX masked load operations that refer to an illegal address range with the mask bits set to 0.",
+        "Counter": "0,1,2,3",
+        "EventName": "MACHINE_CLEARS.MASKMOV",
+        "PublicDescription": "Maskmov false fault - counts number of time ucode passes through Maskmov flow due to instruction's mask being 0 while the flow was completed without raising a fault.",
+        "SampleAfterValue": "100003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x0",
+        "BriefDescription": "All (macro) branch instructions retired.",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
+        "PublicDescription": "This event counts all (macro) branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x1",
+        "BriefDescription": "Conditional branch instructions retired. (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.CONDITIONAL",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts conditional branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x2",
+        "BriefDescription": "Direct and indirect near call instructions retired. (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.NEAR_CALL",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts both direct and indirect near call instructions retired.",
+        "SampleAfterValue": "100007",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x2",
+        "BriefDescription": "Direct and indirect macro near call instructions retired (captured in ring 3). (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.NEAR_CALL_R3",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts both direct and indirect macro near call instructions retired (captured in ring 3).",
+        "SampleAfterValue": "100007",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x4",
+        "BriefDescription": "All (macro) branch instructions retired. (Precise Event - PEBS)",
+        "PEBS": "2",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.ALL_BRANCHES_PEBS",
+        "Errata": "BDW98",
+        "PublicDescription": "This is a precise version of BR_INST_RETIRED.ALL_BRANCHES that counts all (macro) branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x8",
+        "BriefDescription": "Return instructions retired. (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.NEAR_RETURN",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts return instructions retired.",
+        "SampleAfterValue": "100007",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x10",
+        "BriefDescription": "Not taken branch instructions retired.",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.NOT_TAKEN",
+        "PublicDescription": "This event counts not taken branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x20",
+        "BriefDescription": "Taken branch instructions retired. (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts taken branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC4",
+        "UMask": "0x40",
+        "BriefDescription": "Far branch instructions retired.",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_INST_RETIRED.FAR_BRANCH",
+        "Errata": "BDW98",
+        "PublicDescription": "This event counts far branch instructions retired.",
+        "SampleAfterValue": "100007",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC5",
+        "UMask": "0x0",
+        "BriefDescription": "All mispredicted macro branch instructions retired.",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
+        "PublicDescription": "This event counts all mispredicted macro branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC5",
+        "UMask": "0x1",
+        "BriefDescription": "Mispredicted conditional branch instructions retired. (Precise Event - PEBS)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_MISP_RETIRED.CONDITIONAL",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts mispredicted conditional branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC5",
+        "UMask": "0x4",
+        "BriefDescription": "Mispredicted macro branch instructions retired. (Precise Event - PEBS)",
+        "PEBS": "2",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES_PEBS",
+        "PublicDescription": "This is a precise version of BR_MISP_RETIRED.ALL_BRANCHES that counts all mispredicted macro branch instructions retired.",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3"
+    },
+    {
+        "EventCode": "0xC5",
+        "UMask": "0x8",
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired.(Precise Event)",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_MISP_RETIRED.RET",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts mispredicted return instructions retired.",
+        "SampleAfterValue": "100007",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xC5",
+        "UMask": "0x20",
+        "BriefDescription": "number of near branch instructions retired that were mispredicted and taken. (Precise Event - PEBS).",
+        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
+        "PublicDescription": "Number of near branch instructions retired that were mispredicted and taken. (Precise Event - PEBS).",
+        "SampleAfterValue": "400009",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCC",
+        "UMask": "0x20",
+        "BriefDescription": "Count cases of saving new LBR",
+        "Counter": "0,1,2,3",
+        "EventName": "ROB_MISC_EVENTS.LBR_INSERTS",
+        "PublicDescription": "This event counts cases of saving new LBR records by hardware. This assumes proper enabling of LBRs and takes into account LBR filtering done by the LBR_SELECT register.",
+        "SampleAfterValue": "2000003",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xe6",
+        "UMask": "0x1f",
+        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
+        "Counter": "0,1,2,3",
+        "EventName": "BACLEARS.ANY",
+        "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }
 ]

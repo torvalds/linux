@@ -1001,7 +1001,7 @@ static void aggr_slice_amsdu(struct aggr_info *p_aggr,
 
 	while (amsdu_len > mac_hdr_len) {
 		hdr = (struct ethhdr *) framep;
-		payload_8023_len = ntohs(hdr->h_proto);
+		payload_8023_len = be16_to_cpu(hdr->h_proto);
 
 		if (payload_8023_len < MIN_MSDU_SUBFRAME_PAYLOAD_LEN ||
 		    payload_8023_len > MAX_MSDU_SUBFRAME_PAYLOAD_LEN) {
@@ -1620,10 +1620,10 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	ath6kl_deliver_frames_to_nw_stack(vif->ndev, skb);
 }
 
-static void aggr_timeout(unsigned long arg)
+static void aggr_timeout(struct timer_list *t)
 {
 	u8 i, j;
-	struct aggr_info_conn *aggr_conn = (struct aggr_info_conn *) arg;
+	struct aggr_info_conn *aggr_conn = from_timer(aggr_conn, t, timer);
 	struct rxtid *rxtid;
 	struct rxtid_stats *stats;
 
@@ -1753,9 +1753,7 @@ void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,
 
 	aggr_conn->aggr_sz = AGGR_SZ_DEFAULT;
 	aggr_conn->dev = vif->ndev;
-	init_timer(&aggr_conn->timer);
-	aggr_conn->timer.function = aggr_timeout;
-	aggr_conn->timer.data = (unsigned long) aggr_conn;
+	timer_setup(&aggr_conn->timer, aggr_timeout, 0);
 	aggr_conn->aggr_info = aggr_info;
 
 	aggr_conn->timer_scheduled = false;

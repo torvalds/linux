@@ -76,7 +76,7 @@ struct rockchip_iodomain_supply {
 struct rockchip_iodomain {
 	struct device *dev;
 	struct regmap *grf;
-	struct rockchip_iodomain_soc_data *soc_data;
+	const struct rockchip_iodomain_soc_data *soc_data;
 	struct rockchip_iodomain_supply supplies[MAX_SUPPLIES];
 };
 
@@ -382,43 +382,43 @@ static const struct rockchip_iodomain_soc_data soc_data_rv1108_pmu = {
 static const struct of_device_id rockchip_iodomain_match[] = {
 	{
 		.compatible = "rockchip,rk3188-io-voltage-domain",
-		.data = (void *)&soc_data_rk3188
+		.data = &soc_data_rk3188
 	},
 	{
 		.compatible = "rockchip,rk3228-io-voltage-domain",
-		.data = (void *)&soc_data_rk3228
+		.data = &soc_data_rk3228
 	},
 	{
 		.compatible = "rockchip,rk3288-io-voltage-domain",
-		.data = (void *)&soc_data_rk3288
+		.data = &soc_data_rk3288
 	},
 	{
 		.compatible = "rockchip,rk3328-io-voltage-domain",
-		.data = (void *)&soc_data_rk3328
+		.data = &soc_data_rk3328
 	},
 	{
 		.compatible = "rockchip,rk3368-io-voltage-domain",
-		.data = (void *)&soc_data_rk3368
+		.data = &soc_data_rk3368
 	},
 	{
 		.compatible = "rockchip,rk3368-pmu-io-voltage-domain",
-		.data = (void *)&soc_data_rk3368_pmu
+		.data = &soc_data_rk3368_pmu
 	},
 	{
 		.compatible = "rockchip,rk3399-io-voltage-domain",
-		.data = (void *)&soc_data_rk3399
+		.data = &soc_data_rk3399
 	},
 	{
 		.compatible = "rockchip,rk3399-pmu-io-voltage-domain",
-		.data = (void *)&soc_data_rk3399_pmu
+		.data = &soc_data_rk3399_pmu
 	},
 	{
 		.compatible = "rockchip,rv1108-io-voltage-domain",
-		.data = (void *)&soc_data_rv1108
+		.data = &soc_data_rv1108
 	},
 	{
 		.compatible = "rockchip,rv1108-pmu-io-voltage-domain",
-		.data = (void *)&soc_data_rv1108_pmu
+		.data = &soc_data_rv1108_pmu
 	},
 	{ /* sentinel */ },
 };
@@ -443,7 +443,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, iod);
 
 	match = of_match_node(rockchip_iodomain_match, np);
-	iod->soc_data = (struct rockchip_iodomain_soc_data *)match->data;
+	iod->soc_data = match->data;
 
 	parent = pdev->dev.parent;
 	if (parent && parent->of_node) {

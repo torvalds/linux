@@ -56,7 +56,16 @@ struct mlx5e_neigh_update_table {
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
 	struct mlx5e_neigh_update_table neigh_update;
+	struct net_device      *netdev;
+	struct mlx5_flow_handle *vport_rx_rule;
+	struct list_head       vport_sqs_list;
 };
+
+static inline
+struct mlx5e_rep_priv *mlx5e_rep_to_rep_priv(struct mlx5_eswitch_rep *rep)
+{
+	return (struct mlx5e_rep_priv *)rep->rep_if[REP_ETH].priv;
+}
 
 struct mlx5e_neigh {
 	struct net_device *dev;
@@ -122,6 +131,11 @@ struct mlx5e_encap_entry {
 	u8 flags;
 	char *encap_header;
 	int encap_size;
+};
+
+struct mlx5e_rep_sq {
+	struct mlx5_flow_handle	*send_to_vport_rule;
+	struct list_head	 list;
 };
 
 void *mlx5e_alloc_nic_rep_priv(struct mlx5_core_dev *mdev);

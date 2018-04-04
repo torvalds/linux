@@ -145,3 +145,27 @@ PHY Support
 
 .. kernel-doc:: drivers/net/phy/mdio_bus.c
    :internal:
+
+PHYLINK
+-------
+
+  PHYLINK interfaces traditional network drivers with PHYLIB, fixed-links,
+  and SFF modules (eg, hot-pluggable SFP) that may contain PHYs.  PHYLINK
+  provides management of the link state and link modes.
+
+.. kernel-doc:: include/linux/phylink.h
+   :internal:
+
+.. kernel-doc:: drivers/net/phy/phylink.c
+
+SFP support
+-----------
+
+.. kernel-doc:: drivers/net/phy/sfp-bus.c
+   :internal:
+
+.. kernel-doc:: include/linux/sfp.h
+   :internal:
+
+.. kernel-doc:: drivers/net/phy/sfp-bus.c
+   :export:

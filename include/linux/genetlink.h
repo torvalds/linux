@@ -31,8 +31,7 @@ extern wait_queue_head_t genl_sk_destructing_waitq;
  * @p: The pointer to read, prior to dereferencing
  *
  * Return the value of the specified RCU-protected pointer, but omit
- * both the smp_read_barrier_depends() and the ACCESS_ONCE(), because
- * caller holds genl mutex.
+ * the READ_ONCE(), because caller holds genl mutex.
  */
 #define genl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_genl_is_held())

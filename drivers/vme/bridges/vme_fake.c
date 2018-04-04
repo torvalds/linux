@@ -409,7 +409,7 @@ static void fake_lm_check(struct fake_driver *bridge, unsigned long long addr,
 				/* Each location monitor covers 8 bytes */
 				if (((lm_base + (8 * i)) <= addr) &&
 				    ((lm_base + (8 * i) + 8) > addr)) {
-					if (bridge->lm_callback[i] != NULL)
+					if (bridge->lm_callback[i])
 						bridge->lm_callback[i](
 							bridge->lm_data[i]);
 				}
@@ -866,7 +866,7 @@ static int fake_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
 
 	/* If we already have a callback attached, we can't move it! */
 	for (i = 0; i < lm->monitors; i++) {
-		if (bridge->lm_callback[i] != NULL) {
+		if (bridge->lm_callback[i]) {
 			mutex_unlock(&lm->mtx);
 			pr_err("Location monitor callback attached, can't reset\n");
 			return -EBUSY;
@@ -940,7 +940,7 @@ static int fake_lm_attach(struct vme_lm_resource *lm, int monitor,
 	}
 
 	/* Check that a callback isn't already attached */
-	if (bridge->lm_callback[monitor] != NULL) {
+	if (bridge->lm_callback[monitor]) {
 		mutex_unlock(&lm->mtx);
 		pr_err("Existing callback attached\n");
 		return -EBUSY;
@@ -978,7 +978,7 @@ static int fake_lm_detach(struct vme_lm_resource *lm, int monitor)
 	/* If all location monitors disabled, disable global Location Monitor */
 	tmp = 0;
 	for (i = 0; i < lm->monitors; i++) {
-		if (bridge->lm_callback[i] != NULL)
+		if (bridge->lm_callback[i])
 			tmp = 1;
 	}
 
@@ -1003,7 +1003,7 @@ static void *fake_alloc_consistent(struct device *parent, size_t size,
 {
 	void *alloc = kmalloc(size, GFP_KERNEL);
 
-	if (alloc != NULL)
+	if (alloc)
 		*dma = fake_ptr_to_pci(alloc);
 
 	return alloc;
@@ -1039,7 +1039,7 @@ static int fake_crcsr_init(struct vme_bridge *fake_bridge)
 	/* Allocate mem for CR/CSR image */
 	bridge->crcsr_kernel = kzalloc(VME_CRCSR_BUF_SIZE, GFP_KERNEL);
 	bridge->crcsr_bus = fake_ptr_to_pci(bridge->crcsr_kernel);
-	if (bridge->crcsr_kernel == NULL)
+	if (!bridge->crcsr_kernel)
 		return -ENOMEM;
 
 	vstat = fake_slot_get(fake_bridge);
@@ -1075,14 +1075,14 @@ static int __init fake_init(void)
 	/* If we want to support more than one bridge at some point, we need to
 	 * dynamically allocate this so we get one per device.
 	 */
-	fake_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
-	if (fake_bridge == NULL) {
+	fake_bridge = kzalloc(sizeof(*fake_bridge), GFP_KERNEL);
+	if (!fake_bridge) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
 
-	fake_device = kzalloc(sizeof(struct fake_driver), GFP_KERNEL);
-	if (fake_device == NULL) {
+	fake_device = kzalloc(sizeof(*fake_device), GFP_KERNEL);
+	if (!fake_device) {
 		retval = -ENOMEM;
 		goto err_driver;
 	}
@@ -1104,9 +1104,8 @@ static int __init fake_init(void)
 	/* Add master windows to list */
 	INIT_LIST_HEAD(&fake_bridge->master_resources);
 	for (i = 0; i < FAKE_MAX_MASTER; i++) {
-		master_image = kmalloc(sizeof(struct vme_master_resource),
-				GFP_KERNEL);
-		if (master_image == NULL) {
+		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
+		if (!master_image) {
 			retval = -ENOMEM;
 			goto err_master;
 		}
@@ -1131,9 +1130,8 @@ static int __init fake_init(void)
 	/* Add slave windows to list */
 	INIT_LIST_HEAD(&fake_bridge->slave_resources);
 	for (i = 0; i < FAKE_MAX_SLAVE; i++) {
-		slave_image = kmalloc(sizeof(struct vme_slave_resource),
-				GFP_KERNEL);
-		if (slave_image == NULL) {
+		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
+		if (!slave_image) {
 			retval = -ENOMEM;
 			goto err_slave;
 		}
@@ -1154,9 +1152,8 @@ static int __init fake_init(void)
 
 	/* Add location monitor to list */
 	INIT_LIST_HEAD(&fake_bridge->lm_resources);
-	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
-	if (lm == NULL) {
-		pr_err("Failed to allocate memory for location monitor resource structure\n");
+	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
+	if (!lm) {
 		retval = -ENOMEM;
 		goto err_lm;
 	}

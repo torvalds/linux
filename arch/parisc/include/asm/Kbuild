@@ -1,5 +1,4 @@
 generic-y += barrier.h
-generic-y += clkdev.h
 generic-y += current.h
 generic-y += device.h
 generic-y += div64.h

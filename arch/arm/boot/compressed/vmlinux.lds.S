@@ -44,12 +44,23 @@ SECTIONS
     *(.glue_7t)
     *(.glue_7)
   }
+  .table : ALIGN(4) {
+    _table_start = .;
+    LONG(ZIMAGE_MAGIC(2))
+    LONG(ZIMAGE_MAGIC(0x5a534c4b))
+    LONG(ZIMAGE_MAGIC(__piggy_size_addr - _start))
+    LONG(ZIMAGE_MAGIC(_kernel_bss_size))
+    LONG(0)
+    _table_end = .;
+  }
   .rodata : {
     *(.rodata)
     *(.rodata.*)
+    *(.data.rel.ro)
   }
   .piggydata : {
     *(.piggydata)
+    __piggy_size_addr = . - 4;
   }
 
   . = ALIGN(4);
@@ -91,12 +102,19 @@ SECTIONS
    * this symbol allows further debug in the near future.
    */
   .image_end (NOLOAD) : {
+    /*
+     * EFI requires that the image is aligned to 512 bytes, and appended
+     * DTB requires that we know where the end of the image is.  Ensure
+     * that both are satisfied by ensuring that there are no additional
+     * sections emitted into the decompressor image.
+     */
     _edata_real = .;
   }
 
   _magic_sig = ZIMAGE_MAGIC(0x016f2818);
   _magic_start = ZIMAGE_MAGIC(_start);
   _magic_end = ZIMAGE_MAGIC(_edata);
+  _magic_table = ZIMAGE_MAGIC(_table_start - _start);
 
   . = BSS_START;
   __bss_start = .;
@@ -117,3 +135,4 @@ SECTIONS
   .stab.indexstr 0	: { *(.stab.indexstr) }
   .comment 0		: { *(.comment) }
 }
+ASSERT(_edata_real == _edata, "error: zImage file size is incorrect");

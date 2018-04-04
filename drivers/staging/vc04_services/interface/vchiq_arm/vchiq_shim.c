@@ -41,14 +41,14 @@
 
 #define vchiq_status_to_vchi(status) ((int32_t)status)
 
-typedef struct {
+struct shim_service {
 	VCHIQ_SERVICE_HANDLE_T handle;
 
 	VCHIU_QUEUE_T queue;
 
 	VCHI_CALLBACK_T callback;
 	void *callback_param;
-} SHIM_SERVICE_T;
+};
 
 /* ----------------------------------------------------------------------
  * return pointer to the mphi message driver function table
@@ -84,7 +84,6 @@ VCHI_CONNECTION_T *vchi_create_connection(
  *             void **data,
  *             uint32_t *msg_size,
 
-
  *             VCHI_FLAGS_T flags
  *
  * Description: Routine to return a pointer to the current message (to allow in
@@ -99,7 +98,7 @@ int32_t vchi_msg_peek(VCHI_SERVICE_HANDLE_T handle,
 	uint32_t *msg_size,
 	VCHI_FLAGS_T flags)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_HEADER_T *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
@@ -131,7 +130,7 @@ EXPORT_SYMBOL(vchi_msg_peek);
  ***********************************************************/
 int32_t vchi_msg_remove(VCHI_SERVICE_HANDLE_T handle)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_HEADER_T *header;
 
 	header = vchiu_queue_pop(&service->queue);
@@ -163,7 +162,7 @@ int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 	void *context,
 	uint32_t data_size)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_STATUS_T status;
 
 	while (1) {
@@ -262,7 +261,7 @@ int32_t vchi_bulk_queue_receive(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags,
 	void *bulk_handle)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_BULK_MODE_T mode;
 	VCHIQ_STATUS_T status;
 
@@ -322,7 +321,7 @@ int32_t vchi_bulk_queue_transmit(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags,
 	void *bulk_handle)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_BULK_MODE_T mode;
 	VCHIQ_STATUS_T status;
 
@@ -384,7 +383,7 @@ int32_t vchi_msg_dequeue(VCHI_SERVICE_HANDLE_T handle,
 	uint32_t *actual_msg_size,
 	VCHI_FLAGS_T flags)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_HEADER_T *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
@@ -458,7 +457,7 @@ int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags,
 	VCHI_HELD_MSG_T *message_handle)
 {
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_HEADER_T *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
@@ -541,7 +540,6 @@ int32_t vchi_connect(VCHI_CONNECTION_T **connections,
 }
 EXPORT_SYMBOL(vchi_connect);
 
-
 /***********************************************************
  * Name: vchi_disconnect
  *
@@ -561,7 +559,6 @@ int32_t vchi_disconnect(VCHI_INSTANCE_T instance_handle)
 }
 EXPORT_SYMBOL(vchi_disconnect);
 
-
 /***********************************************************
  * Name: vchi_service_open
  * Name: vchi_service_create
@@ -579,8 +576,8 @@ EXPORT_SYMBOL(vchi_disconnect);
 static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 	VCHIQ_HEADER_T *header, VCHIQ_SERVICE_HANDLE_T handle, void *bulk_user)
 {
-	SHIM_SERVICE_T *service =
-		(SHIM_SERVICE_T *)VCHIQ_GET_SERVICE_USERDATA(handle);
+	struct shim_service *service =
+		(struct shim_service *)VCHIQ_GET_SERVICE_USERDATA(handle);
 
 	if (!service->callback)
 		goto release;
@@ -637,10 +634,10 @@ done:
 	return VCHIQ_SUCCESS;
 }
 
-static SHIM_SERVICE_T *service_alloc(VCHIQ_INSTANCE_T instance,
+static struct shim_service *service_alloc(VCHIQ_INSTANCE_T instance,
 	SERVICE_CREATION_T *setup)
 {
-	SHIM_SERVICE_T *service = kzalloc(sizeof(SHIM_SERVICE_T), GFP_KERNEL);
+	struct shim_service *service = kzalloc(sizeof(struct shim_service), GFP_KERNEL);
 
 	(void)instance;
 
@@ -657,7 +654,7 @@ static SHIM_SERVICE_T *service_alloc(VCHIQ_INSTANCE_T instance,
 	return service;
 }
 
-static void service_free(SHIM_SERVICE_T *service)
+static void service_free(struct shim_service *service)
 {
 	if (service) {
 		vchiu_queue_delete(&service->queue);
@@ -670,7 +667,7 @@ int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
 	VCHI_SERVICE_HANDLE_T *handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
-	SHIM_SERVICE_T *service = service_alloc(instance, setup);
+	struct shim_service *service = service_alloc(instance, setup);
 
 	*handle = (VCHI_SERVICE_HANDLE_T)service;
 
@@ -703,7 +700,7 @@ int32_t vchi_service_create(VCHI_INSTANCE_T instance_handle,
 	VCHI_SERVICE_HANDLE_T *handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
-	SHIM_SERVICE_T *service = service_alloc(instance, setup);
+	struct shim_service *service = service_alloc(instance, setup);
 
 	*handle = (VCHI_SERVICE_HANDLE_T)service;
 
@@ -733,7 +730,7 @@ EXPORT_SYMBOL(vchi_service_create);
 int32_t vchi_service_close(const VCHI_SERVICE_HANDLE_T handle)
 {
 	int32_t ret = -1;
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 
 	if (service) {
 		VCHIQ_STATUS_T status = vchiq_close_service(service->handle);
@@ -751,7 +748,7 @@ EXPORT_SYMBOL(vchi_service_close);
 int32_t vchi_service_destroy(const VCHI_SERVICE_HANDLE_T handle)
 {
 	int32_t ret = -1;
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 
 	if (service) {
 		VCHIQ_STATUS_T status = vchiq_remove_service(service->handle);
@@ -772,7 +769,7 @@ int32_t vchi_service_set_option(const VCHI_SERVICE_HANDLE_T handle,
 				int value)
 {
 	int32_t ret = -1;
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_SERVICE_OPTION_T vchiq_option;
 
 	switch (option) {
@@ -801,10 +798,9 @@ EXPORT_SYMBOL(vchi_service_set_option);
 int32_t vchi_get_peer_version(const VCHI_SERVICE_HANDLE_T handle, short *peer_version)
 {
 	int32_t ret = -1;
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 
-	if (service)
-	{
+	if (service) {
 		VCHIQ_STATUS_T status;
 
 		status = vchiq_get_peer_version(service->handle, peer_version);
@@ -828,7 +824,7 @@ int32_t vchi_service_use(const VCHI_SERVICE_HANDLE_T handle)
 {
 	int32_t ret = -1;
 
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	if (service)
 		ret = vchiq_status_to_vchi(vchiq_use_service(service->handle));
 	return ret;
@@ -849,7 +845,7 @@ int32_t vchi_service_release(const VCHI_SERVICE_HANDLE_T handle)
 {
 	int32_t ret = -1;
 
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	struct shim_service *service = (struct shim_service *)handle;
 	if (service)
 		ret = vchiq_status_to_vchi(
 			vchiq_release_service(service->handle));

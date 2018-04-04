@@ -473,7 +473,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 #ifndef NTFS_RW
 	/* For read-only compiled driver, enforce read-only flag. */
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 #else /* NTFS_RW */
 	/*
 	 * For the read-write compiled driver, if we are remounting read-write,
@@ -487,7 +487,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 	 * When remounting read-only, mark the volume clean if no volume errors
 	 * have occurred.
 	 */
-	if (sb_rdonly(sb) && !(*flags & MS_RDONLY)) {
+	if (sb_rdonly(sb) && !(*flags & SB_RDONLY)) {
 		static const char *es = ".  Cannot remount read-write.";
 
 		/* Remounting read-write. */
@@ -548,7 +548,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			NVolSetErrors(vol);
 			return -EROFS;
 		}
-	} else if (!sb_rdonly(sb) && (*flags & MS_RDONLY)) {
+	} else if (!sb_rdonly(sb) && (*flags & SB_RDONLY)) {
 		/* Remounting read-only. */
 		if (!NVolErrors(vol)) {
 			if (ntfs_clear_volume_flags(vol, VOLUME_IS_DIRTY))
@@ -1799,7 +1799,7 @@ static bool load_system_files(ntfs_volume *vol)
 						es3);
 				goto iput_mirr_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s",
 					!vol->mftmirr_ino ? es1 : es2, es3);
 		} else
@@ -1937,7 +1937,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_vol_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1974,7 +1974,7 @@ get_ctx_vol_failed:
 				}
 				goto iput_logfile_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2019,7 +2019,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_root_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2042,7 +2042,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		/*
 		 * Do not set NVolErrors() because ntfs_remount() might manage
 		 * to set the dirty flag in which case all would be well.
@@ -2055,7 +2055,7 @@ get_ctx_vol_failed:
 	 * If (still) a read-write mount, set the NT4 compatibility flag on
 	 * newer NTFS version volumes.
 	 */
-	if (!(sb->s_flags & MS_RDONLY) && (vol->major_ver > 1) &&
+	if (!(sb->s_flags & SB_RDONLY) && (vol->major_ver > 1) &&
 			ntfs_set_volume_flags(vol, VOLUME_MOUNTED_ON_NT4)) {
 		static const char *es1 = "Failed to set NT4 compatibility flag";
 		static const char *es2 = ".  Run chkdsk.";
@@ -2069,7 +2069,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif
@@ -2087,7 +2087,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2128,7 +2128,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_quota_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2150,7 +2150,7 @@ get_ctx_vol_failed:
 			goto iput_quota_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 	/*
@@ -2171,7 +2171,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_usnjrnl_err_out;
 			}
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2194,7 +2194,7 @@ get_ctx_vol_failed:
 			goto iput_usnjrnl_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2728,7 +2728,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	lockdep_off();
 	ntfs_debug("Entering.");
 #ifndef NTFS_RW
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 #endif /* ! NTFS_RW */
 	/* Allocate a new ntfs_volume and place it in sb->s_fs_info. */
 	sb->s_fs_info = kmalloc(sizeof(ntfs_volume), GFP_NOFS);

@@ -10,13 +10,13 @@ ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx1-clock.h
 for the full list of i.MX1 clock IDs.
 
 Examples:
-	clks: ccm@0021b000 {
+	clks: ccm@21b000 {
 		#clock-cells = <1>;
 		compatible = "fsl,imx1-ccm";
 		reg = <0x0021b000 0x1000>;
 	};
 
-	pwm: pwm@00208000 {
+	pwm: pwm@208000 {
 		#pwm-cells = <2>;
 		compatible = "fsl,imx1-pwm";
 		reg = <0x00208000 0x1000>;

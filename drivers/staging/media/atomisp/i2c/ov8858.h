@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -113,7 +109,6 @@
 
 #define OV_SUBDEV_PREFIX			"ov"
 #define OV_ID_DEFAULT				0x0000
-#define	OV8858_NAME				"ov8858"
 #define OV8858_CHIP_ID				0x8858
 
 #define OV8858_LONG_EXPO			0x3500

@@ -31,8 +31,15 @@ struct arch_timer_context {
 	/* Timer IRQ */
 	struct kvm_irq_level		irq;
 
-	/* Active IRQ state caching */
-	bool				active_cleared_last;
+	/*
+	 * We have multiple paths which can save/restore the timer state
+	 * onto the hardware, so we need some way of keeping track of
+	 * where the latest state is.
+	 *
+	 * loaded == true:  State is loaded on the hardware registers.
+	 * loaded == false: State is stored in memory.
+	 */
+	bool			loaded;
 
 	/* Virtual offset */
 	u64			cntvoff;
@@ -43,23 +50,22 @@ struct arch_timer_cpu {
 	struct arch_timer_context	ptimer;
 
 	/* Background timer used when the guest is not running */
-	struct hrtimer			timer;
+	struct hrtimer			bg_timer;
 
 	/* Work queued with the above timer expires */
 	struct work_struct		expired;
 
-	/* Background timer active */
-	bool				armed;
+	/* Physical timer emulation */
+	struct hrtimer			phys_timer;
 
 	/* Is the timer enabled */
 	bool			enabled;
 };
 
-int kvm_timer_hyp_init(void);
+int kvm_timer_hyp_init(bool);
 int kvm_timer_enable(struct kvm_vcpu *vcpu);
 int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu);
-void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu);
 bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu);
 void kvm_timer_update_run(struct kvm_vcpu *vcpu);
@@ -72,16 +78,21 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);
 int kvm_arm_timer_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);
 int kvm_arm_timer_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);
 
-bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx);
+bool kvm_timer_is_pending(struct kvm_vcpu *vcpu);
+
 void kvm_timer_schedule(struct kvm_vcpu *vcpu);
 void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
 
 u64 kvm_phys_timer_read(void);
 
+void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu);
 
 void kvm_timer_init_vhe(void);
 
+bool kvm_arch_timer_get_input_level(int vintid);
+
 #define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
 #define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
+
 #endif

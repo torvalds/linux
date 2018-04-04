@@ -6041,7 +6041,7 @@ static int sif_probe(struct gspca_dev *gspca_dev)
 	msleep(150);
 	checkword = ((i2c_read(gspca_dev, 0x00) & 0x0f) << 4)
 			| ((i2c_read(gspca_dev, 0x01) & 0xf0) >> 4);
-	PDEBUG(D_PROBE, "probe sif 0x%04x", checkword);
+	gspca_dbg(gspca_dev, D_PROBE, "probe sif 0x%04x\n", checkword);
 	if (checkword == 0x0007) {
 		send_unknown(gspca_dev, SENSOR_PAS106);
 		return 0x0f;			/* PAS106 */
@@ -6129,7 +6129,7 @@ ov_check:
 	i2c_write(gspca_dev, 0x12, 0x80, 0x00);	/* sensor reset */
 	retword = i2c_read(gspca_dev, 0x0a) << 8;
 	retword |= i2c_read(gspca_dev, 0x0b);
-	PDEBUG(D_PROBE, "probe 2wr ov vga 0x%04x", retword);
+	gspca_dbg(gspca_dev, D_PROBE, "probe 2wr ov vga 0x%04x\n", retword);
 	switch (retword) {
 	case 0x7631:				/* OV7630C */
 		reg_w(gspca_dev, 0x06, 0x0010);
@@ -6186,7 +6186,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x02, 0x0010);
 	retword = reg_r(gspca_dev, 0x000b) << 8;
 	retword |= reg_r(gspca_dev, 0x000a);
-	PDEBUG(D_PROBE, "probe 3wr vga 1 0x%04x", retword);
+	gspca_dbg(gspca_dev, D_PROBE, "probe 3wr vga 1 0x%04x\n", retword);
 	reg_r(gspca_dev, 0x0010);
 	if ((retword & 0xff00) == 0x6400)
 		return 0x02;		/* TAS5130C */
@@ -6206,7 +6206,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x01, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00);
 	if (retword != 0) {
-		PDEBUG(D_PROBE, "probe 3wr vga type 0a");
+		gspca_dbg(gspca_dev, D_PROBE, "probe 3wr vga type 0a\n");
 		return 0x0a;			/* PB0330 */
 	}
 
@@ -6220,7 +6220,8 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x01, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00);
 	if (retword != 0) {
-		PDEBUG(D_PROBE, "probe 3wr vga type %02x", retword);
+		gspca_dbg(gspca_dev, D_PROBE, "probe 3wr vga type %02x\n",
+			  retword);
 		if (retword == 0x0011)			/* gc0303 */
 			return 0x0303;
 		if (retword == 0x0029)			/* gc0305 */
@@ -6251,12 +6252,13 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x05, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00) << 8;	/* ID 0 */
 	retword |= i2c_read(gspca_dev, 0x01);		/* ID 1 */
-	PDEBUG(D_PROBE, "probe 3wr vga 2 0x%04x", retword);
+	gspca_dbg(gspca_dev, D_PROBE, "probe 3wr vga 2 0x%04x\n", retword);
 	if (retword == 0x2030) {
 		u8 retbyte;
 
 		retbyte = i2c_read(gspca_dev, 0x02);	/* revision number */
-		PDEBUG(D_PROBE, "sensor PO2030 rev 0x%02x", retbyte);
+		gspca_dbg(gspca_dev, D_PROBE, "sensor PO2030 rev 0x%02x\n",
+			  retbyte);
 
 		send_unknown(gspca_dev, SENSOR_PO2030);
 		return retword;
@@ -6272,7 +6274,8 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xd3, 0x008b);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0) {
-		PDEBUG(D_PROBE, "probe 3wr vga type 0a ? ret: %04x", retword);
+		gspca_dbg(gspca_dev, D_PROBE, "probe 3wr vga type 0a ? ret: %04x\n",
+			  retword);
 		return 0x16;			/* adcm2700 (6100/6200) */
 	}
 	return -1;
@@ -6490,19 +6493,20 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	sensor = zcxx_probeSensor(gspca_dev);
 	if (sensor >= 0)
-		PDEBUG(D_PROBE, "probe sensor -> %04x", sensor);
+		gspca_dbg(gspca_dev, D_PROBE, "probe sensor -> %04x\n", sensor);
 	if ((unsigned) force_sensor < SENSOR_MAX) {
 		sd->sensor = force_sensor;
-		PDEBUG(D_PROBE, "sensor forced to %d", force_sensor);
+		gspca_dbg(gspca_dev, D_PROBE, "sensor forced to %d\n",
+			  force_sensor);
 	} else {
 		switch (sensor) {
 		case -1:
 			switch (sd->sensor) {
 			case SENSOR_MC501CB:
-				PDEBUG(D_PROBE, "Sensor MC501CB");
+				gspca_dbg(gspca_dev, D_PROBE, "Sensor MC501CB\n");
 				break;
 			case SENSOR_GC0303:
-				PDEBUG(D_PROBE, "Sensor GC0303");
+				gspca_dbg(gspca_dev, D_PROBE, "Sensor GC0303\n");
 				break;
 			default:
 				pr_warn("Unknown sensor - set to TAS5130C\n");
@@ -6512,100 +6516,101 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		case 0:
 			/* check the sensor type */
 			sensor = i2c_read(gspca_dev, 0x00);
-			PDEBUG(D_PROBE, "Sensor hv7131 type %d", sensor);
+			gspca_dbg(gspca_dev, D_PROBE, "Sensor hv7131 type %d\n",
+				  sensor);
 			switch (sensor) {
 			case 0:			/* hv7131b */
 			case 1:			/* hv7131e */
-				PDEBUG(D_PROBE, "Find Sensor HV7131B");
+				gspca_dbg(gspca_dev, D_PROBE, "Find Sensor HV7131B\n");
 				sd->sensor = SENSOR_HV7131B;
 				break;
 			default:
 /*			case 2:			 * hv7131r */
-				PDEBUG(D_PROBE, "Find Sensor HV7131R");
+				gspca_dbg(gspca_dev, D_PROBE, "Find Sensor HV7131R\n");
 				sd->sensor = SENSOR_HV7131R;
 				break;
 			}
 			break;
 		case 0x02:
-			PDEBUG(D_PROBE, "Sensor TAS5130C");
+			gspca_dbg(gspca_dev, D_PROBE, "Sensor TAS5130C\n");
 			sd->sensor = SENSOR_TAS5130C;
 			break;
 		case 0x04:
-			PDEBUG(D_PROBE, "Find Sensor CS2102");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor CS2102\n");
 			sd->sensor = SENSOR_CS2102;
 			break;
 		case 0x08:
-			PDEBUG(D_PROBE, "Find Sensor HDCS2020");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor HDCS2020\n");
 			sd->sensor = SENSOR_HDCS2020;
 			break;
 		case 0x0a:
-			PDEBUG(D_PROBE,
-				"Find Sensor PB0330. Chip revision %x",
-				sd->chip_revision);
+			gspca_dbg(gspca_dev, D_PROBE,
+				  "Find Sensor PB0330. Chip revision %x\n",
+				  sd->chip_revision);
 			sd->sensor = SENSOR_PB0330;
 			break;
 		case 0x0c:
-			PDEBUG(D_PROBE, "Find Sensor ICM105A");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor ICM105A\n");
 			sd->sensor = SENSOR_ICM105A;
 			break;
 		case 0x0e:
-			PDEBUG(D_PROBE, "Find Sensor PAS202B");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor PAS202B\n");
 			sd->sensor = SENSOR_PAS202B;
 			break;
 		case 0x0f:
-			PDEBUG(D_PROBE, "Find Sensor PAS106");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor PAS106\n");
 			sd->sensor = SENSOR_PAS106;
 			break;
 		case 0x10:
 		case 0x12:
-			PDEBUG(D_PROBE, "Find Sensor TAS5130C");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor TAS5130C\n");
 			sd->sensor = SENSOR_TAS5130C;
 			break;
 		case 0x11:
-			PDEBUG(D_PROBE, "Find Sensor HV7131R");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor HV7131R\n");
 			sd->sensor = SENSOR_HV7131R;
 			break;
 		case 0x13:
 		case 0x15:
-			PDEBUG(D_PROBE,
-				"Sensor MT9V111. Chip revision %04x",
-				sd->chip_revision);
+			gspca_dbg(gspca_dev, D_PROBE,
+				  "Sensor MT9V111. Chip revision %04x\n",
+				  sd->chip_revision);
 			sd->sensor = sd->bridge == BRIDGE_ZC301
 					? SENSOR_MT9V111_1
 					: SENSOR_MT9V111_3;
 			break;
 		case 0x14:
-			PDEBUG(D_PROBE,
-				"Find Sensor CS2102K?. Chip revision %x",
-				sd->chip_revision);
+			gspca_dbg(gspca_dev, D_PROBE,
+				  "Find Sensor CS2102K?. Chip revision %x\n",
+				  sd->chip_revision);
 			sd->sensor = SENSOR_CS2102K;
 			break;
 		case 0x16:
-			PDEBUG(D_PROBE, "Find Sensor ADCM2700");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor ADCM2700\n");
 			sd->sensor = SENSOR_ADCM2700;
 			break;
 		case 0x29:
-			PDEBUG(D_PROBE, "Find Sensor GC0305");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor GC0305\n");
 			sd->sensor = SENSOR_GC0305;
 			break;
 		case 0x0303:
-			PDEBUG(D_PROBE, "Sensor GC0303");
+			gspca_dbg(gspca_dev, D_PROBE, "Sensor GC0303\n");
 			sd->sensor =  SENSOR_GC0303;
 			break;
 		case 0x2030:
-			PDEBUG(D_PROBE, "Find Sensor PO2030");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor PO2030\n");
 			sd->sensor = SENSOR_PO2030;
 			break;
 		case 0x7620:
-			PDEBUG(D_PROBE, "Find Sensor OV7620");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor OV7620\n");
 			sd->sensor = SENSOR_OV7620;
 			break;
 		case 0x7631:
-			PDEBUG(D_PROBE, "Find Sensor OV7630C");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor OV7630C\n");
 			sd->sensor = SENSOR_OV7630C;
 			break;
 		case 0x7648:
-			PDEBUG(D_PROBE, "Find Sensor OV7648");
+			gspca_dbg(gspca_dev, D_PROBE, "Find Sensor OV7648\n");
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:

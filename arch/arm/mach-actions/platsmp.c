@@ -71,7 +71,7 @@ static int s500_wakeup_secondary(unsigned int cpu)
 	/* wait for CPUx to run to WFE instruction */
 	udelay(200);
 
-	writel(virt_to_phys(owl_secondary_startup),
+	writel(__pa_symbol(secondary_startup),
 	       timer_base_addr + OWL_CPU1_ADDR + (cpu - 1) * 4);
 	writel(OWL_CPUx_FLAG_BOOT,
 	       timer_base_addr + OWL_CPU1_FLAG + (cpu - 1) * 4);

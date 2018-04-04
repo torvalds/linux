@@ -21,7 +21,7 @@ Required properties:
    a size of 8.
 - #clock-cells : from common clock binding; shall be set to 1
 
-divider_clk: core-clock@0064 {
+divider_clk: core-clock@64 {
 	compatible = "marvell,dove-divider-clock";
 	reg = <0x0064 0x8>;
 	#clock-cells = <1>;

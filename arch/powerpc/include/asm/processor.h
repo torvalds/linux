@@ -309,6 +309,11 @@ struct thread_struct {
 	struct thread_vr_state ckvr_state; /* Checkpointed VR state */
 	unsigned long	ckvrsave; /* Checkpointed VRSAVE */
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+#ifdef CONFIG_PPC_MEM_KEYS
+	unsigned long	amr;
+	unsigned long	iamr;
+	unsigned long	uamor;
+#endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	void*		kvm_shadow_vcpu; /* KVM internal data */
 #endif /* CONFIG_KVM_BOOK3S_32_HANDLER */
@@ -329,6 +334,7 @@ struct thread_struct {
 	 */
 	int		dscr_inherit;
 	unsigned long	ppr;	/* used to save/restore SMT priority */
+	unsigned long	tidr;
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	unsigned long	tar;
@@ -340,7 +346,9 @@ struct thread_struct {
 	unsigned long	sier;
 	unsigned long	mmcr2;
 	unsigned 	mmcr0;
+
 	unsigned 	used_ebb;
+	unsigned int	used_vas;
 #endif
 };
 

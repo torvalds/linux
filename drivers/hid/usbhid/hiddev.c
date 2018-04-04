@@ -422,15 +422,15 @@ static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t coun
  * "poll" file op
  * No kernel lock - fine
  */
-static unsigned int hiddev_poll(struct file *file, poll_table *wait)
+static __poll_t hiddev_poll(struct file *file, poll_table *wait)
 {
 	struct hiddev_list *list = file->private_data;
 
 	poll_wait(file, &list->hiddev->wait, wait);
 	if (list->head != list->tail)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	if (!list->hiddev->exist)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 

@@ -1328,7 +1328,7 @@ static int adv7180_probe(struct i2c_client *client,
 	state->input = 0;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	ret = adv7180_init_controls(state);
 	if (ret)
@@ -1366,11 +1366,9 @@ err_media_entity_cleanup:
 err_free_ctrl:
 	adv7180_exit_controls(state);
 err_unregister_vpp_client:
-	if (state->chip_info->flags & ADV7180_FLAG_I2P)
-		i2c_unregister_device(state->vpp_client);
+	i2c_unregister_device(state->vpp_client);
 err_unregister_csi_client:
-	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2)
-		i2c_unregister_device(state->csi_client);
+	i2c_unregister_device(state->csi_client);
 	mutex_destroy(&state->mutex);
 	return ret;
 }
@@ -1388,10 +1386,8 @@ static int adv7180_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	adv7180_exit_controls(state);
 
-	if (state->chip_info->flags & ADV7180_FLAG_I2P)
-		i2c_unregister_device(state->vpp_client);
-	if (state->chip_info->flags & ADV7180_FLAG_MIPI_CSI2)
-		i2c_unregister_device(state->csi_client);
+	i2c_unregister_device(state->vpp_client);
+	i2c_unregister_device(state->csi_client);
 
 	adv7180_set_power_pin(state, false);
 

@@ -117,7 +117,7 @@ static int kfd_open(struct inode *inode, struct file *filep)
 		return -EPERM;
 	}
 
-	process = kfd_create_process(current);
+	process = kfd_create_process(filep);
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
@@ -206,6 +206,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	q_properties->ctx_save_restore_area_address =
 			args->ctx_save_restore_address;
 	q_properties->ctx_save_restore_area_size = args->ctx_save_restore_size;
+	q_properties->ctl_stack_size = args->ctl_stack_size;
 	if (args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE ||
 		args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE_AQL)
 		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
@@ -282,8 +283,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties,
-				0, q_properties.type, &queue_id);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id);
 	if (err != 0)
 		goto err_create_queue;
 
@@ -432,6 +432,38 @@ out:
 	return err;
 }
 
+static int kfd_ioctl_set_trap_handler(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_set_trap_handler_args *args = data;
+	struct kfd_dev *dev;
+	int err = 0;
+	struct kfd_process_device *pdd;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		err = -ESRCH;
+		goto out;
+	}
+
+	if (dev->dqm->ops.set_trap_handler(dev->dqm,
+					&pdd->qpd,
+					args->tba_addr,
+					args->tma_addr))
+		err = -EINVAL;
+
+out:
+	mutex_unlock(&p->mutex);
+
+	return err;
+}
+
 static int kfd_ioctl_dbg_register(struct file *filep,
 				struct kfd_process *p, void *data)
 {
@@ -451,8 +483,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		return -EINVAL;
 	}
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
 	mutex_lock(&p->mutex);
+	mutex_lock(kfd_get_dbgmgr_mutex());
 
 	/*
 	 * make sure that we have pdd, if this the first queue created for
@@ -480,8 +512,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	}
 
 out:
-	mutex_unlock(&p->mutex);
 	mutex_unlock(kfd_get_dbgmgr_mutex());
+	mutex_unlock(&p->mutex);
 
 	return status;
 }
@@ -494,7 +526,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 	long status;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (!dev)
+	if (!dev || !dev->dbgmgr)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -836,15 +868,12 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 				void *data)
 {
 	struct kfd_ioctl_wait_events_args *args = data;
-	enum kfd_event_wait_result wait_result;
 	int err;
 
 	err = kfd_wait_on_events(p, args->num_events,
 			(void __user *)args->events_ptr,
 			(args->wait_for_all != 0),
-			args->timeout, &wait_result);
-
-	args->wait_result = wait_result;
+			args->timeout, &args->wait_result);
 
 	return err;
 }
@@ -983,7 +1012,10 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 			kfd_ioctl_set_scratch_backing_va, 0),
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_TILE_CONFIG,
-			kfd_ioctl_get_tile_config, 0)
+			kfd_ioctl_get_tile_config, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_TRAP_HANDLER,
+			kfd_ioctl_set_trap_handler, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
@@ -1092,6 +1124,10 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 			KFD_MMAP_EVENTS_MASK) {
 		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_EVENTS_MASK;
 		return kfd_event_mmap(process, vma);
+	} else if ((vma->vm_pgoff & KFD_MMAP_RESERVED_MEM_MASK) ==
+			KFD_MMAP_RESERVED_MEM_MASK) {
+		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_RESERVED_MEM_MASK;
+		return kfd_reserved_mem_mmap(process, vma);
 	}
 
 	return -EFAULT;

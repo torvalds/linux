@@ -53,13 +53,7 @@ static int xfs_dir2_node_addname_int(xfs_da_args_t *args,
  * Check internal consistency of a leafn block.
  */
 #ifdef DEBUG
-#define	xfs_dir3_leaf_check(dp, bp) \
-do { \
-	if (!xfs_dir3_leafn_check((dp), (bp))) \
-		ASSERT(0); \
-} while (0);
-
-static bool
+static xfs_failaddr_t
 xfs_dir3_leafn_check(
 	struct xfs_inode	*dp,
 	struct xfs_buf		*bp)
@@ -72,17 +66,32 @@ xfs_dir3_leafn_check(
 	if (leafhdr.magic == XFS_DIR3_LEAFN_MAGIC) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
 		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 	} else if (leafhdr.magic != XFS_DIR2_LEAFN_MAGIC)
-		return false;
+		return __this_address;
 
 	return xfs_dir3_leaf_check_int(dp->i_mount, dp, &leafhdr, leaf);
+}
+
+static inline void
+xfs_dir3_leaf_check(
+	struct xfs_inode	*dp,
+	struct xfs_buf		*bp)
+{
+	xfs_failaddr_t		fa;
+
+	fa = xfs_dir3_leafn_check(dp, bp);
+	if (!fa)
+		return;
+	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, dp->i_mount,
+			bp->b_addr, __FILE__, __LINE__, fa);
+	ASSERT(0);
 }
 #else
 #define	xfs_dir3_leaf_check(dp, bp)
 #endif
 
-static bool
+static xfs_failaddr_t
 xfs_dir3_free_verify(
 	struct xfs_buf		*bp)
 {
@@ -93,21 +102,21 @@ xfs_dir3_free_verify(
 		struct xfs_dir3_blk_hdr *hdr3 = bp->b_addr;
 
 		if (hdr3->magic != cpu_to_be32(XFS_DIR3_FREE_MAGIC))
-			return false;
+			return __this_address;
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
+			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
-			return false;
+			return __this_address;
 	} else {
 		if (hdr->magic != cpu_to_be32(XFS_DIR2_FREE_MAGIC))
-			return false;
+			return __this_address;
 	}
 
 	/* XXX: should bounds check the xfs_dir3_icfree_hdr here */
 
-	return true;
+	return NULL;
 }
 
 static void
@@ -115,15 +124,16 @@ xfs_dir3_free_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !xfs_buf_verify_cksum(bp, XFS_DIR3_FREE_CRC_OFF))
-		xfs_buf_ioerror(bp, -EFSBADCRC);
-	else if (!xfs_dir3_free_verify(bp))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-
-	if (bp->b_error)
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+	else {
+		fa = xfs_dir3_free_verify(bp);
+		if (fa)
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+	}
 }
 
 static void
@@ -131,12 +141,13 @@ xfs_dir3_free_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	if (!xfs_dir3_free_verify(bp)) {
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+	fa = xfs_dir3_free_verify(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 
@@ -153,10 +164,11 @@ const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
 	.name = "xfs_dir3_free",
 	.verify_read = xfs_dir3_free_read_verify,
 	.verify_write = xfs_dir3_free_write_verify,
+	.verify_struct = xfs_dir3_free_verify,
 };
 
 /* Everything ok in the free block header? */
-static bool
+static xfs_failaddr_t
 xfs_dir3_free_header_check(
 	struct xfs_inode	*dp,
 	xfs_dablk_t		fbno,
@@ -174,22 +186,22 @@ xfs_dir3_free_header_check(
 		struct xfs_dir3_free_hdr *hdr3 = bp->b_addr;
 
 		if (be32_to_cpu(hdr3->firstdb) != firstdb)
-			return false;
+			return __this_address;
 		if (be32_to_cpu(hdr3->nvalid) > maxbests)
-			return false;
+			return __this_address;
 		if (be32_to_cpu(hdr3->nvalid) < be32_to_cpu(hdr3->nused))
-			return false;
+			return __this_address;
 	} else {
 		struct xfs_dir2_free_hdr *hdr = bp->b_addr;
 
 		if (be32_to_cpu(hdr->firstdb) != firstdb)
-			return false;
+			return __this_address;
 		if (be32_to_cpu(hdr->nvalid) > maxbests)
-			return false;
+			return __this_address;
 		if (be32_to_cpu(hdr->nvalid) < be32_to_cpu(hdr->nused))
-			return false;
+			return __this_address;
 	}
-	return true;
+	return NULL;
 }
 
 static int
@@ -200,6 +212,7 @@ __xfs_dir3_free_read(
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp)
 {
+	xfs_failaddr_t		fa;
 	int			err;
 
 	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
@@ -208,9 +221,9 @@ __xfs_dir3_free_read(
 		return err;
 
 	/* Check things that we can't do in the verifier. */
-	if (!xfs_dir3_free_header_check(dp, fbno, *bpp)) {
-		xfs_buf_ioerror(*bpp, -EFSCORRUPTED);
-		xfs_verifier_error(*bpp);
+	fa = xfs_dir3_free_header_check(dp, fbno, *bpp);
+	if (fa) {
+		xfs_verifier_error(*bpp, -EFSCORRUPTED, fa);
 		xfs_trans_brelse(tp, *bpp);
 		return -EFSCORRUPTED;
 	}
@@ -1906,7 +1919,7 @@ xfs_dir2_node_addname_int(
 					(unsigned long long)ifbno, lastfbno);
 				if (fblk) {
 					xfs_alert(mp,
-				" fblk 0x%p blkno %llu index %d magic 0x%x",
+				" fblk "PTR_FMT" blkno %llu index %d magic 0x%x",
 						fblk,
 						(unsigned long long)fblk->blkno,
 						fblk->index,

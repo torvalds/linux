@@ -134,12 +134,21 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_puts(p, "  Machine check polls\n");
 #endif
 #if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
-	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors)) {
+	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, system_vectors)) {
 		seq_printf(p, "%*s: ", prec, "HYP");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
 				   irq_stats(j)->irq_hv_callback_count);
 		seq_puts(p, "  Hypervisor callback interrupts\n");
+	}
+#endif
+#if IS_ENABLED(CONFIG_HYPERV)
+	if (test_bit(HYPERV_REENLIGHTENMENT_VECTOR, system_vectors)) {
+		seq_printf(p, "%*s: ", prec, "HRE");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ",
+				   irq_stats(j)->irq_hv_reenlightenment_count);
+		seq_puts(p, "  Hyper-V reenlightenment interrupts\n");
 	}
 #endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
@@ -218,18 +227,6 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	struct irq_desc * desc;
 	/* high bit used in ret_from_ code  */
 	unsigned vector = ~regs->orig_ax;
-
-	/*
-	 * NB: Unlike exception entries, IRQ entries do not reliably
-	 * handle context tracking in the low-level entry code.  This is
-	 * because syscall entries execute briefly with IRQs on before
-	 * updating context tracking state, so we can take an IRQ from
-	 * kernel mode with CONTEXT_USER.  The low-level entry code only
-	 * updates the context if we came from user mode, so we won't
-	 * switch to CONTEXT_KERNEL.  We'll fix that once the syscall
-	 * code is cleaned up enough that we can cleanly defer enabling
-	 * IRQs.
-	 */
 
 	entering_irq();
 
@@ -333,105 +330,6 @@ __visible void smp_kvm_posted_intr_nested_ipi(struct pt_regs *regs)
 
 
 #ifdef CONFIG_HOTPLUG_CPU
-
-/* These two declarations are only used in check_irq_vectors_for_cpu_disable()
- * below, which is protected by stop_machine().  Putting them on the stack
- * results in a stack frame overflow.  Dynamically allocating could result in a
- * failure so declare these two cpumasks as global.
- */
-static struct cpumask affinity_new, online_new;
-
-/*
- * This cpu is going to be removed and its vectors migrated to the remaining
- * online cpus.  Check to see if there are enough vectors in the remaining cpus.
- * This function is protected by stop_machine().
- */
-int check_irq_vectors_for_cpu_disable(void)
-{
-	unsigned int this_cpu, vector, this_count, count;
-	struct irq_desc *desc;
-	struct irq_data *data;
-	int cpu;
-
-	this_cpu = smp_processor_id();
-	cpumask_copy(&online_new, cpu_online_mask);
-	cpumask_clear_cpu(this_cpu, &online_new);
-
-	this_count = 0;
-	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		desc = __this_cpu_read(vector_irq[vector]);
-		if (IS_ERR_OR_NULL(desc))
-			continue;
-		/*
-		 * Protect against concurrent action removal, affinity
-		 * changes etc.
-		 */
-		raw_spin_lock(&desc->lock);
-		data = irq_desc_get_irq_data(desc);
-		cpumask_copy(&affinity_new,
-			     irq_data_get_affinity_mask(data));
-		cpumask_clear_cpu(this_cpu, &affinity_new);
-
-		/* Do not count inactive or per-cpu irqs. */
-		if (!irq_desc_has_action(desc) || irqd_is_per_cpu(data)) {
-			raw_spin_unlock(&desc->lock);
-			continue;
-		}
-
-		raw_spin_unlock(&desc->lock);
-		/*
-		 * A single irq may be mapped to multiple cpu's
-		 * vector_irq[] (for example IOAPIC cluster mode).  In
-		 * this case we have two possibilities:
-		 *
-		 * 1) the resulting affinity mask is empty; that is
-		 * this the down'd cpu is the last cpu in the irq's
-		 * affinity mask, or
-		 *
-		 * 2) the resulting affinity mask is no longer a
-		 * subset of the online cpus but the affinity mask is
-		 * not zero; that is the down'd cpu is the last online
-		 * cpu in a user set affinity mask.
-		 */
-		if (cpumask_empty(&affinity_new) ||
-		    !cpumask_subset(&affinity_new, &online_new))
-			this_count++;
-	}
-	/* No need to check any further. */
-	if (!this_count)
-		return 0;
-
-	count = 0;
-	for_each_online_cpu(cpu) {
-		if (cpu == this_cpu)
-			continue;
-		/*
-		 * We scan from FIRST_EXTERNAL_VECTOR to first system
-		 * vector. If the vector is marked in the used vectors
-		 * bitmap or an irq is assigned to it, we don't count
-		 * it as available.
-		 *
-		 * As this is an inaccurate snapshot anyway, we can do
-		 * this w/o holding vector_lock.
-		 */
-		for (vector = FIRST_EXTERNAL_VECTOR;
-		     vector < FIRST_SYSTEM_VECTOR; vector++) {
-			if (!test_bit(vector, used_vectors) &&
-			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector])) {
-				if (++count == this_count)
-					return 0;
-			}
-		}
-	}
-
-	if (count < this_count) {
-		pr_warn("CPU %d disable failed: CPU has %u vectors assigned and there are only %u available.\n",
-			this_cpu, this_count, count);
-		return -ERANGE;
-	}
-	return 0;
-}
-
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
 {

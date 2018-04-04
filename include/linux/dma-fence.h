@@ -128,7 +128,7 @@ struct dma_fence_cb {
  * implementation know that there is another driver waiting on
  * the signal (ie. hw->sw case).
  *
- * This function can be called called from atomic context, but not
+ * This function can be called from atomic context, but not
  * from irq context, so normal spinlocks can be used.
  *
  * A return value of false indicates the fence already passed,
@@ -242,14 +242,17 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  * The caller is required to hold the RCU read lock.
  */
 static inline struct dma_fence *
-dma_fence_get_rcu_safe(struct dma_fence * __rcu *fencep)
+dma_fence_get_rcu_safe(struct dma_fence __rcu **fencep)
 {
 	do {
 		struct dma_fence *fence;
 
 		fence = rcu_dereference(*fencep);
-		if (!fence || !dma_fence_get_rcu(fence))
+		if (!fence)
 			return NULL;
+
+		if (!dma_fence_get_rcu(fence))
+			continue;
 
 		/* The atomic_inc_not_zero() inside dma_fence_get_rcu()
 		 * provides a full memory barrier upon success (such as now).

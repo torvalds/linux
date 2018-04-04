@@ -362,7 +362,6 @@ error_io:
 	ret = -EIO;
 error:
 	mutex_unlock(&f->sem);
-	jffs2_do_clear_inode(c, f);
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
@@ -409,10 +408,10 @@ int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
 		mutex_unlock(&c->alloc_sem);
 	}
 
-	if (!(*flags & MS_RDONLY))
+	if (!(*flags & SB_RDONLY))
 		jffs2_start_garbage_collect_thread(c);
 
-	*flags |= MS_NOATIME;
+	*flags |= SB_NOATIME;
 	return 0;
 }
 

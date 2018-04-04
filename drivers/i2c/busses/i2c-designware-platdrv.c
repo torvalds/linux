@@ -42,6 +42,7 @@
 #include <linux/reset.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 
 #include "i2c-designware-core.h"
 
@@ -201,29 +202,6 @@ static void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 			 DW_IC_CON_RESTART_EN | DW_IC_CON_STOP_DET_IFADDRESSED;
 
 	dev->mode = DW_IC_SLAVE;
-
-	switch (dev->clk_freq) {
-	case 100000:
-		dev->slave_cfg |= DW_IC_CON_SPEED_STD;
-		break;
-	case 3400000:
-		dev->slave_cfg |= DW_IC_CON_SPEED_HIGH;
-		break;
-	default:
-		dev->slave_cfg |= DW_IC_CON_SPEED_FAST;
-	}
-}
-
-static int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
-{
-	if (IS_ERR(i_dev->clk))
-		return PTR_ERR(i_dev->clk);
-
-	if (prepare)
-		return clk_prepare_enable(i_dev->clk);
-
-	clk_disable_unprepare(i_dev->clk);
-	return 0;
 }
 
 static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev, int id)
@@ -249,6 +227,14 @@ static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev, int id)
 	}
 }
 
+static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
+{
+	pm_runtime_disable(dev->dev);
+
+	if (dev->pm_disabled)
+		pm_runtime_put_noidle(dev->dev);
+}
+
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -257,7 +243,9 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	u32 acpi_speed, ht = 0;
 	struct resource *mem;
 	int i, irq, ret;
-	const int supported_speeds[] = { 0, 100000, 400000, 1000000, 3400000 };
+	static const int supported_speeds[] = {
+		0, 100000, 400000, 1000000, 3400000
+	};
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -345,7 +333,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		i2c_dw_configure_master(dev);
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!i2c_dw_plat_prepare_clk(dev, true)) {
+	if (!i2c_dw_prepare_clk(dev, true)) {
 		dev->get_clk_rate_khz = i2c_dw_get_clk_rate_khz;
 
 		if (!dev->sda_hold_time && ht)
@@ -362,14 +350,22 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
 
-	if (dev->pm_disabled) {
-		pm_runtime_forbid(&pdev->dev);
-	} else {
-		pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
-		pm_runtime_use_autosuspend(&pdev->dev);
-		pm_runtime_set_active(&pdev->dev);
-		pm_runtime_enable(&pdev->dev);
-	}
+	dev_pm_set_driver_flags(&pdev->dev,
+				DPM_FLAG_SMART_PREPARE |
+				DPM_FLAG_SMART_SUSPEND |
+				DPM_FLAG_LEAVE_SUSPENDED);
+
+	/* The code below assumes runtime PM to be disabled. */
+	WARN_ON(pm_runtime_enabled(&pdev->dev));
+
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+
+	if (dev->pm_disabled)
+		pm_runtime_get_noresume(&pdev->dev);
+
+	pm_runtime_enable(&pdev->dev);
 
 	if (dev->mode == DW_IC_SLAVE)
 		ret = i2c_dw_probe_slave(dev);
@@ -382,8 +378,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	return ret;
 
 exit_probe:
-	if (!dev->pm_disabled)
-		pm_runtime_disable(&pdev->dev);
+	dw_i2c_plat_pm_cleanup(dev);
 exit_reset:
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
@@ -402,8 +397,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
-	if (!dev->pm_disabled)
-		pm_runtime_disable(&pdev->dev);
+	dw_i2c_plat_pm_cleanup(dev);
+
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
 
@@ -423,12 +418,24 @@ MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 #ifdef CONFIG_PM_SLEEP
 static int dw_i2c_plat_prepare(struct device *dev)
 {
-	return pm_runtime_suspended(dev);
+	/*
+	 * If the ACPI companion device object is present for this device, it
+	 * may be accessed during suspend and resume of other devices via I2C
+	 * operation regions, so tell the PM core and middle layers to avoid
+	 * skipping system suspend/resume callbacks for it in that case.
+	 */
+	return !has_acpi_companion(dev);
 }
 
 static void dw_i2c_plat_complete(struct device *dev)
 {
-	if (dev->power.direct_complete)
+	/*
+	 * The device can only be in runtime suspend at this point if it has not
+	 * been resumed throughout the ending system suspend/resume cycle, so if
+	 * the platform firmware might mess up with it, request the runtime PM
+	 * framework to resume it.
+	 */
+	if (pm_runtime_suspended(dev) && pm_resume_via_firmware())
 		pm_request_resume(dev);
 }
 #else
@@ -437,12 +444,12 @@ static void dw_i2c_plat_complete(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM
-static int dw_i2c_plat_runtime_suspend(struct device *dev)
+static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
 	i_dev->disable(i_dev);
-	i2c_dw_plat_prepare_clk(i_dev, false);
+	i2c_dw_prepare_clk(i_dev, false);
 
 	return 0;
 }
@@ -451,27 +458,17 @@ static int dw_i2c_plat_resume(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	i2c_dw_plat_prepare_clk(i_dev, true);
+	i2c_dw_prepare_clk(i_dev, true);
 	i_dev->init(i_dev);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int dw_i2c_plat_suspend(struct device *dev)
-{
-	pm_runtime_resume(dev);
-	return dw_i2c_plat_runtime_suspend(dev);
-}
-#endif
-
 static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
 	.prepare = dw_i2c_plat_prepare,
 	.complete = dw_i2c_plat_complete,
-	SET_SYSTEM_SLEEP_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume)
-	SET_RUNTIME_PM_OPS(dw_i2c_plat_runtime_suspend,
-			   dw_i2c_plat_resume,
-			   NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume)
+	SET_RUNTIME_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume, NULL)
 };
 
 #define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)

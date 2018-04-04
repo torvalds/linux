@@ -60,6 +60,7 @@ static void __setup_sensor_notification(struct fimc_md *fmd,
 
 /**
  * fimc_pipeline_prepare - update pipeline information with subdevice pointers
+ * @p: fimc pipeline
  * @me: media entity terminating the pipeline
  *
  * Caller holds the graph mutex.
@@ -151,8 +152,8 @@ static int __subdev_set_power(struct v4l2_subdev *sd, int on)
 
 /**
  * fimc_pipeline_s_power - change power state of all pipeline subdevs
- * @fimc: fimc device terminating the pipeline
- * @state: true to power on, false to power off
+ * @p: fimc device terminating the pipeline
+ * @on: true to power on, false to power off
  *
  * Needs to be called with the graph mutex held.
  */
@@ -219,6 +220,7 @@ static int __fimc_pipeline_enable(struct exynos_media_pipeline *ep,
 /**
  * __fimc_pipeline_open - update the pipeline information, enable power
  *                        of all pipeline subdevs and the sensor clock
+ * @ep: fimc device terminating the pipeline
  * @me: media entity to start graph walk with
  * @prepare: true to walk the current pipeline and acquire all subdevs
  *
@@ -252,7 +254,7 @@ static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
 
 /**
  * __fimc_pipeline_close - disable the sensor clock and pipeline power
- * @fimc: fimc device terminating the pipeline
+ * @ep: fimc device terminating the pipeline
  *
  * Disable power of all subdevs and turn the external sensor clock off.
  */
@@ -281,7 +283,7 @@ static int __fimc_pipeline_close(struct exynos_media_pipeline *ep)
 
 /**
  * __fimc_pipeline_s_stream - call s_stream() on pipeline subdevs
- * @pipeline: video pipeline structure
+ * @ep: video pipeline structure
  * @on: passed as the s_stream() callback argument
  */
 static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
@@ -454,7 +456,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	}
 
 	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	fmd->sensor[index].asd.match.fwnode.fwnode = of_fwnode_handle(rem);
+	fmd->sensor[index].asd.match.fwnode = of_fwnode_handle(rem);
 	fmd->async_subdevs[index] = &fmd->sensor[index].asd;
 
 	fmd->num_sensors++;
@@ -902,6 +904,7 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 
 /**
  * fimc_md_create_links - create default links between registered entities
+ * @fmd: fimc media device
  *
  * Parallel interface sensor entities are connected directly to FIMC capture
  * entities. The sensors using MIPI CSIS bus are connected through immutable
@@ -1361,7 +1364,7 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	/* Find platform data for this sensor subdev */
 	for (i = 0; i < ARRAY_SIZE(fmd->sensor); i++)
-		if (fmd->sensor[i].asd.match.fwnode.fwnode ==
+		if (fmd->sensor[i].asd.match.fwnode ==
 		    of_fwnode_handle(subdev->dev->of_node))
 			si = &fmd->sensor[i];
 
@@ -1404,6 +1407,11 @@ unlock:
 
 	return media_device_register(&fmd->media_dev);
 }
+
+static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
+	.bound = subdev_notifier_bound,
+	.complete = subdev_notifier_complete,
+};
 
 static int fimc_md_probe(struct platform_device *pdev)
 {
@@ -1479,8 +1487,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (fmd->num_sensors > 0) {
 		fmd->subdev_notifier.subdevs = fmd->async_subdevs;
 		fmd->subdev_notifier.num_subdevs = fmd->num_sensors;
-		fmd->subdev_notifier.bound = subdev_notifier_bound;
-		fmd->subdev_notifier.complete = subdev_notifier_complete;
+		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
 		ret = v4l2_async_notifier_register(&fmd->v4l2_dev,

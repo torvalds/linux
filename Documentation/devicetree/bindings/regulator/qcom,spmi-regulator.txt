@@ -8,6 +8,7 @@ Qualcomm SPMI Regulators
 			"qcom,pm8916-regulators"
 			"qcom,pm8941-regulators"
 			"qcom,pm8994-regulators"
+			"qcom,pmi8994-regulators"
 
 - interrupts:
 	Usage: optional
@@ -100,6 +101,15 @@ Qualcomm SPMI Regulators
 	Definition: Reference to regulator supplying the input pin, as
 		    described in the data sheet.
 
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_l1-supply:
+	Usage: optional (pmi8994 only)
+	Value type: <phandle>
+	Definition: Reference to regulator supplying the input pin, as
+		    described in the data sheet.
+
 
 The regulator node houses sub-nodes for each regulator within the device. Each
 sub-node is identified using the node's name, with valid values listed for each
@@ -121,6 +131,9 @@ pm8994:
 	s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3, l4, l5,
 	l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19, l20,
 	l21, l22, l23, l24, l25, l26, l27, l28, l29, l30, l31, l32, lvs1, lvs2
+
+pmi8994:
+	s1, s2, s3, l1
 
 The content of each sub-node is defined by the standard binding for regulators -
 see regulator.txt - with additional custom properties described below:

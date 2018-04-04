@@ -54,14 +54,16 @@ config X86
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_KCOV			if X86_64
+	select ARCH_HAS_PHYS_TO_DMA
+	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_PMEM_API		if X86_64
-	# Causing hangs/crashes, see the commit that added this change for details.
-	select ARCH_HAS_REFCOUNT		if BROKEN
+	select ARCH_HAS_REFCOUNT
 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
 	select ARCH_HAS_SET_MEMORY
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
+	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_ZONE_DEVICE		if X86_64
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -69,7 +71,6 @@ config X86
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_SUPPORTS_ATOMIC_RMW
-	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS
@@ -89,12 +90,15 @@ config X86
 	select GENERIC_CLOCKEVENTS_MIN_ADJUST
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK	if SMP
+	select GENERIC_IRQ_MATRIX_ALLOCATOR	if X86_LOCAL_APIC
 	select GENERIC_IRQ_MIGRATION		if SMP
 	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_RESERVATION_MODE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ		if SMP
 	select GENERIC_SMP_IDLE_THREAD
@@ -108,13 +112,13 @@ config X86
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
 	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
+	select HAVE_ARCH_KASAN			if X86_64
 	select HAVE_ARCH_KGDB
-	select HAVE_ARCH_KMEMCHECK
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
 	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
@@ -153,6 +157,7 @@ config X86
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES
 	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH			if X86_64
@@ -171,7 +176,7 @@ config X86
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RELIABLE_STACKTRACE		if X86_64 && FRAME_POINTER_UNWINDER && STACK_VALIDATION
+	select HAVE_RELIABLE_STACKTRACE		if X86_64 && UNWINDER_FRAME_POINTER && STACK_VALIDATION
 	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
@@ -303,7 +308,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0xdff8000000000000 if X86_5LEVEL
 	default 0xdffffc0000000000
 
 config HAVE_INTEL_TXT
@@ -320,7 +324,7 @@ config X86_64_SMP
 
 config X86_32_LAZY_GS
 	def_bool y
-	depends on X86_32 && !CC_STACKPROTECTOR
+	depends on X86_32 && CC_STACKPROTECTOR_NONE
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
@@ -419,15 +423,23 @@ config X86_MPPARSE
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
 
-config X86_BIGSMP
-	bool "Support for big SMP systems with more than 8 CPUs"
-	depends on X86_32 && SMP
-	---help---
-	  This option is needed for the systems that have more than 8 CPUs
-
 config GOLDFISH
        def_bool y
        depends on X86_GOLDFISH
+
+config RETPOLINE
+	bool "Avoid speculative indirect branches in kernel"
+	default y
+	select STACK_VALIDATION if HAVE_STACK_VALIDATION
+	help
+	  Compile kernel with the retpoline compiler options to guard against
+	  kernel-to-user data leaks by avoiding speculative indirect
+	  branches. Requires a compiler with -mindirect-branch=thunk-extern
+	  support for full protection. The kernel may run slower.
+
+	  Without compiler support, at least indirect branches in assembler
+	  code are eliminated. Since this includes the syscall entry path,
+	  it is not entirely pointless.
 
 config INTEL_RDT
 	bool "Intel Resource Director Technology support"
@@ -443,6 +455,12 @@ config INTEL_RDT
 	  Say N if unsure.
 
 if X86_32
+config X86_BIGSMP
+	bool "Support for big SMP systems with more than 8 CPUs"
+	depends on SMP
+	---help---
+	  This option is needed for the systems that have more than 8 CPUs
+
 config X86_EXTENDED_PLATFORM
 	bool "Support for extended (non-PC) x86 platforms"
 	default y
@@ -797,6 +815,15 @@ config PARAVIRT_TIME_ACCOUNTING
 config PARAVIRT_CLOCK
 	bool
 
+config JAILHOUSE_GUEST
+	bool "Jailhouse non-root cell support"
+	depends on X86_64 && PCI
+	select X86_PM_TIMER
+	---help---
+	  This option allows to run Linux as guest in a Jailhouse non-root
+	  cell. You can leave this option disabled if you only want to start
+	  Jailhouse and run Linux afterwards in the root cell.
+
 endif #HYPERVISOR_GUEST
 
 config NO_BOOTMEM
@@ -923,24 +950,66 @@ config MAXSMP
 	  Enable maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
 
+#
+# The maximum number of CPUs supported:
+#
+# The main config value is NR_CPUS, which defaults to NR_CPUS_DEFAULT,
+# and which can be configured interactively in the
+# [NR_CPUS_RANGE_BEGIN ... NR_CPUS_RANGE_END] range.
+#
+# The ranges are different on 32-bit and 64-bit kernels, depending on
+# hardware capabilities and scalability features of the kernel.
+#
+# ( If MAXSMP is enabled we just use the highest possible value and disable
+#   interactive configuration. )
+#
+
+config NR_CPUS_RANGE_BEGIN
+	int
+	default NR_CPUS_RANGE_END if MAXSMP
+	default    1 if !SMP
+	default    2
+
+config NR_CPUS_RANGE_END
+	int
+	depends on X86_32
+	default   64 if  SMP &&  X86_BIGSMP
+	default    8 if  SMP && !X86_BIGSMP
+	default    1 if !SMP
+
+config NR_CPUS_RANGE_END
+	int
+	depends on X86_64
+	default 8192 if  SMP && ( MAXSMP ||  CPUMASK_OFFSTACK)
+	default  512 if  SMP && (!MAXSMP && !CPUMASK_OFFSTACK)
+	default    1 if !SMP
+
+config NR_CPUS_DEFAULT
+	int
+	depends on X86_32
+	default   32 if  X86_BIGSMP
+	default    8 if  SMP
+	default    1 if !SMP
+
+config NR_CPUS_DEFAULT
+	int
+	depends on X86_64
+	default 8192 if  MAXSMP
+	default   64 if  SMP
+	default    1 if !SMP
+
 config NR_CPUS
 	int "Maximum number of CPUs" if SMP && !MAXSMP
-	range 2 8 if SMP && X86_32 && !X86_BIGSMP
-	range 2 512 if SMP && !MAXSMP && !CPUMASK_OFFSTACK
-	range 2 8192 if SMP && !MAXSMP && CPUMASK_OFFSTACK && X86_64
-	default "1" if !SMP
-	default "8192" if MAXSMP
-	default "32" if SMP && X86_BIGSMP
-	default "8" if SMP && X86_32
-	default "64" if SMP
+	range NR_CPUS_RANGE_BEGIN NR_CPUS_RANGE_END
+	default NR_CPUS_DEFAULT
 	---help---
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  If CPUMASK_OFFSTACK is enabled, the maximum
 	  supported value is 8192, otherwise the maximum value is 512.  The
 	  minimum value which makes sense is 2.
 
-	  This is purely to save memory - each supported CPU adds
-	  approximately eight kilobytes to the kernel image.
+	  This is purely to save memory: each supported CPU adds about 8KB
+	  to the kernel image.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -1241,9 +1310,9 @@ config MICROCODE
 	  CONFIG_BLK_DEV_INITRD in order for the loader to be able to scan the
 	  initrd for microcode blobs.
 
-	  In addition, you can build-in the microcode into the kernel. For that you
-	  need to enable FIRMWARE_IN_KERNEL and add the vendor-supplied microcode
-	  to the CONFIG_EXTRA_FIRMWARE config option.
+	  In addition, you can build the microcode into the kernel. For that you
+	  need to add the vendor-supplied microcode to the CONFIG_EXTRA_FIRMWARE
+	  config option.
 
 config MICROCODE_INTEL
 	bool "Intel microcode loading support"
@@ -1336,7 +1405,7 @@ config HIGHMEM4G
 
 config HIGHMEM64G
 	bool "64GB"
-	depends on !M486
+	depends on !M486 && !M586 && !M586TSC && !M586MMX && !MGEODE_LX && !MGEODEGX1 && !MCYRIXIII && !MELAN && !MWINCHIPC6 && !WINCHIP3D && !MK6
 	select X86_PAE
 	---help---
 	  Select this if you have a 32-bit processor and more than 4
@@ -1429,7 +1498,7 @@ config ARCH_DMA_ADDR_T_64BIT
 
 config X86_DIRECT_GBPAGES
 	def_bool y
-	depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK
+	depends on X86_64 && !DEBUG_PAGEALLOC
 	---help---
 	  Certain kernel features effectively disable kernel
 	  linear 1 GB mappings (even if the CPU otherwise
@@ -1802,6 +1871,22 @@ config X86_SMAP
 	  also a small increase in the kernel size if this is enabled.
 
 	  If unsure, say Y.
+
+config X86_INTEL_UMIP
+	def_bool y
+	depends on CPU_SUP_INTEL
+	prompt "Intel User Mode Instruction Prevention" if EXPERT
+	---help---
+	  The User Mode Instruction Prevention (UMIP) is a security
+	  feature in newer Intel processors. If enabled, a general
+	  protection fault is issued if the SGDT, SLDT, SIDT, SMSW
+	  or STR instructions are executed in user mode. These instructions
+	  unnecessarily expose information about the hardware state.
+
+	  The vast majority of applications do not use these instructions.
+	  For the very few that do, software emulation is provided in
+	  specific cases in protected and virtual-8086 modes. Emulated
+	  results are dummy.
 
 config X86_INTEL_MPX
 	prompt "Intel MPX (Memory Protection Extensions)"

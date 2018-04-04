@@ -341,7 +341,7 @@ static int camss_of_parse_ports(struct device *dev,
 		}
 
 		csd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		csd->asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		csd->asd.match.fwnode = of_fwnode_handle(remote);
 	}
 
 	return notifier->num_subdevs;
@@ -601,6 +601,11 @@ static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
 	return media_device_register(&camss->media_dev);
 }
 
+static const struct v4l2_async_notifier_operations camss_subdev_notifier_ops = {
+	.bound = camss_subdev_notifier_bound,
+	.complete = camss_subdev_notifier_complete,
+};
+
 static const struct media_device_ops camss_media_ops = {
 	.link_notify = v4l2_pipeline_link_notify,
 };
@@ -655,8 +660,7 @@ static int camss_probe(struct platform_device *pdev)
 		goto err_register_entities;
 
 	if (camss->notifier.num_subdevs) {
-		camss->notifier.bound = camss_subdev_notifier_bound;
-		camss->notifier.complete = camss_subdev_notifier_complete;
+		camss->notifier.ops = &camss_subdev_notifier_ops;
 
 		ret = v4l2_async_notifier_register(&camss->v4l2_dev,
 						   &camss->notifier);

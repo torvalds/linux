@@ -178,7 +178,7 @@ config MD_FAULTY
 
 
 config MD_CLUSTER
-	tristate "Cluster Support for MD (EXPERIMENTAL)"
+	tristate "Cluster Support for MD"
 	depends on BLK_DEV_MD
 	depends on DLM
 	default n
@@ -188,7 +188,8 @@ config MD_CLUSTER
 	nodes in the cluster can access the MD devices simultaneously.
 
 	This brings the redundancy (and uptime) of RAID levels across the
-	nodes of the cluster.
+	nodes of the cluster. Currently, it can work with raid1 and raid10
+	(limited support).
 
 	If unsure, say N.
 
@@ -267,6 +268,13 @@ config DM_BIO_PRISON
 	 including thin provisioning.
 
 source "drivers/md/persistent-data/Kconfig"
+
+config DM_UNSTRIPED
+       tristate "Unstriped target"
+       depends on BLK_DEV_DM
+       ---help---
+	  Unstripes I/O so it is issued solely on a single drive in a HW
+	  RAID0 or dm-striped target.
 
 config DM_CRYPT
 	tristate "Crypt target support"

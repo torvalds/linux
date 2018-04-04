@@ -278,9 +278,4 @@ static struct platform_driver intel_xpower_pmic_opregion_driver = {
 		.name = "axp288_pmic_acpi",
 	},
 };
-
-static int __init intel_xpower_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_xpower_pmic_opregion_driver);
-}
-device_initcall(intel_xpower_pmic_opregion_driver_init);
+builtin_platform_driver(intel_xpower_pmic_opregion_driver);

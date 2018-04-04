@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
@@ -43,60 +42,12 @@ static struct ep93xxfb_mach_info __initdata simone_fb_info = {
 	.flags		= EP93XXFB_USE_SDCSN0 | EP93XXFB_PCLK_FALLING,
 };
 
-/*
- * GPIO lines used for MMC card detection.
- */
-#define MMC_CARD_DETECT_GPIO EP93XX_GPIO_LINE_EGPIO0
-
-/*
- * MMC card detection GPIO setup.
- */
-
-static int simone_mmc_spi_init(struct device *dev,
-	irqreturn_t (*irq_handler)(int, void *), void *mmc)
-{
-	unsigned int gpio = MMC_CARD_DETECT_GPIO;
-	int irq, err;
-
-	err = gpio_request(gpio, dev_name(dev));
-	if (err)
-		return err;
-
-	err = gpio_direction_input(gpio);
-	if (err)
-		goto fail;
-
-	irq = gpio_to_irq(gpio);
-	if (irq < 0)
-		goto fail;
-
-	err = request_irq(irq, irq_handler, IRQF_TRIGGER_FALLING,
-			  "MMC card detect", mmc);
-	if (err)
-		goto fail;
-
-	printk(KERN_INFO "%s: using irq %d for MMC card detection\n",
-	       dev_name(dev), irq);
-
-	return 0;
-fail:
-	gpio_free(gpio);
-	return err;
-}
-
-static void simone_mmc_spi_exit(struct device *dev, void *mmc)
-{
-	unsigned int gpio = MMC_CARD_DETECT_GPIO;
-
-	free_irq(gpio_to_irq(gpio), mmc);
-	gpio_free(gpio);
-}
-
 static struct mmc_spi_platform_data simone_mmc_spi_data = {
-	.init		= simone_mmc_spi_init,
-	.exit		= simone_mmc_spi_exit,
 	.detect_delay	= 500,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.flags		= MMC_SPI_USE_CD_GPIO,
+	.cd_gpio	= EP93XX_GPIO_LINE_EGPIO0,
+	.cd_debounce	= 1,
 };
 
 static struct spi_board_info simone_spi_devices[] __initdata = {
@@ -129,15 +80,6 @@ static struct ep93xx_spi_info simone_spi_info __initdata = {
 	.use_dma = 1,
 };
 
-static struct i2c_gpio_platform_data __initdata simone_i2c_gpio_data = {
-	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
-	.sda_is_open_drain	= 0,
-	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
-	.scl_is_open_drain	= 0,
-	.udelay			= 0,
-	.timeout		= 0,
-};
-
 static struct i2c_board_info __initdata simone_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ds1337", 0x68),
@@ -161,7 +103,7 @@ static void __init simone_init_machine(void)
 	ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_8M);
 	ep93xx_register_eth(&simone_eth_data, 1);
 	ep93xx_register_fb(&simone_fb_info);
-	ep93xx_register_i2c(&simone_i2c_gpio_data, simone_i2c_board_info,
+	ep93xx_register_i2c(simone_i2c_board_info,
 			    ARRAY_SIZE(simone_i2c_board_info));
 	ep93xx_register_spi(&simone_spi_info, simone_spi_devices,
 			    ARRAY_SIZE(simone_spi_devices));

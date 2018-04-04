@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * devices.c
  * (C) Copyright 1999 Randy Dunlap.
  * (C) Copyright 1999,2000 Thomas Sailer <sailer@ife.ee.ethz.ch>.
  *     (proc file per device)
  * (C) Copyright 1999 Deti Fliegl (new USB architecture)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  *************************************************************
  *
@@ -635,7 +622,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 }
 
 /* Kernel lock for "lastev" protection */
-static unsigned int usb_device_poll(struct file *file,
+static __poll_t usb_device_poll(struct file *file,
 				    struct poll_table_struct *wait)
 {
 	unsigned int event_count;
@@ -645,7 +632,7 @@ static unsigned int usb_device_poll(struct file *file,
 	event_count = atomic_read(&device_event.count);
 	if (file->f_version != event_count) {
 		file->f_version = event_count;
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	}
 
 	return 0;

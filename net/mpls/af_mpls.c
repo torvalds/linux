@@ -8,6 +8,7 @@
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
 #include <linux/netconf.h>
+#include <linux/nospec.h>
 #include <linux/vmalloc.h>
 #include <linux/percpu.h>
 #include <net/ip.h>
@@ -16,6 +17,7 @@
 #include <net/arp.h>
 #include <net/ip_fib.h>
 #include <net/netevent.h>
+#include <net/ip_tunnels.h>
 #include <net/netns/generic.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -38,6 +40,36 @@ static int zero = 0;
 static int one = 1;
 static int label_limit = (1 << 20) - 1;
 static int ttl_max = 255;
+
+#if IS_ENABLED(CONFIG_NET_IP_TUNNEL)
+static size_t ipgre_mpls_encap_hlen(struct ip_tunnel_encap *e)
+{
+	return sizeof(struct mpls_shim_hdr);
+}
+
+static const struct ip_tunnel_encap_ops mpls_iptun_ops = {
+	.encap_hlen	= ipgre_mpls_encap_hlen,
+};
+
+static int ipgre_tunnel_encap_add_mpls_ops(void)
+{
+	return ip_tunnel_encap_add_ops(&mpls_iptun_ops, TUNNEL_ENCAP_MPLS);
+}
+
+static void ipgre_tunnel_encap_del_mpls_ops(void)
+{
+	ip_tunnel_encap_del_ops(&mpls_iptun_ops, TUNNEL_ENCAP_MPLS);
+}
+#else
+static int ipgre_tunnel_encap_add_mpls_ops(void)
+{
+	return 0;
+}
+
+static void ipgre_tunnel_encap_del_mpls_ops(void)
+{
+}
+#endif
 
 static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 		       struct nlmsghdr *nlh, struct net *net, u32 portid,
@@ -904,24 +936,27 @@ errout:
 	return err;
 }
 
-static bool mpls_label_ok(struct net *net, unsigned int index,
+static bool mpls_label_ok(struct net *net, unsigned int *index,
 			  struct netlink_ext_ack *extack)
 {
+	bool is_ok = true;
+
 	/* Reserved labels may not be set */
-	if (index < MPLS_LABEL_FIRST_UNRESERVED) {
+	if (*index < MPLS_LABEL_FIRST_UNRESERVED) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid label - must be MPLS_LABEL_FIRST_UNRESERVED or higher");
-		return false;
+		is_ok = false;
 	}
 
 	/* The full 20 bit range may not be supported. */
-	if (index >= net->mpls.platform_labels) {
+	if (is_ok && *index >= net->mpls.platform_labels) {
 		NL_SET_ERR_MSG(extack,
 			       "Label >= configured maximum in platform_labels");
-		return false;
+		is_ok = false;
 	}
 
-	return true;
+	*index = array_index_nospec(*index, net->mpls.platform_labels);
+	return is_ok;
 }
 
 static int mpls_route_add(struct mpls_route_config *cfg,
@@ -944,7 +979,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 		index = find_free_label(net);
 	}
 
-	if (!mpls_label_ok(net, index, extack))
+	if (!mpls_label_ok(net, &index, extack))
 		goto errout;
 
 	/* Append makes no sense with mpls */
@@ -1021,7 +1056,7 @@ static int mpls_route_del(struct mpls_route_config *cfg,
 
 	index = cfg->rc_label;
 
-	if (!mpls_label_ok(net, index, extack))
+	if (!mpls_label_ok(net, &index, extack))
 		goto errout;
 
 	mpls_route_update(net, index, NULL, &cfg->rc_nlinfo);
@@ -1779,7 +1814,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 				goto errout;
 
 			if (!mpls_label_ok(cfg->rc_nlinfo.nl_net,
-					   cfg->rc_label, extack))
+					   &cfg->rc_label, extack))
 				goto errout;
 			break;
 		}
@@ -2106,7 +2141,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 			goto errout;
 		}
 
-		if (!mpls_label_ok(net, in_label, extack)) {
+		if (!mpls_label_ok(net, &in_label, extack)) {
 			err = -EINVAL;
 			goto errout;
 		}
@@ -2479,12 +2514,19 @@ static int __init mpls_init(void)
 
 	rtnl_af_register(&mpls_af_ops);
 
-	rtnl_register(PF_MPLS, RTM_NEWROUTE, mpls_rtm_newroute, NULL, 0);
-	rtnl_register(PF_MPLS, RTM_DELROUTE, mpls_rtm_delroute, NULL, 0);
-	rtnl_register(PF_MPLS, RTM_GETROUTE, mpls_getroute, mpls_dump_routes,
-		      0);
-	rtnl_register(PF_MPLS, RTM_GETNETCONF, mpls_netconf_get_devconf,
-		      mpls_netconf_dump_devconf, 0);
+	rtnl_register_module(THIS_MODULE, PF_MPLS, RTM_NEWROUTE,
+			     mpls_rtm_newroute, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_MPLS, RTM_DELROUTE,
+			     mpls_rtm_delroute, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_MPLS, RTM_GETROUTE,
+			     mpls_getroute, mpls_dump_routes, 0);
+	rtnl_register_module(THIS_MODULE, PF_MPLS, RTM_GETNETCONF,
+			     mpls_netconf_get_devconf,
+			     mpls_netconf_dump_devconf, 0);
+	err = ipgre_tunnel_encap_add_mpls_ops();
+	if (err)
+		pr_err("Can't add mpls over gre tunnel ops\n");
+
 	err = 0;
 out:
 	return err;
@@ -2502,6 +2544,7 @@ static void __exit mpls_exit(void)
 	dev_remove_pack(&mpls_packet_type);
 	unregister_netdevice_notifier(&mpls_dev_notifier);
 	unregister_pernet_subsys(&mpls_net_ops);
+	ipgre_tunnel_encap_del_mpls_ops();
 }
 module_exit(mpls_exit);
 

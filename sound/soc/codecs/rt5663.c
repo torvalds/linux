@@ -38,13 +38,24 @@ enum {
 	CODEC_VER_0,
 };
 
+struct impedance_mapping_table {
+	unsigned int imp_min;
+	unsigned int imp_max;
+	unsigned int vol;
+	unsigned int dc_offset_l_manual;
+	unsigned int dc_offset_r_manual;
+	unsigned int dc_offset_l_manual_mic;
+	unsigned int dc_offset_r_manual_mic;
+};
+
 struct rt5663_priv {
 	struct snd_soc_codec *codec;
 	struct rt5663_platform_data pdata;
 	struct regmap *regmap;
-	struct delayed_work jack_detect_work;
+	struct delayed_work jack_detect_work, jd_unplug_work;
 	struct snd_soc_jack *hs_jack;
 	struct timer_list btn_check_timer;
+	struct impedance_mapping_table *imp_table;
 
 	int codec_ver;
 	int sysclk;
@@ -1549,6 +1560,10 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			RT5663_IRQ_POW_SAV_MASK, RT5663_IRQ_POW_SAV_EN);
 		snd_soc_update_bits(codec, RT5663_IRQ_1,
 			RT5663_EN_IRQ_JD1_MASK, RT5663_EN_IRQ_JD1_EN);
+		snd_soc_update_bits(codec, RT5663_EM_JACK_TYPE_1,
+			RT5663_EM_JD_MASK, RT5663_EM_JD_RST);
+		snd_soc_update_bits(codec, RT5663_EM_JACK_TYPE_1,
+			RT5663_EM_JD_MASK, RT5663_EM_JD_NOR);
 
 		while (true) {
 			regmap_read(rt5663->regmap, RT5663_INT_ST_2, &val);
@@ -1575,6 +1590,9 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			rt5663->jack_type = SND_JACK_HEADSET;
 			rt5663_enable_push_button_irq(codec, true);
 
+			if (rt5663->pdata.impedance_sensing_num)
+				break;
+
 			if (rt5663->pdata.dc_offset_l_manual_mic) {
 				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
 					rt5663->pdata.dc_offset_l_manual_mic >>
@@ -1595,6 +1613,9 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			break;
 		default:
 			rt5663->jack_type = SND_JACK_HEADPHONE;
+
+			if (rt5663->pdata.impedance_sensing_num)
+				break;
 
 			if (rt5663->pdata.dc_offset_l_manual) {
 				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
@@ -1621,6 +1642,177 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 
 	dev_dbg(codec->dev, "jack_type = %d\n", rt5663->jack_type);
 	return rt5663->jack_type;
+}
+
+static int rt5663_impedance_sensing(struct snd_soc_codec *codec)
+{
+	struct rt5663_priv *rt5663 = snd_soc_codec_get_drvdata(codec);
+	unsigned int value, i, reg84, reg26, reg2fa, reg91, reg10, reg80;
+
+	for (i = 0; i < rt5663->pdata.impedance_sensing_num; i++) {
+		if (rt5663->imp_table[i].vol == 7)
+			break;
+	}
+
+	if (rt5663->jack_type == SND_JACK_HEADSET) {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual_mic & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual_mic & 0xffff);
+	} else {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual & 0xffff);
+	}
+
+	reg84 = snd_soc_read(codec, RT5663_ASRC_2);
+	reg26 = snd_soc_read(codec, RT5663_STO1_ADC_MIXER);
+	reg2fa = snd_soc_read(codec, RT5663_DUMMY_1);
+	reg91 = snd_soc_read(codec, RT5663_HP_CHARGE_PUMP_1);
+	reg10 = snd_soc_read(codec, RT5663_RECMIX);
+	reg80 = snd_soc_read(codec, RT5663_GLB_CLK);
+
+	snd_soc_update_bits(codec, RT5663_STO_DRE_1, 0x8000, 0);
+	snd_soc_write(codec, RT5663_ASRC_2, 0);
+	snd_soc_write(codec, RT5663_STO1_ADC_MIXER, 0x4040);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_1,
+		RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK |
+		RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+		RT5663_PWR_VREF1 | RT5663_PWR_VREF2);
+	usleep_range(10000, 10005);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_1,
+		RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+		RT5663_PWR_FV1 | RT5663_PWR_FV2);
+	snd_soc_update_bits(codec, RT5663_GLB_CLK, RT5663_SCLK_SRC_MASK,
+		RT5663_SCLK_SRC_RCCLK);
+	snd_soc_update_bits(codec, RT5663_RC_CLK, RT5663_DIG_25M_CLK_MASK,
+		RT5663_DIG_25M_CLK_EN);
+	snd_soc_update_bits(codec, RT5663_ADDA_CLK_1, RT5663_I2S_PD1_MASK, 0);
+	snd_soc_write(codec, RT5663_PRE_DIV_GATING_1, 0xff00);
+	snd_soc_write(codec, RT5663_PRE_DIV_GATING_2, 0xfffc);
+	snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_1, 0x1232);
+	snd_soc_write(codec, RT5663_HP_LOGIC_2, 0x0005);
+	snd_soc_write(codec, RT5663_DEPOP_2, 0x3003);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0x0030);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003, 0x0003);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_2,
+		RT5663_PWR_ADC_S1F | RT5663_PWR_DAC_S1F,
+		RT5663_PWR_ADC_S1F | RT5663_PWR_DAC_S1F);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_1,
+		RT5663_PWR_DAC_L1 | RT5663_PWR_DAC_R1 |
+		RT5663_PWR_LDO_DACREF_MASK | RT5663_PWR_ADC_L1 |
+		RT5663_PWR_ADC_R1,
+		RT5663_PWR_DAC_L1 | RT5663_PWR_DAC_R1 |
+		RT5663_PWR_LDO_DACREF_ON | RT5663_PWR_ADC_L1 |
+		RT5663_PWR_ADC_R1);
+	msleep(40);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_2,
+		RT5663_PWR_RECMIX1 | RT5663_PWR_RECMIX2,
+		RT5663_PWR_RECMIX1 | RT5663_PWR_RECMIX2);
+	msleep(30);
+	snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_2, 0x1371);
+	snd_soc_write(codec, RT5663_STO_DAC_MIXER, 0);
+	snd_soc_write(codec, RT5663_BYPASS_STO_DAC, 0x000c);
+	snd_soc_write(codec, RT5663_HP_BIAS, 0xafaa);
+	snd_soc_write(codec, RT5663_CHARGE_PUMP_1, 0x2224);
+	snd_soc_write(codec, RT5663_HP_OUT_EN, 0x8088);
+	snd_soc_write(codec, RT5663_CHOP_ADC, 0x3000);
+	snd_soc_write(codec, RT5663_ADDA_RST, 0xc000);
+	snd_soc_write(codec, RT5663_STO1_HPF_ADJ1, 0x3320);
+	snd_soc_write(codec, RT5663_HP_CALIB_2, 0x00c9);
+	snd_soc_write(codec, RT5663_DUMMY_1, 0x004c);
+	snd_soc_write(codec, RT5663_ANA_BIAS_CUR_1, 0x7733);
+	snd_soc_write(codec, RT5663_CHARGE_PUMP_2, 0x7777);
+	snd_soc_write(codec, RT5663_STO_DRE_9, 0x0007);
+	snd_soc_write(codec, RT5663_STO_DRE_10, 0x0007);
+	snd_soc_write(codec, RT5663_DUMMY_2, 0x02a4);
+	snd_soc_write(codec, RT5663_RECMIX, 0x0005);
+	snd_soc_write(codec, RT5663_HP_IMP_SEN_1, 0x4334);
+	snd_soc_update_bits(codec, RT5663_IRQ_3, 0x0004, 0x0004);
+	snd_soc_write(codec, RT5663_HP_LOGIC_1, 0x2200);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000, 0x3000);
+	snd_soc_write(codec, RT5663_HP_LOGIC_1, 0x6200);
+
+	for (i = 0; i < 100; i++) {
+		msleep(20);
+		if (snd_soc_read(codec, RT5663_INT_ST_1) & 0x2)
+			break;
+	}
+
+	value = snd_soc_read(codec, RT5663_HP_IMP_SEN_4);
+
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000, 0);
+	snd_soc_write(codec, RT5663_INT_ST_1, 0);
+	snd_soc_write(codec, RT5663_HP_LOGIC_1, 0);
+	snd_soc_update_bits(codec, RT5663_RC_CLK, RT5663_DIG_25M_CLK_MASK,
+		RT5663_DIG_25M_CLK_DIS);
+	snd_soc_write(codec, RT5663_GLB_CLK, reg80);
+	snd_soc_write(codec, RT5663_RECMIX, reg10);
+	snd_soc_write(codec, RT5663_DUMMY_2, 0x00a4);
+	snd_soc_write(codec, RT5663_DUMMY_1, reg2fa);
+	snd_soc_write(codec, RT5663_HP_CALIB_2, 0x00c8);
+	snd_soc_write(codec, RT5663_STO1_HPF_ADJ1, 0xb320);
+	snd_soc_write(codec, RT5663_ADDA_RST, 0xe400);
+	snd_soc_write(codec, RT5663_CHOP_ADC, 0x2000);
+	snd_soc_write(codec, RT5663_HP_OUT_EN, 0x0008);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_2,
+		RT5663_PWR_RECMIX1 | RT5663_PWR_RECMIX2, 0);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_1,
+		RT5663_PWR_DAC_L1 | RT5663_PWR_DAC_R1 |
+		RT5663_PWR_LDO_DACREF_MASK | RT5663_PWR_ADC_L1 |
+		RT5663_PWR_ADC_R1, 0);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_2,
+		RT5663_PWR_ADC_S1F | RT5663_PWR_DAC_S1F, 0);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003, 0);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0);
+	snd_soc_write(codec, RT5663_HP_LOGIC_2, 0);
+	snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_1, reg91);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_1,
+		RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK, 0);
+	snd_soc_write(codec, RT5663_STO1_ADC_MIXER, reg26);
+	snd_soc_write(codec, RT5663_ASRC_2, reg84);
+
+	for (i = 0; i < rt5663->pdata.impedance_sensing_num; i++) {
+		if (value >= rt5663->imp_table[i].imp_min &&
+			value <= rt5663->imp_table[i].imp_max)
+			break;
+	}
+
+	snd_soc_update_bits(codec, RT5663_STO_DRE_9, RT5663_DRE_GAIN_HP_MASK,
+		rt5663->imp_table[i].vol);
+	snd_soc_update_bits(codec, RT5663_STO_DRE_10, RT5663_DRE_GAIN_HP_MASK,
+		rt5663->imp_table[i].vol);
+
+	if (rt5663->jack_type == SND_JACK_HEADSET) {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual_mic & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual_mic & 0xffff);
+	} else {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual & 0xffff);
+	}
+
+	return 0;
 }
 
 static int rt5663_button_detect(struct snd_soc_codec *codec)
@@ -1702,6 +1894,8 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 				break;
 			case CODEC_VER_0:
 				report = rt5663_jack_detect(rt5663->codec, 1);
+				if (rt5663->pdata.impedance_sensing_num)
+					rt5663_impedance_sensing(rt5663->codec);
 				break;
 			default:
 				dev_err(codec->dev, "Unknown CODEC Version\n");
@@ -1751,8 +1945,15 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 				break;
 			}
 			/* button release or spurious interrput*/
-			if (btn_type == 0)
+			if (btn_type == 0) {
 				report =  rt5663->jack_type;
+				cancel_delayed_work_sync(
+					&rt5663->jd_unplug_work);
+			} else {
+				queue_delayed_work(system_wq,
+					&rt5663->jd_unplug_work,
+					msecs_to_jiffies(500));
+			}
 		}
 	} else {
 		/* jack out */
@@ -1771,6 +1972,37 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 	snd_soc_jack_report(rt5663->hs_jack, report, SND_JACK_HEADSET |
 			    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+}
+
+static void rt5663_jd_unplug_work(struct work_struct *work)
+{
+	struct rt5663_priv *rt5663 =
+		container_of(work, struct rt5663_priv, jd_unplug_work.work);
+	struct snd_soc_codec *codec = rt5663->codec;
+
+	if (!codec)
+		return;
+
+	if (!rt5663_check_jd_status(codec)) {
+		/* jack out */
+		switch (rt5663->codec_ver) {
+		case CODEC_VER_1:
+			rt5663_v2_jack_detect(rt5663->codec, 0);
+			break;
+		case CODEC_VER_0:
+			rt5663_jack_detect(rt5663->codec, 0);
+			break;
+		default:
+			dev_err(codec->dev, "Unknown CODEC Version\n");
+		}
+
+		snd_soc_jack_report(rt5663->hs_jack, 0, SND_JACK_HEADSET |
+				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+	} else {
+		queue_delayed_work(system_wq, &rt5663->jd_unplug_work,
+			msecs_to_jiffies(500));
+	}
 }
 
 static const struct snd_kcontrol_new rt5663_snd_controls[] = {
@@ -1797,15 +2029,18 @@ static const struct snd_kcontrol_new rt5663_v2_specific_controls[] = {
 };
 
 static const struct snd_kcontrol_new rt5663_specific_controls[] = {
-	/* Headphone Output Volume */
-	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RT5663_STO_DRE_9,
-		RT5663_STO_DRE_10, RT5663_DRE_GAIN_HP_SHIFT, 23, 1,
-		rt5663_hp_vol_tlv),
 	/* Mic Boost Volume*/
 	SOC_SINGLE_TLV("IN1 Capture Volume", RT5663_CBJ_2,
 		RT5663_GAIN_BST1_SHIFT, 8, 0, in_bst_tlv),
 	/* Data Swap for Slot0/1 in ADCDAT1 */
 	SOC_ENUM("IF1 ADC Data Swap", rt5663_if1_adc_enum),
+};
+
+static const struct snd_kcontrol_new rt5663_hpvol_controls[] = {
+	/* Headphone Output Volume */
+	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RT5663_STO_DRE_9,
+		RT5663_STO_DRE_10, RT5663_DRE_GAIN_HP_SHIFT, 23, 1,
+		rt5663_hp_vol_tlv),
 };
 
 static int rt5663_is_sys_clk_from_pll(struct snd_soc_dapm_widget *w,
@@ -2890,6 +3125,10 @@ static int rt5663_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rt5663_specific_dapm_routes));
 		snd_soc_add_codec_controls(codec, rt5663_specific_controls,
 			ARRAY_SIZE(rt5663_specific_controls));
+
+		if (!rt5663->imp_table)
+			snd_soc_add_codec_controls(codec, rt5663_hpvol_controls,
+				ARRAY_SIZE(rt5663_hpvol_controls));
 		break;
 	}
 
@@ -3178,6 +3417,8 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 
 static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
 {
+	int table_size;
+
 	device_property_read_u32(dev, "realtek,dc_offset_l_manual",
 		&rt5663->pdata.dc_offset_l_manual);
 	device_property_read_u32(dev, "realtek,dc_offset_r_manual",
@@ -3186,6 +3427,17 @@ static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
 		&rt5663->pdata.dc_offset_l_manual_mic);
 	device_property_read_u32(dev, "realtek,dc_offset_r_manual_mic",
 		&rt5663->pdata.dc_offset_r_manual_mic);
+	device_property_read_u32(dev, "realtek,impedance_sensing_num",
+		&rt5663->pdata.impedance_sensing_num);
+
+	if (rt5663->pdata.impedance_sensing_num) {
+		table_size = sizeof(struct impedance_mapping_table) *
+			rt5663->pdata.impedance_sensing_num;
+		rt5663->imp_table = devm_kzalloc(dev, table_size, GFP_KERNEL);
+		device_property_read_u32_array(dev,
+			"realtek,impedance_sensing_table",
+			(u32 *)rt5663->imp_table, table_size);
+	}
 
 	return 0;
 }
@@ -3219,7 +3471,16 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
-	regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+
+	ret = regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+	if (ret || (val != RT5663_DEVICE_ID_2 && val != RT5663_DEVICE_ID_1)) {
+		dev_err(&i2c->dev,
+			"Device with ID register %#x is not rt5663, retry one time.\n",
+			val);
+		msleep(100);
+		regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+	}
+
 	switch (val) {
 	case RT5663_DEVICE_ID_2:
 		rt5663->regmap = devm_regmap_init_i2c(i2c, &rt5663_v2_regmap);
@@ -3338,6 +3599,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	}
 
 	INIT_DELAYED_WORK(&rt5663->jack_detect_work, rt5663_jack_detect_work);
+	INIT_DELAYED_WORK(&rt5663->jd_unplug_work, rt5663_jd_unplug_work);
 
 	if (i2c->irq) {
 		ret = request_irq(i2c->irq, rt5663_irq,

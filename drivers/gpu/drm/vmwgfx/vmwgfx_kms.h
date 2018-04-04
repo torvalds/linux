@@ -175,7 +175,7 @@ struct vmw_plane_state {
 	int pinned;
 
 	/* For CPU Blit */
-	struct ttm_bo_kmap_obj host_map, guest_map;
+	struct ttm_bo_kmap_obj host_map;
 	unsigned int cpp;
 };
 

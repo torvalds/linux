@@ -140,53 +140,6 @@ static int crypto_scomp_init_tfm(struct crypto_tfm *tfm)
 	return ret;
 }
 
-static void crypto_scomp_sg_free(struct scatterlist *sgl)
-{
-	int i, n;
-	struct page *page;
-
-	if (!sgl)
-		return;
-
-	n = sg_nents(sgl);
-	for_each_sg(sgl, sgl, n, i) {
-		page = sg_page(sgl);
-		if (page)
-			__free_page(page);
-	}
-
-	kfree(sgl);
-}
-
-static struct scatterlist *crypto_scomp_sg_alloc(size_t size, gfp_t gfp)
-{
-	struct scatterlist *sgl;
-	struct page *page;
-	int i, n;
-
-	n = ((size - 1) >> PAGE_SHIFT) + 1;
-
-	sgl = kmalloc_array(n, sizeof(struct scatterlist), gfp);
-	if (!sgl)
-		return NULL;
-
-	sg_init_table(sgl, n);
-
-	for (i = 0; i < n; i++) {
-		page = alloc_page(gfp);
-		if (!page)
-			goto err;
-		sg_set_page(sgl + i, page, PAGE_SIZE, 0);
-	}
-
-	return sgl;
-
-err:
-	sg_mark_end(sgl + i);
-	crypto_scomp_sg_free(sgl);
-	return NULL;
-}
-
 static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
@@ -220,7 +173,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 					      scratch_dst, &req->dlen, *ctx);
 	if (!ret) {
 		if (!req->dst) {
-			req->dst = crypto_scomp_sg_alloc(req->dlen, GFP_ATOMIC);
+			req->dst = sgl_alloc(req->dlen, GFP_ATOMIC, NULL);
 			if (!req->dst)
 				goto out;
 		}
@@ -274,7 +227,7 @@ int crypto_init_scomp_ops_async(struct crypto_tfm *tfm)
 
 	crt->compress = scomp_acomp_compress;
 	crt->decompress = scomp_acomp_decompress;
-	crt->dst_free = crypto_scomp_sg_free;
+	crt->dst_free = sgl_free;
 	crt->reqsize = sizeof(void *);
 
 	return 0;

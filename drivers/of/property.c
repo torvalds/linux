@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/of/property.c - Procedures for accessing and interpreting
  *			   Devicetree properties and graphs.
@@ -16,11 +17,6 @@
  *
  *  Reconsolidated from arch/x/kernel/prom.c by Stephen Rothwell and
  *  Grant Likely.
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"OF: " fmt
@@ -817,9 +813,9 @@ struct device_node *of_graph_get_remote_node(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_graph_get_remote_node);
 
-static void of_fwnode_get(struct fwnode_handle *fwnode)
+static struct fwnode_handle *of_fwnode_get(struct fwnode_handle *fwnode)
 {
-	of_node_get(to_of_node(fwnode));
+	return of_fwnode_handle(of_node_get(to_of_node(fwnode)));
 }
 
 static void of_fwnode_put(struct fwnode_handle *fwnode)
@@ -981,10 +977,18 @@ static int of_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 	return 0;
 }
 
+static const void *
+of_fwnode_device_get_match_data(const struct fwnode_handle *fwnode,
+				const struct device *dev)
+{
+	return of_device_get_match_data(dev);
+}
+
 const struct fwnode_operations of_fwnode_ops = {
 	.get = of_fwnode_get,
 	.put = of_fwnode_put,
 	.device_is_available = of_fwnode_device_is_available,
+	.device_get_match_data = of_fwnode_device_get_match_data,
 	.property_present = of_fwnode_property_present,
 	.property_read_int_array = of_fwnode_property_read_int_array,
 	.property_read_string_array = of_fwnode_property_read_string_array,

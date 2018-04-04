@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB-ACPI glue code
  *
  * Copyright 2012 Red Hat <mjg@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation, version 2.
- *
  */
 #include <linux/module.h>
 #include <linux/usb.h>

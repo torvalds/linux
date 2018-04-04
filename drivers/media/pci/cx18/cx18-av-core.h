@@ -349,7 +349,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 }
 
 /* ----------------------------------------------------------------------- */
-/* cx18_av-core.c 							   */
+/* cx18_av-core.c							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
 int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value);

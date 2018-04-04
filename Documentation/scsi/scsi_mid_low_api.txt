@@ -319,12 +319,12 @@ struct Scsi_Host:
         instance. If the reference count reaches 0 then the given instance
         is freed
 
-The Scsi_device structure has had reference counting infrastructure added.
-This effectively spreads the ownership of struct Scsi_device instances
+The scsi_device structure has had reference counting infrastructure added.
+This effectively spreads the ownership of struct scsi_device instances
 across the various SCSI layers which use them. Previously such instances
 were exclusively owned by the mid level. See the access functions declared
 towards the end of include/scsi/scsi_device.h . If an LLD wants to keep
-a copy of a pointer to a Scsi_device instance it should use scsi_device_get()
+a copy of a pointer to a scsi_device instance it should use scsi_device_get()
 to bump its reference count. When it is finished with the pointer it can
 use scsi_device_put() to decrement its reference count (and potentially
 delete it).

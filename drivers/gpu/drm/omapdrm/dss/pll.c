@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Texas Instruments Incorporated
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by

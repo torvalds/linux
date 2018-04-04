@@ -47,7 +47,7 @@
 #define AD7152_STATUS_PWDN		BIT(7)
 
 /* Setup Register Bit Designations (AD7152_REG_CHx_SETUP) */
-#define AD7152_SETUP_CAPDIFF		(1 << 5)
+#define AD7152_SETUP_CAPDIFF		BIT(5)
 #define AD7152_SETUP_RANGE_2pF		(0 << 6)
 #define AD7152_SETUP_RANGE_0_5pF	(1 << 6)
 #define AD7152_SETUP_RANGE_1pF		(2 << 6)
@@ -55,8 +55,8 @@
 #define AD7152_SETUP_RANGE(x)		((x) << 6)
 
 /* Config Register Bit Designations (AD7152_REG_CFG) */
-#define AD7152_CONF_CH2EN		(1 << 3)
-#define AD7152_CONF_CH1EN		(1 << 4)
+#define AD7152_CONF_CH2EN		BIT(3)
+#define AD7152_CONF_CH1EN		BIT(4)
 #define AD7152_CONF_MODE_IDLE		(0 << 0)
 #define AD7152_CONF_MODE_CONT_CONV	(1 << 0)
 #define AD7152_CONF_MODE_SINGLE_CONV	(2 << 0)
@@ -64,7 +64,7 @@
 #define AD7152_CONF_MODE_GAIN_CAL	(6 << 0)
 
 /* Capdac Register Bit Designations (AD7152_REG_CAPDAC_XXX) */
-#define AD7152_CAPDAC_DACEN		(1 << 7)
+#define AD7152_CAPDAC_DACEN		BIT(7)
 #define AD7152_CAPDAC_DACP(x)		((x) & 0x1F)
 
 /* CFG2 Register Bit Designations (AD7152_REG_CFG2) */
@@ -118,22 +118,23 @@ static inline ssize_t ad7152_start_calib(struct device *dev,
 
 	mutex_lock(&chip->state_lock);
 	ret = i2c_smbus_write_byte_data(chip->client, AD7152_REG_CFG, regval);
-	if (ret < 0) {
-		mutex_unlock(&chip->state_lock);
-		return ret;
-	}
+	if (ret < 0)
+		goto unlock;
 
 	do {
 		mdelay(20);
 		ret = i2c_smbus_read_byte_data(chip->client, AD7152_REG_CFG);
-		if (ret < 0) {
-			mutex_unlock(&chip->state_lock);
-			return ret;
-		}
+		if (ret < 0)
+			goto unlock;
+
 	} while ((ret == regval) && timeout--);
 
 	mutex_unlock(&chip->state_lock);
 	return len;
+
+unlock:
+	mutex_unlock(&chip->state_lock);
+	return ret;
 }
 
 static ssize_t ad7152_start_offset_calib(struct device *dev,
@@ -441,7 +442,6 @@ static const struct iio_info ad7152_info = {
 	.read_raw = ad7152_read_raw,
 	.write_raw = ad7152_write_raw,
 	.write_raw_get_fmt = ad7152_write_raw_get_fmt,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_chan_spec ad7152_channels[] = {

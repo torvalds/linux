@@ -95,6 +95,7 @@ usb: usb@47400000 {
 		reg = <0x47401300 0x100>;
 		reg-names = "phy";
 		ti,ctrl_mod = <&ctrl_mod>;
+		#phy-cells = <0>;
 	};
 
 	usb0: usb@47401000 {
@@ -141,6 +142,7 @@ usb: usb@47400000 {
 		reg = <0x47401b00 0x100>;
 		reg-names = "phy";
 		ti,ctrl_mod = <&ctrl_mod>;
+		#phy-cells = <0>;
 	};
 
 	usb1: usb@47401800 {
@@ -181,7 +183,7 @@ usb: usb@47400000 {
 			"tx14", "tx15";
 	};
 
-	cppi41dma: dma-controller@07402000 {
+	cppi41dma: dma-controller@7402000 {
 		compatible = "ti,am3359-cppi41";
 		reg =  <0x47400000 0x1000
 			0x47402000 0x1000

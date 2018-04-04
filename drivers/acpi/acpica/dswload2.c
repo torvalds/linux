@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,11 +184,14 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 				if (status == AE_NOT_FOUND) {
 					status = AE_OK;
 				} else {
-					ACPI_ERROR_NAMESPACE(buffer_ptr,
+					ACPI_ERROR_NAMESPACE(walk_state->
+							     scope_info,
+							     buffer_ptr,
 							     status);
 				}
 #else
-				ACPI_ERROR_NAMESPACE(buffer_ptr, status);
+				ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+						     buffer_ptr, status);
 #endif
 				return_ACPI_STATUS(status);
 			}
@@ -343,7 +346,8 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	}
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR_NAMESPACE(buffer_ptr, status);
+		ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+				     buffer_ptr, status);
 		return_ACPI_STATUS(status);
 	}
 
@@ -719,7 +723,8 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			 */
 			op->common.node = new_node;
 		} else {
-			ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
+			ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+					     arg->common.value.string, status);
 		}
 		break;
 

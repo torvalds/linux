@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -107,7 +108,8 @@ lnet_create_remote_nets_table(void)
 
 	LASSERT(!the_lnet.ln_remote_nets_hash);
 	LASSERT(the_lnet.ln_remote_nets_hbits > 0);
-	LIBCFS_ALLOC(hash, LNET_REMOTE_NETS_HASH_SIZE * sizeof(*hash));
+	hash = kvmalloc_array(LNET_REMOTE_NETS_HASH_SIZE, sizeof(*hash),
+			      GFP_KERNEL);
 	if (!hash) {
 		CERROR("Failed to create remote nets hash table\n");
 		return -ENOMEM;
@@ -130,9 +132,7 @@ lnet_destroy_remote_nets_table(void)
 	for (i = 0; i < LNET_REMOTE_NETS_HASH_SIZE; i++)
 		LASSERT(list_empty(&the_lnet.ln_remote_nets_hash[i]));
 
-	LIBCFS_FREE(the_lnet.ln_remote_nets_hash,
-		    LNET_REMOTE_NETS_HASH_SIZE *
-		    sizeof(the_lnet.ln_remote_nets_hash[0]));
+	kvfree(the_lnet.ln_remote_nets_hash);
 	the_lnet.ln_remote_nets_hash = NULL;
 }
 
@@ -383,10 +383,10 @@ lnet_res_container_cleanup(struct lnet_res_container *rec)
 
 		list_del_init(e);
 		if (rec->rec_type == LNET_COOKIE_TYPE_EQ) {
-			lnet_eq_free(list_entry(e, struct lnet_eq, eq_list));
+			kfree(list_entry(e, struct lnet_eq, eq_list));
 
 		} else if (rec->rec_type == LNET_COOKIE_TYPE_MD) {
-			lnet_md_free(list_entry(e, struct lnet_libmd, md_list));
+			kfree(list_entry(e, struct lnet_libmd, md_list));
 
 		} else { /* NB: Active MEs should be attached on portals */
 			LBUG();
@@ -404,11 +404,8 @@ lnet_res_container_cleanup(struct lnet_res_container *rec)
 		       count, lnet_res_type2str(rec->rec_type));
 	}
 
-	if (rec->rec_lh_hash) {
-		LIBCFS_FREE(rec->rec_lh_hash,
-			    LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]));
-		rec->rec_lh_hash = NULL;
-	}
+	kfree(rec->rec_lh_hash);
+	rec->rec_lh_hash = NULL;
 
 	rec->rec_type = 0; /* mark it as finalized */
 }
@@ -426,8 +423,8 @@ lnet_res_container_setup(struct lnet_res_container *rec, int cpt, int type)
 	rec->rec_lh_cookie = (cpt << LNET_COOKIE_TYPE_BITS) | type;
 
 	/* Arbitrary choice of hash table size */
-	LIBCFS_CPT_ALLOC(rec->rec_lh_hash, lnet_cpt_table(), cpt,
-			 LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]));
+	rec->rec_lh_hash = kvmalloc_cpt(LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]),
+					GFP_KERNEL, cpt);
 	if (!rec->rec_lh_hash) {
 		rc = -ENOMEM;
 		goto out;
@@ -830,7 +827,7 @@ lnet_ping_info_create(int num_ni)
 	unsigned int infosz;
 
 	infosz = offsetof(struct lnet_ping_info, pi_ni[num_ni]);
-	LIBCFS_ALLOC(ping_info, infosz);
+	ping_info = kvzalloc(infosz, GFP_KERNEL);
 	if (!ping_info) {
 		CERROR("Can't allocate ping info[%d]\n", num_ni);
 		return NULL;
@@ -863,9 +860,7 @@ lnet_get_ni_count(void)
 static inline void
 lnet_ping_info_free(struct lnet_ping_info *pinfo)
 {
-	LIBCFS_FREE(pinfo,
-		    offsetof(struct lnet_ping_info,
-			     pi_ni[pinfo->pi_nnis]));
+	kvfree(pinfo);
 }
 
 static void
@@ -1279,8 +1274,8 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		lnd_tunables = (struct lnet_ioctl_config_lnd_tunables *)conf->cfg_bulk;
 
 	if (lnd_tunables) {
-		LIBCFS_ALLOC(ni->ni_lnd_tunables,
-			     sizeof(*ni->ni_lnd_tunables));
+		ni->ni_lnd_tunables = kzalloc(sizeof(*ni->ni_lnd_tunables),
+					      GFP_NOFS);
 		if (!ni->ni_lnd_tunables) {
 			mutex_unlock(&the_lnet.ln_lnd_mutex);
 			rc = -ENOMEM;
@@ -2159,7 +2154,7 @@ static int lnet_ping(struct lnet_process_id id, int timeout_ms,
 	if (id.pid == LNET_PID_ANY)
 		id.pid = LNET_PID_LUSTRE;
 
-	LIBCFS_ALLOC(info, infosz);
+	info = kzalloc(infosz, GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -2309,6 +2304,6 @@ static int lnet_ping(struct lnet_process_id id, int timeout_ms,
 	LASSERT(!rc2);
 
  out_0:
-	LIBCFS_FREE(info, infosz);
+	kfree(info);
 	return rc;
 }

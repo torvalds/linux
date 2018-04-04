@@ -396,6 +396,7 @@ typedef struct elf64_shdr {
 #define NT_PPC_TM_CTAR	0x10d		/* TM checkpointed Target Address Register */
 #define NT_PPC_TM_CPPR	0x10e		/* TM checkpointed Program Priority Register */
 #define NT_PPC_TM_CDSCR	0x10f		/* TM checkpointed Data Stream Control Register */
+#define NT_PPC_PKEY	0x110		/* Memory Protection Keys registers */
 #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
 #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
 #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
@@ -412,11 +413,13 @@ typedef struct elf64_shdr {
 #define NT_S390_VXRS_HIGH	0x30a	/* s390 vector registers 16-31 */
 #define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
 #define NT_S390_GS_BC	0x30c		/* s390 guarded storage broadcast control block */
+#define NT_S390_RI_CB	0x30d		/* s390 runtime instrumentation */
 #define NT_ARM_VFP	0x400		/* ARM VFP/NEON registers */
 #define NT_ARM_TLS	0x401		/* ARM TLS register */
 #define NT_ARM_HW_BREAK	0x402		/* ARM hardware breakpoint registers */
 #define NT_ARM_HW_WATCH	0x403		/* ARM hardware watchpoint registers */
 #define NT_ARM_SYSTEM_CALL	0x404	/* ARM system call number */
+#define NT_ARM_SVE	0x405		/* ARM Scalable Vector Extension registers */
 #define NT_METAG_CBUF	0x500		/* Metag catch buffer registers */
 #define NT_METAG_RPIPE	0x501		/* Metag read pipeline state */
 #define NT_METAG_TLS	0x502		/* Metag TLS pointer */

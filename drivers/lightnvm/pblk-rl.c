@@ -89,16 +89,16 @@ unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl)
 	return atomic_read(&rl->free_blocks);
 }
 
-/*
- * We check for (i) the number of free blocks in the current LUN and (ii) the
- * total number of free blocks in the pblk instance. This is to even out the
- * number of free blocks on each LUN when GC kicks in.
- *
- * Only the total number of free blocks is used to configure the rate limiter.
- */
-static int pblk_rl_update_rates(struct pblk_rl *rl, unsigned long max)
+unsigned long pblk_rl_nr_user_free_blks(struct pblk_rl *rl)
 {
-	unsigned long free_blocks = pblk_rl_nr_free_blks(rl);
+	return atomic_read(&rl->free_user_blocks);
+}
+
+static void __pblk_rl_update_rates(struct pblk_rl *rl,
+				   unsigned long free_blocks)
+{
+	struct pblk *pblk = container_of(rl, struct pblk, rl);
+	int max = rl->rb_budget;
 
 	if (free_blocks >= rl->high) {
 		rl->rb_user_max = max;
@@ -124,43 +124,43 @@ static int pblk_rl_update_rates(struct pblk_rl *rl, unsigned long max)
 		rl->rb_state = PBLK_RL_LOW;
 	}
 
-	return rl->rb_state;
+	if (rl->rb_state == (PBLK_RL_MID | PBLK_RL_LOW))
+		pblk_gc_should_start(pblk);
+	else
+		pblk_gc_should_stop(pblk);
+}
+
+void pblk_rl_update_rates(struct pblk_rl *rl)
+{
+	__pblk_rl_update_rates(rl, pblk_rl_nr_user_free_blks(rl));
 }
 
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line)
 {
-	struct pblk *pblk = container_of(rl, struct pblk, rl);
 	int blk_in_line = atomic_read(&line->blk_in_line);
-	int ret;
+	int free_blocks;
 
 	atomic_add(blk_in_line, &rl->free_blocks);
-	/* Rates will not change that often - no need to lock update */
-	ret = pblk_rl_update_rates(rl, rl->rb_budget);
+	free_blocks = atomic_add_return(blk_in_line, &rl->free_user_blocks);
 
-	if (ret == (PBLK_RL_MID | PBLK_RL_LOW))
-		pblk_gc_should_start(pblk);
-	else
-		pblk_gc_should_stop(pblk);
+	__pblk_rl_update_rates(rl, free_blocks);
 }
 
-void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line)
+void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line,
+			    bool used)
 {
 	int blk_in_line = atomic_read(&line->blk_in_line);
+	int free_blocks;
 
 	atomic_sub(blk_in_line, &rl->free_blocks);
-}
 
-void pblk_gc_should_kick(struct pblk *pblk)
-{
-	struct pblk_rl *rl = &pblk->rl;
-	int ret;
-
-	/* Rates will not change that often - no need to lock update */
-	ret = pblk_rl_update_rates(rl, rl->rb_budget);
-	if (ret == (PBLK_RL_MID | PBLK_RL_LOW))
-		pblk_gc_should_start(pblk);
+	if (used)
+		free_blocks = atomic_sub_return(blk_in_line,
+							&rl->free_user_blocks);
 	else
-		pblk_gc_should_stop(pblk);
+		free_blocks = atomic_read(&rl->free_user_blocks);
+
+	__pblk_rl_update_rates(rl, free_blocks);
 }
 
 int pblk_rl_high_thrs(struct pblk_rl *rl)
@@ -168,19 +168,14 @@ int pblk_rl_high_thrs(struct pblk_rl *rl)
 	return rl->high;
 }
 
-int pblk_rl_low_thrs(struct pblk_rl *rl)
+int pblk_rl_max_io(struct pblk_rl *rl)
 {
-	return rl->low;
+	return rl->rb_max_io;
 }
 
-int pblk_rl_sysfs_rate_show(struct pblk_rl *rl)
+static void pblk_rl_u_timer(struct timer_list *t)
 {
-	return rl->rb_user_max;
-}
-
-static void pblk_rl_u_timer(unsigned long data)
-{
-	struct pblk_rl *rl = (struct pblk_rl *)data;
+	struct pblk_rl *rl = from_timer(rl, t, u_timer);
 
 	/* Release user I/O state. Protect from GC */
 	smp_store_release(&rl->rb_user_active, 0);
@@ -194,16 +189,21 @@ void pblk_rl_free(struct pblk_rl *rl)
 void pblk_rl_init(struct pblk_rl *rl, int budget)
 {
 	struct pblk *pblk = container_of(rl, struct pblk, rl);
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	int min_blocks = lm->blk_per_line * PBLK_GC_RSV_LINE;
+	int sec_meta, blk_meta;
+
 	unsigned int rb_windows;
 
-	rl->high = rl->total_blocks / PBLK_USER_HIGH_THRS;
-	rl->high_pw = get_count_order(rl->high);
+	/* Consider sectors used for metadata */
+	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
+	blk_meta = DIV_ROUND_UP(sec_meta, geo->sec_per_chk);
 
-	rl->low = rl->total_blocks / PBLK_USER_LOW_THRS;
-	if (rl->low < min_blocks)
-		rl->low = min_blocks;
+	rl->high = pblk->op_blks - blk_meta - lm->blk_per_line;
+	rl->high_pw = get_count_order(rl->high);
 
 	rl->rsv_blocks = min_blocks;
 
@@ -214,6 +214,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	/* To start with, all buffer is available to user I/O writers */
 	rl->rb_budget = budget;
 	rl->rb_user_max = budget;
+	rl->rb_max_io = budget >> 1;
 	rl->rb_gc_max = 0;
 	rl->rb_state = PBLK_RL_HIGH;
 
@@ -221,7 +222,7 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	atomic_set(&rl->rb_gc_cnt, 0);
 	atomic_set(&rl->rb_space, -1);
 
-	setup_timer(&rl->u_timer, pblk_rl_u_timer, (unsigned long)rl);
+	timer_setup(&rl->u_timer, pblk_rl_u_timer, 0);
 
 	rl->rb_user_active = 0;
 	rl->rb_gc_active = 0;

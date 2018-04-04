@@ -46,6 +46,7 @@
 
 /* quirks to control the device */
 #define I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV	BIT(0)
+#define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -168,6 +169,8 @@ static const struct i2c_hid_quirks {
 		I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV },
 	{ USB_VENDOR_ID_WEIDA, USB_DEVICE_ID_WEIDA_8755,
 		I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV },
+	{ I2C_VENDOR_ID_HANTICK, I2C_PRODUCT_ID_HANTICK_5288,
+		I2C_HID_QUIRK_NO_IRQ_AFTER_RESET },
 	{ 0, 0 }
 };
 
@@ -252,7 +255,9 @@ static int __i2c_hid_command(struct i2c_client *client,
 
 	ret = 0;
 
-	if (wait) {
+	if (wait && (ihid->quirks & I2C_HID_QUIRK_NO_IRQ_AFTER_RESET)) {
+		msleep(100);
+	} else if (wait) {
 		i2c_hid_dbg(ihid, "%s: waiting...\n", __func__);
 		if (!wait_event_timeout(ihid->wait,
 				!test_bit(I2C_HID_RESET_PENDING, &ihid->flags),
@@ -929,11 +934,6 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 	}
 	pdata->hid_descriptor_address = val;
 
-	ret = of_property_read_u32(dev->of_node, "post-power-on-delay-ms",
-				   &val);
-	if (!ret)
-		pdata->post_power_delay_ms = val;
-
 	return 0;
 }
 
@@ -949,6 +949,16 @@ static inline int i2c_hid_of_probe(struct i2c_client *client,
 	return -ENODEV;
 }
 #endif
+
+static void i2c_hid_fwnode_probe(struct i2c_client *client,
+				 struct i2c_hid_platform_data *pdata)
+{
+	u32 val;
+
+	if (!device_property_read_u32(&client->dev, "post-power-on-delay-ms",
+				      &val))
+		pdata->post_power_delay_ms = val;
+}
 
 static int i2c_hid_probe(struct i2c_client *client,
 			 const struct i2c_device_id *dev_id)
@@ -992,6 +1002,9 @@ static int i2c_hid_probe(struct i2c_client *client,
 	} else {
 		ihid->pdata = *platform_data;
 	}
+
+	/* Parse platform agnostic common properties from ACPI / device tree */
+	i2c_hid_fwnode_probe(client, &ihid->pdata);
 
 	ihid->pdata.supply = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(ihid->pdata.supply)) {

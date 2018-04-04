@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) Gabriel Fernandez 2017
- * Author: Gabriel Fernandez <gabriel.fernandez@st.com>
- *
- * License terms: GPL V2.0.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) STMicroelectronics 2017
+ * Author: Gabriel Fernandez <gabriel.fernandez@st.com> for STMicroelectronics.
  */
 
 #include <linux/clk.h>
@@ -384,7 +371,7 @@ static void get_cfg_composite_div(const struct composite_clk_gcfg *gcfg,
 	mux_ops = div_ops = gate_ops = NULL;
 	mux_hw = div_hw = gate_hw = NULL;
 
-	if (gcfg->mux && gcfg->mux) {
+	if (gcfg->mux && cfg->mux) {
 		mux = _get_cmux(base + cfg->mux->offset,
 				cfg->mux->shift,
 				cfg->mux->width,
@@ -410,7 +397,7 @@ static void get_cfg_composite_div(const struct composite_clk_gcfg *gcfg,
 		}
 	}
 
-	if (gcfg->gate && gcfg->gate) {
+	if (gcfg->gate && cfg->gate) {
 		gate = _get_cgate(base + cfg->gate->offset,
 				cfg->gate->bit_idx,
 				gcfg->gate->flags, lock);

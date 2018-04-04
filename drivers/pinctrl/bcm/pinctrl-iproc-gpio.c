@@ -172,7 +172,7 @@ static void iproc_gpio_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(bit, &val, NGPIOS_PER_BANK) {
 			unsigned pin = NGPIOS_PER_BANK * i + bit;
-			int child_irq = irq_find_mapping(gc->irqdomain, pin);
+			int child_irq = irq_find_mapping(gc->irq.domain, pin);
 
 			/*
 			 * Clear the interrupt before invoking the
@@ -311,7 +311,7 @@ static int iproc_gpio_request(struct gpio_chip *gc, unsigned offset)
 	if (!chip->pinmux_is_supported)
 		return 0;
 
-	return pinctrl_request_gpio(gpio);
+	return pinctrl_gpio_request(gpio);
 }
 
 static void iproc_gpio_free(struct gpio_chip *gc, unsigned offset)
@@ -322,7 +322,7 @@ static void iproc_gpio_free(struct gpio_chip *gc, unsigned offset)
 	if (!chip->pinmux_is_supported)
 		return;
 
-	pinctrl_free_gpio(gpio);
+	pinctrl_gpio_free(gpio);
 }
 
 static int iproc_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)

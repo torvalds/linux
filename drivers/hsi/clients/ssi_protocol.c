@@ -464,10 +464,10 @@ static void ssip_error(struct hsi_client *cl)
 	hsi_async_read(cl, msg);
 }
 
-static void ssip_keep_alive(unsigned long data)
+static void ssip_keep_alive(struct timer_list *t)
 {
-	struct hsi_client *cl = (struct hsi_client *)data;
-	struct ssi_protocol *ssi = hsi_client_drvdata(cl);
+	struct ssi_protocol *ssi = from_timer(ssi, t, keep_alive);
+	struct hsi_client *cl = ssi->cl;
 
 	dev_dbg(&cl->device, "Keep alive kick in: m(%d) r(%d) s(%d)\n",
 		ssi->main_state, ssi->recv_state, ssi->send_state);
@@ -490,9 +490,19 @@ static void ssip_keep_alive(unsigned long data)
 	spin_unlock(&ssi->lock);
 }
 
-static void ssip_wd(unsigned long data)
+static void ssip_rx_wd(struct timer_list *t)
 {
-	struct hsi_client *cl = (struct hsi_client *)data;
+	struct ssi_protocol *ssi = from_timer(ssi, t, rx_wd);
+	struct hsi_client *cl = ssi->cl;
+
+	dev_err(&cl->device, "Watchdog trigerred\n");
+	ssip_error(cl);
+}
+
+static void ssip_tx_wd(struct timer_list *t)
+{
+	struct ssi_protocol *ssi = from_timer(ssi, t, tx_wd);
+	struct hsi_client *cl = ssi->cl;
 
 	dev_err(&cl->device, "Watchdog trigerred\n");
 	ssip_error(cl);
@@ -1084,15 +1094,9 @@ static int ssi_protocol_probe(struct device *dev)
 	}
 
 	spin_lock_init(&ssi->lock);
-	init_timer_deferrable(&ssi->rx_wd);
-	init_timer_deferrable(&ssi->tx_wd);
-	init_timer(&ssi->keep_alive);
-	ssi->rx_wd.data = (unsigned long)cl;
-	ssi->rx_wd.function = ssip_wd;
-	ssi->tx_wd.data = (unsigned long)cl;
-	ssi->tx_wd.function = ssip_wd;
-	ssi->keep_alive.data = (unsigned long)cl;
-	ssi->keep_alive.function = ssip_keep_alive;
+	timer_setup(&ssi->rx_wd, ssip_rx_wd, TIMER_DEFERRABLE);
+	timer_setup(&ssi->tx_wd, ssip_tx_wd, TIMER_DEFERRABLE);
+	timer_setup(&ssi->keep_alive, ssip_keep_alive, 0);
 	INIT_LIST_HEAD(&ssi->txqueue);
 	INIT_LIST_HEAD(&ssi->cmdqueue);
 	atomic_set(&ssi->tx_usecnt, 0);

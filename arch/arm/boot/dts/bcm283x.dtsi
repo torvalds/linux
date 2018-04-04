@@ -2,6 +2,7 @@
 #include <dt-bindings/clock/bcm2835.h>
 #include <dt-bindings/clock/bcm2835-aux.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 /* firmware-provided startup stubs live here, where the secondary CPUs are
  * spinning.
@@ -464,7 +465,7 @@
 			status = "disabled";
 		};
 
-		aux: aux@0x7e215000 {
+		aux: aux@7e215000 {
 			compatible = "brcm,bcm2835-aux";
 			#clock-cells = <1>;
 			reg = <0x7e215000 0x8>;
@@ -639,5 +640,6 @@
 
 	usbphy: phy {
 		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 	};
 };

@@ -17,14 +17,14 @@
 #include <linux/mutex.h>
 #include <media/rc-core.h>
 
-#include "dvb_frontend.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
-#include "dmxdev.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dmxdev.h>
 
 #include "dvb-pll.h"
 
-#include "dvb-usb-ids.h"
+#include <media/dvb-usb-ids.h>
 
 /* debug */
 #ifdef CONFIG_DVB_USB_DEBUG
@@ -208,6 +208,7 @@ struct dvb_rc {
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;
 	bool bulk_mode;				/* uses bulk mode */
+	u32 scancode_mask;
 };
 
 /**

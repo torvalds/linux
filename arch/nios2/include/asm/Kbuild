@@ -3,7 +3,6 @@ generic-y += barrier.h
 generic-y += bitops.h
 generic-y += bug.h
 generic-y += bugs.h
-generic-y += clkdev.h
 generic-y += cmpxchg.h
 generic-y += current.h
 generic-y += device.h

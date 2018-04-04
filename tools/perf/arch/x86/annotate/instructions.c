@@ -123,3 +123,17 @@ static int x86__cpuid_parse(struct arch *arch, char *cpuid)
 
 	return -1;
 }
+
+static int x86__annotate_init(struct arch *arch, char *cpuid)
+{
+	int err = 0;
+
+	if (arch->initialized)
+		return 0;
+
+	if (cpuid)
+		err = x86__cpuid_parse(arch, cpuid);
+
+	arch->initialized = true;
+	return err;
+}

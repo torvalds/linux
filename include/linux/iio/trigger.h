@@ -23,7 +23,6 @@ struct iio_trigger;
 
 /**
  * struct iio_trigger_ops - operations structure for an iio_trigger.
- * @owner:		used to monitor usage count of the trigger.
  * @set_trigger_state:	switch on/off the trigger on demand
  * @try_reenable:	function to reenable the trigger when the
  *			use count is zero (may be NULL)
@@ -34,7 +33,6 @@ struct iio_trigger;
  * instances of a given device.
  **/
 struct iio_trigger_ops {
-	struct module *owner;
 	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
 	int (*try_reenable)(struct iio_trigger *trig);
 	int (*validate_device)(struct iio_trigger *trig,
@@ -45,12 +43,13 @@ struct iio_trigger_ops {
 /**
  * struct iio_trigger - industrial I/O trigger device
  * @ops:		[DRIVER] operations structure
+ * @owner:		[INTERN] owner of this driver module
  * @id:			[INTERN] unique id number
  * @name:		[DRIVER] unique name
  * @dev:		[DRIVER] associated device (if relevant)
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @use_count:		use count for the trigger
+ * @use_count:		[INTERN] use count for the trigger.
  * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
  * @subirq_base:	[INTERN] base number for irqs provided by trigger.
  * @subirqs:		[INTERN] information about the 'child' irqs.
@@ -62,6 +61,7 @@ struct iio_trigger_ops {
  **/
 struct iio_trigger {
 	const struct iio_trigger_ops	*ops;
+	struct module			*owner;
 	int				id;
 	const char			*name;
 	struct device			dev;
@@ -87,14 +87,14 @@ static inline struct iio_trigger *to_iio_trigger(struct device *d)
 
 static inline void iio_trigger_put(struct iio_trigger *trig)
 {
-	module_put(trig->ops->owner);
+	module_put(trig->owner);
 	put_device(&trig->dev);
 }
 
 static inline struct iio_trigger *iio_trigger_get(struct iio_trigger *trig)
 {
 	get_device(&trig->dev);
-	__module_get(trig->ops->owner);
+	__module_get(trig->owner);
 
 	return trig;
 }
@@ -127,10 +127,16 @@ static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
  * iio_trigger_register() - register a trigger with the IIO core
  * @trig_info:	trigger to be registered
  **/
-int iio_trigger_register(struct iio_trigger *trig_info);
+#define iio_trigger_register(trig_info) \
+	__iio_trigger_register((trig_info), THIS_MODULE)
+int __iio_trigger_register(struct iio_trigger *trig_info,
+			   struct module *this_mod);
 
-int devm_iio_trigger_register(struct device *dev,
-			      struct iio_trigger *trig_info);
+#define devm_iio_trigger_register(dev, trig_info) \
+	__devm_iio_trigger_register((dev), (trig_info), THIS_MODULE)
+int __devm_iio_trigger_register(struct device *dev,
+				struct iio_trigger *trig_info,
+				struct module *this_mod);
 
 /**
  * iio_trigger_unregister() - unregister a trigger from the core

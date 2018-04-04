@@ -542,13 +542,9 @@ int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	unsigned long *ev = uctxt->dd->events +
-		(((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
-		  HFI1_MAX_SHARED_CTXTS) + fd->subctxt);
+		(uctxt_offset(uctxt) + fd->subctxt);
 	u32 *array;
 	int ret = 0;
-
-	if (!fd->invalid_tids)
-		return -EINVAL;
 
 	/*
 	 * copy_to_user() can sleep, which will leave the invalid_lock
@@ -942,8 +938,7 @@ static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 			 * process in question.
 			 */
 			ev = uctxt->dd->events +
-			  (((uctxt->ctxt - uctxt->dd->first_dyn_alloc_ctxt) *
-			    HFI1_MAX_SHARED_CTXTS) + fdata->subctxt);
+				(uctxt_offset(uctxt) + fdata->subctxt);
 			set_bit(_HFI1_EVENT_TID_MMU_NOTIFY_BIT, ev);
 		}
 		fdata->invalid_tid_idx++;

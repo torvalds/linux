@@ -551,8 +551,8 @@ static int reg_write(struct gspca_dev *gspca_dev,
 			req,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
-	PDEBUG(D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d",
-		req, index, value, ret);
+	gspca_dbg(gspca_dev, D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d\n",
+		  req, index, value, ret);
 	if (ret < 0)
 		pr_err("reg write: error %d\n", ret);
 	return ret;
@@ -650,7 +650,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	ret = reg_read(gspca_dev, 0x06, 0x16);
 
 	if (ret < 0) {
-		PERR("register read failed err: %d", ret);
+		gspca_err(gspca_dev, "register read failed err: %d\n", ret);
 		return ret;
 	}
 	if (ret != 0x0101) {

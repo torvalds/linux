@@ -1,17 +1,12 @@
-
-/* arch/arm/mach-s3c2410/include/mach/vr1000-cpld.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2003 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * VR1000 - CPLD control constants
  * Machine VR1000 - IRQ Number definitions
  * Machine VR1000 - Memory map definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __MACH_S3C24XX_VR1000_H
 #define __MACH_S3C24XX_VR1000_H __FILE__

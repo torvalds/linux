@@ -49,11 +49,29 @@ enum brcm_sata_phy_version {
 	BRCM_SATA_PHY_IPROC_SR,
 };
 
+enum brcm_sata_phy_rxaeq_mode {
+	RXAEQ_MODE_OFF = 0,
+	RXAEQ_MODE_AUTO,
+	RXAEQ_MODE_MANUAL,
+};
+
+static enum brcm_sata_phy_rxaeq_mode rxaeq_to_val(const char *m)
+{
+	if (!strcmp(m, "auto"))
+		return RXAEQ_MODE_AUTO;
+	else if (!strcmp(m, "manual"))
+		return RXAEQ_MODE_MANUAL;
+	else
+		return RXAEQ_MODE_OFF;
+}
+
 struct brcm_sata_port {
 	int portnum;
 	struct phy *phy;
 	struct brcm_sata_phy *phy_priv;
 	bool ssc_en;
+	enum brcm_sata_phy_rxaeq_mode rxaeq_mode;
+	u32 rxaeq_val;
 };
 
 struct brcm_sata_phy {
@@ -93,6 +111,15 @@ enum sata_phy_regs {
 	TX_ACTRL0				= 0x80,
 	TX_ACTRL0_TXPOL_FLIP			= BIT(6),
 
+	AEQRX_REG_BANK_0			= 0xd0,
+	AEQ_CONTROL1				= 0x81,
+	AEQ_CONTROL1_ENABLE			= BIT(2),
+	AEQ_CONTROL1_FREEZE			= BIT(3),
+	AEQ_FRC_EQ				= 0x83,
+	AEQ_FRC_EQ_FORCE			= BIT(0),
+	AEQ_FRC_EQ_FORCE_VAL			= BIT(1),
+	AEQRX_REG_BANK_1			= 0xe0,
+
 	OOB_REG_BANK				= 0x150,
 	OOB1_REG_BANK				= 0x160,
 	OOB_CTRL1				= 0x80,
@@ -123,6 +150,9 @@ enum sata_phy_regs {
 	TXPMD_TX_FREQ_CTRL_CONTROL2_FMIN_MASK	= 0x3ff,
 	TXPMD_TX_FREQ_CTRL_CONTROL3		= 0x84,
 	TXPMD_TX_FREQ_CTRL_CONTROL3_FMAX_MASK	= 0x3ff,
+
+	RXPMD_REG_BANK				= 0x1c0,
+	RXPMD_RX_FREQ_MON_CONTROL1		= 0x87,
 };
 
 enum sata_phy_ctrl_regs {
@@ -190,7 +220,7 @@ static u32 brcm_sata_phy_rd(void __iomem *pcb_base, u32 bank, u32 ofs)
 #define STB_FMAX_VAL_DEFAULT	0x3df
 #define STB_FMAX_VAL_SSC	0x83
 
-static int brcm_stb_sata_init(struct brcm_sata_port *port)
+static void brcm_stb_sata_ssc_init(struct brcm_sata_port *port)
 {
 	void __iomem *base = brcm_sata_pcb_base(port);
 	struct brcm_sata_phy *priv = port->phy_priv;
@@ -215,8 +245,45 @@ static int brcm_stb_sata_init(struct brcm_sata_port *port)
 
 	brcm_sata_phy_wr(base, TXPMD_REG_BANK, TXPMD_TX_FREQ_CTRL_CONTROL3,
 			  ~TXPMD_TX_FREQ_CTRL_CONTROL3_FMAX_MASK, tmp);
+}
+
+#define AEQ_FRC_EQ_VAL_SHIFT	2
+#define AEQ_FRC_EQ_VAL_MASK	0x3f
+
+static int brcm_stb_sata_rxaeq_init(struct brcm_sata_port *port)
+{
+	void __iomem *base = brcm_sata_pcb_base(port);
+	u32 tmp = 0, reg = 0;
+
+	switch (port->rxaeq_mode) {
+	case RXAEQ_MODE_OFF:
+		return 0;
+
+	case RXAEQ_MODE_AUTO:
+		reg = AEQ_CONTROL1;
+		tmp = AEQ_CONTROL1_ENABLE | AEQ_CONTROL1_FREEZE;
+		break;
+
+	case RXAEQ_MODE_MANUAL:
+		reg = AEQ_FRC_EQ;
+		tmp = AEQ_FRC_EQ_FORCE | AEQ_FRC_EQ_FORCE_VAL;
+		if (port->rxaeq_val > AEQ_FRC_EQ_VAL_MASK)
+			return -EINVAL;
+		tmp |= port->rxaeq_val << AEQ_FRC_EQ_VAL_SHIFT;
+		break;
+	}
+
+	brcm_sata_phy_wr(base, AEQRX_REG_BANK_0, reg, ~tmp, tmp);
+	brcm_sata_phy_wr(base, AEQRX_REG_BANK_1, reg, ~tmp, tmp);
 
 	return 0;
+}
+
+static int brcm_stb_sata_init(struct brcm_sata_port *port)
+{
+	brcm_stb_sata_ssc_init(port);
+
+	return brcm_stb_sata_rxaeq_init(port);
 }
 
 /* NS2 SATA PLL1 defaults were characterized by H/W group */
@@ -441,8 +508,36 @@ static int brcm_sata_phy_init(struct phy *phy)
 	return rc;
 }
 
+static void brcm_stb_sata_calibrate(struct brcm_sata_port *port)
+{
+	void __iomem *base = brcm_sata_pcb_base(port);
+	u32 tmp = BIT(8);
+
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_FREQ_MON_CONTROL1,
+			 ~tmp, tmp);
+}
+
+static int brcm_sata_phy_calibrate(struct phy *phy)
+{
+	struct brcm_sata_port *port = phy_get_drvdata(phy);
+	int rc = -EOPNOTSUPP;
+
+	switch (port->phy_priv->version) {
+	case BRCM_SATA_PHY_STB_28NM:
+	case BRCM_SATA_PHY_STB_40NM:
+		brcm_stb_sata_calibrate(port);
+		rc = 0;
+		break;
+	default:
+		break;
+	}
+
+	return rc;
+}
+
 static const struct phy_ops phy_ops = {
 	.init		= brcm_sata_phy_init,
+	.calibrate	= brcm_sata_phy_calibrate,
 	.owner		= THIS_MODULE,
 };
 
@@ -463,6 +558,7 @@ MODULE_DEVICE_TABLE(of, brcm_sata_phy_of_match);
 
 static int brcm_sata_phy_probe(struct platform_device *pdev)
 {
+	const char *rxaeq_mode;
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node, *child;
 	const struct of_device_id *of_id;
@@ -525,6 +621,13 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 		port->portnum = id;
 		port->phy_priv = priv;
 		port->phy = devm_phy_create(dev, child, &phy_ops);
+		port->rxaeq_mode = RXAEQ_MODE_OFF;
+		if (!of_property_read_string(child, "brcm,rxaeq-mode",
+					     &rxaeq_mode))
+			port->rxaeq_mode = rxaeq_to_val(rxaeq_mode);
+		if (port->rxaeq_mode == RXAEQ_MODE_MANUAL)
+			of_property_read_u32(child, "brcm,rxaeq-value",
+					     &port->rxaeq_val);
 		port->ssc_en = of_property_read_bool(child, "brcm,enable-ssc");
 		if (IS_ERR(port->phy)) {
 			dev_err(dev, "failed to create PHY\n");

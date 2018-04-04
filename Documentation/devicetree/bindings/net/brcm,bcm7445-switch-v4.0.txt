@@ -2,7 +2,10 @@
 
 Required properties:
 
-- compatible: should be "brcm,bcm7445-switch-v4.0" or "brcm,bcm7278-switch-v4.0"
+- compatible: should be one of
+	"brcm,bcm7445-switch-v4.0"
+	"brcm,bcm7278-switch-v4.0"
+	"brcm,bcm7278-switch-v4.8"
 - reg: addresses and length of the register sets for the device, must be 6
   pairs of register addresses and lengths
 - interrupts: interrupts for the devices, must be two interrupts

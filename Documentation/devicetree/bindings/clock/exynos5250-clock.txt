@@ -22,7 +22,7 @@ tree sources.
 
 Example 1: An example of a clock controller node is listed below.
 
-	clock: clock-controller@0x10010000 {
+	clock: clock-controller@10010000 {
 		compatible = "samsung,exynos5250-clock";
 		reg = <0x10010000 0x30000>;
 		#clock-cells = <1>;

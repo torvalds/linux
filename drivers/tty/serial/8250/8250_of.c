@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Serial Port driver for Open Firmware platform devices
  *
  *    Copyright (C) 2006 Arnd Bergmann <arnd@arndb.de>, IBM Corp.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/console.h>
 #include <linux/module.h>
@@ -141,8 +136,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	}
 
 	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
-	if (IS_ERR(info->rst))
+	if (IS_ERR(info->rst)) {
+		ret = PTR_ERR(info->rst);
 		goto err_dispose;
+	}
+
 	ret = reset_control_deassert(info->rst);
 	if (ret)
 		goto err_dispose;

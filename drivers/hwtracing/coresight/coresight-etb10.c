@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/perf_event.h>
 
-#include <asm/local.h>
 
 #include "coresight-priv.h"
 
@@ -748,8 +747,8 @@ static const struct dev_pm_ops etb_dev_pm_ops = {
 
 static const struct amba_id etb_ids[] = {
 	{
-		.id	= 0x0003b907,
-		.mask	= 0x0003ffff,
+		.id	= 0x000bb907,
+		.mask	= 0x000fffff,
 	},
 	{ 0, 0},
 };

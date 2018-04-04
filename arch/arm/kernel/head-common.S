@@ -79,47 +79,70 @@ ENDPROC(__vet_atags)
  */
 	__INIT
 __mmap_switched:
-	adr	r3, __mmap_switched_data
 
-	ldmia	r3!, {r4, r5, r6, r7}
-	cmp	r4, r5				@ Copy data segment if needed
-1:	cmpne	r5, r6
-	ldrne	fp, [r4], #4
-	strne	fp, [r5], #4
-	bne	1b
+	mov	r7, r1
+	mov	r8, r2
+	mov	r10, r0
 
-	mov	fp, #0				@ Clear BSS (and zero fp)
-1:	cmp	r6, r7
-	strcc	fp, [r6],#4
-	bcc	1b
+	adr	r4, __mmap_switched_data
+	mov	fp, #0
 
- ARM(	ldmia	r3, {r4, r5, r6, r7, sp})
- THUMB(	ldmia	r3, {r4, r5, r6, r7}	)
- THUMB(	ldr	sp, [r3, #16]		)
-	str	r9, [r4]			@ Save processor ID
-	str	r1, [r5]			@ Save machine type
-	str	r2, [r6]			@ Save atags pointer
-	cmp	r7, #0
-	strne	r0, [r7]			@ Save control register values
+#if defined(CONFIG_XIP_DEFLATED_DATA)
+   ARM(	ldr	sp, [r4], #4 )
+ THUMB(	ldr	sp, [r4] )
+ THUMB(	add	r4, #4 )
+	bl	__inflate_kernel_data		@ decompress .data to RAM
+	teq	r0, #0
+	bne	__error
+#elif defined(CONFIG_XIP_KERNEL)
+   ARM(	ldmia	r4!, {r0, r1, r2, sp} )
+ THUMB(	ldmia	r4!, {r0, r1, r2, r3} )
+ THUMB(	mov	sp, r3 )
+	sub	r2, r2, r1
+	bl	memcpy				@ copy .data to RAM
+#endif
+
+   ARM(	ldmia	r4!, {r0, r1, sp} )
+ THUMB(	ldmia	r4!, {r0, r1, r3} )
+ THUMB(	mov	sp, r3 )
+	sub	r2, r1, r0
+	mov	r1, #0
+	bl	memset				@ clear .bss
+
+	ldmia	r4, {r0, r1, r2, r3}
+	str	r9, [r0]			@ Save processor ID
+	str	r7, [r1]			@ Save machine type
+	str	r8, [r2]			@ Save atags pointer
+	cmp	r3, #0
+	strne	r10, [r3]			@ Save control register values
+	mov	lr, #0
 	b	start_kernel
 ENDPROC(__mmap_switched)
 
 	.align	2
 	.type	__mmap_switched_data, %object
 __mmap_switched_data:
-	.long	__data_loc			@ r4
-	.long	_sdata				@ r5
-	.long	__bss_start			@ r6
-	.long	_end				@ r7
-	.long	processor_id			@ r4
-	.long	__machine_arch_type		@ r5
-	.long	__atags_pointer			@ r6
-#ifdef CONFIG_CPU_CP15
-	.long	cr_alignment			@ r7
-#else
-	.long	0				@ r7
+#ifdef CONFIG_XIP_KERNEL
+#ifndef CONFIG_XIP_DEFLATED_DATA
+	.long	_sdata				@ r0
+	.long	__data_loc			@ r1
+	.long	_edata_loc			@ r2
 #endif
+	.long	__bss_stop			@ sp (temporary stack in .bss)
+#endif
+
+	.long	__bss_start			@ r0
+	.long	__bss_stop			@ r1
 	.long	init_thread_union + THREAD_START_SP @ sp
+
+	.long	processor_id			@ r0
+	.long	__machine_arch_type		@ r1
+	.long	__atags_pointer			@ r2
+#ifdef CONFIG_CPU_CP15
+	.long	cr_alignment			@ r3
+#else
+	.long	0				@ r3
+#endif
 	.size	__mmap_switched_data, . - __mmap_switched_data
 
 /*

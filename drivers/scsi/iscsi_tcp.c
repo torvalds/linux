@@ -307,6 +307,7 @@ static int iscsi_sw_tcp_xmit_segment(struct iscsi_tcp_conn *tcp_conn,
 
 /**
  * iscsi_sw_tcp_xmit - TCP transmit
+ * @conn: iscsi connection
  **/
 static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 {
@@ -357,6 +358,7 @@ error:
 
 /**
  * iscsi_tcp_xmit_qlen - return the number of bytes queued for xmit
+ * @conn: iscsi connection
  */
 static inline int iscsi_sw_tcp_xmit_qlen(struct iscsi_conn *conn)
 {

@@ -875,4 +875,10 @@ struct xfs_attr3_rmt_hdr {
 	((bufsize) - (xfs_sb_version_hascrc(&(mp)->m_sb) ? \
 			sizeof(struct xfs_attr3_rmt_hdr) : 0))
 
+/* Number of bytes in a directory block. */
+static inline unsigned int xfs_dir2_dirblock_bytes(struct xfs_sb *sbp)
+{
+	return 1 << (sbp->sb_blocklog + sbp->sb_dirblklog);
+}
+
 #endif /* __XFS_DA_FORMAT_H__ */

@@ -20,12 +20,27 @@ for that device, by setting low_latency to 0. See Section 3 for
 details on how to configure BFQ for the desired tradeoff between
 latency and throughput, or on how to maximize throughput.
 
-On average CPUs, the current version of BFQ can handle devices
-performing at most ~30K IOPS; at most ~50 KIOPS on faster CPUs. As a
-reference, 30-50 KIOPS correspond to very high bandwidths with
-sequential I/O (e.g., 8-12 GB/s if I/O requests are 256 KB large), and
-to 120-200 MB/s with 4KB random I/O. BFQ is currently being tested on
-multi-queue devices too.
+BFQ has a non-null overhead, which limits the maximum IOPS that a CPU
+can process for a device scheduled with BFQ. To give an idea of the
+limits on slow or average CPUs, here are, first, the limits of BFQ for
+three different CPUs, on, respectively, an average laptop, an old
+desktop, and a cheap embedded system, in case full hierarchical
+support is enabled (i.e., CONFIG_BFQ_GROUP_IOSCHED is set), but
+CONFIG_DEBUG_BLK_CGROUP is not set (Section 4-2):
+- Intel i7-4850HQ: 400 KIOPS
+- AMD A8-3850: 250 KIOPS
+- ARM CortexTM-A53 Octa-core: 80 KIOPS
+
+If CONFIG_DEBUG_BLK_CGROUP is set (and of course full hierarchical
+support is enabled), then the sustainable throughput with BFQ
+decreases, because all blkio.bfq* statistics are created and updated
+(Section 4-2). For BFQ, this leads to the following maximum
+sustainable throughputs, on the same systems as above:
+- Intel i7-4850HQ: 310 KIOPS
+- AMD A8-3850: 200 KIOPS
+- ARM CortexTM-A53 Octa-core: 56 KIOPS
+
+BFQ works for multi-queue devices too.
 
 The table of contents follow. Impatients can just jump to Section 3.
 
@@ -499,6 +514,22 @@ prefix. So, with cgroups-v1 or cgroups-v2, the full prefix for
 BFQ-specific files is "blkio.bfq." or "io.bfq." For example, the group
 parameter to set the weight of a group with BFQ is blkio.bfq.weight
 or io.bfq.weight.
+
+As for cgroups-v1 (blkio controller), the exact set of stat files
+created, and kept up-to-date by bfq, depends on whether
+CONFIG_DEBUG_BLK_CGROUP is set. If it is set, then bfq creates all
+the stat files documented in
+Documentation/cgroup-v1/blkio-controller.txt. If, instead,
+CONFIG_DEBUG_BLK_CGROUP is not set, then bfq creates only the files
+blkio.bfq.io_service_bytes
+blkio.bfq.io_service_bytes_recursive
+blkio.bfq.io_serviced
+blkio.bfq.io_serviced_recursive
+
+The value of CONFIG_DEBUG_BLK_CGROUP greatly influences the maximum
+throughput sustainable with bfq, because updating the blkio.bfq.*
+stats is rather costly, especially for some of the stats enabled by
+CONFIG_DEBUG_BLK_CGROUP.
 
 Parameters to set
 -----------------

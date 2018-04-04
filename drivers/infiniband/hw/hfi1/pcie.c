@@ -411,15 +411,12 @@ int restore_pci_variables(struct hfi1_devdata *dd)
 	if (ret)
 		goto error;
 
-	ret = pci_write_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-				     dd->pci_lnkctl3);
-	if (ret)
-		goto error;
-
-	ret = pci_write_config_dword(dd->pcidev, PCIE_CFG_TPH2, dd->pci_tph2);
-	if (ret)
-		goto error;
-
+	if (pci_find_ext_capability(dd->pcidev, PCI_EXT_CAP_ID_TPH)) {
+		ret = pci_write_config_dword(dd->pcidev, PCIE_CFG_TPH2,
+					     dd->pci_tph2);
+		if (ret)
+			goto error;
+	}
 	return 0;
 
 error:
@@ -469,15 +466,12 @@ int save_pci_variables(struct hfi1_devdata *dd)
 	if (ret)
 		goto error;
 
-	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-				    &dd->pci_lnkctl3);
-	if (ret)
-		goto error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2, &dd->pci_tph2);
-	if (ret)
-		goto error;
-
+	if (pci_find_ext_capability(dd->pcidev, PCI_EXT_CAP_ID_TPH)) {
+		ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2,
+					    &dd->pci_tph2);
+		if (ret)
+			goto error;
+	}
 	return 0;
 
 error:
@@ -1040,6 +1034,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	int do_retry, retry_count = 0;
 	int intnum = 0;
 	uint default_pset;
+	uint pset = pcie_pset;
 	u16 target_vector, target_speed;
 	u16 lnkctl2, vendor;
 	u8 div;
@@ -1207,16 +1202,16 @@ retry:
 	 *
 	 * Set Gen3EqPsetReqVec, leave other fields 0.
 	 */
-	if (pcie_pset == UNSET_PSET)
-		pcie_pset = default_pset;
-	if (pcie_pset > 10) {	/* valid range is 0-10, inclusive */
+	if (pset == UNSET_PSET)
+		pset = default_pset;
+	if (pset > 10) {	/* valid range is 0-10, inclusive */
 		dd_dev_err(dd, "%s: Invalid Eq Pset %u, setting to %d\n",
-			   __func__, pcie_pset, default_pset);
-		pcie_pset = default_pset;
+			   __func__, pset, default_pset);
+		pset = default_pset;
 	}
-	dd_dev_info(dd, "%s: using EQ Pset %u\n", __func__, pcie_pset);
+	dd_dev_info(dd, "%s: using EQ Pset %u\n", __func__, pset);
 	pci_write_config_dword(dd->pcidev, PCIE_CFG_REG_PL106,
-			       ((1 << pcie_pset) <<
+			       ((1 << pset) <<
 			PCIE_CFG_REG_PL106_GEN3_EQ_PSET_REQ_VEC_SHIFT) |
 			PCIE_CFG_REG_PL106_GEN3_EQ_EVAL2MS_DISABLE_SMASK |
 			PCIE_CFG_REG_PL106_GEN3_EQ_PHASE23_EXIT_MODE_SMASK);
@@ -1246,10 +1241,10 @@ retry:
 		/* apply static CTLE tunings */
 		u8 pcie_dc, pcie_lf, pcie_hf, pcie_bw;
 
-		pcie_dc = ctle_tunings[pcie_pset][0];
-		pcie_lf = ctle_tunings[pcie_pset][1];
-		pcie_hf = ctle_tunings[pcie_pset][2];
-		pcie_bw = ctle_tunings[pcie_pset][3];
+		pcie_dc = ctle_tunings[pset][0];
+		pcie_lf = ctle_tunings[pset][1];
+		pcie_hf = ctle_tunings[pset][2];
+		pcie_bw = ctle_tunings[pset][3];
 		write_gasket_interrupt(dd, intnum++, 0x0026, 0x0200 | pcie_dc);
 		write_gasket_interrupt(dd, intnum++, 0x0026, 0x0100 | pcie_lf);
 		write_gasket_interrupt(dd, intnum++, 0x0026, 0x0000 | pcie_hf);

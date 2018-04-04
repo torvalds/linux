@@ -176,21 +176,21 @@
 		      KEY_CONTEXT_SALT_PRESENT_V(1) | \
 		      KEY_CONTEXT_CTX_LEN_V((ctx_len)))
 
-#define FILL_WR_OP_CCTX_SIZE(len, ctx_len) \
+#define FILL_WR_OP_CCTX_SIZE \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_OPCODE_V( \
 			FW_CRYPTO_LOOKASIDE_WR) | \
 			FW_CRYPTO_LOOKASIDE_WR_COMPL_V(0) | \
-			FW_CRYPTO_LOOKASIDE_WR_IMM_LEN_V((len)) | \
-			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(1) | \
-			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V((ctx_len)))
+			FW_CRYPTO_LOOKASIDE_WR_IMM_LEN_V((0)) | \
+			FW_CRYPTO_LOOKASIDE_WR_CCTX_LOC_V(0) | \
+			FW_CRYPTO_LOOKASIDE_WR_CCTX_SIZE_V(0))
 
-#define FILL_WR_RX_Q_ID(cid, qid, wr_iv, lcb, fid) \
+#define FILL_WR_RX_Q_ID(cid, qid, lcb, fid) \
 		htonl( \
 			FW_CRYPTO_LOOKASIDE_WR_RX_CHID_V((cid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_RX_Q_ID_V((qid)) | \
 			FW_CRYPTO_LOOKASIDE_WR_LCB_V((lcb)) | \
-			FW_CRYPTO_LOOKASIDE_WR_IV_V((wr_iv)) | \
+			FW_CRYPTO_LOOKASIDE_WR_IV_V((IV_NOP)) | \
 			FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(fid))
 
 #define FILL_ULPTX_CMD_DEST(cid, qid) \
@@ -214,31 +214,17 @@
 					   calc_tx_flits_ofld(skb) * 8), 16)))
 
 #define FILL_CMD_MORE(immdatalen) htonl(ULPTX_CMD_V(ULP_TX_SC_IMM) |\
-					ULP_TX_SC_MORE_V((immdatalen) ? 0 : 1))
-
+					ULP_TX_SC_MORE_V((immdatalen)))
 #define MAX_NK 8
-#define CRYPTO_MAX_IMM_TX_PKT_LEN 256
-#define MAX_WR_SIZE			512
 #define ROUND_16(bytes)		((bytes) & 0xFFFFFFF0)
 #define MAX_DSGL_ENT			32
-#define MAX_DIGEST_SKB_SGE	(MAX_SKB_FRAGS - 2)
 #define MIN_CIPHER_SG			1 /* IV */
-#define MIN_AUTH_SG			2 /*IV + AAD*/
-#define MIN_GCM_SG			2 /* IV + AAD*/
+#define MIN_AUTH_SG			1 /* IV */
+#define MIN_GCM_SG			1 /* IV */
 #define MIN_DIGEST_SG			1 /*Partial Buffer*/
-#define MIN_CCM_SG			3 /*IV+AAD+B0*/
+#define MIN_CCM_SG			2 /*IV+B0*/
 #define SPACE_LEFT(len) \
-	((MAX_WR_SIZE - WR_MIN_LEN - (len)))
-
-unsigned int sgl_ent_len[] = {0, 0, 16, 24, 40,
-				48, 64, 72, 88,
-				96, 112, 120, 136,
-				144, 160, 168, 184,
-				192};
-unsigned int dsgl_ent_len[] = {0, 32, 32, 48, 48, 64, 64, 80, 80,
-				112, 112, 128, 128, 144, 144, 160, 160,
-				192, 192, 208, 208, 224, 224, 240, 240,
-				272, 272, 288, 288, 304, 304, 320, 320};
+	((SGE_MAX_WR_LEN - WR_MIN_LEN - (len)))
 
 struct algo_param {
 	unsigned int auth_mode;
@@ -258,10 +244,8 @@ struct hash_wr_param {
 
 struct cipher_wr_param {
 	struct ablkcipher_request *req;
-	struct scatterlist *srcsg;
 	char *iv;
 	int bytes;
-	short int snent;
 	unsigned short qid;
 };
 enum {
@@ -299,31 +283,11 @@ enum {
 	ICV_16 = 16
 };
 
-struct hash_op_params {
-	unsigned char mk_size;
-	unsigned char pad_align;
-	unsigned char auth_mode;
-	char hash_name[MAX_HASH_NAME];
-	unsigned short block_size;
-	unsigned short word_size;
-	unsigned short ipad_size;
-};
-
 struct phys_sge_pairs {
 	__be16 len[8];
 	__be64 addr[8];
 };
 
-struct phys_sge_parm {
-	unsigned int nents;
-	unsigned int obsize;
-	unsigned short qid;
-};
-
-struct crypto_result {
-	struct completion completion;
-	int err;
-};
 
 static const u32 sha1_init[SHA1_DIGEST_SIZE / 4] = {
 		SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4,
@@ -430,11 +394,5 @@ static inline u32 aes_ks_subword(const u32 w)
 	bytes[3] = aes_sbox[bytes[3]];
 	return *(u32 *)(&bytes[0]);
 }
-
-static u32 round_constant[11] = {
-	0x01000000, 0x02000000, 0x04000000, 0x08000000,
-	0x10000000, 0x20000000, 0x40000000, 0x80000000,
-	0x1B000000, 0x36000000, 0x6C000000
-};
 
 #endif /* __CHCR_ALGO_H__ */

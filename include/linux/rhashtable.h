@@ -207,6 +207,7 @@ struct rhashtable_iter {
 	struct rhashtable_walker walker;
 	unsigned int slot;
 	unsigned int skip;
+	bool end_of_table;
 };
 
 static inline unsigned long rht_marker(const struct rhashtable *ht, u32 hash)
@@ -239,33 +240,41 @@ static inline unsigned int rht_bucket_index(const struct bucket_table *tbl,
 	return (hash >> RHT_HASH_RESERVED_SPACE) & (tbl->size - 1);
 }
 
-static inline unsigned int rht_key_hashfn(
-	struct rhashtable *ht, const struct bucket_table *tbl,
-	const void *key, const struct rhashtable_params params)
+static inline unsigned int rht_key_get_hash(struct rhashtable *ht,
+	const void *key, const struct rhashtable_params params,
+	unsigned int hash_rnd)
 {
 	unsigned int hash;
 
 	/* params must be equal to ht->p if it isn't constant. */
 	if (!__builtin_constant_p(params.key_len))
-		hash = ht->p.hashfn(key, ht->key_len, tbl->hash_rnd);
+		hash = ht->p.hashfn(key, ht->key_len, hash_rnd);
 	else if (params.key_len) {
 		unsigned int key_len = params.key_len;
 
 		if (params.hashfn)
-			hash = params.hashfn(key, key_len, tbl->hash_rnd);
+			hash = params.hashfn(key, key_len, hash_rnd);
 		else if (key_len & (sizeof(u32) - 1))
-			hash = jhash(key, key_len, tbl->hash_rnd);
+			hash = jhash(key, key_len, hash_rnd);
 		else
-			hash = jhash2(key, key_len / sizeof(u32),
-				      tbl->hash_rnd);
+			hash = jhash2(key, key_len / sizeof(u32), hash_rnd);
 	} else {
 		unsigned int key_len = ht->p.key_len;
 
 		if (params.hashfn)
-			hash = params.hashfn(key, key_len, tbl->hash_rnd);
+			hash = params.hashfn(key, key_len, hash_rnd);
 		else
-			hash = jhash(key, key_len, tbl->hash_rnd);
+			hash = jhash(key, key_len, hash_rnd);
 	}
+
+	return hash;
+}
+
+static inline unsigned int rht_key_hashfn(
+	struct rhashtable *ht, const struct bucket_table *tbl,
+	const void *key, const struct rhashtable_params params)
+{
+	unsigned int hash = rht_key_get_hash(ht, key, params, tbl->hash_rnd);
 
 	return rht_bucket_index(tbl, hash);
 }
@@ -378,8 +387,15 @@ void *rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 void rhashtable_walk_enter(struct rhashtable *ht,
 			   struct rhashtable_iter *iter);
 void rhashtable_walk_exit(struct rhashtable_iter *iter);
-int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
+int rhashtable_walk_start_check(struct rhashtable_iter *iter) __acquires(RCU);
+
+static inline void rhashtable_walk_start(struct rhashtable_iter *iter)
+{
+	(void)rhashtable_walk_start_check(iter);
+}
+
 void *rhashtable_walk_next(struct rhashtable_iter *iter);
+void *rhashtable_walk_peek(struct rhashtable_iter *iter);
 void rhashtable_walk_stop(struct rhashtable_iter *iter) __releases(RCU);
 
 void rhashtable_free_and_destroy(struct rhashtable *ht,

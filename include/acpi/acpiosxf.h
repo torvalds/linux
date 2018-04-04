@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -287,6 +287,8 @@ acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width);
 /*
  * Platform and hardware-independent physical memory interfaces
  */
+int acpi_os_read_iomem(void __iomem *virt_addr, u64 *value, u32 width);
+
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_memory
 acpi_status
 acpi_os_read_memory(acpi_physical_address address, u64 *value, u32 width);

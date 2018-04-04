@@ -107,10 +107,7 @@ static void vchan_complete(unsigned long arg)
 		dmaengine_desc_get_callback(&vd->tx, &cb);
 
 		list_del(&vd->node);
-		if (dmaengine_desc_test_reuse(&vd->tx))
-			list_add(&vd->node, &vc->desc_allocated);
-		else
-			vc->desc_free(vd);
+		vchan_vdesc_fini(vd);
 
 		dmaengine_desc_callback_invoke(&cb, NULL);
 	}

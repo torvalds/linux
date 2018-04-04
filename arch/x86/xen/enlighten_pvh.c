@@ -25,13 +25,6 @@ struct boot_params pvh_bootparams __attribute__((section(".data")));
 struct hvm_start_info pvh_start_info;
 unsigned int pvh_start_info_sz = sizeof(pvh_start_info);
 
-static void xen_pvh_arch_setup(void)
-{
-	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
-	if (nr_ioapics == 0)
-		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
-}
-
 static void __init init_pvh_bootparams(void)
 {
 	struct xen_memory_map memmap;
@@ -102,6 +95,4 @@ void __init xen_prepare_pvh(void)
 	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
 
 	init_pvh_bootparams();
-
-	x86_init.oem.arch_setup = xen_pvh_arch_setup;
 }

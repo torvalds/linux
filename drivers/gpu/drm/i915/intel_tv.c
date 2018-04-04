@@ -814,23 +814,23 @@ intel_tv_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe)
 
 static void
 intel_enable_tv(struct intel_encoder *encoder,
-		struct intel_crtc_state *pipe_config,
-		struct drm_connector_state *conn_state)
+		const struct intel_crtc_state *pipe_config,
+		const struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_wait_for_vblank(dev_priv,
-			      to_intel_crtc(encoder->base.crtc)->pipe);
+			      to_intel_crtc(pipe_config->base.crtc)->pipe);
 
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
 }
 
 static void
 intel_disable_tv(struct intel_encoder *encoder,
-		 struct intel_crtc_state *old_crtc_state,
-		 struct drm_connector_state *old_conn_state)
+		 const struct intel_crtc_state *old_crtc_state,
+		 const struct drm_connector_state *old_conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -838,7 +838,7 @@ intel_disable_tv(struct intel_encoder *encoder,
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) & ~TV_ENC_ENABLE);
 }
 
-static const struct tv_mode *intel_tv_mode_find(struct drm_connector_state *conn_state)
+static const struct tv_mode *intel_tv_mode_find(const struct drm_connector_state *conn_state)
 {
 	int format = conn_state->tv.mode;
 
@@ -868,6 +868,8 @@ static void
 intel_tv_get_config(struct intel_encoder *encoder,
 		    struct intel_crtc_state *pipe_config)
 {
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_TVOUT);
+
 	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
@@ -976,11 +978,11 @@ static void set_color_conversion(struct drm_i915_private *dev_priv,
 }
 
 static void intel_tv_pre_enable(struct intel_encoder *encoder,
-				struct intel_crtc_state *pipe_config,
-				struct drm_connector_state *conn_state)
+				const struct intel_crtc_state *pipe_config,
+				const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	u32 tv_ctl;
@@ -1385,7 +1387,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 			mode_ptr->vsync_end = mode_ptr->vsync_start  + 1;
 		mode_ptr->vtotal = vactive_s + 33;
 
-		tmp = (u64) tv_mode->refresh * mode_ptr->vtotal;
+		tmp = mul_u32_u32(tv_mode->refresh, mode_ptr->vtotal);
 		tmp *= mode_ptr->htotal;
 		tmp = div_u64(tmp, 1000000);
 		mode_ptr->clock = (int) tmp;

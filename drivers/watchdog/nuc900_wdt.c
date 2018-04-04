@@ -216,7 +216,7 @@ static ssize_t nuc900_wdt_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static void nuc900_wdt_timer_ping(unsigned long data)
+static void nuc900_wdt_timer_ping(struct timer_list *unused)
 {
 	if (time_before(jiffies, nuc900_wdt->next_heartbeat)) {
 		nuc900_wdt_keepalive();
@@ -267,7 +267,7 @@ static int nuc900wdt_probe(struct platform_device *pdev)
 
 	clk_enable(nuc900_wdt->wdt_clock);
 
-	setup_timer(&nuc900_wdt->timer, nuc900_wdt_timer_ping, 0);
+	timer_setup(&nuc900_wdt->timer, nuc900_wdt_timer_ping, 0);
 
 	ret = misc_register(&nuc900wdt_miscdev);
 	if (ret) {

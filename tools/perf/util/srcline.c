@@ -11,7 +11,7 @@
 #include "util/debug.h"
 #include "util/callchain.h"
 #include "srcline.h"
-
+#include "string2.h"
 #include "symbol.h"
 
 bool srcline_full_filename;
@@ -34,28 +34,17 @@ static const char *dso__name(struct dso *dso)
 	return dso_name;
 }
 
-static int inline_list__append(char *filename, char *funcname, int line_nr,
-			       struct inline_node *node, struct dso *dso)
+static int inline_list__append(struct symbol *symbol, char *srcline,
+			       struct inline_node *node)
 {
 	struct inline_list *ilist;
-	char *demangled;
 
 	ilist = zalloc(sizeof(*ilist));
 	if (ilist == NULL)
 		return -1;
 
-	ilist->filename = filename;
-	ilist->line_nr = line_nr;
-
-	if (dso != NULL) {
-		demangled = dso__demangle_sym(dso, 0, funcname);
-		if (demangled == NULL) {
-			ilist->funcname = funcname;
-		} else {
-			ilist->funcname = demangled;
-			free(funcname);
-		}
-	}
+	ilist->symbol = symbol;
+	ilist->srcline = srcline;
 
 	if (callchain_param.order == ORDER_CALLEE)
 		list_add_tail(&ilist->list, &node->val);
@@ -63,6 +52,65 @@ static int inline_list__append(char *filename, char *funcname, int line_nr,
 		list_add(&ilist->list, &node->val);
 
 	return 0;
+}
+
+/* basename version that takes a const input string */
+static const char *gnu_basename(const char *path)
+{
+	const char *base = strrchr(path, '/');
+
+	return base ? base + 1 : path;
+}
+
+static char *srcline_from_fileline(const char *file, unsigned int line)
+{
+	char *srcline;
+
+	if (!file)
+		return NULL;
+
+	if (!srcline_full_filename)
+		file = gnu_basename(file);
+
+	if (asprintf(&srcline, "%s:%u", file, line) < 0)
+		return NULL;
+
+	return srcline;
+}
+
+static struct symbol *new_inline_sym(struct dso *dso,
+				     struct symbol *base_sym,
+				     const char *funcname)
+{
+	struct symbol *inline_sym;
+	char *demangled = NULL;
+
+	if (dso) {
+		demangled = dso__demangle_sym(dso, 0, funcname);
+		if (demangled)
+			funcname = demangled;
+	}
+
+	if (base_sym && strcmp(funcname, base_sym->name) == 0) {
+		/* reuse the real, existing symbol */
+		inline_sym = base_sym;
+		/* ensure that we don't alias an inlined symbol, which could
+		 * lead to double frees in inline_node__delete
+		 */
+		assert(!base_sym->inlined);
+	} else {
+		/* create a fake symbol for the inline frame */
+		inline_sym = symbol__new(base_sym ? base_sym->start : 0,
+					 base_sym ? base_sym->end : 0,
+					 base_sym ? base_sym->binding : 0,
+					 funcname);
+		if (inline_sym)
+			inline_sym->inlined = 1;
+	}
+
+	free(demangled);
+
+	return inline_sym;
 }
 
 #ifdef HAVE_LIBBFD_SUPPORT
@@ -208,18 +256,23 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 #define MAX_INLINE_NEST 1024
 
 static int inline_list__append_dso_a2l(struct dso *dso,
-				       struct inline_node *node)
+				       struct inline_node *node,
+				       struct symbol *sym)
 {
 	struct a2l_data *a2l = dso->a2l;
-	char *funcname = a2l->funcname ? strdup(a2l->funcname) : NULL;
-	char *filename = a2l->filename ? strdup(a2l->filename) : NULL;
+	struct symbol *inline_sym = new_inline_sym(dso, sym, a2l->funcname);
+	char *srcline = NULL;
 
-	return inline_list__append(filename, funcname, a2l->line, node, dso);
+	if (a2l->filename)
+		srcline = srcline_from_fileline(a2l->filename, a2l->line);
+
+	return inline_list__append(inline_sym, srcline, node);
 }
 
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso,
-		     bool unwind_inlines, struct inline_node *node)
+		     bool unwind_inlines, struct inline_node *node,
+		     struct symbol *sym)
 {
 	int ret = 0;
 	struct a2l_data *a2l = dso->a2l;
@@ -245,7 +298,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	if (unwind_inlines) {
 		int cnt = 0;
 
-		if (node && inline_list__append_dso_a2l(dso, node))
+		if (node && inline_list__append_dso_a2l(dso, node, sym))
 			return 0;
 
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
@@ -256,7 +309,7 @@ static int addr2line(const char *dso_name, u64 addr,
 				a2l->filename = NULL;
 
 			if (node != NULL) {
-				if (inline_list__append_dso_a2l(dso, node))
+				if (inline_list__append_dso_a2l(dso, node, sym))
 					return 0;
 				// found at least one inline frame
 				ret = 1;
@@ -288,7 +341,7 @@ void dso__free_a2l(struct dso *dso)
 }
 
 static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
-	struct dso *dso)
+					struct dso *dso, struct symbol *sym)
 {
 	struct inline_node *node;
 
@@ -301,17 +354,8 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	INIT_LIST_HEAD(&node->val);
 	node->addr = addr;
 
-	if (!addr2line(dso_name, addr, NULL, NULL, dso, TRUE, node))
-		goto out_free_inline_node;
-
-	if (list_empty(&node->val))
-		goto out_free_inline_node;
-
+	addr2line(dso_name, addr, NULL, NULL, dso, true, node, sym);
 	return node;
-
-out_free_inline_node:
-	inline_node__delete(node);
-	return NULL;
 }
 
 #else /* HAVE_LIBBFD_SUPPORT */
@@ -341,7 +385,8 @@ static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line_nr,
 		     struct dso *dso __maybe_unused,
 		     bool unwind_inlines __maybe_unused,
-		     struct inline_node *node __maybe_unused)
+		     struct inline_node *node __maybe_unused,
+		     struct symbol *sym __maybe_unused)
 {
 	FILE *fp;
 	char cmd[PATH_MAX];
@@ -381,16 +426,18 @@ void dso__free_a2l(struct dso *dso __maybe_unused)
 }
 
 static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
-	struct dso *dso __maybe_unused)
+					struct dso *dso __maybe_unused,
+					struct symbol *sym)
 {
 	FILE *fp;
 	char cmd[PATH_MAX];
 	struct inline_node *node;
 	char *filename = NULL;
-	size_t len;
+	char *funcname = NULL;
+	size_t filelen, funclen;
 	unsigned int line_nr = 0;
 
-	scnprintf(cmd, sizeof(cmd), "addr2line -e %s -i %016"PRIx64,
+	scnprintf(cmd, sizeof(cmd), "addr2line -e %s -i -f %016"PRIx64,
 		  dso_name, addr);
 
 	fp = popen(cmd, "r");
@@ -408,26 +455,34 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	INIT_LIST_HEAD(&node->val);
 	node->addr = addr;
 
-	while (getline(&filename, &len, fp) != -1) {
-		if (filename_split(filename, &line_nr) != 1) {
-			free(filename);
+	/* addr2line -f generates two lines for each inlined functions */
+	while (getline(&funcname, &funclen, fp) != -1) {
+		char *srcline;
+		struct symbol *inline_sym;
+
+		rtrim(funcname);
+
+		if (getline(&filename, &filelen, fp) == -1)
+			goto out;
+
+		if (filename_split(filename, &line_nr) != 1)
+			goto out;
+
+		srcline = srcline_from_fileline(filename, line_nr);
+		inline_sym = new_inline_sym(dso, sym, funcname);
+
+		if (inline_list__append(inline_sym, srcline, node) != 0) {
+			free(srcline);
+			if (inline_sym && inline_sym->inlined)
+				symbol__delete(inline_sym);
 			goto out;
 		}
-
-		if (inline_list__append(filename, NULL, line_nr, node,
-					NULL) != 0)
-			goto out;
-
-		filename = NULL;
 	}
 
 out:
 	pclose(fp);
-
-	if (list_empty(&node->val)) {
-		inline_node__delete(node);
-		return NULL;
-	}
+	free(filename);
+	free(funcname);
 
 	return node;
 }
@@ -441,7 +496,8 @@ out:
 #define A2L_FAIL_LIMIT 123
 
 char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool show_addr, bool unwind_inlines)
+		  bool show_sym, bool show_addr, bool unwind_inlines,
+		  u64 ip)
 {
 	char *file = NULL;
 	unsigned line = 0;
@@ -455,19 +511,18 @@ char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	if (dso_name == NULL)
 		goto out;
 
-	if (!addr2line(dso_name, addr, &file, &line, dso, unwind_inlines, NULL))
+	if (!addr2line(dso_name, addr, &file, &line, dso,
+		       unwind_inlines, NULL, sym))
 		goto out;
 
-	if (asprintf(&srcline, "%s:%u",
-				srcline_full_filename ? file : basename(file),
-				line) < 0) {
-		free(file);
+	srcline = srcline_from_fileline(file, line);
+	free(file);
+
+	if (!srcline)
 		goto out;
-	}
 
 	dso->a2l_fails = 0;
 
-	free(file);
 	return srcline;
 
 out:
@@ -482,7 +537,7 @@ out:
 
 	if (sym) {
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
-					addr - sym->start) < 0)
+					ip - sym->start) < 0)
 			return SRCLINE_UNKNOWN;
 	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso->short_name, addr) < 0)
 		return SRCLINE_UNKNOWN;
@@ -496,12 +551,79 @@ void free_srcline(char *srcline)
 }
 
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool show_addr)
+		  bool show_sym, bool show_addr, u64 ip)
 {
-	return __get_srcline(dso, addr, sym, show_sym, show_addr, false);
+	return __get_srcline(dso, addr, sym, show_sym, show_addr, false, ip);
 }
 
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr)
+struct srcline_node {
+	u64			addr;
+	char			*srcline;
+	struct rb_node		rb_node;
+};
+
+void srcline__tree_insert(struct rb_root *tree, u64 addr, char *srcline)
+{
+	struct rb_node **p = &tree->rb_node;
+	struct rb_node *parent = NULL;
+	struct srcline_node *i, *node;
+
+	node = zalloc(sizeof(struct srcline_node));
+	if (!node) {
+		perror("not enough memory for the srcline node");
+		return;
+	}
+
+	node->addr = addr;
+	node->srcline = srcline;
+
+	while (*p != NULL) {
+		parent = *p;
+		i = rb_entry(parent, struct srcline_node, rb_node);
+		if (addr < i->addr)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&node->rb_node, parent, p);
+	rb_insert_color(&node->rb_node, tree);
+}
+
+char *srcline__tree_find(struct rb_root *tree, u64 addr)
+{
+	struct rb_node *n = tree->rb_node;
+
+	while (n) {
+		struct srcline_node *i = rb_entry(n, struct srcline_node,
+						  rb_node);
+
+		if (addr < i->addr)
+			n = n->rb_left;
+		else if (addr > i->addr)
+			n = n->rb_right;
+		else
+			return i->srcline;
+	}
+
+	return NULL;
+}
+
+void srcline__tree_delete(struct rb_root *tree)
+{
+	struct srcline_node *pos;
+	struct rb_node *next = rb_first(tree);
+
+	while (next) {
+		pos = rb_entry(next, struct srcline_node, rb_node);
+		next = rb_next(&pos->rb_node);
+		rb_erase(&pos->rb_node, tree);
+		free_srcline(pos->srcline);
+		zfree(&pos);
+	}
+}
+
+struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
+					    struct symbol *sym)
 {
 	const char *dso_name;
 
@@ -509,7 +631,7 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr)
 	if (dso_name == NULL)
 		return NULL;
 
-	return addr2inlines(dso_name, addr, dso);
+	return addr2inlines(dso_name, addr, dso, sym);
 }
 
 void inline_node__delete(struct inline_node *node)
@@ -518,10 +640,63 @@ void inline_node__delete(struct inline_node *node)
 
 	list_for_each_entry_safe(ilist, tmp, &node->val, list) {
 		list_del_init(&ilist->list);
-		zfree(&ilist->filename);
-		zfree(&ilist->funcname);
+		free_srcline(ilist->srcline);
+		/* only the inlined symbols are owned by the list */
+		if (ilist->symbol && ilist->symbol->inlined)
+			symbol__delete(ilist->symbol);
 		free(ilist);
 	}
 
 	free(node);
+}
+
+void inlines__tree_insert(struct rb_root *tree, struct inline_node *inlines)
+{
+	struct rb_node **p = &tree->rb_node;
+	struct rb_node *parent = NULL;
+	const u64 addr = inlines->addr;
+	struct inline_node *i;
+
+	while (*p != NULL) {
+		parent = *p;
+		i = rb_entry(parent, struct inline_node, rb_node);
+		if (addr < i->addr)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&inlines->rb_node, parent, p);
+	rb_insert_color(&inlines->rb_node, tree);
+}
+
+struct inline_node *inlines__tree_find(struct rb_root *tree, u64 addr)
+{
+	struct rb_node *n = tree->rb_node;
+
+	while (n) {
+		struct inline_node *i = rb_entry(n, struct inline_node,
+						 rb_node);
+
+		if (addr < i->addr)
+			n = n->rb_left;
+		else if (addr > i->addr)
+			n = n->rb_right;
+		else
+			return i;
+	}
+
+	return NULL;
+}
+
+void inlines__tree_delete(struct rb_root *tree)
+{
+	struct inline_node *pos;
+	struct rb_node *next = rb_first(tree);
+
+	while (next) {
+		pos = rb_entry(next, struct inline_node, rb_node);
+		next = rb_next(&pos->rb_node);
+		rb_erase(&pos->rb_node, tree);
+		inline_node__delete(pos);
+	}
 }

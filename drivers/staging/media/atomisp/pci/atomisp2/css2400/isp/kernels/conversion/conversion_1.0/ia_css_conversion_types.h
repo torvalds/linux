@@ -23,10 +23,10 @@
  *
  */
 struct ia_css_conversion_config {
-	uint32_t en;     /**< en parameter */
-	uint32_t dummy0; /**< dummy0 dummy parameter 0 */
-	uint32_t dummy1; /**< dummy1 dummy parameter 1 */
-	uint32_t dummy2; /**< dummy2 dummy parameter 2 */
+	uint32_t en;     /** en parameter */
+	uint32_t dummy0; /** dummy0 dummy parameter 0 */
+	uint32_t dummy1; /** dummy1 dummy parameter 1 */
+	uint32_t dummy2; /** dummy2 dummy parameter 2 */
 };
 
 #endif /* __IA_CSS_CONVERSION_TYPES_H */

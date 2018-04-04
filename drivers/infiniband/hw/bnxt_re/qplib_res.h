@@ -169,7 +169,7 @@ struct bnxt_qplib_ctx {
 	u32				cq_count;
 	struct bnxt_qplib_hwq		cq_tbl;
 	struct bnxt_qplib_hwq		tim_tbl;
-#define MAX_TQM_ALLOC_REQ		32
+#define MAX_TQM_ALLOC_REQ		48
 #define MAX_TQM_ALLOC_BLK_SIZE		8
 	u8				tqm_count[MAX_TQM_ALLOC_REQ];
 	struct bnxt_qplib_hwq		tqm_pde;

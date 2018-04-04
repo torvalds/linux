@@ -52,6 +52,7 @@ struct efi __read_mostly efi = {
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
 	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
 	.rng_seed		= EFI_INVALID_TABLE_ADDR,
+	.tpm_log		= EFI_INVALID_TABLE_ADDR
 };
 EXPORT_SYMBOL(efi);
 
@@ -109,6 +110,8 @@ struct kobject *efi_kobj;
 /*
  * Let's not leave out systab information that snuck into
  * the efivars driver
+ * Note, do not add more fields in systab sysfs file as it breaks sysfs
+ * one value per file rule!
  */
 static ssize_t systab_show(struct kobject *kobj,
 			   struct kobj_attribute *attr, char *buf)
@@ -143,8 +146,7 @@ static ssize_t systab_show(struct kobject *kobj,
 	return str - buf;
 }
 
-static struct kobj_attribute efi_attr_systab =
-			__ATTR(systab, 0400, systab_show, NULL);
+static struct kobj_attribute efi_attr_systab = __ATTR_RO_MODE(systab, 0400);
 
 #define EFI_FIELD(var) efi.var
 
@@ -463,6 +465,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
 	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi.rng_seed},
+	{LINUX_EFI_TPM_EVENT_LOG_GUID, "TPMEventLog", &efi.tpm_log},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -551,6 +554,8 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 	if (efi_enabled(EFI_MEMMAP))
 		efi_memattr_init();
 
+	efi_tpm_eventlog_init();
+
 	/* Parse the EFI Properties table if it exists */
 	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
 		efi_properties_table_t *tbl;
@@ -607,7 +612,7 @@ static int __init efi_load_efivars(void)
 		return 0;
 
 	pdev = platform_device_register_simple("efivars", 0, NULL, 0);
-	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
+	return PTR_ERR_OR_ZERO(pdev);
 }
 device_initcall(efi_load_efivars);
 #endif

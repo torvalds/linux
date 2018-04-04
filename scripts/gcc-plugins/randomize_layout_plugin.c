@@ -580,68 +580,35 @@ static void finish_type(void *event_data, void *data)
 	return;
 }
 
-static struct attribute_spec randomize_layout_attr = {
-	.name		= "randomize_layout",
-	// related to args
-	.min_length	= 0,
-	.max_length	= 0,
-	.decl_required	= false,
-	// need type declaration
-	.type_required	= true,
-	.function_type_required = false,
-	.handler		= handle_randomize_layout_attr,
-#if BUILDING_GCC_VERSION >= 4007
-	.affects_type_identity  = true
-#endif
-};
-
-static struct attribute_spec no_randomize_layout_attr = {
-	.name		= "no_randomize_layout",
-	// related to args
-	.min_length	= 0,
-	.max_length	= 0,
-	.decl_required	= false,
-	// need type declaration
-	.type_required	= true,
-	.function_type_required = false,
-	.handler		= handle_randomize_layout_attr,
-#if BUILDING_GCC_VERSION >= 4007
-	.affects_type_identity  = true
-#endif
-};
-
-static struct attribute_spec randomize_considered_attr = {
-	.name		= "randomize_considered",
-	// related to args
-	.min_length	= 0,
-	.max_length	= 0,
-	.decl_required	= false,
-	// need type declaration
-	.type_required	= true,
-	.function_type_required = false,
-	.handler		= handle_randomize_considered_attr,
-#if BUILDING_GCC_VERSION >= 4007
-	.affects_type_identity  = false
-#endif
-};
-
-static struct attribute_spec randomize_performed_attr = {
-	.name		= "randomize_performed",
-	// related to args
-	.min_length	= 0,
-	.max_length	= 0,
-	.decl_required	= false,
-	// need type declaration
-	.type_required	= true,
-	.function_type_required = false,
-	.handler		= handle_randomize_performed_attr,
-#if BUILDING_GCC_VERSION >= 4007
-	.affects_type_identity  = false
-#endif
-};
+static struct attribute_spec randomize_layout_attr = { };
+static struct attribute_spec no_randomize_layout_attr = { };
+static struct attribute_spec randomize_considered_attr = { };
+static struct attribute_spec randomize_performed_attr = { };
 
 static void register_attributes(void *event_data, void *data)
 {
+	randomize_layout_attr.name		= "randomize_layout";
+	randomize_layout_attr.type_required	= true;
+	randomize_layout_attr.handler		= handle_randomize_layout_attr;
+#if BUILDING_GCC_VERSION >= 4007
+	randomize_layout_attr.affects_type_identity = true;
+#endif
+
+	no_randomize_layout_attr.name		= "no_randomize_layout";
+	no_randomize_layout_attr.type_required	= true;
+	no_randomize_layout_attr.handler	= handle_randomize_layout_attr;
+#if BUILDING_GCC_VERSION >= 4007
+	no_randomize_layout_attr.affects_type_identity = true;
+#endif
+
+	randomize_considered_attr.name		= "randomize_considered";
+	randomize_considered_attr.type_required	= true;
+	randomize_considered_attr.handler	= handle_randomize_considered_attr;
+
+	randomize_performed_attr.name		= "randomize_performed";
+	randomize_performed_attr.type_required	= true;
+	randomize_performed_attr.handler	= handle_randomize_performed_attr;
+
 	register_attribute(&randomize_layout_attr);
 	register_attribute(&no_randomize_layout_attr);
 	register_attribute(&randomize_considered_attr);

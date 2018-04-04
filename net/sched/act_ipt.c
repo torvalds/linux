@@ -77,7 +77,7 @@ static void ipt_destroy_target(struct xt_entry_target *t)
 	module_put(par.target->me);
 }
 
-static void tcf_ipt_release(struct tc_action *a, int bind)
+static void tcf_ipt_release(struct tc_action *a)
 {
 	struct tcf_ipt *ipt = to_ipt(a);
 	ipt_destroy_target(ipt->tcfi_t);
@@ -334,19 +334,17 @@ static __net_init int ipt_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
-	return tc_action_net_init(tn, &act_ipt_ops, net);
+	return tc_action_net_init(tn, &act_ipt_ops);
 }
 
-static void __net_exit ipt_exit_net(struct net *net)
+static void __net_exit ipt_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, ipt_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, ipt_net_id);
 }
 
 static struct pernet_operations ipt_net_ops = {
 	.init = ipt_init_net,
-	.exit = ipt_exit_net,
+	.exit_batch = ipt_exit_net,
 	.id   = &ipt_net_id,
 	.size = sizeof(struct tc_action_net),
 };
@@ -384,19 +382,17 @@ static __net_init int xt_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 
-	return tc_action_net_init(tn, &act_xt_ops, net);
+	return tc_action_net_init(tn, &act_xt_ops);
 }
 
-static void __net_exit xt_exit_net(struct net *net)
+static void __net_exit xt_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, xt_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, xt_net_id);
 }
 
 static struct pernet_operations xt_net_ops = {
 	.init = xt_init_net,
-	.exit = xt_exit_net,
+	.exit_batch = xt_exit_net,
 	.id   = &xt_net_id,
 	.size = sizeof(struct tc_action_net),
 };

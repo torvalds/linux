@@ -20,9 +20,9 @@ Optional properties:
 
 Example:
 
-max30100@057 {
+max30100@57 {
 	compatible = "maxim,max30100";
-	reg = <57>;
+	reg = <0x57>;
 	maxim,led-current-microamp = <24000 50000>;
 	interrupt-parent = <&gpio1>;
 	interrupts = <16 2>;

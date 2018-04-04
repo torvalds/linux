@@ -27,6 +27,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ethtool.h>
 
+#include "cpsw.h"
 #include "cpsw_ale.h"
 #include "netcp.h"
 #include "cpts.h"
@@ -2047,10 +2048,6 @@ static const struct ethtool_ops keystone_ethtool_ops = {
 	.get_ts_info		= keystone_get_ts_info,
 };
 
-#define mac_hi(mac)	(((mac)[0] << 0) | ((mac)[1] << 8) |	\
-			 ((mac)[2] << 16) | ((mac)[3] << 24))
-#define mac_lo(mac)	(((mac)[4] << 0) | ((mac)[5] << 8))
-
 static void gbe_set_slave_mac(struct gbe_slave *slave,
 			      struct gbe_intf *gbe_intf)
 {
@@ -2745,9 +2742,9 @@ static int gbe_ioctl(void *intf_priv, struct ifreq *req, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static void netcp_ethss_timer(unsigned long arg)
+static void netcp_ethss_timer(struct timer_list *t)
 {
-	struct gbe_priv *gbe_dev = (struct gbe_priv *)arg;
+	struct gbe_priv *gbe_dev = from_timer(gbe_dev, t, timer);
 	struct gbe_intf *gbe_intf;
 	struct gbe_slave *slave;
 
@@ -3616,9 +3613,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	}
 	spin_unlock_bh(&gbe_dev->hw_stats_lock);
 
-	init_timer(&gbe_dev->timer);
-	gbe_dev->timer.data	 = (unsigned long)gbe_dev;
-	gbe_dev->timer.function = netcp_ethss_timer;
+	timer_setup(&gbe_dev->timer, netcp_ethss_timer, 0);
 	gbe_dev->timer.expires	 = jiffies + GBE_TIMER_INTERVAL;
 	add_timer(&gbe_dev->timer);
 	*inst_priv = gbe_dev;
@@ -3694,7 +3689,6 @@ static int gbe_remove(struct netcp_device *netcp_device, void *inst_priv)
 	del_timer_sync(&gbe_dev->timer);
 	cpts_release(gbe_dev->cpts);
 	cpsw_ale_stop(gbe_dev->ale);
-	cpsw_ale_destroy(gbe_dev->ale);
 	netcp_txpipe_close(&gbe_dev->tx_pipe);
 	free_secondary_ports(gbe_dev);
 

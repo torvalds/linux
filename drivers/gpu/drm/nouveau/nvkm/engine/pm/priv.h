@@ -68,6 +68,7 @@ struct nvkm_specdom {
 };
 
 #define nvkm_perfdom(p) container_of((p), struct nvkm_perfdom, object)
+#include <core/object.h>
 
 struct nvkm_perfdom {
 	struct nvkm_object object;

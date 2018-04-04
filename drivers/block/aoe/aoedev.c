@@ -15,7 +15,6 @@
 #include <linux/string.h>
 #include "aoe.h"
 
-static void dummy_timer(ulong);
 static void freetgt(struct aoedev *d, struct aoetgt *t);
 static void skbpoolfree(struct aoedev *d);
 
@@ -146,11 +145,11 @@ aoedev_put(struct aoedev *d)
 }
 
 static void
-dummy_timer(ulong vp)
+dummy_timer(struct timer_list *t)
 {
 	struct aoedev *d;
 
-	d = (struct aoedev *)vp;
+	d = from_timer(d, t, timer);
 	if (d->flags & DEVFL_TKILL)
 		return;
 	d->timer.expires = jiffies + HZ;
@@ -466,9 +465,7 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 	INIT_WORK(&d->work, aoecmd_sleepwork);
 	spin_lock_init(&d->lock);
 	skb_queue_head_init(&d->skbpool);
-	init_timer(&d->timer);
-	d->timer.data = (ulong) d;
-	d->timer.function = dummy_timer;
+	timer_setup(&d->timer, dummy_timer, 0);
 	d->timer.expires = jiffies + HZ;
 	add_timer(&d->timer);
 	d->bufpool = NULL;	/* defer to aoeblk_gdalloc */

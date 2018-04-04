@@ -40,7 +40,7 @@ static ssize_t evm_read_key(struct file *filp, char __user *buf,
 	if (*ppos != 0)
 		return 0;
 
-	sprintf(temp, "%d", evm_initialized);
+	sprintf(temp, "%d", (evm_initialized & ~EVM_SETUP_COMPLETE));
 	rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
 
 	return rc;
@@ -61,24 +61,43 @@ static ssize_t evm_read_key(struct file *filp, char __user *buf,
 static ssize_t evm_write_key(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
-	char temp[80];
-	int i;
+	int i, ret;
 
-	if (!capable(CAP_SYS_ADMIN) || (evm_initialized & EVM_INIT_HMAC))
+	if (!capable(CAP_SYS_ADMIN) || (evm_initialized & EVM_SETUP_COMPLETE))
 		return -EPERM;
 
-	if (count >= sizeof(temp) || count == 0)
+	ret = kstrtoint_from_user(buf, count, 0, &i);
+
+	if (ret)
+		return ret;
+
+	/* Reject invalid values */
+	if (!i || (i & ~EVM_INIT_MASK) != 0)
 		return -EINVAL;
 
-	if (copy_from_user(temp, buf, count) != 0)
-		return -EFAULT;
+	/* Don't allow a request to freshly enable metadata writes if
+	 * keys are loaded.
+	 */
+	if ((i & EVM_ALLOW_METADATA_WRITES) &&
+	    ((evm_initialized & EVM_KEY_MASK) != 0) &&
+	    !(evm_initialized & EVM_ALLOW_METADATA_WRITES))
+		return -EPERM;
 
-	temp[count] = '\0';
+	if (i & EVM_INIT_HMAC) {
+		ret = evm_init_key();
+		if (ret != 0)
+			return ret;
+		/* Forbid further writes after the symmetric key is loaded */
+		i |= EVM_SETUP_COMPLETE;
+	}
 
-	if ((sscanf(temp, "%d", &i) != 1) || (i != 1))
-		return -EINVAL;
+	evm_initialized |= i;
 
-	evm_init_key();
+	/* Don't allow protected metadata modification if a symmetric key
+	 * is loaded
+	 */
+	if (evm_initialized & EVM_INIT_HMAC)
+		evm_initialized &= ~(EVM_ALLOW_METADATA_WRITES);
 
 	return count;
 }

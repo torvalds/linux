@@ -34,12 +34,30 @@ int snd_soc_component_read(struct snd_soc_component *component,
 		ret = regmap_read(component->regmap, reg, val);
 	else if (component->read)
 		ret = component->read(component, reg, val);
+	else if (component->driver->read) {
+		*val = component->driver->read(component, reg);
+		ret = 0;
+	}
 	else
 		ret = -EIO;
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_read);
+
+unsigned int snd_soc_component_read32(struct snd_soc_component *component,
+				      unsigned int reg)
+{
+	unsigned int val;
+	int ret;
+
+	ret = snd_soc_component_read(component, reg, &val);
+	if (ret < 0)
+		return -1;
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_read32);
 
 /**
  * snd_soc_component_write() - Write register value
@@ -56,6 +74,8 @@ int snd_soc_component_write(struct snd_soc_component *component,
 		return regmap_write(component->regmap, reg, val);
 	else if (component->write)
 		return component->write(component, reg, val);
+	else if (component->driver->write)
+		return component->driver->write(component, reg, val);
 	else
 		return -EIO;
 }

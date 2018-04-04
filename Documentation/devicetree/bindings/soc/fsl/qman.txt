@@ -60,6 +60,12 @@ are located at offsets 0xbf8 and 0xbfc
 	Value type:	<prop-encoded-array>
 	Definition:	Reference input clock. Its frequency is half of the
 			platform clock
+- memory-regions
+	Usage:		Required for ARM
+	Value type:	<phandle array>
+	Definition:	List of phandles referencing the QMan private memory
+			nodes (described below). The qman-fqd node must be
+			first followed by qman-pfdr node. Only used on ARM
 
 Devices connected to a QMan instance via Direct Connect Portals (DCP) must link
 to the respective QMan instance
@@ -74,7 +80,9 @@ QMan Private Memory Nodes
 
 QMan requires two contiguous range of physical memory used for the backing store
 for QMan Frame Queue Descriptor (FQD) and Packed Frame Descriptor Record (PFDR).
-This memory is reserved/allocated as a nodes under the /reserved-memory node
+This memory is reserved/allocated as a node under the /reserved-memory node.
+
+For additional details about reserved memory regions see reserved-memory.txt
 
 The QMan FQD memory node must be named "qman-fqd"
 
@@ -83,7 +91,9 @@ PROPERTIES
 - compatible
 	Usage:		required
 	Value type:	<stringlist>
-	Definition:	Must inclide "fsl,qman-fqd"
+	Definition:	PPC platforms: Must include "fsl,qman-fqd"
+			ARM platforms: Must include "shared-dma-pool"
+				       as well as the "no-map" property
 
 The QMan PFDR memory node must be named "qman-pfdr"
 
@@ -92,7 +102,9 @@ PROPERTIES
 - compatible
 	Usage:		required
 	Value type:	<stringlist>
-	Definition:	Must inclide "fsl,qman-pfdr"
+	Definition:	PPC platforms: Must include "fsl,qman-pfdr"
+			ARM platforms: Must include "shared-dma-pool"
+				       as well as the "no-map" property
 
 The following constraints are relevant to the FQD and PFDR private memory:
 	- The size must be 2^(size + 1), with size = 11..29. That is 4 KiB to
@@ -117,16 +129,16 @@ The example below shows a QMan FQD and a PFDR dynamic allocation memory nodes
 		ranges;
 
 		qman_fqd: qman-fqd {
-			compatible = "fsl,qman-fqd";
-			alloc-ranges = <0 0 0x10 0>;
+			compatible = "shared-dma-pool";
 			size = <0 0x400000>;
 			alignment = <0 0x400000>;
+			no-map;
 		};
 		qman_pfdr: qman-pfdr {
-			compatible = "fsl,qman-pfdr";
-			alloc-ranges = <0 0 0x10 0>;
+			compatible = "shared-dma-pool";
 			size = <0 0x2000000>;
 			alignment = <0 0x2000000>;
+			no-map;
 		};
 	};
 

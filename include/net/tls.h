@@ -35,6 +35,11 @@
 #define _TLS_OFFLOAD_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
+#include <linux/crypto.h>
+#include <linux/socket.h>
+#include <linux/tcp.h>
+#include <net/tcp.h>
 
 #include <uapi/linux/tls.h>
 
@@ -53,6 +58,7 @@
 
 struct tls_sw_context {
 	struct crypto_aead *aead_send;
+	struct crypto_wait async_wait;
 
 	/* Sending context */
 	char aad_space[TLS_AAD_SPACE_SIZE];
@@ -83,6 +89,8 @@ struct tls_context {
 
 	void *priv_ctx;
 
+	u8 tx_conf:2;
+
 	u16 prepend_size;
 	u16 tag_size;
 	u16 overhead_size;
@@ -97,7 +105,6 @@ struct tls_context {
 
 	u16 pending_open_record_frags;
 	int (*push_pending_record)(struct sock *sk, int flags);
-	void (*free_resources)(struct sock *sk);
 
 	void (*sk_write_space)(struct sock *sk);
 	void (*sk_proto_close)(struct sock *sk, long timeout);
@@ -122,6 +129,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags);
 void tls_sw_close(struct sock *sk, long timeout);
+void tls_sw_free_tx_resources(struct sock *sk);
 
 void tls_sk_destruct(struct sock *sk, struct tls_context *ctx);
 void tls_icsk_clean_acked(struct sock *sk);
@@ -164,7 +172,7 @@ static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 
 static inline void tls_err_abort(struct sock *sk)
 {
-	sk->sk_err = -EBADMSG;
+	sk->sk_err = EBADMSG;
 	sk->sk_error_report(sk);
 }
 
@@ -210,6 +218,21 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	buf[4] = pkt_len & 0xFF;
 	memcpy(buf + TLS_NONCE_OFFSET,
 	       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
+}
+
+static inline void tls_make_aad(char *buf,
+				size_t size,
+				char *record_sequence,
+				int record_sequence_size,
+				unsigned char record_type)
+{
+	memcpy(buf, record_sequence, record_sequence_size);
+
+	buf[8] = record_type;
+	buf[9] = TLS_1_2_VERSION_MAJOR;
+	buf[10] = TLS_1_2_VERSION_MINOR;
+	buf[11] = size >> 8;
+	buf[12] = size & 0xFF;
 }
 
 static inline struct tls_context *tls_get_ctx(const struct sock *sk)

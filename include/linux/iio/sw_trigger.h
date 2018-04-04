@@ -60,7 +60,7 @@ void iio_sw_trigger_type_configfs_unregister(struct iio_sw_trigger_type *tt);
 static inline
 void iio_swt_group_init_type_name(struct iio_sw_trigger *t,
 				  const char *name,
-				  struct config_item_type *type)
+				  const struct config_item_type *type)
 {
 #if IS_ENABLED(CONFIG_CONFIGFS_FS)
 	config_group_init_type_name(&t->group, name, type);

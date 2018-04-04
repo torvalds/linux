@@ -444,7 +444,6 @@ static int nvmem_setup_compat(struct nvmem_device *nvmem,
 struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 {
 	struct nvmem_device *nvmem;
-	struct device_node *np;
 	int rval;
 
 	if (!config->dev)
@@ -462,8 +461,10 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 
 	nvmem->id = rval;
 	nvmem->owner = config->owner;
-	nvmem->stride = config->stride;
-	nvmem->word_size = config->word_size;
+	if (!nvmem->owner && config->dev->driver)
+		nvmem->owner = config->dev->driver->owner;
+	nvmem->stride = config->stride ?: 1;
+	nvmem->word_size = config->word_size ?: 1;
 	nvmem->size = config->size;
 	nvmem->dev.type = &nvmem_provider_type;
 	nvmem->dev.bus = &nvmem_bus_type;
@@ -471,13 +472,12 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->priv = config->priv;
 	nvmem->reg_read = config->reg_read;
 	nvmem->reg_write = config->reg_write;
-	np = config->dev->of_node;
-	nvmem->dev.of_node = np;
+	nvmem->dev.of_node = config->dev->of_node;
 	dev_set_name(&nvmem->dev, "%s%d",
 		     config->name ? : "nvmem",
 		     config->name ? config->id : nvmem->id);
 
-	nvmem->read_only = of_property_read_bool(np, "read-only") |
+	nvmem->read_only = device_property_present(config->dev, "read-only") |
 			   config->read_only;
 
 	if (config->root_only)
@@ -598,16 +598,11 @@ static void __nvmem_device_put(struct nvmem_device *nvmem)
 	mutex_unlock(&nvmem_mutex);
 }
 
-static int nvmem_match(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), data);
-}
-
 static struct nvmem_device *nvmem_find(const char *name)
 {
 	struct device *d;
 
-	d = bus_find_device(&nvmem_bus_type, NULL, (void *)name, nvmem_match);
+	d = bus_find_device_by_name(&nvmem_bus_type, NULL, name);
 
 	if (!d)
 		return NULL;
@@ -615,7 +610,7 @@ static struct nvmem_device *nvmem_find(const char *name)
 	return to_nvmem_device(d);
 }
 
-#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF)
 /**
  * of_nvmem_device_get() - Get nvmem device from a given id
  *
@@ -753,7 +748,7 @@ static struct nvmem_cell *nvmem_cell_get_from_list(const char *cell_id)
 	return cell;
 }
 
-#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF)
 /**
  * of_nvmem_cell_get() - Get a nvmem cell from given device node and cell id
  *
@@ -946,8 +941,7 @@ void nvmem_cell_put(struct nvmem_cell *cell)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_put);
 
-static inline void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell,
-						    void *buf)
+static void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell, void *buf)
 {
 	u8 *p, *b;
 	int i, bit_offset = cell->bit_offset;
@@ -1028,8 +1022,8 @@ void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_read);
 
-static inline void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
-						    u8 *_buf, int len)
+static void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
+					     u8 *_buf, int len)
 {
 	struct nvmem_device *nvmem = cell->nvmem;
 	int i, rc, nbits, bit_offset = cell->bit_offset;

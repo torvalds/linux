@@ -112,26 +112,25 @@ struct flag_info {
 
 static const struct flag_info flag_array[] = {
 	{
-#ifdef CONFIG_PPC_STD_MMU_64
-		.mask	= _PAGE_PRIVILEGED,
-		.val	= 0,
-#else
-		.mask	= _PAGE_USER,
+		.mask	= _PAGE_USER | _PAGE_PRIVILEGED,
 		.val	= _PAGE_USER,
-#endif
 		.set	= "user",
 		.clear	= "    ",
 	}, {
-#if _PAGE_RO == 0
-		.mask	= _PAGE_RW,
+		.mask	= _PAGE_RW | _PAGE_RO | _PAGE_NA,
 		.val	= _PAGE_RW,
-#else
-		.mask	= _PAGE_RO,
-		.val	= 0,
-#endif
 		.set	= "rw",
-		.clear	= "ro",
 	}, {
+		.mask	= _PAGE_RW | _PAGE_RO | _PAGE_NA,
+		.val	= _PAGE_RO,
+		.set	= "ro",
+	}, {
+#if _PAGE_NA != 0
+		.mask	= _PAGE_RW | _PAGE_RO | _PAGE_NA,
+		.val	= _PAGE_RO,
+		.set	= "na",
+	}, {
+#endif
 		.mask	= _PAGE_EXEC,
 		.val	= _PAGE_EXEC,
 		.set	= " X ",
@@ -147,7 +146,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "present",
 		.clear	= "       ",
 	}, {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= H_PAGE_HASHPTE,
 		.val	= H_PAGE_HASHPTE,
 #else
@@ -157,7 +156,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "hpte",
 		.clear	= "    ",
 	}, {
-#ifndef CONFIG_PPC_STD_MMU_64
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_GUARDED,
 		.val	= _PAGE_GUARDED,
 		.set	= "guarded",
@@ -174,7 +173,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "accessed",
 		.clear	= "        ",
 	}, {
-#ifndef CONFIG_PPC_STD_MMU_64
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_WRITETHRU,
 		.val	= _PAGE_WRITETHRU,
 		.set	= "write through",
@@ -213,7 +212,7 @@ static const struct flag_info flag_array[] = {
 		.val	= H_PAGE_4K_PFN,
 		.set	= "4K_pfn",
 	}, {
-#endif
+#else /* CONFIG_PPC_64K_PAGES */
 		.mask	= H_PAGE_F_GIX,
 		.val	= H_PAGE_F_GIX,
 		.set	= "f_gix",
@@ -224,14 +223,11 @@ static const struct flag_info flag_array[] = {
 		.val	= H_PAGE_F_SECOND,
 		.set	= "f_second",
 	}, {
+#endif /* CONFIG_PPC_64K_PAGES */
 #endif
 		.mask	= _PAGE_SPECIAL,
 		.val	= _PAGE_SPECIAL,
 		.set	= "special",
-	}, {
-		.mask	= _PAGE_SHARED,
-		.val	= _PAGE_SHARED,
-		.set	= "shared",
 	}
 };
 
@@ -450,7 +446,7 @@ static void populate_markers(void)
 	address_markers[i++].start_address = PHB_IO_END;
 	address_markers[i++].start_address = IOREMAP_BASE;
 	address_markers[i++].start_address = IOREMAP_END;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	address_markers[i++].start_address =  H_VMEMMAP_BASE;
 #else
 	address_markers[i++].start_address =  VMEMMAP_BASE;

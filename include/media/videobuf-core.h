@@ -219,7 +219,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 ssize_t videobuf_read_one(struct videobuf_queue *q,
 			  char __user *data, size_t count, loff_t *ppos,
 			  int nonblocking);
-unsigned int videobuf_poll_stream(struct file *file,
+__poll_t videobuf_poll_stream(struct file *file,
 				  struct videobuf_queue *q,
 				  poll_table *wait);
 

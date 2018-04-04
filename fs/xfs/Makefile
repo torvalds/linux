@@ -49,6 +49,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dquot_buf.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
+				   xfs_iext_tree.o \
 				   xfs_inode_fork.o \
 				   xfs_inode_buf.o \
 				   xfs_log_rlimit.o \
@@ -135,3 +136,31 @@ xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
 xfs-$(CONFIG_SYSCTL)		+= xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= xfs_ioctl32.o
 xfs-$(CONFIG_EXPORTFS_BLOCK_OPS)	+= xfs_pnfs.o
+
+# online scrub/repair
+ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
+
+# Tracepoints like to blow up, so build that before everything else
+
+xfs-y				+= $(addprefix scrub/, \
+				   trace.o \
+				   agheader.o \
+				   alloc.o \
+				   attr.o \
+				   bmap.o \
+				   btree.o \
+				   common.o \
+				   dabtree.o \
+				   dir.o \
+				   ialloc.o \
+				   inode.o \
+				   parent.o \
+				   refcount.o \
+				   rmap.o \
+				   scrub.o \
+				   symlink.o \
+				   )
+
+xfs-$(CONFIG_XFS_RT)		+= scrub/rtbitmap.o
+xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
+endif

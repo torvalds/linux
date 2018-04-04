@@ -368,6 +368,11 @@ static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
 static int rmi_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
+	struct rmi_data *hdata = hid_get_drvdata(hdev);
+
+	if (!(hdata->device_flags & RMI_DEVICE))
+		return 0;
+
 	size = rmi_check_sanity(hdev, data, size);
 	if (size < 2)
 		return 0;
@@ -713,9 +718,11 @@ static void rmi_remove(struct hid_device *hdev)
 {
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
-	clear_bit(RMI_STARTED, &hdata->flags);
-	cancel_work_sync(&hdata->reset_work);
-	rmi_unregister_transport_device(&hdata->xport);
+	if (hdata->device_flags & RMI_DEVICE) {
+		clear_bit(RMI_STARTED, &hdata->flags);
+		cancel_work_sync(&hdata->reset_work);
+		rmi_unregister_transport_device(&hdata->xport);
+	}
 
 	hid_hw_stop(hdev);
 }
@@ -724,6 +731,7 @@ static const struct hid_device_id rmi_id[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER, USB_DEVICE_ID_RAZER_BLADE_14),
 		.driver_data = RMI_DEVICE_HAS_PHYS_BUTTONS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X1_COVER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PRIMAX, USB_DEVICE_ID_PRIMAX_REZEL) },
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_RMI, HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };

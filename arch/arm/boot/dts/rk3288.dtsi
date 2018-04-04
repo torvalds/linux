@@ -956,7 +956,7 @@
 	iep_mmu: iommu@ff900800 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff900800 0x0 0x40>;
-		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
 		#iommu-cells = <0>;
 		status = "disabled";
@@ -970,6 +970,17 @@
 		#iommu-cells = <0>;
 		rockchip,disable-mmu-reset;
 		status = "disabled";
+	};
+
+	rga: rga@ff920000 {
+		compatible = "rockchip,rk3288-rga";
+		reg = <0x0 0xff920000 0x0 0x180>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
+		clock-names = "aclk", "hclk", "sclk";
+		power-domains = <&power RK3288_PD_VIO>;
+		resets = <&cru SRST_RGA_CORE>, <&cru SRST_RGA_AXI>, <&cru SRST_RGA_AHB>;
+		reset-names = "core", "axi", "ahb";
 	};
 
 	vopb: vop@ff930000 {
@@ -1001,6 +1012,11 @@
 			vopb_out_mipi: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&mipi_in_vopb>;
+			};
+
+			vopb_out_lvds: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&lvds_in_vopb>;
 			};
 		};
 	};
@@ -1045,6 +1061,11 @@
 				reg = <2>;
 				remote-endpoint = <&mipi_in_vopl>;
 			};
+
+			vopl_out_lvds: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&lvds_in_vopl>;
+			};
 		};
 	};
 
@@ -1081,6 +1102,39 @@
 				mipi_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_mipi>;
+				};
+			};
+		};
+	};
+
+	lvds: lvds@ff96c000 {
+		compatible = "rockchip,rk3288-lvds";
+		reg = <0x0 0xff96c000 0x0 0x4000>;
+		clocks = <&cru PCLK_LVDS_PHY>;
+		clock-names = "pclk_lvds";
+		pinctrl-names = "lcdc";
+		pinctrl-0 = <&lcdc_ctl>;
+		power-domains = <&power RK3288_PD_VIO>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_in: port@0 {
+				reg = <0>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				lvds_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_lvds>;
+				};
+				lvds_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_lvds>;
 				};
 			};
 		};
@@ -1124,8 +1178,8 @@
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru  PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>;
-		clock-names = "iahb", "isfr";
+		clocks = <&cru  PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>, <&cru SCLK_HDMI_CEC>;
+		clock-names = "iahb", "isfr", "cec";
 		power-domains = <&power RK3288_PD_VIO>;
 		status = "disabled";
 
@@ -1427,6 +1481,14 @@
 		};
 
 		hdmi {
+			hdmi_cec_c0: hdmi-cec-c0 {
+				rockchip,pins = <7 RK_PC0 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			hdmi_cec_c7: hdmi-cec-c7 {
+				rockchip,pins = <7 RK_PC7 RK_FUNC_4 &pcfg_pull_none>;
+			};
+
 			hdmi_ddc: hdmi-ddc {
 				rockchip,pins = <7 19 RK_FUNC_2 &pcfg_pull_none>,
 						<7 20 RK_FUNC_2 &pcfg_pull_none>;
@@ -1524,6 +1586,15 @@
 						<6 3 RK_FUNC_1 &pcfg_pull_none>,
 						<6 4 RK_FUNC_1 &pcfg_pull_none>,
 						<6 8 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		lcdc {
+			lcdc_ctl: lcdc-ctl {
+				rockchip,pins = <1 24 RK_FUNC_1 &pcfg_pull_none>,
+						<1 25 RK_FUNC_1 &pcfg_pull_none>,
+						<1 26 RK_FUNC_1 &pcfg_pull_none>,
+						<1 27 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 

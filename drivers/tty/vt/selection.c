@@ -156,49 +156,37 @@ static int store_utf8(u16 c, char *p)
 int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
-	int sel_mode, new_sel_start, new_sel_end, spc;
+	int new_sel_start, new_sel_end, spc;
+	struct tiocl_selection v;
 	char *bp, *obp;
 	int i, ps, pe, multiplier;
 	u16 c;
 	int mode;
 
 	poke_blanked_console();
-
-	{ unsigned short xs, ys, xe, ye;
-
-	  if (!access_ok(VERIFY_READ, sel, sizeof(*sel)))
+	if (copy_from_user(&v, sel, sizeof(*sel)))
 		return -EFAULT;
-	  __get_user(xs, &sel->xs);
-	  __get_user(ys, &sel->ys);
-	  __get_user(xe, &sel->xe);
-	  __get_user(ye, &sel->ye);
-	  __get_user(sel_mode, &sel->sel_mode);
-	  xs--; ys--; xe--; ye--;
-	  xs = limit(xs, vc->vc_cols - 1);
-	  ys = limit(ys, vc->vc_rows - 1);
-	  xe = limit(xe, vc->vc_cols - 1);
-	  ye = limit(ye, vc->vc_rows - 1);
-	  ps = ys * vc->vc_size_row + (xs << 1);
-	  pe = ye * vc->vc_size_row + (xe << 1);
 
-	  if (sel_mode == TIOCL_SELCLEAR) {
-	      /* useful for screendump without selection highlights */
-	      clear_selection();
-	      return 0;
-	  }
+	v.xs = limit(v.xs - 1, vc->vc_cols - 1);
+	v.ys = limit(v.ys - 1, vc->vc_rows - 1);
+	v.xe = limit(v.xe - 1, vc->vc_cols - 1);
+	v.ye = limit(v.ye - 1, vc->vc_rows - 1);
+	ps = v.ys * vc->vc_size_row + (v.xs << 1);
+	pe = v.ye * vc->vc_size_row + (v.xe << 1);
 
-	  if (mouse_reporting() && (sel_mode & TIOCL_SELMOUSEREPORT)) {
-	      mouse_report(tty, sel_mode & TIOCL_SELBUTTONMASK, xs, ys);
-	      return 0;
-	  }
-        }
+	if (v.sel_mode == TIOCL_SELCLEAR) {
+		/* useful for screendump without selection highlights */
+		clear_selection();
+		return 0;
+	}
+
+	if (mouse_reporting() && (v.sel_mode & TIOCL_SELMOUSEREPORT)) {
+		mouse_report(tty, v.sel_mode & TIOCL_SELBUTTONMASK, v.xs, v.ys);
+		return 0;
+	}
 
 	if (ps > pe)	/* make sel_start <= sel_end */
-	{
-		int tmp = ps;
-		ps = pe;
-		pe = tmp;
-	}
+		swap(ps, pe);
 
 	if (sel_cons != vc_cons[fg_console].d) {
 		clear_selection();
@@ -210,7 +198,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	else
 		use_unicode = 0;
 
-	switch (sel_mode)
+	switch (v.sel_mode)
 	{
 		case TIOCL_SELCHAR:	/* character-by-character selection */
 			new_sel_start = ps;

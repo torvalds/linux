@@ -83,7 +83,6 @@ static int sockstat_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations sockstat_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = sockstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -212,7 +211,6 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPRenoRecovery", LINUX_MIB_TCPRENORECOVERY),
 	SNMP_MIB_ITEM("TCPSackRecovery", LINUX_MIB_TCPSACKRECOVERY),
 	SNMP_MIB_ITEM("TCPSACKReneging", LINUX_MIB_TCPSACKRENEGING),
-	SNMP_MIB_ITEM("TCPFACKReorder", LINUX_MIB_TCPFACKREORDER),
 	SNMP_MIB_ITEM("TCPSACKReorder", LINUX_MIB_TCPSACKREORDER),
 	SNMP_MIB_ITEM("TCPRenoReorder", LINUX_MIB_TCPRENOREORDER),
 	SNMP_MIB_ITEM("TCPTSReorder", LINUX_MIB_TCPTSREORDER),
@@ -468,7 +466,6 @@ static int snmp_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations snmp_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = snmp_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -516,7 +513,6 @@ static int netstat_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations netstat_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = netstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

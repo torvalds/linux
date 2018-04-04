@@ -1,17 +1,8 @@
-/* ir-rc5-decoder.c - decoder for RC5(x) and StreamZap protocols
- *
- * Copyright (C) 2010 by Mauro Carvalho Chehab
- * Copyright (C) 2010 by Jarod Wilson <jarod@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// ir-rc5-decoder.c - decoder for RC5(x) and StreamZap protocols
+//
+// Copyright (C) 2010 by Mauro Carvalho Chehab
+// Copyright (C) 2010 by Jarod Wilson <jarod@redhat.com>
 
 /*
  * This decoder handles the 14 bit RC5 protocol, 15 bit "StreamZap" protocol
@@ -182,16 +173,14 @@ out:
 }
 
 static const struct ir_raw_timings_manchester ir_rc5_timings = {
-	.leader			= RC5_UNIT,
-	.pulse_space_start	= 0,
+	.leader_pulse		= RC5_UNIT,
 	.clock			= RC5_UNIT,
 	.trailer_space		= RC5_UNIT * 10,
 };
 
 static const struct ir_raw_timings_manchester ir_rc5x_timings[2] = {
 	{
-		.leader			= RC5_UNIT,
-		.pulse_space_start	= 0,
+		.leader_pulse		= RC5_UNIT,
 		.clock			= RC5_UNIT,
 		.trailer_space		= RC5X_SPACE,
 	},
@@ -202,8 +191,7 @@ static const struct ir_raw_timings_manchester ir_rc5x_timings[2] = {
 };
 
 static const struct ir_raw_timings_manchester ir_rc5_sz_timings = {
-	.leader				= RC5_UNIT,
-	.pulse_space_start		= 0,
+	.leader_pulse			= RC5_UNIT,
 	.clock				= RC5_UNIT,
 	.trailer_space			= RC5_UNIT * 10,
 };
@@ -237,9 +225,9 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 		/* encode data */
 		data = !commandx << 12 | system << 6 | command;
 
-		/* Modulate the data */
+		/* First bit is encoded by leader_pulse */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5_timings,
-					    RC5_NBITS, data);
+					    RC5_NBITS - 1, data);
 		if (ret < 0)
 			return ret;
 	} else if (protocol == RC_PROTO_RC5X_20) {
@@ -252,10 +240,11 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 		/* encode data */
 		data = commandx << 18 | system << 12 | command << 6 | xdata;
 
-		/* Modulate the data */
+		/* First bit is encoded by leader_pulse */
 		pre_space_data = data >> (RC5X_NBITS - CHECK_RC5X_NBITS);
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5x_timings[0],
-					    CHECK_RC5X_NBITS, pre_space_data);
+					    CHECK_RC5X_NBITS - 1,
+					    pre_space_data);
 		if (ret < 0)
 			return ret;
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
@@ -266,8 +255,10 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 			return ret;
 	} else if (protocol == RC_PROTO_RC5_SZ) {
 		/* RC5-SZ scancode is raw enough for Manchester as it is */
+		/* First bit is encoded by leader_pulse */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5_sz_timings,
-					    RC5_SZ_NBITS, scancode & 0x2fff);
+					    RC5_SZ_NBITS - 1,
+					    scancode & 0x2fff);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -282,6 +273,7 @@ static struct ir_raw_handler rc5_handler = {
 							RC_PROTO_BIT_RC5_SZ,
 	.decode		= ir_rc5_decode,
 	.encode		= ir_rc5_encode,
+	.carrier	= 36000,
 };
 
 static int __init ir_rc5_decode_init(void)
@@ -300,7 +292,7 @@ static void __exit ir_rc5_decode_exit(void)
 module_init(ir_rc5_decode_init);
 module_exit(ir_rc5_decode_exit);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Mauro Carvalho Chehab and Jarod Wilson");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("RC5(x/sz) IR protocol decoder");

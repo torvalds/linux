@@ -41,20 +41,15 @@ extern void dev_pm_disable_wake_irq_check(struct device *dev);
 
 #ifdef CONFIG_PM_SLEEP
 
-extern int device_wakeup_attach_irq(struct device *dev,
-				    struct wake_irq *wakeirq);
+extern void device_wakeup_attach_irq(struct device *dev, struct wake_irq *wakeirq);
 extern void device_wakeup_detach_irq(struct device *dev);
 extern void device_wakeup_arm_wake_irqs(void);
 extern void device_wakeup_disarm_wake_irqs(void);
 
 #else
 
-static inline int
-device_wakeup_attach_irq(struct device *dev,
-			 struct wake_irq *wakeirq)
-{
-	return 0;
-}
+static inline void device_wakeup_attach_irq(struct device *dev,
+					    struct wake_irq *wakeirq) {}
 
 static inline void device_wakeup_detach_irq(struct device *dev)
 {

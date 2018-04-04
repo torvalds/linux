@@ -58,6 +58,7 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		gpio0 = &ap_gpio;
+		spi0 = &spi0;
 	};
 
 	psci {
@@ -203,7 +204,6 @@
 				reg = <0x510600 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				cell-index = <0>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&ap_clk 3>;
 				status = "disabled";
@@ -241,6 +241,12 @@
 
 			};
 
+			watchdog: watchdog@610000 {
+				compatible = "arm,sbsa-gwdt";
+				reg = <0x610000 0x1000>, <0x600000 0x1000>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			ap_sdhci0: sdhci@6e0000 {
 				compatible = "marvell,armada-ap806-sdhci";
 				reg = <0x6e0000 0x300>;
@@ -263,6 +269,11 @@
 
 				ap_pinctrl: pinctrl {
 					compatible = "marvell,ap806-pinctrl";
+
+					uart0_pins: uart0-pins {
+						marvell,pins = "mpp11", "mpp19";
+						marvell,function = "uart0";
+					};
 				};
 
 				ap_gpio: gpio@1040 {
@@ -273,6 +284,12 @@
 					#gpio-cells = <2>;
 					gpio-ranges = <&ap_pinctrl 0 0 20>;
 				};
+			};
+
+			ap_thermal: thermal@6f808c {
+				compatible = "marvell,armada-ap806-thermal";
+				reg = <0x6f808c 0x4>,
+				      <0x6f8084 0x8>;
 			};
 		};
 	};

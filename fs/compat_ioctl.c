@@ -54,8 +54,6 @@
 #include <linux/if_tun.h>
 #include <linux/ctype.h>
 #include <linux/syscalls.h>
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 #include <linux/atalk.h>
 #include <linux/gfp.h>
 #include <linux/cec.h>
@@ -135,22 +133,6 @@ static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return err;
 
 	return vfs_ioctl(file, cmd, arg);
-}
-
-static int w_long(struct file *file,
-		unsigned int cmd, compat_ulong_t __user *argp)
-{
-	int err;
-	unsigned long __user *valp = compat_alloc_user_space(sizeof(*valp));
-
-	if (valp == NULL)
-		return -EFAULT;
-	err = do_ioctl(file, cmd, (unsigned long)valp);
-	if (err)
-		return err;
-	if (convert_in_user(valp, argp))
-		return -EFAULT;
-	return 0;
 }
 
 struct compat_video_event {
@@ -669,96 +651,6 @@ static int serial_struct_ioctl(struct file *file,
 			return -EFAULT;
         }
         return err;
-}
-
-/*
- * I2C layer ioctls
- */
-
-struct i2c_msg32 {
-	u16 addr;
-	u16 flags;
-	u16 len;
-	compat_caddr_t buf;
-};
-
-struct i2c_rdwr_ioctl_data32 {
-	compat_caddr_t msgs; /* struct i2c_msg __user *msgs */
-	u32 nmsgs;
-};
-
-struct i2c_smbus_ioctl_data32 {
-	u8 read_write;
-	u8 command;
-	u32 size;
-	compat_caddr_t data; /* union i2c_smbus_data *data */
-};
-
-struct i2c_rdwr_aligned {
-	struct i2c_rdwr_ioctl_data cmd;
-	struct i2c_msg msgs[0];
-};
-
-static int do_i2c_rdwr_ioctl(struct file *file,
-	unsigned int cmd, struct i2c_rdwr_ioctl_data32 __user *udata)
-{
-	struct i2c_rdwr_aligned		__user *tdata;
-	struct i2c_msg			__user *tmsgs;
-	struct i2c_msg32		__user *umsgs;
-	compat_caddr_t			datap;
-	u32				nmsgs;
-	int				i;
-
-	if (get_user(nmsgs, &udata->nmsgs))
-		return -EFAULT;
-	if (nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
-		return -EINVAL;
-
-	if (get_user(datap, &udata->msgs))
-		return -EFAULT;
-	umsgs = compat_ptr(datap);
-
-	tdata = compat_alloc_user_space(sizeof(*tdata) +
-				      nmsgs * sizeof(struct i2c_msg));
-	tmsgs = &tdata->msgs[0];
-
-	if (put_user(nmsgs, &tdata->cmd.nmsgs) ||
-	    put_user(tmsgs, &tdata->cmd.msgs))
-		return -EFAULT;
-
-	for (i = 0; i < nmsgs; i++) {
-		if (copy_in_user(&tmsgs[i].addr, &umsgs[i].addr, 3*sizeof(u16)))
-			return -EFAULT;
-		if (get_user(datap, &umsgs[i].buf) ||
-		    put_user(compat_ptr(datap), &tmsgs[i].buf))
-			return -EFAULT;
-	}
-	return do_ioctl(file, cmd, (unsigned long)tdata);
-}
-
-static int do_i2c_smbus_ioctl(struct file *file,
-		unsigned int cmd, struct i2c_smbus_ioctl_data32   __user *udata)
-{
-	struct i2c_smbus_ioctl_data	__user *tdata;
-	union {
-		/* beginnings of those have identical layouts */
-		struct i2c_smbus_ioctl_data32	data32;
-		struct i2c_smbus_ioctl_data	data;
-	} v;
-
-	tdata = compat_alloc_user_space(sizeof(*tdata));
-	if (tdata == NULL)
-		return -ENOMEM;
-
-	memset(&v, 0, sizeof(v));
-	if (copy_from_user(&v.data32, udata, sizeof(v.data32)))
-		return -EFAULT;
-	v.data.data = compat_ptr(v.data32.data);
-
-	if (copy_to_user(tdata, &v.data, sizeof(v.data)))
-		return -EFAULT;
-
-	return do_ioctl(file, cmd, (unsigned long)tdata);
 }
 
 #define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
@@ -1283,13 +1175,6 @@ COMPATIBLE_IOCTL(PCIIOC_CONTROLLER)
 COMPATIBLE_IOCTL(PCIIOC_MMAP_IS_IO)
 COMPATIBLE_IOCTL(PCIIOC_MMAP_IS_MEM)
 COMPATIBLE_IOCTL(PCIIOC_WRITE_COMBINE)
-/* i2c */
-COMPATIBLE_IOCTL(I2C_SLAVE)
-COMPATIBLE_IOCTL(I2C_SLAVE_FORCE)
-COMPATIBLE_IOCTL(I2C_TENBIT)
-COMPATIBLE_IOCTL(I2C_PEC)
-COMPATIBLE_IOCTL(I2C_RETRIES)
-COMPATIBLE_IOCTL(I2C_TIMEOUT)
 /* hiddev */
 COMPATIBLE_IOCTL(HIDIOCGVERSION)
 COMPATIBLE_IOCTL(HIDIOCAPPLICATION)
@@ -1333,23 +1218,11 @@ COMPATIBLE_IOCTL(DMX_SET_PES_FILTER)
 COMPATIBLE_IOCTL(DMX_SET_BUFFER_SIZE)
 COMPATIBLE_IOCTL(DMX_GET_PES_PIDS)
 COMPATIBLE_IOCTL(DMX_GET_STC)
-COMPATIBLE_IOCTL(FE_GET_INFO)
-COMPATIBLE_IOCTL(FE_DISEQC_RESET_OVERLOAD)
-COMPATIBLE_IOCTL(FE_DISEQC_SEND_MASTER_CMD)
-COMPATIBLE_IOCTL(FE_DISEQC_RECV_SLAVE_REPLY)
-COMPATIBLE_IOCTL(FE_DISEQC_SEND_BURST)
-COMPATIBLE_IOCTL(FE_SET_TONE)
-COMPATIBLE_IOCTL(FE_SET_VOLTAGE)
-COMPATIBLE_IOCTL(FE_ENABLE_HIGH_LNB_VOLTAGE)
-COMPATIBLE_IOCTL(FE_READ_STATUS)
-COMPATIBLE_IOCTL(FE_READ_BER)
-COMPATIBLE_IOCTL(FE_READ_SIGNAL_STRENGTH)
-COMPATIBLE_IOCTL(FE_READ_SNR)
-COMPATIBLE_IOCTL(FE_READ_UNCORRECTED_BLOCKS)
-COMPATIBLE_IOCTL(FE_SET_FRONTEND)
-COMPATIBLE_IOCTL(FE_GET_FRONTEND)
-COMPATIBLE_IOCTL(FE_GET_EVENT)
-COMPATIBLE_IOCTL(FE_DISHNETWORK_SEND_LEGACY_CMD)
+COMPATIBLE_IOCTL(DMX_REQBUFS)
+COMPATIBLE_IOCTL(DMX_QUERYBUF)
+COMPATIBLE_IOCTL(DMX_EXPBUF)
+COMPATIBLE_IOCTL(DMX_QBUF)
+COMPATIBLE_IOCTL(DMX_DQBUF)
 COMPATIBLE_IOCTL(VIDEO_STOP)
 COMPATIBLE_IOCTL(VIDEO_PLAY)
 COMPATIBLE_IOCTL(VIDEO_FREEZE)
@@ -1464,13 +1337,6 @@ static long do_ioctl_trans(unsigned int cmd,
 	case TIOCGSERIAL:
 	case TIOCSSERIAL:
 		return serial_struct_ioctl(file, cmd, argp);
-	/* i2c */
-	case I2C_FUNCS:
-		return w_long(file, cmd, argp);
-	case I2C_RDWR:
-		return do_i2c_rdwr_ioctl(file, cmd, argp);
-	case I2C_SMBUS:
-		return do_i2c_smbus_ioctl(file, cmd, argp);
 	/* Not implemented in the native kernel */
 	case RTC_IRQP_READ32:
 	case RTC_IRQP_SET32:
@@ -1580,6 +1446,7 @@ COMPAT_SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd,
 	case FICLONE:
 	case FICLONERANGE:
 	case FIDEDUPERANGE:
+	case FS_IOC_FIEMAP:
 		goto do_ioctl;
 
 	case FIBMAP:

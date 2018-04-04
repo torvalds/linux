@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * platform.c - platform 'pseudo' bus for legacy devices
  *
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
- *
- * This file is released under the GPLv2
  *
  * Please see Documentation/driver-model/platform.txt for more
  * information.
@@ -1143,6 +1142,7 @@ struct bus_type platform_bus_type = {
 	.match		= platform_match,
 	.uevent		= platform_uevent,
 	.pm		= &platform_dev_pm_ops,
+	.force_dma	= true,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
 

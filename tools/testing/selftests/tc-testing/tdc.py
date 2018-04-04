@@ -50,7 +50,7 @@ def exec_cmd(command, nsonly=True):
         stderr=subprocess.PIPE)
     (rawout, serr) = proc.communicate()
 
-    if proc.returncode != 0:
+    if proc.returncode != 0 and len(serr) > 0:
         foutput = serr.decode("utf-8")
     else:
         foutput = rawout.decode("utf-8")
@@ -180,15 +180,20 @@ def has_blank_ids(idlist):
 
 def load_from_file(filename):
     """
-    Open the JSON file containing the test cases and return them as an
-    ordered dictionary object.
+    Open the JSON file containing the test cases and return them
+    as list of ordered dictionary objects.
     """
-    with open(filename) as test_data:
-        testlist = json.load(test_data, object_pairs_hook=OrderedDict)
-    idlist = get_id_list(testlist)
-    if (has_blank_ids(idlist)):
-        for k in testlist:
-            k['filename'] = filename
+    try:
+        with open(filename) as test_data:
+            testlist = json.load(test_data, object_pairs_hook=OrderedDict)
+    except json.JSONDecodeError as jde:
+        print('IGNORING test case file {}\n\tBECAUSE:  {}'.format(filename, jde))
+        testlist = list()
+    else:
+        idlist = get_id_list(testlist)
+        if (has_blank_ids(idlist)):
+            for k in testlist:
+                k['filename'] = filename
     return testlist
 
 
@@ -210,7 +215,7 @@ def set_args(parser):
                         help='Run tests only from the specified category, or if no category is specified, list known categories.')
     parser.add_argument('-f', '--file', type=str,
                         help='Run tests from the specified file')
-    parser.add_argument('-l', '--list', type=str, nargs='?', const="", metavar='CATEGORY',
+    parser.add_argument('-l', '--list', type=str, nargs='?', const="++", metavar='CATEGORY',
                         help='List all test cases, or those only within the specified category')
     parser.add_argument('-s', '--show', type=str, nargs=1, metavar='ID', dest='showID',
                         help='Display the test case with specified id')
@@ -367,10 +372,10 @@ def set_operation_mode(args):
     testcases = get_categorized_testlist(alltests, ucat)
 
     if args.list:
-        if (len(args.list) == 0):
+        if (args.list == "++"):
             list_test_cases(alltests)
             exit(0)
-        elif(len(args.list > 0)):
+        elif(len(args.list) > 0):
             if (args.list not in ucat):
                 print("Unknown category " + args.list)
                 print("Available categories:")

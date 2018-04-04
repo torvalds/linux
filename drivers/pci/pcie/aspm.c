@@ -43,18 +43,6 @@
 #define ASPM_STATE_ALL		(ASPM_STATE_L0S | ASPM_STATE_L1 |	\
 				 ASPM_STATE_L1SS)
 
-/*
- * When L1 substates are enabled, the LTR L1.2 threshold is a timing parameter
- * that decides whether L1.1 or L1.2 is entered (Refer PCIe spec for details).
- * Not sure is there is a way to "calculate" this on the fly, but maybe we
- * could turn it into a parameter in future.  This value has been taken from
- * the following files from Intel's coreboot (which is the only code I found
- * to have used this):
- * https://www.coreboot.org/pipermail/coreboot-gerrit/2015-March/021134.html
- * https://review.coreboot.org/#/c/8832/
- */
-#define LTR_L1_2_THRESHOLD_BITS	((1 << 21) | (1 << 23) | (1 << 30))
-
 struct aspm_latency {
 	u32 l0s;			/* L0s latency (nsec) */
 	u32 l1;				/* L1 latency (nsec) */
@@ -278,7 +266,7 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 		return;
 
 	/* Training failed. Restore common clock configurations */
-	dev_err(&parent->dev, "ASPM: Could not configure common clock\n");
+	pci_err(parent, "ASPM: Could not configure common clock\n");
 	list_for_each_entry(child, &linkbus->devices, bus_list)
 		pcie_capability_write_word(child, PCI_EXP_LNKCTL,
 					   child_reg[PCI_FUNC(child->devfn)]);
@@ -328,9 +316,34 @@ static u32 calc_l1ss_pwron(struct pci_dev *pdev, u32 scale, u32 val)
 	case 2:
 		return val * 100;
 	}
-	dev_err(&pdev->dev, "%s: Invalid T_PwrOn scale: %u\n",
-		__func__, scale);
+	pci_err(pdev, "%s: Invalid T_PwrOn scale: %u\n", __func__, scale);
 	return 0;
+}
+
+static void encode_l12_threshold(u32 threshold_us, u32 *scale, u32 *value)
+{
+	u64 threshold_ns = threshold_us * 1000;
+
+	/* See PCIe r3.1, sec 7.33.3 and sec 6.18 */
+	if (threshold_ns < 32) {
+		*scale = 0;
+		*value = threshold_ns;
+	} else if (threshold_ns < 1024) {
+		*scale = 1;
+		*value = threshold_ns >> 5;
+	} else if (threshold_ns < 32768) {
+		*scale = 2;
+		*value = threshold_ns >> 10;
+	} else if (threshold_ns < 1048576) {
+		*scale = 3;
+		*value = threshold_ns >> 15;
+	} else if (threshold_ns < 33554432) {
+		*scale = 4;
+		*value = threshold_ns >> 20;
+	} else {
+		*scale = 5;
+		*value = threshold_ns >> 25;
+	}
 }
 
 struct aspm_register_info {
@@ -443,6 +456,7 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 				struct aspm_register_info *dwreg)
 {
 	u32 val1, val2, scale1, scale2;
+	u32 t_common_mode, t_power_on, l1_2_threshold, scale, value;
 
 	link->l1ss.up_cap_ptr = upreg->l1ss_cap_ptr;
 	link->l1ss.dw_cap_ptr = dwreg->l1ss_cap_ptr;
@@ -451,30 +465,39 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 	if (!(link->aspm_support & ASPM_STATE_L1_2_MASK))
 		return;
 
-	/* Choose the greater of the two T_cmn_mode_rstr_time */
-	val1 = (upreg->l1ss_cap >> 8) & 0xFF;
-	val2 = (upreg->l1ss_cap >> 8) & 0xFF;
-	if (val1 > val2)
-		link->l1ss.ctl1 |= val1 << 8;
-	else
-		link->l1ss.ctl1 |= val2 << 8;
-	/*
-	 * We currently use LTR L1.2 threshold to be fixed constant picked from
-	 * Intel's coreboot.
-	 */
-	link->l1ss.ctl1 |= LTR_L1_2_THRESHOLD_BITS;
+	/* Choose the greater of the two Port Common_Mode_Restore_Times */
+	val1 = (upreg->l1ss_cap & PCI_L1SS_CAP_CM_RESTORE_TIME) >> 8;
+	val2 = (dwreg->l1ss_cap & PCI_L1SS_CAP_CM_RESTORE_TIME) >> 8;
+	t_common_mode = max(val1, val2);
 
-	/* Choose the greater of the two T_pwr_on */
-	val1 = (upreg->l1ss_cap >> 19) & 0x1F;
-	scale1 = (upreg->l1ss_cap >> 16) & 0x03;
-	val2 = (dwreg->l1ss_cap >> 19) & 0x1F;
-	scale2 = (dwreg->l1ss_cap >> 16) & 0x03;
+	/* Choose the greater of the two Port T_POWER_ON times */
+	val1   = (upreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
+	scale1 = (upreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
+	val2   = (dwreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
+	scale2 = (dwreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
 
 	if (calc_l1ss_pwron(link->pdev, scale1, val1) >
-	    calc_l1ss_pwron(link->downstream, scale2, val2))
+	    calc_l1ss_pwron(link->downstream, scale2, val2)) {
 		link->l1ss.ctl2 |= scale1 | (val1 << 3);
-	else
+		t_power_on = calc_l1ss_pwron(link->pdev, scale1, val1);
+	} else {
 		link->l1ss.ctl2 |= scale2 | (val2 << 3);
+		t_power_on = calc_l1ss_pwron(link->downstream, scale2, val2);
+	}
+
+	/*
+	 * Set LTR_L1.2_THRESHOLD to the time required to transition the
+	 * Link from L0 to L1.2 and back to L0 so we enter L1.2 only if
+	 * downstream devices report (via LTR) that they can tolerate at
+	 * least that much latency.
+	 *
+	 * Based on PCIe r3.1, sec 5.5.3.3.1, Figures 5-16 and 5-17, and
+	 * Table 5-11.  T(POWER_OFF) is at most 2us and T(L1.2) is at
+	 * least 4us.
+	 */
+	l1_2_threshold = 2 + 4 + t_common_mode + t_power_on;
+	encode_l12_threshold(l1_2_threshold, &scale, &value);
+	link->l1ss.ctl1 |= t_common_mode << 8 | scale << 29 | value << 16;
 }
 
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
@@ -647,21 +670,26 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 
 	if (enable_req & ASPM_STATE_L1_2_MASK) {
 
-		/* Program T_pwr_on in both ports */
+		/* Program T_POWER_ON times in both ports */
 		pci_write_config_dword(parent, up_cap_ptr + PCI_L1SS_CTL2,
 				       link->l1ss.ctl2);
 		pci_write_config_dword(child, dw_cap_ptr + PCI_L1SS_CTL2,
 				       link->l1ss.ctl2);
 
-		/* Program T_cmn_mode in parent */
+		/* Program Common_Mode_Restore_Time in upstream device */
 		pci_clear_and_set_dword(parent, up_cap_ptr + PCI_L1SS_CTL1,
-					0xFF00, link->l1ss.ctl1);
+					PCI_L1SS_CTL1_CM_RESTORE_TIME,
+					link->l1ss.ctl1);
 
-		/* Program LTR L1.2 threshold in both ports */
-		pci_clear_and_set_dword(parent,	dw_cap_ptr + PCI_L1SS_CTL1,
-					0xE3FF0000, link->l1ss.ctl1);
+		/* Program LTR_L1.2_THRESHOLD time in both ports */
+		pci_clear_and_set_dword(parent,	up_cap_ptr + PCI_L1SS_CTL1,
+					PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
+					PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
+					link->l1ss.ctl1);
 		pci_clear_and_set_dword(child, dw_cap_ptr + PCI_L1SS_CTL1,
-					0xE3FF0000, link->l1ss.ctl1);
+					PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
+					PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
+					link->l1ss.ctl1);
 	}
 
 	val = 0;
@@ -780,7 +808,7 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 		 */
 		pcie_capability_read_dword(child, PCI_EXP_DEVCAP, &reg32);
 		if (!(reg32 & PCI_EXP_DEVCAP_RBER) && !aspm_force) {
-			dev_info(&child->dev, "disabling ASPM on pre-1.1 PCIe device.  You can enable it with 'pcie_aspm=force'\n");
+			pci_info(child, "disabling ASPM on pre-1.1 PCIe device.  You can enable it with 'pcie_aspm=force'\n");
 			return -EINVAL;
 		}
 	}
@@ -803,10 +831,14 @@ static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 
 	/*
 	 * Root Ports and PCI/PCI-X to PCIe Bridges are roots of PCIe
-	 * hierarchies.
+	 * hierarchies.  Note that some PCIe host implementations omit
+	 * the root ports entirely, in which case a downstream port on
+	 * a switch may become the root of the link state chain for all
+	 * its subordinate endpoints.
 	 */
 	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT ||
-	    pci_pcie_type(pdev) == PCI_EXP_TYPE_PCIE_BRIDGE) {
+	    pci_pcie_type(pdev) == PCI_EXP_TYPE_PCIE_BRIDGE ||
+	    !pdev->bus->parent->self) {
 		link->root = link;
 	} else {
 		struct pcie_link_state *parent;
@@ -1017,7 +1049,7 @@ static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 	 * ignored in this situation.
 	 */
 	if (aspm_disabled) {
-		dev_warn(&pdev->dev, "can't disable ASPM; OS doesn't have ASPM control\n");
+		pci_warn(pdev, "can't disable ASPM; OS doesn't have ASPM control\n");
 		return;
 	}
 
@@ -1061,7 +1093,8 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 }
 EXPORT_SYMBOL(pci_disable_link_state);
 
-static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
+static int pcie_aspm_set_policy(const char *val,
+				const struct kernel_param *kp)
 {
 	int i;
 	struct pcie_link_state *link;
@@ -1088,7 +1121,7 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-static int pcie_aspm_get_policy(char *buffer, struct kernel_param *kp)
+static int pcie_aspm_get_policy(char *buffer, const struct kernel_param *kp)
 {
 	int i, cnt = 0;
 	for (i = 0; i < ARRAY_SIZE(policy_str); i++)

@@ -515,6 +515,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	sma->sem_nsems = nsems;
 	sma->sem_ctime = ktime_get_real_seconds();
 
+	/* ipc_addid() locks sma upon success. */
 	retval = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
 	if (retval < 0) {
 		call_rcu(&sma->sem_perm.rcu, sem_rcu_free);
@@ -1212,10 +1213,20 @@ static int semctl_stat(struct ipc_namespace *ns, int semid,
 	if (err)
 		goto out_unlock;
 
+	ipc_lock_object(&sma->sem_perm);
+
+	if (!ipc_valid_object(&sma->sem_perm)) {
+		ipc_unlock_object(&sma->sem_perm);
+		err = -EIDRM;
+		goto out_unlock;
+	}
+
 	kernel_to_ipc64_perm(&sma->sem_perm, &semid64->sem_perm);
 	semid64->sem_otime = get_semotime(sma);
 	semid64->sem_ctime = sma->sem_ctime;
 	semid64->sem_nsems = sma->sem_nsems;
+
+	ipc_unlock_object(&sma->sem_perm);
 	rcu_read_unlock();
 	return id;
 
@@ -1637,10 +1648,10 @@ static int copy_compat_semid_from_user(struct semid64_ds *out, void __user *buf,
 {
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
-		struct compat_semid64_ds *p = buf;
+		struct compat_semid64_ds __user *p = buf;
 		return get_compat_ipc64_perm(&out->sem_perm, &p->sem_perm);
 	} else {
-		struct compat_semid_ds *p = buf;
+		struct compat_semid_ds __user *p = buf;
 		return get_compat_ipc_perm(&out->sem_perm, &p->sem_perm);
 	}
 }

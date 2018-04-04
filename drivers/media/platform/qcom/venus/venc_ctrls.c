@@ -30,10 +30,57 @@
 #define AT_SLICE_BOUNDARY	\
 	V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY
 
+static int venc_calc_bpframes(u32 gop_size, u32 conseq_b, u32 *bf, u32 *pf)
+{
+	u32 half = (gop_size - 1) >> 1;
+	u32 b, p, ratio;
+	bool found = false;
+
+	if (!gop_size)
+		return -EINVAL;
+
+	*bf = *pf = 0;
+
+	if (!conseq_b) {
+		*pf = gop_size -  1;
+		return 0;
+	}
+
+	b = p = half;
+
+	for (; b <= gop_size - 1; b++, p--) {
+		if (b % p)
+			continue;
+
+		ratio = b / p;
+
+		if (ratio == conseq_b) {
+			found = true;
+			break;
+		}
+
+		if (ratio > conseq_b)
+			break;
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	if (b + p + 1 != gop_size)
+		return -EINVAL;
+
+	*bf = b;
+	*pf = p;
+
+	return 0;
+}
+
 static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct venus_inst *inst = ctrl_to_inst(ctrl);
 	struct venc_controls *ctr = &inst->controls.enc;
+	u32 bframes;
+	int ret;
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
@@ -102,6 +149,11 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:
 		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		ret = venc_calc_bpframes(ctrl->val, ctr->num_b_frames, &bframes,
+					 &ctr->num_p_frames);
+		if (ret)
+			return ret;
+
 		ctr->gop_size = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_I_PERIOD:
@@ -114,7 +166,12 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctr->vp8_max_qp = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
-		ctr->num_b_frames = ctrl->val;
+		ret = venc_calc_bpframes(ctr->gop_size, ctrl->val, &bframes,
+					 &ctr->num_p_frames);
+		if (ret)
+			return ret;
+
+		ctr->num_b_frames = bframes;
 		break;
 	default:
 		return -EINVAL;

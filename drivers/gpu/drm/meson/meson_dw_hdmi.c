@@ -23,6 +23,7 @@
 #include <linux/of_graph.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
@@ -137,6 +138,7 @@ struct meson_dw_hdmi {
 	struct reset_control *hdmitx_phy;
 	struct clk *hdmi_pclk;
 	struct clk *venci_clk;
+	struct regulator *hdmi_supply;
 	u32 irq_stat;
 };
 #define encoder_to_meson_dw_hdmi(x) \
@@ -750,6 +752,17 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	meson_dw_hdmi->dev = dev;
 	dw_plat_data = &meson_dw_hdmi->dw_plat_data;
 	encoder = &meson_dw_hdmi->encoder;
+
+	meson_dw_hdmi->hdmi_supply = devm_regulator_get_optional(dev, "hdmi");
+	if (IS_ERR(meson_dw_hdmi->hdmi_supply)) {
+		if (PTR_ERR(meson_dw_hdmi->hdmi_supply) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		meson_dw_hdmi->hdmi_supply = NULL;
+	} else {
+		ret = regulator_enable(meson_dw_hdmi->hdmi_supply);
+		if (ret)
+			return ret;
+	}
 
 	meson_dw_hdmi->hdmitx_apb = devm_reset_control_get_exclusive(dev,
 						"hdmitx_apb");

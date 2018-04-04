@@ -50,13 +50,6 @@ struct vega10_temperature {
 #define FDO_PWM_MODE_STATIC_RPM 5
 
 
-extern int tf_vega10_thermal_initialize(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result);
-extern int tf_vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result);
-extern int tf_vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result);
-
 extern int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr);
 extern int vega10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
@@ -69,7 +62,6 @@ extern int vega10_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr,
 extern int vega10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 		uint32_t speed);
 extern int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr);
-extern int pp_vega10_thermal_initialize(struct pp_hwmgr *hwmgr);
 extern int vega10_thermal_ctrl_uninitialize_thermal_controller(
 		struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr,
@@ -77,9 +69,11 @@ extern int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr,
 extern int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed);
 extern int vega10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
-extern uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr);
 extern int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr);
-int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);
+extern int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);
+extern int vega10_start_thermal_controller(struct pp_hwmgr *hwmgr,
+				struct PP_TemperatureRange *range);
+extern uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr);
 
 #endif
 

@@ -28,7 +28,7 @@
 
 F=$1
 title=$2
-T=/tmp/parse-build.sh.$$
+T=${TMPDIR-/tmp}/parse-build.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 

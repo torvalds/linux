@@ -568,10 +568,6 @@ static int uvc_ioctl_querycap(struct file *file, void *fh,
 	usb_make_path(stream->dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
 			  | chain->caps;
-	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	else
-		cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
 
 	return 0;
 }
@@ -1284,36 +1280,30 @@ struct uvc_xu_control_mapping32 {
 static int uvc_v4l2_get_xu_mapping(struct uvc_xu_control_mapping *kp,
 			const struct uvc_xu_control_mapping32 __user *up)
 {
-	compat_caddr_t p;
+	struct uvc_xu_control_mapping32 *p = (void *)kp;
+	compat_caddr_t info;
+	u32 count;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
-	    __copy_from_user(kp, up, offsetof(typeof(*up), menu_info)) ||
-	    __get_user(kp->menu_count, &up->menu_count))
+	if (copy_from_user(p, up, sizeof(*p)))
 		return -EFAULT;
+
+	count = p->menu_count;
+	info = p->menu_info;
 
 	memset(kp->reserved, 0, sizeof(kp->reserved));
-
-	if (kp->menu_count == 0) {
-		kp->menu_info = NULL;
-		return 0;
-	}
-
-	if (__get_user(p, &up->menu_info))
-		return -EFAULT;
-	kp->menu_info = compat_ptr(p);
-
+	kp->menu_info = count ? compat_ptr(info) : NULL;
+	kp->menu_count = count;
 	return 0;
 }
 
 static int uvc_v4l2_put_xu_mapping(const struct uvc_xu_control_mapping *kp,
 			struct uvc_xu_control_mapping32 __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)) ||
-	    __copy_to_user(up, kp, offsetof(typeof(*up), menu_info)) ||
-	    __put_user(kp->menu_count, &up->menu_count))
+	if (copy_to_user(up, kp, offsetof(typeof(*up), menu_info)) ||
+	    put_user(kp->menu_count, &up->menu_count))
 		return -EFAULT;
 
-	if (__clear_user(up->reserved, sizeof(up->reserved)))
+	if (clear_user(up->reserved, sizeof(up->reserved)))
 		return -EFAULT;
 
 	return 0;
@@ -1330,31 +1320,26 @@ struct uvc_xu_control_query32 {
 static int uvc_v4l2_get_xu_query(struct uvc_xu_control_query *kp,
 			const struct uvc_xu_control_query32 __user *up)
 {
-	compat_caddr_t p;
+	struct uvc_xu_control_query32 v;
 
-	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
-	    __copy_from_user(kp, up, offsetof(typeof(*up), data)))
+	if (copy_from_user(&v, up, sizeof(v)))
 		return -EFAULT;
 
-	if (kp->size == 0) {
-		kp->data = NULL;
-		return 0;
-	}
-
-	if (__get_user(p, &up->data))
-		return -EFAULT;
-	kp->data = compat_ptr(p);
-
+	*kp = (struct uvc_xu_control_query){
+		.unit = v.unit,
+		.selector = v.selector,
+		.query = v.query,
+		.size = v.size,
+		.data = v.size ? compat_ptr(v.data) : NULL
+	};
 	return 0;
 }
 
 static int uvc_v4l2_put_xu_query(const struct uvc_xu_control_query *kp,
 			struct uvc_xu_control_query32 __user *up)
 {
-	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)) ||
-	    __copy_to_user(up, kp, offsetof(typeof(*up), data)))
+	if (copy_to_user(up, kp, offsetof(typeof(*up), data)))
 		return -EFAULT;
-
 	return 0;
 }
 
@@ -1423,7 +1408,7 @@ static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	return uvc_queue_mmap(&stream->queue, vma);
 }
 
-static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
+static __poll_t uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
 	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;

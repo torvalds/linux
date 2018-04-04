@@ -64,40 +64,48 @@ static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 			FLAGS_NONE, GFP_ATOMIC);
 }
 
+/* assumes check for PROFILE_MEDIATES is already done */
 /* TODO: conditionals */
 static int profile_ptrace_perm(struct aa_profile *profile,
-			       struct aa_profile *peer, u32 request,
-			       struct common_audit_data *sa)
+			     struct aa_label *peer, u32 request,
+			     struct common_audit_data *sa)
 {
 	struct aa_perms perms = { };
 
-	/* need because of peer in cross check */
-	if (profile_unconfined(profile) ||
-	    !PROFILE_MEDIATES(profile, AA_CLASS_PTRACE))
-		return 0;
-
-	aad(sa)->peer = &peer->label;
-	aa_profile_match_label(profile, &peer->label, AA_CLASS_PTRACE, request,
+	aad(sa)->peer = peer;
+	aa_profile_match_label(profile, peer, AA_CLASS_PTRACE, request,
 			       &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	return aa_check_perms(profile, &perms, request, sa, audit_ptrace_cb);
 }
 
-static int cross_ptrace_perm(struct aa_profile *tracer,
-			     struct aa_profile *tracee, u32 request,
-			     struct common_audit_data *sa)
+static int profile_tracee_perm(struct aa_profile *tracee,
+			       struct aa_label *tracer, u32 request,
+			       struct common_audit_data *sa)
 {
+	if (profile_unconfined(tracee) || unconfined(tracer) ||
+	    !PROFILE_MEDIATES(tracee, AA_CLASS_PTRACE))
+		return 0;
+
+	return profile_ptrace_perm(tracee, tracer, request, sa);
+}
+
+static int profile_tracer_perm(struct aa_profile *tracer,
+			       struct aa_label *tracee, u32 request,
+			       struct common_audit_data *sa)
+{
+	if (profile_unconfined(tracer))
+		return 0;
+
 	if (PROFILE_MEDIATES(tracer, AA_CLASS_PTRACE))
-		return xcheck(profile_ptrace_perm(tracer, tracee, request, sa),
-			      profile_ptrace_perm(tracee, tracer,
-						  request << PTRACE_PERM_SHIFT,
-						  sa));
-	/* policy uses the old style capability check for ptrace */
-	if (profile_unconfined(tracer) || tracer == tracee)
+		return profile_ptrace_perm(tracer, tracee, request, sa);
+
+	/* profile uses the old style capability check for ptrace */
+	if (&tracer->label == tracee)
 		return 0;
 
 	aad(sa)->label = &tracer->label;
-	aad(sa)->peer = &tracee->label;
+	aad(sa)->peer = tracee;
 	aad(sa)->request = 0;
 	aad(sa)->error = aa_capable(&tracer->label, CAP_SYS_PTRACE, 1);
 
@@ -115,10 +123,13 @@ static int cross_ptrace_perm(struct aa_profile *tracer,
 int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
 		  u32 request)
 {
+	struct aa_profile *profile;
+	u32 xrequest = request << PTRACE_PERM_SHIFT;
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_PTRACE);
 
-	return xcheck_labels_profiles(tracer, tracee, cross_ptrace_perm,
-				      request, &sa);
+	return xcheck_labels(tracer, tracee, profile,
+			profile_tracer_perm(profile, tracee, request, &sa),
+			profile_tracee_perm(profile, tracer, xrequest, &sa));
 }
 
 
@@ -128,7 +139,7 @@ static inline int map_signal_num(int sig)
 		return SIGUNKNOWN;
 	else if (sig >= SIGRTMIN)
 		return sig - SIGRTMIN + 128;	/* rt sigs mapped to 128 */
-	else if (sig <= MAXMAPPED_SIG)
+	else if (sig < MAXMAPPED_SIG)
 		return sig_map[sig];
 	return SIGUNKNOWN;
 }
@@ -163,7 +174,7 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 			audit_signal_mask(ab, aad(sa)->denied);
 		}
 	}
-	if (aad(sa)->signal <= MAXMAPPED_SIG)
+	if (aad(sa)->signal < MAXMAPPED_SIG)
 		audit_log_format(ab, " signal=%s", sig_names[aad(sa)->signal]);
 	else
 		audit_log_format(ab, " signal=rtmin+%d",

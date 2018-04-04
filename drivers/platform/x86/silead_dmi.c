@@ -58,6 +58,7 @@ static const struct property_entry dexp_ursus_7w_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 630),
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl1686-dexp-ursus-7w.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -66,12 +67,28 @@ static const struct silead_ts_dmi_data dexp_ursus_7w_data = {
 	.properties	= dexp_ursus_7w_props,
 };
 
+static const struct property_entry surftab_twin_10_1_st10432_8_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1900),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_U32("touchscreen-inverted-y", 1),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3670-surftab-twin-10-1-st10432-8.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data surftab_twin_10_1_st10432_8_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= surftab_twin_10_1_st10432_8_props,
+};
+
 static const struct property_entry surftab_wintron70_st70416_6_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 884),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 632),
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl1686-surftab-wintron70-st70416-6.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -83,6 +100,8 @@ static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
 static const struct property_entry gp_electronic_t701_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 960),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 640),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl1680-gp-electronic-t701.fw"),
 	{ }
@@ -114,6 +133,7 @@ static const struct property_entry pov_mobii_wintab_p800w_props[] = {
 	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
 	PROPERTY_ENTRY_STRING("firmware-name",
 			      "gsl3692-pov-mobii-wintab-p800w.fw"),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -134,6 +154,127 @@ static const struct property_entry itworks_tw891_props[] = {
 static const struct silead_ts_dmi_data itworks_tw891_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= itworks_tw891_props,
+};
+
+static const struct property_entry chuwi_hi8_pro_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1148),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3680-chuwi-hi8-pro.fw"),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data chuwi_hi8_pro_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= chuwi_hi8_pro_props,
+};
+
+static const struct property_entry digma_citi_e200_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1686-digma_citi_e200.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data digma_citi_e200_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= digma_citi_e200_props,
+};
+
+static const struct property_entry onda_obook_20_plus_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1148),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3676-onda-obook-20-plus.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data onda_obook_20_plus_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= onda_obook_20_plus_props,
+};
+
+static const struct property_entry chuwi_hi8_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1665),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi8.fw"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data chuwi_hi8_data = {
+	.acpi_name      = "MSSL0001:00",
+	.properties     = chuwi_hi8_props,
+};
+
+static const struct property_entry chuwi_vi8_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1724),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3676-chuwi-vi8.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data chuwi_vi8_data = {
+	.acpi_name      = "MSSL1680:00",
+	.properties     = chuwi_vi8_props,
+};
+
+static const struct property_entry trekstor_primebook_c13_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 2624),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1920),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-trekstor-primebook-c13.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data trekstor_primebook_c13_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= trekstor_primebook_c13_props,
+};
+
+static const struct property_entry teclast_x98plus2_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 2048),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1686-teclast_x98plus2.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data teclast_x98plus2_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= teclast_x98plus2_props,
+};
+
+static const struct property_entry teclast_x3_plus_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-teclast-x3-plus.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data teclast_x3_plus_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= teclast_x3_plus_props,
 };
 
 static const struct dmi_system_id silead_ts_dmi_table[] = {
@@ -164,6 +305,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		},
 	},
 	{
+		/* TrekStor SurfTab twin 10.1 ST10432-8 */
+		.driver_data = (void *)&surftab_twin_10_1_st10432_8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SurfTab twin 10.1"),
+		},
+	},
+	{
 		/* Trekstor Surftab Wintron 7.0 ST70416-6 */
 		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
 		.matches = {
@@ -171,6 +320,17 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ST70416-6"),
 			/* Exact match, different versions need different fw */
 			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA04"),
+		},
+	},
+	{
+		/* Trekstor Surftab Wintron 7.0 ST70416-6, newer BIOS */
+		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME,
+					     "SurfTab wintron 7.0 ST70416-6"),
+			/* Exact match, different versions need different fw */
+			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA05"),
 		},
 	},
 	{
@@ -217,6 +377,73 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "To be filled by O.E.M."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TW891"),
+		},
+	},
+	{
+		/* Chuwi Hi8 Pro */
+		.driver_data = (void *)&chuwi_hi8_pro_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X1D3_C806N"),
+		},
+	},
+	{
+		/* Digma Citi E200 */
+		.driver_data = (void *)&digma_citi_e200_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Digma"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CITI E200"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
+		},
+	},
+	{
+		/* Onda oBook 20 Plus */
+		.driver_data = (void *)&onda_obook_20_plus_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ONDA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "OBOOK 20 PLUS"),
+		},
+	},
+	{
+		/* Chuwi Hi8 */
+		.driver_data = (void *)&chuwi_hi8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ilife"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "S806"),
+		},
+	},
+	{
+		/* Chuwi Vi8 (CWI506) */
+		.driver_data = (void *)&chuwi_vi8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "i86"),
+			DMI_MATCH(DMI_BIOS_VERSION, "CHUWI.D86JLBNR"),
+		},
+	},
+	{
+		/* Trekstor Primebook C13 */
+		.driver_data = (void *)&trekstor_primebook_c13_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Primebook C13"),
+		},
+	},
+	{
+		/* Teclast X98 Plus II */
+		.driver_data = (void *)&teclast_x98plus2_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X98 Plus II"),
+		},
+	},
+	{
+		/* Teclast X3 Plus */
+		.driver_data = (void *)&teclast_x3_plus_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X3 Plus"),
+			DMI_MATCH(DMI_BOARD_NAME, "X3 Plus"),
 		},
 	},
 	{ },

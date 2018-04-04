@@ -156,7 +156,7 @@ static int s3c_irq_type(struct irq_data *data, unsigned int type)
 		irq_set_handler(data->irq, handle_level_irq);
 		break;
 	default:
-		pr_err("No such irq type %d", type);
+		pr_err("No such irq type %d\n", type);
 		return -EINVAL;
 	}
 
@@ -204,7 +204,7 @@ static int s3c_irqext_type_set(void __iomem *gpcon_reg,
 			break;
 
 		default:
-			pr_err("No such irq type %d", type);
+			pr_err("No such irq type %d\n", type);
 			return -EINVAL;
 	}
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Intel PXA25x and IXP4xx on-chip full speed USB device controllers
  *
@@ -6,11 +7,6 @@
  * Copyright (C) 2003 Benedikt Spranger, Pengutronix
  * Copyright (C) 2003 David Brownell
  * Copyright (C) 2003 Joshua Wise
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /* #define VERBOSE_DEBUG */
@@ -1628,9 +1624,9 @@ static inline void clear_ep_state (struct pxa25x_udc *dev)
 		nuke(&dev->ep[i], -ECONNABORTED);
 }
 
-static void udc_watchdog(unsigned long _dev)
+static void udc_watchdog(struct timer_list *t)
 {
-	struct pxa25x_udc	*dev = (void *)_dev;
+	struct pxa25x_udc	*dev = from_timer(dev, t, timer);
 
 	local_irq_disable();
 	if (dev->ep0state == EP0_STALL
@@ -2417,9 +2413,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		gpio_direction_output(dev->mach->gpio_pullup, 0);
 	}
 
-	init_timer(&dev->timer);
-	dev->timer.function = udc_watchdog;
-	dev->timer.data = (unsigned long) dev;
+	timer_setup(&dev->timer, udc_watchdog, 0);
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);

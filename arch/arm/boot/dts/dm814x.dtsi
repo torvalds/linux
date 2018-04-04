@@ -75,6 +75,7 @@
 				reg = <0x47401300 0x100>;
 				reg-names = "phy";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
+				#phy-cells = <0>;
 			};
 
 			usb0: usb@47401000 {
@@ -249,6 +250,8 @@
 				interrupts = <67>;
 				ti,hwmods = "timer1";
 				ti,timer-alwon;
+				clocks = <&timer1_fck>;
+				clock-names = "fck";
 			};
 
 			uart1: uart@20000 {
@@ -286,6 +289,8 @@
 				reg = <0x40000 0x2000>;
 				interrupts = <68>;
 				ti,hwmods = "timer2";
+				clocks = <&timer2_fck>;
+				clock-names = "fck";
 			};
 
 			timer3: timer@42000 {
@@ -385,6 +390,7 @@
 					reg = <0x1b00 0x100>;
 					reg-names = "phy";
 					ti,ctrl_mod = <&usb_ctrl_mod>;
+					#phy-cells = <0>;
 				};
 			};
 

@@ -56,11 +56,7 @@
 
 #include "orangefs-dev-proto.h"
 
-#ifdef ORANGEFS_KERNEL_DEBUG
-#define ORANGEFS_DEFAULT_OP_TIMEOUT_SECS       10
-#else
 #define ORANGEFS_DEFAULT_OP_TIMEOUT_SECS       20
-#endif
 
 #define ORANGEFS_BUFMAP_WAIT_TIMEOUT_SECS   30
 
@@ -104,11 +100,11 @@ enum orangefs_vfs_op_states {
  * orangefs kernel memory related flags
  */
 
-#if ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB))
+#if (defined CONFIG_DEBUG_SLAB)
 #define ORANGEFS_CACHE_CREATE_FLAGS SLAB_RED_ZONE
 #else
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
-#endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
+#endif
 
 extern int orangefs_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *orangefs_xattr_handlers[];
@@ -209,36 +205,9 @@ struct orangefs_inode_s {
 	struct inode vfs_inode;
 	sector_t last_failed_block_index_read;
 
-	/*
-	 * State of in-memory attributes not yet flushed to disk associated
-	 * with this object
-	 */
-	unsigned long pinode_flags;
-
 	unsigned long getattr_time;
 	u32 getattr_mask;
 };
-
-#define P_ATIME_FLAG 0
-#define P_MTIME_FLAG 1
-#define P_CTIME_FLAG 2
-#define P_MODE_FLAG  3
-
-#define ClearAtimeFlag(pinode) clear_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
-#define SetAtimeFlag(pinode)   set_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
-#define AtimeFlag(pinode)      test_bit(P_ATIME_FLAG, &(pinode)->pinode_flags)
-
-#define ClearMtimeFlag(pinode) clear_bit(P_MTIME_FLAG, &(pinode)->pinode_flags)
-#define SetMtimeFlag(pinode)   set_bit(P_MTIME_FLAG, &(pinode)->pinode_flags)
-#define MtimeFlag(pinode)      test_bit(P_MTIME_FLAG, &(pinode)->pinode_flags)
-
-#define ClearCtimeFlag(pinode) clear_bit(P_CTIME_FLAG, &(pinode)->pinode_flags)
-#define SetCtimeFlag(pinode)   set_bit(P_CTIME_FLAG, &(pinode)->pinode_flags)
-#define CtimeFlag(pinode)      test_bit(P_CTIME_FLAG, &(pinode)->pinode_flags)
-
-#define ClearModeFlag(pinode) clear_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
-#define SetModeFlag(pinode)   set_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
-#define ModeFlag(pinode)      test_bit(P_MODE_FLAG, &(pinode)->pinode_flags)
 
 /* per superblock private orangefs info */
 struct orangefs_sb_info_s {
@@ -274,12 +243,6 @@ struct orangefs_kiocb_s {
 
 	/* orangefs kernel operation type */
 	struct orangefs_kernel_op_s *op;
-
-	/* The user space buffers from/to which I/O is being staged */
-	struct iovec *iov;
-
-	/* number of elements in the iovector */
-	unsigned long nr_segs;
 
 	/* set to indicate the type of the operation */
 	int rw;
@@ -442,6 +405,8 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 
 int orangefs_permission(struct inode *inode, int mask);
 
+int orangefs_update_time(struct inode *, struct timespec *, int);
+
 /*
  * defined in xattr.c
  */
@@ -484,8 +449,6 @@ bool __is_daemon_in_service(void);
  */
 __s32 fsid_of_op(struct orangefs_kernel_op_s *op);
 
-int orangefs_flush_inode(struct inode *inode);
-
 ssize_t orangefs_inode_getxattr(struct inode *inode,
 			     const char *name,
 			     void *buffer,
@@ -503,8 +466,6 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 int orangefs_inode_check_changed(struct inode *inode);
 
 int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr);
-
-void orangefs_make_bad_inode(struct inode *inode);
 
 int orangefs_unmount_sb(struct super_block *sb);
 
@@ -565,17 +526,6 @@ do {									\
 	sys_attr.ctime = 0;						\
 	sys_attr.mask = ORANGEFS_ATTR_SYS_ALL_SETABLE;			\
 } while (0)
-
-static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
-{
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	inode_lock(inode);
-#endif
-	i_size_write(inode, i_size);
-#if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	inode_unlock(inode);
-#endif
-}
 
 static inline void orangefs_set_timeout(struct dentry *dentry)
 {

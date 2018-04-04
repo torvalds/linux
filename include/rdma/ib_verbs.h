@@ -63,6 +63,7 @@
 #include <linux/uaccess.h>
 #include <linux/cgroup_rdma.h>
 #include <uapi/rdma/ib_user_verbs.h>
+#include <rdma/restrack.h>
 
 #define IB_FW_VERSION_NAME_MAX	ETHTOOL_FWVERS_LEN
 
@@ -229,6 +230,8 @@ enum ib_device_cap_flags {
 	/* Deprecated. Please use IB_RAW_PACKET_CAP_SCATTER_FCS. */
 	IB_DEVICE_RAW_SCATTER_FCS		= (1ULL << 34),
 	IB_DEVICE_RDMA_NETDEV_OPA_VNIC		= (1ULL << 35),
+	/* The device supports padding incoming writes to cacheline. */
+	IB_DEVICE_PCI_WRITE_END_PADDING		= (1ULL << 36),
 };
 
 enum ib_signature_prot_cap {
@@ -298,15 +301,19 @@ struct ib_tm_caps {
 	u32 max_sge;
 };
 
-enum ib_cq_creation_flags {
-	IB_CQ_FLAGS_TIMESTAMP_COMPLETION   = 1 << 0,
-	IB_CQ_FLAGS_IGNORE_OVERRUN	   = 1 << 1,
-};
-
 struct ib_cq_init_attr {
 	unsigned int	cqe;
 	int		comp_vector;
 	u32		flags;
+};
+
+enum ib_cq_attr_mask {
+	IB_CQ_MODERATE = 1 << 0,
+};
+
+struct ib_cq_caps {
+	u16     max_cq_moderation_count;
+	u16     max_cq_moderation_period;
 };
 
 struct ib_device_attr {
@@ -359,6 +366,7 @@ struct ib_device_attr {
 	u32			max_wq_type_rq;
 	u32			raw_packet_caps; /* Use ib_raw_packet_caps enum */
 	struct ib_tm_caps	tm_caps;
+	struct ib_cq_caps       cq_caps;
 };
 
 enum ib_mtu {
@@ -866,6 +874,7 @@ struct ib_mr_status {
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
 enum rdma_ah_attr_type {
+	RDMA_AH_ATTR_TYPE_UNDEFINED,
 	RDMA_AH_ATTR_TYPE_IB,
 	RDMA_AH_ATTR_TYPE_ROCE,
 	RDMA_AH_ATTR_TYPE_OPA,
@@ -971,9 +980,9 @@ struct ib_wc {
 		u32		invalidate_rkey;
 	} ex;
 	u32			src_qp;
+	u32			slid;
 	int			wc_flags;
 	u16			pkey_index;
-	u32			slid;
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
@@ -1070,6 +1079,7 @@ enum ib_qp_type {
 	IB_QPT_XRC_INI = 9,
 	IB_QPT_XRC_TGT,
 	IB_QPT_MAX,
+	IB_QPT_DRIVER = 0xFF,
 	/* Reserve a range for qp types internal to the low level driver.
 	 * These qp types will not be visible at the IB core layer, so the
 	 * IB_QPT_MAX usages should not be affected in the core layer
@@ -1098,6 +1108,7 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
 	IB_QP_CREATE_CVLAN_STRIPPING		= 1 << 9,
 	IB_QP_CREATE_SOURCE_QPN			= 1 << 10,
+	IB_QP_CREATE_PCI_WRITE_END_PADDING	= 1 << 11,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -1516,6 +1527,7 @@ struct ib_pd {
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
 	struct ib_mr	       *__internal_mr;
+	struct rdma_restrack_entry res;
 };
 
 struct ib_xrcd {
@@ -1525,6 +1537,10 @@ struct ib_xrcd {
 
 	struct mutex		tgt_qp_mutex;
 	struct list_head	tgt_qp_list;
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct rdma_restrack_entry res;
 };
 
 struct ib_ah {
@@ -1556,6 +1572,10 @@ struct ib_cq {
 		struct irq_poll		iop;
 		struct work_struct	work;
 	};
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct rdma_restrack_entry res;
 };
 
 struct ib_srq {
@@ -1621,6 +1641,7 @@ enum ib_wq_flags {
 	IB_WQ_FLAGS_CVLAN_STRIPPING	= 1 << 0,
 	IB_WQ_FLAGS_SCATTER_FCS		= 1 << 1,
 	IB_WQ_FLAGS_DELAY_DROP		= 1 << 2,
+	IB_WQ_FLAGS_PCI_WRITE_END_PADDING = 1 << 3,
 };
 
 struct ib_wq_init_attr {
@@ -1731,6 +1752,11 @@ struct ib_qp {
 	struct ib_rwq_ind_table *rwq_ind_tbl;
 	struct ib_qp_security  *qp_sec;
 	u8			port;
+
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct rdma_restrack_entry     res;
 };
 
 struct ib_mr {
@@ -2337,6 +2363,10 @@ struct ib_device {
 #endif
 
 	u32                          index;
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers
+	 */
+	struct rdma_restrack_root     res;
 
 	/**
 	 * The following mandatory functions are used only at device
@@ -2822,8 +2852,7 @@ int ib_modify_port(struct ib_device *device,
 		   struct ib_port_modify *port_modify);
 
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		enum ib_gid_type gid_type, struct net_device *ndev,
-		u8 *port_num, u16 *index);
+		struct net_device *ndev, u8 *port_num, u16 *index);
 
 int ib_find_pkey(struct ib_device *device,
 		 u8 port_num, u16 pkey, u16 *index);
@@ -2844,7 +2873,7 @@ enum ib_pd_flags {
 struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		const char *caller);
 #define ib_alloc_pd(device, flags) \
-	__ib_alloc_pd((device), (flags), __func__)
+	__ib_alloc_pd((device), (flags), KBUILD_MODNAME)
 void ib_dealloc_pd(struct ib_pd *pd);
 
 /**
@@ -2857,6 +2886,21 @@ void ib_dealloc_pd(struct ib_pd *pd);
  */
 struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
 
+/**
+ * rdma_create_user_ah - Creates an address handle for the given address vector.
+ * It resolves destination mac address for ah attribute of RoCE type.
+ * @pd: The protection domain associated with the address handle.
+ * @ah_attr: The attributes of the address vector.
+ * @udata: pointer to user's input output buffer information need by
+ *         provider driver.
+ *
+ * It returns 0 on success and returns appropriate error code on error.
+ * The address handle is used to reference a local or global destination
+ * in all UD QP post sends.
+ */
+struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
+				  struct rdma_ah_attr *ah_attr,
+				  struct ib_udata *udata);
 /**
  * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header
  *   work completion.
@@ -2876,7 +2920,7 @@ int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
 int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
 
 /**
- * ib_init_ah_from_wc - Initializes address handle attributes from a
+ * ib_init_ah_attr_from_wc - Initializes address handle attributes from a
  *   work completion.
  * @device: Device on which the received message arrived.
  * @port_num: Port on which the received message arrived.
@@ -2886,9 +2930,9 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  * @ah_attr: Returned attributes that can be used when creating an address
  *   handle for replying to the message.
  */
-int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
-		       const struct ib_wc *wc, const struct ib_grh *grh,
-		       struct rdma_ah_attr *ah_attr);
+int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
+			    const struct ib_wc *wc, const struct ib_grh *grh,
+			    struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_create_ah_from_wc - Creates an address handle associated with the
@@ -3106,8 +3150,12 @@ static inline int ib_post_recv(struct ib_qp *qp,
 	return qp->device->post_recv(qp, recv_wr, bad_recv_wr);
 }
 
-struct ib_cq *ib_alloc_cq(struct ib_device *dev, void *private,
-		int nr_cqe, int comp_vector, enum ib_poll_context poll_ctx);
+struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
+			    int nr_cqe, int comp_vector,
+			    enum ib_poll_context poll_ctx, const char *caller);
+#define ib_alloc_cq(device, priv, nr_cqe, comp_vect, poll_ctx) \
+	__ib_alloc_cq((device), (priv), (nr_cqe), (comp_vect), (poll_ctx), KBUILD_MODNAME)
+
 void ib_free_cq(struct ib_cq *cq);
 int ib_process_cq_direct(struct ib_cq *cq, int budget);
 
@@ -3140,13 +3188,13 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 int ib_resize_cq(struct ib_cq *cq, int cqe);
 
 /**
- * ib_modify_cq - Modifies moderation params of the CQ
+ * rdma_set_cq_moderation - Modifies moderation params of the CQ
  * @cq: The CQ to modify.
  * @cq_count: number of CQEs that will trigger an event
  * @cq_period: max period of time in usec before triggering an event
  *
  */
-int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
+int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 
 /**
  * ib_destroy_cq - Destroys the specified CQ.
@@ -3531,8 +3579,11 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 /**
  * ib_alloc_xrcd - Allocates an XRC domain.
  * @device: The device on which to allocate the XRC domain.
+ * @caller: Module name for kernel consumers
  */
-struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device);
+struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller);
+#define ib_alloc_xrcd(device) \
+	__ib_alloc_xrcd((device), KBUILD_MODNAME)
 
 /**
  * ib_dealloc_xrcd - Deallocates an XRC domain.
@@ -3607,8 +3658,6 @@ void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
 
-int ib_resolve_eth_dmac(struct ib_device *device,
-			struct rdma_ah_attr *ah_attr);
 int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width);
 
 static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
@@ -3762,18 +3811,24 @@ static inline void rdma_ah_set_grh(struct rdma_ah_attr *attr,
 	grh->traffic_class = traffic_class;
 }
 
-/*Get AH type */
+/**
+ * rdma_ah_find_type - Return address handle type.
+ *
+ * @dev: Device to be checked
+ * @port_num: Port number
+ */
 static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
-						       u32 port_num)
+						       u8 port_num)
 {
-	if ((rdma_protocol_roce(dev, port_num)) ||
-	    (rdma_protocol_iwarp(dev, port_num)))
+	if (rdma_protocol_roce(dev, port_num))
 		return RDMA_AH_ATTR_TYPE_ROCE;
-	else if ((rdma_protocol_ib(dev, port_num)) &&
-		 (rdma_cap_opa_ah(dev, port_num)))
-		return RDMA_AH_ATTR_TYPE_OPA;
-	else
+	if (rdma_protocol_ib(dev, port_num)) {
+		if (rdma_cap_opa_ah(dev, port_num))
+			return RDMA_AH_ATTR_TYPE_OPA;
 		return RDMA_AH_ATTR_TYPE_IB;
+	}
+
+	return RDMA_AH_ATTR_TYPE_UNDEFINED;
 }
 
 /**
@@ -3822,5 +3877,13 @@ ib_get_vector_affinity(struct ib_device *device, int comp_vector)
 	return device->get_vector_affinity(device, comp_vector);
 
 }
+
+/**
+ * rdma_roce_rescan_device - Rescan all of the network devices in the system
+ * and add their gids, as needed, to the relevant RoCE devices.
+ *
+ * @device:         the rdma device
+ */
+void rdma_roce_rescan_device(struct ib_device *ibdev);
 
 #endif /* IB_VERBS_H */

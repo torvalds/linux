@@ -102,12 +102,13 @@
 #define POSTED_INTR_NESTED_VECTOR	0xf0
 #endif
 
-/*
- * Local APIC timer IRQ vector is on a different priority level,
- * to work around the 'lost local interrupt if more than 2 IRQ
- * sources per level' errata.
- */
-#define LOCAL_TIMER_VECTOR		0xef
+#define MANAGED_IRQ_SHUTDOWN_VECTOR	0xef
+
+#if IS_ENABLED(CONFIG_HYPERV)
+#define HYPERV_REENLIGHTENMENT_VECTOR	0xee
+#endif
+
+#define LOCAL_TIMER_VECTOR		0xed
 
 #define NR_VECTORS			 256
 

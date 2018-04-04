@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * chaoskey - driver for ChaosKey device from Altus Metrum.
  *
@@ -11,15 +12,6 @@
  * bit stream.
  *
  * Copyright © 2015 Keith Packard <keithp@keithp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -191,10 +183,10 @@ static int chaoskey_probe(struct usb_interface *interface,
 	dev->in_ep = in_ep;
 
 	if (le16_to_cpu(udev->descriptor.idVendor) != ALEA_VENDOR_ID)
-		dev->reads_started = 1;
+		dev->reads_started = true;
 
 	dev->size = size;
-	dev->present = 1;
+	dev->present = true;
 
 	init_waitqueue_head(&dev->wait_q);
 
@@ -247,7 +239,7 @@ static void chaoskey_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	mutex_lock(&dev->lock);
 
-	dev->present = 0;
+	dev->present = false;
 	usb_poison_urb(dev->urb);
 
 	if (!dev->open) {

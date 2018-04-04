@@ -51,7 +51,7 @@ static const struct id_to_str arc_cpu_rel[] = {
 	{ 0x51, "R2.0" },
 	{ 0x52, "R2.1" },
 	{ 0x53, "R3.0" },
-	{ 0x54, "R4.0" },
+	{ 0x54, "R3.10a" },
 #endif
 	{ 0x00, NULL   }
 };
@@ -199,8 +199,10 @@ static void read_arc_build_cfg_regs(void)
 			unsigned int exec_ctrl;
 
 			READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
-			cpu->extn.dual_iss_exist = 1;
-			cpu->extn.dual_iss_enb = exec_ctrl & 1;
+			cpu->extn.dual_enb = !(exec_ctrl & 1);
+
+			/* dual issue always present for this core */
+			cpu->extn.dual = 1;
 		}
 	}
 
@@ -253,7 +255,7 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       cpu_id, cpu->name, cpu->details,
 		       is_isa_arcompact() ? "ARCompact" : "ARCv2",
 		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"),
-		       IS_AVAIL3(cpu->extn.dual_iss_exist, cpu->extn.dual_iss_enb, " Dual-Issue"));
+		       IS_AVAIL3(cpu->extn.dual, cpu->extn.dual_enb, " Dual-Issue "));
 
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s%s%s\nISA Extn\t: ",
 		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
@@ -293,11 +295,26 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	if (cpu->bpu.ver)
 		n += scnprintf(buf + n, len - n,
-			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d\n",
+			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d",
 			      IS_AVAIL1(cpu->bpu.full, "full"),
 			      IS_AVAIL1(!cpu->bpu.full, "partial"),
 			      cpu->bpu.num_cache, cpu->bpu.num_pred);
 
+	if (is_isa_arcv2()) {
+		struct bcr_lpb lpb;
+
+		READ_BCR(ARC_REG_LPB_BUILD, lpb);
+		if (lpb.ver) {
+			unsigned int ctl;
+			ctl = read_aux_reg(ARC_REG_LPB_CTRL);
+
+			n += scnprintf(buf + n, len - n, " Loop Buffer:%d %s",
+				lpb.entries,
+				IS_DISABLED_RUN(!ctl));
+		}
+	}
+
+	n += scnprintf(buf + n, len - n, "\n");
 	return buf;
 }
 
@@ -326,6 +343,24 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
+	if (is_isa_arcv2()) {
+
+		/* Error Protection: ECC/Parity */
+		struct bcr_erp erp;
+		READ_BCR(ARC_REG_ERP_BUILD, erp);
+
+		if (erp.ver) {
+			struct  ctl_erp ctl;
+			READ_BCR(ARC_REG_ERP_CTRL, ctl);
+
+			/* inverted bits: 0 means enabled */
+			n += scnprintf(buf + n, len - n, "Extn [ECC]\t: %s%s%s%s%s%s\n",
+				IS_AVAIL3(erp.ic,  !ctl.dpi, "IC "),
+				IS_AVAIL3(erp.dc,  !ctl.dpd, "DC "),
+				IS_AVAIL3(erp.mmu, !ctl.mpd, "MMU "));
+		}
+	}
+
 	n += scnprintf(buf + n, len - n, "OS ABI [v%d]\t: %s\n",
 			EF_ARC_OSABI_CURRENT >> 8,
 			EF_ARC_OSABI_CURRENT == EF_ARC_OSABI_V3 ?
@@ -338,7 +373,7 @@ static void arc_chk_core_config(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	int saved = 0, present = 0;
-	char *opt_nm = NULL;;
+	char *opt_nm = NULL;
 
 	if (!cpu->extn.timer0)
 		panic("Timer0 is not present!\n");

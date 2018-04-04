@@ -142,6 +142,7 @@
 #define DOORBELL_CTLR_RESET	0x00000004l
 #define DOORBELL_CTLR_RESET2	0x00000020l
 #define DOORBELL_CLEAR_EVENTS	0x00000040l
+#define DOORBELL_GENERATE_CHKPT	0x00000080l
 
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
@@ -779,6 +780,8 @@ struct bmic_identify_physical_device {
 	u8     phys_bay_in_box;  /* phys drv bay this drive resides */
 	__le32 rpm;              /* Drive rotational speed in rpm */
 	u8     device_type;       /* type of drive */
+#define BMIC_DEVICE_TYPE_CONTROLLER	0x07
+
 	u8     sata_version;     /* only valid when drive_type is SATA */
 	__le64 big_total_block_count;
 	__le64 ris_starting_lba;

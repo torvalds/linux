@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 #include <linux/types.h>
+#include <linux/nvmem-consumer.h>
 
 #define REG_SET		0x4
 #define REG_CLR		0x8
@@ -69,10 +70,6 @@ enum imx_thermal_trip {
 #define IMX_POLLING_DELAY		2000 /* millisecond */
 #define IMX_PASSIVE_DELAY		1000
 
-#define FACTOR0				10000000
-#define FACTOR1				15976
-#define FACTOR2				4297157
-
 #define TEMPMON_IMX6Q			1
 #define TEMPMON_IMX6SX			2
 
@@ -94,7 +91,7 @@ struct imx_thermal_data {
 	struct thermal_cooling_device *cdev;
 	enum thermal_device_mode mode;
 	struct regmap *tempmon;
-	u32 c1, c2; /* See formula in imx_get_sensor_data() */
+	u32 c1, c2; /* See formula in imx_init_calib() */
 	int temp_passive;
 	int temp_critical;
 	int temp_max;
@@ -177,7 +174,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 
 	n_meas = (val & TEMPSENSE0_TEMP_CNT_MASK) >> TEMPSENSE0_TEMP_CNT_SHIFT;
 
-	/* See imx_get_sensor_data() for formula derivation */
+	/* See imx_init_calib() for formula derivation */
 	*temp = data->c2 - n_meas * data->c1;
 
 	/* Update alarm value to next higher trip point for TEMPMON_IMX6Q */
@@ -346,14 +343,84 @@ static struct thermal_zone_device_ops imx_tz_ops = {
 	.set_trip_temp = imx_set_trip_temp,
 };
 
-static int imx_get_sensor_data(struct platform_device *pdev)
+static int imx_init_calib(struct platform_device *pdev, u32 ocotp_ana1)
 {
 	struct imx_thermal_data *data = platform_get_drvdata(pdev);
+	int n1;
+	u64 temp64;
+
+	if (ocotp_ana1 == 0 || ocotp_ana1 == ~0) {
+		dev_err(&pdev->dev, "invalid sensor calibration data\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * The sensor is calibrated at 25 °C (aka T1) and the value measured
+	 * (aka N1) at this temperature is provided in bits [31:20] in the
+	 * i.MX's OCOTP value ANA1.
+	 * To find the actual temperature T, the following formula has to be used
+	 * when reading value n from the sensor:
+	 *
+	 * T = T1 + (N - N1) / (0.4148468 - 0.0015423 * N1) °C + 3.580661 °C
+	 *   = [T1' - N1 / (0.4148468 - 0.0015423 * N1) °C] + N / (0.4148468 - 0.0015423 * N1) °C
+	 *   = [T1' + N1 / (0.0015423 * N1 - 0.4148468) °C] - N / (0.0015423 * N1 - 0.4148468) °C
+	 *   = c2 - c1 * N
+	 *
+	 * with
+	 *
+	 *  T1' = 28.580661 °C
+	 *   c1 = 1 / (0.0015423 * N1 - 0.4297157) °C
+	 *   c2 = T1' + N1 / (0.0015423 * N1 - 0.4148468) °C
+	 *      = T1' + N1 * c1
+	 */
+	n1 = ocotp_ana1 >> 20;
+
+	temp64 = 10000000; /* use 10^7 as fixed point constant for values in formula */
+	temp64 *= 1000; /* to get result in °mC */
+	do_div(temp64, 15423 * n1 - 4148468);
+	data->c1 = temp64;
+	data->c2 = n1 * data->c1 + 28581;
+
+	return 0;
+}
+
+static void imx_init_temp_grade(struct platform_device *pdev, u32 ocotp_mem0)
+{
+	struct imx_thermal_data *data = platform_get_drvdata(pdev);
+
+	/* The maximum die temp is specified by the Temperature Grade */
+	switch ((ocotp_mem0 >> 6) & 0x3) {
+	case 0: /* Commercial (0 to 95 °C) */
+		data->temp_grade = "Commercial";
+		data->temp_max = 95000;
+		break;
+	case 1: /* Extended Commercial (-20 °C to 105 °C) */
+		data->temp_grade = "Extended Commercial";
+		data->temp_max = 105000;
+		break;
+	case 2: /* Industrial (-40 °C to 105 °C) */
+		data->temp_grade = "Industrial";
+		data->temp_max = 105000;
+		break;
+	case 3: /* Automotive (-40 °C to 125 °C) */
+		data->temp_grade = "Automotive";
+		data->temp_max = 125000;
+		break;
+	}
+
+	/*
+	 * Set the critical trip point at 5 °C under max
+	 * Set the passive trip point at 10 °C under max (changeable via sysfs)
+	 */
+	data->temp_critical = data->temp_max - (1000 * 5);
+	data->temp_passive = data->temp_max - (1000 * 10);
+}
+
+static int imx_init_from_tempmon_data(struct platform_device *pdev)
+{
 	struct regmap *map;
-	int t1, n1;
 	int ret;
 	u32 val;
-	u64 temp64;
 
 	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 					      "fsl,tempmon-data");
@@ -368,76 +435,34 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to read sensor data: %d\n", ret);
 		return ret;
 	}
+	ret = imx_init_calib(pdev, val);
+	if (ret)
+		return ret;
 
-	if (val == 0 || val == ~0) {
-		dev_err(&pdev->dev, "invalid sensor calibration data\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Sensor data layout:
-	 *   [31:20] - sensor value @ 25C
-	 * Use universal formula now and only need sensor value @ 25C
-	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
-	 */
-	n1 = val >> 20;
-	t1 = 25; /* t1 always 25C */
-
-	/*
-	 * Derived from linear interpolation:
-	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
-	 * slope = (FACTOR2 - FACTOR1 * n1) / FACTOR0
-	 * (Nmeas - n1) / (Tmeas - t1) = slope
-	 * We want to reduce this down to the minimum computation necessary
-	 * for each temperature read.  Also, we want Tmeas in millicelsius
-	 * and we don't want to lose precision from integer division. So...
-	 * Tmeas = (Nmeas - n1) / slope + t1
-	 * milli_Tmeas = 1000 * (Nmeas - n1) / slope + 1000 * t1
-	 * milli_Tmeas = -1000 * (n1 - Nmeas) / slope + 1000 * t1
-	 * Let constant c1 = (-1000 / slope)
-	 * milli_Tmeas = (n1 - Nmeas) * c1 + 1000 * t1
-	 * Let constant c2 = n1 *c1 + 1000 * t1
-	 * milli_Tmeas = c2 - Nmeas * c1
-	 */
-	temp64 = FACTOR0;
-	temp64 *= 1000;
-	do_div(temp64, FACTOR1 * n1 - FACTOR2);
-	data->c1 = temp64;
-	data->c2 = n1 * data->c1 + 1000 * t1;
-
-	/* use OTP for thermal grade */
 	ret = regmap_read(map, OCOTP_MEM0, &val);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to read temp grade: %d\n", ret);
+		dev_err(&pdev->dev, "failed to read sensor data: %d\n", ret);
 		return ret;
 	}
+	imx_init_temp_grade(pdev, val);
 
-	/* The maximum die temp is specified by the Temperature Grade */
-	switch ((val >> 6) & 0x3) {
-	case 0: /* Commercial (0 to 95C) */
-		data->temp_grade = "Commercial";
-		data->temp_max = 95000;
-		break;
-	case 1: /* Extended Commercial (-20 to 105C) */
-		data->temp_grade = "Extended Commercial";
-		data->temp_max = 105000;
-		break;
-	case 2: /* Industrial (-40 to 105C) */
-		data->temp_grade = "Industrial";
-		data->temp_max = 105000;
-		break;
-	case 3: /* Automotive (-40 to 125C) */
-		data->temp_grade = "Automotive";
-		data->temp_max = 125000;
-		break;
-	}
+	return 0;
+}
 
-	/*
-	 * Set the critical trip point at 5C under max
-	 * Set the passive trip point at 10C under max (can change via sysfs)
-	 */
-	data->temp_critical = data->temp_max - (1000 * 5);
-	data->temp_passive = data->temp_max - (1000 * 10);
+static int imx_init_from_nvmem_cells(struct platform_device *pdev)
+{
+	int ret;
+	u32 val;
+
+	ret = nvmem_cell_read_u32(&pdev->dev, "calib", &val);
+	if (ret)
+		return ret;
+	imx_init_calib(pdev, val);
+
+	ret = nvmem_cell_read_u32(&pdev->dev, "temp_grade", &val);
+	if (ret)
+		return ret;
+	imx_init_temp_grade(pdev, val);
 
 	return 0;
 }
@@ -514,10 +539,21 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	ret = imx_get_sensor_data(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to get sensor data\n");
-		return ret;
+	if (of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
+		ret = imx_init_from_nvmem_cells(pdev);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		if (ret) {
+			dev_err(&pdev->dev, "failed to init from nvmem: %d\n",
+				ret);
+			return ret;
+		}
+	} else {
+		ret = imx_init_from_tempmon_data(pdev);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to init from from fsl,tempmon-data\n");
+			return ret;
+		}
 	}
 
 	/* Make sure sensor is in known good state for measurements */

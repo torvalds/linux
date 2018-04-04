@@ -58,7 +58,7 @@ optprobe_template_entry:
 	std	r5,_XER(r1)
 	mfcr	r5
 	std	r5,_CCR(r1)
-	lbz     r5,PACASOFTIRQEN(r13)
+	lbz     r5,PACAIRQSOFTMASK(r13)
 	std     r5,SOFTE(r1)
 
 	/*

@@ -90,11 +90,6 @@ struct dm_verity_io {
 	 */
 };
 
-struct verity_result {
-	struct completion completion;
-	int err;
-};
-
 static inline struct ahash_request *verity_io_hash_req(struct dm_verity *v,
 						     struct dm_verity_io *io)
 {

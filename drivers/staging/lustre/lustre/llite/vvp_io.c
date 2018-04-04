@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -698,7 +699,7 @@ static int vvp_io_read_start(const struct lu_env *env,
 	result = vvp_prep_size(env, obj, io, pos, tot, &exceed);
 	if (result != 0)
 		return result;
-	else if (exceed != 0)
+	if (exceed != 0)
 		goto out;
 
 	LU_OBJECT_HEADER(D_INODE, env, &obj->co_lu,

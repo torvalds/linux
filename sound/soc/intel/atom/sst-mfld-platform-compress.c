@@ -259,7 +259,7 @@ static int sst_platform_compr_set_metadata(struct snd_compr_stream *cstream,
 	return stream->compr_ops->set_metadata(sst->dev, stream->id, metadata);
 }
 
-struct snd_compr_ops sst_platform_compr_ops = {
+const struct snd_compr_ops sst_platform_compr_ops = {
 
 	.open = sst_platform_compr_open,
 	.free = sst_platform_compr_free,

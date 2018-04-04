@@ -22,6 +22,7 @@
 #include <net/flow.h>
 #include <net/flow_dissector.h>
 #include <net/snmp.h>
+#include <net/netns/hash.h>
 
 #define SIN6_LEN_RFC2133	24
 
@@ -50,6 +51,46 @@
 
 #define IPV6_DEFAULT_HOPLIMIT   64
 #define IPV6_DEFAULT_MCASTHOPS	1
+
+/* Limits on Hop-by-Hop and Destination options.
+ *
+ * Per RFC8200 there is no limit on the maximum number or lengths of options in
+ * Hop-by-Hop or Destination options other then the packet must fit in an MTU.
+ * We allow configurable limits in order to mitigate potential denial of
+ * service attacks.
+ *
+ * There are three limits that may be set:
+ *   - Limit the number of options in a Hop-by-Hop or Destination options
+ *     extension header
+ *   - Limit the byte length of a Hop-by-Hop or Destination options extension
+ *     header
+ *   - Disallow unknown options
+ *
+ * The limits are expressed in corresponding sysctls:
+ *
+ * ipv6.sysctl.max_dst_opts_cnt
+ * ipv6.sysctl.max_hbh_opts_cnt
+ * ipv6.sysctl.max_dst_opts_len
+ * ipv6.sysctl.max_hbh_opts_len
+ *
+ * max_*_opts_cnt is the number of TLVs that are allowed for Destination
+ * options or Hop-by-Hop options. If the number is less than zero then unknown
+ * TLVs are disallowed and the number of known options that are allowed is the
+ * absolute value. Setting the value to INT_MAX indicates no limit.
+ *
+ * max_*_opts_len is the length limit in bytes of a Destination or
+ * Hop-by-Hop options extension header. Setting the value to INT_MAX
+ * indicates no length limit.
+ *
+ * If a limit is exceeded when processing an extension header the packet is
+ * silently discarded.
+ */
+
+/* Default limits for Hop-by-Hop and Destination options */
+#define IP6_DEFAULT_MAX_DST_OPTS_CNT	 8
+#define IP6_DEFAULT_MAX_HBH_OPTS_CNT	 8
+#define IP6_DEFAULT_MAX_DST_OPTS_LEN	 INT_MAX /* No limit */
+#define IP6_DEFAULT_MAX_HBH_OPTS_LEN	 INT_MAX /* No limit */
 
 /*
  *	Addr type
@@ -291,6 +332,7 @@ int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq,
 			   int flags);
 int ip6_flowlabel_init(void);
 void ip6_flowlabel_cleanup(void);
+bool ip6_autoflowlabel(struct net *net, const struct ipv6_pinfo *np);
 
 static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 {
@@ -300,8 +342,8 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 
 void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
 
-int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
-			       struct icmp6hdr *thdr, int len);
+void icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
+				struct icmp6hdr *thdr, int len);
 
 int ip6_ra_control(struct sock *sk, int sel);
 
@@ -633,6 +675,22 @@ static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 					cpu_to_be32(0x0000ffff))) == 0UL;
 }
 
+static inline u32 ipv6_portaddr_hash(const struct net *net,
+				     const struct in6_addr *addr6,
+				     unsigned int port)
+{
+	unsigned int hash, mix = net_hash_mix(net);
+
+	if (ipv6_addr_any(addr6))
+		hash = jhash_1word(0, mix);
+	else if (ipv6_addr_v4mapped(addr6))
+		hash = jhash_1word((__force u32)addr6->s6_addr32[3], mix);
+	else
+		hash = jhash2((__force u32 *)addr6->s6_addr32, 4, mix);
+
+	return hash ^ port;
+}
+
 /*
  * Check for a RFC 4843 ORCHID address
  * (Overlay Routable Cryptographic Hash Identifiers)
@@ -727,7 +785,7 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 __be32 ipv6_select_ident(struct net *net,
 			 const struct in6_addr *daddr,
 			 const struct in6_addr *saddr);
-void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb);
+__be32 ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb);
 
 int ip6_dst_hoplimit(struct dst_entry *dst);
 
@@ -911,6 +969,8 @@ static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 	return __ip6_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork,
 			      &inet6_sk(sk)->cork);
 }
+
+unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst);
 
 int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
 		   struct flowi6 *fl6);

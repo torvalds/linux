@@ -110,6 +110,20 @@ const char *smca_get_long_name(enum smca_bank_types t)
 }
 EXPORT_SYMBOL_GPL(smca_get_long_name);
 
+static enum smca_bank_types smca_get_bank_type(struct mce *m)
+{
+	struct smca_bank *b;
+
+	if (m->bank >= N_SMCA_BANK_TYPES)
+		return N_SMCA_BANK_TYPES;
+
+	b = &smca_banks[m->bank];
+	if (!b->hwid)
+		return N_SMCA_BANK_TYPES;
+
+	return b->hwid->bank_type;
+}
+
 static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* { bank_type, hwid_mcatype, xec_bitmap } */
 
@@ -407,7 +421,9 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	    (deferred_error_int_vector != amd_deferred_error_interrupt))
 		deferred_error_int_vector = amd_deferred_error_interrupt;
 
-	low = (low & ~MASK_DEF_INT_TYPE) | DEF_INT_TYPE_APIC;
+	if (!mce_flags.smca)
+		low = (low & ~MASK_DEF_INT_TYPE) | DEF_INT_TYPE_APIC;
+
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
@@ -737,6 +753,17 @@ out_err:
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(umc_normaddr_to_sysaddr);
+
+bool amd_mce_is_memory_error(struct mce *m)
+{
+	/* ErrCodeExt[20:16] */
+	u8 xec = (m->status >> 16) & 0x1f;
+
+	if (mce_flags.smca)
+		return smca_get_bank_type(m) == SMCA_UMC && xec == 0x0;
+
+	return m->bank == 4 && xec == 0x8;
+}
 
 static void __log_error(unsigned int bank, u64 status, u64 addr, u64 misc)
 {

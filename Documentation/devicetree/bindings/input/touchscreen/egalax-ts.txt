@@ -10,7 +10,7 @@ Required properties:
 
 Example:
 
-	egalax_ts@04 {
+	touchscreen@4 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;
 		interrupt-parent = <&gpio1>;

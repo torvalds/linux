@@ -37,7 +37,6 @@
 #include <linux/sched/task_stack.h>
 
 #include <asm/hyperv.h>
-#include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
@@ -65,7 +64,7 @@ static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
 
 	regs = current_pt_regs();
 
-	hyperv_report_panic(regs);
+	hyperv_report_panic(regs, val);
 	return NOTIFY_DONE;
 }
 
@@ -75,7 +74,7 @@ static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
 	struct die_args *die = (struct die_args *)args;
 	struct pt_regs *regs = die->regs;
 
-	hyperv_report_panic(regs);
+	hyperv_report_panic(regs, val);
 	return NOTIFY_DONE;
 }
 
@@ -107,28 +106,30 @@ static void print_alias_name(struct hv_device *hv_dev, char *alias_name)
 		sprintf(&alias_name[i], "%02x", hv_dev->dev_type.b[i/2]);
 }
 
-static u8 channel_monitor_group(struct vmbus_channel *channel)
+static u8 channel_monitor_group(const struct vmbus_channel *channel)
 {
 	return (u8)channel->offermsg.monitorid / 32;
 }
 
-static u8 channel_monitor_offset(struct vmbus_channel *channel)
+static u8 channel_monitor_offset(const struct vmbus_channel *channel)
 {
 	return (u8)channel->offermsg.monitorid % 32;
 }
 
-static u32 channel_pending(struct vmbus_channel *channel,
-			   struct hv_monitor_page *monitor_page)
+static u32 channel_pending(const struct vmbus_channel *channel,
+			   const struct hv_monitor_page *monitor_page)
 {
 	u8 monitor_group = channel_monitor_group(channel);
+
 	return monitor_page->trigger_group[monitor_group].pending;
 }
 
-static u32 channel_latency(struct vmbus_channel *channel,
-			   struct hv_monitor_page *monitor_page)
+static u32 channel_latency(const struct vmbus_channel *channel,
+			   const struct hv_monitor_page *monitor_page)
 {
 	u8 monitor_group = channel_monitor_group(channel);
 	u8 monitor_offset = channel_monitor_offset(channel);
+
 	return monitor_page->latency[monitor_group][monitor_offset];
 }
 
@@ -833,6 +834,8 @@ void vmbus_on_msg_dpc(unsigned long data)
 
 	hdr = (struct vmbus_channel_message_header *)msg->u.payload;
 
+	trace_vmbus_on_msg_dpc(hdr);
+
 	if (hdr->msgtype >= CHANNELMSG_COUNT) {
 		WARN_ONCE(1, "unknown msgtype=%d\n", hdr->msgtype);
 		goto msg_handled;
@@ -942,6 +945,10 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 			if (channel->rescind)
 				continue;
 
+			trace_vmbus_chan_sched(channel);
+
+			++channel->interrupts;
+
 			switch (channel->callback_mode) {
 			case HV_CALL_ISR:
 				vmbus_channel_isr(channel);
@@ -1045,7 +1052,7 @@ static int vmbus_bus_init(void)
 	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
 	 */
-	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/hyperv:online",
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "hyperv/vmbus:online",
 				hv_synic_init, hv_synic_cleanup);
 	if (ret < 0)
 		goto err_alloc;
@@ -1133,6 +1140,176 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver)
 }
 EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
 
+
+/*
+ * Called when last reference to channel is gone.
+ */
+static void vmbus_chan_release(struct kobject *kobj)
+{
+	struct vmbus_channel *channel
+		= container_of(kobj, struct vmbus_channel, kobj);
+
+	kfree_rcu(channel, rcu);
+}
+
+struct vmbus_chan_attribute {
+	struct attribute attr;
+	ssize_t (*show)(const struct vmbus_channel *chan, char *buf);
+	ssize_t (*store)(struct vmbus_channel *chan,
+			 const char *buf, size_t count);
+};
+#define VMBUS_CHAN_ATTR(_name, _mode, _show, _store) \
+	struct vmbus_chan_attribute chan_attr_##_name \
+		= __ATTR(_name, _mode, _show, _store)
+#define VMBUS_CHAN_ATTR_RW(_name) \
+	struct vmbus_chan_attribute chan_attr_##_name = __ATTR_RW(_name)
+#define VMBUS_CHAN_ATTR_RO(_name) \
+	struct vmbus_chan_attribute chan_attr_##_name = __ATTR_RO(_name)
+#define VMBUS_CHAN_ATTR_WO(_name) \
+	struct vmbus_chan_attribute chan_attr_##_name = __ATTR_WO(_name)
+
+static ssize_t vmbus_chan_attr_show(struct kobject *kobj,
+				    struct attribute *attr, char *buf)
+{
+	const struct vmbus_chan_attribute *attribute
+		= container_of(attr, struct vmbus_chan_attribute, attr);
+	const struct vmbus_channel *chan
+		= container_of(kobj, struct vmbus_channel, kobj);
+
+	if (!attribute->show)
+		return -EIO;
+
+	return attribute->show(chan, buf);
+}
+
+static const struct sysfs_ops vmbus_chan_sysfs_ops = {
+	.show = vmbus_chan_attr_show,
+};
+
+static ssize_t out_mask_show(const struct vmbus_channel *channel, char *buf)
+{
+	const struct hv_ring_buffer_info *rbi = &channel->outbound;
+
+	return sprintf(buf, "%u\n", rbi->ring_buffer->interrupt_mask);
+}
+static VMBUS_CHAN_ATTR_RO(out_mask);
+
+static ssize_t in_mask_show(const struct vmbus_channel *channel, char *buf)
+{
+	const struct hv_ring_buffer_info *rbi = &channel->inbound;
+
+	return sprintf(buf, "%u\n", rbi->ring_buffer->interrupt_mask);
+}
+static VMBUS_CHAN_ATTR_RO(in_mask);
+
+static ssize_t read_avail_show(const struct vmbus_channel *channel, char *buf)
+{
+	const struct hv_ring_buffer_info *rbi = &channel->inbound;
+
+	return sprintf(buf, "%u\n", hv_get_bytes_to_read(rbi));
+}
+static VMBUS_CHAN_ATTR_RO(read_avail);
+
+static ssize_t write_avail_show(const struct vmbus_channel *channel, char *buf)
+{
+	const struct hv_ring_buffer_info *rbi = &channel->outbound;
+
+	return sprintf(buf, "%u\n", hv_get_bytes_to_write(rbi));
+}
+static VMBUS_CHAN_ATTR_RO(write_avail);
+
+static ssize_t show_target_cpu(const struct vmbus_channel *channel, char *buf)
+{
+	return sprintf(buf, "%u\n", channel->target_cpu);
+}
+static VMBUS_CHAN_ATTR(cpu, S_IRUGO, show_target_cpu, NULL);
+
+static ssize_t channel_pending_show(const struct vmbus_channel *channel,
+				    char *buf)
+{
+	return sprintf(buf, "%d\n",
+		       channel_pending(channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static VMBUS_CHAN_ATTR(pending, S_IRUGO, channel_pending_show, NULL);
+
+static ssize_t channel_latency_show(const struct vmbus_channel *channel,
+				    char *buf)
+{
+	return sprintf(buf, "%d\n",
+		       channel_latency(channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static VMBUS_CHAN_ATTR(latency, S_IRUGO, channel_latency_show, NULL);
+
+static ssize_t channel_interrupts_show(const struct vmbus_channel *channel, char *buf)
+{
+	return sprintf(buf, "%llu\n", channel->interrupts);
+}
+static VMBUS_CHAN_ATTR(interrupts, S_IRUGO, channel_interrupts_show, NULL);
+
+static ssize_t channel_events_show(const struct vmbus_channel *channel, char *buf)
+{
+	return sprintf(buf, "%llu\n", channel->sig_events);
+}
+static VMBUS_CHAN_ATTR(events, S_IRUGO, channel_events_show, NULL);
+
+static ssize_t subchannel_monitor_id_show(const struct vmbus_channel *channel,
+					  char *buf)
+{
+	return sprintf(buf, "%u\n", channel->offermsg.monitorid);
+}
+static VMBUS_CHAN_ATTR(monitor_id, S_IRUGO, subchannel_monitor_id_show, NULL);
+
+static ssize_t subchannel_id_show(const struct vmbus_channel *channel,
+				  char *buf)
+{
+	return sprintf(buf, "%u\n",
+		       channel->offermsg.offer.sub_channel_index);
+}
+static VMBUS_CHAN_ATTR_RO(subchannel_id);
+
+static struct attribute *vmbus_chan_attrs[] = {
+	&chan_attr_out_mask.attr,
+	&chan_attr_in_mask.attr,
+	&chan_attr_read_avail.attr,
+	&chan_attr_write_avail.attr,
+	&chan_attr_cpu.attr,
+	&chan_attr_pending.attr,
+	&chan_attr_latency.attr,
+	&chan_attr_interrupts.attr,
+	&chan_attr_events.attr,
+	&chan_attr_monitor_id.attr,
+	&chan_attr_subchannel_id.attr,
+	NULL
+};
+
+static struct kobj_type vmbus_chan_ktype = {
+	.sysfs_ops = &vmbus_chan_sysfs_ops,
+	.release = vmbus_chan_release,
+	.default_attrs = vmbus_chan_attrs,
+};
+
+/*
+ * vmbus_add_channel_kobj - setup a sub-directory under device/channels
+ */
+int vmbus_add_channel_kobj(struct hv_device *dev, struct vmbus_channel *channel)
+{
+	struct kobject *kobj = &channel->kobj;
+	u32 relid = channel->offermsg.child_relid;
+	int ret;
+
+	kobj->kset = dev->channels_kset;
+	ret = kobject_init_and_add(kobj, &vmbus_chan_ktype, NULL,
+				   "%u", relid);
+	if (ret)
+		return ret;
+
+	kobject_uevent(kobj, KOBJ_ADD);
+
+	return 0;
+}
+
 /*
  * vmbus_device_create - Creates and registers a new child device
  * on the vmbus.
@@ -1164,7 +1341,8 @@ struct hv_device *vmbus_device_create(const uuid_le *type,
  */
 int vmbus_device_register(struct hv_device *child_device_obj)
 {
-	int ret = 0;
+	struct kobject *kobj = &child_device_obj->device.kobj;
+	int ret;
 
 	dev_set_name(&child_device_obj->device, "%pUl",
 		     child_device_obj->channel->offermsg.offer.if_instance.b);
@@ -1178,13 +1356,32 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 	 * binding...which will eventually call vmbus_match() and vmbus_probe()
 	 */
 	ret = device_register(&child_device_obj->device);
-
-	if (ret)
+	if (ret) {
 		pr_err("Unable to register child device\n");
-	else
-		pr_debug("child device %s registered\n",
-			dev_name(&child_device_obj->device));
+		return ret;
+	}
 
+	child_device_obj->channels_kset = kset_create_and_add("channels",
+							      NULL, kobj);
+	if (!child_device_obj->channels_kset) {
+		ret = -ENOMEM;
+		goto err_dev_unregister;
+	}
+
+	ret = vmbus_add_channel_kobj(child_device_obj,
+				     child_device_obj->channel);
+	if (ret) {
+		pr_err("Unable to register primary channeln");
+		goto err_kset_unregister;
+	}
+
+	return 0;
+
+err_kset_unregister:
+	kset_unregister(child_device_obj->channels_kset);
+
+err_dev_unregister:
+	device_unregister(&child_device_obj->device);
 	return ret;
 }
 
@@ -1196,6 +1393,8 @@ void vmbus_device_unregister(struct hv_device *device_obj)
 {
 	pr_debug("child device %s unregistered\n",
 		dev_name(&device_obj->device));
+
+	kset_unregister(device_obj->channels_kset);
 
 	/*
 	 * Kick off the process of unregistering the device.
@@ -1534,7 +1733,7 @@ static int __init hv_acpi_init(void)
 {
 	int ret, t;
 
-	if (x86_hyper != &x86_hyper_ms_hyperv)
+	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
 	init_completion(&probe_event);

@@ -14,7 +14,6 @@
 struct tcf_idrinfo {
 	spinlock_t	lock;
 	struct idr	action_idr;
-	struct net	*net;
 };
 
 struct tc_action_ops;
@@ -87,7 +86,7 @@ struct tc_action_ops {
 	int     (*act)(struct sk_buff *, const struct tc_action *,
 		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
-	void	(*cleanup)(struct tc_action *, int bind);
+	void	(*cleanup)(struct tc_action *);
 	int     (*lookup)(struct net *, struct tc_action **, u32);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
@@ -95,8 +94,7 @@ struct tc_action_ops {
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int, const struct tc_action_ops *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
-	int	(*get_dev)(const struct tc_action *a, struct net *net,
-			   struct net_device **mirred_dev);
+	struct net_device *(*get_dev)(const struct tc_action *a);
 };
 
 struct tc_action_net {
@@ -106,7 +104,7 @@ struct tc_action_net {
 
 static inline
 int tc_action_net_init(struct tc_action_net *tn,
-		       const struct tc_action_ops *ops, struct net *net)
+		       const struct tc_action_ops *ops)
 {
 	int err = 0;
 
@@ -114,7 +112,6 @@ int tc_action_net_init(struct tc_action_net *tn,
 	if (!tn->idrinfo)
 		return -ENOMEM;
 	tn->ops = ops;
-	tn->idrinfo->net = net;
 	spin_lock_init(&tn->idrinfo->lock);
 	idr_init(&tn->idrinfo->action_idr);
 	return err;
@@ -123,12 +120,19 @@ int tc_action_net_init(struct tc_action_net *tn,
 void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 			 struct tcf_idrinfo *idrinfo);
 
-static inline void tc_action_net_exit(struct tc_action_net *tn)
+static inline void tc_action_net_exit(struct list_head *net_list,
+				      unsigned int id)
 {
+	struct net *net;
+
 	rtnl_lock();
-	tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+	list_for_each_entry(net, net_list, exit_list) {
+		struct tc_action_net *tn = net_generic(net, id);
+
+		tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+		kfree(tn->idrinfo);
+	}
 	rtnl_unlock();
-	kfree(tn->idrinfo);
 }
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
@@ -179,5 +183,39 @@ static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 	a->ops->stats_update(a, bytes, packets, lastuse);
 #endif
 }
+
+typedef int tc_setup_cb_t(enum tc_setup_type type,
+			  void *type_data, void *cb_priv);
+
+#ifdef CONFIG_NET_CLS_ACT
+int tc_setup_cb_egdev_register(const struct net_device *dev,
+			       tc_setup_cb_t *cb, void *cb_priv);
+void tc_setup_cb_egdev_unregister(const struct net_device *dev,
+				  tc_setup_cb_t *cb, void *cb_priv);
+int tc_setup_cb_egdev_call(const struct net_device *dev,
+			   enum tc_setup_type type, void *type_data,
+			   bool err_stop);
+#else
+static inline
+int tc_setup_cb_egdev_register(const struct net_device *dev,
+			       tc_setup_cb_t *cb, void *cb_priv)
+{
+	return 0;
+}
+
+static inline
+void tc_setup_cb_egdev_unregister(const struct net_device *dev,
+				  tc_setup_cb_t *cb, void *cb_priv)
+{
+}
+
+static inline
+int tc_setup_cb_egdev_call(const struct net_device *dev,
+			   enum tc_setup_type type, void *type_data,
+			   bool err_stop)
+{
+	return 0;
+}
+#endif
 
 #endif

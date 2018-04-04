@@ -10,6 +10,9 @@ obj-vdso32 = gettimeofday.o clock_getres.o clock_gettime.o note.o getcpu.o
 targets := $(obj-vdso32) vdso32.so vdso32.so.dbg
 obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 
+KBUILD_AFLAGS += -DBUILD_VDSO
+KBUILD_CFLAGS += -DBUILD_VDSO
+
 KBUILD_AFLAGS_31 := $(filter-out -m64,$(KBUILD_AFLAGS))
 KBUILD_AFLAGS_31 += -m31 -s
 

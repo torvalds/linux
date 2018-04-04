@@ -287,7 +287,6 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
-	drm_edid_to_eld(connector, edid);
 	kfree(edid);
 
 	return ret;
@@ -309,16 +308,13 @@ static const struct drm_connector_helper_funcs vc4_hdmi_connector_helper_funcs =
 static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 						     struct drm_encoder *encoder)
 {
-	struct drm_connector *connector = NULL;
+	struct drm_connector *connector;
 	struct vc4_hdmi_connector *hdmi_connector;
-	int ret = 0;
 
 	hdmi_connector = devm_kzalloc(dev->dev, sizeof(*hdmi_connector),
 				      GFP_KERNEL);
-	if (!hdmi_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!hdmi_connector)
+		return ERR_PTR(-ENOMEM);
 	connector = &hdmi_connector->base;
 
 	hdmi_connector->encoder = encoder;
@@ -336,12 +332,6 @@ static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return connector;
-
- fail:
-	if (connector)
-		vc4_hdmi_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }
 
 static void vc4_hdmi_encoder_destroy(struct drm_encoder *encoder)
@@ -433,7 +423,8 @@ static void vc4_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 					   vc4_encoder->limited_rgb_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
-					   vc4_encoder->rgb_range_selectable);
+					   vc4_encoder->rgb_range_selectable,
+					   false);
 
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }
@@ -703,7 +694,22 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	}
 }
 
+static enum drm_mode_status
+vc4_hdmi_encoder_mode_valid(struct drm_encoder *crtc,
+			    const struct drm_display_mode *mode)
+{
+	/* HSM clock must be 108% of the pixel clock.  Additionally,
+	 * the AXI clock needs to be at least 25% of pixel clock, but
+	 * HSM ends up being the limiting factor.
+	 */
+	if (mode->clock > HSM_CLOCK_FREQ / (1000 * 108 / 100))
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
+	.mode_valid = vc4_hdmi_encoder_mode_valid,
 	.disable = vc4_hdmi_encoder_disable,
 	.enable = vc4_hdmi_encoder_enable,
 };

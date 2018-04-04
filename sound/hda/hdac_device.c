@@ -87,7 +87,7 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 
 	fg = codec->afg ? codec->afg : codec->mfg;
 
-	err = snd_hdac_refresh_widgets(codec);
+	err = snd_hdac_refresh_widgets(codec, false);
 	if (err < 0)
 		goto error;
 
@@ -388,11 +388,12 @@ static void setup_fg_nodes(struct hdac_device *codec)
 /**
  * snd_hdac_refresh_widgets - Reset the widget start/end nodes
  * @codec: the codec object
+ * @sysfs: re-initialize sysfs tree, too
  */
-int snd_hdac_refresh_widgets(struct hdac_device *codec)
+int snd_hdac_refresh_widgets(struct hdac_device *codec, bool sysfs)
 {
 	hda_nid_t start_nid;
-	int nums;
+	int nums, err;
 
 	nums = snd_hdac_get_sub_nodes(codec, codec->afg, &start_nid);
 	if (!start_nid || nums <= 0 || nums >= 0xff) {
@@ -401,42 +402,18 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec)
 		return -EINVAL;
 	}
 
+	if (sysfs) {
+		err = hda_widget_sysfs_reinit(codec, start_nid, nums);
+		if (err < 0)
+			return err;
+	}
+
 	codec->num_nodes = nums;
 	codec->start_nid = start_nid;
 	codec->end_nid = start_nid + nums;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_refresh_widgets);
-
-/**
- * snd_hdac_refresh_widget_sysfs - Reset the codec widgets and reinit the
- * codec sysfs
- * @codec: the codec object
- *
- * first we need to remove sysfs, then refresh widgets and lastly
- * recreate it
- */
-int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec)
-{
-	int ret;
-
-	if (device_is_registered(&codec->dev))
-		hda_widget_sysfs_exit(codec);
-	ret = snd_hdac_refresh_widgets(codec);
-	if (ret) {
-		dev_err(&codec->dev, "failed to refresh widget: %d\n", ret);
-		return ret;
-	}
-	if (device_is_registered(&codec->dev)) {
-		ret = hda_widget_sysfs_init(codec);
-		if (ret) {
-			dev_err(&codec->dev, "failed to init sysfs: %d\n", ret);
-			return ret;
-		}
-	}
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_refresh_widget_sysfs);
 
 /* return CONNLIST_LEN parameter of the given widget */
 static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)

@@ -1343,8 +1343,11 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 		idx = 0x80;
 
 	str = CSTR(idx);
-	if (*str != '\0')
+	if (*str != '\0') {
 		pr_info("ATOM BIOS: %s\n", str);
+		strlcpy(ctx->vbios_version, str, sizeof(ctx->vbios_version));
+	}
+
 
 	return ctx;
 }

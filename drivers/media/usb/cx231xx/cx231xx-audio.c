@@ -404,9 +404,9 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 }
 
 static const struct snd_pcm_hardware snd_cx231xx_hw_capture = {
-	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER 	|
-	    SNDRV_PCM_INFO_MMAP 		|
-	    SNDRV_PCM_INFO_INTERLEAVED 		|
+	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER	|
+	    SNDRV_PCM_INFO_MMAP			|
+	    SNDRV_PCM_INFO_INTERLEAVED		|
 	    SNDRV_PCM_INFO_MMAP_VALID,
 
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,

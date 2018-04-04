@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Blackfin On-Chip Serial Driver
  *
  * Copyright 2006-2011 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
- *
- * Licensed under the GPL-2 or later.
  */
 
 #if defined(CONFIG_SERIAL_BFIN_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -456,8 +455,9 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 	tty_flip_buffer_push(&uart->port.state->port);
 }
 
-void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
+void bfin_serial_rx_dma_timeout(struct timer_list *t)
 {
+	struct bfin_serial_port *uart = from_timer(uart, t, rx_dma_timer);
 	int x_pos, pos;
 	unsigned long flags;
 
@@ -624,8 +624,6 @@ static int bfin_serial_startup(struct uart_port *port)
 	set_dma_start_addr(uart->rx_dma_channel, (unsigned long)uart->rx_dma_buf.buf);
 	enable_dma(uart->rx_dma_channel);
 
-	uart->rx_dma_timer.data = (unsigned long)(uart);
-	uart->rx_dma_timer.function = (void *)bfin_serial_rx_dma_timeout;
 	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
 	add_timer(&(uart->rx_dma_timer));
 #else
@@ -1316,7 +1314,7 @@ static int bfin_serial_probe(struct platform_device *pdev)
 		}
 		uart->rx_dma_channel = res->start;
 
-		init_timer(&(uart->rx_dma_timer));
+		timer_setup(&uart->rx_dma_timer, bfin_serial_rx_dma_timeout, 0);
 #endif
 
 #if defined(SERIAL_BFIN_CTSRTS) || \

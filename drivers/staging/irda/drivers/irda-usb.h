@@ -170,5 +170,6 @@ struct irda_usb_cb {
 	int needspatch;        		/* device needs firmware patch */
 
 	struct timer_list rx_defer_timer;	/* Wait for Rx error to clear */
+	struct urb *rx_defer_timer_urb;	/* URB attached to rx_defer_timer */
 };
 

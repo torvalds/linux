@@ -1,4 +1,26 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright 2017 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
 #if !defined(_AMDGPU_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _AMDGPU_TRACE_H_
 
@@ -14,62 +36,6 @@
 
 #define AMDGPU_JOB_GET_TIMELINE_NAME(job) \
 	 job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished)
-
-TRACE_EVENT(amdgpu_ttm_tt_populate,
-	    TP_PROTO(struct amdgpu_device *adev, uint64_t dma_address, uint64_t phys_address),
-	    TP_ARGS(adev, dma_address, phys_address),
-	    TP_STRUCT__entry(
-				__field(uint16_t, domain)
-				__field(uint8_t, bus)
-				__field(uint8_t, slot)
-				__field(uint8_t, func)
-				__field(uint64_t, dma)
-				__field(uint64_t, phys)
-			    ),
-	    TP_fast_assign(
-			   __entry->domain = pci_domain_nr(adev->pdev->bus);
-			   __entry->bus = adev->pdev->bus->number;
-			   __entry->slot = PCI_SLOT(adev->pdev->devfn);
-			   __entry->func = PCI_FUNC(adev->pdev->devfn);
-			   __entry->dma = dma_address;
-			   __entry->phys = phys_address;
-			   ),
-	    TP_printk("%04x:%02x:%02x.%x: 0x%llx => 0x%llx",
-		      (unsigned)__entry->domain,
-		      (unsigned)__entry->bus,
-		      (unsigned)__entry->slot,
-		      (unsigned)__entry->func,
-		      (unsigned long long)__entry->dma,
-		      (unsigned long long)__entry->phys)
-);
-
-TRACE_EVENT(amdgpu_ttm_tt_unpopulate,
-	    TP_PROTO(struct amdgpu_device *adev, uint64_t dma_address, uint64_t phys_address),
-	    TP_ARGS(adev, dma_address, phys_address),
-	    TP_STRUCT__entry(
-				__field(uint16_t, domain)
-				__field(uint8_t, bus)
-				__field(uint8_t, slot)
-				__field(uint8_t, func)
-				__field(uint64_t, dma)
-				__field(uint64_t, phys)
-			    ),
-	    TP_fast_assign(
-			   __entry->domain = pci_domain_nr(adev->pdev->bus);
-			   __entry->bus = adev->pdev->bus->number;
-			   __entry->slot = PCI_SLOT(adev->pdev->devfn);
-			   __entry->func = PCI_FUNC(adev->pdev->devfn);
-			   __entry->dma = dma_address;
-			   __entry->phys = phys_address;
-			   ),
-	    TP_printk("%04x:%02x:%02x.%x: 0x%llx => 0x%llx",
-		      (unsigned)__entry->domain,
-		      (unsigned)__entry->bus,
-		      (unsigned)__entry->slot,
-		      (unsigned)__entry->func,
-		      (unsigned long long)__entry->dma,
-		      (unsigned long long)__entry->phys)
-);
 
 TRACE_EVENT(amdgpu_mm_rreg,
 	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
@@ -116,8 +82,8 @@ TRACE_EVENT(amdgpu_iv,
 			     __field(unsigned, client_id)
 			     __field(unsigned, src_id)
 			     __field(unsigned, ring_id)
-			     __field(unsigned, vm_id)
-			     __field(unsigned, vm_id_src)
+			     __field(unsigned, vmid)
+			     __field(unsigned, vmid_src)
 			     __field(uint64_t, timestamp)
 			     __field(unsigned, timestamp_src)
 			     __field(unsigned, pas_id)
@@ -127,8 +93,8 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->client_id = iv->client_id;
 			   __entry->src_id = iv->src_id;
 			   __entry->ring_id = iv->ring_id;
-			   __entry->vm_id = iv->vm_id;
-			   __entry->vm_id_src = iv->vm_id_src;
+			   __entry->vmid = iv->vmid;
+			   __entry->vmid_src = iv->vmid_src;
 			   __entry->timestamp = iv->timestamp;
 			   __entry->timestamp_src = iv->timestamp_src;
 			   __entry->pas_id = iv->pas_id;
@@ -137,9 +103,9 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->src_data[2] = iv->src_data[2];
 			   __entry->src_data[3] = iv->src_data[3];
 			   ),
-	    TP_printk("client_id:%u src_id:%u ring:%u vm_id:%u timestamp: %llu pas_id:%u src_data: %08x %08x %08x %08x\n",
+	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pas_id:%u src_data: %08x %08x %08x %08x\n",
 		      __entry->client_id, __entry->src_id,
-		      __entry->ring_id, __entry->vm_id,
+		      __entry->ring_id, __entry->vmid,
 		      __entry->timestamp, __entry->pas_id,
 		      __entry->src_data[0], __entry->src_data[1],
 		      __entry->src_data[2], __entry->src_data[3])
@@ -253,7 +219,7 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_vm *, vm)
 			     __field(u32, ring)
-			     __field(u32, vm_id)
+			     __field(u32, vmid)
 			     __field(u32, vm_hub)
 			     __field(u64, pd_addr)
 			     __field(u32, needs_flush)
@@ -262,13 +228,13 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 	    TP_fast_assign(
 			   __entry->vm = vm;
 			   __entry->ring = ring->idx;
-			   __entry->vm_id = job->vm_id;
+			   __entry->vmid = job->vmid;
 			   __entry->vm_hub = ring->funcs->vmhub,
 			   __entry->pd_addr = job->vm_pd_addr;
 			   __entry->needs_flush = job->vm_needs_flush;
 			   ),
 	    TP_printk("vm=%p, ring=%u, id=%u, hub=%u, pd_addr=%010Lx needs_flush=%u",
-		      __entry->vm, __entry->ring, __entry->vm_id,
+		      __entry->vm, __entry->ring, __entry->vmid,
 		      __entry->vm_hub, __entry->pd_addr, __entry->needs_flush)
 );
 
@@ -391,24 +357,24 @@ TRACE_EVENT(amdgpu_vm_copy_ptes,
 );
 
 TRACE_EVENT(amdgpu_vm_flush,
-	    TP_PROTO(struct amdgpu_ring *ring, unsigned vm_id,
+	    TP_PROTO(struct amdgpu_ring *ring, unsigned vmid,
 		     uint64_t pd_addr),
-	    TP_ARGS(ring, vm_id, pd_addr),
+	    TP_ARGS(ring, vmid, pd_addr),
 	    TP_STRUCT__entry(
 			     __field(u32, ring)
-			     __field(u32, vm_id)
+			     __field(u32, vmid)
 			     __field(u32, vm_hub)
 			     __field(u64, pd_addr)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->ring = ring->idx;
-			   __entry->vm_id = vm_id;
+			   __entry->vmid = vmid;
 			   __entry->vm_hub = ring->funcs->vmhub;
 			   __entry->pd_addr = pd_addr;
 			   ),
 	    TP_printk("ring=%u, id=%u, hub=%u, pd_addr=%010Lx",
-		      __entry->ring, __entry->vm_id,
+		      __entry->ring, __entry->vmid,
 		      __entry->vm_hub,__entry->pd_addr)
 );
 
@@ -474,5 +440,5 @@ TRACE_EVENT(amdgpu_ttm_bo_move,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/amd/amdgpu
 #include <trace/define_trace.h>

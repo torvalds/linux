@@ -61,7 +61,7 @@ struct smsusb_device_t {
 	struct usb_device *udev;
 	struct smscore_device_t *coredev;
 
-	struct smsusb_urb_t 	surbs[MAX_URBS];
+	struct smsusb_urb_t	surbs[MAX_URBS];
 
 	int		response_alignment;
 	int		buffer_size;
@@ -74,7 +74,7 @@ struct smsusb_device_t {
 static int smsusb_submit_urb(struct smsusb_device_t *dev,
 			     struct smsusb_urb_t *surb);
 
-/**
+/*
  * Completing URB's callback handler - bottom half (proccess context)
  * submits the URB prepared on smsusb_onresponse()
  */
@@ -86,7 +86,7 @@ static void do_submit_urb(struct work_struct *work)
 	smsusb_submit_urb(dev, surb);
 }
 
-/**
+/*
  * Completing URB's callback handler - top half (interrupt context)
  * adds completing sms urb to the global surbs list and activtes the worker
  * thread the surb

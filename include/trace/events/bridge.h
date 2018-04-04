@@ -82,8 +82,8 @@ TRACE_EVENT(fdb_delete,
 	TP_fast_assign(
 		__assign_str(br_dev, br->dev->name);
 		__assign_str(dev, f->dst ? f->dst->dev->name : "null");
-		memcpy(__entry->addr, f->addr.addr, ETH_ALEN);
-		__entry->vid = f->vlan_id;
+		memcpy(__entry->addr, f->key.addr.addr, ETH_ALEN);
+		__entry->vid = f->key.vlan_id;
 	),
 
 	TP_printk("br_dev %s dev %s addr %02x:%02x:%02x:%02x:%02x:%02x vid %u",

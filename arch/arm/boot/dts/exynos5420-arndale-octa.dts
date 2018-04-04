@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos5420 based Arndale Octa board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos5420.dtsi"
@@ -30,7 +27,7 @@
 		bootargs = "console=ttySAC3,115200";
 	};
 
-	firmware@02073000 {
+	firmware@2073000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x02073000 0x1000>;
 	};
@@ -357,6 +354,10 @@
 };
 
 &i2c_2 {
+	status = "okay";
+};
+
+&mixer {
 	status = "okay";
 };
 

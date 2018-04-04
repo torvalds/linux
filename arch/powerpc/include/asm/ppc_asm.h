@@ -774,9 +774,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #ifdef CONFIG_PPC_BOOK3E
 #define FIXUP_ENDIAN
 #else
+/*
+ * This version may be used in in HV or non-HV context.
+ * MSR[EE] must be disabled.
+ */
 #define FIXUP_ENDIAN						   \
 	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
-	b     $+44;	  /* Skip trampoline if endian is good	*/ \
+	b     191f;	  /* Skip trampoline if endian is good	*/ \
 	.long 0xa600607d; /* mfmsr r11				*/ \
 	.long 0x01006b69; /* xori r11,r11,1			*/ \
 	.long 0x00004039; /* li r10,0				*/ \
@@ -786,7 +790,26 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.long 0x14004a39; /* addi r10,r10,20			*/ \
 	.long 0xa6035a7d; /* mtsrr0 r10				*/ \
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
-	.long 0x2400004c  /* rfid				*/
+	.long 0x2400004c; /* rfid				*/ \
+191:
+
+/*
+ * This version that may only be used with MSR[HV]=1
+ * - Does not clear MSR[RI], so more robust.
+ * - Slightly smaller and faster.
+ */
+#define FIXUP_ENDIAN_HV						   \
+	tdi   0,0,0x48;	  /* Reverse endian of b . + 8		*/ \
+	b     191f;	  /* Skip trampoline if endian is good	*/ \
+	.long 0xa600607d; /* mfmsr r11				*/ \
+	.long 0x01006b69; /* xori r11,r11,1			*/ \
+	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
+	.long 0xa602487d; /* mflr r10				*/ \
+	.long 0x14004a39; /* addi r10,r10,20			*/ \
+	.long 0xa64b5a7d; /* mthsrr0 r10			*/ \
+	.long 0xa64b7b7d; /* mthsrr1 r11			*/ \
+	.long 0x2402004c; /* hrfid				*/ \
+191:
 
 #endif /* !CONFIG_PPC_BOOK3E */
 

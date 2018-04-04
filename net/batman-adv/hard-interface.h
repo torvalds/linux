@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
@@ -30,36 +31,74 @@
 struct net_device;
 struct net;
 
+/**
+ * enum batadv_hard_if_state - State of a hard interface
+ */
 enum batadv_hard_if_state {
+	/**
+	 * @BATADV_IF_NOT_IN_USE: interface is not used as slave interface of a
+	 * batman-adv soft interface
+	 */
 	BATADV_IF_NOT_IN_USE,
+
+	/**
+	 * @BATADV_IF_TO_BE_REMOVED: interface will be removed from soft
+	 * interface
+	 */
 	BATADV_IF_TO_BE_REMOVED,
+
+	/** @BATADV_IF_INACTIVE: interface is deactivated */
 	BATADV_IF_INACTIVE,
+
+	/** @BATADV_IF_ACTIVE: interface is used */
 	BATADV_IF_ACTIVE,
+
+	/** @BATADV_IF_TO_BE_ACTIVATED: interface is getting activated */
 	BATADV_IF_TO_BE_ACTIVATED,
+
+	/**
+	 * @BATADV_IF_I_WANT_YOU: interface is queued up (using sysfs) for being
+	 * added as slave interface of a batman-adv soft interface
+	 */
 	BATADV_IF_I_WANT_YOU,
 };
 
 /**
  * enum batadv_hard_if_bcast - broadcast avoidance options
- * @BATADV_HARDIF_BCAST_OK: Do broadcast on according hard interface
- * @BATADV_HARDIF_BCAST_NORECIPIENT: Broadcast not needed, there is no recipient
- * @BATADV_HARDIF_BCAST_DUPFWD: There is just the neighbor we got it from
- * @BATADV_HARDIF_BCAST_DUPORIG: There is just the originator
  */
 enum batadv_hard_if_bcast {
+	/** @BATADV_HARDIF_BCAST_OK: Do broadcast on according hard interface */
 	BATADV_HARDIF_BCAST_OK = 0,
+
+	/**
+	 * @BATADV_HARDIF_BCAST_NORECIPIENT: Broadcast not needed, there is no
+	 *  recipient
+	 */
 	BATADV_HARDIF_BCAST_NORECIPIENT,
+
+	/**
+	 * @BATADV_HARDIF_BCAST_DUPFWD: There is just the neighbor we got it
+	 *  from
+	 */
 	BATADV_HARDIF_BCAST_DUPFWD,
+
+	/** @BATADV_HARDIF_BCAST_DUPORIG: There is just the originator */
 	BATADV_HARDIF_BCAST_DUPORIG,
 };
 
 /**
  * enum batadv_hard_if_cleanup - Cleanup modi for soft_iface after slave removal
- * @BATADV_IF_CLEANUP_KEEP: Don't automatically delete soft-interface
- * @BATADV_IF_CLEANUP_AUTO: Delete soft-interface after last slave was removed
  */
 enum batadv_hard_if_cleanup {
+	/**
+	 * @BATADV_IF_CLEANUP_KEEP: Don't automatically delete soft-interface
+	 */
 	BATADV_IF_CLEANUP_KEEP,
+
+	/**
+	 * @BATADV_IF_CLEANUP_AUTO: Delete soft-interface after last slave was
+	 *  removed
+	 */
 	BATADV_IF_CLEANUP_AUTO,
 };
 
@@ -82,7 +121,7 @@ int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh);
 
 /**
- * batadv_hardif_put - decrement the hard interface refcounter and possibly
+ * batadv_hardif_put() - decrement the hard interface refcounter and possibly
  *  release it
  * @hard_iface: the hard interface to free
  */
@@ -91,6 +130,12 @@ static inline void batadv_hardif_put(struct batadv_hard_iface *hard_iface)
 	kref_put(&hard_iface->refcount, batadv_hardif_release);
 }
 
+/**
+ * batadv_primary_if_get_selected() - Get reference to primary interface
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: primary interface (with increased refcnt), otherwise NULL
+ */
 static inline struct batadv_hard_iface *
 batadv_primary_if_get_selected(struct batadv_priv *bat_priv)
 {

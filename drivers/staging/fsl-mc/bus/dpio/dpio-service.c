@@ -1,33 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
  * Copyright 2016 NXP
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
- *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
- *	 names of its contributors may be used to endorse or promote products
- *	 derived from this software without specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation, either version 2 of that License or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/types.h>
 #include "../../include/mc.h"
@@ -43,7 +18,6 @@
 #include "qbman-portal.h"
 
 struct dpaa2_io {
-	atomic_t refs;
 	struct dpaa2_io_desc dpio_desc;
 	struct qbman_swp_desc swp_desc;
 	struct qbman_swp *swp;
@@ -76,7 +50,7 @@ static inline struct dpaa2_io *service_select_by_cpu(struct dpaa2_io *d,
 	if (d)
 		return d;
 
-	if (unlikely(cpu >= num_possible_cpus()))
+	if (cpu != DPAA2_IO_ANY_CPU && cpu >= num_possible_cpus())
 		return NULL;
 
 	/*
@@ -105,6 +79,23 @@ static inline struct dpaa2_io *service_select(struct dpaa2_io *d)
 }
 
 /**
+ * dpaa2_io_service_select() - return a dpaa2_io service affined to this cpu
+ * @cpu: the cpu id
+ *
+ * Return the affine dpaa2_io service, or NULL if there is no service affined
+ * to the specified cpu. If DPAA2_IO_ANY_CPU is used, return the next available
+ * service.
+ */
+struct dpaa2_io *dpaa2_io_service_select(int cpu)
+{
+	if (cpu == DPAA2_IO_ANY_CPU)
+		return service_select(NULL);
+
+	return service_select_by_cpu(NULL, cpu);
+}
+EXPORT_SYMBOL_GPL(dpaa2_io_service_select);
+
+/**
  * dpaa2_io_create() - create a dpaa2_io object.
  * @desc: the dpaa2_io descriptor
  *
@@ -121,12 +112,11 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 		return NULL;
 
 	/* check if CPU is out of range (-1 means any cpu) */
-	if (desc->cpu >= num_possible_cpus()) {
+	if (desc->cpu != DPAA2_IO_ANY_CPU && desc->cpu >= num_possible_cpus()) {
 		kfree(obj);
 		return NULL;
 	}
 
-	atomic_set(&obj->refs, 1);
 	obj->dpio_desc = *desc;
 	obj->swp_desc.cena_bar = obj->dpio_desc.regs_cena;
 	obj->swp_desc.cinh_bar = obj->dpio_desc.regs_cinh;
@@ -158,7 +148,6 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 
 	return obj;
 }
-EXPORT_SYMBOL(dpaa2_io_create);
 
 /**
  * dpaa2_io_down() - release the dpaa2_io object.
@@ -171,11 +160,8 @@ EXPORT_SYMBOL(dpaa2_io_create);
  */
 void dpaa2_io_down(struct dpaa2_io *d)
 {
-	if (!atomic_dec_and_test(&d->refs))
-		return;
 	kfree(d);
 }
-EXPORT_SYMBOL(dpaa2_io_down);
 
 #define DPAA_POLL_MAX 32
 
@@ -222,7 +208,6 @@ done:
 	qbman_swp_interrupt_set_inhibit(swp, 0);
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL(dpaa2_io_irq);
 
 /**
  * dpaa2_io_service_register() - Prepare for servicing of FQDAN or CDAN
@@ -265,7 +250,7 @@ int dpaa2_io_service_register(struct dpaa2_io *d,
 							 ctx->qman64);
 	return 0;
 }
-EXPORT_SYMBOL(dpaa2_io_service_register);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_register);
 
 /**
  * dpaa2_io_service_deregister - The opposite of 'register'.
@@ -288,7 +273,7 @@ void dpaa2_io_service_deregister(struct dpaa2_io *service,
 	list_del(&ctx->node);
 	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
 }
-EXPORT_SYMBOL(dpaa2_io_service_deregister);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_deregister);
 
 /**
  * dpaa2_io_service_rearm() - Rearm the notification for the given DPIO service.
@@ -322,38 +307,7 @@ int dpaa2_io_service_rearm(struct dpaa2_io *d,
 
 	return err;
 }
-EXPORT_SYMBOL(dpaa2_io_service_rearm);
-
-/**
- * dpaa2_io_service_pull_fq() - pull dequeue functions from a fq.
- * @d: the given DPIO service.
- * @fqid: the given frame queue id.
- * @s: the dpaa2_io_store object for the result.
- *
- * Return 0 for success, or error code for failure.
- */
-int dpaa2_io_service_pull_fq(struct dpaa2_io *d, u32 fqid,
-			     struct dpaa2_io_store *s)
-{
-	struct qbman_pull_desc pd;
-	int err;
-
-	qbman_pull_desc_clear(&pd);
-	qbman_pull_desc_set_storage(&pd, s->vaddr, s->paddr, 1);
-	qbman_pull_desc_set_numframes(&pd, (u8)s->max);
-	qbman_pull_desc_set_fq(&pd, fqid);
-
-	d = service_select(d);
-	if (!d)
-		return -ENODEV;
-	s->swp = d->swp;
-	err = qbman_swp_pull(d->swp, &pd);
-	if (err)
-		s->swp = NULL;
-
-	return err;
-}
-EXPORT_SYMBOL(dpaa2_io_service_pull_fq);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_rearm);
 
 /**
  * dpaa2_io_service_pull_channel() - pull dequeue functions from a channel.
@@ -385,34 +339,7 @@ int dpaa2_io_service_pull_channel(struct dpaa2_io *d, u32 channelid,
 
 	return err;
 }
-EXPORT_SYMBOL(dpaa2_io_service_pull_channel);
-
-/**
- * dpaa2_io_service_enqueue_fq() - Enqueue a frame to a frame queue.
- * @d: the given DPIO service.
- * @fqid: the given frame queue id.
- * @fd: the frame descriptor which is enqueued.
- *
- * Return 0 for successful enqueue, -EBUSY if the enqueue ring is not ready,
- * or -ENODEV if there is no dpio service.
- */
-int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d,
-				u32 fqid,
-				const struct dpaa2_fd *fd)
-{
-	struct qbman_eq_desc ed;
-
-	d = service_select(d);
-	if (!d)
-		return -ENODEV;
-
-	qbman_eq_desc_clear(&ed);
-	qbman_eq_desc_set_no_orp(&ed, 0);
-	qbman_eq_desc_set_fq(&ed, fqid);
-
-	return qbman_swp_enqueue(d->swp, &ed, fd);
-}
-EXPORT_SYMBOL(dpaa2_io_service_enqueue_fq);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_pull_channel);
 
 /**
  * dpaa2_io_service_enqueue_qd() - Enqueue a frame to a QD.
@@ -441,7 +368,7 @@ int dpaa2_io_service_enqueue_qd(struct dpaa2_io *d,
 
 	return qbman_swp_enqueue(d->swp, &ed, fd);
 }
-EXPORT_SYMBOL(dpaa2_io_service_enqueue_qd);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_enqueue_qd);
 
 /**
  * dpaa2_io_service_release() - Release buffers to a buffer pool.
@@ -468,7 +395,7 @@ int dpaa2_io_service_release(struct dpaa2_io *d,
 
 	return qbman_swp_release(d->swp, &rd, buffers, num_buffers);
 }
-EXPORT_SYMBOL(dpaa2_io_service_release);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_release);
 
 /**
  * dpaa2_io_service_acquire() - Acquire buffers from a buffer pool.
@@ -499,7 +426,7 @@ int dpaa2_io_service_acquire(struct dpaa2_io *d,
 
 	return err;
 }
-EXPORT_SYMBOL(dpaa2_io_service_acquire);
+EXPORT_SYMBOL_GPL(dpaa2_io_service_acquire);
 
 /*
  * 'Stores' are reusable memory blocks for holding dequeue results, and to
@@ -553,7 +480,7 @@ struct dpaa2_io_store *dpaa2_io_store_create(unsigned int max_frames,
 
 	return ret;
 }
-EXPORT_SYMBOL(dpaa2_io_store_create);
+EXPORT_SYMBOL_GPL(dpaa2_io_store_create);
 
 /**
  * dpaa2_io_store_destroy() - Frees the dma memory storage for dequeue
@@ -567,7 +494,7 @@ void dpaa2_io_store_destroy(struct dpaa2_io_store *s)
 	kfree(s->alloced_addr);
 	kfree(s);
 }
-EXPORT_SYMBOL(dpaa2_io_store_destroy);
+EXPORT_SYMBOL_GPL(dpaa2_io_store_destroy);
 
 /**
  * dpaa2_io_store_next() - Determine when the next dequeue result is available.
@@ -615,4 +542,4 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 
 	return ret;
 }
-EXPORT_SYMBOL(dpaa2_io_store_next);
+EXPORT_SYMBOL_GPL(dpaa2_io_store_next);

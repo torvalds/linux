@@ -662,7 +662,7 @@ void omap3_cm_save_scratchpad_contents(u32 *ptr)
  *
  */
 
-static struct cm_ll_data omap3xxx_cm_ll_data = {
+static const struct cm_ll_data omap3xxx_cm_ll_data = {
 	.split_idlest_reg	= &omap3xxx_cm_split_idlest_reg,
 	.wait_module_ready	= &omap3xxx_cm_wait_module_ready,
 };

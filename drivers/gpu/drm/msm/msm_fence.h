@@ -22,7 +22,7 @@
 
 struct msm_fence_context {
 	struct drm_device *dev;
-	const char *name;
+	char name[32];
 	unsigned context;
 	/* last_fence == completed_fence --> no pending work */
 	uint32_t last_fence;          /* last assigned fence */

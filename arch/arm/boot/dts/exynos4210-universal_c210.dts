@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos4210 based Universal C210 board device tree source
  *
@@ -6,11 +7,7 @@
  *
  * Device tree source file for Samsung's Universal C210 board which is based on
  * Samsung's Exynos4210 rev0 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos4210.dtsi"
@@ -31,7 +28,7 @@
 		stdout-path = &serial_2;
 	};
 
-	sysram@02020000 {
+	sysram@2020000 {
 		smp-sysram@0 {
 			status = "disabled";
 		};

@@ -132,6 +132,7 @@ static int ath79_gpio_irq_set_type(struct irq_data *data,
 
 	case IRQ_TYPE_LEVEL_HIGH:
 		polarity |= mask;
+		/* fall through */
 	case IRQ_TYPE_LEVEL_LOW:
 		type |= mask;
 		break;
@@ -208,7 +209,7 @@ static void ath79_gpio_irq_handler(struct irq_desc *desc)
 	if (pending) {
 		for_each_set_bit(irq, &pending, gc->ngpio)
 			generic_handle_irq(
-				irq_linear_revmap(gc->irqdomain, irq));
+				irq_linear_revmap(gc->irq.domain, irq));
 	}
 
 	chained_irq_exit(irqchip, desc);
@@ -323,3 +324,6 @@ static struct platform_driver ath79_gpio_driver = {
 };
 
 module_platform_driver(ath79_gpio_driver);
+
+MODULE_DESCRIPTION("Atheros AR71XX/AR724X/AR913X GPIO API support");
+MODULE_LICENSE("GPL v2");

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * definition for kvm on s390
  *
  * Copyright IBM Corp. 2008, 2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -21,8 +18,6 @@
 #include <asm/facility.h>
 #include <asm/processor.h>
 #include <asm/sclp.h>
-
-typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & ECB_TE))
@@ -50,14 +45,29 @@ do { \
 	  d_args); \
 } while (0)
 
+static inline void kvm_s390_set_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
+{
+	atomic_or(flags, &vcpu->arch.sie_block->cpuflags);
+}
+
+static inline void kvm_s390_clear_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
+{
+	atomic_andnot(flags, &vcpu->arch.sie_block->cpuflags);
+}
+
+static inline bool kvm_s390_test_cpuflags(struct kvm_vcpu *vcpu, u32 flags)
+{
+	return (atomic_read(&vcpu->arch.sie_block->cpuflags) & flags) == flags;
+}
+
 static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
+	return kvm_s390_test_cpuflags(vcpu, CPUSTAT_STOPPED);
 }
 
 static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
 {
-	return test_bit(vcpu->vcpu_id, vcpu->arch.local_int.float_int->idle_mask);
+	return test_bit(vcpu->vcpu_id, vcpu->kvm->arch.float_int.idle_mask);
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -242,6 +252,8 @@ static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
 }
 
+int handle_sthyi(struct kvm_vcpu *vcpu);
+
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
 int kvm_s390_handle_aa(struct kvm_vcpu *vcpu);
@@ -268,13 +280,9 @@ void kvm_s390_vsie_destroy(struct kvm *kvm);
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
-/* implemented in sthyi.c */
-int handle_sthyi(struct kvm_vcpu *vcpu);
-
 /* implemented in kvm-s390.c */
-void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
-				 const struct kvm_s390_vm_tod_clock *gtod);
-void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
+void kvm_s390_set_tod_clock(struct kvm *kvm,
+			    const struct kvm_s390_vm_tod_clock *gtod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
@@ -371,6 +379,9 @@ int kvm_s390_set_irq_state(struct kvm_vcpu *vcpu,
 			   void __user *buf, int len);
 int kvm_s390_get_irq_state(struct kvm_vcpu *vcpu,
 			   __u8 __user *buf, int len);
+void kvm_s390_gisa_init(struct kvm *kvm);
+void kvm_s390_gisa_clear(struct kvm *kvm);
+void kvm_s390_gisa_destroy(struct kvm *kvm);
 
 /* implemented in guestdbg.c */
 void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);

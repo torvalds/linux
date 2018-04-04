@@ -1,5 +1,9 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
+- Amarula Vyasa RK3288 board
+    Required root node properties:
+      - compatible = "amarula,vyasa-rk3288", "rockchip,rk3288";
+
 - Asus Tinker board
     Required root node properties:
       - compatible = "asus,rk3288-tinker", "rockchip,rk3288";

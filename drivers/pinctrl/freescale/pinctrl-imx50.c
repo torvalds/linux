@@ -385,7 +385,7 @@ static const struct pinctrl_pin_desc imx50_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX50_PAD_EIM_CRE),
 };
 
-static struct imx_pinctrl_soc_info imx50_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx50_pinctrl_info = {
 	.pins = imx50_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx50_pinctrl_pads),
 	.gpr_compatible = "fsl,imx50-iomuxc-gpr",

@@ -1,5 +1,3 @@
-dtb-$(CONFIG_ARCH_ACTIONS) += s900-bubblegum-96.dtb
+dtb-$(CONFIG_ARCH_ACTIONS) += s700-cubieboard7.dtb
 
-always		:= $(dtb-y)
-subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb
+dtb-$(CONFIG_ARCH_ACTIONS) += s900-bubblegum-96.dtb

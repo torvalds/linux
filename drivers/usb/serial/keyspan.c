@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
   Keyspan USB to Serial Converter driver
 
   (C) Copyright (C) 2000-2001	Hugh Blemings <hugh@blemings.org>
   (C) Copyright (C) 2002	Greg Kroah-Hartman <greg@kroah.com>
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
 
   See http://blemings.org/hugh/keyspan.html for more information.
 

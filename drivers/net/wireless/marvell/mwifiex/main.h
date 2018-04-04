@@ -94,6 +94,8 @@ enum {
 
 #define MAX_EVENT_SIZE                  2048
 
+#define MWIFIEX_FW_DUMP_SIZE       (2 * 1024 * 1024)
+
 #define ARP_FILTER_MAX_BUF_SIZE         68
 
 #define MWIFIEX_KEY_BUFFER_SIZE			16
@@ -680,7 +682,6 @@ struct mwifiex_private {
 	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u8 assoc_resp_ht_param;
 	bool ht_param_present;
-	u8 random_mac[ETH_ALEN];
 };
 
 
@@ -1033,6 +1034,10 @@ struct mwifiex_adapter {
 	bool wake_by_wifi;
 	/* Aggregation parameters*/
 	struct bus_aggr_params bus_aggr;
+	/* Device dump data/length */
+	void *devdump_data;
+	int devdump_len;
+	struct timer_list devdump_timer;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1073,7 +1078,7 @@ int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		     u16 cmd_action, u32 cmd_oid, void *data_buf, bool sync);
 
-void mwifiex_cmd_timeout_func(unsigned long function_context);
+void mwifiex_cmd_timeout_func(struct timer_list *t);
 
 int mwifiex_get_debug_info(struct mwifiex_private *,
 			   struct mwifiex_debug_info *);
@@ -1618,7 +1623,7 @@ void mwifiex_auto_tdls_update_peer_status(struct mwifiex_private *priv,
 					  const u8 *mac, u8 link_status);
 void mwifiex_auto_tdls_update_peer_signal(struct mwifiex_private *priv,
 					  u8 *mac, s8 snr, s8 nflr);
-void mwifiex_check_auto_tdls(unsigned long context);
+void mwifiex_check_auto_tdls(struct timer_list *t);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
@@ -1657,9 +1662,9 @@ void mwifiex_hist_data_add(struct mwifiex_private *priv,
 u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 			    u8 rx_rate, u8 ht_info);
 
-int mwifiex_drv_info_dump(struct mwifiex_adapter *adapter, void **drv_info);
-void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter, void *drv_info,
-				int drv_info_size);
+void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter);
+void mwifiex_prepare_fw_dump_info(struct mwifiex_adapter *adapter);
+void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter);
 void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
@@ -1678,6 +1683,7 @@ void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter);
 int mwifiex_set_mac_address(struct mwifiex_private *priv,
 			    struct net_device *dev);
+void mwifiex_devdump_tmo_func(unsigned long function_context);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

@@ -539,6 +539,13 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 		}
 		stats->rx_over_errors++;
 		stats->rx_errors++;
+
+		/* reset the CAN IP by entering reset mode
+		 * ignoring timeout error
+		 */
+		set_reset_mode(dev);
+		set_normal_mode(dev);
+
 		/* clear bit */
 		sun4i_can_write_cmdreg(priv, SUN4I_CMD_CLEAR_OR_FLAG);
 	}
@@ -653,8 +660,9 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 			netif_wake_queue(dev);
 			can_led_event(dev, CAN_LED_EVENT_TX);
 		}
-		if (isrc & SUN4I_INT_RBUF_VLD) {
-			/* receive interrupt */
+		if ((isrc & SUN4I_INT_RBUF_VLD) &&
+		    !(isrc & SUN4I_INT_DATA_OR)) {
+			/* receive interrupt - don't read if overrun occurred */
 			while (status & SUN4I_STA_RBUF_RDY) {
 				/* RX buffer is not empty */
 				sun4i_can_rx(dev);

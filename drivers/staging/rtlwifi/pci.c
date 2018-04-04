@@ -649,7 +649,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 				 prio, ring->idx,
 				 skb_queue_len(&ring->queue));
 
-			ieee80211_wake_queue(hw, skb_get_queue_mapping (skb));
+			ieee80211_wake_queue(hw, skb_get_queue_mapping(skb));
 		}
 tx_status_ok:
 		skb = NULL;

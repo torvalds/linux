@@ -78,6 +78,7 @@ struct h5 {
 	int			(*rx_func)(struct hci_uart *hu, u8 c);
 
 	struct timer_list	timer;		/* Retransmission timer */
+	struct hci_uart		*hu;		/* Parent HCI UART */
 
 	u8			tx_seq;		/* Next seq number to send */
 	u8			tx_ack;		/* Next ack number to send */
@@ -120,12 +121,12 @@ static u8 h5_cfg_field(struct h5 *h5)
 	return h5->tx_win & 0x07;
 }
 
-static void h5_timed_event(unsigned long arg)
+static void h5_timed_event(struct timer_list *t)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	unsigned char conf_req[3] = { 0x03, 0xfc };
-	struct hci_uart *hu = (struct hci_uart *)arg;
-	struct h5 *h5 = hu->priv;
+	struct h5 *h5 = from_timer(h5, t, timer);
+	struct hci_uart *hu = h5->hu;
 	struct sk_buff *skb;
 	unsigned long flags;
 
@@ -197,6 +198,7 @@ static int h5_open(struct hci_uart *hu)
 		return -ENOMEM;
 
 	hu->priv = h5;
+	h5->hu = hu;
 
 	skb_queue_head_init(&h5->unack);
 	skb_queue_head_init(&h5->rel);
@@ -204,7 +206,7 @@ static int h5_open(struct hci_uart *hu)
 
 	h5_reset_rx(h5);
 
-	setup_timer(&h5->timer, h5_timed_event, (unsigned long)hu);
+	timer_setup(&h5->timer, h5_timed_event, 0);
 
 	h5->tx_win = H5_TX_WIN_MAX;
 

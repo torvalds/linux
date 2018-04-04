@@ -49,7 +49,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
 					       napi);
 	bool busy = false;
-	int work_done;
+	int work_done = 0;
 	int i;
 
 	for (i = 0; i < c->num_tc; i++)
@@ -58,15 +58,17 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (c->xdp)
 		busy |= mlx5e_poll_xdpsq_cq(&c->rq.xdpsq.cq);
 
-	work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
-	busy |= work_done == budget;
+	if (likely(budget)) { /* budget=0 means: don't poll rx rings */
+		work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
+		busy |= work_done == budget;
+	}
 
 	busy |= c->rq.post_wqes(&c->rq);
 
 	if (busy) {
 		if (likely(mlx5e_channel_no_affinity_change(c)))
 			return budget;
-		if (work_done == budget)
+		if (budget && work_done == budget)
 			work_done--;
 	}
 
@@ -76,8 +78,14 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	for (i = 0; i < c->num_tc; i++)
 		mlx5e_cq_arm(&c->sq[i].cq);
 
-	if (MLX5E_TEST_BIT(c->rq.state, MLX5E_RQ_STATE_AM))
-		mlx5e_rx_am(&c->rq);
+	if (MLX5E_TEST_BIT(c->rq.state, MLX5E_RQ_STATE_AM)) {
+		struct net_dim_sample dim_sample;
+		net_dim_sample(c->rq.cq.event_ctr,
+			       c->rq.stats.packets,
+			       c->rq.stats.bytes,
+			       &dim_sample);
+		net_dim(&c->rq.dim, dim_sample);
+	}
 
 	mlx5e_cq_arm(&c->rq.cq);
 	mlx5e_cq_arm(&c->icosq.cq);

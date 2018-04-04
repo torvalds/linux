@@ -486,7 +486,7 @@ static irqreturn_t max732x_irq_handler(int irq, void *devid)
 
 	do {
 		level = __ffs(pending);
-		handle_nested_irq(irq_find_mapping(chip->gpio_chip.irqdomain,
+		handle_nested_irq(irq_find_mapping(chip->gpio_chip.irq.domain,
 						   level));
 
 		pending &= ~(1 << level);
@@ -709,8 +709,7 @@ static int max732x_probe(struct i2c_client *client,
 	return 0;
 
 out_failed:
-	if (chip->client_dummy)
-		i2c_unregister_device(chip->client_dummy);
+	i2c_unregister_device(chip->client_dummy);
 	return ret;
 }
 
@@ -734,8 +733,7 @@ static int max732x_remove(struct i2c_client *client)
 	gpiochip_remove(&chip->gpio_chip);
 
 	/* unregister any dummy i2c_client */
-	if (chip->client_dummy)
-		i2c_unregister_device(chip->client_dummy);
+	i2c_unregister_device(chip->client_dummy);
 
 	return 0;
 }

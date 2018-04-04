@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom BM2835 V4L2 driver
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
  *
  * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
  *          Dave Stevenson <dsteve@broadcom.com>
@@ -130,7 +127,7 @@ int vchiq_mmal_component_disable(
 /* enable a mmal port
  *
  * enables a port and if a buffer callback provided enque buffer
- * headers as apropriate for the port.
+ * headers as appropriate for the port.
  */
 int vchiq_mmal_port_enable(
 		struct vchiq_mmal_instance *instance,

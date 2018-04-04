@@ -401,7 +401,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	outdev = entry->state.out;
 
-	switch ((enum nfqnl_config_mode)ACCESS_ONCE(queue->copy_mode)) {
+	switch ((enum nfqnl_config_mode)READ_ONCE(queue->copy_mode)) {
 	case NFQNL_COPY_META:
 	case NFQNL_COPY_NONE:
 		break;
@@ -412,7 +412,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		    skb_checksum_help(entskb))
 			return NULL;
 
-		data_len = ACCESS_ONCE(queue->copy_range);
+		data_len = READ_ONCE(queue->copy_range);
 		if (data_len > entskb->len)
 			data_len = entskb->len;
 
@@ -941,23 +941,18 @@ static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
 
-static unsigned int nfqnl_nf_hook_drop(struct net *net)
+static void nfqnl_nf_hook_drop(struct net *net)
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
-	unsigned int instances = 0;
 	int i;
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++) {
 		struct nfqnl_instance *inst;
 		struct hlist_head *head = &q->instance_table[i];
 
-		hlist_for_each_entry_rcu(inst, head, hlist) {
+		hlist_for_each_entry_rcu(inst, head, hlist)
 			nfqnl_flush(inst, NULL, 0);
-			instances++;
-		}
 	}
-
-	return instances;
 }
 
 static int
@@ -1482,7 +1477,6 @@ static int nfqnl_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nfqnl_file_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = nfqnl_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -1512,10 +1506,15 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 
 static void __net_exit nfnl_queue_net_exit(struct net *net)
 {
+	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	unsigned int i;
+
 	nf_unregister_queue_handler(net);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", net->nf.proc_netfilter);
 #endif
+	for (i = 0; i < INSTANCE_BUCKETS; i++)
+		WARN_ON_ONCE(!hlist_empty(&q->instance_table[i]));
 }
 
 static void nfnl_queue_net_exit_batch(struct list_head *net_exit_list)

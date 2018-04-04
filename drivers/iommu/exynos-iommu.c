@@ -263,6 +263,7 @@ struct exynos_iommu_domain {
 struct sysmmu_drvdata {
 	struct device *sysmmu;		/* SYSMMU controller device */
 	struct device *master;		/* master device (owner) */
+	struct device_link *link;	/* runtime PM link to master */
 	void __iomem *sfrbase;		/* our registers */
 	struct clk *clk;		/* SYSMMU's clock */
 	struct clk *aclk;		/* SYSMMU's aclk clock */
@@ -1250,6 +1251,8 @@ static struct iommu_group *get_device_iommu_group(struct device *dev)
 
 static int exynos_iommu_add_device(struct device *dev)
 {
+	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+	struct sysmmu_drvdata *data;
 	struct iommu_group *group;
 
 	if (!has_sysmmu(dev))
@@ -1260,6 +1263,15 @@ static int exynos_iommu_add_device(struct device *dev)
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
+	list_for_each_entry(data, &owner->controllers, owner_node) {
+		/*
+		 * SYSMMU will be runtime activated via device link
+		 * (dependency) to its master device, so there are no
+		 * direct calls to pm_runtime_get/put in this driver.
+		 */
+		data->link = device_link_add(dev, data->sysmmu,
+					     DL_FLAG_PM_RUNTIME);
+	}
 	iommu_group_put(group);
 
 	return 0;
@@ -1268,6 +1280,7 @@ static int exynos_iommu_add_device(struct device *dev)
 static void exynos_iommu_remove_device(struct device *dev)
 {
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+	struct sysmmu_drvdata *data;
 
 	if (!has_sysmmu(dev))
 		return;
@@ -1283,6 +1296,9 @@ static void exynos_iommu_remove_device(struct device *dev)
 		}
 	}
 	iommu_group_remove_device(dev);
+
+	list_for_each_entry(data, &owner->controllers, owner_node)
+		device_link_del(data->link);
 }
 
 static int exynos_iommu_of_xlate(struct device *dev,
@@ -1316,13 +1332,6 @@ static int exynos_iommu_of_xlate(struct device *dev,
 	list_add_tail(&data->owner_node, &owner->controllers);
 	data->master = dev;
 
-	/*
-	 * SYSMMU will be runtime activated via device link (dependency) to its
-	 * master device, so there are no direct calls to pm_runtime_get/put
-	 * in this driver.
-	 */
-	device_link_add(dev, data->sysmmu, DL_FLAG_PM_RUNTIME);
-
 	return 0;
 }
 
@@ -1344,7 +1353,14 @@ static const struct iommu_ops exynos_iommu_ops = {
 
 static int __init exynos_iommu_init(void)
 {
+	struct device_node *np;
 	int ret;
+
+	np = of_find_matching_node(NULL, sysmmu_of_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
 
 	lv2table_kmem_cache = kmem_cache_create("exynos-iommu-lv2table",
 				LV2TABLE_SIZE, LV2TABLE_SIZE, 0, NULL);
@@ -1385,4 +1401,4 @@ err_reg_driver:
 }
 core_initcall(exynos_iommu_init);
 
-IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu", NULL);
+IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu");

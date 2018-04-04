@@ -1338,6 +1338,7 @@ bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
 	switch (pub->chip) {
 	case BRCM_CC_4354_CHIP_ID:
 	case BRCM_CC_4356_CHIP_ID:
+	case BRCM_CC_4345_CHIP_ID:
 		/* explicitly check SR engine enable bit */
 		pmu_cc3_mask = BIT(2);
 		/* fall-through */

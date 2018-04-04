@@ -1,10 +1,10 @@
 menuconfig INFINIBAND
 	tristate "InfiniBand support"
-	depends on PCI || BROKEN
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
 	depends on NET
 	depends on INET
 	depends on m || IPV6 != m
+	depends on !ALPHA
 	select IRQ_POLL
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select
@@ -20,7 +20,8 @@ config INFINIBAND_USER_MAD
 	  Userspace InfiniBand Management Datagram (MAD) support.  This
 	  is the kernel side of the userspace MAD support, which allows
 	  userspace processes to send and receive MADs. You will also
-	  need libibumad from <http://www.openfabrics.org/downloads/management/>.
+	  need libibumad from rdma-core
+	  <https://github.com/linux-rdma/rdma-core>.
 
 config INFINIBAND_USER_ACCESS
 	tristate "InfiniBand userspace access (verbs and CM)"
@@ -32,10 +33,10 @@ config INFINIBAND_USER_ACCESS
 	  to set up connections and directly access InfiniBand
 	  hardware for fast-path operations.  You will also need
 	  libibverbs, libibcm and a hardware driver library from
-	  <http://www.openfabrics.org/git/>.
+	  rdma-core <https://github.com/linux-rdma/rdma-core>.
 
 config INFINIBAND_EXP_USER_ACCESS
-	bool "Allow experimental support for Infiniband ABI"
+	bool "Enable the full uverbs ioctl interface (EXPERIMENTAL)"
 	depends on INFINIBAND_USER_ACCESS
 	---help---
 	  IOCTL based ABI support for Infiniband. This allows userspace
@@ -46,6 +47,7 @@ config INFINIBAND_EXP_USER_ACCESS
 config INFINIBAND_USER_MEM
 	bool
 	depends on INFINIBAND_USER_ACCESS != n
+	depends on MMU
 	default y
 
 config INFINIBAND_ON_DEMAND_PAGING

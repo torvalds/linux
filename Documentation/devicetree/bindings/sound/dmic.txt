@@ -7,10 +7,12 @@ Required properties:
 
 Optional properties:
 	- dmicen-gpios: GPIO specifier for dmic to control start and stop
+	- num-channels: Number of microphones on this DAI
 
 Example node:
 
 	dmic_codec: dmic@0 {
 		compatible = "dmic-codec";
 		dmicen-gpios = <&gpio4 3 GPIO_ACTIVE_HIGH>;
+		num-channels = <1>;
 	};

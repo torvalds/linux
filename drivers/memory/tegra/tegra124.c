@@ -999,12 +999,27 @@ static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
 	{ .name = "vi",        .swgroup = TEGRA_SWGROUP_VI,        .reg = 0x280 },
 };
 
+static const unsigned int tegra124_group_display[] = {
+	TEGRA_SWGROUP_DC,
+	TEGRA_SWGROUP_DCB,
+};
+
+static const struct tegra_smmu_group_soc tegra124_groups[] = {
+	{
+		.name = "display",
+		.swgroups = tegra124_group_display,
+		.num_swgroups = ARRAY_SIZE(tegra124_group_display),
+	},
+};
+
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
 static const struct tegra_smmu_soc tegra124_smmu_soc = {
 	.clients = tegra124_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
 	.swgroups = tegra124_swgroups,
 	.num_swgroups = ARRAY_SIZE(tegra124_swgroups),
+	.groups = tegra124_groups,
+	.num_groups = ARRAY_SIZE(tegra124_groups),
 	.supports_round_robin_arbitration = true,
 	.supports_request_limit = true,
 	.num_tlb_lines = 32,
@@ -1029,6 +1044,8 @@ static const struct tegra_smmu_soc tegra132_smmu_soc = {
 	.num_clients = ARRAY_SIZE(tegra124_mc_clients),
 	.swgroups = tegra124_swgroups,
 	.num_swgroups = ARRAY_SIZE(tegra124_swgroups),
+	.groups = tegra124_groups,
+	.num_groups = ARRAY_SIZE(tegra124_groups),
 	.supports_round_robin_arbitration = true,
 	.supports_request_limit = true,
 	.num_tlb_lines = 32,

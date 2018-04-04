@@ -418,6 +418,27 @@ struct perf_event_attr {
 	__u16	__reserved_2;	/* align to __u64 */
 };
 
+/*
+ * Structure used by below PERF_EVENT_IOC_QUERY_BPF command
+ * to query bpf programs attached to the same perf tracepoint
+ * as the given perf event.
+ */
+struct perf_event_query_bpf {
+	/*
+	 * The below ids array length
+	 */
+	__u32	ids_len;
+	/*
+	 * Set by the kernel to indicate the number of
+	 * available programs
+	 */
+	__u32	prog_cnt;
+	/*
+	 * User provided buffer to store program ids
+	 */
+	__u32	ids[0];
+};
+
 #define perf_flags(attr)	(*(&(attr)->read_format + 1))
 
 /*
@@ -433,6 +454,7 @@ struct perf_event_attr {
 #define PERF_EVENT_IOC_ID		_IOR('$', 7, __u64 *)
 #define PERF_EVENT_IOC_SET_BPF		_IOW('$', 8, __u32)
 #define PERF_EVENT_IOC_PAUSE_OUTPUT	_IOW('$', 9, __u32)
+#define PERF_EVENT_IOC_QUERY_BPF	_IOWR('$', 10, struct perf_event_query_bpf *)
 
 enum perf_event_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,
@@ -612,9 +634,12 @@ struct perf_event_mmap_page {
  */
 #define PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT	(1 << 12)
 /*
- * PERF_RECORD_MISC_MMAP_DATA and PERF_RECORD_MISC_COMM_EXEC are used on
- * different events so can reuse the same bit position.
- * Ditto PERF_RECORD_MISC_SWITCH_OUT.
+ * Following PERF_RECORD_MISC_* are used on different
+ * events, so can reuse the same bit position:
+ *
+ *   PERF_RECORD_MISC_MMAP_DATA  - PERF_RECORD_MMAP* events
+ *   PERF_RECORD_MISC_COMM_EXEC  - PERF_RECORD_COMM event
+ *   PERF_RECORD_MISC_SWITCH_OUT - PERF_RECORD_SWITCH* events
  */
 #define PERF_RECORD_MISC_MMAP_DATA		(1 << 13)
 #define PERF_RECORD_MISC_COMM_EXEC		(1 << 13)
@@ -864,6 +889,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid;
 	 *	u32				tid;
+	 *	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_ITRACE_START		= 12,
@@ -942,6 +968,7 @@ enum perf_callchain_context {
 #define PERF_AUX_FLAG_TRUNCATED		0x01	/* record was truncated to fit */
 #define PERF_AUX_FLAG_OVERWRITE		0x02	/* snapshot from overwrite mode */
 #define PERF_AUX_FLAG_PARTIAL		0x04	/* record contains gaps */
+#define PERF_AUX_FLAG_COLLISION		0x08	/* sample collided with another */
 
 #define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
 #define PERF_FLAG_FD_OUTPUT		(1UL << 1)

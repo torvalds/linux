@@ -93,8 +93,9 @@ static void uvc_event_streaming(struct uvc_device *dev, __u8 *data, int len)
 			data[1], data[3] ? "pressed" : "released", len);
 		uvc_input_report_key(dev, KEY_CAMERA, data[3]);
 	} else {
-		uvc_trace(UVC_TRACE_STATUS, "Stream %u error event %02x %02x "
-			"len %d.\n", data[1], data[2], data[3], len);
+		uvc_trace(UVC_TRACE_STATUS,
+			  "Stream %u error event %02x len %d.\n",
+			  data[1], data[2], len);
 	}
 }
 

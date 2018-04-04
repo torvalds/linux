@@ -183,7 +183,7 @@ static void malidp500_enter_config_mode(struct malidp_hw_device *hwdev)
 
 	malidp_hw_setbits(hwdev, MALIDP500_DC_CONFIG_REQ, MALIDP500_DC_CONTROL);
 	while (count) {
-		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
+		status = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_REG_STATUS);
 		if ((status & MALIDP500_DC_CONFIG_REQ) == MALIDP500_DC_CONFIG_REQ)
 			break;
 		/*
@@ -203,7 +203,7 @@ static void malidp500_leave_config_mode(struct malidp_hw_device *hwdev)
 	malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
 	malidp_hw_clearbits(hwdev, MALIDP500_DC_CONFIG_REQ, MALIDP500_DC_CONTROL);
 	while (count) {
-		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
+		status = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_REG_STATUS);
 		if ((status & MALIDP500_DC_CONFIG_REQ) == 0)
 			break;
 		usleep_range(100, 1000);
@@ -216,7 +216,7 @@ static bool malidp500_in_config_mode(struct malidp_hw_device *hwdev)
 {
 	u32 status;
 
-	status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
+	status = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_REG_STATUS);
 	if ((status & MALIDP500_DC_CONFIG_REQ) == MALIDP500_DC_CONFIG_REQ)
 		return true;
 
@@ -407,7 +407,7 @@ static void malidp550_enter_config_mode(struct malidp_hw_device *hwdev)
 
 	malidp_hw_setbits(hwdev, MALIDP550_DC_CONFIG_REQ, MALIDP550_DC_CONTROL);
 	while (count) {
-		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
+		status = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_REG_STATUS);
 		if ((status & MALIDP550_DC_CONFIG_REQ) == MALIDP550_DC_CONFIG_REQ)
 			break;
 		/*
@@ -427,7 +427,7 @@ static void malidp550_leave_config_mode(struct malidp_hw_device *hwdev)
 	malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
 	malidp_hw_clearbits(hwdev, MALIDP550_DC_CONFIG_REQ, MALIDP550_DC_CONTROL);
 	while (count) {
-		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
+		status = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_REG_STATUS);
 		if ((status & MALIDP550_DC_CONFIG_REQ) == 0)
 			break;
 		usleep_range(100, 1000);
@@ -440,7 +440,7 @@ static bool malidp550_in_config_mode(struct malidp_hw_device *hwdev)
 {
 	u32 status;
 
-	status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
+	status = malidp_hw_read(hwdev, hwdev->hw->map.dc_base + MALIDP_REG_STATUS);
 	if ((status & MALIDP550_DC_CONFIG_REQ) == MALIDP550_DC_CONFIG_REQ)
 		return true;
 
@@ -616,7 +616,7 @@ static int malidp650_query_hw(struct malidp_hw_device *hwdev)
 	return 0;
 }
 
-const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
+const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 	[MALIDP_500] = {
 		.map = {
 			.coeffs_base = MALIDP500_COEFFS_BASE,
@@ -751,7 +751,7 @@ static void malidp_hw_clear_irq(struct malidp_hw_device *hwdev, u8 block, u32 ir
 {
 	u32 base = malidp_get_block_base(hwdev, block);
 
-	if (hwdev->map.features & MALIDP_REGMAP_HAS_CLEARIRQ)
+	if (hwdev->hw->map.features & MALIDP_REGMAP_HAS_CLEARIRQ)
 		malidp_hw_write(hwdev, irq, base + MALIDP_REG_CLEARIRQ);
 	else
 		malidp_hw_write(hwdev, irq, base + MALIDP_REG_STATUS);
@@ -762,12 +762,14 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	struct drm_device *drm = arg;
 	struct malidp_drm *malidp = drm->dev_private;
 	struct malidp_hw_device *hwdev;
+	struct malidp_hw *hw;
 	const struct malidp_irq_map *de;
 	u32 status, mask, dc_status;
 	irqreturn_t ret = IRQ_NONE;
 
 	hwdev = malidp->dev;
-	de = &hwdev->map.de_irq_map;
+	hw = hwdev->hw;
+	de = &hw->map.de_irq_map;
 
 	/*
 	 * if we are suspended it is likely that we were invoked because
@@ -778,8 +780,8 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* first handle the config valid IRQ */
-	dc_status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
-	if (dc_status & hwdev->map.dc_irq_map.vsync_irq) {
+	dc_status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
+	if (dc_status & hw->map.dc_irq_map.vsync_irq) {
 		/* we have a page flip event */
 		atomic_set(&malidp->config_valid, 1);
 		malidp_hw_clear_irq(hwdev, MALIDP_DC_BLOCK, dc_status);
@@ -832,11 +834,11 @@ int malidp_de_irq_init(struct drm_device *drm, int irq)
 
 	/* first enable the DC block IRQs */
 	malidp_hw_enable_irq(hwdev, MALIDP_DC_BLOCK,
-			     hwdev->map.dc_irq_map.irq_mask);
+			     hwdev->hw->map.dc_irq_map.irq_mask);
 
 	/* now enable the DE block IRQs */
 	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
-			     hwdev->map.de_irq_map.irq_mask);
+			     hwdev->hw->map.de_irq_map.irq_mask);
 
 	return 0;
 }
@@ -847,9 +849,9 @@ void malidp_de_irq_fini(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
-			      hwdev->map.de_irq_map.irq_mask);
+			      hwdev->hw->map.de_irq_map.irq_mask);
 	malidp_hw_disable_irq(hwdev, MALIDP_DC_BLOCK,
-			      hwdev->map.dc_irq_map.irq_mask);
+			      hwdev->hw->map.dc_irq_map.irq_mask);
 }
 
 static irqreturn_t malidp_se_irq(int irq, void *arg)
@@ -857,6 +859,8 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 	struct drm_device *drm = arg;
 	struct malidp_drm *malidp = drm->dev_private;
 	struct malidp_hw_device *hwdev = malidp->dev;
+	struct malidp_hw *hw = hwdev->hw;
+	const struct malidp_irq_map *se = &hw->map.se_irq_map;
 	u32 status, mask;
 
 	/*
@@ -867,12 +871,12 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 	if (hwdev->pm_suspended)
 		return IRQ_NONE;
 
-	status = malidp_hw_read(hwdev, hwdev->map.se_base + MALIDP_REG_STATUS);
-	if (!(status & hwdev->map.se_irq_map.irq_mask))
+	status = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_STATUS);
+	if (!(status & se->irq_mask))
 		return IRQ_NONE;
 
-	mask = malidp_hw_read(hwdev, hwdev->map.se_base + MALIDP_REG_MASKIRQ);
-	status = malidp_hw_read(hwdev, hwdev->map.se_base + MALIDP_REG_STATUS);
+	mask = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_MASKIRQ);
+	status = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_STATUS);
 	status &= mask;
 	/* ToDo: status decoding and firing up of VSYNC and page flip events */
 
@@ -905,7 +909,7 @@ int malidp_se_irq_init(struct drm_device *drm, int irq)
 	}
 
 	malidp_hw_enable_irq(hwdev, MALIDP_SE_BLOCK,
-			     hwdev->map.se_irq_map.irq_mask);
+			     hwdev->hw->map.se_irq_map.irq_mask);
 
 	return 0;
 }
@@ -916,5 +920,5 @@ void malidp_se_irq_fini(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	malidp_hw_disable_irq(hwdev, MALIDP_SE_BLOCK,
-			      hwdev->map.se_irq_map.irq_mask);
+			      hwdev->hw->map.se_irq_map.irq_mask);
 }

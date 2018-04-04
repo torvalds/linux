@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2011-2017  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing, Marek Lindner
@@ -24,7 +25,7 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/if_ether.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -41,18 +42,18 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <net/cfg80211.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bat_algo.h"
 #include "bat_v_ogm.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
-#include "packet.h"
 #include "routing.h"
 #include "send.h"
 
 /**
- * batadv_v_elp_start_timer - restart timer for ELP periodic work
+ * batadv_v_elp_start_timer() - restart timer for ELP periodic work
  * @hard_iface: the interface for which the timer has to be reset
  */
 static void batadv_v_elp_start_timer(struct batadv_hard_iface *hard_iface)
@@ -67,7 +68,7 @@ static void batadv_v_elp_start_timer(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_v_elp_get_throughput - get the throughput towards a neighbour
+ * batadv_v_elp_get_throughput() - get the throughput towards a neighbour
  * @neigh: the neighbour for which the throughput has to be obtained
  *
  * Return: The throughput towards the given neighbour in multiples of 100kpbs
@@ -134,7 +135,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 			hard_iface->bat_v.flags &= ~BATADV_FULL_DUPLEX;
 
 		throughput = link_settings.base.speed;
-		if (throughput && (throughput != SPEED_UNKNOWN))
+		if (throughput && throughput != SPEED_UNKNOWN)
 			return throughput * 10;
 	}
 
@@ -153,8 +154,8 @@ default_throughput:
 }
 
 /**
- * batadv_v_elp_throughput_metric_update - worker updating the throughput metric
- *  of a single hop neighbour
+ * batadv_v_elp_throughput_metric_update() - worker updating the throughput
+ *  metric of a single hop neighbour
  * @work: the work queue item
  */
 void batadv_v_elp_throughput_metric_update(struct work_struct *work)
@@ -177,7 +178,7 @@ void batadv_v_elp_throughput_metric_update(struct work_struct *work)
 }
 
 /**
- * batadv_v_elp_wifi_neigh_probe - send link probing packets to a neighbour
+ * batadv_v_elp_wifi_neigh_probe() - send link probing packets to a neighbour
  * @neigh: the neighbour to probe
  *
  * Sends a predefined number of unicast wifi packets to a given neighbour in
@@ -240,7 +241,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 }
 
 /**
- * batadv_v_elp_periodic_work - ELP periodic task per interface
+ * batadv_v_elp_periodic_work() - ELP periodic task per interface
  * @work: work queue item
  *
  * Emits broadcast ELP message in regular intervals.
@@ -263,8 +264,8 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 		goto out;
 
 	/* we are in the process of shutting this interface down */
-	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
-	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
+	if (hard_iface->if_status == BATADV_IF_NOT_IN_USE ||
+	    hard_iface->if_status == BATADV_IF_TO_BE_REMOVED)
 		goto out;
 
 	/* the interface was enabled but may not be ready yet */
@@ -327,7 +328,7 @@ out:
 }
 
 /**
- * batadv_v_elp_iface_enable - setup the ELP interface private resources
+ * batadv_v_elp_iface_enable() - setup the ELP interface private resources
  * @hard_iface: interface for which the data has to be prepared
  *
  * Return: 0 on success or a -ENOMEM in case of failure.
@@ -375,7 +376,7 @@ out:
 }
 
 /**
- * batadv_v_elp_iface_disable - release ELP interface private resources
+ * batadv_v_elp_iface_disable() - release ELP interface private resources
  * @hard_iface: interface for which the resources have to be released
  */
 void batadv_v_elp_iface_disable(struct batadv_hard_iface *hard_iface)
@@ -387,7 +388,7 @@ void batadv_v_elp_iface_disable(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_v_elp_iface_activate - update the ELP buffer belonging to the given
+ * batadv_v_elp_iface_activate() - update the ELP buffer belonging to the given
  *  hard-interface
  * @primary_iface: the new primary interface
  * @hard_iface: interface holding the to-be-updated buffer
@@ -408,7 +409,7 @@ void batadv_v_elp_iface_activate(struct batadv_hard_iface *primary_iface,
 }
 
 /**
- * batadv_v_elp_primary_iface_set - change internal data to reflect the new
+ * batadv_v_elp_primary_iface_set() - change internal data to reflect the new
  *  primary interface
  * @primary_iface: the new primary interface
  */
@@ -428,7 +429,7 @@ void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 }
 
 /**
- * batadv_v_elp_neigh_update - update an ELP neighbour node
+ * batadv_v_elp_neigh_update() - update an ELP neighbour node
  * @bat_priv: the bat priv with all the soft interface information
  * @neigh_addr: the neighbour interface address
  * @if_incoming: the interface the packet was received through
@@ -488,7 +489,7 @@ orig_free:
 }
 
 /**
- * batadv_v_elp_packet_recv - main ELP packet handler
+ * batadv_v_elp_packet_recv() - main ELP packet handler
  * @skb: the received packet
  * @if_incoming: the interface this packet was received through
  *

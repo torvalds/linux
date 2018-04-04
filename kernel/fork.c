@@ -77,6 +77,7 @@
 #include <linux/blkdev.h>
 #include <linux/fs_struct.h>
 #include <linux/magic.h>
+#include <linux/sched/mm.h>
 #include <linux/perf_event.h>
 #include <linux/posix-timers.h>
 #include <linux/user-return-notifier.h>
@@ -282,8 +283,9 @@ static void free_thread_stack(struct task_struct *tsk)
 
 void thread_stack_cache_init(void)
 {
-	thread_stack_cache = kmem_cache_create("thread_stack", THREAD_SIZE,
-					      THREAD_SIZE, 0, NULL);
+	thread_stack_cache = kmem_cache_create_usercopy("thread_stack",
+					THREAD_SIZE, THREAD_SIZE, 0, 0,
+					THREAD_SIZE, NULL);
 	BUG_ON(thread_stack_cache == NULL);
 }
 # endif
@@ -389,210 +391,6 @@ void free_task(struct task_struct *tsk)
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
-
-static inline void free_signal_struct(struct signal_struct *sig)
-{
-	taskstats_tgid_free(sig);
-	sched_autogroup_exit(sig);
-	/*
-	 * __mmdrop is not safe to call from softirq context on x86 due to
-	 * pgd_dtor so postpone it to the async context
-	 */
-	if (sig->oom_mm)
-		mmdrop_async(sig->oom_mm);
-	kmem_cache_free(signal_cachep, sig);
-}
-
-static inline void put_signal_struct(struct signal_struct *sig)
-{
-	if (atomic_dec_and_test(&sig->sigcnt))
-		free_signal_struct(sig);
-}
-
-void __put_task_struct(struct task_struct *tsk)
-{
-	WARN_ON(!tsk->exit_state);
-	WARN_ON(atomic_read(&tsk->usage));
-	WARN_ON(tsk == current);
-
-	cgroup_free(tsk);
-	task_numa_free(tsk);
-	security_task_free(tsk);
-	exit_creds(tsk);
-	delayacct_tsk_free(tsk);
-	put_signal_struct(tsk->signal);
-
-	if (!profile_handoff_task(tsk))
-		free_task(tsk);
-}
-EXPORT_SYMBOL_GPL(__put_task_struct);
-
-void __init __weak arch_task_cache_init(void) { }
-
-/*
- * set_max_threads
- */
-static void set_max_threads(unsigned int max_threads_suggested)
-{
-	u64 threads;
-
-	/*
-	 * The number of threads shall be limited such that the thread
-	 * structures may only consume a small part of the available memory.
-	 */
-	if (fls64(totalram_pages) + fls64(PAGE_SIZE) > 64)
-		threads = MAX_THREADS;
-	else
-		threads = div64_u64((u64) totalram_pages * (u64) PAGE_SIZE,
-				    (u64) THREAD_SIZE * 8UL);
-
-	if (threads > max_threads_suggested)
-		threads = max_threads_suggested;
-
-	max_threads = clamp_t(u64, threads, MIN_THREADS, MAX_THREADS);
-}
-
-#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
-/* Initialized by the architecture: */
-int arch_task_struct_size __read_mostly;
-#endif
-
-void __init fork_init(void)
-{
-	int i;
-#ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
-#ifndef ARCH_MIN_TASKALIGN
-#define ARCH_MIN_TASKALIGN	0
-#endif
-	int align = max_t(int, L1_CACHE_BYTES, ARCH_MIN_TASKALIGN);
-
-	/* create a slab on which task_structs can be allocated */
-	task_struct_cachep = kmem_cache_create("task_struct",
-			arch_task_struct_size, align,
-			SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT, NULL);
-#endif
-
-	/* do the arch specific task caches init */
-	arch_task_cache_init();
-
-	set_max_threads(MAX_THREADS);
-
-	init_task.signal->rlim[RLIMIT_NPROC].rlim_cur = max_threads/2;
-	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
-	init_task.signal->rlim[RLIMIT_SIGPENDING] =
-		init_task.signal->rlim[RLIMIT_NPROC];
-
-	for (i = 0; i < UCOUNT_COUNTS; i++) {
-		init_user_ns.ucount_max[i] = max_threads/2;
-	}
-
-#ifdef CONFIG_VMAP_STACK
-	cpuhp_setup_state(CPUHP_BP_PREPARE_DYN, "fork:vm_stack_cache",
-			  NULL, free_vm_stack_cache);
-#endif
-
-	lockdep_init_task(&init_task);
-}
-
-int __weak arch_dup_task_struct(struct task_struct *dst,
-					       struct task_struct *src)
-{
-	*dst = *src;
-	return 0;
-}
-
-void set_task_stack_end_magic(struct task_struct *tsk)
-{
-	unsigned long *stackend;
-
-	stackend = end_of_stack(tsk);
-	*stackend = STACK_END_MAGIC;	/* for overflow detection */
-}
-
-static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
-{
-	struct task_struct *tsk;
-	unsigned long *stack;
-	struct vm_struct *stack_vm_area;
-	int err;
-
-	if (node == NUMA_NO_NODE)
-		node = tsk_fork_get_node(orig);
-	tsk = alloc_task_struct_node(node);
-	if (!tsk)
-		return NULL;
-
-	stack = alloc_thread_stack_node(tsk, node);
-	if (!stack)
-		goto free_tsk;
-
-	stack_vm_area = task_stack_vm_area(tsk);
-
-	err = arch_dup_task_struct(tsk, orig);
-
-	/*
-	 * arch_dup_task_struct() clobbers the stack-related fields.  Make
-	 * sure they're properly initialized before using any stack-related
-	 * functions again.
-	 */
-	tsk->stack = stack;
-#ifdef CONFIG_VMAP_STACK
-	tsk->stack_vm_area = stack_vm_area;
-#endif
-#ifdef CONFIG_THREAD_INFO_IN_TASK
-	atomic_set(&tsk->stack_refcount, 1);
-#endif
-
-	if (err)
-		goto free_stack;
-
-#ifdef CONFIG_SECCOMP
-	/*
-	 * We must handle setting up seccomp filters once we're under
-	 * the sighand lock in case orig has changed between now and
-	 * then. Until then, filter must be NULL to avoid messing up
-	 * the usage counts on the error path calling free_task.
-	 */
-	tsk->seccomp.filter = NULL;
-#endif
-
-	setup_thread_stack(tsk, orig);
-	clear_user_return_notifier(tsk);
-	clear_tsk_need_resched(tsk);
-	set_task_stack_end_magic(tsk);
-
-#ifdef CONFIG_CC_STACKPROTECTOR
-	tsk->stack_canary = get_random_canary();
-#endif
-
-	/*
-	 * One for us, one for whoever does the "release_task()" (usually
-	 * parent)
-	 */
-	atomic_set(&tsk->usage, 2);
-#ifdef CONFIG_BLK_DEV_IO_TRACE
-	tsk->btrace_seq = 0;
-#endif
-	tsk->splice_pipe = NULL;
-	tsk->task_frag.page = NULL;
-	tsk->wake_q.next = NULL;
-
-	account_kernel_stack(tsk, 1);
-
-	kcov_task_init(tsk);
-
-#ifdef CONFIG_FAULT_INJECTION
-	tsk->fail_nth = 0;
-#endif
-
-	return tsk;
-
-free_stack:
-	free_thread_stack(tsk);
-free_tsk:
-	free_task_struct(tsk);
-	return NULL;
-}
 
 #ifdef CONFIG_MMU
 static __latent_entropy int dup_mmap(struct mm_struct *mm,
@@ -765,10 +563,287 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 #define mm_free_pgd(mm)
 #endif /* CONFIG_MMU */
 
-__cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
+static void check_mm(struct mm_struct *mm)
+{
+	int i;
+
+	for (i = 0; i < NR_MM_COUNTERS; i++) {
+		long x = atomic_long_read(&mm->rss_stat.count[i]);
+
+		if (unlikely(x))
+			printk(KERN_ALERT "BUG: Bad rss-counter state "
+					  "mm:%p idx:%d val:%ld\n", mm, i, x);
+	}
+
+	if (mm_pgtables_bytes(mm))
+		pr_alert("BUG: non-zero pgtables_bytes on freeing mm: %ld\n",
+				mm_pgtables_bytes(mm));
+
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
+#endif
+}
 
 #define allocate_mm()	(kmem_cache_alloc(mm_cachep, GFP_KERNEL))
 #define free_mm(mm)	(kmem_cache_free(mm_cachep, (mm)))
+
+/*
+ * Called when the last reference to the mm
+ * is dropped: either by a lazy thread or by
+ * mmput. Free the page directory and the mm.
+ */
+void __mmdrop(struct mm_struct *mm)
+{
+	BUG_ON(mm == &init_mm);
+	mm_free_pgd(mm);
+	destroy_context(mm);
+	hmm_mm_destroy(mm);
+	mmu_notifier_mm_destroy(mm);
+	check_mm(mm);
+	put_user_ns(mm->user_ns);
+	free_mm(mm);
+}
+EXPORT_SYMBOL_GPL(__mmdrop);
+
+static void mmdrop_async_fn(struct work_struct *work)
+{
+	struct mm_struct *mm;
+
+	mm = container_of(work, struct mm_struct, async_put_work);
+	__mmdrop(mm);
+}
+
+static void mmdrop_async(struct mm_struct *mm)
+{
+	if (unlikely(atomic_dec_and_test(&mm->mm_count))) {
+		INIT_WORK(&mm->async_put_work, mmdrop_async_fn);
+		schedule_work(&mm->async_put_work);
+	}
+}
+
+static inline void free_signal_struct(struct signal_struct *sig)
+{
+	taskstats_tgid_free(sig);
+	sched_autogroup_exit(sig);
+	/*
+	 * __mmdrop is not safe to call from softirq context on x86 due to
+	 * pgd_dtor so postpone it to the async context
+	 */
+	if (sig->oom_mm)
+		mmdrop_async(sig->oom_mm);
+	kmem_cache_free(signal_cachep, sig);
+}
+
+static inline void put_signal_struct(struct signal_struct *sig)
+{
+	if (atomic_dec_and_test(&sig->sigcnt))
+		free_signal_struct(sig);
+}
+
+void __put_task_struct(struct task_struct *tsk)
+{
+	WARN_ON(!tsk->exit_state);
+	WARN_ON(atomic_read(&tsk->usage));
+	WARN_ON(tsk == current);
+
+	cgroup_free(tsk);
+	task_numa_free(tsk);
+	security_task_free(tsk);
+	exit_creds(tsk);
+	delayacct_tsk_free(tsk);
+	put_signal_struct(tsk->signal);
+
+	if (!profile_handoff_task(tsk))
+		free_task(tsk);
+}
+EXPORT_SYMBOL_GPL(__put_task_struct);
+
+void __init __weak arch_task_cache_init(void) { }
+
+/*
+ * set_max_threads
+ */
+static void set_max_threads(unsigned int max_threads_suggested)
+{
+	u64 threads;
+
+	/*
+	 * The number of threads shall be limited such that the thread
+	 * structures may only consume a small part of the available memory.
+	 */
+	if (fls64(totalram_pages) + fls64(PAGE_SIZE) > 64)
+		threads = MAX_THREADS;
+	else
+		threads = div64_u64((u64) totalram_pages * (u64) PAGE_SIZE,
+				    (u64) THREAD_SIZE * 8UL);
+
+	if (threads > max_threads_suggested)
+		threads = max_threads_suggested;
+
+	max_threads = clamp_t(u64, threads, MIN_THREADS, MAX_THREADS);
+}
+
+#ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
+/* Initialized by the architecture: */
+int arch_task_struct_size __read_mostly;
+#endif
+
+static void task_struct_whitelist(unsigned long *offset, unsigned long *size)
+{
+	/* Fetch thread_struct whitelist for the architecture. */
+	arch_thread_struct_whitelist(offset, size);
+
+	/*
+	 * Handle zero-sized whitelist or empty thread_struct, otherwise
+	 * adjust offset to position of thread_struct in task_struct.
+	 */
+	if (unlikely(*size == 0))
+		*offset = 0;
+	else
+		*offset += offsetof(struct task_struct, thread);
+}
+
+void __init fork_init(void)
+{
+	int i;
+#ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
+#ifndef ARCH_MIN_TASKALIGN
+#define ARCH_MIN_TASKALIGN	0
+#endif
+	int align = max_t(int, L1_CACHE_BYTES, ARCH_MIN_TASKALIGN);
+	unsigned long useroffset, usersize;
+
+	/* create a slab on which task_structs can be allocated */
+	task_struct_whitelist(&useroffset, &usersize);
+	task_struct_cachep = kmem_cache_create_usercopy("task_struct",
+			arch_task_struct_size, align,
+			SLAB_PANIC|SLAB_ACCOUNT,
+			useroffset, usersize, NULL);
+#endif
+
+	/* do the arch specific task caches init */
+	arch_task_cache_init();
+
+	set_max_threads(MAX_THREADS);
+
+	init_task.signal->rlim[RLIMIT_NPROC].rlim_cur = max_threads/2;
+	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
+	init_task.signal->rlim[RLIMIT_SIGPENDING] =
+		init_task.signal->rlim[RLIMIT_NPROC];
+
+	for (i = 0; i < UCOUNT_COUNTS; i++) {
+		init_user_ns.ucount_max[i] = max_threads/2;
+	}
+
+#ifdef CONFIG_VMAP_STACK
+	cpuhp_setup_state(CPUHP_BP_PREPARE_DYN, "fork:vm_stack_cache",
+			  NULL, free_vm_stack_cache);
+#endif
+
+	lockdep_init_task(&init_task);
+}
+
+int __weak arch_dup_task_struct(struct task_struct *dst,
+					       struct task_struct *src)
+{
+	*dst = *src;
+	return 0;
+}
+
+void set_task_stack_end_magic(struct task_struct *tsk)
+{
+	unsigned long *stackend;
+
+	stackend = end_of_stack(tsk);
+	*stackend = STACK_END_MAGIC;	/* for overflow detection */
+}
+
+static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+{
+	struct task_struct *tsk;
+	unsigned long *stack;
+	struct vm_struct *stack_vm_area;
+	int err;
+
+	if (node == NUMA_NO_NODE)
+		node = tsk_fork_get_node(orig);
+	tsk = alloc_task_struct_node(node);
+	if (!tsk)
+		return NULL;
+
+	stack = alloc_thread_stack_node(tsk, node);
+	if (!stack)
+		goto free_tsk;
+
+	stack_vm_area = task_stack_vm_area(tsk);
+
+	err = arch_dup_task_struct(tsk, orig);
+
+	/*
+	 * arch_dup_task_struct() clobbers the stack-related fields.  Make
+	 * sure they're properly initialized before using any stack-related
+	 * functions again.
+	 */
+	tsk->stack = stack;
+#ifdef CONFIG_VMAP_STACK
+	tsk->stack_vm_area = stack_vm_area;
+#endif
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	atomic_set(&tsk->stack_refcount, 1);
+#endif
+
+	if (err)
+		goto free_stack;
+
+#ifdef CONFIG_SECCOMP
+	/*
+	 * We must handle setting up seccomp filters once we're under
+	 * the sighand lock in case orig has changed between now and
+	 * then. Until then, filter must be NULL to avoid messing up
+	 * the usage counts on the error path calling free_task.
+	 */
+	tsk->seccomp.filter = NULL;
+#endif
+
+	setup_thread_stack(tsk, orig);
+	clear_user_return_notifier(tsk);
+	clear_tsk_need_resched(tsk);
+	set_task_stack_end_magic(tsk);
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+	tsk->stack_canary = get_random_canary();
+#endif
+
+	/*
+	 * One for us, one for whoever does the "release_task()" (usually
+	 * parent)
+	 */
+	atomic_set(&tsk->usage, 2);
+#ifdef CONFIG_BLK_DEV_IO_TRACE
+	tsk->btrace_seq = 0;
+#endif
+	tsk->splice_pipe = NULL;
+	tsk->task_frag.page = NULL;
+	tsk->wake_q.next = NULL;
+
+	account_kernel_stack(tsk, 1);
+
+	kcov_task_init(tsk);
+
+#ifdef CONFIG_FAULT_INJECTION
+	tsk->fail_nth = 0;
+#endif
+
+	return tsk;
+
+free_stack:
+	free_thread_stack(tsk);
+free_tsk:
+	free_task_struct(tsk);
+	return NULL;
+}
+
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
 
 static unsigned long default_dump_filter = MMF_DUMP_FILTER_DEFAULT;
 
@@ -817,8 +892,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	init_rwsem(&mm->mmap_sem);
 	INIT_LIST_HEAD(&mm->mmlist);
 	mm->core_state = NULL;
-	atomic_long_set(&mm->nr_ptes, 0);
-	mm_nr_pmds_init(mm);
+	mm_pgtables_bytes_init(mm);
 	mm->map_count = 0;
 	mm->locked_vm = 0;
 	mm->pinned_vm = 0;
@@ -860,30 +934,6 @@ fail_nopgd:
 	return NULL;
 }
 
-static void check_mm(struct mm_struct *mm)
-{
-	int i;
-
-	for (i = 0; i < NR_MM_COUNTERS; i++) {
-		long x = atomic_long_read(&mm->rss_stat.count[i]);
-
-		if (unlikely(x))
-			printk(KERN_ALERT "BUG: Bad rss-counter state "
-					  "mm:%p idx:%d val:%ld\n", mm, i, x);
-	}
-
-	if (atomic_long_read(&mm->nr_ptes))
-		pr_alert("BUG: non-zero nr_ptes on freeing mm: %ld\n",
-				atomic_long_read(&mm->nr_ptes));
-	if (mm_nr_pmds(mm))
-		pr_alert("BUG: non-zero nr_pmds on freeing mm: %ld\n",
-				mm_nr_pmds(mm));
-
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
-	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
-#endif
-}
-
 /*
  * Allocate and initialize an mm_struct.
  */
@@ -898,24 +948,6 @@ struct mm_struct *mm_alloc(void)
 	memset(mm, 0, sizeof(*mm));
 	return mm_init(mm, current, current_user_ns());
 }
-
-/*
- * Called when the last reference to the mm
- * is dropped: either by a lazy thread or by
- * mmput. Free the page directory and the mm.
- */
-void __mmdrop(struct mm_struct *mm)
-{
-	BUG_ON(mm == &init_mm);
-	mm_free_pgd(mm);
-	destroy_context(mm);
-	hmm_mm_destroy(mm);
-	mmu_notifier_mm_destroy(mm);
-	check_mm(mm);
-	put_user_ns(mm->user_ns);
-	free_mm(mm);
-}
-EXPORT_SYMBOL_GPL(__mmdrop);
 
 static inline void __mmput(struct mm_struct *mm)
 {
@@ -1549,6 +1581,10 @@ static __latent_entropy struct task_struct *copy_process(
 	int retval;
 	struct task_struct *p;
 
+	/*
+	 * Don't allow sharing the root directory with processes in a different
+	 * namespace
+	 */
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
 		return ERR_PTR(-EINVAL);
 
@@ -1875,7 +1911,7 @@ static __latent_entropy struct task_struct *copy_process(
 		retval = -ERESTARTNOINTR;
 		goto bad_fork_cancel_cgroup;
 	}
-	if (unlikely(!(ns_of_pid(pid)->nr_hashed & PIDNS_HASH_ADDING))) {
+	if (unlikely(!(ns_of_pid(pid)->pid_allocated & PIDNS_ADDING))) {
 		retval = -ENOMEM;
 		goto bad_fork_cancel_cgroup;
 	}
@@ -2024,6 +2060,8 @@ long _do_fork(unsigned long clone_flags,
 	      int __user *child_tidptr,
 	      unsigned long tls)
 {
+	struct completion vfork;
+	struct pid *pid;
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
@@ -2049,43 +2087,40 @@ long _do_fork(unsigned long clone_flags,
 	p = copy_process(clone_flags, stack_start, stack_size,
 			 child_tidptr, NULL, trace, tls, NUMA_NO_NODE);
 	add_latent_entropy();
+
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
 	/*
 	 * Do this prior waking up the new thread - the thread pointer
 	 * might get invalid after that point, if the thread exits quickly.
 	 */
-	if (!IS_ERR(p)) {
-		struct completion vfork;
-		struct pid *pid;
+	trace_sched_process_fork(current, p);
 
-		trace_sched_process_fork(current, p);
+	pid = get_task_pid(p, PIDTYPE_PID);
+	nr = pid_vnr(pid);
 
-		pid = get_task_pid(p, PIDTYPE_PID);
-		nr = pid_vnr(pid);
+	if (clone_flags & CLONE_PARENT_SETTID)
+		put_user(nr, parent_tidptr);
 
-		if (clone_flags & CLONE_PARENT_SETTID)
-			put_user(nr, parent_tidptr);
-
-		if (clone_flags & CLONE_VFORK) {
-			p->vfork_done = &vfork;
-			init_completion(&vfork);
-			get_task_struct(p);
-		}
-
-		wake_up_new_task(p);
-
-		/* forking complete and child started to run, tell ptracer */
-		if (unlikely(trace))
-			ptrace_event_pid(trace, pid);
-
-		if (clone_flags & CLONE_VFORK) {
-			if (!wait_for_vfork_done(p, &vfork))
-				ptrace_event_pid(PTRACE_EVENT_VFORK_DONE, pid);
-		}
-
-		put_pid(pid);
-	} else {
-		nr = PTR_ERR(p);
+	if (clone_flags & CLONE_VFORK) {
+		p->vfork_done = &vfork;
+		init_completion(&vfork);
+		get_task_struct(p);
 	}
+
+	wake_up_new_task(p);
+
+	/* forking complete and child started to run, tell ptracer */
+	if (unlikely(trace))
+		ptrace_event_pid(trace, pid);
+
+	if (clone_flags & CLONE_VFORK) {
+		if (!wait_for_vfork_done(p, &vfork))
+			ptrace_event_pid(PTRACE_EVENT_VFORK_DONE, pid);
+	}
+
+	put_pid(pid);
 	return nr;
 }
 
@@ -2209,18 +2244,18 @@ void __init proc_caches_init(void)
 	sighand_cachep = kmem_cache_create("sighand_cache",
 			sizeof(struct sighand_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_TYPESAFE_BY_RCU|
-			SLAB_NOTRACK|SLAB_ACCOUNT, sighand_ctor);
+			SLAB_ACCOUNT, sighand_ctor);
 	signal_cachep = kmem_cache_create("signal_cache",
 			sizeof(struct signal_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	files_cachep = kmem_cache_create("files_cache",
 			sizeof(struct files_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	fs_cachep = kmem_cache_create("fs_cache",
 			sizeof(struct fs_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	/*
 	 * FIXME! The "sizeof(struct mm_struct)" currently includes the
@@ -2229,9 +2264,11 @@ void __init proc_caches_init(void)
 	 * maximum number of CPU's we can ever have.  The cpumask_allocation
 	 * is at the end of the structure, exactly for that reason.
 	 */
-	mm_cachep = kmem_cache_create("mm_struct",
+	mm_cachep = kmem_cache_create_usercopy("mm_struct",
 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
+			offsetof(struct mm_struct, saved_auxv),
+			sizeof_field(struct mm_struct, saved_auxv),
 			NULL);
 	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT);
 	mmap_init();

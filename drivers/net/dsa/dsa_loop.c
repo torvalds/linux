@@ -64,7 +64,8 @@ struct dsa_loop_priv {
 
 static struct phy_device *phydevs[PHY_MAX_ADDR];
 
-static enum dsa_tag_protocol dsa_loop_get_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol dsa_loop_get_protocol(struct dsa_switch *ds,
+						   int port)
 {
 	dev_dbg(ds->dev, "%s\n", __func__);
 
@@ -108,13 +109,6 @@ static void dsa_loop_get_ethtool_stats(struct dsa_switch *ds, int port,
 
 	for (i = 0; i < __DSA_LOOP_CNT_MAX; i++)
 		data[i] = ps->ports[port].mib[i].val;
-}
-
-static int dsa_loop_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	dev_dbg(ds->dev, "%s\n", __func__);
-
-	return 0;
 }
 
 static int dsa_loop_phy_read(struct dsa_switch *ds, int port, int regnum)
@@ -180,9 +174,9 @@ static int dsa_loop_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
-				      const struct switchdev_obj_port_vlan *vlan,
-				      struct switchdev_trans *trans)
+static int
+dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
+			   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
@@ -199,8 +193,7 @@ static int dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 
 static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
-				   const struct switchdev_obj_port_vlan *vlan,
-				   struct switchdev_trans *trans)
+				   const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
@@ -263,7 +256,6 @@ static const struct dsa_switch_ops dsa_loop_driver = {
 	.get_strings		= dsa_loop_get_strings,
 	.get_ethtool_stats	= dsa_loop_get_ethtool_stats,
 	.get_sset_count		= dsa_loop_get_sset_count,
-	.set_addr		= dsa_loop_set_addr,
 	.phy_read		= dsa_loop_phy_read,
 	.phy_write		= dsa_loop_phy_write,
 	.port_bridge_join	= dsa_loop_port_bridge_join,

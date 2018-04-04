@@ -904,10 +904,14 @@ static void fc_lport_recv_els_req(struct fc_lport *lport,
 		case ELS_FLOGI:
 			if (!lport->point_to_multipoint)
 				fc_lport_recv_flogi_req(lport, fp);
+			else
+				fc_rport_recv_req(lport, fp);
 			break;
 		case ELS_LOGO:
 			if (fc_frame_sid(fp) == FC_FID_FLOGI)
 				fc_lport_recv_logo_req(lport, fp);
+			else
+				fc_rport_recv_req(lport, fp);
 			break;
 		case ELS_RSCN:
 			lport->tt.disc_recv_req(lport, fp);
@@ -2083,7 +2087,6 @@ int fc_lport_bsg_request(struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
-	struct request *rsp = job->req->next_rq;
 	struct Scsi_Host *shost = fc_bsg_to_shost(job);
 	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport;
@@ -2092,8 +2095,6 @@ int fc_lport_bsg_request(struct bsg_job *job)
 	u32 did, tov;
 
 	bsg_reply->reply_payload_rcv_len = 0;
-	if (rsp)
-		scsi_req(rsp)->resid_len = job->reply_payload.payload_len;
 
 	mutex_lock(&lport->lp_mutex);
 

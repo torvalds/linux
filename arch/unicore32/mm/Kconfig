@@ -42,6 +42,7 @@ config CPU_TLB_SINGLE_ENTRY_DISABLE
 
 config SWIOTLB
 	def_bool y
+	select DMA_DIRECT_OPS
 
 config IOMMU_HELPER
 	def_bool SWIOTLB

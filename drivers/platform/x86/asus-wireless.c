@@ -118,6 +118,7 @@ static void asus_wireless_notify(struct acpi_device *adev, u32 event)
 		return;
 	}
 	input_report_key(data->idev, KEY_RFKILL, 1);
+	input_sync(data->idev);
 	input_report_key(data->idev, KEY_RFKILL, 0);
 	input_sync(data->idev);
 }

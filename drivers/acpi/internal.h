@@ -115,6 +115,7 @@ bool acpi_device_is_present(const struct acpi_device *adev);
 bool acpi_device_is_battery(struct acpi_device *adev);
 bool acpi_device_is_first_physical_node(struct acpi_device *adev,
 					const struct device *dev);
+int acpi_bus_register_early_device(int type);
 
 /* --------------------------------------------------------------------------
                      Device Matching and Notification
@@ -158,7 +159,7 @@ static inline void acpi_early_processor_osc(void) {}
    -------------------------------------------------------------------------- */
 struct acpi_ec {
 	acpi_handle handle;
-	unsigned long gpe;
+	u32 gpe;
 	unsigned long command_addr;
 	unsigned long data_addr;
 	bool global_lock;
@@ -246,6 +247,12 @@ static inline void acpi_extract_apple_properties(struct acpi_device *adev) {}
 void acpi_watchdog_init(void);
 #else
 static inline void acpi_watchdog_init(void) {}
+#endif
+
+#ifdef CONFIG_ACPI_LPIT
+void acpi_init_lpit(void);
+#else
+static inline void acpi_init_lpit(void) { }
 #endif
 
 #endif /* _ACPI_INTERNAL_H_ */

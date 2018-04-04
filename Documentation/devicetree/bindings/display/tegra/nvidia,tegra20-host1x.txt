@@ -3,6 +3,10 @@ NVIDIA Tegra host1x
 Required properties:
 - compatible: "nvidia,tegra<chip>-host1x"
 - reg: Physical base address and length of the controller's registers.
+  For pre-Tegra186, one entry describing the whole register area.
+  For Tegra186, one entry for each entry in reg-names:
+    "vm" - VM region assigned to Linux
+    "hypervisor" - Hypervisor region (only if Linux acts as hypervisor)
 - interrupts: The interrupt outputs from the controller.
 - #address-cells: The number of cells used to represent physical base addresses
   in the host1x address space. Should be 1.
@@ -202,20 +206,32 @@ of the following host1x client modules:
     - "nvidia,tegra132-sor": for Tegra132
     - "nvidia,tegra210-sor": for Tegra210
     - "nvidia,tegra210-sor1": for Tegra210
+    - "nvidia,tegra186-sor": for Tegra186
+    - "nvidia,tegra186-sor1": for Tegra186
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
   - clocks: Must contain an entry for each entry in clock-names.
     See ../clocks/clock-bindings.txt for details.
   - clock-names: Must include the following entries:
     - sor: clock input for the SOR hardware
-    - source: source clock for the SOR clock
+    - out: SOR output clock
     - parent: input for the pixel clock
     - dp: reference clock for the SOR clock
     - safe: safe reference for the SOR clock during power up
+
+    For Tegra186 and later:
+    - pad: SOR pad output clock (on Tegra186 and later)
+
+    Obsolete:
+    - source: source clock for the SOR clock (obsolete, use "out" instead)
+
   - resets: Must contain an entry for each entry in reset-names.
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - sor
+
+  Required properties on Tegra186 and later:
+  - nvidia,interface: index of the SOR interface
 
   Optional properties:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing

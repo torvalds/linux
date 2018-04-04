@@ -151,6 +151,18 @@
 				status = "okay";
 			};
 
+			tcb2: timer@fc024000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			macb1: ethernet@fc028000 {
 				phy-mode = "rmii";
 				status = "okay";
@@ -180,14 +192,14 @@
 			};
 		};
 
-		usb0: gadget@00400000 {
+		usb0: gadget@400000 {
 			atmel,vbus-gpio = <&pioE 31 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "disable";
 		};
 
-		usb1: ohci@00500000 {
+		usb1: ohci@500000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <0
 					   &pioE 11 GPIO_ACTIVE_LOW
@@ -196,7 +208,7 @@
 			status = "disable";
 		};
 
-		usb2: ehci@00600000 {
+		usb2: ehci@600000 {
 			/* 4G Modem */
 			status = "okay";
 		};

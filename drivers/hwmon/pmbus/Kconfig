@@ -39,6 +39,7 @@ config SENSORS_ADM1275
 
 config SENSORS_IBM_CFFPS
 	tristate "IBM Common Form Factor Power Supply"
+	depends on LEDS_CLASS
 	help
 	  If you say yes here you get hardware monitoring support for the IBM
 	  Common Form Factor power supply.
@@ -113,6 +114,16 @@ config SENSORS_MAX20751
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max20751.
+
+config SENSORS_MAX31785
+	tristate "Maxim MAX31785 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX31785.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max31785.
 
 config SENSORS_MAX34440
 	tristate "Maxim MAX34440 and compatibles"

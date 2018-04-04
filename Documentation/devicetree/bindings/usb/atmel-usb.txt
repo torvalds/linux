@@ -18,7 +18,7 @@ Required properties:
  - atmel,oc-gpio: If present, specifies a gpio that needs to be
    activated for the overcurrent detection.
 
-usb0: ohci@00500000 {
+usb0: ohci@500000 {
 	compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 	reg = <0x00500000 0x100000>;
 	clocks = <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
@@ -39,7 +39,7 @@ Required properties:
 		"ehci_clk" for the peripheral clock
 		"usb_clk" for the UTMI clock
 
-usb1: ehci@00800000 {
+usb1: ehci@800000 {
 	compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 	reg = <0x00800000 0x100000>;
 	interrupts = <22 4>;

@@ -13,9 +13,7 @@
 
 #include <linux/swiotlb.h>
 
-extern const struct dma_map_ops swiotlb_dma_ops;
-
-static inline void dma_mark_clean(void *addr, size_t size) {}
+extern const struct dma_map_ops powerpc_swiotlb_dma_ops;
 
 extern unsigned int ppc_swiotlb_enable;
 int __init swiotlb_setup_bus_notifier(void);

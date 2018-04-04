@@ -215,7 +215,7 @@ enum iwl_legacy_cmds {
 	/**
 	 * @SCD_QUEUE_CFG: &struct iwl_scd_txq_cfg_cmd for older hardware,
 	 *	&struct iwl_tx_queue_cfg_cmd with &struct iwl_tx_queue_cfg_rsp
-	 *	for newer (A000) hardware.
+	 *	for newer (22000) hardware.
 	 */
 	SCD_QUEUE_CFG = 0x1d,
 
@@ -504,6 +504,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @MARKER_CMD: trace marker command, uses &struct iwl_mvm_marker
+	 * with &struct iwl_mvm_marker_rsp
 	 */
 	MARKER_CMD = 0xcb,
 

@@ -113,7 +113,8 @@ struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
  * array is a part of the structure and the fifo type where the array is
  * outside of the fifo structure.
  */
-#define	__is_kfifo_ptr(fifo)	(sizeof(*fifo) == sizeof(struct __kfifo))
+#define	__is_kfifo_ptr(fifo) \
+	(sizeof(*fifo) == sizeof(STRUCT_KFIFO_PTR(typeof(*(fifo)->type))))
 
 /**
  * DECLARE_KFIFO_PTR - macro to declare a fifo pointer object
@@ -325,7 +326,7 @@ __kfifo_uint_must_check_helper( \
  *
  * This macro dynamically allocates a new fifo buffer.
  *
- * The numer of elements will be rounded-up to a power of 2.
+ * The number of elements will be rounded-up to a power of 2.
  * The fifo will be release with kfifo_free().
  * Return 0 if no error, otherwise an error code.
  */
@@ -358,9 +359,9 @@ __kfifo_int_must_check_helper( \
  * @buffer: the preallocated buffer to be used
  * @size: the size of the internal buffer, this have to be a power of 2
  *
- * This macro initialize a fifo using a preallocated buffer.
+ * This macro initializes a fifo using a preallocated buffer.
  *
- * The numer of elements will be rounded-up to a power of 2.
+ * The number of elements will be rounded-up to a power of 2.
  * Return 0 if no error, otherwise an error code.
  */
 #define kfifo_init(fifo, buffer, size) \

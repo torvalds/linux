@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -26,7 +27,13 @@ static int init_display(struct fbtft_par *par)
 	par->fbtftops.reset(par);
 
 	write_reg(par, 0xae); /* Display Off */
-	write_reg(par, 0xa0, 0x70 | (par->bgr << 2)); /* Set Colour Depth */
+
+	/* Set Column Address Mapping, COM Scan Direction and Colour Depth */
+	if (par->info->var.rotate == 180)
+		write_reg(par, 0xa0, 0x60 | (par->bgr << 2));
+	else
+		write_reg(par, 0xa0, 0x72 | (par->bgr << 2));
+
 	write_reg(par, 0x72); /* RGB colour */
 	write_reg(par, 0xa1, 0x00); /* Set Display Start Line */
 	write_reg(par, 0xa2, 0x00); /* Set Display Offset */

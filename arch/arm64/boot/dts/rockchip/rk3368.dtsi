@@ -257,7 +257,7 @@
 		max-frequency = <150000000>;
 		clocks = <&cru HCLK_SDIO0>, <&cru SCLK_SDIO0>,
 			 <&cru SCLK_SDIO0_DRV>, <&cru SCLK_SDIO0_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu_drv", "ciu_sample";
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&cru SRST_SDIO0>;
@@ -784,6 +784,22 @@
 		interrupt-names = "vepu_mmu", "vdpu_mmu";
 		#iommu-cells = <0>;
 		status = "disabled";
+	};
+
+	efuse256: efuse@ffb00000 {
+		compatible = "rockchip,rk3368-efuse";
+		reg = <0x0 0xffb00000 0x0 0x20>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru PCLK_EFUSE256>;
+		clock-names = "pclk_efuse";
+
+		cpu_leakage: cpu-leakage@17 {
+			reg = <0x17 0x1>;
+		};
+		temp_adjust: temp-adjust@1f {
+			reg = <0x1f 0x1>;
+		};
 	};
 
 	gic: interrupt-controller@ffb71000 {

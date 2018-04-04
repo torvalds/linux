@@ -436,14 +436,14 @@ static ssize_t joydev_read(struct file *file, char __user *buf,
 }
 
 /* No kernel lock - fine */
-static unsigned int joydev_poll(struct file *file, poll_table *wait)
+static __poll_t joydev_poll(struct file *file, poll_table *wait)
 {
 	struct joydev_client *client = file->private_data;
 	struct joydev *joydev = client->joydev;
 
 	poll_wait(file, &joydev->wait, wait);
-	return (joydev_data_pending(client) ? (POLLIN | POLLRDNORM) : 0) |
-		(joydev->exist ?  0 : (POLLHUP | POLLERR));
+	return (joydev_data_pending(client) ? (EPOLLIN | EPOLLRDNORM) : 0) |
+		(joydev->exist ?  0 : (EPOLLHUP | EPOLLERR));
 }
 
 static int joydev_handle_JSIOCSAXMAP(struct joydev *joydev,

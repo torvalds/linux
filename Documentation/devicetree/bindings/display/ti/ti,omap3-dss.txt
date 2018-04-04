@@ -37,6 +37,10 @@ Required properties:
 - clocks: handle to fclk
 - clock-names: "fck"
 
+Optional properties:
+- max-memory-bandwidth: Input memory (from main memory to dispc) bandwidth limit
+			in bytes per second
+
 
 RFBI
 ----

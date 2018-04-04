@@ -32,6 +32,14 @@
 #define RK3288_STROBE		BIT(1)
 #define RK3288_CSB		BIT(0)
 
+#define RK3328_SECURE_SIZES	96
+#define RK3328_INT_STATUS	0x0018
+#define RK3328_DOUT		0x0020
+#define RK3328_AUTO_CTRL	0x0024
+#define RK3328_INT_FINISH	BIT(0)
+#define RK3328_AUTO_ENB		BIT(0)
+#define RK3328_AUTO_RD		BIT(1)
+
 #define RK3399_A_SHIFT		16
 #define RK3399_A_MASK		0x3ff
 #define RK3399_NBYTES		4
@@ -92,6 +100,60 @@ static int rockchip_rk3288_efuse_read(void *context, unsigned int offset,
 	return 0;
 }
 
+static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
+				      void *val, size_t bytes)
+{
+	struct rockchip_efuse_chip *efuse = context;
+	unsigned int addr_start, addr_end, addr_offset, addr_len;
+	u32 out_value, status;
+	u8 *buf;
+	int ret, i = 0;
+
+	ret = clk_prepare_enable(efuse->clk);
+	if (ret < 0) {
+		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
+		return ret;
+	}
+
+	/* 128 Byte efuse, 96 Byte for secure, 32 Byte for non-secure */
+	offset += RK3328_SECURE_SIZES;
+	addr_start = rounddown(offset, RK3399_NBYTES) / RK3399_NBYTES;
+	addr_end = roundup(offset + bytes, RK3399_NBYTES) / RK3399_NBYTES;
+	addr_offset = offset % RK3399_NBYTES;
+	addr_len = addr_end - addr_start;
+
+	buf = kzalloc(sizeof(*buf) * addr_len * RK3399_NBYTES, GFP_KERNEL);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto nomem;
+	}
+
+	while (addr_len--) {
+		writel(RK3328_AUTO_RD | RK3328_AUTO_ENB |
+		       ((addr_start++ & RK3399_A_MASK) << RK3399_A_SHIFT),
+		       efuse->base + RK3328_AUTO_CTRL);
+		udelay(4);
+		status = readl(efuse->base + RK3328_INT_STATUS);
+		if (!(status & RK3328_INT_FINISH)) {
+			ret = -EIO;
+			goto err;
+		}
+		out_value = readl(efuse->base + RK3328_DOUT);
+		writel(RK3328_INT_FINISH, efuse->base + RK3328_INT_STATUS);
+
+		memcpy(&buf[i], &out_value, RK3399_NBYTES);
+		i += RK3399_NBYTES;
+	}
+
+	memcpy(val, buf + addr_offset, bytes);
+err:
+	kfree(buf);
+nomem:
+	clk_disable_unprepare(efuse->clk);
+
+	return ret;
+}
+
 static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 				      void *val, size_t bytes)
 {
@@ -149,7 +211,6 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 
 static struct nvmem_config econfig = {
 	.name = "rockchip-efuse",
-	.owner = THIS_MODULE,
 	.stride = 1,
 	.word_size = 1,
 	.read_only = true,
@@ -176,6 +237,14 @@ static const struct of_device_id rockchip_efuse_match[] = {
 	{
 		.compatible = "rockchip,rk3288-efuse",
 		.data = (void *)&rockchip_rk3288_efuse_read,
+	},
+	{
+		.compatible = "rockchip,rk3368-efuse",
+		.data = (void *)&rockchip_rk3288_efuse_read,
+	},
+	{
+		.compatible = "rockchip,rk3328-efuse",
+		.data = (void *)&rockchip_rk3328_efuse_read,
 	},
 	{
 		.compatible = "rockchip,rk3399-efuse",
@@ -214,7 +283,9 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 		return PTR_ERR(efuse->clk);
 
 	efuse->dev = &pdev->dev;
-	econfig.size = resource_size(res);
+	if (of_property_read_u32(dev->of_node, "rockchip,efuse-size",
+				 &econfig.size))
+		econfig.size = resource_size(res);
 	econfig.reg_read = match->data;
 	econfig.priv = efuse;
 	econfig.dev = efuse->dev;

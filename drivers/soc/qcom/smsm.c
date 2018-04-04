@@ -496,8 +496,10 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	if (!smsm->hosts)
 		return -ENOMEM;
 
-	local_node = of_find_node_with_property(of_node_get(pdev->dev.of_node),
-						"#qcom,smem-state-cells");
+	for_each_child_of_node(pdev->dev.of_node, local_node) {
+		if (of_find_property(local_node, "#qcom,smem-state-cells", NULL))
+			break;
+	}
 	if (!local_node) {
 		dev_err(&pdev->dev, "no state entry\n");
 		return -EINVAL;

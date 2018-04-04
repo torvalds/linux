@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kvm nested virtualization support for s390x
  *
  * Copyright IBM Corp. 2016
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): David Hildenbrand <dahi@linux.vnet.ibm.com>
  */
@@ -31,13 +28,23 @@ struct vsie_page {
 	 * the same offset as that in struct sie_page!
 	 */
 	struct mcck_volatile_info mcck_info;    /* 0x0200 */
-	/* the pinned originial scb */
+	/*
+	 * The pinned original scb. Be aware that other VCPUs can modify
+	 * it while we read from it. Values that are used for conditions or
+	 * are reused conditionally, should be accessed via READ_ONCE.
+	 */
 	struct kvm_s390_sie_block *scb_o;	/* 0x0218 */
 	/* the shadow gmap in use by the vsie_page */
 	struct gmap *gmap;			/* 0x0220 */
 	/* address of the last reported fault to guest2 */
 	unsigned long fault_addr;		/* 0x0228 */
-	__u8 reserved[0x0700 - 0x0230];		/* 0x0230 */
+	/* calculated guest addresses of satellite control blocks */
+	gpa_t sca_gpa;				/* 0x0230 */
+	gpa_t itdba_gpa;			/* 0x0238 */
+	gpa_t gvrd_gpa;				/* 0x0240 */
+	gpa_t riccbd_gpa;			/* 0x0248 */
+	gpa_t sdnx_gpa;				/* 0x0250 */
+	__u8 reserved[0x0700 - 0x0258];		/* 0x0258 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
 };
@@ -143,12 +150,13 @@ static int shadow_crycb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
-	u32 crycb_addr = scb_o->crycbd & 0x7ffffff8U;
+	const uint32_t crycbd_o = READ_ONCE(scb_o->crycbd);
+	const u32 crycb_addr = crycbd_o & 0x7ffffff8U;
 	unsigned long *b1, *b2;
 	u8 ecb3_flags;
 
 	scb_s->crycbd = 0;
-	if (!(scb_o->crycbd & vcpu->arch.sie_block->crycbd & CRYCB_FORMAT1))
+	if (!(crycbd_o & vcpu->arch.sie_block->crycbd & CRYCB_FORMAT1))
 		return 0;
 	/* format-1 is supported with message-security-assist extension 3 */
 	if (!test_kvm_facility(vcpu->kvm, 76))
@@ -186,12 +194,15 @@ static void prepare_ibc(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
+	/* READ_ONCE does not work on bitfields - use a temporary variable */
+	const uint32_t __new_ibc = scb_o->ibc;
+	const uint32_t new_ibc = READ_ONCE(__new_ibc) & 0x0fffU;
 	__u64 min_ibc = (sclp.ibc >> 16) & 0x0fffU;
 
 	scb_s->ibc = 0;
 	/* ibc installed in g2 and requested for g3 */
-	if (vcpu->kvm->arch.model.ibc && (scb_o->ibc & 0x0fffU)) {
-		scb_s->ibc = scb_o->ibc & 0x0fffU;
+	if (vcpu->kvm->arch.model.ibc && new_ibc) {
+		scb_s->ibc = new_ibc;
 		/* takte care of the minimum ibc level of the machine */
 		if (scb_s->ibc < min_ibc)
 			scb_s->ibc = min_ibc;
@@ -226,6 +237,12 @@ static void unshadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	memcpy(scb_o->gcr, scb_s->gcr, 128);
 	scb_o->pp = scb_s->pp;
 
+	/* branch prediction */
+	if (test_kvm_facility(vcpu->kvm, 82)) {
+		scb_o->fpf &= ~FPF_BPBC;
+		scb_o->fpf |= scb_s->fpf & FPF_BPBC;
+	}
+
 	/* interrupt intercept */
 	switch (scb_s->icptcode) {
 	case ICPT_PROGI:
@@ -256,6 +273,10 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+	/* READ_ONCE does not work on bitfields - use a temporary variable */
+	const uint32_t __new_prefix = scb_o->prefix;
+	const uint32_t new_prefix = READ_ONCE(__new_prefix);
+	const bool wants_tx = READ_ONCE(scb_o->ecb) & ECB_TE;
 	bool had_tx = scb_s->ecb & ECB_TE;
 	unsigned long new_mso = 0;
 	int rc;
@@ -268,6 +289,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->ecb3 = 0;
 	scb_s->ecd = 0;
 	scb_s->fac = 0;
+	scb_s->fpf = 0;
 
 	rc = prepare_cpuflags(vcpu, vsie_page);
 	if (rc)
@@ -302,14 +324,14 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->icpua = scb_o->icpua;
 
 	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_SM))
-		new_mso = scb_o->mso & 0xfffffffffff00000UL;
+		new_mso = READ_ONCE(scb_o->mso) & 0xfffffffffff00000UL;
 	/* if the hva of the prefix changes, we have to remap the prefix */
-	if (scb_s->mso != new_mso || scb_s->prefix != scb_o->prefix)
+	if (scb_s->mso != new_mso || scb_s->prefix != new_prefix)
 		prefix_unmapped(vsie_page);
 	 /* SIE will do mso/msl validity and exception checks for us */
 	scb_s->msl = scb_o->msl & 0xfffffffffff00000UL;
 	scb_s->mso = new_mso;
-	scb_s->prefix = scb_o->prefix;
+	scb_s->prefix = new_prefix;
 
 	/* We have to definetly flush the tlb if this scb never ran */
 	if (scb_s->ihcpu != 0xffffU)
@@ -321,12 +343,15 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_ESOP))
 		scb_s->ecb |= scb_o->ecb & ECB_HOSTPROTINT;
 	/* transactional execution */
-	if (test_kvm_facility(vcpu->kvm, 73)) {
+	if (test_kvm_facility(vcpu->kvm, 73) && wants_tx) {
 		/* remap the prefix is tx is toggled on */
-		if ((scb_o->ecb & ECB_TE) && !had_tx)
+		if (!had_tx)
 			prefix_unmapped(vsie_page);
-		scb_s->ecb |= scb_o->ecb & ECB_TE;
+		scb_s->ecb |= ECB_TE;
 	}
+	/* branch prediction */
+	if (test_kvm_facility(vcpu->kvm, 82))
+		scb_s->fpf |= scb_o->fpf & FPF_BPBC;
 	/* SIMD */
 	if (test_kvm_facility(vcpu->kvm, 129)) {
 		scb_s->eca |= scb_o->eca & ECA_VX;
@@ -443,22 +468,14 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *
  * Returns: - 0 on success
  *          - -EINVAL if the gpa is not valid guest storage
- *          - -ENOMEM if out of memory
  */
 static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 {
 	struct page *page;
-	hva_t hva;
-	int rc;
 
-	hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));
-	if (kvm_is_error_hva(hva))
+	page = gfn_to_page(kvm, gpa_to_gfn(gpa));
+	if (is_error_page(page))
 		return -EINVAL;
-	rc = get_user_pages_fast(hva, 1, 1, &page);
-	if (rc < 0)
-		return rc;
-	else if (rc != 1)
-		return -ENOMEM;
 	*hpa = (hpa_t) page_to_virt(page) + (gpa & ~PAGE_MASK);
 	return 0;
 }
@@ -466,11 +483,7 @@ static int pin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t *hpa)
 /* Unpins a page previously pinned via pin_guest_page, marking it as dirty. */
 static void unpin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t hpa)
 {
-	struct page *page;
-
-	page = virt_to_page(hpa);
-	set_page_dirty_lock(page);
-	put_page(page);
+	kvm_release_pfn_dirty(hpa >> PAGE_SHIFT);
 	/* mark the page always as dirty for migration */
 	mark_page_dirty(kvm, gpa_to_gfn(gpa));
 }
@@ -478,46 +491,42 @@ static void unpin_guest_page(struct kvm *kvm, gpa_t gpa, hpa_t hpa)
 /* unpin all blocks previously pinned by pin_blocks(), marking them dirty */
 static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
-	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	hpa_t hpa;
-	gpa_t gpa;
 
 	hpa = (u64) scb_s->scaoh << 32 | scb_s->scaol;
 	if (hpa) {
-		gpa = scb_o->scaol & ~0xfUL;
-		if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_64BSCAO))
-			gpa |= (u64) scb_o->scaoh << 32;
-		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		unpin_guest_page(vcpu->kvm, vsie_page->sca_gpa, hpa);
+		vsie_page->sca_gpa = 0;
 		scb_s->scaol = 0;
 		scb_s->scaoh = 0;
 	}
 
 	hpa = scb_s->itdba;
 	if (hpa) {
-		gpa = scb_o->itdba & ~0xffUL;
-		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		unpin_guest_page(vcpu->kvm, vsie_page->itdba_gpa, hpa);
+		vsie_page->itdba_gpa = 0;
 		scb_s->itdba = 0;
 	}
 
 	hpa = scb_s->gvrd;
 	if (hpa) {
-		gpa = scb_o->gvrd & ~0x1ffUL;
-		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		unpin_guest_page(vcpu->kvm, vsie_page->gvrd_gpa, hpa);
+		vsie_page->gvrd_gpa = 0;
 		scb_s->gvrd = 0;
 	}
 
 	hpa = scb_s->riccbd;
 	if (hpa) {
-		gpa = scb_o->riccbd & ~0x3fUL;
-		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		unpin_guest_page(vcpu->kvm, vsie_page->riccbd_gpa, hpa);
+		vsie_page->riccbd_gpa = 0;
 		scb_s->riccbd = 0;
 	}
 
 	hpa = scb_s->sdnxo;
 	if (hpa) {
-		gpa = scb_o->sdnxo;
-		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		unpin_guest_page(vcpu->kvm, vsie_page->sdnx_gpa, hpa);
+		vsie_page->sdnx_gpa = 0;
 		scb_s->sdnxo = 0;
 	}
 }
@@ -544,9 +553,9 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	gpa_t gpa;
 	int rc = 0;
 
-	gpa = scb_o->scaol & ~0xfUL;
+	gpa = READ_ONCE(scb_o->scaol) & ~0xfUL;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_64BSCAO))
-		gpa |= (u64) scb_o->scaoh << 32;
+		gpa |= (u64) READ_ONCE(scb_o->scaoh) << 32;
 	if (gpa) {
 		if (!(gpa & ~0x1fffUL))
 			rc = set_validity_icpt(scb_s, 0x0038U);
@@ -557,16 +566,17 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = set_validity_icpt(scb_s, 0x003bU);
 		if (!rc) {
 			rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-			if (rc == -EINVAL)
+			if (rc)
 				rc = set_validity_icpt(scb_s, 0x0034U);
 		}
 		if (rc)
 			goto unpin;
+		vsie_page->sca_gpa = gpa;
 		scb_s->scaoh = (u32)((u64)hpa >> 32);
 		scb_s->scaol = (u32)(u64)hpa;
 	}
 
-	gpa = scb_o->itdba & ~0xffUL;
+	gpa = READ_ONCE(scb_o->itdba) & ~0xffUL;
 	if (gpa && (scb_s->ecb & ECB_TE)) {
 		if (!(gpa & ~0x1fffU)) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
@@ -574,14 +584,15 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		}
 		/* 256 bytes cannot cross page boundaries */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
-		if (rc)
 			goto unpin;
+		}
+		vsie_page->itdba_gpa = gpa;
 		scb_s->itdba = hpa;
 	}
 
-	gpa = scb_o->gvrd & ~0x1ffUL;
+	gpa = READ_ONCE(scb_o->gvrd) & ~0x1ffUL;
 	if (gpa && (scb_s->eca & ECA_VX) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
 		if (!(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x1310U);
@@ -592,14 +603,15 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		 * if this block gets bigger, we have to shadow it.
 		 */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x1310U);
-		if (rc)
 			goto unpin;
+		}
+		vsie_page->gvrd_gpa = gpa;
 		scb_s->gvrd = hpa;
 	}
 
-	gpa = scb_o->riccbd & ~0x3fUL;
+	gpa = READ_ONCE(scb_o->riccbd) & ~0x3fUL;
 	if (gpa && (scb_s->ecb3 & ECB3_RI)) {
 		if (!(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
@@ -607,18 +619,19 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		}
 		/* 64 bytes cannot cross page boundaries */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
-		/* Validity 0x0044 will be checked by SIE */
-		if (rc)
 			goto unpin;
+		}
+		/* Validity 0x0044 will be checked by SIE */
+		vsie_page->riccbd_gpa = gpa;
 		scb_s->riccbd = hpa;
 	}
 	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
 		unsigned long sdnxc;
 
-		gpa = scb_o->sdnxo & ~0xfUL;
-		sdnxc = scb_o->sdnxo & 0xfUL;
+		gpa = READ_ONCE(scb_o->sdnxo) & ~0xfUL;
+		sdnxc = READ_ONCE(scb_o->sdnxo) & 0xfUL;
 		if (!gpa || !(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x10b0U);
 			goto unpin;
@@ -635,10 +648,11 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		 * cross page boundaries
 		 */
 		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-		if (rc == -EINVAL)
+		if (rc) {
 			rc = set_validity_icpt(scb_s, 0x10b0U);
-		if (rc)
 			goto unpin;
+		}
+		vsie_page->sdnx_gpa = gpa;
 		scb_s->sdnxo = hpa | sdnxc;
 	}
 	return 0;
@@ -663,7 +677,6 @@ static void unpin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
  *
  * Returns: - 0 if the scb was pinned.
  *          - > 0 if control has to be given to guest 2
- *          - -ENOMEM if out of memory
  */
 static int pin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 		   gpa_t gpa)
@@ -672,14 +685,13 @@ static int pin_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 	int rc;
 
 	rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
-	if (rc == -EINVAL) {
+	if (rc) {
 		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		if (!rc)
-			rc = 1;
+		WARN_ON_ONCE(rc);
+		return 1;
 	}
-	if (!rc)
-		vsie_page->scb_o = (struct kvm_s390_sie_block *) hpa;
-	return rc;
+	vsie_page->scb_o = (struct kvm_s390_sie_block *) hpa;
+	return 0;
 }
 
 /*
@@ -785,7 +797,7 @@ static void retry_vsie_icpt(struct vsie_page *vsie_page)
 static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	__u32 fac = vsie_page->scb_o->fac & 0x7ffffff8U;
+	__u32 fac = READ_ONCE(vsie_page->scb_o->fac) & 0x7ffffff8U;
 
 	if (fac && test_kvm_facility(vcpu->kvm, 7)) {
 		retry_vsie_icpt(vsie_page);
@@ -809,6 +821,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
+	int guest_bp_isolation;
 	int rc;
 
 	handle_last_fault(vcpu, vsie_page);
@@ -819,6 +832,20 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		s390_handle_mcck();
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+
+	/* save current guest state of bp isolation override */
+	guest_bp_isolation = test_thread_flag(TIF_ISOLATE_BP_GUEST);
+
+	/*
+	 * The guest is running with BPBC, so we have to force it on for our
+	 * nested guest. This is done by enabling BPBC globally, so the BPBC
+	 * control in the SCB (which the nested guest can modify) is simply
+	 * ignored.
+	 */
+	if (test_kvm_facility(vcpu->kvm, 82) &&
+	    vcpu->arch.sie_block->fpf & FPF_BPBC)
+		set_thread_flag(TIF_ISOLATE_BP_GUEST);
+
 	local_irq_disable();
 	guest_enter_irqoff();
 	local_irq_enable();
@@ -828,6 +855,11 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	local_irq_disable();
 	guest_exit_irqoff();
 	local_irq_enable();
+
+	/* restore guest state for bp isolation override */
+	if (!guest_bp_isolation)
+		clear_thread_flag(TIF_ISOLATE_BP_GUEST);
+
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	if (rc == -EINTR) {
@@ -911,7 +943,7 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
 	 * External calls have to lead to a kick of the vcpu and
 	 * therefore the vsie -> Simulate Wait state.
 	 */
-	atomic_or(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_set_cpuflags(vcpu, CPUSTAT_WAIT);
 	/*
 	 * We have to adjust the g3 epoch by the g2 epoch. The epoch will
 	 * automatically be adjusted on tod clock changes via kvm_sync_clock.
@@ -933,7 +965,7 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
  */
 static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
 {
-	atomic_andnot(CPUSTAT_WAIT, &vcpu->arch.sie_block->cpuflags);
+	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_WAIT);
 	WRITE_ONCE(vcpu->arch.vsie_block, NULL);
 }
 

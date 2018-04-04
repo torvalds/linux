@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Universal Host Controller Interface driver for USB.
  *
@@ -584,8 +585,7 @@ static int uhci_start(struct usb_hcd *hcd)
 		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
-	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,
-			(unsigned long) uhci);
+	timer_setup(&uhci->fsbr_timer, uhci_fsbr_timeout, 0);
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 	init_waitqueue_head(&uhci->waitqh);
 
@@ -600,7 +600,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->dentry = dentry;
 #endif
 
-	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
+	uhci->frame = dma_zalloc_coherent(uhci_dev(uhci),
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
 			&uhci->frame_dma_handle, GFP_KERNEL);
 	if (!uhci->frame) {
@@ -608,7 +608,6 @@ static int uhci_start(struct usb_hcd *hcd)
 			"unable to allocate consistent memory for frame list\n");
 		goto err_alloc_frame;
 	}
-	memset(uhci->frame, 0, UHCI_NUMFRAMES * sizeof(*uhci->frame));
 
 	uhci->frame_cpu = kcalloc(UHCI_NUMFRAMES, sizeof(*uhci->frame_cpu),
 			GFP_KERNEL);

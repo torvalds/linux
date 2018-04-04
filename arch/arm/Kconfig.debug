@@ -3,10 +3,14 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config ARM_PTDUMP
+config ARM_PTDUMP_CORE
+	def_bool n
+
+config ARM_PTDUMP_DEBUGFS
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
 	depends on MMU
+	select ARM_PTDUMP_CORE
 	select DEBUG_FS
 	---help---
 	  Say Y here if you want to show the kernel pagetable layout in a
@@ -15,6 +19,33 @@ config ARM_PTDUMP
 	  It is probably not a good idea to enable this feature in a production
 	  kernel.
 	  If in doubt, say "N"
+
+config DEBUG_WX
+	bool "Warn on W+X mappings at boot"
+	select ARM_PTDUMP_CORE
+	---help---
+		Generate a warning if any W+X mappings are found at boot.
+
+		This is useful for discovering cases where the kernel is leaving
+		W+X mappings after applying NX, as such mappings are a security risk.
+
+		Look for a message in dmesg output like this:
+
+			arm/mm: Checked W+X mappings: passed, no W+X pages found.
+
+		or like this, if the check failed:
+
+			arm/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
+
+		Note that even if the check fails, your kernel is possibly
+		still fine, as W+X mappings are not a security hole in
+		themselves, what they do is that they make the exploitation
+		of other unfixed kernel bugs easier.
+
+		There is no runtime or memory usage effect of this option
+		once the kernel has booted up - it's a one time check.
+
+		If in doubt, say "Y".
 
 # RMK wants arm kernels compiled with frame pointers or stack unwinding.
 # If you know what you are doing and are willing to live without stack
@@ -168,6 +199,11 @@ choice
 	config DEBUG_BCM_5301X
 		bool "Kernel low-level debugging on BCM5301X/NSP UART1"
 		depends on ARCH_BCM_5301X || ARCH_BCM_NSP
+		select DEBUG_UART_8250
+
+	config DEBUG_BCM_HR2
+		bool "Kernel low-level debugging on Hurricane 2 UART2"
+		depends on ARCH_BCM_HR2
 		select DEBUG_UART_8250
 
 	config DEBUG_BCM_KONA_UART
@@ -912,6 +948,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  via SCIF2 on Renesas R-Car E2 (R8A7794).
 
+	config DEBUG_RCAR_GEN2_SCIF4
+		bool "Kernel low-level debugging messages via SCIF4 on R8A7745"
+		depends on ARCH_R8A7745
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF4 on Renesas RZ/G1E (R8A7745).
+
 	config DEBUG_RMOBILE_SCIFA0
 		bool "Kernel low-level debugging messages via SCIFA0 on R8A73A4"
 		depends on ARCH_R8A73A4
@@ -1452,6 +1495,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN1_SCIF2
 	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN2_SCIF0
 	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN2_SCIF2
+	default "debug/renesas-scif.S" if DEBUG_RCAR_GEN2_SCIF4
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA0
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA1
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA4
@@ -1509,6 +1553,7 @@ config DEBUG_UART_PHYS
 	default 0x11009000 if DEBUG_MT8135_UART3
 	default 0x16000000 if DEBUG_INTEGRATOR
 	default 0x18000300 if DEBUG_BCM_5301X
+	default 0x18000400 if DEBUG_BCM_HR2
 	default 0x18010000 if DEBUG_SIRFATLAS7_UART0
 	default 0x18020000 if DEBUG_SIRFATLAS7_UART1
 	default 0x1c090000 if DEBUG_VEXPRESS_UART0_RS1
@@ -1571,6 +1616,7 @@ config DEBUG_UART_PHYS
 	default 0xe6c80000 if DEBUG_RMOBILE_SCIFA4
 	default 0xe6e58000 if DEBUG_RCAR_GEN2_SCIF2
 	default 0xe6e60000 if DEBUG_RCAR_GEN2_SCIF0
+	default 0xe6ee0000 if DEBUG_RCAR_GEN2_SCIF4
 	default 0xe8008000 if DEBUG_R7S72100_SCIF2
 	default 0xf0000be0 if ARCH_EBSA110
 	default 0xf1012000 if DEBUG_MVEBU_UART0_ALTERNATE
@@ -1605,6 +1651,7 @@ config DEBUG_UART_PHYS
 		DEBUG_QCOM_UARTDM || DEBUG_R7S72100_SCIF2 || \
 		DEBUG_RCAR_GEN1_SCIF0 || DEBUG_RCAR_GEN1_SCIF2 || \
 		DEBUG_RCAR_GEN2_SCIF0 || DEBUG_RCAR_GEN2_SCIF2 || \
+		DEBUG_RCAR_GEN2_SCIF4 || \
 		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
 		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
 		DEBUG_S3C64XX_UART || \
@@ -1624,6 +1671,7 @@ config DEBUG_UART_VIRT
 	default 0xf01fb000 if DEBUG_NOMADIK_UART
 	default 0xf0201000 if DEBUG_BCM2835 || DEBUG_BCM2836
 	default 0xf1000300 if DEBUG_BCM_5301X
+	default 0xf1000400 if DEBUG_BCM_HR2
 	default 0xf1002000 if DEBUG_MT8127_UART0
 	default 0xf1006000 if DEBUG_MT6589_UART0
 	default 0xf1009000 if DEBUG_MT8135_UART3
@@ -1729,7 +1777,8 @@ config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	default 0 if DEBUG_FOOTBRIDGE_COM1 || ARCH_IOP32X || DEBUG_BCM_5301X || \
-		DEBUG_OMAP7XXUART1 || DEBUG_OMAP7XXUART2 || DEBUG_OMAP7XXUART3
+		DEBUG_BCM_HR2 || DEBUG_OMAP7XXUART1 || DEBUG_OMAP7XXUART2 || \
+		DEBUG_OMAP7XXUART3
 	default 2
 
 config DEBUG_UART_8250_WORD
@@ -1758,9 +1807,9 @@ config DEBUG_UART_8250_FLOW_CONTROL
 	default y if ARCH_EBSA110 || DEBUG_FOOTBRIDGE_COM1 || DEBUG_GEMINI || ARCH_RPC
 
 config DEBUG_UNCOMPRESS
-	bool
+	bool "Enable decompressor debugging via DEBUG_LL output"
 	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
-	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
+	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
 		     !DEBUG_BRCMSTB_UART
 	help

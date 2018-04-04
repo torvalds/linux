@@ -157,7 +157,7 @@
 			reg = <0x80000 0x20000>;
 		};
 
-		partition@A0000 {
+		partition@a0000 {
 			label = "s_env";
 			reg = <0xA0000 0x20000>;
 		};
@@ -167,17 +167,17 @@
 			reg = <0x200000 0x2A0000>;
 		};
 
-		partition@4A0000 {
+		partition@4a0000 {
 			label = "rootfs";
 			reg = <0x4A0000 0x1760000>;
 		};
 
-		partition@1C00000 {
+		partition@1c00000 {
 			label = "alt_kernel";
 			reg = <0x1C00000 0x2A0000>;
 		};
 
-		partition@1EA0000 {
+		partition@1ea0000 {
 			label = "alt_rootfs";
 			reg = <0x1EA0000 0x1760000>;
 		};
@@ -187,7 +187,7 @@
 			reg = <0x3600000 0x4A00000>;
 		};
 
-		partition@C0000 {
+		partition@c0000 {
 			label = "unused";
 			reg = <0xC0000 0x140000>;
 		};

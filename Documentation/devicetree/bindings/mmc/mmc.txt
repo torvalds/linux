@@ -53,6 +53,9 @@ Optional properties:
 - no-sdio: controller is limited to send sdio cmd during initialization
 - no-sd: controller is limited to send sd cmd during initialization
 - no-mmc: controller is limited to send mmc cmd during initialization
+- fixed-emmc-driver-type: for non-removable eMMC, enforce this driver type.
+  The value <n> is the driver type as specified in the eMMC specification
+  (table 206 in spec version 5.1).
 
 *NOTE* on CD and WP polarity. To use common for all SD/MMC host controllers line
 polarity properties, we have to fix the meaning of the "normal" and "inverted"
@@ -64,10 +67,10 @@ logic applies to the "wp-inverted" property.
 CD and WP lines can be implemented on the hardware in one of two ways: as GPIOs,
 specified in cd-gpios and wp-gpios properties, or as dedicated pins. Polarity of
 dedicated pins can be specified, using *-inverted properties. GPIO polarity can
-also be specified using the OF_GPIO_ACTIVE_LOW flag. This creates an ambiguity
+also be specified using the GPIO_ACTIVE_LOW flag. This creates an ambiguity
 in the latter case. We choose to use the XOR logic for GPIO CD and WP lines.
 This means, the two properties are "superimposed," for example leaving the
-OF_GPIO_ACTIVE_LOW flag clear and specifying the respective *-inverted
+GPIO_ACTIVE_LOW flag clear and specifying the respective *-inverted property
 property results in a double-inversion and actually means the "normal" line
 polarity is in effect.
 
@@ -143,7 +146,7 @@ sdhci@ab000000 {
 
 Example with sdio function subnode:
 
-mmc3: mmc@01c12000 {
+mmc3: mmc@1c12000 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 

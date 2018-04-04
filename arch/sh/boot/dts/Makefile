@@ -1,3 +1,3 @@
-obj-$(CONFIG_USE_BUILTIN_DTB) += $(patsubst "%",%,$(CONFIG_BUILTIN_DTB_SOURCE)).dtb.o
-
-clean-files := *.dtb.S
+ifneq ($(CONFIG_BUILTIN_DTB_SOURCE),"")
+obj-y += $(patsubst "%",%,$(CONFIG_BUILTIN_DTB_SOURCE)).dtb.o
+endif

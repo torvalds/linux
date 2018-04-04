@@ -135,7 +135,7 @@ static struct dentry *proc_tgid_net_lookup(struct inode *dir,
 	de = ERR_PTR(-ENOENT);
 	net = get_proc_task_net(dir);
 	if (net != NULL) {
-		de = proc_lookup_de(net->proc_net, dir, dentry);
+		de = proc_lookup_de(dir, dentry, net->proc_net);
 		put_net(net);
 	}
 	return de;
@@ -172,7 +172,7 @@ static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)
 	ret = -EINVAL;
 	net = get_proc_task_net(file_inode(file));
 	if (net != NULL) {
-		ret = proc_readdir_de(net->proc_net, file, ctx);
+		ret = proc_readdir_de(file, ctx, net->proc_net);
 		put_net(net);
 	}
 	return ret;

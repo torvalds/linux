@@ -93,6 +93,15 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 {
 	return 0;
 }
+
+void *dereference_module_function_descriptor(struct module *mod, void *ptr)
+{
+	if (ptr < (void *)mod->arch.start_opd ||
+			ptr >= (void *)mod->arch.end_opd)
+		return ptr;
+
+	return dereference_function_descriptor(ptr);
+}
 #endif
 
 #define STUB_MAGIC 0x73747562 /* stub */
@@ -339,11 +348,19 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 		char *p;
 		if (strcmp(secstrings + sechdrs[i].sh_name, ".stubs") == 0)
 			me->arch.stubs_section = i;
-		else if (strcmp(secstrings + sechdrs[i].sh_name, ".toc") == 0)
+		else if (strcmp(secstrings + sechdrs[i].sh_name, ".toc") == 0) {
 			me->arch.toc_section = i;
+			if (sechdrs[i].sh_addralign < 8)
+				sechdrs[i].sh_addralign = 8;
+		}
 		else if (strcmp(secstrings+sechdrs[i].sh_name,"__versions")==0)
 			dedotify_versions((void *)hdr + sechdrs[i].sh_offset,
 					  sechdrs[i].sh_size);
+		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".opd")) {
+			me->arch.start_opd = sechdrs[i].sh_addr;
+			me->arch.end_opd = sechdrs[i].sh_addr +
+					   sechdrs[i].sh_size;
+		}
 
 		/* We don't handle .init for the moment: rename to _init */
 		while ((p = strstr(secstrings + sechdrs[i].sh_name, ".init")))
@@ -373,12 +390,15 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 	return 0;
 }
 
-/* r2 is the TOC pointer: it actually points 0x8000 into the TOC (this
-   gives the value maximum span in an instruction which uses a signed
-   offset) */
+/*
+ * r2 is the TOC pointer: it actually points 0x8000 into the TOC (this gives the
+ * value maximum span in an instruction which uses a signed offset). Round down
+ * to a 256 byte boundary for the odd case where we are setting up r2 without a
+ * .toc section.
+ */
 static inline unsigned long my_r2(const Elf64_Shdr *sechdrs, struct module *me)
 {
-	return sechdrs[me->arch.toc_section].sh_addr + 0x8000;
+	return (sechdrs[me->arch.toc_section].sh_addr & ~0xfful) + 0x8000;
 }
 
 /* Both low and high 16 bits are added as SIGNED additions, so if low
@@ -429,7 +449,8 @@ static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 	/* Find this stub, or if that fails, the next avail. entry */
 	stubs = (void *)sechdrs[me->arch.stubs_section].sh_addr;
 	for (i = 0; stub_func_addr(stubs[i].funcdata); i++) {
-		BUG_ON(i >= num_stubs);
+		if (WARN_ON(i >= num_stubs))
+			return 0;
 
 		if (stub_func_addr(stubs[i].funcdata) == func_addr(addr))
 			return (unsigned long)&stubs[i];
@@ -486,12 +507,22 @@ static bool is_early_mcount_callsite(u32 *instruction)
    restore r2. */
 static int restore_r2(u32 *instruction, struct module *me)
 {
-	if (is_early_mcount_callsite(instruction - 1))
+	u32 *prev_insn = instruction - 1;
+
+	if (is_early_mcount_callsite(prev_insn))
+		return 1;
+
+	/*
+	 * Make sure the branch isn't a sibling call.  Sibling calls aren't
+	 * "link" branches and they don't return, so they don't need the r2
+	 * restore afterwards.
+	 */
+	if (!instr_is_relative_link_branch(*prev_insn))
 		return 1;
 
 	if (*instruction != PPC_INST_NOP) {
-		pr_err("%s: Expect noop after relocate, got %08x\n",
-		       me->name, *instruction);
+		pr_err("%s: Expected nop after call, got %08x at %pS\n",
+			me->name, *instruction, instruction);
 		return 0;
 	}
 	/* ld r2,R2_STACK_OFFSET(r1) */
@@ -613,7 +644,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 
 		case R_PPC_REL24:
 			/* FIXME: Handle weak symbols here --RR */
-			if (sym->st_shndx == SHN_UNDEF) {
+			if (sym->st_shndx == SHN_UNDEF ||
+			    sym->st_shndx == SHN_LIVEPATCH) {
 				/* External: go via stub */
 				value = stub_for_addr(sechdrs, value, me);
 				if (!value)

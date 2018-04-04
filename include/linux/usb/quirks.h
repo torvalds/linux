@@ -57,4 +57,10 @@
  */
 #define USB_QUIRK_LINEAR_FRAME_INTR_BINTERVAL	BIT(11)
 
+/*
+ * Device needs to be disconnected before suspend to prevent spurious
+ * wakeup.
+ */
+#define USB_QUIRK_DISCONNECT_SUSPEND		BIT(12)
+
 #endif /* __LINUX_USB_QUIRKS_H */

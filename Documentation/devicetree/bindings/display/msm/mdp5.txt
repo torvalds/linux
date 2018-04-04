@@ -22,16 +22,16 @@ Required properties:
   Documentation/devicetree/bindings/power/power_domain.txt
 - clocks: device clocks. See ../clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required.
-  * "iface_clk"
-  * "bus_clk"
-  * "vsync_clk"
+  * "iface"
+  * "bus"
+  * "vsync"
 - #address-cells: number of address cells for the MDSS children. Should be 1.
 - #size-cells: Should be 1.
 - ranges: parent bus address space is the same as the child bus address space.
 
 Optional properties:
 - clock-names: the following clocks are optional:
-  * "lut_clk"
+  * "lut"
 
 MDP5:
 Required properties:
@@ -45,10 +45,10 @@ Required properties:
   through MDP block
 - clocks: device clocks. See ../clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required.
--   * "bus_clk"
--   * "iface_clk"
--   * "core_clk"
--   * "vsync_clk"
+-   * "bus"
+-   * "iface"
+-   * "core"
+-   * "vsync"
 - ports: contains the list of output ports from MDP. These connect to interfaces
   that are external to the MDP hardware, such as HDMI, DSI, EDP etc (LVDS is a
   special case since it is a part of the MDP block itself).
@@ -77,7 +77,7 @@ Required properties:
 
 Optional properties:
 - clock-names: the following clocks are optional:
-  * "lut_clk"
+  * "lut"
 
 Example:
 
@@ -95,9 +95,9 @@ Example:
 		clocks = <&gcc GCC_MDSS_AHB_CLK>,
 			 <&gcc GCC_MDSS_AXI_CLK>,
 			 <&gcc GCC_MDSS_VSYNC_CLK>;
-		clock-names = "iface_clk",
-			      "bus_clk",
-			      "vsync_clk"
+		clock-names = "iface",
+			      "bus",
+			      "vsync"
 
 		interrupts = <0 72 0>;
 
@@ -120,10 +120,10 @@ Example:
 				 <&gcc GCC_MDSS_AXI_CLK>,
 				 <&gcc GCC_MDSS_MDP_CLK>,
 				 <&gcc GCC_MDSS_VSYNC_CLK>;
-			clock-names = "iface_clk",
-				      "bus_clk",
-				      "core_clk",
-				      "vsync_clk";
+			clock-names = "iface",
+				      "bus",
+				      "core",
+				      "vsync";
 
 			ports {
 				#address-cells = <1>;

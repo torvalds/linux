@@ -1,5 +1,5 @@
 #ifdef ISP2401
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 

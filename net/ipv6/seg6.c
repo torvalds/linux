@@ -306,9 +306,7 @@ static int seg6_genl_dumphmac(struct sk_buff *skb, struct netlink_callback *cb)
 	struct seg6_hmac_info *hinfo;
 	int ret;
 
-	ret = rhashtable_walk_start(iter);
-	if (ret && ret != -EAGAIN)
-		goto done;
+	rhashtable_walk_start(iter);
 
 	for (;;) {
 		hinfo = rhashtable_walk_next(iter);

@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_XNR_TYPES_H
 #define __IA_CSS_XNR_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Extra Noise Reduction (XNR) parameters.
 */
 
-/** XNR table.
+/* XNR table.
  *
  *  NOTE: The driver does not need to set this table,
  *        because the default values are set inside the css.
@@ -36,23 +36,23 @@
  *
  */
 
-/** Number of elements in the xnr table. */
+/* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2      6
-/** Number of elements in the xnr table. */
+/* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_1_XNR_TABLE_SIZE           (1U<<IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2)
 
-/** Number of elements in the xnr table. */
+/* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2      6
-/** Number of elements in the xnr table. */
+/* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_2_XNR_TABLE_SIZE	        (1U<<IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
 
-/**< IA_CSS_VAMEM_TYPE_1(ISP2300) or
+/** IA_CSS_VAMEM_TYPE_1(ISP2300) or
      IA_CSS_VAMEM_TYPE_2(ISP2400) */
 union ia_css_xnr_data {
 	uint16_t vamem_1[IA_CSS_VAMEM_1_XNR_TABLE_SIZE];
-	/**< Coefficients table on vamem type1. u0.12, [0,4095] */
+	/** Coefficients table on vamem type1. u0.12, [0,4095] */
 	uint16_t vamem_2[IA_CSS_VAMEM_2_XNR_TABLE_SIZE];
-	/**< Coefficients table on vamem type2. u0.12, [0,4095] */
+	/** Coefficients table on vamem type2. u0.12, [0,4095] */
 };
 
 struct ia_css_xnr_table {
@@ -61,7 +61,7 @@ struct ia_css_xnr_table {
 };
 
 struct ia_css_xnr_config {
-	/** XNR threshold.
+	/* XNR threshold.
 	 * type:u0.16 valid range:[0,65535]
 	 * default: 6400 */
 	uint16_t threshold;

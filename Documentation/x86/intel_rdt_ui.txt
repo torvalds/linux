@@ -7,15 +7,24 @@ Tony Luck <tony.luck@intel.com>
 Vikas Shivappa <vikas.shivappa@intel.com>
 
 This feature is enabled by the CONFIG_INTEL_RDT Kconfig and the
-X86 /proc/cpuinfo flag bits "rdt", "cqm", "cat_l3" and "cdp_l3".
+X86 /proc/cpuinfo flag bits:
+RDT (Resource Director Technology) Allocation - "rdt_a"
+CAT (Cache Allocation Technology) - "cat_l3", "cat_l2"
+CDP (Code and Data Prioritization ) - "cdp_l3", "cdp_l2"
+CQM (Cache QoS Monitoring) - "cqm_llc", "cqm_occup_llc"
+MBM (Memory Bandwidth Monitoring) - "cqm_mbm_total", "cqm_mbm_local"
+MBA (Memory Bandwidth Allocation) - "mba"
 
 To use the feature mount the file system:
 
- # mount -t resctrl resctrl [-o cdp] /sys/fs/resctrl
+ # mount -t resctrl resctrl [-o cdp[,cdpl2]] /sys/fs/resctrl
 
 mount options are:
 
 "cdp": Enable code/data prioritization in L3 cache allocations.
+"cdpl2": Enable code/data prioritization in L2 cache allocations.
+
+L2 and L3 CDP are controlled seperately.
 
 RDT features are orthogonal. A particular system may support only
 monitoring, only control, or both monitoring and control.
@@ -87,6 +96,17 @@ with the following files:
 			bytes) at which a previously used LLC_occupancy
 			counter can be considered for re-use.
 
+Finally, in the top level of the "info" directory there is a file
+named "last_cmd_status". This is reset with every "command" issued
+via the file system (making new directories or writing to any of the
+control files). If the command was successful, it will read as "ok".
+If the command failed, it will provide more information that can be
+conveyed in the error returns from file operations. E.g.
+
+	# echo L3:0=f7 > schemata
+	bash: echo: write error: Invalid argument
+	# cat info/last_cmd_status
+	mask f7 has non-consecutive 1-bits
 
 Resource alloc and monitor groups
 ---------------------------------
@@ -651,7 +671,7 @@ occupancy of the real time threads on these cores.
 # mkdir p1
 
 Move the cpus 4-7 over to p1
-# echo f0 > p0/cpus
+# echo f0 > p1/cpus
 
 View the llc occupancy snapshot
 

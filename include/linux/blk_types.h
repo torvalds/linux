@@ -39,6 +39,52 @@ typedef u8 __bitwise blk_status_t;
 
 #define BLK_STS_AGAIN		((__force blk_status_t)12)
 
+/*
+ * BLK_STS_DEV_RESOURCE is returned from the driver to the block layer if
+ * device related resources are unavailable, but the driver can guarantee
+ * that the queue will be rerun in the future once resources become
+ * available again. This is typically the case for device specific
+ * resources that are consumed for IO. If the driver fails allocating these
+ * resources, we know that inflight (or pending) IO will free these
+ * resource upon completion.
+ *
+ * This is different from BLK_STS_RESOURCE in that it explicitly references
+ * a device specific resource. For resources of wider scope, allocation
+ * failure can happen without having pending IO. This means that we can't
+ * rely on request completions freeing these resources, as IO may not be in
+ * flight. Examples of that are kernel memory allocations, DMA mappings, or
+ * any other system wide resources.
+ */
+#define BLK_STS_DEV_RESOURCE	((__force blk_status_t)13)
+
+/**
+ * blk_path_error - returns true if error may be path related
+ * @error: status the request was completed with
+ *
+ * Description:
+ *     This classifies block error status into non-retryable errors and ones
+ *     that may be successful if retried on a failover path.
+ *
+ * Return:
+ *     %false - retrying failover path will not help
+ *     %true  - may succeed if retried
+ */
+static inline bool blk_path_error(blk_status_t error)
+{
+	switch (error) {
+	case BLK_STS_NOTSUPP:
+	case BLK_STS_NOSPC:
+	case BLK_STS_TARGET:
+	case BLK_STS_NEXUS:
+	case BLK_STS_MEDIUM:
+	case BLK_STS_PROTECTION:
+		return false;
+	}
+
+	/* Anything else could be a path failure, so should be retried */
+	return true;
+}
+
 struct blk_issue_stat {
 	u64 stat;
 };
@@ -50,8 +96,6 @@ struct blk_issue_stat {
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct gendisk		*bi_disk;
-	u8			bi_partno;
-	blk_status_t		bi_status;
 	unsigned int		bi_opf;		/* bottom bits req flags,
 						 * top bits REQ_OP. Use
 						 * accessors.
@@ -59,8 +103,8 @@ struct bio {
 	unsigned short		bi_flags;	/* status, etc and bvec pool number */
 	unsigned short		bi_ioprio;
 	unsigned short		bi_write_hint;
-
-	struct bvec_iter	bi_iter;
+	blk_status_t		bi_status;
+	u8			bi_partno;
 
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
@@ -74,8 +118,9 @@ struct bio {
 	unsigned int		bi_seg_front_size;
 	unsigned int		bi_seg_back_size;
 
-	atomic_t		__bi_remaining;
+	struct bvec_iter	bi_iter;
 
+	atomic_t		__bi_remaining;
 	bio_end_io_t		*bi_end_io;
 
 	void			*bi_private;
@@ -163,6 +208,8 @@ struct bio {
  */
 #define BIO_RESET_BITS	BVEC_POOL_OFFSET
 
+typedef __u32 __bitwise blk_mq_req_flags_t;
+
 /*
  * Operations and flags common to the bio and request structures.
  * We use 8 bits for encoding the operation, and the remaining 24 for flags.
@@ -225,11 +272,14 @@ enum req_flag_bits {
 	__REQ_PREFLUSH,		/* request for cache flush */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
 	__REQ_BACKGROUND,	/* background IO */
+	__REQ_NOWAIT,           /* Don't wait if request will block */
 
 	/* command specific flags for REQ_OP_WRITE_ZEROES: */
 	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
 
-	__REQ_NOWAIT,           /* Don't wait if request will block */
+	/* for driver use */
+	__REQ_DRV,
+
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -246,9 +296,11 @@ enum req_flag_bits {
 #define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
 #define REQ_BACKGROUND		(1ULL << __REQ_BACKGROUND)
+#define REQ_NOWAIT		(1ULL << __REQ_NOWAIT)
 
 #define REQ_NOUNMAP		(1ULL << __REQ_NOUNMAP)
-#define REQ_NOWAIT		(1ULL << __REQ_NOWAIT)
+
+#define REQ_DRV			(1ULL << __REQ_DRV)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
@@ -330,11 +382,10 @@ static inline bool blk_qc_t_is_internal(blk_qc_t cookie)
 }
 
 struct blk_rq_stat {
-	s64 mean;
+	u64 mean;
 	u64 min;
 	u64 max;
-	s32 nr_samples;
-	s32 nr_batch;
+	u32 nr_samples;
 	u64 batch;
 };
 

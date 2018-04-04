@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos4412 SoCs pin-mux and pin-config device tree source
  *
@@ -6,11 +7,7 @@
  *
  * Samsung's Exynos4412 SoCs pin-mux and pin-config optiosn are listed as device
  * tree nodes are listed in this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <dt-bindings/pinctrl/samsung.h>
 
@@ -899,7 +896,7 @@
 		};
 	};
 
-	pinctrl_2: pinctrl@03860000 {
+	pinctrl_2: pinctrl@3860000 {
 		gpz: gpz {
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -925,7 +922,7 @@
 		};
 	};
 
-	pinctrl_3: pinctrl@106E0000 {
+	pinctrl_3: pinctrl@106e0000 {
 		gpv0: gpv0 {
 			gpio-controller;
 			#gpio-cells = <2>;

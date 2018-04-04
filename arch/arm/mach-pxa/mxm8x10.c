@@ -22,7 +22,7 @@
 #include <linux/serial_8250.h>
 #include <linux/dm9000.h>
 #include <linux/gpio.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 

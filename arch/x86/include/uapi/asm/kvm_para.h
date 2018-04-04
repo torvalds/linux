@@ -25,6 +25,8 @@
 #define KVM_FEATURE_STEAL_TIME		5
 #define KVM_FEATURE_PV_EOI		6
 #define KVM_FEATURE_PV_UNHALT		7
+#define KVM_FEATURE_PV_TLB_FLUSH	9
+#define KVM_FEATURE_ASYNC_PF_VMEXIT	10
 
 /* The last 8 bits are used to indicate how to interpret the flags field
  * in pvclock structure. If no bits are set, all flags are ignored.
@@ -50,6 +52,9 @@ struct kvm_steal_time {
 	__u8  u8_pad[3];
 	__u32 pad[11];
 };
+
+#define KVM_VCPU_PREEMPTED          (1 << 0)
+#define KVM_VCPU_FLUSH_TLB          (1 << 1)
 
 #define KVM_CLOCK_PAIRING_WALLCLOCK 0
 struct kvm_clock_pairing {
@@ -109,6 +114,5 @@ struct kvm_vcpu_pv_apf_data {
 #define KVM_PV_EOI_MASK (0x1 << KVM_PV_EOI_BIT)
 #define KVM_PV_EOI_ENABLED KVM_PV_EOI_MASK
 #define KVM_PV_EOI_DISABLED 0x0
-
 
 #endif /* _UAPI_ASM_X86_KVM_PARA_H */

@@ -1,6 +1,6 @@
 generic-y += barrier.h
+generic-y += bpf_perf_event.h
 generic-y += bug.h
-generic-y += clkdev.h
 generic-y += current.h
 generic-y += delay.h
 generic-y += device.h

@@ -12,7 +12,7 @@
  * Fully tested with actual hardware and the v4l2-compliance tool.
  */
 
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/

@@ -23,7 +23,7 @@
 #ifndef __MXGPU_VI_H__
 #define __MXGPU_VI_H__
 
-#define VI_MAILBOX_TIMEDOUT	5000
+#define VI_MAILBOX_TIMEDOUT	12000
 #define VI_MAILBOX_RESET_TIME	12
 
 /* VI mailbox messages request */

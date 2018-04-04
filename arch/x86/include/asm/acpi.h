@@ -49,7 +49,7 @@ extern int acpi_fix_pin2_polarity;
 extern int acpi_disable_cmcff;
 
 extern u8 acpi_sci_flags;
-extern int acpi_sci_override_gsi;
+extern u32 acpi_sci_override_gsi;
 void acpi_pic_sci_set_trigger(unsigned int, u16);
 
 struct device;
@@ -94,7 +94,7 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 	if (boot_cpu_data.x86 == 0x0F &&
 	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 	    boot_cpu_data.x86_model <= 0x05 &&
-	    boot_cpu_data.x86_mask < 0x0A)
+	    boot_cpu_data.x86_stepping < 0x0A)
 		return 1;
 	else if (boot_cpu_has(X86_BUG_AMD_APIC_C1E))
 		return 1;

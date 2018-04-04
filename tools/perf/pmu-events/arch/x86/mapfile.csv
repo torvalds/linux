@@ -9,6 +9,7 @@ GenuineIntel-6-27,v4,bonnell,core
 GenuineIntel-6-36,v4,bonnell,core
 GenuineIntel-6-35,v4,bonnell,core
 GenuineIntel-6-5C,v8,goldmont,core
+GenuineIntel-6-7A,v1,goldmontplus,core
 GenuineIntel-6-3C,v24,haswell,core
 GenuineIntel-6-45,v24,haswell,core
 GenuineIntel-6-46,v24,haswell,core
@@ -22,10 +23,7 @@ GenuineIntel-6-1E,v2,nehalemep,core
 GenuineIntel-6-1F,v2,nehalemep,core
 GenuineIntel-6-1A,v2,nehalemep,core
 GenuineIntel-6-2E,v2,nehalemex,core
-GenuineIntel-6-4E,v24,skylake,core
-GenuineIntel-6-5E,v24,skylake,core
-GenuineIntel-6-8E,v24,skylake,core
-GenuineIntel-6-9E,v24,skylake,core
+GenuineIntel-6-[4589]E,v24,skylake,core
 GenuineIntel-6-37,v13,silvermont,core
 GenuineIntel-6-4D,v13,silvermont,core
 GenuineIntel-6-4C,v13,silvermont,core

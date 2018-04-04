@@ -324,8 +324,6 @@ static struct phy_driver dp83867_driver[] = {
 		.ack_interrupt	= dp83867_ack_interrupt,
 		.config_intr	= dp83867_config_intr,
 
-		.config_aneg	= genphy_config_aneg,
-		.read_status	= genphy_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	},

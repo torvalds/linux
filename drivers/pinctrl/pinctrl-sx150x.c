@@ -561,7 +561,7 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 	status = val;
 	for_each_set_bit(n, &status, pctl->data->ngpios)
-		handle_nested_irq(irq_find_mapping(pctl->gpio.irqdomain, n));
+		handle_nested_irq(irq_find_mapping(pctl->gpio.irq.domain, n));
 
 	return IRQ_HANDLED;
 }
@@ -1087,7 +1087,7 @@ static bool sx150x_reg_volatile(struct device *dev, unsigned int reg)
 	return reg == pctl->data->reg_irq_src || reg == pctl->data->reg_data;
 }
 
-const struct regmap_config sx150x_regmap_config = {
+static const struct regmap_config sx150x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 32,
 
@@ -1144,6 +1144,27 @@ static int sx150x_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	/* Pinctrl_desc */
+	pctl->pinctrl_desc.name = "sx150x-pinctrl";
+	pctl->pinctrl_desc.pctlops = &sx150x_pinctrl_ops;
+	pctl->pinctrl_desc.confops = &sx150x_pinconf_ops;
+	pctl->pinctrl_desc.pins = pctl->data->pins;
+	pctl->pinctrl_desc.npins = pctl->data->npins;
+	pctl->pinctrl_desc.owner = THIS_MODULE;
+
+	ret = devm_pinctrl_register_and_init(dev, &pctl->pinctrl_desc,
+					     pctl, &pctl->pctldev);
+	if (ret) {
+		dev_err(dev, "Failed to register pinctrl device\n");
+		return ret;
+	}
+
+	ret = pinctrl_enable(pctl->pctldev);
+	if (ret) {
+		dev_err(dev, "Failed to enable pinctrl device\n");
+		return ret;
+	}
+
 	/* Register GPIO controller */
 	pctl->gpio.label = devm_kstrdup(dev, client->name, GFP_KERNEL);
 	pctl->gpio.base = -1;
@@ -1169,6 +1190,11 @@ static int sx150x_probe(struct i2c_client *client,
 		pctl->gpio.set_multiple = sx150x_gpio_set_multiple;
 
 	ret = devm_gpiochip_add_data(dev, &pctl->gpio, pctl);
+	if (ret)
+		return ret;
+
+	ret = gpiochip_add_pin_range(&pctl->gpio, dev_name(dev),
+				     0, 0, pctl->data->npins);
 	if (ret)
 		return ret;
 
@@ -1215,20 +1241,6 @@ static int sx150x_probe(struct i2c_client *client,
 		gpiochip_set_nested_irqchip(&pctl->gpio,
 					    &pctl->irq_chip,
 					    client->irq);
-	}
-
-	/* Pinctrl_desc */
-	pctl->pinctrl_desc.name = "sx150x-pinctrl";
-	pctl->pinctrl_desc.pctlops = &sx150x_pinctrl_ops;
-	pctl->pinctrl_desc.confops = &sx150x_pinconf_ops;
-	pctl->pinctrl_desc.pins = pctl->data->pins;
-	pctl->pinctrl_desc.npins = pctl->data->npins;
-	pctl->pinctrl_desc.owner = THIS_MODULE;
-
-	pctl->pctldev = pinctrl_register(&pctl->pinctrl_desc, dev, pctl);
-	if (IS_ERR(pctl->pctldev)) {
-		dev_err(dev, "Failed to register pinctrl device\n");
-		return PTR_ERR(pctl->pctldev);
 	}
 
 	return 0;

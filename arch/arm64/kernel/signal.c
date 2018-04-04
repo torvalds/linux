@@ -31,6 +31,7 @@
 #include <linux/ratelimit.h>
 #include <linux/syscalls.h>
 
+#include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -63,6 +64,7 @@ struct rt_sigframe_user_layout {
 
 	unsigned long fpsimd_offset;
 	unsigned long esr_offset;
+	unsigned long sve_offset;
 	unsigned long extra_offset;
 	unsigned long end_offset;
 };
@@ -176,11 +178,9 @@ static void __user *apply_user_offset(
 
 static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 {
-	struct fpsimd_state *fpsimd = &current->thread.fpsimd_state;
+	struct user_fpsimd_state const *fpsimd =
+		&current->thread.fpsimd_state.user_fpsimd;
 	int err;
-
-	/* dump the hardware registers to the fpsimd_state structure */
-	fpsimd_preserve_current_state();
 
 	/* copy the FP and status/control registers */
 	err = __copy_to_user(ctx->vregs, fpsimd->vregs, sizeof(fpsimd->vregs));
@@ -196,7 +196,7 @@ static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 
 static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 {
-	struct fpsimd_state fpsimd;
+	struct user_fpsimd_state fpsimd;
 	__u32 magic, size;
 	int err = 0;
 
@@ -214,6 +214,8 @@ static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 	__get_user_error(fpsimd.fpsr, &ctx->fpsr, err);
 	__get_user_error(fpsimd.fpcr, &ctx->fpcr, err);
 
+	clear_thread_flag(TIF_SVE);
+
 	/* load the hardware registers from the fpsimd_state structure */
 	if (!err)
 		fpsimd_update_current_state(&fpsimd);
@@ -221,9 +223,117 @@ static int restore_fpsimd_context(struct fpsimd_context __user *ctx)
 	return err ? -EFAULT : 0;
 }
 
+
 struct user_ctxs {
 	struct fpsimd_context __user *fpsimd;
+	struct sve_context __user *sve;
 };
+
+#ifdef CONFIG_ARM64_SVE
+
+static int preserve_sve_context(struct sve_context __user *ctx)
+{
+	int err = 0;
+	u16 reserved[ARRAY_SIZE(ctx->__reserved)];
+	unsigned int vl = current->thread.sve_vl;
+	unsigned int vq = 0;
+
+	if (test_thread_flag(TIF_SVE))
+		vq = sve_vq_from_vl(vl);
+
+	memset(reserved, 0, sizeof(reserved));
+
+	__put_user_error(SVE_MAGIC, &ctx->head.magic, err);
+	__put_user_error(round_up(SVE_SIG_CONTEXT_SIZE(vq), 16),
+			 &ctx->head.size, err);
+	__put_user_error(vl, &ctx->vl, err);
+	BUILD_BUG_ON(sizeof(ctx->__reserved) != sizeof(reserved));
+	err |= __copy_to_user(&ctx->__reserved, reserved, sizeof(reserved));
+
+	if (vq) {
+		/*
+		 * This assumes that the SVE state has already been saved to
+		 * the task struct by calling preserve_fpsimd_context().
+		 */
+		err |= __copy_to_user((char __user *)ctx + SVE_SIG_REGS_OFFSET,
+				      current->thread.sve_state,
+				      SVE_SIG_REGS_SIZE(vq));
+	}
+
+	return err ? -EFAULT : 0;
+}
+
+static int restore_sve_fpsimd_context(struct user_ctxs *user)
+{
+	int err;
+	unsigned int vq;
+	struct user_fpsimd_state fpsimd;
+	struct sve_context sve;
+
+	if (__copy_from_user(&sve, user->sve, sizeof(sve)))
+		return -EFAULT;
+
+	if (sve.vl != current->thread.sve_vl)
+		return -EINVAL;
+
+	if (sve.head.size <= sizeof(*user->sve)) {
+		clear_thread_flag(TIF_SVE);
+		goto fpsimd_only;
+	}
+
+	vq = sve_vq_from_vl(sve.vl);
+
+	if (sve.head.size < SVE_SIG_CONTEXT_SIZE(vq))
+		return -EINVAL;
+
+	/*
+	 * Careful: we are about __copy_from_user() directly into
+	 * thread.sve_state with preemption enabled, so protection is
+	 * needed to prevent a racing context switch from writing stale
+	 * registers back over the new data.
+	 */
+
+	fpsimd_flush_task_state(current);
+	barrier();
+	/* From now, fpsimd_thread_switch() won't clear TIF_FOREIGN_FPSTATE */
+
+	set_thread_flag(TIF_FOREIGN_FPSTATE);
+	barrier();
+	/* From now, fpsimd_thread_switch() won't touch thread.sve_state */
+
+	sve_alloc(current);
+	err = __copy_from_user(current->thread.sve_state,
+			       (char __user const *)user->sve +
+					SVE_SIG_REGS_OFFSET,
+			       SVE_SIG_REGS_SIZE(vq));
+	if (err)
+		return -EFAULT;
+
+	set_thread_flag(TIF_SVE);
+
+fpsimd_only:
+	/* copy the FP and status/control registers */
+	/* restore_sigframe() already checked that user->fpsimd != NULL. */
+	err = __copy_from_user(fpsimd.vregs, user->fpsimd->vregs,
+			       sizeof(fpsimd.vregs));
+	__get_user_error(fpsimd.fpsr, &user->fpsimd->fpsr, err);
+	__get_user_error(fpsimd.fpcr, &user->fpsimd->fpcr, err);
+
+	/* load the hardware registers from the fpsimd_state structure */
+	if (!err)
+		fpsimd_update_current_state(&fpsimd);
+
+	return err ? -EFAULT : 0;
+}
+
+#else /* ! CONFIG_ARM64_SVE */
+
+/* Turn any non-optimised out attempts to use these into a link error: */
+extern int preserve_sve_context(void __user *ctx);
+extern int restore_sve_fpsimd_context(struct user_ctxs *user);
+
+#endif /* ! CONFIG_ARM64_SVE */
+
 
 static int parse_user_sigframe(struct user_ctxs *user,
 			       struct rt_sigframe __user *sf)
@@ -237,6 +347,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 	char const __user *const sfp = (char const __user *)sf;
 
 	user->fpsimd = NULL;
+	user->sve = NULL;
 
 	if (!IS_ALIGNED((unsigned long)base, 16))
 		goto invalid;
@@ -285,6 +396,19 @@ static int parse_user_sigframe(struct user_ctxs *user,
 
 		case ESR_MAGIC:
 			/* ignore */
+			break;
+
+		case SVE_MAGIC:
+			if (!system_supports_sve())
+				goto invalid;
+
+			if (user->sve)
+				goto invalid;
+
+			if (size < sizeof(*user->sve))
+				goto invalid;
+
+			user->sve = (struct sve_context __user *)head;
 			break;
 
 		case EXTRA_MAGIC:
@@ -343,6 +467,10 @@ static int parse_user_sigframe(struct user_ctxs *user,
 			 */
 			offset = 0;
 			limit = extra_size;
+
+			if (!access_ok(VERIFY_READ, base, limit))
+				goto invalid;
+
 			continue;
 
 		default:
@@ -359,9 +487,6 @@ static int parse_user_sigframe(struct user_ctxs *user,
 	}
 
 done:
-	if (!user->fpsimd)
-		goto invalid;
-
 	return 0;
 
 invalid:
@@ -395,8 +520,19 @@ static int restore_sigframe(struct pt_regs *regs,
 	if (err == 0)
 		err = parse_user_sigframe(&user, sf);
 
-	if (err == 0)
-		err = restore_fpsimd_context(user.fpsimd);
+	if (err == 0) {
+		if (!user.fpsimd)
+			return -EINVAL;
+
+		if (user.sve) {
+			if (!system_supports_sve())
+				return -EINVAL;
+
+			err = restore_sve_fpsimd_context(&user);
+		} else {
+			err = restore_fpsimd_context(user.fpsimd);
+		}
+	}
 
 	return err;
 }
@@ -455,6 +591,18 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user)
 			return err;
 	}
 
+	if (system_supports_sve()) {
+		unsigned int vq = 0;
+
+		if (test_thread_flag(TIF_SVE))
+			vq = sve_vq_from_vl(current->thread.sve_vl);
+
+		err = sigframe_alloc(user, &user->sve_offset,
+				     SVE_SIG_CONTEXT_SIZE(vq));
+		if (err)
+			return err;
+	}
+
 	return sigframe_alloc_end(user);
 }
 
@@ -494,6 +642,13 @@ static int setup_sigframe(struct rt_sigframe_user_layout *user,
 		__put_user_error(ESR_MAGIC, &esr_ctx->head.magic, err);
 		__put_user_error(sizeof(*esr_ctx), &esr_ctx->head.size, err);
 		__put_user_error(current->thread.fault_code, &esr_ctx->esr, err);
+	}
+
+	/* Scalable Vector Extension state, if present */
+	if (system_supports_sve() && err == 0 && user->sve_offset) {
+		struct sve_context __user *sve_ctx =
+			apply_user_offset(user, user->sve_offset);
+		err |= preserve_sve_context(sve_ctx);
 	}
 
 	if (err == 0 && user->extra_offset) {
@@ -594,6 +749,8 @@ static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 	struct rt_sigframe_user_layout user;
 	struct rt_sigframe __user *frame;
 	int err = 0;
+
+	fpsimd_signal_preserve_current_state();
 
 	if (get_sigframe(&user, ksig, regs))
 		return 1;
@@ -756,9 +913,12 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 		addr_limit_user_check();
 
 		if (thread_flags & _TIF_NEED_RESCHED) {
+			/* Unmask Debug and SError for the next task */
+			local_daif_restore(DAIF_PROCCTX_NOIRQ);
+
 			schedule();
 		} else {
-			local_irq_enable();
+			local_daif_restore(DAIF_PROCCTX);
 
 			if (thread_flags & _TIF_UPROBE)
 				uprobe_notify_resume(regs);
@@ -775,7 +935,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 				fpsimd_restore_current_state();
 		}
 
-		local_irq_disable();
+		local_daif_mask();
 		thread_flags = READ_ONCE(current_thread_info()->flags);
 	} while (thread_flags & _TIF_WORK_MASK);
 }

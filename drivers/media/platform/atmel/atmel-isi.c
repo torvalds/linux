@@ -411,7 +411,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&isi->irqlock, flags);
 	list_add_tail(&buf->list, &isi->video_buffer_list);
 
-	if (isi->active == NULL) {
+	if (!isi->active) {
 		isi->active = buf;
 		if (vb2_is_streaming(vb->vb2_queue))
 			start_dma(isi, buf);
@@ -1038,10 +1038,8 @@ static int isi_formats_init(struct atmel_isi *isi)
 	isi->user_formats = devm_kcalloc(isi->dev,
 					 num_fmts, sizeof(struct isi_format *),
 					 GFP_KERNEL);
-	if (!isi->user_formats) {
-		dev_err(isi->dev, "could not allocate memory\n");
+	if (!isi->user_formats)
 		return -ENOMEM;
-	}
 
 	memcpy(isi->user_formats, isi_fmts,
 	       num_fmts * sizeof(struct isi_format *));
@@ -1105,6 +1103,12 @@ static int isi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations isi_graph_notify_ops = {
+	.bound = isi_graph_notify_bound,
+	.unbind = isi_graph_notify_unbind,
+	.complete = isi_graph_notify_complete,
+};
+
 static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 {
 	struct device_node *ep = NULL;
@@ -1124,7 +1128,7 @@ static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 		/* Remote node to connect */
 		isi->entity.node = remote;
 		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		isi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		isi->entity.asd.match.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }
@@ -1143,7 +1147,7 @@ static int isi_graph_init(struct atmel_isi *isi)
 
 	/* Register the subdevices notifier. */
 	subdevs = devm_kzalloc(isi->dev, sizeof(*subdevs), GFP_KERNEL);
-	if (subdevs == NULL) {
+	if (!subdevs) {
 		of_node_put(isi->entity.node);
 		return -ENOMEM;
 	}
@@ -1152,9 +1156,7 @@ static int isi_graph_init(struct atmel_isi *isi)
 
 	isi->notifier.subdevs = subdevs;
 	isi->notifier.num_subdevs = 1;
-	isi->notifier.bound = isi_graph_notify_bound;
-	isi->notifier.unbind = isi_graph_notify_unbind;
-	isi->notifier.complete = isi_graph_notify_complete;
+	isi->notifier.ops = &isi_graph_notify_ops;
 
 	ret = v4l2_async_notifier_register(&isi->v4l2_dev, &isi->notifier);
 	if (ret < 0) {
@@ -1176,10 +1178,8 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	int ret, i;
 
 	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
-	if (!isi) {
-		dev_err(&pdev->dev, "Can't allocate interface!\n");
+	if (!isi)
 		return -ENOMEM;
-	}
 
 	isi->pclk = devm_clk_get(&pdev->dev, "isi_clk");
 	if (IS_ERR(isi->pclk))
@@ -1204,7 +1204,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 		return ret;
 
 	isi->vdev = video_device_alloc();
-	if (isi->vdev == NULL) {
+	if (!isi->vdev) {
 		ret = -ENOMEM;
 		goto err_vdev_alloc;
 	}

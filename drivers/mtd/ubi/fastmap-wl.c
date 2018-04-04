@@ -66,7 +66,7 @@ static void return_unused_pool_pebs(struct ubi_device *ubi,
 	}
 }
 
-static int anchor_pebs_avalible(struct rb_root *root)
+static int anchor_pebs_available(struct rb_root *root)
 {
 	struct rb_node *p;
 	struct ubi_wl_entry *e;

@@ -1082,7 +1082,7 @@ static int nx842_remove(struct vio_dev *viodev)
 	return 0;
 }
 
-static struct vio_device_id nx842_vio_driver_ids[] = {
+static const struct vio_device_id nx842_vio_driver_ids[] = {
 	{"ibm,compression-v1", "ibm,compression"},
 	{"", ""},
 };

@@ -279,10 +279,10 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 
 		skb_record_rx_queue(skb, self->idx);
 
-		napi_gro_receive(napi, skb);
-
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;
+
+		napi_gro_receive(napi, skb);
 	}
 
 err_exit:
@@ -304,8 +304,7 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 		buff->flags = 0U;
 		buff->len = AQ_CFG_RX_FRAME_MAX;
 
-		buff->page = alloc_pages(GFP_ATOMIC | __GFP_COLD |
-					 __GFP_COMP, pages_order);
+		buff->page = alloc_pages(GFP_ATOMIC | __GFP_COMP, pages_order);
 		if (!buff->page) {
 			err = -ENOMEM;
 			goto err_exit;

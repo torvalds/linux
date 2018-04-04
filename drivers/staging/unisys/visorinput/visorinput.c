@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 - 2015 UNISYS CORPORATION
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
  */
 
 /*
@@ -23,9 +14,10 @@
 #include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/uuid.h>
+#include <linux/visorbus.h>
 
-#include "visorbus.h"
 #include "ultrainputreport.h"
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */
@@ -711,8 +703,9 @@ out:
 
 /* GUIDS for all channel types supported by this driver. */
 static struct visor_channeltype_descriptor visorinput_channel_types[] = {
-	{ VISOR_KEYBOARD_CHANNEL_GUID, "keyboard"},
-	{ VISOR_MOUSE_CHANNEL_GUID, "mouse"},
+	{ VISOR_KEYBOARD_CHANNEL_GUID, "keyboard",
+	  sizeof(struct channel_header), 0 },
+	{ VISOR_MOUSE_CHANNEL_GUID, "mouse", sizeof(struct channel_header), 0 },
 	{}
 };
 

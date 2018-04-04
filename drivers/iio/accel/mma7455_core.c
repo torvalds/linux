@@ -199,7 +199,6 @@ static const struct iio_info mma7455_info = {
 	.attrs = &mma7455_group,
 	.read_raw = mma7455_read_raw,
 	.write_raw = mma7455_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define MMA7455_CHANNEL(axis, idx) { \

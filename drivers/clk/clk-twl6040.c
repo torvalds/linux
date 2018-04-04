@@ -82,7 +82,7 @@ static const struct clk_ops twl6040_pdmclk_ops = {
 	.recalc_rate = twl6040_pdmclk_recalc_rate,
 };
 
-static struct clk_init_data twl6040_pdmclk_init = {
+static const struct clk_init_data twl6040_pdmclk_init = {
 	.name = "pdmclk",
 	.ops = &twl6040_pdmclk_ops,
 	.flags = CLK_GET_RATE_NOCACHE,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/p80211/p80211req.c
  *
  * Request/Indication/MacMgmt interface handling functions

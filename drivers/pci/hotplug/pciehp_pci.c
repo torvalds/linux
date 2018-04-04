@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PCI Express Hot Plug Controller Driver
  *
@@ -7,21 +8,6 @@
  * Copyright (C) 2003-2004 Intel Corporation
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <greg@kroah.com>, <kristen.c.accardi@intel.com>
  *
@@ -46,7 +32,11 @@ int pciehp_configure_device(struct slot *p_slot)
 
 	dev = pci_get_slot(parent, PCI_DEVFN(0, 0));
 	if (dev) {
-		ctrl_err(ctrl, "Device %s already exists at %04x:%02x:00, cannot hot-add\n",
+		/*
+		 * The device is already there. Either configured by the
+		 * boot firmware or a previous hotplug event.
+		 */
+		ctrl_dbg(ctrl, "Device %s already exists at %04x:%02x:00, skipping hot-add\n",
 			 pci_name(dev), pci_domain_nr(parent), parent->number);
 		pci_dev_put(dev);
 		ret = -EEXIST;
@@ -60,9 +50,8 @@ int pciehp_configure_device(struct slot *p_slot)
 		goto out;
 	}
 
-	list_for_each_entry(dev, &parent->devices, bus_list)
-		if (pci_is_bridge(dev))
-			pci_hp_add_bridge(dev);
+	for_each_pci_bridge(dev, parent)
+		pci_hp_add_bridge(dev);
 
 	pci_assign_unassigned_bridge_resources(bridge);
 	pcie_bus_configure_settings(parent);
@@ -76,7 +65,6 @@ int pciehp_configure_device(struct slot *p_slot)
 int pciehp_unconfigure_device(struct slot *p_slot)
 {
 	int rc = 0;
-	u8 bctl = 0;
 	u8 presence = 0;
 	struct pci_dev *dev, *temp;
 	struct pci_bus *parent = p_slot->ctrl->pcie->port->subordinate;
@@ -98,17 +86,6 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	list_for_each_entry_safe_reverse(dev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(dev);
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE && presence) {
-			pci_read_config_byte(dev, PCI_BRIDGE_CONTROL, &bctl);
-			if (bctl & PCI_BRIDGE_CTL_VGA) {
-				ctrl_err(ctrl,
-					 "Cannot remove display device %s\n",
-					 pci_name(dev));
-				pci_dev_put(dev);
-				rc = -EINVAL;
-				break;
-			}
-		}
 		if (!presence) {
 			pci_dev_set_disconnected(dev, NULL);
 			if (pci_has_subordinate(dev))

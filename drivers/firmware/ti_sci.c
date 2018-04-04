@@ -287,13 +287,13 @@ static void ti_sci_rx_callback(struct mbox_client *cl, void *m)
 
 	/* Is the message of valid length? */
 	if (mbox_msg->len > info->desc->max_msg_size) {
-		dev_err(dev, "Unable to handle %d xfer(max %d)\n",
+		dev_err(dev, "Unable to handle %zu xfer(max %d)\n",
 			mbox_msg->len, info->desc->max_msg_size);
 		ti_sci_dump_header_dbg(dev, hdr);
 		return;
 	}
 	if (mbox_msg->len < xfer->rx_len) {
-		dev_err(dev, "Recv xfer %d < expected %d length\n",
+		dev_err(dev, "Recv xfer %zu < expected %d length\n",
 			mbox_msg->len, xfer->rx_len);
 		ti_sci_dump_header_dbg(dev, hdr);
 		return;
@@ -439,7 +439,7 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 	/* And we wait for the response. */
 	timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
 	if (!wait_for_completion_timeout(&xfer->done, timeout)) {
-		dev_err(dev, "Mbox timedout in resp(caller: %pF)\n",
+		dev_err(dev, "Mbox timedout in resp(caller: %pS)\n",
 			(void *)_RET_IP_);
 		ret = -ETIMEDOUT;
 	}

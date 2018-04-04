@@ -109,9 +109,26 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 	}
 }
 
+static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
+{
+	if (amdgpu_compute_multipipe != -1) {
+		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
+			 amdgpu_compute_multipipe);
+		return amdgpu_compute_multipipe == 1;
+	}
+
+	/* FIXME: spreading the queues across pipes causes perf regressions
+	 * on POLARIS11 compute workloads */
+	if (adev->asic_type == CHIP_POLARIS11)
+		return false;
+
+	return adev->gfx.mec.num_mec > 1;
+}
+
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
 	int i, queue, pipe, mec;
+	bool multipipe_policy = amdgpu_gfx_is_multipipe_capable(adev);
 
 	/* policy for amdgpu compute queue ownership */
 	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
@@ -125,8 +142,7 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		if (mec >= adev->gfx.mec.num_mec)
 			break;
 
-		/* FIXME: spreading the queues across pipes causes perf regressions */
-		if (0) {
+		if (multipipe_policy) {
 			/* policy: amdgpu owns the first two queues of the first MEC */
 			if (mec == 0 && queue < 2)
 				set_bit(i, adev->gfx.mec.queue_bitmap);
@@ -163,8 +179,12 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 
 		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
 
-		/* Using pipes 2/3 from MEC 2 seems cause problems */
-		if (mec == 1 && pipe > 1)
+		/*
+		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
+		 * 2. It must use queue id 0, because CGPG_IDLE/SAVE/LOAD/RUN
+		 * only can be issued on queue 0.
+		 */
+		if ((mec == 1 && pipe > 1) || queue != 0)
 			continue;
 
 		ring->me = mec + 1;
@@ -185,9 +205,9 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	int r = 0;
 
-	mutex_init(&kiq->ring_mutex);
+	spin_lock_init(&kiq->ring_lock);
 
-	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	r = amdgpu_device_wb_get(adev, &adev->virt.reg_val_offs);
 	if (r)
 		return r;
 
@@ -213,7 +233,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
 			      struct amdgpu_irq_src *irq)
 {
-	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
+	amdgpu_device_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);
 }
 
@@ -260,8 +280,13 @@ int amdgpu_gfx_compute_mqd_sw_init(struct amdgpu_device *adev,
 	/* create MQD for KIQ */
 	ring = &adev->gfx.kiq.ring;
 	if (!ring->mqd_obj) {
+		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
+		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
+		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
+		 * KIQ MQD no matter SRIOV or Bare-metal
+		 */
 		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+					    AMDGPU_GEM_DOMAIN_VRAM, &ring->mqd_obj,
 					    &ring->mqd_gpu_addr, &ring->mqd_ptr);
 		if (r) {
 			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);

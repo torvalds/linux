@@ -46,22 +46,6 @@ static void da9062_set_window_start(struct da9062_watchdog *wdt)
 	wdt->j_time_stamp = jiffies;
 }
 
-static void da9062_apply_window_protection(struct da9062_watchdog *wdt)
-{
-	unsigned long delay = msecs_to_jiffies(DA9062_RESET_PROTECTION_MS);
-	unsigned long timeout = wdt->j_time_stamp + delay;
-	unsigned long now = jiffies;
-	unsigned int diff_ms;
-
-	/* if time-limit has not elapsed then wait for remainder */
-	if (time_before(now, timeout)) {
-		diff_ms = jiffies_to_msecs(timeout-now);
-		dev_dbg(wdt->hw->dev,
-			"Kicked too quickly. Delaying %u msecs\n", diff_ms);
-		msleep(diff_ms);
-	}
-}
-
 static unsigned int da9062_wdt_timeout_to_sel(unsigned int secs)
 {
 	unsigned int i;
@@ -77,8 +61,6 @@ static unsigned int da9062_wdt_timeout_to_sel(unsigned int secs)
 static int da9062_reset_watchdog_timer(struct da9062_watchdog *wdt)
 {
 	int ret;
-
-	da9062_apply_window_protection(wdt);
 
 	ret = regmap_update_bits(wdt->hw->regmap,
 			   DA9062AA_CONTROL_F,
@@ -99,6 +81,13 @@ static int da9062_wdt_update_timeout_register(struct da9062_watchdog *wdt,
 	ret = da9062_reset_watchdog_timer(wdt);
 	if (ret)
 		return ret;
+
+	regmap_update_bits(chip->regmap,
+				  DA9062AA_CONTROL_D,
+				  DA9062AA_TWDSCALE_MASK,
+				  DA9062_TWDSCALE_DISABLE);
+
+	usleep_range(150, 300);
 
 	return regmap_update_bits(chip->regmap,
 				  DA9062AA_CONTROL_D,
@@ -175,6 +164,25 @@ static int da9062_wdt_set_timeout(struct watchdog_device *wdd,
 	return ret;
 }
 
+static int da9062_wdt_restart(struct watchdog_device *wdd, unsigned long action,
+			      void *data)
+{
+	struct da9062_watchdog *wdt = watchdog_get_drvdata(wdd);
+	int ret;
+
+	ret = regmap_write(wdt->hw->regmap,
+			   DA9062AA_CONTROL_F,
+			   DA9062AA_SHUTDOWN_MASK);
+	if (ret)
+		dev_alert(wdt->hw->dev, "Failed to shutdown (err = %d)\n",
+			  ret);
+
+	/* wait for reset to assert... */
+	mdelay(500);
+
+	return ret;
+}
+
 static const struct watchdog_info da9062_watchdog_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "DA9062 WDT",
@@ -186,6 +194,7 @@ static const struct watchdog_ops da9062_watchdog_ops = {
 	.stop = da9062_wdt_stop,
 	.ping = da9062_wdt_ping,
 	.set_timeout = da9062_wdt_set_timeout,
+	.restart = da9062_wdt_restart,
 };
 
 static const struct of_device_id da9062_compatible_id_table[] = {
@@ -215,9 +224,12 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.ops = &da9062_watchdog_ops;
 	wdt->wdtdev.min_timeout = DA9062_WDT_MIN_TIMEOUT;
 	wdt->wdtdev.max_timeout = DA9062_WDT_MAX_TIMEOUT;
+	wdt->wdtdev.min_hw_heartbeat_ms = DA9062_RESET_PROTECTION_MS;
 	wdt->wdtdev.timeout = DA9062_WDG_DEFAULT_TIMEOUT;
 	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 	wdt->wdtdev.parent = &pdev->dev;
+
+	watchdog_set_restart_priority(&wdt->wdtdev, 128);
 
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
 

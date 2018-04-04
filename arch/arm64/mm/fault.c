@@ -105,13 +105,11 @@ static void data_abort_decode(unsigned int esr)
 		 (esr & ESR_ELx_WNR) >> ESR_ELx_WNR_SHIFT);
 }
 
-/*
- * Decode mem abort information
- */
 static void mem_abort_decode(unsigned int esr)
 {
 	pr_alert("Mem abort info:\n");
 
+	pr_alert("  ESR = 0x%08x\n", esr);
 	pr_alert("  Exception class = %s, IL = %u bits\n",
 		 esr_get_class_string(esr),
 		 (esr & ESR_ELx_IL) ? 32 : 16);
@@ -132,7 +130,8 @@ static void mem_abort_decode(unsigned int esr)
 void show_pte(unsigned long addr)
 {
 	struct mm_struct *mm;
-	pgd_t *pgd;
+	pgd_t *pgdp;
+	pgd_t pgd;
 
 	if (addr < TASK_SIZE) {
 		/* TTBR0 */
@@ -151,33 +150,37 @@ void show_pte(unsigned long addr)
 		return;
 	}
 
-	pr_alert("%s pgtable: %luk pages, %u-bit VAs, pgd = %p\n",
+	pr_alert("%s pgtable: %luk pages, %u-bit VAs, pgdp = %p\n",
 		 mm == &init_mm ? "swapper" : "user", PAGE_SIZE / SZ_1K,
 		 VA_BITS, mm->pgd);
-	pgd = pgd_offset(mm, addr);
-	pr_alert("[%016lx] *pgd=%016llx", addr, pgd_val(*pgd));
+	pgdp = pgd_offset(mm, addr);
+	pgd = READ_ONCE(*pgdp);
+	pr_alert("[%016lx] pgd=%016llx", addr, pgd_val(pgd));
 
 	do {
-		pud_t *pud;
-		pmd_t *pmd;
-		pte_t *pte;
+		pud_t *pudp, pud;
+		pmd_t *pmdp, pmd;
+		pte_t *ptep, pte;
 
-		if (pgd_none(*pgd) || pgd_bad(*pgd))
+		if (pgd_none(pgd) || pgd_bad(pgd))
 			break;
 
-		pud = pud_offset(pgd, addr);
-		pr_cont(", *pud=%016llx", pud_val(*pud));
-		if (pud_none(*pud) || pud_bad(*pud))
+		pudp = pud_offset(pgdp, addr);
+		pud = READ_ONCE(*pudp);
+		pr_cont(", pud=%016llx", pud_val(pud));
+		if (pud_none(pud) || pud_bad(pud))
 			break;
 
-		pmd = pmd_offset(pud, addr);
-		pr_cont(", *pmd=%016llx", pmd_val(*pmd));
-		if (pmd_none(*pmd) || pmd_bad(*pmd))
+		pmdp = pmd_offset(pudp, addr);
+		pmd = READ_ONCE(*pmdp);
+		pr_cont(", pmd=%016llx", pmd_val(pmd));
+		if (pmd_none(pmd) || pmd_bad(pmd))
 			break;
 
-		pte = pte_offset_map(pmd, addr);
-		pr_cont(", *pte=%016llx", pte_val(*pte));
-		pte_unmap(pte);
+		ptep = pte_offset_map(pmdp, addr);
+		pte = READ_ONCE(*ptep);
+		pr_cont(", pte=%016llx", pte_val(pte));
+		pte_unmap(ptep);
 	} while(0);
 
 	pr_cont("\n");
@@ -198,8 +201,9 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 			  pte_t entry, int dirty)
 {
 	pteval_t old_pteval, pteval;
+	pte_t pte = READ_ONCE(*ptep);
 
-	if (pte_same(*ptep, entry))
+	if (pte_same(pte, entry))
 		return 0;
 
 	/* only preserve the access flags and write permission */
@@ -212,7 +216,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	 * (calculated as: a & b == ~(~a | ~b)).
 	 */
 	pte_val(entry) ^= PTE_RDONLY;
-	pteval = READ_ONCE(pte_val(*ptep));
+	pteval = pte_val(pte);
 	do {
 		old_pteval = pteval;
 		pteval ^= PTE_RDONLY;
@@ -242,16 +246,13 @@ static inline bool is_permission_fault(unsigned int esr, struct pt_regs *regs,
 	if (fsc_type == ESR_ELx_FSC_PERM)
 		return true;
 
-	if (addr < USER_DS && system_uses_ttbr0_pan())
+	if (addr < TASK_SIZE && system_uses_ttbr0_pan())
 		return fsc_type == ESR_ELx_FSC_FAULT &&
 			(regs->pstate & PSR_PAN_BIT);
 
 	return false;
 }
 
-/*
- * The kernel tried to access some page that wasn't present.
- */
 static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 			      struct pt_regs *regs)
 {
@@ -264,9 +265,6 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
 		return;
 
-	/*
-	 * No handler, we'll have to terminate things with extreme prejudice.
-	 */
 	bust_spinlocks(1);
 
 	if (is_permission_fault(esr, regs, addr)) {
@@ -291,10 +289,6 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	do_exit(SIGKILL);
 }
 
-/*
- * Something tried to access memory that isn't in our memory map. User mode
- * accesses just cause a SIGSEGV
- */
 static void __do_user_fault(struct task_struct *tsk, unsigned long addr,
 			    unsigned int esr, unsigned int sig, int code,
 			    struct pt_regs *regs, int fault)
@@ -426,7 +420,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (addr < USER_DS && is_permission_fault(esr, regs, addr)) {
+	if (addr < TASK_SIZE && is_permission_fault(esr, regs, addr)) {
 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
 		if (regs->orig_addr_limit == KERNEL_DS)
 			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
@@ -559,23 +553,6 @@ no_context:
 	return 0;
 }
 
-/*
- * First Level Translation Fault Handler
- *
- * We enter here because the first level page table doesn't contain a valid
- * entry for the address.
- *
- * If the address is in kernel space (>= TASK_SIZE), then we are probably
- * faulting in the vmalloc() area.
- *
- * If the init_task's first level page tables contains the relevant entry, we
- * copy the it to this task.  If not, we send the process a signal, fixup the
- * exception, or oops the kernel.
- *
- * NOTE! We MUST NOT take any locks for this case. We may be in an interrupt
- * or a critical region, and should only copy the information from the master
- * page table, nothing more.
- */
 static int __kprobes do_translation_fault(unsigned long addr,
 					  unsigned int esr,
 					  struct pt_regs *regs)
@@ -594,23 +571,15 @@ static int do_alignment_fault(unsigned long addr, unsigned int esr,
 	return 0;
 }
 
-/*
- * This abort handler always returns "fault".
- */
 static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
-	return 1;
+	return 1; /* "fault" */
 }
 
-/*
- * This abort handler deals with Synchronous External Abort.
- * It calls notifiers, and then returns "fault".
- */
 static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
 	struct siginfo info;
 	const struct fault_info *inf;
-	int ret = 0;
 
 	inf = esr_to_fault_info(esr);
 	pr_err("Synchronous External Abort: %s (0x%08x) at 0x%016lx\n",
@@ -625,7 +594,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		if (interrupts_enabled(regs))
 			nmi_enter();
 
-		ret = ghes_notify_sea();
+		ghes_notify_sea();
 
 		if (interrupts_enabled(regs))
 			nmi_exit();
@@ -633,90 +602,83 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
-	info.si_code  = 0;
+	info.si_code  = BUS_FIXME;
 	if (esr & ESR_ELx_FnV)
 		info.si_addr = NULL;
 	else
 		info.si_addr  = (void __user *)addr;
 	arm64_notify_die("", regs, &info, esr);
 
-	return ret;
+	return 0;
 }
 
 static const struct fault_info fault_info[] = {
-	{ do_bad,		SIGBUS,  0,		"ttbr address size fault"	},
-	{ do_bad,		SIGBUS,  0,		"level 1 address size fault"	},
-	{ do_bad,		SIGBUS,  0,		"level 2 address size fault"	},
-	{ do_bad,		SIGBUS,  0,		"level 3 address size fault"	},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"ttbr address size fault"	},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"level 1 address size fault"	},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"level 2 address size fault"	},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"level 3 address size fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 0 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 1 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},
-	{ do_bad,		SIGBUS,  0,		"unknown 8"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 8"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 access flag fault"	},
-	{ do_bad,		SIGBUS,  0,		"unknown 12"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 12"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 permission fault"	},
-	{ do_sea,		SIGBUS,  0,		"synchronous external abort"	},
-	{ do_bad,		SIGBUS,  0,		"unknown 17"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 18"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 19"			},
-	{ do_sea,		SIGBUS,  0,		"level 0 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"level 1 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"level 2 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"level 3 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"synchronous parity or ECC error" },
-	{ do_bad,		SIGBUS,  0,		"unknown 25"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 26"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 27"			},
-	{ do_sea,		SIGBUS,  0,		"level 0 synchronous parity error (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"level 1 synchronous parity error (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"level 2 synchronous parity error (translation table walk)"	},
-	{ do_sea,		SIGBUS,  0,		"level 3 synchronous parity error (translation table walk)"	},
-	{ do_bad,		SIGBUS,  0,		"unknown 32"			},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"synchronous external abort"	},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 17"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 18"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 19"			},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 0 (translation table walk)"	},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 1 (translation table walk)"	},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 2 (translation table walk)"	},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 3 (translation table walk)"	},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"synchronous parity or ECC error" },	// Reserved when RAS is implemented
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 25"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 26"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 27"			},
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 0 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 1 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 2 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 3 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 32"			},
 	{ do_alignment_fault,	SIGBUS,  BUS_ADRALN,	"alignment fault"		},
-	{ do_bad,		SIGBUS,  0,		"unknown 34"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 35"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 36"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 37"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 38"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 39"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 40"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 41"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 42"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 43"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 44"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 45"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 46"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 47"			},
-	{ do_bad,		SIGBUS,  0,		"TLB conflict abort"		},
-	{ do_bad,		SIGBUS,  0,		"unknown 49"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 50"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 51"			},
-	{ do_bad,		SIGBUS,  0,		"implementation fault (lockdown abort)" },
-	{ do_bad,		SIGBUS,  0,		"implementation fault (unsupported exclusive)" },
-	{ do_bad,		SIGBUS,  0,		"unknown 54"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 55"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 56"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 57"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 58" 			},
-	{ do_bad,		SIGBUS,  0,		"unknown 59"			},
-	{ do_bad,		SIGBUS,  0,		"unknown 60"			},
-	{ do_bad,		SIGBUS,  0,		"section domain fault"		},
-	{ do_bad,		SIGBUS,  0,		"page domain fault"		},
-	{ do_bad,		SIGBUS,  0,		"unknown 63"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 34"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 35"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 36"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 37"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 38"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 39"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 40"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 41"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 42"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 43"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 44"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 45"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 46"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 47"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"TLB conflict abort"		},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"Unsupported atomic hardware update fault"	},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 50"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 51"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"implementation fault (lockdown abort)" },
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"implementation fault (unsupported exclusive)" },
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 54"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 55"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 56"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 57"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 58" 			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 59"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 60"			},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"section domain fault"		},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"page domain fault"		},
+	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 63"			},
 };
 
-/*
- * Handle Synchronous External Aborts that occur in a guest kernel.
- *
- * The return value will be zero if the SEA was successfully handled
- * and non-zero if there was an error processing the error or there was
- * no error to process.
- */
 int handle_guest_sea(phys_addr_t addr, unsigned int esr)
 {
 	int ret = -ENOENT;
@@ -727,9 +689,6 @@ int handle_guest_sea(phys_addr_t addr, unsigned int esr)
 	return ret;
 }
 
-/*
- * Dispatch a data abort to the relevant handler.
- */
 asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 					 struct pt_regs *regs)
 {
@@ -739,10 +698,13 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 	if (!inf->fn(addr, esr, regs))
 		return;
 
-	pr_alert("Unhandled fault: %s (0x%08x) at 0x%016lx\n",
-		 inf->name, esr, addr);
+	pr_alert("Unhandled fault: %s at 0x%016lx\n",
+		 inf->name, addr);
 
 	mem_abort_decode(esr);
+
+	if (!user_mode(regs))
+		show_pte(addr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
@@ -751,15 +713,41 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 	arm64_notify_die("", regs, &info, esr);
 }
 
-/*
- * Handle stack alignment exceptions.
- */
+asmlinkage void __exception do_el0_irq_bp_hardening(void)
+{
+	/* PC has already been checked in entry.S */
+	arm64_apply_bp_hardening();
+}
+
+asmlinkage void __exception do_el0_ia_bp_hardening(unsigned long addr,
+						   unsigned int esr,
+						   struct pt_regs *regs)
+{
+	/*
+	 * We've taken an instruction abort from userspace and not yet
+	 * re-enabled IRQs. If the address is a kernel address, apply
+	 * BP hardening prior to enabling IRQs and pre-emption.
+	 */
+	if (addr > TASK_SIZE)
+		arm64_apply_bp_hardening();
+
+	local_irq_enable();
+	do_mem_abort(addr, esr, regs);
+}
+
+
 asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 					   unsigned int esr,
 					   struct pt_regs *regs)
 {
 	struct siginfo info;
 	struct task_struct *tsk = current;
+
+	if (user_mode(regs)) {
+		if (instruction_pointer(regs) > TASK_SIZE)
+			arm64_apply_bp_hardening();
+		local_irq_enable();
+	}
 
 	if (show_unhandled_signals && unhandled_signal(tsk, SIGBUS))
 		pr_info_ratelimited("%s[%d]: %s exception: pc=%p sp=%p\n",
@@ -786,11 +774,11 @@ static struct fault_info __refdata debug_fault_info[] = {
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware breakpoint"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware single-step"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware watchpoint"	},
-	{ do_bad,	SIGBUS,		0,		"unknown 3"		},
+	{ do_bad,	SIGBUS,		BUS_FIXME,	"unknown 3"		},
 	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch32 BKPT"		},
-	{ do_bad,	SIGTRAP,	0,		"aarch32 vector catch"	},
+	{ do_bad,	SIGTRAP,	TRAP_FIXME,	"aarch32 vector catch"	},
 	{ early_brk64,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
-	{ do_bad,	SIGBUS,		0,		"unknown 7"		},
+	{ do_bad,	SIGBUS,		BUS_FIXME,	"unknown 7"		},
 };
 
 void __init hook_debug_fault_code(int nr,
@@ -819,6 +807,9 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	 */
 	if (interrupts_enabled(regs))
 		trace_hardirqs_off();
+
+	if (user_mode(regs) && instruction_pointer(regs) > TASK_SIZE)
+		arm64_apply_bp_hardening();
 
 	if (!inf->fn(addr, esr, regs)) {
 		rv = 1;

@@ -58,6 +58,7 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+static int svc_rdma_post_recv(struct svcxprt_rdma *xprt);
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *, int);
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					struct net *net,
@@ -290,6 +291,7 @@ static void qp_event_handler(struct ib_event *event, void *context)
 			ib_event_msg(event->event), event->event,
 			event->element.qp);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		svc_xprt_enqueue(xprt);
 		break;
 	}
 }
@@ -319,11 +321,12 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	list_add_tail(&ctxt->list, &xprt->sc_rq_dto_q);
 	spin_unlock(&xprt->sc_rq_dto_lock);
 
+	svc_rdma_post_recv(xprt);
+
 	set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 	if (test_bit(RDMAXPRT_CONN_PENDING, &xprt->sc_flags))
 		goto out;
-	svc_xprt_enqueue(&xprt->sc_xprt);
-	goto out;
+	goto out_enqueue;
 
 flushed:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
@@ -333,6 +336,8 @@ flushed:
 	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
 	svc_rdma_put_context(ctxt, 1);
 
+out_enqueue:
+	svc_xprt_enqueue(&xprt->sc_xprt);
 out:
 	svc_xprt_put(&xprt->sc_xprt);
 }
@@ -358,6 +363,7 @@ void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 	if (unlikely(wc->status != IB_WC_SUCCESS)) {
 		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+		svc_xprt_enqueue(&xprt->sc_xprt);
 		if (wc->status != IB_WC_WR_FLUSH_ERR)
 			pr_err("svcrdma: Send: %s (%u/0x%x)\n",
 			       ib_wc_status_msg(wc->status),
@@ -401,7 +407,8 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	return cma_xprt;
 }
 
-int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
+static int
+svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 {
 	struct ib_recv_wr recv_wr, *bad_recv_wr;
 	struct svc_rdma_op_ctxt *ctxt;
@@ -420,7 +427,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
 			goto err_put_ctxt;
 		}
-		page = alloc_page(flags);
+		page = alloc_page(GFP_KERNEL);
 		if (!page)
 			goto err_put_ctxt;
 		ctxt->pages[sge_no] = page;
@@ -454,21 +461,6 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
 	return -ENOMEM;
-}
-
-int svc_rdma_repost_recv(struct svcxprt_rdma *xprt, gfp_t flags)
-{
-	int ret = 0;
-
-	ret = svc_rdma_post_recv(xprt, flags);
-	if (ret) {
-		pr_err("svcrdma: could not post a receive buffer, err=%d.\n",
-		       ret);
-		pr_err("svcrdma: closing transport %p.\n", xprt);
-		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-		ret = -ENOTCONN;
-	}
-	return ret;
 }
 
 static void
@@ -569,8 +561,10 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		dprintk("svcrdma: Device removal xprt=%p, cm_id=%p\n",
 			xprt, cma_id);
-		if (xprt)
+		if (xprt) {
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			svc_xprt_enqueue(&xprt->sc_xprt);
+		}
 		break;
 
 	default:
@@ -828,7 +822,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Post receive buffers */
 	for (i = 0; i < newxprt->sc_max_requests; i++) {
-		ret = svc_rdma_post_recv(newxprt, GFP_KERNEL);
+		ret = svc_rdma_post_recv(newxprt);
 		if (ret) {
 			dprintk("svcrdma: failure posting receive buffers\n");
 			goto errout;

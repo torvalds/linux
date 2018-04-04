@@ -26,7 +26,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/iommu.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
 
@@ -57,17 +56,7 @@ struct etnaviv_drm_private {
 	/* list of GEM objects: */
 	struct mutex gem_lock;
 	struct list_head gem_list;
-
-	struct workqueue_struct *wq;
 };
-
-static inline void etnaviv_queue_work(struct drm_device *dev,
-	struct work_struct *w)
-{
-	struct etnaviv_drm_private *priv = dev->dev_private;
-
-	queue_work(priv->wq, w);
-}
 
 int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);
@@ -92,17 +81,14 @@ int etnaviv_gem_cpu_fini(struct drm_gem_object *obj);
 void etnaviv_gem_free_object(struct drm_gem_object *obj);
 int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		u32 size, u32 flags, u32 *handle);
-struct drm_gem_object *etnaviv_gem_new_locked(struct drm_device *dev,
-		u32 size, u32 flags);
-struct drm_gem_object *etnaviv_gem_new(struct drm_device *dev,
-		u32 size, u32 flags);
 int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	uintptr_t ptr, u32 size, u32 flags, u32 *handle);
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu);
 u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr);
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu);
-void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
-	struct etnaviv_cmdbuf *cmdbuf);
+void etnaviv_sync_point_queue(struct etnaviv_gpu *gpu, unsigned int event);
+void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
+	unsigned int event, struct etnaviv_cmdbuf *cmdbuf);
 void etnaviv_validate_init(void);
 bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu,
 	u32 *stream, unsigned int size,

@@ -26,24 +26,110 @@
  * Bitmask made from a "or" of all commands within enum membarrier_cmd,
  * except MEMBARRIER_CMD_QUERY.
  */
+#ifdef CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE
+#define MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK	\
+	(MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE \
+	| MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE)
+#else
+#define MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK	0
+#endif
+
 #define MEMBARRIER_CMD_BITMASK	\
-	(MEMBARRIER_CMD_SHARED | MEMBARRIER_CMD_PRIVATE_EXPEDITED	\
-	| MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED)
+	(MEMBARRIER_CMD_GLOBAL | MEMBARRIER_CMD_GLOBAL_EXPEDITED \
+	| MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED \
+	| MEMBARRIER_CMD_PRIVATE_EXPEDITED	\
+	| MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED	\
+	| MEMBARRIER_PRIVATE_EXPEDITED_SYNC_CORE_BITMASK)
 
 static void ipi_mb(void *info)
 {
 	smp_mb();	/* IPIs should be serializing but paranoid. */
 }
 
-static int membarrier_private_expedited(void)
+static int membarrier_global_expedited(void)
 {
 	int cpu;
 	bool fallback = false;
 	cpumask_var_t tmpmask;
 
-	if (!(atomic_read(&current->mm->membarrier_state)
-			& MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY))
-		return -EPERM;
+	if (num_online_cpus() == 1)
+		return 0;
+
+	/*
+	 * Matches memory barriers around rq->curr modification in
+	 * scheduler.
+	 */
+	smp_mb();	/* system call entry is not a mb. */
+
+	/*
+	 * Expedited membarrier commands guarantee that they won't
+	 * block, hence the GFP_NOWAIT allocation flag and fallback
+	 * implementation.
+	 */
+	if (!zalloc_cpumask_var(&tmpmask, GFP_NOWAIT)) {
+		/* Fallback for OOM. */
+		fallback = true;
+	}
+
+	cpus_read_lock();
+	for_each_online_cpu(cpu) {
+		struct task_struct *p;
+
+		/*
+		 * Skipping the current CPU is OK even through we can be
+		 * migrated at any point. The current CPU, at the point
+		 * where we read raw_smp_processor_id(), is ensured to
+		 * be in program order with respect to the caller
+		 * thread. Therefore, we can skip this CPU from the
+		 * iteration.
+		 */
+		if (cpu == raw_smp_processor_id())
+			continue;
+		rcu_read_lock();
+		p = task_rcu_dereference(&cpu_rq(cpu)->curr);
+		if (p && p->mm && (atomic_read(&p->mm->membarrier_state) &
+				   MEMBARRIER_STATE_GLOBAL_EXPEDITED)) {
+			if (!fallback)
+				__cpumask_set_cpu(cpu, tmpmask);
+			else
+				smp_call_function_single(cpu, ipi_mb, NULL, 1);
+		}
+		rcu_read_unlock();
+	}
+	if (!fallback) {
+		preempt_disable();
+		smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
+		preempt_enable();
+		free_cpumask_var(tmpmask);
+	}
+	cpus_read_unlock();
+
+	/*
+	 * Memory barrier on the caller thread _after_ we finished
+	 * waiting for the last IPI. Matches memory barriers around
+	 * rq->curr modification in scheduler.
+	 */
+	smp_mb();	/* exit from system call is not a mb */
+	return 0;
+}
+
+static int membarrier_private_expedited(int flags)
+{
+	int cpu;
+	bool fallback = false;
+	cpumask_var_t tmpmask;
+
+	if (flags & MEMBARRIER_FLAG_SYNC_CORE) {
+		if (!IS_ENABLED(CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE))
+			return -EINVAL;
+		if (!(atomic_read(&current->mm->membarrier_state) &
+		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY))
+			return -EPERM;
+	} else {
+		if (!(atomic_read(&current->mm->membarrier_state) &
+		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY))
+			return -EPERM;
+	}
 
 	if (num_online_cpus() == 1)
 		return 0;
@@ -89,7 +175,9 @@ static int membarrier_private_expedited(void)
 		rcu_read_unlock();
 	}
 	if (!fallback) {
+		preempt_disable();
 		smp_call_function_many(tmpmask, ipi_mb, NULL, 1);
+		preempt_enable();
 		free_cpumask_var(tmpmask);
 	}
 	cpus_read_unlock();
@@ -103,21 +191,69 @@ static int membarrier_private_expedited(void)
 	return 0;
 }
 
-static void membarrier_register_private_expedited(void)
+static int membarrier_register_global_expedited(void)
 {
 	struct task_struct *p = current;
 	struct mm_struct *mm = p->mm;
+
+	if (atomic_read(&mm->membarrier_state) &
+	    MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY)
+		return 0;
+	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED, &mm->membarrier_state);
+	if (atomic_read(&mm->mm_users) == 1 && get_nr_threads(p) == 1) {
+		/*
+		 * For single mm user, single threaded process, we can
+		 * simply issue a memory barrier after setting
+		 * MEMBARRIER_STATE_GLOBAL_EXPEDITED to guarantee that
+		 * no memory access following registration is reordered
+		 * before registration.
+		 */
+		smp_mb();
+	} else {
+		/*
+		 * For multi-mm user threads, we need to ensure all
+		 * future scheduler executions will observe the new
+		 * thread flag state for this mm.
+		 */
+		synchronize_sched();
+	}
+	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY,
+		  &mm->membarrier_state);
+	return 0;
+}
+
+static int membarrier_register_private_expedited(int flags)
+{
+	struct task_struct *p = current;
+	struct mm_struct *mm = p->mm;
+	int state = MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY;
+
+	if (flags & MEMBARRIER_FLAG_SYNC_CORE) {
+		if (!IS_ENABLED(CONFIG_ARCH_HAS_MEMBARRIER_SYNC_CORE))
+			return -EINVAL;
+		state = MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY;
+	}
 
 	/*
 	 * We need to consider threads belonging to different thread
 	 * groups, which use the same mm. (CLONE_VM but not
 	 * CLONE_THREAD).
 	 */
-	if (atomic_read(&mm->membarrier_state)
-			& MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY)
-		return;
-	atomic_or(MEMBARRIER_STATE_PRIVATE_EXPEDITED_READY,
-			&mm->membarrier_state);
+	if (atomic_read(&mm->membarrier_state) & state)
+		return 0;
+	atomic_or(MEMBARRIER_STATE_PRIVATE_EXPEDITED, &mm->membarrier_state);
+	if (flags & MEMBARRIER_FLAG_SYNC_CORE)
+		atomic_or(MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE,
+			  &mm->membarrier_state);
+	if (!(atomic_read(&mm->mm_users) == 1 && get_nr_threads(p) == 1)) {
+		/*
+		 * Ensure all future scheduler executions will observe the
+		 * new thread flag state for this process.
+		 */
+		synchronize_sched();
+	}
+	atomic_or(state, &mm->membarrier_state);
+	return 0;
 }
 
 /**
@@ -157,21 +293,28 @@ SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
 		int cmd_mask = MEMBARRIER_CMD_BITMASK;
 
 		if (tick_nohz_full_enabled())
-			cmd_mask &= ~MEMBARRIER_CMD_SHARED;
+			cmd_mask &= ~MEMBARRIER_CMD_GLOBAL;
 		return cmd_mask;
 	}
-	case MEMBARRIER_CMD_SHARED:
-		/* MEMBARRIER_CMD_SHARED is not compatible with nohz_full. */
+	case MEMBARRIER_CMD_GLOBAL:
+		/* MEMBARRIER_CMD_GLOBAL is not compatible with nohz_full. */
 		if (tick_nohz_full_enabled())
 			return -EINVAL;
 		if (num_online_cpus() > 1)
 			synchronize_sched();
 		return 0;
+	case MEMBARRIER_CMD_GLOBAL_EXPEDITED:
+		return membarrier_global_expedited();
+	case MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED:
+		return membarrier_register_global_expedited();
 	case MEMBARRIER_CMD_PRIVATE_EXPEDITED:
-		return membarrier_private_expedited();
+		return membarrier_private_expedited(0);
 	case MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED:
-		membarrier_register_private_expedited();
-		return 0;
+		return membarrier_register_private_expedited(0);
+	case MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE:
+		return membarrier_private_expedited(MEMBARRIER_FLAG_SYNC_CORE);
+	case MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE:
+		return membarrier_register_private_expedited(MEMBARRIER_FLAG_SYNC_CORE);
 	default:
 		return -EINVAL;
 	}

@@ -404,14 +404,18 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 		WARN_ON(z3fold_page_trylock(zhdr));
 	else
 		z3fold_page_lock(zhdr);
-	if (test_bit(PAGE_STALE, &page->private) ||
-	    !test_and_clear_bit(NEEDS_COMPACTING, &page->private)) {
+	if (WARN_ON(!test_and_clear_bit(NEEDS_COMPACTING, &page->private))) {
 		z3fold_page_unlock(zhdr);
 		return;
 	}
 	spin_lock(&pool->lock);
 	list_del_init(&zhdr->buddy);
 	spin_unlock(&pool->lock);
+
+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+		atomic64_dec(&pool->pages_nr);
+		return;
+	}
 
 	z3fold_compact_page(zhdr);
 	unbuddied = get_cpu_ptr(pool->unbuddied);
@@ -753,9 +757,11 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		list_del_init(&zhdr->buddy);
 		spin_unlock(&pool->lock);
 		zhdr->cpu = -1;
+		kref_get(&zhdr->refcount);
 		do_compact_page(zhdr, true);
 		return;
 	}
+	kref_get(&zhdr->refcount);
 	queue_work_on(zhdr->cpu, pool->compact_wq, &zhdr->work);
 	z3fold_page_unlock(zhdr);
 }
@@ -763,7 +769,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 /**
  * z3fold_reclaim_page() - evicts allocations from a pool page and frees it
  * @pool:	pool from which a page will attempt to be evicted
- * @retires:	number of pages on the LRU list for which eviction will
+ * @retries:	number of pages on the LRU list for which eviction will
  *		be attempted before failing
  *
  * z3fold reclaim is different from normal system reclaim in that it is done
@@ -773,7 +779,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
  * z3fold and the user, however.
  *
  * To avoid these, this is how z3fold_reclaim_page() should be called:
-
+ *
  * The user detects a page should be reclaimed and calls z3fold_reclaim_page().
  * z3fold_reclaim_page() will remove a z3fold page from the pool LRU list and
  * call the user-defined eviction handler with the pool and handle as

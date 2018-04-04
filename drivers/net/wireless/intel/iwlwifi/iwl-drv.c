@@ -296,7 +296,12 @@ struct iwl_firmware_pieces {
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
 	/* FW debug data parsed for driver usage */
-	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+	bool dbg_dest_tlv_init;
+	u8 *dbg_dest_ver;
+	union {
+		struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
+		struct iwl_fw_dbg_dest_tlv_v1 *dbg_dest_tlv_v1;
+	};
 	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
@@ -832,7 +837,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->standard_phy_calibration_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
-		 case IWL_UCODE_TLV_SEC_RT:
+		case IWL_UCODE_TLV_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
 			drv->fw.type = IWL_FW_MVM;
@@ -864,7 +869,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 						FW_PHY_CFG_RX_CHAIN) >>
 						FW_PHY_CFG_RX_CHAIN_POS;
 			break;
-		 case IWL_UCODE_TLV_SECURE_SEC_RT:
+		case IWL_UCODE_TLV_SECURE_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
 			drv->fw.type = IWL_FW_MVM;
@@ -919,27 +924,60 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			minor = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
-			snprintf(drv->fw.fw_version,
-				 sizeof(drv->fw.fw_version), "%u.%u.%u",
-				 major, minor, local_comp);
+			if (major >= 35)
+				snprintf(drv->fw.fw_version,
+					 sizeof(drv->fw.fw_version),
+					"%u.%08x.%u", major, minor, local_comp);
+			else
+				snprintf(drv->fw.fw_version,
+					 sizeof(drv->fw.fw_version),
+					"%u.%u.%u", major, minor, local_comp);
 			break;
 			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
-			struct iwl_fw_dbg_dest_tlv *dest = (void *)tlv_data;
+			struct iwl_fw_dbg_dest_tlv *dest = NULL;
+			struct iwl_fw_dbg_dest_tlv_v1 *dest_v1 = NULL;
+			u8 mon_mode;
 
-			if (pieces->dbg_dest_tlv) {
+			pieces->dbg_dest_ver = (u8 *)tlv_data;
+			if (*pieces->dbg_dest_ver == 1) {
+				dest = (void *)tlv_data;
+			} else if (*pieces->dbg_dest_ver == 0) {
+				dest_v1 = (void *)tlv_data;
+			} else {
+				IWL_ERR(drv,
+					"The version is %d, and it is invalid\n",
+					*pieces->dbg_dest_ver);
+				break;
+			}
+
+			if (pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
 					"dbg destination ignored, already exists\n");
 				break;
 			}
 
-			pieces->dbg_dest_tlv = dest;
-			IWL_INFO(drv, "Found debug destination: %s\n",
-				 get_fw_dbg_mode_string(dest->monitor_mode));
+			pieces->dbg_dest_tlv_init = true;
 
-			drv->fw.dbg_dest_reg_num =
-				tlv_len - offsetof(struct iwl_fw_dbg_dest_tlv,
-						   reg_ops);
+			if (dest_v1) {
+				pieces->dbg_dest_tlv_v1 = dest_v1;
+				mon_mode = dest_v1->monitor_mode;
+			} else {
+				pieces->dbg_dest_tlv = dest;
+				mon_mode = dest->monitor_mode;
+			}
+
+			IWL_INFO(drv, "Found debug destination: %s\n",
+				 get_fw_dbg_mode_string(mon_mode));
+
+			drv->fw.dbg_dest_reg_num = (dest_v1) ?
+				tlv_len -
+				offsetof(struct iwl_fw_dbg_dest_tlv_v1,
+					 reg_ops) :
+				tlv_len -
+				offsetof(struct iwl_fw_dbg_dest_tlv,
+					 reg_ops);
+
 			drv->fw.dbg_dest_reg_num /=
 				sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]);
 
@@ -948,7 +986,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_FW_DBG_CONF: {
 			struct iwl_fw_dbg_conf_tlv *conf = (void *)tlv_data;
 
-			if (!pieces->dbg_dest_tlv) {
+			if (!pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
 					"Ignore dbg config %d - no destination configured\n",
 					conf->id);
@@ -1038,12 +1076,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			usniffer_img = IWL_UCODE_REGULAR_USNIFFER;
 			drv->fw.img[usniffer_img].paging_mem_size =
 				paging_mem_size;
-			break;
-		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
-			if (tlv_len != sizeof(u32))
-				goto invalid_tlv_len;
-			drv->fw.sdio_adma_addr =
-				le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
 			/*
@@ -1335,20 +1367,57 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
-	 * 2) backup cache for save/restore during power-downs */
+	 * 2) backup cache for save/restore during power-downs
+	 */
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		if (iwl_alloc_ucode(drv, pieces, i))
 			goto out_free_fw;
 
-	if (pieces->dbg_dest_tlv) {
-		drv->fw.dbg_dest_tlv =
-			kmemdup(pieces->dbg_dest_tlv,
-				sizeof(*pieces->dbg_dest_tlv) +
-				sizeof(pieces->dbg_dest_tlv->reg_ops[0]) *
-				drv->fw.dbg_dest_reg_num, GFP_KERNEL);
+	if (pieces->dbg_dest_tlv_init) {
+		size_t dbg_dest_size = sizeof(*drv->fw.dbg_dest_tlv) +
+			sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]) *
+			drv->fw.dbg_dest_reg_num;
+
+		drv->fw.dbg_dest_tlv = kmalloc(dbg_dest_size, GFP_KERNEL);
 
 		if (!drv->fw.dbg_dest_tlv)
 			goto out_free_fw;
+
+		if (*pieces->dbg_dest_ver == 0) {
+			memcpy(drv->fw.dbg_dest_tlv, pieces->dbg_dest_tlv_v1,
+			       dbg_dest_size);
+		} else {
+			struct iwl_fw_dbg_dest_tlv_v1 *dest_tlv =
+				drv->fw.dbg_dest_tlv;
+
+			dest_tlv->version = pieces->dbg_dest_tlv->version;
+			dest_tlv->monitor_mode =
+				pieces->dbg_dest_tlv->monitor_mode;
+			dest_tlv->size_power =
+				pieces->dbg_dest_tlv->size_power;
+			dest_tlv->wrap_count =
+				pieces->dbg_dest_tlv->wrap_count;
+			dest_tlv->write_ptr_reg =
+				pieces->dbg_dest_tlv->write_ptr_reg;
+			dest_tlv->base_shift =
+				pieces->dbg_dest_tlv->base_shift;
+			memcpy(dest_tlv->reg_ops,
+			       pieces->dbg_dest_tlv->reg_ops,
+			       sizeof(drv->fw.dbg_dest_tlv->reg_ops[0]) *
+			       drv->fw.dbg_dest_reg_num);
+
+			/* In version 1 of the destination tlv, which is
+			 * relevant for internal buffer exclusively,
+			 * the base address is part of given with the length
+			 * of the buffer, and the size shift is give instead of
+			 * end shift. We now store these values in base_reg,
+			 * and end shift, and when dumping the data we'll
+			 * manipulate it for extracting both the length and
+			 * base address */
+			dest_tlv->base_reg = pieces->dbg_dest_tlv->cfg_reg;
+			dest_tlv->end_shift =
+				pieces->dbg_dest_tlv->size_shift;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++) {

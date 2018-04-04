@@ -50,7 +50,9 @@ TIMECHART OPTIONS
 -p::
 --process::
         Select the processes to display, by name or PID
-
+-f::
+--force::
+	Don't complain, do it.
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
 -n::

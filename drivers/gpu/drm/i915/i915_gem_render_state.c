@@ -26,10 +26,12 @@
  */
 
 #include "i915_drv.h"
+#include "i915_gem_render_state.h"
 #include "intel_renderstate.h"
 
 struct intel_render_state {
 	const struct intel_renderstate_rodata *rodata;
+	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 batch_offset;
 	u32 batch_size;
@@ -40,6 +42,9 @@ struct intel_render_state {
 static const struct intel_renderstate_rodata *
 render_state_get_rodata(const struct intel_engine_cs *engine)
 {
+	if (engine->id != RCS)
+		return NULL;
+
 	switch (INTEL_GEN(engine->i915)) {
 	case 6:
 		return &gen6_null_state;
@@ -74,17 +79,16 @@ static int render_state_setup(struct intel_render_state *so,
 			      struct drm_i915_private *i915)
 {
 	const struct intel_renderstate_rodata *rodata = so->rodata;
-	struct drm_i915_gem_object *obj = so->vma->obj;
 	unsigned int i = 0, reloc_index = 0;
 	unsigned int needs_clflush;
 	u32 *d;
 	int ret;
 
-	ret = i915_gem_obj_prepare_shmem_write(obj, &needs_clflush);
+	ret = i915_gem_obj_prepare_shmem_write(so->obj, &needs_clflush);
 	if (ret)
 		return ret;
 
-	d = kmap_atomic(i915_gem_object_get_dirty_page(obj, 0));
+	d = kmap_atomic(i915_gem_object_get_dirty_page(so->obj, 0));
 
 	while (i < rodata->batch_items) {
 		u32 s = rodata->batch[i];
@@ -112,7 +116,7 @@ static int render_state_setup(struct intel_render_state *so,
 		goto err;
 	}
 
-	so->batch_offset = so->vma->node.start;
+	so->batch_offset = i915_ggtt_offset(so->vma);
 	so->batch_size = rodata->batch_items * sizeof(u32);
 
 	while (i % CACHELINE_DWORDS)
@@ -160,9 +164,9 @@ static int render_state_setup(struct intel_render_state *so,
 		drm_clflush_virt_range(d, i * sizeof(u32));
 	kunmap_atomic(d);
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	ret = i915_gem_object_set_to_gtt_domain(so->obj, false);
 out:
-	i915_gem_obj_finish_shmem_access(obj);
+	i915_gem_obj_finish_shmem_access(so->obj);
 	return ret;
 
 err:
@@ -173,112 +177,57 @@ err:
 
 #undef OUT_BATCH
 
-int i915_gem_render_state_init(struct intel_engine_cs *engine)
+int i915_gem_render_state_emit(struct drm_i915_gem_request *rq)
 {
-	struct intel_render_state *so;
-	const struct intel_renderstate_rodata *rodata;
-	struct drm_i915_gem_object *obj;
-	int ret;
+	struct intel_engine_cs *engine = rq->engine;
+	struct intel_render_state so = {}; /* keep the compiler happy */
+	int err;
 
-	if (engine->id != RCS)
+	so.rodata = render_state_get_rodata(engine);
+	if (!so.rodata)
 		return 0;
 
-	rodata = render_state_get_rodata(engine);
-	if (!rodata)
-		return 0;
-
-	if (rodata->batch_items * 4 > PAGE_SIZE)
+	if (so.rodata->batch_items * 4 > PAGE_SIZE)
 		return -EINVAL;
 
-	so = kmalloc(sizeof(*so), GFP_KERNEL);
-	if (!so)
-		return -ENOMEM;
+	so.obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
+	if (IS_ERR(so.obj))
+		return PTR_ERR(so.obj);
 
-	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
-	if (IS_ERR(obj)) {
-		ret = PTR_ERR(obj);
-		goto err_free;
-	}
-
-	so->vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
-	if (IS_ERR(so->vma)) {
-		ret = PTR_ERR(so->vma);
+	so.vma = i915_vma_instance(so.obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(so.vma)) {
+		err = PTR_ERR(so.vma);
 		goto err_obj;
 	}
 
-	so->rodata = rodata;
-	engine->render_state = so;
-	return 0;
+	err = i915_vma_pin(so.vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	if (err)
+		goto err_vma;
 
-err_obj:
-	i915_gem_object_put(obj);
-err_free:
-	kfree(so);
-	return ret;
-}
+	err = render_state_setup(&so, rq->i915);
+	if (err)
+		goto err_unpin;
 
-int i915_gem_render_state_emit(struct drm_i915_gem_request *req)
-{
-	struct intel_render_state *so;
-	int ret;
+	err = engine->emit_bb_start(rq,
+				    so.batch_offset, so.batch_size,
+				    I915_DISPATCH_SECURE);
+	if (err)
+		goto err_unpin;
 
-	lockdep_assert_held(&req->i915->drm.struct_mutex);
-
-	so = req->engine->render_state;
-	if (!so)
-		return 0;
-
-	/* Recreate the page after shrinking */
-	if (!so->vma->obj->mm.pages)
-		so->batch_offset = -1;
-
-	ret = i915_vma_pin(so->vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
-	if (ret)
-		return ret;
-
-	if (so->vma->node.start != so->batch_offset) {
-		ret = render_state_setup(so, req->i915);
-		if (ret)
+	if (so.aux_size > 8) {
+		err = engine->emit_bb_start(rq,
+					    so.aux_offset, so.aux_size,
+					    I915_DISPATCH_SECURE);
+		if (err)
 			goto err_unpin;
 	}
 
-	ret = req->engine->emit_flush(req, EMIT_INVALIDATE);
-	if (ret)
-		goto err_unpin;
-
-	ret = req->engine->emit_bb_start(req,
-					 so->batch_offset, so->batch_size,
-					 I915_DISPATCH_SECURE);
-	if (ret)
-		goto err_unpin;
-
-	if (so->aux_size > 8) {
-		ret = req->engine->emit_bb_start(req,
-						 so->aux_offset, so->aux_size,
-						 I915_DISPATCH_SECURE);
-		if (ret)
-			goto err_unpin;
-	}
-
-	i915_vma_move_to_active(so->vma, req, 0);
+	i915_vma_move_to_active(so.vma, rq, 0);
 err_unpin:
-	i915_vma_unpin(so->vma);
-	return ret;
-}
-
-void i915_gem_render_state_fini(struct intel_engine_cs *engine)
-{
-	struct intel_render_state *so;
-	struct drm_i915_gem_object *obj;
-
-	so = fetch_and_zero(&engine->render_state);
-	if (!so)
-		return;
-
-	obj = so->vma->obj;
-
-	i915_vma_close(so->vma);
-	__i915_gem_object_release_unless_active(obj);
-
-	kfree(so);
+	i915_vma_unpin(so.vma);
+err_vma:
+	i915_vma_close(so.vma);
+err_obj:
+	__i915_gem_object_release_unless_active(so.obj);
+	return err;
 }

@@ -163,7 +163,7 @@ Valid values for xRX300 pin names:
 						io42-io43,io48-io61.
 
 Example:
-	gpio: pinmux@E100B10 {
+	gpio: pinmux@e100b10 {
 		compatible = "lantiq,danube-pinctrl";
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;

@@ -37,17 +37,17 @@ more details.
 
 
 typedef struct {
-	uint32_t        ddr_data_offset;       /**<  posistion of data in DDR */
-	uint32_t        dmem_data_addr;        /**< data segment address in dmem */
-	uint32_t        dmem_bss_addr;         /**< bss segment address in dmem  */
-	uint32_t        data_size;             /**< data segment size            */
-	uint32_t        bss_size;              /**< bss segment size             */
-	uint32_t        spctrl_config_dmem_addr; /** <location of dmem_cfg  in SP dmem */
-	uint32_t        spctrl_state_dmem_addr;  /** < location of state  in SP dmem */
-	unsigned int    sp_entry;                /** < entry function ptr on SP */
-	const void      *code;                   /**< location of firmware */
+	uint32_t        ddr_data_offset;       /**  posistion of data in DDR */
+	uint32_t        dmem_data_addr;        /** data segment address in dmem */
+	uint32_t        dmem_bss_addr;         /** bss segment address in dmem  */
+	uint32_t        data_size;             /** data segment size            */
+	uint32_t        bss_size;              /** bss segment size             */
+	uint32_t        spctrl_config_dmem_addr; /* <location of dmem_cfg  in SP dmem */
+	uint32_t        spctrl_state_dmem_addr;  /* < location of state  in SP dmem */
+	unsigned int    sp_entry;                /* < entry function ptr on SP */
+	const void      *code;                   /** location of firmware */
 	uint32_t         code_size;
-	char      *program_name;    /**< not used on hardware, only for simulation */
+	char      *program_name;    /** not used on hardware, only for simulation */
 } ia_css_spctrl_cfg;
 
 /* Get the code addr in DDR of SP */

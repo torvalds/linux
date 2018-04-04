@@ -535,8 +535,17 @@ static int get_bad_peb_limit(const struct ubi_device *ubi, int max_beb_per1024)
 	int limit, device_pebs;
 	uint64_t device_size;
 
-	if (!max_beb_per1024)
-		return 0;
+	if (!max_beb_per1024) {
+		/*
+		 * Since max_beb_per1024 has not been set by the user in either
+		 * the cmdline or Kconfig, use mtd_max_bad_blocks to set the
+		 * limit if it is supported by the device.
+		 */
+		limit = mtd_max_bad_blocks(ubi->mtd, 0, ubi->mtd->size);
+		if (limit < 0)
+			return 0;
+		return limit;
+	}
 
 	/*
 	 * Here we are using size of the entire flash chip and
@@ -1334,7 +1343,7 @@ static int bytes_str_to_int(const char *str)
  * This function returns zero in case of success and a negative error code in
  * case of error.
  */
-static int ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
+static int ubi_mtd_param_parse(const char *val, const struct kernel_param *kp)
 {
 	int i, len;
 	struct mtd_dev_param *p;

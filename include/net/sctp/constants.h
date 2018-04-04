@@ -145,12 +145,13 @@ SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		enum sctp_event_other,	other)
 SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 
 
-#define sctp_chunk_is_data(a) (a->chunk_hdr->type == SCTP_CID_DATA)
+#define sctp_chunk_is_data(a) (a->chunk_hdr->type == SCTP_CID_DATA || \
+			       a->chunk_hdr->type == SCTP_CID_I_DATA)
 
 /* Calculate the actual data size in a data chunk */
-#define SCTP_DATA_SNDSIZE(c) ((int)((unsigned long)(c->chunk_end)\
-		       		- (unsigned long)(c->chunk_hdr)\
-				- sizeof(struct sctp_data_chunk)))
+#define SCTP_DATA_SNDSIZE(c) ((int)((unsigned long)(c->chunk_end) - \
+				    (unsigned long)(c->chunk_hdr) - \
+				    sctp_datachk_len(&c->asoc->stream)))
 
 /* Internal error codes */
 enum sctp_ierror {

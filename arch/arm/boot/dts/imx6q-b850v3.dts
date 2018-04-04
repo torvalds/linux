@@ -212,3 +212,78 @@
 		};
 	};
 };
+
+&pci_root {
+	/* PLX Technology, Inc. PEX 8605 PCI Express 4-port Gen2 Switch */
+	bridge@1,0 {
+		compatible = "pci10b5,8605";
+		reg = <0x00010000 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+
+		bridge@2,1 {
+			compatible = "pci10b5,8605";
+			reg = <0x00020800 0 0 0 0>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+
+			/* Intel Corporation I210 Gigabit Network Connection */
+			ethernet@3,0 {
+				compatible = "pci8086,1533";
+				reg = <0x00030000 0 0 0 0>;
+			};
+		};
+
+		bridge@2,2 {
+			compatible = "pci10b5,8605";
+			reg = <0x00021000 0 0 0 0>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+
+			/* Intel Corporation I210 Gigabit Network Connection */
+			switch_nic: ethernet@4,0 {
+				compatible = "pci8086,1533";
+				reg = <0x00040000 0 0 0 0>;
+			};
+		};
+	};
+};
+
+&switch_ports {
+	port@0 {
+		reg = <0>;
+		label = "eneport1";
+		phy-handle = <&switchphy0>;
+	};
+
+	port@1 {
+		reg = <1>;
+		label = "eneport2";
+		phy-handle = <&switchphy1>;
+	};
+
+	port@2 {
+		reg = <2>;
+		label = "enix";
+		phy-handle = <&switchphy2>;
+	};
+
+	port@3 {
+		reg = <3>;
+		label = "enid";
+		phy-handle = <&switchphy3>;
+	};
+
+	port@4 {
+		reg = <4>;
+		label = "cpu";
+		ethernet = <&switch_nic>;
+		phy-handle = <&switchphy4>;
+	};
+};

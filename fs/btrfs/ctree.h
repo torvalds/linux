@@ -523,7 +523,7 @@ struct btrfs_caching_control {
 };
 
 /* Once caching_thread() finds this much free space, it will wake up waiters. */
-#define CACHING_CTL_WAKE_UP (1024 * 1024 * 2)
+#define CACHING_CTL_WAKE_UP SZ_2M
 
 struct btrfs_io_ctl {
 	void *cur, *orig;
@@ -679,7 +679,6 @@ enum btrfs_orphan_cleanup_state {
 /* used by the raid56 code to lock stripes for read/modify/write */
 struct btrfs_stripe_hash {
 	struct list_head hash_list;
-	wait_queue_head_t wait;
 	spinlock_t lock;
 };
 
@@ -763,8 +762,6 @@ struct btrfs_fs_info {
 	 * delayed dir index item
 	 */
 	struct btrfs_block_rsv global_block_rsv;
-	/* block reservation for delay allocation */
-	struct btrfs_block_rsv delalloc_block_rsv;
 	/* block reservation for metadata operations */
 	struct btrfs_block_rsv trans_block_rsv;
 	/* block reservation for chunk tree */
@@ -790,6 +787,7 @@ struct btrfs_fs_info {
 	 */
 	unsigned long pending_changes;
 	unsigned long compress_type:4;
+	unsigned int compress_level;
 	int commit_interval;
 	/*
 	 * It is a suggestive number, the read side is safe even it gets a
@@ -878,9 +876,6 @@ struct btrfs_fs_info {
 	rwlock_t tree_mod_log_lock;
 	struct rb_root tree_mod_log;
 
-	atomic_t nr_async_submits;
-	atomic_t async_submit_draining;
-	atomic_t nr_async_bios;
 	atomic_t async_delalloc_pages;
 	atomic_t open_ioctl_trans;
 
@@ -1100,6 +1095,11 @@ struct btrfs_fs_info {
 	u32 nodesize;
 	u32 sectorsize;
 	u32 stripesize;
+
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	spinlock_t ref_verify_lock;
+	struct rb_root block_tree;
+#endif
 };
 
 static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
@@ -1338,6 +1338,7 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 #define BTRFS_MOUNT_FRAGMENT_METADATA	(1 << 25)
 #define BTRFS_MOUNT_FREE_SPACE_TREE	(1 << 26)
 #define BTRFS_MOUNT_NOLOGREPLAY		(1 << 27)
+#define BTRFS_MOUNT_REF_VERIFY		(1 << 28)
 
 #define BTRFS_DEFAULT_COMMIT_INTERVAL	(30)
 #define BTRFS_DEFAULT_MAX_INLINE	(2048)
@@ -2639,7 +2640,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 			   struct extent_buffer *buf,
 			   u64 parent, int last_ref);
 int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
-				     u64 root_objectid, u64 owner,
+				     struct btrfs_root *root, u64 owner,
 				     u64 offset, u64 ram_bytes,
 				     struct btrfs_key *ins);
 int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
@@ -2658,7 +2659,7 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes, u64 flags,
 				int level, int is_data);
 int btrfs_free_extent(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info,
+		      struct btrfs_root *root,
 		      u64 bytenr, u64 num_bytes, u64 parent, u64 root_objectid,
 		      u64 owner, u64 offset);
 
@@ -2670,7 +2671,7 @@ void btrfs_prepare_extent_commit(struct btrfs_fs_info *fs_info);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			       struct btrfs_fs_info *fs_info);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info,
+			 struct btrfs_root *root,
 			 u64 bytenr, u64 num_bytes, u64 parent,
 			 u64 root_objectid, u64 owner, u64 offset);
 
@@ -2744,6 +2745,8 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     u64 *qgroup_reserved, bool use_global_rsv);
 void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
 				      struct btrfs_block_rsv *rsv);
+void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes);
+
 int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes);
 void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes);
 int btrfs_delalloc_reserve_space(struct inode *inode,
@@ -2751,6 +2754,9 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
 void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type);
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
 					      unsigned short type);
+void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,
+				   struct btrfs_block_rsv *rsv,
+				   unsigned short type);
 void btrfs_free_block_rsv(struct btrfs_fs_info *fs_info,
 			  struct btrfs_block_rsv *rsv);
 void __btrfs_free_block_rsv(struct btrfs_block_rsv *rsv);
@@ -2809,6 +2815,7 @@ void btrfs_set_item_key_safe(struct btrfs_fs_info *fs_info,
 			     const struct btrfs_key *new_key);
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
 struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
+struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root);
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 			struct btrfs_key *key, int lowest_level,
 			u64 min_trans);
@@ -2821,9 +2828,7 @@ enum btrfs_compare_tree_result {
 	BTRFS_COMPARE_TREE_CHANGED,
 	BTRFS_COMPARE_TREE_SAME,
 };
-typedef int (*btrfs_changed_cb_t)(struct btrfs_root *left_root,
-				  struct btrfs_root *right_root,
-				  struct btrfs_path *left_path,
+typedef int (*btrfs_changed_cb_t)(struct btrfs_path *left_path,
 				  struct btrfs_path *right_path,
 				  struct btrfs_key *key,
 				  enum btrfs_compare_tree_result result,
@@ -2951,7 +2956,7 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
  */
 static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
 {
-	return fs_info->sb->s_flags & MS_RDONLY || btrfs_fs_closing(fs_info);
+	return fs_info->sb->s_flags & SB_RDONLY || btrfs_fs_closing(fs_info);
 }
 
 static inline void free_fs_info(struct btrfs_fs_info *fs_info)
@@ -2969,7 +2974,7 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
 	security_free_mnt_opts(&fs_info->security_opts);
-	kfree(fs_info);
+	kvfree(fs_info);
 }
 
 /* tree mod log functions from ctree.c */
@@ -3054,15 +3059,10 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
 					  struct btrfs_path *path, u64 dir,
 					  const char *name, u16 name_len,
 					  int mod);
-int verify_dir_item(struct btrfs_fs_info *fs_info,
-		    struct extent_buffer *leaf, int slot,
-		    struct btrfs_dir_item *dir_item);
 struct btrfs_dir_item *btrfs_match_dir_item_name(struct btrfs_fs_info *fs_info,
 						 struct btrfs_path *path,
 						 const char *name,
 						 int name_len);
-bool btrfs_is_name_len_valid(struct extent_buffer *leaf, int slot,
-			     unsigned long start, u16 name_len);
 
 /* orphan.c */
 int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
@@ -3095,7 +3095,10 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 			  u64 inode_objectid, u64 ref_objectid, int ins_len,
 			  int cow);
 
-int btrfs_find_name_in_ext_backref(struct btrfs_path *path,
+int btrfs_find_name_in_backref(struct extent_buffer *leaf, int slot,
+			       const char *name,
+			       int name_len, struct btrfs_inode_ref **ref_ret);
+int btrfs_find_name_in_ext_backref(struct extent_buffer *leaf, int slot,
 				   u64 ref_objectid, const char *name,
 				   int name_len,
 				   struct btrfs_inode_extref **extref_ret);
@@ -3174,6 +3177,7 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput);
 int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput,
 			       int nr);
 int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
+			      unsigned int extra_bits,
 			      struct extent_state **cached_state, int dedupe);
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *new_root,
@@ -3190,7 +3194,7 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc);
 struct inode *btrfs_alloc_inode(struct super_block *sb);
 void btrfs_destroy_inode(struct inode *inode);
 int btrfs_drop_inode(struct inode *inode);
-int btrfs_init_cachep(void);
+int __init btrfs_init_cachep(void);
 void btrfs_destroy_cachep(void);
 long btrfs_ioctl_trans_end(struct file *file);
 struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
@@ -3241,7 +3245,7 @@ ssize_t btrfs_dedupe_file_range(struct file *src_file, u64 loff, u64 olen,
 			   struct file *dst_file, u64 dst_loff);
 
 /* file.c */
-int btrfs_auto_defrag_init(void);
+int __init btrfs_auto_defrag_init(void);
 void btrfs_auto_defrag_exit(void);
 int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 			   struct btrfs_inode *inode);
@@ -3276,7 +3280,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root);
 
 /* sysfs.c */
-int btrfs_init_sysfs(void);
+int __init btrfs_init_sysfs(void);
 void btrfs_exit_sysfs(void);
 int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info);
 void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info);

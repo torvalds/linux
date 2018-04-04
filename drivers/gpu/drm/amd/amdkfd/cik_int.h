@@ -32,9 +32,10 @@ struct cik_ih_ring_entry {
 	uint32_t reserved;
 };
 
-#define CIK_INTSRC_DEQUEUE_COMPLETE	0xC6
 #define CIK_INTSRC_CP_END_OF_PIPE	0xB5
 #define CIK_INTSRC_CP_BAD_OPCODE	0xB7
+#define CIK_INTSRC_DEQUEUE_COMPLETE	0xC6
+#define CIK_INTSRC_SDMA_TRAP		0xE0
 #define CIK_INTSRC_SQ_INTERRUPT_MSG	0xEF
 
 #endif

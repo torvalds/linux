@@ -17,7 +17,7 @@
 	model = "Hisilicon Hip06 D03 Development Board";
 	compatible = "hisilicon,hip06-d03";
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x00000000 0x0 0x40000000>;
 	};

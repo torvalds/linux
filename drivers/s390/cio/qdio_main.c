@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux for s390 qdio support, buffer handling, qdio API and module support.
  *
@@ -71,6 +72,7 @@ static inline int do_siga_input(unsigned long schid, unsigned int mask,
  * @mask: which output queues to process
  * @bb: busy bit indicator, set only if SIGA-w/wt could not access a buffer
  * @fc: function code to perform
+ * @aob: asynchronous operation block
  *
  * Returns condition code.
  * Note: For IQDC unicast queues only the highest priority queue is processed.
@@ -430,8 +432,8 @@ static void process_buffer_error(struct qdio_q *q, int count)
 	q->qdio_error = QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
-	if ((!q->is_input_q &&
-	    (q->sbal[q->first_to_check]->element[15].sflags) == 0x10)) {
+	if (queue_type(q) == QDIO_IQDIO_QFMT && !q->is_input_q &&
+	    q->sbal[q->first_to_check]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
@@ -535,7 +537,8 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_INPUT_ERROR:
 		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
-		atomic_sub(count, &q->nr_buf_used);
+		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
+			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals_error(q, count);
 		break;
@@ -894,9 +897,9 @@ void qdio_outbound_processing(unsigned long data)
 	__qdio_outbound_processing(q);
 }
 
-void qdio_outbound_timer(unsigned long data)
+void qdio_outbound_timer(struct timer_list *t)
 {
-	struct qdio_q *q = (struct qdio_q *)data;
+	struct qdio_q *q = from_timer(q, t, u.out.timer);
 
 	qdio_tasklet_schedule(q);
 }
@@ -1759,9 +1762,6 @@ EXPORT_SYMBOL(qdio_stop_irq);
  * @response:		Response code will be stored at this address
  * @cb: 		Callback function will be executed for each element
  *			of the address list
- * @priv:		Pointer passed from the caller to qdio_pnso_brinfo()
- * @type:		Type of the address entry passed to the callback
- * @entry:		Entry containg the address of the specified type
  * @priv:		Pointer to pass to the callback function.
  *
  * Performs "Store-network-bridging-information list" operation and calls

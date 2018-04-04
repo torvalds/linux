@@ -732,7 +732,7 @@ static void snd_es1371_codec_wait(struct snd_ac97 *ac97)
 
 static void snd_es1371_adc_rate(struct ensoniq * ensoniq, unsigned int rate)
 {
-	unsigned int n, truncm, freq, result;
+	unsigned int n, truncm, freq;
 
 	mutex_lock(&ensoniq->src_mutex);
 	n = rate / 3000;
@@ -740,7 +740,6 @@ static void snd_es1371_adc_rate(struct ensoniq * ensoniq, unsigned int rate)
 		n--;
 	truncm = (21 * n - 1) | 1;
 	freq = ((48000UL << 15) / rate) * n;
-	result = (48000UL << 15) / (freq / n);
 	if (rate >= 24000) {
 		if (truncm > 239)
 			truncm = 239;

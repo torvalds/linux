@@ -38,9 +38,8 @@
  * Dynticks per-CPU state.
  */
 struct rcu_dynticks {
-	long long dynticks_nesting; /* Track irq/process nesting level. */
-				    /* Process level is worth LLONG_MAX/2. */
-	int dynticks_nmi_nesting;   /* Track NMI nesting level. */
+	long dynticks_nesting;      /* Track process nesting level. */
+	long dynticks_nmi_nesting;  /* Track irq/NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
 	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
 	unsigned long rcu_qs_ctr;   /* Light universal quiescent state ctr. */
@@ -103,6 +102,7 @@ struct rcu_node {
 				/* Online CPUs for next expedited GP. */
 				/*  Any CPU that has ever been online will */
 				/*  have its bit set. */
+	unsigned long ffmask;	/* Fully functional CPUs. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
@@ -285,6 +285,10 @@ struct rcu_data {
 
 	/* 8) RCU CPU stall data. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
+	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
+	struct irq_work rcu_iw;		/* Check for non-irq activity. */
+	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
+	unsigned long rcu_iw_gpnum;	/* ->gpnum associated with ->rcu_iw. */
 
 	int cpu;
 	struct rcu_state *rsp;

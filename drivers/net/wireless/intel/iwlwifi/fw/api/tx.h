@@ -121,7 +121,7 @@ enum iwl_tx_flags {
 }; /* TX_FLAGS_BITS_API_S_VER_1 */
 
 /**
- * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for a000
+ * enum iwl_tx_cmd_flags - bitmasks for tx_flags in TX command for 22000
  * @IWL_TX_FLAGS_CMD_RATE: use rate from the TX command
  * @IWL_TX_FLAGS_ENCRYPT_DIS: frame should not be encrypted, even if it belongs
  *	to a secured STA
@@ -301,7 +301,7 @@ struct iwl_dram_sec_info {
 } __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
 
 /**
- * struct iwl_tx_cmd_gen2 - TX command struct to FW for a000 devices
+ * struct iwl_tx_cmd_gen2 - TX command struct to FW for 22000 devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
@@ -710,7 +710,7 @@ enum iwl_mvm_ba_resp_flags {
  * @reduced_txp: power reduced according to TPC. This is the actual value and
  *	not a copy from the LQ command. Thus, if not the first rate was used
  *	for Tx-ing then this value will be set to 0 by FW.
- * @initial_rate: TLC rate info, initial rate index, TLC table color
+ * @tlc_rate_info: TLC rate info, initial rate index, TLC table color
  * @retry_cnt: retry count
  * @query_byte_cnt: SCD query byte count
  * @query_frame_cnt: SCD query frame count
@@ -730,7 +730,7 @@ struct iwl_mvm_compressed_ba_notif {
 	__le32 flags;
 	u8 sta_id;
 	u8 reduced_txp;
-	u8 initial_rate;
+	u8 tlc_rate_info;
 	u8 retry_cnt;
 	__le32 query_byte_cnt;
 	__le16 query_frame_cnt;

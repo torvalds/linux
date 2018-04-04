@@ -1,9 +1,0 @@
-config VIDEO_IMX
-	tristate "sony imx sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_MSRLIST_HELPER && m
-	---help---
-	  This is a Video4Linux2 sensor-level driver for the Sony
-	  IMX RAW sensor.
-
-	  It currently depends on internal V4L2 extensions defined in
-	  atomisp driver.

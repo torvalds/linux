@@ -1271,7 +1271,7 @@ static int __init vmballoon_init(void)
 	 * Check if we are running on VMware's hypervisor and bail out
 	 * if we are not.
 	 */
-	if (x86_hyper != &x86_hyper_vmware)
+	if (x86_hyper_type != X86_HYPER_VMWARE)
 		return -ENODEV;
 
 	for (is_2m_pages = 0; is_2m_pages < VMW_BALLOON_NUM_PAGE_SIZES;

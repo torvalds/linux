@@ -68,6 +68,10 @@
 		};
 	};
 
+	cec@70015000 {
+		status = "okay";
+	};
+
 	gpu@0,57000000 {
 		/*
 		 * Node left disabled on purpose - the bootloader will enable

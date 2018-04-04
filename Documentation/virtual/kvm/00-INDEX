@@ -26,3 +26,6 @@ s390-diag.txt
 	- Diagnose hypercall description (for IBM S/390)
 timekeeping.txt
 	- timekeeping virtualization for x86-based architectures.
+amd-memory-encryption.txt
+	- notes on AMD Secure Encrypted Virtualization feature and SEV firmware
+	  command description

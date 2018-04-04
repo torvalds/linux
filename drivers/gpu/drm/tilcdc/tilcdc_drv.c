@@ -23,6 +23,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -65,13 +66,7 @@ static struct of_device_id tilcdc_of_match[];
 static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
 		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
-}
-
-static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	drm_fbdev_cma_hotplug_event(priv->fbdev);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static int tilcdc_atomic_check(struct drm_device *dev,
@@ -145,7 +140,7 @@ static int tilcdc_commit(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = tilcdc_fb_create,
-	.output_poll_changed = tilcdc_fb_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = tilcdc_atomic_check,
 	.atomic_commit = tilcdc_commit,
 };
@@ -197,8 +192,7 @@ static void tilcdc_fini(struct drm_device *dev)
 
 	drm_kms_helper_poll_fini(dev);
 
-	if (priv->fbdev)
-		drm_fbdev_cma_fini(priv->fbdev);
+	drm_fb_cma_fbdev_fini(dev);
 
 	drm_irq_uninstall(dev);
 	drm_mode_config_cleanup(dev);
@@ -225,7 +219,7 @@ static void tilcdc_fini(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 }
 
 static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
@@ -404,12 +398,9 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 
 	drm_mode_config_reset(ddev);
 
-	priv->fbdev = drm_fbdev_cma_init(ddev, bpp,
-					 ddev->mode_config.num_connector);
-	if (IS_ERR(priv->fbdev)) {
-		ret = PTR_ERR(priv->fbdev);
+	ret = drm_fb_cma_fbdev_init(ddev, bpp, 0);
+	if (ret)
 		goto init_failed;
-	}
 
 	drm_kms_helper_poll_init(ddev);
 
@@ -424,12 +415,6 @@ init_failed:
 	tilcdc_fini(ddev);
 
 	return ret;
-}
-
-static void tilcdc_lastclose(struct drm_device *dev)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	drm_fbdev_cma_restore_mode(priv->fbdev);
 }
 
 static irqreturn_t tilcdc_irq(int irq, void *arg)
@@ -506,7 +491,6 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 static struct drm_info_list tilcdc_debugfs_list[] = {
 		{ "regs", tilcdc_regs_show, 0 },
 		{ "mm",   tilcdc_mm_show,   0 },
-		{ "fb",   drm_fb_cma_debugfs_show, 0 },
 };
 
 static int tilcdc_debugfs_init(struct drm_minor *minor)
@@ -537,9 +521,10 @@ DEFINE_DRM_GEM_CMA_FOPS(fops);
 static struct drm_driver tilcdc_driver = {
 	.driver_features    = (DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET |
 			       DRIVER_PRIME | DRIVER_ATOMIC),
-	.lastclose          = tilcdc_lastclose,
+	.lastclose          = drm_fb_helper_lastclose,
 	.irq_handler        = tilcdc_irq,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
+	.gem_print_info     = drm_gem_cma_print_info,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
 

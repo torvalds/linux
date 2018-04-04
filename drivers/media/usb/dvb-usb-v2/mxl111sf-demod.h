@@ -17,7 +17,7 @@
 #ifndef __MXL111SF_DEMOD_H__
 #define __MXL111SF_DEMOD_H__
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl111sf.h"
 
 struct mxl111sf_demod_config {

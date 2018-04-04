@@ -1,7 +1,7 @@
 /*
  * HDMI Connector driver
  *
- * Copyright (C) 2013 Texas Instruments
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -165,11 +165,15 @@ static bool hdmic_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
+	bool connected;
 
 	if (gpio_is_valid(ddata->hpd_gpio))
-		return gpio_get_value_cansleep(ddata->hpd_gpio);
+		connected = gpio_get_value_cansleep(ddata->hpd_gpio);
 	else
-		return in->ops.hdmi->detect(in);
+		connected = in->ops.hdmi->detect(in);
+	if (!connected && in->ops.hdmi->lost_hotplug)
+		in->ops.hdmi->lost_hotplug(in);
+	return connected;
 }
 
 static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,

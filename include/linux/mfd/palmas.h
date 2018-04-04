@@ -20,7 +20,7 @@
 #include <linux/leds.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/of_gpio.h>
 #include <linux/usb/phy_companion.h>
 
@@ -3732,6 +3732,9 @@ enum usb_irq_events {
 #define TPS65917_REGEN3_CTRL_MODE_SLEEP_SHIFT			0x02
 #define TPS65917_REGEN3_CTRL_MODE_ACTIVE			0x01
 #define TPS65917_REGEN3_CTRL_MODE_ACTIVE_SHIFT			0x00
+
+/* POWERHOLD Mask field for PRIMARY_SECONDARY_PAD2 register */
+#define TPS65917_PRIMARY_SECONDARY_PAD2_GPIO_5_MASK		0xC
 
 /* Registers for function RESOURCE */
 #define TPS65917_REGEN1_CTRL					0x2

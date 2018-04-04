@@ -314,10 +314,12 @@ static int call_fib_rule_notifier(struct notifier_block *nb, struct net *net,
 static int call_fib_rule_notifiers(struct net *net,
 				   enum fib_event_type event_type,
 				   struct fib_rule *rule,
-				   struct fib_rules_ops *ops)
+				   struct fib_rules_ops *ops,
+				   struct netlink_ext_ack *extack)
 {
 	struct fib_rule_notifier_info info = {
 		.info.family = ops->family,
+		.info.extack = extack,
 		.rule = rule,
 	};
 
@@ -609,7 +611,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rule->tun_id)
 		ip_tunnel_need_metadata();
 
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule, ops);
+	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule, ops, extack);
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
@@ -749,7 +751,8 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 			}
 		}
 
-		call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule, ops);
+		call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule, ops,
+					NULL);
 		notify_rule_change(RTM_DELRULE, rule, ops, nlh,
 				   NETLINK_CB(skb).portid);
 		fib_rule_put(rule);
@@ -1019,8 +1022,14 @@ static int __net_init fib_rules_net_init(struct net *net)
 	return 0;
 }
 
+static void __net_exit fib_rules_net_exit(struct net *net)
+{
+	WARN_ON_ONCE(!list_empty(&net->rules_ops));
+}
+
 static struct pernet_operations fib_rules_net_ops = {
 	.init = fib_rules_net_init,
+	.exit = fib_rules_net_exit,
 };
 
 static int __init fib_rules_init(void)

@@ -166,7 +166,7 @@
 
 /**
  * ixgbe_ptp_setup_sdp_x540
- * @hw: the hardware private structure
+ * @adapter: private adapter structure
  *
  * this function enables or disables the clock out feature on SDP0 for
  * the X540 device. It will create a 1second periodic output that can
@@ -299,7 +299,7 @@ static u64 ixgbe_ptp_read_82599(const struct cyclecounter *cc)
  * ixgbe_ptp_convert_to_hwtstamp - convert register value to hw timestamp
  * @adapter: private adapter structure
  * @hwtstamp: stack timestamp structure
- * @systim: unsigned 64bit system time value
+ * @timestamp: unsigned 64bit system time value
  *
  * We need to convert the adapter's RX/TXSTMP registers into a hwtstamp value
  * which can be used by the stack's ptp functions.
@@ -378,7 +378,7 @@ static int ixgbe_ptp_adjfreq_82599(struct ptp_clock_info *ptp, s32 ppb)
 	}
 
 	smp_mb();
-	incval = ACCESS_ONCE(adapter->base_incval);
+	incval = READ_ONCE(adapter->base_incval);
 
 	freq = incval;
 	freq *= ppb;
@@ -1015,7 +1015,7 @@ static int ixgbe_ptp_set_timestamp_mode(struct ixgbe_adapter *adapter,
 /**
  * ixgbe_ptp_set_ts_config - user entry point for timestamp mode
  * @adapter: pointer to adapter struct
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Set hardware to requested mode. If unsupported, return an error with no
  * changes. Otherwise, store the mode for future reference.
@@ -1159,7 +1159,7 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	}
 
 	/* update the base incval used to calculate frequency adjustment */
-	ACCESS_ONCE(adapter->base_incval) = incval;
+	WRITE_ONCE(adapter->base_incval, incval);
 	smp_mb();
 
 	/* need lock to prevent incorrect read while modifying cyclecounter */
@@ -1338,7 +1338,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_ptp_suspend - stop PTP work items
- * @ adapter: pointer to adapter struct
+ * @adapter: pointer to adapter struct
  *
  * this function suspends PTP activity, and prevents more PTP work from being
  * generated, but does not destroy the PTP clock device.

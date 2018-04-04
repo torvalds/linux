@@ -303,7 +303,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	/* Do this BEFORE marking the inode not in use or returning an error */
 	ext4_clear_inode(inode);
 
-	es = EXT4_SB(sb)->s_es;
+	es = sbi->s_es;
 	if (ino < EXT4_FIRST_INO(sb) || ino > le32_to_cpu(es->s_inodes_count)) {
 		ext4_error(sb, "reserved or nonexistent inode %lu", ino);
 		goto error_return;
@@ -816,6 +816,8 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 		struct posix_acl *p = get_acl(dir, ACL_TYPE_DEFAULT);
 
+		if (IS_ERR(p))
+			return ERR_CAST(p);
 		if (p) {
 			int acl_size = p->a_count * sizeof(ext4_acl_entry);
 
@@ -1139,9 +1141,7 @@ got:
 			   inode->i_ino);
 		goto out;
 	}
-	spin_lock(&sbi->s_next_gen_lock);
-	inode->i_generation = sbi->s_next_generation++;
-	spin_unlock(&sbi->s_next_gen_lock);
+	inode->i_generation = prandom_u32();
 
 	/* Precompute checksum seed for inode metadata */
 	if (ext4_has_metadata_csum(sb)) {
@@ -1157,7 +1157,7 @@ got:
 	ext4_clear_state_flags(ei); /* Only relevant on 32-bit archs */
 	ext4_set_inode_state(inode, EXT4_STATE_NEW);
 
-	ei->i_extra_isize = EXT4_SB(sb)->s_want_extra_isize;
+	ei->i_extra_isize = sbi->s_want_extra_isize;
 	ei->i_inline_off = 0;
 	if (ext4_has_feature_inline_data(sb))
 		ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);

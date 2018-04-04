@@ -245,7 +245,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	 * - We are allowed to put 4 bytes at tail if skb_cloned()
 	 *   is false (and if we have 4 bytes of tailroom)
 	 *
-	 * TCP packets for example are cloned, but skb_header_release()
+	 * TCP packets for example are cloned, but __skb_header_release()
 	 * was called in tcp stack, allowing us to use headroom for our needs.
 	 */
 	if (!skb_header_cloned(skb) &&

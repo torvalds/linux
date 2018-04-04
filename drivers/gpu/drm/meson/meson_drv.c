@@ -34,6 +34,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
@@ -78,7 +79,7 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.output_poll_changed = meson_fb_output_poll_changed,
 	.atomic_check        = drm_atomic_helper_check,
 	.atomic_commit       = drm_atomic_helper_commit,
-	.fb_create           = drm_fb_cma_create,
+	.fb_create           = drm_gem_fb_create,
 };
 
 static irqreturn_t meson_irq(int irq, void *arg)
@@ -149,6 +150,14 @@ static struct regmap_config meson_regmap_config = {
 	.reg_stride     = 4,
 	.max_register   = 0x1000,
 };
+
+static void meson_vpu_init(struct meson_drm *priv)
+{
+	writel_relaxed(0x210000, priv->io_base + _REG(VPU_RDARB_MODE_L1C1));
+	writel_relaxed(0x10000, priv->io_base + _REG(VPU_RDARB_MODE_L1C2));
+	writel_relaxed(0x900000, priv->io_base + _REG(VPU_RDARB_MODE_L2C1));
+	writel_relaxed(0x20000, priv->io_base + _REG(VPU_WRARB_MODE_L2C1));
+}
 
 static int meson_drv_bind_master(struct device *dev, bool has_components)
 {
@@ -221,6 +230,7 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 
 	/* Hardware Initialization */
 
+	meson_vpu_init(priv);
 	meson_venc_init(priv);
 	meson_vpp_init(priv);
 	meson_viu_init(priv);

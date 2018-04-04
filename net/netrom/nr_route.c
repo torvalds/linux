@@ -80,6 +80,19 @@ static struct nr_neigh *nr_neigh_get_dev(ax25_address *callsign,
 
 static void nr_remove_neigh(struct nr_neigh *);
 
+/*      re-sort the routes in quality order.    */
+static void re_sort_routes(struct nr_node *nr_node, int x, int y)
+{
+	if (nr_node->routes[y].quality > nr_node->routes[x].quality) {
+		if (nr_node->which == x)
+			nr_node->which = y;
+		else if (nr_node->which == y)
+			nr_node->which = x;
+
+		swap(nr_node->routes[x], nr_node->routes[y]);
+	}
+}
+
 /*
  *	Add a new route to a node, and in the process add the node and the
  *	neighbour if it is new.
@@ -90,7 +103,6 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 {
 	struct nr_node  *nr_node;
 	struct nr_neigh *nr_neigh;
-	struct nr_route nr_route;
 	int i, found;
 	struct net_device *odev;
 
@@ -251,49 +263,11 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 	/* Now re-sort the routes in quality order */
 	switch (nr_node->count) {
 	case 3:
-		if (nr_node->routes[1].quality > nr_node->routes[0].quality) {
-			switch (nr_node->which) {
-			case 0:
-				nr_node->which = 1;
-				break;
-			case 1:
-				nr_node->which = 0;
-				break;
-			}
-			nr_route           = nr_node->routes[0];
-			nr_node->routes[0] = nr_node->routes[1];
-			nr_node->routes[1] = nr_route;
-		}
-		if (nr_node->routes[2].quality > nr_node->routes[1].quality) {
-			switch (nr_node->which) {
-			case 1:  nr_node->which = 2;
-				break;
-
-			case 2:  nr_node->which = 1;
-				break;
-
-			default:
-				break;
-			}
-			nr_route           = nr_node->routes[1];
-			nr_node->routes[1] = nr_node->routes[2];
-			nr_node->routes[2] = nr_route;
-		}
+		re_sort_routes(nr_node, 0, 1);
+		re_sort_routes(nr_node, 1, 2);
+		/* fall through */
 	case 2:
-		if (nr_node->routes[1].quality > nr_node->routes[0].quality) {
-			switch (nr_node->which) {
-			case 0:  nr_node->which = 1;
-				break;
-
-			case 1:  nr_node->which = 0;
-				break;
-
-			default: break;
-			}
-			nr_route           = nr_node->routes[0];
-			nr_node->routes[0] = nr_node->routes[1];
-			nr_node->routes[1] = nr_route;
-			}
+		re_sort_routes(nr_node, 0, 1);
 	case 1:
 		break;
 	}
@@ -384,6 +358,7 @@ static int nr_del_node(ax25_address *callsign, ax25_address *neighbour, struct n
 				switch (i) {
 				case 0:
 					nr_node->routes[0] = nr_node->routes[1];
+					/* fall through */
 				case 1:
 					nr_node->routes[1] = nr_node->routes[2];
 				case 2:
@@ -553,6 +528,7 @@ void nr_rt_device_down(struct net_device *dev)
 						switch (i) {
 						case 0:
 							t->routes[0] = t->routes[1];
+							/* fall through */
 						case 1:
 							t->routes[1] = t->routes[2];
 						case 2:
@@ -925,7 +901,6 @@ static int nr_node_info_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations nr_nodes_fops = {
-	.owner = THIS_MODULE,
 	.open = nr_node_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -992,7 +967,6 @@ static int nr_neigh_info_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations nr_neigh_fops = {
-	.owner = THIS_MODULE,
 	.open = nr_neigh_info_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

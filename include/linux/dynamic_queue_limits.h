@@ -89,7 +89,7 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 /* Returns how many objects can be queued, < 0 indicates over limit. */
 static inline int dql_avail(const struct dql *dql)
 {
-	return ACCESS_ONCE(dql->adj_limit) - ACCESS_ONCE(dql->num_queued);
+	return READ_ONCE(dql->adj_limit) - READ_ONCE(dql->num_queued);
 }
 
 /* Record number of completed objects and recalculate the limit. */
@@ -99,7 +99,7 @@ void dql_completed(struct dql *dql, unsigned int count);
 void dql_reset(struct dql *dql);
 
 /* Initialize dql state */
-int dql_init(struct dql *dql, unsigned hold_time);
+void dql_init(struct dql *dql, unsigned int hold_time);
 
 #endif /* _KERNEL_ */
 

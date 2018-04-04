@@ -400,7 +400,6 @@ static const struct iio_info mlx90614_info = {
 	.write_raw = mlx90614_write_raw,
 	.write_raw_get_fmt = mlx90614_write_raw_get_fmt,
 	.attrs = &mlx90614_attr_group,
-	.driver_module = THIS_MODULE,
 };
 
 #ifdef CONFIG_PM

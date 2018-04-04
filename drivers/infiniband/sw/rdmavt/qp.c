@@ -57,7 +57,7 @@
 #include "vt.h"
 #include "trace.h"
 
-static void rvt_rc_timeout(unsigned long arg);
+static void rvt_rc_timeout(struct timer_list *t);
 
 /*
  * Convert the AETH RNR timeout code into the number of microseconds.
@@ -238,7 +238,7 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
 	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
 	rdi->qp_dev->qp_table =
-		kmalloc_node(rdi->qp_dev->qp_table_size *
+		kmalloc_array_node(rdi->qp_dev->qp_table_size,
 			     sizeof(*rdi->qp_dev->qp_table),
 			     GFP_KERNEL, rdi->dparms.node);
 	if (!rdi->qp_dev->qp_table)
@@ -269,7 +269,7 @@ no_qp_table:
 
 /**
  * free_all_qps - check for QPs still in use
- * @qpt: the QP table to empty
+ * @rdi: rvt device info structure
  *
  * There should not be any QPs still in use.
  * Free memory for table.
@@ -335,9 +335,9 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 /**
  * alloc_qpn - Allocate the next available qpn or zero/one for QP type
  *	       IB_QPT_SMI/IB_QPT_GSI
- *@rdi:	rvt device info structure
- *@qpt: queue pair number table pointer
- *@port_num: IB port number, 1 based, comes from core
+ * @rdi: rvt device info structure
+ * @qpt: queue pair number table pointer
+ * @port_num: IB port number, 1 based, comes from core
  *
  * Return: The queue pair number
  */
@@ -717,7 +717,6 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* take qp out the hash and wait for it to be unused */
 		rvt_remove_qp(rdi, qp);
-		wait_event(qp->wait, !atomic_read(&qp->refcount));
 
 		/* grab the lock b/c it was locked at call time */
 		spin_lock_irq(&qp->r_lock);
@@ -807,6 +806,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		if (init_attr->port_num == 0 ||
 		    init_attr->port_num > ibpd->device->phys_port_cnt)
 			return ERR_PTR(-EINVAL);
+		/* fall through */
 	case IB_QPT_UC:
 	case IB_QPT_RC:
 	case IB_QPT_UD:
@@ -845,7 +845,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				goto bail_qp;
 		}
 		/* initialize timers needed for rc qp */
-		setup_timer(&qp->s_timer, rvt_rc_timeout, (unsigned long)qp);
+		timer_setup(&qp->s_timer, rvt_rc_timeout, 0);
 		hrtimer_init(&qp->s_rnr_timer, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_REL);
 		qp->s_rnr_timer.function = rvt_rc_rnr_retry;
@@ -894,8 +894,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		atomic_set(&qp->refcount, 0);
 		atomic_set(&qp->local_ops_pending, 0);
 		init_waitqueue_head(&qp->wait);
-		init_timer(&qp->s_timer);
-		qp->s_timer.data = (unsigned long)qp;
 		INIT_LIST_HEAD(&qp->rspwait);
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
@@ -1073,7 +1071,7 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	rdi->driver_f.notify_error_qp(qp);
 
 	/* Schedule the sending tasklet to drain the send work queue. */
-	if (ACCESS_ONCE(qp->s_last) != qp->s_head)
+	if (READ_ONCE(qp->s_last) != qp->s_head)
 		rdi->driver_f.schedule_send(qp);
 
 	rvt_clear_mr_refs(qp, 0);
@@ -1443,6 +1441,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 
+	wait_event(qp->wait, !atomic_read(&qp->refcount));
 	/* qpn is now available for use again */
 	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 
@@ -1651,9 +1650,9 @@ static inline int rvt_qp_valid_operation(
 
 /**
  * rvt_qp_is_avail - determine queue capacity
- * @qp - the qp
- * @rdi - the rdmavt device
- * @reserved_op - is reserved operation
+ * @qp: the qp
+ * @rdi: the rdmavt device
+ * @reserved_op: is reserved operation
  *
  * This assumes the s_hlock is held but the s_last
  * qp variable is uncontrolled.
@@ -1685,8 +1684,7 @@ static inline int rvt_qp_is_avail(
 	/* non-reserved operations */
 	if (likely(qp->s_avail))
 		return 0;
-	smp_read_barrier_depends(); /* see rc.c */
-	slast = ACCESS_ONCE(qp->s_last);
+	slast = READ_ONCE(qp->s_last);
 	if (qp->s_head >= slast)
 		avail = qp->s_size - (qp->s_head - slast);
 	else
@@ -1917,7 +1915,7 @@ int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	 * ahead and kick the send engine into gear. Otherwise we will always
 	 * just schedule the send to happen later.
 	 */
-	call_send = qp->s_head == ACCESS_ONCE(qp->s_last) && !wr->next;
+	call_send = qp->s_head == READ_ONCE(qp->s_last) && !wr->next;
 
 	for (; wr; wr = wr->next) {
 		err = rvt_post_one_wr(qp, wr, &call_send);
@@ -2076,6 +2074,7 @@ void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_WAIT_RNR;
 	to = rvt_aeth_to_usec(aeth);
+	trace_rvt_rnrnak_add(qp, to);
 	hrtimer_start(&qp->s_rnr_timer,
 		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL);
 }
@@ -2105,17 +2104,14 @@ EXPORT_SYMBOL(rvt_stop_rc_timers);
  * stop an rnr timer and return if the timer
  * had been pending.
  */
-static int rvt_stop_rnr_timer(struct rvt_qp *qp)
+static void rvt_stop_rnr_timer(struct rvt_qp *qp)
 {
-	int rval = 0;
-
 	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from rnr timer */
 	if (qp->s_flags & RVT_S_WAIT_RNR) {
 		qp->s_flags &= ~RVT_S_WAIT_RNR;
-		rval = hrtimer_try_to_cancel(&qp->s_rnr_timer);
+		trace_rvt_rnrnak_stop(qp, 0);
 	}
-	return rval;
 }
 
 /**
@@ -2132,9 +2128,9 @@ EXPORT_SYMBOL(rvt_del_timers_sync);
 /**
  * This is called from s_timer for missing responses.
  */
-static void rvt_rc_timeout(unsigned long arg)
+static void rvt_rc_timeout(struct timer_list *t)
 {
-	struct rvt_qp *qp = (struct rvt_qp *)arg;
+	struct rvt_qp *qp = from_timer(qp, t, s_timer);
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	unsigned long flags;
 
@@ -2168,6 +2164,7 @@ enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t)
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	rvt_stop_rnr_timer(qp);
+	trace_rvt_rnrnak_timeout(qp, 0);
 	rdi->driver_f.schedule_send(qp);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return HRTIMER_NORESTART;
@@ -2176,8 +2173,8 @@ EXPORT_SYMBOL(rvt_rc_rnr_retry);
 
 /**
  * rvt_qp_iter_init - initial for QP iteration
- * @rdi - rvt devinfo
- * @v - u64 value
+ * @rdi: rvt devinfo
+ * @v: u64 value
  *
  * This returns an iterator suitable for iterating QPs
  * in the system.

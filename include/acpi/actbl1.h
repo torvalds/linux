@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,8 +69,10 @@
 #define ACPI_SIG_HEST           "HEST"	/* Hardware Error Source Table */
 #define ACPI_SIG_MADT           "APIC"	/* Multiple APIC Description Table */
 #define ACPI_SIG_MSCT           "MSCT"	/* Maximum System Characteristics Table */
+#define ACPI_SIG_PDTT           "PDTT"	/* Platform Debug Trigger Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
+#define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
 #define ACPI_SIG_SLIT           "SLIT"	/* System Locality Distance Information Table */
 #define ACPI_SIG_SRAT           "SRAT"	/* System Resource Affinity Table */
 #define ACPI_SIG_NFIT           "NFIT"	/* NVDIMM Firmware Interface Table */
@@ -1148,7 +1150,8 @@ enum acpi_nfit_type {
 	ACPI_NFIT_TYPE_CONTROL_REGION = 4,
 	ACPI_NFIT_TYPE_DATA_REGION = 5,
 	ACPI_NFIT_TYPE_FLUSH_ADDRESS = 6,
-	ACPI_NFIT_TYPE_RESERVED = 7	/* 7 and greater are reserved */
+	ACPI_NFIT_TYPE_CAPABILITIES = 7,
+	ACPI_NFIT_TYPE_RESERVED = 8	/* 8 and greater are reserved */
 };
 
 /*
@@ -1161,7 +1164,7 @@ struct acpi_nfit_system_address {
 	struct acpi_nfit_header header;
 	u16 range_index;
 	u16 flags;
-	u32 reserved;		/* Reseved, must be zero */
+	u32 reserved;		/* Reserved, must be zero */
 	u32 proximity_domain;
 	u8 range_guid[16];
 	u64 address;
@@ -1280,6 +1283,98 @@ struct acpi_nfit_flush_address {
 	u64 hint_address[1];	/* Variable length */
 };
 
+/* 7: Platform Capabilities Structure */
+
+struct acpi_nfit_capabilities {
+	struct acpi_nfit_header header;
+	u8 highest_capability;
+	u8 reserved[3];		/* Reserved, must be zero */
+	u32 capabilities;
+	u32 reserved2;
+};
+
+/* Capabilities Flags */
+
+#define ACPI_NFIT_CAPABILITY_CACHE_FLUSH       (1)	/* 00: Cache Flush to NVDIMM capable */
+#define ACPI_NFIT_CAPABILITY_MEM_FLUSH         (1<<1)	/* 01: Memory Flush to NVDIMM capable */
+#define ACPI_NFIT_CAPABILITY_MEM_MIRRORING     (1<<2)	/* 02: Memory Mirroring capable */
+
+/*
+ * NFIT/DVDIMM device handle support - used as the _ADR for each NVDIMM
+ */
+struct nfit_device_handle {
+	u32 handle;
+};
+
+/* Device handle construction and extraction macros */
+
+#define ACPI_NFIT_DIMM_NUMBER_MASK              0x0000000F
+#define ACPI_NFIT_CHANNEL_NUMBER_MASK           0x000000F0
+#define ACPI_NFIT_MEMORY_ID_MASK                0x00000F00
+#define ACPI_NFIT_SOCKET_ID_MASK                0x0000F000
+#define ACPI_NFIT_NODE_ID_MASK                  0x0FFF0000
+
+#define ACPI_NFIT_DIMM_NUMBER_OFFSET            0
+#define ACPI_NFIT_CHANNEL_NUMBER_OFFSET         4
+#define ACPI_NFIT_MEMORY_ID_OFFSET              8
+#define ACPI_NFIT_SOCKET_ID_OFFSET              12
+#define ACPI_NFIT_NODE_ID_OFFSET                16
+
+/* Macro to construct a NFIT/NVDIMM device handle */
+
+#define ACPI_NFIT_BUILD_DEVICE_HANDLE(dimm, channel, memory, socket, node) \
+	((dimm)                                         | \
+	((channel) << ACPI_NFIT_CHANNEL_NUMBER_OFFSET)  | \
+	((memory)  << ACPI_NFIT_MEMORY_ID_OFFSET)       | \
+	((socket)  << ACPI_NFIT_SOCKET_ID_OFFSET)       | \
+	((node)    << ACPI_NFIT_NODE_ID_OFFSET))
+
+/* Macros to extract individual fields from a NFIT/NVDIMM device handle */
+
+#define ACPI_NFIT_GET_DIMM_NUMBER(handle) \
+	((handle) & ACPI_NFIT_DIMM_NUMBER_MASK)
+
+#define ACPI_NFIT_GET_CHANNEL_NUMBER(handle) \
+	(((handle) & ACPI_NFIT_CHANNEL_NUMBER_MASK) >> ACPI_NFIT_CHANNEL_NUMBER_OFFSET)
+
+#define ACPI_NFIT_GET_MEMORY_ID(handle) \
+	(((handle) & ACPI_NFIT_MEMORY_ID_MASK)      >> ACPI_NFIT_MEMORY_ID_OFFSET)
+
+#define ACPI_NFIT_GET_SOCKET_ID(handle) \
+	(((handle) & ACPI_NFIT_SOCKET_ID_MASK)      >> ACPI_NFIT_SOCKET_ID_OFFSET)
+
+#define ACPI_NFIT_GET_NODE_ID(handle) \
+	(((handle) & ACPI_NFIT_NODE_ID_MASK)        >> ACPI_NFIT_NODE_ID_OFFSET)
+
+/*******************************************************************************
+ *
+ * PDTT - Platform Debug Trigger Table (ACPI 6.2)
+ *        Version 0
+ *
+ ******************************************************************************/
+
+struct acpi_table_pdtt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u8 trigger_count;
+	u8 reserved[3];
+	u32 array_offset;
+};
+
+/*
+ * PDTT Communication Channel Identifier Structure.
+ * The number of these structures is defined by trigger_count above,
+ * starting at array_offset.
+ */
+struct acpi_pdtt_channel {
+	u8 subchannel_id;
+	u8 flags;
+};
+
+/* Flags for above */
+
+#define ACPI_PDTT_RUNTIME_TRIGGER           (1)
+#define ACPI_PDTT_WAIT_COMPLETION           (1<<1)
+
 /*******************************************************************************
  *
  * PPTT - Processor Properties Topology Table (ACPI 6.2)
@@ -1346,6 +1441,20 @@ struct acpi_pptt_cache {
 #define ACPI_PPTT_MASK_CACHE_TYPE           (0x0C)	/* Cache type */
 #define ACPI_PPTT_MASK_WRITE_POLICY         (0x10)	/* Write policy */
 
+/* Attributes describing cache */
+#define ACPI_PPTT_CACHE_READ_ALLOCATE       (0x0)	/* Cache line is allocated on read */
+#define ACPI_PPTT_CACHE_WRITE_ALLOCATE      (0x01)	/* Cache line is allocated on write */
+#define ACPI_PPTT_CACHE_RW_ALLOCATE         (0x02)	/* Cache line is allocated on read and write */
+#define ACPI_PPTT_CACHE_RW_ALLOCATE_ALT     (0x03)	/* Alternate representation of above */
+
+#define ACPI_PPTT_CACHE_TYPE_DATA           (0x0)	/* Data cache */
+#define ACPI_PPTT_CACHE_TYPE_INSTR          (1<<2)	/* Instruction cache */
+#define ACPI_PPTT_CACHE_TYPE_UNIFIED        (2<<2)	/* Unified I & D cache */
+#define ACPI_PPTT_CACHE_TYPE_UNIFIED_ALT    (3<<2)	/* Alternate representation of above */
+
+#define ACPI_PPTT_CACHE_POLICY_WB           (0x0)	/* Cache is write back */
+#define ACPI_PPTT_CACHE_POLICY_WT           (1<<4)	/* Cache is write through */
+
 /* 2: ID Structure */
 
 struct acpi_pptt_id {
@@ -1371,6 +1480,68 @@ struct acpi_table_sbst {
 	u32 warning_level;
 	u32 low_level;
 	u32 critical_level;
+};
+
+/*******************************************************************************
+ *
+ * SDEV - Secure Devices Table (ACPI 6.2)
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_sdev {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+struct acpi_sdev_header {
+	u8 type;
+	u8 flags;
+	u16 length;
+};
+
+/* Values for subtable type above */
+
+enum acpi_sdev_type {
+	ACPI_SDEV_TYPE_NAMESPACE_DEVICE = 0,
+	ACPI_SDEV_TYPE_PCIE_ENDPOINT_DEVICE = 1,
+	ACPI_SDEV_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+};
+
+/* Values for flags above */
+
+#define ACPI_SDEV_HANDOFF_TO_UNSECURE_OS    (1)
+
+/*
+ * SDEV subtables
+ */
+
+/* 0: Namespace Device Based Secure Device Structure */
+
+struct acpi_sdev_namespace {
+	struct acpi_sdev_header header;
+	u16 device_id_offset;
+	u16 device_id_length;
+	u16 vendor_data_offset;
+	u16 vendor_data_length;
+};
+
+/* 1: PCIe Endpoint Device Based Device Structure */
+
+struct acpi_sdev_pcie {
+	struct acpi_sdev_header header;
+	u16 segment;
+	u16 start_bus;
+	u16 path_offset;
+	u16 path_length;
+	u16 vendor_data_offset;
+	u16 vendor_data_length;
+};
+
+/* 1a: PCIe Endpoint path entry */
+
+struct acpi_sdev_pcie_path {
+	u8 device;
+	u8 function;
 };
 
 /*******************************************************************************

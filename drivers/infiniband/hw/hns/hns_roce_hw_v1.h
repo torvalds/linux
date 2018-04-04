@@ -60,8 +60,13 @@
 #define HNS_ROCE_V1_GID_NUM				16
 #define HNS_ROCE_V1_RESV_QP				8
 
-#define HNS_ROCE_V1_NUM_COMP_EQE			0x8000
-#define HNS_ROCE_V1_NUM_ASYNC_EQE			0x400
+#define HNS_ROCE_V1_MAX_IRQ_NUM				34
+#define HNS_ROCE_V1_COMP_VEC_NUM			32
+#define HNS_ROCE_V1_AEQE_VEC_NUM			1
+#define HNS_ROCE_V1_ABNORMAL_VEC_NUM			1
+
+#define HNS_ROCE_V1_COMP_EQE_NUM			0x8000
+#define HNS_ROCE_V1_ASYNC_EQE_NUM			0x400
 
 #define HNS_ROCE_V1_QPC_ENTRY_SIZE			256
 #define HNS_ROCE_V1_IRRL_ENTRY_SIZE			8
@@ -71,6 +76,8 @@
 
 #define HNS_ROCE_V1_CQE_ENTRY_SIZE			32
 #define HNS_ROCE_V1_PAGE_SIZE_SUPPORT			0xFFFFF000
+
+#define HNS_ROCE_V1_TABLE_CHUNK_SIZE			(1 << 17)
 
 #define HNS_ROCE_V1_EXT_RAQ_WF				8
 #define HNS_ROCE_V1_RAQ_ENTRY				64
@@ -157,15 +164,50 @@
 #define SDB_INV_CNT_OFFSET				8
 #define SDB_ST_CMP_VAL					8
 
+#define HNS_ROCE_CEQ_DEFAULT_INTERVAL			0x10
+#define HNS_ROCE_CEQ_DEFAULT_BURST_NUM			0x10
+
+#define HNS_ROCE_INT_MASK_DISABLE			0
+#define HNS_ROCE_INT_MASK_ENABLE			1
+
+#define CEQ_REG_OFFSET					0x18
+
+#define HNS_ROCE_CEQE_CEQE_COMP_OWNER_S	0
+
+#define HNS_ROCE_V1_CONS_IDX_M GENMASK(15, 0)
+
+#define HNS_ROCE_CEQE_CEQE_COMP_CQN_S 16
+#define HNS_ROCE_CEQE_CEQE_COMP_CQN_M GENMASK(31, 16)
+
+#define HNS_ROCE_AEQE_U32_4_EVENT_TYPE_S 16
+#define HNS_ROCE_AEQE_U32_4_EVENT_TYPE_M GENMASK(23, 16)
+
+#define HNS_ROCE_AEQE_U32_4_EVENT_SUB_TYPE_S 24
+#define HNS_ROCE_AEQE_U32_4_EVENT_SUB_TYPE_M GENMASK(30, 24)
+
+#define HNS_ROCE_AEQE_U32_4_OWNER_S 31
+
+#define HNS_ROCE_AEQE_EVENT_QP_EVENT_QP_QPN_S 0
+#define HNS_ROCE_AEQE_EVENT_QP_EVENT_QP_QPN_M GENMASK(23, 0)
+
+#define HNS_ROCE_AEQE_EVENT_QP_EVENT_PORT_NUM_S 25
+#define HNS_ROCE_AEQE_EVENT_QP_EVENT_PORT_NUM_M GENMASK(27, 25)
+
+#define HNS_ROCE_AEQE_EVENT_CQ_EVENT_CQ_CQN_S 0
+#define HNS_ROCE_AEQE_EVENT_CQ_EVENT_CQ_CQN_M GENMASK(15, 0)
+
+#define HNS_ROCE_AEQE_EVENT_CE_EVENT_CEQE_CEQN_S 0
+#define HNS_ROCE_AEQE_EVENT_CE_EVENT_CEQE_CEQN_M GENMASK(4, 0)
+
 struct hns_roce_cq_context {
-	u32 cqc_byte_4;
-	u32 cq_bt_l;
-	u32 cqc_byte_12;
-	u32 cur_cqe_ba0_l;
-	u32 cqc_byte_20;
-	u32 cqe_tptr_addr_l;
-	u32 cur_cqe_ba1_l;
-	u32 cqc_byte_32;
+	__le32 cqc_byte_4;
+	__le32 cq_bt_l;
+	__le32 cqc_byte_12;
+	__le32 cur_cqe_ba0_l;
+	__le32 cqc_byte_20;
+	__le32 cqe_tptr_addr_l;
+	__le32 cur_cqe_ba1_l;
+	__le32 cqc_byte_32;
 };
 
 #define CQ_CONTEXT_CQC_BYTE_4_CQC_STATE_S 0
@@ -215,17 +257,17 @@ struct hns_roce_cq_context {
 	(((1UL << 16) - 1) << CQ_CONTEXT_CQC_BYTE_32_CQ_CONS_IDX_S)
 
 struct hns_roce_cqe {
-	u32 cqe_byte_4;
+	__le32 cqe_byte_4;
 	union {
-		u32 r_key;
-		u32 immediate_data;
+		__le32 r_key;
+		__be32 immediate_data;
 	};
-	u32 byte_cnt;
-	u32 cqe_byte_16;
-	u32 cqe_byte_20;
-	u32 s_mac_l;
-	u32 cqe_byte_28;
-	u32 reserved;
+	__le32 byte_cnt;
+	__le32 cqe_byte_16;
+	__le32 cqe_byte_20;
+	__le32 s_mac_l;
+	__le32 cqe_byte_28;
+	__le32 reserved;
 };
 
 #define CQE_BYTE_4_OWNER_S 7
@@ -266,22 +308,22 @@ struct hns_roce_cqe {
 #define CQ_DB_REQ_NOT		(1 << 16)
 
 struct hns_roce_v1_mpt_entry {
-	u32  mpt_byte_4;
-	u32  pbl_addr_l;
-	u32  mpt_byte_12;
-	u32  virt_addr_l;
-	u32  virt_addr_h;
-	u32  length;
-	u32  mpt_byte_28;
-	u32  pa0_l;
-	u32  mpt_byte_36;
-	u32  mpt_byte_40;
-	u32  mpt_byte_44;
-	u32  mpt_byte_48;
-	u32  pa4_l;
-	u32  mpt_byte_56;
-	u32  mpt_byte_60;
-	u32  mpt_byte_64;
+	__le32  mpt_byte_4;
+	__le32  pbl_addr_l;
+	__le32  mpt_byte_12;
+	__le32  virt_addr_l;
+	__le32  virt_addr_h;
+	__le32  length;
+	__le32  mpt_byte_28;
+	__le32  pa0_l;
+	__le32  mpt_byte_36;
+	__le32  mpt_byte_40;
+	__le32  mpt_byte_44;
+	__le32  mpt_byte_48;
+	__le32  pa4_l;
+	__le32  mpt_byte_56;
+	__le32  mpt_byte_60;
+	__le32  mpt_byte_64;
 };
 
 #define MPT_BYTE_4_KEY_STATE_S 0
@@ -366,30 +408,32 @@ struct hns_roce_v1_mpt_entry {
 	(((1UL << 8) - 1) << MPT_BYTE_64_L_KEY_IDX_H_S)
 
 struct hns_roce_wqe_ctrl_seg {
-	__be32 sgl_pa_h;
-	__be32 flag;
-	__be32 imm_data;
-	__be32 msg_length;
+	__le32 sgl_pa_h;
+	__le32 flag;
+	union {
+		__be32 imm_data;
+		__le32 inv_key;
+	};
+	__le32 msg_length;
 };
 
 struct hns_roce_wqe_data_seg {
-	__be64    addr;
-	__be32    lkey;
-	__be32    len;
+	__le64    addr;
+	__le32    lkey;
+	__le32    len;
 };
 
 struct hns_roce_wqe_raddr_seg {
-	__be32 rkey;
-	__be32 len;/* reserved */
-	__be64 raddr;
+	__le32 rkey;
+	__le32 len;/* reserved */
+	__le64 raddr;
 };
 
 struct hns_roce_rq_wqe_ctrl {
-
-	u32 rwqe_byte_4;
-	u32 rocee_sgl_ba_l;
-	u32 rwqe_byte_12;
-	u32 reserved[5];
+	__le32 rwqe_byte_4;
+	__le32 rocee_sgl_ba_l;
+	__le32 rwqe_byte_12;
+	__le32 reserved[5];
 };
 
 #define RQ_WQE_CTRL_RWQE_BYTE_12_RWQE_SGE_NUM_S 16
@@ -401,31 +445,31 @@ struct hns_roce_rq_wqe_ctrl {
 #define GID_LEN					16
 
 struct hns_roce_ud_send_wqe {
-	u32 dmac_h;
-	u32 u32_8;
-	u32 immediate_data;
+	__le32 dmac_h;
+	__le32 u32_8;
+	__le32 immediate_data;
 
-	u32 u32_16;
+	__le32 u32_16;
 	union {
 		unsigned char dgid[GID_LEN];
 		struct {
-			u32 u32_20;
-			u32 u32_24;
-			u32 u32_28;
-			u32 u32_32;
+			__le32 u32_20;
+			__le32 u32_24;
+			__le32 u32_28;
+			__le32 u32_32;
 		};
 	};
 
-	u32 u32_36;
-	u32 u32_40;
+	__le32 u32_36;
+	__le32 u32_40;
 
-	u32 va0_l;
-	u32 va0_h;
-	u32 l_key0;
+	__le32 va0_l;
+	__le32 va0_h;
+	__le32 l_key0;
 
-	u32 va1_l;
-	u32 va1_h;
-	u32 l_key1;
+	__le32 va1_l;
+	__le32 va1_h;
+	__le32 l_key1;
 };
 
 #define UD_SEND_WQE_U32_4_DMAC_0_S 0
@@ -493,16 +537,16 @@ struct hns_roce_ud_send_wqe {
 	(((1UL << 8) - 1) << UD_SEND_WQE_U32_40_TRAFFIC_CLASS_S)
 
 struct hns_roce_sqp_context {
-	u32 qp1c_bytes_4;
-	u32 sq_rq_bt_l;
-	u32 qp1c_bytes_12;
-	u32 qp1c_bytes_16;
-	u32 qp1c_bytes_20;
-	u32 cur_rq_wqe_ba_l;
-	u32 qp1c_bytes_28;
-	u32 qp1c_bytes_32;
-	u32 cur_sq_wqe_ba_l;
-	u32 qp1c_bytes_40;
+	__le32 qp1c_bytes_4;
+	__le32 sq_rq_bt_l;
+	__le32 qp1c_bytes_12;
+	__le32 qp1c_bytes_16;
+	__le32 qp1c_bytes_20;
+	__le32 cur_rq_wqe_ba_l;
+	__le32 qp1c_bytes_28;
+	__le32 qp1c_bytes_32;
+	__le32 cur_sq_wqe_ba_l;
+	__le32 qp1c_bytes_40;
 };
 
 #define QP1C_BYTES_4_QP_STATE_S 0
@@ -584,64 +628,64 @@ struct hns_roce_sqp_context {
 #define HNS_ROCE_WQE_OPCODE_MASK	(15<<16)
 
 struct hns_roce_qp_context {
-	u32 qpc_bytes_4;
-	u32 qpc_bytes_8;
-	u32 qpc_bytes_12;
-	u32 qpc_bytes_16;
-	u32 sq_rq_bt_l;
-	u32 qpc_bytes_24;
-	u32 irrl_ba_l;
-	u32 qpc_bytes_32;
-	u32 qpc_bytes_36;
-	u32 dmac_l;
-	u32 qpc_bytes_44;
-	u32 qpc_bytes_48;
-	u8 dgid[16];
-	u32 qpc_bytes_68;
-	u32 cur_rq_wqe_ba_l;
-	u32 qpc_bytes_76;
-	u32 rx_rnr_time;
-	u32 qpc_bytes_84;
-	u32 qpc_bytes_88;
+	__le32 qpc_bytes_4;
+	__le32 qpc_bytes_8;
+	__le32 qpc_bytes_12;
+	__le32 qpc_bytes_16;
+	__le32 sq_rq_bt_l;
+	__le32 qpc_bytes_24;
+	__le32 irrl_ba_l;
+	__le32 qpc_bytes_32;
+	__le32 qpc_bytes_36;
+	__le32 dmac_l;
+	__le32 qpc_bytes_44;
+	__le32 qpc_bytes_48;
+	u8     dgid[16];
+	__le32 qpc_bytes_68;
+	__le32 cur_rq_wqe_ba_l;
+	__le32 qpc_bytes_76;
+	__le32 rx_rnr_time;
+	__le32 qpc_bytes_84;
+	__le32 qpc_bytes_88;
 	union {
-		u32 rx_sge_len;
-		u32 dma_length;
+		__le32 rx_sge_len;
+		__le32 dma_length;
 	};
 	union {
-		u32 rx_sge_num;
-		u32 rx_send_pktn;
-		u32 r_key;
+		__le32 rx_sge_num;
+		__le32 rx_send_pktn;
+		__le32 r_key;
 	};
-	u32 va_l;
-	u32 va_h;
-	u32 qpc_bytes_108;
-	u32 qpc_bytes_112;
-	u32 rx_cur_sq_wqe_ba_l;
-	u32 qpc_bytes_120;
-	u32 qpc_bytes_124;
-	u32 qpc_bytes_128;
-	u32 qpc_bytes_132;
-	u32 qpc_bytes_136;
-	u32 qpc_bytes_140;
-	u32 qpc_bytes_144;
-	u32 qpc_bytes_148;
+	__le32 va_l;
+	__le32 va_h;
+	__le32 qpc_bytes_108;
+	__le32 qpc_bytes_112;
+	__le32 rx_cur_sq_wqe_ba_l;
+	__le32 qpc_bytes_120;
+	__le32 qpc_bytes_124;
+	__le32 qpc_bytes_128;
+	__le32 qpc_bytes_132;
+	__le32 qpc_bytes_136;
+	__le32 qpc_bytes_140;
+	__le32 qpc_bytes_144;
+	__le32 qpc_bytes_148;
 	union {
-		u32 rnr_retry;
-		u32 ack_time;
+		__le32 rnr_retry;
+		__le32 ack_time;
 	};
-	u32 qpc_bytes_156;
-	u32 pkt_use_len;
-	u32 qpc_bytes_164;
-	u32 qpc_bytes_168;
+	__le32 qpc_bytes_156;
+	__le32 pkt_use_len;
+	__le32 qpc_bytes_164;
+	__le32 qpc_bytes_168;
 	union {
-		u32 sge_use_len;
-		u32 pa_use_len;
+		__le32 sge_use_len;
+		__le32 pa_use_len;
 	};
-	u32 qpc_bytes_176;
-	u32 qpc_bytes_180;
-	u32 tx_cur_sq_wqe_ba_l;
-	u32 qpc_bytes_188;
-	u32 rvd21;
+	__le32 qpc_bytes_176;
+	__le32 qpc_bytes_180;
+	__le32 tx_cur_sq_wqe_ba_l;
+	__le32 qpc_bytes_188;
+	__le32 rvd21;
 };
 
 #define QP_CONTEXT_QPC_BYTES_4_TRANSPORT_SERVICE_TYPE_S 0
@@ -948,9 +992,14 @@ struct hns_roce_qp_context {
 #define QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_M   \
 	(((1UL << 15) - 1) << QP_CONTEXT_QPC_BYTES_188_TX_RETRY_CUR_INDEX_S)
 
+#define STATUS_MASK		0xff
+#define GO_BIT_TIMEOUT_MSECS	10000
+#define HCR_STATUS_OFFSET	0x18
+#define HCR_GO_BIT		15
+
 struct hns_roce_rq_db {
-	u32    u32_4;
-	u32    u32_8;
+	__le32    u32_4;
+	__le32    u32_8;
 };
 
 #define RQ_DOORBELL_U32_4_RQ_HEAD_S 0
@@ -966,8 +1015,8 @@ struct hns_roce_rq_db {
 #define RQ_DOORBELL_U32_8_HW_SYNC_S 31
 
 struct hns_roce_sq_db {
-	u32    u32_4;
-	u32    u32_8;
+	__le32    u32_4;
+	__le32    u32_8;
 };
 
 #define SQ_DOORBELL_U32_4_SQ_HEAD_S 0

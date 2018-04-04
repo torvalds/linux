@@ -178,12 +178,16 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	if (!ret) {
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
 
-		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		if (!((key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
+					   IEEE80211_KEY_FLAG_PUT_MIC_SPACE)) ||
 		      (key->conf.flags & IEEE80211_KEY_FLAG_RESERVE_TAILROOM)))
 			decrease_tailroom_need_count(sdata, 1);
 
 		WARN_ON((key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) &&
 			(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV));
+
+		WARN_ON((key->conf.flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) &&
+			(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC));
 
 		return 0;
 	}
@@ -237,7 +241,8 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 	sta = key->sta;
 	sdata = key->sdata;
 
-	if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+	if (!((key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
+				   IEEE80211_KEY_FLAG_PUT_MIC_SPACE)) ||
 	      (key->conf.flags & IEEE80211_KEY_FLAG_RESERVE_TAILROOM)))
 		increment_tailroom_need_count(sdata);
 
@@ -1104,7 +1109,8 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf)
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 
-		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		if (!((key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
+					   IEEE80211_KEY_FLAG_PUT_MIC_SPACE)) ||
 		      (key->conf.flags & IEEE80211_KEY_FLAG_RESERVE_TAILROOM)))
 			increment_tailroom_need_count(key->sdata);
 	}

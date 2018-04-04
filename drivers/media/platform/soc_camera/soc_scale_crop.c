@@ -306,16 +306,17 @@ update_cache:
 }
 
 /**
- * @icd		- soc-camera device
- * @rect	- camera cropping window
- * @subrect	- part of rect, sent to the user
- * @mf		- in- / output camera output window
- * @width	- on input: max host input width
- *		  on output: user width, mapped back to input
- * @height	- on input: max host input height
- *		  on output: user height, mapped back to input
- * @host_can_scale - host can scale this pixel format
- * @shift	- shift, used for scaling
+ * soc_camera_client_scale
+ * @icd:		soc-camera device
+ * @rect:		camera cropping window
+ * @subrect:		part of rect, sent to the user
+ * @mf:			in- / output camera output window
+ * @width:		on input: max host input width;
+ *			on output: user width, mapped back to input
+ * @height:		on input: max host input height;
+ *			on output: user height, mapped back to input
+ * @host_can_scale:	host can scale this pixel format
+ * @shift:		shift, used for scaling
  */
 int soc_camera_client_scale(struct soc_camera_device *icd,
 			struct v4l2_rect *rect, struct v4l2_rect *subrect,
@@ -419,3 +420,7 @@ void soc_camera_calc_client_output(struct soc_camera_device *icd,
 	mf->height = soc_camera_shift_scale(rect->height, shift, scale_v);
 }
 EXPORT_SYMBOL(soc_camera_calc_client_output);
+
+MODULE_DESCRIPTION("soc-camera scaling-cropping functions");
+MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");
+MODULE_LICENSE("GPL");

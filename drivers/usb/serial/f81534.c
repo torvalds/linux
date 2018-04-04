@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * F81532/F81534 USB to Serial Ports Bridge
  *
  * F81532 => 2 Serial Ports
  * F81534 => 4 Serial Ports
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) 2016 Feature Integration Technology Inc., (Fintek)
  * Copyright (C) 2016 Tom Tsai (Tom_Tsai@fintek.com.tw)
@@ -39,10 +35,13 @@
 #define F81534_UART_OFFSET		0x10
 #define F81534_DIVISOR_LSB_REG		(0x00 + F81534_UART_BASE_ADDRESS)
 #define F81534_DIVISOR_MSB_REG		(0x01 + F81534_UART_BASE_ADDRESS)
+#define F81534_INTERRUPT_ENABLE_REG	(0x01 + F81534_UART_BASE_ADDRESS)
 #define F81534_FIFO_CONTROL_REG		(0x02 + F81534_UART_BASE_ADDRESS)
 #define F81534_LINE_CONTROL_REG		(0x03 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_CONTROL_REG	(0x04 + F81534_UART_BASE_ADDRESS)
+#define F81534_LINE_STATUS_REG		(0x05 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_STATUS_REG		(0x06 + F81534_UART_BASE_ADDRESS)
+#define F81534_CLOCK_REG		(0x08 + F81534_UART_BASE_ADDRESS)
 #define F81534_CONFIG1_REG		(0x09 + F81534_UART_BASE_ADDRESS)
 
 #define F81534_DEF_CONF_ADDRESS_START	0x3000
@@ -53,13 +52,14 @@
 #define F81534_CUSTOM_NO_CUSTOM_DATA	0xff
 #define F81534_CUSTOM_VALID_TOKEN	0xf0
 #define F81534_CONF_OFFSET		1
+#define F81534_CONF_GPIO_OFFSET		4
 
 #define F81534_MAX_DATA_BLOCK		64
 #define F81534_MAX_BUS_RETRY		20
 
 /* Default URB timeout for USB operations */
 #define F81534_USB_MAX_RETRY		10
-#define F81534_USB_TIMEOUT		1000
+#define F81534_USB_TIMEOUT		2000
 #define F81534_SET_GET_REGISTER		0xA0
 
 #define F81534_NUM_PORT			4
@@ -98,15 +98,42 @@
 #define F81534_CMD_READ			0x03
 
 #define F81534_DEFAULT_BAUD_RATE	9600
-#define F81534_MAX_BAUDRATE		115200
 
+#define F81534_PORT_CONF_RS232		0
+#define F81534_PORT_CONF_RS485		BIT(0)
+#define F81534_PORT_CONF_RS485_INVERT	(BIT(0) | BIT(1))
+#define F81534_PORT_CONF_MODE_MASK	GENMASK(1, 0)
 #define F81534_PORT_CONF_DISABLE_PORT	BIT(3)
 #define F81534_PORT_CONF_NOT_EXIST_PORT	BIT(7)
 #define F81534_PORT_UNAVAILABLE		\
 	(F81534_PORT_CONF_DISABLE_PORT | F81534_PORT_CONF_NOT_EXIST_PORT)
 
+
 #define F81534_1X_RXTRIGGER		0xc3
 #define F81534_8X_RXTRIGGER		0xcf
+
+/*
+ * F81532/534 Clock registers (offset +08h)
+ *
+ * Bit0:	UART Enable (always on)
+ * Bit2-1:	Clock source selector
+ *			00: 1.846MHz.
+ *			01: 18.46MHz.
+ *			10: 24MHz.
+ *			11: 14.77MHz.
+ * Bit4:	Auto direction(RTS) control (RTS pin Low when TX)
+ * Bit5:	Invert direction(RTS) when Bit4 enabled (RTS pin high when TX)
+ */
+
+#define F81534_UART_EN			BIT(0)
+#define F81534_CLK_1_846_MHZ		0
+#define F81534_CLK_18_46_MHZ		BIT(1)
+#define F81534_CLK_24_MHZ		BIT(2)
+#define F81534_CLK_14_77_MHZ		(BIT(1) | BIT(2))
+#define F81534_CLK_MASK			GENMASK(2, 1)
+#define F81534_CLK_TX_DELAY_1BIT	BIT(3)
+#define F81534_CLK_RS485_MODE		BIT(4)
+#define F81534_CLK_RS485_INVERT		BIT(5)
 
 static const struct usb_device_id f81534_id_table[] = {
 	{ USB_DEVICE(FINTEK_VENDOR_ID_1, FINTEK_DEVICE_ID) },
@@ -126,12 +153,39 @@ struct f81534_serial_private {
 
 struct f81534_port_private {
 	struct mutex mcr_mutex;
+	struct mutex lcr_mutex;
+	struct work_struct lsr_work;
+	struct usb_serial_port *port;
 	unsigned long tx_empty;
 	spinlock_t msr_lock;
+	u32 baud_base;
 	u8 shadow_mcr;
+	u8 shadow_lcr;
 	u8 shadow_msr;
+	u8 shadow_clk;
 	u8 phy_num;
 };
+
+struct f81534_pin_data {
+	const u16 reg_addr;
+	const u8 reg_mask;
+};
+
+struct f81534_port_out_pin {
+	struct f81534_pin_data pin[3];
+};
+
+/* Pin output value for M2/M1/M0(SD) */
+static const struct f81534_port_out_pin f81534_port_out_pins[] = {
+	 { { { 0x2ae8, BIT(7) }, { 0x2a90, BIT(5) }, { 0x2a90, BIT(4) } } },
+	 { { { 0x2ae8, BIT(6) }, { 0x2ae8, BIT(0) }, { 0x2ae8, BIT(3) } } },
+	 { { { 0x2a90, BIT(0) }, { 0x2ae8, BIT(2) }, { 0x2a80, BIT(6) } } },
+	 { { { 0x2a90, BIT(3) }, { 0x2a90, BIT(2) }, { 0x2a90, BIT(1) } } },
+};
+
+static u32 const baudrate_table[] = { 115200, 921600, 1152000, 1500000 };
+static u8 const clock_table[] = { F81534_CLK_1_846_MHZ, F81534_CLK_14_77_MHZ,
+				F81534_CLK_18_46_MHZ, F81534_CLK_24_MHZ };
 
 static int f81534_logic_to_phy_port(struct usb_serial *serial,
 					struct usb_serial_port *port)
@@ -236,6 +290,36 @@ static int f81534_get_register(struct usb_serial *serial, u16 reg, u8 *data)
 end:
 	kfree(tmp);
 	return status;
+}
+
+static int f81534_set_mask_register(struct usb_serial *serial, u16 reg,
+					u8 mask, u8 data)
+{
+	int status;
+	u8 tmp;
+
+	status = f81534_get_register(serial, reg, &tmp);
+	if (status)
+		return status;
+
+	tmp &= ~mask;
+	tmp |= (mask & data);
+
+	return f81534_set_register(serial, reg, tmp);
+}
+
+static int f81534_set_phy_port_register(struct usb_serial *serial, int phy,
+					u16 reg, u8 data)
+{
+	return f81534_set_register(serial, reg + F81534_UART_OFFSET * phy,
+					data);
+}
+
+static int f81534_get_phy_port_register(struct usb_serial *serial, int phy,
+					u16 reg, u8 *data)
+{
+	return f81534_get_register(serial, reg + F81534_UART_OFFSET * phy,
+					data);
 }
 
 static int f81534_set_port_register(struct usb_serial_port *port, u16 reg,
@@ -458,12 +542,52 @@ static u32 f81534_calc_baud_divisor(u32 baudrate, u32 clockrate)
 	return DIV_ROUND_CLOSEST(clockrate, baudrate);
 }
 
-static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
-					u8 lcr)
+static int f81534_find_clk(u32 baudrate)
 {
+	int idx;
+
+	for (idx = 0; idx < ARRAY_SIZE(baudrate_table); ++idx) {
+		if (baudrate <= baudrate_table[idx] &&
+				baudrate_table[idx] % baudrate == 0)
+			return idx;
+	}
+
+	return -EINVAL;
+}
+
+static int f81534_set_port_config(struct usb_serial_port *port,
+		struct tty_struct *tty, u32 baudrate, u32 old_baudrate, u8 lcr)
+{
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
 	u32 divisor;
 	int status;
+	int i;
+	int idx;
 	u8 value;
+	u32 baud_list[] = {baudrate, old_baudrate, F81534_DEFAULT_BAUD_RATE};
+
+	for (i = 0; i < ARRAY_SIZE(baud_list); ++i) {
+		idx = f81534_find_clk(baud_list[i]);
+		if (idx >= 0) {
+			baudrate = baud_list[i];
+			tty_encode_baud_rate(tty, baudrate, baudrate);
+			break;
+		}
+	}
+
+	if (idx < 0)
+		return -EINVAL;
+
+	port_priv->baud_base = baudrate_table[idx];
+	port_priv->shadow_clk &= ~F81534_CLK_MASK;
+	port_priv->shadow_clk |= clock_table[idx];
+
+	status = f81534_set_port_register(port, F81534_CLOCK_REG,
+			port_priv->shadow_clk);
+	if (status) {
+		dev_err(&port->dev, "CLOCK_REG setting failed\n");
+		return status;
+	}
 
 	if (baudrate <= 1200)
 		value = F81534_1X_RXTRIGGER;	/* 128 FIFO & TL: 1x */
@@ -479,7 +603,7 @@ static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 	if (baudrate <= 1200)
 		value = UART_FCR_TRIGGER_1 | UART_FCR_ENABLE_FIFO; /* TL: 1 */
 	else
-		value = UART_FCR_R_TRIG_11 | UART_FCR_ENABLE_FIFO; /* TL: 14 */
+		value = UART_FCR_TRIGGER_8 | UART_FCR_ENABLE_FIFO; /* TL: 8 */
 
 	status = f81534_set_port_register(port, F81534_FIFO_CONTROL_REG,
 						value);
@@ -488,36 +612,66 @@ static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 		return status;
 	}
 
-	divisor = f81534_calc_baud_divisor(baudrate, F81534_MAX_BAUDRATE);
+	divisor = f81534_calc_baud_divisor(baudrate, port_priv->baud_base);
+
+	mutex_lock(&port_priv->lcr_mutex);
+
 	value = UART_LCR_DLAB;
 	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
 						value);
 	if (status) {
 		dev_err(&port->dev, "%s: set LCR failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
 	value = divisor & 0xff;
 	status = f81534_set_port_register(port, F81534_DIVISOR_LSB_REG, value);
 	if (status) {
 		dev_err(&port->dev, "%s: set DLAB LSB failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
 	value = (divisor >> 8) & 0xff;
 	status = f81534_set_port_register(port, F81534_DIVISOR_MSB_REG, value);
 	if (status) {
 		dev_err(&port->dev, "%s: set DLAB MSB failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
-	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG, lcr);
+	value = lcr | (port_priv->shadow_lcr & UART_LCR_SBC);
+	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
+						value);
 	if (status) {
 		dev_err(&port->dev, "%s: set LCR failed\n", __func__);
-		return status;
+		goto out_unlock;
 	}
 
-	return 0;
+	port_priv->shadow_lcr = value;
+out_unlock:
+	mutex_unlock(&port_priv->lcr_mutex);
+
+	return status;
+}
+
+static void f81534_break_ctl(struct tty_struct *tty, int break_state)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
+	int status;
+
+	mutex_lock(&port_priv->lcr_mutex);
+
+	if (break_state)
+		port_priv->shadow_lcr |= UART_LCR_SBC;
+	else
+		port_priv->shadow_lcr &= ~UART_LCR_SBC;
+
+	status = f81534_set_port_register(port, F81534_LINE_CONTROL_REG,
+					port_priv->shadow_lcr);
+	if (status)
+		dev_err(&port->dev, "set break failed: %d\n", status);
+
+	mutex_unlock(&port_priv->lcr_mutex);
 }
 
 static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
@@ -594,6 +748,70 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 }
 
 /*
+ * The F81532/534 will not report serial port to USB serial subsystem when
+ * H/W DCD/DSR/CTS/RI/RX pin connected to ground.
+ *
+ * To detect RX pin status, we'll enable MCR interal loopback, disable it and
+ * delayed for 60ms. It connected to ground If LSR register report UART_LSR_BI.
+ */
+static bool f81534_check_port_hw_disabled(struct usb_serial *serial, int phy)
+{
+	int status;
+	u8 old_mcr;
+	u8 msr;
+	u8 lsr;
+	u8 msr_mask;
+
+	msr_mask = UART_MSR_DCD | UART_MSR_RI | UART_MSR_DSR | UART_MSR_CTS;
+
+	status = f81534_get_phy_port_register(serial, phy,
+				F81534_MODEM_STATUS_REG, &msr);
+	if (status)
+		return false;
+
+	if ((msr & msr_mask) != msr_mask)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_FIFO_CONTROL_REG, UART_FCR_ENABLE_FIFO |
+				UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
+	if (status)
+		return false;
+
+	status = f81534_get_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, &old_mcr);
+	if (status)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, UART_MCR_LOOP);
+	if (status)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, 0x0);
+	if (status)
+		return false;
+
+	msleep(60);
+
+	status = f81534_get_phy_port_register(serial, phy,
+				F81534_LINE_STATUS_REG, &lsr);
+	if (status)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, old_mcr);
+	if (status)
+		return false;
+
+	if ((lsr & UART_LSR_BI) == UART_LSR_BI)
+		return true;
+
+	return false;
+}
+
+/*
  * We had 2 generation of F81532/534 IC. All has an internal storage.
  *
  * 1st is pure USB-to-TTL RS232 IC and designed for 4 ports only, no any
@@ -614,14 +832,14 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 static int f81534_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
+	struct f81534_serial_private *serial_priv;
 	struct device *dev = &serial->interface->dev;
 	int size_bulk_in = usb_endpoint_maxp(epds->bulk_in[0]);
 	int size_bulk_out = usb_endpoint_maxp(epds->bulk_out[0]);
-	u8 setting[F81534_CUSTOM_DATA_SIZE];
-	u8 setting_idx;
 	u8 num_port = 0;
+	int index = 0;
 	int status;
-	size_t i;
+	int i;
 
 	if (size_bulk_out != F81534_WRITE_BUFFER_SIZE ||
 			size_bulk_in != F81534_MAX_RECEIVE_BLOCK_SIZE) {
@@ -629,8 +847,16 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		return -ENODEV;
 	}
 
+	serial_priv = devm_kzalloc(&serial->interface->dev,
+					sizeof(*serial_priv), GFP_KERNEL);
+	if (!serial_priv)
+		return -ENOMEM;
+
+	usb_set_serial_data(serial, serial_priv);
+	mutex_init(&serial_priv->urb_mutex);
+
 	/* Check had custom setting */
-	status = f81534_find_config_idx(serial, &setting_idx);
+	status = f81534_find_config_idx(serial, &serial_priv->setting_idx);
 	if (status) {
 		dev_err(&serial->interface->dev, "%s: find idx failed: %d\n",
 				__func__, status);
@@ -641,11 +867,12 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 	 * We'll read custom data only when data available, otherwise we'll
 	 * read default value instead.
 	 */
-	if (setting_idx != F81534_CUSTOM_NO_CUSTOM_DATA) {
+	if (serial_priv->setting_idx != F81534_CUSTOM_NO_CUSTOM_DATA) {
 		status = f81534_read_flash(serial,
 						F81534_CUSTOM_ADDRESS_START +
 						F81534_CONF_OFFSET,
-						sizeof(setting), setting);
+						sizeof(serial_priv->conf_data),
+						serial_priv->conf_data);
 		if (status) {
 			dev_err(&serial->interface->dev,
 					"%s: get custom data failed: %d\n",
@@ -655,13 +882,13 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 		dev_dbg(&serial->interface->dev,
 				"%s: read config from block: %d\n", __func__,
-				setting_idx);
+				serial_priv->setting_idx);
 	} else {
 		/* Read default board setting */
 		status = f81534_read_flash(serial,
-				F81534_DEF_CONF_ADDRESS_START, F81534_NUM_PORT,
-				setting);
-
+				F81534_DEF_CONF_ADDRESS_START,
+				sizeof(serial_priv->conf_data),
+				serial_priv->conf_data);
 		if (status) {
 			dev_err(&serial->interface->dev,
 					"%s: read failed: %d\n", __func__,
@@ -675,7 +902,10 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 	/* New style, find all possible ports */
 	for (i = 0; i < F81534_NUM_PORT; ++i) {
-		if (setting[i] & F81534_PORT_UNAVAILABLE)
+		if (f81534_check_port_hw_disabled(serial, i))
+			serial_priv->conf_data[i] |= F81534_PORT_UNAVAILABLE;
+
+		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
 			continue;
 
 		++num_port;
@@ -685,6 +915,17 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		dev_warn(&serial->interface->dev,
 			"no config found, assuming 4 ports\n");
 		num_port = 4;		/* Nothing found, oldest version IC */
+	}
+
+	/* Assign phy-to-logic mapping */
+	for (i = 0; i < F81534_NUM_PORT; ++i) {
+		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
+			continue;
+
+		serial_priv->tty_idx[i] = index++;
+		dev_dbg(&serial->interface->dev,
+				"%s: phy_num: %d, tty_idx: %d\n", __func__, i,
+				serial_priv->tty_idx[i]);
 	}
 
 	/*
@@ -708,6 +949,7 @@ static void f81534_set_termios(struct tty_struct *tty,
 	u8 new_lcr = 0;
 	int status;
 	u32 baud;
+	u32 old_baud;
 
 	if (C_BAUD(tty) == B0)
 		f81534_update_mctrl(port, 0, TIOCM_DTR | TIOCM_RTS);
@@ -747,18 +989,14 @@ static void f81534_set_termios(struct tty_struct *tty,
 	if (!baud)
 		return;
 
-	if (baud > F81534_MAX_BAUDRATE) {
-		if (old_termios)
-			baud = tty_termios_baud_rate(old_termios);
-		else
-			baud = F81534_DEFAULT_BAUD_RATE;
-
-		tty_encode_baud_rate(tty, baud, baud);
-	}
+	if (old_termios)
+		old_baud = tty_termios_baud_rate(old_termios);
+	else
+		old_baud = F81534_DEFAULT_BAUD_RATE;
 
 	dev_dbg(&port->dev, "%s: baud: %d\n", __func__, baud);
 
-	status = f81534_set_port_config(port, baud, new_lcr);
+	status = f81534_set_port_config(port, tty, baud, old_baud, new_lcr);
 	if (status < 0) {
 		dev_err(&port->dev, "%s: set port config failed: %d\n",
 				__func__, status);
@@ -914,7 +1152,7 @@ static int f81534_get_serial_info(struct usb_serial_port *port,
 	tmp.type = PORT_16550A;
 	tmp.port = port->port_number;
 	tmp.line = port->minor;
-	tmp.baud_base = F81534_MAX_BAUDRATE;
+	tmp.baud_base = port_priv->baud_base;
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -1015,6 +1253,8 @@ static void f81534_process_per_serial_block(struct usb_serial_port *port,
 				tty_insert_flip_char(&port->port, 0,
 						TTY_OVERRUN);
 			}
+
+			schedule_work(&port_priv->lsr_work);
 		}
 
 		if (port->port.console && port->sysrq) {
@@ -1089,90 +1329,73 @@ static void f81534_write_usb_callback(struct urb *urb)
 	}
 }
 
-static int f81534_attach(struct usb_serial *serial)
+static void f81534_lsr_worker(struct work_struct *work)
+{
+	struct f81534_port_private *port_priv;
+	struct usb_serial_port *port;
+	int status;
+	u8 tmp;
+
+	port_priv = container_of(work, struct f81534_port_private, lsr_work);
+	port = port_priv->port;
+
+	status = f81534_get_port_register(port, F81534_LINE_STATUS_REG, &tmp);
+	if (status)
+		dev_warn(&port->dev, "read LSR failed: %d\n", status);
+}
+
+static int f81534_set_port_output_pin(struct usb_serial_port *port)
 {
 	struct f81534_serial_private *serial_priv;
-	int index = 0;
+	struct f81534_port_private *port_priv;
+	struct usb_serial *serial;
+	const struct f81534_port_out_pin *pins;
 	int status;
 	int i;
+	u8 value;
+	u8 idx;
 
-	serial_priv = devm_kzalloc(&serial->interface->dev,
-					sizeof(*serial_priv), GFP_KERNEL);
-	if (!serial_priv)
-		return -ENOMEM;
+	serial = port->serial;
+	serial_priv = usb_get_serial_data(serial);
+	port_priv = usb_get_serial_port_data(port);
 
-	usb_set_serial_data(serial, serial_priv);
+	idx = F81534_CONF_GPIO_OFFSET + port_priv->phy_num;
+	value = serial_priv->conf_data[idx];
+	pins = &f81534_port_out_pins[port_priv->phy_num];
 
-	mutex_init(&serial_priv->urb_mutex);
-
-	/* Check had custom setting */
-	status = f81534_find_config_idx(serial, &serial_priv->setting_idx);
-	if (status) {
-		dev_err(&serial->interface->dev, "%s: find idx failed: %d\n",
-				__func__, status);
-		return status;
-	}
-
-	/*
-	 * We'll read custom data only when data available, otherwise we'll
-	 * read default value instead.
-	 */
-	if (serial_priv->setting_idx == F81534_CUSTOM_NO_CUSTOM_DATA) {
-		/*
-		 * The default configuration layout:
-		 *	byte 0/1/2/3: uart setting
-		 */
-		status = f81534_read_flash(serial,
-					F81534_DEF_CONF_ADDRESS_START,
-					F81534_DEF_CONF_SIZE,
-					serial_priv->conf_data);
-		if (status) {
-			dev_err(&serial->interface->dev,
-					"%s: read reserve data failed: %d\n",
-					__func__, status);
+	for (i = 0; i < ARRAY_SIZE(pins->pin); ++i) {
+		status = f81534_set_mask_register(serial,
+				pins->pin[i].reg_addr, pins->pin[i].reg_mask,
+				value & BIT(i) ? pins->pin[i].reg_mask : 0);
+		if (status)
 			return status;
-		}
-	} else {
-		/* Only read 8 bytes for mode & GPIO */
-		status = f81534_read_flash(serial,
-						F81534_CUSTOM_ADDRESS_START +
-						F81534_CONF_OFFSET,
-						sizeof(serial_priv->conf_data),
-						serial_priv->conf_data);
-		if (status) {
-			dev_err(&serial->interface->dev,
-					"%s: idx: %d get data failed: %d\n",
-					__func__, serial_priv->setting_idx,
-					status);
-			return status;
-		}
 	}
 
-	/* Assign phy-to-logic mapping */
-	for (i = 0; i < F81534_NUM_PORT; ++i) {
-		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
-			continue;
-
-		serial_priv->tty_idx[i] = index++;
-		dev_dbg(&serial->interface->dev,
-				"%s: phy_num: %d, tty_idx: %d\n", __func__, i,
-				serial_priv->tty_idx[i]);
-	}
-
+	dev_dbg(&port->dev, "Output pin (M0/M1/M2): %d\n", value);
 	return 0;
 }
 
 static int f81534_port_probe(struct usb_serial_port *port)
 {
+	struct f81534_serial_private *serial_priv;
 	struct f81534_port_private *port_priv;
 	int ret;
+	u8 value;
 
+	serial_priv = usb_get_serial_data(port->serial);
 	port_priv = devm_kzalloc(&port->dev, sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
 		return -ENOMEM;
 
+	/*
+	 * We'll make tx frame error when baud rate from 384~500kps. So we'll
+	 * delay all tx data frame with 1bit.
+	 */
+	port_priv->shadow_clk = F81534_UART_EN | F81534_CLK_TX_DELAY_1BIT;
 	spin_lock_init(&port_priv->msr_lock);
 	mutex_init(&port_priv->mcr_mutex);
+	mutex_init(&port_priv->lcr_mutex);
+	INIT_WORK(&port_priv->lsr_work, f81534_lsr_worker);
 
 	/* Assign logic-to-phy mapping */
 	ret = f81534_logic_to_phy_port(port->serial, port);
@@ -1180,10 +1403,48 @@ static int f81534_port_probe(struct usb_serial_port *port)
 		return ret;
 
 	port_priv->phy_num = ret;
+	port_priv->port = port;
 	usb_set_serial_port_data(port, port_priv);
 	dev_dbg(&port->dev, "%s: port_number: %d, phy_num: %d\n", __func__,
 			port->port_number, port_priv->phy_num);
 
+	/*
+	 * The F81532/534 will hang-up when enable LSR interrupt in IER and
+	 * occur data overrun. So we'll disable the LSR interrupt in probe()
+	 * and submit the LSR worker to clear LSR state when reported LSR error
+	 * bit with bulk-in data in f81534_process_per_serial_block().
+	 */
+	ret = f81534_set_port_register(port, F81534_INTERRUPT_ENABLE_REG,
+			UART_IER_RDI | UART_IER_THRI | UART_IER_MSI);
+	if (ret)
+		return ret;
+
+	value = serial_priv->conf_data[port_priv->phy_num];
+	switch (value & F81534_PORT_CONF_MODE_MASK) {
+	case F81534_PORT_CONF_RS485_INVERT:
+		port_priv->shadow_clk |= F81534_CLK_RS485_MODE |
+					F81534_CLK_RS485_INVERT;
+		dev_dbg(&port->dev, "RS485 invert mode\n");
+		break;
+	case F81534_PORT_CONF_RS485:
+		port_priv->shadow_clk |= F81534_CLK_RS485_MODE;
+		dev_dbg(&port->dev, "RS485 mode\n");
+		break;
+
+	default:
+	case F81534_PORT_CONF_RS232:
+		dev_dbg(&port->dev, "RS232 mode\n");
+		break;
+	}
+
+	return f81534_set_port_output_pin(port);
+}
+
+static int f81534_port_remove(struct usb_serial_port *port)
+{
+	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
+
+	flush_work(&port_priv->lsr_work);
 	return 0;
 }
 
@@ -1315,8 +1576,9 @@ static struct usb_serial_driver f81534_device = {
 	.write =		f81534_write,
 	.tx_empty =		f81534_tx_empty,
 	.calc_num_ports =	f81534_calc_num_ports,
-	.attach =		f81534_attach,
 	.port_probe =		f81534_port_probe,
+	.port_remove =		f81534_port_remove,
+	.break_ctl =		f81534_break_ctl,
 	.dtr_rts =		f81534_dtr_rts,
 	.process_read_urb =	f81534_process_read_urb,
 	.ioctl =		f81534_ioctl,

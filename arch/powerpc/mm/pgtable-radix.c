@@ -17,9 +17,11 @@
 #include <linux/of_fdt.h>
 #include <linux/mm.h>
 #include <linux/string_helpers.h>
+#include <linux/stop_machine.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/mmu_context.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/mmu.h>
@@ -168,6 +170,16 @@ update_the_pte:
 void radix__mark_rodata_ro(void)
 {
 	unsigned long start, end;
+
+	/*
+	 * mark_rodata_ro() will mark itself as !writable at some point.
+	 * Due to DD1 workaround in radix__pte_update(), we'll end up with
+	 * an invalid pte and the system will crash quite severly.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		pr_warn("Warning: Unable to mark rodata read only on P9 DD1\n");
+		return;
+	}
 
 	start = (unsigned long)_stext;
 	end = (unsigned long)__init_begin;
@@ -323,6 +335,22 @@ static void __init radix_init_pgtable(void)
 		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 	trace_tlbie(0, 0, TLBIEL_INVAL_SET_LPID, 0, 2, 1, 1);
+
+	/*
+	 * The init_mm context is given the first available (non-zero) PID,
+	 * which is the "guard PID" and contains no page table. PIDR should
+	 * never be set to zero because that duplicates the kernel address
+	 * space at the 0x0... offset (quadrant 0)!
+	 *
+	 * An arbitrary PID that may later be allocated by the PID allocator
+	 * for userspace processes must not be used either, because that
+	 * would cause stale user mappings for that PID on CPUs outside of
+	 * the TLB invalidation scheme (because it won't be in mm_cpumask).
+	 *
+	 * So permanently carve out one PID for the purpose of a guard PID.
+	 */
+	init_mm.context.id = mmu_base_pid;
+	mmu_base_pid++;
 }
 
 static void __init radix_init_partition_table(void)
@@ -525,6 +553,7 @@ void __init radix__early_init_mmu(void)
 	__pmd_index_size = RADIX_PMD_INDEX_SIZE;
 	__pud_index_size = RADIX_PUD_INDEX_SIZE;
 	__pgd_index_size = RADIX_PGD_INDEX_SIZE;
+	__pud_cache_index = RADIX_PUD_INDEX_SIZE;
 	__pmd_cache_index = RADIX_PMD_INDEX_SIZE;
 	__pte_table_size = RADIX_PTE_TABLE_SIZE;
 	__pmd_table_size = RADIX_PMD_TABLE_SIZE;
@@ -569,6 +598,10 @@ void __init radix__early_init_mmu(void)
 
 	radix_init_iamr();
 	radix_init_pgtable();
+	/* Switch to the guard PID before turning on MMU */
+	radix__switch_mmu_context(NULL, &init_mm);
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 
 void radix__early_init_mmu_secondary(void)
@@ -590,6 +623,10 @@ void radix__early_init_mmu_secondary(void)
 		radix_init_amor();
 	}
 	radix_init_iamr();
+
+	radix__switch_mmu_context(NULL, &init_mm);
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 
 void radix__mmu_cleanup_all(void)
@@ -612,22 +649,11 @@ void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);
+
 	/*
-	 * We limit the allocation that depend on ppc64_rma_size
-	 * to first_memblock_size. We also clamp it to 1GB to
-	 * avoid some funky things such as RTAS bugs.
-	 *
-	 * On radix config we really don't have a limitation
-	 * on real mode access. But keeping it as above works
-	 * well enough.
+	 * Radix mode is not limited by RMA / VRMA addressing.
 	 */
-	ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
-	/*
-	 * Finally limit subsequent allocations. We really don't want
-	 * to limit the memblock allocations to rma_size. FIXME!! should
-	 * we even limit at all ?
-	 */
-	memblock_set_current_limit(first_memblock_base + first_memblock_size);
+	ppc64_rma_size = ULONG_MAX;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -661,6 +687,30 @@ static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
 	pud_clear(pud);
 }
 
+struct change_mapping_params {
+	pte_t *pte;
+	unsigned long start;
+	unsigned long end;
+	unsigned long aligned_start;
+	unsigned long aligned_end;
+};
+
+static int stop_machine_change_mapping(void *data)
+{
+	struct change_mapping_params *params =
+			(struct change_mapping_params *)data;
+
+	if (!data)
+		return -1;
+
+	spin_unlock(&init_mm.page_table_lock);
+	pte_clear(&init_mm, params->aligned_start, params->pte);
+	create_physical_mapping(params->aligned_start, params->start);
+	create_physical_mapping(params->end, params->aligned_end);
+	spin_lock(&init_mm.page_table_lock);
+	return 0;
+}
+
 static void remove_pte_table(pte_t *pte_start, unsigned long addr,
 			     unsigned long end)
 {
@@ -689,6 +739,52 @@ static void remove_pte_table(pte_t *pte_start, unsigned long addr,
 	}
 }
 
+/*
+ * clear the pte and potentially split the mapping helper
+ */
+static void split_kernel_mapping(unsigned long addr, unsigned long end,
+				unsigned long size, pte_t *pte)
+{
+	unsigned long mask = ~(size - 1);
+	unsigned long aligned_start = addr & mask;
+	unsigned long aligned_end = addr + size;
+	struct change_mapping_params params;
+	bool split_region = false;
+
+	if ((end - addr) < size) {
+		/*
+		 * We're going to clear the PTE, but not flushed
+		 * the mapping, time to remap and flush. The
+		 * effects if visible outside the processor or
+		 * if we are running in code close to the
+		 * mapping we cleared, we are in trouble.
+		 */
+		if (overlaps_kernel_text(aligned_start, addr) ||
+			overlaps_kernel_text(end, aligned_end)) {
+			/*
+			 * Hack, just return, don't pte_clear
+			 */
+			WARN_ONCE(1, "Linear mapping %lx->%lx overlaps kernel "
+				  "text, not splitting\n", addr, end);
+			return;
+		}
+		split_region = true;
+	}
+
+	if (split_region) {
+		params.pte = pte;
+		params.start = addr;
+		params.end = end;
+		params.aligned_start = addr & ~(size - 1);
+		params.aligned_end = min_t(unsigned long, aligned_end,
+				(unsigned long)__va(memblock_end_of_DRAM()));
+		stop_machine(stop_machine_change_mapping, &params, NULL);
+		return;
+	}
+
+	pte_clear(&init_mm, addr, pte);
+}
+
 static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 			     unsigned long end)
 {
@@ -704,13 +800,7 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 			continue;
 
 		if (pmd_huge(*pmd)) {
-			if (!IS_ALIGNED(addr, PMD_SIZE) ||
-			    !IS_ALIGNED(next, PMD_SIZE)) {
-				WARN_ONCE(1, "%s: unaligned range\n", __func__);
-				continue;
-			}
-
-			pte_clear(&init_mm, addr, (pte_t *)pmd);
+			split_kernel_mapping(addr, end, PMD_SIZE, (pte_t *)pmd);
 			continue;
 		}
 
@@ -735,13 +825,7 @@ static void remove_pud_table(pud_t *pud_start, unsigned long addr,
 			continue;
 
 		if (pud_huge(*pud)) {
-			if (!IS_ALIGNED(addr, PUD_SIZE) ||
-			    !IS_ALIGNED(next, PUD_SIZE)) {
-				WARN_ONCE(1, "%s: unaligned range\n", __func__);
-				continue;
-			}
-
-			pte_clear(&init_mm, addr, (pte_t *)pud);
+			split_kernel_mapping(addr, end, PUD_SIZE, (pte_t *)pud);
 			continue;
 		}
 
@@ -767,13 +851,7 @@ static void remove_pagetable(unsigned long start, unsigned long end)
 			continue;
 
 		if (pgd_huge(*pgd)) {
-			if (!IS_ALIGNED(addr, PGDIR_SIZE) ||
-			    !IS_ALIGNED(next, PGDIR_SIZE)) {
-				WARN_ONCE(1, "%s: unaligned range\n", __func__);
-				continue;
-			}
-
-			pte_clear(&init_mm, addr, (pte_t *)pgd);
+			split_kernel_mapping(addr, end, PGDIR_SIZE, (pte_t *)pgd);
 			continue;
 		}
 

@@ -131,6 +131,9 @@ enum axp20x_variants {
 #define AXP803_DCDC6_V_OUT		0x25
 #define AXP803_DCDC_FREQ_CTRL		0x3b
 
+/* Other DCDC regulator control registers are the same as AXP803 */
+#define AXP813_DCDC7_V_OUT		0x26
+
 /* Interrupt */
 #define AXP152_IRQ1_EN			0x40
 #define AXP152_IRQ2_EN			0x41
@@ -640,11 +643,6 @@ struct axp20x_dev {
 	struct mfd_cell                 *cells;
 	const struct regmap_config	*regmap_cfg;
 	const struct regmap_irq_chip	*regmap_irq_chip;
-};
-
-struct axp288_extcon_pdata {
-	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
-	struct gpio_desc *gpio_mux_cntl;
 };
 
 /* generic helper function for reading 9-16 bit wide regs */

@@ -10,16 +10,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "EventCode": "0x5C",
-        "UMask": "0x2",
-        "BriefDescription": "Unhalted core cycles when thread is in rings 1, 2, or 3",
-        "Counter": "0,1,2,3",
-        "EventName": "CPL_CYCLES.RING123",
-        "PublicDescription": "This event counts unhalted core cycles during which the thread is in rings 1, 2, or 3.",
-        "SampleAfterValue": "2000003",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "EdgeDetect": "1",
         "EventCode": "0x5C",
         "UMask": "0x1",
@@ -29,6 +19,16 @@
         "CounterMask": "1",
         "PublicDescription": "This event counts when there is a transition from ring 1,2 or 3 to ring0.",
         "SampleAfterValue": "100007",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x5C",
+        "UMask": "0x2",
+        "BriefDescription": "Unhalted core cycles when thread is in rings 1, 2, or 3",
+        "Counter": "0,1,2,3",
+        "EventName": "CPL_CYCLES.RING123",
+        "PublicDescription": "This event counts unhalted core cycles during which the thread is in rings 1, 2, or 3.",
+        "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

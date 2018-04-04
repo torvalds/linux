@@ -150,8 +150,8 @@ static void vbox_update_mode_hints(struct vbox_private *vbox)
 
 		disconnected = !(hints->enabled);
 		crtc_id = vbox_conn->vbox_crtc->crtc_id;
-		vbox_conn->mode_hint.width = hints->cx & 0x8fff;
-		vbox_conn->mode_hint.height = hints->cy & 0x8fff;
+		vbox_conn->mode_hint.width = hints->cx;
+		vbox_conn->mode_hint.height = hints->cy;
 		vbox_conn->vbox_crtc->x_hint = hints->dx;
 		vbox_conn->vbox_crtc->y_hint = hints->dy;
 		vbox_conn->mode_hint.disconnected = disconnected;

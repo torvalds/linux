@@ -43,4 +43,20 @@ config FIT_IMAGE_FDT_NI169445
 	  Enable this to include the FDT for the 169445 platform from
 	  National Instruments in the FIT kernel image.
 
+config FIT_IMAGE_FDT_XILFPGA
+	bool "Include FDT for Xilfpga"
+	help
+	  Enable this to include the FDT for the MIPSfpga platform
+	  from Imagination Technologies in the FIT kernel image.
+
+config VIRT_BOARD_RANCHU
+	bool "Support Ranchu platform for Android emulator"
+	help
+	  This enables support for the platform used by Android emulator.
+
+	  Ranchu platform consists of a set of virtual devices. This platform
+	  enables emulation of variety of virtual configurations while using
+	  Android emulator. Android emulator is based on Qemu, and contains
+	  the support for the same set of virtual devices.
+
 endif

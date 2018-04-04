@@ -36,6 +36,11 @@ static inline struct cik_mqd *get_mqd(void *mqd)
 	return (struct cik_mqd *)mqd;
 }
 
+static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
+{
+	return (struct cik_sdma_rlc_registers *)mqd;
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
@@ -149,7 +154,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
 {
 	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
 	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
-	uint32_t wptr_mask = (uint32_t)((p->queue_size / sizeof(uint32_t)) - 1);
+	uint32_t wptr_mask = (uint32_t)((p->queue_size / 4) - 1);
 
 	return mm->dev->kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
@@ -160,7 +165,9 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 			 uint32_t pipe_id, uint32_t queue_id,
 			 struct queue_properties *p, struct mm_struct *mms)
 {
-	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd);
+	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd,
+					       (uint32_t __user *)p->write_ptr,
+					       mms);
 }
 
 static int update_mqd(struct mqd_manager *mm, void *mqd,
@@ -176,8 +183,7 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	 * Calculating queue size which is log base 2 of actual queue size -1
 	 * dwords and another -1 for ffs
 	 */
-	m->cp_hqd_pq_control |= ffs(q->queue_size / sizeof(unsigned int))
-								- 1 - 1;
+	m->cp_hqd_pq_control |= order_base_2(q->queue_size / 4) - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
@@ -189,12 +195,9 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	if (q->format == KFD_QUEUE_FORMAT_AQL)
 		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
 
-	q->is_active = false;
-	if (q->queue_size > 0 &&
+	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
-			q->queue_percent > 0) {
-		q->is_active = true;
-	}
+			q->queue_percent > 0);
 
 	return 0;
 }
@@ -205,8 +208,8 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	struct cik_sdma_rlc_registers *m;
 
 	m = get_sdma_mqd(mqd);
-	m->sdma_rlc_rb_cntl = ffs(q->queue_size / sizeof(unsigned int)) <<
-			SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
+	m->sdma_rlc_rb_cntl = order_base_2(q->queue_size / 4)
+			<< SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
 			q->vmid << SDMA0_RLC0_RB_CNTL__RB_VMID__SHIFT |
 			1 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
 			6 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT;
@@ -215,24 +218,17 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdma_rlc_rb_base_hi = upper_32_bits(q->queue_address >> 8);
 	m->sdma_rlc_rb_rptr_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->sdma_rlc_rb_rptr_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
-	m->sdma_rlc_doorbell = q->doorbell_off <<
-			SDMA0_RLC0_DOORBELL__OFFSET__SHIFT |
-			1 << SDMA0_RLC0_DOORBELL__ENABLE__SHIFT;
+	m->sdma_rlc_doorbell =
+		q->doorbell_off << SDMA0_RLC0_DOORBELL__OFFSET__SHIFT;
 
 	m->sdma_rlc_virtual_addr = q->sdma_vm_addr;
 
 	m->sdma_engine_id = q->sdma_engine_id;
 	m->sdma_queue_id = q->sdma_queue_id;
 
-	q->is_active = false;
-	if (q->queue_size > 0 &&
+	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
-			q->queue_percent > 0) {
-		m->sdma_rlc_rb_cntl |=
-				1 << SDMA0_RLC0_RB_CNTL__RB_ENABLE__SHIFT;
-
-		q->is_active = true;
-	}
+			q->queue_percent > 0);
 
 	return 0;
 }
@@ -353,37 +349,40 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	 * Calculating queue size which is log base 2 of actual queue
 	 * size -1 dwords
 	 */
-	m->cp_hqd_pq_control |= ffs(q->queue_size / sizeof(unsigned int))
-								- 1 - 1;
+	m->cp_hqd_pq_control |= order_base_2(q->queue_size / 4) - 1;
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->cp_hqd_pq_rptr_report_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
-	m->cp_hqd_pq_doorbell_control = DOORBELL_EN |
-					DOORBELL_OFFSET(q->doorbell_off);
+	m->cp_hqd_pq_doorbell_control = DOORBELL_OFFSET(q->doorbell_off);
 
 	m->cp_hqd_vmid = q->vmid;
 
-	m->cp_hqd_active = 0;
-	q->is_active = false;
-	if (q->queue_size > 0 &&
+	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
-			q->queue_percent > 0) {
-		m->cp_hqd_active = 1;
-		q->is_active = true;
-	}
+			q->queue_percent > 0);
 
 	return 0;
 }
 
-struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
+#if defined(CONFIG_DEBUG_FS)
+
+static int debugfs_show_mqd(struct seq_file *m, void *data)
 {
-	struct cik_sdma_rlc_registers *m;
-
-	m = (struct cik_sdma_rlc_registers *)mqd;
-
-	return m;
+	seq_hex_dump(m, "    ", DUMP_PREFIX_OFFSET, 32, 4,
+		     data, sizeof(struct cik_mqd), false);
+	return 0;
 }
+
+static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
+{
+	seq_hex_dump(m, "    ", DUMP_PREFIX_OFFSET, 32, 4,
+		     data, sizeof(struct cik_sdma_rlc_registers), false);
+	return 0;
+}
+
+#endif
+
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev)
@@ -408,6 +407,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+#if defined(CONFIG_DEBUG_FS)
+		mqd->debugfs_show_mqd = debugfs_show_mqd;
+#endif
 		break;
 	case KFD_MQD_TYPE_HIQ:
 		mqd->init_mqd = init_mqd_hiq;
@@ -416,6 +418,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+#if defined(CONFIG_DEBUG_FS)
+		mqd->debugfs_show_mqd = debugfs_show_mqd;
+#endif
 		break;
 	case KFD_MQD_TYPE_SDMA:
 		mqd->init_mqd = init_mqd_sdma;
@@ -424,6 +429,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd_sdma;
 		mqd->destroy_mqd = destroy_mqd_sdma;
 		mqd->is_occupied = is_occupied_sdma;
+#if defined(CONFIG_DEBUG_FS)
+		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
+#endif
 		break;
 	default:
 		kfree(mqd);

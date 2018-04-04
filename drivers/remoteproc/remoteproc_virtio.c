@@ -327,7 +327,7 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 
 	ret = register_virtio_device(vdev);
 	if (ret) {
-		put_device(&rproc->dev);
+		put_device(&vdev->dev);
 		dev_err(dev, "failed to register vdev: %d\n", ret);
 		goto out;
 	}

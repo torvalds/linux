@@ -572,7 +572,7 @@ static struct cxgbi_sock *cxgbi_sock_create(struct cxgbi_device *cdev)
 	kref_init(&csk->refcnt);
 	skb_queue_head_init(&csk->receive_queue);
 	skb_queue_head_init(&csk->write_queue);
-	setup_timer(&csk->retry_timer, NULL, (unsigned long)csk);
+	timer_setup(&csk->retry_timer, NULL, 0);
 	rwlock_init(&csk->callback_lock);
 	csk->cdev = cdev;
 	csk->flags = 0;
@@ -688,8 +688,6 @@ rel_neigh:
 
 rel_rt:
 	ip_rt_put(rt);
-	if (csk)
-		cxgbi_sock_closed(csk);
 err_out:
 	return ERR_PTR(err);
 }
@@ -1889,15 +1887,12 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
 	struct scsi_cmnd *sc = task->sc;
+	struct cxgbi_sock *csk = cconn->cep->csk;
+	struct net_device *ndev = cdev->ports[csk->port_id];
 	int headroom = SKB_TX_ISCSI_PDU_HEADER_MAX;
 
 	tcp_task->dd_data = tdata;
 	task->hdr = NULL;
-
-	if (tdata->skb) {
-		kfree_skb(tdata->skb);
-		tdata->skb = NULL;
-	}
 
 	if (SKB_MAX_HEAD(cdev->skb_tx_rsvd) > (512 * MAX_SKB_FRAGS) &&
 	    (opcode == ISCSI_OP_SCSI_DATA_OUT ||
@@ -1910,15 +1905,23 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 
 	tdata->skb = alloc_skb(cdev->skb_tx_rsvd + headroom, GFP_ATOMIC);
 	if (!tdata->skb) {
-		struct cxgbi_sock *csk = cconn->cep->csk;
-		struct net_device *ndev = cdev->ports[csk->port_id];
 		ndev->stats.tx_dropped++;
 		return -ENOMEM;
 	}
 
-	skb_get(tdata->skb);
 	skb_reserve(tdata->skb, cdev->skb_tx_rsvd);
-	task->hdr = (struct iscsi_hdr *)tdata->skb->data;
+
+	if (task->sc) {
+		task->hdr = (struct iscsi_hdr *)tdata->skb->data;
+	} else {
+		task->hdr = kzalloc(SKB_TX_ISCSI_PDU_HEADER_MAX, GFP_ATOMIC);
+		if (!task->hdr) {
+			__kfree_skb(tdata->skb);
+			tdata->skb = NULL;
+			ndev->stats.tx_dropped++;
+			return -ENOMEM;
+		}
+	}
 	task->hdr_max = SKB_TX_ISCSI_PDU_HEADER_MAX; /* BHS + AHS */
 
 	/* data_out uses scsi_cmd's itt */
@@ -2062,9 +2065,9 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 	unsigned int datalen;
 	int err;
 
-	if (!skb || cxgbi_skcb_test_flag(skb, SKCBF_TX_DONE)) {
+	if (!skb) {
 		log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_PDU_TX,
-			"task 0x%p, skb 0x%p\n", task, skb);
+			"task 0x%p\n", task);
 		return 0;
 	}
 
@@ -2076,6 +2079,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 		return -EPIPE;
 	}
 
+	tdata->skb = NULL;
 	datalen = skb->data_len;
 
 	/* write ppod first if using ofldq to write ppod */
@@ -2088,6 +2092,9 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 			       task);
 			/* continue. Let fl get the data */
 	}
+
+	if (!task->sc)
+		memcpy(skb->data, task->hdr, SKB_TX_ISCSI_PDU_HEADER_MAX);
 
 	err = cxgbi_sock_send_pdus(cconn->cep->csk, skb);
 	if (err > 0) {
@@ -2104,7 +2111,6 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 			pdulen += ISCSI_DIGEST_SIZE;
 
 		task->conn->txdata_octets += pdulen;
-		cxgbi_skcb_set_flag(skb, SKCBF_TX_DONE);
 		return 0;
 	}
 
@@ -2113,6 +2119,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 			"task 0x%p, skb 0x%p, len %u/%u, %d EAGAIN.\n",
 			task, skb, skb->len, skb->data_len, err);
 		/* reset skb to send when we are called again */
+		tdata->skb = skb;
 		return err;
 	}
 
@@ -2120,8 +2127,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 		"itt 0x%x, skb 0x%p, len %u/%u, xmit err %d.\n",
 		task->itt, skb, skb->len, skb->data_len, err);
 
-	__kfree_skb(tdata->skb);
-	tdata->skb = NULL;
+	__kfree_skb(skb);
 
 	iscsi_conn_printk(KERN_ERR, task->conn, "xmit err %d.\n", err);
 	iscsi_conn_failure(task->conn, ISCSI_ERR_XMIT_FAILED);
@@ -2146,9 +2152,14 @@ void cxgbi_cleanup_task(struct iscsi_task *task)
 		task, tdata->skb, task->hdr_itt);
 
 	tcp_task->dd_data = NULL;
+
+	if (!task->sc)
+		kfree(task->hdr);
+	task->hdr = NULL;
+
 	/*  never reached the xmit task callout */
 	if (tdata->skb) {
-		kfree_skb(tdata->skb);
+		__kfree_skb(tdata->skb);
 		tdata->skb = NULL;
 	}
 
@@ -2556,7 +2567,10 @@ struct iscsi_endpoint *cxgbi_ep_connect(struct Scsi_Host *shost,
 			goto err_out;
 		}
 
-		ifindex = hba->ndev->ifindex;
+		rtnl_lock();
+		if (!vlan_uses_dev(hba->ndev))
+			ifindex = hba->ndev->ifindex;
+		rtnl_unlock();
 	}
 
 	if (dst_addr->sa_family == AF_INET) {

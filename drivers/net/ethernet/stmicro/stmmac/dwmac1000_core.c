@@ -25,17 +25,27 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 #include <linux/ethtool.h>
+#include <net/dsa.h>
 #include <asm/io.h>
 #include "stmmac_pcs.h"
 #include "dwmac1000.h"
 
-static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
+static void dwmac1000_core_init(struct mac_device_info *hw,
+				struct net_device *dev)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONTROL);
+	int mtu = dev->mtu;
 
 	/* Configure GMAC core */
 	value |= GMAC_CORE_INIT;
+
+	/* Clear ACS bit because Ethernet switch tagging formats such as
+	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
+	 * hardware to truncate packets on reception.
+	 */
+	if (netdev_uses_dsa(dev))
+		value &= ~GMAC_CONTROL_ACS;
 
 	if (mtu > 1500)
 		value |= GMAC_CONTROL_2K;
@@ -64,8 +74,6 @@ static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 	/* Mask GMAC interrupts */
 	value = GMAC_INT_DEFAULT_MASK;
 
-	if (hw->pmt)
-		value &= ~GMAC_INT_DISABLE_PMT;
 	if (hw->pcs)
 		value &= ~GMAC_INT_DISABLE_PCS;
 

@@ -122,12 +122,6 @@ config GPIO_ATH79
 	  Select this option to enable GPIO driver for
 	  Atheros AR71XX/AR724X/AR913X SoC devices.
 
-config GPIO_AXP209
-	tristate "X-Powers AXP209 PMIC GPIO Support"
-	depends on MFD_AXP20X
-	help
-	  Say yes to enable GPIO support for the AXP209 PMIC
-
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
 	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
@@ -139,7 +133,7 @@ config GPIO_BRCMSTB
 	default y if (ARCH_BRCMSTB || BMIPS_GENERIC)
 	depends on OF_GPIO && (ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST)
 	select GPIO_GENERIC
-	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN
 	help
 	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
 
@@ -286,8 +280,7 @@ config GPIO_LYNXPOINT
 	  Requires ACPI device enumeration code to set up a platform device.
 
 config GPIO_MB86S7X
-	bool "GPIO support for Fujitsu MB86S7x Platforms"
-	depends on ARCH_MB86S7X || COMPILE_TEST
+	tristate "GPIO support for Fujitsu MB86S7x Platforms"
 	help
 	  Say yes here to support the GPIO controller in Fujitsu MB86S70 SoCs.
 
@@ -442,6 +435,15 @@ config GPIO_TEGRA
 	help
 	  Say yes here to support GPIO pins on NVIDIA Tegra SoCs.
 
+config GPIO_TEGRA186
+	tristate "NVIDIA Tegra186 GPIO support"
+	default ARCH_TEGRA_186_SOC
+	depends on ARCH_TEGRA_186_SOC || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support GPIO pins on NVIDIA Tegra186 SoCs.
+
 config GPIO_TS4800
 	tristate "TS-4800 DIO blocks and compatibles"
 	depends on OF_GPIO
@@ -474,6 +476,14 @@ config GPIO_TZ1090_PDC
 	default y
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
+
+config GPIO_UNIPHIER
+	tristate "UniPhier GPIO support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF_GPIO
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to support UniPhier GPIOs.
 
 config GPIO_VF610
 	def_bool y
@@ -688,6 +698,22 @@ config GPIO_TS5500
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
+config GPIO_WINBOND
+	tristate "Winbond Super I/O GPIO support"
+	depends on ISA_BUS_API
+	help
+	  This option enables support for GPIOs found on Winbond Super I/O
+	  chips.
+	  Currently, only W83627UHG (also known as Nuvoton NCT6627UD) is
+	  supported.
+
+	  You will need to provide a module parameter "gpios", or a
+	  boot-time parameter "gpio_winbond.gpios" with a bitmask of GPIO
+	  ports to enable (bit 0 is GPIO1, bit 1 is GPIO2, etc.).
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-winbond.
+
 config GPIO_WS16C48
 	tristate "WinSystems WS16C48 GPIO support"
 	depends on ISA_BUS_API
@@ -817,15 +843,6 @@ config GPIO_PCF857X
 
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
-
-config GPIO_SX150X
-	bool "Semtech SX150x I2C GPIO expander (deprecated)"
-	depends on PINCTRL && I2C=y
-	select PINCTRL_SX150X
-	default n
-	help
-	  Say yes here to provide support for Semtech SX150x-series I2C
-	  GPIO expanders. The GPIO driver was replaced by a Pinctrl version.
 
 config GPIO_TPIC2810
 	tristate "TPIC2810 8-Bit I2C GPO expander"
@@ -1227,6 +1244,16 @@ config GPIO_PCI_IDIO_16
 	  low). Input filter control is not supported by this driver, and the
 	  input filters are deactivated by this driver.
 
+config GPIO_PCIE_IDIO_24
+	tristate "ACCES PCIe-IDIO-24 GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Enables GPIO support for the ACCES PCIe-IDIO-24 family (PCIe-IDIO-24,
+	  PCIe-IDI-24, PCIe-IDO-24, PCIe-IDIO-12). An interrupt is generated
+	  when any of the inputs change state (low to high or high to low).
+	  Input filter control is not supported by this driver, and the input
+	  filters are deactivated by this driver.
+
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
 	select MFD_CORE
@@ -1255,6 +1282,16 @@ config GPIO_74X164
 	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
 	  shift registers. This driver can be used to provide access
 	  to more gpio outputs.
+
+config GPIO_MAX3191X
+	tristate "Maxim MAX3191x industrial serializer"
+	select CRC8
+	help
+	  GPIO driver for Maxim MAX31910, MAX31911, MAX31912, MAX31913,
+	  MAX31953 and MAX31963 industrial serializer, a daisy-chainable
+	  chip to make 8 digital 24V inputs available via SPI.  Supports
+	  CRC checksums to guard against electromagnetic interference,
+	  as well as undervoltage and overtemperature detection.
 
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"

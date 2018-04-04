@@ -2316,7 +2316,7 @@ typedef struct DAC960_Controller
   bool SuppressEnclosureMessages;
   struct timer_list MonitoringTimer;
   struct gendisk *disks[DAC960_MaxLogicalDrives];
-  struct pci_pool *ScatterGatherPool;
+  struct dma_pool *ScatterGatherPool;
   DAC960_Command_T *FreeCommands;
   unsigned char *CombinedStatusBuffer;
   unsigned char *CurrentStatusBuffer;
@@ -2429,7 +2429,7 @@ typedef struct DAC960_Controller
       bool NeedDeviceSerialNumberInformation;
       bool StartLogicalDeviceInformationScan;
       bool StartPhysicalDeviceInformationScan;
-      struct pci_pool *RequestSensePool;
+      struct dma_pool *RequestSensePool;
 
       dma_addr_t	FirstCommandMailboxDMA;
       DAC960_V2_CommandMailbox_T *FirstCommandMailbox;
@@ -4406,7 +4406,7 @@ static irqreturn_t DAC960_PD_InterruptHandler(int, void *);
 static irqreturn_t DAC960_P_InterruptHandler(int, void *);
 static void DAC960_V1_QueueMonitoringCommand(DAC960_Command_T *);
 static void DAC960_V2_QueueMonitoringCommand(DAC960_Command_T *);
-static void DAC960_MonitoringTimerFunction(unsigned long);
+static void DAC960_MonitoringTimerFunction(struct timer_list *);
 static void DAC960_Message(DAC960_MessageLevel_T, unsigned char *,
 			   DAC960_Controller_T *, ...);
 static void DAC960_CreateProcEntries(DAC960_Controller_T *);

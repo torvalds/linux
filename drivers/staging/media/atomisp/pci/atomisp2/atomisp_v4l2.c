@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 #include <linux/module.h>
@@ -27,6 +23,8 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include <asm/iosf_mbi.h>
 
 #include "../../include/linux/atomisp_gmin_platform.h"
 
@@ -46,7 +44,6 @@
 #include "hrt/hive_isp_css_mm_hrt.h"
 
 #include "device_access.h"
-#include <asm/intel-mid.h>
 
 /* G-Min addition: pull this in from intel_mid_pm.h */
 #define CSTATE_EXIT_LATENCY_C1  1
@@ -386,28 +383,23 @@ done:
  */
 static void punit_ddr_dvfs_enable(bool enable)
 {
-	int reg = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSDVFS);
 	int door_bell = 1 << 8;
 	int max_wait = 30;
+	int reg;
 
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
 	if (enable) {
 		reg &= ~(MRFLD_BIT0 | MRFLD_BIT1);
 	} else {
 		reg |= (MRFLD_BIT1 | door_bell);
 		reg &= ~(MRFLD_BIT0);
 	}
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSDVFS, reg);
 
-	intel_mid_msgbus_write32(PUNIT_PORT, MRFLD_ISPSSDVFS, reg);
-
-	/*Check Req_ACK to see freq status, wait until door_bell is cleared*/
-	if (reg & door_bell) {
-		while (max_wait--) {
-			if (0 == (intel_mid_msgbus_read32(PUNIT_PORT,
-				MRFLD_ISPSSDVFS) & door_bell))
-					break;
-
-			usleep_range(100, 500);
-		}
+	/* Check Req_ACK to see freq status, wait until door_bell is cleared */
+	while ((reg & door_bell) && max_wait--) {
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
+		usleep_range(100, 500);
 	}
 
 	if (max_wait == -1)
@@ -421,10 +413,10 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 	u32 reg_value;
 
 	/* writing 0x3 to ISPSSPM0 bit[1:0] to power off the IUNIT */
-	reg_value = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSPM0);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 	reg_value &= ~MRFLD_ISPSSPM0_ISPSSC_MASK;
 	reg_value |= MRFLD_ISPSSPM0_IUNIT_POWER_OFF;
-	intel_mid_msgbus_write32(PUNIT_PORT, MRFLD_ISPSSPM0, reg_value);
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSPM0, reg_value);
 
 	/*WA:Enable DVFS*/
 	if (IS_CHT)
@@ -437,8 +429,7 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 	 */
 	timeout = jiffies + msecs_to_jiffies(50);
 	while (1) {
-		reg_value = intel_mid_msgbus_read32(PUNIT_PORT,
-							MRFLD_ISPSSPM0);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 		dev_dbg(isp->dev, "power-off in progress, ISPSSPM0: 0x%x\n",
 				reg_value);
 		/* wait until ISPSSPM0 bit[25:24] shows 0x3 */
@@ -477,14 +468,14 @@ int atomisp_mrfld_power_up(struct atomisp_device *isp)
 		msleep(10);
 
 	/* writing 0x0 to ISPSSPM0 bit[1:0] to power off the IUNIT */
-	reg_value = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSPM0);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 	reg_value &= ~MRFLD_ISPSSPM0_ISPSSC_MASK;
-	intel_mid_msgbus_write32(PUNIT_PORT, MRFLD_ISPSSPM0, reg_value);
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSPM0, reg_value);
 
 	/* FIXME: experienced value for delay */
 	timeout = jiffies + msecs_to_jiffies(50);
 	while (1) {
-		reg_value = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSPM0);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 		dev_dbg(isp->dev, "power-on in progress, ISPSSPM0: 0x%x\n",
 				reg_value);
 		/* wait until ISPSSPM0 bit[25:24] shows 0x0 */
@@ -755,7 +746,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			&subdevs->v4l2_subdev.board_info;
 		struct i2c_adapter *adapter =
 			i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
-		struct camera_sensor_platform_data *sensor_pdata;
 		int sensor_num, i;
 
 		if (adapter == NULL) {
@@ -807,13 +797,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			 * pixel_format.
 			 */
 			isp->inputs[isp->input_cnt].frame_size.pixel_format = 0;
-			sensor_pdata = (struct camera_sensor_platform_data *)
-					board_info->platform_data;
-			if (sensor_pdata->get_camera_caps)
-				isp->inputs[isp->input_cnt].camera_caps =
-					sensor_pdata->get_camera_caps();
-			else
-				isp->inputs[isp->input_cnt].camera_caps =
+			isp->inputs[isp->input_cnt].camera_caps =
 					atomisp_get_default_camera_caps();
 			sensor_num = isp->inputs[isp->input_cnt]
 				.camera_caps->sensor_num;
@@ -1020,7 +1004,7 @@ csi_and_subdev_probe_failed:
 	v4l2_device_unregister(&isp->v4l2_dev);
 v4l2_device_failed:
 	media_device_unregister(&isp->media_dev);
-    media_device_cleanup(&isp->media_dev);
+	media_device_cleanup(&isp->media_dev);
 	return ret;
 }
 
@@ -1155,25 +1139,18 @@ static int init_atomisp_wdts(struct atomisp_device *isp)
 		struct atomisp_sub_device *asd = &isp->asd[i];
 		asd = &isp->asd[i];
 #ifndef ISP2401
-		setup_timer(&asd->wdt, atomisp_wdt, (unsigned long)isp);
+		timer_setup(&asd->wdt, atomisp_wdt, 0);
 #else
-		setup_timer(&asd->video_out_capture.wdt,
-			atomisp_wdt, (unsigned long)&asd->video_out_capture);
-		setup_timer(&asd->video_out_preview.wdt,
-			atomisp_wdt, (unsigned long)&asd->video_out_preview);
-		setup_timer(&asd->video_out_vf.wdt,
-			atomisp_wdt, (unsigned long)&asd->video_out_vf);
-		setup_timer(&asd->video_out_video_capture.wdt,
-			atomisp_wdt,
-			(unsigned long)&asd->video_out_video_capture);
+		timer_setup(&asd->video_out_capture.wdt, atomisp_wdt, 0);
+		timer_setup(&asd->video_out_preview.wdt, atomisp_wdt, 0);
+		timer_setup(&asd->video_out_vf.wdt, atomisp_wdt, 0);
+		timer_setup(&asd->video_out_video_capture.wdt, atomisp_wdt, 0);
 #endif
 	}
 	return 0;
 alloc_fail:
 	return err;
 }
-
-static struct pci_driver atomisp_pci_driver;
 
 #define ATOM_ISP_PCI_BAR	0
 
@@ -1233,11 +1210,6 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	isp->pdev = dev;
 	isp->dev = &dev->dev;
 	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
-	isp->pci_root = pci_get_bus_and_slot(0, 0);
-	if (!isp->pci_root) {
-		dev_err(&dev->dev, "Unable to find PCI host\n");
-		return -ENODEV;
-	}
 	isp->saved_regs.ispmmadr = start;
 
 	rt_mutex_init(&isp->mutex);
@@ -1323,7 +1295,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		isp->dfs = &dfs_config_cht;
 		isp->pdev->d3cold_delay = 0;
 
-		val = intel_mid_msgbus_read32(CCK_PORT, CCK_FUSE_REG_0);
+		iosf_mbi_read(CCK_PORT, MBI_REG_READ, CCK_FUSE_REG_0, &val);
 		switch (val & CCK_FUSE_HPLL_FREQ_MASK) {
 		case 0x00:
 			isp->hpll_freq = HPLL_FREQ_800MHZ;
@@ -1472,7 +1444,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	atomisp_drvfs_init(&atomisp_pci_driver, isp);
+	atomisp_drvfs_init(&dev->driver->driver, isp);
 
 	return 0;
 
@@ -1517,7 +1489,6 @@ load_fw_fail:
 	/* Address later when we worry about the ...field chips */
 	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power_down(isp))
 		dev_err(&dev->dev, "Failed to switch off ISP\n");
-	pci_dev_put(isp->pci_root);
 	return err;
 }
 
@@ -1538,8 +1509,6 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 	pm_qos_remove_request(&isp->pm_qos);
 
 	atomisp_msi_irq_uninit(isp, dev);
-	pci_dev_put(isp->pci_root);
-
 	atomisp_unregister_entities(isp);
 
 	destroy_workqueue(isp->wdt_work_queue);

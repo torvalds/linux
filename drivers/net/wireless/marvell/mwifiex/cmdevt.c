@@ -17,6 +17,7 @@
  * this warranty disclaimer.
  */
 
+#include <asm/unaligned.h>
 #include "decl.h"
 #include "ioctl.h"
 #include "util.h"
@@ -183,7 +184,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	uint16_t cmd_code;
 	uint16_t cmd_size;
 	unsigned long flags;
-	__le32 tmp;
 
 	if (!adapter || !cmd_node)
 		return -1;
@@ -249,9 +249,9 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	mwifiex_dbg_dump(adapter, CMD_D, "cmd buffer:", host_cmd, cmd_size);
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
 		skb_push(cmd_node->cmd_skb, MWIFIEX_TYPE_LEN);
-		memcpy(cmd_node->cmd_skb->data, &tmp, MWIFIEX_TYPE_LEN);
+		put_unaligned_le32(MWIFIEX_USB_TYPE_CMD,
+				   cmd_node->cmd_skb->data);
 		adapter->cmd_sent = true;
 		ret = adapter->if_ops.host_to_card(adapter,
 						   MWIFIEX_USB_EP_CMD_EVENT,
@@ -290,12 +290,15 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	adapter->dbg.last_cmd_act[adapter->dbg.last_cmd_index] =
 			get_unaligned_le16((u8 *)host_cmd + S_DS_GEN);
 
+	/* Setup the timer after transmit command, except that specific
+	 * command might not have command response.
+	 */
+	if (cmd_code != HostCmd_CMD_FW_DUMP_EVENT)
+		mod_timer(&adapter->cmd_timer,
+			  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
+
 	/* Clear BSS_NO_BITS from HostCmd */
 	cmd_code &= HostCmd_CMD_ID_MASK;
-
-	/* Setup the timer after transmit command */
-	mod_timer(&adapter->cmd_timer,
-		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
 
 	return 0;
 }
@@ -317,7 +320,6 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 				(struct mwifiex_opt_sleep_confirm *)
 						adapter->sleep_cfm->data;
 	struct sk_buff *sleep_cfm_tmp;
-	__le32 tmp;
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
@@ -342,8 +344,7 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 				      + MWIFIEX_TYPE_LEN);
 		skb_put(sleep_cfm_tmp, sizeof(struct mwifiex_opt_sleep_confirm)
 			+ MWIFIEX_TYPE_LEN);
-		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
-		memcpy(sleep_cfm_tmp->data, &tmp, MWIFIEX_TYPE_LEN);
+		put_unaligned_le32(MWIFIEX_USB_TYPE_CMD, sleep_cfm_tmp->data);
 		memcpy(sleep_cfm_tmp->data + MWIFIEX_TYPE_LEN,
 		       adapter->sleep_cfm->data,
 		       sizeof(struct mwifiex_opt_sleep_confirm));
@@ -922,10 +923,9 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
  * It will re-send the same command again.
  */
 void
-mwifiex_cmd_timeout_func(unsigned long function_context)
+mwifiex_cmd_timeout_func(struct timer_list *t)
 {
-	struct mwifiex_adapter *adapter =
-		(struct mwifiex_adapter *) function_context;
+	struct mwifiex_adapter *adapter = from_timer(adapter, t, cmd_timer);
 	struct cmd_ctrl_node *cmd_node;
 
 	adapter->is_cmd_timedout = 1;

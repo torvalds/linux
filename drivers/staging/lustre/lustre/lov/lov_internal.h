@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -114,19 +115,19 @@ static inline const struct lsm_operations *lsm_op_find(int magic)
  */
 #if BITS_PER_LONG == 64
 # define lov_do_div64(n, base) ({					\
-	uint64_t __base = (base);					\
-	uint64_t __rem;							\
-	__rem = ((uint64_t)(n)) % __base;				\
-	(n) = ((uint64_t)(n)) / __base;					\
+	u64 __base = (base);					\
+	u64 __rem;							\
+	__rem = ((u64)(n)) % __base;				\
+	(n) = ((u64)(n)) / __base;					\
 	__rem;								\
 })
 #elif BITS_PER_LONG == 32
 # define lov_do_div64(n, base) ({					\
-	uint64_t __rem;							\
+	u64 __rem;							\
 	if ((sizeof(base) > 4) && (((base) & 0xffffffff00000000ULL) != 0)) {  \
 		int __remainder;					      \
 		LASSERTF(!((base) & (LOV_MIN_STRIPE_SIZE - 1)), "64 bit lov " \
-			 "division %llu / %llu\n", (n), (uint64_t)(base));    \
+			 "division %llu / %llu\n", (n), (u64)(base));    \
 		__remainder = (n) & (LOV_MIN_STRIPE_SIZE - 1);		\
 		(n) >>= LOV_MIN_STRIPE_BITS;				\
 		__rem = do_div(n, (base) >> LOV_MIN_STRIPE_BITS);	\

@@ -1084,24 +1084,35 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 {
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	int rc = SUCCESS;
+	unsigned int time_left;
 
 	io_req->wait_for_comp = 1;
 	bnx2fc_initiate_cleanup(io_req);
 
 	spin_unlock_bh(&tgt->tgt_lock);
 
-	wait_for_completion(&io_req->tm_done);
-
-	io_req->wait_for_comp = 0;
 	/*
-	 * release the reference taken in eh_abort to allow the
-	 * target to re-login after flushing IOs
+	 * Can't wait forever on cleanup response lest we let the SCSI error
+	 * handler wait forever
+	 */
+	time_left = wait_for_completion_timeout(&io_req->tm_done,
+						BNX2FC_FW_TIMEOUT);
+	io_req->wait_for_comp = 0;
+	if (!time_left)
+		BNX2FC_IO_DBG(io_req, "%s(): Wait for cleanup timed out.\n",
+			      __func__);
+
+	/*
+	 * Release reference held by SCSI command the cleanup completion
+	 * hits the BNX2FC_CLEANUP case in bnx2fc_process_cq_compl() and
+	 * thus the SCSI command is not returnedi by bnx2fc_scsi_done().
 	 */
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 
 	spin_lock_bh(&tgt->tgt_lock);
 	return rc;
 }
+
 /**
  * bnx2fc_eh_abort - eh_abort_handler api to abort an outstanding
  *			SCSI command
@@ -1118,6 +1129,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	struct fc_lport *lport;
 	struct bnx2fc_rport *tgt;
 	int rc;
+	unsigned int time_left;
 
 	rc = fc_block_scsi_eh(sc_cmd);
 	if (rc)
@@ -1194,6 +1206,11 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		if (cancel_delayed_work(&io_req->timeout_work))
 			kref_put(&io_req->refcount,
 				 bnx2fc_cmd_release); /* drop timer hold */
+		/*
+		 * We don't want to hold off the upper layer timer so simply
+		 * cleanup the command and return that I/O was successfully
+		 * aborted.
+		 */
 		rc = bnx2fc_abts_cleanup(io_req);
 		/* This only occurs when an task abort was requested while ABTS
 		   is in progress.  Setting the IO_CLEANUP flag will skip the
@@ -1201,7 +1218,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		   was a result from the ABTS request rather than the CLEANUP
 		   request */
 		set_bit(BNX2FC_FLAG_IO_CLEANUP,	&io_req->req_flags);
-		goto out;
+		goto done;
 	}
 
 	/* Cancel the current timer running on this io_req */
@@ -1221,7 +1238,11 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	}
 	spin_unlock_bh(&tgt->tgt_lock);
 
-	wait_for_completion(&io_req->tm_done);
+	/* Wait 2 * RA_TOV + 1 to be sure timeout function hasn't fired */
+	time_left = wait_for_completion_timeout(&io_req->tm_done,
+	    (2 * rp->r_a_tov + 1) * HZ);
+	if (time_left)
+		BNX2FC_IO_DBG(io_req, "Timed out in eh_abort waiting for tm_done");
 
 	spin_lock_bh(&tgt->tgt_lock);
 	io_req->wait_for_comp = 0;
@@ -1233,8 +1254,12 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		/* Let the scsi-ml try to recover this command */
 		printk(KERN_ERR PFX "abort failed, xid = 0x%x\n",
 		       io_req->xid);
+		/*
+		 * Cleanup firmware residuals before returning control back
+		 * to SCSI ML.
+		 */
 		rc = bnx2fc_abts_cleanup(io_req);
-		goto out;
+		goto done;
 	} else {
 		/*
 		 * We come here even when there was a race condition
@@ -1249,7 +1274,6 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 done:
 	/* release the reference taken in eh_abort */
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
-out:
 	spin_unlock_bh(&tgt->tgt_lock);
 	return rc;
 }
@@ -1865,6 +1889,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 		/* we will not receive ABTS response for this IO */
 		BNX2FC_IO_DBG(io_req, "Timer context finished processing "
 			   "this scsi cmd\n");
+		return;
 	}
 
 	/* Cancel the timeout_work, as we received IO completion */

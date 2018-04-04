@@ -1691,12 +1691,12 @@ qed_mcp_get_shmem_proto_mfw(struct qed_hwfn *p_hwfn,
 	case FW_MB_PARAM_GET_PF_RDMA_ROCE:
 		*p_proto = QED_PCI_ETH_ROCE;
 		break;
-	case FW_MB_PARAM_GET_PF_RDMA_BOTH:
-		DP_NOTICE(p_hwfn,
-			  "Current day drivers don't support RoCE & iWARP. Default to RoCE-only\n");
-		*p_proto = QED_PCI_ETH_ROCE;
-		break;
 	case FW_MB_PARAM_GET_PF_RDMA_IWARP:
+		*p_proto = QED_PCI_ETH_IWARP;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_BOTH:
+		*p_proto = QED_PCI_ETH_RDMA;
+		break;
 	default:
 		DP_NOTICE(p_hwfn,
 			  "MFW answers GET_PF_RDMA_PROTOCOL but param is %08x\n",
@@ -2234,7 +2234,7 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
 					DRV_MSG_CODE_NVM_READ_NVRAM,
 					addr + offset +
 					(bytes_to_copy <<
-					 DRV_MB_PARAM_NVM_LEN_SHIFT),
+					 DRV_MB_PARAM_NVM_LEN_OFFSET),
 					&resp, &resp_param,
 					&read_len,
 					(u32 *)(p_buf + offset));

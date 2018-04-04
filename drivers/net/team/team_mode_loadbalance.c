@@ -137,7 +137,13 @@ static struct team_port *lb_htpm_select_tx_port(struct team *team,
 						struct sk_buff *skb,
 						unsigned char hash)
 {
-	return rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
+	struct team_port *port;
+
+	port = rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
+	if (likely(port))
+		return port;
+	/* If no valid port in the table, fall back to simple hash */
+	return lb_hash_select_tx_port(team, lb_priv, skb, hash);
 }
 
 struct lb_select_tx_port {

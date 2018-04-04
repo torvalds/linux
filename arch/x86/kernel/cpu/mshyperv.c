@@ -251,12 +251,18 @@ static void __init ms_hyperv_init_platform(void)
 	hyperv_setup_mmu_ops();
 	/* Setup the IDT for hypervisor callback */
 	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
+
+	/* Setup the IDT for reenlightenment notifications */
+	if (ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT)
+		alloc_intr_gate(HYPERV_REENLIGHTENMENT_VECTOR,
+				hyperv_reenlightenment_vector);
+
 #endif
 }
 
-const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
+const __initconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
 	.name			= "Microsoft Hyper-V",
 	.detect			= ms_hyperv_platform,
-	.init_platform		= ms_hyperv_init_platform,
+	.type			= X86_HYPER_MS_HYPERV,
+	.init.init_platform	= ms_hyperv_init_platform,
 };
-EXPORT_SYMBOL(x86_hyper_ms_hyperv);

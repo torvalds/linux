@@ -79,7 +79,7 @@ struct davinci_soc_info {
 
 extern struct davinci_soc_info davinci_soc_info;
 
-extern void davinci_common_init(struct davinci_soc_info *soc_info);
+extern void davinci_common_init(const struct davinci_soc_info *soc_info);
 extern void davinci_init_ide(void);
 void davinci_restart(enum reboot_mode mode, const char *cmd);
 void davinci_init_late(void);

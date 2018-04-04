@@ -337,12 +337,6 @@ static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 #define S2IO_TEST_LEN	ARRAY_SIZE(s2io_gstrings)
 #define S2IO_STRINGS_LEN	(S2IO_TEST_LEN * ETH_GSTRING_LEN)
 
-#define S2IO_TIMER_CONF(timer, handle, arg, exp)	\
-	init_timer(&timer);				\
-	timer.function = handle;			\
-	timer.data = (unsigned long)arg;		\
-	mod_timer(&timer, (jiffies + exp))		\
-
 /* copy mac addr to def_mac_addr array */
 static void do_s2io_copy_mac_addr(struct s2io_nic *sp, int offset, u64 mac_addr)
 {
@@ -4193,9 +4187,9 @@ pci_map_failed:
 }
 
 static void
-s2io_alarm_handle(unsigned long data)
+s2io_alarm_handle(struct timer_list *t)
 {
-	struct s2io_nic *sp = (struct s2io_nic *)data;
+	struct s2io_nic *sp = from_timer(sp, t, alarm_timer);
 	struct net_device *dev = sp->dev;
 
 	s2io_handle_errors(dev);
@@ -7186,7 +7180,8 @@ static int s2io_card_up(struct s2io_nic *sp)
 		return -ENODEV;
 	}
 
-	S2IO_TIMER_CONF(sp->alarm_timer, s2io_alarm_handle, sp, (HZ/2));
+	timer_setup(&sp->alarm_timer, s2io_alarm_handle, 0);
+	mod_timer(&sp->alarm_timer, jiffies + HZ / 2);
 
 	set_bit(__S2IO_STATE_CARD_UP, &sp->state);
 

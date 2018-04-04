@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 /*
@@ -92,15 +88,12 @@ static int hmm_reserved_pool_setup(struct hmm_reserved_pool_info **repool_info,
 
 	pool_info = kmalloc(sizeof(struct hmm_reserved_pool_info),
 				GFP_KERNEL);
-	if (unlikely(!pool_info)) {
-		dev_err(atomisp_dev, "out of memory for repool_info.\n");
+	if (unlikely(!pool_info))
 		return -ENOMEM;
-	}
 
 	pool_info->pages = kmalloc(sizeof(struct page *) * pool_size,
 			GFP_KERNEL);
 	if (unlikely(!pool_info->pages)) {
-		dev_err(atomisp_dev, "out of memory for repool_info->pages.\n");
 		kfree(pool_info);
 		return -ENOMEM;
 	}

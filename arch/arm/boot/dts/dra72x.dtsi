@@ -25,8 +25,8 @@
 	      <0x58004300 0x20>;
 	reg-names = "dss", "pll1_clkctrl", "pll1";
 
-	clocks = <&dss_dss_clk>,
-		 <&dss_video1_clk>;
+	clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 12>;
 	clock-names = "fck", "video1_clk";
 };
 
@@ -49,4 +49,16 @@
 		ti,mbox-rx = <4 2 2>;
 		status = "disabled";
 	};
+};
+
+&pcie1_rc {
+	compatible = "ti,dra726-pcie-rc", "ti,dra7-pcie";
+};
+
+&pcie1_ep {
+	compatible = "ti,dra726-pcie-ep", "ti,dra7-pcie-ep";
+};
+
+&pcie2_rc {
+	compatible = "ti,dra726-pcie-rc", "ti,dra7-pcie";
 };

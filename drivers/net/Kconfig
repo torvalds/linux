@@ -483,6 +483,29 @@ config FUJITSU_ES
 	  This driver provides support for Extended Socket network device
           on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
+config THUNDERBOLT_NET
+	tristate "Networking over Thunderbolt cable"
+	depends on THUNDERBOLT && INET
+	help
+	  Select this if you want to create network between two
+	  computers over a Thunderbolt cable. The driver supports Apple
+	  ThunderboltIP protocol and allows communication with any host
+	  supporting the same protocol including Windows and macOS.
+
+	  To compile this driver a module, choose M here. The module will be
+	  called thunderbolt-net.
+
 source "drivers/net/hyperv/Kconfig"
+
+config NETDEVSIM
+	tristate "Simulated networking device"
+	depends on DEBUG_FS
+	help
+	  This driver is a developer testing tool and software model that can
+	  be used to test various control path networking APIs, especially
+	  HW-offload related.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called netdevsim.
 
 endif # NETDEVICES

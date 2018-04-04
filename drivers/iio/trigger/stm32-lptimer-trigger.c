@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * STM32 Low-Power Timer Trigger driver
  *
  * Copyright (C) STMicroelectronics 2017
  *
  * Author: Fabrice Gasnier <fabrice.gasnier@st.com>.
- *
- * License terms:  GNU General Public License (GPL), version 2
  *
  * Inspired by Benjamin Gaignard's stm32-timer-trigger driver
  */
@@ -37,7 +36,6 @@ static int stm32_lptim_validate_device(struct iio_trigger *trig,
 }
 
 static const struct iio_trigger_ops stm32_lptim_trigger_ops = {
-	.owner = THIS_MODULE,
 	.validate_device = stm32_lptim_validate_device,
 };
 

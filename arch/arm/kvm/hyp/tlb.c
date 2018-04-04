@@ -19,6 +19,7 @@
  */
 
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_mmu.h>
 
 /**
  * Flush per-VMID TLBs

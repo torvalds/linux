@@ -60,7 +60,7 @@ resource_size_t isa_mem_base;
 EXPORT_SYMBOL(isa_mem_base);
 
 
-static const struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
+static const struct dma_map_ops *pci_dma_ops = &dma_nommu_ops;
 
 void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
 {
@@ -249,7 +249,30 @@ resource_size_t pcibios_iov_resource_alignment(struct pci_dev *pdev, int resno)
 
 	return pci_iov_resource_size(pdev, resno);
 }
+
+int pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+{
+	if (ppc_md.pcibios_sriov_enable)
+		return ppc_md.pcibios_sriov_enable(pdev, num_vfs);
+
+	return 0;
+}
+
+int pcibios_sriov_disable(struct pci_dev *pdev)
+{
+	if (ppc_md.pcibios_sriov_disable)
+		return ppc_md.pcibios_sriov_disable(pdev);
+
+	return 0;
+}
+
 #endif /* CONFIG_PCI_IOV */
+
+void pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	if (ppc_md.pcibios_bus_add_device)
+		ppc_md.pcibios_bus_add_device(pdev);
+}
 
 static resource_size_t pcibios_io_size(const struct pci_controller *hose)
 {
@@ -339,8 +362,7 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
  */
 static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	struct of_phandle_args oirq;
-	unsigned int virq;
+	int virq;
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
@@ -348,7 +370,8 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 	memset(&oirq, 0xff, sizeof(oirq));
 #endif
 	/* Try to get a mapping from the device-tree */
-	if (of_irq_parse_pci(pci_dev, &oirq)) {
+	virq = of_irq_parse_and_map_pci(pci_dev, 0, 0);
+	if (virq <= 0) {
 		u8 line, pin;
 
 		/* If that fails, lets fallback to what is in the config
@@ -372,11 +395,6 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 		virq = irq_create_mapping(NULL, line);
 		if (virq)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
-	} else {
-		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %pOF\n",
-			 oirq.args_count, oirq.args[0], oirq.args[1], oirq.np);
-
-		virq = irq_create_of_mapping(&oirq);
 	}
 
 	if (!virq) {
@@ -1276,8 +1294,8 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 						i + PCI_BRIDGE_RESOURCES) == 0)
 				continue;
 		}
-		pr_warning("PCI: Cannot allocate resource region "
-			   "%d of PCI bridge %d, will remap\n", i, bus->number);
+		pr_warn("PCI: Cannot allocate resource region %d of PCI bridge %d, will remap\n",
+			i, bus->number);
 	clear_resource:
 		/* The resource might be figured out when doing
 		 * reassignment based on the resources required
@@ -1740,15 +1758,3 @@ static void fixup_hide_host_resource_fsl(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MOTOROLA, PCI_ANY_ID, fixup_hide_host_resource_fsl);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, fixup_hide_host_resource_fsl);
-
-static void fixup_vga(struct pci_dev *pdev)
-{
-	u16 cmd;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
-	if ((cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) || !vga_default_device())
-		vga_set_default_device(pdev);
-
-}
-DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
-			      PCI_CLASS_DISPLAY_VGA, 8, fixup_vga);

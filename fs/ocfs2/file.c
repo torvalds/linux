@@ -140,6 +140,8 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 		spin_unlock(&oi->ip_lock);
 	}
 
+	file->f_mode |= FMODE_NOWAIT;
+
 leave:
 	return status;
 }
@@ -227,7 +229,7 @@ int ocfs2_should_update_atime(struct inode *inode,
 		return 0;
 
 	if ((inode->i_flags & S_NOATIME) ||
-	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
+	    ((inode->i_sb->s_flags & SB_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		return 0;
 
 	/*
@@ -1161,6 +1163,13 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 	size_change = S_ISREG(inode->i_mode) && attr->ia_valid & ATTR_SIZE;
 	if (size_change) {
+		/*
+		 * Here we should wait dio to finish before inode lock
+		 * to avoid a deadlock between ocfs2_setattr() and
+		 * ocfs2_dio_end_io_write()
+		 */
+		inode_dio_wait(inode);
+
 		status = ocfs2_rw_lock(inode, 1);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1199,8 +1208,6 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		status = inode_newsize_ok(inode, attr->ia_size);
 		if (status)
 			goto bail_unlock;
-
-		inode_dio_wait(inode);
 
 		if (i_size_read(inode) >= attr->ia_size) {
 			if (ocfs2_should_order_data(inode)) {
@@ -2127,12 +2134,12 @@ out:
 }
 
 static int ocfs2_prepare_inode_for_write(struct file *file,
-					 loff_t pos,
-					 size_t count)
+					 loff_t pos, size_t count, int wait)
 {
-	int ret = 0, meta_level = 0;
+	int ret = 0, meta_level = 0, overwrite_io = 0;
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
+	struct buffer_head *di_bh = NULL;
 	loff_t end;
 
 	/*
@@ -2140,11 +2147,38 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 	 * if we need to make modifications here.
 	 */
 	for(;;) {
-		ret = ocfs2_inode_lock(inode, NULL, meta_level);
+		if (wait)
+			ret = ocfs2_inode_lock(inode, NULL, meta_level);
+		else
+			ret = ocfs2_try_inode_lock(inode,
+				overwrite_io ? NULL : &di_bh, meta_level);
 		if (ret < 0) {
 			meta_level = -1;
-			mlog_errno(ret);
+			if (ret != -EAGAIN)
+				mlog_errno(ret);
 			goto out;
+		}
+
+		/*
+		 * Check if IO will overwrite allocated blocks in case
+		 * IOCB_NOWAIT flag is set.
+		 */
+		if (!wait && !overwrite_io) {
+			overwrite_io = 1;
+			if (!down_read_trylock(&OCFS2_I(inode)->ip_alloc_sem)) {
+				ret = -EAGAIN;
+				goto out_unlock;
+			}
+
+			ret = ocfs2_overwrite_io(inode, di_bh, pos, count);
+			brelse(di_bh);
+			di_bh = NULL;
+			up_read(&OCFS2_I(inode)->ip_alloc_sem);
+			if (ret < 0) {
+				if (ret != -EAGAIN)
+					mlog_errno(ret);
+				goto out_unlock;
+			}
 		}
 
 		/* Clear suid / sgid if necessary. We do this here
@@ -2194,7 +2228,9 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 
 out_unlock:
 	trace_ocfs2_prepare_inode_for_write(OCFS2_I(inode)->ip_blkno,
-					    pos, count);
+					    pos, count, wait);
+
+	brelse(di_bh);
 
 	if (meta_level >= 0)
 		ocfs2_inode_unlock(inode, meta_level);
@@ -2206,7 +2242,7 @@ out:
 static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 				    struct iov_iter *from)
 {
-	int direct_io, rw_level;
+	int rw_level;
 	ssize_t written = 0;
 	ssize_t ret;
 	size_t count = iov_iter_count(from);
@@ -2218,6 +2254,8 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	void *saved_ki_complete = NULL;
 	int append_write = ((iocb->ki_pos + count) >=
 			i_size_read(inode) ? 1 : 0);
+	int direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
+	int nowait = iocb->ki_flags & IOCB_NOWAIT ? 1 : 0;
 
 	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2225,12 +2263,17 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 		file->f_path.dentry->d_name.name,
 		(unsigned int)from->nr_segs);	/* GRRRRR */
 
+	if (!direct_io && nowait)
+		return -EOPNOTSUPP;
+
 	if (count == 0)
 		return 0;
 
-	direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
-
-	inode_lock(inode);
+	if (nowait) {
+		if (!inode_trylock(inode))
+			return -EAGAIN;
+	} else
+		inode_lock(inode);
 
 	/*
 	 * Concurrent O_DIRECT writes are allowed with
@@ -2239,9 +2282,13 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	 */
 	rw_level = (!direct_io || full_coherency || append_write);
 
-	ret = ocfs2_rw_lock(inode, rw_level);
+	if (nowait)
+		ret = ocfs2_try_rw_lock(inode, rw_level);
+	else
+		ret = ocfs2_rw_lock(inode, rw_level);
 	if (ret < 0) {
-		mlog_errno(ret);
+		if (ret != -EAGAIN)
+			mlog_errno(ret);
 		goto out_mutex;
 	}
 
@@ -2255,9 +2302,13 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 		 * other nodes to drop their caches.  Buffered I/O
 		 * already does this in write_begin().
 		 */
-		ret = ocfs2_inode_lock(inode, NULL, 1);
+		if (nowait)
+			ret = ocfs2_try_inode_lock(inode, NULL, 1);
+		else
+			ret = ocfs2_inode_lock(inode, NULL, 1);
 		if (ret < 0) {
-			mlog_errno(ret);
+			if (ret != -EAGAIN)
+				mlog_errno(ret);
 			goto out;
 		}
 
@@ -2272,9 +2323,10 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	}
 	count = ret;
 
-	ret = ocfs2_prepare_inode_for_write(file, iocb->ki_pos, count);
+	ret = ocfs2_prepare_inode_for_write(file, iocb->ki_pos, count, !nowait);
 	if (ret < 0) {
-		mlog_errno(ret);
+		if (ret != -EAGAIN)
+			mlog_errno(ret);
 		goto out;
 	}
 
@@ -2350,6 +2402,8 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	int ret = 0, rw_level = -1, lock_level = 0;
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = file_inode(filp);
+	int direct_io = iocb->ki_flags & IOCB_DIRECT ? 1 : 0;
+	int nowait = iocb->ki_flags & IOCB_NOWAIT ? 1 : 0;
 
 	trace_ocfs2_file_aio_read(inode, filp, filp->f_path.dentry,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2364,14 +2418,22 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 		goto bail;
 	}
 
+	if (!direct_io && nowait)
+		return -EOPNOTSUPP;
+
 	/*
 	 * buffered reads protect themselves in ->readpage().  O_DIRECT reads
 	 * need locks to protect pending reads from racing with truncate.
 	 */
-	if (iocb->ki_flags & IOCB_DIRECT) {
-		ret = ocfs2_rw_lock(inode, 0);
+	if (direct_io) {
+		if (nowait)
+			ret = ocfs2_try_rw_lock(inode, 0);
+		else
+			ret = ocfs2_rw_lock(inode, 0);
+
 		if (ret < 0) {
-			mlog_errno(ret);
+			if (ret != -EAGAIN)
+				mlog_errno(ret);
 			goto bail;
 		}
 		rw_level = 0;
@@ -2388,9 +2450,11 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	 * like i_size. This allows the checks down below
 	 * generic_file_aio_read() a chance of actually working.
 	 */
-	ret = ocfs2_inode_lock_atime(inode, filp->f_path.mnt, &lock_level);
+	ret = ocfs2_inode_lock_atime(inode, filp->f_path.mnt, &lock_level,
+				     !nowait);
 	if (ret < 0) {
-		mlog_errno(ret);
+		if (ret != -EAGAIN)
+			mlog_errno(ret);
 		goto bail;
 	}
 	ocfs2_inode_unlock(inode, lock_level);

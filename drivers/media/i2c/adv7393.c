@@ -103,7 +103,7 @@ static const u8 adv7393_init_reg_val[] = {
 };
 
 /*
- * 			    2^32
+ *			    2^32
  * FSC(reg) =  FSC (HZ) * --------
  *			  27000000
  */

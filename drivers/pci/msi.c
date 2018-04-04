@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * File:	msi.c
  * Purpose:	PCI Message Signaled Interrupt (MSI)
@@ -578,7 +579,7 @@ static int msi_verify_entries(struct pci_dev *dev)
 	for_each_pci_msi_entry(entry, dev) {
 		if (!dev->no_64bit_msi || !entry->msg.address_hi)
 			continue;
-		dev_err(&dev->dev, "Device has broken 64-bit MSI but arch"
+		pci_err(dev, "Device has broken 64-bit MSI but arch"
 			" tried to assign one above 4G\n");
 		return -EIO;
 	}
@@ -962,7 +963,7 @@ static int __pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries,
 
 	/* Check whether driver already requested for MSI irq */
 	if (dev->msi_enabled) {
-		dev_info(&dev->dev, "can't enable MSI-X (MSI IRQ already assigned)\n");
+		pci_info(dev, "can't enable MSI-X (MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
 	return msix_capability_init(dev, entries, nvec, affd);
@@ -1032,8 +1033,7 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 
 	/* Check whether driver already requested MSI-X irqs */
 	if (dev->msix_enabled) {
-		dev_info(&dev->dev,
-			 "can't enable MSI (MSI-X already enabled)\n");
+		pci_info(dev, "can't enable MSI (MSI-X already enabled)\n");
 		return -EINVAL;
 	}
 
@@ -1441,6 +1441,8 @@ struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 		pci_msi_domain_update_chip_ops(info);
 
 	info->flags |= MSI_FLAG_ACTIVATE_EARLY;
+	if (IS_ENABLED(CONFIG_GENERIC_IRQ_RESERVATION_MODE))
+		info->flags |= MSI_FLAG_MUST_REACTIVATE;
 
 	domain = msi_create_irq_domain(fwnode, info, parent);
 	if (!domain)

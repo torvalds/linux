@@ -105,7 +105,7 @@ void uninitGPIO(struct cx231xx *dev)
 
 /******************************************************************************
  *                    A F E - B L O C K    C O N T R O L   functions          *
- * 				[ANALOG FRONT END]			      *
+ *				[ANALOG FRONT END]			      *
  ******************************************************************************/
 static int afe_write_byte(struct cx231xx *dev, u16 saddr, u8 data)
 {
@@ -2168,7 +2168,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 }
 
 /******************************************************************************
- *        	    I 2 S - B L O C K    C O N T R O L   functions            *
+ *		    I 2 S - B L O C K    C O N T R O L   functions            *
  ******************************************************************************/
 int cx231xx_i2s_blk_initialize(struct cx231xx *dev)
 {

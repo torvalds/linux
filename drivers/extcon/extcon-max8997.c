@@ -25,7 +25,7 @@
 #include <linux/kobject.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/irqdomain.h>
 
 #define	DEV_NAME			"max8997-muic"
@@ -204,7 +204,7 @@ static int max8997_muic_set_debounce_time(struct max8997_muic_info *info,
 static int max8997_muic_set_path(struct max8997_muic_info *info,
 		u8 val, bool attached)
 {
-	int ret = 0;
+	int ret;
 	u8 ctrl1, ctrl2 = 0;
 
 	if (attached)

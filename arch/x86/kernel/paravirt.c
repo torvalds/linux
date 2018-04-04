@@ -115,8 +115,18 @@ unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
 	return 5;
 }
 
-/* Neat trick to map patch type back to the call within the
- * corresponding structure. */
+DEFINE_STATIC_KEY_TRUE(virt_spin_lock_key);
+
+void __init native_pv_lock_init(void)
+{
+	if (!static_cpu_has(X86_FEATURE_HYPERVISOR))
+		static_branch_disable(&virt_spin_lock_key);
+}
+
+/*
+ * Neat trick to map patch type back to the call within the
+ * corresponding structure.
+ */
 static void *get_call_destination(u8 type)
 {
 	struct paravirt_patch_template tmpl = {
@@ -190,9 +200,9 @@ static void native_flush_tlb_global(void)
 	__native_flush_tlb_global();
 }
 
-static void native_flush_tlb_single(unsigned long addr)
+static void native_flush_tlb_one_user(unsigned long addr)
 {
-	__native_flush_tlb_single(addr);
+	__native_flush_tlb_one_user(addr);
 }
 
 struct static_key paravirt_steal_enabled;
@@ -391,7 +401,7 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
 
 	.flush_tlb_user = native_flush_tlb,
 	.flush_tlb_kernel = native_flush_tlb_global,
-	.flush_tlb_single = native_flush_tlb_single,
+	.flush_tlb_one_user = native_flush_tlb_one_user,
 	.flush_tlb_others = native_flush_tlb_others,
 
 	.pgd_alloc = __paravirt_pgd_alloc,

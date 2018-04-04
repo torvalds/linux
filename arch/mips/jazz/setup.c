@@ -32,22 +32,22 @@ static struct resource jazz_io_resources[] = {
 		.start	= 0x00,
 		.end	= 0x1f,
 		.name	= "dma1",
-		.flags	= IORESOURCE_BUSY
+		.flags	= IORESOURCE_IO | IORESOURCE_BUSY
 	}, {
 		.start	= 0x40,
 		.end	= 0x5f,
 		.name	= "timer",
-		.flags	= IORESOURCE_BUSY
+		.flags	= IORESOURCE_IO | IORESOURCE_BUSY
 	}, {
 		.start	= 0x80,
 		.end	= 0x8f,
 		.name	= "dma page reg",
-		.flags	= IORESOURCE_BUSY
+		.flags	= IORESOURCE_IO | IORESOURCE_BUSY
 	}, {
 		.start	= 0xc0,
 		.end	= 0xdf,
 		.name	= "dma2",
-		.flags	= IORESOURCE_BUSY
+		.flags	= IORESOURCE_IO | IORESOURCE_BUSY
 	}
 };
 

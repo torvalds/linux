@@ -498,7 +498,7 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 };
 
 static const struct video_device tea575x_radio = {
-	.ioctl_ops 	= &tea575x_ioctl_ops,
+	.ioctl_ops	= &tea575x_ioctl_ops,
 	.release        = video_device_release_empty,
 };
 

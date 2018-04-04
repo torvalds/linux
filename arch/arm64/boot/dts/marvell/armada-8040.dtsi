@@ -59,6 +59,6 @@
  * disable it. However, the RTC clock in CP slave is connected to the
  * oscillator so this one is let enabled.
  */
-&cpm_rtc {
+&cp0_rtc {
 	status = "disabled";
 };

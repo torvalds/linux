@@ -252,8 +252,8 @@ static int csi2_dphy_wait_stopstate(struct csi2_dev *csi2)
 	u32 mask, reg;
 	int ret;
 
-	mask = PHY_STOPSTATECLK |
-		((csi2->bus.num_data_lanes - 1) << PHY_STOPSTATEDATA_BIT);
+	mask = PHY_STOPSTATECLK | (((1 << csi2->bus.num_data_lanes) - 1) <<
+				   PHY_STOPSTATEDATA_BIT);
 
 	ret = readl_poll_timeout(csi2->base + CSI2_PHY_STATE, reg,
 				 (reg & mask) == mask, 0, 500000);

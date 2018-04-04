@@ -1,21 +1,10 @@
-/*
-  handle au0828 IR remotes via linux kernel input layer.
-
-   Copyright (C) 2014 Mauro Carvalho Chehab <mchehab@samsung.com>
-   Copyright (c) 2014 Samsung Electronics Co., Ltd.
-
-  Based on em28xx-input.c.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// handle au0828 IR remotes via linux kernel input layer.
+//
+// Copyright (c) 2014 Mauro Carvalho Chehab <mchehab@samsung.com>
+// Copyright (c) 2014 Samsung Electronics Co., Ltd.
+//
+// Based on em28xx-input.c.
 
 #include "au0828.h"
 
@@ -269,7 +258,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 static int au0828_probe_i2c_ir(struct au0828_dev *dev)
 {
 	int i = 0;
-	const unsigned short addr_list[] = {
+	static const unsigned short addr_list[] = {
 		 0x47, I2C_CLIENT_END
 	};
 

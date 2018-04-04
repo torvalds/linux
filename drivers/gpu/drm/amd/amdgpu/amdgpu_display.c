@@ -34,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fb_helper.h>
 
 static void amdgpu_flip_callback(struct dma_fence *f, struct dma_fence_cb *cb)
 {
@@ -518,7 +519,7 @@ amdgpu_framebuffer_init(struct drm_device *dev,
 	return 0;
 }
 
-static struct drm_framebuffer *
+struct drm_framebuffer *
 amdgpu_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
 			       const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -556,15 +557,9 @@ amdgpu_user_framebuffer_create(struct drm_device *dev,
 	return &amdgpu_fb->base;
 }
 
-static void amdgpu_output_poll_changed(struct drm_device *dev)
-{
-	struct amdgpu_device *adev = dev->dev_private;
-	amdgpu_fb_output_poll_changed(adev);
-}
-
 const struct drm_mode_config_funcs amdgpu_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
-	.output_poll_changed = amdgpu_output_poll_changed
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 static const struct drm_prop_enum_list amdgpu_underscan_enum_list[] =

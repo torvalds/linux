@@ -26,9 +26,9 @@ struct ipv6_sr_hdr {
 	__u8	hdrlen;
 	__u8	type;
 	__u8	segments_left;
-	__u8	first_segment;
+	__u8	first_segment; /* Represents the last_entry field of SRH */
 	__u8	flags;
-	__u16	reserved;
+	__u16	tag;
 
 	struct in6_addr segments[0];
 };

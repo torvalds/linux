@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -155,7 +156,7 @@ int libcfs_ioctl(unsigned long cmd, void __user *uparam)
 		break; }
 	}
 out:
-	LIBCFS_FREE(hdr, hdr->ioc_len);
+	kvfree(hdr);
 	return err;
 }
 
@@ -301,7 +302,7 @@ static int __proc_cpt_table(void *data, int write,
 	LASSERT(cfs_cpt_table);
 
 	while (1) {
-		LIBCFS_ALLOC(buf, len);
+		buf = kzalloc(len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
@@ -310,7 +311,7 @@ static int __proc_cpt_table(void *data, int write,
 			break;
 
 		if (rc == -EFBIG) {
-			LIBCFS_FREE(buf, len);
+			kfree(buf);
 			len <<= 1;
 			continue;
 		}
@@ -324,8 +325,7 @@ static int __proc_cpt_table(void *data, int write,
 
 	rc = cfs_trace_copyout_string(buffer, nob, buf + pos, NULL);
  out:
-	if (buf)
-		LIBCFS_FREE(buf, len);
+	kfree(buf);
 	return rc;
 }
 
@@ -547,33 +547,23 @@ static int libcfs_init(void)
 		goto cleanup_cpu;
 	}
 
-	rc = cfs_wi_startup();
-	if (rc) {
-		CERROR("initialize workitem: error %d\n", rc);
-		goto cleanup_deregister;
-	}
-
-	/* max to 4 threads, should be enough for rehash */
-	rc = min(cfs_cpt_weight(cfs_cpt_table, CFS_CPT_ANY), 4);
-	rc = cfs_wi_sched_create("cfs_rh", cfs_cpt_table, CFS_CPT_ANY,
-				 rc, &cfs_sched_rehash);
-	if (rc) {
-		CERROR("Startup workitem scheduler: error: %d\n", rc);
+	cfs_rehash_wq = alloc_workqueue("cfs_rh", WQ_SYSFS, 4);
+	if (!cfs_rehash_wq) {
+		CERROR("Failed to start rehash workqueue.\n");
+		rc = -ENOMEM;
 		goto cleanup_deregister;
 	}
 
 	rc = cfs_crypto_register();
 	if (rc) {
 		CERROR("cfs_crypto_register: error %d\n", rc);
-		goto cleanup_wi;
+		goto cleanup_deregister;
 	}
 
 	lustre_insert_debugfs(lnet_table, lnet_debugfs_symlinks);
 
 	CDEBUG(D_OTHER, "portals setup OK\n");
 	return 0;
- cleanup_wi:
-	cfs_wi_shutdown();
  cleanup_deregister:
 	misc_deregister(&libcfs_dev);
 cleanup_cpu:
@@ -589,13 +579,12 @@ static void libcfs_exit(void)
 
 	lustre_remove_debugfs();
 
-	if (cfs_sched_rehash) {
-		cfs_wi_sched_destroy(cfs_sched_rehash);
-		cfs_sched_rehash = NULL;
+	if (cfs_rehash_wq) {
+		destroy_workqueue(cfs_rehash_wq);
+		cfs_rehash_wq = NULL;
 	}
 
 	cfs_crypto_unregister();
-	cfs_wi_shutdown();
 
 	misc_deregister(&libcfs_dev);
 

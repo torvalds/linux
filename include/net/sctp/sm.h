@@ -72,7 +72,7 @@ typedef enum sctp_disposition (sctp_state_fn_t) (
 					const union sctp_subtype type,
 					void *arg,
 					struct sctp_cmd_seq *commands);
-typedef void (sctp_timer_event_t) (unsigned long);
+typedef void (sctp_timer_event_t) (struct timer_list *);
 struct sctp_sm_table_entry {
 	sctp_state_fn_t *fn;
 	const char *name;
@@ -197,10 +197,14 @@ struct sctp_chunk *sctp_make_cookie_ack(const struct sctp_association *asoc,
 struct sctp_chunk *sctp_make_cwr(const struct sctp_association *asoc,
 				 const __u32 lowest_tsn,
 				 const struct sctp_chunk *chunk);
-struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
+struct sctp_chunk *sctp_make_idata(const struct sctp_association *asoc,
+				   __u8 flags, int paylen, gfp_t gfp);
+struct sctp_chunk *sctp_make_ifwdtsn(const struct sctp_association *asoc,
+				     __u32 new_cum_tsn, size_t nstreams,
+				     struct sctp_ifwdtsn_skip *skiplist);
+struct sctp_chunk *sctp_make_datafrag_empty(const struct sctp_association *asoc,
 					    const struct sctp_sndrcvinfo *sinfo,
-					    int len, const __u8 flags,
-					    __u16 ssn, gfp_t gfp);
+					    int len, __u8 flags, gfp_t gfp);
 struct sctp_chunk *sctp_make_ecne(const struct sctp_association *asoc,
 				  const __u32 lowest_tsn);
 struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc);
@@ -314,10 +318,10 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 	       void *event_arg, gfp_t gfp);
 
 /* 2nd level prototypes */
-void sctp_generate_t3_rtx_event(unsigned long peer);
-void sctp_generate_heartbeat_event(unsigned long peer);
-void sctp_generate_reconf_event(unsigned long peer);
-void sctp_generate_proto_unreach_event(unsigned long peer);
+void sctp_generate_t3_rtx_event(struct timer_list *t);
+void sctp_generate_heartbeat_event(struct timer_list *t);
+void sctp_generate_reconf_event(struct timer_list *t);
+void sctp_generate_proto_unreach_event(struct timer_list *t);
 
 void sctp_ootb_pkt_free(struct sctp_packet *packet);
 
@@ -342,7 +346,7 @@ static inline __u16 sctp_data_size(struct sctp_chunk *chunk)
 	__u16 size;
 
 	size = ntohs(chunk->chunk_hdr->length);
-	size -= sizeof(struct sctp_data_chunk);
+	size -= sctp_datahdr_len(&chunk->asoc->stream);
 
 	return size;
 }
@@ -357,6 +361,12 @@ static inline __u16 sctp_data_size(struct sctp_chunk *chunk)
 	(typecheck(__u32, a) && \
 	 typecheck(__u32, b) && \
 	 ((__s32)((a) - (b)) <= 0))
+
+/* Compare two MIDs */
+#define MID_lt(a, b)	\
+	(typecheck(__u32, a) && \
+	 typecheck(__u32, b) && \
+	 ((__s32)((a) - (b)) < 0))
 
 /* Compare two SSNs */
 #define SSN_lt(a,b)		\

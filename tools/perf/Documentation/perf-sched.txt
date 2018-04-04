@@ -74,6 +74,10 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the sched data.
 
+-f::
+--force::
+	Don't complain, do it.
+
 OPTIONS for 'perf sched map'
 ----------------------------
 
@@ -105,6 +109,14 @@ OPTIONS for 'perf sched timehist'
 
 --max-stack::
 	Maximum number of functions to display in backtrace, default 5.
+
+-p=::
+--pid=::
+	Only show events for given process ID (comma separated list).
+
+-t=::
+--tid=::
+	Only show events for given thread ID (comma separated list).
 
 -s::
 --summary::

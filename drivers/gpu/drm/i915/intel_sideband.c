@@ -81,7 +81,7 @@ u32 vlv_punit_read(struct drm_i915_private *dev_priv, u32 addr)
 {
 	u32 val = 0;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
 
 	mutex_lock(&dev_priv->sb_lock);
 	vlv_sideband_rw(dev_priv, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
@@ -95,7 +95,7 @@ int vlv_punit_write(struct drm_i915_private *dev_priv, u32 addr, u32 val)
 {
 	int err;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
 
 	mutex_lock(&dev_priv->sb_lock);
 	err = vlv_sideband_rw(dev_priv, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
@@ -125,7 +125,7 @@ u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr)
 {
 	u32 val = 0;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
 
 	mutex_lock(&dev_priv->sb_lock);
 	vlv_sideband_rw(dev_priv, PCI_DEVFN(0, 0), IOSF_PORT_NC,

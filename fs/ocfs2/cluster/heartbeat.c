@@ -2025,7 +2025,7 @@ static struct configfs_item_operations o2hb_region_item_ops = {
 	.release		= o2hb_region_release,
 };
 
-static struct config_item_type o2hb_region_type = {
+static const struct config_item_type o2hb_region_type = {
 	.ct_item_ops	= &o2hb_region_item_ops,
 	.ct_attrs	= o2hb_region_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -2310,7 +2310,7 @@ static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
 	.drop_item	= o2hb_heartbeat_group_drop_item,
 };
 
-static struct config_item_type o2hb_heartbeat_group_type = {
+static const struct config_item_type o2hb_heartbeat_group_type = {
 	.ct_group_ops	= &o2hb_heartbeat_group_group_ops,
 	.ct_attrs	= o2hb_heartbeat_group_attrs,
 	.ct_owner	= THIS_MODULE,

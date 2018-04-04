@@ -16,7 +16,7 @@
 	model = "Aries/DENX M53EVK";
 	compatible = "aries,imx53-m53evk", "denx,imx53-m53evk", "fsl,imx53";
 
-	display1: display@di1 {
+	display1: disp1 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "bgr666";
 		pinctrl-names = "default";
@@ -150,7 +150,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		VDDA-supply = <&reg_3p2v>;
@@ -183,7 +183,7 @@
 			>;
 		};
 
-		led_pin_gpio: led_gpio@0 {
+		led_pin_gpio: led_gpio {
 			fsl,pins = <
 				MX53_PAD_PATA_DATA8__GPIO2_8		0x80000000
 				MX53_PAD_PATA_DATA9__GPIO2_9		0x80000000

@@ -769,9 +769,9 @@ bool sci_port_link_detected(struct isci_port *iport, struct isci_phy *iphy)
 	return true;
 }
 
-static void port_timeout(unsigned long data)
+static void port_timeout(struct timer_list *t)
 {
-	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct sci_timer *tmr = from_timer(tmr, t, timer);
 	struct isci_port *iport = container_of(tmr, typeof(*iport), timer);
 	struct isci_host *ihost = iport->owning_controller;
 	unsigned long flags;

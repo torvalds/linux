@@ -2260,14 +2260,11 @@ static void halbtc8723b1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 		if (iot_peer != BTC_IOT_PEER_CISCO &&
 		    iot_peer != BTC_IOT_PEER_BROADCOM) {
-			if (bt_link_info->sco_exist)
-				halbtc8723b1ant_limited_rx(btcoexist,
-							   NORMAL_EXEC, false,
-							   false, 0x5);
-			else
-				halbtc8723b1ant_limited_rx(btcoexist,
-							   NORMAL_EXEC, false,
-							   false, 0x5);
+			bool sco_exist = bt_link_info->sco_exist;
+
+			halbtc8723b1ant_limited_rx(btcoexist,
+						   NORMAL_EXEC, sco_exist,
+						   false, 0x5);
 		} else {
 			if (bt_link_info->sco_exist) {
 				halbtc8723b1ant_limited_rx(btcoexist,
@@ -2477,12 +2474,12 @@ void ex_btc8723b1ant_init_coex_dm(struct btc_coexist *btcoexist)
 	halbtc8723b1ant_query_bt_info(btcoexist);
 }
 
-void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
+void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist,
+				       struct seq_file *m)
 {
 	struct btc_board_info *board_info = &btcoexist->board_info;
 	struct btc_stack_info *stack_info = &btcoexist->stack_info;
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 u8tmp[4], i, bt_info_ext, pstdmacase = 0;
 	u16 u16tmp[4];
 	u32 u32tmp[4];
@@ -2494,62 +2491,56 @@ void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 	u8 wifi_dot11_chnl, wifi_hs_chnl;
 	u32 fw_ver = 0, bt_patch_ver = 0;
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n ============[BT Coexist info]============");
+	seq_puts(m, "\n ============[BT Coexist info]============");
 
 	if (btcoexist->manual_control) {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "\r\n ============[Under Manual Control]==========");
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "\r\n ==========================================");
+		seq_puts(m, "\n ============[Under Manual Control]==========");
+		seq_puts(m, "\n ==========================================");
 	}
 	if (btcoexist->stop_coex_dm) {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "\r\n ============[Coex is STOPPED]============");
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "\r\n ==========================================");
+		seq_puts(m, "\n ============[Coex is STOPPED]============");
+		seq_puts(m, "\n ==========================================");
 	}
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d/ %d",
-		 "Ant PG Num/ Ant Mech/ Ant Pos:",
-		 board_info->pg_ant_num, board_info->btdm_ant_num,
-		 board_info->btdm_ant_pos);
+	seq_printf(m, "\n %-35s = %d/ %d/ %d",
+		   "Ant PG Num/ Ant Mech/ Ant Pos:",
+		   board_info->pg_ant_num, board_info->btdm_ant_num,
+		   board_info->btdm_ant_pos);
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %s / %d",
-		 "BT stack/ hci ext ver",
-		 ((stack_info->profile_notified) ? "Yes" : "No"),
-		 stack_info->hci_version);
+	seq_printf(m, "\n %-35s = %s / %d",
+		   "BT stack/ hci ext ver",
+		   ((stack_info->profile_notified) ? "Yes" : "No"),
+		   stack_info->hci_version);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_BT_PATCH_VER, &bt_patch_ver);
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_FW_VER, &fw_ver);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n %-35s = %d_%x/ 0x%x/ 0x%x(%d)",
-		 "CoexVer/ FwVer/ PatchVer",
-		 glcoex_ver_date_8723b_1ant, glcoex_ver_8723b_1ant,
-		 fw_ver, bt_patch_ver, bt_patch_ver);
+	seq_printf(m, "\n %-35s = %d_%x/ 0x%x/ 0x%x(%d)",
+		   "CoexVer/ FwVer/ PatchVer",
+		   glcoex_ver_date_8723b_1ant, glcoex_ver_8723b_1ant,
+		   fw_ver, bt_patch_ver, bt_patch_ver);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_HS_OPERATION, &bt_hs_on);
 	btcoexist->btc_get(btcoexist, BTC_GET_U1_WIFI_DOT11_CHNL,
 			   &wifi_dot11_chnl);
 	btcoexist->btc_get(btcoexist, BTC_GET_U1_WIFI_HS_CHNL, &wifi_hs_chnl);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d / %d(%d)",
-		 "Dot11 channel / HsChnl(HsMode)",
-		 wifi_dot11_chnl, wifi_hs_chnl, bt_hs_on);
+	seq_printf(m, "\n %-35s = %d / %d(%d)",
+		   "Dot11 channel / HsChnl(HsMode)",
+		   wifi_dot11_chnl, wifi_hs_chnl, bt_hs_on);
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %3ph ",
-		 "H2C Wifi inform bt chnl Info",
-		 coex_dm->wifi_chnl_info);
+	seq_printf(m, "\n %-35s = %3ph ",
+		   "H2C Wifi inform bt chnl Info",
+		   coex_dm->wifi_chnl_info);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_S4_WIFI_RSSI, &wifi_rssi);
 	btcoexist->btc_get(btcoexist, BTC_GET_S4_HS_RSSI, &bt_hs_rssi);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d",
-		 "Wifi rssi/ HS rssi", wifi_rssi, bt_hs_rssi);
+	seq_printf(m, "\n %-35s = %d/ %d",
+		   "Wifi rssi/ HS rssi", wifi_rssi, bt_hs_rssi);
 
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_ROAM, &roam);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d/ %d ",
-		 "Wifi link/ roam/ scan", link, roam, scan);
+	seq_printf(m, "\n %-35s = %d/ %d/ %d ",
+		   "Wifi link/ roam/ scan", link, roam, scan);
 
 	btcoexist->btc_get(btcoexist , BTC_GET_BL_WIFI_UNDER_5G,
 			   &wifi_under_5g);
@@ -2558,110 +2549,106 @@ void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_TRAFFIC_DIRECTION,
 			   &wifi_traffic_dir);
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %s / %s/ %s ",
-		 "Wifi status", (wifi_under_5g ? "5G" : "2.4G"),
-		 ((wifi_bw == BTC_WIFI_BW_LEGACY) ? "Legacy" :
-		  ((wifi_bw == BTC_WIFI_BW_HT40) ? "HT40" : "HT20")),
-		  ((!wifi_busy) ? "idle" :
-		   ((wifi_traffic_dir == BTC_WIFI_TRAFFIC_TX) ?
-		   "uplink" : "downlink")));
+	seq_printf(m, "\n %-35s = %s / %s/ %s ",
+		   "Wifi status", (wifi_under_5g ? "5G" : "2.4G"),
+		   ((wifi_bw == BTC_WIFI_BW_LEGACY) ? "Legacy" :
+		    ((wifi_bw == BTC_WIFI_BW_HT40) ? "HT40" : "HT20")),
+		    ((!wifi_busy) ? "idle" :
+		     ((wifi_traffic_dir == BTC_WIFI_TRAFFIC_TX) ?
+		     "uplink" : "downlink")));
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_LINK_STATUS,
 			   &wifi_link_status);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d/ %d/ %d/ %d",
-		 "sta/vwifi/hs/p2pGo/p2pGc",
-		 ((wifi_link_status & WIFI_STA_CONNECTED) ? 1 : 0),
-		 ((wifi_link_status & WIFI_AP_CONNECTED) ? 1 : 0),
-		 ((wifi_link_status & WIFI_HS_CONNECTED) ? 1 : 0),
-		 ((wifi_link_status & WIFI_P2P_GO_CONNECTED) ? 1 : 0),
-		 ((wifi_link_status & WIFI_P2P_GC_CONNECTED) ? 1 : 0));
+	seq_printf(m, "\n %-35s = %d/ %d/ %d/ %d/ %d",
+		   "sta/vwifi/hs/p2pGo/p2pGc",
+		   ((wifi_link_status & WIFI_STA_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_AP_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_HS_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_P2P_GO_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_P2P_GC_CONNECTED) ? 1 : 0));
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = [%s/ %d/ %d] ",
-		 "BT [status/ rssi/ retryCnt]",
-		 ((coex_sta->bt_disabled) ? ("disabled") :
-		  ((coex_sta->c2h_bt_inquiry_page) ? ("inquiry/page scan") :
-		   ((BT_8723B_1ANT_BT_STATUS_NON_CONNECTED_IDLE ==
-		     coex_dm->bt_status) ?
-		    "non-connected idle" :
-		    ((BT_8723B_1ANT_BT_STATUS_CONNECTED_IDLE ==
-		      coex_dm->bt_status) ?
-		     "connected-idle" : "busy")))),
-		     coex_sta->bt_rssi, coex_sta->bt_retry_cnt);
+	seq_printf(m, "\n %-35s = [%s/ %d/ %d] ",
+		   "BT [status/ rssi/ retryCnt]",
+		   ((coex_sta->bt_disabled) ? ("disabled") :
+		    ((coex_sta->c2h_bt_inquiry_page) ? ("inquiry/page scan") :
+		     ((BT_8723B_1ANT_BT_STATUS_NON_CONNECTED_IDLE ==
+		       coex_dm->bt_status) ?
+		      "non-connected idle" :
+		      ((BT_8723B_1ANT_BT_STATUS_CONNECTED_IDLE ==
+			coex_dm->bt_status) ?
+		       "connected-idle" : "busy")))),
+		       coex_sta->bt_rssi, coex_sta->bt_retry_cnt);
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n %-35s = %d / %d / %d / %d",
-		 "SCO/HID/PAN/A2DP", bt_link_info->sco_exist,
-		 bt_link_info->hid_exist, bt_link_info->pan_exist,
-		 bt_link_info->a2dp_exist);
-	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_BT_LINK_INFO);
+	seq_printf(m, "\n %-35s = %d / %d / %d / %d",
+		   "SCO/HID/PAN/A2DP", bt_link_info->sco_exist,
+		   bt_link_info->hid_exist, bt_link_info->pan_exist,
+		   bt_link_info->a2dp_exist);
+	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_BT_LINK_INFO, m);
 
 	bt_info_ext = coex_sta->bt_info_ext;
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %s",
-		 "BT Info A2DP rate",
-		 (bt_info_ext & BIT0) ? "Basic rate" : "EDR rate");
+	seq_printf(m, "\n %-35s = %s",
+		   "BT Info A2DP rate",
+		   (bt_info_ext & BIT0) ? "Basic rate" : "EDR rate");
 
 	for (i = 0; i < BT_INFO_SRC_8723B_1ANT_MAX; i++) {
 		if (coex_sta->bt_info_c2h_cnt[i]) {
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-				 "\r\n %-35s = %7ph(%d)",
-				 glbt_info_src_8723b_1ant[i],
-				 coex_sta->bt_info_c2h[i],
-				 coex_sta->bt_info_c2h_cnt[i]);
+			seq_printf(m, "\n %-35s = %7ph(%d)",
+				   glbt_info_src_8723b_1ant[i],
+				   coex_sta->bt_info_c2h[i],
+				   coex_sta->bt_info_c2h_cnt[i]);
 		}
 	}
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n %-35s = %s/%s, (0x%x/0x%x)",
-		 "PS state, IPS/LPS, (lps/rpwm)",
-		 ((coex_sta->under_ips ? "IPS ON" : "IPS OFF")),
-		 ((coex_sta->under_lps ? "LPS ON" : "LPS OFF")),
-		 btcoexist->bt_info.lps_val,
-		 btcoexist->bt_info.rpwm_val);
-	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_FW_PWR_MODE_CMD);
+	seq_printf(m, "\n %-35s = %s/%s, (0x%x/0x%x)",
+		   "PS state, IPS/LPS, (lps/rpwm)",
+		   ((coex_sta->under_ips ? "IPS ON" : "IPS OFF")),
+		   ((coex_sta->under_lps ? "LPS ON" : "LPS OFF")),
+		   btcoexist->bt_info.lps_val,
+		   btcoexist->bt_info.rpwm_val);
+	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_FW_PWR_MODE_CMD, m);
 
 	if (!btcoexist->manual_control) {
 		/* Sw mechanism	*/
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s",
-			 "============[Sw mechanism]============");
+		seq_printf(m, "\n %-35s",
+			   "============[Sw mechanism]============");
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/",
-			 "SM[LowPenaltyRA]", coex_dm->cur_low_penalty_ra);
+		seq_printf(m, "\n %-35s = %d/",
+			   "SM[LowPenaltyRA]", coex_dm->cur_low_penalty_ra);
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %s/ %s/ %d ",
-			 "DelBA/ BtCtrlAgg/ AggSize",
+		seq_printf(m, "\n %-35s = %s/ %s/ %d ",
+			   "DelBA/ BtCtrlAgg/ AggSize",
 			   (btcoexist->bt_info.reject_agg_pkt ? "Yes" : "No"),
 			   (btcoexist->bt_info.bt_ctrl_buf_size ? "Yes" : "No"),
 			   btcoexist->bt_info.agg_buf_size);
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x ",
-			 "Rate Mask", btcoexist->bt_info.ra_mask);
+		seq_printf(m, "\n %-35s = 0x%x ",
+			   "Rate Mask", btcoexist->bt_info.ra_mask);
 
 		/* Fw mechanism	*/
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s",
-			 "============[Fw mechanism]============");
+		seq_printf(m, "\n %-35s",
+			   "============[Fw mechanism]============");
 
 		pstdmacase = coex_dm->cur_ps_tdma;
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "\r\n %-35s = %5ph case-%d (auto:%d)",
+		seq_printf(m, "\n %-35s = %5ph case-%d (auto:%d)",
 			   "PS TDMA", coex_dm->ps_tdma_para,
 			   pstdmacase, coex_dm->auto_tdma_adjust);
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d ",
-			 "IgnWlanAct", coex_dm->cur_ignore_wlan_act);
+		seq_printf(m, "\n %-35s = %d ",
+			   "IgnWlanAct", coex_dm->cur_ignore_wlan_act);
 
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x ",
-			 "Latest error condition(should be 0)",
+		seq_printf(m, "\n %-35s = 0x%x ",
+			   "Latest error condition(should be 0)",
 			   coex_dm->error_condition);
 	}
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d",
-		 "Coex Table Type", coex_sta->coex_table_type);
+	seq_printf(m, "\n %-35s = %d",
+		   "Coex Table Type", coex_sta->coex_table_type);
 
 	/* Hw setting */
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s",
-		 "============[Hw setting]============");
+	seq_printf(m, "\n %-35s",
+		   "============[Hw setting]============");
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/0x%x/0x%x/0x%x",
-		 "backup ARFR1/ARFR2/RL/AMaxTime", coex_dm->backup_arfr_cnt1,
+	seq_printf(m, "\n %-35s = 0x%x/0x%x/0x%x/0x%x",
+		   "backup ARFR1/ARFR2/RL/AMaxTime", coex_dm->backup_arfr_cnt1,
 		   coex_dm->backup_arfr_cnt2, coex_dm->backup_retry_limit,
 		   coex_dm->backup_ampdu_max_time);
 
@@ -2669,50 +2656,49 @@ void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 	u32tmp[1] = btcoexist->btc_read_4byte(btcoexist, 0x434);
 	u16tmp[0] = btcoexist->btc_read_2byte(btcoexist, 0x42a);
 	u8tmp[0] = btcoexist->btc_read_1byte(btcoexist, 0x456);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/0x%x/0x%x/0x%x",
-		 "0x430/0x434/0x42a/0x456",
-		 u32tmp[0], u32tmp[1], u16tmp[0], u8tmp[0]);
+	seq_printf(m, "\n %-35s = 0x%x/0x%x/0x%x/0x%x",
+		   "0x430/0x434/0x42a/0x456",
+		   u32tmp[0], u32tmp[1], u16tmp[0], u8tmp[0]);
 
 	u8tmp[0] = btcoexist->btc_read_1byte(btcoexist, 0x778);
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0x6cc);
 	u32tmp[1] = btcoexist->btc_read_4byte(btcoexist, 0x880);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x",
-		 "0x778/0x6cc/0x880[29:25]", u8tmp[0], u32tmp[0],
-		 (u32tmp[1] & 0x3e000000) >> 25);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x/ 0x%x",
+		   "0x778/0x6cc/0x880[29:25]", u8tmp[0], u32tmp[0],
+		   (u32tmp[1] & 0x3e000000) >> 25);
 
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0x948);
 	u8tmp[0] = btcoexist->btc_read_1byte(btcoexist, 0x67);
 	u8tmp[1] = btcoexist->btc_read_1byte(btcoexist, 0x765);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x",
-		 "0x948/ 0x67[5] / 0x765",
-		 u32tmp[0], ((u8tmp[0] & 0x20) >> 5), u8tmp[1]);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x/ 0x%x",
+		   "0x948/ 0x67[5] / 0x765",
+		   u32tmp[0], ((u8tmp[0] & 0x20) >> 5), u8tmp[1]);
 
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0x92c);
 	u32tmp[1] = btcoexist->btc_read_4byte(btcoexist, 0x930);
 	u32tmp[2] = btcoexist->btc_read_4byte(btcoexist, 0x944);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x",
-		 "0x92c[1:0]/ 0x930[7:0]/0x944[1:0]",
-		 u32tmp[0] & 0x3, u32tmp[1] & 0xff, u32tmp[2] & 0x3);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x/ 0x%x",
+		   "0x92c[1:0]/ 0x930[7:0]/0x944[1:0]",
+		   u32tmp[0] & 0x3, u32tmp[1] & 0xff, u32tmp[2] & 0x3);
 
 	u8tmp[0] = btcoexist->btc_read_1byte(btcoexist, 0x39);
 	u8tmp[1] = btcoexist->btc_read_1byte(btcoexist, 0x40);
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0x4c);
 	u8tmp[2] = btcoexist->btc_read_1byte(btcoexist, 0x64);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "\r\n %-35s = 0x%x/ 0x%x/ 0x%x/ 0x%x",
-		 "0x38[11]/0x40/0x4c[24:23]/0x64[0]",
-		 ((u8tmp[0] & 0x8) >> 3), u8tmp[1],
-		  ((u32tmp[0] & 0x01800000) >> 23), u8tmp[2] & 0x1);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x/ 0x%x/ 0x%x",
+		   "0x38[11]/0x40/0x4c[24:23]/0x64[0]",
+		   ((u8tmp[0] & 0x8) >> 3), u8tmp[1],
+		    ((u32tmp[0] & 0x01800000) >> 23), u8tmp[2] & 0x1);
 
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0x550);
 	u8tmp[0] = btcoexist->btc_read_1byte(btcoexist, 0x522);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x",
-		 "0x550(bcn ctrl)/0x522", u32tmp[0], u8tmp[0]);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x",
+		   "0x550(bcn ctrl)/0x522", u32tmp[0], u8tmp[0]);
 
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0xc50);
 	u8tmp[0] = btcoexist->btc_read_1byte(btcoexist, 0x49c);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x",
-		 "0xc50(dig)/0x49c(null-drop)", u32tmp[0] & 0xff, u8tmp[0]);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x",
+		   "0xc50(dig)/0x49c(null-drop)", u32tmp[0] & 0xff, u8tmp[0]);
 
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0xda0);
 	u32tmp[1] = btcoexist->btc_read_4byte(btcoexist, 0xda4);
@@ -2730,26 +2716,26 @@ void ex_btc8723b1ant_display_coex_info(struct btc_coexist *btcoexist)
 		   (u32tmp[3] & 0xffff);
 	fa_cck = (u8tmp[0] << 8) + u8tmp[1];
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x",
-		 "OFDM-CCA/OFDM-FA/CCK-FA",
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x/ 0x%x",
+		   "OFDM-CCA/OFDM-FA/CCK-FA",
 		 u32tmp[0] & 0xffff, fa_ofdm, fa_cck);
 
 	u32tmp[0] = btcoexist->btc_read_4byte(btcoexist, 0x6c0);
 	u32tmp[1] = btcoexist->btc_read_4byte(btcoexist, 0x6c4);
 	u32tmp[2] = btcoexist->btc_read_4byte(btcoexist, 0x6c8);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = 0x%x/ 0x%x/ 0x%x",
-		 "0x6c0/0x6c4/0x6c8(coexTable)",
-		 u32tmp[0], u32tmp[1], u32tmp[2]);
+	seq_printf(m, "\n %-35s = 0x%x/ 0x%x/ 0x%x",
+		   "0x6c0/0x6c4/0x6c8(coexTable)",
+		   u32tmp[0], u32tmp[1], u32tmp[2]);
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d",
-		 "0x770(high-pri rx/tx)", coex_sta->high_priority_rx,
-		 coex_sta->high_priority_tx);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d/ %d",
-		 "0x774(low-pri rx/tx)", coex_sta->low_priority_rx,
-		 coex_sta->low_priority_tx);
+	seq_printf(m, "\n %-35s = %d/ %d",
+		   "0x770(high-pri rx/tx)", coex_sta->high_priority_rx,
+		   coex_sta->high_priority_tx);
+	seq_printf(m, "\n %-35s = %d/ %d",
+		   "0x774(low-pri rx/tx)", coex_sta->low_priority_rx,
+		   coex_sta->low_priority_tx);
 	if (btcoexist->auto_report_1ant)
 		halbtc8723b1ant_monitor_bt_ctr(btcoexist);
-	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_COEX_STATISTICS);
+	btcoexist->btc_disp_dbg_msg(btcoexist, BTC_DBG_DISP_COEX_STATISTICS, m);
 }
 
 void ex_btc8723b1ant_ips_notify(struct btc_coexist *btcoexist, u8 type)

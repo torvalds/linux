@@ -178,7 +178,7 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 
 	if (bb->shift < 0)
 		/* badblocks are disabled */
-		return 0;
+		return 1;
 
 	if (bb->shift) {
 		/* round the start down, and the end up */

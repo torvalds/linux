@@ -21,50 +21,11 @@ nft_do_chain_arp(void *priv,
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo_unspec(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_unspec(&pkt, skb);
 
 	return nft_do_chain(&pkt, priv);
 }
-
-static struct nft_af_info nft_af_arp __read_mostly = {
-	.family		= NFPROTO_ARP,
-	.nhooks		= NF_ARP_NUMHOOKS,
-	.owner		= THIS_MODULE,
-	.nops		= 1,
-	.hooks		= {
-		[NF_ARP_IN]		= nft_do_chain_arp,
-		[NF_ARP_OUT]		= nft_do_chain_arp,
-		[NF_ARP_FORWARD]	= nft_do_chain_arp,
-	},
-};
-
-static int nf_tables_arp_init_net(struct net *net)
-{
-	net->nft.arp = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
-	if (net->nft.arp== NULL)
-		return -ENOMEM;
-
-	memcpy(net->nft.arp, &nft_af_arp, sizeof(nft_af_arp));
-
-	if (nft_register_afinfo(net, net->nft.arp) < 0)
-		goto err;
-
-	return 0;
-err:
-	kfree(net->nft.arp);
-	return -ENOMEM;
-}
-
-static void nf_tables_arp_exit_net(struct net *net)
-{
-	nft_unregister_afinfo(net, net->nft.arp);
-	kfree(net->nft.arp);
-}
-
-static struct pernet_operations nf_tables_arp_net_ops = {
-	.init   = nf_tables_arp_init_net,
-	.exit   = nf_tables_arp_exit_net,
-};
 
 static const struct nf_chain_type filter_arp = {
 	.name		= "filter",
@@ -73,26 +34,19 @@ static const struct nf_chain_type filter_arp = {
 	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_ARP_IN) |
 			  (1 << NF_ARP_OUT),
+	.hooks		= {
+		[NF_ARP_IN]		= nft_do_chain_arp,
+		[NF_ARP_OUT]		= nft_do_chain_arp,
+	},
 };
 
 static int __init nf_tables_arp_init(void)
 {
-	int ret;
-
-	ret = nft_register_chain_type(&filter_arp);
-	if (ret < 0)
-		return ret;
-
-	ret = register_pernet_subsys(&nf_tables_arp_net_ops);
-	if (ret < 0)
-		nft_unregister_chain_type(&filter_arp);
-
-	return ret;
+	return nft_register_chain_type(&filter_arp);
 }
 
 static void __exit nf_tables_arp_exit(void)
 {
-	unregister_pernet_subsys(&nf_tables_arp_net_ops);
 	nft_unregister_chain_type(&filter_arp);
 }
 
@@ -101,4 +55,4 @@ module_exit(nf_tables_arp_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_FAMILY(3); /* NFPROTO_ARP */
+MODULE_ALIAS_NFT_CHAIN(3, "filter"); /* NFPROTO_ARP */

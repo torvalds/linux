@@ -20,7 +20,6 @@
 
 static void conf(struct menu *menu);
 static void check_conf(struct menu *menu);
-static void xfgets(char *str, int size, FILE *in);
 
 enum input_mode {
 	oldaskconfig,
@@ -35,11 +34,11 @@ enum input_mode {
 	savedefconfig,
 	listnewconfig,
 	olddefconfig,
-} input_mode = oldaskconfig;
+};
+static enum input_mode input_mode = oldaskconfig;
 
 static int indent = 1;
 static int tty_stdio;
-static int valid_stdin = 1;
 static int sync_kconfig;
 static int conf_cnt;
 static char line[PATH_MAX];
@@ -72,14 +71,14 @@ static void strip(char *str)
 		*p-- = 0;
 }
 
-static void check_stdin(void)
+/* Helper function to facilitate fgets() by Jean Sacren. */
+static void xfgets(char *str, int size, FILE *in)
 {
-	if (!valid_stdin) {
-		printf(_("aborted!\n\n"));
-		printf(_("Console input/output is redirected. "));
-		printf(_("Run 'make oldconfig' to update configuration.\n\n"));
-		exit(1);
-	}
+	if (!fgets(str, size, in))
+		fprintf(stderr, "\nError in reading or end of file.\n");
+
+	if (!tty_stdio)
+		printf("%s", str);
 }
 
 static int conf_askvalue(struct symbol *sym, const char *def)
@@ -106,13 +105,10 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 			printf("%s\n", def);
 			return 0;
 		}
-		check_stdin();
 		/* fall through */
 	case oldaskconfig:
 		fflush(stdout);
 		xfgets(line, sizeof(line), stdin);
-		if (!tty_stdio)
-			printf("\n");
 		return 1;
 	default:
 		break;
@@ -192,9 +188,7 @@ static int conf_sym(struct menu *menu)
 			printf("/m");
 		if (oldval != yes && sym_tristate_within_range(sym, yes))
 			printf("/y");
-		if (menu_has_help(menu))
-			printf("/?");
-		printf("] ");
+		printf("/?] ");
 		if (!conf_askvalue(sym, sym_get_string_value(sym)))
 			return 0;
 		strip(line);
@@ -296,10 +290,7 @@ static int conf_choice(struct menu *menu)
 			printf("[1]: 1\n");
 			goto conf_childs;
 		}
-		printf("[1-%d", cnt);
-		if (menu_has_help(menu))
-			printf("?");
-		printf("]: ");
+		printf("[1-%d?]: ", cnt);
 		switch (input_mode) {
 		case oldconfig:
 		case silentoldconfig:
@@ -308,7 +299,6 @@ static int conf_choice(struct menu *menu)
 				printf("%d\n", cnt);
 				break;
 			}
-			check_stdin();
 			/* fall through */
 		case oldaskconfig:
 			fflush(stdout);
@@ -477,8 +467,9 @@ static void conf_usage(const char *progname)
 	printf("  --listnewconfig         List new options\n");
 	printf("  --oldaskconfig          Start a new configuration using a line-oriented program\n");
 	printf("  --oldconfig             Update a configuration using a provided .config as base\n");
-	printf("  --silentoldconfig       Same as oldconfig, but quietly, additionally update deps\n");
-	printf("  --olddefconfig          Same as silentoldconfig but sets new symbols to their default value\n");
+	printf("  --silentoldconfig       Similar to oldconfig but generates configuration in\n"
+	       "                          include/{generated/,config/} (oldconfig used to be more verbose)\n");
+	printf("  --olddefconfig          Same as oldconfig but sets new symbols to their default value\n");
 	printf("  --oldnoconfig           An alias of olddefconfig\n");
 	printf("  --defconfig <file>      New config with default defined in <file>\n");
 	printf("  --savedefconfig <file>  Save the minimal current configuration to <file>\n");
@@ -500,7 +491,7 @@ int main(int ac, char **av)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	tty_stdio = isatty(0) && isatty(1) && isatty(2);
+	tty_stdio = isatty(0) && isatty(1);
 
 	while ((opt = getopt_long(ac, av, "s", long_opts, NULL)) != -1) {
 		if (opt == 's') {
@@ -557,7 +548,7 @@ int main(int ac, char **av)
 		}
 	}
 	if (ac == optind) {
-		printf(_("%s: Kconfig file missing\n"), av[0]);
+		fprintf(stderr, _("%s: Kconfig file missing\n"), av[0]);
 		conf_usage(progname);
 		exit(1);
 	}
@@ -582,9 +573,11 @@ int main(int ac, char **av)
 		if (!defconfig_file)
 			defconfig_file = conf_get_default_confname();
 		if (conf_read(defconfig_file)) {
-			printf(_("***\n"
-				"*** Can't find default configuration \"%s\"!\n"
-				"***\n"), defconfig_file);
+			fprintf(stderr,
+				_("***\n"
+				  "*** Can't find default configuration \"%s\"!\n"
+				  "***\n"),
+				defconfig_file);
 			exit(1);
 		}
 		break;
@@ -642,7 +635,6 @@ int main(int ac, char **av)
 				return 1;
 			}
 		}
-		valid_stdin = tty_stdio;
 	}
 
 	switch (input_mode) {
@@ -711,13 +703,4 @@ int main(int ac, char **av)
 		}
 	}
 	return 0;
-}
-
-/*
- * Helper function to facilitate fgets() by Jean Sacren.
- */
-void xfgets(char *str, int size, FILE *in)
-{
-	if (fgets(str, size, in) == NULL)
-		fprintf(stderr, "\nError in reading or end of file.\n");
 }

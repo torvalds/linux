@@ -161,6 +161,12 @@ u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy)
 }
 EXPORT_SYMBOL_GPL(get_cpu_idle_time);
 
+__weak void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+		unsigned long max_freq)
+{
+}
+EXPORT_SYMBOL_GPL(arch_set_freq_scale);
+
 /*
  * This is a generic cpufreq init() routine which can be used by cpufreq
  * drivers of SMP systems. It will do following:
@@ -595,19 +601,18 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 /**
  * cpufreq_parse_governor - parse a governor string
  */
-static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
-				struct cpufreq_governor **governor)
+static int cpufreq_parse_governor(char *str_governor,
+				  struct cpufreq_policy *policy)
 {
-	int err = -EINVAL;
-
 	if (cpufreq_driver->setpolicy) {
 		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
-			*policy = CPUFREQ_POLICY_PERFORMANCE;
-			err = 0;
-		} else if (!strncasecmp(str_governor, "powersave",
-						CPUFREQ_NAME_LEN)) {
-			*policy = CPUFREQ_POLICY_POWERSAVE;
-			err = 0;
+			policy->policy = CPUFREQ_POLICY_PERFORMANCE;
+			return 0;
+		}
+
+		if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
+			policy->policy = CPUFREQ_POLICY_POWERSAVE;
+			return 0;
 		}
 	} else {
 		struct cpufreq_governor *t;
@@ -615,26 +620,31 @@ static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 		mutex_lock(&cpufreq_governor_mutex);
 
 		t = find_governor(str_governor);
-
-		if (t == NULL) {
+		if (!t) {
 			int ret;
 
 			mutex_unlock(&cpufreq_governor_mutex);
+
 			ret = request_module("cpufreq_%s", str_governor);
+			if (ret)
+				return -EINVAL;
+
 			mutex_lock(&cpufreq_governor_mutex);
 
-			if (ret == 0)
-				t = find_governor(str_governor);
+			t = find_governor(str_governor);
 		}
-
-		if (t != NULL) {
-			*governor = t;
-			err = 0;
-		}
+		if (t && !try_module_get(t->owner))
+			t = NULL;
 
 		mutex_unlock(&cpufreq_governor_mutex);
+
+		if (t) {
+			policy->governor = t;
+			return 0;
+		}
 	}
-	return err;
+
+	return -EINVAL;
 }
 
 /**
@@ -754,11 +764,14 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-						&new_policy.governor))
+	if (cpufreq_parse_governor(str_governor, &new_policy))
 		return -EINVAL;
 
 	ret = cpufreq_set_policy(policy, &new_policy);
+
+	if (new_policy.governor)
+		module_put(new_policy.governor->owner);
+
 	return ret ? ret : count;
 }
 
@@ -1038,8 +1051,7 @@ static int cpufreq_init_policy(struct cpufreq_policy *policy)
 		if (policy->last_policy)
 			new_policy.policy = policy->last_policy;
 		else
-			cpufreq_parse_governor(gov->name, &new_policy.policy,
-					       NULL);
+			cpufreq_parse_governor(gov->name, &new_policy);
 	}
 	/* set default policy */
 	return cpufreq_set_policy(policy, &new_policy);
@@ -1674,6 +1686,9 @@ void cpufreq_resume(void)
 	if (!cpufreq_driver)
 		return;
 
+	if (unlikely(!cpufreq_suspended))
+		return;
+
 	cpufreq_suspended = false;
 
 	if (!has_target() && !cpufreq_driver->resume)
@@ -2154,7 +2169,6 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	mutex_lock(&cpufreq_governor_mutex);
 	list_del(&governor->governor_list);
 	mutex_unlock(&cpufreq_governor_mutex);
-	return;
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_governor);
 

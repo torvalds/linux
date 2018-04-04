@@ -23,7 +23,7 @@
 
 #include "uwb-internal.h"
 
-static void uwb_rsv_timer(unsigned long arg);
+static void uwb_rsv_timer(struct timer_list *t);
 
 static const char *rsv_states[] = {
 	[UWB_RSV_STATE_NONE]                 = "none            ",
@@ -198,9 +198,9 @@ static void uwb_rsv_put_stream(struct uwb_rsv *rsv)
 	dev_dbg(dev, "put stream %d\n", rsv->stream);
 }
 
-void uwb_rsv_backoff_win_timer(unsigned long arg)
+void uwb_rsv_backoff_win_timer(struct timer_list *t)
 {
-	struct uwb_drp_backoff_win *bow = (struct uwb_drp_backoff_win *)arg;
+	struct uwb_drp_backoff_win *bow = from_timer(bow, t, timer);
 	struct uwb_rc *rc = container_of(bow, struct uwb_rc, bow);
 	struct device *dev = &rc->uwb_dev.dev;
 
@@ -470,7 +470,7 @@ static struct uwb_rsv *uwb_rsv_alloc(struct uwb_rc *rc)
 	INIT_LIST_HEAD(&rsv->rc_node);
 	INIT_LIST_HEAD(&rsv->pal_node);
 	kref_init(&rsv->kref);
-	setup_timer(&rsv->timer, uwb_rsv_timer, (unsigned long)rsv);
+	timer_setup(&rsv->timer, uwb_rsv_timer, 0);
 
 	rsv->rc = rc;
 	INIT_WORK(&rsv->handle_timeout_work, uwb_rsv_handle_timeout_work);
@@ -939,9 +939,9 @@ static void uwb_rsv_alien_bp_work(struct work_struct *work)
 	mutex_unlock(&rc->rsvs_mutex);
 }
 
-static void uwb_rsv_timer(unsigned long arg)
+static void uwb_rsv_timer(struct timer_list *t)
 {
-	struct uwb_rsv *rsv = (struct uwb_rsv *)arg;
+	struct uwb_rsv *rsv = from_timer(rsv, t, timer);
 
 	queue_work(rsv->rc->rsv_workq, &rsv->handle_timeout_work);
 }
@@ -987,8 +987,7 @@ void uwb_rsv_init(struct uwb_rc *rc)
 	rc->bow.can_reserve_extra_mases = true;
 	rc->bow.total_expired = 0;
 	rc->bow.window = UWB_DRP_BACKOFF_WIN_MIN >> 1;
-	setup_timer(&rc->bow.timer, uwb_rsv_backoff_win_timer,
-			(unsigned long)&rc->bow);
+	timer_setup(&rc->bow.timer, uwb_rsv_backoff_win_timer, 0);
 
 	bitmap_complement(rc->uwb_dev.streams, rc->uwb_dev.streams, UWB_NUM_STREAMS);
 }

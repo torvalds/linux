@@ -39,6 +39,7 @@
 #define MLX5I_MAX_NUM_TC 1
 
 extern const struct ethtool_ops mlx5i_ethtool_ops;
+extern const struct ethtool_ops mlx5i_pkey_ethtool_ops;
 
 #define MLX5_IB_GRH_BYTES       40
 #define MLX5_IPOIB_ENCAP_LEN    4
@@ -49,9 +50,45 @@ extern const struct ethtool_ops mlx5i_ethtool_ops;
 struct mlx5i_priv {
 	struct rdma_netdev rn; /* keep this first */
 	struct mlx5_core_qp qp;
+	bool   sub_interface;
 	u32    qkey;
+	u16    pkey_index;
+	struct mlx5i_pkey_qpn_ht *qpn_htbl;
 	char  *mlx5e_priv[0];
 };
+
+/* Underlay QP create/destroy functions */
+int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
+void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp);
+
+/* Underlay QP state modification init/uninit functions */
+int mlx5i_init_underlay_qp(struct mlx5e_priv *priv);
+void mlx5i_uninit_underlay_qp(struct mlx5e_priv *priv);
+
+/* Allocate/Free underlay QPN to net-device hash table */
+int mlx5i_pkey_qpn_ht_init(struct net_device *netdev);
+void mlx5i_pkey_qpn_ht_cleanup(struct net_device *netdev);
+
+/* Add/Remove an underlay QPN to net-device mapping to/from the hash table */
+int mlx5i_pkey_add_qpn(struct net_device *netdev, u32 qpn);
+int mlx5i_pkey_del_qpn(struct net_device *netdev, u32 qpn);
+
+/* Get the net-device corresponding to the given underlay QPN */
+struct net_device *mlx5i_pkey_get_netdev(struct net_device *netdev, u32 qpn);
+
+/* Shared ndo functions */
+int mlx5i_dev_init(struct net_device *dev);
+void mlx5i_dev_cleanup(struct net_device *dev);
+int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+
+/* Parent profile functions */
+void mlx5i_init(struct mlx5_core_dev *mdev,
+		struct net_device *netdev,
+		const struct mlx5e_profile *profile,
+		void *ppriv);
+
+/* Get child interface nic profile */
+const struct mlx5e_profile *mlx5i_pkey_get_profile(void);
 
 /* Extract mlx5e_priv from IPoIB netdev */
 #define mlx5i_epriv(netdev) ((void *)(((struct mlx5i_priv *)netdev_priv(netdev))->mlx5e_priv))

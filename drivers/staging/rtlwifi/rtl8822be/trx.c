@@ -165,7 +165,7 @@ static bool rtl8822be_get_rxdesc_is_ht(struct ieee80211_hw *hw, u8 *pdesc)
 
 	RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD, "rx_rate=0x%02x.\n", rx_rate);
 
-	if ((rx_rate >= DESC_RATEMCS0) && (rx_rate <= DESC_RATEMCS15))
+	if (rx_rate >= DESC_RATEMCS0 && rx_rate <= DESC_RATEMCS15)
 		return true;
 	else
 		return false;
@@ -193,8 +193,8 @@ static u8 rtl8822be_get_rx_vht_nss(struct ieee80211_hw *hw, u8 *pdesc)
 
 	rx_rate = GET_RX_DESC_RX_RATE(pdesc);
 
-	if ((rx_rate >= DESC_RATEVHT1SS_MCS0) &&
-	    (rx_rate <= DESC_RATEVHT1SS_MCS9))
+	if (rx_rate >= DESC_RATEVHT1SS_MCS0 &&
+	    rx_rate <= DESC_RATEVHT1SS_MCS9)
 		vht_nss = 1;
 	else if ((rx_rate >= DESC_RATEVHT2SS_MCS0) &&
 		 (rx_rate <= DESC_RATEVHT2SS_MCS9))
@@ -510,8 +510,8 @@ static u8 rtl8822be_bw_mapping(struct ieee80211_hw *hw,
 		else
 			bw_setting_of_desc = 0;
 	} else if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
-		if ((ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40) ||
-		    (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_80))
+		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40 ||
+		    ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_80)
 			bw_setting_of_desc = 1;
 		else
 			bw_setting_of_desc = 0;
@@ -546,10 +546,10 @@ static u8 rtl8822be_sc_mapping(struct ieee80211_hw *hw,
 					 "%s: Not Correct Primary40MHz Setting\n",
 					 __func__);
 		} else {
-			if ((mac->cur_40_prime_sc ==
-			     HAL_PRIME_CHNL_OFFSET_LOWER) &&
-			    (mac->cur_80_prime_sc ==
-			     HAL_PRIME_CHNL_OFFSET_LOWER))
+			if (mac->cur_40_prime_sc ==
+			     HAL_PRIME_CHNL_OFFSET_LOWER &&
+			    mac->cur_80_prime_sc ==
+			     HAL_PRIME_CHNL_OFFSET_LOWER)
 				sc_setting_of_desc =
 					VHT_DATA_SC_20_LOWEST_OF_80MHZ;
 			else if ((mac->cur_40_prime_sc ==
@@ -571,9 +571,9 @@ static u8 rtl8822be_sc_mapping(struct ieee80211_hw *hw,
 				sc_setting_of_desc =
 					VHT_DATA_SC_20_UPPERST_OF_80MHZ;
 			else
-				RT_TRACE(
-					rtlpriv, COMP_SEND, DBG_LOUD,
-					"rtl8822be_sc_mapping: Not Correct Primary40MHz Setting\n");
+				RT_TRACE(rtlpriv, COMP_SEND, DBG_LOUD,
+					 "%s: Not Correct Primary40MHz Setting\n",
+					 __func__);
 		}
 	} else if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (ptcb_desc->packet_bw == HT_CHANNEL_WIDTH_20_40) {

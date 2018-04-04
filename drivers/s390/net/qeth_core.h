@@ -21,6 +21,7 @@
 #include <linux/ethtool.h>
 #include <linux/hashtable.h>
 #include <linux/ip.h>
+#include <linux/refcount.h>
 
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
@@ -183,6 +184,21 @@ struct qeth_sbp_info {
 	__u32 reflect_promisc_primary:1;
 };
 
+struct qeth_vnicc_info {
+	/* supported/currently configured VNICCs; updated in IPA exchanges */
+	u32 sup_chars;
+	u32 cur_chars;
+	/* supported commands: bitmasks which VNICCs support respective cmd */
+	u32 set_char_sup;
+	u32 getset_timeout_sup;
+	/* timeout value for the learning characteristic */
+	u32 learning_timeout;
+	/* characteristics wanted/configured by user */
+	u32 wanted_chars;
+	/* has user explicitly enabled rx_bcast while online? */
+	bool rx_bcast_enabled;
+};
+
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
 		enum qeth_ipa_funcs func)
 {
@@ -216,20 +232,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
-
-#define QETH_MODELLIST_ARRAY \
-	{{0x1731, 0x01, 0x1732, QETH_CARD_TYPE_OSD, QETH_MAX_QUEUES, 0}, \
-	 {0x1731, 0x05, 0x1732, QETH_CARD_TYPE_IQD, QETH_MAX_QUEUES, 0x103}, \
-	 {0x1731, 0x06, 0x1732, QETH_CARD_TYPE_OSN, QETH_MAX_QUEUES, 0}, \
-	 {0x1731, 0x02, 0x1732, QETH_CARD_TYPE_OSM, QETH_MAX_QUEUES, 0}, \
-	 {0x1731, 0x02, 0x1732, QETH_CARD_TYPE_OSX, QETH_MAX_QUEUES, 0}, \
-	 {0, 0, 0, 0, 0, 0} }
-#define QETH_CU_TYPE_IND	0
-#define QETH_CU_MODEL_IND	1
-#define QETH_DEV_TYPE_IND	2
-#define QETH_DEV_MODEL_IND	3
-#define QETH_QUEUE_NO_IND	4
-#define QETH_MULTICAST_IND	5
 
 #define QETH_REAL_CARD		1
 #define QETH_VLAN_CARD		2
@@ -295,8 +297,23 @@ struct qeth_hdr_layer3 {
 	__u8  ext_flags;
 	__u16 vlan_id;
 	__u16 frame_offset;
-	__u8  dest_addr[16];
-} __attribute__ ((packed));
+	union {
+		/* TX: */
+		u8 ipv6_addr[16];
+		struct ipv4 {
+			u8 res[12];
+			u32 addr;
+		} ipv4;
+		/* RX: */
+		struct rx {
+			u8 res1[2];
+			u8 src_mac[6];
+			u8 res2[4];
+			u16 vlan_id;
+			u8 res3[2];
+		} rx;
+	} next_hop;
+};
 
 struct qeth_hdr_layer2 {
 	__u8 id;
@@ -503,12 +520,6 @@ struct qeth_qdio_info {
 	int default_out_queue;
 };
 
-#define QETH_ETH_MAC_V4      0x0100 /* like v4 */
-#define QETH_ETH_MAC_V6      0x3333 /* like v6 */
-/* tr mc mac is longer, but that will be enough to detect mc frames */
-#define QETH_TR_MAC_NC       0xc000 /* non-canonical */
-#define QETH_TR_MAC_C        0x0300 /* canonical */
-
 /**
  * buffer stuff for read channel
  */
@@ -564,9 +575,9 @@ enum qeth_cq {
 };
 
 struct qeth_ipato {
-	int enabled;
-	int invert4;
-	int invert6;
+	bool enabled;
+	bool invert4;
+	bool invert6;
 	struct list_head entries;
 };
 
@@ -579,6 +590,11 @@ struct qeth_cmd_buffer {
 	int rc;
 	void (*callback) (struct qeth_channel *, struct qeth_cmd_buffer *);
 };
+
+static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
+{
+	return (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
+}
 
 /**
  * definition of a qeth channel, used for read and write
@@ -631,7 +647,7 @@ struct qeth_reply {
 	int rc;
 	void *param;
 	struct qeth_card *card;
-	atomic_t refcnt;
+	refcount_t refcnt;
 };
 
 struct qeth_card_blkt {
@@ -674,6 +690,7 @@ struct qeth_card_options {
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
+	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
 	int layer2;
 	int performance_stats;
@@ -834,7 +851,7 @@ struct qeth_trap_id {
  */
 static inline int qeth_get_elements_for_range(addr_t start, addr_t end)
 {
-	return PFN_UP(end - 1) - PFN_DOWN(start);
+	return PFN_UP(end) - PFN_DOWN(start);
 }
 
 static inline int qeth_get_micros(void)
@@ -844,14 +861,16 @@ static inline int qeth_get_micros(void)
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
-	__be16 *p = &((struct ethhdr *)skb->data)->h_proto;
+	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
+	__be16 prot = veth->h_vlan_proto;
 
-	if (be16_to_cpu(*p) == ETH_P_8021Q)
-		p += 2;
-	switch (be16_to_cpu(*p)) {
-	case ETH_P_IPV6:
+	if (prot == htons(ETH_P_8021Q))
+		prot = veth->h_vlan_encapsulated_proto;
+
+	switch (prot) {
+	case htons(ETH_P_IPV6):
 		return 6;
-	case ETH_P_IP:
+	case htons(ETH_P_IP):
 		return 4;
 	default:
 		return 0;
@@ -947,13 +966,13 @@ int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
 			 int extra_elems, int data_offset);
 int qeth_get_elements_for_frags(struct sk_buff *);
-int qeth_do_send_packet_fast(struct qeth_card *card,
-			     struct qeth_qdio_out_q *queue, struct sk_buff *skb,
+int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 			     struct qeth_hdr *hdr, unsigned int offset,
 			     unsigned int hd_len);
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			struct sk_buff *skb, struct qeth_hdr *hdr,
-			unsigned int hd_len, unsigned int offset, int elements);
+			unsigned int offset, unsigned int hd_len,
+			int elements_needed);
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int qeth_core_get_sset_count(struct net_device *, int);
 void qeth_core_get_ethtool_stats(struct net_device *,
@@ -983,8 +1002,11 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 						 __u16, __u16,
 						 enum qeth_prot_versions);
 int qeth_set_features(struct net_device *, netdev_features_t);
-int qeth_recover_features(struct net_device *);
+void qeth_recover_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
+netdev_features_t qeth_features_check(struct sk_buff *skb,
+				      struct net_device *dev,
+				      netdev_features_t features);
 int qeth_vm_request_mac(struct qeth_card *card);
 int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len);
 

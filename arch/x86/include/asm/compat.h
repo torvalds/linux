@@ -7,6 +7,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <asm/processor.h>
 #include <asm/user32.h>
 #include <asm/unistd.h>
@@ -126,90 +127,7 @@ typedef u32		compat_old_sigset_t;	/* at least 32 bits */
 
 typedef u32               compat_sigset_word;
 
-typedef union compat_sigval {
-	compat_int_t	sival_int;
-	compat_uptr_t	sival_ptr;
-} compat_sigval_t;
-
-typedef struct compat_siginfo {
-	int si_signo;
-	int si_errno;
-	int si_code;
-
-	union {
-		int _pad[128/sizeof(int) - 3];
-
-		/* kill() */
-		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
-		} _kill;
-
-		/* POSIX.1b timers */
-		struct {
-			compat_timer_t _tid;	/* timer id */
-			int _overrun;		/* overrun count */
-			compat_sigval_t _sigval;	/* same as below */
-			int _sys_private;	/* not to be passed to user */
-			int _overrun_incr;	/* amount to add to overrun */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
-			compat_sigval_t _sigval;
-		} _rt;
-
-		/* SIGCHLD */
-		struct {
-			unsigned int _pid;	/* which child */
-			unsigned int _uid;	/* sender's uid */
-			int _status;		/* exit code */
-			compat_clock_t _utime;
-			compat_clock_t _stime;
-		} _sigchld;
-
-		/* SIGCHLD (x32 version) */
-		struct {
-			unsigned int _pid;	/* which child */
-			unsigned int _uid;	/* sender's uid */
-			int _status;		/* exit code */
-			compat_s64 _utime;
-			compat_s64 _stime;
-		} _sigchld_x32;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-		struct {
-			unsigned int _addr;	/* faulting insn/memory ref. */
-			short int _addr_lsb;	/* Valid LSB of the reported address. */
-			union {
-				/* used when si_code=SEGV_BNDERR */
-				struct {
-					compat_uptr_t _lower;
-					compat_uptr_t _upper;
-				} _addr_bnd;
-				/* used when si_code=SEGV_PKUERR */
-				compat_u32 _pkey;
-			};
-		} _sigfault;
-
-		/* SIGPOLL */
-		struct {
-			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
-			int _fd;
-		} _sigpoll;
-
-		struct {
-			unsigned int _call_addr; /* calling insn */
-			int _syscall;	/* triggering system call number */
-			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
-		} _sigsys;
-	} _sifields;
-} compat_siginfo_t;
-
 #define COMPAT_OFF_T_MAX	0x7fffffff
-#define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
 
 struct compat_ipc64_perm {
 	compat_key_t key;
@@ -330,5 +248,9 @@ static inline bool in_compat_syscall(void)
 	return in_ia32_syscall() || in_x32_syscall();
 }
 #define in_compat_syscall in_compat_syscall	/* override the generic impl */
+
+struct compat_siginfo;
+int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
+		const siginfo_t *from, bool x32_ABI);
 
 #endif /* _ASM_X86_COMPAT_H */

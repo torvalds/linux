@@ -27,6 +27,9 @@ struct nf_conntrack_l4proto {
 	/* Resolve clashes on insertion races. */
 	bool allow_clash;
 
+	/* protoinfo nlattr size, closes a hole */
+	u16 nlattr_size;
+
 	/* Try to fill in the third arg: dataoff is offset past network protocol
            hdr.  Return true if possible. */
 	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int dataoff,
@@ -43,7 +46,6 @@ struct nf_conntrack_l4proto {
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
-		      u_int8_t pf,
 		      unsigned int *timeouts);
 
 	/* Called when a new connection for this protocol found;
@@ -67,8 +69,6 @@ struct nf_conntrack_l4proto {
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
 			 struct nf_conn *ct);
-	/* Calculate protoinfo nlattr size */
-	int (*nlattr_size)(void);
 
 	/* convert nfnetlink attributes to protoinfo */
 	int (*from_nlattr)(struct nlattr *tb[], struct nf_conn *ct);
@@ -76,12 +76,10 @@ struct nf_conntrack_l4proto {
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 	/* Calculate tuple nlattr size */
-	int (*nlattr_tuple_size)(void);
+	unsigned int (*nlattr_tuple_size)(void);
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
 	const struct nla_policy *nla_policy;
-
-	size_t nla_size;
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 	struct {
@@ -110,7 +108,7 @@ struct nf_conntrack_l4proto {
 };
 
 /* Existing built-in generic protocol */
-extern struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
+extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO 256
 
@@ -127,18 +125,18 @@ int nf_ct_l4proto_pernet_register_one(struct net *net,
 void nf_ct_l4proto_pernet_unregister_one(struct net *net,
 				const struct nf_conntrack_l4proto *proto);
 int nf_ct_l4proto_pernet_register(struct net *net,
-				  struct nf_conntrack_l4proto *const proto[],
+				  const struct nf_conntrack_l4proto *const proto[],
 				  unsigned int num_proto);
 void nf_ct_l4proto_pernet_unregister(struct net *net,
-				struct nf_conntrack_l4proto *const proto[],
+				const struct nf_conntrack_l4proto *const proto[],
 				unsigned int num_proto);
 
 /* Protocol global registration. */
-int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *proto);
+int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *proto);
 void nf_ct_l4proto_unregister_one(const struct nf_conntrack_l4proto *proto);
-int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto[],
+int nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const proto[],
 			   unsigned int num_proto);
-void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto[],
+void nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const proto[],
 			      unsigned int num_proto);
 
 /* Generic netlink helpers */
@@ -146,15 +144,27 @@ int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple);
 int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
-int nf_ct_port_nlattr_tuple_size(void);
+unsigned int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 
 #ifdef CONFIG_SYSCTL
-#define LOG_INVALID(net, proto)				\
-	((net)->ct.sysctl_log_invalid == (proto) ||	\
-	 (net)->ct.sysctl_log_invalid == IPPROTO_RAW)
+__printf(3, 4) __cold
+void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
+			       const struct nf_conn *ct,
+			       const char *fmt, ...);
+__printf(5, 6) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb,
+			    struct net *net,
+			    u16 pf, u8 protonum,
+			    const char *fmt, ...);
 #else
-static inline int LOG_INVALID(struct net *net, int proto) { return 0; }
+static inline __printf(5, 6) __cold
+void nf_l4proto_log_invalid(const struct sk_buff *skb, struct net *net,
+			    u16 pf, u8 protonum, const char *fmt, ...) {}
+static inline __printf(3, 4) __cold
+void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
+			       const struct nf_conn *ct,
+			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
 
 #endif /*_NF_CONNTRACK_PROTOCOL_H*/

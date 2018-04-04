@@ -27,7 +27,7 @@ struct cpufreq_stats {
 	unsigned int *trans_table;
 };
 
-static int cpufreq_stats_update(struct cpufreq_stats *stats)
+static void cpufreq_stats_update(struct cpufreq_stats *stats)
 {
 	unsigned long long cur_time = get_jiffies_64();
 
@@ -35,7 +35,6 @@ static int cpufreq_stats_update(struct cpufreq_stats *stats)
 	stats->time_in_state[stats->last_index] += cur_time - stats->last_time;
 	stats->last_time = cur_time;
 	spin_unlock(&cpufreq_stats_lock);
-	return 0;
 }
 
 static void cpufreq_stats_clear_table(struct cpufreq_stats *stats)
@@ -118,8 +117,11 @@ static ssize_t show_trans_table(struct cpufreq_policy *policy, char *buf)
 			break;
 		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
-	if (len >= PAGE_SIZE)
-		return PAGE_SIZE;
+
+	if (len >= PAGE_SIZE) {
+		pr_warn_once("cpufreq transition table exceeds PAGE_SIZE. Disabling\n");
+		return -EFBIG;
+	}
 	return len;
 }
 cpufreq_freq_attr_ro(trans_table);

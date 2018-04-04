@@ -25,7 +25,7 @@ Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 For example:
 
-	pinmux: pinmux@0x0301d0c8 {
+	pinmux: pinmux@0301d0c8 {
 		compatible = "brcm,cygnus-pinmux";
 		reg = <0x0301d0c8 0x1b0>;
 

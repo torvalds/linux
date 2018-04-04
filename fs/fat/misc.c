@@ -33,7 +33,7 @@ void __fat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 	if (opts->errors == FAT_ERRORS_PANIC)
 		panic("FAT-fs (%s): fs panic from previous error\n", sb->s_id);
 	else if (opts->errors == FAT_ERRORS_RO && !sb_rdonly(sb)) {
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		fat_msg(sb, KERN_ERR, "Filesystem has been set read-only");
 	}
 }

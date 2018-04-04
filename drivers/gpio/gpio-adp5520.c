@@ -12,8 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/adp5520.h>
-
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 struct adp5520_gpio {
 	struct device *master;

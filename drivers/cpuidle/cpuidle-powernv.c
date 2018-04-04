@@ -76,6 +76,8 @@ static int snooze_loop(struct cpuidle_device *dev,
 	ppc64_runlatch_on();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 
+	local_irq_disable();
+
 	return index;
 }
 
@@ -384,9 +386,9 @@ static int powernv_add_idle_states(void)
 		 * Firmware passes residency and latency values in ns.
 		 * cpuidle expects it in us.
 		 */
-		exit_latency = latency_ns[i] / 1000;
+		exit_latency = DIV_ROUND_UP(latency_ns[i], 1000);
 		if (!rc)
-			target_residency = residency_ns[i] / 1000;
+			target_residency = DIV_ROUND_UP(residency_ns[i], 1000);
 		else
 			target_residency = 0;
 

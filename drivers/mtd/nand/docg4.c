@@ -785,6 +785,8 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 
 	dev_dbg(doc->dev, "%s: page %08x\n", __func__, page);
 
+	nand_read_page_op(nand, page, 0, NULL, 0);
+
 	writew(DOC_ECCCONF0_READ_MODE |
 	       DOC_ECCCONF0_ECC_ENABLE |
 	       DOC_ECCCONF0_UNKNOWN |
@@ -864,7 +866,7 @@ static int docg4_read_oob(struct mtd_info *mtd, struct nand_chip *nand,
 
 	dev_dbg(doc->dev, "%s: page %x\n", __func__, page);
 
-	docg4_command(mtd, NAND_CMD_READ0, nand->ecc.size, page);
+	nand_read_page_op(nand, page, nand->ecc.size, NULL, 0);
 
 	writew(DOC_ECCCONF0_READ_MODE | DOCG4_OOB_SIZE, docptr + DOC_ECCCONF0);
 	write_nop(docptr);
@@ -900,6 +902,7 @@ static int docg4_erase_block(struct mtd_info *mtd, int page)
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	void __iomem *docptr = doc->virtadr;
 	uint16_t g4_page;
+	int status;
 
 	dev_dbg(doc->dev, "%s: page %04x\n", __func__, page);
 
@@ -939,17 +942,23 @@ static int docg4_erase_block(struct mtd_info *mtd, int page)
 	poll_status(doc);
 	write_nop(docptr);
 
-	return nand->waitfunc(mtd, nand);
+	status = nand->waitfunc(mtd, nand);
+	if (status < 0)
+		return status;
+
+	return status & NAND_STATUS_FAIL ? -EIO : 0;
 }
 
 static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
-		       const uint8_t *buf, bool use_ecc)
+		      const uint8_t *buf, int page, bool use_ecc)
 {
 	struct docg4_priv *doc = nand_get_controller_data(nand);
 	void __iomem *docptr = doc->virtadr;
 	uint8_t ecc_buf[8];
 
 	dev_dbg(doc->dev, "%s...\n", __func__);
+
+	nand_prog_page_begin_op(nand, page, 0, NULL, 0);
 
 	writew(DOC_ECCCONF0_ECC_ENABLE |
 	       DOC_ECCCONF0_UNKNOWN |
@@ -995,19 +1004,19 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
 	writew(0, docptr + DOC_DATAEND);
 	write_nop(docptr);
 
-	return 0;
+	return nand_prog_page_end_op(nand);
 }
 
 static int docg4_write_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
 				const uint8_t *buf, int oob_required, int page)
 {
-	return write_page(mtd, nand, buf, false);
+	return write_page(mtd, nand, buf, page, false);
 }
 
 static int docg4_write_page(struct mtd_info *mtd, struct nand_chip *nand,
 			     const uint8_t *buf, int oob_required, int page)
 {
-	return write_page(mtd, nand, buf, true);
+	return write_page(mtd, nand, buf, page, true);
 }
 
 static int docg4_write_oob(struct mtd_info *mtd, struct nand_chip *nand,

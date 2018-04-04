@@ -72,6 +72,18 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
+	hdmi_5v: regulator-hdmi-5v {
+		compatible = "regulator-fixed";
+
+		regulator-name = "HDMI_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
 	vcc_3v3: regulator-vcc_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
@@ -94,6 +106,13 @@
 
 		regulator-settling-time-up-us = <200>;
 		regulator-settling-time-down-us = <50000>;
+	};
+
+	vddio_ao18: regulator-vddio_ao18 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_AO18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
 	vddio_boot: regulator-vddio_boot {
@@ -119,6 +138,11 @@
 
 &ethmac {
 	status = "okay";
+};
+
+&internal_phy {
+	pinctrl-0 = <&eth_link_led_pins>, <&eth_act_led_pins>;
+	pinctrl-names = "default";
 };
 
 &ir {
@@ -149,7 +173,9 @@
 			  "7J1 Header Pin12",
 			  "IR In",
 			  "9J3 Switch HDMI CEC/7J1 Header Pin11",
-			  "7J1 Header Pin13";
+			  "7J1 Header Pin13",
+			  /* GPIO_TEST_N */
+			  "7J1 Header Pin15";
 };
 
 &pinctrl_periphs {
@@ -191,9 +217,12 @@
 			  "7J1 Header Pin32", "7J1 Header Pin29",
 			  "7J1 Header Pin31",
 			  /* Bank GPIOCLK */
-			  "7J1 Header Pin7", "",
-			  /* GPIO_TEST_N */
-			  "7J1 Header Pin15";
+			  "7J1 Header Pin7", "";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_ao18>;
 };
 
 /* SD card */
@@ -221,7 +250,7 @@
 /* eMMC */
 &sd_emmc_c {
 	status = "okay";
-	pinctrl-0 = <&emmc_pins>;
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
 

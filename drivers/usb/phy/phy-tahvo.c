@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tahvo USB transceiver driver
  *
@@ -9,21 +10,12 @@
  *
  * Original driver written by Juha Yrjölä, Tony Lindgren and Timo Teräs.
  * Modified for Retu/Tahvo MFD by Aaro Koskinen.
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License. See the file "COPYING" in the main directory of this
- * archive for more details.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/usb.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb/otg.h>
@@ -67,13 +59,13 @@ static const unsigned int tahvo_cable[] = {
 	EXTCON_NONE,
 };
 
-static ssize_t vbus_state_show(struct device *device,
+static ssize_t vbus_show(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct tahvo_usb *tu = dev_get_drvdata(device);
 	return sprintf(buf, "%s\n", tu->vbus_state ? "on" : "off");
 }
-static DEVICE_ATTR(vbus, 0444, vbus_state_show, NULL);
+static DEVICE_ATTR_RO(vbus);
 
 static void check_vbus_state(struct tahvo_usb *tu)
 {
@@ -318,7 +310,7 @@ static ssize_t otg_mode_store(struct device *device,
 
 	return r;
 }
-static DEVICE_ATTR(otg_mode, 0644, otg_mode_show, otg_mode_store);
+static DEVICE_ATTR_RW(otg_mode);
 
 static struct attribute *tahvo_attributes[] = {
 	&dev_attr_vbus.attr,
@@ -368,7 +360,8 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	tu->extcon = devm_extcon_dev_allocate(&pdev->dev, tahvo_cable);
 	if (IS_ERR(tu->extcon)) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
-		return -ENOMEM;
+		ret = PTR_ERR(tu->extcon);
+		goto err_disable_clk;
 	}
 
 	ret = devm_extcon_dev_register(&pdev->dev, tu->extcon);

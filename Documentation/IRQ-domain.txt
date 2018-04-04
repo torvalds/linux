@@ -265,37 +265,5 @@ support other architectures, such as ARM, ARM64 etc.
 
 === Debugging ===
 
-If you switch on CONFIG_IRQ_DOMAIN_DEBUG (which depends on
-CONFIG_IRQ_DOMAIN and CONFIG_DEBUG_FS), you will find a new file in
-your debugfs mount point, called irq_domain_mapping. This file
-contains a live snapshot of all the IRQ domains in the system:
-
- name              mapped  linear-max  direct-max  devtree-node
- pl061                  8           8           0  /smb/gpio@e0080000
- pl061                  8           8           0  /smb/gpio@e1050000
- pMSI                   0           0           0  /interrupt-controller@e1101000/v2m@e0080000
- MSI                   37           0           0  /interrupt-controller@e1101000/v2m@e0080000
- GICv2m                37           0           0  /interrupt-controller@e1101000/v2m@e0080000
- GICv2                448         448           0  /interrupt-controller@e1101000
-
-it also iterates over the interrupts to display their mapping in the
-domains, and makes the domain stacking visible:
-
-
-irq    hwirq    chip name        chip data           active  type            domain
-    1  0x00019  GICv2            0xffff00000916bfd8     *    LINEAR          GICv2
-    2  0x0001d  GICv2            0xffff00000916bfd8          LINEAR          GICv2
-    3  0x0001e  GICv2            0xffff00000916bfd8     *    LINEAR          GICv2
-    4  0x0001b  GICv2            0xffff00000916bfd8     *    LINEAR          GICv2
-    5  0x0001a  GICv2            0xffff00000916bfd8          LINEAR          GICv2
-[...]
-   96  0x81808  MSI              0x          (null)           RADIX          MSI
-   96+ 0x00063  GICv2m           0xffff8003ee116980           RADIX          GICv2m
-   96+ 0x00063  GICv2            0xffff00000916bfd8          LINEAR          GICv2
-   97  0x08800  MSI              0x          (null)     *     RADIX          MSI
-   97+ 0x00064  GICv2m           0xffff8003ee116980     *     RADIX          GICv2m
-   97+ 0x00064  GICv2            0xffff00000916bfd8     *    LINEAR          GICv2
-
-Here, interrupts 1-5 are only using a single domain, while 96 and 97
-are build out of a stack of three domain, each level performing a
-particular function.
+Most of the internals of the IRQ subsystem are exposed in debugfs by
+turning CONFIG_GENERIC_IRQ_DEBUGFS on.

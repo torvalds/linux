@@ -42,7 +42,7 @@ static void psc_debug_dump(void)
 		return;
 
 	for (i = 0x30 ; i < 0x70 ; i += 0x10) {
-		printk("PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
+		printk(KERN_DEBUG "PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
 			i >> 4,
 			(int) psc_read_byte(pIFRbase + i),
 			(int) psc_read_byte(pIERbase + i));
@@ -59,14 +59,12 @@ static __init void psc_dma_die_die_die(void)
 {
 	int i;
 
-	printk("Killing all PSC DMA channels...");
 	for (i = 0 ; i < 9 ; i++) {
 		psc_write_word(PSC_CTL_BASE + (i << 4), 0x8800);
 		psc_write_word(PSC_CTL_BASE + (i << 4), 0x1000);
 		psc_write_word(PSC_CMD_BASE + (i << 5), 0x1100);
 		psc_write_word(PSC_CMD_BASE + (i << 5) + 0x10, 0x1100);
 	}
-	printk("done!\n");
 }
 
 /*
@@ -92,7 +90,7 @@ void __init psc_init(void)
 
 	psc = (void *) PSC_BASE;
 
-	printk("PSC detected at %p\n", psc);
+	pr_debug("PSC detected at %p\n", psc);
 
 	psc_dma_die_die_die();
 

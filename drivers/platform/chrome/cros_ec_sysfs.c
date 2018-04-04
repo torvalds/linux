@@ -34,8 +34,6 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
-#include "cros_ec_dev.h"
-
 /* Accessor functions */
 
 static ssize_t show_ec_reboot(struct device *dev,
@@ -187,7 +185,7 @@ static ssize_t show_ec_version(struct device *dev,
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Build info:    EC error %d\n", msg->result);
 	else {
-		msg->data[sizeof(msg->data) - 1] = '\0';
+		msg->data[EC_HOST_PARAM_SIZE - 1] = '\0';
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "Build info:    %s\n", msg->data);
 	}
@@ -294,4 +292,7 @@ static struct attribute *__ec_attrs[] = {
 struct attribute_group cros_ec_attr_group = {
 	.attrs = __ec_attrs,
 };
+EXPORT_SYMBOL(cros_ec_attr_group);
 
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC control driver");

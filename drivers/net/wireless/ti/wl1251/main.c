@@ -566,7 +566,7 @@ static int wl1251_build_null_data(struct wl1251 *wl)
 		size = sizeof(struct wl12xx_null_data_template);
 		ptr = NULL;
 	} else {
-		skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+		skb = ieee80211_nullfunc_get(wl->hw, wl->vif, false);
 		if (!skb)
 			goto out;
 		size = skb->len;
@@ -1200,8 +1200,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
 
 		enable = bss_conf->arp_addr_cnt == 1 && bss_conf->assoc;
-		wl1251_acx_arp_ip_filter(wl, enable, addr);
-
+		ret = wl1251_acx_arp_ip_filter(wl, enable, addr);
 		if (ret < 0)
 			goto out_sleep;
 	}

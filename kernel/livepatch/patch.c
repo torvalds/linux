@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 #include <linux/printk.h>
+#include "core.h"
 #include "patch.h"
 #include "transition.h"
 

@@ -246,7 +246,8 @@ enum {
 static struct wf_control *controls[N_CONTROLS] = {};
 
 /* Set to kick the control loop into life */
-static int pm121_all_controls_ok, pm121_all_sensors_ok, pm121_started;
+static int pm121_all_controls_ok, pm121_all_sensors_ok;
+static bool pm121_started;
 
 enum {
 	FAILURE_FAN		= 1 << 0,
@@ -806,7 +807,7 @@ static void pm121_tick(void)
 			pm121_create_sys_fans(i);
 
 		pm121_create_cpu_fans();
-		pm121_started = 1;
+		pm121_started = true;
 	}
 
 	/* skipping ticks */

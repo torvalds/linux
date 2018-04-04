@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -3066,7 +3067,7 @@ void ptlrpc_init_xid(void)
 
 	spin_lock_init(&ptlrpc_last_xid_lock);
 	if (now < YEAR_2004) {
-		cfs_get_random_bytes(&ptlrpc_last_xid, sizeof(ptlrpc_last_xid));
+		get_random_bytes(&ptlrpc_last_xid, sizeof(ptlrpc_last_xid));
 		ptlrpc_last_xid >>= 2;
 		ptlrpc_last_xid |= (1ULL << 61);
 	} else {

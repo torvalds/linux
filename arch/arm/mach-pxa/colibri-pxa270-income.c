@@ -23,7 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>

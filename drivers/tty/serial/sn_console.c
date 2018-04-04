@@ -8,25 +8,6 @@
  *
  * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
  * Contact information:  Silicon Graphics, Inc., 1500 Crittenden Lane,
  * Mountain View, CA  94043, or:
  *
@@ -631,9 +612,9 @@ static irqreturn_t sn_sal_interrupt(int irq, void *dev_id)
  * Obviously not used in interrupt mode
  *
  */
-static void sn_sal_timer_poll(unsigned long data)
+static void sn_sal_timer_poll(struct timer_list *t)
 {
-	struct sn_cons_port *port = (struct sn_cons_port *)data;
+	struct sn_cons_port *port = from_timer(port, t, sc_timer);
 	unsigned long flags;
 
 	if (!port)
@@ -687,9 +668,7 @@ static void __init sn_sal_switch_to_asynch(struct sn_cons_port *port)
 	 * timer to poll for input and push data from the console
 	 * buffer.
 	 */
-	init_timer(&port->sc_timer);
-	port->sc_timer.function = sn_sal_timer_poll;
-	port->sc_timer.data = (unsigned long)port;
+	timer_setup(&port->sc_timer, sn_sal_timer_poll, 0);
 
 	if (IS_RUNNING_ON_SIMULATOR())
 		port->sc_interrupt_timeout = 6;

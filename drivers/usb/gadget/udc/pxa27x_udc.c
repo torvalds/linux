@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Handles the Intel 27x USB Device Controller (UDC)
  *
  * Inspired by original driver by Frank Becker, David Brownell, and others.
  * Copyright (C) 2008 Robert Jarzmik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -983,8 +979,6 @@ static int write_fifo(struct pxa_ep *ep, struct pxa27x_request *req)
 
 	max = ep->fifo_size;
 	do {
-		is_short = 0;
-
 		udccsr = udc_ep_readl(ep, UDCCSR);
 		if (udccsr & UDCCSR_PC) {
 			ep_vdbg(ep, "Clearing Transmit Complete, udccsr=%x\n",
@@ -1138,7 +1132,6 @@ static int pxa_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (unlikely(!_ep))
 		return -EINVAL;
 
-	dev = udc_usb_ep->dev;
 	ep = udc_usb_ep->pxa_ep;
 	if (unlikely(!ep))
 		return -EINVAL;

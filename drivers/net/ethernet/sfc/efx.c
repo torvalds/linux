@@ -27,6 +27,7 @@
 #include <net/udp_tunnel.h>
 #include "efx.h"
 #include "nic.h"
+#include "io.h"
 #include "selftest.h"
 #include "sriov.h"
 
@@ -471,8 +472,7 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
-	setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
-		    (unsigned long)rx_queue);
+	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
 
 	return channel;
 }
@@ -511,8 +511,7 @@ efx_copy_channel(const struct efx_channel *old_channel)
 	rx_queue = &channel->rx_queue;
 	rx_queue->buffer = NULL;
 	memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
-	setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
-		    (unsigned long)rx_queue);
+	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
 
 	return channel;
 }
@@ -897,12 +896,20 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
 }
 
+static bool efx_default_channel_want_txqs(struct efx_channel *channel)
+{
+	return channel->channel - channel->efx->tx_channel_offset <
+		channel->efx->n_tx_channels;
+}
+
 static const struct efx_channel_type efx_default_channel_type = {
 	.pre_probe		= efx_channel_dummy_op_int,
 	.post_remove		= efx_channel_dummy_op_void,
 	.get_name		= efx_get_channel_name,
 	.copy			= efx_copy_channel,
+	.want_txqs		= efx_default_channel_want_txqs,
 	.keep_eventq		= false,
+	.want_pio		= true,
 };
 
 int efx_channel_dummy_op_int(struct efx_channel *channel)
@@ -954,31 +961,42 @@ void efx_link_status_changed(struct efx_nic *efx)
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
 
-void efx_link_set_advertising(struct efx_nic *efx, u32 advertising)
+void efx_link_set_advertising(struct efx_nic *efx,
+			      const unsigned long *advertising)
 {
-	efx->link_advertising = advertising;
-	if (advertising) {
-		if (advertising & ADVERTISED_Pause)
-			efx->wanted_fc |= (EFX_FC_TX | EFX_FC_RX);
-		else
-			efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
-		if (advertising & ADVERTISED_Asym_Pause)
-			efx->wanted_fc ^= EFX_FC_TX;
-	}
+	memcpy(efx->link_advertising, advertising,
+	       sizeof(__ETHTOOL_DECLARE_LINK_MODE_MASK()));
+
+	efx->link_advertising[0] |= ADVERTISED_Autoneg;
+	if (advertising[0] & ADVERTISED_Pause)
+		efx->wanted_fc |= (EFX_FC_TX | EFX_FC_RX);
+	else
+		efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
+	if (advertising[0] & ADVERTISED_Asym_Pause)
+		efx->wanted_fc ^= EFX_FC_TX;
+}
+
+/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
+ * force the Autoneg bit on.
+ */
+void efx_link_clear_advertising(struct efx_nic *efx)
+{
+	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
 }
 
 void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
 {
 	efx->wanted_fc = wanted_fc;
-	if (efx->link_advertising) {
+	if (efx->link_advertising[0]) {
 		if (wanted_fc & EFX_FC_RX)
-			efx->link_advertising |= (ADVERTISED_Pause |
-						  ADVERTISED_Asym_Pause);
+			efx->link_advertising[0] |= (ADVERTISED_Pause |
+						     ADVERTISED_Asym_Pause);
 		else
-			efx->link_advertising &= ~(ADVERTISED_Pause |
-						   ADVERTISED_Asym_Pause);
+			efx->link_advertising[0] &= ~(ADVERTISED_Pause |
+						      ADVERTISED_Asym_Pause);
 		if (wanted_fc & EFX_FC_TX)
-			efx->link_advertising ^= ADVERTISED_Asym_Pause;
+			efx->link_advertising[0] ^= ADVERTISED_Asym_Pause;
 	}
 }
 
@@ -1250,7 +1268,7 @@ static int efx_init_io(struct efx_nic *efx)
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
 
-	bar = efx->type->mem_bar;
+	bar = efx->type->mem_bar(efx);
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1325,7 +1343,7 @@ static void efx_fini_io(struct efx_nic *efx)
 	}
 
 	if (efx->membase_phys) {
-		bar = efx->type->mem_bar;
+		bar = efx->type->mem_bar(efx);
 		pci_release_region(efx->pci_dev, bar);
 		efx->membase_phys = 0;
 	}
@@ -1491,6 +1509,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	}
 
 	/* Assign extra channels if possible */
+	efx->n_extra_tx_channels = 0;
 	j = efx->n_channels;
 	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++) {
 		if (!efx->extra_channel_type[i])
@@ -1502,6 +1521,8 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			--j;
 			efx_get_channel(efx, j)->type =
 				efx->extra_channel_type[i];
+			if (efx_channel_has_tx_queues(efx_get_channel(efx, j)))
+				efx->n_extra_tx_channels++;
 		}
 	}
 
@@ -2317,8 +2338,11 @@ static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 			return rc;
 	}
 
-	/* If Rx VLAN filter is changed, update filters via mac_reconfigure */
-	if ((net_dev->features ^ data) & NETIF_F_HW_VLAN_CTAG_FILTER) {
+	/* If Rx VLAN filter is changed, update filters via mac_reconfigure.
+	 * If rx-fcs is changed, mac_reconfigure updates that too.
+	 */
+	if ((net_dev->features ^ data) & (NETIF_F_HW_VLAN_CTAG_FILTER |
+					  NETIF_F_RXFCS)) {
 		/* efx_set_rx_mode() will schedule MAC work to update filters
 		 * when a new features are finally set in net_dev.
 		 */
@@ -2809,7 +2833,7 @@ static void efx_reset_work(struct work_struct *data)
 	unsigned long pending;
 	enum reset_type method;
 
-	pending = ACCESS_ONCE(efx->reset_pending);
+	pending = READ_ONCE(efx->reset_pending);
 	method = fls(pending) - 1;
 
 	if (method == RESET_TYPE_MC_BIST)
@@ -2874,7 +2898,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	/* If we're not READY then just leave the flags set as the cue
 	 * to abort probing or reschedule the reset later.
 	 */
-	if (ACCESS_ONCE(efx->state) != STATE_READY)
+	if (READ_ONCE(efx->state) != STATE_READY)
 		return;
 
 	/* efx_process_channel() will no longer read events once a
@@ -2907,6 +2931,10 @@ static const struct pci_device_id efx_pci_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0a03),  /* SFC9220 PF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1a03),  /* SFC9220 VF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0b03),  /* SFC9250 PF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1b03),  /* SFC9250 VF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
 	{0}			/* end of list */
 };
@@ -2976,6 +3004,9 @@ static int efx_init_struct(struct efx_nic *efx,
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
+	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
+	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
+	BUILD_BUG_ON(MC_CMD_MAC_NSTATS - 1 != MC_CMD_MAC_GENERATION_END);
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
@@ -3244,7 +3275,7 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 
 	/* Determine netdevice features */
 	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
-			      NETIF_F_TSO | NETIF_F_RXCSUM);
+			      NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_RXALL);
 	if (efx->type->offload_features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
 		net_dev->features |= NETIF_F_TSO6;
 	/* Check whether device supports TSO */
@@ -3255,7 +3286,10 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO |
 				   NETIF_F_RXCSUM);
 
-	net_dev->hw_features = net_dev->features & ~efx->fixed_features;
+	net_dev->hw_features |= net_dev->features & ~efx->fixed_features;
+
+	/* Disable receiving frames with bad FCS, by default. */
+	net_dev->features &= ~NETIF_F_RXALL;
 
 	/* Disable VLAN filtering by default.  It may be enforced if
 	 * the feature is fixed (i.e. VLAN filters are required to

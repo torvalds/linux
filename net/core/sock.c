@@ -145,6 +145,8 @@
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
 
+static void sock_inuse_add(struct net *net, int val);
+
 /**
  * sk_ns_capable - General socket capability test
  * @sk: Socket to use a capability on or through
@@ -1469,8 +1471,6 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 		sk = kmalloc(prot->obj_size, priority);
 
 	if (sk != NULL) {
-		kmemcheck_annotate_bitfield(sk, flags);
-
 		if (security_sk_alloc(sk, family, priority))
 			goto out_free;
 
@@ -1533,8 +1533,11 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sk->sk_kern_sock = kern;
 		sock_lock_init(sk);
 		sk->sk_net_refcnt = kern ? 0 : 1;
-		if (likely(sk->sk_net_refcnt))
+		if (likely(sk->sk_net_refcnt)) {
 			get_net(net);
+			sock_inuse_add(net, 1);
+		}
+
 		sock_net_set(sk, net);
 		refcount_set(&sk->sk_wmem_alloc, 1);
 
@@ -1597,6 +1600,9 @@ void sk_destruct(struct sock *sk)
 
 static void __sk_free(struct sock *sk)
 {
+	if (likely(sk->sk_net_refcnt))
+		sock_inuse_add(sock_net(sk), -1);
+
 	if (unlikely(sock_diag_has_destroy_listeners(sk) && sk->sk_net_refcnt))
 		sock_diag_broadcast_destroy(sk);
 	else
@@ -1677,16 +1683,13 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_dst_pending_confirm = 0;
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
-
-		/* sk->sk_memcg will be populated at accept() time */
-		newsk->sk_memcg = NULL;
-
 		atomic_set(&newsk->sk_drops, 0);
 		newsk->sk_send_head	= NULL;
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 		atomic_set(&newsk->sk_zckey, 0);
 
 		sock_reset_flag(newsk, SOCK_DONE);
+		mem_cgroup_sk_alloc(newsk);
 		cgroup_sk_alloc(&newsk->sk_cgrp_data);
 
 		rcu_read_lock();
@@ -1718,6 +1721,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		atomic64_set(&newsk->sk_cookie, 0);
+		if (likely(newsk->sk_net_refcnt))
+			sock_inuse_add(sock_net(newsk), 1);
 
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
@@ -2346,16 +2351,18 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 
 	/* guarantee minimum buffer size under pressure */
 	if (kind == SK_MEM_RECV) {
-		if (atomic_read(&sk->sk_rmem_alloc) < prot->sysctl_rmem[0])
+		if (atomic_read(&sk->sk_rmem_alloc) < sk_get_rmem0(sk, prot))
 			return 1;
 
 	} else { /* SK_MEM_SEND */
+		int wmem0 = sk_get_wmem0(sk, prot);
+
 		if (sk->sk_type == SOCK_STREAM) {
-			if (sk->sk_wmem_queued < prot->sysctl_wmem[0])
+			if (sk->sk_wmem_queued < wmem0)
 				return 1;
-		} else if (refcount_read(&sk->sk_wmem_alloc) <
-			   prot->sysctl_wmem[0])
+		} else if (refcount_read(&sk->sk_wmem_alloc) < wmem0) {
 				return 1;
+		}
 	}
 
 	if (sk_has_memory_pressure(sk)) {
@@ -2496,7 +2503,7 @@ int sock_no_getname(struct socket *sock, struct sockaddr *saddr,
 }
 EXPORT_SYMBOL(sock_no_getname);
 
-unsigned int sock_no_poll(struct file *file, struct socket *sock, poll_table *pt)
+__poll_t sock_no_poll(struct file *file, struct socket *sock, poll_table *pt)
 {
 	return 0;
 }
@@ -2612,7 +2619,7 @@ static void sock_def_error_report(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_poll(&wq->wait, POLLERR);
+		wake_up_interruptible_poll(&wq->wait, EPOLLERR);
 	sk_wake_async(sk, SOCK_WAKE_IO, POLL_ERR);
 	rcu_read_unlock();
 }
@@ -2624,8 +2631,8 @@ static void sock_def_readable(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN | POLLPRI |
-						POLLRDNORM | POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN | EPOLLPRI |
+						EPOLLRDNORM | EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
 }
@@ -2642,8 +2649,8 @@ static void sock_def_write_space(struct sock *sk)
 	if ((refcount_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
 		wq = rcu_dereference(sk->sk_wq);
 		if (skwq_has_sleeper(wq))
-			wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
-						POLLWRNORM | POLLWRBAND);
+			wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
+						EPOLLWRNORM | EPOLLWRBAND);
 
 		/* Should agree with poll, otherwise some programs break */
 		if (sock_writeable(sk))
@@ -2685,7 +2692,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk_init_common(sk);
 	sk->sk_send_head	=	NULL;
 
-	init_timer(&sk->sk_timer);
+	timer_setup(&sk->sk_timer, NULL, 0);
 
 	sk->sk_allocation	=	GFP_KERNEL;
 	sk->sk_rcvbuf		=	sysctl_rmem_default;
@@ -2744,6 +2751,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_max_pacing_rate = ~0U;
 	sk->sk_pacing_rate = ~0U;
+	sk->sk_pacing_shift = 10;
 	sk->sk_incoming_cpu = -1;
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
@@ -3042,10 +3050,9 @@ struct prot_inuse {
 
 static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 
-#ifdef CONFIG_NET_NS
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
-	__this_cpu_add(net->core.inuse->val[prot->inuse_idx], val);
+	__this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 
@@ -3055,21 +3062,50 @@ int sock_prot_inuse_get(struct net *net, struct proto *prot)
 	int res = 0;
 
 	for_each_possible_cpu(cpu)
-		res += per_cpu_ptr(net->core.inuse, cpu)->val[idx];
+		res += per_cpu_ptr(net->core.prot_inuse, cpu)->val[idx];
 
 	return res >= 0 ? res : 0;
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
+static void sock_inuse_add(struct net *net, int val)
+{
+	this_cpu_add(*net->core.sock_inuse, val);
+}
+
+int sock_inuse_get(struct net *net)
+{
+	int cpu, res = 0;
+
+	for_each_possible_cpu(cpu)
+		res += *per_cpu_ptr(net->core.sock_inuse, cpu);
+
+	return res;
+}
+
+EXPORT_SYMBOL_GPL(sock_inuse_get);
+
 static int __net_init sock_inuse_init_net(struct net *net)
 {
-	net->core.inuse = alloc_percpu(struct prot_inuse);
-	return net->core.inuse ? 0 : -ENOMEM;
+	net->core.prot_inuse = alloc_percpu(struct prot_inuse);
+	if (net->core.prot_inuse == NULL)
+		return -ENOMEM;
+
+	net->core.sock_inuse = alloc_percpu(int);
+	if (net->core.sock_inuse == NULL)
+		goto out;
+
+	return 0;
+
+out:
+	free_percpu(net->core.prot_inuse);
+	return -ENOMEM;
 }
 
 static void __net_exit sock_inuse_exit_net(struct net *net)
 {
-	free_percpu(net->core.inuse);
+	free_percpu(net->core.prot_inuse);
+	free_percpu(net->core.sock_inuse);
 }
 
 static struct pernet_operations net_inuse_ops = {
@@ -3086,27 +3122,6 @@ static __init int net_inuse_init(void)
 }
 
 core_initcall(net_inuse_init);
-#else
-static DEFINE_PER_CPU(struct prot_inuse, prot_inuse);
-
-void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
-{
-	__this_cpu_add(prot_inuse.val[prot->inuse_idx], val);
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
-
-int sock_prot_inuse_get(struct net *net, struct proto *prot)
-{
-	int cpu, idx = prot->inuse_idx;
-	int res = 0;
-
-	for_each_possible_cpu(cpu)
-		res += per_cpu(prot_inuse, cpu).val[idx];
-
-	return res >= 0 ? res : 0;
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
-#endif
 
 static void assign_proto_idx(struct proto *prot)
 {
@@ -3131,6 +3146,10 @@ static inline void assign_proto_idx(struct proto *prot)
 }
 
 static inline void release_proto_idx(struct proto *prot)
+{
+}
+
+static void sock_inuse_add(struct net *net, int val)
 {
 }
 #endif
@@ -3172,8 +3191,10 @@ static int req_prot_init(const struct proto *prot)
 int proto_register(struct proto *prot, int alloc_slab)
 {
 	if (alloc_slab) {
-		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
+		prot->slab = kmem_cache_create_usercopy(prot->name,
+					prot->obj_size, 0,
 					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+					prot->useroffset, prot->usersize,
 					NULL);
 
 		if (prot->slab == NULL) {
@@ -3340,7 +3361,6 @@ static int proto_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proto_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= proto_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

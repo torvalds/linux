@@ -66,8 +66,7 @@ struct vchiq_openack_payload {
 	short version;
 };
 
-enum
-{
+enum {
 	QMFLAGS_IS_BLOCKING     = (1 << 0),
 	QMFLAGS_NO_MUTEX_LOCK   = (1 << 1),
 	QMFLAGS_NO_MUTEX_UNLOCK = (1 << 2)
@@ -129,7 +128,6 @@ static const char *const conn_state_names[] = {
 	"PAUSE_TIMEOUT",
 	"RESUME_TIMEOUT"
 };
-
 
 static void
 release_message_sync(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header);
@@ -213,7 +211,8 @@ find_service_by_port(VCHIQ_STATE_T *state, int localport)
 
 VCHIQ_SERVICE_T *
 find_service_for_instance(VCHIQ_INSTANCE_T instance,
-	VCHIQ_SERVICE_HANDLE_T handle) {
+	VCHIQ_SERVICE_HANDLE_T handle)
+{
 	VCHIQ_SERVICE_T *service;
 
 	spin_lock(&service_spinlock);
@@ -236,7 +235,8 @@ find_service_for_instance(VCHIQ_INSTANCE_T instance,
 
 VCHIQ_SERVICE_T *
 find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
-	VCHIQ_SERVICE_HANDLE_T handle) {
+	VCHIQ_SERVICE_HANDLE_T handle)
+{
 	VCHIQ_SERVICE_T *service;
 
 	spin_lock(&service_spinlock);
@@ -2168,7 +2168,6 @@ slot_handler_func(void *v)
 				break;
 			}
 
-
 		}
 
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
@@ -2176,7 +2175,6 @@ slot_handler_func(void *v)
 	}
 	return 0;
 }
-
 
 /* Called by the recycle thread */
 static int
@@ -2192,7 +2190,6 @@ recycle_func(void *v)
 	}
 	return 0;
 }
-
 
 /* Called by the sync thread */
 static int
@@ -2301,7 +2298,6 @@ sync_func(void *v)
 	return 0;
 }
 
-
 static void
 init_bulk_queue(VCHIQ_BULK_QUEUE_T *queue)
 {
@@ -2312,13 +2308,11 @@ init_bulk_queue(VCHIQ_BULK_QUEUE_T *queue)
 	queue->remove = 0;
 }
 
-
 inline const char *
 get_conn_state_name(VCHIQ_CONNSTATE_T conn_state)
 {
 	return conn_state_names[conn_state];
 }
-
 
 VCHIQ_SLOT_ZERO_T *
 vchiq_init_slots(void *mem_base, int mem_size)
@@ -2958,8 +2952,7 @@ vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd)
 
 	case VCHIQ_SRVSTATE_OPENSYNC:
 		mutex_lock(&state->sync_mutex);
-		/* Drop through */
-
+		/* fall through */
 	case VCHIQ_SRVSTATE_OPEN:
 		if (state->is_master || close_recvd) {
 			if (!do_abort_bulks(service))
@@ -3295,7 +3288,6 @@ vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T handle)
 
 	return status;
 }
-
 
 /* This function may be called by kernel threads or user threads.
  * User threads may receive VCHIQ_RETRY to indicate that a signal has been
@@ -3876,7 +3868,6 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 		vchiq_dump_platform_service_state(dump_context, service);
 }
 
-
 void
 vchiq_loud_error_header(void)
 {
@@ -3900,7 +3891,6 @@ vchiq_loud_error_footer(void)
 		"============================================================"
 		"================");
 }
-
 
 VCHIQ_STATUS_T vchiq_send_remote_use(VCHIQ_STATE_T *state)
 {

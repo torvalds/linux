@@ -15,9 +15,9 @@
  * back to the regular execution flow in .text.
  */
 #define _REFCOUNT_EXCEPTION				\
-	".pushsection .text.unlikely\n"			\
+	".pushsection .text..refcount\n"		\
 	"111:\tlea %[counter], %%" _ASM_CX "\n"		\
-	"112:\t" ASM_UD0 "\n"				\
+	"112:\t" ASM_UD2 "\n"				\
 	ASM_UNREACHABLE					\
 	".popsection\n"					\
 	"113:\n"					\
@@ -67,13 +67,13 @@ static __always_inline __must_check
 bool refcount_sub_and_test(unsigned int i, refcount_t *r)
 {
 	GEN_BINARY_SUFFIXED_RMWcc(LOCK_PREFIX "subl", REFCOUNT_CHECK_LT_ZERO,
-				  r->refs.counter, "er", i, "%0", e);
+				  r->refs.counter, "er", i, "%0", e, "cx");
 }
 
 static __always_inline __must_check bool refcount_dec_and_test(refcount_t *r)
 {
 	GEN_UNARY_SUFFIXED_RMWcc(LOCK_PREFIX "decl", REFCOUNT_CHECK_LT_ZERO,
-				 r->refs.counter, "%0", e);
+				 r->refs.counter, "%0", e, "cx");
 }
 
 static __always_inline __must_check

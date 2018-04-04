@@ -25,7 +25,7 @@ struct metadata_dst {
 	} u;
 };
 
-static inline struct metadata_dst *skb_metadata_dst(struct sk_buff *skb)
+static inline struct metadata_dst *skb_metadata_dst(const struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = (struct metadata_dst *) skb_dst(skb);
 
@@ -35,7 +35,8 @@ static inline struct metadata_dst *skb_metadata_dst(struct sk_buff *skb)
 	return NULL;
 }
 
-static inline struct ip_tunnel_info *skb_tunnel_info(struct sk_buff *skb)
+static inline struct ip_tunnel_info *
+skb_tunnel_info(const struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
 	struct dst_entry *dst;
@@ -87,6 +88,7 @@ static inline int skb_metadata_dst_cmp(const struct sk_buff *skb_a,
 void metadata_dst_free(struct metadata_dst *);
 struct metadata_dst *metadata_dst_alloc(u8 optslen, enum metadata_type type,
 					gfp_t flags);
+void metadata_dst_free_percpu(struct metadata_dst __percpu *md_dst);
 struct metadata_dst __percpu *
 metadata_dst_alloc_percpu(u8 optslen, enum metadata_type type, gfp_t flags);
 

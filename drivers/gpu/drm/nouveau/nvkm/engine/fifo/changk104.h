@@ -13,12 +13,9 @@ struct gk104_fifo_chan {
 	struct list_head head;
 	bool killed;
 
-	struct nvkm_gpuobj *pgd;
-	struct nvkm_vm *vm;
-
 	struct {
 		struct nvkm_gpuobj *inst;
-		struct nvkm_vma vma;
+		struct nvkm_vma *vma;
 	} engn[NVKM_SUBDEV_NR];
 };
 

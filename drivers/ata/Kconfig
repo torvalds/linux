@@ -92,6 +92,25 @@ config SATA_AHCI
 
 	  If unsure, say N.
 
+config SATA_MOBILE_LPM_POLICY
+	int "Default SATA Link Power Management policy for mobile chipsets"
+	range 0 4
+	default 0
+	depends on SATA_AHCI
+	help
+	  Select the Default SATA Link Power Management (LPM) policy to use
+	  for mobile / laptop variants of chipsets / "South Bridges".
+
+	  The value set has the following meanings:
+		0 => Keep firmware settings
+		1 => Maximum performance
+		2 => Medium power
+		3 => Medium power with Device Initiated PM enabled
+		4 => Minimum power
+
+	  Note "Minimum power" is known to cause issues, including disk
+	  corruption, with some disks and should not be used.
+
 config SATA_AHCI_PLATFORM
 	tristate "Platform AHCI SATA support"
 	help
@@ -924,15 +943,6 @@ config PATA_WINBOND
 endif # ATA_BMDMA
 
 comment "PIO-only SFF controllers"
-
-config PATA_AT32
-	tristate "Atmel AVR32 PATA support (Experimental)"
-	depends on AVR32 && PLATFORM_AT32AP
-	help
-	  This option enables support for the IDE devices on the
-	  Atmel AT32AP platform.
-
-	  If unsure, say N.
 
 config PATA_CMD640_PCI
 	tristate "CMD640 PCI PATA support (Experimental)"

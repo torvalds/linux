@@ -1,0 +1,38 @@
+[
+    {
+        "PEBS": "2",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts when a memory load of a uop spans a page boundary (a split) is retired.",
+        "EventCode": "0x13",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MISALIGN_MEM_REF.LOAD_PAGE_SPLIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Load uops that split a page (Precise event capable)"
+    },
+    {
+        "PEBS": "2",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts when a memory store of a uop spans a page boundary (a split) is retired.",
+        "EventCode": "0x13",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MISALIGN_MEM_REF.STORE_PAGE_SPLIT",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Store uops that split a page (Precise event capable)"
+    },
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts machine clears due to memory ordering issues.  This occurs when a snoop request happens and the machine is uncertain if memory ordering will be preserved - as another core is in the process of modifying the data.",
+        "EventCode": "0xC3",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "PEBScounters": "0,1,2,3",
+        "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
+        "PDIR_COUNTER": "na",
+        "SampleAfterValue": "20003",
+        "BriefDescription": "Machine clears due to memory ordering issue"
+    }
+]

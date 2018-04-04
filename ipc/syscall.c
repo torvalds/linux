@@ -172,7 +172,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 			       COMPAT_SHMLBA);
 		if (err < 0)
 			return err;
-		return put_user(raddr, (compat_ulong_t *)compat_ptr(third));
+		return put_user(raddr, (compat_ulong_t __user *)compat_ptr(third));
 	}
 	case SHMDT:
 		return sys_shmdt(compat_ptr(ptr));

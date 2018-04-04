@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 /*
@@ -162,10 +158,10 @@ static ssize_t dynamic_pool_show(struct device *dev,
 	return ret;
 };
 
-static DEVICE_ATTR(active_bo, 0444, active_bo_show, NULL);
-static DEVICE_ATTR(free_bo, 0444, free_bo_show, NULL);
-static DEVICE_ATTR(reserved_pool, 0444, reserved_pool_show, NULL);
-static DEVICE_ATTR(dynamic_pool, 0444, dynamic_pool_show, NULL);
+static DEVICE_ATTR_RO(active_bo);
+static DEVICE_ATTR_RO(free_bo);
+static DEVICE_ATTR_RO(reserved_pool);
+static DEVICE_ATTR_RO(dynamic_pool);
 
 static struct attribute *sysfs_attrs_ctrl[] = {
 	&dev_attr_active_bo.attr,

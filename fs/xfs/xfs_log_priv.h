@@ -592,9 +592,9 @@ xlog_valid_lsn(
 	 * a transiently forward state. Instead, we can see the LSN in a
 	 * transiently behind state if we happen to race with a cycle wrap.
 	 */
-	cur_cycle = ACCESS_ONCE(log->l_curr_cycle);
+	cur_cycle = READ_ONCE(log->l_curr_cycle);
 	smp_rmb();
-	cur_block = ACCESS_ONCE(log->l_curr_block);
+	cur_block = READ_ONCE(log->l_curr_block);
 
 	if ((CYCLE_LSN(lsn) > cur_cycle) ||
 	    (CYCLE_LSN(lsn) == cur_cycle && BLOCK_LSN(lsn) > cur_block)) {

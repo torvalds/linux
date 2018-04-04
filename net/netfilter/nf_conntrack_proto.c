@@ -27,6 +27,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_log.h>
 
 static struct nf_conntrack_l4proto __rcu **nf_ct_protos[NFPROTO_NUMPROTO] __read_mostly;
 struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[NFPROTO_NUMPROTO] __read_mostly;
@@ -63,6 +64,52 @@ nf_ct_unregister_sysctl(struct ctl_table_header **header,
 	*header = NULL;
 	*table = NULL;
 }
+
+__printf(5, 6)
+void nf_l4proto_log_invalid(const struct sk_buff *skb,
+			    struct net *net,
+			    u16 pf, u8 protonum,
+			    const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (net->ct.sysctl_log_invalid != protonum ||
+	    net->ct.sysctl_log_invalid != IPPROTO_RAW)
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
+		      "nf_ct_proto_%d: %pV ", protonum, &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(nf_l4proto_log_invalid);
+
+__printf(3, 4)
+void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
+			       const struct nf_conn *ct,
+			       const char *fmt, ...)
+{
+	struct va_format vaf;
+	struct net *net;
+	va_list args;
+
+	net = nf_ct_net(ct);
+	if (likely(net->ct.sysctl_log_invalid == 0))
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	nf_l4proto_log_invalid(skb, net, nf_ct_l3num(ct),
+			       nf_ct_protonum(ct), "%pV", &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(nf_ct_l4proto_log_invalid);
 #endif
 
 const struct nf_conntrack_l4proto *
@@ -125,7 +172,7 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
-int nf_ct_netns_get(struct net *net, u8 nfproto)
+static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 {
 	const struct nf_conntrack_l3proto *l3proto;
 	int ret;
@@ -150,9 +197,33 @@ int nf_ct_netns_get(struct net *net, u8 nfproto)
 
 	return ret;
 }
+
+int nf_ct_netns_get(struct net *net, u8 nfproto)
+{
+	int err;
+
+	if (nfproto == NFPROTO_INET) {
+		err = nf_ct_netns_do_get(net, NFPROTO_IPV4);
+		if (err < 0)
+			goto err1;
+		err = nf_ct_netns_do_get(net, NFPROTO_IPV6);
+		if (err < 0)
+			goto err2;
+	} else {
+		err = nf_ct_netns_do_get(net, nfproto);
+		if (err < 0)
+			goto err1;
+	}
+	return 0;
+
+err2:
+	nf_ct_netns_put(net, NFPROTO_IPV4);
+err1:
+	return err;
+}
 EXPORT_SYMBOL_GPL(nf_ct_netns_get);
 
-void nf_ct_netns_put(struct net *net, u8 nfproto)
+static void nf_ct_netns_do_put(struct net *net, u8 nfproto)
 {
 	const struct nf_conntrack_l3proto *l3proto;
 
@@ -170,6 +241,15 @@ void nf_ct_netns_put(struct net *net, u8 nfproto)
 		l3proto->net_ns_put(net);
 
 	nf_ct_l3proto_module_put(nfproto);
+}
+
+void nf_ct_netns_put(struct net *net, uint8_t nfproto)
+{
+	if (nfproto == NFPROTO_INET) {
+		nf_ct_netns_do_put(net, NFPROTO_IPV4);
+		nf_ct_netns_do_put(net, NFPROTO_IPV6);
+	} else
+		nf_ct_netns_do_put(net, nfproto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_put);
 
@@ -305,14 +385,14 @@ void nf_ct_l4proto_unregister_sysctl(struct net *net,
 
 /* FIXME: Allow NULL functions and sub in pointers to generic for
    them. --RR */
-int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *l4proto)
+int nf_ct_l4proto_register_one(const struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 
 	if (l4proto->l3proto >= ARRAY_SIZE(nf_ct_protos))
 		return -EBUSY;
 
-	if ((l4proto->to_nlattr && !l4proto->nlattr_size) ||
+	if ((l4proto->to_nlattr && l4proto->nlattr_size == 0) ||
 	    (l4proto->tuple_to_nlattr && !l4proto->nlattr_tuple_size))
 		return -EINVAL;
 
@@ -347,12 +427,6 @@ int nf_ct_l4proto_register_one(struct nf_conntrack_l4proto *l4proto)
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-
-	l4proto->nla_size = 0;
-	if (l4proto->nlattr_size)
-		l4proto->nla_size += l4proto->nlattr_size();
-	if (l4proto->nlattr_tuple_size)
-		l4proto->nla_size += 3 * l4proto->nlattr_tuple_size();
 
 	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
 			   l4proto);
@@ -424,7 +498,7 @@ void nf_ct_l4proto_pernet_unregister_one(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_unregister_one);
 
-int nf_ct_l4proto_register(struct nf_conntrack_l4proto *l4proto[],
+int nf_ct_l4proto_register(const struct nf_conntrack_l4proto * const l4proto[],
 			   unsigned int num_proto)
 {
 	int ret = -EINVAL, ver;
@@ -446,7 +520,7 @@ int nf_ct_l4proto_register(struct nf_conntrack_l4proto *l4proto[],
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_register);
 
 int nf_ct_l4proto_pernet_register(struct net *net,
-				  struct nf_conntrack_l4proto *const l4proto[],
+				  const struct nf_conntrack_l4proto *const l4proto[],
 				  unsigned int num_proto)
 {
 	int ret = -EINVAL;
@@ -467,7 +541,7 @@ int nf_ct_l4proto_pernet_register(struct net *net,
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_pernet_register);
 
-void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *l4proto[],
+void nf_ct_l4proto_unregister(const struct nf_conntrack_l4proto * const l4proto[],
 			      unsigned int num_proto)
 {
 	mutex_lock(&nf_ct_proto_mutex);
@@ -477,12 +551,12 @@ void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *l4proto[],
 
 	synchronize_net();
 	/* Remove all contrack entries for this protocol */
-	nf_ct_iterate_destroy(kill_l4proto, l4proto);
+	nf_ct_iterate_destroy(kill_l4proto, (void *)l4proto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_unregister);
 
 void nf_ct_l4proto_pernet_unregister(struct net *net,
-				struct nf_conntrack_l4proto *const l4proto[],
+				const struct nf_conntrack_l4proto *const l4proto[],
 				unsigned int num_proto)
 {
 	while (num_proto-- != 0)

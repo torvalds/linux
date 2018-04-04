@@ -1,12 +1,8 @@
-/*
- * Copyright (C) 2012 Samsung Electronics.
- * Kyungmin Park <kyungmin.park@samsung.com>
- * Tomasz Figa <t.figa@samsung.com>
- *
- * This program is free software,you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2012 Samsung Electronics.
+// Kyungmin Park <kyungmin.park@samsung.com>
+// Tomasz Figa <t.figa@samsung.com>
 
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -70,12 +66,7 @@ static int exynos_cpu_boot(int cpu)
 
 	/*
 	 * The second parameter of SMC_CMD_CPU1BOOT command means CPU id.
-	 * But, Exynos4212 has only one secondary CPU so second parameter
-	 * isn't used for informing secure firmware about CPU id.
 	 */
-	if (soc_is_exynos4212())
-		cpu = 0;
-
 	exynos_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
 	return 0;
 }

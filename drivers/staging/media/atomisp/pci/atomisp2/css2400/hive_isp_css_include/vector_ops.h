@@ -15,17 +15,16 @@
 #ifndef __VECTOR_OPS_H_INCLUDED__
 #define __VECTOR_OPS_H_INCLUDED__
 
-#include "storage_class.h"
 
 #include "vector_ops_local.h"
 
 #ifndef __INLINE_VECTOR_OPS__
-#define STORAGE_CLASS_VECTOR_OPS_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_VECTOR_OPS_H extern
 #define STORAGE_CLASS_VECTOR_OPS_C
 #include "vector_ops_public.h"
 #else  /* __INLINE_VECTOR_OPS__ */
-#define STORAGE_CLASS_VECTOR_OPS_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_VECTOR_OPS_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_VECTOR_OPS_H static inline
+#define STORAGE_CLASS_VECTOR_OPS_C static inline
 #include "vector_ops_private.h"
 #endif /* __INLINE_VECTOR_OPS__ */
 

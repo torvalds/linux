@@ -112,12 +112,14 @@ power9_save_additional_sprs:
 	std	r4, STOP_HFSCR(r13)
 
 	mfspr	r3, SPRN_MMCRA
-	mfspr	r4, SPRN_MMCR1
+	mfspr	r4, SPRN_MMCR0
 	std	r3, STOP_MMCRA(r13)
-	std	r4, STOP_MMCR1(r13)
+	std	r4, _MMCR0(r1)
 
-	mfspr	r3, SPRN_MMCR2
-	std	r3, STOP_MMCR2(r13)
+	mfspr	r3, SPRN_MMCR1
+	mfspr	r4, SPRN_MMCR2
+	std	r3, STOP_MMCR1(r13)
+	std	r4, STOP_MMCR2(r13)
 	blr
 
 power9_restore_additional_sprs:
@@ -135,11 +137,14 @@ power9_restore_additional_sprs:
 	ld	r4, STOP_MMCRA(r13)
 	mtspr	SPRN_HFSCR, r3
 	mtspr	SPRN_MMCRA, r4
-	/* We have already restored PACA_MMCR0 */
-	ld	r3, STOP_MMCR1(r13)
-	ld	r4, STOP_MMCR2(r13)
-	mtspr	SPRN_MMCR1, r3
-	mtspr	SPRN_MMCR2, r4
+
+	ld	r3, _MMCR0(r1)
+	ld	r4, STOP_MMCR1(r13)
+	mtspr	SPRN_MMCR0, r3
+	mtspr	SPRN_MMCR1, r4
+
+	ld	r3, STOP_MMCR2(r13)
+	mtspr	SPRN_MMCR2, r3
 	blr
 
 /*
@@ -319,20 +324,13 @@ enter_winkle:
 /*
  * r3 - PSSCR value corresponding to the requested stop state.
  */
+power_enter_stop:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-power_enter_stop_kvm_rm:
-	/*
-	 * This is currently unused because POWER9 KVM does not have to
-	 * gather secondary threads into sibling mode, but the code is
-	 * here in case that function is required.
-	 *
-	 * Tell KVM we're entering idle.
-	 */
+	/* Tell KVM we're entering idle */
 	li	r4,KVM_HWTHREAD_IN_IDLE
 	/* DO THIS IN REAL MODE!  See comment above. */
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
-power_enter_stop:
 /*
  * Check if we are executing the lite variant with ESL=EC=0
  */
@@ -357,13 +355,15 @@ power_enter_stop:
 	b 	pnv_wakeup_noloss
 
 .Lhandle_esl_ec_set:
+BEGIN_FTR_SECTION
 	/*
-	 * POWER9 DD2 can incorrectly set PMAO when waking up after a
-	 * state-loss idle. Saving and restoring MMCR0 over idle is a
+	 * POWER9 DD2.0 or earlier can incorrectly set PMAO when waking up after
+	 * a state-loss idle. Saving and restoring MMCR0 over idle is a
 	 * workaround.
 	 */
 	mfspr	r4,SPRN_MMCR0
 	std	r4,_MMCR0(r1)
+END_FTR_SECTION_IFCLR(CPU_FTR_POWER9_DD2_1)
 
 /*
  * Check if the requested state is a deep idle state.
@@ -496,18 +496,6 @@ pnv_powersave_wakeup_mce:
 
 	b	pnv_powersave_wakeup
 
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-kvm_start_guest_check:
-	li	r0,KVM_HWTHREAD_IN_KERNEL
-	stb	r0,HSTATE_HWTHREAD_STATE(r13)
-	/* Order setting hwthread_state vs. testing hwthread_req */
-	sync
-	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
-	cmpwi	r0,0
-	beqlr
-	b	kvm_start_guest
-#endif
-
 /*
  * Called from reset vector for powersave wakeups.
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
@@ -532,9 +520,15 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	mr	r3,r12
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-BEGIN_FTR_SECTION
-	bl	kvm_start_guest_check
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+	li	r0,KVM_HWTHREAD_IN_KERNEL
+	stb	r0,HSTATE_HWTHREAD_STATE(r13)
+	/* Order setting hwthread_state vs. testing hwthread_req */
+	sync
+	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
+	cmpwi	r0,0
+	beq	1f
+	b	kvm_start_guest
+1:
 #endif
 
 	/* Return SRR1 from power7_nap() */
@@ -555,15 +549,17 @@ pnv_restore_hyp_resource_arch300:
 	 * then clear bit 60 in MMCRA to ensure the PMU starts running.
 	 */
 	blt	cr3,1f
+BEGIN_FTR_SECTION
 	PPC_INVALIDATE_ERAT
 	ld	r1,PACAR1(r13)
+	ld	r4,_MMCR0(r1)
+	mtspr	SPRN_MMCR0,r4
+END_FTR_SECTION_IFCLR(CPU_FTR_POWER9_DD2_1)
 	mfspr	r4,SPRN_MMCRA
 	ori	r4,r4,(1 << (63-60))
 	mtspr	SPRN_MMCRA,r4
 	xori	r4,r4,(1 << (63-60))
 	mtspr	SPRN_MMCRA,r4
-	ld	r4,_MMCR0(r1)
-	mtspr	SPRN_MMCR0,r4
 1:
 	/*
 	 * POWER ISA 3. Use PSSCR to determine if we

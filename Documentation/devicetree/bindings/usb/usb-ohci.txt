@@ -19,7 +19,7 @@ Optional properties:
 
 Example:
 
-	ohci0: usb@01c14400 {
+	ohci0: usb@1c14400 {
 		compatible = "allwinner,sun4i-a10-ohci", "generic-ohci";
 		reg = <0x01c14400 0x100>;
 		interrupts = <64>;

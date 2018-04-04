@@ -62,12 +62,12 @@
 		};
 	};
 
-	sram0: sram@00300000 {
+	sram0: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x14000>;
 	};
 
-	sram1: sram@00500000 {
+	sram1: sram@500000 {
 		compatible = "mmio-sram";
 		reg = <0x00500000 0x4000>;
 	};
@@ -389,7 +389,9 @@
 			};
 
 			tcb0: timer@fff7c000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfff7c000 0x100>;
 				interrupts = <19 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb_clk>, <&slow_xtal>;
@@ -999,7 +1001,7 @@
 			};
 		};
 
-		fb0: fb@0x00700000 {
+		fb0: fb@700000 {
 			compatible = "atmel,at91sam9263-lcdc";
 			reg = <0x00700000 0x1000>;
 			interrupts = <26 IRQ_TYPE_LEVEL_HIGH 3>;
@@ -1010,7 +1012,7 @@
 			status = "disabled";
 		};
 
-		usb0: ohci@00a00000 {
+		usb0: ohci@a00000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00a00000 0x100000>;
 			interrupts = <29 IRQ_TYPE_LEVEL_HIGH 2>;

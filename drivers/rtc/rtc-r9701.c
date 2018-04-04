@@ -164,17 +164,11 @@ static int r9701_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int r9701_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static struct spi_driver r9701_driver = {
 	.driver = {
 		.name	= "rtc-r9701",
 	},
 	.probe	= r9701_probe,
-	.remove = r9701_remove,
 };
 
 module_spi_driver(r9701_driver);

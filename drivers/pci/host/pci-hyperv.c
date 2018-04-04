@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) Microsoft Corporation.
  *
@@ -34,17 +35,6 @@
  * read and write handlers for config space must be aware of this mechanism.
  * Similarly, device setup and teardown involves messages sent to and from
  * the PCI back-end driver in Hyper-V.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
  */
 
 #include <linux/kernel.h>
@@ -879,7 +869,7 @@ static void hv_irq_unmask(struct irq_data *data)
 	int cpu;
 	u64 res;
 
-	dest = irq_data_get_affinity_mask(data);
+	dest = irq_data_get_effective_affinity_mask(data);
 	pdev = msi_desc_to_pci_dev(msi_desc);
 	pbus = pdev->bus;
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
@@ -985,9 +975,7 @@ static u32 hv_compose_msi_req_v1(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode =
-		(apic->irq_delivery_mode == dest_LowestPrio) ?
-			dest_LowestPrio : dest_Fixed;
+	int_pkt->int_desc.delivery_mode = dest_Fixed;
 
 	/*
 	 * Create MSI w/ dummy vCPU set, overwritten by subsequent retarget in
@@ -1008,9 +996,7 @@ static u32 hv_compose_msi_req_v2(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode =
-		(apic->irq_delivery_mode == dest_LowestPrio) ?
-			dest_LowestPrio : dest_Fixed;
+	int_pkt->int_desc.delivery_mode = dest_Fixed;
 
 	/*
 	 * Create MSI w/ dummy vCPU set targeting just one vCPU, overwritten
@@ -1042,6 +1028,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct hv_pci_dev *hpdev;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
+	struct cpumask *dest;
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
 	struct {
@@ -1056,6 +1043,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	int ret;
 
 	pdev = msi_desc_to_pci_dev(irq_data_get_msi_desc(data));
+	dest = irq_data_get_effective_affinity_mask(data);
 	pbus = pdev->bus;
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
 	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
@@ -1081,14 +1069,14 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	switch (pci_protocol_version) {
 	case PCI_PROTOCOL_VERSION_1_1:
 		size = hv_compose_msi_req_v1(&ctxt.int_pkts.v1,
-					irq_data_get_affinity_mask(data),
+					dest,
 					hpdev->desc.win_slot.slot,
 					cfg->vector);
 		break;
 
 	case PCI_PROTOCOL_VERSION_1_2:
 		size = hv_compose_msi_req_v2(&ctxt.int_pkts.v2,
-					irq_data_get_affinity_mask(data),
+					dest,
 					hpdev->desc.win_slot.slot,
 					cfg->vector);
 		break;

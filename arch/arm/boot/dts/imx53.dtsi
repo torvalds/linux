@@ -80,7 +80,7 @@
 		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
-	tzic: tz-interrupt-controller@0fffc000 {
+	tzic: tz-interrupt-controller@fffc000 {
 		compatible = "fsl,imx53-tzic", "fsl,tzic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
@@ -114,6 +114,28 @@
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupt-parent = <&tzic>;
+		interrupts = <77>;
+	};
+
+	usbphy0: usbphy-0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
+	};
+
+	usbphy1: usbphy-1 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
 	};
 
 	soc {
@@ -299,20 +321,6 @@
 				reg = <0x53f00000 0x60>;
 			};
 
-			usbphy0: usbphy@0 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
-			};
-
-			usbphy1: usbphy@1 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
-			};
-
 			usbotg: usb@53f80000 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
@@ -433,13 +441,11 @@
 				clock-names = "ipg", "per";
 			};
 
-			srtc: srtc@53fa4000 {
-				compatible = "fsl,imx53-rtc", "fsl,imx25-rtc";
+			srtc: rtc@53fa4000 {
+				compatible = "fsl,imx53-rtc";
 				reg = <0x53fa4000 0x4000>;
 				interrupts = <24>;
-				interrupt-parent = <&tzic>;
 				clocks = <&clks IMX5_CLK_SRTC_GATE>;
-				clock-names = "ipg";
 			};
 
 			iomuxc: iomuxc@53fa8000 {
@@ -545,7 +551,7 @@
 			};
 
 			can1: can@53fc8000 {
-				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx53-flexcan";
 				reg = <0x53fc8000 0x4000>;
 				interrupts = <82>;
 				clocks = <&clks IMX5_CLK_CAN1_IPG_GATE>,
@@ -555,7 +561,7 @@
 			};
 
 			can2: can@53fcc000 {
-				compatible = "fsl,imx53-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx53-flexcan";
 				reg = <0x53fcc000 0x4000>;
 				interrupts = <83>;
 				clocks = <&clks IMX5_CLK_CAN2_IPG_GATE>,
@@ -821,11 +827,6 @@
 			compatible = "mmio-sram";
 			reg = <0xf8000000 0x20000>;
 			clocks = <&clks IMX5_CLK_OCRAM>;
-		};
-
-		pmu {
-			compatible = "arm,cortex-a8-pmu";
-			interrupts = <77>;
 		};
 	};
 };

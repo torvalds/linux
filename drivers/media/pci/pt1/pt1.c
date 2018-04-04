@@ -4,7 +4,7 @@
  * Copyright (C) 2009 HIRANO Takahito <hiranotaka@zng.info>
  *
  * based on pt1dvr - http://pt1dvr.sourceforge.jp/
- * 	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
+ *	by Tomoaki Ishikawa <tomy@users.sourceforge.jp>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,11 +27,11 @@
 #include <linux/freezer.h>
 #include <linux/ratelimit.h>
 
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dmxdev.h"
-#include "dvb_net.h"
-#include "dvb_frontend.h"
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_net.h>
+#include <media/dvb_frontend.h>
 
 #include "va1j5jf8007t.h"
 #include "va1j5jf8007s.h"
@@ -116,8 +116,8 @@ static u32 pt1_read_reg(struct pt1 *pt1, int reg)
 	return readl(pt1->regs + reg * 4);
 }
 
-static int pt1_nr_tables = 8;
-module_param_named(nr_tables, pt1_nr_tables, int, 0);
+static unsigned int pt1_nr_tables = 8;
+module_param_named(nr_tables, pt1_nr_tables, uint, 0);
 
 static void pt1_increment_table_count(struct pt1 *pt1)
 {
@@ -443,6 +443,9 @@ static int pt1_init_tables(struct pt1 *pt1)
 	int i, ret;
 	u32 first_pfn, pfn;
 
+	if (!pt1_nr_tables)
+		return 0;
+
 	tables = vmalloc(sizeof(struct pt1_table) * pt1_nr_tables);
 	if (tables == NULL)
 		return -ENOMEM;
@@ -450,12 +453,10 @@ static int pt1_init_tables(struct pt1 *pt1)
 	pt1_init_table_count(pt1);
 
 	i = 0;
-	if (pt1_nr_tables) {
-		ret = pt1_init_table(pt1, &tables[0], &first_pfn);
-		if (ret)
-			goto err;
-		i++;
-	}
+	ret = pt1_init_table(pt1, &tables[0], &first_pfn);
+	if (ret)
+		goto err;
+	i++;
 
 	while (i < pt1_nr_tables) {
 		ret = pt1_init_table(pt1, &tables[i], &pfn);

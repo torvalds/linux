@@ -209,6 +209,7 @@ config ALPHA_EIGER
 
 config ALPHA_JENSEN
 	bool "Jensen"
+	depends on BROKEN
 	help
 	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
 	  of the first-generation Alpha systems. A number of these systems
@@ -506,7 +507,7 @@ config ALPHA_QEMU
 
 	  Generic kernels will auto-detect QEMU.  But when building a
 	  system-specific kernel, the assumption is that we want to
-	  elimiate as many runtime tests as possible.
+	  eliminate as many runtime tests as possible.
 
 	  If unsure, say N.
 

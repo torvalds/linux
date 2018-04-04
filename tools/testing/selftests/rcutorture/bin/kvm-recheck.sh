@@ -25,7 +25,7 @@
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 PATH=`pwd`/tools/testing/selftests/rcutorture/bin:$PATH; export PATH
-. tools/testing/selftests/rcutorture/bin/functions.sh
+. functions.sh
 for rd in "$@"
 do
 	firsttime=1

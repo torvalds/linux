@@ -93,7 +93,7 @@ typedef struct {
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long addr_limit;
+	unsigned long slb_addr_limit;
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif
@@ -107,6 +107,16 @@ typedef struct {
 #endif
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	struct list_head iommu_group_mem_list;
+#endif
+
+#ifdef CONFIG_PPC_MEM_KEYS
+	/*
+	 * Each bit represents one protection key.
+	 * bit set   -> key allocated
+	 * bit unset -> key available for allocation
+	 */
+	u32 pkey_allocation_map;
+	s16 execute_only_pkey; /* key holding execute-only protection */
 #endif
 } mm_context_t;
 

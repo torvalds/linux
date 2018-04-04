@@ -13,11 +13,17 @@ Required Properties:
 	- "hisilicon,hi3660-pmuctrl"
 	- "hisilicon,hi3660-sctrl"
 	- "hisilicon,hi3660-iomcu"
+	- "hisilicon,hi3660-stub-clk"
 
 - reg: physical base address of the controller and length of memory mapped
   region.
 
 - #clock-cells: should be 1.
+
+Optional Properties:
+
+- mboxes: Phandle to the mailbox for sending message to MCU.
+            (See: ../mailbox/hisilicon,hi3660-mailbox.txt for more info)
 
 Each clock is assigned an identifier and client nodes use this identifier
 to specify the clock which they consume.

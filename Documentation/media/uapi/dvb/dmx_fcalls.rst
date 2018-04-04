@@ -13,6 +13,8 @@ Demux Function Calls
     dmx-fclose
     dmx-fread
     dmx-fwrite
+    dmx-mmap
+    dmx-munmap
     dmx-start
     dmx-stop
     dmx-set-filter
@@ -22,3 +24,7 @@ Demux Function Calls
     dmx-get-pes-pids
     dmx-add-pid
     dmx-remove-pid
+    dmx-reqbufs
+    dmx-querybuf
+    dmx-expbuf
+    dmx-qbuf

@@ -46,8 +46,8 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 #endif /* IXGBE_FCOE */
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	int i;
-	u16 reg_idx;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u16 reg_idx, pool;
+	u8 tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (tcs <= 1)
@@ -58,12 +58,16 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 		return false;
 
 	/* start at VMDq register offset for SR-IOV enabled setups */
+	pool = 0;
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
-	for (i = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
+	for (i = 0, pool = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
 		/* If we are greater than indices move to next pool */
-		if ((reg_idx & ~vmdq->mask) >= tcs)
+		if ((reg_idx & ~vmdq->mask) >= tcs) {
+			pool++;
 			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		}
 		adapter->rx_ring[i]->reg_idx = reg_idx;
+		adapter->rx_ring[i]->netdev = pool ? NULL : adapter->netdev;
 	}
 
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
@@ -92,6 +96,7 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 		for (i = fcoe->offset; i < adapter->num_rx_queues; i++) {
 			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask) + fcoe_tc;
 			adapter->rx_ring[i]->reg_idx = reg_idx;
+			adapter->rx_ring[i]->netdev = adapter->netdev;
 			reg_idx++;
 		}
 
@@ -111,9 +116,8 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
 				    unsigned int *tx, unsigned int *rx)
 {
-	struct net_device *dev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u8 num_tcs = netdev_get_num_tc(dev);
+	u8 num_tcs = adapter->hw_tcs;
 
 	*tx = 0;
 	*rx = 0;
@@ -168,10 +172,9 @@ static void ixgbe_get_first_reg_idx(struct ixgbe_adapter *adapter, u8 tc,
  **/
 static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 {
-	struct net_device *dev = adapter->netdev;
+	u8 num_tcs = adapter->hw_tcs;
 	unsigned int tx_idx, rx_idx;
 	int tc, offset, rss_i, i;
-	u8 num_tcs = netdev_get_num_tc(dev);
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (num_tcs <= 1)
@@ -184,6 +187,7 @@ static bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 		for (i = 0; i < rss_i; i++, tx_idx++, rx_idx++) {
 			adapter->tx_ring[offset + i]->reg_idx = tx_idx;
 			adapter->rx_ring[offset + i]->reg_idx = rx_idx;
+			adapter->rx_ring[offset + i]->netdev = adapter->netdev;
 			adapter->tx_ring[offset + i]->dcb_tc = tc;
 			adapter->rx_ring[offset + i]->dcb_tc = tc;
 		}
@@ -208,14 +212,15 @@ static bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
 #endif /* IXGBE_FCOE */
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
 	struct ixgbe_ring_feature *rss = &adapter->ring_feature[RING_F_RSS];
+	u16 reg_idx, pool;
 	int i;
-	u16 reg_idx;
 
 	/* only proceed if VMDq is enabled */
 	if (!(adapter->flags & IXGBE_FLAG_VMDQ_ENABLED))
 		return false;
 
 	/* start at VMDq register offset for SR-IOV enabled setups */
+	pool = 0;
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
 	for (i = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
 #ifdef IXGBE_FCOE
@@ -224,15 +229,20 @@ static bool ixgbe_cache_ring_sriov(struct ixgbe_adapter *adapter)
 			break;
 #endif
 		/* If we are greater than indices move to next pool */
-		if ((reg_idx & ~vmdq->mask) >= rss->indices)
+		if ((reg_idx & ~vmdq->mask) >= rss->indices) {
+			pool++;
 			reg_idx = __ALIGN_MASK(reg_idx, ~vmdq->mask);
+		}
 		adapter->rx_ring[i]->reg_idx = reg_idx;
+		adapter->rx_ring[i]->netdev = pool ? NULL : adapter->netdev;
 	}
 
 #ifdef IXGBE_FCOE
 	/* FCoE uses a linear block of queues so just assigning 1:1 */
-	for (; i < adapter->num_rx_queues; i++, reg_idx++)
+	for (; i < adapter->num_rx_queues; i++, reg_idx++) {
 		adapter->rx_ring[i]->reg_idx = reg_idx;
+		adapter->rx_ring[i]->netdev = adapter->netdev;
+	}
 
 #endif
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
@@ -269,8 +279,10 @@ static bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
 {
 	int i, reg_idx;
 
-	for (i = 0; i < adapter->num_rx_queues; i++)
+	for (i = 0; i < adapter->num_rx_queues; i++) {
 		adapter->rx_ring[i]->reg_idx = i;
+		adapter->rx_ring[i]->netdev = adapter->netdev;
+	}
 	for (i = 0, reg_idx = 0; i < adapter->num_tx_queues; i++, reg_idx++)
 		adapter->tx_ring[i]->reg_idx = reg_idx;
 	for (i = 0; i < adapter->num_xdp_queues; i++, reg_idx++)
@@ -340,7 +352,7 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 #ifdef IXGBE_FCOE
 	u16 fcoe_i = 0;
 #endif
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (tcs <= 1)
@@ -349,6 +361,9 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 	/* verify we have VMDq enabled before proceeding */
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return false;
+
+	/* limit VMDq instances on the PF by number of Tx queues */
+	vmdq_i = min_t(u16, vmdq_i, MAX_TX_QUEUES / tcs);
 
 	/* Add starting offset to total pool count */
 	vmdq_i += adapter->ring_feature[RING_F_VMDQ].offset;
@@ -437,7 +452,7 @@ static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	int tcs;
 
 	/* Map queue offset and counts onto allocated tx queues */
-	tcs = netdev_get_num_tc(dev);
+	tcs = adapter->hw_tcs;
 
 	/* verify we have DCB queueing enabled before proceeding */
 	if (tcs <= 1)
@@ -512,11 +527,13 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 #ifdef IXGBE_FCOE
 	u16 fcoe_i = 0;
 #endif
-	bool pools = (find_first_zero_bit(&adapter->fwd_bitmask, 32) > 1);
 
 	/* only proceed if SR-IOV is enabled */
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return false;
+
+	/* limit l2fwd RSS based on total Tx queue limit */
+	rss_i = min_t(u16, rss_i, MAX_TX_QUEUES / vmdq_i);
 
 	/* Add starting offset to total pool count */
 	vmdq_i += adapter->ring_feature[RING_F_VMDQ].offset;
@@ -525,7 +542,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	vmdq_i = min_t(u16, IXGBE_MAX_VMDQ_INDICES, vmdq_i);
 
 	/* 64 pool mode with 2 queues per pool */
-	if ((vmdq_i > 32) || (vmdq_i > 16 && pools)) {
+	if (vmdq_i > 32) {
 		vmdq_m = IXGBE_82599_VMDQ_2Q_MASK;
 		rss_m = IXGBE_RSS_2Q_MASK;
 		rss_i = min_t(u16, rss_i, 2);
@@ -602,6 +619,10 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	}
 
 #endif
+	/* populate TC0 for use by pool 0 */
+	netdev_set_tc_queue(adapter->netdev, 0,
+			    adapter->num_rx_queues_per_pool, 0);
+
 	return true;
 }
 
@@ -701,7 +722,7 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
 	adapter->num_xdp_queues = 0;
-	adapter->num_rx_pools = adapter->num_rx_queues;
+	adapter->num_rx_pools = 1;
 	adapter->num_rx_queues_per_pool = 1;
 
 #ifdef CONFIG_IXGBE_DCB
@@ -806,6 +827,7 @@ static void ixgbe_add_ring(struct ixgbe_ring *ring,
 	ring->next = head->ring;
 	head->ring = ring;
 	head->count++;
+	head->next_update = jiffies + 1;
 }
 
 /**
@@ -833,7 +855,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	int node = NUMA_NO_NODE;
 	int cpu = -1;
 	int ring_count, size;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	ring_count = txr_count + rxr_count + xdp_count;
 	size = sizeof(struct ixgbe_q_vector) +
@@ -879,8 +901,11 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	/* initialize work limits */
 	q_vector->tx.work_limit = adapter->tx_work_limit;
 
-	/* initialize pointer to rings */
-	ring = q_vector->ring;
+	/* Initialize setting for adaptive ITR */
+	q_vector->tx.itr = IXGBE_ITR_ADAPTIVE_MAX_USECS |
+			   IXGBE_ITR_ADAPTIVE_LATENCY;
+	q_vector->rx.itr = IXGBE_ITR_ADAPTIVE_MAX_USECS |
+			   IXGBE_ITR_ADAPTIVE_LATENCY;
 
 	/* intialize ITR */
 	if (txr_count && !rxr_count) {
@@ -897,6 +922,9 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 			q_vector->itr = adapter->rx_itr_setting;
 	}
 
+	/* initialize pointer to rings */
+	ring = q_vector->ring;
+
 	while (txr_count) {
 		/* assign generic ring traits */
 		ring->dev = &adapter->pdev->dev;
@@ -910,11 +938,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 
 		/* apply Tx specific ring traits */
 		ring->count = adapter->tx_ring_count;
-		if (adapter->num_rx_pools > 1)
-			ring->queue_index =
-				txr_idx % adapter->num_rx_queues_per_pool;
-		else
-			ring->queue_index = txr_idx;
+		ring->queue_index = txr_idx;
 
 		/* assign ring to adapter */
 		adapter->tx_ring[txr_idx] = ring;
@@ -984,11 +1008,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 #endif /* IXGBE_FCOE */
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
-		if (adapter->num_rx_pools > 1)
-			ring->queue_index =
-				rxr_idx % adapter->num_rx_queues_per_pool;
-		else
-			ring->queue_index = rxr_idx;
+		ring->queue_index = rxr_idx;
 
 		/* assign ring to adapter */
 		adapter->rx_ring[rxr_idx] = ring;
@@ -1164,7 +1184,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	 */
 
 	/* Disable DCB unless we only have a single traffic class */
-	if (netdev_get_num_tc(adapter->netdev) > 1) {
+	if (adapter->hw_tcs > 1) {
 		e_dev_warn("Number of DCB TCs exceeds number of available queues. Disabling DCB support.\n");
 		netdev_reset_tc(adapter->netdev);
 
@@ -1176,6 +1196,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		adapter->dcb_cfg.pfc_mode_enable = false;
 	}
 
+	adapter->hw_tcs = 0;
 	adapter->dcb_cfg.num_tcs.pg_tcs = 1;
 	adapter->dcb_cfg.num_tcs.pfc_tcs = 1;
 
@@ -1261,7 +1282,7 @@ void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter)
 }
 
 void ixgbe_tx_ctxtdesc(struct ixgbe_ring *tx_ring, u32 vlan_macip_lens,
-		       u32 fcoe_sof_eof, u32 type_tucmd, u32 mss_l4len_idx)
+		       u32 fceof_saidx, u32 type_tucmd, u32 mss_l4len_idx)
 {
 	struct ixgbe_adv_tx_context_desc *context_desc;
 	u16 i = tx_ring->next_to_use;
@@ -1275,7 +1296,7 @@ void ixgbe_tx_ctxtdesc(struct ixgbe_ring *tx_ring, u32 vlan_macip_lens,
 	type_tucmd |= IXGBE_TXD_CMD_DEXT | IXGBE_ADVTXD_DTYP_CTXT;
 
 	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
-	context_desc->seqnum_seed	= cpu_to_le32(fcoe_sof_eof);
+	context_desc->fceof_saidx	= cpu_to_le32(fceof_saidx);
 	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
 	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
 }

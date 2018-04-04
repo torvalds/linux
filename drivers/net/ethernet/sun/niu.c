@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* niu.c: Neptune ethernet driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller (davem@davemloft.net)
@@ -2221,9 +2222,9 @@ static int niu_link_status(struct niu *np, int *link_up_p)
 	return err;
 }
 
-static void niu_timer(unsigned long __opaque)
+static void niu_timer(struct timer_list *t)
 {
-	struct niu *np = (struct niu *) __opaque;
+	struct niu *np = from_timer(np, t, timer);
 	unsigned long off;
 	int err, link_up;
 
@@ -6123,10 +6124,8 @@ static int niu_open(struct net_device *dev)
 
 	err = niu_init_hw(np);
 	if (!err) {
-		init_timer(&np->timer);
+		timer_setup(&np->timer, niu_timer, 0);
 		np->timer.expires = jiffies + HZ;
-		np->timer.data = (unsigned long) np;
-		np->timer.function = niu_timer;
 
 		err = niu_enable_interrupts(np, 1);
 		if (err)
@@ -6245,7 +6244,7 @@ static void niu_get_rx_stats(struct niu *np,
 
 	pkts = dropped = errors = bytes = 0;
 
-	rx_rings = ACCESS_ONCE(np->rx_rings);
+	rx_rings = READ_ONCE(np->rx_rings);
 	if (!rx_rings)
 		goto no_rings;
 
@@ -6276,7 +6275,7 @@ static void niu_get_tx_stats(struct niu *np,
 
 	pkts = errors = bytes = 0;
 
-	tx_rings = ACCESS_ONCE(np->tx_rings);
+	tx_rings = READ_ONCE(np->tx_rings);
 	if (!tx_rings)
 		goto no_rings;
 
@@ -6775,10 +6774,8 @@ static int niu_change_mtu(struct net_device *dev, int new_mtu)
 
 	err = niu_init_hw(np);
 	if (!err) {
-		init_timer(&np->timer);
+		timer_setup(&np->timer, niu_timer, 0);
 		np->timer.expires = jiffies + HZ;
-		np->timer.data = (unsigned long) np;
-		np->timer.function = niu_timer;
 
 		err = niu_enable_interrupts(np, 1);
 		if (err)

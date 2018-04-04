@@ -22,6 +22,54 @@
 #include "smc_clc.h"
 #include "smc_ib.h"
 
+/* check if received message has a correct header length and contains valid
+ * heading and trailing eyecatchers
+ */
+static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm)
+{
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
+	struct smc_clc_msg_accept_confirm *clc;
+	struct smc_clc_msg_proposal *pclc;
+	struct smc_clc_msg_decline *dclc;
+	struct smc_clc_msg_trail *trl;
+
+	if (memcmp(clcm->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER)))
+		return false;
+	switch (clcm->type) {
+	case SMC_CLC_PROPOSAL:
+		pclc = (struct smc_clc_msg_proposal *)clcm;
+		pclc_prfx = smc_clc_proposal_get_prefix(pclc);
+		if (ntohs(pclc->hdr.length) !=
+			sizeof(*pclc) + ntohs(pclc->iparea_offset) +
+			sizeof(*pclc_prfx) +
+			pclc_prfx->ipv6_prefixes_cnt *
+				sizeof(struct smc_clc_ipv6_prefix) +
+			sizeof(*trl))
+			return false;
+		trl = (struct smc_clc_msg_trail *)
+			((u8 *)pclc + ntohs(pclc->hdr.length) - sizeof(*trl));
+		break;
+	case SMC_CLC_ACCEPT:
+	case SMC_CLC_CONFIRM:
+		clc = (struct smc_clc_msg_accept_confirm *)clcm;
+		if (ntohs(clc->hdr.length) != sizeof(*clc))
+			return false;
+		trl = &clc->trl;
+		break;
+	case SMC_CLC_DECLINE:
+		dclc = (struct smc_clc_msg_decline *)clcm;
+		if (ntohs(dclc->hdr.length) != sizeof(*dclc))
+			return false;
+		trl = &dclc->trl;
+		break;
+	default:
+		return false;
+	}
+	if (memcmp(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER)))
+		return false;
+	return true;
+}
+
 /* Wait for data on the tcp-socket, analyze received data
  * Returns:
  * 0 if success and it was not a decline that we received.
@@ -35,7 +83,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	struct smc_clc_msg_hdr *clcm = buf;
 	struct msghdr msg = {NULL, 0};
 	int reason_code = 0;
-	struct kvec vec;
+	struct kvec vec = {buf, buflen};
 	int len, datlen;
 	int krflags;
 
@@ -43,12 +91,15 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	 * so we don't consume any subsequent CLC message or payload data
 	 * in the TCP byte stream
 	 */
-	vec.iov_base = buf;
-	vec.iov_len = buflen;
+	/*
+	 * Caller must make sure that buflen is no less than
+	 * sizeof(struct smc_clc_msg_hdr)
+	 */
 	krflags = MSG_PEEK | MSG_WAITALL;
 	smc->clcsock->sk->sk_rcvtimeo = CLC_WAIT_TIME;
-	len = kernel_recvmsg(smc->clcsock, &msg, &vec, 1,
-			     sizeof(struct smc_clc_msg_hdr), krflags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1,
+			sizeof(struct smc_clc_msg_hdr));
+	len = sock_recvmsg(smc->clcsock, &msg, krflags);
 	if (signal_pending(current)) {
 		reason_code = -EINTR;
 		clc_sk->sk_err = EINTR;
@@ -72,9 +123,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 	datlen = ntohs(clcm->length);
 	if ((len < sizeof(struct smc_clc_msg_hdr)) ||
-	    (datlen < sizeof(struct smc_clc_msg_decline)) ||
-	    (datlen > sizeof(struct smc_clc_msg_accept_confirm)) ||
-	    memcmp(clcm->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER)) ||
+	    (datlen > buflen) ||
 	    ((clcm->type != SMC_CLC_DECLINE) &&
 	     (clcm->type != expected_type))) {
 		smc->sk.sk_err = EPROTO;
@@ -83,13 +132,12 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 
 	/* receive the complete CLC message */
-	vec.iov_base = buf;
-	vec.iov_len = buflen;
 	memset(&msg, 0, sizeof(struct msghdr));
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &vec, 1, buflen);
 	krflags = MSG_WAITALL;
 	smc->clcsock->sk->sk_rcvtimeo = CLC_WAIT_TIME;
-	len = kernel_recvmsg(smc->clcsock, &msg, &vec, 1, datlen, krflags);
-	if (len < datlen) {
+	len = sock_recvmsg(smc->clcsock, &msg, krflags);
+	if (len < datlen || !smc_clc_msg_hdr_valid(clcm)) {
 		smc->sk.sk_err = EPROTO;
 		reason_code = -EPROTO;
 		goto out;
@@ -133,7 +181,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 		smc->sk.sk_err = EPROTO;
 	if (len < 0)
 		smc->sk.sk_err = -len;
-	return len;
+	return sock_error(&smc->sk);
 }
 
 /* send CLC PROPOSAL message across internal TCP socket */
@@ -141,33 +189,43 @@ int smc_clc_send_proposal(struct smc_sock *smc,
 			  struct smc_ib_device *smcibdev,
 			  u8 ibport)
 {
+	struct smc_clc_msg_proposal_prefix pclc_prfx;
 	struct smc_clc_msg_proposal pclc;
+	struct smc_clc_msg_trail trl;
 	int reason_code = 0;
+	struct kvec vec[3];
 	struct msghdr msg;
-	struct kvec vec;
-	int len, rc;
+	int len, plen, rc;
 
 	/* send SMC Proposal CLC message */
+	plen = sizeof(pclc) + sizeof(pclc_prfx) + sizeof(trl);
 	memset(&pclc, 0, sizeof(pclc));
 	memcpy(pclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	pclc.hdr.type = SMC_CLC_PROPOSAL;
-	pclc.hdr.length = htons(sizeof(pclc));
+	pclc.hdr.length = htons(plen);
 	pclc.hdr.version = SMC_CLC_V1;		/* SMC version */
 	memcpy(pclc.lcl.id_for_peer, local_systemid, sizeof(local_systemid));
 	memcpy(&pclc.lcl.gid, &smcibdev->gid[ibport - 1], SMC_GID_SIZE);
 	memcpy(&pclc.lcl.mac, &smcibdev->mac[ibport - 1], ETH_ALEN);
+	pclc.iparea_offset = htons(0);
 
+	memset(&pclc_prfx, 0, sizeof(pclc_prfx));
 	/* determine subnet and mask from internal TCP socket */
-	rc = smc_netinfo_by_tcpsk(smc->clcsock, &pclc.outgoing_subnet,
-				  &pclc.prefix_len);
+	rc = smc_netinfo_by_tcpsk(smc->clcsock, &pclc_prfx.outgoing_subnet,
+				  &pclc_prfx.prefix_len);
 	if (rc)
 		return SMC_CLC_DECL_CNFERR; /* configuration error */
-	memcpy(pclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
+	pclc_prfx.ipv6_prefixes_cnt = 0;
+	memcpy(trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	memset(&msg, 0, sizeof(msg));
-	vec.iov_base = &pclc;
-	vec.iov_len = sizeof(pclc);
+	vec[0].iov_base = &pclc;
+	vec[0].iov_len = sizeof(pclc);
+	vec[1].iov_base = &pclc_prfx;
+	vec[1].iov_len = sizeof(pclc_prfx);
+	vec[2].iov_base = &trl;
+	vec[2].iov_len = sizeof(trl);
 	/* due to the few bytes needed for clc-handshake this cannot block */
-	len = kernel_sendmsg(smc->clcsock, &msg, &vec, 1, sizeof(pclc));
+	len = kernel_sendmsg(smc->clcsock, &msg, vec, 3, plen);
 	if (len < sizeof(pclc)) {
 		if (len >= 0) {
 			reason_code = -ENETUNREACH;

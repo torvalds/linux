@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * f_phonet.c -- USB CDC Phonet function
  *
  * Copyright (C) 2007-2008 Nokia Corporation. All rights reserved.
  *
  * Author: Rémi Denis-Courmont
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/mm.h>
@@ -215,6 +212,7 @@ static void pn_tx_complete(struct usb_ep *ep, struct usb_request *req)
 	case -ESHUTDOWN: /* disconnected */
 	case -ECONNRESET: /* disabled */
 		dev->stats.tx_aborted_errors++;
+		/* fall through */
 	default:
 		dev->stats.tx_errors++;
 	}
@@ -362,6 +360,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 	/* Do resubmit in these cases: */
 	case -EOVERFLOW: /* request buffer overflow */
 		dev->stats.rx_over_errors++;
+		/* fall through */
 	default:
 		dev->stats.rx_errors++;
 		break;
@@ -599,7 +598,7 @@ static struct configfs_attribute *phonet_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type phonet_func_type = {
+static const struct config_item_type phonet_func_type = {
 	.ct_item_ops	= &phonet_item_ops,
 	.ct_attrs	= phonet_attrs,
 	.ct_owner	= THIS_MODULE,

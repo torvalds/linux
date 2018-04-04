@@ -432,8 +432,7 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr)
 		host->addr_value[0] |= (page_addr & 0xffff)
 			<< (host->addr_cycle * 8);
 		host->addr_cycle    += 2;
-		/* One more address cycle for devices > 128MiB */
-		if (chip->chipsize > (128 << 20)) {
+		if (chip->options & NAND_ROW_ADDR_3) {
 			host->addr_cycle += 1;
 			if (host->command == NAND_CMD_ERASE1)
 				host->addr_value[0] |= ((page_addr >> 16) & 0xff) << 16;
@@ -545,7 +544,7 @@ static int hisi_nand_read_page_hwecc(struct mtd_info *mtd,
 	int max_bitflips = 0, stat = 0, stat_max = 0, status_ecc;
 	int stat_1, stat_2;
 
-	chip->read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	/* errors which can not be corrected by ECC */
@@ -575,8 +574,7 @@ static int hisi_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 
 	if (host->irq_status & HINFC504_INTS_UE) {
 		host->irq_status = 0;
@@ -591,11 +589,11 @@ static int hisi_nand_write_page_hwecc(struct mtd_info *mtd,
 		struct nand_chip *chip, const uint8_t *buf, int oob_required,
 		int page)
 {
-	chip->write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
 		chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static void hisi_nfc_host_init(struct hinfc_host *host)

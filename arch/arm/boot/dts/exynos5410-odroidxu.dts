@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardkernel Odroid XU board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  * Copyright (c) 2016 Krzysztof Kozlowski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -54,7 +51,7 @@
 		#clock-cells = <0>;
 	};
 
-	firmware@02073000 {
+	firmware@2073000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x02073000 0x1000>;
 	};
@@ -164,7 +161,7 @@
 	samsung,i2c-max-bus-freq = <400000>;
 	status = "okay";
 
-	usb3503: usb-hub@08 {
+	usb3503: usb-hub@8 {
 		compatible = "smsc,usb3503";
 		reg = <0x08>;
 
@@ -178,7 +175,7 @@
 		refclk-frequency = <24000000>;
 	};
 
-	max77802: pmic@09 {
+	max77802: pmic@9 {
 		compatible = "maxim,max77802";
 		reg = <0x9>;
 		interrupt-parent = <&gpx0>;

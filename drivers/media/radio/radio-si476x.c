@@ -158,7 +158,7 @@ enum si476x_ctrl_idx {
 };
 static struct v4l2_ctrl_config si476x_ctrls[] = {
 
-	/**
+	/*
 	 * SI476X during its station seeking(or tuning) process uses several
 	 * parameters to detrmine if "the station" is valid:
 	 *
@@ -197,7 +197,7 @@ static struct v4l2_ctrl_config si476x_ctrls[] = {
 		.step	= 2,
 	},
 
-	/**
+	/*
 	 * #V4L2_CID_SI476X_HARMONICS_COUNT -- number of harmonics
 	 * built-in power-line noise supression filter is to reject
 	 * during AM-mode operation.
@@ -213,7 +213,7 @@ static struct v4l2_ctrl_config si476x_ctrls[] = {
 		.step	= 1,
 	},
 
-	/**
+	/*
 	 * #V4L2_CID_SI476X_DIVERSITY_MODE -- configuration which
 	 * two tuners working in diversity mode are to work in.
 	 *
@@ -237,7 +237,7 @@ static struct v4l2_ctrl_config si476x_ctrls[] = {
 		.max	= ARRAY_SIZE(phase_diversity_modes) - 1,
 	},
 
-	/**
+	/*
 	 * #V4L2_CID_SI476X_INTERCHIP_LINK -- inter-chip link in
 	 * diversity mode indicator. Allows user to determine if two
 	 * chips working in diversity mode have established a link
@@ -296,11 +296,15 @@ struct si476x_radio_ops {
 /**
  * struct si476x_radio - radio device
  *
- * @core: Pointer to underlying core device
+ * @v4l2dev: Pointer to V4L2 device created by V4L2 subsystem
  * @videodev: Pointer to video device created by V4L2 subsystem
+ * @ctrl_handler: V4L2 controls handler
+ * @core: Pointer to underlying core device
  * @ops: Vtable of functions. See struct si476x_radio_ops for details
- * @kref: Reference counter
- * @core_lock: An r/w semaphore to brebvent the deletion of underlying
+ * @debugfs: pointer to &strucd dentry for debugfs
+ * @audmode: audio mode, as defined for the rxsubchans field
+ *	     at videodev2.h
+ *
  * core structure is the radio device is being used
  */
 struct si476x_radio {
@@ -755,7 +759,7 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 {
 	int err;
 	enum si476x_func func;
-	u32 rangelow, rangehigh;
+	u32 rangelow = seek->rangelow, rangehigh = seek->rangehigh;
 	struct si476x_radio *radio = video_drvdata(file);
 
 	if (file->f_flags & O_NONBLOCK)
@@ -767,23 +771,21 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 
 	si476x_core_lock(radio->core);
 
-	if (!seek->rangelow) {
+	if (!rangelow) {
 		err = regmap_read(radio->core->regmap,
 				  SI476X_PROP_SEEK_BAND_BOTTOM,
 				  &rangelow);
-		if (!err)
-			rangelow = si476x_to_v4l2(radio->core, rangelow);
-		else
+		if (err)
 			goto unlock;
+		rangelow = si476x_to_v4l2(radio->core, rangelow);
 	}
-	if (!seek->rangehigh) {
+	if (!rangehigh) {
 		err = regmap_read(radio->core->regmap,
 				  SI476X_PROP_SEEK_BAND_TOP,
 				  &rangehigh);
-		if (!err)
-			rangehigh = si476x_to_v4l2(radio->core, rangehigh);
-		else
+		if (err)
 			goto unlock;
+		rangehigh = si476x_to_v4l2(radio->core, rangehigh);
 	}
 
 	if (rangelow > rangehigh) {
@@ -1149,22 +1151,22 @@ static ssize_t si476x_radio_fops_read(struct file *file, char __user *buf,
 	return rval;
 }
 
-static unsigned int si476x_radio_fops_poll(struct file *file,
+static __poll_t si476x_radio_fops_poll(struct file *file,
 				struct poll_table_struct *pts)
 {
 	struct si476x_radio *radio = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(pts);
-	unsigned int err = v4l2_ctrl_poll(file, pts);
+	__poll_t req_events = poll_requested_events(pts);
+	__poll_t err = v4l2_ctrl_poll(file, pts);
 
-	if (req_events & (POLLIN | POLLRDNORM)) {
+	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		if (atomic_read(&radio->core->is_alive))
 			poll_wait(file, &radio->core->rds_read_queue, pts);
 
 		if (!atomic_read(&radio->core->is_alive))
-			err = POLLHUP;
+			err = EPOLLHUP;
 
 		if (!kfifo_is_empty(&radio->core->rds_fifo))
-			err = POLLIN | POLLRDNORM;
+			err = EPOLLIN | EPOLLRDNORM;
 	}
 
 	return err;

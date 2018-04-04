@@ -49,7 +49,6 @@
 #include "smi.h"
 #include "opa_smi.h"
 #include "agent.h"
-#include "core_priv.h"
 
 static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
 static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
@@ -1974,14 +1973,15 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	unsigned long flags;
 	int ret;
 
+	INIT_LIST_HEAD(&mad_recv_wc->rmpp_list);
 	ret = ib_mad_enforce_security(mad_agent_priv,
 				      mad_recv_wc->wc->pkey_index);
 	if (ret) {
 		ib_free_recv_mad(mad_recv_wc);
 		deref_mad_agent(mad_agent_priv);
+		return;
 	}
 
-	INIT_LIST_HEAD(&mad_recv_wc->rmpp_list);
 	list_add(&mad_recv_wc->recv_buf.list, &mad_recv_wc->rmpp_list);
 	if (ib_mad_kernel_rmpp_agent(&mad_agent_priv->agent)) {
 		mad_recv_wc = ib_process_rmpp_recv_wc(mad_agent_priv,

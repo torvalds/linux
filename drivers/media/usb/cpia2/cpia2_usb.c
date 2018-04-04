@@ -33,13 +33,13 @@
 
 static int frame_sizes[] = {
 	0,	// USBIF_CMDONLY
-	0, 	// USBIF_BULK
-	128, 	// USBIF_ISO_1
-	384, 	// USBIF_ISO_2
-	640, 	// USBIF_ISO_3
-	768, 	// USBIF_ISO_4
-	896, 	// USBIF_ISO_5
-	1023, 	// USBIF_ISO_6
+	0,	// USBIF_BULK
+	128,	// USBIF_ISO_1
+	384,	// USBIF_ISO_2
+	640,	// USBIF_ISO_3
+	768,	// USBIF_ISO_4
+	896,	// USBIF_ISO_5
+	1023,	// USBIF_ISO_6
 };
 
 #define FRAMES_PER_DESC    10

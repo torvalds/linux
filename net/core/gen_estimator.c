@@ -66,6 +66,7 @@ struct net_rate_estimator {
 static void est_fetch_counters(struct net_rate_estimator *e,
 			       struct gnet_stats_basic_packed *b)
 {
+	memset(b, 0, sizeof(*b));
 	if (e->stats_lock)
 		spin_lock(e->stats_lock);
 
@@ -76,9 +77,9 @@ static void est_fetch_counters(struct net_rate_estimator *e,
 
 }
 
-static void est_timer(unsigned long arg)
+static void est_timer(struct timer_list *t)
 {
-	struct net_rate_estimator *est = (struct net_rate_estimator *)arg;
+	struct net_rate_estimator *est = from_timer(est, t, timer);
 	struct gnet_stats_basic_packed b;
 	u64 rate, brate;
 
@@ -159,7 +160,11 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	est->intvl_log = intvl_log;
 	est->cpu_bstats = cpu_bstats;
 
+	if (stats_lock)
+		local_bh_disable();
 	est_fetch_counters(est, &b);
+	if (stats_lock)
+		local_bh_enable();
 	est->last_bytes = b.bytes;
 	est->last_packets = b.packets;
 	old = rcu_dereference_protected(*rate_est, 1);
@@ -170,7 +175,7 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	}
 
 	est->next_jiffies = jiffies + ((HZ/4) << intvl_log);
-	setup_timer(&est->timer, est_timer, (unsigned long)est);
+	timer_setup(&est->timer, est_timer, 0);
 	mod_timer(&est->timer, est->next_jiffies);
 
 	rcu_assign_pointer(*rate_est, est);

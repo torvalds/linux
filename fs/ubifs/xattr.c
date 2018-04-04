@@ -170,6 +170,7 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	err = ubifs_jnl_update(c, host, nm, inode, 0, 1);
 	if (err)
 		goto out_cancel;
+	ubifs_set_inode_flags(host);
 	mutex_unlock(&host_ui->ui_mutex);
 
 	ubifs_release_budget(c, &req);
@@ -380,8 +381,6 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 	if (buf) {
 		/* If @buf is %NULL we are supposed to return the length */
 		if (ui->data_len > size) {
-			ubifs_err(c, "buffer size %zd, xattr len %d",
-				  size, ui->data_len);
 			err = -ERANGE;
 			goto out_iput;
 		}

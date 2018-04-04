@@ -615,7 +615,6 @@ static const struct attribute_group sx9500_attribute_group = {
 };
 
 static const struct iio_info sx9500_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &sx9500_attribute_group,
 	.read_raw = &sx9500_read_raw,
 	.write_raw = &sx9500_write_raw,
@@ -650,7 +649,6 @@ out:
 
 static const struct iio_trigger_ops sx9500_trigger_ops = {
 	.set_trigger_state = sx9500_set_trigger_state,
-	.owner = THIS_MODULE,
 };
 
 static irqreturn_t sx9500_trigger_handler(int irq, void *private)
@@ -871,12 +869,21 @@ static int sx9500_init_device(struct iio_dev *indio_dev)
 static void sx9500_gpio_probe(struct i2c_client *client,
 			      struct sx9500_data *data)
 {
+	struct gpio_desc *gpiod_int;
 	struct device *dev;
 
 	if (!client)
 		return;
 
 	dev = &client->dev;
+
+	if (client->irq <= 0) {
+		gpiod_int = devm_gpiod_get(dev, SX9500_GPIO_INT, GPIOD_IN);
+		if (IS_ERR(gpiod_int))
+			dev_err(dev, "gpio get irq failed\n");
+		else
+			client->irq = gpiod_to_irq(gpiod_int);
+	}
 
 	data->gpiod_rst = devm_gpiod_get(dev, SX9500_GPIO_RESET, GPIOD_OUT_HIGH);
 	if (IS_ERR(data->gpiod_rst)) {
@@ -1024,6 +1031,7 @@ static const struct dev_pm_ops sx9500_pm_ops = {
 
 static const struct acpi_device_id sx9500_acpi_match[] = {
 	{"SSX9500", 0},
+	{"SASX9500", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, sx9500_acpi_match);

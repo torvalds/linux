@@ -12,8 +12,10 @@ Pin controller node
 -------------------
 
 Required properties:
-  - compatible
-    this shall be "renesas,r7s72100-ports".
+  - compatible: should be:
+    - "renesas,r7s72100-ports": for RZ/A1H
+    - "renesas,r7s72101-ports", "renesas,r7s72100-ports": for RZ/A1M
+    - "renesas,r7s72102-ports": for RZ/A1L
 
   - reg
     address base and length of the memory area where the pin controller

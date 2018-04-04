@@ -51,7 +51,6 @@ per_version_boot_params () {
 		`rcutorture_param_n_barrier_cbs "$1"` \
 		rcutorture.stat_interval=15 \
 		rcutorture.shutdown_secs=$3 \
-		rcutorture.torture_runnable=1 \
 		rcutorture.test_no_idle_hz=1 \
 		rcutorture.verbose=1
 }

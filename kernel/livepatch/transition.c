@@ -33,6 +33,8 @@ struct klp_patch *klp_transition_patch;
 
 static int klp_target_state = KLP_UNDEFINED;
 
+static bool klp_forced = false;
+
 /*
  * This work can be performed periodically to finish patching or unpatching any
  * "straggler" tasks which failed to transition in the first attempt.
@@ -80,7 +82,10 @@ static void klp_complete_transition(void)
 	struct klp_func *func;
 	struct task_struct *g, *task;
 	unsigned int cpu;
-	bool immediate_func = false;
+
+	pr_debug("'%s': completing %s transition\n",
+		 klp_transition_patch->mod->name,
+		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	if (klp_target_state == KLP_UNPATCHED) {
 		/*
@@ -98,19 +103,9 @@ static void klp_complete_transition(void)
 		klp_synchronize_transition();
 	}
 
-	if (klp_transition_patch->immediate)
-		goto done;
-
-	klp_for_each_object(klp_transition_patch, obj) {
-		klp_for_each_func(obj, func) {
+	klp_for_each_object(klp_transition_patch, obj)
+		klp_for_each_func(obj, func)
 			func->transition = false;
-			if (func->immediate)
-				immediate_func = true;
-		}
-	}
-
-	if (klp_target_state == KLP_UNPATCHED && !immediate_func)
-		module_put(klp_transition_patch->mod);
 
 	/* Prevent klp_ftrace_handler() from seeing KLP_UNDEFINED state */
 	if (klp_target_state == KLP_PATCHED)
@@ -129,7 +124,25 @@ static void klp_complete_transition(void)
 		task->patch_state = KLP_UNDEFINED;
 	}
 
-done:
+	klp_for_each_object(klp_transition_patch, obj) {
+		if (!klp_is_object_loaded(obj))
+			continue;
+		if (klp_target_state == KLP_PATCHED)
+			klp_post_patch_callback(obj);
+		else if (klp_target_state == KLP_UNPATCHED)
+			klp_post_unpatch_callback(obj);
+	}
+
+	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
+		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+
+	/*
+	 * klp_forced set implies unbounded increase of module's ref count if
+	 * the module is disabled/enabled in a loop.
+	 */
+	if (!klp_forced && klp_target_state == KLP_UNPATCHED)
+		module_put(klp_transition_patch->mod);
+
 	klp_target_state = KLP_UNDEFINED;
 	klp_transition_patch = NULL;
 }
@@ -144,6 +157,9 @@ void klp_cancel_transition(void)
 {
 	if (WARN_ON_ONCE(klp_target_state != KLP_PATCHED))
 		return;
+
+	pr_debug("'%s': canceling patching transition, going to unpatch\n",
+		 klp_transition_patch->mod->name);
 
 	klp_target_state = KLP_UNPATCHED;
 	klp_complete_transition();
@@ -192,9 +208,6 @@ static int klp_check_stack_func(struct klp_func *func,
 	unsigned long func_addr, func_size, address;
 	struct klp_ops *ops;
 	int i;
-
-	if (func->immediate)
-		return 0;
 
 	for (i = 0; i < trace->nr_entries; i++) {
 		address = trace->entries[i];
@@ -358,13 +371,6 @@ void klp_try_complete_transition(void)
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
 
 	/*
-	 * If the patch can be applied or reverted immediately, skip the
-	 * per-task transitions.
-	 */
-	if (klp_transition_patch->immediate)
-		goto success;
-
-	/*
 	 * Try to switch the tasks to the target patch state by walking their
 	 * stacks and looking for any to-be-patched or to-be-unpatched
 	 * functions.  If such functions are found on a stack, or if the stack
@@ -407,10 +413,6 @@ void klp_try_complete_transition(void)
 		return;
 	}
 
-success:
-	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
-		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
-
 	/* we're done, now cleanup the data structures */
 	klp_complete_transition();
 }
@@ -426,15 +428,9 @@ void klp_start_transition(void)
 
 	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
 
-	pr_notice("'%s': %s...\n", klp_transition_patch->mod->name,
+	pr_notice("'%s': starting %s transition\n",
+		  klp_transition_patch->mod->name,
 		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
-
-	/*
-	 * If the patch can be applied or reverted immediately, skip the
-	 * per-task transitions.
-	 */
-	if (klp_transition_patch->immediate)
-		return;
 
 	/*
 	 * Mark all normal tasks as needing a patch state update.  They'll
@@ -482,12 +478,8 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	 */
 	klp_target_state = state;
 
-	/*
-	 * If the patch can be applied or reverted immediately, skip the
-	 * per-task transitions.
-	 */
-	if (patch->immediate)
-		return;
+	pr_debug("'%s': initializing %s transition\n", patch->mod->name,
+		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
 	 * Initialize all tasks to the initial patch state to prepare them for
@@ -547,6 +539,11 @@ void klp_reverse_transition(void)
 	unsigned int cpu;
 	struct task_struct *g, *task;
 
+	pr_debug("'%s': reversing transition from %s\n",
+		 klp_transition_patch->mod->name,
+		 klp_target_state == KLP_PATCHED ? "patching to unpatching" :
+						   "unpatching to patching");
+
 	klp_transition_patch->enabled = !klp_transition_patch->enabled;
 
 	klp_target_state = !klp_target_state;
@@ -576,4 +573,72 @@ void klp_copy_process(struct task_struct *child)
 	child->patch_state = current->patch_state;
 
 	/* TIF_PATCH_PENDING gets copied in setup_thread_stack() */
+}
+
+/*
+ * Sends a fake signal to all non-kthread tasks with TIF_PATCH_PENDING set.
+ * Kthreads with TIF_PATCH_PENDING set are woken up. Only admin can request this
+ * action currently.
+ */
+void klp_send_signals(void)
+{
+	struct task_struct *g, *task;
+
+	pr_notice("signaling remaining tasks\n");
+
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, task) {
+		if (!klp_patch_pending(task))
+			continue;
+
+		/*
+		 * There is a small race here. We could see TIF_PATCH_PENDING
+		 * set and decide to wake up a kthread or send a fake signal.
+		 * Meanwhile the task could migrate itself and the action
+		 * would be meaningless. It is not serious though.
+		 */
+		if (task->flags & PF_KTHREAD) {
+			/*
+			 * Wake up a kthread which sleeps interruptedly and
+			 * still has not been migrated.
+			 */
+			wake_up_state(task, TASK_INTERRUPTIBLE);
+		} else {
+			/*
+			 * Send fake signal to all non-kthread tasks which are
+			 * still not migrated.
+			 */
+			spin_lock_irq(&task->sighand->siglock);
+			signal_wake_up(task, 0);
+			spin_unlock_irq(&task->sighand->siglock);
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
+/*
+ * Drop TIF_PATCH_PENDING of all tasks on admin's request. This forces an
+ * existing transition to finish.
+ *
+ * NOTE: klp_update_patch_state(task) requires the task to be inactive or
+ * 'current'. This is not the case here and the consistency model could be
+ * broken. Administrator, who is the only one to execute the
+ * klp_force_transitions(), has to be aware of this.
+ */
+void klp_force_transition(void)
+{
+	struct task_struct *g, *task;
+	unsigned int cpu;
+
+	pr_warn("forcing remaining tasks to the patched state\n");
+
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, task)
+		klp_update_patch_state(task);
+	read_unlock(&tasklist_lock);
+
+	for_each_possible_cpu(cpu)
+		klp_update_patch_state(idle_task(cpu));
+
+	klp_forced = true;
 }

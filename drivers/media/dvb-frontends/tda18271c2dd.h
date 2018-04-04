@@ -9,8 +9,8 @@ struct dvb_frontend *tda18271c2dd_attach(struct dvb_frontend *fe,
 static inline struct dvb_frontend *tda18271c2dd_attach(struct dvb_frontend *fe,
 					 struct i2c_adapter *i2c, u8 adr)
 {
-        printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-        return NULL;
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
 }
 #endif
 

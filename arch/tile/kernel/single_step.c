@@ -163,11 +163,13 @@ static tilepro_bundle_bits rewrite_load_store_unaligned(
 	 * actual bad address in an SPR, which it doesn't.
 	 */
 	if (align_ctl == 0) {
-		siginfo_t info = {
-			.si_signo = SIGBUS,
-			.si_code = BUS_ADRALN,
-			.si_addr = addr
-		};
+		siginfo_t info;
+
+		clear_siginfo(&info);
+		info.si_signo = SIGBUS;
+		info.si_code = BUS_ADRALN;
+		info.si_addr = addr;
+
 		trace_unhandled_signal("unaligned trap", regs,
 				       (unsigned long)addr, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);
@@ -210,11 +212,13 @@ static tilepro_bundle_bits rewrite_load_store_unaligned(
 	}
 
 	if (err) {
-		siginfo_t info = {
-			.si_signo = SIGBUS,
-			.si_code = BUS_ADRALN,
-			.si_addr = addr
-		};
+		siginfo_t info;
+
+		clear_siginfo(&info);
+		info.si_signo = SIGBUS;
+		info.si_code = BUS_ADRALN;
+		info.si_addr = addr;
+
 		trace_unhandled_signal("bad address for unaligned fixup", regs,
 				       (unsigned long)addr, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);

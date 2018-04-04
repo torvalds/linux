@@ -51,7 +51,7 @@ of valid identifiers for k2g.
 
 Example (K2G):
 --------------------
-	uart0: serial@02530c00 {
+	uart0: serial@2530c00 {
 		compatible = "ns16550a";
 		...
 		power-domains = <&k2g_pds 0x002c>;

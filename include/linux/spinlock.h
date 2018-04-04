@@ -107,16 +107,11 @@ do {								\
 
 #define raw_spin_is_locked(lock)	arch_spin_is_locked(&(lock)->raw_lock)
 
-#ifdef CONFIG_GENERIC_LOCKBREAK
-#define raw_spin_is_contended(lock) ((lock)->break_lock)
-#else
-
 #ifdef arch_spin_is_contended
 #define raw_spin_is_contended(lock)	arch_spin_is_contended(&(lock)->raw_lock)
 #else
 #define raw_spin_is_contended(lock)	(((void)(lock), 0))
 #endif /*arch_spin_is_contended*/
-#endif
 
 /*
  * This barrier must provide two things:
@@ -165,6 +160,10 @@ static inline void do_raw_spin_lock(raw_spinlock_t *lock) __acquires(lock)
 	__acquire(lock);
 	arch_spin_lock(&lock->raw_lock);
 }
+
+#ifndef arch_spin_lock_flags
+#define arch_spin_lock_flags(lock, flags)	arch_spin_lock(lock)
+#endif
 
 static inline void
 do_raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long *flags) __acquires(lock)
@@ -279,12 +278,6 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 	1 : ({ local_irq_restore(flags); 0; }); \
 })
 
-/**
- * raw_spin_can_lock - would raw_spin_trylock() succeed?
- * @lock: the spinlock in question.
- */
-#define raw_spin_can_lock(lock)	(!raw_spin_is_locked(lock))
-
 /* Include rwlock functions */
 #include <linux/rwlock.h>
 
@@ -397,11 +390,6 @@ static __always_inline int spin_is_contended(spinlock_t *lock)
 	return raw_spin_is_contended(&lock->rlock);
 }
 
-static __always_inline int spin_can_lock(spinlock_t *lock)
-{
-	return raw_spin_can_lock(&lock->rlock);
-}
-
 #define assert_spin_locked(lock)	assert_raw_spin_locked(&(lock)->rlock)
 
 /*
@@ -420,5 +408,11 @@ static __always_inline int spin_can_lock(spinlock_t *lock)
 extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \
 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
+
+int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
+			   size_t max_size, unsigned int cpu_mult,
+			   gfp_t gfp);
+
+void free_bucket_spinlocks(spinlock_t *locks);
 
 #endif /* __LINUX_SPINLOCK_H */

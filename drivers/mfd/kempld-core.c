@@ -458,7 +458,7 @@ static int kempld_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	pld->io_base = devm_ioport_map(dev, ioport->start,
-					ioport->end - ioport->start);
+					resource_size(ioport));
 	if (!pld->io_base)
 		return -ENOMEM;
 

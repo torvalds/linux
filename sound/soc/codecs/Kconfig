@@ -95,6 +95,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
 	select SND_SOC_MAX98927 if I2C
+	select SND_SOC_MAX98373 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9860 if I2C
 	select SND_SOC_MAX9768 if I2C
@@ -109,6 +110,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM1681 if I2C
 	select SND_SOC_PCM179X_I2C if I2C
 	select SND_SOC_PCM179X_SPI if SPI_MASTER
+	select SND_SOC_PCM186X_I2C if I2C
+	select SND_SOC_PCM186X_SPI if SPI_MASTER
 	select SND_SOC_PCM3008
 	select SND_SOC_PCM3168A_I2C if I2C
 	select SND_SOC_PCM3168A_SPI if SPI_MASTER
@@ -133,7 +136,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SIRF_AUDIO_CODEC
-	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2518 if I2C
 	select SND_SOC_SSM2602_SPI if SPI_MASTER
@@ -148,6 +150,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS5086 if I2C
 	select SND_SOC_TAS571X if I2C
 	select SND_SOC_TAS5720 if I2C
+	select SND_SOC_TAS6424 if I2C
 	select SND_SOC_TFA9879 if I2C
 	select SND_SOC_TLV320AIC23_I2C if I2C
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
@@ -158,6 +161,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
+	select SND_SOC_TSCS42XX if I2C
 	select SND_SOC_TS3A227E if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL6040_CORE
@@ -214,9 +218,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8998 if MFD_WM8998
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
-	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
-	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
-	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
+	select SND_SOC_WM9705 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
+	select SND_SOC_WM9712 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
+	select SND_SOC_WM9713 if (SND_SOC_AC97_BUS || SND_SOC_AC97_BUS_NEW)
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
@@ -623,6 +627,10 @@ config SND_SOC_MAX98927
 	tristate "Maxim Integrated MAX98927 Speaker Amplifier"
 	depends on I2C
 
+config SND_SOC_MAX98373
+	tristate "Maxim Integrated MAX98373 Speaker Amplifier"
+	depends on I2C
+
 config SND_SOC_MAX9850
 	tristate
 
@@ -660,6 +668,21 @@ config SND_SOC_PCM179X_SPI
 	help
 	  Enable support for Texas Instruments PCM179x CODEC.
 	  Select this if your PCM179x is connected via an SPI bus.
+
+config SND_SOC_PCM186X
+	tristate
+
+config SND_SOC_PCM186X_I2C
+	tristate "Texas Instruments PCM186x CODECs - I2C"
+	depends on I2C
+	select SND_SOC_PCM186X
+	select REGMAP_I2C
+
+config SND_SOC_PCM186X_SPI
+	tristate "Texas Instruments PCM186x CODECs - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_PCM186X
+	select REGMAP_SPI
 
 config SND_SOC_PCM3008
        tristate
@@ -749,6 +772,10 @@ config SND_SOC_RT5514
 config SND_SOC_RT5514_SPI
 	tristate
 
+config SND_SOC_RT5514_SPI_BUILTIN
+	bool # force RT5514_SPI to be built-in to avoid link errors
+	default SND_SOC_RT5514=y && SND_SOC_RT5514_SPI=m
+
 config SND_SOC_RT5616
 	tristate "Realtek RT5616 CODEC"
 	depends on I2C
@@ -814,9 +841,6 @@ config SND_SOC_SIRF_AUDIO_CODEC
 	tristate "SiRF SoC internal audio codec"
 	select REGMAP_MMIO
 
-config SND_SOC_SN95031
-	tristate
-
 config SND_SOC_SPDIF
 	tristate "S/PDIF CODEC"
 
@@ -879,6 +903,13 @@ config SND_SOC_TAS5720
 	  Enable support for Texas Instruments TAS5720L/M high-efficiency mono
 	  Class-D audio power amplifiers.
 
+config SND_SOC_TAS6424
+	tristate "Texas Instruments TAS6424 Quad-Channel Audio amplifier"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS6424 high-efficiency
+	  digital input quad-channel Class-D audio power amplifiers.
+
 config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
@@ -909,12 +940,12 @@ config SND_SOC_TLV320AIC32X4
 	tristate
 
 config SND_SOC_TLV320AIC32X4_I2C
-	tristate
+	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - I2C"
 	depends on I2C
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC32X4_SPI
-	tristate
+	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - SPI"
 	depends on SPI_MASTER
 	select SND_SOC_TLV320AIC32X4
 
@@ -928,6 +959,13 @@ config SND_SOC_TLV320DAC33
 config SND_SOC_TS3A227E
 	tristate "TI Headset/Mic detect and keypress chip"
 	depends on I2C
+
+config SND_SOC_TSCS42XX
+	tristate "Tempo Semiconductor TSCS42xx CODEC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Add support for Tempo Semiconductor's TSCS42xx audio CODEC.
 
 config SND_SOC_TWL4030
 	select MFD_TWL4030_AUDIO
@@ -1128,14 +1166,17 @@ config SND_SOC_WM9090
 config SND_SOC_WM9705
 	tristate
 	select REGMAP_AC97
+	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
 config SND_SOC_WM9712
 	tristate
 	select REGMAP_AC97
+	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
 config SND_SOC_WM9713
 	tristate
 	select REGMAP_AC97
+	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
 config SND_SOC_ZX_AUD96P22
 	tristate "ZTE ZX AUD96P22 CODEC"

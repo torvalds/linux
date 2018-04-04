@@ -123,6 +123,14 @@ struct drm_plane_state {
 	 */
 	bool visible;
 
+	/**
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions,
+	 * and for async plane updates.
+	 *
+	 * May be NULL.
+	 */
+	struct drm_crtc_commit *commit;
+
 	struct drm_atomic_state *state;
 };
 
@@ -466,8 +474,8 @@ enum drm_plane_type {
  * @format_types: array of formats supported by this plane
  * @format_count: number of formats supported
  * @format_default: driver hasn't supplied supported formats for the plane
- * @crtc: currently bound CRTC
- * @fb: currently bound fb
+ * @modifiers: array of modifiers supported by this plane
+ * @modifier_count: number of modifiers supported
  * @old_fb: Temporary tracking of the old fb while a modeset is ongoing. Used by
  * 	drm_mode_set_config_internal() to implement correct refcounting.
  * @funcs: helper functions
@@ -504,7 +512,17 @@ struct drm_plane {
 	uint64_t *modifiers;
 	unsigned int modifier_count;
 
+	/**
+	 * @crtc: Currently bound CRTC, only really meaningful for non-atomic
+	 * drivers.  Atomic drivers should instead check &drm_plane_state.crtc.
+	 */
 	struct drm_crtc *crtc;
+
+	/**
+	 * @fb: Currently bound framebuffer, only really meaningful for
+	 * non-atomic drivers.  Atomic drivers should instead check
+	 * &drm_plane_state.fb.
+	 */
 	struct drm_framebuffer *fb;
 
 	struct drm_framebuffer *old_fb;
@@ -531,10 +549,10 @@ struct drm_plane {
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current plane state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
-	 * for_each_plane_in_state(), for_each_oldnew_plane_in_state(),
-	 * for_each_old_plane_in_state() and for_each_new_plane_in_state(). Or
-	 * through careful ordering of atomic commit operations as implemented
-	 * in the atomic helpers, see &struct drm_crtc_commit.
+	 * for_each_oldnew_plane_in_state(), for_each_old_plane_in_state() and
+	 * for_each_new_plane_in_state(). Or through careful ordering of atomic
+	 * commit operations as implemented in the atomic helpers, see
+	 * &struct drm_crtc_commit.
 	 */
 	struct drm_plane_state *state;
 
@@ -583,16 +601,18 @@ int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 /**
  * drm_plane_find - find a &drm_plane
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: plane id
  *
  * Returns the plane with @id, NULL if it doesn't exist. Simple wrapper around
  * drm_mode_object_find().
  */
 static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
+		struct drm_file *file_priv,
 		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PLANE);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_PLANE);
 	return mo ? obj_to_plane(mo) : NULL;
 }
 

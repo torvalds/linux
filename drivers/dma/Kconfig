@@ -115,7 +115,7 @@ config BCM_SBA_RAID
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_DISABLE_XOR_VAL_DMA
 	select ASYNC_TX_DISABLE_PQ_VAL_DMA
-	default ARCH_BCM_IPROC
+	default m if ARCH_BCM_IPROC
 	help
 	  Enable support for Broadcom SBA RAID Engine. The SBA RAID
 	  engine is available on most of the Broadcom iProc SoCs. It
@@ -482,6 +482,35 @@ config STM32_DMA
 	  STM32 MCUs.
 	  If you have a board based on such a MCU and wish to use DMA say Y
 	  here.
+
+config STM32_DMAMUX
+	bool "STMicroelectronics STM32 dma multiplexer support"
+	depends on STM32_DMA || COMPILE_TEST
+	help
+	  Enable support for the on-chip DMA multiplexer on STMicroelectronics
+	  STM32 MCUs.
+	  If you have a board based on such a MCU and wish to use DMAMUX say Y
+	  here.
+
+config STM32_MDMA
+	bool "STMicroelectronics STM32 master dma support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip MDMA controller on STMicroelectronics
+	  STM32 platforms.
+	  If you have a board based on STM32 SoC and wish to use the master DMA
+	  say Y here.
+
+config SPRD_DMA
+	tristate "Spreadtrum DMA support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the on-chip DMA controller on Spreadtrum platform.
 
 config S3C24XX_DMAC
 	bool "Samsung S3C24XX DMA support"

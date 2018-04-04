@@ -55,20 +55,6 @@ enum {
 	BXT_DPCM_AUDIO_HDMI3_PB,
 };
 
-static inline struct snd_soc_dai *bxt_get_codec_dai(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-
-		if (!strncmp(rtd->codec_dai->name, BXT_DIALOG_CODEC_DAI,
-			     strlen(BXT_DIALOG_CODEC_DAI)))
-			return rtd->codec_dai;
-	}
-
-	return NULL;
-}
-
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int  event)
 {
@@ -77,7 +63,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dai *codec_dai;
 
-	codec_dai = bxt_get_codec_dai(card);
+	codec_dai = snd_soc_card_get_codec_dai(card, BXT_DIALOG_CODEC_DAI);
 	if (!codec_dai) {
 		dev_err(card->dev, "Codec dai not found; Unable to set/unset codec pll\n");
 		return -EIO;

@@ -1132,7 +1132,8 @@ static void kgdbts_put_char(u8 chr)
 		ts.run_test(0, chr);
 }
 
-static int param_set_kgdbts_var(const char *kmessage, struct kernel_param *kp)
+static int param_set_kgdbts_var(const char *kmessage,
+				const struct kernel_param *kp)
 {
 	int len = strlen(kmessage);
 

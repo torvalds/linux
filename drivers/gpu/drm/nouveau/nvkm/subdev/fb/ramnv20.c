@@ -29,7 +29,6 @@ nv20_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct nvkm_device *device = fb->subdev.device;
 	u32 pbus1218 =  nvkm_rd32(device, 0x001218);
 	u32     size = (nvkm_rd32(device, 0x10020c) & 0xff000000);
-	u32     tags =  nvkm_rd32(device, 0x100320);
 	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
@@ -40,7 +39,7 @@ nv20_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	case 0x00000300: type = NVKM_RAM_TYPE_GDDR2; break;
 	}
 
-	ret = nvkm_ram_new_(&nv04_ram_func, fb, type, size, tags, pram);
+	ret = nvkm_ram_new_(&nv04_ram_func, fb, type, size, pram);
 	if (ret)
 		return ret;
 

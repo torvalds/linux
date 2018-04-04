@@ -168,7 +168,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
-		dev_err(hdmi->dev, "Unable to get rockchip,grf\n");
+		DRM_DEV_ERROR(hdmi->dev, "Unable to get rockchip,grf\n");
 		return PTR_ERR(hdmi->regmap);
 	}
 
@@ -178,7 +178,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	} else if (PTR_ERR(hdmi->vpll_clk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (IS_ERR(hdmi->vpll_clk)) {
-		dev_err(hdmi->dev, "failed to get grf clock\n");
+		DRM_DEV_ERROR(hdmi->dev, "failed to get grf clock\n");
 		return PTR_ERR(hdmi->vpll_clk);
 	}
 
@@ -188,13 +188,14 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	} else if (PTR_ERR(hdmi->grf_clk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (IS_ERR(hdmi->grf_clk)) {
-		dev_err(hdmi->dev, "failed to get grf clock\n");
+		DRM_DEV_ERROR(hdmi->dev, "failed to get grf clock\n");
 		return PTR_ERR(hdmi->grf_clk);
 	}
 
 	ret = clk_prepare_enable(hdmi->vpll_clk);
 	if (ret) {
-		dev_err(hdmi->dev, "Failed to enable HDMI vpll: %d\n", ret);
+		DRM_DEV_ERROR(hdmi->dev,
+			      "Failed to enable HDMI vpll: %d\n", ret);
 		return ret;
 	}
 
@@ -259,17 +260,17 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	ret = clk_prepare_enable(hdmi->grf_clk);
 	if (ret < 0) {
-		dev_err(hdmi->dev, "failed to enable grfclk %d\n", ret);
+		DRM_DEV_ERROR(hdmi->dev, "failed to enable grfclk %d\n", ret);
 		return;
 	}
 
 	ret = regmap_write(hdmi->regmap, hdmi->chip_data->lcdsel_grf_reg, val);
 	if (ret != 0)
-		dev_err(hdmi->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(hdmi->dev, "Could not write to GRF: %d\n", ret);
 
 	clk_disable_unprepare(hdmi->grf_clk);
-	dev_dbg(hdmi->dev, "vop %s output to hdmi\n",
-		ret ? "LIT" : "BIG");
+	DRM_DEV_DEBUG(hdmi->dev, "vop %s output to hdmi\n",
+		      ret ? "LIT" : "BIG");
 }
 
 static int
@@ -368,7 +369,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	ret = rockchip_hdmi_parse_dt(hdmi);
 	if (ret) {
-		dev_err(hdmi->dev, "Unable to parse OF data\n");
+		DRM_DEV_ERROR(hdmi->dev, "Unable to parse OF data\n");
 		return ret;
 	}
 

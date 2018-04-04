@@ -1,16 +1,7 @@
-/* rc-ir-raw.c - handle IR pulse/space events
- *
- * Copyright (C) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// rc-ir-raw.c - handle IR pulse/space events
+//
+// Copyright (C) 2010 by Mauro Carvalho Chehab
 
 #include <linux/export.h>
 #include <linux/kthread.h>
@@ -40,6 +31,7 @@ static int ir_raw_event_thread(void *data)
 				if (raw->dev->enabled_protocols &
 				    handler->protocols || !handler->protocols)
 					handler->decode(raw->dev, ev);
+			ir_lirc_raw_event(raw->dev, ev);
 			raw->prev_ev = ev;
 		}
 		mutex_unlock(&ir_raw_handler_lock);
@@ -128,7 +120,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
 /**
  * ir_raw_event_store_with_filter() - pass next pulse/space to decoders with some processing
  * @dev:	the struct rc_dev device descriptor
- * @type:	the type of the event that has occurred
+ * @ev:		the event that has occurred
  *
  * This routine (which may be called from an interrupt context) works
  * in similar manner to ir_raw_event_store_edge.
@@ -254,19 +246,16 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 
 	i = BIT_ULL(n - 1);
 
-	if (timings->leader) {
+	if (timings->leader_pulse) {
 		if (!max--)
 			return ret;
-		if (timings->pulse_space_start) {
-			init_ir_raw_event_duration((*ev)++, 1, timings->leader);
-
+		init_ir_raw_event_duration((*ev), 1, timings->leader_pulse);
+		if (timings->leader_space) {
 			if (!max--)
 				return ret;
-			init_ir_raw_event_duration((*ev), 0, timings->leader);
-		} else {
-			init_ir_raw_event_duration((*ev), 1, timings->leader);
+			init_ir_raw_event_duration(++(*ev), 0,
+						   timings->leader_space);
 		}
-		i >>= 1;
 	} else {
 		/* continue existing signal */
 		--(*ev);
@@ -457,6 +446,8 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 	int ret = -EINVAL;
 	u64 mask = 1ULL << protocol;
 
+	ir_raw_load_modules(&mask);
+
 	mutex_lock(&ir_raw_handler_lock);
 	list_for_each_entry(handler, &ir_raw_handler_list, list) {
 		if (handler->protocols & mask && handler->encode) {
@@ -471,9 +462,10 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 }
 EXPORT_SYMBOL(ir_raw_encode_scancode);
 
-static void edge_handle(unsigned long arg)
+static void edge_handle(struct timer_list *t)
 {
-	struct rc_dev *dev = (struct rc_dev *)arg;
+	struct ir_raw_event_ctrl *raw = from_timer(raw, t, edge_handle);
+	struct rc_dev *dev = raw->dev;
 	ktime_t interval = ktime_sub(ktime_get(), dev->raw->last_event);
 
 	if (ktime_to_ns(interval) >= dev->timeout) {
@@ -492,20 +484,43 @@ static void edge_handle(unsigned long arg)
 	ir_raw_event_handle(dev);
 }
 
+/**
+ * ir_raw_encode_carrier() - Get carrier used for protocol
+ *
+ * @protocol:		protocol
+ *
+ * Attempts to find the carrier for the specified protocol
+ *
+ * Returns:	The carrier in Hz
+ *		-EINVAL if the protocol is invalid, or if no
+ *		compatible encoder was found.
+ */
+int ir_raw_encode_carrier(enum rc_proto protocol)
+{
+	struct ir_raw_handler *handler;
+	int ret = -EINVAL;
+	u64 mask = BIT_ULL(protocol);
+
+	mutex_lock(&ir_raw_handler_lock);
+	list_for_each_entry(handler, &ir_raw_handler_list, list) {
+		if (handler->protocols & mask && handler->encode) {
+			ret = handler->carrier;
+			break;
+		}
+	}
+	mutex_unlock(&ir_raw_handler_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(ir_raw_encode_carrier);
+
 /*
  * Used to (un)register raw event clients
  */
 int ir_raw_event_prepare(struct rc_dev *dev)
 {
-	static bool raw_init; /* 'false' default value, raw decoders loaded? */
-
 	if (!dev)
 		return -EINVAL;
-
-	if (!raw_init) {
-		request_module("ir-lirc-codec");
-		raw_init = true;
-	}
 
 	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
 	if (!dev->raw)
@@ -513,8 +528,7 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
-	setup_timer(&dev->raw->edge_handle, edge_handle,
-		    (unsigned long)dev);
+	timer_setup(&dev->raw->edge_handle, edge_handle, 0);
 	INIT_KFIFO(dev->raw->kfifo);
 
 	return 0;
@@ -525,19 +539,11 @@ int ir_raw_event_register(struct rc_dev *dev)
 	struct ir_raw_handler *handler;
 	struct task_struct *thread;
 
-	/*
-	 * raw transmitters do not need any event registration
-	 * because the event is coming from userspace
-	 */
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
-		thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u",
-				     dev->minor);
+	thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u", dev->minor);
+	if (IS_ERR(thread))
+		return PTR_ERR(thread);
 
-		if (IS_ERR(thread))
-			return PTR_ERR(thread);
-
-		dev->raw->thread = thread;
-	}
+	dev->raw->thread = thread;
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_add_tail(&dev->raw->list, &ir_raw_client_list);

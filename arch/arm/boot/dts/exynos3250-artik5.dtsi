@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos3250 based ARTIK5 module device tree source
  *
@@ -6,10 +7,6 @@
  *
  * Device tree source file for Samsung's ARTIK5 module which is based on
  * Samsung Exynos3250 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "exynos3250.dtsi"
@@ -29,7 +26,7 @@
 		reg = <0x40000000 0x1ff00000>;
 	};
 
-	firmware@0205f000 {
+	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0205f000 0x1000>;
 	};

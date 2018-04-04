@@ -893,7 +893,7 @@ void omap4iss_put(struct iss_device *iss)
 		return;
 
 	mutex_lock(&iss->iss_mutex);
-	BUG_ON(iss->ref_count == 0);
+	WARN_ON(iss->ref_count == 0);
 	if (--iss->ref_count == 0) {
 		iss_disable_interrupts(iss);
 		/* Reset the ISS if an entity has failed to stop. This is the

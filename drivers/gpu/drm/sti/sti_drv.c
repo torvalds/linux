@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <drm/drmP.h>
@@ -16,6 +16,8 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_of.h>
 
@@ -137,16 +139,9 @@ static int sti_atomic_check(struct drm_device *dev,
 	return ret;
 }
 
-static void sti_output_poll_changed(struct drm_device *ddev)
-{
-	struct sti_private *private = ddev->dev_private;
-
-	drm_fbdev_cma_hotplug_event(private->fbdev);
-}
-
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
-	.output_poll_changed = sti_output_poll_changed,
+	.fb_create = drm_gem_fb_create,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = sti_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -229,11 +224,7 @@ static void sti_cleanup(struct drm_device *ddev)
 {
 	struct sti_private *private = ddev->dev_private;
 
-	if (private->fbdev) {
-		drm_fbdev_cma_fini(private->fbdev);
-		private->fbdev = NULL;
-	}
-
+	drm_fb_cma_fbdev_fini(ddev);
 	drm_kms_helper_poll_fini(ddev);
 	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
@@ -243,8 +234,6 @@ static void sti_cleanup(struct drm_device *ddev)
 static int sti_bind(struct device *dev)
 {
 	struct drm_device *ddev;
-	struct sti_private *private;
-	struct drm_fbdev_cma *fbdev;
 	int ret;
 
 	ddev = drm_dev_alloc(&sti_driver, dev);
@@ -265,15 +254,10 @@ static int sti_bind(struct device *dev)
 
 	drm_mode_config_reset(ddev);
 
-	private = ddev->dev_private;
 	if (ddev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(ddev, 32,
-					   ddev->mode_config.num_connector);
-		if (IS_ERR(fbdev)) {
+		ret = drm_fb_cma_fbdev_init(ddev, 32, 0);
+		if (ret)
 			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
-			fbdev = NULL;
-		}
-		private->fbdev = fbdev;
 	}
 
 	return 0;

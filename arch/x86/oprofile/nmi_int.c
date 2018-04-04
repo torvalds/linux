@@ -460,7 +460,7 @@ static int nmi_setup(void)
 		goto fail;
 
 	for_each_possible_cpu(cpu) {
-		if (!cpu)
+		if (!IS_ENABLED(CONFIG_SMP) || !cpu)
 			continue;
 
 		memcpy(per_cpu(cpu_msrs, cpu).counters,
@@ -592,7 +592,7 @@ enum __force_cpu_type {
 
 static int force_cpu_type;
 
-static int set_cpu_type(const char *str, struct kernel_param *kp)
+static int set_cpu_type(const char *str, const struct kernel_param *kp)
 {
 	if (!strcmp(str, "timer")) {
 		force_cpu_type = timer;

@@ -63,12 +63,11 @@
 #define DRIVER_NAME			"ntb"
 #define DRIVER_DESCRIPTION		"PCIe NTB Driver Framework"
 
-#define DRIVER_LICENSE			"Dual BSD/GPL"
 #define DRIVER_VERSION			"1.0"
 #define DRIVER_RELDATE			"24 March 2015"
 #define DRIVER_AUTHOR			"Allen Hubbe <Allen.Hubbe@emc.com>"
 
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
@@ -112,7 +111,6 @@ int ntb_register_device(struct ntb_dev *ntb)
 
 	init_completion(&ntb->released);
 
-	memset(&ntb->dev, 0, sizeof(ntb->dev));
 	ntb->dev.bus = &ntb_bus;
 	ntb->dev.parent = &ntb->pdev->dev;
 	ntb->dev.release = ntb_dev_release;

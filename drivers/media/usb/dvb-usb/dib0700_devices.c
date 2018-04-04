@@ -23,6 +23,9 @@
 #include "dib0090.h"
 #include "lgdt3305.h"
 #include "mxl5007t.h"
+#include "mn88472.h"
+#include "tda18250.h"
+
 
 static int force_lna_activation;
 module_param(force_lna_activation, int, 0644);
@@ -291,7 +294,7 @@ static int stk7700P2_frontend_attach(struct dvb_usb_adapter *adap)
 					     stk7700d_dib7000p_mt2266_config)
 		    != 0) {
 			err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n", __func__);
-			dvb_detach(&state->dib7000p_ops);
+			dvb_detach(state->dib7000p_ops.set_wbd_ref);
 			return -ENODEV;
 		}
 	}
@@ -325,7 +328,7 @@ static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
 					     stk7700d_dib7000p_mt2266_config)
 		    != 0) {
 			err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n", __func__);
-			dvb_detach(&state->dib7000p_ops);
+			dvb_detach(state->dib7000p_ops.set_wbd_ref);
 			return -ENODEV;
 		}
 	}
@@ -430,6 +433,7 @@ static int stk7700ph_xc3028_callback(void *ptr, int component,
 		state->dib7000p_ops.set_gpio(adap->fe_adap[0].fe, 8, 0, 1);
 		break;
 	case XC2028_RESET_CLK:
+	case XC2028_I2C_FLUSH:
 		break;
 	default:
 		err("%s: unknown command %d, arg %d\n", __func__,
@@ -478,7 +482,7 @@ static int stk7700ph_frontend_attach(struct dvb_usb_adapter *adap)
 				     &stk7700ph_dib7700_xc3028_config) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n",
 		    __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -1010,7 +1014,7 @@ static int stk7070p_frontend_attach(struct dvb_usb_adapter *adap)
 				     &dib7070p_dib7000p_config) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n",
 		    __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -1068,7 +1072,7 @@ static int stk7770p_frontend_attach(struct dvb_usb_adapter *adap)
 				     &dib7770p_dib7000p_config) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n",
 		    __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -1677,10 +1681,10 @@ static int dib8096_set_param_override(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 
-	/** Update PLL if needed ratio **/
+	/* Update PLL if needed ratio */
 	state->dib8000_ops.update_pll(fe, &dib8090_pll_config_12mhz, fe->dtv_property_cache.bandwidth_hz / 1000, 0);
 
-	/** Get optimize PLL ratio to remove spurious **/
+	/* Get optimize PLL ratio to remove spurious */
 	pll_ratio = dib8090_compute_pll_parameters(fe);
 	if (pll_ratio == 17)
 		timf = 21387946;
@@ -1691,7 +1695,7 @@ static int dib8096_set_param_override(struct dvb_frontend *fe)
 	else
 		timf = 18179756;
 
-	/** Update ratio **/
+	/* Update ratio */
 	state->dib8000_ops.update_pll(fe, &dib8090_pll_config_12mhz, fe->dtv_property_cache.bandwidth_hz / 1000, pll_ratio);
 
 	state->dib8000_ops.ctrl_timf(fe, DEMOD_TIMF_SET, timf);
@@ -3056,7 +3060,7 @@ static int nim7090_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if (state->dib7000p_ops.i2c_enumeration(&adap->dev->i2c_adap, 1, 0x10, &nim7090_dib7000p_config) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n", __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 	adap->fe_adap[0].fe = state->dib7000p_ops.init(&adap->dev->i2c_adap, 0x80, &nim7090_dib7000p_config);
@@ -3109,7 +3113,7 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 	/* initialize IC 0 */
 	if (state->dib7000p_ops.i2c_enumeration(&adap->dev->i2c_adap, 1, 0x20, &tfe7090pvr_dib7000p_config[0]) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n", __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -3139,7 +3143,7 @@ static int tfe7090pvr_frontend1_attach(struct dvb_usb_adapter *adap)
 	i2c = state->dib7000p_ops.get_i2c_master(adap->dev->adapter[0].fe_adap[0].fe, DIBX000_I2C_INTERFACE_GPIO_6_7, 1);
 	if (state->dib7000p_ops.i2c_enumeration(i2c, 1, 0x10, &tfe7090pvr_dib7000p_config[1]) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n", __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -3214,7 +3218,7 @@ static int tfe7790p_frontend_attach(struct dvb_usb_adapter *adap)
 				1, 0x10, &tfe7790p_dib7000p_config) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n",
 				__func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 	adap->fe_adap[0].fe = state->dib7000p_ops.init(&adap->dev->i2c_adap,
@@ -3309,7 +3313,7 @@ static int stk7070pd_frontend_attach0(struct dvb_usb_adapter *adap)
 				     stk7070pd_dib7000p_config) != 0) {
 		err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n",
 		    __func__);
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -3357,7 +3361,7 @@ static int novatd_sleep_override(struct dvb_frontend* fe)
 	return state->sleep(fe);
 }
 
-/**
+/*
  * novatd_frontend_attach - Nova-TD specific attach
  *
  * Nova-TD has GPIO0, 1 and 2 for LEDs. So do not fiddle with them except for
@@ -3384,7 +3388,7 @@ static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
 					     stk7070pd_dib7000p_config) != 0) {
 			err("%s: state->dib7000p_ops.i2c_enumeration failed.  Cannot continue\n",
 			    __func__);
-			dvb_detach(&state->dib7000p_ops);
+			dvb_detach(state->dib7000p_ops.set_wbd_ref);
 			return -ENODEV;
 		}
 	}
@@ -3620,7 +3624,7 @@ static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if (state->dib7000p_ops.dib7000pc_detection(&adap->dev->i2c_adap) == 0) {
 		/* Demodulator not found for some reason? */
-		dvb_detach(&state->dib7000p_ops);
+		dvb_detach(state->dib7000p_ops.set_wbd_ref);
 		return -ENODEV;
 	}
 
@@ -3725,6 +3729,90 @@ static int mxl5007t_tuner_attach(struct dvb_usb_adapter *adap)
 			  &hcw_mxl5007t_config) == NULL ? -ENODEV : 0;
 }
 
+static int xbox_one_attach(struct dvb_usb_adapter *adap)
+{
+	struct dib0700_state *st = adap->dev->priv;
+	struct i2c_client *client_demod, *client_tuner;
+	struct dvb_usb_device *d = adap->dev;
+	struct mn88472_config mn88472_config = { };
+	struct tda18250_config tda18250_config;
+	struct i2c_board_info info;
+
+	st->fw_use_new_i2c_api = 1;
+	st->disable_streaming_master_mode = 1;
+
+	/* fe power enable */
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+	msleep(30);
+
+	/* demod reset */
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+
+	/* attach demod */
+	mn88472_config.fe = &adap->fe_adap[0].fe;
+	mn88472_config.i2c_wr_max = 22;
+	mn88472_config.xtal = 20500000;
+	mn88472_config.ts_mode = PARALLEL_TS_MODE;
+	mn88472_config.ts_clock = FIXED_TS_CLOCK;
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "mn88472", I2C_NAME_SIZE);
+	info.addr = 0x18;
+	info.platform_data = &mn88472_config;
+	request_module(info.type);
+	client_demod = i2c_new_device(&d->i2c_adap, &info);
+	if (client_demod == NULL || client_demod->dev.driver == NULL)
+		goto fail_demod_device;
+	if (!try_module_get(client_demod->dev.driver->owner))
+		goto fail_demod_module;
+
+	st->i2c_client_demod = client_demod;
+
+	adap->fe_adap[0].fe = mn88472_config.get_dvb_frontend(client_demod);
+
+	/* attach tuner */
+	memset(&tda18250_config, 0, sizeof(tda18250_config));
+	tda18250_config.if_dvbt_6 = 3950;
+	tda18250_config.if_dvbt_7 = 4450;
+	tda18250_config.if_dvbt_8 = 4950;
+	tda18250_config.if_dvbc_6 = 4950;
+	tda18250_config.if_dvbc_8 = 4950;
+	tda18250_config.if_atsc = 4079;
+	tda18250_config.loopthrough = true;
+	tda18250_config.xtal_freq = TDA18250_XTAL_FREQ_27MHZ;
+	tda18250_config.fe = adap->fe_adap[0].fe;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "tda18250", I2C_NAME_SIZE);
+	info.addr = 0x60;
+	info.platform_data = &tda18250_config;
+
+	request_module(info.type);
+	client_tuner = i2c_new_device(&adap->dev->i2c_adap, &info);
+	if (client_tuner == NULL || client_tuner->dev.driver == NULL)
+		goto fail_tuner_device;
+	if (!try_module_get(client_tuner->dev.driver->owner))
+		goto fail_tuner_module;
+
+	st->i2c_client_tuner = client_tuner;
+	return 0;
+
+fail_tuner_module:
+	i2c_unregister_device(client_tuner);
+fail_tuner_device:
+	module_put(client_demod->dev.driver->owner);
+fail_demod_module:
+	i2c_unregister_device(client_demod);
+fail_demod_device:
+	return -ENODEV;
+}
+
 
 /* DVB-USB and USB stuff follows */
 struct usb_device_id dib0700_usb_id_table[] = {
@@ -3816,7 +3904,8 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_PCTV_2002E_SE) },
 	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_DIBCOM_STK8096PVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK8096PVR) },
-	{ USB_DEVICE(USB_VID_HAMA,	USB_PID_HAMA_DVBT_HYBRID) },
+/* 85 */{ USB_DEVICE(USB_VID_HAMA,	USB_PID_HAMA_DVBT_HYBRID) },
+	{ USB_DEVICE(USB_VID_MICROSOFT,	USB_PID_XBOX_ONE_TUNER) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -5039,6 +5128,25 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				RC_PROTO_BIT_RC6_MCE |
 				RC_PROTO_BIT_NEC,
 			.change_protocol  = dib0700_change_protocol,
+		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+		.num_adapters = 1,
+		.adapter = {
+			{
+				DIB0700_NUM_FRONTENDS(1),
+				.fe = {{
+					.frontend_attach = xbox_one_attach,
+
+					DIB0700_DEFAULT_STREAMING_CONFIG(0x82),
+				} },
+			},
+		},
+		.num_device_descs = 1,
+		.devices = {
+			{ "Microsoft Xbox One Digital TV Tuner",
+				{ &dib0700_usb_id_table[86], NULL },
+				{ NULL },
+			},
 		},
 	},
 };

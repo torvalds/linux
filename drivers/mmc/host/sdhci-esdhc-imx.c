@@ -193,6 +193,7 @@ struct pltfm_imx_data {
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
 	struct clk *clk_per;
+	unsigned int actual_clock;
 	enum {
 		NO_CMD_PENDING,      /* no multiblock command pending */
 		MULTIBLK_IN_PROCESS, /* exact multiblock cmd in process */
@@ -685,6 +686,20 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 					host->ioaddr + ESDHC_VENDOR_SPEC);
 		}
 		return;
+	}
+
+	/* For i.MX53 eSDHCv3, SYSCTL.SDCLKFS may not be set to 0. */
+	if (is_imx53_esdhc(imx_data)) {
+		/*
+		 * According to the i.MX53 reference manual, if DLLCTRL[10] can
+		 * be set, then the controller is eSDHCv3, else it is eSDHCv2.
+		 */
+		val = readl(host->ioaddr + ESDHC_DLL_CTRL);
+		writel(val | BIT(10), host->ioaddr + ESDHC_DLL_CTRL);
+		temp = readl(host->ioaddr + ESDHC_DLL_CTRL);
+		writel(val, host->ioaddr + ESDHC_DLL_CTRL);
+		if (temp & BIT(10))
+			pre_div = 2;
 	}
 
 	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
@@ -1389,11 +1404,15 @@ static int sdhci_esdhc_runtime_suspend(struct device *dev)
 	int ret;
 
 	ret = sdhci_runtime_suspend_host(host);
+	if (ret)
+		return ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
 	if (!sdhci_sdio_irq_enabled(host)) {
+		imx_data->actual_clock = host->mmc->actual_clock;
+		esdhc_pltfm_set_clock(host, 0);
 		clk_disable_unprepare(imx_data->clk_per);
 		clk_disable_unprepare(imx_data->clk_ipg);
 	}
@@ -1409,31 +1428,34 @@ static int sdhci_esdhc_runtime_resume(struct device *dev)
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	int err;
 
+	err = clk_prepare_enable(imx_data->clk_ahb);
+	if (err)
+		return err;
+
 	if (!sdhci_sdio_irq_enabled(host)) {
 		err = clk_prepare_enable(imx_data->clk_per);
 		if (err)
-			return err;
+			goto disable_ahb_clk;
 		err = clk_prepare_enable(imx_data->clk_ipg);
 		if (err)
 			goto disable_per_clk;
+		esdhc_pltfm_set_clock(host, imx_data->actual_clock);
 	}
-	err = clk_prepare_enable(imx_data->clk_ahb);
-	if (err)
-		goto disable_ipg_clk;
+
 	err = sdhci_runtime_resume_host(host);
 	if (err)
-		goto disable_ahb_clk;
+		goto disable_ipg_clk;
 
 	return 0;
 
-disable_ahb_clk:
-	clk_disable_unprepare(imx_data->clk_ahb);
 disable_ipg_clk:
 	if (!sdhci_sdio_irq_enabled(host))
 		clk_disable_unprepare(imx_data->clk_ipg);
 disable_per_clk:
 	if (!sdhci_sdio_irq_enabled(host))
 		clk_disable_unprepare(imx_data->clk_per);
+disable_ahb_clk:
+	clk_disable_unprepare(imx_data->clk_ahb);
 	return err;
 }
 #endif

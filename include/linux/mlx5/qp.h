@@ -221,6 +221,7 @@ enum {
 };
 
 enum {
+	MLX5_ETH_WQE_SVLAN              = 1 << 0,
 	MLX5_ETH_WQE_INSERT_VLAN        = 1 << 15,
 };
 
@@ -472,6 +473,11 @@ struct mlx5_core_qp {
 	int			pid;
 };
 
+struct mlx5_core_dct {
+	struct mlx5_core_qp	mqp;
+	struct completion	drained;
+};
+
 struct mlx5_qp_path {
 	u8			fl_free_ar;
 	u8			rsvd3;
@@ -548,6 +554,9 @@ static inline struct mlx5_core_mkey *__mlx5_mr_lookup(struct mlx5_core_dev *dev,
 	return radix_tree_lookup(&dev->priv.mkey_table.tree, key);
 }
 
+int mlx5_core_create_dct(struct mlx5_core_dev *dev,
+			 struct mlx5_core_dct *qp,
+			 u32 *in, int inlen);
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
 			u32 *in,
@@ -557,8 +566,12 @@ int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
 			struct mlx5_core_qp *qp);
 int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 			 struct mlx5_core_qp *qp);
+int mlx5_core_destroy_dct(struct mlx5_core_dev *dev,
+			  struct mlx5_core_dct *dct);
 int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		       u32 *out, int outlen);
+int mlx5_core_dct_query(struct mlx5_core_dev *dev, struct mlx5_core_dct *dct,
+			u32 *out, int outlen);
 
 int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
 			     u32 timeout_usec);

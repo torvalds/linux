@@ -17,6 +17,7 @@ Below are same as Simple-Card.
 - bitclock-master
 - bitclock-inversion
 - frame-inversion
+- mclk-fs
 - dai-tdm-slot-num
 - dai-tdm-slot-width
 - clocks / system-clock-frequency

@@ -156,7 +156,10 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_hwfn->p_rdma_info = p_rdma_info;
-	p_rdma_info->proto = PROTOCOLID_ROCE;
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		p_rdma_info->proto = PROTOCOLID_IWARP;
+	else
+		p_rdma_info->proto = PROTOCOLID_ROCE;
 
 	num_cons = qed_cxt_get_proto_cid_count(p_hwfn, p_rdma_info->proto,
 					       NULL);
@@ -206,11 +209,11 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 		goto free_pd_map;
 	}
 
-	/* Allocate bitmap for cq's. The maximum number of CQs is bounded to
-	 * twice the number of QPs.
+	/* Allocate bitmap for cq's. The maximum number of CQs is bound to
+	 * the number of connections we support. (num_qps in iWARP or
+	 * num_qps/2 in RoCE).
 	 */
-	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cq_map,
-				 p_rdma_info->num_qps * 2, "CQ");
+	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cq_map, num_cons, "CQ");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate cq bitmap, rc = %d\n", rc);
@@ -219,10 +222,10 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Allocate bitmap for toggle bit for cq icids
 	 * We toggle the bit every time we create or resize cq for a given icid.
-	 * The maximum number of CQs is bounded to  twice the number of QPs.
+	 * Size needs to equal the size of the cq bmap.
 	 */
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->toggle_bits,
-				 p_rdma_info->num_qps * 2, "Toggle");
+				 num_cons, "Toggle");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate toogle bits, rc = %d\n", rc);
@@ -355,10 +358,27 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 	kfree(p_rdma_info);
 }
 
+static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+}
+
+static void qed_rdma_free_reserved_lkey(struct qed_hwfn *p_hwfn)
+{
+	qed_rdma_free_tid(p_hwfn, p_hwfn->p_rdma_info->dev->reserved_lkey);
+}
+
 static void qed_rdma_free(struct qed_hwfn *p_hwfn)
 {
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Freeing RDMA\n");
 
+	qed_rdma_free_reserved_lkey(p_hwfn);
 	qed_rdma_resc_free(p_hwfn);
 }
 
@@ -548,10 +568,13 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		qed_iwarp_init_fw_ramrod(p_hwfn,
+					 &p_ent->ramrod.iwarp_init_func);
 		p_ramrod = &p_ent->ramrod.iwarp_init_func.rdma;
-	else
+	} else {
 		p_ramrod = &p_ent->ramrod.roce_init_func.rdma;
+	}
 
 	p_params_header = &p_ramrod->params_header;
 	p_params_header->cnq_start_offset = (u8)RESC_START(p_hwfn,
@@ -608,9 +631,6 @@ out:
 static int qed_rdma_reserve_lkey(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_device *dev = p_hwfn->p_rdma_info->dev;
-
-	/* The first DPI is reserved for the Kernel */
-	__set_bit(0, p_hwfn->p_rdma_info->dpi_map.bitmap);
 
 	/* Tid 0 will be used as the key for "reserved MR".
 	 * The driver should allocate memory for it so it can be loaded but no
@@ -789,17 +809,6 @@ static struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
 
 	/* Return struct with device parameters */
 	return p_hwfn->p_rdma_info->dev;
-}
-
-static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
-{
-	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
-
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
-
-	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
-	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
-	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 }
 
 static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)

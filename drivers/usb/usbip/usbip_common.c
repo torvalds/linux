@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
  * Copyright (C) 2015-2016 Samsung Electronics
  *               Krzysztof Opasiak <k.opasiak@samsung.com>
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
- * USA.
  */
 
 #include <asm/byteorder.h>
@@ -105,7 +91,7 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 	dev_dbg(dev, "       devnum(%d) devpath(%s) usb speed(%s)",
 		udev->devnum, udev->devpath, usb_speed_string(udev->speed));
 
-	pr_debug("tt %p, ttport %d\n", udev->tt, udev->ttport);
+	pr_debug("tt hub ttport %d\n", udev->ttport);
 
 	dev_dbg(dev, "                    ");
 	for (i = 0; i < 16; i++)
@@ -138,12 +124,8 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 	}
 	pr_debug("\n");
 
-	dev_dbg(dev, "parent %p, bus %p\n", udev->parent, udev->bus);
-
-	dev_dbg(dev,
-		"descriptor %p, config %p, actconfig %p, rawdescriptors %p\n",
-		&udev->descriptor, udev->config,
-		udev->actconfig, udev->rawdescriptors);
+	dev_dbg(dev, "parent %s, bus %s\n", dev_name(&udev->parent->dev),
+		udev->bus->bus_name);
 
 	dev_dbg(dev, "have_langid %d, string_langid %d\n",
 		udev->have_langid, udev->string_langid);
@@ -251,9 +233,6 @@ void usbip_dump_urb(struct urb *urb)
 
 	dev = &urb->dev->dev;
 
-	dev_dbg(dev, "   urb                   :%p\n", urb);
-	dev_dbg(dev, "   dev                   :%p\n", urb->dev);
-
 	usbip_dump_usb_device(urb->dev);
 
 	dev_dbg(dev, "   pipe                  :%08x ", urb->pipe);
@@ -262,11 +241,9 @@ void usbip_dump_urb(struct urb *urb)
 
 	dev_dbg(dev, "   status                :%d\n", urb->status);
 	dev_dbg(dev, "   transfer_flags        :%08X\n", urb->transfer_flags);
-	dev_dbg(dev, "   transfer_buffer       :%p\n", urb->transfer_buffer);
 	dev_dbg(dev, "   transfer_buffer_length:%d\n",
 						urb->transfer_buffer_length);
 	dev_dbg(dev, "   actual_length         :%d\n", urb->actual_length);
-	dev_dbg(dev, "   setup_packet          :%p\n", urb->setup_packet);
 
 	if (urb->setup_packet && usb_pipetype(urb->pipe) == PIPE_CONTROL)
 		usbip_dump_usb_ctrlrequest(
@@ -276,8 +253,6 @@ void usbip_dump_urb(struct urb *urb)
 	dev_dbg(dev, "   number_of_packets     :%d\n", urb->number_of_packets);
 	dev_dbg(dev, "   interval              :%d\n", urb->interval);
 	dev_dbg(dev, "   error_count           :%d\n", urb->error_count);
-	dev_dbg(dev, "   context               :%p\n", urb->context);
-	dev_dbg(dev, "   complete              :%p\n", urb->complete);
 }
 EXPORT_SYMBOL_GPL(usbip_dump_urb);
 
@@ -331,26 +306,19 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 	struct msghdr msg = {.msg_flags = MSG_NOSIGNAL};
 	int total = 0;
 
+	if (!sock || !buf || !size)
+		return -EINVAL;
+
 	iov_iter_kvec(&msg.msg_iter, READ|ITER_KVEC, &iov, 1, size);
 
 	usbip_dbg_xmit("enter\n");
 
-	if (!sock || !buf || !size) {
-		pr_err("invalid arg, sock %p buff %p size %d\n", sock, buf,
-		       size);
-		return -EINVAL;
-	}
-
 	do {
-		int sz = msg_data_left(&msg);
 		sock->sk->sk_allocation = GFP_NOIO;
 
 		result = sock_recvmsg(sock, &msg, MSG_WAITALL);
-		if (result <= 0) {
-			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
-				 sock, buf + total, sz, result, total);
+		if (result <= 0)
 			goto err;
-		}
 
 		total += result;
 	} while (msg_data_left(&msg));

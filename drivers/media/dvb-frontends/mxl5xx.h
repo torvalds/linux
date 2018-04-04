@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct mxl5xx_cfg {
 	u8   adr;

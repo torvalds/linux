@@ -74,11 +74,9 @@ int cypress_load_firmware(struct usb_device *udev,
 	struct hexline *hx;
 	int ret, pos = 0;
 
-	hx = kmalloc(sizeof(struct hexline), GFP_KERNEL);
-	if (!hx) {
-		dev_err(&udev->dev, "%s: kmalloc() failed\n", KBUILD_MODNAME);
+	hx = kmalloc(sizeof(*hx), GFP_KERNEL);
+	if (!hx)
 		return -ENOMEM;
-	}
 
 	/* stop the CPU */
 	hx->data[0] = 1;

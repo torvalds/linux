@@ -17,7 +17,6 @@
 
 #include <type_support.h>
 #include <math_support.h>
-#include <storage_class.h>
 #include <platform_support.h>
 #include <sp.h>
 #include "ia_css_circbuf_comm.h"
@@ -35,7 +34,7 @@
  *	- true when it is empty.
  *	- false when it is not empty.
  */
-STORAGE_CLASS_INLINE bool ia_css_circbuf_desc_is_empty(
+static inline bool ia_css_circbuf_desc_is_empty(
 		ia_css_circbuf_desc_t *cb_desc)
 {
 	OP___assert(cb_desc != NULL);
@@ -52,7 +51,7 @@ STORAGE_CLASS_INLINE bool ia_css_circbuf_desc_is_empty(
  *	- true when it is full.
  *	- false when it is not full.
  */
-STORAGE_CLASS_INLINE bool ia_css_circbuf_desc_is_full(
+static inline bool ia_css_circbuf_desc_is_full(
 		ia_css_circbuf_desc_t *cb_desc)
 {
 	OP___assert(cb_desc != NULL);
@@ -65,7 +64,7 @@ STORAGE_CLASS_INLINE bool ia_css_circbuf_desc_is_full(
  * @param cb_desc	The pointer circular buffer descriptor
  * @param size		The size of the circular buffer
  */
-STORAGE_CLASS_INLINE void ia_css_circbuf_desc_init(
+static inline void ia_css_circbuf_desc_init(
 	ia_css_circbuf_desc_t *cb_desc,
 	int8_t size)
 {
@@ -82,7 +81,7 @@ STORAGE_CLASS_INLINE void ia_css_circbuf_desc_init(
  *
  * @return the position in the circular buffer descriptor.
  */
-STORAGE_CLASS_INLINE uint8_t ia_css_circbuf_desc_get_pos_at_offset(
+static inline uint8_t ia_css_circbuf_desc_get_pos_at_offset(
 	ia_css_circbuf_desc_t *cb_desc,
 	uint32_t base,
 	int offset)
@@ -114,7 +113,7 @@ STORAGE_CLASS_INLINE uint8_t ia_css_circbuf_desc_get_pos_at_offset(
  *
  * @return the offset.
  */
-STORAGE_CLASS_INLINE int ia_css_circbuf_desc_get_offset(
+static inline int ia_css_circbuf_desc_get_offset(
 	ia_css_circbuf_desc_t *cb_desc,
 	uint32_t src_pos,
 	uint32_t dest_pos)
@@ -135,7 +134,7 @@ STORAGE_CLASS_INLINE int ia_css_circbuf_desc_get_offset(
  *
  * @return The number of available elements.
  */
-STORAGE_CLASS_INLINE uint32_t ia_css_circbuf_desc_get_num_elems(
+static inline uint32_t ia_css_circbuf_desc_get_num_elems(
 		ia_css_circbuf_desc_t *cb_desc)
 {
 	int num;
@@ -155,7 +154,7 @@ STORAGE_CLASS_INLINE uint32_t ia_css_circbuf_desc_get_num_elems(
  *
  * @return: The number of free elements.
  */
-STORAGE_CLASS_INLINE uint32_t ia_css_circbuf_desc_get_free_elems(
+static inline uint32_t ia_css_circbuf_desc_get_free_elems(
 		ia_css_circbuf_desc_t *cb_desc)
 {
 	uint32_t num;

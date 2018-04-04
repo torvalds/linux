@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/dd.c - The core device/driver interactions.
  *
@@ -13,8 +14,6 @@
  * Copyright (c) 2002-3 Open Source Development Labs
  * Copyright (c) 2007-2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (c) 2007-2009 Novell Inc.
- *
- * This file is released under the GPLv2
  */
 
 #include <linux/device.h>
@@ -289,6 +288,18 @@ static void driver_bound(struct device *dev)
 	kobject_uevent(&dev->kobj, KOBJ_BIND);
 }
 
+static ssize_t coredump_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	device_lock(dev);
+	if (dev->driver->coredump)
+		dev->driver->coredump(dev);
+	device_unlock(dev);
+
+	return count;
+}
+static DEVICE_ATTR_WO(coredump);
+
 static int driver_sysfs_add(struct device *dev)
 {
 	int ret;
@@ -298,14 +309,26 @@ static int driver_sysfs_add(struct device *dev)
 					     BUS_NOTIFY_BIND_DRIVER, dev);
 
 	ret = sysfs_create_link(&dev->driver->p->kobj, &dev->kobj,
+				kobject_name(&dev->kobj));
+	if (ret)
+		goto fail;
+
+	ret = sysfs_create_link(&dev->kobj, &dev->driver->p->kobj,
+				"driver");
+	if (ret)
+		goto rm_dev;
+
+	if (!IS_ENABLED(CONFIG_DEV_COREDUMP) || !dev->driver->coredump ||
+	    !device_create_file(dev, &dev_attr_coredump))
+		return 0;
+
+	sysfs_remove_link(&dev->kobj, "driver");
+
+rm_dev:
+	sysfs_remove_link(&dev->driver->p->kobj,
 			  kobject_name(&dev->kobj));
-	if (ret == 0) {
-		ret = sysfs_create_link(&dev->kobj, &dev->driver->p->kobj,
-					"driver");
-		if (ret)
-			sysfs_remove_link(&dev->driver->p->kobj,
-					kobject_name(&dev->kobj));
-	}
+
+fail:
 	return ret;
 }
 
@@ -314,6 +337,8 @@ static void driver_sysfs_remove(struct device *dev)
 	struct device_driver *drv = dev->driver;
 
 	if (drv) {
+		if (drv->coredump)
+			device_remove_file(dev, &dev_attr_coredump);
 		sysfs_remove_link(&drv->p->kobj, kobject_name(&dev->kobj));
 		sysfs_remove_link(&dev->kobj, "driver");
 	}
@@ -350,6 +375,15 @@ EXPORT_SYMBOL_GPL(device_bind_driver);
 static atomic_t probe_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(probe_waitqueue);
 
+static void driver_deferred_probe_add_trigger(struct device *dev,
+					      int local_trigger_count)
+{
+	driver_deferred_probe_add(dev);
+	/* Did a trigger occur while probing? Need to re-trigger if yes */
+	if (local_trigger_count != atomic_read(&deferred_trigger_count))
+		driver_deferred_probe_trigger();
+}
+
 static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
@@ -369,6 +403,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	}
 
 	ret = device_links_check_suppliers(dev);
+	if (ret == -EPROBE_DEFER)
+		driver_deferred_probe_add_trigger(dev, local_trigger_count);
 	if (ret)
 		return ret;
 
@@ -464,15 +500,13 @@ pinctrl_bind_failed:
 	if (dev->pm_domain && dev->pm_domain->dismiss)
 		dev->pm_domain->dismiss(dev);
 	pm_runtime_reinit(dev);
+	dev_pm_set_driver_flags(dev, 0);
 
 	switch (ret) {
 	case -EPROBE_DEFER:
 		/* Driver requested deferred probing */
 		dev_dbg(dev, "Driver %s requests probe deferral\n", drv->name);
-		driver_deferred_probe_add(dev);
-		/* Did a trigger occur while probing? Need to re-trigger if yes */
-		if (local_trigger_count != atomic_read(&deferred_trigger_count))
-			driver_deferred_probe_trigger();
+		driver_deferred_probe_add_trigger(dev, local_trigger_count);
 		break;
 	case -ENODEV:
 	case -ENXIO:
@@ -869,6 +903,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 		if (dev->pm_domain && dev->pm_domain->dismiss)
 			dev->pm_domain->dismiss(dev);
 		pm_runtime_reinit(dev);
+		dev_pm_set_driver_flags(dev, 0);
 
 		klist_remove(&dev->p->knode_driver);
 		device_pm_check_callbacks(dev);

@@ -283,6 +283,8 @@ static inline bool phm_cap_enabled(const uint32_t *caps, enum phm_platform_caps 
 		  (1UL << (c & (PHM_MAX_NUM_CAPS_BITS_PER_FIELD - 1)))));
 }
 
+#define PP_CAP(c) phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, (c))
+
 #define PP_PCIEGenInvalid  0xffff
 enum PP_PCIEGen {
     PP_PCIEGen1 = 0,                /* PCIE 1.0 - Transfer rate of 2.5 GT/s */
@@ -295,7 +297,7 @@ typedef enum PP_PCIEGen PP_PCIEGen;
 #define PP_Min_PCIEGen     PP_PCIEGen1
 #define PP_Max_PCIEGen     PP_PCIEGen3
 #define PP_Min_PCIELane    1
-#define PP_Max_PCIELane    32
+#define PP_Max_PCIELane    16
 
 enum phm_clock_Type {
 	PHM_DispClock = 1,
@@ -373,8 +375,6 @@ struct phm_odn_clock_levels {
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
-extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
-extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);
@@ -437,5 +437,6 @@ extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 extern int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 extern int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr);
+extern int phm_reset_power_profile_state(struct pp_hwmgr *hwmgr);
 #endif /* _HARDWARE_MANAGER_H_ */
 

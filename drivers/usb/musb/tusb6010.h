@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Definitions for TUSB6010 USB 2.0 OTG Dual Role controller
  *
  * Copyright (C) 2006 Nokia Corporation
  * Tony Lindgren <tony@atomide.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __TUSB6010_H__

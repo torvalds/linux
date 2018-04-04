@@ -6,10 +6,16 @@ Required properties:
   - "rockchip,rk3188-efuse" - for RK3188 SoCs.
   - "rockchip,rk3228-efuse" - for RK3228 SoCs.
   - "rockchip,rk3288-efuse" - for RK3288 SoCs.
+  - "rockchip,rk3328-efuse" - for RK3328 SoCs.
+  - "rockchip,rk3368-efuse" - for RK3368 SoCs.
   - "rockchip,rk3399-efuse" - for RK3399 SoCs.
 - reg: Should contain the registers location and exact eFuse size
 - clocks: Should be the clock id of eFuse
 - clock-names: Should be "pclk_efuse"
+
+Optional properties:
+- rockchip,efuse-size: Should be exact eFuse size in byte, the eFuse
+  size in property <reg> will be invalid if define this property.
 
 Deprecated properties:
 - compatible: "rockchip,rockchip-efuse"

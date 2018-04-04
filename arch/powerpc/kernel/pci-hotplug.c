@@ -104,7 +104,7 @@ EXPORT_SYMBOL_GPL(pci_hp_remove_devices);
  */
 void pci_hp_add_devices(struct pci_bus *bus)
 {
-	int slotno, mode, pass, max;
+	int slotno, mode, max;
 	struct pci_dev *dev;
 	struct pci_controller *phb;
 	struct device_node *dn = pci_bus_to_OF_node(bus);
@@ -133,13 +133,17 @@ void pci_hp_add_devices(struct pci_bus *bus)
 		pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
 		pcibios_setup_bus_devices(bus);
 		max = bus->busn_res.start;
-		for (pass = 0; pass < 2; pass++) {
-			list_for_each_entry(dev, &bus->devices, bus_list) {
-				if (pci_is_bridge(dev))
-					max = pci_scan_bridge(bus, dev,
-							      max, pass);
-			}
-		}
+		/*
+		 * Scan bridges that are already configured. We don't touch
+		 * them unless they are misconfigured (which will be done in
+		 * the second scan below).
+		 */
+		for_each_pci_bridge(dev, bus)
+			max = pci_scan_bridge(bus, dev, max, 0);
+
+		/* Scan bridges that need to be reconfigured */
+		for_each_pci_bridge(dev, bus)
+			max = pci_scan_bridge(bus, dev, max, 1);
 	}
 	pcibios_finish_adding_to_bus(bus);
 }

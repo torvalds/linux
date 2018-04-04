@@ -56,12 +56,18 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	cpm_reg_usb3_0_vbus: cpm-usb3-0-vbus {
+	aliases {
+		ethernet0 = &cp0_eth0;
+		ethernet1 = &cp0_eth1;
+		ethernet2 = &cp0_eth2;
+	};
+
+	cp0_reg_usb3_0_vbus: cp0-usb3-0-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3h0-vbus";
 		regulator-min-microvolt = <5000000>;
@@ -70,7 +76,7 @@
 		gpio = <&expander0 0 GPIO_ACTIVE_HIGH>;
 	};
 
-	cpm_reg_usb3_1_vbus: cpm-usb3-1-vbus {
+	cp0_reg_usb3_1_vbus: cp0-usb3-1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3h1-vbus";
 		regulator-min-microvolt = <5000000>;
@@ -79,14 +85,14 @@
 		gpio = <&expander0 1 GPIO_ACTIVE_HIGH>;
 	};
 
-	cpm_usb3_0_phy: cpm-usb3-0-phy {
+	cp0_usb3_0_phy: cp0-usb3-0-phy {
 		compatible = "usb-nop-xceiv";
-		vcc-supply = <&cpm_reg_usb3_0_vbus>;
+		vcc-supply = <&cp0_reg_usb3_0_vbus>;
 	};
 
-	cpm_usb3_1_phy: cpm-usb3-1-phy {
+	cp0_usb3_1_phy: cp0-usb3-1-phy {
 		compatible = "usb-nop-xceiv";
-		vcc-supply = <&cpm_reg_usb3_1_vbus>;
+		vcc-supply = <&cp0_reg_usb3_1_vbus>;
 	};
 };
 
@@ -124,14 +130,16 @@
 
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
 };
 
 
-&cpm_pcie2 {
+&cp0_pcie2 {
 	status = "okay";
 };
 
-&cpm_i2c0 {
+&cp0_i2c0 {
 	status = "okay";
 	clock-frequency = <100000>;
 
@@ -141,10 +149,50 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		reg = <0x21>;
+		/*
+		 * IO0_0: USB3_PWR_EN0	IO1_0: USB_3_1_Dev_Detect
+		 * IO0_1: USB3_PWR_EN1	IO1_1: USB2_1_current_limit
+		 * IO0_2: DDR3_4_Detect	IO1_2: Hcon_IO_RstN
+		 * IO0_3: USB2_DEVICE_DETECT
+		 * IO0_4: GPIO_0	IO1_4: SD_Status
+		 * IO0_5: GPIO_1	IO1_5: LDO_5V_Enable
+		 * IO0_6: IHB_5V_Enable	IO1_6: PWR_EN_eMMC
+		 * IO0_7:		IO1_7: SDIO_Vcntrl
+		 */
 	};
 };
 
-&cpm_spi1 {
+&cp0_nand {
+	/*
+	 * SPI on CPM and NAND have common pins on this board. We can
+	 * use only one at a time. To enable the NAND (whihch will
+	 * disable the SPI), the "status = "okay";" line have to be
+	 * added here.
+	 */
+	num-cs = <1>;
+	pinctrl-0 = <&nand_pins>, <&nand_rb>;
+	pinctrl-names = "default";
+	nand-ecc-strength = <4>;
+	nand-ecc-step-size = <512>;
+	marvell,nand-enable-arbiter;
+	nand-on-flash-bbt;
+
+	partition@0 {
+		label = "U-Boot";
+		reg = <0 0x200000>;
+	};
+	partition@200000 {
+		label = "Linux";
+		reg = <0x200000 0xe00000>;
+	};
+	partition@1000000 {
+		label = "Filesystem";
+		reg = <0x1000000 0x3f000000>;
+	};
+};
+
+
+&cp0_spi1 {
 	status = "okay";
 
 	spi-flash@0 {
@@ -172,17 +220,17 @@
 	};
 };
 
-&cpm_sata0 {
+&cp0_sata0 {
 	status = "okay";
 };
 
-&cpm_usb3_0 {
-	usb-phy = <&cpm_usb3_0_phy>;
+&cp0_usb3_0 {
+	usb-phy = <&cp0_usb3_0_phy>;
 	status = "okay";
 };
 
-&cpm_usb3_1 {
-	usb-phy = <&cpm_usb3_1_phy>;
+&cp0_usb3_1 {
+	usb-phy = <&cp0_usb3_1_phy>;
 	status = "okay";
 };
 
@@ -193,14 +241,14 @@
 	non-removable;
 };
 
-&cpm_sdhci0 {
+&cp0_sdhci0 {
 	status = "okay";
 	bus-width = <4>;
 	no-1-8-v;
-	non-removable;
+	cd-gpios = <&expander0 12 GPIO_ACTIVE_LOW>;
 };
 
-&cpm_mdio {
+&cp0_mdio {
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -211,17 +259,28 @@
 	};
 };
 
-&cpm_ethernet {
+&cp0_ethernet {
 	status = "okay";
 };
 
-&cpm_eth1 {
+&cp0_eth0 {
 	status = "okay";
+	/* Network PHY */
+	phy-mode = "10gbase-kr";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cp0_comphy2 0>;
+};
+
+&cp0_eth1 {
+	status = "okay";
+	/* Network PHY */
 	phy = <&phy0>;
 	phy-mode = "sgmii";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cp0_comphy0 1>;
 };
 
-&cpm_eth2 {
+&cp0_eth2 {
 	status = "okay";
 	phy = <&phy1>;
 	phy-mode = "rgmii-id";

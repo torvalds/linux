@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Multiplexer subsystem
  *
  * Copyright (C) 2017 Axentia Technologies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "mux-core: " fmt
@@ -413,6 +410,7 @@ static int of_dev_node_match(struct device *dev, const void *data)
 	return dev->of_node == data;
 }
 
+/* Note this function returns a reference to the mux_chip dev. */
 static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
 {
 	struct device *dev;
@@ -466,6 +464,7 @@ struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 	    (!args.args_count && (mux_chip->controllers > 1))) {
 		dev_err(dev, "%pOF: wrong #mux-control-cells for %pOF\n",
 			np, args.np);
+		put_device(&mux_chip->dev);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -476,10 +475,10 @@ struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 	if (controller >= mux_chip->controllers) {
 		dev_err(dev, "%pOF: bad mux controller %u specified in %pOF\n",
 			np, controller, args.np);
+		put_device(&mux_chip->dev);
 		return ERR_PTR(-EINVAL);
 	}
 
-	get_device(&mux_chip->dev);
 	return &mux_chip->mux[controller];
 }
 EXPORT_SYMBOL_GPL(mux_control_get);

@@ -90,6 +90,10 @@ config MSI_BITMAP_SELFTEST
 	depends on DEBUG_KERNEL
 	default n
 
+config PPC_IRQ_SOFT_MASK_DEBUG
+	bool "Include extra checks for powerpc irq soft masking"
+	default n
+
 config XMON
 	bool "Include xmon kernel debugger"
 	depends on DEBUG_KERNEL
@@ -368,6 +372,12 @@ config PPC_PTDUMP
 
 config PPC_HTDUMP
 	def_bool y
-	depends on PPC_PTDUMP && PPC_BOOK3S
+	depends on PPC_PTDUMP && PPC_BOOK3S_64
+
+config PPC_FAST_ENDIAN_SWITCH
+	bool "Deprecated fast endian-switch syscall"
+        depends on DEBUG_KERNEL && PPC_BOOK3S_64
+        help
+	  If you're unsure what this is, say N.
 
 endmenu

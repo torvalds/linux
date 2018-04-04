@@ -826,9 +826,9 @@ If the filesystem may need to revalidate dcache entries, then
 *is* passed the dentry but does not have access to the `inode` or the
 `seq` number from the `nameidata`, so it needs to be extra careful
 when accessing fields in the dentry.  This "extra care" typically
-involves using `ACCESS_ONCE()` or the newer [`READ_ONCE()`] to access
-fields, and verifying the result is not NULL before using it.  This
-pattern can be see in `nfs_lookup_revalidate()`.
+involves using [`READ_ONCE()`] to access fields, and verifying the
+result is not NULL before using it.  This pattern can be seen in
+`nfs_lookup_revalidate()`.
 
 A pair of patterns
 ------------------

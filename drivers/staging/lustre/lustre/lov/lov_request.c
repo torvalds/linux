@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -48,15 +49,13 @@ static void lov_init_set(struct lov_request_set *set)
 
 static void lov_finish_set(struct lov_request_set *set)
 {
-	struct list_head *pos, *n;
+	struct lov_request *req;
 
 	LASSERT(set);
-	list_for_each_safe(pos, n, &set->set_list) {
-		struct lov_request *req = list_entry(pos,
-							 struct lov_request,
-							 rq_link);
+	while ((req = list_first_entry_or_null(&set->set_list,
+					       struct lov_request,
+					       rq_link)) != NULL) {
 		list_del_init(&req->rq_link);
-
 		kfree(req->rq_oi.oi_osfs);
 		kfree(req);
 	}

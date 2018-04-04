@@ -1029,6 +1029,10 @@
 #define RT5663_POL_EXT_JD_SHIFT			10
 #define RT5663_POL_EXT_JD_EN			(0x1 << 10)
 #define RT5663_POL_EXT_JD_DIS			(0x0 << 10)
+#define RT5663_EM_JD_MASK			(0x1 << 7)
+#define RT5663_EM_JD_SHIFT			7
+#define RT5663_EM_JD_NOR			(0x1 << 7)
+#define RT5663_EM_JD_RST			(0x0 << 7)
 
 /* DACREF LDO Control (0x0112)*/
 #define RT5663_PWR_LDO_DACREFL_MASK		(0x1 << 9)

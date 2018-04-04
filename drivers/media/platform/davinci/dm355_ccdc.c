@@ -20,10 +20,10 @@
  * pre-process the Bayer RGB data, before writing it to SDRAM.
  *
  * TODO: 1) Raw bayer parameter settings and bayer capture
- * 	 2) Split module parameter structure to module specific ioctl structs
+ *	 2) Split module parameter structure to module specific ioctl structs
  *	 3) add support for lense shading correction
  *	 4) investigate if enum used for user space type definition
- * 	    to be replaced by #defines or integer
+ *	    to be replaced by #defines or integer
  */
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
@@ -841,7 +841,7 @@ static int ccdc_set_hw_if_params(struct vpfe_hw_if_param *params)
 	return 0;
 }
 
-static struct ccdc_hw_device ccdc_hw_dev = {
+static const struct ccdc_hw_device ccdc_hw_dev = {
 	.name = "DM355 CCDC",
 	.owner = THIS_MODULE,
 	.hw_ops = {

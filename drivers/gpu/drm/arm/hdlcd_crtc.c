@@ -252,10 +252,10 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
-	return drm_plane_helper_check_state(state, &clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true);
+	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   false, true);
 }
 
 static void hdlcd_plane_atomic_update(struct drm_plane *plane,
@@ -317,9 +317,8 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 				       formats, ARRAY_SIZE(formats),
 				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	drm_plane_helper_add(plane, &hdlcd_plane_helper_funcs);
 	hdlcd->plane = plane;

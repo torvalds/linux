@@ -83,29 +83,52 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 static int dsa_switch_fdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
+	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
 	if (!ds->ops->port_fdb_add)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_add(ds, info->port, info->addr,
-				     info->vid);
+	return ds->ops->port_fdb_add(ds, port, info->addr, info->vid);
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
+	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_del(ds, info->port, info->addr,
-				     info->vid);
+	return ds->ops->port_fdb_del(ds, port, info->addr, info->vid);
+}
+
+static int
+dsa_switch_mdb_prepare_bitmap(struct dsa_switch *ds,
+			      const struct switchdev_obj_port_mdb *mdb,
+			      const unsigned long *bitmap)
+{
+	int port, err;
+
+	if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+		return -EOPNOTSUPP;
+
+	for_each_set_bit(port, bitmap, ds->num_ports) {
+		err = ds->ops->port_mdb_prepare(ds, port, mdb);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void dsa_switch_mdb_add_bitmap(struct dsa_switch *ds,
+				      const struct switchdev_obj_port_mdb *mdb,
+				      const unsigned long *bitmap)
+{
+	int port;
+
+	for_each_set_bit(port, bitmap, ds->num_ports)
+		ds->ops->port_mdb_add(ds, port, mdb);
 }
 
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
@@ -114,29 +137,20 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 	const struct switchdev_obj_port_mdb *mdb = info->mdb;
 	struct switchdev_trans *trans = info->trans;
 	DECLARE_BITMAP(group, ds->num_ports);
-	int port, err;
+	int port;
 
 	/* Build a mask of Multicast group members */
 	bitmap_zero(group, ds->num_ports);
 	if (ds->index == info->sw_index)
 		set_bit(info->port, group);
 	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+		if (dsa_is_dsa_port(ds, port))
 			set_bit(port, group);
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
-			return -EOPNOTSUPP;
+	if (switchdev_trans_ph_prepare(trans))
+		return dsa_switch_mdb_prepare_bitmap(ds, mdb, group);
 
-		for_each_set_bit(port, group, ds->num_ports) {
-			err = ds->ops->port_mdb_prepare(ds, port, mdb, trans);
-			if (err)
-				return err;
-		}
-	}
-
-	for_each_set_bit(port, group, ds->num_ports)
-		ds->ops->port_mdb_add(ds, port, mdb, trans);
+	dsa_switch_mdb_add_bitmap(ds, mdb, group);
 
 	return 0;
 }
@@ -155,13 +169,43 @@ static int dsa_switch_mdb_del(struct dsa_switch *ds,
 	return 0;
 }
 
+static int
+dsa_switch_vlan_prepare_bitmap(struct dsa_switch *ds,
+			       const struct switchdev_obj_port_vlan *vlan,
+			       const unsigned long *bitmap)
+{
+	int port, err;
+
+	if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
+		return -EOPNOTSUPP;
+
+	for_each_set_bit(port, bitmap, ds->num_ports) {
+		err = ds->ops->port_vlan_prepare(ds, port, vlan);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void
+dsa_switch_vlan_add_bitmap(struct dsa_switch *ds,
+			   const struct switchdev_obj_port_vlan *vlan,
+			   const unsigned long *bitmap)
+{
+	int port;
+
+	for_each_set_bit(port, bitmap, ds->num_ports)
+		ds->ops->port_vlan_add(ds, port, vlan);
+}
+
 static int dsa_switch_vlan_add(struct dsa_switch *ds,
 			       struct dsa_notifier_vlan_info *info)
 {
 	const struct switchdev_obj_port_vlan *vlan = info->vlan;
 	struct switchdev_trans *trans = info->trans;
 	DECLARE_BITMAP(members, ds->num_ports);
-	int port, err;
+	int port;
 
 	/* Build a mask of VLAN members */
 	bitmap_zero(members, ds->num_ports);
@@ -171,19 +215,10 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 			set_bit(port, members);
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_vlan_prepare || !ds->ops->port_vlan_add)
-			return -EOPNOTSUPP;
+	if (switchdev_trans_ph_prepare(trans))
+		return dsa_switch_vlan_prepare_bitmap(ds, vlan, members);
 
-		for_each_set_bit(port, members, ds->num_ports) {
-			err = ds->ops->port_vlan_prepare(ds, port, vlan, trans);
-			if (err)
-				return err;
-		}
-	}
-
-	for_each_set_bit(port, members, ds->num_ports)
-		ds->ops->port_vlan_add(ds, port, vlan, trans);
+	dsa_switch_vlan_add_bitmap(ds, vlan, members);
 
 	return 0;
 }

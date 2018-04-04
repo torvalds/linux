@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2017
  *
@@ -5,8 +6,6 @@
  *          Yannick Fertre <yannick.fertre@st.com>
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          Mickael Reulier <mickael.reulier@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/component.h>
@@ -15,43 +14,29 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "ltdc.h"
 
 #define STM_MAX_FB_WIDTH	2048
 #define STM_MAX_FB_HEIGHT	2048 /* same as width to handle orientation */
 
-static void drv_output_poll_changed(struct drm_device *ddev)
-{
-	struct ltdc_device *ldev = ddev->dev_private;
-
-	drm_fbdev_cma_hotplug_event(ldev->fbdev);
-}
-
 static const struct drm_mode_config_funcs drv_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
-	.output_poll_changed = drv_output_poll_changed,
+	.fb_create = drm_gem_fb_create,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
-
-static void drv_lastclose(struct drm_device *ddev)
-{
-	struct ltdc_device *ldev = ddev->dev_private;
-
-	DRM_DEBUG("%s\n", __func__);
-
-	drm_fbdev_cma_restore_mode(ldev->fbdev);
-}
 
 DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
 
 static struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = drv_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",
 	.date = "20170330",
@@ -78,7 +63,6 @@ static struct drm_driver drv_driver = {
 static int drv_load(struct drm_device *ddev)
 {
 	struct platform_device *pdev = to_platform_device(ddev->dev);
-	struct drm_fbdev_cma *fbdev;
 	struct ltdc_device *ldev;
 	int ret;
 
@@ -111,14 +95,9 @@ static int drv_load(struct drm_device *ddev)
 	drm_kms_helper_poll_init(ddev);
 
 	if (ddev->mode_config.num_connector) {
-		ldev = ddev->dev_private;
-		fbdev = drm_fbdev_cma_init(ddev, 16,
-					   ddev->mode_config.num_connector);
-		if (IS_ERR(fbdev)) {
+		ret = drm_fb_cma_fbdev_init(ddev, 16, 0);
+		if (ret)
 			DRM_DEBUG("Warning: fails to create fbdev\n");
-			fbdev = NULL;
-		}
-		ldev->fbdev = fbdev;
 	}
 
 	platform_set_drvdata(pdev, ddev);
@@ -131,14 +110,9 @@ err:
 
 static void drv_unload(struct drm_device *ddev)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
-
 	DRM_DEBUG("%s\n", __func__);
 
-	if (ldev->fbdev) {
-		drm_fbdev_cma_fini(ldev->fbdev);
-		ldev->fbdev = NULL;
-	}
+	drm_fb_cma_fbdev_fini(ddev);
 	drm_kms_helper_poll_fini(ddev);
 	ltdc_unload(ddev);
 	drm_mode_config_cleanup(ddev);

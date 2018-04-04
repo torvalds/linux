@@ -23,7 +23,7 @@
 #include <linux/dvb/frontend.h>
 #include <linux/types.h>
 #include "helene.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define MAX_WRITE_REGSIZE 20
 
@@ -331,7 +331,9 @@ static int helene_write_regs(struct helene_priv *priv,
 
 static int helene_write_reg(struct helene_priv *priv, u8 reg, u8 val)
 {
-	return helene_write_regs(priv, reg, &val, 1);
+	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+	return helene_write_regs(priv, reg, &tmp, 1);
 }
 
 static int helene_read_regs(struct helene_priv *priv,

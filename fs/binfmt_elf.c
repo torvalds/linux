@@ -51,6 +51,11 @@
 #define user_siginfo_t siginfo_t
 #endif
 
+/* That's for binfmt_elf_fdpic to deal with */
+#ifndef elf_check_fdpic
+#define elf_check_fdpic(ex) false
+#endif
+
 static int load_elf_binary(struct linux_binprm *bprm);
 static unsigned long elf_map(struct file *, unsigned long, struct elf_phdr *,
 				int, int, unsigned long);
@@ -541,7 +546,8 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 	if (interp_elf_ex->e_type != ET_EXEC &&
 	    interp_elf_ex->e_type != ET_DYN)
 		goto out;
-	if (!elf_check_arch(interp_elf_ex))
+	if (!elf_check_arch(interp_elf_ex) ||
+	    elf_check_fdpic(interp_elf_ex))
 		goto out;
 	if (!interpreter->f_op->mmap)
 		goto out;
@@ -718,6 +724,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		goto out;
 	if (!elf_check_arch(&loc->elf_ex))
 		goto out;
+	if (elf_check_fdpic(&loc->elf_ex))
+		goto out;
 	if (!bprm->file->f_op->mmap)
 		goto out;
 
@@ -817,7 +825,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		if (memcmp(loc->interp_elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
 			goto out_free_dentry;
 		/* Verify the interpreter has a valid arch */
-		if (!elf_check_arch(&loc->interp_elf_ex))
+		if (!elf_check_arch(&loc->interp_elf_ex) ||
+		    elf_check_fdpic(&loc->interp_elf_ex))
 			goto out_free_dentry;
 
 		/* Load the interpreter program headers */
@@ -1189,6 +1198,8 @@ static int load_elf_library(struct file *file)
 	/* First of all, some simple consistency checks */
 	if (elf_ex.e_type != ET_EXEC || elf_ex.e_phnum > 2 ||
 	    !elf_check_arch(&elf_ex) || !file->f_op->mmap)
+		goto out;
+	if (elf_check_fdpic(&elf_ex))
 		goto out;
 
 	/* Now read in all of the header information */
@@ -1588,6 +1599,8 @@ static int fill_files_note(struct memelfnote *note)
 
 	/* *Estimated* file count and total data size needed */
 	count = current->mm->map_count;
+	if (count > UINT_MAX / 64)
+		return -EINVAL;
 	size = count * 64;
 
 	names_ofs = (2 + 3 * count) * sizeof(data[0]);
@@ -1699,7 +1712,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 				 long signr, size_t *total)
 {
 	unsigned int i;
-	unsigned int regset_size = view->regsets[0].n * view->regsets[0].size;
+	unsigned int regset0_size = regset_size(t->task, &view->regsets[0]);
 
 	/*
 	 * NT_PRSTATUS is the one special case, because the regset data
@@ -1708,11 +1721,11 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 	 * We assume that regset 0 is NT_PRSTATUS.
 	 */
 	fill_prstatus(&t->prstatus, t->task, signr);
-	(void) view->regsets[0].get(t->task, &view->regsets[0], 0, regset_size,
+	(void) view->regsets[0].get(t->task, &view->regsets[0], 0, regset0_size,
 				    &t->prstatus.pr_reg, NULL);
 
 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS,
-		  PRSTATUS_SIZE(t->prstatus, regset_size), &t->prstatus);
+		  PRSTATUS_SIZE(t->prstatus, regset0_size), &t->prstatus);
 	*total += notesize(&t->notes[0]);
 
 	do_thread_regset_writeback(t->task, &view->regsets[0]);
@@ -1728,7 +1741,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 		if (regset->core_note_type && regset->get &&
 		    (!regset->active || regset->active(t->task, regset))) {
 			int ret;
-			size_t size = regset->n * regset->size;
+			size_t size = regset_size(t->task, regset);
 			void *data = kmalloc(size, GFP_KERNEL);
 			if (unlikely(!data))
 				return 0;
@@ -1743,7 +1756,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 						  size, data);
 				else {
 					SET_PR_FPVALID(&t->prstatus,
-							1, regset_size);
+							1, regset0_size);
 					fill_note(&t->notes[i], "CORE",
 						  NT_PRFPREG, size, data);
 				}

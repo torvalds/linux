@@ -627,6 +627,12 @@ enum ena_admin_flow_hash_proto {
 
 	ENA_ADMIN_RSS_NOT_IP	= 7,
 
+	/* TCPv6 with extension header */
+	ENA_ADMIN_RSS_TCP6_EX	= 8,
+
+	/* IPv6 with extension header */
+	ENA_ADMIN_RSS_IP6_EX	= 9,
+
 	ENA_ADMIN_RSS_PROTO_NUM	= 16,
 };
 

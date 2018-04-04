@@ -15,6 +15,8 @@
 #ifndef MTK_ETH_H
 #define MTK_ETH_H
 
+#include <linux/refcount.h>
+
 #define MTK_QDMA_PAGE_SIZE	2048
 #define	MTK_MAX_RX_LENGTH	1536
 #define MTK_TX_DMA_BUF_LEN	0x3fff
@@ -571,10 +573,13 @@ struct mtk_rx_ring {
  * @caps			Flags shown the extra capability for the SoC
  * @required_clks		Flags shown the bitmap for required clocks on
  *				the target SoC
+ * @required_pctl		A bool value to show whether the SoC requires
+ *				the extra setup for those pins used by GMAC.
  */
 struct mtk_soc_data {
 	u32		caps;
 	u32		required_clks;
+	bool		required_pctl;
 };
 
 /* currently no SoC has more than 2 macs */
@@ -632,7 +637,7 @@ struct mtk_eth {
 	struct regmap			*pctl;
 	u32				chip_id;
 	bool				hwlro;
-	atomic_t			dma_refcnt;
+	refcount_t			dma_refcnt;
 	struct mtk_tx_ring		tx_ring;
 	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
 	struct mtk_rx_ring		rx_ring_qdma;

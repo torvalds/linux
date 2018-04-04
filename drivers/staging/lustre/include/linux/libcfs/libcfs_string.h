@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -72,7 +73,6 @@ struct cfs_expr_list {
 	struct list_head	el_exprs;
 };
 
-char *cfs_trimwhite(char *str);
 int cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res);
 int cfs_str2num_check(char *str, int nob, unsigned int *num,
 		      unsigned int min, unsigned int max);
@@ -85,11 +85,11 @@ static inline void
 cfs_expr_list_values_free(u32 *values, int num)
 {
 	/*
-	 * This array is allocated by LIBCFS_ALLOC(), so it shouldn't be freed
+	 * This array is allocated by kvalloc(), so it shouldn't be freed
 	 * by OBD_FREE() if it's called by module other than libcfs & LNet,
 	 * otherwise we will see fake memory leak
 	 */
-	LIBCFS_FREE(values, num * sizeof(values[0]));
+	kvfree(values);
 }
 
 void cfs_expr_list_free(struct cfs_expr_list *expr_list);

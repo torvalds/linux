@@ -19,7 +19,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /**
  * struct zd1301_demod_platform_data - Platform data for the zd1301_demod driver
@@ -27,7 +27,6 @@
  * @reg_read: Register read callback.
  * @reg_write: Register write callback.
  */
-
 struct zd1301_demod_platform_data {
 	void *reg_priv;
 	int (*reg_read)(void *, u16, u8 *);
@@ -41,8 +40,7 @@ struct zd1301_demod_platform_data {
  *
  * Return: Pointer to DVB frontend which given platform device owns.
  */
-
-struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *);
+struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *pdev);
 
 /**
  * zd1301_demod_get_i2c_adapter() - Get pointer to I2C adapter
@@ -50,11 +48,16 @@ struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *);
  *
  * Return: Pointer to I2C adapter which given platform device owns.
  */
-
-struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *);
+struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *pdev);
 
 #else
 
+/**
+ * zd1301_demod_get_dvb_frontend() - Attach a zd1301 frontend
+ * @dev: Pointer to platform device
+ *
+ * Return: Pointer to %struct dvb_frontend or NULL if attach fails.
+ */
 static inline struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *dev)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

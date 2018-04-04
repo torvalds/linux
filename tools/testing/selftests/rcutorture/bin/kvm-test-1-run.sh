@@ -38,11 +38,11 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/kvm-test-1-run.sh.$$
+T=${TMPDIR-/tmp}/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-. $KVM/bin/functions.sh
+. functions.sh
 . $CONFIGFRAG/ver_functions.sh
 
 config_template=${1}
@@ -154,9 +154,7 @@ cpu_count=`configfrag_boot_cpus "$boot_args" "$config_template" "$cpu_count"`
 vcpus=`identify_qemu_vcpus`
 if test $cpu_count -gt $vcpus
 then
-	echo CPU count limited from $cpu_count to $vcpus
-	touch $resdir/Warnings
-	echo CPU count limited from $cpu_count to $vcpus >> $resdir/Warnings
+	echo CPU count limited from $cpu_count to $vcpus | tee -a $resdir/Warnings
 	cpu_count=$vcpus
 fi
 qemu_args="`specify_qemu_cpus "$QEMU" "$qemu_args" "$cpu_count"`"

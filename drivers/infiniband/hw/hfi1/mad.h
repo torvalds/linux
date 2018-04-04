@@ -180,6 +180,15 @@ struct opa_mad_notice_attr {
 #define OPA_VLARB_PREEMPT_MATRIX     3
 
 #define IB_PMA_PORT_COUNTERS_CONG       cpu_to_be16(0xFF00)
+#define LINK_SPEED_25G		1
+#define LINK_SPEED_12_5G	2
+#define LINK_WIDTH_DEFAULT	4
+#define DECIMAL_FACTORING	1000
+/*
+ * The default link width is multiplied by 1000
+ * to get accurate value after division.
+ */
+#define FACTOR_LINK_WIDTH	(LINK_WIDTH_DEFAULT * DECIMAL_FACTORING)
 
 struct ib_pma_portcounters_cong {
 	u8 reserved;
@@ -239,7 +248,7 @@ struct opa_hfi1_cong_log_event_internal {
 	u8 sl;
 	u8 svc_type;
 	u32 rlid;
-	s64 timestamp; /* wider than 32 bits to detect 32 bit rollover */
+	u64 timestamp; /* wider than 32 bits to detect 32 bit rollover */
 };
 
 struct opa_hfi1_cong_log_event {
@@ -428,6 +437,42 @@ struct sc2vlnt {
 		    COUNTER_MASK(1, 4))
 
 void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port);
-void hfi1_handle_trap_timer(unsigned long data);
+void hfi1_handle_trap_timer(struct timer_list *t);
+u16 tx_link_width(u16 link_width);
+u64 get_xmit_wait_counters(struct hfi1_pportdata *ppd, u16 link_width,
+			   u16 link_speed, int vl);
+/**
+ * get_link_speed - determine whether 12.5G or 25G speed
+ * @link_speed: the speed of active link
+ * @return: Return 2 if link speed identified as 12.5G
+ * or return 1 if link speed is 25G.
+ *
+ * The function indirectly calculate required link speed
+ * value for convert_xmit_counter function. If the link
+ * speed is 25G, the function return as 1 as it is required
+ * by xmit counter conversion formula :-( 25G / link_speed).
+ * This conversion will provide value 1 if current
+ * link speed is 25G or 2 if 12.5G.This is done to avoid
+ * 12.5 float number conversion.
+ */
+static inline u16 get_link_speed(u16 link_speed)
+{
+	return (link_speed == 1) ?
+		 LINK_SPEED_12_5G : LINK_SPEED_25G;
+}
 
+/**
+ * convert_xmit_counter - calculate flit times for given xmit counter
+ * value
+ * @xmit_wait_val: current xmit counter value
+ * @link_width: width of active link
+ * @link_speed: speed of active link
+ * @return: return xmit counter value in flit times.
+ */
+static inline u64 convert_xmit_counter(u64 xmit_wait_val, u16 link_width,
+				       u16 link_speed)
+{
+	return (xmit_wait_val * 2 * (FACTOR_LINK_WIDTH / link_width)
+		 * link_speed) / DECIMAL_FACTORING;
+}
 #endif				/* _HFI1_MAD_H */
