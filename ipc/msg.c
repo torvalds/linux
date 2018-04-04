@@ -43,6 +43,23 @@
 #include <linux/uaccess.h>
 #include "util.h"
 
+/* one msq_queue structure for each present queue on the system */
+struct msg_queue {
+	struct kern_ipc_perm q_perm;
+	time64_t q_stime;		/* last msgsnd time */
+	time64_t q_rtime;		/* last msgrcv time */
+	time64_t q_ctime;		/* last change time */
+	unsigned long q_cbytes;		/* current number of bytes on queue */
+	unsigned long q_qnum;		/* number of messages in queue */
+	unsigned long q_qbytes;		/* max number of bytes on queue */
+	struct pid *q_lspid;		/* pid of last msgsnd */
+	struct pid *q_lrpid;		/* last receive pid */
+
+	struct list_head q_messages;
+	struct list_head q_receivers;
+	struct list_head q_senders;
+} __randomize_layout;
+
 /* one msg_receiver structure for each sleeping receiver */
 struct msg_receiver {
 	struct list_head	r_list;
@@ -101,7 +118,7 @@ static void msg_rcu_free(struct rcu_head *head)
 	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
 	struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
 
-	security_msg_queue_free(msq);
+	security_msg_queue_free(&msq->q_perm);
 	kvfree(msq);
 }
 
@@ -127,7 +144,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_perm.key = key;
 
 	msq->q_perm.security = NULL;
-	retval = security_msg_queue_alloc(msq);
+	retval = security_msg_queue_alloc(&msq->q_perm);
 	if (retval) {
 		kvfree(msq);
 		return retval;
@@ -137,7 +154,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_ctime = ktime_get_real_seconds();
 	msq->q_cbytes = msq->q_qnum = 0;
 	msq->q_qbytes = ns->msg_ctlmnb;
-	msq->q_lspid = msq->q_lrpid = 0;
+	msq->q_lspid = msq->q_lrpid = NULL;
 	INIT_LIST_HEAD(&msq->q_messages);
 	INIT_LIST_HEAD(&msq->q_receivers);
 	INIT_LIST_HEAD(&msq->q_senders);
@@ -250,17 +267,9 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 		free_msg(msg);
 	}
 	atomic_sub(msq->q_cbytes, &ns->msg_bytes);
+	ipc_update_pid(&msq->q_lspid, NULL);
+	ipc_update_pid(&msq->q_lrpid, NULL);
 	ipc_rcu_putref(&msq->q_perm, msg_rcu_free);
-}
-
-/*
- * Called with msg_ids.rwsem and ipcp locked.
- */
-static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
-{
-	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
-
-	return security_msg_queue_associate(msq, msgflg);
 }
 
 long ksys_msgget(key_t key, int msgflg)
@@ -268,7 +277,7 @@ long ksys_msgget(key_t key, int msgflg)
 	struct ipc_namespace *ns;
 	static const struct ipc_ops msg_ops = {
 		.getnew = newque,
-		.associate = msg_security,
+		.associate = security_msg_queue_associate,
 	};
 	struct ipc_params msg_params;
 
@@ -385,7 +394,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 
 	msq = container_of(ipcp, struct msg_queue, q_perm);
 
-	err = security_msg_queue_msgctl(msq, cmd);
+	err = security_msg_queue_msgctl(&msq->q_perm, cmd);
 	if (err)
 		goto out_unlock1;
 
@@ -507,7 +516,7 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 	if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 		goto out_unlock;
 
-	err = security_msg_queue_msgctl(msq, cmd);
+	err = security_msg_queue_msgctl(&msq->q_perm, cmd);
 	if (err)
 		goto out_unlock;
 
@@ -526,8 +535,8 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 	p->msg_cbytes = msq->q_cbytes;
 	p->msg_qnum   = msq->q_qnum;
 	p->msg_qbytes = msq->q_qbytes;
-	p->msg_lspid  = msq->q_lspid;
-	p->msg_lrpid  = msq->q_lrpid;
+	p->msg_lspid  = pid_vnr(msq->q_lspid);
+	p->msg_lrpid  = pid_vnr(msq->q_lrpid);
 
 	ipc_unlock_object(&msq->q_perm);
 	rcu_read_unlock();
@@ -733,7 +742,7 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 
 	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
 		if (testmsg(msg, msr->r_msgtype, msr->r_mode) &&
-		    !security_msg_queue_msgrcv(msq, msg, msr->r_tsk,
+		    !security_msg_queue_msgrcv(&msq->q_perm, msg, msr->r_tsk,
 					       msr->r_msgtype, msr->r_mode)) {
 
 			list_del(&msr->r_list);
@@ -741,7 +750,7 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 				wake_q_add(wake_q, msr->r_tsk);
 				WRITE_ONCE(msr->r_msg, ERR_PTR(-E2BIG));
 			} else {
-				msq->q_lrpid = task_pid_vnr(msr->r_tsk);
+				ipc_update_pid(&msq->q_lrpid, task_pid(msr->r_tsk));
 				msq->q_rtime = get_seconds();
 
 				wake_q_add(wake_q, msr->r_tsk);
@@ -799,7 +808,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 			goto out_unlock0;
 		}
 
-		err = security_msg_queue_msgsnd(msq, msg, msgflg);
+		err = security_msg_queue_msgsnd(&msq->q_perm, msg, msgflg);
 		if (err)
 			goto out_unlock0;
 
@@ -842,7 +851,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 
 	}
 
-	msq->q_lspid = task_tgid_vnr(current);
+	ipc_update_pid(&msq->q_lspid, task_tgid(current));
 	msq->q_stime = get_seconds();
 
 	if (!pipelined_send(msq, msg, &wake_q)) {
@@ -987,7 +996,7 @@ static struct msg_msg *find_msg(struct msg_queue *msq, long *msgtyp, int mode)
 
 	list_for_each_entry(msg, &msq->q_messages, m_list) {
 		if (testmsg(msg, *msgtyp, mode) &&
-		    !security_msg_queue_msgrcv(msq, msg, current,
+		    !security_msg_queue_msgrcv(&msq->q_perm, msg, current,
 					       *msgtyp, mode)) {
 			if (mode == SEARCH_LESSEQUAL && msg->m_type != 1) {
 				*msgtyp = msg->m_type - 1;
@@ -1072,7 +1081,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 			list_del(&msg->m_list);
 			msq->q_qnum--;
 			msq->q_rtime = get_seconds();
-			msq->q_lrpid = task_tgid_vnr(current);
+			ipc_update_pid(&msq->q_lrpid, task_tgid(current));
 			msq->q_cbytes -= msg->m_ts;
 			atomic_sub(msg->m_ts, &ns->msg_bytes);
 			atomic_dec(&ns->msg_hdrs);
@@ -1227,6 +1236,7 @@ void msg_exit_ns(struct ipc_namespace *ns)
 #ifdef CONFIG_PROC_FS
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 {
+	struct pid_namespace *pid_ns = ipc_seq_pid_ns(s);
 	struct user_namespace *user_ns = seq_user_ns(s);
 	struct kern_ipc_perm *ipcp = it;
 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
@@ -1238,8 +1248,8 @@ static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 		   msq->q_perm.mode,
 		   msq->q_cbytes,
 		   msq->q_qnum,
-		   msq->q_lspid,
-		   msq->q_lrpid,
+		   pid_nr_ns(msq->q_lspid, pid_ns),
+		   pid_nr_ns(msq->q_lrpid, pid_ns),
 		   from_kuid_munged(user_ns, msq->q_perm.uid),
 		   from_kgid_munged(user_ns, msq->q_perm.gid),
 		   from_kuid_munged(user_ns, msq->q_perm.cuid),

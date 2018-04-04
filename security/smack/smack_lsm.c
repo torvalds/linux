@@ -2945,25 +2945,24 @@ static void smack_msg_msg_free_security(struct msg_msg *msg)
 }
 
 /**
- * smack_of_shm - the smack pointer for the shm
- * @shp: the object
+ * smack_of_ipc - the smack pointer for the ipc
+ * @isp: the object
  *
  * Returns a pointer to the smack value
  */
-static struct smack_known *smack_of_shm(struct shmid_kernel *shp)
+static struct smack_known *smack_of_ipc(struct kern_ipc_perm *isp)
 {
-	return (struct smack_known *)shp->shm_perm.security;
+	return (struct smack_known *)isp->security;
 }
 
 /**
- * smack_shm_alloc_security - Set the security blob for shm
- * @shp: the object
+ * smack_ipc_alloc_security - Set the security blob for ipc
+ * @isp: the object
  *
  * Returns 0
  */
-static int smack_shm_alloc_security(struct shmid_kernel *shp)
+static int smack_ipc_alloc_security(struct kern_ipc_perm *isp)
 {
-	struct kern_ipc_perm *isp = &shp->shm_perm;
 	struct smack_known *skp = smk_of_current();
 
 	isp->security = skp;
@@ -2971,34 +2970,32 @@ static int smack_shm_alloc_security(struct shmid_kernel *shp)
 }
 
 /**
- * smack_shm_free_security - Clear the security blob for shm
- * @shp: the object
+ * smack_ipc_free_security - Clear the security blob for ipc
+ * @isp: the object
  *
  * Clears the blob pointer
  */
-static void smack_shm_free_security(struct shmid_kernel *shp)
+static void smack_ipc_free_security(struct kern_ipc_perm *isp)
 {
-	struct kern_ipc_perm *isp = &shp->shm_perm;
-
 	isp->security = NULL;
 }
 
 /**
  * smk_curacc_shm : check if current has access on shm
- * @shp : the object
+ * @isp : the object
  * @access : access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smk_curacc_shm(struct shmid_kernel *shp, int access)
+static int smk_curacc_shm(struct kern_ipc_perm *isp, int access)
 {
-	struct smack_known *ssp = smack_of_shm(shp);
+	struct smack_known *ssp = smack_of_ipc(isp);
 	struct smk_audit_info ad;
 	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
-	ad.a.u.ipc_id = shp->shm_perm.id;
+	ad.a.u.ipc_id = isp->id;
 #endif
 	rc = smk_curacc(ssp, access, &ad);
 	rc = smk_bu_current("shm", ssp, access, rc);
@@ -3007,27 +3004,27 @@ static int smk_curacc_shm(struct shmid_kernel *shp, int access)
 
 /**
  * smack_shm_associate - Smack access check for shm
- * @shp: the object
+ * @isp: the object
  * @shmflg: access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_shm_associate(struct shmid_kernel *shp, int shmflg)
+static int smack_shm_associate(struct kern_ipc_perm *isp, int shmflg)
 {
 	int may;
 
 	may = smack_flags_to_may(shmflg);
-	return smk_curacc_shm(shp, may);
+	return smk_curacc_shm(isp, may);
 }
 
 /**
  * smack_shm_shmctl - Smack access check for shm
- * @shp: the object
+ * @isp: the object
  * @cmd: what it wants to do
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_shm_shmctl(struct shmid_kernel *shp, int cmd)
+static int smack_shm_shmctl(struct kern_ipc_perm *isp, int cmd)
 {
 	int may;
 
@@ -3051,81 +3048,42 @@ static int smack_shm_shmctl(struct shmid_kernel *shp, int cmd)
 	default:
 		return -EINVAL;
 	}
-	return smk_curacc_shm(shp, may);
+	return smk_curacc_shm(isp, may);
 }
 
 /**
  * smack_shm_shmat - Smack access for shmat
- * @shp: the object
+ * @isp: the object
  * @shmaddr: unused
  * @shmflg: access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
+static int smack_shm_shmat(struct kern_ipc_perm *ipc, char __user *shmaddr,
 			   int shmflg)
 {
 	int may;
 
 	may = smack_flags_to_may(shmflg);
-	return smk_curacc_shm(shp, may);
-}
-
-/**
- * smack_of_sem - the smack pointer for the sem
- * @sma: the object
- *
- * Returns a pointer to the smack value
- */
-static struct smack_known *smack_of_sem(struct sem_array *sma)
-{
-	return (struct smack_known *)sma->sem_perm.security;
-}
-
-/**
- * smack_sem_alloc_security - Set the security blob for sem
- * @sma: the object
- *
- * Returns 0
- */
-static int smack_sem_alloc_security(struct sem_array *sma)
-{
-	struct kern_ipc_perm *isp = &sma->sem_perm;
-	struct smack_known *skp = smk_of_current();
-
-	isp->security = skp;
-	return 0;
-}
-
-/**
- * smack_sem_free_security - Clear the security blob for sem
- * @sma: the object
- *
- * Clears the blob pointer
- */
-static void smack_sem_free_security(struct sem_array *sma)
-{
-	struct kern_ipc_perm *isp = &sma->sem_perm;
-
-	isp->security = NULL;
+	return smk_curacc_shm(ipc, may);
 }
 
 /**
  * smk_curacc_sem : check if current has access on sem
- * @sma : the object
+ * @isp : the object
  * @access : access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smk_curacc_sem(struct sem_array *sma, int access)
+static int smk_curacc_sem(struct kern_ipc_perm *isp, int access)
 {
-	struct smack_known *ssp = smack_of_sem(sma);
+	struct smack_known *ssp = smack_of_ipc(isp);
 	struct smk_audit_info ad;
 	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
-	ad.a.u.ipc_id = sma->sem_perm.id;
+	ad.a.u.ipc_id = isp->id;
 #endif
 	rc = smk_curacc(ssp, access, &ad);
 	rc = smk_bu_current("sem", ssp, access, rc);
@@ -3134,27 +3092,27 @@ static int smk_curacc_sem(struct sem_array *sma, int access)
 
 /**
  * smack_sem_associate - Smack access check for sem
- * @sma: the object
+ * @isp: the object
  * @semflg: access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_sem_associate(struct sem_array *sma, int semflg)
+static int smack_sem_associate(struct kern_ipc_perm *isp, int semflg)
 {
 	int may;
 
 	may = smack_flags_to_may(semflg);
-	return smk_curacc_sem(sma, may);
+	return smk_curacc_sem(isp, may);
 }
 
 /**
  * smack_sem_shmctl - Smack access check for sem
- * @sma: the object
+ * @isp: the object
  * @cmd: what it wants to do
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_sem_semctl(struct sem_array *sma, int cmd)
+static int smack_sem_semctl(struct kern_ipc_perm *isp, int cmd)
 {
 	int may;
 
@@ -3184,12 +3142,12 @@ static int smack_sem_semctl(struct sem_array *sma, int cmd)
 		return -EINVAL;
 	}
 
-	return smk_curacc_sem(sma, may);
+	return smk_curacc_sem(isp, may);
 }
 
 /**
  * smack_sem_semop - Smack checks of semaphore operations
- * @sma: the object
+ * @isp: the object
  * @sops: unused
  * @nsops: unused
  * @alter: unused
@@ -3198,67 +3156,28 @@ static int smack_sem_semctl(struct sem_array *sma, int cmd)
  *
  * Returns 0 if access is allowed, error code otherwise
  */
-static int smack_sem_semop(struct sem_array *sma, struct sembuf *sops,
+static int smack_sem_semop(struct kern_ipc_perm *isp, struct sembuf *sops,
 			   unsigned nsops, int alter)
 {
-	return smk_curacc_sem(sma, MAY_READWRITE);
-}
-
-/**
- * smack_msg_alloc_security - Set the security blob for msg
- * @msq: the object
- *
- * Returns 0
- */
-static int smack_msg_queue_alloc_security(struct msg_queue *msq)
-{
-	struct kern_ipc_perm *kisp = &msq->q_perm;
-	struct smack_known *skp = smk_of_current();
-
-	kisp->security = skp;
-	return 0;
-}
-
-/**
- * smack_msg_free_security - Clear the security blob for msg
- * @msq: the object
- *
- * Clears the blob pointer
- */
-static void smack_msg_queue_free_security(struct msg_queue *msq)
-{
-	struct kern_ipc_perm *kisp = &msq->q_perm;
-
-	kisp->security = NULL;
-}
-
-/**
- * smack_of_msq - the smack pointer for the msq
- * @msq: the object
- *
- * Returns a pointer to the smack label entry
- */
-static struct smack_known *smack_of_msq(struct msg_queue *msq)
-{
-	return (struct smack_known *)msq->q_perm.security;
+	return smk_curacc_sem(isp, MAY_READWRITE);
 }
 
 /**
  * smk_curacc_msq : helper to check if current has access on msq
- * @msq : the msq
+ * @isp : the msq
  * @access : access requested
  *
  * return 0 if current has access, error otherwise
  */
-static int smk_curacc_msq(struct msg_queue *msq, int access)
+static int smk_curacc_msq(struct kern_ipc_perm *isp, int access)
 {
-	struct smack_known *msp = smack_of_msq(msq);
+	struct smack_known *msp = smack_of_ipc(isp);
 	struct smk_audit_info ad;
 	int rc;
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
-	ad.a.u.ipc_id = msq->q_perm.id;
+	ad.a.u.ipc_id = isp->id;
 #endif
 	rc = smk_curacc(msp, access, &ad);
 	rc = smk_bu_current("msq", msp, access, rc);
@@ -3267,27 +3186,27 @@ static int smk_curacc_msq(struct msg_queue *msq, int access)
 
 /**
  * smack_msg_queue_associate - Smack access check for msg_queue
- * @msq: the object
+ * @isp: the object
  * @msqflg: access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_msg_queue_associate(struct msg_queue *msq, int msqflg)
+static int smack_msg_queue_associate(struct kern_ipc_perm *isp, int msqflg)
 {
 	int may;
 
 	may = smack_flags_to_may(msqflg);
-	return smk_curacc_msq(msq, may);
+	return smk_curacc_msq(isp, may);
 }
 
 /**
  * smack_msg_queue_msgctl - Smack access check for msg_queue
- * @msq: the object
+ * @isp: the object
  * @cmd: what it wants to do
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+static int smack_msg_queue_msgctl(struct kern_ipc_perm *isp, int cmd)
 {
 	int may;
 
@@ -3310,29 +3229,29 @@ static int smack_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 		return -EINVAL;
 	}
 
-	return smk_curacc_msq(msq, may);
+	return smk_curacc_msq(isp, may);
 }
 
 /**
  * smack_msg_queue_msgsnd - Smack access check for msg_queue
- * @msq: the object
+ * @isp: the object
  * @msg: unused
  * @msqflg: access requested
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg,
+static int smack_msg_queue_msgsnd(struct kern_ipc_perm *isp, struct msg_msg *msg,
 				  int msqflg)
 {
 	int may;
 
 	may = smack_flags_to_may(msqflg);
-	return smk_curacc_msq(msq, may);
+	return smk_curacc_msq(isp, may);
 }
 
 /**
  * smack_msg_queue_msgsnd - Smack access check for msg_queue
- * @msq: the object
+ * @isp: the object
  * @msg: unused
  * @target: unused
  * @type: unused
@@ -3340,10 +3259,10 @@ static int smack_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg,
  *
  * Returns 0 if current has read and write access, error code otherwise
  */
-static int smack_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+static int smack_msg_queue_msgrcv(struct kern_ipc_perm *isp, struct msg_msg *msg,
 			struct task_struct *target, long type, int mode)
 {
-	return smk_curacc_msq(msq, MAY_READWRITE);
+	return smk_curacc_msq(isp, MAY_READWRITE);
 }
 
 /**
@@ -4756,21 +4675,21 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(msg_msg_alloc_security, smack_msg_msg_alloc_security),
 	LSM_HOOK_INIT(msg_msg_free_security, smack_msg_msg_free_security),
 
-	LSM_HOOK_INIT(msg_queue_alloc_security, smack_msg_queue_alloc_security),
-	LSM_HOOK_INIT(msg_queue_free_security, smack_msg_queue_free_security),
+	LSM_HOOK_INIT(msg_queue_alloc_security, smack_ipc_alloc_security),
+	LSM_HOOK_INIT(msg_queue_free_security, smack_ipc_free_security),
 	LSM_HOOK_INIT(msg_queue_associate, smack_msg_queue_associate),
 	LSM_HOOK_INIT(msg_queue_msgctl, smack_msg_queue_msgctl),
 	LSM_HOOK_INIT(msg_queue_msgsnd, smack_msg_queue_msgsnd),
 	LSM_HOOK_INIT(msg_queue_msgrcv, smack_msg_queue_msgrcv),
 
-	LSM_HOOK_INIT(shm_alloc_security, smack_shm_alloc_security),
-	LSM_HOOK_INIT(shm_free_security, smack_shm_free_security),
+	LSM_HOOK_INIT(shm_alloc_security, smack_ipc_alloc_security),
+	LSM_HOOK_INIT(shm_free_security, smack_ipc_free_security),
 	LSM_HOOK_INIT(shm_associate, smack_shm_associate),
 	LSM_HOOK_INIT(shm_shmctl, smack_shm_shmctl),
 	LSM_HOOK_INIT(shm_shmat, smack_shm_shmat),
 
-	LSM_HOOK_INIT(sem_alloc_security, smack_sem_alloc_security),
-	LSM_HOOK_INIT(sem_free_security, smack_sem_free_security),
+	LSM_HOOK_INIT(sem_alloc_security, smack_ipc_alloc_security),
+	LSM_HOOK_INIT(sem_free_security, smack_ipc_free_security),
 	LSM_HOOK_INIT(sem_associate, smack_sem_associate),
 	LSM_HOOK_INIT(sem_semctl, smack_sem_semctl),
 	LSM_HOOK_INIT(sem_semop, smack_sem_semop),

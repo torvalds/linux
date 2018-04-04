@@ -1163,84 +1163,84 @@ void security_msg_msg_free(struct msg_msg *msg)
 	call_void_hook(msg_msg_free_security, msg);
 }
 
-int security_msg_queue_alloc(struct msg_queue *msq)
+int security_msg_queue_alloc(struct kern_ipc_perm *msq)
 {
 	return call_int_hook(msg_queue_alloc_security, 0, msq);
 }
 
-void security_msg_queue_free(struct msg_queue *msq)
+void security_msg_queue_free(struct kern_ipc_perm *msq)
 {
 	call_void_hook(msg_queue_free_security, msq);
 }
 
-int security_msg_queue_associate(struct msg_queue *msq, int msqflg)
+int security_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
 {
 	return call_int_hook(msg_queue_associate, 0, msq, msqflg);
 }
 
-int security_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	return call_int_hook(msg_queue_msgctl, 0, msq, cmd);
 }
 
-int security_msg_queue_msgsnd(struct msg_queue *msq,
+int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 			       struct msg_msg *msg, int msqflg)
 {
 	return call_int_hook(msg_queue_msgsnd, 0, msq, msg, msqflg);
 }
 
-int security_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+int security_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 			       struct task_struct *target, long type, int mode)
 {
 	return call_int_hook(msg_queue_msgrcv, 0, msq, msg, target, type, mode);
 }
 
-int security_shm_alloc(struct shmid_kernel *shp)
+int security_shm_alloc(struct kern_ipc_perm *shp)
 {
 	return call_int_hook(shm_alloc_security, 0, shp);
 }
 
-void security_shm_free(struct shmid_kernel *shp)
+void security_shm_free(struct kern_ipc_perm *shp)
 {
 	call_void_hook(shm_free_security, shp);
 }
 
-int security_shm_associate(struct shmid_kernel *shp, int shmflg)
+int security_shm_associate(struct kern_ipc_perm *shp, int shmflg)
 {
 	return call_int_hook(shm_associate, 0, shp, shmflg);
 }
 
-int security_shm_shmctl(struct shmid_kernel *shp, int cmd)
+int security_shm_shmctl(struct kern_ipc_perm *shp, int cmd)
 {
 	return call_int_hook(shm_shmctl, 0, shp, cmd);
 }
 
-int security_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr, int shmflg)
+int security_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr, int shmflg)
 {
 	return call_int_hook(shm_shmat, 0, shp, shmaddr, shmflg);
 }
 
-int security_sem_alloc(struct sem_array *sma)
+int security_sem_alloc(struct kern_ipc_perm *sma)
 {
 	return call_int_hook(sem_alloc_security, 0, sma);
 }
 
-void security_sem_free(struct sem_array *sma)
+void security_sem_free(struct kern_ipc_perm *sma)
 {
 	call_void_hook(sem_free_security, sma);
 }
 
-int security_sem_associate(struct sem_array *sma, int semflg)
+int security_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
 	return call_int_hook(sem_associate, 0, sma, semflg);
 }
 
-int security_sem_semctl(struct sem_array *sma, int cmd)
+int security_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
 	return call_int_hook(sem_semctl, 0, sma, cmd);
 }
 
-int security_sem_semop(struct sem_array *sma, struct sembuf *sops,
+int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			unsigned nsops, int alter)
 {
 	return call_int_hook(sem_semop, 0, sma, sops, nsops, alter);
