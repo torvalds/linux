@@ -49,7 +49,14 @@ extern struct fscache_cache *fscache_select_cache_for_object(
  */
 extern struct kmem_cache *fscache_cookie_jar;
 
+extern void fscache_free_cookie(struct fscache_cookie *);
 extern void fscache_cookie_init_once(void *);
+extern struct fscache_cookie *fscache_alloc_cookie(struct fscache_cookie *,
+						   const struct fscache_cookie_def *,
+						   const void *, size_t,
+						   const void *, size_t,
+						   void *, loff_t);
+extern struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *);
 extern void fscache_cookie_put(struct fscache_cookie *,
 			       enum fscache_cookie_trace);
 

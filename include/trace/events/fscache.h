@@ -24,10 +24,14 @@
 #define __FSCACHE_DECLARE_TRACE_ENUMS_ONCE_ONLY
 
 enum fscache_cookie_trace {
+	fscache_cookie_collision,
+	fscache_cookie_discard,
 	fscache_cookie_get_acquire_parent,
 	fscache_cookie_get_attach_object,
+	fscache_cookie_get_reacquire,
 	fscache_cookie_get_register_netfs,
 	fscache_cookie_put_acquire_nobufs,
+	fscache_cookie_put_dup_netfs,
 	fscache_cookie_put_relinquish,
 	fscache_cookie_put_object,
 	fscache_cookie_put_parent,
@@ -86,10 +90,14 @@ enum fscache_page_op_trace {
  * Declare tracing information enums and their string mappings for display.
  */
 #define fscache_cookie_traces						\
+	EM(fscache_cookie_collision,		"*COLLISION*")		\
+	EM(fscache_cookie_discard,		"DISCARD")		\
 	EM(fscache_cookie_get_acquire_parent,	"GET prn")		\
 	EM(fscache_cookie_get_attach_object,	"GET obj")		\
+	EM(fscache_cookie_get_reacquire,	"GET raq")		\
 	EM(fscache_cookie_get_register_netfs,	"GET net")		\
 	EM(fscache_cookie_put_acquire_nobufs,	"PUT nbf")		\
+	EM(fscache_cookie_put_dup_netfs,	"PUT dnt")		\
 	EM(fscache_cookie_put_relinquish,	"PUT rlq")		\
 	EM(fscache_cookie_put_object,		"PUT obj")		\
 	E_(fscache_cookie_put_parent,		"PUT prn")

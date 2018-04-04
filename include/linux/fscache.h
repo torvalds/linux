@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
+#include <linux/list_bl.h>
 
 #if defined(CONFIG_FSCACHE) || defined(CONFIG_FSCACHE_MODULE)
 #define fscache_available() (1)
@@ -124,7 +125,6 @@ struct fscache_netfs {
 	uint32_t			version;	/* indexing version */
 	const char			*name;		/* filesystem name */
 	struct fscache_cookie		*primary_index;
-	struct list_head		link;		/* internal link */
 };
 
 /*
@@ -143,6 +143,7 @@ struct fscache_cookie {
 	struct hlist_head		backing_objects; /* object(s) backing this file/index */
 	const struct fscache_cookie_def	*def;		/* definition */
 	struct fscache_cookie		*parent;	/* parent of this entry */
+	struct hlist_bl_node		hash_link;	/* Link in hash table */
 	void				*netfs_data;	/* back pointer to netfs */
 	struct radix_tree_root		stores;		/* pages to be stored on this cookie */
 #define FSCACHE_COOKIE_PENDING_TAG	0		/* pages tag: pending write to cache */
@@ -156,11 +157,14 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_RELINQUISHED	4	/* T if cookie has been relinquished */
 #define FSCACHE_COOKIE_ENABLED		5	/* T if cookie is enabled */
 #define FSCACHE_COOKIE_ENABLEMENT_LOCK	6	/* T if cookie is being en/disabled */
-#define FSCACHE_COOKIE_AUX_UPDATED	7	/* T if the auxiliary data was updated */
+#define FSCACHE_COOKIE_AUX_UPDATED	8	/* T if the auxiliary data was updated */
+#define FSCACHE_COOKIE_ACQUIRED		9	/* T if cookie is in use */
+#define FSCACHE_COOKIE_RELINQUISHING	10	/* T if cookie is being relinquished */
 
 	u8				type;		/* Type of object */
 	u8				key_len;	/* Length of index key */
 	u8				aux_len;	/* Length of auxiliary data */
+	u32				key_hash;	/* Hash of parent, type, key, len */
 	union {
 		void			*key;		/* Index key */
 		u8			inline_key[16];	/* - If the key is short enough */
