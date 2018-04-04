@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+config CYW_BCMDHD
+	tristate "Cypress wireless sdio cards support"
+	depends on (!AP6XXX)
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	#select CFG80211
+	#select MAC80211
+	select CFG80211_WEXT
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom awzxxx chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+

@@ -23,6 +23,7 @@ config WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
 	  Wifi driver will be load (use late_initcall) when kernel bootup
 
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/cywdhd/Kconfig"
 
 menuconfig RTL_WIRELESS_SOLUTION
     bool "Realtek Wireless Device Driver Support"
