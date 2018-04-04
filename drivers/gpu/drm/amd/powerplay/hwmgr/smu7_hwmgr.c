@@ -3359,30 +3359,33 @@ static int smu7_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr,
 		struct pp_gpu_power *query)
 {
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PmStatusLogStart),
-			"Failed to start pm status log!",
-			return -1);
+	int i;
 
-	msleep_interruptible(20);
+	if (!query)
+		return -EINVAL;
 
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PmStatusLogSample),
-			"Failed to sample pm status log!",
-			return -1);
 
-	query->vddc_power = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC,
-			ixSMU_PM_STATUS_40);
-	query->vddci_power = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC,
-			ixSMU_PM_STATUS_49);
-	query->max_gpu_power = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC,
-			ixSMU_PM_STATUS_94);
-	query->average_gpu_power = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC,
-			ixSMU_PM_STATUS_95);
+	memset(query, 0, sizeof *query);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetCurrPkgPwr, 0);
+	query->average_gpu_power = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+	if (query->average_gpu_power != 0)
+		return 0;
+
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PmStatusLogStart);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+							ixSMU_PM_STATUS_94, 0);
+
+	for (i = 0; i < 20; i++) {
+		mdelay(1);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PmStatusLogSample);
+		query->average_gpu_power = cgs_read_ind_register(hwmgr->device,
+						CGS_IND_REG__SMC,
+						ixSMU_PM_STATUS_94);
+		if (query->average_gpu_power != 0)
+			break;
+	}
 
 	return 0;
 }
