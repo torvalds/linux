@@ -2719,8 +2719,10 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	//BUG_ON((!hw) || (!mem) || (irq < 0)); /* --- by chhung */
 
 	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
+		goto host_free;
+	}
 
 	/* Set host parameters to mmc */
 	mmc->ops        = &mt_msdc_ops;
@@ -2861,6 +2863,7 @@ release:
 	if (mem)
 		release_mem_region(mem->start, mem->end - mem->start + 1);
 
+host_free:
 	mmc_free_host(mmc);
 
 	return ret;
