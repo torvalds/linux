@@ -51,7 +51,7 @@
 static char cmd_buf[256];
 
 /* for debug zone */
-unsigned int sd_debug_zone[4]={
+unsigned int sd_debug_zone[4] = {
 	0,
 	0,
 	0,
@@ -59,20 +59,21 @@ unsigned int sd_debug_zone[4]={
 };
 
 /* mode select */
-u32 dma_size[4]={
+u32 dma_size[4] = {
 	512,
 	512,
 	512,
 	512
 };
-msdc_mode drv_mode[4]={
+
+msdc_mode drv_mode[4] = {
 	MODE_SIZE_DEP, /* using DMA or not depend on the size */
 	MODE_SIZE_DEP,
 	MODE_SIZE_DEP,
 	MODE_SIZE_DEP
 };
 
-#if defined (MT6575_SD_DEBUG)
+#if defined(MT6575_SD_DEBUG)
 /* for driver profile */
 #define TICKS_ONE_MS  (13000)
 u32 gpt_enable = 0;
@@ -90,7 +91,7 @@ void msdc_init_gpt(void)
 	config.clkSrc = GPT_CLK_SRC_SYS;
 	config.clkDiv = GPT_CLK_DIV_1;   /* 13MHz GPT6 */
 
-	if (GPT_Config(config) == FALSE )
+	if (GPT_Config(config) == FALSE)
 		return;
 
 	GPT_Start(GPT6);
@@ -103,7 +104,7 @@ u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 
 	if (new_H32 == old_H32) {
 		ret = new_L32 - old_L32;
-	} else if(new_H32 == (old_H32 + 1)) {
+	} else if (new_H32 == (old_H32 + 1)) {
 		if (new_L32 > old_L32) {
 			printk("msdc old_L<0x%x> new_L<0x%x>\n", old_L32, new_L32);
 		}
@@ -129,44 +130,44 @@ void msdc_sdio_profile(struct sdio_profile* result)
 	/* CMD52 Dump */
 	cmd = &result->cmd52_rx;
 	printk("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
-	       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count);
+	       cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count);
 	cmd = &result->cmd52_tx;
 	printk("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
-	       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count);
+	       cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count);
 
 	/* CMD53 Rx bytes + block mode */
-	for (i=0; i<512; i++) {
+	for (i = 0; i < 512; i++) {
 		cmd = &result->cmd53_rx_byte[i];
 		if (cmd->count) {
 			printk("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
-	for (i=0; i<100; i++) {
+	for (i = 0; i < 100; i++) {
 		cmd = &result->cmd53_rx_blk[i];
 		if (cmd->count) {
 			printk("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
 
 	/* CMD53 Tx bytes + block mode */
-	for (i=0; i<512; i++) {
+	for (i = 0; i < 512; i++) {
 		cmd = &result->cmd53_tx_byte[i];
 		if (cmd->count) {
 			printk("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
-	for (i=0; i<100; i++) {
+	for (i = 0; i < 100; i++) {
 		cmd = &result->cmd53_tx_blk[i];
 		if (cmd->count) {
 			printk("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-			       cmd->max_tc, cmd->min_tc, cmd->tot_tc/cmd->count,
-			       cmd->tot_bytes, (cmd->tot_bytes/10)*13 / (cmd->tot_tc/10));
+			       cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
+			       cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
 
@@ -193,7 +194,7 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 			block = sizes / 512;
 			if (block >= 99) {
 				printk("cmd53 error blocks\n");
-				while(1);
+				while (1);
 			}
 			cmd = bRx ?  &result->cmd53_rx_blk[block] : &result->cmd53_tx_blk[block];
 		}
@@ -202,7 +203,7 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 	}
 
 	/* update the members */
-	if (ticks > cmd->max_tc){
+	if (ticks > cmd->max_tc) {
 		cmd->max_tc = ticks;
 	}
 	if (cmd->min_tc == 0 || ticks < cmd->min_tc) {
@@ -210,7 +211,7 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 	}
 	cmd->tot_tc += ticks;
 	cmd->tot_bytes += sizes;
-	cmd->count ++;
+	cmd->count++;
 
 	if (bRx) {
 		result->total_rx_bytes += sizes;
@@ -222,7 +223,7 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 	/* dump when total_tc > 30s */
 	if (result->total_tc >= sdio_pro_time * TICKS_ONE_MS * 1000) {
 		msdc_sdio_profile(result);
-		memset(result, 0 , sizeof(struct sdio_profile));
+		memset(result, 0, sizeof(struct sdio_profile));
 	}
 }
 
@@ -264,7 +265,7 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 	int mode, size;
 
 	if (count == 0)return -1;
-	if(count > 255)count = 255;
+	if (count > 255)count = 255;
 
 	ret = copy_from_user(cmd_buf, buf, count);
 	if (ret < 0)return -1;
@@ -274,13 +275,13 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 
 	sscanf(cmd_buf, "%x %x %x", &cmd, &p1, &p2);
 
-	if(cmd == SD_TOOL_ZONE) {
+	if (cmd == SD_TOOL_ZONE) {
 		id = p1; zone = p2; zone &= 0x3ff;
 		printk("msdc host_id<%d> zone<0x%.8x>\n", id, zone);
-		if(id >=0 && id<=3){
+		if (id >= 0 && id <= 3) {
 			sd_debug_zone[id] = zone;
 		}
-		else if(id == 4){
+		else if (id == 4) {
 			sd_debug_zone[0] = sd_debug_zone[1] = zone;
 			sd_debug_zone[2] = sd_debug_zone[3] = zone;
 		}
@@ -288,12 +289,12 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 			printk("msdc host_id error when set debug zone\n");
 		}
 	} else if (cmd == SD_TOOL_DMA_SIZE) {
-		id = p1>>4;  mode = (p1&0xf); size = p2;
-		if(id >=0 && id<=3){
+		id = p1 >> 4;  mode = (p1 & 0xf); size = p2;
+		if (id >= 0 && id <= 3) {
 			drv_mode[id] = mode;
 			dma_size[id] = p2;
 		}
-		else if(id == 4){
+		else if (id == 4) {
 			drv_mode[0] = drv_mode[1] = mode;
 			drv_mode[2] = drv_mode[3] = mode;
 			dma_size[0] = dma_size[1] = p2;
@@ -310,7 +311,7 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 			}
 			sdio_pro_enable = 1;
 			if (p2 == 0) p2 = 1; if (p2 >= 30) p2 = 30;
-			sdio_pro_time = p2 ;
+			sdio_pro_time = p2;
 		}	else if (p1 == 0) {
 			/* todo */
 			sdio_pro_enable = 0;
@@ -341,7 +342,7 @@ int msdc_debug_proc_init(void)
 	if (!de || IS_ERR(de))
 		printk("!! Create MSDC debug PROC fail !!\n");
 
-	return 0 ;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(msdc_debug_proc_init);
 #endif

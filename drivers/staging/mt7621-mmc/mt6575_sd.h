@@ -88,15 +88,15 @@
 #define MSDC_EMMC_BOOTMODE1     (1)     /* Reset CMD mode */
 
 enum {
-    RESP_NONE = 0,
-    RESP_R1,
-    RESP_R2,
-    RESP_R3,
-    RESP_R4,
-    RESP_R5,
-    RESP_R6,
-    RESP_R7,
-    RESP_R1B
+	RESP_NONE = 0,
+	RESP_R1,
+	RESP_R2,
+	RESP_R3,
+	RESP_R4,
+	RESP_R5,
+	RESP_R6,
+	RESP_R7,
+	RESP_R1B
 };
 
 /*--------------------------------------------------------------------------*/
@@ -253,7 +253,7 @@ enum {
 #define MSDC_PS_CDDEBOUNCE      (0xf  << 12)    /* RW */
 #define MSDC_PS_DAT             (0xff << 16)    /* R  */
 #define MSDC_PS_CMD             (0x1  << 24)    /* R  */
-#define MSDC_PS_WP              (0x1UL<< 31)    /* R  */
+#define MSDC_PS_WP              (0x1UL << 31)    /* R  */
 
 /* MSDC_INT mask */
 #define MSDC_INT_MMCIRQ         (0x1  << 0)     /* W1C */
@@ -294,7 +294,7 @@ enum {
 /* MSDC_FIFOCS mask */
 #define MSDC_FIFOCS_RXCNT       (0xff << 0)     /* R */
 #define MSDC_FIFOCS_TXCNT       (0xff << 16)    /* R */
-#define MSDC_FIFOCS_CLR         (0x1UL<< 31)    /* RW */
+#define MSDC_FIFOCS_CLR         (0x1UL << 31)    /* RW */
 
 /* SDC_CFG mask */
 #define SDC_CFG_SDIOINTWKUP     (0x1  << 0)     /* RW */
@@ -314,7 +314,7 @@ enum {
 #define SDC_CMD_RW              (0x1  << 13)    /* RW */
 #define SDC_CMD_STOP            (0x1  << 14)    /* RW */
 #define SDC_CMD_GOIRQ           (0x1  << 15)    /* RW */
-#define SDC_CMD_BLKLEN          (0xfff<< 16)    /* RW */
+#define SDC_CMD_BLKLEN          (0xfff << 16)    /* RW */
 #define SDC_CMD_AUTOCMD         (0x3  << 28)    /* RW */
 #define SDC_CMD_VOLSWTH         (0x1  << 30)    /* RW */
 
@@ -396,7 +396,7 @@ enum {
 #define MSDC_PAD_CTL0_CLKSMT    (0x1  << 18)    /* RW */
 #define MSDC_PAD_CTL0_CLKIES    (0x1  << 19)    /* RW */
 #define MSDC_PAD_CTL0_CLKTDSEL  (0xf  << 20)    /* RW */
-#define MSDC_PAD_CTL0_CLKRDSEL  (0xffUL<< 24)   /* RW */
+#define MSDC_PAD_CTL0_CLKRDSEL  (0xffUL << 24)   /* RW */
 
 /* MSDC_PAD_CTL1 mask */
 #define MSDC_PAD_CTL1_CMDDRVN   (0x7  << 0)     /* RW */
@@ -407,7 +407,7 @@ enum {
 #define MSDC_PAD_CTL1_CMDSMT    (0x1  << 18)    /* RW */
 #define MSDC_PAD_CTL1_CMDIES    (0x1  << 19)    /* RW */
 #define MSDC_PAD_CTL1_CMDTDSEL  (0xf  << 20)    /* RW */
-#define MSDC_PAD_CTL1_CMDRDSEL  (0xffUL<< 24)   /* RW */
+#define MSDC_PAD_CTL1_CMDRDSEL  (0xffUL << 24)   /* RW */
 
 /* MSDC_PAD_CTL2 mask */
 #define MSDC_PAD_CTL2_DATDRVN   (0x7  << 0)     /* RW */
@@ -418,7 +418,7 @@ enum {
 #define MSDC_PAD_CTL2_DATIES    (0x1  << 19)    /* RW */
 #define MSDC_PAD_CTL2_DATSMT    (0x1  << 18)    /* RW */
 #define MSDC_PAD_CTL2_DATTDSEL  (0xf  << 20)    /* RW */
-#define MSDC_PAD_CTL2_DATRDSEL  (0xffUL<< 24)   /* RW */
+#define MSDC_PAD_CTL2_DATRDSEL  (0xffUL << 24)   /* RW */
 
 /* MSDC_PAD_TUNE mask */
 #define MSDC_PAD_TUNE_DATWRDLY  (0x1F << 0)     /* RW */
@@ -438,11 +438,11 @@ enum {
 #define MSDC_DAT_RDDLY1_D6      (0x1F << 16)    /* RW */
 #define MSDC_DAT_RDDLY1_D7      (0x1F << 24)    /* RW */
 
-#define MSDC_CKGEN_MSDC_DLY_SEL   (0x1F<<10)
-#define MSDC_INT_DAT_LATCH_CK_SEL  (0x7<<7)
-#define MSDC_CKGEN_MSDC_CK_SEL     (0x1<<6)
-#define CARD_READY_FOR_DATA             (1<<8)
-#define CARD_CURRENT_STATE(x)           ((x&0x00001E00)>>9)
+#define MSDC_CKGEN_MSDC_DLY_SEL   (0x1F << 10)
+#define MSDC_INT_DAT_LATCH_CK_SEL  (0x7 << 7)
+#define MSDC_CKGEN_MSDC_CK_SEL     (0x1 << 6)
+#define CARD_READY_FOR_DATA             (1 << 8)
+#define CARD_CURRENT_STATE(x)           ((x & 0x00001E00) >> 9)
 
 /*--------------------------------------------------------------------------*/
 /* Descriptor Structure                                                     */
@@ -974,27 +974,28 @@ static inline unsigned int uffs(unsigned int x)
 	}
 	return r;
 }
+
 #define sdr_read8(reg)           __raw_readb(reg)
 #define sdr_read16(reg)          __raw_readw(reg)
 #define sdr_read32(reg)          __raw_readl(reg)
-#define sdr_write8(reg,val)      __raw_writeb(val,reg)
-#define sdr_write16(reg,val)     __raw_writew(val,reg)
-#define sdr_write32(reg,val)     __raw_writel(val,reg)
+#define sdr_write8(reg, val)      __raw_writeb(val, reg)
+#define sdr_write16(reg, val)     __raw_writew(val, reg)
+#define sdr_write32(reg, val)     __raw_writel(val, reg)
 
-#define sdr_set_bits(reg,bs)     ((*(volatile u32*)(reg)) |= (u32)(bs))
-#define sdr_clr_bits(reg,bs)     ((*(volatile u32*)(reg)) &= ~((u32)(bs)))
+#define sdr_set_bits(reg, bs)     ((*(volatile u32*)(reg)) |= (u32)(bs))
+#define sdr_clr_bits(reg, bs)     ((*(volatile u32*)(reg)) &= ~((u32)(bs)))
 
-#define sdr_set_field(reg,field,val)					\
+#define sdr_set_field(reg, field, val)					\
 do {								\
 	volatile unsigned int tv = sdr_read32(reg);			\
 	tv &= ~(field);							\
 	tv |= ((val) << (uffs((unsigned int)field) - 1));		\
-	sdr_write32(reg,tv);						\
-} while(0)
-#define sdr_get_field(reg,field,val)					\
+	sdr_write32(reg, tv);						\
+} while (0)
+#define sdr_get_field(reg, field, val)					\
 do {								\
 	volatile unsigned int tv = sdr_read32(reg);			\
 	val = ((tv & (field)) >> (uffs((unsigned int)field) - 1));	\
-} while(0)
+} while (0)
 
 #endif

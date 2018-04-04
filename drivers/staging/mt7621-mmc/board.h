@@ -57,7 +57,6 @@ typedef void (*pm_callback_t)(pm_message_t state, void *data);
 #define MSDC_UHS1           (1 << 8)  /* uhs-1 mode support            */
 #define MSDC_DDR            (1 << 9)  /* ddr mode support              */
 
-
 #define MSDC_SMPL_RISING    (0)
 #define MSDC_SMPL_FALLING   (1)
 
@@ -118,6 +117,7 @@ struct mt3326_gps_hardware {
 	int (*ext_power_on)(int);
 	int (*ext_power_off)(int);
 };
+
 extern struct mt3326_gps_hardware mt3326_gps_hw;
 
 /* NAND driver */
@@ -131,6 +131,7 @@ struct mt6575_nand_host_hw {
 	unsigned int nand_ecc_bytes;
 	unsigned int nand_ecc_mode;
 };
+
 extern struct mt6575_nand_host_hw mt6575_nand_hw;
 
 #endif /* __ARCH_ARM_MACH_BOARD_H */
