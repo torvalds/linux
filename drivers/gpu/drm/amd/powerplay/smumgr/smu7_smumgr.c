@@ -231,16 +231,6 @@ int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_wait_for_smc_inactive(struct pp_hwmgr *hwmgr)
-{
-	if (!smu7_is_smc_ram_running(hwmgr))
-		return -EINVAL;
-
-	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, SMC_SYSCON_CLOCK_CNTL_0, cken, 0);
-	return 0;
-}
-
-
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type)
 {
 	enum cgs_ucode_id result = CGS_UCODE_ID_MAXIMUM;
