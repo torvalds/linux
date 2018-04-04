@@ -32,8 +32,7 @@
 
 extern void hist_browser__init_hpp(void);
 
-static int perf_evsel_browser_title(struct hist_browser *browser,
-				    char *bf, size_t size);
+static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf, size_t size);
 static void hist_browser__update_nr_entries(struct hist_browser *hb);
 
 static struct rb_node *hists__filter_entries(struct rb_node *nd,
@@ -62,6 +61,15 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 	return unfolded_rows;
 }
 
+static void hist_browser__set_title_space(struct hist_browser *hb)
+{
+	struct ui_browser *browser = &hb->b;
+	struct hists *hists = hb->hists;
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+
+	browser->extra_title_lines = hb->show_headers ? hpp_list->nr_header_lines : 0;
+}
+
 static u32 hist_browser__nr_entries(struct hist_browser *hb)
 {
 	u32 nr_entries;
@@ -82,10 +90,16 @@ static void hist_browser__update_rows(struct hist_browser *hb)
 	struct ui_browser *browser = &hb->b;
 	struct hists *hists = hb->hists;
 	struct perf_hpp_list *hpp_list = hists->hpp_list;
-	u16 header_offset, index_row;
+	u16 index_row;
 
-	header_offset = hb->show_headers ? hpp_list->nr_header_lines : 0;
-	browser->rows = browser->height - header_offset;
+	if (!hb->show_headers) {
+		browser->rows += browser->extra_title_lines;
+		browser->extra_title_lines = 0;
+		return;
+	}
+
+	browser->extra_title_lines = hpp_list->nr_header_lines;
+	browser->rows -= browser->extra_title_lines;
 	/*
 	 * Verify if we were at the last line and that line isn't
 	 * visibe because we now show the header line(s).
@@ -108,17 +122,6 @@ static void hist_browser__refresh_dimensions(struct ui_browser *browser)
  	 *	  changeset.
  	 */
 	ui_browser__refresh_dimensions(browser);
-	hist_browser__update_rows(hb);
-}
-
-static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
-{
-	struct hists *hists = browser->hists;
-	struct perf_hpp_list *hpp_list = hists->hpp_list;
-	u16 header_offset;
-
-	header_offset = browser->show_headers ? hpp_list->nr_header_lines : 0;
-	ui_browser__gotorc(&browser->b, row + header_offset, column);
 }
 
 static void hist_browser__reset(struct hist_browser *browser)
@@ -733,7 +736,7 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 	}
 
 	ui_browser__set_color(&browser->b, color);
-	hist_browser__gotorc(browser, row, 0);
+	ui_browser__gotorc(&browser->b, row, 0);
 	ui_browser__write_nstring(&browser->b, " ", offset);
 	ui_browser__printf(&browser->b, "%c", folded_sign);
 	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
@@ -1249,7 +1252,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		};
 		int column = 0;
 
-		hist_browser__gotorc(browser, row, 0);
+		ui_browser__gotorc(&browser->b, row, 0);
 
 		hists__for_each_format(browser->hists, fmt) {
 			char s[2048];
@@ -1358,7 +1361,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		goto show_callchain;
 	}
 
-	hist_browser__gotorc(browser, row, 0);
+	ui_browser__gotorc(&browser->b, row, 0);
 
 	if (current_entry && browser->b.navkeypressed)
 		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
@@ -1507,7 +1510,7 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 		browser->selection = NULL;
 	}
 
-	hist_browser__gotorc(browser, row, 0);
+	ui_browser__gotorc(&browser->b, row, 0);
 
 	if (current_entry && browser->b.navkeypressed)
 		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
@@ -1713,7 +1716,7 @@ static void hists_browser__headers(struct hist_browser *browser)
 		hists_browser__scnprintf_headers(browser, headers,
 						 sizeof(headers), line);
 
-		ui_browser__gotorc(&browser->b, line, 0);
+		ui_browser__gotorc_title(&browser->b, line, 0);
 		ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
 		ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
 	}
@@ -2143,6 +2146,7 @@ void hist_browser__init(struct hist_browser *browser,
 	browser->b.seek			= ui_browser__hists_seek;
 	browser->b.use_navkeypressed	= true;
 	browser->show_headers		= symbol_conf.show_hist_headers;
+	hist_browser__set_title_space(browser);
 
 	if (symbol_conf.report_hierarchy) {
 		struct perf_hpp_list_node *fmt_node;
@@ -2183,7 +2187,7 @@ perf_evsel_browser__new(struct perf_evsel *evsel,
 	if (browser) {
 		browser->hbt   = hbt;
 		browser->env   = env;
-		browser->title = perf_evsel_browser_title;
+		browser->title = hists_browser__scnprintf_title;
 	}
 	return browser;
 }
@@ -2209,84 +2213,11 @@ static inline bool is_report_browser(void *timer)
 	return timer == NULL;
 }
 
-static int perf_evsel_browser_title(struct hist_browser *browser,
-				char *bf, size_t size)
+static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf, size_t size)
 {
 	struct hist_browser_timer *hbt = browser->hbt;
-	struct hists *hists = browser->hists;
-	char unit;
-	int printed;
-	const struct dso *dso = hists->dso_filter;
-	const struct thread *thread = hists->thread_filter;
-	int socket_id = hists->socket_filter;
-	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
-	u64 nr_events = hists->stats.total_period;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
-	const char *ev_name = perf_evsel__name(evsel);
-	char buf[512], sample_freq_str[64] = "";
-	size_t buflen = sizeof(buf);
-	char ref[30] = " show reference callgraph, ";
-	bool enable_ref = false;
+	int printed = __hists__scnprintf_title(browser->hists, bf, size, !is_report_browser(hbt));
 
-	if (symbol_conf.filter_relative) {
-		nr_samples = hists->stats.nr_non_filtered_samples;
-		nr_events = hists->stats.total_non_filtered_period;
-	}
-
-	if (perf_evsel__is_group_event(evsel)) {
-		struct perf_evsel *pos;
-
-		perf_evsel__group_desc(evsel, buf, buflen);
-		ev_name = buf;
-
-		for_each_group_member(pos, evsel) {
-			struct hists *pos_hists = evsel__hists(pos);
-
-			if (symbol_conf.filter_relative) {
-				nr_samples += pos_hists->stats.nr_non_filtered_samples;
-				nr_events += pos_hists->stats.total_non_filtered_period;
-			} else {
-				nr_samples += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
-				nr_events += pos_hists->stats.total_period;
-			}
-		}
-	}
-
-	if (symbol_conf.show_ref_callgraph &&
-	    strstr(ev_name, "call-graph=no"))
-		enable_ref = true;
-
-	if (!is_report_browser(hbt))
-		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->attr.sample_freq);
-
-	nr_samples = convert_unit(nr_samples, &unit);
-	printed = scnprintf(bf, size,
-			   "Samples: %lu%c of event%s '%s',%s%sEvent count (approx.): %" PRIu64,
-			   nr_samples, unit, evsel->nr_members > 1 ? "s" : "",
-			   ev_name, sample_freq_str, enable_ref ? ref : " ", nr_events);
-
-
-	if (hists->uid_filter_str)
-		printed += snprintf(bf + printed, size - printed,
-				    ", UID: %s", hists->uid_filter_str);
-	if (thread) {
-		if (hists__has(hists, thread)) {
-			printed += scnprintf(bf + printed, size - printed,
-				    ", Thread: %s(%d)",
-				     (thread->comm_set ? thread__comm_str(thread) : ""),
-				    thread->tid);
-		} else {
-			printed += scnprintf(bf + printed, size - printed,
-				    ", Thread: %s",
-				     (thread->comm_set ? thread__comm_str(thread) : ""));
-		}
-	}
-	if (dso)
-		printed += scnprintf(bf + printed, size - printed,
-				    ", DSO: %s", dso->short_name);
-	if (socket_id > -1)
-		printed += scnprintf(bf + printed, size - printed,
-				    ", Processor Socket: %d", socket_id);
 	if (!is_report_browser(hbt)) {
 		struct perf_top *top = hbt->arg;
 

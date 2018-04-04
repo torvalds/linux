@@ -17,6 +17,7 @@
 #include "config.h"
 #include "cache.h"
 #include "symbol.h"
+#include "units.h"
 #include "debug.h"
 #include "annotate.h"
 #include "evsel.h"
@@ -2324,7 +2325,7 @@ int symbol__tty_annotate2(struct symbol *sym, struct map *map,
 	struct dso *dso = map->dso;
 	struct rb_root source_line = RB_ROOT;
 	struct annotation_options opts = annotation__default_options;
-	const char *ev_name = perf_evsel__name(evsel);
+	struct annotation *notes = symbol__annotation(sym);
 	char buf[1024];
 
 	if (symbol__annotate2(sym, map, evsel, &opts, NULL) < 0)
@@ -2336,12 +2337,8 @@ int symbol__tty_annotate2(struct symbol *sym, struct map *map,
 		print_summary(&source_line, dso->long_name);
 	}
 
-	if (perf_evsel__is_group_event(evsel)) {
-		perf_evsel__group_desc(evsel, buf, sizeof(buf));
-		ev_name = buf;
-	}
-
-	fprintf(stdout, "%s() %s\nEvent: %s\n\n", sym->name, dso->long_name, ev_name);
+	annotation__scnprintf_samples_period(notes, buf, sizeof(buf), evsel);
+	fprintf(stdout, "%s\n%s() %s\n", buf, sym->name, dso->long_name);
 	symbol__annotate_fprintf2(sym, stdout);
 
 	annotated_source__purge(symbol__annotation(sym)->src);
@@ -2595,6 +2592,43 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *ev
 out_free_offsets:
 	zfree(&notes->offsets);
 	return -1;
+}
+
+int __annotation__scnprintf_samples_period(struct annotation *notes,
+					   char *bf, size_t size,
+					   struct perf_evsel *evsel,
+					   bool show_freq)
+{
+	const char *ev_name = perf_evsel__name(evsel);
+	char ref[30] = " show reference callgraph, ";
+	char sample_freq_str[64] = "";
+	unsigned long nr_samples = 0;
+	int nr_members = 1;
+	bool enable_ref = false;
+	u64 nr_events = 0;
+	char unit;
+	int i;
+
+	if (perf_evsel__is_group_event(evsel))
+                nr_members = evsel->nr_members;
+
+	for (i = 0; i < nr_members; i++) {
+		struct sym_hist *ah = annotation__histogram(notes, evsel->idx + i);
+
+		nr_samples += ah->nr_samples;
+		nr_events  += ah->period;
+	}
+
+	if (symbol_conf.show_ref_callgraph && strstr(ev_name, "call-graph=no"))
+		enable_ref = true;
+
+	if (show_freq)
+		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->attr.sample_freq);
+
+	nr_samples = convert_unit(nr_samples, &unit);
+	return scnprintf(bf, size, "Samples: %lu%c of event%s '%s',%s%sEvent count (approx.): %" PRIu64,
+			 nr_samples, unit, evsel->nr_members > 1 ? "s" : "",
+			 ev_name, sample_freq_str, enable_ref ? ref : " ", nr_events);
 }
 
 #define ANNOTATION__CFG(n) \
