@@ -2696,7 +2696,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct msdc_host *host;
 	struct msdc_hw *hw;
-	int ret, irq;
+	int ret;
 
 	hw = &msdc0_hw;
 
@@ -2707,10 +2707,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc = mmc_alloc_host(sizeof(struct msdc_host), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;
-
-	irq  = platform_get_irq(pdev, 0);
-
-	//BUG_ON((!hw) || (!mem) || (irq < 0)); /* --- by chhung */
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -2756,7 +2752,13 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	if (host->id < 0 || host->id >= 4)
 		host->id = 0;
 	host->error     = 0;
-	host->irq       = irq;
+
+	host->irq       = platform_get_irq(pdev, 0);
+	if (host->irq < 0) {
+		ret = -EINVAL;
+		goto host_free;
+	}
+
 	host->base      = (unsigned long)base;
 	host->mclk      = 0;                   /* mclk: the request clock of mmc sub-system */
 	host->hclk      = hclks[hw->clk_src];  /* hclk: clock of clock source to msdc controller */
@@ -2801,20 +2803,23 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	spin_lock_init(&host->lock);
 	msdc_init_hw(host);
 
-	if (ralink_soc == MT762X_SOC_MT7621AT)
-		ret = request_irq((unsigned int)irq, msdc_irq, 0, dev_name(&pdev->dev), host);
-	else
-		ret = request_irq((unsigned int)irq, msdc_irq, IRQF_TRIGGER_LOW, dev_name(&pdev->dev), host);
-
+	/* TODO check weather flags 0 is correct, the mtk-sd driver uses
+	 * IRQF_TRIGGER_LOW | IRQF_ONESHOT for flags
+	 *
+	 * for flags 0 the trigger polarity is determined by the
+	 * device tree, but not the oneshot flag, but maybe it is also
+	 * not needed because the soc could be oneshot safe.
+	 */
+	ret = devm_request_irq(&pdev->dev, host->irq, msdc_irq, 0, pdev->name,
+			       host);
 	if (ret)
 		goto release;
-	// mt65xx_irq_unmask(irq); /* --- by chhung */
 
 	platform_set_drvdata(pdev, mmc);
 
 	ret = mmc_add_host(mmc);
 	if (ret)
-		goto free_irq;
+		goto release;
 
 	/* Config card detection pin and enable interrupts */
 	if (hw->flags & MSDC_CD_PIN_EN) {  /* set for card */
@@ -2825,8 +2830,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 
 	return 0;
 
-free_irq:
-	free_irq(irq, host);
 release:
 	platform_set_drvdata(pdev, NULL);
 	msdc_deinit_hw(host);
@@ -2873,7 +2876,6 @@ static int msdc_drv_remove(struct platform_device *pdev)
 #else
 	cancel_delayed_work_sync(&host->card_delaywork);
 #endif
-	free_irq(host->irq, host);
 
 	dma_free_coherent(&pdev->dev, MAX_GPD_NUM * sizeof(struct gpd),
 			  host->dma.gpd, host->dma.gpd_addr);
