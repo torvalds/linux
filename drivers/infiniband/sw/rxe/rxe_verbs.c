@@ -77,21 +77,6 @@ out:
 	return rc;
 }
 
-static int rxe_add_gid(const union ib_gid *gid,
-		       const struct ib_gid_attr *attr, void **context)
-{
-	if (attr->index >= RXE_PORT_GID_TBL_LEN)
-		return -EINVAL;
-	return 0;
-}
-
-static int rxe_del_gid(const struct ib_gid_attr *attr, void **context)
-{
-	if (attr->index >= RXE_PORT_GID_TBL_LEN)
-		return -EINVAL;
-	return 0;
-}
-
 static struct net_device *rxe_get_netdev(struct ib_device *device,
 					 u8 port_num)
 {
@@ -1265,8 +1250,6 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->modify_port = rxe_modify_port;
 	dev->get_link_layer = rxe_get_link_layer;
 	dev->get_netdev = rxe_get_netdev;
-	dev->add_gid = rxe_add_gid;
-	dev->del_gid = rxe_del_gid;
 	dev->query_pkey = rxe_query_pkey;
 	dev->alloc_ucontext = rxe_alloc_ucontext;
 	dev->dealloc_ucontext = rxe_dealloc_ucontext;
