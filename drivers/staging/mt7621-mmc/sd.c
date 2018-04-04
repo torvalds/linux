@@ -178,7 +178,7 @@ static int g_clk_gate = 0;
 	} while (0)
 
 // do we need sync object or not
-void msdc_clk_status(int * status)
+void msdc_clk_status(int *status)
 {
 	*status = g_clk_gate;
 }
@@ -234,19 +234,19 @@ static int msdc_rsp[] = {
 /* For Inhanced DMA */
 #define msdc_init_gpd_ex(gpd, extlen, cmd, arg, blknum) \
 	do {					    \
-		((gpd_t*)gpd)->extlen = extlen;	    \
-		((gpd_t*)gpd)->cmd    = cmd;	    \
-		((gpd_t*)gpd)->arg    = arg;	    \
-		((gpd_t*)gpd)->blknum = blknum;	    \
+		((gpd_t *)gpd)->extlen = extlen;	    \
+		((gpd_t *)gpd)->cmd    = cmd;	    \
+		((gpd_t *)gpd)->arg    = arg;	    \
+		((gpd_t *)gpd)->blknum = blknum;	    \
 	} while (0)
 
 #define msdc_init_bd(bd, blkpad, dwpad, dptr, dlen) \
 	do {					    \
 		BUG_ON(dlen > 0xFFFFUL);	    \
-		((bd_t*)bd)->blkpad = blkpad;	    \
-		((bd_t*)bd)->dwpad  = dwpad;	    \
-		((bd_t*)bd)->ptr    = (void*)dptr;  \
-		((bd_t*)bd)->buflen = dlen;	    \
+		((bd_t *)bd)->blkpad = blkpad;	    \
+		((bd_t *)bd)->dwpad  = dwpad;	    \
+		((bd_t *)bd)->ptr    = (void *)dptr;  \
+		((bd_t *)bd)->buflen = dlen;	    \
 	} while (0)
 
 #define msdc_txfifocnt()   ((sdr_read32(MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16)
@@ -358,7 +358,7 @@ static u32 hclks[] = {50000000}; /* +/- by chhung */
 
 // can modify to read h/w register.
 //#define is_card_present(h)   ((sdr_read32(MSDC_PS) & MSDC_PS_CDSTS) ? 0 : 1);
-#define is_card_present(h)     (((struct msdc_host*)(h))->card_inserted)
+#define is_card_present(h)     (((struct msdc_host *)(h))->card_inserted)
 
 /* +++ by chhung */
 #ifndef __ASSEMBLY__
@@ -372,7 +372,7 @@ static unsigned int msdc_do_command(struct msdc_host   *host,
 				    int                 tune,
 				    unsigned long       timeout);
 
-static int msdc_tune_cmdrsp(struct msdc_host*host, struct mmc_command *cmd);
+static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd);
 
 #ifdef MT6575_SD_DEBUG
 static void msdc_dump_card_status(struct msdc_host *host, u32 status)
@@ -614,7 +614,7 @@ static u8 clk_src_bit[4] = {
 	0, 3, 5, 7
 };
 
-static void msdc_select_clksrc(struct msdc_host* host, unsigned char clksrc)
+static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
 {
 	u32 val;
 	u32 base = host->base;
@@ -1253,7 +1253,7 @@ end:
    which means, memory card block read/write won't using pio
    then don't need to handle the CMD12 when data error.
 */
-static int msdc_pio_write(struct msdc_host* host, struct mmc_data *data)
+static int msdc_pio_write(struct msdc_host *host, struct mmc_data *data)
 {
 	u32  base = host->base;
 	struct scatterlist *sg = data->sg;
@@ -1283,7 +1283,7 @@ static int msdc_pio_write(struct msdc_host* host, struct mmc_data *data)
 					left -= 4;
 				}
 
-				u8ptr = (u8*)ptr;
+				u8ptr = (u8 *)ptr;
 				while (left) {
 					msdc_fifo_write8(*u8ptr);	u8ptr++;
 					left--;
@@ -1441,7 +1441,7 @@ static int msdc_dma_config(struct msdc_host *host, struct msdc_dma *dma)
 			sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_XFERSZ, sg_dma_len(sg));
 //#elif defined (CONFIG_RALINK_MT7621) || defined (CONFIG_RALINK_MT7628)
 		else
-			sdr_write32((volatile u32*)(RALINK_MSDC_BASE + 0xa8), sg_dma_len(sg));
+			sdr_write32((volatile u32 *)(RALINK_MSDC_BASE + 0xa8), sg_dma_len(sg));
 //#endif
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ, dma->burstsz);
 		sdr_set_field(MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 0);
@@ -1534,7 +1534,7 @@ static void msdc_set_blknum(struct msdc_host *host, u32 blknum)
 	sdr_write32(SDC_BLK_NUM, blknum);
 }
 
-static int msdc_do_request(struct mmc_host*mmc, struct mmc_request*mrq)
+static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct msdc_host *host = mmc_priv(mmc);
 	struct mmc_command *cmd;
@@ -1765,7 +1765,7 @@ static int msdc_app_cmd(struct mmc_host *mmc, struct msdc_host *host)
 	return err;
 }
 
-static int msdc_tune_cmdrsp(struct msdc_host*host, struct mmc_command *cmd)
+static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 {
 	int result = -1;
 	u32 base = host->base;
@@ -2757,7 +2757,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc = mmc_alloc_host(sizeof(struct msdc_host), &pdev->dev);
 	if (!mmc) return -ENOMEM;
 
-	hw   = (struct msdc_hw*)pdev->dev.platform_data;
+	hw   = (struct msdc_hw *)pdev->dev.platform_data;
 	mem  = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq  = platform_get_irq(pdev, 0);
 
@@ -2859,16 +2859,16 @@ static int msdc_drv_probe(struct platform_device *pdev)
 
 	if (hw->flags & MSDC_CD_PIN_EN) { /* not set for sdio */
 		if (hw->request_cd_eirq) { /* not set for MT6575 */
-			hw->request_cd_eirq(msdc_eirq_cd, (void*)host); /* msdc_eirq_cd will not be used! */
+			hw->request_cd_eirq(msdc_eirq_cd, (void *)host); /* msdc_eirq_cd will not be used! */
 		}
 	}
 
 	if (hw->request_sdio_eirq) /* set to combo_sdio_request_eirq() for WIFI */
-		hw->request_sdio_eirq(msdc_eirq_sdio, (void*)host); /* msdc_eirq_sdio() will be called when EIRQ */
+		hw->request_sdio_eirq(msdc_eirq_sdio, (void *)host); /* msdc_eirq_sdio() will be called when EIRQ */
 
 	if (hw->register_pm) {/* yes for sdio */
 #ifdef CONFIG_PM
-		hw->register_pm(msdc_pm, (void*)host);  /* combo_sdio_register_pm() */
+		hw->register_pm(msdc_pm, (void *)host);  /* combo_sdio_register_pm() */
 #endif
 		if (hw->flags & MSDC_SYS_SUSPEND) { /* will not set for WIFI */
 			ERR_MSG("MSDC_SYS_SUSPEND and register_pm both set");
@@ -2958,7 +2958,7 @@ static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	struct msdc_host *host = mmc_priv(mmc);
 
 	if (mmc && state.event == PM_EVENT_SUSPEND && (host->hw->flags & MSDC_SYS_SUSPEND)) { /* will set for card */
-		msdc_pm(state, (void*)host);
+		msdc_pm(state, (void *)host);
 	}
 
 	return ret;
@@ -2973,7 +2973,7 @@ static int msdc_drv_resume(struct platform_device *pdev)
 
 	state.event = PM_EVENT_RESUME;
 	if (mmc && (host->hw->flags & MSDC_SYS_SUSPEND)) {/* will set for card */
-		msdc_pm(state, (void*)host);
+		msdc_pm(state, (void *)host);
 	}
 
 	/* This mean WIFI not controller by PM */
@@ -3022,7 +3022,7 @@ static int __init mt_msdc_init(void)
 	mtk_sd_device.dev.platform_data = &msdc0_hw;
 	if (ralink_soc == MT762X_SOC_MT7620A || ralink_soc == MT762X_SOC_MT7621AT) {
 //#if defined (CONFIG_RALINK_MT7620) || defined (CONFIG_RALINK_MT7621)
-		reg = sdr_read32((volatile u32*)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
+		reg = sdr_read32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
 //#if defined (CONFIG_RALINK_MT7620)
 		if (ralink_soc == MT762X_SOC_MT7620A)
 			reg |= 0x1 << 18;
@@ -3030,18 +3030,18 @@ static int __init mt_msdc_init(void)
 	} else {
 //#elif defined (CONFIG_RALINK_MT7628)
 		/* TODO: maybe omitted when RAether already toggle AGPIO_CFG */
-		reg = sdr_read32((volatile u32*)(RALINK_SYSCTL_BASE + 0x3c));
+		reg = sdr_read32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x3c));
 		reg |= 0x1e << 16;
-		sdr_write32((volatile u32*)(RALINK_SYSCTL_BASE + 0x3c), reg);
+		sdr_write32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x3c), reg);
 
-		reg = sdr_read32((volatile u32*)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 10);
+		reg = sdr_read32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 10);
 #if defined(CONFIG_MTK_MMC_EMMC_8BIT)
 		reg |= 0x3 << 26 | 0x3 << 28 | 0x3 << 30;
 		msdc0_hw.data_pins      = 8,
 #endif
 //#endif
 	}
-	sdr_write32((volatile u32*)(RALINK_SYSCTL_BASE + 0x60), reg);
+	sdr_write32((volatile u32 *)(RALINK_SYSCTL_BASE + 0x60), reg);
 	//platform_device_register(&mtk_sd_device);
 /* end of +++ */
 

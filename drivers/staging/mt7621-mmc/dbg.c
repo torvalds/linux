@@ -117,9 +117,9 @@ u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 	return ret;
 }
 
-void msdc_sdio_profile(struct sdio_profile* result)
+void msdc_sdio_profile(struct sdio_profile *result)
 {
-	struct cmd_profile*  cmd;
+	struct cmd_profile *cmd;
 	u32 i;
 
 	printk("sdio === performance dump ===\n");
@@ -177,8 +177,8 @@ void msdc_sdio_profile(struct sdio_profile* result)
 //========= sdio command table ===========
 void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 {
-	struct sdio_profile* result = &sdio_perfomance;
-	struct cmd_profile*  cmd;
+	struct sdio_profile *result = &sdio_perfomance;
+	struct cmd_profile *cmd;
 	u32 block;
 
 	if (sdio_pro_enable == 0) {

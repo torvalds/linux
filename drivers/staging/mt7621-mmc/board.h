@@ -43,7 +43,7 @@
 // #include <board-custom.h>
 /* end of chhung */
 
-typedef void (*sdio_irq_handler_t)(void*);  /* external irq handler */
+typedef void (*sdio_irq_handler_t)(void *);  /* external irq handler */
 typedef void (*pm_callback_t)(pm_message_t state, void *data);
 
 #define MSDC_CD_PIN_EN      (1 << 0)  /* card detection pin is wired   */
