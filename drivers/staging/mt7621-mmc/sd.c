@@ -2907,34 +2907,30 @@ static int msdc_drv_remove(struct platform_device *pdev)
 
 /* Fix me: Power Flow */
 #ifdef CONFIG_PM
-static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
+
+static void msdc_drv_pm(struct platform_device *pdev, pm_message state)
 {
-	int ret = 0;
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct msdc_host *host = mmc_priv(mmc);
 
-	if (mmc && state.event == PM_EVENT_SUSPEND && (host->hw->flags & MSDC_SYS_SUSPEND)) { /* will set for card */
+	if (mmc && (host->hw->flags & MSDC_SYS_SUSPEND))
 		msdc_pm(state, (void *)host);
-	}
+}
 
-	return ret;
+static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (state.event == PM_EVENT_SUSPEND)
+		msdc_drv_pm(pdev, state);
+	return 0;
 }
 
 static int msdc_drv_resume(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
-	struct msdc_host *host = mmc_priv(mmc);
 	struct pm_message state;
 
 	state.event = PM_EVENT_RESUME;
-	if (mmc && (host->hw->flags & MSDC_SYS_SUSPEND)) {/* will set for card */
-		msdc_pm(state, (void *)host);
-	}
-
-	/* This mean WIFI not controller by PM */
-
-	return ret;
+	msdc_drv_pm(pdev, state);
+	return 0;
 }
 #endif
 
