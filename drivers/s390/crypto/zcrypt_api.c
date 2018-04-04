@@ -760,35 +760,6 @@ static int zcrypt_count_type(int type)
 	return device_count;
 }
 
-/**
- * zcrypt_ica_status(): Old, depracted combi status call.
- *
- * Old, deprecated combi status call.
- */
-static long zcrypt_ica_status(struct file *filp, unsigned long arg)
-{
-	struct ica_z90_status *pstat;
-	int ret;
-
-	pstat = kzalloc(sizeof(*pstat), GFP_KERNEL);
-	if (!pstat)
-		return -ENOMEM;
-	pstat->totalcount = zcrypt_device_count;
-	pstat->leedslitecount = zcrypt_count_type(ZCRYPT_PCICA);
-	pstat->leeds2count = zcrypt_count_type(ZCRYPT_PCICC);
-	pstat->requestqWaitCount = zcrypt_requestq_count();
-	pstat->pendingqWaitCount = zcrypt_pendingq_count();
-	pstat->totalOpenCount = atomic_read(&zcrypt_open_count);
-	pstat->cryptoDomain = ap_domain_index;
-	zcrypt_status_mask(pstat->status);
-	zcrypt_qdepth_mask(pstat->qdepth);
-	ret = 0;
-	if (copy_to_user((void __user *) arg, pstat, sizeof(*pstat)))
-		ret = -EFAULT;
-	kfree(pstat);
-	return ret;
-}
-
 static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				  unsigned long arg)
 {
@@ -923,39 +894,8 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				(int __user *) arg);
 	case Z90STAT_DOMAIN_INDEX:
 		return put_user(ap_domain_index, (int __user *) arg);
-	/*
-	 * Deprecated ioctls. Don't add another device count ioctl,
-	 * you can count them yourself in the user space with the
-	 * output of the Z90STAT_STATUS_MASK ioctl.
-	 */
-	case ICAZ90STATUS:
-		return zcrypt_ica_status(filp, arg);
-	case Z90STAT_TOTALCOUNT:
-		return put_user(zcrypt_device_count, (int __user *) arg);
-	case Z90STAT_PCICACOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCICA),
-				(int __user *) arg);
-	case Z90STAT_PCICCCOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCICC),
-				(int __user *) arg);
-	case Z90STAT_PCIXCCMCL2COUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCIXCC_MCL2),
-				(int __user *) arg);
-	case Z90STAT_PCIXCCMCL3COUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCIXCC_MCL3),
-				(int __user *) arg);
-	case Z90STAT_PCIXCCCOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_PCIXCC_MCL2) +
-				zcrypt_count_type(ZCRYPT_PCIXCC_MCL3),
-				(int __user *) arg);
-	case Z90STAT_CEX2CCOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_CEX2C),
-				(int __user *) arg);
-	case Z90STAT_CEX2ACOUNT:
-		return put_user(zcrypt_count_type(ZCRYPT_CEX2A),
-				(int __user *) arg);
+	/* unknown ioctl number */
 	default:
-		/* unknown ioctl number */
 		return -ENOIOCTLCMD;
 	}
 }

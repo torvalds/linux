@@ -303,38 +303,6 @@ struct zcrypt_device_matrix {
  *
  *   Z90STAT_DOMAIN_INDEX
  *     Return the integer value of the Cryptographic Domain.
- *
- *   The following ioctls are deprecated and should be no longer used:
- *
- *   Z90STAT_TOTALCOUNT
- *     Return an integer count of all device types together.
- *
- *   Z90STAT_PCICACOUNT
- *     Return an integer count of all PCICAs.
- *
- *   Z90STAT_PCICCCOUNT
- *     Return an integer count of all PCICCs.
- *
- *   Z90STAT_PCIXCCMCL2COUNT
- *     Return an integer count of all MCL2 PCIXCCs.
- *
- *   Z90STAT_PCIXCCMCL3COUNT
- *     Return an integer count of all MCL3 PCIXCCs.
- *
- *   Z90STAT_CEX2CCOUNT
- *     Return an integer count of all CEX2Cs.
- *
- *   Z90STAT_CEX2ACOUNT
- *     Return an integer count of all CEX2As.
- *
- *   ICAZ90STATUS
- *     Return some device driver status in a ica_z90_status struct
- *     This takes an ica_z90_status struct as its arg.
- *
- *   Z90STAT_PCIXCCCOUNT
- *     Return an integer count of all PCIXCCs (MCL2 + MCL3).
- *     This is DEPRECATED now that MCL3 PCIXCCs are treated differently from
- *     MCL2 PCIXCCs.
  */
 
 /**
@@ -346,14 +314,7 @@ struct zcrypt_device_matrix {
 #define ZSENDEP11CPRB	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x04, 0)
 #define ZDEVICESTATUS	_IOC(_IOC_READ|_IOC_WRITE, ZCRYPT_IOCTL_MAGIC, 0x4f, 0)
 
-/* New status calls */
-#define Z90STAT_TOTALCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x40, int)
-#define Z90STAT_PCICACOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x41, int)
-#define Z90STAT_PCICCCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x42, int)
-#define Z90STAT_PCIXCCMCL2COUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x4b, int)
-#define Z90STAT_PCIXCCMCL3COUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x4c, int)
-#define Z90STAT_CEX2CCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x4d, int)
-#define Z90STAT_CEX2ACOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x4e, int)
+/* Status ioctl calls */
 #define Z90STAT_REQUESTQ_COUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x44, int)
 #define Z90STAT_PENDINGQ_COUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x45, int)
 #define Z90STAT_TOTALOPEN_COUNT _IOR(ZCRYPT_IOCTL_MAGIC, 0x46, int)
