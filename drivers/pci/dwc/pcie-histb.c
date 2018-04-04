@@ -208,13 +208,6 @@ static struct dw_pcie_host_ops histb_pcie_host_ops = {
 	.host_init = histb_pcie_host_init,
 };
 
-static irqreturn_t histb_pcie_msi_irq_handler(int irq, void *arg)
-{
-	struct pcie_port *pp = arg;
-
-	return dw_handle_msi_irq(pp);
-}
-
 static void histb_pcie_host_disable(struct histb_pcie *hipcie)
 {
 	reset_control_assert(hipcie->soft_reset);
@@ -412,14 +405,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 		if (pp->msi_irq < 0) {
 			dev_err(dev, "Failed to get MSI IRQ\n");
 			return pp->msi_irq;
-		}
-
-		ret = devm_request_irq(dev, pp->msi_irq,
-				       histb_pcie_msi_irq_handler,
-				       IRQF_SHARED, "histb-pcie-msi", pp);
-		if (ret) {
-			dev_err(dev, "cannot request MSI IRQ\n");
-			return ret;
 		}
 	}
 
