@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/pci-sysfs.c
- *
  * (C) Copyright 2002-2004 Greg Kroah-Hartman <greg@kroah.com>
  * (C) Copyright 2002-2004 IBM Corp.
  * (C) Copyright 2003 Matthew Wilcox
@@ -12,7 +10,6 @@
  * File attributes for PCI devices
  *
  * Modeled after usb's driverfs.c
- *
  */
 
 

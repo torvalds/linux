@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/iov.c
- *
- * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
- *
- * PCI Express I/O Virtualization (IOV) support.
+ * PCI Express I/O Virtualization (IOV) support
  *   Single Root IOV 1.0
  *   Address Translation Service 1.0
+ *
+ * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
  */
 
 #include <linux/pci.h>

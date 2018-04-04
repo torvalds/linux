@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * probe.c - PCI detection and setup code
+ * PCI detection and setup code
  */
 
 #include <linux/kernel.h>

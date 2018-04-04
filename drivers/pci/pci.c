@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	PCI Bus Services, see include/linux/pci.h for further explanation.
+ * PCI Bus Services, see include/linux/pci.h for further explanation.
  *
- *	Copyright 1993 -- 1997 Drew Eckhardt, Frederic Potter,
- *	David Mosberger-Tang
+ * Copyright 1993 -- 1997 Drew Eckhardt, Frederic Potter,
+ * David Mosberger-Tang
  *
- *	Copyright 1997 -- 2000 Martin Mares <mj@ucw.cz>
+ * Copyright 1997 -- 2000 Martin Mares <mj@ucw.cz>
  */
 
 #include <linux/acpi.h>
@@ -4126,6 +4126,7 @@ void pci_reset_secondary_bus(struct pci_dev *dev)
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &ctrl);
 	ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, ctrl);
+
 	/*
 	 * PCI spec v3.0 7.6.4.2 requires minimum Trst of 1ms.  Double
 	 * this to 2ms to ensure that we meet the minimum requirement.
@@ -5728,8 +5729,9 @@ static int of_pci_bus_find_domain_nr(struct device *parent)
 		use_dt_domains = 0;
 		domain = pci_get_new_domain_nr();
 	} else {
-		dev_err(parent, "Node %pOF has inconsistent \"linux,pci-domain\" property in DT\n",
-			parent->of_node);
+		if (parent)
+			pr_err("Node %pOF has ", parent->of_node);
+		pr_err("Inconsistent \"linux,pci-domain\" property in DT\n");
 		domain = -1;
 	}
 

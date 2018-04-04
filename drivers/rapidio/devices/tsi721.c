@@ -2880,8 +2880,9 @@ static int tsi721_probe(struct pci_dev *pdev,
 				 "Invalid MRRS override value %d", pcie_mrrs);
 	}
 
-	/* Adjust PCIe completion timeout. */
-	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);
+	/* Set PCIe completion timeout to 1-10ms */
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2,
+					   PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0x2);
 
 	/*
 	 * FIXUP: correct offsets of MSI-X tables in the MSI-X Capability Block
