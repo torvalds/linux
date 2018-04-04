@@ -2985,13 +2985,6 @@ static int __init mt_msdc_init(void)
 /* +++ by chhung */
 	u32 reg;
 
-#if defined(CONFIG_MTD_ANY_RALINK)
-	extern int ra_check_flash_type(void);
-	if (ra_check_flash_type() == 2) { /* NAND */
-		printk("%s: !!!!! SDXC Module Initialize Fail !!!!!", __func__);
-		return 0;
-	}
-#endif
 	printk("MTK MSDC device init.\n");
 	mtk_sd_device.dev.platform_data = &msdc0_hw;
 	if (ralink_soc == MT762X_SOC_MT7620A || ralink_soc == MT762X_SOC_MT7621AT) {
