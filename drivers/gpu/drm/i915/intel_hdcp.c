@@ -435,7 +435,7 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 
 	ret = shim->read_ksv_fifo(intel_dig_port, num_downstream, ksv_fifo);
 	if (ret)
-		return ret;
+		goto err;
 
 	/*
 	 * When V prime mismatches, DP Spec mandates re-read of
@@ -451,12 +451,15 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 
 	if (i == tries) {
 		DRM_ERROR("V Prime validation failed.(%d)\n", ret);
-		return ret;
+		goto err;
 	}
 
 	DRM_DEBUG_KMS("HDCP is enabled (%d downstream devices)\n",
 		      num_downstream);
-	return 0;
+	ret = 0;
+err:
+	kfree(ksv_fifo);
+	return ret;
 }
 
 /* Implements Part 1 of the HDCP authorization procedure */
