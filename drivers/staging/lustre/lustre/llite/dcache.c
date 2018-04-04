@@ -90,7 +90,7 @@ static int ll_dcompare(const struct dentry *dentry,
 	       d_count(dentry));
 
 	/* mountpoint is always valid */
-	if (d_mountpoint((struct dentry *)dentry))
+	if (d_mountpoint(dentry))
 		return 0;
 
 	if (d_lustre_invalid(dentry))
@@ -111,7 +111,7 @@ static int ll_ddelete(const struct dentry *de)
 	LASSERT(de);
 
 	CDEBUG(D_DENTRY, "%s dentry %pd (%p, parent %p, inode %p) %s%s\n",
-	       d_lustre_invalid((struct dentry *)de) ? "deleting" : "keeping",
+	       d_lustre_invalid(de) ? "deleting" : "keeping",
 	       de, de, de->d_parent, d_inode(de),
 	       d_unhashed(de) ? "" : "hashed,",
 	       list_empty(&de->d_subdirs) ? "" : "subdirs");
@@ -119,7 +119,7 @@ static int ll_ddelete(const struct dentry *de)
 	/* kernel >= 2.6.38 last refcount is decreased after this function. */
 	LASSERT(d_count(de) == 1);
 
-	if (d_lustre_invalid((struct dentry *)de))
+	if (d_lustre_invalid(de))
 		return 1;
 	return 0;
 }
