@@ -261,7 +261,7 @@ struct vcodec_mem_region {
 	/* virtual address for iommu */
 	dma_addr_t iova;
 	unsigned long len;
-	u32 reg_idx;
+	int reg_idx;
 	int hdl;
 };
 
@@ -894,7 +894,7 @@ static inline int reg_probe_hevc_y_stride(struct vpu_reg *reg)
 
 static dma_addr_t vcodec_fd_to_iova(struct vpu_subdev_data *data,
 				    struct vpu_session *session,
-				    struct vpu_reg *reg, int fd)
+				    struct vpu_reg *reg, int fd, int idx)
 {
 	int hdl;
 	int ret = 0;
@@ -912,6 +912,7 @@ static dma_addr_t vcodec_fd_to_iova(struct vpu_subdev_data *data,
 	}
 
 	mem_region->hdl = hdl;
+	mem_region->reg_idx = idx;
 	ret = vcodec_iommu_map_iommu(data->iommu_info, session, mem_region->hdl,
 				     &mem_region->iova, &mem_region->len);
 	if (ret < 0) {
@@ -985,7 +986,7 @@ static int fill_scaling_list_pps(struct vpu_subdev_data *data,
 	if (scaling_fd > 0) {
 		int i = 0;
 		u32 tmp = vcodec_fd_to_iova(data, reg->session, reg,
-						   scaling_fd);
+					    scaling_fd, -1);
 
 		if (IS_ERR_VALUE(tmp))
 			return tmp;
@@ -1111,7 +1112,7 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 			}
 		}
 
-		iova = vcodec_fd_to_iova(data, session, reg, usr_fd);
+		iova = vcodec_fd_to_iova(data, session, reg, usr_fd, tbl[i]);
 		if (IS_ERR_VALUE(iova))
 			return iova;
 
@@ -2462,7 +2463,7 @@ _vcodec_sys_fault_hdl(struct device *dev, unsigned long iova, int status)
 						 reg_lnk) {
 				unsigned long tmp_iova = mem->iova;
 
-				dev_err(dev, "vcodec, reg[%02u] mem region [%02d] 0x%lx %lx\n",
+				dev_err(dev, "vcodec, reg[%3d] mem region [%02d] 0x%lx %lx\n",
 					mem->reg_idx, i, tmp_iova, mem->len);
 				i++;
 			}
@@ -2472,10 +2473,18 @@ _vcodec_sys_fault_hdl(struct device *dev, unsigned long iova, int status)
 
 		if (reg->data) {
 			struct vpu_subdev_data *data = reg->data;
-			u32 *base = (u32 *)data->dec_dev.regs;
-			u32 len = data->hw_info->dec_reg_num;
+			u32 *base;
+			u32 len;
 
-			dev_err(dev, "current errror register set:\n");
+			if (reg->session->type == VPU_ENC) {
+				base = (u32 *)data->enc_dev.regs;
+				len = data->hw_info->enc_reg_num;
+				dev_err(dev, "dumping enc register set:\n");
+			} else {
+				base = (u32 *)data->dec_dev.regs;
+				len = data->hw_info->dec_reg_num;
+				dev_err(dev, "dumping dec register set:\n");
+			}
 
 			for (i = 0; i < len; i++)
 				dev_err(dev, "reg[%02d] %08x\n",
