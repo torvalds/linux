@@ -602,7 +602,8 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
 	       atomic_read(&cookie->n_active), retire);
 
 	/* No further netfs-accessing operations on this cookie permitted */
-	set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags);
+	if (test_and_set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags))
+		BUG();
 
 	__fscache_disable_cookie(cookie, retire);
 
