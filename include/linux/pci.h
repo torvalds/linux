@@ -470,6 +470,9 @@ struct pci_host_bridge {
 	struct msi_controller *msi;
 	unsigned int	ignore_reset_delay:1;	/* For entire hierarchy */
 	unsigned int	no_ext_tags:1;		/* No Extended Tags */
+	unsigned int	native_aer:1;		/* OS may use PCIe AER */
+	unsigned int	native_hotplug:1;	/* OS may use PCIe hotplug */
+	unsigned int	native_pme:1;		/* OS may use PCIe PME */
 	/* Resource alignment requirements */
 	resource_size_t (*align_resource)(struct pci_dev *dev,
 			const struct resource *res,
@@ -1447,10 +1450,8 @@ static inline int pci_irqd_intx_xlate(struct irq_domain *d,
 
 #ifdef CONFIG_PCIEPORTBUS
 extern bool pcie_ports_disabled;
-extern bool pcie_ports_auto;
 #else
 #define pcie_ports_disabled	true
-#define pcie_ports_auto		false
 #endif
 
 #ifdef CONFIG_PCIEASPM

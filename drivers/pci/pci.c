@@ -1685,6 +1685,15 @@ int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 EXPORT_SYMBOL_GPL(pci_set_pcie_reset_state);
 
 /**
+ * pcie_clear_root_pme_status - Clear root port PME interrupt status.
+ * @dev: PCIe root port or event collector.
+ */
+void pcie_clear_root_pme_status(struct pci_dev *dev)
+{
+	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
+}
+
+/**
  * pci_check_pme_status - Check if given device has generated PME.
  * @dev: Device to check.
  *

@@ -13,10 +13,8 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/init.h>
-#include <linux/pcieport_if.h>
 #include <linux/aer.h>
 #include <linux/dmi.h>
-#include <linux/pci-aspm.h>
 
 #include "../pci.h"
 #include "portdrv.h"
@@ -25,37 +23,24 @@
 bool pcie_ports_disabled;
 
 /*
- * If this switch is set, ACPI _OSC will be used to determine whether or not to
- * enable PCIe port native services.
+ * If the user specified "pcie_ports=native", use the PCIe services regardless
+ * of whether the platform has given us permission.  On ACPI systems, this
+ * means we ignore _OSC.
  */
-bool pcie_ports_auto = true;
+bool pcie_ports_native;
 
 static int __init pcie_port_setup(char *str)
 {
-	if (!strncmp(str, "compat", 6)) {
+	if (!strncmp(str, "compat", 6))
 		pcie_ports_disabled = true;
-	} else if (!strncmp(str, "native", 6)) {
-		pcie_ports_disabled = false;
-		pcie_ports_auto = false;
-	} else if (!strncmp(str, "auto", 4)) {
-		pcie_ports_disabled = false;
-		pcie_ports_auto = true;
-	}
+	else if (!strncmp(str, "native", 6))
+		pcie_ports_native = true;
 
 	return 1;
 }
 __setup("pcie_ports=", pcie_port_setup);
 
 /* global data */
-
-/**
- * pcie_clear_root_pme_status - Clear root port PME interrupt status.
- * @dev: PCIe root port or event collector.
- */
-void pcie_clear_root_pme_status(struct pci_dev *dev)
-{
-	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
-}
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
@@ -69,20 +54,6 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static int pcie_port_resume_noirq(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-
-	/*
-	 * Some BIOSes forget to clear Root PME Status bits after system wakeup
-	 * which breaks ACPI-based runtime wakeup on PCI Express, so clear those
-	 * bits now just in case (shouldn't hurt).
-	 */
-	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT)
-		pcie_clear_root_pme_status(pdev);
-	return 0;
-}
-
 static int pcie_port_runtime_suspend(struct device *dev)
 {
 	return to_pci_dev(dev)->bridge_d3 ? 0 : -EBUSY;
@@ -110,7 +81,6 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.thaw		= pcie_port_device_resume,
 	.poweroff	= pcie_port_device_suspend,
 	.restore	= pcie_port_device_resume,
-	.resume_noirq	= pcie_port_resume_noirq,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_runtime_resume,
 	.runtime_idle	= pcie_port_runtime_idle,
@@ -281,22 +251,11 @@ static const struct dmi_system_id pcie_portdrv_dmi_table[] __initconst = {
 
 static int __init pcie_portdrv_init(void)
 {
-	int retval;
-
 	if (pcie_ports_disabled)
-		return pci_register_driver(&pcie_portdriver);
+		return -EACCES;
 
 	dmi_check_system(pcie_portdrv_dmi_table);
 
-	retval = pcie_port_bus_register();
-	if (retval) {
-		printk(KERN_WARNING "PCIE: bus_register error: %d\n", retval);
-		goto out;
-	}
-	retval = pci_register_driver(&pcie_portdriver);
-	if (retval)
-		pcie_port_bus_unregister();
- out:
-	return retval;
+	return pci_register_driver(&pcie_portdriver);
 }
 device_initcall(pcie_portdrv_init);

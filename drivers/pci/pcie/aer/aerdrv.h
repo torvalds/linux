@@ -9,9 +9,10 @@
 #define _AERDRV_H_
 
 #include <linux/workqueue.h>
-#include <linux/pcieport_if.h>
 #include <linux/aer.h>
 #include <linux/interrupt.h>
+
+#include "../portdrv.h"
 
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
