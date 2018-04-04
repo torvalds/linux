@@ -237,16 +237,9 @@ again:
 	wait_event(eb->read_lock_wq, atomic_read(&eb->blocking_readers) == 0);
 	wait_event(eb->write_lock_wq, atomic_read(&eb->blocking_writers) == 0);
 	write_lock(&eb->lock);
-	if (atomic_read(&eb->blocking_readers)) {
+	if (atomic_read(&eb->blocking_readers) ||
+	    atomic_read(&eb->blocking_writers)) {
 		write_unlock(&eb->lock);
-		wait_event(eb->read_lock_wq,
-			   atomic_read(&eb->blocking_readers) == 0);
-		goto again;
-	}
-	if (atomic_read(&eb->blocking_writers)) {
-		write_unlock(&eb->lock);
-		wait_event(eb->write_lock_wq,
-			   atomic_read(&eb->blocking_writers) == 0);
 		goto again;
 	}
 	WARN_ON(atomic_read(&eb->spinning_writers));
