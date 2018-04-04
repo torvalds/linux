@@ -2787,7 +2787,10 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	/* using dma_alloc_coherent*/  /* todo: using 1, for all 4 slots */
 	host->dma.gpd = dma_alloc_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd), &host->dma.gpd_addr, GFP_KERNEL);
 	host->dma.bd =  dma_alloc_coherent(NULL, MAX_BD_NUM  * sizeof(struct bd),  &host->dma.bd_addr,  GFP_KERNEL);
-	BUG_ON((!host->dma.gpd) || (!host->dma.bd));
+	if (!host->dma.gpd || !host->dma.bd) {
+		ret = -ENOMEM;
+		goto release_mem;
+	}
 	msdc_init_gpd_bd(host, &host->dma);
 	/*for emmc*/
 	msdc_6575_host[pdev->id] = host;
@@ -2855,6 +2858,13 @@ release:
 	cancel_delayed_work_sync(&host->card_delaywork);
 #endif
 
+release_mem:
+	if (host->dma.gpd)
+		dma_free_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd),
+				  host->dma.gpd, host->dma.gpd_addr);
+	if (host->dma.bd)
+		dma_free_coherent(NULL, MAX_BD_NUM * sizeof(struct bd),
+				  host->dma.bd, host->dma.bd_addr);
 host_free:
 	mmc_free_host(mmc);
 
