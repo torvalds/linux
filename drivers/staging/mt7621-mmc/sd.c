@@ -2972,7 +2972,6 @@ static struct platform_driver mt_msdc_driver = {
 #endif
 	.driver  = {
 		.name  = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mt7620_sdhci_match,
 	},
 };
