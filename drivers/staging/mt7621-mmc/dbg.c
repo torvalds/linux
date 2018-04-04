@@ -76,9 +76,9 @@ enum msdc_mode drv_mode[4] = {
 #if defined(MT6575_SD_DEBUG)
 /* for driver profile */
 #define TICKS_ONE_MS  (13000)
-u32 gpt_enable = 0;
-u32 sdio_pro_enable = 0;   /* make sure gpt is enabled */
-u32 sdio_pro_time = 0;     /* no more than 30s */
+u32 gpt_enable;
+u32 sdio_pro_enable;   /* make sure gpt is enabled */
+u32 sdio_pro_time;     /* no more than 30s */
 struct sdio_profile sdio_perfomance = {0};
 
 #if 0 /* --- chhung */
