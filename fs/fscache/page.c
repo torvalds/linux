@@ -778,6 +778,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 
 	_enter("{OP%x,%d}", op->op.debug_id, atomic_read(&op->op.usage));
 
+again:
 	spin_lock(&object->lock);
 	cookie = object->cookie;
 
@@ -819,10 +820,6 @@ static void fscache_write_op(struct fscache_operation *_op)
 		goto superseded;
 	page = results[0];
 	_debug("gang %d [%lx]", n, page->index);
-	if (page->index >= op->store_limit) {
-		fscache_stat(&fscache_n_store_pages_over_limit);
-		goto superseded;
-	}
 
 	radix_tree_tag_set(&cookie->stores, page->index,
 			   FSCACHE_COOKIE_STORING_TAG);
@@ -831,6 +828,9 @@ static void fscache_write_op(struct fscache_operation *_op)
 
 	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);
+
+	if (page->index >= op->store_limit)
+		goto discard_page;
 
 	fscache_stat(&fscache_n_store_pages);
 	fscache_stat(&fscache_n_cop_write_page);
@@ -846,6 +846,11 @@ static void fscache_write_op(struct fscache_operation *_op)
 
 	_leave("");
 	return;
+
+discard_page:
+	fscache_stat(&fscache_n_store_pages_over_limit);
+	fscache_end_page_write(object, page);
+	goto again;
 
 superseded:
 	/* this writer is going away and there aren't any more things to
