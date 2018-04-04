@@ -73,6 +73,8 @@ int do_clock_gettime(clockid_t which_clock, struct timespec64 *tp)
 	case CLOCK_BOOTTIME:
 		get_monotonic_boottime64(tp);
 		break;
+	case CLOCK_MONOTONIC_ACTIVE:
+		ktime_get_active_ts64(tp);
 	default:
 		return -EINVAL;
 	}

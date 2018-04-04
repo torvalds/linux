@@ -594,6 +594,9 @@ static void __clocksource_select(bool skipcur)
 	if (!best)
 		return;
 
+	if (!strlen(override_name))
+		goto found;
+
 	/* Check for the override clocksource. */
 	list_for_each_entry(cs, &clocksource_list, list) {
 		if (skipcur && cs == curr_clocksource)
@@ -625,6 +628,7 @@ static void __clocksource_select(bool skipcur)
 		break;
 	}
 
+found:
 	if (curr_clocksource != best && !timekeeping_notify(best)) {
 		pr_info("Switched to clocksource %s\n", best->name);
 		curr_clocksource = best;
@@ -853,16 +857,16 @@ EXPORT_SYMBOL(clocksource_unregister);
 
 #ifdef CONFIG_SYSFS
 /**
- * sysfs_show_current_clocksources - sysfs interface for current clocksource
+ * current_clocksource_show - sysfs interface for current clocksource
  * @dev:	unused
  * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing current clocksource.
  */
-static ssize_t
-sysfs_show_current_clocksources(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t current_clocksource_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	ssize_t count = 0;
 
@@ -891,7 +895,7 @@ ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt)
 }
 
 /**
- * sysfs_override_clocksource - interface for manually overriding clocksource
+ * current_clocksource_store - interface for manually overriding clocksource
  * @dev:	unused
  * @attr:	unused
  * @buf:	name of override clocksource
@@ -900,9 +904,9 @@ ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt)
  * Takes input from sysfs interface for manually overriding the default
  * clocksource selection.
  */
-static ssize_t sysfs_override_clocksource(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+static ssize_t current_clocksource_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	ssize_t ret;
 
@@ -916,9 +920,10 @@ static ssize_t sysfs_override_clocksource(struct device *dev,
 
 	return ret;
 }
+static DEVICE_ATTR_RW(current_clocksource);
 
 /**
- * sysfs_unbind_current_clocksource - interface for manually unbinding clocksource
+ * unbind_clocksource_store - interface for manually unbinding clocksource
  * @dev:	unused
  * @attr:	unused
  * @buf:	unused
@@ -926,7 +931,7 @@ static ssize_t sysfs_override_clocksource(struct device *dev,
  *
  * Takes input from sysfs interface for manually unbinding a clocksource.
  */
-static ssize_t sysfs_unbind_clocksource(struct device *dev,
+static ssize_t unbind_clocksource_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
@@ -950,19 +955,19 @@ static ssize_t sysfs_unbind_clocksource(struct device *dev,
 
 	return ret ? ret : count;
 }
+static DEVICE_ATTR_WO(unbind_clocksource);
 
 /**
- * sysfs_show_available_clocksources - sysfs interface for listing clocksource
+ * available_clocksource_show - sysfs interface for listing clocksource
  * @dev:	unused
  * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing registered clocksources
  */
-static ssize_t
-sysfs_show_available_clocksources(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
+static ssize_t available_clocksource_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
 {
 	struct clocksource *src;
 	ssize_t count = 0;
@@ -986,17 +991,15 @@ sysfs_show_available_clocksources(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RO(available_clocksource);
 
-/*
- * Sysfs setup bits:
- */
-static DEVICE_ATTR(current_clocksource, 0644, sysfs_show_current_clocksources,
-		   sysfs_override_clocksource);
-
-static DEVICE_ATTR(unbind_clocksource, 0200, NULL, sysfs_unbind_clocksource);
-
-static DEVICE_ATTR(available_clocksource, 0444,
-		   sysfs_show_available_clocksources, NULL);
+static struct attribute *clocksource_attrs[] = {
+	&dev_attr_current_clocksource.attr,
+	&dev_attr_unbind_clocksource.attr,
+	&dev_attr_available_clocksource.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(clocksource);
 
 static struct bus_type clocksource_subsys = {
 	.name = "clocksource",
@@ -1006,6 +1009,7 @@ static struct bus_type clocksource_subsys = {
 static struct device device_clocksource = {
 	.id	= 0,
 	.bus	= &clocksource_subsys,
+	.groups	= clocksource_groups,
 };
 
 static int __init init_clocksource_sysfs(void)
@@ -1014,17 +1018,7 @@ static int __init init_clocksource_sysfs(void)
 
 	if (!error)
 		error = device_register(&device_clocksource);
-	if (!error)
-		error = device_create_file(
-				&device_clocksource,
-				&dev_attr_current_clocksource);
-	if (!error)
-		error = device_create_file(&device_clocksource,
-					   &dev_attr_unbind_clocksource);
-	if (!error)
-		error = device_create_file(
-				&device_clocksource,
-				&dev_attr_available_clocksource);
+
 	return error;
 }
 
