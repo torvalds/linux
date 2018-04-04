@@ -94,7 +94,7 @@ static const char *chrp_names[] = {
 	"Total Impact Briq"
 };
 
-void chrp_show_cpuinfo(struct seq_file *m)
+static void chrp_show_cpuinfo(struct seq_file *m)
 {
 	int i, sdramen;
 	unsigned int t;
@@ -299,7 +299,7 @@ out_put:
 	of_node_put(node);
 }
 
-void __init chrp_setup_arch(void)
+static void __init chrp_setup_arch(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
 	const char *machine = NULL;
@@ -382,7 +382,7 @@ static void __init chrp_find_openpic(void)
 {
 	struct device_node *np, *root;
 	int len, i, j;
-	int isu_size, idu_size;
+	int isu_size;
 	const unsigned int *iranges, *opprop = NULL;
 	int oplen = 0;
 	unsigned long opaddr;
@@ -427,11 +427,9 @@ static void __init chrp_find_openpic(void)
 	}
 
 	isu_size = 0;
-	idu_size = 0;
 	if (len > 0 && iranges[1] != 0) {
 		printk(KERN_INFO "OpenPIC irqs %d..%d in IDU\n",
 		       iranges[0], iranges[0] + iranges[1] - 1);
-		idu_size = iranges[1];
 	}
 	if (len > 1)
 		isu_size = iranges[3];
@@ -523,7 +521,7 @@ static void __init chrp_find_8259(void)
 	}
 }
 
-void __init chrp_init_IRQ(void)
+static void __init chrp_init_IRQ(void)
 {
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_XMON)
 	struct device_node *kbd;
@@ -555,7 +553,7 @@ void __init chrp_init_IRQ(void)
 #endif
 }
 
-void __init
+static void __init
 chrp_init2(void)
 {
 #ifdef CONFIG_NVRAM
