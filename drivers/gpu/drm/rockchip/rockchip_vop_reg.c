@@ -120,7 +120,7 @@ static const struct vop_win_phy rk3288_win01_data = {
 	.yrgb_vir = VOP_REG(RK3288_WIN0_VIR, 0x3fff, 0),
 	.uv_vir = VOP_REG(RK3288_WIN0_VIR, 0x3fff, 16),
 	.src_alpha_ctl = VOP_REG(RK3288_WIN0_SRC_ALPHA_CTRL, 0xffff, 0),
-	.global_alpha_val = VOP_REG(RK3288_WIN0_DST_ALPHA_CTRL, 0xff, 16),
+	.global_alpha_val = VOP_REG(RK3288_WIN0_SRC_ALPHA_CTRL, 0xff, 16),
 	.dst_alpha_ctl = VOP_REG(RK3288_WIN0_DST_ALPHA_CTRL, 0xffffffff, 0),
 	.channel = VOP_REG_VER(RK3288_WIN0_CTRL2, 0xff, 0, 3, 8, 8),
 };
