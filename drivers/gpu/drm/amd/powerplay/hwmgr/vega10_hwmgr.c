@@ -2481,6 +2481,12 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.mvddc    = boot_up_values.usMvddc;
 		data->vbios_boot_state.gfx_clock = boot_up_values.ulGfxClk;
 		data->vbios_boot_state.mem_clock = boot_up_values.ulUClk;
+		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
+				SMU9_SYSPLL0_SOCCLK_ID, &boot_up_values.ulSocClk);
+
+		pp_atomfwctrl_get_clk_information_by_clkid(hwmgr,
+				SMU9_SYSPLL0_DCEFCLK_ID, &boot_up_values.ulDCEFClk);
+
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		if (0 != boot_up_values.usVddc) {

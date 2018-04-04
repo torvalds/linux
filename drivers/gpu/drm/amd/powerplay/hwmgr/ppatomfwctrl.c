@@ -488,7 +488,7 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int pp_atomfwctrl__get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKID id, uint32_t *frequency)
+int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKID id, uint32_t *frequency)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 	struct atom_get_smu_clock_info_parameters_v3_1   parameters;
@@ -515,7 +515,6 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 {
 	struct atom_firmware_info_v3_1 *info = NULL;
 	uint16_t ix;
-	uint32_t frequency = 0;
 
 	ix = GetIndexIntoMasterDataTable(firmwareinfo);
 	info = (struct atom_firmware_info_v3_1 *)
@@ -537,12 +536,6 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 	boot_values->ucCoolingID = info->coolingsolution_id;
 	boot_values->ulSocClk   = 0;
 	boot_values->ulDCEFClk   = 0;
-
-	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, &frequency))
-		boot_values->ulSocClk   = frequency;
-
-	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, &frequency))
-		boot_values->ulDCEFClk   = frequency;
 
 	return 0;
 }
