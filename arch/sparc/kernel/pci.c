@@ -664,12 +664,12 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
 	pci_add_resource_offset(&resources, &pbm->io_space,
-				pbm->io_space.start);
+				pbm->io_offset);
 	pci_add_resource_offset(&resources, &pbm->mem_space,
-				pbm->mem_space.start);
+				pbm->mem_offset);
 	if (pbm->mem64_space.flags)
 		pci_add_resource_offset(&resources, &pbm->mem64_space,
-					pbm->mem_space.start);
+					pbm->mem64_offset);
 	pbm->busn.start = pbm->pci_first_busno;
 	pbm->busn.end	= pbm->pci_last_busno;
 	pbm->busn.flags	= IORESOURCE_BUS;
