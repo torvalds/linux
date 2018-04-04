@@ -52,7 +52,7 @@ static void *find_uac_clock_desc(struct usb_host_interface *iface, int id,
 static bool validate_clock_source_v2(void *p, int id)
 {
 	struct uac_clock_source_descriptor *cs = p;
-	return cs->bLength >= sizeof(*cs) && cs->bClockID == id;
+	return cs->bLength == sizeof(*cs) && cs->bClockID == id;
 }
 
 static bool validate_clock_source_v3(void *p, int id)
@@ -65,7 +65,7 @@ static bool validate_clock_selector_v2(void *p, int id)
 {
 	struct uac_clock_selector_descriptor *cs = p;
 	return cs->bLength >= sizeof(*cs) && cs->bClockID == id &&
-		cs->bLength >= 5 + cs->bNrInPins;
+		cs->bLength == 7 + cs->bNrInPins;
 }
 
 static bool validate_clock_selector_v3(void *p, int id)
@@ -77,7 +77,7 @@ static bool validate_clock_selector_v3(void *p, int id)
 static bool validate_clock_multiplier_v2(void *p, int id)
 {
 	struct uac_clock_multiplier_descriptor *cs = p;
-	return cs->bLength >= sizeof(*cs) && cs->bClockID == id;
+	return cs->bLength == sizeof(*cs) && cs->bClockID == id;
 }
 
 static bool validate_clock_multiplier_v3(void *p, int id)
