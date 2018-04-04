@@ -2749,12 +2749,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/* MMC core transfer sizes tunable parameters */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3, 10, 0)
 	mmc->max_segs      = MAX_HW_SGMTS;
-#else
-	mmc->max_hw_segs   = MAX_HW_SGMTS;
-	mmc->max_phys_segs = MAX_PHY_SGMTS;
-#endif
+
 	mmc->max_seg_size  = MAX_SGMT_SZ;
 	mmc->max_blk_size  = HOST_MAX_BLKSZ;
 	mmc->max_req_size  = MAX_REQ_SZ;
