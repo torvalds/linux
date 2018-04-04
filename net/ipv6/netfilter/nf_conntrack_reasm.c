@@ -55,7 +55,6 @@ static const char nf_frags_cache_name[] = "nf-frags";
 static struct inet_frags nf_frags;
 
 #ifdef CONFIG_SYSCTL
-static long zero;
 
 static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
@@ -71,7 +70,6 @@ static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &zero,
 		.extra2		= &init_net.nf_frag.frags.high_thresh
 	},
 	{
