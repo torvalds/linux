@@ -105,9 +105,8 @@ u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 	if (new_H32 == old_H32) {
 		ret = new_L32 - old_L32;
 	} else if (new_H32 == (old_H32 + 1)) {
-		if (new_L32 > old_L32) {
+		if (new_L32 > old_L32)
 			printk("msdc old_L<0x%x> new_L<0x%x>\n", old_L32, new_L32);
-		}
 		ret = (0xffffffff - old_L32);
 		ret += new_L32;
 	} else {
@@ -181,9 +180,8 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 	struct cmd_profile *cmd;
 	u32 block;
 
-	if (sdio_pro_enable == 0) {
+	if (sdio_pro_enable == 0)
 		return;
-	}
 
 	if (opcode == 52) {
 		cmd = bRx ?  &result->cmd52_rx : &result->cmd52_tx;
@@ -204,21 +202,18 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 	}
 
 	/* update the members */
-	if (ticks > cmd->max_tc) {
+	if (ticks > cmd->max_tc)
 		cmd->max_tc = ticks;
-	}
-	if (cmd->min_tc == 0 || ticks < cmd->min_tc) {
+	if (cmd->min_tc == 0 || ticks < cmd->min_tc)
 		cmd->min_tc = ticks;
-	}
 	cmd->tot_tc += ticks;
 	cmd->tot_bytes += sizes;
 	cmd->count++;
 
-	if (bRx) {
+	if (bRx)
 		result->total_rx_bytes += sizes;
-	} else {
+	else
 		result->total_tx_bytes += sizes;
-	}
 	result->total_tc += ticks;
 
 	/* dump when total_tc > 30s */
@@ -286,12 +281,10 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 		printk("msdc host_id<%d> zone<0x%.8x>\n", id, zone);
 		if (id >= 0 && id <= 3) {
 			sd_debug_zone[id] = zone;
-		}
-		else if (id == 4) {
+		} else if (id == 4) {
 			sd_debug_zone[0] = sd_debug_zone[1] = zone;
 			sd_debug_zone[2] = sd_debug_zone[3] = zone;
-		}
-		else{
+		} else {
 			printk("msdc host_id error when set debug zone\n");
 		}
 	} else if (cmd == SD_TOOL_DMA_SIZE) {
@@ -301,14 +294,12 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 		if (id >= 0 && id <= 3) {
 			drv_mode[id] = mode;
 			dma_size[id] = p2;
-		}
-		else if (id == 4) {
+		} else if (id == 4) {
 			drv_mode[0] = drv_mode[1] = mode;
 			drv_mode[2] = drv_mode[3] = mode;
 			dma_size[0] = dma_size[1] = p2;
 			dma_size[2] = dma_size[3] = p2;
-		}
-		else{
+		} else {
 			printk("msdc host_id error when select mode\n");
 		}
 	} else if (cmd == SD_TOOL_SDIO_PROFILE) {
@@ -323,7 +314,7 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 			if (p2 >= 30)
 				p2 = 30;
 			sdio_pro_time = p2;
-		}	else if (p1 == 0) {
+		} else if (p1 == 0) {
 			/* todo */
 			sdio_pro_enable = 0;
 		}

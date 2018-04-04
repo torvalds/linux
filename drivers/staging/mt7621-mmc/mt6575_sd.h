@@ -925,8 +925,7 @@ struct msdc_dma {
 	u32 used_bd;                 /* the number of used bd elements */
 };
 
-struct msdc_host
-{
+struct msdc_host {
 	struct msdc_hw              *hw;
 
 	struct mmc_host             *mmc;           /* mmc structure */
