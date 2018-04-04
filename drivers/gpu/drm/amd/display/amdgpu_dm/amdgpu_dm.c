@@ -2011,7 +2011,6 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 	const struct amdgpu_framebuffer *amdgpu_fb =
 		to_amdgpu_framebuffer(plane_state->fb);
 	const struct drm_crtc *crtc = plane_state->crtc;
-	struct dc_transfer_func *input_tf;
 	int ret = 0;
 
 	if (!fill_rects_from_plane_state(plane_state, dc_plane_state))
@@ -2024,13 +2023,6 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 
 	if (ret)
 		return ret;
-
-	input_tf = dc_create_transfer_func();
-
-	if (input_tf == NULL)
-		return -ENOMEM;
-
-	dc_plane_state->in_transfer_func = input_tf;
 
 	/*
 	 * Always set input transfer function, since plane state is refreshed
