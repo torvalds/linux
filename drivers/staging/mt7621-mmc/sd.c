@@ -2779,8 +2779,12 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc_dev(mmc)->dma_mask = NULL;
 
 	/* using dma_alloc_coherent*/  /* todo: using 1, for all 4 slots */
-	host->dma.gpd = dma_alloc_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd), &host->dma.gpd_addr, GFP_KERNEL);
-	host->dma.bd =  dma_alloc_coherent(NULL, MAX_BD_NUM  * sizeof(struct bd),  &host->dma.bd_addr,  GFP_KERNEL);
+	host->dma.gpd = dma_alloc_coherent(&pdev->dev,
+					   MAX_GPD_NUM * sizeof(struct gpd),
+					   &host->dma.gpd_addr, GFP_KERNEL);
+	host->dma.bd =  dma_alloc_coherent(&pdev->dev,
+					   MAX_BD_NUM  * sizeof(struct bd),
+					   &host->dma.bd_addr,  GFP_KERNEL);
 	if (!host->dma.gpd || !host->dma.bd) {
 		ret = -ENOMEM;
 		goto release_mem;
@@ -2835,10 +2839,10 @@ release:
 
 release_mem:
 	if (host->dma.gpd)
-		dma_free_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd),
+		dma_free_coherent(&pdev->dev, MAX_GPD_NUM * sizeof(struct gpd),
 				  host->dma.gpd, host->dma.gpd_addr);
 	if (host->dma.bd)
-		dma_free_coherent(NULL, MAX_BD_NUM * sizeof(struct bd),
+		dma_free_coherent(&pdev->dev, MAX_BD_NUM * sizeof(struct bd),
 				  host->dma.bd, host->dma.bd_addr);
 host_free:
 	mmc_free_host(mmc);
@@ -2871,8 +2875,10 @@ static int msdc_drv_remove(struct platform_device *pdev)
 #endif
 	free_irq(host->irq, host);
 
-	dma_free_coherent(NULL, MAX_GPD_NUM * sizeof(struct gpd), host->dma.gpd, host->dma.gpd_addr);
-	dma_free_coherent(NULL, MAX_BD_NUM  * sizeof(struct bd),  host->dma.bd,  host->dma.bd_addr);
+	dma_free_coherent(&pdev->dev, MAX_GPD_NUM * sizeof(struct gpd),
+			  host->dma.gpd, host->dma.gpd_addr);
+	dma_free_coherent(&pdev->dev, MAX_BD_NUM  * sizeof(struct bd),
+			  host->dma.bd,  host->dma.bd_addr);
 
 	mmc_free_host(host->mmc);
 
