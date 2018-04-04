@@ -39,44 +39,44 @@
 extern u32 sdio_pro_enable;
 /* for a type command, e.g. CMD53, 2 blocks */
 struct cmd_profile {
-    u32 max_tc;    /* Max tick count */
-    u32 min_tc;
-    u32 tot_tc;    /* total tick count */
-    u32 tot_bytes;
-    u32 count;     /* the counts of the command */
+	u32 max_tc;    /* Max tick count */
+	u32 min_tc;
+	u32 tot_tc;    /* total tick count */
+	u32 tot_bytes;
+	u32 count;     /* the counts of the command */
 };
 
 /* dump when total_tc and total_bytes */
 struct sdio_profile {
-    u32 total_tc;         /* total tick count of CMD52 and CMD53 */
-    u32 total_tx_bytes;   /* total bytes of CMD53 Tx */
-    u32 total_rx_bytes;   /* total bytes of CMD53 Rx */
+	u32 total_tc;         /* total tick count of CMD52 and CMD53 */
+	u32 total_tx_bytes;   /* total bytes of CMD53 Tx */
+	u32 total_rx_bytes;   /* total bytes of CMD53 Rx */
 
-    /*CMD52*/
-    struct cmd_profile cmd52_tx;
-    struct cmd_profile cmd52_rx;
+	/*CMD52*/
+	struct cmd_profile cmd52_tx;
+	struct cmd_profile cmd52_rx;
 
-    /*CMD53 in byte unit */
-    struct cmd_profile cmd53_tx_byte[512];
-    struct cmd_profile cmd53_rx_byte[512];
+	/*CMD53 in byte unit */
+	struct cmd_profile cmd53_tx_byte[512];
+	struct cmd_profile cmd53_rx_byte[512];
 
-    /*CMD53 in block unit */
-    struct cmd_profile cmd53_tx_blk[100];
-    struct cmd_profile cmd53_rx_blk[100];
+	/*CMD53 in block unit */
+	struct cmd_profile cmd53_tx_blk[100];
+	struct cmd_profile cmd53_rx_blk[100];
 };
 
 //==========================
 typedef enum {
-    SD_TOOL_ZONE = 0,
-    SD_TOOL_DMA_SIZE  = 1,
-    SD_TOOL_PM_ENABLE = 2,
-    SD_TOOL_SDIO_PROFILE = 3,
+	SD_TOOL_ZONE = 0,
+	SD_TOOL_DMA_SIZE  = 1,
+	SD_TOOL_PM_ENABLE = 2,
+	SD_TOOL_SDIO_PROFILE = 3,
 } msdc_dbg;
 
 typedef enum {
-    MODE_PIO = 0,
-    MODE_DMA = 1,
-    MODE_SIZE_DEP = 2,
+	MODE_PIO = 0,
+	MODE_DMA = 1,
+	MODE_SIZE_DEP = 2,
 } msdc_mode;
 extern msdc_mode drv_mode[4];
 extern u32 dma_size[4];
@@ -121,8 +121,8 @@ do {    \
 
 #define ERR_MSG(fmt, args...) \
 do { \
-    printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d> PID<%s><0x%x>\n", \
-        host->id,  ##args , __FUNCTION__, __LINE__, current->comm, current->pid); \
+	printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d> PID<%s><0x%x>\n", \
+	       host->id,  ##args , __FUNCTION__, __LINE__, current->comm, current->pid); \
 } while(0);
 
 #if 1
@@ -132,15 +132,15 @@ do { \
 #else
 #define INIT_MSG(fmt, args...) \
 do { \
-    printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d> PID<%s><0x%x>\n", \
-        host->id,  ##args , __FUNCTION__, __LINE__, current->comm, current->pid); \
+	printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d> PID<%s><0x%x>\n", \
+	       host->id,  ##args , __FUNCTION__, __LINE__, current->comm, current->pid); \
 } while(0);
 
 /* PID in ISR in not corrent */
 #define IRQ_MSG(fmt, args...) \
 do { \
-    printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d>\n", \
-        host->id,  ##args , __FUNCTION__, __LINE__); \
+	printk(KERN_ERR TAG"%d -> "fmt" <- %s() : L<%d>\n",	\
+	       host->id,  ##args , __FUNCTION__, __LINE__);	\
 } while(0);
 #endif
 
