@@ -315,17 +315,17 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
 
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
-	bool completed;
+	unsigned int flags;
 
 	if (pipe == NULL)
 		return;
 
 	/*
 	 * If the DL commit raced with the frame end interrupt, the commit ends
-	 * up being postponed by one frame. @completed represents whether the
+	 * up being postponed by one frame. The returned flags tell whether the
 	 * active frame was finished or postponed.
 	 */
-	completed = vsp1_dlm_irq_frame_end(pipe->output->dlm);
+	flags = vsp1_dlm_irq_frame_end(pipe->output->dlm);
 
 	if (pipe->hgo)
 		vsp1_hgo_frame_end(pipe->hgo);
@@ -338,7 +338,7 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	 * frame_end to account for vblank events.
 	 */
 	if (pipe->frame_end)
-		pipe->frame_end(pipe, completed);
+		pipe->frame_end(pipe, flags);
 
 	pipe->sequence++;
 }

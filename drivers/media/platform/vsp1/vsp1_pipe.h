@@ -118,7 +118,7 @@ struct vsp1_pipeline {
 	enum vsp1_pipeline_state state;
 	wait_queue_head_t wq;
 
-	void (*frame_end)(struct vsp1_pipeline *pipe, bool completed);
+	void (*frame_end)(struct vsp1_pipeline *pipe, unsigned int completion);
 
 	struct mutex lock;
 	struct kref kref;

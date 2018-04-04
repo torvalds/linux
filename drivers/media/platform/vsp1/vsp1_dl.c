@@ -616,14 +616,18 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
  * vsp1_dlm_irq_frame_end - Display list handler for the frame end interrupt
  * @dlm: the display list manager
  *
- * Return true if the previous display list has completed at frame end, or false
- * if it has been delayed by one frame because the display list commit raced
- * with the frame end interrupt. The function always returns true in header mode
- * as display list processing is then not continuous and races never occur.
+ * Return a set of flags that indicates display list completion status.
+ *
+ * The VSP1_DL_FRAME_END_COMPLETED flag indicates that the previous display list
+ * has completed at frame end. If the flag is not returned display list
+ * completion has been delayed by one frame because the display list commit
+ * raced with the frame end interrupt. The function always returns with the flag
+ * set in header mode as display list processing is then not continuous and
+ * races never occur.
  */
-bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
+unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
-	bool completed = false;
+	unsigned int flags = 0;
 
 	spin_lock(&dlm->lock);
 
@@ -634,7 +638,7 @@ bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	if (dlm->singleshot) {
 		__vsp1_dl_list_put(dlm->active);
 		dlm->active = NULL;
-		completed = true;
+		flags |= VSP1_DL_FRAME_END_COMPLETED;
 		goto done;
 	}
 
@@ -655,7 +659,7 @@ bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 		__vsp1_dl_list_put(dlm->active);
 		dlm->active = dlm->queued;
 		dlm->queued = NULL;
-		completed = true;
+		flags |= VSP1_DL_FRAME_END_COMPLETED;
 	}
 
 	/*
@@ -672,7 +676,7 @@ bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 done:
 	spin_unlock(&dlm->lock);
 
-	return completed;
+	return flags;
 }
 
 /* Hardware Setup */

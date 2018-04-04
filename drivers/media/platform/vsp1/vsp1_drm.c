@@ -34,12 +34,13 @@
  */
 
 static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
-				       bool completed)
+				       unsigned int completion)
 {
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
 
 	if (drm_pipe->du_complete)
-		drm_pipe->du_complete(drm_pipe->du_private, completed);
+		drm_pipe->du_complete(drm_pipe->du_private,
+				      completion & VSP1_DL_FRAME_END_COMPLETED);
 }
 
 /* -----------------------------------------------------------------------------

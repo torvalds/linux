@@ -444,7 +444,7 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 }
 
 static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
-					  bool completed)
+					  unsigned int completion)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	enum vsp1_pipeline_state state;
@@ -452,7 +452,7 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
 	unsigned int i;
 
 	/* M2M Pipelines should never call here with an incomplete frame. */
-	WARN_ON_ONCE(!completed);
+	WARN_ON_ONCE(!(completion & VSP1_DL_FRAME_END_COMPLETED));
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
