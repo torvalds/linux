@@ -965,7 +965,8 @@ int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
 struct dst_entry *ip6_dst_lookup_flow(const struct sock *sk, struct flowi6 *fl6,
 				      const struct in6_addr *final_dst);
 struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
-					 const struct in6_addr *final_dst);
+					 const struct in6_addr *final_dst,
+					 bool connected);
 struct dst_entry *ip6_blackhole_route(struct net *net,
 				      struct dst_entry *orig_dst);
 
