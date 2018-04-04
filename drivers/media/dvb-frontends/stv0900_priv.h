@@ -24,7 +24,6 @@
 
 #include <linux/i2c.h>
 
-#define ABS(X) ((X) < 0 ? (-1 * (X)) : (X))
 #define INRANGE(X, Y, Z) ((((X) <= (Y)) && ((Y) <= (Z))) \
 		|| (((Z) <= (Y)) && ((Y) <= (X))) ? 1 : 0)
 

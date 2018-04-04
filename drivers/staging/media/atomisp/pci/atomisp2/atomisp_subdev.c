@@ -819,12 +819,6 @@ static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
 	struct atomisp_device *isp = asd->isp;
 	struct v4l2_ctrl *ctrl = asd->run_mode;
 	struct v4l2_ctrl *c;
-	struct v4l2_streamparm p = {0};
-	int modes[] = { CI_MODE_NONE,
-			CI_MODE_VIDEO,
-			CI_MODE_STILL_CAPTURE,
-			CI_MODE_CONTINUOUS,
-			CI_MODE_PREVIEW };
 	s32 mode;
 
 	if (ctrl->val != ATOMISP_RUN_MODE_VIDEO &&
@@ -840,11 +834,7 @@ static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
 	if (c)
 		return v4l2_ctrl_s_ctrl(c, mode);
 
-	/* Fall back to obsolete s_parm */
-	p.parm.capture.capturemode = modes[mode];
-
-	return v4l2_subdev_call(
-		isp->inputs[asd->input_curr].camera, video, s_parm, &p);
+	return 0;
 }
 
 int atomisp_update_run_mode(struct atomisp_sub_device *asd)

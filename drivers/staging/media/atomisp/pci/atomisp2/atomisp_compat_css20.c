@@ -4502,7 +4502,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 {
 	enum atomisp_input_stream_id stream_id = 0;
 	struct atomisp_css_event current_event;
-	struct atomisp_sub_device *asd = &isp->asd[0];
+	struct atomisp_sub_device *asd;
 #ifndef ISP2401
 	bool reset_wdt_timer[MAX_STREAM_NUM] = {false};
 #endif

@@ -196,7 +196,7 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 						  attribute, context);
 		if (me->data == mmgr_NULL)
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
-	};
+	}
 
 	if (err != IA_CSS_SUCCESS) {
 		sh_css_free(me);

@@ -244,9 +244,8 @@ static int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
 		goto out_free_pages;
 	}
 
-	dprintk(1, "vmalloc is at addr 0x%08lx, size=%d\n",
-				(unsigned long)dma->vaddr,
-				nr_pages << PAGE_SHIFT);
+	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+		dma->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
 	dma->nr_pages = nr_pages;

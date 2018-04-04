@@ -511,7 +511,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
 	struct amradio_device *radio;
-	int retval = 0;
+	int retval;
 
 	radio = kzalloc(sizeof(struct amradio_device), GFP_KERNEL);
 

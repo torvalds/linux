@@ -490,7 +490,6 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in
 	struct sh_css_shading_table_bayer_origin_compute_results res;
 #else
 	struct sh_css_binary_sc_requirements scr;
-	struct ia_css_shading_info default_shading_info_type_1 = DEFAULT_SHADING_INFO_TYPE_1;
 #endif
 
 #ifndef ISP2401
@@ -542,7 +541,7 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in
 		&res);
 	if (err != IA_CSS_SUCCESS)
 #else
-	*shading_info = default_shading_info_type_1;
+	*shading_info = DEFAULT_SHADING_INFO_TYPE_1;
 
 	err = sh_css_binary_get_sc_requirements(binary, required_bds_factor, stream_config, &scr);
 	if (err != IA_CSS_SUCCESS) {

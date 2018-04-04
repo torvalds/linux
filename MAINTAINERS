@@ -3275,6 +3275,7 @@ F:	include/media/cec-notifier.h
 F:	include/uapi/linux/cec.h
 F:	include/uapi/linux/cec-funcs.h
 F:	Documentation/devicetree/bindings/media/cec.txt
+F:	Documentation/ABI/testing/debugfs-cec-error-inj
 
 CEC GPIO DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
@@ -6865,6 +6866,13 @@ M:	James Hogan <jhogan@kernel.org>
 S:	Maintained
 F:	drivers/media/rc/img-ir/
 
+IMON SOUNDGRAPH USB IR RECEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/imon_raw.c
+F:	drivers/media/rc/imon.c
+
 IMS TWINTURBO FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
 S:	Orphan
@@ -8604,6 +8612,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Supported
 F:	drivers/media/dvb-frontends/ascot2e*
 
+MEDIA DRIVERS FOR CXD2099AR CI CONTROLLERS
+M:	Jasmin Jessich <jasmin@anw.at>
+L:	linux-media@vger.kernel.org
+W:	https://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/dvb-frontends/cxd2099*
+
 MEDIA DRIVERS FOR CXD2841ER
 M:	Sergey Kozlov <serjk@netup.ru>
 M:	Abylay Ospan <aospan@netup.ru>
@@ -8613,6 +8629,15 @@ W:	http://netup.tv/
 T:	git git://linuxtv.org/media_tree.git
 S:	Supported
 F:	drivers/media/dvb-frontends/cxd2841er*
+
+MEDIA DRIVERS FOR CXD2880
+M:	Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/cxd2880/*
+F:	drivers/media/spi/cxd2880*
 
 MEDIA DRIVERS FOR DIGITAL DEVICES PCIE DEVICES
 M:	Daniel Scheller <d.scheller.oss@gmail.com>
@@ -8680,6 +8705,16 @@ W:	http://netup.tv/
 T:	git git://linuxtv.org/media_tree.git
 S:	Supported
 F:	drivers/media/pci/netup_unidvb/*
+
+MEDIA DRIVERS FOR RENESAS - CEU
+M:	Jacopo Mondi <jacopo@jmondi.org>
+L:	linux-media@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	Documentation/devicetree/bindings/media/renesas,ceu.txt
+F:	drivers/media/platform/renesas-ceu.c
+F:	include/media/drv-intf/renesas-ceu.h
 
 MEDIA DRIVERS FOR RENESAS - DRIF
 M:	Ramesh Shanmugasundaram <ramesh.shanmugasundaram@bp.renesas.com>
@@ -9364,6 +9399,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/mt9t001.c
 F:	include/media/i2c/mt9t001.h
+
+MT9T112 APTINA CAMERA SENSOR
+M:	Jacopo Mondi <jacopo@jmondi.org>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd Fixes
+F:	drivers/media/i2c/mt9t112.c
+F:	include/media/i2c/mt9t112.h
 
 MT9V032 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -10170,6 +10213,13 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/ov13858.c
 
+OMNIVISION OV2685 SENSOR DRIVER
+M:	Shunqian Zheng <zhengsq@rock-chips.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/ov2685.c
+
 OMNIVISION OV5640 SENSOR DRIVER
 M:	Steve Longerbeam <slongerbeam@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -10184,6 +10234,13 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/ov5647.c
 
+OMNIVISION OV5695 SENSOR DRIVER
+M:	Shunqian Zheng <zhengsq@rock-chips.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/ov5695.c
+
 OMNIVISION OV7670 SENSOR DRIVER
 M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
@@ -10192,6 +10249,14 @@ S:	Maintained
 F:	drivers/media/i2c/ov7670.c
 F:	Documentation/devicetree/bindings/media/i2c/ov7670.txt
 
+OMNIVISION OV772x SENSOR DRIVER
+M:	Jacopo Mondi <jacopo@jmondi.org>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	drivers/media/i2c/ov772x.c
+F:	include/media/i2c/ov772x.h
+
 OMNIVISION OV7740 SENSOR DRIVER
 M:	Wenyou Yang <wenyou.yang@microchip.com>
 L:	linux-media@vger.kernel.org
@@ -10199,6 +10264,16 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/ov7740.c
 F:	Documentation/devicetree/bindings/media/i2c/ov7740.txt
+
+OMNIVISION OV9650 SENSOR DRIVER
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+R:	Akinobu Mita <akinobu.mita@gmail.com>
+R:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/ov9650.c
+F:	Documentation/devicetree/bindings/media/i2c/ov9650.txt
 
 ONENAND FLASH DRIVER
 M:	Kyungmin Park <kyungmin.park@samsung.com>
@@ -12780,10 +12855,9 @@ S:	Maintained
 F:	drivers/net/ethernet/smsc/smsc9420.*
 
 SOC-CAMERA V4L2 SUBSYSTEM
-M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Orphan
 F:	include/media/soc*
 F:	drivers/media/i2c/soc_camera/
 F:	drivers/media/platform/soc_camera/
@@ -13512,6 +13586,14 @@ T:	git git://linuxtv.org/mkrufky/tuners.git
 S:	Maintained
 F:	drivers/media/tuners/tda18271*
 
+TDA1997x MEDIA DRIVER
+M:	Tim Harvey <tharvey@gateworks.com>
+L:	linux-media@vger.kernel.org
+W:	https://linuxtv.org
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+S:	Maintained
+F:	drivers/media/i2c/tda1997x.*
+
 TDA827x MEDIA DRIVER
 M:	Michael Krufky <mkrufky@linuxtv.org>
 L:	linux-media@vger.kernel.org
@@ -13592,6 +13674,12 @@ M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/rc/ttusbir.c
+
+TECHWELL TW9910 VIDEO DECODER
+L:	linux-media@vger.kernel.org
+S:	Orphan
+F:	drivers/media/i2c/tw9910.c
+F:	include/media/i2c/tw9910.h
 
 TEE SUBSYSTEM
 M:	Jens Wiklander <jens.wiklander@linaro.org>

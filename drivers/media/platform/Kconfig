@@ -122,6 +122,15 @@ config VIDEO_STM32_DCMI
 	  To compile this driver as a module, choose M here: the module
 	  will be called stm32-dcmi.
 
+config VIDEO_RENESAS_CEU
+	tristate "Renesas Capture Engine Unit (CEU) driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
+	depends on ARCH_SHMOBILE || ARCH_R7S72100 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	---help---
+	  This is a v4l2 driver for the Renesas CEU Interface
+
 source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
@@ -560,7 +569,7 @@ config CEC_GPIO
 
 config VIDEO_SAMSUNG_S5P_CEC
        tristate "Samsung S5P CEC driver"
-       depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
+       depends on ARCH_EXYNOS || COMPILE_TEST
        select CEC_CORE
        select CEC_NOTIFIER
        ---help---

@@ -28,14 +28,12 @@ config LIRC
 menuconfig RC_DECODERS
 	bool "Remote controller decoders"
 	depends on RC_CORE
-	default y
 
 if RC_DECODERS
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have IR with NEC protocol, and
@@ -45,7 +43,6 @@ config IR_RC5_DECODER
 	tristate "Enable IR raw decoder for the RC-5 protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have IR with RC-5 protocol, and
@@ -55,7 +52,6 @@ config IR_RC6_DECODER
 	tristate "Enable IR raw decoder for the RC6 protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have an infrared remote control which
@@ -65,7 +61,6 @@ config IR_JVC_DECODER
 	tristate "Enable IR raw decoder for the JVC protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have an infrared remote control which
@@ -75,7 +70,6 @@ config IR_SONY_DECODER
 	tristate "Enable IR raw decoder for the Sony protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have an infrared remote control which
@@ -84,7 +78,6 @@ config IR_SONY_DECODER
 config IR_SANYO_DECODER
 	tristate "Enable IR raw decoder for the Sanyo protocol"
 	depends on RC_CORE
-	default y
 
 	---help---
 	   Enable this option if you have an infrared remote control which
@@ -94,7 +87,6 @@ config IR_SANYO_DECODER
 config IR_SHARP_DECODER
 	tristate "Enable IR raw decoder for the Sharp protocol"
 	depends on RC_CORE
-	default y
 
 	---help---
 	   Enable this option if you have an infrared remote control which
@@ -105,7 +97,6 @@ config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have a Microsoft Remote Keyboard for
@@ -116,11 +107,19 @@ config IR_XMP_DECODER
 	tristate "Enable IR raw decoder for the XMP protocol"
 	depends on RC_CORE
 	select BITREVERSE
-	default y
 
 	---help---
 	   Enable this option if you have IR with XMP protocol, and
 	   if the IR is decoded in software
+
+config IR_IMON_DECODER
+	tristate "Enable IR raw decoder for the iMON protocol"
+	depends on RC_CORE
+	---help---
+	   Enable this option if you have iMON PAD or Antec Veris infrared
+	   remote control and you would like to use it with a raw IR
+	   receiver, or if you wish to use an encoder to transmit this IR.
+
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES
@@ -184,6 +183,18 @@ config IR_IMON
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called imon.
+
+config IR_IMON_RAW
+	tristate "SoundGraph iMON Receiver (early raw IR models)"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a SoundGraph iMON IR Receiver,
+	   early raw models.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called imon_raw.
 
 config IR_MCEUSB
 	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
@@ -446,7 +457,6 @@ config IR_SERIAL
 
 config IR_SERIAL_TRANSMITTER
 	bool "Serial Port Transmitter"
-	default y
 	depends on IR_SERIAL
 	---help---
 	   Serial Port Transmitter support

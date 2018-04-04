@@ -1147,6 +1147,11 @@ struct ov5693_resolution ov5693_res_preview[] = {
 };
 #define N_RES_PREVIEW (ARRAY_SIZE(ov5693_res_preview))
 
+/*
+ * Disable non-preview configurations until the configuration selection is
+ * improved.
+ */
+#if 0
 struct ov5693_resolution ov5693_res_still[] = {
 	{
 		.desc = "ov5693_736x496_30fps",
@@ -1364,6 +1369,7 @@ struct ov5693_resolution ov5693_res_video[] = {
 	},
 };
 #define N_RES_VIDEO (ARRAY_SIZE(ov5693_res_video))
+#endif
 
 static struct ov5693_resolution *ov5693_res = ov5693_res_preview;
 static unsigned long N_RES = N_RES_PREVIEW;

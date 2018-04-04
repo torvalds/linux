@@ -68,13 +68,21 @@ desired arrays with the media graph elements.
 
     -  .. row 2
 
-       -  __u64
+       -  __u32
 
        -  ``num_entities``
 
        -  Number of entities in the graph
 
     -  .. row 3
+
+       -  __u32
+
+       -  ``reserved1``
+
+       -  Applications and drivers shall set this to 0.
+
+    -  .. row 4
 
        -  __u64
 
@@ -85,15 +93,23 @@ desired arrays with the media graph elements.
 	  the ioctl won't store the entities. It will just update
 	  ``num_entities``
 
-    -  .. row 4
+    -  .. row 5
 
-       -  __u64
+       -  __u32
 
        -  ``num_interfaces``
 
        -  Number of interfaces in the graph
 
-    -  .. row 5
+    -  .. row 6
+
+       -  __u32
+
+       -  ``reserved2``
+
+       -  Applications and drivers shall set this to 0.
+
+    -  .. row 7
 
        -  __u64
 
@@ -104,15 +120,23 @@ desired arrays with the media graph elements.
 	  the ioctl won't store the interfaces. It will just update
 	  ``num_interfaces``
 
-    -  .. row 6
+    -  .. row 8
 
-       -  __u64
+       -  __u32
 
        -  ``num_pads``
 
        -  Total number of pads in the graph
 
-    -  .. row 7
+    -  .. row 9
+
+       -  __u32
+
+       -  ``reserved3``
+
+       -  Applications and drivers shall set this to 0.
+
+    -  .. row 10
 
        -  __u64
 
@@ -122,15 +146,23 @@ desired arrays with the media graph elements.
 	  converted to a 64-bits integer. It can be zero. if zero, the ioctl
 	  won't store the pads. It will just update ``num_pads``
 
-    -  .. row 8
+    -  .. row 11
 
-       -  __u64
+       -  __u32
 
        -  ``num_links``
 
        -  Total number of data and interface links in the graph
 
-    -  .. row 9
+    -  .. row 12
+
+       -  __u32
+
+       -  ``reserved4``
+
+       -  Applications and drivers shall set this to 0.
+
+    -  .. row 13
 
        -  __u64
 
@@ -334,7 +366,7 @@ desired arrays with the media graph elements.
 
        -  On pad to pad links: unique ID for the source pad.
 
-	  On interface to entity links: unique ID for the entity.
+	  On interface to entity links: unique ID for the interface.
 
     -  .. row 3
 

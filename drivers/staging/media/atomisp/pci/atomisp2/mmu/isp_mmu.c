@@ -450,7 +450,7 @@ static void mmu_l1_unmap(struct isp_mmu *mmu, phys_addr_t l1_pt,
 			ptr = end;
 		}
 		/*
-		 * use the same L2 page next time, so we dont
+		 * use the same L2 page next time, so we don't
 		 * need to invalidate and free this PT.
 		 */
 		/*      atomisp_set_pte(l1_pt, idx, NULL_PTE); */

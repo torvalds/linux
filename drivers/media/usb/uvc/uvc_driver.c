@@ -216,7 +216,7 @@ static struct uvc_format_desc uvc_fmts[] = {
  */
 
 struct usb_host_endpoint *uvc_find_endpoint(struct usb_host_interface *alts,
-		__u8 epaddr)
+		u8 epaddr)
 {
 	struct usb_host_endpoint *ep;
 	unsigned int i;
@@ -230,7 +230,7 @@ struct usb_host_endpoint *uvc_find_endpoint(struct usb_host_interface *alts,
 	return NULL;
 }
 
-static struct uvc_format_desc *uvc_format_by_guid(const __u8 guid[16])
+static struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16])
 {
 	unsigned int len = ARRAY_SIZE(uvc_fmts);
 	unsigned int i;
@@ -243,9 +243,9 @@ static struct uvc_format_desc *uvc_format_by_guid(const __u8 guid[16])
 	return NULL;
 }
 
-static __u32 uvc_colorspace(const __u8 primaries)
+static u32 uvc_colorspace(const u8 primaries)
 {
-	static const __u8 colorprimaries[] = {
+	static const u8 colorprimaries[] = {
 		0,
 		V4L2_COLORSPACE_SRGB,
 		V4L2_COLORSPACE_470_SYSTEM_M,
@@ -267,14 +267,14 @@ static __u32 uvc_colorspace(const __u8 primaries)
  * continued fraction decomposition. Using 8 and 333 for n_terms and threshold
  * respectively seems to give nice results.
  */
-void uvc_simplify_fraction(uint32_t *numerator, uint32_t *denominator,
+void uvc_simplify_fraction(u32 *numerator, u32 *denominator,
 		unsigned int n_terms, unsigned int threshold)
 {
-	uint32_t *an;
-	uint32_t x, y, r;
+	u32 *an;
+	u32 x, y, r;
 	unsigned int i, n;
 
-	an = kmalloc(n_terms * sizeof *an, GFP_KERNEL);
+	an = kmalloc_array(n_terms, sizeof(*an), GFP_KERNEL);
 	if (an == NULL)
 		return;
 
@@ -318,21 +318,21 @@ void uvc_simplify_fraction(uint32_t *numerator, uint32_t *denominator,
  * to compute numerator / denominator * 10000000 using 32 bit fixed point
  * arithmetic only.
  */
-uint32_t uvc_fraction_to_interval(uint32_t numerator, uint32_t denominator)
+u32 uvc_fraction_to_interval(u32 numerator, u32 denominator)
 {
-	uint32_t multiplier;
+	u32 multiplier;
 
 	/* Saturate the result if the operation would overflow. */
 	if (denominator == 0 ||
-	    numerator/denominator >= ((uint32_t)-1)/10000000)
-		return (uint32_t)-1;
+	    numerator/denominator >= ((u32)-1)/10000000)
+		return (u32)-1;
 
 	/* Divide both the denominator and the multiplier by two until
 	 * numerator * multiplier doesn't overflow. If anyone knows a better
 	 * algorithm please let me know.
 	 */
 	multiplier = 10000000;
-	while (numerator > ((uint32_t)-1)/multiplier) {
+	while (numerator > ((u32)-1)/multiplier) {
 		multiplier /= 2;
 		denominator /= 2;
 	}
@@ -391,7 +391,7 @@ static struct uvc_streaming *uvc_stream_by_id(struct uvc_device *dev, int id)
 
 static int uvc_parse_format(struct uvc_device *dev,
 	struct uvc_streaming *streaming, struct uvc_format *format,
-	__u32 **intervals, unsigned char *buffer, int buflen)
+	u32 **intervals, unsigned char *buffer, int buflen)
 {
 	struct usb_interface *intf = streaming->intf;
 	struct usb_host_interface *alts = intf->cur_altsetting;
@@ -401,7 +401,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 	unsigned int width_multiplier = 1;
 	unsigned int interval;
 	unsigned int i, n;
-	__u8 ftype;
+	u8 ftype;
 
 	format->type = buffer[2];
 	format->index = buffer[3];
@@ -423,7 +423,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		if (fmtdesc != NULL) {
 			strlcpy(format->name, fmtdesc->name,
-				sizeof format->name);
+				sizeof(format->name));
 			format->fcc = fmtdesc->fcc;
 		} else {
 			uvc_printk(KERN_INFO, "Unknown video format %pUl\n",
@@ -466,7 +466,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		strlcpy(format->name, "MJPEG", sizeof format->name);
+		strlcpy(format->name, "MJPEG", sizeof(format->name));
 		format->fcc = V4L2_PIX_FMT_MJPEG;
 		format->flags = UVC_FMT_FLAG_COMPRESSED;
 		format->bpp = 0;
@@ -484,13 +484,13 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		switch (buffer[8] & 0x7f) {
 		case 0:
-			strlcpy(format->name, "SD-DV", sizeof format->name);
+			strlcpy(format->name, "SD-DV", sizeof(format->name));
 			break;
 		case 1:
-			strlcpy(format->name, "SDL-DV", sizeof format->name);
+			strlcpy(format->name, "SDL-DV", sizeof(format->name));
 			break;
 		case 2:
-			strlcpy(format->name, "HD-DV", sizeof format->name);
+			strlcpy(format->name, "HD-DV", sizeof(format->name));
 			break;
 		default:
 			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
@@ -501,7 +501,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		}
 
 		strlcat(format->name, buffer[8] & (1 << 7) ? " 60Hz" : " 50Hz",
-			sizeof format->name);
+			sizeof(format->name));
 
 		format->fcc = V4L2_PIX_FMT_DV;
 		format->flags = UVC_FMT_FLAG_COMPRESSED | UVC_FMT_FLAG_STREAM;
@@ -510,7 +510,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 		/* Create a dummy frame descriptor. */
 		frame = &format->frame[0];
-		memset(&format->frame[0], 0, sizeof format->frame[0]);
+		memset(&format->frame[0], 0, sizeof(format->frame[0]));
 		frame->bFrameIntervalType = 1;
 		frame->dwDefaultFrameInterval = 1;
 		frame->dwFrameInterval = *intervals;
@@ -658,8 +658,8 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	int _buflen, buflen = alts->extralen;
 	unsigned int nformats = 0, nframes = 0, nintervals = 0;
 	unsigned int size, i, n, p;
-	__u32 *interval;
-	__u16 psize;
+	u32 *interval;
+	u16 psize;
 	int ret = -EINVAL;
 
 	if (intf->cur_altsetting->desc.bInterfaceSubClass
@@ -677,7 +677,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 		return -EINVAL;
 	}
 
-	streaming = kzalloc(sizeof *streaming, GFP_KERNEL);
+	streaming = kzalloc(sizeof(*streaming), GFP_KERNEL);
 	if (streaming == NULL) {
 		usb_driver_release_interface(&uvc_driver.driver, intf);
 		return -EINVAL;
@@ -827,8 +827,8 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 		goto error;
 	}
 
-	size = nformats * sizeof *format + nframes * sizeof *frame
-	     + nintervals * sizeof *interval;
+	size = nformats * sizeof(*format) + nframes * sizeof(*frame)
+	     + nintervals * sizeof(*interval);
 	format = kzalloc(size, GFP_KERNEL);
 	if (format == NULL) {
 		ret = -ENOMEM;
@@ -836,7 +836,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	}
 
 	frame = (struct uvc_frame *)&format[nformats];
-	interval = (__u32 *)&frame[nframes];
+	interval = (u32 *)&frame[nframes];
 
 	streaming->format = format;
 	streaming->nformats = nformats;
@@ -930,7 +930,7 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u8 id,
 		entity->pads[num_pads-1].flags = MEDIA_PAD_FL_SOURCE;
 
 	entity->bNrInPins = num_inputs;
-	entity->baSourceID = (__u8 *)(&entity->pads[num_pads]);
+	entity->baSourceID = (u8 *)(&entity->pads[num_pads]);
 
 	return entity;
 }
@@ -995,14 +995,14 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 		unit->extension.bNumControls = buffer[20];
 		memcpy(unit->baSourceID, &buffer[22], p);
 		unit->extension.bControlSize = buffer[22+p];
-		unit->extension.bmControls = (__u8 *)unit + sizeof(*unit);
-		unit->extension.bmControlsType = (__u8 *)unit + sizeof(*unit)
+		unit->extension.bmControls = (u8 *)unit + sizeof(*unit);
+		unit->extension.bmControlsType = (u8 *)unit + sizeof(*unit)
 					       + n;
 		memcpy(unit->extension.bmControls, &buffer[23+p], 2*n);
 
 		if (buffer[24+p+2*n] != 0)
 			usb_string(udev, buffer[24+p+2*n], unit->name,
-				   sizeof unit->name);
+				   sizeof(unit->name));
 		else
 			sprintf(unit->name, "Extension %u", buffer[3]);
 
@@ -1022,7 +1022,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 	struct usb_interface *intf;
 	struct usb_host_interface *alts = dev->intf->cur_altsetting;
 	unsigned int i, n, p, len;
-	__u16 type;
+	u16 type;
 
 	switch (buffer[2]) {
 	case UVC_VC_HEADER:
@@ -1101,7 +1101,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 
 		if (UVC_ENTITY_TYPE(term) == UVC_ITT_CAMERA) {
 			term->camera.bControlSize = n;
-			term->camera.bmControls = (__u8 *)term + sizeof *term;
+			term->camera.bmControls = (u8 *)term + sizeof(*term);
 			term->camera.wObjectiveFocalLengthMin =
 				get_unaligned_le16(&buffer[8]);
 			term->camera.wObjectiveFocalLengthMax =
@@ -1112,17 +1112,17 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		} else if (UVC_ENTITY_TYPE(term) ==
 			   UVC_ITT_MEDIA_TRANSPORT_INPUT) {
 			term->media.bControlSize = n;
-			term->media.bmControls = (__u8 *)term + sizeof *term;
+			term->media.bmControls = (u8 *)term + sizeof(*term);
 			term->media.bTransportModeSize = p;
-			term->media.bmTransportModes = (__u8 *)term
-						     + sizeof *term + n;
+			term->media.bmTransportModes = (u8 *)term
+						     + sizeof(*term) + n;
 			memcpy(term->media.bmControls, &buffer[9], n);
 			memcpy(term->media.bmTransportModes, &buffer[10+n], p);
 		}
 
 		if (buffer[7] != 0)
 			usb_string(udev, buffer[7], term->name,
-				   sizeof term->name);
+				   sizeof(term->name));
 		else if (UVC_ENTITY_TYPE(term) == UVC_ITT_CAMERA)
 			sprintf(term->name, "Camera %u", buffer[3]);
 		else if (UVC_ENTITY_TYPE(term) == UVC_ITT_MEDIA_TRANSPORT_INPUT)
@@ -1162,7 +1162,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 
 		if (buffer[8] != 0)
 			usb_string(udev, buffer[8], term->name,
-				   sizeof term->name);
+				   sizeof(term->name));
 		else
 			sprintf(term->name, "Output %u", buffer[3]);
 
@@ -1187,7 +1187,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 
 		if (buffer[5+p] != 0)
 			usb_string(udev, buffer[5+p], unit->name,
-				   sizeof unit->name);
+				   sizeof(unit->name));
 		else
 			sprintf(unit->name, "Selector %u", buffer[3]);
 
@@ -1213,14 +1213,14 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		unit->processing.wMaxMultiplier =
 			get_unaligned_le16(&buffer[5]);
 		unit->processing.bControlSize = buffer[7];
-		unit->processing.bmControls = (__u8 *)unit + sizeof *unit;
+		unit->processing.bmControls = (u8 *)unit + sizeof(*unit);
 		memcpy(unit->processing.bmControls, &buffer[8], n);
 		if (dev->uvc_version >= 0x0110)
 			unit->processing.bmVideoStandards = buffer[9+n];
 
 		if (buffer[8+n] != 0)
 			usb_string(udev, buffer[8+n], unit->name,
-				   sizeof unit->name);
+				   sizeof(unit->name));
 		else
 			sprintf(unit->name, "Processing %u", buffer[3]);
 
@@ -1246,12 +1246,12 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		unit->extension.bNumControls = buffer[20];
 		memcpy(unit->baSourceID, &buffer[22], p);
 		unit->extension.bControlSize = buffer[22+p];
-		unit->extension.bmControls = (__u8 *)unit + sizeof *unit;
+		unit->extension.bmControls = (u8 *)unit + sizeof(*unit);
 		memcpy(unit->extension.bmControls, &buffer[23+p], n);
 
 		if (buffer[23+p+n] != 0)
 			usb_string(udev, buffer[23+p+n], unit->name,
-				   sizeof unit->name);
+				   sizeof(unit->name));
 		else
 			sprintf(unit->name, "Extension %u", buffer[3]);
 
@@ -1936,7 +1936,7 @@ int uvc_register_video_device(struct uvc_device *dev,
 		break;
 	}
 
-	strlcpy(vdev->name, dev->name, sizeof vdev->name);
+	strlcpy(vdev->name, dev->name, sizeof(vdev->name));
 
 	/*
 	 * Set the driver data before calling video_register_device, otherwise
@@ -2070,7 +2070,8 @@ static int uvc_probe(struct usb_interface *intf,
 				udev->devpath);
 
 	/* Allocate memory for the device and initialize it. */
-	if ((dev = kzalloc(sizeof *dev, GFP_KERNEL)) == NULL)
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&dev->entities);
@@ -2089,9 +2090,9 @@ static int uvc_probe(struct usb_interface *intf,
 		dev->meta_format = info->meta_format;
 
 	if (udev->product != NULL)
-		strlcpy(dev->name, udev->product, sizeof dev->name);
+		strlcpy(dev->name, udev->product, sizeof(dev->name));
 	else
-		snprintf(dev->name, sizeof dev->name,
+		snprintf(dev->name, sizeof(dev->name),
 			 "UVC Camera (%04x:%04x)",
 			 le16_to_cpu(udev->descriptor.idVendor),
 			 le16_to_cpu(udev->descriptor.idProduct));

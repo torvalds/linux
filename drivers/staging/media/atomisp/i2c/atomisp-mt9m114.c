@@ -1684,11 +1684,6 @@ static int mt9m114_t_vflip(struct v4l2_subdev *sd, int value)
 
 	return !!err;
 }
-static int mt9m114_s_parm(struct v4l2_subdev *sd,
-			struct v4l2_streamparm *param)
-{
-	return 0;
-}
 
 static int mt9m114_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *interval)
@@ -1781,7 +1776,6 @@ static int mt9m114_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 }
 
 static const struct v4l2_subdev_video_ops mt9m114_video_ops = {
-	.s_parm = mt9m114_s_parm,
 	.s_stream = mt9m114_s_stream,
 	.g_frame_interval = mt9m114_g_frame_interval,
 };

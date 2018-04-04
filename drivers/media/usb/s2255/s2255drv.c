@@ -648,8 +648,8 @@ static void s2255_fillbuff(struct s2255_vc *vc,
 		pr_err("s2255: =======no frame\n");
 		return;
 	}
-	dprintk(dev, 2, "s2255fill at : Buffer 0x%08lx size= %d\n",
-		(unsigned long)vbuf, pos);
+	dprintk(dev, 2, "s2255fill at : Buffer %p size= %d\n",
+		vbuf, pos);
 }
 
 
@@ -803,10 +803,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		}
 		if (f->fmt.pix.width >= LINE_SZ_4CIFS_NTSC)
 			f->fmt.pix.width = LINE_SZ_4CIFS_NTSC;
-		else if (f->fmt.pix.width >= LINE_SZ_2CIFS_NTSC)
-			f->fmt.pix.width = LINE_SZ_2CIFS_NTSC;
-		else if (f->fmt.pix.width >= LINE_SZ_1CIFS_NTSC)
-			f->fmt.pix.width = LINE_SZ_1CIFS_NTSC;
 		else
 			f->fmt.pix.width = LINE_SZ_1CIFS_NTSC;
 	} else {
@@ -820,10 +816,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		}
 		if (f->fmt.pix.width >= LINE_SZ_4CIFS_PAL)
 			f->fmt.pix.width = LINE_SZ_4CIFS_PAL;
-		else if (f->fmt.pix.width >= LINE_SZ_2CIFS_PAL)
-			f->fmt.pix.width = LINE_SZ_2CIFS_PAL;
-		else if (f->fmt.pix.width >= LINE_SZ_1CIFS_PAL)
-			f->fmt.pix.width = LINE_SZ_1CIFS_PAL;
 		else
 			f->fmt.pix.width = LINE_SZ_1CIFS_PAL;
 	}

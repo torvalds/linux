@@ -136,7 +136,7 @@ static void sp887x_setup_agc (struct sp887x_state* state)
 static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware *fw)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
-	u8 buf [BLOCKSIZE+2];
+	u8 buf [BLOCKSIZE + 2];
 	int i;
 	int fw_size = fw->size;
 	const unsigned char *mem = fw->data;
@@ -144,7 +144,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	dprintk("%s\n", __func__);
 
 	/* ignore the first 10 bytes, then we expect 0x4000 bytes of firmware */
-	if (fw_size < FW_SIZE+10)
+	if (fw_size < FW_SIZE + 10)
 		return -ENODEV;
 
 	mem = fw->data + 10;
@@ -167,7 +167,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 		int c = BLOCKSIZE;
 		int err;
 
-		if (i+c > FW_SIZE)
+		if (c > FW_SIZE - i)
 			c = FW_SIZE - i;
 
 		/* bit 0x8000 in address is set to enable 13bit mode */

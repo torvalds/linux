@@ -1273,6 +1273,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_VC1_ANNEX_L:	descr = "VC-1 (SMPTE 412M Annex L)"; break;
 		case V4L2_PIX_FMT_VP8:		descr = "VP8"; break;
 		case V4L2_PIX_FMT_VP9:		descr = "VP9"; break;
+		case V4L2_PIX_FMT_HEVC:		descr = "HEVC"; break; /* aka H.265 */
 		case V4L2_PIX_FMT_CPIA1:	descr = "GSPCA CPiA YUV"; break;
 		case V4L2_PIX_FMT_WNVA:		descr = "WNVA"; break;
 		case V4L2_PIX_FMT_SN9C10X:	descr = "GSPCA SN9C10X"; break;
@@ -2611,7 +2612,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_PREPARE_BUF, v4l_prepare_buf, v4l_print_buffer, INFO_FL_QUEUE),
 	IOCTL_INFO_STD(VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings, v4l_print_enum_dv_timings, INFO_FL_CLEAR(v4l2_enum_dv_timings, pad)),
 	IOCTL_INFO_STD(VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings, v4l_print_dv_timings, INFO_FL_ALWAYS_COPY),
-	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, type)),
+	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, pad)),
 	IOCTL_INFO_FNC(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_INFO, v4l_dbg_g_chip_info, v4l_print_dbg_chip_info, INFO_FL_CLEAR(v4l2_dbg_chip_info, match)),
 	IOCTL_INFO_FNC(VIDIOC_QUERY_EXT_CTRL, v4l_query_ext_ctrl, v4l_print_query_ext_ctrl, INFO_FL_CTRL | INFO_FL_CLEAR(v4l2_query_ext_ctrl, id)),
@@ -2832,14 +2833,15 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	size_t  array_size = 0;
 	void __user *user_ptr = NULL;
 	void	**kernel_ptr = NULL;
+	const size_t ioc_size = _IOC_SIZE(cmd);
 
 	/*  Copy arguments into temp kernel buffer  */
 	if (_IOC_DIR(cmd) != _IOC_NONE) {
-		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
+		if (ioc_size <= sizeof(sbuf)) {
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kvmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
+			mbuf = kvmalloc(ioc_size, GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;
@@ -2847,7 +2849,7 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 
 		err = -EFAULT;
 		if (_IOC_DIR(cmd) & _IOC_WRITE) {
-			unsigned int n = _IOC_SIZE(cmd);
+			unsigned int n = ioc_size;
 
 			/*
 			 * In some cases, only a few fields are used as input,
@@ -2868,11 +2870,11 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 				goto out;
 
 			/* zero out anything we don't copy from userspace */
-			if (n < _IOC_SIZE(cmd))
-				memset((u8 *)parg + n, 0, _IOC_SIZE(cmd) - n);
+			if (n < ioc_size)
+				memset((u8 *)parg + n, 0, ioc_size - n);
 		} else {
 			/* read-only ioctl */
-			memset(parg, 0, _IOC_SIZE(cmd));
+			memset(parg, 0, ioc_size);
 		}
 	}
 
@@ -2930,7 +2932,7 @@ out_array_args:
 	switch (_IOC_DIR(cmd)) {
 	case _IOC_READ:
 	case (_IOC_WRITE | _IOC_READ):
-		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
+		if (copy_to_user((void __user *)arg, parg, ioc_size))
 			err = -EFAULT;
 		break;
 	}

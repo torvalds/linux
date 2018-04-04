@@ -1148,6 +1148,11 @@ struct ov2722_resolution ov2722_res_preview[] = {
 };
 #define N_RES_PREVIEW (ARRAY_SIZE(ov2722_res_preview))
 
+/*
+ * Disable non-preview configurations until the configuration selection is
+ * improved.
+ */
+#if 0
 struct ov2722_resolution ov2722_res_still[] = {
 	{
 		.desc = "ov2722_480P_30fps",
@@ -1250,6 +1255,7 @@ struct ov2722_resolution ov2722_res_video[] = {
 	},
 };
 #define N_RES_VIDEO (ARRAY_SIZE(ov2722_res_video))
+#endif
 
 static struct ov2722_resolution *ov2722_res = ov2722_res_preview;
 static unsigned long N_RES = N_RES_PREVIEW;

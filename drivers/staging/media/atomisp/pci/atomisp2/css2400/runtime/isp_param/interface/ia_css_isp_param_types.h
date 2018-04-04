@@ -94,14 +94,5 @@ union ia_css_all_memory_offsets {
 	} array[IA_CSS_NUM_PARAM_CLASSES];
 };
 
-#define IA_CSS_DEFAULT_ISP_MEM_PARAMS \
-		{ { { { NULL, 0 } } } }
-
-#define IA_CSS_DEFAULT_ISP_CSS_PARAMS \
-		{ { { { 0, 0 } } } }
-
-#define IA_CSS_DEFAULT_ISP_ISP_PARAMS \
-		{ { { { 0, 0 } } } }
-
 #endif /* _IA_CSS_ISP_PARAM_TYPES_H_ */
 

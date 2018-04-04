@@ -15,21 +15,11 @@
 
 #define IR_SPI_DRIVER_NAME		"ir-spi"
 
-/* pulse value for different duty cycles */
-#define IR_SPI_PULSE_DC_50		0xff00
-#define IR_SPI_PULSE_DC_60		0xfc00
-#define IR_SPI_PULSE_DC_70		0xf800
-#define IR_SPI_PULSE_DC_75		0xf000
-#define IR_SPI_PULSE_DC_80		0xc000
-#define IR_SPI_PULSE_DC_90		0x8000
-
 #define IR_SPI_DEFAULT_FREQUENCY	38000
-#define IR_SPI_BIT_PER_WORD		    8
 #define IR_SPI_MAX_BUFSIZE		 4096
 
 struct ir_spi_data {
 	u32 freq;
-	u8 duty_cycle;
 	bool negated;
 
 	u16 tx_buf[IR_SPI_MAX_BUFSIZE];
@@ -105,19 +95,9 @@ static int ir_spi_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 static int ir_spi_set_duty_cycle(struct rc_dev *dev, u32 duty_cycle)
 {
 	struct ir_spi_data *idata = dev->priv;
+	int bits = (duty_cycle * 15) / 100;
 
-	if (duty_cycle >= 90)
-		idata->pulse = IR_SPI_PULSE_DC_90;
-	else if (duty_cycle >= 80)
-		idata->pulse = IR_SPI_PULSE_DC_80;
-	else if (duty_cycle >= 75)
-		idata->pulse = IR_SPI_PULSE_DC_75;
-	else if (duty_cycle >= 70)
-		idata->pulse = IR_SPI_PULSE_DC_70;
-	else if (duty_cycle >= 60)
-		idata->pulse = IR_SPI_PULSE_DC_60;
-	else
-		idata->pulse = IR_SPI_PULSE_DC_50;
+	idata->pulse = GENMASK(bits, 0);
 
 	if (idata->negated) {
 		idata->pulse = ~idata->pulse;

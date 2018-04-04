@@ -922,6 +922,85 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = NULL,
 		} },
 	},
+	[CX231XX_BOARD_HAUPPAUGE_935C] = {
+		.name = "Hauppauge WinTV-HVR-935C",
+		.tuner_type = TUNER_ABSENT,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_1_MUX_3,
+		.has_dvb = 1,
+		.demod_addr = 0x64, /* 0xc8 >> 1 */
+		.norm = V4L2_STD_PAL,
+
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
+	[CX231XX_BOARD_HAUPPAUGE_975] = {
+		.name = "Hauppauge WinTV-HVR-975",
+		.tuner_type = TUNER_ABSENT,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = I2C_1_MUX_3,
+		.demod_i2c_master = I2C_1_MUX_3,
+		.has_dvb = 1,
+		.demod_addr = 0x59, /* 0xb2 >> 1 */
+		.demod_addr2 = 0x64, /* 0xc8 >> 1 */
+		.norm = V4L2_STD_ALL,
+
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -953,6 +1032,10 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{USB_DEVICE(0x2040, 0xb123),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_955Q},
+	{USB_DEVICE(0x2040, 0xb151),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_935C},
+	{USB_DEVICE(0x2040, 0xb150),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_975},
 	{USB_DEVICE(0x2040, 0xb130),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx},
 	{USB_DEVICE(0x2040, 0xb131),
@@ -1135,7 +1218,7 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
 		       u8 *eedata, int len)
 {
-	int ret = 0;
+	int ret;
 	u8 start_offset = 0;
 	int len_todo = len;
 	u8 *eedata_cur = eedata;
@@ -1211,6 +1294,8 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1113xx:
 	case CX231XX_BOARD_HAUPPAUGE_930C_HD_1114xx:
 	case CX231XX_BOARD_HAUPPAUGE_955Q:
+	case CX231XX_BOARD_HAUPPAUGE_935C:
+	case CX231XX_BOARD_HAUPPAUGE_975:
 		{
 			struct eeprom {
 				struct tveeprom tvee;

@@ -1853,8 +1853,8 @@ static int ov5670_read_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	struct i2c_msg msgs[2];
 	u8 *data_be_p;
-	u32 data_be = 0;
-	u16 reg_addr_be = cpu_to_be16(reg);
+	__be32 data_be = 0;
+	__be16 reg_addr_be = cpu_to_be16(reg);
 	int ret;
 
 	if (len > 4)
@@ -1891,6 +1891,7 @@ static int ov5670_write_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 	int val_i;
 	u8 buf[6];
 	u8 *val_p;
+	__be32 tmp;
 
 	if (len > 4)
 		return -EINVAL;
@@ -1898,8 +1899,8 @@ static int ov5670_write_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 	buf[0] = reg >> 8;
 	buf[1] = reg & 0xff;
 
-	val = cpu_to_be32(val);
-	val_p = (u8 *)&val;
+	tmp = cpu_to_be32(val);
+	val_p = (u8 *)&tmp;
 	buf_i = 2;
 	val_i = 4 - len;
 
@@ -2180,36 +2181,6 @@ static int ov5670_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/* Calculate resolution distance */
-static int ov5670_get_reso_dist(const struct ov5670_mode *mode,
-				struct v4l2_mbus_framefmt *framefmt)
-{
-	return abs(mode->width - framefmt->width) +
-	       abs(mode->height - framefmt->height);
-}
-
-/* Find the closest supported resolution to the requested resolution */
-static const struct ov5670_mode *ov5670_find_best_fit(
-						struct ov5670 *ov5670,
-						struct v4l2_subdev_format *fmt)
-{
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
-	int dist;
-	int cur_best_fit = 0;
-	int cur_best_fit_dist = -1;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		dist = ov5670_get_reso_dist(&supported_modes[i], framefmt);
-		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
-		}
-	}
-
-	return &supported_modes[cur_best_fit];
-}
-
 static void ov5670_update_pad_format(const struct ov5670_mode *mode,
 				     struct v4l2_subdev_format *fmt)
 {
@@ -2259,7 +2230,8 @@ static int ov5670_set_pad_format(struct v4l2_subdev *sd,
 
 	fmt->format.code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
-	mode = ov5670_find_best_fit(ov5670, fmt);
+	mode = v4l2_find_nearest_size(supported_modes, width, height,
+				      fmt->format.width, fmt->format.height);
 	ov5670_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;

@@ -682,17 +682,17 @@ static int s5h1409_set_mpeg_timing(struct dvb_frontend *fe, int mode)
 
 	val = s5h1409_readreg(state, 0xac) & 0xcfff;
 	switch (mode) {
-	case S5H1409_MPEGTIMING_CONTINOUS_INVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_CONTINUOUS_INVERTING_CLOCK:
 		val |= 0x0000;
 		break;
-	case S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK:
 		dprintk("%s(%d) Mode1 or Defaulting\n", __func__, mode);
 		val |= 0x1000;
 		break;
-	case S5H1409_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_NONCONTINUOUS_INVERTING_CLOCK:
 		val |= 0x2000;
 		break;
-	case S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK:
 		val |= 0x3000;
 		break;
 	default:

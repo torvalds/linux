@@ -36,6 +36,7 @@
 #define RC_PROTO_BIT_SHARP		BIT_ULL(RC_PROTO_SHARP)
 #define RC_PROTO_BIT_XMP		BIT_ULL(RC_PROTO_XMP)
 #define RC_PROTO_BIT_CEC		BIT_ULL(RC_PROTO_CEC)
+#define RC_PROTO_BIT_IMON		BIT_ULL(RC_PROTO_IMON)
 
 #define RC_PROTO_BIT_ALL \
 			(RC_PROTO_BIT_UNKNOWN | RC_PROTO_BIT_OTHER | \
@@ -49,7 +50,8 @@
 			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
 			 RC_PROTO_BIT_RC6_6A_24 | RC_PROTO_BIT_RC6_6A_32 | \
 			 RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_SHARP | \
-			 RC_PROTO_BIT_XMP | RC_PROTO_BIT_CEC)
+			 RC_PROTO_BIT_XMP | RC_PROTO_BIT_CEC | \
+			 RC_PROTO_BIT_IMON)
 /* All rc protocols for which we have decoders */
 #define RC_PROTO_BIT_ALL_IR_DECODER \
 			(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
@@ -62,7 +64,7 @@
 			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
 			 RC_PROTO_BIT_RC6_6A_24 |  RC_PROTO_BIT_RC6_6A_32 | \
 			 RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_SHARP | \
-			 RC_PROTO_BIT_XMP)
+			 RC_PROTO_BIT_XMP | RC_PROTO_BIT_IMON)
 
 #define RC_PROTO_BIT_ALL_IR_ENCODER \
 			(RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 | \
@@ -75,7 +77,7 @@
 			 RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 | \
 			 RC_PROTO_BIT_RC6_6A_24 | \
 			 RC_PROTO_BIT_RC6_6A_32 | RC_PROTO_BIT_RC6_MCE | \
-			 RC_PROTO_BIT_SHARP)
+			 RC_PROTO_BIT_SHARP | RC_PROTO_BIT_IMON)
 
 #define RC_SCANCODE_UNKNOWN(x)			(x)
 #define RC_SCANCODE_OTHER(x)			(x)
@@ -211,6 +213,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_HISI_TV_DEMO              "rc-hisi-tv-demo"
 #define RC_MAP_IMON_MCE                  "rc-imon-mce"
 #define RC_MAP_IMON_PAD                  "rc-imon-pad"
+#define RC_MAP_IMON_RSC                  "rc-imon-rsc"
 #define RC_MAP_IODATA_BCTV7E             "rc-iodata-bctv7e"
 #define RC_MAP_IT913X_V1                 "rc-it913x-v1"
 #define RC_MAP_IT913X_V2                 "rc-it913x-v2"

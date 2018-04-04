@@ -1850,7 +1850,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	bool frame_done_found[MAX_STREAM_NUM] = {0};
 	bool css_pipe_done[MAX_STREAM_NUM] = {0};
 	unsigned int i;
-	struct atomisp_sub_device *asd = &isp->asd[0];
+	struct atomisp_sub_device *asd;
 
 	dev_dbg(isp->dev, ">%s\n", __func__);
 
@@ -2091,7 +2091,7 @@ int atomisp_set_sensor_runmode(struct atomisp_sub_device *asd,
 	struct atomisp_device *isp = asd->isp;
 	struct v4l2_ctrl *c;
 	struct v4l2_streamparm p = {0};
-	int ret;
+	int ret = 0;
 	int modes[] = { CI_MODE_NONE,
 			CI_MODE_VIDEO,
 			CI_MODE_STILL_CAPTURE,
@@ -2105,13 +2105,8 @@ int atomisp_set_sensor_runmode(struct atomisp_sub_device *asd,
 	c = v4l2_ctrl_find(isp->inputs[asd->input_curr].camera->ctrl_handler,
 			   V4L2_CID_RUN_MODE);
 
-	if (c) {
+	if (c)
 		ret = v4l2_ctrl_s_ctrl(c, runmode->mode);
-	} else {
-		p.parm.capture.capturemode = modes[runmode->mode];
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       video, s_parm, &p);
-	}
 
 	mutex_unlock(asd->ctrl_handler.lock);
 	return ret;

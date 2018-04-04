@@ -659,10 +659,10 @@ static u32 init_done_read_prop(struct venus_core *core, struct venus_inst *inst,
 				    prop->buffer_type == HFI_BUFFER_OUTPUT2) {
 					switch (prop->data[i]) {
 					case HFI_BUFFER_MODE_STATIC:
-						inst->cap_bufs_mode_static = 1;
+						inst->cap_bufs_mode_static = true;
 						break;
 					case HFI_BUFFER_MODE_DYNAMIC:
-						inst->cap_bufs_mode_dynamic = 1;
+						inst->cap_bufs_mode_dynamic = true;
 						break;
 					default:
 						break;

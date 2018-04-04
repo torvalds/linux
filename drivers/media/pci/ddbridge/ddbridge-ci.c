@@ -172,6 +172,7 @@ static void ci_attach(struct ddb_port *port)
 	memcpy(&ci->en, &en_templ, sizeof(en_templ));
 	ci->en.data = ci;
 	port->en = &ci->en;
+	port->en_freedata = 1;
 	ci->port = port;
 	ci->nr = port->nr - 2;
 }
@@ -304,6 +305,7 @@ static void ci_xo2_attach(struct ddb_port *port)
 	memcpy(&ci->en, &en_xo2_templ, sizeof(en_xo2_templ));
 	ci->en.data = ci;
 	port->en = &ci->en;
+	port->en_freedata = 1;
 	ci->port = port;
 	ci->nr = port->nr - 2;
 	ci->port->creg = 0;
@@ -311,38 +313,58 @@ static void ci_xo2_attach(struct ddb_port *port)
 	write_creg(ci, 0x08, 0x08);
 }
 
-static struct cxd2099_cfg cxd_cfg = {
+static const struct cxd2099_cfg cxd_cfgtmpl = {
 	.bitrate =  72000,
-	.adr     =  0x40,
 	.polarity = 1,
 	.clock_mode = 1,
 	.max_i2c = 512,
 };
 
+static int ci_cxd2099_attach(struct ddb_port *port, u32 bitrate)
+{
+	struct cxd2099_cfg cxd_cfg = cxd_cfgtmpl;
+	struct i2c_client *client;
+
+	cxd_cfg.bitrate = bitrate;
+	cxd_cfg.en = &port->en;
+
+	client = dvb_module_probe("cxd2099", NULL, &port->i2c->adap,
+				  0x40, &cxd_cfg);
+	if (!client)
+		goto err;
+
+	port->dvb[0].i2c_client[0] = client;
+	port->en_freedata = 0;
+	return 0;
+
+err:
+	dev_err(port->dev->dev, "CXD2099AR attach failed\n");
+	return -ENODEV;
+}
+
 int ddb_ci_attach(struct ddb_port *port, u32 bitrate)
 {
+	int ret;
+
 	switch (port->type) {
 	case DDB_CI_EXTERNAL_SONY:
-		cxd_cfg.bitrate = bitrate;
-		port->en = cxd2099_attach(&cxd_cfg, port, &port->i2c->adap);
-		if (!port->en)
+		ret = ci_cxd2099_attach(port, bitrate);
+		if (ret)
 			return -ENODEV;
 		break;
-
 	case DDB_CI_EXTERNAL_XO2:
 	case DDB_CI_EXTERNAL_XO2_B:
 		ci_xo2_attach(port);
-		if (!port->en)
-			return -ENODEV;
 		break;
-
 	case DDB_CI_INTERNAL:
 		ci_attach(port);
-		if (!port->en)
-			return -ENODEV;
 		break;
+	default:
+		return -ENODEV;
 	}
 
+	if (!port->en)
+		return -ENODEV;
 	dvb_ca_en50221_init(port->dvb[0].adap, port->en, 0, 1);
 	return 0;
 }
@@ -353,7 +375,14 @@ void ddb_ci_detach(struct ddb_port *port)
 		dvb_unregister_device(port->dvb[0].dev);
 	if (port->en) {
 		dvb_ca_en50221_release(port->en);
-		kfree(port->en->data);
+
+		dvb_module_release(port->dvb[0].i2c_client[0]);
+		port->dvb[0].i2c_client[0] = NULL;
+
+		/* free alloc'ed memory if needed */
+		if (port->en_freedata)
+			kfree(port->en->data);
+
 		port->en = NULL;
 	}
 }
