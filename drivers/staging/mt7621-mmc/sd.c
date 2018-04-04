@@ -2701,7 +2701,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	struct msdc_hw *hw;
 	int ret, irq;
 
-	pdev->dev.platform_data = &msdc0_hw;
+	hw = &msdc0_hw;
 
 	if (of_property_read_bool(pdev->dev.of_node, "mtk,wp-en"))
 		msdc0_hw.flags |= MSDC_WP_PIN_EN;
@@ -2711,7 +2711,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	if (!mmc)
 		return -ENOMEM;
 
-	hw   = (struct msdc_hw *)pdev->dev.platform_data;
 	irq  = platform_get_irq(pdev, 0);
 
 	//BUG_ON((!hw) || (!mem) || (irq < 0)); /* --- by chhung */
