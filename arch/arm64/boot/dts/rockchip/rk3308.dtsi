@@ -793,8 +793,6 @@
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-		assigned-clocks = <&cru SCLK_SDMMC>;
-		assigned-clock-parents = <&cru SCLK_SDMMC_DIV50>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
@@ -810,8 +808,6 @@
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-		assigned-clocks = <&cru SCLK_EMMC>;
-		assigned-clock-parents = <&cru SCLK_EMMC_DIV50>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
@@ -825,8 +821,6 @@
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
-		assigned-clocks = <&cru SCLK_SDIO>;
-		assigned-clock-parents = <&cru SCLK_SDIO_DIV50>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
