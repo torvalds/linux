@@ -33,9 +33,9 @@ Axel Lin <axel.lin@gmail.com>
 Ben Gardner <bgardner@wabtec.com>
 Ben M Cahill <ben.m.cahill@intel.com>
 Björn Steinbrink <B.Steinbrink@gmx.de>
-Boris Brezillon <boris.brezillon@free-electrons.com>
-Boris Brezillon <boris.brezillon@free-electrons.com> <b.brezillon.dev@gmail.com>
-Boris Brezillon <boris.brezillon@free-electrons.com> <b.brezillon@overkiz.com>
+Boris Brezillon <boris.brezillon@bootlin.com> <boris.brezillon@free-electrons.com>
+Boris Brezillon <boris.brezillon@bootlin.com> <b.brezillon.dev@gmail.com>
+Boris Brezillon <boris.brezillon@bootlin.com> <b.brezillon@overkiz.com>
 Brian Avery <b.avery@hp.com>
 Brian King <brking@us.ibm.com>
 Christoph Hellwig <hch@lst.de>
@@ -126,6 +126,7 @@ Mayuresh Janorkar <mayur@ti.com>
 Michael Buesch <m@bues.ch>
 Michel Dänzer <michel@tungstengraphics.com>
 Miodrag Dinic <miodrag.dinic@mips.com> <miodrag.dinic@imgtec.com>
+Miquel Raynal <miquel.raynal@bootlin.com> <miquel.raynal@free-electrons.com>
 Mitesh shah <mshah@teja.com>
 Mohit Kumar <mohit.kumar@st.com> <mohit.kumar.dhaka@gmail.com>
 Morten Welinder <terra@gnome.org>

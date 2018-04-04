@@ -3,7 +3,7 @@
  *
  *  Copyright (c) 2004
  *
- *  Derived from drivers/mtd/nand/spia.c
+ *  Derived from drivers/mtd/nand/spia.c (removed in v3.8)
  *	  Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
  *
  * This program is free software; you can redistribute it and/or modify

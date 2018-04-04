@@ -17,7 +17,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/mtd/nand_ecc.h>
-#include "nand/sm_common.h"
+#include "nand/raw/sm_common.h"
 #include "sm_ftl.h"
 
 
