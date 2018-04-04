@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Technology tomer.maimon@nuvoton.com
 // Copyright 2018 Google, Inc.
 
-#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "nuvoton-common-npcm7xx.dtsi"
 
 / {
 	#address-cells = <1>;
@@ -32,188 +32,13 @@
 			next-level-cache = <&l2>;
 		};
 	};
-
-	/* external reference clock */
-	clk-refclk: clk-refclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
-		clock-output-names = "refclk";
-	};
-
-	/* external reference clock for cpu. float in normal operation */
-	clk-sysbypck: clk-sysbypck {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <800000000>;
-		clock-output-names = "sysbypck";
-	};
-
-	/* external reference clock for MC. float in normal operation */
-	clk-mcbypck: clk-mcbypck {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <800000000>;
-		clock-output-names = "mcbypck";
-	};
-
-	 /* external clock signal rg1refck, supplied by the phy */
-	clk-rg1refck: clk-rg1refck {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <125000000>;
-		clock-output-names = "clk-rg1refck";
-	};
-
-	/* external clock signal rg2refck, supplied by the phy */
-	clk-rg2refck: clk-rg2refck {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <125000000>;
-		clock-output-names = "clk-rg2refck";
-	};
-
-	clk-xin: clk-xin {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <50000000>;
-		clock-output-names = "clk-xin";
-	};
-
 	soc {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "simple-bus";
-		interrupt-parent = <&gic>;
-		ranges = <0x0 0xf0000000 0x00900000>;
-
-		gcr: gcr@800000 {
-			compatible = "nuvoton,npcm750-gcr", "syscon",
-				"simple-mfd";
-			reg = <0x800000 0x1000>;
-		};
-
-		scu: scu@3fe000 {
-			compatible = "arm,cortex-a9-scu";
-			reg = <0x3fe000 0x1000>;
-		};
-
-		l2: cache-controller@3fc000 {
-			compatible = "arm,pl310-cache";
-			reg = <0x3fc000 0x1000>;
-			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-			cache-unified;
-			cache-level = <2>;
-			clocks = <&clk 10>;
-			arm,shared-override;
-		};
-
-		gic: interrupt-controller@3ff000 {
-			compatible = "arm,cortex-a9-gic";
-			interrupt-controller;
-			#interrupt-cells = <3>;
-			reg = <0x3ff000 0x1000>,
-			    <0x3fe100 0x100>;
-		};
-
 		timer@3fe600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x3fe600 0x20>;
 			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) |
 						  IRQ_TYPE_LEVEL_HIGH)>;
 			clocks = <&clk 5>;
-		};
-	};
-
-	ahb {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "simple-bus";
-		interrupt-parent = <&gic>;
-		ranges;
-
-		clk: clock-controller@f0801000 {
-			compatible = "nuvoton,npcm750-clk", "syscon";
-			#clock-cells = <1>;
-			clock-controller;
-			reg = <0xf0801000 0x1000>;
-			clock-names = "refclk", "sysbypck", "mcbypck";
-			clocks = <&clk-refclk>, <&clk-sysbypck>, <&clk-mcbypck>;
-		};
-
-		apb {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "simple-bus";
-			interrupt-parent = <&gic>;
-			ranges = <0x0 0xf0000000 0x00300000>;
-
-			timer0: timer@8000 {
-				compatible = "nuvoton,npcm750-timer";
-				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x8000 0x50>;
-				clocks = <&clk 5>;
-			};
-
-			watchdog0: watchdog@801C {
-				compatible = "nuvoton,npcm750-wdt";
-				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x801C 0x4>;
-				status = "disabled";
-				clocks = <&clk 5>;
-			};
-
-			watchdog1: watchdog@901C {
-				compatible = "nuvoton,npcm750-wdt";
-				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0x901C 0x4>;
-				status = "disabled";
-				clocks = <&clk 5>;
-			};
-
-			watchdog2: watchdog@a01C {
-				compatible = "nuvoton,npcm750-wdt";
-				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-				reg = <0xa01C 0x4>;
-				status = "disabled";
-				clocks = <&clk 5>;
-			};
-
-			serial0: serial@1000 {
-				compatible = "nuvoton,npcm750-uart";
-				reg = <0x1000 0x1000>;
-				clocks = <&clk 6>;
-				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				reg-shift = <2>;
-				status = "disabled";
-			};
-
-			serial1: serial@2000 {
-				compatible = "nuvoton,npcm750-uart";
-				reg = <0x2000 0x1000>;
-				clocks = <&clk 6>;
-				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-				reg-shift = <2>;
-				status = "disabled";
-			};
-
-			serial2: serial@3000 {
-				compatible = "nuvoton,npcm750-uart";
-				reg = <0x3000 0x1000>;
-				clocks = <&clk 6>;
-				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
-				reg-shift = <2>;
-				status = "disabled";
-			};
-
-			serial3: serial@4000 {
-				compatible = "nuvoton,npcm750-uart";
-				reg = <0x4000 0x1000>;
-				clocks = <&clk 6>;
-				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-				reg-shift = <2>;
-				status = "disabled";
-			};
 		};
 	};
 };
