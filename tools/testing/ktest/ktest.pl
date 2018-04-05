@@ -10,6 +10,7 @@ use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 use File::Path qw(mkpath);
 use File::Copy qw(cp);
 use FileHandle;
+use FindBin;
 
 my $VERSION = "0.2";
 
@@ -165,6 +166,7 @@ my $store_successes;
 my $test_name;
 my $timeout;
 my $connect_timeout;
+my $config_bisect_exec;
 my $booted_timeout;
 my $detect_triplefault;
 my $console;
@@ -205,6 +207,9 @@ my $build_time;
 my $install_time;
 my $reboot_time;
 my $test_time;
+
+my $pwd;
+my $dirname = $FindBin::Bin;
 
 # set when a test is something other that just building or install
 # which would require more options.
@@ -299,6 +304,7 @@ my %option_map = (
     "TEST_NAME"			=> \$test_name,
     "TIMEOUT"			=> \$timeout,
     "CONNECT_TIMEOUT"		=> \$connect_timeout,
+    "CONFIG_BISECT_EXEC"	=> \$config_bisect_exec,
     "BOOTED_TIMEOUT"		=> \$booted_timeout,
     "CONSOLE"			=> \$console,
     "CLOSE_CONSOLE_SIGNAL"	=> \$close_console_signal,
@@ -340,6 +346,7 @@ my %used_options;
 
 # default variables that can be used
 chomp ($variable{"PWD"} = `pwd`);
+$pwd = $variable{"PWD"};
 
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
@@ -3134,7 +3141,7 @@ sub run_config_bisect {
     if (!length($last_result)) {
 	$reset = "-r";
     }
-    run_command "$builddir/tools/testing/ktest/config-bisect.pl $reset -b $outputdir $good $bad $last_result", 1;
+    run_command "$config_bisect_exec $reset -b $outputdir $good $bad $last_result", 1;
 
     # config-bisect returns:
     #   0 if there is more to bisect
@@ -3180,6 +3187,24 @@ sub config_bisect {
 	    return 1;
 	}
 	$good_config = $output_config;
+    }
+
+    if (!defined($config_bisect_exec)) {
+	# First check the location that ktest.pl ran
+	my @locations = ( "$pwd/config-bisect.pl",
+			  "$dirname/config-bisect.pl",
+			  "$builddir/tools/testing/ktest/config-bisect.pl",
+			  undef );
+	foreach my $loc (@locations) {
+	    doprint "loc = $loc\n";
+	    $config_bisect_exec = $loc;
+	    last if (defined($config_bisect_exec && -x $config_bisect_exec));
+	}
+	if (!defined($config_bisect_exec)) {
+	    fail "Could not find an executable config-bisect.pl\n",
+		"  Set CONFIG_BISECT_EXEC to point to config-bisect.pl";
+	    return 1;
+	}
     }
 
     # we don't want min configs to cause issues here.
