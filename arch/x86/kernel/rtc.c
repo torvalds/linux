@@ -41,11 +41,11 @@ EXPORT_SYMBOL(rtc_lock);
  */
 int mach_set_rtc_mmss(const struct timespec *now)
 {
-	unsigned long nowtime = now->tv_sec;
+	unsigned long long nowtime = now->tv_sec;
 	struct rtc_time tm;
 	int retval = 0;
 
-	rtc_time_to_tm(nowtime, &tm);
+	rtc_time64_to_tm(nowtime, &tm);
 	if (!rtc_valid_tm(&tm)) {
 		retval = mc146818_set_time(&tm);
 		if (retval)
@@ -53,7 +53,7 @@ int mach_set_rtc_mmss(const struct timespec *now)
 			       __func__, retval);
 	} else {
 		printk(KERN_ERR
-		       "%s: Invalid RTC value: write of %lx to RTC failed\n",
+		       "%s: Invalid RTC value: write of %llx to RTC failed\n",
 			__func__, nowtime);
 		retval = -EINVAL;
 	}

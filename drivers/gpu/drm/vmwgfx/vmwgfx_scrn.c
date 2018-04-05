@@ -316,68 +316,20 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 				  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
-	struct vmw_fence_obj *fence = NULL;
-	struct drm_vmw_rect vclips;
 	int ret;
 
 	if (!vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags, ctx);
+	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
 	if (ret) {
 		DRM_ERROR("Page flip error %d.\n", ret);
 		return ret;
 	}
 
-	/* do a full screen dirty update */
-	vclips.x = crtc->x;
-	vclips.y = crtc->y;
-	vclips.w = crtc->mode.hdisplay;
-	vclips.h = crtc->mode.vdisplay;
-
-	if (vfb->dmabuf)
-		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb,
-						  NULL, &vclips, 1, 1,
-						  true, &fence);
-	else
-		ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb,
-						   NULL, &vclips, NULL,
-						   0, 0, 1, 1, &fence);
-
-
-	if (ret != 0)
-		goto out_no_fence;
-	if (!fence) {
-		ret = -EINVAL;
-		goto out_no_fence;
-	}
-
-	if (event) {
-		struct drm_file *file_priv = event->base.file_priv;
-
-		ret = vmw_event_fence_action_queue(file_priv, fence,
-						   &event->base,
-						   &event->event.vbl.tv_sec,
-						   &event->event.vbl.tv_usec,
-						   true);
-	}
-
-	/*
-	 * No need to hold on to this now. The only cleanup
-	 * we need to do if we fail is unref the fence.
-	 */
-	vmw_fence_obj_unreference(&fence);
-
 	if (vmw_crtc_to_du(crtc)->is_implicit)
 		vmw_kms_update_implicit_fb(dev_priv, crtc);
 
-	return ret;
-
-out_no_fence:
-	drm_atomic_set_fb_for_plane(crtc->primary->state, old_fb);
 	return ret;
 }
 
@@ -453,7 +405,11 @@ vmw_sou_primary_plane_cleanup_fb(struct drm_plane *plane,
 				 struct drm_plane_state *old_state)
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
+	struct drm_crtc *crtc = plane->state->crtc ?
+		plane->state->crtc : old_state->crtc;
 
+	if (vps->dmabuf)
+		vmw_dmabuf_unpin(vmw_priv(crtc->dev), vps->dmabuf, false);
 	vmw_dmabuf_unreference(&vps->dmabuf);
 	vps->dmabuf_size = 0;
 
@@ -491,10 +447,17 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	}
 
 	size = new_state->crtc_w * new_state->crtc_h * 4;
+	dev_priv = vmw_priv(crtc->dev);
 
 	if (vps->dmabuf) {
-		if (vps->dmabuf_size == size)
-			return 0;
+		if (vps->dmabuf_size == size) {
+			/*
+			 * Note that this might temporarily up the pin-count
+			 * to 2, until cleanup_fb() is called.
+			 */
+			return vmw_dmabuf_pin_in_vram(dev_priv, vps->dmabuf,
+						      true);
+		}
 
 		vmw_dmabuf_unreference(&vps->dmabuf);
 		vps->dmabuf_size = 0;
@@ -504,7 +467,6 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	if (!vps->dmabuf)
 		return -ENOMEM;
 
-	dev_priv = vmw_priv(crtc->dev);
 	vmw_svga_enable(dev_priv);
 
 	/* After we have alloced the backing store might not be able to
@@ -515,13 +477,16 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 			      &vmw_vram_ne_placement,
 			      false, &vmw_dmabuf_bo_free);
 	vmw_overlay_resume_all(dev_priv);
-
-	if (ret != 0)
+	if (ret) {
 		vps->dmabuf = NULL; /* vmw_dmabuf_init frees on error */
-	else
-		vps->dmabuf_size = size;
+		return ret;
+	}
 
-	return ret;
+	/*
+	 * TTM already thinks the buffer is pinned, but make sure the
+	 * pin_count is upped.
+	 */
+	return vmw_dmabuf_pin_in_vram(dev_priv, vps->dmabuf, true);
 }
 
 
@@ -530,9 +495,71 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
 	struct drm_crtc *crtc = plane->state->crtc;
+	struct drm_pending_vblank_event *event = NULL;
+	struct vmw_fence_obj *fence = NULL;
+	int ret;
 
-	if (crtc)
+	if (crtc && plane->state->fb) {
+		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+		struct vmw_framebuffer *vfb =
+			vmw_framebuffer_to_vfb(plane->state->fb);
+		struct drm_vmw_rect vclips;
+
+		vclips.x = crtc->x;
+		vclips.y = crtc->y;
+		vclips.w = crtc->mode.hdisplay;
+		vclips.h = crtc->mode.vdisplay;
+
+		if (vfb->dmabuf)
+			ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb, NULL,
+							  &vclips, 1, 1, true,
+							  &fence, crtc);
+		else
+			ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL,
+							   &vclips, NULL, 0, 0,
+							   1, 1, &fence, crtc);
+
+		/*
+		 * We cannot really fail this function, so if we do, then output
+		 * an error and maintain consistent atomic state.
+		 */
+		if (ret != 0)
+			DRM_ERROR("Failed to update screen.\n");
+
 		crtc->primary->fb = plane->state->fb;
+	} else {
+		/*
+		 * When disabling a plane, CRTC and FB should always be NULL
+		 * together, otherwise it's an error.
+		 * Here primary plane is being disable so should really blank
+		 * the screen object display unit, if not already done.
+		 */
+		return;
+	}
+
+	event = crtc->state->event;
+	/*
+	 * In case of failure and other cases, vblank event will be sent in
+	 * vmw_du_crtc_atomic_flush.
+	 */
+	if (event && fence) {
+		struct drm_file *file_priv = event->base.file_priv;
+
+		ret = vmw_event_fence_action_queue(file_priv,
+						   fence,
+						   &event->base,
+						   &event->event.vbl.tv_sec,
+						   &event->event.vbl.tv_usec,
+						   true);
+
+		if (unlikely(ret != 0))
+			DRM_ERROR("Failed to queue event on fence.\n");
+		else
+			crtc->state->event = NULL;
+	}
+
+	if (fence)
+		vmw_fence_obj_unreference(&fence);
 }
 
 
@@ -892,6 +919,7 @@ static void vmw_sou_surface_clip(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
+ * @crtc: If crtc is passed, perform surface dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -904,7 +932,8 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 				 s32 dest_x,
 				 s32 dest_y,
 				 unsigned num_clips, int inc,
-				 struct vmw_fence_obj **out_fence)
+				 struct vmw_fence_obj **out_fence,
+				 struct drm_crtc *crtc)
 {
 	struct vmw_framebuffer_surface *vfbs =
 		container_of(framebuffer, typeof(*vfbs), base);
@@ -924,6 +953,7 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	sdirty.base.dev_priv = dev_priv;
 	sdirty.base.fifo_reserve_size = sizeof(struct vmw_kms_sou_dirty_cmd) +
 	  sizeof(SVGASignedRect) * num_clips;
+	sdirty.base.crtc = crtc;
 
 	sdirty.sid = srf->id;
 	sdirty.left = sdirty.top = S32_MAX;
@@ -995,6 +1025,7 @@ static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
+ * @crtc: If crtc is passed, perform dmabuf dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -1005,7 +1036,8 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct drm_vmw_rect *vclips,
 				unsigned num_clips, int increment,
 				bool interruptible,
-				struct vmw_fence_obj **out_fence)
+				struct vmw_fence_obj **out_fence,
+				struct drm_crtc *crtc)
 {
 	struct vmw_dma_buffer *buf =
 		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
@@ -1014,7 +1046,7 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	int ret;
 
 	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
-					    false);
+					    false, false);
 	if (ret)
 		return ret;
 
@@ -1022,6 +1054,7 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto out_revert;
 
+	dirty.crtc = crtc;
 	dirty.fifo_commit = vmw_sou_dmabuf_fifo_commit;
 	dirty.clip = vmw_sou_dmabuf_clip;
 	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_dmabuf_blit) *
@@ -1093,6 +1126,7 @@ static void vmw_sou_readback_clip(struct vmw_kms_dirty *dirty)
  * Must be set to non-NULL if @file_priv is non-NULL.
  * @vclips: Array of clip rects.
  * @num_clips: Number of clip rects in @vclips.
+ * @crtc: If crtc is passed, readback on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -1102,14 +1136,16 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 struct vmw_framebuffer *vfb,
 			 struct drm_vmw_fence_rep __user *user_fence_rep,
 			 struct drm_vmw_rect *vclips,
-			 uint32_t num_clips)
+			 uint32_t num_clips,
+			 struct drm_crtc *crtc)
 {
 	struct vmw_dma_buffer *buf =
 		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
 	struct vmw_kms_dirty dirty;
 	int ret;
 
-	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, true, false);
+	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, true, false,
+					    false);
 	if (ret)
 		return ret;
 
@@ -1117,6 +1153,7 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto out_revert;
 
+	dirty.crtc = crtc;
 	dirty.fifo_commit = vmw_sou_readback_fifo_commit;
 	dirty.clip = vmw_sou_readback_clip;
 	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_readback_blit) *

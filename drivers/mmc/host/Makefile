@@ -43,7 +43,6 @@ obj-$(CONFIG_MMC_SDHI_SYS_DMAC)		+= renesas_sdhi_sys_dmac.o
 obj-$(CONFIG_MMC_SDHI_INTERNAL_DMAC)	+= renesas_sdhi_internal_dmac.o
 obj-$(CONFIG_MMC_CB710)		+= cb710-mmc.o
 obj-$(CONFIG_MMC_VIA_SDMMC)	+= via-sdmmc.o
-obj-$(CONFIG_SDH_BFIN)		+= bfin_sdh.o
 octeon-mmc-objs := cavium.o cavium-octeon.o
 obj-$(CONFIG_MMC_CAVIUM_OCTEON) += octeon-mmc.o
 thunderx-mmc-objs := cavium.o cavium-thunderx.o

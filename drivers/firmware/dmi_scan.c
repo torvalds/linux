@@ -1005,6 +1005,26 @@ out:
 EXPORT_SYMBOL(dmi_get_date);
 
 /**
+ *	dmi_get_bios_year - get a year out of DMI_BIOS_DATE field
+ *
+ *	Returns year on success, -ENXIO if DMI is not selected,
+ *	or a different negative error code if DMI field is not present
+ *	or not parseable.
+ */
+int dmi_get_bios_year(void)
+{
+	bool exists;
+	int year;
+
+	exists = dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL);
+	if (!exists)
+		return -ENODATA;
+
+	return year ? year : -ERANGE;
+}
+EXPORT_SYMBOL(dmi_get_bios_year);
+
+/**
  *	dmi_walk - Walk the DMI table and get called back for every record
  *	@decode: Callback function
  *	@private_data: Private data to be passed to the callback function

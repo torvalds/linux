@@ -51,7 +51,6 @@
 #include <asm/apic.h>
 #include <asm/irq_remapping.h>
 #include <asm/mmu_context.h>
-#include <asm/microcode.h>
 #include <asm/nospec-branch.h>
 
 #include "trace.h"

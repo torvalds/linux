@@ -346,11 +346,40 @@ extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
 
 struct timespec;
 
-/* The __sys_...msg variants allow MSG_CMSG_COMPAT */
-extern long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
-extern long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
+/* The __sys_...msg variants allow MSG_CMSG_COMPAT iff
+ * forbid_cmsg_compat==false
+ */
+extern long __sys_recvmsg(int fd, struct user_msghdr __user *msg,
+			  unsigned int flags, bool forbid_cmsg_compat);
+extern long __sys_sendmsg(int fd, struct user_msghdr __user *msg,
+			  unsigned int flags, bool forbid_cmsg_compat);
 extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			  unsigned int flags, struct timespec *timeout);
 extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
-			  unsigned int vlen, unsigned int flags);
+			  unsigned int vlen, unsigned int flags,
+			  bool forbid_cmsg_compat);
+
+/* helpers which do the actual work for syscalls */
+extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
+			  unsigned int flags, struct sockaddr __user *addr,
+			  int __user *addr_len);
+extern int __sys_sendto(int fd, void __user *buff, size_t len,
+			unsigned int flags, struct sockaddr __user *addr,
+			int addr_len);
+extern int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
+			 int __user *upeer_addrlen, int flags);
+extern int __sys_socket(int family, int type, int protocol);
+extern int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen);
+extern int __sys_connect(int fd, struct sockaddr __user *uservaddr,
+			 int addrlen);
+extern int __sys_listen(int fd, int backlog);
+extern int __sys_getsockname(int fd, struct sockaddr __user *usockaddr,
+			     int __user *usockaddr_len);
+extern int __sys_getpeername(int fd, struct sockaddr __user *usockaddr,
+			     int __user *usockaddr_len);
+extern int __sys_socketpair(int family, int type, int protocol,
+			    int __user *usockvec);
+extern int __sys_shutdown(int fd, int how);
+
+
 #endif /* _LINUX_SOCKET_H */

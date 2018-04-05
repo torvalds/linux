@@ -28,6 +28,7 @@
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/iommu-helper.h>
 #include <linux/iommu.h>
 #include <linux/delay.h>
@@ -2193,7 +2194,7 @@ static int amd_iommu_add_device(struct device *dev)
 				dev_name(dev));
 
 		iommu_ignore_device(dev);
-		dev->dma_ops = &nommu_dma_ops;
+		dev->dma_ops = &dma_direct_ops;
 		goto out;
 	}
 	init_iommu_group(dev);
@@ -2599,51 +2600,32 @@ static void *alloc_coherent(struct device *dev, size_t size,
 			    unsigned long attrs)
 {
 	u64 dma_mask = dev->coherent_dma_mask;
-	struct protection_domain *domain;
-	struct dma_ops_domain *dma_dom;
-	struct page *page;
+	struct protection_domain *domain = get_domain(dev);
+	bool is_direct = false;
+	void *virt_addr;
 
-	domain = get_domain(dev);
-	if (PTR_ERR(domain) == -EINVAL) {
-		page = alloc_pages(flag, get_order(size));
-		*dma_addr = page_to_phys(page);
-		return page_address(page);
-	} else if (IS_ERR(domain))
-		return NULL;
-
-	dma_dom   = to_dma_ops_domain(domain);
-	size	  = PAGE_ALIGN(size);
-	dma_mask  = dev->coherent_dma_mask;
-	flag     &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
-	flag     |= __GFP_ZERO;
-
-	page = alloc_pages(flag | __GFP_NOWARN,  get_order(size));
-	if (!page) {
-		if (!gfpflags_allow_blocking(flag))
+	if (IS_ERR(domain)) {
+		if (PTR_ERR(domain) != -EINVAL)
 			return NULL;
-
-		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
-						 get_order(size), flag);
-		if (!page)
-			return NULL;
+		is_direct = true;
 	}
+
+	virt_addr = dma_direct_alloc(dev, size, dma_addr, flag, attrs);
+	if (!virt_addr || is_direct)
+		return virt_addr;
 
 	if (!dma_mask)
 		dma_mask = *dev->dma_mask;
 
-	*dma_addr = __map_single(dev, dma_dom, page_to_phys(page),
-				 size, DMA_BIDIRECTIONAL, dma_mask);
-
+	*dma_addr = __map_single(dev, to_dma_ops_domain(domain),
+			virt_to_phys(virt_addr), PAGE_ALIGN(size),
+			DMA_BIDIRECTIONAL, dma_mask);
 	if (*dma_addr == AMD_IOMMU_MAPPING_ERROR)
 		goto out_free;
-
-	return page_address(page);
+	return virt_addr;
 
 out_free:
-
-	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
-		__free_pages(page, get_order(size));
-
+	dma_direct_free(dev, size, virt_addr, *dma_addr, attrs);
 	return NULL;
 }
 
@@ -2654,24 +2636,17 @@ static void free_coherent(struct device *dev, size_t size,
 			  void *virt_addr, dma_addr_t dma_addr,
 			  unsigned long attrs)
 {
-	struct protection_domain *domain;
-	struct dma_ops_domain *dma_dom;
-	struct page *page;
+	struct protection_domain *domain = get_domain(dev);
 
-	page = virt_to_page(virt_addr);
 	size = PAGE_ALIGN(size);
 
-	domain = get_domain(dev);
-	if (IS_ERR(domain))
-		goto free_mem;
+	if (!IS_ERR(domain)) {
+		struct dma_ops_domain *dma_dom = to_dma_ops_domain(domain);
 
-	dma_dom = to_dma_ops_domain(domain);
+		__unmap_single(dma_dom, dma_addr, size, DMA_BIDIRECTIONAL);
+	}
 
-	__unmap_single(dma_dom, dma_addr, size, DMA_BIDIRECTIONAL);
-
-free_mem:
-	if (!dma_release_from_contiguous(dev, page, size >> PAGE_SHIFT))
-		__free_pages(page, get_order(size));
+	dma_direct_free(dev, size, virt_addr, dma_addr, attrs);
 }
 
 /*
@@ -2680,7 +2655,7 @@ free_mem:
  */
 static int amd_iommu_dma_supported(struct device *dev, u64 mask)
 {
-	if (!x86_dma_supported(dev, mask))
+	if (!dma_direct_supported(dev, mask))
 		return 0;
 	return check_device(dev);
 }
@@ -2794,7 +2769,7 @@ int __init amd_iommu_init_dma_ops(void)
 	 * continue to be SWIOTLB.
 	 */
 	if (!swiotlb)
-		dma_ops = &nommu_dma_ops;
+		dma_ops = &dma_direct_ops;
 
 	if (amd_iommu_unmap_flush)
 		pr_info("AMD-Vi: IO/TLB flush on unmap enabled\n");

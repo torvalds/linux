@@ -33,20 +33,6 @@
 #include <string.h>
 #include <unistd.h>
 
-/*
- * glibc synced up and added the metag number but didn't add the relocations.
- * Work around this in a crude manner for now.
- */
-#ifndef EM_METAG
-#define EM_METAG      174
-#endif
-#ifndef R_METAG_ADDR32
-#define R_METAG_ADDR32                   2
-#endif
-#ifndef R_METAG_NONE
-#define R_METAG_NONE                     3
-#endif
-
 #ifndef EM_AARCH64
 #define EM_AARCH64	183
 #define R_AARCH64_NONE		0
@@ -538,12 +524,6 @@ do_file(char const *const fname)
 			gpfx = '_';
 			break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
-	case EM_METAG:	 reltype = R_METAG_ADDR32;
-			 altmcount = "_mcount_wrapper";
-			 rel_type_nop = R_METAG_NONE;
-			 /* We happen to have the same requirement as MIPS */
-			 is_fake_mcount32 = MIPS32_is_fake_mcount;
-			 break;
 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
 	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;

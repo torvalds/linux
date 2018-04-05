@@ -9,6 +9,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -44,6 +45,14 @@ struct panel_drv_data {
 	struct videomode vm;
 
 	struct i2c_adapter *i2c_adapter;
+
+	struct gpio_desc *hpd_gpio;
+
+	void (*hpd_cb)(void *cb_data, enum drm_connector_status status);
+	void *hpd_cb_data;
+	bool hpd_enabled;
+	/* mutex for hpd fields above */
+	struct mutex hpd_lock;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -51,16 +60,25 @@ struct panel_drv_data {
 static int dvic_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *in;
 	int r;
 
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.dvi->connect(in, dssdev);
-	if (r)
-		return r;
+	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(dssdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
 
+	r = in->ops.dvi->connect(in, dssdev);
+	if (r) {
+		omap_dss_put_device(in);
+		return r;
+	}
+
+	ddata->in = in;
 	return 0;
 }
 
@@ -73,6 +91,9 @@ static void dvic_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops.dvi->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int dvic_enable(struct omap_dss_device *dssdev)
@@ -177,6 +198,9 @@ static int dvic_read_edid(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	int r, l, bytes_read;
 
+	if (ddata->hpd_gpio && !gpiod_get_value_cansleep(ddata->hpd_gpio))
+		return -ENODEV;
+
 	if (!ddata->i2c_adapter)
 		return -ENODEV;
 
@@ -208,12 +232,69 @@ static bool dvic_detect(struct omap_dss_device *dssdev)
 	unsigned char out;
 	int r;
 
+	if (ddata->hpd_gpio)
+		return gpiod_get_value_cansleep(ddata->hpd_gpio);
+
 	if (!ddata->i2c_adapter)
 		return true;
 
 	r = dvic_ddc_read(ddata->i2c_adapter, &out, 1, 0);
 
 	return r == 0;
+}
+
+static int dvic_register_hpd_cb(struct omap_dss_device *dssdev,
+				 void (*cb)(void *cb_data,
+					    enum drm_connector_status status),
+				 void *cb_data)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+
+	if (!ddata->hpd_gpio)
+		return -ENOTSUPP;
+
+	mutex_lock(&ddata->hpd_lock);
+	ddata->hpd_cb = cb;
+	ddata->hpd_cb_data = cb_data;
+	mutex_unlock(&ddata->hpd_lock);
+	return 0;
+}
+
+static void dvic_unregister_hpd_cb(struct omap_dss_device *dssdev)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+
+	if (!ddata->hpd_gpio)
+		return;
+
+	mutex_lock(&ddata->hpd_lock);
+	ddata->hpd_cb = NULL;
+	ddata->hpd_cb_data = NULL;
+	mutex_unlock(&ddata->hpd_lock);
+}
+
+static void dvic_enable_hpd(struct omap_dss_device *dssdev)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+
+	if (!ddata->hpd_gpio)
+		return;
+
+	mutex_lock(&ddata->hpd_lock);
+	ddata->hpd_enabled = true;
+	mutex_unlock(&ddata->hpd_lock);
+}
+
+static void dvic_disable_hpd(struct omap_dss_device *dssdev)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+
+	if (!ddata->hpd_gpio)
+		return;
+
+	mutex_lock(&ddata->hpd_lock);
+	ddata->hpd_enabled = false;
+	mutex_unlock(&ddata->hpd_lock);
 }
 
 static struct omap_dss_driver dvic_driver = {
@@ -229,23 +310,60 @@ static struct omap_dss_driver dvic_driver = {
 
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,
+
+	.register_hpd_cb	= dvic_register_hpd_cb,
+	.unregister_hpd_cb	= dvic_unregister_hpd_cb,
+	.enable_hpd		= dvic_enable_hpd,
+	.disable_hpd		= dvic_disable_hpd,
 };
+
+static irqreturn_t dvic_hpd_isr(int irq, void *data)
+{
+	struct panel_drv_data *ddata = data;
+
+	mutex_lock(&ddata->hpd_lock);
+	if (ddata->hpd_enabled && ddata->hpd_cb) {
+		enum drm_connector_status status;
+
+		if (dvic_detect(&ddata->dssdev))
+			status = connector_status_connected;
+		else
+			status = connector_status_disconnected;
+
+		ddata->hpd_cb(ddata->hpd_cb_data, status);
+	}
+	mutex_unlock(&ddata->hpd_lock);
+
+	return IRQ_HANDLED;
+}
 
 static int dvic_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
-	struct omap_dss_device *in;
 	struct device_node *adapter_node;
 	struct i2c_adapter *adapter;
+	struct gpio_desc *gpio;
+	int r;
 
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
+	gpio = devm_gpiod_get_optional(&pdev->dev, "hpd", GPIOD_IN);
+	if (IS_ERR(gpio)) {
+		dev_err(&pdev->dev, "failed to parse HPD gpio\n");
+		return PTR_ERR(gpio);
 	}
 
-	ddata->in = in;
+	ddata->hpd_gpio = gpio;
+
+	mutex_init(&ddata->hpd_lock);
+
+	if (ddata->hpd_gpio) {
+		r = devm_request_threaded_irq(&pdev->dev,
+			gpiod_to_irq(ddata->hpd_gpio), NULL, dvic_hpd_isr,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			"DVI HPD", ddata);
+		if (r)
+			return r;
+	}
 
 	adapter_node = of_parse_phandle(node, "ddc-i2c-bus", 0);
 	if (adapter_node) {
@@ -253,7 +371,6 @@ static int dvic_probe_of(struct platform_device *pdev)
 		of_node_put(adapter_node);
 		if (adapter == NULL) {
 			dev_err(&pdev->dev, "failed to parse ddc-i2c-bus\n");
-			omap_dss_put_device(ddata->in);
 			return -EPROBE_DEFER;
 		}
 
@@ -274,9 +391,6 @@ static int dvic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ddata);
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	r = dvic_probe_of(pdev);
 	if (r)
@@ -300,9 +414,8 @@ static int dvic_probe(struct platform_device *pdev)
 	return 0;
 
 err_reg:
-	omap_dss_put_device(ddata->in);
-
 	i2c_put_adapter(ddata->i2c_adapter);
+	mutex_destroy(&ddata->hpd_lock);
 
 	return r;
 }
@@ -311,16 +424,15 @@ static int __exit dvic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	omapdss_unregister_display(&ddata->dssdev);
 
 	dvic_disable(dssdev);
 	dvic_disconnect(dssdev);
 
-	omap_dss_put_device(in);
-
 	i2c_put_adapter(ddata->i2c_adapter);
+
+	mutex_destroy(&ddata->hpd_lock);
 
 	return 0;
 }

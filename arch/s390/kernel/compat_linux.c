@@ -89,18 +89,18 @@
 COMPAT_SYSCALL_DEFINE3(s390_chown16, const char __user *, filename,
 		       u16, user, u16, group)
 {
-	return sys_chown(filename, low2highuid(user), low2highgid(group));
+	return ksys_chown(filename, low2highuid(user), low2highgid(group));
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_lchown16, const char __user *,
 		       filename, u16, user, u16, group)
 {
-	return sys_lchown(filename, low2highuid(user), low2highgid(group));
+	return ksys_lchown(filename, low2highuid(user), low2highgid(group));
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_fchown16, unsigned int, fd, u16, user, u16, group)
 {
-	return sys_fchown(fd, low2highuid(user), low2highgid(group));
+	return ksys_fchown(fd, low2highuid(user), low2highgid(group));
 }
 
 COMPAT_SYSCALL_DEFINE2(s390_setregid16, u16, rgid, u16, egid)
@@ -302,12 +302,12 @@ COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, compat_ulong_t, second,
 
 COMPAT_SYSCALL_DEFINE3(s390_truncate64, const char __user *, path, u32, high, u32, low)
 {
-	return sys_truncate(path, (unsigned long)high << 32 | low);
+	return ksys_truncate(path, (unsigned long)high << 32 | low);
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_ftruncate64, unsigned int, fd, u32, high, u32, low)
 {
-	return sys_ftruncate(fd, (unsigned long)high << 32 | low);
+	return ksys_ftruncate(fd, (unsigned long)high << 32 | low);
 }
 
 COMPAT_SYSCALL_DEFINE5(s390_pread64, unsigned int, fd, char __user *, ubuf,
@@ -315,7 +315,7 @@ COMPAT_SYSCALL_DEFINE5(s390_pread64, unsigned int, fd, char __user *, ubuf,
 {
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL;
-	return sys_pread64(fd, ubuf, count, (unsigned long)high << 32 | low);
+	return ksys_pread64(fd, ubuf, count, (unsigned long)high << 32 | low);
 }
 
 COMPAT_SYSCALL_DEFINE5(s390_pwrite64, unsigned int, fd, const char __user *, ubuf,
@@ -323,12 +323,12 @@ COMPAT_SYSCALL_DEFINE5(s390_pwrite64, unsigned int, fd, const char __user *, ubu
 {
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL;
-	return sys_pwrite64(fd, ubuf, count, (unsigned long)high << 32 | low);
+	return ksys_pwrite64(fd, ubuf, count, (unsigned long)high << 32 | low);
 }
 
 COMPAT_SYSCALL_DEFINE4(s390_readahead, int, fd, u32, high, u32, low, s32, count)
 {
-	return sys_readahead(fd, (unsigned long)high << 32 | low, count);
+	return ksys_readahead(fd, (unsigned long)high << 32 | low, count);
 }
 
 struct stat64_emu31 {
@@ -442,8 +442,8 @@ COMPAT_SYSCALL_DEFINE1(s390_old_mmap, struct mmap_arg_struct_emu31 __user *, arg
 		return -EFAULT;
 	if (a.offset & ~PAGE_MASK)
 		return -EINVAL;
-	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
-			      a.offset >> PAGE_SHIFT);
+	return ksys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			       a.offset >> PAGE_SHIFT);
 }
 
 COMPAT_SYSCALL_DEFINE1(s390_mmap2, struct mmap_arg_struct_emu31 __user *, arg)
@@ -452,7 +452,7 @@ COMPAT_SYSCALL_DEFINE1(s390_mmap2, struct mmap_arg_struct_emu31 __user *, arg)
 
 	if (copy_from_user(&a, arg, sizeof(a)))
 		return -EFAULT;
-	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
+	return ksys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_read, unsigned int, fd, char __user *, buf, compat_size_t, count)
@@ -460,7 +460,7 @@ COMPAT_SYSCALL_DEFINE3(s390_read, unsigned int, fd, char __user *, buf, compat_s
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
 
-	return sys_read(fd, buf, count);
+	return ksys_read(fd, buf, count);
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, compat_size_t, count)
@@ -468,7 +468,7 @@ COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, c
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
 
-	return sys_write(fd, buf, count);
+	return ksys_write(fd, buf, count);
 }
 
 /*
@@ -483,7 +483,8 @@ COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low, compat_size
 		advise = POSIX_FADV_DONTNEED;
 	else if (advise == 5)
 		advise = POSIX_FADV_NOREUSE;
-	return sys_fadvise64(fd, (unsigned long)high << 32 | low, len, advise);
+	return ksys_fadvise64_64(fd, (unsigned long)high << 32 | low, len,
+				 advise);
 }
 
 struct fadvise64_64_args {
@@ -503,19 +504,19 @@ COMPAT_SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, arg
 		a.advice = POSIX_FADV_DONTNEED;
 	else if (a.advice == 5)
 		a.advice = POSIX_FADV_NOREUSE;
-	return sys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
+	return ksys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
 }
 
 COMPAT_SYSCALL_DEFINE6(s390_sync_file_range, int, fd, u32, offhigh, u32, offlow,
 		       u32, nhigh, u32, nlow, unsigned int, flags)
 {
-	return sys_sync_file_range(fd, ((loff_t)offhigh << 32) + offlow,
+	return ksys_sync_file_range(fd, ((loff_t)offhigh << 32) + offlow,
 				   ((u64)nhigh << 32) + nlow, flags);
 }
 
 COMPAT_SYSCALL_DEFINE6(s390_fallocate, int, fd, int, mode, u32, offhigh, u32, offlow,
 		       u32, lenhigh, u32, lenlow)
 {
-	return sys_fallocate(fd, mode, ((loff_t)offhigh << 32) + offlow,
-			     ((u64)lenhigh << 32) + lenlow);
+	return ksys_fallocate(fd, mode, ((loff_t)offhigh << 32) + offlow,
+			      ((u64)lenhigh << 32) + lenlow);
 }

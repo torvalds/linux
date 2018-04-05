@@ -236,28 +236,6 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 }
 
 /*
- * Only used by the i386 NUMA architecures, but relatively
- * generic code.
- */
-unsigned long __init node_memmap_size_bytes(int nid, unsigned long start_pfn,
-						     unsigned long end_pfn)
-{
-	unsigned long pfn;
-	unsigned long nr_pages = 0;
-
-	mminit_validate_memmodel_limits(&start_pfn, &end_pfn);
-	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-		if (nid != early_pfn_to_nid(pfn))
-			continue;
-
-		if (pfn_present(pfn))
-			nr_pages += PAGES_PER_SECTION;
-	}
-
-	return nr_pages * sizeof(struct page);
-}
-
-/*
  * Subtle, we encode the real pfn into the mem_map such that
  * the identity pfn - section_mem_map will return the actual
  * physical page frame number.
@@ -427,10 +405,6 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
 	struct page *map;
 	unsigned long size;
 
-	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
-	if (map)
-		return map;
-
 	size = PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
 	map = memblock_virt_alloc_try_nid(size,
 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
@@ -445,17 +419,6 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 	void *map;
 	unsigned long pnum;
 	unsigned long size = sizeof(struct page) * PAGES_PER_SECTION;
-
-	map = alloc_remap(nodeid, size * map_count);
-	if (map) {
-		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-			if (!present_section_nr(pnum))
-				continue;
-			map_map[pnum] = map;
-			map += size;
-		}
-		return;
-	}
 
 	size = PAGE_ALIGN(size);
 	map = memblock_virt_alloc_try_nid_raw(size * map_count,

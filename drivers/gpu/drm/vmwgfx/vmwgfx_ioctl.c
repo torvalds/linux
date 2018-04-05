@@ -316,7 +316,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 out_no_surface:
 	ttm_read_unlock(&dev_priv->reservation_sem);
 out_no_ttm_lock:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 out_no_fb:
 	drm_modeset_unlock_all(dev);
 out_no_copy:
@@ -393,7 +393,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 
 	ttm_read_unlock(&dev_priv->reservation_sem);
 out_no_ttm_lock:
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 out_no_fb:
 	drm_modeset_unlock_all(dev);
 out_no_copy:

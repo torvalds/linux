@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "sched.h"
-
 /*
  * stop-task scheduling class.
  *
@@ -9,6 +7,7 @@
  *
  * See kernel/stop_machine.c
  */
+#include "sched.h"
 
 #ifdef CONFIG_SMP
 static int
@@ -75,6 +74,14 @@ static void put_prev_task_stop(struct rq *rq, struct task_struct *prev)
 	cgroup_account_cputime(curr, delta_exec);
 }
 
+/*
+ * scheduler tick hitting a task of our scheduling class.
+ *
+ * NOTE: This function can be called remotely by the tick offload that
+ * goes along full dynticks. Therefore no local assumption can be made
+ * and everything must be accessed through the @rq and @curr passed in
+ * parameters.
+ */
 static void task_tick_stop(struct rq *rq, struct task_struct *curr, int queued)
 {
 }

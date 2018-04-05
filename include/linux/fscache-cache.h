@@ -496,7 +496,7 @@ static inline bool __fscache_unuse_cookie(struct fscache_cookie *cookie)
 
 static inline void __fscache_wake_unused_cookie(struct fscache_cookie *cookie)
 {
-	wake_up_atomic_t(&cookie->n_active);
+	wake_up_var(&cookie->n_active);
 }
 
 /**

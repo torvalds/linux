@@ -846,11 +846,11 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 			!is_software_event(event->group_leader))
 		return -EINVAL;
 
-	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			group_entry)
+	for_each_sibling_event(sibling, event->group_leader) {
 		if (sibling->pmu != event->pmu &&
 				!is_software_event(sibling))
 			return -EINVAL;
+	}
 
 	return 0;
 }

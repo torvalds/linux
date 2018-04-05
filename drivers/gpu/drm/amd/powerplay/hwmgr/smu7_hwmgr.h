@@ -34,11 +34,6 @@
 #define SMU7_VOLTAGE_CONTROL_BY_SVID2               0x2
 #define SMU7_VOLTAGE_CONTROL_MERGED                 0x3
 
-#define DPMTABLE_OD_UPDATE_SCLK     0x00000001
-#define DPMTABLE_OD_UPDATE_MCLK     0x00000002
-#define DPMTABLE_UPDATE_SCLK        0x00000004
-#define DPMTABLE_UPDATE_MCLK        0x00000008
-
 enum gpu_pt_config_reg_type {
 	GPU_CONFIGREG_MMR = 0,
 	GPU_CONFIGREG_SMC_IND,
@@ -178,9 +173,34 @@ struct smu7_pcie_perf_range {
 	uint16_t  min;
 };
 
+struct smu7_odn_clock_voltage_dependency_table {
+	uint32_t count;
+	phm_ppt_v1_clock_voltage_dependency_record entries[MAX_REGULAR_DPM_NUMBER];
+};
+
+struct smu7_odn_dpm_table {
+	struct phm_odn_clock_levels		odn_core_clock_dpm_levels;
+	struct phm_odn_clock_levels		odn_memory_clock_dpm_levels;
+	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_sclk;
+	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_mclk;
+	uint32_t					odn_mclk_min_limit;
+};
+
+struct profile_mode_setting {
+	uint8_t bupdate_sclk;
+	uint8_t sclk_up_hyst;
+	uint8_t sclk_down_hyst;
+	uint16_t sclk_activity;
+	uint8_t bupdate_mclk;
+	uint8_t mclk_up_hyst;
+	uint8_t mclk_down_hyst;
+	uint16_t mclk_activity;
+};
+
 struct smu7_hwmgr {
 	struct smu7_dpm_table			dpm_table;
 	struct smu7_dpm_table			golden_dpm_table;
+	struct smu7_odn_dpm_table		odn_dpm_table;
 
 	uint32_t						voting_rights_clients[8];
 	uint32_t						static_screen_threshold_unit;
@@ -280,7 +300,6 @@ struct smu7_hwmgr {
 	struct smu7_pcie_perf_range          pcie_lane_power_saving;
 	bool                                      use_pcie_performance_levels;
 	bool                                      use_pcie_power_saving_levels;
-	uint32_t                                  mclk_activity_target;
 	uint32_t                                  mclk_dpm0_activity_target;
 	uint32_t                                  low_sclk_interrupt_threshold;
 	uint32_t                                  last_mclk_dpm_enable_mask;
@@ -305,6 +324,9 @@ struct smu7_hwmgr {
 	uint32_t                              frame_time_x2;
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
+	uint32_t                              vr_config;
+	struct profile_mode_setting           custom_profile_setting;
+	struct profile_mode_setting           current_profile_setting;
 };
 
 /* To convert to Q8.8 format for firmware */
@@ -339,7 +361,6 @@ enum SMU7_I2CLineID {
 #define SMU7_I2C_DDCVGACLK         0x4d
 
 #define SMU7_UNUSED_GPIO_PIN       0x7F
-uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr);
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
 		uint32_t clock_insr);
 #endif

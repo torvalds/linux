@@ -441,10 +441,6 @@ static void construct(
 static void destruct(
 	struct aux_engine_dce110 *engine)
 {
-	struct aux_engine_dce110 *aux110 = engine;
-/*temp w/a, to do*/
-	REG_UPDATE(AUX_ARB_CONTROL, AUX_DMCU_DONE_USING_AUX_REG, 1);
-	REG_UPDATE(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1);
 	dal_aux_engine_destruct(&engine->base);
 }
 

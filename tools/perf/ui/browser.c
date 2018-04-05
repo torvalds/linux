@@ -56,12 +56,17 @@ void ui_browser__write_nstring(struct ui_browser *browser __maybe_unused, const 
 	slsmg_write_nstring(msg, width);
 }
 
+void ui_browser__vprintf(struct ui_browser *browser __maybe_unused, const char *fmt, va_list args)
+{
+	slsmg_vprintf(fmt, args);
+}
+
 void ui_browser__printf(struct ui_browser *browser __maybe_unused, const char *fmt, ...)
 {
 	va_list args;
 
 	va_start(args, fmt);
-	slsmg_vprintf(fmt, args);
+	ui_browser__vprintf(browser, fmt, args);
 	va_end(args);
 }
 
@@ -779,6 +784,4 @@ void ui_browser__init(void)
 		struct ui_browser_colorset *c = &ui_browser__colorsets[i++];
 		sltt_set_color(c->colorset, c->name, c->fg, c->bg);
 	}
-
-	annotate_browser__init();
 }

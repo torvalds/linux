@@ -95,7 +95,7 @@ static void qxlfb_destroy_pinned_object(struct drm_gem_object *gobj)
 	qxl_bo_kunmap(qbo);
 	qxl_bo_unpin(qbo);
 
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 }
 
 int qxl_get_handle_for_primary_fb(struct qxl_device *qdev,
@@ -316,11 +316,11 @@ out_unref:
 		qxl_bo_unpin(qbo);
 	}
 	if (fb && ret) {
-		drm_gem_object_unreference_unlocked(gobj);
+		drm_gem_object_put_unlocked(gobj);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
 	}
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	return ret;
 }
 

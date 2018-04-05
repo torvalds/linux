@@ -134,9 +134,10 @@ ocfs2_filecheck_sysfs_free(struct ocfs2_filecheck_sysfs_entry *entry)
 {
 	struct ocfs2_filecheck_entry *p;
 
-	if (!atomic_dec_and_test(&entry->fs_count))
-		wait_on_atomic_t(&entry->fs_count, atomic_t_wait,
-				 TASK_UNINTERRUPTIBLE);
+	if (!atomic_dec_and_test(&entry->fs_count)) {
+		wait_var_event(&entry->fs_count,
+			       !atomic_read(&entry->fs_count));
+	}
 
 	spin_lock(&entry->fs_fcheck->fc_lock);
 	while (!list_empty(&entry->fs_fcheck->fc_head)) {
@@ -183,7 +184,7 @@ static void
 ocfs2_filecheck_sysfs_put(struct ocfs2_filecheck_sysfs_entry *entry)
 {
 	if (atomic_dec_and_test(&entry->fs_count))
-		wake_up_atomic_t(&entry->fs_count);
+		wake_up_var(&entry->fs_count);
 }
 
 static struct ocfs2_filecheck_sysfs_entry *

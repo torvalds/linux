@@ -17,6 +17,7 @@
 
 /* Common in X86_32 and X86_64 */
 /* kernel/ioport.c */
+long ksys_ioperm(unsigned long from, unsigned long num, int turn_on);
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 asmlinkage long sys_iopl(unsigned int);
 
@@ -34,7 +35,7 @@ asmlinkage long sys_get_thread_area(struct user_desc __user *);
 #ifdef CONFIG_X86_32
 
 /* kernel/signal.c */
-asmlinkage unsigned long sys_sigreturn(void);
+asmlinkage long sys_sigreturn(void);
 
 /* kernel/vm86_32.c */
 struct vm86_struct;

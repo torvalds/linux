@@ -25,13 +25,12 @@
 #include "vega10_inc.h"
 #include "pp_soc15.h"
 #include "vega10_smumgr.h"
+#include "vega10_hwmgr.h"
 #include "vega10_ppsmc.h"
 #include "smu9_driver_if.h"
-
 #include "ppatomctrl.h"
 #include "pp_debug.h"
-#include "smu_ucode_xfer_vi.h"
-#include "smu7_smumgr.h"
+
 
 #define AVFS_EN_MSB		1568
 #define AVFS_EN_LSB		1568
@@ -83,15 +82,16 @@ static bool vega10_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
-
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
+	uint32_t ret;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
 
-	phm_wait_for_register_unequal(hwmgr, reg,
+	ret = phm_wait_for_register_unequal(hwmgr, reg,
 			0, MP1_C2PMSG_90__CONTENT_MASK);
+
+	if (ret)
+		pr_err("No response from smu\n");
 
 	return cgs_read_register(hwmgr->device, reg);
 }
@@ -102,13 +102,10 @@ static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
  * @param    msg the message to send.
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
+static int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 		uint16_t msg)
 {
 	uint32_t reg;
-
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_66_BASE_IDX, mmMP1_SMN_C2PMSG_66);
@@ -123,12 +120,10 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
  * @param    msg the message to send.
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
+static int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	uint32_t reg;
-
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
+	uint32_t ret;
 
 	vega10_wait_for_response(hwmgr);
 
@@ -138,8 +133,9 @@ int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
-	if (vega10_wait_for_response(hwmgr) != 1)
-		pr_err("Failed to send message: 0x%x\n", msg);
+	ret = vega10_wait_for_response(hwmgr);
+	if (ret != 1)
+		pr_err("Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
 
 	return 0;
 }
@@ -151,13 +147,11 @@ int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
  * @param    parameter: the parameter to send
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+static int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
 	uint32_t reg;
-
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
+	uint32_t ret;
 
 	vega10_wait_for_response(hwmgr);
 
@@ -171,60 +165,27 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 
 	vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
-	if (vega10_wait_for_response(hwmgr) != 1)
-		pr_err("Failed to send message: 0x%x\n", msg);
+	ret = vega10_wait_for_response(hwmgr);
+	if (ret != 1)
+		pr_err("Failed message: 0x%x, input parameter: 0x%x, error code: 0x%x\n", msg, parameter, ret);
 
 	return 0;
 }
 
-
-/*
- * Send a message to the SMC with parameter, do not wait for response
- * @param    hwmgr:  the address of the powerplay hardware manager.
- * @param    msg: the message to send.
- * @param    parameter: the parameter to send
- * @return   The response that came from the SMC.
- */
-int vega10_send_msg_to_smc_with_parameter_without_waiting(
-		struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
-{
-	uint32_t reg;
-
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
-	cgs_write_register(hwmgr->device, reg, parameter);
-
-	return vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
-}
-
-/*
- * Retrieve an argument from SMC.
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @param    arg     pointer to store the argument from SMC.
- * @return   Always return 0.
- */
-int vega10_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg)
+static int vega10_get_argument(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
 
-	*arg = cgs_read_register(hwmgr->device, reg);
-
-	return 0;
+	return cgs_read_register(hwmgr->device, reg);
 }
 
-/*
- * Copy table from SMC into driver FB
- * @param   hwmgr    the address of the HW manager
- * @param   table_id    the driver's table ID to copy from
- */
-int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
+static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -232,20 +193,15 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high) == 0,
-			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!", return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low) == 0,
-			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
-			return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			priv->smu_tables.entry[table_id].table_id) == 0,
-			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
-			return -EINVAL);
+			priv->smu_tables.entry[table_id].table_id);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -253,16 +209,10 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-/*
- * Copy table from Driver FB into SMC
- * @param   hwmgr    the address of the HW manager
- * @param   table_id    the table to copy from
- */
-int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
+static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -274,81 +224,54 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high) == 0,
-			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
-			return -EINVAL;);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low) == 0,
-			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
-			return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
-			priv->smu_tables.entry[table_id].table_id) == 0,
-			"[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!",
-			return -EINVAL);
+			priv->smu_tables.entry[table_id].table_id);
 
 	return 0;
 }
 
-int vega10_save_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table)
-{
-	PP_ASSERT_WITH_CODE(avfs_table,
-			"No access to SMC AVFS Table",
-			return -EINVAL);
-
-	return vega10_copy_table_from_smc(hwmgr, avfs_table, AVFSTABLE);
-}
-
-int vega10_restore_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table)
-{
-	PP_ASSERT_WITH_CODE(avfs_table,
-			"No access to SMC AVFS Table",
-			return -EINVAL);
-
-	return vega10_copy_table_to_smc(hwmgr, avfs_table, AVFSTABLE);
-}
-
-int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint32_t feature_mask)
-{
-	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
-			PPSMC_MSG_DisableSmuFeatures;
-
-	return vega10_send_msg_to_smc_with_parameter(hwmgr,
-			msg, feature_mask);
-}
-
-int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
+static int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 		uint32_t *features_enabled)
 {
 	if (features_enabled == NULL)
 		return -EINVAL;
 
-	if (!vega10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetEnabledSmuFeatures)) {
-		vega10_read_arg_from_smc(hwmgr, features_enabled);
-		return 0;
-	}
+	vega10_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
+	*features_enabled = vega10_get_argument(hwmgr);
 
-	return -EINVAL;
+	return 0;
 }
 
-int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
+static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	uint32_t features_enabled = 0;
 
-	if (priv->smu_tables.entry[TOOLSTABLE].table_addr_high ||
-			priv->smu_tables.entry[TOOLSTABLE].table_addr_low) {
-		if (!vega10_send_msg_to_smc_with_parameter(hwmgr,
+	vega10_get_smc_features(hwmgr, &features_enabled);
+
+	if (features_enabled & SMC_DPM_FEATURES)
+		return true;
+	else
+		return false;
+}
+
+static int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
+
+	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
+		vega10_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
-				priv->smu_tables.entry[TOOLSTABLE].table_addr_high))
-			vega10_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetToolsDramAddrLow,
-					priv->smu_tables.entry[TOOLSTABLE].table_addr_low);
+				upper_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
+		vega10_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetToolsDramAddrLow,
+				lower_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 	}
 	return 0;
 }
@@ -356,7 +279,7 @@ int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 {
 	uint32_t smc_driver_if_version;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 	uint32_t rev_id;
 
@@ -364,17 +287,10 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_GetDriverIfVersion),
 			"Attempt to get SMC IF Version Number Failed!",
 			return -EINVAL);
-	vega10_read_arg_from_smc(hwmgr, &smc_driver_if_version);
+	smc_driver_if_version = vega10_get_argument(hwmgr);
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
-
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	rev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
+	rev_id = adev->pdev->revision;
 
 	if (!((dev_id == 0x687f) &&
 		((rev_id == 0xc0) ||
@@ -393,14 +309,12 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_smumgr *priv;
-	uint64_t mc_addr;
-	void *kaddr = NULL;
-	unsigned long handle, tools_size;
+	unsigned long tools_size;
 	int ret;
 	struct cgs_firmware_info info = {0};
 
 	ret = cgs_get_firmware_info(hwmgr->device,
-				    smu7_convert_fw_type_to_cgs(UCODE_ID_SMU),
+				    CGS_UCODE_ID_SMU,
 				    &info);
 	if (ret || !info.kptr)
 		return -EINVAL;
@@ -413,166 +327,130 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	hwmgr->smu_backend = priv;
 
 	/* allocate space for pptable */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(PPTable_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
-			&mc_addr,
-			&kaddr,
-			&handle);
-
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for pptable.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&priv->smu_tables.entry[PPTABLE].handle,
+			&priv->smu_tables.entry[PPTABLE].mc_addr,
+			&priv->smu_tables.entry[PPTABLE].table);
+	if (ret)
+		goto free_backend;
 
 	priv->smu_tables.entry[PPTABLE].version = 0x01;
 	priv->smu_tables.entry[PPTABLE].size = sizeof(PPTable_t);
 	priv->smu_tables.entry[PPTABLE].table_id = TABLE_PPTABLE;
-	priv->smu_tables.entry[PPTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[PPTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
-	priv->smu_tables.entry[PPTABLE].table = kaddr;
-	priv->smu_tables.entry[PPTABLE].handle = handle;
 
 	/* allocate space for watermarks table */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(Watermarks_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
-			&mc_addr,
-			&kaddr,
-			&handle);
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&priv->smu_tables.entry[WMTABLE].handle,
+			&priv->smu_tables.entry[WMTABLE].mc_addr,
+			&priv->smu_tables.entry[WMTABLE].table);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for wmtable.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+	if (ret)
+		goto err0;
 
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
 	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
 	priv->smu_tables.entry[WMTABLE].table_id = TABLE_WATERMARKS;
-	priv->smu_tables.entry[WMTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[WMTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
-	priv->smu_tables.entry[WMTABLE].table = kaddr;
-	priv->smu_tables.entry[WMTABLE].handle = handle;
 
 	/* allocate space for AVFS table */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(AvfsTable_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
-			&mc_addr,
-			&kaddr,
-			&handle);
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&priv->smu_tables.entry[AVFSTABLE].handle,
+			&priv->smu_tables.entry[AVFSTABLE].mc_addr,
+			&priv->smu_tables.entry[AVFSTABLE].table);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for avfs table.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+	if (ret)
+		goto err1;
 
 	priv->smu_tables.entry[AVFSTABLE].version = 0x01;
 	priv->smu_tables.entry[AVFSTABLE].size = sizeof(AvfsTable_t);
 	priv->smu_tables.entry[AVFSTABLE].table_id = TABLE_AVFS;
-	priv->smu_tables.entry[AVFSTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[AVFSTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
-	priv->smu_tables.entry[AVFSTABLE].table = kaddr;
-	priv->smu_tables.entry[AVFSTABLE].handle = handle;
 
 	tools_size = 0x19000;
 	if (tools_size) {
-		smu_allocate_memory(hwmgr->device,
+		ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 				tools_size,
-				CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 				PAGE_SIZE,
-				&mc_addr,
-				&kaddr,
-				&handle);
-
-		if (kaddr) {
-			priv->smu_tables.entry[TOOLSTABLE].version = 0x01;
-			priv->smu_tables.entry[TOOLSTABLE].size = tools_size;
-			priv->smu_tables.entry[TOOLSTABLE].table_id = TABLE_PMSTATUSLOG;
-			priv->smu_tables.entry[TOOLSTABLE].table_addr_high =
-					smu_upper_32_bits(mc_addr);
-			priv->smu_tables.entry[TOOLSTABLE].table_addr_low =
-					smu_lower_32_bits(mc_addr);
-			priv->smu_tables.entry[TOOLSTABLE].table = kaddr;
-			priv->smu_tables.entry[TOOLSTABLE].handle = handle;
-		}
+				AMDGPU_GEM_DOMAIN_VRAM,
+				&priv->smu_tables.entry[TOOLSTABLE].handle,
+				&priv->smu_tables.entry[TOOLSTABLE].mc_addr,
+				&priv->smu_tables.entry[TOOLSTABLE].table);
+		if (ret)
+			goto err2;
+		priv->smu_tables.entry[TOOLSTABLE].version = 0x01;
+		priv->smu_tables.entry[TOOLSTABLE].size = tools_size;
+		priv->smu_tables.entry[TOOLSTABLE].table_id = TABLE_PMSTATUSLOG;
 	}
 
 	/* allocate space for AVFS Fuse table */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(AvfsFuseOverride_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
-			&mc_addr,
-			&kaddr,
-			&handle);
-
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for avfs fuse table.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[AVFSTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&priv->smu_tables.entry[AVFSFUSETABLE].handle,
+			&priv->smu_tables.entry[AVFSFUSETABLE].mc_addr,
+			&priv->smu_tables.entry[AVFSFUSETABLE].table);
+	if (ret)
+		goto err3;
 
 	priv->smu_tables.entry[AVFSFUSETABLE].version = 0x01;
 	priv->smu_tables.entry[AVFSFUSETABLE].size = sizeof(AvfsFuseOverride_t);
 	priv->smu_tables.entry[AVFSFUSETABLE].table_id = TABLE_AVFS_FUSE_OVERRIDE;
-	priv->smu_tables.entry[AVFSFUSETABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[AVFSFUSETABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
-	priv->smu_tables.entry[AVFSFUSETABLE].table = kaddr;
-	priv->smu_tables.entry[AVFSFUSETABLE].handle = handle;
+
 
 	return 0;
+
+err3:
+	if (priv->smu_tables.entry[TOOLSTABLE].table)
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[TOOLSTABLE].handle,
+				&priv->smu_tables.entry[TOOLSTABLE].mc_addr,
+				&priv->smu_tables.entry[TOOLSTABLE].table);
+err2:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[AVFSTABLE].handle,
+				&priv->smu_tables.entry[AVFSTABLE].mc_addr,
+				&priv->smu_tables.entry[AVFSTABLE].table);
+err1:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+				&priv->smu_tables.entry[WMTABLE].mc_addr,
+				&priv->smu_tables.entry[WMTABLE].table);
+err0:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,
+			&priv->smu_tables.entry[PPTABLE].mc_addr,
+			&priv->smu_tables.entry[PPTABLE].table);
+free_backend:
+	kfree(hwmgr->smu_backend);
+
+	return -EINVAL;
 }
 
 static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv) {
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[AVFSTABLE].handle);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,
+				&priv->smu_tables.entry[PPTABLE].mc_addr,
+				&priv->smu_tables.entry[PPTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+					&priv->smu_tables.entry[WMTABLE].mc_addr,
+					&priv->smu_tables.entry[WMTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[AVFSTABLE].handle,
+					&priv->smu_tables.entry[AVFSTABLE].mc_addr,
+					&priv->smu_tables.entry[AVFSTABLE].table);
 		if (priv->smu_tables.entry[TOOLSTABLE].table)
-			cgs_free_gpu_mem(hwmgr->device,
-					(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[AVFSFUSETABLE].handle);
+			amdgpu_bo_free_kernel(&priv->smu_tables.entry[TOOLSTABLE].handle,
+					&priv->smu_tables.entry[TOOLSTABLE].mc_addr,
+					&priv->smu_tables.entry[TOOLSTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[AVFSFUSETABLE].handle,
+					&priv->smu_tables.entry[AVFSFUSETABLE].mc_addr,
+					&priv->smu_tables.entry[AVFSFUSETABLE].table);
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}
@@ -581,6 +459,9 @@ static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 
 static int vega10_start_smu(struct pp_hwmgr *hwmgr)
 {
+	if (!vega10_is_smc_ram_running(hwmgr))
+		return -EINVAL;
+
 	PP_ASSERT_WITH_CODE(!vega10_verify_smc_interface(hwmgr),
 			"Failed to verify SMC interface!",
 			return -EINVAL);
@@ -588,6 +469,18 @@ static int vega10_start_smu(struct pp_hwmgr *hwmgr)
 	vega10_set_tools_address(hwmgr);
 
 	return 0;
+}
+
+static int vega10_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+{
+	int ret;
+
+	if (rw)
+		ret = vega10_copy_table_from_smc(hwmgr, table, table_id);
+	else
+		ret = vega10_copy_table_to_smc(hwmgr, table, table_id);
+
+	return ret;
 }
 
 const struct pp_smumgr_func vega10_smu_funcs = {
@@ -599,4 +492,7 @@ const struct pp_smumgr_func vega10_smu_funcs = {
 	.send_msg_to_smc_with_parameter = &vega10_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.is_dpm_running = vega10_is_dpm_running,
+	.get_argument = vega10_get_argument,
+	.smc_table_manager = vega10_smc_table_manager,
 };

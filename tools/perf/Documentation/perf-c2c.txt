@@ -116,7 +116,7 @@ and calls standard perf record command.
 Following perf record options are configured by default:
 (check perf record man page for details)
 
-  -W,-d,--sample-cpu
+  -W,-d,--phys-data,--sample-cpu
 
 Unless specified otherwise with '-e' option, following events are monitored by
 default:

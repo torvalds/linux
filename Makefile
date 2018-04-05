@@ -2,7 +2,7 @@
 VERSION = 4
 PATCHLEVEL = 16
 SUBLEVEL = 0
-EXTRAVERSION = -rc7
+EXTRAVERSION =
 NAME = Fearless Coyote
 
 # *DOCUMENTATION*
@@ -339,14 +339,6 @@ ifeq ($(ARCH),sh64)
        SRCARCH := sh
 endif
 
-# Additional ARCH settings for tile
-ifeq ($(ARCH),tilepro)
-       SRCARCH := tile
-endif
-ifeq ($(ARCH),tilegx)
-       SRCARCH := tile
-endif
-
 KCONFIG_CONFIG	?= .config
 export KCONFIG_CONFIG
 
@@ -495,6 +487,13 @@ RETPOLINE_CFLAGS_GCC := -mindirect-branch=thunk-extern -mindirect-branch-registe
 RETPOLINE_CFLAGS_CLANG := -mretpoline-external-thunk
 RETPOLINE_CFLAGS := $(call cc-option,$(RETPOLINE_CFLAGS_GCC),$(call cc-option,$(RETPOLINE_CFLAGS_CLANG)))
 export RETPOLINE_CFLAGS
+
+# check for 'asm goto'
+ifeq ($(call shell-cached,$(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC) $(KBUILD_CFLAGS)), y)
+  CC_HAVE_ASM_GOTO := 1
+  KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
+  KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
+endif
 
 ifeq ($(config-targets),1)
 # ===========================================================================
@@ -659,12 +658,6 @@ KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, \
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
-
-# check for 'asm goto'
-ifeq ($(call shell-cached,$(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC) $(KBUILD_CFLAGS)), y)
-	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
-	KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
-endif
 
 include scripts/Makefile.kcov
 include scripts/Makefile.gcc-plugins

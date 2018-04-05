@@ -498,92 +498,6 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_BFIN
-	tristate "Blackfin serial port support"
-	depends on BLACKFIN
-	select SERIAL_CORE
-	select SERIAL_BFIN_UART0 if (BF531 || BF532 || BF533 || BF561)
-	help
-	  Add support for the built-in UARTs on the Blackfin.
-
-	  To compile this driver as a module, choose M here: the
-	  module is named bfin_uart.ko.
-
-config SERIAL_BFIN_CONSOLE
-	bool "Console on Blackfin serial port"
-	depends on SERIAL_BFIN=y
-	select SERIAL_CORE_CONSOLE
-
-choice
-	prompt "UART Mode"
-	depends on SERIAL_BFIN
-	default SERIAL_BFIN_DMA
-	help
-	  This driver supports the built-in serial ports of the Blackfin family
-	  of CPUs
-
-config SERIAL_BFIN_DMA
-	bool "DMA mode"
-	depends on !DMA_UNCACHED_NONE && KGDB_SERIAL_CONSOLE=n
-	help
-	  This driver works under DMA mode. If this option is selected, the
-	  blackfin simple dma driver is also enabled.
-
-config SERIAL_BFIN_PIO
-	bool "PIO mode"
-	help
-	  This driver works under PIO mode.
-
-endchoice
-
-config SERIAL_BFIN_UART0
-	bool "Enable UART0"
-	depends on SERIAL_BFIN
-	help
-	  Enable UART0
-
-config BFIN_UART0_CTSRTS
-	bool "Enable UART0 hardware flow control"
-	depends on SERIAL_BFIN_UART0
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_UART1
-	bool "Enable UART1"
-	depends on SERIAL_BFIN && (!BF531 && !BF532 && !BF533 && !BF561)
-	help
-	  Enable UART1
-
-config BFIN_UART1_CTSRTS
-	bool "Enable UART1 hardware flow control"
-	depends on SERIAL_BFIN_UART1
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_UART2
-	bool "Enable UART2"
-	depends on SERIAL_BFIN && (BF54x || BF538 || BF539)
-	help
-	  Enable UART2
-
-config BFIN_UART2_CTSRTS
-	bool "Enable UART2 hardware flow control"
-	depends on SERIAL_BFIN_UART2
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_UART3
-	bool "Enable UART3"
-	depends on SERIAL_BFIN && (BF54x)
-	help
-	  Enable UART3
-
-config BFIN_UART3_CTSRTS
-	bool "Enable UART3 hardware flow control"
-	depends on SERIAL_BFIN_UART3
-	help
-	  Enable hardware flow control in the driver.
-
 config SERIAL_IMX
 	tristate "IMX serial port support"
 	depends on HAS_DMA
@@ -991,35 +905,6 @@ config SERIAL_ICOM
 	  This driver can also be built as a module.  If so, the module
 	  will be called icom.
 
-config SERIAL_M32R_SIO
-	bool "M32R SIO I/F"
-	depends on M32R
-	default y
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the M32R serial controller.
-
-config SERIAL_M32R_SIO_CONSOLE
-	bool "use SIO console"
-	depends on SERIAL_M32R_SIO=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console.
-
-	  If you use an M3T-M32700UT or an OPSPUT platform,
-	  please say also y for SERIAL_M32R_PLDSIO.
-
-config SERIAL_M32R_PLDSIO
-	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
-	default n
-	help
-	  Say Y here if you want to use the M32R serial controller
-	  on a PLD (Programmable Logic Device).
-
-	  If you use an M3T-M32700UT or an OPSPUT platform,
-	  please say Y.
-
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
 	depends on HAS_TXX9_SERIAL
@@ -1112,17 +997,6 @@ config SERIAL_VT8500
 config SERIAL_VT8500_CONSOLE
 	bool "VIA VT8500 serial console support"
 	depends on SERIAL_VT8500=y
-	select SERIAL_CORE_CONSOLE
-
-config SERIAL_ETRAXFS
-	bool "ETRAX FS serial port support"
-	depends on ETRAX_ARCH_V32 && OF
-	select SERIAL_CORE
-	select SERIAL_MCTRL_GPIO if GPIOLIB
-
-config SERIAL_ETRAXFS_CONSOLE
-	bool "ETRAX FS serial console support"
-	depends on SERIAL_ETRAXFS
 	select SERIAL_CORE_CONSOLE
 
 config SERIAL_NETX
@@ -1241,69 +1115,6 @@ config SERIAL_SC16IS7XX_SPI
           If required say y, and say n to spi if not required,
           This is additional support to exsisting driver.
           You must select at least one bus for the driver to be built.
-
-config SERIAL_BFIN_SPORT
-	tristate "Blackfin SPORT emulate UART"
-	depends on BLACKFIN
-	select SERIAL_CORE
-	help
-	  Enable SPORT emulate UART on Blackfin series.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_sport_uart.
-
-config SERIAL_BFIN_SPORT_CONSOLE
-	bool "Console on Blackfin sport emulated uart"
-	depends on SERIAL_BFIN_SPORT=y
-	select SERIAL_CORE_CONSOLE
-
-config SERIAL_BFIN_SPORT0_UART
-	bool "Enable UART over SPORT0"
-	depends on SERIAL_BFIN_SPORT && !(BF542 || BF544)
-	help
-	  Enable UART over SPORT0
-
-config SERIAL_BFIN_SPORT0_UART_CTSRTS
-	bool "Enable UART over SPORT0 hardware flow control"
-	depends on SERIAL_BFIN_SPORT0_UART
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_SPORT1_UART
-	bool "Enable UART over SPORT1"
-	depends on SERIAL_BFIN_SPORT
-	help
-	  Enable UART over SPORT1
-
-config SERIAL_BFIN_SPORT1_UART_CTSRTS
-	bool "Enable UART over SPORT1 hardware flow control"
-	depends on SERIAL_BFIN_SPORT1_UART
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_SPORT2_UART
-	bool "Enable UART over SPORT2"
-	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
-	help
-	  Enable UART over SPORT2
-
-config SERIAL_BFIN_SPORT2_UART_CTSRTS
-	bool "Enable UART over SPORT2 hardware flow control"
-	depends on SERIAL_BFIN_SPORT2_UART
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_SPORT3_UART
-	bool "Enable UART over SPORT3"
-	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
-	help
-	  Enable UART over SPORT3
-
-config SERIAL_BFIN_SPORT3_UART_CTSRTS
-	bool "Enable UART over SPORT3 hardware flow control"
-	depends on SERIAL_BFIN_SPORT3_UART
-	help
-	  Enable hardware flow control in the driver.
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
@@ -1518,15 +1329,6 @@ config SERIAL_EFM32_UART_CONSOLE
 	bool "EFM32 UART/USART console support"
 	depends on SERIAL_EFM32_UART=y
 	select SERIAL_CORE_CONSOLE
-
-config SERIAL_TILEGX
-	tristate "TILE-Gx on-chip serial port support"
-	depends on TILEGX
-	select TILE_GXIO_UART
-	select SERIAL_CORE
-	---help---
-	  This device provides access to the on-chip UARTs on the TILE-Gx
-	  processor.
 
 config SERIAL_ARC
 	tristate "ARC UART driver support"

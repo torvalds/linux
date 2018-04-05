@@ -233,8 +233,10 @@ void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
 	for (i = 0; i < list->num_entries; i++) {
 		unsigned priority = list->array[i].priority;
 
-		list_add_tail(&list->array[i].tv.head,
-			      &bucket[priority]);
+		if (!list->array[i].robj->parent)
+			list_add_tail(&list->array[i].tv.head,
+				      &bucket[priority]);
+
 		list->array[i].user_pages = NULL;
 	}
 

@@ -244,6 +244,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->metric_name   = NULL;
 	evsel->metric_events = NULL;
 	evsel->collect_stat  = false;
+	evsel->pmu_name      = NULL;
 }
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
@@ -621,22 +622,34 @@ const char *perf_evsel__group_name(struct perf_evsel *evsel)
 	return evsel->group_name ?: "anon group";
 }
 
+/*
+ * Returns the group details for the specified leader,
+ * with following rules.
+ *
+ *  For record -e '{cycles,instructions}'
+ *    'anon group { cycles:u, instructions:u }'
+ *
+ *  For record -e 'cycles,instructions' and report --group
+ *    'cycles:u, instructions:u'
+ */
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 {
-	int ret;
+	int ret = 0;
 	struct perf_evsel *pos;
 	const char *group_name = perf_evsel__group_name(evsel);
 
-	ret = scnprintf(buf, size, "%s", group_name);
+	if (!evsel->forced_leader)
+		ret = scnprintf(buf, size, "%s { ", group_name);
 
-	ret += scnprintf(buf + ret, size - ret, " { %s",
+	ret += scnprintf(buf + ret, size - ret, "%s",
 			 perf_evsel__name(evsel));
 
 	for_each_group_member(pos, evsel)
 		ret += scnprintf(buf + ret, size - ret, ", %s",
 				 perf_evsel__name(pos));
 
-	ret += scnprintf(buf + ret, size - ret, " }");
+	if (!evsel->forced_leader)
+		ret += scnprintf(buf + ret, size - ret, " }");
 
 	return ret;
 }
@@ -1233,7 +1246,7 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
 	perf_evsel__free_config_terms(evsel);
-	close_cgroup(evsel->cgrp);
+	cgroup__put(evsel->cgrp);
 	cpu_map__put(evsel->cpus);
 	cpu_map__put(evsel->own_cpus);
 	thread_map__put(evsel->threads);
@@ -1915,6 +1928,9 @@ try_fallback:
 		goto fallback_missing_features;
 	}
 out_close:
+	if (err)
+		threads->err_thread = thread;
+
 	do {
 		while (--thread >= 0) {
 			close(FD(evsel, cpu, thread));

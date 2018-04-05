@@ -110,6 +110,8 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 		to_intel_digital_connector_state(old_state);
 	struct drm_crtc_state *crtc_state;
 
+	intel_hdcp_atomic_check(conn, old_state, new_state);
+
 	if (!new_state->crtc)
 		return 0;
 
@@ -186,13 +188,14 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 /**
  * intel_crtc_destroy_state - destroy crtc state
  * @crtc: drm crtc
+ * @state: the state to destroy
  *
  * Destroys the crtc state (both common and Intel-specific) for the
  * specified crtc.
  */
 void
 intel_crtc_destroy_state(struct drm_crtc *crtc,
-			  struct drm_crtc_state *state)
+			 struct drm_crtc_state *state)
 {
 	drm_atomic_helper_crtc_destroy_state(crtc, state);
 }
@@ -200,7 +203,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
  * @dev_priv: i915 device
- * @crtc: intel crtc
+ * @intel_crtc: intel crtc
  * @crtc_state: incoming crtc_state to validate and setup scalers
  *
  * This function sets up scalers based on staged scaling requests for

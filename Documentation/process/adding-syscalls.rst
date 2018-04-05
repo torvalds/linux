@@ -222,7 +222,7 @@ your new syscall number may get adjusted to resolve conflicts.
 The file ``kernel/sys_ni.c`` provides a fallback stub implementation of each
 system call, returning ``-ENOSYS``.  Add your new system call here too::
 
-    cond_syscall(sys_xyzzy);
+    COND_SYSCALL(xyzzy);
 
 Your new kernel functionality, and the system call that controls it, should
 normally be optional, so add a ``CONFIG`` option (typically to
@@ -486,6 +486,38 @@ patchset, for the convenience of reviewers.
 
 The man page should be cc'ed to linux-man@vger.kernel.org
 For more details, see https://www.kernel.org/doc/man-pages/patches.html
+
+
+Do not call System Calls in the Kernel
+--------------------------------------
+
+System calls are, as stated above, interaction points between userspace and
+the kernel.  Therefore, system call functions such as ``sys_xyzzy()`` or
+``compat_sys_xyzzy()`` should only be called from userspace via the syscall
+table, but not from elsewhere in the kernel.  If the syscall functionality is
+useful to be used within the kernel, needs to be shared between an old and a
+new syscall, or needs to be shared between a syscall and its compatibility
+variant, it should be implemented by means of a "helper" function (such as
+``kern_xyzzy()``).  This kernel function may then be called within the
+syscall stub (``sys_xyzzy()``), the compatibility syscall stub
+(``compat_sys_xyzzy()``), and/or other kernel code.
+
+At least on 64-bit x86, it will be a hard requirement from v4.17 onwards to not
+call system call functions in the kernel.  It uses a different calling
+convention for system calls where ``struct pt_regs`` is decoded on-the-fly in a
+syscall wrapper which then hands processing over to the actual syscall function.
+This means that only those parameters which are actually needed for a specific
+syscall are passed on during syscall entry, instead of filling in six CPU
+registers with random user space content all the time (which may cause serious
+trouble down the call chain).
+
+Moreover, rules on how data may be accessed may differ between kernel data and
+user data.  This is another reason why calling ``sys_xyzzy()`` is generally a
+bad idea.
+
+Exceptions to this rule are only allowed in architecture-specific overrides,
+architecture-specific compatibility wrappers, or other code in arch/.
+
 
 References and Sources
 ----------------------

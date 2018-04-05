@@ -360,6 +360,9 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 
 	amdgpu_debugfs_ring_fini(ring);
 
+	dma_fence_put(ring->vmid_wait);
+	ring->vmid_wait = NULL;
+
 	ring->adev->rings[ring->idx] = NULL;
 }
 

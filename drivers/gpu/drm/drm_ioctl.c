@@ -509,7 +509,7 @@ int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 		return -EACCES;
 
 	/* MASTER is only for master or control clients */
-	if (unlikely((flags & DRM_MASTER) && 
+	if (unlikely((flags & DRM_MASTER) &&
 		     !drm_is_current_master(file_priv) &&
 		     !drm_is_control_client(file_priv)))
 		return -EACCES;
@@ -704,7 +704,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
  *
  *     ##define DRM_IOCTL_MY_DRIVER_OPERATION \
  *         DRM_IOW(DRM_COMMAND_BASE, struct my_driver_operation)
- * 
+ *
  * DRM driver private IOCTL must be in the range from DRM_COMMAND_BASE to
  * DRM_COMMAND_END. Finally you need an array of &struct drm_ioctl_desc to wire
  * up the handlers and set the access rights::
@@ -848,7 +848,7 @@ long drm_ioctl(struct file *filp,
 	if (kdata != stack_kdata)
 		kfree(kdata);
 	if (retcode)
-		DRM_DEBUG("ret = %d\n", retcode);
+		DRM_DEBUG("pid=%d, ret = %d\n", task_pid_nr(current), retcode);
 	return retcode;
 }
 EXPORT_SYMBOL(drm_ioctl);

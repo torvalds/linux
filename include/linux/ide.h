@@ -25,15 +25,10 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
-#if defined(CONFIG_CRIS) || defined(CONFIG_FRV) || defined(CONFIG_MN10300)
-# define SUPPORT_VLB_SYNC 0
-#else
-# define SUPPORT_VLB_SYNC 1
-#endif
-
 /*
  * Probably not wise to fiddle with these
  */
+#define SUPPORT_VLB_SYNC 1
 #define IDE_DEFAULT_MAX_FAILURES	1
 #define ERROR_MAX	8	/* Max read/write errors per sector */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */

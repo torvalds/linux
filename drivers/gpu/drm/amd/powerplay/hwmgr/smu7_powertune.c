@@ -731,14 +731,9 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 	int result;
 	uint32_t num_se = 0;
 	uint32_t count, value, value2;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-
-	if (result == 0)
-		num_se = sys_info.value;
+	num_se = adev->gfx.config.max_shader_engines;
 
 	if (PP_CAP(PHM_PlatformCaps_SQRamping) ||
 	    PP_CAP(PHM_PlatformCaps_DBRamping) ||
@@ -857,6 +852,8 @@ int smu7_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
+	n = (n & 0xff) << 8;
+
 	if (data->power_containment_features &
 			POWERCONTAINMENT_FEATURE_PkgPwrLimit)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -903,12 +900,12 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 			PP_ASSERT_WITH_CODE((0 == smc_result),
 					"Failed to enable PkgPwrTracking in SMC.", result = -1;);
 			if (0 == smc_result) {
-				uint32_t default_limit =
-					(uint32_t)(cac_table->usMaximumPowerDeliveryLimit * 256);
+				hwmgr->default_power_limit = hwmgr->power_limit =
+						cac_table->usMaximumPowerDeliveryLimit;
 				data->power_containment_features |=
 						POWERCONTAINMENT_FEATURE_PkgPwrLimit;
 
-				if (smu7_set_power_limit(hwmgr, default_limit))
+				if (smu7_set_power_limit(hwmgr, hwmgr->power_limit))
 					pr_err("Failed to set Default Power Limit in SMC!");
 			}
 		}
