@@ -1186,10 +1186,10 @@ EXPORT_SYMBOL(kmalloc_order_trace);
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
 /* Randomize a generic freelist */
 static void freelist_randomize(struct rnd_state *state, unsigned int *list,
-			size_t count)
+			       unsigned int count)
 {
-	size_t i;
 	unsigned int rand;
+	unsigned int i;
 
 	for (i = 0; i < count; i++)
 		list[i] = i;
