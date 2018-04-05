@@ -295,6 +295,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	unsigned int expected_interval;
 	unsigned long nr_iowaiters, cpu_load;
 	int resume_latency = dev_pm_qos_raw_read_value(device);
+	ktime_t delta_next;
 
 	if (data->needs_update) {
 		menu_update(drv, dev);
@@ -312,7 +313,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	}
 
 	/* determine the expected residency time, round up */
-	data->next_timer_us = ktime_to_us(tick_nohz_get_sleep_length());
+	data->next_timer_us = ktime_to_us(tick_nohz_get_sleep_length(&delta_next));
 
 	get_iowait_load(&nr_iowaiters, &cpu_load);
 	data->bucket = which_bucket(data->next_timer_us, nr_iowaiters);
@@ -396,8 +397,30 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * expected idle duration is shorter than the tick period length.
 	 */
 	if ((drv->states[idx].flags & CPUIDLE_FLAG_POLLING) ||
-	    expected_interval < TICK_USEC)
+	    expected_interval < TICK_USEC) {
+		unsigned int delta_next_us = ktime_to_us(delta_next);
+
 		*stop_tick = false;
+
+		if (!tick_nohz_tick_stopped() && idx > 0 &&
+		    drv->states[idx].target_residency > delta_next_us) {
+			/*
+			 * The tick is not going to be stopped and the target
+			 * residency of the state to be returned is not within
+			 * the time until the next timer event including the
+			 * tick, so try to correct that.
+			 */
+			for (i = idx - 1; i >= 0; i--) {
+			    if (drv->states[i].disabled ||
+			        dev->states_usage[i].disable)
+					continue;
+
+				idx = i;
+				if (drv->states[i].target_residency <= delta_next_us)
+					break;
+			}
+		}
+	}
 
 	data->last_state_idx = idx;
 

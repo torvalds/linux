@@ -1023,10 +1023,11 @@ bool tick_nohz_idle_got_tick(void)
 
 /**
  * tick_nohz_get_sleep_length - return the expected length of the current sleep
+ * @delta_next: duration until the next event if the tick cannot be stopped
  *
  * Called from power state control code with interrupts disabled
  */
-ktime_t tick_nohz_get_sleep_length(void)
+ktime_t tick_nohz_get_sleep_length(ktime_t *delta_next)
 {
 	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
@@ -1040,12 +1041,14 @@ ktime_t tick_nohz_get_sleep_length(void)
 
 	WARN_ON_ONCE(!ts->inidle);
 
+	*delta_next = ktime_sub(dev->next_event, now);
+
 	if (!can_stop_idle_tick(cpu, ts))
-		goto out_dev;
+		return *delta_next;
 
 	next_event = tick_nohz_next_event(ts, cpu);
 	if (!next_event)
-		goto out_dev;
+		return *delta_next;
 
 	/*
 	 * If the next highres timer to expire is earlier than next_event, the
@@ -1055,9 +1058,6 @@ ktime_t tick_nohz_get_sleep_length(void)
 			   hrtimer_next_event_without(&ts->sched_timer));
 
 	return ktime_sub(next_event, now);
-
-out_dev:
-	return ktime_sub(dev->next_event, now);
 }
 
 /**
