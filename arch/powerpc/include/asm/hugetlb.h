@@ -118,12 +118,6 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 			    unsigned long ceiling);
 
 /*
- * The version of vma_mmu_pagesize() in arch/powerpc/mm/hugetlbpage.c needs
- * to override the version in mm/hugetlb.c
- */
-#define vma_mmu_pagesize vma_mmu_pagesize
-
-/*
  * If the arch doesn't supply something else, assume that hugepage
  * size aligned regions are ok without further preparation.
  */
