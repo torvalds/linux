@@ -804,8 +804,6 @@ static inline void qedr_init_cq_params(struct qedr_cq *cq,
 
 static void doorbell_cq(struct qedr_cq *cq, u32 cons, u8 flags)
 {
-	/* Flush data before signalling doorbell */
-	wmb();
 	cq->db.data.agg_flags = flags;
 	cq->db.data.value = cpu_to_le32(cons);
 	writeq(cq->db.raw, cq->db_addr);
@@ -1812,8 +1810,7 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 			 */
 
 			if (rdma_protocol_roce(&dev->ibdev, 1)) {
-				wmb();
-				writel_relaxed(qp->rq.db_data.raw, qp->rq.db);
+				writel(qp->rq.db_data.raw, qp->rq.db);
 				/* Make sure write takes effect */
 				mmiowb();
 			}
@@ -3198,9 +3195,16 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	 * vane. However this is not harmful (as long as the producer value is
 	 * unchanged). For performance reasons we avoid checking for this
 	 * redundant doorbell.
+	 *
+	 * qp->wqe_wr_id is accessed during qedr_poll_cq, as
+	 * soon as we give the doorbell, we could get a completion
+	 * for this wr, therefore we need to make sure that the
+	 * memory is updated before giving the doorbell.
+	 * During qedr_poll_cq, rmb is called before accessing the
+	 * cqe. This covers for the smp_rmb as well.
 	 */
-	wmb();
-	writel_relaxed(qp->sq.db_data.raw, qp->sq.db);
+	smp_wmb();
+	writel(qp->sq.db_data.raw, qp->sq.db);
 
 	/* Make sure write sticks */
 	mmiowb();
@@ -3286,8 +3290,14 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		qedr_inc_sw_prod(&qp->rq);
 
-		/* Flush all the writes before signalling doorbell */
-		wmb();
+		/* qp->rqe_wr_id is accessed during qedr_poll_cq, as
+		 * soon as we give the doorbell, we could get a completion
+		 * for this wr, therefore we need to make sure that the
+		 * memory is update before giving the doorbell.
+		 * During qedr_poll_cq, rmb is called before accessing the
+		 * cqe. This covers for the smp_rmb as well.
+		 */
+		smp_wmb();
 
 		qp->rq.db_data.data.value++;
 
