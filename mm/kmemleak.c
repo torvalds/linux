@@ -1963,7 +1963,7 @@ static void kmemleak_disable(void)
 /*
  * Allow boot-time kmemleak disabling (enabled by default).
  */
-static int kmemleak_boot_config(char *str)
+static int __init kmemleak_boot_config(char *str)
 {
 	if (!str)
 		return -EINVAL;
