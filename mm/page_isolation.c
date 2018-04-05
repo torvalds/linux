@@ -28,6 +28,14 @@ static int set_migratetype_isolate(struct page *page, int migratetype,
 
 	spin_lock_irqsave(&zone->lock, flags);
 
+	/*
+	 * We assume the caller intended to SET migrate type to isolate.
+	 * If it is already set, then someone else must have raced and
+	 * set it before us.  Return -EBUSY
+	 */
+	if (is_migrate_isolate_page(page))
+		goto out;
+
 	pfn = page_to_pfn(page);
 	arg.start_pfn = pfn;
 	arg.nr_pages = pageblock_nr_pages;
@@ -166,7 +174,15 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  * future will not be allocated again.
  *
  * start_pfn/end_pfn must be aligned to pageblock_order.
- * Returns 0 on success and -EBUSY if any part of range cannot be isolated.
+ * Return 0 on success and -EBUSY if any part of range cannot be isolated.
+ *
+ * There is no high level synchronization mechanism that prevents two threads
+ * from trying to isolate overlapping ranges.  If this happens, one thread
+ * will notice pageblocks in the overlapping range already set to isolate.
+ * This happens in set_migratetype_isolate, and set_migratetype_isolate
+ * returns an error.  We then clean up by restoring the migration type on
+ * pageblocks we may have modified and return -EBUSY to caller.  This
+ * prevents two threads from simultaneously working on overlapping ranges.
  */
 int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			     unsigned migratetype, bool skip_hwpoisoned_pages)
