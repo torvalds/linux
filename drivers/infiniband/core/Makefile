@@ -35,4 +35,4 @@ ib_ucm-y :=			ucm.o
 ib_uverbs-y :=			uverbs_main.o uverbs_cmd.o uverbs_marshall.o \
 				rdma_core.o uverbs_std_types.o uverbs_ioctl.o \
 				uverbs_ioctl_merge.o uverbs_std_types_cq.o \
-				uverbs_std_types_flow_action.o
+				uverbs_std_types_flow_action.o uverbs_std_types_dm.o
