@@ -382,8 +382,7 @@ retry:
 
 	p->bytes_moved += ctx.bytes_moved;
 	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
-	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
-	    bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT)
+	    amdgpu_bo_in_cpu_visible_vram(bo))
 		p->bytes_moved_vis += ctx.bytes_moved;
 
 	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains &&
@@ -437,8 +436,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		/* Good we can try to move this BO somewhere else */
 		update_bytes_moved_vis =
 			adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
-			bo->tbo.mem.mem_type == TTM_PL_VRAM &&
-			bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT;
+			amdgpu_bo_in_cpu_visible_vram(bo);
 		amdgpu_ttm_placement_from_domain(bo, other);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		p->bytes_moved += ctx.bytes_moved;
