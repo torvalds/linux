@@ -58,6 +58,7 @@ struct mlx5_nic_flow_attr {
 	u32 flow_tag;
 	u32 mod_hdr_id;
 	u32 hairpin_tirn;
+	u8 match_level;
 	struct mlx5_flow_table	*hairpin_ft;
 };
 
@@ -753,7 +754,9 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		table_created = true;
 	}
 
-	parse_attr->spec.match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	if (attr->match_level != MLX5_MATCH_NONE)
+		parse_attr->spec.match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+
 	rule = mlx5_add_flow_rules(priv->fs.tc.t, &parse_attr->spec,
 				   &flow_act, dest, dest_ix);
 
@@ -1546,6 +1549,11 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 			return -EOPNOTSUPP;
 		}
 	}
+
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+		flow->esw_attr->match_level = match_level;
+	else
+		flow->nic_attr->match_level = match_level;
 
 	return err;
 }
