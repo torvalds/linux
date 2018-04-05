@@ -412,9 +412,10 @@ static void atmel_hlcdc_plane_update_format(struct atmel_hlcdc_plane *plane,
 				    ATMEL_HLCDC_LAYER_FORMAT_CFG, cfg);
 }
 
-static void atmel_hlcdc_plane_update_clut(struct atmel_hlcdc_plane *plane)
+static void atmel_hlcdc_plane_update_clut(struct atmel_hlcdc_plane *plane,
+					  struct atmel_hlcdc_plane_state *state)
 {
-	struct drm_crtc *crtc = plane->base.crtc;
+	struct drm_crtc *crtc = state->base.crtc;
 	struct drm_color_lut *lut;
 	int idx;
 
@@ -779,7 +780,7 @@ static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
 	atmel_hlcdc_plane_update_pos_and_size(plane, state);
 	atmel_hlcdc_plane_update_general_settings(plane, state);
 	atmel_hlcdc_plane_update_format(plane, state);
-	atmel_hlcdc_plane_update_clut(plane);
+	atmel_hlcdc_plane_update_clut(plane, state);
 	atmel_hlcdc_plane_update_buffers(plane, state);
 	atmel_hlcdc_plane_update_disc_area(plane, state);
 
