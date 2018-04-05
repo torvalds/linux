@@ -2720,12 +2720,17 @@ enum {
 	MLX5_MKC_ACCESS_MODE_MTT   = 0x1,
 	MLX5_MKC_ACCESS_MODE_KLMS  = 0x2,
 	MLX5_MKC_ACCESS_MODE_KSM   = 0x3,
+	MLX5_MKC_ACCESS_MODE_MEMIC = 0x5,
 };
 
 struct mlx5_ifc_mkc_bits {
 	u8         reserved_at_0[0x1];
 	u8         free[0x1];
-	u8         reserved_at_2[0xd];
+	u8         reserved_at_2[0x1];
+	u8         access_mode_4_2[0x3];
+	u8         reserved_at_6[0x7];
+	u8         relaxed_ordering_write[0x1];
+	u8         reserved_at_e[0x1];
 	u8         small_fence_on_rdma_read_response[0x1];
 	u8         umr_en[0x1];
 	u8         a[0x1];
@@ -2733,7 +2738,7 @@ struct mlx5_ifc_mkc_bits {
 	u8         rr[0x1];
 	u8         lw[0x1];
 	u8         lr[0x1];
-	u8         access_mode[0x2];
+	u8         access_mode_1_0[0x2];
 	u8         reserved_at_18[0x8];
 
 	u8         qpn[0x18];

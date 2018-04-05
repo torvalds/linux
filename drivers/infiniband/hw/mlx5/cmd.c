@@ -99,23 +99,21 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 	MLX5_SET(alloc_memic_in, in, log_memic_addr_alignment,
 		 mlx5_alignment);
 
-	do {
+	while (page_idx < num_memic_hw_pages) {
 		spin_lock(&memic->memic_lock);
 		page_idx = bitmap_find_next_zero_area(memic->memic_alloc_pages,
 						      num_memic_hw_pages,
 						      page_idx,
 						      num_pages, 0);
 
-		if (page_idx + num_pages <= num_memic_hw_pages)
+		if (page_idx < num_memic_hw_pages)
 			bitmap_set(memic->memic_alloc_pages,
 				   page_idx, num_pages);
-		else
-			ret = -ENOMEM;
 
 		spin_unlock(&memic->memic_lock);
 
-		if (ret)
-			return ret;
+		if (page_idx >= num_memic_hw_pages)
+			break;
 
 		MLX5_SET64(alloc_memic_in, in, range_start_addr,
 			   hw_start_addr + (page_idx * PAGE_SIZE));
@@ -138,10 +136,10 @@ int mlx5_cmd_alloc_memic(struct mlx5_memic *memic, phys_addr_t *addr,
 		*addr = pci_resource_start(dev->pdev, 0) +
 			MLX5_GET64(alloc_memic_out, out, memic_start_addr);
 
-		return ret;
-	} while (page_idx < num_memic_hw_pages);
+		return 0;
+	}
 
-	return ret;
+	return -ENOMEM;
 }
 
 int mlx5_cmd_dealloc_memic(struct mlx5_memic *memic, u64 addr, u64 length)
