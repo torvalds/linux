@@ -83,6 +83,7 @@ static int hv_mode;
 
 static struct {
 	u64	lpcr;
+	u64	lpcr_clear;
 	u64	hfscr;
 	u64	fscr;
 } system_registers;
@@ -91,6 +92,8 @@ static void (*init_pmu_registers)(void);
 
 static void __restore_cpu_cpufeatures(void)
 {
+	u64 lpcr;
+
 	/*
 	 * LPCR is restored by the power on engine already. It can be changed
 	 * after early init e.g., by radix enable, and we have no unified API
@@ -103,8 +106,10 @@ static void __restore_cpu_cpufeatures(void)
 	 * The best we can do to accommodate secondary boot and idle restore
 	 * for now is "or" LPCR with existing.
 	 */
-
-	mtspr(SPRN_LPCR, system_registers.lpcr | mfspr(SPRN_LPCR));
+	lpcr = mfspr(SPRN_LPCR);
+	lpcr |= system_registers.lpcr;
+	lpcr &= ~system_registers.lpcr_clear;
+	mtspr(SPRN_LPCR, lpcr);
 	if (hv_mode) {
 		mtspr(SPRN_LPID, 0);
 		mtspr(SPRN_HFSCR, system_registers.hfscr);
@@ -324,8 +329,9 @@ static int __init feat_enable_mmu_hash_v3(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
 
+	system_registers.lpcr_clear |= (LPCR_ISL | LPCR_UPRT | LPCR_HR);
 	lpcr = mfspr(SPRN_LPCR);
-	lpcr &= ~LPCR_ISL;
+	lpcr &= ~(LPCR_ISL | LPCR_UPRT | LPCR_HR);
 	mtspr(SPRN_LPCR, lpcr);
 
 	cur_cpu_spec->mmu_features |= MMU_FTRS_HASH_BASE;
