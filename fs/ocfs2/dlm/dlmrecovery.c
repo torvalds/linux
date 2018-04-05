@@ -62,7 +62,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node);
 static int dlm_init_recovery_area(struct dlm_ctxt *dlm, u8 dead_node);
 static int dlm_request_all_locks(struct dlm_ctxt *dlm,
 				 u8 request_from, u8 dead_node);
-static void dlm_destroy_recovery_area(struct dlm_ctxt *dlm, u8 dead_node);
+static void dlm_destroy_recovery_area(struct dlm_ctxt *dlm);
 
 static inline int dlm_num_locks_in_lockres(struct dlm_lock_resource *res);
 static void dlm_init_migratable_lockres(struct dlm_migratable_lockres *mres,
@@ -739,7 +739,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 	}
 
 	if (destroy)
-		dlm_destroy_recovery_area(dlm, dead_node);
+		dlm_destroy_recovery_area(dlm);
 
 	return status;
 }
@@ -764,7 +764,7 @@ static int dlm_init_recovery_area(struct dlm_ctxt *dlm, u8 dead_node)
 
 		ndata = kzalloc(sizeof(*ndata), GFP_NOFS);
 		if (!ndata) {
-			dlm_destroy_recovery_area(dlm, dead_node);
+			dlm_destroy_recovery_area(dlm);
 			return -ENOMEM;
 		}
 		ndata->node_num = num;
@@ -778,7 +778,7 @@ static int dlm_init_recovery_area(struct dlm_ctxt *dlm, u8 dead_node)
 	return 0;
 }
 
-static void dlm_destroy_recovery_area(struct dlm_ctxt *dlm, u8 dead_node)
+static void dlm_destroy_recovery_area(struct dlm_ctxt *dlm)
 {
 	struct dlm_reco_node_data *ndata, *next;
 	LIST_HEAD(tmplist);
