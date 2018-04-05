@@ -324,8 +324,32 @@ enter_winkle:
 /*
  * r3 - PSSCR value corresponding to the requested stop state.
  */
-power_enter_stop_esl:
+power_enter_stop:
+/*
+ * Check if we are executing the lite variant with ESL=EC=0
+ */
+	andis.   r4,r3,PSSCR_EC_ESL_MASK_SHIFTED
 	clrldi   r3,r3,60 /* r3 = Bits[60:63] = Requested Level (RL) */
+	bne	 .Lhandle_esl_ec_set
+	PPC_STOP
+	li	r3,0  /* Since we didn't lose state, return 0 */
+	std	r3, PACA_REQ_PSSCR(r13)
+
+	/*
+	 * pnv_wakeup_noloss() expects r12 to contain the SRR1 value so
+	 * it can determine if the wakeup reason is an HMI in
+	 * CHECK_HMI_INTERRUPT.
+	 *
+	 * However, when we wakeup with ESL=0, SRR1 will not contain the wakeup
+	 * reason, so there is no point setting r12 to SRR1.
+	 *
+	 * Further, we clear r12 here, so that we don't accidentally enter the
+	 * HMI in pnv_wakeup_noloss() if the value of r12[42:45] == WAKE_HMI.
+	 */
+	li	r12, 0
+	b 	pnv_wakeup_noloss
+
+.Lhandle_esl_ec_set:
 BEGIN_FTR_SECTION
 	/*
 	 * POWER9 DD2.0 or earlier can incorrectly set PMAO when waking up after
@@ -417,32 +441,21 @@ _GLOBAL(power9_offline_stop)
 	/* fall through */
 
 _GLOBAL(power9_idle_stop)
-	mtspr 	SPRN_PSSCR,r3
-	/*
-	 * The ESL=EC=0 case does not wake up at 0x100, and it does not
-	 * allow SMT mode switching, so it does not require PSSCR to be
-	 * saved.
-	 */
-	andis.	r4,r3,PSSCR_EC_ESL_MASK_SHIFTED
-	bne	1f
-	PPC_STOP
-	li	r3,0  /* Since we didn't lose state, return 0 */
-	blr
-1:
 	std	r3, PACA_REQ_PSSCR(r13)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 BEGIN_FTR_SECTION
 	sync
 	lwz	r5, PACA_DONT_STOP(r13)
 	cmpwi	r5, 0
-	bne	2f
+	bne	1f
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 #endif
-	LOAD_REG_ADDR(r4,power_enter_stop_esl)
+	mtspr 	SPRN_PSSCR,r3
+	LOAD_REG_ADDR(r4,power_enter_stop)
 	b	pnv_powersave_common
 	/* No return */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-2:
+1:
 	/*
 	 * We get here when TM / thread reconfiguration bug workaround
 	 * code wants to get the CPU into SMT4 mode, and therefore
