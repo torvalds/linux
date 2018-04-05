@@ -227,6 +227,13 @@ enum {
 	SET_VLAN_INSERT	= BIT(1)
 };
 
+enum mlx5_flow_match_level {
+	MLX5_MATCH_NONE	= MLX5_INLINE_MODE_NONE,
+	MLX5_MATCH_L2	= MLX5_INLINE_MODE_L2,
+	MLX5_MATCH_L3	= MLX5_INLINE_MODE_IP,
+	MLX5_MATCH_L4	= MLX5_INLINE_MODE_TCP_UDP,
+};
+
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_eswitch_rep *out_rep;
