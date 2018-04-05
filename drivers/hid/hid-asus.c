@@ -644,8 +644,7 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * All functionality is on a single HID interface and for
 		 * userspace the touchpad must be a separate input_dev.
 		 */
-		hdev->quirks |= HID_QUIRK_MULTI_INPUT |
-				HID_QUIRK_NO_EMPTY_INPUT;
+		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 		drvdata->tp = &asus_t100chi_tp;
 	}
 
