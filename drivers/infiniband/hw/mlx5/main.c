@@ -5226,6 +5226,7 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	if (MLX5_CAP_DEV_MEM(mdev, memic)) {
 		dev->ib_dev.alloc_dm = mlx5_ib_alloc_dm;
 		dev->ib_dev.dealloc_dm = mlx5_ib_dealloc_dm;
+		dev->ib_dev.reg_dm_mr = mlx5_ib_reg_dm_mr;
 	}
 
 	dev->ib_dev.create_flow	= mlx5_ib_create_flow;
