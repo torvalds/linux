@@ -127,9 +127,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	int vsyscall_nr, syscall_nr, tmp;
 	int prev_sig_on_uaccess_err;
 	long ret;
-#ifdef CONFIG_SYSCALL_PTREGS
 	unsigned long orig_dx;
-#endif
 
 	/*
 	 * No point in checking CS -- the only way to get here is a user mode
@@ -230,38 +228,22 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	ret = -EFAULT;
 	switch (vsyscall_nr) {
 	case 0:
-#ifdef CONFIG_SYSCALL_PTREGS
 		/* this decodes regs->di and regs->si on its own */
 		ret = sys_gettimeofday(regs);
-#else
-		ret = sys_gettimeofday(
-			(struct timeval __user *)regs->di,
-			(struct timezone __user *)regs->si);
-#endif /* CONFIG_SYSCALL_PTREGS */
 		break;
 
 	case 1:
-#ifdef CONFIG_SYSCALL_PTREGS
 		/* this decodes regs->di on its own */
 		ret = sys_time(regs);
-#else
-		ret = sys_time((time_t __user *)regs->di);
-#endif /* CONFIG_SYSCALL_PTREGS */
 		break;
 
 	case 2:
-#ifdef CONFIG_SYSCALL_PTREGS
 		/* while we could clobber regs->dx, we didn't in the past... */
 		orig_dx = regs->dx;
 		regs->dx = 0;
 		/* this decodes regs->di, regs->si and regs->dx on its own */
 		ret = sys_getcpu(regs);
 		regs->dx = orig_dx;
-#else
-		ret = sys_getcpu((unsigned __user *)regs->di,
-				 (unsigned __user *)regs->si,
-				 NULL);
-#endif /* CONFIG_SYSCALL_PTREGS */
 		break;
 	}
 
