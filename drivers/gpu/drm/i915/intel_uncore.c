@@ -1910,6 +1910,50 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 }
 
 /**
+ * gen11_reset_engines - reset individual engines
+ * @dev_priv: i915 device
+ * @engine_mask: mask of intel_ring_flag() engines or ALL_ENGINES for full reset
+ *
+ * This function will reset the individual engines that are set in engine_mask.
+ * If you provide ALL_ENGINES as mask, full global domain reset will be issued.
+ *
+ * Note: It is responsibility of the caller to handle the difference between
+ * asking full domain reset versus reset for all available individual engines.
+ *
+ * Returns 0 on success, nonzero on error.
+ */
+static int gen11_reset_engines(struct drm_i915_private *dev_priv,
+			       unsigned engine_mask)
+{
+	struct intel_engine_cs *engine;
+	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
+		[RCS] = GEN11_GRDOM_RENDER,
+		[BCS] = GEN11_GRDOM_BLT,
+		[VCS] = GEN11_GRDOM_MEDIA,
+		[VCS2] = GEN11_GRDOM_MEDIA2,
+		[VCS3] = GEN11_GRDOM_MEDIA3,
+		[VCS4] = GEN11_GRDOM_MEDIA4,
+		[VECS] = GEN11_GRDOM_VECS,
+		[VECS2] = GEN11_GRDOM_VECS2,
+	};
+	u32 hw_mask;
+
+	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
+
+	if (engine_mask == ALL_ENGINES) {
+		hw_mask = GEN11_GRDOM_FULL;
+	} else {
+		unsigned int tmp;
+
+		hw_mask = 0;
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+			hw_mask |= hw_engine_mask[engine->id];
+	}
+
+	return gen6_hw_domain_reset(dev_priv, hw_mask);
+}
+
+/**
  * __intel_wait_for_register_fw - wait until register matches expected state
  * @dev_priv: the i915 device
  * @reg: the register to read
@@ -2057,7 +2101,10 @@ static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 		if (gen8_reset_engine_start(engine))
 			goto not_ready;
 
-	return gen6_reset_engines(dev_priv, engine_mask);
+	if (INTEL_GEN(dev_priv) >= 11)
+		return gen11_reset_engines(dev_priv, engine_mask);
+	else
+		return gen6_reset_engines(dev_priv, engine_mask);
 
 not_ready:
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
@@ -2160,12 +2207,14 @@ bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 
 int intel_reset_guc(struct drm_i915_private *dev_priv)
 {
+	u32 guc_domain = INTEL_GEN(dev_priv) >= 11 ? GEN11_GRDOM_GUC :
+						     GEN9_GRDOM_GUC;
 	int ret;
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-	ret = gen6_hw_domain_reset(dev_priv, GEN9_GRDOM_GUC);
+	ret = gen6_hw_domain_reset(dev_priv, guc_domain);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;

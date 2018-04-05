@@ -301,6 +301,17 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN6_GRDOM_VECS		(1 << 4)
 #define  GEN9_GRDOM_GUC			(1 << 5)
 #define  GEN8_GRDOM_MEDIA2		(1 << 7)
+/* GEN11 changed all bit defs except for FULL & RENDER */
+#define  GEN11_GRDOM_FULL		GEN6_GRDOM_FULL
+#define  GEN11_GRDOM_RENDER		GEN6_GRDOM_RENDER
+#define  GEN11_GRDOM_BLT		(1 << 2)
+#define  GEN11_GRDOM_GUC		(1 << 3)
+#define  GEN11_GRDOM_MEDIA		(1 << 5)
+#define  GEN11_GRDOM_MEDIA2		(1 << 6)
+#define  GEN11_GRDOM_MEDIA3		(1 << 7)
+#define  GEN11_GRDOM_MEDIA4		(1 << 8)
+#define  GEN11_GRDOM_VECS		(1 << 13)
+#define  GEN11_GRDOM_VECS2		(1 << 14)
 
 #define RING_PP_DIR_BASE(engine)	_MMIO((engine)->mmio_base+0x228)
 #define RING_PP_DIR_BASE_READ(engine)	_MMIO((engine)->mmio_base+0x518)
