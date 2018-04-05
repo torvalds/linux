@@ -82,7 +82,7 @@ unsigned int kmem_cache_size(struct kmem_cache *s)
 EXPORT_SYMBOL(kmem_cache_size);
 
 #ifdef CONFIG_DEBUG_VM
-static int kmem_cache_sanity_check(const char *name, size_t size)
+static int kmem_cache_sanity_check(const char *name, unsigned int size)
 {
 	struct kmem_cache *s = NULL;
 
@@ -113,7 +113,7 @@ static int kmem_cache_sanity_check(const char *name, size_t size)
 	return 0;
 }
 #else
-static inline int kmem_cache_sanity_check(const char *name, size_t size)
+static inline int kmem_cache_sanity_check(const char *name, unsigned int size)
 {
 	return 0;
 }
@@ -280,8 +280,8 @@ static inline void memcg_unlink_cache(struct kmem_cache *s)
  * Figure out what the alignment of the objects will be given a set of
  * flags, a user specified alignment and the size of the objects.
  */
-static unsigned long calculate_alignment(slab_flags_t flags,
-		unsigned long align, unsigned long size)
+static unsigned int calculate_alignment(slab_flags_t flags,
+		unsigned int align, unsigned int size)
 {
 	/*
 	 * If the user wants hardware cache aligned objects then follow that
@@ -291,7 +291,7 @@ static unsigned long calculate_alignment(slab_flags_t flags,
 	 * alignment though. If that is greater then use it.
 	 */
 	if (flags & SLAB_HWCACHE_ALIGN) {
-		unsigned long ralign;
+		unsigned int ralign;
 
 		ralign = cache_line_size();
 		while (size <= ralign / 2)
@@ -331,7 +331,7 @@ int slab_unmergeable(struct kmem_cache *s)
 	return 0;
 }
 
-struct kmem_cache *find_mergeable(size_t size, size_t align,
+struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 		slab_flags_t flags, const char *name, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
@@ -379,7 +379,7 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
 }
 
 static struct kmem_cache *create_cache(const char *name,
-		size_t object_size, size_t size, size_t align,
+		unsigned int object_size, unsigned int size, unsigned int align,
 		slab_flags_t flags, size_t useroffset,
 		size_t usersize, void (*ctor)(void *),
 		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
@@ -452,7 +452,8 @@ out_free_cache:
  * as davem.
  */
 struct kmem_cache *
-kmem_cache_create_usercopy(const char *name, size_t size, size_t align,
+kmem_cache_create_usercopy(const char *name,
+		  unsigned int size, unsigned int align,
 		  slab_flags_t flags, size_t useroffset, size_t usersize,
 		  void (*ctor)(void *))
 {
@@ -532,7 +533,7 @@ out_unlock:
 EXPORT_SYMBOL(kmem_cache_create_usercopy);
 
 struct kmem_cache *
-kmem_cache_create(const char *name, size_t size, size_t align,
+kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 		slab_flags_t flags, void (*ctor)(void *))
 {
 	return kmem_cache_create_usercopy(name, size, align, flags, 0, 0,
