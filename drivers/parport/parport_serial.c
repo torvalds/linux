@@ -156,9 +156,6 @@ static struct parport_pc_pci cards[] = {
 	/* sunix_2s1p */                { 1, { { 3, -1 }, } },
 };
 
-#define PCI_VENDOR_ID_SUNIX		0x1fd4
-#define PCI_DEVICE_ID_SUNIX_1999	0x1999
-
 static struct pci_device_id parport_serial_pci_tbl[] = {
 	/* PCI cards */
 	{ PCI_VENDOR_ID_TITAN, PCI_DEVICE_ID_TITAN_110L,
