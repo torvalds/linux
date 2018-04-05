@@ -36,6 +36,12 @@
 #define DRV_NAME		"fsl_viu"
 #define VIU_VERSION		"0.5.1"
 
+/* Allow building this driver with COMPILE_TEST */
+#ifndef CONFIG_PPC
+#define out_be32(v, a)	iowrite32be(a, (void __iomem *)v)
+#define in_be32(a)	ioread32be((void __iomem *)a)
+#endif
+
 #define BUFFER_TIMEOUT		msecs_to_jiffies(500)  /* 0.5 seconds */
 
 #define	VIU_VID_MEM_LIMIT	4	/* Video memory limit, in Mb */
@@ -1407,7 +1413,7 @@ static int viu_of_probe(struct platform_device *op)
 	}
 
 	viu_irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (viu_irq == NO_IRQ) {
+	if (!viu_irq) {
 		dev_err(&op->dev, "Error while mapping the irq\n");
 		return -EINVAL;
 	}
