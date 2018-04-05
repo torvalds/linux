@@ -2291,6 +2291,18 @@ out:
 	return nr_freed;
 }
 
+bool __kmem_cache_empty(struct kmem_cache *s)
+{
+	int node;
+	struct kmem_cache_node *n;
+
+	for_each_kmem_cache_node(s, node, n)
+		if (!list_empty(&n->slabs_full) ||
+		    !list_empty(&n->slabs_partial))
+			return false;
+	return true;
+}
+
 int __kmem_cache_shrink(struct kmem_cache *cachep)
 {
 	int ret = 0;
