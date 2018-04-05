@@ -3388,13 +3388,8 @@ void wlc_lcnphy_deaf_mode(struct brcms_phy *pi, bool mode)
 	u8 phybw40;
 	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
-	if (LCNREV_LT(pi->pubpi.phy_rev, 2)) {
-		mod_phy_reg(pi, 0x4b0, (0x1 << 5), (mode) << 5);
-		mod_phy_reg(pi, 0x4b1, (0x1 << 9), 0 << 9);
-	} else {
-		mod_phy_reg(pi, 0x4b0, (0x1 << 5), (mode) << 5);
-		mod_phy_reg(pi, 0x4b1, (0x1 << 9), 0 << 9);
-	}
+	mod_phy_reg(pi, 0x4b0, (0x1 << 5), (mode) << 5);
+	mod_phy_reg(pi, 0x4b1, (0x1 << 9), 0 << 9);
 
 	if (phybw40 == 0) {
 		mod_phy_reg((pi), 0x410,
