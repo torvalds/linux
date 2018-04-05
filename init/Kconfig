@@ -1923,3 +1923,10 @@ source "kernel/Kconfig.locks"
 
 config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 	bool
+
+# It may be useful for an architecture to override the definitions of the
+# SYSCALL_DEFINE() and __SYSCALL_DEFINEx() macros in <linux/syscalls.h>,
+# in particular to use a different calling convention for syscalls.
+config ARCH_HAS_SYSCALL_WRAPPER
+	def_bool n
+	depends on !COMPAT

@@ -81,6 +81,17 @@ union bpf_attr;
 #include <linux/key.h>
 #include <trace/syscall.h>
 
+#ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
+/*
+ * It may be useful for an architecture to override the definitions of the
+ * SYSCALL_DEFINE0() and __SYSCALL_DEFINEx() macros, in particular to use a
+ * different calling convention for syscalls. To allow for that, the prototypes
+ * for the sys_*() functions below will *not* be included if
+ * CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
+ */
+#include <asm/syscall_wrapper.h>
+#endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
+
 /*
  * __MAP - apply a macro to syscall arguments
  * __MAP(n, m, t1, a1, t2, a2, ..., tn, an) will expand to
@@ -189,11 +200,13 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 }
 #endif
 
+#ifndef SYSCALL_DEFINE0
 #define SYSCALL_DEFINE0(sname)					\
 	SYSCALL_METADATA(_##sname, 0);				\
 	asmlinkage long sys_##sname(void);			\
 	ALLOW_ERROR_INJECTION(sys_##sname, ERRNO);		\
 	asmlinkage long sys_##sname(void)
+#endif /* SYSCALL_DEFINE0 */
 
 #define SYSCALL_DEFINE1(name, ...) SYSCALL_DEFINEx(1, _##name, __VA_ARGS__)
 #define SYSCALL_DEFINE2(name, ...) SYSCALL_DEFINEx(2, _##name, __VA_ARGS__)
@@ -209,6 +222,8 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 	__SYSCALL_DEFINEx(x, sname, __VA_ARGS__)
 
 #define __PROTECT(...) asmlinkage_protect(__VA_ARGS__)
+
+#ifndef __SYSCALL_DEFINEx
 #define __SYSCALL_DEFINEx(x, name, ...)					\
 	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(SyS##name))));		\
@@ -223,6 +238,7 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 		return ret;						\
 	}								\
 	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+#endif /* __SYSCALL_DEFINEx */
 
 /*
  * Called before coming back to user-mode. Returning to user-mode with an
@@ -252,7 +268,12 @@ static inline void addr_limit_user_check(void)
  * Please note that these prototypes here are only provided for information
  * purposes, for static analysis, and for linking from the syscall table.
  * These functions should not be called elsewhere from kernel code.
+ *
+ * As the syscall calling convention may be different from the default
+ * for architectures overriding the syscall calling convention, do not
+ * include the prototypes if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
+#ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
 asmlinkage long sys_io_setup(unsigned nr_reqs, aio_context_t __user *ctx);
 asmlinkage long sys_io_destroy(aio_context_t ctx);
 asmlinkage long sys_io_submit(aio_context_t, long,
@@ -1075,6 +1096,8 @@ asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
  * not implemented -- see kernel/sys_ni.c
  */
 asmlinkage long sys_ni_syscall(void);
+
+#endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 
 /*
