@@ -84,7 +84,7 @@ struct kmem_cache {
 	/* Used for retriving partial slabs etc */
 	slab_flags_t flags;
 	unsigned long min_partial;
-	int size;		/* The size of an object including meta data */
+	unsigned int size;	/* The size of an object including meta data */
 	unsigned int object_size;/* The size of an object without meta data */
 	unsigned int offset;	/* Free pointer offset. */
 #ifdef CONFIG_SLUB_CPU_PARTIAL
