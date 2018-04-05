@@ -687,8 +687,6 @@ struct hid_usage_id {
  * @input_mapped: invoked on input registering after mapping an usage
  * @input_configured: invoked just before the device is registered
  * @feature_mapping: invoked on feature registering
- * @bus_add_driver: invoked when a HID driver is about to be added
- * @bus_removed_driver: invoked when a HID driver has been removed
  * @suspend: invoked on suspend (NULL means nop)
  * @resume: invoked on resume if device was not reset (NULL means nop)
  * @reset_resume: invoked on resume if device was reset (NULL means nop)
@@ -743,8 +741,6 @@ struct hid_driver {
 	void (*feature_mapping)(struct hid_device *hdev,
 			struct hid_field *field,
 			struct hid_usage *usage);
-	void (*bus_add_driver)(struct hid_driver *driver);
-	void (*bus_removed_driver)(struct hid_driver *driver);
 #ifdef CONFIG_PM
 	int (*suspend)(struct hid_device *hdev, pm_message_t message);
 	int (*resume)(struct hid_device *hdev);

@@ -731,7 +731,7 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 		}
 
 		if (!(td->mtclass.quirks & MT_QUIRK_CONFIDENCE))
-			s->confidence_state = 1;
+			s->confidence_state = true;
 		active = (s->touch_state || s->inrange_state) &&
 							s->confidence_state;
 

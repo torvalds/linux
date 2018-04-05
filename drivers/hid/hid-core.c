@@ -2199,31 +2199,40 @@ void hid_destroy_device(struct hid_device *hdev)
 EXPORT_SYMBOL_GPL(hid_destroy_device);
 
 
-static int __bus_add_driver(struct device_driver *drv, void *data)
+static int __hid_bus_reprobe_drivers(struct device *dev, void *data)
 {
-	struct hid_driver *added_hdrv = data;
+	struct hid_driver *hdrv = data;
+	struct hid_device *hdev = to_hid_device(dev);
+
+	if (hdev->driver == hdrv &&
+	    !hdrv->match(hdev, hid_ignore_special_drivers))
+		return device_reprobe(dev);
+
+	return 0;
+}
+
+static int __hid_bus_driver_added(struct device_driver *drv, void *data)
+{
 	struct hid_driver *hdrv = to_hid_driver(drv);
 
-	if (hdrv->bus_add_driver)
-		hdrv->bus_add_driver(added_hdrv);
+	if (hdrv->match) {
+		bus_for_each_dev(&hid_bus_type, NULL, hdrv,
+				 __hid_bus_reprobe_drivers);
+	}
 
 	return 0;
 }
 
 static int __bus_removed_driver(struct device_driver *drv, void *data)
 {
-	struct hid_driver *removed_hdrv = data;
-	struct hid_driver *hdrv = to_hid_driver(drv);
-
-	if (hdrv->bus_removed_driver)
-		hdrv->bus_removed_driver(removed_hdrv);
-
-	return 0;
+	return bus_rescan_devices(&hid_bus_type);
 }
 
 int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 		const char *mod_name)
 {
+	int ret;
+
 	hdrv->driver.name = hdrv->name;
 	hdrv->driver.bus = &hid_bus_type;
 	hdrv->driver.owner = owner;
@@ -2232,9 +2241,13 @@ int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 	INIT_LIST_HEAD(&hdrv->dyn_list);
 	spin_lock_init(&hdrv->dyn_lock);
 
-	bus_for_each_drv(&hid_bus_type, NULL, hdrv, __bus_add_driver);
+	ret = driver_register(&hdrv->driver);
 
-	return driver_register(&hdrv->driver);
+	if (ret == 0)
+		bus_for_each_drv(&hid_bus_type, NULL, NULL,
+				 __hid_bus_driver_added);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__hid_register_driver);
 
