@@ -2,6 +2,18 @@
 General Purpose Input/Output (GPIO)
 ===================================
 
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   intro
+   driver
+   consumer
+   board
+   drivers-on-gpio
+   legacy
+
 Core
 ====
 
@@ -9,15 +21,6 @@ Core
    :internal:
 
 .. kernel-doc:: drivers/gpio/gpiolib.c
-   :export:
-
-Legacy API
-==========
-
-The functions listed in this section are deprecated. The GPIO descriptor based
-API described above should be used in new code.
-
-.. kernel-doc:: drivers/gpio/gpiolib-legacy.c
    :export:
 
 ACPI support

@@ -122,6 +122,17 @@ config GPIO_ATH79
 	  Select this option to enable GPIO driver for
 	  Atheros AR71XX/AR724X/AR913X SoC devices.
 
+config GPIO_RASPBERRYPI_EXP
+	tristate "Raspberry Pi 3 GPIO Expander"
+	default RASPBERRYPI_FIRMWARE
+	depends on OF_GPIO
+	# Make sure not 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
+	# happen when COMPILE_TEST=y, hence the added !RASPBERRYPI_FIRMWARE.
+	depends on (ARCH_BCM2835 && RASPBERRYPI_FIRMWARE) || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
+	help
+	  Turn on GPIO support for the expander on Raspberry Pi 3 boards, using
+	  the firmware mailbox to communicate with VideoCore on BCM283x chips.
+
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
 	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
@@ -158,6 +169,14 @@ config GPIO_DWAPB
 	help
 	  Say Y or M here to build support for the Synopsys DesignWare APB
 	  GPIO block.
+
+config GPIO_EIC_SPRD
+	tristate "Spreadtrum EIC support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Spreadtrum EIC device.
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
@@ -213,6 +232,15 @@ config GPIO_GRGPIO
 	help
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
+
+config GPIO_HLWD
+	tristate "Nintendo Wii (Hollywood) GPIO"
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	help
+	  Select this to support the GPIO controller of the Nintendo Wii.
+
+	  If unsure, say N.
 
 config GPIO_ICH
 	tristate "Intel ICH GPIO"
@@ -363,6 +391,14 @@ config GPIO_PL061
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device
 
+config GPIO_PMIC_EIC_SPRD
+	tristate "Spreadtrum PMIC EIC support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Spreadtrum PMIC EIC device.
+
 config GPIO_PXA
 	bool "PXA GPIO support"
 	depends on ARCH_PXA || ARCH_MMP
@@ -388,6 +424,14 @@ config GPIO_SPEAR_SPICS
 	select GENERIC_IRQ_CHIP
 	help
 	  Say yes here to support ST SPEAr SPI Chip Select as GPIO device
+
+config GPIO_SPRD
+	tristate "Spreadtrum GPIO support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Spreadtrum GPIO device.
 
 config GPIO_STA2X11
 	bool "STA2x11/ConneXt GPIO support"
@@ -452,21 +496,6 @@ config GPIO_THUNDERX
 	help
 	  Say yes here to support the on-chip GPIO lines on the ThunderX
 	  and OCTEON-TX families of SoCs.
-
-config GPIO_TZ1090
-	bool "Toumaz Xenif TZ1090 GPIO support"
-	depends on SOC_TZ1090
-	select GENERIC_IRQ_CHIP
-	default y
-	help
-	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
-
-config GPIO_TZ1090_PDC
-	bool "Toumaz Xenif TZ1090 PDC GPIO support"
-	depends on SOC_TZ1090
-	default y
-	help
-	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
 
 config GPIO_UNIPHIER
 	tristate "UniPhier GPIO support"
@@ -581,7 +610,8 @@ menu "Port-mapped I/O GPIO drivers"
 
 config GPIO_104_DIO_48E
 	tristate "ACCES 104-DIO-48E GPIO support"
-	depends on PC104 && ISA_BUS_API
+	depends on PC104
+	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the ACCES 104-DIO-48E series (104-DIO-48E,
@@ -591,7 +621,8 @@ config GPIO_104_DIO_48E
 
 config GPIO_104_IDIO_16
 	tristate "ACCES 104-IDIO-16 GPIO support"
-	depends on PC104 && ISA_BUS_API
+	depends on PC104
+	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the ACCES 104-IDIO-16 family (104-IDIO-16,
@@ -602,7 +633,8 @@ config GPIO_104_IDIO_16
 
 config GPIO_104_IDI_48
 	tristate "ACCES 104-IDI-48 GPIO support"
-	depends on PC104 && ISA_BUS_API
+	depends on PC104
+	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the ACCES 104-IDI-48 family (104-IDI-48A,
@@ -622,7 +654,8 @@ config GPIO_F7188X
 
 config GPIO_GPIO_MM
 	tristate "Diamond Systems GPIO-MM GPIO support"
-	depends on PC104 && ISA_BUS_API
+	depends on PC104
+	select ISA_BUS_API
 	help
 	  Enables GPIO support for the Diamond Systems GPIO-MM and GPIO-MM-12.
 
@@ -691,7 +724,7 @@ config GPIO_TS5500
 
 config GPIO_WINBOND
 	tristate "Winbond Super I/O GPIO support"
-	depends on ISA_BUS_API
+	select ISA_BUS_API
 	help
 	  This option enables support for GPIOs found on Winbond Super I/O
 	  chips.
@@ -707,7 +740,7 @@ config GPIO_WINBOND
 
 config GPIO_WS16C48
 	tristate "WinSystems WS16C48 GPIO support"
-	depends on ISA_BUS_API
+	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
 	help
 	  Enables GPIO support for the WinSystems WS16C48. The base port

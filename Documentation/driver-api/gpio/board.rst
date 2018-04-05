@@ -1,3 +1,4 @@
+=============
 GPIO Mappings
 =============
 
@@ -23,7 +24,7 @@ device tree bindings for your controller.
 
 GPIOs mappings are defined in the consumer device's node, in a property named
 <function>-gpios, where <function> is the function the driver will request
-through gpiod_get(). For example:
+through gpiod_get(). For example::
 
 	foo_device {
 		compatible = "acme,foo";
@@ -40,7 +41,7 @@ it but are only supported for compatibility reasons and should not be used for
 newer bindings since it has been deprecated.
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the
-"led" function, and GPIO 1 as the "power" GPIO:
+"led" function, and GPIO 1 as the "power" GPIO::
 
 	struct gpio_desc *red, *green, *blue, *power;
 
@@ -60,13 +61,13 @@ looked up by the gpiod functions internally) used in the device tree. With above
 
 Internally, the GPIO subsystem prefixes the GPIO suffix ("gpios" or "gpio")
 with the string passed in con_id to get the resulting string
-(snprintf(... "%s-%s", con_id, gpio_suffixes[]).
+(``snprintf(... "%s-%s", con_id, gpio_suffixes[]``).
 
 ACPI
 ----
 ACPI also supports function names for GPIOs in a similar fashion to DT.
 The above DT example can be converted to an equivalent ACPI description
-with the help of _DSD (Device Specific Data), introduced in ACPI 5.1:
+with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 
 	Device (FOO) {
 		Name (_CRS, ResourceTemplate () {
@@ -105,12 +106,12 @@ Documentation/acpi/gpio-properties.txt.
 Platform Data
 -------------
 Finally, GPIOs can be bound to devices and functions using platform data. Board
-files that desire to do so need to include the following header:
+files that desire to do so need to include the following header::
 
 	#include <linux/gpio/machine.h>
 
 GPIOs are mapped by the means of tables of lookups, containing instances of the
-gpiod_lookup structure. Two macros are defined to help declaring such mappings:
+gpiod_lookup structure. Two macros are defined to help declaring such mappings::
 
 	GPIO_LOOKUP(chip_label, chip_hwnum, con_id, flags)
 	GPIO_LOOKUP_IDX(chip_label, chip_hwnum, con_id, idx, flags)
@@ -141,22 +142,24 @@ end. The 'dev_id' field of the table is the identifier of the device that will
 make use of these GPIOs. It can be NULL, in which case it will be matched for
 calls to gpiod_get() with a NULL device.
 
-struct gpiod_lookup_table gpios_table = {
-	.dev_id = "foo.0",
-	.table = {
-		GPIO_LOOKUP_IDX("gpio.0", 15, "led", 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("gpio.0", 16, "led", 1, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("gpio.0", 17, "led", 2, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("gpio.0", 1, "power", GPIO_ACTIVE_LOW),
-		{ },
-	},
-};
+.. code-block:: c
 
-And the table can be added by the board code as follows:
+        struct gpiod_lookup_table gpios_table = {
+                .dev_id = "foo.0",
+                .table = {
+                        GPIO_LOOKUP_IDX("gpio.0", 15, "led", 0, GPIO_ACTIVE_HIGH),
+                        GPIO_LOOKUP_IDX("gpio.0", 16, "led", 1, GPIO_ACTIVE_HIGH),
+                        GPIO_LOOKUP_IDX("gpio.0", 17, "led", 2, GPIO_ACTIVE_HIGH),
+                        GPIO_LOOKUP("gpio.0", 1, "power", GPIO_ACTIVE_LOW),
+                        { },
+                },
+        };
+
+And the table can be added by the board code as follows::
 
 	gpiod_add_lookup_table(&gpios_table);
 
-The driver controlling "foo.0" will then be able to obtain its GPIOs as follows:
+The driver controlling "foo.0" will then be able to obtain its GPIOs as follows::
 
 	struct gpio_desc *red, *green, *blue, *power;
 

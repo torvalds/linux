@@ -697,7 +697,8 @@ config STM32_DFSDM_ADC
 
 config STX104
 	tristate "Apex Embedded Systems STX104 driver"
-	depends on PC104 && X86 && ISA_BUS_API
+	depends on PC104 && X86
+	select ISA_BUS_API
 	select GPIOLIB
 	help
 	  Say yes here to build support for the Apex Embedded Systems STX104

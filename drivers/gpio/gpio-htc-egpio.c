@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/gpio/driver.h>
 
 struct egpio_chip {
 	int              reg_start;
