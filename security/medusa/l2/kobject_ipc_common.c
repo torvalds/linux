@@ -119,8 +119,8 @@ medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medus
 	//this update kernel structure	
 	retval = ipc_kobj2kern(kobj, ipcp);
 
-	ipc_rcu_putref(ipcp, ipc_rcu_free);	
 	ipc_unlock_object(ipcp);
+	ipc_rcu_putref(ipcp, ipc_rcu_free);	
 out_unlock0:
 	rcu_read_unlock();
 out_err:

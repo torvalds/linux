@@ -41,6 +41,11 @@ medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
 		goto out_err;
 
+	if (!VS_INTERSECT(VSS(&task_security(current)),VS(ipc_security(ipcp))) ||
+		!VS_INTERSECT(VSW(&task_security(current)),VS(ipc_security(ipcp)))
+	)
+		return MED_NO;
+	
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_associate_access, &task_security(current))) {
 		access.flag = flag;
 		access.ipc_class = ipc_security(ipcp)->ipc_class;

@@ -2,6 +2,7 @@
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/medusa/l3/kobject.h>
+#include <linux/medusa/l3/model.h>
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l3/constants.h>
 #include <linux/medusa/l1/ipc.h>
