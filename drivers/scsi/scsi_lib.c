@@ -723,14 +723,14 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 }
 
 /**
- * __scsi_error_from_host_byte - translate SCSI error code into errno
- * @cmd:	SCSI command (unused)
+ * scsi_result_to_blk_status - translate a SCSI result code into blk_status_t
+ * @cmd:	SCSI command
  * @result:	scsi error code
  *
- * Translate SCSI error code into block errors.
+ * Translate a SCSI result code into a blk_status_t value. May reset the host
+ * byte of @cmd->result.
  */
-static blk_status_t __scsi_error_from_host_byte(struct scsi_cmnd *cmd,
-		int result)
+static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
 {
 	switch (host_byte(result)) {
 	case DID_TRANSPORT_FAILFAST:
@@ -810,10 +810,10 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 					    SCSI_SENSE_BUFFERSIZE);
 			}
 			if (!sense_deferred)
-				error = __scsi_error_from_host_byte(cmd, result);
+				error = scsi_result_to_blk_status(cmd, result);
 		}
 		/*
-		 * __scsi_error_from_host_byte may have reset the host_byte
+		 * scsi_result_to_blk_status may have reset the host_byte
 		 */
 		scsi_req(req)->result = cmd->result;
 		scsi_req(req)->resid_len = scsi_get_resid(cmd);
@@ -835,7 +835,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
 		 * This sets the error explicitly for the problem case.
 		 */
-		error = __scsi_error_from_host_byte(cmd, result);
+		error = scsi_result_to_blk_status(cmd, result);
 	}
 
 	/* no bidi support for !blk_rq_is_passthrough yet */
@@ -905,7 +905,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	if (result == 0)
 		goto requeue;
 
-	error = __scsi_error_from_host_byte(cmd, result);
+	error = scsi_result_to_blk_status(cmd, result);
 
 	if (host_byte(result) == DID_RESET) {
 		/* Third party bus reset or reset for error recovery
