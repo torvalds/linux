@@ -593,6 +593,45 @@ static void ov5645_regulators_disable(struct ov5645 *ov5645)
 		dev_err(ov5645->dev, "io regulator disable failed\n");
 }
 
+static int ov5645_read_reg_from(struct ov5645 *ov5645, u16 reg, u8 *val,
+			       u16 i2c_addr)
+{
+	u8 regbuf[2] = {
+		reg >> 8,
+		reg & 0xff,
+	};
+	struct i2c_msg req = {
+		.addr = i2c_addr,
+		.flags = 0,
+		.len = 2,
+		.buf = regbuf
+	};
+	struct i2c_msg read = {
+		.addr = i2c_addr,
+		.flags = I2C_M_RD,
+		.len = 1,
+		.buf = val
+	};
+	int ret;
+
+	ret = i2c_transfer(ov5645->i2c_client->adapter, &req, 1);
+	if (ret < 0)
+		dev_err(ov5645->dev,
+			"%s: req reg error %d on addr 0x%x: reg=0x%x\n",
+			__func__, ret, i2c_addr, reg);
+
+
+	ret = i2c_transfer(ov5645->i2c_client->adapter, &read, 1);
+	if (ret < 0) {
+		dev_err(ov5645->dev,
+			"%s: read reg error %d on addr 0x%x: reg=0x%x\n",
+			__func__, ret, i2c_addr, reg);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int ov5645_write_reg_to(struct ov5645 *ov5645, u16 reg, u8 val,
 			       u16 i2c_addr)
 {
@@ -751,6 +790,7 @@ static int ov5645_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct ov5645 *ov5645 = to_ov5645(sd);
 	int ret = 0;
+	u8 addr;
 
 	mutex_lock(&ov5645->power_lock);
 
@@ -767,14 +807,29 @@ static int ov5645_s_power(struct v4l2_subdev *sd, int on)
 				goto exit;
 			}
 
-			ret = ov5645_write_reg_to(ov5645, 0x3100,
-						ov5645->i2c_client->addr << 1, 0x3c);
+			ret = ov5645_read_reg_from(ov5645, 0x3100, &addr, 0x3c);
 			if (ret < 0) {
 				dev_err(ov5645->dev,
-					"could not change i2c address\n");
+					"could not read sensor address\n");
 				ov5645_set_power_off(ov5645);
 				mutex_unlock(&ov5645_lock);
 				goto exit;
+			}
+
+			/*
+			 * change sensor address only if the one supplied in the
+			 * DT is different from the default one
+			 */
+			if (addr != ov5645->i2c_client->addr) {
+				ret = ov5645_write_reg_to(ov5645, 0x3100,
+							ov5645->i2c_client->addr << 1, 0x3c);
+				if (ret < 0) {
+					dev_err(ov5645->dev,
+						"could not change i2c address\n");
+					ov5645_set_power_off(ov5645);
+					mutex_unlock(&ov5645_lock);
+					goto exit;
+				}
 			}
 
 			mutex_unlock(&ov5645_lock);
