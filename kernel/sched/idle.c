@@ -216,6 +216,7 @@ static void do_idle(void)
 
 	__current_set_polling();
 	tick_nohz_idle_enter();
+	tick_nohz_idle_stop_tick_protected();
 
 	while (!need_resched()) {
 		check_pgt_cache();

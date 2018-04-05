@@ -528,14 +528,11 @@ static void tick_nohz_stop_idle(struct tick_sched *ts, ktime_t now)
 	sched_clock_idle_wakeup_event();
 }
 
-static ktime_t tick_nohz_start_idle(struct tick_sched *ts)
+static void tick_nohz_start_idle(struct tick_sched *ts)
 {
-	ktime_t now = ktime_get();
-
-	ts->idle_entrytime = now;
+	ts->idle_entrytime = ktime_get();
 	ts->idle_active = 1;
 	sched_clock_idle_sleep_event();
-	return now;
 }
 
 /**
@@ -894,19 +891,21 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 	return true;
 }
 
-static void __tick_nohz_idle_enter(struct tick_sched *ts)
+static void __tick_nohz_idle_stop_tick(struct tick_sched *ts)
 {
-	ktime_t now, expires;
+	ktime_t expires;
 	int cpu = smp_processor_id();
-
-	now = tick_nohz_start_idle(ts);
 
 	if (can_stop_idle_tick(cpu, ts)) {
 		int was_stopped = ts->tick_stopped;
 
 		ts->idle_calls++;
 
-		expires = tick_nohz_stop_sched_tick(ts, now, cpu);
+		/*
+		 * The idle entry time should be a sufficient approximation of
+		 * the current time at this point.
+		 */
+		expires = tick_nohz_stop_sched_tick(ts, ts->idle_entrytime, cpu);
 		if (expires > 0LL) {
 			ts->idle_sleeps++;
 			ts->idle_expires = expires;
@@ -920,16 +919,19 @@ static void __tick_nohz_idle_enter(struct tick_sched *ts)
 }
 
 /**
- * tick_nohz_idle_enter - stop the idle tick from the idle task
+ * tick_nohz_idle_stop_tick - stop the idle tick from the idle task
  *
  * When the next event is more than a tick into the future, stop the idle tick
+ */
+void tick_nohz_idle_stop_tick(void)
+{
+	__tick_nohz_idle_stop_tick(this_cpu_ptr(&tick_cpu_sched));
+}
+
+/**
+ * tick_nohz_idle_enter - prepare for entering idle on the current CPU
+ *
  * Called when we start the idle loop.
- *
- * The arch is responsible of calling:
- *
- * - rcu_idle_enter() after its last use of RCU before the CPU is put
- *  to sleep.
- * - rcu_idle_exit() before the first use of RCU after the CPU is woken up.
  */
 void tick_nohz_idle_enter(void)
 {
@@ -941,7 +943,7 @@ void tick_nohz_idle_enter(void)
 
 	ts = this_cpu_ptr(&tick_cpu_sched);
 	ts->inidle = 1;
-	__tick_nohz_idle_enter(ts);
+	tick_nohz_start_idle(ts);
 
 	local_irq_enable();
 }
@@ -958,10 +960,12 @@ void tick_nohz_irq_exit(void)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
-	if (ts->inidle)
-		__tick_nohz_idle_enter(ts);
-	else
+	if (ts->inidle) {
+		tick_nohz_start_idle(ts);
+		__tick_nohz_idle_stop_tick(ts);
+	} else {
 		tick_nohz_full_update_tick(ts);
+	}
 }
 
 /**
