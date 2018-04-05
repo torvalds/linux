@@ -1237,13 +1237,13 @@ static int vnt_start(struct ieee80211_hw *hw)
 			  IRQF_SHARED, "vt6655", priv);
 	if (ret) {
 		dev_dbg(&priv->pcid->dev, "failed to start irq\n");
-		return ret;
+		goto err_free_rings;
 	}
 
 	dev_dbg(&priv->pcid->dev, "call device init rd0 ring\n");
 	ret = device_init_rd0_ring(priv);
 	if (ret)
-		return ret;
+		goto err_free_irq;
 	ret = device_init_rd1_ring(priv);
 	if (ret)
 		goto err_free_rd0_ring;
@@ -1269,6 +1269,10 @@ err_free_rd1_ring:
 	device_free_rd1_ring(priv);
 err_free_rd0_ring:
 	device_free_rd0_ring(priv);
+err_free_irq:
+	free_irq(priv->pcid->irq, priv);
+err_free_rings:
+	device_free_rings(priv);
 	return ret;
 }
 
