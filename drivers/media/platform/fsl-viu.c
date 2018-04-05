@@ -229,7 +229,7 @@ enum status_config {
 
 static irqreturn_t viu_intr(int irq, void *dev_id);
 
-struct viu_fmt *format_by_fourcc(int fourcc)
+static struct viu_fmt *format_by_fourcc(int fourcc)
 {
 	int i;
 
@@ -242,7 +242,7 @@ struct viu_fmt *format_by_fourcc(int fourcc)
 	return NULL;
 }
 
-void viu_start_dma(struct viu_dev *dev)
+static void viu_start_dma(struct viu_dev *dev)
 {
 	struct viu_reg *vr = dev->vr;
 
@@ -253,7 +253,7 @@ void viu_start_dma(struct viu_dev *dev)
 	out_be32(&vr->status_cfg, INT_FIELD_EN);
 }
 
-void viu_stop_dma(struct viu_dev *dev)
+static void viu_stop_dma(struct viu_dev *dev)
 {
 	struct viu_reg *vr = dev->vr;
 	int cnt = 100;
@@ -802,7 +802,7 @@ static int vidioc_overlay(struct file *file, void *priv, unsigned int on)
 	return 0;
 }
 
-int vidioc_g_fbuf(struct file *file, void *priv, struct v4l2_framebuffer *arg)
+static int vidioc_g_fbuf(struct file *file, void *priv, struct v4l2_framebuffer *arg)
 {
 	struct viu_fh  *fh = priv;
 	struct viu_dev *dev = fh->dev;
@@ -813,7 +813,7 @@ int vidioc_g_fbuf(struct file *file, void *priv, struct v4l2_framebuffer *arg)
 	return 0;
 }
 
-int vidioc_s_fbuf(struct file *file, void *priv, const struct v4l2_framebuffer *arg)
+static int vidioc_s_fbuf(struct file *file, void *priv, const struct v4l2_framebuffer *arg)
 {
 	struct viu_fh  *fh = priv;
 	struct viu_dev *dev = fh->dev;
@@ -1305,7 +1305,7 @@ static int viu_release(struct file *file)
 	return 0;
 }
 
-void viu_reset(struct viu_reg *reg)
+static void viu_reset(struct viu_reg *reg)
 {
 	out_be32(&reg->status_cfg, 0);
 	out_be32(&reg->luminance, 0x9512a254);
