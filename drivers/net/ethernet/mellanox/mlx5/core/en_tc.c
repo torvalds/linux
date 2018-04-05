@@ -1923,7 +1923,6 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		return -EINVAL;
 
 	attr->flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
-	attr->action = 0;
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
@@ -2464,7 +2463,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
-	memset(attr, 0, sizeof(*attr));
 	attr->in_rep = rpriv->rep;
 
 	tcf_exts_to_list(exts, &actions);
