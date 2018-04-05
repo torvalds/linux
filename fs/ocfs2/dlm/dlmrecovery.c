@@ -1823,7 +1823,6 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 	int i, j, bad;
 	struct dlm_lock *lock;
 	u8 from = O2NM_MAX_NODES;
-	unsigned int added = 0;
 	__be64 c;
 
 	mlog(0, "running %d locks for this lockres\n", mres->num_locks);
@@ -1839,7 +1838,6 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			spin_lock(&res->spinlock);
 			dlm_lockres_set_refmap_bit(dlm, res, from);
 			spin_unlock(&res->spinlock);
-			added++;
 			break;
 		}
 		BUG_ON(ml->highest_blocked != LKM_IVMODE);
@@ -1927,7 +1925,6 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			/* do not alter lock refcount.  switching lists. */
 			list_move_tail(&lock->list, queue);
 			spin_unlock(&res->spinlock);
-			added++;
 
 			mlog(0, "just reordered a local lock!\n");
 			continue;
@@ -2053,7 +2050,6 @@ skip_lvb:
 			     "setting refmap bit\n", dlm->name,
 			     res->lockname.len, res->lockname.name, ml->node);
 			dlm_lockres_set_refmap_bit(dlm, res, ml->node);
-			added++;
 		}
 		spin_unlock(&res->spinlock);
 	}
