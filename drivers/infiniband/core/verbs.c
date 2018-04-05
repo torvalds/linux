@@ -1616,12 +1616,16 @@ EXPORT_SYMBOL(ib_resize_cq);
 int ib_dereg_mr(struct ib_mr *mr)
 {
 	struct ib_pd *pd = mr->pd;
+	struct ib_dm *dm = mr->dm;
 	int ret;
 
 	rdma_restrack_del(&mr->res);
 	ret = mr->device->dereg_mr(mr);
-	if (!ret)
+	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		if (dm)
+			atomic_dec(&dm->usecnt);
+	}
 
 	return ret;
 }

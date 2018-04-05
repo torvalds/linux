@@ -144,12 +144,6 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 	return ret;
 }
 
-static int uverbs_free_mr(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why)
-{
-	return ib_dereg_mr((struct ib_mr *)uobject->object);
-}
-
 static int uverbs_free_xrcd(struct ib_uobject *uobject,
 			    enum rdma_remove_reason why)
 {
@@ -264,10 +258,6 @@ DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_QP,
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MW,
 			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_mw));
-
-DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MR,
-			    /* 1 is used in order to free the MR after all the MWs */
-			    &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_mr));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_SRQ,
 			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0,

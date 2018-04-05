@@ -321,6 +321,12 @@ struct ib_cq_caps {
 	u16     max_cq_moderation_period;
 };
 
+struct ib_dm_mr_attr {
+	u64		length;
+	u64		offset;
+	u32		access_flags;
+};
+
 struct ib_dm_alloc_attr {
 	u64	length;
 	u32	alignment;
@@ -1797,6 +1803,8 @@ struct ib_mr {
 		struct list_head	qp_entry;	/* FR */
 	};
 
+	struct ib_dm      *dm;
+
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
@@ -2444,6 +2452,9 @@ struct ib_device {
 					       struct ib_dm_alloc_attr *attr,
 					       struct uverbs_attr_bundle *attrs);
 	int                        (*dealloc_dm)(struct ib_dm *dm);
+	struct ib_mr *             (*reg_dm_mr)(struct ib_pd *pd, struct ib_dm *dm,
+						struct ib_dm_mr_attr *attr,
+						struct uverbs_attr_bundle *attrs);
 	/**
 	 * rdma netdev operation
 	 *

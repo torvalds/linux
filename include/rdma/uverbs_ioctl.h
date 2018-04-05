@@ -408,6 +408,18 @@ static inline int uverbs_attr_get_enum_id(const struct uverbs_attr_bundle *attrs
 	return attr->ptr_attr.enum_id;
 }
 
+static inline void *uverbs_attr_get_obj(const struct uverbs_attr_bundle *attrs_bundle,
+					u16 idx)
+{
+	struct ib_uobject *uobj =
+		uverbs_attr_get(attrs_bundle, idx)->obj_attr.uobject;
+
+	if (IS_ERR(uobj))
+		return uobj;
+
+	return uobj->object;
+}
+
 static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
 				 size_t idx, const void *from, size_t size)
 {
