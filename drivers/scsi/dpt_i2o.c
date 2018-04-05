@@ -3524,7 +3524,7 @@ static int adpt_i2o_systab_send(adpt_hba* pHba)
 #endif
 
 	return ret;	
- }
+}
 
 
 /*============================================================================

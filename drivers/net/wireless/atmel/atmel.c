@@ -3861,7 +3861,7 @@ static int reset_atmel_card(struct net_device *dev)
 
 	   set all the Mib values which matter in the card to match
 	   their settings in the atmel_private structure. Some of these
-	   can be altered on the fly, but many (WEP, infrastucture or ad-hoc)
+	   can be altered on the fly, but many (WEP, infrastructure or ad-hoc)
 	   can only be changed by tearing down the world and coming back through
 	   here.
 
