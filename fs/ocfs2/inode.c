@@ -1160,7 +1160,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	 * exception here are successfully wiped inodes - their
 	 * metadata can now be considered to be part of the system
 	 * inodes from which it came. */
-	if (!(OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED))
+	if (!(oi->ip_flags & OCFS2_INODE_DELETED))
 		ocfs2_checkpoint_inode(inode);
 
 	mlog_bug_on_msg(!list_empty(&oi->ip_io_markers),

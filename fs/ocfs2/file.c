@@ -101,7 +101,7 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	trace_ocfs2_file_open(inode, file, file->f_path.dentry,
-			      (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			      (unsigned long long)oi->ip_blkno,
 			      file->f_path.dentry->d_name.len,
 			      file->f_path.dentry->d_name.name, mode);
 
@@ -116,7 +116,7 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	/* Check that the inode hasn't been wiped from disk by another
 	 * node. If it hasn't then we're safe as long as we hold the
 	 * spin lock until our increment of open count. */
-	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED) {
+	if (oi->ip_flags & OCFS2_INODE_DELETED) {
 		spin_unlock(&oi->ip_lock);
 
 		status = -ENOENT;
@@ -190,7 +190,7 @@ static int ocfs2_sync_file(struct file *file, loff_t start, loff_t end,
 	bool needs_barrier = false;
 
 	trace_ocfs2_sync_file(inode, file, file->f_path.dentry,
-			      OCFS2_I(inode)->ip_blkno,
+			      oi->ip_blkno,
 			      file->f_path.dentry->d_name.len,
 			      file->f_path.dentry->d_name.name,
 			      (unsigned long long)datasync);

@@ -346,7 +346,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	unlock = 0;
 
 out_alloc:
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+	up_read(&oi->ip_alloc_sem);
 out_inode_unlock:
 	ocfs2_inode_unlock(inode, 0);
 out:

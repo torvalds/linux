@@ -573,7 +573,7 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	BUG_ON(ocfs2_is_refcount_inode(inode));
 
 	trace_ocfs2_create_refcount_tree(
-		(unsigned long long)OCFS2_I(inode)->ip_blkno);
+		(unsigned long long)oi->ip_blkno);
 
 	ret = ocfs2_reserve_new_metadata_blocks(osb, 1, &meta_ac);
 	if (ret) {
@@ -4766,8 +4766,8 @@ static int ocfs2_reflink_inodes_lock(struct inode *s_inode,
 		*bh2 = *bh1;
 
 	trace_ocfs2_double_lock_end(
-			(unsigned long long)OCFS2_I(inode1)->ip_blkno,
-			(unsigned long long)OCFS2_I(inode2)->ip_blkno);
+			(unsigned long long)oi1->ip_blkno,
+			(unsigned long long)oi2->ip_blkno);
 
 	return 0;
 
