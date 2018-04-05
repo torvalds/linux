@@ -6,6 +6,10 @@ Required properties:
 - #phys-cells:	must be 0 (see phy-bindings.txt in this directory)
 
 Optional properties:
+- clocks:	a phandle to the clock of this PHY
+- clock-names:	must be "phy"
+- resets:	a phandle to the reset line of this PHY
+- reset-names:	must be "phy"
 - phy-supply:	see phy-bindings.txt in this directory
 
 

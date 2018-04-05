@@ -135,6 +135,7 @@ static int query_import_device(int sockfd, char *busid)
 	struct op_import_request request;
 	struct op_import_reply   reply;
 	uint16_t code = OP_REP_IMPORT;
+	int status;
 
 	memset(&request, 0, sizeof(request));
 	memset(&reply, 0, sizeof(reply));
@@ -157,9 +158,10 @@ static int query_import_device(int sockfd, char *busid)
 	}
 
 	/* receive a reply */
-	rc = usbip_net_recv_op_common(sockfd, &code);
+	rc = usbip_net_recv_op_common(sockfd, &code, &status);
 	if (rc < 0) {
-		err("recv op_common");
+		err("Attach Request for %s failed - %s\n",
+		    busid, usbip_op_common_status_string(status));
 		return -1;
 	}
 
@@ -194,10 +196,8 @@ static int attach_device(char *host, char *busid)
 	}
 
 	rhport = query_import_device(sockfd, busid);
-	if (rhport < 0) {
-		err("query");
+	if (rhport < 0)
 		return -1;
-	}
 
 	close(sockfd);
 

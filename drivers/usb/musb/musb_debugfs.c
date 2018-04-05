@@ -110,11 +110,7 @@ static int musb_regdump_show(struct seq_file *s, void *unused)
 	pm_runtime_put_autosuspend(musb->controller);
 	return 0;
 }
-
-static int musb_regdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, musb_regdump_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(musb_regdump);
 
 static int musb_test_mode_show(struct seq_file *s, void *unused)
 {
@@ -158,13 +154,6 @@ static int musb_test_mode_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static const struct file_operations musb_regdump_fops = {
-	.open			= musb_regdump_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
 
 static int musb_test_mode_open(struct inode *inode, struct file *file)
 {

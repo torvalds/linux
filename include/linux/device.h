@@ -730,6 +730,28 @@ struct device_dma_parameters {
 };
 
 /**
+ * struct device_connection - Device Connection Descriptor
+ * @endpoint: The names of the two devices connected together
+ * @id: Unique identifier for the connection
+ * @list: List head, private, for internal use only
+ */
+struct device_connection {
+	const char		*endpoint[2];
+	const char		*id;
+	struct list_head	list;
+};
+
+void *device_connection_find_match(struct device *dev, const char *con_id,
+				void *data,
+				void *(*match)(struct device_connection *con,
+					       int ep, void *data));
+
+struct device *device_connection_find(struct device *dev, const char *con_id);
+
+void device_connection_add(struct device_connection *con);
+void device_connection_remove(struct device_connection *con);
+
+/**
  * enum device_link_state - Device link states.
  * @DL_STATE_NONE: The presence of the drivers is not being tracked.
  * @DL_STATE_DORMANT: None of the supplier/consumer drivers is present.

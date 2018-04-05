@@ -1,0 +1,9 @@
+Generic USB HCD (Host Controller Device) Properties
+
+Optional properties:
+- phys: a list of all USB PHYs on this HCD
+
+Example:
+	&usb1 {
+		phys = <&usb2_phy1>, <&usb3_phy1>;
+	};

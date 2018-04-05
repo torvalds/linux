@@ -4079,7 +4079,7 @@ S:	Supported
 F:	drivers/mtd/nand/denali*
 
 DESIGNWARE USB2 DRD IP DRIVER
-M:	John Youn <johnyoun@synopsys.com>
+M:	Minas Harutyunyan <hminas@synopsys.com>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
@@ -14476,6 +14476,12 @@ S:	Maintained
 F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
 
+USB INTEL XHCI ROLE MUX DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/roles/intel-xhci-usb-role-switch.c
+
 USB ISP116X DRIVER
 M:	Olav Kongas <ok@artecdesign.ee>
 L:	linux-usb@vger.kernel.org
@@ -14605,6 +14611,12 @@ F:	Documentation/usb/
 F:	drivers/usb/
 F:	include/linux/usb.h
 F:	include/linux/usb/
+
+USB TYPEC PI3USB30532 MUX DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/typec/mux/pi3usb30532.c
 
 USB TYPEC SUBSYSTEM
 M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>

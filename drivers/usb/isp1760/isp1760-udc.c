@@ -1441,7 +1441,6 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 			 unsigned long irqflags)
 {
 	struct isp1760_udc *udc = &isp->udc;
-	const char *devname;
 	int ret;
 
 	udc->irq = -1;
@@ -1455,12 +1454,9 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 	if (ret < 0)
 		return ret;
 
-	devname = dev_name(isp->dev);
-	udc->irqname = kmalloc(strlen(devname) + 7, GFP_KERNEL);
+	udc->irqname = kasprintf(GFP_KERNEL, "%s (udc)", dev_name(isp->dev));
 	if (!udc->irqname)
 		return -ENOMEM;
-
-	sprintf(udc->irqname, "%s (udc)", devname);
 
 	ret = request_irq(irq, isp1760_udc_irq, IRQF_SHARED | irqflags,
 			  udc->irqname, udc);

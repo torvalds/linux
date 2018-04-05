@@ -103,7 +103,7 @@ struct usb_hcd {
 	 * other external phys should be software-transparent
 	 */
 	struct usb_phy		*usb_phy;
-	struct phy		*phy;
+	struct usb_phy_roothub	*phy_roothub;
 
 	/* Flags that need to be manipulated atomically because they can
 	 * change while the host controller is running.  Always use
@@ -151,6 +151,12 @@ struct usb_hcd {
 	unsigned		msix_enabled:1;	/* driver has MSI-X enabled? */
 	unsigned		msi_enabled:1;	/* driver has MSI enabled? */
 	unsigned		remove_phy:1;	/* auto-remove USB phy */
+	/*
+	 * do not manage the PHY state in the HCD core, instead let the driver
+	 * handle this (for example if the PHY can only be turned on after a
+	 * specific event)
+	 */
+	unsigned		skip_phy_initialization:1;
 
 	/* The next flag is a stopgap, to be removed when all the HCDs
 	 * support the new root-hub polling mechanism. */

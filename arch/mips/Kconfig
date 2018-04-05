@@ -200,6 +200,7 @@ config ATH79
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_ZBOOT_UART_PROM
 	select USE_OF
+	select USB_EHCI_ROOT_HUB_TT if USB_EHCI_HCD_PLATFORM
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
 
