@@ -168,6 +168,21 @@ static unsigned int calc_v_total_from_duration(
 	return v_total;
 }
 
+static unsigned long long calc_nominal_field_rate(const struct dc_stream_state *stream)
+{
+	unsigned long long nominal_field_rate_in_uhz = 0;
+
+	/* Calculate nominal field rate for stream */
+	nominal_field_rate_in_uhz = stream->timing.pix_clk_khz;
+	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
+	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
+						stream->timing.h_total);
+	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
+						stream->timing.v_total);
+
+	return nominal_field_rate_in_uhz;
+}
+
 static void update_v_total_for_static_ramp(
 		struct core_freesync *core_freesync,
 		const struct dc_stream_state *stream,
@@ -623,12 +638,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
 	/* Calculate nominal field rate for stream */
-	nominal_field_rate_in_uhz = stream->timing.pix_clk_khz;
-	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
-	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
-						stream->timing.h_total);
-	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
-						stream->timing.v_total);
+	nominal_field_rate_in_uhz = calc_nominal_field_rate(stream);
 
 	min_refresh_in_uhz = in_config->min_refresh_in_uhz;
 	max_refresh_in_uhz = in_config->max_refresh_in_uhz;
@@ -876,5 +886,47 @@ void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
 		*inserted_frames = vrr->btr.frames_to_insert;
 		*inserted_duration_in_us = vrr->btr.inserted_duration_in_us;
 	}
+}
+
+bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
+		const struct dc_stream_state *stream,
+		uint32_t min_refresh_cap_in_uhz,
+		uint32_t max_refresh_cap_in_uhz,
+		uint32_t min_refresh_request_in_uhz,
+		uint32_t max_refresh_request_in_uhz)
+{
+	/* Calculate nominal field rate for stream */
+	unsigned long long nominal_field_rate_in_uhz =
+			calc_nominal_field_rate(stream);
+
+	// Check nominal is within range
+	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
+		nominal_field_rate_in_uhz < min_refresh_cap_in_uhz)
+		return false;
+
+	// If nominal is less than max, limit the max allowed refresh rate
+	if (nominal_field_rate_in_uhz < max_refresh_cap_in_uhz)
+		max_refresh_cap_in_uhz = nominal_field_rate_in_uhz;
+
+	// Don't allow min > max
+	if (min_refresh_request_in_uhz > max_refresh_request_in_uhz)
+		return false;
+
+	// Check min is within range
+	if (min_refresh_request_in_uhz > max_refresh_cap_in_uhz ||
+		min_refresh_request_in_uhz < min_refresh_cap_in_uhz)
+		return false;
+
+	// Check max is within range
+	if (max_refresh_request_in_uhz > max_refresh_cap_in_uhz ||
+		max_refresh_request_in_uhz < min_refresh_cap_in_uhz)
+		return false;
+
+	// For variable range, check for at least 10 Hz range
+	if ((max_refresh_request_in_uhz != min_refresh_request_in_uhz) &&
+		(max_refresh_request_in_uhz - min_refresh_request_in_uhz < 10000000))
+		return false;
+
+	return true;
 }
 

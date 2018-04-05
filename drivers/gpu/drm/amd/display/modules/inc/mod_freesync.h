@@ -159,4 +159,11 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		struct mod_vrr_params *in_out_vrr);
 
+bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
+		const struct dc_stream_state *stream,
+		uint32_t min_refresh_cap_in_uhz,
+		uint32_t max_refresh_cap_in_uhz,
+		uint32_t min_refresh_request_in_uhz,
+		uint32_t max_refresh_request_in_uhz);
+
 #endif
