@@ -733,8 +733,6 @@ static blk_status_t __scsi_error_from_host_byte(struct scsi_cmnd *cmd,
 		int result)
 {
 	switch (host_byte(result)) {
-	case DID_OK:
-		return BLK_STS_OK;
 	case DID_TRANSPORT_FAILFAST:
 		return BLK_STS_TRANSPORT;
 	case DID_TARGET_FAILURE:
