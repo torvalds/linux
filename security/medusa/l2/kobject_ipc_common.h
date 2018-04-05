@@ -37,6 +37,8 @@ struct ipc_msg_kobject {
 };
 extern MED_DECLARE_KCLASSOF(ipc_msg_kobject);
 
+#define max_simple(max1, max2) ((max1 > max2) ? (max1) : (max2))
+
 /**
  * ipc_kobject - kobject structure used for 
  * semaphores, message queues and shared memory kobject defined above
@@ -46,7 +48,7 @@ extern MED_DECLARE_KCLASSOF(ipc_msg_kobject);
  * e.g. ipc_sem_kobject defined in kobject_ipc_sem.h
  */
 struct ipc_kobject {	
-	unsigned char data[sizeof(struct ipc_sem_kobject)];	
+	unsigned char data[max_simple(max_simple(sizeof(struct ipc_sem_kobject), sizeof(struct ipc_shm_kobject)), sizeof(struct ipc_msg_kobject))];	
 	MEDUSA_OBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(ipc_kobject);

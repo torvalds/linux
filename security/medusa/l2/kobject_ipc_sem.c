@@ -34,7 +34,6 @@ void * ipc_sem_kern2kobj(struct kern_ipc_perm * ipcp)
 	COPY_WRITE_IPC_VARS(&(storage.ipc_perm), ipcp);
 	COPY_READ_IPC_VARS(&(storage.ipc_perm), ipcp);
 	COPY_MEDUSA_OBJECT_VARS(&storage, security_s);
-
 	return (void *)&storage;
 }
 
@@ -48,6 +47,7 @@ medusa_answer_t ipc_sem_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ip
 
 	COPY_WRITE_IPC_VARS(ipcp, &ipck_sem->ipc_perm);
 	COPY_MEDUSA_OBJECT_VARS(security_s, ipck_sem);
+	MED_MAGIC_VALIDATE(security_s);
 	return MED_OK;
 }
 

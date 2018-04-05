@@ -32,23 +32,32 @@ medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd)
 	struct ipc_ctl_access access;
 	struct process_kobject process;
 	struct ipc_kobject object;
+	unsigned int info_flag = 0;
     memset(&access, '\0', sizeof(struct ipc_ctl_access));
     /* process_kobject parent is zeroed by process_kern2kobj function */
 
 	if (!MED_MAGIC_VALID(&task_security(current)) && process_kobj_validate_task(current) <= 0)
 		goto out_err;
-	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
-		goto out_err;
-
+	if(ipcp == NULL && (cmd == IPC_INFO || cmd == MSG_INFO || cmd == SEM_INFO || cmd == SHM_INFO)) {
+		info_flag = 1;
+	} 
+	else {
+		if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
+			goto out_err;
+	}
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_ctl_access, &task_security(current))) {
 		access.cmd = cmd;
-		access.ipc_class = ipc_security(ipcp)->ipc_class;
-
 		process_kern2kobj(&process, current);
-		if(ipc_kern2kobj(&object, ipcp) != 0)
-			goto out_err;
+		if(info_flag == 0) {
+			access.ipc_class = ipc_security(ipcp)->ipc_class;
+			if(ipc_kern2kobj(&object, ipcp) != 0)
+				goto out_err;
+			retval = MED_DECIDE(ipc_ctl_access, &access, &process, &object);
+		}else{
+			access.ipc_class = MED_IPC_UNDEFINED;
+			retval = MED_DECIDE(ipc_ctl_access, &access, &process, NULL);
+		}
 
-		retval = MED_DECIDE(ipc_ctl_access, &access, &process, &object);
 		if (retval == MED_ERR)
 			retval = MED_OK;
 	}

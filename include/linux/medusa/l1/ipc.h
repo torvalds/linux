@@ -29,6 +29,7 @@ extern medusa_answer_t medusa_ipc_msgrcv(struct kern_ipc_perm *ipcp, struct msg_
 #define MED_IPC_SEM 0
 #define MED_IPC_MSG 1
 #define MED_IPC_SHM 2
+#define MED_IPC_UNDEFINED 3
 
 struct medusa_l1_ipc_s {
 	unsigned int ipc_class;

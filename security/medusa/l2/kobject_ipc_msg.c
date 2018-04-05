@@ -44,6 +44,7 @@ medusa_answer_t ipc_msg_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ip
 
 	COPY_WRITE_IPC_VARS(ipcp, &ipck_msg->ipc_perm);
 	COPY_MEDUSA_OBJECT_VARS(security_s, ipck_msg);
+	MED_MAGIC_VALIDATE(security_s);
 	return MED_OK;
 }
 
