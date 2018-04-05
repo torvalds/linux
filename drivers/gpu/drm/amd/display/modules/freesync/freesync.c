@@ -613,7 +613,6 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 {
 	struct core_freesync *core_freesync = NULL;
 	unsigned long long nominal_field_rate_in_uhz = 0;
-	bool nominal_field_rate_in_range = true;
 	unsigned int refresh_range = 0;
 	unsigned int min_refresh_in_uhz = 0;
 	unsigned int max_refresh_in_uhz = 0;
@@ -638,15 +637,6 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	if (max_refresh_in_uhz > nominal_field_rate_in_uhz)
 		max_refresh_in_uhz = nominal_field_rate_in_uhz;
 
-	/* Allow for some rounding error of actual video timing by taking ceil.
-	 * For example, 144 Hz mode timing may actually be 143.xxx Hz when
-	 * calculated from pixel rate and vertical/horizontal totals, but
-	 * this should be allowed instead of blocking FreeSync.
-	 */
-	if ((min_refresh_in_uhz / 1000000) >
-			((nominal_field_rate_in_uhz + 1000000 - 1) / 1000000))
-		nominal_field_rate_in_range = false;
-
 	// Full range may be larger than current video timing, so cap at nominal
 	if (min_refresh_in_uhz > nominal_field_rate_in_uhz)
 		min_refresh_in_uhz = nominal_field_rate_in_uhz;
@@ -658,10 +648,14 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 
 	in_out_vrr->state = in_config->state;
 
-	if ((in_config->state == VRR_STATE_UNSUPPORTED) ||
-				(!nominal_field_rate_in_range)) {
+	if (in_config->state == VRR_STATE_UNSUPPORTED) {
 		in_out_vrr->state = VRR_STATE_UNSUPPORTED;
 		in_out_vrr->supported = false;
+		in_out_vrr->adjust.v_total_min = stream->timing.v_total;
+		in_out_vrr->adjust.v_total_max = stream->timing.v_total;
+
+		return;
+
 	} else {
 		in_out_vrr->min_refresh_in_uhz = min_refresh_in_uhz;
 		in_out_vrr->max_duration_in_us =
