@@ -15,10 +15,6 @@ if RADIO_ADAPTERS && VIDEO_V4L2
 config RADIO_TEA575X
 	tristate
 
-config RADIO_SI470X
-	bool "Silicon Labs Si470x FM Radio Receiver support"
-	depends on VIDEO_V4L2
-
 source "drivers/media/radio/si470x/Kconfig"
 
 config RADIO_SI4713
