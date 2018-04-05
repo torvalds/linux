@@ -5560,6 +5560,7 @@ void idle_task_exit(void)
 
 	if (mm != &init_mm) {
 		switch_mm(mm, &init_mm, current);
+		current->active_mm = &init_mm;
 		finish_arch_post_lock_switch();
 	}
 	mmdrop(mm);
