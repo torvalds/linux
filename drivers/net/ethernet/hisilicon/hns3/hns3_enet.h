@@ -288,7 +288,7 @@ struct hns3_desc_cb {
 	u16 page_offset;
 	u16 reuse_flag;
 
-	u16 length;     /* length of the buffer */
+	u32 length;     /* length of the buffer */
 
        /* desc type, used by the ring user to mark the type of the priv data */
 	u16 type;

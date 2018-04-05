@@ -667,7 +667,7 @@ struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user)
 EXPORT_SYMBOL(ip_check_defrag);
 
 #ifdef CONFIG_SYSCTL
-static long zero;
+static int dist_min;
 
 static struct ctl_table ip4_frags_ns_ctl_table[] = {
 	{
@@ -684,7 +684,6 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &zero,
 		.extra2		= &init_net.ipv4.frags.high_thresh
 	},
 	{
@@ -700,7 +699,7 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero
+		.extra1		= &dist_min,
 	},
 	{ }
 };

@@ -145,6 +145,8 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 		pr_warn("Subscription rejected, no memory\n");
 		return NULL;
 	}
+	INIT_LIST_HEAD(&sub->service_list);
+	INIT_LIST_HEAD(&sub->sub_list);
 	sub->net = net;
 	sub->conid = conid;
 	sub->inactive = false;

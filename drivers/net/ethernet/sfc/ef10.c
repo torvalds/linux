@@ -1666,7 +1666,6 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(fec_corrected_symbols_lane1, FEC_CORRECTED_SYMBOLS_LANE1),
 	EF10_DMA_STAT(fec_corrected_symbols_lane2, FEC_CORRECTED_SYMBOLS_LANE2),
 	EF10_DMA_STAT(fec_corrected_symbols_lane3, FEC_CORRECTED_SYMBOLS_LANE3),
-	EF10_DMA_STAT(ctpio_dmabuf_start, CTPIO_DMABUF_START),
 	EF10_DMA_STAT(ctpio_vi_busy_fallback, CTPIO_VI_BUSY_FALLBACK),
 	EF10_DMA_STAT(ctpio_long_write_success, CTPIO_LONG_WRITE_SUCCESS),
 	EF10_DMA_STAT(ctpio_missing_dbell_fail, CTPIO_MISSING_DBELL_FAIL),
@@ -1777,7 +1776,6 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
  * These bits are in the second u64 of the raw mask.
  */
 #define EF10_CTPIO_STAT_MASK (						\
-	(1ULL << (EF10_STAT_ctpio_dmabuf_start - 64)) |			\
 	(1ULL << (EF10_STAT_ctpio_vi_busy_fallback - 64)) |		\
 	(1ULL << (EF10_STAT_ctpio_long_write_success - 64)) |		\
 	(1ULL << (EF10_STAT_ctpio_missing_dbell_fail - 64)) |		\

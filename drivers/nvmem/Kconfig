@@ -1,5 +1,5 @@
 menuconfig NVMEM
-	tristate "NVMEM Support"
+	bool "NVMEM Support"
 	help
 	  Support for NVMEM(Non Volatile Memory) devices like EEPROM, EFUSES...
 

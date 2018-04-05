@@ -1200,6 +1200,12 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		    !rxrpc_validate_jumbo(skb))
 			goto bad_message;
 		break;
+
+		/* Packet types 9-11 should just be ignored. */
+	case RXRPC_PACKET_TYPE_PARAMS:
+	case RXRPC_PACKET_TYPE_10:
+	case RXRPC_PACKET_TYPE_11:
+		goto discard;
 	}
 
 	rcu_read_lock();
