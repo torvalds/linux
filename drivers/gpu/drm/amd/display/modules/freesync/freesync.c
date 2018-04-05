@@ -896,6 +896,17 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 	unsigned long long nominal_field_rate_in_uhz =
 			mod_freesync_calc_nominal_field_rate(stream);
 
+	/* Allow for some rounding error of actual video timing by taking ceil.
+	 * For example, 144 Hz mode timing may actually be 143.xxx Hz when
+	 * calculated from pixel rate and vertical/horizontal totals, but
+	 * this should be allowed instead of blocking FreeSync.
+	 */
+	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz, 1000000);
+	min_refresh_cap_in_uhz /= 1000000;
+	max_refresh_cap_in_uhz /= 1000000;
+	min_refresh_request_in_uhz /= 1000000;
+	max_refresh_request_in_uhz /= 1000000;
+
 	// Check nominal is within range
 	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
 		nominal_field_rate_in_uhz < min_refresh_cap_in_uhz)
@@ -921,7 +932,7 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 
 	// For variable range, check for at least 10 Hz range
 	if ((max_refresh_request_in_uhz != min_refresh_request_in_uhz) &&
-		(max_refresh_request_in_uhz - min_refresh_request_in_uhz < 10000000))
+		(max_refresh_request_in_uhz - min_refresh_request_in_uhz < 10))
 		return false;
 
 	return true;
