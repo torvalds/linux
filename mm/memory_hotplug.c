@@ -250,7 +250,6 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
 		struct vmem_altmap *altmap, bool want_memblock)
 {
 	int ret;
-	int i;
 
 	if (pfn_valid(phys_start_pfn))
 		return -EEXIST;
@@ -258,23 +257,6 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
 	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn, altmap);
 	if (ret < 0)
 		return ret;
-
-	/*
-	 * Make all the pages reserved so that nobody will stumble over half
-	 * initialized state.
-	 * FIXME: We also have to associate it with a node because page_to_nid
-	 * relies on having page with the proper node.
-	 */
-	for (i = 0; i < PAGES_PER_SECTION; i++) {
-		unsigned long pfn = phys_start_pfn + i;
-		struct page *page;
-		if (!pfn_valid(pfn))
-			continue;
-
-		page = pfn_to_page(pfn);
-		set_page_node(page, nid);
-		SetPageReserved(page);
-	}
 
 	if (!want_memblock)
 		return 0;
@@ -908,8 +890,15 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	int nid;
 	int ret;
 	struct memory_notify arg;
+	struct memory_block *mem;
 
-	nid = pfn_to_nid(pfn);
+	/*
+	 * We can't use pfn_to_nid() because nid might be stored in struct page
+	 * which is not yet initialized. Instead, we find nid from memory block.
+	 */
+	mem = find_memory_block(__pfn_to_section(pfn));
+	nid = mem->nid;
+
 	/* associate pfn range with the zone */
 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
 
