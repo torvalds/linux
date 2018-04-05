@@ -685,7 +685,7 @@ static int at24_probe(struct i2c_client *client)
 	nvmem_config.word_size = 1;
 	nvmem_config.size = pdata.byte_len;
 
-	at24->nvmem = nvmem_register(&nvmem_config);
+	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
 	if (IS_ERR(at24->nvmem)) {
 		err = PTR_ERR(at24->nvmem);
 		goto err_clients;
@@ -717,8 +717,6 @@ static int at24_remove(struct i2c_client *client)
 	int i;
 
 	at24 = i2c_get_clientdata(client);
-
-	nvmem_unregister(at24->nvmem);
 
 	for (i = 1; i < at24->num_addresses; i++)
 		i2c_unregister_device(at24->client[i].client);
