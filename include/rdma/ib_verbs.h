@@ -372,6 +372,7 @@ struct ib_device_attr {
 	u32			raw_packet_caps; /* Use ib_raw_packet_caps enum */
 	struct ib_tm_caps	tm_caps;
 	struct ib_cq_caps       cq_caps;
+	u64			max_dm_size;
 };
 
 enum ib_mtu {

@@ -4006,6 +4006,12 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 	resp.cq_moderation_caps.max_cq_moderation_period =
 		attr.cq_caps.max_cq_moderation_period;
 	resp.response_length += sizeof(resp.cq_moderation_caps);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.max_dm_size))
+		goto end;
+
+	resp.max_dm_size = attr.max_dm_size;
+	resp.response_length += sizeof(resp.max_dm_size);
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;
