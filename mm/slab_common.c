@@ -1138,9 +1138,9 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 		struct kmem_cache *s = kmalloc_caches[i];
 
 		if (s) {
-			int size = kmalloc_size(i);
+			unsigned int size = kmalloc_size(i);
 			char *n = kasprintf(GFP_NOWAIT,
-				 "dma-kmalloc-%d", size);
+				 "dma-kmalloc-%u", size);
 
 			BUG_ON(!n);
 			kmalloc_dma_caches[i] = create_kmalloc_cache(n,

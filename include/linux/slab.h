@@ -522,11 +522,11 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
  * return size or 0 if a kmalloc cache for that
  * size does not exist
  */
-static __always_inline int kmalloc_size(int n)
+static __always_inline unsigned int kmalloc_size(unsigned int n)
 {
 #ifndef CONFIG_SLOB
 	if (n > 2)
-		return 1 << n;
+		return 1U << n;
 
 	if (n == 1 && KMALLOC_MIN_SIZE <= 32)
 		return 96;
