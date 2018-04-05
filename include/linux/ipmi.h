@@ -97,6 +97,14 @@ struct ipmi_user_hndl {
 	 * been set up to handle run to completion.
 	 */
 	void (*ipmi_panic_handler)(void *handler_data);
+
+	/*
+	 * Called when the interface has been removed.  After this returns
+	 * the user handle will be invalid.  The interface may or may
+	 * not be usable when this is called, but it will return errors
+	 * if it is not usable.
+	 */
+	void (*shutdown)(void *handler_data);
 };
 
 /* Create a new user of the IPMI layer on the given interface number. */

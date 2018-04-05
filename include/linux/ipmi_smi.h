@@ -73,6 +73,12 @@ struct ipmi_smi_handlers {
 				ipmi_smi_t new_intf);
 
 	/*
+	 * When called, the low-level interface should disable all
+	 * processing, it should be complete shut down when it returns.
+	 */
+	void (*shutdown)(void *send_info);
+
+	/*
 	 * Get the detailed private info of the low level interface and store
 	 * it into the structure of ipmi_smi_data. For example: the
 	 * ACPI device handle will be returned for the pnp_acpi IPMI device.
