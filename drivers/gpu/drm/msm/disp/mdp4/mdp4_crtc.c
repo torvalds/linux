@@ -201,7 +201,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		int idx = idxs[pipe_id];
 		if (idx > 0) {
 			const struct mdp_format *format =
-					to_mdp_format(msm_framebuffer_format(plane->fb));
+					to_mdp_format(msm_framebuffer_format(plane->state->fb));
 			alpha[idx-1] = format->alpha_enable;
 		}
 	}
