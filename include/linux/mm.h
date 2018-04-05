@@ -1155,6 +1155,7 @@ static inline pgoff_t page_index(struct page *page)
 
 bool page_mapped(struct page *page);
 struct address_space *page_mapping(struct page *page);
+struct address_space *page_mapping_file(struct page *page);
 
 /*
  * Return true only if the page has been allocated with
