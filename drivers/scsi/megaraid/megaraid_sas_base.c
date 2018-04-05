@@ -4022,7 +4022,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 
 		cmd = instance->cmd_list[i];
 
-		cmd->frame = dma_pool_alloc(instance->frame_dma_pool,
+		cmd->frame = dma_pool_zalloc(instance->frame_dma_pool,
 					    GFP_KERNEL, &cmd->frame_phys_addr);
 
 		cmd->sense = dma_pool_alloc(instance->sense_dma_pool,
@@ -4038,7 +4038,6 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 			return -ENOMEM;
 		}
 
-		memset(cmd->frame, 0, instance->mfi_frame_size);
 		cmd->frame->io.context = cpu_to_le32(cmd->index);
 		cmd->frame->io.pad_0 = 0;
 		if ((instance->adapter_type == MFI_SERIES) && reset_devices)

@@ -542,8 +542,7 @@ struct pmcraid_sglist {
 	u32 order;
 	u32 num_sg;
 	u32 num_dma_sg;
-	u32 buffer_len;
-	struct scatterlist scatterlist[1];
+	struct scatterlist *scatterlist;
 };
 
 /* page D0 inquiry data of focal point resource */

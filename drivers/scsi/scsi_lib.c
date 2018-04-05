@@ -191,7 +191,19 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
 	 */
 	cmd->result = 0;
 	if (q->mq_ops) {
-		scsi_mq_requeue_cmd(cmd);
+		/*
+		 * Before a SCSI command is dispatched,
+		 * get_device(&sdev->sdev_gendev) is called and the host,
+		 * target and device busy counters are increased. Since
+		 * requeuing a request causes these actions to be repeated and
+		 * since scsi_device_unbusy() has already been called,
+		 * put_device(&device->sdev_gendev) must still be called. Call
+		 * put_device() after blk_mq_requeue_request() to avoid that
+		 * removal of the SCSI device can start before requeueing has
+		 * happened.
+		 */
+		blk_mq_requeue_request(cmd->request, true);
+		put_device(&device->sdev_gendev);
 		return;
 	}
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -856,6 +868,17 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_print_sense(cmd);
 		result = 0;
 		/* for passthrough error may be set */
+		error = BLK_STS_OK;
+	}
+	/*
+	 * Another corner case: the SCSI status byte is non-zero but 'good'.
+	 * Example: PRE-FETCH command returns SAM_STAT_CONDITION_MET when
+	 * it is able to fit nominated LBs in its cache (and SAM_STAT_GOOD
+	 * if it can't fit). Treat SAM_STAT_CONDITION_MET and the related
+	 * intermediate statuses (both obsolete in SAM-4) as good.
+	 */
+	if (status_byte(result) && scsi_status_is_good(result)) {
+		result = 0;
 		error = BLK_STS_OK;
 	}
 
@@ -2611,7 +2634,7 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	/* try to eat the UNIT_ATTENTION if there are enough retries */
 	do {
 		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
-					  timeout, retries, NULL);
+					  timeout, 1, NULL);
 		if (sdev->removable && scsi_sense_valid(sshdr) &&
 		    sshdr->sense_key == UNIT_ATTENTION)
 			sdev->changed = 1;

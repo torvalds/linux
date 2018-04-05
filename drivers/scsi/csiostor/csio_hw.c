@@ -1409,6 +1409,235 @@ out:
 	return rv;
 }
 
+static inline enum cc_fec fwcap_to_cc_fec(fw_port_cap32_t fw_fec)
+{
+	enum cc_fec cc_fec = 0;
+
+	if (fw_fec & FW_PORT_CAP32_FEC_RS)
+		cc_fec |= FEC_RS;
+	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
+		cc_fec |= FEC_BASER_RS;
+
+	return cc_fec;
+}
+
+static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
+{
+	fw_port_cap32_t fw_pause = 0;
+
+	if (cc_pause & PAUSE_RX)
+		fw_pause |= FW_PORT_CAP32_FC_RX;
+	if (cc_pause & PAUSE_TX)
+		fw_pause |= FW_PORT_CAP32_FC_TX;
+
+	return fw_pause;
+}
+
+static inline fw_port_cap32_t cc_to_fwcap_fec(enum cc_fec cc_fec)
+{
+	fw_port_cap32_t fw_fec = 0;
+
+	if (cc_fec & FEC_RS)
+		fw_fec |= FW_PORT_CAP32_FEC_RS;
+	if (cc_fec & FEC_BASER_RS)
+		fw_fec |= FW_PORT_CAP32_FEC_BASER_RS;
+
+	return fw_fec;
+}
+
+/**
+ * fwcap_to_fwspeed - return highest speed in Port Capabilities
+ * @acaps: advertised Port Capabilities
+ *
+ * Get the highest speed for the port from the advertised Port
+ * Capabilities.
+ */
+fw_port_cap32_t fwcap_to_fwspeed(fw_port_cap32_t acaps)
+{
+	#define TEST_SPEED_RETURN(__caps_speed) \
+		do { \
+			if (acaps & FW_PORT_CAP32_SPEED_##__caps_speed) \
+				return FW_PORT_CAP32_SPEED_##__caps_speed; \
+		} while (0)
+
+	TEST_SPEED_RETURN(400G);
+	TEST_SPEED_RETURN(200G);
+	TEST_SPEED_RETURN(100G);
+	TEST_SPEED_RETURN(50G);
+	TEST_SPEED_RETURN(40G);
+	TEST_SPEED_RETURN(25G);
+	TEST_SPEED_RETURN(10G);
+	TEST_SPEED_RETURN(1G);
+	TEST_SPEED_RETURN(100M);
+
+	#undef TEST_SPEED_RETURN
+
+	return 0;
+}
+
+/**
+ *      fwcaps16_to_caps32 - convert 16-bit Port Capabilities to 32-bits
+ *      @caps16: a 16-bit Port Capabilities value
+ *
+ *      Returns the equivalent 32-bit Port Capabilities value.
+ */
+fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
+{
+	fw_port_cap32_t caps32 = 0;
+
+	#define CAP16_TO_CAP32(__cap) \
+		do { \
+			if (caps16 & FW_PORT_CAP_##__cap) \
+				caps32 |= FW_PORT_CAP32_##__cap; \
+		} while (0)
+
+	CAP16_TO_CAP32(SPEED_100M);
+	CAP16_TO_CAP32(SPEED_1G);
+	CAP16_TO_CAP32(SPEED_25G);
+	CAP16_TO_CAP32(SPEED_10G);
+	CAP16_TO_CAP32(SPEED_40G);
+	CAP16_TO_CAP32(SPEED_100G);
+	CAP16_TO_CAP32(FC_RX);
+	CAP16_TO_CAP32(FC_TX);
+	CAP16_TO_CAP32(ANEG);
+	CAP16_TO_CAP32(MDIX);
+	CAP16_TO_CAP32(MDIAUTO);
+	CAP16_TO_CAP32(FEC_RS);
+	CAP16_TO_CAP32(FEC_BASER_RS);
+	CAP16_TO_CAP32(802_3_PAUSE);
+	CAP16_TO_CAP32(802_3_ASM_DIR);
+
+	#undef CAP16_TO_CAP32
+
+	return caps32;
+}
+
+/**
+ *      lstatus_to_fwcap - translate old lstatus to 32-bit Port Capabilities
+ *      @lstatus: old FW_PORT_ACTION_GET_PORT_INFO lstatus value
+ *
+ *      Translates old FW_PORT_ACTION_GET_PORT_INFO lstatus field into new
+ *      32-bit Port Capabilities value.
+ */
+fw_port_cap32_t lstatus_to_fwcap(u32 lstatus)
+{
+	fw_port_cap32_t linkattr = 0;
+
+	/* The format of the Link Status in the old
+	 * 16-bit Port Information message isn't the same as the
+	 * 16-bit Port Capabilities bitfield used everywhere else.
+	 */
+	if (lstatus & FW_PORT_CMD_RXPAUSE_F)
+		linkattr |= FW_PORT_CAP32_FC_RX;
+	if (lstatus & FW_PORT_CMD_TXPAUSE_F)
+		linkattr |= FW_PORT_CAP32_FC_TX;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		linkattr |= FW_PORT_CAP32_SPEED_100M;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		linkattr |= FW_PORT_CAP32_SPEED_1G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		linkattr |= FW_PORT_CAP32_SPEED_10G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+		linkattr |= FW_PORT_CAP32_SPEED_25G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		linkattr |= FW_PORT_CAP32_SPEED_40G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+		linkattr |= FW_PORT_CAP32_SPEED_100G;
+
+	return linkattr;
+}
+
+/**
+ *      csio_init_link_config - initialize a link's SW state
+ *      @lc: pointer to structure holding the link state
+ *      @pcaps: link Port Capabilities
+ *      @acaps: link current Advertised Port Capabilities
+ *
+ *      Initializes the SW state maintained for each link, including the link's
+ *      capabilities and default speed/flow-control/autonegotiation settings.
+ */
+static void csio_init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
+				  fw_port_cap32_t acaps)
+{
+	lc->pcaps = pcaps;
+	lc->def_acaps = acaps;
+	lc->lpacaps = 0;
+	lc->speed_caps = 0;
+	lc->speed = 0;
+	lc->requested_fc = PAUSE_RX | PAUSE_TX;
+	lc->fc = lc->requested_fc;
+
+	/*
+	 * For Forward Error Control, we default to whatever the Firmware
+	 * tells us the Link is currently advertising.
+	 */
+	lc->requested_fec = FEC_AUTO;
+	lc->fec = fwcap_to_cc_fec(lc->def_acaps);
+
+	/* If the Port is capable of Auto-Negtotiation, initialize it as
+	 * "enabled" and copy over all of the Physical Port Capabilities
+	 * to the Advertised Port Capabilities.  Otherwise mark it as
+	 * Auto-Negotiate disabled and select the highest supported speed
+	 * for the link.  Note parallel structure in t4_link_l1cfg_core()
+	 * and t4_handle_get_port_info().
+	 */
+	if (lc->pcaps & FW_PORT_CAP32_ANEG) {
+		lc->acaps = lc->pcaps & ADVERT_MASK;
+		lc->autoneg = AUTONEG_ENABLE;
+		lc->requested_fc |= PAUSE_AUTONEG;
+	} else {
+		lc->acaps = 0;
+		lc->autoneg = AUTONEG_DISABLE;
+	}
+}
+
+static void csio_link_l1cfg(struct link_config *lc, uint16_t fw_caps,
+			    uint32_t *rcaps)
+{
+	unsigned int fw_mdi = FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO);
+	fw_port_cap32_t fw_fc, cc_fec, fw_fec, lrcap;
+
+	lc->link_ok = 0;
+
+	/*
+	 * Convert driver coding of Pause Frame Flow Control settings into the
+	 * Firmware's API.
+	 */
+	fw_fc = cc_to_fwcap_pause(lc->requested_fc);
+
+	/*
+	 * Convert Common Code Forward Error Control settings into the
+	 * Firmware's API.  If the current Requested FEC has "Automatic"
+	 * (IEEE 802.3) specified, then we use whatever the Firmware
+	 * sent us as part of it's IEEE 802.3-based interpratation of
+	 * the Transceiver Module EPROM FEC parameters.  Otherwise we
+	 * use whatever is in the current Requested FEC settings.
+	 */
+	if (lc->requested_fec & FEC_AUTO)
+		cc_fec = fwcap_to_cc_fec(lc->def_acaps);
+	else
+		cc_fec = lc->requested_fec;
+	fw_fec = cc_to_fwcap_fec(cc_fec);
+
+	/* Figure out what our Requested Port Capabilities are going to be.
+	 * Note parallel structure in t4_handle_get_port_info() and
+	 * init_link_config().
+	 */
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
+		lrcap = (lc->pcaps & ADVERT_MASK) | fw_fc | fw_fec;
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = cc_fec;
+	} else if (lc->autoneg == AUTONEG_DISABLE) {
+		lrcap = lc->speed_caps | fw_fc | fw_fec | fw_mdi;
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = cc_fec;
+	} else {
+		lrcap = lc->acaps | fw_fc | fw_fec | fw_mdi;
+	}
+
+	*rcaps = lrcap;
+}
+
 /*
  * csio_enable_ports - Bring up all available ports.
  * @hw: HW module.
@@ -1418,8 +1647,10 @@ static int
 csio_enable_ports(struct csio_hw *hw)
 {
 	struct csio_mb  *mbp;
+	u16 fw_caps = FW_CAPS_UNKNOWN;
 	enum fw_retval retval;
 	uint8_t portid;
+	fw_port_cap32_t pcaps, acaps, rcaps;
 	int i;
 
 	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
@@ -1431,9 +1662,39 @@ csio_enable_ports(struct csio_hw *hw)
 	for (i = 0; i < hw->num_pports; i++) {
 		portid = hw->pport[i].portid;
 
+		if (fw_caps == FW_CAPS_UNKNOWN) {
+			u32 param, val;
+
+			param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_PORT_CAPS32));
+			val = 1;
+
+			csio_mb_params(hw, mbp, CSIO_MB_DEFAULT_TMO,
+				       hw->pfn, 0, 1, &param, &val, false,
+				       NULL);
+
+			if (csio_mb_issue(hw, mbp)) {
+				csio_err(hw, "failed to issue FW_PARAMS_CMD(r) port:%d\n",
+					 portid);
+				mempool_free(mbp, hw->mb_mempool);
+				return -EINVAL;
+			}
+
+			csio_mb_process_read_params_rsp(hw, mbp, &retval, 1,
+							&val);
+			if (retval != FW_SUCCESS) {
+				csio_err(hw, "FW_PARAMS_CMD(r) port:%d failed: 0x%x\n",
+					 portid, retval);
+				mempool_free(mbp, hw->mb_mempool);
+				return -EINVAL;
+			}
+
+			fw_caps = val;
+		}
+
 		/* Read PORT information */
 		csio_mb_port(hw, mbp, CSIO_MB_DEFAULT_TMO, portid,
-			     false, 0, 0, NULL);
+			     false, 0, fw_caps, NULL);
 
 		if (csio_mb_issue(hw, mbp)) {
 			csio_err(hw, "failed to issue FW_PORT_CMD(r) port:%d\n",
@@ -1442,8 +1703,8 @@ csio_enable_ports(struct csio_hw *hw)
 			return -EINVAL;
 		}
 
-		csio_mb_process_read_port_rsp(hw, mbp, &retval,
-					      &hw->pport[i].pcap);
+		csio_mb_process_read_port_rsp(hw, mbp, &retval, fw_caps,
+					      &pcaps, &acaps);
 		if (retval != FW_SUCCESS) {
 			csio_err(hw, "FW_PORT_CMD(r) port:%d failed: 0x%x\n",
 				 portid, retval);
@@ -1451,9 +1712,13 @@ csio_enable_ports(struct csio_hw *hw)
 			return -EINVAL;
 		}
 
+		csio_init_link_config(&hw->pport[i].link_cfg, pcaps, acaps);
+
+		csio_link_l1cfg(&hw->pport[i].link_cfg, fw_caps, &rcaps);
+
 		/* Write back PORT information */
-		csio_mb_port(hw, mbp, CSIO_MB_DEFAULT_TMO, portid, true,
-			     (PAUSE_RX | PAUSE_TX), hw->pport[i].pcap, NULL);
+		csio_mb_port(hw, mbp, CSIO_MB_DEFAULT_TMO, portid,
+			     true, rcaps, fw_caps, NULL);
 
 		if (csio_mb_issue(hw, mbp)) {
 			csio_err(hw, "failed to issue FW_PORT_CMD(w) port:%d\n",

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -544,16 +544,10 @@ struct unsol_rcv_ct_ctx {
 #define LPFC_USER_LINK_SPEED_10G	10	/* 10 Gigabaud */
 #define LPFC_USER_LINK_SPEED_16G	16	/* 16 Gigabaud */
 #define LPFC_USER_LINK_SPEED_32G	32	/* 32 Gigabaud */
-#define LPFC_USER_LINK_SPEED_MAX	LPFC_USER_LINK_SPEED_32G
-#define LPFC_USER_LINK_SPEED_BITMAP  ((1ULL << LPFC_USER_LINK_SPEED_32G) | \
-				     (1 << LPFC_USER_LINK_SPEED_16G) | \
-				     (1 << LPFC_USER_LINK_SPEED_10G) | \
-				     (1 << LPFC_USER_LINK_SPEED_8G) | \
-				     (1 << LPFC_USER_LINK_SPEED_4G) | \
-				     (1 << LPFC_USER_LINK_SPEED_2G) | \
-				     (1 << LPFC_USER_LINK_SPEED_1G) | \
-				     (1 << LPFC_USER_LINK_SPEED_AUTO))
-#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16, 32"
+#define LPFC_USER_LINK_SPEED_64G	64	/* 64 Gigabaud */
+#define LPFC_USER_LINK_SPEED_MAX	LPFC_USER_LINK_SPEED_64G
+
+#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16, 32, 64"
 
 enum nemb_type {
 	nemb_mse = 1,
@@ -760,6 +754,7 @@ struct lpfc_hba {
 	uint8_t  mds_diags_support;
 	uint32_t initial_imax;
 	uint8_t  bbcredit_support;
+	uint8_t  enab_exp_wqcq_pages;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -787,6 +782,7 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_io_channel;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
+	uint32_t cfg_nvme_embed_cmd;
 	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq;
 	uint32_t cfg_enable_nvmet;
@@ -839,11 +835,14 @@ struct lpfc_hba {
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
 	uint32_t cfg_enable_fc4_type;
-	uint32_t cfg_enable_bbcr;	/*Enable BB Credit Recovery*/
+	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
+	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
 	uint32_t cfg_xri_split;
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
+	uint32_t nvme_embed_pbde;
+	uint32_t fcp_embed_pbde;
 	uint32_t io_channel_irqs;	/* number of irqs for io channels */
 	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */

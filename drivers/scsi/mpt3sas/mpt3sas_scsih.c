@@ -2679,7 +2679,7 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	int_to_scsilun(lun, (struct scsi_lun *)mpi_request->LUN);
 	mpt3sas_scsih_set_tm_flag(ioc, handle);
 	init_completion(&ioc->tm_cmds.done);
-	ioc->put_smid_hi_priority(ioc, smid, msix_task);
+	mpt3sas_base_put_smid_hi_priority(ioc, smid, msix_task);
 	wait_for_completion_timeout(&ioc->tm_cmds.done, timeout*HZ);
 	if (!(ioc->tm_cmds.status & MPT3_CMD_COMPLETE)) {
 		pr_err(MPT3SAS_FMT "%s: timeout\n",
@@ -3641,7 +3641,7 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 	set_bit(handle, ioc->device_remove_in_progress);
-	ioc->put_smid_hi_priority(ioc, smid, 0);
+	mpt3sas_base_put_smid_hi_priority(ioc, smid, 0);
 	mpt3sas_trigger_master(ioc, MASTER_TRIGGER_DEVICE_REMOVAL);
 
 out:
@@ -3742,7 +3742,7 @@ _scsih_tm_tr_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	mpi_request->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
 	mpi_request->DevHandle = mpi_request_tm->DevHandle;
-	ioc->put_smid_default(ioc, smid_sas_ctrl);
+	mpt3sas_base_put_smid_default(ioc, smid_sas_ctrl);
 
 	return _scsih_check_for_pending_tm(ioc, smid);
 }
@@ -3837,7 +3837,7 @@ _scsih_tm_tr_volume_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	mpi_request->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
-	ioc->put_smid_hi_priority(ioc, smid, 0);
+	mpt3sas_base_put_smid_hi_priority(ioc, smid, 0);
 }
 
 /**
@@ -3929,7 +3929,7 @@ _scsih_issue_delayed_event_ack(struct MPT3SAS_ADAPTER *ioc, u16 smid, u16 event,
 	ack_request->EventContext = event_context;
 	ack_request->VF_ID = 0;  /* TODO */
 	ack_request->VP_ID = 0;
-	ioc->put_smid_default(ioc, smid);
+	mpt3sas_base_put_smid_default(ioc, smid);
 }
 
 /**
@@ -3986,7 +3986,7 @@ _scsih_issue_delayed_sas_io_unit_ctrl(struct MPT3SAS_ADAPTER *ioc,
 	mpi_request->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
 	mpi_request->DevHandle = handle;
-	ioc->put_smid_default(ioc, smid);
+	mpt3sas_base_put_smid_default(ioc, smid);
 }
 
 /**
@@ -4715,12 +4715,12 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		if (sas_target_priv_data->flags & MPT_TARGET_FASTPATH_IO) {
 			mpi_request->IoFlags = cpu_to_le16(scmd->cmd_len |
 			    MPI25_SCSIIO_IOFLAGS_FAST_PATH);
-			ioc->put_smid_fast_path(ioc, smid, handle);
+			mpt3sas_base_put_smid_fast_path(ioc, smid, handle);
 		} else
 			ioc->put_smid_scsi_io(ioc, smid,
 			    le16_to_cpu(mpi_request->DevHandle));
 	} else
-		ioc->put_smid_default(ioc, smid);
+		mpt3sas_base_put_smid_default(ioc, smid);
 	return 0;
 
  out:
@@ -7609,7 +7609,7 @@ _scsih_ir_fastpath(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phys_disk_num)
 	    handle, phys_disk_num));
 
 	init_completion(&ioc->scsih_cmds.done);
-	ioc->put_smid_default(ioc, smid);
+	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->scsih_cmds.done, 10*HZ);
 
 	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
@@ -9700,7 +9700,7 @@ _scsih_ir_shutdown(struct MPT3SAS_ADAPTER *ioc)
 	if (!ioc->hide_ir_msg)
 		pr_info(MPT3SAS_FMT "IR shutdown (sending)\n", ioc->name);
 	init_completion(&ioc->scsih_cmds.done);
-	ioc->put_smid_default(ioc, smid);
+	mpt3sas_base_put_smid_default(ioc, smid);
 	wait_for_completion_timeout(&ioc->scsih_cmds.done, 10*HZ);
 
 	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
@@ -10346,6 +10346,7 @@ _scsih_determine_hba_mpi_version(struct pci_dev *pdev)
 	case MPI2_MFGPAGE_DEVID_SAS2308_1:
 	case MPI2_MFGPAGE_DEVID_SAS2308_2:
 	case MPI2_MFGPAGE_DEVID_SAS2308_3:
+	case MPI2_MFGPAGE_DEVID_SAS2308_MPI_EP:
 		return MPI2_VERSION;
 	case MPI25_MFGPAGE_DEVID_SAS3004:
 	case MPI25_MFGPAGE_DEVID_SAS3008:
@@ -10423,11 +10424,18 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->hba_mpi_version_belonged = hba_mpi_version;
 		ioc->id = mpt2_ids++;
 		sprintf(ioc->driver_name, "%s", MPT2SAS_DRIVER_NAME);
-		if (pdev->device == MPI2_MFGPAGE_DEVID_SSS6200) {
+		switch (pdev->device) {
+		case MPI2_MFGPAGE_DEVID_SSS6200:
 			ioc->is_warpdrive = 1;
 			ioc->hide_ir_msg = 1;
-		} else
+			break;
+		case MPI2_MFGPAGE_DEVID_SAS2308_MPI_EP:
+			ioc->is_mcpu_endpoint = 1;
+			break;
+		default:
 			ioc->mfg_pg10_hide_flag = MFG_PAGE10_EXPOSE_ALL_DISKS;
+			break;
+		}
 		break;
 	case MPI25_VERSION:
 	case MPI26_VERSION:
@@ -10524,26 +10532,34 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->transportt = mpt3sas_transport_template;
 	shost->unique_id = ioc->id;
 
-	if (max_sectors != 0xFFFF) {
-		if (max_sectors < 64) {
-			shost->max_sectors = 64;
-			pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
-			    "for max_sectors, range is 64 to 32767. Assigning "
-			    "value of 64.\n", ioc->name, max_sectors);
-		} else if (max_sectors > 32767) {
-			shost->max_sectors = 32767;
-			pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
-			    "for max_sectors, range is 64 to 32767. Assigning "
-			    "default value of 32767.\n", ioc->name,
-			    max_sectors);
-		} else {
-			shost->max_sectors = max_sectors & 0xFFFE;
-			pr_info(MPT3SAS_FMT
+	if (ioc->is_mcpu_endpoint) {
+		/* mCPU MPI support 64K max IO */
+		shost->max_sectors = 128;
+		pr_info(MPT3SAS_FMT
 				"The max_sectors value is set to %d\n",
 				ioc->name, shost->max_sectors);
+	} else {
+		if (max_sectors != 0xFFFF) {
+			if (max_sectors < 64) {
+				shost->max_sectors = 64;
+				pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
+				    "for max_sectors, range is 64 to 32767. " \
+				    "Assigning value of 64.\n", \
+				    ioc->name, max_sectors);
+			} else if (max_sectors > 32767) {
+				shost->max_sectors = 32767;
+				pr_warn(MPT3SAS_FMT "Invalid value %d passed " \
+				    "for max_sectors, range is 64 to 32767." \
+				    "Assigning default value of 32767.\n", \
+				    ioc->name, max_sectors);
+			} else {
+				shost->max_sectors = max_sectors & 0xFFFE;
+				pr_info(MPT3SAS_FMT
+					"The max_sectors value is set to %d\n",
+					ioc->name, shost->max_sectors);
+			}
 		}
 	}
-
 	/* register EEDP capabilities with SCSI layer */
 	if (prot_mask > 0)
 		scsi_host_set_prot(shost, prot_mask);
@@ -10855,6 +10871,8 @@ static const struct pci_device_id mpt3sas_pci_table[] = {
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_3,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_MPI_EP,
 		PCI_ANY_ID, PCI_ANY_ID },
 	/* SSS6200 */
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SSS6200,

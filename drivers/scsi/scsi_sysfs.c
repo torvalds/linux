@@ -1309,6 +1309,13 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		}
 	}
 
+	if (sdev->host->hostt->sdev_groups) {
+		error = sysfs_create_groups(&sdev->sdev_gendev.kobj,
+				sdev->host->hostt->sdev_groups);
+		if (error)
+			return error;
+	}
+
 	scsi_autopm_put_device(sdev);
 	return error;
 }
@@ -1347,6 +1354,10 @@ void __scsi_remove_device(struct scsi_device *sdev)
 
 		if (res != 0)
 			return;
+
+		if (sdev->host->hostt->sdev_groups)
+			sysfs_remove_groups(&sdev->sdev_gendev.kobj,
+					sdev->host->hostt->sdev_groups);
 
 		bsg_unregister_queue(sdev->request_queue);
 		device_unregister(&sdev->sdev_dev);

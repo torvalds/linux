@@ -4971,12 +4971,6 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/e4000*
 
-EATA ISA/EISA/PCI SCSI DRIVER
-M:	Dario Ballabio <ballabio_dario@emc.com>
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-F:	drivers/scsi/eata.c
-
 EC100 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -5811,12 +5805,6 @@ F:	include/uapi/linux/futex.h
 F:	tools/testing/selftests/futex/
 F:	tools/perf/bench/futex*
 F:	Documentation/*futex*
-
-FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
-M:	Rik Faith <faith@cs.unc.edu>
-L:	linux-scsi@vger.kernel.org
-S:	Odd Fixes (e.g., new signatures)
-F:	drivers/scsi/fdomain.*
 
 GCC PLUGINS
 M:	Kees Cook <keescook@chromium.org>

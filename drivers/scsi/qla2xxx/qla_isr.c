@@ -259,7 +259,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 
 /**
  * qla2x00_mbx_completion() - Process mailbox command completions.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
  * @mb0: Mailbox0 register
  */
 static void
@@ -613,7 +613,8 @@ qla2x00_find_fcport_by_nportid(scsi_qla_host_t *vha, port_id_t *id,
 
 /**
  * qla2x00_async_event() - Process aynchronous events.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
+ * @rsp: response queue
  * @mb: Mailbox registers (0 - 3)
  */
 void
@@ -767,7 +768,6 @@ skip_rio:
 
 	case MBA_LIP_OCCURRED:		/* Loop Initialization Procedure */
 		ha->flags.lip_ae = 1;
-		ha->flags.n2n_ae = 0;
 
 		ql_dbg(ql_dbg_async, vha, 0x5009,
 		    "LIP occurred (%x).\n", mb[1]);
@@ -811,7 +811,6 @@ skip_rio:
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
 		SAVE_TOPO(ha);
-		ha->flags.n2n_ae = 0;
 		ha->flags.lip_ae = 0;
 		ha->current_topology = 0;
 
@@ -885,7 +884,6 @@ skip_rio:
 	/* case MBA_DCBX_COMPLETE: */
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
 		ha->flags.lip_ae = 0;
-		ha->flags.n2n_ae = 1;
 
 		if (IS_QLA2100(ha))
 			break;
@@ -1256,7 +1254,8 @@ global_port_update:
 
 /**
  * qla2x00_process_completed_request() - Process a Fast Post response.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
+ * @req: request queue
  * @index: SRB index
  */
 void
@@ -1839,31 +1838,23 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	sp->done(sp, 0);
 }
 
-static void
-qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
+static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+    void *tsk, srb_t *sp)
 {
-	const char func[] = "NVME-IOCB";
 	fc_port_t *fcport;
-	srb_t *sp;
 	struct srb_iocb *iocb;
 	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
 	uint16_t        state_flags;
 	struct nvmefc_fcp_req *fd;
 	uint16_t        ret = 0;
-	struct srb_iocb *nvme;
-
-	sp = qla2x00_get_sp_from_handle(vha, func, req, tsk);
-	if (!sp)
-		return;
 
 	iocb = &sp->u.iocb_cmd;
 	fcport = sp->fcport;
 	iocb->u.nvme.comp_status = le16_to_cpu(sts->comp_status);
 	state_flags  = le16_to_cpu(sts->state_flags);
 	fd = iocb->u.nvme.desc;
-	nvme = &sp->u.iocb_cmd;
 
-	if (unlikely(nvme->u.nvme.aen_op))
+	if (unlikely(iocb->u.nvme.aen_op))
 		atomic_dec(&sp->vha->hw->nvme_active_aen_cnt);
 
 	/*
@@ -1897,42 +1888,30 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	fd->transferred_length = fd->payload_length -
 	    le32_to_cpu(sts->residual_len);
 
-	/*
-	 * If transport error then Failure (HBA rejects request)
-	 * otherwise transport will handle.
-	 */
-	if (sts->entry_status) {
-		ql_log(ql_log_warn, fcport->vha, 0x5038,
-		    "NVME-%s error - hdl=%x entry-status(%x).\n",
-		    sp->name, sp->handle, sts->entry_status);
+	switch (le16_to_cpu(sts->comp_status)) {
+	case CS_COMPLETE:
+		ret = QLA_SUCCESS;
+		break;
+	case CS_ABORTED:
+	case CS_RESET:
+	case CS_PORT_UNAVAILABLE:
+	case CS_PORT_LOGGED_OUT:
+	case CS_PORT_BUSY:
+		ql_log(ql_log_warn, fcport->vha, 0x5060,
+		    "NVME-%s ERR Handling - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+		    sp->name, sp->handle, sts->comp_status,
+		    le32_to_cpu(sts->residual_len), sts->ox_id);
+		fd->transferred_length = 0;
+		iocb->u.nvme.rsp_pyld_len = 0;
+		ret = QLA_ABORTED;
+		break;
+	default:
+		ql_log(ql_log_warn, fcport->vha, 0x5060,
+		    "NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+		    sp->name, sp->handle, sts->comp_status,
+		    le32_to_cpu(sts->residual_len), sts->ox_id);
 		ret = QLA_FUNCTION_FAILED;
-	} else  {
-		switch (le16_to_cpu(sts->comp_status)) {
-			case CS_COMPLETE:
-				ret = 0;
-			break;
-
-			case CS_ABORTED:
-			case CS_RESET:
-			case CS_PORT_UNAVAILABLE:
-			case CS_PORT_LOGGED_OUT:
-			case CS_PORT_BUSY:
-				ql_log(ql_log_warn, fcport->vha, 0x5060,
-				"NVME-%s ERR Handling - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
-				sp->name, sp->handle, sts->comp_status,
-				le32_to_cpu(sts->residual_len), sts->ox_id);
-				fd->transferred_length = fd->payload_length;
-				ret = QLA_ABORTED;
-			break;
-
-			default:
-				ql_log(ql_log_warn, fcport->vha, 0x5060,
-				"NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
-				sp->name, sp->handle, sts->comp_status,
-				le32_to_cpu(sts->residual_len), sts->ox_id);
-				ret = QLA_FUNCTION_FAILED;
-				break;
-		}
+		break;
 	}
 	sp->done(sp, ret);
 }
@@ -1970,7 +1949,7 @@ static void qla_ctrlvp_completed(scsi_qla_host_t *vha, struct req_que *req,
 
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
- * @ha: SCSI driver HA context
+ * @rsp: response queue
  */
 void
 qla2x00_process_response_queue(struct rsp_que *rsp)
@@ -2374,7 +2353,8 @@ done:
 
 /**
  * qla2x00_status_entry() - Process a Status IOCB entry.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
+ * @rsp: response queue
  * @pkt: Entry pointer
  */
 static void
@@ -2459,7 +2439,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 	/* NVME completion. */
 	if (sp->type == SRB_NVME_CMD) {
-		qla24xx_nvme_iocb_entry(vha, req, pkt);
+		req->outstanding_cmds[handle] = NULL;
+		qla24xx_nvme_iocb_entry(vha, req, pkt, sp);
 		return;
 	}
 
@@ -2751,7 +2732,7 @@ out:
 
 /**
  * qla2x00_status_cont_entry() - Process a Status Continuations entry.
- * @ha: SCSI driver HA context
+ * @rsp: response queue
  * @pkt: Entry pointer
  *
  * Extended sense data.
@@ -2809,7 +2790,8 @@ qla2x00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 
 /**
  * qla2x00_error_entry() - Process an error entry.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
+ * @rsp: response queue
  * @pkt: Entry pointer
  * return : 1=allow further error analysis. 0=no additional error analysis.
  */
@@ -2868,7 +2850,7 @@ fatal:
 
 /**
  * qla24xx_mbx_completion() - Process mailbox command completions.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
  * @mb0: Mailbox0 register
  */
 static void
@@ -2937,7 +2919,8 @@ void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
 
 /**
  * qla24xx_process_response_queue() - Process response queue entries.
- * @ha: SCSI driver HA context
+ * @vha: SCSI driver HA context
+ * @rsp: response queue
  */
 void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	struct rsp_que *rsp)

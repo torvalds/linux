@@ -397,7 +397,6 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
 	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
 	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
-	INIT_LIST_HEAD(&ha->base_qpair->nvme_done_list);
 	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	/* init qpair to this cpu. Will adjust at run time. */
 	qla_cpu_update(rsp->qpair, raw_smp_processor_id());
@@ -496,7 +495,7 @@ static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
 		return;
 
 	if (IS_QLAFX00(ha)) {
-		if (rsp && rsp->ring)
+		if (rsp && rsp->ring_fx00)
 			dma_free_coherent(&ha->pdev->dev,
 			    (rsp->length_fx00 + 1) * sizeof(request_t),
 			    rsp->ring_fx00, rsp->dma_fx00);
@@ -1744,7 +1743,7 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 					sp_get(sp);
 					spin_unlock_irqrestore(qp->qp_lock_ptr,
 					    flags);
-					qla_nvme_abort(ha, sp);
+					qla_nvme_abort(ha, sp, res);
 					spin_lock_irqsave(qp->qp_lock_ptr,
 					    flags);
 				} else if (GET_CMD_SP(sp) &&
@@ -4822,12 +4821,14 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			fcport->d_id = e->u.new_sess.id;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
-			if (e->u.new_sess.fc4_type == FC4_TYPE_FCP_SCSI) {
+			if (e->u.new_sess.fc4_type & FS_FC4TYPE_FCP)
 				fcport->fc4_type = FC4_TYPE_FCP_SCSI;
-			} else if (e->u.new_sess.fc4_type == FC4_TYPE_NVME) {
+
+			if (e->u.new_sess.fc4_type & FS_FC4TYPE_NVME) {
 				fcport->fc4_type = FC4_TYPE_OTHER;
 				fcport->fc4f_nvme = FC4_TYPE_NVME;
 			}
+
 			memcpy(fcport->port_name, e->u.new_sess.port_name,
 			    WWN_SIZE);
 		} else {
@@ -5047,7 +5048,8 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			    e->u.logio.data);
 			break;
 		case QLA_EVT_GPNFT:
-			qla24xx_async_gpnft(vha, e->u.gpnft.fc4_type);
+			qla24xx_async_gpnft(vha, e->u.gpnft.fc4_type,
+			    e->u.gpnft.sp);
 			break;
 		case QLA_EVT_GPNFT_DONE:
 			qla24xx_async_gpnft_done(vha, e->u.iosb.sp);
