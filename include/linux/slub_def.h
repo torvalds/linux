@@ -137,8 +137,8 @@ struct kmem_cache {
 	struct kasan_cache kasan_info;
 #endif
 
-	size_t useroffset;		/* Usercopy region offset */
-	size_t usersize;		/* Usercopy region size */
+	unsigned int useroffset;	/* Usercopy region offset */
+	unsigned int usersize;		/* Usercopy region size */
 
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };

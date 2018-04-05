@@ -380,8 +380,8 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 
 static struct kmem_cache *create_cache(const char *name,
 		unsigned int object_size, unsigned int size, unsigned int align,
-		slab_flags_t flags, size_t useroffset,
-		size_t usersize, void (*ctor)(void *),
+		slab_flags_t flags, unsigned int useroffset,
+		unsigned int usersize, void (*ctor)(void *),
 		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
 {
 	struct kmem_cache *s;
@@ -454,7 +454,8 @@ out_free_cache:
 struct kmem_cache *
 kmem_cache_create_usercopy(const char *name,
 		  unsigned int size, unsigned int align,
-		  slab_flags_t flags, size_t useroffset, size_t usersize,
+		  slab_flags_t flags,
+		  unsigned int useroffset, unsigned int usersize,
 		  void (*ctor)(void *))
 {
 	struct kmem_cache *s = NULL;

@@ -5081,7 +5081,7 @@ SLAB_ATTR_RO(cache_dma);
 
 static ssize_t usersize_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%zu\n", s->usersize);
+	return sprintf(buf, "%u\n", s->usersize);
 }
 SLAB_ATTR_RO(usersize);
 
