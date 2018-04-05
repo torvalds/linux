@@ -93,6 +93,64 @@ static void psr_aux_io_power_put(struct intel_dp *intel_dp)
 	intel_display_power_put(dev_priv, psr_aux_domain(intel_dp));
 }
 
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug)
+{
+	u32 debug_mask, mask;
+
+	/* No PSR interrupts on VLV/CHV */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return;
+
+	mask = EDP_PSR_ERROR(TRANSCODER_EDP);
+	debug_mask = EDP_PSR_POST_EXIT(TRANSCODER_EDP) |
+		     EDP_PSR_PRE_ENTRY(TRANSCODER_EDP);
+
+	if (INTEL_GEN(dev_priv) >= 8) {
+		mask |= EDP_PSR_ERROR(TRANSCODER_A) |
+			EDP_PSR_ERROR(TRANSCODER_B) |
+			EDP_PSR_ERROR(TRANSCODER_C);
+
+		debug_mask |= EDP_PSR_POST_EXIT(TRANSCODER_A) |
+			      EDP_PSR_PRE_ENTRY(TRANSCODER_A) |
+			      EDP_PSR_POST_EXIT(TRANSCODER_B) |
+			      EDP_PSR_PRE_ENTRY(TRANSCODER_B) |
+			      EDP_PSR_POST_EXIT(TRANSCODER_C) |
+			      EDP_PSR_PRE_ENTRY(TRANSCODER_C);
+	}
+
+	if (debug)
+		mask |= debug_mask;
+
+	WRITE_ONCE(dev_priv->psr.debug, debug);
+	I915_WRITE(EDP_PSR_IMR, ~mask);
+}
+
+void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
+{
+	u32 transcoders = BIT(TRANSCODER_EDP);
+	enum transcoder cpu_transcoder;
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		transcoders |= BIT(TRANSCODER_A) |
+			       BIT(TRANSCODER_B) |
+			       BIT(TRANSCODER_C);
+
+	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
+		/* FIXME: Exit PSR and link train manually when this happens. */
+		if (psr_iir & EDP_PSR_ERROR(cpu_transcoder))
+			DRM_DEBUG_KMS("[transcoder %s] PSR aux error\n",
+				      transcoder_name(cpu_transcoder));
+
+		if (psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder))
+			DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
+				      transcoder_name(cpu_transcoder));
+
+		if (psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder))
+			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
+				      transcoder_name(cpu_transcoder));
+	}
+}
+
 static bool intel_dp_get_y_coord_required(struct intel_dp *intel_dp)
 {
 	uint8_t psr_caps = 0;

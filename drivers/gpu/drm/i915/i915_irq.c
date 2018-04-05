@@ -2452,40 +2452,6 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		ironlake_rps_change_irq_handler(dev_priv);
 }
 
-static void hsw_edp_psr_irq_handler(struct drm_i915_private *dev_priv)
-{
-	u32 edp_psr_iir = I915_READ(EDP_PSR_IIR);
-	u32 edp_psr_imr = I915_READ(EDP_PSR_IMR);
-	u32 mask = BIT(TRANSCODER_EDP);
-	enum transcoder cpu_transcoder;
-
-	if (INTEL_GEN(dev_priv) >= 8)
-		mask |= BIT(TRANSCODER_A) |
-			BIT(TRANSCODER_B) |
-			BIT(TRANSCODER_C);
-
-	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, mask) {
-		if (edp_psr_iir & EDP_PSR_ERROR(cpu_transcoder))
-			DRM_DEBUG_KMS("Transcoder %s PSR error\n",
-				      transcoder_name(cpu_transcoder));
-
-		if (edp_psr_iir & EDP_PSR_PRE_ENTRY(cpu_transcoder)) {
-			DRM_DEBUG_KMS("Transcoder %s PSR prepare entry in 2 vblanks\n",
-				      transcoder_name(cpu_transcoder));
-			edp_psr_imr |= EDP_PSR_PRE_ENTRY(cpu_transcoder);
-		}
-
-		if (edp_psr_iir & EDP_PSR_POST_EXIT(cpu_transcoder)) {
-			DRM_DEBUG_KMS("Transcoder %s PSR exit completed\n",
-				      transcoder_name(cpu_transcoder));
-			edp_psr_imr &= ~EDP_PSR_PRE_ENTRY(cpu_transcoder);
-		}
-	}
-
-	I915_WRITE(EDP_PSR_IMR, edp_psr_imr);
-	I915_WRITE(EDP_PSR_IIR, edp_psr_iir);
-}
-
 static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 				    u32 de_iir)
 {
@@ -2498,8 +2464,12 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev_priv);
 
-	if (de_iir & DE_EDP_PSR_INT_HSW)
-		hsw_edp_psr_irq_handler(dev_priv);
+	if (de_iir & DE_EDP_PSR_INT_HSW) {
+		u32 psr_iir = I915_READ(EDP_PSR_IIR);
+
+		intel_psr_irq_handler(dev_priv, psr_iir);
+		I915_WRITE(EDP_PSR_IIR, psr_iir);
+	}
 
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
 		dp_aux_irq_handler(dev_priv);
@@ -2641,7 +2611,10 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			}
 
 			if (iir & GEN8_DE_EDP_PSR) {
-				hsw_edp_psr_irq_handler(dev_priv);
+				u32 psr_iir = I915_READ(EDP_PSR_IIR);
+
+				intel_psr_irq_handler(dev_priv, psr_iir);
+				I915_WRITE(EDP_PSR_IIR, psr_iir);
 				found = true;
 			}
 
@@ -3820,7 +3793,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	if (IS_HASWELL(dev_priv)) {
 		gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
-		I915_WRITE(EDP_PSR_IMR, 0);
+		intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 
@@ -3960,7 +3933,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 		de_port_enables |= GEN8_PORT_DP_A_HOTPLUG;
 
 	gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
-	I915_WRITE(EDP_PSR_IMR, 0);
+	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
 
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;

@@ -2690,6 +2690,39 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int
+i915_edp_psr_debug_set(void *data, u64 val)
+{
+	struct drm_i915_private *dev_priv = data;
+
+	if (!CAN_PSR(dev_priv))
+		return -ENODEV;
+
+	DRM_DEBUG_KMS("PSR debug %s\n", enableddisabled(val));
+
+	intel_runtime_pm_get(dev_priv);
+	intel_psr_irq_control(dev_priv, !!val);
+	intel_runtime_pm_put(dev_priv);
+
+	return 0;
+}
+
+static int
+i915_edp_psr_debug_get(void *data, u64 *val)
+{
+	struct drm_i915_private *dev_priv = data;
+
+	if (!CAN_PSR(dev_priv))
+		return -ENODEV;
+
+	*val = READ_ONCE(dev_priv->psr.debug);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_edp_psr_debug_fops,
+			i915_edp_psr_debug_get, i915_edp_psr_debug_set,
+			"%llu\n");
+
 static int i915_sink_crc(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4862,7 +4895,8 @@ static const struct i915_debugfs_files {
 	{"i915_guc_log_relay", &i915_guc_log_relay_fops},
 	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
 	{"i915_ipc_status", &i915_ipc_status_fops},
-	{"i915_drrs_ctl", &i915_drrs_ctl_fops}
+	{"i915_drrs_ctl", &i915_drrs_ctl_fops},
+	{"i915_edp_psr_debug", &i915_edp_psr_debug_fops}
 };
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)

@@ -1899,6 +1899,8 @@ void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits);
 void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state);
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, bool debug);
+void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);
