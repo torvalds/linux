@@ -190,7 +190,9 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 				p9_debug(P9_DEBUG_ERROR,
 					 "problem allocating copy of trans arg\n");
 				goto free_and_return;
-			 }
+			}
+
+			v9fs_put_trans(clnt->trans_mod);
 			clnt->trans_mod = v9fs_get_trans_by_name(s);
 			if (clnt->trans_mod == NULL) {
 				pr_info("Could not find request transport: %s\n",
@@ -226,6 +228,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	}
 
 free_and_return:
+	v9fs_put_trans(clnt->trans_mod);
 	kfree(tmp_options);
 	return ret;
 }
