@@ -266,6 +266,8 @@ enum axp20x_variants {
 #define AXP288_RT_BATT_V_H		0xa0
 #define AXP288_RT_BATT_V_L		0xa1
 
+#define AXP813_ADC_RATE			0x85
+
 /* Fuel Gauge */
 #define AXP288_FG_RDC1_REG          0xba
 #define AXP288_FG_RDC0_REG          0xbb

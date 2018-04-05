@@ -2079,9 +2079,8 @@ static int adt7316_enable(struct device *dev)
 
 	return _adt7316_store_enabled(chip, 1);
 }
-
-SIMPLE_DEV_PM_OPS(adt7316_pm_ops, adt7316_disable, adt7316_enable);
 EXPORT_SYMBOL_GPL(adt7316_pm_ops);
+SIMPLE_DEV_PM_OPS(adt7316_pm_ops, adt7316_disable, adt7316_enable);
 #endif
 
 static const struct iio_info adt7316_info = {

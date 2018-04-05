@@ -71,6 +71,4 @@
 #define TXQ_PGADD		(RTL8712_FIFOCTRL_ + 0xB3)
 #define TXFF_PG_NUM		(RTL8712_FIFOCTRL_ + 0xB4)
 
-
-
 #endif	/* __RTL8712_FIFOCTRL_REGDEF_H__ */

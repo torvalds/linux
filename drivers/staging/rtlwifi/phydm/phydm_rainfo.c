@@ -142,7 +142,6 @@ void odm_c2h_ra_para_report_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 				     "SGI_support =", cmd_buf[7]);
 			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
 				     "Rate_ID =", cmd_buf[8]);
-			;
 		}
 		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
 			     "-------------------------------\n");

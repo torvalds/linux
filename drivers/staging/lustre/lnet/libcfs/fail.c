@@ -134,7 +134,7 @@ int __cfs_fail_timeout_set(u32 id, u32 value, int ms, int set)
 		CERROR("cfs_fail_timeout id %x sleeping for %dms\n",
 		       id, ms);
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(ms) / 1000);
+		schedule_timeout(ms * HZ / 1000);
 		CERROR("cfs_fail_timeout id %x awake\n", id);
 	}
 	return ret;

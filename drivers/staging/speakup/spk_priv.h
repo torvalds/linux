@@ -57,6 +57,7 @@ int spk_ttyio_synth_probe(struct spk_synth *synth);
 const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff);
 const char *spk_ttyio_synth_immediate(struct spk_synth *synth, const char *buff);
 void spk_do_catch_up(struct spk_synth *synth);
+void spk_do_catch_up_unicode(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
 unsigned char spk_synth_get_index(struct spk_synth *synth);
 int spk_synth_is_alive_nop(struct spk_synth *synth);

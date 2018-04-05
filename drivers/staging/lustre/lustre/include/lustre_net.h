@@ -1259,8 +1259,6 @@ enum {
 	SVC_STOPPING    = 1 << 1,
 	SVC_STARTING    = 1 << 2,
 	SVC_RUNNING     = 1 << 3,
-	SVC_EVENT       = 1 << 4,
-	SVC_SIGNAL      = 1 << 5,
 };
 
 #define PTLRPC_THR_NAME_LEN		32
@@ -1303,11 +1301,6 @@ struct ptlrpc_thread {
 	char				t_name[PTLRPC_THR_NAME_LEN];
 };
 
-static inline int thread_is_init(struct ptlrpc_thread *thread)
-{
-	return thread->t_flags == 0;
-}
-
 static inline int thread_is_stopped(struct ptlrpc_thread *thread)
 {
 	return !!(thread->t_flags & SVC_STOPPED);
@@ -1326,16 +1319,6 @@ static inline int thread_is_starting(struct ptlrpc_thread *thread)
 static inline int thread_is_running(struct ptlrpc_thread *thread)
 {
 	return !!(thread->t_flags & SVC_RUNNING);
-}
-
-static inline int thread_is_event(struct ptlrpc_thread *thread)
-{
-	return !!(thread->t_flags & SVC_EVENT);
-}
-
-static inline int thread_is_signal(struct ptlrpc_thread *thread)
-{
-	return !!(thread->t_flags & SVC_SIGNAL);
 }
 
 static inline void thread_clear_flags(struct ptlrpc_thread *thread, __u32 flags)
@@ -1821,6 +1804,9 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd);
  */
 void ptlrpc_request_committed(struct ptlrpc_request *req, int force);
 
+int ptlrpc_inc_ref(void);
+void ptlrpc_dec_ref(void);
+
 void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 			struct ptlrpc_client *);
 struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid);
@@ -2268,7 +2254,7 @@ static inline int ptlrpc_send_limit_expired(struct ptlrpc_request *req)
 {
 	if (req->rq_delay_limit != 0 &&
 	    time_before(cfs_time_add(req->rq_queued_time,
-				     cfs_time_seconds(req->rq_delay_limit)),
+				     req->rq_delay_limit * HZ),
 			cfs_time_current())) {
 		return 1;
 	}

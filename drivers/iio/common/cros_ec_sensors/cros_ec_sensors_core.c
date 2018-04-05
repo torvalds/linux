@@ -446,5 +446,54 @@ int cros_ec_sensors_core_write(struct cros_ec_sensors_core_state *st,
 }
 EXPORT_SYMBOL_GPL(cros_ec_sensors_core_write);
 
+static int __maybe_unused cros_ec_sensors_prepare(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+
+	if (st->curr_sampl_freq == 0)
+		return 0;
+
+	/*
+	 * If the sensors are sampled at high frequency, we will not be able to
+	 * sleep. Set sampling to a long period if necessary.
+	 */
+	if (st->curr_sampl_freq < CROS_EC_MIN_SUSPEND_SAMPLING_FREQUENCY) {
+		mutex_lock(&st->cmd_lock);
+		st->param.cmd = MOTIONSENSE_CMD_EC_RATE;
+		st->param.ec_rate.data = CROS_EC_MIN_SUSPEND_SAMPLING_FREQUENCY;
+		cros_ec_motion_send_host_cmd(st, 0);
+		mutex_unlock(&st->cmd_lock);
+	}
+	return 0;
+}
+
+static void __maybe_unused cros_ec_sensors_complete(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+
+	if (st->curr_sampl_freq == 0)
+		return;
+
+	if (st->curr_sampl_freq < CROS_EC_MIN_SUSPEND_SAMPLING_FREQUENCY) {
+		mutex_lock(&st->cmd_lock);
+		st->param.cmd = MOTIONSENSE_CMD_EC_RATE;
+		st->param.ec_rate.data = st->curr_sampl_freq;
+		cros_ec_motion_send_host_cmd(st, 0);
+		mutex_unlock(&st->cmd_lock);
+	}
+}
+
+const struct dev_pm_ops cros_ec_sensors_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.prepare = cros_ec_sensors_prepare,
+	.complete = cros_ec_sensors_complete
+#endif
+};
+EXPORT_SYMBOL_GPL(cros_ec_sensors_pm_ops);
+
 MODULE_DESCRIPTION("ChromeOS EC sensor hub core functions");
 MODULE_LICENSE("GPL v2");

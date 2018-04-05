@@ -333,7 +333,7 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 	lmmk_size = lov_mds_md_size(stripe_count, lsm->lsm_magic);
 
 
-	lmmk = libcfs_kvzalloc(lmmk_size, GFP_NOFS);
+	lmmk = kvzalloc(lmmk_size, GFP_NOFS);
 	if (!lmmk) {
 		rc = -ENOMEM;
 		goto out;

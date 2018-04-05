@@ -497,7 +497,7 @@ void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
 				 int stash)
 {
 	/* save the virtual address */
-	d->rsp_addr_virt = (u64)storage;
+	d->rsp_addr_virt = (u64)(uintptr_t)storage;
 
 	if (!storage) {
 		d->verb &= ~(1 << QB_VDQCR_VERB_RLS_SHIFT);
@@ -520,11 +520,6 @@ void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
 void qbman_pull_desc_set_numframes(struct qbman_pull_desc *d, u8 numframes)
 {
 	d->numf = numframes - 1;
-}
-
-void qbman_pull_desc_set_token(struct qbman_pull_desc *d, u8 token)
-{
-	d->tok = token;
 }
 
 /*
@@ -590,7 +585,7 @@ int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
 		atomic_inc(&s->vdq.available);
 		return -EBUSY;
 	}
-	s->vdq.storage = (void *)d->rsp_addr_virt;
+	s->vdq.storage = (void *)(uintptr_t)d->rsp_addr_virt;
 	p = qbman_get_cmd(s, QBMAN_CENA_SWP_VDQCR);
 	p->numf = d->numf;
 	p->tok = QMAN_DQ_TOKEN_VALID;
@@ -830,7 +825,7 @@ int qbman_swp_release(struct qbman_swp *s, const struct qbman_release_desc *d,
 struct qbman_acquire_desc {
 	u8 verb;
 	u8 reserved;
-	u16 bpid;
+	__le16 bpid;
 	u8 num;
 	u8 reserved2[59];
 };
@@ -838,10 +833,10 @@ struct qbman_acquire_desc {
 struct qbman_acquire_rslt {
 	u8 verb;
 	u8 rslt;
-	u16 reserved;
+	__le16 reserved;
 	u8 num;
 	u8 reserved2[3];
-	u64 buf[7];
+	__le64 buf[7];
 };
 
 /**
@@ -904,7 +899,7 @@ int qbman_swp_acquire(struct qbman_swp *s, u16 bpid, u64 *buffers,
 struct qbman_alt_fq_state_desc {
 	u8 verb;
 	u8 reserved[3];
-	u32 fqid;
+	__le32 fqid;
 	u8 reserved2[56];
 };
 
@@ -927,7 +922,7 @@ int qbman_swp_alt_fq_state(struct qbman_swp *s, u32 fqid,
 	if (!p)
 		return -EBUSY;
 
-	p->fqid = cpu_to_le32(fqid) & ALT_FQ_FQID_MASK;
+	p->fqid = cpu_to_le32(fqid & ALT_FQ_FQID_MASK);
 
 	/* Complete the management command */
 	r = qbman_swp_mc_complete(s, p, alt_fq_verb);
@@ -953,11 +948,11 @@ int qbman_swp_alt_fq_state(struct qbman_swp *s, u32 fqid,
 struct qbman_cdan_ctrl_desc {
 	u8 verb;
 	u8 reserved;
-	u16 ch;
+	__le16 ch;
 	u8 we;
 	u8 ctrl;
-	u16 reserved2;
-	u64 cdan_ctx;
+	__le16 reserved2;
+	__le64 cdan_ctx;
 	u8 reserved3[48];
 
 };
@@ -965,7 +960,7 @@ struct qbman_cdan_ctrl_desc {
 struct qbman_cdan_ctrl_rslt {
 	u8 verb;
 	u8 rslt;
-	u16 ch;
+	__le16 ch;
 	u8 reserved[60];
 };
 

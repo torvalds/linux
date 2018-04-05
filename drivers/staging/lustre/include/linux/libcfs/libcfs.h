@@ -64,14 +64,21 @@
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023
 
-/*
- * Defined by platform
- */
-sigset_t cfs_block_allsigs(void);
-sigset_t cfs_block_sigs(unsigned long sigs);
-sigset_t cfs_block_sigsinv(unsigned long sigs);
-void cfs_restore_sigs(sigset_t sigset);
-void cfs_clear_sigpending(void);
+/* Block all signals except for the @sigs */
+static inline void cfs_block_sigsinv(unsigned long sigs, sigset_t *old)
+{
+	sigset_t new;
+
+	siginitsetinv(&new, sigs);
+	sigorsets(&new, &current->blocked, &new);
+	sigprocmask(SIG_BLOCK, &new, old);
+}
+
+static inline void
+cfs_restore_sigs(sigset_t *old)
+{
+	sigprocmask(SIG_SETMASK, old, NULL);
+}
 
 struct libcfs_ioctl_handler {
 	struct list_head item;
@@ -104,10 +111,6 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 	((type *)__container_of((void *)(ptr), offsetof(type, member)))
 
 #define _LIBCFS_H
-
-void *libcfs_kvzalloc(size_t size, gfp_t flags);
-void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
-			  gfp_t flags);
 
 extern struct miscdevice libcfs_dev;
 /**
