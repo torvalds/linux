@@ -223,6 +223,7 @@ struct dw_mci {
 	struct timer_list       cmd11_timer;
 	struct timer_list       cto_timer;
 	struct timer_list       dto_timer;
+	struct timer_list	xfer_timer;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -247,6 +248,7 @@ struct dw_mci_dma_ops {
 #define DW_MCI_QUIRK_BROKEN_CARD_DETECTION	BIT(3)
 /* Timer for broken data transfer over scheme */
 #define DW_MCI_QUIRK_BROKEN_DTO			BIT(4)
+#define DW_MCI_QUIRK_BROKEN_XFER		BIT(5)
 
 struct dma_pdata;
 

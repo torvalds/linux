@@ -236,6 +236,10 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	/* It needs this quirk on all Rockchip SoCs */
 	host->pdata->quirks |= DW_MCI_QUIRK_BROKEN_DTO;
 
+	if (of_device_is_compatible(host->dev->of_node,
+				    "rockchip,rk3308-dw-mshc"))
+		host->pdata->quirks |= DW_MCI_QUIRK_BROKEN_XFER;
+
 	return 0;
 }
 
