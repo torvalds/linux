@@ -280,7 +280,7 @@ static inline void memcg_unlink_cache(struct kmem_cache *s)
  * Figure out what the alignment of the objects will be given a set of
  * flags, a user specified alignment and the size of the objects.
  */
-static unsigned long calculate_alignment(unsigned long flags,
+static unsigned long calculate_alignment(slab_flags_t flags,
 		unsigned long align, unsigned long size)
 {
 	/*
