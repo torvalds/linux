@@ -227,7 +227,6 @@ venc_enable_vpss_clock(int venc_type,
  */
 static int venc_set_ntsc(struct v4l2_subdev *sd)
 {
-	u32 val;
 	struct venc_state *venc = to_state(sd);
 	struct venc_platform_data *pdata = venc->pdata;
 
@@ -244,7 +243,7 @@ static int venc_set_ntsc(struct v4l2_subdev *sd)
 	if (venc->venc_type == VPBE_VERSION_3) {
 		venc_write(sd, VENC_CLKCTL, 0x01);
 		venc_write(sd, VENC_VIDCTL, 0);
-		val = vdaccfg_write(sd, VDAC_CONFIG_SD_V3);
+		vdaccfg_write(sd, VDAC_CONFIG_SD_V3);
 	} else if (venc->venc_type == VPBE_VERSION_2) {
 		venc_write(sd, VENC_CLKCTL, 0x01);
 		venc_write(sd, VENC_VIDCTL, 0);
@@ -608,9 +607,8 @@ struct v4l2_subdev *venc_sub_dev_init(struct v4l2_device *v4l2_dev,
 		const char *venc_name)
 {
 	struct venc_state *venc;
-	int err;
 
-	err = bus_for_each_dev(&platform_bus_type, NULL, &venc,
+	bus_for_each_dev(&platform_bus_type, NULL, &venc,
 			venc_device_get);
 	if (venc == NULL)
 		return NULL;
