@@ -6220,8 +6220,9 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
 	}
 
-	/* This chip has hardware antenna diversity*/
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R)) {
+	/* These chips have hardware RX antenna diversity */
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R) ||
+	    rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5370G)) {
 		rt2800_bbp_write(rt2x00dev, 150, 0); /* Disable Antenna Software OFDM */
 		rt2800_bbp_write(rt2x00dev, 151, 0); /* Disable Antenna Software CCK */
 		rt2800_bbp_write(rt2x00dev, 154, 0); /* Clear previously selected antenna */
@@ -8748,7 +8749,9 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->default_ant.rx = ANTENNA_A;
 	}
 
-	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R)) {
+	/* These chips have hardware RX antenna diversity */
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R) ||
+	    rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5370G)) {
 		rt2x00dev->default_ant.tx = ANTENNA_HW_DIVERSITY; /* Unused */
 		rt2x00dev->default_ant.rx = ANTENNA_HW_DIVERSITY; /* Unused */
 	}
