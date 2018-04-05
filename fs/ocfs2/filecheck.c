@@ -354,6 +354,22 @@ exit:
 }
 
 static inline int
+ocfs2_filecheck_is_dup_entry(struct ocfs2_filecheck_sysfs_entry *ent,
+				unsigned long ino)
+{
+	struct ocfs2_filecheck_entry *p;
+
+	list_for_each_entry(p, &ent->fs_fcheck->fc_head, fe_list) {
+		if (!p->fe_done) {
+			if (p->fe_ino == ino)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
+static inline int
 ocfs2_filecheck_erase_entry(struct ocfs2_filecheck_sysfs_entry *ent)
 {
 	struct ocfs2_filecheck_entry *p;
@@ -467,7 +483,10 @@ static ssize_t ocfs2_filecheck_attr_store(struct kobject *kobj,
 	}
 
 	spin_lock(&ent->fs_fcheck->fc_lock);
-	if ((ent->fs_fcheck->fc_size >= ent->fs_fcheck->fc_max) &&
+	if (ocfs2_filecheck_is_dup_entry(ent, args.fa_ino)) {
+		ret = -EEXIST;
+		kfree(entry);
+	} else if ((ent->fs_fcheck->fc_size >= ent->fs_fcheck->fc_max) &&
 		(ent->fs_fcheck->fc_done == 0)) {
 		mlog(ML_NOTICE,
 		"Cannot do more file check "
