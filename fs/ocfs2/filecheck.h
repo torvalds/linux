@@ -51,15 +51,6 @@ struct ocfs2_filecheck {
 	unsigned int fc_done;	/* Finished entry count in list */
 };
 
-struct ocfs2_filecheck_sysfs_entry {	/* sysfs entry per mounting */
-	struct list_head fs_list;
-	atomic_t fs_count;
-	struct super_block *fs_sb;
-	struct kset *fs_devicekset;
-	struct kset *fs_fcheckkset;
-	struct ocfs2_filecheck *fs_fcheck;
-};
-
 #define OCFS2_FILECHECK_MAXSIZE		100
 #define OCFS2_FILECHECK_MINSIZE		10
 
@@ -70,7 +61,14 @@ enum {
 	OCFS2_FILECHECK_TYPE_SET = 100	/* Set entry list maximum size */
 };
 
-int ocfs2_filecheck_create_sysfs(struct super_block *sb);
-int ocfs2_filecheck_remove_sysfs(struct super_block *sb);
+struct ocfs2_filecheck_sysfs_entry {	/* sysfs entry per partition */
+	struct kobject fs_kobj;
+	struct completion fs_kobj_unregister;
+	struct ocfs2_filecheck *fs_fcheck;
+};
+
+
+int ocfs2_filecheck_create_sysfs(struct ocfs2_super *osb);
+void ocfs2_filecheck_remove_sysfs(struct ocfs2_super *osb);
 
 #endif  /* FILECHECK_H */
