@@ -567,7 +567,7 @@ static void vpbe_disp_check_window_params(struct vpbe_display *disp_dev,
 
 }
 
-/**
+/*
  * vpbe_try_format()
  * If user application provides width and height, and have bytesperline set
  * to zero, driver calculates bytesperline and sizeimage based on hardware
@@ -932,7 +932,7 @@ static int vpbe_display_try_fmt(struct file *file, void *priv,
 
 }
 
-/**
+/*
  * vpbe_display_s_std - Set the given standard in the encoder
  *
  * Sets the standard if supported by the current encoder. Return the status.
@@ -964,7 +964,7 @@ static int vpbe_display_s_std(struct file *file, void *priv,
 	return 0;
 }
 
-/**
+/*
  * vpbe_display_g_std - Get the standard in the current encoder
  *
  * Get the standard in the current encoder. Return the status. 0 - success
@@ -987,7 +987,7 @@ static int vpbe_display_g_std(struct file *file, void *priv,
 	return -EINVAL;
 }
 
-/**
+/*
  * vpbe_display_enum_output - enumerate outputs
  *
  * Enumerates the outputs available at the vpbe display
@@ -1016,7 +1016,7 @@ static int vpbe_display_enum_output(struct file *file, void *priv,
 	return 0;
 }
 
-/**
+/*
  * vpbe_display_s_output - Set output to
  * the output specified by the index
  */
@@ -1045,7 +1045,7 @@ static int vpbe_display_s_output(struct file *file, void *priv,
 	return 0;
 }
 
-/**
+/*
  * vpbe_display_g_output - Get output from subdevice
  * for a given by the index
  */
@@ -1062,7 +1062,7 @@ static int vpbe_display_g_output(struct file *file, void *priv,
 	return 0;
 }
 
-/**
+/*
  * vpbe_display_enum_dv_timings - Enumerate the dv timings
  *
  * enum the timings in the current encoder. Return the status. 0 - success
@@ -1092,7 +1092,7 @@ vpbe_display_enum_dv_timings(struct file *file, void *priv,
 	return 0;
 }
 
-/**
+/*
  * vpbe_display_s_dv_timings - Set the dv timings
  *
  * Set the timings in the current encoder. Return the status. 0 - success
@@ -1125,7 +1125,7 @@ vpbe_display_s_dv_timings(struct file *file, void *priv,
 	return 0;
 }
 
-/**
+/*
  * vpbe_display_g_dv_timings - Set the dv timings
  *
  * Get the timings in the current encoder. Return the status. 0 - success

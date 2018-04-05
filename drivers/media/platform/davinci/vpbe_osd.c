@@ -124,10 +124,10 @@ static inline u32 osd_modify(struct osd_state *sd, u32 mask, u32 val,
 
 /**
  * _osd_dm6446_vid0_pingpong() - field inversion fix for DM6446
- * @sd - ptr to struct osd_state
- * @field_inversion - inversion flag
- * @fb_base_phys - frame buffer address
- * @lconfig - ptr to layer config
+ * @sd: ptr to struct osd_state
+ * @field_inversion: inversion flag
+ * @fb_base_phys: frame buffer address
+ * @lconfig: ptr to layer config
  *
  * This routine implements a workaround for the field signal inversion silicon
  * erratum described in Advisory 1.3.8 for the DM6446.  The fb_base_phys and
@@ -784,9 +784,9 @@ static void osd_get_layer_config(struct osd_state *sd, enum osd_layer layer,
 
 /**
  * try_layer_config() - Try a specific configuration for the layer
- * @sd  - ptr to struct osd_state
- * @layer - layer to configure
- * @lconfig - layer configuration to try
+ * @sd: ptr to struct osd_state
+ * @layer: layer to configure
+ * @lconfig: layer configuration to try
  *
  * If the requested lconfig is completely rejected and the value of lconfig on
  * exit is the current lconfig, then try_layer_config() returns 1.  Otherwise,
