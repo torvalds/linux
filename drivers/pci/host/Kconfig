@@ -5,13 +5,13 @@ menu "PCI host controller drivers"
 
 config PCI_MVEBU
 	bool "Marvell EBU PCIe controller"
-	depends on ARCH_MVEBU || ARCH_DOVE
+	depends on ARCH_MVEBU || ARCH_DOVE || COMPILE_TEST
 	depends on ARM
 	depends on OF
 
 config PCI_AARDVARK
 	bool "Aardvark PCIe controller"
-	depends on ARCH_MVEBU && ARM64
+	depends on (ARCH_MVEBU && ARM64) || COMPILE_TEST
 	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
@@ -21,7 +21,7 @@ config PCI_AARDVARK
 
 config PCIE_XILINX_NWL
 	bool "NWL PCIe Core"
-	depends on ARCH_ZYNQMP
+	depends on ARCH_ZYNQMP || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
 	 Say 'Y' here if you want kernel support for Xilinx
@@ -32,12 +32,11 @@ config PCIE_XILINX_NWL
 config PCI_FTPCI100
 	bool "Faraday Technology FTPCI100 PCI controller"
 	depends on OF
-	depends on ARM
 	default ARCH_GEMINI
 
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
 	  Say Y here if you want support for the PCIe host controller found
@@ -45,8 +44,8 @@ config PCI_TEGRA
 
 config PCI_RCAR_GEN2
 	bool "Renesas R-Car Gen2 Internal PCI controller"
-	depends on ARM
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM
 	help
 	  Say Y here if you want internal PCI support on R-Car Gen2 SoC.
 	  There are 3 internal PCI controllers available with a single
@@ -54,7 +53,7 @@ config PCI_RCAR_GEN2
 
 config PCIE_RCAR
 	bool "Renesas R-Car PCIe controller"
-	depends on ARCH_RENESAS || (ARM && COMPILE_TEST)
+	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on PCI_MSI_IRQ_DOMAIN
 	help
 	  Say Y here if you want PCIe controller support on R-Car SoCs.
@@ -65,7 +64,7 @@ config PCI_HOST_COMMON
 
 config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
-	depends on (ARM || ARM64) && OF
+	depends on OF
 	select PCI_HOST_COMMON
 	select IRQ_DOMAIN
 	help
@@ -74,14 +73,14 @@ config PCI_HOST_GENERIC
 
 config PCIE_XILINX
 	bool "Xilinx AXI PCIe host bridge support"
-	depends on ARCH_ZYNQ || MICROBLAZE || (MIPS && PCI_DRIVERS_GENERIC)
+	depends on ARCH_ZYNQ || MICROBLAZE || (MIPS && PCI_DRIVERS_GENERIC) || COMPILE_TEST
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
 	  Host Bridge driver.
 
 config PCI_XGENE
 	bool "X-Gene PCIe controller"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCIEPORTBUS
 	help
@@ -101,7 +100,7 @@ config PCI_XGENE_MSI
 config PCI_V3_SEMI
 	bool "V3 Semiconductor PCI controller"
 	depends on OF
-	depends on ARM
+	depends on ARM || COMPILE_TEST
 	default ARCH_INTEGRATOR_AP
 
 config PCI_VERSATILE
@@ -147,8 +146,7 @@ config PCIE_IPROC_MSI
 
 config PCIE_ALTERA
 	bool "Altera PCIe controller"
-	depends on ARM || NIOS2
-	depends on OF_PCI
+	depends on ARM || NIOS2 || COMPILE_TEST
 	select PCI_DOMAINS
 	help
 	  Say Y here if you want to enable PCIe controller support on Altera
@@ -164,7 +162,7 @@ config PCIE_ALTERA_MSI
 
 config PCI_HOST_THUNDER_PEM
 	bool "Cavium Thunder PCIe controller to off-chip devices"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCI_HOST_COMMON
 	help
@@ -172,7 +170,7 @@ config PCI_HOST_THUNDER_PEM
 
 config PCI_HOST_THUNDER_ECAM
 	bool "Cavium Thunder ECAM controller to on-chip devices on pass-1.x silicon"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCI_HOST_COMMON
 	help
@@ -191,9 +189,8 @@ config PCIE_ROCKCHIP
 
 config PCIE_MEDIATEK
 	bool "MediaTek PCIe controller"
-	depends on (ARM || ARM64) && (ARCH_MEDIATEK || COMPILE_TEST)
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on OF
-	depends on PCI
 	select PCIEPORTBUS
 	help
 	  Say Y here if you want to enable PCIe controller support on
