@@ -2716,7 +2716,7 @@ static unsigned bdw_limit_period(struct perf_event *event, unsigned left)
 			X86_CONFIG(.event=0xc0, .umask=0x01)) {
 		if (left < 128)
 			left = 128;
-		left &= ~0x3fu;
+		left &= ~0x3fULL;
 	}
 	return left;
 }
