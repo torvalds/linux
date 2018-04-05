@@ -256,6 +256,7 @@ enum probe_type {
  *		automatically.
  * @pm:		Power management operations of the device which matched
  *		this driver.
+ * @coredump:	Called through sysfs to initiate a device coredump.
  * @p:		Driver core's private data, no one other than the driver
  *		core can touch this.
  *
