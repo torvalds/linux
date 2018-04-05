@@ -154,7 +154,12 @@ static inline void __raw_writeq(u64 value, volatile void __iomem *addr)
 #define readb readb
 static inline u8 readb(const volatile void __iomem *addr)
 {
-	return __raw_readb(addr);
+	u8 val;
+
+	__io_br();
+	val = __raw_readb(addr);
+	__io_ar();
+	return val;
 }
 #endif
 
@@ -162,7 +167,12 @@ static inline u8 readb(const volatile void __iomem *addr)
 #define readw readw
 static inline u16 readw(const volatile void __iomem *addr)
 {
-	return __le16_to_cpu(__raw_readw(addr));
+	u16 val;
+
+	__io_br();
+	val = __le16_to_cpu(__raw_readw(addr));
+	__io_ar();
+	return val;
 }
 #endif
 
@@ -170,7 +180,12 @@ static inline u16 readw(const volatile void __iomem *addr)
 #define readl readl
 static inline u32 readl(const volatile void __iomem *addr)
 {
-	return __le32_to_cpu(__raw_readl(addr));
+	u32 val;
+
+	__io_br();
+	val = __le32_to_cpu(__raw_readl(addr));
+	__io_ar();
+	return val;
 }
 #endif
 
@@ -179,7 +194,12 @@ static inline u32 readl(const volatile void __iomem *addr)
 #define readq readq
 static inline u64 readq(const volatile void __iomem *addr)
 {
-	return __le64_to_cpu(__raw_readq(addr));
+	u64 val;
+
+	__io_br();
+	val = __le64_to_cpu(__raw_readq(addr));
+	__io_ar();
+	return val;
 }
 #endif
 #endif /* CONFIG_64BIT */
