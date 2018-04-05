@@ -47,6 +47,14 @@ const char * const bch_cache_modes[] = {
 	NULL
 };
 
+/* Default is -1; we skip past it for stop_when_cache_set_failed */
+const char * const bch_stop_on_failure_modes[] = {
+	"default",
+	"auto",
+	"always",
+	NULL
+};
+
 static struct kobject *bcache_kobj;
 struct mutex bch_register_lock;
 LIST_HEAD(bch_cache_sets);
@@ -265,6 +273,7 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 	bio->bi_private = dc;
 
 	closure_get(cl);
+	/* I/O request sent to backing device */
 	__write_super(&dc->sb, bio);
 
 	closure_return_with_destructor(cl, bch_write_bdev_super_unlock);
@@ -521,7 +530,7 @@ static void prio_io(struct cache *ca, uint64_t bucket, int op,
 	bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
 	bch_bio_map(bio, ca->disk_buckets);
 
-	closure_bio_submit(bio, &ca->prio);
+	closure_bio_submit(ca->set, bio, &ca->prio);
 	closure_sync(cl);
 }
 
@@ -769,6 +778,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 			      sector_t sectors)
 {
 	struct request_queue *q;
+	const size_t max_stripes = min_t(size_t, INT_MAX,
+					 SIZE_MAX / sizeof(atomic_t));
 	size_t n;
 	int idx;
 
@@ -777,9 +788,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 
 	d->nr_stripes = DIV_ROUND_UP_ULL(sectors, d->stripe_size);
 
-	if (!d->nr_stripes ||
-	    d->nr_stripes > INT_MAX ||
-	    d->nr_stripes > SIZE_MAX / sizeof(atomic_t)) {
+	if (!d->nr_stripes || d->nr_stripes > max_stripes) {
 		pr_err("nr_stripes too large or invalid: %u (start sector beyond end of disk?)",
 			(unsigned)d->nr_stripes);
 		return -ENOMEM;
@@ -833,9 +842,9 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	q->limits.io_min		= block_size;
 	q->limits.logical_block_size	= block_size;
 	q->limits.physical_block_size	= block_size;
-	set_bit(QUEUE_FLAG_NONROT,	&d->disk->queue->queue_flags);
-	clear_bit(QUEUE_FLAG_ADD_RANDOM, &d->disk->queue->queue_flags);
-	set_bit(QUEUE_FLAG_DISCARD,	&d->disk->queue->queue_flags);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, d->disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, d->disk->queue);
 
 	blk_queue_write_cache(q, true, true);
 
@@ -899,6 +908,31 @@ void bch_cached_dev_run(struct cached_dev *dc)
 		pr_debug("error creating sysfs link");
 }
 
+/*
+ * If BCACHE_DEV_RATE_DW_RUNNING is set, it means routine of the delayed
+ * work dc->writeback_rate_update is running. Wait until the routine
+ * quits (BCACHE_DEV_RATE_DW_RUNNING is clear), then continue to
+ * cancel it. If BCACHE_DEV_RATE_DW_RUNNING is not clear after time_out
+ * seconds, give up waiting here and continue to cancel it too.
+ */
+static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
+{
+	int time_out = WRITEBACK_RATE_UPDATE_SECS_MAX * HZ;
+
+	do {
+		if (!test_bit(BCACHE_DEV_RATE_DW_RUNNING,
+			      &dc->disk.flags))
+			break;
+		time_out--;
+		schedule_timeout_interruptible(1);
+	} while (time_out > 0);
+
+	if (time_out == 0)
+		pr_warn("give up waiting for dc->writeback_write_update to quit");
+
+	cancel_delayed_work_sync(&dc->writeback_rate_update);
+}
+
 static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
@@ -911,7 +945,9 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	mutex_lock(&bch_register_lock);
 
-	cancel_delayed_work_sync(&dc->writeback_rate_update);
+	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
+		cancel_writeback_rate_update_dwork(dc);
+
 	if (!IS_ERR_OR_NULL(dc->writeback_thread)) {
 		kthread_stop(dc->writeback_thread);
 		dc->writeback_thread = NULL;
@@ -954,6 +990,7 @@ void bch_cached_dev_detach(struct cached_dev *dc)
 	closure_get(&dc->disk.cl);
 
 	bch_writeback_queue(dc);
+
 	cached_dev_put(dc);
 }
 
@@ -1065,7 +1102,6 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	if (BDEV_STATE(&dc->sb) == BDEV_STATE_DIRTY) {
 		bch_sectors_dirty_init(&dc->disk);
 		atomic_set(&dc->has_dirty, 1);
-		refcount_inc(&dc->count);
 		bch_writeback_queue(dc);
 	}
 
@@ -1093,13 +1129,15 @@ static void cached_dev_free(struct closure *cl)
 {
 	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
 
-	cancel_delayed_work_sync(&dc->writeback_rate_update);
+	mutex_lock(&bch_register_lock);
+
+	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
+		cancel_writeback_rate_update_dwork(dc);
+
 	if (!IS_ERR_OR_NULL(dc->writeback_thread))
 		kthread_stop(dc->writeback_thread);
 	if (dc->writeback_write_wq)
 		destroy_workqueue(dc->writeback_write_wq);
-
-	mutex_lock(&bch_register_lock);
 
 	if (atomic_read(&dc->running))
 		bd_unlink_disk_holder(dc->bdev, dc->disk.disk);
@@ -1169,6 +1207,12 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 	dc->disk.disk->queue->backing_dev_info->ra_pages =
 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
 		    q->backing_dev_info->ra_pages);
+
+	atomic_set(&dc->io_errors, 0);
+	dc->io_disable = false;
+	dc->error_limit = DEFAULT_CACHED_DEV_ERROR_LIMIT;
+	/* default to auto */
+	dc->stop_when_cache_set_failed = BCH_CACHED_DEV_STOP_AUTO;
 
 	bch_cached_dev_request_init(dc);
 	bch_cached_dev_writeback_init(dc);
@@ -1321,6 +1365,24 @@ int bch_flash_dev_create(struct cache_set *c, uint64_t size)
 	return flash_dev_run(c, u);
 }
 
+bool bch_cached_dev_error(struct cached_dev *dc)
+{
+	char name[BDEVNAME_SIZE];
+
+	if (!dc || test_bit(BCACHE_DEV_CLOSING, &dc->disk.flags))
+		return false;
+
+	dc->io_disable = true;
+	/* make others know io_disable is true earlier */
+	smp_mb();
+
+	pr_err("stop %s: too many IO errors on backing device %s\n",
+		dc->disk.disk->disk_name, bdevname(dc->bdev, name));
+
+	bcache_device_stop(&dc->disk);
+	return true;
+}
+
 /* Cache set */
 
 __printf(2, 3)
@@ -1331,6 +1393,9 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 	if (c->on_error != ON_ERROR_PANIC &&
 	    test_bit(CACHE_SET_STOPPING, &c->flags))
 		return false;
+
+	if (test_and_set_bit(CACHE_SET_IO_DISABLE, &c->flags))
+		pr_warn("CACHE_SET_IO_DISABLE already set");
 
 	/* XXX: we can be called from atomic context
 	acquire_console_sem();
@@ -1443,25 +1508,72 @@ static void cache_set_flush(struct closure *cl)
 	closure_return(cl);
 }
 
+/*
+ * This function is only called when CACHE_SET_IO_DISABLE is set, which means
+ * cache set is unregistering due to too many I/O errors. In this condition,
+ * the bcache device might be stopped, it depends on stop_when_cache_set_failed
+ * value and whether the broken cache has dirty data:
+ *
+ * dc->stop_when_cache_set_failed    dc->has_dirty   stop bcache device
+ *  BCH_CACHED_STOP_AUTO               0               NO
+ *  BCH_CACHED_STOP_AUTO               1               YES
+ *  BCH_CACHED_DEV_STOP_ALWAYS         0               YES
+ *  BCH_CACHED_DEV_STOP_ALWAYS         1               YES
+ *
+ * The expected behavior is, if stop_when_cache_set_failed is configured to
+ * "auto" via sysfs interface, the bcache device will not be stopped if the
+ * backing device is clean on the broken cache device.
+ */
+static void conditional_stop_bcache_device(struct cache_set *c,
+					   struct bcache_device *d,
+					   struct cached_dev *dc)
+{
+	if (dc->stop_when_cache_set_failed == BCH_CACHED_DEV_STOP_ALWAYS) {
+		pr_warn("stop_when_cache_set_failed of %s is \"always\", stop it for failed cache set %pU.",
+			d->disk->disk_name, c->sb.set_uuid);
+		bcache_device_stop(d);
+	} else if (atomic_read(&dc->has_dirty)) {
+		/*
+		 * dc->stop_when_cache_set_failed == BCH_CACHED_STOP_AUTO
+		 * and dc->has_dirty == 1
+		 */
+		pr_warn("stop_when_cache_set_failed of %s is \"auto\" and cache is dirty, stop it to avoid potential data corruption.",
+			d->disk->disk_name);
+			bcache_device_stop(d);
+	} else {
+		/*
+		 * dc->stop_when_cache_set_failed == BCH_CACHED_STOP_AUTO
+		 * and dc->has_dirty == 0
+		 */
+		pr_warn("stop_when_cache_set_failed of %s is \"auto\" and cache is clean, keep it alive.",
+			d->disk->disk_name);
+	}
+}
+
 static void __cache_set_unregister(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
 	struct cached_dev *dc;
+	struct bcache_device *d;
 	size_t i;
 
 	mutex_lock(&bch_register_lock);
 
-	for (i = 0; i < c->devices_max_used; i++)
-		if (c->devices[i]) {
-			if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
-			    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
-				dc = container_of(c->devices[i],
-						  struct cached_dev, disk);
-				bch_cached_dev_detach(dc);
-			} else {
-				bcache_device_stop(c->devices[i]);
-			}
+	for (i = 0; i < c->devices_max_used; i++) {
+		d = c->devices[i];
+		if (!d)
+			continue;
+
+		if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
+		    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
+			dc = container_of(d, struct cached_dev, disk);
+			bch_cached_dev_detach(dc);
+			if (test_bit(CACHE_SET_IO_DISABLE, &c->flags))
+				conditional_stop_bcache_device(c, d, dc);
+		} else {
+			bcache_device_stop(d);
 		}
+	}
 
 	mutex_unlock(&bch_register_lock);
 
@@ -1567,6 +1679,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	c->congested_read_threshold_us	= 2000;
 	c->congested_write_threshold_us	= 20000;
 	c->error_limit	= DEFAULT_IO_ERROR_LIMIT;
+	WARN_ON(test_and_clear_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
 	return c;
 err:
@@ -2148,7 +2261,6 @@ static int __init bcache_init(void)
 	mutex_init(&bch_register_lock);
 	init_waitqueue_head(&unregister_wait);
 	register_reboot_notifier(&reboot);
-	closure_debug_init();
 
 	bcache_major = register_blkdev(0, "bcache");
 	if (bcache_major < 0) {
@@ -2160,7 +2272,7 @@ static int __init bcache_init(void)
 	if (!(bcache_wq = alloc_workqueue("bcache", WQ_MEM_RECLAIM, 0)) ||
 	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||
 	    bch_request_init() ||
-	    bch_debug_init(bcache_kobj) ||
+	    bch_debug_init(bcache_kobj) || closure_debug_init() ||
 	    sysfs_create_files(bcache_kobj, files))
 		goto err;
 

@@ -6830,7 +6830,7 @@ static int qla2xxx_map_queues(struct Scsi_Host *shost)
 	if (USER_CTRL_IRQ(vha->hw))
 		rc = blk_mq_map_queues(&shost->tag_set);
 	else
-		rc = blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev);
+		rc = blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev, 0);
 	return rc;
 }
 

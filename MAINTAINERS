@@ -2646,6 +2646,7 @@ L:	linux-block@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 S:	Maintained
 F:	block/
+F:	drivers/block/
 F:	kernel/trace/blktrace.c
 F:	lib/sbitmap.c
 

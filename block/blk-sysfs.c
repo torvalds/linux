@@ -276,12 +276,10 @@ queue_store_##name(struct request_queue *q, const char *page, size_t count) \
 	if (neg)							\
 		val = !val;						\
 									\
-	spin_lock_irq(q->queue_lock);					\
 	if (val)							\
-		queue_flag_set(QUEUE_FLAG_##flag, q);			\
+		blk_queue_flag_set(QUEUE_FLAG_##flag, q);		\
 	else								\
-		queue_flag_clear(QUEUE_FLAG_##flag, q);			\
-	spin_unlock_irq(q->queue_lock);					\
+		blk_queue_flag_clear(QUEUE_FLAG_##flag, q);		\
 	return ret;							\
 }
 
@@ -414,12 +412,10 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irq(q->queue_lock);
 	if (poll_on)
-		queue_flag_set(QUEUE_FLAG_POLL, q);
+		blk_queue_flag_set(QUEUE_FLAG_POLL, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_POLL, q);
-	spin_unlock_irq(q->queue_lock);
+		blk_queue_flag_clear(QUEUE_FLAG_POLL, q);
 
 	return ret;
 }
@@ -487,12 +483,10 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 	if (set == -1)
 		return -EINVAL;
 
-	spin_lock_irq(q->queue_lock);
 	if (set)
-		queue_flag_set(QUEUE_FLAG_WC, q);
+		blk_queue_flag_set(QUEUE_FLAG_WC, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_WC, q);
-	spin_unlock_irq(q->queue_lock);
+		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
 
 	return count;
 }
@@ -798,13 +792,6 @@ static void __blk_release_queue(struct work_struct *work)
 	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags))
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
-	bdi_put(q->backing_dev_info);
-	blkcg_exit_queue(q);
-
-	if (q->elevator) {
-		ioc_clear_queue(q);
-		elevator_exit(q, q->elevator);
-	}
 
 	blk_free_queue_stats(q->stats);
 
@@ -953,9 +940,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	 */
 	mutex_lock(&q->sysfs_lock);
 
-	spin_lock_irq(q->queue_lock);
-	queue_flag_clear(QUEUE_FLAG_REGISTERED, q);
-	spin_unlock_irq(q->queue_lock);
+	blk_queue_flag_clear(QUEUE_FLAG_REGISTERED, q);
 
 	/*
 	 * Remove the sysfs attributes before unregistering the queue data

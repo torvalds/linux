@@ -3897,7 +3897,7 @@ static int scsi_debug_slave_alloc(struct scsi_device *sdp)
 	if (sdebug_verbose)
 		pr_info("slave_alloc <%u %u %u %llu>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
-	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, sdp->request_queue);
+	blk_queue_flag_set(QUEUE_FLAG_BIDI, sdp->request_queue);
 	return 0;
 }
 

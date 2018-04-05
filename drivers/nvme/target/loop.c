@@ -71,7 +71,7 @@ static DEFINE_MUTEX(nvme_loop_ctrl_mutex);
 static void nvme_loop_queue_response(struct nvmet_req *nvme_req);
 static void nvme_loop_delete_ctrl(struct nvmet_ctrl *ctrl);
 
-static struct nvmet_fabrics_ops nvme_loop_ops;
+static const struct nvmet_fabrics_ops nvme_loop_ops;
 
 static inline int nvme_loop_queue_idx(struct nvme_loop_queue *queue)
 {
@@ -675,7 +675,7 @@ static void nvme_loop_remove_port(struct nvmet_port *port)
 		nvmet_loop_port = NULL;
 }
 
-static struct nvmet_fabrics_ops nvme_loop_ops = {
+static const struct nvmet_fabrics_ops nvme_loop_ops = {
 	.owner		= THIS_MODULE,
 	.type		= NVMF_TRTYPE_LOOP,
 	.add_port	= nvme_loop_add_port,
