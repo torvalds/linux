@@ -473,9 +473,9 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 	pd->pd_id = pd_id;
 
 	if (udata && context) {
-		struct qedr_alloc_pd_uresp uresp;
-
-		uresp.pd_id = pd_id;
+		struct qedr_alloc_pd_uresp uresp = {
+			.pd_id = pd_id,
+		};
 
 		rc = qedr_ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (rc) {
