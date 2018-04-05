@@ -727,7 +727,7 @@ swiotlb_alloc_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 out_unmap:
 	dev_warn(dev, "hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
-		(unsigned long long)(dev ? dev->coherent_dma_mask : 0),
+		(unsigned long long)dev->coherent_dma_mask,
 		(unsigned long long)*dma_handle);
 
 	/*
