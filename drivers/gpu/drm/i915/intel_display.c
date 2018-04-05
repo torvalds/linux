@@ -3677,7 +3677,6 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 	struct drm_atomic_state *state;
 	int ret;
 
-
 	/* reset doesn't touch the display */
 	if (!i915_modparams.force_reset_modeset_test &&
 	    !gpu_reset_clobbers_display(dev_priv))
@@ -3731,18 +3730,16 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
-	struct drm_atomic_state *state = dev_priv->modeset_restore_state;
+	struct drm_atomic_state *state;
 	int ret;
 
 	/* reset doesn't touch the display */
-	if (!i915_modparams.force_reset_modeset_test &&
-	    !gpu_reset_clobbers_display(dev_priv))
+	if (!test_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags))
 		return;
 
+	state = fetch_and_zero(&dev_priv->modeset_restore_state);
 	if (!state)
 		goto unlock;
-
-	dev_priv->modeset_restore_state = NULL;
 
 	/* reset doesn't touch the display */
 	if (!gpu_reset_clobbers_display(dev_priv)) {
