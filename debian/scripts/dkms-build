@@ -142,4 +142,24 @@ while read module; do
 	esac
 done
 
+# Finally see if there is a dkms-package specific post processor present.  Hand
+# it the original source directory, destination package directory, the objects
+# as squirreled away, and the log in case it is useful.  Finally pass a formed
+# signing command line in case we need to do that.
+dkms_build="$srcdir/$0--$package"
+if [ -e "$dkms_build" ]; then
+	echo "II: dkms-build override $package found, executing"
+	$SHELL "$dkms_build" \
+		"$srcdir" \
+		"$dkms_dir/build/$dkms_package/$dkms_version/objects" \
+		"$log" \
+		"$dkms_dir" \
+		"$abi_flavour" \
+		"$sign" \
+		"$pkgname" \
+		"$pkgdir" \
+		"$package" \
+		"$@" || exit 1
+fi
+
 echo "II: dkms-build build $package complete"
