@@ -197,10 +197,10 @@ struct acpi_nfit_desc {
 	struct device *dev;
 	u8 ars_start_flags;
 	struct nd_cmd_ars_status *ars_status;
-	size_t ars_status_size;
 	struct work_struct work;
 	struct list_head list;
 	struct kernfs_node *scrub_count_state;
+	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
 	unsigned int cancel:1;

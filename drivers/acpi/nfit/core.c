@@ -2494,16 +2494,16 @@ static int ars_get_status(struct acpi_nfit_desc *acpi_desc)
 	int rc, cmd_rc;
 
 	rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_STATUS, ars_status,
-			acpi_desc->ars_status_size, &cmd_rc);
+			acpi_desc->max_ars, &cmd_rc);
 	if (rc < 0)
 		return rc;
 	return cmd_rc;
 }
 
-static int ars_status_process_records(struct acpi_nfit_desc *acpi_desc,
-		struct nd_cmd_ars_status *ars_status)
+static int ars_status_process_records(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nvdimm_bus *nvdimm_bus = acpi_desc->nvdimm_bus;
+	struct nd_cmd_ars_status *ars_status = acpi_desc->ars_status;
 	int rc;
 	u32 i;
 
@@ -2739,60 +2739,35 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	return rc;
 }
 
-static int ars_status_alloc(struct acpi_nfit_desc *acpi_desc,
-		u32 max_ars)
+static int ars_status_alloc(struct acpi_nfit_desc *acpi_desc)
 {
 	struct device *dev = acpi_desc->dev;
 	struct nd_cmd_ars_status *ars_status;
 
-	if (acpi_desc->ars_status && acpi_desc->ars_status_size >= max_ars) {
-		memset(acpi_desc->ars_status, 0, acpi_desc->ars_status_size);
+	if (acpi_desc->ars_status) {
+		memset(acpi_desc->ars_status, 0, acpi_desc->max_ars);
 		return 0;
 	}
 
-	if (acpi_desc->ars_status)
-		devm_kfree(dev, acpi_desc->ars_status);
-	acpi_desc->ars_status = NULL;
-	ars_status = devm_kzalloc(dev, max_ars, GFP_KERNEL);
+	ars_status = devm_kzalloc(dev, acpi_desc->max_ars, GFP_KERNEL);
 	if (!ars_status)
 		return -ENOMEM;
 	acpi_desc->ars_status = ars_status;
-	acpi_desc->ars_status_size = max_ars;
 	return 0;
 }
 
-static int acpi_nfit_query_poison(struct acpi_nfit_desc *acpi_desc,
-		struct nfit_spa *nfit_spa)
+static int acpi_nfit_query_poison(struct acpi_nfit_desc *acpi_desc)
 {
-	struct acpi_nfit_system_address *spa = nfit_spa->spa;
 	int rc;
 
-	if (!nfit_spa->max_ars) {
-		struct nd_cmd_ars_cap ars_cap;
-
-		memset(&ars_cap, 0, sizeof(ars_cap));
-		rc = ars_get_cap(acpi_desc, &ars_cap, nfit_spa);
-		if (rc < 0)
-			return rc;
-		nfit_spa->max_ars = ars_cap.max_ars_out;
-		nfit_spa->clear_err_unit = ars_cap.clear_err_unit;
-		/* check that the supported scrub types match the spa type */
-		if (nfit_spa_type(spa) == NFIT_SPA_VOLATILE &&
-				((ars_cap.status >> 16) & ND_ARS_VOLATILE) == 0)
-			return -ENOTTY;
-		else if (nfit_spa_type(spa) == NFIT_SPA_PM &&
-				((ars_cap.status >> 16) & ND_ARS_PERSISTENT) == 0)
-			return -ENOTTY;
-	}
-
-	if (ars_status_alloc(acpi_desc, nfit_spa->max_ars))
+	if (ars_status_alloc(acpi_desc))
 		return -ENOMEM;
 
 	rc = ars_get_status(acpi_desc);
 	if (rc < 0 && rc != -ENOSPC)
 		return rc;
 
-	if (ars_status_process_records(acpi_desc, acpi_desc->ars_status))
+	if (ars_status_process_records(acpi_desc))
 		return -ENOMEM;
 
 	return 0;
@@ -2824,7 +2799,7 @@ static void acpi_nfit_async_scrub(struct acpi_nfit_desc *acpi_desc,
 
 		if (acpi_desc->cancel)
 			break;
-		rc = acpi_nfit_query_poison(acpi_desc, nfit_spa);
+		rc = acpi_nfit_query_poison(acpi_desc);
 		if (rc == -ENOTTY)
 			break;
 		if (rc == -EBUSY && !tmo) {
@@ -2925,7 +2900,7 @@ static void acpi_nfit_scrub(struct work_struct *work)
 			 */
 			rc = 0;
 		} else
-			rc = acpi_nfit_query_poison(acpi_desc, nfit_spa);
+			rc = acpi_nfit_query_poison(acpi_desc);
 
 		if (rc == -ENOTTY) {
 			/* no ars capability, just register spa and move on */
@@ -3018,6 +2993,31 @@ static void acpi_nfit_scrub(struct work_struct *work)
 	mutex_unlock(&acpi_desc->init_mutex);
 }
 
+static void acpi_nfit_init_ars(struct acpi_nfit_desc *acpi_desc,
+		struct nfit_spa *nfit_spa)
+{
+	int type = nfit_spa_type(nfit_spa->spa);
+	struct nd_cmd_ars_cap ars_cap;
+	int rc;
+
+	memset(&ars_cap, 0, sizeof(ars_cap));
+	rc = ars_get_cap(acpi_desc, &ars_cap, nfit_spa);
+	if (rc < 0)
+		return;
+	/* check that the supported scrub types match the spa type */
+	if (type == NFIT_SPA_VOLATILE && ((ars_cap.status >> 16)
+				& ND_ARS_VOLATILE) == 0)
+		return;
+	if (type == NFIT_SPA_PM && ((ars_cap.status >> 16)
+				& ND_ARS_PERSISTENT) == 0)
+		return;
+
+	nfit_spa->max_ars = ars_cap.max_ars_out;
+	nfit_spa->clear_err_unit = ars_cap.clear_err_unit;
+	acpi_desc->max_ars = max(nfit_spa->max_ars, acpi_desc->max_ars);
+}
+
+
 static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_spa *nfit_spa;
@@ -3026,8 +3026,10 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 		int rc, type = nfit_spa_type(nfit_spa->spa);
 
 		/* PMEM and VMEM will be registered by the ARS workqueue */
-		if (type == NFIT_SPA_PM || type == NFIT_SPA_VOLATILE)
+		if (type == NFIT_SPA_PM || type == NFIT_SPA_VOLATILE) {
+			acpi_nfit_init_ars(acpi_desc, nfit_spa);
 			continue;
+		}
 		/* BLK apertures belong to BLK region registration below */
 		if (type == NFIT_SPA_BDW)
 			continue;
