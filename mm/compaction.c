@@ -1988,6 +1988,14 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 			compaction_defer_reset(zone, cc.order, false);
 		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
 			/*
+			 * Buddy pages may become stranded on pcps that could
+			 * otherwise coalesce on the zone's free area for
+			 * order >= cc.order.  This is ratelimited by the
+			 * upcoming deferral.
+			 */
+			drain_all_pages(zone);
+
+			/*
 			 * We use sync migration mode here, so we defer like
 			 * sync direct compaction does.
 			 */
