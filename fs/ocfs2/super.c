@@ -423,10 +423,10 @@ static int ocfs2_sync_fs(struct super_block *sb, int wait)
 		ocfs2_schedule_truncate_log_flush(osb, 0);
 	}
 
-	if (jbd2_journal_start_commit(OCFS2_SB(sb)->journal->j_journal,
+	if (jbd2_journal_start_commit(osb->journal->j_journal,
 				      &target)) {
 		if (wait)
-			jbd2_log_wait_commit(OCFS2_SB(sb)->journal->j_journal,
+			jbd2_log_wait_commit(osb->journal->j_journal,
 					     target);
 	}
 	return 0;

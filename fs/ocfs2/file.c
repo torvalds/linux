@@ -296,7 +296,7 @@ int ocfs2_update_inode_atime(struct inode *inode,
 	ocfs2_journal_dirty(handle, bh);
 
 out_commit:
-	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+	ocfs2_commit_trans(osb, handle);
 out:
 	return ret;
 }

@@ -2213,7 +2213,7 @@ static int ocfs2_dio_wr_get_block(struct inode *inode, sector_t iblock,
 	down_write(&oi->ip_alloc_sem);
 
 	if (first_get_block) {
-		if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+		if (ocfs2_sparse_alloc(osb))
 			ret = ocfs2_zero_tail(inode, di_bh, pos);
 		else
 			ret = ocfs2_expand_nonsparse_inode(inode, di_bh, pos,

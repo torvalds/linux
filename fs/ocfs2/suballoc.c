@@ -387,7 +387,7 @@ static int ocfs2_block_group_fill(handle_t *handle,
 
 	memset(bg, 0, sb->s_blocksize);
 	strcpy(bg->bg_signature, OCFS2_GROUP_DESC_SIGNATURE);
-	bg->bg_generation = cpu_to_le32(OCFS2_SB(sb)->fs_generation);
+	bg->bg_generation = cpu_to_le32(osb->fs_generation);
 	bg->bg_size = cpu_to_le16(ocfs2_group_bitmap_size(sb, 1,
 						osb->s_feature_incompat));
 	bg->bg_chain = cpu_to_le16(my_chain);
@@ -1521,7 +1521,7 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 				OCFS2_I(inode)->ip_clusters, max_bits);
 		}
 
-		ret = ocfs2_block_group_find_clear_bits(OCFS2_SB(inode->i_sb),
+		ret = ocfs2_block_group_find_clear_bits(osb,
 							group_bh, bits_wanted,
 							max_bits, res);
 		if (ret)

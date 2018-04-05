@@ -3359,7 +3359,7 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	unsigned int ext_flags;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb))) {
+	if (!ocfs2_refcount_tree(osb)) {
 		return ocfs2_error(inode->i_sb, "Inode %lu want to use refcount tree, but the feature bit is not set in the super block\n",
 				   inode->i_ino);
 	}
@@ -3707,7 +3707,7 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 	trace_ocfs2_add_refcount_flag(ref_blocks, credits);
 
 	if (ref_blocks) {
-		ret = ocfs2_reserve_new_metadata_blocks(OCFS2_SB(inode->i_sb),
+		ret = ocfs2_reserve_new_metadata_blocks(osb,
 							ref_blocks, &meta_ac);
 		if (ret) {
 			mlog_errno(ret);
