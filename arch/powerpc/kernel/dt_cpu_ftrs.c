@@ -729,6 +729,13 @@ static __init void cpufeatures_cpu_quirks(void)
 		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_BUG;
 	}
+
+	/*
+	 * PKEY was not in the initial base or feature node
+	 * specification, but it should become optional in the next
+	 * cpu feature version sequence.
+	 */
+	cur_cpu_spec->cpu_features |= CPU_FTR_PKEY;
 }
 
 static void __init cpufeatures_setup_finished(void)
