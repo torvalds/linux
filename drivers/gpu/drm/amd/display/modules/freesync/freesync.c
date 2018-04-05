@@ -168,21 +168,6 @@ static unsigned int calc_v_total_from_duration(
 	return v_total;
 }
 
-static unsigned long long calc_nominal_field_rate(const struct dc_stream_state *stream)
-{
-	unsigned long long nominal_field_rate_in_uhz = 0;
-
-	/* Calculate nominal field rate for stream */
-	nominal_field_rate_in_uhz = stream->timing.pix_clk_khz;
-	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
-	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
-						stream->timing.h_total);
-	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
-						stream->timing.v_total);
-
-	return nominal_field_rate_in_uhz;
-}
-
 static void update_v_total_for_static_ramp(
 		struct core_freesync *core_freesync,
 		const struct dc_stream_state *stream,
@@ -441,10 +426,11 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 					in_out_vrr->adjust.v_total_min;
 		} else {
 			in_out_vrr->adjust.v_total_min =
-				calc_v_total_from_refresh(
-				stream, in_out_vrr->max_refresh_in_uhz);
+				calc_v_total_from_refresh(stream,
+					in_out_vrr->max_refresh_in_uhz);
 			in_out_vrr->adjust.v_total_max =
-				in_out_vrr->adjust.v_total_min;
+				calc_v_total_from_refresh(stream,
+					in_out_vrr->min_refresh_in_uhz);
 		}
 	}
 }
@@ -638,7 +624,8 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
 
 	/* Calculate nominal field rate for stream */
-	nominal_field_rate_in_uhz = calc_nominal_field_rate(stream);
+	nominal_field_rate_in_uhz =
+			mod_freesync_calc_nominal_field_rate(stream);
 
 	min_refresh_in_uhz = in_config->min_refresh_in_uhz;
 	max_refresh_in_uhz = in_config->max_refresh_in_uhz;
@@ -888,6 +875,22 @@ void mod_freesync_get_settings(struct mod_freesync *mod_freesync,
 	}
 }
 
+unsigned long long mod_freesync_calc_nominal_field_rate(
+			const struct dc_stream_state *stream)
+{
+	unsigned long long nominal_field_rate_in_uhz = 0;
+
+	/* Calculate nominal field rate for stream */
+	nominal_field_rate_in_uhz = stream->timing.pix_clk_khz;
+	nominal_field_rate_in_uhz *= 1000ULL * 1000ULL * 1000ULL;
+	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
+						stream->timing.h_total);
+	nominal_field_rate_in_uhz = div_u64(nominal_field_rate_in_uhz,
+						stream->timing.v_total);
+
+	return nominal_field_rate_in_uhz;
+}
+
 bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		uint32_t min_refresh_cap_in_uhz,
@@ -897,7 +900,7 @@ bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
 {
 	/* Calculate nominal field rate for stream */
 	unsigned long long nominal_field_rate_in_uhz =
-			calc_nominal_field_rate(stream);
+			mod_freesync_calc_nominal_field_rate(stream);
 
 	// Check nominal is within range
 	if (nominal_field_rate_in_uhz > max_refresh_cap_in_uhz ||
