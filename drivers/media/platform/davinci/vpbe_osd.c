@@ -24,8 +24,10 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 
+#ifdef CONFIG_ARCH_DAVINCI
 #include <mach/cputype.h>
 #include <mach/hardware.h>
+#endif
 
 #include <media/davinci/vpss.h>
 #include <media/v4l2-device.h>
