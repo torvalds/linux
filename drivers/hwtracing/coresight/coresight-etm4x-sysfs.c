@@ -1780,7 +1780,7 @@ static ssize_t ctxid_masks_store(struct device *dev,
 		 */
 		for (j = 0; j < 8; j++) {
 			if (maskbyte & 1)
-				config->ctxid_pid[i] &= ~(0xFF << (j * 8));
+				config->ctxid_pid[i] &= ~(0xFFUL << (j * 8));
 			maskbyte >>= 1;
 		}
 		/* Select the next ctxid comparator mask value */
@@ -1963,7 +1963,7 @@ static ssize_t vmid_masks_store(struct device *dev,
 		 */
 		for (j = 0; j < 8; j++) {
 			if (maskbyte & 1)
-				config->vmid_val[i] &= ~(0xFF << (j * 8));
+				config->vmid_val[i] &= ~(0xFFUL << (j * 8));
 			maskbyte >>= 1;
 		}
 		/* Select the next vmid comparator mask value */

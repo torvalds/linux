@@ -27,7 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/hyperv.h>
 #include <linux/version.h>
-#include <linux/interrupt.h>
+#include <linux/random.h>
 #include <linux/clockchips.h>
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
@@ -37,6 +37,17 @@
 struct hv_context hv_context = {
 	.synic_initialized	= false,
 };
+
+/*
+ * If false, we're using the old mechanism for stimer0 interrupts
+ * where it sends a VMbus message when it expires. The old
+ * mechanism is used when running on older versions of Hyper-V
+ * that don't support Direct Mode. While Hyper-V provides
+ * four stimer's per CPU, Linux uses only stimer0.
+ */
+static bool direct_mode_enabled;
+static int stimer0_irq;
+static int stimer0_vector;
 
 #define HV_TIMER_FREQUENCY (10 * 1000 * 1000) /* 100ns period */
 #define HV_MAX_MAX_DELTA_TICKS 0xffffffff
@@ -53,6 +64,8 @@ int hv_init(void)
 	if (!hv_context.cpu_context)
 		return -ENOMEM;
 
+	direct_mode_enabled = ms_hyperv.misc_features &
+			HV_X64_STIMER_DIRECT_MODE_AVAILABLE;
 	return 0;
 }
 
@@ -91,6 +104,21 @@ int hv_post_message(union hv_connection_id connection_id,
 	return status & 0xFFFF;
 }
 
+/*
+ * ISR for when stimer0 is operating in Direct Mode.  Direct Mode
+ * does not use VMbus or any VMbus messages, so process here and not
+ * in the VMbus driver code.
+ */
+
+static void hv_stimer0_isr(void)
+{
+	struct hv_per_cpu_context *hv_cpu;
+
+	hv_cpu = this_cpu_ptr(hv_context.cpu_context);
+	hv_cpu->clk_evt->event_handler(hv_cpu->clk_evt);
+	add_interrupt_randomness(stimer0_vector, 0);
+}
+
 static int hv_ce_set_next_event(unsigned long delta,
 				struct clock_event_device *evt)
 {
@@ -108,6 +136,8 @@ static int hv_ce_shutdown(struct clock_event_device *evt)
 {
 	hv_init_timer(HV_X64_MSR_STIMER0_COUNT, 0);
 	hv_init_timer_config(HV_X64_MSR_STIMER0_CONFIG, 0);
+	if (direct_mode_enabled)
+		hv_disable_stimer0_percpu_irq(stimer0_irq);
 
 	return 0;
 }
@@ -116,11 +146,26 @@ static int hv_ce_set_oneshot(struct clock_event_device *evt)
 {
 	union hv_timer_config timer_cfg;
 
+	timer_cfg.as_uint64 = 0;
 	timer_cfg.enable = 1;
 	timer_cfg.auto_enable = 1;
-	timer_cfg.sintx = VMBUS_MESSAGE_SINT;
+	if (direct_mode_enabled) {
+		/*
+		 * When it expires, the timer will directly interrupt
+		 * on the specified hardware vector/IRQ.
+		 */
+		timer_cfg.direct_mode = 1;
+		timer_cfg.apic_vector = stimer0_vector;
+		hv_enable_stimer0_percpu_irq(stimer0_irq);
+	} else {
+		/*
+		 * When it expires, the timer will generate a VMbus message,
+		 * to be handled by the normal VMbus interrupt handler.
+		 */
+		timer_cfg.direct_mode = 0;
+		timer_cfg.sintx = VMBUS_MESSAGE_SINT;
+	}
 	hv_init_timer_config(HV_X64_MSR_STIMER0_CONFIG, timer_cfg.as_uint64);
-
 	return 0;
 }
 
@@ -147,7 +192,7 @@ int hv_synic_alloc(void)
 	int cpu;
 
 	hv_context.hv_numa_map = kzalloc(sizeof(struct cpumask) * nr_node_ids,
-					 GFP_ATOMIC);
+					 GFP_KERNEL);
 	if (hv_context.hv_numa_map == NULL) {
 		pr_err("Unable to allocate NUMA map\n");
 		goto err;
@@ -191,6 +236,11 @@ int hv_synic_alloc(void)
 		INIT_LIST_HEAD(&hv_cpu->chan_list);
 	}
 
+	if (direct_mode_enabled &&
+	    hv_setup_stimer0_irq(&stimer0_irq, &stimer0_vector,
+				hv_stimer0_isr))
+		goto err;
+
 	return 0;
 err:
 	return -ENOMEM;
@@ -217,7 +267,7 @@ void hv_synic_free(void)
 }
 
 /*
- * hv_synic_init - Initialize the Synthethic Interrupt Controller.
+ * hv_synic_init - Initialize the Synthetic Interrupt Controller.
  *
  * If it is already initialized by another entity (ie x2v shim), we need to
  * retrieve the initialized message and event pages.  Otherwise, we create and
@@ -252,7 +302,6 @@ int hv_synic_init(unsigned int cpu)
 	hv_get_synint_state(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT,
 			    shared_sint.as_uint64);
 
-	shared_sint.as_uint64 = 0;
 	shared_sint.vector = HYPERVISOR_CALLBACK_VECTOR;
 	shared_sint.masked = false;
 	if (ms_hyperv.hints & HV_X64_DEPRECATING_AEOI_RECOMMENDED)
@@ -291,6 +340,9 @@ void hv_synic_clockevents_cleanup(void)
 
 	if (!(ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE))
 		return;
+
+	if (direct_mode_enabled)
+		hv_remove_stimer0_irq(stimer0_irq);
 
 	for_each_present_cpu(cpu) {
 		struct hv_per_cpu_context *hv_cpu

@@ -1255,6 +1255,7 @@ struct tb_xdomain_lookup {
 	const uuid_t *uuid;
 	u8 link;
 	u8 depth;
+	u64 route;
 };
 
 static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
@@ -1275,8 +1276,12 @@ static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
 			if (lookup->uuid) {
 				if (uuid_equal(xd->remote_uuid, lookup->uuid))
 					return xd;
-			} else if (lookup->link == xd->link &&
+			} else if (lookup->link &&
+				   lookup->link == xd->link &&
 				   lookup->depth == xd->depth) {
+				return xd;
+			} else if (lookup->route &&
+				   lookup->route == xd->route) {
 				return xd;
 			}
 		} else if (port->remote) {
@@ -1313,12 +1318,7 @@ struct tb_xdomain *tb_xdomain_find_by_uuid(struct tb *tb, const uuid_t *uuid)
 	lookup.uuid = uuid;
 
 	xd = switch_find_xdomain(tb->root_switch, &lookup);
-	if (xd) {
-		get_device(&xd->dev);
-		return xd;
-	}
-
-	return NULL;
+	return tb_xdomain_get(xd);
 }
 EXPORT_SYMBOL_GPL(tb_xdomain_find_by_uuid);
 
@@ -1349,13 +1349,36 @@ struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
 	lookup.depth = depth;
 
 	xd = switch_find_xdomain(tb->root_switch, &lookup);
-	if (xd) {
-		get_device(&xd->dev);
-		return xd;
-	}
-
-	return NULL;
+	return tb_xdomain_get(xd);
 }
+
+/**
+ * tb_xdomain_find_by_route() - Find an XDomain by route string
+ * @tb: Domain where the XDomain belongs to
+ * @route: XDomain route string
+ *
+ * Finds XDomain by walking through the Thunderbolt topology below @tb.
+ * The returned XDomain will have its reference count increased so the
+ * caller needs to call tb_xdomain_put() when it is done with the
+ * object.
+ *
+ * This will find all XDomains including the ones that are not yet added
+ * to the bus (handshake is still in progress).
+ *
+ * The caller needs to hold @tb->lock.
+ */
+struct tb_xdomain *tb_xdomain_find_by_route(struct tb *tb, u64 route)
+{
+	struct tb_xdomain_lookup lookup;
+	struct tb_xdomain *xd;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.route = route;
+
+	xd = switch_find_xdomain(tb->root_switch, &lookup);
+	return tb_xdomain_get(xd);
+}
+EXPORT_SYMBOL_GPL(tb_xdomain_find_by_route);
 
 bool tb_xdomain_handle_request(struct tb *tb, enum tb_cfg_pkg_type type,
 			       const void *buf, size_t size)
