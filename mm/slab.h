@@ -77,7 +77,7 @@ extern struct kmem_cache *kmem_cache;
 /* A table of kmalloc cache names and sizes */
 extern const struct kmalloc_info_struct {
 	const char *name;
-	unsigned long size;
+	unsigned int size;
 } kmalloc_info[];
 
 #ifndef CONFIG_SLOB
@@ -93,9 +93,9 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 /* Functions provided by the slab allocators */
 int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
 
-extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
-			slab_flags_t flags, size_t useroffset,
-			size_t usersize);
+struct kmem_cache *create_kmalloc_cache(const char *name, unsigned int size,
+			slab_flags_t flags, unsigned int useroffset,
+			unsigned int usersize);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
 			size_t size, slab_flags_t flags, size_t useroffset,
 			size_t usersize);
