@@ -56,33 +56,6 @@ static const char * const ocfs2_filecheck_errs[] = {
 static DEFINE_SPINLOCK(ocfs2_filecheck_sysfs_lock);
 static LIST_HEAD(ocfs2_filecheck_sysfs_list);
 
-struct ocfs2_filecheck {
-	struct list_head fc_head;	/* File check entry list head */
-	spinlock_t fc_lock;
-	unsigned int fc_max;	/* Maximum number of entry in list */
-	unsigned int fc_size;	/* Current entry count in list */
-	unsigned int fc_done;	/* Finished entry count in list */
-};
-
-struct ocfs2_filecheck_sysfs_entry {	/* sysfs entry per mounting */
-	struct list_head fs_list;
-	atomic_t fs_count;
-	struct super_block *fs_sb;
-	struct kset *fs_devicekset;
-	struct kset *fs_fcheckkset;
-	struct ocfs2_filecheck *fs_fcheck;
-};
-
-#define OCFS2_FILECHECK_MAXSIZE		100
-#define OCFS2_FILECHECK_MINSIZE		10
-
-/* File check operation type */
-enum {
-	OCFS2_FILECHECK_TYPE_CHK = 0,	/* Check a file(inode) */
-	OCFS2_FILECHECK_TYPE_FIX,	/* Fix a file(inode) */
-	OCFS2_FILECHECK_TYPE_SET = 100	/* Set entry list maximum size */
-};
-
 struct ocfs2_filecheck_entry {
 	struct list_head fe_list;
 	unsigned long fe_ino;
