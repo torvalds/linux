@@ -5094,7 +5094,7 @@ SLAB_ATTR_RO(destroy_by_rcu);
 
 static ssize_t reserved_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->reserved);
+	return sprintf(buf, "%u\n", s->reserved);
 }
 SLAB_ATTR_RO(reserved);
 
