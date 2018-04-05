@@ -27,6 +27,7 @@
 #define __DC_HUBBUB_DCN10_H__
 
 #include "core_types.h"
+#include "dchubbub.h"
 
 #define HUBHUB_REG_LIST_DCN()\
 	SR(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A),\
@@ -171,12 +172,6 @@ struct dcn_hubbub_wm_set {
 
 struct dcn_hubbub_wm {
 	struct dcn_hubbub_wm_set sets[4];
-};
-
-struct hubbub_funcs {
-	void (*update_dchub)(
-			struct hubbub *hubbub,
-			struct dchub_init_data *dh_data);
 };
 
 struct hubbub {
