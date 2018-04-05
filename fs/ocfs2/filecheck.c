@@ -283,7 +283,7 @@ ocfs2_filecheck_adjust_max(struct ocfs2_filecheck_sysfs_entry *ent,
 
 	spin_lock(&ent->fs_fcheck->fc_lock);
 	if (len < (ent->fs_fcheck->fc_size - ent->fs_fcheck->fc_done)) {
-		mlog(ML_ERROR,
+		mlog(ML_NOTICE,
 		"Cannot set online file check maximum entry number "
 		"to %u due to too many pending entries(%u)\n",
 		len, ent->fs_fcheck->fc_size - ent->fs_fcheck->fc_done);
@@ -457,8 +457,8 @@ static void
 ocfs2_filecheck_done_entry(struct ocfs2_filecheck_sysfs_entry *ent,
 			   struct ocfs2_filecheck_entry *entry)
 {
-	entry->fe_done = 1;
 	spin_lock(&ent->fs_fcheck->fc_lock);
+	entry->fe_done = 1;
 	ent->fs_fcheck->fc_done++;
 	spin_unlock(&ent->fs_fcheck->fc_lock);
 }
@@ -540,11 +540,11 @@ static ssize_t ocfs2_filecheck_store(struct kobject *kobj,
 	spin_lock(&ent->fs_fcheck->fc_lock);
 	if ((ent->fs_fcheck->fc_size >= ent->fs_fcheck->fc_max) &&
 	    (ent->fs_fcheck->fc_done == 0)) {
-		mlog(ML_ERROR,
+		mlog(ML_NOTICE,
 		"Cannot do more file check "
 		"since file check queue(%u) is full now\n",
 		ent->fs_fcheck->fc_max);
-		ret = -EBUSY;
+		ret = -EAGAIN;
 		kfree(entry);
 	} else {
 		if ((ent->fs_fcheck->fc_size >= ent->fs_fcheck->fc_max) &&
