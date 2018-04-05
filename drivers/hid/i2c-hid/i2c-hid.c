@@ -892,10 +892,10 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 
 static void i2c_hid_acpi_fix_up_power(struct device *dev)
 {
-	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 
-	if (handle && acpi_bus_get_device(handle, &adev) == 0)
+	adev = ACPI_COMPANION(dev);
+	if (adev)
 		acpi_device_fix_up_power(adev);
 }
 
