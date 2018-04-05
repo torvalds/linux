@@ -1992,7 +1992,8 @@ static bool is_or(struct prog_entry *prog, int i)
 static int ftrace_function_set_filter(struct perf_event *event,
 				      struct event_filter *filter)
 {
-	struct prog_entry *prog = filter->prog;
+	struct prog_entry *prog = rcu_dereference_protected(filter->prog,
+						lockdep_is_held(&event_mutex));
 	struct function_filter_data data = {
 		.first_filter  = 1,
 		.first_notrace = 1,
