@@ -273,7 +273,9 @@ static unsigned long __meminitdata dma_reserve;
 static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
 static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
 static unsigned long __initdata required_kernelcore;
+static unsigned long required_kernelcore_percent __initdata;
 static unsigned long __initdata required_movablecore;
+static unsigned long required_movablecore_percent __initdata;
 static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
 static bool mirrored_kernelcore;
 
@@ -6571,7 +6573,18 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 	}
 
 	/*
-	 * If movablecore=nn[KMG] was specified, calculate what size of
+	 * If kernelcore=nn% or movablecore=nn% was specified, calculate the
+	 * amount of necessary memory.
+	 */
+	if (required_kernelcore_percent)
+		required_kernelcore = (totalpages * 100 * required_kernelcore_percent) /
+				       10000UL;
+	if (required_movablecore_percent)
+		required_movablecore = (totalpages * 100 * required_movablecore_percent) /
+					10000UL;
+
+	/*
+	 * If movablecore= was specified, calculate what size of
 	 * kernelcore that corresponds so that memory usable for
 	 * any allocation type is evenly spread. If both kernelcore
 	 * and movablecore are specified, then the value of kernelcore
@@ -6811,18 +6824,30 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	zero_resv_unavail();
 }
 
-static int __init cmdline_parse_core(char *p, unsigned long *core)
+static int __init cmdline_parse_core(char *p, unsigned long *core,
+				     unsigned long *percent)
 {
 	unsigned long long coremem;
+	char *endptr;
+
 	if (!p)
 		return -EINVAL;
 
-	coremem = memparse(p, &p);
-	*core = coremem >> PAGE_SHIFT;
+	/* Value may be a percentage of total memory, otherwise bytes */
+	coremem = simple_strtoull(p, &endptr, 0);
+	if (*endptr == '%') {
+		/* Paranoid check for percent values greater than 100 */
+		WARN_ON(coremem > 100);
 
-	/* Paranoid check that UL is enough for the coremem value */
-	WARN_ON((coremem >> PAGE_SHIFT) > ULONG_MAX);
+		*percent = coremem;
+	} else {
+		coremem = memparse(p, &p);
+		/* Paranoid check that UL is enough for the coremem value */
+		WARN_ON((coremem >> PAGE_SHIFT) > ULONG_MAX);
 
+		*core = coremem >> PAGE_SHIFT;
+		*percent = 0UL;
+	}
 	return 0;
 }
 
@@ -6838,7 +6863,8 @@ static int __init cmdline_parse_kernelcore(char *p)
 		return 0;
 	}
 
-	return cmdline_parse_core(p, &required_kernelcore);
+	return cmdline_parse_core(p, &required_kernelcore,
+				  &required_kernelcore_percent);
 }
 
 /*
@@ -6847,7 +6873,8 @@ static int __init cmdline_parse_kernelcore(char *p)
  */
 static int __init cmdline_parse_movablecore(char *p)
 {
-	return cmdline_parse_core(p, &required_movablecore);
+	return cmdline_parse_core(p, &required_movablecore,
+				  &required_movablecore_percent);
 }
 
 early_param("kernelcore", cmdline_parse_kernelcore);
