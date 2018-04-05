@@ -2125,7 +2125,7 @@ static int mmc_can_reset(struct mmc_card *card)
 	return 1;
 }
 
-static int mmc_reset(struct mmc_host *host)
+static int _mmc_hw_reset(struct mmc_host *host)
 {
 	struct mmc_card *card = host->card;
 
@@ -2159,7 +2159,7 @@ static const struct mmc_bus_ops mmc_ops = {
 	.runtime_resume = mmc_runtime_resume,
 	.alive = mmc_alive,
 	.shutdown = mmc_shutdown,
-	.reset = mmc_reset,
+	.hw_reset = _mmc_hw_reset,
 };
 
 /*

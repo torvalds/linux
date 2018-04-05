@@ -1222,7 +1222,7 @@ static int mmc_sd_runtime_resume(struct mmc_host *host)
 	return 0;
 }
 
-static int mmc_sd_reset(struct mmc_host *host)
+static int mmc_sd_hw_reset(struct mmc_host *host)
 {
 	mmc_power_cycle(host, host->card->ocr);
 	return mmc_sd_init_card(host, host->card->ocr, host->card);
@@ -1237,7 +1237,7 @@ static const struct mmc_bus_ops mmc_sd_ops = {
 	.resume = mmc_sd_resume,
 	.alive = mmc_sd_alive,
 	.shutdown = mmc_sd_suspend,
-	.reset = mmc_sd_reset,
+	.hw_reset = mmc_sd_hw_reset,
 };
 
 /*
