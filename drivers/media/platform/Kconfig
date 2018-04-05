@@ -558,7 +558,7 @@ config VIDEO_MESON_AO_CEC
 
 config CEC_GPIO
 	tristate "Generic GPIO-based CEC driver"
-	depends on PREEMPT
+	depends on PREEMPT || COMPILE_TEST
 	select CEC_CORE
 	select CEC_PIN
 	select GPIOLIB
