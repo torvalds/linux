@@ -658,6 +658,24 @@ struct mlx5_ifc_roce_cap_bits {
 	u8         reserved_at_100[0x700];
 };
 
+struct mlx5_ifc_device_mem_cap_bits {
+	u8         memic[0x1];
+	u8         reserved_at_1[0x1f];
+
+	u8         reserved_at_20[0xb];
+	u8         log_min_memic_alloc_size[0x5];
+	u8         reserved_at_30[0x8];
+	u8	   log_max_memic_addr_alignment[0x8];
+
+	u8         memic_bar_start_addr[0x40];
+
+	u8         memic_bar_size[0x20];
+
+	u8         max_memic_size[0x20];
+
+	u8         reserved_at_c0[0x740];
+};
+
 enum {
 	MLX5_ATOMIC_CAPS_ATOMIC_SIZE_QP_1_BYTE     = 0x0,
 	MLX5_ATOMIC_CAPS_ATOMIC_SIZE_QP_2_BYTES    = 0x2,
@@ -872,7 +890,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         ets[0x1];
 	u8         nic_flow_table[0x1];
 	u8         eswitch_flow_table[0x1];
-	u8	   early_vf_enable[0x1];
+	u8         device_memory[0x1];
 	u8         mcam_reg[0x1];
 	u8         pcam_reg[0x1];
 	u8         local_ca_ack_delay[0x5];

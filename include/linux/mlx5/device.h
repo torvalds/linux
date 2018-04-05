@@ -1013,6 +1013,9 @@ enum mlx5_cap_type {
 	MLX5_CAP_RESERVED,
 	MLX5_CAP_VECTOR_CALC,
 	MLX5_CAP_QOS,
+	MLX5_CAP_DEBUG,
+	MLX5_CAP_RESERVED_14,
+	MLX5_CAP_DEV_MEM,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1160,6 +1163,12 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP64_FPGA(mdev, cap) \
 	MLX5_GET64(fpga_cap, (mdev)->caps.fpga, cap)
+
+#define MLX5_CAP_DEV_MEM(mdev, cap)\
+	MLX5_GET(device_mem_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_MEM], cap)
+
+#define MLX5_CAP64_DEV_MEM(mdev, cap)\
+	MLX5_GET64(device_mem_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_MEM], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
