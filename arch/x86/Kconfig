@@ -2954,3 +2954,8 @@ source "crypto/Kconfig"
 source "arch/x86/kvm/Kconfig"
 
 source "lib/Kconfig"
+
+config SYSCALL_PTREGS
+	def_bool y
+	depends on X86_64 && !COMPAT
+	select ARCH_HAS_SYSCALL_WRAPPER

@@ -102,7 +102,7 @@ union bpf_attr;
  * for SYSCALL_DEFINE<n>/COMPAT_SYSCALL_DEFINE<n>
  */
 #define __MAP0(m,...)
-#define __MAP1(m,t,a) m(t,a)
+#define __MAP1(m,t,a,...) m(t,a)
 #define __MAP2(m,t,a,...) m(t,a), __MAP1(m,__VA_ARGS__)
 #define __MAP3(m,t,a,...) m(t,a), __MAP2(m,__VA_ARGS__)
 #define __MAP4(m,t,a,...) m(t,a), __MAP3(m,__VA_ARGS__)

@@ -284,9 +284,13 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 	nr &= __SYSCALL_MASK;
 	if (likely(nr < NR_syscalls)) {
 		nr = array_index_nospec(nr, NR_syscalls);
+#ifdef CONFIG_SYSCALL_PTREGS
+		regs->ax = sys_call_table[nr](regs);
+#else
 		regs->ax = sys_call_table[nr](
 			regs->di, regs->si, regs->dx,
 			regs->r10, regs->r8, regs->r9);
+#endif
 	}
 
 	syscall_return_slowpath(regs);

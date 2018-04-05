@@ -18,6 +18,12 @@
 /* Common in X86_32 and X86_64 */
 /* kernel/ioport.c */
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on);
+
+#ifndef CONFIG_SYSCALL_PTREGS
+/*
+ * If CONFIG_SYSCALL_PTREGS is enabled, a different syscall calling convention
+ * is used. Do not include these -- invalid -- prototypes then
+ */
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 asmlinkage long sys_iopl(unsigned int);
 
@@ -53,4 +59,5 @@ asmlinkage long sys_mmap(unsigned long, unsigned long, unsigned long,
 			 unsigned long, unsigned long, unsigned long);
 
 #endif /* CONFIG_X86_32 */
+#endif /* CONFIG_SYSCALL_PTREGS */
 #endif /* _ASM_X86_SYSCALLS_H */

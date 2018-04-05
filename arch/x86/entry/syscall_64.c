@@ -7,13 +7,18 @@
 #include <asm/asm-offsets.h>
 #include <asm/syscall.h>
 
+#ifdef CONFIG_SYSCALL_PTREGS
+/* this is a lie, but it does not hurt as sys_ni_syscall just returns -EINVAL */
+extern asmlinkage long sys_ni_syscall(const struct pt_regs *);
+#define __SYSCALL_64(nr, sym, qual) extern asmlinkage long sym(const struct pt_regs *);
+#else /* CONFIG_SYSCALL_PTREGS */
+extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 #define __SYSCALL_64(nr, sym, qual) extern asmlinkage long sym(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
+#endif /* CONFIG_SYSCALL_PTREGS */
 #include <asm/syscalls_64.h>
 #undef __SYSCALL_64
 
 #define __SYSCALL_64(nr, sym, qual) [nr] = sym,
-
-extern long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 
 asmlinkage const sys_call_ptr_t sys_call_table[__NR_syscall_max+1] = {
 	/*
