@@ -412,7 +412,6 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		struct amdgpu_bo_list_entry *candidate = p->evictable;
 		struct amdgpu_bo *bo = candidate->robj;
 		struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-		u64 initial_bytes_moved, bytes_moved;
 		bool update_bytes_moved_vis;
 		uint32_t other;
 
@@ -436,18 +435,15 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 			continue;
 
 		/* Good we can try to move this BO somewhere else */
-		amdgpu_ttm_placement_from_domain(bo, other);
 		update_bytes_moved_vis =
 			adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
 			bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 			bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT;
-		initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
+		amdgpu_ttm_placement_from_domain(bo, other);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-		bytes_moved = atomic64_read(&adev->num_bytes_moved) -
-			initial_bytes_moved;
-		p->bytes_moved += bytes_moved;
+		p->bytes_moved += ctx.bytes_moved;
 		if (update_bytes_moved_vis)
-			p->bytes_moved_vis += bytes_moved;
+			p->bytes_moved_vis += ctx.bytes_moved;
 
 		if (unlikely(r))
 			break;
