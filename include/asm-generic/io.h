@@ -208,7 +208,9 @@ static inline u64 readq(const volatile void __iomem *addr)
 #define writeb writeb
 static inline void writeb(u8 value, volatile void __iomem *addr)
 {
+	__io_bw();
 	__raw_writeb(value, addr);
+	__io_aw();
 }
 #endif
 
@@ -216,7 +218,9 @@ static inline void writeb(u8 value, volatile void __iomem *addr)
 #define writew writew
 static inline void writew(u16 value, volatile void __iomem *addr)
 {
+	__io_bw();
 	__raw_writew(cpu_to_le16(value), addr);
+	__io_aw();
 }
 #endif
 
@@ -224,7 +228,9 @@ static inline void writew(u16 value, volatile void __iomem *addr)
 #define writel writel
 static inline void writel(u32 value, volatile void __iomem *addr)
 {
+	__io_bw();
 	__raw_writel(__cpu_to_le32(value), addr);
+	__io_aw();
 }
 #endif
 
@@ -233,7 +239,9 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 #define writeq writeq
 static inline void writeq(u64 value, volatile void __iomem *addr)
 {
+	__io_bw();
 	__raw_writeq(__cpu_to_le64(value), addr);
+	__io_aw();
 }
 #endif
 #endif /* CONFIG_64BIT */
