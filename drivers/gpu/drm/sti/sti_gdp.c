@@ -211,7 +211,11 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 	struct drm_info_node *node = s->private;
 	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
 	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
-	struct drm_crtc *crtc = drm_plane->crtc;
+	struct drm_crtc *crtc;
+
+	drm_modeset_lock(&drm_plane->mutex, NULL);
+	crtc = drm_plane->state->crtc;
+	drm_modeset_unlock(&drm_plane->mutex);
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&gdp->plane), gdp->regs);
