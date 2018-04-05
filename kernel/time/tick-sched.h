@@ -39,6 +39,8 @@ enum tick_nohz_mode {
  * @idle_sleeptime:	Sum of the time slept in idle with sched tick stopped
  * @iowait_sleeptime:	Sum of the time slept in idle with sched tick stopped, with IO outstanding
  * @sleep_length:	Duration of the current idle sleep
+ * @timer_expires:	Anticipated timer expiration time (in case sched tick is stopped)
+ * @timer_expires_base:	Base time clock monotonic for @timer_expires
  * @do_timer_lst:	CPU was the last one doing do_timer before going idle
  */
 struct tick_sched {
@@ -60,6 +62,8 @@ struct tick_sched {
 	ktime_t				iowait_sleeptime;
 	ktime_t				sleep_length;
 	unsigned long			last_jiffies;
+	u64				timer_expires;
+	u64				timer_expires_base;
 	u64				next_timer;
 	ktime_t				idle_expires;
 	int				do_timer_last;
