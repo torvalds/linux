@@ -197,18 +197,18 @@ struct acpi_nfit_desc {
 	struct device *dev;
 	u8 ars_start_flags;
 	struct nd_cmd_ars_status *ars_status;
-	struct work_struct work;
+	struct delayed_work dwork;
 	struct list_head list;
 	struct kernfs_node *scrub_count_state;
 	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
 	unsigned int cancel:1;
-	unsigned int init_complete:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
 	unsigned long bus_nfit_cmd_force_en;
 	unsigned int platform_cap;
+	unsigned int scrub_tmo;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
