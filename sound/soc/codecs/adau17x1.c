@@ -63,8 +63,8 @@ static const struct snd_kcontrol_new adau17x1_controls[] = {
 static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		adau->pll_regs[5] = 1;
@@ -93,8 +93,8 @@ static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 static int adau17x1_adc_fixup(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 
 	/*
 	 * If we are capturing, toggle the ADOSR bit in Converter Control 0 to
@@ -177,11 +177,11 @@ static const struct snd_soc_dapm_route adau17x1_dapm_pll_route = {
 static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	struct snd_soc_dapm_update update = { 0 };
+	struct snd_soc_dapm_update update = {};
 	unsigned int stream = e->shift_l;
 	unsigned int val, change;
 	int reg;
@@ -205,7 +205,7 @@ static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 	else
 		reg = ADAU17X1_SERIAL_OUTPUT_ROUTE;
 
-	change = snd_soc_test_bits(codec, reg, 0xff, val);
+	change = snd_soc_component_test_bits(component, reg, 0xff, val);
 	if (change) {
 		update.kcontrol = kcontrol;
 		update.mask = 0xff;
@@ -222,8 +222,8 @@ static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 static int adau17x1_dsp_mux_enum_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int stream = e->shift_l;
 	unsigned int reg, val;
@@ -328,8 +328,8 @@ EXPORT_SYMBOL_GPL(adau17x1_has_dsp);
 static int adau17x1_set_dai_pll(struct snd_soc_dai *dai, int pll_id,
 	int source, unsigned int freq_in, unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	if (freq_in < 8000000 || freq_in > 27000000)
@@ -353,8 +353,8 @@ static int adau17x1_set_dai_pll(struct snd_soc_dai *dai, int pll_id,
 static int adau17x1_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(dai->codec);
-	struct adau *adau = snd_soc_codec_get_drvdata(dai->codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(dai->component);
+	struct adau *adau = snd_soc_component_get_drvdata(dai->component);
 	bool is_pll;
 	bool was_pll;
 
@@ -438,8 +438,8 @@ static int adau17x1_auto_pll(struct snd_soc_dai *dai,
 static int adau17x1_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 	unsigned int val, div, dsp_div;
 	unsigned int freq;
 	int ret;
@@ -531,7 +531,7 @@ static int adau17x1_hw_params(struct snd_pcm_substream *substream,
 static int adau17x1_set_dai_fmt(struct snd_soc_dai *dai,
 		unsigned int fmt)
 {
-	struct adau *adau = snd_soc_codec_get_drvdata(dai->codec);
+	struct adau *adau = snd_soc_component_get_drvdata(dai->component);
 	unsigned int ctrl0, ctrl1;
 	int lrclk_pol;
 
@@ -603,7 +603,7 @@ static int adau17x1_set_dai_fmt(struct snd_soc_dai *dai,
 static int adau17x1_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	struct adau *adau = snd_soc_codec_get_drvdata(dai->codec);
+	struct adau *adau = snd_soc_component_get_drvdata(dai->component);
 	unsigned int ser_ctrl0, ser_ctrl1;
 	unsigned int conv_ctrl0, conv_ctrl1;
 
@@ -728,7 +728,7 @@ static int adau17x1_set_dai_tdm_slot(struct snd_soc_dai *dai,
 static int adau17x1_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
-	struct adau *adau = snd_soc_codec_get_drvdata(dai->codec);
+	struct adau *adau = snd_soc_component_get_drvdata(dai->component);
 
 	if (adau->sigmadsp)
 		return sigmadsp_restrict_params(adau->sigmadsp, substream);
@@ -746,10 +746,10 @@ const struct snd_soc_dai_ops adau17x1_dai_ops = {
 };
 EXPORT_SYMBOL_GPL(adau17x1_dai_ops);
 
-int adau17x1_set_micbias_voltage(struct snd_soc_codec *codec,
+int adau17x1_set_micbias_voltage(struct snd_soc_component *component,
 	enum adau17x1_micbias_voltage micbias)
 {
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 
 	switch (micbias) {
 	case ADAU17X1_MICBIAS_0_90_AVDD:
@@ -858,13 +858,13 @@ int adau17x1_setup_firmware(struct adau *adau, unsigned int rate)
 }
 EXPORT_SYMBOL_GPL(adau17x1_setup_firmware);
 
-int adau17x1_add_widgets(struct snd_soc_codec *codec)
+int adau17x1_add_widgets(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	ret = snd_soc_add_codec_controls(codec, adau17x1_controls,
+	ret = snd_soc_add_component_controls(component, adau17x1_controls,
 		ARRAY_SIZE(adau17x1_controls));
 	if (ret)
 		return ret;
@@ -882,9 +882,9 @@ int adau17x1_add_widgets(struct snd_soc_codec *codec)
 		if (!adau->sigmadsp)
 			return 0;
 
-		ret = sigmadsp_attach(adau->sigmadsp, &codec->component);
+		ret = sigmadsp_attach(adau->sigmadsp, component);
 		if (ret) {
-			dev_err(codec->dev, "Failed to attach firmware: %d\n",
+			dev_err(component->dev, "Failed to attach firmware: %d\n",
 				ret);
 			return ret;
 		}
@@ -894,10 +894,10 @@ int adau17x1_add_widgets(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(adau17x1_add_widgets);
 
-int adau17x1_add_routes(struct snd_soc_codec *codec)
+int adau17x1_add_routes(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	ret = snd_soc_dapm_add_routes(dapm, adau17x1_dapm_routes,
@@ -920,12 +920,12 @@ int adau17x1_add_routes(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(adau17x1_add_routes);
 
-int adau17x1_resume(struct snd_soc_codec *codec)
+int adau17x1_resume(struct snd_soc_component *component)
 {
-	struct adau *adau = snd_soc_codec_get_drvdata(codec);
+	struct adau *adau = snd_soc_component_get_drvdata(component);
 
 	if (adau->switch_mode)
-		adau->switch_mode(codec->dev);
+		adau->switch_mode(component->dev);
 
 	regcache_sync(adau->regmap);
 
@@ -998,7 +998,6 @@ void adau17x1_remove(struct device *dev)
 {
 	struct adau *adau = dev_get_drvdata(dev);
 
-	snd_soc_unregister_codec(dev);
 	if (adau->mclk)
 		clk_disable_unprepare(adau->mclk);
 }

@@ -788,7 +788,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct fsl_esai *esai_priv;
 	struct resource *res;
-	const uint32_t *iprop;
+	const __be32 *iprop;
 	void __iomem *regs;
 	int irq, ret;
 

@@ -414,8 +414,8 @@ static const struct snd_kcontrol_new nau8824_snd_controls[] = {
 static int nau8824_output_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -437,8 +437,8 @@ static int nau8824_output_dac_event(struct snd_soc_dapm_widget *w,
 static int nau8824_spk_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -461,8 +461,8 @@ static int nau8824_spk_event(struct snd_soc_dapm_widget *w,
 static int nau8824_pump_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -487,10 +487,14 @@ static int nau8824_pump_event(struct snd_soc_dapm_widget *w,
 static int system_clock_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
+	struct regmap *regmap = nau8824->regmap;
+	unsigned int value;
+	bool clk_fll, error;
 
 	if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		dev_dbg(nau8824->dev, "system clock control : POWER OFF\n");
 		/* Set clock source to disable or internal clock before the
 		 * playback or capture end. Codec needs clock for Jack
 		 * detection and button press if jack inserted; otherwise,
@@ -502,15 +506,48 @@ static int system_clock_control(struct snd_soc_dapm_widget *w,
 		} else {
 			nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
 		}
+	} else {
+		dev_dbg(nau8824->dev, "system clock control : POWER ON\n");
+		/* Check the clock source setting is proper or not
+		 * no matter the source is from FLL or MCLK.
+		 */
+		regmap_read(regmap, NAU8824_REG_FLL1, &value);
+		clk_fll = value & NAU8824_FLL_RATIO_MASK;
+		/* It's error to use internal clock when playback */
+		regmap_read(regmap, NAU8824_REG_FLL6, &value);
+		error = value & NAU8824_DCO_EN;
+		if (!error) {
+			/* Check error depending on source is FLL or MCLK. */
+			regmap_read(regmap, NAU8824_REG_CLK_DIVIDER, &value);
+			if (clk_fll)
+				error = !(value & NAU8824_CLK_SRC_VCO);
+			else
+				error = value & NAU8824_CLK_SRC_VCO;
+		}
+		/* Recover the clock source setting if error. */
+		if (error) {
+			if (clk_fll) {
+				regmap_update_bits(regmap,
+					NAU8824_REG_FLL6, NAU8824_DCO_EN, 0);
+				regmap_update_bits(regmap,
+					NAU8824_REG_CLK_DIVIDER,
+					NAU8824_CLK_SRC_MASK,
+					NAU8824_CLK_SRC_VCO);
+			} else {
+				nau8824_config_sysclk(nau8824,
+					NAU8824_CLK_MCLK, 0);
+			}
+		}
 	}
+
 	return 0;
 }
 
 static int dmic_clock_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	int src;
 
 	/* The DMIC clock is gotten from system clock (256fs) divided by
@@ -591,7 +628,8 @@ static const struct snd_kcontrol_new nau8824_dacr_mux =
 
 static const struct snd_soc_dapm_widget nau8824_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_NOPM, 0, 0,
-			system_clock_control, SND_SOC_DAPM_POST_PMD),
+		system_clock_control, SND_SOC_DAPM_POST_PMD |
+		SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_INPUT("HSMIC1"),
 	SND_SOC_DAPM_INPUT("HSMIC2"),
@@ -988,8 +1026,8 @@ static int nau8824_clock_check(struct nau8824 *nau8824,
 static int nau8824_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, bclk_div;
 
 	nau8824_sema_acquire(nau8824, HZ);
@@ -1072,8 +1110,8 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 
 static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
 
 	nau8824_sema_acquire(nau8824, HZ);
@@ -1149,8 +1187,8 @@ static int nau8824_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int nau8824_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	unsigned int tslot_l = 0, ctrl_val = 0;
 
 	if (slots > 4 || ((tx_mask & 0xf0) && (tx_mask & 0xf)) ||
@@ -1288,10 +1326,10 @@ static void nau8824_fll_apply(struct regmap *regmap,
 }
 
 /* freq_out must be 256*Fs in order to achieve the best performance */
-static int nau8824_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
+static int nau8824_set_pll(struct snd_soc_component *component, int pll_id, int source,
 		unsigned int freq_in, unsigned int freq_out)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	struct nau8824_fll fll_param;
 	int ret, fs;
 
@@ -1374,10 +1412,10 @@ static int nau8824_config_sysclk(struct nau8824 *nau8824,
 	return 0;
 }
 
-static int nau8824_set_sysclk(struct snd_soc_codec *codec,
+static int nau8824_set_sysclk(struct snd_soc_component *component,
 	int clk_id, int source, unsigned int freq, int dir)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	return nau8824_config_sysclk(nau8824, clk_id, freq);
 }
@@ -1403,10 +1441,10 @@ static void nau8824_resume_setup(struct nau8824 *nau8824)
 	}
 }
 
-static int nau8824_set_bias_level(struct snd_soc_codec *codec,
+static int nau8824_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1416,7 +1454,7 @@ static int nau8824_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/* Setup codec configuration after resume */
 			nau8824_resume_setup(nau8824);
 		}
@@ -1434,23 +1472,23 @@ static int nau8824_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int nau8824_codec_probe(struct snd_soc_codec *codec)
+static int nau8824_component_probe(struct snd_soc_component *component)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 	nau8824->dapm = dapm;
 
 	return 0;
 }
 
-static int __maybe_unused nau8824_suspend(struct snd_soc_codec *codec)
+static int __maybe_unused nau8824_suspend(struct snd_soc_component *component)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	if (nau8824->irq) {
 		disable_irq(nau8824->irq);
-		snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+		snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 	}
 	regcache_cache_only(nau8824->regmap, true);
 	regcache_mark_dirty(nau8824->regmap);
@@ -1458,9 +1496,9 @@ static int __maybe_unused nau8824_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int __maybe_unused nau8824_resume(struct snd_soc_codec *codec)
+static int __maybe_unused nau8824_resume(struct snd_soc_component *component)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(nau8824->regmap, false);
 	regcache_sync(nau8824->regmap);
@@ -1475,23 +1513,24 @@ static int __maybe_unused nau8824_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver nau8824_codec_driver = {
-	.probe = nau8824_codec_probe,
-	.set_sysclk = nau8824_set_sysclk,
-	.set_pll = nau8824_set_pll,
-	.set_bias_level = nau8824_set_bias_level,
-	.suspend = nau8824_suspend,
-	.resume = nau8824_resume,
-	.suspend_bias_off = true,
-
-	.component_driver = {
-		.controls = nau8824_snd_controls,
-		.num_controls = ARRAY_SIZE(nau8824_snd_controls),
-		.dapm_widgets = nau8824_dapm_widgets,
-		.num_dapm_widgets = ARRAY_SIZE(nau8824_dapm_widgets),
-		.dapm_routes = nau8824_dapm_routes,
-		.num_dapm_routes = ARRAY_SIZE(nau8824_dapm_routes),
-	},
+static const struct snd_soc_component_driver nau8824_component_driver = {
+	.probe			= nau8824_component_probe,
+	.set_sysclk		= nau8824_set_sysclk,
+	.set_pll		= nau8824_set_pll,
+	.set_bias_level		= nau8824_set_bias_level,
+	.suspend		= nau8824_suspend,
+	.resume			= nau8824_resume,
+	.controls		= nau8824_snd_controls,
+	.num_controls		= ARRAY_SIZE(nau8824_snd_controls),
+	.dapm_widgets		= nau8824_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(nau8824_dapm_widgets),
+	.dapm_routes		= nau8824_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(nau8824_dapm_routes),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops nau8824_dai_ops = {
@@ -1547,10 +1586,10 @@ static const struct regmap_config nau8824_regmap_config = {
  * events will be routed to the given jack.  Jack can be null to stop
  * reporting.
  */
-int nau8824_enable_jack_detect(struct snd_soc_codec *codec,
+int nau8824_enable_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack)
 {
-	struct nau8824 *nau8824 = snd_soc_codec_get_drvdata(codec);
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	nau8824->jack = jack;
@@ -1838,15 +1877,8 @@ static int nau8824_i2c_probe(struct i2c_client *i2c,
 	if (i2c->irq)
 		nau8824_setup_irq(nau8824);
 
-	return snd_soc_register_codec(dev,
-		&nau8824_codec_driver, &nau8824_dai, 1);
-}
-
-
-static int nau8824_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
+	return devm_snd_soc_register_component(dev,
+		&nau8824_component_driver, &nau8824_dai, 1);
 }
 
 static const struct i2c_device_id nau8824_i2c_ids[] = {
@@ -1878,7 +1910,6 @@ static struct i2c_driver nau8824_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(nau8824_acpi_match),
 	},
 	.probe = nau8824_i2c_probe,
-	.remove = nau8824_i2c_remove,
 	.id_table = nau8824_i2c_ids,
 };
 module_i2c_driver(nau8824_i2c_driver);

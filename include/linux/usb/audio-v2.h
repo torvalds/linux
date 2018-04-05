@@ -34,14 +34,14 @@
  *
  */
 
-static inline bool uac2_control_is_readable(u32 bmControls, u8 control)
+static inline bool uac_v2v3_control_is_readable(u32 bmControls, u8 control)
 {
-	return (bmControls >> (control * 2)) & 0x1;
+	return (bmControls >> ((control - 1) * 2)) & 0x1;
 }
 
-static inline bool uac2_control_is_writeable(u32 bmControls, u8 control)
+static inline bool uac_v2v3_control_is_writeable(u32 bmControls, u8 control)
 {
-	return (bmControls >> (control * 2)) & 0x2;
+	return (bmControls >> ((control - 1) * 2)) & 0x2;
 }
 
 /* 4.7.2 Class-Specific AC Interface Descriptor */
