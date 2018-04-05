@@ -772,7 +772,7 @@ EXPORT_SYMBOL(ipmi_smi_watcher_register);
 int ipmi_smi_watcher_unregister(struct ipmi_smi_watcher *watcher)
 {
 	mutex_lock(&smi_watchers_mutex);
-	list_del(&(watcher->link));
+	list_del(&watcher->link);
 	mutex_unlock(&smi_watchers_mutex);
 	return 0;
 }
@@ -994,19 +994,19 @@ static int intf_find_seq(ipmi_smi_t           intf,
 	if (seq >= IPMI_IPMB_NUM_SEQ)
 		return -EINVAL;
 
-	spin_lock_irqsave(&(intf->seq_lock), flags);
+	spin_lock_irqsave(&intf->seq_lock, flags);
 	if (intf->seq_table[seq].inuse) {
 		struct ipmi_recv_msg *msg = intf->seq_table[seq].recv_msg;
 
 		if ((msg->addr.channel == channel) && (msg->msg.cmd == cmd)
 				&& (msg->msg.netfn == netfn)
-				&& (ipmi_addr_equal(addr, &(msg->addr)))) {
+				&& (ipmi_addr_equal(addr, &msg->addr))) {
 			*recv_msg = msg;
 			intf->seq_table[seq].inuse = 0;
 			rv = 0;
 		}
 	}
-	spin_unlock_irqrestore(&(intf->seq_lock), flags);
+	spin_unlock_irqrestore(&intf->seq_lock, flags);
 
 	return rv;
 }
@@ -1024,18 +1024,18 @@ static int intf_start_seq_timer(ipmi_smi_t intf,
 
 	GET_SEQ_FROM_MSGID(msgid, seq, seqid);
 
-	spin_lock_irqsave(&(intf->seq_lock), flags);
+	spin_lock_irqsave(&intf->seq_lock, flags);
 	/*
 	 * We do this verification because the user can be deleted
 	 * while a message is outstanding.
 	 */
 	if ((intf->seq_table[seq].inuse)
 				&& (intf->seq_table[seq].seqid == seqid)) {
-		struct seq_table *ent = &(intf->seq_table[seq]);
+		struct seq_table *ent = &intf->seq_table[seq];
 		ent->timeout = ent->orig_timeout;
 		rv = 0;
 	}
-	spin_unlock_irqrestore(&(intf->seq_lock), flags);
+	spin_unlock_irqrestore(&intf->seq_lock, flags);
 
 	return rv;
 }
@@ -1054,20 +1054,20 @@ static int intf_err_seq(ipmi_smi_t   intf,
 
 	GET_SEQ_FROM_MSGID(msgid, seq, seqid);
 
-	spin_lock_irqsave(&(intf->seq_lock), flags);
+	spin_lock_irqsave(&intf->seq_lock, flags);
 	/*
 	 * We do this verification because the user can be deleted
 	 * while a message is outstanding.
 	 */
 	if ((intf->seq_table[seq].inuse)
 				&& (intf->seq_table[seq].seqid == seqid)) {
-		struct seq_table *ent = &(intf->seq_table[seq]);
+		struct seq_table *ent = &intf->seq_table[seq];
 
 		ent->inuse = 0;
 		msg = ent->recv_msg;
 		rv = 0;
 	}
-	spin_unlock_irqrestore(&(intf->seq_lock), flags);
+	spin_unlock_irqrestore(&intf->seq_lock, flags);
 
 	if (msg)
 		deliver_err_response(msg, err);
@@ -1594,21 +1594,19 @@ static inline void format_ipmb_msg(struct ipmi_smi_msg   *smi_msg,
 		smi_msg->data[3] = 0;
 	smi_msg->data[i+3] = ipmb_addr->slave_addr;
 	smi_msg->data[i+4] = (msg->netfn << 2) | (ipmb_addr->lun & 0x3);
-	smi_msg->data[i+5] = ipmb_checksum(&(smi_msg->data[i+3]), 2);
+	smi_msg->data[i+5] = ipmb_checksum(&smi_msg->data[i + 3], 2);
 	smi_msg->data[i+6] = source_address;
 	smi_msg->data[i+7] = (ipmb_seq << 2) | source_lun;
 	smi_msg->data[i+8] = msg->cmd;
 
 	/* Now tack on the data to the message. */
 	if (msg->data_len > 0)
-		memcpy(&(smi_msg->data[i+9]), msg->data,
-		       msg->data_len);
+		memcpy(&smi_msg->data[i + 9], msg->data, msg->data_len);
 	smi_msg->data_size = msg->data_len + 9;
 
 	/* Now calculate the checksum and tack it on. */
 	smi_msg->data[i+smi_msg->data_size]
-		= ipmb_checksum(&(smi_msg->data[i+6]),
-				smi_msg->data_size-6);
+		= ipmb_checksum(&smi_msg->data[i + 6], smi_msg->data_size - 6);
 
 	/*
 	 * Add on the checksum size and the offset from the
@@ -1633,21 +1631,19 @@ static inline void format_lan_msg(struct ipmi_smi_msg   *smi_msg,
 	smi_msg->data[3] = lan_addr->session_handle;
 	smi_msg->data[4] = lan_addr->remote_SWID;
 	smi_msg->data[5] = (msg->netfn << 2) | (lan_addr->lun & 0x3);
-	smi_msg->data[6] = ipmb_checksum(&(smi_msg->data[4]), 2);
+	smi_msg->data[6] = ipmb_checksum(&smi_msg->data[4], 2);
 	smi_msg->data[7] = lan_addr->local_SWID;
 	smi_msg->data[8] = (ipmb_seq << 2) | source_lun;
 	smi_msg->data[9] = msg->cmd;
 
 	/* Now tack on the data to the message. */
 	if (msg->data_len > 0)
-		memcpy(&(smi_msg->data[10]), msg->data,
-		       msg->data_len);
+		memcpy(&smi_msg->data[10], msg->data, msg->data_len);
 	smi_msg->data_size = msg->data_len + 10;
 
 	/* Now calculate the checksum and tack it on. */
 	smi_msg->data[smi_msg->data_size]
-		= ipmb_checksum(&(smi_msg->data[7]),
-				smi_msg->data_size-7);
+		= ipmb_checksum(&smi_msg->data[7], smi_msg->data_size - 7);
 
 	/*
 	 * Add on the checksum size and the offset from the
@@ -3612,7 +3608,7 @@ static void cleanup_smi_msgs(ipmi_smi_t intf)
 	}
 
 	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++) {
-		ent = &(intf->seq_table[i]);
+		ent = &intf->seq_table[i];
 		if (!ent->inuse)
 			continue;
 		deliver_err_response(ent->recv_msg, IPMI_ERR_UNSPECIFIED);
@@ -3700,7 +3696,7 @@ static int handle_ipmb_get_msg_rsp(ipmi_smi_t          intf,
 			  msg->rsp[3] & 0x0f,
 			  msg->rsp[8],
 			  (msg->rsp[4] >> 2) & (~1),
-			  (struct ipmi_addr *) &(ipmb_addr),
+			  (struct ipmi_addr *) &ipmb_addr,
 			  &recv_msg)) {
 		/*
 		 * We were unable to find the sequence number,
@@ -3710,9 +3706,7 @@ static int handle_ipmb_get_msg_rsp(ipmi_smi_t          intf,
 		return 0;
 	}
 
-	memcpy(recv_msg->msg_data,
-	       &(msg->rsp[9]),
-	       msg->rsp_size - 9);
+	memcpy(recv_msg->msg_data, &msg->rsp[9], msg->rsp_size - 9);
 	/*
 	 * The other fields matched, so no need to set them, except
 	 * for netfn, which needs to be the response that was
@@ -3773,13 +3767,13 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 		msg->data[2] = msg->rsp[3];
 		msg->data[3] = msg->rsp[6];
 		msg->data[4] = ((netfn + 1) << 2) | (msg->rsp[7] & 0x3);
-		msg->data[5] = ipmb_checksum(&(msg->data[3]), 2);
+		msg->data[5] = ipmb_checksum(&msg->data[3], 2);
 		msg->data[6] = intf->addrinfo[msg->rsp[3] & 0xf].address;
 		/* rqseq/lun */
 		msg->data[7] = (msg->rsp[7] & 0xfc) | (msg->rsp[4] & 0x3);
 		msg->data[8] = msg->rsp[8]; /* cmd */
 		msg->data[9] = IPMI_INVALID_CMD_COMPLETION_CODE;
-		msg->data[10] = ipmb_checksum(&(msg->data[6]), 4);
+		msg->data[10] = ipmb_checksum(&msg->data[6], 4);
 		msg->data_size = 11;
 
 		ipmi_debug_msg("Invalid command:", msg->data, msg->data_size);
@@ -3832,8 +3826,7 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 			 * at the end also needs to be removed.
 			 */
 			recv_msg->msg.data_len = msg->rsp_size - 10;
-			memcpy(recv_msg->msg_data,
-			       &(msg->rsp[9]),
+			memcpy(recv_msg->msg_data, &msg->rsp[9],
 			       msg->rsp_size - 10);
 			deliver_response(recv_msg);
 		}
@@ -3881,7 +3874,7 @@ static int handle_lan_get_msg_rsp(ipmi_smi_t          intf,
 			  msg->rsp[3] & 0x0f,
 			  msg->rsp[10],
 			  (msg->rsp[6] >> 2) & (~1),
-			  (struct ipmi_addr *) &(lan_addr),
+			  (struct ipmi_addr *) &lan_addr,
 			  &recv_msg)) {
 		/*
 		 * We were unable to find the sequence number,
@@ -3891,9 +3884,7 @@ static int handle_lan_get_msg_rsp(ipmi_smi_t          intf,
 		return 0;
 	}
 
-	memcpy(recv_msg->msg_data,
-	       &(msg->rsp[11]),
-	       msg->rsp_size - 11);
+	memcpy(recv_msg->msg_data, &msg->rsp[11], msg->rsp_size - 11);
 	/*
 	 * The other fields matched, so no need to set them, except
 	 * for netfn, which needs to be the response that was
@@ -3993,8 +3984,7 @@ static int handle_lan_get_msg_cmd(ipmi_smi_t          intf,
 			 * at the end also needs to be removed.
 			 */
 			recv_msg->msg.data_len = msg->rsp_size - 12;
-			memcpy(recv_msg->msg_data,
-			       &(msg->rsp[11]),
+			memcpy(recv_msg->msg_data, &msg->rsp[11],
 			       msg->rsp_size - 12);
 			deliver_response(recv_msg);
 		}
@@ -4084,7 +4074,7 @@ static int handle_oem_get_msg_cmd(ipmi_smi_t          intf,
 			 * requirements
 			 */
 			smi_addr = ((struct ipmi_system_interface_addr *)
-				    &(recv_msg->addr));
+				    &recv_msg->addr);
 			smi_addr->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
 			smi_addr->channel = IPMI_BMC_CHANNEL;
 			smi_addr->lun = msg->rsp[0] & 3;
@@ -4101,8 +4091,7 @@ static int handle_oem_get_msg_cmd(ipmi_smi_t          intf,
 			 * the Channel Byte in the "GET MESSAGE" command
 			 */
 			recv_msg->msg.data_len = msg->rsp_size - 4;
-			memcpy(recv_msg->msg_data,
-			       &(msg->rsp[4]),
+			memcpy(recv_msg->msg_data, &msg->rsp[4],
 			       msg->rsp_size - 4);
 			deliver_response(recv_msg);
 		}
@@ -4117,14 +4106,14 @@ static void copy_event_into_recv_msg(struct ipmi_recv_msg *recv_msg,
 	struct ipmi_system_interface_addr *smi_addr;
 
 	recv_msg->msgid = 0;
-	smi_addr = (struct ipmi_system_interface_addr *) &(recv_msg->addr);
+	smi_addr = (struct ipmi_system_interface_addr *) &recv_msg->addr;
 	smi_addr->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
 	smi_addr->channel = IPMI_BMC_CHANNEL;
 	smi_addr->lun = msg->rsp[0] & 3;
 	recv_msg->recv_type = IPMI_ASYNC_EVENT_RECV_TYPE;
 	recv_msg->msg.netfn = msg->rsp[0] >> 2;
 	recv_msg->msg.cmd = msg->rsp[1];
-	memcpy(recv_msg->msg_data, &(msg->rsp[3]), msg->rsp_size - 3);
+	memcpy(recv_msg->msg_data, &msg->rsp[3], msg->rsp_size - 3);
 	recv_msg->msg.data = recv_msg->msg_data;
 	recv_msg->msg.data_len = msg->rsp_size - 3;
 }
@@ -4187,7 +4176,7 @@ static int handle_read_event_rsp(ipmi_smi_t          intf,
 		copy_event_into_recv_msg(recv_msg, msg);
 		recv_msg->user = user;
 		kref_get(&user->refcount);
-		list_add_tail(&(recv_msg->link), &msgs);
+		list_add_tail(&recv_msg->link, &msgs);
 	}
 	rcu_read_unlock();
 
@@ -4214,7 +4203,7 @@ static int handle_read_event_rsp(ipmi_smi_t          intf,
 		}
 
 		copy_event_into_recv_msg(recv_msg, msg);
-		list_add_tail(&(recv_msg->link), &(intf->waiting_events));
+		list_add_tail(&recv_msg->link, &intf->waiting_events);
 		intf->waiting_events_count++;
 	} else if (!intf->event_msg_printed) {
 		/*
@@ -4227,7 +4216,7 @@ static int handle_read_event_rsp(ipmi_smi_t          intf,
 	}
 
  out:
-	spin_unlock_irqrestore(&(intf->events_lock), flags);
+	spin_unlock_irqrestore(&intf->events_lock, flags);
 
 	return rv;
 }
@@ -4258,15 +4247,13 @@ static int handle_bmc_rsp(ipmi_smi_t          intf,
 		recv_msg->recv_type = IPMI_RESPONSE_RECV_TYPE;
 		recv_msg->msgid = msg->msgid;
 		smi_addr = ((struct ipmi_system_interface_addr *)
-			    &(recv_msg->addr));
+			    &recv_msg->addr);
 		smi_addr->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
 		smi_addr->channel = IPMI_BMC_CHANNEL;
 		smi_addr->lun = msg->rsp[0] & 3;
 		recv_msg->msg.netfn = msg->rsp[0] >> 2;
 		recv_msg->msg.cmd = msg->rsp[1];
-		memcpy(recv_msg->msg_data,
-		       &(msg->rsp[2]),
-		       msg->rsp_size - 2);
+		memcpy(recv_msg->msg_data, &msg->rsp[2], msg->rsp_size - 2);
 		recv_msg->msg.data = recv_msg->msg_data;
 		recv_msg->msg.data_len = msg->rsp_size - 2;
 		deliver_response(recv_msg);
@@ -4765,7 +4752,7 @@ static unsigned int ipmi_timeout_handler(ipmi_smi_t intf,
 			intf->ipmb_maintenance_mode_timeout -= timeout_period;
 	}
 	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++)
-		check_msg_timeout(intf, &(intf->seq_table[i]),
+		check_msg_timeout(intf, &intf->seq_table[i],
 				  &timeouts, timeout_period, i,
 				  &flags, &waiting_msgs);
 	spin_unlock_irqrestore(&intf->seq_lock, flags);
