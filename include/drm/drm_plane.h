@@ -80,8 +80,15 @@ struct drm_plane_state {
 	/**
 	 * @fence:
 	 *
-	 * Optional fence to wait for before scanning out @fb. Do not write this
-	 * directly, use drm_atomic_set_fence_for_plane()
+	 * Optional fence to wait for before scanning out @fb. The core atomic
+	 * code will set this when userspace is using explicit fencing. Do not
+	 * write this directly for a driver's implicit fence, use
+	 * drm_atomic_set_fence_for_plane() to ensure that an explicit fence is
+	 * preserved.
+	 *
+	 * Drivers should store any implicit fence in this from their
+	 * &drm_plane_helper.prepare_fb callback. See drm_gem_fb_prepare_fb()
+	 * and drm_gem_fb_simple_display_pipe_prepare_fb() for suitable helpers.
 	 */
 	struct dma_fence *fence;
 
