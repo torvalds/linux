@@ -143,6 +143,12 @@ module_param(default_retry_ms, ulong, 0644);
 MODULE_PARM_DESC(default_retry_ms,
 		 "The time (milliseconds) between retry sends");
 
+/* The default timeout for maintenance mode message retries. */
+static unsigned long default_maintenance_retry_ms = 3000;
+module_param(default_maintenance_retry_ms, ulong, 0644);
+MODULE_PARM_DESC(default_maintenance_retry_ms,
+		 "The time (milliseconds) between retry sends in maintenance mode");
+
 /* The default maximum number of retries */
 static unsigned int default_max_retries = 4;
 module_param(default_max_retries, uint, 0644);
@@ -523,6 +529,13 @@ struct ipmi_smi {
 	bool maintenance_mode_enable;
 	int auto_maintenance_timeout;
 	spinlock_t maintenance_mode_lock; /* Used in a timer... */
+
+	/*
+	 * If we are doing maintenance on something on IPMB, extend
+	 * the timeout time to avoid timeouts writing firmware and
+	 * such.
+	 */
+	int ipmb_maintenance_mode_timeout;
 
 	/*
 	 * A cheap hack, if this is non-null and a message to an
@@ -1860,6 +1873,15 @@ static int i_ipmi_request(ipmi_user_t          user,
 			/* It's a command, so get a sequence for it. */
 
 			spin_lock_irqsave(&(intf->seq_lock), flags);
+
+			if (is_maintenance_mode_cmd(msg))
+				intf->ipmb_maintenance_mode_timeout =
+					maintenance_mode_timeout_ms;
+
+			if (intf->ipmb_maintenance_mode_timeout &&
+			    retry_time_ms == 0)
+				/* Different default in maintenance mode */
+				retry_time_ms = default_maintenance_retry_ms;
 
 			/*
 			 * Create a sequence number with a 1 second
@@ -4710,6 +4732,12 @@ static unsigned int ipmi_timeout_handler(ipmi_smi_t intf,
 	 */
 	INIT_LIST_HEAD(&timeouts);
 	spin_lock_irqsave(&intf->seq_lock, flags);
+	if (intf->ipmb_maintenance_mode_timeout) {
+		if (intf->ipmb_maintenance_mode_timeout <= timeout_period)
+			intf->ipmb_maintenance_mode_timeout = 0;
+		else
+			intf->ipmb_maintenance_mode_timeout -= timeout_period;
+	}
 	for (i = 0; i < IPMI_IPMB_NUM_SEQ; i++)
 		check_msg_timeout(intf, &(intf->seq_table[i]),
 				  &timeouts, timeout_period, i,
