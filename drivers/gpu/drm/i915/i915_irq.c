@@ -2452,6 +2452,26 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		ironlake_rps_change_irq_handler(dev_priv);
 }
 
+static void hsw_edp_psr_irq_handler(struct drm_i915_private *dev_priv)
+{
+	u32 edp_psr_iir = I915_READ(EDP_PSR_IIR);
+
+	if (edp_psr_iir & EDP_PSR_ERROR)
+		DRM_DEBUG_KMS("PSR error\n");
+
+	if (edp_psr_iir & EDP_PSR_PRE_ENTRY) {
+		DRM_DEBUG_KMS("PSR prepare entry in 2 vblanks\n");
+		I915_WRITE(EDP_PSR_IMR, EDP_PSR_PRE_ENTRY);
+	}
+
+	if (edp_psr_iir & EDP_PSR_POST_EXIT) {
+		DRM_DEBUG_KMS("PSR exit completed\n");
+		I915_WRITE(EDP_PSR_IMR, 0);
+	}
+
+	I915_WRITE(EDP_PSR_IIR, edp_psr_iir);
+}
+
 static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 				    u32 de_iir)
 {
@@ -2463,6 +2483,9 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev_priv);
+
+	if (de_iir & DE_EDP_PSR_INT_HSW)
+		hsw_edp_psr_irq_handler(dev_priv);
 
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
 		dp_aux_irq_handler(dev_priv);
@@ -3348,6 +3371,11 @@ static void ironlake_irq_reset(struct drm_device *dev)
 	if (IS_GEN7(dev_priv))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
+	if (IS_HASWELL(dev_priv)) {
+		I915_WRITE(EDP_PSR_IMR, 0xffffffff);
+		I915_WRITE(EDP_PSR_IIR, 0xffffffff);
+	}
+
 	gen5_gt_irq_reset(dev_priv);
 
 	ibx_irq_reset(dev_priv);
@@ -3760,6 +3788,12 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT |
 			      DE_PIPEB_FIFO_UNDERRUN | DE_PIPEA_FIFO_UNDERRUN |
 			      DE_DP_A_HOTPLUG);
+	}
+
+	if (IS_HASWELL(dev_priv)) {
+		gen3_assert_iir_is_zero(dev_priv, EDP_PSR_IIR);
+		I915_WRITE(EDP_PSR_IMR, 0);
+		display_mask |= DE_EDP_PSR_INT_HSW;
 	}
 
 	dev_priv->irq_mask = ~display_mask;

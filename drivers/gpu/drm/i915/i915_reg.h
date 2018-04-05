@@ -4026,6 +4026,13 @@ enum {
 #define   EDP_PSR_TP1_TIME_0us			(3<<4)
 #define   EDP_PSR_IDLE_FRAME_SHIFT		0
 
+/* Bspec claims those aren't shifted but stay at 0x64800 */
+#define EDP_PSR_IMR				_MMIO(0x64834)
+#define EDP_PSR_IIR				_MMIO(0x64838)
+#define   EDP_PSR_ERROR				(1<<2)
+#define   EDP_PSR_POST_EXIT			(1<<1)
+#define   EDP_PSR_PRE_ENTRY			(1<<0)
+
 #define EDP_PSR_AUX_CTL				_MMIO(dev_priv->psr_mmio_base + 0x10)
 #define   EDP_PSR_AUX_CTL_TIME_OUT_MASK		(3 << 26)
 #define   EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK	(0x1f << 20)
@@ -6837,6 +6844,7 @@ enum {
 #define DE_PCH_EVENT_IVB		(1<<28)
 #define DE_DP_A_HOTPLUG_IVB		(1<<27)
 #define DE_AUX_CHANNEL_A_IVB		(1<<26)
+#define DE_EDP_PSR_INT_HSW		(1<<19)
 #define DE_SPRITEC_FLIP_DONE_IVB	(1<<14)
 #define DE_PLANEC_FLIP_DONE_IVB		(1<<13)
 #define DE_PIPEC_VBLANK_IVB		(1<<10)
