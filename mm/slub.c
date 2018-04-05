@@ -4896,7 +4896,7 @@ SLAB_ATTR_RO(slab_size);
 
 static ssize_t align_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->align);
+	return sprintf(buf, "%u\n", s->align);
 }
 SLAB_ATTR_RO(align);
 
