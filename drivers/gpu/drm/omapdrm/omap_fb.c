@@ -279,33 +279,6 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	mutex_unlock(&omap_fb->lock);
 }
 
-/* iterate thru all the connectors, returning ones that are attached
- * to the same fb..
- */
-struct drm_connector *omap_framebuffer_get_next_connector(
-		struct drm_framebuffer *fb, struct drm_connector *from)
-{
-	struct drm_device *dev = fb->dev;
-	struct list_head *connector_list = &dev->mode_config.connector_list;
-	struct drm_connector *connector = from;
-
-	if (!from)
-		return list_first_entry_or_null(connector_list, typeof(*from),
-						head);
-
-	list_for_each_entry_from(connector, connector_list, head) {
-		if (connector != from) {
-			struct drm_encoder *encoder = connector->encoder;
-			struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
-			if (crtc && crtc->primary->fb == fb)
-				return connector;
-
-		}
-	}
-
-	return NULL;
-}
-
 #ifdef CONFIG_DEBUG_FS
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
