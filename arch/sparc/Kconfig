@@ -43,6 +43,7 @@ config SPARC
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select LOCKDEP_SMALL if LOCKDEP
+	select NEED_SG_DMA_LENGTH
 
 config SPARC32
 	def_bool !64BIT
@@ -143,9 +144,6 @@ config ZONE_DMA
 	default y if SPARC32
 
 config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
 	def_bool y
 
 config GENERIC_ISA_DMA

@@ -130,9 +130,6 @@ config LOONGSON_UART_BASE
 	default y
 	depends on EARLY_PRINTK || SERIAL_8250
 
-config NEED_SG_DMA_LENGTH
-	bool
-
 config SWIOTLB
 	bool "Soft IOMMU Support for All-Memory DMA"
 	default y

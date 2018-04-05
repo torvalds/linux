@@ -710,6 +710,7 @@ menuconfig PCI
 	select PCI_MSI
 	select IOMMU_HELPER
 	select IOMMU_SUPPORT
+	select NEED_SG_DMA_LENGTH
 
 	help
 	  Enable PCI support.
@@ -732,9 +733,6 @@ config PCI_DOMAINS
 	def_bool PCI
 
 config HAS_IOMEM
-	def_bool PCI
-
-config NEED_SG_DMA_LENGTH
 	def_bool PCI
 
 config NEED_DMA_MAP_STATE

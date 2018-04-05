@@ -183,6 +183,7 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select IRQ_FORCED_THREADING
+	select NEED_SG_DMA_LENGTH
 	select PCI_LOCKLESS_CONFIG
 	select PERF_EVENTS
 	select RTC_LIB
@@ -238,9 +239,6 @@ config SBUS
 config NEED_DMA_MAP_STATE
 	def_bool y
 	depends on X86_64 || INTEL_IOMMU || DMA_API_DEBUG || SWIOTLB
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
 
 config GENERIC_ISA_DMA
 	def_bool y

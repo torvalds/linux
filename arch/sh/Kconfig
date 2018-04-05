@@ -49,6 +49,8 @@ config SUPERH
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_NMI
+	select NEED_SG_DMA_LENGTH
+
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -161,9 +163,6 @@ config DMA_NONCOHERENT
 
 config NEED_DMA_MAP_STATE
 	def_bool DMA_NONCOHERENT
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
 
 config PGTABLE_LEVELS
 	default 3 if X2TLB

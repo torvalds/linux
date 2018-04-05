@@ -429,6 +429,9 @@ config SGL_ALLOC
 	bool
 	default n
 
+config NEED_SG_DMA_LENGTH
+	bool
+
 config IOMMU_HELPER
 	bool
 
