@@ -73,7 +73,7 @@ struct kmem_cache_cpu {
  * given order would contain.
  */
 struct kmem_cache_order_objects {
-	unsigned long x;
+	unsigned int x;
 };
 
 /*
