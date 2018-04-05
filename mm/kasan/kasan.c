@@ -323,9 +323,9 @@ void kasan_free_pages(struct page *page, unsigned int order)
  * Adaptive redzone policy taken from the userspace AddressSanitizer runtime.
  * For larger allocations larger redzones are used.
  */
-static size_t optimal_redzone(size_t object_size)
+static unsigned int optimal_redzone(unsigned int object_size)
 {
-	int rz =
+	return
 		object_size <= 64        - 16   ? 16 :
 		object_size <= 128       - 32   ? 32 :
 		object_size <= 512       - 64   ? 64 :
@@ -333,14 +333,13 @@ static size_t optimal_redzone(size_t object_size)
 		object_size <= (1 << 14) - 256  ? 256 :
 		object_size <= (1 << 15) - 512  ? 512 :
 		object_size <= (1 << 16) - 1024 ? 1024 : 2048;
-	return rz;
 }
 
-void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 			slab_flags_t *flags)
 {
+	unsigned int orig_size = *size;
 	int redzone_adjust;
-	int orig_size = *size;
 
 	/* Add alloc meta. */
 	cache->kasan_info.alloc_meta_offset = *size;
@@ -358,7 +357,8 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
 	if (redzone_adjust > 0)
 		*size += redzone_adjust;
 
-	*size = min(KMALLOC_MAX_SIZE, max(*size, cache->object_size +
+	*size = min_t(unsigned int, KMALLOC_MAX_SIZE,
+			max(*size, cache->object_size +
 					optimal_redzone(cache->object_size)));
 
 	/*

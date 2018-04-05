@@ -1994,7 +1994,7 @@ int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 	size_t ralign = BYTES_PER_WORD;
 	gfp_t gfp;
 	int err;
-	size_t size = cachep->size;
+	unsigned int size = cachep->size;
 
 #if DEBUG
 #if FORCED_DEBUG
