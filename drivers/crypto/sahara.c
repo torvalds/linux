@@ -1397,11 +1397,9 @@ static int sahara_probe(struct platform_device *pdev)
 	int err;
 	int i;
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct sahara_dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&pdev->dev, "unable to alloc data struct.\n");
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	dev->device = &pdev->dev;
 	platform_set_drvdata(pdev, dev);

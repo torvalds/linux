@@ -67,7 +67,6 @@ static inline unsigned int crypto_compress_ctxsize(struct crypto_alg *alg)
 }
 
 struct crypto_alg *crypto_mod_get(struct crypto_alg *alg);
-struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask);
 struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
 int crypto_init_cipher_ops(struct crypto_tfm *tfm);

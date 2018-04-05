@@ -62,7 +62,7 @@ static int cavium_rng_probe(struct pci_dev *pdev,
 }
 
 /* Disable VF and RNG Hardware */
-void  cavium_rng_remove(struct pci_dev *pdev)
+static void cavium_rng_remove(struct pci_dev *pdev)
 {
 	struct cavium_rng_pf *rng;
 

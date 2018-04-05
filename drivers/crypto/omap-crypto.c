@@ -104,6 +104,10 @@ static int omap_crypto_check_sg(struct scatterlist *sg, int total, int bs,
 			return OMAP_CRYPTO_NOT_ALIGNED;
 		if (!IS_ALIGNED(sg->length, bs))
 			return OMAP_CRYPTO_NOT_ALIGNED;
+#ifdef CONFIG_ZONE_DMA
+		if (page_zonenum(sg_page(sg)) != ZONE_DMA)
+			return OMAP_CRYPTO_NOT_ALIGNED;
+#endif
 
 		len += sg->length;
 		sg = sg_next(sg);

@@ -163,6 +163,8 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 	/* Clock is optional on most platforms */
 	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	priv->rng.name = pdev->name;
 	priv->rng.init = bcm2835_rng_init;

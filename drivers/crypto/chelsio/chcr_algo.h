@@ -258,15 +258,16 @@
 #define FILL_CMD_MORE(immdatalen) htonl(ULPTX_CMD_V(ULP_TX_SC_IMM) |\
 					ULP_TX_SC_MORE_V((immdatalen)))
 #define MAX_NK 8
-#define ROUND_16(bytes)		((bytes) & 0xFFFFFFF0)
 #define MAX_DSGL_ENT			32
 #define MIN_CIPHER_SG			1 /* IV */
 #define MIN_AUTH_SG			1 /* IV */
 #define MIN_GCM_SG			1 /* IV */
 #define MIN_DIGEST_SG			1 /*Partial Buffer*/
 #define MIN_CCM_SG			2 /*IV+B0*/
-#define SPACE_LEFT(len) \
-	((SGE_MAX_WR_LEN - WR_MIN_LEN - (len)))
+#define CIP_SPACE_LEFT(len) \
+	((SGE_MAX_WR_LEN - CIP_WR_MIN_LEN - (len)))
+#define HASH_SPACE_LEFT(len) \
+	((SGE_MAX_WR_LEN - HASH_WR_MIN_LEN - (len)))
 
 struct algo_param {
 	unsigned int auth_mode;
@@ -275,12 +276,14 @@ struct algo_param {
 };
 
 struct hash_wr_param {
+	struct algo_param alg_prm;
 	unsigned int opad_needed;
 	unsigned int more;
 	unsigned int last;
-	struct algo_param alg_prm;
+	unsigned int kctx_len;
 	unsigned int sg_len;
 	unsigned int bfr_len;
+	unsigned int hash_size;
 	u64 scmd1;
 };
 

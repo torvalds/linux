@@ -13,7 +13,12 @@ Required properties:
 - interrupts : the interrupt number for the RNG module.
 		Used for "ti,omap4-rng" and "inside-secure,safexcel-eip76"
 - clocks: the trng clock source. Only mandatory for the
-  "inside-secure,safexcel-eip76" compatible.
+  "inside-secure,safexcel-eip76" compatible, the second clock is
+  needed for the Armada 7K/8K SoCs
+- clock-names: mandatory if there is a second clock, in this case the
+  name must be "core" for the first clock and "reg" for the second
+  one
+
 
 Example:
 /* AM335x */
