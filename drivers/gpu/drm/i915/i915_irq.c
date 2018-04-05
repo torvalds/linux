@@ -308,17 +308,29 @@ void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 
 static i915_reg_t gen6_pm_iir(struct drm_i915_private *dev_priv)
 {
+	WARN_ON_ONCE(INTEL_GEN(dev_priv) >= 11);
+
 	return INTEL_GEN(dev_priv) >= 8 ? GEN8_GT_IIR(2) : GEN6_PMIIR;
 }
 
 static i915_reg_t gen6_pm_imr(struct drm_i915_private *dev_priv)
 {
-	return INTEL_GEN(dev_priv) >= 8 ? GEN8_GT_IMR(2) : GEN6_PMIMR;
+	if (INTEL_GEN(dev_priv) >= 11)
+		return GEN11_GPM_WGBOXPERF_INTR_MASK;
+	else if (INTEL_GEN(dev_priv) >= 8)
+		return GEN8_GT_IMR(2);
+	else
+		return GEN6_PMIMR;
 }
 
 static i915_reg_t gen6_pm_ier(struct drm_i915_private *dev_priv)
 {
-	return INTEL_GEN(dev_priv) >= 8 ? GEN8_GT_IER(2) : GEN6_PMIER;
+	if (INTEL_GEN(dev_priv) >= 11)
+		return GEN11_GPM_WGBOXPERF_INTR_ENABLE;
+	else if (INTEL_GEN(dev_priv) >= 8)
+		return GEN8_GT_IER(2);
+	else
+		return GEN6_PMIER;
 }
 
 /**
@@ -400,6 +412,32 @@ static void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, u32 disable_m
 	/* though a barrier is missing here, but don't really need a one */
 }
 
+static u32
+gen11_gt_engine_identity(struct drm_i915_private * const i915,
+			 const unsigned int bank, const unsigned int bit);
+
+void gen11_reset_rps_interrupts(struct drm_i915_private *dev_priv)
+{
+	u32 dw;
+
+	spin_lock_irq(&dev_priv->irq_lock);
+
+	/*
+	 * According to the BSpec, DW_IIR bits cannot be cleared without
+	 * first servicing the Selector & Shared IIR registers.
+	 */
+	dw = I915_READ_FW(GEN11_GT_INTR_DW0);
+	while (dw & BIT(GEN11_GTPM)) {
+		gen11_gt_engine_identity(dev_priv, 0, GEN11_GTPM);
+		I915_WRITE_FW(GEN11_GT_INTR_DW0, BIT(GEN11_GTPM));
+		dw = I915_READ_FW(GEN11_GT_INTR_DW0);
+	}
+
+	dev_priv->gt_pm.rps.pm_iir = 0;
+
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
 void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -415,12 +453,12 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 	if (READ_ONCE(rps->interrupts_enabled))
 		return;
 
-	if (WARN_ON_ONCE(IS_GEN11(dev_priv)))
-		return;
-
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON_ONCE(rps->pm_iir);
-	WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
+	if (INTEL_GEN(dev_priv) >= 11)
+		WARN_ON_ONCE(I915_READ_FW(GEN11_GT_INTR_DW0) & BIT(GEN11_GTPM));
+	else
+		WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
 	rps->interrupts_enabled = true;
 	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 
@@ -432,9 +470,6 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 
 	if (!READ_ONCE(rps->interrupts_enabled))
-		return;
-
-	if (WARN_ON_ONCE(IS_GEN11(dev_priv)))
 		return;
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -453,7 +488,10 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	 * state of the worker can be discarded.
 	 */
 	cancel_work_sync(&rps->work);
-	gen6_reset_rps_interrupts(dev_priv);
+	if (INTEL_GEN(dev_priv) >= 11)
+		gen11_reset_rps_interrupts(dev_priv);
+	else
+		gen6_reset_rps_interrupts(dev_priv);
 }
 
 void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv)
@@ -2768,6 +2806,9 @@ static void
 gen11_other_irq_handler(struct drm_i915_private * const i915,
 			const u8 instance, const u16 iir)
 {
+	if (instance == OTHER_GTPM_INSTANCE)
+		return gen6_rps_irq_handler(i915, iir);
+
 	WARN_ONCE(1, "unhandled other interrupt instance=0x%x, iir=0x%x\n",
 		  instance, iir);
 }
@@ -3330,6 +3371,9 @@ static void gen11_gt_irq_reset(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_VCS0_VCS1_INTR_MASK,	~0);
 	I915_WRITE(GEN11_VCS2_VCS3_INTR_MASK,	~0);
 	I915_WRITE(GEN11_VECS0_VECS1_INTR_MASK,	~0);
+
+	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
+	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
 }
 
 static void gen11_irq_reset(struct drm_device *dev)
@@ -3868,7 +3912,14 @@ static void gen11_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN11_VCS2_VCS3_INTR_MASK,	~(irqs | irqs << 16));
 	I915_WRITE(GEN11_VECS0_VECS1_INTR_MASK,	~(irqs | irqs << 16));
 
-	dev_priv->pm_imr = 0xffffffff; /* TODO */
+	/*
+	 * RPS interrupts will get enabled/disabled on demand when RPS itself
+	 * is enabled/disabled.
+	 */
+	dev_priv->pm_ier = 0x0;
+	dev_priv->pm_imr = ~dev_priv->pm_ier;
+	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
+	I915_WRITE(GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
 }
 
 static int gen11_irq_postinstall(struct drm_device *dev)

@@ -8028,10 +8028,10 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 	dev_priv->gt_pm.rc6.enabled = true; /* force RC6 disabling */
 	intel_disable_gt_powersave(dev_priv);
 
-	if (INTEL_GEN(dev_priv) < 11)
-		gen6_reset_rps_interrupts(dev_priv);
+	if (INTEL_GEN(dev_priv) >= 11)
+		gen11_reset_rps_interrupts(dev_priv);
 	else
-		WARN_ON_ONCE(1);
+		gen6_reset_rps_interrupts(dev_priv);
 }
 
 static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)

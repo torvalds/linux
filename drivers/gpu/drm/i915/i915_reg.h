@@ -188,6 +188,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OTHER_CLASS		4
 #define MAX_ENGINE_CLASS	4
 
+#define OTHER_GTPM_INSTANCE	1
 #define MAX_ENGINE_INSTANCE    3
 
 /* PCI config space */
