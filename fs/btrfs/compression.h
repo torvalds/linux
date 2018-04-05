@@ -76,7 +76,7 @@ struct compressed_bio {
 };
 
 void __init btrfs_init_compress(void);
-void btrfs_exit_compress(void);
+void __cold btrfs_exit_compress(void);
 
 int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
 			 u64 start, struct page **pages,

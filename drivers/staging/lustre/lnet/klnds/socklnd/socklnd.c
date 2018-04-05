@@ -1677,7 +1677,7 @@ ksocknal_destroy_conn(struct ksock_conn *conn)
 	switch (conn->ksnc_rx_state) {
 	case SOCKNAL_RX_LNET_PAYLOAD:
 		last_rcv = conn->ksnc_rx_deadline -
-			   cfs_time_seconds(*ksocknal_tunables.ksnd_timeout);
+			   *ksocknal_tunables.ksnd_timeout * HZ;
 		CERROR("Completing partial receive from %s[%d], ip %pI4h:%d, with error, wanted: %zd, left: %d, last alive is %ld secs ago\n",
 		       libcfs_id2str(conn->ksnc_peer->ksnp_id), conn->ksnc_type,
 		       &conn->ksnc_ipaddr, conn->ksnc_port,
@@ -2356,7 +2356,7 @@ ksocknal_base_shutdown(void)
 				ksocknal_data.ksnd_nthreads);
 			read_unlock(&ksocknal_data.ksnd_global_lock);
 			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(cfs_time_seconds(1));
+			schedule_timeout(HZ);
 			read_lock(&ksocknal_data.ksnd_global_lock);
 		}
 		read_unlock(&ksocknal_data.ksnd_global_lock);
@@ -2599,7 +2599,7 @@ ksocknal_shutdown(struct lnet_ni *ni)
 		       "waiting for %d peers to disconnect\n",
 		       net->ksnn_npeers);
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		schedule_timeout(HZ);
 
 		ksocknal_debug_peerhash(ni);
 

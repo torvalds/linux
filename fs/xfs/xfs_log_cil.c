@@ -202,7 +202,7 @@ xlog_cil_alloc_shadow_bufs(
 			 */
 			kmem_free(lip->li_lv_shadow);
 
-			lv = kmem_alloc(buf_size, KM_SLEEP|KM_NOFS);
+			lv = kmem_alloc_large(buf_size, KM_SLEEP | KM_NOFS);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;

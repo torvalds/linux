@@ -19,8 +19,8 @@
 #include <linux/hashtable.h>
 #include "props.h"
 #include "btrfs_inode.h"
-#include "hash.h"
 #include "transaction.h"
+#include "ctree.h"
 #include "xattr.h"
 #include "compression.h"
 
@@ -116,7 +116,7 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 
 	if (value_len == 0) {
-		ret = __btrfs_setxattr(trans, inode, handler->xattr_name,
+		ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 				       NULL, 0, flags);
 		if (ret)
 			return ret;
@@ -130,13 +130,13 @@ static int __btrfs_set_prop(struct btrfs_trans_handle *trans,
 	ret = handler->validate(value, value_len);
 	if (ret)
 		return ret;
-	ret = __btrfs_setxattr(trans, inode, handler->xattr_name,
+	ret = btrfs_setxattr(trans, inode, handler->xattr_name,
 			       value, value_len, flags);
 	if (ret)
 		return ret;
 	ret = handler->apply(inode, value, value_len);
 	if (ret) {
-		__btrfs_setxattr(trans, inode, handler->xattr_name,
+		btrfs_setxattr(trans, inode, handler->xattr_name,
 				 NULL, 0, flags);
 		return ret;
 	}

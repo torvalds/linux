@@ -1153,8 +1153,10 @@ int __init platform_bus_init(void)
 	early_platform_cleanup();
 
 	error = device_register(&platform_bus);
-	if (error)
+	if (error) {
+		put_device(&platform_bus);
 		return error;
+	}
 	error =  bus_register(&platform_bus_type);
 	if (error)
 		device_unregister(&platform_bus);

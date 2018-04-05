@@ -443,10 +443,6 @@ enum xfs_prealloc_flags {
 
 int	xfs_update_prealloc_flags(struct xfs_inode *ip,
 				  enum xfs_prealloc_flags flags);
-int	xfs_zero_eof(struct xfs_inode *ip, xfs_off_t offset,
-		     xfs_fsize_t isize, bool *did_zeroing);
-int	xfs_zero_range(struct xfs_inode *ip, xfs_off_t pos, xfs_off_t count,
-		bool *did_zero);
 
 /* from xfs_iops.c */
 extern void xfs_setup_inode(struct xfs_inode *ip);

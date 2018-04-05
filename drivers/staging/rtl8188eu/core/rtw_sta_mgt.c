@@ -194,9 +194,9 @@ struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 		_rtw_init_stainfo(psta);
 		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
 		index = wifi_mac_hash(hwaddr);
-		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_, ("rtw_alloc_stainfo: index=%x", index));
+		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_info_, ("%s: index=%x", __func__, index));
 		if (index >= NUM_STA) {
-			RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("ERROR => rtw_alloc_stainfo: index >= NUM_STA"));
+			RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("ERROR => %s: index >= NUM_STA", __func__));
 			psta = NULL;
 			goto exit;
 		}

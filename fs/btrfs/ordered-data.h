@@ -151,7 +151,9 @@ static inline int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info,
 					 unsigned long bytes)
 {
 	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
-	return sizeof(struct btrfs_ordered_sum) + num_sectors * sizeof(u32);
+	int csum_size = btrfs_super_csum_size(fs_info->super_copy);
+
+	return sizeof(struct btrfs_ordered_sum) + num_sectors * csum_size;
 }
 
 static inline void
@@ -215,5 +217,5 @@ void btrfs_wait_logged_extents(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *log, u64 transid);
 void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);
 int __init ordered_data_init(void);
-void ordered_data_exit(void);
+void __cold ordered_data_exit(void);
 #endif

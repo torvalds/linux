@@ -395,20 +395,20 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		goto error;
 
 	/* insert extent in reada_tree + all per-device trees, all or nothing */
-	btrfs_dev_replace_lock(&fs_info->dev_replace, 0);
+	btrfs_dev_replace_read_lock(&fs_info->dev_replace);
 	spin_lock(&fs_info->reada_lock);
 	ret = radix_tree_insert(&fs_info->reada_tree, index, re);
 	if (ret == -EEXIST) {
 		re_exist = radix_tree_lookup(&fs_info->reada_tree, index);
 		re_exist->refcnt++;
 		spin_unlock(&fs_info->reada_lock);
-		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+		btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 		radix_tree_preload_end();
 		goto error;
 	}
 	if (ret) {
 		spin_unlock(&fs_info->reada_lock);
-		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+		btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 		radix_tree_preload_end();
 		goto error;
 	}
@@ -451,13 +451,13 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 			}
 			radix_tree_delete(&fs_info->reada_tree, index);
 			spin_unlock(&fs_info->reada_lock);
-			btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+			btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 			goto error;
 		}
 		have_zone = 1;
 	}
 	spin_unlock(&fs_info->reada_lock);
-	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
+	btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
 
 	if (!have_zone)
 		goto error;

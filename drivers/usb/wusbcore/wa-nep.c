@@ -93,7 +93,6 @@ static void wa_notif_dispatch(struct work_struct *ws)
 		goto out;				/* screw it */
 #endif
 	atomic_dec(&wa->notifs_queued);		/* Throttling ctl */
-	dev = &wa->usb_iface->dev;
 	size = nw->size;
 	itr = nw->data;
 

@@ -229,7 +229,6 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 {
 	struct ptlrpc_bulk_desc *desc = req->rq_bulk;
 	wait_queue_head_t *wq;
-	struct l_wait_info lwi;
 	int rc;
 
 	LASSERT(!in_interrupt());     /* might sleep */
@@ -246,7 +245,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 
 	/* the unlink ensures the callback happens ASAP and is the last
 	 * one.  If it fails, it must be because completion just happened,
-	 * but we must still l_wait_event() in this case to give liblustre
+	 * but we must still wait_event() in this case to give liblustre
 	 * a chance to run client_bulk_callback()
 	 */
 	mdunlink_iterate_helper(desc->bd_mds, desc->bd_md_max_brw);
@@ -270,15 +269,17 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 		/* Network access will complete in finite time but the HUGE
 		 * timeout lets us CWARN for visibility of sluggish LNDs
 		 */
-		lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(LONG_UNLINK),
-					   cfs_time_seconds(1), NULL, NULL);
-		rc = l_wait_event(*wq, !ptlrpc_client_bulk_active(req), &lwi);
-		if (rc == 0) {
+		int cnt = 0;
+		while (cnt < LONG_UNLINK &&
+		       (rc = wait_event_idle_timeout(*wq,
+						     !ptlrpc_client_bulk_active(req),
+						     HZ)) == 0)
+			cnt += 1;
+		if (rc > 0) {
 			ptlrpc_rqphase_move(req, req->rq_next_phase);
 			return 1;
 		}
 
-		LASSERT(rc == -ETIMEDOUT);
 		DEBUG_REQ(D_WARNING, req, "Unexpectedly long timeout: desc %p",
 			  desc);
 	}

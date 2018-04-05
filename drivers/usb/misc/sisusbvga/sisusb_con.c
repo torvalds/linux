@@ -1217,7 +1217,7 @@ font_op_error:
 /* Interface routine */
 static int
 sisusbcon_font_set(struct vc_data *c, struct console_font *font,
-							unsigned flags)
+		   unsigned int flags)
 {
 	struct sisusb_usb_data *sisusb;
 	unsigned charcount = font->charcount;
@@ -1338,29 +1338,65 @@ static void sisusbdummycon_init(struct vc_data *vc, int init)
 	vc_resize(vc, 80, 25);
 }
 
-static int sisusbdummycon_dummy(void)
+static void sisusbdummycon_deinit(struct vc_data *vc) { }
+static void sisusbdummycon_clear(struct vc_data *vc, int sy, int sx,
+				 int height, int width) { }
+static void sisusbdummycon_putc(struct vc_data *vc, int c, int ypos,
+				int xpos) { }
+static void sisusbdummycon_putcs(struct vc_data *vc, const unsigned short *s,
+				 int count, int ypos, int xpos) { }
+static void sisusbdummycon_cursor(struct vc_data *vc, int mode) { }
+
+static bool sisusbdummycon_scroll(struct vc_data *vc, unsigned int top,
+				  unsigned int bottom, enum con_scroll dir,
+				  unsigned int lines)
 {
-    return 0;
+	return false;
 }
 
-#define SISUSBCONDUMMY	(void *)sisusbdummycon_dummy
+static int sisusbdummycon_switch(struct vc_data *vc)
+{
+	return 0;
+}
+
+static int sisusbdummycon_blank(struct vc_data *vc, int blank, int mode_switch)
+{
+	return 0;
+}
+
+static int sisusbdummycon_font_set(struct vc_data *vc,
+				   struct console_font *font,
+				   unsigned int flags)
+{
+	return 0;
+}
+
+static int sisusbdummycon_font_default(struct vc_data *vc,
+				       struct console_font *font, char *name)
+{
+	return 0;
+}
+
+static int sisusbdummycon_font_copy(struct vc_data *vc, int con)
+{
+	return 0;
+}
 
 static const struct consw sisusb_dummy_con = {
 	.owner =		THIS_MODULE,
 	.con_startup =		sisusbdummycon_startup,
 	.con_init =		sisusbdummycon_init,
-	.con_deinit =		SISUSBCONDUMMY,
-	.con_clear =		SISUSBCONDUMMY,
-	.con_putc =		SISUSBCONDUMMY,
-	.con_putcs =		SISUSBCONDUMMY,
-	.con_cursor =		SISUSBCONDUMMY,
-	.con_scroll =		SISUSBCONDUMMY,
-	.con_switch =		SISUSBCONDUMMY,
-	.con_blank =		SISUSBCONDUMMY,
-	.con_font_set =		SISUSBCONDUMMY,
-	.con_font_get =		SISUSBCONDUMMY,
-	.con_font_default =	SISUSBCONDUMMY,
-	.con_font_copy =	SISUSBCONDUMMY,
+	.con_deinit =		sisusbdummycon_deinit,
+	.con_clear =		sisusbdummycon_clear,
+	.con_putc =		sisusbdummycon_putc,
+	.con_putcs =		sisusbdummycon_putcs,
+	.con_cursor =		sisusbdummycon_cursor,
+	.con_scroll =		sisusbdummycon_scroll,
+	.con_switch =		sisusbdummycon_switch,
+	.con_blank =		sisusbdummycon_blank,
+	.con_font_set =		sisusbdummycon_font_set,
+	.con_font_default =	sisusbdummycon_font_default,
+	.con_font_copy =	sisusbdummycon_font_copy,
 };
 
 int

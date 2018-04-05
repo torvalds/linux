@@ -159,7 +159,7 @@ static int dht11_decode(struct dht11 *dht11, int offset)
 	}
 
 	dht11->timestamp = ktime_get_boot_ns();
-	if (hum_int < 20) {  /* DHT22 */
+	if (hum_int < 4) {  /* DHT22: 100000 = (3*256+232)*100 */
 		dht11->temperature = (((temp_int & 0x7f) << 8) + temp_dec) *
 					((temp_int & 0x80) ? -100 : 100);
 		dht11->humidity = ((hum_int << 8) + hum_dec) * 100;

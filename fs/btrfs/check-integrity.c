@@ -96,9 +96,9 @@
 #include <linux/blkdev.h>
 #include <linux/mm.h>
 #include <linux/string.h>
+#include <linux/crc32c.h>
 #include "ctree.h"
 #include "disk-io.h"
-#include "hash.h"
 #include "transaction.h"
 #include "extent_io.h"
 #include "volumes.h"
@@ -1736,7 +1736,7 @@ static int btrfsic_test_for_metadata(struct btrfsic_state *state,
 		size_t sublen = i ? PAGE_SIZE :
 				    (PAGE_SIZE - BTRFS_CSUM_SIZE);
 
-		crc = btrfs_crc32c(crc, data, sublen);
+		crc = crc32c(crc, data, sublen);
 	}
 	btrfs_csum_final(crc, csum);
 	if (memcmp(csum, h->csum, state->csum_size))

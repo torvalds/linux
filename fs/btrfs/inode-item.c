@@ -18,7 +18,6 @@
 
 #include "ctree.h"
 #include "disk-io.h"
-#include "hash.h"
 #include "transaction.h"
 #include "print-tree.h"
 

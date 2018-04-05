@@ -111,7 +111,7 @@
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
  * @rx:			receive buffer
- * @buf_lock:		mutex to protect tx and rx
+ * @buf_lock:		mutex to protect tx, rx, read and write frequency
  **/
 struct ade7758_state {
 	struct spi_device	*us;

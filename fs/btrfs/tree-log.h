@@ -65,7 +65,7 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info);
 int btrfs_recover_log_trees(struct btrfs_root *tree_root);
 int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, struct dentry *dentry,
+			  struct dentry *dentry,
 			  const loff_t start,
 			  const loff_t end,
 			  struct btrfs_log_ctx *ctx);

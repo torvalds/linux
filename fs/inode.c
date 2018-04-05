@@ -346,15 +346,20 @@ void inc_nlink(struct inode *inode)
 }
 EXPORT_SYMBOL(inc_nlink);
 
-void address_space_init_once(struct address_space *mapping)
+static void __address_space_init_once(struct address_space *mapping)
 {
-	memset(mapping, 0, sizeof(*mapping));
 	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC | __GFP_ACCOUNT);
 	spin_lock_init(&mapping->tree_lock);
 	init_rwsem(&mapping->i_mmap_rwsem);
 	INIT_LIST_HEAD(&mapping->private_list);
 	spin_lock_init(&mapping->private_lock);
 	mapping->i_mmap = RB_ROOT_CACHED;
+}
+
+void address_space_init_once(struct address_space *mapping)
+{
+	memset(mapping, 0, sizeof(*mapping));
+	__address_space_init_once(mapping);
 }
 EXPORT_SYMBOL(address_space_init_once);
 
@@ -371,7 +376,7 @@ void inode_init_once(struct inode *inode)
 	INIT_LIST_HEAD(&inode->i_io_list);
 	INIT_LIST_HEAD(&inode->i_wb_list);
 	INIT_LIST_HEAD(&inode->i_lru);
-	address_space_init_once(&inode->i_data);
+	__address_space_init_once(&inode->i_data);
 	i_size_ordered_init(inode);
 }
 EXPORT_SYMBOL(inode_init_once);
@@ -1533,7 +1538,6 @@ retry:
 	if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
 		if (inode->i_nlink && (inode->i_state & I_DIRTY_TIME)) {
 			atomic_inc(&inode->i_count);
-			inode->i_state &= ~I_DIRTY_TIME;
 			spin_unlock(&inode->i_lock);
 			trace_writeback_lazytime_iput(inode);
 			mark_inode_dirty_sync(inode);

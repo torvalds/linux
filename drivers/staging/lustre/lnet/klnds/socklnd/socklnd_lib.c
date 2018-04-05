@@ -189,7 +189,7 @@ ksocknal_lib_recv(struct ksock_conn *conn)
 	if (!(conn->ksnc_rx_to.type & ITER_BVEC) &&
 	     conn->ksnc_proto != &ksocknal_protocol_v2x)
 		return rc;
-		
+
 	/* accumulate checksum */
 	conn->ksnc_msg.ksm_csum = 0;
 	iov_iter_for_each_range(&conn->ksnc_rx_to, rc, lustre_csum, conn);

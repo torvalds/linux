@@ -130,10 +130,12 @@ struct cifs_secmech {
 	struct crypto_shash *md5; /* md5 hash function */
 	struct crypto_shash *hmacsha256; /* hmac-sha256 hash function */
 	struct crypto_shash *cmacaes; /* block-cipher based MAC function */
+	struct crypto_shash *sha512; /* sha512 hash function */
 	struct sdesc *sdeschmacmd5;  /* ctxt to generate ntlmv2 hash, CR1 */
 	struct sdesc *sdescmd5; /* ctxt to generate cifs/smb signature */
 	struct sdesc *sdeschmacsha256;  /* ctxt to generate smb2 signature */
 	struct sdesc *sdesccmacaes;  /* ctxt to generate smb3 signature */
+	struct sdesc *sdescsha512; /* ctxt to generate smb3.11 signing key */
 	struct crypto_aead *ccmaesencrypt; /* smb3 encryption aead */
 	struct crypto_aead *ccmaesdecrypt; /* smb3 decryption aead */
 };
@@ -466,6 +468,7 @@ struct smb_version_values {
 	__u32		exclusive_lock_type;
 	__u32		shared_lock_type;
 	__u32		unlock_lock_type;
+	size_t		header_preamble_size;
 	size_t		header_size;
 	size_t		max_header_size;
 	size_t		read_rsp_size;
@@ -673,7 +676,8 @@ struct TCP_Server_Info {
 	unsigned int	max_read;
 	unsigned int	max_write;
 #ifdef CONFIG_CIFS_SMB311
-	__u8	preauth_sha_hash[64]; /* save initital negprot hash */
+	 /* save initital negprot hash */
+	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 #endif /* 3.1.1 */
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
@@ -862,7 +866,7 @@ struct cifs_ses {
 	__u8 smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
 #ifdef CONFIG_CIFS_SMB311
-	__u8 preauth_sha_hash[64];
+	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 #endif /* 3.1.1 */
 };
 
@@ -1466,6 +1470,7 @@ struct dfs_info3_param {
 #define CIFS_FATTR_NEED_REVAL		0x4
 #define CIFS_FATTR_INO_COLLISION	0x8
 #define CIFS_FATTR_UNKNOWN_NLINK	0x10
+#define CIFS_FATTR_FAKE_ROOT_INO	0x20
 
 struct cifs_fattr {
 	u32		cf_flags;

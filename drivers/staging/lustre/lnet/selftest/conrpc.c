@@ -359,7 +359,7 @@ lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout)
 
 	rc = wait_event_interruptible_timeout(trans->tas_waitq,
 					      lstcon_rpc_trans_check(trans),
-					      cfs_time_seconds(timeout));
+					      timeout * HZ);
 	rc = (rc > 0) ? 0 : ((rc < 0) ? -EINTR : -ETIMEDOUT);
 
 	mutex_lock(&console_session.ses_mutex);
@@ -1350,7 +1350,7 @@ lstcon_rpc_cleanup_wait(void)
 
 		CWARN("Session is shutting down, waiting for termination of transactions\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		schedule_timeout(HZ);
 
 		mutex_lock(&console_session.ses_mutex);
 	}

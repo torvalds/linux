@@ -447,9 +447,10 @@ int xhci_dbc_tty_register_device(struct xhci_hcd *xhci)
 	xhci_dbc_tty_init_port(xhci, port);
 	tty_dev = tty_port_register_device(&port->port,
 					   dbc_tty_driver, 0, NULL);
-	ret = IS_ERR_OR_NULL(tty_dev);
-	if (ret)
+	if (IS_ERR(tty_dev)) {
+		ret = PTR_ERR(tty_dev);
 		goto register_fail;
+	}
 
 	ret = kfifo_alloc(&port->write_fifo, DBC_WRITE_BUF_SIZE, GFP_KERNEL);
 	if (ret)

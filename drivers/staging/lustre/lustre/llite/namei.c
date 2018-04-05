@@ -380,52 +380,45 @@ void ll_i2gids(__u32 *suppgids, struct inode *i1, struct inode *i2)
 }
 
 /*
- * try to reuse three types of dentry:
- * 1. unhashed alias, this one is unhashed by d_invalidate (but it may be valid
- *    by concurrent .revalidate).
- * 2. INVALID alias (common case for no valid ldlm lock held, but this flag may
- *    be cleared by others calling d_lustre_revalidate).
- * 3. DISCONNECTED alias.
+ * Try to reuse unhashed or invalidated dentries.
+ * This is very similar to d_exact_alias(), and any changes in one should be
+ * considered for inclusion in the other.  The differences are that we don't
+ * need an unhashed alias, and we don't want d_compare to be used for
+ * comparison.
  */
 static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 {
-	struct dentry *alias, *discon_alias, *invalid_alias;
+	struct dentry *alias;
 
 	if (hlist_empty(&inode->i_dentry))
 		return NULL;
 
-	discon_alias = NULL;
-	invalid_alias = NULL;
-
 	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
 		LASSERT(alias != dentry);
+		/*
+		 * Don't need alias->d_lock here, because aliases with
+		 * d_parent == entry->d_parent are not subject to name or
+		 * parent changes, because the parent inode i_mutex is held.
+		 */
 
-		spin_lock(&alias->d_lock);
-		if ((alias->d_flags & DCACHE_DISCONNECTED) &&
-		    S_ISDIR(inode->i_mode))
-			/* LASSERT(last_discon == NULL); LU-405, bz 20055 */
-			discon_alias = alias;
-		else if (alias->d_parent == dentry->d_parent	     &&
-			 alias->d_name.hash == dentry->d_name.hash       &&
-			 alias->d_name.len == dentry->d_name.len	 &&
-			 memcmp(alias->d_name.name, dentry->d_name.name,
-				dentry->d_name.len) == 0)
-			invalid_alias = alias;
-		spin_unlock(&alias->d_lock);
-
-		if (invalid_alias)
-			break;
-	}
-	alias = invalid_alias ?: discon_alias ?: NULL;
-	if (alias) {
+		if (alias->d_parent != dentry->d_parent)
+			continue;
+		if (alias->d_name.hash != dentry->d_name.hash)
+			continue;
+		if (alias->d_name.len != dentry->d_name.len ||
+		    memcmp(alias->d_name.name, dentry->d_name.name,
+			   dentry->d_name.len) != 0)
+			continue;
 		spin_lock(&alias->d_lock);
 		dget_dlock(alias);
 		spin_unlock(&alias->d_lock);
+		spin_unlock(&inode->i_lock);
+		return alias;
 	}
 	spin_unlock(&inode->i_lock);
 
-	return alias;
+	return NULL;
 }
 
 /*
@@ -434,7 +427,7 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
  */
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 {
-	if (inode) {
+	if (inode && !S_ISDIR(inode->i_mode)) {
 		struct dentry *new = ll_find_alias(inode, de);
 
 		if (new) {
@@ -445,8 +438,13 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 			      new, d_inode(new), d_count(new), new->d_flags);
 			return new;
 		}
+		d_add(de, inode);
+	} else {
+		struct dentry *new = d_splice_alias(inode, de);
+
+		if (new)
+			de = new;
 	}
-	d_add(de, inode);
 	CDEBUG(D_DENTRY, "Add dentry %p inode %p refc %d flags %#x\n",
 	       de, d_inode(de), d_count(de), de->d_flags);
 	return de;

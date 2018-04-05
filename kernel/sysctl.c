@@ -253,6 +253,10 @@ extern struct ctl_table random_table[];
 extern struct ctl_table epoll_table[];
 #endif
 
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+extern struct ctl_table firmware_config_table[];
+#endif
+
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
 int sysctl_legacy_va_layout;
 #endif
@@ -748,6 +752,13 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0555,
 		.child		= usermodehelper_table,
 	},
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+	{
+		.procname	= "firmware_config",
+		.mode		= 0555,
+		.child		= firmware_config_table,
+	},
+#endif
 	{
 		.procname	= "overflowuid",
 		.data		= &overflowuid,

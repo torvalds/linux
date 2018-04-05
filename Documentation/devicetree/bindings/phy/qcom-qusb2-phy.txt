@@ -4,7 +4,10 @@ Qualcomm QUSB2 phy controller
 QUSB2 controller supports LS/FS/HS usb connectivity on Qualcomm chipsets.
 
 Required properties:
- - compatible: compatible list, contains "qcom,msm8996-qusb2-phy".
+ - compatible: compatible list, contains
+	       "qcom,msm8996-qusb2-phy" for 14nm PHY on msm8996,
+	       "qcom,qusb2-v2-phy" for QUSB2 V2 PHY.
+
  - reg: offset and length of the PHY register set.
  - #phy-cells: must be 0.
 

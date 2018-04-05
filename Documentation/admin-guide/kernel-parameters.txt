@@ -1739,6 +1739,14 @@
 			of a GICv2 controller even if the memory range
 			exposed by the device tree is too small.
 
+	irqchip.gicv3_nolpi=
+			[ARM, ARM64]
+			Force the kernel to ignore the availability of
+			LPIs (and by consequence ITSs). Intended for system
+			that use the kernel as a bootloader, and thus want
+			to let secondary kernels in charge of setting up
+			LPIs.
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken
@@ -4383,6 +4391,64 @@
 			(default 5000 = 5.0 seconds).
 
 	usbcore.nousb	[USB] Disable the USB subsystem
+
+	usbcore.quirks=
+			[USB] A list of quirk entries to augment the built-in
+			usb core quirk list. List entries are separated by
+			commas. Each entry has the form
+			VendorID:ProductID:Flags. The IDs are 4-digit hex
+			numbers and Flags is a set of letters. Each letter
+			will change the built-in quirk; setting it if it is
+			clear and clearing it if it is set. The letters have
+			the following meanings:
+				a = USB_QUIRK_STRING_FETCH_255 (string
+					descriptors must not be fetched using
+					a 255-byte read);
+				b = USB_QUIRK_RESET_RESUME (device can't resume
+					correctly so reset it instead);
+				c = USB_QUIRK_NO_SET_INTF (device can't handle
+					Set-Interface requests);
+				d = USB_QUIRK_CONFIG_INTF_STRINGS (device can't
+					handle its Configuration or Interface
+					strings);
+				e = USB_QUIRK_RESET (device can't be reset
+					(e.g morph devices), don't use reset);
+				f = USB_QUIRK_HONOR_BNUMINTERFACES (device has
+					more interface descriptions than the
+					bNumInterfaces count, and can't handle
+					talking to these interfaces);
+				g = USB_QUIRK_DELAY_INIT (device needs a pause
+					during initialization, after we read
+					the device descriptor);
+				h = USB_QUIRK_LINEAR_UFRAME_INTR_BINTERVAL (For
+					high speed and super speed interrupt
+					endpoints, the USB 2.0 and USB 3.0 spec
+					require the interval in microframes (1
+					microframe = 125 microseconds) to be
+					calculated as interval = 2 ^
+					(bInterval-1).
+					Devices with this quirk report their
+					bInterval as the result of this
+					calculation instead of the exponent
+					variable used in the calculation);
+				i = USB_QUIRK_DEVICE_QUALIFIER (device can't
+					handle device_qualifier descriptor
+					requests);
+				j = USB_QUIRK_IGNORE_REMOTE_WAKEUP (device
+					generates spurious wakeup, ignore
+					remote wakeup capability);
+				k = USB_QUIRK_NO_LPM (device can't handle Link
+					Power Management);
+				l = USB_QUIRK_LINEAR_FRAME_INTR_BINTERVAL
+					(Device reports its bInterval as linear
+					frames instead of the USB 2.0
+					calculation);
+				m = USB_QUIRK_DISCONNECT_SUSPEND (Device needs
+					to be disconnected before suspend to
+					prevent spurious wakeup);
+				n = USB_QUIRK_DELAY_CTRL_MSG (Device needs a
+					pause after every control message);
+			Example: quirks=0781:5580:bk,0a5c:5834:gij
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.

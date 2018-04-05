@@ -69,6 +69,22 @@ struct btrfs_transaction {
 	struct list_head pending_chunks;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
+
+	/*
+	 * There is no explicit lock which protects io_bgs, rather its
+	 * consistency is implied by the fact that all the sites which modify
+	 * it do so under some form of transaction critical section, namely:
+	 *
+	 * - btrfs_start_dirty_block_groups - This function can only ever be
+	 *   run by one of the transaction committers. Refer to
+	 *   BTRFS_TRANS_DIRTY_BG_RUN usage in btrfs_commit_transaction
+	 *
+	 * - btrfs_write_dirty_blockgroups - this is called by
+	 *   commit_cowonly_roots from transaction critical section
+	 *   (TRANS_STATE_COMMIT_DOING)
+	 *
+	 * - btrfs_cleanup_dirty_bgs - called on transaction abort
+	 */
 	struct list_head io_bgs;
 	struct list_head dropped_roots;
 
@@ -89,21 +105,18 @@ struct btrfs_transaction {
 
 #define __TRANS_FREEZABLE	(1U << 0)
 
-#define __TRANS_USERSPACE	(1U << 8)
 #define __TRANS_START		(1U << 9)
 #define __TRANS_ATTACH		(1U << 10)
 #define __TRANS_JOIN		(1U << 11)
 #define __TRANS_JOIN_NOLOCK	(1U << 12)
 #define __TRANS_DUMMY		(1U << 13)
 
-#define TRANS_USERSPACE		(__TRANS_USERSPACE | __TRANS_FREEZABLE)
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
 #define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
 #define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
 
-#define TRANS_EXTWRITERS	(__TRANS_USERSPACE | __TRANS_START |	\
-				 __TRANS_ATTACH)
+#define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
 #define BTRFS_SEND_TRANS_STUB	((void *)1)
 
@@ -186,15 +199,11 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 					struct btrfs_root *root,
 					unsigned int num_items,
 					int min_factor);
-struct btrfs_trans_handle *btrfs_start_transaction_lflush(
-					struct btrfs_root *root,
-					unsigned int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 					struct btrfs_root *root);
-struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root);
 int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid);
 
 void btrfs_add_dead_root(struct btrfs_root *root);

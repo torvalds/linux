@@ -54,8 +54,12 @@
 #define MAC_ERROR_BIT		0
 #define CHK_MAC_ERR_BIT(x)	(((x) >> MAC_ERROR_BIT) & 1)
 #define MAX_SALT                4
-#define WR_MIN_LEN (sizeof(struct chcr_wr) + \
+#define CIP_WR_MIN_LEN (sizeof(struct chcr_wr) + \
 		    sizeof(struct cpl_rx_phys_dsgl) + \
+		    sizeof(struct ulptx_sgl))
+
+#define HASH_WR_MIN_LEN (sizeof(struct chcr_wr) + \
+			DUMMY_BYTES + \
 		    sizeof(struct ulptx_sgl))
 
 #define padap(dev) pci_get_drvdata(dev->u_ctx->lldi.pdev)

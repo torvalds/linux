@@ -917,7 +917,7 @@ mt7530_port_fdb_add(struct dsa_switch *ds, int port,
 
 	mutex_lock(&priv->reg_mutex);
 	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_ENT);
-	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
+	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, NULL);
 	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
@@ -933,7 +933,7 @@ mt7530_port_fdb_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&priv->reg_mutex);
 	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_EMP);
-	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
+	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, NULL);
 	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
@@ -1293,7 +1293,7 @@ mt7530_setup(struct dsa_switch *ds)
 	}
 
 	/* Flush the FDB table */
-	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, 0);
+	ret = mt7530_fdb_cmd(priv, MT7530_FDB_FLUSH, NULL);
 	if (ret < 0)
 		return ret;
 

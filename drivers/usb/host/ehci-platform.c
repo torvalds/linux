@@ -27,7 +27,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/usb.h>
@@ -44,8 +43,6 @@
 struct ehci_platform_priv {
 	struct clk *clks[EHCI_MAX_CLKS];
 	struct reset_control *rsts;
-	struct phy **phys;
-	int num_phys;
 	bool reset_on_resume;
 };
 
@@ -80,7 +77,7 @@ static int ehci_platform_power_on(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
-	int clk, ret, phy_num;
+	int clk, ret;
 
 	for (clk = 0; clk < EHCI_MAX_CLKS && priv->clks[clk]; clk++) {
 		ret = clk_prepare_enable(priv->clks[clk]);
@@ -88,24 +85,8 @@ static int ehci_platform_power_on(struct platform_device *dev)
 			goto err_disable_clks;
 	}
 
-	for (phy_num = 0; phy_num < priv->num_phys; phy_num++) {
-		ret = phy_init(priv->phys[phy_num]);
-		if (ret)
-			goto err_exit_phy;
-		ret = phy_power_on(priv->phys[phy_num]);
-		if (ret) {
-			phy_exit(priv->phys[phy_num]);
-			goto err_exit_phy;
-		}
-	}
-
 	return 0;
 
-err_exit_phy:
-	while (--phy_num >= 0) {
-		phy_power_off(priv->phys[phy_num]);
-		phy_exit(priv->phys[phy_num]);
-	}
 err_disable_clks:
 	while (--clk >= 0)
 		clk_disable_unprepare(priv->clks[clk]);
@@ -117,12 +98,7 @@ static void ehci_platform_power_off(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
-	int clk, phy_num;
-
-	for (phy_num = 0; phy_num < priv->num_phys; phy_num++) {
-		phy_power_off(priv->phys[phy_num]);
-		phy_exit(priv->phys[phy_num]);
-	}
+	int clk;
 
 	for (clk = EHCI_MAX_CLKS - 1; clk >= 0; clk--)
 		if (priv->clks[clk])
@@ -149,7 +125,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
 	struct ehci_platform_priv *priv;
 	struct ehci_hcd *ehci;
-	int err, irq, phy_num, clk = 0;
+	int err, irq, clk = 0;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -201,29 +177,6 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node,
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
-
-		priv->num_phys = of_count_phandle_with_args(dev->dev.of_node,
-				"phys", "#phy-cells");
-
-		if (priv->num_phys > 0) {
-			priv->phys = devm_kcalloc(&dev->dev, priv->num_phys,
-					    sizeof(struct phy *), GFP_KERNEL);
-			if (!priv->phys)
-				return -ENOMEM;
-		} else
-			priv->num_phys = 0;
-
-		for (phy_num = 0; phy_num < priv->num_phys; phy_num++) {
-			priv->phys[phy_num] = devm_of_phy_get_by_index(
-					&dev->dev, dev->dev.of_node, phy_num);
-			if (IS_ERR(priv->phys[phy_num])) {
-				err = PTR_ERR(priv->phys[phy_num]);
-					goto err_put_hcd;
-			} else if (!hcd->phy) {
-				/* Avoiding phy_get() in usb_add_hcd() */
-				hcd->phy = priv->phys[phy_num];
-			}
-		}
 
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
 			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
@@ -306,7 +259,7 @@ err_reset:
 err_put_clks:
 	while (--clk >= 0)
 		clk_put(priv->clks[clk]);
-err_put_hcd:
+
 	if (pdata == &ehci_platform_defaults)
 		dev->dev.platform_data = NULL;
 

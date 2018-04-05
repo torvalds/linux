@@ -934,8 +934,6 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 			   enum osc_extent_state state)
 {
 	struct osc_object *obj = ext->oe_obj;
-	struct l_wait_info lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(600), NULL,
-						  LWI_ON_SIGNAL_NOOP, NULL);
 	int rc = 0;
 
 	osc_object_lock(obj);
@@ -958,18 +956,19 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 		osc_extent_release(env, ext);
 
 	/* wait for the extent until its state becomes @state */
-	rc = l_wait_event(ext->oe_waitq, extent_wait_cb(ext, state), &lwi);
-	if (rc == -ETIMEDOUT) {
+	rc = wait_event_idle_timeout(ext->oe_waitq,
+				     extent_wait_cb(ext, state), 600 * HZ);
+	if (rc == 0) {
 		OSC_EXTENT_DUMP(D_ERROR, ext,
 				"%s: wait ext to %u timedout, recovery in progress?\n",
 				cli_name(osc_cli(obj)), state);
 
-		lwi = LWI_INTR(NULL, NULL);
-		rc = l_wait_event(ext->oe_waitq, extent_wait_cb(ext, state),
-				  &lwi);
+		wait_event_idle(ext->oe_waitq, extent_wait_cb(ext, state));
 	}
-	if (rc == 0 && ext->oe_rc < 0)
+	if (ext->oe_rc < 0)
 		rc = ext->oe_rc;
+	else
+		rc = 0;
 	return rc;
 }
 
@@ -1530,7 +1529,7 @@ static int osc_enter_cache_try(struct client_obd *cli,
 	if (rc < 0)
 		return 0;
 
-	if (cli->cl_dirty_pages <= cli->cl_dirty_max_pages &&
+	if (cli->cl_dirty_pages < cli->cl_dirty_max_pages &&
 	    atomic_long_read(&obd_dirty_pages) + 1 <= obd_max_dirty_pages) {
 		osc_consume_write_grant(cli, &oap->oap_brw_page);
 		if (transient) {
@@ -1569,11 +1568,8 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	struct osc_object *osc = oap->oap_obj;
 	struct lov_oinfo *loi = osc->oo_oinfo;
 	struct osc_cache_waiter ocw;
-	struct l_wait_info lwi;
+	unsigned long timeout = (AT_OFF ? obd_timeout : at_max) * HZ;
 	int rc = -EDQUOT;
-
-	lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(AT_OFF ? obd_timeout : at_max),
-			       NULL, LWI_ON_SIGNAL_NOOP, NULL);
 
 	OSC_DUMP_GRANT(D_CACHE, cli, "need:%d\n", bytes);
 
@@ -1617,13 +1613,15 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 		CDEBUG(D_CACHE, "%s: sleeping for cache space @ %p for %p\n",
 		       cli_name(cli), &ocw, oap);
 
-		rc = l_wait_event(ocw.ocw_waitq, ocw_granted(cli, &ocw), &lwi);
+		rc = wait_event_idle_timeout(ocw.ocw_waitq,
+					     ocw_granted(cli, &ocw), timeout);
 
 		spin_lock(&cli->cl_loi_list_lock);
 
-		if (rc < 0) {
-			/* l_wait_event is interrupted by signal, or timed out */
+		if (rc == 0) {
+			/* wait_event is interrupted by signal, or timed out */
 			list_del_init(&ocw.ocw_entry);
+			rc = -ETIMEDOUT;
 			break;
 		}
 		LASSERT(list_empty(&ocw.ocw_entry));
@@ -2347,7 +2345,7 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 	oap->oap_obj_off = offset;
 	LASSERT(!(offset & ~PAGE_MASK));
 
-	if (capable(CFS_CAP_SYS_RESOURCE))
+	if (capable(CAP_SYS_RESOURCE))
 		oap->oap_brw_flags = OBD_BRW_NOQUOTA;
 
 	INIT_LIST_HEAD(&oap->oap_pending_item);
@@ -2386,7 +2384,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 
 	/* Set the OBD_BRW_SRVLOCK before the page is queued. */
 	brw_flags |= ops->ops_srvlock ? OBD_BRW_SRVLOCK : 0;
-	if (capable(CFS_CAP_SYS_RESOURCE)) {
+	if (capable(CAP_SYS_RESOURCE)) {
 		brw_flags |= OBD_BRW_NOQUOTA;
 		cmd |= OBD_BRW_NOQUOTA;
 	}

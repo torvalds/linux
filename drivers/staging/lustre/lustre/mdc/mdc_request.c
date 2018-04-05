@@ -838,7 +838,6 @@ static int mdc_getpage(struct obd_export *exp, const struct lu_fid *fid,
 	struct ptlrpc_bulk_desc *desc;
 	struct ptlrpc_request *req;
 	wait_queue_head_t waitq;
-	struct l_wait_info lwi;
 	int resends = 0;
 	int rc;
 	int i;
@@ -888,9 +887,7 @@ restart_bulk:
 			       exp->exp_obd->obd_name, -EIO);
 			return -EIO;
 		}
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends), NULL, NULL,
-				       NULL);
-		l_wait_event(waitq, 0, &lwi);
+		wait_event_idle_timeout(waitq, 0, resends * HZ);
 
 		goto restart_bulk;
 	}
@@ -1058,13 +1055,14 @@ static void mdc_adjust_dirpages(struct page **pages, int cfs_pgs, int lu_pgs)
 		__u64 hash_end = le64_to_cpu(dp->ldp_hash_end);
 		__u32 flags = le32_to_cpu(dp->ldp_flags);
 		struct lu_dirpage *first = dp;
-		struct lu_dirent *end_dirent = NULL;
-		struct lu_dirent *ent;
 
 		while (--lu_pgs > 0) {
-			ent = lu_dirent_start(dp);
-			for (end_dirent = ent; ent;
-			     end_dirent = ent, ent = lu_dirent_next(ent));
+			struct lu_dirent *end_dirent = NULL;
+			struct lu_dirent *ent;
+
+			for (ent = lu_dirent_start(dp); ent;
+			     ent = lu_dirent_next(ent))
+				end_dirent = ent;
 
 			/* Advance dp to next lu_dirpage. */
 			dp = (struct lu_dirpage *)((char *)dp + LU_PAGE_SIZE);

@@ -862,6 +862,8 @@ static int smbd_post_send_negotiate_req(struct smbd_connection *info)
 	ib_dma_unmap_single(info->id->device, request->sge[0].addr,
 		request->sge[0].length, DMA_TO_DEVICE);
 
+	smbd_disconnect_rdma_connection(info);
+
 dma_mapping_failed:
 	mempool_free(request, info->request_mempool);
 	return rc;
@@ -1025,7 +1027,7 @@ static int smbd_post_send(struct smbd_connection *info,
 
 	for (i = 0; i < request->num_sge; i++) {
 		log_rdma_send(INFO,
-			"rdma_request sge[%d] addr=%llu legnth=%u\n",
+			"rdma_request sge[%d] addr=%llu length=%u\n",
 			i, request->sge[0].addr, request->sge[0].length);
 		ib_dma_sync_single_for_device(
 			info->id->device,
@@ -1061,6 +1063,7 @@ static int smbd_post_send(struct smbd_connection *info,
 			if (atomic_dec_and_test(&info->send_pending))
 				wake_up(&info->wait_send_pending);
 		}
+		smbd_disconnect_rdma_connection(info);
 	} else
 		/* Reset timer for idle connection after packet is sent */
 		mod_delayed_work(info->workqueue, &info->idle_timer_work,
@@ -1202,7 +1205,7 @@ static int smbd_post_recv(
 	if (rc) {
 		ib_dma_unmap_single(info->id->device, response->sge.addr,
 				    response->sge.length, DMA_FROM_DEVICE);
-
+		smbd_disconnect_rdma_connection(info);
 		log_rdma_recv(ERR, "ib_post_recv failed rc=%d\n", rc);
 	}
 
@@ -1498,8 +1501,8 @@ int smbd_reconnect(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "reconnecting rdma session\n");
 
 	if (!server->smbd_conn) {
-		log_rdma_event(ERR, "rdma session already destroyed\n");
-		return -EINVAL;
+		log_rdma_event(INFO, "rdma session already destroyed\n");
+		goto create_conn;
 	}
 
 	/*
@@ -1512,15 +1515,19 @@ int smbd_reconnect(struct TCP_Server_Info *server)
 	}
 
 	/* wait until the transport is destroyed */
-	wait_event(server->smbd_conn->wait_destroy,
-		server->smbd_conn->transport_status == SMBD_DESTROYED);
+	if (!wait_event_timeout(server->smbd_conn->wait_destroy,
+		server->smbd_conn->transport_status == SMBD_DESTROYED, 5*HZ))
+		return -EAGAIN;
 
 	destroy_workqueue(server->smbd_conn->workqueue);
 	kfree(server->smbd_conn);
 
+create_conn:
 	log_rdma_event(INFO, "creating rdma session\n");
 	server->smbd_conn = smbd_get_connection(
 		server, (struct sockaddr *) &server->dstaddr);
+	log_rdma_event(INFO, "created rdma session info=%p\n",
+		server->smbd_conn);
 
 	return server->smbd_conn ? 0 : -ENOENT;
 }
@@ -2295,7 +2302,7 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 				rc = ib_dereg_mr(smbdirect_mr->mr);
 				if (rc) {
 					log_rdma_mr(ERR,
-						"ib_dereg_mr faield rc=%x\n",
+						"ib_dereg_mr failed rc=%x\n",
 						rc);
 					smbd_disconnect_rdma_connection(info);
 				}
@@ -2541,6 +2548,8 @@ dma_map_error:
 	smbdirect_mr->state = MR_ERROR;
 	if (atomic_dec_and_test(&info->mr_used_count))
 		wake_up(&info->wait_for_mr_cleanup);
+
+	smbd_disconnect_rdma_connection(info);
 
 	return NULL;
 }

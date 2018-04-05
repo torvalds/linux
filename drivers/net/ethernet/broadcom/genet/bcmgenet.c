@@ -1489,7 +1489,7 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 	struct sk_buff *new_skb;
 	u16 offset;
 	u8 ip_proto;
-	u16 ip_ver;
+	__be16 ip_ver;
 	u32 tx_csum_info;
 
 	if (unlikely(skb_headroom(skb) < sizeof(*status))) {
@@ -1509,12 +1509,12 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 	status = (struct status_64 *)skb->data;
 
 	if (skb->ip_summed  == CHECKSUM_PARTIAL) {
-		ip_ver = htons(skb->protocol);
+		ip_ver = skb->protocol;
 		switch (ip_ver) {
-		case ETH_P_IP:
+		case htons(ETH_P_IP):
 			ip_proto = ip_hdr(skb)->protocol;
 			break;
-		case ETH_P_IPV6:
+		case htons(ETH_P_IPV6):
 			ip_proto = ipv6_hdr(skb)->nexthdr;
 			break;
 		default:
@@ -1530,7 +1530,8 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 		 */
 		if (ip_proto == IPPROTO_TCP || ip_proto == IPPROTO_UDP) {
 			tx_csum_info |= STATUS_TX_CSUM_LV;
-			if (ip_proto == IPPROTO_UDP && ip_ver == ETH_P_IP)
+			if (ip_proto == IPPROTO_UDP &&
+			    ip_ver == htons(ETH_P_IP))
 				tx_csum_info |= STATUS_TX_CSUM_PROTO_UDP;
 		} else {
 			tx_csum_info = 0;

@@ -267,7 +267,7 @@ static int __net_init nsim_devlink_netns_init(struct net *net)
 	return 0;
 }
 
-static struct pernet_operations nsim_devlink_net_ops __net_initdata = {
+static struct pernet_operations nsim_devlink_net_ops = {
 	.init = nsim_devlink_netns_init,
 	.id   = &nsim_devlink_id,
 	.size = sizeof(bool),

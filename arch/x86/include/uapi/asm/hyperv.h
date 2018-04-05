@@ -77,6 +77,9 @@
 /* Crash MSR available */
 #define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
 
+/* stimer Direct Mode is available */
+#define HV_X64_STIMER_DIRECT_MODE_AVAILABLE	(1 << 19)
+
 /*
  * Feature identification: EBX indicates which flags were specified at
  * partition creation. The format is the same as the partition creation

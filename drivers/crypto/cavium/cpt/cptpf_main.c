@@ -436,7 +436,7 @@ static int cpt_device_init(struct cpt_device *cpt)
 
 	/* Reset the PF when probed first */
 	cpt_reset(cpt);
-	mdelay(100);
+	msleep(100);
 
 	/*Check BIST status*/
 	bist = (u64)cpt_check_bist_status(cpt);

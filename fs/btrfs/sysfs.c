@@ -272,7 +272,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 {
 	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
 	struct btrfs_block_group_cache *block_group;
-	int index = to_raid_kobj(kobj)->raid_type;
+	int index = btrfs_bg_flags_to_raid_index(to_raid_kobj(kobj)->flags);
 	u64 val = 0;
 
 	down_read(&sinfo->groups_sem);
@@ -923,7 +923,7 @@ out1:
 	return ret;
 }
 
-void btrfs_exit_sysfs(void)
+void __cold btrfs_exit_sysfs(void)
 {
 	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 	kset_unregister(btrfs_kset);

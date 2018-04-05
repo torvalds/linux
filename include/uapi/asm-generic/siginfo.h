@@ -207,7 +207,8 @@ typedef struct siginfo {
 #define __FPE_DECERR	11	/* packed decimal error */
 #define __FPE_INVASC	12	/* invalid ASCII digit */
 #define __FPE_INVDEC	13	/* invalid decimal digit */
-#define NSIGFPE		13
+#define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
+#define NSIGFPE		14
 
 /*
  * SIGSEGV si_codes

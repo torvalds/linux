@@ -535,7 +535,6 @@ static int mgc_requeue_thread(void *data)
 	spin_lock(&config_list_lock);
 	rq_state |= RQ_RUNNING;
 	while (!(rq_state & RQ_STOP)) {
-		struct l_wait_info lwi;
 		struct config_llog_data *cld, *cld_prev;
 		int rand = prandom_u32_max(MGC_TIMEOUT_RAND_CENTISEC);
 		int to;
@@ -556,9 +555,9 @@ static int mgc_requeue_thread(void *data)
 		to = msecs_to_jiffies(MGC_TIMEOUT_MIN_SECONDS * MSEC_PER_SEC);
 		/* rand is centi-seconds */
 		to += msecs_to_jiffies(rand * MSEC_PER_SEC / 100);
-		lwi = LWI_TIMEOUT(to, NULL, NULL);
-		l_wait_event(rq_waitq, rq_state & (RQ_STOP | RQ_PRECLEANUP),
-			     &lwi);
+		wait_event_idle_timeout(rq_waitq,
+					rq_state & (RQ_STOP | RQ_PRECLEANUP),
+					to);
 
 		/*
 		 * iterate & processing through the list. for each cld, process
@@ -601,9 +600,7 @@ static int mgc_requeue_thread(void *data)
 			config_log_put(cld_prev);
 
 		/* Wait a bit to see if anyone else needs a requeue */
-		lwi = (struct l_wait_info) { 0 };
-		l_wait_event(rq_waitq, rq_state & (RQ_NOW | RQ_STOP),
-			     &lwi);
+		wait_event_idle(rq_waitq, rq_state & (RQ_NOW | RQ_STOP));
 		spin_lock(&config_list_lock);
 	}
 
@@ -1630,9 +1627,7 @@ restart:
 
 		if (rcl == -ESHUTDOWN &&
 		    atomic_read(&mgc->u.cli.cl_mgc_refcount) > 0 && !retry) {
-			int secs = cfs_time_seconds(obd_timeout);
 			struct obd_import *imp;
-			struct l_wait_info lwi;
 
 			mutex_unlock(&cld->cld_lock);
 			imp = class_exp2cliimp(mgc->u.cli.cl_mgc_mgsexp);
@@ -1647,9 +1642,9 @@ restart:
 			 */
 			ptlrpc_pinger_force(imp);
 
-			lwi = LWI_TIMEOUT(secs, NULL, NULL);
-			l_wait_event(imp->imp_recovery_waitq,
-				     !mgc_import_in_recovery(imp), &lwi);
+			wait_event_idle_timeout(imp->imp_recovery_waitq,
+						!mgc_import_in_recovery(imp),
+						obd_timeout * HZ);
 
 			if (imp->imp_state == LUSTRE_IMP_FULL) {
 				retry = true;

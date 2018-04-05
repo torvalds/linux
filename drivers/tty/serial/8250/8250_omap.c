@@ -114,6 +114,7 @@ struct omap8250_priv {
 	struct uart_8250_dma omap8250_dma;
 	spinlock_t rx_dma_lock;
 	bool rx_dma_broken;
+	bool throttled;
 };
 
 #ifdef CONFIG_SERIAL_8250_DMA
@@ -692,6 +693,7 @@ static void omap_8250_shutdown(struct uart_port *port)
 
 static void omap_8250_throttle(struct uart_port *port)
 {
+	struct omap8250_priv *priv = port->private_data;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 
@@ -700,6 +702,7 @@ static void omap_8250_throttle(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 	up->ier &= ~(UART_IER_RLSI | UART_IER_RDI);
 	serial_out(up, UART_IER, up->ier);
+	priv->throttled = true;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	pm_runtime_mark_last_busy(port->dev);
@@ -738,12 +741,16 @@ static int omap_8250_rs485_config(struct uart_port *port,
 
 static void omap_8250_unthrottle(struct uart_port *port)
 {
+	struct omap8250_priv *priv = port->private_data;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
 
 	pm_runtime_get_sync(port->dev);
 
 	spin_lock_irqsave(&port->lock, flags);
+	priv->throttled = false;
+	if (up->dma)
+		up->dma->rx_dma(up);
 	up->ier |= UART_IER_RLSI | UART_IER_RDI;
 	serial_out(up, UART_IER, up->ier);
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -788,6 +795,7 @@ unlock:
 static void __dma_rx_complete(void *param)
 {
 	struct uart_8250_port *p = param;
+	struct omap8250_priv *priv = p->port.private_data;
 	struct uart_8250_dma *dma = p->dma;
 	struct dma_tx_state     state;
 	unsigned long flags;
@@ -805,7 +813,8 @@ static void __dma_rx_complete(void *param)
 		return;
 	}
 	__dma_rx_do_complete(p);
-	omap_8250_rx_dma(p);
+	if (!priv->throttled)
+		omap_8250_rx_dma(p);
 
 	spin_unlock_irqrestore(&p->port.lock, flags);
 }

@@ -129,6 +129,7 @@ struct usb_ep_ops {
 	int (*enable) (struct usb_ep *ep,
 		const struct usb_endpoint_descriptor *desc);
 	int (*disable) (struct usb_ep *ep);
+	void (*dispose) (struct usb_ep *ep);
 
 	struct usb_request *(*alloc_request) (struct usb_ep *ep,
 		gfp_t gfp_flags);

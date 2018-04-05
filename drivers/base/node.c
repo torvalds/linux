@@ -315,7 +315,9 @@ static int register_node(struct node *node, int num)
 	node->dev.groups = node_dev_groups;
 	error = device_register(&node->dev);
 
-	if (!error){
+	if (error)
+		put_device(&node->dev);
+	else {
 		hugetlb_register_node(node);
 
 		compaction_register_node(node);

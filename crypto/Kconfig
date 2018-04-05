@@ -245,10 +245,6 @@ config CRYPTO_TEST
 	help
 	  Quick & dirty crypto test module.
 
-config CRYPTO_ABLK_HELPER
-	tristate
-	select CRYPTO_CRYPTD
-
 config CRYPTO_SIMD
 	tristate
 	select CRYPTO_CRYPTD
@@ -323,6 +319,14 @@ config CRYPTO_CBC
 	help
 	  CBC: Cipher Block Chaining mode
 	  This block cipher algorithm is required for IPSec.
+
+config CRYPTO_CFB
+	tristate "CFB support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  CFB: Cipher FeedBack mode
+	  This block cipher algorithm is required for TPM2 Cryptography.
 
 config CRYPTO_CTR
 	tristate "CTR support"
@@ -1114,7 +1118,7 @@ config CRYPTO_BLOWFISH_COMMON
 config CRYPTO_BLOWFISH_X86_64
 	tristate "Blowfish cipher algorithm (x86_64)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_BLOWFISH_COMMON
 	help
 	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
@@ -1145,10 +1149,8 @@ config CRYPTO_CAMELLIA_X86_64
 	tristate "Camellia cipher algorithm (x86_64)"
 	depends on X86 && 64BIT
 	depends on CRYPTO
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_LRW
-	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64).
 
@@ -1164,12 +1166,10 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX)"
 	depends on X86 && 64BIT
 	depends on CRYPTO
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
-	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
-	select CRYPTO_LRW
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SIMD
 	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
@@ -1186,14 +1186,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
 	depends on X86 && 64BIT
 	depends on CRYPTO
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
-	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
-	select CRYPTO_LRW
-	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
 
@@ -1238,11 +1231,10 @@ config CRYPTO_CAST5
 config CRYPTO_CAST5_AVX_X86_64
 	tristate "CAST5 (CAST-128) cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
-	select CRYPTO_CAST_COMMON
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_CAST5
+	select CRYPTO_CAST_COMMON
+	select CRYPTO_SIMD
 	help
 	  The CAST5 encryption algorithm (synonymous with CAST-128) is
 	  described in RFC2144.
@@ -1261,13 +1253,11 @@ config CRYPTO_CAST6
 config CRYPTO_CAST6_AVX_X86_64
 	tristate "CAST6 (CAST-256) cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
-	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_CAST_COMMON
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_CAST6
-	select CRYPTO_LRW
+	select CRYPTO_CAST_COMMON
+	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SIMD
 	select CRYPTO_XTS
 	help
 	  The CAST6 encryption algorithm (synonymous with CAST-256) is
@@ -1294,7 +1284,7 @@ config CRYPTO_DES_SPARC64
 config CRYPTO_DES3_EDE_X86_64
 	tristate "Triple DES EDE cipher algorithm (x86-64)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_DES
 	help
 	  Triple DES EDE (FIPS 46-3) algorithm.
@@ -1422,13 +1412,10 @@ config CRYPTO_SERPENT
 config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/SSE2)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
-	select CRYPTO_LRW
-	select CRYPTO_XTS
+	select CRYPTO_SIMD
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -1444,13 +1431,10 @@ config CRYPTO_SERPENT_SSE2_X86_64
 config CRYPTO_SERPENT_SSE2_586
 	tristate "Serpent cipher algorithm (i586/SSE2)"
 	depends on X86 && !64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
-	select CRYPTO_LRW
-	select CRYPTO_XTS
+	select CRYPTO_SIMD
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -1466,12 +1450,10 @@ config CRYPTO_SERPENT_SSE2_586
 config CRYPTO_SERPENT_AVX_X86_64
 	tristate "Serpent cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
-	select CRYPTO_LRW
+	select CRYPTO_SIMD
 	select CRYPTO_XTS
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
@@ -1488,14 +1470,7 @@ config CRYPTO_SERPENT_AVX_X86_64
 config CRYPTO_SERPENT_AVX2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/AVX2)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
-	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_SERPENT
 	select CRYPTO_SERPENT_AVX_X86_64
-	select CRYPTO_LRW
-	select CRYPTO_XTS
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -1507,6 +1482,45 @@ config CRYPTO_SERPENT_AVX2_X86_64
 
 	  See also:
 	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
+
+config CRYPTO_SM4
+	tristate "SM4 cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  SM4 cipher algorithms (OSCCA GB/T 32907-2016).
+
+	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
+	  Organization of State Commercial Administration of China (OSCCA)
+	  as an authorized cryptographic algorithms for the use within China.
+
+	  SMS4 was originally created for use in protecting wireless
+	  networks, and is mandated in the Chinese National Standard for
+	  Wireless LAN WAPI (Wired Authentication and Privacy Infrastructure)
+	  (GB.15629.11-2003).
+
+	  The latest SM4 standard (GBT.32907-2016) was proposed by OSCCA and
+	  standardized through TC 260 of the Standardization Administration
+	  of the People's Republic of China (SAC).
+
+	  The input, output, and key of SMS4 are each 128 bits.
+
+	  See also: <https://eprint.iacr.org/2008/329.pdf>
+
+	  If unsure, say N.
+
+config CRYPTO_SPECK
+	tristate "Speck cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  Speck is a lightweight block cipher that is tuned for optimal
+	  performance in software (rather than hardware).
+
+	  Speck may not be as secure as AES, and should only be used on systems
+	  where AES is not fast enough.
+
+	  See also: <https://eprint.iacr.org/2013/404.pdf>
+
+	  If unsure, say N.
 
 config CRYPTO_TEA
 	tristate "TEA, XTEA and XETA cipher algorithms"
@@ -1581,12 +1595,10 @@ config CRYPTO_TWOFISH_X86_64
 config CRYPTO_TWOFISH_X86_64_3WAY
 	tristate "Twofish cipher algorithm (x86_64, 3-way parallel)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
 	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_LRW
-	select CRYPTO_XTS
 	help
 	  Twofish cipher algorithm (x86_64, 3-way parallel).
 
@@ -1604,15 +1616,12 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 config CRYPTO_TWOFISH_AVX_X86_64
 	tristate "Twofish cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_SIMD
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
 	select CRYPTO_TWOFISH_X86_64_3WAY
-	select CRYPTO_LRW
-	select CRYPTO_XTS
 	help
 	  Twofish cipher algorithm (x86_64/AVX).
 

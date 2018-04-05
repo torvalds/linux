@@ -7,6 +7,7 @@ TARGETS += cpufreq
 TARGETS += cpu-hotplug
 TARGETS += efivarfs
 TARGETS += exec
+TARGETS += filesystems
 TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex

@@ -29,6 +29,7 @@
 
 
 struct virtio_crypto_ablkcipher_ctx {
+	struct crypto_engine_ctx enginectx;
 	struct virtio_crypto *vcrypto;
 	struct crypto_tfm *tfm;
 
@@ -491,7 +492,7 @@ static int virtio_crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
 	vc_sym_req->ablkcipher_req = req;
 	vc_sym_req->encrypt = true;
 
-	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
+	return crypto_transfer_ablkcipher_request_to_engine(data_vq->engine, req);
 }
 
 static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
@@ -511,7 +512,7 @@ static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 	vc_sym_req->ablkcipher_req = req;
 	vc_sym_req->encrypt = false;
 
-	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
+	return crypto_transfer_ablkcipher_request_to_engine(data_vq->engine, req);
 }
 
 static int virtio_crypto_ablkcipher_init(struct crypto_tfm *tfm)
@@ -521,6 +522,9 @@ static int virtio_crypto_ablkcipher_init(struct crypto_tfm *tfm)
 	tfm->crt_ablkcipher.reqsize = sizeof(struct virtio_crypto_sym_request);
 	ctx->tfm = tfm;
 
+	ctx->enginectx.op.do_one_request = virtio_crypto_ablkcipher_crypt_req;
+	ctx->enginectx.op.prepare_request = NULL;
+	ctx->enginectx.op.unprepare_request = NULL;
 	return 0;
 }
 
@@ -538,9 +542,9 @@ static void virtio_crypto_ablkcipher_exit(struct crypto_tfm *tfm)
 }
 
 int virtio_crypto_ablkcipher_crypt_req(
-	struct crypto_engine *engine,
-	struct ablkcipher_request *req)
+	struct crypto_engine *engine, void *vreq)
 {
+	struct ablkcipher_request *req = container_of(vreq, struct ablkcipher_request, base);
 	struct virtio_crypto_sym_request *vc_sym_req =
 				ablkcipher_request_ctx(req);
 	struct virtio_crypto_request *vc_req = &vc_sym_req->base;
@@ -561,8 +565,8 @@ static void virtio_crypto_ablkcipher_finalize_req(
 	struct ablkcipher_request *req,
 	int err)
 {
-	crypto_finalize_cipher_request(vc_sym_req->base.dataq->engine,
-					req, err);
+	crypto_finalize_ablkcipher_request(vc_sym_req->base.dataq->engine,
+					   req, err);
 	kzfree(vc_sym_req->iv);
 	virtcrypto_clear_request(&vc_sym_req->base);
 }

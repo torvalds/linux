@@ -1,0 +1,5 @@
+
+- general code review and clean up
+- ensure device-tree requirements are documented
+
+Cc:  NeilBrown <neil@brown.name>

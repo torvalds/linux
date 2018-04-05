@@ -151,6 +151,7 @@ struct spk_synth;
 
 struct spk_io_ops {
 	int (*synth_out)(struct spk_synth *synth, const char ch);
+	int (*synth_out_unicode)(struct spk_synth *synth, u16 ch);
 	void (*send_xchar)(char ch);
 	void (*tiocmset)(unsigned int set, unsigned int clear);
 	unsigned char (*synth_in)(void);

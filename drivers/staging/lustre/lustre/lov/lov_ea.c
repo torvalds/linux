@@ -89,7 +89,7 @@ struct lov_stripe_md *lsm_alloc_plain(u16 stripe_count)
 	oinfo_ptrs_size = sizeof(struct lov_oinfo *) * stripe_count;
 	lsm_size = sizeof(*lsm) + oinfo_ptrs_size;
 
-	lsm = libcfs_kvzalloc(lsm_size, GFP_NOFS);
+	lsm = kvzalloc(lsm_size, GFP_NOFS);
 	if (!lsm)
 		return NULL;
 

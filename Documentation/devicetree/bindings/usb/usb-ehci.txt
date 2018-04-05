@@ -16,9 +16,11 @@ Optional properties:
  - has-transaction-translator : boolean, set this if EHCI have a Transaction
 				Translator built into the root hub.
  - clocks : a list of phandle + clock specifier pairs
- - phys : phandle + phy specifier pair
- - phy-names : "usb"
+ - phys : see usb-hcd.txt in the current directory
  - resets : phandle + reset specifier pair
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
 
 Example (Sequoia 440EPx):
     ehci@e0000300 {
