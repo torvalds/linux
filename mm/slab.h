@@ -97,8 +97,8 @@ struct kmem_cache *create_kmalloc_cache(const char *name, unsigned int size,
 			slab_flags_t flags, unsigned int useroffset,
 			unsigned int usersize);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
-			size_t size, slab_flags_t flags, size_t useroffset,
-			size_t usersize);
+			unsigned int size, slab_flags_t flags,
+			unsigned int useroffset, unsigned int usersize);
 
 int slab_unmergeable(struct kmem_cache *s);
 struct kmem_cache *find_mergeable(size_t size, size_t align,
