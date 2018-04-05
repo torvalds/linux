@@ -433,7 +433,12 @@ static inline void writesq(volatile void __iomem *addr, const void *buffer,
 #define inb inb
 static inline u8 inb(unsigned long addr)
 {
-	return readb(PCI_IOBASE + addr);
+	u8 val;
+
+	__io_pbr();
+	val = __raw_readb(PCI_IOBASE + addr);
+	__io_par();
+	return val;
 }
 #endif
 
@@ -441,7 +446,12 @@ static inline u8 inb(unsigned long addr)
 #define inw inw
 static inline u16 inw(unsigned long addr)
 {
-	return readw(PCI_IOBASE + addr);
+	u16 val;
+
+	__io_pbr();
+	val = __le16_to_cpu(__raw_readw(PCI_IOBASE + addr));
+	__io_par();
+	return val;
 }
 #endif
 
@@ -449,7 +459,12 @@ static inline u16 inw(unsigned long addr)
 #define inl inl
 static inline u32 inl(unsigned long addr)
 {
-	return readl(PCI_IOBASE + addr);
+	u32 val;
+
+	__io_pbr();
+	val = __le32_to_cpu(__raw_readl(PCI_IOBASE + addr));
+	__io_par();
+	return val;
 }
 #endif
 
