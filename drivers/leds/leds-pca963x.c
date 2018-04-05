@@ -26,28 +26,79 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/leds.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/slab.h>
+#include <linux/leds.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_data/leds-pca963x.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
-/* LED select registers determine the source that drives LED outputs */
-#define PCA963X_LED_OFF		0x0	/* LED driver off */
-#define PCA963X_LED_ON		0x1	/* LED driver on */
-#define PCA963X_LED_PWM		0x2	/* Controlled through PWM */
-#define PCA963X_LED_GRP_PWM	0x3	/* Controlled through PWM/GRPPWM */
+#define PCA963X_MAX_NAME_LEN	32
 
-#define PCA963X_MODE2_DMBLNK	0x20	/* Enable blinking */
+#define PCA963X_MODE1		0x00 /* mode 1 register addr */
+#define PCA963X_MODE1_ALLCALL_ON	BIT(0) /* respond to LED All Call */
+#define PCA963X_MODE1_RESPOND_SUB3	BIT(1) /* respond to Sub address 3 */
+#define PCA963X_MODE1_RESPOND_SUB2	BIT(2) /* respond to Sub address 2 */
+#define PCA963X_MODE1_RESPOND_SUB1	BIT(3) /* respond to Sub address 1 */
+#define PCA963X_MODE1_SLEEP		BIT(4) /* put in low power mode */
+#define PCA963X_MODE1_AI_ROLL_PWM	BIT(5) /* auto-increment only PWM's */
+#define PCA963X_MODE1_AI_ROLL_GRP	BIT(6) /* AI only group-controls */
+#define PCA963X_MODE1_AI_EN		BIT(7) /* enable Auto-Increment */
 
-#define PCA963X_MODE1		0x00
-#define PCA963X_MODE2		0x01
-#define PCA963X_PWM_BASE	0x02
+#define PCA963X_MODE2		0x01 /* mode 2 register addr */
+#define PCA963X_MODE2_OUTNE_OUTDRV	BIT(0) /* outdrv determines LED state */
+#define PCA963X_MODE2_OUTNE_HIZ		BIT(1) /* LED-state in Hi-Z */
+#define PCA963X_MODE2_OUTDRV_TOTEM_POLE	BIT(2) /* outputs are totem-pole'd */
+#define PCA963X_MODE2_OCH_ACK		BIT(3) /* out change on ACK else STOP */
+#define PCA963X_MODE2_INVRT		BIT(4) /* output logic state inverted */
+#define PCA963X_MODE2_DMBLNK		BIT(5) /* grp-ctrl blink else dimming */
+
+#define PCA963X_PWM_ADDR(led)	(0x02 + (led))
+
+#define PCA9633_GRPPWM		0x06 /* group PWM duty cycle ctrl for PCA9633 */
+#define PCA9634_GRPPWM		0x0a /* group PWM duty cycle ctrl for PCA9634 */
+#define PCA9635_GRPPWM		0x12 /* group PWM duty cycle ctrl for PCA9635 */
+#define PCA9633_GRPFREQ		0x07 /* group frequency control for PCA9633 */
+#define PCA9634_GRPFREQ		0x0b /* group frequency control for PCA9634 */
+#define PCA9635_GRPFREQ		0x13 /* group frequency control for PCA9635 */
+
+#define PCA9633_LEDOUT_BASE	0x08 /* LED output state 0 reg for PCA9633 */
+#define PCA9634_LEDOUT_BASE	0x0c /* LED output state 0 reg for PCA9635 */
+#define PCA9635_LEDOUT_BASE	0x14 /* LED output state 0 reg for PCA9634 */
+#define PCA963X_LEDOUT_ADDR(ledout_base, led_num) \
+	((ledout_base) + ((led_num) / 4))
+
+#define PCA963X_LEDOUT_LED_OFF		0x0 /* LED off */
+#define PCA963X_LEDOUT_LED_ON		0x1 /* LED on */
+#define PCA963X_LEDOUT_LED_PWM		0x2 /* LED PWM mode */
+#define PCA963X_LEDOUT_LED_GRP_PWM	0x3 /* LED PWM + group PWM mode */
+#define PCA963X_LEDOUT_MASK		GENMASK(1, 0)
+
+#define PCA963X_LEDOUT_LDR(drive, led_num)	\
+	(((drive) & PCA963X_LEDOUT_MASK) << (((led_num) % 4) << 1))
+#define PCA963X_LEDOUT_LDR_INV(drive, led_num) \
+	(((drive) >> (((led_num) % 4) << 1)) & PCA963X_LEDOUT_MASK)
+
+#define PCA9633_SUBADDR(x)	\
+	((((x) - 1) % 0x3) + 0x09) /* I2C subaddr for PCA9633 */
+#define PCA9634_SUBADDR(x)	\
+	((((x) - 1) % 0x3) + 0x0e) /* I2C subaddr for PCA9634 */
+#define PCA9635_SUBADDR(x)	\
+	((((x) - 1) % 0x3) + 0x18) /* I2C subaddr for PCA9635 */
+#define PCA963X_SUBADDR_SET(x)		(((x) << 1) & 0xfe)
+
+#define PCA9633_ALLCALLADDR	0x0c /* I2C Led all call address for PCA9633 */
+#define PCA9634_ALLCALLADDR	0x11 /* I2C Led all call address for PCA9634 */
+#define PCA9635_ALLCALLADDR	0x1b /* I2C Led all call address for PCA9635 */
+#define PCA963X_ALLCALLADDR_SET(x)	(((x) << 1) & 0xfe)
+
+/* Software reset password */
+#define PCA963X_PASSKEY1		0xa5
+#define PCA963X_PASSKEY2		0x5a
 
 enum pca963x_type {
 	pca9633,
@@ -65,21 +116,21 @@ struct pca963x_chipdef {
 
 static struct pca963x_chipdef pca963x_chipdefs[] = {
 	[pca9633] = {
-		.grppwm		= 0x6,
-		.grpfreq	= 0x7,
-		.ledout_base	= 0x8,
+		.grppwm		= PCA9633_GRPPWM,
+		.grpfreq	= PCA9633_GRPFREQ,
+		.ledout_base	= PCA9633_LEDOUT_BASE,
 		.n_leds		= 4,
 	},
 	[pca9634] = {
-		.grppwm		= 0xa,
-		.grpfreq	= 0xb,
-		.ledout_base	= 0xc,
+		.grppwm		= PCA9634_GRPPWM,
+		.grpfreq	= PCA9634_GRPFREQ,
+		.ledout_base	= PCA9634_LEDOUT_BASE,
 		.n_leds		= 8,
 	},
 	[pca9635] = {
-		.grppwm		= 0x12,
-		.grpfreq	= 0x13,
-		.ledout_base	= 0x14,
+		.grppwm		= PCA9635_GRPPWM,
+		.grpfreq	= PCA9635_GRPFREQ,
+		.ledout_base	= PCA9635_LEDOUT_BASE,
 		.n_leds		= 16,
 	},
 };
@@ -93,7 +144,7 @@ static const struct i2c_device_id pca963x_id[] = {
 	{ "pca9633", pca9633 },
 	{ "pca9634", pca9634 },
 	{ "pca9635", pca9635 },
-	{ }
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, pca963x_id);
 
@@ -102,7 +153,7 @@ static const struct acpi_device_id pca963x_acpi_ids[] = {
 	{ "PCA9633", pca9633 },
 	{ "PCA9634", pca9634 },
 	{ "PCA9635", pca9635 },
-	{ }
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(acpi, pca963x_acpi_ids);
 
@@ -110,7 +161,7 @@ struct pca963x_led;
 
 struct pca963x {
 	struct pca963x_chipdef *chipdef;
-	struct mutex mutex;
+	struct mutex mutex; /* lock around parallel i2c access */
 	struct i2c_client *client;
 	struct pca963x_led *leds;
 	unsigned long leds_on;
@@ -120,72 +171,70 @@ struct pca963x_led {
 	struct pca963x *chip;
 	struct led_classdev led_cdev;
 	int led_num; /* 0 .. 15 potentially */
-	char name[32];
+	char name[PCA963X_MAX_NAME_LEN];
 	u8 gdc;
 	u8 gfrq;
 };
 
 static int pca963x_brightness(struct pca963x_led *pca963x,
-			       enum led_brightness brightness)
+			      enum led_brightness brightness)
 {
-	u8 ledout_addr = pca963x->chip->chipdef->ledout_base
-		+ (pca963x->led_num / 4);
+	u8 ledout_addr;
 	u8 ledout;
-	int shift = 2 * (pca963x->led_num % 4);
-	u8 mask = 0x3 << shift;
 	int ret;
 
+	ledout_addr = PCA963X_LEDOUT_ADDR(pca963x->chip->chipdef->ledout_base,
+					  pca963x->led_num);
 	ledout = i2c_smbus_read_byte_data(pca963x->chip->client, ledout_addr);
+	ledout &= ~PCA963X_LEDOUT_LDR(PCA963X_LEDOUT_MASK, pca963x->led_num);
 	switch (brightness) {
 	case LED_FULL:
-		ret = i2c_smbus_write_byte_data(pca963x->chip->client,
-			ledout_addr,
-			(ledout & ~mask) | (PCA963X_LED_ON << shift));
+		ledout |= PCA963X_LEDOUT_LDR(PCA963X_LEDOUT_LED_ON,
+					     pca963x->led_num);
 		break;
 	case LED_OFF:
-		ret = i2c_smbus_write_byte_data(pca963x->chip->client,
-			ledout_addr, ledout & ~mask);
+		ledout |= PCA963X_LEDOUT_LDR(PCA963X_LEDOUT_LED_OFF,
+					     pca963x->led_num);
 		break;
 	default:
 		ret = i2c_smbus_write_byte_data(pca963x->chip->client,
-			PCA963X_PWM_BASE + pca963x->led_num,
-			brightness);
+						PCA963X_PWM_ADDR(pca963x->led_num),
+						brightness);
 		if (ret < 0)
 			return ret;
-		ret = i2c_smbus_write_byte_data(pca963x->chip->client,
-			ledout_addr,
-			(ledout & ~mask) | (PCA963X_LED_PWM << shift));
+		ledout |= PCA963X_LEDOUT_LDR(PCA963X_LEDOUT_LED_PWM,
+					     pca963x->led_num);
 		break;
 	}
 
-	return ret;
+	return i2c_smbus_write_byte_data(pca963x->chip->client, ledout_addr,
+					 ledout);
 }
 
 static void pca963x_blink(struct pca963x_led *pca963x)
 {
-	u8 ledout_addr = pca963x->chip->chipdef->ledout_base +
-		(pca963x->led_num / 4);
+	u8 ledout_addr;
 	u8 ledout;
-	u8 mode2 = i2c_smbus_read_byte_data(pca963x->chip->client,
-							PCA963X_MODE2);
-	int shift = 2 * (pca963x->led_num % 4);
-	u8 mask = 0x3 << shift;
 
 	i2c_smbus_write_byte_data(pca963x->chip->client,
-			pca963x->chip->chipdef->grppwm,	pca963x->gdc);
+				  pca963x->chip->chipdef->grppwm,
+				  pca963x->gdc);
 
 	i2c_smbus_write_byte_data(pca963x->chip->client,
-			pca963x->chip->chipdef->grpfreq, pca963x->gfrq);
+				  pca963x->chip->chipdef->grpfreq,
+				  pca963x->gfrq);
 
-	if (!(mode2 & PCA963X_MODE2_DMBLNK))
-		i2c_smbus_write_byte_data(pca963x->chip->client, PCA963X_MODE2,
-			mode2 | PCA963X_MODE2_DMBLNK);
-
+	ledout_addr = PCA963X_LEDOUT_ADDR(pca963x->chip->chipdef->ledout_base,
+					  pca963x->led_num);
 	mutex_lock(&pca963x->chip->mutex);
 	ledout = i2c_smbus_read_byte_data(pca963x->chip->client, ledout_addr);
-	if ((ledout & mask) != (PCA963X_LED_GRP_PWM << shift))
+	if (PCA963X_LEDOUT_LDR_INV(ledout, pca963x->led_num) !=
+	    PCA963X_LEDOUT_LED_GRP_PWM) {
+		ledout |= PCA963X_LEDOUT_LDR(PCA963X_LEDOUT_LED_GRP_PWM,
+					     pca963x->led_num);
 		i2c_smbus_write_byte_data(pca963x->chip->client, ledout_addr,
-			(ledout & ~mask) | (PCA963X_LED_GRP_PWM << shift));
+					  ledout);
+	}
 	mutex_unlock(&pca963x->chip->mutex);
 }
 
@@ -199,15 +248,23 @@ static int pca963x_power_state(struct pca963x_led *pca963x)
 	else
 		clear_bit(pca963x->led_num, leds_on);
 
-	if (!(*leds_on) != !cached_leds)
+	if (!(*leds_on) != !cached_leds) {
+		u8 mode1 = i2c_smbus_read_byte_data(pca963x->chip->client,
+						    PCA963X_MODE1);
+
+		if (*leds_on)
+			mode1 &= ~PCA963X_MODE1_SLEEP;
+		else
+			mode1 |= PCA963X_MODE1_SLEEP;
 		return i2c_smbus_write_byte_data(pca963x->chip->client,
-			PCA963X_MODE1, *leds_on ? 0 : BIT(4));
+						 PCA963X_MODE1, mode1);
+	}
 
 	return 0;
 }
 
 static int pca963x_led_set(struct led_classdev *led_cdev,
-	enum led_brightness value)
+			   enum led_brightness value)
 {
 	struct pca963x_led *pca963x;
 	int ret;
@@ -227,7 +284,7 @@ unlock:
 }
 
 static unsigned int pca963x_period_scale(struct pca963x_led *pca963x,
-	unsigned int val)
+					 unsigned int val)
 {
 	unsigned int scaling = pca963x->chip->chipdef->scaling;
 
@@ -235,7 +292,8 @@ static unsigned int pca963x_period_scale(struct pca963x_led *pca963x,
 }
 
 static int pca963x_blink_set(struct led_classdev *led_cdev,
-		unsigned long *delay_on, unsigned long *delay_off)
+			     unsigned long *delay_on,
+			     unsigned long *delay_off)
 {
 	struct pca963x_led *pca963x;
 	unsigned long time_on, time_off, period;
@@ -254,7 +312,7 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 
 	period = pca963x_period_scale(pca963x, time_on + time_off);
 
-	/* If period not supported by hardware, default to someting sane. */
+	/* If period not supported by hardware, default to something sane. */
 	if ((period < PCA963X_BLINK_PERIOD_MIN) ||
 	    (period > PCA963X_BLINK_PERIOD_MAX)) {
 		time_on = 500;
@@ -313,10 +371,8 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 		res = of_property_read_u32(child, "reg", &reg);
 		if ((res != 0) || (reg >= chip->n_leds))
 			continue;
-		led.name =
-			of_get_property(child, "label", NULL) ? : child->name;
-		led.default_trigger =
-			of_get_property(child, "linux,default-trigger", NULL);
+		led.name = of_get_property(child, "label", NULL) ? : child->name;
+		led.default_trigger = of_get_property(child, "linux,default-trigger", NULL);
 		pca963x_leds[reg] = led;
 	}
 	pdata = devm_kzalloc(&client->dev,
@@ -368,7 +424,7 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 #endif
 
 static int pca963x_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct pca963x *pca963x_chip;
 	struct pca963x_led *pca963x;
@@ -397,20 +453,24 @@ static int pca963x_probe(struct i2c_client *client,
 	}
 
 	if (pdata && (pdata->leds.num_leds < 1 ||
-				 pdata->leds.num_leds > chip->n_leds)) {
-		dev_err(&client->dev, "board info must claim 1-%d LEDs",
-								chip->n_leds);
+		      pdata->leds.num_leds > chip->n_leds)) {
+		dev_err(&client->dev, "board info must claim 1-%d LEDs", chip->n_leds);
 		return -EINVAL;
 	}
 
-	pca963x_chip = devm_kzalloc(&client->dev, sizeof(*pca963x_chip),
-								GFP_KERNEL);
+	pca963x_chip = devm_kzalloc(&client->dev, sizeof(*pca963x_chip), GFP_KERNEL);
 	if (!pca963x_chip)
 		return -ENOMEM;
-	pca963x = devm_kzalloc(&client->dev, chip->n_leds * sizeof(*pca963x),
-								GFP_KERNEL);
+	pca963x = devm_kzalloc(&client->dev, chip->n_leds * sizeof(*pca963x), GFP_KERNEL);
 	if (!pca963x)
 		return -ENOMEM;
+
+	/* Check if chip actually exists on the bus */
+	err = i2c_smbus_read_byte_data(client, PCA963X_MODE1);
+	if (err < 0) {
+		dev_err(&client->dev, "controller not found");
+		return err;
+	}
 
 	i2c_set_clientdata(client, pca963x_chip);
 
@@ -421,7 +481,8 @@ static int pca963x_probe(struct i2c_client *client,
 
 	/* Turn off LEDs by default*/
 	for (i = 0; i < chip->n_leds / 4; i++)
-		i2c_smbus_write_byte_data(client, chip->ledout_base + i, 0x00);
+		i2c_smbus_write_byte_data(client, chip->ledout_base + i,
+					  PCA963X_LEDOUT_LDR(PCA963X_LEDOUT_LED_OFF, i));
 
 	for (i = 0; i < chip->n_leds; i++) {
 		pca963x[i].led_num = i;
@@ -438,7 +499,7 @@ static int pca963x_probe(struct i2c_client *client,
 					pdata->leds.leds[i].default_trigger;
 		}
 		if (!pdata || i >= pdata->leds.num_leds ||
-						!pdata->leds.leds[i].name)
+		    !pdata->leds.leds[i].name)
 			snprintf(pca963x[i].name, sizeof(pca963x[i].name),
 				 "pca963x:%d:%.2x:%d", client->adapter->nr,
 				 client->addr, i);
@@ -455,19 +516,20 @@ static int pca963x_probe(struct i2c_client *client,
 	}
 
 	/* Disable LED all-call address, and power down initially */
-	i2c_smbus_write_byte_data(client, PCA963X_MODE1, BIT(4));
+	i2c_smbus_write_byte_data(client, PCA963X_MODE1, PCA963X_MODE1_SLEEP);
 
 	if (pdata) {
 		u8 mode2 = i2c_smbus_read_byte_data(pca963x->chip->client,
 						    PCA963X_MODE2);
+
+		/* Always enable LED output and group blink mode */
+		mode2 |= PCA963X_MODE2_OUTNE_OUTDRV | PCA963X_MODE2_DMBLNK;
 		/* Configure output: open-drain or totem pole (push-pull) */
-		if (pdata->outdrv == PCA963X_OPEN_DRAIN)
-			mode2 |= 0x01;
-		else
-			mode2 |= 0x05;
+		if (pdata->outdrv == PCA963X_TOTEM_POLE)
+			mode2 |= PCA963X_MODE2_OUTDRV_TOTEM_POLE;
 		/* Configure direction: normal or inverted */
 		if (pdata->dir == PCA963X_INVERTED)
-			mode2 |= 0x10;
+			mode2 |= PCA963X_MODE2_INVRT;
 		i2c_smbus_write_byte_data(pca963x->chip->client, PCA963X_MODE2,
 					  mode2);
 	}

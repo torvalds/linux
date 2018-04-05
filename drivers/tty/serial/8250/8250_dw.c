@@ -13,42 +13,48 @@
  * LCR is written whilst busy.  If it is, then a busy detect interrupt is
  * raised, the LCR needs to be rewritten and the uart status register read.
  */
+#include <asm/byteorder.h>
+
+#include <linux/acpi.h>
+#include <linux/bitops.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/serial_8250.h>
-#include <linux/serial_reg.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/acpi.h>
-#include <linux/clk.h>
-#include <linux/reset.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/byteorder.h>
+#include <linux/reset.h>
+#include <linux/serial_8250.h>
+#include <linux/serial_reg.h>
+#include <linux/slab.h>
+#include <linux/stddef.h>
 
 #include "8250.h"
 
-/* Offsets for the DesignWare specific registers */
+/* Byte aligned offsets for the DesignWare specific registers */
 #define DW_UART_USR	0x1f /* UART Status Register */
-#define DW_UART_CPR	0xf4 /* Component Parameter Register */
-#define DW_UART_UCV	0xf8 /* UART Component Version */
+#define DW_UART_CPR	0x3d /* Component Parameter Register */
+#define DW_UART_UCV	0x3e /* UART Component Version */
+
+/* Offsets for the Octeon specific registers */
+#define OCTEON_UART_USR	0x27 /* UART Status Register */
 
 /* Component Parameter Register bits */
 #define DW_UART_CPR_ABP_DATA_WIDTH	(3 << 0)
-#define DW_UART_CPR_AFCE_MODE		(1 << 4)
-#define DW_UART_CPR_THRE_MODE		(1 << 5)
-#define DW_UART_CPR_SIR_MODE		(1 << 6)
-#define DW_UART_CPR_SIR_LP_MODE		(1 << 7)
-#define DW_UART_CPR_ADDITIONAL_FEATURES	(1 << 8)
-#define DW_UART_CPR_FIFO_ACCESS		(1 << 9)
-#define DW_UART_CPR_FIFO_STAT		(1 << 10)
-#define DW_UART_CPR_SHADOW		(1 << 11)
-#define DW_UART_CPR_ENCODED_PARMS	(1 << 12)
-#define DW_UART_CPR_DMA_EXTRA		(1 << 13)
+#define DW_UART_CPR_AFCE_MODE		BIT(4)
+#define DW_UART_CPR_THRE_MODE		BIT(5)
+#define DW_UART_CPR_SIR_MODE		BIT(6)
+#define DW_UART_CPR_SIR_LP_MODE		BIT(7)
+#define DW_UART_CPR_ADDITIONAL_FEATURES	BIT(8)
+#define DW_UART_CPR_FIFO_ACCESS		BIT(9)
+#define DW_UART_CPR_FIFO_STAT		BIT(10)
+#define DW_UART_CPR_SHADOW		BIT(11)
+#define DW_UART_CPR_ENCODED_PARMS	BIT(12)
+#define DW_UART_CPR_DMA_EXTRA		BIT(13)
 #define DW_UART_CPR_FIFO_MODE		(0xff << 16)
 /* Helper for fifo size calculation */
 #define DW_UART_CPR_FIFO_SIZE(a)	(((a >> 16) & 0xff) * 16)
@@ -88,7 +94,7 @@ static void dw8250_force_idle(struct uart_port *p)
 	struct uart_8250_port *up = up_to_u8250p(p);
 
 	serial8250_clear_and_reinit_fifos(up);
-	(void)p->serial_in(p, UART_RX);
+	(void)serial_port_in(p, UART_RX);
 }
 
 static void dw8250_check_lcr(struct uart_port *p, int value)
@@ -98,7 +104,7 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 
 	/* Make sure LCR write wasn't ignored */
 	while (tries--) {
-		unsigned int lcr = p->serial_in(p, UART_LCR);
+		unsigned int lcr = serial_port_in(p, UART_LCR);
 
 		if ((value & ~UART_LCR_SPAR) == (lcr & ~UART_LCR_SPAR))
 			return;
@@ -193,17 +199,16 @@ static void dw8250_serial_out32be(struct uart_port *p, int offset, int value)
 
 static unsigned int dw8250_serial_in32be(struct uart_port *p, int offset)
 {
-       unsigned int value = ioread32be(p->membase + (offset << p->regshift));
+	unsigned int value = ioread32be(p->membase + (offset << p->regshift));
 
-       return dw8250_modify_msr(p, offset, value);
+	return dw8250_modify_msr(p, offset, value);
 }
-
 
 static int dw8250_handle_irq(struct uart_port *p)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
 	struct dw8250_data *d = p->private_data;
-	unsigned int iir = p->serial_in(p, UART_IIR);
+	unsigned int iir = serial_in_iir(up, 0);
 	unsigned int status;
 	unsigned long flags;
 
@@ -217,12 +222,12 @@ static int dw8250_handle_irq(struct uart_port *p)
 	 * This problem has only been observed so far when not in DMA mode
 	 * so we limit the workaround only to non-DMA mode.
 	 */
-	if (!up->dma && ((iir & 0x3f) == UART_IIR_RX_TIMEOUT)) {
+	if (!up->dma && (iir == UART_IIR_RX_TIMEOUT)) {
 		spin_lock_irqsave(&p->lock, flags);
-		status = p->serial_in(p, UART_LSR);
+		status = serial_port_in(p, UART_LSR);
 
 		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
-			(void) p->serial_in(p, UART_RX);
+			(void)serial_port_in(p, UART_RX);
 
 		spin_unlock_irqrestore(&p->lock, flags);
 	}
@@ -230,9 +235,9 @@ static int dw8250_handle_irq(struct uart_port *p)
 	if (serial8250_handle_irq(p, iir))
 		return 1;
 
-	if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+	if (iir == UART_IIR_BUSY) {
 		/* Clear the USR */
-		(void)p->serial_in(p, d->usr_reg);
+		(void)serial_port_in(p, d->usr_reg);
 
 		return 1;
 	}
@@ -334,7 +339,7 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			p->serial_out = dw8250_serial_outq;
 			p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
 			p->type = PORT_OCTEON;
-			data->usr_reg = 0x27;
+			data->usr_reg = OCTEON_UART_USR;
 			data->skip_autocfg = true;
 		}
 #endif
@@ -375,9 +380,9 @@ static void dw8250_setup_port(struct uart_port *p)
 	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
 	 */
 	if (p->iotype == UPIO_MEM32BE)
-		reg = ioread32be(p->membase + DW_UART_UCV);
+		reg = ioread32be(p->membase + (DW_UART_UCV << p->regshift));
 	else
-		reg = readl(p->membase + DW_UART_UCV);
+		reg = readl(p->membase + (DW_UART_UCV << p->regshift));
 	if (!reg)
 		return;
 
@@ -385,9 +390,9 @@ static void dw8250_setup_port(struct uart_port *p)
 		(reg >> 24) & 0xff, (reg >> 16) & 0xff, (reg >> 8) & 0xff);
 
 	if (p->iotype == UPIO_MEM32BE)
-		reg = ioread32be(p->membase + DW_UART_CPR);
+		reg = ioread32be(p->membase + (DW_UART_CPR << p->regshift));
 	else
-		reg = readl(p->membase + DW_UART_CPR);
+		reg = readl(p->membase + (DW_UART_CPR << p->regshift));
 	if (!reg)
 		return;
 

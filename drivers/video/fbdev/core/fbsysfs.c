@@ -15,11 +15,11 @@
  * are converted to use it a sysfsification will open OOPSable races.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/fb.h>
 #include <linux/console.h>
+#include <linux/fb.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #define FB_SYSFS_FLAG_ATTR 1
 
@@ -244,11 +244,34 @@ static ssize_t store_rotate(struct device *device,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct fb_var_screeninfo var;
-	char **last = NULL;
+	unsigned long rotate;
 	int err;
 
 	var = fb_info->var;
-	var.rotate = simple_strtoul(buf, last, 0);
+
+	err = kstrtoul(buf, 0, &rotate);
+	if (err)
+		return err;
+
+	switch (rotate) {
+	case 270: /* fall through */
+	case 3:
+		var.rotate = FB_ROTATE_CCW;
+		break;
+	case 180: /* fall through */
+	case 2:
+		var.rotate = FB_ROTATE_UD;
+		break;
+	case 90: /* fall through */
+	case 1:
+		var.rotate = FB_ROTATE_CW;
+		break;
+	case 0:
+		var.rotate = FB_ROTATE_UR;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if ((err = activate(fb_info, &var)))
 		return err;

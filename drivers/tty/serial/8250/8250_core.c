@@ -18,30 +18,33 @@
  * (at your option) any later version.
  */
 
+#include <linux/console.h>
+#include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/irqreturn.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/ioport.h>
-#include <linux/init.h>
-#include <linux/console.h>
-#include <linux/sysrq.h>
-#include <linux/delay.h>
+#include <linux/mutex.h>
+#include <linux/nmi.h>
 #include <linux/platform_device.h>
-#include <linux/tty.h>
+#include <linux/pm_runtime.h>
 #include <linux/ratelimit.h>
-#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
-#include <linux/nmi.h>
-#include <linux/mutex.h>
+#include <linux/serial_core.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/pm_runtime.h>
-#include <linux/io.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
 #ifdef CONFIG_SPARC
 #include <linux/sunserialcore.h>
 #endif
-
-#include <asm/irq.h>
+#include <linux/sysrq.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
+#include <linux/uaccess.h>
 
 #include "8250.h"
 
@@ -137,7 +140,8 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
 			/* If we hit this, we're dead. */
 			printk_ratelimited(KERN_ERR
-				"serial8250: too much work for irq%d\n", irq);
+				"serial8250: too much work for irq%d (iir: 0x%02x)\n",
+				irq, serial_port_in(port, UART_IIR));
 			break;
 		}
 	} while (l != end);
@@ -287,7 +291,7 @@ static void serial8250_backup_timeout(unsigned long data)
 		serial_out(up, UART_IER, 0);
 	}
 
-	iir = serial_in(up, UART_IIR);
+	iir = serial_in_iir(up, 0);
 
 	/*
 	 * This should be a safe test for anyone who doesn't trust the
@@ -297,14 +301,15 @@ static void serial8250_backup_timeout(unsigned long data)
 	 */
 	lsr = serial_in(up, UART_LSR);
 	up->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
-	if ((iir & UART_IIR_NO_INT) && (up->ier & UART_IER_THRI) &&
+	if ((iir == UART_IIR_NO_INT) &&
+	    (up->ier & UART_IER_THRI) &&
 	    (!uart_circ_empty(&up->port.state->xmit) || up->port.x_char) &&
 	    (lsr & UART_LSR_THRE)) {
-		iir &= ~(UART_IIR_ID | UART_IIR_NO_INT);
+		iir &= ~(UART_IIR_MASK);
 		iir |= UART_IIR_THRI;
 	}
 
-	if (!(iir & UART_IIR_NO_INT))
+	if (iir != UART_IIR_NO_INT)
 		serial8250_tx_chars(up);
 
 	if (up->port.irq)

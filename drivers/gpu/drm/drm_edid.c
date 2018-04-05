@@ -1451,6 +1451,9 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 	unsigned char xfers = segment ? 3 : 2;
 	int ret, retries = 5;
 
+	if (!adapter)
+		return -ENODEV;
+
 	/*
 	 * The core I2C driver will automatically retry the transfer if the
 	 * adapter reports EAGAIN. However, we find that bit-banging transfers

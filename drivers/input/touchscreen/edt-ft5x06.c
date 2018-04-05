@@ -25,20 +25,37 @@
  *    http://www.glyn.com/Products/Displays
  */
 
-#include <linux/module.h>
-#include <linux/ratelimit.h>
-#include <linux/irq.h>
-#include <linux/interrupt.h>
-#include <linux/input.h>
-#include <linux/i2c.h>
-#include <linux/uaccess.h>
-#include <linux/delay.h>
+#include <linux/bitops.h>
 #include <linux/debugfs.h>
-#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/gfp.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/input-polldev.h>
+#include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/irqreturn.h>
+#include <linux/kconfig.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/property.h>
+#include <linux/ratelimit.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
+
+#define NIBBLE_LOWER(x)	\
+	((uint8_t)((x) & GENMASK(3, 0)))
+#define NIBBLE_UPPER(x) \
+	((uint8_t)(((x) & GENMASK(7, 4)) >> 4))
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08
@@ -47,33 +64,88 @@
 #define WORK_REGISTER_NUM_X		0x33
 #define WORK_REGISTER_NUM_Y		0x34
 
-#define M09_REGISTER_THRESHOLD		0x80
-#define M09_REGISTER_GAIN		0x92
-#define M09_REGISTER_OFFSET		0x93
-#define M09_REGISTER_NUM_X		0x94
-#define M09_REGISTER_NUM_Y		0x95
+#define M06_TOUCH_REPORT		0x05
+#define M06_TOUCH_REPORT_LEN		4
+#define M06_TOUCH_REPORT_CRC_LEN	1
+#define M06_TOUCH_REPORT_HEADER_H		0x00
+#define M06_TOUCH_REPORT_HEADER_L		0x01
+#define M06_TOUCH_REPORT_DATALEN		0x02
+#define M06_TOUCH_REPORT_MAGIC		0xaa
+
+#define M09_TD_STATUS			0x02
+#define M09_TOUCH_REPORT		0x03
+#define M09_TOUCH_REPORT_LEN		6
+
+#define EDT_TOUCH_XH_EVENT			0x00
+#define EDT_TOUCH_XH_MASK				GENMASK(3, 0)
+#define EDT_TOUCH_EVENT_DOWN				0x00
+#define EDT_TOUCH_EVENT_UP				BIT(6)
+#define EDT_TOUCH_EVENT_ON				BIT(7)
+#define EDT_TOUCH_EVENT_RESERVED			\
+	(EDT_TOUCH_EVENT_UP | EDT_TOUCH_EVENT_ON)
+#define EDT_TOUCH_EVENT_FLAG_MASK			GENMASK(7, 6)
+#define EDT_TOUCH_XL				0x01
+#define EDT_TOUCH_ID_YH				0x02
+#define EDT_TOUCH_YH_MASK				GENMASK(3, 0)
+#define EDT_TOUCH_ID_MASK				GENMASK(7, 4)
+#define EDT_TOUCH_ID_OFFSET				4
+#define EDT_TOUCH_YL				0x03
+
+#define M09_THRESHOLD			0x80
+#define M09_GAIN			0x92
+#define M09_OFFSET			0x93
+#define M09_NUM_X			0x94
+#define M09_NUM_Y			0x95
+
+#define M09_ID_G_MODE			0xa4
+#define M09_ID_G_MODE_POLL			0x00
+#define M09_ID_G_MODE_IRQ			0x01
+
+#define M09_ID_G_PMODE			0xa5
+#define M09_ID_G_PMODE_ACTIVE			0x00
+#define M09_ID_G_PMODE_MONITOR			0x01
+#define M09_ID_G_PMODE_HIBERNATE		0x03
+
+#define EDT_FW_VERSION			0xa6
+#define EDT_PANEL_ID			0xa8
+#define EDT_PANEL_ID_EP0350M09			0x35
+#define EDT_PANEL_ID_EP0430M09			0x43
+#define EDT_PANEL_ID_EP0500M09				0x50
+#define EDT_PANEL_ID_EP0570M09				0x57
+#define EDT_PANEL_ID_EP0700M09				0x70
+#define EDT_PANEL_ID_EP1010ML00				0xa1
+#define SOL_PANEL_ID_GKTW50SCED1R0			0x5a
+
+#define EDT_CUSTOM_DATA			0xbb
+#define EDT_NAME_LEN			23
+
+#define M06_TOUCH_REPORT_REQ		0xf9
 
 #define NO_REGISTER			0xff
 
 #define WORK_REGISTER_OPMODE		0x3c
 #define FACTORY_REGISTER_OPMODE		0x01
 
-#define TOUCH_EVENT_DOWN		0x00
-#define TOUCH_EVENT_UP			0x01
-#define TOUCH_EVENT_ON			0x02
-#define TOUCH_EVENT_RESERVED		0x03
-
-#define EDT_NAME_LEN			23
 #define EDT_SWITCH_MODE_RETRIES		10
 #define EDT_SWITCH_MODE_DELAY		5 /* msec */
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
+
+#define EDT_TOUCH_REPORT_MAX_SIZE	((10 * M09_TOUCH_REPORT_LEN) + \
+					M09_TOUCH_REPORT_LEN + \
+					M06_TOUCH_REPORT + \
+					M06_TOUCH_REPORT_CRC_LEN)
 
 enum edt_ver {
 	EDT_M06,
 	EDT_M09,
 	EDT_M12,
 	GENERIC_FT,
+};
+
+enum readout_mode {
+	EDT_READOUT_MODE_POLL,
+	EDT_READOUT_MODE_IRQ,
 };
 
 struct edt_reg_addr {
@@ -88,6 +160,9 @@ struct edt_reg_addr {
 struct edt_ft5x06_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+#if IS_ENABLED(CONFIG_INPUT_POLLDEV)
+	struct input_polled_dev *polldev;
+#endif
 	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
@@ -149,117 +224,6 @@ static int edt_ft5x06_ts_readwrite(struct i2c_client *client,
 		return -EIO;
 
 	return 0;
-}
-
-static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
-				    u8 *buf, int buflen)
-{
-	int i;
-	u8 crc = 0;
-
-	for (i = 0; i < buflen - 1; i++)
-		crc ^= buf[i];
-
-	if (crc != buf[buflen-1]) {
-		dev_err_ratelimited(&tsdata->client->dev,
-				    "crc error: 0x%02x expected, got 0x%02x\n",
-				    crc, buf[buflen-1]);
-		return false;
-	}
-
-	return true;
-}
-
-static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
-{
-	struct edt_ft5x06_ts_data *tsdata = dev_id;
-	struct device *dev = &tsdata->client->dev;
-	u8 cmd;
-	u8 rdbuf[63];
-	int i, type, x, y, id;
-	int offset, tplen, datalen, crclen;
-	int error;
-
-	switch (tsdata->version) {
-	case EDT_M06:
-		cmd = 0xf9; /* tell the controller to send touch data */
-		offset = 5; /* where the actual touch data starts */
-		tplen = 4;  /* data comes in so called frames */
-		crclen = 1; /* length of the crc data */
-		break;
-
-	case EDT_M09:
-	case EDT_M12:
-	case GENERIC_FT:
-		cmd = 0x0;
-		offset = 3;
-		tplen = 6;
-		crclen = 0;
-		break;
-
-	default:
-		goto out;
-	}
-
-	memset(rdbuf, 0, sizeof(rdbuf));
-	datalen = tplen * tsdata->max_support_points + offset + crclen;
-
-	error = edt_ft5x06_ts_readwrite(tsdata->client,
-					sizeof(cmd), &cmd,
-					datalen, rdbuf);
-	if (error) {
-		dev_err_ratelimited(dev, "Unable to fetch data, error: %d\n",
-				    error);
-		goto out;
-	}
-
-	/* M09/M12 does not send header or CRC */
-	if (tsdata->version == EDT_M06) {
-		if (rdbuf[0] != 0xaa || rdbuf[1] != 0xaa ||
-			rdbuf[2] != datalen) {
-			dev_err_ratelimited(dev,
-					"Unexpected header: %02x%02x%02x!\n",
-					rdbuf[0], rdbuf[1], rdbuf[2]);
-			goto out;
-		}
-
-		if (!edt_ft5x06_ts_check_crc(tsdata, rdbuf, datalen))
-			goto out;
-	}
-
-	for (i = 0; i < tsdata->max_support_points; i++) {
-		u8 *buf = &rdbuf[i * tplen + offset];
-		bool down;
-
-		type = buf[0] >> 6;
-		/* ignore Reserved events */
-		if (type == TOUCH_EVENT_RESERVED)
-			continue;
-
-		/* M06 sometimes sends bogus coordinates in TOUCH_DOWN */
-		if (tsdata->version == EDT_M06 && type == TOUCH_EVENT_DOWN)
-			continue;
-
-		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
-		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
-		id = (buf[2] >> 4) & 0x0f;
-		down = type != TOUCH_EVENT_UP;
-
-		input_mt_slot(tsdata->input, id);
-		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
-
-		if (!down)
-			continue;
-
-		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,
-				       true);
-	}
-
-	input_mt_report_pointer_emulation(tsdata->input, true);
-	input_sync(tsdata->input);
-
-out:
-	return IRQ_HANDLED;
 }
 
 static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
@@ -330,6 +294,163 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 	}
 
 	return rdbuf[0];
+}
+
+static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
+				    u8 *buf, int buflen)
+{
+	int i;
+	u8 crc = 0;
+
+	for (i = 0; i < buflen - 1; i++)
+		crc ^= buf[i];
+
+	if (crc != buf[buflen-1]) {
+		dev_err_ratelimited(&tsdata->client->dev,
+				    "crc error: 0x%02x expected, got 0x%02x\n",
+				    crc, buf[buflen-1]);
+		return false;
+	}
+
+	return true;
+}
+
+static void edt_ft5x06_report(struct edt_ft5x06_ts_data *tsdata)
+{
+	struct device *dev = &tsdata->client->dev;
+	u8 cmd;
+	u8 rdbuf[EDT_TOUCH_REPORT_MAX_SIZE];
+	int i, type, x, y, id;
+	int offset, touch_cnt, tplen, datalen, crclen;
+	int error;
+
+	if ((!tsdata) || (!tsdata->input))
+		return;
+
+	switch (tsdata->version) {
+	case EDT_M06:
+		touch_cnt = tsdata->max_support_points;
+		cmd = M06_TOUCH_REPORT_REQ; /* tell the controller to send touch data */
+		offset = M06_TOUCH_REPORT; /* where the actual touch data starts */
+		tplen = M06_TOUCH_REPORT_LEN;  /* data comes in so called frames */
+		crclen = M06_TOUCH_REPORT_CRC_LEN; /* length of the crc data */
+		break;
+
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
+		touch_cnt = 0;
+		cmd = 0x0;
+		offset = M09_TOUCH_REPORT;
+		tplen = M09_TOUCH_REPORT_LEN;
+		crclen = 0;
+		break;
+
+	default:
+		return;
+	}
+
+	memset(rdbuf, 0, sizeof(rdbuf));
+	datalen = tplen * tsdata->max_support_points + offset + crclen;
+
+	error = edt_ft5x06_ts_readwrite(tsdata->client,
+					sizeof(cmd), &cmd,
+					datalen, rdbuf);
+	if (error) {
+		dev_err_ratelimited(dev, "Unable to fetch data, error: %d\n",
+				    error);
+		return;
+	}
+
+	/* M09/M12 does not send header or CRC */
+	if (tsdata->version == EDT_M06) {
+		if (rdbuf[M06_TOUCH_REPORT_HEADER_H] != M06_TOUCH_REPORT_MAGIC ||
+		    rdbuf[M06_TOUCH_REPORT_HEADER_L] != M06_TOUCH_REPORT_MAGIC ||
+		    rdbuf[M06_TOUCH_REPORT_DATALEN] != datalen) {
+			dev_err_ratelimited(dev,
+					    "Unexpected header: %02x%02x%02x!\n",
+					    rdbuf[M06_TOUCH_REPORT_HEADER_H],
+					    rdbuf[M06_TOUCH_REPORT_HEADER_L],
+					    rdbuf[M06_TOUCH_REPORT_DATALEN]);
+			return;
+		}
+
+		if (!edt_ft5x06_ts_check_crc(tsdata, rdbuf, datalen))
+			return;
+	} else {
+		touch_cnt = rdbuf[M09_TD_STATUS];
+	}
+
+	for (i = 0; i < tsdata->max_support_points; i++) {
+		u8 *buf = &rdbuf[i * tplen + offset];
+		bool down;
+
+		input_mt_slot(tsdata->input, i);
+
+		type = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_EVENT_FLAG_MASK;
+
+		down = type != EDT_TOUCH_EVENT_UP;
+		if (!down || i > touch_cnt) {
+			input_report_abs(tsdata->input, ABS_MT_TRACKING_ID, -1);
+			continue;
+		}
+
+		/* ignore Reserved events */
+		if (type == EDT_TOUCH_EVENT_RESERVED)
+			continue;
+
+		/* M06 sometimes sends bogus coordinates in TOUCH_DOWN */
+		if (tsdata->version == EDT_M06 && type == EDT_TOUCH_EVENT_DOWN)
+			continue;
+
+		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
+
+		id = (buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_ID_MASK);
+		id >>= EDT_TOUCH_ID_OFFSET;
+		input_report_abs(tsdata->input, ABS_MT_TRACKING_ID, id);
+
+		x = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_XH_MASK;
+		x <<= BITS_PER_BYTE;
+		x |= buf[EDT_TOUCH_XL];
+
+		y = buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_YH_MASK;
+		y <<= BITS_PER_BYTE;
+		y |= buf[EDT_TOUCH_YL];
+
+		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,
+				       true);
+	}
+
+	input_mt_report_pointer_emulation(tsdata->input, true);
+	input_sync(tsdata->input);
+}
+
+static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
+{
+	struct edt_ft5x06_ts_data *tsdata = dev_id;
+
+	edt_ft5x06_report(tsdata);
+
+	return IRQ_HANDLED;
+}
+
+static void edt_ft5x06_poll(struct input_polled_dev *polldev)
+{
+	struct edt_ft5x06_ts_data *tsdata = polldev->private;
+
+	/* Ensure display is always awake */
+	switch (tsdata->version) {
+	case EDT_M06:
+		break;
+	case EDT_M09: /* fall through */
+	case EDT_M12: /* fall through */
+	case GENERIC_FT:
+		edt_ft5x06_register_write(tsdata, M09_ID_G_PMODE,
+					  M09_ID_G_PMODE_ACTIVE);
+		break;
+	}
+
+	edt_ft5x06_report(tsdata);
 }
 
 struct edt_ft5x06_attribute {
@@ -480,14 +601,11 @@ out:
 
 /* m06, m09: range 0-31, m12: range 0-5 */
 static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
-		M09_REGISTER_GAIN, 0, 31);
-/* m06, m09: range 0-31, m12: range 0-16 */
+		M09_GAIN, 0, 31);
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
-		M09_REGISTER_OFFSET, 0, 31);
-/* m06: range 20 to 80, m09: range 0 to 30, m12: range 1 to 255... */
+		M09_OFFSET, 0, 31);
 static EDT_ATTR(threshold, S_IWUSR | S_IRUGO, WORK_REGISTER_THRESHOLD,
-		M09_REGISTER_THRESHOLD, 0, 255);
-/* m06: range 3 to 14, m12: (0x64: 100Hz) */
+		M09_THRESHOLD, 0, 80);
 static EDT_ATTR(report_rate, S_IWUSR | S_IRUGO, WORK_REGISTER_REPORT_RATE,
 		NO_REGISTER, 0, 255);
 
@@ -649,7 +767,8 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_mode_fops, edt_ft5x06_debugfs_mode_get,
 			edt_ft5x06_debugfs_mode_set, "%llu\n");
 
 static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
-				char __user *buf, size_t count, loff_t *off)
+						char __user *buf,
+						size_t count, loff_t *off)
 {
 	struct edt_ft5x06_ts_data *tsdata = file->private_data;
 	struct i2c_client *client = tsdata->client;
@@ -770,26 +889,46 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 #endif /* CONFIG_DEBUGFS */
 
+static int edt_ft5x06_open(struct input_dev *dev)
+{
+	struct edt_ft5x06_ts_data *tsdata = input_get_drvdata(dev);
+
+	enable_irq(tsdata->client->irq);
+
+	return 0;
+}
+
+static void edt_ft5x06_close(struct input_dev *dev)
+{
+	struct edt_ft5x06_ts_data *tsdata = input_get_drvdata(dev);
+
+	disable_irq(tsdata->client->irq);
+}
+
 static int edt_ft5x06_ts_identify(struct i2c_client *client,
-					struct edt_ft5x06_ts_data *tsdata,
-					char *fw_version)
+				  struct edt_ft5x06_ts_data *tsdata,
+				  char *fw_version)
 {
 	u8 rdbuf[EDT_NAME_LEN];
+	u8 cmd;
 	char *p;
 	int error;
 	char *model_name = tsdata->name;
 
-	/* see what we find if we assume it is a M06 *
-	 * if we get less than EDT_NAME_LEN, we don't want
-	 * to have garbage in there
+	/*
+	 * See what we find if we assume it is a M06.
+	 * If we get less than EDT_NAME_LEN, we don't want
+	 * to have garbage in there.
 	 */
 	memset(rdbuf, 0, sizeof(rdbuf));
-	error = edt_ft5x06_ts_readwrite(client, 1, "\xBB",
+	cmd = EDT_CUSTOM_DATA;
+	error = edt_ft5x06_ts_readwrite(client, sizeof(cmd), &cmd,
 					EDT_NAME_LEN - 1, rdbuf);
 	if (error)
 		return error;
 
-	/* Probe content for something consistent.
+	/*
+	 * Probe content for something consistent.
 	 * M06 starts with a response byte, M12 gives the data directly.
 	 * M09/Generic does not provide model number information.
 	 */
@@ -822,9 +961,10 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		strlcpy(model_name, rdbuf, EDT_NAME_LEN);
 		strlcpy(fw_version, p ? p : "", EDT_NAME_LEN);
 	} else {
-		/* If it is not an EDT M06/M12 touchscreen, then the model
+		/*
+		 * If it is not an EDT M06/M12 touchscreen, then the model
 		 * detection is a bit hairy. The different ft5x06
-		 * firmares around don't reliably implement the
+		 * firmware's around don't reliably implement the
 		 * identification registers. Well, we'll take a shot.
 		 *
 		 * The main difference between generic focaltec based
@@ -833,38 +973,41 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		 */
 		tsdata->version = GENERIC_FT;
 
-		error = edt_ft5x06_ts_readwrite(client, 1, "\xA6",
+		cmd = EDT_FW_VERSION;
+		error = edt_ft5x06_ts_readwrite(client, sizeof(cmd), &cmd,
 						2, rdbuf);
 		if (error)
 			return error;
 
 		strlcpy(fw_version, rdbuf, 2);
 
-		error = edt_ft5x06_ts_readwrite(client, 1, "\xA8",
+		cmd = EDT_PANEL_ID;
+		error = edt_ft5x06_ts_readwrite(client, sizeof(cmd), &cmd,
 						1, rdbuf);
 		if (error)
 			return error;
 
-		/* This "model identification" is not exact. Unfortunately
+		/*
+		 * This "model identification" is not exact. Unfortunately
 		 * not all firmwares for the ft5x06 put useful values in
 		 * the identification registers.
 		 */
 		switch (rdbuf[0]) {
-		case 0x35:   /* EDT EP0350M09 */
-		case 0x43:   /* EDT EP0430M09 */
-		case 0x50:   /* EDT EP0500M09 */
-		case 0x57:   /* EDT EP0570M09 */
-		case 0x70:   /* EDT EP0700M09 */
+		case EDT_PANEL_ID_EP0350M09:
+		case EDT_PANEL_ID_EP0430M09:
+		case EDT_PANEL_ID_EP0500M09:
+		case EDT_PANEL_ID_EP0570M09:
+		case EDT_PANEL_ID_EP0700M09:
 			tsdata->version = EDT_M09;
 			snprintf(model_name, EDT_NAME_LEN, "EP0%i%i0M09",
-				rdbuf[0] >> 4, rdbuf[0] & 0x0F);
+				NIBBLE_UPPER(rdbuf[0]), NIBBLE_LOWER(rdbuf[0]));
 			break;
-		case 0xa1:   /* EDT EP1010ML00 */
+		case EDT_PANEL_ID_EP1010ML00:
 			tsdata->version = EDT_M09;
 			snprintf(model_name, EDT_NAME_LEN, "EP%i%i0ML00",
-				rdbuf[0] >> 4, rdbuf[0] & 0x0F);
+				NIBBLE_UPPER(rdbuf[0]), NIBBLE_LOWER(rdbuf[0]));
 			break;
-		case 0x5a:   /* Solomon Goldentek Display */
+		case SOL_PANEL_ID_GKTW50SCED1R0:   /* Solomon Goldentek Display */
 			snprintf(model_name, EDT_NAME_LEN, "GKTW50SCED1R0");
 			break;
 		default:
@@ -929,6 +1072,26 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	}
 }
 
+static void edt_ft5x06_ts_set_readout_mode(struct edt_ft5x06_ts_data *tsdata,
+					   enum readout_mode mode)
+{
+	uint8_t readout_mode;
+
+	switch (tsdata->version) {
+	case EDT_M06:
+		break;
+	case EDT_M09: /* fall through */
+	case EDT_M12: /* fall through */
+	case GENERIC_FT:
+		readout_mode = (mode == EDT_READOUT_MODE_POLL) ?
+			M09_ID_G_MODE_POLL :
+			M09_ID_G_MODE_IRQ;
+		edt_ft5x06_register_write(tsdata, M09_ID_G_MODE, readout_mode);
+		break;
+	}
+}
+
+
 static void
 edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 {
@@ -946,66 +1109,67 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 
 	case EDT_M09:
 	case EDT_M12:
-		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
+		reg_addr->reg_threshold = M09_THRESHOLD;
 		reg_addr->reg_report_rate = NO_REGISTER;
-		reg_addr->reg_gain = M09_REGISTER_GAIN;
-		reg_addr->reg_offset = M09_REGISTER_OFFSET;
-		reg_addr->reg_num_x = M09_REGISTER_NUM_X;
-		reg_addr->reg_num_y = M09_REGISTER_NUM_Y;
+		reg_addr->reg_gain = M09_GAIN;
+		reg_addr->reg_offset = M09_OFFSET;
+		reg_addr->reg_num_x = M09_NUM_X;
+		reg_addr->reg_num_y = M09_NUM_Y;
 		break;
 
 	case GENERIC_FT:
 		/* this is a guesswork */
-		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
-		reg_addr->reg_gain = M09_REGISTER_GAIN;
-		reg_addr->reg_offset = M09_REGISTER_OFFSET;
+		reg_addr->reg_threshold = M09_THRESHOLD;
+		reg_addr->reg_gain = M09_GAIN;
+		reg_addr->reg_offset = M09_OFFSET;
 		break;
 	}
 }
 
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
-					 const struct i2c_device_id *id)
+			       const struct i2c_device_id *id)
 {
 	const struct edt_i2c_chip_data *chip_data;
+	struct device *dev = &client->dev;
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
-	unsigned long irq_flags;
 	int error;
 	char fw_version[EDT_NAME_LEN];
 
-	dev_dbg(&client->dev, "probing for EDT FT5x06 I2C\n");
+	dev_dbg(dev, "probing for EDT FT5x06 I2C\n");
 
-	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
+	tsdata = devm_kzalloc(dev, sizeof(*tsdata), GFP_KERNEL);
 	if (!tsdata) {
-		dev_err(&client->dev, "failed to allocate driver data.\n");
+		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
 	}
 
-	chip_data = of_device_get_match_data(&client->dev);
+	chip_data = of_device_get_match_data(dev);
 	if (!chip_data)
 		chip_data = (const struct edt_i2c_chip_data *)id->driver_data;
 	if (!chip_data || !chip_data->max_support_points) {
-		dev_err(&client->dev, "invalid or missing chip data\n");
+		dev_err(dev, "invalid or missing chip data\n");
 		return -EINVAL;
 	}
 
 	tsdata->max_support_points = chip_data->max_support_points;
 
-	tsdata->reset_gpio = devm_gpiod_get_optional(&client->dev,
+	tsdata->reset_gpio = devm_gpiod_get_optional(dev,
 						     "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(tsdata->reset_gpio)) {
 		error = PTR_ERR(tsdata->reset_gpio);
-		dev_err(&client->dev,
-			"Failed to request GPIO reset pin, error %d\n", error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "failed to request GPIO reset pin: %d\n",
+				error);
 		return error;
 	}
 
-	tsdata->wake_gpio = devm_gpiod_get_optional(&client->dev,
-						    "wake", GPIOD_OUT_LOW);
+	tsdata->wake_gpio = devm_gpiod_get_optional(dev, "wake", GPIOD_OUT_LOW);
 	if (IS_ERR(tsdata->wake_gpio)) {
 		error = PTR_ERR(tsdata->wake_gpio);
-		dev_err(&client->dev,
-			"Failed to request GPIO wake pin, error %d\n", error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "failed to request GPIO wake pin: %d\n",
+				error);
 		return error;
 	}
 
@@ -1020,34 +1184,83 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		msleep(300);
 	}
 
-	input = devm_input_allocate_device(&client->dev);
-	if (!input) {
-		dev_err(&client->dev, "failed to allocate input device.\n");
-		return -ENOMEM;
-	}
-
 	mutex_init(&tsdata->mutex);
 	tsdata->client = client;
-	tsdata->input = input;
 	tsdata->factory_mode = false;
 
 	error = edt_ft5x06_ts_identify(client, tsdata, fw_version);
 	if (error) {
-		dev_err(&client->dev, "touchscreen probe failed\n");
+		dev_err(dev, "touchscreen probe failed\n");
 		return error;
 	}
 
 	edt_ft5x06_ts_set_regs(tsdata);
-	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
+	edt_ft5x06_ts_get_defaults(dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
 
-	dev_dbg(&client->dev,
-		"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
+	dev_dbg(dev, "model \"%s\", Rev. \"%s\", %dx%d sensors\n",
 		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
+
+	i2c_set_clientdata(client, tsdata);
+
+	if (client->irq) {
+		unsigned long irq_flags;
+
+		irq_flags = irq_get_trigger_type(client->irq);
+		if (irq_flags == IRQF_TRIGGER_NONE)
+			irq_flags = IRQF_TRIGGER_FALLING;
+		irq_flags |= IRQF_ONESHOT;
+
+		error = devm_request_threaded_irq(dev, client->irq, NULL,
+						  edt_ft5x06_ts_isr, irq_flags,
+						  client->name, tsdata);
+		if (error) {
+			dev_err(dev, "unable to request touchscreen IRQ\n");
+			return error;
+		}
+
+		disable_irq(client->irq);
+
+		input = devm_input_allocate_device(dev);
+		if (!input) {
+			dev_err(dev, "failed to allocate input device\n");
+			return -ENOMEM;
+		}
+		input->open = edt_ft5x06_open;
+		input->close = edt_ft5x06_close;
+
+		edt_ft5x06_ts_set_readout_mode(tsdata, EDT_READOUT_MODE_IRQ);
+	} else {
+#if !IS_ENABLED(CONFIG_INPUT_POLLDEV)
+		dev_err(dev, "no IRQ setup and built without INPUT_POLLDEV\n");
+		return -ENODEV;
+#else
+		uint32_t poll_interval;
+
+		dev_warn(dev, "no IRQ setup, using polled input\n");
+
+		tsdata->polldev = devm_input_allocate_polled_device(dev);
+		if (!tsdata->polldev) {
+			dev_err(dev, "failed to allocate polldev\n");
+			return -ENOMEM;
+		}
+
+		if (!device_property_read_u32(dev, "poll-interval", &poll_interval))
+			tsdata->polldev->poll_interval = poll_interval;
+
+		tsdata->polldev->private = tsdata;
+		tsdata->polldev->poll = edt_ft5x06_poll;
+		input = tsdata->polldev->input;
+
+		edt_ft5x06_ts_set_readout_mode(tsdata, EDT_READOUT_MODE_POLL);
+#endif
+	}
 
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &client->dev;
+	input->dev.parent = dev;
+	input_set_drvdata(input, tsdata);
+	tsdata->input = input;
 
 	if (tsdata->version == EDT_M06 ||
 	    tsdata->version == EDT_M09 ||
@@ -1067,40 +1280,28 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
-				INPUT_MT_DIRECT);
+				    INPUT_MT_DIRECT);
 	if (error) {
-		dev_err(&client->dev, "Unable to init MT slots.\n");
+		dev_err(dev, "unable to init MT slots\n");
 		return error;
 	}
 
-	i2c_set_clientdata(client, tsdata);
-
-	irq_flags = irq_get_trigger_type(client->irq);
-	if (irq_flags == IRQF_TRIGGER_NONE)
-		irq_flags = IRQF_TRIGGER_FALLING;
-	irq_flags |= IRQF_ONESHOT;
-
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					NULL, edt_ft5x06_ts_isr, irq_flags,
-					client->name, tsdata);
-	if (error) {
-		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
-		return error;
-	}
-
-	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
+	error = devm_device_add_group(dev, &edt_ft5x06_attr_group);
 	if (error)
 		return error;
 
-	error = input_register_device(input);
+	if (client->irq)
+		error = input_register_device(input);
+	else
+		error = input_register_polled_device(tsdata->polldev);
 	if (error)
 		return error;
 
-	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
-	device_init_wakeup(&client->dev, 1);
+	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(dev));
+	device_init_wakeup(dev, 1);
 
-	dev_dbg(&client->dev,
-		"EDT FT5x06 initialized: IRQ %d, WAKE pin %d, Reset pin %d.\n",
+	dev_dbg(dev,
+		"EDT FT5x06 initialized: IRQ %d, WAKE pin %d, Reset pin %d\n",
 		client->irq,
 		tsdata->wake_gpio ? desc_to_gpio(tsdata->wake_gpio) : -1,
 		tsdata->reset_gpio ? desc_to_gpio(tsdata->reset_gpio) : -1);
@@ -1154,6 +1355,7 @@ static const struct edt_i2c_chip_data edt_ft6236_data = {
 
 static const struct i2c_device_id edt_ft5x06_ts_id[] = {
 	{ .name = "edt-ft5x06", .driver_data = (long)&edt_ft5x06_data },
+	{ .name = "edt-ft5426", .driver_data = (long)&edt_ft5506_data },
 	{ .name = "edt-ft5506", .driver_data = (long)&edt_ft5506_data },
 	/* Note no edt- prefix for compatibility with the ft6236.c driver */
 	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
@@ -1166,6 +1368,7 @@ static const struct of_device_id edt_ft5x06_of_match[] = {
 	{ .compatible = "edt,edt-ft5206", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5306", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5406", .data = &edt_ft5x06_data },
+	{ .compatible = "edt,edt-ft5426", .data = &edt_ft5506_data },
 	{ .compatible = "edt,edt-ft5506", .data = &edt_ft5506_data },
 	/* Note focaltech vendor prefix for compatibility with ft6236.c */
 	{ .compatible = "focaltech,ft6236", .data = &edt_ft6236_data },

@@ -10,6 +10,7 @@
  * option) any later version.
  */
 
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

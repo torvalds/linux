@@ -22,7 +22,7 @@
 #define SUN4I_HDMI_CTRL_ENABLE			BIT(31)
 
 #define SUN4I_HDMI_IRQ_REG		0x008
-#define SUN4I_HDMI_IRQ_STA_MASK			0x73
+#define SUN4I_HDMI_IRQ_STA_MASK			(GENMASK(6, 4) | GENMASK(1, 0))
 #define SUN4I_HDMI_IRQ_STA_FIFO_OF		BIT(1)
 #define SUN4I_HDMI_IRQ_STA_FIFO_UF		BIT(0)
 
@@ -68,9 +68,9 @@
 #define SUN4I_HDMI_PAD_CTRL1_PWSDT		BIT(17)
 #define SUN4I_HDMI_PAD_CTRL1_REG_DEN		BIT(15)
 #define SUN4I_HDMI_PAD_CTRL1_REG_DENCK		BIT(14)
-#define SUN4I_HDMI_PAD_CTRL1_REG_EMP(n)		(((n) & 7) << 10)
+#define SUN4I_HDMI_PAD_CTRL1_REG_EMP(n)		(((n) << 10) & GENMASK(12, 10))
 #define SUN4I_HDMI_PAD_CTRL1_HALVE_CLK		BIT(6)
-#define SUN4I_HDMI_PAD_CTRL1_REG_AMP(n)		(((n) & 7) << 3)
+#define SUN4I_HDMI_PAD_CTRL1_REG_AMP(n)		(((n) << 3) & GENMASK(5, 3))
 
 /* These bits seem to invert the TMDS data channels */
 #define SUN4I_HDMI_PAD_CTRL1_INVERT_R		BIT(2)
@@ -84,18 +84,23 @@
 #define SUN4I_HDMI_PLL_CTRL_LDO1_EN		BIT(28)
 #define SUN4I_HDMI_PLL_CTRL_LDO2_EN		BIT(27)
 #define SUN4I_HDMI_PLL_CTRL_SDIV2		BIT(25)
-#define SUN4I_HDMI_PLL_CTRL_VCO_GAIN(n)		(((n) & 7) << 20)
-#define SUN4I_HDMI_PLL_CTRL_S(n)		(((n) & 7) << 17)
-#define SUN4I_HDMI_PLL_CTRL_CP_S(n)		(((n) & 0x1f) << 12)
-#define SUN4I_HDMI_PLL_CTRL_CS(n)		(((n) & 0xf) << 8)
-#define SUN4I_HDMI_PLL_CTRL_DIV(n)		(((n) & 0xf) << 4)
+#define SUN4I_HDMI_PLL_CTRL_VCO_GAIN(n)		(((n) << 20) & GENMASK(22, 20))
+#define SUN4I_HDMI_PLL_CTRL_S(n)		(((n) << 17) & GENMASK(19, 17))
+#define SUN4I_HDMI_PLL_CTRL_CP_S(n)		(((n) << 12) & GENMASK(16, 12))
+#define SUN4I_HDMI_PLL_CTRL_CS(n)		(((n) << 8) & GENMASK(11, 8))
+#define SUN4I_HDMI_PLL_CTRL_DIV(n)		(((n) << 4) & GENMASK(7, 4))
 #define SUN4I_HDMI_PLL_CTRL_DIV_MASK		GENMASK(7, 4)
-#define SUN4I_HDMI_PLL_CTRL_VCO_S(n)		((n) & 0xf)
+#define SUN4I_HDMI_PLL_CTRL_VCO_S(n)		((n) & GENMASK(3, 0))
 
 #define SUN4I_HDMI_PLL_DBG0_REG		0x20c
-#define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT(n)	(((n) & 1) << 21)
 #define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_MASK	BIT(21)
-#define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_SHIFT	21
+#define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_OFFSET	21
+#define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT(n)	\
+	(((n) << SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_OFFSET) & \
+	 SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_MASK)
+#define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_GET(n)	\
+	(((n) & SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_MASK) >> \
+	 SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_OFFSET)
 
 #define SUN4I_HDMI_CEC			0x214
 #define SUN4I_HDMI_CEC_ENABLE			BIT(11)
@@ -107,90 +112,6 @@
 
 #define SUN4I_HDMI_UNKNOWN_REG		0x300
 #define SUN4I_HDMI_UNKNOWN_INPUT_SYNC		BIT(27)
-
-#define SUN4I_HDMI_DDC_CTRL_REG		0x500
-#define SUN4I_HDMI_DDC_CTRL_ENABLE		BIT(31)
-#define SUN4I_HDMI_DDC_CTRL_START_CMD		BIT(30)
-#define SUN4I_HDMI_DDC_CTRL_FIFO_DIR_MASK	BIT(8)
-#define SUN4I_HDMI_DDC_CTRL_FIFO_DIR_WRITE	(1 << 8)
-#define SUN4I_HDMI_DDC_CTRL_FIFO_DIR_READ	(0 << 8)
-#define SUN4I_HDMI_DDC_CTRL_RESET		BIT(0)
-
-#define SUN4I_HDMI_DDC_ADDR_REG		0x504
-#define SUN4I_HDMI_DDC_ADDR_SEGMENT(seg)	(((seg) & 0xff) << 24)
-#define SUN4I_HDMI_DDC_ADDR_EDDC(addr)		(((addr) & 0xff) << 16)
-#define SUN4I_HDMI_DDC_ADDR_OFFSET(off)		(((off) & 0xff) << 8)
-#define SUN4I_HDMI_DDC_ADDR_SLAVE(addr)		((addr) & 0xff)
-
-#define SUN4I_HDMI_DDC_INT_STATUS_REG		0x50c
-#define SUN4I_HDMI_DDC_INT_STATUS_ILLEGAL_FIFO_OPERATION	BIT(7)
-#define SUN4I_HDMI_DDC_INT_STATUS_DDC_RX_FIFO_UNDERFLOW		BIT(6)
-#define SUN4I_HDMI_DDC_INT_STATUS_DDC_TX_FIFO_OVERFLOW		BIT(5)
-#define SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST			BIT(4)
-#define SUN4I_HDMI_DDC_INT_STATUS_ARBITRATION_ERROR		BIT(3)
-#define SUN4I_HDMI_DDC_INT_STATUS_ACK_ERROR			BIT(2)
-#define SUN4I_HDMI_DDC_INT_STATUS_BUS_ERROR			BIT(1)
-#define SUN4I_HDMI_DDC_INT_STATUS_TRANSFER_COMPLETE		BIT(0)
-
-#define SUN4I_HDMI_DDC_FIFO_CTRL_REG	0x510
-#define SUN4I_HDMI_DDC_FIFO_CTRL_CLEAR		BIT(31)
-#define SUN4I_HDMI_DDC_FIFO_CTRL_RX_THRES(n)	(((n) & 0xf) << 4)
-#define SUN4I_HDMI_DDC_FIFO_CTRL_RX_THRES_MASK	GENMASK(7, 4)
-#define SUN4I_HDMI_DDC_FIFO_CTRL_RX_THRES_MAX	(BIT(4) - 1)
-#define SUN4I_HDMI_DDC_FIFO_CTRL_TX_THRES(n)	((n) & 0xf)
-#define SUN4I_HDMI_DDC_FIFO_CTRL_TX_THRES_MASK	GENMASK(3, 0)
-#define SUN4I_HDMI_DDC_FIFO_CTRL_TX_THRES_MAX	(BIT(4) - 1)
-
-#define SUN4I_HDMI_DDC_FIFO_DATA_REG	0x518
-
-#define SUN4I_HDMI_DDC_BYTE_COUNT_REG	0x51c
-#define SUN4I_HDMI_DDC_BYTE_COUNT_MAX		(BIT(10) - 1)
-
-#define SUN4I_HDMI_DDC_CMD_REG		0x520
-#define SUN4I_HDMI_DDC_CMD_EXPLICIT_EDDC_READ	6
-#define SUN4I_HDMI_DDC_CMD_IMPLICIT_READ	5
-#define SUN4I_HDMI_DDC_CMD_IMPLICIT_WRITE	3
-
-#define SUN4I_HDMI_DDC_CLK_REG		0x528
-#define SUN4I_HDMI_DDC_CLK_M(m)			(((m) & 0x7) << 3)
-#define SUN4I_HDMI_DDC_CLK_N(n)			((n) & 0x7)
-
-#define SUN4I_HDMI_DDC_LINE_CTRL_REG	0x540
-#define SUN4I_HDMI_DDC_LINE_CTRL_SDA_ENABLE	BIT(9)
-#define SUN4I_HDMI_DDC_LINE_CTRL_SCL_ENABLE	BIT(8)
-
-#define SUN4I_HDMI_DDC_FIFO_SIZE	16
-
-/* A31 specific */
-#define SUN6I_HDMI_DDC_CTRL_REG		0x500
-#define SUN6I_HDMI_DDC_CTRL_RESET		BIT(31)
-#define SUN6I_HDMI_DDC_CTRL_START_CMD		BIT(27)
-#define SUN6I_HDMI_DDC_CTRL_SDA_ENABLE		BIT(6)
-#define SUN6I_HDMI_DDC_CTRL_SCL_ENABLE		BIT(4)
-#define SUN6I_HDMI_DDC_CTRL_ENABLE		BIT(0)
-
-#define SUN6I_HDMI_DDC_CMD_REG		0x508
-#define SUN6I_HDMI_DDC_CMD_BYTE_COUNT(count)	((count) << 16)
-/* command types in lower 3 bits are the same as sun4i */
-
-#define SUN6I_HDMI_DDC_ADDR_REG		0x50c
-#define SUN6I_HDMI_DDC_ADDR_SEGMENT(seg)	(((seg) & 0xff) << 24)
-#define SUN6I_HDMI_DDC_ADDR_EDDC(addr)		(((addr) & 0xff) << 16)
-#define SUN6I_HDMI_DDC_ADDR_OFFSET(off)		(((off) & 0xff) << 8)
-#define SUN6I_HDMI_DDC_ADDR_SLAVE(addr)		(((addr) & 0xff) << 1)
-
-#define SUN6I_HDMI_DDC_INT_STATUS_REG	0x514
-#define SUN6I_HDMI_DDC_INT_STATUS_TIMEOUT	BIT(8)
-/* lower 8 bits are the same as sun4i */
-
-#define SUN6I_HDMI_DDC_FIFO_CTRL_REG	0x518
-#define SUN6I_HDMI_DDC_FIFO_CTRL_CLEAR		BIT(15)
-/* lower 9 bits are the same as sun4i */
-
-#define SUN6I_HDMI_DDC_CLK_REG		0x520
-/* DDC CLK bit fields are the same, but the formula is not */
-
-#define SUN6I_HDMI_DDC_FIFO_DATA_REG	0x580
 
 enum sun4i_hdmi_pkt_type {
 	SUN4I_HDMI_PKT_AVI = 2,
@@ -204,10 +125,6 @@ struct sun4i_hdmi_variant {
 	u32 pad_ctrl0_init_val;
 	u32 pad_ctrl1_init_val;
 	u32 pll_ctrl_init_val;
-
-	struct reg_field ddc_clk_reg;
-	u8 ddc_clk_pre_divider;
-	u8 ddc_clk_m_offset;
 
 	u8 tmds_clk_div_offset;
 
@@ -252,7 +169,6 @@ struct sun4i_hdmi {
 	struct device		*dev;
 
 	void __iomem		*base;
-	struct regmap		*regmap;
 
 	/* Reset control */
 	struct reset_control	*reset;
@@ -260,15 +176,16 @@ struct sun4i_hdmi {
 	/* Parent clocks */
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
-	struct clk		*ddc_parent_clk;
 	struct clk		*pll0_clk;
 	struct clk		*pll1_clk;
 
 	/* And the clocks we create */
-	struct clk		*ddc_clk;
 	struct clk		*tmds_clk;
+	const char		*tmds_clk_name;
 
 	struct i2c_adapter	*i2c;
+	/* Legacy dt i2c device */
+	struct sun4i_hdmi_i2c_drv *i2c_drv;
 
 	/* Regmap fields for I2C adapter */
 	struct regmap_field	*field_ddc_en;
@@ -294,8 +211,6 @@ struct sun4i_hdmi {
 	const struct sun4i_hdmi_variant	*variant;
 };
 
-int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *clk);
 int sun4i_tmds_create(struct sun4i_hdmi *hdmi);
-int sun4i_hdmi_i2c_create(struct device *dev, struct sun4i_hdmi *hdmi);
 
 #endif /* _SUN4I_HDMI_H_ */

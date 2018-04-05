@@ -1836,7 +1836,7 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 
 static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 {
-	switch (iir & 0x3f) {
+	switch (iir & UART_IIR_MASK) {
 	case UART_IIR_RX_TIMEOUT:
 		serial8250_rx_dma_flush(up);
 		/* fall-through */
@@ -1846,8 +1846,22 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 	return up->dma->rx_dma(up);
 }
 
-/*
- * This handles the interrupt from one port.
+/**
+ * serial8250_handle_irq - Handles the generic 8250 interrupts
+ * @port:	UART port structure holding the IRQ generating port
+ * @iir:	Interrupt Identification Register containing the masked
+ * 		interrupt source, such as supplied via serial_in_IIR()
+ *
+ * Handle the following generic 8250 common interrupts
+ * o Modem Status Interrupt
+ * o Transmitter holding register empty
+ * o Receiver Data Interrupt
+ * o Receiver Line Status Interrupt
+ * o RX Timeout Interrupt
+ *
+ * Other interrupts are expected to be handled by the caller where needed.
+ *
+ * Returns 0 when an interrupt was not handled, 1 otherwise.
  */
 int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
@@ -1855,7 +1869,11 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
 
-	if (iir & UART_IIR_NO_INT)
+	if ((iir != UART_IIR_MSI) &&
+	    (iir != UART_IIR_THRI) &&
+	    (iir != UART_IIR_RDI) &&
+	    (iir != UART_IIR_RLSI) &&
+	    (iir != UART_IIR_RX_TIMEOUT))
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -1883,7 +1901,7 @@ static int serial8250_default_handle_irq(struct uart_port *port)
 
 	serial8250_rpm_get(up);
 
-	iir = serial_port_in(port, UART_IIR);
+	iir = serial_in_iir(up, 0);
 	ret = serial8250_handle_irq(port, iir);
 
 	serial8250_rpm_put(up);
@@ -1919,10 +1937,11 @@ static int exar_handle_irq(struct uart_port *port)
 static int serial8250_tx_threshold_handle_irq(struct uart_port *port)
 {
 	unsigned long flags;
-	unsigned int iir = serial_port_in(port, UART_IIR);
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned int iir = serial_in_iir(up, 0);
 
 	/* TX Threshold IRQ triggered so load up FIFO */
-	if ((iir & UART_IIR_ID) == UART_IIR_THRI) {
+	if (iir == UART_IIR_THRI) {
 		struct uart_8250_port *up = up_to_u8250p(port);
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1930,7 +1949,7 @@ static int serial8250_tx_threshold_handle_irq(struct uart_port *port)
 		spin_unlock_irqrestore(&port->lock, flags);
 	}
 
-	iir = serial_port_in(port, UART_IIR);
+	iir = serial_in(up, 0);
 	return serial8250_handle_irq(port, iir);
 }
 
@@ -2274,11 +2293,11 @@ int serial8250_do_startup(struct uart_port *port)
 		wait_for_xmitr(up, UART_LSR_THRE);
 		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
 		udelay(1); /* allow THRE to set */
-		iir1 = serial_port_in(port, UART_IIR);
+		iir1 = serial_in_iir(up, 0);
 		serial_port_out(port, UART_IER, 0);
 		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
 		udelay(1); /* allow a working UART time to re-assert THRE */
-		iir = serial_port_in(port, UART_IIR);
+		iir = serial_in_iir(up, 0);
 		serial_port_out(port, UART_IER, 0);
 
 		if (port->irqflags & IRQF_SHARED)
@@ -2290,7 +2309,7 @@ int serial8250_do_startup(struct uart_port *port)
 		 * don't trust the iir, setup a timer to kick the UART
 		 * on a regular basis.
 		 */
-		if ((!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) ||
+		if (((iir1 != UART_IIR_NO_INT) && (iir == UART_IIR_NO_INT)) ||
 		    up->port.flags & UPF_BUG_THRE) {
 			up->bugs |= UART_BUG_THRE;
 		}
@@ -2338,10 +2357,10 @@ int serial8250_do_startup(struct uart_port *port)
 	 */
 	serial_port_out(port, UART_IER, UART_IER_THRI);
 	lsr = serial_port_in(port, UART_LSR);
-	iir = serial_port_in(port, UART_IIR);
+	iir = serial_in_iir(up, 0);
 	serial_port_out(port, UART_IER, 0);
 
-	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
+	if (lsr & UART_LSR_TEMT && (iir == UART_IIR_NO_INT)) {
 		if (!(up->bugs & UART_BUG_TXEN)) {
 			up->bugs |= UART_BUG_TXEN;
 			pr_debug("ttyS%d - enabling bad tx status workarounds\n",

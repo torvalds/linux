@@ -575,16 +575,16 @@
 		hdmi: hdmi@1c16000 {
 			compatible = "allwinner,sun7i-a20-hdmi",
 				     "allwinner,sun5i-a10s-hdmi";
-			reg = <0x01c16000 0x1000>;
+			reg = <0x01c16000 0x500>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_AHB_HDMI0>, <&ccu CLK_HDMI>,
 				 <&ccu CLK_PLL_VIDEO0_2X>,
 				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "pll-0", "pll-1";
-			dmas = <&dma SUN4I_DMA_NORMAL 16>,
-			       <&dma SUN4I_DMA_NORMAL 16>,
-			       <&dma SUN4I_DMA_DEDICATED 24>;
-			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
+			#clock-cells = <0>;
+			clock-output-names = "hdmi-tmds";
+			dmas = <&dma SUN4I_DMA_DEDICATED 24>;
+			dma-names = "audio-tx";
 			status = "disabled";
 
 			ports {
@@ -613,6 +613,19 @@
 					reg = <1>;
 				};
 			};
+		};
+
+		hdmi_i2c: i2c@16500 {
+			compatible = "allwinner,sun7i-a20-hdmi-i2c",
+				     "allwinner,sun4i-a10-hdmi-i2c";
+			reg = <0x01c16500 0x40>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&hdmi>;
+			dmas = <&dma SUN4I_DMA_NORMAL 16>,
+			       <&dma SUN4I_DMA_NORMAL 16>;
+			dma-names = "ddc-tx", "ddc-rx";
+			status = "disabled";
 		};
 
 		spi2: spi@1c17000 {

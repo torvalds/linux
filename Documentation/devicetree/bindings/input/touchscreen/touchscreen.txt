@@ -1,10 +1,14 @@
 General Touchscreen Properties:
 
 Optional properties for Touchscreens:
- - touchscreen-size-x		: horizontal resolution of touchscreen
-				  (in pixels)
- - touchscreen-size-y		: vertical resolution of touchscreen
-				  (in pixels)
+ - touchscreen-min-size-x	: minimal reported horizontal resolution of
+				  touchscreen (in pixels)
+ - touchscreen-min-size-y	: minimal reported vertical resolution of
+				  touchscreen (in pixels)
+ - touchscreen-max-size-x	: maximal reported horizontal resolution of
+				  touchscreen (in pixels)
+ - touchscreen-max-size-y	: maximal reported vertical resolution of touchscreen
+				  touchscreen (in pixels)
  - touchscreen-max-pressure	: maximum reported pressure (arbitrary range
 				  dependent on the controller)
  - touchscreen-fuzz-x		: horizontal noise value of the absolute input
@@ -25,6 +29,8 @@ Optional properties for Touchscreens:
  - touchscreen-y-mm		: vertical length in mm of the touchscreen
 
 Deprecated properties for Touchscreens:
+ - touchscreen-size-x		: deprecated name for touchscreen-size-x
+ - touchscreen-size-y		: deprecated name for touchscreen-size-y
  - x-size			: deprecated name for touchscreen-size-x
  - y-size			: deprecated name for touchscreen-size-y
  - moving-threshold		: deprecated name for a combination of

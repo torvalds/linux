@@ -32,8 +32,8 @@ int fsl8250_handle_irq(struct uart_port *port)
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	iir = port->serial_in(port, UART_IIR);
-	if (iir & UART_IIR_NO_INT) {
+	iir = serial_in_iir(up, 0);
+	if (iir == UART_IIR_NO_INT) {
 		spin_unlock_irqrestore(&up->port.lock, flags);
 		return 0;
 	}

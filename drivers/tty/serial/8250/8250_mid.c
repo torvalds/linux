@@ -102,7 +102,7 @@ static int tng_handle_irq(struct uart_port *p)
 		ret |= hsu_dma_do_irq(chip, mid->dma_index * 2, status);
 
 	/* UART */
-	ret |= serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
+	ret |= serial8250_handle_irq(p, serial_in_iir(up, 0));
 	return IRQ_RETVAL(ret);
 }
 
@@ -151,7 +151,7 @@ static int dnv_handle_irq(struct uart_port *p)
 			ret |= hsu_dma_do_irq(&mid->dma_chip, 0, status);
 	}
 	if (fisr & BIT(0))
-		ret |= serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
+		ret |= serial8250_handle_irq(p, serial_in_iir(up, 0));
 	return IRQ_RETVAL(ret);
 }
 

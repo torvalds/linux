@@ -115,6 +115,17 @@ static inline int serial_in(struct uart_8250_port *up, int offset)
 	return up->port.serial_in(&up->port, offset);
 }
 
+/**
+ * serial_in_iir - Helper function to obtain the interrupt ID from the
+ * 		   Interrupt Identification Register.
+ * @up:		UART port to get the interrupt ID from
+ * @mask:	Additional mask to filter against
+ */
+static inline int serial_in_iir(struct uart_8250_port *up, int mask)
+{
+	return serial_in(up, UART_IIR) & (UART_IIR_MASK | mask);
+}
+
 static inline void serial_out(struct uart_8250_port *up, int offset, int value)
 {
 	up->port.serial_out(&up->port, offset, value);

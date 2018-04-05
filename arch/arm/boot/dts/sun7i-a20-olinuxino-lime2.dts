@@ -121,6 +121,12 @@
 };
 
 &hdmi {
+	ddc-i2c-bus = <&hdmi_i2c>;
+	status = "okay";
+};
+
+&hdmi_i2c {
+	clock-frequency = <100000>;
 	status = "okay";
 };
 
@@ -152,6 +158,10 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+};
+
+&lradc {
+	vref-supply = <&reg_vcc3v0>;
 };
 
 &mmc0 {
@@ -246,12 +256,15 @@
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
 	regulator-name = "vddio-csi0";
+	regulator-soft-start;
+	regulator-ramp-delay = <1600>;
 };
 
 &reg_ldo4 {
-	regulator-min-microvolt = <2800000>;
-	regulator-max-microvolt = <2800000>;
-	regulator-name = "vddio-csi1";
+	regulator-always-on;
+	regulator-min-microvolt = <1250000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vdd-io-pg";
 };
 
 &reg_usb0_vbus {

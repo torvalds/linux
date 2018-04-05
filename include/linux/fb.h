@@ -120,6 +120,13 @@ struct fb_cursor_user {
 	struct fb_image_user image;	/* Cursor image */
 };
 
+struct fb_of_properties {
+	bool no_clear_on_probe;
+	__u8 rotate;
+};
+
+void fb_parse_properties(struct device *dev, struct fb_of_properties *prop);
+
 /*
  * Register/unregister for framebuffer events
  */
