@@ -971,7 +971,7 @@ EXPORT_SYMBOL(kmalloc_dma_caches);
  * of two cache sizes there. The size of larger slabs can be determined using
  * fls.
  */
-static s8 size_index[24] __ro_after_init = {
+static u8 size_index[24] __ro_after_init = {
 	3,	/* 8 */
 	4,	/* 16 */
 	5,	/* 24 */
@@ -1009,7 +1009,7 @@ static inline int size_index_elem(size_t bytes)
  */
 struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 {
-	int index;
+	unsigned int index;
 
 	if (unlikely(size > KMALLOC_MAX_SIZE)) {
 		WARN_ON_ONCE(!(flags & __GFP_NOWARN));
