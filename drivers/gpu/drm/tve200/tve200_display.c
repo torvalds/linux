@@ -293,18 +293,12 @@ static void tve200_display_disable_vblank(struct drm_simple_display_pipe *pipe)
 	writel(0, priv->regs + TVE200_INT_EN);
 }
 
-static int tve200_display_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state)
-{
-	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
-}
-
 static const struct drm_simple_display_pipe_funcs tve200_display_funcs = {
 	.check = tve200_display_check,
 	.enable = tve200_display_enable,
 	.disable = tve200_display_disable,
 	.update = tve200_display_update,
-	.prepare_fb = tve200_display_prepare_fb,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 	.enable_vblank = tve200_display_enable_vblank,
 	.disable_vblank = tve200_display_disable_vblank,
 };
