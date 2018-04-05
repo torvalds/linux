@@ -775,53 +775,59 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_delayed_work_sync(&dev_priv->psr.work);
 }
 
+static bool psr_wait_for_idle(struct drm_i915_private *dev_priv)
+{
+	struct intel_dp *intel_dp;
+	i915_reg_t reg;
+	u32 mask;
+	int err;
+
+	intel_dp = dev_priv->psr.enabled;
+	if (!intel_dp)
+		return false;
+
+	if (HAS_DDI(dev_priv)) {
+		if (dev_priv->psr.psr2_enabled) {
+			reg = EDP_PSR2_STATUS;
+			mask = EDP_PSR2_STATUS_STATE_MASK;
+		} else {
+			reg = EDP_PSR_STATUS;
+			mask = EDP_PSR_STATUS_STATE_MASK;
+		}
+	} else {
+		struct drm_crtc *crtc =
+			dp_to_dig_port(intel_dp)->base.base.crtc;
+		enum pipe pipe = to_intel_crtc(crtc)->pipe;
+
+		reg = VLV_PSRSTAT(pipe);
+		mask = VLV_EDP_PSR_IN_TRANS;
+	}
+
+	mutex_unlock(&dev_priv->psr.lock);
+
+	err = intel_wait_for_register(dev_priv, reg, mask, 0, 50);
+	if (err)
+		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
+
+	/* After the unlocked wait, verify that PSR is still wanted! */
+	mutex_lock(&dev_priv->psr.lock);
+	return err == 0 && dev_priv->psr.enabled;
+}
+
 static void intel_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), psr.work.work);
-	struct intel_dp *intel_dp = dev_priv->psr.enabled;
-	struct drm_crtc *crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
-	/* We have to make sure PSR is ready for re-enable
+	mutex_lock(&dev_priv->psr.lock);
+
+	/*
+	 * We have to make sure PSR is ready for re-enable
 	 * otherwise it keeps disabled until next full enable/disable cycle.
 	 * PSR might take some time to get fully disabled
 	 * and be ready for re-enable.
 	 */
-	if (HAS_DDI(dev_priv)) {
-		if (dev_priv->psr.psr2_enabled) {
-			if (intel_wait_for_register(dev_priv,
-						    EDP_PSR2_STATUS,
-						    EDP_PSR2_STATUS_STATE_MASK,
-						    0,
-						    50)) {
-				DRM_ERROR("Timed out waiting for PSR2 Idle for re-enable\n");
-				return;
-			}
-		} else {
-			if (intel_wait_for_register(dev_priv,
-						    EDP_PSR_STATUS,
-						    EDP_PSR_STATUS_STATE_MASK,
-						    0,
-						    50)) {
-				DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
-				return;
-			}
-		}
-	} else {
-		if (intel_wait_for_register(dev_priv,
-					    VLV_PSRSTAT(pipe),
-					    VLV_EDP_PSR_IN_TRANS,
-					    0,
-					    1)) {
-			DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
-			return;
-		}
-	}
-	mutex_lock(&dev_priv->psr.lock);
-	intel_dp = dev_priv->psr.enabled;
-
-	if (!intel_dp)
+	if (!psr_wait_for_idle(dev_priv))
 		goto unlock;
 
 	/*
@@ -832,7 +838,7 @@ static void intel_psr_work(struct work_struct *work)
 	if (dev_priv->psr.busy_frontbuffer_bits)
 		goto unlock;
 
-	intel_psr_activate(intel_dp);
+	intel_psr_activate(dev_priv->psr.enabled);
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
