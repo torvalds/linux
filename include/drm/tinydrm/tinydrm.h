@@ -95,8 +95,6 @@ void tinydrm_shutdown(struct tinydrm_device *tdev);
 
 void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 				 struct drm_plane_state *old_state);
-int tinydrm_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state);
 int
 tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 			  const struct drm_simple_display_pipe_funcs *funcs,
