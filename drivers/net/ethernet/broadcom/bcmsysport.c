@@ -729,37 +729,33 @@ static unsigned int __bcm_sysport_tx_reclaim(struct bcm_sysport_priv *priv,
 					     struct bcm_sysport_tx_ring *ring)
 {
 	struct net_device *ndev = priv->netdev;
-	unsigned int c_index, last_c_index, last_tx_cn, num_tx_cbs;
 	unsigned int pkts_compl = 0, bytes_compl = 0;
+	unsigned int txbds_processed = 0;
 	struct bcm_sysport_cb *cb;
+	unsigned int txbds_ready;
+	unsigned int c_index;
 	u32 hw_ind;
 
 	/* Compute how many descriptors have been processed since last call */
 	hw_ind = tdma_readl(priv, TDMA_DESC_RING_PROD_CONS_INDEX(ring->index));
 	c_index = (hw_ind >> RING_CONS_INDEX_SHIFT) & RING_CONS_INDEX_MASK;
-	ring->p_index = (hw_ind & RING_PROD_INDEX_MASK);
-
-	last_c_index = ring->c_index;
-	num_tx_cbs = ring->size;
-
-	c_index &= (num_tx_cbs - 1);
-
-	if (c_index >= last_c_index)
-		last_tx_cn = c_index - last_c_index;
-	else
-		last_tx_cn = num_tx_cbs - last_c_index + c_index;
+	txbds_ready = (c_index - ring->c_index) & RING_CONS_INDEX_MASK;
 
 	netif_dbg(priv, tx_done, ndev,
-		  "ring=%d c_index=%d last_tx_cn=%d last_c_index=%d\n",
-		  ring->index, c_index, last_tx_cn, last_c_index);
+		  "ring=%d old_c_index=%u c_index=%u txbds_ready=%u\n",
+		  ring->index, ring->c_index, c_index, txbds_ready);
 
-	while (last_tx_cn-- > 0) {
-		cb = ring->cbs + last_c_index;
+	while (txbds_processed < txbds_ready) {
+		cb = &ring->cbs[ring->clean_index];
 		bcm_sysport_tx_reclaim_one(priv, cb, &bytes_compl, &pkts_compl);
 
 		ring->desc_count++;
-		last_c_index++;
-		last_c_index &= (num_tx_cbs - 1);
+		txbds_processed++;
+
+		if (likely(ring->clean_index < ring->size - 1))
+			ring->clean_index++;
+		else
+			ring->clean_index = 0;
 	}
 
 	ring->c_index = c_index;
@@ -1229,6 +1225,7 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	netif_napi_add(priv->netdev, &ring->napi, bcm_sysport_tx_poll, 64);
 	ring->index = index;
 	ring->size = size;
+	ring->clean_index = 0;
 	ring->alloc_size = ring->size;
 	ring->desc_cpu = p;
 	ring->desc_count = ring->size;
