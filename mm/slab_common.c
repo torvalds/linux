@@ -998,7 +998,7 @@ static u8 size_index[24] __ro_after_init = {
 	2	/* 192 */
 };
 
-static inline int size_index_elem(size_t bytes)
+static inline unsigned int size_index_elem(unsigned int bytes)
 {
 	return (bytes - 1) / 8;
 }
@@ -1067,13 +1067,13 @@ const struct kmalloc_info_struct kmalloc_info[] __initconst = {
  */
 void __init setup_kmalloc_cache_index_table(void)
 {
-	int i;
+	unsigned int i;
 
 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
 
 	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
-		int elem = size_index_elem(i);
+		unsigned int elem = size_index_elem(i);
 
 		if (elem >= ARRAY_SIZE(size_index))
 			break;
