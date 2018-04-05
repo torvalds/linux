@@ -2340,13 +2340,6 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 	__dlm_dirty_lockres(dlm, res);
 }
 
-/* if this node is the recovery master, and there are no
- * locks for a given lockres owned by this node that are in
- * either PR or EX mode, zero out the lvb before requesting.
- *
- */
-
-
 static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 {
 	struct dlm_lock_resource *res;
