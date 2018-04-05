@@ -2155,7 +2155,8 @@ static int test_pred_visited_fn(struct filter_pred *pred, void *event)
 
 static void update_pred_fn(struct event_filter *filter, char *fields)
 {
-	struct prog_entry *prog = filter->prog;
+	struct prog_entry *prog = rcu_dereference_protected(filter->prog,
+						lockdep_is_held(&event_mutex));
 	int i;
 
 	for (i = 0; prog[i].pred; i++) {
@@ -2197,6 +2198,8 @@ static __init int ftrace_test_event_filter(void)
 			break;
 		}
 
+		/* Needed to dereference filter->prog */
+		mutex_lock(&event_mutex);
 		/*
 		 * The preemption disabling is not really needed for self
 		 * tests, but the rcu dereference will complain without it.
@@ -2208,6 +2211,8 @@ static __init int ftrace_test_event_filter(void)
 		test_pred_visited = 0;
 		err = filter_match_preds(filter, &d->rec);
 		preempt_enable();
+
+		mutex_unlock(&event_mutex);
 
 		__free_filter(filter);
 
