@@ -430,6 +430,7 @@ enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_CORE_CLOCK                 = 5,
 	MLX5_IB_MMAP_ALLOC_WC                   = 6,
 	MLX5_IB_MMAP_CLOCK_INFO                 = 7,
+	MLX5_IB_MMAP_DEVICE_MEM                 = 8,
 };
 
 enum {

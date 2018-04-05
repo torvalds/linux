@@ -92,6 +92,8 @@ enum {
 	MLX5_CMD_OP_DESTROY_MKEY                  = 0x202,
 	MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS        = 0x203,
 	MLX5_CMD_OP_PAGE_FAULT_RESUME             = 0x204,
+	MLX5_CMD_OP_ALLOC_MEMIC                   = 0x205,
+	MLX5_CMD_OP_DEALLOC_MEMIC                 = 0x206,
 	MLX5_CMD_OP_CREATE_EQ                     = 0x301,
 	MLX5_CMD_OP_DESTROY_EQ                    = 0x302,
 	MLX5_CMD_OP_QUERY_EQ                      = 0x303,
@@ -8882,6 +8884,59 @@ struct mlx5_ifc_destroy_vport_lag_in_bits {
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_alloc_memic_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_30[0x20];
+
+	u8	   reserved_at_40[0x18];
+	u8	   log_memic_addr_alignment[0x8];
+
+	u8         range_start_addr[0x40];
+
+	u8         range_size[0x20];
+
+	u8         memic_size[0x20];
+};
+
+struct mlx5_ifc_alloc_memic_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         memic_start_addr[0x40];
+};
+
+struct mlx5_ifc_dealloc_memic_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x40];
+
+	u8         memic_start_addr[0x40];
+
+	u8         memic_size[0x20];
+
+	u8         reserved_at_e0[0x20];
+};
+
+struct mlx5_ifc_dealloc_memic_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
 
 	u8         reserved_at_40[0x40];
 };
