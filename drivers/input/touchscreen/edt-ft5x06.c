@@ -70,8 +70,10 @@
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
 
 enum edt_ver {
-	M06,
-	M09,
+	EDT_M06,
+	EDT_M09,
+	EDT_M12,
+	GENERIC_FT,
 };
 
 struct edt_reg_addr {
@@ -179,14 +181,16 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	int error;
 
 	switch (tsdata->version) {
-	case M06:
+	case EDT_M06:
 		cmd = 0xf9; /* tell the controller to send touch data */
 		offset = 5; /* where the actual touch data starts */
 		tplen = 4;  /* data comes in so called frames */
 		crclen = 1; /* length of the crc data */
 		break;
 
-	case M09:
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
 		cmd = 0x0;
 		offset = 3;
 		tplen = 6;
@@ -209,8 +213,8 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		goto out;
 	}
 
-	/* M09 does not send header or CRC */
-	if (tsdata->version == M06) {
+	/* M09/M12 does not send header or CRC */
+	if (tsdata->version == EDT_M06) {
 		if (rdbuf[0] != 0xaa || rdbuf[1] != 0xaa ||
 			rdbuf[2] != datalen) {
 			dev_err_ratelimited(dev,
@@ -233,7 +237,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 			continue;
 
 		/* M06 sometimes sends bogus coordinates in TOUCH_DOWN */
-		if (tsdata->version == M06 && type == TOUCH_EVENT_DOWN)
+		if (tsdata->version == EDT_M06 && type == TOUCH_EVENT_DOWN)
 			continue;
 
 		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
@@ -264,14 +268,16 @@ static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
 	u8 wrbuf[4];
 
 	switch (tsdata->version) {
-	case M06:
+	case EDT_M06:
 		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
 		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
 		wrbuf[2] = value;
 		wrbuf[3] = wrbuf[0] ^ wrbuf[1] ^ wrbuf[2];
 		return edt_ft5x06_ts_readwrite(tsdata->client, 4,
 					wrbuf, 0, NULL);
-	case M09:
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
 		wrbuf[0] = addr;
 		wrbuf[1] = value;
 
@@ -290,7 +296,7 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 	int error;
 
 	switch (tsdata->version) {
-	case M06:
+	case EDT_M06:
 		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
 		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
 		wrbuf[1] |= tsdata->factory_mode ? 0x80 : 0x40;
@@ -309,7 +315,9 @@ static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
 		}
 		break;
 
-	case M09:
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
 		wrbuf[0] = addr;
 		error = edt_ft5x06_ts_readwrite(tsdata->client, 1,
 						wrbuf, 1, rdbuf);
@@ -368,11 +376,13 @@ static ssize_t edt_ft5x06_setting_show(struct device *dev,
 	}
 
 	switch (tsdata->version) {
-	case M06:
+	case EDT_M06:
 		addr = attr->addr_m06;
 		break;
 
-	case M09:
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
 		addr = attr->addr_m09;
 		break;
 
@@ -437,11 +447,13 @@ static ssize_t edt_ft5x06_setting_store(struct device *dev,
 	}
 
 	switch (tsdata->version) {
-	case M06:
+	case EDT_M06:
 		addr = attr->addr_m06;
 		break;
 
-	case M09:
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
 		addr = attr->addr_m09;
 		break;
 
@@ -466,14 +478,18 @@ out:
 	return error ?: count;
 }
 
+/* m06, m09: range 0-31, m12: range 0-5 */
 static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
 		M09_REGISTER_GAIN, 0, 31);
+/* m06, m09: range 0-31, m12: range 0-16 */
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
 		M09_REGISTER_OFFSET, 0, 31);
+/* m06: range 20 to 80, m09: range 0 to 30, m12: range 1 to 255... */
 static EDT_ATTR(threshold, S_IWUSR | S_IRUGO, WORK_REGISTER_THRESHOLD,
-		M09_REGISTER_THRESHOLD, 0, 80);
+		M09_REGISTER_THRESHOLD, 0, 255);
+/* m06: range 3 to 14, m12: (0x64: 100Hz) */
 static EDT_ATTR(report_rate, S_IWUSR | S_IRUGO, WORK_REGISTER_REPORT_RATE,
-		NO_REGISTER, 3, 14);
+		NO_REGISTER, 0, 255);
 
 static struct attribute *edt_ft5x06_attrs[] = {
 	&edt_ft5x06_attr_gain.dattr.attr,
@@ -495,6 +511,12 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 	int ret;
 	int error;
 
+	if (tsdata->version != EDT_M06) {
+		dev_err(&client->dev,
+			"No factory mode support for non-M06 devices\n");
+		return -EINVAL;
+	}
+
 	disable_irq(client->irq);
 
 	if (!tsdata->raw_buffer) {
@@ -508,9 +530,6 @@ static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 	}
 
 	/* mode register is 0x3c when in the work mode */
-	if (tsdata->version == M09)
-		goto m09_out;
-
 	error = edt_ft5x06_register_write(tsdata, WORK_REGISTER_OPMODE, 0x03);
 	if (error) {
 		dev_err(&client->dev,
@@ -543,11 +562,6 @@ err_out:
 	enable_irq(client->irq);
 
 	return error;
-
-m09_out:
-	dev_err(&client->dev, "No factory mode support for M09\n");
-	return -EINVAL;
-
 }
 
 static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
@@ -770,16 +784,17 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 	 * to have garbage in there
 	 */
 	memset(rdbuf, 0, sizeof(rdbuf));
-	error = edt_ft5x06_ts_readwrite(client, 1, "\xbb",
+	error = edt_ft5x06_ts_readwrite(client, 1, "\xBB",
 					EDT_NAME_LEN - 1, rdbuf);
 	if (error)
 		return error;
 
-	/* if we find something consistent, stay with that assumption
-	 * at least M09 won't send 3 bytes here
+	/* Probe content for something consistent.
+	 * M06 starts with a response byte, M12 gives the data directly.
+	 * M09/Generic does not provide model number information.
 	 */
-	if (!(strncasecmp(rdbuf + 1, "EP0", 3))) {
-		tsdata->version = M06;
+	if (!strncasecmp(rdbuf + 1, "EP0", 3)) {
+		tsdata->version = EDT_M06;
 
 		/* remove last '$' end marker */
 		rdbuf[EDT_NAME_LEN - 1] = '\0';
@@ -792,9 +807,31 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 			*p++ = '\0';
 		strlcpy(model_name, rdbuf + 1, EDT_NAME_LEN);
 		strlcpy(fw_version, p ? p : "", EDT_NAME_LEN);
+	} else if (!strncasecmp(rdbuf, "EP0", 3)) {
+		tsdata->version = EDT_M12;
+
+		/* remove last '$' end marker */
+		rdbuf[EDT_NAME_LEN - 2] = '\0';
+		if (rdbuf[EDT_NAME_LEN - 3] == '$')
+			rdbuf[EDT_NAME_LEN - 3] = '\0';
+
+		/* look for Model/Version separator */
+		p = strchr(rdbuf, '*');
+		if (p)
+			*p++ = '\0';
+		strlcpy(model_name, rdbuf, EDT_NAME_LEN);
+		strlcpy(fw_version, p ? p : "", EDT_NAME_LEN);
 	} else {
-		/* since there are only two versions around (M06, M09) */
-		tsdata->version = M09;
+		/* If it is not an EDT M06/M12 touchscreen, then the model
+		 * detection is a bit hairy. The different ft5x06
+		 * firmares around don't reliably implement the
+		 * identification registers. Well, we'll take a shot.
+		 *
+		 * The main difference between generic focaltec based
+		 * touches and EDT M09 is that we know how to retrieve
+		 * the max coordinates for the latter.
+		 */
+		tsdata->version = GENERIC_FT;
 
 		error = edt_ft5x06_ts_readwrite(client, 1, "\xA6",
 						2, rdbuf);
@@ -808,8 +845,34 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 		if (error)
 			return error;
 
-		snprintf(model_name, EDT_NAME_LEN, "EP0%i%i0M09",
-			rdbuf[0] >> 4, rdbuf[0] & 0x0F);
+		/* This "model identification" is not exact. Unfortunately
+		 * not all firmwares for the ft5x06 put useful values in
+		 * the identification registers.
+		 */
+		switch (rdbuf[0]) {
+		case 0x35:   /* EDT EP0350M09 */
+		case 0x43:   /* EDT EP0430M09 */
+		case 0x50:   /* EDT EP0500M09 */
+		case 0x57:   /* EDT EP0570M09 */
+		case 0x70:   /* EDT EP0700M09 */
+			tsdata->version = EDT_M09;
+			snprintf(model_name, EDT_NAME_LEN, "EP0%i%i0M09",
+				rdbuf[0] >> 4, rdbuf[0] & 0x0F);
+			break;
+		case 0xa1:   /* EDT EP1010ML00 */
+			tsdata->version = EDT_M09;
+			snprintf(model_name, EDT_NAME_LEN, "EP%i%i0ML00",
+				rdbuf[0] >> 4, rdbuf[0] & 0x0F);
+			break;
+		case 0x5a:   /* Solomon Goldentek Display */
+			snprintf(model_name, EDT_NAME_LEN, "GKTW50SCED1R0");
+			break;
+		default:
+			snprintf(model_name, EDT_NAME_LEN,
+				 "generic ft5x06 (%02x)",
+				 rdbuf[0]);
+			break;
+		}
 	}
 
 	return 0;
@@ -853,8 +916,17 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	if (reg_addr->reg_report_rate != NO_REGISTER)
 		tsdata->report_rate = edt_ft5x06_register_read(tsdata,
 						reg_addr->reg_report_rate);
-	tsdata->num_x = edt_ft5x06_register_read(tsdata, reg_addr->reg_num_x);
-	tsdata->num_y = edt_ft5x06_register_read(tsdata, reg_addr->reg_num_y);
+	if (tsdata->version == EDT_M06 ||
+	    tsdata->version == EDT_M09 ||
+	    tsdata->version == EDT_M12) {
+		tsdata->num_x = edt_ft5x06_register_read(tsdata,
+							 reg_addr->reg_num_x);
+		tsdata->num_y = edt_ft5x06_register_read(tsdata,
+							 reg_addr->reg_num_y);
+	} else {
+		tsdata->num_x = -1;
+		tsdata->num_y = -1;
+	}
 }
 
 static void
@@ -863,7 +935,7 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 	struct edt_reg_addr *reg_addr = &tsdata->reg_addr;
 
 	switch (tsdata->version) {
-	case M06:
+	case EDT_M06:
 		reg_addr->reg_threshold = WORK_REGISTER_THRESHOLD;
 		reg_addr->reg_report_rate = WORK_REGISTER_REPORT_RATE;
 		reg_addr->reg_gain = WORK_REGISTER_GAIN;
@@ -872,13 +944,21 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 		reg_addr->reg_num_y = WORK_REGISTER_NUM_Y;
 		break;
 
-	case M09:
+	case EDT_M09:
+	case EDT_M12:
 		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
 		reg_addr->reg_report_rate = NO_REGISTER;
 		reg_addr->reg_gain = M09_REGISTER_GAIN;
 		reg_addr->reg_offset = M09_REGISTER_OFFSET;
 		reg_addr->reg_num_x = M09_REGISTER_NUM_X;
 		reg_addr->reg_num_y = M09_REGISTER_NUM_Y;
+		break;
+
+	case GENERIC_FT:
+		/* this is a guesswork */
+		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
+		reg_addr->reg_gain = M09_REGISTER_GAIN;
+		reg_addr->reg_offset = M09_REGISTER_OFFSET;
 		break;
 	}
 }
@@ -969,10 +1049,20 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
-	input_set_abs_params(input, ABS_MT_POSITION_X,
-			     0, tsdata->num_x * 64 - 1, 0, 0);
-	input_set_abs_params(input, ABS_MT_POSITION_Y,
-			     0, tsdata->num_y * 64 - 1, 0, 0);
+	if (tsdata->version == EDT_M06 ||
+	    tsdata->version == EDT_M09 ||
+	    tsdata->version == EDT_M12) {
+		input_set_abs_params(input, ABS_MT_POSITION_X,
+				     0, tsdata->num_x * 64 - 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_Y,
+				     0, tsdata->num_y * 64 - 1, 0, 0);
+	} else {
+		/* Unknown maximum values. Specify via devicetree */
+		input_set_abs_params(input, ABS_MT_POSITION_X,
+				     0, 65535, 0, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_Y,
+				     0, 65535, 0, 0);
+	}
 
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
@@ -998,13 +1088,13 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&client->dev.kobj, &edt_ft5x06_attr_group);
+	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
 	if (error)
 		return error;
 
 	error = input_register_device(input);
 	if (error)
-		goto err_remove_attrs;
+		return error;
 
 	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
 	device_init_wakeup(&client->dev, 1);
@@ -1016,10 +1106,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		tsdata->reset_gpio ? desc_to_gpio(tsdata->reset_gpio) : -1);
 
 	return 0;
-
-err_remove_attrs:
-	sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
-	return error;
 }
 
 static int edt_ft5x06_ts_remove(struct i2c_client *client)
@@ -1027,7 +1113,6 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 
 	edt_ft5x06_ts_teardown_debugfs(tsdata);
-	sysfs_remove_group(&client->dev.kobj, &edt_ft5x06_attr_group);
 
 	return 0;
 }

@@ -43,6 +43,8 @@
 #define _DT_BINDINGS_CLK_SUN4I_A10_H_
 
 #define CLK_HOSC		1
+#define CLK_PLL_VIDEO0_2X	9
+#define CLK_PLL_VIDEO1_2X	18
 #define CLK_CPU			20
 
 /* AHB Gates */

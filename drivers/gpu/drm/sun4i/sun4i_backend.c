@@ -20,6 +20,7 @@
 
 #include <linux/component.h>
 #include <linux/list.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/reset.h>
 
@@ -27,6 +28,11 @@
 #include "sun4i_drv.h"
 #include "sun4i_layer.h"
 #include "sunxi_engine.h"
+
+struct sun4i_backend_quirks {
+	/* backend <-> TCON muxing selection done in backend */
+	bool needs_output_muxing;
+};
 
 static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00000107, 0x00000204, 0x00000064, 0x00000108,
@@ -209,23 +215,19 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
 	u32 lo_paddr, hi_paddr;
 	dma_addr_t paddr;
-	int bpp;
 
-	/* Get the physical address of the buffer in memory */
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-
-	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
-
-	/* Compute the start of the displayed memory */
-	bpp = fb->format->cpp[0];
-	paddr = gem->paddr + fb->offsets[0];
-	paddr += (state->src_x >> 16) * bpp;
-	paddr += (state->src_y >> 16) * fb->pitches[0];
-
+	/* Get the start of the displayed memory */
+	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
+
+	/*
+	 * backend DMA accesses DRAM directly, bypassing the system
+	 * bus. As such, the address range is different and the buffer
+	 * address needs to be corrected.
+	 */
+	paddr -= PHYS_OFFSET;
 
 	/* Write the 32 lower bits of the address (in bits) */
 	lo_paddr = paddr << 3;
@@ -349,6 +351,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_backend *backend;
+	const struct sun4i_backend_quirks *quirks;
 	struct resource *res;
 	void __iomem *regs;
 	int i, ret;
@@ -368,13 +371,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-
-	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
-						     &sun4i_backend_regmap_config);
-	if (IS_ERR(backend->engine.regs)) {
-		dev_err(dev, "Couldn't create the backend regmap\n");
-		return PTR_ERR(backend->engine.regs);
-	}
 
 	backend->reset = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(backend->reset)) {
@@ -421,9 +417,23 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		}
 	}
 
+	backend->engine.regs = devm_regmap_init_mmio(dev, regs,
+						     &sun4i_backend_regmap_config);
+	if (IS_ERR(backend->engine.regs)) {
+		dev_err(dev, "Couldn't create the backend regmap\n");
+		return PTR_ERR(backend->engine.regs);
+	}
+
 	list_add_tail(&backend->engine.list, &drv->engine_list);
 
-	/* Reset the registers */
+	/*
+	 * Many of the backend's layer configuration registers have
+	 * undefined default values. This poses a risk as we use
+	 * regmap_update_bits in some places, and don't overwrite
+	 * the whole register.
+	 *
+	 * Clear the registers here to have something predictable.
+	 */
 	for (i = 0x800; i < 0x1000; i += 4)
 		regmap_write(backend->engine.regs, i, 0);
 
@@ -435,6 +445,27 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_MODCTL_REG,
 		     SUN4I_BACKEND_MODCTL_DEBE_EN |
 		     SUN4I_BACKEND_MODCTL_START_CTL);
+
+	/* Set output selection if needed */
+	quirks = of_device_get_match_data(dev);
+	if (quirks->needs_output_muxing) {
+		/*
+		 * We assume there is no dynamic muxing of backends
+		 * and TCONs, so we select the backend with same ID.
+		 *
+		 * While dynamic selection might be interesting, since
+		 * the CRTC is tied to the TCON, while the layers are
+		 * tied to the backends, this means, we will need to
+		 * switch between groups of layers. There might not be
+		 * a way to represent this constraint in DRM.
+		 */
+		regmap_update_bits(backend->engine.regs,
+				   SUN4I_BACKEND_MODCTL_REG,
+				   SUN4I_BACKEND_MODCTL_OUT_SEL,
+				   (backend->engine.id
+				    ? SUN4I_BACKEND_MODCTL_OUT_LCD1
+				    : SUN4I_BACKEND_MODCTL_OUT_LCD0));
+	}
 
 	return 0;
 
@@ -483,10 +514,44 @@ static int sun4i_backend_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun4i_backend_quirks sun4i_backend_quirks = {
+	.needs_output_muxing = true,
+};
+
+static const struct sun4i_backend_quirks sun5i_backend_quirks = {
+};
+
+static const struct sun4i_backend_quirks sun6i_backend_quirks = {
+};
+
+static const struct sun4i_backend_quirks sun7i_backend_quirks = {
+	.needs_output_muxing = true,
+};
+
+static const struct sun4i_backend_quirks sun8i_a33_backend_quirks = {
+};
+
 static const struct of_device_id sun4i_backend_of_table[] = {
-	{ .compatible = "allwinner,sun5i-a13-display-backend" },
-	{ .compatible = "allwinner,sun6i-a31-display-backend" },
-	{ .compatible = "allwinner,sun8i-a33-display-backend" },
+	{
+		.compatible = "allwinner,sun4i-a10-display-backend",
+		.data = &sun4i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun5i-a13-display-backend",
+		.data = &sun5i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun6i-a31-display-backend",
+		.data = &sun6i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun7i-a20-display-backend",
+		.data = &sun7i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-a33-display-backend",
+		.data = &sun8i_a33_backend_quirks,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_backend_of_table);

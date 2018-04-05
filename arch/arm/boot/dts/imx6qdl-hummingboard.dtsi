@@ -138,7 +138,7 @@
 	};
 
 	/* Pro baseboard model */
-	sgtl5000: sgtl5000@0a {
+	sgtl5000: sgtl5000@a {
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";

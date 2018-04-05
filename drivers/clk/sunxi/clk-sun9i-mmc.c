@@ -136,7 +136,7 @@ static int sun9i_a80_mmc_config_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(data->clk);
 	}
 
-	data->reset = devm_reset_control_get(&pdev->dev, NULL);
+	data->reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(data->reset)) {
 		dev_err(&pdev->dev, "Could not get reset control\n");
 		return PTR_ERR(data->reset);

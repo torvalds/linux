@@ -43,7 +43,6 @@
 
 /dts-v1/;
 #include "sun8i-a33.dtsi"
-#include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -62,8 +61,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pin_olinuxino>;
 
 		green {
 			label = "a33-olinuxino:green:usr";
@@ -72,13 +69,21 @@
 	};
 };
 
+&codec {
+	status = "okay";
+};
+
+&dai {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
@@ -88,23 +93,6 @@
 
 &ohci0 {
 	status = "okay";
-};
-
-&pio {
-	led_pin_olinuxino: led_pins@0 {
-		pins = "PB7";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_olinuxino: mmc0_cd_pin@0 {
-		pins = "PB4";
-		function = "gpio_in";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		pins = "PB3";
-		function = "gpio_in";
-	};
 };
 
 &r_rsb {
@@ -121,6 +109,14 @@
 };
 
 #include "axp223.dtsi"
+
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
 
 &reg_aldo1 {
 	regulator-always-on;
@@ -195,6 +191,21 @@
 	vcc-lcd-supply = <&reg_dc1sw>;
 };
 
+&sound {
+	/* Board level jack widgets */
+	simple-audio-card,widgets = "Microphone", "Microphone Jack",
+				    "Headphone", "Headphone Jack";
+	/* Board level routing. First 2 routes copied from SoC level */
+	simple-audio-card,routing =
+		"Left DAC", "AIF1 Slot 0 Left",
+		"Right DAC", "AIF1 Slot 0 Right",
+		"HP", "HPCOM",
+		"Headphone Jack", "HP",
+		"MIC1", "Microphone Jack",
+		"Microphone Jack", "MBIAS";
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_b>;
@@ -211,8 +222,6 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
 	usb0_id_det-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_drivevbus>;

@@ -56,9 +56,24 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
 };
 
 &codec {
+	status = "okay";
+};
+
+&de {
 	status = "okay";
 };
 
@@ -70,9 +85,17 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -88,23 +111,6 @@
 	status = "okay";
 };
 
-&pio {
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		pins = "PH4";
-		function = "gpio_in";
-	};
-
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		pins = "PH5";
-		function = "gpio_in";
-	};
-
-	usb2_vbus_pin_mk802: usb2_vbus_pin@0 {
-		pins = "PH12";
-		function = "gpio_out";
-	};
-};
-
 &reg_usb0_vbus {
 	status = "okay";
 };
@@ -114,14 +120,13 @@
 };
 
 &reg_usb2_vbus {
-	pinctrl-0 = <&usb2_vbus_pin_mk802>;
 	gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>; /* PH12 */
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
@@ -131,8 +136,6 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
 	usb0_id_det-gpios = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
 	usb0_vbus_det-gpios = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;

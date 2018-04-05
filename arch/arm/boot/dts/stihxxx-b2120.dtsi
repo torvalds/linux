@@ -62,12 +62,12 @@
 			status = "okay";
 		};
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			non-removable;
 			status = "okay";
 		};
 
-		mmc1: sdhci@09080000 {
+		mmc1: sdhci@9080000 {
 			status = "okay";
 		};
 
@@ -102,7 +102,7 @@
 			fixed-link = <0 1 1000 0 0>;
 		};
 
-		demux@08a20000 {
+		demux@8a20000 {
 			compatible	= "st,stih407-c8sectpfe";
 			status		= "okay";
 			reg		= <0x08a20000 0x10000>,

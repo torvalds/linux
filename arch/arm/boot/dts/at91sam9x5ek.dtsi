@@ -134,7 +134,7 @@
 			};
 		};
 
-		usb0: ohci@00600000 {
+		usb0: ohci@600000 {
 			status = "okay";
 			num-ports = <3>;
 			atmel,vbus-gpio = <0 /* &pioD 18 GPIO_ACTIVE_LOW *//* Activate to have access to port A */
@@ -143,7 +143,7 @@
 					  >;
 		};
 
-		usb1: ehci@00700000 {
+		usb1: ehci@700000 {
 			status = "okay";
 		};
 	};

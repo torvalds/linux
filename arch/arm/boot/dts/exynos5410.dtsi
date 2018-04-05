@@ -187,7 +187,7 @@
 			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pinctrl_3: pinctrl@03860000 {
+		pinctrl_3: pinctrl@3860000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x03860000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -223,7 +223,7 @@
 			};
 		};
 
-		audi2s0: i2s@03830000 {
+		audi2s0: i2s@3830000 {
 			compatible = "samsung,exynos5420-i2s";
 			reg = <0x03830000 0x100>;
 			dmas = <&pdma0 10

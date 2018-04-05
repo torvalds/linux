@@ -72,19 +72,19 @@
 		};
 	};
 
-	intc: interrupt-controller@08761000 {
+	intc: interrupt-controller@8761000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x08761000 0x1000>, <0x08760100 0x100>;
 	};
 
-	scu@08760000 {
+	scu@8760000 {
 		compatible = "arm,cortex-a9-scu";
 		reg = <0x08760000 0x1000>;
 	};
 
-	timer@08760200 {
+	timer@8760200 {
 		interrupt-parent = <&intc>;
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x08760200 0x100>;
@@ -555,7 +555,7 @@
 			status = "disabled";
 		};
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			compatible = "st,sdhci-stih407", "st,sdhci";
 			status = "disabled";
 			reg = <0x09060000 0x7ff>, <0x9061008 0x20>;
@@ -570,7 +570,7 @@
 			bus-width = <8>;
 		};
 
-		mmc1: sdhci@09080000 {
+		mmc1: sdhci@9080000 {
 			compatible = "st,sdhci-stih407", "st,sdhci";
 			status = "disabled";
 			reg = <0x09080000 0x7ff>;
@@ -715,14 +715,14 @@
 			status		= "disabled";
 		};
 
-		rng10: rng@08a89000 {
+		rng10: rng@8a89000 {
 			compatible      = "st,rng";
 			reg		= <0x08a89000 0x1000>;
 			clocks          = <&clk_sysin>;
 			status		= "okay";
 		};
 
-		rng11: rng@08a8a000 {
+		rng11: rng@8a8a000 {
 			compatible      = "st,rng";
 			reg		= <0x08a8a000 0x1000>;
 			clocks          = <&clk_sysin>;
@@ -756,14 +756,14 @@
 				 <&clk_s_c0_flexgen CLK_ETH_PHY>;
 		};
 
-		rng10: rng@08a89000 {
+		rng10: rng@8a89000 {
 			compatible      = "st,rng";
 			reg		= <0x08a89000 0x1000>;
 			clocks          = <&clk_sysin>;
 			status		= "okay";
 		};
 
-		rng11: rng@08a8a000 {
+		rng11: rng@8a8a000 {
 			compatible      = "st,rng";
 			reg		= <0x08a8a000 0x1000>;
 			clocks          = <&clk_sysin>;

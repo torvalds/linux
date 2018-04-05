@@ -110,7 +110,7 @@
                                         clock-frequency = <192000000>;
                                 };
 
-                                clk_apb: clk_apb@08 {
+                                clk_apb: clk_apb@8 {
                                         #clock-cells = <0>;
                                         compatible = "aspeed,g4-apb-clock", "fixed-clock";
                                         reg = <0x08>;

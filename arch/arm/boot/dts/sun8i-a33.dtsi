@@ -203,8 +203,8 @@
 		};
 	};
 
-	soc@01c00000 {
-		tcon0: lcd-controller@01c0c000 {
+	soc@1c00000 {
+		tcon0: lcd-controller@1c0c000 {
 			compatible = "allwinner,sun8i-a33-tcon";
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -240,7 +240,7 @@
 			};
 		};
 
-		crypto: crypto-engine@01c15000 {
+		crypto: crypto-engine@1c15000 {
 			compatible = "allwinner,sun4i-a10-crypto";
 			reg = <0x01c15000 0x1000>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
@@ -250,7 +250,7 @@
 			reset-names = "ahb";
 		};
 
-		dai: dai@01c22c00 {
+		dai: dai@1c22c00 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun6i-a31-i2s";
 			reg = <0x01c22c00 0x200>;
@@ -263,7 +263,7 @@
 			status = "disabled";
 		};
 
-		codec: codec@01c22e00 {
+		codec: codec@1c22e00 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun8i-a33-codec";
 			reg = <0x01c22e00 0x400>;
@@ -273,14 +273,14 @@
 			status = "disabled";
 		};
 
-		ths: ths@01c25000 {
+		ths: ths@1c25000 {
 			compatible = "allwinner,sun8i-a33-ths";
 			reg = <0x01c25000 0x100>;
 			#thermal-sensor-cells = <0>;
 			#io-channel-cells = <0>;
 		};
 
-		fe0: display-frontend@01e00000 {
+		fe0: display-frontend@1e00000 {
 			compatible = "allwinner,sun8i-a33-display-frontend";
 			reg = <0x01e00000 0x20000>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
@@ -289,7 +289,6 @@
 			clock-names = "ahb", "mod",
 				      "ram";
 			resets = <&ccu RST_BUS_DE_FE>;
-			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -308,7 +307,7 @@
 			};
 		};
 
-		be0: display-backend@01e60000 {
+		be0: display-backend@1e60000 {
 			compatible = "allwinner,sun8i-a33-display-backend";
 			reg = <0x01e60000 0x10000>, <0x01e80000 0x1000>;
 			reg-names = "be", "sat";
@@ -350,7 +349,7 @@
 			};
 		};
 
-		drc0: drc@01e70000 {
+		drc0: drc@1e70000 {
 			compatible = "allwinner,sun8i-a33-drc";
 			reg = <0x01e70000 0x10000>;
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;

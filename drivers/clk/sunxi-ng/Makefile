@@ -11,6 +11,7 @@ lib-$(CONFIG_SUNXI_CCU)		+= ccu_gate.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mux.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mult.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_phase.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_sdm.o
 
 # Multi-factor clocks
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_nk.o
@@ -21,6 +22,7 @@ lib-$(CONFIG_SUNXI_CCU)		+= ccu_mp.o
 
 # SoC support
 obj-$(CONFIG_SUN50I_A64_CCU)	+= ccu-sun50i-a64.o
+obj-$(CONFIG_SUN50I_H6_CCU)	+= ccu-sun50i-h6.o
 obj-$(CONFIG_SUN4I_A10_CCU)	+= ccu-sun4i-a10.o
 obj-$(CONFIG_SUN5I_CCU)		+= ccu-sun5i.o
 obj-$(CONFIG_SUN6I_A31_CCU)	+= ccu-sun6i-a31.o
