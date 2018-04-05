@@ -1215,20 +1215,20 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
 		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     IS_CANNONLAKE(dev_priv) ? GEN9_FREQ_SCALER : 1);
+			     INTEL_GEN(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     IS_CANNONLAKE(dev_priv) ? GEN9_FREQ_SCALER : 1);
+			     INTEL_GEN(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
 		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     IS_CANNONLAKE(dev_priv) ? GEN9_FREQ_SCALER : 1);
+			     INTEL_GEN(dev_priv) >= 10 ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
@@ -1811,7 +1811,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	min_gpu_freq = rps->min_freq;
 	max_gpu_freq = rps->max_freq;
-	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq /= GEN9_FREQ_SCALER;
 		max_gpu_freq /= GEN9_FREQ_SCALER;
@@ -1827,7 +1827,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
 			   intel_gpu_freq(dev_priv, (gpu_freq *
 						     (IS_GEN9_BC(dev_priv) ||
-						      IS_CANNONLAKE(dev_priv) ?
+						      INTEL_GEN(dev_priv) >= 10 ?
 						      GEN9_FREQ_SCALER : 1))),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
