@@ -1056,6 +1056,18 @@ static int mmc_sdio_hw_reset(struct mmc_host *host)
 	return mmc_sdio_power_restore(host);
 }
 
+static int mmc_sdio_sw_reset(struct mmc_host *host)
+{
+	mmc_set_clock(host, host->f_init);
+	sdio_reset(host);
+	mmc_go_idle(host);
+
+	mmc_set_initial_state(host);
+	mmc_set_initial_signal_voltage(host);
+
+	return mmc_sdio_reinit_card(host, 0);
+}
+
 static const struct mmc_bus_ops mmc_sdio_ops = {
 	.remove = mmc_sdio_remove,
 	.detect = mmc_sdio_detect,
@@ -1067,6 +1079,7 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 	.power_restore = mmc_sdio_power_restore,
 	.alive = mmc_sdio_alive,
 	.hw_reset = mmc_sdio_hw_reset,
+	.sw_reset = mmc_sdio_sw_reset,
 };
 
 
