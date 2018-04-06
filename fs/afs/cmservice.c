@@ -201,7 +201,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->count = ntohl(call->tmp);
 		_debug("FID count: %u", call->count);
 		if (call->count > AFSCBMAX)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		call->buffer = kmalloc(call->count * 3 * 4, GFP_KERNEL);
 		if (!call->buffer)
@@ -245,7 +245,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		call->count2 = ntohl(call->tmp);
 		_debug("CB count: %u", call->count2);
 		if (call->count2 != call->count && call->count2 != 0)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		call->offset = 0;
 		call->unmarshall++;
 

@@ -450,7 +450,7 @@ again:
 		call->count2	= ntohl(*bp); /* Type or next count */
 
 		if (call->count > YFS_MAXENDPOINTS)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		alist = afs_alloc_addrlist(call->count, FS_SERVICE, AFS_FS_PORT);
 		if (!alist)
@@ -474,7 +474,7 @@ again:
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		size += sizeof(__be32);
@@ -487,18 +487,18 @@ again:
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			afs_merge_fs_addr4(alist, bp[1], ntohl(bp[2]));
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			afs_merge_fs_addr6(alist, bp + 1, ntohl(bp[5]));
 			bp += 6;
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		/* Got either the type of the next entry or the count of
@@ -517,7 +517,7 @@ again:
 		if (!call->count)
 			goto end;
 		if (call->count > YFS_MAXENDPOINTS)
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 
 		call->unmarshall = 3;
 
@@ -545,7 +545,7 @@ again:
 			size = sizeof(__be32) * (1 + 4 + 1);
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		if (call->count > 1)
@@ -558,16 +558,16 @@ again:
 		switch (call->count2) {
 		case YFS_ENDPOINT_IPV4:
 			if (ntohl(bp[0]) != sizeof(__be32) * 2)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			bp += 3;
 			break;
 		case YFS_ENDPOINT_IPV6:
 			if (ntohl(bp[0]) != sizeof(__be32) * 5)
-				return -EBADMSG;
+				return afs_protocol_error(call, -EBADMSG);
 			bp += 6;
 			break;
 		default:
-			return -EBADMSG;
+			return afs_protocol_error(call, -EBADMSG);
 		}
 
 		/* Got either the type of the next entry or the count of

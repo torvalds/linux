@@ -875,6 +875,7 @@ extern void afs_flat_call_destructor(struct afs_call *);
 extern void afs_send_empty_reply(struct afs_call *);
 extern void afs_send_simple_reply(struct afs_call *, const void *, size_t);
 extern int afs_extract_data(struct afs_call *, void *, size_t, bool);
+extern int afs_protocol_error(struct afs_call *, int);
 
 static inline int afs_transfer_reply(struct afs_call *call)
 {

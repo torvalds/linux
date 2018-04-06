@@ -554,6 +554,27 @@ TRACE_EVENT(afs_edit_dir,
 		      __entry->name)
 	    );
 
+TRACE_EVENT(afs_protocol_error,
+	    TP_PROTO(struct afs_call *call, int error, const void *where),
+
+	    TP_ARGS(call, error, where),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call		)
+		    __field(int,		error		)
+		    __field(const void *,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call ? call->debug_id : 0;
+		    __entry->error = error;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("c=%08x r=%d sp=%pSR",
+		      __entry->call, __entry->error, __entry->where)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */
