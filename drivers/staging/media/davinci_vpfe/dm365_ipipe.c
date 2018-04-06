@@ -1778,25 +1778,25 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 	struct media_pad *pads = &ipipe->pads[0];
 	struct v4l2_subdev *sd = &ipipe->subdev;
 	struct media_entity *me = &sd->entity;
-	static resource_size_t  res_len;
-	struct resource *res;
+	struct resource *res, *memres;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
 	if (!res)
 		return -ENOENT;
 
-	res_len = resource_size(res);
-	res = request_mem_region(res->start, res_len, res->name);
-	if (!res)
+	memres = request_mem_region(res->start, resource_size(res), res->name);
+	if (!memres)
 		return -EBUSY;
-	ipipe->base_addr = ioremap_nocache(res->start, res_len);
+	ipipe->base_addr = ioremap_nocache(memres->start,
+					   resource_size(memres));
 	if (!ipipe->base_addr)
 		goto error_release;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 6);
 	if (!res)
 		goto error_unmap;
-	ipipe->isp5_base_addr = ioremap_nocache(res->start, res_len);
+	ipipe->isp5_base_addr = ioremap_nocache(res->start,
+						resource_size(res));
 	if (!ipipe->isp5_base_addr)
 		goto error_unmap;
 
@@ -1831,7 +1831,7 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 error_unmap:
 	iounmap(ipipe->base_addr);
 error_release:
-	release_mem_region(res->start, res_len);
+	release_mem_region(memres->start, resource_size(memres));
 	return -ENOMEM;
 }
 
