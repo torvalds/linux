@@ -1209,9 +1209,11 @@ static void set_maintenance_mode(void *send_info, bool enable)
 		atomic_set(&smi_info->req_events, 0);
 }
 
+static void shutdown_smi(void *send_info);
 static const struct ipmi_smi_handlers handlers = {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
+	.shutdown               = shutdown_smi,
 	.get_smi_info		= get_smi_info,
 	.sender			= sender,
 	.request_events		= request_events,
@@ -2301,20 +2303,9 @@ skip_fallback_noirq:
 }
 module_init(init_ipmi_si);
 
-static void shutdown_one_si(struct smi_info *smi_info)
+static void shutdown_smi(void *send_info)
 {
-	int           rv = 0;
-
-	if (smi_info->intf) {
-		ipmi_smi_t intf = smi_info->intf;
-
-		smi_info->intf = NULL;
-		rv = ipmi_unregister_smi(intf);
-		if (rv) {
-			pr_err(PFX "Unable to unregister device: errno=%d\n",
-			       rv);
-		}
-	}
+	struct smi_info *smi_info = send_info;
 
 	if (smi_info->dev_group_added) {
 		device_remove_group(smi_info->io.dev, &ipmi_si_dev_attr_group);
@@ -2370,6 +2361,20 @@ static void shutdown_one_si(struct smi_info *smi_info)
 
 	kfree(smi_info->si_sm);
 	smi_info->si_sm = NULL;
+}
+
+static void shutdown_one_si(struct smi_info *smi_info)
+{
+	int rv;
+	ipmi_smi_t intf = smi_info->intf;
+
+	if (!intf)
+		return;
+
+	smi_info->intf = NULL;
+	rv = ipmi_unregister_smi(intf);
+	if (rv)
+		pr_err(PFX "Unable to unregister device: errno=%d\n", rv);
 }
 
 static void cleanup_one_si(struct smi_info *smi_info)
