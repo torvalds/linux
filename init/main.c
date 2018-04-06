@@ -496,7 +496,14 @@ void __init __weak mem_encrypt_init(void) { }
 
 bool initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
+
+#ifdef TRACEPOINTS_ENABLED
 static void __init initcall_debug_enable(void);
+#else
+static inline void initcall_debug_enable(void)
+{
+}
+#endif
 
 /*
  * Set up kernel memory allocators
@@ -832,6 +839,7 @@ trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
 
 static ktime_t initcall_calltime;
 
+#ifdef TRACEPOINTS_ENABLED
 static void __init initcall_debug_enable(void)
 {
 	int ret;
@@ -842,6 +850,22 @@ static void __init initcall_debug_enable(void)
 					      &initcall_calltime);
 	WARN(ret, "Failed to register initcall tracepoints\n");
 }
+# define do_trace_initcall_start	trace_initcall_start
+# define do_trace_initcall_finish	trace_initcall_finish
+#else
+static inline void do_trace_initcall_start(initcall_t fn)
+{
+	if (!initcall_debug)
+		return;
+	trace_initcall_start_cb(&initcall_calltime, fn);
+}
+static inline void do_trace_initcall_finish(initcall_t fn, int ret)
+{
+	if (!initcall_debug)
+		return;
+	trace_initcall_finish_cb(&initcall_calltime, fn, ret);
+}
+#endif /* !TRACEPOINTS_ENABLED */
 
 int __init_or_module do_one_initcall(initcall_t fn)
 {
@@ -852,9 +876,9 @@ int __init_or_module do_one_initcall(initcall_t fn)
 	if (initcall_blacklisted(fn))
 		return -EPERM;
 
-	trace_initcall_start(fn);
+	do_trace_initcall_start(fn);
 	ret = fn();
-	trace_initcall_finish(fn, ret);
+	do_trace_initcall_finish(fn, ret);
 
 	msgbuf[0] = 0;
 
