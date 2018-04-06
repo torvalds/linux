@@ -111,7 +111,7 @@ struct afs_lookup_cookie {
 static bool afs_dir_check_page(struct afs_vnode *dvnode, struct page *page,
 			       loff_t i_size)
 {
-	struct afs_dir_page *dbuf;
+	struct afs_xdr_dir_page *dbuf;
 	loff_t latter, off;
 	int tmp, qty;
 
@@ -127,15 +127,15 @@ static bool afs_dir_check_page(struct afs_vnode *dvnode, struct page *page,
 		qty = PAGE_SIZE;
 	else
 		qty = latter;
-	qty /= sizeof(union afs_dir_block);
+	qty /= sizeof(union afs_xdr_dir_block);
 
 	/* check them */
 	dbuf = page_address(page);
 	for (tmp = 0; tmp < qty; tmp++) {
-		if (dbuf->blocks[tmp].pagehdr.magic != AFS_DIR_MAGIC) {
+		if (dbuf->blocks[tmp].hdr.magic != AFS_DIR_MAGIC) {
 			printk("kAFS: %s(%lx): bad magic %d/%d is %04hx\n",
 			       __func__, dvnode->vfs_inode.i_ino, tmp, qty,
-			       ntohs(dbuf->blocks[tmp].pagehdr.magic));
+			       ntohs(dbuf->blocks[tmp].hdr.magic));
 			trace_afs_dir_check_failed(dvnode, off, i_size);
 			goto error;
 		}
@@ -156,8 +156,8 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 {
 	_enter("{%lu}", inode->i_ino);
 
-	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
 
 	if (test_bit(AFS_VNODE_DELETED, &AFS_FS_I(inode)->flags))
 		return -ENOENT;
@@ -310,17 +310,17 @@ content_has_grown:
  * deal with one block in an AFS directory
  */
 static int afs_dir_iterate_block(struct dir_context *ctx,
-				 union afs_dir_block *block,
+				 union afs_xdr_dir_block *block,
 				 unsigned blkoff)
 {
-	union afs_dirent *dire;
+	union afs_xdr_dirent *dire;
 	unsigned offset, next, curr;
 	size_t nlen;
 	int tmp;
 
 	_enter("%u,%x,%p,,",(unsigned)ctx->pos,blkoff,block);
 
-	curr = (ctx->pos - blkoff) / sizeof(union afs_dirent);
+	curr = (ctx->pos - blkoff) / sizeof(union afs_xdr_dirent);
 
 	/* walk through the block, an entry at a time */
 	for (offset = (blkoff == 0 ? AFS_DIR_RESV_BLOCKS0 : AFS_DIR_RESV_BLOCKS);
@@ -330,13 +330,13 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 		next = offset + 1;
 
 		/* skip entries marked unused in the bitmap */
-		if (!(block->pagehdr.bitmap[offset / 8] &
+		if (!(block->hdr.bitmap[offset / 8] &
 		      (1 << (offset % 8)))) {
 			_debug("ENT[%zu.%u]: unused",
-			       blkoff / sizeof(union afs_dir_block), offset);
+			       blkoff / sizeof(union afs_xdr_dir_block), offset);
 			if (offset >= curr)
 				ctx->pos = blkoff +
-					next * sizeof(union afs_dirent);
+					next * sizeof(union afs_xdr_dirent);
 			continue;
 		}
 
@@ -344,34 +344,34 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 		dire = &block->dirents[offset];
 		nlen = strnlen(dire->u.name,
 			       sizeof(*block) -
-			       offset * sizeof(union afs_dirent));
+			       offset * sizeof(union afs_xdr_dirent));
 
 		_debug("ENT[%zu.%u]: %s %zu \"%s\"",
-		       blkoff / sizeof(union afs_dir_block), offset,
+		       blkoff / sizeof(union afs_xdr_dir_block), offset,
 		       (offset < curr ? "skip" : "fill"),
 		       nlen, dire->u.name);
 
 		/* work out where the next possible entry is */
-		for (tmp = nlen; tmp > 15; tmp -= sizeof(union afs_dirent)) {
+		for (tmp = nlen; tmp > 15; tmp -= sizeof(union afs_xdr_dirent)) {
 			if (next >= AFS_DIR_SLOTS_PER_BLOCK) {
 				_debug("ENT[%zu.%u]:"
 				       " %u travelled beyond end dir block"
 				       " (len %u/%zu)",
-				       blkoff / sizeof(union afs_dir_block),
+				       blkoff / sizeof(union afs_xdr_dir_block),
 				       offset, next, tmp, nlen);
 				return -EIO;
 			}
-			if (!(block->pagehdr.bitmap[next / 8] &
+			if (!(block->hdr.bitmap[next / 8] &
 			      (1 << (next % 8)))) {
 				_debug("ENT[%zu.%u]:"
 				       " %u unmarked extension (len %u/%zu)",
-				       blkoff / sizeof(union afs_dir_block),
+				       blkoff / sizeof(union afs_xdr_dir_block),
 				       offset, next, tmp, nlen);
 				return -EIO;
 			}
 
 			_debug("ENT[%zu.%u]: ext %u/%zu",
-			       blkoff / sizeof(union afs_dir_block),
+			       blkoff / sizeof(union afs_xdr_dir_block),
 			       next, tmp, nlen);
 			next++;
 		}
@@ -390,7 +390,7 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 			return 0;
 		}
 
-		ctx->pos = blkoff + next * sizeof(union afs_dirent);
+		ctx->pos = blkoff + next * sizeof(union afs_xdr_dirent);
 	}
 
 	_leave(" = 1 [more]");
@@ -404,8 +404,8 @@ static int afs_dir_iterate(struct inode *dir, struct dir_context *ctx,
 			   struct key *key)
 {
 	struct afs_vnode *dvnode = AFS_FS_I(dir);
-	union afs_dir_block *dblock;
-	struct afs_dir_page *dbuf;
+	struct afs_xdr_dir_page *dbuf;
+	union afs_xdr_dir_block *dblock;
 	struct afs_read *req;
 	struct page *page;
 	unsigned blkoff, limit;
@@ -423,13 +423,13 @@ static int afs_dir_iterate(struct inode *dir, struct dir_context *ctx,
 		return PTR_ERR(req);
 
 	/* round the file position up to the next entry boundary */
-	ctx->pos += sizeof(union afs_dirent) - 1;
-	ctx->pos &= ~(sizeof(union afs_dirent) - 1);
+	ctx->pos += sizeof(union afs_xdr_dirent) - 1;
+	ctx->pos &= ~(sizeof(union afs_xdr_dirent) - 1);
 
 	/* walk through the blocks in sequence */
 	ret = 0;
 	while (ctx->pos < req->actual_len) {
-		blkoff = ctx->pos & ~(sizeof(union afs_dir_block) - 1);
+		blkoff = ctx->pos & ~(sizeof(union afs_xdr_dir_block) - 1);
 
 		/* Fetch the appropriate page from the directory and re-add it
 		 * to the LRU.
@@ -448,14 +448,14 @@ static int afs_dir_iterate(struct inode *dir, struct dir_context *ctx,
 		/* deal with the individual blocks stashed on this page */
 		do {
 			dblock = &dbuf->blocks[(blkoff % PAGE_SIZE) /
-					       sizeof(union afs_dir_block)];
+					       sizeof(union afs_xdr_dir_block)];
 			ret = afs_dir_iterate_block(ctx, dblock, blkoff);
 			if (ret != 1) {
 				kunmap(page);
 				goto out;
 			}
 
-			blkoff += sizeof(union afs_dir_block);
+			blkoff += sizeof(union afs_xdr_dir_block);
 
 		} while (ctx->pos < dir->i_size && blkoff < limit);
 
@@ -493,8 +493,8 @@ static int afs_lookup_one_filldir(struct dir_context *ctx, const char *name,
 	       (unsigned long long) ino, dtype);
 
 	/* insanity checks first */
-	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
 
 	if (cookie->name.len != nlen ||
 	    memcmp(cookie->name.name, name, nlen) != 0) {
@@ -562,8 +562,8 @@ static int afs_lookup_filldir(struct dir_context *ctx, const char *name,
 	       (unsigned long long) ino, dtype);
 
 	/* insanity checks first */
-	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_xdr_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_xdr_dirent) != 32);
 
 	if (cookie->found) {
 		if (cookie->nr_fids < 50) {

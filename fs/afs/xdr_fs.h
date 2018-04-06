@@ -51,53 +51,53 @@ struct afs_xdr_AFSFetchStatus {
 /*
  * Directory entry structure.
  */
-union afs_dirent {
+union afs_xdr_dirent {
 	struct {
-		uint8_t		valid;
-		uint8_t		unused[1];
+		u8		valid;
+		u8		unused[1];
 		__be16		hash_next;
 		__be32		vnode;
 		__be32		unique;
-		uint8_t		name[16];
-		uint8_t		overflow[4];	/* if any char of the name (inc
+		u8		name[16];
+		u8		overflow[4];	/* if any char of the name (inc
 						 * NUL) reaches here, consume
 						 * the next dirent too */
 	} u;
-	uint8_t	extended_name[32];
-};
+	u8			extended_name[32];
+} __packed;
 
 /*
- * Directory page header (one at the beginning of every 2048-byte chunk).
+ * Directory block header (one at the beginning of every 2048-byte block).
  */
-struct afs_dir_pagehdr {
+struct afs_xdr_dir_hdr {
 	__be16		npages;
 	__be16		magic;
 #define AFS_DIR_MAGIC htons(1234)
-	uint8_t		reserved;
-	uint8_t		bitmap[8];
-	uint8_t		pad[19];
-};
+	u8		reserved;
+	u8		bitmap[8];
+	u8		pad[19];
+} __packed;
 
 /*
  * Directory block layout
  */
-union afs_dir_block {
-	struct afs_dir_pagehdr	pagehdr;
+union afs_xdr_dir_block {
+	struct afs_xdr_dir_hdr		hdr;
 
 	struct {
-		struct afs_dir_pagehdr	pagehdr;
-		uint8_t			alloc_ctrs[AFS_DIR_MAX_BLOCKS];
+		struct afs_xdr_dir_hdr	hdr;
+		u8			alloc_ctrs[AFS_DIR_MAX_BLOCKS];
 		__be16			hashtable[AFS_DIR_HASHTBL_SIZE];
-	} hdr;
+	} meta;
 
-	union afs_dirent	dirents[AFS_DIR_SLOTS_PER_BLOCK];
-};
+	union afs_xdr_dirent	dirents[AFS_DIR_SLOTS_PER_BLOCK];
+} __packed;
 
 /*
  * Directory layout on a linux VM page.
  */
-struct afs_dir_page {
-	union afs_dir_block	blocks[AFS_DIR_BLOCKS_PER_PAGE];
+struct afs_xdr_dir_page {
+	union afs_xdr_dir_block	blocks[AFS_DIR_BLOCKS_PER_PAGE];
 };
 
 #endif /* XDR_FS_H */
