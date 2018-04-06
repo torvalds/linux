@@ -2258,8 +2258,7 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
 	if (event->status & DEPEVT_STATUS_SHORT && !chain)
 		return 1;
 
-	if ((event->status & DEPEVT_STATUS_IOC) &&
-			(trb->ctrl & DWC3_TRB_CTRL_IOC))
+	if (event->status & DEPEVT_STATUS_IOC)
 		return 1;
 
 	return 0;
@@ -2304,6 +2303,11 @@ static int dwc3_gadget_ep_reclaim_trb_linear(struct dwc3_ep *dep,
 			event, status, false);
 }
 
+static bool dwc3_gadget_ep_request_completed(struct dwc3_request *req)
+{
+	return req->request.actual == req->request.length;
+}
+
 static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
@@ -2330,19 +2334,10 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 
 		req->request.actual = length - req->remaining;
 
-		if (req->request.actual < length || req->num_pending_sgs) {
-			/*
-			 * There could be a scenario where the whole req can't
-			 * be mapped into available TRB's. In that case, we need
-			 * to kick transfer again if (req->num_pending_sgs > 0)
-			 */
-			if (req->num_pending_sgs) {
-				dev_WARN_ONCE(dep->dwc->dev,
-					      (req->request.actual == length),
-					      "There are some pending sg's that needs to be queued again\n");
-				__dwc3_gadget_kick_transfer(dep);
-				return;
-			}
+		if (!dwc3_gadget_ep_request_completed(req) ||
+				req->num_pending_sgs) {
+			__dwc3_gadget_kick_transfer(dep);
+			break;
 		}
 
 		dwc3_gadget_giveback(dep, req, status);
