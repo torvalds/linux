@@ -26,7 +26,7 @@
 
 struct ipmi_file_private
 {
-	ipmi_user_t          user;
+	struct ipmi_user     *user;
 	spinlock_t           recv_msg_lock;
 	struct list_head     recv_msgs;
 	struct file          *file;
@@ -140,7 +140,7 @@ static int ipmi_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int handle_send_req(ipmi_user_t     user,
+static int handle_send_req(struct ipmi_user *user,
 			   struct ipmi_req *req,
 			   int             retries,
 			   unsigned int    retry_time_ms)
