@@ -2961,7 +2961,8 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 }
 
 static void i915_reset_device(struct drm_i915_private *dev_priv,
-			      const char *msg)
+			      u32 engine_mask,
+			      const char *reason)
 {
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
@@ -2979,9 +2980,11 @@ static void i915_reset_device(struct drm_i915_private *dev_priv,
 	i915_wedge_on_timeout(&w, dev_priv, 5*HZ) {
 		intel_prepare_reset(dev_priv);
 
-		error->reason = msg;
+		error->reason = reason;
+		error->stalled_mask = engine_mask;
 
 		/* Signal that locked waiters should reset the GPU */
+		smp_mb__before_atomic();
 		set_bit(I915_RESET_HANDOFF, &error->flags);
 		wake_up_all(&error->wait_queue);
 
@@ -2990,7 +2993,7 @@ static void i915_reset_device(struct drm_i915_private *dev_priv,
 		 */
 		do {
 			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
-				i915_reset(dev_priv);
+				i915_reset(dev_priv, engine_mask, reason);
 				mutex_unlock(&dev_priv->drm.struct_mutex);
 			}
 		} while (wait_on_bit_timeout(&error->flags,
@@ -2998,6 +3001,7 @@ static void i915_reset_device(struct drm_i915_private *dev_priv,
 					     TASK_UNINTERRUPTIBLE,
 					     1));
 
+		error->stalled_mask = 0;
 		error->reason = NULL;
 
 		intel_finish_reset(dev_priv);
@@ -3122,7 +3126,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 				    TASK_UNINTERRUPTIBLE);
 	}
 
-	i915_reset_device(dev_priv, msg);
+	i915_reset_device(dev_priv, engine_mask, msg);
 
 	for_each_engine(engine, dev_priv, tmp) {
 		clear_bit(I915_RESET_ENGINE + engine->id,

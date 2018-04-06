@@ -269,6 +269,9 @@ struct i915_gpu_error {
 	/** Number of times an engine has been reset */
 	u32 reset_engine_count[I915_NUM_ENGINES];
 
+	/** Set of stalled engines with guilty requests, in the current reset */
+	u32 stalled_mask;
+
 	/** Reason for the current *global* reset */
 	const char *reason;
 

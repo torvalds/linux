@@ -1185,11 +1185,13 @@ static bool __i915_spin_request(const struct i915_request *rq,
 
 static bool __i915_wait_request_check_and_reset(struct i915_request *request)
 {
-	if (likely(!i915_reset_handoff(&request->i915->gpu_error)))
+	struct i915_gpu_error *error = &request->i915->gpu_error;
+
+	if (likely(!i915_reset_handoff(error)))
 		return false;
 
 	__set_current_state(TASK_RUNNING);
-	i915_reset(request->i915);
+	i915_reset(request->i915, error->stalled_mask, error->reason);
 	return true;
 }
 

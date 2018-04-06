@@ -2701,8 +2701,11 @@ extern void i915_driver_unload(struct drm_device *dev);
 extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
 
-extern void i915_reset(struct drm_i915_private *i915);
-extern int i915_reset_engine(struct intel_engine_cs *engine, const char *msg);
+extern void i915_reset(struct drm_i915_private *i915,
+		       unsigned int stalled_mask,
+		       const char *reason);
+extern int i915_reset_engine(struct intel_engine_cs *engine,
+			     const char *reason);
 
 extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
 extern int intel_reset_guc(struct drm_i915_private *dev_priv);
@@ -3126,7 +3129,8 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 struct i915_request *
 i915_gem_reset_prepare_engine(struct intel_engine_cs *engine);
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
-void i915_gem_reset(struct drm_i915_private *dev_priv);
+void i915_gem_reset(struct drm_i915_private *dev_priv,
+		    unsigned int stalled_mask);
 void i915_gem_reset_finish_engine(struct intel_engine_cs *engine);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);

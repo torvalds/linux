@@ -1866,6 +1866,8 @@ static int i915_resume_switcheroo(struct drm_device *dev)
 /**
  * i915_reset - reset chip after a hang
  * @i915: #drm_i915_private to reset
+ * @stalled_mask: mask of the stalled engines with the guilty requests
+ * @reason: user error message for why we are resetting
  *
  * Reset the chip.  Useful if a hang is detected. Marks the device as wedged
  * on failure.
@@ -1880,7 +1882,9 @@ static int i915_resume_switcheroo(struct drm_device *dev)
  *   - re-init interrupt state
  *   - re-init display
  */
-void i915_reset(struct drm_i915_private *i915)
+void i915_reset(struct drm_i915_private *i915,
+		unsigned int stalled_mask,
+		const char *reason)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	int ret;
@@ -1899,9 +1903,8 @@ void i915_reset(struct drm_i915_private *i915)
 	if (!i915_gem_unset_wedged(i915))
 		goto wakeup;
 
-	if (error->reason)
-		dev_notice(i915->drm.dev,
-			   "Resetting chip for %s\n", error->reason);
+	if (reason)
+		dev_notice(i915->drm.dev, "Resetting chip for %s\n", reason);
 	error->reset_count++;
 
 	disable_irq(i915->drm.irq);
@@ -1944,7 +1947,7 @@ void i915_reset(struct drm_i915_private *i915)
 		goto error;
 	}
 
-	i915_gem_reset(i915);
+	i915_gem_reset(i915, stalled_mask);
 	intel_overlay_reset(i915);
 
 	/*
