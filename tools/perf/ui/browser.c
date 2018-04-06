@@ -343,8 +343,8 @@ static int __ui_browser__refresh(struct ui_browser *browser)
 	else
 		width += 1;
 
-	SLsmg_fill_region(browser->y + row, browser->x,
-			  browser->height - row, width, ' ');
+	SLsmg_fill_region(browser->y + row + browser->extra_title_lines, browser->x,
+			  browser->rows - row, width, ' ');
 
 	return 0;
 }

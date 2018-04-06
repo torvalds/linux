@@ -2600,7 +2600,7 @@ int __annotation__scnprintf_samples_period(struct annotation *notes,
 					   bool show_freq)
 {
 	const char *ev_name = perf_evsel__name(evsel);
-	char ref[30] = " show reference callgraph, ";
+	char buf[1024], ref[30] = " show reference callgraph, ";
 	char sample_freq_str[64] = "";
 	unsigned long nr_samples = 0;
 	int nr_members = 1;
@@ -2609,8 +2609,11 @@ int __annotation__scnprintf_samples_period(struct annotation *notes,
 	char unit;
 	int i;
 
-	if (perf_evsel__is_group_event(evsel))
+	if (perf_evsel__is_group_event(evsel)) {
+		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		ev_name = buf;
                 nr_members = evsel->nr_members;
+	}
 
 	for (i = 0; i < nr_members; i++) {
 		struct sym_hist *ah = annotation__histogram(notes, evsel->idx + i);
