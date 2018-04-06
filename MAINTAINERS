@@ -14922,6 +14922,12 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/platform/video-mux.c
 
+VIDEO I2C POLLING DRIVER
+M:	Matt Ranostay <matt.ranostay@konsulko.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/video-i2c.c
+
 VIDEOBUF2 FRAMEWORK
 M:	Pawel Osciak <pawel@osciak.com>
 M:	Marek Szyprowski <m.szyprowski@samsung.com>

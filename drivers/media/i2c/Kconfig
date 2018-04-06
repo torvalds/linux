@@ -974,6 +974,19 @@ config VIDEO_M52790
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called m52790.
+
+config VIDEO_I2C
+	tristate "I2C transport video support"
+	depends on VIDEO_V4L2 && I2C
+	select VIDEOBUF2_VMALLOC
+	---help---
+	  Enable the I2C transport video support which supports the
+	  following:
+	   * Panasonic AMG88xx Grid-Eye Sensors
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called video-i2c
+
 endmenu
 
 menu "Sensors used on soc_camera driver"
