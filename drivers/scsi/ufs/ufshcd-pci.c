@@ -75,8 +75,7 @@ static struct ufs_hba_variant_ops ufs_intel_cnl_hba_vops = {
 #ifdef CONFIG_PM_SLEEP
 /**
  * ufshcd_pci_suspend - suspend power management function
- * @pdev: pointer to PCI device handle
- * @state: power state
+ * @dev: pointer to PCI device handle
  *
  * Returns 0 if successful
  * Returns non-zero otherwise
@@ -88,7 +87,7 @@ static int ufshcd_pci_suspend(struct device *dev)
 
 /**
  * ufshcd_pci_resume - resume power management function
- * @pdev: pointer to PCI device handle
+ * @dev: pointer to PCI device handle
  *
  * Returns 0 if successful
  * Returns non-zero otherwise
@@ -126,7 +125,7 @@ static void ufshcd_pci_shutdown(struct pci_dev *pdev)
 /**
  * ufshcd_pci_remove - de-allocate PCI/SCSI host and host memory space
  *		data structure memory
- * @pdev - pointer to PCI handle
+ * @pdev: pointer to PCI handle
  */
 static void ufshcd_pci_remove(struct pci_dev *pdev)
 {

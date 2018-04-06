@@ -258,6 +258,8 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 	ctrl->base = devm_ioremap_nocache(
 		&pdev->dev, res->start, resource_size(res));
 	if (!ctrl->base)

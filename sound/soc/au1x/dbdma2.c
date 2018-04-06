@@ -32,6 +32,8 @@
 
 /*#define PCM_DEBUG*/
 
+#define DRV_NAME "dbdma2"
+
 #define MSG(x...)	printk(KERN_INFO "au1xpsc_pcm: " x)
 #ifdef PCM_DEBUG
 #define DBG		MSG
@@ -187,8 +189,8 @@ out:
 static inline struct au1xpsc_audio_dmadata *to_dmadata(struct snd_pcm_substream *ss)
 {
 	struct snd_soc_pcm_runtime *rtd = ss->private_data;
-	struct au1xpsc_audio_dmadata *pcd =
-				snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct au1xpsc_audio_dmadata *pcd = snd_soc_component_get_drvdata(component);
 	return &pcd[ss->stream];
 }
 
@@ -327,7 +329,8 @@ static int au1xpsc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* au1xpsc audio platform */
-static struct snd_soc_platform_driver au1xpsc_soc_platform = {
+static struct snd_soc_component_driver au1xpsc_soc_component = {
+	.name		= DRV_NAME,
 	.ops		= &au1xpsc_pcm_ops,
 	.pcm_new	= au1xpsc_pcm_new,
 };
@@ -344,8 +347,8 @@ static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dmadata);
 
-	return devm_snd_soc_register_platform(&pdev->dev,
-					      &au1xpsc_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev,
+					&au1xpsc_soc_component, NULL, 0);
 }
 
 static struct platform_driver au1xpsc_pcm_driver = {

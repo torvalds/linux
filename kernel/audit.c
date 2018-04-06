@@ -443,15 +443,15 @@ static int audit_set_failure(u32 state)
  * Drop any references inside the auditd connection tracking struct and free
  * the memory.
  */
- static void auditd_conn_free(struct rcu_head *rcu)
- {
+static void auditd_conn_free(struct rcu_head *rcu)
+{
 	struct auditd_connection *ac;
 
 	ac = container_of(rcu, struct auditd_connection, rcu);
 	put_pid(ac->pid);
 	put_net(ac->net);
 	kfree(ac);
- }
+}
 
 /**
  * auditd_set - Set/Reset the auditd connection state

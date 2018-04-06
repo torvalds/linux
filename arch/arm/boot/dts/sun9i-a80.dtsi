@@ -63,48 +63,72 @@
 		cpu0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x0>;
 		};
 
 		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x1>;
 		};
 
 		cpu2: cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x2>;
 		};
 
 		cpu3: cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x3>;
 		};
 
 		cpu4: cpu@100 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x100>;
 		};
 
 		cpu5: cpu@101 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x101>;
 		};
 
 		cpu6: cpu@102 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x102>;
 		};
 
 		cpu7: cpu@103 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x103>;
 		};
 	};
@@ -224,6 +248,12 @@
 		};
 	};
 
+	de: display-engine {
+		compatible = "allwinner,sun9i-a80-display-engine";
+		allwinner,pipelines = <&fe0>, <&fe1>;
+		status = "disabled";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -233,6 +263,25 @@
 		 * as the peripherals are all under 512MB.
 		 */
 		ranges = <0 0 0 0x20000000>;
+
+		sram_b: sram@20000 {
+			/* 256 KiB secure SRAM at 0x20000 */
+			compatible = "mmio-sram";
+			reg = <0x00020000 0x40000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x00020000 0x40000>;
+
+			smp-sram@1000 {
+				/*
+				 * This is checked by BROM to determine if
+				 * cpu0 should jump to SMP entry vector
+				 */
+				compatible = "allwinner,sun9i-a80-smp-sram";
+				reg = <0x1000 0x8>;
+			};
+		};
 
 		ehci0: usb@a00000 {
 			compatible = "allwinner,sun9i-a80-ehci", "generic-ehci";
@@ -347,6 +396,11 @@
 			#reset-cells = <1>;
 		};
 
+		cpucfg@1700000 {
+			compatible = "allwinner,sun9i-a80-cpucfg";
+			reg = <0x01700000 0x100>;
+		};
+
 		mmc0: mmc@1c0f000 {
 			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c0f000 0x1000>;
@@ -431,6 +485,36 @@
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
+		cci: cci@1c90000 {
+			compatible = "arm,cci-400";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x01c90000 0x1000>;
+			ranges = <0x0 0x01c90000 0x10000>;
+
+			cci_control0: slave-if@4000 {
+				compatible = "arm,cci-400-ctrl-if";
+				interface-type = "ace";
+				reg = <0x4000 0x1000>;
+			};
+
+			cci_control1: slave-if@5000 {
+				compatible = "arm,cci-400-ctrl-if";
+				interface-type = "ace";
+				reg = <0x5000 0x1000>;
+			};
+
+			pmu@9000 {
+				 compatible = "arm,cci-400-pmu,r1";
+				 reg = <0x9000 0x5000>;
+				 interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
 		de_clocks: clock@3000000 {
 			compatible = "allwinner,sun9i-a80-de-clks";
 			reg = <0x03000000 0x30>;
@@ -443,6 +527,381 @@
 			resets = <&ccu RST_BUS_DE>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		fe0: display-frontend@3100000 {
+			compatible = "allwinner,sun9i-a80-display-frontend";
+			reg = <0x03100000 0x40000>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_FE0>, <&de_clocks CLK_FE0>,
+				 <&de_clocks CLK_DRAM_FE0>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&de_clocks RST_FE0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fe0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					fe0_out_deu0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&deu0_in_fe0>;
+					};
+				};
+			};
+		};
+
+		fe1: display-frontend@3140000 {
+			compatible = "allwinner,sun9i-a80-display-frontend";
+			reg = <0x03140000 0x40000>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_FE1>, <&de_clocks CLK_FE1>,
+				 <&de_clocks CLK_DRAM_FE1>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&de_clocks RST_FE0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fe1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					fe1_out_deu1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&deu1_in_fe1>;
+					};
+				};
+			};
+		};
+
+		be0: display-backend@3200000 {
+			compatible = "allwinner,sun9i-a80-display-backend";
+			reg = <0x03200000 0x40000>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_BE0>, <&de_clocks CLK_BE0>,
+				 <&de_clocks CLK_DRAM_BE0>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&de_clocks RST_BE0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				be0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					be0_in_deu0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&deu0_out_be0>;
+					};
+
+					be0_in_deu1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&deu1_out_be0>;
+					};
+				};
+
+				be0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					be0_out_drc0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc0_in_be0>;
+					};
+				};
+			};
+		};
+
+		be1: display-backend@3240000 {
+			compatible = "allwinner,sun9i-a80-display-backend";
+			reg = <0x03240000 0x40000>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_BE1>, <&de_clocks CLK_BE1>,
+				 <&de_clocks CLK_DRAM_BE1>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&de_clocks RST_BE1>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				be1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					be1_in_deu0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&deu0_out_be1>;
+					};
+
+					be1_in_deu1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&deu1_out_be1>;
+					};
+				};
+
+				be1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					be1_out_drc1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc1_in_be1>;
+					};
+				};
+			};
+		};
+
+		deu0: deu@3300000 {
+			compatible = "allwinner,sun9i-a80-deu";
+			reg = <0x03300000 0x40000>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_DEU0>,
+				 <&de_clocks CLK_IEP_DEU0>,
+				 <&de_clocks CLK_DRAM_DEU0>;
+			clock-names = "ahb",
+				      "mod",
+				      "ram";
+			resets = <&de_clocks RST_DEU0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				deu0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					deu0_in_fe0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&fe0_out_deu0>;
+					};
+				};
+
+				deu0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					deu0_out_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_in_deu0>;
+					};
+
+					deu0_out_be1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&be1_in_deu0>;
+					};
+				};
+			};
+		};
+
+		deu1: deu@3340000 {
+			compatible = "allwinner,sun9i-a80-deu";
+			reg = <0x03340000 0x40000>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_DEU1>,
+				 <&de_clocks CLK_IEP_DEU1>,
+				 <&de_clocks CLK_DRAM_DEU1>;
+			clock-names = "ahb",
+				      "mod",
+				      "ram";
+			resets = <&de_clocks RST_DEU1>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				deu1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					deu1_in_fe1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&fe1_out_deu1>;
+					};
+				};
+
+				deu1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					deu1_out_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_in_deu1>;
+					};
+
+					deu1_out_be1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&be1_in_deu1>;
+					};
+				};
+			};
+		};
+
+		drc0: drc@3400000 {
+			compatible = "allwinner,sun9i-a80-drc";
+			reg = <0x03400000 0x40000>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_DRC0>,
+				 <&de_clocks CLK_IEP_DRC0>,
+				 <&de_clocks CLK_DRAM_DRC0>;
+			clock-names = "ahb",
+				      "mod",
+				      "ram";
+			resets = <&de_clocks RST_DRC0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				drc0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					drc0_in_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_out_drc0>;
+					};
+				};
+
+				drc0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					drc0_out_tcon0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon0_in_drc0>;
+					};
+				};
+			};
+		};
+
+		drc1: drc@3440000 {
+			compatible = "allwinner,sun9i-a80-drc";
+			reg = <0x03440000 0x40000>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&de_clocks CLK_BUS_DRC1>,
+				 <&de_clocks CLK_IEP_DRC1>,
+				 <&de_clocks CLK_DRAM_DRC1>;
+			clock-names = "ahb",
+				      "mod",
+				      "ram";
+			resets = <&de_clocks RST_DRC1>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				drc1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					drc1_in_be1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be1_out_drc1>;
+					};
+				};
+
+				drc1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					drc1_out_tcon1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon1_in_drc1>;
+					};
+				};
+			};
+		};
+
+		tcon0: lcd-controller@3c00000 {
+			compatible = "allwinner,sun9i-a80-tcon-lcd";
+			reg = <0x03c00000 0x10000>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_LCD0>, <&ccu CLK_LCD0>;
+			clock-names = "ahb", "tcon-ch0";
+			resets = <&ccu RST_BUS_LCD0>, <&ccu RST_BUS_EDP>;
+			reset-names = "lcd", "edp";
+			clock-output-names = "tcon0-pixel-clock";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tcon0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					tcon0_in_drc0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc0_out_tcon0>;
+					};
+				};
+
+				tcon0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+				};
+			};
+		};
+
+		tcon1: lcd-controller@3c10000 {
+			compatible = "allwinner,sun9i-a80-tcon-tv";
+			reg = <0x03c10000 0x10000>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_LCD1>, <&ccu CLK_LCD1>;
+			clock-names = "ahb", "tcon-ch1";
+			resets = <&ccu RST_BUS_LCD1>, <&ccu RST_BUS_EDP>;
+			reset-names = "lcd", "edp";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tcon1_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					tcon1_in_drc1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc1_out_tcon1>;
+					};
+				};
+
+				tcon1_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+				};
+			};
 		};
 
 		ccu: clock@6000000 {
@@ -492,6 +951,17 @@
 			i2c3_pins: i2c3-pins {
 				pins = "PG10", "PG11";
 				function = "i2c3";
+			};
+
+			lcd0_rgb888_pins: lcd0-rgb888-pins {
+				pins = "PD0", "PD1", "PD2", "PD3",
+				       "PD4", "PD5", "PD6", "PD7",
+				       "PD8", "PD9", "PD10", "PD11",
+				       "PD12", "PD13", "PD14", "PD15",
+				       "PD16", "PD17", "PD18", "PD19",
+				       "PD20", "PD21", "PD22", "PD23",
+				       "PD24", "PD25", "PD26", "PD27";
+				function = "lcd0";
 			};
 
 			mmc0_pins: mmc0-pins {
@@ -656,6 +1126,11 @@
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x08001000 0x20>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		prcm@8001400 {
+			compatible = "allwinner,sun9i-a80-prcm";
+			reg = <0x08001400 0x200>;
 		};
 
 		apbs_rst: reset@80014b0 {

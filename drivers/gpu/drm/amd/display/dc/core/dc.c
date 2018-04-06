@@ -589,7 +589,7 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
  ******************************************************************************/
 
 struct dc *dc_create(const struct dc_init_data *init_params)
- {
+{
 	struct dc *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 	unsigned int full_pipe_count;
 

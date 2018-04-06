@@ -588,6 +588,8 @@ nvme_fc_attach_to_suspended_rport(struct nvme_fc_lport *lport,
 			return ERR_PTR(-ESTALE);
 		}
 
+		rport->remoteport.port_role = pinfo->port_role;
+		rport->remoteport.port_id = pinfo->port_id;
 		rport->remoteport.port_state = FC_OBJSTATE_ONLINE;
 		rport->dev_loss_end = 0;
 
@@ -768,8 +770,7 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
 		 */
 		if (nvme_reset_ctrl(&ctrl->ctrl)) {
 			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: Couldn't schedule reset. "
-				"Deleting controller.\n",
+				"NVME-FC{%d}: Couldn't schedule reset.\n",
 				ctrl->cnum);
 			nvme_delete_ctrl(&ctrl->ctrl);
 		}
@@ -836,8 +837,7 @@ nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *portptr)
 		/* if dev_loss_tmo==0, dev loss is immediate */
 		if (!portptr->dev_loss_tmo) {
 			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: controller connectivity lost. "
-				"Deleting controller.\n",
+				"NVME-FC{%d}: controller connectivity lost.\n",
 				ctrl->cnum);
 			nvme_delete_ctrl(&ctrl->ctrl);
 		} else
@@ -2076,20 +2076,10 @@ nvme_fc_timeout(struct request *rq, bool reserved)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_ctrl *ctrl = op->ctrl;
-	int ret;
-
-	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE ||
-			atomic_read(&op->state) == FCPOP_STATE_ABORTED)
-		return BLK_EH_RESET_TIMER;
-
-	ret = __nvme_fc_abort_op(ctrl, op);
-	if (ret)
-		/* io wasn't active to abort */
-		return BLK_EH_NOT_HANDLED;
 
 	/*
 	 * we can't individually ABTS an io without affecting the queue,
-	 * thus killing the queue, adn thus the association.
+	 * thus killing the queue, and thus the association.
 	 * So resolve by performing a controller reset, which will stop
 	 * the host/io stack, terminate the association on the link,
 	 * and recreate an association on the link.
@@ -2191,7 +2181,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	struct nvme_fc_cmd_iu *cmdiu = &op->cmd_iu;
 	struct nvme_command *sqe = &cmdiu->sqe;
 	u32 csn;
-	int ret;
+	int ret, opstate;
 
 	/*
 	 * before attempting to send the io, check to see if we believe
@@ -2269,6 +2259,9 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 					queue->lldd_handle, &op->fcp_req);
 
 	if (ret) {
+		opstate = atomic_xchg(&op->state, FCPOP_STATE_COMPLETE);
+		__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
+
 		if (!(op->flags & FCOP_FLAGS_AEN))
 			nvme_fc_unmap_data(ctrl, op->rq, op);
 
@@ -2889,14 +2882,13 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 		if (portptr->port_state == FC_OBJSTATE_ONLINE)
 			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: Max reconnect attempts (%d) "
-				"reached. Removing controller\n",
+				"reached.\n",
 				ctrl->cnum, ctrl->ctrl.nr_reconnects);
 		else
 			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: dev_loss_tmo (%d) expired "
-				"while waiting for remoteport connectivity. "
-				"Removing controller\n", ctrl->cnum,
-				portptr->dev_loss_tmo);
+				"while waiting for remoteport connectivity.\n",
+				ctrl->cnum, portptr->dev_loss_tmo);
 		WARN_ON(nvme_delete_ctrl(&ctrl->ctrl));
 	}
 }
@@ -3133,6 +3125,10 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	}
 
 	if (ret) {
+		nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING);
+		cancel_work_sync(&ctrl->ctrl.reset_work);
+		cancel_delayed_work_sync(&ctrl->connect_work);
+
 		/* couldn't schedule retry - fail out */
 		dev_err(ctrl->ctrl.device,
 			"NVME-FC{%d}: Connect retry failed\n", ctrl->cnum);

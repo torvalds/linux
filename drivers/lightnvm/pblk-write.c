@@ -333,7 +333,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	m_ctx = nvm_rq_to_pdu(rqd);
 	m_ctx->private = meta_line;
 
-	rq_len = rq_ppas * geo->sec_size;
+	rq_len = rq_ppas * geo->csecs;
 	data = ((void *)emeta->buf) + emeta->mem;
 
 	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,

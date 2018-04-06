@@ -10,6 +10,7 @@
  * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
  * Continuation Type 1 IOCBs to allocate.
  *
+ * @vha: HA context
  * @dsds: number of data segment decriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.

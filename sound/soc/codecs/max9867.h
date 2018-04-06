@@ -75,7 +75,6 @@
 /* codec private data */
 struct max9867_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
 	unsigned int sysclk;
 	unsigned int pclk;
 	unsigned int master;

@@ -343,7 +343,7 @@ static int pmem_attach_disk(struct device *dev,
 		return -EBUSY;
 	}
 
-	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev));
+	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev), NULL);
 	if (!q)
 		return -ENOMEM;
 
@@ -387,8 +387,8 @@ static int pmem_attach_disk(struct device *dev,
 	blk_queue_physical_block_size(q, PAGE_SIZE);
 	blk_queue_logical_block_size(q, pmem_sector_size(ndns));
 	blk_queue_max_hw_sectors(q, UINT_MAX);
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
-	queue_flag_set_unlocked(QUEUE_FLAG_DAX, q);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	blk_queue_flag_set(QUEUE_FLAG_DAX, q);
 	q->queuedata = pmem;
 
 	disk = alloc_disk_node(0, nid);

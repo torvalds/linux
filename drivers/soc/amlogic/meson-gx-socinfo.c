@@ -33,6 +33,10 @@ static const struct meson_gx_soc_id {
 	{ "GXL", 0x21 },
 	{ "GXM", 0x22 },
 	{ "TXL", 0x23 },
+	{ "TXLX", 0x24 },
+	{ "AXG", 0x25 },
+	{ "GXLX", 0x26 },
+	{ "TXHD", 0x27 },
 };
 
 static const struct meson_gx_package_id {
@@ -41,12 +45,18 @@ static const struct meson_gx_package_id {
 	unsigned int pack_id;
 } soc_packages[] = {
 	{ "S905", 0x1f, 0 },
+	{ "S905H", 0x1f, 0x13 },
 	{ "S905M", 0x1f, 0x20 },
 	{ "S905D", 0x21, 0 },
 	{ "S905X", 0x21, 0x80 },
+	{ "S905W", 0x21, 0xa0 },
 	{ "S905L", 0x21, 0xc0 },
 	{ "S905M2", 0x21, 0xe0 },
 	{ "S912", 0x22, 0 },
+	{ "962X", 0x24, 0x10 },
+	{ "962E", 0x24, 0x20 },
+	{ "A113X", 0x25, 0x37 },
+	{ "A113D", 0x25, 0x22 },
 };
 
 static inline unsigned int socinfo_to_major(u32 socinfo)
@@ -97,7 +107,7 @@ static const char *socinfo_to_soc_id(u32 socinfo)
 	return "Unknown";
 }
 
-int __init meson_gx_socinfo_init(void)
+static int __init meson_gx_socinfo_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;

@@ -16,7 +16,7 @@
 	model = "Freescale i.MX28 Evaluation Kit";
 	compatible = "fsl,imx28-evk", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x08000000>;
 	};
 
@@ -197,6 +197,7 @@
 				sgtl5000: codec@a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					#sound-dai-cells = <0>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
 					clocks = <&saif0>;

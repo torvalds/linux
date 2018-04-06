@@ -1393,7 +1393,7 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 		scsi_host_put(shost);
 
 	return NULL;
- }
+}
 
 
 /*

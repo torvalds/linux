@@ -32,11 +32,10 @@
 
 #include <asm/exception.h>
 
-#include <plat/i2c.h>
-
 #include <mach/irqs.h>
 
 #include "soc.h"
+#include "i2c.h"
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 void omap7xx_map_io(void);

@@ -875,7 +875,6 @@ qla24xx_async_prli(struct scsi_qla_host *vha, fc_port_t *fcport)
 		return rval;
 
 	if (fcport->fw_login_state == DSC_LS_PLOGI_PEND ||
-	    fcport->fw_login_state == DSC_LS_PLOGI_COMP ||
 	    fcport->fw_login_state == DSC_LS_PRLI_PEND)
 		return rval;
 
@@ -1238,6 +1237,11 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		    __func__, __LINE__, fcport->port_name);
 		data[0] = data[1] = 0;
 		qla2x00_post_async_adisc_work(vha, fcport, data);
+		break;
+
+	case DSC_LOGIN_PEND:
+		if (fcport->fw_login_state == DSC_LS_PLOGI_COMP)
+			qla24xx_post_prli_work(vha, fcport);
 		break;
 
 	default:
@@ -1643,6 +1647,13 @@ qla24xx_handle_prli_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 		qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		break;
 	default:
+		if ((ea->iop[0] == LSC_SCODE_ELS_REJECT) &&
+		    (ea->iop[1] == 0x50000)) {   /* reson 5=busy expl:0x0 */
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+			ea->fcport->fw_login_state = DSC_LS_PLOGI_COMP;
+			break;
+		}
+
 		if (ea->fcport->n2n_flag) {
 			ql_dbg(ql_dbg_disc, vha, 0x2118,
 				"%s %d %8phC post fc4 prli\n",
@@ -2049,7 +2060,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 
 /**
  * qla2100_pci_config() - Setup ISP21xx PCI configuration registers.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2080,7 +2091,7 @@ qla2100_pci_config(scsi_qla_host_t *vha)
 
 /**
  * qla2300_pci_config() - Setup ISP23xx PCI configuration registers.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2162,7 +2173,7 @@ qla2300_pci_config(scsi_qla_host_t *vha)
 
 /**
  * qla24xx_pci_config() - Setup ISP24xx PCI configuration registers.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2206,7 +2217,7 @@ qla24xx_pci_config(scsi_qla_host_t *vha)
 
 /**
  * qla25xx_pci_config() - Setup ISP25xx PCI configuration registers.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2237,7 +2248,7 @@ qla25xx_pci_config(scsi_qla_host_t *vha)
 
 /**
  * qla2x00_isp_firmware() - Choose firmware image.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2273,7 +2284,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *vha)
 
 /**
  * qla2x00_reset_chip() - Reset ISP chip.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2417,6 +2428,7 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 
 /**
  * qla81xx_reset_mpi() - Reset's MPI FW via Write MPI Register MBC.
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2433,7 +2445,7 @@ qla81xx_reset_mpi(scsi_qla_host_t *vha)
 
 /**
  * qla24xx_reset_risc() - Perform full reset of ISP24xx RISC.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2648,7 +2660,7 @@ acquired:
 
 /**
  * qla24xx_reset_chip() - Reset ISP24xx chip.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2672,7 +2684,7 @@ qla24xx_reset_chip(scsi_qla_host_t *vha)
 
 /**
  * qla2x00_chip_diag() - Test chip for proper operation.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -2691,8 +2703,8 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 	/* Assume a failed state */
 	rval = QLA_FUNCTION_FAILED;
 
-	ql_dbg(ql_dbg_init, vha, 0x007b,
-	    "Testing device at %lx.\n", (u_long)&reg->flash_address);
+	ql_dbg(ql_dbg_init, vha, 0x007b, "Testing device at %p.\n",
+	       &reg->flash_address);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -2796,7 +2808,7 @@ chip_diag_failed:
 
 /**
  * qla24xx_chip_diag() - Test ISP24xx for proper operation.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -3264,7 +3276,7 @@ out:
 
 /**
  * qla2x00_setup_chip() - Load and start RISC firmware.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -3419,7 +3431,7 @@ failed:
 
 /**
  * qla2x00_init_response_q_entries() - Initializes response queue entries.
- * @ha: HA context
+ * @rsp: response queue
  *
  * Beginning of request ring has initialization control block already built
  * by nvram config routine.
@@ -3444,7 +3456,7 @@ qla2x00_init_response_q_entries(struct rsp_que *rsp)
 
 /**
  * qla2x00_update_fw_options() - Read and process firmware options.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -3707,7 +3719,7 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 
 /**
  * qla2x00_init_rings() - Initializes firmware.
- * @ha: HA context
+ * @vha: HA context
  *
  * Beginning of request ring has initialization control block already built
  * by nvram config routine.
@@ -3815,7 +3827,7 @@ next_check:
 
 /**
  * qla2x00_fw_ready() - Waits for firmware ready.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns 0 on success.
  */
@@ -4483,7 +4495,7 @@ qla2x00_rport_del(void *data)
 
 /**
  * qla2x00_alloc_fcport() - Allocate a generic fcport.
- * @ha: HA context
+ * @vha: HA context
  * @flags: allocation flags
  *
  * Returns a pointer to the allocated fcport, or NULL, if none available.
@@ -5027,9 +5039,9 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    fcport->port_name, rval, fcport->fp_speed, mb[0], mb[1]);
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x2005,
-		    "iIDMA adjusted to %s GB/s on %8phN.\n",
+		    "iIDMA adjusted to %s GB/s (%X) on %8phN.\n",
 		    qla2x00_get_link_speed_str(ha, fcport->fp_speed),
-		    fcport->port_name);
+		    fcport->fp_speed, fcport->port_name);
 	}
 }
 
@@ -5109,13 +5121,14 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	fcport->deleted = 0;
 	fcport->logout_on_delete = 1;
 
+	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
+	qla2x00_iidma_fcport(vha, fcport);
+
 	if (fcport->fc4f_nvme) {
 		qla_nvme_register_remote(vha, fcport);
 		return;
 	}
 
-	qla2x00_set_fcport_state(fcport, FCS_ONLINE);
-	qla2x00_iidma_fcport(vha, fcport);
 	qla24xx_update_fcport_fcp_prio(vha, fcport);
 
 reg_port:
@@ -5254,8 +5267,8 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 		qlt_do_generation_tick(vha, &discovery_gen);
 
 		if (USE_ASYNC_SCAN(ha)) {
-			rval = QLA_SUCCESS;
-			rval = qla24xx_async_gpnft(vha, FC4_TYPE_FCP_SCSI);
+			rval = qla24xx_async_gpnft(vha, FC4_TYPE_FCP_SCSI,
+			    NULL);
 			if (rval)
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		} else  {
@@ -5516,6 +5529,14 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 			fcport->d_id.b24 = new_fcport->d_id.b24;
 			fcport->flags |= FCF_LOGIN_NEEDED;
 			break;
+		}
+
+		if (fcport->fc4f_nvme) {
+			if (fcport->disc_state == DSC_DELETE_PEND) {
+				fcport->disc_state = DSC_GNL;
+				vha->fcport_count--;
+				fcport->login_succ = 0;
+			}
 		}
 
 		if (found) {
@@ -8398,7 +8419,6 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		qpair->vp_idx = vp_idx;
 		qpair->fw_started = ha->flags.fw_started;
 		INIT_LIST_HEAD(&qpair->hints_list);
-		INIT_LIST_HEAD(&qpair->nvme_done_list);
 		qpair->chip_reset = ha->base_qpair->chip_reset;
 		qpair->enable_class_2 = ha->base_qpair->enable_class_2;
 		qpair->enable_explicit_conf =

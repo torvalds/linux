@@ -21,7 +21,9 @@ Required properties :
    - timer: The timeout clock (clk_m). Present if phy_type == utmi.
    - utmi-pads: The clock needed to access the UTMI pad control registers.
      Present if phy_type == utmi.
-   - ulpi-link: The clock Tegra provides to the ULPI PHY (cdev2).
+   - ulpi-link: The clock Tegra provides to the ULPI PHY (usually pad DAP_MCLK2
+     with pad group aka "nvidia,pins" cdev2 and pin mux option config aka
+     "nvidia,function" pllp_out4).
      Present if phy_type == ulpi, and ULPI link mode is in use.
  - resets : Must contain an entry for each entry in reset-names.
    See ../reset/reset.txt for details.

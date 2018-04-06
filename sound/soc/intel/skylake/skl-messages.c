@@ -417,11 +417,16 @@ int skl_resume_dsp(struct skl *skl)
 	if (skl->skl_sst->is_first_boot == true)
 		return 0;
 
-	/* disable dynamic clock gating during fw and lib download */
+	/*
+	 * Disable dynamic clock and power gating during firmware
+	 * and library download
+	 */
 	ctx->enable_miscbdcge(ctx->dev, false);
+	ctx->clock_power_gating(ctx->dev, false);
 
 	ret = skl_dsp_wake(ctx->dsp);
 	ctx->enable_miscbdcge(ctx->dev, true);
+	ctx->clock_power_gating(ctx->dev, true);
 	if (ret < 0)
 		return ret;
 
@@ -1210,7 +1215,7 @@ out:
 static int skl_set_pipe_state(struct skl_sst *ctx, struct skl_pipe *pipe,
 	enum skl_ipc_pipeline_state state)
 {
-	dev_dbg(ctx->dev, "%s: pipe_satate = %d\n", __func__, state);
+	dev_dbg(ctx->dev, "%s: pipe_state = %d\n", __func__, state);
 
 	return skl_ipc_set_pipeline_state(&ctx->ipc, pipe->ppl_id, state);
 }

@@ -78,8 +78,6 @@
 		gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>,
 			<&gpio0 12 GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map = <0 0>, <3000 1>, <6000 2>;
-		cooling-min-level = <0>;
-		cooling-max-level = <2>;
 		#cooling-cells = <2>;
 	};
 

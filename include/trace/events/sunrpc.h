@@ -485,29 +485,53 @@ TRACE_EVENT(xs_tcp_data_recv,
 		{ (1UL << RQ_BUSY),		"RQ_BUSY"})
 
 TRACE_EVENT(svc_recv,
-	TP_PROTO(struct svc_rqst *rqst, int status),
+	TP_PROTO(struct svc_rqst *rqst, int len),
 
-	TP_ARGS(rqst, status),
+	TP_ARGS(rqst, len),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(int, status)
+		__field(int, len)
 		__field(unsigned long, flags)
-		__dynamic_array(unsigned char, addr, rqst->rq_addrlen)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
-		__entry->xid = status > 0 ? be32_to_cpu(rqst->rq_xid) : 0;
-		__entry->status = status;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->len = len;
 		__entry->flags = rqst->rq_flags;
-		memcpy(__get_dynamic_array(addr),
-			&rqst->rq_addr, rqst->rq_addrlen);
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("addr=%pIScp xid=0x%08x status=%d flags=%s",
-			(struct sockaddr *)__get_dynamic_array(addr),
-			__entry->xid, __entry->status,
+	TP_printk("addr=%s xid=0x%08x len=%d flags=%s",
+			__get_str(addr), __entry->xid, __entry->len,
 			show_rqstp_flags(__entry->flags))
+);
+
+TRACE_EVENT(svc_process,
+	TP_PROTO(const struct svc_rqst *rqst, const char *name),
+
+	TP_ARGS(rqst, name),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, vers)
+		__field(u32, proc)
+		__string(service, name)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->vers = rqst->rq_vers;
+		__entry->proc = rqst->rq_proc;
+		__assign_str(service, name);
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x service=%s vers=%u proc=%u",
+			__get_str(addr), __entry->xid,
+			__get_str(service), __entry->vers, __entry->proc)
 );
 
 DECLARE_EVENT_CLASS(svc_rqst_event,
@@ -519,20 +543,18 @@ DECLARE_EVENT_CLASS(svc_rqst_event,
 	TP_STRUCT__entry(
 		__field(u32, xid)
 		__field(unsigned long, flags)
-		__dynamic_array(unsigned char, addr, rqst->rq_addrlen)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->flags = rqst->rq_flags;
-		memcpy(__get_dynamic_array(addr),
-			&rqst->rq_addr, rqst->rq_addrlen);
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("addr=%pIScp rq_xid=0x%08x flags=%s",
-		(struct sockaddr *)__get_dynamic_array(addr),
-		__entry->xid,
-		show_rqstp_flags(__entry->flags))
+	TP_printk("addr=%s xid=0x%08x flags=%s",
+			__get_str(addr), __entry->xid,
+			show_rqstp_flags(__entry->flags))
 );
 
 DEFINE_EVENT(svc_rqst_event, svc_defer,
@@ -553,26 +575,20 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 		__field(u32, xid)
 		__field(int, status)
 		__field(unsigned long, flags)
-		__dynamic_array(unsigned char, addr, rqst->rq_addrlen)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->status = status;
 		__entry->flags = rqst->rq_flags;
-		memcpy(__get_dynamic_array(addr),
-			&rqst->rq_addr, rqst->rq_addrlen);
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
 	),
 
-	TP_printk("addr=%pIScp rq_xid=0x%08x status=%d flags=%s",
-		(struct sockaddr *)__get_dynamic_array(addr),
-		__entry->xid,
-		__entry->status, show_rqstp_flags(__entry->flags))
+	TP_printk("addr=%s xid=0x%08x status=%d flags=%s",
+		  __get_str(addr), __entry->xid,
+		  __entry->status, show_rqstp_flags(__entry->flags))
 );
-
-DEFINE_EVENT(svc_rqst_status, svc_process,
-	TP_PROTO(struct svc_rqst *rqst, int status),
-	TP_ARGS(rqst, status));
 
 DEFINE_EVENT(svc_rqst_status, svc_send,
 	TP_PROTO(struct svc_rqst *rqst, int status),
@@ -591,7 +607,9 @@ DEFINE_EVENT(svc_rqst_status, svc_send,
 		{ (1UL << XPT_OLD),		"XPT_OLD"},		\
 		{ (1UL << XPT_LISTENER),	"XPT_LISTENER"},	\
 		{ (1UL << XPT_CACHE_AUTH),	"XPT_CACHE_AUTH"},	\
-		{ (1UL << XPT_LOCAL),		"XPT_LOCAL"})
+		{ (1UL << XPT_LOCAL),		"XPT_LOCAL"},		\
+		{ (1UL << XPT_KILL_TEMP),	"XPT_KILL_TEMP"},	\
+		{ (1UL << XPT_CONG_CTRL),	"XPT_CONG_CTRL"})
 
 TRACE_EVENT(svc_xprt_do_enqueue,
 	TP_PROTO(struct svc_xprt *xprt, struct svc_rqst *rqst),
@@ -602,26 +620,19 @@ TRACE_EVENT(svc_xprt_do_enqueue,
 		__field(struct svc_xprt *, xprt)
 		__field(int, pid)
 		__field(unsigned long, flags)
-		__dynamic_array(unsigned char, addr, xprt != NULL ?
-			xprt->xpt_remotelen : 0)
+		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
 		__entry->pid = rqst? rqst->rq_task->pid : 0;
-		if (xprt) {
-			memcpy(__get_dynamic_array(addr),
-				&xprt->xpt_remote,
-				xprt->xpt_remotelen);
-			__entry->flags = xprt->xpt_flags;
-		} else
-			__entry->flags = 0;
+		__entry->flags = xprt->xpt_flags;
+		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=0x%p addr=%pIScp pid=%d flags=%s", __entry->xprt,
-		__get_dynamic_array_len(addr) != 0 ?
-			(struct sockaddr *)__get_dynamic_array(addr) : NULL,
-		__entry->pid, show_svc_xprt_flags(__entry->flags))
+	TP_printk("xprt=%p addr=%s pid=%d flags=%s",
+			__entry->xprt, __get_str(addr),
+			__entry->pid, show_svc_xprt_flags(__entry->flags))
 );
 
 DECLARE_EVENT_CLASS(svc_xprt_event,
@@ -632,34 +643,49 @@ DECLARE_EVENT_CLASS(svc_xprt_event,
 	TP_STRUCT__entry(
 		__field(struct svc_xprt *, xprt)
 		__field(unsigned long, flags)
-		__dynamic_array(unsigned char, addr, xprt != NULL ?
-			xprt->xpt_remotelen : 0)
+		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
-		if (xprt) {
-			memcpy(__get_dynamic_array(addr),
-					&xprt->xpt_remote,
-					xprt->xpt_remotelen);
-			__entry->flags = xprt->xpt_flags;
-		} else
-			__entry->flags = 0;
+		__entry->flags = xprt->xpt_flags;
+		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=0x%p addr=%pIScp flags=%s", __entry->xprt,
-		__get_dynamic_array_len(addr) != 0 ?
-			(struct sockaddr *)__get_dynamic_array(addr) : NULL,
-		show_svc_xprt_flags(__entry->flags))
+	TP_printk("xprt=%p addr=%s flags=%s",
+			__entry->xprt, __get_str(addr),
+			show_svc_xprt_flags(__entry->flags))
 );
-
-DEFINE_EVENT(svc_xprt_event, svc_xprt_dequeue,
-	TP_PROTO(struct svc_xprt *xprt),
-	TP_ARGS(xprt));
 
 DEFINE_EVENT(svc_xprt_event, svc_xprt_no_write_space,
 	TP_PROTO(struct svc_xprt *xprt),
 	TP_ARGS(xprt));
+
+TRACE_EVENT(svc_xprt_dequeue,
+	TP_PROTO(struct svc_rqst *rqst),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(struct svc_xprt *, xprt)
+		__field(unsigned long, flags)
+		__field(unsigned long, wakeup)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xprt = rqst->rq_xprt;
+		__entry->flags = rqst->rq_xprt->xpt_flags;
+		__entry->wakeup = ktime_to_us(ktime_sub(ktime_get(),
+							rqst->rq_qtime));
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("xprt=%p addr=%s flags=%s wakeup-us=%lu",
+			__entry->xprt, __get_str(addr),
+			show_svc_xprt_flags(__entry->flags),
+			__entry->wakeup)
+);
 
 TRACE_EVENT(svc_wake_up,
 	TP_PROTO(int pid),
@@ -686,28 +712,42 @@ TRACE_EVENT(svc_handle_xprt,
 		__field(struct svc_xprt *, xprt)
 		__field(int, len)
 		__field(unsigned long, flags)
-		__dynamic_array(unsigned char, addr, xprt != NULL ?
-			xprt->xpt_remotelen : 0)
+		__string(addr, xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
 		__entry->len = len;
-		if (xprt) {
-			memcpy(__get_dynamic_array(addr),
-					&xprt->xpt_remote,
-					xprt->xpt_remotelen);
-			__entry->flags = xprt->xpt_flags;
-		} else
-			__entry->flags = 0;
+		__entry->flags = xprt->xpt_flags;
+		__assign_str(addr, xprt->xpt_remotebuf);
 	),
 
-	TP_printk("xprt=0x%p addr=%pIScp len=%d flags=%s", __entry->xprt,
-		__get_dynamic_array_len(addr) != 0 ?
-			(struct sockaddr *)__get_dynamic_array(addr) : NULL,
+	TP_printk("xprt=%p addr=%s len=%d flags=%s",
+		__entry->xprt, __get_str(addr),
 		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
 
+TRACE_EVENT(svc_stats_latency,
+	TP_PROTO(const struct svc_rqst *rqst),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(unsigned long, execute)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->execute = ktime_to_us(ktime_sub(ktime_get(),
+							 rqst->rq_stime));
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x execute-us=%lu",
+		__get_str(addr), __entry->xid, __entry->execute)
+);
 
 DECLARE_EVENT_CLASS(svc_deferred_event,
 	TP_PROTO(struct svc_deferred_req *dr),
@@ -716,18 +756,16 @@ DECLARE_EVENT_CLASS(svc_deferred_event,
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__dynamic_array(unsigned char, addr, dr->addrlen)
+		__string(addr, dr->xprt->xpt_remotebuf)
 	),
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(*(__be32 *)(dr->args +
 						       (dr->xprt_hlen>>2)));
-		memcpy(__get_dynamic_array(addr), &dr->addr, dr->addrlen);
+		__assign_str(addr, dr->xprt->xpt_remotebuf);
 	),
 
-	TP_printk("addr=%pIScp xid=0x%08x",
-		(struct sockaddr *)__get_dynamic_array(addr),
-		__entry->xid)
+	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
 );
 
 DEFINE_EVENT(svc_deferred_event, svc_drop_deferred,

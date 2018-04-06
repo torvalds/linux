@@ -2520,8 +2520,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 
 	if (pdata)
 		/* Legacy bindings support only one chip */
-		ret = mtd_device_register(mtd, pdata->parts[0],
-					  pdata->nr_parts[0]);
+		ret = mtd_device_register(mtd, pdata->parts, pdata->nr_parts);
 	else
 		ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {

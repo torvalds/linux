@@ -252,7 +252,7 @@ ath_tid_pull(struct ath_atx_tid *tid)
 	}
 
 	return skb;
- }
+}
 
 
 static bool ath_tid_has_buffered(struct ath_atx_tid *tid)

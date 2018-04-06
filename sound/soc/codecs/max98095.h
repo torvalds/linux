@@ -315,7 +315,7 @@
 /* Default Delay used in Slew Rate Calculation for Jack detection */
 #define M98095_DEFAULT_SLEW_DELAY		0x18
 
-extern int max98095_jack_detect(struct snd_soc_codec *codec,
+extern int max98095_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack);
 
 #endif
