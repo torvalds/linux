@@ -296,7 +296,7 @@ static int restart_video_queue(struct viu_dmaqueue *vidq)
 {
 	struct viu_buf *buf, *prev;
 
-	dprintk(1, "%s vidq=0x%08lx\n", __func__, (unsigned long)vidq);
+	dprintk(1, "%s vidq=%p\n", __func__, vidq);
 	if (!list_empty(&vidq->active)) {
 		buf = list_entry(vidq->active.next, struct viu_buf, vb.queue);
 		dprintk(2, "restart_queue [%p/%d]: restart dma\n",
@@ -503,8 +503,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	struct viu_buf       *prev;
 
 	if (!list_empty(&vidq->queued)) {
-		dprintk(1, "adding vb queue=0x%08lx\n",
-				(unsigned long)&buf->vb.queue);
+		dprintk(1, "adding vb queue=%p\n", &buf->vb.queue);
 		dprintk(1, "vidq pointer 0x%p, queued 0x%p\n",
 				vidq, &vidq->queued);
 		dprintk(1, "dev %p, queued: self %p, next %p, head %p\n",
@@ -515,8 +514,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		dprintk(2, "[%p/%d] buffer_queue - append to queued\n",
 			buf, buf->vb.i);
 	} else if (list_empty(&vidq->active)) {
-		dprintk(1, "adding vb active=0x%08lx\n",
-				(unsigned long)&buf->vb.queue);
+		dprintk(1, "adding vb active=%p\n", &buf->vb.queue);
 		list_add_tail(&buf->vb.queue, &vidq->active);
 		buf->vb.state = VIDEOBUF_ACTIVE;
 		mod_timer(&vidq->timeout, jiffies+BUFFER_TIMEOUT);
@@ -525,8 +523,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 		buffer_activate(dev, buf);
 	} else {
-		dprintk(1, "adding vb queue2=0x%08lx\n",
-				(unsigned long)&buf->vb.queue);
+		dprintk(1, "adding vb queue2=%p\n", &buf->vb.queue);
 		prev = list_entry(vidq->active.prev, struct viu_buf, vb.queue);
 		if (prev->vb.width  == buf->vb.width  &&
 		    prev->vb.height == buf->vb.height &&
@@ -1216,9 +1213,7 @@ static int viu_open(struct file *file)
 	dev->crop_current.width  = fh->width;
 	dev->crop_current.height = fh->height;
 
-	dprintk(1, "Open: fh=0x%08lx, dev=0x%08lx, dev->vidq=0x%08lx\n",
-		(unsigned long)fh, (unsigned long)dev,
-		(unsigned long)&dev->vidq);
+	dprintk(1, "Open: fh=%p, dev=%p, dev->vidq=%p\n", fh, dev, &dev->vidq);
 	dprintk(1, "Open: list_empty queued=%d\n",
 		list_empty(&dev->vidq.queued));
 	dprintk(1, "Open: list_empty active=%d\n",
@@ -1331,7 +1326,7 @@ static int viu_mmap(struct file *file, struct vm_area_struct *vma)
 	struct viu_dev *dev = fh->dev;
 	int ret;
 
-	dprintk(1, "mmap called, vma=0x%08lx\n", (unsigned long)vma);
+	dprintk(1, "mmap called, vma=%p\n", vma);
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
