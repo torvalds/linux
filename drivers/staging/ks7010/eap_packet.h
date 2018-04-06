@@ -6,8 +6,6 @@
 #include <linux/bitops.h>
 #include <uapi/linux/if_ether.h>
 
-#define ETHER_HDR_SIZE 20
-
 struct ether_hdr {
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr */
 	unsigned char h_source[ETH_ALEN];	/* source ether addr    */
@@ -18,6 +16,8 @@ struct ether_hdr {
 	__be16 h_proto;	/* packet type ID field */
 	/* followed by length octets of data */
 } __packed;
+
+#define ETHER_HDR_SIZE sizeof(struct ether_hdr)
 
 struct ieee802_1x_hdr {
 	unsigned char version;
