@@ -285,7 +285,7 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct osd_state *osd_device = layer->disp_dev->osd_device;
 	int ret;
 
-	 osd_device->ops.disable_layer(osd_device, layer->layer_info.id);
+	osd_device->ops.disable_layer(osd_device, layer->layer_info.id);
 
 	/* Get the next frame from the buffer queue */
 	layer->next_frm = layer->cur_frm = list_entry(layer->dma_queue.next,
@@ -1354,9 +1354,9 @@ static int register_device(struct vpbe_layer *vpbe_display_layer,
 	v4l2_info(&disp_dev->vpbe_dev->v4l2_dev,
 		  "Trying to register VPBE display device.\n");
 	v4l2_info(&disp_dev->vpbe_dev->v4l2_dev,
-		  "layer=%x,layer->video_dev=%x\n",
-		  (int)vpbe_display_layer,
-		  (int)&vpbe_display_layer->video_dev);
+		  "layer=%p,layer->video_dev=%p\n",
+		  vpbe_display_layer,
+		  &vpbe_display_layer->video_dev);
 
 	vpbe_display_layer->video_dev.queue = &vpbe_display_layer->buffer_queue;
 	err = video_register_device(&vpbe_display_layer->video_dev,
