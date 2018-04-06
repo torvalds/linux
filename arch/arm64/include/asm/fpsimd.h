@@ -41,6 +41,8 @@ struct task_struct;
 extern void fpsimd_save_state(struct user_fpsimd_state *state);
 extern void fpsimd_load_state(struct user_fpsimd_state *state);
 
+extern void fpsimd_save(void);
+
 extern void fpsimd_thread_switch(struct task_struct *next);
 extern void fpsimd_flush_thread(void);
 
@@ -49,7 +51,11 @@ extern void fpsimd_preserve_current_state(void);
 extern void fpsimd_restore_current_state(void);
 extern void fpsimd_update_current_state(struct user_fpsimd_state const *state);
 
+extern void fpsimd_bind_task_to_cpu(void);
+extern void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *state);
+
 extern void fpsimd_flush_task_state(struct task_struct *target);
+extern void fpsimd_flush_cpu_state(void);
 extern void sve_flush_cpu_state(void);
 
 /* Maximum VL that SVE VL-agnostic software can transparently support */

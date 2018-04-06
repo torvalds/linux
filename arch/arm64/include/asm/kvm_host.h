@@ -30,6 +30,7 @@
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
+#include <asm/thread_info.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
@@ -238,6 +239,10 @@ struct kvm_vcpu_arch {
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
+
+	struct thread_info *host_thread_info;	/* hyp VA */
+	struct user_fpsimd_state *host_fpsimd_state;	/* hyp VA */
+
 	struct {
 		/* {Break,watch}point registers */
 		struct kvm_guest_debug_arch regs;
@@ -295,6 +300,9 @@ struct kvm_vcpu_arch {
 
 /* vcpu_arch flags field values: */
 #define KVM_ARM64_DEBUG_DIRTY		(1 << 0)
+#define KVM_ARM64_FP_ENABLED		(1 << 1) /* guest FP regs loaded */
+#define KVM_ARM64_FP_HOST		(1 << 2) /* host FP regs loaded */
+#define KVM_ARM64_HOST_SVE_IN_USE	(1 << 3) /* backup for host TIF_SVE */
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
 
@@ -422,6 +430,19 @@ static inline void __cpu_init_stage2(void)
 	WARN_ONCE(parange < 40,
 		  "PARange is %d bits, unsupported configuration!", parange);
 }
+
+/* Guest/host FPSIMD coordination helpers */
+int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu);
+
+#ifdef CONFIG_KVM /* Avoid conflicts with core headers if CONFIG_KVM=n */
+static inline int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
+{
+	return kvm_arch_vcpu_run_map_fp(vcpu);
+}
+#endif
 
 /*
  * All host FP/SIMD state is restored on guest exit, so nothing needs

@@ -265,10 +265,10 @@ static void task_fpsimd_load(void)
  *
  * Softirqs (and preemption) must be disabled.
  */
-static void fpsimd_save(void)
+void fpsimd_save(void)
 {
 	struct user_fpsimd_state *st = __this_cpu_read(fpsimd_last_state.st);
-	/* set by fpsimd_bind_task_to_cpu() */
+	/* set by fpsimd_bind_task_to_cpu() or fpsimd_bind_state_to_cpu() */
 
 	WARN_ON(!in_softirq() && !irqs_disabled());
 
@@ -986,7 +986,7 @@ void fpsimd_signal_preserve_current_state(void)
  * Associate current's FPSIMD context with this cpu
  * Preemption must be disabled when calling this function.
  */
-static void fpsimd_bind_task_to_cpu(void)
+void fpsimd_bind_task_to_cpu(void)
 {
 	struct fpsimd_last_state_struct *last =
 		this_cpu_ptr(&fpsimd_last_state);
@@ -1004,6 +1004,17 @@ static void fpsimd_bind_task_to_cpu(void)
 
 		/* Serialised by exception return to user */
 	}
+}
+
+void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *st)
+{
+	struct fpsimd_last_state_struct *last =
+		this_cpu_ptr(&fpsimd_last_state);
+
+	WARN_ON(!in_softirq() && !irqs_disabled());
+
+	last->st = st;
+	last->sve_in_use = false;
 }
 
 /*
@@ -1058,7 +1069,7 @@ void fpsimd_flush_task_state(struct task_struct *t)
 	t->thread.fpsimd_cpu = NR_CPUS;
 }
 
-static inline void fpsimd_flush_cpu_state(void)
+void fpsimd_flush_cpu_state(void)
 {
 	__this_cpu_write(fpsimd_last_state.st, NULL);
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
