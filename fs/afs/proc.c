@@ -152,6 +152,8 @@ static const struct file_operations afs_proc_sysname_fops = {
 	.write		= afs_proc_sysname_write,
 };
 
+static const struct file_operations afs_proc_stats_fops;
+
 /*
  * initialise the /proc/fs/afs/ directory
  */
@@ -166,6 +168,7 @@ int afs_proc_init(struct afs_net *net)
 	if (!proc_create("cells", 0644, net->proc_afs, &afs_proc_cells_fops) ||
 	    !proc_create("rootcell", 0644, net->proc_afs, &afs_proc_rootcell_fops) ||
 	    !proc_create("servers", 0644, net->proc_afs, &afs_proc_servers_fops) ||
+	    !proc_create("stats", 0644, net->proc_afs, &afs_proc_stats_fops) ||
 	    !proc_create("sysname", 0644, net->proc_afs, &afs_proc_sysname_fops))
 		goto error_tree;
 
@@ -897,3 +900,37 @@ static int afs_proc_sysname_show(struct seq_file *m, void *v)
 		seq_printf(m, "%s\n", sysnames->subs[i]);
 	return 0;
 }
+
+/*
+ * Display general per-net namespace statistics
+ */
+static int afs_proc_stats_show(struct seq_file *m, void *v)
+{
+	struct afs_net *net = afs_seq2net(m);
+
+	seq_puts(m, "kAFS statistics\n");
+
+	seq_printf(m, "dir-mgmt: look=%u reval=%u inval=%u\n",
+		   atomic_read(&net->n_lookup),
+		   atomic_read(&net->n_reval),
+		   atomic_read(&net->n_inval));
+
+	seq_printf(m, "dir-data: rdpg=%u\n",
+		   atomic_read(&net->n_read_dir));
+	return 0;
+}
+
+/*
+ * Open "/proc/fs/afs/stats" to allow reading of the stat counters.
+ */
+static int afs_proc_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, afs_proc_stats_show, NULL);
+}
+
+static const struct file_operations afs_proc_stats_fops = {
+	.open		= afs_proc_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release        = single_release,
+};

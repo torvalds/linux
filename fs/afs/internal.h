@@ -257,9 +257,15 @@ struct afs_net {
 	struct mutex		lock_manager_mutex;
 
 	/* Misc */
-	struct proc_dir_entry	*proc_afs;		/* /proc/net/afs directory */
+	struct proc_dir_entry	*proc_afs;	/* /proc/net/afs directory */
 	struct afs_sysnames	*sysnames;
 	rwlock_t		sysnames_lock;
+
+	/* Statistics counters */
+	atomic_t		n_lookup;	/* Number of lookups done */
+	atomic_t		n_reval;	/* Number of dentries needing revalidation */
+	atomic_t		n_inval;	/* Number of invalidations by the server */
+	atomic_t		n_read_dir;	/* Number of directory pages read */
 };
 
 extern const char afs_init_sysname[];
@@ -776,6 +782,13 @@ static inline struct afs_net *afs_get_net(struct afs_net *net)
 static inline void afs_put_net(struct afs_net *net)
 {
 }
+
+static inline void __afs_stat(atomic_t *s)
+{
+	atomic_inc(s);
+}
+
+#define afs_stat_v(vnode, n) __afs_stat(&afs_v2net(vnode)->n)
 
 /*
  * misc.c

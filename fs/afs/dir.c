@@ -206,6 +206,7 @@ bool afs_dir_check_page(struct inode *dir, struct page *page)
 	}
 
 checked:
+	afs_stat_v(vnode, n_read_dir);
 	SetPageChecked(page);
 	return true;
 
@@ -868,6 +869,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	    dentry->d_name.name[dentry->d_name.len - 1] == 's')
 		return afs_lookup_atsys(dir, dentry, key);
 
+	afs_stat_v(dvnode, n_lookup);
 	inode = afs_do_lookup(dir, dentry, key);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
@@ -1062,6 +1064,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_valid; /* the dir contents are unchanged */
 
 	_debug("dir modified");
+	afs_stat_v(dir, n_reval);
 
 	/* search the directory for this vnode */
 	ret = afs_do_lookup_one(&dir->vfs_inode, dentry, &fid, key);

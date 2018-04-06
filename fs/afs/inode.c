@@ -366,6 +366,9 @@ void afs_zap_data(struct afs_vnode *vnode)
 {
 	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
 
+	if (S_ISDIR(vnode->vfs_inode.i_mode))
+		afs_stat_v(vnode, n_inval);
+
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_invalidate(vnode->cache);
 #endif
