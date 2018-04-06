@@ -103,7 +103,8 @@
 #define PCIE_ISR1_MASK_REG			(CONTROL_BASE_ADDR + 0x4C)
 #define     PCIE_ISR1_POWER_STATE_CHANGE	BIT(4)
 #define     PCIE_ISR1_FLUSH			BIT(5)
-#define     PCIE_ISR1_ALL_MASK			GENMASK(5, 4)
+#define     PCIE_ISR1_INTX_ASSERT(val)		BIT(8 + (val))
+#define     PCIE_ISR1_ALL_MASK			GENMASK(11, 4)
 #define PCIE_MSI_ADDR_LOW_REG			(CONTROL_BASE_ADDR + 0x50)
 #define PCIE_MSI_ADDR_HIGH_REG			(CONTROL_BASE_ADDR + 0x54)
 #define PCIE_MSI_STATUS_REG			(CONTROL_BASE_ADDR + 0x58)
@@ -610,9 +611,9 @@ static void advk_pcie_irq_mask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	u32 mask;
 
-	mask = advk_readl(pcie, PCIE_ISR0_MASK_REG);
-	mask |= PCIE_ISR0_INTX_ASSERT(hwirq);
-	advk_writel(pcie, mask, PCIE_ISR0_MASK_REG);
+	mask = advk_readl(pcie, PCIE_ISR1_MASK_REG);
+	mask |= PCIE_ISR1_INTX_ASSERT(hwirq);
+	advk_writel(pcie, mask, PCIE_ISR1_MASK_REG);
 }
 
 static void advk_pcie_irq_unmask(struct irq_data *d)
@@ -621,9 +622,9 @@ static void advk_pcie_irq_unmask(struct irq_data *d)
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	u32 mask;
 
-	mask = advk_readl(pcie, PCIE_ISR0_MASK_REG);
-	mask &= ~PCIE_ISR0_INTX_ASSERT(hwirq);
-	advk_writel(pcie, mask, PCIE_ISR0_MASK_REG);
+	mask = advk_readl(pcie, PCIE_ISR1_MASK_REG);
+	mask &= ~PCIE_ISR1_INTX_ASSERT(hwirq);
+	advk_writel(pcie, mask, PCIE_ISR1_MASK_REG);
 }
 
 static int advk_pcie_irq_map(struct irq_domain *h,
@@ -766,29 +767,35 @@ static void advk_pcie_handle_msi(struct advk_pcie *pcie)
 
 static void advk_pcie_handle_int(struct advk_pcie *pcie)
 {
-	u32 val, mask, status;
+	u32 isr0_val, isr0_mask, isr0_status;
+	u32 isr1_val, isr1_mask, isr1_status;
 	int i, virq;
 
-	val = advk_readl(pcie, PCIE_ISR0_REG);
-	mask = advk_readl(pcie, PCIE_ISR0_MASK_REG);
-	status = val & ((~mask) & PCIE_ISR0_ALL_MASK);
+	isr0_val = advk_readl(pcie, PCIE_ISR0_REG);
+	isr0_mask = advk_readl(pcie, PCIE_ISR0_MASK_REG);
+	isr0_status = isr0_val & ((~isr0_mask) & PCIE_ISR0_ALL_MASK);
 
-	if (!status) {
-		advk_writel(pcie, val, PCIE_ISR0_REG);
+	isr1_val = advk_readl(pcie, PCIE_ISR1_REG);
+	isr1_mask = advk_readl(pcie, PCIE_ISR1_MASK_REG);
+	isr1_status = isr1_val & ((~isr1_mask) & PCIE_ISR1_ALL_MASK);
+
+	if (!isr0_status && !isr1_status) {
+		advk_writel(pcie, isr0_val, PCIE_ISR0_REG);
+		advk_writel(pcie, isr1_val, PCIE_ISR1_REG);
 		return;
 	}
 
 	/* Process MSI interrupts */
-	if (status & PCIE_ISR0_MSI_INT_PENDING)
+	if (isr0_status & PCIE_ISR0_MSI_INT_PENDING)
 		advk_pcie_handle_msi(pcie);
 
 	/* Process legacy interrupts */
 	for (i = 0; i < PCI_NUM_INTX; i++) {
-		if (!(status & PCIE_ISR0_INTX_ASSERT(i)))
+		if (!(isr1_status & PCIE_ISR1_INTX_ASSERT(i)))
 			continue;
 
-		advk_writel(pcie, PCIE_ISR0_INTX_ASSERT(i),
-			    PCIE_ISR0_REG);
+		advk_writel(pcie, PCIE_ISR1_INTX_ASSERT(i),
+			    PCIE_ISR1_REG);
 
 		virq = irq_find_mapping(pcie->irq_domain, i);
 		generic_handle_irq(virq);
