@@ -909,6 +909,55 @@ success:
 }
 
 /*
+ * Look up @cell in a dynroot directory.  This is a substitution for the
+ * local cell name for the net namespace.
+ */
+static struct dentry *afs_lookup_atcell(struct dentry *dentry)
+{
+	struct afs_cell *cell;
+	struct afs_net *net = afs_d2net(dentry);
+	struct dentry *ret;
+	unsigned int seq = 0;
+	char *name;
+	int len;
+
+	if (!net->ws_cell)
+		return ERR_PTR(-ENOENT);
+
+	ret = ERR_PTR(-ENOMEM);
+	name = kmalloc(AFS_MAXCELLNAME + 1, GFP_KERNEL);
+	if (!name)
+		goto out_p;
+
+	rcu_read_lock();
+	do {
+		read_seqbegin_or_lock(&net->cells_lock, &seq);
+		cell = rcu_dereference_raw(net->ws_cell);
+		if (cell) {
+			len = cell->name_len;
+			memcpy(name, cell->name, len + 1);
+		}
+	} while (need_seqretry(&net->cells_lock, seq));
+	done_seqretry(&net->cells_lock, seq);
+	rcu_read_unlock();
+
+	ret = ERR_PTR(-ENOENT);
+	if (!cell)
+		goto out_n;
+
+	ret = lookup_one_len(name, dentry->d_parent, len);
+
+	/* We don't want to d_add() the @cell dentry here as we don't want to
+	 * the cached dentry to hide changes to the local cell name.
+	 */
+
+out_n:
+	kfree(name);
+out_p:
+	return ret;
+}
+
+/*
  * Look up an entry in a dynroot directory.
  */
 static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
@@ -928,6 +977,10 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
 	}
+
+	if (dentry->d_name.len == 5 &&
+	    memcmp(dentry->d_name.name, "@cell", 5) == 0)
+		return afs_lookup_atcell(dentry);
 
 	inode = afs_try_auto_mntpt(dentry, dir);
 	if (IS_ERR(inode)) {

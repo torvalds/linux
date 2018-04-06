@@ -334,7 +334,40 @@ inval:
 static ssize_t afs_proc_rootcell_read(struct file *file, char __user *buf,
 				      size_t size, loff_t *_pos)
 {
-	return 0;
+	struct afs_cell *cell;
+	struct afs_net *net = afs_proc2net(file);
+	unsigned int seq = 0;
+	char name[AFS_MAXCELLNAME + 1];
+	int len;
+
+	if (*_pos > 0)
+		return 0;
+	if (!net->ws_cell)
+		return 0;
+
+	rcu_read_lock();
+	do {
+		read_seqbegin_or_lock(&net->cells_lock, &seq);
+		len = 0;
+		cell = rcu_dereference_raw(net->ws_cell);
+		if (cell) {
+			len = cell->name_len;
+			memcpy(name, cell->name, len);
+		}
+	} while (need_seqretry(&net->cells_lock, seq));
+	done_seqretry(&net->cells_lock, seq);
+	rcu_read_unlock();
+
+	if (!len)
+		return 0;
+
+	name[len++] = '\n';
+	if (len > size)
+		len = size;
+	if (copy_to_user(buf, name, len) != 0)
+		return -EFAULT;
+	*_pos = 1;
+	return len;
 }
 
 /*

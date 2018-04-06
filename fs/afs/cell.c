@@ -130,6 +130,8 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
 	}
+	if (namelen == 5 && memcmp(name, "@cell", 5) == 0)
+		return ERR_PTR(-EINVAL);
 
 	_enter("%*.*s,%s", namelen, namelen, name, vllist);
 
