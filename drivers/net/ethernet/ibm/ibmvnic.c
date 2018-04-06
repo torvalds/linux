@@ -325,10 +325,11 @@ failure:
 	adapter->replenish_add_buff_failure++;
 	atomic_add(buffers_added, &pool->available);
 
-	if (lpar_rc == H_CLOSED) {
+	if (lpar_rc == H_CLOSED || adapter->failover_pending) {
 		/* Disable buffer pool replenishment and report carrier off if
-		 * queue is closed. Firmware guarantees that a signal will
-		 * be sent to the driver, triggering a reset.
+		 * queue is closed or pending failover.
+		 * Firmware guarantees that a signal will be sent to the
+		 * driver, triggering a reset.
 		 */
 		deactivate_rx_pools(adapter);
 		netif_carrier_off(adapter->netdev);
@@ -1068,6 +1069,14 @@ static int ibmvnic_open(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int rc;
 
+	/* If device failover is pending, just set device state and return.
+	 * Device operation will be handled by reset routine.
+	 */
+	if (adapter->failover_pending) {
+		adapter->state = VNIC_OPEN;
+		return 0;
+	}
+
 	mutex_lock(&adapter->reset_lock);
 
 	if (adapter->state != VNIC_CLOSED) {
@@ -1224,6 +1233,14 @@ static int ibmvnic_close(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int rc;
+
+	/* If device failover is pending, just set device state and return.
+	 * Device operation will be handled by reset routine.
+	 */
+	if (adapter->failover_pending) {
+		adapter->state = VNIC_CLOSED;
+		return 0;
+	}
 
 	mutex_lock(&adapter->reset_lock);
 	rc = __ibmvnic_close(netdev);
@@ -1559,8 +1576,9 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb_any(skb);
 		tx_buff->skb = NULL;
 
-		if (lpar_rc == H_CLOSED) {
-			/* Disable TX and report carrier off if queue is closed.
+		if (lpar_rc == H_CLOSED || adapter->failover_pending) {
+			/* Disable TX and report carrier off if queue is closed
+			 * or pending failover.
 			 * Firmware guarantees that a signal will be sent to the
 			 * driver, triggering a reset or some other action.
 			 */
@@ -1884,9 +1902,10 @@ static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 	int ret;
 
 	if (adapter->state == VNIC_REMOVING ||
-	    adapter->state == VNIC_REMOVED) {
+	    adapter->state == VNIC_REMOVED ||
+	    adapter->failover_pending) {
 		ret = EBUSY;
-		netdev_dbg(netdev, "Adapter removing, skipping reset\n");
+		netdev_dbg(netdev, "Adapter removing or pending failover, skipping reset\n");
 		goto err;
 	}
 
@@ -4162,7 +4181,9 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		case IBMVNIC_CRQ_INIT:
 			dev_info(dev, "Partner initialized\n");
 			adapter->from_passive_init = true;
+			adapter->failover_pending = false;
 			complete(&adapter->init_done);
+			ibmvnic_reset(adapter, VNIC_RESET_FAILOVER);
 			break;
 		case IBMVNIC_CRQ_INIT_COMPLETE:
 			dev_info(dev, "Partner initialization complete\n");
@@ -4179,7 +4200,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			ibmvnic_reset(adapter, VNIC_RESET_MOBILITY);
 		} else if (gen_crq->cmd == IBMVNIC_DEVICE_FAILOVER) {
 			dev_info(dev, "Backing device failover detected\n");
-			ibmvnic_reset(adapter, VNIC_RESET_FAILOVER);
+			adapter->failover_pending = true;
 		} else {
 			/* The adapter lost the connection */
 			dev_err(dev, "Virtual Adapter failed (rc=%d)\n",
