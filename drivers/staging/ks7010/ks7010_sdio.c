@@ -15,6 +15,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
+#include <linux/jiffies.h>
 
 #include "ks_wlan.h"
 #include "ks_wlan_ioctl.h"
@@ -427,19 +428,18 @@ static void ks7010_rw_function(struct work_struct *work)
 	priv = container_of(work, struct ks_wlan_private, rw_dwork.work);
 
 	/* wait after DOZE */
-	if (time_after(priv->last_doze + ((30 * HZ) / 1000), jiffies)) {
+	if (time_after(priv->last_doze + msecs_to_jiffies(30), jiffies)) {
 		netdev_dbg(priv->net_dev, "wait after DOZE\n");
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 		return;
 	}
 
 	/* wait after WAKEUP */
-	while (time_after(priv->last_wakeup + ((30 * HZ) / 1000), jiffies)) {
+	while (time_after(priv->last_wakeup + msecs_to_jiffies(30), jiffies)) {
 		netdev_dbg(priv->net_dev, "wait after WAKEUP\n");
 		dev_info(&priv->ks_sdio_card->func->dev,
 			 "wake: %lu %lu\n",
-			 priv->last_wakeup + (30 * HZ) / 1000,
-				jiffies);
+			 priv->last_wakeup + msecs_to_jiffies(30), jiffies);
 		msleep(30);
 	}
 
