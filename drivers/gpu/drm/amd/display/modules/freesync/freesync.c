@@ -371,12 +371,6 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 			inserted_frame_duration_in_us;
 		in_out_vrr->btr.frames_to_insert = frames_to_insert;
 		in_out_vrr->btr.frame_counter = frames_to_insert;
-
-		in_out_vrr->adjust.v_total_min =
-			calc_v_total_from_duration(stream, in_out_vrr,
-				in_out_vrr->btr.inserted_duration_in_us);
-		in_out_vrr->adjust.v_total_max =
-				in_out_vrr->adjust.v_total_min;
 	}
 }
 
