@@ -26,8 +26,6 @@ struct ieee802_1x_hdr {
 	/* followed by length octets of data */
 } __packed;
 
-#define EAPOL_VERSION 2
-
 enum { IEEE802_1X_TYPE_EAP_PACKET = 0,
 	IEEE802_1X_TYPE_EAPOL_START = 1,
 	IEEE802_1X_TYPE_EAPOL_LOGOFF = 2,
