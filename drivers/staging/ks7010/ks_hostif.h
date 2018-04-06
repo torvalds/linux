@@ -559,6 +559,8 @@ void send_packet_complete(struct ks_wlan_private *priv, struct sk_buff *skb);
 void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv);
 int ks_wlan_hw_power_save(struct ks_wlan_private *priv);
 
+#define KS7010_SIZE_ALIGNMENT	32
+
 static
 inline int hif_align_size(int size)
 {
@@ -566,12 +568,8 @@ inline int hif_align_size(int size)
 	if (size < 1024)
 		size = 1024;
 #endif
-#ifdef	DEVICE_ALIGNMENT
-	return (size % DEVICE_ALIGNMENT) ? size + DEVICE_ALIGNMENT -
-	    (size % DEVICE_ALIGNMENT) : size;
-#else
-	return size;
-#endif
+	return (size % KS7010_SIZE_ALIGNMENT) ? size + KS7010_SIZE_ALIGNMENT -
+	    (size % KS7010_SIZE_ALIGNMENT) : size;
 }
 
 #endif /* __KERNEL__ */

@@ -11,11 +11,6 @@
 #ifndef _KS7010_SDIO_H
 #define _KS7010_SDIO_H
 
-#ifdef	DEVICE_ALIGNMENT
-#undef	DEVICE_ALIGNMENT
-#endif
-#define DEVICE_ALIGNMENT 32
-
 /*  SDIO KeyStream vendor and device */
 #define SDIO_VENDOR_ID_KS_CODE_A	0x005b
 #define SDIO_VENDOR_ID_KS_CODE_B	0x0023
