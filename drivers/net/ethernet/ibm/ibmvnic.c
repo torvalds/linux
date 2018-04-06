@@ -1875,23 +1875,25 @@ static void __ibmvnic_reset(struct work_struct *work)
 	mutex_unlock(&adapter->reset_lock);
 }
 
-static void ibmvnic_reset(struct ibmvnic_adapter *adapter,
-			  enum ibmvnic_reset_reason reason)
+static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
+			 enum ibmvnic_reset_reason reason)
 {
 	struct ibmvnic_rwi *rwi, *tmp;
 	struct net_device *netdev = adapter->netdev;
 	struct list_head *entry;
+	int ret;
 
 	if (adapter->state == VNIC_REMOVING ||
 	    adapter->state == VNIC_REMOVED) {
+		ret = EBUSY;
 		netdev_dbg(netdev, "Adapter removing, skipping reset\n");
-		return;
+		goto err;
 	}
 
 	if (adapter->state == VNIC_PROBING) {
 		netdev_warn(netdev, "Adapter reset during probe\n");
-		adapter->init_done_rc = EAGAIN;
-		return;
+		ret = adapter->init_done_rc = EAGAIN;
+		goto err;
 	}
 
 	mutex_lock(&adapter->rwi_lock);
@@ -1901,7 +1903,8 @@ static void ibmvnic_reset(struct ibmvnic_adapter *adapter,
 		if (tmp->reset_reason == reason) {
 			netdev_dbg(netdev, "Skipping matching reset\n");
 			mutex_unlock(&adapter->rwi_lock);
-			return;
+			ret = EBUSY;
+			goto err;
 		}
 	}
 
@@ -1909,7 +1912,8 @@ static void ibmvnic_reset(struct ibmvnic_adapter *adapter,
 	if (!rwi) {
 		mutex_unlock(&adapter->rwi_lock);
 		ibmvnic_close(netdev);
-		return;
+		ret = ENOMEM;
+		goto err;
 	}
 
 	rwi->reset_reason = reason;
@@ -1918,6 +1922,12 @@ static void ibmvnic_reset(struct ibmvnic_adapter *adapter,
 
 	netdev_dbg(adapter->netdev, "Scheduling reset (reason %d)\n", reason);
 	schedule_work(&adapter->ibmvnic_reset);
+
+	return 0;
+err:
+	if (adapter->wait_for_reset)
+		adapter->wait_for_reset = false;
+	return -ret;
 }
 
 static void ibmvnic_tx_timeout(struct net_device *dev)
@@ -2052,6 +2062,8 @@ static void ibmvnic_netpoll_controller(struct net_device *dev)
 
 static int wait_for_reset(struct ibmvnic_adapter *adapter)
 {
+	int rc, ret;
+
 	adapter->fallback.mtu = adapter->req_mtu;
 	adapter->fallback.rx_queues = adapter->req_rx_queues;
 	adapter->fallback.tx_queues = adapter->req_tx_queues;
@@ -2059,11 +2071,15 @@ static int wait_for_reset(struct ibmvnic_adapter *adapter)
 	adapter->fallback.tx_entries = adapter->req_tx_entries_per_subcrq;
 
 	init_completion(&adapter->reset_done);
-	ibmvnic_reset(adapter, VNIC_RESET_CHANGE_PARAM);
 	adapter->wait_for_reset = true;
+	rc = ibmvnic_reset(adapter, VNIC_RESET_CHANGE_PARAM);
+	if (rc)
+		return rc;
 	wait_for_completion(&adapter->reset_done);
 
+	ret = 0;
 	if (adapter->reset_done_rc) {
+		ret = -EIO;
 		adapter->desired.mtu = adapter->fallback.mtu;
 		adapter->desired.rx_queues = adapter->fallback.rx_queues;
 		adapter->desired.tx_queues = adapter->fallback.tx_queues;
@@ -2071,12 +2087,15 @@ static int wait_for_reset(struct ibmvnic_adapter *adapter)
 		adapter->desired.tx_entries = adapter->fallback.tx_entries;
 
 		init_completion(&adapter->reset_done);
-		ibmvnic_reset(adapter, VNIC_RESET_CHANGE_PARAM);
+		adapter->wait_for_reset = true;
+		rc = ibmvnic_reset(adapter, VNIC_RESET_CHANGE_PARAM);
+		if (rc)
+			return ret;
 		wait_for_completion(&adapter->reset_done);
 	}
 	adapter->wait_for_reset = false;
 
-	return adapter->reset_done_rc;
+	return ret;
 }
 
 static int ibmvnic_change_mtu(struct net_device *netdev, int new_mtu)
