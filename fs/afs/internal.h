@@ -271,6 +271,8 @@ struct afs_net {
 	atomic_t		n_inval;	/* Number of invalidations by the server */
 	atomic_t		n_relpg;	/* Number of invalidations by releasepage */
 	atomic_t		n_read_dir;	/* Number of directory pages read */
+	atomic_t		n_dir_cr;	/* Number of directory entry creation edits */
+	atomic_t		n_dir_rm;	/* Number of directory entry removal edits */
 };
 
 extern const char afs_init_sysname[];
@@ -680,6 +682,13 @@ extern const struct dentry_operations afs_fs_dentry_operations;
 extern void afs_d_release(struct dentry *);
 
 /*
+ * dir_edit.c
+ */
+extern void afs_edit_dir_add(struct afs_vnode *, struct qstr *, struct afs_fid *,
+			     enum afs_edit_dir_reason);
+extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit_dir_reason);
+
+/*
  * dynroot.c
  */
 extern const struct file_operations afs_dynroot_file_operations;
@@ -725,14 +734,14 @@ extern void afs_update_inode_from_status(struct afs_vnode *, struct afs_file_sta
 extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_volsync *, bool);
 extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *);
 extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct afs_read *);
-extern int afs_fs_create(struct afs_fs_cursor *, const char *, umode_t,
+extern int afs_fs_create(struct afs_fs_cursor *, const char *, umode_t, u64,
 			 struct afs_fid *, struct afs_file_status *, struct afs_callback *);
-extern int afs_fs_remove(struct afs_fs_cursor *, const char *, bool);
-extern int afs_fs_link(struct afs_fs_cursor *, struct afs_vnode *, const char *);
-extern int afs_fs_symlink(struct afs_fs_cursor *, const char *, const char *,
+extern int afs_fs_remove(struct afs_fs_cursor *, const char *, bool, u64);
+extern int afs_fs_link(struct afs_fs_cursor *, struct afs_vnode *, const char *, u64);
+extern int afs_fs_symlink(struct afs_fs_cursor *, const char *, const char *, u64,
 			  struct afs_fid *, struct afs_file_status *);
 extern int afs_fs_rename(struct afs_fs_cursor *, const char *,
-			 struct afs_vnode *, const char *);
+			 struct afs_vnode *, const char *, u64, u64);
 extern int afs_fs_store_data(struct afs_fs_cursor *, struct address_space *,
 			     pgoff_t, pgoff_t, unsigned, unsigned);
 extern int afs_fs_setattr(struct afs_fs_cursor *, struct iattr *);

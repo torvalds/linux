@@ -395,8 +395,11 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		if (vnode->cb_s_break != vnode->cb_interest->server->cb_s_break) {
 			vnode->cb_s_break = vnode->cb_interest->server->cb_s_break;
-		} else if (test_bit(AFS_VNODE_DIR_VALID, &vnode->flags) &&
-			   !test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) &&
+		} else if (vnode->status.type == AFS_FTYPE_DIR &&
+			   test_bit(AFS_VNODE_DIR_VALID, &vnode->flags) &&
+			   vnode->cb_expires_at - 10 > now) {
+				valid = true;
+		} else if (!test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) &&
 			   vnode->cb_expires_at - 10 > now) {
 				valid = true;
 		}

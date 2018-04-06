@@ -107,6 +107,13 @@ void afs_update_inode_from_status(struct afs_vnode *vnode,
 			} else {
 				set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
 			}
+		} else if (vnode->status.type == AFS_FTYPE_DIR) {
+			/* Expected directory change is handled elsewhere so
+			 * that we can locally edit the directory and save on a
+			 * download.
+			 */
+			if (test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+				flags &= ~AFS_VNODE_DATA_CHANGED;
 		}
 	}
 
@@ -190,10 +197,7 @@ static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
 
 	size  = (u64)ntohl(xdr->size_lo);
 	size |= (u64)ntohl(xdr->size_hi) << 32;
-	if (size != status->size) {
-		status->size = size;
-		flags |= AFS_VNODE_DATA_CHANGED;
-	}
+	status->size = size;
 
 	data_version  = (u64)ntohl(xdr->data_version_lo);
 	data_version |= (u64)ntohl(xdr->data_version_hi) << 32;
@@ -736,6 +740,7 @@ static const struct afs_call_type afs_RXFSMakeDir = {
 int afs_fs_create(struct afs_fs_cursor *fc,
 		  const char *name,
 		  umode_t mode,
+		  u64 current_data_version,
 		  struct afs_fid *newfid,
 		  struct afs_file_status *newstatus,
 		  struct afs_callback *newcb)
@@ -763,7 +768,7 @@ int afs_fs_create(struct afs_fs_cursor *fc,
 	call->reply[1] = newfid;
 	call->reply[2] = newstatus;
 	call->reply[3] = newcb;
-	call->expected_version = vnode->status.data_version;
+	call->expected_version = current_data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -836,7 +841,8 @@ static const struct afs_call_type afs_RXFSRemoveDir = {
 /*
  * remove a file or directory
  */
-int afs_fs_remove(struct afs_fs_cursor *fc, const char *name, bool isdir)
+int afs_fs_remove(struct afs_fs_cursor *fc, const char *name, bool isdir,
+		  u64 current_data_version)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -858,7 +864,7 @@ int afs_fs_remove(struct afs_fs_cursor *fc, const char *name, bool isdir)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
-	call->expected_version = vnode->status.data_version;
+	call->expected_version = current_data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -920,7 +926,7 @@ static const struct afs_call_type afs_RXFSLink = {
  * make a hard link
  */
 int afs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
-		const char *name)
+		const char *name, u64 current_data_version)
 {
 	struct afs_vnode *dvnode = fc->vnode;
 	struct afs_call *call;
@@ -941,7 +947,7 @@ int afs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	call->key = fc->key;
 	call->reply[0] = dvnode;
 	call->reply[1] = vnode;
-	call->expected_version = vnode->status.data_version;
+	call->expected_version = current_data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1009,6 +1015,7 @@ static const struct afs_call_type afs_RXFSSymlink = {
 int afs_fs_symlink(struct afs_fs_cursor *fc,
 		   const char *name,
 		   const char *contents,
+		   u64 current_data_version,
 		   struct afs_fid *newfid,
 		   struct afs_file_status *newstatus)
 {
@@ -1037,7 +1044,7 @@ int afs_fs_symlink(struct afs_fs_cursor *fc,
 	call->reply[0] = vnode;
 	call->reply[1] = newfid;
 	call->reply[2] = newstatus;
-	call->expected_version = vnode->status.data_version;
+	call->expected_version = current_data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1117,7 +1124,9 @@ static const struct afs_call_type afs_RXFSRename = {
 int afs_fs_rename(struct afs_fs_cursor *fc,
 		  const char *orig_name,
 		  struct afs_vnode *new_dvnode,
-		  const char *new_name)
+		  const char *new_name,
+		  u64 current_orig_data_version,
+		  u64 current_new_data_version)
 {
 	struct afs_vnode *orig_dvnode = fc->vnode;
 	struct afs_call *call;
@@ -1145,8 +1154,8 @@ int afs_fs_rename(struct afs_fs_cursor *fc,
 	call->key = fc->key;
 	call->reply[0] = orig_dvnode;
 	call->reply[1] = new_dvnode;
-	call->expected_version = orig_dvnode->status.data_version;
-	call->expected_version_2 = new_dvnode->status.data_version;
+	call->expected_version = current_orig_data_version + 1;
+	call->expected_version_2 = current_new_data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;

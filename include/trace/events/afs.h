@@ -63,6 +63,27 @@ enum afs_vl_operation {
 	afs_VL_GetCapabilities	= 65537,	/* AFS Get VL server capabilities */
 };
 
+enum afs_edit_dir_op {
+	afs_edit_dir_create,
+	afs_edit_dir_create_error,
+	afs_edit_dir_create_inval,
+	afs_edit_dir_create_nospc,
+	afs_edit_dir_delete,
+	afs_edit_dir_delete_error,
+	afs_edit_dir_delete_inval,
+	afs_edit_dir_delete_noent,
+};
+
+enum afs_edit_dir_reason {
+	afs_edit_dir_for_create,
+	afs_edit_dir_for_link,
+	afs_edit_dir_for_mkdir,
+	afs_edit_dir_for_rename,
+	afs_edit_dir_for_rmdir,
+	afs_edit_dir_for_symlink,
+	afs_edit_dir_for_unlink,
+};
+
 #endif /* end __AFS_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -106,6 +127,25 @@ enum afs_vl_operation {
 	EM(afs_YFSVL_GetEndpoints,		"YFSVL.GetEndpoints") \
 	E_(afs_VL_GetCapabilities,		"VL.GetCapabilities")
 
+#define afs_edit_dir_ops				  \
+	EM(afs_edit_dir_create,			"create") \
+	EM(afs_edit_dir_create_error,		"c_fail") \
+	EM(afs_edit_dir_create_inval,		"c_invl") \
+	EM(afs_edit_dir_create_nospc,		"c_nspc") \
+	EM(afs_edit_dir_delete,			"delete") \
+	EM(afs_edit_dir_delete_error,		"d_err ") \
+	EM(afs_edit_dir_delete_inval,		"d_invl") \
+	E_(afs_edit_dir_delete_noent,		"d_nent")
+
+#define afs_edit_dir_reasons				  \
+	EM(afs_edit_dir_for_create,		"Create") \
+	EM(afs_edit_dir_for_link,		"Link  ") \
+	EM(afs_edit_dir_for_mkdir,		"MkDir ") \
+	EM(afs_edit_dir_for_rename,		"Rename") \
+	EM(afs_edit_dir_for_rmdir,		"RmDir ") \
+	EM(afs_edit_dir_for_symlink,		"Symlnk") \
+	E_(afs_edit_dir_for_unlink,		"Unlink")
+
 
 /*
  * Export enum symbols via userspace.
@@ -118,6 +158,8 @@ enum afs_vl_operation {
 afs_call_traces;
 afs_fs_operations;
 afs_vl_operations;
+afs_edit_dir_ops;
+afs_edit_dir_reasons;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -462,6 +504,54 @@ TRACE_EVENT(afs_call_state,
 		      __entry->call,
 		      __entry->from, __entry->to,
 		      __entry->ret, __entry->abort)
+	    );
+
+TRACE_EVENT(afs_edit_dir,
+	    TP_PROTO(struct afs_vnode *dvnode,
+		     enum afs_edit_dir_reason why,
+		     enum afs_edit_dir_op op,
+		     unsigned int block,
+		     unsigned int slot,
+		     unsigned int f_vnode,
+		     unsigned int f_unique,
+		     const char *name),
+
+	    TP_ARGS(dvnode, why, op, block, slot, f_vnode, f_unique, name),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		vnode		)
+		    __field(unsigned int,		unique		)
+		    __field(enum afs_edit_dir_reason,	why		)
+		    __field(enum afs_edit_dir_op,	op		)
+		    __field(unsigned int,		block		)
+		    __field(unsigned short,		slot		)
+		    __field(unsigned int,		f_vnode		)
+		    __field(unsigned int,		f_unique	)
+		    __array(char,			name, 18	)
+			     ),
+
+	    TP_fast_assign(
+		    int __len = strlen(name);
+		    __len = min(__len, 17);
+		    __entry->vnode	= dvnode->fid.vnode;
+		    __entry->unique	= dvnode->fid.unique;
+		    __entry->why	= why;
+		    __entry->op		= op;
+		    __entry->block	= block;
+		    __entry->slot	= slot;
+		    __entry->f_vnode	= f_vnode;
+		    __entry->f_unique	= f_unique;
+		    memcpy(__entry->name, name, __len);
+		    __entry->name[__len] = 0;
+			   ),
+
+	    TP_printk("d=%x:%x %s %s %u[%u] f=%x:%x %s",
+		      __entry->vnode, __entry->unique,
+		      __print_symbolic(__entry->why, afs_edit_dir_reasons),
+		      __print_symbolic(__entry->op, afs_edit_dir_ops),
+		      __entry->block, __entry->slot,
+		      __entry->f_vnode, __entry->f_unique,
+		      __entry->name)
 	    );
 
 #endif /* _TRACE_AFS_H */
