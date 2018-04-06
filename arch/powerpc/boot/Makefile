@@ -126,7 +126,7 @@ src-wlib-$(CONFIG_40x) += 4xx.c planetcore.c
 src-wlib-$(CONFIG_44x) += 4xx.c ebony.c bamboo.c
 src-wlib-$(CONFIG_PPC_8xx) += mpc8xx.c planetcore.c fsl-soc.c
 src-wlib-$(CONFIG_PPC_82xx) += pq2.c fsl-soc.c planetcore.c
-src-wlib-$(CONFIG_EMBEDDED6xx) += mv64x60.c ugecon.c fsl-soc.c
+src-wlib-$(CONFIG_EMBEDDED6xx) += ugecon.c fsl-soc.c
 src-wlib-$(CONFIG_XILINX_VIRTEX) += uartlite.c
 src-wlib-$(CONFIG_CPM) += cpm-serial.c
 
