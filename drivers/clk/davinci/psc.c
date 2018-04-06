@@ -425,6 +425,7 @@ __davinci_psc_register_clocks(struct device *dev,
 
 	psc->rcdev.ops = &davinci_psc_reset_ops;
 	psc->rcdev.owner = THIS_MODULE;
+	psc->rcdev.dev = dev;
 	psc->rcdev.of_node = dev->of_node;
 	psc->rcdev.of_reset_n_cells = 1;
 	psc->rcdev.of_xlate = davinci_psc_reset_of_xlate;
