@@ -258,7 +258,7 @@ static int pstore_decompress(void *in, void *out,
 
 static void allocate_buf_for_compression(void)
 {
-	if (!zbackend)
+	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS) || !zbackend)
 		return;
 
 	if (!crypto_has_comp(zbackend->name, 0, 0)) {
@@ -287,7 +287,7 @@ static void allocate_buf_for_compression(void)
 
 static void free_buf_for_compression(void)
 {
-	if (!IS_ERR_OR_NULL(tfm))
+	if (IS_ENABLED(CONFIG_PSTORE_COMPRESS) && !IS_ERR_OR_NULL(tfm))
 		crypto_free_comp(tfm);
 	kfree(big_oops_buf);
 	big_oops_buf = NULL;
