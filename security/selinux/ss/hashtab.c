@@ -169,14 +169,10 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 	info->slots_used = slots_used;
 	info->max_chain_len = max_chain_len;
 }
-void hashtab_cache_init(void)
+
+void __init hashtab_cache_init(void)
 {
 		hashtab_node_cachep = kmem_cache_create("hashtab_node",
 			sizeof(struct hashtab_node),
 			0, SLAB_PANIC, NULL);
-}
-
-void hashtab_cache_destroy(void)
-{
-		kmem_cache_destroy(hashtab_node_cachep);
 }

@@ -321,6 +321,11 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 	struct sctp_packet *packet;
 	int len;
 
+	/* Update socket peer label if first association. */
+	if (security_sctp_assoc_request((struct sctp_endpoint *)ep,
+					chunk->skb))
+		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+
 	/* 6.10 Bundling
 	 * An endpoint MUST NOT bundle INIT, INIT ACK or
 	 * SHUTDOWN COMPLETE with any other chunks.
@@ -922,6 +927,9 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_COUNTER_RESET, SCTP_NULL());
 
+	/* Set peer label for connection. */
+	security_inet_conn_established(ep->base.sk, chunk->skb);
+
 	/* RFC 2960 5.1 Normal Establishment of an Association
 	 *
 	 * E) Upon reception of the COOKIE ACK, endpoint "A" will move
@@ -1458,6 +1466,11 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 	enum sctp_disposition retval;
 	struct sctp_packet *packet;
 	int len;
+
+	/* Update socket peer label if first association. */
+	if (security_sctp_assoc_request((struct sctp_endpoint *)ep,
+					chunk->skb))
+		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* 6.10 Bundling
 	 * An endpoint MUST NOT bundle INIT, INIT ACK or
@@ -2144,6 +2157,11 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 			return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 		}
 	}
+
+	/* Update socket peer label if first association. */
+	if (security_sctp_assoc_request((struct sctp_endpoint *)ep,
+					chunk->skb))
+		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Set temp so that it won't be added into hashtable */
 	new_asoc->temp = 1;

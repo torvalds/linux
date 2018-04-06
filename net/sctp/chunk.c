@@ -172,6 +172,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
 	struct sctp_datamsg *msg;
+	struct sctp_sock *sp;
+	struct sctp_af *af;
 	int err;
 
 	msg = sctp_datamsg_new(GFP_KERNEL);
@@ -190,9 +192,11 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* This is the biggest possible DATA chunk that can fit into
 	 * the packet
 	 */
-	max_data = asoc->pathmtu -
-		   sctp_sk(asoc->base.sk)->pf->af->net_header_len -
-		   sizeof(struct sctphdr) - sctp_datachk_len(&asoc->stream);
+	sp = sctp_sk(asoc->base.sk);
+	af = sp->pf->af;
+	max_data = asoc->pathmtu - af->net_header_len -
+		   sizeof(struct sctphdr) - sctp_datachk_len(&asoc->stream) -
+		   af->ip_options_len(asoc->base.sk);
 	max_data = SCTP_TRUNC4(max_data);
 
 	/* If the the peer requested that we authenticate DATA chunks

@@ -32,6 +32,7 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/request_sock.h>
+#include <net/sctp/structs.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -52,9 +53,11 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 int selinux_netlbl_skbuff_setsid(struct sk_buff *skb,
 				 u16 family,
 				 u32 sid);
-
+int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+				     struct sk_buff *skb);
 int selinux_netlbl_inet_conn_request(struct request_sock *req, u16 family);
 void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family);
+void selinux_netlbl_sctp_sk_clone(struct sock *sk, struct sock *newsk);
 int selinux_netlbl_socket_post_create(struct sock *sk, u16 family);
 int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 				struct sk_buff *skb,
@@ -64,6 +67,8 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 				     int level,
 				     int optname);
 int selinux_netlbl_socket_connect(struct sock *sk, struct sockaddr *addr);
+int selinux_netlbl_socket_connect_locked(struct sock *sk,
+					 struct sockaddr *addr);
 
 #else
 static inline void selinux_netlbl_cache_invalidate(void)
@@ -113,12 +118,22 @@ static inline int selinux_netlbl_conn_setsid(struct sock *sk,
 	return 0;
 }
 
+static inline int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+						    struct sk_buff *skb)
+{
+	return 0;
+}
 static inline int selinux_netlbl_inet_conn_request(struct request_sock *req,
 						   u16 family)
 {
 	return 0;
 }
 static inline void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family)
+{
+	return;
+}
+static inline void selinux_netlbl_sctp_sk_clone(struct sock *sk,
+						struct sock *newsk)
 {
 	return;
 }
@@ -142,6 +157,11 @@ static inline int selinux_netlbl_socket_setsockopt(struct socket *sock,
 }
 static inline int selinux_netlbl_socket_connect(struct sock *sk,
 						struct sockaddr *addr)
+{
+	return 0;
+}
+static inline int selinux_netlbl_socket_connect_locked(struct sock *sk,
+						       struct sockaddr *addr)
 {
 	return 0;
 }
