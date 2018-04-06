@@ -82,7 +82,10 @@ This defines voltage-current-frequency combinations along with other related
 properties.
 
 Required properties:
-- opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer.
+- opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer. This is a
+  required property for all device nodes but devices like power domains. The
+  power domain nodes must have another (implementation dependent) property which
+  uniquely identifies the OPP nodes.
 
 Optional properties:
 - opp-microvolt: voltage in micro Volts.
