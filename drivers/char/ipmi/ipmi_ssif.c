@@ -1094,25 +1094,6 @@ static void request_events(void *send_info)
 	}
 }
 
-static int inc_usecount(void *send_info)
-{
-	struct ssif_info *ssif_info = send_info;
-
-	if (!i2c_get_adapter(i2c_adapter_id(ssif_info->client->adapter)))
-		return -ENODEV;
-
-	i2c_use_client(ssif_info->client);
-	return 0;
-}
-
-static void dec_usecount(void *send_info)
-{
-	struct ssif_info *ssif_info = send_info;
-
-	i2c_release_client(ssif_info->client);
-	i2c_put_adapter(ssif_info->client->adapter);
-}
-
 static int ssif_start_processing(void            *send_info,
 				 struct ipmi_smi *intf)
 {
@@ -1707,8 +1688,6 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ssif_info->handlers.get_smi_info = get_smi_info;
 	ssif_info->handlers.sender = sender;
 	ssif_info->handlers.request_events = request_events;
-	ssif_info->handlers.inc_usecount = inc_usecount;
-	ssif_info->handlers.dec_usecount = dec_usecount;
 
 	{
 		unsigned int thread_num;
