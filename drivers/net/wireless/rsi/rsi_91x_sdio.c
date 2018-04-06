@@ -660,8 +660,6 @@ static int rsi_sdio_master_reg_read(struct rsi_hw *adapter, u32 addr,
 	if (!data)
 		return -ENOMEM;
 
-	data = PTR_ALIGN(data, 8);
-
 	ms_addr = (addr >> 16);
 	status = rsi_sdio_master_access_msword(adapter, ms_addr);
 	if (status < 0) {
@@ -723,8 +721,6 @@ static int rsi_sdio_master_reg_write(struct rsi_hw *adapter,
 	data_aligned = kzalloc(RSI_MASTER_REG_BUF_SIZE, GFP_KERNEL);
 	if (!data_aligned)
 		return -ENOMEM;
-
-	data_aligned = PTR_ALIGN(data_aligned, 8);
 
 	if (size == 2) {
 		*data_aligned = ((data << 16) | (data & 0xFFFF));
