@@ -57,6 +57,14 @@
 #define DF_CS_AON0_DramBaseAddress0__IntLvAddrSel_MASK                                                        0x00000700L
 #define DF_CS_AON0_DramBaseAddress0__DramBaseAddr_MASK                                                        0xFFFFF000L
 
+/* add these here since we already include dce12 headers and these are for DCN */
+#define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x055d
+#define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION_BASE_IDX                                                 2
+#define HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_WIDTH__SHIFT                                        0x0
+#define HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_HEIGHT__SHIFT                                       0x10
+#define HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_WIDTH_MASK                                          0x00003FFFL
+#define HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION__PRI_VIEWPORT_HEIGHT_MASK                                         0x3FFF0000L
+
 /* XXX Move this macro to VEGA10 header file, which is like vid.h for VI.*/
 #define AMDGPU_NUM_OF_VMIDS			8
 
@@ -791,6 +799,43 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	return amdgpu_gart_table_vram_alloc(adev);
 }
 
+static unsigned gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
+{
+#if 0
+	u32 d1vga_control = RREG32_SOC15(DCE, 0, mmD1VGA_CONTROL);
+#endif
+	unsigned size;
+
+	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
+		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+	} else {
+		u32 viewport;
+
+		switch (adev->asic_type) {
+		case CHIP_RAVEN:
+			viewport = RREG32_SOC15(DCE, 0, mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION);
+			size = (REG_GET_FIELD(viewport,
+					      HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION, PRI_VIEWPORT_HEIGHT) *
+				REG_GET_FIELD(viewport,
+					      HUBP0_DCSURF_PRI_VIEWPORT_DIMENSION, PRI_VIEWPORT_WIDTH) *
+				4);
+			break;
+		case CHIP_VEGA10:
+		case CHIP_VEGA12:
+		default:
+			viewport = RREG32_SOC15(DCE, 0, mmSCL0_VIEWPORT_SIZE);
+			size = (REG_GET_FIELD(viewport, SCL0_VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
+				REG_GET_FIELD(viewport, SCL0_VIEWPORT_SIZE, VIEWPORT_WIDTH) *
+				4);
+			break;
+		}
+	}
+	/* return 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		return 0;
+	return size;
+}
+
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r;
@@ -842,12 +887,6 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->gmc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
 
-	/*
-	 * It needs to reserve 8M stolen memory for vega10
-	 * TODO: Figure out how to avoid that...
-	 */
-	adev->gmc.stolen_size = 8 * 1024 * 1024;
-
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 44-bits.
 	 * IGP - can handle 44-bits
@@ -871,6 +910,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	r = gmc_v9_0_mc_init(adev);
 	if (r)
 		return r;
+
+	adev->gmc.stolen_size = gmc_v9_0_get_vbios_fb_size(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);

@@ -1055,6 +1055,25 @@ static int gmc_v8_0_late_init(void *handle)
 		return 0;
 }
 
+static unsigned gmc_v8_0_get_vbios_fb_size(struct amdgpu_device *adev)
+{
+	u32 d1vga_control = RREG32(mmD1VGA_CONTROL);
+	unsigned size;
+
+	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
+		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+	} else {
+		u32 viewport = RREG32(mmVIEWPORT_SIZE);
+		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
+			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
+			4);
+	}
+	/* return 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		return 0;
+	return size;
+}
+
 #define mmMC_SEQ_MISC0_FIJI 0xA71
 
 static int gmc_v8_0_sw_init(void *handle)
@@ -1096,8 +1115,6 @@ static int gmc_v8_0_sw_init(void *handle)
 	 */
 	adev->gmc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
 
-	adev->gmc.stolen_size = 256 * 1024;
-
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 40-bits.
 	 * IGP - can handle 40-bits
@@ -1127,6 +1144,8 @@ static int gmc_v8_0_sw_init(void *handle)
 	r = gmc_v8_0_mc_init(adev);
 	if (r)
 		return r;
+
+	adev->gmc.stolen_size = gmc_v8_0_get_vbios_fb_size(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
