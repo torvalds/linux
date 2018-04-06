@@ -136,6 +136,100 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 	return 0;
 }
 
+static u32 __i915_gem_park(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->drm.struct_mutex);
+	GEM_BUG_ON(i915->gt.active_requests);
+
+	if (!i915->gt.awake)
+		return I915_EPOCH_INVALID;
+
+	GEM_BUG_ON(i915->gt.epoch == I915_EPOCH_INVALID);
+
+	/*
+	 * Be paranoid and flush a concurrent interrupt to make sure
+	 * we don't reactivate any irq tasklets after parking.
+	 *
+	 * FIXME: Note that even though we have waited for execlists to be idle,
+	 * there may still be an in-flight interrupt even though the CSB
+	 * is now empty. synchronize_irq() makes sure that a residual interrupt
+	 * is completed before we continue, but it doesn't prevent the HW from
+	 * raising a spurious interrupt later. To complete the shield we should
+	 * coordinate disabling the CS irq with flushing the interrupts.
+	 */
+	synchronize_irq(i915->drm.irq);
+
+	intel_engines_park(i915);
+	i915_gem_timelines_park(i915);
+
+	i915_pmu_gt_parked(i915);
+
+	i915->gt.awake = false;
+
+	if (INTEL_GEN(i915) >= 6)
+		gen6_rps_idle(i915);
+
+	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ);
+
+	intel_runtime_pm_put(i915);
+
+	return i915->gt.epoch;
+}
+
+void i915_gem_park(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->drm.struct_mutex);
+	GEM_BUG_ON(i915->gt.active_requests);
+
+	if (!i915->gt.awake)
+		return;
+
+	/* Defer the actual call to __i915_gem_park() to prevent ping-pongs */
+	mod_delayed_work(i915->wq, &i915->gt.idle_work, msecs_to_jiffies(100));
+}
+
+void i915_gem_unpark(struct drm_i915_private *i915)
+{
+	lockdep_assert_held(&i915->drm.struct_mutex);
+	GEM_BUG_ON(!i915->gt.active_requests);
+
+	if (i915->gt.awake)
+		return;
+
+	intel_runtime_pm_get_noresume(i915);
+
+	/*
+	 * It seems that the DMC likes to transition between the DC states a lot
+	 * when there are no connected displays (no active power domains) during
+	 * command submission.
+	 *
+	 * This activity has negative impact on the performance of the chip with
+	 * huge latencies observed in the interrupt handler and elsewhere.
+	 *
+	 * Work around it by grabbing a GT IRQ power domain whilst there is any
+	 * GT activity, preventing any DC state transitions.
+	 */
+	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
+
+	i915->gt.awake = true;
+	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
+		i915->gt.epoch = 1;
+
+	intel_enable_gt_powersave(i915);
+	i915_update_gfx_val(i915);
+	if (INTEL_GEN(i915) >= 6)
+		gen6_rps_busy(i915);
+	i915_pmu_gt_unparked(i915);
+
+	intel_engines_unpark(i915);
+
+	i915_queue_hangcheck(i915);
+
+	queue_delayed_work(i915->wq,
+			   &i915->gt.retire_work,
+			   round_jiffies_up_relative(HZ));
+}
+
 int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file)
@@ -3496,36 +3590,9 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	if (new_requests_since_last_retire(dev_priv))
 		goto out_unlock;
 
-	/*
-	 * Be paranoid and flush a concurrent interrupt to make sure
-	 * we don't reactivate any irq tasklets after parking.
-	 *
-	 * FIXME: Note that even though we have waited for execlists to be idle,
-	 * there may still be an in-flight interrupt even though the CSB
-	 * is now empty. synchronize_irq() makes sure that a residual interrupt
-	 * is completed before we continue, but it doesn't prevent the HW from
-	 * raising a spurious interrupt later. To complete the shield we should
-	 * coordinate disabling the CS irq with flushing the interrupts.
-	 */
-	synchronize_irq(dev_priv->drm.irq);
+	epoch = __i915_gem_park(dev_priv);
 
-	intel_engines_park(dev_priv);
-	i915_gem_timelines_park(dev_priv);
-
-	i915_pmu_gt_parked(dev_priv);
-
-	GEM_BUG_ON(!dev_priv->gt.awake);
-	dev_priv->gt.awake = false;
-	epoch = dev_priv->gt.epoch;
-	GEM_BUG_ON(epoch == I915_EPOCH_INVALID);
 	rearm_hangcheck = false;
-
-	if (INTEL_GEN(dev_priv) >= 6)
-		gen6_rps_idle(dev_priv);
-
-	intel_display_power_put(dev_priv, POWER_DOMAIN_GT_IRQ);
-
-	intel_runtime_pm_put(dev_priv);
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 

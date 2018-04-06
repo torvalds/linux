@@ -255,47 +255,6 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 	return reset_all_global_seqno(i915, seqno - 1);
 }
 
-static void mark_busy(struct drm_i915_private *i915)
-{
-	if (i915->gt.awake)
-		return;
-
-	GEM_BUG_ON(!i915->gt.active_requests);
-
-	intel_runtime_pm_get_noresume(i915);
-
-	/*
-	 * It seems that the DMC likes to transition between the DC states a lot
-	 * when there are no connected displays (no active power domains) during
-	 * command submission.
-	 *
-	 * This activity has negative impact on the performance of the chip with
-	 * huge latencies observed in the interrupt handler and elsewhere.
-	 *
-	 * Work around it by grabbing a GT IRQ power domain whilst there is any
-	 * GT activity, preventing any DC state transitions.
-	 */
-	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
-
-	i915->gt.awake = true;
-	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
-		i915->gt.epoch = 1;
-
-	intel_enable_gt_powersave(i915);
-	i915_update_gfx_val(i915);
-	if (INTEL_GEN(i915) >= 6)
-		gen6_rps_busy(i915);
-	i915_pmu_gt_unparked(i915);
-
-	intel_engines_unpark(i915);
-
-	i915_queue_hangcheck(i915);
-
-	queue_delayed_work(i915->wq,
-			   &i915->gt.retire_work,
-			   round_jiffies_up_relative(HZ));
-}
-
 static int reserve_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -313,7 +272,7 @@ static int reserve_engine(struct intel_engine_cs *engine)
 	}
 
 	if (!i915->gt.active_requests++)
-		mark_busy(i915);
+		i915_gem_unpark(i915);
 
 	return 0;
 }
@@ -322,13 +281,8 @@ static void unreserve_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (!--i915->gt.active_requests) {
-		/* Cancel the mark_busy() from our reserve_engine() */
-		GEM_BUG_ON(!i915->gt.awake);
-		mod_delayed_work(i915->wq,
-				 &i915->gt.idle_work,
-				 msecs_to_jiffies(100));
-	}
+	if (!--i915->gt.active_requests)
+		i915_gem_park(i915);
 
 	GEM_BUG_ON(!engine->timeline->inflight_seqnos);
 	engine->timeline->inflight_seqnos--;
