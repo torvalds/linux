@@ -773,8 +773,7 @@ static int atomisp_open(struct file *file)
 
 	rt_mutex_lock(&isp->mutex);
 
-	acc_node = !strncmp(vdev->name, "ATOMISP ISP ACC",
-			sizeof(vdev->name));
+	acc_node = !strcmp(vdev->name, "ATOMISP ISP ACC");
 	if (acc_node) {
 		acc_pipe = atomisp_to_acc_pipe(vdev);
 		asd = acc_pipe->asd;
@@ -910,8 +909,7 @@ static int atomisp_release(struct file *file)
 	rt_mutex_lock(&isp->mutex);
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
-	acc_node = !strncmp(vdev->name, "ATOMISP ISP ACC",
-			sizeof(vdev->name));
+	acc_node = !strcmp(vdev->name, "ATOMISP ISP ACC");
 	if (acc_node) {
 		acc_pipe = atomisp_to_acc_pipe(vdev);
 		asd = acc_pipe->asd;
