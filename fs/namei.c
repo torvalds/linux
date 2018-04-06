@@ -2417,6 +2417,38 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 }
 EXPORT_SYMBOL(vfs_path_lookup);
 
+static int lookup_one_len_common(const char *name, struct dentry *base,
+				 int len, struct qstr *this)
+{
+	this->name = name;
+	this->len = len;
+	this->hash = full_name_hash(base, name, len);
+	if (!len)
+		return -EACCES;
+
+	if (unlikely(name[0] == '.')) {
+		if (len < 2 || (len == 2 && name[1] == '.'))
+			return -EACCES;
+	}
+
+	while (len--) {
+		unsigned int c = *(const unsigned char *)name++;
+		if (c == '/' || c == '\0')
+			return -EACCES;
+	}
+	/*
+	 * See if the low-level filesystem might want
+	 * to use its own hash..
+	 */
+	if (base->d_flags & DCACHE_OP_HASH) {
+		int err = base->d_op->d_hash(base, this);
+		if (err < 0)
+			return err;
+	}
+
+	return inode_permission(base->d_inode, MAY_EXEC);
+}
+
 /**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
@@ -2431,38 +2463,11 @@ EXPORT_SYMBOL(vfs_path_lookup);
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	struct qstr this;
-	unsigned int c;
 	int err;
 
 	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
 
-	this.name = name;
-	this.len = len;
-	this.hash = full_name_hash(base, name, len);
-	if (!len)
-		return ERR_PTR(-EACCES);
-
-	if (unlikely(name[0] == '.')) {
-		if (len < 2 || (len == 2 && name[1] == '.'))
-			return ERR_PTR(-EACCES);
-	}
-
-	while (len--) {
-		c = *(const unsigned char *)name++;
-		if (c == '/' || c == '\0')
-			return ERR_PTR(-EACCES);
-	}
-	/*
-	 * See if the low-level filesystem might want
-	 * to use its own hash..
-	 */
-	if (base->d_flags & DCACHE_OP_HASH) {
-		int err = base->d_op->d_hash(base, &this);
-		if (err < 0)
-			return ERR_PTR(err);
-	}
-
-	err = inode_permission(base->d_inode, MAY_EXEC);
+	err = lookup_one_len_common(name, base, len, &this);
 	if (err)
 		return ERR_PTR(err);
 
@@ -2486,37 +2491,10 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 				       struct dentry *base, int len)
 {
 	struct qstr this;
-	unsigned int c;
 	int err;
 	struct dentry *ret;
 
-	this.name = name;
-	this.len = len;
-	this.hash = full_name_hash(base, name, len);
-	if (!len)
-		return ERR_PTR(-EACCES);
-
-	if (unlikely(name[0] == '.')) {
-		if (len < 2 || (len == 2 && name[1] == '.'))
-			return ERR_PTR(-EACCES);
-	}
-
-	while (len--) {
-		c = *(const unsigned char *)name++;
-		if (c == '/' || c == '\0')
-			return ERR_PTR(-EACCES);
-	}
-	/*
-	 * See if the low-level filesystem might want
-	 * to use its own hash..
-	 */
-	if (base->d_flags & DCACHE_OP_HASH) {
-		int err = base->d_op->d_hash(base, &this);
-		if (err < 0)
-			return ERR_PTR(err);
-	}
-
-	err = inode_permission(base->d_inode, MAY_EXEC);
+	err = lookup_one_len_common(name, base, len, &this);
 	if (err)
 		return ERR_PTR(err);
 
