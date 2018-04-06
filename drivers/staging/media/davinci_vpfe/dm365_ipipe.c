@@ -56,7 +56,7 @@ static int ipipe_validate_lutdpc_params(struct vpfe_ipipe_lutdpc *lutdpc)
 	    lutdpc->dpc_size > LUT_DPC_MAX_SIZE)
 		return -EINVAL;
 
-	if (lutdpc->en && !lutdpc->table)
+	if (lutdpc->en)
 		return -EINVAL;
 
 	for (i = 0; i < lutdpc->dpc_size; i++)
@@ -694,7 +694,7 @@ static int ipipe_get_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 	table_size = gamma->tbl_size;
 
-	if (!gamma->bypass_r && !gamma_param->table_r) {
+	if (!gamma->bypass_r) {
 		dev_err(dev,
 			"ipipe_get_gamma_params: table ptr empty for R\n");
 		return -EINVAL;
@@ -702,14 +702,14 @@ static int ipipe_get_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 	memcpy(gamma_param->table_r, gamma->table_r,
 	       (table_size * sizeof(struct vpfe_ipipe_gamma_entry)));
 
-	if (!gamma->bypass_g && !gamma_param->table_g) {
+	if (!gamma->bypass_g) {
 		dev_err(dev, "ipipe_get_gamma_params: table ptr empty for G\n");
 		return -EINVAL;
 	}
 	memcpy(gamma_param->table_g, gamma->table_g,
 	       (table_size * sizeof(struct vpfe_ipipe_gamma_entry)));
 
-	if (!gamma->bypass_b && !gamma_param->table_b) {
+	if (!gamma->bypass_b) {
 		dev_err(dev, "ipipe_get_gamma_params: table ptr empty for B\n");
 		return -EINVAL;
 	}
@@ -739,13 +739,8 @@ static int ipipe_get_3d_lut_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
 	struct vpfe_ipipe_3d_lut *lut_param = param;
 	struct vpfe_ipipe_3d_lut *lut = &ipipe->config.lut;
-	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	lut_param->en = lut->en;
-	if (!lut_param->table) {
-		dev_err(dev, "ipipe_get_3d_lut_params: Invalid table ptr\n");
-		return -EINVAL;
-	}
 
 	memcpy(lut_param->table, &lut->table,
 	       (VPFE_IPIPE_MAX_SIZE_3D_LUT *
@@ -919,14 +914,9 @@ static int ipipe_get_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
 	struct vpfe_ipipe_gbce *gbce_param = param;
 	struct vpfe_ipipe_gbce *gbce = &ipipe->config.gbce;
-	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	gbce_param->en = gbce->en;
 	gbce_param->type = gbce->type;
-	if (!gbce_param->table) {
-		dev_err(dev, "ipipe_get_gbce_params: Invalid table ptr\n");
-		return -EINVAL;
-	}
 
 	memcpy(gbce_param->table, gbce->table,
 		(VPFE_IPIPE_MAX_SIZE_GBCE_LUT * sizeof(unsigned short)));
