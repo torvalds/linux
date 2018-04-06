@@ -169,6 +169,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_bios = stripes;
 	ti->num_discard_bios = stripes;
+	ti->num_secure_erase_bios = stripes;
 	ti->num_write_same_bios = stripes;
 	ti->num_write_zeroes_bios = stripes;
 
@@ -295,6 +296,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 	}
 	if (unlikely(bio_op(bio) == REQ_OP_DISCARD) ||
+	    unlikely(bio_op(bio) == REQ_OP_SECURE_ERASE) ||
 	    unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES) ||
 	    unlikely(bio_op(bio) == REQ_OP_WRITE_SAME)) {
 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
@@ -368,7 +370,6 @@ static void stripe_status(struct dm_target *ti, status_type_t type,
 			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
-	char buffer[sc->stripes + 1];
 	unsigned int sz = 0;
 	unsigned int i;
 
@@ -377,11 +378,12 @@ static void stripe_status(struct dm_target *ti, status_type_t type,
 		DMEMIT("%d ", sc->stripes);
 		for (i = 0; i < sc->stripes; i++)  {
 			DMEMIT("%s ", sc->stripe[i].dev->name);
-			buffer[i] = atomic_read(&(sc->stripe[i].error_count)) ?
-				'D' : 'A';
 		}
-		buffer[i] = '\0';
-		DMEMIT("1 %s", buffer);
+		DMEMIT("1 ");
+		for (i = 0; i < sc->stripes; i++) {
+			DMEMIT("%c", atomic_read(&(sc->stripe[i].error_count)) ?
+			       'D' : 'A');
+		}
 		break;
 
 	case STATUSTYPE_TABLE:
