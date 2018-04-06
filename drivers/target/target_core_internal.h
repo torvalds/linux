@@ -166,6 +166,7 @@ extern struct se_portal_group xcopy_pt_tpg;
 /* target_core_configfs.c */
 #define DB_ROOT_LEN		4096
 #define	DB_ROOT_DEFAULT		"/var/target"
+#define	DB_ROOT_PREFERRED	"/etc/target"
 
 extern char db_root[];
 
