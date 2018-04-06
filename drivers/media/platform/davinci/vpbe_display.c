@@ -56,8 +56,7 @@ static int vpbe_set_osd_display_params(struct vpbe_display *disp_dev,
 static int venc_is_second_field(struct vpbe_display *disp_dev)
 {
 	struct vpbe_device *vpbe_dev = disp_dev->vpbe_dev;
-	int ret;
-	int val;
+	int ret, val;
 
 	ret = v4l2_subdev_call(vpbe_dev->venc,
 			       core,
@@ -67,6 +66,7 @@ static int venc_is_second_field(struct vpbe_display *disp_dev)
 	if (ret < 0) {
 		v4l2_err(&vpbe_dev->v4l2_dev,
 			 "Error in getting Field ID 0\n");
+		return 1;
 	}
 	return val;
 }
