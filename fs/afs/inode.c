@@ -331,14 +331,11 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 		vnode->cb_expires_at += ktime_get_real_seconds();
 	}
 
-	/* set up caching before mapping the status, as map-status reads the
-	 * first page of symlinks to see if they're really mountpoints */
-	inode->i_size = vnode->status.size;
-	afs_get_inode_cache(vnode);
-
 	ret = afs_inode_map_status(vnode, key);
 	if (ret < 0)
 		goto bad_inode;
+
+	afs_get_inode_cache(vnode);
 
 	/* success */
 	clear_bit(AFS_VNODE_UNSET, &vnode->flags);
