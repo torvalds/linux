@@ -465,7 +465,9 @@ __setup("nohz=", setup_tick_nohz);
 
 bool tick_nohz_tick_stopped(void)
 {
-	return __this_cpu_read(tick_cpu_sched.tick_stopped);
+	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
+
+	return ts->tick_stopped;
 }
 
 bool tick_nohz_tick_stopped_cpu(int cpu)
@@ -1014,8 +1016,8 @@ bool tick_nohz_idle_got_tick(void)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
-	if (ts->inidle > 1) {
-		ts->inidle = 1;
+	if (ts->got_idle_tick) {
+		ts->got_idle_tick = 0;
 		return true;
 	}
 	return false;
@@ -1161,7 +1163,7 @@ static void tick_nohz_handler(struct clock_event_device *dev)
 	ktime_t now = ktime_get();
 
 	if (ts->inidle)
-		ts->inidle = 2;
+		ts->got_idle_tick = 1;
 
 	dev->next_event = KTIME_MAX;
 
@@ -1261,7 +1263,7 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 	ktime_t now = ktime_get();
 
 	if (ts->inidle)
-		ts->inidle = 2;
+		ts->got_idle_tick = 1;
 
 	tick_sched_do_timer(now);
 
