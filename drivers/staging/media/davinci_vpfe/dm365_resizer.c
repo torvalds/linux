@@ -794,7 +794,7 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 }
 
 static void
-resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
+resizer_set_default_configuration(struct vpfe_resizer_device *resizer)
 {
 #define  WIDTH_I 640
 #define  HEIGHT_I 480
@@ -916,7 +916,7 @@ resizer_set_configuration(struct vpfe_resizer_device *resizer,
 			  struct vpfe_rsz_config *chan_config)
 {
 	if (!chan_config->config)
-		resizer_set_defualt_configuration(resizer);
+		resizer_set_default_configuration(resizer);
 	else
 		if (copy_from_user(&resizer->config.user_config,
 		    chan_config->config, sizeof(struct vpfe_rsz_config_params)))
