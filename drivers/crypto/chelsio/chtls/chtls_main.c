@@ -216,7 +216,6 @@ static void *chtls_uld_add(const struct cxgb4_lld_info *info)
 	cdev->lldi = lldi;
 	cdev->pdev = lldi->pdev;
 	cdev->tids = lldi->tids;
-	cdev->ports = (struct net_device **)(cdev + 1);
 	cdev->ports = lldi->ports;
 	cdev->mtus = lldi->mtus;
 	cdev->tids = lldi->tids;
