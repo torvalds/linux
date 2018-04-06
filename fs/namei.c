@@ -1593,22 +1593,21 @@ static int lookup_fast(struct nameidata *nd,
 }
 
 /* Fast lookup failed, do it the slow way */
-static struct dentry *lookup_slow(const struct qstr *name,
-				  struct dentry *dir,
-				  unsigned int flags)
+static struct dentry *__lookup_slow(const struct qstr *name,
+				    struct dentry *dir,
+				    unsigned int flags)
 {
-	struct dentry *dentry = ERR_PTR(-ENOENT), *old;
+	struct dentry *dentry, *old;
 	struct inode *inode = dir->d_inode;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 
-	inode_lock_shared(inode);
 	/* Don't go there if it's already dead */
 	if (unlikely(IS_DEADDIR(inode)))
-		goto out;
+		return ERR_PTR(-ENOENT);
 again:
 	dentry = d_alloc_parallel(dir, name, &wq);
 	if (IS_ERR(dentry))
-		goto out;
+		return dentry;
 	if (unlikely(!d_in_lookup(dentry))) {
 		if (!(flags & LOOKUP_NO_REVAL)) {
 			int error = d_revalidate(dentry, flags);
@@ -1630,9 +1629,19 @@ again:
 			dentry = old;
 		}
 	}
-out:
-	inode_unlock_shared(inode);
 	return dentry;
+}
+
+static struct dentry *lookup_slow(const struct qstr *name,
+				  struct dentry *dir,
+				  unsigned int flags)
+{
+	struct inode *inode = dir->d_inode;
+	struct dentry *res;
+	inode_lock_shared(inode);
+	res = __lookup_slow(name, dir, flags);
+	inode_unlock_shared(inode);
+	return res;
 }
 
 static inline int may_lookup(struct nameidata *nd)
