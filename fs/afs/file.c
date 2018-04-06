@@ -30,7 +30,6 @@ static int afs_readpages(struct file *filp, struct address_space *mapping,
 
 const struct file_operations afs_file_operations = {
 	.open		= afs_open,
-	.flush		= afs_flush,
 	.release	= afs_release,
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
@@ -146,6 +145,9 @@ int afs_open(struct inode *inode, struct file *file)
 		if (ret < 0)
 			goto error_af;
 	}
+
+	if (file->f_flags & O_TRUNC)
+		set_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	
 	file->private_data = af;
 	_leave(" = 0");
@@ -169,6 +171,9 @@ int afs_release(struct inode *inode, struct file *file)
 	struct afs_file *af = file->private_data;
 
 	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
+
+	if ((file->f_mode & FMODE_WRITE))
+		return vfs_fsync(file, 0);
 
 	file->private_data = NULL;
 	if (af->wb)

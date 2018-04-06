@@ -1092,6 +1092,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 				struct afs_file_status *newstatus,
 				struct afs_callback *newcb)
 {
+	struct afs_vnode *vnode;
 	struct inode *inode;
 
 	if (fc->ac.error < 0)
@@ -1109,6 +1110,8 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 		return;
 	}
 
+	vnode = AFS_FS_I(inode);
+	set_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	d_add(new_dentry, inode);
 }
 

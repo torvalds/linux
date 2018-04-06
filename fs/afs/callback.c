@@ -130,6 +130,7 @@ void afs_break_callback(struct afs_vnode *vnode)
 
 	write_seqlock(&vnode->cb_lock);
 
+	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		vnode->cb_break++;
 		afs_clear_permits(vnode);
