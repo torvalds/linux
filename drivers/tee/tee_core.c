@@ -693,7 +693,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 {
 	struct tee_device *teedev;
 	void *ret;
-	int rc;
+	int rc, max_id;
 	int offs = 0;
 
 	if (!teedesc || !teedesc->name || !teedesc->ops ||
@@ -707,16 +707,20 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 		goto err;
 	}
 
-	if (teedesc->flags & TEE_DESC_PRIVILEGED)
+	max_id = TEE_NUM_DEVICES / 2;
+
+	if (teedesc->flags & TEE_DESC_PRIVILEGED) {
 		offs = TEE_NUM_DEVICES / 2;
+		max_id = TEE_NUM_DEVICES;
+	}
 
 	spin_lock(&driver_lock);
-	teedev->id = find_next_zero_bit(dev_mask, TEE_NUM_DEVICES, offs);
-	if (teedev->id < TEE_NUM_DEVICES)
+	teedev->id = find_next_zero_bit(dev_mask, max_id, offs);
+	if (teedev->id < max_id)
 		set_bit(teedev->id, dev_mask);
 	spin_unlock(&driver_lock);
 
-	if (teedev->id >= TEE_NUM_DEVICES) {
+	if (teedev->id >= max_id) {
 		ret = ERR_PTR(-ENOMEM);
 		goto err;
 	}

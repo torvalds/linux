@@ -317,6 +317,18 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_ARM_SCMI
+	tristate "ARM SCMI Sensors"
+	depends on ARM_SCMI_PROTOCOL
+	depends on THERMAL || !THERMAL_OF
+	help
+	  This driver provides support for temperature, voltage, current
+	  and power sensors available on SCMI based platforms. The actual
+	  number and type of sensors exported depend on the platform.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called scmi-hwmon.
+
 config SENSORS_ARM_SCPI
 	tristate "ARM SCPI Sensors"
 	depends on ARM_SCPI_PROTOCOL

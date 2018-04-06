@@ -13491,15 +13491,16 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
 S:	Supported
 F:	drivers/mfd/syscon.c
 
-SYSTEM CONTROL & POWER INTERFACE (SCPI) Message Protocol drivers
+SYSTEM CONTROL & POWER/MANAGEMENT INTERFACE (SCPI/SCMI) Message Protocol drivers
 M:	Sudeep Holla <sudeep.holla@arm.com>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/arm/arm,scpi.txt
-F:	drivers/clk/clk-scpi.c
-F:	drivers/cpufreq/scpi-cpufreq.c
+F:	Documentation/devicetree/bindings/arm/arm,sc[mp]i.txt
+F:	drivers/clk/clk-sc[mp]i.c
+F:	drivers/cpufreq/sc[mp]i-cpufreq.c
 F:	drivers/firmware/arm_scpi.c
-F:	include/linux/scpi_protocol.h
+F:	drivers/firmware/arm_scmi/
+F:	include/linux/sc[mp]i_protocol.h
 
 SYSTEM RESET/SHUTDOWN DRIVERS
 M:	Sebastian Reichel <sre@kernel.org>
