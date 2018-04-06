@@ -322,7 +322,7 @@ static void hang_fini(struct hang *h)
 	flush_test(h->i915, I915_WAIT_LOCKED);
 }
 
-static bool wait_for_hang(struct hang *h, struct i915_request *rq)
+static bool wait_until_running(struct hang *h, struct i915_request *rq)
 {
 	return !(wait_for_us(i915_seqno_passed(hws_seqno(h, rq),
 					       rq->fence.seqno),
@@ -504,7 +504,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				__i915_request_add(rq, true);
 				mutex_unlock(&i915->drm.struct_mutex);
 
-				if (!wait_for_hang(&h, rq)) {
+				if (!wait_until_running(&h, rq)) {
 					struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 					pr_err("%s: Failed to start request %x, at %x\n",
@@ -747,7 +747,7 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 				__i915_request_add(rq, true);
 				mutex_unlock(&i915->drm.struct_mutex);
 
-				if (!wait_for_hang(&h, rq)) {
+				if (!wait_until_running(&h, rq)) {
 					struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 					pr_err("%s: Failed to start request %x, at %x\n",
@@ -935,7 +935,7 @@ static int igt_wait_reset(void *arg)
 	i915_request_get(rq);
 	__i915_request_add(rq, true);
 
-	if (!wait_for_hang(&h, rq)) {
+	if (!wait_until_running(&h, rq)) {
 		struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 		pr_err("%s: Failed to start request %x, at %x\n",
@@ -1066,7 +1066,7 @@ static int igt_reset_queue(void *arg)
 				goto fini;
 			}
 
-			if (!wait_for_hang(&h, prev)) {
+			if (!wait_until_running(&h, prev)) {
 				struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 				pr_err("%s(%s): Failed to start request %x, at %x\n",
@@ -1177,7 +1177,7 @@ static int igt_handle_error(void *arg)
 	i915_request_get(rq);
 	__i915_request_add(rq, true);
 
-	if (!wait_for_hang(&h, rq)) {
+	if (!wait_until_running(&h, rq)) {
 		struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 		pr_err("%s: Failed to start request %x, at %x\n",
