@@ -54,6 +54,12 @@ config COMMON_CLK_MT2701_BDPSYS
 	---help---
 	  This driver supports MediaTek MT2701 bdpsys clocks.
 
+config COMMON_CLK_MT2701_AUDSYS
+	bool "Clock driver for Mediatek MT2701 audsys"
+	depends on COMMON_CLK_MT2701
+	---help---
+	  This driver supports Mediatek MT2701 audsys clocks.
+
 config COMMON_CLK_MT2712
 	bool "Clock driver for MediaTek MT2712"
 	depends on (ARCH_MEDIATEK && ARM64) || COMPILE_TEST
