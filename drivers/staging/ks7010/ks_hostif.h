@@ -564,10 +564,6 @@ int ks_wlan_hw_power_save(struct ks_wlan_private *priv);
 static
 inline int hif_align_size(int size)
 {
-#ifdef	KS_ATOM
-	if (size < 1024)
-		size = 1024;
-#endif
 	return (size % KS7010_SIZE_ALIGNMENT) ? size + KS7010_SIZE_ALIGNMENT -
 	    (size % KS7010_SIZE_ALIGNMENT) : size;
 }
