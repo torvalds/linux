@@ -28,6 +28,7 @@ void bdi_put(struct backing_dev_info *bdi);
 
 __printf(2, 3)
 int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...);
+__printf(2, 0)
 int bdi_register_va(struct backing_dev_info *bdi, const char *fmt,
 		    va_list args);
 int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
