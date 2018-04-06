@@ -852,6 +852,13 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 	return amdgpu_ttm_init(adev);
 }
 
+int amdgpu_bo_late_init(struct amdgpu_device *adev)
+{
+	amdgpu_ttm_late_init(adev);
+
+	return 0;
+}
+
 void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
 	amdgpu_ttm_fini(adev);
