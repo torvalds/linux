@@ -846,9 +846,10 @@ static int try_layer_config(struct osd_state *sd, enum osd_layer layer,
 
 	/* DM6446: */
 	/* only one OSD window at a time can use RGB pixel formats */
-	  if ((osd->vpbe_type == VPBE_VERSION_1) &&
-		  is_osd_win(layer) && is_rgb_pixfmt(lconfig->pixfmt)) {
+	if ((osd->vpbe_type == VPBE_VERSION_1) &&
+	    is_osd_win(layer) && is_rgb_pixfmt(lconfig->pixfmt)) {
 		enum osd_pix_format pixfmt;
+
 		if (layer == WIN_OSD0)
 			pixfmt = osd->win[WIN_OSD1].lconfig.pixfmt;
 		else
