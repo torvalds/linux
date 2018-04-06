@@ -608,6 +608,10 @@ static long ipmi_ioctl(struct file   *file,
 		rv = ipmi_set_maintenance_mode(priv->user, mode);
 		break;
 	}
+
+	default:
+		rv = -ENOTTY;
+		break;
 	}
   
 	return rv;
