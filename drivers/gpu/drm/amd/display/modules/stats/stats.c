@@ -115,18 +115,22 @@ struct mod_stats *mod_stats_create(struct dc *dc)
 			&reg_data, sizeof(unsigned int), &flag))
 		core_stats->enabled = reg_data;
 
-	core_stats->entries = DAL_STATS_ENTRIES_REGKEY_DEFAULT;
-	if (dm_read_persistent_data(dc->ctx, NULL, NULL,
-			DAL_STATS_ENTRIES_REGKEY,
-			&reg_data, sizeof(unsigned int), &flag)) {
-		if (reg_data > DAL_STATS_ENTRIES_REGKEY_MAX)
-			core_stats->entries = DAL_STATS_ENTRIES_REGKEY_MAX;
-		else
-			core_stats->entries = reg_data;
-	}
+	if (core_stats->enabled) {
+		core_stats->entries = DAL_STATS_ENTRIES_REGKEY_DEFAULT;
+		if (dm_read_persistent_data(dc->ctx, NULL, NULL,
+				DAL_STATS_ENTRIES_REGKEY,
+				&reg_data, sizeof(unsigned int), &flag)) {
+			if (reg_data > DAL_STATS_ENTRIES_REGKEY_MAX)
+				core_stats->entries = DAL_STATS_ENTRIES_REGKEY_MAX;
+			else
+				core_stats->entries = reg_data;
+		}
 
-	core_stats->time = kzalloc(sizeof(struct stats_time_cache) * core_stats->entries,
-					GFP_KERNEL);
+		core_stats->time = kzalloc(sizeof(struct stats_time_cache) * core_stats->entries,
+						GFP_KERNEL);
+	} else {
+		core_stats->entries = 0;
+	}
 
 	if (core_stats->time == NULL)
 		goto fail_construct;
