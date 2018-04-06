@@ -561,11 +561,9 @@ int ks_wlan_hw_power_save(struct ks_wlan_private *priv);
 
 #define KS7010_SIZE_ALIGNMENT	32
 
-static
-inline int hif_align_size(int size)
+static inline size_t hif_align_size(size_t size)
 {
-	return (size % KS7010_SIZE_ALIGNMENT) ? size + KS7010_SIZE_ALIGNMENT -
-	    (size % KS7010_SIZE_ALIGNMENT) : size;
+	return ALIGN(size, KS7010_SIZE_ALIGNMENT);
 }
 
 #endif /* __KERNEL__ */
