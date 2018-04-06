@@ -292,6 +292,7 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	u64 rate;
 	u32 val;
 	int ret;
+	bool rate_not_available = false;
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
@@ -299,8 +300,21 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 
 	ret = of_property_read_u64(np, "opp-hz", &rate);
 	if (ret < 0) {
-		dev_err(dev, "%s: opp-hz not found\n", __func__);
-		goto free_opp;
+		/* "opp-hz" is optional for devices like power domains. */
+		if (!of_find_property(dev->of_node, "#power-domain-cells",
+				      NULL)) {
+			dev_err(dev, "%s: opp-hz not found\n", __func__);
+			goto free_opp;
+		}
+
+		rate_not_available = true;
+	} else {
+		/*
+		 * Rate is defined as an unsigned long in clk API, and so
+		 * casting explicitly to its type. Must be fixed once rate is 64
+		 * bit guaranteed in clk API.
+		 */
+		new_opp->rate = (unsigned long)rate;
 	}
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
@@ -309,12 +323,6 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 		goto free_opp;
 	}
 
-	/*
-	 * Rate is defined as an unsigned long in clk API, and so casting
-	 * explicitly to its type. Must be fixed once rate is 64 bit
-	 * guaranteed in clk API.
-	 */
-	new_opp->rate = (unsigned long)rate;
 	new_opp->turbo = of_property_read_bool(np, "turbo-mode");
 
 	new_opp->np = np;
@@ -328,7 +336,7 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	if (ret)
 		goto free_opp;
 
-	ret = _opp_add(dev, new_opp, opp_table);
+	ret = _opp_add(dev, new_opp, opp_table, rate_not_available);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)

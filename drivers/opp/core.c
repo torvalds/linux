@@ -281,6 +281,23 @@ unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp_freq);
 
+int _get_opp_count(struct opp_table *opp_table)
+{
+	struct dev_pm_opp *opp;
+	int count = 0;
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (opp->available)
+			count++;
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	return count;
+}
+
 /**
  * dev_pm_opp_get_opp_count() - Get number of opps available in the opp table
  * @dev:	device for which we do this operation
@@ -291,25 +308,17 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp_freq);
 int dev_pm_opp_get_opp_count(struct device *dev)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *temp_opp;
-	int count = 0;
+	int count;
 
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		count = PTR_ERR(opp_table);
 		dev_dbg(dev, "%s: OPP table not found (%d)\n",
 			__func__, count);
-		return count;
+		return 0;
 	}
 
-	mutex_lock(&opp_table->lock);
-
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
-		if (temp_opp->available)
-			count++;
-	}
-
-	mutex_unlock(&opp_table->lock);
+	count = _get_opp_count(opp_table);
 	dev_pm_opp_put_opp_table(opp_table);
 
 	return count;
@@ -985,6 +994,43 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 	return true;
 }
 
+static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
+			     struct opp_table *opp_table,
+			     struct list_head **head)
+{
+	struct dev_pm_opp *opp;
+
+	/*
+	 * Insert new OPP in order of increasing frequency and discard if
+	 * already present.
+	 *
+	 * Need to use &opp_table->opp_list in the condition part of the 'for'
+	 * loop, don't replace it with head otherwise it will become an infinite
+	 * loop.
+	 */
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (new_opp->rate > opp->rate) {
+			*head = &opp->node;
+			continue;
+		}
+
+		if (new_opp->rate < opp->rate)
+			return 0;
+
+		/* Duplicate OPPs */
+		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
+			 __func__, opp->rate, opp->supplies[0].u_volt,
+			 opp->available, new_opp->rate,
+			 new_opp->supplies[0].u_volt, new_opp->available);
+
+		/* Should we compare voltages for all regulators here ? */
+		return opp->available &&
+		       new_opp->supplies[0].u_volt == opp->supplies[0].u_volt ? -EBUSY : -EEXIST;
+	}
+
+	return 0;
+}
+
 /*
  * Returns:
  * 0: On success. And appropriate error message for duplicate OPPs.
@@ -996,44 +1042,20 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
  *  should be considered an error by the callers of _opp_add().
  */
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
-	     struct opp_table *opp_table)
+	     struct opp_table *opp_table, bool rate_not_available)
 {
-	struct dev_pm_opp *opp;
 	struct list_head *head;
 	int ret;
 
-	/*
-	 * Insert new OPP in order of increasing frequency and discard if
-	 * already present.
-	 *
-	 * Need to use &opp_table->opp_list in the condition part of the 'for'
-	 * loop, don't replace it with head otherwise it will become an infinite
-	 * loop.
-	 */
 	mutex_lock(&opp_table->lock);
 	head = &opp_table->opp_list;
 
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		if (new_opp->rate > opp->rate) {
-			head = &opp->node;
-			continue;
+	if (likely(!rate_not_available)) {
+		ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
+		if (ret) {
+			mutex_unlock(&opp_table->lock);
+			return ret;
 		}
-
-		if (new_opp->rate < opp->rate)
-			break;
-
-		/* Duplicate OPPs */
-		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
-			 __func__, opp->rate, opp->supplies[0].u_volt,
-			 opp->available, new_opp->rate,
-			 new_opp->supplies[0].u_volt, new_opp->available);
-
-		/* Should we compare voltages for all regulators here ? */
-		ret = opp->available &&
-		      new_opp->supplies[0].u_volt == opp->supplies[0].u_volt ? -EBUSY : -EEXIST;
-
-		mutex_unlock(&opp_table->lock);
-		return ret;
 	}
 
 	if (opp_table->get_pstate)
@@ -1104,7 +1126,7 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	new_opp->available = true;
 	new_opp->dynamic = dynamic;
 
-	ret = _opp_add(dev, new_opp, opp_table);
+	ret = _opp_add(dev, new_opp, opp_table, false);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
