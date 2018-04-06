@@ -389,15 +389,15 @@
 			Use software keyboard repeat
 
 	audit=		[KNL] Enable the audit sub-system
-			Format: { "0" | "1" } (0 = disabled, 1 = enabled)
-			0 - kernel audit is disabled and can not be enabled
-			    until the next reboot
+			Format: { "0" | "1" | "off" | "on" }
+			0 | off - kernel audit is disabled and can not be
+			    enabled until the next reboot
 			unset - kernel audit is initialized but disabled and
 			    will be fully enabled by the userspace auditd.
-			1 - kernel audit is initialized and partially enabled,
-			    storing at most audit_backlog_limit messages in
-			    RAM until it is fully enabled by the userspace
-			    auditd.
+			1 | on - kernel audit is initialized and partially
+			    enabled, storing at most audit_backlog_limit
+			    messages in RAM until it is fully enabled by the
+			    userspace auditd.
 			Default: unset
 
 	audit_backlog_limit= [KNL] Set the audit queue size limit.

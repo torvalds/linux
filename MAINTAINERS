@@ -2504,7 +2504,6 @@ M:	Paul Moore <paul@paul-moore.com>
 M:	Eric Paris <eparis@redhat.com>
 L:	linux-audit@redhat.com (moderated for non-subscribers)
 W:	https://github.com/linux-audit
-W:	https://people.redhat.com/sgrubb/audit
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/audit.git
 S:	Supported
 F:	include/linux/audit.h

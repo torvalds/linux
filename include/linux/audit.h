@@ -146,8 +146,7 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const struct path *path);
 extern void		    audit_log_key(struct audit_buffer *ab,
 					  char *key);
-extern void		    audit_log_link_denied(const char *operation,
-						  const struct path *link);
+extern void		    audit_log_link_denied(const char *operation);
 extern void		    audit_log_lost(const char *message);
 
 extern int audit_log_task_context(struct audit_buffer *ab);
@@ -194,8 +193,7 @@ static inline void audit_log_d_path(struct audit_buffer *ab,
 { }
 static inline void audit_log_key(struct audit_buffer *ab, char *key)
 { }
-static inline void audit_log_link_denied(const char *string,
-					 const struct path *link)
+static inline void audit_log_link_denied(const char *string)
 { }
 static inline int audit_log_task_context(struct audit_buffer *ab)
 {
