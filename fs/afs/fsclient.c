@@ -16,6 +16,7 @@
 #include <linux/iversion.h>
 #include "internal.h"
 #include "afs_fs.h"
+#include "xdr_fs.h"
 
 static const struct afs_fid afs_zero_fid;
 
@@ -64,120 +65,160 @@ static void xdr_dump_bad(const __be32 *bp)
 }
 
 /*
- * decode an AFSFetchStatus block
+ * Update the core inode struct from a returned status record.
  */
-static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
-				      struct afs_file_status *status,
-				      struct afs_vnode *vnode,
-				      const afs_dataversion_t *expected_version,
-				      afs_dataversion_t *_version)
+void afs_update_inode_from_status(struct afs_vnode *vnode,
+				  struct afs_file_status *status,
+				  const afs_dataversion_t *expected_version,
+				  u8 flags)
 {
-	const __be32 *bp = *_bp;
+	struct timespec t;
 	umode_t mode;
-	u64 data_version, size;
-	bool changed = false;
-	kuid_t owner;
-	kgid_t group;
 
-	if (vnode)
-		write_seqlock(&vnode->cb_lock);
+	t.tv_sec = status->mtime_client;
+	t.tv_nsec = 0;
+	vnode->vfs_inode.i_ctime = t;
+	vnode->vfs_inode.i_mtime = t;
+	vnode->vfs_inode.i_atime = t;
 
-#define EXTRACT(DST)				\
-	do {					\
-		u32 x = ntohl(*bp++);		\
-		if (DST != x)			\
-			changed |= true;	\
-		DST = x;			\
-	} while (0)
+	if (flags & (AFS_VNODE_META_CHANGED | AFS_VNODE_NOT_YET_SET)) {
+		vnode->vfs_inode.i_uid = make_kuid(&init_user_ns, status->owner);
+		vnode->vfs_inode.i_gid = make_kgid(&init_user_ns, status->group);
+		set_nlink(&vnode->vfs_inode, status->nlink);
 
-	status->if_version = ntohl(*bp++);
-	EXTRACT(status->type);
-	EXTRACT(status->nlink);
-	size = ntohl(*bp++);
-	data_version = ntohl(*bp++);
-	EXTRACT(status->author);
-	owner = make_kuid(&init_user_ns, ntohl(*bp++));
-	changed |= !uid_eq(owner, status->owner);
-	status->owner = owner;
-	EXTRACT(status->caller_access); /* call ticket dependent */
-	EXTRACT(status->anon_access);
-	EXTRACT(status->mode);
-	bp++; /* parent.vnode */
-	bp++; /* parent.unique */
-	bp++; /* seg size */
-	status->mtime_client = ntohl(*bp++);
-	status->mtime_server = ntohl(*bp++);
-	group = make_kgid(&init_user_ns, ntohl(*bp++));
-	changed |= !gid_eq(group, status->group);
-	status->group = group;
-	bp++; /* sync counter */
-	data_version |= (u64) ntohl(*bp++) << 32;
-	EXTRACT(status->lock_count);
-	size |= (u64) ntohl(*bp++) << 32;
-	EXTRACT(status->abort_code); /* spare 4 */
-	*_bp = bp;
-
-	switch (status->type) {
-	case AFS_FTYPE_FILE:
-	case AFS_FTYPE_DIR:
-	case AFS_FTYPE_SYMLINK:
-		break;
-	case AFS_FTYPE_INVALID:
-		if (status->abort_code != 0)
-			goto out;
-		/* Fall through */
-	default:
-		xdr_dump_bad(bp - 2);
-		goto out;
+		mode = vnode->vfs_inode.i_mode;
+		mode &= ~S_IALLUGO;
+		mode |= status->mode;
+		barrier();
+		vnode->vfs_inode.i_mode = mode;
 	}
 
-	if (size != status->size) {
-		status->size = size;
-		changed |= true;
-	}
-	status->mode &= S_IALLUGO;
-	if (_version)
-		*_version = data_version;
-
-	_debug("vnode time %lx, %lx",
-	       status->mtime_client, status->mtime_server);
-
-	if (vnode) {
-		if (changed && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
-			_debug("vnode changed");
-			i_size_write(&vnode->vfs_inode, size);
-			vnode->vfs_inode.i_uid = status->owner;
-			vnode->vfs_inode.i_gid = status->group;
-			vnode->vfs_inode.i_generation = vnode->fid.unique;
-			set_nlink(&vnode->vfs_inode, status->nlink);
-
-			mode = vnode->vfs_inode.i_mode;
-			mode &= ~S_IALLUGO;
-			mode |= status->mode;
-			barrier();
-			vnode->vfs_inode.i_mode = mode;
-		}
-
-		vnode->vfs_inode.i_ctime.tv_sec	= status->mtime_client;
-		vnode->vfs_inode.i_mtime	= vnode->vfs_inode.i_ctime;
-		vnode->vfs_inode.i_atime	= vnode->vfs_inode.i_ctime;
-		inode_set_iversion_raw(&vnode->vfs_inode, data_version);
-	}
-
-	status->data_version = data_version;
-	if (expected_version && *expected_version != data_version) {
-		if (vnode && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
-			_debug("vnode modified %llx on {%x:%u}",
-			       (unsigned long long) data_version,
-			       vnode->fid.vid, vnode->fid.vnode);
+	if (!(flags & AFS_VNODE_NOT_YET_SET)) {
+		if (expected_version &&
+		    *expected_version != status->data_version) {
+			_debug("vnode modified %llx on {%x:%u} [exp %llx]",
+			       (unsigned long long) status->data_version,
+			       vnode->fid.vid, vnode->fid.vnode,
+			       (unsigned long long) *expected_version);
 			set_bit(AFS_VNODE_DIR_MODIFIED, &vnode->flags);
 			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
 		}
 	}
 
+	if (flags & (AFS_VNODE_DATA_CHANGED | AFS_VNODE_NOT_YET_SET)) {
+		inode_set_iversion_raw(&vnode->vfs_inode, status->data_version);
+		i_size_write(&vnode->vfs_inode, status->size);
+	}
+}
+
+/*
+ * decode an AFSFetchStatus block
+ */
+static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
+				     struct afs_file_status *status,
+				     struct afs_vnode *vnode,
+				     const afs_dataversion_t *expected_version,
+				     afs_dataversion_t *_version)
+{
+	const struct afs_xdr_AFSFetchStatus *xdr = (const void *)*_bp;
+	u64 data_version, size;
+	u32 type, abort_code;
+	u8 flags = 0;
+	int ret;
+
+	if (vnode)
+		write_seqlock(&vnode->cb_lock);
+
+	if (xdr->if_version != htonl(AFS_FSTATUS_VERSION)) {
+		pr_warn("Unknown AFSFetchStatus version %u\n", ntohl(xdr->if_version));
+		goto bad;
+	}
+
+	type = ntohl(xdr->type);
+	abort_code = ntohl(xdr->abort_code);
+	switch (type) {
+	case AFS_FTYPE_FILE:
+	case AFS_FTYPE_DIR:
+	case AFS_FTYPE_SYMLINK:
+		if (type != status->type &&
+		    vnode &&
+		    !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
+			pr_warning("Vnode %x:%x:%x changed type %u to %u\n",
+				   vnode->fid.vid,
+				   vnode->fid.vnode,
+				   vnode->fid.unique,
+				   status->type, type);
+			goto bad;
+		}
+		status->type = type;
+		break;
+	case AFS_FTYPE_INVALID:
+		if (abort_code != 0) {
+			status->abort_code = abort_code;
+			goto out;
+		}
+		/* Fall through */
+	default:
+		goto bad;
+	}
+
+#define EXTRACT_M(FIELD)					\
+	do {							\
+		u32 x = ntohl(xdr->FIELD);			\
+		if (status->FIELD != x) {			\
+			flags |= AFS_VNODE_META_CHANGED;	\
+			status->FIELD = x;			\
+		}						\
+	} while (0)
+
+	EXTRACT_M(nlink);
+	EXTRACT_M(author);
+	EXTRACT_M(owner);
+	EXTRACT_M(caller_access); /* call ticket dependent */
+	EXTRACT_M(anon_access);
+	EXTRACT_M(mode);
+	EXTRACT_M(group);
+
+	status->mtime_client = ntohl(xdr->mtime_client);
+	status->mtime_server = ntohl(xdr->mtime_server);
+	status->lock_count   = ntohl(xdr->lock_count);
+
+	size  = (u64)ntohl(xdr->size_lo);
+	size |= (u64)ntohl(xdr->size_hi) << 32;
+	if (size != status->size) {
+		status->size = size;
+		flags |= AFS_VNODE_DATA_CHANGED;
+	}
+
+	data_version  = (u64)ntohl(xdr->data_version_lo);
+	data_version |= (u64)ntohl(xdr->data_version_hi) << 32;
+	if (data_version != status->data_version) {
+		status->data_version = data_version;
+		flags |= AFS_VNODE_DATA_CHANGED;
+	}
+	if (_version)
+		*_version = data_version;
+
+	*_bp = (const void *)*_bp + sizeof(*xdr);
+
+	if (vnode) {
+		if (test_bit(AFS_VNODE_UNSET, &vnode->flags))
+			flags |= AFS_VNODE_NOT_YET_SET;
+		afs_update_inode_from_status(vnode, status, expected_version,
+					     flags);
+	}
+
+	ret = 0;
+
 out:
 	if (vnode)
 		write_sequnlock(&vnode->cb_lock);
+	return ret;
+
+bad:
+	xdr_dump_bad(*_bp);
+	ret = -EBADMSG;
+	goto out;
 }
 
 /*
@@ -319,8 +360,9 @@ static int afs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	xdr_decode_AFSCallBack(call, vnode, &bp);
 	if (call->reply[1])
 		xdr_decode_AFSVolSync(&bp, call->reply[1]);
@@ -499,9 +541,10 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-					  &vnode->status.data_version,
-					  &req->new_version);
+		if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+					      &vnode->status.data_version,
+					      &req->new_version) < 0)
+			return -EBADMSG;
 		xdr_decode_AFSCallBack(call, vnode, &bp);
 		if (call->reply[1])
 			xdr_decode_AFSVolSync(&bp, call->reply[1]);
@@ -652,9 +695,10 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFid(&bp, call->reply[1]);
-	xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL, NULL);
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL, NULL) < 0 ||
+	    xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	xdr_decode_AFSCallBack_raw(&bp, call->reply[3]);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
@@ -756,8 +800,9 @@ static int afs_deliver_fs_remove(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -844,9 +889,10 @@ static int afs_deliver_fs_link(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL, NULL);
-	xdr_decode_AFSFetchStatus(&bp, &dvnode->status, dvnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL, NULL) < 0 ||
+	    xdr_decode_AFSFetchStatus(&bp, &dvnode->status, dvnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -930,9 +976,10 @@ static int afs_deliver_fs_symlink(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFid(&bp, call->reply[1]);
-	xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL, NULL);
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL, NULL) ||
+	    xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1034,11 +1081,13 @@ static int afs_deliver_fs_rename(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &orig_dvnode->status, orig_dvnode,
-				  &call->expected_version, NULL);
-	if (new_dvnode != orig_dvnode)
-		xdr_decode_AFSFetchStatus(&bp, &new_dvnode->status, new_dvnode,
-					  &call->expected_version_2, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, &orig_dvnode->status, orig_dvnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
+	if (new_dvnode != orig_dvnode &&
+	    xdr_decode_AFSFetchStatus(&bp, &new_dvnode->status, new_dvnode,
+				      &call->expected_version_2, NULL) < 0)
+		return -EBADMSG;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1139,8 +1188,9 @@ static int afs_deliver_fs_store_data(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	afs_pages_written_back(vnode, call);
@@ -1314,8 +1364,9 @@ static int afs_deliver_fs_store_status(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->expected_version, NULL);
+	if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				      &call->expected_version, NULL) < 0)
+		return -EBADMSG;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -2127,9 +2178,10 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		bp = call->buffer;
 		statuses = call->reply[1];
-		xdr_decode_AFSFetchStatus(&bp, &statuses[call->count],
-					  call->count == 0 ? vnode : NULL,
-					  NULL, NULL);
+		if (xdr_decode_AFSFetchStatus(&bp, &statuses[call->count],
+					      call->count == 0 ? vnode : NULL,
+					      NULL, NULL) < 0)
+			return -EBADMSG;
 
 		call->count++;
 		if (call->count < call->count2)

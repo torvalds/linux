@@ -704,6 +704,12 @@ extern int afs_flock(struct file *, int, struct file_lock *);
 /*
  * fsclient.c
  */
+#define AFS_VNODE_NOT_YET_SET	0x01
+#define AFS_VNODE_META_CHANGED	0x02
+#define AFS_VNODE_DATA_CHANGED	0x04
+extern void afs_update_inode_from_status(struct afs_vnode *, struct afs_file_status *,
+					 const afs_dataversion_t *, u8);
+
 extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_volsync *, bool);
 extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *);
 extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct afs_read *);

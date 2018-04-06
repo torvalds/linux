@@ -30,12 +30,11 @@ static const struct inode_operations afs_symlink_inode_operations = {
 };
 
 /*
- * map the AFS file status to the inode member variables
+ * Initialise an inode from the vnode status.
  */
-static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
+static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 {
 	struct inode *inode = AFS_VNODE_TO_I(vnode);
-	bool changed;
 
 	_debug("FS: ft=%d lk=%d sz=%llu ver=%Lu mod=%hu",
 	       vnode->status.type,
@@ -45,6 +44,9 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 	       vnode->status.mode);
 
 	read_seqlock_excl(&vnode->cb_lock);
+
+	afs_update_inode_from_status(vnode, &vnode->status, NULL,
+				     AFS_VNODE_NOT_YET_SET);
 
 	switch (vnode->status.type) {
 	case AFS_FTYPE_FILE:
@@ -79,24 +81,13 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 		return -EBADMSG;
 	}
 
-	changed = (vnode->status.size != inode->i_size);
-
-	set_nlink(inode, vnode->status.nlink);
-	inode->i_uid		= vnode->status.owner;
-	inode->i_gid            = vnode->status.group;
-	inode->i_size		= vnode->status.size;
-	inode->i_ctime.tv_sec	= vnode->status.mtime_client;
-	inode->i_ctime.tv_nsec	= 0;
-	inode->i_atime		= inode->i_mtime = inode->i_ctime;
 	inode->i_blocks		= 0;
-	inode->i_generation	= vnode->fid.unique;
-	inode_set_iversion_raw(inode, vnode->status.data_version);
 	inode->i_mapping->a_ops	= &afs_fs_aops;
 
 	read_sequnlock_excl(&vnode->cb_lock);
 
 #ifdef CONFIG_AFS_FSCACHE
-	if (changed)
+	if (vnode->status.size > 0)
 		fscache_attr_changed(vnode->cache);
 #endif
 	return 0;
@@ -331,7 +322,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 		vnode->cb_expires_at += ktime_get_real_seconds();
 	}
 
-	ret = afs_inode_map_status(vnode, key);
+	ret = afs_inode_init_from_status(vnode, key);
 	if (ret < 0)
 		goto bad_inode;
 
