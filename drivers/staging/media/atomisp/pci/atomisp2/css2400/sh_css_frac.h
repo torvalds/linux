@@ -30,7 +30,7 @@
 
 /* a:fraction bits for 16bit precision, b:fraction bits for ISP precision */
 #define sDIGIT_FITTING(v, a, b) \
-	min(max((((v)>>sSHIFT) >> max(sFRACTION_BITS_FITTING(a)-(b), 0)), \
+	min_t(int, max_t(int, (((v)>>sSHIFT) >> max(sFRACTION_BITS_FITTING(a)-(b), 0)), \
 	  sISP_VAL_MIN), sISP_VAL_MAX)
 #define uDIGIT_FITTING(v, a, b) \
 	min((unsigned)max((unsigned)(((v)>>uSHIFT) \
