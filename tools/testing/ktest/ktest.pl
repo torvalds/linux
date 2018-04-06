@@ -1433,7 +1433,14 @@ sub do_not_reboot {
 	($test_type eq "config_bisect" && $opt{"CONFIG_BISECT_TYPE[$i]"} eq "build");
 }
 
+my $in_die = 0;
+
 sub dodie {
+
+    # avoid recusion
+    return if ($in_die);
+    $in_die = 1;
+
     doprint "CRITICAL FAILURE... ", @_, "\n";
 
     my $i = $iteration;
