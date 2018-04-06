@@ -2311,8 +2311,11 @@ static int clk_core_set_phase_nolock(struct clk_core *core, int degrees)
 
 	trace_clk_set_phase(core, degrees);
 
-	if (core->ops->set_phase)
+	if (core->ops->set_phase) {
 		ret = core->ops->set_phase(core->hw, degrees);
+		if (!ret)
+			core->phase = degrees;
+	}
 
 	trace_clk_set_phase_complete(core, degrees);
 
@@ -2372,6 +2375,9 @@ static int clk_core_get_phase(struct clk_core *core)
 	int ret;
 
 	clk_prepare_lock();
+	/* Always try to update cached phase if possible */
+	if (core->ops->get_phase)
+		core->phase = core->ops->get_phase(core->hw);
 	ret = core->phase;
 	clk_prepare_unlock();
 
