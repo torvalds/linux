@@ -44,6 +44,26 @@ static void xdr_decode_AFSFid(const __be32 **_bp, struct afs_fid *fid)
 }
 
 /*
+ * Dump a bad file status record.
+ */
+static void xdr_dump_bad(const __be32 *bp)
+{
+	__be32 x[4];
+	int i;
+
+	pr_notice("AFS XDR: Bad status record\n");
+	for (i = 0; i < 5 * 4 * 4; i += 16) {
+		memcpy(x, bp, 16);
+		bp += 4;
+		pr_notice("%03x: %08x %08x %08x %08x\n",
+			  i, ntohl(x[0]), ntohl(x[1]), ntohl(x[2]), ntohl(x[3]));
+	}
+
+	memcpy(x, bp, 4);
+	pr_notice("0x50: %08x\n", ntohl(x[0]));
+}
+
+/*
  * decode an AFSFetchStatus block
  */
 static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
@@ -97,6 +117,20 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	EXTRACT(status->abort_code); /* spare 4 */
 	*_bp = bp;
 
+	switch (status->type) {
+	case AFS_FTYPE_FILE:
+	case AFS_FTYPE_DIR:
+	case AFS_FTYPE_SYMLINK:
+		break;
+	case AFS_FTYPE_INVALID:
+		if (status->abort_code != 0)
+			goto out;
+		/* Fall through */
+	default:
+		xdr_dump_bad(bp - 2);
+		goto out;
+	}
+
 	if (size != status->size) {
 		status->size = size;
 		changed |= true;
@@ -145,6 +179,7 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 		status->data_version = data_version;
 	}
 
+out:
 	if (vnode)
 		write_sequnlock(&vnode->cb_lock);
 }
