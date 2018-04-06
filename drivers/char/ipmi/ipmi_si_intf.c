@@ -123,7 +123,7 @@ enum si_stat_indexes {
 
 struct smi_info {
 	int                    intf_num;
-	ipmi_smi_t             intf;
+	struct ipmi_smi        *intf;
 	struct si_sm_data      *si_sm;
 	const struct si_sm_handlers *handlers;
 	spinlock_t             si_lock;
@@ -1143,8 +1143,8 @@ irqreturn_t ipmi_si_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int smi_start_processing(void       *send_info,
-				ipmi_smi_t intf)
+static int smi_start_processing(void            *send_info,
+				struct ipmi_smi *intf)
 {
 	struct smi_info *new_smi = send_info;
 	int             enable = 0;
