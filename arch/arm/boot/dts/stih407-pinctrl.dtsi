@@ -45,7 +45,7 @@
 	};
 
 	soc {
-		pin-controller-sbc {
+		pin-controller-sbc@961f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-sbc-pinctrl";
@@ -369,7 +369,7 @@
 			};
 		};
 
-		pin-controller-front0 {
+		pin-controller-front0@920f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-front-pinctrl";
@@ -929,7 +929,7 @@
 			};
 		};
 
-		pin-controller-front1 {
+		pin-controller-front1@921f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-front-pinctrl";
@@ -962,7 +962,7 @@
 			};
 		};
 
-		pin-controller-rear {
+		pin-controller-rear@922f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-rear-pinctrl";
@@ -1157,7 +1157,7 @@
 			};
 		};
 
-		pin-controller-flash {
+		pin-controller-flash@923f080 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stih407-flash-pinctrl";

@@ -10,8 +10,8 @@
 #include "dra72x.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "am57xx-idk-common.dtsi"
 #include "dra72x-mmc-iodelay.dtsi"
+#include "am57xx-idk-common.dtsi"
 
 / {
 	model = "TI AM5718 IDK";

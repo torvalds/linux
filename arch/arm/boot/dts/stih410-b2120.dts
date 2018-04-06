@@ -15,10 +15,10 @@
 
 	chosen {
 		bootargs = "clk_ignore_unused";
-		linux,stdout-path = &sbc_serial0;
+		stdout-path = &sbc_serial0;
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
@@ -37,11 +37,11 @@
 			sd-uhs-ddr50;
 		};
 
-		usb2_picophy1: phy2 {
+		usb2_picophy1: phy2@0 {
 			status = "okay";
 		};
 
-		usb2_picophy2: phy3 {
+		usb2_picophy2: phy3@0 {
 			status = "okay";
 		};
 
@@ -61,7 +61,7 @@
 			status = "okay";
 		};
 
-		sti-display-subsystem {
+		sti-display-subsystem@0 {
 			sti-hda@8d02000 {
 				status = "okay";
 			};

@@ -46,7 +46,7 @@
 	model = "Toradex Colibri VF50 COM";
 	compatible = "toradex,vf610-colibri_vf50", "fsl,vf500";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x8000000>;
 	};
 

@@ -41,3 +41,35 @@
 
 #include "imx6ul.dtsi"
 #include "imx6ull-pinfunc.h"
+#include "imx6ull-pinfunc-snvs.h"
+
+/* Delete UART8 in AIPS-1 (i.MX6UL specific) */
+/delete-node/ &uart8;
+
+/ {
+	soc {
+		aips3: aips-bus@2200000 {
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x02200000 0x100000>;
+			ranges;
+
+			iomuxc_snvs: iomuxc-snvs@2290000 {
+				compatible = "fsl,imx6ull-iomuxc-snvs";
+				reg = <0x02290000 0x4000>;
+			};
+
+			uart8: serial@2288000 {
+				compatible = "fsl,imx6ul-uart",
+					     "fsl,imx6q-uart";
+				reg = <0x02288000 0x4000>;
+				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_UART8_IPG>,
+					 <&clks IMX6UL_CLK_UART8_SERIAL>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+		};
+	};
+};

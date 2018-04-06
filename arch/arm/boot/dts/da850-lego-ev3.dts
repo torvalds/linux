@@ -184,6 +184,23 @@
 		io-channel-names = "voltage", "current";
 		rechargeable-gpios = <&gpio 136 GPIO_ACTIVE_LOW>;
 	};
+
+	/* ARM local RAM */
+	memory@ffff0000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0xffff0000 0x2000>; /* 8k */
+
+		/*
+		 * The I2C bootloader looks for this magic value to either
+		 * boot normally or boot into a firmware update mode.
+		 */
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x1ffc>;
+			mode-normal = <0x00000000>;
+			mode-loader = <0x5555aaaa>;
+		};
+	};
 };
 
 &pmx_core {
@@ -293,7 +310,7 @@
 	 * EEPROM contains the first stage bootloader, HW ID and Bluetooth MAC.
 	 */
 	eeprom@50 {
-		compatible = "microchip,24c128";
+		compatible = "microchip,24c128", "atmel,24c128";
 		pagesize = <64>;
 		read-only;
 		reg = <0x50>;

@@ -491,7 +491,7 @@
 		pinctrl-0 = <&i2c8_pins>;
 
 		synaptics@2c {
-			compatible = "syna,rmi-i2c";
+			compatible = "syna,rmi4-i2c";
 			reg = <0x2c>;
 
 			interrupt-parent = <&msmgpio>;
@@ -505,6 +505,8 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&ts_int_pin>;
+
+			syna,startup-delay-ms = <10>;
 
 			rmi-f01@1 {
 				reg = <0x1>;

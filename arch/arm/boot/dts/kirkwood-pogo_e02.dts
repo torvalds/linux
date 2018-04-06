@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kirkwood-pogo_e02.dts - Device tree file for Pogoplug E02
  *
@@ -7,9 +8,6 @@
  *  Arch Linux ARM by Oleg Rakhmanov <moonman.ca@gmail.com>
  *  OpenWrt by Felix Kaechele <heffer@fedoraproject.org>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /dts-v1/;
