@@ -775,7 +775,6 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_cmd_probe(struct rsnd_priv *priv);
 void rsnd_cmd_remove(struct rsnd_priv *priv);
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id);
-struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id);
 
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 #ifdef DEBUG
