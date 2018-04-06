@@ -27,6 +27,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include "dm365_ipipe.h"
 #include "dm365_ipipe_hw.h"
@@ -1255,37 +1256,38 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 	int rval = 0;
 
 	for (i = 0; i < ARRAY_SIZE(ipipe_modules); i++) {
-		unsigned int bit = 1 << i;
+		const struct ipipe_module_if *module_if;
+		struct ipipe_module_params *params;
+		void __user *from;
+		size_t size;
+		void *to;
 
-		if (cfg->flag & bit) {
-			const struct ipipe_module_if *module_if =
-						&ipipe_modules[i];
-			struct ipipe_module_params *params;
-			void __user *from = *(void * __user *)
-				((void *)cfg + module_if->config_offset);
-			size_t size;
-			void *to;
+		if (!(cfg->flag & BIT(i)))
+			continue;
 
-			params = kmalloc(sizeof(struct ipipe_module_params),
-					 GFP_KERNEL);
-			to = (void *)params + module_if->param_offset;
-			size = module_if->param_size;
+		module_if = &ipipe_modules[i];
+		from = *(void * __user *)
+			((void *)cfg + module_if->config_offset);
 
-			if (to && from && size) {
-				if (copy_from_user(to, from, size)) {
-					rval = -EFAULT;
-					break;
-				}
-				rval = module_if->set(ipipe, to);
-				if (rval)
-					goto error;
-			} else if (to && !from && size) {
-				rval = module_if->set(ipipe, NULL);
-				if (rval)
-					goto error;
+		params = kmalloc(sizeof(struct ipipe_module_params),
+				 GFP_KERNEL);
+		to = (void *)params + module_if->param_offset;
+		size = module_if->param_size;
+
+		if (to && from && size) {
+			if (copy_from_user(to, from, size)) {
+				rval = -EFAULT;
+				break;
 			}
-			kfree(params);
+			rval = module_if->set(ipipe, to);
+			if (rval)
+				goto error;
+		} else if (to && !from && size) {
+			rval = module_if->set(ipipe, NULL);
+			if (rval)
+				goto error;
 		}
+		kfree(params);
 	}
 error:
 	return rval;
@@ -1298,33 +1300,33 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 	int rval = 0;
 
 	for (i = 1; i < ARRAY_SIZE(ipipe_modules); i++) {
-		unsigned int bit = 1 << i;
+		const struct ipipe_module_if *module_if;
+		struct ipipe_module_params *params;
+		void __user *to;
+		size_t size;
+		void *from;
 
-		if (cfg->flag & bit) {
-			const struct ipipe_module_if *module_if =
-						&ipipe_modules[i];
-			struct ipipe_module_params *params;
-			void __user *to = *(void * __user *)
-				((void *)cfg + module_if->config_offset);
-			size_t size;
-			void *from;
+		if (!(cfg->flag & BIT(i)))
+			continue;
 
-			params =  kmalloc(sizeof(struct ipipe_module_params),
-						GFP_KERNEL);
-			from = (void *)params + module_if->param_offset;
-			size = module_if->param_size;
+		module_if = &ipipe_modules[i];
+		to = *(void * __user *)((void *)cfg + module_if->config_offset);
 
-			if (to && from && size) {
-				rval = module_if->get(ipipe, from);
-				if (rval)
-					goto error;
-				if (copy_to_user(to, from, size)) {
-					rval = -EFAULT;
-					break;
-				}
+		params = kmalloc(sizeof(struct ipipe_module_params),
+				 GFP_KERNEL);
+		from = (void *)params + module_if->param_offset;
+		size = module_if->param_size;
+
+		if (to && from && size) {
+			rval = module_if->get(ipipe, from);
+			if (rval)
+				goto error;
+			if (copy_to_user(to, from, size)) {
+				rval = -EFAULT;
+				break;
 			}
-			kfree(params);
 		}
+		kfree(params);
 	}
 error:
 	return rval;
