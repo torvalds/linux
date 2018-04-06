@@ -137,7 +137,7 @@ extern hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute)
  \return vaddress
  */
 extern hrt_vaddress mmgr_mmap(
-	const void *ptr,
+	const void __user *ptr,
 	const size_t size,
 	uint16_t attribute,
 	void *context);

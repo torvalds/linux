@@ -333,7 +333,7 @@ ia_css_frame_set_data(struct ia_css_frame *frame,
 enum ia_css_err
 ia_css_frame_map(struct ia_css_frame **frame,
 		 const struct ia_css_frame_info *info,
-		 const void *data,
+		 const void __user *data,
 		 uint16_t attribute,
 		 void *context);
 

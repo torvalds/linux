@@ -244,7 +244,7 @@ int hmm_bo_allocated(struct hmm_buffer_object *bo);
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		enum hmm_bo_type type, int from_highmem,
-		void *userptr, bool cached);
+		const void __user *userptr, bool cached);
 void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
 

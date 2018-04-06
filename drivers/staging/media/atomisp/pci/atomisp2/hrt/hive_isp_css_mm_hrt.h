@@ -37,15 +37,16 @@ struct hrt_userbuffer_attr {
 	unsigned int		pgnr;
 };
 
-void hrt_isp_css_mm_set_user_ptr(void *userptr,
+void hrt_isp_css_mm_set_user_ptr(void __user *userptr,
 				unsigned int num_pages, enum hrt_userptr_type);
 
 /* Allocate memory, returns a virtual address */
 ia_css_ptr hrt_isp_css_mm_alloc(size_t bytes);
-ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes, void *userptr,
-				    unsigned int num_pages,
-				    enum hrt_userptr_type,
-				    bool cached);
+ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes,
+					 const void __user *userptr,
+					 unsigned int num_pages,
+					 enum hrt_userptr_type,
+					 bool cached);
 ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes);
 
 /* allocate memory and initialize with zeros,

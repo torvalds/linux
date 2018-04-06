@@ -1253,7 +1253,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		attributes.type = HRT_USR_PTR;
 #endif
 		ret = atomisp_css_frame_map(&handle, &frame_info,
-				       (void *)buf->m.userptr,
+				       (void __user *)buf->m.userptr,
 				       0, &attributes);
 		if (ret) {
 			dev_err(isp->dev, "Failed to map user buffer\n");

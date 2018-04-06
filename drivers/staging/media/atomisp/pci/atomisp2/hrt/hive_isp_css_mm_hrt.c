@@ -24,11 +24,11 @@
 
 #define __page_align(size)	(((size) + (PAGE_SIZE-1)) & (~(PAGE_SIZE-1)))
 
-static void *my_userptr;
+static void __user *my_userptr;
 static unsigned my_num_pages;
 static enum hrt_userptr_type my_usr_type;
 
-void hrt_isp_css_mm_set_user_ptr(void *userptr,
+void hrt_isp_css_mm_set_user_ptr(void __user *userptr,
 				 unsigned int num_pages,
 				 enum hrt_userptr_type type)
 {
@@ -37,10 +37,11 @@ void hrt_isp_css_mm_set_user_ptr(void *userptr,
 	my_usr_type = type;
 }
 
-static ia_css_ptr __hrt_isp_css_mm_alloc(size_t bytes, void *userptr,
-				    unsigned int num_pages,
-				    enum hrt_userptr_type type,
-				    bool cached)
+static ia_css_ptr __hrt_isp_css_mm_alloc(size_t bytes,
+					 const void __user *userptr,
+					 unsigned int num_pages,
+					 enum hrt_userptr_type type,
+					 bool cached)
 {
 #ifdef CONFIG_ION
 	if (type == HRT_USR_ION)
@@ -78,10 +79,11 @@ ia_css_ptr hrt_isp_css_mm_alloc(size_t bytes)
 				      my_num_pages, my_usr_type, false);
 }
 
-ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes, void *userptr,
-				    unsigned int num_pages,
-				    enum hrt_userptr_type type,
-				    bool cached)
+ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes,
+					 const void __user *userptr,
+					 unsigned int num_pages,
+					 enum hrt_userptr_type type,
+					 bool cached)
 {
 	return __hrt_isp_css_mm_alloc(bytes, userptr, num_pages,
 				      type, cached);

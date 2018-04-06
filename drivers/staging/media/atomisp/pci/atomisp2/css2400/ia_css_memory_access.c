@@ -72,12 +72,12 @@ mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size)
 }
 
 hrt_vaddress
-mmgr_mmap(const void *ptr, const size_t size,
+mmgr_mmap(const void __user *ptr, const size_t size,
 	  uint16_t attribute, void *context)
 {
 	struct hrt_userbuffer_attr *userbuffer_attr = context;
 	return hrt_isp_css_mm_alloc_user_ptr(
-			size, (void *)ptr, userbuffer_attr->pgnr,
+			size, ptr, userbuffer_attr->pgnr,
 			userbuffer_attr->type,
 			attribute & HRT_BUF_FLAG_CACHED);
 }

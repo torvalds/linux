@@ -3299,7 +3299,7 @@ static unsigned int long copy_from_compatible(void *to, const void *from,
 					      unsigned long n, bool from_user)
 {
 	if (from_user)
-		return copy_from_user(to, from, n);
+		return copy_from_user(to, (void __user *)from, n);
 	else
 		memcpy(to, from, n);
 	return 0;
@@ -4067,7 +4067,7 @@ int atomisp_cp_morph_table(struct atomisp_sub_device *asd,
 
 	for (i = 0; i < CSS_MORPH_TABLE_NUM_PLANES; i++) {
 		if (copy_from_compatible(morph_table->coordinates_x[i],
-			source_morph_table->coordinates_x[i],
+			(__force void *)source_morph_table->coordinates_x[i],
 #ifndef ISP2401
 			source_morph_table->height * source_morph_table->width *
 			sizeof(*source_morph_table->coordinates_x[i]),
@@ -4079,7 +4079,7 @@ int atomisp_cp_morph_table(struct atomisp_sub_device *asd,
 			goto error;
 
 		if (copy_from_compatible(morph_table->coordinates_y[i],
-			source_morph_table->coordinates_y[i],
+			(__force void *)source_morph_table->coordinates_y[i],
 #ifndef ISP2401
 			source_morph_table->height * source_morph_table->width *
 			sizeof(*source_morph_table->coordinates_y[i]),
@@ -6176,7 +6176,8 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 		    ATOMISP_SC_TYPE_SIZE;
 	for (i = 0; i < ATOMISP_NUM_SC_COLORS; i++) {
 		ret = copy_from_user(shading_table->data[i],
-				     user_shading_table->data[i], len_table);
+				     (void __user *)user_shading_table->data[i],
+				     len_table);
 		if (ret) {
 			free_table = shading_table;
 			ret = -EFAULT;
