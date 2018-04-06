@@ -21,16 +21,11 @@
  */
 
 #include <linux/io.h>
-#include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/i2c-omap.h>
 
 #include <linux/omap-dma.h>
-
-#include <linux/platform_data/spi-omap2-mcspi.h>
-#include <linux/platform_data/asoc-ti-mcbsp.h>
-#include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
@@ -1083,12 +1078,6 @@ static struct omap_hwmod_class omap44xx_gpio_hwmod_class = {
 	.rev	= 2,
 };
 
-/* gpio dev_attr */
-static struct omap_gpio_dev_attr gpio_dev_attr = {
-	.bank_width	= 32,
-	.dbck_flag	= true,
-};
-
 /* gpio1 */
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio1_dbclk" },
@@ -1108,7 +1097,6 @@ static struct omap_hwmod omap44xx_gpio1_hwmod = {
 	},
 	.opt_clks	= gpio1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio2 */
@@ -1131,7 +1119,6 @@ static struct omap_hwmod omap44xx_gpio2_hwmod = {
 	},
 	.opt_clks	= gpio2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio3 */
@@ -1154,7 +1141,6 @@ static struct omap_hwmod omap44xx_gpio3_hwmod = {
 	},
 	.opt_clks	= gpio3_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio4 */
@@ -1177,7 +1163,6 @@ static struct omap_hwmod omap44xx_gpio4_hwmod = {
 	},
 	.opt_clks	= gpio4_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio5 */
@@ -1200,7 +1185,6 @@ static struct omap_hwmod omap44xx_gpio5_hwmod = {
 	},
 	.opt_clks	= gpio5_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio5_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /* gpio6 */
@@ -1223,7 +1207,6 @@ static struct omap_hwmod omap44xx_gpio6_hwmod = {
 	},
 	.opt_clks	= gpio6_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio6_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
 };
 
 /*
@@ -1394,10 +1377,6 @@ static struct omap_hwmod_class omap44xx_i2c_hwmod_class = {
 	.reset	= &omap_i2c_reset,
 };
 
-static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.flags	= OMAP_I2C_FLAG_BUS_SHIFT_NONE,
-};
-
 /* i2c1 */
 static struct omap_hwmod omap44xx_i2c1_hwmod = {
 	.name		= "i2c1",
@@ -1412,7 +1391,6 @@ static struct omap_hwmod omap44xx_i2c1_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* i2c2 */
@@ -1429,7 +1407,6 @@ static struct omap_hwmod omap44xx_i2c2_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* i2c3 */
@@ -1446,7 +1423,6 @@ static struct omap_hwmod omap44xx_i2c3_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* i2c4 */
@@ -1463,7 +1439,6 @@ static struct omap_hwmod omap44xx_i2c4_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /*
@@ -1702,7 +1677,6 @@ static struct omap_hwmod_class_sysconfig omap44xx_mcbsp_sysc = {
 static struct omap_hwmod_class omap44xx_mcbsp_hwmod_class = {
 	.name	= "mcbsp",
 	.sysc	= &omap44xx_mcbsp_sysc,
-	.rev	= MCBSP_CONFIG_TYPE4,
 };
 
 /* mcbsp1 */
@@ -1860,14 +1834,9 @@ static struct omap_hwmod_class_sysconfig omap44xx_mcspi_sysc = {
 static struct omap_hwmod_class omap44xx_mcspi_hwmod_class = {
 	.name	= "mcspi",
 	.sysc	= &omap44xx_mcspi_sysc,
-	.rev	= OMAP4_MCSPI_REV,
 };
 
 /* mcspi1 */
-static struct omap2_mcspi_dev_attr mcspi1_dev_attr = {
-	.num_chipselect	= 4,
-};
-
 static struct omap_hwmod omap44xx_mcspi1_hwmod = {
 	.name		= "mcspi1",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -1880,14 +1849,9 @@ static struct omap_hwmod omap44xx_mcspi1_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi1_dev_attr,
 };
 
 /* mcspi2 */
-static struct omap2_mcspi_dev_attr mcspi2_dev_attr = {
-	.num_chipselect	= 2,
-};
-
 static struct omap_hwmod omap44xx_mcspi2_hwmod = {
 	.name		= "mcspi2",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -1900,14 +1864,9 @@ static struct omap_hwmod omap44xx_mcspi2_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi2_dev_attr,
 };
 
 /* mcspi3 */
-static struct omap2_mcspi_dev_attr mcspi3_dev_attr = {
-	.num_chipselect	= 2,
-};
-
 static struct omap_hwmod omap44xx_mcspi3_hwmod = {
 	.name		= "mcspi3",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -1920,14 +1879,9 @@ static struct omap_hwmod omap44xx_mcspi3_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi3_dev_attr,
 };
 
 /* mcspi4 */
-static struct omap2_mcspi_dev_attr mcspi4_dev_attr = {
-	.num_chipselect	= 1,
-};
-
 static struct omap_hwmod omap44xx_mcspi4_hwmod = {
 	.name		= "mcspi4",
 	.class		= &omap44xx_mcspi_hwmod_class,
@@ -1940,7 +1894,6 @@ static struct omap_hwmod omap44xx_mcspi4_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &mcspi4_dev_attr,
 };
 
 /*
@@ -2547,26 +2500,6 @@ static struct omap_hwmod_class omap44xx_timer_hwmod_class = {
 	.sysc	= &omap44xx_timer_sysc,
 };
 
-/* always-on timers dev attribute */
-static struct omap_timer_capability_dev_attr capability_alwon_dev_attr = {
-	.timer_capability	= OMAP_TIMER_ALWON,
-};
-
-/* pwm timers dev attribute */
-static struct omap_timer_capability_dev_attr capability_pwm_dev_attr = {
-	.timer_capability	= OMAP_TIMER_HAS_PWM,
-};
-
-/* timers with DSP interrupt dev attribute */
-static struct omap_timer_capability_dev_attr capability_dsp_dev_attr = {
-	.timer_capability       = OMAP_TIMER_HAS_DSP_IRQ,
-};
-
-/* pwm timers with DSP interrupt dev attribute */
-static struct omap_timer_capability_dev_attr capability_dsp_pwm_dev_attr = {
-	.timer_capability       = OMAP_TIMER_HAS_DSP_IRQ | OMAP_TIMER_HAS_PWM,
-};
-
 /* timer1 */
 static struct omap_hwmod omap44xx_timer1_hwmod = {
 	.name		= "timer1",
@@ -2581,7 +2514,6 @@ static struct omap_hwmod omap44xx_timer1_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_alwon_dev_attr,
 };
 
 /* timer2 */
@@ -2643,7 +2575,6 @@ static struct omap_hwmod omap44xx_timer5_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_dsp_dev_attr,
 };
 
 /* timer6 */
@@ -2659,7 +2590,6 @@ static struct omap_hwmod omap44xx_timer6_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_dsp_dev_attr,
 };
 
 /* timer7 */
@@ -2675,7 +2605,6 @@ static struct omap_hwmod omap44xx_timer7_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_dsp_dev_attr,
 };
 
 /* timer8 */
@@ -2691,7 +2620,6 @@ static struct omap_hwmod omap44xx_timer8_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_dsp_pwm_dev_attr,
 };
 
 /* timer9 */
@@ -2707,7 +2635,6 @@ static struct omap_hwmod omap44xx_timer9_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_pwm_dev_attr,
 };
 
 /* timer10 */
@@ -2724,7 +2651,6 @@ static struct omap_hwmod omap44xx_timer10_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_pwm_dev_attr,
 };
 
 /* timer11 */
@@ -2740,7 +2666,6 @@ static struct omap_hwmod omap44xx_timer11_hwmod = {
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
-	.dev_attr	= &capability_pwm_dev_attr,
 };
 
 /*

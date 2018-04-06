@@ -44,10 +44,8 @@
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/serial.h>
-#include <mach/clock.h>
 
 #include "davinci.h"
-#include "clock.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -716,14 +714,23 @@ static void __init evm_init_i2c(void)
 }
 #endif
 
+#define DM646X_REF_FREQ			27000000
+#define DM646X_AUX_FREQ			24000000
 #define DM6467T_EVM_REF_FREQ		33000000
 
 static void __init davinci_map_io(void)
 {
 	dm646x_init();
+}
 
-	if (machine_is_davinci_dm6467tevm())
-		davinci_set_refclk_rate(DM6467T_EVM_REF_FREQ);
+static void __init dm646x_evm_init_time(void)
+{
+	dm646x_init_time(DM646X_REF_FREQ, DM646X_AUX_FREQ);
+}
+
+static void __init dm6467t_evm_init_time(void)
+{
+	dm646x_init_time(DM6467T_EVM_REF_FREQ, DM646X_AUX_FREQ);
 }
 
 #define DM646X_EVM_PHY_ID		"davinci_mdio-0:01"
@@ -797,21 +804,19 @@ MACHINE_START(DAVINCI_DM6467_EVM, "DaVinci DM646x EVM")
 	.atag_offset  = 0x100,
 	.map_io       = davinci_map_io,
 	.init_irq     = davinci_irq_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= dm646x_evm_init_time,
 	.init_machine = evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END
 
 MACHINE_START(DAVINCI_DM6467TEVM, "DaVinci DM6467T EVM")
 	.atag_offset  = 0x100,
 	.map_io       = davinci_map_io,
 	.init_irq     = davinci_irq_init,
-	.init_time	= davinci_timer_init,
+	.init_time	= dm6467t_evm_init_time,
 	.init_machine = evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END
 

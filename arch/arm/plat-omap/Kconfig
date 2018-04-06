@@ -106,12 +106,6 @@ config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
 	help
 	  PPA routine service ID for setting L2 auxiliary control register.
 
-config OMAP_DM_TIMER
-	bool "Use dual-mode timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
-	help
-	 Select this option if you want to use OMAP Dual-Mode timers.
-
 config OMAP_SERIAL_WAKE
 	bool "Enable wake-up events for serial ports"
 	depends on ARCH_OMAP1 && OMAP_MUX

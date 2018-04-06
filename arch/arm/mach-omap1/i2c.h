@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef __PLAT_OMAP_I2C_H
-#define __PLAT_OMAP_I2C_H
+#ifndef __ARCH_ARM_MACH_OMAP1_I2C_H
+#define __ARCH_ARM_MACH_OMAP1_I2C_H
 
 struct i2c_board_info;
 struct omap_i2c_bus_platform_data;
@@ -47,7 +47,4 @@ static inline int omap_register_i2c_bus_cmdline(void)
 }
 #endif
 
-struct omap_hwmod;
-int omap_i2c_reset(struct omap_hwmod *oh);
-
-#endif /* __PLAT_OMAP_I2C_H */
+#endif /* __ARCH_ARM_MACH_OMAP1_I2C_H */
