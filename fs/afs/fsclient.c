@@ -69,9 +69,9 @@ static void xdr_dump_bad(const __be32 *bp)
 static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 				      struct afs_file_status *status,
 				      struct afs_vnode *vnode,
-				      afs_dataversion_t *store_version)
+				      const afs_dataversion_t *expected_version,
+				      afs_dataversion_t *_version)
 {
-	afs_dataversion_t expected_version;
 	const __be32 *bp = *_bp;
 	umode_t mode;
 	u64 data_version, size;
@@ -136,6 +136,8 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 		changed |= true;
 	}
 	status->mode &= S_IALLUGO;
+	if (_version)
+		*_version = data_version;
 
 	_debug("vnode time %lx, %lx",
 	       status->mtime_client, status->mtime_server);
@@ -162,12 +164,8 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 		inode_set_iversion_raw(&vnode->vfs_inode, data_version);
 	}
 
-	expected_version = status->data_version;
-	if (store_version)
-		expected_version = *store_version;
-
-	if (expected_version != data_version) {
-		status->data_version = data_version;
+	status->data_version = data_version;
+	if (expected_version && *expected_version != data_version) {
 		if (vnode && !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
 			_debug("vnode modified %llx on {%x:%u}",
 			       (unsigned long long) data_version,
@@ -175,8 +173,6 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 			set_bit(AFS_VNODE_DIR_MODIFIED, &vnode->flags);
 			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
 		}
-	} else if (store_version) {
-		status->data_version = data_version;
 	}
 
 out:
@@ -323,7 +319,8 @@ static int afs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				  &call->expected_version, NULL);
 	xdr_decode_AFSCallBack(call, vnode, &bp);
 	if (call->reply[1])
 		xdr_decode_AFSVolSync(&bp, call->reply[1]);
@@ -345,7 +342,8 @@ static const struct afs_call_type afs_RXFSFetchStatus_vnode = {
 /*
  * fetch the status information for a file
  */
-int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsync)
+int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsync,
+			     bool new_inode)
 {
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_call *call;
@@ -365,6 +363,7 @@ int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	call->key = fc->key;
 	call->reply[0] = vnode;
 	call->reply[1] = volsync;
+	call->expected_version = new_inode ? 1 : vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -500,7 +499,9 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
+		xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+					  &vnode->status.data_version,
+					  &req->new_version);
 		xdr_decode_AFSCallBack(call, vnode, &bp);
 		if (call->reply[1])
 			xdr_decode_AFSVolSync(&bp, call->reply[1]);
@@ -570,6 +571,7 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->reply[0] = vnode;
 	call->reply[1] = NULL; /* volsync */
 	call->reply[2] = req;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -614,6 +616,7 @@ int afs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 	call->reply[0] = vnode;
 	call->reply[1] = NULL; /* volsync */
 	call->reply[2] = req;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -649,8 +652,9 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFid(&bp, call->reply[1]);
-	xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL);
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				  &call->expected_version, NULL);
 	xdr_decode_AFSCallBack_raw(&bp, call->reply[3]);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
@@ -708,6 +712,7 @@ int afs_fs_create(struct afs_fs_cursor *fc,
 	call->reply[1] = newfid;
 	call->reply[2] = newstatus;
 	call->reply[3] = newcb;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -751,7 +756,8 @@ static int afs_deliver_fs_remove(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				  &call->expected_version, NULL);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -800,6 +806,7 @@ int afs_fs_remove(struct afs_fs_cursor *fc, const char *name, bool isdir)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -837,8 +844,9 @@ static int afs_deliver_fs_link(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
-	xdr_decode_AFSFetchStatus(&bp, &dvnode->status, dvnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &dvnode->status, dvnode,
+				  &call->expected_version, NULL);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -880,6 +888,7 @@ int afs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 	call->key = fc->key;
 	call->reply[0] = dvnode;
 	call->reply[1] = vnode;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -921,8 +930,9 @@ static int afs_deliver_fs_symlink(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFid(&bp, call->reply[1]);
-	xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL);
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, call->reply[2], NULL, NULL, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				  &call->expected_version, NULL);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -973,6 +983,7 @@ int afs_fs_symlink(struct afs_fs_cursor *fc,
 	call->reply[0] = vnode;
 	call->reply[1] = newfid;
 	call->reply[2] = newstatus;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1023,10 +1034,11 @@ static int afs_deliver_fs_rename(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &orig_dvnode->status, orig_dvnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, &orig_dvnode->status, orig_dvnode,
+				  &call->expected_version, NULL);
 	if (new_dvnode != orig_dvnode)
 		xdr_decode_AFSFetchStatus(&bp, &new_dvnode->status, new_dvnode,
-					  NULL);
+					  &call->expected_version_2, NULL);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1077,6 +1089,8 @@ int afs_fs_rename(struct afs_fs_cursor *fc,
 	call->key = fc->key;
 	call->reply[0] = orig_dvnode;
 	call->reply[1] = new_dvnode;
+	call->expected_version = orig_dvnode->status.data_version;
+	call->expected_version_2 = new_dvnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1126,7 +1140,7 @@ static int afs_deliver_fs_store_data(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-				  &call->store_version);
+				  &call->expected_version, NULL);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	afs_pages_written_back(vnode, call);
@@ -1183,7 +1197,7 @@ static int afs_fs_store_data64(struct afs_fs_cursor *fc,
 	call->first_offset = offset;
 	call->last_to = to;
 	call->send_pages = true;
-	call->store_version = vnode->status.data_version + 1;
+	call->expected_version = vnode->status.data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1258,7 +1272,7 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 	call->first_offset = offset;
 	call->last_to = to;
 	call->send_pages = true;
-	call->store_version = vnode->status.data_version + 1;
+	call->expected_version = vnode->status.data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1288,7 +1302,6 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
  */
 static int afs_deliver_fs_store_status(struct afs_call *call)
 {
-	afs_dataversion_t *store_version;
 	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
 	int ret;
@@ -1300,12 +1313,9 @@ static int afs_deliver_fs_store_status(struct afs_call *call)
 		return ret;
 
 	/* unmarshall the reply once we've received all of it */
-	store_version = NULL;
-	if (call->operation_ID == FSSTOREDATA)
-		store_version = &call->store_version;
-
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode, store_version);
+	xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
+				  &call->expected_version, NULL);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1360,7 +1370,7 @@ static int afs_fs_setattr_size64(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
-	call->store_version = vnode->status.data_version + 1;
+	call->expected_version = vnode->status.data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1409,7 +1419,7 @@ static int afs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
-	call->store_version = vnode->status.data_version + 1;
+	call->expected_version = vnode->status.data_version + 1;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -1454,6 +1464,7 @@ int afs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
 
 	call->key = fc->key;
 	call->reply[0] = vnode;
+	call->expected_version = vnode->status.data_version;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2004,7 +2015,8 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	xdr_decode_AFSFetchStatus(&bp, status, vnode, NULL);
+	xdr_decode_AFSFetchStatus(&bp, status, vnode,
+				  &call->expected_version, NULL);
 	callback[call->count].version	= ntohl(bp[0]);
 	callback[call->count].expiry	= ntohl(bp[1]);
 	callback[call->count].type	= ntohl(bp[2]);
@@ -2056,6 +2068,7 @@ int afs_fs_fetch_status(struct afs_fs_cursor *fc,
 	call->reply[1] = status;
 	call->reply[2] = callback;
 	call->reply[3] = volsync;
+	call->expected_version = 1; /* vnode->status.data_version */
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2116,7 +2129,7 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		statuses = call->reply[1];
 		xdr_decode_AFSFetchStatus(&bp, &statuses[call->count],
 					  call->count == 0 ? vnode : NULL,
-					  NULL);
+					  NULL, NULL);
 
 		call->count++;
 		if (call->count < call->count2)

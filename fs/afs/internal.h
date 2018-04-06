@@ -122,7 +122,8 @@ struct afs_call {
 	u32			operation_ID;	/* operation ID for an incoming call */
 	u32			count;		/* count for use in unmarshalling */
 	__be32			tmp;		/* place to extract temporary data */
-	afs_dataversion_t	store_version;	/* updated version expected from store */
+	afs_dataversion_t	expected_version; /* Updated version expected from store */
+	afs_dataversion_t	expected_version_2; /* 2nd updated version expected from store */
 };
 
 struct afs_call_type {
@@ -173,6 +174,7 @@ struct afs_read {
 	loff_t			len;		/* How much we're asking for */
 	loff_t			actual_len;	/* How much we're actually getting */
 	loff_t			remain;		/* Amount remaining */
+	afs_dataversion_t	new_version;	/* Version number returned by server */
 	atomic_t		usage;
 	unsigned int		index;		/* Which page we're reading into */
 	unsigned int		nr_pages;
@@ -702,7 +704,7 @@ extern int afs_flock(struct file *, int, struct file_lock *);
 /*
  * fsclient.c
  */
-extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_volsync *);
+extern int afs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_volsync *, bool);
 extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *);
 extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct afs_read *);
 extern int afs_fs_create(struct afs_fs_cursor *, const char *, umode_t,
@@ -735,7 +737,7 @@ extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
 /*
  * inode.c
  */
-extern int afs_fetch_status(struct afs_vnode *, struct key *);
+extern int afs_fetch_status(struct afs_vnode *, struct key *, bool);
 extern int afs_iget5_test(struct inode *, void *);
 extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct super_block *, struct key *,

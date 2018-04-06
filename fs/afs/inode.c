@@ -105,7 +105,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 /*
  * Fetch file status from the volume.
  */
-int afs_fetch_status(struct afs_vnode *vnode, struct key *key)
+int afs_fetch_status(struct afs_vnode *vnode, struct key *key, bool new_inode)
 {
 	struct afs_fs_cursor fc;
 	int ret;
@@ -119,7 +119,7 @@ int afs_fetch_status(struct afs_vnode *vnode, struct key *key)
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
-			afs_fs_fetch_file_status(&fc, NULL);
+			afs_fs_fetch_file_status(&fc, NULL, new_inode);
 		}
 
 		afs_check_for_remote_deletion(&fc, fc.vnode);
@@ -307,7 +307,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 
 	if (!status) {
 		/* it's a remotely extant inode */
-		ret = afs_fetch_status(vnode, key);
+		ret = afs_fetch_status(vnode, key, true);
 		if (ret < 0)
 			goto bad_inode;
 	} else {
@@ -432,7 +432,7 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	 * access */
 	if (!test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		_debug("not promised");
-		ret = afs_fetch_status(vnode, key);
+		ret = afs_fetch_status(vnode, key, false);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
