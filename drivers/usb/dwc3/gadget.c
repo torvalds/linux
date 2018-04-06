@@ -2311,10 +2311,11 @@ static bool dwc3_gadget_ep_request_completed(struct dwc3_request *req)
 static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
-	struct dwc3_request	*req, *n;
+	struct dwc3_request	*req;
+	struct dwc3_request	*tmp;
 	int			ret = 0;
 
-	list_for_each_entry_safe(req, n, &dep->started_list, list) {
+	list_for_each_entry_safe(req, tmp, &dep->started_list, list) {
 		unsigned length;
 
 		length = req->request.length;
