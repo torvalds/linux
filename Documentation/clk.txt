@@ -268,9 +268,19 @@ The common clock framework uses two global locks, the prepare lock and the
 enable lock.
 
 The enable lock is a spinlock and is held across calls to the .enable,
-.disable and .is_enabled operations. Those operations are thus not allowed to
-sleep, and calls to the clk_enable(), clk_disable() and clk_is_enabled() API
-functions are allowed in atomic context.
+.disable operations. Those operations are thus not allowed to sleep,
+and calls to the clk_enable(), clk_disable() API functions are allowed in
+atomic context.
+
+For clk_is_enabled() API, it is also designed to be allowed to be used in
+atomic context. However, it doesn't really make any sense to hold the enable
+lock in core, unless you want to do something else with the information of
+the enable state with that lock held. Otherwise, seeing if a clk is enabled is
+a one-shot read of the enabled state, which could just as easily change after
+the function returns because the lock is released. Thus the user of this API
+needs to handle synchronizing the read of the state with whatever they're
+using it for to make sure that the enable state doesn't change during that
+time.
 
 The prepare lock is a mutex and is held across calls to all other operations.
 All those operations are allowed to sleep, and calls to the corresponding API

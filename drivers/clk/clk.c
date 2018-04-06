@@ -2488,19 +2488,7 @@ static int clk_summary_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-
-static int clk_summary_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clk_summary_show, inode->i_private);
-}
-
-static const struct file_operations clk_summary_fops = {
-	.open		= clk_summary_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(clk_summary);
 
 static void clk_dump_one(struct seq_file *s, struct clk_core *c, int level)
 {
@@ -2534,7 +2522,7 @@ static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 	seq_putc(s, '}');
 }
 
-static int clk_dump(struct seq_file *s, void *data)
+static int clk_dump_show(struct seq_file *s, void *data)
 {
 	struct clk_core *c;
 	bool first_node = true;
@@ -2557,19 +2545,7 @@ static int clk_dump(struct seq_file *s, void *data)
 	seq_puts(s, "}\n");
 	return 0;
 }
-
-
-static int clk_dump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clk_dump, inode->i_private);
-}
-
-static const struct file_operations clk_dump_fops = {
-	.open		= clk_dump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(clk_dump);
 
 static const struct {
 	unsigned long flag;
@@ -2591,7 +2567,7 @@ static const struct {
 #undef ENTRY
 };
 
-static int clk_flags_dump(struct seq_file *s, void *data)
+static int clk_flags_show(struct seq_file *s, void *data)
 {
 	struct clk_core *core = s->private;
 	unsigned long flags = core->flags;
@@ -2610,20 +2586,9 @@ static int clk_flags_dump(struct seq_file *s, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(clk_flags);
 
-static int clk_flags_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, clk_flags_dump, inode->i_private);
-}
-
-static const struct file_operations clk_flags_fops = {
-	.open		= clk_flags_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int possible_parents_dump(struct seq_file *s, void *data)
+static int possible_parents_show(struct seq_file *s, void *data)
 {
 	struct clk_core *core = s->private;
 	int i;
@@ -2635,18 +2600,7 @@ static int possible_parents_dump(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int possible_parents_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, possible_parents_dump, inode->i_private);
-}
-
-static const struct file_operations possible_parents_fops = {
-	.open		= possible_parents_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(possible_parents);
 
 static int clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 {
