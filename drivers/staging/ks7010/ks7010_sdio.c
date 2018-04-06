@@ -952,7 +952,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	priv = netdev_priv(netdev);
 
 	card->priv = priv;
-	SET_NETDEV_DEV(netdev, &card->func->dev);	/* for create sysfs symlinks */
+	SET_NETDEV_DEV(netdev, &card->func->dev);
 
 	ks7010_private_init(priv, card, netdev);
 
