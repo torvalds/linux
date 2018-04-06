@@ -118,6 +118,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_init(struct ibmvnic_adapter *);
 static void release_crq_queue(struct ibmvnic_adapter *);
 static int __ibmvnic_set_mac(struct net_device *netdev, struct sockaddr *p);
+static int init_crq_queue(struct ibmvnic_adapter *adapter);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -1224,7 +1225,6 @@ static int __ibmvnic_close(struct net_device *netdev)
 	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_DN);
 	if (rc)
 		return rc;
-	ibmvnic_cleanup(netdev);
 	adapter->state = VNIC_CLOSED;
 	return 0;
 }
@@ -1244,6 +1244,7 @@ static int ibmvnic_close(struct net_device *netdev)
 
 	mutex_lock(&adapter->reset_lock);
 	rc = __ibmvnic_close(netdev);
+	ibmvnic_cleanup(netdev);
 	mutex_unlock(&adapter->reset_lock);
 
 	return rc;
@@ -1726,14 +1727,10 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	old_num_rx_queues = adapter->req_rx_queues;
 	old_num_tx_queues = adapter->req_tx_queues;
 
-	if (rwi->reset_reason == VNIC_RESET_MOBILITY) {
-		rc = ibmvnic_reenable_crq_queue(adapter);
-		if (rc)
-			return 0;
-		ibmvnic_cleanup(netdev);
-	} else if (rwi->reset_reason == VNIC_RESET_FAILOVER) {
-		ibmvnic_cleanup(netdev);
-	} else {
+	ibmvnic_cleanup(netdev);
+
+	if (adapter->reset_reason != VNIC_RESET_MOBILITY &&
+	    adapter->reset_reason != VNIC_RESET_FAILOVER) {
 		rc = __ibmvnic_close(netdev);
 		if (rc)
 			return rc;
@@ -1751,6 +1748,23 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		 * we are coming from the probed state.
 		 */
 		adapter->state = VNIC_PROBED;
+
+		if (adapter->wait_for_reset) {
+			rc = init_crq_queue(adapter);
+		} else if (adapter->reset_reason == VNIC_RESET_MOBILITY) {
+			rc = ibmvnic_reenable_crq_queue(adapter);
+			release_sub_crqs(adapter, 1);
+		} else {
+			rc = ibmvnic_reset_crq(adapter);
+			if (!rc)
+				rc = vio_enable_interrupts(adapter->vdev);
+		}
+
+		if (rc) {
+			netdev_err(adapter->netdev,
+				   "Couldn't initialize crq. rc=%d\n", rc);
+			return rc;
+		}
 
 		rc = ibmvnic_init(adapter);
 		if (rc)
@@ -4500,19 +4514,6 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	u64 old_num_rx_queues, old_num_tx_queues;
 	int rc;
 
-	if (adapter->resetting && !adapter->wait_for_reset) {
-		rc = ibmvnic_reset_crq(adapter);
-		if (!rc)
-			rc = vio_enable_interrupts(adapter->vdev);
-	} else {
-		rc = init_crq_queue(adapter);
-	}
-
-	if (rc) {
-		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
-		return rc;
-	}
-
 	adapter->from_passive_init = false;
 
 	old_num_rx_queues = adapter->req_rx_queues;
@@ -4537,7 +4538,8 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		return -1;
 	}
 
-	if (adapter->resetting && !adapter->wait_for_reset) {
+	if (adapter->resetting && !adapter->wait_for_reset &&
+	    adapter->reset_reason != VNIC_RESET_MOBILITY) {
 		if (adapter->req_rx_queues != old_num_rx_queues ||
 		    adapter->req_tx_queues != old_num_tx_queues) {
 			release_sub_crqs(adapter, 0);
@@ -4625,6 +4627,13 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	adapter->mac_change_pending = false;
 
 	do {
+		rc = init_crq_queue(adapter);
+		if (rc) {
+			dev_err(&dev->dev, "Couldn't initialize crq. rc=%d\n",
+				rc);
+			goto ibmvnic_init_fail;
+		}
+
 		rc = ibmvnic_init(adapter);
 		if (rc && rc != EAGAIN)
 			goto ibmvnic_init_fail;
