@@ -109,12 +109,6 @@ static unsigned int calc_duration_in_us_from_v_total(
 				* 1000) * stream->timing.h_total,
 					stream->timing.pix_clk_khz));
 
-	if (duration_in_us < in_vrr->min_duration_in_us)
-		duration_in_us = in_vrr->min_duration_in_us;
-
-	if (duration_in_us > in_vrr->max_duration_in_us)
-		duration_in_us = in_vrr->max_duration_in_us;
-
 	return duration_in_us;
 }
 
@@ -230,10 +224,9 @@ static void update_v_total_for_static_ramp(
 		}
 	}
 
-	v_total = calc_v_total_from_duration(stream,
-			in_out_vrr,
-			current_duration_in_us);
-
+	v_total = div64_u64(div64_u64(((unsigned long long)(
+			current_duration_in_us) * stream->timing.pix_clk_khz),
+				stream->timing.h_total), 1000);
 
 	in_out_vrr->adjust.v_total_min = v_total;
 	in_out_vrr->adjust.v_total_max = v_total;
@@ -702,7 +695,11 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	} else if (in_out_vrr->state == VRR_STATE_ACTIVE_FIXED) {
 		in_out_vrr->fixed.target_refresh_in_uhz =
 				in_out_vrr->min_refresh_in_uhz;
-		if (in_out_vrr->fixed.ramping_active) {
+		if (in_out_vrr->fixed.ramping_active &&
+				in_out_vrr->fixed.fixed_active) {
+			/* Do not update vtotals if ramping is already active
+			 * in order to continue ramp from current refresh.
+			 */
 			in_out_vrr->fixed.fixed_active = true;
 		} else {
 			in_out_vrr->fixed.fixed_active = true;
