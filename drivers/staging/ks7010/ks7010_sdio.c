@@ -305,7 +305,8 @@ static void tx_device_task(struct ks_wlan_private *priv)
 	if (priv->dev_state >= DEVICE_STATE_BOOT) {
 		ret = write_to_device(priv, sp->sendp, sp->size);
 		if (ret) {
-			netdev_err(priv->net_dev, "write_to_device error !!(%d)\n", ret);
+			netdev_err(priv->net_dev,
+				   "write_to_device error !!(%d)\n", ret);
 			queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 			return;
 		}
@@ -539,7 +540,8 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
 				if (cnt_txqbody(priv)) {
 					ks_wlan_hw_wakeup_request(priv);
-					queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
+					queue_delayed_work(priv->wq,
+							   &priv->rw_dwork, 1);
 					return;
 				}
 			} else {
