@@ -2221,7 +2221,6 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status, int chain)
 {
 	unsigned int		count;
-	unsigned int		s_pkt = 0;
 
 	dwc3_ep_inc_deq(dep);
 
@@ -2256,12 +2255,7 @@ static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3_ep *dep,
 	if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
 		return 1;
 
-	if (!dep->direction) {
-		if (count && (event->status & DEPEVT_STATUS_SHORT))
-			s_pkt = 1;
-	}
-
-	if (s_pkt && !chain)
+	if (event->status & DEPEVT_STATUS_SHORT && !chain)
 		return 1;
 
 	if ((event->status & DEPEVT_STATUS_IOC) &&
