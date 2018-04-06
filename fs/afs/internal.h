@@ -174,12 +174,14 @@ struct afs_read {
 	loff_t			len;		/* How much we're asking for */
 	loff_t			actual_len;	/* How much we're actually getting */
 	loff_t			remain;		/* Amount remaining */
-	afs_dataversion_t	new_version;	/* Version number returned by server */
-	atomic_t		usage;
+	loff_t			file_size;	/* File size returned by server */
+	afs_dataversion_t	data_version;	/* Version number returned by server */
+	refcount_t		usage;
 	unsigned int		index;		/* Which page we're reading into */
 	unsigned int		nr_pages;
 	void (*page_done)(struct afs_call *, struct afs_read *);
-	struct page		*pages[];
+	struct page		**pages;
+	struct page		*array[];
 };
 
 /*
@@ -267,6 +269,7 @@ struct afs_net {
 	atomic_t		n_lookup;	/* Number of lookups done */
 	atomic_t		n_reval;	/* Number of dentries needing revalidation */
 	atomic_t		n_inval;	/* Number of invalidations by the server */
+	atomic_t		n_relpg;	/* Number of invalidations by releasepage */
 	atomic_t		n_read_dir;	/* Number of directory pages read */
 };
 
@@ -491,7 +494,7 @@ struct afs_vnode {
 	unsigned long		flags;
 #define AFS_VNODE_CB_PROMISED	0		/* Set if vnode has a callback promise */
 #define AFS_VNODE_UNSET		1		/* set if vnode attributes not yet set */
-#define AFS_VNODE_DIR_MODIFIED	2		/* set if dir vnode's data modified */
+#define AFS_VNODE_DIR_VALID	2		/* Set if dir contents are valid */
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
 #define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
@@ -671,9 +674,9 @@ extern bool afs_cm_incoming_call(struct afs_call *);
  */
 extern const struct file_operations afs_dir_file_operations;
 extern const struct inode_operations afs_dir_inode_operations;
+extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
-extern bool afs_dir_check_page(struct inode *, struct page *);
 extern void afs_d_release(struct dentry *);
 
 /*

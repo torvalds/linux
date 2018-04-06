@@ -53,11 +53,13 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 		inode->i_mode	= S_IFREG | vnode->status.mode;
 		inode->i_op	= &afs_file_inode_operations;
 		inode->i_fop	= &afs_file_operations;
+		inode->i_mapping->a_ops	= &afs_fs_aops;
 		break;
 	case AFS_FTYPE_DIR:
 		inode->i_mode	= S_IFDIR | vnode->status.mode;
 		inode->i_op	= &afs_dir_inode_operations;
 		inode->i_fop	= &afs_dir_file_operations;
+		inode->i_mapping->a_ops	= &afs_dir_aops;
 		break;
 	case AFS_FTYPE_SYMLINK:
 		/* Symlinks with a mode of 0644 are actually mountpoints. */
@@ -69,9 +71,11 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 			inode->i_mode	= S_IFDIR | 0555;
 			inode->i_op	= &afs_mntpt_inode_operations;
 			inode->i_fop	= &afs_mntpt_file_operations;
+			inode->i_mapping->a_ops	= &afs_fs_aops;
 		} else {
 			inode->i_mode	= S_IFLNK | vnode->status.mode;
 			inode->i_op	= &afs_symlink_inode_operations;
+			inode->i_mapping->a_ops	= &afs_fs_aops;
 		}
 		inode_nohighmem(inode);
 		break;
@@ -82,15 +86,9 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 	}
 
 	inode->i_blocks		= 0;
-	inode->i_mapping->a_ops	= &afs_fs_aops;
 	vnode->invalid_before	= vnode->status.data_version;
 
 	read_sequnlock_excl(&vnode->cb_lock);
-
-#ifdef CONFIG_AFS_FSCACHE
-	if (vnode->status.size > 0)
-		fscache_attr_changed(vnode->cache);
-#endif
 	return 0;
 }
 
@@ -247,6 +245,11 @@ static void afs_get_inode_cache(struct afs_vnode *vnode)
 	} __packed key;
 	struct afs_vnode_cache_aux aux;
 
+	if (vnode->status.type == AFS_FTYPE_DIR) {
+		vnode->cache = NULL;
+		return;
+	}
+
 	key.vnode_id		= vnode->fid.vnode;
 	key.unique		= vnode->fid.unique;
 	key.vnode_id_ext[0]	= 0;
@@ -338,10 +341,6 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 
 	/* failure */
 bad_inode:
-#ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vnode->cache, NULL, ret == -ENOENT);
-	vnode->cache = NULL;
-#endif
 	iget_failed(inode);
 	_leave(" = %d [bad]", ret);
 	return ERR_PTR(ret);
@@ -354,9 +353,6 @@ bad_inode:
 void afs_zap_data(struct afs_vnode *vnode)
 {
 	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
-
-	if (S_ISDIR(vnode->vfs_inode.i_mode))
-		afs_stat_v(vnode, n_inval);
 
 #ifdef CONFIG_AFS_FSCACHE
 	fscache_invalidate(vnode->cache);
@@ -399,7 +395,7 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
 		if (vnode->cb_s_break != vnode->cb_interest->server->cb_s_break) {
 			vnode->cb_s_break = vnode->cb_interest->server->cb_s_break;
-		} else if (!test_bit(AFS_VNODE_DIR_MODIFIED, &vnode->flags) &&
+		} else if (test_bit(AFS_VNODE_DIR_VALID, &vnode->flags) &&
 			   !test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) &&
 			   vnode->cb_expires_at - 10 > now) {
 				valid = true;
@@ -445,8 +441,6 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	 * different */
 	if (test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags))
 		afs_zap_data(vnode);
-
-	clear_bit(AFS_VNODE_DIR_MODIFIED, &vnode->flags);
 	mutex_unlock(&vnode->validate_lock);
 valid:
 	_leave(" = 0");

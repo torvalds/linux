@@ -187,10 +187,12 @@ void afs_put_read(struct afs_read *req)
 {
 	int i;
 
-	if (atomic_dec_and_test(&req->usage)) {
+	if (refcount_dec_and_test(&req->usage)) {
 		for (i = 0; i < req->nr_pages; i++)
 			if (req->pages[i])
 				put_page(req->pages[i]);
+		if (req->pages != req->array)
+			kfree(req->pages);
 		kfree(req);
 	}
 }
@@ -297,10 +299,11 @@ int afs_page_filler(void *data, struct page *page)
 		 * end of the file, the server will return a short read and the
 		 * unmarshalling code will clear the unfilled space.
 		 */
-		atomic_set(&req->usage, 1);
+		refcount_set(&req->usage, 1);
 		req->pos = (loff_t)page->index << PAGE_SHIFT;
 		req->len = PAGE_SIZE;
 		req->nr_pages = 1;
+		req->pages = req->array;
 		req->pages[0] = page;
 		get_page(page);
 
@@ -308,10 +311,6 @@ int afs_page_filler(void *data, struct page *page)
 		 * page */
 		ret = afs_fetch_data(vnode, key, req);
 		afs_put_read(req);
-
-		if (ret >= 0 && S_ISDIR(inode->i_mode) &&
-		    !afs_dir_check_page(inode, page))
-			ret = -EIO;
 
 		if (ret < 0) {
 			if (ret == -ENOENT) {
@@ -447,10 +446,11 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	if (!req)
 		return -ENOMEM;
 
-	atomic_set(&req->usage, 1);
+	refcount_set(&req->usage, 1);
 	req->page_done = afs_readpages_page_done;
 	req->pos = first->index;
 	req->pos <<= PAGE_SHIFT;
+	req->pages = req->array;
 
 	/* Transfer the pages to the request.  We add them in until one fails
 	 * to add to the LRU and then we stop (as that'll make a hole in the

@@ -910,10 +910,11 @@ static int afs_proc_stats_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "kAFS statistics\n");
 
-	seq_printf(m, "dir-mgmt: look=%u reval=%u inval=%u\n",
+	seq_printf(m, "dir-mgmt: look=%u reval=%u inval=%u relpg=%u\n",
 		   atomic_read(&net->n_lookup),
 		   atomic_read(&net->n_reval),
-		   atomic_read(&net->n_inval));
+		   atomic_read(&net->n_inval),
+		   atomic_read(&net->n_relpg));
 
 	seq_printf(m, "dir-data: rdpg=%u\n",
 		   atomic_read(&net->n_read_dir));

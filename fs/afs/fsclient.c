@@ -101,8 +101,12 @@ void afs_update_inode_from_status(struct afs_vnode *vnode,
 			       vnode->fid.vid, vnode->fid.vnode,
 			       (unsigned long long) *expected_version);
 			vnode->invalid_before = status->data_version;
-			set_bit(AFS_VNODE_DIR_MODIFIED, &vnode->flags);
-			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
+			if (vnode->status.type == AFS_FTYPE_DIR) {
+				if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
+					afs_stat_v(vnode, n_inval);
+			} else {
+				set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
+			}
 		}
 	}
 
@@ -119,7 +123,7 @@ static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
 				     struct afs_file_status *status,
 				     struct afs_vnode *vnode,
 				     const afs_dataversion_t *expected_version,
-				     afs_dataversion_t *_version)
+				     struct afs_read *read_req)
 {
 	const struct afs_xdr_AFSFetchStatus *xdr = (const void *)*_bp;
 	u64 data_version, size;
@@ -197,8 +201,11 @@ static int xdr_decode_AFSFetchStatus(const __be32 **_bp,
 		status->data_version = data_version;
 		flags |= AFS_VNODE_DATA_CHANGED;
 	}
-	if (_version)
-		*_version = data_version;
+
+	if (read_req) {
+		read_req->data_version = data_version;
+		read_req->file_size = size;
+	}
 
 	*_bp = (const void *)*_bp + sizeof(*xdr);
 
@@ -543,8 +550,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		bp = call->buffer;
 		if (xdr_decode_AFSFetchStatus(&bp, &vnode->status, vnode,
-					      &vnode->status.data_version,
-					      &req->new_version) < 0)
+					      &vnode->status.data_version, req) < 0)
 			return -EBADMSG;
 		xdr_decode_AFSCallBack(call, vnode, &bp);
 		if (call->reply[1])
@@ -628,7 +634,7 @@ static int afs_fs_fetch_data64(struct afs_fs_cursor *fc, struct afs_read *req)
 	bp[6] = 0;
 	bp[7] = htonl(lower_32_bits(req->len));
 
-	atomic_inc(&req->usage);
+	refcount_inc(&req->usage);
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);
@@ -671,7 +677,7 @@ int afs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_read *req)
 	bp[4] = htonl(lower_32_bits(req->pos));
 	bp[5] = htonl(lower_32_bits(req->len));
 
-	atomic_inc(&req->usage);
+	refcount_inc(&req->usage);
 	call->cb_break = fc->cb_break;
 	afs_use_fs_server(call, fc->cbi);
 	trace_afs_make_fs_call(call, &vnode->fid);

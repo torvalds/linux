@@ -42,10 +42,11 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 	if (!req)
 		return -ENOMEM;
 
-	atomic_set(&req->usage, 1);
+	refcount_set(&req->usage, 1);
 	req->pos = pos;
 	req->len = len;
 	req->nr_pages = 1;
+	req->pages = req->array;
 	req->pages[0] = page;
 	get_page(page);
 
