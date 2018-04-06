@@ -343,7 +343,7 @@ static void i915_request_retire(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	struct i915_gem_active *active, *next;
 
-	GEM_TRACE("%s fence %llx:%d, global_seqno %d, current %d\n",
+	GEM_TRACE("%s fence %llx:%d, global=%d, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  request->global_seqno,
@@ -466,7 +466,7 @@ void __i915_request_submit(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	u32 seqno;
 
-	GEM_TRACE("%s fence %llx:%d -> global_seqno %d, current %d\n",
+	GEM_TRACE("%s fence %llx:%d -> global=%d, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  engine->timeline->seqno + 1,
@@ -516,7 +516,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%d <- global_seqno %d, current %d\n",
+	GEM_TRACE("%s fence %llx:%d <- global=%d, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  request->global_seqno,
