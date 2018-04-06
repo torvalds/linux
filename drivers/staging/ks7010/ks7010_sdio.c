@@ -67,8 +67,8 @@ static inline unsigned int cnt_rxqbody(struct ks_wlan_private *priv)
 }
 
 /* Read single byte from device address into byte (CMD52) */
-static int ks7010_sdio_readb(struct ks_wlan_private *priv, unsigned int address,
-			     unsigned char *byte)
+static int ks7010_sdio_readb(struct ks_wlan_private *priv,
+			     u32 address, u8 *byte)
 {
 	struct sdio_func *func = priv->ks_sdio_card->func;
 	int ret;
@@ -79,8 +79,8 @@ static int ks7010_sdio_readb(struct ks_wlan_private *priv, unsigned int address,
 }
 
 /* Read length bytes from device address into buffer (CMD53) */
-static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
-			    unsigned char *buffer, int length)
+static int ks7010_sdio_read(struct ks_wlan_private *priv, u32 address,
+			    u8 *buffer, unsigned int length)
 {
 	struct sdio_func *func = priv->ks_sdio_card->func;
 
@@ -89,7 +89,7 @@ static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 
 /* Write single byte to device address (CMD52) */
 static int ks7010_sdio_writeb(struct ks_wlan_private *priv,
-			      unsigned int address, unsigned char byte)
+			      u32 address, u8 byte)
 {
 	struct sdio_func *func = priv->ks_sdio_card->func;
 	int ret;
@@ -100,8 +100,8 @@ static int ks7010_sdio_writeb(struct ks_wlan_private *priv,
 }
 
 /* Write length bytes to device address from buffer (CMD53) */
-static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
-			     unsigned char *buffer, int length)
+static int ks7010_sdio_write(struct ks_wlan_private *priv, u32 address,
+			     u8 *buffer, unsigned int length)
 {
 	struct sdio_func *func = priv->ks_sdio_card->func;
 
