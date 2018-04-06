@@ -333,8 +333,6 @@ source "drivers/mtd/devices/Kconfig"
 
 source "drivers/mtd/nand/Kconfig"
 
-source "drivers/mtd/onenand/Kconfig"
-
 source "drivers/mtd/lpddr/Kconfig"
 
 source "drivers/mtd/spi-nor/Kconfig"
