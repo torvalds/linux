@@ -1744,17 +1744,11 @@ static void ui_browser__hists_init_top(struct ui_browser *browser)
 static unsigned int hist_browser__refresh(struct ui_browser *browser)
 {
 	unsigned row = 0;
-	u16 header_offset = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
-	struct hists *hists = hb->hists;
 
-	if (hb->show_headers) {
-		struct perf_hpp_list *hpp_list = hists->hpp_list;
-
+	if (hb->show_headers)
 		hist_browser__show_headers(hb);
-		header_offset = hpp_list->nr_header_lines;
-	}
 
 	ui_browser__hists_init_top(browser);
 	hb->he_selection = NULL;
@@ -1792,7 +1786,7 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			break;
 	}
 
-	return row + header_offset;
+	return row;
 }
 
 static struct rb_node *hists__filter_entries(struct rb_node *nd,
