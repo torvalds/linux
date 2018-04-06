@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 static char *mcam_clks[] = {"CCICAXICLK", "CCICFUNCLK", "CCICPHYCLK"};
 
 struct mmp_camera {
-	void *power_regs;
+	void __iomem *power_regs;
 	struct platform_device *pdev;
 	struct mcam_camera mcam;
 	struct list_head devlist;
