@@ -2315,10 +2315,8 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 	struct dwc3_request	*tmp;
 
 	list_for_each_entry_safe(req, tmp, &dep->started_list, list) {
-		unsigned length;
 		int ret;
 
-		length = req->request.length;
 		if (req->num_pending_sgs)
 			ret = dwc3_gadget_ep_reclaim_trb_sg(dep, req, event,
 					status);
@@ -2333,7 +2331,7 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 			req->zero = false;
 		}
 
-		req->request.actual = length - req->remaining;
+		req->request.actual = req->request.length - req->remaining;
 
 		if (!dwc3_gadget_ep_request_completed(req) ||
 				req->num_pending_sgs) {
