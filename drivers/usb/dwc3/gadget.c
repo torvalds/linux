@@ -2308,6 +2308,40 @@ static bool dwc3_gadget_ep_request_completed(struct dwc3_request *req)
 	return req->request.actual == req->request.length;
 }
 
+static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
+		const struct dwc3_event_depevt *event,
+		struct dwc3_request *req, int status)
+{
+	int ret;
+
+	if (req->num_pending_sgs)
+		ret = dwc3_gadget_ep_reclaim_trb_sg(dep, req, event,
+				status);
+	else
+		ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
+				status);
+
+	if (req->unaligned || req->zero) {
+		ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
+				status);
+		req->unaligned = false;
+		req->zero = false;
+	}
+
+	req->request.actual = req->request.length - req->remaining;
+
+	if (!dwc3_gadget_ep_request_completed(req) &&
+			req->num_pending_sgs) {
+		__dwc3_gadget_kick_transfer(dep);
+		goto out;
+	}
+
+	dwc3_gadget_giveback(dep, req, status);
+
+out:
+	return ret;
+}
+
 static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
@@ -2317,30 +2351,8 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 	list_for_each_entry_safe(req, tmp, &dep->started_list, list) {
 		int ret;
 
-		if (req->num_pending_sgs)
-			ret = dwc3_gadget_ep_reclaim_trb_sg(dep, req, event,
-					status);
-		else
-			ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
-					status);
-
-		if (req->unaligned || req->zero) {
-			ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
-					status);
-			req->unaligned = false;
-			req->zero = false;
-		}
-
-		req->request.actual = req->request.length - req->remaining;
-
-		if (!dwc3_gadget_ep_request_completed(req) ||
-				req->num_pending_sgs) {
-			__dwc3_gadget_kick_transfer(dep);
-			break;
-		}
-
-		dwc3_gadget_giveback(dep, req, status);
-
+		ret = dwc3_gadget_ep_cleanup_completed_request(dep, event,
+				req, status);
 		if (ret)
 			break;
 	}
