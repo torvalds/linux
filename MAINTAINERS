@@ -10729,6 +10729,7 @@ L:	linux-pci@vger.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-pci/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lpieralisi/pci.git/
 S:	Supported
+F:	drivers/pci/cadence/
 F:	drivers/pci/host/
 F:	drivers/pci/dwc/
 
