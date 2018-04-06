@@ -7223,7 +7223,7 @@ static void wakeup_handler(void)
 	spin_unlock(&per_cpu(blocked_vcpu_on_cpu_lock, cpu));
 }
 
-void vmx_enable_tdp(void)
+static void vmx_enable_tdp(void)
 {
 	kvm_mmu_set_mask_ptes(VMX_EPT_READABLE_MASK,
 		enable_ept_ad_bits ? VMX_EPT_ACCESS_BIT : 0ull,
