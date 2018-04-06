@@ -38,8 +38,6 @@ static inline unsigned int cnt_smeqbody(struct ks_wlan_private *priv)
 	return (sme_cnt + SME_EVENT_BUFF_SIZE) % SME_EVENT_BUFF_SIZE;
 }
 
-#define KS_WLAN_MEM_FLAG (GFP_ATOMIC)
-
 static inline u8 get_byte(struct ks_wlan_private *priv)
 {
 	u8 data;
@@ -1044,7 +1042,7 @@ static void *hostif_generic_request(size_t size, int event)
 {
 	struct hostif_hdr *p;
 
-	p = kzalloc(hif_align_size(size), KS_WLAN_MEM_FLAG);
+	p = kzalloc(hif_align_size(size), GFP_ATOMIC);
 	if (!p)
 		return NULL;
 
@@ -1098,7 +1096,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	}
 
 	size = sizeof(*pp) + 6 + skb_len + 8;
-	pp = kmalloc(hif_align_size(size), KS_WLAN_MEM_FLAG);
+	pp = kmalloc(hif_align_size(size), GFP_ATOMIC);
 	if (!pp) {
 		ret = -ENOMEM;
 		goto err_kfree_skb;
