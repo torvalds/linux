@@ -589,11 +589,10 @@ static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 	int ret;
 	unsigned char *data_buf;
 
-	data_buf = kmalloc(sizeof(u32), GFP_KERNEL);
+	data_buf = kmemdup(&index, sizeof(u32), GFP_KERNEL);
 	if (!data_buf)
 		return -ENOMEM;
 
-	memcpy(data_buf, &index, sizeof(index));
 	ret = ks7010_sdio_write(priv, WRITE_INDEX, data_buf, sizeof(index));
 	if (ret)
 		goto err_free_data_buf;
