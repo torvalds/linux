@@ -284,19 +284,35 @@ static inline u64 readq_relaxed(const volatile void __iomem *addr)
 #endif
 
 #ifndef writeb_relaxed
-#define writeb_relaxed writeb
+#define writeb_relaxed writeb_relaxed
+static inline void writeb_relaxed(u8 value, volatile void __iomem *addr)
+{
+	__raw_writeb(value, addr);
+}
 #endif
 
 #ifndef writew_relaxed
-#define writew_relaxed writew
+#define writew_relaxed writew_relaxed
+static inline void writew_relaxed(u16 value, volatile void __iomem *addr)
+{
+	__raw_writew(cpu_to_le16(value), addr);
+}
 #endif
 
 #ifndef writel_relaxed
-#define writel_relaxed writel
+#define writel_relaxed writel_relaxed
+static inline void writel_relaxed(u32 value, volatile void __iomem *addr)
+{
+	__raw_writel(__cpu_to_le32(value), addr);
+}
 #endif
 
 #if defined(writeq) && !defined(writeq_relaxed)
-#define writeq_relaxed writeq
+#define writeq_relaxed writeq_relaxed
+static inline void writeq_relaxed(u64 value, volatile void __iomem *addr)
+{
+	__raw_writeq(__cpu_to_le64(value), addr);
+}
 #endif
 
 /*
