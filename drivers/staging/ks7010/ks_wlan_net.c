@@ -966,7 +966,6 @@ static int ks_wlan_get_encode(struct net_device *dev,
 		dwrq->length = priv->reg.wep_key[index].size;
 	if (dwrq->length > 16)
 		dwrq->length = 0;
-#if 1	/* IW_ENCODE_NOKEY; */
 	if (dwrq->length) {
 		if ((index >= 0) && (index < 4))
 			memcpy(extra, priv->reg.wep_key[index].val,
@@ -974,7 +973,7 @@ static int ks_wlan_get_encode(struct net_device *dev,
 	} else {
 		memcpy(extra, zeros, dwrq->length);
 	}
-#endif
+
 	return 0;
 }
 
