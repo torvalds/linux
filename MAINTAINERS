@@ -4287,6 +4287,7 @@ Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
 S:	Maintained
 F:	drivers/dma/
 F:	include/linux/dmaengine.h
+F:	include/linux/of_dma.h
 F:	Documentation/devicetree/bindings/dma/
 F:	Documentation/driver-api/dmaengine/
 T:	git git://git.infradead.org/users/vkoul/slave-dma.git
@@ -5986,6 +5987,7 @@ F:	Documentation/ABI/obsolete/sysfs-gpio
 F:	drivers/gpio/
 F:	include/linux/gpio/
 F:	include/linux/gpio.h
+F:	include/linux/of_gpio.h
 F:	include/asm-generic/gpio.h
 F:	include/uapi/linux/gpio.h
 F:	tools/gpio/
@@ -7295,6 +7297,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iommu/
 F:	drivers/iommu/
 F:	include/linux/iommu.h
+F:	include/linux/of_iommu.h
 F:	include/linux/iova.h
 
 IP MASQUERADING
@@ -10785,6 +10788,7 @@ F:	drivers/acpi/pci*
 F:	drivers/pci/
 F:	include/asm-generic/pci*
 F:	include/linux/pci*
+F:	include/linux/of_pci.h
 F:	include/uapi/linux/pci*
 F:	lib/pci*
 F:	arch/x86/pci/

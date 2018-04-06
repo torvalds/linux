@@ -21,6 +21,16 @@ size_t strnlen(const char * s, size_t count)
 	return sc - s;
 }
 
+char *strrchr(const char *s, int c)
+{
+	const char *last = NULL;
+	do {
+		if (*s == (char)c)
+			last = s;
+	} while (*s++);
+	return (char *)last;
+}
+
 #ifdef __powerpc64__
 
 # define do_div(n, base) ({						\
