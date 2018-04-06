@@ -1027,7 +1027,7 @@ static int isif_probe(struct platform_device *pdev)
 {
 	void (*setup_pinmux)(void);
 	struct resource	*res;
-	void *__iomem addr;
+	void __iomem *addr;
 	int status = 0, i;
 
 	/* Platform data holds setup_pinmux function ptr */
