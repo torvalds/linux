@@ -1301,7 +1301,6 @@ xfs_create(
 int
 xfs_create_tmpfile(
 	struct xfs_inode	*dp,
-	struct dentry		*dentry,
 	umode_t			mode,
 	struct xfs_inode	**ipp)
 {
@@ -2895,7 +2894,7 @@ xfs_rename_alloc_whiteout(
 	struct xfs_inode	*tmpfile;
 	int			error;
 
-	error = xfs_create_tmpfile(dp, NULL, S_IFCHR | WHITEOUT_MODE, &tmpfile);
+	error = xfs_create_tmpfile(dp, S_IFCHR | WHITEOUT_MODE, &tmpfile);
 	if (error)
 		return error;
 

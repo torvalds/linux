@@ -198,7 +198,7 @@ xfs_filestream_pick_ag(
 			goto next_ag;
 		}
 
-		longest = xfs_alloc_longest_free_extent(mp, pag,
+		longest = xfs_alloc_longest_free_extent(pag,
 				xfs_alloc_min_freelist(mp, pag),
 				xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE));
 		if (((minlen && longest >= minlen) ||

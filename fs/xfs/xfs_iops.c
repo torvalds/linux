@@ -177,7 +177,7 @@ xfs_generic_create(
 	if (!tmpfile) {
 		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	} else {
-		error = xfs_create_tmpfile(XFS_I(dir), dentry, mode, &ip);
+		error = xfs_create_tmpfile(XFS_I(dir), mode, &ip);
 	}
 	if (unlikely(error))
 		goto out_free_acl;

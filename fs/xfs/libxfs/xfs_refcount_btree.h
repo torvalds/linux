@@ -60,8 +60,7 @@ struct xfs_mount;
 extern struct xfs_btree_cur *xfs_refcountbt_init_cursor(struct xfs_mount *mp,
 		struct xfs_trans *tp, struct xfs_buf *agbp, xfs_agnumber_t agno,
 		struct xfs_defer_ops *dfops);
-extern int xfs_refcountbt_maxrecs(struct xfs_mount *mp, int blocklen,
-		bool leaf);
+extern int xfs_refcountbt_maxrecs(int blocklen, bool leaf);
 extern void xfs_refcountbt_compute_maxlevels(struct xfs_mount *mp);
 
 extern xfs_extlen_t xfs_refcountbt_calc_size(struct xfs_mount *mp,

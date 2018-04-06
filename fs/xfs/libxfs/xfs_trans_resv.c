@@ -734,8 +734,7 @@ xfs_calc_clear_agi_bucket_reservation(
  *    the xfs_disk_dquot_t: sizeof(struct xfs_disk_dquot)
  */
 STATIC uint
-xfs_calc_qm_setqlim_reservation(
-	struct xfs_mount	*mp)
+xfs_calc_qm_setqlim_reservation(void)
 {
 	return xfs_calc_buf_res(1, sizeof(struct xfs_disk_dquot));
 }
@@ -772,8 +771,7 @@ xfs_calc_qm_quotaoff_reservation(
  *    the xfs_qoff_logitem_t: sizeof(struct xfs_qoff_logitem) * 2
  */
 STATIC uint
-xfs_calc_qm_quotaoff_end_reservation(
-	struct xfs_mount	*mp)
+xfs_calc_qm_quotaoff_end_reservation(void)
 {
 	return sizeof(struct xfs_qoff_logitem) * 2;
 }
@@ -877,14 +875,14 @@ xfs_trans_resv_calc(
 	 * The following transactions are logged in logical format with
 	 * a default log count.
 	 */
-	resp->tr_qm_setqlim.tr_logres = xfs_calc_qm_setqlim_reservation(mp);
+	resp->tr_qm_setqlim.tr_logres = xfs_calc_qm_setqlim_reservation();
 	resp->tr_qm_setqlim.tr_logcount = XFS_DEFAULT_LOG_COUNT;
 
 	resp->tr_qm_quotaoff.tr_logres = xfs_calc_qm_quotaoff_reservation(mp);
 	resp->tr_qm_quotaoff.tr_logcount = XFS_DEFAULT_LOG_COUNT;
 
 	resp->tr_qm_equotaoff.tr_logres =
-		xfs_calc_qm_quotaoff_end_reservation(mp);
+		xfs_calc_qm_quotaoff_end_reservation();
 	resp->tr_qm_equotaoff.tr_logcount = XFS_DEFAULT_LOG_COUNT;
 
 	resp->tr_sb.tr_logres = xfs_calc_sb_reservation(mp);
