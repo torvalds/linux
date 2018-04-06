@@ -55,8 +55,10 @@ config COMMON_CLK_RK808
 	  by control register.
 
 config COMMON_CLK_HI655X
-	tristate "Clock driver for Hi655x"
-	depends on MFD_HI655X_PMIC || COMPILE_TEST
+	tristate "Clock driver for Hi655x" if EXPERT
+	depends on (MFD_HI655X_PMIC || COMPILE_TEST)
+	depends on REGMAP
+	default MFD_HI655X_PMIC
 	---help---
 	  This driver supports the hi655x PMIC clock. This
 	  multi-function device has one fixed-rate oscillator, clocked
@@ -237,6 +239,26 @@ config COMMON_CLK_VC5
 	---help---
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
+
+config COMMON_CLK_STM32MP157
+	def_bool COMMON_CLK && MACH_STM32MP157
+	help
+	---help---
+	  Support for stm32mp157 SoC family clocks
+
+config COMMON_CLK_STM32F
+	bool "Clock driver for stm32f4 and stm32f7 SoC families"
+	depends on MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746
+	help
+	---help---
+	  Support for stm32f4 and stm32f7 SoC families clocks
+
+config COMMON_CLK_STM32H7
+	bool "Clock driver for stm32h7 SoC family"
+	depends on MACH_STM32H743
+	help
+	---help---
+	  Support for stm32h7 SoC family clocks
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
