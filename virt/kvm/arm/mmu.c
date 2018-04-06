@@ -196,6 +196,10 @@ static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr
  * This is why right after unmapping a page/section and invalidating
  * the corresponding TLBs, we call kvm_flush_dcache_p*() to make sure
  * the IO subsystem will never hit in the cache.
+ *
+ * This is all avoided on systems that have ARM64_HAS_STAGE2_FWB, as
+ * we then fully enforce cacheability of RAM, no matter what the guest
+ * does.
  */
 static void unmap_stage2_ptes(struct kvm *kvm, pmd_t *pmd,
 		       phys_addr_t addr, phys_addr_t end)

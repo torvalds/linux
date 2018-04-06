@@ -267,6 +267,15 @@ static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
 	void *va = page_address(pfn_to_page(pfn));
 
+	/*
+	 * With FWB, we ensure that the guest always accesses memory using
+	 * cacheable attributes, and we don't have to clean to PoC when
+	 * faulting in pages. Furthermore, FWB implies IDC, so cleaning to
+	 * PoU is not required either in this case.
+	 */
+	if (cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
+		return;
+
 	kvm_flush_dcache_to_poc(va, size);
 }
 
@@ -287,20 +296,26 @@ static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
 
 static inline void __kvm_flush_dcache_pte(pte_t pte)
 {
-	struct page *page = pte_page(pte);
-	kvm_flush_dcache_to_poc(page_address(page), PAGE_SIZE);
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+		struct page *page = pte_page(pte);
+		kvm_flush_dcache_to_poc(page_address(page), PAGE_SIZE);
+	}
 }
 
 static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
 {
-	struct page *page = pmd_page(pmd);
-	kvm_flush_dcache_to_poc(page_address(page), PMD_SIZE);
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+		struct page *page = pmd_page(pmd);
+		kvm_flush_dcache_to_poc(page_address(page), PMD_SIZE);
+	}
 }
 
 static inline void __kvm_flush_dcache_pud(pud_t pud)
 {
-	struct page *page = pud_page(pud);
-	kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
+	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+		struct page *page = pud_page(pud);
+		kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
+	}
 }
 
 #define kvm_virt_to_phys(x)		__pa_symbol(x)
