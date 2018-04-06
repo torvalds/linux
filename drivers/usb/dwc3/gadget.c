@@ -2313,10 +2313,10 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 {
 	struct dwc3_request	*req;
 	struct dwc3_request	*tmp;
-	int			ret = 0;
 
 	list_for_each_entry_safe(req, tmp, &dep->started_list, list) {
 		unsigned length;
+		int ret;
 
 		length = req->request.length;
 		if (req->num_pending_sgs)
