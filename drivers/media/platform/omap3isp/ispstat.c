@@ -449,10 +449,8 @@ static int isp_stat_bufs_alloc(struct ispstat *stat, u32 size)
 		buf->empty = 1;
 
 		dev_dbg(stat->isp->dev,
-			"%s: buffer[%u] allocated. dma=0x%08lx virt=0x%08lx",
-			stat->subdev.name, i,
-			(unsigned long)buf->dma_addr,
-			(unsigned long)buf->virt_addr);
+			"%s: buffer[%u] allocated. dma=%pad virt=%p",
+			stat->subdev.name, i, &buf->dma_addr, buf->virt_addr);
 	}
 
 	return 0;
