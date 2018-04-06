@@ -4135,12 +4135,12 @@ sub set_test_option {
 
 sub _mailx_send {
     my ($subject, $message) = @_;
-    system("$mail_path/$mailer -s \'$subject\' $mailto <<< \'$message\'");
+    run_command "$mail_path/$mailer -s \'$subject\' $mailto <<< \'$message\'";
 }
 
 sub _sendmail_send {
     my ($subject, $message) = @_;
-    system("echo -e \"Subject: $subject\n\n$message\" | $mail_path/sendmail -t $mailto");
+    run_command "echo \'Subject: $subject\n\n$message\' | $mail_path/sendmail -t $mailto";
 }
 
 sub find_mailer {
