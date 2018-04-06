@@ -1258,16 +1258,14 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 	for (i = 0; i < ARRAY_SIZE(ipipe_modules); i++) {
 		const struct ipipe_module_if *module_if;
 		struct ipipe_module_params *params;
-		void __user *from;
+		void *from, *to;
 		size_t size;
-		void *to;
 
 		if (!(cfg->flag & BIT(i)))
 			continue;
 
 		module_if = &ipipe_modules[i];
-		from = *(void * __user *)
-			((void *)cfg + module_if->config_offset);
+		from = *(void **)((void *)cfg + module_if->config_offset);
 
 		params = kmalloc(sizeof(struct ipipe_module_params),
 				 GFP_KERNEL);
@@ -1275,7 +1273,7 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 		size = module_if->param_size;
 
 		if (to && from && size) {
-			if (copy_from_user(to, from, size)) {
+			if (copy_from_user(to, (void __user *)from, size)) {
 				rval = -EFAULT;
 				break;
 			}
@@ -1302,15 +1300,14 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 	for (i = 1; i < ARRAY_SIZE(ipipe_modules); i++) {
 		const struct ipipe_module_if *module_if;
 		struct ipipe_module_params *params;
-		void __user *to;
+		void *from, *to;
 		size_t size;
-		void *from;
 
 		if (!(cfg->flag & BIT(i)))
 			continue;
 
 		module_if = &ipipe_modules[i];
-		to = *(void * __user *)((void *)cfg + module_if->config_offset);
+		to = *(void **)((void *)cfg + module_if->config_offset);
 
 		params = kmalloc(sizeof(struct ipipe_module_params),
 				 GFP_KERNEL);
@@ -1321,7 +1318,7 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 			rval = module_if->get(ipipe, from);
 			if (rval)
 				goto error;
-			if (copy_to_user(to, from, size)) {
+			if (copy_to_user((void __user *)to, from, size)) {
 				rval = -EFAULT;
 				break;
 			}

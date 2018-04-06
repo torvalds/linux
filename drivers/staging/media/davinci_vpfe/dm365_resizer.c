@@ -919,7 +919,8 @@ resizer_set_configuration(struct vpfe_resizer_device *resizer,
 		resizer_set_default_configuration(resizer);
 	else
 		if (copy_from_user(&resizer->config.user_config,
-		    chan_config->config, sizeof(struct vpfe_rsz_config_params)))
+				   (void __user *)chan_config->config,
+				   sizeof(struct vpfe_rsz_config_params)))
 			return -EFAULT;
 
 	return 0;
@@ -942,9 +943,9 @@ resizer_get_configuration(struct vpfe_resizer_device *resizer,
 		return -EINVAL;
 	}
 
-	if (copy_to_user((void *)chan_config->config,
-	   (void *)&resizer->config.user_config,
-	   sizeof(struct vpfe_rsz_config_params))) {
+	if (copy_to_user((void __user *)chan_config->config,
+			 (void *)&resizer->config.user_config,
+			 sizeof(struct vpfe_rsz_config_params))) {
 		dev_err(dev, "resizer_get_configuration: Error in copy to user\n");
 		return -EFAULT;
 	}

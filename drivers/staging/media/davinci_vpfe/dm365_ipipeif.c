@@ -418,7 +418,7 @@ ipipeif_set_config(struct v4l2_subdev *sd, struct ipipeif_params *config)
 }
 
 static int
-ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
+ipipeif_get_config(struct v4l2_subdev *sd, void *arg)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct ipipeif_params *config = arg;
