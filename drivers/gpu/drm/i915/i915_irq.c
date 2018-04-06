@@ -2732,47 +2732,9 @@ static void __fini_wedge(struct wedge_me *w)
 	     (W)->i915;							\
 	     __fini_wedge((W)))
 
-static void
-gen11_gt_engine_irq_handler(struct drm_i915_private * const i915,
-			    const unsigned int bank,
-			    const unsigned int engine_n,
-			    const u16 iir)
-{
-	struct intel_engine_cs ** const engine = i915->engine;
-
-	switch (bank) {
-	case 0:
-		switch (engine_n) {
-
-		case GEN11_RCS0:
-			return gen8_cs_irq_handler(engine[RCS], iir);
-
-		case GEN11_BCS:
-			return gen8_cs_irq_handler(engine[BCS], iir);
-		}
-	case 1:
-		switch (engine_n) {
-
-		case GEN11_VCS(0):
-			return gen8_cs_irq_handler(engine[_VCS(0)], iir);
-		case GEN11_VCS(1):
-			return gen8_cs_irq_handler(engine[_VCS(1)], iir);
-		case GEN11_VCS(2):
-			return gen8_cs_irq_handler(engine[_VCS(2)], iir);
-		case GEN11_VCS(3):
-			return gen8_cs_irq_handler(engine[_VCS(3)], iir);
-
-		case GEN11_VECS(0):
-			return gen8_cs_irq_handler(engine[_VECS(0)], iir);
-		case GEN11_VECS(1):
-			return gen8_cs_irq_handler(engine[_VECS(1)], iir);
-		}
-	}
-}
-
 static u32
-gen11_gt_engine_intr(struct drm_i915_private * const i915,
-		     const unsigned int bank, const unsigned int bit)
+gen11_gt_engine_identity(struct drm_i915_private * const i915,
+			 const unsigned int bank, const unsigned int bit)
 {
 	void __iomem * const regs = i915->regs;
 	u32 timeout_ts;
@@ -2799,7 +2761,54 @@ gen11_gt_engine_intr(struct drm_i915_private * const i915,
 	raw_reg_write(regs, GEN11_INTR_IDENTITY_REG(bank),
 		      GEN11_INTR_DATA_VALID);
 
-	return ident & GEN11_INTR_ENGINE_MASK;
+	return ident;
+}
+
+static void
+gen11_other_irq_handler(struct drm_i915_private * const i915,
+			const u8 instance, const u16 iir)
+{
+	WARN_ONCE(1, "unhandled other interrupt instance=0x%x, iir=0x%x\n",
+		  instance, iir);
+}
+
+static void
+gen11_engine_irq_handler(struct drm_i915_private * const i915,
+			 const u8 class, const u8 instance, const u16 iir)
+{
+	struct intel_engine_cs *engine;
+
+	if (instance <= MAX_ENGINE_INSTANCE)
+		engine = i915->engine_class[class][instance];
+	else
+		engine = NULL;
+
+	if (likely(engine))
+		return gen8_cs_irq_handler(engine, iir);
+
+	WARN_ONCE(1, "unhandled engine interrupt class=0x%x, instance=0x%x\n",
+		  class, instance);
+}
+
+static void
+gen11_gt_identity_handler(struct drm_i915_private * const i915,
+			  const u32 identity)
+{
+	const u8 class = GEN11_INTR_ENGINE_CLASS(identity);
+	const u8 instance = GEN11_INTR_ENGINE_INSTANCE(identity);
+	const u16 intr = GEN11_INTR_ENGINE_INTR(identity);
+
+	if (unlikely(!intr))
+		return;
+
+	if (class <= COPY_ENGINE_CLASS)
+		return gen11_engine_irq_handler(i915, class, instance, intr);
+
+	if (class == OTHER_CLASS)
+		return gen11_other_irq_handler(i915, instance, intr);
+
+	WARN_ONCE(1, "unknown interrupt class=0x%x, instance=0x%x, intr=0x%x\n",
+		  class, instance, intr);
 }
 
 static void
@@ -2824,12 +2833,10 @@ gen11_gt_irq_handler(struct drm_i915_private * const i915,
 		}
 
 		for_each_set_bit(bit, &intr_dw, 32) {
-			const u16 iir = gen11_gt_engine_intr(i915, bank, bit);
+			const u32 ident = gen11_gt_engine_identity(i915,
+								   bank, bit);
 
-			if (unlikely(!iir))
-				continue;
-
-			gen11_gt_engine_irq_handler(i915, bank, bit, iir);
+			gen11_gt_identity_handler(i915, ident);
 		}
 
 		/* Clear must be after shared has been served for engine */

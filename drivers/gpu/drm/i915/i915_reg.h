@@ -6998,7 +6998,9 @@ enum {
 #define GEN11_INTR_IDENTITY_REG0	_MMIO(0x190060)
 #define GEN11_INTR_IDENTITY_REG1	_MMIO(0x190064)
 #define  GEN11_INTR_DATA_VALID		(1 << 31)
-#define  GEN11_INTR_ENGINE_MASK		(0xffff)
+#define  GEN11_INTR_ENGINE_CLASS(x)	(((x) & GENMASK(18, 16)) >> 16)
+#define  GEN11_INTR_ENGINE_INSTANCE(x)	(((x) & GENMASK(25, 20)) >> 20)
+#define  GEN11_INTR_ENGINE_INTR(x)	((x) & 0xffff)
 
 #define GEN11_INTR_IDENTITY_REG(x)	_MMIO(0x190060 + (x * 4))
 
