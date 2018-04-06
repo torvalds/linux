@@ -41,9 +41,9 @@ static inline void michael_block(struct michael_mic *mic)
 	mic->r ^= ((mic->l & 0xff00ff00) >> 8) |
 		  ((mic->l & 0x00ff00ff) << 8);
 	mic->l += mic->r;
-	mic->r ^= rol32(mic->l, 3);					\
+	mic->r ^= rol32(mic->l, 3);
 	mic->l += mic->r;
-	mic->r ^= ror32(mic->l, 2);					\
+	mic->r ^= ror32(mic->l, 2);
 	mic->l += mic->r;
 }
 
