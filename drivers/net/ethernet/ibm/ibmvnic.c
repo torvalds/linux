@@ -320,9 +320,6 @@ failure:
 	dev_info(dev, "replenish pools failure\n");
 	pool->free_map[pool->next_free] = index;
 	pool->rx_buff[index].skb = NULL;
-	if (!dma_mapping_error(dev, dma_addr))
-		dma_unmap_single(dev, dma_addr, pool->buff_size,
-				 DMA_FROM_DEVICE);
 
 	dev_kfree_skb_any(skb);
 	adapter->replenish_add_buff_failure++;
@@ -2574,7 +2571,7 @@ static int ibmvnic_complete_tx(struct ibmvnic_adapter *adapter,
 	union sub_crq *next;
 	int index;
 	int i, j;
-	u8 first;
+	u8 *first;
 
 restart_loop:
 	while (pending_scrq(adapter, scrq)) {
@@ -2605,11 +2602,12 @@ restart_loop:
 				txbuff->data_dma[j] = 0;
 			}
 			/* if sub_crq was sent indirectly */
-			first = txbuff->indir_arr[0].generic.first;
-			if (first == IBMVNIC_CRQ_CMD) {
+			first = &txbuff->indir_arr[0].generic.first;
+			if (*first == IBMVNIC_CRQ_CMD) {
 				dma_unmap_single(dev, txbuff->indir_dma,
 						 sizeof(txbuff->indir_arr),
 						 DMA_TO_DEVICE);
+				*first = 0;
 			}
 
 			if (txbuff->last_frag) {
@@ -3882,9 +3880,9 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	int i;
 
 	dma_unmap_single(dev, adapter->login_buf_token, adapter->login_buf_sz,
-			 DMA_BIDIRECTIONAL);
+			 DMA_TO_DEVICE);
 	dma_unmap_single(dev, adapter->login_rsp_buf_token,
-			 adapter->login_rsp_buf_sz, DMA_BIDIRECTIONAL);
+			 adapter->login_rsp_buf_sz, DMA_FROM_DEVICE);
 
 	/* If the number of queues requested can't be allocated by the
 	 * server, the login response will return with code 1. We will need
