@@ -93,6 +93,15 @@ config COMMON_CLK_SI514
 	  This driver supports the Silicon Labs 514 programmable clock
 	  generator.
 
+config COMMON_CLK_SI544
+	tristate "Clock driver for SiLabs 544 devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the Silicon Labs 544 programmable clock
+	  generator.
+
 config COMMON_CLK_SI570
 	tristate "Clock driver for SiLabs 570 and compatible devices"
 	depends on I2C
