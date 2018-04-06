@@ -684,15 +684,14 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	array_size = sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) *
 		     MAX_MSIX_QUEUES_FUSION;
 
-	fusion->rdpq_virt = pci_alloc_consistent(instance->pdev, array_size,
-						 &fusion->rdpq_phys);
+	fusion->rdpq_virt = pci_zalloc_consistent(instance->pdev, array_size,
+						  &fusion->rdpq_phys);
 	if (!fusion->rdpq_virt) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	memset(fusion->rdpq_virt, 0, array_size);
 	msix_count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 
 	fusion->reply_frames_desc_pool = dma_pool_create("mr_rdpq",
