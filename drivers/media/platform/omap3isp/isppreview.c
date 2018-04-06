@@ -890,7 +890,7 @@ static int preview_config(struct isp_prev_device *prev,
 		params = &prev->params.params[!!(active & bit)];
 
 		if (cfg->flag & bit) {
-			void __user *from = *(void * __user *)
+			void __user *from = *(void __user **)
 				((void *)cfg + attr->config_offset);
 			void *to = (void *)params + attr->param_offset;
 			size_t size = attr->param_size;
