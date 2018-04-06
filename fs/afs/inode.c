@@ -83,6 +83,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 
 	inode->i_blocks		= 0;
 	inode->i_mapping->a_ops	= &afs_fs_aops;
+	vnode->invalid_before	= vnode->status.data_version;
 
 	read_sequnlock_excl(&vnode->cb_lock);
 

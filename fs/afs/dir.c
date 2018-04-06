@@ -1015,7 +1015,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	struct dentry *parent;
 	struct inode *inode;
 	struct key *key;
-	void *dir_version;
+	long dir_version, de_version;
 	int ret;
 
 	if (flags & LOOKUP_RCU)
@@ -1059,9 +1059,19 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_bad_parent;
 	}
 
-	dir_version = (void *) (unsigned long) dir->status.data_version;
-	if (dentry->d_fsdata == dir_version)
-		goto out_valid; /* the dir contents are unchanged */
+	/* We only need to invalidate a dentry if the server's copy changed
+	 * behind our back.  If we made the change, it's no problem.  Note that
+	 * on a 32-bit system, we only have 32 bits in the dentry to store the
+	 * version.
+	 */
+	dir_version = (long)dir->status.data_version;
+	de_version = (long)dentry->d_fsdata;
+	if (de_version == dir_version)
+		goto out_valid;
+
+	dir_version = (long)dir->invalid_before;
+	if (de_version - dir_version >= 0)
+		goto out_valid;
 
 	_debug("dir modified");
 	afs_stat_v(dir, n_reval);
@@ -1120,7 +1130,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 
 out_valid:
-	dentry->d_fsdata = dir_version;
+	dentry->d_fsdata = (void *)dir_version;
 	dput(parent);
 	key_put(key);
 	_leave(" = 1 [valid]");

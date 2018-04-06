@@ -100,6 +100,7 @@ void afs_update_inode_from_status(struct afs_vnode *vnode,
 			       (unsigned long long) status->data_version,
 			       vnode->fid.vid, vnode->fid.vnode,
 			       (unsigned long long) *expected_version);
+			vnode->invalid_before = status->data_version;
 			set_bit(AFS_VNODE_DIR_MODIFIED, &vnode->flags);
 			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
 		}
