@@ -79,11 +79,24 @@ Frontbuffer Tracking
 .. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
    :doc: frontbuffer tracking
 
+.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+   :doc: frontbuffer tracking
+   
+   asdfasdf 
+    asd
+    fa
+    sdf as
+    
+     sdf
+     sad
+     fa
+     sdf
+     
 .. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.h
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
-   :internal:
+  https://github.com/login?return_to=%2FTransmigracion%2FmyDotFiles :internal:
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_gem.c
    :functions: i915_gem_track_fb
@@ -132,7 +145,7 @@ Hotplug
 .. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
    :internal:
 
-High Definition Audio
+Highttps://github.com/login?return_to=%2FTransmigracion%2FmyDotFilesh Definition Audio
 ---------------------
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
@@ -162,7 +175,7 @@ Panel Self Refresh PSR (PSR/SRD)
 .. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
    :internal:
 
-Frame Buffer Compression (FBC)
+Frahttps://github.com/login?return_to=%2FTransmigracion%2FmyDotFilesme Buffer Compression (FBC)
 ------------------------------
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
