@@ -132,9 +132,6 @@ struct svcxprt_rdma {
 #define RDMAXPRT_CONN_PENDING	3
 
 #define RPCRDMA_LISTEN_BACKLOG  10
-/* The default ORD value is based on two outstanding full-size writes with a
- * page size of 4k, or 32k * 2 ops / 4k = 16 outstanding RDMA_READ.  */
-#define RPCRDMA_ORD             (64/4)
 #define RPCRDMA_MAX_REQUESTS    32
 
 /* Typical ULP usage of BC requests is NFSv4.1 backchannel. Our
