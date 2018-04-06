@@ -224,10 +224,6 @@ static const char * const usart6_src[] = {
 	"pclk2", "pll4_q", "ck_hsi", "ck_csi", "ck_hse"
 };
 
-static const char * const dfsdm_src[] = {
-	"pclk2", "ck_mcu"
-};
-
 static const char * const fdcan_src[] = {
 	"ck_hse", "pll3_q", "pll4_q"
 };
