@@ -2471,6 +2471,7 @@ static int lookup_one_len_common(const char *name, struct dentry *base,
  */
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
+	struct dentry *dentry;
 	struct qstr this;
 	int err;
 
@@ -2480,7 +2481,8 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	if (err)
 		return ERR_PTR(err);
 
-	return __lookup_hash(&this, base, 0);
+	dentry = lookup_dcache(&this, base, 0);
+	return dentry ? dentry : __lookup_slow(&this, base, 0);
 }
 EXPORT_SYMBOL(lookup_one_len);
 
