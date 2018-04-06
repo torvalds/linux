@@ -757,7 +757,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.user = user;
 	atomic_inc(&user->fanotify_listeners);
 
-	oevent = fanotify_alloc_event(NULL, FS_Q_OVERFLOW, NULL);
+	oevent = fanotify_alloc_event(group, NULL, FS_Q_OVERFLOW, NULL);
 	if (unlikely(!oevent)) {
 		fd = -ENOMEM;
 		goto out_destroy_group;
