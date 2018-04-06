@@ -35,14 +35,6 @@
 #include "system_local.h"
 #include "mmu_local.h"
 
-#ifndef __INLINE_MMU__
-#define STORAGE_CLASS_MMU_H extern
-#define STORAGE_CLASS_MMU_C 
 #include "mmu_public.h"
-#else  /* __INLINE_MMU__ */
-#define STORAGE_CLASS_MMU_H static inline
-#define STORAGE_CLASS_MMU_C static inline
-#include "mmu_private.h"
-#endif /* __INLINE_MMU__ */
 
 #endif /* __MMU_DEVICE_H_INCLUDED__ */

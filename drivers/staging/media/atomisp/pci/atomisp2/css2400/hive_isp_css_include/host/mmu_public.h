@@ -16,6 +16,8 @@
 #define __MMU_PUBLIC_H_INCLUDED__
 
 #include "system_types.h"
+#include "device_access.h"
+#include "assert_support.h"
 
 /*! Set the page table base index of MMU[ID]
 
@@ -62,10 +64,17 @@ extern void mmu_invalidate_cache_all(void);
 
  \return none, MMU[ID].ctrl[reg] = value
  */
-STORAGE_CLASS_MMU_H void mmu_reg_store(
+static inline void mmu_reg_store(
 	const mmu_ID_t		ID,
 	const unsigned int	reg,
-	const hrt_data		value);
+	const hrt_data		value)
+{
+	assert(ID < N_MMU_ID);
+	assert(MMU_BASE[ID] != (hrt_address)-1);
+	ia_css_device_store_uint32(MMU_BASE[ID] + reg*sizeof(hrt_data), value);
+	return;
+}
+
 
 /*! Read from a control register of MMU[ID]
 
@@ -75,8 +84,13 @@ STORAGE_CLASS_MMU_H void mmu_reg_store(
 
  \return MMU[ID].ctrl[reg]
  */
-STORAGE_CLASS_MMU_H hrt_data mmu_reg_load(
+static inline hrt_data mmu_reg_load(
 	const mmu_ID_t		ID,
-	const unsigned int	reg);
+	const unsigned int	reg)
+{
+	assert(ID < N_MMU_ID);
+	assert(MMU_BASE[ID] != (hrt_address)-1);
+	return ia_css_device_load_uint32(MMU_BASE[ID] + reg*sizeof(hrt_data));
+}
 
 #endif /* __MMU_PUBLIC_H_INCLUDED__ */

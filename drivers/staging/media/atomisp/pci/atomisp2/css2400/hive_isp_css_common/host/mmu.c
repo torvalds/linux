@@ -15,10 +15,6 @@
 /* The name "mmu.h is already taken" */
 #include "mmu_device.h"
 
-#ifndef __INLINE_MMU__
-#include "mmu_private.h"
-#endif /* __INLINE_MMU__ */
-
 void mmu_set_page_table_base_index(
 	const mmu_ID_t		ID,
 	const hrt_data		base_index)
