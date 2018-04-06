@@ -364,6 +364,12 @@ Batchbuffer Pools
 .. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
    :internal:
 
+User Batchbuffer Execution
+--------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_execbuffer.c
+   :doc: User command execution
+
 Logical Rings, Logical Ring Contexts and Execlists
 --------------------------------------------------
 
