@@ -3744,8 +3744,7 @@ int ipmi_unregister_smi(struct ipmi_smi *intf)
 	}
 	srcu_read_unlock(&intf->users_srcu, index);
 
-	if (intf->handlers->shutdown)
-		intf->handlers->shutdown(intf->send_info);
+	intf->handlers->shutdown(intf->send_info);
 
 	cleanup_smi_msgs(intf);
 
