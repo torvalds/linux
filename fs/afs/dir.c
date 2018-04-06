@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/task_io_accounting_ops.h>
 #include "internal.h"
+#include "xdr_fs.h"
 
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 unsigned int flags);
@@ -84,55 +85,6 @@ const struct dentry_operations afs_fs_dentry_operations = {
 	.d_delete	= afs_d_delete,
 	.d_release	= afs_d_release,
 	.d_automount	= afs_d_automount,
-};
-
-#define AFS_DIR_HASHTBL_SIZE	128
-#define AFS_DIR_DIRENT_SIZE	32
-#define AFS_DIRENT_PER_BLOCK	64
-
-union afs_dirent {
-	struct {
-		uint8_t		valid;
-		uint8_t		unused[1];
-		__be16		hash_next;
-		__be32		vnode;
-		__be32		unique;
-		uint8_t		name[16];
-		uint8_t		overflow[4];	/* if any char of the name (inc
-						 * NUL) reaches here, consume
-						 * the next dirent too */
-	} u;
-	uint8_t	extended_name[32];
-};
-
-/* AFS directory page header (one at the beginning of every 2048-byte chunk) */
-struct afs_dir_pagehdr {
-	__be16		npages;
-	__be16		magic;
-#define AFS_DIR_MAGIC htons(1234)
-	uint8_t		nentries;
-	uint8_t		bitmap[8];
-	uint8_t		pad[19];
-};
-
-/* directory block layout */
-union afs_dir_block {
-
-	struct afs_dir_pagehdr pagehdr;
-
-	struct {
-		struct afs_dir_pagehdr	pagehdr;
-		uint8_t			alloc_ctrs[128];
-		/* dir hash table */
-		uint16_t		hashtable[AFS_DIR_HASHTBL_SIZE];
-	} hdr;
-
-	union afs_dirent dirents[AFS_DIRENT_PER_BLOCK];
-};
-
-/* layout on a linux VM page */
-struct afs_dir_page {
-	union afs_dir_block blocks[PAGE_SIZE / sizeof(union afs_dir_block)];
 };
 
 struct afs_lookup_one_cookie {
@@ -371,8 +323,8 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 	curr = (ctx->pos - blkoff) / sizeof(union afs_dirent);
 
 	/* walk through the block, an entry at a time */
-	for (offset = AFS_DIRENT_PER_BLOCK - block->pagehdr.nentries;
-	     offset < AFS_DIRENT_PER_BLOCK;
+	for (offset = (blkoff == 0 ? AFS_DIR_RESV_BLOCKS0 : AFS_DIR_RESV_BLOCKS);
+	     offset < AFS_DIR_SLOTS_PER_BLOCK;
 	     offset = next
 	     ) {
 		next = offset + 1;
@@ -401,7 +353,7 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 
 		/* work out where the next possible entry is */
 		for (tmp = nlen; tmp > 15; tmp -= sizeof(union afs_dirent)) {
-			if (next >= AFS_DIRENT_PER_BLOCK) {
+			if (next >= AFS_DIR_SLOTS_PER_BLOCK) {
 				_debug("ENT[%zu.%u]:"
 				       " %u travelled beyond end dir block"
 				       " (len %u/%zu)",
