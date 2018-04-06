@@ -71,14 +71,12 @@ static int ipipe_set_lutdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
 	struct vpfe_ipipe_lutdpc *lutdpc = &ipipe->config.lutdpc;
 	struct vpfe_ipipe_lutdpc *dpc_param;
-	struct device *dev;
 
 	if (!param) {
 		memset((void *)lutdpc, 0, sizeof(struct vpfe_ipipe_lutdpc));
 		goto success;
 	}
 
-	dev = ipipe->subdev.v4l2_dev->dev;
 	dpc_param = param;
 	lutdpc->en = dpc_param->en;
 	lutdpc->repl_white = dpc_param->repl_white;
