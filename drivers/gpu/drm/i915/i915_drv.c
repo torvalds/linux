@@ -2050,7 +2050,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 	 * active request and can drop it, adjust head to skip the offending
 	 * request to resume executing remaining requests in the queue.
 	 */
-	i915_gem_reset_engine(engine, active_request);
+	i915_gem_reset_engine(engine, active_request, true);
 
 	/*
 	 * The engine and its registers (and workarounds in case of render)

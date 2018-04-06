@@ -522,9 +522,6 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				i915_request_put(rq);
 			}
 
-			engine->hangcheck.stalled = true;
-			engine->hangcheck.seqno = seqno;
-
 			err = i915_reset_engine(engine, NULL);
 			if (err) {
 				pr_err("i915_reset_engine failed\n");
@@ -545,8 +542,6 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				err = -EINVAL;
 				break;
 			}
-
-			engine->hangcheck.stalled = false;
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
 
@@ -764,9 +759,6 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 				seqno = rq->global_seqno - 1;
 			}
 
-			engine->hangcheck.stalled = true;
-			engine->hangcheck.seqno = seqno;
-
 			err = i915_reset_engine(engine, NULL);
 			if (err) {
 				pr_err("i915_reset_engine(%s:%s): failed, err=%d\n",
@@ -774,7 +766,6 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 				break;
 			}
 
-			engine->hangcheck.stalled = false;
 			count++;
 
 			if (rq) {

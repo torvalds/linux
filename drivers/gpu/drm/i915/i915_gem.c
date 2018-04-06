@@ -2990,20 +2990,6 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	return active;
 }
 
-static bool engine_stalled(struct intel_engine_cs *engine)
-{
-	if (!engine->hangcheck.stalled)
-		return false;
-
-	/* Check for possible seqno movement after hang declaration */
-	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
-		DRM_DEBUG_DRIVER("%s pardoned\n", engine->name);
-		return false;
-	}
-
-	return true;
-}
-
 /*
  * Ensure irq handler finishes, and not run again.
  * Also return the active request so that we only search for it once.
@@ -3142,7 +3128,8 @@ static void engine_skip_context(struct i915_request *request)
 /* Returns the request if it was guilty of the hang */
 static struct i915_request *
 i915_gem_reset_request(struct intel_engine_cs *engine,
-		       struct i915_request *request)
+		       struct i915_request *request,
+		       bool stalled)
 {
 	/* The guilty request will get skipped on a hung engine.
 	 *
@@ -3165,7 +3152,15 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 	 * subsequent hangs.
 	 */
 
-	if (engine_stalled(engine)) {
+	if (i915_request_completed(request)) {
+		GEM_TRACE("%s pardoned global=%d (fence %llx:%d), current %d\n",
+			  engine->name, request->global_seqno,
+			  request->fence.context, request->fence.seqno,
+			  intel_engine_get_seqno(engine));
+		stalled = false;
+	}
+
+	if (stalled) {
 		i915_gem_context_mark_guilty(request->ctx);
 		skip_request(request);
 
@@ -3196,7 +3191,8 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 }
 
 void i915_gem_reset_engine(struct intel_engine_cs *engine,
-			   struct i915_request *request)
+			   struct i915_request *request,
+			   bool stalled)
 {
 	/*
 	 * Make sure this write is visible before we re-enable the interrupt
@@ -3206,7 +3202,7 @@ void i915_gem_reset_engine(struct intel_engine_cs *engine,
 	smp_store_mb(engine->irq_posted, 0);
 
 	if (request)
-		request = i915_gem_reset_request(engine, request);
+		request = i915_gem_reset_request(engine, request, stalled);
 
 	if (request) {
 		DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
@@ -3229,7 +3225,9 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv, id) {
 		struct i915_gem_context *ctx;
 
-		i915_gem_reset_engine(engine, engine->hangcheck.active_request);
+		i915_gem_reset_engine(engine,
+				      engine->hangcheck.active_request,
+				      engine->hangcheck.stalled);
 		ctx = fetch_and_zero(&engine->last_retired_context);
 		if (ctx)
 			engine->context_unpin(engine, ctx);
