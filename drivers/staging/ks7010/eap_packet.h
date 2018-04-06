@@ -113,7 +113,4 @@ struct wpa_eapol_key {
 
 #define WPA_CAPABILITY_PREAUTH BIT(0)
 
-#define GENERIC_INFO_ELEM 0xdd
-#define RSN_INFO_ELEM 0x30
-
 #endif /* EAP_PACKET_H */
