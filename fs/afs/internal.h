@@ -273,6 +273,10 @@ struct afs_net {
 	atomic_t		n_read_dir;	/* Number of directory pages read */
 	atomic_t		n_dir_cr;	/* Number of directory entry creation edits */
 	atomic_t		n_dir_rm;	/* Number of directory entry removal edits */
+	atomic_t		n_stores;	/* Number of store ops */
+	atomic_long_t		n_store_bytes;	/* Number of bytes stored */
+	atomic_long_t		n_fetch_bytes;	/* Number of bytes fetched */
+	atomic_t		n_fetches;	/* Number of data fetch ops */
 };
 
 extern const char afs_init_sysname[];

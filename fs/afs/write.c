@@ -356,6 +356,12 @@ found_key:
 	}
 
 	switch (ret) {
+	case 0:
+		afs_stat_v(vnode, n_stores);
+		atomic_long_add((last * PAGE_SIZE + to) -
+				(first * PAGE_SIZE + offset),
+				&afs_v2net(vnode)->n_store_bytes);
+		break;
 	case -EACCES:
 	case -EPERM:
 	case -ENOKEY:

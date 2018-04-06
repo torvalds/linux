@@ -922,6 +922,13 @@ static int afs_proc_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, "dir-edit: cr=%u rm=%u\n",
 		   atomic_read(&net->n_dir_cr),
 		   atomic_read(&net->n_dir_rm));
+
+	seq_printf(m, "file-rd : n=%u nb=%lu\n",
+		   atomic_read(&net->n_fetches),
+		   atomic_long_read(&net->n_fetch_bytes));
+	seq_printf(m, "file-wr : n=%u nb=%lu\n",
+		   atomic_read(&net->n_stores),
+		   atomic_long_read(&net->n_store_bytes));
 	return 0;
 }
 

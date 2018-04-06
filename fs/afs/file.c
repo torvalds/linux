@@ -242,6 +242,12 @@ int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *de
 		ret = afs_end_vnode_operation(&fc);
 	}
 
+	if (ret == 0) {
+		afs_stat_v(vnode, n_fetches);
+		atomic_long_add(desc->actual_len,
+				&afs_v2net(vnode)->n_fetch_bytes);
+	}
+
 	_leave(" = %d", ret);
 	return ret;
 }
