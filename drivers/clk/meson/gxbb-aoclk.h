@@ -17,22 +17,11 @@
 #define AO_RTC_ALT_CLK_CNTL0	0x94
 #define AO_RTC_ALT_CLK_CNTL1	0x98
 
-struct aoclk_gate_regmap {
-	struct clk_hw hw;
-	unsigned bit_idx;
-	struct regmap *regmap;
-	spinlock_t *lock;
-};
-
-#define to_aoclk_gate_regmap(_hw) \
-	container_of(_hw, struct aoclk_gate_regmap, hw)
-
 extern const struct clk_ops meson_aoclk_gate_regmap_ops;
 
 struct aoclk_cec_32k {
 	struct clk_hw hw;
 	struct regmap *regmap;
-	spinlock_t *lock;
 };
 
 #define to_aoclk_cec_32k(_hw) container_of(_hw, struct aoclk_cec_32k, hw)
