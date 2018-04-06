@@ -702,19 +702,18 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		virt_addr = omap_vout_alloc_buffer(vout->buffer_size,
 				&phy_addr);
 		if (!virt_addr) {
-			if (ovid->rotation_type == VOUT_ROT_NONE) {
+			if (ovid->rotation_type == VOUT_ROT_NONE)
 				break;
-			} else {
-				if (!is_rotation_enabled(vout))
-					break;
+
+			if (!is_rotation_enabled(vout))
+				break;
+
 			/* Free the VRFB buffers if no space for V4L2 buffers */
 			for (j = i; j < *count; j++) {
-				omap_vout_free_buffer(
-						vout->smsshado_virt_addr[j],
-						vout->smsshado_size);
+				omap_vout_free_buffer(vout->smsshado_virt_addr[j],
+						      vout->smsshado_size);
 				vout->smsshado_virt_addr[j] = 0;
 				vout->smsshado_phy_addr[j] = 0;
-				}
 			}
 		}
 		vout->buf_virt_addr[i] = virt_addr;
