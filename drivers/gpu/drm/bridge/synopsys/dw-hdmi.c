@@ -1998,8 +1998,8 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *orig_mode,
-				    struct drm_display_mode *mode)
+				    const struct drm_display_mode *orig_mode,
+				    const struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 

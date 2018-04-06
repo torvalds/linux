@@ -52,8 +52,8 @@ static void edp_bridge_post_disable(struct drm_bridge *bridge)
 }
 
 static void edp_bridge_mode_set(struct drm_bridge *bridge,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+		const struct drm_display_mode *mode,
+		const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = bridge->dev;
 	struct drm_connector *connector;

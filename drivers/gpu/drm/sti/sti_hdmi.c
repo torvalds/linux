@@ -917,8 +917,8 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 }
 
 static void sti_hdmi_set_mode(struct drm_bridge *bridge,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+			      const struct drm_display_mode *mode,
+			      const struct drm_display_mode *adjusted_mode)
 {
 	struct sti_hdmi *hdmi = bridge->driver_private;
 	int ret;
