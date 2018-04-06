@@ -83,7 +83,7 @@ void flush_dcache_page(struct page *page)
 	if (page == ZERO_PAGE(0))
 		return;
 
-	mapping = page_mapping(page);
+	mapping = page_mapping_file(page);
 
 	if (mapping && !mapping_mapped(mapping))
 		clear_bit(PG_dcache_clean, &page->flags);

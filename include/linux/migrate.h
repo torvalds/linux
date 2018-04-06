@@ -25,7 +25,7 @@ enum migrate_reason {
 	MR_SYSCALL,		/* also applies to cpusets */
 	MR_MEMPOLICY_MBIND,
 	MR_NUMA_MISPLACED,
-	MR_CMA,
+	MR_CONTIG_RANGE,
 	MR_TYPES
 };
 

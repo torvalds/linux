@@ -112,7 +112,7 @@ static int mm_iommu_move_page_from_cma(struct page *page)
 	put_page(page); /* Drop the gup reference */
 
 	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
-				NULL, 0, MIGRATE_SYNC, MR_CMA);
+				NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE);
 	if (ret) {
 		if (!list_empty(&cma_migrate_pages))
 			putback_movable_pages(&cma_migrate_pages);

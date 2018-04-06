@@ -94,7 +94,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	if (v9ses->cache)
 		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_SIZE;
 
-	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC | SB_NOATIME;
+	sb->s_flags |= SB_ACTIVE | SB_DIRSYNC;
 	if (!v9ses->cache)
 		sb->s_flags |= SB_SYNCHRONOUS;
 

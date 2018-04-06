@@ -125,7 +125,6 @@
 #define ZERO_OR_NULL_PTR(x) ((unsigned long)(x) <= \
 				(unsigned long)ZERO_SIZE_PTR)
 
-#include <linux/kmemleak.h>
 #include <linux/kasan.h>
 
 struct mem_cgroup;
@@ -137,12 +136,13 @@ bool slab_is_available(void);
 
 extern bool usercopy_fallback;
 
-struct kmem_cache *kmem_cache_create(const char *name, size_t size,
-			size_t align, slab_flags_t flags,
+struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,
+			unsigned int align, slab_flags_t flags,
 			void (*ctor)(void *));
 struct kmem_cache *kmem_cache_create_usercopy(const char *name,
-			size_t size, size_t align, slab_flags_t flags,
-			size_t useroffset, size_t usersize,
+			unsigned int size, unsigned int align,
+			slab_flags_t flags,
+			unsigned int useroffset, unsigned int usersize,
 			void (*ctor)(void *));
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
@@ -308,7 +308,7 @@ extern struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
  * 2 = 129 .. 192 bytes
  * n = 2^(n-1)+1 .. 2^n
  */
-static __always_inline int kmalloc_index(size_t size)
+static __always_inline unsigned int kmalloc_index(size_t size)
 {
 	if (!size)
 		return 0;
@@ -504,7 +504,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
 			return kmalloc_large(size, flags);
 #ifndef CONFIG_SLOB
 		if (!(flags & GFP_DMA)) {
-			int index = kmalloc_index(size);
+			unsigned int index = kmalloc_index(size);
 
 			if (!index)
 				return ZERO_SIZE_PTR;
@@ -522,11 +522,11 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
  * return size or 0 if a kmalloc cache for that
  * size does not exist
  */
-static __always_inline int kmalloc_size(int n)
+static __always_inline unsigned int kmalloc_size(unsigned int n)
 {
 #ifndef CONFIG_SLOB
 	if (n > 2)
-		return 1 << n;
+		return 1U << n;
 
 	if (n == 1 && KMALLOC_MIN_SIZE <= 32)
 		return 96;
@@ -542,7 +542,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 #ifndef CONFIG_SLOB
 	if (__builtin_constant_p(size) &&
 		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & GFP_DMA)) {
-		int i = kmalloc_index(size);
+		unsigned int i = kmalloc_index(size);
 
 		if (!i)
 			return ZERO_SIZE_PTR;
