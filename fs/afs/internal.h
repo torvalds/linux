@@ -671,11 +671,19 @@ extern bool afs_cm_incoming_call(struct afs_call *);
  */
 extern const struct file_operations afs_dir_file_operations;
 extern const struct inode_operations afs_dir_inode_operations;
-extern const struct file_operations afs_dynroot_file_operations;
-extern const struct inode_operations afs_dynroot_inode_operations;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
 extern bool afs_dir_check_page(struct inode *, struct page *);
+extern void afs_d_release(struct dentry *);
+
+/*
+ * dynroot.c
+ */
+extern const struct file_operations afs_dynroot_file_operations;
+extern const struct inode_operations afs_dynroot_inode_operations;
+extern const struct dentry_operations afs_dynroot_dentry_operations;
+
+extern struct inode *afs_try_auto_mntpt(struct dentry *, struct inode *);
 
 /*
  * file.c

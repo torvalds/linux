@@ -12,6 +12,7 @@ kafs-objs := \
 	cell.o \
 	cmservice.o \
 	dir.o \
+	dynroot.o \
 	file.o \
 	flock.o \
 	fsclient.o \
