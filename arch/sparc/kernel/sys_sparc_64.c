@@ -39,7 +39,7 @@
 
 /* #define DEBUG_UNIMP_SYSCALL */
 
-asmlinkage unsigned long sys_getpagesize(void)
+SYSCALL_DEFINE0(getpagesize)
 {
 	return PAGE_SIZE;
 }
@@ -310,7 +310,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-SYSCALL_DEFINE1(sparc_pipe_real, struct pt_regs *, regs)
+SYSCALL_DEFINE0(sparc_pipe)
 {
 	int fd[2];
 	int error;
@@ -318,7 +318,7 @@ SYSCALL_DEFINE1(sparc_pipe_real, struct pt_regs *, regs)
 	error = do_pipe_flags(fd, 0);
 	if (error)
 		goto out;
-	regs->u_regs[UREG_I1] = fd[1];
+	current_pt_regs()->u_regs[UREG_I1] = fd[1];
 	error = fd[0];
 out:
 	return error;
@@ -480,10 +480,10 @@ SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 	return sys_mremap(addr, old_len, new_len, flags, new_addr);
 }
 
-/* we come to here via sys_nis_syscall so it can setup the regs argument */
-asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs)
+SYSCALL_DEFINE0(nis_syscall)
 {
 	static int count;
+	struct pt_regs *regs = current_pt_regs();
 	
 	/* Don't make the system unusable, if someone goes stuck */
 	if (count++ > 5)
@@ -522,8 +522,6 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 #endif
 	exception_exit(prev_state);
 }
-
-extern void check_pending(int signum);
 
 SYSCALL_DEFINE2(getdomainname, char __user *, name, int, len)
 {
@@ -608,9 +606,9 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 	return 0;
 }
 
-asmlinkage long sparc_memory_ordering(unsigned long model,
-				      struct pt_regs *regs)
+SYSCALL_DEFINE1(memory_ordering, unsigned long, model)
 {
+	struct pt_regs *regs = current_pt_regs();
 	if (model >= 3)
 		return -EINVAL;
 	regs->tstate = (regs->tstate & ~TSTATE_MM) | (model << 14);
@@ -644,7 +642,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 	return ret;
 }
 
-asmlinkage long sys_kern_features(void)
+SYSCALL_DEFINE0(kern_features)
 {
 	return KERN_FEATURE_MIXED_MODE_STACK;
 }
