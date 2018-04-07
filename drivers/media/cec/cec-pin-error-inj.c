@@ -203,16 +203,18 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		mode_mask = CEC_ERROR_INJ_MODE_MASK << mode_offset;
 		arg_idx = cec_error_inj_cmds[i].arg_idx;
 
-		if (mode_offset == CEC_ERROR_INJ_RX_ARB_LOST_OFFSET ||
-		    mode_offset == CEC_ERROR_INJ_TX_ADD_BYTES_OFFSET)
-			is_bit_pos = false;
-
 		if (mode_offset == CEC_ERROR_INJ_RX_ARB_LOST_OFFSET) {
 			if (has_op)
 				return false;
 			if (!has_pos)
 				pos = 0x0f;
+			is_bit_pos = false;
+		} else if (mode_offset == CEC_ERROR_INJ_TX_ADD_BYTES_OFFSET) {
+			if (!has_pos || !pos)
+				return false;
+			is_bit_pos = false;
 		}
+
 		if (arg_idx >= 0 && is_bit_pos) {
 			if (!has_pos || pos >= 160)
 				return false;
