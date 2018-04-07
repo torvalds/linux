@@ -147,13 +147,14 @@ static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
 static void ir_mce_kbd_process_keyboard_data(struct rc_dev *dev, u32 scancode)
 {
 	struct mce_kbd_dec *data = &dev->raw->mce_kbd;
-	u8 keydata   = (scancode >> 8) & 0xff;
+	u8 keydata1  = (scancode >> 8) & 0xff;
+	u8 keydata2  = (scancode >> 16) & 0xff;
 	u8 shiftmask = scancode & 0xff;
-	unsigned char keycode, maskcode;
+	unsigned char maskcode;
 	int i, keystate;
 
-	dev_dbg(&dev->dev, "keyboard: keydata = 0x%02x, shiftmask = 0x%02x\n",
-		keydata, shiftmask);
+	dev_dbg(&dev->dev, "keyboard: keydata2 = 0x%02x, keydata1 = 0x%02x, shiftmask = 0x%02x\n",
+		keydata2, keydata1, shiftmask);
 
 	for (i = 0; i < 7; i++) {
 		maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
@@ -164,10 +165,12 @@ static void ir_mce_kbd_process_keyboard_data(struct rc_dev *dev, u32 scancode)
 		input_report_key(data->idev, maskcode, keystate);
 	}
 
-	if (keydata) {
-		keycode = kbd_keycodes[keydata];
-		input_report_key(data->idev, keycode, 1);
-	} else {
+	if (keydata1)
+		input_report_key(data->idev, kbd_keycodes[keydata1], 1);
+	if (keydata2)
+		input_report_key(data->idev, kbd_keycodes[keydata2], 1);
+
+	if (!keydata1 && !keydata2) {
 		for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
 			input_report_key(data->idev, kbd_keycodes[i], 0);
 	}
@@ -319,7 +322,7 @@ again:
 
 		switch (data->wanted_bits) {
 		case MCIR2_KEYBOARD_NBITS:
-			scancode = data->body & 0xffff;
+			scancode = data->body & 0xffffff;
 			dev_dbg(&dev->dev, "keyboard data 0x%08x\n",
 				data->body);
 			if (scancode) {

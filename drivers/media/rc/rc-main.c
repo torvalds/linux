@@ -51,7 +51,7 @@ static const struct {
 	[RC_PROTO_SANYO] = { .name = "sanyo",
 		.scancode_bits = 0x1fffff, .repeat_period = 125 },
 	[RC_PROTO_MCIR2_KBD] = { .name = "mcir2-kbd",
-		.scancode_bits = 0xffff, .repeat_period = 100 },
+		.scancode_bits = 0xffffff, .repeat_period = 100 },
 	[RC_PROTO_MCIR2_MSE] = { .name = "mcir2-mse",
 		.scancode_bits = 0x1fffff, .repeat_period = 100 },
 	[RC_PROTO_RC6_0] = { .name = "rc-6-0",
