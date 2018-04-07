@@ -1004,6 +1004,11 @@ struct i40iw_cqp_query_fpm_values {
 	u32 pbl_max;
 };
 
+struct i40iw_gen_ae_info {
+	u16 ae_code;
+	u8 ae_source;
+};
+
 struct i40iw_cqp_ops {
 	enum i40iw_status_code (*cqp_init)(struct i40iw_sc_cqp *,
 					   struct i40iw_cqp_init_info *);
@@ -1289,6 +1294,12 @@ struct cqp_info {
 			struct i40iw_qp_flush_info info;
 			u64 scratch;
 		} qp_flush_wqes;
+
+		struct {
+			struct i40iw_sc_qp *qp;
+			struct i40iw_gen_ae_info info;
+			u64 scratch;
+		} gen_ae;
 
 		struct {
 			struct i40iw_sc_cqp *cqp;

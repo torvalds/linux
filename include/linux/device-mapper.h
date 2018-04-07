@@ -87,10 +87,10 @@ typedef void (*dm_resume_fn) (struct dm_target *ti);
 typedef void (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 			      unsigned status_flags, char *result, unsigned maxlen);
 
-typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv);
+typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv,
+			      char *result, unsigned maxlen);
 
-typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti,
-			    struct block_device **bdev, fmode_t *mode);
+typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti, struct block_device **bdev);
 
 /*
  * These iteration functions are typically used to check (and combine)
@@ -265,6 +265,12 @@ struct dm_target {
 	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
 	 */
 	unsigned num_discard_bios;
+
+	/*
+	 * The number of secure erase bios that will be submitted to the target.
+	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
+	 */
+	unsigned num_secure_erase_bios;
 
 	/*
 	 * The number of WRITE SAME bios that will be submitted to the target.

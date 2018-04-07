@@ -515,6 +515,16 @@ struct address_space *page_mapping(struct page *page)
 }
 EXPORT_SYMBOL(page_mapping);
 
+/*
+ * For file cache pages, return the address_space, otherwise return NULL
+ */
+struct address_space *page_mapping_file(struct page *page)
+{
+	if (unlikely(PageSwapCache(page)))
+		return NULL;
+	return page_mapping(page);
+}
+
 /* Slow path of page_mapcount() for compound pages */
 int __page_mapcount(struct page *page)
 {

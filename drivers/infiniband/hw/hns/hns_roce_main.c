@@ -74,12 +74,11 @@ static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 	return hr_dev->hw->set_mac(hr_dev, phy_port, addr);
 }
 
-static int hns_roce_add_gid(struct ib_device *device, u8 port_num,
-			    unsigned int index, const union ib_gid *gid,
+static int hns_roce_add_gid(const union ib_gid *gid,
 			    const struct ib_gid_attr *attr, void **context)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(device);
-	u8 port = port_num - 1;
+	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
+	u8 port = attr->port_num - 1;
 	unsigned long flags;
 	int ret;
 
@@ -88,20 +87,20 @@ static int hns_roce_add_gid(struct ib_device *device, u8 port_num,
 
 	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
 
-	ret = hr_dev->hw->set_gid(hr_dev, port, index, (union ib_gid *)gid,
-				   attr);
+	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index,
+				  (union ib_gid *)gid, attr);
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
 	return ret;
 }
 
-static int hns_roce_del_gid(struct ib_device *device, u8 port_num,
-			    unsigned int index, void **context)
+static int hns_roce_del_gid(const struct ib_gid_attr *attr, void **context)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(device);
+	struct hns_roce_dev *hr_dev = to_hr_dev(attr->device);
+	struct ib_gid_attr zattr = { };
 	union ib_gid zgid = { {0} };
-	u8 port = port_num - 1;
+	u8 port = attr->port_num - 1;
 	unsigned long flags;
 	int ret;
 
@@ -110,7 +109,7 @@ static int hns_roce_del_gid(struct ib_device *device, u8 port_num,
 
 	spin_lock_irqsave(&hr_dev->iboe.lock, flags);
 
-	ret = hr_dev->hw->set_gid(hr_dev, port, index, &zgid, NULL);
+	ret = hr_dev->hw->set_gid(hr_dev, port, attr->index, &zgid, &zattr);
 
 	spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
 
@@ -295,12 +294,6 @@ static enum rdma_link_layer hns_roce_get_link_layer(struct ib_device *device,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-static int hns_roce_query_gid(struct ib_device *ib_dev, u8 port_num, int index,
-			      union ib_gid *gid)
-{
-	return 0;
-}
-
 static int hns_roce_query_pkey(struct ib_device *ib_dev, u8 port, u16 index,
 			       u16 *pkey)
 {
@@ -337,7 +330,7 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 {
 	int ret = 0;
 	struct hns_roce_ucontext *context;
-	struct hns_roce_ib_alloc_ucontext_resp resp;
+	struct hns_roce_ib_alloc_ucontext_resp resp = {};
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 
 	resp.qp_tab_size = hr_dev->caps.num_qps;
@@ -349,6 +342,11 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 	ret = hns_roce_uar_alloc(hr_dev, &context->uar);
 	if (ret)
 		goto error_fail_uar_alloc;
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
+		INIT_LIST_HEAD(&context->page_list);
+		mutex_init(&context->page_mutex);
+	}
 
 	ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
 	if (ret)
@@ -476,7 +474,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->modify_port		= hns_roce_modify_port;
 	ib_dev->get_link_layer		= hns_roce_get_link_layer;
 	ib_dev->get_netdev		= hns_roce_get_netdev;
-	ib_dev->query_gid		= hns_roce_query_gid;
 	ib_dev->add_gid			= hns_roce_add_gid;
 	ib_dev->del_gid			= hns_roce_del_gid;
 	ib_dev->query_pkey		= hns_roce_query_pkey;
@@ -520,6 +517,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 
+	ib_dev->driver_id = RDMA_DRIVER_HNS;
 	ret = ib_register_device(ib_dev, NULL);
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");
@@ -658,6 +656,11 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	spin_lock_init(&hr_dev->sm_lock);
 	spin_lock_init(&hr_dev->bt_cmd_lock);
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
+		INIT_LIST_HEAD(&hr_dev->pgdir_list);
+		mutex_init(&hr_dev->pgdir_mutex);
+	}
 
 	ret = hns_roce_init_uar_table(hr_dev);
 	if (ret) {

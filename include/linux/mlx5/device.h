@@ -1017,6 +1017,8 @@ enum mlx5_cap_type {
 	MLX5_CAP_VECTOR_CALC,
 	MLX5_CAP_QOS,
 	MLX5_CAP_DEBUG,
+	MLX5_CAP_RESERVED_14,
+	MLX5_CAP_DEV_MEM,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1168,6 +1170,12 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP64_FPGA(mdev, cap) \
 	MLX5_GET64(fpga_cap, (mdev)->caps.fpga, cap)
 
+#define MLX5_CAP_DEV_MEM(mdev, cap)\
+	MLX5_GET(device_mem_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_MEM], cap)
+
+#define MLX5_CAP64_DEV_MEM(mdev, cap)\
+	MLX5_GET64(device_mem_cap, mdev->caps.hca_cur[MLX5_CAP_DEV_MEM], cap)
+
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
 	MLX5_CMD_STAT_INT_ERR			= 0x1,
@@ -1211,8 +1219,8 @@ static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
 	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
 }
 
-#define MLX5_BY_PASS_NUM_REGULAR_PRIOS 8
-#define MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS 8
+#define MLX5_BY_PASS_NUM_REGULAR_PRIOS 16
+#define MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS 16
 #define MLX5_BY_PASS_NUM_MULTICAST_PRIOS 1
 #define MLX5_BY_PASS_NUM_PRIOS (MLX5_BY_PASS_NUM_REGULAR_PRIOS +\
 				MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS +\

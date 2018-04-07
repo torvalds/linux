@@ -1525,10 +1525,24 @@ static int acpi_check_serial_bus_slave(struct acpi_resource *ares, void *data)
 	return -1;
 }
 
-static bool acpi_is_serial_bus_slave(struct acpi_device *device)
+static bool acpi_is_indirect_io_slave(struct acpi_device *device)
+{
+	struct acpi_device *parent = device->parent;
+	const struct acpi_device_id indirect_io_hosts[] = {
+		{"HISI0191", 0},
+		{}
+	};
+
+	return parent && !acpi_match_device_ids(parent, indirect_io_hosts);
+}
+
+static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 {
 	struct list_head resource_list;
 	bool is_serial_bus_slave = false;
+
+	if (acpi_is_indirect_io_slave(device))
+		return true;
 
 	/* Macs use device properties in lieu of _CRS resources */
 	if (x86_apple_machine &&
@@ -1561,7 +1575,8 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	acpi_bus_get_flags(device);
 	device->flags.match_driver = false;
 	device->flags.initialized = true;
-	device->flags.serial_bus_slave = acpi_is_serial_bus_slave(device);
+	device->flags.enumeration_by_parent =
+		acpi_device_enumeration_by_parent(device);
 	acpi_device_clear_enumerated(device);
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
@@ -1859,10 +1874,10 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 static void acpi_default_enumeration(struct acpi_device *device)
 {
 	/*
-	 * Do not enumerate SPI/I2C/UART slaves as they will be enumerated by
-	 * their respective parents.
+	 * Do not enumerate devices with enumeration_by_parent flag set as
+	 * they will be enumerated by their respective parents.
 	 */
-	if (!device->flags.serial_bus_slave) {
+	if (!device->flags.enumeration_by_parent) {
 		acpi_create_platform_device(device, NULL);
 		acpi_device_set_enumerated(device);
 	} else {
@@ -1959,7 +1974,7 @@ static void acpi_bus_attach(struct acpi_device *device)
 		return;
 
 	device->flags.match_driver = true;
-	if (ret > 0 && !device->flags.serial_bus_slave) {
+	if (ret > 0 && !device->flags.enumeration_by_parent) {
 		acpi_device_set_enumerated(device);
 		goto ok;
 	}
@@ -1968,10 +1983,10 @@ static void acpi_bus_attach(struct acpi_device *device)
 	if (ret < 0)
 		return;
 
-	if (!device->pnp.type.platform_id && !device->flags.serial_bus_slave)
-		acpi_device_set_enumerated(device);
-	else
+	if (device->pnp.type.platform_id || device->flags.enumeration_by_parent)
 		acpi_default_enumeration(device);
+	else
+		acpi_device_set_enumerated(device);
 
  ok:
 	list_for_each_entry(child, &device->children, node)

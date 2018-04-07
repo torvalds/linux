@@ -34,8 +34,6 @@
 #include <linux/mutex.h>
 #include <linux/mm.h>
 
-#ifdef CONFIG_SWAP
-
 static DEFINE_PER_CPU(struct swap_slots_cache, swp_slots);
 static bool	swap_slot_cache_active;
 bool	swap_slot_cache_enabled;
@@ -356,5 +354,3 @@ repeat:
 
 	return entry;
 }
-
-#endif /* CONFIG_SWAP */

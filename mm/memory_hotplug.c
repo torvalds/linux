@@ -250,7 +250,6 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
 		struct vmem_altmap *altmap, bool want_memblock)
 {
 	int ret;
-	int i;
 
 	if (pfn_valid(phys_start_pfn))
 		return -EEXIST;
@@ -259,27 +258,10 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Make all the pages reserved so that nobody will stumble over half
-	 * initialized state.
-	 * FIXME: We also have to associate it with a node because page_to_nid
-	 * relies on having page with the proper node.
-	 */
-	for (i = 0; i < PAGES_PER_SECTION; i++) {
-		unsigned long pfn = phys_start_pfn + i;
-		struct page *page;
-		if (!pfn_valid(pfn))
-			continue;
-
-		page = pfn_to_page(pfn);
-		set_page_node(page, nid);
-		SetPageReserved(page);
-	}
-
 	if (!want_memblock)
 		return 0;
 
-	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
+	return hotplug_memory_register(nid, __pfn_to_section(phys_start_pfn));
 }
 
 /*
@@ -559,6 +541,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
  * @zone: zone from which pages need to be removed
  * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
  * @nr_pages: number of pages to remove (must be multiple of section size)
+ * @altmap: alternative device page map or %NULL if default memmap is used
  *
  * Generic helper function to remove section mappings and sysfs entries
  * for the section of the memory we are removing. Caller needs to make
@@ -908,8 +891,15 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	int nid;
 	int ret;
 	struct memory_notify arg;
+	struct memory_block *mem;
 
-	nid = pfn_to_nid(pfn);
+	/*
+	 * We can't use pfn_to_nid() because nid might be stored in struct page
+	 * which is not yet initialized. Instead, we find nid from memory block.
+	 */
+	mem = find_memory_block(__pfn_to_section(pfn));
+	nid = mem->nid;
+
 	/* associate pfn range with the zone */
 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
 
@@ -1055,6 +1045,7 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 
 /**
  * try_online_node - online a node if offlined
+ * @nid: the node ID
  *
  * called by cpu_up() to online a node without onlined memory.
  */
@@ -1083,15 +1074,16 @@ out:
 
 static int check_hotplug_memory_range(u64 start, u64 size)
 {
-	u64 start_pfn = PFN_DOWN(start);
+	unsigned long block_sz = memory_block_size_bytes();
+	u64 block_nr_pages = block_sz >> PAGE_SHIFT;
 	u64 nr_pages = size >> PAGE_SHIFT;
+	u64 start_pfn = PFN_DOWN(start);
 
-	/* Memory range must be aligned with section */
-	if ((start_pfn & ~PAGE_SECTION_MASK) ||
-	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
-		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
-				(unsigned long long)start,
-				(unsigned long long)size);
+	/* memory range must be block size aligned */
+	if (!nr_pages || !IS_ALIGNED(start_pfn, block_nr_pages) ||
+	    !IS_ALIGNED(nr_pages, block_nr_pages)) {
+		pr_err("Block size [%#lx] unaligned hotplug range: start %#llx, size %#llx",
+		       block_sz, start, size);
 		return -EINVAL;
 	}
 
@@ -1814,6 +1806,7 @@ static int check_and_unmap_cpu_on_node(pg_data_t *pgdat)
 
 /**
  * try_offline_node
+ * @nid: the node ID
  *
  * Offline a node if all memory sections and cpus of the node are removed.
  *
@@ -1857,6 +1850,9 @@ EXPORT_SYMBOL(try_offline_node);
 
 /**
  * remove_memory
+ * @nid: the node ID
+ * @start: physical address of the region to remove
+ * @size: size of the region to remove
  *
  * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
  * and online/offline operations before this call, as required by

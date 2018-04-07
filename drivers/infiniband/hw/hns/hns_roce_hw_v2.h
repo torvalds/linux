@@ -299,6 +299,9 @@ struct hns_roce_v2_cq_context {
 
 #define	V2_CQC_BYTE_44_DB_RECORD_EN_S 0
 
+#define	V2_CQC_BYTE_44_DB_RECORD_ADDR_S 1
+#define	V2_CQC_BYTE_44_DB_RECORD_ADDR_M GENMASK(31, 1)
+
 #define	V2_CQC_BYTE_52_CQE_CNT_S 0
 #define	V2_CQC_BYTE_52_CQE_CNT_M GENMASK(23, 0)
 

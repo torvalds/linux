@@ -29,6 +29,14 @@ config BRCMSTB_GISB_ARB
 	  arbiter. This driver provides timeout and target abort error handling
 	  and internal bus master decoding.
 
+config HISILICON_LPC
+	bool "Support for ISA I/O space on HiSilicon Hip06/7"
+	depends on ARM64 && (ARCH_HISI || COMPILE_TEST)
+	select INDIRECT_PIO
+	help
+	  Driver to enable I/O access to devices attached to the Low Pin
+	  Count bus on the HiSilicon Hip06/7 SoC.
+
 config IMX_WEIM
 	bool "Freescale EIM DRIVER"
 	depends on ARCH_MXC

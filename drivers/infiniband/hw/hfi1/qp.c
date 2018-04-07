@@ -481,7 +481,6 @@ static void iowait_sdma_drained(struct iowait *wait)
 }
 
 /**
- *
  * qp_to_sdma_engine - map a qp to a send engine
  * @qp: the QP
  * @sc5: the 5 bit sc

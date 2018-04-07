@@ -435,9 +435,13 @@ static int __init mtd_pagetest_init(void)
 	if (err)
 		goto out;
 
-	err = erasecrosstest();
-	if (err)
-		goto out;
+	if (ebcnt > 1) {
+		err = erasecrosstest();
+		if (err)
+			goto out;
+	} else {
+		pr_info("skipping erasecrosstest, 2 erase blocks needed\n");
+	}
 
 	err = erasetest();
 	if (err)

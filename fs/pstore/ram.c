@@ -938,7 +938,7 @@ static int __init ramoops_init(void)
 	ramoops_register_dummy();
 	return platform_driver_register(&ramoops_driver);
 }
-postcore_initcall(ramoops_init);
+late_initcall(ramoops_init);
 
 static void __exit ramoops_exit(void)
 {

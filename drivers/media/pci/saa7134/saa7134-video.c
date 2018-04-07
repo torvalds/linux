@@ -1235,12 +1235,12 @@ static __poll_t radio_poll(struct file *file, poll_table *wait)
 
 	cmd.instance = file;
 	cmd.event_list = wait;
-	cmd.result = 0;
+	cmd.poll_mask = 0;
 	mutex_lock(&dev->lock);
 	saa_call_all(dev, core, ioctl, SAA6588_CMD_POLL, &cmd);
 	mutex_unlock(&dev->lock);
 
-	return rc | cmd.result;
+	return rc | cmd.poll_mask;
 }
 
 /* ------------------------------------------------------------------ */

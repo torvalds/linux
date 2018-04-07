@@ -1473,6 +1473,7 @@ void security_inet_conn_established(struct sock *sk,
 {
 	call_void_hook(inet_conn_established, sk, skb);
 }
+EXPORT_SYMBOL(security_inet_conn_established);
 
 int security_secmark_relabel_packet(u32 secid)
 {
@@ -1527,6 +1528,27 @@ int security_tun_dev_open(void *security)
 	return call_int_hook(tun_dev_open, 0, security);
 }
 EXPORT_SYMBOL(security_tun_dev_open);
+
+int security_sctp_assoc_request(struct sctp_endpoint *ep, struct sk_buff *skb)
+{
+	return call_int_hook(sctp_assoc_request, 0, ep, skb);
+}
+EXPORT_SYMBOL(security_sctp_assoc_request);
+
+int security_sctp_bind_connect(struct sock *sk, int optname,
+			       struct sockaddr *address, int addrlen)
+{
+	return call_int_hook(sctp_bind_connect, 0, sk, optname,
+			     address, addrlen);
+}
+EXPORT_SYMBOL(security_sctp_bind_connect);
+
+void security_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
+			    struct sock *newsk)
+{
+	call_void_hook(sctp_sk_clone, ep, sk, newsk);
+}
+EXPORT_SYMBOL(security_sctp_sk_clone);
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 

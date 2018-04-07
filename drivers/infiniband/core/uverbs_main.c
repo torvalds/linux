@@ -468,7 +468,7 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 		return;
 	}
 
-	entry = kmalloc(sizeof *entry, GFP_ATOMIC);
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
 		spin_unlock_irqrestore(&ev_queue->lock, flags);
 		return;
@@ -501,7 +501,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 		return;
 	}
 
-	entry = kmalloc(sizeof *entry, GFP_ATOMIC);
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
 		spin_unlock_irqrestore(&file->async_file->ev_queue.lock, flags);
 		return;
@@ -635,39 +635,87 @@ err_put_refs:
 	return filp;
 }
 
-static int verify_command_mask(struct ib_device *ib_dev, __u32 command)
+static bool verify_command_mask(struct ib_device *ib_dev,
+				u32 command, bool extended)
 {
-	u64 mask;
+	if (!extended)
+		return ib_dev->uverbs_cmd_mask & BIT_ULL(command);
 
-	if (command <= IB_USER_VERBS_CMD_OPEN_QP)
-		mask = ib_dev->uverbs_cmd_mask;
-	else
-		mask = ib_dev->uverbs_ex_cmd_mask;
-
-	if (mask & ((u64)1 << command))
-		return 0;
-
-	return -1;
+	return ib_dev->uverbs_ex_cmd_mask & BIT_ULL(command);
 }
 
 static bool verify_command_idx(u32 command, bool extended)
 {
 	if (extended)
-		return command < ARRAY_SIZE(uverbs_ex_cmd_table);
+		return command < ARRAY_SIZE(uverbs_ex_cmd_table) &&
+		       uverbs_ex_cmd_table[command];
 
-	return command < ARRAY_SIZE(uverbs_cmd_table);
+	return command < ARRAY_SIZE(uverbs_cmd_table) &&
+	       uverbs_cmd_table[command];
+}
+
+static ssize_t process_hdr(struct ib_uverbs_cmd_hdr *hdr,
+			   u32 *command, bool *extended)
+{
+	if (hdr->command & ~(u32)(IB_USER_VERBS_CMD_FLAG_EXTENDED |
+				   IB_USER_VERBS_CMD_COMMAND_MASK))
+		return -EINVAL;
+
+	*command = hdr->command & IB_USER_VERBS_CMD_COMMAND_MASK;
+	*extended = hdr->command & IB_USER_VERBS_CMD_FLAG_EXTENDED;
+
+	if (!verify_command_idx(*command, *extended))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
+			  struct ib_uverbs_ex_cmd_hdr *ex_hdr,
+			  size_t count, bool extended)
+{
+	if (extended) {
+		count -= sizeof(*hdr) + sizeof(*ex_hdr);
+
+		if ((hdr->in_words + ex_hdr->provider_in_words) * 8 != count)
+			return -EINVAL;
+
+		if (ex_hdr->cmd_hdr_reserved)
+			return -EINVAL;
+
+		if (ex_hdr->response) {
+			if (!hdr->out_words && !ex_hdr->provider_out_words)
+				return -EINVAL;
+
+			if (!access_ok(VERIFY_WRITE,
+				       u64_to_user_ptr(ex_hdr->response),
+				       (hdr->out_words + ex_hdr->provider_out_words) * 8))
+				return -EFAULT;
+		} else {
+			if (hdr->out_words || ex_hdr->provider_out_words)
+				return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	/* not extended command */
+	if (hdr->in_words * 4 != count)
+		return -EINVAL;
+
+	return 0;
 }
 
 static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_uverbs_ex_cmd_hdr ex_hdr;
 	struct ib_device *ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
-	bool extended_command;
-	__u32 command;
-	__u32 flags;
+	bool extended;
 	int srcu_key;
+	u32 command;
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
@@ -676,11 +724,30 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		return -EACCES;
 	}
 
-	if (count < sizeof hdr)
+	if (count < sizeof(hdr))
 		return -EINVAL;
 
-	if (copy_from_user(&hdr, buf, sizeof hdr))
+	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
+
+	ret = process_hdr(&hdr, &command, &extended);
+	if (ret)
+		return ret;
+
+	if (!file->ucontext &&
+	    (command != IB_USER_VERBS_CMD_GET_CONTEXT || extended))
+		return -EINVAL;
+
+	if (extended) {
+		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
+			return -EINVAL;
+		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr)))
+			return -EFAULT;
+	}
+
+	ret = verify_hdr(&hdr, &ex_hdr, count, extended);
+	if (ret)
+		return ret;
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
 	ib_dev = srcu_dereference(file->device->ib_dev,
@@ -690,106 +757,22 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		goto out;
 	}
 
-	if (hdr.command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
-				   IB_USER_VERBS_CMD_COMMAND_MASK)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	command = hdr.command & IB_USER_VERBS_CMD_COMMAND_MASK;
-	flags = (hdr.command &
-		 IB_USER_VERBS_CMD_FLAGS_MASK) >> IB_USER_VERBS_CMD_FLAGS_SHIFT;
-
-	extended_command = flags & IB_USER_VERBS_CMD_FLAG_EXTENDED;
-	if (!verify_command_idx(command, extended_command)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (verify_command_mask(ib_dev, command)) {
+	if (!verify_command_mask(ib_dev, command, extended)) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
-	if (!file->ucontext &&
-	    command != IB_USER_VERBS_CMD_GET_CONTEXT) {
-		ret = -EINVAL;
-		goto out;
-	}
+	buf += sizeof(hdr);
 
-	if (!flags) {
-		if (!uverbs_cmd_table[command]) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (hdr.in_words * 4 != count) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		ret = uverbs_cmd_table[command](file, ib_dev,
-						 buf + sizeof(hdr),
-						 hdr.in_words * 4,
-						 hdr.out_words * 4);
-
-	} else if (flags == IB_USER_VERBS_CMD_FLAG_EXTENDED) {
-		struct ib_uverbs_ex_cmd_hdr ex_hdr;
+	if (!extended) {
+		ret = uverbs_cmd_table[command](file, ib_dev, buf,
+						hdr.in_words * 4,
+						hdr.out_words * 4);
+	} else {
 		struct ib_udata ucore;
 		struct ib_udata uhw;
-		size_t written_count = count;
 
-		if (!uverbs_ex_cmd_table[command]) {
-			ret = -ENOSYS;
-			goto out;
-		}
-
-		if (!file->ucontext) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (count < (sizeof(hdr) + sizeof(ex_hdr))) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr))) {
-			ret = -EFAULT;
-			goto out;
-		}
-
-		count -= sizeof(hdr) + sizeof(ex_hdr);
-		buf += sizeof(hdr) + sizeof(ex_hdr);
-
-		if ((hdr.in_words + ex_hdr.provider_in_words) * 8 != count) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (ex_hdr.cmd_hdr_reserved) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (ex_hdr.response) {
-			if (!hdr.out_words && !ex_hdr.provider_out_words) {
-				ret = -EINVAL;
-				goto out;
-			}
-
-			if (!access_ok(VERIFY_WRITE,
-				       u64_to_user_ptr(ex_hdr.response),
-				       (hdr.out_words + ex_hdr.provider_out_words) * 8)) {
-				ret = -EFAULT;
-				goto out;
-			}
-		} else {
-			if (hdr.out_words || ex_hdr.provider_out_words) {
-				ret = -EINVAL;
-				goto out;
-			}
-		}
+		buf += sizeof(ex_hdr);
 
 		ib_uverbs_init_udata_buf_or_null(&ucore, buf,
 					u64_to_user_ptr(ex_hdr.response),
@@ -802,10 +785,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 					ex_hdr.provider_out_words * 8);
 
 		ret = uverbs_ex_cmd_table[command](file, ib_dev, &ucore, &uhw);
-		if (!ret)
-			ret = written_count;
-	} else {
-		ret = -ENOSYS;
+		ret = (ret) ? : count;
 	}
 
 out:
@@ -953,10 +933,8 @@ static const struct file_operations uverbs_fops = {
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
 	.llseek	 = no_llseek,
-#if IS_ENABLED(CONFIG_INFINIBAND_EXP_USER_ACCESS)
 	.unlocked_ioctl = ib_uverbs_ioctl,
 	.compat_ioctl = ib_uverbs_ioctl,
-#endif
 };
 
 static const struct file_operations uverbs_mmap_fops = {
@@ -966,10 +944,8 @@ static const struct file_operations uverbs_mmap_fops = {
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
 	.llseek	 = no_llseek,
-#if IS_ENABLED(CONFIG_INFINIBAND_EXP_USER_ACCESS)
 	.unlocked_ioctl = ib_uverbs_ioctl,
 	.compat_ioctl = ib_uverbs_ioctl,
-#endif
 };
 
 static struct ib_client uverbs_client = {
@@ -1032,7 +1008,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (!device->alloc_ucontext)
 		return;
 
-	uverbs_dev = kzalloc(sizeof *uverbs_dev, GFP_KERNEL);
+	uverbs_dev = kzalloc(sizeof(*uverbs_dev), GFP_KERNEL);
 	if (!uverbs_dev)
 		return;
 

@@ -38,6 +38,14 @@
 #define MLX5_FS_IPV4_VERSION 4
 #define MLX5_FS_IPV6_VERSION 6
 
+static inline bool mlx5_fs_is_ipsec_flow(const u32 *match_c)
+{
+	void *misc_params_c = MLX5_ADDR_OF(fte_match_param, match_c,
+					   misc_parameters);
+
+	return MLX5_GET(fte_match_set_misc, misc_params_c, outer_esp_spi);
+}
+
 static inline bool _mlx5_fs_is_outer_ipproto_flow(const u32 *match_c,
 						  const u32 *match_v, u8 match)
 {

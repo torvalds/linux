@@ -311,18 +311,18 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 		__p += (__s)->size, __idx++)
 
 /* Determine object index from a given position */
-static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
+static inline unsigned int slab_index(void *p, struct kmem_cache *s, void *addr)
 {
 	return (p - addr) / s->size;
 }
 
-static inline int order_objects(int order, unsigned long size, int reserved)
+static inline unsigned int order_objects(unsigned int order, unsigned int size, unsigned int reserved)
 {
-	return ((PAGE_SIZE << order) - reserved) / size;
+	return (((unsigned int)PAGE_SIZE << order) - reserved) / size;
 }
 
-static inline struct kmem_cache_order_objects oo_make(int order,
-		unsigned long size, int reserved)
+static inline struct kmem_cache_order_objects oo_make(unsigned int order,
+		unsigned int size, unsigned int reserved)
 {
 	struct kmem_cache_order_objects x = {
 		(order << OO_SHIFT) + order_objects(order, size, reserved)
@@ -331,12 +331,12 @@ static inline struct kmem_cache_order_objects oo_make(int order,
 	return x;
 }
 
-static inline int oo_order(struct kmem_cache_order_objects x)
+static inline unsigned int oo_order(struct kmem_cache_order_objects x)
 {
 	return x.x >> OO_SHIFT;
 }
 
-static inline int oo_objects(struct kmem_cache_order_objects x)
+static inline unsigned int oo_objects(struct kmem_cache_order_objects x)
 {
 	return x.x & OO_MASK;
 }
@@ -466,7 +466,7 @@ static void get_map(struct kmem_cache *s, struct page *page, unsigned long *map)
 		set_bit(slab_index(p, s, addr), map);
 }
 
-static inline int size_from_object(struct kmem_cache *s)
+static inline unsigned int size_from_object(struct kmem_cache *s)
 {
 	if (s->flags & SLAB_RED_ZONE)
 		return s->size - s->red_left_pad;
@@ -598,13 +598,13 @@ static void init_tracking(struct kmem_cache *s, void *object)
 	set_track(s, object, TRACK_ALLOC, 0UL);
 }
 
-static void print_track(const char *s, struct track *t)
+static void print_track(const char *s, struct track *t, unsigned long pr_time)
 {
 	if (!t->addr)
 		return;
 
 	pr_err("INFO: %s in %pS age=%lu cpu=%u pid=%d\n",
-	       s, (void *)t->addr, jiffies - t->when, t->cpu, t->pid);
+	       s, (void *)t->addr, pr_time - t->when, t->cpu, t->pid);
 #ifdef CONFIG_STACKTRACE
 	{
 		int i;
@@ -619,11 +619,12 @@ static void print_track(const char *s, struct track *t)
 
 static void print_tracking(struct kmem_cache *s, void *object)
 {
+	unsigned long pr_time = jiffies;
 	if (!(s->flags & SLAB_STORE_USER))
 		return;
 
-	print_track("Allocated", get_track(s, object, TRACK_ALLOC));
-	print_track("Freed", get_track(s, object, TRACK_FREE));
+	print_track("Allocated", get_track(s, object, TRACK_ALLOC), pr_time);
+	print_track("Freed", get_track(s, object, TRACK_FREE), pr_time);
 }
 
 static void print_page_info(struct page *page)
@@ -680,7 +681,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 		print_section(KERN_ERR, "Bytes b4 ", p - 16, 16);
 
 	print_section(KERN_ERR, "Object ", p,
-		      min_t(unsigned long, s->object_size, PAGE_SIZE));
+		      min_t(unsigned int, s->object_size, PAGE_SIZE));
 	if (s->flags & SLAB_RED_ZONE)
 		print_section(KERN_ERR, "Redzone ", p + s->object_size,
 			s->inuse - s->object_size);
@@ -1292,7 +1293,7 @@ out:
 
 __setup("slub_debug", setup_slub_debug);
 
-slab_flags_t kmem_cache_flags(unsigned long object_size,
+slab_flags_t kmem_cache_flags(unsigned int object_size,
 	slab_flags_t flags, const char *name,
 	void (*ctor)(void *))
 {
@@ -1325,7 +1326,7 @@ static inline void add_full(struct kmem_cache *s, struct kmem_cache_node *n,
 					struct page *page) {}
 static inline void remove_full(struct kmem_cache *s, struct kmem_cache_node *n,
 					struct page *page) {}
-slab_flags_t kmem_cache_flags(unsigned long object_size,
+slab_flags_t kmem_cache_flags(unsigned int object_size,
 	slab_flags_t flags, const char *name,
 	void (*ctor)(void *))
 {
@@ -1435,7 +1436,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 		gfp_t flags, int node, struct kmem_cache_order_objects oo)
 {
 	struct page *page;
-	int order = oo_order(oo);
+	unsigned int order = oo_order(oo);
 
 	if (node == NUMA_NO_NODE)
 		page = alloc_pages(flags, order);
@@ -1454,8 +1455,8 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 /* Pre-initialize the random sequence cache */
 static int init_cache_random_seq(struct kmem_cache *s)
 {
+	unsigned int count = oo_objects(s->oo);
 	int err;
-	unsigned long i, count = oo_objects(s->oo);
 
 	/* Bailout if already initialised */
 	if (s->random_seq)
@@ -1470,6 +1471,8 @@ static int init_cache_random_seq(struct kmem_cache *s)
 
 	/* Transform to an offset on the set of pages */
 	if (s->random_seq) {
+		unsigned int i;
+
 		for (i = 0; i < count; i++)
 			s->random_seq[i] *= s->size;
 	}
@@ -1811,7 +1814,7 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
 {
 	struct page *page, *page2;
 	void *object = NULL;
-	int available = 0;
+	unsigned int available = 0;
 	int objects;
 
 	/*
@@ -2398,7 +2401,7 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 
 	pr_warn("SLUB: Unable to allocate memory on node %d, gfp=%#x(%pGg)\n",
 		nid, gfpflags, &gfpflags);
-	pr_warn("  cache: %s, object size: %d, buffer size: %d, default order: %d, min order: %d\n",
+	pr_warn("  cache: %s, object size: %u, buffer size: %u, default order: %u, min order: %u\n",
 		s->name, s->object_size, s->size, oo_order(s->oo),
 		oo_order(s->min));
 
@@ -3181,9 +3184,9 @@ EXPORT_SYMBOL(kmem_cache_alloc_bulk);
  * and increases the number of allocations possible without having to
  * take the list_lock.
  */
-static int slub_min_order;
-static int slub_max_order = PAGE_ALLOC_COSTLY_ORDER;
-static int slub_min_objects;
+static unsigned int slub_min_order;
+static unsigned int slub_max_order = PAGE_ALLOC_COSTLY_ORDER;
+static unsigned int slub_min_objects;
 
 /*
  * Calculate the order of allocation given an slab object size.
@@ -3210,20 +3213,21 @@ static int slub_min_objects;
  * requested a higher mininum order then we start with that one instead of
  * the smallest order which will fit the object.
  */
-static inline int slab_order(int size, int min_objects,
-				int max_order, int fract_leftover, int reserved)
+static inline unsigned int slab_order(unsigned int size,
+		unsigned int min_objects, unsigned int max_order,
+		unsigned int fract_leftover, unsigned int reserved)
 {
-	int order;
-	int rem;
-	int min_order = slub_min_order;
+	unsigned int min_order = slub_min_order;
+	unsigned int order;
 
 	if (order_objects(min_order, size, reserved) > MAX_OBJS_PER_PAGE)
 		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
 
-	for (order = max(min_order, get_order(min_objects * size + reserved));
+	for (order = max(min_order, (unsigned int)get_order(min_objects * size + reserved));
 			order <= max_order; order++) {
 
-		unsigned long slab_size = PAGE_SIZE << order;
+		unsigned int slab_size = (unsigned int)PAGE_SIZE << order;
+		unsigned int rem;
 
 		rem = (slab_size - reserved) % size;
 
@@ -3234,12 +3238,11 @@ static inline int slab_order(int size, int min_objects,
 	return order;
 }
 
-static inline int calculate_order(int size, int reserved)
+static inline int calculate_order(unsigned int size, unsigned int reserved)
 {
-	int order;
-	int min_objects;
-	int fraction;
-	int max_objects;
+	unsigned int order;
+	unsigned int min_objects;
+	unsigned int max_objects;
 
 	/*
 	 * Attempt to find best configuration for a slab. This
@@ -3256,6 +3259,8 @@ static inline int calculate_order(int size, int reserved)
 	min_objects = min(min_objects, max_objects);
 
 	while (min_objects > 1) {
+		unsigned int fraction;
+
 		fraction = 16;
 		while (fraction >= 4) {
 			order = slab_order(size, min_objects,
@@ -3457,8 +3462,8 @@ static void set_cpu_partial(struct kmem_cache *s)
 static int calculate_sizes(struct kmem_cache *s, int forced_order)
 {
 	slab_flags_t flags = s->flags;
-	size_t size = s->object_size;
-	int order;
+	unsigned int size = s->object_size;
+	unsigned int order;
 
 	/*
 	 * Round up object size to the next word boundary. We can only
@@ -3548,7 +3553,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 	else
 		order = calculate_order(size, s->reserved);
 
-	if (order < 0)
+	if ((int)order < 0)
 		return 0;
 
 	s->allocflags = 0;
@@ -3632,8 +3637,8 @@ static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
 	free_kmem_cache_nodes(s);
 error:
 	if (flags & SLAB_PANIC)
-		panic("Cannot create slab %s size=%lu realsize=%u order=%u offset=%u flags=%lx\n",
-		      s->name, (unsigned long)s->size, s->size,
+		panic("Cannot create slab %s size=%u realsize=%u order=%u offset=%u flags=%lx\n",
+		      s->name, s->size, s->size,
 		      oo_order(s->oo), s->offset, (unsigned long)flags);
 	return -EINVAL;
 }
@@ -3691,6 +3696,17 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 		discard_slab(s, page);
 }
 
+bool __kmem_cache_empty(struct kmem_cache *s)
+{
+	int node;
+	struct kmem_cache_node *n;
+
+	for_each_kmem_cache_node(s, node, n)
+		if (n->nr_partial || slabs_node(s, node))
+			return false;
+	return true;
+}
+
 /*
  * Release all resources used by a slab cache.
  */
@@ -3716,7 +3732,7 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 
 static int __init setup_slub_min_order(char *str)
 {
-	get_option(&str, &slub_min_order);
+	get_option(&str, (int *)&slub_min_order);
 
 	return 1;
 }
@@ -3725,8 +3741,8 @@ __setup("slub_min_order=", setup_slub_min_order);
 
 static int __init setup_slub_max_order(char *str)
 {
-	get_option(&str, &slub_max_order);
-	slub_max_order = min(slub_max_order, MAX_ORDER - 1);
+	get_option(&str, (int *)&slub_max_order);
+	slub_max_order = min(slub_max_order, (unsigned int)MAX_ORDER - 1);
 
 	return 1;
 }
@@ -3735,7 +3751,7 @@ __setup("slub_max_order=", setup_slub_max_order);
 
 static int __init setup_slub_min_objects(char *str)
 {
-	get_option(&str, &slub_min_objects);
+	get_option(&str, (int *)&slub_min_objects);
 
 	return 1;
 }
@@ -3824,7 +3840,7 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 			 bool to_user)
 {
 	struct kmem_cache *s;
-	unsigned long offset;
+	unsigned int offset;
 	size_t object_size;
 
 	/* Find object and usable object size. */
@@ -4230,7 +4246,7 @@ void __init kmem_cache_init(void)
 	cpuhp_setup_state_nocalls(CPUHP_SLUB_DEAD, "slub:dead", NULL,
 				  slub_cpu_dead);
 
-	pr_info("SLUB: HWalign=%d, Order=%d-%d, MinObjects=%d, CPUs=%u, Nodes=%d\n",
+	pr_info("SLUB: HWalign=%d, Order=%u-%u, MinObjects=%u, CPUs=%u, Nodes=%d\n",
 		cache_line_size(),
 		slub_min_order, slub_max_order, slub_min_objects,
 		nr_cpu_ids, nr_node_ids);
@@ -4241,7 +4257,7 @@ void __init kmem_cache_init_late(void)
 }
 
 struct kmem_cache *
-__kmem_cache_alias(const char *name, size_t size, size_t align,
+__kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
 		   slab_flags_t flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s, *c;
@@ -4254,13 +4270,12 @@ __kmem_cache_alias(const char *name, size_t size, size_t align,
 		 * Adjust the object sizes so that we clear
 		 * the complete object on kzalloc.
 		 */
-		s->object_size = max(s->object_size, (int)size);
-		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
+		s->object_size = max(s->object_size, size);
+		s->inuse = max(s->inuse, ALIGN(size, sizeof(void *)));
 
 		for_each_memcg_cache(c, s) {
 			c->object_size = s->object_size;
-			c->inuse = max_t(int, c->inuse,
-					 ALIGN(size, sizeof(void *)));
+			c->inuse = max(c->inuse, ALIGN(size, sizeof(void *)));
 		}
 
 		if (sysfs_slab_alias(s, name)) {
@@ -4889,35 +4904,35 @@ struct slab_attribute {
 
 static ssize_t slab_size_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->size);
+	return sprintf(buf, "%u\n", s->size);
 }
 SLAB_ATTR_RO(slab_size);
 
 static ssize_t align_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->align);
+	return sprintf(buf, "%u\n", s->align);
 }
 SLAB_ATTR_RO(align);
 
 static ssize_t object_size_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->object_size);
+	return sprintf(buf, "%u\n", s->object_size);
 }
 SLAB_ATTR_RO(object_size);
 
 static ssize_t objs_per_slab_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", oo_objects(s->oo));
+	return sprintf(buf, "%u\n", oo_objects(s->oo));
 }
 SLAB_ATTR_RO(objs_per_slab);
 
 static ssize_t order_store(struct kmem_cache *s,
 				const char *buf, size_t length)
 {
-	unsigned long order;
+	unsigned int order;
 	int err;
 
-	err = kstrtoul(buf, 10, &order);
+	err = kstrtouint(buf, 10, &order);
 	if (err)
 		return err;
 
@@ -4930,7 +4945,7 @@ static ssize_t order_store(struct kmem_cache *s,
 
 static ssize_t order_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", oo_order(s->oo));
+	return sprintf(buf, "%u\n", oo_order(s->oo));
 }
 SLAB_ATTR(order);
 
@@ -4962,10 +4977,10 @@ static ssize_t cpu_partial_show(struct kmem_cache *s, char *buf)
 static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
 				 size_t length)
 {
-	unsigned long objects;
+	unsigned int objects;
 	int err;
 
-	err = kstrtoul(buf, 10, &objects);
+	err = kstrtouint(buf, 10, &objects);
 	if (err)
 		return err;
 	if (objects && !kmem_cache_has_cpu_partial(s))
@@ -5081,7 +5096,7 @@ SLAB_ATTR_RO(cache_dma);
 
 static ssize_t usersize_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%zu\n", s->usersize);
+	return sprintf(buf, "%u\n", s->usersize);
 }
 SLAB_ATTR_RO(usersize);
 
@@ -5093,7 +5108,7 @@ SLAB_ATTR_RO(destroy_by_rcu);
 
 static ssize_t reserved_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->reserved);
+	return sprintf(buf, "%u\n", s->reserved);
 }
 SLAB_ATTR_RO(reserved);
 
@@ -5288,21 +5303,22 @@ SLAB_ATTR(shrink);
 #ifdef CONFIG_NUMA
 static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->remote_node_defrag_ratio / 10);
+	return sprintf(buf, "%u\n", s->remote_node_defrag_ratio / 10);
 }
 
 static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
 				const char *buf, size_t length)
 {
-	unsigned long ratio;
+	unsigned int ratio;
 	int err;
 
-	err = kstrtoul(buf, 10, &ratio);
+	err = kstrtouint(buf, 10, &ratio);
 	if (err)
 		return err;
+	if (ratio > 100)
+		return -ERANGE;
 
-	if (ratio <= 100)
-		s->remote_node_defrag_ratio = ratio * 10;
+	s->remote_node_defrag_ratio = ratio * 10;
 
 	return length;
 }
@@ -5663,7 +5679,7 @@ static char *create_unique_id(struct kmem_cache *s)
 		*p++ = 'A';
 	if (p != name + 1)
 		*p++ = '-';
-	p += sprintf(p, "%07d", s->size);
+	p += sprintf(p, "%07u", s->size);
 
 	BUG_ON(p > name + ID_STR_LENGTH - 1);
 	return name;
