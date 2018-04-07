@@ -154,7 +154,6 @@ static int cd_active_low = 1;
 //#define PERI_MSDC2_PDN    (17)
 //#define PERI_MSDC3_PDN    (18)
 
-struct msdc_host *msdc_6575_host[] = {NULL, NULL, NULL, NULL};
 #if 0 /* --- by chhung */
 /* gate means clock power down */
 static int g_clk_gate = 0;
@@ -2771,8 +2770,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		goto release_mem;
 	}
 	msdc_init_gpd_bd(host, &host->dma);
-	/*for emmc*/
-	msdc_6575_host[pdev->id] = host;
 
 #if 0
 	tasklet_init(&host->card_tasklet, msdc_tasklet_card, (ulong)host);
@@ -2949,5 +2946,3 @@ module_exit(mt_msdc_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MediaTek MT6575 SD/MMC Card Driver");
 MODULE_AUTHOR("Infinity Chen <infinity.chen@mediatek.com>");
-
-EXPORT_SYMBOL(msdc_6575_host);
