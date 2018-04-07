@@ -2228,15 +2228,13 @@ static int smack_task_movememory(struct task_struct *p)
  * @p: the task object
  * @info: unused
  * @sig: unused
- * @secid: identifies the smack to use in lieu of current's
+ * @cred: identifies the cred to use in lieu of current's
  *
  * Return 0 if write access is permitted
  *
- * The secid behavior is an artifact of an SELinux hack
- * in the USB code. Someday it may go away.
  */
 static int smack_task_kill(struct task_struct *p, struct siginfo *info,
-			   int sig, u32 secid)
+			   int sig, const struct cred *cred)
 {
 	struct smk_audit_info ad;
 	struct smack_known *skp;
@@ -2252,17 +2250,17 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 	 * Sending a signal requires that the sender
 	 * can write the receiver.
 	 */
-	if (secid == 0) {
+	if (cred == NULL) {
 		rc = smk_curacc(tkp, MAY_DELIVER, &ad);
 		rc = smk_bu_task(p, MAY_DELIVER, rc);
 		return rc;
 	}
 	/*
-	 * If the secid isn't 0 we're dealing with some USB IO
+	 * If the cred isn't NULL we're dealing with some USB IO
 	 * specific behavior. This is not clean. For one thing
 	 * we can't take privilege into account.
 	 */
-	skp = smack_from_secid(secid);
+	skp = smk_of_task(cred->security);
 	rc = smk_access(skp, tkp, MAY_DELIVER, &ad);
 	rc = smk_bu_note("USB signal", skp, tkp, MAY_DELIVER, rc);
 	return rc;
