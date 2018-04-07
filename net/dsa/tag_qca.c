@@ -104,6 +104,9 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!ds->ports[port].netdev)
 		return NULL;
 
+	if (unlikely(ds->cpu_port_mask & BIT(port)))
+		return NULL;
+
 	/* Update skb & forward the frame accordingly */
 	skb->dev = ds->ports[port].netdev;
 

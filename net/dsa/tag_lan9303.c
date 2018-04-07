@@ -108,6 +108,9 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 		return NULL;
 	}
 
+	if (unlikely(ds->cpu_port_mask & BIT(source_port)))
+		return NULL;
+
 	if (!ds->ports[source_port].netdev) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid netdev or device\n");
 		return NULL;

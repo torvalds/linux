@@ -107,6 +107,9 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		return NULL;
 
+	if (unlikely(ds->cpu_port_mask & BIT(source_port)))
+		return NULL;
+
 	/*
 	 * Convert the DSA header to an 802.1q header if the 'tagged'
 	 * bit in the DSA header is set.  If the 'tagged' bit is clear,

@@ -81,6 +81,9 @@ static struct sk_buff *mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!ds->ports[port].netdev)
 		return NULL;
 
+	if (unlikely(ds->cpu_port_mask & BIT(port)))
+		return NULL;
+
 	skb->dev = ds->ports[port].netdev;
 
 	return skb;
