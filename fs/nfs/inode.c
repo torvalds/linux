@@ -1101,7 +1101,8 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		goto out;
 	}
 
-	status = NFS_PROTO(inode)->getattr(server, NFS_FH(inode), fattr, label);
+	status = NFS_PROTO(inode)->getattr(server, NFS_FH(inode), fattr,
+			label, inode);
 	if (status != 0) {
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Lu) getattr failed, error=%d\n",
 			 inode->i_sb->s_id,

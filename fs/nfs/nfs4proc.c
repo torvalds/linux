@@ -92,8 +92,8 @@ static void nfs4_layoutget_release(void *calldata);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
-static int nfs4_proc_getattr(struct nfs_server *, struct nfs_fh *, struct nfs_fattr *, struct nfs4_label *label);
-static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr, struct nfs4_label *label);
+static int nfs4_proc_getattr(struct nfs_server *, struct nfs_fh *, struct nfs_fattr *, struct nfs4_label *label, struct inode *inode);
+static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr, struct nfs4_label *label, struct inode *inode);
 static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
 			    struct nfs_open_context *ctx, struct nfs4_label *ilabel,
@@ -2494,7 +2494,8 @@ static int _nfs4_proc_open(struct nfs4_opendata *data,
 	}
 	if (!(o_res->f_attr->valid & NFS_ATTR_FATTR)) {
 		nfs4_sequence_free_slot(&o_res->seq_res);
-		nfs4_proc_getattr(server, &o_res->fh, o_res->f_attr, o_res->f_label);
+		nfs4_proc_getattr(server, &o_res->fh, o_res->f_attr,
+				o_res->f_label, NULL);
 	}
 	return 0;
 }
@@ -3763,7 +3764,7 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *mntfh,
 	if (IS_ERR(label))
 		return PTR_ERR(label);
 
-	error = nfs4_proc_getattr(server, mntfh, fattr, label);
+	error = nfs4_proc_getattr(server, mntfh, fattr, label, NULL);
 	if (error < 0) {
 		dprintk("nfs4_get_root: getattr error = %d\n", -error);
 		goto err_free_label;
@@ -3828,7 +3829,8 @@ out:
 }
 
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-				struct nfs_fattr *fattr, struct nfs4_label *label)
+				struct nfs_fattr *fattr, struct nfs4_label *label,
+				struct inode *inode)
 {
 	struct nfs4_getattr_arg args = {
 		.fh = fhandle,
@@ -3852,12 +3854,13 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 }
 
 static int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-				struct nfs_fattr *fattr, struct nfs4_label *label)
+				struct nfs_fattr *fattr, struct nfs4_label *label,
+				struct inode *inode)
 {
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = _nfs4_proc_getattr(server, fhandle, fattr, label);
+		err = _nfs4_proc_getattr(server, fhandle, fattr, label, inode);
 		trace_nfs4_getattr(server, fhandle, fattr, err);
 		err = nfs4_handle_exception(server, err,
 				&exception);

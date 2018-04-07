@@ -1656,7 +1656,8 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		struct nfs_server *server = NFS_SB(dentry->d_sb);
-		error = server->nfs_client->rpc_ops->getattr(server, fhandle, fattr, NULL);
+		error = server->nfs_client->rpc_ops->getattr(server, fhandle,
+				fattr, NULL, NULL);
 		if (error < 0)
 			goto out_error;
 	}
