@@ -503,30 +503,6 @@ static void msdc_set_timeout(struct msdc_host *host, u32 ns, u32 clks)
 	      ns, clks, timeout + 1);
 }
 
-/* msdc_eirq_sdio() will be called when EIRQ(for WIFI) */
-static void msdc_eirq_sdio(void *data)
-{
-	struct msdc_host *host = (struct msdc_host *)data;
-
-	N_MSG(INT, "SDIO EINT");
-
-	mmc_signal_sdio_irq(host->mmc);
-}
-
-/* msdc_eirq_cd will not be used!  We not using EINT for card detection. */
-static void msdc_eirq_cd(void *data)
-{
-	struct msdc_host *host = (struct msdc_host *)data;
-
-	N_MSG(INT, "CD EINT");
-
-#if 0
-	tasklet_hi_schedule(&host->card_tasklet);
-#else
-	schedule_delayed_work(&host->card_delaywork, HZ);
-#endif
-}
-
 #if 0
 static void msdc_tasklet_card(unsigned long arg)
 {
