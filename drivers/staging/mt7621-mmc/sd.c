@@ -875,7 +875,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 	 */
 	if (opcode == MMC_SEND_OP_COND || opcode == SD_APP_OP_COND) {
 		resp = RESP_R3;
-	} else if (opcode == MMC_SET_RELATIVE_ADDR || opcode == SD_SEND_RELATIVE_ADDR) {
+	} else if (opcode == MMC_SET_RELATIVE_ADDR) {
 		resp = (mmc_cmd_type(cmd) == MMC_CMD_BCR) ? RESP_R6 : RESP_R1;
 	} else if (opcode == MMC_FAST_IO) {
 		resp = RESP_R4;
