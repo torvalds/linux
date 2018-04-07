@@ -339,7 +339,7 @@ static const struct file_operations msdc_debug_fops = {
 
 void msdc_debug_proc_init(void)
 {
-	proc_create("msdc_debug", 0667, NULL, &msdc_debug_fops);
+	proc_create("msdc_debug", 0660, NULL, &msdc_debug_fops);
 }
 EXPORT_SYMBOL_GPL(msdc_debug_proc_init);
 #endif
