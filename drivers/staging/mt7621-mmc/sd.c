@@ -183,7 +183,7 @@ struct msdc_hw msdc0_hw = {
 	.cmd_drv        = 4,
 	.dat_drv        = 4,
 	.data_offset    = 0,
-	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE | MSDC_HIGHSPEED,
+	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 //	.flags          = MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
 
@@ -2675,10 +2675,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc->f_max      = HOST_MAX_MCLK;
 	mmc->ocr_avail  = MSDC_OCR_AVAIL;
 
-	/* For sd card: MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE | MSDC_HIGHSPEED,
-	   For sdio   : MSDC_EXT_SDIO_IRQ | MSDC_HIGHSPEED */
-	if (hw->flags & MSDC_HIGHSPEED)
-		mmc->caps   = MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED;
+	mmc->caps   = MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED;
 
 	//TODO: read this as bus-width from dt (via mmc_of_parse)
 	mmc->caps  |= MMC_CAP_4_BIT_DATA;

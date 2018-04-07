@@ -52,7 +52,6 @@ typedef void (*pm_callback_t)(pm_message_t state, void *data);
 #define MSDC_SDIO_IRQ       (1 << 3)  /* use internal sdio irq (bus)   */
 #define MSDC_EXT_SDIO_IRQ   (1 << 4)  /* use external sdio irq         */
 #define MSDC_REMOVABLE      (1 << 5)  /* removable slot                */
-#define MSDC_HIGHSPEED      (1 << 7)  /* high-speed mode support       */
 #define MSDC_UHS1           (1 << 8)  /* uhs-1 mode support            */
 #define MSDC_DDR            (1 << 9)  /* ddr mode support              */
 
