@@ -28,8 +28,10 @@
 #include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/reboot.h>
@@ -100,6 +102,7 @@ struct share_params {
 	 * 0: never wait flag1
 	 */
 	u32 wait_flag0;
+	u32 complt_hwirq;
 	 /* if need, add parameter after */
 };
 
@@ -1578,16 +1581,50 @@ static int rockchip_ddr_set_auto_self_refresh(uint32_t en)
 	return res.a0;
 }
 
+struct dmcfreq_wait_ctrl_t {
+	wait_queue_head_t wait_wq;
+	int wait_flag;
+	int wait_en;
+	int wait_time_out_ms;
+};
+
+static struct dmcfreq_wait_ctrl_t wait_ctrl;
+
+static irqreturn_t wait_complete_irq(int irqno, void *dev_id)
+{
+	struct dmcfreq_wait_ctrl_t *ctrl = dev_id;
+
+	ctrl->wait_flag = 0;
+	wake_up(&ctrl->wait_wq);
+	return IRQ_HANDLED;
+}
+
+int rockchip_dmcfreq_wait_complete(void)
+{
+	if (!wait_ctrl.wait_en) {
+		pr_err("%s: Do not support time out!\n", __func__);
+		return 0;
+	}
+	wait_ctrl.wait_flag = -1;
+	wait_event_timeout(wait_ctrl.wait_wq, (wait_ctrl.wait_flag == 0),
+			   msecs_to_jiffies(wait_ctrl.wait_time_out_ms));
+	return 0;
+}
+
 static int px30_dmc_init(struct platform_device *pdev,
 			 struct rockchip_dmcfreq *dmcfreq)
 {
 	struct arm_smccc_res res;
 	u32 size;
+	int ret;
+	int complt_irq;
+	u32 complt_hwirq;
+	struct irq_data *complt_irq_data;
 
 	res = sip_smc_dram(0, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_GET_VERSION);
 	dev_notice(&pdev->dev, "current ATF version 0x%lx!\n", res.a1);
-	if (res.a0 || res.a1 < 0x101) {
+	if (res.a0 || res.a1 < 0x103) {
 		dev_err(&pdev->dev,
 			"trusted firmware need to update or is invalid!\n");
 		return -ENXIO;
@@ -1609,6 +1646,28 @@ static int px30_dmc_init(struct platform_device *pdev,
 	ddr_psci_param = (struct share_params *)res.a1;
 	of_get_px30_timings(&pdev->dev, pdev->dev.of_node,
 			    (uint32_t *)ddr_psci_param);
+
+	init_waitqueue_head(&wait_ctrl.wait_wq);
+	wait_ctrl.wait_en = 1;
+	wait_ctrl.wait_time_out_ms = 17 * 5;
+
+	complt_irq = platform_get_irq_byname(pdev, "complete_irq");
+	if (complt_irq < 0) {
+		dev_err(&pdev->dev, "no IRQ for complete_irq: %d\n",
+			complt_irq);
+		return complt_irq;
+	}
+
+	ret = devm_request_irq(&pdev->dev, complt_irq, wait_complete_irq,
+			       0, dev_name(&pdev->dev), &wait_ctrl);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot request complete_irq\n");
+		return ret;
+	}
+
+	complt_irq_data = irq_get_irq_data(complt_irq);
+	complt_hwirq = irqd_to_hwirq(complt_irq_data);
+	ddr_psci_param->complt_hwirq = complt_hwirq;
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
@@ -2995,8 +3054,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to register input handler\n");
 	}
 
-	rockchip_set_system_status(SYS_STATUS_NORMAL);
-
 	ret = ddr_power_model_simple_init(data);
 
 	if (!ret) {
@@ -3011,6 +3068,8 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 				ret);
 		}
 	}
+
+	rockchip_set_system_status(SYS_STATUS_NORMAL);
 
 	return 0;
 }

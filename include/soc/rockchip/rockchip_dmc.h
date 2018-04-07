@@ -33,4 +33,13 @@ static inline int rockchip_drm_register_notifier_to_dmc(struct devfreq *devfreq)
 }
 #endif
 
+#ifdef CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ
+int rockchip_dmcfreq_wait_complete(void);
+#else
+static inline int rockchip_dmcfreq_wait_complete(void)
+{
+	return 0;
+}
+#endif
+
 #endif

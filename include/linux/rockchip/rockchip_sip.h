@@ -57,6 +57,7 @@
 #define SIP_RET_INVALID_PARAMS		-3
 #define SIP_RET_INVALID_ADDRESS		-4
 #define SIP_RET_DENIED			-5
+#define SIP_RET_SET_RATE_TIMEOUT	-6
 
 /* SIP_UARTDBG_CFG64 call types */
 #define UARTDBG_CFG_INIT		0xf0
