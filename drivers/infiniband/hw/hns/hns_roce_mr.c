@@ -933,7 +933,7 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 		ret = hns_roce_write_mtt(hr_dev, mtt, n, i, pages);
 
 out:
-	free_page((unsigned long) pages);
+	free_pages((unsigned long) pages, order);
 	return ret;
 }
 

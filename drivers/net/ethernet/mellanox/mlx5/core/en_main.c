@@ -357,7 +357,7 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	MLX5_SET(mkc, mkc, umr_en, 1);
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
-	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_MTT);
+	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_MTT);
 
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
 	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.pdn);
@@ -1212,10 +1212,13 @@ static void mlx5e_close_txqsq(struct mlx5e_txqsq *sq)
 {
 	struct mlx5e_channel *c = sq->channel;
 	struct mlx5_core_dev *mdev = c->mdev;
+	struct mlx5_rate_limit rl = {0};
 
 	mlx5e_destroy_sq(mdev, sq->sqn);
-	if (sq->rate_limit)
-		mlx5_rl_remove_rate(mdev, sq->rate_limit);
+	if (sq->rate_limit) {
+		rl.rate = sq->rate_limit;
+		mlx5_rl_remove_rate(mdev, &rl);
+	}
 	mlx5e_free_txqsq_descs(sq);
 	mlx5e_free_txqsq(sq);
 }
@@ -1646,6 +1649,7 @@ static int mlx5e_set_sq_maxrate(struct net_device *dev,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_modify_sq_param msp = {0};
+	struct mlx5_rate_limit rl = {0};
 	u16 rl_index = 0;
 	int err;
 
@@ -1653,14 +1657,17 @@ static int mlx5e_set_sq_maxrate(struct net_device *dev,
 		/* nothing to do */
 		return 0;
 
-	if (sq->rate_limit)
+	if (sq->rate_limit) {
+		rl.rate = sq->rate_limit;
 		/* remove current rl index to free space to next ones */
-		mlx5_rl_remove_rate(mdev, sq->rate_limit);
+		mlx5_rl_remove_rate(mdev, &rl);
+	}
 
 	sq->rate_limit = 0;
 
 	if (rate) {
-		err = mlx5_rl_add_rate(mdev, rate, &rl_index);
+		rl.rate = rate;
+		err = mlx5_rl_add_rate(mdev, &rl_index, &rl);
 		if (err) {
 			netdev_err(dev, "Failed configuring rate %u: %d\n",
 				   rate, err);
@@ -1678,7 +1685,7 @@ static int mlx5e_set_sq_maxrate(struct net_device *dev,
 			   rate, err);
 		/* remove the rate from the table */
 		if (rate)
-			mlx5_rl_remove_rate(mdev, rate);
+			mlx5_rl_remove_rate(mdev, &rl);
 		return err;
 	}
 

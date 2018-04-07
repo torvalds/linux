@@ -7214,6 +7214,7 @@ M:	Shiraz Saleem <shiraz.saleem@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/i40iw/
+F:	include/uapi/rdma/i40iw-abi.h
 
 INTEL SHA MULTIBUFFER DRIVER
 M:	Megha Dey <megha.dey@linux.intel.com>

@@ -200,10 +200,8 @@ int usnic_transport_sock_get_addr(struct socket *sock, int *proto,
 int usnic_transport_init(void)
 {
 	roce_bitmap = kzalloc(ROCE_BITMAP_SZ, GFP_KERNEL);
-	if (!roce_bitmap) {
-		usnic_err("Failed to allocate bit map");
+	if (!roce_bitmap)
 		return -ENOMEM;
-	}
 
 	/* Do not ever allocate bit 0, hence set it here */
 	bitmap_set(roce_bitmap, 0, 1);

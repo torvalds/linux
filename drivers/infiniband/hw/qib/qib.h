@@ -472,9 +472,6 @@ enum qib_sdma_events {
 	qib_sdma_event_e90_timer_tick,
 };
 
-extern char *qib_sdma_state_names[];
-extern char *qib_sdma_event_names[];
-
 struct sdma_set_state_action {
 	unsigned op_enable:1;
 	unsigned op_intenable:1;

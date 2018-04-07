@@ -34,8 +34,8 @@
  *
  */
 
-#ifndef I40IW_USER_CONTEXT_H
-#define I40IW_USER_CONTEXT_H
+#ifndef I40IW_ABI_H
+#define I40IW_ABI_H
 
 #include <linux/types.h>
 
@@ -61,17 +61,17 @@ struct i40iw_alloc_pd_resp {
 };
 
 struct i40iw_create_cq_req {
-	__u64 user_cq_buffer;
-	__u64 user_shadow_area;
+	__aligned_u64 user_cq_buffer;
+	__aligned_u64 user_shadow_area;
 };
 
 struct i40iw_create_qp_req {
-	__u64 user_wqe_buffers;
-	__u64 user_compl_ctx;
+	__aligned_u64 user_wqe_buffers;
+	__aligned_u64 user_compl_ctx;
 
 	/* UDA QP PHB */
-	__u64 user_sq_phb;	/* place for VA of the sq phb buff */
-	__u64 user_rq_phb;	/* place for VA of the rq phb buff */
+	__aligned_u64 user_sq_phb;	/* place for VA of the sq phb buff */
+	__aligned_u64 user_rq_phb;	/* place for VA of the rq phb buff */
 };
 
 enum i40iw_memreg_type {

@@ -591,8 +591,14 @@ struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_pagefault;
 
+struct mlx5_rate_limit {
+	u32			rate;
+	u32			max_burst_sz;
+	u16			typical_pkt_sz;
+};
+
 struct mlx5_rl_entry {
-	u32                     rate;
+	struct mlx5_rate_limit	rl;
 	u16                     index;
 	u16                     refcount;
 };
@@ -1107,9 +1113,12 @@ int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 token,
 
 int mlx5_init_rl_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev);
-int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u32 rate, u16 *index);
-void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, u32 rate);
+int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u16 *index,
+		     struct mlx5_rate_limit *rl);
+void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, struct mlx5_rate_limit *rl);
 bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate);
+bool mlx5_rl_are_equal(struct mlx5_rate_limit *rl_0,
+		       struct mlx5_rate_limit *rl_1);
 int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
 		     bool map_wc, bool fast_path);
 void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
