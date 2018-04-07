@@ -339,7 +339,8 @@ int afs_page_filler(void *data, struct page *page)
 		/* send the page to the cache */
 #ifdef CONFIG_AFS_FSCACHE
 		if (PageFsCache(page) &&
-		    fscache_write_page(vnode->cache, page, GFP_KERNEL) != 0) {
+		    fscache_write_page(vnode->cache, page, vnode->status.size,
+				       GFP_KERNEL) != 0) {
 			fscache_uncache_page(vnode->cache, page);
 			BUG_ON(PageFsCache(page));
 		}
@@ -403,7 +404,8 @@ static void afs_readpages_page_done(struct afs_call *call, struct afs_read *req)
 	/* send the page to the cache */
 #ifdef CONFIG_AFS_FSCACHE
 	if (PageFsCache(page) &&
-	    fscache_write_page(vnode->cache, page, GFP_KERNEL) != 0) {
+	    fscache_write_page(vnode->cache, page, vnode->status.size,
+			       GFP_KERNEL) != 0) {
 		fscache_uncache_page(vnode->cache, page);
 		BUG_ON(PageFsCache(page));
 	}
