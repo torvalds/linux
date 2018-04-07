@@ -11464,6 +11464,7 @@ M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	qemu-devel@nongnu.org
 S:	Maintained
 F:	drivers/firmware/qemu_fw_cfg.c
+F:	include/uapi/linux/qemu_fw_cfg.h
 
 QIB DRIVER
 M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
