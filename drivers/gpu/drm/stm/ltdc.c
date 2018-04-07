@@ -569,9 +569,9 @@ static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
 	.atomic_disable = ltdc_crtc_atomic_disable,
 };
 
-int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)
+static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
 	DRM_DEBUG_DRIVER("\n");
 	reg_set(ldev->regs, LTDC_IER, IER_LIE);
@@ -579,9 +579,9 @@ int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)
 	return 0;
 }
 
-void ltdc_crtc_disable_vblank(struct drm_device *ddev, unsigned int pipe)
+static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
 	DRM_DEBUG_DRIVER("\n");
 	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
@@ -594,6 +594,8 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = ltdc_crtc_enable_vblank,
+	.disable_vblank = ltdc_crtc_disable_vblank,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 

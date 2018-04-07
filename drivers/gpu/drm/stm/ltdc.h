@@ -29,8 +29,6 @@ struct ltdc_device {
 	u32 irq_status;
 };
 
-int ltdc_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe);
-void ltdc_crtc_disable_vblank(struct drm_device *dev, unsigned int pipe);
 int ltdc_load(struct drm_device *ddev);
 void ltdc_unload(struct drm_device *ddev);
 
