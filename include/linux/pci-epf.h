@@ -97,6 +97,8 @@ struct pci_epf_driver {
 struct pci_epf_bar {
 	dma_addr_t	phys_addr;
 	size_t		size;
+	enum pci_barno	barno;
+	int		flags;
 };
 
 /**

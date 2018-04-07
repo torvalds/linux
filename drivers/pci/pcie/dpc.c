@@ -10,7 +10,8 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/pcieport_if.h>
+
+#include "portdrv.h"
 #include "../pci.h"
 #include "aer/aerdrv.h"
 
