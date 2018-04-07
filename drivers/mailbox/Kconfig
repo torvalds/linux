@@ -108,6 +108,14 @@ config TI_MESSAGE_MANAGER
 	  multiple processors within the SoC. Select this driver if your
 	  platform has support for the hardware block.
 
+config HI3660_MBOX
+	tristate "Hi3660 Mailbox"
+	depends on ARCH_HISI && OF
+	help
+	  An implementation of the hi3660 mailbox. It is used to send message
+	  between application processors and other processors/MCU/DSP. Select
+	  Y here if you want to use Hi3660 mailbox controller.
+
 config HI6220_MBOX
 	tristate "Hi6220 Mailbox"
 	depends on ARCH_HISI
@@ -134,7 +142,7 @@ config QCOM_APCS_IPC
 
 config TEGRA_HSP_MBOX
 	bool "Tegra HSP (Hardware Synchronization Primitives) Driver"
-	depends on ARCH_TEGRA_186_SOC
+	depends on ARCH_TEGRA
 	help
 	  The Tegra HSP driver is used for the interprocessor communication
 	  between different remote processors and host processors on Tegra186
