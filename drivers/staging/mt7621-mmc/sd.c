@@ -184,8 +184,8 @@ struct msdc_hw msdc0_hw = {
 	.cmd_drv        = 4,
 	.dat_drv        = 4,
 	.data_offset    = 0,
-	.flags          = MSDC_SYS_SUSPEND | MSDC_CD_PIN_EN | MSDC_REMOVABLE | MSDC_HIGHSPEED,
-//	.flags          = MSDC_SYS_SUSPEND | MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
+	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE | MSDC_HIGHSPEED,
+//	.flags          = MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
 
 /* end of +++ */
@@ -2700,7 +2700,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc->f_max      = HOST_MAX_MCLK;
 	mmc->ocr_avail  = MSDC_OCR_AVAIL;
 
-	/* For sd card: MSDC_SYS_SUSPEND | MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE | MSDC_HIGHSPEED,
+	/* For sd card: MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE | MSDC_HIGHSPEED,
 	   For sdio   : MSDC_EXT_SDIO_IRQ | MSDC_HIGHSPEED */
 	if (hw->flags & MSDC_HIGHSPEED)
 		mmc->caps   = MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED;
@@ -2874,7 +2874,7 @@ static void msdc_drv_pm(struct platform_device *pdev, pm_message state)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct msdc_host *host = mmc_priv(mmc);
 
-	if (mmc && (host->hw->flags & MSDC_SYS_SUSPEND))
+	if (mmc)
 		msdc_pm(state, (void *)host);
 }
 
