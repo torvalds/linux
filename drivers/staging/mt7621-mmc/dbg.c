@@ -265,9 +265,8 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 	if (count > 255)
 		count = 255;
 
-	ret = copy_from_user(cmd_buf, buf, count);
-	if (ret < 0)
-		return -1;
+	if (copy_from_user(cmd_buf, buf, count))
+		return -EFAULT;
 
 	cmd_buf[count] = '\0';
 	printk("msdc Write %s\n", cmd_buf);
