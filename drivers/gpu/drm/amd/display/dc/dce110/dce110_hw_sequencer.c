@@ -1516,18 +1516,41 @@ static struct dc_link *get_link_for_edp_not_in_use(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
-	/* check eDP lid state:
-	 * If lid is open, vbios already light up eDP, so we can leverage vbios and skip eDP
-	 * programming
+	/* check eDP lid state and BIOS_SCRATCH_3 to determine fast boot optimization
+	 * UEFI boot
+	 *				edp_active_status_from_scratch		fast boot optimization
+	 * S4/S5 resume:
+	 * Lid Open		true								true
+	 * Lid Close	false								false
+	 *
+	 * S3/ resume:
+	 * Lid Open		false								false
+	 * Lid Close	false								false
+	 *
+	 * Legacy boot:
+	 *				edp_active_status_from_scratch		fast boot optimization
+	 * S4/S resume:
+	 * Lid Open		true								true
+	 * Lid Close	true								false
+	 *
+	 * S3/ resume:
+	 * Lid Open		false								false
+	 * Lid Close	false								false
 	 */
+	struct dc_bios *dcb = dc->ctx->dc_bios;
 	bool lid_state_closed = is_eDP_lid_closed(context);
 	struct dc_link *edp_link_to_turnoff = NULL;
+	bool edp_active_status_from_scratch =
+			(dcb->funcs->get_vga_enabled_displays(dc->ctx->dc_bios) == ATOM_DISPLAY_LCD1_ACTIVE);
 
+	/*Lid open*/
 	if (!lid_state_closed) {
 		edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
 
-		/* if OS doesn't light up eDP and eDP link is available, we want to disable */
-		if (!edp_link_to_turnoff)
+		/* if OS doesn't light up eDP and eDP link is available, we want to disable
+		 * If resume from S4/S5, should optimization.
+		 */
+		if (!edp_link_to_turnoff && edp_active_status_from_scratch)
 			dc->apply_edp_fast_boot_optimization = true;
 	}
 
