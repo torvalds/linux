@@ -828,6 +828,16 @@
 		status = "disabled";
 	};
 
+	nandc: nandc@ff4b0000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x0 0xff4b0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru SCLK_NANDC>, <&cru HCLK_NANDC>;
+		clock-names = "clk_nandc", "hclk_nandc";
+		status = "disabled";
+	};
+
 	mac: ethernet@ff4e0000 {
 		compatible = "rockchip,rk3308-mac";
 		reg = <0x0 0xff4e0000 0x0 0x10000>;
