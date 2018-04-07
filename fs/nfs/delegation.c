@@ -404,6 +404,10 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred,
 
 	trace_nfs4_set_delegation(inode, type);
 
+	spin_lock(&inode->i_lock);
+	if (NFS_I(inode)->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME))
+		NFS_I(inode)->cache_validity |= NFS_INO_REVAL_FORCED;
+	spin_unlock(&inode->i_lock);
 out:
 	spin_unlock(&clp->cl_lock);
 	if (delegation != NULL)
