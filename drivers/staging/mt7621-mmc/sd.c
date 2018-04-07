@@ -858,13 +858,6 @@ static void msdc_pm(pm_message_t state, void *data)
 		host->suspend = 1;
 		host->pm_state = state;  /* default PMSG_RESUME */
 
-		INIT_MSG("%s Suspend", evt == PM_EVENT_SUSPEND ? "PM" : "USR");
-		if (host->hw->flags & MSDC_SYS_SUSPEND) /* set for card */ {
-			(void)mmc_suspend_host(host->mmc);
-		} else {
-			// host->mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;  /* just for double confirm */ /* --- by chhung */
-			mmc_remove_host(host->mmc);
-		}
 	} else if (evt == PM_EVENT_RESUME || evt == PM_EVENT_USER_RESUME) {
 		if (!host->suspend) {
 			//ERR_MSG("warning: already resume");
@@ -880,13 +873,6 @@ static void msdc_pm(pm_message_t state, void *data)
 		host->suspend = 0;
 		host->pm_state = state;
 
-		INIT_MSG("%s Resume", evt == PM_EVENT_RESUME ? "PM" : "USR");
-		if (host->hw->flags & MSDC_SYS_SUSPEND) { /* will not set for WIFI */
-			(void)mmc_resume_host(host->mmc);
-		} else {
-			// host->mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY; /* --- by chhung */
-			mmc_add_host(host->mmc);
-		}
 	}
 }
 #endif
