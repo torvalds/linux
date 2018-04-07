@@ -505,9 +505,7 @@ static ktime_t __hrtimer_next_event_base(struct hrtimer_cpu_base *cpu_base,
 		timer = container_of(next, struct hrtimer, node);
 		if (timer == exclude) {
 			/* Get to the next timer in the queue. */
-			struct rb_node *rbn = rb_next(&next->node);
-
-			next = rb_entry_safe(rbn, struct timerqueue_node, node);
+			next = timerqueue_iterate_next(next);
 			if (!next)
 				continue;
 
