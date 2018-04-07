@@ -337,14 +337,9 @@ static const struct file_operations msdc_debug_fops = {
 	.release	= single_release,
 };
 
-int msdc_debug_proc_init(void)
+void msdc_debug_proc_init(void)
 {
-	struct proc_dir_entry *de = proc_create("msdc_debug", 0667, NULL, &msdc_debug_fops);
-
-	if (!de || IS_ERR(de))
-		printk("!! Create MSDC debug PROC fail !!\n");
-
-	return 0;
+	proc_create("msdc_debug", 0667, NULL, &msdc_debug_fops);
 }
 EXPORT_SYMBOL_GPL(msdc_debug_proc_init);
 #endif

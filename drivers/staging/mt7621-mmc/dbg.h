@@ -146,7 +146,7 @@ do { \
 } while (0);
 #endif
 
-int msdc_debug_proc_init(void);
+void msdc_debug_proc_init(void);
 
 #if 0 /* --- chhung */
 void msdc_init_gpt(void);
