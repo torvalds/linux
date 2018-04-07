@@ -20,6 +20,13 @@ struct ltdc_caps {
 	bool non_alpha_only_l1; /* non-native no-alpha formats on layer 1 */
 };
 
+#define LTDC_MAX_LAYER	4
+
+struct fps_info {
+	unsigned int counter;
+	ktime_t last_timestamp;
+};
+
 struct ltdc_device {
 	void __iomem *regs;
 	struct clk *pixel_clk;	/* lcd pixel clock */
@@ -27,6 +34,7 @@ struct ltdc_device {
 	struct ltdc_caps caps;
 	u32 error_status;
 	u32 irq_status;
+	struct fps_info plane_fpsi[LTDC_MAX_LAYER];
 };
 
 int ltdc_load(struct drm_device *ddev);
