@@ -59,7 +59,7 @@ static int __tipc_add_sock_diag(struct sk_buff *skb,
 	if (!nlh)
 		return -EMSGSIZE;
 
-	err = tipc_sk_fill_sock_diag(skb, tsk, req->tidiag_states,
+	err = tipc_sk_fill_sock_diag(skb, cb, tsk, req->tidiag_states,
 				     __tipc_diag_gen_cookie);
 	if (err)
 		return err;
