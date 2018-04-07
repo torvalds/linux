@@ -5,7 +5,8 @@ raid6_pq-y	+= algos.o recov.o tables.o int1.o int2.o int4.o \
 		   int8.o int16.o int32.o
 
 raid6_pq-$(CONFIG_X86) += recov_ssse3.o recov_avx2.o mmx.o sse1.o sse2.o avx2.o avx512.o recov_avx512.o
-raid6_pq-$(CONFIG_ALTIVEC) += altivec1.o altivec2.o altivec4.o altivec8.o
+raid6_pq-$(CONFIG_ALTIVEC) += altivec1.o altivec2.o altivec4.o altivec8.o \
+                              vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
 raid6_pq-$(CONFIG_KERNEL_MODE_NEON) += neon.o neon1.o neon2.o neon4.o neon8.o recov_neon.o recov_neon_inner.o
 raid6_pq-$(CONFIG_S390) += s390vx8.o recov_s390xc.o
 
@@ -88,6 +89,30 @@ CFLAGS_altivec8.o += $(altivec_flags)
 targets += altivec8.c
 $(obj)/altivec8.c:   UNROLL := 8
 $(obj)/altivec8.c:   $(src)/altivec.uc $(src)/unroll.awk FORCE
+	$(call if_changed,unroll)
+
+CFLAGS_vpermxor1.o += $(altivec_flags)
+targets += vpermxor1.c
+$(obj)/vpermxor1.c: UNROLL := 1
+$(obj)/vpermxor1.c: $(src)/vpermxor.uc $(src)/unroll.awk FORCE
+	$(call if_changed,unroll)
+
+CFLAGS_vpermxor2.o += $(altivec_flags)
+targets += vpermxor2.c
+$(obj)/vpermxor2.c: UNROLL := 2
+$(obj)/vpermxor2.c: $(src)/vpermxor.uc $(src)/unroll.awk FORCE
+	$(call if_changed,unroll)
+
+CFLAGS_vpermxor4.o += $(altivec_flags)
+targets += vpermxor4.c
+$(obj)/vpermxor4.c: UNROLL := 4
+$(obj)/vpermxor4.c: $(src)/vpermxor.uc $(src)/unroll.awk FORCE
+	$(call if_changed,unroll)
+
+CFLAGS_vpermxor8.o += $(altivec_flags)
+targets += vpermxor8.c
+$(obj)/vpermxor8.c: UNROLL := 8
+$(obj)/vpermxor8.c: $(src)/vpermxor.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 CFLAGS_neon1.o += $(NEON_FLAGS)

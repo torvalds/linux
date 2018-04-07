@@ -312,8 +312,6 @@ err1;	stb	r0,0(r3)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	/* setup read stream 0 */
 	dcbt	0,r6,0b01000   /* addr from */
 	dcbt	0,r7,0b01010   /* length and depth from */
@@ -322,7 +320,6 @@ err1;	stb	r0,0(r3)
 	dcbtst	0,r10,0b01010  /* length and depth to */
 	eieio
 	dcbt	0,r8,0b01010	/* all streams GO */
-.machine pop
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 

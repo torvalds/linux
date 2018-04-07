@@ -139,6 +139,21 @@ EXC_COMMON_BEGIN(system_reset_idle_common)
 	b	pnv_powersave_wakeup
 #endif
 
+/*
+ * Set IRQS_ALL_DISABLED unconditionally so arch_irqs_disabled does
+ * the right thing. We do not want to reconcile because that goes
+ * through irq tracing which we don't want in NMI.
+ *
+ * Save PACAIRQHAPPENED because some code will do a hard disable
+ * (e.g., xmon). So we want to restore this back to where it was
+ * when we return. DAR is unused in the stack, so save it there.
+ */
+#define ADD_RECONCILE_NMI						\
+	li	r10,IRQS_ALL_DISABLED;					\
+	stb	r10,PACAIRQSOFTMASK(r13);				\
+	lbz	r10,PACAIRQHAPPENED(r13);				\
+	std	r10,_DAR(r1)
+
 EXC_COMMON_BEGIN(system_reset_common)
 	/*
 	 * Increment paca->in_nmi then enable MSR_RI. SLB or MCE will be able
@@ -157,16 +172,56 @@ EXC_COMMON_BEGIN(system_reset_common)
 	subi	r1,r1,INT_FRAME_SIZE
 	EXCEPTION_COMMON_NORET_STACK(PACA_EXNMI, 0x100,
 			system_reset, system_reset_exception,
-			ADD_NVGPRS;ADD_RECONCILE)
+			ADD_NVGPRS;ADD_RECONCILE_NMI)
+
+	/* This (and MCE) can be simplified with mtmsrd L=1 */
+	/* Clear MSR_RI before setting SRR0 and SRR1. */
+	li	r0,MSR_RI
+	mfmsr	r9
+	andc	r9,r9,r0
+	mtmsrd	r9,1
 
 	/*
-	 * The stack is no longer in use, decrement in_nmi.
+	 * MSR_RI is clear, now we can decrement paca->in_nmi.
 	 */
 	lhz	r10,PACA_IN_NMI(r13)
 	subi	r10,r10,1
 	sth	r10,PACA_IN_NMI(r13)
 
-	b	ret_from_except
+	/*
+	 * Restore soft mask settings.
+	 */
+	ld	r10,_DAR(r1)
+	stb	r10,PACAIRQHAPPENED(r13)
+	ld	r10,SOFTE(r1)
+	stb	r10,PACAIRQSOFTMASK(r13)
+
+	/*
+	 * Keep below code in synch with MACHINE_CHECK_HANDLER_WINDUP.
+	 * Should share common bits...
+	 */
+
+	/* Move original SRR0 and SRR1 into the respective regs */
+	ld	r9,_MSR(r1)
+	mtspr	SPRN_SRR1,r9
+	ld	r3,_NIP(r1)
+	mtspr	SPRN_SRR0,r3
+	ld	r9,_CTR(r1)
+	mtctr	r9
+	ld	r9,_XER(r1)
+	mtxer	r9
+	ld	r9,_LINK(r1)
+	mtlr	r9
+	REST_GPR(0, r1)
+	REST_8GPRS(2, r1)
+	REST_GPR(10, r1)
+	ld	r11,_CCR(r1)
+	mtcr	r11
+	REST_GPR(11, r1)
+	REST_2GPRS(12, r1)
+	/* restore original r1. */
+	ld	r1,GPR1(r1)
+	RFI_TO_USER_OR_KERNEL
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -621,7 +676,10 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 	mtlr	r10
 
-	beq-	8f		/* if bad address, make full stack frame */
+	/*
+	 * Large address, check whether we have to allocate new contexts.
+	 */
+	beq-	8f
 
 	bne-	cr5,2f		/* if unrecoverable exception, oops */
 
@@ -629,14 +687,11 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 
 	bne	cr4,1f		/* returning to kernel */
 
-.machine	push
-.machine	"power4"
 	mtcrf	0x80,r9
 	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
 	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
 	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-.machine	pop
 
 	RESTORE_CTR(r9, PACA_EXSLB)
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
@@ -649,14 +704,11 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	RFI_TO_USER
 	b	.	/* prevent speculative execution */
 1:
-.machine	push
-.machine	"power4"
 	mtcrf	0x80,r9
 	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
 	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
 	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-.machine	pop
 
 	RESTORE_CTR(r9, PACA_EXSLB)
 	RESTORE_PPR_PACA(PACA_EXSLB, r9)
@@ -685,7 +737,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	mr	r3,r12
 	mfspr	r11,SPRN_SRR0
 	mfspr	r12,SPRN_SRR1
-	LOAD_HANDLER(r10,bad_addr_slb)
+	LOAD_HANDLER(r10, large_addr_slb)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
 	mtspr	SPRN_SRR1,r10
@@ -700,7 +752,7 @@ EXC_COMMON_BEGIN(unrecov_slb)
 	bl	unrecoverable_exception
 	b	1b
 
-EXC_COMMON_BEGIN(bad_addr_slb)
+EXC_COMMON_BEGIN(large_addr_slb)
 	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r3, PACA_EXSLB+EX_DAR(r13)
@@ -710,7 +762,7 @@ EXC_COMMON_BEGIN(bad_addr_slb)
 	std	r10, _TRAP(r1)
 2:	bl	save_nvgprs
 	addi	r3, r1, STACK_FRAME_OVERHEAD
-	bl	slb_miss_bad_addr
+	bl	slb_miss_large_addr
 	b	ret_from_except
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)
@@ -1273,7 +1325,7 @@ EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x100)
 	bne+	denorm_assist
 #endif
 
-	KVMTEST_PR(0x1500)
+	KVMTEST_HV(0x1500)
 	EXCEPTION_PROLOG_PSERIES_1(denorm_common, EXC_HV)
 EXC_REAL_END(denorm_exception_hv, 0x1500, 0x100)
 
@@ -1285,7 +1337,7 @@ EXC_VIRT_END(denorm_exception, 0x5500, 0x100)
 EXC_VIRT_NONE(0x5500, 0x100)
 #endif
 
-TRAMP_KVM_SKIP(PACA_EXGEN, 0x1500)
+TRAMP_KVM_HV(PACA_EXGEN, 0x1500)
 
 #ifdef CONFIG_PPC_DENORMALISATION
 TRAMP_REAL_BEGIN(denorm_assist)
@@ -1466,7 +1518,7 @@ TRAMP_REAL_BEGIN(rfi_flush_fallback)
 	ld	r11,PACA_L1D_FLUSH_SIZE(r13)
 	srdi	r11,r11,(7 + 3) /* 128 byte lines, unrolled 8x */
 	mtctr	r11
-	DCBT_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
+	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
 
 	/* order ld/st prior to dcbt stop all streams with flushing */
 	sync
@@ -1506,7 +1558,7 @@ TRAMP_REAL_BEGIN(hrfi_flush_fallback)
 	ld	r11,PACA_L1D_FLUSH_SIZE(r13)
 	srdi	r11,r11,(7 + 3) /* 128 byte lines, unrolled 8x */
 	mtctr	r11
-	DCBT_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
+	DCBT_BOOK3S_STOP_ALL_STREAM_IDS(r11) /* Stop prefetch streams */
 
 	/* order ld/st prior to dcbt stop all streams with flushing */
 	sync

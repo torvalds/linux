@@ -164,7 +164,7 @@ void icp_native_cause_ipi_rm(int cpu)
 	 * Just like the cause_ipi functions, it is required to
 	 * include a full barrier before causing the IPI.
 	 */
-	xics_phys = paca[cpu].kvm_hstate.xics_phys;
+	xics_phys = paca_ptrs[cpu]->kvm_hstate.xics_phys;
 	mb();
 	__raw_rm_writeb(IPI_PRIORITY, xics_phys + XICS_MFRR);
 }

@@ -98,7 +98,7 @@ static inline void __tlbiel_pid(unsigned long pid, int set,
 	rb |= set << PPC_BITLSHIFT(51);
 	rs = ((unsigned long)pid) << PPC_BITLSHIFT(31);
 	prs = 1; /* process scoped */
-	r = 1;   /* raidx format */
+	r = 1;   /* radix format */
 
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
@@ -112,7 +112,7 @@ static inline void __tlbie_pid(unsigned long pid, unsigned long ric)
 	rb = PPC_BIT(53); /* IS = 1 */
 	rs = pid << PPC_BITLSHIFT(31);
 	prs = 1; /* process scoped */
-	r = 1;   /* raidx format */
+	r = 1;   /* radix format */
 
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
@@ -128,7 +128,7 @@ static inline void __tlbiel_va(unsigned long va, unsigned long pid,
 	rb |= ap << PPC_BITLSHIFT(58);
 	rs = pid << PPC_BITLSHIFT(31);
 	prs = 1; /* process scoped */
-	r = 1;   /* raidx format */
+	r = 1;   /* radix format */
 
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
@@ -144,7 +144,7 @@ static inline void __tlbie_va(unsigned long va, unsigned long pid,
 	rb |= ap << PPC_BITLSHIFT(58);
 	rs = pid << PPC_BITLSHIFT(31);
 	prs = 1; /* process scoped */
-	r = 1;   /* raidx format */
+	r = 1;   /* radix format */
 
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
@@ -668,7 +668,7 @@ void radix__flush_tlb_all(void)
 
 	rb = 0x3 << PPC_BITLSHIFT(53); /* IS = 3 */
 	prs = 0; /* partition scoped */
-	r = 1;   /* raidx format */
+	r = 1;   /* radix format */
 	rs = 1 & ((1UL << 32) - 1); /* any LPID value to flush guest mappings */
 
 	asm volatile("ptesync": : :"memory");
@@ -706,7 +706,7 @@ void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 {
-	unsigned int pid = mm->context.id;
+	unsigned long pid = mm->context.id;
 
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		return;
@@ -734,7 +734,7 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 		for (; sib <= cpu_last_thread_sibling(cpu) && !flush; sib++) {
 			if (sib == cpu)
 				continue;
-			if (paca[sib].kvm_hstate.kvm_vcpu)
+			if (paca_ptrs[sib]->kvm_hstate.kvm_vcpu)
 				flush = true;
 		}
 		if (flush)

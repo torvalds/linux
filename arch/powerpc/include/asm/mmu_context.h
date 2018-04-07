@@ -60,12 +60,51 @@ extern int hash__alloc_context_id(void);
 extern void hash__reserve_context_id(int id);
 extern void __destroy_context(int context_id);
 static inline void mmu_context_init(void) { }
+
+static inline int alloc_extended_context(struct mm_struct *mm,
+					 unsigned long ea)
+{
+	int context_id;
+
+	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
+
+	context_id = hash__alloc_context_id();
+	if (context_id < 0)
+		return context_id;
+
+	VM_WARN_ON(mm->context.extended_id[index]);
+	mm->context.extended_id[index] = context_id;
+	return context_id;
+}
+
+static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
+{
+	int context_id;
+
+	context_id = get_ea_context(&mm->context, ea);
+	if (!context_id)
+		return true;
+	return false;
+}
+
 #else
 extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			       struct task_struct *tsk);
 extern unsigned long __init_new_context(void);
 extern void __destroy_context(unsigned long context_id);
 extern void mmu_context_init(void);
+static inline int alloc_extended_context(struct mm_struct *mm,
+					 unsigned long ea)
+{
+	/* non book3s_64 should never find this called */
+	WARN_ON(1);
+	return -ENOMEM;
+}
+
+static inline bool need_extra_context(struct mm_struct *mm, unsigned long ea)
+{
+	return false;
+}
 #endif
 
 #if defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE) && defined(CONFIG_PPC_RADIX_MMU)

@@ -208,6 +208,12 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 	}
 	raw_local_irq_restore(flags);
 
+	/*
+	 * system_reset_excption handles debugger, crash dump, panic, for 0x100
+	 */
+	if (TRAP(regs) == 0x100)
+		return;
+
 	crash_fadump(regs, "die oops");
 
 	if (kexec_should_crash(current))
@@ -272,8 +278,13 @@ void die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned long flags;
 
-	if (debugger(regs))
-		return;
+	/*
+	 * system_reset_excption handles debugger, crash dump, panic, for 0x100
+	 */
+	if (TRAP(regs) != 0x100) {
+		if (debugger(regs))
+			return;
+	}
 
 	flags = oops_begin(regs);
 	if (__die(str, regs, err))
@@ -460,7 +471,7 @@ static inline int check_io_access(struct pt_regs *regs)
 /* single-step stuff */
 #define single_stepping(regs)	(current->thread.debug.dbcr0 & DBCR0_IC)
 #define clear_single_step(regs)	(current->thread.debug.dbcr0 &= ~DBCR0_IC)
-
+#define clear_br_trace(regs)	do {} while(0)
 #else
 /* On non-4xx, the reason for the machine check or program
    exception is in the MSR. */
@@ -473,6 +484,7 @@ static inline int check_io_access(struct pt_regs *regs)
 
 #define single_stepping(regs)	((regs)->msr & MSR_SE)
 #define clear_single_step(regs)	((regs)->msr &= ~MSR_SE)
+#define clear_br_trace(regs)	((regs)->msr &= ~MSR_BE)
 #endif
 
 #if defined(CONFIG_E500)
@@ -988,6 +1000,7 @@ void single_step_exception(struct pt_regs *regs)
 	enum ctx_state prev_state = exception_enter();
 
 	clear_single_step(regs);
+	clear_br_trace(regs);
 
 	if (kprobe_post_handler(regs))
 		return;
@@ -1492,18 +1505,6 @@ void alignment_exception(struct pt_regs *regs)
 		bad_page_fault(regs, regs->dar, sig);
 
 bail:
-	exception_exit(prev_state);
-}
-
-void slb_miss_bad_addr(struct pt_regs *regs)
-{
-	enum ctx_state prev_state = exception_enter();
-
-	if (user_mode(regs))
-		_exception(SIGSEGV, regs, SEGV_BNDERR, regs->dar);
-	else
-		bad_page_fault(regs, regs->dar, SIGSEGV);
-
 	exception_exit(prev_state);
 }
 

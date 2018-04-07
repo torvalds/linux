@@ -112,7 +112,7 @@ static int opal_memory_err_event(struct notifier_block *nb,
 		       "handled\n");
 		return -ENOMEM;
 	}
-	memcpy(&msg_node->msg, msg, sizeof(struct opal_msg));
+	memcpy(&msg_node->msg, msg, sizeof(msg_node->msg));
 
 	spin_lock_irqsave(&opal_mem_err_lock, flags);
 	list_add(&msg_node->list, &opal_memory_err_list);
