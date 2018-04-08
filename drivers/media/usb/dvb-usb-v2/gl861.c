@@ -43,7 +43,7 @@ static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 		return -EINVAL;
 	}
 
-	msleep(1); /* avoid I2C errors */
+	usleep_range(1000, 2000); /* avoid I2C errors */
 
 	return usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), req, type,
 			       value, index, rbuf, rlen, 2000);
