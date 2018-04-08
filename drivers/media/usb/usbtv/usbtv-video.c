@@ -57,6 +57,11 @@ static struct usbtv_norm_params norm_params[] = {
 		.norm = V4L2_STD_PAL,
 		.cap_width = 720,
 		.cap_height = 576,
+	},
+	{
+		.norm = V4L2_STD_SECAM,
+		.cap_width = 720,
+		.cap_height = 576,
 	}
 };
 
@@ -187,6 +192,34 @@ static int usbtv_select_norm(struct usbtv *usbtv, v4l2_std_id norm)
 		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
+	static const u16 secam[][2] = {
+		/* "AVSECAM" tuning sequence from .INF file */
+		{ USBTV_BASE + 0x0003, 0x0004 },
+		{ USBTV_BASE + 0x001a, 0x0073 },
+		{ USBTV_BASE + 0x0100, 0x00dc },
+		{ USBTV_BASE + 0x010e, 0x0072 },
+		{ USBTV_BASE + 0x010f, 0x00a2 },
+		{ USBTV_BASE + 0x0112, 0x0090 },
+		{ USBTV_BASE + 0x0115, 0x0035 },
+		{ USBTV_BASE + 0x0117, 0x0001 },
+		{ USBTV_BASE + 0x0118, 0x0030 },
+		{ USBTV_BASE + 0x012d, 0x0004 },
+		{ USBTV_BASE + 0x012f, 0x0008 },
+		{ USBTV_BASE + 0x0220, 0x002d },
+		{ USBTV_BASE + 0x0225, 0x0028 },
+		{ USBTV_BASE + 0x024e, 0x0008 },
+		{ USBTV_BASE + 0x024f, 0x0002 },
+		{ USBTV_BASE + 0x0254, 0x0069 },
+		{ USBTV_BASE + 0x025a, 0x0016 },
+		{ USBTV_BASE + 0x025b, 0x0035 },
+		{ USBTV_BASE + 0x0263, 0x0021 },
+		{ USBTV_BASE + 0x0266, 0x0016 },
+		{ USBTV_BASE + 0x0267, 0x0036 },
+		/* Epilog */
+		{ USBTV_BASE + 0x024e, 0x0002 },
+		{ USBTV_BASE + 0x024f, 0x0002 },
+	};
+
 	ret = usbtv_configure_for_norm(usbtv, norm);
 
 	if (!ret) {
@@ -194,6 +227,8 @@ static int usbtv_select_norm(struct usbtv *usbtv, v4l2_std_id norm)
 			ret = usbtv_set_regs(usbtv, ntsc, ARRAY_SIZE(ntsc));
 		else if (norm & V4L2_STD_PAL)
 			ret = usbtv_set_regs(usbtv, pal, ARRAY_SIZE(pal));
+		else if (norm & V4L2_STD_SECAM)
+			ret = usbtv_set_regs(usbtv, secam, ARRAY_SIZE(secam));
 	}
 
 	return ret;
@@ -605,7 +640,8 @@ static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	int ret = -EINVAL;
 	struct usbtv *usbtv = video_drvdata(file);
 
-	if ((norm & V4L2_STD_525_60) || (norm & V4L2_STD_PAL))
+	if ((norm & V4L2_STD_525_60) || (norm & V4L2_STD_PAL) ||
+			(norm & V4L2_STD_SECAM))
 		ret = usbtv_select_norm(usbtv, norm);
 
 	return ret;
