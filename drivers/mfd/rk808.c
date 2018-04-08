@@ -797,7 +797,7 @@ static void rk817_shutdown_prepare(void)
 			   RK817_RTC_INT_REG,
 			   (0x3 << 2), (0x0 << 2));
 
-	if (rk808->pins->p && rk808->pins->power_off) {
+	if (rk808->pins && rk808->pins->p && rk808->pins->power_off) {
 		ret = regmap_update_bits(rk808->regmap,
 					 RK817_SYS_CFG(3),
 					 RK817_SLPPIN_FUNC_MSK,
