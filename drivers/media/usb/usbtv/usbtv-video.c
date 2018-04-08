@@ -670,8 +670,7 @@ static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	int ret = -EINVAL;
 	struct usbtv *usbtv = video_drvdata(file);
 
-	if ((norm & V4L2_STD_525_60) || (norm & V4L2_STD_PAL) ||
-			(norm & V4L2_STD_SECAM))
+	if (norm & USBTV_TV_STD)
 		ret = usbtv_select_norm(usbtv, norm);
 
 	return ret;
