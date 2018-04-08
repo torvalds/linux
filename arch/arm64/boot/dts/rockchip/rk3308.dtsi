@@ -650,6 +650,9 @@
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac1 0>, <&dmac1 1>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S0_8CH_TX_M>, <&cru SRST_I2S0_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_0_sclktx
 			     &i2s_8ch_0_sclkrx
@@ -675,6 +678,9 @@
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac1 2>, <&dmac1 3>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S1_8CH_TX_M>, <&cru SRST_I2S1_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
 		status = "disabled";
 	};
 
@@ -686,6 +692,9 @@
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac1 4>, <&dmac1 5>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S2_8CH_TX_M>, <&cru SRST_I2S2_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
 		status = "disabled";
 	};
 
@@ -697,6 +706,9 @@
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		dmas = <&dmac1 7>;
 		dma-names = "rx";
+		resets = <&cru SRST_I2S3_8CH_TX_M>, <&cru SRST_I2S3_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
 		status = "disabled";
 	};
 
