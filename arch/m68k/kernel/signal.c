@@ -576,41 +576,42 @@ static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *
 
 static inline void siginfo_build_tests(void)
 {
-	/* This needs to be tested on m68k as it has a lesser
-	 * alignment requirment than x86 and that can cause surprises.
+	/*
+	 * This needs to be tested on m68k as it has a lesser
+	 * alignment requirement than x86 and that can cause surprises.
 	 */
 
 	/* This is part of the ABI and can never change in size: */
 	BUILD_BUG_ON(sizeof(siginfo_t) != 128);
 
-	/* Ensure the know fields never change in location */
+	/* Ensure the known fields never change in location */
 	BUILD_BUG_ON(offsetof(siginfo_t, si_signo) != 0);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_errno) != 4);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_code)  != 8);
 
 	/* _kill */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pid) != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid) != 0x0c);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_uid) != 0x10);
 
 	/* _timer */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_tid)     != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_tid)     != 0x0c);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_overrun) != 0x10);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_value)   != 0x14);
 
 	/* _rt */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)   != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)   != 0x0c);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)   != 0x10);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_value) != 0x14);
 
 	/* _sigchld */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)    != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)    != 0x0c);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)    != 0x10);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_status) != 0x14);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_utime)  != 0x18);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_stime)  != 0x1C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_stime)  != 0x1c);
 
 	/* _sigfault */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_addr) != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_addr) != 0x0c);
 
 	/* _sigfault._mcerr */
 	BUILD_BUG_ON(offsetof(siginfo_t, si_addr_lsb) != 0x10);
@@ -623,11 +624,11 @@ static inline void siginfo_build_tests(void)
 	BUILD_BUG_ON(offsetof(siginfo_t, si_pkey) != 0x12);
 
 	/* _sigpoll */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_band)   != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_band)   != 0x0c);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_fd)     != 0x10);
 
 	/* _sigsys */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_call_addr) != 0x0C);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_call_addr) != 0x0c);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_syscall)   != 0x10);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_arch)      != 0x14);
 
