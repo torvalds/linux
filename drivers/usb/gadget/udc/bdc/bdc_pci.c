@@ -82,6 +82,7 @@ static int bdc_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	if (ret) {
 		dev_err(&pci->dev,
 			"couldn't add resources to bdc device\n");
+		platform_device_put(bdc);
 		return ret;
 	}
 

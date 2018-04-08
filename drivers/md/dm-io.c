@@ -300,6 +300,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 	else if (rw & REQ_WRITE_SAME)
 		special_cmd_max_sectors = q->limits.max_write_same_sectors;
 	if ((rw & (REQ_DISCARD | REQ_WRITE_SAME)) && special_cmd_max_sectors == 0) {
+		atomic_inc(&io->count);
 		dec_count(io, region, -EOPNOTSUPP);
 		return;
 	}

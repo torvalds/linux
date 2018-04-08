@@ -370,6 +370,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 	}
 
 	buf = (u8 *)op->optinsn.insn;
+	set_memory_rw((unsigned long)buf & PAGE_MASK, 1);
 
 	/* Copy instructions into the out-of-line buffer */
 	ret = copy_optimized_instructions(buf + TMPL_END_IDX, op->kp.addr);
@@ -391,6 +392,8 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 	/* Set returning jmp instruction at the tail of out-of-line buffer */
 	synthesize_reljump(buf + TMPL_END_IDX + op->optinsn.size,
 			   (u8 *)op->kp.addr + op->optinsn.size);
+
+	set_memory_ro((unsigned long)buf & PAGE_MASK, 1);
 
 	flush_icache_range((unsigned long) buf,
 			   (unsigned long) buf + TMPL_END_IDX +

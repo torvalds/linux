@@ -73,6 +73,7 @@ phys_addr_t omap_secure_ram_mempool_base(void)
 	return omap_secure_memblock_base;
 }
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 u32 omap3_save_secure_ram(void __iomem *addr, int size)
 {
 	u32 ret;
@@ -91,6 +92,7 @@ u32 omap3_save_secure_ram(void __iomem *addr, int size)
 
 	return ret;
 }
+#endif
 
 /**
  * rx51_secure_dispatcher: Routine to dispatch secure PPA API calls

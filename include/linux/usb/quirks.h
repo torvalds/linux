@@ -59,4 +59,7 @@
 /* device can't support auto suspend function */
 #define USB_QUIRK_AUTO_SUSPEND			BIT(12)
 
+/* Device needs a pause after every control message. */
+#define USB_QUIRK_DELAY_CTRL_MSG		BIT(13)
+
 #endif /* __LINUX_USB_QUIRKS_H */

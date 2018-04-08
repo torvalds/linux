@@ -149,7 +149,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 				continue;
 
 			/* The local out port number */
-			pdata->outports[i] = endpoint.id;
+			pdata->outports[i] = endpoint.port;
 
 			/*
 			 * Get a handle on the remote port and parent

@@ -1892,6 +1892,15 @@ static ssize_t ath10k_write_simulate_radar(struct file *file,
 					   size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
+	struct ath10k_vif *arvif;
+
+	/* Just check for for the first vif alone, as all the vifs will be
+	 * sharing the same channel and if the channel is disabled, all the
+	 * vifs will share the same 'is_started' state.
+	 */
+	arvif = list_first_entry(&ar->arvifs, typeof(*arvif), list);
+	if (!arvif->is_started)
+		return -EINVAL;
 
 	ieee80211_radar_detected(ar->hw);
 

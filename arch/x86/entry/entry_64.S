@@ -178,12 +178,14 @@ GLOBAL(entry_SYSCALL_64_after_swapgs)
 	jnz	tracesys
 entry_SYSCALL_64_fastpath:
 #if __SYSCALL_MASK == ~0
-	cmpq	$__NR_syscall_max, %rax
+	cmpq	$NR_syscalls, %rax
 #else
 	andl	$__SYSCALL_MASK, %eax
-	cmpl	$__NR_syscall_max, %eax
+	cmpl	$NR_syscalls, %eax
 #endif
-	ja	1f				/* return -ENOSYS (already in pt_regs->ax) */
+	jae	1f				/* return -ENOSYS (already in pt_regs->ax) */
+	sbb	%rcx, %rcx			/* array_index_mask_nospec() */
+	and	%rcx, %rax
 	movq	%r10, %rcx
 #ifdef CONFIG_RETPOLINE
 	movq	sys_call_table(, %rax, 8), %rax
@@ -276,12 +278,14 @@ tracesys_phase2:
 	RESTORE_C_REGS_EXCEPT_RAX
 	RESTORE_EXTRA_REGS
 #if __SYSCALL_MASK == ~0
-	cmpq	$__NR_syscall_max, %rax
+	cmpq	$NR_syscalls, %rax
 #else
 	andl	$__SYSCALL_MASK, %eax
-	cmpl	$__NR_syscall_max, %eax
+	cmpl	$NR_syscalls, %eax
 #endif
-	ja	1f				/* return -ENOSYS (already in pt_regs->ax) */
+	jae	1f				/* return -ENOSYS (already in pt_regs->ax) */
+	sbb	%rcx, %rcx			/* array_index_mask_nospec() */
+	and	%rcx, %rax
 	movq	%r10, %rcx			/* fixup for C */
 #ifdef CONFIG_RETPOLINE
 	movq	sys_call_table(, %rax, 8), %rax
@@ -1020,7 +1024,7 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 #endif /* CONFIG_HYPERV */
 
 idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
-idtentry int3			do_int3			has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
+idtentry int3			do_int3			has_error_code=0
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
 #ifdef CONFIG_XEN

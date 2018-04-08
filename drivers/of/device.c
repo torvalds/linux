@@ -223,7 +223,7 @@ ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 			str[i] = '_';
 	}
 
-	return tsize;
+	return repend;
 }
 EXPORT_SYMBOL_GPL(of_device_get_modalias);
 

@@ -59,12 +59,14 @@ static int send_command(struct cros_ec_device *ec_dev,
 			struct cros_ec_command *msg)
 {
 	int ret;
+	int (*xfer_fxn)(struct cros_ec_device *ec, struct cros_ec_command *msg);
 
 	if (ec_dev->proto_version > 2)
-		ret = ec_dev->pkt_xfer(ec_dev, msg);
+		xfer_fxn = ec_dev->pkt_xfer;
 	else
-		ret = ec_dev->cmd_xfer(ec_dev, msg);
+		xfer_fxn = ec_dev->cmd_xfer;
 
+	ret = (*xfer_fxn)(ec_dev, msg);
 	if (msg->result == EC_RES_IN_PROGRESS) {
 		int i;
 		struct cros_ec_command *status_msg;
@@ -87,7 +89,7 @@ static int send_command(struct cros_ec_device *ec_dev,
 		for (i = 0; i < EC_COMMAND_RETRIES; i++) {
 			usleep_range(10000, 11000);
 
-			ret = ec_dev->cmd_xfer(ec_dev, status_msg);
+			ret = (*xfer_fxn)(ec_dev, status_msg);
 			if (ret < 0)
 				break;
 

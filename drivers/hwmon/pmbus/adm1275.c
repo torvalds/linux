@@ -95,8 +95,8 @@ static const struct coefficients adm1075_coefficients[] = {
 	[0] = { 27169, 0, -1 },		/* voltage */
 	[1] = { 806, 20475, -1 },	/* current, irange25 */
 	[2] = { 404, 20475, -1 },	/* current, irange50 */
-	[3] = { 0, -1, 8549 },		/* power, irange25 */
-	[4] = { 0, -1, 4279 },		/* power, irange50 */
+	[3] = { 8549, 0, -1 },		/* power, irange25 */
+	[4] = { 4279, 0, -1 },		/* power, irange50 */
 };
 
 static const struct coefficients adm1275_coefficients[] = {
