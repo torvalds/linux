@@ -256,7 +256,9 @@ enum probe_type {
  *		automatically.
  * @pm:		Power management operations of the device which matched
  *		this driver.
- * @coredump:	Called through sysfs to initiate a device coredump.
+ * @coredump:	Called when sysfs entry is written to. The device driver
+ *		is expected to call the dev_coredump API resulting in a
+ *		uevent.
  * @p:		Driver core's private data, no one other than the driver
  *		core can touch this.
  *
@@ -288,7 +290,7 @@ struct device_driver {
 	const struct attribute_group **groups;
 
 	const struct dev_pm_ops *pm;
-	int (*coredump) (struct device *dev);
+	void (*coredump) (struct device *dev);
 
 	struct driver_private *p;
 };
