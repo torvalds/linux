@@ -106,12 +106,17 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 	 *    problems with hwspinlock usage (e.g. scheduler checks like
 	 *    'scheduling while atomic' etc.)
 	 */
-	if (mode == HWLOCK_IRQSTATE)
+	switch (mode) {
+	case HWLOCK_IRQSTATE:
 		ret = spin_trylock_irqsave(&hwlock->lock, *flags);
-	else if (mode == HWLOCK_IRQ)
+		break;
+	case HWLOCK_IRQ:
 		ret = spin_trylock_irq(&hwlock->lock);
-	else
+		break;
+	default:
 		ret = spin_trylock(&hwlock->lock);
+		break;
+	}
 
 	/* is lock already taken by another context on the local cpu ? */
 	if (!ret)
@@ -122,12 +127,17 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 
 	/* if hwlock is already taken, undo spin_trylock_* and exit */
 	if (!ret) {
-		if (mode == HWLOCK_IRQSTATE)
+		switch (mode) {
+		case HWLOCK_IRQSTATE:
 			spin_unlock_irqrestore(&hwlock->lock, *flags);
-		else if (mode == HWLOCK_IRQ)
+			break;
+		case HWLOCK_IRQ:
 			spin_unlock_irq(&hwlock->lock);
-		else
+			break;
+		default:
 			spin_unlock(&hwlock->lock);
+			break;
+		}
 
 		return -EBUSY;
 	}
@@ -249,12 +259,17 @@ void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 	hwlock->bank->ops->unlock(hwlock);
 
 	/* Undo the spin_trylock{_irq, _irqsave} called while locking */
-	if (mode == HWLOCK_IRQSTATE)
+	switch (mode) {
+	case HWLOCK_IRQSTATE:
 		spin_unlock_irqrestore(&hwlock->lock, *flags);
-	else if (mode == HWLOCK_IRQ)
+		break;
+	case HWLOCK_IRQ:
 		spin_unlock_irq(&hwlock->lock);
-	else
+		break;
+	default:
 		spin_unlock(&hwlock->lock);
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(__hwspin_unlock);
 
