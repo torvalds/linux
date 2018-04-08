@@ -263,6 +263,13 @@ struct smb2_negotiate_req {
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000
 
+struct smb2_neg_context {
+	__le16	ContextType;
+	__le16	DataLength;
+	__le32	Reserved;
+	/* Followed by array of data */
+} __packed;
+
 #define SMB311_SALT_SIZE			32
 /* Hash Algorithm Types */
 #define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)

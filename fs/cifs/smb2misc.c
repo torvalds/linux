@@ -93,6 +93,41 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_OPLOCK_BREAK */ cpu_to_le16(24)
 };
 
+#ifdef CONFIG_CIFS_SMB311
+static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len, __u32 non_ctxlen)
+{
+	__u16 neg_count;
+	__u32 nc_offset, size_of_pad_before_neg_ctxts;
+	struct smb2_negotiate_rsp *pneg_rsp = (struct smb2_negotiate_rsp *)hdr;
+
+	/* Negotiate contexts are only valid for latest dialect SMB3.11 */
+	neg_count = le16_to_cpu(pneg_rsp->NegotiateContextCount);
+	if ((neg_count == 0) ||
+	   (pneg_rsp->DialectRevision != cpu_to_le16(SMB311_PROT_ID)))
+		return 0;
+
+	/* Make sure that negotiate contexts start after gss security blob */
+	nc_offset = le32_to_cpu(pneg_rsp->NegotiateContextOffset);
+	if (nc_offset < non_ctxlen - 4 /* RFC1001 len field */) {
+		printk_once(KERN_WARNING "invalid negotiate context offset\n");
+		return 0;
+	}
+	size_of_pad_before_neg_ctxts = nc_offset - (non_ctxlen - 4);
+
+	/* Verify that at least minimal negotiate contexts fit within frame */
+	if (len < nc_offset + (neg_count * sizeof(struct smb2_neg_context))) {
+		printk_once(KERN_WARNING "negotiate context goes beyond end\n");
+		return 0;
+	}
+
+	cifs_dbg(FYI, "length of negcontexts %d pad %d\n",
+		len - nc_offset, size_of_pad_before_neg_ctxts);
+
+	/* length of negcontexts including pad from end of sec blob to them */
+	return (len - nc_offset) + size_of_pad_before_neg_ctxts;
+}
+#endif /* CIFS_SMB311 */
+
 int
 smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 {
@@ -198,6 +233,10 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 
 	clc_len = smb2_calc_size(hdr);
 
+#ifdef CONFIG_CIFS_SMB311
+	if (shdr->Command == SMB2_NEGOTIATE)
+		clc_len += get_neg_ctxt_len(hdr, len, clc_len);
+#endif /* SMB311 */
 	if (srvr->vals->header_preamble_size + len != clc_len) {
 		cifs_dbg(FYI, "Calculated size %u length %zu mismatch mid %llu\n",
 			 clc_len, srvr->vals->header_preamble_size + len, mid);
