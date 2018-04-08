@@ -1580,7 +1580,6 @@ struct mlx5_fields {
 
 static struct mlx5_fields fields[] = {
 	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
-	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
 	OFFLOAD(DMAC_15_0,  2, eth.h_dest[4], 0),
 	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0),
 	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0),
