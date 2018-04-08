@@ -219,6 +219,7 @@ my $dirname = $FindBin::Bin;
 my $mailto;
 my $mailer;
 my $mail_path;
+my $mail_command;
 my $email_on_error;
 my $email_when_finished;
 my $email_when_started;
@@ -254,6 +255,7 @@ my %option_map = (
     "MAILTO"			=> \$mailto,
     "MAILER"			=> \$mailer,
     "MAIL_PATH"			=> \$mail_path,
+    "MAIL_COMMAND"		=> \$mail_command,
     "EMAIL_ON_ERROR"		=> \$email_on_error,
     "EMAIL_WHEN_FINISHED"	=> \$email_when_finished,
     "EMAIL_WHEN_STARTED"	=> \$email_when_started,
@@ -4133,16 +4135,6 @@ sub set_test_option {
     return eval_option($name, $option, $i);
 }
 
-sub _mailx_send {
-    my ($subject, $message) = @_;
-    run_command "$mail_path/$mailer -s \'$subject\' $mailto <<< \'$message\'";
-}
-
-sub _sendmail_send {
-    my ($subject, $message) = @_;
-    run_command "echo \'Subject: $subject\n\n$message\' | $mail_path/sendmail -t $mailto";
-}
-
 sub find_mailer {
     my ($mailer) = @_;
 
@@ -4160,22 +4152,44 @@ sub find_mailer {
     return undef;
 }
 
+sub do_send_mail {
+    my ($subject, $message) = @_;
+
+    if (!defined($mail_path)) {
+	# find the mailer
+	$mail_path = find_mailer $mailer;
+	if (!defined($mail_path)) {
+	    die "\nCan not find $mailer in PATH\n";
+	}
+    }
+
+    if (!defined($mail_command)) {
+	if ($mailer eq "mail" || $mailer eq "mailx") {
+	    $mail_command = "\$MAIL_PATH/\$MAILER -s \'\$SUBJECT\' \$MAILTO <<< \'\$MESSAGE\'";
+	} elsif ($mailer eq "sendmail" ) {
+	    $mail_command =  "echo \'Subject: \$SUBJECT\n\n\$MESSAGE\' | \$MAIL_PATH/\$MAILER -t \$MAILTO";
+	} else {
+	    die "\nYour mailer: $mailer is not supported.\n";
+	}
+    }
+
+    $mail_command =~ s/\$MAILER/$mailer/g;
+    $mail_command =~ s/\$MAIL_PATH/$mail_path/g;
+    $mail_command =~ s/\$MAILTO/$mailto/g;
+    $mail_command =~ s/\$SUBJECT/$subject/g;
+    $mail_command =~ s/\$MESSAGE/$message/g;
+
+    run_command $mail_command;
+}
+
 sub send_email {
+
     if (defined($mailto)) {
 	if (!defined($mailer)) {
 	    doprint "No email sent: email or mailer not specified in config.\n";
 	    return;
 	}
-	if (!defined($mail_path)) {
-	    # find the mailer
-	    $mail_path = find_mailer $mailer;
-	    if (!defined($mail_path)) {
-		die "\nCan not find $mailer in PATH\n";
-	    }
-	}
-        if ($mailer eq "mail" || $mailer eq "mailx"){ _mailx_send(@_);}
-        elsif ($mailer eq "sendmail" ) { _sendmail_send(@_);}
-        else { die "\nYour mailer: $mailer is not supported.\n" }
+	do_send_mail @_;
     }
 }
 
