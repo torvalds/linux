@@ -1562,39 +1562,13 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 	hctx = container_of(work, struct blk_mq_hw_ctx, run_work.work);
 
 	/*
-	 * If we are stopped, don't run the queue. The exception is if
-	 * BLK_MQ_S_START_ON_RUN is set. For that case, we auto-clear
-	 * the STOPPED bit and run it.
+	 * If we are stopped, don't run the queue.
 	 */
-	if (test_bit(BLK_MQ_S_STOPPED, &hctx->state)) {
-		if (!test_bit(BLK_MQ_S_START_ON_RUN, &hctx->state))
-			return;
-
-		clear_bit(BLK_MQ_S_START_ON_RUN, &hctx->state);
+	if (test_bit(BLK_MQ_S_STOPPED, &hctx->state))
 		clear_bit(BLK_MQ_S_STOPPED, &hctx->state);
-	}
 
 	__blk_mq_run_hw_queue(hctx);
 }
-
-
-void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
-{
-	if (WARN_ON_ONCE(!blk_mq_hw_queue_mapped(hctx)))
-		return;
-
-	/*
-	 * Stop the hw queue, then modify currently delayed work.
-	 * This should prevent us from running the queue prematurely.
-	 * Mark the queue as auto-clearing STOPPED when it runs.
-	 */
-	blk_mq_stop_hw_queue(hctx);
-	set_bit(BLK_MQ_S_START_ON_RUN, &hctx->state);
-	kblockd_mod_delayed_work_on(blk_mq_hctx_next_cpu(hctx),
-					&hctx->run_work,
-					msecs_to_jiffies(msecs));
-}
-EXPORT_SYMBOL(blk_mq_delay_queue);
 
 static inline void __blk_mq_insert_req_list(struct blk_mq_hw_ctx *hctx,
 					    struct request *rq,
