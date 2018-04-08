@@ -674,6 +674,23 @@ static int update_state(struct drm_device *drm_dev,
 	return ret;
 }
 
+static bool is_support_hotplug(uint32_t output_type)
+{
+	switch (output_type) {
+	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_DVIA:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+	case DRM_MODE_CONNECTOR_TV:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void show_loader_logo(struct drm_device *drm_dev)
 {
 	struct drm_atomic_state *state, *old_state;
@@ -1439,8 +1456,14 @@ static int rockchip_drm_bind(struct device *dev)
 
 	drm_for_each_crtc(crtc, drm_dev) {
 		struct drm_fb_helper *helper = private->fbdev_helper;
-		crtc->primary->fb = helper->fb;
-		drm_framebuffer_reference(helper->fb);
+		struct rockchip_crtc_state *s = NULL;
+
+		s = to_rockchip_crtc_state(crtc->state);
+		if (is_support_hotplug(s->output_type)) {
+			s->crtc_primary_fb = crtc->primary->fb;
+			crtc->primary->fb = helper->fb;
+			drm_framebuffer_reference(helper->fb);
+		}
 	}
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
@@ -1529,6 +1552,7 @@ static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct rockchip_drm_file_private *file_priv;
 	struct drm_rockchip_subdrv *subdrv;
+	struct drm_crtc *crtc;
 	int ret = 0;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
@@ -1547,6 +1571,16 @@ static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
 		}
 	}
 	mutex_unlock(&subdrv_list_mutex);
+
+	drm_for_each_crtc(crtc, dev) {
+		struct rockchip_crtc_state *s = NULL;
+
+		s = to_rockchip_crtc_state(crtc->state);
+		if (s->crtc_primary_fb) {
+			crtc->primary->fb = s->crtc_primary_fb;
+			s->crtc_primary_fb = NULL;
+		}
+	}
 
 	return 0;
 
