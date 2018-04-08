@@ -533,6 +533,23 @@ static const struct dvb_pll_desc dvb_pll_alps_tdee4 = {
 	}
 };
 
+/* Infineon TUA6034 ISDB-T, used in Friio */
+/* CP cur. 50uA, AGC takeover: 103dBuV, PORT3 on */
+static const struct dvb_pll_desc dvb_pll_tua6034_friio = {
+	.name   = "Infineon TUA6034 ISDB-T (Friio)",
+	.min    =  90000000,
+	.max    = 770000000,
+	.iffreq =  57000000,
+	.initdata = (u8[]){ 4, 0x9a, 0x50, 0xb2, 0x08 },
+	.sleepdata = (u8[]){ 4, 0x9a, 0x70, 0xb3, 0x0b },
+	.count = 3,
+	.entries = {
+		{ 170000000, 142857, 0xba, 0x09 },
+		{ 470000000, 142857, 0xba, 0x0a },
+		{ 770000000, 142857, 0xb2, 0x08 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static const struct dvb_pll_desc *pll_list[] = {
@@ -556,6 +573,7 @@ static const struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_SAMSUNG_TDTC9251DH0]    = &dvb_pll_samsung_tdtc9251dh0,
 	[DVB_PLL_SAMSUNG_TBDU18132]	 = &dvb_pll_samsung_tbdu18132,
 	[DVB_PLL_SAMSUNG_TBMU24112]      = &dvb_pll_samsung_tbmu24112,
+	[DVB_PLL_TUA6034_FRIIO]          = &dvb_pll_tua6034_friio,
 };
 
 /* ----------------------------------------------------------- */
@@ -877,6 +895,7 @@ static const struct i2c_device_id dvb_pll_id[] = {
 	{"tbmu24112",		DVB_PLL_SAMSUNG_TBMU24112},
 	{"tdee4",		DVB_PLL_TDEE4},
 	{"dtt7520x",		DVB_PLL_THOMSON_DTT7520X},
+	{"tua6034_friio",	DVB_PLL_TUA6034_FRIIO},
 	{}
 };
 
