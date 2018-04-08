@@ -624,3 +624,85 @@ void *smu_atom_get_data_table(void *dev, uint32_t table, uint16_t *size,
 
 	return NULL;
 }
+
+int smu_get_voltage_dependency_table_ppt_v1(
+			const struct phm_ppt_v1_clock_voltage_dependency_table *allowed_dep_table,
+			struct phm_ppt_v1_clock_voltage_dependency_table *dep_table)
+{
+	uint8_t i = 0;
+	PP_ASSERT_WITH_CODE((0 != allowed_dep_table->count),
+				"Voltage Lookup Table empty",
+				return -EINVAL);
+
+	dep_table->count = allowed_dep_table->count;
+	for (i=0; i<dep_table->count; i++) {
+		dep_table->entries[i].clk = allowed_dep_table->entries[i].clk;
+		dep_table->entries[i].vddInd = allowed_dep_table->entries[i].vddInd;
+		dep_table->entries[i].vdd_offset = allowed_dep_table->entries[i].vdd_offset;
+		dep_table->entries[i].vddc = allowed_dep_table->entries[i].vddc;
+		dep_table->entries[i].vddgfx = allowed_dep_table->entries[i].vddgfx;
+		dep_table->entries[i].vddci = allowed_dep_table->entries[i].vddci;
+		dep_table->entries[i].mvdd = allowed_dep_table->entries[i].mvdd;
+		dep_table->entries[i].phases = allowed_dep_table->entries[i].phases;
+		dep_table->entries[i].cks_enable = allowed_dep_table->entries[i].cks_enable;
+		dep_table->entries[i].cks_voffset = allowed_dep_table->entries[i].cks_voffset;
+	}
+
+	return 0;
+}
+
+int smu_set_watermarks_for_clocks_ranges(void *wt_table,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	uint32_t i;
+	struct watermarks *table = wt_table;
+
+	if (!table || wm_with_clock_ranges)
+		return -EINVAL;
+
+	if (wm_with_clock_ranges->num_wm_sets_dmif > 4 || wm_with_clock_ranges->num_wm_sets_mcif > 4)
+		return -EINVAL;
+
+	for (i = 0; i < wm_with_clock_ranges->num_wm_sets_dmif; i++) {
+		table->WatermarkRow[1][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_dmif[i].wm_min_dcefclk_in_khz) /
+			100);
+		table->WatermarkRow[1][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_dmif[i].wm_max_dcefclk_in_khz) /
+			100);
+		table->WatermarkRow[1][i].MinUclk =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_dmif[i].wm_min_memclk_in_khz) /
+			100);
+		table->WatermarkRow[1][i].MaxUclk =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_dmif[i].wm_max_memclk_in_khz) /
+			100);
+		table->WatermarkRow[1][i].WmSetting = (uint8_t)
+				wm_with_clock_ranges->wm_sets_dmif[i].wm_set_id;
+	}
+
+	for (i = 0; i < wm_with_clock_ranges->num_wm_sets_mcif; i++) {
+		table->WatermarkRow[0][i].MinClock =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_mcif[i].wm_min_socclk_in_khz) /
+			100);
+		table->WatermarkRow[0][i].MaxClock =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_mcif[i].wm_max_socclk_in_khz) /
+			100);
+		table->WatermarkRow[0][i].MinUclk =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_mcif[i].wm_min_memclk_in_khz) /
+			100);
+		table->WatermarkRow[0][i].MaxUclk =
+			cpu_to_le16((uint16_t)
+			(wm_with_clock_ranges->wm_sets_mcif[i].wm_max_memclk_in_khz) /
+			100);
+		table->WatermarkRow[0][i].WmSetting = (uint8_t)
+				wm_with_clock_ranges->wm_sets_mcif[i].wm_set_id;
+	}
+	return 0;
+}
