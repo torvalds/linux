@@ -42,6 +42,12 @@
 #include <linux/netfilter/nf_conntrack_proto_gre.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
+MODULE_DESCRIPTION("Netfilter connection tracking helper module for GRE");
+MODULE_ALIAS("ip_conntrack_gre");
+MODULE_ALIAS_NFCT_HELPER("gre");
+
 enum grep_conntrack {
 	GRE_CT_UNREPLIED,
 	GRE_CT_REPLIED,
