@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/axg-clkc.h>
+#include <dt-bindings/gpio/meson-axg-gpio.h>
 
 / {
 	compatible = "amlogic,meson-axg";
@@ -112,6 +113,36 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		apb: apb@ffe00000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xffe00000 0x0 0x200000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xffe00000 0x0 0x200000>;
+
+			sd_emmc_b: sd@5000 {
+				compatible = "amlogic,meson-axg-mmc";
+				reg = <0x0 0x5000 0x0 0x2000>;
+				interrupts = <GIC_SPI 217 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+				clocks = <&clkc CLKID_SD_EMMC_B>,
+					<&clkc CLKID_SD_EMMC_B_CLK0>,
+					<&clkc CLKID_FCLK_DIV2>;
+				clock-names = "core", "clkin0", "clkin1";
+			};
+
+			sd_emmc_c: mmc@7000 {
+				compatible = "amlogic,meson-axg-mmc";
+				reg = <0x0 0x7000 0x0 0x2000>;
+				interrupts = <GIC_SPI 218 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+				clocks = <&clkc CLKID_SD_EMMC_C>,
+					<&clkc CLKID_SD_EMMC_C_CLK0>,
+					<&clkc CLKID_FCLK_DIV2>;
+				clock-names = "core", "clkin0", "clkin1";
+			};
+		};
 
 		cbus: bus@ffd00000 {
 			compatible = "simple-bus";
@@ -311,6 +342,57 @@
 					gpio-controller;
 					#gpio-cells = <2>;
 					gpio-ranges = <&pinctrl_periphs 0 0 86>;
+				};
+
+				emmc_pins: emmc {
+					mux {
+						groups = "emmc_nand_d0",
+							"emmc_nand_d1",
+							"emmc_nand_d2",
+							"emmc_nand_d3",
+							"emmc_nand_d4",
+							"emmc_nand_d5",
+							"emmc_nand_d6",
+							"emmc_nand_d7",
+							"emmc_clk",
+							"emmc_cmd",
+							"emmc_ds";
+						function = "emmc";
+					};
+				};
+
+				emmc_clk_gate_pins: emmc_clk_gate {
+					mux {
+						groups = "BOOT_8";
+						function = "gpio_periphs";
+					};
+					cfg-pull-down {
+						pins = "BOOT_8";
+						bias-pull-down;
+					};
+				};
+
+				sdio_pins: sdio {
+					mux {
+						groups = "sdio_d0",
+							"sdio_d1",
+							"sdio_d2",
+							"sdio_d3",
+							"sdio_cmd",
+							"sdio_clk";
+						function = "sdio";
+					};
+				};
+
+				sdio_clk_gate_pins: sdio_clk_gate {
+					mux {
+						groups = "GPIOX_4";
+						function = "gpio_periphs";
+					};
+					cfg-pull-down {
+						pins = "GPIOX_4";
+						bias-pull-down;
+					};
 				};
 
 				eth_rmii_x_pins: eth-x-rmii {
