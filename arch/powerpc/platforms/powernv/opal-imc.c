@@ -110,11 +110,11 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 	if (nr_chips <= 0)
 		return -ENODEV;
 
-	base_addr_arr = kcalloc(nr_chips, sizeof(u64), GFP_KERNEL);
+	base_addr_arr = kcalloc(nr_chips, sizeof(*base_addr_arr), GFP_KERNEL);
 	if (!base_addr_arr)
 		return -ENOMEM;
 
-	chipid_arr = kcalloc(nr_chips, sizeof(u32), GFP_KERNEL);
+	chipid_arr = kcalloc(nr_chips, sizeof(*chipid_arr), GFP_KERNEL);
 	if (!chipid_arr)
 		return -ENOMEM;
 
@@ -125,8 +125,8 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 								nr_chips))
 		goto error;
 
-	pmu_ptr->mem_info = kcalloc(nr_chips, sizeof(struct imc_mem_info),
-								GFP_KERNEL);
+	pmu_ptr->mem_info = kcalloc(nr_chips, sizeof(*pmu_ptr->mem_info),
+				    GFP_KERNEL);
 	if (!pmu_ptr->mem_info)
 		goto error;
 
@@ -161,7 +161,7 @@ static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 	u32 offset;
 
 	/* memory for pmu */
-	pmu_ptr = kzalloc(sizeof(struct imc_pmu), GFP_KERNEL);
+	pmu_ptr = kzalloc(sizeof(*pmu_ptr), GFP_KERNEL);
 	if (!pmu_ptr)
 		return -ENOMEM;
 

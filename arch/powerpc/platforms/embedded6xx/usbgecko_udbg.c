@@ -169,7 +169,7 @@ static int ug_getc(void)
 /*
  * Transmits a character.
  */
-void ug_udbg_putc(char ch)
+static void ug_udbg_putc(char ch)
 {
 	ug_putc(ch);
 }

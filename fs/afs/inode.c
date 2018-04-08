@@ -243,6 +243,33 @@ struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 }
 
 /*
+ * Get a cache cookie for an inode.
+ */
+static void afs_get_inode_cache(struct afs_vnode *vnode)
+{
+#ifdef CONFIG_AFS_FSCACHE
+	struct {
+		u32 vnode_id;
+		u32 unique;
+		u32 vnode_id_ext[2];	/* Allow for a 96-bit key */
+	} __packed key;
+	struct afs_vnode_cache_aux aux;
+
+	key.vnode_id		= vnode->fid.vnode;
+	key.unique		= vnode->fid.unique;
+	key.vnode_id_ext[0]	= 0;
+	key.vnode_id_ext[1]	= 0;
+	aux.data_version	= vnode->status.data_version;
+
+	vnode->cache = fscache_acquire_cookie(vnode->volume->cache,
+					      &afs_vnode_cache_index_def,
+					      &key, sizeof(key),
+					      &aux, sizeof(aux),
+					      vnode, vnode->status.size, true);
+#endif
+}
+
+/*
  * inode retrieval
  */
 struct inode *afs_iget(struct super_block *sb, struct key *key,
@@ -307,11 +334,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 	/* set up caching before mapping the status, as map-status reads the
 	 * first page of symlinks to see if they're really mountpoints */
 	inode->i_size = vnode->status.size;
-#ifdef CONFIG_AFS_FSCACHE
-	vnode->cache = fscache_acquire_cookie(vnode->volume->cache,
-					      &afs_vnode_cache_index_def,
-					      vnode, true);
-#endif
+	afs_get_inode_cache(vnode);
 
 	ret = afs_inode_map_status(vnode, key);
 	if (ret < 0)
@@ -327,7 +350,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 	/* failure */
 bad_inode:
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vnode->cache, 0);
+	fscache_relinquish_cookie(vnode->cache, NULL, ret == -ENOENT);
 	vnode->cache = NULL;
 #endif
 	iget_failed(inode);
@@ -342,6 +365,10 @@ bad_inode:
 void afs_zap_data(struct afs_vnode *vnode)
 {
 	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
+
+#ifdef CONFIG_AFS_FSCACHE
+	fscache_invalidate(vnode->cache);
+#endif
 
 	/* nuke all the non-dirty pages that aren't locked, mapped or being
 	 * written back in a regular file and completely discard the pages in a
@@ -507,8 +534,14 @@ void afs_evict_inode(struct inode *inode)
 	}
 
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(vnode->cache, 0);
-	vnode->cache = NULL;
+	{
+		struct afs_vnode_cache_aux aux;
+
+		aux.data_version = vnode->status.data_version;
+		fscache_relinquish_cookie(vnode->cache, &aux,
+					  test_bit(AFS_VNODE_DELETED, &vnode->flags));
+		vnode->cache = NULL;
+	}
 #endif
 
 	afs_put_permits(vnode->permit_cache);
