@@ -130,6 +130,8 @@ static void mce_kbd_rx_timeout(struct timer_list *t)
 
 	for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
 		input_report_key(raw->mce_kbd.idev, kbd_keycodes[i], 0);
+
+	input_sync(raw->mce_kbd.idev);
 }
 
 static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
