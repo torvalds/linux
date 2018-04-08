@@ -145,7 +145,7 @@ static int rk817_shutdown_prepare(struct rk808 *rk808)
 			   RK817_RTC_INT_REG,
 			   (0x3 << 2), (0x0 << 2));
 
-	if (rk808->pins->p && rk808->pins->power_off) {
+	if (rk808->pins && rk808->pins->p && rk808->pins->power_off) {
 		ret = regmap_update_bits(rk808->regmap,
 					 RK817_SYS_CFG(3),
 					 RK817_SLPPIN_FUNC_MSK,
@@ -1340,7 +1340,7 @@ static int rk808_suspend(struct device *dev)
 		}
 	}
 
-	if (rk808->pins->p && rk808->pins->sleep) {
+	if (rk808->pins && rk808->pins->p && rk808->pins->sleep) {
 		ret = regmap_update_bits(rk808->regmap,
 					 RK817_SYS_CFG(3),
 					 RK817_SLPPIN_FUNC_MSK,
@@ -1386,7 +1386,7 @@ static int rk808_resume(struct device *dev)
 		}
 	}
 
-	if (rk808->pins->p && rk808->pins->reset) {
+	if (rk808->pins && rk808->pins->p && rk808->pins->reset) {
 		ret = regmap_update_bits(rk808->regmap,
 					 RK817_SYS_CFG(3),
 					 RK817_SLPPIN_FUNC_MSK,
