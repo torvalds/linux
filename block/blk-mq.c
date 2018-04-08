@@ -2329,7 +2329,7 @@ static void blk_mq_free_map_and_requests(struct blk_mq_tag_set *set,
 
 static void blk_mq_map_swqueue(struct request_queue *q)
 {
-	unsigned int i, hctx_idx;
+	unsigned int i;
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
 	struct blk_mq_tag_set *set = q->tag_set;
@@ -2346,23 +2346,8 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 
 	/*
 	 * Map software to hardware queues.
-	 *
-	 * If the cpu isn't present, the cpu is mapped to first hctx.
 	 */
 	for_each_possible_cpu(i) {
-		hctx_idx = q->mq_map[i];
-		/* unmapped hw queue can be remapped after CPU topo changed */
-		if (!set->tags[hctx_idx] &&
-		    !__blk_mq_alloc_rq_map(set, hctx_idx)) {
-			/*
-			 * If tags initialization fail for some hctx,
-			 * that hctx won't be brought online.  In this
-			 * case, remap the current ctx to hctx[0] which
-			 * is guaranteed to always have tags allocated
-			 */
-			q->mq_map[i] = 0;
-		}
-
 		ctx = per_cpu_ptr(q->queue_ctx, i);
 		hctx = blk_mq_map_queue(q, i);
 
@@ -2374,21 +2359,8 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	mutex_unlock(&q->sysfs_lock);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		/*
-		 * If no software queues are mapped to this hardware queue,
-		 * disable it and free the request entries.
-		 */
-		if (!hctx->nr_ctx) {
-			/* Never unmap queue 0.  We need it as a
-			 * fallback in case of a new remap fails
-			 * allocation
-			 */
-			if (i && set->tags[i])
-				blk_mq_free_map_and_requests(set, i);
-
-			hctx->tags = NULL;
-			continue;
-		}
+		/* every hctx should get mapped by at least one CPU */
+		WARN_ON(!hctx->nr_ctx);
 
 		hctx->tags = set->tags[i];
 		WARN_ON(!hctx->tags);
