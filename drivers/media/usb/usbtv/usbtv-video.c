@@ -54,12 +54,7 @@ static struct usbtv_norm_params norm_params[] = {
 		.cap_height = 480,
 	},
 	{
-		.norm = V4L2_STD_PAL,
-		.cap_width = 720,
-		.cap_height = 576,
-	},
-	{
-		.norm = V4L2_STD_SECAM,
+		.norm = V4L2_STD_625_50,
 		.cap_width = 720,
 		.cap_height = 576,
 	}
