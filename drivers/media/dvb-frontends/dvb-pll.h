@@ -30,6 +30,10 @@
 #define DVB_PLL_TDEE4		       18
 #define DVB_PLL_THOMSON_DTT7520X       19
 
+struct dvb_pll_config {
+	struct dvb_frontend *fe;
+};
+
 #if IS_REACHABLE(CONFIG_DVB_PLL)
 /**
  * Attach a dvb-pll to the supplied frontend structure.
