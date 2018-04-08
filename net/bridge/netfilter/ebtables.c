@@ -343,6 +343,16 @@ find_table_lock(struct net *net, const char *name, int *error,
 				"ebtable_", error, mutex);
 }
 
+static inline void ebt_free_table_info(struct ebt_table_info *info)
+{
+	int i;
+
+	if (info->chainstack) {
+		for_each_possible_cpu(i)
+			vfree(info->chainstack[i]);
+		vfree(info->chainstack);
+	}
+}
 static inline int
 ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 		unsigned int *cnt)
@@ -975,7 +985,7 @@ static void get_counters(const struct ebt_counter *oldcounters,
 static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 			      struct ebt_table_info *newinfo)
 {
-	int ret, i;
+	int ret;
 	struct ebt_counter *counterstmp = NULL;
 	/* used to be able to unlock earlier */
 	struct ebt_table_info *table;
@@ -1051,13 +1061,8 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 			  ebt_cleanup_entry, net, NULL);
 
 	vfree(table->entries);
-	if (table->chainstack) {
-		for_each_possible_cpu(i)
-			vfree(table->chainstack[i]);
-		vfree(table->chainstack);
-	}
+	ebt_free_table_info(table);
 	vfree(table);
-
 	vfree(counterstmp);
 
 #ifdef CONFIG_AUDIT
@@ -1078,11 +1083,7 @@ free_iterate:
 free_counterstmp:
 	vfree(counterstmp);
 	/* can be initialized in translate_table() */
-	if (newinfo->chainstack) {
-		for_each_possible_cpu(i)
-			vfree(newinfo->chainstack[i]);
-		vfree(newinfo->chainstack);
-	}
+	ebt_free_table_info(newinfo);
 	return ret;
 }
 
@@ -1147,8 +1148,6 @@ free_newinfo:
 
 static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
 {
-	int i;
-
 	mutex_lock(&ebt_mutex);
 	list_del(&table->list);
 	mutex_unlock(&ebt_mutex);
@@ -1157,11 +1156,7 @@ static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
 	if (table->private->nentries)
 		module_put(table->me);
 	vfree(table->private->entries);
-	if (table->private->chainstack) {
-		for_each_possible_cpu(i)
-			vfree(table->private->chainstack[i]);
-		vfree(table->private->chainstack);
-	}
+	ebt_free_table_info(table->private);
 	vfree(table->private);
 	kfree(table);
 }
@@ -1263,11 +1258,7 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_chainstack:
-	if (newinfo->chainstack) {
-		for_each_possible_cpu(i)
-			vfree(newinfo->chainstack[i]);
-		vfree(newinfo->chainstack);
-	}
+	ebt_free_table_info(newinfo);
 	vfree(newinfo->entries);
 free_newinfo:
 	vfree(newinfo);
