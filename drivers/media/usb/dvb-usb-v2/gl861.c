@@ -20,6 +20,8 @@ static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 	u16 value = addr << (8 + 1);
 	int wo = (rbuf == NULL || rlen == 0); /* write-only */
 	u8 req, type;
+	u8 *buf;
+	int ret;
 
 	if (wo) {
 		req = GL861_REQ_I2C_WRITE;
@@ -42,11 +44,23 @@ static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 				KBUILD_MODNAME, wlen);
 		return -EINVAL;
 	}
-
+	buf = NULL;
+	if (rlen > 0) {
+		buf = kmalloc(rlen, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+	}
 	usleep_range(1000, 2000); /* avoid I2C errors */
 
-	return usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), req, type,
-			       value, index, rbuf, rlen, 2000);
+	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), req, type,
+			      value, index, buf, rlen, 2000);
+	if (rlen > 0) {
+		if (ret > 0)
+			memcpy(rbuf, buf, rlen);
+		kfree(buf);
+	}
+
+	return ret;
 }
 
 /* I2C */
