@@ -722,9 +722,11 @@ static void dump_command(struct mlx5_core_dev *dev,
 	struct mlx5_cmd_msg *msg = input ? ent->in : ent->out;
 	u16 op = MLX5_GET(mbox_in, ent->lay->in, opcode);
 	struct mlx5_cmd_mailbox *next = msg->next;
+	int n = mlx5_calc_cmd_blocks(msg);
 	int data_only;
 	u32 offset = 0;
 	int dump_len;
+	int i;
 
 	data_only = !!(mlx5_core_debug_mask & (1 << MLX5_CMD_DATA));
 
@@ -751,7 +753,7 @@ static void dump_command(struct mlx5_core_dev *dev,
 		offset += sizeof(*ent->lay);
 	}
 
-	while (next && offset < msg->len) {
+	for (i = 0; i < n && next; i++)  {
 		if (data_only) {
 			dump_len = min_t(int, MLX5_CMD_DATA_BLOCK_SIZE, msg->len - offset);
 			dump_buf(next->buf, dump_len, 1, offset);
