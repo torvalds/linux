@@ -97,7 +97,7 @@ enum {
 };
 
 #define MLX5E_TC_TABLE_NUM_GROUPS 4
-#define MLX5E_TC_TABLE_MAX_GROUP_SIZE (1 << 16)
+#define MLX5E_TC_TABLE_MAX_GROUP_SIZE BIT(16)
 
 struct mlx5e_hairpin {
 	struct mlx5_hairpin *pair;
@@ -789,7 +789,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	mlx5_del_flow_rules(flow->rule);
 	mlx5_fc_destroy(priv->mdev, counter);
 
-	if (!mlx5e_tc_num_filters(priv) && (priv->fs.tc.t)) {
+	if (!mlx5e_tc_num_filters(priv) && priv->fs.tc.t) {
 		mlx5_destroy_flow_table(priv->fs.tc.t);
 		priv->fs.tc.t = NULL;
 	}
@@ -1765,12 +1765,12 @@ static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 		err = -EOPNOTSUPP; /* can't be all optimistic */
 
 		if (htype == TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK) {
-			printk(KERN_WARNING "mlx5: legacy pedit isn't offloaded\n");
+			netdev_warn(priv->netdev, "legacy pedit isn't offloaded\n");
 			goto out_err;
 		}
 
 		if (cmd != TCA_PEDIT_KEY_EX_CMD_SET && cmd != TCA_PEDIT_KEY_EX_CMD_ADD) {
-			printk(KERN_WARNING "mlx5: pedit cmd %d isn't offloaded\n", cmd);
+			netdev_warn(priv->netdev, "pedit cmd %d isn't offloaded\n", cmd);
 			goto out_err;
 		}
 
@@ -1794,8 +1794,7 @@ static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 	for (cmd = 0; cmd < __PEDIT_CMD_MAX; cmd++) {
 		cmd_masks = &masks[cmd];
 		if (memcmp(cmd_masks, &zero_masks, sizeof(zero_masks))) {
-			printk(KERN_WARNING "mlx5: attempt to offload an unsupported field (cmd %d)\n",
-			       cmd);
+			netdev_warn(priv->netdev, "attempt to offload an unsupported field (cmd %d)\n", cmd);
 			print_hex_dump(KERN_WARNING, "mask: ", DUMP_PREFIX_ADDRESS,
 				       16, 1, cmd_masks, sizeof(zero_masks), true);
 			err = -EOPNOTSUPP;

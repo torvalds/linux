@@ -681,8 +681,8 @@ static int mlx5e_rep_open(struct net_device *dev)
 		goto unlock;
 
 	if (!mlx5_modify_vport_admin_state(priv->mdev,
-			MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
-			rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_UP))
+					   MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+					   rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_UP))
 		netif_carrier_on(dev);
 
 unlock:
@@ -699,8 +699,8 @@ static int mlx5e_rep_close(struct net_device *dev)
 
 	mutex_lock(&priv->state_lock);
 	mlx5_modify_vport_admin_state(priv->mdev,
-			MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
-			rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_DOWN);
+				      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
+				      rep->vport, MLX5_ESW_VPORT_ADMIN_STATE_DOWN);
 	ret = mlx5e_close_locked(dev);
 	mutex_unlock(&priv->state_lock);
 	return ret;
