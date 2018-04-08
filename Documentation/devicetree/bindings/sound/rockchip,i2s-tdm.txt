@@ -13,6 +13,13 @@ Required properties:
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
 - clock-names: clock names.
 - rockchip,bclk-fs: configure the bclk fs.
+- resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
+- reset-names: reset names, should include "tx-m", "rx-m".
+- rockchip,cru: cru phandle.
+- rockchip,clk-trcm: tx and rx lrck/bclk common use.
+   - 0: both tx_lrck/bclk and rx_lrck/bclk are used
+   - 1: only tx_lrck/bclk is used
+   - 2: only rx_lrck/bclk is used
 
 Example for rk3308 I2S/TDM controller:
 
@@ -24,6 +31,10 @@ i2s_8ch_0: i2s@ff300000 {
 	clock-names = "mclk_tx", "mclk_rx", "hclk";
 	dmas = <&dmac1 0>, <&dmac1 1>;
 	dma-names = "tx", "rx";
+	resets = <&cru SRST_I2S0_8CH_TX_M>, <&cru SRST_I2S0_8CH_RX_M>;
+	reset-names = "tx-m", "rx-m";
+	rockchip,cru = <&cru>;
+	rockchip,clk-trcm = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s_8ch_0_sclktx
 		     &i2s_8ch_0_sclkrx
