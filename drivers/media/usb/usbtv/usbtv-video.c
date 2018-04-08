@@ -77,7 +77,7 @@ static int usbtv_configure_for_norm(struct usbtv *usbtv, v4l2_std_id norm)
 		usbtv->height = params->cap_height;
 		usbtv->n_chunks = usbtv->width * usbtv->height
 						/ 4 / USBTV_CHUNK;
-		usbtv->norm = params->norm;
+		usbtv->norm = norm;
 	} else
 		ret = -EINVAL;
 
