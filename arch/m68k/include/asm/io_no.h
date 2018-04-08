@@ -3,6 +3,12 @@
 #define _M68KNOMMU_IO_H
 
 /*
+ * Convert a physical memory address into a IO memory address.
+ * For us this is trivially a type cast.
+ */
+#define iomem(a)	((void __iomem *) (a))
+
+/*
  * The non-MMU m68k and ColdFire IO and memory mapped hardware access
  * functions have always worked in CPU native endian. We need to define
  * that behavior here first before we include asm-generic/io.h.
