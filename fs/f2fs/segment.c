@@ -3400,6 +3400,11 @@ void flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			int offset, sit_offset;
 
 			se = get_seg_entry(sbi, segno);
+#ifdef CONFIG_F2FS_CHECK_FS
+			if (memcmp(se->cur_valid_map, se->cur_valid_map_mir,
+						SIT_VBLOCK_MAP_SIZE))
+				f2fs_bug_on(sbi, 1);
+#endif
 
 			/* add discard candidates */
 			if (!(cpc->reason & CP_DISCARD)) {
@@ -3415,9 +3420,13 @@ void flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 							cpu_to_le32(segno);
 				seg_info_to_raw_sit(se,
 					&sit_in_journal(journal, offset));
+				check_block_count(sbi, segno,
+					&sit_in_journal(journal, offset));
 			} else {
 				sit_offset = SIT_ENTRY_OFFSET(sit_i, segno);
 				seg_info_to_raw_sit(se,
+						&raw_sit->entries[sit_offset]);
+				check_block_count(sbi, segno,
 						&raw_sit->entries[sit_offset]);
 			}
 
