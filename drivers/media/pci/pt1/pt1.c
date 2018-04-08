@@ -26,6 +26,8 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/ratelimit.h>
+#include <linux/string.h>
+#include <linux/i2c.h>
 
 #include <media/dvbdev.h>
 #include <media/dvb_demux.h>
@@ -33,8 +35,9 @@
 #include <media/dvb_net.h>
 #include <media/dvb_frontend.h>
 
-#include "va1j5jf8007t.h"
-#include "va1j5jf8007s.h"
+#include "tc90522.h"
+#include "qm1d1b0004.h"
+#include "dvb-pll.h"
 
 #define DRIVER_NAME "earth-pt1"
 
@@ -63,6 +66,11 @@ struct pt1_table {
 	struct pt1_buffer bufs[PT1_NR_BUFS];
 };
 
+enum pt1_fe_clk {
+	PT1_FE_CLK_20MHZ,	/* PT1 */
+	PT1_FE_CLK_25MHZ,	/* PT2 */
+};
+
 #define PT1_NR_ADAPS 4
 
 struct pt1_adapter;
@@ -81,6 +89,8 @@ struct pt1 {
 	struct mutex lock;
 	int power;
 	int reset;
+
+	enum pt1_fe_clk fe_clk;
 };
 
 struct pt1_adapter {
@@ -97,6 +107,8 @@ struct pt1_adapter {
 	int users;
 	struct dmxdev dmxdev;
 	struct dvb_frontend *fe;
+	struct i2c_client *demod_i2c_client;
+	struct i2c_client *tuner_i2c_client;
 	int (*orig_set_voltage)(struct dvb_frontend *fe,
 				enum fe_sec_voltage voltage);
 	int (*orig_sleep)(struct dvb_frontend *fe);
@@ -105,6 +117,144 @@ struct pt1_adapter {
 	enum fe_sec_voltage voltage;
 	int sleep;
 };
+
+union pt1_tuner_config {
+	struct qm1d1b0004_config qm1d1b0004;
+	struct dvb_pll_config tda6651;
+};
+
+struct pt1_config {
+	struct i2c_board_info demod_info;
+	struct tc90522_config demod_cfg;
+
+	struct i2c_board_info tuner_info;
+	union pt1_tuner_config tuner_cfg;
+};
+
+static const struct pt1_config pt1_configs[PT1_NR_ADAPS] = {
+	{
+		.demod_info = {
+			I2C_BOARD_INFO(TC90522_I2C_DEV_SAT, 0x1b),
+		},
+		.tuner_info = {
+			I2C_BOARD_INFO("qm1d1b0004", 0x60),
+		},
+	},
+	{
+		.demod_info = {
+			I2C_BOARD_INFO(TC90522_I2C_DEV_TER, 0x1a),
+		},
+		.tuner_info = {
+			I2C_BOARD_INFO("tda665x_earthpt1", 0x61),
+		},
+	},
+	{
+		.demod_info = {
+			I2C_BOARD_INFO(TC90522_I2C_DEV_SAT, 0x19),
+		},
+		.tuner_info = {
+			I2C_BOARD_INFO("qm1d1b0004", 0x60),
+		},
+	},
+	{
+		.demod_info = {
+			I2C_BOARD_INFO(TC90522_I2C_DEV_TER, 0x18),
+		},
+		.tuner_info = {
+			I2C_BOARD_INFO("tda665x_earthpt1", 0x61),
+		},
+	},
+};
+
+static const u8 va1j5jf8007s_20mhz_configs[][2] = {
+	{0x04, 0x02}, {0x0d, 0x55}, {0x11, 0x40}, {0x13, 0x80}, {0x17, 0x01},
+	{0x1c, 0x0a}, {0x1d, 0xaa}, {0x1e, 0x20}, {0x1f, 0x88}, {0x51, 0xb0},
+	{0x52, 0x89}, {0x53, 0xb3}, {0x5a, 0x2d}, {0x5b, 0xd3}, {0x85, 0x69},
+	{0x87, 0x04}, {0x8e, 0x02}, {0xa3, 0xf7}, {0xa5, 0xc0},
+};
+
+static const u8 va1j5jf8007s_25mhz_configs[][2] = {
+	{0x04, 0x02}, {0x11, 0x40}, {0x13, 0x80}, {0x17, 0x01}, {0x1c, 0x0a},
+	{0x1d, 0xaa}, {0x1e, 0x20}, {0x1f, 0x88}, {0x51, 0xb0}, {0x52, 0x89},
+	{0x53, 0xb3}, {0x5a, 0x2d}, {0x5b, 0xd3}, {0x85, 0x69}, {0x87, 0x04},
+	{0x8e, 0x26}, {0xa3, 0xf7}, {0xa5, 0xc0},
+};
+
+static const u8 va1j5jf8007t_20mhz_configs[][2] = {
+	{0x03, 0x90}, {0x14, 0x8f}, {0x1c, 0x2a}, {0x1d, 0xa8}, {0x1e, 0xa2},
+	{0x22, 0x83}, {0x31, 0x0d}, {0x32, 0xe0}, {0x39, 0xd3}, {0x3a, 0x00},
+	{0x3b, 0x11}, {0x3c, 0x3f},
+	{0x5c, 0x40}, {0x5f, 0x80}, {0x75, 0x02}, {0x76, 0x4e}, {0x77, 0x03},
+	{0xef, 0x01}
+};
+
+static const u8 va1j5jf8007t_25mhz_configs[][2] = {
+	{0x03, 0x90}, {0x1c, 0x2a}, {0x1d, 0xa8}, {0x1e, 0xa2}, {0x22, 0x83},
+	{0x3a, 0x04}, {0x3b, 0x11}, {0x3c, 0x3f}, {0x5c, 0x40}, {0x5f, 0x80},
+	{0x75, 0x0a}, {0x76, 0x4c}, {0x77, 0x03}, {0xef, 0x01}
+};
+
+static int config_demod(struct i2c_client *cl, enum pt1_fe_clk clk)
+{
+	int ret;
+	u8 buf[2] = {0x01, 0x80};
+	bool is_sat;
+	const u8 (*cfg_data)[2];
+	int i, len;
+
+	ret = i2c_master_send(cl, buf, 2);
+	if (ret < 0)
+		return ret;
+	usleep_range(30000, 50000);
+
+	is_sat = !strncmp(cl->name, TC90522_I2C_DEV_SAT, I2C_NAME_SIZE);
+	if (is_sat) {
+		struct i2c_msg msg[2];
+		u8 wbuf, rbuf;
+
+		wbuf = 0x07;
+		msg[0].addr = cl->addr;
+		msg[0].flags = 0;
+		msg[0].len = 1;
+		msg[0].buf = &wbuf;
+
+		msg[1].addr = cl->addr;
+		msg[1].flags = I2C_M_RD;
+		msg[1].len = 1;
+		msg[1].buf = &rbuf;
+		ret = i2c_transfer(cl->adapter, msg, 2);
+		if (ret < 0)
+			return ret;
+		if (rbuf != 0x41)
+			return -EIO;
+	}
+
+	/* frontend init */
+	if (clk == PT1_FE_CLK_20MHZ) {
+		if (is_sat) {
+			cfg_data = va1j5jf8007s_20mhz_configs;
+			len = ARRAY_SIZE(va1j5jf8007s_20mhz_configs);
+		} else {
+			cfg_data = va1j5jf8007t_20mhz_configs;
+			len = ARRAY_SIZE(va1j5jf8007t_20mhz_configs);
+		}
+	} else {
+		if (is_sat) {
+			cfg_data = va1j5jf8007s_25mhz_configs;
+			len = ARRAY_SIZE(va1j5jf8007s_25mhz_configs);
+		} else {
+			cfg_data = va1j5jf8007t_25mhz_configs;
+			len = ARRAY_SIZE(va1j5jf8007t_25mhz_configs);
+		}
+	}
+
+	for (i = 0; i < len; i++) {
+		ret = i2c_master_send(cl, cfg_data[i], 2);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
 
 static void pt1_write_reg(struct pt1 *pt1, int reg, u32 data)
 {
@@ -589,30 +739,33 @@ static int pt1_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
 static int pt1_sleep(struct dvb_frontend *fe)
 {
 	struct pt1_adapter *adap;
+	int ret;
 
 	adap = container_of(fe->dvb, struct pt1_adapter, adap);
+
+	ret = 0;
+	if (adap->orig_sleep)
+		ret = adap->orig_sleep(fe);
+
 	adap->sleep = 1;
 	pt1_update_power(adap->pt1);
-
-	if (adap->orig_sleep)
-		return adap->orig_sleep(fe);
-	else
-		return 0;
+	return ret;
 }
 
 static int pt1_wakeup(struct dvb_frontend *fe)
 {
 	struct pt1_adapter *adap;
+	int ret;
 
 	adap = container_of(fe->dvb, struct pt1_adapter, adap);
 	adap->sleep = 0;
 	pt1_update_power(adap->pt1);
 	schedule_timeout_uninterruptible((HZ + 999) / 1000);
 
-	if (adap->orig_init)
-		return adap->orig_init(fe);
-	else
-		return 0;
+	ret = config_demod(adap->demod_i2c_client, adap->pt1->fe_clk);
+	if (ret == 0 && adap->orig_init)
+		ret = adap->orig_init(fe);
+	return ret;
 }
 
 static void pt1_free_adapter(struct pt1_adapter *adap)
@@ -735,6 +888,8 @@ err:
 static void pt1_cleanup_frontend(struct pt1_adapter *adap)
 {
 	dvb_unregister_frontend(adap->fe);
+	dvb_module_release(adap->tuner_i2c_client);
+	dvb_module_release(adap->demod_i2c_client);
 }
 
 static int pt1_init_frontend(struct pt1_adapter *adap, struct dvb_frontend *fe)
@@ -763,112 +918,70 @@ static void pt1_cleanup_frontends(struct pt1 *pt1)
 		pt1_cleanup_frontend(pt1->adaps[i]);
 }
 
-struct pt1_config {
-	struct va1j5jf8007s_config va1j5jf8007s_config;
-	struct va1j5jf8007t_config va1j5jf8007t_config;
-};
-
-static const struct pt1_config pt1_configs[2] = {
-	{
-		{
-			.demod_address = 0x1b,
-			.frequency = VA1J5JF8007S_20MHZ,
-		},
-		{
-			.demod_address = 0x1a,
-			.frequency = VA1J5JF8007T_20MHZ,
-		},
-	}, {
-		{
-			.demod_address = 0x19,
-			.frequency = VA1J5JF8007S_20MHZ,
-		},
-		{
-			.demod_address = 0x18,
-			.frequency = VA1J5JF8007T_20MHZ,
-		},
-	},
-};
-
-static const struct pt1_config pt2_configs[2] = {
-	{
-		{
-			.demod_address = 0x1b,
-			.frequency = VA1J5JF8007S_25MHZ,
-		},
-		{
-			.demod_address = 0x1a,
-			.frequency = VA1J5JF8007T_25MHZ,
-		},
-	}, {
-		{
-			.demod_address = 0x19,
-			.frequency = VA1J5JF8007S_25MHZ,
-		},
-		{
-			.demod_address = 0x18,
-			.frequency = VA1J5JF8007T_25MHZ,
-		},
-	},
-};
-
 static int pt1_init_frontends(struct pt1 *pt1)
 {
-	int i, j;
-	struct i2c_adapter *i2c_adap;
-	const struct pt1_config *configs, *config;
-	struct dvb_frontend *fe[4];
+	int i;
 	int ret;
 
-	i = 0;
-	j = 0;
+	for (i = 0; i < ARRAY_SIZE(pt1_configs); i++) {
+		const struct i2c_board_info *info;
+		struct tc90522_config dcfg;
+		struct i2c_client *cl;
 
-	i2c_adap = &pt1->i2c_adap;
-	configs = pt1->pdev->device == 0x211a ? pt1_configs : pt2_configs;
-	do {
-		config = &configs[i / 2];
+		info = &pt1_configs[i].demod_info;
+		dcfg = pt1_configs[i].demod_cfg;
+		dcfg.tuner_i2c = NULL;
 
-		fe[i] = va1j5jf8007s_attach(&config->va1j5jf8007s_config,
-					    i2c_adap);
-		if (!fe[i]) {
-			ret = -ENODEV; /* This does not sound nice... */
-			goto err;
+		ret = -ENODEV;
+		cl = dvb_module_probe("tc90522", info->type, &pt1->i2c_adap,
+				      info->addr, &dcfg);
+		if (!cl)
+			goto fe_unregister;
+		pt1->adaps[i]->demod_i2c_client = cl;
+
+		if (!strncmp(cl->name, TC90522_I2C_DEV_SAT,
+			     strlen(TC90522_I2C_DEV_SAT))) {
+			struct qm1d1b0004_config tcfg;
+
+			info = &pt1_configs[i].tuner_info;
+			tcfg = pt1_configs[i].tuner_cfg.qm1d1b0004;
+			tcfg.fe = dcfg.fe;
+			cl = dvb_module_probe("qm1d1b0004",
+					      info->type, dcfg.tuner_i2c,
+					      info->addr, &tcfg);
+		} else {
+			struct dvb_pll_config tcfg;
+
+			info = &pt1_configs[i].tuner_info;
+			tcfg = pt1_configs[i].tuner_cfg.tda6651;
+			tcfg.fe = dcfg.fe;
+			cl = dvb_module_probe("dvb_pll",
+					      info->type, dcfg.tuner_i2c,
+					      info->addr, &tcfg);
 		}
-		i++;
+		if (!cl)
+			goto demod_release;
+		pt1->adaps[i]->tuner_i2c_client = cl;
 
-		fe[i] = va1j5jf8007t_attach(&config->va1j5jf8007t_config,
-					    i2c_adap);
-		if (!fe[i]) {
-			ret = -ENODEV;
-			goto err;
-		}
-		i++;
-
-		ret = va1j5jf8007s_prepare(fe[i - 2]);
+		ret = pt1_init_frontend(pt1->adaps[i], dcfg.fe);
 		if (ret < 0)
-			goto err;
-
-		ret = va1j5jf8007t_prepare(fe[i - 1]);
-		if (ret < 0)
-			goto err;
-
-	} while (i < 4);
-
-	do {
-		ret = pt1_init_frontend(pt1->adaps[j], fe[j]);
-		if (ret < 0)
-			goto err;
-	} while (++j < 4);
+			goto tuner_release;
+	}
 
 	return 0;
 
-err:
-	while (i-- > j)
-		fe[i]->ops.release(fe[i]);
-
-	while (j--)
-		dvb_unregister_frontend(fe[j]);
-
+tuner_release:
+	dvb_module_release(pt1->adaps[i]->tuner_i2c_client);
+demod_release:
+	dvb_module_release(pt1->adaps[i]->demod_i2c_client);
+fe_unregister:
+	dev_warn(&pt1->pdev->dev, "failed to init FE(%d).\n", i);
+	i--;
+	for (; i >= 0; i--) {
+		dvb_unregister_frontend(pt1->adaps[i]->fe);
+		dvb_module_release(pt1->adaps[i]->tuner_i2c_client);
+		dvb_module_release(pt1->adaps[i]->demod_i2c_client);
+	}
 	return ret;
 }
 
@@ -1112,6 +1225,8 @@ static int pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mutex_init(&pt1->lock);
 	pt1->pdev = pdev;
 	pt1->regs = regs;
+	pt1->fe_clk = (pdev->device == 0x211a) ?
+				PT1_FE_CLK_20MHZ : PT1_FE_CLK_25MHZ;
 	pci_set_drvdata(pdev, pt1);
 
 	ret = pt1_init_adapters(pt1);
