@@ -1,173 +1,173 @@
 [
-  {,
+  {
     "EventCode": "0x4c048",
     "EventName": "PM_DATA_FROM_DL2L3_MOD",
     "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x3c048",
     "EventName": "PM_DATA_FROM_DL2L3_SHR",
     "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x3c04c",
     "EventName": "PM_DATA_FROM_DL4",
     "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x1c042",
     "EventName": "PM_DATA_FROM_L2",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L2 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x200fe",
     "EventName": "PM_DATA_FROM_L2MISS",
     "BriefDescription": "Demand LD - L2 Miss (not L2 hit)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x1c04e",
     "EventName": "PM_DATA_FROM_L2MISS_MOD",
     "BriefDescription": "The processor's data cache was reloaded from a localtion other than the local core's L2 due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from a localtion other than the local core's L2 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x3c040",
     "EventName": "PM_DATA_FROM_L2_DISP_CONFLICT_LDHITST",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 with load hit store conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L2 with load hit store conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x4c040",
     "EventName": "PM_DATA_FROM_L2_DISP_CONFLICT_OTHER",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 with dispatch conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L2 with dispatch conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x2c040",
     "EventName": "PM_DATA_FROM_L2_MEPF",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L2 hit without dispatch conflicts on Mepf state due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x1c040",
     "EventName": "PM_DATA_FROM_L2_NO_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x4c042",
     "EventName": "PM_DATA_FROM_L3",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L3 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x300fe",
     "EventName": "PM_DATA_FROM_L3MISS",
     "BriefDescription": "Demand LD - L3 Miss (not L2 hit and not L3 hit)",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x4c04e",
     "EventName": "PM_DATA_FROM_L3MISS_MOD",
     "BriefDescription": "The processor's data cache was reloaded from a localtion other than the local core's L3 due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from a localtion other than the local core's L3 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x3c042",
     "EventName": "PM_DATA_FROM_L3_DISP_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 with dispatch conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L3 with dispatch conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x2c042",
     "EventName": "PM_DATA_FROM_L3_MEPF",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x1c044",
     "EventName": "PM_DATA_FROM_L3_NO_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x1c04c",
     "EventName": "PM_DATA_FROM_LL4",
     "BriefDescription": "The processor's data cache was reloaded from the local chip's L4 cache due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded from the local chip's L4 cache due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x4c04a",
     "EventName": "PM_DATA_FROM_OFF_CHIP_CACHE",
     "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x1c048",
     "EventName": "PM_DATA_FROM_ON_CHIP_CACHE",
     "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x2c046",
     "EventName": "PM_DATA_FROM_RL2L3_MOD",
     "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x1c04a",
     "EventName": "PM_DATA_FROM_RL2L3_SHR",
     "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load",
     "PublicDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
-  {,
+  {
     "EventCode": "0x3001a",
     "EventName": "PM_DATA_TABLEWALK_CYC",
     "BriefDescription": "Tablwalk Cycles (could be 1 or 2 active)",
     "PublicDescription": "Data Tablewalk Active"
   },
-  {,
+  {
     "EventCode": "0x4e04e",
     "EventName": "PM_DPTEG_FROM_L3MISS",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L3 due to a data side request",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0xd094",
     "EventName": "PM_DSLB_MISS",
     "BriefDescription": "Data SLB Miss - Total of all segment sizes",
     "PublicDescription": "Data SLB Miss - Total of all segment sizesData SLB misses"
   },
-  {,
+  {
     "EventCode": "0x1002c",
     "EventName": "PM_L1_DCACHE_RELOADED_ALL",
     "BriefDescription": "L1 data cache reloaded for demand or prefetch",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x300f6",
     "EventName": "PM_L1_DCACHE_RELOAD_VALID",
     "BriefDescription": "DL1 reloaded due to Demand Load",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x3e054",
     "EventName": "PM_LD_MISS_L1",
     "BriefDescription": "Load Missed L1",
     "PublicDescription": ""
   },
-  {,
+  {
     "EventCode": "0x100ee",
     "EventName": "PM_LD_REF_L1",
     "BriefDescription": "All L1 D cache load references counted at finish, gated by reject",
     "PublicDescription": "Load Ref count combined for all units"
   },
-  {,
+  {
     "EventCode": "0x300f0",
     "EventName": "PM_ST_MISS_L1",
     "BriefDescription": "Store Missed L1",
