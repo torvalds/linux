@@ -1456,7 +1456,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int data_offset, data_len;
 	struct cifs_readdata *rdata = mid->callback_data;
 	char *buf = server->smallbuf;
-	unsigned int buflen = get_rfc1002_length(buf) +
+	unsigned int buflen = server->pdu_size +
 		server->vals->header_preamble_size;
 	bool use_rdma_mr = false;
 

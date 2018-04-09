@@ -2550,7 +2550,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	unsigned int npages;
 	struct page **pages;
 	unsigned int len;
-	unsigned int buflen = get_rfc1002_length(buf) + server->vals->header_preamble_size;
+	unsigned int buflen = server->pdu_size + server->vals->header_preamble_size;
 	int rc;
 	int i = 0;
 
@@ -2624,7 +2624,7 @@ receive_encrypted_standard(struct TCP_Server_Info *server,
 {
 	int length;
 	char *buf = server->smallbuf;
-	unsigned int pdu_length = get_rfc1002_length(buf);
+	unsigned int pdu_length = server->pdu_size;
 	unsigned int buf_size;
 	struct mid_q_entry *mid_entry;
 
@@ -2668,7 +2668,7 @@ static int
 smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 {
 	char *buf = server->smallbuf;
-	unsigned int pdu_length = get_rfc1002_length(buf);
+	unsigned int pdu_length = server->pdu_size;
 	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
 	unsigned int orig_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
 
@@ -2699,7 +2699,7 @@ smb3_handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	char *buf = server->large_buf ? server->bigbuf : server->smallbuf;
 
-	return handle_read_data(server, mid, buf, get_rfc1002_length(buf) +
+	return handle_read_data(server, mid, buf, server->pdu_size +
 				server->vals->header_preamble_size,
 				NULL, 0, 0);
 }
