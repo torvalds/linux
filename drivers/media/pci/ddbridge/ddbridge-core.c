@@ -96,6 +96,15 @@ static int stv0910_single;
 module_param(stv0910_single, int, 0444);
 MODULE_PARM_DESC(stv0910_single, "use stv0910 cards as single demods");
 
+static int dma_buf_num = 8;
+module_param(dma_buf_num, int, 0444);
+MODULE_PARM_DESC(dma_buf_num, "Number of DMA buffers, possible values: 8-32");
+
+static int dma_buf_size = 21;
+module_param(dma_buf_size, int, 0444);
+MODULE_PARM_DESC(dma_buf_size,
+		 "DMA buffer size as multiple of 128*47, possible values: 1-43");
+
 /****************************************************************************/
 
 static DEFINE_MUTEX(redirect_lock);
@@ -2172,16 +2181,16 @@ static void ddb_dma_init(struct ddb_io *io, int nr, int out)
 		INIT_WORK(&dma->work, output_work);
 		dma->regs = rm->odma->base + rm->odma->size * nr;
 		dma->bufregs = rm->odma_buf->base + rm->odma_buf->size * nr;
-		dma->num = OUTPUT_DMA_BUFS;
-		dma->size = OUTPUT_DMA_SIZE;
-		dma->div = OUTPUT_DMA_IRQ_DIV;
+		dma->num = dma_buf_num;
+		dma->size = dma_buf_size * 128 * 47;
+		dma->div = 1;
 	} else {
 		INIT_WORK(&dma->work, input_work);
 		dma->regs = rm->idma->base + rm->idma->size * nr;
 		dma->bufregs = rm->idma_buf->base + rm->idma_buf->size * nr;
-		dma->num = INPUT_DMA_BUFS;
-		dma->size = INPUT_DMA_SIZE;
-		dma->div = INPUT_DMA_IRQ_DIV;
+		dma->num = dma_buf_num;
+		dma->size = dma_buf_size * 128 * 47;
+		dma->div = 1;
 	}
 	ddbwritel(io->port->dev, 0, DMA_BUFFER_ACK(dma));
 	dev_dbg(io->port->dev->dev, "init link %u, io %u, dma %u, dmaregs %08x bufregs %08x\n",
@@ -3338,6 +3347,15 @@ int ddb_exit_ddbridge(int stage, int error)
 
 int ddb_init_ddbridge(void)
 {
+	if (dma_buf_num < 8)
+		dma_buf_num = 8;
+	if (dma_buf_num > 32)
+		dma_buf_num = 32;
+	if (dma_buf_size < 1)
+		dma_buf_size = 1;
+	if (dma_buf_size > 43)
+		dma_buf_size = 43;
+
 	if (ddb_class_create() < 0)
 		return -1;
 	ddb_wq = alloc_workqueue("ddbridge", 0, 0);
