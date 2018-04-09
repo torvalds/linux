@@ -3876,10 +3876,6 @@ int
 lpfc_issue_gidft(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_nodelist *ndlp;
-
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
-		ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 
 	/* Good status, issue CT Request to NameServer */
 	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
