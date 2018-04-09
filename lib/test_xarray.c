@@ -213,12 +213,52 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
+static noinline void check_xa_mark_2(struct xarray *xa)
+{
+	XA_STATE(xas, xa, 0);
+	unsigned long index;
+	unsigned int count = 0;
+	void *entry;
+
+	xa_store_index(xa, 0, GFP_KERNEL);
+	xa_set_mark(xa, 0, XA_MARK_0);
+	xas_lock(&xas);
+	xas_load(&xas);
+	xas_init_marks(&xas);
+	xas_unlock(&xas);
+	XA_BUG_ON(xa, !xa_get_mark(xa, 0, XA_MARK_0) == 0);
+
+	for (index = 3500; index < 4500; index++) {
+		xa_store_index(xa, index, GFP_KERNEL);
+		xa_set_mark(xa, index, XA_MARK_0);
+	}
+
+	xas_reset(&xas);
+	rcu_read_lock();
+	xas_for_each_marked(&xas, entry, ULONG_MAX, XA_MARK_0)
+		count++;
+	rcu_read_unlock();
+	XA_BUG_ON(xa, count != 1000);
+
+	xas_lock(&xas);
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		xas_init_marks(&xas);
+		XA_BUG_ON(xa, !xa_get_mark(xa, xas.xa_index, XA_MARK_0));
+		XA_BUG_ON(xa, !xas_get_mark(&xas, XA_MARK_0));
+	}
+	xas_unlock(&xas);
+
+	xa_destroy(xa);
+}
+
 static noinline void check_xa_mark(struct xarray *xa)
 {
 	unsigned long index;
 
 	for (index = 0; index < 16384; index += 4)
 		check_xa_mark_1(xa, index);
+
+	check_xa_mark_2(xa);
 }
 
 static noinline void check_xa_shrink(struct xarray *xa)
