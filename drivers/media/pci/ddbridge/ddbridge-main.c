@@ -65,16 +65,20 @@ static void ddb_irq_disable(struct ddb *dev)
 	ddbwritel(dev, 0, MSI1_ENABLE);
 }
 
+static void ddb_msi_exit(struct ddb *dev)
+{
+#ifdef CONFIG_PCI_MSI
+	if (dev->msi)
+		pci_free_irq_vectors(dev->pdev);
+#endif
+}
+
 static void ddb_irq_exit(struct ddb *dev)
 {
 	ddb_irq_disable(dev);
 	if (dev->msi == 2)
 		free_irq(dev->pdev->irq + 1, dev);
 	free_irq(dev->pdev->irq, dev);
-#ifdef CONFIG_PCI_MSI
-	if (dev->msi)
-		pci_disable_msi(dev->pdev);
-#endif
 }
 
 static void ddb_remove(struct pci_dev *pdev)
@@ -86,6 +90,7 @@ static void ddb_remove(struct pci_dev *pdev)
 	ddb_i2c_release(dev);
 
 	ddb_irq_exit(dev);
+	ddb_msi_exit(dev);
 	ddb_ports_release(dev);
 	ddb_buffers_free(dev);
 
@@ -230,8 +235,7 @@ static int ddb_probe(struct pci_dev *pdev,
 	ddb_irq_exit(dev);
 fail0:
 	dev_err(&pdev->dev, "fail0\n");
-	if (dev->msi)
-		pci_disable_msi(dev->pdev);
+	ddb_msi_exit(dev);
 fail:
 	dev_err(&pdev->dev, "fail\n");
 
