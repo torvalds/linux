@@ -5037,8 +5037,6 @@ skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
 	struct drm_plane *plane;
 	enum pipe pipe = intel_crtc->pipe;
 
-	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
-
 	drm_for_each_plane_mask(plane, dev, cstate->base.plane_mask) {
 		enum plane_id plane_id = to_intel_plane(plane)->id;
 
