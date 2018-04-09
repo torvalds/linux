@@ -236,17 +236,83 @@ static void set_phcd(struct tegra_usb_phy *phy, bool enable)
 
 static int utmip_pad_open(struct tegra_usb_phy *phy)
 {
-	int err;
+	int ret;
 
 	phy->pad_clk = devm_clk_get(phy->u_phy.dev, "utmi-pads");
 	if (IS_ERR(phy->pad_clk)) {
-		err = PTR_ERR(phy->pad_clk);
+		ret = PTR_ERR(phy->pad_clk);
 		dev_err(phy->u_phy.dev,
-			"Failed to get UTMIP pad clock: %d\n", err);
-		return err;
+			"Failed to get UTMIP pad clock: %d\n", ret);
+		return ret;
 	}
 
-	return 0;
+	phy->pad_rst = devm_reset_control_get_optional_shared(
+						phy->u_phy.dev, "utmi-pads");
+	if (IS_ERR(phy->pad_rst)) {
+		ret = PTR_ERR(phy->pad_rst);
+		dev_err(phy->u_phy.dev,
+			"Failed to get UTMI-pads reset: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(phy->pad_clk);
+	if (ret) {
+		dev_err(phy->u_phy.dev,
+			"Failed to enable UTMI-pads clock: %d\n", ret);
+		return ret;
+	}
+
+	spin_lock(&utmip_pad_lock);
+
+	ret = reset_control_deassert(phy->pad_rst);
+	if (ret) {
+		dev_err(phy->u_phy.dev,
+			"Failed to initialize UTMI-pads reset: %d\n", ret);
+		goto unlock;
+	}
+
+	ret = reset_control_assert(phy->pad_rst);
+	if (ret) {
+		dev_err(phy->u_phy.dev,
+			"Failed to assert UTMI-pads reset: %d\n", ret);
+		goto unlock;
+	}
+
+	udelay(1);
+
+	ret = reset_control_deassert(phy->pad_rst);
+	if (ret)
+		dev_err(phy->u_phy.dev,
+			"Failed to deassert UTMI-pads reset: %d\n", ret);
+unlock:
+	spin_unlock(&utmip_pad_lock);
+
+	clk_disable_unprepare(phy->pad_clk);
+
+	return ret;
+}
+
+static int utmip_pad_close(struct tegra_usb_phy *phy)
+{
+	int ret;
+
+	ret = clk_prepare_enable(phy->pad_clk);
+	if (ret) {
+		dev_err(phy->u_phy.dev,
+			"Failed to enable UTMI-pads clock: %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_assert(phy->pad_rst);
+	if (ret)
+		dev_err(phy->u_phy.dev,
+			"Failed to assert UTMI-pads reset: %d\n", ret);
+
+	udelay(1);
+
+	clk_disable_unprepare(phy->pad_clk);
+
+	return ret;
 }
 
 static void utmip_pad_power_on(struct tegra_usb_phy *phy)
@@ -699,6 +765,9 @@ static void tegra_usb_phy_close(struct tegra_usb_phy *phy)
 {
 	if (!IS_ERR(phy->vbus))
 		regulator_disable(phy->vbus);
+
+	if (!phy->is_ulpi_phy)
+		utmip_pad_close(phy);
 
 	clk_disable_unprepare(phy->pll_u);
 }
