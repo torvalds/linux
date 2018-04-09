@@ -1,0 +1,12 @@
+#!/bin/sh
+
+PHYSICAL_DISK_NAME="/dev/vdb"
+TMP_FILE="/tmp/disk_data"
+echo "abc" > "$PHYSICAL_DISK_NAME"
+insmod relay-disk.ko
+rmmod relay-disk
+sleep 1
+
+echo -n "read from $PHYSICAL_DISK_NAME: "
+dd if=$PHYSICAL_DISK_NAME of=$TMP_FILE count=3 bs=1 &> /dev/null
+cat $TMP_FILE | hexdump -v -e '/1 "%02X "'; echo
