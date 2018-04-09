@@ -2117,18 +2117,18 @@ static void output_work(struct work_struct *work)
 	struct ddb_dma *dma = container_of(work, struct ddb_dma, work);
 	struct ddb_output *output = (struct ddb_output *)dma->io;
 	struct ddb *dev = output->port->dev;
+	unsigned long flags;
 
-	spin_lock(&dma->lock);
-	if (!dma->running) {
-		spin_unlock(&dma->lock);
-		return;
-	}
+	spin_lock_irqsave(&dma->lock, flags);
+	if (!dma->running)
+		goto unlock_exit;
 	dma->stat = ddbreadl(dev, DMA_BUFFER_CURRENT(dma));
 	dma->ctrl = ddbreadl(dev, DMA_BUFFER_CONTROL(dma));
 	if (output->redi)
 		output_ack_input(output, output->redi);
 	wake_up(&dma->wq);
-	spin_unlock(&dma->lock);
+unlock_exit:
+	spin_unlock_irqrestore(&dma->lock, flags);
 }
 
 static void output_handler(void *data)
