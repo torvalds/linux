@@ -340,6 +340,38 @@ static inline void refcount_error_report(struct pt_regs *regs, const char *err)
 { }
 #endif
 
+#ifdef CONFIG_LOCK_DOWN_KERNEL
+extern void __init init_lockdown(void);
+extern bool __kernel_is_locked_down(const char *what, bool first);
+
+#ifndef CONFIG_LOCK_DOWN_MANDATORY
+#define kernel_is_locked_down(what)					\
+	({								\
+		static bool message_given;				\
+		bool locked_down = __kernel_is_locked_down(what, !message_given); \
+		message_given = true;					\
+		locked_down;						\
+	})
+#else
+#define kernel_is_locked_down(what)					\
+	({								\
+		static bool message_given;				\
+		__kernel_is_locked_down(what, !message_given);		\
+		message_given = true;					\
+		true;							\
+	})
+#endif
+#else
+static inline void __init init_lockdown(void)
+{
+}
+static inline bool __kernel_is_locked_down(const char *what, bool first)
+{
+	return false;
+}
+#define kernel_is_locked_down(what) ({ false; })
+#endif
+
 /* Internal, do not use. */
 int __must_check _kstrtoul(const char *s, unsigned int base, unsigned long *res);
 int __must_check _kstrtol(const char *s, unsigned int base, long *res);

@@ -239,6 +239,28 @@ config STATIC_USERMODEHELPER_PATH
 	  If you wish for all usermode helper programs to be disabled,
 	  specify an empty string here (i.e. "").
 
+config LOCK_DOWN_KERNEL
+	bool "Allow the kernel to be 'locked down'"
+	help
+	  Allow the kernel to be locked down.  Locking down the kernel turns
+	  off various features that might otherwise allow access to the kernel
+	  image (eg. setting MSR registers).
+
+	  Note, however, that locking down your kernel will prevent some
+	  drivers from functioning because allowing manual configuration of
+	  hardware parameters is forbidden, lest a device be used to access the
+	  kernel by DMA.  This mostly applies to ISA devices.
+
+	  The kernel lockdown can be triggered by adding lockdown=1 to the
+	  kernel command line.
+
+config LOCK_DOWN_MANDATORY
+	bool "Make kernel lockdown mandatory"
+	depends on LOCK_DOWN_KERNEL
+	help
+	  Makes the lockdown non-negotiable.  It is always on and cannot be
+	  disabled.
+
 source "security/selinux/Kconfig"
 source "security/smack/Kconfig"
 source "security/tomoyo/Kconfig"
@@ -286,4 +308,3 @@ config DEFAULT_SECURITY
 	default "" if DEFAULT_SECURITY_DAC
 
 endmenu
-
