@@ -100,7 +100,7 @@ MODULE_PARM_DESC(stv0910_single, "use stv0910 cards as single demods");
 
 static DEFINE_MUTEX(redirect_lock);
 
-struct workqueue_struct *ddb_wq;
+static struct workqueue_struct *ddb_wq;
 
 static struct ddb *ddbs[DDB_MAX_ADAPTER];
 
@@ -3040,7 +3040,7 @@ static struct class ddb_class = {
 	.devnode        = ddb_devnode,
 };
 
-int ddb_class_create(void)
+static int ddb_class_create(void)
 {
 	ddb_major = register_chrdev(0, DDB_NAME, &ddb_fops);
 	if (ddb_major < 0)
@@ -3050,7 +3050,7 @@ int ddb_class_create(void)
 	return 0;
 }
 
-void ddb_class_destroy(void)
+static void ddb_class_destroy(void)
 {
 	class_unregister(&ddb_class);
 	unregister_chrdev(ddb_major, DDB_NAME);
@@ -3321,4 +3321,30 @@ void ddb_unmap(struct ddb *dev)
 	if (dev->regs)
 		iounmap(dev->regs);
 	vfree(dev);
+}
+
+int ddb_exit_ddbridge(int stage, int error)
+{
+	switch (stage) {
+	default:
+	case 2:
+		destroy_workqueue(ddb_wq);
+		/* fall-through */
+	case 1:
+		ddb_class_destroy();
+		break;
+	}
+
+	return error;
+}
+
+int ddb_init_ddbridge(void)
+{
+	if (ddb_class_create() < 0)
+		return -1;
+	ddb_wq = alloc_workqueue("ddbridge", 0, 0);
+	if (!ddb_wq)
+		return ddb_exit_ddbridge(1, -1);
+
+	return 0;
 }

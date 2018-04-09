@@ -282,32 +282,25 @@ static struct pci_driver ddb_pci_driver = {
 
 static __init int module_init_ddbridge(void)
 {
-	int stat = -1;
+	int stat;
 
 	pr_info("Digital Devices PCIE bridge driver "
 		DDBRIDGE_VERSION
 		", Copyright (C) 2010-17 Digital Devices GmbH\n");
-	if (ddb_class_create() < 0)
-		return -1;
-	ddb_wq = create_workqueue("ddbridge");
-	if (!ddb_wq)
-		goto exit1;
+	stat = ddb_init_ddbridge();
+	if (stat < 0)
+		return stat;
 	stat = pci_register_driver(&ddb_pci_driver);
 	if (stat < 0)
-		goto exit2;
-	return stat;
-exit2:
-	destroy_workqueue(ddb_wq);
-exit1:
-	ddb_class_destroy();
+		ddb_exit_ddbridge(0, stat);
+
 	return stat;
 }
 
 static __exit void module_exit_ddbridge(void)
 {
 	pci_unregister_driver(&ddb_pci_driver);
-	destroy_workqueue(ddb_wq);
-	ddb_class_destroy();
+	ddb_exit_ddbridge(0, 0);
 }
 
 module_init(module_init_ddbridge);

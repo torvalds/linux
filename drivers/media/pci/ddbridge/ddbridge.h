@@ -368,9 +368,6 @@ int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 
 /****************************************************************************/
 
-/* ddbridge-main.c (modparams) */
-extern struct workqueue_struct *ddb_wq;
-
 /* ddbridge-core.c */
 void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
@@ -383,9 +380,9 @@ void ddb_ports_init(struct ddb *dev);
 int ddb_buffers_alloc(struct ddb *dev);
 int ddb_ports_attach(struct ddb *dev);
 int ddb_device_create(struct ddb *dev);
-int ddb_class_create(void);
-void ddb_class_destroy(void);
 int ddb_init(struct ddb *dev);
 void ddb_unmap(struct ddb *dev);
+int ddb_exit_ddbridge(int stage, int error);
+int ddb_init_ddbridge(void);
 
 #endif /* DDBRIDGE_H */
