@@ -155,6 +155,6 @@ struct zcrypt_ops *zcrypt_msgtype(unsigned char *, int);
 int zcrypt_api_init(void);
 void zcrypt_api_exit(void);
 long zcrypt_send_cprb(struct ica_xcRB *xcRB);
-void zcrypt_device_status_mask(struct zcrypt_device_matrix *devstatus);
+void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
 
 #endif /* _ZCRYPT_API_H_ */

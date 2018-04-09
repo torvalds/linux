@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <asm/ap.h>
 
-#define AP_DEVICES 64		/* Number of AP devices. */
+#define AP_DEVICES 256		/* Number of AP devices. */
 #define AP_DOMAINS 256		/* Number of AP domains. */
 #define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
