@@ -5042,9 +5042,9 @@ skl_compute_ddb(struct drm_atomic_state *state)
 }
 
 static void
-skl_copy_wm_for_pipe(struct skl_wm_values *dst,
-		     struct skl_wm_values *src,
-		     enum pipe pipe)
+skl_copy_ddb_for_pipe(struct skl_ddb_values *dst,
+		      struct skl_ddb_values *src,
+		      enum pipe pipe)
 {
 	memcpy(dst->ddb.y_plane[pipe], src->ddb.y_plane[pipe],
 	       sizeof(dst->ddb.y_plane[pipe]));
@@ -5095,7 +5095,7 @@ skl_compute_wm(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *cstate;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct skl_wm_values *results = &intel_state->wm_results;
+	struct skl_ddb_values *results = &intel_state->wm_results;
 	struct drm_device *dev = state->dev;
 	struct skl_pipe_wm *pipe_wm;
 	bool changed = false;
@@ -5197,8 +5197,8 @@ static void skl_initial_wm(struct intel_atomic_state *state,
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct skl_wm_values *results = &state->wm_results;
-	struct skl_wm_values *hw_vals = &dev_priv->wm.skl_hw;
+	struct skl_ddb_values *results = &state->wm_results;
+	struct skl_ddb_values *hw_vals = &dev_priv->wm.skl_hw;
 	enum pipe pipe = intel_crtc->pipe;
 
 	if ((results->dirty_pipes & drm_crtc_mask(&intel_crtc->base)) == 0)
@@ -5209,7 +5209,7 @@ static void skl_initial_wm(struct intel_atomic_state *state,
 	if (cstate->base.active_changed)
 		skl_atomic_update_crtc_wm(state, cstate);
 
-	skl_copy_wm_for_pipe(hw_vals, results, pipe);
+	skl_copy_ddb_for_pipe(hw_vals, results, pipe);
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -5341,7 +5341,7 @@ void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
 void skl_wm_get_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct skl_wm_values *hw = &dev_priv->wm.skl_hw;
+	struct skl_ddb_values *hw = &dev_priv->wm.skl_hw;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
