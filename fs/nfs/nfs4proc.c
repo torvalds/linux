@@ -4378,11 +4378,12 @@ static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
+	__u32 bitmask[NFS4_BITMASK_SZ];
 	struct nfs4_link_arg arg = {
 		.fh     = NFS_FH(inode),
 		.dir_fh = NFS_FH(dir),
 		.name   = name,
-		.bitmask = server->attr_bitmask,
+		.bitmask = bitmask,
 	};
 	struct nfs4_link_res res = {
 		.server = server,
@@ -4404,9 +4405,9 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 		status = PTR_ERR(res.label);
 		goto out;
 	}
-	arg.bitmask = nfs4_bitmask(server, res.label);
 
 	nfs4_inode_make_writeable(inode);
+	nfs4_bitmap_copy_adjust_setattr(bitmask, nfs4_bitmask(server, res.label), inode);
 
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
