@@ -61,7 +61,9 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 #include <asm/dma-iommu.h>
+#endif
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-fwnode.h>
@@ -1938,13 +1940,16 @@ error_csi2:
 
 static void isp_detach_iommu(struct isp_device *isp)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 	arm_iommu_detach_device(isp->dev);
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
+#endif
 }
 
 static int isp_attach_iommu(struct isp_device *isp)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping;
 	int ret;
 
@@ -1973,6 +1978,9 @@ error:
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
 	return ret;
+#else
+	return -ENODEV;
+#endif
 }
 
 /*
