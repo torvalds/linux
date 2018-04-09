@@ -916,7 +916,7 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 	return !has_cpuid_feature(entry, scope);
 }
 
-static void
+static void __nocfi
 kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 {
 	typedef void (kpti_remap_fn)(int, int, phys_addr_t);
