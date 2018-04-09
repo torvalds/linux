@@ -130,6 +130,7 @@ static void vc4_close(struct drm_device *dev, struct drm_file *file)
 	struct vc4_file *vc4file = file->driver_priv;
 
 	vc4_perfmon_close_file(vc4file);
+	kfree(vc4file);
 }
 
 static const struct vm_operations_struct vc4_vm_ops = {
