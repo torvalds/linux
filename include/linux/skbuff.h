@@ -3250,8 +3250,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 				    int *peeked, int *off, int *err);
 struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags, int noblock,
 				  int *err);
-__poll_t datagram_poll(struct file *file, struct socket *sock,
-			   struct poll_table_struct *wait);
+__poll_t datagram_poll_mask(struct socket *sock, __poll_t events);
 int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
 			   struct iov_iter *to, int size);
 static inline int skb_copy_datagram_msg(const struct sk_buff *from, int offset,
