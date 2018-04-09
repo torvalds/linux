@@ -149,6 +149,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_rport *rport;
 	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
 	struct lpfc_nvme_ctrl_stat *cstat;
@@ -312,11 +313,14 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			localport->port_id, statep);
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!ndlp->nrport)
+		rport = lpfc_ndlp_get_nrport(ndlp);
+		if (!rport)
 			continue;
 
 		/* local short-hand pointer. */
-		nrport = ndlp->nrport->remoteport;
+		nrport = rport->remoteport;
+		if (!nrport)
+			continue;
 
 		/* Port state is only one of two values for now. */
 		switch (nrport->port_state) {
@@ -3290,6 +3294,9 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 {
 	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
+#if (IS_ENABLED(CONFIG_NVME_FC))
+	struct lpfc_nvme_rport *rport;
+#endif
 
 	shost = lpfc_shost_from_vport(vport);
 	spin_lock_irq(shost->host_lock);
@@ -3299,8 +3306,9 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 #if (IS_ENABLED(CONFIG_NVME_FC))
-		if (ndlp->nrport)
-			nvme_fc_set_remoteport_devloss(ndlp->nrport->remoteport,
+		rport = lpfc_ndlp_get_nrport(ndlp);
+		if (rport)
+			nvme_fc_set_remoteport_devloss(rport->remoteport,
 						       vport->cfg_devloss_tmo);
 #endif
 	}

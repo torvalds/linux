@@ -30,6 +30,10 @@
 #define LPFC_NVME_FB_SHIFT		9
 #define LPFC_NVME_MAX_FB		(1 << 20)	/* 1M */
 
+#define lpfc_ndlp_get_nrport(ndlp)					\
+	((!ndlp->nrport || (ndlp->upcall_flags & NLP_WAIT_FOR_UNREG))	\
+	? NULL : ndlp->nrport)
+
 struct lpfc_nvme_qhandle {
 	uint32_t index;		/* WQ index to use */
 	uint32_t qidx;		/* queue index passed to create */

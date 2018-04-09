@@ -335,6 +335,7 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 			remoteport);
 	spin_lock_irq(&vport->phba->hbalock);
 	ndlp->nrport = NULL;
+	ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
 	spin_unlock_irq(&vport->phba->hbalock);
 
 	/* Remove original register reference. The host transport
@@ -2646,6 +2647,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_rport *rport;
+	struct lpfc_nvme_rport *oldrport;
 	struct nvme_fc_remote_port *remote_port;
 	struct nvme_fc_port_info rpinfo;
 	struct lpfc_nodelist *prev_ndlp;
@@ -2678,7 +2680,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	rpinfo.port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 	rpinfo.node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
-	if (!ndlp->nrport)
+
+	oldrport = lpfc_ndlp_get_nrport(ndlp);
+	if (!oldrport)
 		lpfc_nlp_get(ndlp);
 
 	ret = nvme_fc_register_remoteport(localport, &rpinfo, &remote_port);
@@ -2688,8 +2692,8 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * new rport.
 		 */
 		rport = remote_port->private;
-		if (ndlp->nrport) {
-			if (ndlp->nrport == remote_port->private) {
+		if (oldrport) {
+			if (oldrport == remote_port->private) {
 				/* Same remoteport.  Just reuse. */
 				lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 						 LOG_NVME_DISC,
@@ -2713,6 +2717,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 */
 			spin_lock_irq(&vport->phba->hbalock);
 			ndlp->nrport = NULL;
+			ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
 			spin_unlock_irq(&vport->phba->hbalock);
 			rport->ndlp = NULL;
 			rport->remoteport = NULL;
@@ -2785,7 +2790,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (!lport)
 		goto input_err;
 
-	rport = ndlp->nrport;
+	rport = lpfc_ndlp_get_nrport(ndlp);
 	if (!rport)
 		goto input_err;
 
