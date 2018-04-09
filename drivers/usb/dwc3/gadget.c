@@ -853,7 +853,53 @@ static void dwc3_gadget_ep_free_request(struct usb_ep *ep,
 	kfree(req);
 }
 
-static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep);
+/**
+ * dwc3_ep_prev_trb - returns the previous TRB in the ring
+ * @dep: The endpoint with the TRB ring
+ * @index: The index of the current TRB in the ring
+ *
+ * Returns the TRB prior to the one pointed to by the index. If the
+ * index is 0, we will wrap backwards, skip the link TRB, and return
+ * the one just before that.
+ */
+static struct dwc3_trb *dwc3_ep_prev_trb(struct dwc3_ep *dep, u8 index)
+{
+	u8 tmp = index;
+
+	if (!tmp)
+		tmp = DWC3_TRB_NUM - 1;
+
+	return &dep->trb_pool[tmp - 1];
+}
+
+static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
+{
+	struct dwc3_trb		*tmp;
+	u8			trbs_left;
+
+	/*
+	 * If enqueue & dequeue are equal than it is either full or empty.
+	 *
+	 * One way to know for sure is if the TRB right before us has HWO bit
+	 * set or not. If it has, then we're definitely full and can't fit any
+	 * more transfers in our ring.
+	 */
+	if (dep->trb_enqueue == dep->trb_dequeue) {
+		tmp = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
+		if (tmp->ctrl & DWC3_TRB_CTRL_HWO)
+			return 0;
+
+		return DWC3_TRB_NUM - 1;
+	}
+
+	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
+	trbs_left &= (DWC3_TRB_NUM - 1);
+
+	if (dep->trb_dequeue < dep->trb_enqueue)
+		trbs_left--;
+
+	return trbs_left;
+}
 
 static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 		dma_addr_t dma, unsigned length, unsigned chain, unsigned node,
@@ -992,54 +1038,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 
 	__dwc3_prepare_one_trb(dep, trb, dma, length, chain, node,
 			stream_id, short_not_ok, no_interrupt);
-}
-
-/**
- * dwc3_ep_prev_trb - returns the previous TRB in the ring
- * @dep: The endpoint with the TRB ring
- * @index: The index of the current TRB in the ring
- *
- * Returns the TRB prior to the one pointed to by the index. If the
- * index is 0, we will wrap backwards, skip the link TRB, and return
- * the one just before that.
- */
-static struct dwc3_trb *dwc3_ep_prev_trb(struct dwc3_ep *dep, u8 index)
-{
-	u8 tmp = index;
-
-	if (!tmp)
-		tmp = DWC3_TRB_NUM - 1;
-
-	return &dep->trb_pool[tmp - 1];
-}
-
-static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
-{
-	struct dwc3_trb		*tmp;
-	u8			trbs_left;
-
-	/*
-	 * If enqueue & dequeue are equal than it is either full or empty.
-	 *
-	 * One way to know for sure is if the TRB right before us has HWO bit
-	 * set or not. If it has, then we're definitely full and can't fit any
-	 * more transfers in our ring.
-	 */
-	if (dep->trb_enqueue == dep->trb_dequeue) {
-		tmp = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
-		if (tmp->ctrl & DWC3_TRB_CTRL_HWO)
-			return 0;
-
-		return DWC3_TRB_NUM - 1;
-	}
-
-	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
-	trbs_left &= (DWC3_TRB_NUM - 1);
-
-	if (dep->trb_dequeue < dep->trb_enqueue)
-		trbs_left--;
-
-	return trbs_left;
 }
 
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
