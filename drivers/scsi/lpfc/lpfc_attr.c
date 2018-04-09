@@ -3469,8 +3469,49 @@ LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 512,
 # tgt_queue_depth:  This parameter is used to limit the number of outstanding
 # commands per target port. Value range is [10,65535]. Default value is 65535.
 */
-LPFC_VPORT_ATTR_RW(tgt_queue_depth, 65535, 10, 65535,
-		   "Max number of FCP commands we can queue to a specific target port");
+static uint lpfc_tgt_queue_depth = LPFC_MAX_TGT_QDEPTH;
+module_param(lpfc_tgt_queue_depth, uint, 0444);
+MODULE_PARM_DESC(lpfc_tgt_queue_depth, "Set max Target queue depth");
+lpfc_vport_param_show(tgt_queue_depth);
+lpfc_vport_param_init(tgt_queue_depth, LPFC_MAX_TGT_QDEPTH,
+		      LPFC_MIN_TGT_QDEPTH, LPFC_MAX_TGT_QDEPTH);
+
+/**
+ * lpfc_tgt_queue_depth_store: Sets an attribute value.
+ * @phba: pointer the the adapter structure.
+ * @val: integer attribute value.
+ *
+ * Description: Sets the parameter to the new value.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if val is invalid
+ */
+static int
+lpfc_tgt_queue_depth_set(struct lpfc_vport *vport, uint val)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp;
+
+	if (!lpfc_rangecheck(val, LPFC_MIN_TGT_QDEPTH, LPFC_MAX_TGT_QDEPTH))
+		return -EINVAL;
+
+	if (val == vport->cfg_tgt_queue_depth)
+		return 0;
+
+	spin_lock_irq(shost->host_lock);
+	vport->cfg_tgt_queue_depth = val;
+
+	/* Next loop thru nodelist and change cmd_qdepth */
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
+		ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
+
+	spin_unlock_irq(shost->host_lock);
+	return 0;
+}
+
+lpfc_vport_param_store(tgt_queue_depth);
+static DEVICE_ATTR_RW(lpfc_tgt_queue_depth);
 
 /*
 # hba_queue_depth:  This parameter is used to limit the number of outstanding

@@ -544,7 +544,7 @@ static int
 lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int len = 0;
-	int cnt;
+	int i, iocnt, outio, cnt;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *ndlp;
@@ -554,10 +554,12 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	struct nvme_fc_remote_port *nrport;
 
 	cnt = (LPFC_NODELIST_SIZE / LPFC_NODELIST_ENTRY_SIZE);
+	outio = 0;
 
 	len += snprintf(buf+len, size-len, "\nFCP Nodelist Entries ...\n");
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		iocnt = 0;
 		if (!cnt) {
 			len +=  snprintf(buf+len, size-len,
 				"Missing Nodelist Entries\n");
@@ -585,9 +587,11 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			break;
 		case NLP_STE_UNMAPPED_NODE:
 			statep = "UNMAP ";
+			iocnt = 1;
 			break;
 		case NLP_STE_MAPPED_NODE:
 			statep = "MAPPED";
+			iocnt = 1;
 			break;
 		case NLP_STE_NPR_NODE:
 			statep = "NPR   ";
@@ -614,8 +618,10 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			len += snprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
 			len += snprintf(buf+len, size-len, "FC_NODE ");
-		if (ndlp->nlp_type & NLP_FABRIC)
+		if (ndlp->nlp_type & NLP_FABRIC) {
 			len += snprintf(buf+len, size-len, "FABRIC ");
+			iocnt = 0;
+		}
 		if (ndlp->nlp_type & NLP_FCP_TARGET)
 			len += snprintf(buf+len, size-len, "FCP_TGT sid:%d ",
 				ndlp->nlp_sid);
@@ -632,9 +638,19 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			ndlp->nlp_usg_map);
 		len += snprintf(buf+len, size-len, "refcnt:%x",
 			kref_read(&ndlp->kref));
+		if (iocnt) {
+			i = atomic_read(&ndlp->cmd_pending);
+			len += snprintf(buf + len, size - len,
+					" OutIO:x%x Qdepth x%x",
+					i, ndlp->cmd_qdepth);
+			outio += i;
+		}
 		len +=  snprintf(buf+len, size-len, "\n");
 	}
 	spin_unlock_irq(shost->host_lock);
+
+	len += snprintf(buf + len, size - len,
+			"\nOutstanding IO x%x\n",  outio);
 
 	if (phba->nvmet_support && phba->targetport && (vport == phba->pport)) {
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;

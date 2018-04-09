@@ -64,8 +64,6 @@ struct lpfc_sli2_slim;
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 #define LPFC_VNAME_LEN		100	/* vport symbolic name length */
-#define LPFC_TGTQ_INTERVAL	40000	/* Min amount of time between tgt
-					   queue depth change in millisecs */
 #define LPFC_TGTQ_RAMPUP_PCENT	5	/* Target queue rampup in percentage */
 #define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
