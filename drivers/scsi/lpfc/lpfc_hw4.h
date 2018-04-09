@@ -104,6 +104,17 @@ struct lpfc_sli_intf {
 #define LPFC_SLI_INTF_IF_TYPE_VIRT	1
 };
 
+struct lpfc_sli_asic_rev {
+	u32 word0;
+#define LPFC_SLI_ASIC_VER_A	0x0
+#define LPFC_SLI_ASIC_VER_B	0x1
+#define LPFC_SLI_ASIC_VER_C	0x2
+#define LPFC_SLI_ASIC_VER_D	0x3
+#define lpfc_sli_asic_ver_SHIFT		4
+#define lpfc_sli_asic_ver_MASK		0x0000000F
+#define lpfc_sli_asic_ver_WORD		word0
+};
+
 #define LPFC_SLI4_MBX_EMBED	true
 #define LPFC_SLI4_MBX_NEMBED	false
 
@@ -566,6 +577,7 @@ struct lpfc_register {
 
 /* The following BAR0 register sets are defined for if_type 0 and 2 UCNAs. */
 #define LPFC_SLI_INTF			0x0058
+#define LPFC_SLI_ASIC_VER		0x009C
 
 #define LPFC_CTL_PORT_SEM_OFFSET	0x400
 #define lpfc_port_smphr_perr_SHIFT	31
