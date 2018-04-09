@@ -55,34 +55,6 @@ MODULE_PARM_DESC(msi, "Control MSI interrupts: 0-disable (default), 1-enable");
 #endif
 #endif
 
-int ci_bitrate = 70000;
-module_param(ci_bitrate, int, 0444);
-MODULE_PARM_DESC(ci_bitrate, " Bitrate in KHz for output to CI.");
-
-int ts_loop = -1;
-module_param(ts_loop, int, 0444);
-MODULE_PARM_DESC(ts_loop, "TS in/out test loop on port ts_loop");
-
-int xo2_speed = 2;
-module_param(xo2_speed, int, 0444);
-MODULE_PARM_DESC(xo2_speed, "default transfer speed for xo2 based duoflex, 0=55,1=75,2=90,3=104 MBit/s, default=2, use attribute to change for individual cards");
-
-#ifdef __arm__
-int alt_dma = 1;
-#else
-int alt_dma;
-#endif
-module_param(alt_dma, int, 0444);
-MODULE_PARM_DESC(alt_dma, "use alternative DMA buffer handling");
-
-int no_init;
-module_param(no_init, int, 0444);
-MODULE_PARM_DESC(no_init, "do not initialize most devices");
-
-int stv0910_single;
-module_param(stv0910_single, int, 0444);
-MODULE_PARM_DESC(stv0910_single, "use stv0910 cards as single demods");
-
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/

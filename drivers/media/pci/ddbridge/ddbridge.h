@@ -369,12 +369,6 @@ int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 /****************************************************************************/
 
 /* ddbridge-main.c (modparams) */
-extern int ci_bitrate;
-extern int ts_loop;
-extern int xo2_speed;
-extern int alt_dma;
-extern int no_init;
-extern int stv0910_single;
 extern struct workqueue_struct *ddb_wq;
 
 /* ddbridge-core.c */
