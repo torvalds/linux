@@ -229,12 +229,12 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	switch (vsyscall_nr) {
 	case 0:
 		/* this decodes regs->di and regs->si on its own */
-		ret = sys_gettimeofday(regs);
+		ret = __x64_sys_gettimeofday(regs);
 		break;
 
 	case 1:
 		/* this decodes regs->di on its own */
-		ret = sys_time(regs);
+		ret = __x64_sys_time(regs);
 		break;
 
 	case 2:
@@ -242,7 +242,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 		orig_dx = regs->dx;
 		regs->dx = 0;
 		/* this decodes regs->di, regs->si and regs->dx on its own */
-		ret = sys_getcpu(regs);
+		ret = __x64_sys_getcpu(regs);
 		regs->dx = orig_dx;
 		break;
 	}

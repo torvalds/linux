@@ -44,12 +44,23 @@
 		return __se_sys##name(SC_IA32_REGS_TO_ARGS(x,__VA_ARGS__));\
 	}
 
+/*
+ * To keep the naming coherent, re-define SYSCALL_DEFINE0 to create an alias
+ * named __ia32_sys_*()
+ */
+#define SYSCALL_DEFINE0(sname)					\
+	SYSCALL_METADATA(_##sname, 0);				\
+	asmlinkage long __x64_sys_##sname(void);		\
+	ALLOW_ERROR_INJECTION(__x64_sys_##sname, ERRNO);	\
+	SYSCALL_ALIAS(__ia32_sys_##sname, __x64_sys_##sname);	\
+	asmlinkage long __x64_sys_##sname(void)
+
 #define COND_SYSCALL(name)						\
-	cond_syscall(sys_##name);					\
+	cond_syscall(__x64_sys_##name);					\
 	cond_syscall(__ia32_sys_##name)
 
 #define SYS_NI(name)							\
-	SYSCALL_ALIAS(sys_##name, sys_ni_posix_timers);			\
+	SYSCALL_ALIAS(__x64_sys_##name, sys_ni_posix_timers);		\
 	SYSCALL_ALIAS(__ia32_sys_##name, sys_ni_posix_timers)
 
 #else /* CONFIG_IA32_EMULATION */
@@ -81,8 +92,7 @@
 /*
  * Compat means IA32_EMULATION and/or X86_X32. As they use a different
  * mapping of registers to parameters, we need to generate stubs for each
- * of them. There is no need to implement COMPAT_SYSCALL_DEFINE0, as it is
- * unused on x86.
+ * of them.
  */
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)					\
 	static long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
@@ -114,13 +124,13 @@
 /*
  * Instead of the generic __SYSCALL_DEFINEx() definition, this macro takes
  * struct pt_regs *regs as the only argument of the syscall stub named
- * sys_*(). It decodes just the registers it needs and passes them on to
+ * __x64_sys_*(). It decodes just the registers it needs and passes them on to
  * the __se_sys_*() wrapper performing sign extension and then to the
  * __do_sys_*() function doing the actual job. These wrappers and functions
  * are inlined (at least in very most cases), meaning that the assembly looks
  * as follows (slightly re-ordered for better readability):
  *
- * <sys_recv>:			<-- syscall with 4 parameters
+ * <__x64_sys_recv>:		<-- syscall with 4 parameters
  *	callq	<__fentry__>
  *
  *	mov	0x70(%rdi),%rdi	<-- decode regs->di
@@ -143,18 +153,13 @@
  * If IA32_EMULATION is enabled, this macro generates an additional wrapper
  * named __ia32_sys_*() which decodes the struct pt_regs *regs according
  * to the i386 calling convention (bx, cx, dx, si, di, bp).
- *
- * As the generic SYSCALL_DEFINE0() macro does not decode any parameters for
- * obvious reasons, and passing struct pt_regs *regs to it in %rdi does not
- * hurt, there is no need to override it, or to define it differently for
- * IA32_EMULATION.
  */
 #define __SYSCALL_DEFINEx(x, name, ...)					\
-	asmlinkage long sys##name(const struct pt_regs *regs);		\
-	ALLOW_ERROR_INJECTION(sys##name, ERRNO);			\
+	asmlinkage long __x64_sys##name(const struct pt_regs *regs);	\
+	ALLOW_ERROR_INJECTION(__x64_sys##name, ERRNO);			\
 	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
-	asmlinkage long sys##name(const struct pt_regs *regs)		\
+	asmlinkage long __x64_sys##name(const struct pt_regs *regs)	\
 	{								\
 		return __se_sys##name(SC_X86_64_REGS_TO_ARGS(x,__VA_ARGS__));\
 	}								\
@@ -169,12 +174,36 @@
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
+ * As the generic SYSCALL_DEFINE0() macro does not decode any parameters for
+ * obvious reasons, and passing struct pt_regs *regs to it in %rdi does not
+ * hurt, we only need to re-define it here to keep the naming congruent to
+ * SYSCALL_DEFINEx() -- which is essential for the COND_SYSCALL() and SYS_NI()
+ * macros to work correctly.
+ */
+#ifndef SYSCALL_DEFINE0
+#define SYSCALL_DEFINE0(sname)					\
+	SYSCALL_METADATA(_##sname, 0);				\
+	asmlinkage long __x64_sys_##sname(void);		\
+	ALLOW_ERROR_INJECTION(__x64_sys_##sname, ERRNO);	\
+	asmlinkage long __x64_sys_##sname(void)
+#endif
+
+#ifndef COND_SYSCALL
+#define COND_SYSCALL(name) cond_syscall(__x64_sys_##name)
+#endif
+
+#ifndef SYS_NI
+#define SYS_NI(name) SYSCALL_ALIAS(__x64_sys_##name, sys_ni_posix_timers);
+#endif
+
+
+/*
  * For VSYSCALLS, we need to declare these three syscalls with the new
  * pt_regs-based calling convention for in-kernel use.
  */
 struct pt_regs;
-asmlinkage long sys_getcpu(const struct pt_regs *regs);		/* di,si,dx */
-asmlinkage long sys_gettimeofday(const struct pt_regs *regs);	/* di,si */
-asmlinkage long sys_time(const struct pt_regs *regs);		/* di */
+asmlinkage long __x64_sys_getcpu(const struct pt_regs *regs);
+asmlinkage long __x64_sys_gettimeofday(const struct pt_regs *regs);
+asmlinkage long __x64_sys_time(const struct pt_regs *regs);
 
 #endif /* _ASM_X86_SYSCALL_WRAPPER_H */

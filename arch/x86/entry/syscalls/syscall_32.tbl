@@ -11,9 +11,9 @@
 #
 # The abi is always "i386" for this file.
 #
-0	i386	restart_syscall		sys_restart_syscall
+0	i386	restart_syscall		sys_restart_syscall		__ia32_sys_restart_syscall
 1	i386	exit			sys_exit			__ia32_sys_exit
-2	i386	fork			sys_fork
+2	i386	fork			sys_fork			__ia32_sys_fork
 3	i386	read			sys_read			__ia32_sys_read
 4	i386	write			sys_write			__ia32_sys_write
 5	i386	open			sys_open			__ia32_compat_sys_open
@@ -31,23 +31,23 @@
 17	i386	break
 18	i386	oldstat			sys_stat			__ia32_sys_stat
 19	i386	lseek			sys_lseek			__ia32_compat_sys_lseek
-20	i386	getpid			sys_getpid
+20	i386	getpid			sys_getpid			__ia32_sys_getpid
 21	i386	mount			sys_mount			__ia32_compat_sys_mount
 22	i386	umount			sys_oldumount			__ia32_sys_oldumount
 23	i386	setuid			sys_setuid16			__ia32_sys_setuid16
-24	i386	getuid			sys_getuid16
+24	i386	getuid			sys_getuid16			__ia32_sys_getuid16
 25	i386	stime			sys_stime			__ia32_compat_sys_stime
 26	i386	ptrace			sys_ptrace			__ia32_compat_sys_ptrace
 27	i386	alarm			sys_alarm			__ia32_sys_alarm
 28	i386	oldfstat		sys_fstat			__ia32_sys_fstat
-29	i386	pause			sys_pause
+29	i386	pause			sys_pause			__ia32_sys_pause
 30	i386	utime			sys_utime			__ia32_compat_sys_utime
 31	i386	stty
 32	i386	gtty
 33	i386	access			sys_access			__ia32_sys_access
 34	i386	nice			sys_nice			__ia32_sys_nice
 35	i386	ftime
-36	i386	sync			sys_sync
+36	i386	sync			sys_sync			__ia32_sys_sync
 37	i386	kill			sys_kill			__ia32_sys_kill
 38	i386	rename			sys_rename			__ia32_sys_rename
 39	i386	mkdir			sys_mkdir			__ia32_sys_mkdir
@@ -58,10 +58,10 @@
 44	i386	prof
 45	i386	brk			sys_brk				__ia32_sys_brk
 46	i386	setgid			sys_setgid16			__ia32_sys_setgid16
-47	i386	getgid			sys_getgid16
+47	i386	getgid			sys_getgid16			__ia32_sys_getgid16
 48	i386	signal			sys_signal			__ia32_sys_signal
-49	i386	geteuid			sys_geteuid16
-50	i386	getegid			sys_getegid16
+49	i386	geteuid			sys_geteuid16			__ia32_sys_geteuid16
+50	i386	getegid			sys_getegid16			__ia32_sys_getegid16
 51	i386	acct			sys_acct			__ia32_sys_acct
 52	i386	umount2			sys_umount			__ia32_sys_umount
 53	i386	lock
@@ -75,11 +75,11 @@
 61	i386	chroot			sys_chroot			__ia32_sys_chroot
 62	i386	ustat			sys_ustat			__ia32_compat_sys_ustat
 63	i386	dup2			sys_dup2			__ia32_sys_dup2
-64	i386	getppid			sys_getppid
-65	i386	getpgrp			sys_getpgrp
-66	i386	setsid			sys_setsid
+64	i386	getppid			sys_getppid			__ia32_sys_getppid
+65	i386	getpgrp			sys_getpgrp			__ia32_sys_getpgrp
+66	i386	setsid			sys_setsid			__ia32_sys_setsid
 67	i386	sigaction		sys_sigaction			__ia32_compat_sys_sigaction
-68	i386	sgetmask		sys_sgetmask
+68	i386	sgetmask		sys_sgetmask			__ia32_sys_sgetmask
 69	i386	ssetmask		sys_ssetmask			__ia32_sys_ssetmask
 70	i386	setreuid		sys_setreuid16			__ia32_sys_setreuid16
 71	i386	setregid		sys_setregid16			__ia32_sys_setregid16
@@ -122,7 +122,7 @@
 108	i386	fstat			sys_newfstat			__ia32_compat_sys_newfstat
 109	i386	olduname		sys_uname			__ia32_sys_uname
 110	i386	iopl			sys_iopl			__ia32_sys_iopl
-111	i386	vhangup			sys_vhangup
+111	i386	vhangup			sys_vhangup			__ia32_sys_vhangup
 112	i386	idle
 113	i386	vm86old			sys_vm86old			sys_ni_syscall
 114	i386	wait4			sys_wait4			__ia32_compat_sys_wait4
@@ -164,12 +164,12 @@
 150	i386	mlock			sys_mlock			__ia32_sys_mlock
 151	i386	munlock			sys_munlock			__ia32_sys_munlock
 152	i386	mlockall		sys_mlockall			__ia32_sys_mlockall
-153	i386	munlockall		sys_munlockall
+153	i386	munlockall		sys_munlockall			__ia32_sys_munlockall
 154	i386	sched_setparam		sys_sched_setparam		__ia32_sys_sched_setparam
 155	i386	sched_getparam		sys_sched_getparam		__ia32_sys_sched_getparam
 156	i386	sched_setscheduler	sys_sched_setscheduler		__ia32_sys_sched_setscheduler
 157	i386	sched_getscheduler	sys_sched_getscheduler		__ia32_sys_sched_getscheduler
-158	i386	sched_yield		sys_sched_yield
+158	i386	sched_yield		sys_sched_yield			__ia32_sys_sched_yield
 159	i386	sched_get_priority_max	sys_sched_get_priority_max	__ia32_sys_sched_get_priority_max
 160	i386	sched_get_priority_min	sys_sched_get_priority_min	__ia32_sys_sched_get_priority_min
 161	i386	sched_rr_get_interval	sys_sched_rr_get_interval	__ia32_compat_sys_sched_rr_get_interval
@@ -201,7 +201,7 @@
 187	i386	sendfile		sys_sendfile			__ia32_compat_sys_sendfile
 188	i386	getpmsg
 189	i386	putpmsg
-190	i386	vfork			sys_vfork
+190	i386	vfork			sys_vfork			__ia32_sys_vfork
 191	i386	ugetrlimit		sys_getrlimit			__ia32_compat_sys_getrlimit
 192	i386	mmap2			sys_mmap_pgoff			__ia32_sys_mmap_pgoff
 193	i386	truncate64		sys_truncate64			__ia32_compat_sys_x86_truncate64
@@ -210,10 +210,10 @@
 196	i386	lstat64			sys_lstat64			__ia32_compat_sys_x86_lstat64
 197	i386	fstat64			sys_fstat64			__ia32_compat_sys_x86_fstat64
 198	i386	lchown32		sys_lchown			__ia32_sys_lchown
-199	i386	getuid32		sys_getuid
-200	i386	getgid32		sys_getgid
-201	i386	geteuid32		sys_geteuid
-202	i386	getegid32		sys_getegid
+199	i386	getuid32		sys_getuid			__ia32_sys_getuid
+200	i386	getgid32		sys_getgid			__ia32_sys_getgid
+201	i386	geteuid32		sys_geteuid			__ia32_sys_geteuid
+202	i386	getegid32		sys_getegid			__ia32_sys_getegid
 203	i386	setreuid32		sys_setreuid			__ia32_sys_setreuid
 204	i386	setregid32		sys_setregid			__ia32_sys_setregid
 205	i386	getgroups32		sys_getgroups			__ia32_sys_getgroups
@@ -235,7 +235,7 @@
 221	i386	fcntl64			sys_fcntl64			__ia32_compat_sys_fcntl64
 # 222 is unused
 # 223 is unused
-224	i386	gettid			sys_gettid
+224	i386	gettid			sys_gettid			__ia32_sys_gettid
 225	i386	readahead		sys_readahead			__ia32_compat_sys_x86_readahead
 226	i386	setxattr		sys_setxattr			__ia32_sys_setxattr
 227	i386	lsetxattr		sys_lsetxattr			__ia32_sys_lsetxattr
@@ -302,7 +302,7 @@
 288	i386	keyctl			sys_keyctl			__ia32_compat_sys_keyctl
 289	i386	ioprio_set		sys_ioprio_set			__ia32_sys_ioprio_set
 290	i386	ioprio_get		sys_ioprio_get			__ia32_sys_ioprio_get
-291	i386	inotify_init		sys_inotify_init
+291	i386	inotify_init		sys_inotify_init		__ia32_sys_inotify_init
 292	i386	inotify_add_watch	sys_inotify_add_watch		__ia32_sys_inotify_add_watch
 293	i386	inotify_rm_watch	sys_inotify_rm_watch		__ia32_sys_inotify_rm_watch
 294	i386	migrate_pages		sys_migrate_pages		__ia32_sys_migrate_pages
