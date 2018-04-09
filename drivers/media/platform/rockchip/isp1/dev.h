@@ -56,6 +56,12 @@
 #define RKISP1_MAX_SENSOR	2
 #define RKISP1_MAX_PIPELINE	4
 
+enum rkisp1_isp_ver {
+	ISP_V10 = 0,
+	ISP_V11,
+	ISP_V12
+};
+
 /*
  * struct rkisp1_pipeline - An ISP hardware pipeline
  *
@@ -116,6 +122,7 @@ struct rkisp1_device {
 	struct rkisp1_pipeline pipe;
 	struct vb2_alloc_ctx *alloc_ctx;
 	struct iommu_domain *domain;
+	enum rkisp1_isp_ver isp_ver;
 };
 
 #endif

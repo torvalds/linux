@@ -1290,6 +1290,9 @@
 #define CIF_ISP_VSM_DELTA_H		(CIF_ISP_VSM_BASE + 0x0000001C)
 #define CIF_ISP_VSM_DELTA_V		(CIF_ISP_VSM_BASE + 0x00000020)
 
+#define CIF_ISP_CSI0_BASE		0x00007000
+#define CIF_ISP_CSI0_CTRL0		(CIF_ISP_CSI0_BASE + 0x00000000)
+
 void disable_dcrop(struct rkisp1_stream *stream, bool async);
 void config_dcrop(struct rkisp1_stream *stream, struct v4l2_rect *rect,
 		  bool async);

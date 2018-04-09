@@ -50,6 +50,7 @@
 struct isp_match_data {
 	const char * const *clks;
 	int size;
+	enum rkisp1_isp_ver isp_ver;
 };
 
 int rkisp1_debug;
@@ -422,14 +423,6 @@ err_cleanup_ctx:
 	return ret;
 }
 
-static const char * const rk3399_isp_clks[] = {
-	"clk_isp",
-	"aclk_isp",
-	"hclk_isp",
-	"aclk_isp_wrap",
-	"hclk_isp_wrap",
-};
-
 static const char * const rk3288_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -438,23 +431,49 @@ static const char * const rk3288_isp_clks[] = {
 	"sclk_isp_jpe",
 };
 
-static const struct isp_match_data rk3288_isp_clk_data = {
-	.clks = rk3288_isp_clks,
-	.size = ARRAY_SIZE(rk3288_isp_clks),
+static const char * const rk3326_isp_clks[] = {
+	"clk_isp",
+	"aclk_isp",
+	"hclk_isp",
+	"pclk_isp",
 };
 
-static const struct isp_match_data rk3399_isp_clk_data = {
+static const char * const rk3399_isp_clks[] = {
+	"clk_isp",
+	"aclk_isp",
+	"hclk_isp",
+	"aclk_isp_wrap",
+	"hclk_isp_wrap",
+};
+
+static const struct isp_match_data rk3288_isp_match_data = {
+	.clks = rk3288_isp_clks,
+	.size = ARRAY_SIZE(rk3288_isp_clks),
+	.isp_ver = ISP_V10,
+};
+
+static const struct isp_match_data rk3326_isp_match_data = {
+	.clks = rk3326_isp_clks,
+	.size = ARRAY_SIZE(rk3326_isp_clks),
+	.isp_ver = ISP_V12,
+};
+
+static const struct isp_match_data rk3399_isp_match_data = {
 	.clks = rk3399_isp_clks,
 	.size = ARRAY_SIZE(rk3399_isp_clks),
+	.isp_ver = ISP_V10,
 };
 
 static const struct of_device_id rkisp1_plat_of_match[] = {
 	{
 		.compatible = "rockchip,rk3288-rkisp1",
-		.data = &rk3288_isp_clk_data,
+		.data = &rk3288_isp_match_data,
+	}, {
+		.compatible = "rockchip,rk3326-rkisp1",
+		.data = &rk3326_isp_match_data,
 	}, {
 		.compatible = "rockchip,rk3399-rkisp1",
-		.data = &rk3399_isp_clk_data,
+		.data = &rk3399_isp_match_data,
 	},
 	{},
 };
@@ -565,7 +584,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct rkisp1_device *isp_dev;
-	const struct isp_match_data *clk_data;
+	const struct isp_match_data *match_data;
 
 	struct resource *res;
 	int i, ret, irq;
@@ -595,17 +614,18 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	}
 
 	isp_dev->irq = irq;
-	clk_data = match->data;
-	for (i = 0; i < clk_data->size; i++) {
-		struct clk *clk = devm_clk_get(dev, clk_data->clks[i]);
+	match_data = match->data;
+	for (i = 0; i < match_data->size; i++) {
+		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
 		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get %s\n", clk_data->clks[i]);
+			dev_err(dev, "failed to get %s\n", match_data->clks[i]);
 			return PTR_ERR(clk);
 		}
 		isp_dev->clks[i] = clk;
 	}
-	isp_dev->clk_size = clk_data->size;
+	isp_dev->clk_size = match_data->size;
+	isp_dev->isp_ver = match_data->isp_ver;
 
 	atomic_set(&isp_dev->pipe.power_cnt, 0);
 	atomic_set(&isp_dev->pipe.stream_cnt, 0);
