@@ -20,7 +20,7 @@
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on);
 
 #ifdef CONFIG_X86_32
-/* 
+/*
  * These definitions are only valid on pure 32-bit systems; x86-64 uses a
  * different syscall calling convention
  */

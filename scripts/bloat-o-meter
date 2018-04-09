@@ -31,7 +31,7 @@ def getsizes(file, format):
                 # strip generated symbols
                 if name.startswith("__mod_"): continue
                 if name.startswith("__se_sys"): continue
-                if name.startswith("compat_SyS_"): continue
+                if name.startswith("__se_compat_sys"): continue
                 if name == "linux_banner": continue
                 # statics and some other optimizations adds random .NUMBER
                 name = re_NUMBER.sub('', name)

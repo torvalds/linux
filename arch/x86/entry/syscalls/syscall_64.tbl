@@ -342,43 +342,43 @@
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
-# for native 64-bit operation. The __compat_sys_x32 stubs are created
+# for native 64-bit operation. The __x32_compat_sys stubs are created
 # on-the-fly for compat_sys_*() compatibility system calls if X86_X32
 # is defined.
 #
-512	x32	rt_sigaction		__compat_sys_x32_rt_sigaction
+512	x32	rt_sigaction		__x32_compat_sys_rt_sigaction
 513	x32	rt_sigreturn		sys32_x32_rt_sigreturn
-514	x32	ioctl			__compat_sys_x32_ioctl
-515	x32	readv			__compat_sys_x32_readv
-516	x32	writev			__compat_sys_x32_writev
-517	x32	recvfrom		__compat_sys_x32_recvfrom
-518	x32	sendmsg			__compat_sys_x32_sendmsg
-519	x32	recvmsg			__compat_sys_x32_recvmsg
-520	x32	execve			__compat_sys_x32_execve/ptregs
-521	x32	ptrace			__compat_sys_x32_ptrace
-522	x32	rt_sigpending		__compat_sys_x32_rt_sigpending
-523	x32	rt_sigtimedwait		__compat_sys_x32_rt_sigtimedwait
-524	x32	rt_sigqueueinfo		__compat_sys_x32_rt_sigqueueinfo
-525	x32	sigaltstack		__compat_sys_x32_sigaltstack
-526	x32	timer_create		__compat_sys_x32_timer_create
-527	x32	mq_notify		__compat_sys_x32_mq_notify
-528	x32	kexec_load		__compat_sys_x32_kexec_load
-529	x32	waitid			__compat_sys_x32_waitid
-530	x32	set_robust_list		__compat_sys_x32_set_robust_list
-531	x32	get_robust_list		__compat_sys_x32_get_robust_list
-532	x32	vmsplice		__compat_sys_x32_vmsplice
-533	x32	move_pages		__compat_sys_x32_move_pages
-534	x32	preadv			__compat_sys_x32_preadv64
-535	x32	pwritev			__compat_sys_x32_pwritev64
-536	x32	rt_tgsigqueueinfo	__compat_sys_x32_rt_tgsigqueueinfo
-537	x32	recvmmsg		__compat_sys_x32_recvmmsg
-538	x32	sendmmsg		__compat_sys_x32_sendmmsg
-539	x32	process_vm_readv	__compat_sys_x32_process_vm_readv
-540	x32	process_vm_writev	__compat_sys_x32_process_vm_writev
-541	x32	setsockopt		__compat_sys_x32_setsockopt
-542	x32	getsockopt		__compat_sys_x32_getsockopt
-543	x32	io_setup		__compat_sys_x32_io_setup
-544	x32	io_submit		__compat_sys_x32_io_submit
-545	x32	execveat		__compat_sys_x32_execveat/ptregs
-546	x32	preadv2			__compat_sys_x32_preadv64v2
-547	x32	pwritev2		__compat_sys_x32_pwritev64v2
+514	x32	ioctl			__x32_compat_sys_ioctl
+515	x32	readv			__x32_compat_sys_readv
+516	x32	writev			__x32_compat_sys_writev
+517	x32	recvfrom		__x32_compat_sys_recvfrom
+518	x32	sendmsg			__x32_compat_sys_sendmsg
+519	x32	recvmsg			__x32_compat_sys_recvmsg
+520	x32	execve			__x32_compat_sys_execve/ptregs
+521	x32	ptrace			__x32_compat_sys_ptrace
+522	x32	rt_sigpending		__x32_compat_sys_rt_sigpending
+523	x32	rt_sigtimedwait		__x32_compat_sys_rt_sigtimedwait
+524	x32	rt_sigqueueinfo		__x32_compat_sys_rt_sigqueueinfo
+525	x32	sigaltstack		__x32_compat_sys_sigaltstack
+526	x32	timer_create		__x32_compat_sys_timer_create
+527	x32	mq_notify		__x32_compat_sys_mq_notify
+528	x32	kexec_load		__x32_compat_sys_kexec_load
+529	x32	waitid			__x32_compat_sys_waitid
+530	x32	set_robust_list		__x32_compat_sys_set_robust_list
+531	x32	get_robust_list		__x32_compat_sys_get_robust_list
+532	x32	vmsplice		__x32_compat_sys_vmsplice
+533	x32	move_pages		__x32_compat_sys_move_pages
+534	x32	preadv			__x32_compat_sys_preadv64
+535	x32	pwritev			__x32_compat_sys_pwritev64
+536	x32	rt_tgsigqueueinfo	__x32_compat_sys_rt_tgsigqueueinfo
+537	x32	recvmmsg		__x32_compat_sys_recvmmsg
+538	x32	sendmmsg		__x32_compat_sys_sendmmsg
+539	x32	process_vm_readv	__x32_compat_sys_process_vm_readv
+540	x32	process_vm_writev	__x32_compat_sys_process_vm_writev
+541	x32	setsockopt		__x32_compat_sys_setsockopt
+542	x32	getsockopt		__x32_compat_sys_getsockopt
+543	x32	io_setup		__x32_compat_sys_io_setup
+544	x32	io_submit		__x32_compat_sys_io_submit
+545	x32	execveat		__x32_compat_sys_execveat/ptregs
+546	x32	preadv2			__x32_compat_sys_preadv64v2
+547	x32	pwritev2		__x32_compat_sys_pwritev64v2
