@@ -1020,6 +1020,9 @@ const struct tegra_mc_soc tegra124_mc_soc = {
 	.smmu = &tegra124_smmu_soc,
 	.emem_regs = tegra124_mc_emem_regs,
 	.num_emem_regs = ARRAY_SIZE(tegra124_mc_emem_regs),
+	.intmask = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
+		   MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
+		   MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM,
 };
 #endif /* CONFIG_ARCH_TEGRA_124_SOC */
 
@@ -1042,5 +1045,8 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.atom_size = 32,
 	.client_id_mask = 0x7f,
 	.smmu = &tegra132_smmu_soc,
+	.intmask = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
+		   MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
+		   MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM,
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */
