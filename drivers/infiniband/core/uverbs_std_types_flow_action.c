@@ -363,28 +363,28 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(struct ib_device
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM] = {
-		.ptr = {
+		{ .ptr = {
 			.type = UVERBS_ATTR_TYPE_PTR_IN,
 			UVERBS_ATTR_TYPE(struct ib_uverbs_flow_action_esp_keymat_aes_gcm),
 			.flags = UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
-		},
+		} },
 	},
 };
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_replay[] = {
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE] = {
-		.ptr = {
+		{ .ptr = {
 			.type = UVERBS_ATTR_TYPE_PTR_IN,
 			/* No need to specify any data */
 			.len = 0,
-		}
+		} }
 	},
 	[IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP] = {
-		.ptr = {
+		{ .ptr = {
 			.type = UVERBS_ATTR_TYPE_PTR_IN,
 			UVERBS_ATTR_STRUCT(struct ib_uverbs_flow_action_esp_replay_bmp, size),
 			.flags = UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO,
-		}
+		} }
 	},
 };
 
