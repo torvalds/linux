@@ -143,6 +143,107 @@ static const struct backlight_ops pwm_backlight_ops = {
 };
 
 #ifdef CONFIG_OF
+#define PWM_LUMINANCE_SCALE	10000 /* luminance scale */
+
+/* An integer based power function */
+static u64 int_pow(u64 base, int exp)
+{
+	u64 result = 1;
+
+	while (exp) {
+		if (exp & 1)
+			result *= base;
+		exp >>= 1;
+		base *= base;
+	}
+
+	return result;
+}
+
+/*
+ * CIE lightness to PWM conversion.
+ *
+ * The CIE 1931 lightness formula is what actually describes how we perceive
+ * light:
+ *          Y = (L* / 902.3)           if L* ≤ 0.08856
+ *          Y = ((L* + 16) / 116)^3    if L* > 0.08856
+ *
+ * Where Y is the luminance, the amount of light coming out of the screen, and
+ * is a number between 0.0 and 1.0; and L* is the lightness, how bright a human
+ * perceives the screen to be, and is a number between 0 and 100.
+ *
+ * The following function does the fixed point maths needed to implement the
+ * above formula.
+ */
+static u64 cie1931(unsigned int lightness, unsigned int scale)
+{
+	u64 retval;
+
+	lightness *= 100;
+	if (lightness <= (8 * scale)) {
+		retval = DIV_ROUND_CLOSEST_ULL(lightness * 10, 9023);
+	} else {
+		retval = int_pow((lightness + (16 * scale)) / 116, 3);
+		retval = DIV_ROUND_CLOSEST_ULL(retval, (scale * scale));
+	}
+
+	return retval;
+}
+
+/*
+ * Create a default correction table for PWM values to create linear brightness
+ * for LED based backlights using the CIE1931 algorithm.
+ */
+static
+int pwm_backlight_brightness_default(struct device *dev,
+				     struct platform_pwm_backlight_data *data,
+				     unsigned int period)
+{
+	unsigned int counter = 0;
+	unsigned int i, n;
+	u64 retval;
+
+	/*
+	 * Count the number of bits needed to represent the period number. The
+	 * number of bits is used to calculate the number of levels used for the
+	 * brightness-levels table, the purpose of this calculation is have a
+	 * pre-computed table with enough levels to get linear brightness
+	 * perception. The period is divided by the number of bits so for a
+	 * 8-bit PWM we have 255 / 8 = 32 brightness levels or for a 16-bit PWM
+	 * we have 65535 / 16 = 4096 brightness levels.
+	 *
+	 * Note that this method is based on empirical testing on different
+	 * devices with PWM of 8 and 16 bits of resolution.
+	 */
+	n = period;
+	while (n) {
+		counter += n % 2;
+		n >>= 1;
+	}
+
+	data->max_brightness = DIV_ROUND_UP(period, counter);
+	data->levels = devm_kcalloc(dev, data->max_brightness,
+				    sizeof(*data->levels), GFP_KERNEL);
+	if (!data->levels)
+		return -ENOMEM;
+
+	/* Fill the table using the cie1931 algorithm */
+	for (i = 0; i < data->max_brightness; i++) {
+		retval = cie1931((i * PWM_LUMINANCE_SCALE) /
+				 data->max_brightness, PWM_LUMINANCE_SCALE) *
+				 period;
+		retval = DIV_ROUND_CLOSEST_ULL(retval, PWM_LUMINANCE_SCALE);
+		if (retval > UINT_MAX)
+			return -EINVAL;
+		data->levels[i] = (unsigned int)retval;
+	}
+
+	data->dft_brightness = data->max_brightness / 2;
+	data->max_brightness--;
+
+	return 0;
+}
+
 static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
@@ -161,10 +262,13 @@ static int pwm_backlight_parse_dt(struct device *dev,
 
 	memset(data, 0, sizeof(*data));
 
-	/* determine the number of brightness levels */
+	/*
+	 * Determine the number of brightness levels, if this property is not
+	 * set a default table of brightness levels will be used.
+	 */
 	prop = of_find_property(node, "brightness-levels", &length);
 	if (!prop)
-		return -EINVAL;
+		return 0;
 
 	data->max_brightness = length / sizeof(u32);
 
@@ -294,6 +398,14 @@ static int pwm_backlight_parse_dt(struct device *dev,
 {
 	return -ENODEV;
 }
+
+static
+int pwm_backlight_brightness_default(struct device *dev,
+				     struct platform_pwm_backlight_data *data,
+				     unsigned int period)
+{
+	return -ENODEV;
+}
 #endif
 
 static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
@@ -334,7 +446,9 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	struct backlight_device *bl;
 	struct device_node *node = pdev->dev.of_node;
 	struct pwm_bl_data *pb;
+	struct pwm_state state;
 	struct pwm_args pargs;
+	unsigned int i;
 	int ret;
 
 	if (!data) {
@@ -358,17 +472,6 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
-
-	if (data->levels) {
-		unsigned int i;
-
-		for (i = 0; i <= data->max_brightness; i++)
-			if (data->levels[i] > pb->scale)
-				pb->scale = data->levels[i];
-
-		pb->levels = data->levels;
-	} else
-		pb->scale = data->max_brightness;
 
 	pb->notify = data->notify;
 	pb->notify_after = data->notify_after;
@@ -435,6 +538,26 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(&pdev->dev, "got pwm for backlight\n");
+
+	if (!data->levels) {
+		/* Get the PWM period (in nanoseconds) */
+		pwm_get_state(pb->pwm, &state);
+
+		ret = pwm_backlight_brightness_default(&pdev->dev, data,
+						       state.period);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"failed to setup default brightness table\n");
+			goto err_alloc;
+		}
+	}
+
+	for (i = 0; i <= data->max_brightness; i++) {
+		if (data->levels[i] > pb->scale)
+			pb->scale = data->levels[i];
+
+		pb->levels = data->levels;
+	}
 
 	/*
 	 * FIXME: pwm_apply_args() should be removed when switching to
