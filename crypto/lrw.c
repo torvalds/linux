@@ -313,7 +313,7 @@ static void exit_crypt(struct skcipher_request *req)
 	rctx->left = 0;
 
 	if (rctx->ext)
-		kfree(rctx->ext);
+		kzfree(rctx->ext);
 }
 
 static int do_encrypt(struct skcipher_request *req, int err)
