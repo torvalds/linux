@@ -305,6 +305,11 @@ struct ddb_lnb {
 	u32                    fmode;
 };
 
+struct ddb_irq {
+	void                   (*handler)(void *);
+	void                  *data;
+};
+
 struct ddb_link {
 	struct ddb            *dev;
 	const struct ddb_info *info;
@@ -319,6 +324,7 @@ struct ddb_link {
 	spinlock_t             temp_lock; /* lock temp chip access */
 	int                    overtemperature_error;
 	u8                     temp_tab[11];
+	struct ddb_irq         irq[256];
 };
 
 struct ddb {
@@ -343,9 +349,6 @@ struct ddb {
 	struct ddb_dma           idma[DDB_MAX_INPUT];
 	struct ddb_dma           odma[DDB_MAX_OUTPUT];
 
-	void                     (*handler[4][256])(unsigned long);
-	unsigned long            handler_data[4][256];
-
 	struct device           *ddb_dev;
 	u32                      ddb_dev_users;
 	u32                      nr;
@@ -369,6 +372,8 @@ int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 /****************************************************************************/
 
 /* ddbridge-core.c */
+struct ddb_irq *ddb_irq_set(struct ddb *dev, u32 link, u32 nr,
+			    void (*handler)(void *), void *data);
 void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
 void ddb_buffers_free(struct ddb *dev);
