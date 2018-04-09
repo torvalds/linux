@@ -178,6 +178,22 @@ struct drm_bridge_funcs {
 	 * then this would be &drm_encoder_helper_funcs.mode_set. The display
 	 * pipe (i.e.  clocks and timing signals) is off when this function is
 	 * called.
+	 *
+	 * The adjusted_mode parameter is the mode output by the CRTC for the
+	 * first bridge in the chain. It can be different from the mode
+	 * parameter that contains the desired mode for the connector at the end
+	 * of the bridges chain, for instance when the first bridge in the chain
+	 * performs scaling. The adjusted mode is mostly useful for the first
+	 * bridge in the chain and is likely irrelevant for the other bridges.
+	 *
+	 * For atomic drivers the adjusted_mode is the mode stored in
+	 * &drm_crtc_state.adjusted_mode.
+	 *
+	 * NOTE:
+	 *
+	 * If a need arises to store and access modes adjusted for other
+	 * locations than the connection between the CRTC and the first bridge,
+	 * the DRM framework will have to be extended with DRM bridge states.
 	 */
 	void (*mode_set)(struct drm_bridge *bridge,
 			 struct drm_display_mode *mode,
