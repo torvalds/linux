@@ -257,11 +257,6 @@
 	#sound-dai-cells = <0>;
 	ddc-i2c-scl-high-time-ns = <9625>;
 	ddc-i2c-scl-low-time-ns = <10000>;
-	rockchip,phy_table =
-		<165000000 0 0 4 4 4 4>,
-		<225000000 0 0 6 6 6 6>,
-		<340000000 1 0 6 10 10 10>,
-		<594000000 1 0 7 10 10 10>;
 };
 
 &io_domains {
