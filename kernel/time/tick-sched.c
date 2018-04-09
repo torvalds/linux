@@ -1134,6 +1134,7 @@ void tick_nohz_idle_restart_tick(void)
 void tick_nohz_idle_exit(void)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
+	bool idle_active, tick_stopped;
 	ktime_t now;
 
 	local_irq_disable();
@@ -1142,14 +1143,16 @@ void tick_nohz_idle_exit(void)
 	WARN_ON_ONCE(ts->timer_expires_base);
 
 	ts->inidle = 0;
+	idle_active = ts->idle_active;
+	tick_stopped = ts->tick_stopped;
 
-	if (ts->idle_active || ts->tick_stopped)
+	if (idle_active || tick_stopped)
 		now = ktime_get();
 
-	if (ts->idle_active)
+	if (idle_active)
 		tick_nohz_stop_idle(ts, now);
 
-	if (ts->tick_stopped)
+	if (tick_stopped)
 		__tick_nohz_idle_restart_tick(ts, now);
 
 	local_irq_enable();
