@@ -455,7 +455,7 @@ static void dwc3_free_trb_pool(struct dwc3_ep *dep)
 	dep->trb_pool_dma = 0;
 }
 
-static int dwc3_gadget_set_xfer_resource(struct dwc3 *dwc, struct dwc3_ep *dep);
+static int dwc3_gadget_set_xfer_resource(struct dwc3_ep *dep);
 
 /**
  * dwc3_gadget_start_config - configure ep resources
@@ -491,9 +491,10 @@ static int dwc3_gadget_set_xfer_resource(struct dwc3 *dwc, struct dwc3_ep *dep);
  * triggered only when called for EP0-out, which always happens first, and which
  * should only happen in one of the above conditions.
  */
-static int dwc3_gadget_start_config(struct dwc3 *dwc, struct dwc3_ep *dep)
+static int dwc3_gadget_start_config(struct dwc3_ep *dep)
 {
 	struct dwc3_gadget_ep_cmd_params params;
+	struct dwc3		*dwc;
 	u32			cmd;
 	int			i;
 	int			ret;
@@ -503,6 +504,7 @@ static int dwc3_gadget_start_config(struct dwc3 *dwc, struct dwc3_ep *dep)
 
 	memset(&params, 0x00, sizeof(params));
 	cmd = DWC3_DEPCMD_DEPSTARTCFG;
+	dwc = dep->dwc;
 
 	ret = dwc3_send_gadget_ep_cmd(dep, cmd, &params);
 	if (ret)
@@ -514,7 +516,7 @@ static int dwc3_gadget_start_config(struct dwc3 *dwc, struct dwc3_ep *dep)
 		if (!dep)
 			continue;
 
-		ret = dwc3_gadget_set_xfer_resource(dwc, dep);
+		ret = dwc3_gadget_set_xfer_resource(dep);
 		if (ret)
 			return ret;
 	}
@@ -522,12 +524,12 @@ static int dwc3_gadget_start_config(struct dwc3 *dwc, struct dwc3_ep *dep)
 	return 0;
 }
 
-static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
-		unsigned int action)
+static int dwc3_gadget_set_ep_config(struct dwc3_ep *dep, unsigned int action)
 {
 	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	const struct usb_endpoint_descriptor *desc;
 	struct dwc3_gadget_ep_cmd_params params;
+	struct dwc3 *dwc = dep->dwc;
 
 	comp_desc = dep->endpoint.comp_desc;
 	desc = dep->endpoint.desc;
@@ -585,7 +587,7 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 	return dwc3_send_gadget_ep_cmd(dep, DWC3_DEPCMD_SETEPCONFIG, &params);
 }
 
-static int dwc3_gadget_set_xfer_resource(struct dwc3 *dwc, struct dwc3_ep *dep)
+static int dwc3_gadget_set_xfer_resource(struct dwc3_ep *dep)
 {
 	struct dwc3_gadget_ep_cmd_params params;
 
@@ -614,12 +616,12 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action)
 	int			ret;
 
 	if (!(dep->flags & DWC3_EP_ENABLED)) {
-		ret = dwc3_gadget_start_config(dwc, dep);
+		ret = dwc3_gadget_start_config(dep);
 		if (ret)
 			return ret;
 	}
 
-	ret = dwc3_gadget_set_ep_config(dwc, dep, action);
+	ret = dwc3_gadget_set_ep_config(dep, action);
 	if (ret)
 		return ret;
 
