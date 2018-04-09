@@ -4653,6 +4653,17 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		}
 	}
 
+	/*
+	 * Display WA #826 (SKL:ALL, BXT:ALL) & #1059 (CNL:A)
+	 * disable wm level 1-7 on NV12 planes
+	 */
+	if (wp->is_planar && level >= 1 &&
+	    (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv) ||
+	     IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_A0))) {
+		result->plane_en = false;
+		return 0;
+	}
+
 	/* The number of lines are ignored for the level 0 watermark. */
 	result->plane_res_b = res_blocks;
 	result->plane_res_l = res_lines;
