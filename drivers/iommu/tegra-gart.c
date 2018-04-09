@@ -72,6 +72,8 @@ struct gart_domain {
 
 static struct gart_device *gart_handle; /* unique for a system */
 
+static bool gart_debug;
+
 #define GART_PTE(_pfn)						\
 	(GART_ENTRY_PHYS_ADDR_VALID | ((_pfn) << PAGE_SHIFT))
 
@@ -271,6 +273,7 @@ static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	struct gart_device *gart = gart_domain->gart;
 	unsigned long flags;
 	unsigned long pfn;
+	unsigned long pte;
 
 	if (!gart_iova_range_valid(gart, iova, bytes))
 		return -EINVAL;
@@ -281,6 +284,14 @@ static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
 		dev_err(gart->dev, "Invalid page: %pa\n", &pa);
 		spin_unlock_irqrestore(&gart->pte_lock, flags);
 		return -EINVAL;
+	}
+	if (gart_debug) {
+		pte = gart_read_pte(gart, iova);
+		if (pte & GART_ENTRY_PHYS_ADDR_VALID) {
+			spin_unlock_irqrestore(&gart->pte_lock, flags);
+			dev_err(gart->dev, "Page entry is in-use\n");
+			return -EBUSY;
+		}
 	}
 	gart_set_pte(gart, iova, GART_PTE(pfn));
 	FLUSH_GART_REGS(gart);
@@ -515,7 +526,9 @@ static void __exit tegra_gart_exit(void)
 
 subsys_initcall(tegra_gart_init);
 module_exit(tegra_gart_exit);
+module_param(gart_debug, bool, 0644);
 
+MODULE_PARM_DESC(gart_debug, "Enable GART debugging");
 MODULE_DESCRIPTION("IOMMU API for GART in Tegra20");
 MODULE_AUTHOR("Hiroshi DOYU <hdoyu@nvidia.com>");
 MODULE_ALIAS("platform:tegra-gart");
