@@ -991,14 +991,54 @@ static uint32_t vega12_find_highest_dpm_level(
 
 static int vega12_upload_dpm_min_level(struct pp_hwmgr *hwmgr)
 {
+	struct vega12_hwmgr *data = hwmgr->backend;
+	if (data->smc_state_table.gfx_boot_level !=
+			data->dpm_table.gfx_table.dpm_state.soft_min_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMinByFreq,
+			PPCLK_GFXCLK<<16 | data->dpm_table.gfx_table.dpm_levels[data->smc_state_table.gfx_boot_level].value);
+		data->dpm_table.gfx_table.dpm_state.soft_min_level =
+				data->smc_state_table.gfx_boot_level;
+	}
+
+	if (data->smc_state_table.mem_boot_level !=
+			data->dpm_table.mem_table.dpm_state.soft_min_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMinByFreq,
+			PPCLK_UCLK<<16 | data->dpm_table.mem_table.dpm_levels[data->smc_state_table.mem_boot_level].value);
+		data->dpm_table.mem_table.dpm_state.soft_min_level =
+				data->smc_state_table.mem_boot_level;
+	}
+
 	return 0;
+
 }
 
 static int vega12_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 {
+	struct vega12_hwmgr *data = hwmgr->backend;
+	if (data->smc_state_table.gfx_max_level !=
+		data->dpm_table.gfx_table.dpm_state.soft_max_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMaxByFreq,
+			/* plus the vale by 1 to align the resolution */
+			PPCLK_GFXCLK<<16 | (data->dpm_table.gfx_table.dpm_levels[data->smc_state_table.gfx_max_level].value + 1));
+		data->dpm_table.gfx_table.dpm_state.soft_max_level =
+				data->smc_state_table.gfx_max_level;
+	}
+
+	if (data->smc_state_table.mem_max_level !=
+		data->dpm_table.mem_table.dpm_state.soft_max_level) {
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetSoftMaxByFreq,
+			/* plus the vale by 1 to align the resolution */
+			PPCLK_UCLK<<16 | (data->dpm_table.mem_table.dpm_levels[data->smc_state_table.mem_max_level].value + 1));
+		data->dpm_table.mem_table.dpm_state.soft_max_level =
+				data->smc_state_table.mem_max_level;
+	}
+
 	return 0;
 }
-
 
 int vega12_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
