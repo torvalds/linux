@@ -65,6 +65,7 @@ struct dchub_init_data;
 struct dc_static_screen_events;
 struct resource_pool;
 struct resource_context;
+struct stream_resource;
 
 struct hw_sequencer_funcs {
 
@@ -162,6 +163,11 @@ struct hw_sequencer_funcs {
 				struct dc *dc,
 				struct pipe_ctx *pipe,
 				bool lock);
+	void (*blank_pixel_data)(
+			struct dc *dc,
+			struct stream_resource *stream_res,
+			struct dc_stream_state *stream,
+			bool blank);
 
 	void (*set_bandwidth)(
 			struct dc *dc,
@@ -177,7 +183,7 @@ struct hw_sequencer_funcs {
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
 			int num_pipes, const struct dc_static_screen_events *events);
 
-	enum dc_status (*prog_pixclk_crtc_otg)(
+	enum dc_status (*enable_stream_timing)(
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context,
 			struct dc *dc);

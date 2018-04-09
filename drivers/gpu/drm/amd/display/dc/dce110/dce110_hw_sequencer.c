@@ -1233,7 +1233,7 @@ static void program_scaler(const struct dc *dc,
 		&pipe_ctx->plane_res.scl_data);
 }
 
-static enum dc_status dce110_prog_pixclk_crtc_otg(
+static enum dc_status dce110_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
 		struct dc *dc)
@@ -1299,7 +1299,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx[pipe_ctx->pipe_idx];
 
 	/*  */
-	dc->hwss.prog_pixclk_crtc_otg(pipe_ctx, context, dc);
+	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
 	/* FPGA does not program backend */
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
@@ -3041,7 +3041,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = dce110_reset_hw_ctx_wrap,
-	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
+	.enable_stream_timing = dce110_enable_stream_timing,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,

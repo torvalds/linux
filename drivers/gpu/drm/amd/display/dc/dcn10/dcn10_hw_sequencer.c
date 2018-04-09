@@ -593,7 +593,7 @@ static void false_optc_underflow_wa(
 		tg->funcs->clear_optc_underflow(tg);
 }
 
-static enum dc_status dcn10_prog_pixclk_crtc_otg(
+static enum dc_status dcn10_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
 		struct dc *dc)
@@ -1950,9 +1950,9 @@ static void update_dchubp_dpp(
 		hubp->funcs->set_blank(hubp, false);
 }
 
-static void dcn10_otg_blank(
+static void dcn10_blank_pixel_data(
 		struct dc *dc,
-		struct stream_resource stream_res,
+		struct stream_resource *stream_res,
 		struct dc_stream_state *stream,
 		bool blank)
 {
@@ -1963,21 +1963,21 @@ static void dcn10_otg_blank(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
-	if (stream_res.tg->funcs->set_blank_color)
-		stream_res.tg->funcs->set_blank_color(
-				stream_res.tg,
+	if (stream_res->tg->funcs->set_blank_color)
+		stream_res->tg->funcs->set_blank_color(
+				stream_res->tg,
 				&black_color);
 
 	if (!blank) {
-		if (stream_res.tg->funcs->set_blank)
-			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
-		if (stream_res.abm)
-			stream_res.abm->funcs->set_abm_level(stream_res.abm, stream->abm_level);
+		if (stream_res->tg->funcs->set_blank)
+			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
+		if (stream_res->abm)
+			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 	} else if (blank) {
-		if (stream_res.abm)
-			stream_res.abm->funcs->set_abm_immediate_disable(stream_res.abm);
-		if (stream_res.tg->funcs->set_blank)
-			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
+		if (stream_res->abm)
+			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm);
+		if (stream_res->tg->funcs->set_blank)
+			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
 	}
 }
 
@@ -2016,7 +2016,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
 
-		dcn10_otg_blank(dc, pipe_ctx->stream_res,
+		dc->hwss.blank_pixel_data(dc, &pipe_ctx->stream_res,
 				pipe_ctx->stream, blank);
 	}
 
@@ -2136,7 +2136,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
-		dcn10_otg_blank(dc, top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
+		dc->hwss.blank_pixel_data(dc, &top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
 	}
 
 	/* Disconnect unused mpcc */
@@ -2679,10 +2679,11 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.blank_stream = dce110_blank_stream,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
 	.disable_plane = dcn10_disable_plane,
+	.blank_pixel_data = dcn10_blank_pixel_data,
 	.pipe_control_lock = dcn10_pipe_control_lock,
 	.set_bandwidth = dcn10_set_bandwidth,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
-	.prog_pixclk_crtc_otg = dcn10_prog_pixclk_crtc_otg,
+	.enable_stream_timing = dcn10_enable_stream_timing,
 	.set_drr = set_drr,
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,
