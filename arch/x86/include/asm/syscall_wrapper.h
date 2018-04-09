@@ -22,7 +22,7 @@
 #ifdef CONFIG_IA32_EMULATION
 /*
  * For IA32 emulation, we need to handle "compat" syscalls *and* create
- * additional wrappers (aptly named __sys_ia32_sys_xyzzy) which decode the
+ * additional wrappers (aptly named __ia32_sys_xyzzy) which decode the
  * ia32 regs in the proper order for shared or "common" syscalls. As some
  * syscalls may not be implemented, we need to expand COND_SYSCALL in
  * kernel/sys_ni.c and SYS_NI in kernel/time/posix-stubs.c to cover this
@@ -37,20 +37,20 @@
 	}								\
 
 #define SC_IA32_WRAPPERx(x, name, ...)					\
-	asmlinkage long __sys_ia32##name(const struct pt_regs *regs);	\
-	ALLOW_ERROR_INJECTION(__sys_ia32##name, ERRNO);			\
-	asmlinkage long __sys_ia32##name(const struct pt_regs *regs)	\
+	asmlinkage long __ia32_sys##name(const struct pt_regs *regs);	\
+	ALLOW_ERROR_INJECTION(__ia32_sys##name, ERRNO);			\
+	asmlinkage long __ia32_sys##name(const struct pt_regs *regs)	\
 	{								\
-		return SyS##name(SC_IA32_REGS_TO_ARGS(x,__VA_ARGS__));	\
+		return __se_sys##name(SC_IA32_REGS_TO_ARGS(x,__VA_ARGS__));\
 	}
 
 #define COND_SYSCALL(name)						\
 	cond_syscall(sys_##name);					\
-	cond_syscall(__sys_ia32_##name)
+	cond_syscall(__ia32_sys_##name)
 
 #define SYS_NI(name)							\
 	SYSCALL_ALIAS(sys_##name, sys_ni_posix_timers);			\
-	SYSCALL_ALIAS(__sys_ia32_##name, sys_ni_posix_timers)
+	SYSCALL_ALIAS(__ia32_sys_##name, sys_ni_posix_timers)
 
 #else /* CONFIG_IA32_EMULATION */
 #define COMPAT_SC_IA32_STUBx(x, name, ...)
@@ -115,9 +115,10 @@
  * Instead of the generic __SYSCALL_DEFINEx() definition, this macro takes
  * struct pt_regs *regs as the only argument of the syscall stub named
  * sys_*(). It decodes just the registers it needs and passes them on to
- * the SyS_*() wrapper and then to the SYSC_*() function doing the actual job.
- * These wrappers and functions are inlined, meaning that the assembly looks
- * as follows (slightly re-ordered):
+ * the __se_sys_*() wrapper performing sign extension and then to the
+ * __do_sys_*() function doing the actual job. These wrappers and functions
+ * are inlined (at least in very most cases), meaning that the assembly looks
+ * as follows (slightly re-ordered for better readability):
  *
  * <sys_recv>:			<-- syscall with 4 parameters
  *	callq	<__fentry__>
@@ -140,7 +141,7 @@
  * the call chain.
  *
  * If IA32_EMULATION is enabled, this macro generates an additional wrapper
- * named __sys_ia32_*() which decodes the struct pt_regs *regs according
+ * named __ia32_sys_*() which decodes the struct pt_regs *regs according
  * to the i386 calling convention (bx, cx, dx, si, di, bp).
  *
  * As the generic SYSCALL_DEFINE0() macro does not decode any parameters for
@@ -151,21 +152,21 @@
 #define __SYSCALL_DEFINEx(x, name, ...)					\
 	asmlinkage long sys##name(const struct pt_regs *regs);		\
 	ALLOW_ERROR_INJECTION(sys##name, ERRNO);			\
-	static long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__));		\
-	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
+	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
+	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
 	asmlinkage long sys##name(const struct pt_regs *regs)		\
 	{								\
-		return SyS##name(SC_X86_64_REGS_TO_ARGS(x,__VA_ARGS__));\
+		return __se_sys##name(SC_X86_64_REGS_TO_ARGS(x,__VA_ARGS__));\
 	}								\
 	SC_IA32_WRAPPERx(x, name, __VA_ARGS__)				\
-	static long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))		\
+	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
 	{								\
-		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
+		long ret = __do_sys##name(__MAP(x,__SC_CAST,__VA_ARGS__));\
 		__MAP(x,__SC_TEST,__VA_ARGS__);				\
 		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
 		return ret;						\
 	}								\
-	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
 /*
  * For VSYSCALLS, we need to declare these three syscalls with the new

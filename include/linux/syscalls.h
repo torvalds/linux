@@ -223,21 +223,26 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 
 #define __PROTECT(...) asmlinkage_protect(__VA_ARGS__)
 
+/*
+ * The asmlinkage stub is aliased to a function named __se_sys_*() which
+ * sign-extends 32-bit ints to longs whenever needed. The actual work is
+ * done within __do_sys_*().
+ */
 #ifndef __SYSCALL_DEFINEx
 #define __SYSCALL_DEFINEx(x, name, ...)					\
 	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
-		__attribute__((alias(__stringify(SyS##name))));		\
+		__attribute__((alias(__stringify(__se_sys##name))));	\
 	ALLOW_ERROR_INJECTION(sys##name, ERRNO);			\
-	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
-	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
-	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
+	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
+	asmlinkage long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
+	asmlinkage long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
 	{								\
-		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
+		long ret = __do_sys##name(__MAP(x,__SC_CAST,__VA_ARGS__));\
 		__MAP(x,__SC_TEST,__VA_ARGS__);				\
 		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
 		return ret;						\
 	}								\
-	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 #endif /* __SYSCALL_DEFINEx */
 
 /*
