@@ -469,6 +469,8 @@ static int zip_show_stats(struct seq_file *s, void *unused)
 	struct zip_stats  *st;
 
 	for (index = 0; index < MAX_ZIP_DEVICES; index++) {
+		u64 pending = 0;
+
 		if (zip_dev[index]) {
 			zip = zip_dev[index];
 			st  = &zip->stats;
@@ -476,10 +478,8 @@ static int zip_show_stats(struct seq_file *s, void *unused)
 			/* Get all the pending requests */
 			for (q = 0; q < ZIP_NUM_QUEUES; q++) {
 				val = zip_reg_read((zip->reg_base +
-						    ZIP_DBG_COREX_STA(q)));
-				val = (val >> 32);
-				val = val & 0xffffff;
-				atomic64_add(val, &st->pending_req);
+						    ZIP_DBG_QUEX_STA(q)));
+				pending += val >> 32 & 0xffffff;
 			}
 
 			val = atomic64_read(&st->comp_req_complete);
@@ -514,10 +514,7 @@ static int zip_show_stats(struct seq_file *s, void *unused)
 				       (u64)atomic64_read(&st->decomp_in_bytes),
 				       (u64)atomic64_read(&st->decomp_out_bytes),
 				       (u64)atomic64_read(&st->decomp_bad_reqs),
-				       (u64)atomic64_read(&st->pending_req));
-
-			/* Reset pending requests  count */
-			atomic64_set(&st->pending_req, 0);
+				       pending);
 		}
 	}
 	return 0;
