@@ -302,6 +302,8 @@ int perf_uprobe_init(struct perf_event *p_event, bool is_retprobe)
 		return -ENOMEM;
 	ret = strncpy_from_user(
 		path, u64_to_user_ptr(p_event->attr.uprobe_path), PATH_MAX);
+	if (ret == PATH_MAX)
+		return -E2BIG;
 	if (ret < 0)
 		goto out;
 	if (path[0] == '\0') {
