@@ -488,6 +488,21 @@ static const struct intel_limit intel_limits_bxt = {
 	.p2 = { .p2_slow = 1, .p2_fast = 20 },
 };
 
+static void
+skl_wa_clkgate(struct drm_i915_private *dev_priv, int pipe, bool enable)
+{
+	if (IS_SKYLAKE(dev_priv))
+		return;
+
+	if (enable)
+		I915_WRITE(CLKGATE_DIS_PSL(pipe),
+			   DUPS1_GATING_DIS | DUPS2_GATING_DIS);
+	else
+		I915_WRITE(CLKGATE_DIS_PSL(pipe),
+			   I915_READ(CLKGATE_DIS_PSL(pipe)) &
+			   ~(DUPS1_GATING_DIS | DUPS2_GATING_DIS));
+}
+
 static bool
 needs_modeset(const struct drm_crtc_state *state)
 {
@@ -5103,6 +5118,8 @@ static bool hsw_post_update_enable_ips(const struct intel_crtc_state *old_crtc_s
 static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *old_state = old_crtc_state->base.state;
 	struct intel_crtc_state *pipe_config =
 		intel_atomic_get_new_crtc_state(to_intel_atomic_state(old_state),
@@ -5125,6 +5142,7 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 							 to_intel_plane(primary));
 		struct intel_plane_state *old_primary_state =
 			to_intel_plane_state(old_pri_state);
+		struct drm_framebuffer *fb = primary_state->base.fb;
 
 		intel_fbc_post_update(crtc);
 
@@ -5132,6 +5150,14 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 		    (needs_modeset(&pipe_config->base) ||
 		     !old_primary_state->base.visible))
 			intel_post_enable_primary(&crtc->base, pipe_config);
+
+		/* Display WA 827 */
+		if ((INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv)) ||
+		    IS_CANNONLAKE(dev_priv)) {
+			if (fb && fb->format->format == DRM_FORMAT_NV12)
+				skl_wa_clkgate(dev_priv, crtc->pipe, false);
+		}
+
 	}
 }
 
@@ -5158,6 +5184,14 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 							 to_intel_plane(primary));
 		struct intel_plane_state *old_primary_state =
 			to_intel_plane_state(old_pri_state);
+		struct drm_framebuffer *fb = primary_state->base.fb;
+
+		/* Display WA 827 */
+		if ((INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv)) ||
+		    IS_CANNONLAKE(dev_priv)) {
+			if (fb && fb->format->format == DRM_FORMAT_NV12)
+				skl_wa_clkgate(dev_priv, crtc->pipe, true);
+		}
 
 		intel_fbc_pre_update(crtc, pipe_config, primary_state);
 		/*
