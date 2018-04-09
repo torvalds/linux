@@ -928,6 +928,7 @@ cifs_demultiplex_thread(void *p)
 
 		server->lstrp = jiffies;
 		if (mid_entry != NULL) {
+			mid_entry->resp_buf_size = server->pdu_size;
 			if ((mid_entry->mid_flags & MID_WAIT_CANCELLED) &&
 			     mid_entry->mid_state == MID_RESPONSE_RECEIVED &&
 					server->ops->handle_cancelled_mid)

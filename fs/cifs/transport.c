@@ -790,7 +790,7 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	buf = (char *)midQ->resp_buf;
 	resp_iov->iov_base = buf;
-	resp_iov->iov_len = get_rfc1002_length(buf) +
+	resp_iov->iov_len = midQ->resp_buf_size +
 		ses->server->vals->header_preamble_size;
 	if (midQ->large_buf)
 		*resp_buf_type = CIFS_LARGE_BUFFER;
