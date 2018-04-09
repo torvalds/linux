@@ -112,11 +112,12 @@ struct ddb_ids {
 
 struct ddb_info {
 	int   type;
-#define DDB_NONE         0
-#define DDB_OCTOPUS      1
-#define DDB_OCTOPUS_CI   2
-#define DDB_OCTOPUS_MAX  5
+#define DDB_NONE            0
+#define DDB_OCTOPUS         1
+#define DDB_OCTOPUS_CI      2
+#define DDB_OCTOPUS_MAX     5
 #define DDB_OCTOPUS_MAX_CT  6
+#define DDB_OCTOPUS_MCI     9
 	char *name;
 	u32   i2c_mask;
 	u8    port_num;
@@ -133,6 +134,7 @@ struct ddb_info {
 #define TS_QUIRK_REVERSED 2
 #define TS_QUIRK_ALT_OSC  8
 	u32   tempmon_irq;
+	u8    mci;
 	const struct ddb_regmap *regmap;
 };
 
@@ -253,6 +255,7 @@ struct ddb_port {
 #define DDB_CI_EXTERNAL_XO2_B    13
 #define DDB_TUNER_DVBS_STV0910_PR 14
 #define DDB_TUNER_DVBC2T2I_SONY_P 15
+#define DDB_TUNER_MCI            16
 
 #define DDB_TUNER_XO2            32
 #define DDB_TUNER_DVBS_STV0910   (DDB_TUNER_XO2 + 0)
