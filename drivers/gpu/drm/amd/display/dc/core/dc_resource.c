@@ -2315,97 +2315,12 @@ static void set_hdr_static_info_packet(
 		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
-	uint16_t i = 0;
-	enum signal_type signal = stream->signal;
-	uint32_t data;
+	/* HDR Static Metadata info packet for HDR10 */
 
-	if (!stream->hdr_static_metadata.hdr_supported)
+	if (!stream->hdr_static_metadata.valid)
 		return;
 
-	if (dc_is_hdmi_signal(signal)) {
-		info_packet->valid = true;
-
-		info_packet->hb0 = 0x87;
-		info_packet->hb1 = 0x01;
-		info_packet->hb2 = 0x1A;
-		i = 1;
-	} else if (dc_is_dp_signal(signal)) {
-		info_packet->valid = true;
-
-		info_packet->hb0 = 0x00;
-		info_packet->hb1 = 0x87;
-		info_packet->hb2 = 0x1D;
-		info_packet->hb3 = (0x13 << 2);
-		i = 2;
-	}
-
-	data = stream->hdr_static_metadata.is_hdr;
-	info_packet->sb[i++] = data ? 0x02 : 0x00;
-	info_packet->sb[i++] = 0x00;
-
-	data = stream->hdr_static_metadata.chromaticity_green_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_green_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_blue_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_blue_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_red_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_red_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_white_point_x / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.chromaticity_white_point_y / 2;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.max_luminance;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.min_luminance;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.maximum_content_light_level;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	data = stream->hdr_static_metadata.maximum_frame_average_light_level;
-	info_packet->sb[i++] = data & 0xFF;
-	info_packet->sb[i++] = (data & 0xFF00) >> 8;
-
-	if (dc_is_hdmi_signal(signal)) {
-		uint32_t checksum = 0;
-
-		checksum += info_packet->hb0;
-		checksum += info_packet->hb1;
-		checksum += info_packet->hb2;
-
-		for (i = 1; i <= info_packet->hb2; i++)
-			checksum += info_packet->sb[i];
-
-		info_packet->sb[0] = 0x100 - checksum;
-	} else if (dc_is_dp_signal(signal)) {
-		info_packet->sb[0] = 0x01;
-		info_packet->sb[1] = 0x1A;
-	}
+	*info_packet = stream->hdr_static_metadata;
 }
 
 static void set_vsc_info_packet(
