@@ -458,7 +458,7 @@ struct afs_vnode {
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
-	struct afs_permits	*permit_cache;	/* cache of permits so far obtained */
+	struct afs_permits __rcu *permit_cache;	/* cache of permits so far obtained */
 	struct mutex		io_lock;	/* Lock for serialising I/O on this mutex */
 	struct mutex		validate_lock;	/* lock for validating this vnode */
 	spinlock_t		wb_lock;	/* lock for wb_keys */

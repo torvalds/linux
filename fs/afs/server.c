@@ -59,7 +59,8 @@ struct afs_server *afs_find_server(struct afs_net *net,
 				alist = rcu_dereference(server->addresses);
 				for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
 					b = &alist->addrs[i].transport.sin6;
-					diff = (u16)a->sin6_port - (u16)b->sin6_port;
+					diff = ((u16 __force)a->sin6_port -
+						(u16 __force)b->sin6_port);
 					if (diff == 0)
 						diff = memcmp(&a->sin6_addr,
 							      &b->sin6_addr,
@@ -79,10 +80,11 @@ struct afs_server *afs_find_server(struct afs_net *net,
 				alist = rcu_dereference(server->addresses);
 				for (i = 0; i < alist->nr_ipv4; i++) {
 					b = &alist->addrs[i].transport.sin6;
-					diff = (u16)a->sin6_port - (u16)b->sin6_port;
+					diff = ((u16 __force)a->sin6_port -
+						(u16 __force)b->sin6_port);
 					if (diff == 0)
-						diff = ((u32)a->sin6_addr.s6_addr32[3] -
-							(u32)b->sin6_addr.s6_addr32[3]);
+						diff = ((u32 __force)a->sin6_addr.s6_addr32[3] -
+							(u32 __force)b->sin6_addr.s6_addr32[3]);
 					if (diff == 0)
 						goto found;
 					if (diff < 0) {
@@ -381,7 +383,7 @@ static void afs_server_rcu(struct rcu_head *rcu)
 {
 	struct afs_server *server = container_of(rcu, struct afs_server, rcu);
 
-	afs_put_addrlist(server->addresses);
+	afs_put_addrlist(rcu_access_pointer(server->addresses));
 	kfree(server);
 }
 
@@ -390,7 +392,7 @@ static void afs_server_rcu(struct rcu_head *rcu)
  */
 static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 {
-	struct afs_addr_list *alist = server->addresses;
+	struct afs_addr_list *alist = rcu_access_pointer(server->addresses);
 	struct afs_addr_cursor ac = {
 		.alist	= alist,
 		.addr	= &alist->addrs[0],

@@ -544,7 +544,7 @@ void afs_evict_inode(struct inode *inode)
 	}
 #endif
 
-	afs_put_permits(vnode->permit_cache);
+	afs_put_permits(rcu_access_pointer(vnode->permit_cache));
 	_leave("");
 }
 

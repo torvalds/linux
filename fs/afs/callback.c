@@ -97,26 +97,6 @@ again:
 }
 
 /*
- * Set a vnode's interest on a server.
- */
-void afs_set_cb_interest(struct afs_vnode *vnode, struct afs_cb_interest *cbi)
-{
-	struct afs_cb_interest *old_cbi = NULL;
-
-	if (vnode->cb_interest == cbi)
-		return;
-
-	write_seqlock(&vnode->cb_lock);
-	if (vnode->cb_interest != cbi) {
-		afs_get_cb_interest(cbi);
-		old_cbi = vnode->cb_interest;
-		vnode->cb_interest = cbi;
-	}
-	write_sequnlock(&vnode->cb_lock);
-	afs_put_cb_interest(afs_v2net(vnode), cbi);
-}
-
-/*
  * Remove an interest on a server.
  */
 void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)

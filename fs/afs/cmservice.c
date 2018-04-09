@@ -500,9 +500,9 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 
 		b = call->buffer;
 		r = call->request;
-		r->time_low			= ntohl(b[0]);
-		r->time_mid			= ntohl(b[1]);
-		r->time_hi_and_version		= ntohl(b[2]);
+		r->time_low			= b[0];
+		r->time_mid			= htons(ntohl(b[1]));
+		r->time_hi_and_version		= htons(ntohl(b[2]));
 		r->clock_seq_hi_and_reserved 	= ntohl(b[3]);
 		r->clock_seq_low		= ntohl(b[4]);
 

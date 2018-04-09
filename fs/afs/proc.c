@@ -183,6 +183,7 @@ static int afs_proc_cells_open(struct inode *inode, struct file *file)
  * first item
  */
 static void *afs_proc_cells_start(struct seq_file *m, loff_t *_pos)
+	__acquires(rcu)
 {
 	struct afs_net *net = afs_seq2net(m);
 
@@ -204,6 +205,7 @@ static void *afs_proc_cells_next(struct seq_file *m, void *v, loff_t *pos)
  * clean up after reading from the cells list
  */
 static void afs_proc_cells_stop(struct seq_file *m, void *v)
+	__releases(rcu)
 {
 	rcu_read_unlock();
 }
@@ -413,6 +415,7 @@ static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file)
  * first item
  */
 static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
+	__acquires(cell->proc_lock)
 {
 	struct afs_cell *cell = m->private;
 
@@ -438,6 +441,7 @@ static void *afs_proc_cell_volumes_next(struct seq_file *p, void *v,
  * clean up after reading from the cells list
  */
 static void afs_proc_cell_volumes_stop(struct seq_file *p, void *v)
+	__releases(cell->proc_lock)
 {
 	struct afs_cell *cell = p->private;
 
@@ -500,6 +504,7 @@ static int afs_proc_cell_vlservers_open(struct inode *inode, struct file *file)
  * first item
  */
 static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
+	__acquires(rcu)
 {
 	struct afs_addr_list *alist;
 	struct afs_cell *cell = m->private;
@@ -544,6 +549,7 @@ static void *afs_proc_cell_vlservers_next(struct seq_file *p, void *v,
  * clean up after reading from the cells list
  */
 static void afs_proc_cell_vlservers_stop(struct seq_file *p, void *v)
+	__releases(rcu)
 {
 	rcu_read_unlock();
 }
@@ -580,6 +586,7 @@ static int afs_proc_servers_open(struct inode *inode, struct file *file)
  * first item.
  */
 static void *afs_proc_servers_start(struct seq_file *m, loff_t *_pos)
+	__acquires(rcu)
 {
 	struct afs_net *net = afs_seq2net(m);
 
@@ -601,6 +608,7 @@ static void *afs_proc_servers_next(struct seq_file *m, void *v, loff_t *_pos)
  * clean up after reading from the cells list
  */
 static void afs_proc_servers_stop(struct seq_file *p, void *v)
+	__releases(rcu)
 {
 	rcu_read_unlock();
 }

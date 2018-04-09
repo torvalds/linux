@@ -303,7 +303,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 	r->uuid.clock_seq_hi_and_reserved 	= htonl(u->clock_seq_hi_and_reserved);
 	r->uuid.clock_seq_low			= htonl(u->clock_seq_low);
 	for (i = 0; i < 6; i++)
-		r->uuid.node[i] = ntohl(u->node[i]);
+		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
 	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
@@ -504,7 +504,7 @@ again:
 		/* Got either the type of the next entry or the count of
 		 * volEndpoints if no more fsEndpoints.
 		 */
-		call->count2 = htonl(*bp++);
+		call->count2 = ntohl(*bp++);
 
 		call->offset = 0;
 		call->count--;
@@ -531,7 +531,7 @@ again:
 			return ret;
 
 		bp = call->buffer;
-		call->count2 = htonl(*bp++);
+		call->count2 = ntohl(*bp++);
 		call->offset = 0;
 		call->unmarshall = 4;
 
@@ -576,7 +576,7 @@ again:
 		call->offset = 0;
 		call->count--;
 		if (call->count > 0) {
-			call->count2 = htonl(*bp++);
+			call->count2 = ntohl(*bp++);
 			goto again;
 		}
 

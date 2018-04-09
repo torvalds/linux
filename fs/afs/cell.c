@@ -18,7 +18,7 @@
 #include <keys/rxrpc-type.h>
 #include "internal.h"
 
-unsigned __read_mostly afs_cell_gc_delay = 10;
+static unsigned __read_mostly afs_cell_gc_delay = 10;
 
 static void afs_manage_cell(struct work_struct *);
 
@@ -75,7 +75,7 @@ struct afs_cell *afs_lookup_cell_rcu(struct afs_net *net,
 			cell = rcu_dereference_raw(net->ws_cell);
 			if (cell) {
 				afs_get_cell(cell);
-				continue;
+				break;
 			}
 			ret = -EDESTADDRREQ;
 			continue;
@@ -411,7 +411,7 @@ static void afs_cell_destroy(struct rcu_head *rcu)
 
 	ASSERTCMP(atomic_read(&cell->usage), ==, 0);
 
-	afs_put_addrlist(cell->vl_addrs);
+	afs_put_addrlist(rcu_access_pointer(cell->vl_addrs));
 	key_put(cell->anonymous_key);
 	kfree(cell);
 
