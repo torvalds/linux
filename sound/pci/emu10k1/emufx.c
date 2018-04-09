@@ -421,14 +421,10 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    snd_fx8010_irq_handler_t *handler,
 					    unsigned char gpr_running,
 					    void *private_data,
-					    struct snd_emu10k1_fx8010_irq **r_irq)
+					    struct snd_emu10k1_fx8010_irq *irq)
 {
-	struct snd_emu10k1_fx8010_irq *irq;
 	unsigned long flags;
 	
-	irq = kmalloc(sizeof(*irq), GFP_ATOMIC);
-	if (irq == NULL)
-		return -ENOMEM;
 	irq->handler = handler;
 	irq->gpr_running = gpr_running;
 	irq->private_data = private_data;
@@ -443,8 +439,6 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 		emu->fx8010.irq_handlers = irq;
 	}
 	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
-	if (r_irq)
-		*r_irq = irq;
 	return 0;
 }
 
@@ -468,7 +462,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 			tmp->next = tmp->next->next;
 	}
 	spin_unlock_irqrestore(&emu->fx8010.irq_lock, flags);
-	kfree(irq);
 	return 0;
 }
 
