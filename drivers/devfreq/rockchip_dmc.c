@@ -796,7 +796,7 @@ struct rockchip_dmcfreq {
 	unsigned int auto_freq_en;
 	unsigned int refresh;
 	unsigned int last_refresh;
-	bool is_dualview;
+	bool is_fixed;
 
 	struct thermal_cooling_device *devfreq_cooling;
 	u32 static_coefficient;
@@ -2163,15 +2163,25 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
 	unsigned long target_rate = 0;
 	unsigned int refresh = false;
-	bool is_dualview = false;
+	bool is_fixed = false;
+
+	if (dmcfreq->dualview_rate && dmcfreq->isp_rate &&
+	    (status & SYS_STATUS_ISP) &&
+	    (status & SYS_STATUS_LCDC0) &&
+	    (status & SYS_STATUS_LCDC1))
+		return NOTIFY_OK;
 
 	if (dmcfreq->dualview_rate && (status & SYS_STATUS_LCDC0) &&
 	    (status & SYS_STATUS_LCDC1)) {
-		if (dmcfreq->dualview_rate > target_rate) {
-			target_rate = dmcfreq->dualview_rate;
-			is_dualview = true;
-			goto next;
-		}
+		target_rate = dmcfreq->dualview_rate;
+		is_fixed = true;
+		goto next;
+	}
+
+	if (dmcfreq->isp_rate && (status & SYS_STATUS_ISP)) {
+		target_rate = dmcfreq->isp_rate;
+		is_fixed = true;
+		goto next;
 	}
 
 	if (dmcfreq->reboot_rate && (status & SYS_STATUS_REBOOT)) {
@@ -2180,11 +2190,9 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	}
 
 	if (dmcfreq->suspend_rate && (status & SYS_STATUS_SUSPEND)) {
-		if (dmcfreq->suspend_rate > target_rate) {
-			target_rate = dmcfreq->suspend_rate;
-			refresh = true;
-			goto next;
-		}
+		target_rate = dmcfreq->suspend_rate;
+		refresh = true;
+		goto next;
 	}
 
 	if (dmcfreq->low_power_rate && (status & SYS_STATUS_LOW_POWER)) {
@@ -2217,16 +2225,11 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 			target_rate = dmcfreq->video_1080p_rate;
 	}
 
-	if (dmcfreq->isp_rate && (status & SYS_STATUS_ISP)) {
-		if (dmcfreq->isp_rate > target_rate)
-			target_rate = dmcfreq->isp_rate;
-	}
-
 next:
 
 	dev_dbg(&dmcfreq->devfreq->dev, "status=0x%x\n", (unsigned int)status);
 	dmcfreq->refresh = refresh;
-	dmcfreq->is_dualview = is_dualview;
+	dmcfreq->is_fixed = is_fixed;
 	dmcfreq->status_rate = target_rate;
 	rockchip_dmcfreq_update_target(dmcfreq);
 
@@ -2553,7 +2556,7 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	unsigned long target_freq = 0;
 	u64 now;
 
-	if (dmcfreq->auto_freq_en && !dmcfreq->is_dualview) {
+	if (dmcfreq->auto_freq_en && !dmcfreq->is_fixed) {
 		if (dmcfreq->status_rate)
 			target_freq = dmcfreq->status_rate;
 		else if (dmcfreq->auto_min_rate)
