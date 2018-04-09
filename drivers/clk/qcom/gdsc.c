@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,6 +31,7 @@
 #define HW_CONTROL_MASK		BIT(1)
 #define SW_COLLAPSE_MASK	BIT(0)
 #define GMEM_CLAMP_IO_MASK	BIT(0)
+#define GMEM_RESET_MASK		BIT(4)
 
 /* Wait 2^n CXO cycles between all states. Here, n=2 (4 cycles). */
 #define EN_REST_WAIT_VAL	(0x2 << 20)
@@ -166,6 +167,14 @@ static inline void gdsc_assert_clamp_io(struct gdsc *sc)
 			   GMEM_CLAMP_IO_MASK, 1);
 }
 
+static inline void gdsc_assert_reset_aon(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_RESET_MASK, 1);
+	udelay(1);
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_RESET_MASK, 0);
+}
 static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
@@ -174,8 +183,17 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
 
-	if (sc->flags & CLAMP_IO)
+	if (sc->flags & SW_RESET) {
+		gdsc_assert_reset(sc);
+		udelay(1);
+		gdsc_deassert_reset(sc);
+	}
+
+	if (sc->flags & CLAMP_IO) {
+		if (sc->flags & AON_RESET)
+			gdsc_assert_reset_aon(sc);
 		gdsc_deassert_clamp_io(sc);
+	}
 
 	ret = gdsc_toggle_logic(sc, true);
 	if (ret)
