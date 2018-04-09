@@ -113,7 +113,7 @@ struct zip_device *zip_get_device(int node)
  */
 int zip_get_node_id(void)
 {
-	return cpu_to_node(smp_processor_id());
+	return cpu_to_node(raw_smp_processor_id());
 }
 
 /* Initializes the ZIP h/w sub-system */
