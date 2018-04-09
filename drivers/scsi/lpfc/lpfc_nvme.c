@@ -334,8 +334,14 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 			"6146 remoteport delete of remoteport %p\n",
 			remoteport);
 	spin_lock_irq(&vport->phba->hbalock);
-	ndlp->nrport = NULL;
-	ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
+
+	/* The register rebind might have occurred before the delete
+	 * downcall.  Guard against this race.
+	 */
+	if (ndlp->upcall_flags & NLP_WAIT_FOR_UNREG) {
+		ndlp->nrport = NULL;
+		ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
+	}
 	spin_unlock_irq(&vport->phba->hbalock);
 
 	/* Remove original register reference. The host transport
@@ -2691,6 +2697,12 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * a resume of the existing rport.  Else this is a
 		 * new rport.
 		 */
+		/* Guard against an unregister/reregister
+		 * race that leaves the WAIT flag set.
+		 */
+		spin_lock_irq(&vport->phba->hbalock);
+		ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
+		spin_unlock_irq(&vport->phba->hbalock);
 		rport = remote_port->private;
 		if (oldrport) {
 			if (oldrport == remote_port->private) {
