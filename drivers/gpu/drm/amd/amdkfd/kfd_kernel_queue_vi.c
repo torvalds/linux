@@ -29,11 +29,13 @@
 static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
 			enum kfd_queue_type type, unsigned int queue_size);
 static void uninitialize_vi(struct kernel_queue *kq);
+static void submit_packet_vi(struct kernel_queue *kq);
 
 void kernel_queue_init_vi(struct kernel_queue_ops *ops)
 {
 	ops->initialize = initialize_vi;
 	ops->uninitialize = uninitialize_vi;
+	ops->submit_packet = submit_packet_vi;
 }
 
 static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
@@ -56,6 +58,13 @@ static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
 static void uninitialize_vi(struct kernel_queue *kq)
 {
 	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
+}
+
+static void submit_packet_vi(struct kernel_queue *kq)
+{
+	*kq->wptr_kernel = kq->pending_wptr;
+	write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
+				kq->pending_wptr);
 }
 
 unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size)

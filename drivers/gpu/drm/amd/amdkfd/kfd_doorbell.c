@@ -214,6 +214,16 @@ void write_kernel_doorbell(void __iomem *db, u32 value)
 	}
 }
 
+void write_kernel_doorbell64(void __iomem *db, u64 value)
+{
+	if (db) {
+		WARN(((unsigned long)db & 7) != 0,
+		     "Unaligned 64-bit doorbell");
+		writeq(value, (u64 __iomem *)db);
+		pr_debug("writing %llu to doorbell address %p\n", value, db);
+	}
+}
+
 unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int doorbell_id)

@@ -769,6 +769,7 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);
 u32 read_kernel_doorbell(u32 __iomem *db);
 void write_kernel_doorbell(void __iomem *db, u32 value);
+void write_kernel_doorbell64(void __iomem *db, u64 value);
 unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int doorbell_id);
