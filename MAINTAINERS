@@ -5838,7 +5838,7 @@ F:	scripts/Makefile.gcc-plugins
 F:	Documentation/gcc-plugins.txt
 
 GCOV BASED KERNEL PROFILING
-M:	Peter Oberparleiter <oberpar@linux.vnet.ibm.com>
+M:	Peter Oberparleiter <oberpar@linux.ibm.com>
 S:	Maintained
 F:	kernel/gcov/
 F:	Documentation/dev-tools/gcov.rst
@@ -7762,7 +7762,7 @@ F:	arch/powerpc/kernel/kvm*
 
 KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
 M:	Christian Borntraeger <borntraeger@de.ibm.com>
-M:	Janosch Frank <frankja@linux.vnet.ibm.com>
+M:	Janosch Frank <frankja@linux.ibm.com>
 R:	David Hildenbrand <david@redhat.com>
 R:	Cornelia Huck <cohuck@redhat.com>
 L:	linux-s390@vger.kernel.org
@@ -12092,16 +12092,16 @@ F:	Documentation/s390/
 F:	Documentation/driver-api/s390-drivers.rst
 
 S390 COMMON I/O LAYER
-M:	Sebastian Ott <sebott@linux.vnet.ibm.com>
-M:	Peter Oberparleiter <oberpar@linux.vnet.ibm.com>
+M:	Sebastian Ott <sebott@linux.ibm.com>
+M:	Peter Oberparleiter <oberpar@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 F:	drivers/s390/cio/
 
 S390 DASD DRIVER
-M:	Stefan Haberland <sth@linux.vnet.ibm.com>
-M:	Jan Hoeppner <hoeppner@linux.vnet.ibm.com>
+M:	Stefan Haberland <sth@linux.ibm.com>
+M:	Jan Hoeppner <hoeppner@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -12116,8 +12116,8 @@ S:	Supported
 F:	drivers/iommu/s390-iommu.c
 
 S390 IUCV NETWORK LAYER
-M:	Julian Wiedmann <jwi@linux.vnet.ibm.com>
-M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
+M:	Julian Wiedmann <jwi@linux.ibm.com>
+M:	Ursula Braun <ubraun@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -12126,15 +12126,15 @@ F:	include/net/iucv/
 F:	net/iucv/
 
 S390 NETWORK DRIVERS
-M:	Julian Wiedmann <jwi@linux.vnet.ibm.com>
-M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
+M:	Julian Wiedmann <jwi@linux.ibm.com>
+M:	Ursula Braun <ubraun@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 F:	drivers/s390/net/
 
 S390 PCI SUBSYSTEM
-M:	Sebastian Ott <sebott@linux.vnet.ibm.com>
+M:	Sebastian Ott <sebott@linux.ibm.com>
 M:	Gerald Schaefer <gerald.schaefer@de.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -12144,8 +12144,8 @@ F:	drivers/pci/hotplug/s390_pci_hpc.c
 
 S390 VFIO-CCW DRIVER
 M:	Cornelia Huck <cohuck@redhat.com>
-M:	Dong Jia Shi <bjsdjshi@linux.vnet.ibm.com>
-M:	Halil Pasic <pasic@linux.vnet.ibm.com>
+M:	Dong Jia Shi <bjsdjshi@linux.ibm.com>
+M:	Halil Pasic <pasic@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	kvm@vger.kernel.org
 S:	Supported
@@ -12161,8 +12161,8 @@ S:	Supported
 F:	drivers/s390/crypto/
 
 S390 ZFCP DRIVER
-M:	Steffen Maier <maier@linux.vnet.ibm.com>
-M:	Benjamin Block <bblock@linux.vnet.ibm.com>
+M:	Steffen Maier <maier@linux.ibm.com>
+M:	Benjamin Block <bblock@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -12598,7 +12598,7 @@ S:	Maintained
 F:	drivers/misc/sgi-xp/
 
 SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
-M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
+M:	Ursula Braun <ubraun@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -14927,7 +14927,7 @@ F:	include/uapi/linux/virtio_crypto.h
 
 VIRTIO DRIVERS FOR S390
 M:	Cornelia Huck <cohuck@redhat.com>
-M:	Halil Pasic <pasic@linux.vnet.ibm.com>
+M:	Halil Pasic <pasic@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	virtualization@lists.linux-foundation.org
 L:	kvm@vger.kernel.org
