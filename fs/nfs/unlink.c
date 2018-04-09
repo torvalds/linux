@@ -448,6 +448,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	unsigned char silly[SILLYNAME_LEN + 1];
 	unsigned long long fileid;
 	struct dentry *sdentry;
+	struct inode *inode = d_inode(dentry);
 	struct rpc_task *task;
 	int            error = -EBUSY;
 
@@ -485,6 +486,8 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 			goto out;
 	} while (d_inode(sdentry) != NULL); /* need negative lookup */
 
+	ihold(inode);
+
 	/* queue unlink first. Can't do this from rpc_release as it
 	 * has to allocate memory
 	 */
@@ -509,6 +512,12 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	case 0:
 		/* The rename succeeded */
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+		spin_lock(&inode->i_lock);
+		NFS_I(inode)->attr_gencount = nfs_inc_attr_generation_counter();
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
+			| NFS_INO_INVALID_CTIME
+			| NFS_INO_REVAL_FORCED;
+		spin_unlock(&inode->i_lock);
 		d_move(dentry, sdentry);
 		break;
 	case -ERESTARTSYS:
@@ -519,6 +528,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	}
 	rpc_put_task(task);
 out_dput:
+	iput(inode);
 	dput(sdentry);
 out:
 	return error;
