@@ -275,6 +275,7 @@ struct smb2_neg_context {
 #define SMB2_PREAUTH_INTEGRITY_SHA512	cpu_to_le16(0x0001)
 #define SMB2_PREAUTH_HASH_SIZE 64
 
+#define MIN_PREAUTH_CTXT_DATA_LEN	(SMB311_SALT_SIZE + 6)
 struct smb2_preauth_neg_context {
 	__le16	ContextType; /* 1 */
 	__le16	DataLength;
@@ -289,6 +290,8 @@ struct smb2_preauth_neg_context {
 #define SMB2_ENCRYPTION_AES128_CCM	cpu_to_le16(0x0001)
 #define SMB2_ENCRYPTION_AES128_GCM	cpu_to_le16(0x0002)
 
+/* Min encrypt context data is one cipher so 2 bytes + 2 byte count field */
+#define MIN_ENCRYPT_CTXT_DATA_LEN	4
 struct smb2_encryption_neg_context {
 	__le16	ContextType; /* 2 */
 	__le16	DataLength;
