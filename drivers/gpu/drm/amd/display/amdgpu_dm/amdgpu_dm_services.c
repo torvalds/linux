@@ -416,8 +416,35 @@ bool dm_pp_apply_clock_for_voltage_request(
 	const struct dc_context *ctx,
 	struct dm_pp_clock_for_voltage_req *clock_for_voltage_req)
 {
-	/* TODO: to be implemented */
-	return false;
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct pp_display_clock_request *pp_clock_request = {0};
+	int ret = 0;
+	switch (clock_for_voltage_req->clk_type) {
+	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
+		pp_clock_request->clock_type = amd_pp_disp_clock;
+		break;
+
+	case DM_PP_CLOCK_TYPE_DCEFCLK:
+		pp_clock_request->clock_type = amd_pp_dcef_clock;
+		break;
+
+	case DM_PP_CLOCK_TYPE_PIXELCLK:
+		pp_clock_request->clock_type = amd_pp_pixel_clock;
+		break;
+
+	default:
+		return false;
+	}
+
+	pp_clock_request->clock_freq_in_khz = clock_for_voltage_req->clocks_in_khz;
+
+	if (adev->powerplay.pp_funcs->display_clock_voltage_request)
+		ret = adev->powerplay.pp_funcs->display_clock_voltage_request(
+			adev->powerplay.pp_handle,
+			pp_clock_request);
+	if (ret)
+		return false;
+	return true;
 }
 
 bool dm_pp_get_static_clocks(
