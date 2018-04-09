@@ -236,6 +236,7 @@ struct ddb_port {
 	char                   *name;
 	char                   *type_name;
 	u32                     type;
+#define DDB_TUNER_DUMMY          0xffffffff
 #define DDB_TUNER_NONE           0
 #define DDB_TUNER_DVBS_ST        1
 #define DDB_TUNER_DVBS_ST_AA     2

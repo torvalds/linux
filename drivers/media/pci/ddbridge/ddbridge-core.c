@@ -54,6 +54,7 @@
 #include "stv6111.h"
 #include "lnbh25.h"
 #include "cxd2099.h"
+#include "dvb_dummy_fe.h"
 
 /****************************************************************************/
 
@@ -104,6 +105,11 @@ static int dma_buf_size = 21;
 module_param(dma_buf_size, int, 0444);
 MODULE_PARM_DESC(dma_buf_size,
 		 "DMA buffer size as multiple of 128*47, possible values: 1-43");
+
+static int dummy_tuner;
+module_param(dummy_tuner, int, 0444);
+MODULE_PARM_DESC(dummy_tuner,
+		 "attach dummy tuner to port 0 on Octopus V3 or Octopus Mini cards");
 
 /****************************************************************************/
 
@@ -534,6 +540,9 @@ static void ddb_input_start(struct ddb_input *input)
 	ddbwritel(dev, 3, DMA_BUFFER_CONTROL(input->dma));
 
 	ddbwritel(dev, 0x09, TS_CONTROL(input));
+
+	if (input->port->type == DDB_TUNER_DUMMY)
+		ddbwritel(dev, 0x000fff01, TS_CONTROL2(input));
 
 	input->dma->running = 1;
 	spin_unlock_irq(&input->dma->lock);
@@ -1240,6 +1249,20 @@ static int tuner_attach_stv6111(struct ddb_input *input, int type)
 	return 0;
 }
 
+static int demod_attach_dummy(struct ddb_input *input)
+{
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
+	struct device *dev = input->port->dev->dev;
+
+	dvb->fe = dvb_attach(dvb_dummy_fe_qam_attach);
+	if (!dvb->fe) {
+		dev_err(dev, "QAM dummy attach failed!\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
@@ -1532,6 +1555,10 @@ static int dvb_input_attach(struct ddb_input *input)
 		if (tuner_attach_tda18212(input, port->type) < 0)
 			goto err_tuner;
 		break;
+	case DDB_TUNER_DUMMY:
+		if (demod_attach_dummy(input) < 0)
+			goto err_detach;
+		break;
 	default:
 		return 0;
 	}
@@ -1793,6 +1820,15 @@ static void ddb_port_probe(struct ddb_port *port)
 	port->class = DDB_PORT_NONE;
 
 	/* Handle missing ports and ports without I2C */
+
+	if (dummy_tuner && !port->nr &&
+	    dev->link[0].ids.device == 0x0005) {
+		port->name = "DUMMY";
+		port->class = DDB_PORT_TUNER;
+		port->type = DDB_TUNER_DUMMY;
+		port->type_name = "DUMMY";
+		return;
+	}
 
 	if (port->nr == ts_loop) {
 		port->name = "TS LOOP";
