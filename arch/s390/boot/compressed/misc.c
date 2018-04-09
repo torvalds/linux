@@ -27,8 +27,8 @@
 /* Symbols defined by linker scripts */
 extern char input_data[];
 extern int input_len;
-extern char _text, _end;
-extern char _bss, _ebss;
+extern char _end[];
+extern char _bss[], _ebss[];
 
 static void error(char *m);
 
@@ -144,7 +144,7 @@ unsigned long decompress_kernel(void)
 {
 	void *output, *kernel_end;
 
-	output = (void *) ALIGN((unsigned long) &_end + HEAP_SIZE, PAGE_SIZE);
+	output = (void *) ALIGN((unsigned long) _end + HEAP_SIZE, PAGE_SIZE);
 	kernel_end = output + SZ__bss_start;
 	check_ipl_parmblock((void *) 0, (unsigned long) kernel_end);
 
@@ -166,8 +166,8 @@ unsigned long decompress_kernel(void)
 	 * Clear bss section. free_mem_ptr and free_mem_end_ptr need to be
 	 * initialized afterwards since they reside in bss.
 	 */
-	memset(&_bss, 0, &_ebss - &_bss);
-	free_mem_ptr = (unsigned long) &_end;
+	memset(_bss, 0, _ebss - _bss);
+	free_mem_ptr = (unsigned long) _end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
 	__decompress(input_data, input_len, NULL, NULL, output, 0, NULL, error);

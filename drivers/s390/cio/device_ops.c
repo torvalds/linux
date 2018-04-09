@@ -460,8 +460,8 @@ __u8 ccw_device_get_path_mask(struct ccw_device *cdev)
  * On success return a newly allocated copy of the channel-path description
  * data associated with the given channel path. Return %NULL on error.
  */
-struct channel_path_desc *ccw_device_get_chp_desc(struct ccw_device *cdev,
-						  int chp_idx)
+struct channel_path_desc_fmt0 *ccw_device_get_chp_desc(struct ccw_device *cdev,
+						       int chp_idx)
 {
 	struct subchannel *sch;
 	struct chp_id chpid;

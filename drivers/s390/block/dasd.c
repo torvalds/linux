@@ -3918,8 +3918,13 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 			cqr = refers;
 		}
 
-		if (cqr->block)
-			list_del_init(&cqr->blocklist);
+		/*
+		 * _dasd_requeue_request already checked for a valid
+		 * blockdevice, no need to check again
+		 * all erp requests (cqr->refers) have a cqr->block
+		 * pointer copy from the original cqr
+		 */
+		list_del_init(&cqr->blocklist);
 		cqr->block->base->discipline->free_cp(
 			cqr, (struct request *) cqr->callback_data);
 	}
