@@ -37,8 +37,4 @@ extern void wake_up_nohz_cpu(int cpu);
 static inline void wake_up_nohz_cpu(int cpu) { }
 #endif
 
-#ifdef CONFIG_NO_HZ_FULL
-extern u64 scheduler_tick_max_deferment(void);
-#endif
-
 #endif /* _LINUX_SCHED_NOHZ_H */

@@ -11,61 +11,57 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/cpufreq.h>
-#include <linux/kthread.h>
-#include <uapi/linux/sched/types.h>
-#include <linux/slab.h>
-#include <trace/events/power.h>
-
 #include "sched.h"
 
+#include <trace/events/power.h>
+
 struct sugov_tunables {
-	struct gov_attr_set attr_set;
-	unsigned int rate_limit_us;
+	struct gov_attr_set	attr_set;
+	unsigned int		rate_limit_us;
 };
 
 struct sugov_policy {
-	struct cpufreq_policy *policy;
+	struct cpufreq_policy	*policy;
 
-	struct sugov_tunables *tunables;
-	struct list_head tunables_hook;
+	struct sugov_tunables	*tunables;
+	struct list_head	tunables_hook;
 
-	raw_spinlock_t update_lock;  /* For shared policies */
-	u64 last_freq_update_time;
-	s64 freq_update_delay_ns;
-	unsigned int next_freq;
-	unsigned int cached_raw_freq;
+	raw_spinlock_t		update_lock;	/* For shared policies */
+	u64			last_freq_update_time;
+	s64			freq_update_delay_ns;
+	unsigned int		next_freq;
+	unsigned int		cached_raw_freq;
 
-	/* The next fields are only needed if fast switch cannot be used. */
-	struct irq_work irq_work;
-	struct kthread_work work;
-	struct mutex work_lock;
-	struct kthread_worker worker;
-	struct task_struct *thread;
-	bool work_in_progress;
+	/* The next fields are only needed if fast switch cannot be used: */
+	struct			irq_work irq_work;
+	struct			kthread_work work;
+	struct			mutex work_lock;
+	struct			kthread_worker worker;
+	struct task_struct	*thread;
+	bool			work_in_progress;
 
-	bool need_freq_update;
+	bool			need_freq_update;
 };
 
 struct sugov_cpu {
-	struct update_util_data update_util;
-	struct sugov_policy *sg_policy;
-	unsigned int cpu;
+	struct update_util_data	update_util;
+	struct sugov_policy	*sg_policy;
+	unsigned int		cpu;
 
-	bool iowait_boost_pending;
-	unsigned int iowait_boost;
-	unsigned int iowait_boost_max;
+	bool			iowait_boost_pending;
+	unsigned int		iowait_boost;
+	unsigned int		iowait_boost_max;
 	u64 last_update;
 
-	/* The fields below are only needed when sharing a policy. */
-	unsigned long util_cfs;
-	unsigned long util_dl;
-	unsigned long max;
-	unsigned int flags;
+	/* The fields below are only needed when sharing a policy: */
+	unsigned long		util_cfs;
+	unsigned long		util_dl;
+	unsigned long		max;
+	unsigned int		flags;
 
-	/* The field below is for single-CPU policies only. */
+	/* The field below is for single-CPU policies only: */
 #ifdef CONFIG_NO_HZ_COMMON
-	unsigned long saved_idle_calls;
+	unsigned long		saved_idle_calls;
 #endif
 };
 
@@ -79,9 +75,9 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 
 	/*
 	 * Since cpufreq_update_util() is called with rq->lock held for
-	 * the @target_cpu, our per-cpu data is fully serialized.
+	 * the @target_cpu, our per-CPU data is fully serialized.
 	 *
-	 * However, drivers cannot in general deal with cross-cpu
+	 * However, drivers cannot in general deal with cross-CPU
 	 * requests, so while get_next_freq() will work, our
 	 * sugov_update_commit() call may not for the fast switching platforms.
 	 *
@@ -111,6 +107,7 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	}
 
 	delta_ns = time - sg_policy->last_freq_update_time;
+
 	return delta_ns >= sg_policy->freq_update_delay_ns;
 }
 
@@ -345,8 +342,8 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	return get_next_freq(sg_policy, util, max);
 }
 
-static void sugov_update_shared(struct update_util_data *hook, u64 time,
-				unsigned int flags)
+static void
+sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
@@ -423,8 +420,8 @@ static ssize_t rate_limit_us_show(struct gov_attr_set *attr_set, char *buf)
 	return sprintf(buf, "%u\n", tunables->rate_limit_us);
 }
 
-static ssize_t rate_limit_us_store(struct gov_attr_set *attr_set, const char *buf,
-				   size_t count)
+static ssize_t
+rate_limit_us_store(struct gov_attr_set *attr_set, const char *buf, size_t count)
 {
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 	struct sugov_policy *sg_policy;
@@ -479,11 +476,11 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 {
 	struct task_struct *thread;
 	struct sched_attr attr = {
-		.size = sizeof(struct sched_attr),
-		.sched_policy = SCHED_DEADLINE,
-		.sched_flags = SCHED_FLAG_SUGOV,
-		.sched_nice = 0,
-		.sched_priority = 0,
+		.size		= sizeof(struct sched_attr),
+		.sched_policy	= SCHED_DEADLINE,
+		.sched_flags	= SCHED_FLAG_SUGOV,
+		.sched_nice	= 0,
+		.sched_priority	= 0,
 		/*
 		 * Fake (unused) bandwidth; workaround to "fix"
 		 * priority inheritance.
@@ -663,21 +660,21 @@ static int sugov_start(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy = policy->governor_data;
 	unsigned int cpu;
 
-	sg_policy->freq_update_delay_ns = sg_policy->tunables->rate_limit_us * NSEC_PER_USEC;
-	sg_policy->last_freq_update_time = 0;
-	sg_policy->next_freq = UINT_MAX;
-	sg_policy->work_in_progress = false;
-	sg_policy->need_freq_update = false;
-	sg_policy->cached_raw_freq = 0;
+	sg_policy->freq_update_delay_ns	= sg_policy->tunables->rate_limit_us * NSEC_PER_USEC;
+	sg_policy->last_freq_update_time	= 0;
+	sg_policy->next_freq			= UINT_MAX;
+	sg_policy->work_in_progress		= false;
+	sg_policy->need_freq_update		= false;
+	sg_policy->cached_raw_freq		= 0;
 
 	for_each_cpu(cpu, policy->cpus) {
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 
 		memset(sg_cpu, 0, sizeof(*sg_cpu));
-		sg_cpu->cpu = cpu;
-		sg_cpu->sg_policy = sg_policy;
-		sg_cpu->flags = 0;
-		sg_cpu->iowait_boost_max = policy->cpuinfo.max_freq;
+		sg_cpu->cpu			= cpu;
+		sg_cpu->sg_policy		= sg_policy;
+		sg_cpu->flags			= 0;
+		sg_cpu->iowait_boost_max	= policy->cpuinfo.max_freq;
 	}
 
 	for_each_cpu(cpu, policy->cpus) {
@@ -721,14 +718,14 @@ static void sugov_limits(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_governor schedutil_gov = {
-	.name = "schedutil",
-	.owner = THIS_MODULE,
-	.dynamic_switching = true,
-	.init = sugov_init,
-	.exit = sugov_exit,
-	.start = sugov_start,
-	.stop = sugov_stop,
-	.limits = sugov_limits,
+	.name			= "schedutil",
+	.owner			= THIS_MODULE,
+	.dynamic_switching	= true,
+	.init			= sugov_init,
+	.exit			= sugov_exit,
+	.start			= sugov_start,
+	.stop			= sugov_stop,
+	.limits			= sugov_limits,
 };
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
