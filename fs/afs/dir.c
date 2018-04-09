@@ -767,6 +767,62 @@ out:
 }
 
 /*
+ * Look up an entry in a directory with @sys substitution.
+ */
+static struct dentry *afs_lookup_atsys(struct inode *dir, struct dentry *dentry,
+				       struct key *key)
+{
+	struct afs_sysnames *subs;
+	struct afs_net *net = afs_i2net(dir);
+	struct dentry *ret;
+	char *buf, *p, *name;
+	int len, i;
+
+	_enter("");
+
+	ret = ERR_PTR(-ENOMEM);
+	p = buf = kmalloc(AFSNAMEMAX, GFP_KERNEL);
+	if (!buf)
+		goto out_p;
+	if (dentry->d_name.len > 4) {
+		memcpy(p, dentry->d_name.name, dentry->d_name.len - 4);
+		p += dentry->d_name.len - 4;
+	}
+
+	/* There is an ordered list of substitutes that we have to try. */
+	read_lock(&net->sysnames_lock);
+	subs = net->sysnames;
+	refcount_inc(&subs->usage);
+	read_unlock(&net->sysnames_lock);
+
+	for (i = 0; i < subs->nr; i++) {
+		name = subs->subs[i];
+		len = dentry->d_name.len - 4 + strlen(name);
+		if (len >= AFSNAMEMAX) {
+			ret = ERR_PTR(-ENAMETOOLONG);
+			goto out_s;
+		}
+
+		strcpy(p, name);
+		ret = lookup_one_len(buf, dentry->d_parent, len);
+		if (IS_ERR(ret) || d_is_positive(ret))
+			goto out_s;
+		dput(ret);
+	}
+
+	/* We don't want to d_add() the @sys dentry here as we don't want to
+	 * the cached dentry to hide changes to the sysnames list.
+	 */
+	ret = NULL;
+out_s:
+	afs_put_sysnames(subs);
+	kfree(buf);
+out_p:
+	key_put(key);
+	return ret;
+}
+
+/*
  * look up an entry in a directory
  */
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
@@ -804,6 +860,13 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 		_leave(" = %d [val]", ret);
 		return ERR_PTR(ret);
 	}
+
+	if (dentry->d_name.len >= 4 &&
+	    dentry->d_name.name[dentry->d_name.len - 4] == '@' &&
+	    dentry->d_name.name[dentry->d_name.len - 3] == 's' &&
+	    dentry->d_name.name[dentry->d_name.len - 2] == 'y' &&
+	    dentry->d_name.name[dentry->d_name.len - 1] == 's')
+		return afs_lookup_atsys(dir, dentry, key);
 
 	inode = afs_do_lookup(dir, dentry, key);
 	if (IS_ERR(inode)) {

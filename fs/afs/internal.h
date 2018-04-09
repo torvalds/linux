@@ -199,6 +199,18 @@ static inline struct afs_super_info *AFS_FS_S(struct super_block *sb)
 extern struct file_system_type afs_fs_type;
 
 /*
+ * Set of substitutes for @sys.
+ */
+struct afs_sysnames {
+#define AFS_NR_SYSNAME 16
+	char			*subs[AFS_NR_SYSNAME];
+	refcount_t		usage;
+	unsigned short		nr;
+	short			error;
+	char			blank[1];
+};
+
+/*
  * AFS network namespace record.
  */
 struct afs_net {
@@ -246,8 +258,11 @@ struct afs_net {
 
 	/* Misc */
 	struct proc_dir_entry	*proc_afs;		/* /proc/net/afs directory */
+	struct afs_sysnames	*sysnames;
+	rwlock_t		sysnames_lock;
 };
 
+extern const char afs_init_sysname[];
 extern struct afs_net __afs_net;// Dummy AFS network namespace; TODO: replace with real netns
 
 enum afs_cell_state {
@@ -789,6 +804,7 @@ extern int __net_init afs_proc_init(struct afs_net *);
 extern void __net_exit afs_proc_cleanup(struct afs_net *);
 extern int afs_proc_cell_setup(struct afs_net *, struct afs_cell *);
 extern void afs_proc_cell_remove(struct afs_net *, struct afs_cell *);
+extern void afs_put_sysnames(struct afs_sysnames *);
 
 /*
  * rotate.c
