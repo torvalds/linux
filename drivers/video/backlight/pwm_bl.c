@@ -147,7 +147,11 @@ static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
 	struct device_node *node = dev->of_node;
+	unsigned int num_levels = 0;
+	unsigned int levels_count;
+	unsigned int num_steps;
 	struct property *prop;
+	unsigned int *table;
 	int length;
 	u32 value;
 	int ret;
@@ -167,6 +171,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	/* read brightness levels from DT property */
 	if (data->max_brightness > 0) {
 		size_t size = sizeof(*data->levels) * data->max_brightness;
+		unsigned int i, j, n = 0;
 
 		data->levels = devm_kzalloc(dev, size, GFP_KERNEL);
 		if (!data->levels)
@@ -184,6 +189,84 @@ static int pwm_backlight_parse_dt(struct device *dev,
 			return ret;
 
 		data->dft_brightness = value;
+
+		/*
+		 * This property is optional, if is set enables linear
+		 * interpolation between each of the values of brightness levels
+		 * and creates a new pre-computed table.
+		 */
+		of_property_read_u32(node, "num-interpolated-steps",
+				     &num_steps);
+
+		/*
+		 * Make sure that there is at least two entries in the
+		 * brightness-levels table, otherwise we can't interpolate
+		 * between two points.
+		 */
+		if (num_steps) {
+			if (data->max_brightness < 2) {
+				dev_err(dev, "can't interpolate\n");
+				return -EINVAL;
+			}
+
+			/*
+			 * Recalculate the number of brightness levels, now
+			 * taking in consideration the number of interpolated
+			 * steps between two levels.
+			 */
+			for (i = 0; i < data->max_brightness - 1; i++) {
+				if ((data->levels[i + 1] - data->levels[i]) /
+				   num_steps)
+					num_levels += num_steps;
+				else
+					num_levels++;
+			}
+			num_levels++;
+			dev_dbg(dev, "new number of brightness levels: %d\n",
+				num_levels);
+
+			/*
+			 * Create a new table of brightness levels with all the
+			 * interpolated steps.
+			 */
+			size = sizeof(*table) * num_levels;
+			table = devm_kzalloc(dev, size, GFP_KERNEL);
+			if (!table)
+				return -ENOMEM;
+
+			/* Fill the interpolated table. */
+			levels_count = 0;
+			for (i = 0; i < data->max_brightness - 1; i++) {
+				value = data->levels[i];
+				n = (data->levels[i + 1] - value) / num_steps;
+				if (n > 0) {
+					for (j = 0; j < num_steps; j++) {
+						table[levels_count] = value;
+						value += n;
+						levels_count++;
+					}
+				} else {
+					table[levels_count] = data->levels[i];
+					levels_count++;
+				}
+			}
+			table[levels_count] = data->levels[i];
+
+			/*
+			 * As we use interpolation lets remove current
+			 * brightness levels table and replace for the
+			 * new interpolated table.
+			 */
+			devm_kfree(dev, data->levels);
+			data->levels = table;
+
+			/*
+			 * Reassign max_brightness value to the new total number
+			 * of brightness levels.
+			 */
+			data->max_brightness = num_levels;
+		}
+
 		data->max_brightness--;
 	}
 
