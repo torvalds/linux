@@ -402,13 +402,13 @@ static inline void aer_process_err_devices(struct aer_err_info *e_info)
 
 /**
  * aer_isr_one_error - consume an error detected by root port
- * @p_device: pointer to error root port service device
+ * @rpc: pointer to the root port which holds an error
  * @e_src: pointer to an error source
  */
-static void aer_isr_one_error(struct pcie_device *p_device,
+static void aer_isr_one_error(struct aer_rpc *rpc,
 		struct aer_err_source *e_src)
 {
-	struct aer_rpc *rpc = get_service_data(p_device);
+	struct pci_dev *pdev = rpc->rpd;
 	struct aer_err_info *e_info = &rpc->e_info;
 
 	/*
@@ -423,10 +423,9 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 			e_info->multi_error_valid = 1;
 		else
 			e_info->multi_error_valid = 0;
+		aer_print_port_info(pdev, e_info);
 
-		aer_print_port_info(p_device->port, e_info);
-
-		if (find_source_device(p_device->port, e_info))
+		if (find_source_device(pdev, e_info))
 			aer_process_err_devices(e_info);
 	}
 
@@ -443,9 +442,9 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 		else
 			e_info->multi_error_valid = 0;
 
-		aer_print_port_info(p_device->port, e_info);
+		aer_print_port_info(pdev, e_info);
 
-		if (find_source_device(p_device->port, e_info))
+		if (find_source_device(pdev, e_info))
 			aer_process_err_devices(e_info);
 	}
 }
@@ -488,11 +487,10 @@ static int get_e_source(struct aer_rpc *rpc, struct aer_err_source *e_src)
 void aer_isr(struct work_struct *work)
 {
 	struct aer_rpc *rpc = container_of(work, struct aer_rpc, dpc_handler);
-	struct pcie_device *p_device = rpc->rpd;
 	struct aer_err_source uninitialized_var(e_src);
 
 	mutex_lock(&rpc->rpc_mutex);
 	while (get_e_source(rpc, &e_src))
-		aer_isr_one_error(p_device, &e_src);
+		aer_isr_one_error(rpc, &e_src);
 	mutex_unlock(&rpc->rpc_mutex);
 }

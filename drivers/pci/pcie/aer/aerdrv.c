@@ -94,7 +94,7 @@ static void set_downstream_devices_error_reporting(struct pci_dev *dev,
  */
 static void aer_enable_rootport(struct aer_rpc *rpc)
 {
-	struct pci_dev *pdev = rpc->rpd->port;
+	struct pci_dev *pdev = rpc->rpd;
 	int aer_pos;
 	u16 reg16;
 	u32 reg32;
@@ -136,7 +136,7 @@ static void aer_enable_rootport(struct aer_rpc *rpc)
  */
 static void aer_disable_rootport(struct aer_rpc *rpc)
 {
-	struct pci_dev *pdev = rpc->rpd->port;
+	struct pci_dev *pdev = rpc->rpd;
 	u32 reg32;
 	int pos;
 
@@ -232,7 +232,7 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 	/* Initialize Root lock access, e_lock, to Root Error Status Reg */
 	spin_lock_init(&rpc->e_lock);
 
-	rpc->rpd = dev;
+	rpc->rpd = dev->port;
 	INIT_WORK(&rpc->dpc_handler, aer_isr);
 	mutex_init(&rpc->rpc_mutex);
 

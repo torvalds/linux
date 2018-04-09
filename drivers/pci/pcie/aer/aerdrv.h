@@ -58,7 +58,7 @@ struct aer_err_source {
 };
 
 struct aer_rpc {
-	struct pcie_device *rpd;	/* Root Port device */
+	struct pci_dev *rpd;		/* Root Port device */
 	struct work_struct dpc_handler;
 	struct aer_err_source e_sources[AER_ERROR_SOURCES_MAX];
 	struct aer_err_info e_info;
