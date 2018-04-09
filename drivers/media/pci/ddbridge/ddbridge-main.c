@@ -77,8 +77,8 @@ static void ddb_irq_exit(struct ddb *dev)
 {
 	ddb_irq_disable(dev);
 	if (dev->msi == 2)
-		free_irq(dev->pdev->irq + 1, dev);
-	free_irq(dev->pdev->irq, dev);
+		free_irq(pci_irq_vector(dev->pdev, 1), dev);
+	free_irq(pci_irq_vector(dev->pdev, 0), dev);
 }
 
 static void ddb_remove(struct pci_dev *pdev)
@@ -105,7 +105,8 @@ static void ddb_irq_msi(struct ddb *dev, int nr)
 	int stat;
 
 	if (msi && pci_msi_enabled()) {
-		stat = pci_alloc_irq_vectors(dev->pdev, 1, nr, PCI_IRQ_MSI);
+		stat = pci_alloc_irq_vectors(dev->pdev, 1, nr,
+					     PCI_IRQ_MSI | PCI_IRQ_MSIX);
 		if (stat >= 1) {
 			dev->msi = stat;
 			dev_info(dev->dev, "using %d MSI interrupt(s)\n",
@@ -137,21 +138,24 @@ static int ddb_irq_init(struct ddb *dev)
 	if (dev->msi)
 		irq_flag = 0;
 	if (dev->msi == 2) {
-		stat = request_irq(dev->pdev->irq, ddb_irq_handler0,
-				   irq_flag, "ddbridge", (void *)dev);
+		stat = request_irq(pci_irq_vector(dev->pdev, 0),
+				   ddb_irq_handler0, irq_flag, "ddbridge",
+				   (void *)dev);
 		if (stat < 0)
 			return stat;
-		stat = request_irq(dev->pdev->irq + 1, ddb_irq_handler1,
-				   irq_flag, "ddbridge", (void *)dev);
+		stat = request_irq(pci_irq_vector(dev->pdev, 1),
+				   ddb_irq_handler1, irq_flag, "ddbridge",
+				   (void *)dev);
 		if (stat < 0) {
-			free_irq(dev->pdev->irq, dev);
+			free_irq(pci_irq_vector(dev->pdev, 0), dev);
 			return stat;
 		}
 	} else
 #endif
 	{
-		stat = request_irq(dev->pdev->irq, ddb_irq_handler,
-				   irq_flag, "ddbridge", (void *)dev);
+		stat = request_irq(pci_irq_vector(dev->pdev, 0),
+				   ddb_irq_handler, irq_flag, "ddbridge",
+				   (void *)dev);
 		if (stat < 0)
 			return stat;
 	}
