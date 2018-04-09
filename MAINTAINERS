@@ -6516,7 +6516,7 @@ S:	Maintained
 F:	Documentation/networking/netvsc.txt
 F:	arch/x86/include/asm/mshyperv.h
 F:	arch/x86/include/asm/trace/hyperv.h
-F:	arch/x86/include/uapi/asm/hyperv.h
+F:	arch/x86/include/asm/hyperv-tlfs.h
 F:	arch/x86/kernel/cpu/mshyperv.c
 F:	arch/x86/hyperv
 F:	drivers/hid/hid-hyperv.c

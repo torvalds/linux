@@ -454,6 +454,13 @@ static void __init sev_map_percpu_data(void)
 }
 
 #ifdef CONFIG_SMP
+static void __init kvm_smp_prepare_cpus(unsigned int max_cpus)
+{
+	native_smp_prepare_cpus(max_cpus);
+	if (kvm_para_has_hint(KVM_HINTS_DEDICATED))
+		static_branch_disable(&virt_spin_lock_key);
+}
+
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
 	/*
@@ -546,6 +553,7 @@ static void __init kvm_guest_init(void)
 	}
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_hint(KVM_HINTS_DEDICATED) &&
 	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME))
 		pv_mmu_ops.flush_tlb_others = kvm_flush_tlb_others;
 
@@ -556,6 +564,7 @@ static void __init kvm_guest_init(void)
 		kvm_setup_vsyscall_timeinfo();
 
 #ifdef CONFIG_SMP
+	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 	if (cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/kvm:online",
 				      kvm_cpu_online, kvm_cpu_down_prepare) < 0)
@@ -605,6 +614,11 @@ unsigned int kvm_arch_para_features(void)
 	return cpuid_eax(kvm_cpuid_base() | KVM_CPUID_FEATURES);
 }
 
+unsigned int kvm_arch_para_hints(void)
+{
+	return cpuid_edx(kvm_cpuid_base() | KVM_CPUID_FEATURES);
+}
+
 static uint32_t __init kvm_detect(void)
 {
 	return kvm_cpuid_base();
@@ -635,6 +649,7 @@ static __init int kvm_setup_pv_tlb_flush(void)
 	int cpu;
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_hint(KVM_HINTS_DEDICATED) &&
 	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		for_each_possible_cpu(cpu) {
 			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_tlb_mask, cpu),
@@ -728,6 +743,9 @@ void __init kvm_spinlock_init(void)
 		return;
 	/* Does host kernel support KVM_FEATURE_PV_UNHALT? */
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
+		return;
+
+	if (kvm_para_has_hint(KVM_HINTS_DEDICATED))
 		return;
 
 	__pv_init_lock_hash();
