@@ -1613,6 +1613,7 @@ u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 int skl_check_plane_surface(const struct intel_crtc_state *crtc_state,
 			    struct intel_plane_state *plane_state);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
+int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);

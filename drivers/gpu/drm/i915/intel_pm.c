@@ -3825,6 +3825,44 @@ static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 		entry->end += 1;
 }
 
+static void
+skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
+			   const enum pipe pipe,
+			   const enum plane_id plane_id,
+			   struct skl_ddb_allocation *ddb /* out */)
+{
+	u32 val, val2 = 0;
+	int fourcc, pixel_format;
+
+	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
+	if (plane_id == PLANE_CURSOR) {
+		val = I915_READ(CUR_BUF_CFG(pipe));
+		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
+		return;
+	}
+
+	val = I915_READ(PLANE_CTL(pipe, plane_id));
+
+	/* No DDB allocated for disabled planes */
+	if (!(val & PLANE_CTL_ENABLE))
+		return;
+
+	pixel_format = val & PLANE_CTL_FORMAT_MASK;
+	fourcc = skl_format_to_fourcc(pixel_format,
+				      val & PLANE_CTL_ORDER_RGBX,
+				      val & PLANE_CTL_ALPHA_MASK);
+
+	val = I915_READ(PLANE_BUF_CFG(pipe, plane_id));
+	val2 = I915_READ(PLANE_NV12_BUF_CFG(pipe, plane_id));
+
+	if (fourcc == DRM_FORMAT_NV12) {
+		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val2);
+		skl_ddb_entry_init_from_hw(&ddb->uv_plane[pipe][plane_id], val);
+	} else {
+		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
+	}
+}
+
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */)
 {
@@ -3841,16 +3879,9 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 			continue;
 
-		for_each_plane_id_on_crtc(crtc, plane_id) {
-			u32 val;
-
-			if (plane_id != PLANE_CURSOR)
-				val = I915_READ(PLANE_BUF_CFG(pipe, plane_id));
-			else
-				val = I915_READ(CUR_BUF_CFG(pipe));
-
-			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane_id], val);
-		}
+		for_each_plane_id_on_crtc(crtc, plane_id)
+			skl_ddb_get_hw_plane_state(dev_priv, pipe,
+						   plane_id, ddb);
 
 		intel_display_power_put(dev_priv, power_domain);
 	}
