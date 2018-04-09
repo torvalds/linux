@@ -2468,10 +2468,13 @@ static void vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	/*
 	 * RC6 transitioning can be delayed up to 2 msec (see
 	 * valleyview_enable_rps), use 3 msec for safety.
+	 *
+	 * This can fail to turn off the rc6 if the GPU is stuck after a failed
+	 * reset and we are trying to force the machine to sleep.
 	 */
 	if (vlv_wait_for_pw_status(dev_priv, mask, val))
-		DRM_ERROR("timeout waiting for GT wells to go %s\n",
-			  onoff(wait_for_on));
+		DRM_DEBUG_DRIVER("timeout waiting for GT wells to go %s\n",
+				 onoff(wait_for_on));
 }
 
 static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)
