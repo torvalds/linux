@@ -1667,7 +1667,7 @@ typedef int (*filldir_t)(struct dir_context *, const char *, int, loff_t, u64,
 			 unsigned);
 
 struct dir_context {
-	const filldir_t actor;
+	filldir_t actor;
 	loff_t pos;
 };
 
