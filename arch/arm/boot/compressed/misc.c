@@ -22,9 +22,9 @@ unsigned int __machine_arch_type;
 #include <linux/compiler.h>	/* for inline */
 #include <linux/types.h>
 #include <linux/linkage.h>
+#include "misc.h"
 
 static void putstr(const char *ptr);
-extern void error(char *x);
 
 #include CONFIG_UNCOMPRESS_INCLUDE
 
@@ -166,4 +166,9 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		error("decompressor returned an error");
 	else
 		putstr(" done, booting the kernel.\n");
+}
+
+void fortify_panic(const char *name)
+{
+	error("detected buffer overflow");
 }
