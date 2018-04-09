@@ -767,10 +767,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
 	struct nvme_fc_local_port *localport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	struct lpfc_nvme_lport *lport;
-	uint64_t tot, data1, data2, data3;
+	uint64_t data1, data2, data3;
+	uint64_t tot, totin, totout;
+	int cnt, i, maxch;
 	int len = 0;
-	int cnt;
 
 	if (phba->nvmet_support) {
 		if (!phba->targetport)
@@ -896,33 +898,52 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
 
-		len += snprintf(buf + len, size - len,
-				"\nNVME Lport Statistics\n");
-
-		len += snprintf(buf + len, size - len,
-				"LS: Xmt %016x Cmpl %016x\n",
-				atomic_read(&phba->fc4NvmeLsRequests),
-				atomic_read(&phba->fc4NvmeLsCmpls));
-
-		tot = atomic_read(&phba->fc4NvmeIoCmpls);
-		data1 = atomic_read(&phba->fc4NvmeInputRequests);
-		data2 = atomic_read(&phba->fc4NvmeOutputRequests);
-		data3 = atomic_read(&phba->fc4NvmeControlRequests);
-
-		len += snprintf(buf + len, size - len,
-				"FCP: Rd %016llx Wr %016llx IO %016llx\n",
-				data1, data2, data3);
-
-		len += snprintf(buf + len, size - len,
-				"   Cmpl %016llx Outstanding %016llx\n",
-				tot, (data1 + data2 + data3) - tot);
-
 		localport = vport->localport;
 		if (!localport)
 			return len;
 		lport = (struct lpfc_nvme_lport *)localport->private;
 		if (!lport)
 			return len;
+
+		len += snprintf(buf + len, size - len,
+				"\nNVME Lport Statistics\n");
+
+		len += snprintf(buf + len, size - len,
+				"LS: Xmt %016x Cmpl %016x\n",
+				atomic_read(&lport->fc4NvmeLsRequests),
+				atomic_read(&lport->fc4NvmeLsCmpls));
+
+		if (phba->cfg_nvme_io_channel < 32)
+			maxch = phba->cfg_nvme_io_channel;
+		else
+			maxch = 32;
+		totin = 0;
+		totout = 0;
+		for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+			cstat = &lport->cstat[i];
+			tot = atomic_read(&cstat->fc4NvmeIoCmpls);
+			totin += tot;
+			data1 = atomic_read(&cstat->fc4NvmeInputRequests);
+			data2 = atomic_read(&cstat->fc4NvmeOutputRequests);
+			data3 = atomic_read(&cstat->fc4NvmeControlRequests);
+			totout += (data1 + data2 + data3);
+
+			/* Limit to 32, debugfs display buffer limitation */
+			if (i >= 32)
+				continue;
+
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"FCP (%d): Rd %016llx Wr %016llx "
+					"IO %016llx ",
+					i, data1, data2, data3);
+			len += snprintf(buf + len, PAGE_SIZE - len,
+					"Cmpl %016llx OutIO %016llx\n",
+					tot, ((data1 + data2 + data3) - tot));
+		}
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"Total FCP Cmpl %016llx Issue %016llx "
+				"OutIO %016llx\n",
+				totin, totout, totout - totin);
 
 		len += snprintf(buf + len, size - len,
 				"LS Xmt Err: Abrt %08x Err %08x  "

@@ -1266,6 +1266,9 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	uint64_t tot, data1, data2, data3;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_register reg_data;
+	struct nvme_fc_local_port *localport;
+	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
 
 	vports = lpfc_create_vport_work_array(phba);
@@ -1299,14 +1302,25 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				tot += atomic_read(&tgtp->xmt_fcp_release);
 				tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
 			} else {
-				tot = atomic_read(&phba->fc4NvmeIoCmpls);
-				data1 = atomic_read(
-					&phba->fc4NvmeInputRequests);
-				data2 = atomic_read(
-					&phba->fc4NvmeOutputRequests);
-				data3 = atomic_read(
-					&phba->fc4NvmeControlRequests);
-				tot =  (data1 + data2 + data3) - tot;
+				localport = phba->pport->localport;
+				if (!localport || !localport->private)
+					goto skip_eqdelay;
+				lport = (struct lpfc_nvme_lport *)
+					localport->private;
+				tot = 0;
+				for (i = 0;
+					i < phba->cfg_nvme_io_channel; i++) {
+					cstat = &lport->cstat[i];
+					data1 = atomic_read(
+						&cstat->fc4NvmeInputRequests);
+					data2 = atomic_read(
+						&cstat->fc4NvmeOutputRequests);
+					data3 = atomic_read(
+						&cstat->fc4NvmeControlRequests);
+					tot += (data1 + data2 + data3);
+					tot -= atomic_read(
+						&cstat->fc4NvmeIoCmpls);
+				}
 			}
 		}
 
@@ -6895,12 +6909,6 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	atomic_set(&phba->fc4ScsiOutputRequests, 0);
 	atomic_set(&phba->fc4ScsiControlRequests, 0);
 	atomic_set(&phba->fc4ScsiIoCmpls, 0);
-	atomic_set(&phba->fc4NvmeInputRequests, 0);
-	atomic_set(&phba->fc4NvmeOutputRequests, 0);
-	atomic_set(&phba->fc4NvmeControlRequests, 0);
-	atomic_set(&phba->fc4NvmeIoCmpls, 0);
-	atomic_set(&phba->fc4NvmeLsRequests, 0);
-	atomic_set(&phba->fc4NvmeLsCmpls, 0);
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;

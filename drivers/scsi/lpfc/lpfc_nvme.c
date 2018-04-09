@@ -357,15 +357,17 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_dmabuf *buf_ptr;
 	struct lpfc_nodelist *ndlp;
 
-	atomic_inc(&vport->phba->fc4NvmeLsCmpls);
-
+	lport = (struct lpfc_nvme_lport *)vport->localport->private;
 	pnvme_lsreq = (struct nvmefc_ls_req *)cmdwqe->context2;
 	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
-	if (status) {
-		lport = (struct lpfc_nvme_lport *)vport->localport->private;
-		if (bf_get(lpfc_wcqe_c_xb, wcqe))
-			atomic_inc(&lport->cmpl_ls_xb);
-		atomic_inc(&lport->cmpl_ls_err);
+
+	if (lport) {
+		atomic_inc(&lport->fc4NvmeLsCmpls);
+		if (status) {
+			if (bf_get(lpfc_wcqe_c_xb, wcqe))
+				atomic_inc(&lport->cmpl_ls_xb);
+			atomic_inc(&lport->cmpl_ls_err);
+		}
 	}
 
 	ndlp = (struct lpfc_nodelist *)cmdwqe->context1;
@@ -570,6 +572,9 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
 	rport = (struct lpfc_nvme_rport *)pnvme_rport->private;
+	if (unlikely(!lport) || unlikely(!rport))
+		return -EINVAL;
+
 	vport = lport->vport;
 
 	if (vport->load_flag & FC_UNLOADING)
@@ -639,7 +644,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 			 pnvme_lsreq->rsplen, &pnvme_lsreq->rqstdma,
 			 &pnvme_lsreq->rspdma);
 
-	atomic_inc(&vport->phba->fc4NvmeLsRequests);
+	atomic_inc(&lport->fc4NvmeLsRequests);
 
 	/* Hardcode the wait to 30 seconds.  Connections are failing otherwise.
 	 * This code allows it all to work.
@@ -690,6 +695,8 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_iocbq *wqe, *next_wqe;
 
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
+	if (unlikely(!lport))
+		return;
 	vport = lport->vport;
 	phba = vport->phba;
 
@@ -949,8 +956,9 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	unsigned long flags;
-	uint32_t code, status;
+	uint32_t code, status, idx;
 	uint16_t cid, sqhd, data;
 	uint32_t *ptr;
 
@@ -961,16 +969,20 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 wcqe);
 		return;
 	}
-	atomic_inc(&phba->fc4NvmeIoCmpls);
-
 	nCmd = lpfc_ncmd->nvmeCmd;
 	rport = lpfc_ncmd->nrport;
 	status = bf_get(lpfc_wcqe_c_status, wcqe);
-	if (status) {
-		lport = (struct lpfc_nvme_lport *)vport->localport->private;
-		if (bf_get(lpfc_wcqe_c_xb, wcqe))
-			atomic_inc(&lport->cmpl_fcp_xb);
-		atomic_inc(&lport->cmpl_fcp_err);
+
+	lport = (struct lpfc_nvme_lport *)vport->localport->private;
+	if (lport) {
+		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
+		cstat = &lport->cstat[idx];
+		atomic_inc(&cstat->fc4NvmeIoCmpls);
+		if (status) {
+			if (bf_get(lpfc_wcqe_c_xb, wcqe))
+				atomic_inc(&lport->cmpl_fcp_xb);
+			atomic_inc(&lport->cmpl_fcp_err);
+		}
 	}
 
 	lpfc_nvmeio_data(phba, "NVME FCP CMPL: xri x%x stat x%x parm x%x\n",
@@ -1163,7 +1175,8 @@ out_err:
 static int
 lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 		      struct lpfc_nvme_buf *lpfc_ncmd,
-		      struct lpfc_nodelist *pnode)
+		      struct lpfc_nodelist *pnode,
+		      struct lpfc_nvme_ctrl_stat *cstat)
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct nvmefc_fcp_req *nCmd = lpfc_ncmd->nvmeCmd;
@@ -1201,7 +1214,7 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 			} else {
 				wqe->fcp_iwrite.initial_xfer_len = 0;
 			}
-			atomic_inc(&phba->fc4NvmeOutputRequests);
+			atomic_inc(&cstat->fc4NvmeOutputRequests);
 		} else {
 			/* From the iread template, initialize words 7 - 11 */
 			memcpy(&wqe->words[7],
@@ -1214,13 +1227,13 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 			/* Word 5 */
 			wqe->fcp_iread.rsrvd5 = 0;
 
-			atomic_inc(&phba->fc4NvmeInputRequests);
+			atomic_inc(&cstat->fc4NvmeInputRequests);
 		}
 	} else {
 		/* From the icmnd template, initialize words 4 - 11 */
 		memcpy(&wqe->words[4], &lpfc_icmnd_cmd_template.words[4],
 		       sizeof(uint32_t) * 8);
-		atomic_inc(&phba->fc4NvmeControlRequests);
+		atomic_inc(&cstat->fc4NvmeControlRequests);
 	}
 	/*
 	 * Finish initializing those WQE fields that are independent
@@ -1400,7 +1413,9 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 {
 	int ret = 0;
 	int expedite = 0;
+	int idx;
 	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	struct lpfc_vport *vport;
 	struct lpfc_hba *phba;
 	struct lpfc_nodelist *ndlp;
@@ -1543,15 +1558,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	lpfc_ncmd->ndlp = ndlp;
 	lpfc_ncmd->start_time = jiffies;
 
-	lpfc_nvme_prep_io_cmd(vport, lpfc_ncmd, ndlp);
-	ret = lpfc_nvme_prep_io_dma(vport, lpfc_ncmd);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out_free_nvme_buf;
-	}
-
-	atomic_inc(&ndlp->cmd_pending);
-
 	/*
 	 * Issue the IO on the WQ indicated by index in the hw_queue_handle.
 	 * This identfier was create in our hardware queue create callback
@@ -1560,7 +1566,18 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 * index to use and that they have affinitized a CPU to this hardware
 	 * queue. A hardware queue maps to a driver MSI-X vector/EQ/CQ/WQ.
 	 */
-	lpfc_ncmd->cur_iocbq.hba_wqidx = lpfc_queue_info->index;
+	idx = lpfc_queue_info->index;
+	lpfc_ncmd->cur_iocbq.hba_wqidx = idx;
+	cstat = &lport->cstat[idx];
+
+	lpfc_nvme_prep_io_cmd(vport, lpfc_ncmd, ndlp, cstat);
+	ret = lpfc_nvme_prep_io_dma(vport, lpfc_ncmd);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_free_nvme_buf;
+	}
+
+	atomic_inc(&ndlp->cmd_pending);
 
 	lpfc_nvmeio_data(phba, "NVME FCP XMIT: xri x%x idx %d to %06x\n",
 			 lpfc_ncmd->cur_iocbq.sli4_xritag,
@@ -1605,11 +1622,11 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
  out_free_nvme_buf:
 	if (lpfc_ncmd->nvmeCmd->sg_cnt) {
 		if (lpfc_ncmd->nvmeCmd->io_dir == NVMEFC_FCP_WRITE)
-			atomic_dec(&phba->fc4NvmeOutputRequests);
+			atomic_dec(&cstat->fc4NvmeOutputRequests);
 		else
-			atomic_dec(&phba->fc4NvmeInputRequests);
+			atomic_dec(&cstat->fc4NvmeInputRequests);
 	} else
-		atomic_dec(&phba->fc4NvmeControlRequests);
+		atomic_dec(&cstat->fc4NvmeControlRequests);
 	lpfc_release_nvme_buf(phba, lpfc_ncmd);
  out_fail:
 	return ret;
@@ -2390,7 +2407,8 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	struct nvme_fc_port_info nfcp_info;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
-	int len;
+	struct lpfc_nvme_ctrl_stat *cstat;
+	int len, i;
 
 	/* Initialize this localport instance.  The vport wwn usage ensures
 	 * that NPIV is accounted for.
@@ -2414,6 +2432,11 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	lpfc_nvme_template.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
 	lpfc_nvme_template.max_hw_queues = phba->cfg_nvme_io_channel;
 
+	cstat = kmalloc((sizeof(struct lpfc_nvme_ctrl_stat) *
+			phba->cfg_nvme_io_channel), GFP_KERNEL);
+	if (!cstat)
+		return -ENOMEM;
+
 	/* localport is allocated from the stack, but the registration
 	 * call allocates heap memory as well as the private area.
 	 */
@@ -2436,6 +2459,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		lport = (struct lpfc_nvme_lport *)localport->private;
 		vport->localport = localport;
 		lport->vport = vport;
+		lport->cstat = cstat;
 		vport->nvmei_support = 1;
 
 		atomic_set(&lport->xmt_fcp_noxri, 0);
@@ -2449,6 +2473,16 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		atomic_set(&lport->cmpl_fcp_err, 0);
 		atomic_set(&lport->cmpl_ls_xb, 0);
 		atomic_set(&lport->cmpl_ls_err, 0);
+		atomic_set(&lport->fc4NvmeLsRequests, 0);
+		atomic_set(&lport->fc4NvmeLsCmpls, 0);
+
+		for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+			cstat = &lport->cstat[i];
+			atomic_set(&cstat->fc4NvmeInputRequests, 0);
+			atomic_set(&cstat->fc4NvmeOutputRequests, 0);
+			atomic_set(&cstat->fc4NvmeControlRequests, 0);
+			atomic_set(&cstat->fc4NvmeIoCmpls, 0);
+		}
 
 		/* Don't post more new bufs if repost already recovered
 		 * the nvme sgls.
@@ -2458,6 +2492,8 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 						 phba->sli4_hba.nvme_xri_max);
 			vport->phba->total_nvme_bufs += len;
 		}
+	} else {
+		kfree(cstat);
 	}
 
 	return ret;
@@ -2520,6 +2556,7 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 #if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
+	struct lpfc_nvme_ctrl_stat *cstat;
 	int ret;
 
 	if (vport->nvmei_support == 0)
@@ -2528,6 +2565,7 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 	localport = vport->localport;
 	vport->localport = NULL;
 	lport = (struct lpfc_nvme_lport *)localport->private;
+	cstat = lport->cstat;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6011 Destroying NVME localport %p\n",
@@ -2543,6 +2581,7 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 	 * indefinitely or succeeds
 	 */
 	lpfc_nvme_lport_unreg_wait(vport, lport);
+	kfree(cstat);
 
 	/* Regardless of the unregister upcall response, clear
 	 * nvmei_support.  All rports are unregistered and the

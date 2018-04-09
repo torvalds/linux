@@ -36,11 +36,21 @@ struct lpfc_nvme_qhandle {
 	uint32_t cpu_id;	/* current cpu id at time of create */
 };
 
+struct lpfc_nvme_ctrl_stat {
+	atomic_t fc4NvmeInputRequests;
+	atomic_t fc4NvmeOutputRequests;
+	atomic_t fc4NvmeControlRequests;
+	atomic_t fc4NvmeIoCmpls;
+};
+
 /* Declare nvme-based local and remote port definitions. */
 struct lpfc_nvme_lport {
 	struct lpfc_vport *vport;
 	struct completion lport_unreg_done;
 	/* Add stats counters here */
+	struct lpfc_nvme_ctrl_stat *cstat;
+	atomic_t fc4NvmeLsRequests;
+	atomic_t fc4NvmeLsCmpls;
 	atomic_t xmt_fcp_noxri;
 	atomic_t xmt_fcp_bad_ndlp;
 	atomic_t xmt_fcp_qdepth;

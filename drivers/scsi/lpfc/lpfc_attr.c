@@ -151,8 +151,11 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
-	uint64_t data1, data2, data3, tot;
+	struct lpfc_nvme_ctrl_stat *cstat;
+	uint64_t data1, data2, data3;
+	uint64_t totin, totout, tot;
 	char *statep;
+	int i;
 	int len = 0;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
@@ -364,11 +367,14 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	}
 	spin_unlock_irq(shost->host_lock);
 
+	if (!lport)
+		return len;
+
 	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
 	len += snprintf(buf+len, PAGE_SIZE-len,
 			"LS: Xmt %010x Cmpl %010x Abort %08x\n",
-			atomic_read(&phba->fc4NvmeLsRequests),
-			atomic_read(&phba->fc4NvmeLsCmpls),
+			atomic_read(&lport->fc4NvmeLsRequests),
+			atomic_read(&lport->fc4NvmeLsCmpls),
 			atomic_read(&lport->xmt_ls_abort));
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
@@ -377,26 +383,30 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			atomic_read(&lport->cmpl_ls_xb),
 			atomic_read(&lport->cmpl_ls_err));
 
-	tot = atomic_read(&phba->fc4NvmeIoCmpls);
-	data1 = atomic_read(&phba->fc4NvmeInputRequests);
-	data2 = atomic_read(&phba->fc4NvmeOutputRequests);
-	data3 = atomic_read(&phba->fc4NvmeControlRequests);
+	totin = 0;
+	totout = 0;
+	for (i = 0; i < phba->cfg_nvme_io_channel; i++) {
+		cstat = &lport->cstat[i];
+		tot = atomic_read(&cstat->fc4NvmeIoCmpls);
+		totin += tot;
+		data1 = atomic_read(&cstat->fc4NvmeInputRequests);
+		data2 = atomic_read(&cstat->fc4NvmeOutputRequests);
+		data3 = atomic_read(&cstat->fc4NvmeControlRequests);
+		totout += (data1 + data2 + data3);
+	}
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"FCP: Rd %016llx Wr %016llx IO %016llx\n",
-			data1, data2, data3);
+			"Total FCP Cmpl %016llx Issue %016llx "
+			"OutIO %016llx\n",
+			totin, totout, totout - totin);
 
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"    noxri %08x nondlp %08x qdepth %08x "
+			"      abort %08x noxri %08x nondlp %08x qdepth %08x "
 			"wqerr %08x\n",
+			atomic_read(&lport->xmt_fcp_abort),
 			atomic_read(&lport->xmt_fcp_noxri),
 			atomic_read(&lport->xmt_fcp_bad_ndlp),
 			atomic_read(&lport->xmt_fcp_qdepth),
 			atomic_read(&lport->xmt_fcp_wqerr));
-
-	len += snprintf(buf + len, PAGE_SIZE - len,
-			"    Cmpl %016llx Outstanding %016llx Abort %08x\n",
-			tot, ((data1 + data2 + data3) - tot),
-			atomic_read(&lport->xmt_fcp_abort));
 
 	len += snprintf(buf + len, PAGE_SIZE - len,
 			"FCP CMPL: xb %08x Err %08x\n",

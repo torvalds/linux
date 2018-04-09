@@ -920,12 +920,6 @@ struct lpfc_hba {
 	atomic_t fc4ScsiOutputRequests;
 	atomic_t fc4ScsiControlRequests;
 	atomic_t fc4ScsiIoCmpls;
-	atomic_t fc4NvmeInputRequests;
-	atomic_t fc4NvmeOutputRequests;
-	atomic_t fc4NvmeControlRequests;
-	atomic_t fc4NvmeIoCmpls;
-	atomic_t fc4NvmeLsRequests;
-	atomic_t fc4NvmeLsCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
