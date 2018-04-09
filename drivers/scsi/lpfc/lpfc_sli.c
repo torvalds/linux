@@ -7199,7 +7199,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			lpfc_post_rq_buffer(
 				phba, phba->sli4_hba.nvmet_mrq_hdr[i],
 				phba->sli4_hba.nvmet_mrq_data[i],
-				LPFC_NVMET_RQE_DEF_COUNT, i);
+				phba->cfg_nvmet_mrq_post, i);
 		}
 	}
 

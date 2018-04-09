@@ -22,8 +22,10 @@
  ********************************************************************/
 
 #define LPFC_NVMET_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
-#define LPFC_NVMET_RQE_DEF_COUNT	512
-#define LPFC_NVMET_SUCCESS_LEN	12
+#define LPFC_NVMET_RQE_MIN_POST		128
+#define LPFC_NVMET_RQE_DEF_POST		512
+#define LPFC_NVMET_RQE_DEF_COUNT	2048
+#define LPFC_NVMET_SUCCESS_LEN		12
 
 #define LPFC_NVMET_MRQ_OFF		0xffff
 #define LPFC_NVMET_MRQ_AUTO		0
