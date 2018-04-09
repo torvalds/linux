@@ -523,15 +523,11 @@ static int dwc3_gadget_start_config(struct dwc3 *dwc, struct dwc3_ep *dep)
 }
 
 static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
-		bool modify, bool restore)
+		unsigned int action)
 {
 	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	const struct usb_endpoint_descriptor *desc;
 	struct dwc3_gadget_ep_cmd_params params;
-
-	if (dev_WARN_ONCE(dwc->dev, modify && restore,
-					"Can't modify and restore\n"))
-		return -EINVAL;
 
 	comp_desc = dep->endpoint.comp_desc;
 	desc = dep->endpoint.desc;
@@ -547,14 +543,9 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 		params.param0 |= DWC3_DEPCFG_BURST_SIZE(burst - 1);
 	}
 
-	if (modify) {
-		params.param0 |= DWC3_DEPCFG_ACTION_MODIFY;
-	} else if (restore) {
-		params.param0 |= DWC3_DEPCFG_ACTION_RESTORE;
+	params.param0 |= action;
+	if (action == DWC3_DEPCFG_ACTION_RESTORE)
 		params.param2 |= dep->saved_state;
-	} else {
-		params.param0 |= DWC3_DEPCFG_ACTION_INIT;
-	}
 
 	if (usb_endpoint_xfer_control(desc))
 		params.param1 = DWC3_DEPCFG_XFER_COMPLETE_EN;
@@ -609,14 +600,12 @@ static int dwc3_gadget_set_xfer_resource(struct dwc3 *dwc, struct dwc3_ep *dep)
 /**
  * __dwc3_gadget_ep_enable - initializes a hw endpoint
  * @dep: endpoint to be initialized
- * @modify: if true, modify existing endpoint configuration
- * @restore: if true, restore endpoint configuration from scratch buffer
+ * @action: one of INIT, MODIFY or RESTORE
  *
  * Caller should take care of locking. Execute all necessary commands to
  * initialize a HW endpoint so it can be used by a gadget driver.
  */
-static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
-		bool modify, bool restore)
+static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action)
 {
 	const struct usb_endpoint_descriptor *desc = dep->endpoint.desc;
 	struct dwc3		*dwc = dep->dwc;
@@ -630,7 +619,7 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 			return ret;
 	}
 
-	ret = dwc3_gadget_set_ep_config(dwc, dep, modify, restore);
+	ret = dwc3_gadget_set_ep_config(dwc, dep, action);
 	if (ret)
 		return ret;
 
@@ -804,7 +793,7 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 		return 0;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	ret = __dwc3_gadget_ep_enable(dep, false, false);
+	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_INIT);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -1871,14 +1860,14 @@ static int __dwc3_gadget_start(struct dwc3 *dwc)
 	dwc3_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
 
 	dep = dwc->eps[0];
-	ret = __dwc3_gadget_ep_enable(dep, false, false);
+	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_INIT);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
 		goto err0;
 	}
 
 	dep = dwc->eps[1];
-	ret = __dwc3_gadget_ep_enable(dep, false, false);
+	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_INIT);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
 		goto err1;
@@ -2789,14 +2778,14 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 	}
 
 	dep = dwc->eps[0];
-	ret = __dwc3_gadget_ep_enable(dep, true, false);
+	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_MODIFY);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
 		return;
 	}
 
 	dep = dwc->eps[1];
-	ret = __dwc3_gadget_ep_enable(dep, true, false);
+	ret = __dwc3_gadget_ep_enable(dep, DWC3_DEPCFG_ACTION_MODIFY);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
 		return;
