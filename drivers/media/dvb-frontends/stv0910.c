@@ -1220,6 +1220,12 @@ static int probe(struct stv *state)
 	write_reg(state, RSTV0910_P1_I2CRPT, state->i2crpt);
 	write_reg(state, RSTV0910_P2_I2CRPT, state->i2crpt);
 
+	write_reg(state, RSTV0910_P1_TSINSDELM, 0x17);
+	write_reg(state, RSTV0910_P1_TSINSDELL, 0xff);
+
+	write_reg(state, RSTV0910_P2_TSINSDELM, 0x17);
+	write_reg(state, RSTV0910_P2_TSINSDELL, 0xff);
+
 	init_diseqc(state);
 	return 0;
 }
