@@ -261,6 +261,17 @@ config LOCK_DOWN_MANDATORY
 	  Makes the lockdown non-negotiable.  It is always on and cannot be
 	  disabled.
 
+config ALLOW_LOCKDOWN_LIFT_BY_SYSRQ
+	bool "Allow the kernel lockdown to be lifted by SysRq"
+	depends on LOCK_DOWN_KERNEL
+	depends on !LOCK_DOWN_MANDATORY
+	depends on MAGIC_SYSRQ
+	depends on X86
+	help
+	  Allow the lockdown on a kernel to be lifted, by pressing a SysRq key
+	  combination on a wired keyboard.  On x86, this is SysRq+x.
+
+
 source "security/selinux/Kconfig"
 source "security/smack/Kconfig"
 source "security/tomoyo/Kconfig"
