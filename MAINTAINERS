@@ -8035,6 +8035,14 @@ Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
 F:	drivers/nvdimm/pmem*
 
+LIBNVDIMM: DEVICETREE BINDINGS
+M:	Oliver O'Halloran <oohall@gmail.com>
+L:	linux-nvdimm@lists.01.org
+Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
+S:	Supported
+F:	drivers/nvdimm/of_pmem.c
+F:	Documentation/devicetree/bindings/pmem/pmem-region.txt
+
 LIBNVDIMM: NON-VOLATILE MEMORY DEVICE SUBSYSTEM
 M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-nvdimm@lists.01.org

@@ -102,4 +102,15 @@ config NVDIMM_DAX
 
 	  Select Y if unsure
 
+config OF_PMEM
+	# FIXME: make tristate once OF_NUMA dependency removed
+	bool "Device-tree support for persistent memory regions"
+	depends on OF
+	default LIBNVDIMM
+	help
+	  Allows regions of persistent memory to be described in the
+	  device-tree.
+
+	  Select Y if unsure.
+
 endif
