@@ -6420,8 +6420,11 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		return error;
 	}
 
-	/* workqueue for deferred irq use */
-	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+	/* The lpfc_wq workqueue for deferred irq use, is only used for SLI4 */
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+	else
+		phba->wq = NULL;
 
 	return 0;
 }
@@ -6444,7 +6447,8 @@ lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
 	}
 
 	/* Stop kernel worker thread */
-	kthread_stop(phba->worker_thread);
+	if (phba->worker_thread)
+		kthread_stop(phba->worker_thread);
 }
 
 /**
@@ -11727,6 +11731,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	lpfc_nvme_free(phba);
 	lpfc_free_iocb_list(phba);
 
+	lpfc_unset_driver_resource_phase2(phba);
 	lpfc_sli4_driver_resource_unset(phba);
 
 	/* Unmap adapter Control and Doorbell registers */
