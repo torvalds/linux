@@ -32,7 +32,7 @@
 
 #define DC_LOG_ERROR(...) DRM_ERROR(__VA_ARGS__)
 #define DC_LOG_WARNING(...) DRM_WARN(__VA_ARGS__)
-#define DC_LOG_DEBUG(...) DRM_INFO(__VA_ARGS__)
+#define DC_LOG_DEBUG(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define DC_LOG_DC(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define DC_LOG_DTN(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define DC_LOG_SURFACE(...) pr_debug("[SURFACE]:"__VA_ARGS__)
