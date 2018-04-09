@@ -251,7 +251,15 @@ static ssize_t iwl_dbgfs_timestamp_marker_write(struct iwl_fw_runtime *fwrt,
 	return count;
 }
 
-FWRT_DEBUGFS_WRITE_FILE_OPS(timestamp_marker, 10);
+static ssize_t iwl_dbgfs_timestamp_marker_read(struct iwl_fw_runtime *fwrt,
+					       size_t size, char *buf)
+{
+	u32 delay_secs = jiffies_to_msecs(fwrt->timestamp.delay) / 1000;
+
+	return scnprintf(buf, size, "%d\n", delay_secs);
+}
+
+FWRT_DEBUGFS_READ_WRITE_FILE_OPS(timestamp_marker, 16);
 
 int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
