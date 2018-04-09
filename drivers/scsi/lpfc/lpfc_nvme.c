@@ -364,16 +364,18 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_dmabuf *buf_ptr;
 	struct lpfc_nodelist *ndlp;
 
-	lport = (struct lpfc_nvme_lport *)vport->localport->private;
 	pnvme_lsreq = (struct nvmefc_ls_req *)cmdwqe->context2;
 	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
 
-	if (lport) {
-		atomic_inc(&lport->fc4NvmeLsCmpls);
-		if (status) {
-			if (bf_get(lpfc_wcqe_c_xb, wcqe))
-				atomic_inc(&lport->cmpl_ls_xb);
-			atomic_inc(&lport->cmpl_ls_err);
+	if (vport->localport) {
+		lport = (struct lpfc_nvme_lport *)vport->localport->private;
+		if (lport) {
+			atomic_inc(&lport->fc4NvmeLsCmpls);
+			if (status) {
+				if (bf_get(lpfc_wcqe_c_xb, wcqe))
+					atomic_inc(&lport->cmpl_ls_xb);
+				atomic_inc(&lport->cmpl_ls_err);
+			}
 		}
 	}
 
@@ -980,15 +982,17 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	rport = lpfc_ncmd->nrport;
 	status = bf_get(lpfc_wcqe_c_status, wcqe);
 
-	lport = (struct lpfc_nvme_lport *)vport->localport->private;
-	if (lport) {
-		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
-		cstat = &lport->cstat[idx];
-		atomic_inc(&cstat->fc4NvmeIoCmpls);
-		if (status) {
-			if (bf_get(lpfc_wcqe_c_xb, wcqe))
-				atomic_inc(&lport->cmpl_fcp_xb);
-			atomic_inc(&lport->cmpl_fcp_err);
+	if (vport->localport) {
+		lport = (struct lpfc_nvme_lport *)vport->localport->private;
+		if (lport) {
+			idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
+			cstat = &lport->cstat[idx];
+			atomic_inc(&cstat->fc4NvmeIoCmpls);
+			if (status) {
+				if (bf_get(lpfc_wcqe_c_xb, wcqe))
+					atomic_inc(&lport->cmpl_fcp_xb);
+				atomic_inc(&lport->cmpl_fcp_err);
+			}
 		}
 	}
 
