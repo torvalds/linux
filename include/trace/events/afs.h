@@ -49,6 +49,7 @@ enum afs_fs_operation {
 	afs_FS_ExtendLock		= 157,	/* AFS Extend a file lock */
 	afs_FS_ReleaseLock		= 158,	/* AFS Release a file lock */
 	afs_FS_Lookup			= 161,	/* AFS lookup file in directory */
+	afs_FS_InlineBulkStatus		= 65536, /* AFS Fetch multiple file statuses with errors */
 	afs_FS_FetchData64		= 65537, /* AFS Fetch file data */
 	afs_FS_StoreData64		= 65538, /* AFS Store file data */
 	afs_FS_GiveUpAllCallBacks	= 65539, /* AFS Give up all our callbacks on a server */
@@ -93,6 +94,7 @@ enum afs_vl_operation {
 	EM(afs_FS_ExtendLock,			"FS.ExtendLock") \
 	EM(afs_FS_ReleaseLock,			"FS.ReleaseLock") \
 	EM(afs_FS_Lookup,			"FS.Lookup") \
+	EM(afs_FS_InlineBulkStatus,		"FS.InlineBulkStatus") \
 	EM(afs_FS_FetchData64,			"FS.FetchData64") \
 	EM(afs_FS_StoreData64,			"FS.StoreData64") \
 	EM(afs_FS_GiveUpAllCallBacks,		"FS.GiveUpAllCallBacks") \

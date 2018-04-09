@@ -363,6 +363,7 @@ struct afs_server {
 #define AFS_SERVER_FL_UPDATING	4
 #define AFS_SERVER_FL_PROBED	5		/* The fileserver has been probed */
 #define AFS_SERVER_FL_PROBING	6		/* Fileserver is being probed */
+#define AFS_SERVER_FL_NO_IBULK	7		/* Fileserver doesn't support FS.InlineBulkStatus */
 	atomic_t		usage;
 	u32			addr_version;	/* Address list version */
 
@@ -611,7 +612,7 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
  */
 extern void afs_init_callback_state(struct afs_server *);
 extern void afs_break_callback(struct afs_vnode *);
-extern void afs_break_callbacks(struct afs_server *, size_t,struct afs_callback[]);
+extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break*);
 
 extern int afs_register_server_cb_interest(struct afs_vnode *, struct afs_server_entry *);
 extern void afs_put_cb_interest(struct afs_net *, struct afs_cb_interest *);
@@ -702,6 +703,13 @@ extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
 					struct afs_addr_cursor *, struct key *);
 extern int afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
 				   struct afs_addr_cursor *, struct key *);
+extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
+				     struct afs_fid *, struct afs_file_status *,
+				     struct afs_callback *, unsigned int,
+				     struct afs_volsync *);
+extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
+			       struct afs_fid *, struct afs_file_status *,
+			       struct afs_callback *, struct afs_volsync *);
 
 /*
  * inode.c

@@ -187,7 +187,7 @@ static void afs_break_one_callback(struct afs_server *server,
  * allow the fileserver to break callback promises
  */
 void afs_break_callbacks(struct afs_server *server, size_t count,
-			 struct afs_callback callbacks[])
+			 struct afs_callback_break *callbacks)
 {
 	_enter("%p,%zu,", server, count);
 
@@ -199,9 +199,9 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 		       callbacks->fid.vid,
 		       callbacks->fid.vnode,
 		       callbacks->fid.unique,
-		       callbacks->version,
-		       callbacks->expiry,
-		       callbacks->type
+		       callbacks->cb.version,
+		       callbacks->cb.expiry,
+		       callbacks->cb.type
 		       );
 		afs_break_one_callback(server, &callbacks->fid);
 	}

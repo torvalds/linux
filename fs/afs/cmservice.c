@@ -178,8 +178,8 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
  */
 static int afs_deliver_cb_callback(struct afs_call *call)
 {
+	struct afs_callback_break *cb;
 	struct sockaddr_rxrpc srx;
-	struct afs_callback *cb;
 	struct afs_server *server;
 	__be32 *bp;
 	int ret, loop;
@@ -218,7 +218,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 		_debug("unmarshall FID array");
 		call->request = kcalloc(call->count,
-					sizeof(struct afs_callback),
+					sizeof(struct afs_callback_break),
 					GFP_KERNEL);
 		if (!call->request)
 			return -ENOMEM;
@@ -229,7 +229,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 			cb->fid.vid	= ntohl(*bp++);
 			cb->fid.vnode	= ntohl(*bp++);
 			cb->fid.unique	= ntohl(*bp++);
-			cb->type	= AFSCM_CB_UNTYPED;
+			cb->cb.type	= AFSCM_CB_UNTYPED;
 		}
 
 		call->offset = 0;
@@ -260,9 +260,9 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		cb = call->request;
 		bp = call->buffer;
 		for (loop = call->count2; loop > 0; loop--, cb++) {
-			cb->version	= ntohl(*bp++);
-			cb->expiry	= ntohl(*bp++);
-			cb->type	= ntohl(*bp++);
+			cb->cb.version	= ntohl(*bp++);
+			cb->cb.expiry	= ntohl(*bp++);
+			cb->cb.type	= ntohl(*bp++);
 		}
 
 		call->offset = 0;

@@ -94,7 +94,7 @@ static void xdr_decode_AFSFetchStatus(const __be32 **_bp,
 	data_version |= (u64) ntohl(*bp++) << 32;
 	EXTRACT(status->lock_count);
 	size |= (u64) ntohl(*bp++) << 32;
-	bp++; /* spare 4 */
+	EXTRACT(status->abort_code); /* spare 4 */
 	*_bp = bp;
 
 	if (size != status->size) {
@@ -274,7 +274,7 @@ static void xdr_decode_AFSFetchVolumeStatus(const __be32 **_bp,
 /*
  * deliver reply data to an FS.FetchStatus
  */
-static int afs_deliver_fs_fetch_status(struct afs_call *call)
+static int afs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 {
 	struct afs_vnode *vnode = call->reply[0];
 	const __be32 *bp;
@@ -300,10 +300,10 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 /*
  * FS.FetchStatus operation type
  */
-static const struct afs_call_type afs_RXFSFetchStatus = {
-	.name		= "FS.FetchStatus",
+static const struct afs_call_type afs_RXFSFetchStatus_vnode = {
+	.name		= "FS.FetchStatus(vnode)",
 	.op		= afs_FS_FetchStatus,
-	.deliver	= afs_deliver_fs_fetch_status,
+	.deliver	= afs_deliver_fs_fetch_status_vnode,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -320,7 +320,8 @@ int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	_enter(",%x,{%x:%u},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
-	call = afs_alloc_flat_call(net, &afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchStatus_vnode,
+				   16, (21 + 3 + 6) * 4);
 	if (!call) {
 		fc->ac.error = -ENOMEM;
 		return -ENOMEM;
@@ -1946,4 +1947,263 @@ int afs_fs_get_capabilities(struct afs_net *net,
 	/* Can't take a ref on server */
 	trace_afs_make_fs_call(call, NULL);
 	return afs_make_call(ac, call, GFP_NOFS, false);
+}
+
+/*
+ * Deliver reply data to an FS.FetchStatus with no vnode.
+ */
+static int afs_deliver_fs_fetch_status(struct afs_call *call)
+{
+	struct afs_file_status *status = call->reply[1];
+	struct afs_callback *callback = call->reply[2];
+	struct afs_volsync *volsync = call->reply[3];
+	struct afs_vnode *vnode = call->reply[0];
+	const __be32 *bp;
+	int ret;
+
+	ret = afs_transfer_reply(call);
+	if (ret < 0)
+		return ret;
+
+	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_AFSFetchStatus(&bp, status, vnode, NULL);
+	callback[call->count].version	= ntohl(bp[0]);
+	callback[call->count].expiry	= ntohl(bp[1]);
+	callback[call->count].type	= ntohl(bp[2]);
+	if (vnode)
+		xdr_decode_AFSCallBack(call, vnode, &bp);
+	else
+		bp += 3;
+	if (volsync)
+		xdr_decode_AFSVolSync(&bp, volsync);
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.FetchStatus operation type
+ */
+static const struct afs_call_type afs_RXFSFetchStatus = {
+	.name		= "FS.FetchStatus",
+	.op		= afs_FS_FetchStatus,
+	.deliver	= afs_deliver_fs_fetch_status,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Fetch the status information for a fid without needing a vnode handle.
+ */
+int afs_fs_fetch_status(struct afs_fs_cursor *fc,
+			struct afs_net *net,
+			struct afs_fid *fid,
+			struct afs_file_status *status,
+			struct afs_callback *callback,
+			struct afs_volsync *volsync)
+{
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter(",%x,{%x:%u},,",
+	       key_serial(fc->key), fid->vid, fid->vnode);
+
+	call = afs_alloc_flat_call(net, &afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return -ENOMEM;
+	}
+
+	call->key = fc->key;
+	call->reply[0] = NULL; /* vnode for fid[0] */
+	call->reply[1] = status;
+	call->reply[2] = callback;
+	call->reply[3] = volsync;
+
+	/* marshall the parameters */
+	bp = call->request;
+	bp[0] = htonl(FSFETCHSTATUS);
+	bp[1] = htonl(fid->vid);
+	bp[2] = htonl(fid->vnode);
+	bp[3] = htonl(fid->unique);
+
+	call->cb_break = fc->cb_break;
+	afs_use_fs_server(call, fc->cbi);
+	trace_afs_make_fs_call(call, fid);
+	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
+}
+
+/*
+ * Deliver reply data to an FS.InlineBulkStatus call
+ */
+static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
+{
+	struct afs_file_status *statuses;
+	struct afs_callback *callbacks;
+	struct afs_vnode *vnode = call->reply[0];
+	const __be32 *bp;
+	u32 tmp;
+	int ret;
+
+	_enter("{%u}", call->unmarshall);
+
+	switch (call->unmarshall) {
+	case 0:
+		call->offset = 0;
+		call->unmarshall++;
+
+		/* Extract the file status count and array in two steps */
+	case 1:
+		_debug("extract status count");
+		ret = afs_extract_data(call, &call->tmp, 4, true);
+		if (ret < 0)
+			return ret;
+
+		tmp = ntohl(call->tmp);
+		_debug("status count: %u/%u", tmp, call->count2);
+		if (tmp != call->count2)
+			return -EBADMSG;
+
+		call->count = 0;
+		call->unmarshall++;
+	more_counts:
+		call->offset = 0;
+
+	case 2:
+		_debug("extract status array %u", call->count);
+		ret = afs_extract_data(call, call->buffer, 21 * 4, true);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		statuses = call->reply[1];
+		xdr_decode_AFSFetchStatus(&bp, &statuses[call->count],
+					  call->count == 0 ? vnode : NULL,
+					  NULL);
+
+		call->count++;
+		if (call->count < call->count2)
+			goto more_counts;
+
+		call->count = 0;
+		call->unmarshall++;
+		call->offset = 0;
+
+		/* Extract the callback count and array in two steps */
+	case 3:
+		_debug("extract CB count");
+		ret = afs_extract_data(call, &call->tmp, 4, true);
+		if (ret < 0)
+			return ret;
+
+		tmp = ntohl(call->tmp);
+		_debug("CB count: %u", tmp);
+		if (tmp != call->count2)
+			return -EBADMSG;
+		call->count = 0;
+		call->unmarshall++;
+	more_cbs:
+		call->offset = 0;
+
+	case 4:
+		_debug("extract CB array");
+		ret = afs_extract_data(call, call->buffer, 3 * 4, true);
+		if (ret < 0)
+			return ret;
+
+		_debug("unmarshall CB array");
+		bp = call->buffer;
+		callbacks = call->reply[2];
+		callbacks[call->count].version	= ntohl(bp[0]);
+		callbacks[call->count].expiry	= ntohl(bp[1]);
+		callbacks[call->count].type	= ntohl(bp[2]);
+		statuses = call->reply[1];
+		if (call->count == 0 && vnode && statuses[0].abort_code == 0)
+			xdr_decode_AFSCallBack(call, vnode, &bp);
+		call->count++;
+		if (call->count < call->count2)
+			goto more_cbs;
+
+		call->offset = 0;
+		call->unmarshall++;
+
+	case 5:
+		ret = afs_extract_data(call, call->buffer, 6 * 4, false);
+		if (ret < 0)
+			return ret;
+
+		bp = call->buffer;
+		if (call->reply[3])
+			xdr_decode_AFSVolSync(&bp, call->reply[3]);
+
+		call->offset = 0;
+		call->unmarshall++;
+
+	case 6:
+		break;
+	}
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * FS.InlineBulkStatus operation type
+ */
+static const struct afs_call_type afs_RXFSInlineBulkStatus = {
+	.name		= "FS.InlineBulkStatus",
+	.op		= afs_FS_InlineBulkStatus,
+	.deliver	= afs_deliver_fs_inline_bulk_status,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Fetch the status information for up to 50 files
+ */
+int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
+			      struct afs_net *net,
+			      struct afs_fid *fids,
+			      struct afs_file_status *statuses,
+			      struct afs_callback *callbacks,
+			      unsigned int nr_fids,
+			      struct afs_volsync *volsync)
+{
+	struct afs_call *call;
+	__be32 *bp;
+	int i;
+
+	_enter(",%x,{%x:%u},%u",
+	       key_serial(fc->key), fids[0].vid, fids[1].vnode, nr_fids);
+
+	call = afs_alloc_flat_call(net, &afs_RXFSInlineBulkStatus,
+				   (2 + nr_fids * 3) * 4,
+				   21 * 4);
+	if (!call) {
+		fc->ac.error = -ENOMEM;
+		return -ENOMEM;
+	}
+
+	call->key = fc->key;
+	call->reply[0] = NULL; /* vnode for fid[0] */
+	call->reply[1] = statuses;
+	call->reply[2] = callbacks;
+	call->reply[3] = volsync;
+	call->count2 = nr_fids;
+
+	/* marshall the parameters */
+	bp = call->request;
+	*bp++ = htonl(FSINLINEBULKSTATUS);
+	*bp++ = htonl(nr_fids);
+	for (i = 0; i < nr_fids; i++) {
+		*bp++ = htonl(fids[i].vid);
+		*bp++ = htonl(fids[i].vnode);
+		*bp++ = htonl(fids[i].unique);
+	}
+
+	call->cb_break = fc->cb_break;
+	afs_use_fs_server(call, fc->cbi);
+	trace_afs_make_fs_call(call, &fids[0]);
+	return afs_make_call(&fc->ac, call, GFP_NOFS, false);
 }

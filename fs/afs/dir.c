@@ -29,8 +29,10 @@ static int afs_readdir(struct file *file, struct dir_context *ctx);
 static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
-static int afs_lookup_filldir(struct dir_context *ctx, const char *name, int nlen,
+static int afs_lookup_one_filldir(struct dir_context *ctx, const char *name, int nlen,
 				  loff_t fpos, u64 ino, unsigned dtype);
+static int afs_lookup_filldir(struct dir_context *ctx, const char *name, int nlen,
+			      loff_t fpos, u64 ino, unsigned dtype);
 static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      bool excl);
 static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
@@ -134,11 +136,22 @@ struct afs_dir_page {
 	union afs_dir_block blocks[PAGE_SIZE / sizeof(union afs_dir_block)];
 };
 
+struct afs_lookup_one_cookie {
+	struct dir_context	ctx;
+	struct qstr		name;
+	bool			found;
+	struct afs_fid		fid;
+};
+
 struct afs_lookup_cookie {
-	struct dir_context ctx;
-	struct afs_fid	fid;
-	struct qstr name;
-	int		found;
+	struct dir_context	ctx;
+	struct qstr		name;
+	bool			found;
+	bool			one_only;
+	unsigned short		nr_fids;
+	struct afs_file_status	*statuses;
+	struct afs_callback	*callbacks;
+	struct afs_fid		fids[50];
 };
 
 /*
@@ -330,7 +343,8 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 		/* found the next entry */
 		if (!dir_emit(ctx, dire->u.name, nlen,
 			      ntohl(dire->u.vnode),
-			      ctx->actor == afs_lookup_filldir ?
+			      (ctx->actor == afs_lookup_filldir ||
+			       ctx->actor == afs_lookup_one_filldir)?
 			      ntohl(dire->u.unique) : DT_UNKNOWN)) {
 			_leave(" = 0 [full]");
 			return 0;
@@ -414,15 +428,15 @@ static int afs_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /*
- * search the directory for a name
+ * Search the directory for a single name
  * - if afs_dir_iterate_block() spots this function, it'll pass the FID
  *   uniquifier through dtype
  */
-static int afs_lookup_filldir(struct dir_context *ctx, const char *name,
-			      int nlen, loff_t fpos, u64 ino, unsigned dtype)
+static int afs_lookup_one_filldir(struct dir_context *ctx, const char *name,
+				  int nlen, loff_t fpos, u64 ino, unsigned dtype)
 {
-	struct afs_lookup_cookie *cookie =
-		container_of(ctx, struct afs_lookup_cookie, ctx);
+	struct afs_lookup_one_cookie *cookie =
+		container_of(ctx, struct afs_lookup_one_cookie, ctx);
 
 	_enter("{%s,%u},%s,%u,,%llu,%u",
 	       cookie->name.name, cookie->name.len, name, nlen,
@@ -447,15 +461,15 @@ static int afs_lookup_filldir(struct dir_context *ctx, const char *name,
 }
 
 /*
- * do a lookup in a directory
+ * Do a lookup of a single name in a directory
  * - just returns the FID the dentry name maps to if found
  */
-static int afs_do_lookup(struct inode *dir, struct dentry *dentry,
-			 struct afs_fid *fid, struct key *key)
+static int afs_do_lookup_one(struct inode *dir, struct dentry *dentry,
+			     struct afs_fid *fid, struct key *key)
 {
 	struct afs_super_info *as = dir->i_sb->s_fs_info;
-	struct afs_lookup_cookie cookie = {
-		.ctx.actor = afs_lookup_filldir,
+	struct afs_lookup_one_cookie cookie = {
+		.ctx.actor = afs_lookup_one_filldir,
 		.name = dentry->d_name,
 		.fid.vid = as->volume->vid
 	};
@@ -479,6 +493,212 @@ static int afs_do_lookup(struct inode *dir, struct dentry *dentry,
 	*fid = cookie.fid;
 	_leave(" = 0 { vn=%u u=%u }", fid->vnode, fid->unique);
 	return 0;
+}
+
+/*
+ * search the directory for a name
+ * - if afs_dir_iterate_block() spots this function, it'll pass the FID
+ *   uniquifier through dtype
+ */
+static int afs_lookup_filldir(struct dir_context *ctx, const char *name,
+			      int nlen, loff_t fpos, u64 ino, unsigned dtype)
+{
+	struct afs_lookup_cookie *cookie =
+		container_of(ctx, struct afs_lookup_cookie, ctx);
+	int ret;
+
+	_enter("{%s,%u},%s,%u,,%llu,%u",
+	       cookie->name.name, cookie->name.len, name, nlen,
+	       (unsigned long long) ino, dtype);
+
+	/* insanity checks first */
+	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
+
+	if (cookie->found) {
+		if (cookie->nr_fids < 50) {
+			cookie->fids[cookie->nr_fids].vnode	= ino;
+			cookie->fids[cookie->nr_fids].unique	= dtype;
+			cookie->nr_fids++;
+		}
+	} else if (cookie->name.len == nlen &&
+		   memcmp(cookie->name.name, name, nlen) == 0) {
+		cookie->fids[0].vnode	= ino;
+		cookie->fids[0].unique	= dtype;
+		cookie->found = 1;
+		if (cookie->one_only)
+			return -1;
+	}
+
+	ret = cookie->nr_fids >= 50 ? -1 : 0;
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
+ * Do a lookup in a directory.  We make use of bulk lookup to query a slew of
+ * files in one go and create inodes for them.  The inode of the file we were
+ * asked for is returned.
+ */
+static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
+				   struct key *key)
+{
+	struct afs_lookup_cookie *cookie;
+	struct afs_cb_interest *cbi = NULL;
+	struct afs_super_info *as = dir->i_sb->s_fs_info;
+	struct afs_iget_data data;
+	struct afs_fs_cursor fc;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
+	struct inode *inode = NULL;
+	int ret, i;
+
+	_enter("{%lu},%p{%pd},", dir->i_ino, dentry, dentry);
+
+	cookie = kzalloc(sizeof(struct afs_lookup_cookie), GFP_KERNEL);
+	if (!cookie)
+		return ERR_PTR(-ENOMEM);
+
+	cookie->ctx.actor = afs_lookup_filldir;
+	cookie->name = dentry->d_name;
+	cookie->nr_fids = 1; /* slot 0 is saved for the fid we actually want */
+
+	read_seqlock_excl(&dvnode->cb_lock);
+	if (dvnode->cb_interest &&
+	    dvnode->cb_interest->server &&
+	    test_bit(AFS_SERVER_FL_NO_IBULK, &dvnode->cb_interest->server->flags))
+		cookie->one_only = true;
+	read_sequnlock_excl(&dvnode->cb_lock);
+
+	for (i = 0; i < 50; i++)
+		cookie->fids[i].vid = as->volume->vid;
+
+	/* search the directory */
+	ret = afs_dir_iterate(dir, &cookie->ctx, key);
+	if (ret < 0) {
+		inode = ERR_PTR(ret);
+		goto out;
+	}
+
+	inode = ERR_PTR(-ENOENT);
+	if (!cookie->found)
+		goto out;
+
+	/* Check to see if we already have an inode for the primary fid. */
+	data.volume = dvnode->volume;
+	data.fid = cookie->fids[0];
+	inode = ilookup5(dir->i_sb, cookie->fids[0].vnode, afs_iget5_test, &data);
+	if (inode)
+		goto out;
+
+	/* Need space for examining all the selected files */
+	inode = ERR_PTR(-ENOMEM);
+	cookie->statuses = kcalloc(cookie->nr_fids, sizeof(struct afs_file_status),
+				   GFP_KERNEL);
+	if (!cookie->statuses)
+		goto out;
+
+	cookie->callbacks = kcalloc(cookie->nr_fids, sizeof(struct afs_callback),
+				    GFP_KERNEL);
+	if (!cookie->callbacks)
+		goto out_s;
+
+	/* Try FS.InlineBulkStatus first.  Abort codes for the individual
+	 * lookups contained therein are stored in the reply without aborting
+	 * the whole operation.
+	 */
+	if (cookie->one_only)
+		goto no_inline_bulk_status;
+
+	inode = ERR_PTR(-ERESTARTSYS);
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			if (test_bit(AFS_SERVER_FL_NO_IBULK,
+				      &fc.cbi->server->flags)) {
+				fc.ac.abort_code = RX_INVALID_OPERATION;
+				fc.ac.error = -ECONNABORTED;
+				break;
+			}
+			afs_fs_inline_bulk_status(&fc,
+						  afs_v2net(dvnode),
+						  cookie->fids,
+						  cookie->statuses,
+						  cookie->callbacks,
+						  cookie->nr_fids, NULL);
+		}
+
+		if (fc.ac.error == 0)
+			cbi = afs_get_cb_interest(fc.cbi);
+		if (fc.ac.abort_code == RX_INVALID_OPERATION)
+			set_bit(AFS_SERVER_FL_NO_IBULK, &fc.cbi->server->flags);
+		inode = ERR_PTR(afs_end_vnode_operation(&fc));
+	}
+
+	if (!IS_ERR(inode))
+		goto success;
+	if (fc.ac.abort_code != RX_INVALID_OPERATION)
+		goto out_c;
+
+no_inline_bulk_status:
+	/* We could try FS.BulkStatus next, but this aborts the entire op if
+	 * any of the lookups fails - so, for the moment, revert to
+	 * FS.FetchStatus for just the primary fid.
+	 */
+	cookie->nr_fids = 1;
+	inode = ERR_PTR(-ERESTARTSYS);
+	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
+		while (afs_select_fileserver(&fc)) {
+			afs_fs_fetch_status(&fc,
+					    afs_v2net(dvnode),
+					    cookie->fids,
+					    cookie->statuses,
+					    cookie->callbacks,
+					    NULL);
+		}
+
+		if (fc.ac.error == 0)
+			cbi = afs_get_cb_interest(fc.cbi);
+		inode = ERR_PTR(afs_end_vnode_operation(&fc));
+	}
+
+	if (IS_ERR(inode))
+		goto out_c;
+
+	for (i = 0; i < cookie->nr_fids; i++)
+		cookie->statuses[i].abort_code = 0;
+
+success:
+	/* Turn all the files into inodes and save the first one - which is the
+	 * one we actually want.
+	 */
+	if (cookie->statuses[0].abort_code != 0)
+		inode = ERR_PTR(afs_abort_to_error(cookie->statuses[0].abort_code));
+
+	for (i = 0; i < cookie->nr_fids; i++) {
+		struct inode *ti;
+
+		if (cookie->statuses[i].abort_code != 0)
+			continue;
+
+		ti = afs_iget(dir->i_sb, key, &cookie->fids[i],
+			      &cookie->statuses[i],
+			      &cookie->callbacks[i],
+			      cbi);
+		if (i == 0) {
+			inode = ti;
+		} else {
+			if (!IS_ERR(ti))
+				iput(ti);
+		}
+	}
+
+out_c:
+	afs_put_cb_interest(afs_v2net(dvnode), cbi);
+	kfree(cookie->callbacks);
+out_s:
+	kfree(cookie->statuses);
+out:
+	kfree(cookie);
+	return inode;
 }
 
 /*
@@ -516,8 +736,7 @@ static int afs_probe_cell_name(struct dentry *dentry)
  * Try to auto mount the mountpoint with pseudo directory, if the autocell
  * operation is setted.
  */
-static struct inode *afs_try_auto_mntpt(struct dentry *dentry,
-					struct inode *dir, struct afs_fid *fid)
+static struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
 {
 	struct afs_vnode *vnode = AFS_FS_I(dir);
 	struct inode *inode;
@@ -539,7 +758,6 @@ static struct inode *afs_try_auto_mntpt(struct dentry *dentry,
 		goto out;
 	}
 
-	*fid = AFS_FS_I(inode)->fid;
 	_leave("= %p", inode);
 	return inode;
 
@@ -554,16 +772,13 @@ out:
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 unsigned int flags)
 {
-	struct afs_vnode *vnode;
-	struct afs_fid fid;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
 	struct inode *inode;
 	struct key *key;
 	int ret;
 
-	vnode = AFS_FS_I(dir);
-
 	_enter("{%x:%u},%p{%pd},",
-	       vnode->fid.vid, vnode->fid.vnode, dentry, dentry);
+	       dvnode->fid.vid, dvnode->fid.vnode, dentry, dentry);
 
 	ASSERTCMP(d_inode(dentry), ==, NULL);
 
@@ -572,28 +787,29 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-ENAMETOOLONG);
 	}
 
-	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
+	if (test_bit(AFS_VNODE_DELETED, &dvnode->flags)) {
 		_leave(" = -ESTALE");
 		return ERR_PTR(-ESTALE);
 	}
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(dvnode->volume->cell);
 	if (IS_ERR(key)) {
 		_leave(" = %ld [key]", PTR_ERR(key));
 		return ERR_CAST(key);
 	}
 
-	ret = afs_validate(vnode, key);
+	ret = afs_validate(dvnode, key);
 	if (ret < 0) {
 		key_put(key);
 		_leave(" = %d [val]", ret);
 		return ERR_PTR(ret);
 	}
 
-	ret = afs_do_lookup(dir, dentry, &fid, key);
-	if (ret < 0) {
+	inode = afs_do_lookup(dir, dentry, key);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
 		if (ret == -ENOENT) {
-			inode = afs_try_auto_mntpt(dentry, dir, &fid);
+			inode = afs_try_auto_mntpt(dentry, dir);
 			if (!IS_ERR(inode)) {
 				key_put(key);
 				goto success;
@@ -611,10 +827,9 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 		_leave(" = %d [do]", ret);
 		return ERR_PTR(ret);
 	}
-	dentry->d_fsdata = (void *)(unsigned long) vnode->status.data_version;
+	dentry->d_fsdata = (void *)(unsigned long)dvnode->status.data_version;
 
 	/* instantiate the dentry */
-	inode = afs_iget(dir->i_sb, key, &fid, NULL, NULL, NULL);
 	key_put(key);
 	if (IS_ERR(inode)) {
 		_leave(" = %ld", PTR_ERR(inode));
@@ -623,9 +838,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 
 success:
 	d_add(dentry, inode);
-	_leave(" = 0 { vn=%u u=%u } -> { ino=%lu v=%u }",
-	       fid.vnode,
-	       fid.unique,
+	_leave(" = 0 { ino=%lu v=%u }",
 	       d_inode(dentry)->i_ino,
 	       d_inode(dentry)->i_generation);
 
@@ -639,7 +852,6 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 					 unsigned int flags)
 {
 	struct afs_vnode *vnode;
-	struct afs_fid fid;
 	struct inode *inode;
 	int ret;
 
@@ -654,7 +866,7 @@ static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentr
 		return ERR_PTR(-ENAMETOOLONG);
 	}
 
-	inode = afs_try_auto_mntpt(dentry, dir, &fid);
+	inode = afs_try_auto_mntpt(dentry, dir);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		if (ret == -ENOENT) {
@@ -736,7 +948,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	_debug("dir modified");
 
 	/* search the directory for this vnode */
-	ret = afs_do_lookup(&dir->vfs_inode, dentry, &fid, key);
+	ret = afs_do_lookup_one(&dir->vfs_inode, dentry, &fid, key);
 	switch (ret) {
 	case 0:
 		/* the filename maps to something */
