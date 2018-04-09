@@ -691,6 +691,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		vport->fc_flag &= ~FC_RSCN_DEFERRED;
 		spin_unlock_irq(shost->host_lock);
 
+		/* This is a GID_FT completing so the gidft_inp counter was
+		 * incremented before the GID_FT was issued to the wire.
+		 */
+		vport->gidft_inp--;
+
 		/*
 		 * Skip processing the NS response
 		 * Re-issue the NS cmd

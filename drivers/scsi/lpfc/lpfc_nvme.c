@@ -2721,8 +2721,16 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			spin_unlock_irq(&vport->phba->hbalock);
 			rport->ndlp = NULL;
 			rport->remoteport = NULL;
-			if (prev_ndlp)
-				lpfc_nlp_put(ndlp);
+
+			/* Reference only removed if previous NDLP is no longer
+			 * active. It might be just a swap and removing the
+			 * reference would cause a premature cleanup.
+			 */
+			if (prev_ndlp && prev_ndlp != ndlp) {
+				if ((!NLP_CHK_NODE_ACT(prev_ndlp)) ||
+				    (!prev_ndlp->nrport))
+					lpfc_nlp_put(prev_ndlp);
+			}
 		}
 
 		/* Clean bind the rport to the ndlp. */
