@@ -67,7 +67,6 @@ struct dc_stream_state {
 	enum dc_dither_option dither_option;
 
 	enum view_3d_format view_format;
-	enum color_transfer_func output_tf;
 
 	bool ignore_msa_timing_param;
 
@@ -113,9 +112,9 @@ struct dc_stream_update {
 	struct rect src;
 	struct rect dst;
 	struct dc_transfer_func *out_transfer_func;
-	enum color_transfer_func color_output_tf;
 	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
+
 	unsigned long long *periodic_fn_vsync_delta;
 };
 
