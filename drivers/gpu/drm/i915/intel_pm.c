@@ -4419,7 +4419,7 @@ static int
 skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 			    struct intel_crtc_state *cstate,
 			    const struct intel_plane_state *intel_pstate,
-			    struct skl_wm_params *wp)
+			    struct skl_wm_params *wp, int plane_id)
 {
 	struct intel_plane *plane = to_intel_plane(intel_pstate->base.plane);
 	const struct drm_plane_state *pstate = &intel_pstate->base;
@@ -4432,6 +4432,12 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	if (!intel_wm_plane_visible(cstate, intel_pstate))
 		return 0;
 
+	/* only NV12 format has two planes */
+	if (plane_id == 1 && fb->format->format != DRM_FORMAT_NV12) {
+		DRM_DEBUG_KMS("Non NV12 format have single plane\n");
+		return -EINVAL;
+	}
+
 	wp->y_tiled = fb->modifier == I915_FORMAT_MOD_Y_TILED ||
 		      fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
 		      fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
@@ -4439,6 +4445,7 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 	wp->x_tiled = fb->modifier == I915_FORMAT_MOD_X_TILED;
 	wp->rc_surface = fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
 			 fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
+	wp->is_planar = fb->format->format == DRM_FORMAT_NV12;
 
 	if (plane->id == PLANE_CURSOR) {
 		wp->width = intel_pstate->base.crtc_w;
@@ -4451,7 +4458,10 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 		wp->width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	}
 
-	wp->cpp = fb->format->cpp[0];
+	if (plane_id == 1 && wp->is_planar)
+		wp->width /= 2;
+
+	wp->cpp = fb->format->cpp[plane_id];
 	wp->plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate,
 							     intel_pstate);
 
@@ -4649,7 +4659,8 @@ skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
 		      struct intel_crtc_state *cstate,
 		      const struct intel_plane_state *intel_pstate,
 		      const struct skl_wm_params *wm_params,
-		      struct skl_plane_wm *wm)
+		      struct skl_plane_wm *wm,
+		      int plane_id)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
 	struct drm_plane *plane = intel_pstate->base.plane;
@@ -4657,15 +4668,19 @@ skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
 	uint16_t ddb_blocks;
 	enum pipe pipe = intel_crtc->pipe;
 	int level, max_level = ilk_wm_max_level(dev_priv);
+	enum plane_id intel_plane_id = intel_plane->id;
 	int ret;
 
 	if (WARN_ON(!intel_pstate->base.fb))
 		return -EINVAL;
 
-	ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][intel_plane->id]);
+	ddb_blocks = plane_id ?
+		     skl_ddb_entry_size(&ddb->uv_plane[pipe][intel_plane_id]) :
+		     skl_ddb_entry_size(&ddb->plane[pipe][intel_plane_id]);
 
 	for (level = 0; level <= max_level; level++) {
-		struct skl_wm_level *result = &wm->wm[level];
+		struct skl_wm_level *result = plane_id ? &wm->uv_wm[level] :
+							  &wm->wm[level];
 
 		ret = skl_compute_plane_wm(dev_priv,
 					   cstate,
@@ -4792,20 +4807,39 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 
 		wm = &pipe_wm->planes[plane_id];
 		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][plane_id]);
-		memset(&wm_params, 0, sizeof(struct skl_wm_params));
 
 		ret = skl_compute_plane_wm_params(dev_priv, cstate,
-						  intel_pstate, &wm_params);
+						  intel_pstate, &wm_params, 0);
 		if (ret)
 			return ret;
 
 		ret = skl_compute_wm_levels(dev_priv, ddb, cstate,
-					    intel_pstate, &wm_params, wm);
+					    intel_pstate, &wm_params, wm, 0);
 		if (ret)
 			return ret;
+
 		skl_compute_transition_wm(cstate, &wm_params, &wm->wm[0],
 					  ddb_blocks, &wm->trans_wm);
+
+		/* uv plane watermarks must also be validated for NV12/Planar */
+		if (wm_params.is_planar) {
+			memset(&wm_params, 0, sizeof(struct skl_wm_params));
+			wm->is_planar = true;
+
+			ret = skl_compute_plane_wm_params(dev_priv, cstate,
+							  intel_pstate,
+							  &wm_params, 1);
+			if (ret)
+				return ret;
+
+			ret = skl_compute_wm_levels(dev_priv, ddb, cstate,
+						    intel_pstate, &wm_params,
+						    wm, 1);
+			if (ret)
+				return ret;
+		}
 	}
+
 	pipe_wm->linetime = skl_compute_linetime_wm(cstate);
 
 	return 0;
