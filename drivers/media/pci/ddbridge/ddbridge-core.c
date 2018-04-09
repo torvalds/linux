@@ -572,12 +572,12 @@ static u32 ddb_output_free(struct ddb_output *output)
 
 	if (output->dma->cbuf != idx) {
 		if ((((output->dma->cbuf + 1) % output->dma->num) == idx) &&
-		    (output->dma->size - output->dma->coff <= 188))
+		    (output->dma->size - output->dma->coff <= (2 * 188)))
 			return 0;
 		return 188;
 	}
 	diff = off - output->dma->coff;
-	if (diff <= 0 || diff > 188)
+	if (diff <= 0 || diff > (2 * 188))
 		return 188;
 	return 0;
 }
