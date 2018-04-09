@@ -1021,7 +1021,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		if (lpfc_test_rrq_active(phba, ndlp,
 					 lpfc_cmd->cur_iocbq.sli4_lxritag))
 			continue;
-		list_del(&lpfc_cmd->list);
+		list_del_init(&lpfc_cmd->list);
 		found = 1;
 		break;
 	}
@@ -1036,7 +1036,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			if (lpfc_test_rrq_active(
 				phba, ndlp, lpfc_cmd->cur_iocbq.sli4_lxritag))
 				continue;
-			list_del(&lpfc_cmd->list);
+			list_del_init(&lpfc_cmd->list);
 			found = 1;
 			break;
 		}
@@ -4716,7 +4716,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	int ret = SUCCESS, status = 0;
 	struct lpfc_sli_ring *pring_s4;
 	int ret_val;
-	unsigned long flags, iflags;
+	unsigned long flags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	status = fc_block_scsi_eh(cmnd);
@@ -4816,16 +4816,16 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 	abtsiocb->vport = vport;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		pring_s4 = lpfc_sli4_calc_ring(phba, iocb);
+		pring_s4 = lpfc_sli4_calc_ring(phba, abtsiocb);
 		if (pring_s4 == NULL) {
 			ret = FAILED;
 			goto out_unlock;
 		}
 		/* Note: both hbalock and ring_lock must be set here */
-		spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+		spin_lock(&pring_s4->ring_lock);
 		ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
 						abtsiocb, 0);
-		spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+		spin_unlock(&pring_s4->ring_lock);
 	} else {
 		ret_val = __lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
 						abtsiocb, 0);

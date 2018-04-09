@@ -11300,11 +11300,11 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 	unsigned long iflags;
 	struct lpfc_sli_ring *pring_s4;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irqsave(&phba->hbalock, iflags);
 
 	/* all I/Os are in process of being flushed */
 	if (phba->hba_flag & HBA_FCP_IOQ_FLUSH) {
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
 		return 0;
 	}
 	sum = 0;
@@ -11366,14 +11366,14 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		iocbq->iocb_flag |= LPFC_DRIVER_ABORTED;
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
-			pring_s4 = lpfc_sli4_calc_ring(phba, iocbq);
-			if (pring_s4 == NULL)
+			pring_s4 = lpfc_sli4_calc_ring(phba, abtsiocbq);
+			if (!pring_s4)
 				continue;
 			/* Note: both hbalock and ring_lock must be set here */
-			spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+			spin_lock(&pring_s4->ring_lock);
 			ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
 							abtsiocbq, 0);
-			spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+			spin_unlock(&pring_s4->ring_lock);
 		} else {
 			ret_val = __lpfc_sli_issue_iocb(phba, pring->ringno,
 							abtsiocbq, 0);
@@ -11385,7 +11385,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		else
 			sum++;
 	}
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	return sum;
 }
 
