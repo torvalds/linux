@@ -482,10 +482,11 @@ static int zip_show_stats(struct seq_file *s, void *unused)
 				atomic64_add(val, &st->pending_req);
 			}
 
-			avg_chunk = (atomic64_read(&st->comp_in_bytes) /
-				     atomic64_read(&st->comp_req_complete));
-			avg_cr = (atomic64_read(&st->comp_in_bytes) /
-				  atomic64_read(&st->comp_out_bytes));
+			val = atomic64_read(&st->comp_req_complete);
+			avg_chunk = (val) ? atomic64_read(&st->comp_in_bytes) / val : 0;
+
+			val = atomic64_read(&st->comp_out_bytes);
+			avg_cr = (val) ? atomic64_read(&st->comp_in_bytes) / val : 0;
 			seq_printf(s, "        ZIP Device %d Stats\n"
 				      "-----------------------------------\n"
 				      "Comp Req Submitted        : \t%lld\n"
