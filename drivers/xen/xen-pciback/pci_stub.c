@@ -71,7 +71,7 @@ static struct pcistub_device *pcistub_device_alloc(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "pcistub_device_alloc\n");
 
-	psdev = kzalloc(sizeof(*psdev), GFP_ATOMIC);
+	psdev = kzalloc(sizeof(*psdev), GFP_KERNEL);
 	if (!psdev)
 		return NULL;
 
