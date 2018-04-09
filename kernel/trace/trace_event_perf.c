@@ -252,6 +252,8 @@ int perf_kprobe_init(struct perf_event *p_event, bool is_retprobe)
 		ret = strncpy_from_user(
 			func, u64_to_user_ptr(p_event->attr.kprobe_func),
 			KSYM_NAME_LEN);
+		if (ret == KSYM_NAME_LEN)
+			ret = -E2BIG;
 		if (ret < 0)
 			goto out;
 
