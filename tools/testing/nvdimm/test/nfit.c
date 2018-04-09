@@ -1166,12 +1166,12 @@ static int ars_state_init(struct device *dev, struct ars_state *ars_state)
 
 static void put_dimms(void *data)
 {
-	struct device **dimm_dev = data;
+	struct nfit_test *t = data;
 	int i;
 
-	for (i = 0; i < NUM_DCR; i++)
-		if (dimm_dev[i])
-			device_unregister(dimm_dev[i]);
+	for (i = 0; i < t->num_dcr; i++)
+		if (t->dimm_dev[i])
+			device_unregister(t->dimm_dev[i]);
 }
 
 static struct class *nfit_test_dimm;
@@ -1180,12 +1180,10 @@ static int dimm_name_to_id(struct device *dev)
 {
 	int dimm;
 
-	if (sscanf(dev_name(dev), "test_dimm%d", &dimm) != 1
-			|| dimm >= NUM_DCR || dimm < 0)
+	if (sscanf(dev_name(dev), "test_dimm%d", &dimm) != 1)
 		return -ENXIO;
 	return dimm;
 }
-
 
 static ssize_t handle_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -1259,7 +1257,6 @@ static ssize_t fail_cmd_code_store(struct device *dev, struct device_attribute *
 }
 static DEVICE_ATTR_RW(fail_cmd_code);
 
-
 static struct attribute *nfit_test_dimm_attributes[] = {
 	&dev_attr_fail_cmd.attr,
 	&dev_attr_fail_cmd_code.attr,
@@ -1275,6 +1272,23 @@ static const struct attribute_group *nfit_test_dimm_attribute_groups[] = {
 	&nfit_test_dimm_attribute_group,
 	NULL,
 };
+
+static int nfit_test_dimm_init(struct nfit_test *t)
+{
+	int i;
+
+	if (devm_add_action_or_reset(&t->pdev.dev, put_dimms, t))
+		return -ENOMEM;
+	for (i = 0; i < t->num_dcr; i++) {
+		t->dimm_dev[i] = device_create_with_groups(nfit_test_dimm,
+				&t->pdev.dev, 0, NULL,
+				nfit_test_dimm_attribute_groups,
+				"test_dimm%d", i + t->dcr_idx);
+		if (!t->dimm_dev[i])
+			return -ENOMEM;
+	}
+	return 0;
+}
 
 static void smart_init(struct nfit_test *t)
 {
@@ -1371,17 +1385,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (!t->_fit)
 		return -ENOMEM;
 
-	if (devm_add_action_or_reset(&t->pdev.dev, put_dimms, t->dimm_dev))
+	if (nfit_test_dimm_init(t))
 		return -ENOMEM;
-	for (i = 0; i < NUM_DCR; i++) {
-		t->dimm_dev[i] = device_create_with_groups(nfit_test_dimm,
-				&t->pdev.dev, 0, NULL,
-				nfit_test_dimm_attribute_groups,
-				"test_dimm%d", i);
-		if (!t->dimm_dev[i])
-			return -ENOMEM;
-	}
-
 	smart_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
@@ -1413,6 +1418,8 @@ static int nfit_test1_alloc(struct nfit_test *t)
 	if (!t->spa_set[1])
 		return -ENOMEM;
 
+	if (nfit_test_dimm_init(t))
+		return -ENOMEM;
 	smart_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
