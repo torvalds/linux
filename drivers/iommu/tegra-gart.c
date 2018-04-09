@@ -313,7 +313,7 @@ static size_t gart_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	gart_set_pte(gart, iova, 0);
 	FLUSH_GART_REGS(gart);
 	spin_unlock_irqrestore(&gart->pte_lock, flags);
-	return 0;
+	return bytes;
 }
 
 static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
