@@ -202,6 +202,13 @@ static inline int kexec_load_check(unsigned long nr_segments,
 	if (!capable(CAP_SYS_BOOT) || kexec_load_disabled)
 		return -EPERM;
 
+	/*
+	 * kexec can be used to circumvent module loading restrictions, so
+	 * prevent loading in that case
+	 */
+	if (kernel_is_locked_down("kexec of unsigned images"))
+		return -EPERM;
+
 	/* Permit LSMs and IMA to fail the kexec */
 	result = security_kernel_load_data(LOADING_KEXEC_IMAGE);
 	if (result < 0)
