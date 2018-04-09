@@ -1564,7 +1564,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
-static void program_output_csc(struct dc *dc,
+static void dcn10_program_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
 		uint16_t *matrix,
@@ -1917,7 +1917,7 @@ static void update_dchubp_dpp(
 		/*gamut remap*/
 		program_gamut_remap(pipe_ctx);
 
-		program_output_csc(dc,
+		dc->hwss.program_output_csc(dc,
 				pipe_ctx,
 				pipe_ctx->stream->output_color_space,
 				pipe_ctx->stream->csc_color_matrix.matrix,
@@ -2667,6 +2667,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
 	.set_output_transfer_func = dcn10_set_output_transfer_func,
+	.program_output_csc = dcn10_program_output_csc,
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,

@@ -95,6 +95,12 @@ struct hw_sequencer_funcs {
 			enum dc_color_space colorspace,
 			uint16_t *matrix);
 
+	void (*program_output_csc)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			enum dc_color_space colorspace,
+			uint16_t *matrix,
+			int opp_id);
+
 	void (*update_plane_addr)(
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx);
@@ -203,6 +209,7 @@ struct hw_sequencer_funcs {
 
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
+
 };
 
 void color_space_to_black_color(
