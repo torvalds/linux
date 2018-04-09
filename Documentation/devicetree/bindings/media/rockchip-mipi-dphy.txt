@@ -4,6 +4,7 @@ Rockchip SoC MIPI RX D-PHY
 Required properties:
 - compatible: value should be one of the following
 	"rockchip,rk3288-mipi-dphy"
+	"rockchip,rk3326-mipi-dphy"
 	"rockchip,rk3399-mipi-dphy"
 - clocks : list of clock specifiers, corresponding to entries in
 	clock-names property;
