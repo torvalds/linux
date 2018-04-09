@@ -99,7 +99,7 @@ ATTRIBUTE_GROUPS(video_device);
 /*
  *	Active devices
  */
-static struct video_device *video_device[VIDEO_NUM_DEVICES];
+static struct video_device *video_devices[VIDEO_NUM_DEVICES];
 static DEFINE_MUTEX(videodev_lock);
 static DECLARE_BITMAP(devnode_nums[VFL_TYPE_MAX], VIDEO_NUM_DEVICES);
 
@@ -181,14 +181,14 @@ static void v4l2_device_release(struct device *cd)
 	struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
 
 	mutex_lock(&videodev_lock);
-	if (WARN_ON(video_device[vdev->minor] != vdev)) {
+	if (WARN_ON(video_devices[vdev->minor] != vdev)) {
 		/* should not happen */
 		mutex_unlock(&videodev_lock);
 		return;
 	}
 
 	/* Free up this device for reuse */
-	video_device[vdev->minor] = NULL;
+	video_devices[vdev->minor] = NULL;
 
 	/* Delete the cdev on this minor as well */
 	cdev_del(vdev->cdev);
@@ -237,7 +237,7 @@ static struct class video_class = {
 
 struct video_device *video_devdata(struct file *file)
 {
-	return video_device[iminor(file_inode(file))];
+	return video_devices[iminor(file_inode(file))];
 }
 EXPORT_SYMBOL(video_devdata);
 
@@ -501,9 +501,9 @@ static int get_index(struct video_device *vdev)
 	bitmap_zero(used, VIDEO_NUM_DEVICES);
 
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
-		if (video_device[i] != NULL &&
-		    video_device[i]->v4l2_dev == vdev->v4l2_dev) {
-			set_bit(video_device[i]->index, used);
+		if (video_devices[i] != NULL &&
+		    video_devices[i]->v4l2_dev == vdev->v4l2_dev) {
+			set_bit(video_devices[i]->index, used);
 		}
 	}
 
@@ -936,7 +936,7 @@ int __video_register_device(struct video_device *vdev,
 	/* The device node number and minor numbers are independent, so
 	   we just find the first free minor number. */
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++)
-		if (video_device[i] == NULL)
+		if (video_devices[i] == NULL)
 			break;
 	if (i == VIDEO_NUM_DEVICES) {
 		mutex_unlock(&videodev_lock);
@@ -948,14 +948,14 @@ int __video_register_device(struct video_device *vdev,
 	vdev->num = nr;
 
 	/* Should not happen since we thought this minor was free */
-	if (WARN_ON(video_device[vdev->minor])) {
+	if (WARN_ON(video_devices[vdev->minor])) {
 		mutex_unlock(&videodev_lock);
 		pr_err("video_device not empty!\n");
 		return -ENFILE;
 	}
 	devnode_set(vdev);
 	vdev->index = get_index(vdev);
-	video_device[vdev->minor] = vdev;
+	video_devices[vdev->minor] = vdev;
 	mutex_unlock(&videodev_lock);
 
 	if (vdev->ioctl_ops)
@@ -1010,7 +1010,7 @@ cleanup:
 	mutex_lock(&videodev_lock);
 	if (vdev->cdev)
 		cdev_del(vdev->cdev);
-	video_device[vdev->minor] = NULL;
+	video_devices[vdev->minor] = NULL;
 	devnode_clear(vdev);
 	mutex_unlock(&videodev_lock);
 	/* Mark this video device as never having been registered. */
