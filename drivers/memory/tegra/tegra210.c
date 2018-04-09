@@ -6,11 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/of.h>
-#include <linux/mm.h>
-
-#include <asm/cacheflush.h>
-
 #include <dt-bindings/memory/tegra210-mc.h>
 
 #include "mc.h"
