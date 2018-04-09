@@ -37,6 +37,9 @@
 
 #define MC_ERR_ADR 0x0c
 
+#define MC_DECERR_EMEM_OTHERS_STATUS	0x58
+#define MC_SECURITY_VIOLATION_STATUS	0x74
+
 #define MC_EMEM_ARB_CFG 0x90
 #define  MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(x)	(((x) & 0x1ff) << 0)
 #define  MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK	0x1ff
@@ -46,6 +49,9 @@
 #define MC_EMEM_ADR_CFG_EMEM_NUMDEV BIT(0)
 
 static const struct of_device_id tegra_mc_of_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	{ .compatible = "nvidia,tegra20-mc", .data = &tegra20_mc_soc },
+#endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	{ .compatible = "nvidia,tegra30-mc", .data = &tegra30_mc_soc },
 #endif
@@ -221,6 +227,7 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 static const char *const status_names[32] = {
 	[ 1] = "External interrupt",
 	[ 6] = "EMEM address decode error",
+	[ 7] = "GART page fault",
 	[ 8] = "Security violation",
 	[ 9] = "EMEM arbitration error",
 	[10] = "Page fault",
@@ -334,11 +341,78 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static __maybe_unused irqreturn_t tegra20_mc_irq(int irq, void *data)
+{
+	struct tegra_mc *mc = data;
+	unsigned long status;
+	unsigned int bit;
+
+	/* mask all interrupts to avoid flooding */
+	status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmask;
+	if (!status)
+		return IRQ_NONE;
+
+	for_each_set_bit(bit, &status, 32) {
+		const char *direction = "read", *secure = "";
+		const char *error = status_names[bit];
+		const char *client, *desc;
+		phys_addr_t addr;
+		u32 value, reg;
+		u8 id, type;
+
+		switch (BIT(bit)) {
+		case MC_INT_DECERR_EMEM:
+			reg = MC_DECERR_EMEM_OTHERS_STATUS;
+			value = mc_readl(mc, reg);
+
+			id = value & mc->soc->client_id_mask;
+			desc = error_names[2];
+
+			if (value & BIT(31))
+				direction = "write";
+			break;
+
+		case MC_INT_INVALID_GART_PAGE:
+			dev_err_ratelimited(mc->dev, "%s\n", error);
+			continue;
+
+		case MC_INT_SECURITY_VIOLATION:
+			reg = MC_SECURITY_VIOLATION_STATUS;
+			value = mc_readl(mc, reg);
+
+			id = value & mc->soc->client_id_mask;
+			type = (value & BIT(30)) ? 4 : 3;
+			desc = error_names[type];
+			secure = "secure ";
+
+			if (value & BIT(31))
+				direction = "write";
+			break;
+
+		default:
+			continue;
+		}
+
+		client = mc->soc->clients[id].name;
+		addr = mc_readl(mc, reg + sizeof(u32));
+
+		dev_err_ratelimited(mc->dev, "%s: %s%s @%pa: %s (%s)\n",
+				    client, secure, direction, &addr, error,
+				    desc);
+	}
+
+	/* clear interrupts */
+	mc_writel(mc, status, MC_INTSTATUS);
+
+	return IRQ_HANDLED;
+}
+
 static int tegra_mc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct resource *res;
 	struct tegra_mc *mc;
+	void *isr;
 	int err;
 
 	match = of_match_node(tegra_mc_of_match, pdev->dev.of_node);
@@ -361,18 +435,32 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(mc->regs))
 		return PTR_ERR(mc->regs);
 
-	mc->clk = devm_clk_get(&pdev->dev, "mc");
-	if (IS_ERR(mc->clk)) {
-		dev_err(&pdev->dev, "failed to get MC clock: %ld\n",
-			PTR_ERR(mc->clk));
-		return PTR_ERR(mc->clk);
-	}
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	if (mc->soc == &tegra20_mc_soc) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		mc->regs2 = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(mc->regs2))
+			return PTR_ERR(mc->regs2);
 
-	err = tegra_mc_setup_latency_allowance(mc);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to setup latency allowance: %d\n",
-			err);
-		return err;
+		isr = tegra20_mc_irq;
+	} else
+#endif
+	{
+		mc->clk = devm_clk_get(&pdev->dev, "mc");
+		if (IS_ERR(mc->clk)) {
+			dev_err(&pdev->dev, "failed to get MC clock: %ld\n",
+				PTR_ERR(mc->clk));
+			return PTR_ERR(mc->clk);
+		}
+
+		err = tegra_mc_setup_latency_allowance(mc);
+		if (err < 0) {
+			dev_err(&pdev->dev, "failed to setup latency allowance: %d\n",
+				err);
+			return err;
+		}
+
+		isr = tegra_mc_irq;
 	}
 
 	err = tegra_mc_setup_timings(mc);
@@ -400,7 +488,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	mc_writel(mc, mc->soc->intmask, MC_INTMASK);
 
-	err = devm_request_irq(&pdev->dev, mc->irq, tegra_mc_irq, IRQF_SHARED,
+	err = devm_request_irq(&pdev->dev, mc->irq, isr, IRQF_SHARED,
 			       dev_name(&pdev->dev), mc);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n", mc->irq,

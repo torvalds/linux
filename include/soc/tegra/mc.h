@@ -115,7 +115,7 @@ struct tegra_mc_soc {
 struct tegra_mc {
 	struct device *dev;
 	struct tegra_smmu *smmu;
-	void __iomem *regs;
+	void __iomem *regs, *regs2;
 	struct clk *clk;
 	int irq;
 

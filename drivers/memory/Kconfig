@@ -104,16 +104,6 @@ config MVEBU_DEVBUS
 	  Armada 370 and Armada XP. This controller allows to handle flash
 	  devices such as NOR, NAND, SRAM, and FPGA.
 
-config TEGRA20_MC
-	bool "Tegra20 Memory Controller(MC) driver"
-	default y
-	depends on ARCH_TEGRA_2x_SOC
-	help
-	  This driver is for the Memory Controller(MC) module available
-	  in Tegra20 SoCs, mainly for a address translation fault
-	  analysis, especially for IOMMU/GART(Graphics Address
-	  Relocation Table) module.
-
 config FSL_CORENET_CF
 	tristate "Freescale CoreNet Error Reporting"
 	depends on FSL_SOC_BOOKE
