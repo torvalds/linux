@@ -5059,69 +5059,16 @@ skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
 static int
 skl_compute_ddb(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	const struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct intel_crtc *intel_crtc;
 	struct skl_ddb_allocation *ddb = &intel_state->wm_results.ddb;
-	uint32_t realloc_pipes = pipes_modified(state);
-	int ret;
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *cstate;
+	int ret, i;
 
-	/*
-	 * If this is our first atomic update following hardware readout,
-	 * we can't trust the DDB that the BIOS programmed for us.  Let's
-	 * pretend that all pipes switched active status so that we'll
-	 * ensure a full DDB recompute.
-	 */
-	if (dev_priv->wm.distrust_bios_wm) {
-		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
-				       state->acquire_ctx);
-		if (ret)
-			return ret;
-
-		intel_state->active_pipe_changes = ~0;
-
-		/*
-		 * We usually only initialize intel_state->active_crtcs if we
-		 * we're doing a modeset; make sure this field is always
-		 * initialized during the sanitization process that happens
-		 * on the first commit too.
-		 */
-		if (!intel_state->modeset)
-			intel_state->active_crtcs = dev_priv->active_crtcs;
-	}
-
-	/*
-	 * If the modeset changes which CRTC's are active, we need to
-	 * recompute the DDB allocation for *all* active pipes, even
-	 * those that weren't otherwise being modified in any way by this
-	 * atomic commit.  Due to the shrinking of the per-pipe allocations
-	 * when new active CRTC's are added, it's possible for a pipe that
-	 * we were already using and aren't changing at all here to suddenly
-	 * become invalid if its DDB needs exceeds its new allocation.
-	 *
-	 * Note that if we wind up doing a full DDB recompute, we can't let
-	 * any other display updates race with this transaction, so we need
-	 * to grab the lock on *all* CRTC's.
-	 */
-	if (intel_state->active_pipe_changes) {
-		realloc_pipes = ~0;
-		intel_state->wm_results.dirty_pipes = ~0;
-	}
-
-	/*
-	 * We're not recomputing for the pipes not included in the commit, so
-	 * make sure we start with the current state.
-	 */
 	memcpy(ddb, &dev_priv->wm.skl_hw.ddb, sizeof(*ddb));
 
-	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
-		struct intel_crtc_state *cstate;
-
-		cstate = intel_atomic_get_crtc_state(state, intel_crtc);
-		if (IS_ERR(cstate))
-			return PTR_ERR(cstate);
-
+	for_each_new_intel_crtc_in_state(intel_state, crtc, cstate, i) {
 		ret = skl_allocate_pipe_ddb(cstate, ddb);
 		if (ret)
 			return ret;
@@ -5183,23 +5130,23 @@ skl_print_wm_changes(const struct drm_atomic_state *state)
 }
 
 static int
-skl_compute_wm(struct drm_atomic_state *state)
+skl_ddb_add_affected_pipes(struct drm_atomic_state *state, bool *changed)
 {
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *cstate;
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct skl_ddb_values *results = &intel_state->wm_results;
 	struct drm_device *dev = state->dev;
-	struct skl_pipe_wm *pipe_wm;
-	bool changed = false;
+	const struct drm_i915_private *dev_priv = to_i915(dev);
+	const struct drm_crtc *crtc;
+	const struct drm_crtc_state *cstate;
+	struct intel_crtc *intel_crtc;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	uint32_t realloc_pipes = pipes_modified(state);
 	int ret, i;
 
 	/*
 	 * When we distrust bios wm we always need to recompute to set the
 	 * expected DDB allocations for each CRTC.
 	 */
-	if (to_i915(dev)->wm.distrust_bios_wm)
-		changed = true;
+	if (dev_priv->wm.distrust_bios_wm)
+		(*changed) = true;
 
 	/*
 	 * If this transaction isn't actually touching any CRTC's, don't
@@ -5210,13 +5157,85 @@ skl_compute_wm(struct drm_atomic_state *state)
 	 * hold _all_ CRTC state mutexes.
 	 */
 	for_each_new_crtc_in_state(state, crtc, cstate, i)
-		changed = true;
+		(*changed) = true;
 
-	if (!changed)
+	if (!*changed)
 		return 0;
+
+	/*
+	 * If this is our first atomic update following hardware readout,
+	 * we can't trust the DDB that the BIOS programmed for us.  Let's
+	 * pretend that all pipes switched active status so that we'll
+	 * ensure a full DDB recompute.
+	 */
+	if (dev_priv->wm.distrust_bios_wm) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       state->acquire_ctx);
+		if (ret)
+			return ret;
+
+		intel_state->active_pipe_changes = ~0;
+
+		/*
+		 * We usually only initialize intel_state->active_crtcs if we
+		 * we're doing a modeset; make sure this field is always
+		 * initialized during the sanitization process that happens
+		 * on the first commit too.
+		 */
+		if (!intel_state->modeset)
+			intel_state->active_crtcs = dev_priv->active_crtcs;
+	}
+
+	/*
+	 * If the modeset changes which CRTC's are active, we need to
+	 * recompute the DDB allocation for *all* active pipes, even
+	 * those that weren't otherwise being modified in any way by this
+	 * atomic commit.  Due to the shrinking of the per-pipe allocations
+	 * when new active CRTC's are added, it's possible for a pipe that
+	 * we were already using and aren't changing at all here to suddenly
+	 * become invalid if its DDB needs exceeds its new allocation.
+	 *
+	 * Note that if we wind up doing a full DDB recompute, we can't let
+	 * any other display updates race with this transaction, so we need
+	 * to grab the lock on *all* CRTC's.
+	 */
+	if (intel_state->active_pipe_changes) {
+		realloc_pipes = ~0;
+		intel_state->wm_results.dirty_pipes = ~0;
+	}
+
+	/*
+	 * We're not recomputing for the pipes not included in the commit, so
+	 * make sure we start with the current state.
+	 */
+	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
+		struct intel_crtc_state *cstate;
+
+		cstate = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(cstate))
+			return PTR_ERR(cstate);
+	}
+
+	return 0;
+}
+
+static int
+skl_compute_wm(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *cstate;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct skl_ddb_values *results = &intel_state->wm_results;
+	struct skl_pipe_wm *pipe_wm;
+	bool changed = false;
+	int ret, i;
 
 	/* Clear all dirty flags */
 	results->dirty_pipes = 0;
+
+	ret = skl_ddb_add_affected_pipes(state, &changed);
+	if (ret || !changed)
+		return ret;
 
 	ret = skl_compute_ddb(state);
 	if (ret)
