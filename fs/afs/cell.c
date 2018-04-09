@@ -334,8 +334,8 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 		return PTR_ERR(new_root);
 	}
 
-	set_bit(AFS_CELL_FL_NO_GC, &new_root->flags);
-	afs_get_cell(new_root);
+	if (!test_and_set_bit(AFS_CELL_FL_NO_GC, &new_root->flags))
+		afs_get_cell(new_root);
 
 	/* install the new cell */
 	write_seqlock(&net->cells_lock);

@@ -284,7 +284,8 @@ static ssize_t afs_proc_cells_write(struct file *file, const char __user *buf,
 			goto done;
 		}
 
-		set_bit(AFS_CELL_FL_NO_GC, &cell->flags);
+		if (test_and_set_bit(AFS_CELL_FL_NO_GC, &cell->flags))
+			afs_put_cell(net, cell);
 		printk("kAFS: Added new cell '%s'\n", name);
 	} else {
 		goto inval;
