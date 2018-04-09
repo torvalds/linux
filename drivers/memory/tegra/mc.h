@@ -14,6 +14,15 @@
 
 #include <soc/tegra/mc.h>
 
+#define MC_INT_DECERR_MTS (1 << 16)
+#define MC_INT_SECERR_SEC (1 << 13)
+#define MC_INT_DECERR_VPR (1 << 12)
+#define MC_INT_INVALID_APB_ASID_UPDATE (1 << 11)
+#define MC_INT_INVALID_SMMU_PAGE (1 << 10)
+#define MC_INT_ARBITRATION_EMEM (1 << 9)
+#define MC_INT_SECURITY_VIOLATION (1 << 8)
+#define MC_INT_DECERR_EMEM (1 << 6)
+
 static inline u32 mc_readl(struct tegra_mc *mc, unsigned long offset)
 {
 	return readl(mc->regs + offset);
