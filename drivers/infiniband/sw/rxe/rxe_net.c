@@ -315,7 +315,7 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 	return sock;
 }
 
-void rxe_release_udp_tunnel(struct socket *sk)
+static void rxe_release_udp_tunnel(struct socket *sk)
 {
 	if (sk)
 		udp_tunnel_sock_release(sk);
