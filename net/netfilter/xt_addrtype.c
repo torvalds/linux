@@ -164,48 +164,47 @@ addrtype_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 
 static int addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
 {
+	const char *errmsg = "both incoming and outgoing interface limitation cannot be selected";
 	struct xt_addrtype_info_v1 *info = par->matchinfo;
 
 	if (info->flags & XT_ADDRTYPE_LIMIT_IFACE_IN &&
-	    info->flags & XT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		pr_info("both incoming and outgoing "
-			"interface limitation cannot be selected\n");
-		return -EINVAL;
-	}
+	    info->flags & XT_ADDRTYPE_LIMIT_IFACE_OUT)
+		goto err;
 
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) &&
 	    info->flags & XT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		pr_info("output interface limitation "
-			"not valid in PREROUTING and INPUT\n");
-		return -EINVAL;
+		errmsg = "output interface limitation not valid in PREROUTING and INPUT";
+		goto err;
 	}
 
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) &&
 	    info->flags & XT_ADDRTYPE_LIMIT_IFACE_IN) {
-		pr_info("input interface limitation "
-			"not valid in POSTROUTING and OUTPUT\n");
-		return -EINVAL;
+		errmsg = "input interface limitation not valid in POSTROUTING and OUTPUT";
+		goto err;
 	}
 
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	if (par->family == NFPROTO_IPV6) {
 		if ((info->source | info->dest) & XT_ADDRTYPE_BLACKHOLE) {
-			pr_err("ipv6 BLACKHOLE matching not supported\n");
-			return -EINVAL;
+			errmsg = "ipv6 BLACKHOLE matching not supported";
+			goto err;
 		}
 		if ((info->source | info->dest) >= XT_ADDRTYPE_PROHIBIT) {
-			pr_err("ipv6 PROHIBIT (THROW, NAT ..) matching not supported\n");
-			return -EINVAL;
+			errmsg = "ipv6 PROHIBIT (THROW, NAT ..) matching not supported";
+			goto err;
 		}
 		if ((info->source | info->dest) & XT_ADDRTYPE_BROADCAST) {
-			pr_err("ipv6 does not support BROADCAST matching\n");
-			return -EINVAL;
+			errmsg = "ipv6 does not support BROADCAST matching";
+			goto err;
 		}
 	}
 #endif
 	return 0;
+err:
+	pr_info_ratelimited("%s\n", errmsg);
+	return -EINVAL;
 }
 
 static struct xt_match addrtype_mt_reg[] __read_mostly = {

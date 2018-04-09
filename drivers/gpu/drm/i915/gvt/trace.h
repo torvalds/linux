@@ -113,10 +113,10 @@ TRACE_EVENT(gma_index,
 );
 
 TRACE_EVENT(gma_translate,
-	TP_PROTO(int id, char *type, int ring_id, int pt_level,
+	TP_PROTO(int id, char *type, int ring_id, int root_entry_type,
 		unsigned long gma, unsigned long gpa),
 
-	TP_ARGS(id, type, ring_id, pt_level, gma, gpa),
+	TP_ARGS(id, type, ring_id, root_entry_type, gma, gpa),
 
 	TP_STRUCT__entry(
 		__array(char, buf, MAX_BUF_LEN)
@@ -124,8 +124,8 @@ TRACE_EVENT(gma_translate,
 
 	TP_fast_assign(
 		snprintf(__entry->buf, MAX_BUF_LEN,
-			"VM%d %s ring %d pt_level %d gma 0x%lx -> gpa 0x%lx\n",
-				id, type, ring_id, pt_level, gma, gpa);
+			"VM%d %s ring %d root_entry_type %d gma 0x%lx -> gpa 0x%lx\n",
+			id, type, ring_id, root_entry_type, gma, gpa);
 	),
 
 	TP_printk("%s", __entry->buf)
@@ -168,7 +168,7 @@ TRACE_EVENT(spt_change,
 	TP_printk("%s", __entry->buf)
 );
 
-TRACE_EVENT(gpt_change,
+TRACE_EVENT(spt_guest_change,
 	TP_PROTO(int id, const char *tag, void *spt, int type, u64 v,
 		unsigned long index),
 
@@ -333,7 +333,7 @@ TRACE_EVENT(render_mmio,
 	TP_PROTO(int old_id, int new_id, char *action, unsigned int reg,
 		 unsigned int old_val, unsigned int new_val),
 
-	TP_ARGS(old_id, new_id, action, reg, new_val, old_val),
+	TP_ARGS(old_id, new_id, action, reg, old_val, new_val),
 
 	TP_STRUCT__entry(
 		__field(int, old_id)

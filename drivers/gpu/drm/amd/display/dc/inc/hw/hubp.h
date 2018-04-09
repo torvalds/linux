@@ -119,6 +119,9 @@ struct hubp_funcs {
 
 	void (*hubp_disconnect)(struct hubp *hubp);
 
+	void (*hubp_clk_cntl)(struct hubp *hubp, bool enable);
+	void (*hubp_vtg_sel)(struct hubp *hubp, uint32_t otg_inst);
+
 };
 
 #endif

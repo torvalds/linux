@@ -12,6 +12,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/skbuff.h>
 #include <linux/module.h>
 #include <linux/netfilter/x_tables.h>
@@ -48,7 +50,7 @@ static int cgroup_mt_check_v1(const struct xt_mtchk_param *par)
 	}
 
 	if (info->has_path && info->has_classid) {
-		pr_info("xt_cgroup: both path and classid specified\n");
+		pr_info_ratelimited("path and classid specified\n");
 		return -EINVAL;
 	}
 
@@ -56,8 +58,8 @@ static int cgroup_mt_check_v1(const struct xt_mtchk_param *par)
 	if (info->has_path) {
 		cgrp = cgroup_get_from_path(info->path);
 		if (IS_ERR(cgrp)) {
-			pr_info("xt_cgroup: invalid path, errno=%ld\n",
-				PTR_ERR(cgrp));
+			pr_info_ratelimited("invalid path, errno=%ld\n",
+					    PTR_ERR(cgrp));
 			return -EINVAL;
 		}
 		info->priv = cgrp;

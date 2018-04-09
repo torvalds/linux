@@ -7,6 +7,7 @@ config VIDEO_V4L2
 	tristate
 	depends on (I2C || I2C=n) && VIDEO_DEV
 	select RATIONAL
+	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
 	default (I2C || I2C=n) && VIDEO_DEV
 
 config VIDEO_ADV_DEBUG

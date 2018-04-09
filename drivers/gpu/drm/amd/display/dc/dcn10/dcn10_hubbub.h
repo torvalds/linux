@@ -185,6 +185,7 @@ struct hubbub {
 	const struct dcn_hubbub_registers *regs;
 	const struct dcn_hubbub_shift *shifts;
 	const struct dcn_hubbub_mask *masks;
+	unsigned int debug_test_index_pstate;
 };
 
 void hubbub1_update_dchub(

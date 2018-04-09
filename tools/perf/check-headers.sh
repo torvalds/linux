@@ -33,7 +33,6 @@ arch/s390/include/uapi/asm/kvm.h
 arch/s390/include/uapi/asm/kvm_perf.h
 arch/s390/include/uapi/asm/ptrace.h
 arch/s390/include/uapi/asm/sie.h
-arch/s390/include/uapi/asm/unistd.h
 arch/arm/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/kvm.h
 arch/alpha/include/uapi/asm/errno.h
@@ -43,6 +42,7 @@ arch/parisc/include/uapi/asm/errno.h
 arch/powerpc/include/uapi/asm/errno.h
 arch/sparc/include/uapi/asm/errno.h
 arch/x86/include/uapi/asm/errno.h
+arch/powerpc/include/uapi/asm/unistd.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/__fls.h
@@ -59,6 +59,7 @@ check () {
   file=$1
 
   shift
+  opts=
   while [ -n "$*" ]; do
     opts="$opts \"$1\""
     shift

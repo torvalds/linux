@@ -4310,7 +4310,7 @@ static int _regulator_resume_early(struct device *dev, void *data)
 
 	rstate = regulator_get_suspend_state(rdev, *state);
 	if (rstate == NULL)
-		return -EINVAL;
+		return 0;
 
 	mutex_lock(&rdev->mutex);
 

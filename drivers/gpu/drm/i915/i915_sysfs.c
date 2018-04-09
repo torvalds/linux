@@ -304,8 +304,9 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 {
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	u32 val;
+	bool boost = false;
 	ssize_t ret;
+	u32 val;
 
 	ret = kstrtou32(buf, 0, &val);
 	if (ret)
@@ -317,8 +318,13 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->pcu_lock);
-	rps->boost_freq = val;
+	if (val != rps->boost_freq) {
+		rps->boost_freq = val;
+		boost = atomic_read(&rps->num_waiters);
+	}
 	mutex_unlock(&dev_priv->pcu_lock);
+	if (boost)
+		schedule_work(&rps->work);
 
 	return count;
 }

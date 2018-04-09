@@ -193,6 +193,7 @@ void dpp1_cm_set_gamut_remap(
 	const struct dpp_grph_csc_adjustment *adjust)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+	int i = 0;
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
 		/* Bypass if type is bypass or hw */
@@ -201,20 +202,8 @@ void dpp1_cm_set_gamut_remap(
 		struct fixed31_32 arr_matrix[12];
 		uint16_t arr_reg_val[12];
 
-		arr_matrix[0] = adjust->temperature_matrix[0];
-		arr_matrix[1] = adjust->temperature_matrix[1];
-		arr_matrix[2] = adjust->temperature_matrix[2];
-		arr_matrix[3] = dal_fixed31_32_zero;
-
-		arr_matrix[4] = adjust->temperature_matrix[3];
-		arr_matrix[5] = adjust->temperature_matrix[4];
-		arr_matrix[6] = adjust->temperature_matrix[5];
-		arr_matrix[7] = dal_fixed31_32_zero;
-
-		arr_matrix[8] = adjust->temperature_matrix[6];
-		arr_matrix[9] = adjust->temperature_matrix[7];
-		arr_matrix[10] = adjust->temperature_matrix[8];
-		arr_matrix[11] = dal_fixed31_32_zero;
+		for (i = 0; i < 12; i++)
+			arr_matrix[i] = adjust->temperature_matrix[i];
 
 		convert_float_matrix(
 			arr_reg_val, arr_matrix, 12);
@@ -309,6 +298,32 @@ static void dpp1_cm_get_reg_field(
 	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
 }
 
+static void dpp1_cm_get_degamma_reg_field(
+		struct dcn10_dpp *dpp,
+		struct xfer_func_reg *reg)
+{
+	reg->shifts.exp_region0_lut_offset = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->masks.exp_region0_lut_offset = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->shifts.exp_region0_num_segments = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->masks.exp_region0_num_segments = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->shifts.exp_region1_lut_offset = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->masks.exp_region1_lut_offset = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->shifts.exp_region1_num_segments = dpp->tf_shift->CM_DGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+	reg->masks.exp_region1_num_segments = dpp->tf_mask->CM_DGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+
+	reg->shifts.field_region_end = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_END_B;
+	reg->masks.field_region_end = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_END_B;
+	reg->shifts.field_region_end_slope = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->masks.field_region_end_slope = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->shifts.field_region_end_base = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->masks.field_region_end_base = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->shifts.field_region_linear_slope = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->masks.field_region_linear_slope = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->shifts.exp_region_start = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_START_B;
+	reg->masks.exp_region_start = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_START_B;
+	reg->shifts.exp_resion_start_segment = dpp->tf_shift->CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+}
 void dpp1_cm_set_output_csc_adjustment(
 		struct dpp *dpp_base,
 		const uint16_t *regval)
@@ -513,7 +528,7 @@ void dpp1_program_degamma_lutb_settings(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dpp1_cm_get_reg_field(dpp, &gam_regs);
+	dpp1_cm_get_degamma_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_DGAM_RAMB_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_DGAM_RAMB_START_CNTL_G);
@@ -542,7 +557,7 @@ void dpp1_program_degamma_luta_settings(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	struct xfer_func_reg gam_regs;
 
-	dpp1_cm_get_reg_field(dpp, &gam_regs);
+	dpp1_cm_get_degamma_reg_field(dpp, &gam_regs);
 
 	gam_regs.start_cntl_b = REG(CM_DGAM_RAMA_START_CNTL_B);
 	gam_regs.start_cntl_g = REG(CM_DGAM_RAMA_START_CNTL_G);
@@ -788,4 +803,13 @@ void dpp1_program_input_lut(
 	// Enable IGAM LUT on ram we just wrote to. 2 => RAMA, 3 => RAMB
 	REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_LUT_MODE, rama_occupied ? 3 : 2);
 	REG_GET(CM_IGAM_CONTROL, CM_IGAM_LUT_MODE, &ram_num);
+}
+
+void dpp1_set_hdr_multiplier(
+		struct dpp *dpp_base,
+		uint32_t multiplier)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	REG_UPDATE(CM_HDR_MULT_COEF, CM_HDR_MULT_COEF, multiplier);
 }

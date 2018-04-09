@@ -1110,6 +1110,28 @@ ENTRY_CFI(flush_kernel_dcache_range_asm)
 	.procend
 ENDPROC_CFI(flush_kernel_dcache_range_asm)
 
+ENTRY_CFI(purge_kernel_dcache_range_asm)
+	.proc
+	.callinfo NO_CALLS
+	.entry
+
+	ldil		L%dcache_stride, %r1
+	ldw		R%dcache_stride(%r1), %r23
+	ldo		-1(%r23), %r21
+	ANDCM		%r26, %r21, %r26
+
+1:      cmpb,COND(<<),n	%r26, %r25,1b
+	pdc,m		%r23(%r26)
+
+	sync
+	syncdma
+	bv		%r0(%r2)
+	nop
+	.exit
+
+	.procend
+ENDPROC_CFI(purge_kernel_dcache_range_asm)
+
 ENTRY_CFI(flush_user_icache_range_asm)
 	.proc
 	.callinfo NO_CALLS

@@ -788,6 +788,9 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 					      u32 tb_id,
 					      struct netlink_ext_ack *extack)
 {
+	struct mlxsw_sp_mr_table *mr4_table;
+	struct mlxsw_sp_fib *fib4;
+	struct mlxsw_sp_fib *fib6;
 	struct mlxsw_sp_vr *vr;
 	int err;
 
@@ -796,29 +799,30 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 		NL_SET_ERR_MSG(extack, "spectrum: Exceeded number of supported virtual routers");
 		return ERR_PTR(-EBUSY);
 	}
-	vr->fib4 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV4);
-	if (IS_ERR(vr->fib4))
-		return ERR_CAST(vr->fib4);
-	vr->fib6 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV6);
-	if (IS_ERR(vr->fib6)) {
-		err = PTR_ERR(vr->fib6);
+	fib4 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV4);
+	if (IS_ERR(fib4))
+		return ERR_CAST(fib4);
+	fib6 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV6);
+	if (IS_ERR(fib6)) {
+		err = PTR_ERR(fib6);
 		goto err_fib6_create;
 	}
-	vr->mr4_table = mlxsw_sp_mr_table_create(mlxsw_sp, vr->id,
-						 MLXSW_SP_L3_PROTO_IPV4);
-	if (IS_ERR(vr->mr4_table)) {
-		err = PTR_ERR(vr->mr4_table);
+	mr4_table = mlxsw_sp_mr_table_create(mlxsw_sp, vr->id,
+					     MLXSW_SP_L3_PROTO_IPV4);
+	if (IS_ERR(mr4_table)) {
+		err = PTR_ERR(mr4_table);
 		goto err_mr_table_create;
 	}
+	vr->fib4 = fib4;
+	vr->fib6 = fib6;
+	vr->mr4_table = mr4_table;
 	vr->tb_id = tb_id;
 	return vr;
 
 err_mr_table_create:
-	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib6);
-	vr->fib6 = NULL;
+	mlxsw_sp_fib_destroy(mlxsw_sp, fib6);
 err_fib6_create:
-	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib4);
-	vr->fib4 = NULL;
+	mlxsw_sp_fib_destroy(mlxsw_sp, fib4);
 	return ERR_PTR(err);
 }
 
@@ -1376,6 +1380,55 @@ mlxsw_sp_ipip_entry_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 						  decap_fib_entry);
 }
 
+static int
+mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
+			struct mlxsw_sp_vr *ul_vr, bool enable)
+{
+	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
+	struct mlxsw_sp_rif *rif = &lb_rif->common;
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	u32 saddr4;
+
+	switch (lb_cf.ul_protocol) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		saddr4 = be32_to_cpu(lb_cf.saddr.addr4);
+		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
+				    rif->rif_index, rif->vr_id, rif->dev->mtu);
+		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
+			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
+			    ul_vr->id, saddr4, lb_cf.okey);
+		break;
+
+	case MLXSW_SP_L3_PROTO_IPV6:
+		return -EAFNOSUPPORT;
+	}
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static int mlxsw_sp_netdevice_ipip_ol_update_mtu(struct mlxsw_sp *mlxsw_sp,
+						 struct net_device *ol_dev)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry;
+	struct mlxsw_sp_rif_ipip_lb *lb_rif;
+	struct mlxsw_sp_vr *ul_vr;
+	int err = 0;
+
+	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, ol_dev);
+	if (ipip_entry) {
+		lb_rif = ipip_entry->ol_lb;
+		ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
+		err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, true);
+		if (err)
+			goto out;
+		lb_rif->common.mtu = ol_dev->mtu;
+	}
+
+out:
+	return err;
+}
+
 static void mlxsw_sp_netdevice_ipip_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 						struct net_device *ol_dev)
 {
@@ -1656,6 +1709,8 @@ int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 		extack = info->extack;
 		return mlxsw_sp_netdevice_ipip_ol_change_event(mlxsw_sp,
 							       ol_dev, extack);
+	case NETDEV_CHANGEMTU:
+		return mlxsw_sp_netdevice_ipip_ol_update_mtu(mlxsw_sp, ol_dev);
 	}
 	return 0;
 }
@@ -3789,6 +3844,9 @@ mlxsw_sp_fib4_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
 {
 	struct mlxsw_sp_nexthop_group *nh_grp = fib_entry->nh_group;
 	int i;
+
+	if (!list_is_singular(&nh_grp->fib_list))
+		return;
 
 	for (i = 0; i < nh_grp->count; i++) {
 		struct mlxsw_sp_nexthop *nh = &nh_grp->nexthops[i];
@@ -6834,33 +6892,6 @@ mlxsw_sp_rif_ipip_lb_setup(struct mlxsw_sp_rif *rif,
 				 common);
 	rif_lb = mlxsw_sp_rif_ipip_lb_rif(rif);
 	rif_lb->lb_config = params_lb->lb_config;
-}
-
-static int
-mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
-			struct mlxsw_sp_vr *ul_vr, bool enable)
-{
-	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
-	struct mlxsw_sp_rif *rif = &lb_rif->common;
-	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
-	char ritr_pl[MLXSW_REG_RITR_LEN];
-	u32 saddr4;
-
-	switch (lb_cf.ul_protocol) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		saddr4 = be32_to_cpu(lb_cf.saddr.addr4);
-		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
-				    rif->rif_index, rif->vr_id, rif->dev->mtu);
-		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
-			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
-			    ul_vr->id, saddr4, lb_cf.okey);
-		break;
-
-	case MLXSW_SP_L3_PROTO_IPV6:
-		return -EAFNOSUPPORT;
-	}
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
 static int

@@ -800,7 +800,7 @@ static int pci_wakeup(struct pci_dev *pci_dev, void *ign)
  * pci_wakeup_bus - Walk given bus and wake up devices on it
  * @bus: Top bus of the subtree to walk.
  */
-static void pci_wakeup_bus(struct pci_bus *bus)
+void pci_wakeup_bus(struct pci_bus *bus)
 {
 	if (bus)
 		pci_walk_bus(bus, pci_wakeup, NULL);
@@ -850,11 +850,11 @@ static int __pci_dev_set_current_state(struct pci_dev *dev, void *data)
 }
 
 /**
- * __pci_bus_set_current_state - Walk given bus and set current state of devices
+ * pci_bus_set_current_state - Walk given bus and set current state of devices
  * @bus: Top bus of the subtree to walk.
  * @state: state to be set
  */
-static void __pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
+void pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
 {
 	if (bus)
 		pci_walk_bus(bus, __pci_dev_set_current_state, &state);
@@ -876,7 +876,7 @@ int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
 	ret = pci_platform_power_transition(dev, state);
 	/* Power off the bridge may power off the whole hierarchy */
 	if (!ret && state == PCI_D3cold)
-		__pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
+		pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
@@ -2258,8 +2258,6 @@ void pci_config_pm_runtime_put(struct pci_dev *pdev)
  */
 bool pci_bridge_d3_possible(struct pci_dev *bridge)
 {
-	unsigned int year;
-
 	if (!pci_is_pcie(bridge))
 		return false;
 
@@ -2287,10 +2285,8 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 		 * It should be safe to put PCIe ports from 2015 or newer
 		 * to D3.
 		 */
-		if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) &&
-		    year >= 2015) {
+		if (dmi_get_bios_year() >= 2015)
 			return true;
-		}
 		break;
 	}
 

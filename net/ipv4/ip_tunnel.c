@@ -362,13 +362,18 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 	struct ip_tunnel *nt;
 	struct net_device *dev;
 	int t_hlen;
+	int mtu;
+	int err;
 
 	BUG_ON(!itn->fb_tunnel_dev);
 	dev = __ip_tunnel_create(net, itn->fb_tunnel_dev->rtnl_link_ops, parms);
 	if (IS_ERR(dev))
 		return ERR_CAST(dev);
 
-	dev->mtu = ip_tunnel_bind_dev(dev);
+	mtu = ip_tunnel_bind_dev(dev);
+	err = dev_set_mtu(dev, mtu);
+	if (err)
+		goto err_dev_set_mtu;
 
 	nt = netdev_priv(dev);
 	t_hlen = nt->hlen + sizeof(struct iphdr);
@@ -376,6 +381,10 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 	dev->max_mtu = 0xFFF8 - dev->hard_header_len - t_hlen;
 	ip_tunnel_add(itn, nt);
 	return nt;
+
+err_dev_set_mtu:
+	unregister_netdevice(dev);
+	return ERR_PTR(err);
 }
 
 int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
@@ -710,16 +719,9 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	if (tunnel->fwmark) {
-		init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
-				 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
-				 tunnel->fwmark);
-	}
-	else {
-		init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
-				 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
-				 skb->mark);
-	}
+	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
+			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
+			 tunnel->fwmark);
 
 	if (ip_tunnel_encap(skb, tunnel, &protocol, &fl4) < 0)
 		goto tx_error;
@@ -1109,17 +1111,29 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 	nt->fwmark = fwmark;
 	err = register_netdevice(dev);
 	if (err)
-		goto out;
+		goto err_register_netdevice;
 
 	if (dev->type == ARPHRD_ETHER && !tb[IFLA_ADDRESS])
 		eth_hw_addr_random(dev);
 
 	mtu = ip_tunnel_bind_dev(dev);
-	if (!tb[IFLA_MTU])
-		dev->mtu = mtu;
+	if (tb[IFLA_MTU]) {
+		unsigned int max = 0xfff8 - dev->hard_header_len - nt->hlen;
+
+		mtu = clamp(dev->mtu, (unsigned int)ETH_MIN_MTU,
+			    (unsigned int)(max - sizeof(struct iphdr)));
+	}
+
+	err = dev_set_mtu(dev, mtu);
+	if (err)
+		goto err_dev_set_mtu;
 
 	ip_tunnel_add(itn, nt);
-out:
+	return 0;
+
+err_dev_set_mtu:
+	unregister_netdevice(dev);
+err_register_netdevice:
 	return err;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_newlink);

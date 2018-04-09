@@ -180,7 +180,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	struct drm_mm *mm = hole_node->mm;
 	struct rb_node **link, *rb;
 	struct drm_mm_node *parent;
-	bool leftmost = true;
+	bool leftmost;
 
 	node->__subtree_last = LAST(node);
 
@@ -201,6 +201,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	} else {
 		rb = NULL;
 		link = &mm->interval_tree.rb_root.rb_node;
+		leftmost = true;
 	}
 
 	while (*link) {
@@ -208,11 +209,11 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 		parent = rb_entry(rb, struct drm_mm_node, rb);
 		if (parent->__subtree_last < node->__subtree_last)
 			parent->__subtree_last = node->__subtree_last;
-		if (node->start < parent->start)
+		if (node->start < parent->start) {
 			link = &parent->rb.rb_left;
-		else {
+		} else {
 			link = &parent->rb.rb_right;
-			leftmost = true;
+			leftmost = false;
 		}
 	}
 
@@ -836,9 +837,24 @@ struct drm_mm_node *drm_mm_scan_color_evict(struct drm_mm_scan *scan)
 	if (!mm->color_adjust)
 		return NULL;
 
-	hole = list_first_entry(&mm->hole_stack, typeof(*hole), hole_stack);
-	hole_start = __drm_mm_hole_node_start(hole);
-	hole_end = hole_start + hole->hole_size;
+	/*
+	 * The hole found during scanning should ideally be the first element
+	 * in the hole_stack list, but due to side-effects in the driver it
+	 * may not be.
+	 */
+	list_for_each_entry(hole, &mm->hole_stack, hole_stack) {
+		hole_start = __drm_mm_hole_node_start(hole);
+		hole_end = hole_start + hole->hole_size;
+
+		if (hole_start <= scan->hit_start &&
+		    hole_end >= scan->hit_end)
+			break;
+	}
+
+	/* We should only be called after we found the hole previously */
+	DRM_MM_BUG_ON(&hole->hole_stack == &mm->hole_stack);
+	if (unlikely(&hole->hole_stack == &mm->hole_stack))
+		return NULL;
 
 	DRM_MM_BUG_ON(hole_start > scan->hit_start);
 	DRM_MM_BUG_ON(hole_end < scan->hit_end);

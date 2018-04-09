@@ -1,5 +1,5 @@
 perf-data(1)
-==============
+============
 
 NAME
 ----
@@ -29,6 +29,10 @@ OPTIONS for 'convert'
 
 -i::
 	Specify input perf data file path.
+
+-f::
+--force::
+	Don't complain, do it.
 
 -v::
 --verbose::

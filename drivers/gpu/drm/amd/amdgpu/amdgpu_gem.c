@@ -36,8 +36,6 @@ void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 	struct amdgpu_bo *robj = gem_to_amdgpu_bo(gobj);
 
 	if (robj) {
-		if (robj->gem_base.import_attach)
-			drm_prime_gem_destroy(&robj->gem_base, robj->tbo.sg);
 		amdgpu_mn_unregister(robj);
 		amdgpu_bo_unref(&robj);
 	}
@@ -45,7 +43,7 @@ void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 			     int alignment, u32 initial_domain,
-			     u64 flags, bool kernel,
+			     u64 flags, enum ttm_bo_type type,
 			     struct reservation_object *resv,
 			     struct drm_gem_object **obj)
 {
@@ -58,23 +56,11 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 		alignment = PAGE_SIZE;
 	}
 
-retry:
-	r = amdgpu_bo_create(adev, size, alignment, kernel, initial_domain,
-			     flags, NULL, resv, 0, &bo);
+	r = amdgpu_bo_create(adev, size, alignment, initial_domain,
+			     flags, type, resv, &bo);
 	if (r) {
-		if (r != -ERESTARTSYS) {
-			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
-				flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-				goto retry;
-			}
-
-			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
-				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
-				goto retry;
-			}
-			DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
-				  size, initial_domain, alignment, r);
-		}
+		DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
+			  size, initial_domain, alignment, r);
 		return r;
 	}
 	*obj = &bo->gem_base;
@@ -523,12 +509,13 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		goto error;
 
 	if (operation == AMDGPU_VA_OP_MAP ||
-	    operation == AMDGPU_VA_OP_REPLACE)
+	    operation == AMDGPU_VA_OP_REPLACE) {
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
+		if (r)
+			goto error;
+	}
 
 	r = amdgpu_vm_update_directories(adev, vm);
-	if (r)
-		goto error;
 
 error:
 	if (r && r != -ERESTARTSYS)
@@ -634,7 +621,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			goto error_backoff;
 
-		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
+		va_flags = amdgpu_gmc_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_map(adev, bo_va, args->va_address,
 				     args->offset_in_bo, args->map_size,
 				     va_flags);
@@ -654,7 +641,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			goto error_backoff;
 
-		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
+		va_flags = amdgpu_gmc_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_replace_map(adev, bo_va, args->va_address,
 					     args->offset_in_bo, args->map_size,
 					     va_flags);

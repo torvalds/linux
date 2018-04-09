@@ -29,18 +29,6 @@
 struct cgs_device;
 
 /**
- * enum cgs_gpu_mem_type - GPU memory types
- */
-enum cgs_gpu_mem_type {
-	CGS_GPU_MEM_TYPE__VISIBLE_FB,
-	CGS_GPU_MEM_TYPE__INVISIBLE_FB,
-	CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
-	CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB,
-	CGS_GPU_MEM_TYPE__GART_CACHEABLE,
-	CGS_GPU_MEM_TYPE__GART_WRITECOMBINE
-};
-
-/**
  * enum cgs_ind_reg - Indirect register spaces
  */
 enum cgs_ind_reg {
@@ -88,32 +76,6 @@ enum cgs_ucode_id {
 	CGS_UCODE_ID_MAXIMUM,
 };
 
-enum cgs_system_info_id {
-	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
-	CGS_SYSTEM_INFO_PCIE_GEN_INFO,
-	CGS_SYSTEM_INFO_PCIE_MLW,
-	CGS_SYSTEM_INFO_PCIE_DEV,
-	CGS_SYSTEM_INFO_PCIE_REV,
-	CGS_SYSTEM_INFO_CG_FLAGS,
-	CGS_SYSTEM_INFO_PG_FLAGS,
-	CGS_SYSTEM_INFO_GFX_CU_INFO,
-	CGS_SYSTEM_INFO_GFX_SE_INFO,
-	CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID,
-	CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID,
-	CGS_SYSTEM_INFO_PCIE_BUS_DEVFN,
-	CGS_SYSTEM_INFO_ID_MAXIMUM,
-};
-
-struct cgs_system_info {
-	uint64_t			size;
-	enum cgs_system_info_id		info_id;
-	union {
-		void			*ptr;
-		uint64_t		value;
-	};
-	uint64_t			padding[13];
-};
-
 /*
  * enum cgs_resource_type - GPU resource type
  */
@@ -144,7 +106,6 @@ struct cgs_firmware_info {
 
 struct cgs_mode_info {
 	uint32_t		refresh_rate;
-	uint32_t		ref_clock;
 	uint32_t		vblank_time_us;
 };
 
@@ -155,121 +116,6 @@ struct cgs_display_info {
 };
 
 typedef unsigned long cgs_handle_t;
-
-#define CGS_ACPI_METHOD_ATCS          0x53435441
-#define CGS_ACPI_METHOD_ATIF          0x46495441
-#define CGS_ACPI_METHOD_ATPX          0x58505441
-#define CGS_ACPI_FIELD_METHOD_NAME                      0x00000001
-#define CGS_ACPI_FIELD_INPUT_ARGUMENT_COUNT             0x00000002
-#define CGS_ACPI_MAX_BUFFER_SIZE     256
-#define CGS_ACPI_TYPE_ANY                      0x00
-#define CGS_ACPI_TYPE_INTEGER               0x01
-#define CGS_ACPI_TYPE_STRING                0x02
-#define CGS_ACPI_TYPE_BUFFER                0x03
-#define CGS_ACPI_TYPE_PACKAGE               0x04
-
-struct cgs_acpi_method_argument {
-	uint32_t type;
-	uint32_t data_length;
-	union{
-		uint32_t value;
-		void *pointer;
-	};
-};
-
-struct cgs_acpi_method_info {
-	uint32_t size;
-	uint32_t field;
-	uint32_t input_count;
-	uint32_t name;
-	struct cgs_acpi_method_argument *pinput_argument;
-	uint32_t output_count;
-	struct cgs_acpi_method_argument *poutput_argument;
-	uint32_t padding[9];
-};
-
-/**
- * cgs_alloc_gpu_mem() - Allocate GPU memory
- * @cgs_device:	opaque device handle
- * @type:	memory type
- * @size:	size in bytes
- * @align:	alignment in bytes
- * @handle:	memory handle (output)
- *
- * The memory types CGS_GPU_MEM_TYPE_*_CONTIG_FB force contiguous
- * memory allocation. This guarantees that the MC address returned by
- * cgs_gmap_gpu_mem is not mapped through the GART. The non-contiguous
- * FB memory types may be GART mapped depending on memory
- * fragmentation and memory allocator policies.
- *
- * If min/max_offset are non-0, the allocation will be forced to
- * reside between these offsets in its respective memory heap. The
- * base address that the offset relates to, depends on the memory
- * type.
- *
- * - CGS_GPU_MEM_TYPE__*_CONTIG_FB: FB MC base address
- * - CGS_GPU_MEM_TYPE__GART_*:	    GART aperture base address
- * - others:			    undefined, don't use with max_offset
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_alloc_gpu_mem_t)(struct cgs_device *cgs_device, enum cgs_gpu_mem_type type,
-				   uint64_t size, uint64_t align,
-				   cgs_handle_t *handle);
-
-/**
- * cgs_free_gpu_mem() - Free GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_free_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle);
-
-/**
- * cgs_gmap_gpu_mem() - GPU-map GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- * @mcaddr:	MC address (output)
- *
- * Ensures that a buffer is GPU accessible and returns its MC address.
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle,
-				  uint64_t *mcaddr);
-
-/**
- * cgs_gunmap_gpu_mem() - GPU-unmap GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- *
- * Allows the buffer to be migrated while it's not used by the GPU.
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gunmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle);
-
-/**
- * cgs_kmap_gpu_mem() - Kernel-map GPU memory
- *
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- * @map:	Kernel virtual address the memory was mapped to (output)
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_kmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle,
-				  void **map);
-
-/**
- * cgs_kunmap_gpu_mem() - Kernel-unmap GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_kunmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle);
 
 /**
  * cgs_read_register() - Read an MMIO register
@@ -406,35 +252,13 @@ typedef int(*cgs_get_active_displays_info)(
 
 typedef int (*cgs_notify_dpm_enabled)(struct cgs_device *cgs_device, bool enabled);
 
-typedef int (*cgs_call_acpi_method)(struct cgs_device *cgs_device,
-					uint32_t acpi_method,
-					uint32_t acpi_function,
-					void *pinput, void *poutput,
-					uint32_t output_count,
-					uint32_t input_size,
-					uint32_t output_size);
-
-typedef int (*cgs_query_system_info)(struct cgs_device *cgs_device,
-				struct cgs_system_info *sys_info);
-
 typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
 
 typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
 
 typedef void (*cgs_lock_grbm_idx)(struct cgs_device *cgs_device, bool lock);
 
-struct amd_pp_init;
-typedef void* (*cgs_register_pp_handle)(struct cgs_device *cgs_device,
-			int (*call_back_func)(struct amd_pp_init *, void **));
-
 struct cgs_ops {
-	/* memory management calls (similar to KFD interface) */
-	cgs_alloc_gpu_mem_t alloc_gpu_mem;
-	cgs_free_gpu_mem_t free_gpu_mem;
-	cgs_gmap_gpu_mem_t gmap_gpu_mem;
-	cgs_gunmap_gpu_mem_t gunmap_gpu_mem;
-	cgs_kmap_gpu_mem_t kmap_gpu_mem;
-	cgs_kunmap_gpu_mem_t kunmap_gpu_mem;
 	/* MMIO access */
 	cgs_read_register_t read_register;
 	cgs_write_register_t write_register;
@@ -456,14 +280,9 @@ struct cgs_ops {
 	cgs_get_active_displays_info get_active_displays_info;
 	/* notify dpm enabled */
 	cgs_notify_dpm_enabled notify_dpm_enabled;
-	/* ACPI */
-	cgs_call_acpi_method call_acpi_method;
-	/* get system info */
-	cgs_query_system_info query_system_info;
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
 	cgs_enter_safe_mode enter_safe_mode;
 	cgs_lock_grbm_idx lock_grbm_idx;
-	cgs_register_pp_handle register_pp_handle;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -471,7 +290,6 @@ struct cgs_os_ops; /* To be define in OS-specific CGS header */
 struct cgs_device
 {
 	const struct cgs_ops *ops;
-	const struct cgs_os_ops *os_ops;
 	/* to be embedded at the start of driver private structure */
 };
 
@@ -481,19 +299,6 @@ struct cgs_device
 	(((struct cgs_device *)dev)->ops->func(dev, ##__VA_ARGS__))
 #define CGS_OS_CALL(func,dev,...) \
 	(((struct cgs_device *)dev)->os_ops->func(dev, ##__VA_ARGS__))
-
-#define cgs_alloc_gpu_mem(dev,type,size,align,handle)	\
-	CGS_CALL(alloc_gpu_mem,dev,type,size,align,handle)
-#define cgs_free_gpu_mem(dev,handle)		\
-	CGS_CALL(free_gpu_mem,dev,handle)
-#define cgs_gmap_gpu_mem(dev,handle,mcaddr)	\
-	CGS_CALL(gmap_gpu_mem,dev,handle,mcaddr)
-#define cgs_gunmap_gpu_mem(dev,handle)		\
-	CGS_CALL(gunmap_gpu_mem,dev,handle)
-#define cgs_kmap_gpu_mem(dev,handle,map)	\
-	CGS_CALL(kmap_gpu_mem,dev,handle,map)
-#define cgs_kunmap_gpu_mem(dev,handle)		\
-	CGS_CALL(kunmap_gpu_mem,dev,handle)
 
 #define cgs_read_register(dev,offset)		\
 	CGS_CALL(read_register,dev,offset)
@@ -525,10 +330,6 @@ struct cgs_device
 #define cgs_get_active_displays_info(dev, info)	\
 	CGS_CALL(get_active_displays_info, dev, info)
 
-#define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
-	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
-#define cgs_query_system_info(dev, sys_info)	\
-	CGS_CALL(query_system_info, dev, sys_info)
 #define cgs_get_pci_resource(cgs_device, resource_type, size, offset, \
 	resource_base) \
 	CGS_CALL(get_pci_resource, cgs_device, resource_type, size, offset, \
@@ -542,7 +343,6 @@ struct cgs_device
 
 #define cgs_lock_grbm_idx(cgs_device, lock) \
 		CGS_CALL(lock_grbm_idx, cgs_device, lock)
-#define cgs_register_pp_handle(cgs_device, call_back_func) \
-		CGS_CALL(register_pp_handle, cgs_device, call_back_func)
+
 
 #endif /* _CGS_COMMON_H */

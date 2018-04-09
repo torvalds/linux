@@ -261,9 +261,9 @@
 struct name_list_extended {
 	struct get_name_list_extended *l;
 	dma_addr_t		ldma;
-	struct list_head 	fcports;	/* protect by sess_list */
+	struct list_head	fcports;
+	spinlock_t		fcports_lock;
 	u32			size;
-	u8			sent;
 };
 /*
  * Timeout timer counts in seconds
@@ -2217,6 +2217,7 @@ typedef struct {
 
 /* FCP-4 types */
 #define FC4_TYPE_FCP_SCSI	0x08
+#define FC4_TYPE_NVME		0x28
 #define FC4_TYPE_OTHER		0x0
 #define FC4_TYPE_UNKNOWN	0xff
 

@@ -129,7 +129,10 @@ static ssize_t temp1_input_show(struct device *dev,
 
 	data->read_tempreg(data->pdev, &regval);
 	temp = (regval >> 21) * 125;
-	temp -= data->temp_offset;
+	if (temp > data->temp_offset)
+		temp -= data->temp_offset;
+	else
+		temp = 0;
 
 	return sprintf(buf, "%u\n", temp);
 }

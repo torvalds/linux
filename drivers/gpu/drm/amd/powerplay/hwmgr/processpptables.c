@@ -1074,12 +1074,11 @@ static int init_overdrive_limits(struct pp_hwmgr *hwmgr,
 				powerplay_table,
 				(const ATOM_FIRMWARE_INFO_V2_1 *)fw_info);
 
-	if (hwmgr->platform_descriptor.overdriveLimit.engineClock > 0
-		&& hwmgr->platform_descriptor.overdriveLimit.memoryClock > 0
-		&& !phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_OverdriveDisabledByPowerBudget))
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_ACOverdriveSupport);
+	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0
+		&& hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0) {
+		hwmgr->od_enabled = false;
+		pr_debug("OverDrive feature not support by VBIOS\n");
+	}
 
 	return result;
 }
@@ -1696,9 +1695,6 @@ static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 
 	kfree(hwmgr->dyn_state.vdd_gfx_dependency_on_sclk);
 	hwmgr->dyn_state.vdd_gfx_dependency_on_sclk = NULL;
-
-	kfree(hwmgr->dyn_state.vq_budgeting_table);
-	hwmgr->dyn_state.vq_budgeting_table = NULL;
 
 	return 0;
 }

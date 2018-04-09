@@ -774,6 +774,9 @@ static int do_dump(int argc, char **argv)
 			      n < 0 ? strerror(errno) : "short write");
 			goto err_free;
 		}
+
+		if (json_output)
+			jsonw_null(json_wtr);
 	} else {
 		if (member_len == &info.jited_prog_len) {
 			const char *name = NULL;

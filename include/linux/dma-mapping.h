@@ -518,12 +518,8 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
 	if (dma_alloc_from_dev_coherent(dev, size, dma_handle, &cpu_addr))
 		return cpu_addr;
 
-	/*
-	 * Let the implementation decide on the zone to allocate from, and
-	 * decide on the way of zeroing the memory given that the memory
-	 * returned should always be zeroed.
-	 */
-	flag &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM | __GFP_ZERO);
+	/* let the implementation decide on the zone to allocate from: */
+	flag &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
 	if (!arch_dma_alloc_attrs(&dev, &flag))
 		return NULL;
@@ -578,7 +574,7 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
 /*
  * This is a hack for the legacy x86 forbid_dac and iommu_sac_force. Please
- * don't use this is new code.
+ * don't use this in new code.
  */
 #ifndef arch_dma_supported
 #define arch_dma_supported(dev, mask)	(1)

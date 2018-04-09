@@ -1695,10 +1695,11 @@ static int devlink_dpipe_table_put(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (table->resource_valid) {
-		nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,
-				  table->resource_id, DEVLINK_ATTR_PAD);
-		nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,
-				  table->resource_units, DEVLINK_ATTR_PAD);
+		if (nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,
+				      table->resource_id, DEVLINK_ATTR_PAD) ||
+		    nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,
+				      table->resource_units, DEVLINK_ATTR_PAD))
+			goto nla_put_failure;
 	}
 	if (devlink_dpipe_matches_put(table, skb))
 		goto nla_put_failure;
@@ -1797,7 +1798,7 @@ send_done:
 	if (!nlh) {
 		err = devlink_dpipe_send_and_alloc_skb(&skb, info);
 		if (err)
-			goto err_skb_send_alloc;
+			return err;
 		goto send_done;
 	}
 
@@ -1806,7 +1807,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_table_put:
-err_skb_send_alloc:
 	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
@@ -2072,7 +2072,7 @@ static int devlink_dpipe_entries_fill(struct genl_info *info,
 					     table->counters_enabled,
 					     &dump_ctx);
 	if (err)
-		goto err_entries_dump;
+		return err;
 
 send_done:
 	nlh = nlmsg_put(dump_ctx.skb, info->snd_portid, info->snd_seq,
@@ -2080,16 +2080,10 @@ send_done:
 	if (!nlh) {
 		err = devlink_dpipe_send_and_alloc_skb(&dump_ctx.skb, info);
 		if (err)
-			goto err_skb_send_alloc;
+			return err;
 		goto send_done;
 	}
 	return genlmsg_reply(dump_ctx.skb, info);
-
-err_entries_dump:
-err_skb_send_alloc:
-	genlmsg_cancel(dump_ctx.skb, dump_ctx.hdr);
-	nlmsg_free(dump_ctx.skb);
-	return err;
 }
 
 static int devlink_nl_cmd_dpipe_entries_get(struct sk_buff *skb,
@@ -2228,7 +2222,7 @@ send_done:
 	if (!nlh) {
 		err = devlink_dpipe_send_and_alloc_skb(&skb, info);
 		if (err)
-			goto err_skb_send_alloc;
+			return err;
 		goto send_done;
 	}
 	return genlmsg_reply(skb, info);
@@ -2236,7 +2230,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_table_put:
-err_skb_send_alloc:
 	genlmsg_cancel(skb, hdr);
 	nlmsg_free(skb);
 	return err;
@@ -2332,7 +2325,7 @@ devlink_resource_validate_children(struct devlink_resource *resource)
 	list_for_each_entry(child_resource, &resource->resource_list, list)
 		parts_size += child_resource->size_new;
 
-	if (parts_size > resource->size)
+	if (parts_size > resource->size_new)
 		size_valid = false;
 out:
 	resource->size_valid = size_valid;
@@ -2372,20 +2365,22 @@ static int devlink_nl_cmd_resource_set(struct sk_buff *skb,
 	return 0;
 }
 
-static void
+static int
 devlink_resource_size_params_put(struct devlink_resource *resource,
 				 struct sk_buff *skb)
 {
 	struct devlink_resource_size_params *size_params;
 
-	size_params = resource->size_params;
-	nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_GRAN,
-			  size_params->size_granularity, DEVLINK_ATTR_PAD);
-	nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_MAX,
-			  size_params->size_max, DEVLINK_ATTR_PAD);
-	nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_MIN,
-			  size_params->size_min, DEVLINK_ATTR_PAD);
-	nla_put_u8(skb, DEVLINK_ATTR_RESOURCE_UNIT, size_params->unit);
+	size_params = &resource->size_params;
+	if (nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_GRAN,
+			      size_params->size_granularity, DEVLINK_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_MAX,
+			      size_params->size_max, DEVLINK_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_MIN,
+			      size_params->size_min, DEVLINK_ATTR_PAD) ||
+	    nla_put_u8(skb, DEVLINK_ATTR_RESOURCE_UNIT, size_params->unit))
+		return -EMSGSIZE;
+	return 0;
 }
 
 static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
@@ -2409,10 +2404,12 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 		nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_SIZE_NEW,
 				  resource->size_new, DEVLINK_ATTR_PAD);
 	if (resource->resource_ops && resource->resource_ops->occ_get)
-		nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_OCC,
-				  resource->resource_ops->occ_get(devlink),
-				  DEVLINK_ATTR_PAD);
-	devlink_resource_size_params_put(resource, skb);
+		if (nla_put_u64_64bit(skb, DEVLINK_ATTR_RESOURCE_OCC,
+				      resource->resource_ops->occ_get(devlink),
+				      DEVLINK_ATTR_PAD))
+			goto nla_put_failure;
+	if (devlink_resource_size_params_put(resource, skb))
+		goto nla_put_failure;
 	if (list_empty(&resource->resource_list))
 		goto out;
 
@@ -3151,7 +3148,7 @@ int devlink_resource_register(struct devlink *devlink,
 			      u64 resource_size,
 			      u64 resource_id,
 			      u64 parent_resource_id,
-			      struct devlink_resource_size_params *size_params,
+			      const struct devlink_resource_size_params *size_params,
 			      const struct devlink_resource_ops *resource_ops)
 {
 	struct devlink_resource *resource;
@@ -3194,7 +3191,8 @@ int devlink_resource_register(struct devlink *devlink,
 	resource->id = resource_id;
 	resource->resource_ops = resource_ops;
 	resource->size_valid = true;
-	resource->size_params = size_params;
+	memcpy(&resource->size_params, size_params,
+	       sizeof(resource->size_params));
 	INIT_LIST_HEAD(&resource->resource_list);
 	list_add_tail(&resource->list, resource_list);
 out:

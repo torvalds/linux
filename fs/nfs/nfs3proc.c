@@ -873,7 +873,7 @@ static void nfs3_nlm_release_call(void *data)
 	}
 }
 
-const struct nlmclnt_operations nlmclnt_fl_close_lock_ops = {
+static const struct nlmclnt_operations nlmclnt_fl_close_lock_ops = {
 	.nlmclnt_alloc_call = nfs3_nlm_alloc_call,
 	.nlmclnt_unlock_prepare = nfs3_nlm_unlock_prepare,
 	.nlmclnt_release_call = nfs3_nlm_release_call,

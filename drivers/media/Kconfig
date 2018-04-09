@@ -147,9 +147,11 @@ config DVB_CORE
 config DVB_MMAP
 	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
 	depends on DVB_CORE
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
+	select VIDEOBUF2_VMALLOC
 	default n
 	help
-	  This option enables DVB experimental memory-mapped API, with
+	  This option enables DVB experimental memory-mapped API, which
 	  reduces the number of context switches to read DVB buffers, as
 	  the buffers can use mmap() syscalls.
 

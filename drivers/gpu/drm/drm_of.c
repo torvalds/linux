@@ -122,12 +122,10 @@ int drm_of_component_probe(struct device *dev,
 		if (!port)
 			break;
 
-		if (!of_device_is_available(port->parent)) {
-			of_node_put(port);
-			continue;
-		}
+		if (of_device_is_available(port->parent))
+			drm_of_component_match_add(dev, &match, compare_of,
+						   port);
 
-		drm_of_component_match_add(dev, &match, compare_of, port);
 		of_node_put(port);
 	}
 

@@ -88,6 +88,20 @@
  * drm_mode_crtc_set_gamma_size(). Drivers which support both should use
  * drm_atomic_helper_legacy_gamma_set() to alias the legacy gamma ramp with the
  * "GAMMA_LUT" property above.
+ *
+ * Support for different non RGB color encodings is controlled through
+ * &drm_plane specific COLOR_ENCODING and COLOR_RANGE properties. They
+ * are set up by calling drm_plane_create_color_properties().
+ *
+ * "COLOR_ENCODING"
+ * 	Optional plane enum property to support different non RGB
+ * 	color encodings. The driver can provide a subset of standard
+ * 	enum values supported by the DRM plane.
+ *
+ * "COLOR_RANGE"
+ * 	Optional plane enum property to support different non RGB
+ * 	color parameter ranges. The driver can provide a subset of
+ * 	standard enum values supported by the DRM plane.
  */
 
 /**
@@ -339,3 +353,122 @@ out:
 	drm_modeset_unlock(&crtc->mutex);
 	return ret;
 }
+
+static const char * const color_encoding_name[] = {
+	[DRM_COLOR_YCBCR_BT601] = "ITU-R BT.601 YCbCr",
+	[DRM_COLOR_YCBCR_BT709] = "ITU-R BT.709 YCbCr",
+	[DRM_COLOR_YCBCR_BT2020] = "ITU-R BT.2020 YCbCr",
+};
+
+static const char * const color_range_name[] = {
+	[DRM_COLOR_YCBCR_FULL_RANGE] = "YCbCr full range",
+	[DRM_COLOR_YCBCR_LIMITED_RANGE] = "YCbCr limited range",
+};
+
+/**
+ * drm_get_color_encoding_name - return a string for color encoding
+ * @encoding: color encoding to compute name of
+ *
+ * In contrast to the other drm_get_*_name functions this one here returns a
+ * const pointer and hence is threadsafe.
+ */
+const char *drm_get_color_encoding_name(enum drm_color_encoding encoding)
+{
+	if (WARN_ON(encoding >= ARRAY_SIZE(color_encoding_name)))
+		return "unknown";
+
+	return color_encoding_name[encoding];
+}
+
+/**
+ * drm_get_color_range_name - return a string for color range
+ * @range: color range to compute name of
+ *
+ * In contrast to the other drm_get_*_name functions this one here returns a
+ * const pointer and hence is threadsafe.
+ */
+const char *drm_get_color_range_name(enum drm_color_range range)
+{
+	if (WARN_ON(range >= ARRAY_SIZE(color_range_name)))
+		return "unknown";
+
+	return color_range_name[range];
+}
+
+/**
+ * drm_plane_create_color_properties - color encoding related plane properties
+ * @plane: plane object
+ * @supported_encodings: bitfield indicating supported color encodings
+ * @supported_ranges: bitfileld indicating supported color ranges
+ * @default_encoding: default color encoding
+ * @default_range: default color range
+ *
+ * Create and attach plane specific COLOR_ENCODING and COLOR_RANGE
+ * properties to @plane. The supported encodings and ranges should
+ * be provided in supported_encodings and supported_ranges bitmasks.
+ * Each bit set in the bitmask indicates that its number as enum
+ * value is supported.
+ */
+int drm_plane_create_color_properties(struct drm_plane *plane,
+				      u32 supported_encodings,
+				      u32 supported_ranges,
+				      enum drm_color_encoding default_encoding,
+				      enum drm_color_range default_range)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_property *prop;
+	struct drm_prop_enum_list enum_list[max(DRM_COLOR_ENCODING_MAX,
+						DRM_COLOR_RANGE_MAX)];
+	int i, len;
+
+	if (WARN_ON(supported_encodings == 0 ||
+		    (supported_encodings & -BIT(DRM_COLOR_ENCODING_MAX)) != 0 ||
+		    (supported_encodings & BIT(default_encoding)) == 0))
+		return -EINVAL;
+
+	if (WARN_ON(supported_ranges == 0 ||
+		    (supported_ranges & -BIT(DRM_COLOR_RANGE_MAX)) != 0 ||
+		    (supported_ranges & BIT(default_range)) == 0))
+		return -EINVAL;
+
+	len = 0;
+	for (i = 0; i < DRM_COLOR_ENCODING_MAX; i++) {
+		if ((supported_encodings & BIT(i)) == 0)
+			continue;
+
+		enum_list[len].type = i;
+		enum_list[len].name = color_encoding_name[i];
+		len++;
+	}
+
+	prop = drm_property_create_enum(dev, 0, "COLOR_ENCODING",
+					enum_list, len);
+	if (!prop)
+		return -ENOMEM;
+	plane->color_encoding_property = prop;
+	drm_object_attach_property(&plane->base, prop, default_encoding);
+	if (plane->state)
+		plane->state->color_encoding = default_encoding;
+
+	len = 0;
+	for (i = 0; i < DRM_COLOR_RANGE_MAX; i++) {
+		if ((supported_ranges & BIT(i)) == 0)
+			continue;
+
+		enum_list[len].type = i;
+		enum_list[len].name = color_range_name[i];
+		len++;
+	}
+
+	prop = drm_property_create_enum(dev, 0,	"COLOR_RANGE",
+					enum_list, len);
+	if (!prop)
+		return -ENOMEM;
+	plane->color_range_property = prop;
+	drm_object_attach_property(&plane->base, prop, default_range);
+	if (plane->state)
+		plane->state->color_range = default_range;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_create_color_properties);

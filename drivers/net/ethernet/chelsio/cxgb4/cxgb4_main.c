@@ -4970,7 +4970,6 @@ static void cxgb4_mgmt_setup(struct net_device *dev)
 	/* Initialize the device structure. */
 	dev->netdev_ops = &cxgb4_mgmt_netdev_ops;
 	dev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
-	dev->needs_free_netdev = true;
 }
 
 static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
@@ -4982,9 +4981,10 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 	pcie_fw = readl(adap->regs + PCIE_FW_A);
 	/* Check if cxgb4 is the MASTER and fw is initialized */
-	if (!(pcie_fw & PCIE_FW_INIT_F) ||
+	if (num_vfs &&
+	    (!(pcie_fw & PCIE_FW_INIT_F) ||
 	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
-	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF) {
+	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF)) {
 		dev_warn(&pdev->dev,
 			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
 		return -EOPNOTSUPP;
@@ -5180,6 +5180,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
+	adapter->params.chip = chip;
+	adapter->adap_idx = adap_idx;
 	adapter->msg_enable = DFLT_MSG_ENABLE;
 	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
 				    (sizeof(struct mbox_cmd) *
@@ -5599,24 +5601,24 @@ static void remove_one(struct pci_dev *pdev)
 #if IS_ENABLED(CONFIG_IPV6)
 		t4_cleanup_clip_tbl(adapter);
 #endif
-		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
-		pci_disable_pcie_error_reporting(pdev);
-		if ((adapter->flags & DEV_ENABLED)) {
-			pci_disable_device(pdev);
-			adapter->flags &= ~DEV_ENABLED;
-		}
-		pci_release_regions(pdev);
-		kfree(adapter->mbox_log);
-		synchronize_rcu();
-		kfree(adapter);
 	}
 #ifdef CONFIG_PCI_IOV
 	else {
 		cxgb4_iov_configure(adapter->pdev, 0);
 	}
 #endif
+	iounmap(adapter->regs);
+	pci_disable_pcie_error_reporting(pdev);
+	if ((adapter->flags & DEV_ENABLED)) {
+		pci_disable_device(pdev);
+		adapter->flags &= ~DEV_ENABLED;
+	}
+	pci_release_regions(pdev);
+	kfree(adapter->mbox_log);
+	synchronize_rcu();
+	kfree(adapter);
 }
 
 /* "Shutdown" quiesces the device, stopping Ingress Packet and Interrupt

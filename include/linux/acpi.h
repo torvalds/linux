@@ -587,7 +587,7 @@ extern int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev);
 
-void *acpi_get_match_data(const struct device *dev);
+const void *acpi_device_get_match_data(const struct device *dev);
 extern bool acpi_driver_match_device(struct device *dev,
 				     const struct device_driver *drv);
 int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
@@ -621,6 +621,13 @@ int acpi_gtdt_init(struct acpi_table_header *table, int *platform_timer_count);
 int acpi_gtdt_map_ppi(int type);
 bool acpi_gtdt_c3stop(int type);
 int acpi_arch_timer_mem_init(struct arch_timer_mem *timer_mem, int *timer_count);
+#endif
+
+#ifndef ACPI_HAVE_ARCH_GET_ROOT_POINTER
+static inline u64 acpi_arch_get_root_pointer(void)
+{
+	return 0;
+}
 #endif
 
 #else	/* !CONFIG_ACPI */
@@ -766,7 +773,7 @@ static inline const struct acpi_device_id *acpi_match_device(
 	return NULL;
 }
 
-static inline void *acpi_get_match_data(const struct device *dev)
+static inline const void *acpi_device_get_match_data(const struct device *dev)
 {
 	return NULL;
 }

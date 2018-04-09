@@ -33,6 +33,8 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn_calc_math.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 /*
  * NOTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
@@ -486,6 +488,7 @@ static void split_stream_across_pipes(
 	secondary_pipe->plane_res.ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.xfm = pool->transforms[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.dpp = pool->dpps[secondary_pipe->pipe_idx];
+	secondary_pipe->plane_res.mpcc_inst = pool->dpps[secondary_pipe->pipe_idx]->inst;
 	if (primary_pipe->bottom_pipe) {
 		ASSERT(primary_pipe->bottom_pipe != secondary_pipe);
 		secondary_pipe->bottom_pipe = primary_pipe->bottom_pipe;
@@ -625,7 +628,7 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 	return updated;
 }
 
-void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
+static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 {
 	/*
 	 * disable optional pipe split by lower dispclk bounding box
@@ -634,7 +637,7 @@ void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 	v->max_dispclk[0] = v->max_dppclk_vmin0p65;
 }
 
-void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
+static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		unsigned int pixel_rate_khz)
 {
 	float pixel_rate_mhz = pixel_rate_khz / 1000;
@@ -647,25 +650,20 @@ void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		v->max_dppclk[0] = pixel_rate_mhz;
 }
 
-void hack_bounding_box(struct dcn_bw_internal_vars *v,
+static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		struct dc_debug *dbg,
 		struct dc_state *context)
 {
-	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID) {
+	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)
 		hack_disable_optional_pipe_split(v);
-	}
 
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP &&
-		context->stream_count >= 2) {
+		context->stream_count >= 2)
 		hack_disable_optional_pipe_split(v);
-	}
 
 	if (context->stream_count == 1 &&
-			dbg->force_single_disp_pipe_split) {
-		struct dc_stream_state *stream0 = context->streams[0];
-
-		hack_force_pipe_split(v, stream0->timing.pix_clk_khz);
-	}
+			dbg->force_single_disp_pipe_split)
+		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_khz);
 }
 
 bool dcn_validate_bandwidth(
@@ -799,22 +797,9 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[2] = v->phyclkv_nom0p8;
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
-
-	hack_bounding_box(v, &dc->debug, context);
-
-	if (v->voltage_override == dcn_bw_v_max0p9) {
-		v->voltage_override_level = number_of_states - 1;
-	} else if (v->voltage_override == dcn_bw_v_nom0p8) {
-		v->voltage_override_level = number_of_states - 2;
-	} else if (v->voltage_override == dcn_bw_v_mid0p72) {
-		v->voltage_override_level = number_of_states - 3;
-	} else {
-		v->voltage_override_level = 0;
-	}
 	v->synchronized_vblank = dcn_bw_no;
 	v->ta_pscalculation = dcn_bw_override;
 	v->allow_different_hratio_vratio = dcn_bw_yes;
-
 
 	for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -948,7 +933,18 @@ bool dcn_validate_bandwidth(
 	v->number_of_active_planes = input_idx;
 
 	scaler_settings_calculation(v);
+
+	hack_bounding_box(v, &dc->debug, context);
+
 	mode_support_and_system_configuration(v);
+
+	/* Unhack dppclk: dont bother with trying to pipe split if we cannot maintain dpm0 */
+	if (v->voltage_level != 0
+			&& context->stream_count == 1
+			&& dc->debug.force_single_disp_pipe_split) {
+		v->max_dppclk[0] = v->max_dppclk_vmin0p65;
+		mode_support_and_system_configuration(v);
+	}
 
 	if (v->voltage_level == 0 &&
 			(dc->debug.sr_exit_time_dpm0_ns
@@ -987,8 +983,6 @@ bool dcn_validate_bandwidth(
 			context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
 		}
 
-		context->bw.dcn.calc_clk.dram_ccm_us = (int)(v->dram_clock_change_margin);
-		context->bw.dcn.calc_clk.min_active_dram_ccm_us = (int)(v->min_active_dram_clock_change_margin);
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
@@ -1002,7 +996,26 @@ bool dcn_validate_bandwidth(
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
+		context->bw.dcn.calc_clk.dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
+
+		switch (v->voltage_level) {
+		case 0:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmin0p65 * 1000);
+			break;
+		case 1:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmid0p72 * 1000);
+			break;
+		case 2:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
+			break;
+		default:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
+			break;
+		}
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1248,8 +1261,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	else
 		dcf_clk =  dc->dcn_soc->dcfclkv_min0p65*1000;
 
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
-		"\tdcf_clk for voltage = %d\n", dcf_clk);
+	DC_LOG_BANDWIDTH_CALCS("\tdcf_clk for voltage = %d\n", dcf_clk);
 	return dcf_clk;
 }
 
@@ -1447,8 +1459,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 {
 	kernel_fpu_begin();
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
-			"sr_exit_time: %d ns\n"
+	DC_LOG_BANDWIDTH_CALCS("sr_exit_time: %d ns\n"
 			"sr_enter_plus_exit_time: %d ns\n"
 			"urgent_latency: %d ns\n"
 			"write_back_latency: %d ns\n"
@@ -1516,8 +1527,7 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_soc->vmm_page_size,
 			dc->dcn_soc->dram_clock_change_latency * 1000,
 			dc->dcn_soc->return_bus_width);
-	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
-			"rob_buffer_size_in_kbyte: %d\n"
+	DC_LOG_BANDWIDTH_CALCS("rob_buffer_size_in_kbyte: %d\n"
 			"det_buffer_size_in_kbyte: %d\n"
 			"dpp_output_buffer_pixels: %d\n"
 			"opp_output_buffer_lines: %d\n"

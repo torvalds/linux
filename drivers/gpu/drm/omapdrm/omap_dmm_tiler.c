@@ -58,11 +58,11 @@ static DEFINE_SPINLOCK(list_lock);
 	}
 
 static const struct {
-	uint32_t x_shft;	/* unused X-bits (as part of bpp) */
-	uint32_t y_shft;	/* unused Y-bits (as part of bpp) */
-	uint32_t cpp;		/* bytes/chars per pixel */
-	uint32_t slot_w;	/* width of each slot (in pixels) */
-	uint32_t slot_h;	/* height of each slot (in pixels) */
+	u32 x_shft;	/* unused X-bits (as part of bpp) */
+	u32 y_shft;	/* unused Y-bits (as part of bpp) */
+	u32 cpp;		/* bytes/chars per pixel */
+	u32 slot_w;	/* width of each slot (in pixels) */
+	u32 slot_h;	/* height of each slot (in pixels) */
 } geom[TILFMT_NFORMATS] = {
 	[TILFMT_8BIT]  = GEOM(0, 0, 1),
 	[TILFMT_16BIT] = GEOM(0, 1, 2),
@@ -72,7 +72,7 @@ static const struct {
 
 
 /* lookup table for registers w/ per-engine instances */
-static const uint32_t reg[][4] = {
+static const u32 reg[][4] = {
 	[PAT_STATUS] = {DMM_PAT_STATUS__0, DMM_PAT_STATUS__1,
 			DMM_PAT_STATUS__2, DMM_PAT_STATUS__3},
 	[PAT_DESCR]  = {DMM_PAT_DESCR__0, DMM_PAT_DESCR__1,
@@ -111,10 +111,10 @@ static void *alloc_dma(struct dmm_txn *txn, size_t sz, dma_addr_t *pa)
 }
 
 /* check status and spin until wait_mask comes true */
-static int wait_status(struct refill_engine *engine, uint32_t wait_mask)
+static int wait_status(struct refill_engine *engine, u32 wait_mask)
 {
 	struct dmm *dmm = engine->dmm;
-	uint32_t r = 0, err, i;
+	u32 r = 0, err, i;
 
 	i = DMM_FIXED_RETRY_COUNT;
 	while (true) {
@@ -158,7 +158,7 @@ static void release_engine(struct refill_engine *engine)
 static irqreturn_t omap_dmm_irq_handler(int irq, void *arg)
 {
 	struct dmm *dmm = arg;
-	uint32_t status = dmm_read(dmm, DMM_PAT_IRQSTATUS);
+	u32 status = dmm_read(dmm, DMM_PAT_IRQSTATUS);
 	int i;
 
 	/* ack IRQ */
@@ -226,10 +226,10 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
  * corresponding slot is cleared (ie. dummy_pa is programmed)
  */
 static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
-		struct page **pages, uint32_t npages, uint32_t roll)
+		struct page **pages, u32 npages, u32 roll)
 {
 	dma_addr_t pat_pa = 0, data_pa = 0;
-	uint32_t *data;
+	u32 *data;
 	struct pat *pat;
 	struct refill_engine *engine = txn->engine_handle;
 	int columns = (1 + area->x1 - area->x0);
@@ -239,7 +239,7 @@ static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	pat = alloc_dma(txn, sizeof(*pat), &pat_pa);
 
 	if (txn->last_pat)
-		txn->last_pat->next_pa = (uint32_t)pat_pa;
+		txn->last_pat->next_pa = (u32)pat_pa;
 
 	pat->area = *area;
 
@@ -330,7 +330,7 @@ cleanup:
  * DMM programming
  */
 static int fill(struct tcm_area *area, struct page **pages,
-		uint32_t npages, uint32_t roll, bool wait)
+		u32 npages, u32 roll, bool wait)
 {
 	int ret = 0;
 	struct tcm_area slice, area_s;
@@ -378,7 +378,7 @@ static int fill(struct tcm_area *area, struct page **pages,
 /* note: slots for which pages[i] == NULL are filled w/ dummy page
  */
 int tiler_pin(struct tiler_block *block, struct page **pages,
-		uint32_t npages, uint32_t roll, bool wait)
+		u32 npages, u32 roll, bool wait)
 {
 	int ret;
 
@@ -398,8 +398,8 @@ int tiler_unpin(struct tiler_block *block)
 /*
  * Reserve/release
  */
-struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
-		uint16_t h, uint16_t align)
+struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
+		u16 h, u16 align)
 {
 	struct tiler_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
 	u32 min_align = 128;
@@ -542,8 +542,8 @@ dma_addr_t tiler_ssptr(struct tiler_block *block)
 			block->area.p0.y * geom[block->fmt].slot_h);
 }
 
-dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
-		uint32_t x, uint32_t y)
+dma_addr_t tiler_tsptr(struct tiler_block *block, u32 orient,
+		u32 x, u32 y)
 {
 	struct tcm_pt *p = &block->area.p0;
 	BUG_ON(!validfmt(block->fmt));
@@ -553,14 +553,14 @@ dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
 			(p->y * geom[block->fmt].slot_h) + y);
 }
 
-void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)
+void tiler_align(enum tiler_fmt fmt, u16 *w, u16 *h)
 {
 	BUG_ON(!validfmt(fmt));
 	*w = round_up(*w, geom[fmt].slot_w);
 	*h = round_up(*h, geom[fmt].slot_h);
 }
 
-uint32_t tiler_stride(enum tiler_fmt fmt, uint32_t orient)
+u32 tiler_stride(enum tiler_fmt fmt, u32 orient)
 {
 	BUG_ON(!validfmt(fmt));
 
@@ -570,19 +570,19 @@ uint32_t tiler_stride(enum tiler_fmt fmt, uint32_t orient)
 		return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
 }
 
-size_t tiler_size(enum tiler_fmt fmt, uint16_t w, uint16_t h)
+size_t tiler_size(enum tiler_fmt fmt, u16 w, u16 h)
 {
 	tiler_align(fmt, &w, &h);
 	return geom[fmt].cpp * w * h;
 }
 
-size_t tiler_vsize(enum tiler_fmt fmt, uint16_t w, uint16_t h)
+size_t tiler_vsize(enum tiler_fmt fmt, u16 w, u16 h)
 {
 	BUG_ON(!validfmt(fmt));
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
-uint32_t tiler_get_cpu_cache_flags(void)
+u32 tiler_get_cpu_cache_flags(void)
 {
 	return omap_dmm->plat_data->cpu_cache_flags;
 }

@@ -64,6 +64,8 @@ struct dc_link {
 	enum signal_type connector_signal;
 	enum dc_irq_source irq_source_hpd;
 	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
+	bool is_hpd_filter_disabled;
+
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
 	 */
@@ -194,6 +196,8 @@ bool dc_link_dp_set_test_pattern(
 	const struct link_training_settings *p_link_settings,
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
+
+void dc_link_enable_hpd_filter(struct dc_link *link, bool enable);
 
 /*
  * DPCD access interfaces

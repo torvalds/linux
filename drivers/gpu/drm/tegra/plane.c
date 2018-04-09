@@ -68,6 +68,21 @@ static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(state);
 }
 
+static bool tegra_plane_format_mod_supported(struct drm_plane *plane,
+					     uint32_t format,
+					     uint64_t modifier)
+{
+	const struct drm_format_info *info = drm_format_info(format);
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	if (info->num_planes == 1)
+		return true;
+
+	return false;
+}
+
 const struct drm_plane_funcs tegra_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -75,6 +90,7 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 	.reset = tegra_plane_reset,
 	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
+	.format_mod_supported = tegra_plane_format_mod_supported,
 };
 
 int tegra_plane_state_add(struct tegra_plane *plane,
@@ -82,7 +98,6 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 {
 	struct drm_crtc_state *crtc_state;
 	struct tegra_dc_state *tegra;
-	struct drm_rect clip;
 	int err;
 
 	/* Propagate errors from allocation or locking failures. */
@@ -90,13 +105,8 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->mode.hdisplay;
-	clip.y2 = crtc_state->mode.vdisplay;
-
 	/* Check plane state for visibility and calculate clipping bounds */
-	err = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	err = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  0, INT_MAX, true, true);
 	if (err < 0)
 		return err;
@@ -297,13 +307,17 @@ int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
 	case WIN_COLOR_DEPTH_B8G8R8X8:
 		*alpha = WIN_COLOR_DEPTH_B8G8R8A8;
 		return 0;
+
+	case WIN_COLOR_DEPTH_B5G6R5:
+		*alpha = opaque;
+		return 0;
 	}
 
 	return -EINVAL;
 }
 
-unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
-					   struct tegra_plane *other)
+static unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
+						  struct tegra_plane *other)
 {
 	unsigned int index = 0, i;
 
@@ -330,9 +344,6 @@ void tegra_plane_check_dependent(struct tegra_plane *tegra,
 	unsigned int zpos[2];
 	unsigned int i;
 
-	for (i = 0; i < 3; i++)
-		state->dependent[i] = false;
-
 	for (i = 0; i < 2; i++)
 		zpos[i] = 0;
 
@@ -345,6 +356,8 @@ void tegra_plane_check_dependent(struct tegra_plane *tegra,
 			continue;
 
 		index = tegra_plane_get_overlap_index(tegra, p);
+
+		state->dependent[index] = false;
 
 		/*
 		 * If any of the other planes is on top of this plane and uses

@@ -1301,8 +1301,7 @@ static void unregister_i2c_dummy_clients(struct anx78xx *anx78xx)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(anx78xx->i2c_dummy); i++)
-		if (anx78xx->i2c_dummy[i])
-			i2c_unregister_device(anx78xx->i2c_dummy[i]);
+		i2c_unregister_device(anx78xx->i2c_dummy[i]);
 }
 
 static const struct regmap_config anx78xx_regmap_config = {

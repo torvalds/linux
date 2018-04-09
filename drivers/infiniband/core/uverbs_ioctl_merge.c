@@ -114,6 +114,7 @@ static size_t get_elements_above_id(const void **iters,
 	short min = SHRT_MAX;
 	const void *elem;
 	int i, j, last_stored = -1;
+	unsigned int equal_min = 0;
 
 	for_each_element(elem, i, j, elements, num_elements, num_offset,
 			 data_offset) {
@@ -136,6 +137,10 @@ static size_t get_elements_above_id(const void **iters,
 		 */
 		iters[last_stored == i ? num_iters - 1 : num_iters++] = elem;
 		last_stored = i;
+		if (min == GET_ID(id))
+			equal_min++;
+		else
+			equal_min = 1;
 		min = GET_ID(id);
 	}
 
@@ -146,15 +151,10 @@ static size_t get_elements_above_id(const void **iters,
 	 * Therefore, we need to clean the beginning of the array to make sure
 	 * all ids of final elements are equal to min.
 	 */
-	for (i = num_iters - 1; i >= 0 &&
-	     GET_ID(*(u16 *)(iters[i] + id_offset)) == min; i--)
-		;
-
-	num_iters -= i + 1;
-	memmove(iters, iters + i + 1, sizeof(*iters) * num_iters);
+	memmove(iters, iters + num_iters - equal_min, sizeof(*iters) * equal_min);
 
 	*min_id = min;
-	return num_iters;
+	return equal_min;
 }
 
 #define find_max_element_entry_id(num_elements, elements, num_objects_fld, \
@@ -322,7 +322,7 @@ static struct uverbs_method_spec *build_method_with_attrs(const struct uverbs_me
 		hash = kzalloc(sizeof(*hash) +
 			       ALIGN(sizeof(*hash->attrs) * (attr_max_bucket + 1),
 				     sizeof(long)) +
-			       BITS_TO_LONGS(attr_max_bucket) * sizeof(long),
+			       BITS_TO_LONGS(attr_max_bucket + 1) * sizeof(long),
 			       GFP_KERNEL);
 		if (!hash) {
 			res = -ENOMEM;
@@ -509,7 +509,7 @@ static struct uverbs_object_spec *build_object_with_methods(const struct uverbs_
 			 * first handler which != NULL. This also defines the
 			 * set of flags used for this handler.
 			 */
-			for (i = num_object_defs - 1;
+			for (i = num_method_defs - 1;
 			     i >= 0 && !method_defs[i]->handler; i--)
 				;
 			hash->methods[min_id++] = method;

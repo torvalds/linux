@@ -52,6 +52,8 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
+#define DC_LOGGER \
+		dc->ctx->logger
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 #include "dce110/dce110_compressor.h"
 #endif
@@ -700,7 +702,7 @@ static void get_pixel_clock_parameters(
 	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
 	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
-	pixel_clk_params->controller_id = pipe_ctx->pipe_idx + 1;
+	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
 	pixel_clk_params->requested_sym_clk = LINK_RATE_LOW *
 						LINK_RATE_REF_FREQ_IN_KHZ;
@@ -771,8 +773,7 @@ static bool dce110_validate_bandwidth(
 {
 	bool result = false;
 
-	dm_logger_write(
-		dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(
 		"%s: start",
 		__func__);
 
@@ -786,8 +787,7 @@ static bool dce110_validate_bandwidth(
 		result =  true;
 
 	if (!result)
-		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,
-			"%s: %dx%d@%d Bandwidth validation failed!\n",
+		DC_LOG_BANDWIDTH_VALIDATION("%s: %dx%d@%d Bandwidth validation failed!\n",
 			__func__,
 			context->streams[0]->timing.h_addressable,
 			context->streams[0]->timing.v_addressable,
@@ -846,6 +846,16 @@ static bool dce110_validate_bandwidth(
 	return result;
 }
 
+enum dc_status dce110_validate_plane(const struct dc_plane_state *plane_state,
+				     struct dc_caps *caps)
+{
+	if (((plane_state->dst_rect.width * 2) < plane_state->src_rect.width) ||
+	    ((plane_state->dst_rect.height * 2) < plane_state->src_rect.height))
+		return DC_FAIL_SURFACE_VALIDATE;
+
+	return DC_OK;
+}
+
 static bool dce110_validate_surface_sets(
 		struct dc_state *context)
 {
@@ -867,6 +877,13 @@ static bool dce110_validate_surface_sets(
 
 				if ((plane->src_rect.width > 1920 ||
 					plane->src_rect.height > 1080))
+					return false;
+
+				/* we don't have the logic to support underlay
+				 * only yet so block the use case where we get
+				 * NV12 plane as top layer
+				 */
+				if (j == 0)
 					return false;
 
 				/* irrespective of plane format,
@@ -973,7 +990,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 
 		dc->hwss.enable_display_power_gating(
 				dc,
-				pipe_ctx->pipe_idx,
+				pipe_ctx->stream_res.tg->inst,
 				dcb, PIPE_GATING_CONTROL_DISABLE);
 
 		/*
@@ -1021,6 +1038,7 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 	.link_enc_create = dce110_link_encoder_create,
 	.validate_guaranteed = dce110_validate_guaranteed,
 	.validate_bandwidth = dce110_validate_bandwidth,
+	.validate_plane = dce110_validate_plane,
 	.acquire_idle_pipe_for_layer = dce110_acquire_underlay,
 	.add_stream_to_ctx = dce110_add_stream_to_ctx,
 	.validate_global = dce110_validate_global
@@ -1152,7 +1170,7 @@ static bool construct(
 
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.underlay_pipe_index = pool->base.pipe_count;
-
+	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 150;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;

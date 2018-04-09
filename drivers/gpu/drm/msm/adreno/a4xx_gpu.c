@@ -27,6 +27,7 @@
 	 A4XX_INT0_CP_RB_INT |             \
 	 A4XX_INT0_CP_REG_PROTECT_FAULT |  \
 	 A4XX_INT0_CP_AHB_ERROR_HALT |     \
+	 A4XX_INT0_CACHE_FLUSH_TS |        \
 	 A4XX_INT0_UCHE_OOB_ACCESS)
 
 extern bool hang_debug;
@@ -274,16 +275,16 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 		return ret;
 
 	/* Load PM4: */
-	ptr = (uint32_t *)(adreno_gpu->pm4->data);
-	len = adreno_gpu->pm4->size / 4;
+	ptr = (uint32_t *)(adreno_gpu->fw[ADRENO_FW_PM4]->data);
+	len = adreno_gpu->fw[ADRENO_FW_PM4]->size / 4;
 	DBG("loading PM4 ucode version: %u", ptr[0]);
 	gpu_write(gpu, REG_A4XX_CP_ME_RAM_WADDR, 0);
 	for (i = 1; i < len; i++)
 		gpu_write(gpu, REG_A4XX_CP_ME_RAM_DATA, ptr[i]);
 
 	/* Load PFP: */
-	ptr = (uint32_t *)(adreno_gpu->pfp->data);
-	len = adreno_gpu->pfp->size / 4;
+	ptr = (uint32_t *)(adreno_gpu->fw[ADRENO_FW_PFP]->data);
+	len = adreno_gpu->fw[ADRENO_FW_PFP]->size / 4;
 	DBG("loading PFP ucode version: %u", ptr[0]);
 
 	gpu_write(gpu, REG_A4XX_CP_PFP_UCODE_ADDR, 0);

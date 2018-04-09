@@ -82,7 +82,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 
 	if ((!skb_is_gso(skb) && skb->len > mtu) ||
 	    (skb_is_gso(skb) &&
-	     skb_gso_network_seglen(skb) > ip6_skb_dst_mtu(skb))) {
+	     !skb_gso_validate_network_len(skb, ip6_skb_dst_mtu(skb)))) {
 		skb->dev = dst->dev;
 		skb->protocol = htons(ETH_P_IPV6);
 

@@ -134,7 +134,7 @@ static int rockchip_drm_bind(struct device *dev)
 	drm_dev->dev_private = private;
 
 	INIT_LIST_HEAD(&private->psr_list);
-	spin_lock_init(&private->psr_list_lock);
+	mutex_init(&private->psr_list_lock);
 
 	ret = rockchip_drm_init_iommu(drm_dev);
 	if (ret)
@@ -230,6 +230,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.gem_prime_import	= drm_gem_prime_import,
 	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_get_sg_table	= rockchip_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table	= rockchip_gem_prime_import_sg_table,
 	.gem_prime_vmap		= rockchip_gem_prime_vmap,
 	.gem_prime_vunmap	= rockchip_gem_prime_vunmap,
 	.gem_prime_mmap		= rockchip_gem_mmap_buf,
@@ -313,6 +314,14 @@ static int compare_dev(struct device *dev, void *data)
 	return dev == (struct device *)data;
 }
 
+static void rockchip_drm_match_remove(struct device *dev)
+{
+	struct device_link *link;
+
+	list_for_each_entry(link, &dev->links.consumers, s_node)
+		device_link_del(link);
+}
+
 static struct component_match *rockchip_drm_match_add(struct device *dev)
 {
 	struct component_match *match = NULL;
@@ -330,9 +339,14 @@ static struct component_match *rockchip_drm_match_add(struct device *dev)
 
 			if (!d)
 				break;
+
+			device_link_add(dev, d, DL_FLAG_STATELESS);
 			component_match_add(dev, &match, compare_dev, d);
 		} while (true);
 	}
+
+	if (IS_ERR(match))
+		rockchip_drm_match_remove(dev);
 
 	return match ?: ERR_PTR(-ENODEV);
 }
@@ -410,12 +424,20 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(match))
 		return PTR_ERR(match);
 
-	return component_master_add_with_match(dev, &rockchip_drm_ops, match);
+	ret = component_master_add_with_match(dev, &rockchip_drm_ops, match);
+	if (ret < 0) {
+		rockchip_drm_match_remove(dev);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int rockchip_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &rockchip_drm_ops);
+
+	rockchip_drm_match_remove(&pdev->dev);
 
 	return 0;
 }

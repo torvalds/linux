@@ -131,6 +131,16 @@ struct x86_hyper_init {
 };
 
 /**
+ * struct x86_init_acpi - x86 ACPI init functions
+ * @get_root_pointer:		get RSDP address
+ * @reduced_hw_early_init:	hardware reduced platform early init
+ */
+struct x86_init_acpi {
+	u64 (*get_root_pointer)(void);
+	void (*reduced_hw_early_init)(void);
+};
+
+/**
  * struct x86_init_ops - functions for platform specific setup
  *
  */
@@ -144,6 +154,7 @@ struct x86_init_ops {
 	struct x86_init_iommu		iommu;
 	struct x86_init_pci		pci;
 	struct x86_hyper_init		hyper;
+	struct x86_init_acpi		acpi;
 };
 
 /**
@@ -274,16 +285,16 @@ struct x86_msi_ops {
 	void (*restore_msi_irqs)(struct pci_dev *dev);
 };
 
-struct x86_io_apic_ops {
-	unsigned int	(*read)   (unsigned int apic, unsigned int reg);
-	void		(*disable)(void);
+struct x86_apic_ops {
+	unsigned int	(*io_apic_read)   (unsigned int apic, unsigned int reg);
+	void		(*restore)(void);
 };
 
 extern struct x86_init_ops x86_init;
 extern struct x86_cpuinit_ops x86_cpuinit;
 extern struct x86_platform_ops x86_platform;
 extern struct x86_msi_ops x86_msi;
-extern struct x86_io_apic_ops x86_io_apic_ops;
+extern struct x86_apic_ops x86_apic_ops;
 
 extern void x86_early_init_platform_quirks(void);
 extern void x86_init_noop(void);

@@ -3,15 +3,10 @@
  *  any CPU: unbound workqueues, timers, kthreads and any offloadable work.
  *
  * Copyright (C) 2017 Red Hat, Inc., Frederic Weisbecker
+ * Copyright (C) 2017-2018 SUSE, Frederic Weisbecker
  *
  */
-
-#include <linux/sched/isolation.h>
-#include <linux/tick.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/static_key.h>
-#include <linux/ctype.h>
+#include "sched.h"
 
 DEFINE_STATIC_KEY_FALSE(housekeeping_overriden);
 EXPORT_SYMBOL_GPL(housekeeping_overriden);
@@ -59,6 +54,9 @@ void __init housekeeping_init(void)
 		return;
 
 	static_branch_enable(&housekeeping_overriden);
+
+	if (housekeeping_flags & HK_FLAG_TICK)
+		sched_tick_offload_init();
 
 	/* We need at least one CPU to handle housekeeping work */
 	WARN_ON_ONCE(cpumask_empty(housekeeping_mask));
@@ -119,7 +117,7 @@ static int __init housekeeping_nohz_full_setup(char *str)
 {
 	unsigned int flags;
 
-	flags = HK_FLAG_TICK | HK_FLAG_TIMER | HK_FLAG_RCU | HK_FLAG_MISC;
+	flags = HK_FLAG_TICK | HK_FLAG_WQ | HK_FLAG_TIMER | HK_FLAG_RCU | HK_FLAG_MISC;
 
 	return housekeeping_setup(str, flags);
 }

@@ -13,14 +13,15 @@ The following technologies are described:
  * Generic Segmentation Offload - GSO
  * Generic Receive Offload - GRO
  * Partial Generic Segmentation Offload - GSO_PARTIAL
+ * SCTP accelleration with GSO - GSO_BY_FRAGS
 
 TCP Segmentation Offload
 ========================
 
 TCP segmentation allows a device to segment a single frame into multiple
 frames with a data payload size specified in skb_shinfo()->gso_size.
-When TCP segmentation requested the bit for either SKB_GSO_TCP or
-SKB_GSO_TCP6 should be set in skb_shinfo()->gso_type and
+When TCP segmentation requested the bit for either SKB_GSO_TCPV4 or
+SKB_GSO_TCPV6 should be set in skb_shinfo()->gso_type and
 skb_shinfo()->gso_size should be set to a non-zero value.
 
 TCP segmentation is dependent on support for the use of partial checksum
@@ -48,6 +49,10 @@ UDP fragmentation offload allows a device to fragment an oversized UDP
 datagram into multiple IPv4 fragments.  Many of the requirements for UDP
 fragmentation offload are the same as TSO.  However the IPv4 ID for
 fragments should not increment as a single IPv4 datagram is fragmented.
+
+UFO is deprecated: modern kernels will no longer generate UFO skbs, but can
+still receive them from tuntap and similar devices. Offload of UDP-based
+tunnel protocols is still supported.
 
 IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
 ========================================================
@@ -83,10 +88,10 @@ SKB_GSO_UDP_TUNNEL_CSUM.  These two additional tunnel types reflect the
 fact that the outer header also requests to have a non-zero checksum
 included in the outer header.
 
-Finally there is SKB_GSO_REMCSUM which indicates that a given tunnel header
-has requested a remote checksum offload.  In this case the inner headers
-will be left with a partial checksum and only the outer header checksum
-will be computed.
+Finally there is SKB_GSO_TUNNEL_REMCSUM which indicates that a given tunnel
+header has requested a remote checksum offload.  In this case the inner
+headers will be left with a partial checksum and only the outer header
+checksum will be computed.
 
 Generic Segmentation Offload
 ============================
@@ -128,3 +133,38 @@ values for if the header was simply duplicated.  The one exception to this
 is the outer IPv4 ID field.  It is up to the device drivers to guarantee
 that the IPv4 ID field is incremented in the case that a given header does
 not have the DF bit set.
+
+SCTP accelleration with GSO
+===========================
+
+SCTP - despite the lack of hardware support - can still take advantage of
+GSO to pass one large packet through the network stack, rather than
+multiple small packets.
+
+This requires a different approach to other offloads, as SCTP packets
+cannot be just segmented to (P)MTU. Rather, the chunks must be contained in
+IP segments, padding respected. So unlike regular GSO, SCTP can't just
+generate a big skb, set gso_size to the fragmentation point and deliver it
+to IP layer.
+
+Instead, the SCTP protocol layer builds an skb with the segments correctly
+padded and stored as chained skbs, and skb_segment() splits based on those.
+To signal this, gso_size is set to the special value GSO_BY_FRAGS.
+
+Therefore, any code in the core networking stack must be aware of the
+possibility that gso_size will be GSO_BY_FRAGS and handle that case
+appropriately.
+
+There are some helpers to make this easier:
+
+ - skb_is_gso(skb) && skb_is_gso_sctp(skb) is the best way to see if
+   an skb is an SCTP GSO skb.
+
+ - For size checks, the skb_gso_validate_*_len family of helpers correctly
+   considers GSO_BY_FRAGS.
+
+ - For manipulating packets, skb_increase_gso_size and skb_decrease_gso_size
+   will check for GSO_BY_FRAGS and WARN if asked to manipulate these skbs.
+
+This also affects drivers with the NETIF_F_FRAGLIST & NETIF_F_GSO_SCTP bits
+set. Note also that NETIF_F_GSO_SCTP is included in NETIF_F_GSO_SOFTWARE.

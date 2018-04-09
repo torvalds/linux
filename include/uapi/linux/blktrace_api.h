@@ -131,7 +131,7 @@ enum {
 #define BLKTRACE_BDEV_SIZE	32
 
 /*
- * User setup structure passed with BLKTRACESTART
+ * User setup structure passed with BLKTRACESETUP
  */
 struct blk_user_trace_setup {
 	char name[BLKTRACE_BDEV_SIZE];	/* output */

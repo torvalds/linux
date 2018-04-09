@@ -112,7 +112,9 @@
 	SRI(CNVC_SURFACE_PIXEL_FORMAT, CNVC_CFG, id), \
 	SRI(CURSOR0_CONTROL, CNVC_CUR, id), \
 	SRI(CURSOR0_COLOR0, CNVC_CUR, id), \
-	SRI(CURSOR0_COLOR1, CNVC_CUR, id)
+	SRI(CURSOR0_COLOR1, CNVC_CUR, id), \
+	SRI(DPP_CONTROL, DPP_TOP, id), \
+	SRI(CM_HDR_MULT_COEF, CM, id)
 
 
 
@@ -306,7 +308,9 @@
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_EXPANSION_MODE, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_CONTROL, CUR0_ENABLE, mask_sh), \
 	TF_SF(CNVC_CUR0_CURSOR0_COLOR0, CUR0_COLOR0, mask_sh), \
-	TF_SF(CNVC_CUR0_CURSOR0_COLOR1, CUR0_COLOR1, mask_sh)
+	TF_SF(CNVC_CUR0_CURSOR0_COLOR1, CUR0_COLOR1, mask_sh), \
+	TF_SF(DPP_TOP0_DPP_CONTROL, DPP_CLOCK_ENABLE, mask_sh), \
+	TF_SF(CM0_CM_HDR_MULT_COEF, CM_HDR_MULT_COEF, mask_sh)
 
 #define TF_REG_LIST_SH_MASK_DCN10(mask_sh)\
 	TF_REG_LIST_SH_MASK_DCN(mask_sh),\
@@ -410,7 +414,8 @@
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_MODE, mask_sh), \
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_PITCH, mask_sh), \
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_LINES_PER_CHUNK, mask_sh), \
-	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_ENABLE, mask_sh)
+	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_ENABLE, mask_sh), \
+	TF_SF(DPP_TOP0_DPP_CONTROL, DPPCLK_RATE_CONTROL, mask_sh)
 
 #define TF_REG_FIELD_LIST(type) \
 	type EXT_OVERSCAN_LEFT; \
@@ -1007,7 +1012,10 @@
 	type CM_BYPASS; \
 	type FORMAT_CONTROL__ALPHA_EN; \
 	type CUR0_COLOR0; \
-	type CUR0_COLOR1;
+	type CUR0_COLOR1; \
+	type DPPCLK_RATE_CONTROL; \
+	type DPP_CLOCK_ENABLE; \
+	type CM_HDR_MULT_COEF;
 
 struct dcn_dpp_shift {
 	TF_REG_FIELD_LIST(uint8_t)
@@ -1252,7 +1260,9 @@ struct dcn_dpp_mask {
 	uint32_t CURSOR_CONTROL; \
 	uint32_t CURSOR0_CONTROL; \
 	uint32_t CURSOR0_COLOR0; \
-	uint32_t CURSOR0_COLOR1;
+	uint32_t CURSOR0_COLOR1; \
+	uint32_t DPP_CONTROL; \
+	uint32_t CM_HDR_MULT_COEF;
 
 struct dcn_dpp_registers {
 	DPP_COMMON_REG_VARIABLE_LIST
@@ -1286,6 +1296,12 @@ enum dcn10_input_csc_select {
 void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
 		enum dc_cursor_color_format color_format);
+
+void dpp1_set_cursor_position(
+		struct dpp *dpp_base,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param,
+		uint32_t width);
 
 bool dpp1_dscl_is_lb_conf_valid(
 		int ceil_vratio,
@@ -1396,6 +1412,15 @@ void dpp1_cnv_setup (
 		enum dc_color_space input_color_space);
 
 void dpp1_full_bypass(struct dpp *dpp_base);
+
+void dpp1_dppclk_control(
+		struct dpp *dpp_base,
+		bool dppclk_div,
+		bool enable);
+
+void dpp1_set_hdr_multiplier(
+		struct dpp *dpp_base,
+		uint32_t multiplier);
 
 void dpp1_construct(struct dcn10_dpp *dpp1,
 	struct dc_context *ctx,

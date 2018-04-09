@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * rcar_du_of_lvds_r8a7791.dts - Legacy LVDS DT bindings conversion for R8A7791
+ *
+ * Copyright (C) 2018 Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ */
+
+/dts-v1/;
+/plugin/;
+/ {
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			lvds@feb90000 {
+				compatible = "renesas,r8a7791-lvds";
+				reg = <0 0xfeb90000 0 0x1c>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						lvds0_input: endpoint {
+						};
+					};
+					port@1 {
+						reg = <1>;
+						lvds0_out: endpoint {
+						};
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path = "/display@feb00000/ports";
+		__overlay__ {
+			port@1 {
+				endpoint {
+					remote-endpoint = <&lvds0_input>;
+				};
+			};
+		};
+	};
+};

@@ -30,6 +30,6 @@
 #include "cgs_common.h"
 #include "dm_pp_interface.h"
 #include "kgd_pp_interface.h"
-
+#include "amdgpu.h"
 
 #endif /* _AMD_POWERPLAY_H_ */
