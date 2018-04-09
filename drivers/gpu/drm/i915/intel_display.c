@@ -5148,8 +5148,8 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 		intel_atomic_get_new_crtc_state(to_intel_atomic_state(old_state),
 						crtc);
 	struct drm_plane *primary = crtc->base.primary;
-	struct drm_plane_state *old_pri_state =
-		drm_atomic_get_existing_plane_state(old_state, primary);
+	struct drm_plane_state *old_primary_state =
+		drm_atomic_get_old_plane_state(old_state, primary);
 
 	intel_frontbuffer_flip(to_i915(crtc->base.dev), pipe_config->fb_bits);
 
@@ -5159,19 +5159,16 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	if (hsw_post_update_enable_ips(old_crtc_state, pipe_config))
 		hsw_enable_ips(pipe_config);
 
-	if (old_pri_state) {
-		struct intel_plane_state *primary_state =
-			intel_atomic_get_new_plane_state(to_intel_atomic_state(old_state),
-							 to_intel_plane(primary));
-		struct intel_plane_state *old_primary_state =
-			to_intel_plane_state(old_pri_state);
-		struct drm_framebuffer *fb = primary_state->base.fb;
+	if (old_primary_state) {
+		struct drm_plane_state *new_primary_state =
+			drm_atomic_get_new_plane_state(old_state, primary);
+		struct drm_framebuffer *fb = new_primary_state->fb;
 
 		intel_fbc_post_update(crtc);
 
-		if (primary_state->base.visible &&
+		if (new_primary_state->visible &&
 		    (needs_modeset(&pipe_config->base) ||
-		     !old_primary_state->base.visible))
+		     !old_primary_state->visible))
 			intel_post_enable_primary(&crtc->base, pipe_config);
 
 		/* Display WA 827 */
@@ -5192,8 +5189,8 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *old_state = old_crtc_state->base.state;
 	struct drm_plane *primary = crtc->base.primary;
-	struct drm_plane_state *old_pri_state =
-		drm_atomic_get_existing_plane_state(old_state, primary);
+	struct drm_plane_state *old_primary_state =
+		drm_atomic_get_old_plane_state(old_state, primary);
 	bool modeset = needs_modeset(&pipe_config->base);
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_state);
@@ -5201,13 +5198,11 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	if (hsw_pre_update_disable_ips(old_crtc_state, pipe_config))
 		hsw_disable_ips(old_crtc_state);
 
-	if (old_pri_state) {
-		struct intel_plane_state *primary_state =
+	if (old_primary_state) {
+		struct intel_plane_state *new_primary_state =
 			intel_atomic_get_new_plane_state(old_intel_state,
 							 to_intel_plane(primary));
-		struct intel_plane_state *old_primary_state =
-			to_intel_plane_state(old_pri_state);
-		struct drm_framebuffer *fb = primary_state->base.fb;
+		struct drm_framebuffer *fb = new_primary_state->base.fb;
 
 		/* Display WA 827 */
 		if ((INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv)) ||
@@ -5216,13 +5211,13 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 				skl_wa_clkgate(dev_priv, crtc->pipe, true);
 		}
 
-		intel_fbc_pre_update(crtc, pipe_config, primary_state);
+		intel_fbc_pre_update(crtc, pipe_config, new_primary_state);
 		/*
 		 * Gen2 reports pipe underruns whenever all planes are disabled.
 		 * So disable underrun reporting before all the planes get disabled.
 		 */
-		if (IS_GEN2(dev_priv) && old_primary_state->base.visible &&
-		    (modeset || !primary_state->base.visible))
+		if (IS_GEN2(dev_priv) && old_primary_state->visible &&
+		    (modeset || !new_primary_state->base.visible))
 			intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
 	}
 
@@ -10834,7 +10829,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 		struct drm_connector_state *connector_state;
 		struct intel_encoder *encoder;
 
-		connector_state = drm_atomic_get_existing_connector_state(state, connector);
+		connector_state = drm_atomic_get_new_connector_state(state, connector);
 		if (!connector_state)
 			connector_state = connector->state;
 
@@ -12197,6 +12192,9 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *pipe_config = to_intel_crtc_state(new_crtc_state);
 	bool modeset = needs_modeset(new_crtc_state);
+	struct intel_plane_state *new_plane_state =
+		intel_atomic_get_new_plane_state(to_intel_atomic_state(state),
+						 to_intel_plane(crtc->primary));
 
 	if (modeset) {
 		update_scanline_offset(intel_crtc);
@@ -12209,11 +12207,8 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 				       pipe_config);
 	}
 
-	if (drm_atomic_get_existing_plane_state(state, crtc->primary)) {
-		intel_fbc_enable(
-		    intel_crtc, pipe_config,
-		    to_intel_plane_state(crtc->primary->state));
-	}
+	if (new_plane_state)
+		intel_fbc_enable(intel_crtc, pipe_config, new_plane_state);
 
 	drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
 }
@@ -12794,8 +12789,8 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 	if (old_obj) {
 		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_existing_crtc_state(new_state->state,
-							   plane->state->crtc);
+			drm_atomic_get_new_crtc_state(new_state->state,
+						      plane->state->crtc);
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
