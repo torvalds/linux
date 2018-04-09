@@ -364,7 +364,7 @@ static int pcistub_init_device(struct pci_dev *dev)
 	 * here and then to call kfree(pci_get_drvdata(psdev->dev)).
 	 */
 	dev_data = kzalloc(sizeof(*dev_data) +  strlen(DRV_NAME "[]")
-				+ strlen(pci_name(dev)) + 1, GFP_ATOMIC);
+				+ strlen(pci_name(dev)) + 1, GFP_KERNEL);
 	if (!dev_data) {
 		err = -ENOMEM;
 		goto out;
