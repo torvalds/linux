@@ -54,6 +54,7 @@ static void proc_evict_inode(struct inode *inode)
 }
 
 static struct kmem_cache *proc_inode_cachep __ro_after_init;
+static struct kmem_cache *pde_opener_cache __ro_after_init;
 
 static struct inode *proc_alloc_inode(struct super_block *sb)
 {
@@ -92,7 +93,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-void __init proc_init_inodecache(void)
+void __init proc_init_kmemcache(void)
 {
 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
 					     sizeof(struct proc_inode),
@@ -100,6 +101,9 @@ void __init proc_init_inodecache(void)
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT|
 						SLAB_PANIC),
 					     init_once);
+	pde_opener_cache =
+		kmem_cache_create("pde_opener", sizeof(struct pde_opener), 0,
+				  SLAB_PANIC, NULL);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
@@ -172,7 +176,7 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		spin_unlock(&pde->pde_unload_lock);
 		if (unlikely(c))
 			complete(c);
-		kfree(pdeo);
+		kmem_cache_free(pde_opener_cache, pdeo);
 	}
 }
 
@@ -347,7 +351,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 
 	release = pde->proc_fops->release;
 	if (release) {
-		pdeo = kmalloc(sizeof(struct pde_opener), GFP_KERNEL);
+		pdeo = kmem_cache_alloc(pde_opener_cache, GFP_KERNEL);
 		if (!pdeo) {
 			rv = -ENOMEM;
 			goto out_unuse;
@@ -368,7 +372,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 			list_add(&pdeo->lh, &pde->pde_openers);
 			spin_unlock(&pde->pde_unload_lock);
 		} else
-			kfree(pdeo);
+			kmem_cache_free(pde_opener_cache, pdeo);
 	}
 
 out_unuse:
