@@ -1139,6 +1139,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
 	int rc = MIGRATEPAGE_SUCCESS;
 	struct page *newpage;
 
+	if (!thp_migration_supported() && PageTransHuge(page))
+		return -ENOMEM;
+
 	newpage = get_new_page(page, private);
 	if (!newpage)
 		return -ENOMEM;
@@ -1158,14 +1161,6 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
 		else
 			put_page(newpage);
 		goto out;
-	}
-
-	if (unlikely(PageTransHuge(page) && !PageTransHuge(newpage))) {
-		lock_page(page);
-		rc = split_huge_page(page);
-		unlock_page(page);
-		if (rc)
-			goto out;
 	}
 
 	rc = __unmap_and_move(page, newpage, force, mode);
@@ -1381,6 +1376,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 		retry = 0;
 
 		list_for_each_entry_safe(page, page2, from, lru) {
+retry:
 			cond_resched();
 
 			if (PageHuge(page))
@@ -1394,6 +1390,26 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 
 			switch(rc) {
 			case -ENOMEM:
+				/*
+				 * THP migration might be unsupported or the
+				 * allocation could've failed so we should
+				 * retry on the same page with the THP split
+				 * to base pages.
+				 *
+				 * Head page is retried immediately and tail
+				 * pages are added to the tail of the list so
+				 * we encounter them after the rest of the list
+				 * is processed.
+				 */
+				if (PageTransHuge(page)) {
+					lock_page(page);
+					rc = split_huge_page_to_list(page, from);
+					unlock_page(page);
+					if (!rc) {
+						list_safe_reset_next(page, page2, lru);
+						goto retry;
+					}
+				}
 				nr_failed++;
 				goto out;
 			case -EAGAIN:
@@ -1480,8 +1496,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
 
 	/* FOLL_DUMP to ignore special (like zero) pages */
 	follflags = FOLL_GET | FOLL_DUMP;
-	if (!thp_migration_supported())
-		follflags |= FOLL_SPLIT;
 	page = follow_page(vma, addr, follflags);
 
 	err = PTR_ERR(page);

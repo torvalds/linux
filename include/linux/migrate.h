@@ -42,9 +42,9 @@ static inline struct page *new_page_nodemask(struct page *page,
 		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
 				preferred_nid, nodemask);
 
-	if (thp_migration_supported() && PageTransHuge(page)) {
-		order = HPAGE_PMD_ORDER;
+	if (PageTransHuge(page)) {
 		gfp_mask |= GFP_TRANSHUGE;
+		order = HPAGE_PMD_ORDER;
 	}
 
 	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
