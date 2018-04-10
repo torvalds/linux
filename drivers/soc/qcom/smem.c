@@ -698,9 +698,10 @@ static u32 qcom_smem_get_item_count(struct qcom_smem *smem)
 static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 {
 	struct smem_partition_header *header;
-	struct smem_ptable_entry *entry = NULL;
+	struct smem_ptable_entry *entry;
 	struct smem_ptable *ptable;
 	u32 host0, host1, size;
+	bool found = false;
 	int i;
 
 	ptable = qcom_smem_get_ptable(smem);
@@ -712,11 +713,13 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 		host0 = le16_to_cpu(entry->host0);
 		host1 = le16_to_cpu(entry->host1);
 
-		if (host0 == SMEM_GLOBAL_HOST && host0 == host1)
+		if (host0 == SMEM_GLOBAL_HOST && host0 == host1) {
+			found = true;
 			break;
+		}
 	}
 
-	if (!entry) {
+	if (!found) {
 		dev_err(smem->dev, "Missing entry for global partition\n");
 		return -EINVAL;
 	}
