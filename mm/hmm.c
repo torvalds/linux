@@ -1024,13 +1024,6 @@ static void hmm_devmem_release(struct device *dev, void *data)
 	hmm_devmem_radix_release(resource);
 }
 
-static struct hmm_devmem *hmm_devmem_find(resource_size_t phys)
-{
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	return radix_tree_lookup(&hmm_devmem_radix, phys >> PA_SECTION_SHIFT);
-}
-
 static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 {
 	resource_size_t key, align_start, align_size, align_end;
@@ -1071,9 +1064,8 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	for (key = align_start; key <= align_end; key += PA_SECTION_SIZE) {
 		struct hmm_devmem *dup;
 
-		rcu_read_lock();
-		dup = hmm_devmem_find(key);
-		rcu_read_unlock();
+		dup = radix_tree_lookup(&hmm_devmem_radix,
+					key >> PA_SECTION_SHIFT);
 		if (dup) {
 			dev_err(device, "%s: collides with mapping for %s\n",
 				__func__, dev_name(dup->device));
