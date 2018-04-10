@@ -48,11 +48,12 @@ function run_test () {
 
 	echo "sleeping for 5 seconds"
 	sleep 5
-	num_freqs=$(cat /proc/cpuinfo | grep MHz | sort -u | wc -l)
-	if [ $num_freqs -le 2 ]; then
-		cat /proc/cpuinfo | grep MHz | sort -u | tail -1 > /tmp/result.$1
+	grep MHz /proc/cpuinfo | sort -u > /tmp/result.freqs
+	num_freqs=$(wc -l /tmp/result.freqs | awk ' { print $1 } ')
+	if [ $num_freqs -ge 2 ]; then
+		tail -n 1 /tmp/result.freqs > /tmp/result.$1
 	else
-		cat /proc/cpuinfo | grep MHz | sort -u > /tmp/result.$1
+		cp /tmp/result.freqs /tmp/result.$1
 	fi
 	./msr 0 >> /tmp/result.$1
 
@@ -82,20 +83,19 @@ _max_freq=$(cpupower frequency-info -l | tail -1 | awk ' { print $2 } ')
 max_freq=$(($_max_freq / 1000))
 
 
-for freq in `seq $max_freq -100 $min_freq`
+[ $EVALUATE_ONLY -eq 0 ] && for freq in `seq $max_freq -100 $min_freq`
 do
 	echo "Setting maximum frequency to $freq"
 	cpupower frequency-set -g powersave --max=${freq}MHz >& /dev/null
-	[ $EVALUATE_ONLY -eq 0 ] && run_test $freq
+	run_test $freq
 done
 
-echo "=============================================================================="
+[ $EVALUATE_ONLY -eq 0 ] && cpupower frequency-set -g powersave --max=${max_freq}MHz >& /dev/null
 
+echo "=============================================================================="
 echo "The marketing frequency of the cpu is $mkt_freq MHz"
 echo "The maximum frequency of the cpu is $max_freq MHz"
 echo "The minimum frequency of the cpu is $min_freq MHz"
-
-cpupower frequency-set -g powersave --max=${max_freq}MHz >& /dev/null
 
 # make a pretty table
 echo "Target      Actual      Difference     MSR(0x199)     max_perf_pct"
@@ -104,10 +104,6 @@ do
 	result_freq=$(cat /tmp/result.${freq} | grep "cpu MHz" | awk ' { print $4 } ' | awk -F "." ' { print $1 } ')
 	msr=$(cat /tmp/result.${freq} | grep "msr" | awk ' { print $3 } ')
 	max_perf_pct=$(cat /tmp/result.${freq} | grep "max_perf_pct" | awk ' { print $2 } ' )
-	if [ $result_freq -eq $freq ]; then
-		echo " $freq        $result_freq             0          $msr         $(($max_perf_pct*3300))"
-	else
-		echo " $freq        $result_freq          $(($result_freq-$freq))          $msr          $(($max_perf_pct*$max_freq))"
-	fi
+	echo " $freq        $result_freq          $(($result_freq-$freq))          $msr          $(($max_perf_pct*$max_freq))"
 done
 exit 0
