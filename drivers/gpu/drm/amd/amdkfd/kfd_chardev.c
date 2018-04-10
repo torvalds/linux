@@ -716,12 +716,13 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 	struct timespec64 time;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
-		return -EINVAL;
-
-	/* Reading GPU clock counter from KGD */
-	args->gpu_clock_counter =
-		dev->kfd2kgd->get_gpu_clock_counter(dev->kgd);
+	if (dev)
+		/* Reading GPU clock counter from KGD */
+		args->gpu_clock_counter =
+			dev->kfd2kgd->get_gpu_clock_counter(dev->kgd);
+	else
+		/* Node without GPU resource */
+		args->gpu_clock_counter = 0;
 
 	/* No access to rdtsc. Using raw monotonic time */
 	getrawmonotonic64(&time);
