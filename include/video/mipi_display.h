@@ -38,6 +38,9 @@ enum {
 
 	MIPI_DSI_DCS_READ				= 0x06,
 
+	MIPI_DSI_DCS_COMPRESSION_MODE                   = 0x07,
+	MIPI_DSI_PPS_LONG_WRITE                         = 0x0A,
+
 	MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE		= 0x37,
 
 	MIPI_DSI_END_OF_TRANSMISSION			= 0x08,
