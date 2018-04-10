@@ -3170,7 +3170,7 @@ static int send_version_xchg(struct ibmvnic_adapter *adapter)
 struct vnic_login_client_data {
 	u8	type;
 	__be16	len;
-	char	name;
+	char	name[];
 } __packed;
 
 static int vnic_client_data_len(struct ibmvnic_adapter *adapter)
@@ -3199,21 +3199,21 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 	vlcd->type = 1;
 	len = strlen(os_name) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(&vlcd->name, os_name, len);
-	vlcd = (struct vnic_login_client_data *)((char *)&vlcd->name + len);
+	strncpy(vlcd->name, os_name, len);
+	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 2 - LPAR name */
 	vlcd->type = 2;
 	len = strlen(utsname()->nodename) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(&vlcd->name, utsname()->nodename, len);
-	vlcd = (struct vnic_login_client_data *)((char *)&vlcd->name + len);
+	strncpy(vlcd->name, utsname()->nodename, len);
+	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 3 - device name */
 	vlcd->type = 3;
 	len = strlen(adapter->netdev->name) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(&vlcd->name, adapter->netdev->name, len);
+	strncpy(vlcd->name, adapter->netdev->name, len);
 }
 
 static int send_login(struct ibmvnic_adapter *adapter)
