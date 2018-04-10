@@ -290,7 +290,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	struct pci_dev *pdev, const struct kfd2kgd_calls *f2g)
 {
 	struct kfd_dev *kfd;
-
+	int ret;
 	const struct kfd_device_info *device_info =
 					lookup_device_info(pdev->device);
 
@@ -299,19 +299,18 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 		return NULL;
 	}
 
-	if (device_info->needs_pci_atomics) {
-		/* Allow BIF to recode atomics to PCIe 3.0
-		 * AtomicOps. 32 and 64-bit requests are possible and
-		 * must be supported.
-		 */
-		if (pci_enable_atomic_ops_to_root(pdev,
-				PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
-				PCI_EXP_DEVCAP2_ATOMIC_COMP64) < 0) {
-			dev_info(kfd_device,
-				"skipped device %x:%x, PCI rejects atomics",
-				 pdev->vendor, pdev->device);
-			return NULL;
-		}
+	/* Allow BIF to recode atomics to PCIe 3.0 AtomicOps.
+	 * 32 and 64-bit requests are possible and must be
+	 * supported.
+	 */
+	ret = pci_enable_atomic_ops_to_root(pdev,
+			PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
+			PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+	if (device_info->needs_pci_atomics && ret < 0) {
+		dev_info(kfd_device,
+			 "skipped device %x:%x, PCI rejects atomics\n",
+			 pdev->vendor, pdev->device);
+		return NULL;
 	}
 
 	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
