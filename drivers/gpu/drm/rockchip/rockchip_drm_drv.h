@@ -151,6 +151,7 @@ struct rockchip_logo {
 	struct sg_table *sgt;
 	struct drm_mm_node mm;
 	dma_addr_t dma_addr;
+	void *kvaddr;
 	phys_addr_t start;
 	phys_addr_t size;
 	size_t iommu_map_size;

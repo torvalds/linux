@@ -157,6 +157,7 @@ struct vop_plane_state {
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
 	dma_addr_t uv_mst;
+	void *yrgb_kvaddr;
 	const uint32_t *y2r_table;
 	const uint32_t *r2r_table;
 	const uint32_t *r2y_table;
@@ -1438,6 +1439,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 					DRM_PLANE_HELPER_NO_SCALING;
 	unsigned long offset;
 	dma_addr_t dma_addr;
+	void *kvaddr;
 	u16 vdisplay;
 
 	crtc = crtc ? crtc : plane->state->crtc;
@@ -1514,7 +1516,9 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		offset += (src->y1 >> 16) * fb->pitches[0];
 
 	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
+	kvaddr = rockchip_fb_get_kvaddr(fb, 0);
 	vop_plane_state->yrgb_mst = dma_addr + offset + fb->offsets[0];
+	vop_plane_state->yrgb_kvaddr = kvaddr + offset + fb->offsets[0];
 	if (is_yuv_support(fb->pixel_format)) {
 		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
 		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
@@ -1697,6 +1701,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, enable, 1);
 	VOP_WIN_SET(vop, win, gate, 1);
 	spin_unlock(&vop->reg_lock);
+	/*
+	 * spi interface(vop_plane_state->yrgb_kvaddr, fb->pixel_format,
+	 * actual_w, actual_h)
+	 */
 	vop->is_iommu_needed = true;
 }
 

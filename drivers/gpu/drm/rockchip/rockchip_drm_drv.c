@@ -249,6 +249,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	if (!logo)
 		return -ENOMEM;
 
+	logo->kvaddr = phys_to_virt(start);
 	nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	pages = kmalloc_array(nr_pages, sizeof(*pages),	GFP_KERNEL);
 	if (!pages)

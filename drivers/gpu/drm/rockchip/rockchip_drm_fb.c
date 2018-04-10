@@ -32,6 +32,7 @@
 struct rockchip_drm_fb {
 	struct drm_framebuffer fb;
 	dma_addr_t dma_addr[ROCKCHIP_MAX_FB_BUFFER];
+	void *kvaddr[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
 	struct rockchip_logo *logo;
 };
@@ -52,6 +53,16 @@ dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 		return 0;
 
 	return rk_fb->dma_addr[plane];
+}
+
+void *rockchip_fb_get_kvaddr(struct drm_framebuffer *fb, unsigned int plane)
+{
+	struct rockchip_drm_fb *rk_fb = to_rockchip_fb(fb);
+
+	if (WARN_ON(plane >= ROCKCHIP_MAX_FB_BUFFER))
+		return 0;
+
+	return rk_fb->kvaddr[plane];
 }
 
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
@@ -123,10 +134,12 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 		for (i = 0; i < num_planes; i++) {
 			rk_obj = to_rockchip_obj(obj[i]);
 			rockchip_fb->dma_addr[i] = rk_obj->dma_addr;
+			rockchip_fb->kvaddr[i] = rk_obj->kvaddr;
 		}
 #ifndef MODULE
 	} else if (logo) {
 		rockchip_fb->dma_addr[0] = logo->dma_addr;
+		rockchip_fb->kvaddr[0] = logo->kvaddr;
 		rockchip_fb->logo = logo;
 		logo->count++;
 #endif
