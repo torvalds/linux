@@ -1112,23 +1112,10 @@ static const struct seq_operations raw_seq_ops = {
 	.show  = raw_seq_show,
 };
 
-static int raw_v4_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &raw_seq_ops,
-			sizeof(struct raw_iter_state));
-}
-
-static const struct file_operations raw_seq_fops = {
-	.open	 = raw_v4_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 static __net_init int raw_init_net(struct net *net)
 {
-	if (!proc_create_data("raw", 0444, net->proc_net, &raw_seq_fops,
-			&raw_v4_hashinfo))
+	if (!proc_create_net_data("raw", 0444, net->proc_net, &raw_seq_ops,
+			sizeof(struct raw_iter_state), &raw_v4_hashinfo))
 		return -ENOMEM;
 
 	return 0;

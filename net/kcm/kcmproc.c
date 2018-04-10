@@ -239,19 +239,6 @@ static const struct seq_operations kcm_seq_ops = {
 	.stop	= kcm_seq_stop,
 };
 
-static int kcm_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &kcm_seq_ops,
-			   sizeof(struct kcm_proc_mux_state));
-}
-
-static const struct file_operations kcm_seq_fops = {
-	.open		= kcm_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 {
 	struct kcm_psock_stats psock_stats;
@@ -376,7 +363,8 @@ static int kcm_proc_init_net(struct net *net)
 			 &kcm_stats_seq_fops))
 		goto out_kcm_stats;
 
-	if (!proc_create("kcm", 0444, net->proc_net, &kcm_seq_fops))
+	if (!proc_create_net("kcm", 0444, net->proc_net, &kcm_seq_ops,
+			sizeof(struct kcm_proc_mux_state)))
 		goto out_kcm;
 
 	return 0;

@@ -1480,26 +1480,13 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations udp6_seq_ops = {
+const struct seq_operations udp6_seq_ops = {
 	.start		= udp_seq_start,
 	.next		= udp_seq_next,
 	.stop		= udp_seq_stop,
 	.show		= udp6_seq_show,
 };
-
-static int udp6_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &udp6_seq_ops,
-			sizeof(struct udp_iter_state));
-}
-
-const struct file_operations udp6_afinfo_seq_fops = {
-	.open     = udp6_seq_open,
-	.read     = seq_read,
-	.llseek   = seq_lseek,
-	.release  = seq_release_net
-};
-EXPORT_SYMBOL(udp6_afinfo_seq_fops);
+EXPORT_SYMBOL(udp6_seq_ops);
 
 static struct udp_seq_afinfo udp6_seq_afinfo = {
 	.family		= AF_INET6,
@@ -1508,8 +1495,8 @@ static struct udp_seq_afinfo udp6_seq_afinfo = {
 
 int __net_init udp6_proc_init(struct net *net)
 {
-	if (!proc_create_data("udp6", 0444, net->proc_net,
-			&udp6_afinfo_seq_fops, &udp6_seq_afinfo))
+	if (!proc_create_net_data("udp6", 0444, net->proc_net, &udp6_seq_ops,
+			sizeof(struct udp_iter_state), &udp6_seq_afinfo))
 		return -ENOMEM;
 	return 0;
 }

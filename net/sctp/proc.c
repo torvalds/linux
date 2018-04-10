@@ -225,21 +225,6 @@ static const struct seq_operations sctp_eps_ops = {
 	.show  = sctp_eps_seq_show,
 };
 
-
-/* Initialize the seq file operations for 'eps' object. */
-static int sctp_eps_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &sctp_eps_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations sctp_eps_seq_fops = {
-	.open	 = sctp_eps_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 struct sctp_ht_iter {
 	struct seq_net_private p;
 	struct rhashtable_iter hti;
@@ -338,20 +323,6 @@ static const struct seq_operations sctp_assoc_ops = {
 	.show  = sctp_assocs_seq_show,
 };
 
-/* Initialize the seq file operations for 'assocs' object. */
-static int sctp_assocs_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &sctp_assoc_ops,
-			    sizeof(struct sctp_ht_iter));
-}
-
-static const struct file_operations sctp_assocs_seq_fops = {
-	.open	 = sctp_assocs_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 {
 	struct sctp_association *assoc;
@@ -431,19 +402,6 @@ static const struct seq_operations sctp_remaddr_ops = {
 	.show  = sctp_remaddr_seq_show,
 };
 
-static int sctp_remaddr_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &sctp_remaddr_ops,
-			    sizeof(struct sctp_ht_iter));
-}
-
-static const struct file_operations sctp_remaddr_seq_fops = {
-	.open = sctp_remaddr_seq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
-};
-
 /* Set up the proc fs entry for the SCTP protocol. */
 int __net_init sctp_proc_init(struct net *net)
 {
@@ -453,14 +411,14 @@ int __net_init sctp_proc_init(struct net *net)
 	if (!proc_create("snmp", 0444, net->sctp.proc_net_sctp,
 			 &sctp_snmp_seq_fops))
 		goto cleanup;
-	if (!proc_create("eps", 0444, net->sctp.proc_net_sctp,
-			 &sctp_eps_seq_fops))
+	if (!proc_create_net("eps", 0444, net->sctp.proc_net_sctp,
+			&sctp_eps_ops, sizeof(struct seq_net_private)))
 		goto cleanup;
-	if (!proc_create("assocs", 0444, net->sctp.proc_net_sctp,
-			 &sctp_assocs_seq_fops))
+	if (!proc_create_net("assocs", 0444, net->sctp.proc_net_sctp,
+			&sctp_assoc_ops, sizeof(struct sctp_ht_iter)))
 		goto cleanup;
-	if (!proc_create("remaddr", 0444, net->sctp.proc_net_sctp,
-			 &sctp_remaddr_seq_fops))
+	if (!proc_create_net("remaddr", 0444, net->sctp.proc_net_sctp,
+			&sctp_remaddr_ops, sizeof(struct sctp_ht_iter)))
 		goto cleanup;
 	return 0;
 

@@ -587,25 +587,13 @@ static const struct seq_operations ip_vs_app_seq_ops = {
 	.stop  = ip_vs_app_seq_stop,
 	.show  = ip_vs_app_seq_show,
 };
-
-static int ip_vs_app_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip_vs_app_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations ip_vs_app_fops = {
-	.open	 = ip_vs_app_open,
-	.read	 = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
 #endif
 
 int __net_init ip_vs_app_net_init(struct netns_ipvs *ipvs)
 {
 	INIT_LIST_HEAD(&ipvs->app_list);
-	proc_create("ip_vs_app", 0, ipvs->net->proc_net, &ip_vs_app_fops);
+	proc_create_net("ip_vs_app", 0, ipvs->net->proc_net, &ip_vs_app_seq_ops,
+			sizeof(struct seq_net_private));
 	return 0;
 }
 

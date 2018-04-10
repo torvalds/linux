@@ -53,6 +53,12 @@ extern void proc_remove(struct proc_dir_entry *);
 extern void remove_proc_entry(const char *, struct proc_dir_entry *);
 extern int remove_proc_subtree(const char *, struct proc_dir_entry *);
 
+struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, const struct seq_operations *ops,
+		unsigned int state_size, void *data);
+#define proc_create_net(name, mode, parent, state_size, ops) \
+	proc_create_net_data(name, mode, parent, state_size, ops, NULL)
+
 #else /* CONFIG_PROC_FS */
 
 static inline void proc_root_init(void)
@@ -88,6 +94,9 @@ static inline void *proc_get_parent_data(const struct inode *inode) { BUG(); ret
 static inline void proc_remove(struct proc_dir_entry *de) {}
 #define remove_proc_entry(name, parent) do {} while (0)
 static inline int remove_proc_subtree(const char *name, struct proc_dir_entry *parent) { return 0; }
+
+#define proc_create_net_data(name, mode, parent, ops, state_size, data) ({NULL;})
+#define proc_create_net(name, mode, parent, state_size, ops) ({NULL;})
 
 #endif /* CONFIG_PROC_FS */
 

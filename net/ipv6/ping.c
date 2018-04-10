@@ -223,22 +223,10 @@ static const struct seq_operations ping_v6_seq_ops = {
 	.stop		= ping_seq_stop,
 };
 
-static int ping_v6_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ping_v6_seq_ops,
-			   sizeof(struct ping_iter_state));
-}
-
-const struct file_operations ping_v6_seq_fops = {
-	.open		= ping_v6_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 static int __net_init ping_v6_proc_init_net(struct net *net)
 {
-	if (!proc_create("icmp6", 0444, net->proc_net, &ping_v6_seq_fops))
+	if (!proc_create_net("icmp6", 0444, net->proc_net, &ping_v6_seq_ops,
+			sizeof(struct ping_iter_state)))
 		return -ENOMEM;
 	return 0;
 }

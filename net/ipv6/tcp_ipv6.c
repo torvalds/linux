@@ -1916,27 +1916,14 @@ static const struct seq_operations tcp6_seq_ops = {
 	.stop		= tcp_seq_stop,
 };
 
-static int tcp6_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &tcp6_seq_ops,
-			  sizeof(struct tcp_iter_state));
-}
-
-static const struct file_operations tcp6_afinfo_seq_fops = {
-	.open    = tcp6_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net
-};
-
 static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 	.family		= AF_INET6,
 };
 
 int __net_init tcp6_proc_init(struct net *net)
 {
-	if (!proc_create_data("tcp6", 0444, net->proc_net,
-			&tcp6_afinfo_seq_fops, &tcp6_seq_afinfo))
+	if (!proc_create_net_data("tcp6", 0444, net->proc_net, &tcp6_seq_ops,
+			sizeof(struct tcp_iter_state), &tcp6_seq_afinfo))
 		return -ENOMEM;
 	return 0;
 }

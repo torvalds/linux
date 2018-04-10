@@ -73,19 +73,6 @@ static const struct seq_operations vlan_seq_ops = {
 	.show = vlan_seq_show,
 };
 
-static int vlan_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &vlan_seq_ops,
-			sizeof(struct seq_net_private));
-}
-
-static const struct file_operations vlan_fops = {
-	.open    = vlan_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
 /*
  * Proc filesystem directory entries.
  */
@@ -132,8 +119,9 @@ int __net_init vlan_proc_init(struct net *net)
 	if (!vn->proc_vlan_dir)
 		goto err;
 
-	vn->proc_vlan_conf = proc_create(name_conf, S_IFREG | 0600,
-					 vn->proc_vlan_dir, &vlan_fops);
+	vn->proc_vlan_conf = proc_create_net(name_conf, S_IFREG | 0600,
+			vn->proc_vlan_dir, &vlan_seq_ops,
+			sizeof(struct seq_net_private));
 	if (!vn->proc_vlan_conf)
 		goto err;
 	return 0;

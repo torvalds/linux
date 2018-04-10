@@ -423,8 +423,8 @@ void *udp_seq_start(struct seq_file *seq, loff_t *pos);
 void *udp_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 void udp_seq_stop(struct seq_file *seq, void *v);
 
-extern const struct file_operations udp_afinfo_seq_fops;
-extern const struct file_operations udp6_afinfo_seq_fops;
+extern const struct seq_operations udp_seq_ops;
+extern const struct seq_operations udp6_seq_ops;
 
 int udp4_proc_init(void);
 void udp4_proc_exit(void);

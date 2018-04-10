@@ -589,27 +589,13 @@ static const struct seq_operations dn_neigh_seq_ops = {
 	.stop  = neigh_seq_stop,
 	.show  = dn_neigh_seq_show,
 };
-
-static int dn_neigh_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &dn_neigh_seq_ops,
-			    sizeof(struct neigh_seq_state));
-}
-
-static const struct file_operations dn_neigh_seq_fops = {
-	.open		= dn_neigh_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 #endif
 
 void __init dn_neigh_init(void)
 {
 	neigh_table_init(NEIGH_DN_TABLE, &dn_neigh_table);
-	proc_create("decnet_neigh", 0444, init_net.proc_net,
-		    &dn_neigh_seq_fops);
+	proc_create_net("decnet_neigh", 0444, init_net.proc_net,
+			&dn_neigh_seq_ops, sizeof(struct neigh_seq_state));
 }
 
 void __exit dn_neigh_cleanup(void)

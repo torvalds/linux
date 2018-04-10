@@ -812,23 +812,10 @@ static const struct seq_operations ip6fl_seq_ops = {
 	.show	=	ip6fl_seq_show,
 };
 
-static int ip6fl_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ip6fl_seq_ops,
-			   sizeof(struct ip6fl_iter_state));
-}
-
-static const struct file_operations ip6fl_seq_fops = {
-	.open		=	ip6fl_seq_open,
-	.read		=	seq_read,
-	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
-};
-
 static int __net_init ip6_flowlabel_proc_init(struct net *net)
 {
-	if (!proc_create("ip6_flowlabel", 0444, net->proc_net,
-			 &ip6fl_seq_fops))
+	if (!proc_create_net("ip6_flowlabel", 0444, net->proc_net,
+			&ip6fl_seq_ops, sizeof(struct ip6fl_iter_state)))
 		return -ENOMEM;
 	return 0;
 }

@@ -2209,15 +2209,6 @@ void fib6_gc_cleanup(void)
 }
 
 #ifdef CONFIG_PROC_FS
-
-struct ipv6_route_iter {
-	struct seq_net_private p;
-	struct fib6_walker w;
-	loff_t skip;
-	struct fib6_table *tbl;
-	int sernum;
-};
-
 static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct rt6_info *rt = v;
@@ -2383,17 +2374,10 @@ static void ipv6_route_seq_stop(struct seq_file *seq, void *v)
 	rcu_read_unlock_bh();
 }
 
-static const struct seq_operations ipv6_route_seq_ops = {
+const struct seq_operations ipv6_route_seq_ops = {
 	.start	= ipv6_route_seq_start,
 	.next	= ipv6_route_seq_next,
 	.stop	= ipv6_route_seq_stop,
 	.show	= ipv6_route_seq_show
 };
-
-int ipv6_route_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &ipv6_route_seq_ops,
-			    sizeof(struct ipv6_route_iter));
-}
-
 #endif /* CONFIG_PROC_FS */

@@ -2533,19 +2533,6 @@ static const struct seq_operations fib_trie_seq_ops = {
 	.show   = fib_trie_seq_show,
 };
 
-static int fib_trie_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &fib_trie_seq_ops,
-			    sizeof(struct fib_trie_iter));
-}
-
-static const struct file_operations fib_trie_fops = {
-	.open   = fib_trie_seq_open,
-	.read   = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
-};
-
 struct fib_route_iter {
 	struct seq_net_private p;
 	struct fib_table *main_tb;
@@ -2726,29 +2713,18 @@ static const struct seq_operations fib_route_seq_ops = {
 	.show   = fib_route_seq_show,
 };
 
-static int fib_route_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &fib_route_seq_ops,
-			    sizeof(struct fib_route_iter));
-}
-
-static const struct file_operations fib_route_fops = {
-	.open   = fib_route_seq_open,
-	.read   = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
-};
-
 int __net_init fib_proc_init(struct net *net)
 {
-	if (!proc_create("fib_trie", 0444, net->proc_net, &fib_trie_fops))
+	if (!proc_create_net("fib_trie", 0444, net->proc_net, &fib_trie_seq_ops,
+			sizeof(struct fib_trie_iter)))
 		goto out1;
 
 	if (!proc_create("fib_triestat", 0444, net->proc_net,
 			 &fib_triestat_fops))
 		goto out2;
 
-	if (!proc_create("route", 0444, net->proc_net, &fib_route_fops))
+	if (!proc_create_net("route", 0444, net->proc_net, &fib_route_seq_ops,
+			sizeof(struct fib_route_iter)))
 		goto out3;
 
 	return 0;

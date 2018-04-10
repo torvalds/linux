@@ -100,8 +100,9 @@ static struct udp_seq_afinfo udplite6_seq_afinfo = {
 
 static int __net_init udplite6_proc_init_net(struct net *net)
 {
-	if (!proc_create_data("udplite6", 0444, net->proc_net,
-			&udp6_afinfo_seq_fops, &udplite6_seq_afinfo))
+	if (!proc_create_net_data("udplite6", 0444, net->proc_net,
+			&udp6_seq_ops, sizeof(struct udp_iter_state),
+			&udplite6_seq_afinfo))
 		return -ENOMEM;
 	return 0;
 }

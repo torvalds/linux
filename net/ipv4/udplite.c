@@ -81,8 +81,8 @@ static struct udp_seq_afinfo udplite4_seq_afinfo = {
 
 static int __net_init udplite4_proc_init_net(struct net *net)
 {
-	if (!proc_create_data("udplite", 0444, net->proc_net,
-			&udp_afinfo_seq_fops, &udplite4_seq_afinfo))
+	if (!proc_create_net_data("udplite", 0444, net->proc_net, &udp_seq_ops,
+			sizeof(struct udp_iter_state), &udplite4_seq_afinfo))
 		return -ENOMEM;
 	return 0;
 }

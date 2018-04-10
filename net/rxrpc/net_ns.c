@@ -97,8 +97,11 @@ static __net_init int rxrpc_init_net(struct net *net)
 	if (!rxnet->proc_net)
 		goto err_proc;
 
-	proc_create("calls", 0444, rxnet->proc_net, &rxrpc_call_seq_fops);
-	proc_create("conns", 0444, rxnet->proc_net, &rxrpc_connection_seq_fops);
+	proc_create_net("calls", 0444, rxnet->proc_net, &rxrpc_call_seq_ops,
+			sizeof(struct seq_net_private));
+	proc_create_net("conns", 0444, rxnet->proc_net,
+			&rxrpc_connection_seq_ops,
+			sizeof(struct seq_net_private));
 	return 0;
 
 err_proc:

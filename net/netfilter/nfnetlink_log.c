@@ -1046,20 +1046,6 @@ static const struct seq_operations nful_seq_ops = {
 	.stop	= seq_stop,
 	.show	= seq_show,
 };
-
-static int nful_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nful_seq_ops,
-			    sizeof(struct iter_state));
-}
-
-static const struct file_operations nful_file_ops = {
-	.open	 = nful_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif /* PROC_FS */
 
 static int __net_init nfnl_log_net_init(struct net *net)
@@ -1077,8 +1063,8 @@ static int __net_init nfnl_log_net_init(struct net *net)
 	spin_lock_init(&log->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	proc = proc_create("nfnetlink_log", 0440,
-			   net->nf.proc_netfilter, &nful_file_ops);
+	proc = proc_create_net("nfnetlink_log", 0440, net->nf.proc_netfilter,
+			&nful_seq_ops, sizeof(struct iter_state));
 	if (!proc)
 		return -ENOMEM;
 

@@ -2706,26 +2706,13 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations udp_seq_ops = {
+const struct seq_operations udp_seq_ops = {
 	.start		= udp_seq_start,
 	.next		= udp_seq_next,
 	.stop		= udp_seq_stop,
 	.show		= udp4_seq_show,
 };
-
-static int udp_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &udp_seq_ops,
-			sizeof(struct udp_iter_state));
-}
-
-const struct file_operations udp_afinfo_seq_fops = {
-	.open     = udp_seq_open,
-	.read     = seq_read,
-	.llseek   = seq_lseek,
-	.release  = seq_release_net
-};
-EXPORT_SYMBOL(udp_afinfo_seq_fops);
+EXPORT_SYMBOL(udp_seq_ops);
 
 static struct udp_seq_afinfo udp4_seq_afinfo = {
 	.family		= AF_INET,
@@ -2734,8 +2721,8 @@ static struct udp_seq_afinfo udp4_seq_afinfo = {
 
 static int __net_init udp4_proc_init_net(struct net *net)
 {
-	if (!proc_create_data("udp", 0444, net->proc_net, &udp_afinfo_seq_fops,
-			&udp4_seq_afinfo))
+	if (!proc_create_net_data("udp", 0444, net->proc_net, &udp_seq_ops,
+			sizeof(struct udp_iter_state), &udp4_seq_afinfo))
 		return -ENOMEM;
 	return 0;
 }
