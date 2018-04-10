@@ -80,68 +80,145 @@
 struct hmm;
 
 /*
+ * hmm_pfn_flag_e - HMM flag enums
+ *
  * Flags:
  * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
  * HMM_PFN_WRITE: CPU page table has write permission set
+ * HMM_PFN_DEVICE_PRIVATE: private device memory (ZONE_DEVICE)
+ *
+ * The driver provide a flags array, if driver valid bit for an entry is bit
+ * 3 ie (entry & (1 << 3)) is true if entry is valid then driver must provide
+ * an array in hmm_range.flags with hmm_range.flags[HMM_PFN_VALID] == 1 << 3.
+ * Same logic apply to all flags. This is same idea as vm_page_prot in vma
+ * except that this is per device driver rather than per architecture.
+ */
+enum hmm_pfn_flag_e {
+	HMM_PFN_VALID = 0,
+	HMM_PFN_WRITE,
+	HMM_PFN_DEVICE_PRIVATE,
+	HMM_PFN_FLAG_MAX
+};
+
+/*
+ * hmm_pfn_value_e - HMM pfn special value
+ *
+ * Flags:
  * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
+ * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
  *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it should not
  *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
  *      set and the pfn value is undefined.
- * HMM_PFN_DEVICE_PRIVATE: unaddressable device memory (ZONE_DEVICE)
+ *
+ * Driver provide entry value for none entry, error entry and special entry,
+ * driver can alias (ie use same value for error and special for instance). It
+ * should not alias none and error or special.
+ *
+ * HMM pfn value returned by hmm_vma_get_pfns() or hmm_vma_fault() will be:
+ * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisonous,
+ * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table
+ * hmm_range.values[HMM_PFN_SPECIAL] if CPU page table entry is a special one
  */
-#define HMM_PFN_VALID (1 << 0)
-#define HMM_PFN_WRITE (1 << 1)
-#define HMM_PFN_ERROR (1 << 2)
-#define HMM_PFN_SPECIAL (1 << 3)
-#define HMM_PFN_DEVICE_PRIVATE (1 << 4)
-#define HMM_PFN_SHIFT 5
+enum hmm_pfn_value_e {
+	HMM_PFN_ERROR,
+	HMM_PFN_NONE,
+	HMM_PFN_SPECIAL,
+	HMM_PFN_VALUE_MAX
+};
+
+/*
+ * struct hmm_range - track invalidation lock on virtual address range
+ *
+ * @vma: the vm area struct for the range
+ * @list: all range lock are on a list
+ * @start: range virtual start address (inclusive)
+ * @end: range virtual end address (exclusive)
+ * @pfns: array of pfns (big enough for the range)
+ * @flags: pfn flags to match device driver page table
+ * @values: pfn value for some special case (none, special, error, ...)
+ * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
+ * @valid: pfns array did not change since it has been fill by an HMM function
+ */
+struct hmm_range {
+	struct vm_area_struct	*vma;
+	struct list_head	list;
+	unsigned long		start;
+	unsigned long		end;
+	uint64_t		*pfns;
+	const uint64_t		*flags;
+	const uint64_t		*values;
+	uint8_t			pfn_shift;
+	bool			valid;
+};
 
 /*
  * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
+ * @range: range use to decode HMM pfn value
  * @pfn: HMM pfn value to get corresponding struct page from
  * Returns: struct page pointer if pfn is a valid HMM pfn, NULL otherwise
  *
  * If the HMM pfn is valid (ie valid flag set) then return the struct page
  * matching the pfn value stored in the HMM pfn. Otherwise return NULL.
  */
-static inline struct page *hmm_pfn_to_page(uint64_t pfn)
+static inline struct page *hmm_pfn_to_page(const struct hmm_range *range,
+					   uint64_t pfn)
 {
-	if (!(pfn & HMM_PFN_VALID))
+	if (pfn == range->values[HMM_PFN_NONE])
 		return NULL;
-	return pfn_to_page(pfn >> HMM_PFN_SHIFT);
+	if (pfn == range->values[HMM_PFN_ERROR])
+		return NULL;
+	if (pfn == range->values[HMM_PFN_SPECIAL])
+		return NULL;
+	if (!(pfn & range->flags[HMM_PFN_VALID]))
+		return NULL;
+	return pfn_to_page(pfn >> range->pfn_shift);
 }
 
 /*
  * hmm_pfn_to_pfn() - return pfn value store in a HMM pfn
+ * @range: range use to decode HMM pfn value
  * @pfn: HMM pfn value to extract pfn from
  * Returns: pfn value if HMM pfn is valid, -1UL otherwise
  */
-static inline unsigned long hmm_pfn_to_pfn(uint64_t pfn)
+static inline unsigned long hmm_pfn_to_pfn(const struct hmm_range *range,
+					   uint64_t pfn)
 {
-	if (!(pfn & HMM_PFN_VALID))
+	if (pfn == range->values[HMM_PFN_NONE])
 		return -1UL;
-	return (pfn >> HMM_PFN_SHIFT);
+	if (pfn == range->values[HMM_PFN_ERROR])
+		return -1UL;
+	if (pfn == range->values[HMM_PFN_SPECIAL])
+		return -1UL;
+	if (!(pfn & range->flags[HMM_PFN_VALID]))
+		return -1UL;
+	return (pfn >> range->pfn_shift);
 }
 
 /*
  * hmm_pfn_from_page() - create a valid HMM pfn value from struct page
+ * @range: range use to encode HMM pfn value
  * @page: struct page pointer for which to create the HMM pfn
  * Returns: valid HMM pfn for the page
  */
-static inline uint64_t hmm_pfn_from_page(struct page *page)
+static inline uint64_t hmm_pfn_from_page(const struct hmm_range *range,
+					 struct page *page)
 {
-	return (page_to_pfn(page) << HMM_PFN_SHIFT) | HMM_PFN_VALID;
+	return (page_to_pfn(page) << range->pfn_shift) |
+		range->flags[HMM_PFN_VALID];
 }
 
 /*
  * hmm_pfn_from_pfn() - create a valid HMM pfn value from pfn
+ * @range: range use to encode HMM pfn value
  * @pfn: pfn value for which to create the HMM pfn
  * Returns: valid HMM pfn for the pfn
  */
-static inline uint64_t hmm_pfn_from_pfn(unsigned long pfn)
+static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+					unsigned long pfn)
 {
-	return (pfn << HMM_PFN_SHIFT) | HMM_PFN_VALID;
+	return (pfn << range->pfn_shift) |
+		range->flags[HMM_PFN_VALID];
 }
 
 
@@ -262,25 +339,6 @@ struct hmm_mirror {
 int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
 void hmm_mirror_unregister(struct hmm_mirror *mirror);
 
-
-/*
- * struct hmm_range - track invalidation lock on virtual address range
- *
- * @vma: the vm area struct for the range
- * @list: all range lock are on a list
- * @start: range virtual start address (inclusive)
- * @end: range virtual end address (exclusive)
- * @pfns: array of pfns (big enough for the range)
- * @valid: pfns array did not change since it has been fill by an HMM function
- */
-struct hmm_range {
-	struct vm_area_struct	*vma;
-	struct list_head	list;
-	unsigned long		start;
-	unsigned long		end;
-	uint64_t		*pfns;
-	bool			valid;
-};
 
 /*
  * To snapshot the CPU page table, call hmm_vma_get_pfns(), then take a device
