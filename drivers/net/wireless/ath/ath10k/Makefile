@@ -22,10 +22,10 @@ ath10k_core-$(CONFIG_THERMAL) += thermal.o
 ath10k_core-$(CONFIG_MAC80211_DEBUGFS) += debugfs_sta.o
 ath10k_core-$(CONFIG_PM) += wow.o
 ath10k_core-$(CONFIG_DEV_COREDUMP) += coredump.o
+ath10k_core-$(CONFIG_ATH10K_CE) += ce.o
 
 obj-$(CONFIG_ATH10K_PCI) += ath10k_pci.o
-ath10k_pci-y += pci.o \
-		ce.o
+ath10k_pci-y += pci.o
 
 ath10k_pci-$(CONFIG_ATH10K_AHB) += ahb.o
 

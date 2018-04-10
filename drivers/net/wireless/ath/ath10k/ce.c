@@ -464,6 +464,7 @@ int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 	return ce_state->ops->ce_send_nolock(ce_state, per_transfer_context,
 				    buffer, nbytes, transfer_id, flags);
 }
+EXPORT_SYMBOL(ath10k_ce_send_nolock);
 
 void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe)
 {
@@ -491,6 +492,7 @@ void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe)
 
 	src_ring->per_transfer_context[src_ring->write_index] = NULL;
 }
+EXPORT_SYMBOL(__ath10k_ce_send_revert);
 
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_context,
@@ -510,6 +512,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 
 	return ret;
 }
+EXPORT_SYMBOL(ath10k_ce_send);
 
 int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe)
 {
@@ -525,6 +528,7 @@ int ath10k_ce_num_free_src_entries(struct ath10k_ce_pipe *pipe)
 
 	return delta;
 }
+EXPORT_SYMBOL(ath10k_ce_num_free_src_entries);
 
 int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe)
 {
@@ -539,6 +543,7 @@ int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe)
 
 	return CE_RING_DELTA(nentries_mask, write_index, sw_index - 1);
 }
+EXPORT_SYMBOL(__ath10k_ce_rx_num_free_bufs);
 
 static int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
 				   dma_addr_t paddr)
@@ -622,6 +627,7 @@ void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries)
 	ath10k_ce_dest_ring_write_index_set(ar, ctrl_addr, write_index);
 	dest_ring->write_index = write_index;
 }
+EXPORT_SYMBOL(ath10k_ce_rx_update_write_idx);
 
 int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
 			  dma_addr_t paddr)
@@ -636,6 +642,7 @@ int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
 
 	return ret;
 }
+EXPORT_SYMBOL(ath10k_ce_rx_post_buf);
 
 /*
  * Guts of ath10k_ce_completed_recv_next.
@@ -748,6 +755,7 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 							    per_transfer_ctx,
 							    nbytesp);
 }
+EXPORT_SYMBOL(ath10k_ce_completed_recv_next_nolock);
 
 int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
@@ -766,6 +774,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 
 	return ret;
 }
+EXPORT_SYMBOL(ath10k_ce_completed_recv_next);
 
 static int _ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 				       void **per_transfer_contextp,
@@ -882,6 +891,7 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 						  per_transfer_contextp,
 						  bufferp);
 }
+EXPORT_SYMBOL(ath10k_ce_revoke_recv_next);
 
 /*
  * Guts of ath10k_ce_completed_send_next.
@@ -936,6 +946,7 @@ int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_ce_completed_send_next_nolock);
 
 static void ath10k_ce_extract_desc_data(struct ath10k *ar,
 					struct ath10k_ce_ring *src_ring,
@@ -1025,6 +1036,7 @@ int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 
 	return ret;
 }
+EXPORT_SYMBOL(ath10k_ce_cancel_send_next);
 
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp)
@@ -1040,6 +1052,7 @@ int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 
 	return ret;
 }
+EXPORT_SYMBOL(ath10k_ce_completed_send_next);
 
 /*
  * Guts of interrupt handler for per-engine interrupts on a particular CE.
@@ -1078,6 +1091,7 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 
 	spin_unlock_bh(&ce->ce_lock);
 }
+EXPORT_SYMBOL(ath10k_ce_per_engine_service);
 
 /*
  * Handler for per-engine interrupts on ALL active CEs.
@@ -1102,6 +1116,7 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 		ath10k_ce_per_engine_service(ar, ce_id);
 	}
 }
+EXPORT_SYMBOL(ath10k_ce_per_engine_service_any);
 
 /*
  * Adjust interrupts for the copy complete handler.
@@ -1139,6 +1154,7 @@ int ath10k_ce_disable_interrupts(struct ath10k *ar)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_ce_disable_interrupts);
 
 void ath10k_ce_enable_interrupts(struct ath10k *ar)
 {
@@ -1154,6 +1170,7 @@ void ath10k_ce_enable_interrupts(struct ath10k *ar)
 		ath10k_ce_per_engine_handler_adjust(ce_state);
 	}
 }
+EXPORT_SYMBOL(ath10k_ce_enable_interrupts);
 
 static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				   unsigned int ce_id,
@@ -1454,6 +1471,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_ce_init_pipe);
 
 static void ath10k_ce_deinit_src_ring(struct ath10k *ar, unsigned int ce_id)
 {
@@ -1479,6 +1497,7 @@ void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id)
 	ath10k_ce_deinit_src_ring(ar, ce_id);
 	ath10k_ce_deinit_dest_ring(ar, ce_id);
 }
+EXPORT_SYMBOL(ath10k_ce_deinit_pipe);
 
 static void _ath10k_ce_free_pipe(struct ath10k *ar, int ce_id)
 {
@@ -1545,6 +1564,7 @@ void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id)
 
 	ce_state->ops->ce_free_pipe(ar, ce_id);
 }
+EXPORT_SYMBOL(ath10k_ce_free_pipe);
 
 void ath10k_ce_dump_registers(struct ath10k *ar,
 			      struct ath10k_fw_crash_data *crash_data)
@@ -1584,6 +1604,7 @@ void ath10k_ce_dump_registers(struct ath10k *ar,
 
 	spin_unlock_bh(&ce->ce_lock);
 }
+EXPORT_SYMBOL(ath10k_ce_dump_registers);
 
 static const struct ath10k_ce_ops ce_ops = {
 	.ce_alloc_src_ring = ath10k_ce_alloc_src_ring,
@@ -1680,3 +1701,4 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_ce_alloc_pipe);
