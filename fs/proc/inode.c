@@ -138,7 +138,7 @@ static void unuse_pde(struct proc_dir_entry *pde)
 		complete(pde->pde_unload_completion);
 }
 
-/* pde is locked */
+/* pde is locked on entry, unlocked on exit */
 static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 {
 	/*
@@ -157,9 +157,10 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		pdeo->c = &c;
 		spin_unlock(&pde->pde_unload_lock);
 		wait_for_completion(&c);
-		spin_lock(&pde->pde_unload_lock);
 	} else {
 		struct file *file;
+		struct completion *c;
+
 		pdeo->closing = true;
 		spin_unlock(&pde->pde_unload_lock);
 		file = pdeo->file;
@@ -167,8 +168,10 @@ static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 		spin_lock(&pde->pde_unload_lock);
 		/* After ->release. */
 		list_del(&pdeo->lh);
-		if (unlikely(pdeo->c))
-			complete(pdeo->c);
+		c = pdeo->c;
+		spin_unlock(&pde->pde_unload_lock);
+		if (unlikely(c))
+			complete(c);
 		kfree(pdeo);
 	}
 }
@@ -188,6 +191,7 @@ void proc_entry_rundown(struct proc_dir_entry *de)
 		struct pde_opener *pdeo;
 		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
 		close_pdeo(de, pdeo);
+		spin_lock(&de->pde_unload_lock);
 	}
 	spin_unlock(&de->pde_unload_lock);
 }
@@ -375,7 +379,7 @@ static int proc_reg_release(struct inode *inode, struct file *file)
 	list_for_each_entry(pdeo, &pde->pde_openers, lh) {
 		if (pdeo->file == file) {
 			close_pdeo(pde, pdeo);
-			break;
+			return 0;
 		}
 	}
 	spin_unlock(&pde->pde_unload_lock);
