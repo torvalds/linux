@@ -30,6 +30,7 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_vi.h"
 #include "cwsr_trap_handler_gfx8.asm"
+#include "cwsr_trap_handler_gfx9.asm"
 #include "kfd_iommu.h"
 
 #define MQD_SIZE_ALIGNED 768
@@ -333,10 +334,16 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
 	if (cwsr_enable && kfd->device_info->supports_cwsr) {
-		BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
+		if (kfd->device_info->asic_family < CHIP_VEGA10) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
+		}
 
-		kfd->cwsr_isa = cwsr_trap_gfx8_hex;
-		kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
 		kfd->cwsr_enabled = true;
 	}
 }
