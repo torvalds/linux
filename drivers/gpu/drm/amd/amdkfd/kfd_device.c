@@ -700,7 +700,7 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 	if (size > kfd->gtt_sa_num_of_chunks * kfd->gtt_sa_chunk_size)
 		return -ENOMEM;
 
-	*mem_obj = kmalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
+	*mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
 	if ((*mem_obj) == NULL)
 		return -ENOMEM;
 
