@@ -1430,6 +1430,11 @@
 		};
 
 		pdm_m2 {
+			pdm_m2_clkm: pdm-m2-clkm {
+				rockchip,pins =
+					<2 RK_PA4 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
 			pdm_m2_clk: pdm-m2-clk {
 				rockchip,pins =
 					<2 RK_PA6 RK_FUNC_2 &pcfg_pull_none>;
