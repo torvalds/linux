@@ -8,6 +8,7 @@
  * Copyright (C) 1997 Theodore Ts'o
  */
 
+#include <linux/cache.h>
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
@@ -27,6 +28,17 @@
 #include "internal.h"
 
 static DEFINE_RWLOCK(proc_subdir_lock);
+
+struct kmem_cache *proc_dir_entry_cache __ro_after_init;
+
+void pde_free(struct proc_dir_entry *pde)
+{
+	if (S_ISLNK(pde->mode))
+		kfree(pde->data);
+	if (pde->name != pde->inline_name)
+		kfree(pde->name);
+	kmem_cache_free(proc_dir_entry_cache, pde);
+}
 
 static int proc_match(const char *name, struct proc_dir_entry *de, unsigned int len)
 {
@@ -363,9 +375,19 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 		return NULL;
 	}
 
-	ent = kzalloc(sizeof(struct proc_dir_entry) + qstr.len + 1, GFP_KERNEL);
+	ent = kmem_cache_zalloc(proc_dir_entry_cache, GFP_KERNEL);
 	if (!ent)
 		goto out;
+
+	if (qstr.len + 1 <= sizeof(ent->inline_name)) {
+		ent->name = ent->inline_name;
+	} else {
+		ent->name = kmalloc(qstr.len + 1, GFP_KERNEL);
+		if (!ent->name) {
+			pde_free(ent);
+			return NULL;
+		}
+	}
 
 	memcpy(ent->name, fn, qstr.len + 1);
 	ent->namelen = qstr.len;
@@ -395,12 +417,11 @@ struct proc_dir_entry *proc_symlink(const char *name,
 			strcpy((char*)ent->data,dest);
 			ent->proc_iops = &proc_link_inode_operations;
 			if (proc_register(parent, ent) < 0) {
-				kfree(ent->data);
-				kfree(ent);
+				pde_free(ent);
 				ent = NULL;
 			}
 		} else {
-			kfree(ent);
+			pde_free(ent);
 			ent = NULL;
 		}
 	}
@@ -423,7 +444,7 @@ struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
 		ent->proc_iops = &proc_dir_inode_operations;
 		parent->nlink++;
 		if (proc_register(parent, ent) < 0) {
-			kfree(ent);
+			pde_free(ent);
 			parent->nlink--;
 			ent = NULL;
 		}
@@ -458,7 +479,7 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 		ent->proc_iops = NULL;
 		parent->nlink++;
 		if (proc_register(parent, ent) < 0) {
-			kfree(ent);
+			pde_free(ent);
 			parent->nlink--;
 			ent = NULL;
 		}
@@ -495,7 +516,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 		goto out_free;
 	return pde;
 out_free:
-	kfree(pde);
+	pde_free(pde);
 out:
 	return NULL;
 }
@@ -522,19 +543,12 @@ void proc_set_user(struct proc_dir_entry *de, kuid_t uid, kgid_t gid)
 }
 EXPORT_SYMBOL(proc_set_user);
 
-static void free_proc_entry(struct proc_dir_entry *de)
-{
-	proc_free_inum(de->low_ino);
-
-	if (S_ISLNK(de->mode))
-		kfree(de->data);
-	kfree(de);
-}
-
 void pde_put(struct proc_dir_entry *pde)
 {
-	if (atomic_dec_and_test(&pde->count))
-		free_proc_entry(pde);
+	if (atomic_dec_and_test(&pde->count)) {
+		proc_free_inum(pde->low_ino);
+		pde_free(pde);
+	}
 }
 
 /*

@@ -52,10 +52,19 @@ struct proc_dir_entry {
 	struct proc_dir_entry *parent;
 	struct rb_root_cached subdir;
 	struct rb_node subdir_node;
+	char *name;
 	umode_t mode;
 	u8 namelen;
-	char name[];
+#ifdef CONFIG_64BIT
+#define SIZEOF_PDE_INLINE_NAME	(192-147)
+#else
+#define SIZEOF_PDE_INLINE_NAME	(128-91)
+#endif
+	char inline_name[SIZEOF_PDE_INLINE_NAME];
 } __randomize_layout;
+
+extern struct kmem_cache *proc_dir_entry_cache;
+void pde_free(struct proc_dir_entry *pde);
 
 union proc_op {
 	int (*proc_get_link)(struct dentry *, struct path *);

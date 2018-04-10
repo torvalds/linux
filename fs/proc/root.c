@@ -208,7 +208,8 @@ struct proc_dir_entry proc_root = {
 	.proc_fops	= &proc_root_operations,
 	.parent		= &proc_root,
 	.subdir		= RB_ROOT_CACHED,
-	.name		= "/proc",
+	.name		= proc_root.inline_name,
+	.inline_name	= "/proc",
 };
 
 int pid_ns_prepare_proc(struct pid_namespace *ns)
