@@ -292,8 +292,9 @@ static void *phdr_to_first_cached_entry(struct smem_partition_header *phdr,
 					size_t cacheline)
 {
 	void *p = phdr;
+	struct smem_private_entry *e;
 
-	return p + le32_to_cpu(phdr->size) - ALIGN(sizeof(*phdr), cacheline);
+	return p + le32_to_cpu(phdr->size) - ALIGN(sizeof(*e), cacheline);
 }
 
 static void *phdr_to_last_cached_entry(struct smem_partition_header *phdr)
