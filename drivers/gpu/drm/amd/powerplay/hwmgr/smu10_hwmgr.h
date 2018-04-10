@@ -290,6 +290,7 @@ struct smu10_hwmgr {
 	bool                           vcn_dpg_mode;
 
 	bool                           gfx_off_controled_by_driver;
+	bool                           water_marks_exist;
 	Watermarks_t                      water_marks_table;
 	struct smu10_clock_voltage_information   clock_vol_info;
 	DpmClocks_t                       clock_table;
