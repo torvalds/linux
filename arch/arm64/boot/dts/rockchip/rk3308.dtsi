@@ -46,6 +46,8 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <90>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
@@ -547,7 +549,7 @@
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>;
 			polling-delay = <1000>;
-			sustainable-power = <750>;
+			sustainable-power = <300>;
 
 			thermal-sensors = <&tsadc 0>;
 
@@ -569,9 +571,17 @@
 				};
 			};
 
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <4096>;
+				};
+			};
+
 		};
 
-		gpu_thermal: gpu-thermal {
+		logic_thermal: logic-thermal {
 			polling-delay-passive = <100>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
 
