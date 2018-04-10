@@ -58,6 +58,12 @@ Intel GVT-g Host Support(vGPU device model)
 .. kernel-doc:: drivers/gpu/drm/i915/intel_gvt.c
    :internal:
 
+Workarounds
+-----------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_workarounds.c
+   :doc: Hardware workarounds
+
 Display Hardware Handling
 =========================
 

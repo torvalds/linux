@@ -139,6 +139,7 @@
 #include "i915_gem_render_state.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
+#include "intel_workarounds.h"
 
 #define RING_EXECLIST_QFULL		(1 << 0x2)
 #define RING_EXECLIST1_VALID		(1 << 0x3)

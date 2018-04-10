@@ -885,9 +885,6 @@ static inline u32 intel_engine_last_submit(struct intel_engine_cs *engine)
 	return READ_ONCE(engine->timeline->seqno);
 }
 
-int init_workarounds_ring(struct intel_engine_cs *engine);
-int intel_ring_workarounds_emit(struct i915_request *rq);
-
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone);
 
