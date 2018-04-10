@@ -673,15 +673,20 @@ void seq_puts(struct seq_file *m, const char *s)
 }
 EXPORT_SYMBOL(seq_puts);
 
-/*
+/**
  * A helper routine for putting decimal numbers without rich format of printf().
  * only 'unsigned long long' is supported.
- * This routine will put strlen(delimiter) + number into seq_file.
+ * @m: seq_file identifying the buffer to which data should be written
+ * @delimiter: a string which is printed before the number
+ * @num: the number
+ * @width: a minimum field width
+ *
+ * This routine will put strlen(delimiter) + number into seq_filed.
  * This routine is very quick when you show lots of numbers.
  * In usual cases, it will be better to use seq_printf(). It's easier to read.
  */
-void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
-			 unsigned long long num)
+void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
+			 unsigned long long num, unsigned int width)
 {
 	int len;
 
@@ -695,7 +700,10 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 	memcpy(m->buf + m->count, delimiter, len);
 	m->count += len;
 
-	if (m->count + 1 >= m->size)
+	if (!width)
+		width = 1;
+
+	if (m->count + width >= m->size)
 		goto overflow;
 
 	if (num < 10) {
@@ -703,7 +711,7 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 		return;
 	}
 
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	len = num_to_str(m->buf + m->count, m->size - m->count, num, width);
 	if (!len)
 		goto overflow;
 
@@ -712,6 +720,12 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 
 overflow:
 	seq_set_overflow(m);
+}
+
+void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
+			 unsigned long long num)
+{
+	return seq_put_decimal_ull_width(m, delimiter, num, 0);
 }
 EXPORT_SYMBOL(seq_put_decimal_ull);
 
@@ -788,7 +802,7 @@ void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num
 		return;
 	}
 
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	len = num_to_str(m->buf + m->count, m->size - m->count, num, 0);
 	if (!len)
 		goto overflow;
 
