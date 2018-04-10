@@ -1384,6 +1384,12 @@ void setup_new_exec(struct linux_binprm * bprm)
 }
 EXPORT_SYMBOL(setup_new_exec);
 
+/* Runs immediately before start_thread() takes over. */
+void finalize_exec(struct linux_binprm *bprm)
+{
+}
+EXPORT_SYMBOL(finalize_exec);
+
 /*
  * Prepare credentials and lock ->cred_guard_mutex.
  * install_exec_creds() commits the new creds and drops the lock.
