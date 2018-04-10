@@ -1645,6 +1645,17 @@ sub raw_line {
 	return $line;
 }
 
+sub get_stat_real {
+	my ($linenr, $lc) = @_;
+
+	my $stat_real = raw_line($linenr, 0);
+	for (my $count = $linenr + 1; $count <= $lc; $count++) {
+		$stat_real = $stat_real . "\n" . raw_line($count, 0);
+	}
+
+	return $stat_real;
+}
+
 sub cat_vet {
 	my ($vet) = @_;
 	my ($res, $coded);
@@ -5821,17 +5832,15 @@ sub process {
 				}
 			}
 			if ($bad_extension ne "") {
-				my $stat_real = raw_line($linenr, 0);
+				my $stat_real = get_stat_real($linenr, $lc);
 				my $ext_type = "Invalid";
 				my $use = "";
-				for (my $count = $linenr + 1; $count <= $lc; $count++) {
-					$stat_real = $stat_real . "\n" . raw_line($count, 0);
-				}
 				if ($bad_extension =~ /p[Ff]/) {
 					$ext_type = "Deprecated";
 					$use = " - use %pS instead";
 					$use =~ s/pS/ps/ if ($bad_extension =~ /pf/);
 				}
+
 				WARN("VSPRINTF_POINTER_EXTENSION",
 				     "$ext_type vsprintf pointer extension '$bad_extension'$use\n" . "$here\n$stat_real\n");
 			}
@@ -5946,10 +5955,7 @@ sub process {
 		     $stat !~ /(?:$Compare)\s*\bsscanf\s*$balanced_parens/)) {
 			my $lc = $stat =~ tr@\n@@;
 			$lc = $lc + $linenr;
-			my $stat_real = raw_line($linenr, 0);
-		        for (my $count = $linenr + 1; $count <= $lc; $count++) {
-				$stat_real = $stat_real . "\n" . raw_line($count, 0);
-			}
+			my $stat_real = get_stat_real($linenr, $lc);
 			WARN("NAKED_SSCANF",
 			     "unchecked sscanf return value\n" . "$here\n$stat_real\n");
 		}
@@ -5960,10 +5966,7 @@ sub process {
 		    $line =~ /\bsscanf\b/) {
 			my $lc = $stat =~ tr@\n@@;
 			$lc = $lc + $linenr;
-			my $stat_real = raw_line($linenr, 0);
-		        for (my $count = $linenr + 1; $count <= $lc; $count++) {
-				$stat_real = $stat_real . "\n" . raw_line($count, 0);
-			}
+			my $stat_real = get_stat_real($linenr, $lc);
 			if ($stat_real =~ /\bsscanf\b\s*\(\s*$FuncArg\s*,\s*("[^"]+")/) {
 				my $format = $6;
 				my $count = $format =~ tr@%@%@;
@@ -6397,10 +6400,7 @@ sub process {
 
 				my $lc = $stat =~ tr@\n@@;
 				$lc = $lc + $linenr;
-				my $stat_real = raw_line($linenr, 0);
-				for (my $count = $linenr + 1; $count <= $lc; $count++) {
-					$stat_real = $stat_real . "\n" . raw_line($count, 0);
-				}
+				my $stat_real = get_stat_real($linenr, $lc);
 
 				my $skip_args = "";
 				if ($arg_pos > 1) {
