@@ -187,6 +187,16 @@ config DMA_SUN6I
 	help
 	  Support for the DMA engine first found in Allwinner A31 SoCs.
 
+config DW_AXI_DMAC
+	tristate "Synopsys DesignWare AXI DMA support"
+	depends on OF || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for Synopsys DesignWare AXI DMA controller.
+	  NOTE: This driver wasn't tested on 64 bit platform because
+	  of lack 64 bit platform with Synopsys DW AXI DMAC.
+
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
 	depends on ARCH_EP93XX || COMPILE_TEST

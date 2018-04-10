@@ -13336,6 +13336,12 @@ S:	Maintained
 F:	drivers/gpio/gpio-dwapb.c
 F:	Documentation/devicetree/bindings/gpio/snps-dwapb-gpio.txt
 
+SYNOPSYS DESIGNWARE AXI DMAC DRIVER
+M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+S:	Maintained
+F:	drivers/dma/dwi-axi-dmac/
+F:	Documentation/devicetree/bindings/dma/snps,dw-axi-dmac.txt
+
 SYNOPSYS DESIGNWARE DMAC DRIVER
 M:	Viresh Kumar <vireshk@kernel.org>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
