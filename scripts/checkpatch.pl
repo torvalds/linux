@@ -6096,7 +6096,6 @@ sub process {
 			}
 			if ($r1 !~ /^sizeof\b/ && $r2 =~ /^sizeof\s*\S/ &&
 			    !($r1 =~ /^$Constant$/ || $r1 =~ /^[A-Z_][A-Z0-9_]*$/)) {
-				my $ctx = '';
 				my $herectx = $here . "\n";
 				my $cnt = statement_rawlines($stat);
 				for (my $n = 0; $n < $cnt; $n++) {
@@ -6184,7 +6183,6 @@ sub process {
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
 		    $stat =~ /^\+[$;\s]*(?:case[$;\s]+\w+[$;\s]*:[$;\s]*|)*[$;\s]*\bdefault[$;\s]*:[$;\s]*;/g) {
-			my $ctx = '';
 			my $herectx = $here . "\n";
 			my $cnt = statement_rawlines($stat);
 			for (my $n = 0; $n < $cnt; $n++) {
