@@ -203,7 +203,7 @@ struct proc_dir_entry proc_root = {
 	.proc_iops	= &proc_root_inode_operations, 
 	.proc_fops	= &proc_root_operations,
 	.parent		= &proc_root,
-	.subdir		= RB_ROOT_CACHED,
+	.subdir		= RB_ROOT,
 	.name		= proc_root.inline_name,
 	.inline_name	= "/proc",
 };

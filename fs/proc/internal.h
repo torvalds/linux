@@ -51,15 +51,15 @@ struct proc_dir_entry {
 	kgid_t gid;
 	loff_t size;
 	struct proc_dir_entry *parent;
-	struct rb_root_cached subdir;
+	struct rb_root subdir;
 	struct rb_node subdir_node;
 	char *name;
 	umode_t mode;
 	u8 namelen;
 #ifdef CONFIG_64BIT
-#define SIZEOF_PDE_INLINE_NAME	(192-147)
+#define SIZEOF_PDE_INLINE_NAME	(192-139)
 #else
-#define SIZEOF_PDE_INLINE_NAME	(128-91)
+#define SIZEOF_PDE_INLINE_NAME	(128-87)
 #endif
 	char inline_name[SIZEOF_PDE_INLINE_NAME];
 } __randomize_layout;
