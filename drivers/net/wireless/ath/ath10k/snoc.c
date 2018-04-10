@@ -42,6 +42,9 @@ static char *const ce_name[] = {
 	"WLAN_CE_11",
 };
 
+static void ath10k_snoc_htc_tx_cb(struct ath10k_ce_pipe *ce_state);
+static void ath10k_snoc_htt_tx_cb(struct ath10k_ce_pipe *ce_state);
+
 static const struct ath10k_snoc_drv_priv drv_priv = {
 	.hw_rev = ATH10K_HW_WCN3990,
 	.dma_mask = DMA_BIT_MASK(37),
@@ -54,7 +57,7 @@ static struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 16,
 		.src_sz_max = 2048,
 		.dest_nentries = 0,
-		.send_cb = NULL,
+		.send_cb = ath10k_snoc_htc_tx_cb,
 	},
 
 	/* CE1: target->host HTT + HTC control */
@@ -81,7 +84,7 @@ static struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 32,
 		.src_sz_max = 2048,
 		.dest_nentries = 0,
-		.send_cb = NULL,
+		.send_cb = ath10k_snoc_htc_tx_cb,
 	},
 
 	/* CE4: host->target HTT */
@@ -90,7 +93,7 @@ static struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 256,
 		.src_sz_max = 256,
 		.dest_nentries = 0,
-		.send_cb = NULL,
+		.send_cb = ath10k_snoc_htt_tx_cb,
 	},
 
 	/* CE5: target->host HTT (ipa_uc->target ) */
@@ -359,6 +362,117 @@ static void ath10k_snoc_rx_post(struct ath10k *ar)
 		ath10k_snoc_rx_post_pipe(&ar_snoc->pipe_info[i]);
 }
 
+static void ath10k_snoc_htc_tx_cb(struct ath10k_ce_pipe *ce_state)
+{
+	struct ath10k *ar = ce_state->ar;
+	struct sk_buff_head list;
+	struct sk_buff *skb;
+
+	__skb_queue_head_init(&list);
+	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb) == 0) {
+		if (!skb)
+			continue;
+
+		__skb_queue_tail(&list, skb);
+	}
+
+	while ((skb = __skb_dequeue(&list)))
+		ath10k_htc_tx_completion_handler(ar, skb);
+}
+
+static void ath10k_snoc_htt_tx_cb(struct ath10k_ce_pipe *ce_state)
+{
+	struct ath10k *ar = ce_state->ar;
+	struct sk_buff *skb;
+
+	while (ath10k_ce_completed_send_next(ce_state, (void **)&skb) == 0) {
+		if (!skb)
+			continue;
+
+		dma_unmap_single(ar->dev, ATH10K_SKB_CB(skb)->paddr,
+				 skb->len, DMA_TO_DEVICE);
+		ath10k_htt_hif_tx_complete(ar, skb);
+	}
+}
+
+static int ath10k_snoc_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
+				 struct ath10k_hif_sg_item *items, int n_items)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+	struct ath10k_snoc_pipe *snoc_pipe;
+	struct ath10k_ce_pipe *ce_pipe;
+	int err, i = 0;
+
+	snoc_pipe = &ar_snoc->pipe_info[pipe_id];
+	ce_pipe = snoc_pipe->ce_hdl;
+	spin_lock_bh(&ce->ce_lock);
+
+	for (i = 0; i < n_items - 1; i++) {
+		ath10k_dbg(ar, ATH10K_DBG_SNOC,
+			   "snoc tx item %d paddr %pad len %d n_items %d\n",
+			   i, &items[i].paddr, items[i].len, n_items);
+
+		err = ath10k_ce_send_nolock(ce_pipe,
+					    items[i].transfer_context,
+					    items[i].paddr,
+					    items[i].len,
+					    items[i].transfer_id,
+					    CE_SEND_FLAG_GATHER);
+		if (err)
+			goto err;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC,
+		   "snoc tx item %d paddr %pad len %d n_items %d\n",
+		   i, &items[i].paddr, items[i].len, n_items);
+
+	err = ath10k_ce_send_nolock(ce_pipe,
+				    items[i].transfer_context,
+				    items[i].paddr,
+				    items[i].len,
+				    items[i].transfer_id,
+				    0);
+	if (err)
+		goto err;
+
+	spin_unlock_bh(&ce->ce_lock);
+
+	return 0;
+
+err:
+	for (; i > 0; i--)
+		__ath10k_ce_send_revert(ce_pipe);
+
+	spin_unlock_bh(&ce->ce_lock);
+	return err;
+}
+
+static u16 ath10k_snoc_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "hif get free queue number\n");
+
+	return ath10k_ce_num_free_src_entries(ar_snoc->pipe_info[pipe].ce_hdl);
+}
+
+static void ath10k_snoc_hif_send_complete_check(struct ath10k *ar, u8 pipe,
+						int force)
+{
+	int resources;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc hif send complete check\n");
+
+	if (!force) {
+		resources = ath10k_snoc_hif_get_free_queue_number(ar, pipe);
+
+		if (resources > (host_ce_config_wlan[pipe].src_nentries >> 1))
+			return;
+	}
+	ath10k_ce_per_engine_service(ar, pipe);
+}
+
 static int ath10k_snoc_hif_map_service_to_pipe(struct ath10k *ar,
 					       u16 service_id,
 					       u8 *ul_pipe, u8 *dl_pipe)
@@ -587,6 +701,9 @@ static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.get_default_pipe	= ath10k_snoc_hif_get_default_pipe,
 	.power_up		= ath10k_snoc_hif_power_up,
 	.power_down		= ath10k_snoc_hif_power_down,
+	.tx_sg			= ath10k_snoc_hif_tx_sg,
+	.send_complete_check	= ath10k_snoc_hif_send_complete_check,
+	.get_free_queue_number	= ath10k_snoc_hif_get_free_queue_number,
 };
 
 static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {
