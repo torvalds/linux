@@ -88,7 +88,7 @@ static void test_ubsan_null_ptr_deref(void)
 	val = *ptr;
 }
 
-void test_ubsan_misaligned_access(void)
+static void test_ubsan_misaligned_access(void)
 {
 	volatile char arr[5] __aligned(4) = {1, 2, 3, 4, 5};
 	volatile int *ptr, val = 6;
