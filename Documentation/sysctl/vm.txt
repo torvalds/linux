@@ -312,8 +312,6 @@ The lowmem_reserve_ratio is an array. You can see them by reading this file.
 % cat /proc/sys/vm/lowmem_reserve_ratio
 256     256     32
 -
-Note: # of this elements is one fewer than number of zones. Because the highest
-      zone's value is not necessary for following calculation.
 
 But, these values are not used directly. The kernel calculates # of protection
 pages for each zones from them. These are shown as array of protection pages
@@ -364,7 +362,8 @@ As above expression, they are reciprocal number of ratio.
 pages of higher zones on the node.
 
 If you would like to protect more pages, smaller values are effective.
-The minimum value is 1 (1/1 -> 100%).
+The minimum value is 1 (1/1 -> 100%). The value less than 1 completely
+disables protection of the pages.
 
 ==============================================================
 

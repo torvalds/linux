@@ -205,17 +205,18 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  * TBD: should special case ZONE_DMA32 machines here - in those we normally
  * don't need any ZONE_NORMAL reservation
  */
-int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
 #ifdef CONFIG_ZONE_DMA
-	 256,
+	[ZONE_DMA] = 256,
 #endif
 #ifdef CONFIG_ZONE_DMA32
-	 256,
+	[ZONE_DMA32] = 256,
 #endif
+	[ZONE_NORMAL] = 32,
 #ifdef CONFIG_HIGHMEM
-	 32,
+	[ZONE_HIGHMEM] = 0,
 #endif
-	 32,
+	[ZONE_MOVABLE] = 0,
 };
 
 EXPORT_SYMBOL(totalram_pages);
@@ -7132,13 +7133,15 @@ static void setup_per_zone_lowmem_reserve(void)
 				struct zone *lower_zone;
 
 				idx--;
-
-				if (sysctl_lowmem_reserve_ratio[idx] < 1)
-					sysctl_lowmem_reserve_ratio[idx] = 1;
-
 				lower_zone = pgdat->node_zones + idx;
-				lower_zone->lowmem_reserve[j] = managed_pages /
-					sysctl_lowmem_reserve_ratio[idx];
+
+				if (sysctl_lowmem_reserve_ratio[idx] < 1) {
+					sysctl_lowmem_reserve_ratio[idx] = 0;
+					lower_zone->lowmem_reserve[j] = 0;
+				} else {
+					lower_zone->lowmem_reserve[j] =
+						managed_pages / sysctl_lowmem_reserve_ratio[idx];
+				}
 				managed_pages += lower_zone->managed_pages;
 			}
 		}
