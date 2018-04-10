@@ -2008,6 +2008,9 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->iface_combinations = rsi_iface_combinations;
 	wiphy->n_iface_combinations = ARRAY_SIZE(rsi_iface_combinations);
 
+	if (common->coex_mode > 1)
+		wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
 	status = ieee80211_register_hw(hw);
 	if (status)
 		return status;
