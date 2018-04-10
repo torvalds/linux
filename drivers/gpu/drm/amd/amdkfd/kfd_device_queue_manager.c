@@ -196,15 +196,19 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 static int flush_texture_cache_nocpsch(struct kfd_dev *kdev,
 				struct qcm_process_device *qpd)
 {
-	uint32_t len;
+	const struct packet_manager_funcs *pmf = qpd->dqm->packets.pmf;
+	int ret;
 
 	if (!qpd->ib_kaddr)
 		return -ENOMEM;
 
-	len = pm_create_release_mem(qpd->ib_base, (uint32_t *)qpd->ib_kaddr);
+	ret = pmf->release_mem(qpd->ib_base, (uint32_t *)qpd->ib_kaddr);
+	if (ret)
+		return ret;
 
 	return kdev->kfd2kgd->submit_ib(kdev->kgd, KGD_ENGINE_MEC1, qpd->vmid,
-				qpd->ib_base, (uint32_t *)qpd->ib_kaddr, len);
+				qpd->ib_base, (uint32_t *)qpd->ib_kaddr,
+				pmf->release_mem_size / sizeof(uint32_t));
 }
 
 static void deallocate_vmid(struct device_queue_manager *dqm,

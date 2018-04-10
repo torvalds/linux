@@ -866,7 +866,40 @@ struct packet_manager {
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 	unsigned int ib_size_bytes;
+
+	const struct packet_manager_funcs *pmf;
 };
+
+struct packet_manager_funcs {
+	/* Support ASIC-specific packet formats for PM4 packets */
+	int (*map_process)(struct packet_manager *pm, uint32_t *buffer,
+			struct qcm_process_device *qpd);
+	int (*runlist)(struct packet_manager *pm, uint32_t *buffer,
+			uint64_t ib, size_t ib_size_in_dwords, bool chain);
+	int (*set_resources)(struct packet_manager *pm, uint32_t *buffer,
+			struct scheduling_resources *res);
+	int (*map_queues)(struct packet_manager *pm, uint32_t *buffer,
+			struct queue *q, bool is_static);
+	int (*unmap_queues)(struct packet_manager *pm, uint32_t *buffer,
+			enum kfd_queue_type type,
+			enum kfd_unmap_queues_filter mode,
+			uint32_t filter_param, bool reset,
+			unsigned int sdma_engine);
+	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
+			uint64_t fence_address,	uint32_t fence_value);
+	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
+
+	/* Packet sizes */
+	int map_process_size;
+	int runlist_size;
+	int set_resources_size;
+	int map_queues_size;
+	int unmap_queues_size;
+	int query_status_size;
+	int release_mem_size;
+};
+
+extern const struct packet_manager_funcs kfd_vi_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
 void pm_uninit(struct packet_manager *pm);
@@ -882,8 +915,6 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 			unsigned int sdma_engine);
 
 void pm_release_ib(struct packet_manager *pm);
-
-uint32_t pm_create_release_mem(uint64_t gpu_addr, uint32_t *buffer);
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 
