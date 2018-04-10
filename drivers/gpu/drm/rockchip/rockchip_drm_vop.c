@@ -2466,6 +2466,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	uint32_t val;
 	int act_end;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
+	int for_ddr_freq = 0;
 
 	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
@@ -2580,9 +2581,12 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		act_end = vact_end;
 	}
 
+	if (VOP_MAJOR(vop->version) == 3 &&
+	    (VOP_MINOR(vop->version) == 2 || VOP_MINOR(vop->version) == 8))
+		for_ddr_freq = 1000;
 	VOP_INTR_SET(vop, line_flag_num[0], act_end);
 	VOP_INTR_SET(vop, line_flag_num[1],
-		     act_end - us_to_vertical_line(adjusted_mode, 1000));
+		     act_end - us_to_vertical_line(adjusted_mode, for_ddr_freq));
 
 	VOP_CTRL_SET(vop, vtotal_pw, vtotal << 16 | vsync_len);
 
