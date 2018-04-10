@@ -519,6 +519,65 @@ static int ath10k_snoc_hif_start(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_snoc_init_pipes(struct ath10k *ar)
+{
+	int i, ret;
+
+	for (i = 0; i < CE_COUNT; i++) {
+		ret = ath10k_ce_init_pipe(ar, i, &host_ce_config_wlan[i]);
+		if (ret) {
+			ath10k_err(ar, "failed to initialize copy engine pipe %d: %d\n",
+				   i, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int ath10k_snoc_wlan_enable(struct ath10k *ar)
+{
+	return 0;
+}
+
+static void ath10k_snoc_wlan_disable(struct ath10k *ar)
+{
+}
+
+static void ath10k_snoc_hif_power_down(struct ath10k *ar)
+{
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power down\n");
+
+	ath10k_snoc_wlan_disable(ar);
+}
+
+static int ath10k_snoc_hif_power_up(struct ath10k *ar)
+{
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "%s:WCN3990 driver state = %d\n",
+		   __func__, ar->state);
+
+	ret = ath10k_snoc_wlan_enable(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_snoc_init_pipes(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to initialize CE: %d\n", ret);
+		goto err_wlan_enable;
+	}
+
+	return 0;
+
+err_wlan_enable:
+	ath10k_snoc_wlan_disable(ar);
+
+	return ret;
+}
+
 static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.read32		= ath10k_snoc_read32,
 	.write32	= ath10k_snoc_write32,
@@ -526,6 +585,8 @@ static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.stop		= ath10k_snoc_hif_stop,
 	.map_service_to_pipe	= ath10k_snoc_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_snoc_hif_get_default_pipe,
+	.power_up		= ath10k_snoc_hif_power_up,
+	.power_down		= ath10k_snoc_hif_power_down,
 };
 
 static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {
