@@ -857,7 +857,7 @@ void hwss_edp_power_control(
 					dm_get_elapse_time_in_ns(
 							ctx,
 							current_ts,
-							link->link_trace.time_stamp.edp_poweroff) / 1000000;
+							div64_u64(link->link_trace.time_stamp.edp_poweroff, 1000000));
 			unsigned long long wait_time_ms = 0;
 
 			/* max 500ms from LCDVDD off to on */
