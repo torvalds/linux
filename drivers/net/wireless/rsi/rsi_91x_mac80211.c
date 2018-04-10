@@ -614,7 +614,7 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 
 	/* Power save parameters */
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
-		struct ieee80211_vif *vif;
+		struct ieee80211_vif *vif, *sta_vif = NULL;
 		unsigned long flags;
 		int i, set_ps = 1;
 
@@ -628,13 +628,17 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 				set_ps = 0;
 				break;
 			}
+			if ((vif->type == NL80211_IFTYPE_STATION ||
+			     vif->type == NL80211_IFTYPE_P2P_CLIENT) &&
+			    (!sta_vif || vif->bss_conf.assoc))
+				sta_vif = vif;
 		}
-		if (set_ps) {
+		if (set_ps && sta_vif) {
 			spin_lock_irqsave(&adapter->ps_lock, flags);
 			if (conf->flags & IEEE80211_CONF_PS)
-				rsi_enable_ps(adapter, vif);
+				rsi_enable_ps(adapter, sta_vif);
 			else
-				rsi_disable_ps(adapter, vif);
+				rsi_disable_ps(adapter, sta_vif);
 			spin_unlock_irqrestore(&adapter->ps_lock, flags);
 		}
 	}
