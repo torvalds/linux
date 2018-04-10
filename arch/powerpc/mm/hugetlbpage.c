@@ -35,6 +35,8 @@
 #define PAGE_SHIFT_16M	24
 #define PAGE_SHIFT_16G	34
 
+bool hugetlb_disabled = false;
+
 unsigned int HPAGE_SHIFT;
 EXPORT_SYMBOL(HPAGE_SHIFT);
 
@@ -650,6 +652,11 @@ struct kmem_cache *hugepte_cache;
 static int __init hugetlbpage_init(void)
 {
 	int psize;
+
+	if (hugetlb_disabled) {
+		pr_info("HugeTLB support is disabled!\n");
+		return 0;
+	}
 
 #if !defined(CONFIG_PPC_FSL_BOOK3E) && !defined(CONFIG_PPC_8xx)
 	if (!radix_enabled() && !mmu_has_feature(MMU_FTR_16M_PAGE))

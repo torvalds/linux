@@ -402,6 +402,14 @@ int __init fadump_reserve_mem(void)
 	if (fw_dump.dump_active) {
 		pr_info("Firmware-assisted dump is active.\n");
 
+#ifdef CONFIG_HUGETLB_PAGE
+		/*
+		 * FADump capture kernel doesn't care much about hugepages.
+		 * In fact, handling hugepages in capture kernel is asking for
+		 * trouble. So, disable HugeTLB support when fadump is active.
+		 */
+		hugetlb_disabled = true;
+#endif
 		/*
 		 * If last boot has crashed then reserve all the memory
 		 * above boot_memory_size so that we don't touch it until
