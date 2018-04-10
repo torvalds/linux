@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -533,12 +534,18 @@ struct htt_ver_resp {
 	u8 rsvd0;
 } __packed;
 
+#define HTT_MGMT_TX_CMPL_FLAG_ACK_RSSI BIT(0)
+
+#define HTT_MGMT_TX_CMPL_INFO_ACK_RSSI_MASK	GENMASK(7, 0)
+
 struct htt_mgmt_tx_completion {
 	u8 rsvd0;
 	u8 rsvd1;
-	u8 rsvd2;
+	u8 flags;
 	__le32 desc_id;
 	__le32 status;
+	__le32 ppdu_id;
+	__le32 info;
 } __packed;
 
 #define HTT_RX_INDICATION_INFO0_EXT_TID_MASK  (0x1F)
@@ -1648,6 +1655,7 @@ struct htt_resp {
 struct htt_tx_done {
 	u16 msdu_id;
 	u16 status;
+	u8 ack_rssi;
 };
 
 enum htt_tx_compl_state {
