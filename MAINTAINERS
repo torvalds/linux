@@ -6581,14 +6581,24 @@ W:	https://i2c.wiki.kernel.org/
 Q:	https://patchwork.ozlabs.org/project/linux-i2c/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wsa/linux.git
 S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/
+F:	Documentation/devicetree/bindings/i2c/i2c.txt
 F:	Documentation/i2c/
-F:	drivers/i2c/
-F:	drivers/i2c/*/
+F:	drivers/i2c/*
 F:	include/linux/i2c.h
-F:	include/linux/i2c-*.h
+F:	include/linux/i2c-dev.h
+F:	include/linux/i2c-smbus.h
 F:	include/uapi/linux/i2c.h
 F:	include/uapi/linux/i2c-*.h
+
+I2C SUBSYSTEM HOST DRIVERS
+L:	linux-i2c@vger.kernel.org
+W:	https://i2c.wiki.kernel.org/
+Q:	https://patchwork.ozlabs.org/project/linux-i2c/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wsa/linux.git
+S:	Odd Fixes
+F:	Documentation/devicetree/bindings/i2c/
+F:	drivers/i2c/algos/
+F:	drivers/i2c/busses/
 
 I2C-TAOS-EVM DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
