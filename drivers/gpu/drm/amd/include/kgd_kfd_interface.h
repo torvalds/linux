@@ -100,6 +100,21 @@ struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means Queue n is available for KFD */
 	DECLARE_BITMAP(queue_bitmap, KGD_MAX_QUEUES);
 
+	/* Doorbell assignments (SOC15 and later chips only). Only
+	 * specific doorbells are routed to each SDMA engine. Others
+	 * are routed to IH and VCN. They are not usable by the CP.
+	 *
+	 * Any doorbell number D that satisfies the following condition
+	 * is reserved: (D & reserved_doorbell_mask) == reserved_doorbell_val
+	 *
+	 * KFD currently uses 1024 (= 0x3ff) doorbells per process. If
+	 * doorbells 0x0f0-0x0f7 and 0x2f-0x2f7 are reserved, that means
+	 * mask would be set to 0x1f8 and val set to 0x0f0.
+	 */
+	unsigned int sdma_doorbell[2][2];
+	unsigned int reserved_doorbell_mask;
+	unsigned int reserved_doorbell_val;
+
 	/* Base address of doorbell aperture. */
 	phys_addr_t doorbell_physical_address;
 
