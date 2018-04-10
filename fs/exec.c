@@ -1323,6 +1323,8 @@ EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
+	struct rlimit rlim_stack;
+
 	/*
 	 * Once here, prepare_binrpm() will not be called any more, so
 	 * the final state of setuid/setgid/fscaps can be merged into the
@@ -1345,7 +1347,11 @@ void setup_new_exec(struct linux_binprm * bprm)
 			current->signal->rlim[RLIMIT_STACK].rlim_cur = _STK_LIM;
 	}
 
-	arch_pick_mmap_layout(current->mm);
+	task_lock(current->group_leader);
+	rlim_stack = current->signal->rlim[RLIMIT_STACK];
+	task_unlock(current->group_leader);
+
+	arch_pick_mmap_layout(current->mm, &rlim_stack);
 
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
