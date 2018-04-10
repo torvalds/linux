@@ -12,6 +12,7 @@
 #ifdef CONFIG_GENERIC_CSUM
 #include <asm-generic/checksum.h>
 #else
+#include <linux/bitops.h>
 /*
  * Computes the checksum of a memory block at src, length len,
  * and adds in "sum" (32-bit), while copying the block to dst.
@@ -55,11 +56,7 @@ static inline __sum16 csum_fold(__wsum sum)
 
 static inline u32 from64to32(u64 x)
 {
-	/* add up 32-bit and 32-bit for 32+c bit */
-	x = (x & 0xffffffff) + (x >> 32);
-	/* add up carry.. */
-	x = (x & 0xffffffff) + (x >> 32);
-	return (u32)x;
+	return (x + ror64(x, 32)) >> 32;
 }
 
 static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
