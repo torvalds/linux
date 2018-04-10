@@ -49,7 +49,7 @@ static unsigned int max_doorbell_slices;
  */
 
 /* # of doorbell bytes allocated for each process. */
-static size_t kfd_doorbell_process_slice(struct kfd_dev *kfd)
+size_t kfd_doorbell_process_slice(struct kfd_dev *kfd)
 {
 	return roundup(kfd->device_info->doorbell_size *
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
@@ -214,13 +214,9 @@ void write_kernel_doorbell(void __iomem *db, u32 value)
 	}
 }
 
-/*
- * queue_ids are in the range [0,MAX_PROCESS_QUEUES) and are mapped 1:1
- * to doorbells with the process's doorbell page
- */
-unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
+unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
 					struct kfd_process *process,
-					unsigned int queue_id)
+					unsigned int doorbell_id)
 {
 	/*
 	 * doorbell_id_offset accounts for doorbells taken by KGD.
@@ -231,7 +227,7 @@ unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
 	return kfd->doorbell_id_offset +
 		process->doorbell_index
 		* kfd_doorbell_process_slice(kfd) / sizeof(u32) +
-		queue_id * kfd->device_info->doorbell_size / sizeof(u32);
+		doorbell_id * kfd->device_info->doorbell_size / sizeof(u32);
 }
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd)

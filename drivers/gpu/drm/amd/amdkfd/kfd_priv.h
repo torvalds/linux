@@ -169,6 +169,8 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
+#define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
+
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry);
@@ -449,6 +451,7 @@ struct queue {
 	uint32_t queue;
 
 	unsigned int sdma_id;
+	unsigned int doorbell_id;
 
 	struct kfd_process	*process;
 	struct kfd_dev		*device;
@@ -523,6 +526,9 @@ struct qcm_process_device {
 	/* IB memory */
 	uint64_t ib_base;
 	void *ib_kaddr;
+
+	/* doorbell resources per process per device */
+	unsigned long *doorbell_bitmap;
 };
 
 /* KFD Memory Eviction */
@@ -747,6 +753,7 @@ unsigned int kfd_pasid_alloc(void);
 void kfd_pasid_free(unsigned int pasid);
 
 /* Doorbells */
+size_t kfd_doorbell_process_slice(struct kfd_dev *kfd);
 int kfd_doorbell_init(struct kfd_dev *kfd);
 void kfd_doorbell_fini(struct kfd_dev *kfd);
 int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
@@ -756,9 +763,9 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);
 u32 read_kernel_doorbell(u32 __iomem *db);
 void write_kernel_doorbell(void __iomem *db, u32 value);
-unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
+unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
 					struct kfd_process *process,
-					unsigned int queue_id);
+					unsigned int doorbell_id);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
 					struct kfd_process *process);
 int kfd_alloc_process_doorbells(struct kfd_process *process);

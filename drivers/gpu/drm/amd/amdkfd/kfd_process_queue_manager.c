@@ -119,9 +119,6 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 	/* Doorbell initialized in user space*/
 	q_properties->doorbell_ptr = NULL;
 
-	q_properties->doorbell_off =
-			kfd_queue_id_to_doorbell(dev, pqm->process, qid);
-
 	/* let DQM handle it*/
 	q_properties->vmid = 0;
 	q_properties->queue_id = qid;
@@ -247,6 +244,15 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		pr_err("DQM create queue failed\n");
 		goto err_create_queue;
 	}
+
+	if (q)
+		/* Return the doorbell offset within the doorbell page
+		 * to the caller so it can be passed up to user mode
+		 * (in bytes).
+		 */
+		properties->doorbell_off =
+			(q->properties.doorbell_off * sizeof(uint32_t)) &
+			(kfd_doorbell_process_slice(dev) - 1);
 
 	pr_debug("PQM After DQM create queue\n");
 

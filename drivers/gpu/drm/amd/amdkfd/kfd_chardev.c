@@ -295,6 +295,13 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	args->doorbell_offset = KFD_MMAP_TYPE_DOORBELL;
 	args->doorbell_offset |= KFD_MMAP_GPU_ID(args->gpu_id);
 	args->doorbell_offset <<= PAGE_SHIFT;
+	if (KFD_IS_SOC15(dev->device_info->asic_family))
+		/* On SOC15 ASICs, doorbell allocation must be
+		 * per-device, and independent from the per-process
+		 * queue_id. Return the doorbell offset within the
+		 * doorbell aperture to user mode.
+		 */
+		args->doorbell_offset |= q_properties.doorbell_off;
 
 	mutex_unlock(&p->mutex);
 
