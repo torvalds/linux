@@ -160,6 +160,7 @@ struct kfd_device_info {
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
+	unsigned int doorbell_size;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
@@ -364,7 +365,7 @@ struct queue_properties {
 	uint32_t queue_percent;
 	uint32_t *read_ptr;
 	uint32_t *write_ptr;
-	uint32_t __iomem *doorbell_ptr;
+	void __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
 	bool is_evicted;
@@ -728,11 +729,11 @@ void kfd_pasid_free(unsigned int pasid);
 int kfd_doorbell_init(struct kfd_dev *kfd);
 void kfd_doorbell_fini(struct kfd_dev *kfd);
 int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma);
-u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
+void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 					unsigned int *doorbell_off);
 void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);
 u32 read_kernel_doorbell(u32 __iomem *db);
-void write_kernel_doorbell(u32 __iomem *db, u32 value);
+void write_kernel_doorbell(void __iomem *db, u32 value);
 unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int queue_id);
