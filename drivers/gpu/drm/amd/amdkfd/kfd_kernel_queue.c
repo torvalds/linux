@@ -232,18 +232,16 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 		 * make sure calling functions know
 		 * acquire_packet_buffer() failed
 		 */
-		*buffer_ptr = NULL;
-		return -ENOMEM;
+		goto err_no_space;
 	}
 
 	if (wptr + packet_size_in_dwords >= queue_size_dwords) {
 		/* make sure after rolling back to position 0, there is
 		 * still enough space.
 		 */
-		if (packet_size_in_dwords >= rptr) {
-			*buffer_ptr = NULL;
-			return -ENOMEM;
-		}
+		if (packet_size_in_dwords >= rptr)
+			goto err_no_space;
+
 		/* fill nops, roll back and start at position 0 */
 		while (wptr > 0) {
 			queue_address[wptr] = kq->nop_packet;
@@ -255,6 +253,10 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	kq->pending_wptr = wptr + packet_size_in_dwords;
 
 	return 0;
+
+err_no_space:
+	*buffer_ptr = NULL;
+	return -ENOMEM;
 }
 
 static void submit_packet(struct kernel_queue *kq)
