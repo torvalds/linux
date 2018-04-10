@@ -6429,7 +6429,7 @@ sub process {
 		}
 
 # check for uses of S_<PERMS> that could be octal for readability
-		if ($line =~ /\b($multi_mode_perms_string_search)\b/) {
+		while ($line =~ m{\b($multi_mode_perms_string_search)\b}g) {
 			my $oval = $1;
 			my $octal = perms_to_octal($oval);
 			if (WARN("SYMBOLIC_PERMS",
