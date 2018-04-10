@@ -96,10 +96,10 @@ static void optc1_disable_stereo(struct timing_generator *optc)
 static uint32_t get_start_vline(struct timing_generator *optc, const struct dc_crtc_timing *dc_crtc_timing)
 {
 	struct dc_crtc_timing patched_crtc_timing;
-	uint32_t vesa_sync_start;
-	uint32_t asic_blank_end;
-	uint32_t interlace_factor;
-	uint32_t vertical_line_start;
+	int vesa_sync_start;
+	int asic_blank_end;
+	int interlace_factor;
+	int vertical_line_start;
 
 	patched_crtc_timing = *dc_crtc_timing;
 	optc1_apply_front_porch_workaround(optc, &patched_crtc_timing);
