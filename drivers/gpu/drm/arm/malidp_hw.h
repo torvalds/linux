@@ -178,7 +178,7 @@ struct malidp_hw {
 	long (*se_calc_mclk)(struct malidp_hw_device *hwdev,
 			     struct malidp_se_config *se_config,
 			     struct videomode *vm);
-	/**
+	/*
 	 * Enable writing to memory the content of the next frame
 	 * @param hwdev - malidp_hw_device structure containing the HW description
 	 * @param addrs - array of addresses for each plane
@@ -231,6 +231,9 @@ struct malidp_hw_device {
 
 	/* track the device PM state */
 	bool pm_suspended;
+
+	/* track the SE memory writeback state */
+	u8 mw_state;
 
 	/* size of memory used for rotating layers, up to two banks available */
 	u32 rotation_memory[2];

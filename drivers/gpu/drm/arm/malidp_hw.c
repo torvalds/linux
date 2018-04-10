@@ -22,6 +22,13 @@
 #include "malidp_drv.h"
 #include "malidp_hw.h"
 
+enum {
+	MW_NOT_ENABLED = 0,	/* SE writeback not enabled */
+	MW_ONESHOT,		/* SE in one-shot mode for writeback */
+	MW_START,		/* SE started writeback */
+	MW_STOP,		/* SE finished writeback */
+};
+
 static const struct malidp_format_id malidp500_de_formats[] = {
 	/*    fourcc,   layers supporting the format,     internal id  */
 	{ DRM_FORMAT_ARGB2101010, DE_VIDEO1 | DE_GRAPHICS1 | DE_GRAPHICS2,  0 },
@@ -368,6 +375,51 @@ static long malidp500_se_calc_mclk(struct malidp_hw_device *hwdev,
 	return ret;
 }
 
+static int malidp500_enable_memwrite(struct malidp_hw_device *hwdev,
+				     dma_addr_t *addrs, s32 *pitches,
+				     int num_planes, u16 w, u16 h, u32 fmt_id)
+{
+	u32 base = MALIDP500_SE_MEMWRITE_BASE;
+	u32 de_base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
+
+	/* enable the scaling engine block */
+	malidp_hw_setbits(hwdev, MALIDP_SCALE_ENGINE_EN, de_base + MALIDP_DE_DISPLAY_FUNC);
+
+	hwdev->mw_state = MW_START;
+
+	malidp_hw_write(hwdev, fmt_id, base + MALIDP_MW_FORMAT);
+	switch (num_planes) {
+	case 2:
+		malidp_hw_write(hwdev, lower_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_LOW);
+		malidp_hw_write(hwdev, upper_32_bits(addrs[1]), base + MALIDP_MW_P2_PTR_HIGH);
+		malidp_hw_write(hwdev, pitches[1], base + MALIDP_MW_P2_STRIDE);
+		/* fall through */
+	case 1:
+		malidp_hw_write(hwdev, lower_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_LOW);
+		malidp_hw_write(hwdev, upper_32_bits(addrs[0]), base + MALIDP_MW_P1_PTR_HIGH);
+		malidp_hw_write(hwdev, pitches[0], base + MALIDP_MW_P1_STRIDE);
+		break;
+	default:
+		WARN(1, "Invalid number of planes");
+	}
+
+	malidp_hw_write(hwdev, MALIDP_DE_H_ACTIVE(w) | MALIDP_DE_V_ACTIVE(h),
+			MALIDP500_SE_MEMWRITE_OUT_SIZE);
+	malidp_hw_setbits(hwdev, MALIDP_SE_MEMWRITE_EN, MALIDP500_SE_CONTROL);
+
+	return 0;
+}
+
+static void malidp500_disable_memwrite(struct malidp_hw_device *hwdev)
+{
+	u32 base = malidp_get_block_base(hwdev, MALIDP_DE_BLOCK);
+
+	if (hwdev->mw_state == MW_START)
+		hwdev->mw_state = MW_STOP;
+	malidp_hw_clearbits(hwdev, MALIDP_SE_MEMWRITE_EN, MALIDP500_SE_CONTROL);
+	malidp_hw_clearbits(hwdev, MALIDP_SCALE_ENGINE_EN, base + MALIDP_DE_DISPLAY_FUNC);
+}
+
 static int malidp550_query_hw(struct malidp_hw_device *hwdev)
 {
 	u32 conf = malidp_hw_read(hwdev, MALIDP550_CONFIG_ID);
@@ -598,6 +650,8 @@ static int malidp550_enable_memwrite(struct malidp_hw_device *hwdev,
 	/* enable the scaling engine block */
 	malidp_hw_setbits(hwdev, MALIDP_SCALE_ENGINE_EN, de_base + MALIDP_DE_DISPLAY_FUNC);
 
+	hwdev->mw_state = MW_ONESHOT;
+
 	malidp_hw_write(hwdev, fmt_id, base + MALIDP_MW_FORMAT);
 	switch (num_planes) {
 	case 2:
@@ -678,8 +732,9 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 			},
 			.se_irq_map = {
 				.irq_mask = MALIDP500_SE_IRQ_CONF_MODE |
+					    MALIDP500_SE_IRQ_CONF_VALID |
 					    MALIDP500_SE_IRQ_GLOBAL,
-				.vsync_irq = 0,
+				.vsync_irq = MALIDP500_SE_IRQ_CONF_VALID,
 			},
 			.dc_irq_map = {
 				.irq_mask = MALIDP500_DE_IRQ_CONF_VALID,
@@ -698,6 +753,8 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 		.rotmem_required = malidp500_rotmem_required,
 		.se_set_scaling_coeffs = malidp500_se_set_scaling_coeffs,
 		.se_calc_mclk = malidp500_se_calc_mclk,
+		.enable_memwrite = malidp500_enable_memwrite,
+		.disable_memwrite = malidp500_disable_memwrite,
 		.features = MALIDP_DEVICE_LV_HAS_3_STRIDES,
 	},
 	[MALIDP_550] = {
@@ -842,7 +899,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 			malidp->event = NULL;
 			spin_unlock(&drm->event_lock);
 		}
-		atomic_set(&malidp->config_valid, 1);
+		atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_DONE);
 		ret = IRQ_WAKE_THREAD;
 	}
 
@@ -936,7 +993,25 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 	mask = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_MASKIRQ);
 	status = malidp_hw_read(hwdev, hw->map.se_base + MALIDP_REG_STATUS);
 	status &= mask;
-	/* ToDo: status decoding and firing up of VSYNC and page flip events */
+
+	if (status & se->vsync_irq) {
+		switch (hwdev->mw_state) {
+		case MW_STOP:
+			/* disable writeback after stop */
+			hwdev->mw_state = MW_NOT_ENABLED;
+			break;
+		case MW_START:
+			/* writeback started, need to emulate one-shot mode */
+			hw->disable_memwrite(hwdev);
+			/*
+			 * only set config_valid HW bit if there is no
+			 * other update in progress
+			 */
+			if (atomic_read(&malidp->config_valid) != MALIDP_CONFIG_START)
+				hw->set_config_valid(hwdev);
+			break;
+		}
+	}
 
 	malidp_hw_clear_irq(hwdev, MALIDP_SE_BLOCK, status);
 
@@ -966,6 +1041,7 @@ int malidp_se_irq_init(struct drm_device *drm, int irq)
 		return ret;
 	}
 
+	hwdev->mw_state = MW_NOT_ENABLED;
 	malidp_hw_enable_irq(hwdev, MALIDP_SE_BLOCK,
 			     hwdev->hw->map.se_irq_map.irq_mask);
 

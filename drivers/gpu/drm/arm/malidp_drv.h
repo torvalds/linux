@@ -18,6 +18,10 @@
 #include <drm/drmP.h>
 #include "malidp_hw.h"
 
+#define MALIDP_CONFIG_VALID_INIT	0
+#define MALIDP_CONFIG_VALID_DONE	1
+#define MALIDP_CONFIG_START		0xd0
+
 struct malidp_drm {
 	struct malidp_hw_device *dev;
 	struct drm_crtc crtc;

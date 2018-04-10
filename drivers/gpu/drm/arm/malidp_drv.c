@@ -170,14 +170,15 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int ret;
 
-	atomic_set(&malidp->config_valid, 0);
 	hwdev->hw->set_config_valid(hwdev);
 	/* don't wait for config_valid flag if we are in config mode */
-	if (hwdev->hw->in_config_mode(hwdev))
+	if (hwdev->hw->in_config_mode(hwdev)) {
+		atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_DONE);
 		return 0;
+	}
 
 	ret = wait_event_interruptible_timeout(malidp->wq,
-			atomic_read(&malidp->config_valid) == 1,
+			atomic_read(&malidp->config_valid) == MALIDP_CONFIG_VALID_DONE,
 			msecs_to_jiffies(MALIDP_CONF_VALID_TIMEOUT));
 
 	return (ret > 0) ? 0 : -ETIMEDOUT;
@@ -216,11 +217,18 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *drm = state->dev;
+	struct malidp_drm *malidp = drm->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	int i;
 
 	pm_runtime_get_sync(drm->dev);
+
+	/*
+	 * set config_valid to a special value to let IRQ handlers
+	 * know that we are updating registers
+	 */
+	atomic_set(&malidp->config_valid, MALIDP_CONFIG_START);
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
@@ -588,7 +596,7 @@ static int malidp_bind(struct device *dev)
 		out_depth = (out_depth << 8) | (output_width[i] & 0xf);
 	malidp_hw_write(hwdev, out_depth, hwdev->hw->map.out_depth_base);
 
-	atomic_set(&malidp->config_valid, 0);
+	atomic_set(&malidp->config_valid, MALIDP_CONFIG_VALID_INIT);
 	init_waitqueue_head(&malidp->wq);
 
 	ret = malidp_init(drm);
