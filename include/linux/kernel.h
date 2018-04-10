@@ -544,6 +544,7 @@ extern enum system_states {
 	SYSTEM_RESTART,
 } system_state;
 
+/* This cannot be an enum because some may be used in assembly source. */
 #define TAINT_PROPRIETARY_MODULE	0
 #define TAINT_FORCED_MODULE		1
 #define TAINT_CPU_OUT_OF_SPEC		2

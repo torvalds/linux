@@ -308,23 +308,23 @@ EXPORT_SYMBOL(panic);
  * is being removed anyway.
  */
 const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
-	{ 'P', 'G', true },	/* TAINT_PROPRIETARY_MODULE */
-	{ 'F', ' ', true },	/* TAINT_FORCED_MODULE */
-	{ 'S', ' ', false },	/* TAINT_CPU_OUT_OF_SPEC */
-	{ 'R', ' ', false },	/* TAINT_FORCED_RMMOD */
-	{ 'M', ' ', false },	/* TAINT_MACHINE_CHECK */
-	{ 'B', ' ', false },	/* TAINT_BAD_PAGE */
-	{ 'U', ' ', false },	/* TAINT_USER */
-	{ 'D', ' ', false },	/* TAINT_DIE */
-	{ 'A', ' ', false },	/* TAINT_OVERRIDDEN_ACPI_TABLE */
-	{ 'W', ' ', false },	/* TAINT_WARN */
-	{ 'C', ' ', true },	/* TAINT_CRAP */
-	{ 'I', ' ', false },	/* TAINT_FIRMWARE_WORKAROUND */
-	{ 'O', ' ', true },	/* TAINT_OOT_MODULE */
-	{ 'E', ' ', true },	/* TAINT_UNSIGNED_MODULE */
-	{ 'L', ' ', false },	/* TAINT_SOFTLOCKUP */
-	{ 'K', ' ', true },	/* TAINT_LIVEPATCH */
-	{ 'X', ' ', true },	/* TAINT_AUX */
+	[ TAINT_PROPRIETARY_MODULE ]	= { 'P', 'G', true },
+	[ TAINT_FORCED_MODULE ]		= { 'F', ' ', true },
+	[ TAINT_CPU_OUT_OF_SPEC ]	= { 'S', ' ', false },
+	[ TAINT_FORCED_RMMOD ]		= { 'R', ' ', false },
+	[ TAINT_MACHINE_CHECK ]		= { 'M', ' ', false },
+	[ TAINT_BAD_PAGE ]		= { 'B', ' ', false },
+	[ TAINT_USER ]			= { 'U', ' ', false },
+	[ TAINT_DIE ]			= { 'D', ' ', false },
+	[ TAINT_OVERRIDDEN_ACPI_TABLE ]	= { 'A', ' ', false },
+	[ TAINT_WARN ]			= { 'W', ' ', false },
+	[ TAINT_CRAP ]			= { 'C', ' ', true },
+	[ TAINT_FIRMWARE_WORKAROUND ]	= { 'I', ' ', false },
+	[ TAINT_OOT_MODULE ]		= { 'O', ' ', true },
+	[ TAINT_UNSIGNED_MODULE ]	= { 'E', ' ', true },
+	[ TAINT_SOFTLOCKUP ]		= { 'L', ' ', false },
+	[ TAINT_LIVEPATCH ]		= { 'K', ' ', true },
+	[ TAINT_AUX ]			= { 'X', ' ', true },
 };
 
 /**
@@ -353,6 +353,8 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 const char *print_tainted(void)
 {
 	static char buf[TAINT_FLAGS_COUNT + sizeof("Tainted: ")];
+
+	BUILD_BUG_ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
 
 	if (tainted_mask) {
 		char *s;
