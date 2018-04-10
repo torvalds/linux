@@ -86,7 +86,7 @@ atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
 
 DEFINE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
 
-#ifdef CONFIG_KVM
+#ifdef CONFIG_KVM_INDIRECT_VECTORS
 extern char __smccc_workaround_1_smc_start[];
 extern char __smccc_workaround_1_smc_end[];
 
@@ -137,7 +137,7 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 {
 	__this_cpu_write(bp_hardening_data.fn, fn);
 }
-#endif	/* CONFIG_KVM */
+#endif	/* CONFIG_KVM_INDIRECT_VECTORS */
 
 static void  install_bp_hardening_cb(const struct arm64_cpu_capabilities *entry,
 				     bp_hardening_cb_t fn,
