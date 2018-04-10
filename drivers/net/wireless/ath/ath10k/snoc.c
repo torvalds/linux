@@ -528,6 +528,15 @@ err:
 	return err;
 }
 
+static int ath10k_snoc_hif_get_target_info(struct ath10k *ar,
+					   struct bmi_target_info *target_info)
+{
+	target_info->version = ATH10K_HW_WCN3990;
+	target_info->type = ATH10K_HW_WCN3990;
+
+	return 0;
+}
+
 static u16 ath10k_snoc_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
@@ -787,6 +796,7 @@ static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.tx_sg			= ath10k_snoc_hif_tx_sg,
 	.send_complete_check	= ath10k_snoc_hif_send_complete_check,
 	.get_free_queue_number	= ath10k_snoc_hif_get_free_queue_number,
+	.get_target_info	= ath10k_snoc_hif_get_target_info,
 };
 
 static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {

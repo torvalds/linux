@@ -2472,6 +2472,14 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		ar->hw->wiphy->hw_version = target_info.version;
 		break;
 	case ATH10K_BUS_SNOC:
+		memset(&target_info, 0, sizeof(target_info));
+		ret = ath10k_hif_get_target_info(ar, &target_info);
+		if (ret) {
+			ath10k_err(ar, "could not get target info (%d)\n", ret);
+			goto err_power_down;
+		}
+		ar->target_version = target_info.version;
+		ar->hw->wiphy->hw_version = target_info.version;
 		break;
 	default:
 		ath10k_err(ar, "incorrect hif bus type: %d\n", ar->hif.bus);
