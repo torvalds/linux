@@ -1602,13 +1602,15 @@ xfs_itruncate_extents(
 			goto out;
 	}
 
-	/* Remove all pending CoW reservations. */
-	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
-			last_block, true);
-	if (error)
-		goto out;
+	if (whichfork == XFS_DATA_FORK) {
+		/* Remove all pending CoW reservations. */
+		error = xfs_reflink_cancel_cow_blocks(ip, &tp,
+				first_unmap_block, last_block, true);
+		if (error)
+			goto out;
 
-	xfs_itruncate_clear_reflink_flags(ip);
+		xfs_itruncate_clear_reflink_flags(ip);
+	}
 
 	/*
 	 * Always re-log the inode so that our permanent transaction can keep
