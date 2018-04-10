@@ -3805,18 +3805,6 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	},
 };
 
-static u64 mlxsw_sp_resource_kvd_linear_occ_get(struct devlink *devlink)
-{
-	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
-	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
-
-	return mlxsw_sp_kvdl_occ_get(mlxsw_sp);
-}
-
-static const struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
-	.occ_get = mlxsw_sp_resource_kvd_linear_occ_get,
-};
-
 static void
 mlxsw_sp_resource_size_params_prepare(struct mlxsw_core *mlxsw_core,
 				      struct devlink_resource_size_params *kvd_size_params,
@@ -3877,8 +3865,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD,
 					kvd_size, MLXSW_SP_RESOURCE_KVD,
 					DEVLINK_RESOURCE_ID_PARENT_TOP,
-					&kvd_size_params,
-					NULL);
+					&kvd_size_params);
 	if (err)
 		return err;
 
@@ -3887,8 +3874,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 					linear_size,
 					MLXSW_SP_RESOURCE_KVD_LINEAR,
 					MLXSW_SP_RESOURCE_KVD,
-					&linear_size_params,
-					&mlxsw_sp_resource_kvd_linear_ops);
+					&linear_size_params);
 	if (err)
 		return err;
 
@@ -3905,8 +3891,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 					double_size,
 					MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
 					MLXSW_SP_RESOURCE_KVD,
-					&hash_double_size_params,
-					NULL);
+					&hash_double_size_params);
 	if (err)
 		return err;
 
@@ -3915,8 +3900,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 					single_size,
 					MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
 					MLXSW_SP_RESOURCE_KVD,
-					&hash_single_size_params,
-					NULL);
+					&hash_single_size_params);
 	if (err)
 		return err;
 

@@ -1108,6 +1108,7 @@ struct ibmvnic_adapter {
 	bool napi_enabled, from_passive_init;
 
 	bool mac_change_pending;
+	bool failover_pending;
 
 	struct ibmvnic_tunables desired;
 	struct ibmvnic_tunables fallback;
