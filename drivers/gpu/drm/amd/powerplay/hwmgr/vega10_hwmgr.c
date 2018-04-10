@@ -3805,7 +3805,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t sclk_idx, mclk_idx, activity_percent = 0;
+	uint32_t sclk_mhz, mclk_idx, activity_percent = 0;
 	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_dpm_table *dpm_table = &data->dpm_table;
 	int ret = 0;
@@ -3813,14 +3813,9 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
-		sclk_idx = smum_get_argument(hwmgr);
-		if (sclk_idx <  dpm_table->gfx_table.count) {
-			*((uint32_t *)value) = dpm_table->gfx_table.dpm_levels[sclk_idx].value;
-			*size = 4;
-		} else {
-			ret = -EINVAL;
-		}
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetAverageGfxclkActualFrequency);
+		sclk_mhz = smum_get_argument(hwmgr);
+		*((uint32_t *)value) = sclk_mhz * 100;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
