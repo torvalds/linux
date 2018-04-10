@@ -2638,9 +2638,11 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	 * This is optional. So, if this driver cannot get a phy,
 	 * this driver will not handle a phy anymore.
 	 */
-	usb3->phy = devm_phy_get(&pdev->dev, "usb");
-	if (IS_ERR(usb3->phy))
-		usb3->phy = NULL;
+	usb3->phy = devm_phy_optional_get(&pdev->dev, "usb");
+	if (IS_ERR(usb3->phy)) {
+		ret = PTR_ERR(usb3->phy);
+		goto err_add_udc;
+	}
 
 	pm_runtime_enable(&pdev->dev);
 	ret = usb_add_gadget_udc(&pdev->dev, &usb3->gadget);
