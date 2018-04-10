@@ -2424,12 +2424,12 @@ void f2fs_set_page_dirty_nobuffers(struct page *page)
 	SetPageDirty(page);
 	spin_unlock(&mapping->private_lock);
 
-	spin_lock_irqsave(&mapping->tree_lock, flags);
+	xa_lock_irqsave(&mapping->i_pages, flags);
 	WARN_ON_ONCE(!PageUptodate(page));
 	account_page_dirtied(page, mapping);
-	radix_tree_tag_set(&mapping->page_tree,
+	radix_tree_tag_set(&mapping->i_pages,
 			page_index(page), PAGECACHE_TAG_DIRTY);
-	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+	xa_unlock_irqrestore(&mapping->i_pages, flags);
 	unlock_page_memcg(page);
 
 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);

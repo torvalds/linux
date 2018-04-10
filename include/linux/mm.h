@@ -747,7 +747,7 @@ int finish_mkwrite_fault(struct vm_fault *vmf);
  * refcount. The each user mapping also has a reference to the page.
  *
  * The pagecache pages are stored in a per-mapping radix tree, which is
- * rooted at mapping->page_tree, and indexed by offset.
+ * rooted at mapping->i_pages, and indexed by offset.
  * Where 2.4 and early 2.6 kernels kept dirty/clean pages in per-address_space
  * lists, we instead now tag pages as dirty/writeback in the radix tree.
  *

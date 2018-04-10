@@ -329,7 +329,7 @@ static inline bool inode_to_wb_is_valid(struct inode *inode)
  * @inode: inode of interest
  *
  * Returns the wb @inode is currently associated with.  The caller must be
- * holding either @inode->i_lock, @inode->i_mapping->tree_lock, or the
+ * holding either @inode->i_lock, the i_pages lock, or the
  * associated wb's list_lock.
  */
 static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
@@ -337,7 +337,7 @@ static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
 #ifdef CONFIG_LOCKDEP
 	WARN_ON_ONCE(debug_locks &&
 		     (!lockdep_is_held(&inode->i_lock) &&
-		      !lockdep_is_held(&inode->i_mapping->tree_lock) &&
+		      !lockdep_is_held(&inode->i_mapping->i_pages.xa_lock) &&
 		      !lockdep_is_held(&inode->i_wb->list_lock)));
 #endif
 	return inode->i_wb;
@@ -349,7 +349,7 @@ static inline struct bdi_writeback *inode_to_wb(const struct inode *inode)
  * @lockedp: temp bool output param, to be passed to the end function
  *
  * The caller wants to access the wb associated with @inode but isn't
- * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
+ * holding inode->i_lock, the i_pages lock or wb->list_lock.  This
  * function determines the wb associated with @inode and ensures that the
  * association doesn't change until the transaction is finished with
  * unlocked_inode_to_wb_end().
@@ -370,11 +370,11 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
 	*lockedp = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
 
 	if (unlikely(*lockedp))
-		spin_lock_irq(&inode->i_mapping->tree_lock);
+		xa_lock_irq(&inode->i_mapping->i_pages);
 
 	/*
-	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or tree_lock.
-	 * inode_to_wb() will bark.  Deref directly.
+	 * Protected by either !I_WB_SWITCH + rcu_read_lock() or the i_pages
+	 * lock.  inode_to_wb() will bark.  Deref directly.
 	 */
 	return inode->i_wb;
 }
@@ -387,7 +387,7 @@ unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
 static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
 {
 	if (unlikely(locked))
-		spin_unlock_irq(&inode->i_mapping->tree_lock);
+		xa_unlock_irq(&inode->i_mapping->i_pages);
 
 	rcu_read_unlock();
 }
