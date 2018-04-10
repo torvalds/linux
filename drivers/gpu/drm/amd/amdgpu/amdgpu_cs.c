@@ -385,8 +385,7 @@ retry:
 	    amdgpu_bo_in_cpu_visible_vram(bo))
 		p->bytes_moved_vis += ctx.bytes_moved;
 
-	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains &&
-	    !(bo->flags & AMDGPU_GEM_CREATE_NO_FALLBACK)) {
+	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
 		domain = bo->allowed_domains;
 		goto retry;
 	}
