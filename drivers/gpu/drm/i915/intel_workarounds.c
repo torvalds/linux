@@ -81,27 +81,8 @@ static int wa_add(struct drm_i915_private *dev_priv,
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	WA_REG(addr, (mask), _MASKED_FIELD(mask, value))
 
-static int wa_ring_whitelist_reg(struct intel_engine_cs *engine,
-				 i915_reg_t reg)
+static int gen8_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	struct i915_workarounds *wa = &dev_priv->workarounds;
-	const unsigned int index = wa->hw_whitelist_count[engine->id];
-
-	if (WARN_ON(index >= RING_MAX_NONPRIV_SLOTS))
-		return -EINVAL;
-
-	I915_WRITE(RING_FORCE_TO_NONPRIV(engine->mmio_base, index),
-		   i915_mmio_reg_offset(reg));
-	wa->hw_whitelist_count[engine->id]++;
-
-	return 0;
-}
-
-static int gen8_init_workarounds(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
 	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisableAsyncFlipPerfMode:bdw,chv */
@@ -149,12 +130,11 @@ static int gen8_init_workarounds(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static int bdw_init_workarounds(struct intel_engine_cs *engine)
+static int bdw_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
-	ret = gen8_init_workarounds(engine);
+	ret = gen8_ctx_workarounds_init(dev_priv);
 	if (ret)
 		return ret;
 
@@ -181,12 +161,11 @@ static int bdw_init_workarounds(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static int chv_init_workarounds(struct intel_engine_cs *engine)
+static int chv_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
-	ret = gen8_init_workarounds(engine);
+	ret = gen8_ctx_workarounds_init(dev_priv);
 	if (ret)
 		return ret;
 
@@ -199,25 +178,8 @@ static int chv_init_workarounds(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static int gen9_init_workarounds(struct intel_engine_cs *engine)
+static int gen9_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	/* WaConextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl,glk,cfl */
-	I915_WRITE(GEN9_CSFE_CHICKEN1_RCS,
-		   _MASKED_BIT_ENABLE(GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE));
-
-	/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl,glk,cfl */
-	I915_WRITE(BDW_SCRATCH1,
-		   I915_READ(BDW_SCRATCH1) |
-		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
-
-	/* WaDisableKillLogic:bxt,skl,kbl */
-	if (!IS_COFFEELAKE(dev_priv))
-		I915_WRITE(GAM_ECOCHK,
-			   I915_READ(GAM_ECOCHK) | ECOCHK_DIS_TLB);
-
 	if (HAS_LLC(dev_priv)) {
 		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl,kbl
 		 *
@@ -228,11 +190,6 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 				  GEN9_PBE_COMPRESSED_HASH_SELECTION);
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 				  GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR);
-
-		I915_WRITE(MMCD_MISC_CTRL,
-			   I915_READ(MMCD_MISC_CTRL) |
-			   MMCD_PCLA |
-			   MMCD_HOTSPOT_EN);
 	}
 
 	/* WaClearFlowControlGpgpuContextSave:skl,bxt,kbl,glk,cfl */
@@ -284,10 +241,6 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
 			  HDC_FORCE_NON_COHERENT);
 
-	/* WaDisableHDCInvalidation:skl,bxt,kbl,cfl */
-	I915_WRITE(GAM_ECOCHK,
-		   I915_READ(GAM_ECOCHK) | BDW_DISABLE_HDC_INVALIDATION);
-
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl,cfl */
 	if (IS_SKYLAKE(dev_priv) ||
 	    IS_KABYLAKE(dev_priv) ||
@@ -297,19 +250,6 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaDisableSTUnitPowerOptimization:skl,bxt,kbl,glk,cfl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
-
-	/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
-	if (IS_GEN9_LP(dev_priv)) {
-		u32 val = I915_READ(GEN8_L3SQCREG1);
-
-		val &= ~L3_PRIO_CREDITS_MASK;
-		val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
-		I915_WRITE(GEN8_L3SQCREG1, val);
-	}
-
-	/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
-	I915_WRITE(GEN8_L3SQCREG4,
-		   I915_READ(GEN8_L3SQCREG4) | GEN8_LQSC_FLUSH_COHERENT_LINES);
 
 	/*
 	 * Supporting preemption with fine-granularity requires changes in the
@@ -330,29 +270,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
-	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt,glk,cfl */
-	ret = wa_ring_whitelist_reg(engine, GEN9_CTX_PREEMPT_REG);
-	if (ret)
-		return ret;
-
-	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,[cnl] */
-	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
-		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
-	ret = wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
-	if (ret)
-		return ret;
-
-	/* WaAllowUMDToModifyHDCChicken1:skl,bxt,kbl,glk,cfl */
-	ret = wa_ring_whitelist_reg(engine, GEN8_HDC_CHICKEN1);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
-static int skl_tune_iz_hashing(struct intel_engine_cs *engine)
+static int skl_tune_iz_hashing(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	u8 vals[3] = { 0, 0, 0 };
 	unsigned int i;
 
@@ -391,43 +313,22 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *engine)
 	return 0;
 }
 
-static int skl_init_workarounds(struct intel_engine_cs *engine)
+static int skl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
-	ret = gen9_init_workarounds(engine);
+	ret = gen9_ctx_workarounds_init(dev_priv);
 	if (ret)
 		return ret;
 
-	/* WaEnableGapsTsvCreditFix:skl */
-	I915_WRITE(GEN8_GARBCNTL,
-		   I915_READ(GEN8_GARBCNTL) | GEN9_GAPS_TSV_CREDIT_DISABLE);
-
-	/* WaDisableGafsUnitClkGating:skl */
-	I915_WRITE(GEN7_UCGCTL4,
-		   I915_READ(GEN7_UCGCTL4) | GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
-
-	/* WaInPlaceDecompressionHang:skl */
-	if (IS_SKL_REVID(dev_priv, SKL_REVID_H0, REVID_FOREVER))
-		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
-			   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-			   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
-	/* WaDisableLSQCROPERFforOCL:skl */
-	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
-	if (ret)
-		return ret;
-
-	return skl_tune_iz_hashing(engine);
+	return skl_tune_iz_hashing(dev_priv);
 }
 
-static int bxt_init_workarounds(struct intel_engine_cs *engine)
+static int bxt_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
-	ret = gen9_init_workarounds(engine);
+	ret = gen9_ctx_workarounds_init(dev_priv);
 	if (ret)
 		return ret;
 
@@ -435,33 +336,74 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  STALL_DOP_GATING_DISABLE);
 
-	/* WaDisablePooledEuLoadBalancingFix:bxt */
-	I915_WRITE(FF_SLICE_CS_CHICKEN2,
-		   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
-
 	/* WaToEnableHwFixForPushConstHWBug:bxt */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
-	/* WaInPlaceDecompressionHang:bxt */
-	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
-		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	return 0;
+}
+
+static int kbl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	ret = gen9_ctx_workarounds_init(dev_priv);
+	if (ret)
+		return ret;
+
+	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
+	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE);
+
+	/* WaToEnableHwFixForPushConstHWBug:kbl */
+	if (IS_KBL_REVID(dev_priv, KBL_REVID_C0, REVID_FOREVER))
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
+	/* WaDisableSbeCacheDispatchPortSharing:kbl */
+	WA_SET_BIT_MASKED(GEN7_HALF_SLICE_CHICKEN1,
+			  GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
 	return 0;
 }
 
-static int cnl_init_workarounds(struct intel_engine_cs *engine)
+static int glk_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
-	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
-	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
-		I915_WRITE(GAMT_CHKN_BIT_REG,
-			   I915_READ(GAMT_CHKN_BIT_REG) |
-			   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT);
+	ret = gen9_ctx_workarounds_init(dev_priv);
+	if (ret)
+		return ret;
 
+	/* WaToEnableHwFixForPushConstHWBug:glk */
+	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
+	return 0;
+}
+
+static int cfl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	ret = gen9_ctx_workarounds_init(dev_priv);
+	if (ret)
+		return ret;
+
+	/* WaToEnableHwFixForPushConstHWBug:cfl */
+	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
+	/* WaDisableSbeCacheDispatchPortSharing:cfl */
+	WA_SET_BIT_MASKED(GEN7_HALF_SLICE_CHICKEN1,
+			  GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+
+	return 0;
+}
+
+static int cnl_ctx_workarounds_init(struct drm_i915_private *dev_priv)
+{
 	/* WaForceContextSaveRestoreNonCoherent:cnl */
 	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
@@ -479,15 +421,10 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 				  GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE);
 
-	/* WaInPlaceDecompressionHang:cnl */
-	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
-		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
 	/* WaPushConstantDereferenceHoldDisable:cnl */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
 
-	/* FtrEnableFastAnisoL1BankingFix: cnl */
+	/* FtrEnableFastAnisoL1BankingFix:cnl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
 
 	/* WaDisable3DMidCmdPreemption:cnl */
@@ -498,161 +435,47 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
 			    GEN9_PREEMPT_GPGPU_COMMAND_LEVEL);
 
-	/* WaEnablePreemptionGranularityControlByUMD:cnl */
-	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
-		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
-	ret = wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
-	if (ret)
-		return ret;
-
 	/* WaDisableEarlyEOT:cnl */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, DISABLE_EARLY_EOT);
 
 	return 0;
 }
 
-static int kbl_init_workarounds(struct intel_engine_cs *engine)
+int intel_ctx_workarounds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	ret = gen9_init_workarounds(engine);
-	if (ret)
-		return ret;
-
-	/* WaEnableGapsTsvCreditFix:kbl */
-	I915_WRITE(GEN8_GARBCNTL,
-		   I915_READ(GEN8_GARBCNTL) | GEN9_GAPS_TSV_CREDIT_DISABLE);
-
-	/* WaDisableDynamicCreditSharing:kbl */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
-		I915_WRITE(GAMT_CHKN_BIT_REG,
-			   I915_READ(GAMT_CHKN_BIT_REG) |
-			   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
-
-	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
-	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FENCE_DEST_SLM_DISABLE);
-
-	/* WaToEnableHwFixForPushConstHWBug:kbl */
-	if (IS_KBL_REVID(dev_priv, KBL_REVID_C0, REVID_FOREVER))
-		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
-				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
-
-	/* WaDisableGafsUnitClkGating:kbl */
-	I915_WRITE(GEN7_UCGCTL4,
-		   I915_READ(GEN7_UCGCTL4) | GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
-
-	/* WaDisableSbeCacheDispatchPortSharing:kbl */
-	WA_SET_BIT_MASKED(GEN7_HALF_SLICE_CHICKEN1,
-			  GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
-
-	/* WaInPlaceDecompressionHang:kbl */
-	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
-		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
-	/* WaDisableLSQCROPERFforOCL:kbl */
-	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int glk_init_workarounds(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	ret = gen9_init_workarounds(engine);
-	if (ret)
-		return ret;
-
-	/* WA #0862: Userspace has to set "Barrier Mode" to avoid hangs. */
-	ret = wa_ring_whitelist_reg(engine, GEN9_SLICE_COMMON_ECO_CHICKEN1);
-	if (ret)
-		return ret;
-
-	/* WaToEnableHwFixForPushConstHWBug:glk */
-	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
-			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
-
-	return 0;
-}
-
-static int cfl_init_workarounds(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	ret = gen9_init_workarounds(engine);
-	if (ret)
-		return ret;
-
-	/* WaEnableGapsTsvCreditFix:cfl */
-	I915_WRITE(GEN8_GARBCNTL,
-		   I915_READ(GEN8_GARBCNTL) | GEN9_GAPS_TSV_CREDIT_DISABLE);
-
-	/* WaToEnableHwFixForPushConstHWBug:cfl */
-	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
-			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
-
-	/* WaDisableGafsUnitClkGating:cfl */
-	I915_WRITE(GEN7_UCGCTL4,
-		   I915_READ(GEN7_UCGCTL4) | GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
-
-	/* WaDisableSbeCacheDispatchPortSharing:cfl */
-	WA_SET_BIT_MASKED(GEN7_HALF_SLICE_CHICKEN1,
-			  GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
-
-	/* WaInPlaceDecompressionHang:cfl */
-	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
-		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
-	return 0;
-}
-
-int init_workarounds_ring(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int err;
-
-	if (GEM_WARN_ON(engine->id != RCS))
-		return -EINVAL;
+	int err = 0;
 
 	dev_priv->workarounds.count = 0;
-	dev_priv->workarounds.hw_whitelist_count[engine->id] = 0;
 
-	if (IS_BROADWELL(dev_priv))
-		err = bdw_init_workarounds(engine);
-	else if (IS_CHERRYVIEW(dev_priv))
-		err = chv_init_workarounds(engine);
-	else if (IS_SKYLAKE(dev_priv))
-		err =  skl_init_workarounds(engine);
-	else if (IS_BROXTON(dev_priv))
-		err = bxt_init_workarounds(engine);
-	else if (IS_KABYLAKE(dev_priv))
-		err = kbl_init_workarounds(engine);
-	else if (IS_GEMINILAKE(dev_priv))
-		err =  glk_init_workarounds(engine);
-	else if (IS_COFFEELAKE(dev_priv))
-		err = cfl_init_workarounds(engine);
-	else if (IS_CANNONLAKE(dev_priv))
-		err = cnl_init_workarounds(engine);
-	else
+	if (INTEL_GEN(dev_priv) < 8)
 		err = 0;
+	else if (IS_BROADWELL(dev_priv))
+		err = bdw_ctx_workarounds_init(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
+		err = chv_ctx_workarounds_init(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		err = skl_ctx_workarounds_init(dev_priv);
+	else if (IS_BROXTON(dev_priv))
+		err = bxt_ctx_workarounds_init(dev_priv);
+	else if (IS_KABYLAKE(dev_priv))
+		err = kbl_ctx_workarounds_init(dev_priv);
+	else if (IS_GEMINILAKE(dev_priv))
+		err = glk_ctx_workarounds_init(dev_priv);
+	else if (IS_COFFEELAKE(dev_priv))
+		err = cfl_ctx_workarounds_init(dev_priv);
+	else if (IS_CANNONLAKE(dev_priv))
+		err = cnl_ctx_workarounds_init(dev_priv);
+	else
+		MISSING_CASE(INTEL_GEN(dev_priv));
 	if (err)
 		return err;
 
-	DRM_DEBUG_DRIVER("%s: Number of context specific w/a: %d\n",
-			 engine->name, dev_priv->workarounds.count);
+	DRM_DEBUG_DRIVER("Number of context specific w/a: %d\n",
+			 dev_priv->workarounds.count);
 	return 0;
 }
 
-int intel_ring_workarounds_emit(struct i915_request *rq)
+int intel_ctx_workarounds_emit(struct i915_request *rq)
 {
 	struct i915_workarounds *w = &rq->i915->workarounds;
 	u32 *cs;
@@ -665,7 +488,7 @@ int intel_ring_workarounds_emit(struct i915_request *rq)
 	if (ret)
 		return ret;
 
-	cs = intel_ring_begin(rq, w->count * 2 + 2);
+	cs = intel_ring_begin(rq, (w->count * 2 + 2));
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -682,5 +505,352 @@ int intel_ring_workarounds_emit(struct i915_request *rq)
 	if (ret)
 		return ret;
 
+	return 0;
+}
+
+static void bdw_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+}
+
+static void chv_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+}
+
+static void gen9_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	/* WaContextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl,glk,cfl */
+	I915_WRITE(GEN9_CSFE_CHICKEN1_RCS,
+		   _MASKED_BIT_ENABLE(GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE));
+
+	/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl,glk,cfl */
+	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
+		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
+
+	/* WaDisableKillLogic:bxt,skl,kbl */
+	if (!IS_COFFEELAKE(dev_priv))
+		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+			   ECOCHK_DIS_TLB);
+
+	if (HAS_LLC(dev_priv)) {
+		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl,kbl
+		 *
+		 * Must match Display Engine. See
+		 * WaCompressedResourceDisplayNewHashMode.
+		 */
+		I915_WRITE(MMCD_MISC_CTRL,
+			   I915_READ(MMCD_MISC_CTRL) |
+			   MMCD_PCLA |
+			   MMCD_HOTSPOT_EN);
+	}
+
+	/* WaDisableHDCInvalidation:skl,bxt,kbl,cfl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   BDW_DISABLE_HDC_INVALIDATION);
+
+	/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
+	if (IS_GEN9_LP(dev_priv)) {
+		u32 val = I915_READ(GEN8_L3SQCREG1);
+
+		val &= ~L3_PRIO_CREDITS_MASK;
+		val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
+		I915_WRITE(GEN8_L3SQCREG1, val);
+	}
+
+	/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
+	I915_WRITE(GEN8_L3SQCREG4,
+		   I915_READ(GEN8_L3SQCREG4) | GEN8_LQSC_FLUSH_COHERENT_LINES);
+
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,[cnl] */
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
+}
+
+static void skl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	gen9_gt_workarounds_apply(dev_priv);
+
+	/* WaEnableGapsTsvCreditFix:skl */
+	I915_WRITE(GEN8_GARBCNTL,
+		   I915_READ(GEN8_GARBCNTL) | GEN9_GAPS_TSV_CREDIT_DISABLE);
+
+	/* WaDisableGafsUnitClkGating:skl */
+	I915_WRITE(GEN7_UCGCTL4,
+		   I915_READ(GEN7_UCGCTL4) | GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaInPlaceDecompressionHang:skl */
+	if (IS_SKL_REVID(dev_priv, SKL_REVID_H0, REVID_FOREVER))
+		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+			   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+			   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+}
+
+static void bxt_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	gen9_gt_workarounds_apply(dev_priv);
+
+	/* WaDisablePooledEuLoadBalancingFix:bxt */
+	I915_WRITE(FF_SLICE_CS_CHICKEN2,
+		   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
+
+	/* WaInPlaceDecompressionHang:bxt */
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+}
+
+static void kbl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	gen9_gt_workarounds_apply(dev_priv);
+
+	/* WaEnableGapsTsvCreditFix:kbl */
+	I915_WRITE(GEN8_GARBCNTL,
+		   I915_READ(GEN8_GARBCNTL) | GEN9_GAPS_TSV_CREDIT_DISABLE);
+
+	/* WaDisableDynamicCreditSharing:kbl */
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+		I915_WRITE(GAMT_CHKN_BIT_REG,
+			   I915_READ(GAMT_CHKN_BIT_REG) |
+			   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
+
+	/* WaDisableGafsUnitClkGating:kbl */
+	I915_WRITE(GEN7_UCGCTL4,
+		   I915_READ(GEN7_UCGCTL4) | GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaInPlaceDecompressionHang:kbl */
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+}
+
+static void glk_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	gen9_gt_workarounds_apply(dev_priv);
+}
+
+static void cfl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	gen9_gt_workarounds_apply(dev_priv);
+
+	/* WaEnableGapsTsvCreditFix:cfl */
+	I915_WRITE(GEN8_GARBCNTL,
+		   I915_READ(GEN8_GARBCNTL) | GEN9_GAPS_TSV_CREDIT_DISABLE);
+
+	/* WaDisableGafsUnitClkGating:cfl */
+	I915_WRITE(GEN7_UCGCTL4,
+		   I915_READ(GEN7_UCGCTL4) | GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaInPlaceDecompressionHang:cfl */
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+}
+
+static void cnl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	/* WaDisableI2mCycleOnWRPort:cnl (pre-prod) */
+	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
+		I915_WRITE(GAMT_CHKN_BIT_REG,
+			   I915_READ(GAMT_CHKN_BIT_REG) |
+			   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT);
+
+	/* WaInPlaceDecompressionHang:cnl */
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+
+	/* WaEnablePreemptionGranularityControlByUMD:cnl */
+	I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
+}
+
+void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) < 8)
+		return;
+	else if (IS_BROADWELL(dev_priv))
+		bdw_gt_workarounds_apply(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
+		chv_gt_workarounds_apply(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		skl_gt_workarounds_apply(dev_priv);
+	else if (IS_BROXTON(dev_priv))
+		bxt_gt_workarounds_apply(dev_priv);
+	else if (IS_KABYLAKE(dev_priv))
+		kbl_gt_workarounds_apply(dev_priv);
+	else if (IS_GEMINILAKE(dev_priv))
+		glk_gt_workarounds_apply(dev_priv);
+	else if (IS_COFFEELAKE(dev_priv))
+		cfl_gt_workarounds_apply(dev_priv);
+	else if (IS_CANNONLAKE(dev_priv))
+		cnl_gt_workarounds_apply(dev_priv);
+	else
+		MISSING_CASE(INTEL_GEN(dev_priv));
+}
+
+static int wa_ring_whitelist_reg(struct intel_engine_cs *engine,
+				 i915_reg_t reg)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	struct i915_workarounds *wa = &dev_priv->workarounds;
+	const unsigned int index = wa->hw_whitelist_count[engine->id];
+
+	if (WARN_ON(index >= RING_MAX_NONPRIV_SLOTS))
+		return -EINVAL;
+
+	I915_WRITE(RING_FORCE_TO_NONPRIV(engine->mmio_base, index),
+		   i915_mmio_reg_offset(reg));
+	wa->hw_whitelist_count[engine->id]++;
+
+	return 0;
+}
+
+static int bdw_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	return 0;
+}
+
+static int chv_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	return 0;
+}
+
+static int gen9_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt,glk,cfl */
+	ret = wa_ring_whitelist_reg(engine, GEN9_CTX_PREEMPT_REG);
+	if (ret)
+		return ret;
+
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,[cnl] */
+	ret = wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
+	if (ret)
+		return ret;
+
+	/* WaAllowUMDToModifyHDCChicken1:skl,bxt,kbl,glk,cfl */
+	ret = wa_ring_whitelist_reg(engine, GEN8_HDC_CHICKEN1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int skl_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	ret = gen9_whitelist_workarounds_apply(engine);
+	if (ret)
+		return ret;
+
+	/* WaDisableLSQCROPERFforOCL:skl */
+	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int bxt_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	ret = gen9_whitelist_workarounds_apply(engine);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int kbl_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	ret = gen9_whitelist_workarounds_apply(engine);
+	if (ret)
+		return ret;
+
+	/* WaDisableLSQCROPERFforOCL:kbl */
+	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int glk_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	ret = gen9_whitelist_workarounds_apply(engine);
+	if (ret)
+		return ret;
+
+	/* WA #0862: Userspace has to set "Barrier Mode" to avoid hangs. */
+	ret = wa_ring_whitelist_reg(engine, GEN9_SLICE_COMMON_ECO_CHICKEN1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int cfl_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	ret = gen9_whitelist_workarounds_apply(engine);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int cnl_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	int ret;
+
+	/* WaEnablePreemptionGranularityControlByUMD:cnl */
+	ret = wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int intel_whitelist_workarounds_apply(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	int err = 0;
+
+	WARN_ON(engine->id != RCS);
+
+	dev_priv->workarounds.hw_whitelist_count[engine->id] = 0;
+
+	if (INTEL_GEN(dev_priv) < 8)
+		err = 0;
+	else if (IS_BROADWELL(dev_priv))
+		err = bdw_whitelist_workarounds_apply(engine);
+	else if (IS_CHERRYVIEW(dev_priv))
+		err = chv_whitelist_workarounds_apply(engine);
+	else if (IS_SKYLAKE(dev_priv))
+		err = skl_whitelist_workarounds_apply(engine);
+	else if (IS_BROXTON(dev_priv))
+		err = bxt_whitelist_workarounds_apply(engine);
+	else if (IS_KABYLAKE(dev_priv))
+		err = kbl_whitelist_workarounds_apply(engine);
+	else if (IS_GEMINILAKE(dev_priv))
+		err = glk_whitelist_workarounds_apply(engine);
+	else if (IS_COFFEELAKE(dev_priv))
+		err = cfl_whitelist_workarounds_apply(engine);
+	else if (IS_CANNONLAKE(dev_priv))
+		err = cnl_whitelist_workarounds_apply(engine);
+	else
+		MISSING_CASE(INTEL_GEN(dev_priv));
+	if (err)
+		return err;
+
+	DRM_DEBUG_DRIVER("%s: Number of whitelist w/a: %d\n", engine->name,
+			 dev_priv->workarounds.hw_whitelist_count[engine->id]);
 	return 0;
 }

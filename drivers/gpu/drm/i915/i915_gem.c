@@ -35,6 +35,7 @@
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 #include "intel_mocs.h"
+#include "intel_workarounds.h"
 #include "i915_gemfs.h"
 #include <linux/dma-fence-array.h>
 #include <linux/kthread.h>
@@ -5190,6 +5191,8 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 			I915_WRITE(HSW_NDE_RSTWRN_OPT, temp);
 		}
 	}
+
+	intel_gt_workarounds_apply(dev_priv);
 
 	i915_gem_init_swizzling(dev_priv);
 

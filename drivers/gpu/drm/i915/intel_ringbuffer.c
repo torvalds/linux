@@ -600,7 +600,7 @@ static int intel_rcs_ctx_init(struct i915_request *rq)
 {
 	int ret;
 
-	ret = intel_ring_workarounds_emit(rq);
+	ret = intel_ctx_workarounds_emit(rq);
 	if (ret != 0)
 		return ret;
 
@@ -615,6 +615,10 @@ static int init_render_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret = init_ring_common(engine);
+	if (ret)
+		return ret;
+
+	ret = intel_whitelist_workarounds_apply(engine);
 	if (ret)
 		return ret;
 
@@ -659,7 +663,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) >= 6)
 		I915_WRITE_IMR(engine, ~engine->irq_keep_mask);
 
-	return init_workarounds_ring(engine);
+	return 0;
 }
 
 static u32 *gen6_signal(struct i915_request *rq, u32 *cs)
