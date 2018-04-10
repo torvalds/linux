@@ -415,7 +415,7 @@ static int shm_split(struct vm_area_struct *vma, unsigned long addr)
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
 
-	if (sfd->vm_ops && sfd->vm_ops->split)
+	if (sfd->vm_ops->split)
 		return sfd->vm_ops->split(vma, addr);
 
 	return 0;
