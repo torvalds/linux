@@ -802,8 +802,6 @@ unsigned long clk_hw_round_rate(struct clk_hw *hw, unsigned long rate);
 
 struct of_device_id;
 
-typedef void (*of_clk_init_cb_t)(struct device_node *);
-
 struct clk_onecell_data {
 	struct clk **clks;
 	unsigned int clk_num;
