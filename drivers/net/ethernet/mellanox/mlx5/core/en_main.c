@@ -4462,7 +4462,7 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 		goto err_destroy_direct_tirs;
 	}
 
-	err = mlx5e_tc_init(priv);
+	err = mlx5e_tc_nic_init(priv);
 	if (err)
 		goto err_destroy_flow_steering;
 
@@ -4483,7 +4483,7 @@ err_destroy_indirect_rqts:
 
 static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
-	mlx5e_tc_cleanup(priv);
+	mlx5e_tc_nic_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);

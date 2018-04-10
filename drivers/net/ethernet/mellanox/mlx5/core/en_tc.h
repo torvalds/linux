@@ -45,8 +45,11 @@ enum {
 	MLX5E_TC_LAST_EXPORTED_BIT = 1,
 };
 
-int mlx5e_tc_init(struct mlx5e_priv *priv);
-void mlx5e_tc_cleanup(struct mlx5e_priv *priv);
+int mlx5e_tc_nic_init(struct mlx5e_priv *priv);
+void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv);
+
+int mlx5e_tc_esw_init(struct rhashtable *tc_ht);
+void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht);
 
 int mlx5e_configure_flower(struct mlx5e_priv *priv,
 			   struct tc_cls_flower_offload *f, int flags);
@@ -71,8 +74,8 @@ static inline int mlx5e_tc_num_filters(struct mlx5e_priv *priv)
 }
 
 #else /* CONFIG_MLX5_ESWITCH */
-static inline int  mlx5e_tc_init(struct mlx5e_priv *priv) { return 0; }
-static inline void mlx5e_tc_cleanup(struct mlx5e_priv *priv) {}
+static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
+static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}
 static inline int  mlx5e_tc_num_filters(struct mlx5e_priv *priv) { return 0; }
 #endif
 

@@ -981,14 +981,8 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	}
 	rpriv->vport_rx_rule = flow_rule;
 
-	err = mlx5e_tc_init(priv);
-	if (err)
-		goto err_del_flow_rule;
-
 	return 0;
 
-err_del_flow_rule:
-	mlx5_del_flow_rules(rpriv->vport_rx_rule);
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_direct_rqts:
@@ -1000,7 +994,6 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
-	mlx5e_tc_cleanup(priv);
 	mlx5_del_flow_rules(rpriv->vport_rx_rule);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_direct_rqts(priv);
@@ -1058,8 +1051,15 @@ mlx5e_nic_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	if (err)
 		goto err_remove_sqs;
 
+	/* init shared tc flow table */
+	err = mlx5e_tc_esw_init(&rpriv->tc_ht);
+	if (err)
+		goto  err_neigh_cleanup;
+
 	return 0;
 
+err_neigh_cleanup:
+	mlx5e_rep_neigh_cleanup(rpriv);
 err_remove_sqs:
 	mlx5e_remove_sqs_fwd_rules(priv);
 	return err;
@@ -1074,9 +1074,8 @@ mlx5e_nic_rep_unload(struct mlx5_eswitch_rep *rep)
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		mlx5e_remove_sqs_fwd_rules(priv);
 
-	/* clean (and re-init) existing uplink offloaded TC rules */
-	mlx5e_tc_cleanup(priv);
-	mlx5e_tc_init(priv);
+	/* clean uplink offloaded TC rules, delete shared tc flow table */
+	mlx5e_tc_esw_cleanup(&rpriv->tc_ht);
 
 	mlx5e_rep_neigh_cleanup(rpriv);
 }
