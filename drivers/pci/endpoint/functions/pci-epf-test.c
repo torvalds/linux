@@ -230,7 +230,7 @@ static int pci_epf_test_write(struct pci_epf_test *epf_test)
 	 * wait 1ms inorder for the write to complete. Without this delay L3
 	 * error in observed in the host system.
 	 */
-	mdelay(1);
+	usleep_range(1000, 2000);
 
 	kfree(buf);
 
