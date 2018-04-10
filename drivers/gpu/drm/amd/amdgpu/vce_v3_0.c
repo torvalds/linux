@@ -467,8 +467,8 @@ static int vce_v3_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	vce_v3_0_override_vce_clock_gating(adev, true);
-	if (!(adev->flags & AMD_IS_APU))
-		amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
+
+	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 
 	for (i = 0; i < adev->vce.num_rings; i++)
 		adev->vce.ring[i].ready = false;
