@@ -1306,7 +1306,8 @@ static const struct seq_operations raw6_seq_ops = {
 
 static int raw6_seq_open(struct inode *inode, struct file *file)
 {
-	return raw_seq_open(inode, file, &raw_v6_hashinfo, &raw6_seq_ops);
+	return seq_open_net(inode, file, &raw6_seq_ops,
+			sizeof(struct raw_iter_state));
 }
 
 static const struct file_operations raw6_seq_fops = {
@@ -1318,7 +1319,8 @@ static const struct file_operations raw6_seq_fops = {
 
 static int __net_init raw6_init_net(struct net *net)
 {
-	if (!proc_create("raw6", 0444, net->proc_net, &raw6_seq_fops))
+	if (!proc_create_data("raw6", 0444, net->proc_net, &raw6_seq_fops,
+			&raw_v6_hashinfo))
 		return -ENOMEM;
 
 	return 0;
