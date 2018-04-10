@@ -2346,7 +2346,8 @@ again:
 			ptep_get_and_clear(mm, addr, ptep);
 
 			/* Setup special migration page table entry */
-			entry = make_migration_entry(page, pte_write(pte));
+			entry = make_migration_entry(page, mpfn &
+						     MIGRATE_PFN_WRITE);
 			swp_pte = swp_entry_to_pte(entry);
 			if (pte_soft_dirty(pte))
 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
