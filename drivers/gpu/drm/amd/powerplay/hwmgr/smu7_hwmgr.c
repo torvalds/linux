@@ -61,10 +61,6 @@
 #define SMC_CG_IND_START            0xc0030000
 #define SMC_CG_IND_END              0xc0040000
 
-#define VOLTAGE_SCALE               4
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
-
 #define MEM_FREQ_LOW_LATENCY        25000
 #define MEM_FREQ_HIGH_LATENCY       80000
 

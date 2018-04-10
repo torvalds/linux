@@ -60,10 +60,7 @@
 
 #define ICELAND_SMC_SIZE               0x20000
 
-#define VOLTAGE_SCALE 4
 #define POWERTUNE_DEFAULT_SET_MAX    1
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define VDDC_VDDCI_DELTA            200
 

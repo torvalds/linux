@@ -35,8 +35,6 @@
 #define AVFS_EN_MSB		1568
 #define AVFS_EN_LSB		1568
 
-#define VOLTAGE_SCALE	4
-
 /* Microcode file is stored in this buffer */
 #define BUFFER_SIZE                 80000
 #define MAX_STRING_SIZE             15

@@ -38,6 +38,8 @@ struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
 #define VOLTAGE_SCALE 4
+#define VOLTAGE_VID_OFFSET_SCALE1   625
+#define VOLTAGE_VID_OFFSET_SCALE2   100
 
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */

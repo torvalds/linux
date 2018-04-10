@@ -33,8 +33,6 @@
 #include "pp_debug.h"
 
 
-#define VOLTAGE_SCALE 4
-
 #define BUFFER_SIZE                 80000
 #define MAX_STRING_SIZE             15
 #define BUFFER_SIZETWO              131072

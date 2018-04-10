@@ -52,8 +52,6 @@
 #include "dce/dce_10_0_sh_mask.h"
 
 #define POLARIS10_SMC_SIZE 0x20000
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define POWERTUNE_DEFAULT_SET_MAX    1
 #define VDDC_VDDCI_DELTA            200
 #define MC_CG_ARB_FREQ_F1           0x0b
