@@ -432,7 +432,9 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		}
 	} else {
 		if (ieee80211_is_data_qos(wh->frame_control)) {
-			tid = (skb->data[24] & IEEE80211_QOS_TID);
+			u8 *qos = ieee80211_get_qos_ctl(wh);
+
+			tid = *qos & IEEE80211_QOS_CTL_TID_MASK;
 			skb->priority = TID_TO_WME_AC(tid);
 		} else {
 			tid = IEEE80211_NONQOS_TID;
