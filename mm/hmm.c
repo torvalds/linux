@@ -233,13 +233,24 @@ int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
 	if (!mm || !mirror || !mirror->ops)
 		return -EINVAL;
 
+again:
 	mirror->hmm = hmm_register(mm);
 	if (!mirror->hmm)
 		return -ENOMEM;
 
 	down_write(&mirror->hmm->mirrors_sem);
-	list_add(&mirror->list, &mirror->hmm->mirrors);
-	up_write(&mirror->hmm->mirrors_sem);
+	if (mirror->hmm->mm == NULL) {
+		/*
+		 * A racing hmm_mirror_unregister() is about to destroy the hmm
+		 * struct. Try again to allocate a new one.
+		 */
+		up_write(&mirror->hmm->mirrors_sem);
+		mirror->hmm = NULL;
+		goto again;
+	} else {
+		list_add(&mirror->list, &mirror->hmm->mirrors);
+		up_write(&mirror->hmm->mirrors_sem);
+	}
 
 	return 0;
 }
@@ -254,11 +265,32 @@ EXPORT_SYMBOL(hmm_mirror_register);
  */
 void hmm_mirror_unregister(struct hmm_mirror *mirror)
 {
-	struct hmm *hmm = mirror->hmm;
+	bool should_unregister = false;
+	struct mm_struct *mm;
+	struct hmm *hmm;
 
+	if (mirror->hmm == NULL)
+		return;
+
+	hmm = mirror->hmm;
 	down_write(&hmm->mirrors_sem);
 	list_del_init(&mirror->list);
+	should_unregister = list_empty(&hmm->mirrors);
+	mirror->hmm = NULL;
+	mm = hmm->mm;
+	hmm->mm = NULL;
 	up_write(&hmm->mirrors_sem);
+
+	if (!should_unregister || mm == NULL)
+		return;
+
+	spin_lock(&mm->page_table_lock);
+	if (mm->hmm == hmm)
+		mm->hmm = NULL;
+	spin_unlock(&mm->page_table_lock);
+
+	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, mm);
+	kfree(hmm);
 }
 EXPORT_SYMBOL(hmm_mirror_unregister);
 
