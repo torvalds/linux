@@ -392,9 +392,6 @@ static void ltdc_crtc_update_clut(struct drm_crtc *crtc)
 	u32 val;
 	int i;
 
-	if (!crtc || !crtc->state)
-		return;
-
 	if (!crtc->state->color_mgmt_changed || !crtc->state->gamma_lut)
 		return;
 
