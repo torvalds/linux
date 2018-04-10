@@ -634,7 +634,6 @@ struct mlx5e_flow_table {
 struct mlx5e_tc_table {
 	struct mlx5_flow_table		*t;
 
-	struct rhashtable_params        ht_params;
 	struct rhashtable               ht;
 
 	DECLARE_HASHTABLE(mod_hdr_tbl, 8);

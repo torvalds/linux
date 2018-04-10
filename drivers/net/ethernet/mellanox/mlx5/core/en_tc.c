@@ -2634,12 +2634,24 @@ static void get_flags(int flags, u8 *flow_flags)
 	*flow_flags = __flow_flags;
 }
 
+static const struct rhashtable_params tc_ht_params = {
+	.head_offset = offsetof(struct mlx5e_tc_flow, node),
+	.key_offset = offsetof(struct mlx5e_tc_flow, cookie),
+	.key_len = sizeof(((struct mlx5e_tc_flow *)0)->cookie),
+	.automatic_shrinking = true,
+};
+
+static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv)
+{
+	return &priv->fs.tc.ht;
+}
+
 int mlx5e_configure_flower(struct mlx5e_priv *priv,
 			   struct tc_cls_flower_offload *f, int flags)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	struct rhashtable *tc_ht = get_tc_ht(priv);
 	struct mlx5e_tc_flow *flow;
 	int attr_size, err = 0;
 	u8 flow_flags = 0;
@@ -2693,8 +2705,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 	    !(flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP))
 		kvfree(parse_attr);
 
-	err = rhashtable_insert_fast(&tc->ht, &flow->node,
-				     tc->ht_params);
+	err = rhashtable_insert_fast(tc_ht, &flow->node, tc_ht_params);
 	if (err) {
 		mlx5e_tc_del_flow(priv, flow);
 		kfree(flow);
@@ -2711,15 +2722,14 @@ err_free:
 int mlx5e_delete_flower(struct mlx5e_priv *priv,
 			struct tc_cls_flower_offload *f, int flags)
 {
+	struct rhashtable *tc_ht = get_tc_ht(priv);
 	struct mlx5e_tc_flow *flow;
-	struct mlx5e_tc_table *tc = &priv->fs.tc;
 
-	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
-				      tc->ht_params);
+	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
 	if (!flow)
 		return -EINVAL;
 
-	rhashtable_remove_fast(&tc->ht, &flow->node, tc->ht_params);
+	rhashtable_remove_fast(tc_ht, &flow->node, tc_ht_params);
 
 	mlx5e_tc_del_flow(priv, flow);
 
@@ -2731,15 +2741,14 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 int mlx5e_stats_flower(struct mlx5e_priv *priv,
 		       struct tc_cls_flower_offload *f, int flags)
 {
-	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	struct rhashtable *tc_ht = get_tc_ht(priv);
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_fc *counter;
 	u64 bytes;
 	u64 packets;
 	u64 lastuse;
 
-	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
-				      tc->ht_params);
+	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
 	if (!flow)
 		return -EINVAL;
 
@@ -2757,13 +2766,6 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static const struct rhashtable_params mlx5e_tc_flow_ht_params = {
-	.head_offset = offsetof(struct mlx5e_tc_flow, node),
-	.key_offset = offsetof(struct mlx5e_tc_flow, cookie),
-	.key_len = sizeof(((struct mlx5e_tc_flow *)0)->cookie),
-	.automatic_shrinking = true,
-};
-
 int mlx5e_tc_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
@@ -2771,8 +2773,7 @@ int mlx5e_tc_init(struct mlx5e_priv *priv)
 	hash_init(tc->mod_hdr_tbl);
 	hash_init(tc->hairpin_tbl);
 
-	tc->ht_params = mlx5e_tc_flow_ht_params;
-	return rhashtable_init(&tc->ht, &tc->ht_params);
+	return rhashtable_init(&tc->ht, &tc_ht_params);
 }
 
 static void _mlx5e_tc_del_flow(void *ptr, void *arg)
