@@ -36,7 +36,7 @@
 #include "smu9.h"
 #include "smu9_driver_if.h"
 #include "vega10_inc.h"
-#include "pp_soc15.h"
+#include "soc15_common.h"
 #include "pppcielanes.h"
 #include "vega10_hwmgr.h"
 #include "vega10_processpptables.h"
@@ -754,7 +754,6 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	uint32_t config_telemetry = 0;
 	struct pp_atomfwctrl_voltage_table vol_table;
 	struct amdgpu_device *adev = hwmgr->adev;
-	uint32_t reg;
 
 	data = kzalloc(sizeof(struct vega10_hwmgr), GFP_KERNEL);
 	if (data == NULL)
@@ -860,10 +859,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			advanceFanControlParameters.usFanPWMMinLimit *
 			hwmgr->thermal_controller.fanInfo.ulMaxRPM / 100;
 
-	reg = soc15_get_register_offset(DF_HWID, 0,
-			mmDF_CS_AON0_DramBaseAddress0_BASE_IDX,
-			mmDF_CS_AON0_DramBaseAddress0);
-	data->mem_channels = (cgs_read_register(hwmgr->device, reg) &
+	data->mem_channels = (RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0) &
 			DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK) >>
 			DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
 	PP_ASSERT_WITH_CODE(data->mem_channels < ARRAY_SIZE(channel_number),
@@ -3808,11 +3804,12 @@ static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t sclk_idx, mclk_idx, activity_percent = 0;
 	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_dpm_table *dpm_table = &data->dpm_table;
 	int ret = 0;
-	uint32_t reg, val_vid;
+	uint32_t val_vid;
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
@@ -3862,10 +3859,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		}
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
-		reg = soc15_get_register_offset(SMUIO_HWID, 0,
-			mmSMUSVI0_PLANE0_CURRENTVID_BASE_IDX,
-			mmSMUSVI0_PLANE0_CURRENTVID);
-		val_vid = (cgs_read_register(hwmgr->device, reg) &
+		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_PLANE0_CURRENTVID) &
 			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID_MASK) >>
 			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT;
 		*((uint32_t *)value) = (uint32_t)convert_to_vddc((uint8_t)val_vid);

@@ -34,7 +34,6 @@
 #include "atomfirmware.h"
 #include "cgs_common.h"
 #include "vega12_inc.h"
-#include "pp_soc15.h"
 #include "pppcielanes.h"
 #include "vega12_hwmgr.h"
 #include "vega12_processpptables.h"

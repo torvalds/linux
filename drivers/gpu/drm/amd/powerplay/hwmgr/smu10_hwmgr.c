@@ -34,7 +34,7 @@
 #include "rv_ppsmc.h"
 #include "smu10_hwmgr.h"
 #include "power_state.h"
-#include "pp_soc15.h"
+#include "soc15_common.h"
 
 #define SMU10_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define SMU10_MINIMUM_ENGINE_CLOCK         800   /* 8Mhz, the low boundary of engine clock allowed on this chip */
@@ -947,9 +947,8 @@ static int smu10_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simpl
 
 static int smu10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 {
-	uint32_t reg_offset = soc15_get_register_offset(THM_HWID, 0,
-			mmTHM_TCON_CUR_TMP_BASE_IDX, mmTHM_TCON_CUR_TMP);
-	uint32_t reg_value = cgs_read_register(hwmgr->device, reg_offset);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t reg_value = RREG32_SOC15(THM, 0, mmTHM_TCON_CUR_TMP);
 	int cur_temp =
 		(reg_value & THM_TCON_CUR_TMP__CUR_TEMP_MASK) >> THM_TCON_CUR_TMP__CUR_TEMP__SHIFT;
 
