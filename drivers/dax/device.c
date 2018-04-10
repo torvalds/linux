@@ -257,8 +257,8 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 
 	dax_region = dev_dax->region;
 	if (dax_region->align > PAGE_SIZE) {
-		dev_dbg(dev, "%s: alignment (%#x) > fault size (%#x)\n",
-			__func__, dax_region->align, fault_size);
+		dev_dbg(dev, "alignment (%#x) > fault size (%#x)\n",
+			dax_region->align, fault_size);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -267,8 +267,7 @@ static int __dev_dax_pte_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 
 	phys = dax_pgoff_to_phys(dev_dax, vmf->pgoff, PAGE_SIZE);
 	if (phys == -1) {
-		dev_dbg(dev, "%s: pgoff_to_phys(%#lx) failed\n", __func__,
-				vmf->pgoff);
+		dev_dbg(dev, "pgoff_to_phys(%#lx) failed\n", vmf->pgoff);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -299,14 +298,14 @@ static int __dev_dax_pmd_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 
 	dax_region = dev_dax->region;
 	if (dax_region->align > PMD_SIZE) {
-		dev_dbg(dev, "%s: alignment (%#x) > fault size (%#x)\n",
-			__func__, dax_region->align, fault_size);
+		dev_dbg(dev, "alignment (%#x) > fault size (%#x)\n",
+			dax_region->align, fault_size);
 		return VM_FAULT_SIGBUS;
 	}
 
 	/* dax pmd mappings require pfn_t_devmap() */
 	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) != (PFN_DEV|PFN_MAP)) {
-		dev_dbg(dev, "%s: region lacks devmap flags\n", __func__);
+		dev_dbg(dev, "region lacks devmap flags\n");
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -323,8 +322,7 @@ static int __dev_dax_pmd_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 	pgoff = linear_page_index(vmf->vma, pmd_addr);
 	phys = dax_pgoff_to_phys(dev_dax, pgoff, PMD_SIZE);
 	if (phys == -1) {
-		dev_dbg(dev, "%s: pgoff_to_phys(%#lx) failed\n", __func__,
-				pgoff);
+		dev_dbg(dev, "pgoff_to_phys(%#lx) failed\n", pgoff);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -351,14 +349,14 @@ static int __dev_dax_pud_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 
 	dax_region = dev_dax->region;
 	if (dax_region->align > PUD_SIZE) {
-		dev_dbg(dev, "%s: alignment (%#x) > fault size (%#x)\n",
-			__func__, dax_region->align, fault_size);
+		dev_dbg(dev, "alignment (%#x) > fault size (%#x)\n",
+			dax_region->align, fault_size);
 		return VM_FAULT_SIGBUS;
 	}
 
 	/* dax pud mappings require pfn_t_devmap() */
 	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) != (PFN_DEV|PFN_MAP)) {
-		dev_dbg(dev, "%s: region lacks devmap flags\n", __func__);
+		dev_dbg(dev, "region lacks devmap flags\n");
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -375,8 +373,7 @@ static int __dev_dax_pud_fault(struct dev_dax *dev_dax, struct vm_fault *vmf)
 	pgoff = linear_page_index(vmf->vma, pud_addr);
 	phys = dax_pgoff_to_phys(dev_dax, pgoff, PUD_SIZE);
 	if (phys == -1) {
-		dev_dbg(dev, "%s: pgoff_to_phys(%#lx) failed\n", __func__,
-				pgoff);
+		dev_dbg(dev, "pgoff_to_phys(%#lx) failed\n", pgoff);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -399,9 +396,8 @@ static int dev_dax_huge_fault(struct vm_fault *vmf,
 	struct file *filp = vmf->vma->vm_file;
 	struct dev_dax *dev_dax = filp->private_data;
 
-	dev_dbg(&dev_dax->dev, "%s: %s: %s (%#lx - %#lx) size = %d\n", __func__,
-			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
-			? "write" : "read",
+	dev_dbg(&dev_dax->dev, "%s: %s (%#lx - %#lx) size = %d\n", current->comm,
+			(vmf->flags & FAULT_FLAG_WRITE) ? "write" : "read",
 			vmf->vma->vm_start, vmf->vma->vm_end, pe_size);
 
 	id = dax_read_lock();
@@ -460,7 +456,7 @@ static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct dev_dax *dev_dax = filp->private_data;
 	int rc, id;
 
-	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	dev_dbg(&dev_dax->dev, "trace\n");
 
 	/*
 	 * We lock to check dax_dev liveness and will re-check at
@@ -518,7 +514,7 @@ static int dax_open(struct inode *inode, struct file *filp)
 	struct inode *__dax_inode = dax_inode(dax_dev);
 	struct dev_dax *dev_dax = dax_get_private(dax_dev);
 
-	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	dev_dbg(&dev_dax->dev, "trace\n");
 	inode->i_mapping = __dax_inode->i_mapping;
 	inode->i_mapping->host = __dax_inode;
 	filp->f_mapping = inode->i_mapping;
@@ -533,7 +529,7 @@ static int dax_release(struct inode *inode, struct file *filp)
 {
 	struct dev_dax *dev_dax = filp->private_data;
 
-	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	dev_dbg(&dev_dax->dev, "trace\n");
 	return 0;
 }
 
@@ -575,7 +571,7 @@ static void unregister_dev_dax(void *dev)
 	struct inode *inode = dax_inode(dax_dev);
 	struct cdev *cdev = inode->i_cdev;
 
-	dev_dbg(dev, "%s\n", __func__);
+	dev_dbg(dev, "trace\n");
 
 	kill_dev_dax(dev_dax);
 	cdev_device_del(cdev, dev);
