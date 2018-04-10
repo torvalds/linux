@@ -211,7 +211,7 @@ static int ds1286_read_time(struct device *dev, struct rtc_time *tm)
 
 	tm->tm_mon--;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int ds1286_set_time(struct device *dev, struct rtc_time *tm)

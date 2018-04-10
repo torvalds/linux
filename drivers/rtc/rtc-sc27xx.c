@@ -376,7 +376,7 @@ static int sprd_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 
 	rtc_time64_to_tm(secs, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int sprd_rtc_set_time(struct device *dev, struct rtc_time *tm)

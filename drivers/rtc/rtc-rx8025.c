@@ -214,7 +214,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 		dt->tm_sec, dt->tm_min, dt->tm_hour,
 		dt->tm_mday, dt->tm_mon, dt->tm_year);
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int rx8025_set_time(struct device *dev, struct rtc_time *dt)

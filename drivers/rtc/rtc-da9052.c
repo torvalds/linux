@@ -187,8 +187,7 @@ static int da9052_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
 			rtc_tm->tm_min  = v[0][1] & DA9052_RTC_MIN;
 			rtc_tm->tm_sec  = v[0][0] & DA9052_RTC_SEC;
 
-			ret = rtc_valid_tm(rtc_tm);
-			return ret;
+			return 0;
 		}
 
 		idx = (1-idx);
