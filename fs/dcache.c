@@ -1052,6 +1052,8 @@ static void shrink_dentry_list(struct list_head *list)
 	while (!list_empty(list)) {
 		struct dentry *dentry, *parent;
 
+		cond_resched();
+
 		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
 		rcu_read_lock();
@@ -1205,7 +1207,6 @@ void shrink_dcache_sb(struct super_block *sb)
 
 		this_cpu_sub(nr_dentry_unused, freed);
 		shrink_dentry_list(&dispose);
-		cond_resched();
 	} while (list_lru_count(&sb->s_dentry_lru) > 0);
 }
 EXPORT_SYMBOL(shrink_dcache_sb);
@@ -1487,7 +1488,6 @@ void shrink_dcache_parent(struct dentry *parent)
 			break;
 
 		shrink_dentry_list(&data.dispose);
-		cond_resched();
 	}
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
@@ -1614,7 +1614,6 @@ void d_invalidate(struct dentry *dentry)
 			detach_mounts(data.mountpoint);
 			dput(data.mountpoint);
 		}
-		cond_resched();
 	}
 }
 EXPORT_SYMBOL(d_invalidate);
