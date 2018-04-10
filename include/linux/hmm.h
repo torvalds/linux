@@ -317,7 +317,7 @@ bool hmm_vma_range_done(struct hmm_range *range);
  *
  * See the function description in mm/hmm.c for further documentation.
  */
-int hmm_vma_fault(struct hmm_range *range, bool write, bool block);
+int hmm_vma_fault(struct hmm_range *range, bool block);
 #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 
 
