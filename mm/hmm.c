@@ -304,7 +304,7 @@ struct hmm_vma_walk {
 
 static int hmm_vma_do_fault(struct mm_walk *walk,
 			    unsigned long addr,
-			    hmm_pfn_t *pfn)
+			    uint64_t *pfn)
 {
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_REMOTE;
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
@@ -324,7 +324,7 @@ static int hmm_vma_do_fault(struct mm_walk *walk,
 	return -EAGAIN;
 }
 
-static void hmm_pfns_special(hmm_pfn_t *pfns,
+static void hmm_pfns_special(uint64_t *pfns,
 			     unsigned long addr,
 			     unsigned long end)
 {
@@ -338,7 +338,7 @@ static int hmm_pfns_bad(unsigned long addr,
 {
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
-	hmm_pfn_t *pfns = range->pfns;
+	uint64_t *pfns = range->pfns;
 	unsigned long i;
 
 	i = (addr - range->start) >> PAGE_SHIFT;
@@ -348,7 +348,7 @@ static int hmm_pfns_bad(unsigned long addr,
 	return 0;
 }
 
-static void hmm_pfns_clear(hmm_pfn_t *pfns,
+static void hmm_pfns_clear(uint64_t *pfns,
 			   unsigned long addr,
 			   unsigned long end)
 {
@@ -362,7 +362,7 @@ static int hmm_vma_walk_hole(unsigned long addr,
 {
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
-	hmm_pfn_t *pfns = range->pfns;
+	uint64_t *pfns = range->pfns;
 	unsigned long i;
 
 	hmm_vma_walk->last = addr;
@@ -387,7 +387,7 @@ static int hmm_vma_walk_clear(unsigned long addr,
 {
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
-	hmm_pfn_t *pfns = range->pfns;
+	uint64_t *pfns = range->pfns;
 	unsigned long i;
 
 	hmm_vma_walk->last = addr;
@@ -414,7 +414,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
 	struct hmm_range *range = hmm_vma_walk->range;
 	struct vm_area_struct *vma = walk->vma;
-	hmm_pfn_t *pfns = range->pfns;
+	uint64_t *pfns = range->pfns;
 	unsigned long addr = start, i;
 	bool write_fault;
 	pte_t *ptep;
@@ -431,7 +431,7 @@ again:
 
 	if (pmd_devmap(*pmdp) || pmd_trans_huge(*pmdp)) {
 		unsigned long pfn;
-		hmm_pfn_t flag = 0;
+		uint64_t flag = 0;
 		pmd_t pmd;
 
 		/*
@@ -456,7 +456,7 @@ again:
 		pfn = pmd_pfn(pmd) + pte_index(addr);
 		flag |= pmd_write(pmd) ? HMM_PFN_WRITE : 0;
 		for (; addr < end; addr += PAGE_SIZE, i++, pfn++)
-			pfns[i] = hmm_pfn_t_from_pfn(pfn) | flag;
+			pfns[i] = hmm_pfn_from_pfn(pfn) | flag;
 		return 0;
 	}
 
@@ -490,7 +490,7 @@ again:
 			 * device and report anything else as error.
 			 */
 			if (is_device_private_entry(entry)) {
-				pfns[i] = hmm_pfn_t_from_pfn(swp_offset(entry));
+				pfns[i] = hmm_pfn_from_pfn(swp_offset(entry));
 				if (is_write_device_private_entry(entry)) {
 					pfns[i] |= HMM_PFN_WRITE;
 				} else if (write_fault)
@@ -515,7 +515,7 @@ again:
 		if (write_fault && !pte_write(pte))
 			goto fault;
 
-		pfns[i] = hmm_pfn_t_from_pfn(pte_pfn(pte));
+		pfns[i] = hmm_pfn_from_pfn(pte_pfn(pte));
 		pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
 		continue;
 
@@ -678,8 +678,8 @@ EXPORT_SYMBOL(hmm_vma_range_done);
  * This is similar to a regular CPU page fault except that it will not trigger
  * any memory migration if the memory being faulted is not accessible by CPUs.
  *
- * On error, for one virtual address in the range, the function will set the
- * hmm_pfn_t error flag for the corresponding pfn entry.
+ * On error, for one virtual address in the range, the function will mark the
+ * corresponding HMM pfn entry with an error flag.
  *
  * Expected use pattern:
  * retry:

@@ -80,8 +80,6 @@
 struct hmm;
 
 /*
- * hmm_pfn_t - HMM uses its own pfn type to keep several flags per page
- *
  * Flags:
  * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
  * HMM_PFN_WRITE: CPU page table has write permission set
@@ -93,8 +91,6 @@ struct hmm;
  *      set and the pfn value is undefined.
  * HMM_PFN_DEVICE_UNADDRESSABLE: unaddressable device memory (ZONE_DEVICE)
  */
-typedef unsigned long hmm_pfn_t;
-
 #define HMM_PFN_VALID (1 << 0)
 #define HMM_PFN_WRITE (1 << 1)
 #define HMM_PFN_ERROR (1 << 2)
@@ -104,14 +100,14 @@ typedef unsigned long hmm_pfn_t;
 #define HMM_PFN_SHIFT 6
 
 /*
- * hmm_pfn_t_to_page() - return struct page pointed to by a valid hmm_pfn_t
- * @pfn: hmm_pfn_t to convert to struct page
- * Returns: struct page pointer if pfn is a valid hmm_pfn_t, NULL otherwise
+ * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
+ * @pfn: HMM pfn value to get corresponding struct page from
+ * Returns: struct page pointer if pfn is a valid HMM pfn, NULL otherwise
  *
- * If the hmm_pfn_t is valid (ie valid flag set) then return the struct page
- * matching the pfn value stored in the hmm_pfn_t. Otherwise return NULL.
+ * If the HMM pfn is valid (ie valid flag set) then return the struct page
+ * matching the pfn value stored in the HMM pfn. Otherwise return NULL.
  */
-static inline struct page *hmm_pfn_t_to_page(hmm_pfn_t pfn)
+static inline struct page *hmm_pfn_to_page(uint64_t pfn)
 {
 	if (!(pfn & HMM_PFN_VALID))
 		return NULL;
@@ -119,11 +115,11 @@ static inline struct page *hmm_pfn_t_to_page(hmm_pfn_t pfn)
 }
 
 /*
- * hmm_pfn_t_to_pfn() - return pfn value store in a hmm_pfn_t
- * @pfn: hmm_pfn_t to extract pfn from
- * Returns: pfn value if hmm_pfn_t is valid, -1UL otherwise
+ * hmm_pfn_to_pfn() - return pfn value store in a HMM pfn
+ * @pfn: HMM pfn value to extract pfn from
+ * Returns: pfn value if HMM pfn is valid, -1UL otherwise
  */
-static inline unsigned long hmm_pfn_t_to_pfn(hmm_pfn_t pfn)
+static inline unsigned long hmm_pfn_to_pfn(uint64_t pfn)
 {
 	if (!(pfn & HMM_PFN_VALID))
 		return -1UL;
@@ -131,21 +127,21 @@ static inline unsigned long hmm_pfn_t_to_pfn(hmm_pfn_t pfn)
 }
 
 /*
- * hmm_pfn_t_from_page() - create a valid hmm_pfn_t value from struct page
- * @page: struct page pointer for which to create the hmm_pfn_t
- * Returns: valid hmm_pfn_t for the page
+ * hmm_pfn_from_page() - create a valid HMM pfn value from struct page
+ * @page: struct page pointer for which to create the HMM pfn
+ * Returns: valid HMM pfn for the page
  */
-static inline hmm_pfn_t hmm_pfn_t_from_page(struct page *page)
+static inline uint64_t hmm_pfn_from_page(struct page *page)
 {
 	return (page_to_pfn(page) << HMM_PFN_SHIFT) | HMM_PFN_VALID;
 }
 
 /*
- * hmm_pfn_t_from_pfn() - create a valid hmm_pfn_t value from pfn
- * @pfn: pfn value for which to create the hmm_pfn_t
- * Returns: valid hmm_pfn_t for the pfn
+ * hmm_pfn_from_pfn() - create a valid HMM pfn value from pfn
+ * @pfn: pfn value for which to create the HMM pfn
+ * Returns: valid HMM pfn for the pfn
  */
-static inline hmm_pfn_t hmm_pfn_t_from_pfn(unsigned long pfn)
+static inline uint64_t hmm_pfn_from_pfn(unsigned long pfn)
 {
 	return (pfn << HMM_PFN_SHIFT) | HMM_PFN_VALID;
 }
@@ -284,7 +280,7 @@ struct hmm_range {
 	struct list_head	list;
 	unsigned long		start;
 	unsigned long		end;
-	hmm_pfn_t		*pfns;
+	uint64_t		*pfns;
 	bool			valid;
 };
 
@@ -307,7 +303,7 @@ bool hmm_vma_range_done(struct hmm_range *range);
 
 /*
  * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will
- * not migrate any device memory back to system memory. The hmm_pfn_t array will
+ * not migrate any device memory back to system memory. The HMM pfn array will
  * be updated with the fault result and current snapshot of the CPU page table
  * for the range.
  *
@@ -316,7 +312,7 @@ bool hmm_vma_range_done(struct hmm_range *range);
  * function returns -EAGAIN.
  *
  * Return value does not reflect if the fault was successful for every single
- * address or not. Therefore, the caller must to inspect the hmm_pfn_t array to
+ * address or not. Therefore, the caller must to inspect the HMM pfn array to
  * determine fault status for each address.
  *
  * Trying to fault inside an invalid vma will result in -EINVAL.
