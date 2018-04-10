@@ -725,7 +725,7 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 
 	/* Firmware running check */
 	for (n = 0; n < 50; ++n) {
-		mdelay(10);	/* wait_ms(10); */
+		usleep_range(10000, 11000);	/* wait_ms(10); */
 		ret = ks7010_sdio_readb(priv, GCR_A, &byte);
 		if (ret)
 			goto release_firmware;
