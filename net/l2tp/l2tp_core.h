@@ -226,6 +226,9 @@ struct l2tp_tunnel *l2tp_tunnel_find_nth(const struct net *net, int nth);
 int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id,
 		       u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg,
 		       struct l2tp_tunnel **tunnelp);
+int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
+			 struct l2tp_tunnel_cfg *cfg);
+
 void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
 void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel);
 struct l2tp_session *l2tp_session_create(int priv_size,
