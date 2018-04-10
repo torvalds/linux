@@ -2912,36 +2912,17 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 	return len;
 }
 
-static struct iwl_trans_dump_data
-*iwl_trans_pcie_dump_data(struct iwl_trans *trans,
-			  const struct iwl_fw_dbg_trigger_tlv *trigger)
+static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, int *len)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_fw_error_dump_data *data;
-	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
-	struct iwl_fw_error_dump_txcmd *txcmd;
-	struct iwl_trans_dump_data *dump_data;
-	u32 len, num_rbs = 0;
-	u32 monitor_len;
-	int i, ptr;
-	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
-			!trans->cfg->mq_rx_supported &&
-			trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_RB);
 
-	/* transport dump header */
-	len = sizeof(*dump_data);
-
-	/* host commands */
-	len += sizeof(*data) +
-		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
-
-	/* FW monitor */
 	if (trans_pcie->fw_mon_cpu_addr) {
-		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
-		       trans_pcie->fw_mon_size;
-		monitor_len = trans_pcie->fw_mon_size;
+		*len += sizeof(struct iwl_fw_error_dump_data) +
+			sizeof(struct iwl_fw_error_dump_fw_mon) +
+			trans_pcie->fw_mon_size;
+		return trans_pcie->fw_mon_size;
 	} else if (trans->dbg_dest_tlv) {
-		u32 base, end, cfg_reg;
+		u32 base, end, cfg_reg, monitor_len;
 
 		if (trans->dbg_dest_tlv->version == 1) {
 			cfg_reg = le32_to_cpu(trans->dbg_dest_tlv->base_reg);
@@ -2971,11 +2952,39 @@ static struct iwl_trans_dump_data
 				end += (1 << trans->dbg_dest_tlv->end_shift);
 			monitor_len = end - base;
 		}
-		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
-		       monitor_len;
-	} else {
-		monitor_len = 0;
+		*len += sizeof(struct iwl_fw_error_dump_data) +
+			sizeof(struct iwl_fw_error_dump_fw_mon) +
+			monitor_len;
+		return monitor_len;
 	}
+	return 0;
+}
+
+static struct iwl_trans_dump_data
+*iwl_trans_pcie_dump_data(struct iwl_trans *trans,
+			  const struct iwl_fw_dbg_trigger_tlv *trigger)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_fw_error_dump_data *data;
+	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_fw_error_dump_txcmd *txcmd;
+	struct iwl_trans_dump_data *dump_data;
+	u32 len, num_rbs = 0;
+	u32 monitor_len;
+	int i, ptr;
+	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
+			!trans->cfg->mq_rx_supported &&
+			trans->dbg_dump_mask & BIT(IWL_FW_ERROR_DUMP_RB);
+
+	/* transport dump header */
+	len = sizeof(*dump_data);
+
+	/* host commands */
+	len += sizeof(*data) +
+		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
+
+	/* FW monitor */
+	monitor_len = iwl_trans_get_fw_monitor_len(trans, &len);
 
 	if (trigger && (trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY)) {
 		if (!(trans->dbg_dump_mask &
