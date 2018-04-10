@@ -417,11 +417,9 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 	hmm_pfn_t *pfns = range->pfns;
 	unsigned long addr = start, i;
 	bool write_fault;
-	hmm_pfn_t flag;
 	pte_t *ptep;
 
 	i = (addr - range->start) >> PAGE_SHIFT;
-	flag = vma->vm_flags & VM_READ ? HMM_PFN_READ : 0;
 	write_fault = hmm_vma_walk->fault & hmm_vma_walk->write;
 
 again:
@@ -433,6 +431,7 @@ again:
 
 	if (pmd_devmap(*pmdp) || pmd_trans_huge(*pmdp)) {
 		unsigned long pfn;
+		hmm_pfn_t flag = 0;
 		pmd_t pmd;
 
 		/*
@@ -497,7 +496,6 @@ again:
 				} else if (write_fault)
 					goto fault;
 				pfns[i] |= HMM_PFN_DEVICE_UNADDRESSABLE;
-				pfns[i] |= flag;
 			} else if (is_migration_entry(entry)) {
 				if (hmm_vma_walk->fault) {
 					pte_unmap(ptep);
@@ -517,7 +515,7 @@ again:
 		if (write_fault && !pte_write(pte))
 			goto fault;
 
-		pfns[i] = hmm_pfn_t_from_pfn(pte_pfn(pte)) | flag;
+		pfns[i] = hmm_pfn_t_from_pfn(pte_pfn(pte));
 		pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
 		continue;
 
@@ -534,7 +532,8 @@ fault:
 /*
  * hmm_vma_get_pfns() - snapshot CPU page table for a range of virtual addresses
  * @range: range being snapshotted
- * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, 0 success
+ * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM invalid
+ *          vma permission, 0 success
  *
  * This snapshots the CPU page table for a range of virtual addresses. Snapshot
  * validity is tracked by range struct. See hmm_vma_range_done() for further
@@ -572,6 +571,17 @@ int hmm_vma_get_pfns(struct hmm_range *range)
 	/* Caller must have registered a mirror, via hmm_mirror_register() ! */
 	if (!hmm->mmu_notifier.ops)
 		return -EINVAL;
+
+	if (!(vma->vm_flags & VM_READ)) {
+		/*
+		 * If vma do not allow read access, then assume that it does
+		 * not allow write access, either. Architecture that allow
+		 * write without read access are not supported by HMM, because
+		 * operations such has atomic access would not work.
+		 */
+		hmm_pfns_clear(range->pfns, range->start, range->end);
+		return -EPERM;
+	}
 
 	/* Initialize range to track CPU page table update */
 	spin_lock(&hmm->lock);
@@ -686,6 +696,9 @@ EXPORT_SYMBOL(hmm_vma_range_done);
  *     goto retry;
  *   case 0:
  *     break;
+ *   case -ENOMEM:
+ *   case -EINVAL:
+ *   case -EPERM:
  *   default:
  *     // Handle error !
  *     up_read(&mm->mmap_sem)
@@ -727,17 +740,28 @@ int hmm_vma_fault(struct hmm_range *range, bool write, bool block)
 	if (!hmm->mmu_notifier.ops)
 		return -EINVAL;
 
-	/* Initialize range to track CPU page table update */
-	spin_lock(&hmm->lock);
-	range->valid = true;
-	list_add_rcu(&range->list, &hmm->ranges);
-	spin_unlock(&hmm->lock);
+	if (!(vma->vm_flags & VM_READ)) {
+		/*
+		 * If vma do not allow read access, then assume that it does
+		 * not allow write access, either. Architecture that allow
+		 * write without read access are not supported by HMM, because
+		 * operations such has atomic access would not work.
+		 */
+		hmm_pfns_clear(range->pfns, range->start, range->end);
+		return -EPERM;
+	}
 
 	/* FIXME support hugetlb fs */
 	if (is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL)) {
 		hmm_pfns_special(range->pfns, range->start, range->end);
 		return 0;
 	}
+
+	/* Initialize range to track CPU page table update */
+	spin_lock(&hmm->lock);
+	range->valid = true;
+	list_add_rcu(&range->list, &hmm->ranges);
+	spin_unlock(&hmm->lock);
 
 	hmm_vma_walk.fault = true;
 	hmm_vma_walk.write = write;

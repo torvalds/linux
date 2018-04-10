@@ -83,8 +83,7 @@ struct hmm;
  * hmm_pfn_t - HMM uses its own pfn type to keep several flags per page
  *
  * Flags:
- * HMM_PFN_VALID: pfn is valid
- * HMM_PFN_READ:  CPU page table has read permission set
+ * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
  * HMM_PFN_WRITE: CPU page table has write permission set
  * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
  * HMM_PFN_EMPTY: corresponding CPU page table entry is pte_none()
@@ -97,13 +96,12 @@ struct hmm;
 typedef unsigned long hmm_pfn_t;
 
 #define HMM_PFN_VALID (1 << 0)
-#define HMM_PFN_READ (1 << 1)
-#define HMM_PFN_WRITE (1 << 2)
-#define HMM_PFN_ERROR (1 << 3)
-#define HMM_PFN_EMPTY (1 << 4)
-#define HMM_PFN_SPECIAL (1 << 5)
-#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 6)
-#define HMM_PFN_SHIFT 7
+#define HMM_PFN_WRITE (1 << 1)
+#define HMM_PFN_ERROR (1 << 2)
+#define HMM_PFN_EMPTY (1 << 3)
+#define HMM_PFN_SPECIAL (1 << 4)
+#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 5)
+#define HMM_PFN_SHIFT 6
 
 /*
  * hmm_pfn_t_to_page() - return struct page pointed to by a valid hmm_pfn_t
