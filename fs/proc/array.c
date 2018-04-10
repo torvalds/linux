@@ -174,7 +174,8 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 
 	if (umask >= 0)
 		seq_printf(m, "Umask:\t%#04o\n", umask);
-	seq_printf(m, "State:\t%s", get_task_state(p));
+	seq_puts(m, "State:\t");
+	seq_puts(m, get_task_state(p));
 
 	seq_put_decimal_ull(m, "\nTgid:\t", tgid);
 	seq_put_decimal_ull(m, "\nNgid:\t", ngid);
@@ -300,8 +301,8 @@ static void render_cap_t(struct seq_file *m, const char *header,
 
 	seq_puts(m, header);
 	CAP_FOR_EACH_U32(__capi) {
-		seq_printf(m, "%08x",
-			   a->cap[CAP_LAST_U32 - __capi]);
+		seq_put_hex_ll(m, NULL,
+			   a->cap[CAP_LAST_U32 - __capi], 8);
 	}
 	seq_putc(m, '\n');
 }
@@ -355,7 +356,8 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
 
 static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
 {
-	seq_printf(m, "CoreDumping:\t%d\n", !!mm->core_state);
+	seq_put_decimal_ull(m, "CoreDumping:\t", !!mm->core_state);
+	seq_putc(m, '\n');
 }
 
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
@@ -491,7 +493,11 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	/* convert nsec -> ticks */
 	start_time = nsec_to_clock_t(task->real_start_time);
 
-	seq_printf(m, "%d (%s) %c", pid_nr_ns(pid, ns), tcomm, state);
+	seq_put_decimal_ull(m, "", pid_nr_ns(pid, ns));
+	seq_puts(m, " (");
+	seq_puts(m, tcomm);
+	seq_puts(m, ") ");
+	seq_putc(m, state);
 	seq_put_decimal_ll(m, " ", ppid);
 	seq_put_decimal_ll(m, " ", pgid);
 	seq_put_decimal_ll(m, " ", sid);
