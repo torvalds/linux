@@ -728,33 +728,57 @@ static int vi_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
 		return r;
 
 	tmp = RREG32_SMC(cntl_reg);
-	tmp &= ~(CG_DCLK_CNTL__DCLK_DIR_CNTL_EN_MASK |
-		CG_DCLK_CNTL__DCLK_DIVIDER_MASK);
+
+	if (adev->flags & AMD_IS_APU)
+		tmp &= ~CG_DCLK_CNTL__DCLK_DIVIDER_MASK;
+	else
+		tmp &= ~(CG_DCLK_CNTL__DCLK_DIR_CNTL_EN_MASK |
+				CG_DCLK_CNTL__DCLK_DIVIDER_MASK);
 	tmp |= dividers.post_divider;
 	WREG32_SMC(cntl_reg, tmp);
 
 	for (i = 0; i < 100; i++) {
-		if (RREG32_SMC(status_reg) & CG_DCLK_STATUS__DCLK_STATUS_MASK)
-			break;
+		tmp = RREG32_SMC(status_reg);
+		if (adev->flags & AMD_IS_APU) {
+			if (tmp & 0x10000)
+				break;
+		} else {
+			if (tmp & CG_DCLK_STATUS__DCLK_STATUS_MASK)
+				break;
+		}
 		mdelay(10);
 	}
 	if (i == 100)
 		return -ETIMEDOUT;
-
 	return 0;
 }
+
+#define ixGNB_CLK1_DFS_CNTL 0xD82200F0
+#define ixGNB_CLK1_STATUS   0xD822010C
+#define ixGNB_CLK2_DFS_CNTL 0xD8220110
+#define ixGNB_CLK2_STATUS   0xD822012C
 
 static int vi_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 {
 	int r;
 
-	r = vi_set_uvd_clock(adev, vclk, ixCG_VCLK_CNTL, ixCG_VCLK_STATUS);
-	if (r)
-		return r;
+	if (adev->flags & AMD_IS_APU) {
+		r = vi_set_uvd_clock(adev, vclk, ixGNB_CLK2_DFS_CNTL, ixGNB_CLK2_STATUS);
+		if (r)
+			return r;
 
-	r = vi_set_uvd_clock(adev, dclk, ixCG_DCLK_CNTL, ixCG_DCLK_STATUS);
-	if (r)
-		return r;
+		r = vi_set_uvd_clock(adev, dclk, ixGNB_CLK1_DFS_CNTL, ixGNB_CLK1_STATUS);
+		if (r)
+			return r;
+	} else {
+		r = vi_set_uvd_clock(adev, vclk, ixCG_VCLK_CNTL, ixCG_VCLK_STATUS);
+		if (r)
+			return r;
+
+		r = vi_set_uvd_clock(adev, dclk, ixCG_DCLK_CNTL, ixCG_DCLK_STATUS);
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
