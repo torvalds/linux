@@ -355,14 +355,18 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 	(((x) & CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_MASK) >> \
 		CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_LSB)
 #define CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS			0x0000
+#define CE_INTERRUPT_SUMMARY		(GENMASK(CE_COUNT_MAX - 1, 0))
 
 static inline u32 ath10k_ce_interrupt_summary(struct ath10k *ar)
 {
 	struct ath10k_ce *ce = ath10k_ce_priv(ar);
 
-	return CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(
-		ce->bus_ops->read32((ar), CE_WRAPPER_BASE_ADDRESS +
-		CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS));
+	if (!ar->hw_params.per_ce_irq)
+		return CE_WRAPPER_INTERRUPT_SUMMARY_HOST_MSI_GET(
+			ce->bus_ops->read32((ar), CE_WRAPPER_BASE_ADDRESS +
+			CE_WRAPPER_INTERRUPT_SUMMARY_ADDRESS));
+	else
+		return CE_INTERRUPT_SUMMARY;
 }
 
 #endif /* _CE_H_ */
