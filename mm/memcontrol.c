@@ -1839,7 +1839,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
 			}
 		}
 
-		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++) {
 			long x;
 
 			x = this_cpu_xchg(memcg->stat_cpu->events[i], 0);
@@ -1858,7 +1858,7 @@ static void reclaim_high(struct mem_cgroup *memcg,
 	do {
 		if (page_counter_read(&memcg->memory) <= memcg->high)
 			continue;
-		mem_cgroup_event(memcg, MEMCG_HIGH);
+		memcg_memory_event(memcg, MEMCG_HIGH);
 		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
 	} while ((memcg = parent_mem_cgroup(memcg)));
 }
@@ -1949,7 +1949,7 @@ retry:
 	if (!gfpflags_allow_blocking(gfp_mask))
 		goto nomem;
 
-	mem_cgroup_event(mem_over_limit, MEMCG_MAX);
+	memcg_memory_event(mem_over_limit, MEMCG_MAX);
 
 	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
 						    gfp_mask, may_swap);
@@ -1992,7 +1992,7 @@ retry:
 	if (fatal_signal_pending(current))
 		goto force;
 
-	mem_cgroup_event(mem_over_limit, MEMCG_OOM);
+	memcg_memory_event(mem_over_limit, MEMCG_OOM);
 
 	mem_cgroup_oom(mem_over_limit, gfp_mask,
 		       get_order(nr_pages * PAGE_SIZE));
@@ -2688,10 +2688,10 @@ static void tree_events(struct mem_cgroup *memcg, unsigned long *events)
 	struct mem_cgroup *iter;
 	int i;
 
-	memset(events, 0, sizeof(*events) * MEMCG_NR_EVENTS);
+	memset(events, 0, sizeof(*events) * NR_VM_EVENT_ITEMS);
 
 	for_each_mem_cgroup_tree(iter, memcg) {
-		for (i = 0; i < MEMCG_NR_EVENTS; i++)
+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
 			events[i] += memcg_sum_events(iter, i);
 	}
 }
@@ -5178,7 +5178,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
 			continue;
 		}
 
-		mem_cgroup_event(memcg, MEMCG_OOM);
+		memcg_memory_event(memcg, MEMCG_OOM);
 		if (!mem_cgroup_out_of_memory(memcg, GFP_KERNEL, 0))
 			break;
 	}
@@ -5191,10 +5191,14 @@ static int memory_events_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 
-	seq_printf(m, "low %lu\n", memcg_sum_events(memcg, MEMCG_LOW));
-	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
-	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
-	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
+	seq_printf(m, "low %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_LOW]));
+	seq_printf(m, "high %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_HIGH]));
+	seq_printf(m, "max %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_MAX]));
+	seq_printf(m, "oom %lu\n",
+		   atomic_long_read(&memcg->memory_events[MEMCG_OOM]));
 	seq_printf(m, "oom_kill %lu\n", memcg_sum_events(memcg, OOM_KILL));
 
 	return 0;
@@ -5204,7 +5208,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 	unsigned long stat[MEMCG_NR_STAT];
-	unsigned long events[MEMCG_NR_EVENTS];
+	unsigned long events[NR_VM_EVENT_ITEMS];
 	int i;
 
 	/*
