@@ -103,7 +103,7 @@ void __init proc_init_kmemcache(void)
 					     init_once);
 	pde_opener_cache =
 		kmem_cache_create("pde_opener", sizeof(struct pde_opener), 0,
-				  SLAB_PANIC, NULL);
+				  SLAB_ACCOUNT|SLAB_PANIC, NULL);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)
