@@ -465,6 +465,7 @@ struct igb_nfc_input {
 struct igb_nfc_filter {
 	struct hlist_node nfc_node;
 	struct igb_nfc_input filter;
+	unsigned long cookie;
 	u16 etype_reg_index;
 	u16 sw_idx;
 	u16 action;
@@ -604,6 +605,7 @@ struct igb_adapter {
 
 	/* RX network flow classification support */
 	struct hlist_head nfc_filter_list;
+	struct hlist_head cls_flower_list;
 	unsigned int nfc_filter_count;
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
