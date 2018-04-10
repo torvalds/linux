@@ -462,6 +462,7 @@ static int adv7511_irq_process(struct adv7511 *adv7511, bool process_hpd)
 	if (ret < 0)
 		return ret;
 
+#ifdef CONFIG_ADV7511_SNAPDRAGON_HACKS
 	/*
 	 * Don't clear HPD flag right now, let it be cleared later in
 	 * adv7511_detect(). If we don't do this, adv7511_detect
@@ -472,6 +473,9 @@ static int adv7511_irq_process(struct adv7511 *adv7511, bool process_hpd)
 	 * IRQ_HANDLED cause spurious interrupts?
 	 */
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0 & ~ADV7511_INT0_HPD);
+#else
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
+#endif
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
 	if (process_hpd && irq0 & ADV7511_INT0_HPD && adv7511->bridge.encoder)
@@ -508,6 +512,7 @@ static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
 {
 	int ret;
 
+#ifdef CONFIG_ADV7511_SNAPDRAGON_HACKS
 	/*
 	 * HACK: EDID-Ready interrupt doesn't seem to happen if we try to do
 	 * "power-on - read EDID - power-off" consecutively really fast.
@@ -515,6 +520,9 @@ static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
 	 * bit but doesn't solve it entirely.
 	 */
 	 if (0 /*adv7511->i2c_main->irq*/) {
+#else
+	 if (adv7511->i2c_main->irq) {
+#endif
 		ret = wait_event_interruptible_timeout(adv7511->wq,
 				adv7511->edid_read, msecs_to_jiffies(timeout));
 	} else {
