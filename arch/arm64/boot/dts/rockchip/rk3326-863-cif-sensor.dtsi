@@ -43,7 +43,7 @@
 			flash_attach = <0>;
 			resolution = <gc0312_FULL_RESOLUTION>;
 			powerup_sequence = <gc0312_PWRSEQ>;
-			orientation = <90>;
+			orientation = <270>;
 			i2c_add = <gc0312_I2C_ADDR>;
 			i2c_chl = <2>;
 			cif_chl = <0>;
