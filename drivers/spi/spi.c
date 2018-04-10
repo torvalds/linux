@@ -2068,6 +2068,19 @@ static int of_spi_register_master(struct spi_controller *ctlr)
 }
 #endif
 
+static int spi_controller_check_ops(struct spi_controller *ctlr)
+{
+	/*
+	 * The controller must at least implement one of the ->transfer()
+	 * hooks.
+	 */
+	if (!ctlr->transfer && !ctlr->transfer_one &&
+	    !ctlr->transfer_one_message)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * spi_register_controller - register SPI master or slave controller
  * @ctlr: initialized master, originally from spi_alloc_master() or
@@ -2100,6 +2113,14 @@ int spi_register_controller(struct spi_controller *ctlr)
 
 	if (!dev)
 		return -ENODEV;
+
+	/*
+	 * Make sure all necessary hooks are implemented before registering
+	 * the SPI controller.
+	 */
+	status = spi_controller_check_ops(ctlr);
+	if (status)
+		return status;
 
 	if (!spi_controller_is_slave(ctlr)) {
 		status = of_spi_register_master(ctlr);
