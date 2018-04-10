@@ -3254,13 +3254,6 @@ void i915_gem_reset(struct drm_i915_private *dev_priv,
 	}
 
 	i915_gem_restore_fences(dev_priv);
-
-	if (dev_priv->gt.awake) {
-		intel_sanitize_gt_powersave(dev_priv);
-		intel_enable_gt_powersave(dev_priv);
-		if (INTEL_GEN(dev_priv) >= 6)
-			gen6_rps_busy(dev_priv);
-	}
 }
 
 void i915_gem_reset_finish_engine(struct intel_engine_cs *engine)
