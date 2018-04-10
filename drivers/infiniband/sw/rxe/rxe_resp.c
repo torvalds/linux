@@ -1124,24 +1124,13 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 		/* Find the operation in our list of responder resources. */
 		res = find_resource(qp, pkt->psn);
 		if (res) {
-			struct sk_buff *skb_copy;
-
-			skb_copy = skb_clone(res->atomic.skb, GFP_ATOMIC);
-			if (skb_copy) {
-				rxe_add_ref(qp); /* for the new SKB */
-			} else {
-				pr_warn("Couldn't clone atomic resp\n");
-				rc = RESPST_CLEANUP;
-				goto out;
-			}
-
+			skb_get(res->atomic.skb);
 			/* Resend the result. */
 			rc = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp,
-					     pkt, skb_copy);
+					     pkt, res->atomic.skb);
 			if (rc) {
 				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
-				rxe_drop_ref(qp);
-				kfree_skb(skb_copy);
+				kfree_skb(res->atomic.skb);
 				rc = RESPST_CLEANUP;
 				goto out;
 			}
