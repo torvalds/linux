@@ -155,7 +155,8 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
 	add_memory_region(start, size, BOOT_MEM_RAM);
 }
 
-bool __init memory_region_available(phys_addr_t start, phys_addr_t size)
+static bool __init __maybe_unused memory_region_available(phys_addr_t start,
+							  phys_addr_t size)
 {
 	int i;
 	bool in_ram = false, free = true;
@@ -453,7 +454,7 @@ static void __init bootmem_init(void)
 		pr_info("Wasting %lu bytes for tracking %lu unused pages\n",
 			(min_low_pfn - ARCH_PFN_OFFSET) * sizeof(struct page),
 			min_low_pfn - ARCH_PFN_OFFSET);
-	} else if (min_low_pfn < ARCH_PFN_OFFSET) {
+	} else if (ARCH_PFN_OFFSET - min_low_pfn > 0UL) {
 		pr_info("%lu free pages won't be used\n",
 			ARCH_PFN_OFFSET - min_low_pfn);
 	}
