@@ -182,8 +182,10 @@ static void bpf_tcp_release(struct sock *sk)
 		psock->cork = NULL;
 	}
 
-	sk->sk_prot = psock->sk_proto;
-	psock->sk_proto = NULL;
+	if (psock->sk_proto) {
+		sk->sk_prot = psock->sk_proto;
+		psock->sk_proto = NULL;
+	}
 out:
 	rcu_read_unlock();
 }
@@ -211,6 +213,12 @@ static void bpf_tcp_close(struct sock *sk, long timeout)
 	close_fun = psock->save_close;
 
 	write_lock_bh(&sk->sk_callback_lock);
+	if (psock->cork) {
+		free_start_sg(psock->sock, psock->cork);
+		kfree(psock->cork);
+		psock->cork = NULL;
+	}
+
 	list_for_each_entry_safe(md, mtmp, &psock->ingress, list) {
 		list_del(&md->list);
 		free_start_sg(psock->sock, md);

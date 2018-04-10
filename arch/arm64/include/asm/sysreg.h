@@ -288,6 +288,12 @@
 #define SYS_MAIR_EL1			sys_reg(3, 0, 10, 2, 0)
 #define SYS_AMAIR_EL1			sys_reg(3, 0, 10, 3, 0)
 
+#define SYS_LORSA_EL1			sys_reg(3, 0, 10, 4, 0)
+#define SYS_LOREA_EL1			sys_reg(3, 0, 10, 4, 1)
+#define SYS_LORN_EL1			sys_reg(3, 0, 10, 4, 2)
+#define SYS_LORC_EL1			sys_reg(3, 0, 10, 4, 3)
+#define SYS_LORID_EL1			sys_reg(3, 0, 10, 4, 7)
+
 #define SYS_VBAR_EL1			sys_reg(3, 0, 12, 0, 0)
 #define SYS_DISR_EL1			sys_reg(3, 0, 12, 1, 1)
 

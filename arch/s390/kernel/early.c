@@ -67,7 +67,7 @@ static noinline __init void init_kernel_storage_key(void)
 #if PAGE_DEFAULT_KEY
 	unsigned long end_pfn, init_pfn;
 
-	end_pfn = PFN_UP(__pa(&_end));
+	end_pfn = PFN_UP(__pa(_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
 		page_set_storage_key(init_pfn << PAGE_SHIFT,
@@ -242,8 +242,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(40))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 		__ctl_set_bit(0, 55);

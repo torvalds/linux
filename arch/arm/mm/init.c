@@ -758,20 +758,9 @@ void set_kernel_text_ro(void)
 static inline void fix_kernmem_perms(void) { }
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
-void free_tcmmem(void)
-{
-#ifdef CONFIG_HAVE_TCM
-	extern char __tcm_start, __tcm_end;
-
-	poison_init_mem(&__tcm_start, &__tcm_end - &__tcm_start);
-	free_reserved_area(&__tcm_start, &__tcm_end, -1, "TCM link");
-#endif
-}
-
 void free_initmem(void)
 {
 	fix_kernmem_perms();
-	free_tcmmem();
 
 	poison_init_mem(__init_begin, __init_end - __init_begin);
 	if (!machine_is_integrator() && !machine_is_cintegrator())

@@ -1907,6 +1907,9 @@
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
 
+	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
+				   Default is false (don't support).
+
 	kvm.mmu_audit=	[KVM] This is a R/W parameter which allows audit
 			KVM MMU at runtime.
 			Default is 0 (off)

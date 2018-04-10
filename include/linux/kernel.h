@@ -822,14 +822,15 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 
 #define __cmp(x, y, op)	((x) op (y) ? (x) : (y))
 
-#define __cmp_once(x, y, op) ({		\
-		typeof(x) __x = (x);	\
-		typeof(y) __y = (y);	\
-		__cmp(__x, __y, op); })
+#define __cmp_once(x, y, unique_x, unique_y, op) ({	\
+		typeof(x) unique_x = (x);		\
+		typeof(y) unique_y = (y);		\
+		__cmp(unique_x, unique_y, op); })
 
-#define __careful_cmp(x, y, op)				\
-		__builtin_choose_expr(__safe_cmp(x, y),	\
-				      __cmp(x, y, op), __cmp_once(x, y, op))
+#define __careful_cmp(x, y, op) \
+	__builtin_choose_expr(__safe_cmp(x, y), \
+		__cmp(x, y, op), \
+		__cmp_once(x, y, __UNIQUE_ID(__x), __UNIQUE_ID(__y), op))
 
 /**
  * min - return minimum of two values of the same or compatible types

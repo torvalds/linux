@@ -545,9 +545,11 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 	 * The kernel may decide to run userspace after calling vcpu_put, so
 	 * we reset cntvoff to 0 to ensure a consistent read between user
 	 * accesses to the virtual counter and kernel access to the physical
-	 * counter.
+	 * counter of non-VHE case. For VHE, the virtual counter uses a fixed
+	 * virtual offset of zero, so no need to zero CNTVOFF_EL2 register.
 	 */
-	set_cntvoff(0);
+	if (!has_vhe())
+		set_cntvoff(0);
 }
 
 /*
@@ -856,11 +858,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 		return ret;
 
 no_vgic:
-	preempt_disable();
 	timer->enabled = 1;
-	kvm_timer_vcpu_load(vcpu);
-	preempt_enable();
-
 	return 0;
 }
 

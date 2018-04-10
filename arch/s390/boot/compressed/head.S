@@ -23,12 +23,10 @@ ENTRY(startup_continue)
 	aghi	%r15,-160
 	brasl	%r14,decompress_kernel
 	# Set up registers for memory mover. We move the decompressed image to
-	# 0x11000, starting at offset 0x11000 in the decompressed image so
-	# that code living at 0x11000 in the image will end up at 0x11000 in
-	# memory.
+	# 0x11000, where startup_continue of the decompressed image is supposed
+	# to be.
 	lgr	%r4,%r2
 	lg	%r2,.Loffset-.LPG1(%r13)
-	la	%r4,0(%r2,%r4)
 	lg	%r3,.Lmvsize-.LPG1(%r13)
 	lgr	%r5,%r3
 	# Move the memory mover someplace safe so it doesn't overwrite itself.

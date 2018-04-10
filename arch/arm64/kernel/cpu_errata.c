@@ -78,6 +78,8 @@ cpu_enable_trap_ctr_access(const struct arm64_cpu_capabilities *__unused)
 	config_sctlr_el1(SCTLR_EL1_UCT, 0);
 }
 
+atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
+
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
@@ -108,7 +110,6 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 				      const char *hyp_vecs_start,
 				      const char *hyp_vecs_end)
 {
-	static int last_slot = -1;
 	static DEFINE_SPINLOCK(bp_lock);
 	int cpu, slot = -1;
 
@@ -121,10 +122,8 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 	}
 
 	if (slot == -1) {
-		last_slot++;
-		BUG_ON(((__bp_harden_hyp_vecs_end - __bp_harden_hyp_vecs_start)
-			/ SZ_2K) <= last_slot);
-		slot = last_slot;
+		slot = atomic_inc_return(&arm64_el2_vector_last_slot);
+		BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
 		__copy_hyp_vect_bpi(slot, hyp_vecs_start, hyp_vecs_end);
 	}
 
@@ -348,6 +347,10 @@ static const struct arm64_cpu_capabilities arm64_bp_harden_list[] = {
 
 #endif
 
+#ifndef ERRATA_MIDR_ALL_VERSIONS
+#define	ERRATA_MIDR_ALL_VERSIONS(x)	MIDR_ALL_VERSIONS(x)
+#endif
+
 const struct arm64_cpu_capabilities arm64_errata[] = {
 #if	defined(CONFIG_ARM64_ERRATUM_826319) || \
 	defined(CONFIG_ARM64_ERRATUM_827319) || \
@@ -499,6 +502,18 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	{
 		.capability = ARM64_HARDEN_BP_POST_GUEST_EXIT,
 		ERRATA_MIDR_RANGE_LIST(qcom_bp_harden_cpus),
+	},
+#endif
+#ifdef CONFIG_HARDEN_EL2_VECTORS
+	{
+		.desc = "Cortex-A57 EL2 vector hardening",
+		.capability = ARM64_HARDEN_EL2_VECTORS,
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
+	},
+	{
+		.desc = "Cortex-A72 EL2 vector hardening",
+		.capability = ARM64_HARDEN_EL2_VECTORS,
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
 	},
 #endif
 	{

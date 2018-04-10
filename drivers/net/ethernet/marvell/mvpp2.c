@@ -1604,7 +1604,7 @@ static int mvpp2_prs_init_from_hw(struct mvpp2 *priv,
 {
 	int i;
 
-	if (pe->index > MVPP2_PRS_TCAM_SRAM_SIZE - 1)
+	if (tid > MVPP2_PRS_TCAM_SRAM_SIZE - 1)
 		return -EINVAL;
 
 	memset(pe, 0, sizeof(*pe));

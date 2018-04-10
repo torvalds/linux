@@ -1047,6 +1047,7 @@ static struct aead_alg gcm_aes_aead = {
 
 static struct crypto_alg *aes_s390_algs_ptr[5];
 static int aes_s390_algs_num;
+static struct aead_alg *aes_s390_aead_alg;
 
 static int aes_s390_register_alg(struct crypto_alg *alg)
 {
@@ -1065,7 +1066,8 @@ static void aes_s390_fini(void)
 	if (ctrblk)
 		free_page((unsigned long) ctrblk);
 
-	crypto_unregister_aead(&gcm_aes_aead);
+	if (aes_s390_aead_alg)
+		crypto_unregister_aead(aes_s390_aead_alg);
 }
 
 static int __init aes_s390_init(void)
@@ -1123,6 +1125,7 @@ static int __init aes_s390_init(void)
 		ret = crypto_register_aead(&gcm_aes_aead);
 		if (ret)
 			goto out_err;
+		aes_s390_aead_alg = &gcm_aes_aead;
 	}
 
 	return 0;
