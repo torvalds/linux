@@ -112,7 +112,7 @@ static inline __wsum csum_add(__wsum csum, __wsum addend)
 
 #ifdef __powerpc64__
 	res += (__force u64)addend;
-	return (__force __wsum) from64to32(res);
+	return (__force __wsum)((u32)res + (res >> 32));
 #else
 	asm("addc %0,%0,%1;"
 	    "addze %0,%0;"
