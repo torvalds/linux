@@ -182,6 +182,34 @@ static const struct kfd_device_info polaris11_device_info = {
 	.needs_pci_atomics = true,
 };
 
+static const struct kfd_device_info vega10_device_info = {
+	.asic_family = CHIP_VEGA10,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = false,
+};
+
+static const struct kfd_device_info vega10_vf_device_info = {
+	.asic_family = CHIP_VEGA10,
+	.max_pasid_bits = 16,
+	.max_no_of_hqd  = 24,
+	.doorbell_size  = 8,
+	.ih_ring_entry_size = 8 * sizeof(uint32_t),
+	.event_interrupt_class = &event_interrupt_class_v9,
+	.num_of_watch_points = 4,
+	.mqd_size_aligned = MQD_SIZE_ALIGNED,
+	.supports_cwsr = true,
+	.needs_iommu_device = false,
+	.needs_pci_atomics = false,
+};
+
 
 struct kfd_deviceid {
 	unsigned short did;
@@ -261,6 +289,15 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x67EB, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67EF, &polaris11_device_info },	/* Polaris11 */
 	{ 0x67FF, &polaris11_device_info },	/* Polaris11 */
+	{ 0x6860, &vega10_device_info },	/* Vega10 */
+	{ 0x6861, &vega10_device_info },	/* Vega10 */
+	{ 0x6862, &vega10_device_info },	/* Vega10 */
+	{ 0x6863, &vega10_device_info },	/* Vega10 */
+	{ 0x6864, &vega10_device_info },	/* Vega10 */
+	{ 0x6867, &vega10_device_info },	/* Vega10 */
+	{ 0x6868, &vega10_device_info },	/* Vega10 */
+	{ 0x686C, &vega10_vf_device_info },	/* Vega10  vf*/
+	{ 0x687F, &vega10_device_info },	/* Vega10 */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
