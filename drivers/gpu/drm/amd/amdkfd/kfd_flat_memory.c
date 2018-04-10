@@ -275,22 +275,34 @@
  * for FLAT_* / S_LOAD operations.
  */
 
-#define MAKE_GPUVM_APP_BASE(gpu_num) \
+#define MAKE_GPUVM_APP_BASE_VI(gpu_num) \
 	(((uint64_t)(gpu_num) << 61) + 0x1000000000000L)
 
 #define MAKE_GPUVM_APP_LIMIT(base, size) \
 	(((uint64_t)(base) & 0xFFFFFF0000000000UL) + (size) - 1)
 
-#define MAKE_SCRATCH_APP_BASE() \
+#define MAKE_SCRATCH_APP_BASE_VI() \
 	(((uint64_t)(0x1UL) << 61) + 0x100000000L)
 
 #define MAKE_SCRATCH_APP_LIMIT(base) \
 	(((uint64_t)base & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
-#define MAKE_LDS_APP_BASE() \
+#define MAKE_LDS_APP_BASE_VI() \
 	(((uint64_t)(0x1UL) << 61) + 0x0)
 #define MAKE_LDS_APP_LIMIT(base) \
 	(((uint64_t)(base) & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
+
+/* On GFXv9 the LDS and scratch apertures are programmed independently
+ * using the high 16 bits of the 64-bit virtual address. They must be
+ * in the hole, which will be the case as long as the high 16 bits are
+ * not 0.
+ *
+ * The aperture sizes are still 4GB implicitly.
+ *
+ * A GPUVM aperture is not applicable on GFXv9.
+ */
+#define MAKE_LDS_APP_BASE_V9() ((uint64_t)(0x1UL) << 48)
+#define MAKE_SCRATCH_APP_BASE_V9() ((uint64_t)(0x2UL) << 48)
 
 /* User mode manages most of the SVM aperture address space. The low
  * 16MB are reserved for kernel use (CWSR trap handler and kernel IB
@@ -299,6 +311,55 @@
 #define SVM_USER_BASE 0x1000000ull
 #define SVM_CWSR_BASE (SVM_USER_BASE - KFD_CWSR_TBA_TMA_SIZE)
 #define SVM_IB_BASE   (SVM_CWSR_BASE - PAGE_SIZE)
+
+static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
+{
+	/*
+	 * node id couldn't be 0 - the three MSB bits of
+	 * aperture shoudn't be 0
+	 */
+	pdd->lds_base = MAKE_LDS_APP_BASE_VI();
+	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
+
+	if (!pdd->dev->device_info->needs_iommu_device) {
+		/* dGPUs: SVM aperture starting at 0
+		 * with small reserved space for kernel.
+		 * Set them to CANONICAL addresses.
+		 */
+		pdd->gpuvm_base = SVM_USER_BASE;
+		pdd->gpuvm_limit =
+			pdd->dev->shared_resources.gpuvm_size - 1;
+	} else {
+		/* set them to non CANONICAL addresses, and no SVM is
+		 * allocated.
+		 */
+		pdd->gpuvm_base = MAKE_GPUVM_APP_BASE_VI(id + 1);
+		pdd->gpuvm_limit = MAKE_GPUVM_APP_LIMIT(pdd->gpuvm_base,
+				pdd->dev->shared_resources.gpuvm_size);
+	}
+
+	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_VI();
+	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
+}
+
+static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
+{
+	pdd->lds_base = MAKE_LDS_APP_BASE_V9();
+	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
+
+	/* Raven needs SVM to support graphic handle, etc. Leave the small
+	 * reserved space before SVM on Raven as well, even though we don't
+	 * have to.
+	 * Set gpuvm_base and gpuvm_limit to CANONICAL addresses so that they
+	 * are used in Thunk to reserve SVM.
+	 */
+	pdd->gpuvm_base = SVM_USER_BASE;
+	pdd->gpuvm_limit =
+		pdd->dev->shared_resources.gpuvm_size - 1;
+
+	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
+	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
+}
 
 int kfd_init_apertures(struct kfd_process *process)
 {
@@ -316,7 +377,7 @@ int kfd_init_apertures(struct kfd_process *process)
 		pdd = kfd_create_process_device_data(dev, process);
 		if (!pdd) {
 			pr_err("Failed to create process device data\n");
-			return -1;
+			return -ENOMEM;
 		}
 		/*
 		 * For 64 bit process apertures will be statically reserved in
@@ -328,32 +389,30 @@ int kfd_init_apertures(struct kfd_process *process)
 			pdd->gpuvm_base = pdd->gpuvm_limit = 0;
 			pdd->scratch_base = pdd->scratch_limit = 0;
 		} else {
-			/* Same LDS and scratch apertures can be used
-			 * on all GPUs. This allows using more dGPUs
-			 * than placement options for apertures.
-			 */
-			pdd->lds_base = MAKE_LDS_APP_BASE();
-			pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
+			switch (dev->device_info->asic_family) {
+			case CHIP_KAVERI:
+			case CHIP_HAWAII:
+			case CHIP_CARRIZO:
+			case CHIP_TONGA:
+			case CHIP_FIJI:
+			case CHIP_POLARIS10:
+			case CHIP_POLARIS11:
+				kfd_init_apertures_vi(pdd, id);
+				break;
+			case CHIP_VEGA10:
+			case CHIP_RAVEN:
+				kfd_init_apertures_v9(pdd, id);
+				break;
+			default:
+				WARN(1, "Unexpected ASIC family %u",
+				     dev->device_info->asic_family);
+				return -EINVAL;
+			}
 
-			pdd->scratch_base = MAKE_SCRATCH_APP_BASE();
-			pdd->scratch_limit =
-				MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
-
-			if (dev->device_info->needs_iommu_device) {
-				/* APUs: GPUVM aperture in
-				 * non-canonical address space
+			if (!dev->device_info->needs_iommu_device) {
+				/* dGPUs: the reserved space for kernel
+				 * before SVM
 				 */
-				pdd->gpuvm_base = MAKE_GPUVM_APP_BASE(id + 1);
-				pdd->gpuvm_limit = MAKE_GPUVM_APP_LIMIT(
-					pdd->gpuvm_base,
-					dev->shared_resources.gpuvm_size);
-			} else {
-				/* dGPUs: SVM aperture starting at 0
-				 * with small reserved space for kernel
-				 */
-				pdd->gpuvm_base = SVM_USER_BASE;
-				pdd->gpuvm_limit =
-					dev->shared_resources.gpuvm_size - 1;
 				pdd->qpd.cwsr_base = SVM_CWSR_BASE;
 				pdd->qpd.ib_base = SVM_IB_BASE;
 			}
