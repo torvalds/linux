@@ -366,6 +366,14 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 		WARN(1, "name len %u\n", qstr.len);
 		return NULL;
 	}
+	if (qstr.len == 1 && fn[0] == '.') {
+		WARN(1, "name '.'\n");
+		return NULL;
+	}
+	if (qstr.len == 2 && fn[0] == '.' && fn[1] == '.') {
+		WARN(1, "name '..'\n");
+		return NULL;
+	}
 	if (*parent == &proc_root && name_to_int(&qstr) != ~0U) {
 		WARN(1, "create '/proc/%s' by hand\n", qstr.name);
 		return NULL;
