@@ -1955,7 +1955,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	hw->uapsd_queues = RSI_IEEE80211_UAPSD_QUEUES;
 	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
 
-	hw->max_tx_aggregation_subframes = 6;
+	hw->max_tx_aggregation_subframes = RSI_MAX_TX_AGGR_FRMS;
+	hw->max_rx_aggregation_subframes = RSI_MAX_RX_AGGR_FRMS;
 	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
 	rsi_register_rates_channels(adapter, NL80211_BAND_5GHZ);
 	hw->rate_control_algorithm = "AARF";

@@ -225,6 +225,9 @@
 #define RSI_WOW_DISCONNECT		BIT(5)
 #endif
 
+#define RSI_MAX_TX_AGGR_FRMS		8
+#define RSI_MAX_RX_AGGR_FRMS		8
+
 enum opmode {
 	RSI_OPMODE_UNSUPPORTED = -1,
 	RSI_OPMODE_AP = 0,
