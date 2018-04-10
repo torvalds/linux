@@ -6859,6 +6859,27 @@ static void igb_set_default_mac_filter(struct igb_adapter *adapter)
 	igb_rar_set_index(adapter, 0);
 }
 
+/* If the filter to be added and an already existing filter express
+ * the same address and address type, it should be possible to only
+ * override the other configurations, for example the queue to steer
+ * traffic.
+ */
+static bool igb_mac_entry_can_be_used(const struct igb_mac_addr *entry,
+				      const u8 *addr, const u8 flags)
+{
+	if (!(entry->state & IGB_MAC_STATE_IN_USE))
+		return true;
+
+	if ((entry->state & IGB_MAC_STATE_SRC_ADDR) !=
+	    (flags & IGB_MAC_STATE_SRC_ADDR))
+		return false;
+
+	if (!ether_addr_equal(addr, entry->addr))
+		return false;
+
+	return true;
+}
+
 /* Add a MAC filter for 'addr' directing matching traffic to 'queue',
  * 'flags' is used to indicate what kind of match is made, match is by
  * default for the destination address, if matching by source address
@@ -6881,7 +6902,8 @@ static int igb_add_mac_filter_flags(struct igb_adapter *adapter,
 	 * addresses.
 	 */
 	for (i = 0; i < rar_entries; i++) {
-		if (adapter->mac_table[i].state & IGB_MAC_STATE_IN_USE)
+		if (!igb_mac_entry_can_be_used(&adapter->mac_table[i],
+					       addr, flags))
 			continue;
 
 		ether_addr_copy(adapter->mac_table[i].addr, addr);
@@ -6933,9 +6955,19 @@ static int igb_del_mac_filter_flags(struct igb_adapter *adapter,
 		if (!ether_addr_equal(adapter->mac_table[i].addr, addr))
 			continue;
 
-		adapter->mac_table[i].state = 0;
-		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
-		adapter->mac_table[i].queue = 0;
+		/* When a filter for the default address is "deleted",
+		 * we return it to its initial configuration
+		 */
+		if (adapter->mac_table[i].state & IGB_MAC_STATE_DEFAULT) {
+			adapter->mac_table[i].state =
+				IGB_MAC_STATE_DEFAULT | IGB_MAC_STATE_IN_USE;
+			adapter->mac_table[i].queue =
+				adapter->vfs_allocated_count;
+		} else {
+			adapter->mac_table[i].state = 0;
+			adapter->mac_table[i].queue = 0;
+			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		}
 
 		igb_rar_set_index(adapter, i);
 		return 0;
