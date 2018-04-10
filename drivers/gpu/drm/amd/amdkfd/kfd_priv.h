@@ -41,9 +41,33 @@
 
 #define KFD_SYSFS_FILE_MODE 0444
 
-#define KFD_MMAP_DOORBELL_MASK 0x8000000000000ull
-#define KFD_MMAP_EVENTS_MASK 0x4000000000000ull
-#define KFD_MMAP_RESERVED_MEM_MASK 0x2000000000000ull
+/* GPU ID hash width in bits */
+#define KFD_GPU_ID_HASH_WIDTH 16
+
+/* Use upper bits of mmap offset to store KFD driver specific information.
+ * BITS[63:62] - Encode MMAP type
+ * BITS[61:46] - Encode gpu_id. To identify to which GPU the offset belongs to
+ * BITS[45:0]  - MMAP offset value
+ *
+ * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
+ *  defines are w.r.t to PAGE_SIZE
+ */
+#define KFD_MMAP_TYPE_SHIFT	(62 - PAGE_SHIFT)
+#define KFD_MMAP_TYPE_MASK	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_DOORBELL	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_EVENTS	(0x2ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_RESERVED_MEM	(0x1ULL << KFD_MMAP_TYPE_SHIFT)
+
+#define KFD_MMAP_GPU_ID_SHIFT (46 - PAGE_SHIFT)
+#define KFD_MMAP_GPU_ID_MASK (((1ULL << KFD_GPU_ID_HASH_WIDTH) - 1) \
+				<< KFD_MMAP_GPU_ID_SHIFT)
+#define KFD_MMAP_GPU_ID(gpu_id) ((((uint64_t)gpu_id) << KFD_MMAP_GPU_ID_SHIFT)\
+				& KFD_MMAP_GPU_ID_MASK)
+#define KFD_MMAP_GPU_ID_GET(offset)    ((offset & KFD_MMAP_GPU_ID_MASK) \
+				>> KFD_MMAP_GPU_ID_SHIFT)
+
+#define KFD_MMAP_OFFSET_VALUE_MASK	(0x3FFFFFFFFFFFULL >> PAGE_SHIFT)
+#define KFD_MMAP_OFFSET_VALUE_GET(offset) (offset & KFD_MMAP_OFFSET_VALUE_MASK)
 
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
@@ -54,9 +78,6 @@
  */
 #define KFD_CIK_HIQ_PIPE 4
 #define KFD_CIK_HIQ_QUEUE 0
-
-/* GPU ID hash width in bits */
-#define KFD_GPU_ID_HASH_WIDTH 16
 
 /* Macro for allocating structures */
 #define kfd_alloc_struct(ptr_to_struct)	\
@@ -698,7 +719,7 @@ struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 
-int kfd_reserved_mem_mmap(struct kfd_process *process,
+int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma);
 
 /* KFD process API for creating and translating handles */
@@ -728,7 +749,8 @@ void kfd_pasid_free(unsigned int pasid);
 /* Doorbells */
 int kfd_doorbell_init(struct kfd_dev *kfd);
 void kfd_doorbell_fini(struct kfd_dev *kfd);
-int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma);
+int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
+		      struct vm_area_struct *vma);
 void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 					unsigned int *doorbell_off);
 void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);

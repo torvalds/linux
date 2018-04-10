@@ -126,15 +126,10 @@ void kfd_doorbell_fini(struct kfd_dev *kfd)
 		iounmap(kfd->doorbell_kernel_ptr);
 }
 
-int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma)
+int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
+		      struct vm_area_struct *vma)
 {
 	phys_addr_t address;
-	struct kfd_dev *dev;
-
-	/* Find kfd device according to gpu id */
-	dev = kfd_device_by_id(vma->vm_pgoff);
-	if (!dev)
-		return -EINVAL;
 
 	/*
 	 * For simplicitly we only allow mapping of the entire doorbell

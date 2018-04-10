@@ -451,7 +451,8 @@ static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
 		if (!dev->cwsr_enabled || qpd->cwsr_kaddr || qpd->cwsr_base)
 			continue;
 
-		offset = (dev->id | KFD_MMAP_RESERVED_MEM_MASK) << PAGE_SHIFT;
+		offset = (KFD_MMAP_TYPE_RESERVED_MEM | KFD_MMAP_GPU_ID(dev->id))
+			<< PAGE_SHIFT;
 		qpd->tba_addr = (int64_t)vm_mmap(filep, 0,
 			KFD_CWSR_TBA_TMA_SIZE, PROT_READ | PROT_EXEC,
 			MAP_SHARED, offset);
@@ -989,15 +990,12 @@ int kfd_resume_all_processes(void)
 	return ret;
 }
 
-int kfd_reserved_mem_mmap(struct kfd_process *process,
+int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma)
 {
-	struct kfd_dev *dev = kfd_device_by_id(vma->vm_pgoff);
 	struct kfd_process_device *pdd;
 	struct qcm_process_device *qpd;
 
-	if (!dev)
-		return -EINVAL;
 	if ((vma->vm_end - vma->vm_start) != KFD_CWSR_TBA_TMA_SIZE) {
 		pr_err("Incorrect CWSR mapping size.\n");
 		return -EINVAL;
