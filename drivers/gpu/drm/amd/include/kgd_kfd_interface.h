@@ -173,8 +173,6 @@ struct tile_config {
  * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for no cp
  * scheduling mode. Only used for no cp scheduling mode.
  *
- * @init_pipeline: Initialized the compute pipelines.
- *
  * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for no cp
  * sceduling mode.
  *
@@ -273,9 +271,6 @@ struct kfd2kgd_calls {
 
 	int (*set_pasid_vmid_mapping)(struct kgd_dev *kgd, unsigned int pasid,
 					unsigned int vmid);
-
-	int (*init_pipeline)(struct kgd_dev *kgd, uint32_t pipe_id,
-				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 
 	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
 
