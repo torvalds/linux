@@ -115,6 +115,7 @@
 #define FW_FLASH_OFFSET			0x820
 #define LMAC_VER_OFFSET			(FW_FLASH_OFFSET + 0x200)
 #define MAX_DWORD_ALIGN_BYTES		64
+#define RSI_COMMON_REG_SIZE		2
 
 struct bl_header {
 	__le32 flags;
