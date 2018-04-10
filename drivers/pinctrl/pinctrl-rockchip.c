@@ -1090,6 +1090,13 @@ static struct rockchip_mux_route_data rk3308_mux_route_data[] = {
 		.func = 2,
 		.route_offset = 0x308,
 		.route_val =  BIT(16 + 12) | BIT(16 + 13) | BIT(13),
+	}, {
+		/* pdm-clkm-m2 */
+		.bank_num = 2,
+		.pin = 4,
+		.func = 2,
+		.route_offset = 0x600,
+		.route_val =  BIT(16 + 2) | BIT(2),
 	},
 };
 
