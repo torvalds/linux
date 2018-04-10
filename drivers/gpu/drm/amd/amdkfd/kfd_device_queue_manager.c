@@ -1386,7 +1386,10 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 				   void __user *alternate_aperture_base,
 				   uint64_t alternate_aperture_size)
 {
-	bool retval;
+	bool retval = true;
+
+	if (!dqm->asic_ops.set_cache_memory_policy)
+		return retval;
 
 	mutex_lock(&dqm->lock);
 
@@ -1654,6 +1657,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
+		break;
+
+	case CHIP_VEGA10:
+	case CHIP_RAVEN:
+		device_queue_manager_init_v9(&dqm->asic_ops);
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",

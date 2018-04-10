@@ -137,6 +137,11 @@ extern int debug_largebar;
  */
 extern int ignore_crat;
 
+/*
+ * Set sh_mem_config.retry_disable on Vega10
+ */
+extern int vega10_noretry;
+
 /**
  * enum kfd_sched_policy
  *
