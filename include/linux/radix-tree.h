@@ -104,9 +104,10 @@ struct radix_tree_node {
 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
 };
 
-/* The top bits of gfp_mask are used to store the root tags and the IDR flag */
-#define ROOT_IS_IDR	((__force gfp_t)(1 << __GFP_BITS_SHIFT))
-#define ROOT_TAG_SHIFT	(__GFP_BITS_SHIFT + 1)
+/* The IDR tag is stored in the low bits of the GFP flags */
+#define ROOT_IS_IDR	((__force gfp_t)4)
+/* The top bits of gfp_mask are used to store the root tags */
+#define ROOT_TAG_SHIFT	(__GFP_BITS_SHIFT)
 
 struct radix_tree_root {
 	gfp_t			gfp_mask;

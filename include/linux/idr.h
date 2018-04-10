@@ -29,7 +29,8 @@ struct idr {
 #define IDR_FREE	0
 
 /* Set the IDR flag and the IDR_FREE tag */
-#define IDR_RT_MARKER		((__force gfp_t)(3 << __GFP_BITS_SHIFT))
+#define IDR_RT_MARKER	(ROOT_IS_IDR | (__force gfp_t)			\
+					(1 << (ROOT_TAG_SHIFT + IDR_FREE)))
 
 #define IDR_INIT_BASE(base) {						\
 	.idr_rt = RADIX_TREE_INIT(IDR_RT_MARKER),			\
