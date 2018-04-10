@@ -169,6 +169,26 @@
 		};
 	};
 
+	bt-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco>;
+		};
+	};
+
+	bt_sco: bt-sco {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+
 	rk_headset {
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
@@ -245,7 +265,7 @@
 		init-delay-ms = <20>;
 		enable-delay-ms = <120>;
 		disable-delay-ms = <50>;
-		unprepare-delay-ms = <20>;
+		unprepare-delay-ms = <40>;
 
 		width-mm = <68>;
 		height-mm = <121>;
@@ -592,34 +612,11 @@
 	i2c-scl-rising-time-ns = <275>;
 	i2c-scl-falling-time-ns = <16>;
 
-	sensor@0f {
-		status = "okay";
-		compatible = "ak8963";
-		reg = <0x0f>;
-		type = <SENSOR_TYPE_COMPASS>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		layout = <1>;
-		reprobe_en = <1>;
-	};
-
 	gt1x: gt1x@14 {
 	      compatible = "goodix,gt1x";
 	      reg = <0x14>;
 	      goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 	      goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
-	};
-
-	sensor@4c {
-		status = "okay";
-		compatible = "gs_mma7660";
-		reg = <0x4c>;
-		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		layout = <1>;
-		reprobe_en = <1>;
 	};
 
 	is31fl3236: led-controller@3c {
@@ -954,6 +951,35 @@
 			linux,default-trigger = "default-on";
 		};
 	};
+
+	ls_stk3410: light@48 {
+		compatible = "ls_stk3410";
+		status = "okay";
+		reg = <0x48>;
+		type = <SENSOR_TYPE_LIGHT>;
+		irq_enable = <0>;
+		als_threshold_high = <100>;
+		als_threshold_low = <10>;
+		als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
+		poll_delay_ms = <100>;
+	};
+
+	ps_stk3410: proximity@48 {
+		compatible = "ps_stk3410";
+		status = "okay";
+		reg = <0x48>;
+		type = <SENSOR_TYPE_PROXIMITY>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&gpio2_c3>;
+		//irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
+		//irq_enable = <1>;
+		ps_threshold_high = <0x200>;
+		ps_threshold_low = <0x100>;
+		ps_ctrl_gain = <3>; /* 0:x1 1:x4 2:x16 3:x64 */
+		ps_led_current = <3>; /* 0:12.5mA 1:25mA 2:50mA 3:100mA */
+		poll_delay_ms = <100>;
+	};
+
 };
 
 &i2c2 {
@@ -966,6 +992,12 @@
 	pinctrl-0 = <&i2s1_2ch_sclk
 		     &i2s1_2ch_lrck
 		     &i2s1_2ch_sdo>;
+};
+
+&i2s2_2ch {
+	status = "okay";
+	rockchip,bclk-fs = <64>;
+	#sound-dai-cells = <0>;
 };
 
 &io_domains {
