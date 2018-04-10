@@ -1383,11 +1383,9 @@ static int s3c_fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	sfb = devm_kzalloc(dev, sizeof(struct s3c_fb), GFP_KERNEL);
-	if (!sfb) {
-		dev_err(dev, "no memory for framebuffers\n");
+	sfb = devm_kzalloc(dev, sizeof(*sfb), GFP_KERNEL);
+	if (!sfb)
 		return -ENOMEM;
-	}
 
 	dev_dbg(dev, "allocate new framebuffer %p\n", sfb);
 
@@ -1716,63 +1714,6 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 	},
 };
 
-static struct s3c_fb_win_variant s3c_fb_data_s5p_wins[] = {
-	[0] = {
-		.has_osd_c	= 1,
-		.osd_size_off	= 0x8,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[1] = {
-		.has_osd_c	= 1,
-		.has_osd_d	= 1,
-		.osd_size_off	= 0xc,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[2] = {
-		.has_osd_c	= 1,
-		.has_osd_d	= 1,
-		.osd_size_off	= 0xc,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[3] = {
-		.has_osd_c	= 1,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[4] = {
-		.has_osd_c	= 1,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-};
-
 static struct s3c_fb_driverdata s3c_fb_data_64xx = {
 	.variant = {
 		.nr_windows	= 5,
@@ -1802,102 +1743,6 @@ static struct s3c_fb_driverdata s3c_fb_data_64xx = {
 	.win[2]	= &s3c_fb_data_64xx_wins[2],
 	.win[3]	= &s3c_fb_data_64xx_wins[3],
 	.win[4]	= &s3c_fb_data_64xx_wins[4],
-};
-
-static struct s3c_fb_driverdata s3c_fb_data_s5pv210 = {
-	.variant = {
-		.nr_windows	= 5,
-		.vidtcon	= VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-			[3] = 0x3000,
-			[4] = 0x3400,
-		},
-
-		.has_shadowcon	= 1,
-		.has_blendcon	= 1,
-		.has_clksel	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0]	= &s3c_fb_data_s5p_wins[0],
-	.win[1]	= &s3c_fb_data_s5p_wins[1],
-	.win[2]	= &s3c_fb_data_s5p_wins[2],
-	.win[3]	= &s3c_fb_data_s5p_wins[3],
-	.win[4]	= &s3c_fb_data_s5p_wins[4],
-};
-
-static struct s3c_fb_driverdata s3c_fb_data_exynos4 = {
-	.variant = {
-		.nr_windows	= 5,
-		.vidtcon	= VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-			[3] = 0x3000,
-			[4] = 0x3400,
-		},
-
-		.has_shadowcon	= 1,
-		.has_blendcon	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0]	= &s3c_fb_data_s5p_wins[0],
-	.win[1]	= &s3c_fb_data_s5p_wins[1],
-	.win[2]	= &s3c_fb_data_s5p_wins[2],
-	.win[3]	= &s3c_fb_data_s5p_wins[3],
-	.win[4]	= &s3c_fb_data_s5p_wins[4],
-};
-
-static struct s3c_fb_driverdata s3c_fb_data_exynos5 = {
-	.variant = {
-		.nr_windows	= 5,
-		.vidtcon	= FIMD_V8_VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-			[3] = 0x3000,
-			[4] = 0x3400,
-		},
-		.has_shadowcon	= 1,
-		.has_blendcon	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0]	= &s3c_fb_data_s5p_wins[0],
-	.win[1]	= &s3c_fb_data_s5p_wins[1],
-	.win[2]	= &s3c_fb_data_s5p_wins[2],
-	.win[3]	= &s3c_fb_data_s5p_wins[3],
-	.win[4]	= &s3c_fb_data_s5p_wins[4],
 };
 
 /* S3C2443/S3C2416 style hardware */
@@ -1941,15 +1786,6 @@ static const struct platform_device_id s3c_fb_driver_ids[] = {
 	{
 		.name		= "s3c-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_64xx,
-	}, {
-		.name		= "s5pv210-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_s5pv210,
-	}, {
-		.name		= "exynos4-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_exynos4,
-	}, {
-		.name		= "exynos5-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_exynos5,
 	}, {
 		.name		= "s3c2443-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_s3c2443,
