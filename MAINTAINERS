@@ -4392,7 +4392,7 @@ S:	Maintained
 F:	drivers/staging/fsl-dpaa2/ethsw
 
 DPT_I2O SCSI RAID DRIVER
-M:	Adaptec OEM Raid Solutions <aacraid@adaptec.com>
+M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Maintained
@@ -7345,7 +7345,7 @@ F:	include/linux/ipmi*
 F:	include/uapi/linux/ipmi*
 
 IPS SCSI RAID DRIVER
-M:	Adaptec OEM Raid Solutions <aacraid@adaptec.com>
+M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Maintained
