@@ -538,7 +538,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
 	struct z3fold_header *zhdr = NULL;
 	struct page *page = NULL;
 	enum buddy bud;
-	bool can_sleep = (gfp & __GFP_RECLAIM) == __GFP_RECLAIM;
+	bool can_sleep = gfpflags_allow_blocking(gfp);
 
 	if (!size || (gfp & __GFP_HIGHMEM))
 		return -EINVAL;
