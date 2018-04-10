@@ -274,6 +274,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
 /*
  * struct hmm_range - track invalidation lock on virtual address range
  *
+ * @vma: the vm area struct for the range
  * @list: all range lock are on a list
  * @start: range virtual start address (inclusive)
  * @end: range virtual end address (exclusive)
@@ -281,6 +282,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror);
  * @valid: pfns array did not change since it has been fill by an HMM function
  */
 struct hmm_range {
+	struct vm_area_struct	*vma;
 	struct list_head	list;
 	unsigned long		start;
 	unsigned long		end;
@@ -301,12 +303,8 @@ struct hmm_range {
  *
  * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE INVALID !
  */
-int hmm_vma_get_pfns(struct vm_area_struct *vma,
-		     struct hmm_range *range,
-		     unsigned long start,
-		     unsigned long end,
-		     hmm_pfn_t *pfns);
-bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range);
+int hmm_vma_get_pfns(struct hmm_range *range);
+bool hmm_vma_range_done(struct hmm_range *range);
 
 
 /*
@@ -327,13 +325,7 @@ bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range);
  *
  * See the function description in mm/hmm.c for further documentation.
  */
-int hmm_vma_fault(struct vm_area_struct *vma,
-		  struct hmm_range *range,
-		  unsigned long start,
-		  unsigned long end,
-		  hmm_pfn_t *pfns,
-		  bool write,
-		  bool block);
+int hmm_vma_fault(struct hmm_range *range, bool write, bool block);
 #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 
 
