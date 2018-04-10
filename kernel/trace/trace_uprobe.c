@@ -446,7 +446,7 @@ static int create_trace_uprobe(int argc, char **argv)
 	if (ret)
 		goto fail_address_parse;
 
-	inode = igrab(d_inode(path.dentry));
+	inode = igrab(d_real_inode(path.dentry));
 	path_put(&path);
 
 	if (!inode || !S_ISREG(inode->i_mode)) {
