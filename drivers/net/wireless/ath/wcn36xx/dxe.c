@@ -274,12 +274,14 @@ static int wcn36xx_dxe_enable_ch_int(struct wcn36xx *wcn, u16 wcn_ch)
 	return 0;
 }
 
-static int wcn36xx_dxe_fill_skb(struct device *dev, struct wcn36xx_dxe_ctl *ctl)
+static int wcn36xx_dxe_fill_skb(struct device *dev,
+				struct wcn36xx_dxe_ctl *ctl,
+				gfp_t gfp)
 {
 	struct wcn36xx_dxe_desc *dxe = ctl->desc;
 	struct sk_buff *skb;
 
-	skb = alloc_skb(WCN36XX_PKT_SIZE, GFP_ATOMIC);
+	skb = alloc_skb(WCN36XX_PKT_SIZE, gfp);
 	if (skb == NULL)
 		return -ENOMEM;
 
@@ -306,7 +308,7 @@ static int wcn36xx_dxe_ch_alloc_skb(struct wcn36xx *wcn,
 	cur_ctl = wcn_ch->head_blk_ctl;
 
 	for (i = 0; i < wcn_ch->desc_num; i++) {
-		wcn36xx_dxe_fill_skb(wcn->dev, cur_ctl);
+		wcn36xx_dxe_fill_skb(wcn->dev, cur_ctl, GFP_KERNEL);
 		cur_ctl = cur_ctl->next;
 	}
 
@@ -531,7 +533,7 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 	while (!(dxe->ctrl & WCN36xx_DXE_CTRL_VLD)) {
 		skb = ctl->skb;
 		dma_addr = dxe->dst_addr_l;
-		ret = wcn36xx_dxe_fill_skb(wcn->dev, ctl);
+		ret = wcn36xx_dxe_fill_skb(wcn->dev, ctl, GFP_ATOMIC);
 		if (0 == ret) {
 			/* new skb allocation ok. Use the new one and queue
 			 * the old one to network system.
