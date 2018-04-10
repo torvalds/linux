@@ -324,8 +324,14 @@ static const struct midr_range arm64_bp_harden_smccc_cpus[] = {
 
 #endif
 
-#ifndef ERRATA_MIDR_ALL_VERSIONS
-#define	ERRATA_MIDR_ALL_VERSIONS(x)	MIDR_ALL_VERSIONS(x)
+#ifdef CONFIG_HARDEN_EL2_VECTORS
+
+static const struct midr_range arm64_harden_el2_vectors[] = {
+	MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
+	MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+	{},
+};
+
 #endif
 
 const struct arm64_cpu_capabilities arm64_errata[] = {
@@ -478,14 +484,10 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #endif
 #ifdef CONFIG_HARDEN_EL2_VECTORS
 	{
-		.desc = "Cortex-A57 EL2 vector hardening",
+		.desc = "EL2 vector hardening",
 		.capability = ARM64_HARDEN_EL2_VECTORS,
-		ERRATA_MIDR_ALL_VERSIONS(MIDR_CORTEX_A57),
-	},
-	{
-		.desc = "Cortex-A72 EL2 vector hardening",
-		.capability = ARM64_HARDEN_EL2_VECTORS,
-		ERRATA_MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
+		ERRATA_MIDR_RANGE_LIST(arm64_harden_el2_vectors),
 	},
 #endif
 	{
