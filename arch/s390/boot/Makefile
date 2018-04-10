@@ -28,13 +28,29 @@ endif
 CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char
 
 obj-y	:= head.o als.o startup.o mem_detect.o ebcdic.o sclp_early_core.o mem.o
-targets	:= bzImage startup.a $(obj-y)
+targets	:= bzImage startup.a section_cmp.boot.data $(obj-y)
 subdir-	:= compressed
 
 OBJECTS := $(addprefix $(obj)/,$(obj-y))
 
-$(obj)/bzImage: $(obj)/compressed/vmlinux FORCE
+quiet_cmd_section_cmp = SECTCMP $*
+define cmd_section_cmp
+	s1=`$(OBJDUMP) -t -j "$*" "$<" | sort | \
+		sed -n "/0000000000000000/! s/.*\s$*\s\+//p" | sha256sum`; \
+	s2=`$(OBJDUMP) -t -j "$*" "$(word 2,$^)" | sort | \
+		sed -n "/0000000000000000/! s/.*\s$*\s\+//p" | sha256sum`; \
+	if [ "$$s1" != "$$s2" ]; then \
+		echo "error: section $* differs between $< and $(word 2,$^)" >&2; \
+		exit 1; \
+	fi; \
+	touch $@
+endef
+
+$(obj)/bzImage: $(obj)/compressed/vmlinux $(obj)/section_cmp.boot.data FORCE
 	$(call if_changed,objcopy)
+
+$(obj)/section_cmp%: vmlinux $(obj)/compressed/vmlinux FORCE
+	$(call if_changed,section_cmp)
 
 $(obj)/compressed/vmlinux: $(obj)/startup.a FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
