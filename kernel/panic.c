@@ -328,27 +328,12 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 };
 
 /**
- *	print_tainted - return a string to represent the kernel taint state.
+ * print_tainted - return a string to represent the kernel taint state.
  *
- *  'P' - Proprietary module has been loaded.
- *  'F' - Module has been forcibly loaded.
- *  'S' - SMP with CPUs not designed for SMP.
- *  'R' - User forced a module unload.
- *  'M' - System experienced a machine check exception.
- *  'B' - System has hit bad_page.
- *  'U' - Userspace-defined naughtiness.
- *  'D' - Kernel has oopsed before
- *  'A' - ACPI table overridden.
- *  'W' - Taint on warning.
- *  'C' - modules from drivers/staging are loaded.
- *  'I' - Working around severe firmware bug.
- *  'O' - Out-of-tree module has been loaded.
- *  'E' - Unsigned module has been loaded.
- *  'L' - A soft lockup has previously occurred.
- *  'K' - Kernel has been live patched.
- *  'X' - Auxiliary taint, for distros' use.
+ * For individual taint flag meanings, see Documentation/sysctl/kernel.txt
  *
- *	The string is overwritten by the next call to print_tainted().
+ * The string is overwritten by the next call to print_tainted(),
+ * but is always NULL terminated.
  */
 const char *print_tainted(void)
 {
