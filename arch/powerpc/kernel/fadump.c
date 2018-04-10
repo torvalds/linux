@@ -335,6 +335,26 @@ static unsigned long get_fadump_area_size(void)
 	return size;
 }
 
+static void __init fadump_reserve_crash_area(unsigned long base,
+					     unsigned long size)
+{
+	struct memblock_region *reg;
+	unsigned long mstart, mend, msize;
+
+	for_each_memblock(memory, reg) {
+		mstart = max_t(unsigned long, base, reg->base);
+		mend = reg->base + reg->size;
+		mend = min(base + size, mend);
+
+		if (mstart < mend) {
+			msize = mend - mstart;
+			memblock_reserve(mstart, msize);
+			pr_info("Reserved %ldMB of memory at %#016lx for saving crash dump\n",
+				(msize >> 20), mstart);
+		}
+	}
+}
+
 int __init fadump_reserve_mem(void)
 {
 	unsigned long base, size, memory_boundary;
@@ -380,7 +400,8 @@ int __init fadump_reserve_mem(void)
 		memory_boundary = memblock_end_of_DRAM();
 
 	if (fw_dump.dump_active) {
-		printk(KERN_INFO "Firmware-assisted dump is active.\n");
+		pr_info("Firmware-assisted dump is active.\n");
+
 		/*
 		 * If last boot has crashed then reserve all the memory
 		 * above boot_memory_size so that we don't touch it until
@@ -389,11 +410,7 @@ int __init fadump_reserve_mem(void)
 		 */
 		base = fw_dump.boot_memory_size;
 		size = memory_boundary - base;
-		memblock_reserve(base, size);
-		printk(KERN_INFO "Reserved %ldMB of memory at %ldMB "
-				"for saving crash dump\n",
-				(unsigned long)(size >> 20),
-				(unsigned long)(base >> 20));
+		fadump_reserve_crash_area(base, size);
 
 		fw_dump.fadumphdr_addr =
 				be64_to_cpu(fdm_active->rmr_region.destination_address) +
