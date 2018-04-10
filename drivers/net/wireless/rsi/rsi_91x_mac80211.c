@@ -1957,8 +1957,6 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	hw->max_tx_aggregation_subframes = RSI_MAX_TX_AGGR_FRMS;
 	hw->max_rx_aggregation_subframes = RSI_MAX_RX_AGGR_FRMS;
-	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
-	rsi_register_rates_channels(adapter, NL80211_BAND_5GHZ);
 	hw->rate_control_algorithm = "AARF";
 
 	SET_IEEE80211_PERM_ADDR(hw, common->mac_addr);
@@ -1979,10 +1977,15 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	wiphy->available_antennas_rx = 1;
 	wiphy->available_antennas_tx = 1;
+
+	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
 	wiphy->bands[NL80211_BAND_2GHZ] =
 		&adapter->sbands[NL80211_BAND_2GHZ];
-	wiphy->bands[NL80211_BAND_5GHZ] =
-		&adapter->sbands[NL80211_BAND_5GHZ];
+	if (common->num_supp_bands > 1) {
+		rsi_register_rates_channels(adapter, NL80211_BAND_5GHZ);
+		wiphy->bands[NL80211_BAND_5GHZ] =
+			&adapter->sbands[NL80211_BAND_5GHZ];
+	}
 
 	/* AP Parameters */
 	wiphy->max_ap_assoc_sta = rsi_max_ap_stas[common->oper_mode - 1];
