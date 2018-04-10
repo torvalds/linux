@@ -84,7 +84,6 @@ struct hmm;
  * HMM_PFN_VALID: pfn is valid. It has, at least, read permission.
  * HMM_PFN_WRITE: CPU page table has write permission set
  * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
- * HMM_PFN_EMPTY: corresponding CPU page table entry is pte_none()
  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
  *      result of vm_insert_pfn() or vm_insert_page(). Therefore, it should not
  *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
@@ -94,10 +93,9 @@ struct hmm;
 #define HMM_PFN_VALID (1 << 0)
 #define HMM_PFN_WRITE (1 << 1)
 #define HMM_PFN_ERROR (1 << 2)
-#define HMM_PFN_EMPTY (1 << 3)
-#define HMM_PFN_SPECIAL (1 << 4)
-#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 5)
-#define HMM_PFN_SHIFT 6
+#define HMM_PFN_SPECIAL (1 << 3)
+#define HMM_PFN_DEVICE_UNADDRESSABLE (1 << 4)
+#define HMM_PFN_SHIFT 5
 
 /*
  * hmm_pfn_to_page() - return struct page pointed to by a valid HMM pfn
