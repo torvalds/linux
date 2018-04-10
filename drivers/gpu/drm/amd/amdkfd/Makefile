@@ -37,7 +37,7 @@ amdkfd-y	:= kfd_module.o kfd_device.o kfd_chardev.o kfd_topology.o \
 		kfd_device_queue_manager.o kfd_device_queue_manager_cik.o \
 		kfd_device_queue_manager_vi.o kfd_device_queue_manager_v9.o \
 		kfd_interrupt.o kfd_events.o cik_event_interrupt.o \
-		kfd_dbgdev.o kfd_dbgmgr.o kfd_crat.o
+		kfd_int_process_v9.o kfd_dbgdev.o kfd_dbgmgr.o kfd_crat.o
 
 ifneq ($(CONFIG_AMD_IOMMU_V2),)
 amdkfd-y += kfd_iommu.o
