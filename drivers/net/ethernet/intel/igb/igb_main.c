@@ -6950,6 +6950,28 @@ static int igb_del_mac_filter(struct igb_adapter *adapter, const u8 *addr,
 	return igb_del_mac_filter_flags(adapter, addr, queue, 0);
 }
 
+int igb_add_mac_steering_filter(struct igb_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* In theory, this should be supported on 82575 as well, but
+	 * that part wasn't easily accessible during development.
+	 */
+	if (hw->mac.type != e1000_i210)
+		return -EOPNOTSUPP;
+
+	return igb_add_mac_filter_flags(adapter, addr, queue,
+					IGB_MAC_STATE_QUEUE_STEERING | flags);
+}
+
+int igb_del_mac_steering_filter(struct igb_adapter *adapter,
+				const u8 *addr, u8 queue, u8 flags)
+{
+	return igb_del_mac_filter_flags(adapter, addr, queue,
+					IGB_MAC_STATE_QUEUE_STEERING | flags);
+}
+
 static int igb_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -8799,6 +8821,10 @@ static void igb_rar_set_index(struct igb_adapter *adapter, u32 index)
 		switch (hw->mac.type) {
 		case e1000_82575:
 		case e1000_i210:
+			if (adapter->mac_table[index].state &
+			    IGB_MAC_STATE_QUEUE_STEERING)
+				rar_high |= E1000_RAH_QSEL_ENABLE;
+
 			rar_high |= E1000_RAH_POOL_1 *
 				    adapter->mac_table[index].queue;
 			break;
