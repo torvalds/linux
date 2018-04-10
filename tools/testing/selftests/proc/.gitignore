@@ -1,1 +1,2 @@
-/proc-self-wchan
+/proc-self-mem
+/proc-self-syscall
