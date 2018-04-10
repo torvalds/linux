@@ -11,6 +11,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/proc_ns.h>
+#include <linux/refcount.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/binfmts.h>
@@ -36,7 +37,7 @@ struct proc_dir_entry {
 	 * negative -> it's going away RSN
 	 */
 	atomic_t in_use;
-	atomic_t count;		/* use count */
+	refcount_t refcnt;
 	struct list_head pde_openers;	/* who did ->open, but not ->release */
 	/* protects ->pde_openers and all struct pde_opener instances */
 	spinlock_t pde_unload_lock;
@@ -168,7 +169,7 @@ int proc_readdir_de(struct file *, struct dir_context *, struct proc_dir_entry *
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 {
-	atomic_inc(&pde->count);
+	refcount_inc(&pde->refcnt);
 	return pde;
 }
 extern void pde_put(struct proc_dir_entry *);

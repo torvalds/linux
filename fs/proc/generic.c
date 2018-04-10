@@ -402,7 +402,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	ent->mode = mode;
 	ent->nlink = nlink;
 	ent->subdir = RB_ROOT_CACHED;
-	atomic_set(&ent->count, 1);
+	refcount_set(&ent->refcnt, 1);
 	spin_lock_init(&ent->pde_unload_lock);
 	INIT_LIST_HEAD(&ent->pde_openers);
 	proc_set_user(ent, (*parent)->uid, (*parent)->gid);
@@ -553,7 +553,7 @@ EXPORT_SYMBOL(proc_set_user);
 
 void pde_put(struct proc_dir_entry *pde)
 {
-	if (atomic_dec_and_test(&pde->count)) {
+	if (refcount_dec_and_test(&pde->refcnt)) {
 		proc_free_inum(pde->low_ino);
 		pde_free(pde);
 	}
