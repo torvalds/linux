@@ -34,10 +34,12 @@ struct ring_buffer_event {
  *				 array[0] = time delta (28 .. 59)
  *				 size = 8 bytes
  *
- * @RINGBUF_TYPE_TIME_STAMP:	Sync time stamp with external clock
- *				 array[0]    = tv_nsec
- *				 array[1..2] = tv_sec
- *				 size = 16 bytes
+ * @RINGBUF_TYPE_TIME_STAMP:	Absolute timestamp
+ *				 Same format as TIME_EXTEND except that the
+ *				 value is an absolute timestamp, not a delta
+ *				 event.time_delta contains bottom 27 bits
+ *				 array[0] = top (28 .. 59) bits
+ *				 size = 8 bytes
  *
  * <= @RINGBUF_TYPE_DATA_TYPE_LEN_MAX:
  *				Data record
@@ -54,12 +56,12 @@ enum ring_buffer_type {
 	RINGBUF_TYPE_DATA_TYPE_LEN_MAX = 28,
 	RINGBUF_TYPE_PADDING,
 	RINGBUF_TYPE_TIME_EXTEND,
-	/* FIXME: RINGBUF_TYPE_TIME_STAMP not implemented */
 	RINGBUF_TYPE_TIME_STAMP,
 };
 
 unsigned ring_buffer_event_length(struct ring_buffer_event *event);
 void *ring_buffer_event_data(struct ring_buffer_event *event);
+u64 ring_buffer_event_time_stamp(struct ring_buffer_event *event);
 
 /*
  * ring_buffer_discard_commit will remove an event that has not
@@ -114,6 +116,9 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 			      struct ring_buffer_event *event);
 int ring_buffer_write(struct ring_buffer *buffer,
 		      unsigned long length, void *data);
+
+void ring_buffer_nest_start(struct ring_buffer *buffer);
+void ring_buffer_nest_end(struct ring_buffer *buffer);
 
 struct ring_buffer_event *
 ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts,
@@ -178,6 +183,8 @@ void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
 				      int cpu, u64 *ts);
 void ring_buffer_set_clock(struct ring_buffer *buffer,
 			   u64 (*clock)(void));
+void ring_buffer_set_time_stamp_abs(struct ring_buffer *buffer, bool abs);
+bool ring_buffer_time_stamp_abs(struct ring_buffer *buffer);
 
 size_t ring_buffer_page_len(void *page);
 

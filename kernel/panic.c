@@ -554,6 +554,8 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 	else
 		dump_stack();
 
+	print_irqtrace_events(current);
+
 	print_oops_end_marker();
 
 	/* Just a warning, don't kill lockdep. */
