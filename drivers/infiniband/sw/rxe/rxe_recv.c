@@ -311,7 +311,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		 * increase the users of the skb then post to the next qp
 		 */
 		if (mce->qp_list.next != &mcg->qp_list)
-			refcount_inc(&skb->users);
+			skb_get(skb);
 
 		pkt->qp = qp;
 		rxe_add_ref(qp);
