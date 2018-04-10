@@ -279,7 +279,7 @@ static void submit_packet(struct kernel_queue *kq)
 
 static void rollback_packet(struct kernel_queue *kq)
 {
-	kq->pending_wptr = *kq->queue->properties.write_ptr;
+	kq->pending_wptr = *kq->wptr_kernel;
 }
 
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
