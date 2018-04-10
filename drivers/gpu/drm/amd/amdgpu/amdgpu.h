@@ -1391,6 +1391,7 @@ enum amd_hw_ip_block_type {
 	ATHUB_HWIP,
 	NBIO_HWIP,
 	MP0_HWIP,
+	MP1_HWIP,
 	UVD_HWIP,
 	VCN_HWIP = UVD_HWIP,
 	VCE_HWIP,
@@ -1400,6 +1401,7 @@ enum amd_hw_ip_block_type {
 	SMUIO_HWIP,
 	PWR_HWIP,
 	NBIF_HWIP,
+	THM_HWIP,
 	MAX_HWIP
 };
 
