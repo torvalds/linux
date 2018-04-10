@@ -52,6 +52,23 @@ struct ath10k_snoc_ce_irq {
 	u32 irq_line;
 };
 
+struct ath10k_wcn3990_vreg_info {
+	struct regulator *reg;
+	const char *name;
+	u32 min_v;
+	u32 max_v;
+	u32 load_ua;
+	unsigned long settle_delay;
+	bool required;
+};
+
+struct ath10k_wcn3990_clk_info {
+	struct clk *handle;
+	const char *name;
+	u32 freq;
+	bool required;
+};
+
 struct ath10k_snoc {
 	struct platform_device *dev;
 	struct ath10k *ar;
@@ -63,6 +80,8 @@ struct ath10k_snoc {
 	struct ath10k_snoc_ce_irq ce_irqs[CE_COUNT_MAX];
 	struct ath10k_ce ce;
 	struct timer_list rx_post_retry;
+	struct ath10k_wcn3990_vreg_info *vreg;
+	struct ath10k_wcn3990_clk_info *clk;
 };
 
 static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)
