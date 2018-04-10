@@ -766,6 +766,7 @@ F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.c
 F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd.h
 F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v7.c
 F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v8.c
+F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gfx_v9.c
 F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c
 F:	drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c
 F:	drivers/gpu/drm/amd/amdkfd/
