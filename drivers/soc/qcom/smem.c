@@ -364,6 +364,11 @@ static int qcom_smem_alloc_private(struct qcom_smem *smem,
 	end = phdr_to_last_uncached_entry(phdr);
 	cached = phdr_to_last_cached_entry(phdr);
 
+	if (smem->global_partition) {
+		dev_err(smem->dev, "Already found the global partition\n");
+		return -EINVAL;
+	}
+
 	while (hdr < end) {
 		if (hdr->canary != SMEM_PRIVATE_CANARY)
 			goto bad_canary;
@@ -726,11 +731,6 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 
 	if (!le32_to_cpu(entry->offset) || !le32_to_cpu(entry->size)) {
 		dev_err(smem->dev, "Invalid entry for global partition\n");
-		return -EINVAL;
-	}
-
-	if (smem->global_partition) {
-		dev_err(smem->dev, "Already found the global partition\n");
 		return -EINVAL;
 	}
 
