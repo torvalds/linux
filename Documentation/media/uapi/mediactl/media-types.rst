@@ -7,11 +7,11 @@ Types and flags used to represent the media graph elements
 
 ..  tabularcolumns:: |p{8.2cm}|p{10.3cm}|
 
-.. _media-entity-type:
+.. _media-entity-functions:
 
 .. cssclass:: longtable
 
-.. flat-table:: Media entity types
+.. flat-table:: Media entity functions
     :header-rows:  0
     :stub-columns: 0
 

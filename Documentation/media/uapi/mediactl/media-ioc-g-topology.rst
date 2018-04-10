@@ -205,13 +205,13 @@ desired arrays with the media graph elements.
 
        -  ``function``
 
-       -  Entity main function, see :ref:`media-entity-type` for details.
+       -  Entity main function, see :ref:`media-entity-functions` for details.
 
     -  .. row 4
 
        -  __u32
 
-       -  ``reserved``\ [12]
+       -  ``reserved``\ [6]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
@@ -334,7 +334,7 @@ desired arrays with the media graph elements.
 
        -  __u32
 
-       -  ``reserved``\ [9]
+       -  ``reserved``\ [5]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
@@ -390,7 +390,7 @@ desired arrays with the media graph elements.
 
        -  __u32
 
-       -  ``reserved``\ [5]
+       -  ``reserved``\ [6]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.

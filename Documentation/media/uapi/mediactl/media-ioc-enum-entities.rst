@@ -89,7 +89,7 @@ id's until they get an error.
 
        -
        -
-       -  Entity type, see :ref:`media-entity-type` for details.
+       -  Entity type, see :ref:`media-entity-functions` for details.
 
     -  .. row 4
 

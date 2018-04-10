@@ -3565,7 +3565,7 @@ enum v4l2_dv_it_content_type -
     HDMI carries 5V on one of the pins). This is often used to power an
     eeprom which contains EDID information, such that the source can
     read the EDID even if the sink is in standby/power off. Each bit
-    corresponds to an input pad on the transmitter. If an input pad
+    corresponds to an input pad on the receiver. If an input pad
     cannot detect whether power is present, then the bit for that pad
     will be 0. This read-only control is applicable to DVI-D, HDMI and
     DisplayPort connectors.
