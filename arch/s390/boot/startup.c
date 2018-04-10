@@ -5,6 +5,8 @@
 #include "compressed/decompressor.h"
 #include "boot.h"
 
+extern char __boot_data_start[], __boot_data_end[];
+
 void error(char *x)
 {
 	sclp_early_printk("\n\n");
@@ -36,6 +38,13 @@ static void rescue_initrd(void)
 	INITRD_START = min_initrd_addr;
 }
 
+static void copy_bootdata(void)
+{
+	if (__boot_data_end - __boot_data_start != vmlinux.bootdata_size)
+		error(".boot.data section size mismatch");
+	memcpy((void *)vmlinux.bootdata_off, __boot_data_start, vmlinux.bootdata_size);
+}
+
 void startup_kernel(void)
 {
 	void *img;
@@ -45,5 +54,6 @@ void startup_kernel(void)
 		img = decompress_kernel();
 		memmove((void *)vmlinux.default_lma, img, vmlinux.image_size);
 	}
+	copy_bootdata();
 	vmlinux.entry();
 }

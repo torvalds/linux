@@ -15,6 +15,8 @@ struct vmlinux_info {
 	void (*entry)(void);
 	unsigned long image_size;	/* does not include .bss */
 	unsigned long bss_size;		/* uncompressed image .bss size */
+	unsigned long bootdata_off;
+	unsigned long bootdata_size;
 };
 
 extern char _vmlinux_info[];

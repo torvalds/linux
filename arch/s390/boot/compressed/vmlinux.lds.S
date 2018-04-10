@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
@@ -32,6 +33,8 @@ SECTIONS
 		*(.data.*)
 		_edata = . ;
 	}
+	BOOT_DATA
+
 	/*
 	 * uncompressed image info used by the decompressor it should match
 	 * struct vmlinux_info. It comes from .vmlinux.info section of
