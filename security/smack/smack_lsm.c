@@ -3140,6 +3140,7 @@ static int smack_sem_semctl(struct kern_ipc_perm *isp, int cmd)
 	case GETALL:
 	case IPC_STAT:
 	case SEM_STAT:
+	case SEM_STAT_ANY:
 		may = MAY_READ;
 		break;
 	case SETVAL:
