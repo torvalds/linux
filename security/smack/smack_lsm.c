@@ -3230,6 +3230,7 @@ static int smack_msg_queue_msgctl(struct kern_ipc_perm *isp, int cmd)
 	switch (cmd) {
 	case IPC_STAT:
 	case MSG_STAT:
+	case MSG_STAT_ANY:
 		may = MAY_READ;
 		break;
 	case IPC_SET:
