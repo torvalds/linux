@@ -867,6 +867,8 @@ struct amdgpu_gfx_config {
 
 	/* gfx configure feature */
 	uint32_t double_offchip_lds_buf;
+	/* cached value of DB_DEBUG2 */
+	uint32_t db_debug2;
 };
 
 struct amdgpu_cu_info {
