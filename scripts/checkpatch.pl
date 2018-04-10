@@ -1298,6 +1298,7 @@ sub sanitise_line {
 sub get_quoted_string {
 	my ($line, $rawline) = @_;
 
+	return "" if (!defined($line) || !defined($rawline));
 	return "" if ($line !~ m/($String)/g);
 	return substr($rawline, $-[0], $+[0] - $-[0]);
 }
@@ -5807,7 +5808,7 @@ sub process {
 			}
 		}
 
-		# check for vsprintf extension %p<foo> misuses
+# check for vsprintf extension %p<foo> misuses
 		if ($^V && $^V ge 5.10.0 &&
 		    defined $stat &&
 		    $stat =~ /^\+(?![^\{]*\{\s*).*\b(\w+)\s*\(.*$String\s*,/s &&
