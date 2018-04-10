@@ -177,7 +177,7 @@ struct pde_opener {
 	struct list_head lh;
 	bool closing;
 	struct completion *c;
-};
+} __randomize_layout;
 extern const struct inode_operations proc_link_inode_operations;
 
 extern const struct inode_operations proc_pid_link_inode_operations;
