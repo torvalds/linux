@@ -39,7 +39,6 @@ then point your browser at **Documentation/output/labs/index.html**.
    lectures/syscalls.rst
    lectures/interrupts.rst
    lectures/smp.rst
-   lectures/debugging.rst
    labs/vm.rst
    labs/exercises.rst
    labs/introduction.rst
@@ -48,5 +47,6 @@ then point your browser at **Documentation/output/labs/index.html**.
    labs/device_drivers.rst
    labs/interrupts.rst
    labs/deferred_work.rst
+   labs/block_device_drivers.rst
    labs/memory_mapping.rst
    labs/device_model.rst
