@@ -34,11 +34,9 @@ exceed the size of a page. The size of the block may vary depending on the file
 system used, the most common values being 512 bytes, 1 kilobytes and 4
 kilobytes.
 
-Block I/O devices in Linux
-==========================
 
 Register a block I/O device
----------------------------
+===========================
 
 To register a block I/O device, function :c:func:`register_blkdev` is used.
 To deregister a block I/O device, function :c:func:`unregister_blkdev` is
@@ -82,7 +80,7 @@ the module exit function. A typical scenario is presented below:
 
 
 Register a disk
----------------
+===============
 
 Although the :c:func:`register_blkdev` function obtains a major, it does not
 provide a device (disk) to the system. For creating and using block devices
@@ -157,7 +155,7 @@ users of the device and call the :c:func:`del_gendisk` function only when there
 are no users left of the device.
 
 :c:type:`struct gendisk` structure
-----------------------------------
+==================================
 
 The :c:type:`struct gendisk` structure stores information about a disk. As
 stated above, such a structure is obtained from the :c:func:`alloc_disk` call
@@ -259,7 +257,7 @@ example of such conversion is when calling the :c:func:`set_capacity` function
 in the code above).
 
 :c:type:`struct block_device_operations` structure
---------------------------------------------------
+==================================================
 
 Just as for a character device, operations in :c:type:`struct file_operations`
 should be completed, so for a block device, the operations in
@@ -343,7 +341,7 @@ performed by the :c:func:`request` function associated with the request queue
 of the disk.
 
 Request queues
---------------
+==============
 
 Drivers for block devices use queues to store the block requests I/O that will
 be processed. A request queue is represented by the
@@ -361,7 +359,7 @@ in order to maximize performance. The scheduler also deals with the combination
 of adjacent requests (which refer to adjacent sectors of the disk).
 
 Create and delete a request queue
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 A request queue is created with the :c:func:`blk_init_queue` function and is
 deleted using the :c:func:`blk_cleanup_queue` function.
@@ -435,7 +433,7 @@ As part of the request queue initialization, you can configure the
 field in other structures.
 
 Useful functions for processing request queues
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------
 
 The function of type :c:type:`request_fn_proc` is used to handle requests for
 working  with the block device. This function is the equivalent of read and
@@ -462,7 +460,7 @@ must be acquired. If the function is called from the function of type
 :c:type:`request_fn_proc`, then the spinlock is already held.
 
 Requests for block devices
---------------------------
+==========================
 
 A request for a block device is described by :c:type:`struct request`
 structure.
@@ -491,7 +489,7 @@ The fields of :c:type:`struct request` structure include:
      will be discussed in the ref:`bio_structure` section;
 
 Create a request
-^^^^^^^^^^^^^^^^
+----------------
 
 Read /write requests are created by code layers superior to the kernel I/O
 subsystem. Typically, the subsystem that creates requests for block devices is
@@ -502,7 +500,7 @@ of the specific block device and sorting and merging requests according to
 performance considerations.
 
 Finish a request
-^^^^^^^^^^^^^^^^
+----------------
 
 When the driver has finished transferring all the sectors of a request to /from
 the device, it must inform the I/O subsystem by calling the
@@ -516,7 +514,7 @@ function is called if the lock associated to the request queue is already
 acquired.
 
 Process a request
-^^^^^^^^^^^^^^^^^
+-----------------
 
 The central part of a block device driver is the :c:type:`request_fn_proc`
 function type. In previous examples, the function that fulfilled this role was
@@ -595,7 +593,7 @@ within this loop are:
 .. _bio_structure:
 
 :c:type:`struct bio` structure
-------------------------------
+==============================
 
 Each :c:type:`struct request` structure is an I/O block request, but may come
 from combining more independent requests from a higher level. The sectors to be
@@ -628,7 +626,7 @@ a block I/O request.
        //...
    };
 
-In turn, the :c:struct:`struct bio` structure contains a :c:member:`bi_io_vec`
+In turn, the :c:type:`struct bio` structure contains a :c:member:`bi_io_vec`
 vector of :c:type:`struct bio_vec` structures. It consists of the individual
 pages in the physical memory to be transferred, the offset within the page and
 the size of the buffer. To iterate through a :c:type:`struct bio` structure,
@@ -640,7 +638,7 @@ iteration. The request type is encoded in the :c:member:`bi_opf` field; to
 determine it, use the :c:func:`bio_data_dir` function.
 
 Create a :c:type:`struct bio` structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------------
 
 Two functions can be used to create a :c:type:`struct bio` structure:
 
@@ -655,8 +653,8 @@ Two functions can be used to create a :c:type:`struct bio` structure:
 
 Both functions return a new :c:type:`struct bio` structure.
 
-Transmit a :c:type:`struct bio` structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Submit a :c:type:`struct bio` structure
+---------------------------------------
 
 Usually, a :c:type:`struct bio` structure is created by the higher levels of
 the kernel (usually the file system). A structure thus created is then
@@ -673,9 +671,9 @@ processed by the I/O device driver using a specialized function.
 .. _bio_completion:
 
 Wait for the completion of a :c:type:`struct bio` structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------------------------------
 
-Transmitting a :c:type:`struct bio` structure to a driver has the effect of
+Submitting a :c:type:`struct bio` structure to a driver has the effect of
 adding it to a request from the request queue from where it will be further
 processed. Thus, when the :c:func:`submit_bio` function returns, it is not
 guaranteed that the processing of the structure has finished. If you want to
@@ -691,7 +689,7 @@ specifies the function that will be called at the end of the
 function.
 
 Initialize a :c:type:`struct bio` structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------------
 
 Once a :c:type:`struct bio` structure has been allocated and before being
 transmitted, it must be initialized.
@@ -728,7 +726,7 @@ the :c:func:`alloc_page` call.
 .. _bio_content:
 
 How to use the content of a :c:type:`struct bio` structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------------------
 
 To use the content of a :c:type:`struct bio` structure, the structure's
 support pages must be mapped to the kernel address space from where they can be
@@ -809,13 +807,13 @@ A typical example of use is:
    }
 
 Free a :c:type:`struct bio` structure
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------
 
 Once a kernel subsystem uses a :c:type:`struct bio` structure, it will have to
 release the reference to it. This is done by calling :c:func:`bio_put` function.
 
 Set up a request queue at :c:type:`struct bio` level
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------------
 
 The function :c:func:`blk_init_queue` may specify a function to be used to
 process requests sent to the driver. The function receives as argument the
@@ -1111,7 +1109,13 @@ standard output.
 6. Processing requests from the request queue at :c:type:`struct bio` level
 ---------------------------------------------------------------------------
 
-In the implementation from exercise 3, we have only processed a bio_vec of the current bio from the request. We want to process all bio_vecs from all bio. For this we will go through all bio requests and all bio_vecs (also called segments) to each bio.
+In the implementation from Exercise 3, we have only processed a
+:c:type:`struct bio_vec` of the current :c:type:`struct bio` from the request.
+We want to process all :c:type:`struct bio_vec` structures from all
+:c:type:`struct bio` structures.
+For this, we will iterate through all :c:type:`struct bio` requests and through
+all :c:type:`struct bio_vec` structures (also called segments) of each
+:c:type:`struct bio`.
 
 Add, within the ramdisk implementation (:file:`1-2-3-6-ram-disk/` directory),
 support for processing the requests from the request queue at
