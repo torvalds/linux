@@ -34,9 +34,23 @@
 #include "../atom/sst-atom-controls.h"
 #include "../common/sst-dsp.h"
 
+#define BYT_RT5660_MCLK_EN	BIT(17)
+#define BYT_RT5660_MCLK_25MHZ	BIT(18)
+
 struct byt_rt5660_private {
+	struct clk *mclk;
 	struct gpio_desc *gpio_lo_mute;
 };
+
+static unsigned long byt_rt5660_quirk = BYT_RT5660_MCLK_EN;
+
+static void log_quirks(struct device *dev)
+{
+	if (byt_rt5660_quirk & BYT_RT5660_MCLK_EN)
+		dev_info(dev, "quirk MCLK_EN enabled");
+	if (byt_rt5660_quirk & BYT_RT5660_MCLK_25MHZ)
+		dev_info(dev, "quirk MCLK_25MHZ enabled");
+}
 
 static int byt_rt5660_event_lineout(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
@@ -51,12 +65,71 @@ static int byt_rt5660_event_lineout(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+#define BYT_CODEC_DAI1	"rt5660-aif1"
+
+static int platform_clock_control(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_dai *codec_dai;
+	struct byt_rt5660_private *priv = snd_soc_card_get_drvdata(card);
+	int ret;
+
+	codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI1);
+	if (!codec_dai) {
+		dev_err(card->dev,
+			"Codec dai not found; Unable to set platform clock\n");
+		return -EIO;
+	}
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		if (byt_rt5660_quirk & BYT_RT5660_MCLK_EN) {
+			ret = clk_prepare_enable(priv->mclk);
+			if (ret < 0) {
+				dev_err(card->dev,
+					"could not configure MCLK state");
+				return ret;
+			}
+		}
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5660_SCLK_S_PLL1,
+					     48000 * 512,
+					     SND_SOC_CLOCK_IN);
+	} else {
+		/*
+		 * Set codec clock source to internal clock before
+		 * turning off the platform clock. Codec needs clock
+		 * for Jack detection and button press
+		 */
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5660_SCLK_S_RCCLK,
+					     48000 * 512,
+					     SND_SOC_CLOCK_IN);
+		if (!ret)
+			if (byt_rt5660_quirk & BYT_RT5660_MCLK_EN)
+				clk_disable_unprepare(priv->mclk);
+	}
+
+	if (ret < 0) {
+		dev_err(card->dev, "can't set codec sysclk: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget byt_rt5660_widgets[] = {
 	SND_SOC_DAPM_MIC("Line In", NULL),
 	SND_SOC_DAPM_LINE("Line Out", byt_rt5660_event_lineout),
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+			    platform_clock_control, SND_SOC_DAPM_PRE_PMU |
+			    SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route byt_rt5660_audio_map[] = {
+	{"IN1P", NULL, "Platform Clock"},
+	{"IN2P", NULL, "Platform Clock"},
+	{"Line Out", NULL, "Platform Clock"},
+
 	{"IN1P", NULL, "Line In"},
 	{"IN2P", NULL, "Line In"},
 	{"Line Out", NULL, "LOUTR"},
@@ -92,11 +165,25 @@ static int byt_rt5660_aif1_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* use bitclock as PLL input */
-	/* 2x15 bit slots on SSP2 */
-	ret = snd_soc_dai_set_pll(codec_dai, 0, RT5660_PLL1_S_BCLK,
-				params_rate(params) * 50,
-				params_rate(params) * 512);
+	if (!(byt_rt5660_quirk & BYT_RT5660_MCLK_EN)) {
+		/* 2x25 bit slots on SSP2 */
+		ret = snd_soc_dai_set_pll(codec_dai, 0,
+					RT5660_PLL1_S_BCLK,
+					params_rate(params) * 50,
+					params_rate(params) * 512);
+	} else {
+		if (byt_rt5660_quirk & BYT_RT5660_MCLK_25MHZ) {
+			ret = snd_soc_dai_set_pll(codec_dai, 0,
+						RT5660_PLL1_S_MCLK,
+						25000000,
+						params_rate(params) * 512);
+		} else {
+			ret = snd_soc_dai_set_pll(codec_dai, 0,
+						RT5660_PLL1_S_MCLK,
+						19200000,
+						params_rate(params) * 512);
+		}
+	}
 
 	if (ret < 0) {
 		dev_err(codec_dai->dev, "can't set codec pll: %d\n", ret);
@@ -111,6 +198,7 @@ static int byt_rt5660_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_card *card = runtime->card;
 	struct byt_rt5660_private *priv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_codec *codec = runtime->codec;
+	int ret;
 
 	/* Request rt5660 GPIO for lineout mute control */
 	priv->gpio_lo_mute = devm_gpiod_get_index(codec->dev,
@@ -120,7 +208,35 @@ static int byt_rt5660_init(struct snd_soc_pcm_runtime *runtime)
 		return PTR_ERR(priv->gpio_lo_mute);
 	}
 
-	return gpiod_direction_output(priv->gpio_lo_mute, 1);
+	ret = gpiod_direction_output(priv->gpio_lo_mute, 1);
+	if (ret)
+		return ret;
+
+	if (byt_rt5660_quirk & BYT_RT5660_MCLK_EN) {
+		/*
+		 * The firmware might enable the clock at
+		 * boot (this information may or may not
+		 * be reflected in the enable clock register).
+		 * To change the rate we must disable the clock
+		 * first to cover these cases. Due to common
+		 * clock framework restrictions that do not allow
+		 * to disable a clock that has not been enabled,
+		 * we need to enable the clock first.
+		 */
+		ret = clk_prepare_enable(priv->mclk);
+		if (!ret)
+			clk_disable_unprepare(priv->mclk);
+
+		if (byt_rt5660_quirk & BYT_RT5660_MCLK_25MHZ)
+			ret = clk_set_rate(priv->mclk, 25000000);
+		else
+			ret = clk_set_rate(priv->mclk, 19200000);
+
+		if (ret)
+			dev_err(card->dev, "unable to set MCLK rate\n");
+	}
+
+	return ret;
 }
 
 static const struct snd_soc_pcm_stream byt_rt5660_dai_params = {
@@ -257,6 +373,26 @@ static int byt_rt5660_probe(struct platform_device *pdev)
 
 	byt_rt5660_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&byt_rt5660_card, priv);
+
+	log_quirks(&pdev->dev);
+
+	if (byt_rt5660_quirk & BYT_RT5660_MCLK_EN) {
+		priv->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
+		if (IS_ERR(priv->mclk)) {
+			dev_err(&pdev->dev,
+				"Failed to get MCLK from pmc_plt_clk_3: %ld\n",
+				PTR_ERR(priv->mclk));
+			/*
+			 * Fall back to bit clock usage for -ENOENT (clock not
+			 * available likely due to missing dependencies), bail
+			 * for all other errors, including -EPROBE_DEFER
+			 */
+			if (ret_val != -ENOENT)
+				return ret_val;
+			byt_rt5660_quirk &= ~BYT_RT5660_MCLK_EN;
+		}
+	}
+
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5660_card);
 
 	if (ret_val) {
