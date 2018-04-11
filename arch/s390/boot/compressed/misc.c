@@ -83,25 +83,22 @@ static void error(char *x)
 	asm volatile("lpsw %0" : : "Q" (psw));
 }
 
+#define decompress_offset ALIGN((unsigned long)_end + HEAP_SIZE, PAGE_SIZE)
+
+unsigned long mem_safe_offset(void)
+{
+	/*
+	 * due to 4MB HEAD_SIZE for bzip2
+	 * 'decompress_offset + vmlinux.image_size' could be larger than
+	 * kernel at final position + its .bss, so take the larger of two
+	 */
+	return max(decompress_offset + vmlinux.image_size,
+		   vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size);
+}
+
 void *decompress_kernel(void)
 {
-	void *output, *kernel_end;
-
-	output = (void *) ALIGN((unsigned long) _end + HEAP_SIZE, PAGE_SIZE);
-	kernel_end = output + vmlinux.image_size;
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	/*
-	 * Move the initrd right behind the end of the decompressed
-	 * kernel image. This also prevents initrd corruption caused by
-	 * bss clearing since kernel_end will always be located behind the
-	 * current bss section..
-	 */
-	if (INITRD_START && INITRD_SIZE && kernel_end > (void *) INITRD_START) {
-		memmove(kernel_end, (void *) INITRD_START, INITRD_SIZE);
-		INITRD_START = (unsigned long) kernel_end;
-	}
-#endif
+	void *output = (void *)decompress_offset;
 
 	__decompress(_compressed_start, _compressed_end - _compressed_start,
 		     NULL, NULL, output, 0, NULL, error);

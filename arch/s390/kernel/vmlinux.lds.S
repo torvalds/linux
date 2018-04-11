@@ -154,6 +154,7 @@ SECTIONS
 		QUAD(_stext)			/* default_lma */
 		QUAD(startup_continue)		/* entry */
 		QUAD(__bss_start - _stext)	/* image_size */
+		QUAD(__bss_stop - __bss_start)	/* bss_size */
 	}
 
 	/* Debugging sections.	*/

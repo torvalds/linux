@@ -7,11 +7,13 @@ static inline void *decompress_kernel(void) {}
 #else
 void *decompress_kernel(void);
 #endif
+unsigned long mem_safe_offset(void);
 
 struct vmlinux_info {
 	unsigned long default_lma;
 	void (*entry)(void);
 	unsigned long image_size;	/* does not include .bss */
+	unsigned long bss_size;		/* uncompressed image .bss size */
 };
 
 extern char _vmlinux_info[];
