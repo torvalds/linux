@@ -378,6 +378,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 		switch (DWC3_DEPCMD_CMD(cmd)) {
 		case DWC3_DEPCMD_STARTTRANSFER:
 			dep->flags |= DWC3_EP_TRANSFER_STARTED;
+			dwc3_gadget_ep_get_transfer_index(dep);
 			break;
 		case DWC3_DEPCMD_ENDTRANSFER:
 			dep->flags &= ~DWC3_EP_TRANSFER_STARTED;
@@ -682,8 +683,6 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action)
 		ret = dwc3_send_gadget_ep_cmd(dep, cmd, &params);
 		if (ret < 0)
 			return ret;
-
-		dwc3_gadget_ep_get_transfer_index(dep);
 	}
 
 out:
@@ -1243,9 +1242,6 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 		dwc3_gadget_del_and_unmap_request(dep, req, ret);
 		return ret;
 	}
-
-	if (starting)
-		dwc3_gadget_ep_get_transfer_index(dep);
 
 	return 0;
 }
