@@ -8400,6 +8400,10 @@ static int perf_kprobe_event_init(struct perf_event *event)
 
 	if (event->attr.type != perf_kprobe.type)
 		return -ENOENT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	/*
 	 * no branch sampling for probe events
 	 */
@@ -8437,6 +8441,10 @@ static int perf_uprobe_event_init(struct perf_event *event)
 
 	if (event->attr.type != perf_uprobe.type)
 		return -ENOENT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	/*
 	 * no branch sampling for probe events
 	 */
