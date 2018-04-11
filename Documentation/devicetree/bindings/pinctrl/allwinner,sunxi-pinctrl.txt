@@ -55,9 +55,9 @@ pins it needs, and how they should be configured, with regard to muxer
 configuration, drive strength and pullups. If one of these options is
 not set, its actual value will be unspecified.
 
-This driver supports the generic pin multiplexing and configuration
-bindings. For details on each properties, you can refer to
-./pinctrl-bindings.txt.
+Allwinner A1X Pin Controller supports the generic pin multiplexing and
+configuration bindings. For details on each properties, you can refer to
+ ./pinctrl-bindings.txt.
 
 Required sub-node properties:
   - pins
