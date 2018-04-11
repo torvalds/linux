@@ -713,8 +713,27 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
+
 done:
-	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
+	/*
+	 * Here be a bit of magic! Or sleight-of-hand, whichever you prefer.
+	 *
+	 * We choose queue_priority such that if we add a request of greater
+	 * priority than this, we kick the submission tasklet to decide on
+	 * the right order of submitting the requests to hardware. We must
+	 * also be prepared to reorder requests as they are in-flight on the
+	 * HW. We derive the queue_priority then as the first "hole" in
+	 * the HW submission ports and if there are no available slots,
+	 * the priority of the lowest executing request, i.e. last.
+	 *
+	 * When we do receive a higher priority request ready to run from the
+	 * user, see queue_request(), the queue_priority is bumped to that
+	 * request triggering preemption on the next dequeue (or subsequent
+	 * interrupt for secondary ports).
+	 */
+	execlists->queue_priority =
+		port != execlists->port ? rq_prio(last) : INT_MIN;
+
 	execlists->first = rb;
 	if (submit)
 		port_assign(port, last);

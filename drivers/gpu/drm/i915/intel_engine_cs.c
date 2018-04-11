@@ -1687,6 +1687,9 @@ void intel_engines_park(struct drm_i915_private *i915)
 			intel_engine_dump(engine, &p, NULL);
 		}
 
+		/* Must be reset upon idling, or we may miss the busy wakeup. */
+		GEM_BUG_ON(engine->execlists.queue_priority != INT_MIN);
+
 		if (engine->park)
 			engine->park(engine);
 
