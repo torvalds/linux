@@ -45,7 +45,7 @@ struct ipmi_recv_msg {
 	 */
 	int              recv_type;
 
-	ipmi_user_t      user;
+	struct ipmi_user *user;
 	struct ipmi_addr addr;
 	long             msgid;
 	struct kernel_ipmi_msg  msg;
@@ -111,7 +111,7 @@ struct ipmi_user_hndl {
 int ipmi_create_user(unsigned int          if_num,
 		     const struct ipmi_user_hndl *handler,
 		     void                  *handler_data,
-		     ipmi_user_t           *user);
+		     struct ipmi_user      **user);
 
 /*
  * Destroy the given user of the IPMI layer.  Note that after this
@@ -121,10 +121,10 @@ int ipmi_create_user(unsigned int          if_num,
  * the users before you destroy the callback structures, it should be
  * safe, too.
  */
-int ipmi_destroy_user(ipmi_user_t user);
+int ipmi_destroy_user(struct ipmi_user *user);
 
 /* Get the IPMI version of the BMC we are talking to. */
-int ipmi_get_version(ipmi_user_t   user,
+int ipmi_get_version(struct ipmi_user *user,
 		     unsigned char *major,
 		     unsigned char *minor);
 
@@ -137,16 +137,16 @@ int ipmi_get_version(ipmi_user_t   user,
  * it for everyone else.  Note that each channel can have its own
  * address.
  */
-int ipmi_set_my_address(ipmi_user_t   user,
+int ipmi_set_my_address(struct ipmi_user *user,
 			unsigned int  channel,
 			unsigned char address);
-int ipmi_get_my_address(ipmi_user_t   user,
+int ipmi_get_my_address(struct ipmi_user *user,
 			unsigned int  channel,
 			unsigned char *address);
-int ipmi_set_my_LUN(ipmi_user_t   user,
+int ipmi_set_my_LUN(struct ipmi_user *user,
 		    unsigned int  channel,
 		    unsigned char LUN);
-int ipmi_get_my_LUN(ipmi_user_t   user,
+int ipmi_get_my_LUN(struct ipmi_user *user,
 		    unsigned int  channel,
 		    unsigned char *LUN);
 
@@ -163,7 +163,7 @@ int ipmi_get_my_LUN(ipmi_user_t   user,
  * it makes no sense to do it here.  However, this can be used if you
  * have unusual requirements.
  */
-int ipmi_request_settime(ipmi_user_t      user,
+int ipmi_request_settime(struct ipmi_user *user,
 			 struct ipmi_addr *addr,
 			 long             msgid,
 			 struct kernel_ipmi_msg  *msg,
@@ -181,7 +181,7 @@ int ipmi_request_settime(ipmi_user_t      user,
  * change as the system changes, so don't use it unless you REALLY
  * have to.
  */
-int ipmi_request_supply_msgs(ipmi_user_t          user,
+int ipmi_request_supply_msgs(struct ipmi_user     *user,
 			     struct ipmi_addr     *addr,
 			     long                 msgid,
 			     struct kernel_ipmi_msg *msg,
@@ -197,7 +197,7 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
  * way.  This is useful if you need to spin waiting for something to
  * happen in the IPMI driver.
  */
-void ipmi_poll_interface(ipmi_user_t user);
+void ipmi_poll_interface(struct ipmi_user *user);
 
 /*
  * When commands come in to the SMS, the user can register to receive
@@ -208,11 +208,11 @@ void ipmi_poll_interface(ipmi_user_t user);
  * error.  Channels are specified as a bitfield, use IPMI_CHAN_ALL to
  * mean all channels.
  */
-int ipmi_register_for_cmd(ipmi_user_t   user,
+int ipmi_register_for_cmd(struct ipmi_user *user,
 			  unsigned char netfn,
 			  unsigned char cmd,
 			  unsigned int  chans);
-int ipmi_unregister_for_cmd(ipmi_user_t   user,
+int ipmi_unregister_for_cmd(struct ipmi_user *user,
 			    unsigned char netfn,
 			    unsigned char cmd,
 			    unsigned int  chans);
@@ -243,8 +243,8 @@ int ipmi_unregister_for_cmd(ipmi_user_t   user,
  *
  * See the IPMI_MAINTENANCE_MODE_xxx defines for what the mode means.
  */
-int ipmi_get_maintenance_mode(ipmi_user_t user);
-int ipmi_set_maintenance_mode(ipmi_user_t user, int mode);
+int ipmi_get_maintenance_mode(struct ipmi_user *user);
+int ipmi_set_maintenance_mode(struct ipmi_user *user, int mode);
 
 /*
  * When the user is created, it will not receive IPMI events by
@@ -252,7 +252,7 @@ int ipmi_set_maintenance_mode(ipmi_user_t user, int mode);
  * The first user that sets this to TRUE will receive all events that
  * have been queued while no one was waiting for events.
  */
-int ipmi_set_gets_events(ipmi_user_t user, bool val);
+int ipmi_set_gets_events(struct ipmi_user *user, bool val);
 
 /*
  * Called when a new SMI is registered.  This will also be called on
@@ -330,7 +330,7 @@ struct ipmi_smi_info {
 	union ipmi_smi_info_union addr_info;
 };
 
-/* This is to get the private info of ipmi_smi_t */
+/* This is to get the private info of struct ipmi_smi */
 extern int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data);
 
 #endif /* __LINUX_IPMI_H */

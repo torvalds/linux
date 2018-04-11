@@ -69,8 +69,8 @@ struct ipmi_smi_handlers {
 	 * not be NULL, the lower layer must take the interface from
 	 * this call.
 	 */
-	int (*start_processing)(void       *send_info,
-				ipmi_smi_t new_intf);
+	int (*start_processing)(void            *send_info,
+				struct ipmi_smi *new_intf);
 
 	/*
 	 * When called, the low-level interface should disable all
@@ -220,7 +220,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
  * Remove a low-level interface from the IPMI driver.  This will
  * return an error if the interface is still in use by a user.
  */
-void ipmi_unregister_smi(ipmi_smi_t intf);
+void ipmi_unregister_smi(struct ipmi_smi *intf);
 
 /*
  * The lower layer reports received messages through this interface.
@@ -228,11 +228,11 @@ void ipmi_unregister_smi(ipmi_smi_t intf);
  * the lower layer gets an error sending a message, it should format
  * an error response in the message response.
  */
-void ipmi_smi_msg_received(ipmi_smi_t          intf,
+void ipmi_smi_msg_received(struct ipmi_smi     *intf,
 			   struct ipmi_smi_msg *msg);
 
 /* The lower layer received a watchdog pre-timeout on interface. */
-void ipmi_smi_watchdog_pretimeout(ipmi_smi_t intf);
+void ipmi_smi_watchdog_pretimeout(struct ipmi_smi *intf);
 
 struct ipmi_smi_msg *ipmi_alloc_smi_msg(void);
 static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
@@ -246,7 +246,7 @@ static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
  * directory for this interface.  Note that the entry will
  * automatically be dstroyed when the interface is destroyed.
  */
-int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
+int ipmi_smi_add_proc_entry(struct ipmi_smi *smi, char *name,
 			    const struct file_operations *proc_ops,
 			    void *data);
 #endif
