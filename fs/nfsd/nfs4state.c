@@ -2956,11 +2956,11 @@ out_no_session:
 	return status;
 }
 
-static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)
+static bool nfsd4_compound_in_session(struct nfsd4_compound_state *cstate, struct nfs4_sessionid *sid)
 {
-	if (!session)
+	if (!cstate->session)
 		return false;
-	return !memcmp(sid, &session->se_sessionid, sizeof(*sid));
+	return !memcmp(sid, &cstate->session->se_sessionid, sizeof(*sid));
 }
 
 __be32
@@ -2975,7 +2975,7 @@ nfsd4_destroy_session(struct svc_rqst *r, struct nfsd4_compound_state *cstate,
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	status = nfserr_not_only_op;
-	if (nfsd4_compound_in_session(cstate->session, &sessionid->sessionid)) {
+	if (nfsd4_compound_in_session(cstate, &sessionid->sessionid)) {
 		if (!nfsd4_last_compound_op(r))
 			goto out;
 		ref_held_by_me++;
