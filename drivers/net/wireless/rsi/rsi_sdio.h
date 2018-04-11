@@ -85,7 +85,7 @@ enum sdio_interrupt_type {
 #define TA_SOFT_RST_CLR              0
 #define TA_SOFT_RST_SET              BIT(0)
 #define TA_PC_ZERO                   0
-#define TA_HOLD_THREAD_VALUE         cpu_to_le32(0xF)
+#define TA_HOLD_THREAD_VALUE         0xF
 #define TA_RELEASE_THREAD_VALUE      cpu_to_le32(0xF)
 #define TA_BASE_ADDR                 0x2200
 #define MISC_CFG_BASE_ADDR           0x4105
