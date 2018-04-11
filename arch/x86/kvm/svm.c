@@ -4756,9 +4756,8 @@ static int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		}
 
 		if (!ret && svm) {
-			trace_kvm_pi_irte_update(svm->vcpu.vcpu_id,
-						 host_irq, e->gsi,
-						 vcpu_info.vector,
+			trace_kvm_pi_irte_update(host_irq, svm->vcpu.vcpu_id,
+						 e->gsi, vcpu_info.vector,
 						 vcpu_info.pi_desc_addr, set);
 		}
 
