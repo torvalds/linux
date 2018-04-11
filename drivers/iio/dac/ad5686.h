@@ -39,7 +39,9 @@
  * ad5686_supported_device_ids:
  */
 enum ad5686_supported_device_ids {
+	ID_AD5671R,
 	ID_AD5672R,
+	ID_AD5675R,
 	ID_AD5676,
 	ID_AD5676R,
 	ID_AD5684,
@@ -47,6 +49,11 @@ enum ad5686_supported_device_ids {
 	ID_AD5685R,
 	ID_AD5686,
 	ID_AD5686R,
+	ID_AD5694,
+	ID_AD5694R,
+	ID_AD5695R,
+	ID_AD5696,
+	ID_AD5696R,
 };
 
 struct ad5686_state;

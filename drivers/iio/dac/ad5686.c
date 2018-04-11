@@ -202,8 +202,18 @@ DECLARE_AD5686_CHANNELS(ad5685r_channels, 14, 2);
 DECLARE_AD5686_CHANNELS(ad5686_channels, 16, 0);
 
 static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
+	[ID_AD5671R] = {
+		.channels = ad5672_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 8,
+	},
 	[ID_AD5672R] = {
 		.channels = ad5672_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 8,
+	},
+	[ID_AD5675R] = {
+		.channels = ad5676_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 8,
 	},
@@ -235,6 +245,24 @@ static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
 		.num_channels = 4,
 	},
 	[ID_AD5686R] = {
+		.channels = ad5686_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 4,
+	},
+	[ID_AD5694] = {
+		.channels = ad5684_channels,
+		.num_channels = 4,
+	},
+	[ID_AD5694R] = {
+		.channels = ad5684_channels,
+		.int_vref_mv = 2500,
+		.num_channels = 4,
+	},
+	[ID_AD5696] = {
+		.channels = ad5686_channels,
+		.num_channels = 4,
+	},
+	[ID_AD5696R] = {
 		.channels = ad5686_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
