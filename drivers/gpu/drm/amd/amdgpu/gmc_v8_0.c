@@ -569,9 +569,10 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
 		switch (adev->asic_type) {
-		case CHIP_POLARIS11: /* all engines support GPUVM */
 		case CHIP_POLARIS10: /* all engines support GPUVM */
+		case CHIP_POLARIS11: /* all engines support GPUVM */
 		case CHIP_POLARIS12: /* all engines support GPUVM */
+		case CHIP_VEGAM:     /* all engines support GPUVM */
 		default:
 			adev->gmc.gart_size = 256ULL << 20;
 			break;
@@ -1091,7 +1092,8 @@ static int gmc_v8_0_sw_init(void *handle)
 	} else {
 		u32 tmp;
 
-		if (adev->asic_type == CHIP_FIJI)
+		if ((adev->asic_type == CHIP_FIJI) ||
+		    (adev->asic_type == CHIP_VEGAM))
 			tmp = RREG32(mmMC_SEQ_MISC0_FIJI);
 		else
 			tmp = RREG32(mmMC_SEQ_MISC0);
