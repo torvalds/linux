@@ -819,7 +819,7 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	const struct encoder_info_frame *info_frame)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t value = REG_READ(DP_SEC_CNTL);
+	uint32_t value = 0;
 
 	if (info_frame->vsc.valid)
 		dce110_update_generic_info_packet(
@@ -853,6 +853,7 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	* Therefore we need to enable master bit
 	* if at least on of the fields is not 0
 	*/
+	value = REG_READ(DP_SEC_CNTL);
 	if (value)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 }
@@ -862,7 +863,7 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 {
 	/* stop generic packets on DP */
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t value = REG_READ(DP_SEC_CNTL);
+	uint32_t value = 0;
 
 	if (enc110->se_mask->DP_SEC_AVI_ENABLE) {
 		REG_SET_7(DP_SEC_CNTL, 0,
@@ -875,25 +876,10 @@ static void dce110_stream_encoder_stop_dp_info_packets(
 			DP_SEC_STREAM_ENABLE, 0);
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (enc110->se_mask->DP_SEC_GSP7_ENABLE) {
-		REG_SET_10(DP_SEC_CNTL, 0,
-			DP_SEC_GSP0_ENABLE, 0,
-			DP_SEC_GSP1_ENABLE, 0,
-			DP_SEC_GSP2_ENABLE, 0,
-			DP_SEC_GSP3_ENABLE, 0,
-			DP_SEC_GSP4_ENABLE, 0,
-			DP_SEC_GSP5_ENABLE, 0,
-			DP_SEC_GSP6_ENABLE, 0,
-			DP_SEC_GSP7_ENABLE, 0,
-			DP_SEC_MPG_ENABLE, 0,
-			DP_SEC_STREAM_ENABLE, 0);
-	}
-#endif
 	/* this register shared with audio info frame.
 	 * therefore we need to keep master enabled
 	 * if at least one of the fields is not 0 */
-
+	value = REG_READ(DP_SEC_CNTL);
 	if (value)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 
@@ -1496,7 +1482,7 @@ static void dce110_se_disable_dp_audio(
 	struct stream_encoder *enc)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t value = REG_READ(DP_SEC_CNTL);
+	uint32_t value = 0;
 
 	/* Disable Audio packets */
 	REG_UPDATE_5(DP_SEC_CNTL,
@@ -1508,6 +1494,7 @@ static void dce110_se_disable_dp_audio(
 
 	/* This register shared with encoder info frame. Therefore we need to
 	keep master enabled if at least on of the fields is not 0 */
+	value = REG_READ(DP_SEC_CNTL);
 	if (value != 0)
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 
