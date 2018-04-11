@@ -1084,10 +1084,7 @@ static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
 		return PTR_ERR(jpeg->clk_jdec);
 
 	jpeg->clk_jdec_smi = devm_clk_get(jpeg->dev, "jpgdec-smi");
-	if (IS_ERR(jpeg->clk_jdec_smi))
-		return PTR_ERR(jpeg->clk_jdec_smi);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(jpeg->clk_jdec_smi);
 }
 
 static int mtk_jpeg_probe(struct platform_device *pdev)
