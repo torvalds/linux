@@ -72,7 +72,7 @@ static int __init nospectre_v2_setup_early(char *str)
 }
 early_param("nospectre_v2", nospectre_v2_setup_early);
 
-static int __init spectre_v2_auto_early(void)
+void __init nospec_auto_detect(void)
 {
 	if (IS_ENABLED(CC_USING_EXPOLINE)) {
 		/*
@@ -87,11 +87,7 @@ static int __init spectre_v2_auto_early(void)
 	 * nobp setting decides what is done, this depends on the
 	 * CONFIG_KERNEL_NP option and the nobp/nospec parameters.
 	 */
-	return 0;
 }
-#ifdef CONFIG_EXPOLINE_AUTO
-early_initcall(spectre_v2_auto_early);
-#endif
 
 static int __init spectre_v2_setup_early(char *str)
 {
@@ -102,7 +98,7 @@ static int __init spectre_v2_setup_early(char *str)
 	if (str && !strncmp(str, "off", 3))
 		nospec_disable = 1;
 	if (str && !strncmp(str, "auto", 4))
-		spectre_v2_auto_early();
+		nospec_auto_detect();
 	return 0;
 }
 early_param("spectre_v2", spectre_v2_setup_early);
