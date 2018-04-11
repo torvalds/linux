@@ -2988,11 +2988,11 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 
 		/* Start a new grace period if one not already started. */
 		if (!rcu_gp_in_progress(rsp)) {
-			struct rcu_node *rnp_root = rcu_get_root(rsp);
+			struct rcu_node *rnp = rdp->mynode;
 
-			raw_spin_lock_rcu_node(rnp_root);
-			needwake = rcu_start_gp(rsp);
-			raw_spin_unlock_rcu_node(rnp_root);
+			raw_spin_lock_rcu_node(rnp);
+			needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
+			raw_spin_unlock_rcu_node(rnp);
 			if (needwake)
 				rcu_gp_kthread_wake(rsp);
 		} else {
