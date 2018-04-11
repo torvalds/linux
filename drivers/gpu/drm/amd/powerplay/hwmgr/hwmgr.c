@@ -40,6 +40,7 @@ extern const struct pp_smumgr_func iceland_smu_funcs;
 extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
 extern const struct pp_smumgr_func polaris10_smu_funcs;
+extern const struct pp_smumgr_func vegam_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
 extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
@@ -133,6 +134,11 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		case CHIP_POLARIS10:
 		case CHIP_POLARIS12:
 			hwmgr->smumgr_funcs = &polaris10_smu_funcs;
+			polaris_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
+			break;
+		case CHIP_VEGAM:
+			hwmgr->smumgr_funcs = &vegam_smu_funcs;
 			polaris_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
