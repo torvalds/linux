@@ -2503,7 +2503,7 @@ static void lan78xx_init_stats(struct lan78xx_net *dev)
 	dev->stats.rollover_max.eee_tx_lpi_transitions = 0xFFFFFFFF;
 	dev->stats.rollover_max.eee_tx_lpi_time = 0xFFFFFFFF;
 
-	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
+	set_bit(EVENT_STAT_UPDATE, &dev->flags);
 }
 
 static int lan78xx_open(struct net_device *net)
