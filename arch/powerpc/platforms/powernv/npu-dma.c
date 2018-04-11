@@ -407,7 +407,7 @@ struct npu_context {
 	bool nmmu_flush;
 
 	/* Callback to stop translation requests on a given GPU */
-	struct npu_context *(*release_cb)(struct npu_context *, void *);
+	void (*release_cb)(struct npu_context *context, void *priv);
 
 	/*
 	 * Private pointer passed to the above callback for usage by
@@ -707,7 +707,7 @@ static const struct mmu_notifier_ops nv_nmmu_notifier_ops = {
  */
 struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 			unsigned long flags,
-			struct npu_context *(*cb)(struct npu_context *, void *),
+			void (*cb)(struct npu_context *, void *),
 			void *priv)
 {
 	int rc;
@@ -765,8 +765,18 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	 */
 	spin_lock(&npu_context_lock);
 	npu_context = mm->context.npu_context;
-	if (npu_context)
+	if (npu_context) {
+		if (npu_context->release_cb != cb ||
+			npu_context->priv != priv) {
+			spin_unlock(&npu_context_lock);
+			opal_npu_destroy_context(nphb->opal_id, mm->context.id,
+						PCI_DEVID(gpdev->bus->number,
+							gpdev->devfn));
+			return ERR_PTR(-EINVAL);
+		}
+
 		WARN_ON(!kref_get_unless_zero(&npu_context->kref));
+	}
 	spin_unlock(&npu_context_lock);
 
 	if (!npu_context) {
