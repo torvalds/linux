@@ -493,14 +493,18 @@ dwc3_ep_event_string(char *str, const struct dwc3_event_depevt *event,
 	case DWC3_DEPEVT_XFERINPROGRESS:
 		len = strlen(str);
 
-		sprintf(str + len, "Transfer In Progress (%c%c%c)",
+		sprintf(str + len, "Transfer In Progress [%d] (%c%c%c)",
+				event->parameters,
 				status & DEPEVT_STATUS_SHORT ? 'S' : 's',
 				status & DEPEVT_STATUS_IOC ? 'I' : 'i',
 				status & DEPEVT_STATUS_LST ? 'M' : 'm');
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
-		strcat(str, "Transfer Not Ready");
-		strcat(str, status & DEPEVT_STATUS_TRANSFER_ACTIVE ?
+		len = strlen(str);
+
+		sprintf(str + len, "Transfer Not Ready [%d]%s",
+				event->parameters,
+				status & DEPEVT_STATUS_TRANSFER_ACTIVE ?
 				" (Active)" : " (Not Active)");
 
 		/* Control Endpoints */
