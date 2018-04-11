@@ -92,6 +92,18 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_BYTCR_RT5660_MACH
+        tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5660 codec"
+	depends on X86 && I2C && ACPI
+	select SND_SOC_RT5660
+	depends on SND_SST_ATOM_HIFI2_PLATFORM
+	select SND_SST_IPC_ACPI
+	help
+          This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
+          platforms with RT5660 audio codec.
+          Say Y if you have such a device.
+          If unsure select "N".
+
 config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
 	tristate "Cherrytrail & Braswell with RT5672 codec"
 	depends on X86_INTEL_LPSS && I2C && ACPI

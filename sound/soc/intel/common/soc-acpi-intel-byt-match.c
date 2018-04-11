@@ -137,6 +137,15 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.asoc_plat_name = "sst-mfld-platform",
 	},
 	{
+		.id = "10EC3277",
+		.drv_name = "bytcr_rt5660",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "bytcr_rt5660",
+		.sof_fw_filename = "intel/reef-byt.ri",
+		.sof_tplg_filename = "intel/reef-byt-rt5660.tplg",
+		.asoc_plat_name = "sst-mfld-platform",
+	},
+	{
 		.id = "DLGS7212",
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_0f28.bin",
