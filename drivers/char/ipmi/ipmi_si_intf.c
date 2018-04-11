@@ -122,7 +122,7 @@ enum si_stat_indexes {
 };
 
 struct smi_info {
-	int                    intf_num;
+	int                    si_num;
 	struct ipmi_smi        *intf;
 	struct si_sm_data      *si_sm;
 	const struct si_sm_handlers *handlers;
@@ -957,8 +957,8 @@ static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
 {
 	unsigned int max_busy_us = 0;
 
-	if (smi_info->intf_num < num_max_busy_us)
-		max_busy_us = kipmid_max_busy_us[smi_info->intf_num];
+	if (smi_info->si_num < num_max_busy_us)
+		max_busy_us = kipmid_max_busy_us[smi_info->si_num];
 	if (max_busy_us == 0 || smi_result != SI_SM_CALL_WITH_DELAY)
 		ipmi_si_set_not_busy(busy_until);
 	else if (!ipmi_si_is_busy(busy_until)) {
@@ -1160,8 +1160,8 @@ static int smi_start_processing(void            *send_info,
 	/*
 	 * Check if the user forcefully enabled the daemon.
 	 */
-	if (new_smi->intf_num < num_force_kipmid)
-		enable = force_kipmid[new_smi->intf_num];
+	if (new_smi->si_num < num_force_kipmid)
+		enable = force_kipmid[new_smi->si_num];
 	/*
 	 * The BT interface is efficient enough to not need a thread,
 	 * and there is no need for a thread if we have interrupts.
@@ -1171,7 +1171,7 @@ static int smi_start_processing(void            *send_info,
 
 	if (enable) {
 		new_smi->thread = kthread_run(ipmi_thread, new_smi,
-					      "kipmi%d", new_smi->intf_num);
+					      "kipmi%d", new_smi->si_num);
 		if (IS_ERR(new_smi->thread)) {
 			dev_notice(new_smi->io.dev, "Could not start"
 				   " kernel thread due to error %ld, only using"
@@ -2053,19 +2053,19 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err;
 	}
 
-	new_smi->intf_num = smi_num;
+	new_smi->si_num = smi_num;
 
 	/* Do this early so it's available for logs. */
 	if (!new_smi->io.dev) {
 		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d",
-				      new_smi->intf_num);
+				      new_smi->si_num);
 
 		/*
 		 * If we don't already have a device from something
 		 * else (like PCI), then register a new one.
 		 */
 		new_smi->pdev = platform_device_alloc("ipmi_si",
-						      new_smi->intf_num);
+						      new_smi->si_num);
 		if (!new_smi->pdev) {
 			pr_err(PFX "Unable to allocate platform device\n");
 			rv = -ENOMEM;
