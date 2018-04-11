@@ -62,7 +62,7 @@ static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
 static inline bool uvd_v6_0_enc_support(struct amdgpu_device *adev)
 {
 	return ((adev->asic_type >= CHIP_POLARIS10) &&
-			(adev->asic_type <= CHIP_POLARIS12) &&
+			(adev->asic_type <= CHIP_VEGAM) &&
 			(!adev->uvd.fw_version || adev->uvd.fw_version >= FW_1_130_16));
 }
 
