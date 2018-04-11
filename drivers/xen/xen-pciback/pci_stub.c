@@ -1149,7 +1149,7 @@ static int pcistub_reg_add(int domain, int bus, int slot, int func,
 	}
 	dev = psdev->dev;
 
-	field = kzalloc(sizeof(*field), GFP_ATOMIC);
+	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field) {
 		err = -ENOMEM;
 		goto out;
