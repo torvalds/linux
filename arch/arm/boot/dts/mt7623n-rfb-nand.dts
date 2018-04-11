@@ -71,34 +71,3 @@
 		};
 	};
 };
-
-&pio {
-	nand_pins_default: nanddefault {
-		pins-ale {
-			pinmux = <MT7623_PIN_116_MSDC0_CMD_FUNC_NALE>;
-			drive-strength = <MTK_DRIVE_8mA>;
-			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
-		};
-
-		pins-dat {
-			pinmux = <MT7623_PIN_111_MSDC0_DAT7_FUNC_NLD7>,
-				 <MT7623_PIN_112_MSDC0_DAT6_FUNC_NLD6>,
-				 <MT7623_PIN_114_MSDC0_DAT4_FUNC_NLD4>,
-				 <MT7623_PIN_118_MSDC0_DAT3_FUNC_NLD3>,
-				 <MT7623_PIN_121_MSDC0_DAT0_FUNC_NLD0>,
-				 <MT7623_PIN_120_MSDC0_DAT1_FUNC_NLD1>,
-				 <MT7623_PIN_113_MSDC0_DAT5_FUNC_NLD5>,
-				 <MT7623_PIN_115_MSDC0_RSTB_FUNC_NLD8>,
-				 <MT7623_PIN_119_MSDC0_DAT2_FUNC_NLD2>;
-			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
-			bias-pull-up;
-		};
-
-		pins-we {
-			pinmux = <MT7623_PIN_117_MSDC0_CLK_FUNC_NWEB>;
-			drive-strength = <MTK_DRIVE_8mA>;
-			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
-		};
-	};
-};
