@@ -13,6 +13,11 @@
 #define PKEY_DEDICATED_EXECUTE_ONLY 0
 #define ARCH_VM_PKEY_FLAGS 0
 
+static inline int vma_pkey(struct vm_area_struct *vma)
+{
+	return 0;
+}
+
 static inline bool mm_pkey_is_allocated(struct mm_struct *mm, int pkey)
 {
 	return (pkey == 0);
