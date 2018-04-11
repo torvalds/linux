@@ -27,6 +27,9 @@
 #include "gadget.h"
 #include "io.h"
 
+#define DWC3_ALIGN_FRAME(d)	(((d)->frame_number + (d)->interval) \
+					& ~((d)->interval - 1))
+
 /**
  * dwc3_gadget_set_test_mode - enables usb2 test modes
  * @dwc: pointer to our context structure
@@ -1267,11 +1270,7 @@ static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 		return;
 	}
 
-	/*
-	 * Schedule the first trb for one interval in the future or at
-	 * least 4 microframes.
-	 */
-	dep->frame_number += max_t(u32, 4, dep->interval);
+	dep->frame_number = DWC3_ALIGN_FRAME(dep);
 	__dwc3_gadget_kick_transfer(dep);
 }
 
@@ -2377,11 +2376,7 @@ static void dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 static void dwc3_gadget_endpoint_frame_from_event(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event)
 {
-	u32 cur_uf, mask;
-
-	mask = ~(dep->interval - 1);
-	cur_uf = event->parameters & mask;
-	dep->frame_number = cur_uf;
+	dep->frame_number = event->parameters;
 }
 
 static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
