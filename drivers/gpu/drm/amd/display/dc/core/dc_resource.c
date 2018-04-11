@@ -79,6 +79,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)) {
 			dc_version = DCE_VERSION_11_2;
 		}
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+		if (ASIC_REV_IS_VEGAM(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_11_22;
+#endif
 		break;
 	case FAMILY_AI:
 		dc_version = DCE_VERSION_12_0;
@@ -125,6 +129,9 @@ struct resource_pool *dc_create_resource_pool(
 			num_virtual_links, dc, asic_id);
 		break;
 	case DCE_VERSION_11_2:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case DCE_VERSION_11_22:
+#endif
 		res_pool = dce112_create_resource_pool(
 			num_virtual_links, dc);
 		break;

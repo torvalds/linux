@@ -590,6 +590,9 @@ static uint32_t dce110_get_pix_clk_dividers(
 			pll_settings, pix_clk_params);
 		break;
 	case DCE_VERSION_11_2:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case DCE_VERSION_11_22:
+#endif
 	case DCE_VERSION_12_0:
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
@@ -979,6 +982,9 @@ static bool dce110_program_pix_clk(
 
 		break;
 	case DCE_VERSION_11_2:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case DCE_VERSION_11_22:
+#endif
 	case DCE_VERSION_12_0:
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:

@@ -59,6 +59,10 @@ static enum bw_calcs_version bw_calcs_version_from_asic_id(struct hw_asic_id asi
 			return BW_CALCS_VERSION_POLARIS10;
 		if (ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev))
 			return BW_CALCS_VERSION_POLARIS11;
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+		if (ASIC_REV_IS_VEGAM(asic_id.hw_internal_rev))
+			return BW_CALCS_VERSION_VEGAM;
+#endif
 		return BW_CALCS_VERSION_INVALID;
 
 	case FAMILY_AI:
@@ -2147,6 +2151,11 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a bug*/
 		break;
 	case BW_CALCS_VERSION_POLARIS10:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+		/* TODO: Treat VEGAM the same as P10 for now
+		 * Need to tune the para for VEGAM if needed */
+	case BW_CALCS_VERSION_VEGAM:
+#endif
 		vbios.memory_type = bw_def_gddr5;
 		vbios.dram_channel_width_in_bits = 32;
 		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;

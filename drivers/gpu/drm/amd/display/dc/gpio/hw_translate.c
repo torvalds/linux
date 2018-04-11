@@ -72,6 +72,9 @@ bool dal_hw_translate_init(
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
 	case DCE_VERSION_11_2:
+#if defined(CONFIG_DRM_AMD_DC_VEGAM)
+	case DCE_VERSION_11_22:
+#endif
 		dal_hw_translate_dce110_init(translate);
 		return true;
 	case DCE_VERSION_12_0:
