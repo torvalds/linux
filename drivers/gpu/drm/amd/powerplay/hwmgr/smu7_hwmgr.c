@@ -4071,7 +4071,7 @@ static int smu7_check_states_equal(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu7_upload_mc_firmware(struct pp_hwmgr *hwmgr)
+static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -4200,7 +4200,7 @@ static int smu7_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 
-	smu7_upload_mc_firmware(hwmgr);
+	smu7_check_mc_firmware(hwmgr);
 
 	tmp_result = smu7_read_clock_registers(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
