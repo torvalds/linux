@@ -83,6 +83,14 @@ static const struct profile_mode_setting smu7_profiling[5] =
 					 {1, 0, 5, 30, 0, 0, 0, 0},
 					};
 
+#define PPSMC_MSG_SetVBITimeout_VEGAM    ((uint16_t) 0x310)
+
+#define ixPWR_SVI2_PLANE1_LOAD                     0xC0200280
+#define PWR_SVI2_PLANE1_LOAD__PSI1_MASK                    0x00000020L
+#define PWR_SVI2_PLANE1_LOAD__PSI0_EN_MASK                 0x00000040L
+#define PWR_SVI2_PLANE1_LOAD__PSI1__SHIFT                  0x00000005
+#define PWR_SVI2_PLANE1_LOAD__PSI0_EN__SHIFT               0x00000006
+
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
 enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_ANALOG = 0,
@@ -164,6 +172,13 @@ static int smu7_get_current_pcie_lane_number(struct pp_hwmgr *hwmgr)
 */
 static int smu7_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 {
+	if (hwmgr->chip_id == CHIP_VEGAM) {
+		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device,
+				CGS_IND_REG__SMC, PWR_SVI2_PLANE1_LOAD, PSI1, 0);
+		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device,
+				CGS_IND_REG__SMC, PWR_SVI2_PLANE1_LOAD, PSI0_EN, 0);
+	}
+
 	if (hwmgr->feature_mask & PP_SMC_VOLTAGE_CONTROL_MASK)
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_Voltage_Cntl_Enable);
 
@@ -964,6 +979,22 @@ static int smu7_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int smu7_disable_sclk_vce_handshake(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t soft_register_value = 0;
+	uint32_t handshake_disables_offset = data->soft_regs_start
+				+ smum_get_offsetof(hwmgr,
+					SMU_SoftRegisters, HandshakeDisables);
+
+	soft_register_value = cgs_read_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC, handshake_disables_offset);
+	soft_register_value |= SMU7_VCE_SCLK_HANDSHAKE_DISABLE;
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			handshake_disables_offset, soft_register_value);
+	return 0;
+}
+
 static int smu7_disable_handshake_uvd(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -987,6 +1018,9 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 
 	/* enable SCLK dpm */
 	if (!data->sclk_dpm_key_disabled)
+		if (hwmgr->chip_id == CHIP_VEGAM)
+			smu7_disable_sclk_vce_handshake(hwmgr);
+
 		PP_ASSERT_WITH_CODE(
 		(0 == smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DPM_Enable)),
 		"Failed to enable SCLK DPM during DPM Start Function!",
@@ -996,13 +1030,15 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if (0 == data->mclk_dpm_key_disabled) {
 		if (!(hwmgr->feature_mask & PP_UVD_HANDSHAKE_MASK))
 			smu7_disable_handshake_uvd(hwmgr);
+
 		PP_ASSERT_WITH_CODE(
 				(0 == smum_send_msg_to_smc(hwmgr,
 						PPSMC_MSG_MCLKDPM_Enable)),
 				"Failed to enable MCLK DPM during DPM Start Function!",
 				return -EINVAL);
 
-		PHM_WRITE_FIELD(hwmgr->device, MC_SEQ_CNTL_3, CAC_EN, 0x1);
+		if (hwmgr->chip_family != CHIP_VEGAM)
+			PHM_WRITE_FIELD(hwmgr->device, MC_SEQ_CNTL_3, CAC_EN, 0x1);
 
 
 		if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
@@ -1018,8 +1054,13 @@ static int smu7_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x5);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_CPL_CNTL, 0x100005);
 			udelay(10);
-			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x400005);
-			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x400005);
+			if (hwmgr->chip_id == CHIP_VEGAM) {
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x400009);
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x400009);
+			} else {
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC0_CNTL, 0x400005);
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_MC1_CNTL, 0x400005);
+			}
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixLCAC_CPL_CNTL, 0x500005);
 		}
 	}
@@ -1260,10 +1301,12 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to process firmware header!", result = tmp_result);
 
-	tmp_result = smu7_initial_switch_from_arbf0_to_f1(hwmgr);
-	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to initialize switch from ArbF0 to F1!",
-			result = tmp_result);
+	if (hwmgr->chip_id != CHIP_VEGAM) {
+		tmp_result = smu7_initial_switch_from_arbf0_to_f1(hwmgr);
+		PP_ASSERT_WITH_CODE((0 == tmp_result),
+				"Failed to initialize switch from ArbF0 to F1!",
+				result = tmp_result);
+	}
 
 	result = smu7_setup_default_dpm_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
@@ -2753,6 +2796,9 @@ static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
 	case CHIP_POLARIS12:
 		switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
 		break;
+	case CHIP_VEGAM:
+		switch_limit_us = 30;
+		break;
 	default:
 		switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
 		break;
@@ -3801,9 +3847,14 @@ static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK)
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-			(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
+	if (hwmgr->feature_mask & PP_VBI_TIME_SUPPORT_MASK) {
+		if (hwmgr->chip_id == CHIP_VEGAM)
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+					(PPSMC_Msg)PPSMC_MSG_SetVBITimeout_VEGAM, data->frame_time_x2);
+		else
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+					(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2);
+	}
 	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
 }
 
