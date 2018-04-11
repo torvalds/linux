@@ -377,6 +377,30 @@ static bool is_wildcard(void *mask, int len)
 	return true;
 }
 
+static bool is_exactmatch(void *mask, int len)
+{
+	const u8 *p = mask;
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (p[i] != 0xff)
+			return false;
+
+	return true;
+}
+
+static bool bits_set(void *key, int len)
+{
+	const u8 *p = key;
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (p[i] != 0)
+			return true;
+
+	return false;
+}
+
 static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 				    __le16 ref_flow_handle,
 				    __le32 tunnel_handle, __le16 *flow_handle)
@@ -761,6 +785,41 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	     flow->l4_key.ip_proto != IPPROTO_UDP)) {
 		netdev_info(bp->dev, "Cannot offload non-TCP/UDP (%d) ports",
 			    flow->l4_key.ip_proto);
+		return false;
+	}
+
+	/* Currently source/dest MAC cannot be partial wildcard  */
+	if (bits_set(&flow->l2_key.smac, sizeof(flow->l2_key.smac)) &&
+	    !is_exactmatch(flow->l2_mask.smac, sizeof(flow->l2_mask.smac))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for Source MAC\n");
+		return false;
+	}
+	if (bits_set(&flow->l2_key.dmac, sizeof(flow->l2_key.dmac)) &&
+	    !is_exactmatch(&flow->l2_mask.dmac, sizeof(flow->l2_mask.dmac))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for Dest MAC\n");
+		return false;
+	}
+
+	/* Currently VLAN fields cannot be partial wildcard */
+	if (bits_set(&flow->l2_key.inner_vlan_tci,
+		     sizeof(flow->l2_key.inner_vlan_tci)) &&
+	    !is_exactmatch(&flow->l2_mask.inner_vlan_tci,
+			   sizeof(flow->l2_mask.inner_vlan_tci))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for VLAN TCI\n");
+		return false;
+	}
+	if (bits_set(&flow->l2_key.inner_vlan_tpid,
+		     sizeof(flow->l2_key.inner_vlan_tpid)) &&
+	    !is_exactmatch(&flow->l2_mask.inner_vlan_tpid,
+			   sizeof(flow->l2_mask.inner_vlan_tpid))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for VLAN TPID\n");
+		return false;
+	}
+
+	/* Currently Ethertype must be set */
+	if (!is_exactmatch(&flow->l2_mask.ether_type,
+			   sizeof(flow->l2_mask.ether_type))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for Ethertype\n");
 		return false;
 	}
 
