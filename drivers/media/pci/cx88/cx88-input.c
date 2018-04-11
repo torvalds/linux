@@ -632,8 +632,9 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 		memset(&core->init_data, 0, sizeof(core->init_data));
 
 		if (*addrp == 0x71) {
-			/* Hauppauge XVR */
-			core->init_data.name = "cx88 Hauppauge XVR remote";
+			/* Hauppauge Z8F0811 */
+			strlcpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
+			core->init_data.name = core->board.name;
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 			core->init_data.type = RC_PROTO_BIT_RC5 |
 				RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_RC6_6A_32;
