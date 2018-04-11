@@ -237,6 +237,28 @@
 	vqmmc-supply = <&reg_3p3v>;
 };
 
+&mt6323_leds {
+	status = "okay";
+
+	led@0 {
+		reg = <0>;
+		label = "bpi-r2:isink:green";
+		default-state = "off";
+	};
+
+	led@1 {
+		reg = <1>;
+		label = "bpi-r2:isink:red";
+		default-state = "off";
+	};
+
+	led@2 {
+		reg = <2>;
+		label = "bpi-r2:isink:blue";
+		default-state = "off";
+	};
+};
+
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_default>;
@@ -480,34 +502,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_pins_a>;
 	status = "okay";
-};
-
-&pwrap {
-	mt6323 {
-		mt6323led: led {
-			compatible = "mediatek,mt6323-led";
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			led@0 {
-				reg = <0>;
-				label = "bpi-r2:isink:green";
-				default-state = "off";
-			};
-
-			led@1 {
-				reg = <1>;
-				label = "bpi-r2:isink:red";
-				default-state = "off";
-			};
-
-			led@2 {
-				reg = <2>;
-				label = "bpi-r2:isink:blue";
-				default-state = "off";
-			};
-		};
-	};
 };
 
 &spi0 {
