@@ -422,7 +422,7 @@ void sdcardfs_kill_sb(struct super_block *sb)
 {
 	struct sdcardfs_sb_info *sbi;
 
-	if (sb->s_magic == SDCARDFS_SUPER_MAGIC) {
+	if (sb->s_magic == SDCARDFS_SUPER_MAGIC && sb->s_fs_info) {
 		sbi = SDCARDFS_SB(sb);
 		mutex_lock(&sdcardfs_super_list_lock);
 		list_del(&sbi->list);
