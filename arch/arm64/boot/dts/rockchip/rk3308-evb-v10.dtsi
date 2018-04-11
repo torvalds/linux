@@ -104,9 +104,9 @@
 		compatible = "pwm-regulator";
 		pwms = <&pwm0 0 5000 1>;
 		regulator-name = "vdd_core";
-		regulator-min-microvolt = <847000>;
-		regulator-max-microvolt = <1366000>;
-		regulator-init-microvolt = <1044000>;
+		regulator-min-microvolt = <827000>;
+		regulator-max-microvolt = <1340000>;
+		regulator-init-microvolt = <1015000>;
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-settling-time-up-us = <250>;
