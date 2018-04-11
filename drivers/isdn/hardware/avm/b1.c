@@ -637,7 +637,7 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 }
 
 /* ------------------------------------------------------------- */
-static int b1ctl_proc_show(struct seq_file *m, void *v)
+int b1_proc_show(struct seq_file *m, void *v)
 {
 	struct capi_ctr *ctrl = m->private;
 	avmctrl_info *cinfo = (avmctrl_info *)(ctrl->driverdata);
@@ -699,20 +699,7 @@ static int b1ctl_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int b1ctl_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, b1ctl_proc_show, PDE_DATA(inode));
-}
-
-const struct file_operations b1ctl_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= b1ctl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-EXPORT_SYMBOL(b1ctl_proc_fops);
+EXPORT_SYMBOL(b1_proc_show);
 
 /* ------------------------------------------------------------- */
 
