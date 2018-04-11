@@ -6090,7 +6090,7 @@ static void bnxt_free_irq(struct bnxt *bp)
 	free_irq_cpu_rmap(bp->dev->rx_cpu_rmap);
 	bp->dev->rx_cpu_rmap = NULL;
 #endif
-	if (!bp->irq_tbl)
+	if (!bp->irq_tbl || !bp->bnapi)
 		return;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
