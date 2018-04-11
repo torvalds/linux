@@ -444,7 +444,7 @@ static int put_v4l2_plane32(struct v4l2_plane __user *up,
 		break;
 	case V4L2_MEMORY_USERPTR:
 		if (get_user(p, &up->m.userptr) ||
-		    put_user((compat_ulong_t)ptr_to_compat((__force void *)p),
+		    put_user((compat_ulong_t)ptr_to_compat((void __user *)p),
 			     &up32->m.userptr))
 			return -EFAULT;
 		break;
@@ -587,7 +587,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer __user *kp,
 	u32 length;
 	enum v4l2_memory memory;
 	struct v4l2_plane32 __user *uplane32;
-	struct v4l2_plane __user *uplane;
+	struct v4l2_plane *uplane;
 	compat_caddr_t p;
 	int ret;
 
@@ -617,15 +617,23 @@ static int put_v4l2_buffer32(struct v4l2_buffer __user *kp,
 
 		if (num_planes == 0)
 			return 0;
-
-		if (get_user(uplane, ((__force struct v4l2_plane __user **)&kp->m.planes)))
+		/* We need to define uplane without __user, even though
+		 * it does point to data in userspace here. The reason is
+		 * that v4l2-ioctl.c copies it from userspace to kernelspace,
+		 * so its definition in videodev2.h doesn't have a
+		 * __user markup. Defining uplane with __user causes
+		 * smatch warnings, so instead declare it without __user
+		 * and cast it as a userspace pointer to put_v4l2_plane32().
+		 */
+		if (get_user(uplane, &kp->m.planes))
 			return -EFAULT;
 		if (get_user(p, &up->m.planes))
 			return -EFAULT;
 		uplane32 = compat_ptr(p);
 
 		while (num_planes--) {
-			ret = put_v4l2_plane32(uplane, uplane32, memory);
+			ret = put_v4l2_plane32((void __user *)uplane,
+					       uplane32, memory);
 			if (ret)
 				return ret;
 			++uplane;
@@ -675,7 +683,7 @@ static int get_v4l2_framebuffer32(struct v4l2_framebuffer __user *kp,
 
 	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
 	    get_user(tmp, &up->base) ||
-	    put_user((__force void *)compat_ptr(tmp), &kp->base) ||
+	    put_user((void __force *)compat_ptr(tmp), &kp->base) ||
 	    assign_in_user(&kp->capability, &up->capability) ||
 	    assign_in_user(&kp->flags, &up->flags) ||
 	    copy_in_user(&kp->fmt, &up->fmt, sizeof(kp->fmt)))
@@ -690,7 +698,7 @@ static int put_v4l2_framebuffer32(struct v4l2_framebuffer __user *kp,
 
 	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)) ||
 	    get_user(base, &kp->base) ||
-	    put_user(ptr_to_compat(base), &up->base) ||
+	    put_user(ptr_to_compat((void __user *)base), &up->base) ||
 	    assign_in_user(&up->capability, &kp->capability) ||
 	    assign_in_user(&up->flags, &kp->flags) ||
 	    copy_in_user(&up->fmt, &kp->fmt, sizeof(kp->fmt)))
@@ -857,11 +865,19 @@ static int put_v4l2_ext_controls32(struct file *file,
 				   struct v4l2_ext_controls32 __user *up)
 {
 	struct v4l2_ext_control32 __user *ucontrols;
-	struct v4l2_ext_control __user *kcontrols;
+	struct v4l2_ext_control *kcontrols;
 	u32 count;
 	u32 n;
 	compat_caddr_t p;
 
+	/*
+	 * We need to define kcontrols without __user, even though it does
+	 * point to data in userspace here. The reason is that v4l2-ioctl.c
+	 * copies it from userspace to kernelspace, so its definition in
+	 * videodev2.h doesn't have a __user markup. Defining kcontrols
+	 * with __user causes smatch warnings, so instead declare it
+	 * without __user and cast it as a userspace pointer where needed.
+	 */
 	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)) ||
 	    assign_in_user(&up->which, &kp->which) ||
 	    get_user(count, &kp->count) ||
@@ -883,10 +899,12 @@ static int put_v4l2_ext_controls32(struct file *file,
 		unsigned int size = sizeof(*ucontrols);
 		u32 id;
 
-		if (get_user(id, &kcontrols->id) ||
+		if (get_user(id, (unsigned int __user *)&kcontrols->id) ||
 		    put_user(id, &ucontrols->id) ||
-		    assign_in_user(&ucontrols->size, &kcontrols->size) ||
-		    copy_in_user(&ucontrols->reserved2, &kcontrols->reserved2,
+		    assign_in_user(&ucontrols->size,
+				   (unsigned int __user *)&kcontrols->size) ||
+		    copy_in_user(&ucontrols->reserved2,
+				 (void __user *)&kcontrols->reserved2,
 				 sizeof(ucontrols->reserved2)))
 			return -EFAULT;
 
@@ -898,7 +916,8 @@ static int put_v4l2_ext_controls32(struct file *file,
 		if (ctrl_is_pointer(file, id))
 			size -= sizeof(ucontrols->value64);
 
-		if (copy_in_user(ucontrols, kcontrols, size))
+		if (copy_in_user(ucontrols,
+				 (void __user *)kcontrols, size))
 			return -EFAULT;
 
 		ucontrols++;
@@ -952,9 +971,10 @@ static int get_v4l2_edid32(struct v4l2_edid __user *kp,
 	if (!access_ok(VERIFY_READ, up, sizeof(*up)) ||
 	    assign_in_user(&kp->pad, &up->pad) ||
 	    assign_in_user(&kp->start_block, &up->start_block) ||
-	    assign_in_user(&kp->blocks, &up->blocks) ||
+	    assign_in_user(&kp->blocks,
+			   (u32 __user *)&up->blocks) ||
 	    get_user(tmp, &up->edid) ||
-	    put_user(compat_ptr(tmp), &kp->edid) ||
+	    put_user((void __force *)compat_ptr(tmp), &kp->edid) ||
 	    copy_in_user(kp->reserved, up->reserved, sizeof(kp->reserved)))
 		return -EFAULT;
 	return 0;
@@ -970,7 +990,7 @@ static int put_v4l2_edid32(struct v4l2_edid __user *kp,
 	    assign_in_user(&up->start_block, &kp->start_block) ||
 	    assign_in_user(&up->blocks, &kp->blocks) ||
 	    get_user(edid, &kp->edid) ||
-	    put_user(ptr_to_compat(edid), &up->edid) ||
+	    put_user(ptr_to_compat((void __user *)edid), &up->edid) ||
 	    copy_in_user(up->reserved, kp->reserved, sizeof(up->reserved)))
 		return -EFAULT;
 	return 0;
