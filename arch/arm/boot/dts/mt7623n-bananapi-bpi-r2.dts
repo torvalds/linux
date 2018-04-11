@@ -145,8 +145,6 @@
 
 		switch@0 {
 			compatible = "mediatek,mt7530";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0>;
 			reset-gpios = <&pio 33 0>;
 			core-supply = <&mt6323_vpa_reg>;
@@ -155,7 +153,6 @@
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0>;
 
 				port@0 {
 					reg = <0>;
@@ -259,14 +256,14 @@
 };
 
 &pio {
-	cir_pins_a:cir@0 {
+	cir_pins_a:cir-default {
 		pins-cir {
 			pinmux = <MT7623_PIN_46_IR_FUNC_IR>;
 			bias-disable;
 		};
 	};
 
-	i2c0_pins_a: i2c@0 {
+	i2c0_pins_a: i2c0-default {
 		pins-i2c0 {
 			pinmux = <MT7623_PIN_75_SDA0_FUNC_SDA0>,
 				 <MT7623_PIN_76_SCL0_FUNC_SCL0>;
@@ -274,7 +271,7 @@
 		};
 	};
 
-	i2c1_pins_a: i2c@1 {
+	i2c1_pins_a: i2c1-default {
 		pin-i2c1 {
 			pinmux = <MT7623_PIN_57_SDA1_FUNC_SDA1>,
 				 <MT7623_PIN_58_SCL1_FUNC_SCL1>;
@@ -282,7 +279,7 @@
 		};
 	};
 
-	i2s0_pins_a: i2s@0 {
+	i2s0_pins_a: i2s0-default {
 		pin-i2s0 {
 			pinmux = <MT7623_PIN_49_I2S0_DATA_FUNC_I2S0_DATA>,
 				 <MT7623_PIN_72_I2S0_DATA_IN_FUNC_I2S0_DATA_IN>,
@@ -294,7 +291,7 @@
 		};
 	};
 
-	i2s1_pins_a: i2s@1 {
+	i2s1_pins_a: i2s1-default {
 		pin-i2s1 {
 			pinmux = <MT7623_PIN_33_I2S1_DATA_FUNC_I2S1_DATA>,
 				 <MT7623_PIN_34_I2S1_DATA_IN_FUNC_I2S1_DATA_IN>,
@@ -306,7 +303,7 @@
 		};
 	};
 
-	key_pins_a: keys@0 {
+	key_pins_a: keys-alt {
 		pins-keys {
 			pinmux = <MT7623_PIN_256_GPIO256_FUNC_GPIO256>,
 				 <MT7623_PIN_257_GPIO257_FUNC_GPIO257> ;
@@ -314,7 +311,7 @@
 		};
 	};
 
-	led_pins_a: leds@0 {
+	led_pins_a: leds-alt {
 		pins-leds {
 			pinmux = <MT7623_PIN_239_EXT_SDIO0_FUNC_GPIO239>,
 				 <MT7623_PIN_240_EXT_XCS_FUNC_GPIO240>,
@@ -433,7 +430,7 @@
 		};
 	};
 
-	pwm_pins_a: pwm@0 {
+	pwm_pins_a: pwm-default {
 		pins-pwm {
 			pinmux = <MT7623_PIN_203_PWM0_FUNC_PWM0>,
 				 <MT7623_PIN_204_PWM1_FUNC_PWM1>,
@@ -443,7 +440,7 @@
 		};
 	};
 
-	spi0_pins_a: spi@0 {
+	spi0_pins_a: spi0-default {
 		pins-spi {
 			pinmux = <MT7623_PIN_53_SPI0_CSN_FUNC_SPI0_CS>,
 				<MT7623_PIN_54_SPI0_CK_FUNC_SPI0_CK>,
@@ -453,21 +450,21 @@
 		};
 	};
 
-	uart0_pins_a: uart@0 {
+	uart0_pins_a: uart0-default {
 		pins-dat {
 			pinmux = <MT7623_PIN_79_URXD0_FUNC_URXD0>,
 				 <MT7623_PIN_80_UTXD0_FUNC_UTXD0>;
 		};
 	};
 
-	uart1_pins_a: uart@1 {
+	uart1_pins_a: uart1-default {
 		pins-dat {
 			pinmux = <MT7623_PIN_81_URXD1_FUNC_URXD1>,
 				 <MT7623_PIN_82_UTXD1_FUNC_UTXD1>;
 		};
 	};
 
-	uart2_pins_a: uart@2 {
+	uart2_pins_a: uart2-default {
 		pins-dat {
 			pinmux = <MT7623_PIN_14_GPIO14_FUNC_URXD2>,
 				 <MT7623_PIN_15_GPIO15_FUNC_UTXD2>;
