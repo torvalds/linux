@@ -51,7 +51,7 @@ static const struct fscache_cookie_def ceph_fscache_fsid_object_def = {
 	.type		= FSCACHE_COOKIE_TYPE_INDEX,
 };
 
-int ceph_fscache_register(void)
+int __init ceph_fscache_register(void)
 {
 	return fscache_register_netfs(&ceph_cache_netfs);
 }
@@ -135,7 +135,7 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
-	dout("ceph inode 0x%p cached okay", ci);
+	dout("ceph inode 0x%p cached okay\n", ci);
 	return FSCACHE_CHECKAUX_OKAY;
 }
 

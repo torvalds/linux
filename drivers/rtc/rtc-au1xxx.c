@@ -36,7 +36,7 @@ static int au1xtoy_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_time_to_tm(t, tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int au1xtoy_rtc_set_time(struct device *dev, struct rtc_time *tm)

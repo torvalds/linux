@@ -5,7 +5,6 @@
 #include <linux/rbtree.h>
 #include <linux/ceph/types.h>
 #include <linux/ceph/decode.h>
-#include <linux/ceph/ceph_fs.h>
 #include <linux/crush/crush.h>
 
 /*
@@ -279,11 +278,6 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 bool ceph_osds_changed(const struct ceph_osds *old_acting,
 		       const struct ceph_osds *new_acting,
 		       bool any_change);
-
-/* calculate mapping of a file extent to an object */
-extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-					 u64 off, u64 len,
-					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
 int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
 				const struct ceph_object_id *oid,

@@ -861,7 +861,7 @@ binary_supports_output_format(const struct ia_css_binary_xinfo *info,
 #ifdef ISP2401
 static bool
 binary_supports_input_format(const struct ia_css_binary_xinfo *info,
-			     enum ia_css_stream_format format)
+			     enum atomisp_input_format format)
 {
 
 	assert(info != NULL);
@@ -1088,7 +1088,7 @@ enum ia_css_err
 ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		 bool online,
 		 bool two_ppc,
-		 enum ia_css_stream_format stream_format,
+		 enum atomisp_input_format stream_format,
 		 const struct ia_css_frame_info *in_info, /* can be NULL */
 		 const struct ia_css_frame_info *bds_out_info, /* can be NULL */
 		 const struct ia_css_frame_info *out_info[], /* can be NULL */
@@ -1382,7 +1382,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	int mode;
 	bool online;
 	bool two_ppc;
-	enum ia_css_stream_format stream_format;
+	enum atomisp_input_format stream_format;
 	const struct ia_css_frame_info *req_in_info,
 				       *req_bds_out_info,
 				       *req_out_info[IA_CSS_BINARY_MAX_OUTPUT_PORTS],

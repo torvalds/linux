@@ -1960,12 +1960,8 @@ static int __init fsl_diu_init(void)
 
 	of_node_put(np);
 	coherence_data = vmalloc(coherence_data_size);
-	if (!coherence_data) {
-		pr_err("fsl-diu-fb: could not allocate coherence data "
-		       "(size=%zu)\n", coherence_data_size);
+	if (!coherence_data)
 		return -ENOMEM;
-	}
-
 #endif
 
 	ret = platform_driver_register(&fsl_diu_driver);

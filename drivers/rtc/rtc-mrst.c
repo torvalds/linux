@@ -105,7 +105,7 @@ static int mrst_read_time(struct device *dev, struct rtc_time *time)
 	/* Adjust for the 1972/1900 */
 	time->tm_year += 72;
 	time->tm_mon--;
-	return rtc_valid_tm(time);
+	return 0;
 }
 
 static int mrst_set_time(struct device *dev, struct rtc_time *time)
@@ -122,7 +122,7 @@ static int mrst_set_time(struct device *dev, struct rtc_time *time)
 	min = time->tm_min;
 	sec = time->tm_sec;
 
-	if (yrs < 72 || yrs > 138)
+	if (yrs < 72 || yrs > 172)
 		return -EINVAL;
 	yrs -= 72;
 

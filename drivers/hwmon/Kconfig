@@ -1231,8 +1231,9 @@ config SENSORS_NCT6775
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
-	  NCT6791D, NCT6792D, NCT6793D, and compatible Super-I/O chips. This
-	  driver replaces the w83627ehf driver for NCT6775F and NCT6776F.
+	  NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D, and compatible
+	  Super-I/O chips. This driver replaces the w83627ehf driver for
+	  NCT6775F and NCT6776F.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called nct6775.

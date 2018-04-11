@@ -1087,7 +1087,7 @@ static struct ov5693_reg const ov5693_2576x1936_30fps[] = {
 	{OV5693_TOK_TERM, 0, 0}
 };
 
-struct ov5693_resolution ov5693_res_preview[] = {
+static struct ov5693_resolution ov5693_res_preview[] = {
 	{
 		.desc = "ov5693_736x496_30fps",
 		.width = 736,

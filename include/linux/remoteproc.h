@@ -344,7 +344,7 @@ struct rproc_ops {
 	int (*stop)(struct rproc *rproc);
 	void (*kick)(struct rproc *rproc, int vqid);
 	void * (*da_to_va)(struct rproc *rproc, u64 da, int len);
-	int (*load_rsc_table)(struct rproc *rproc, const struct firmware *fw);
+	int (*parse_fw)(struct rproc *rproc, const struct firmware *fw);
 	struct resource_table *(*find_loaded_rsc_table)(
 				struct rproc *rproc, const struct firmware *fw);
 	int (*load)(struct rproc *rproc, const struct firmware *fw);
@@ -395,6 +395,21 @@ enum rproc_crash_type {
 };
 
 /**
+ * struct rproc_dump_segment - segment info from ELF header
+ * @node:	list node related to the rproc segment list
+ * @da:		device address of the segment
+ * @size:	size of the segment
+ */
+struct rproc_dump_segment {
+	struct list_head node;
+
+	dma_addr_t da;
+	size_t size;
+
+	loff_t offset;
+};
+
+/**
  * struct rproc - represents a physical remote processor device
  * @node: list node of this rproc object
  * @domain: iommu domain
@@ -424,6 +439,7 @@ enum rproc_crash_type {
  * @cached_table: copy of the resource table
  * @table_sz: size of @cached_table
  * @has_iommu: flag to indicate if remote processor is behind an MMU
+ * @dump_segments: list of segments in the firmware
  */
 struct rproc {
 	struct list_head node;
@@ -455,19 +471,21 @@ struct rproc {
 	size_t table_sz;
 	bool has_iommu;
 	bool auto_boot;
+	struct list_head dump_segments;
 };
 
 /**
  * struct rproc_subdev - subdevice tied to a remoteproc
  * @node: list node related to the rproc subdevs list
  * @probe: probe function, called as the rproc is started
- * @remove: remove function, called as the rproc is stopped
+ * @remove: remove function, called as the rproc is being stopped, the @crashed
+ *	    parameter indicates if this originates from the a recovery
  */
 struct rproc_subdev {
 	struct list_head node;
 
 	int (*probe)(struct rproc_subdev *subdev);
-	void (*remove)(struct rproc_subdev *subdev);
+	void (*remove)(struct rproc_subdev *subdev, bool crashed);
 };
 
 /* we currently support only two vrings per rvdev */
@@ -534,6 +552,7 @@ void rproc_free(struct rproc *rproc);
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
 void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type);
+int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size);
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {
@@ -550,7 +569,7 @@ static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 void rproc_add_subdev(struct rproc *rproc,
 		      struct rproc_subdev *subdev,
 		      int (*probe)(struct rproc_subdev *subdev),
-		      void (*remove)(struct rproc_subdev *subdev));
+		      void (*remove)(struct rproc_subdev *subdev, bool graceful));
 
 void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 

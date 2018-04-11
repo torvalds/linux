@@ -184,36 +184,54 @@ int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 					 mdsc->caps_avail_count);
 	spin_unlock(&mdsc->caps_list_lock);
 
-	for (i = have; i < need; i++) {
-retry:
+	for (i = have; i < need; ) {
 		cap = kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
-		if (!cap) {
-			if (!trimmed) {
-				for (j = 0; j < mdsc->max_sessions; j++) {
-					s = __ceph_lookup_mds_session(mdsc, j);
-					if (!s)
-						continue;
-					mutex_unlock(&mdsc->mutex);
-
-					mutex_lock(&s->s_mutex);
-					max_caps = s->s_nr_caps - (need - i);
-					ceph_trim_caps(mdsc, s, max_caps);
-					mutex_unlock(&s->s_mutex);
-
-					ceph_put_mds_session(s);
-					mutex_lock(&mdsc->mutex);
-				}
-				trimmed = true;
-				goto retry;
-			} else {
-				pr_warn("reserve caps ctx=%p ENOMEM "
-					"need=%d got=%d\n",
-					ctx, need, have + alloc);
-				goto out_nomem;
-			}
+		if (cap) {
+			list_add(&cap->caps_item, &newcaps);
+			alloc++;
+			i++;
+			continue;
 		}
-		list_add(&cap->caps_item, &newcaps);
-		alloc++;
+
+		if (!trimmed) {
+			for (j = 0; j < mdsc->max_sessions; j++) {
+				s = __ceph_lookup_mds_session(mdsc, j);
+				if (!s)
+					continue;
+				mutex_unlock(&mdsc->mutex);
+
+				mutex_lock(&s->s_mutex);
+				max_caps = s->s_nr_caps - (need - i);
+				ceph_trim_caps(mdsc, s, max_caps);
+				mutex_unlock(&s->s_mutex);
+
+				ceph_put_mds_session(s);
+				mutex_lock(&mdsc->mutex);
+			}
+			trimmed = true;
+
+			spin_lock(&mdsc->caps_list_lock);
+			if (mdsc->caps_avail_count) {
+				int more_have;
+				if (mdsc->caps_avail_count >= need - i)
+					more_have = need - i;
+				else
+					more_have = mdsc->caps_avail_count;
+
+				i += more_have;
+				have += more_have;
+				mdsc->caps_avail_count -= more_have;
+				mdsc->caps_reserve_count += more_have;
+
+			}
+			spin_unlock(&mdsc->caps_list_lock);
+
+			continue;
+		}
+
+		pr_warn("reserve caps ctx=%p ENOMEM need=%d got=%d\n",
+			ctx, need, have + alloc);
+		goto out_nomem;
 	}
 	BUG_ON(have + alloc != need);
 
@@ -234,16 +252,28 @@ retry:
 	return 0;
 
 out_nomem:
-	while (!list_empty(&newcaps)) {
-		cap = list_first_entry(&newcaps,
-				struct ceph_cap, caps_item);
-		list_del(&cap->caps_item);
-		kmem_cache_free(ceph_cap_cachep, cap);
-	}
 
 	spin_lock(&mdsc->caps_list_lock);
 	mdsc->caps_avail_count += have;
 	mdsc->caps_reserve_count -= have;
+
+	while (!list_empty(&newcaps)) {
+		cap = list_first_entry(&newcaps,
+				struct ceph_cap, caps_item);
+		list_del(&cap->caps_item);
+
+		/* Keep some preallocated caps around (ceph_min_count), to
+		 * avoid lots of free/alloc churn. */
+		if (mdsc->caps_avail_count >=
+		    mdsc->caps_reserve_count + mdsc->caps_min_count) {
+			kmem_cache_free(ceph_cap_cachep, cap);
+		} else {
+			mdsc->caps_avail_count++;
+			mdsc->caps_total_count++;
+			list_add(&cap->caps_item, &mdsc->caps_list);
+		}
+	}
+
 	BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
 					 mdsc->caps_reserve_count +
 					 mdsc->caps_avail_count);
@@ -254,12 +284,26 @@ out_nomem:
 int ceph_unreserve_caps(struct ceph_mds_client *mdsc,
 			struct ceph_cap_reservation *ctx)
 {
+	int i;
+	struct ceph_cap *cap;
+
 	dout("unreserve caps ctx=%p count=%d\n", ctx, ctx->count);
 	if (ctx->count) {
 		spin_lock(&mdsc->caps_list_lock);
 		BUG_ON(mdsc->caps_reserve_count < ctx->count);
 		mdsc->caps_reserve_count -= ctx->count;
-		mdsc->caps_avail_count += ctx->count;
+		if (mdsc->caps_avail_count >=
+		    mdsc->caps_reserve_count + mdsc->caps_min_count) {
+			mdsc->caps_total_count -= ctx->count;
+			for (i = 0; i < ctx->count; i++) {
+				cap = list_first_entry(&mdsc->caps_list,
+					struct ceph_cap, caps_item);
+				list_del(&cap->caps_item);
+				kmem_cache_free(ceph_cap_cachep, cap);
+			}
+		} else {
+			mdsc->caps_avail_count += ctx->count;
+		}
 		ctx->count = 0;
 		dout("unreserve caps %d = %d used + %d resv + %d avail\n",
 		     mdsc->caps_total_count, mdsc->caps_use_count,
@@ -285,7 +329,23 @@ struct ceph_cap *ceph_get_cap(struct ceph_mds_client *mdsc,
 			mdsc->caps_use_count++;
 			mdsc->caps_total_count++;
 			spin_unlock(&mdsc->caps_list_lock);
+		} else {
+			spin_lock(&mdsc->caps_list_lock);
+			if (mdsc->caps_avail_count) {
+				BUG_ON(list_empty(&mdsc->caps_list));
+
+				mdsc->caps_avail_count--;
+				mdsc->caps_use_count++;
+				cap = list_first_entry(&mdsc->caps_list,
+						struct ceph_cap, caps_item);
+				list_del(&cap->caps_item);
+
+				BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
+				       mdsc->caps_reserve_count + mdsc->caps_avail_count);
+			}
+			spin_unlock(&mdsc->caps_list_lock);
 		}
+
 		return cap;
 	}
 
@@ -341,6 +401,8 @@ void ceph_reservation_status(struct ceph_fs_client *fsc,
 {
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 
+	spin_lock(&mdsc->caps_list_lock);
+
 	if (total)
 		*total = mdsc->caps_total_count;
 	if (avail)
@@ -351,6 +413,8 @@ void ceph_reservation_status(struct ceph_fs_client *fsc,
 		*reserved = mdsc->caps_reserve_count;
 	if (min)
 		*min = mdsc->caps_min_count;
+
+	spin_unlock(&mdsc->caps_list_lock);
 }
 
 /*
@@ -639,9 +703,11 @@ void ceph_add_cap(struct inode *inode,
 			}
 
 			spin_lock(&realm->inodes_with_caps_lock);
-			ci->i_snap_realm = realm;
 			list_add(&ci->i_snap_realm_item,
 				 &realm->inodes_with_caps);
+			ci->i_snap_realm = realm;
+			if (realm->ino == ci->i_vino.ino)
+				realm->inode = inode;
 			spin_unlock(&realm->inodes_with_caps_lock);
 
 			if (oldrealm)
