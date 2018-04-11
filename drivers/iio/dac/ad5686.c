@@ -88,7 +88,7 @@ struct ad5686_state {
 
 enum ad5686_supported_device_ids {
 	ID_AD5684,
-	ID_AD5685,
+	ID_AD5685R,
 	ID_AD5686,
 };
 static int ad5686_spi_write(struct ad5686_state *st,
@@ -303,7 +303,7 @@ static const struct ad5686_chip_info ad5686_chip_info_tbl[] = {
 		.num_channels = 4,
 		.int_vref_mv = 2500,
 	},
-	[ID_AD5685] = {
+	[ID_AD5685R] = {
 		.channels = ad5685r_channels,
 		.int_vref_mv = 2500,
 		.num_channels = 4,
@@ -392,7 +392,8 @@ static int ad5686_remove(struct spi_device *spi)
 
 static const struct spi_device_id ad5686_id[] = {
 	{"ad5684", ID_AD5684},
-	{"ad5685", ID_AD5685},
+	{"ad5685", ID_AD5685R}, /* Does not exist */
+	{"ad5685r", ID_AD5685R},
 	{"ad5686", ID_AD5686},
 	{}
 };
