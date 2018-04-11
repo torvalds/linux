@@ -2967,7 +2967,7 @@ __be32
 nfsd4_destroy_session(struct svc_rqst *r, struct nfsd4_compound_state *cstate,
 		union nfsd4_op_u *u)
 {
-	struct nfsd4_destroy_session *sessionid = &u->destroy_session;
+	struct nfs4_sessionid *sessionid = &u->destroy_session.sessionid;
 	struct nfsd4_session *ses;
 	__be32 status;
 	int ref_held_by_me = 0;
@@ -2975,14 +2975,14 @@ nfsd4_destroy_session(struct svc_rqst *r, struct nfsd4_compound_state *cstate,
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	status = nfserr_not_only_op;
-	if (nfsd4_compound_in_session(cstate, &sessionid->sessionid)) {
+	if (nfsd4_compound_in_session(cstate, sessionid)) {
 		if (!nfsd4_last_compound_op(r))
 			goto out;
 		ref_held_by_me++;
 	}
-	dump_sessionid(__func__, &sessionid->sessionid);
+	dump_sessionid(__func__, sessionid);
 	spin_lock(&nn->client_lock);
-	ses = find_in_sessionid_hashtbl(&sessionid->sessionid, net, &status);
+	ses = find_in_sessionid_hashtbl(sessionid, net, &status);
 	if (!ses)
 		goto out_client_lock;
 	status = nfserr_wrong_cred;
