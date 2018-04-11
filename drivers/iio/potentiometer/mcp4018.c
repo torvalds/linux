@@ -99,6 +99,23 @@ static const struct iio_info mcp4018_info = {
 	.write_raw = mcp4018_write_raw,
 };
 
+static const struct i2c_device_id mcp4018_id[] = {
+	{ "mcp4017-502", MCP4018_502 },
+	{ "mcp4017-103", MCP4018_103 },
+	{ "mcp4017-503", MCP4018_503 },
+	{ "mcp4017-104", MCP4018_104 },
+	{ "mcp4018-502", MCP4018_502 },
+	{ "mcp4018-103", MCP4018_103 },
+	{ "mcp4018-503", MCP4018_503 },
+	{ "mcp4018-104", MCP4018_104 },
+	{ "mcp4019-502", MCP4018_502 },
+	{ "mcp4019-103", MCP4018_103 },
+	{ "mcp4019-503", MCP4018_503 },
+	{ "mcp4019-104", MCP4018_104 },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, mcp4018_id);
+
 #ifdef CONFIG_OF
 
 #define MCP4018_COMPATIBLE(of_compatible, cfg) {	\
@@ -125,8 +142,7 @@ MODULE_DEVICE_TABLE(of, mcp4018_of_match);
 
 #endif
 
-static int mcp4018_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mcp4018_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct mcp4018_data *data;
@@ -150,7 +166,7 @@ static int mcp4018_probe(struct i2c_client *client,
 	if (match)
 		data->cfg = of_device_get_match_data(dev);
 	else
-		data->cfg = &mcp4018_cfg[id->driver_data];
+		data->cfg = &mcp4018_cfg[i2c_match_id(mcp4018_id, client)->driver_data];
 
 	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp4018_info;
@@ -161,29 +177,12 @@ static int mcp4018_probe(struct i2c_client *client,
 	return devm_iio_device_register(dev, indio_dev);
 }
 
-static const struct i2c_device_id mcp4018_id[] = {
-	{ "mcp4017-502", MCP4018_502 },
-	{ "mcp4017-103", MCP4018_103 },
-	{ "mcp4017-503", MCP4018_503 },
-	{ "mcp4017-104", MCP4018_104 },
-	{ "mcp4018-502", MCP4018_502 },
-	{ "mcp4018-103", MCP4018_103 },
-	{ "mcp4018-503", MCP4018_503 },
-	{ "mcp4018-104", MCP4018_104 },
-	{ "mcp4019-502", MCP4018_502 },
-	{ "mcp4019-103", MCP4018_103 },
-	{ "mcp4019-503", MCP4018_503 },
-	{ "mcp4019-104", MCP4018_104 },
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, mcp4018_id);
-
 static struct i2c_driver mcp4018_driver = {
 	.driver = {
 		.name	= "mcp4018",
 		.of_match_table = of_match_ptr(mcp4018_of_match),
 	},
-	.probe		= mcp4018_probe,
+	.probe_new	= mcp4018_probe,
 	.id_table	= mcp4018_id,
 };
 
