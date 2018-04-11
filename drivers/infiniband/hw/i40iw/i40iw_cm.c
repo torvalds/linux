@@ -1788,7 +1788,7 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 					    &ifa->ifa_address,
 					    rdma_vlan_dev_vlan_id(dev),
 					    dev->dev_addr);
-				child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_ATOMIC);
+				child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_KERNEL);
 				cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
 				i40iw_debug(&iwdev->sc_dev,
 					    I40IW_DEBUG_CM,
