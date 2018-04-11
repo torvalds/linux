@@ -3500,6 +3500,10 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 	if (plane->state) {
 		plane->state->plane = plane;
 		plane->state->rotation = DRM_MODE_ROTATE_0;
+
+		/* Reset the alpha value to fully opaque if it matters */
+		if (plane->alpha_property)
+			plane->state->alpha = plane->alpha_property->values[1];
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
