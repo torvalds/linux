@@ -46,13 +46,6 @@ static unsigned char mcf_host_irq[] = {
 	0, 69, 69, 71, 71,
 };
 
-
-static inline void syncio(void)
-{
-	/* The ColdFire "nop" instruction waits for all bus IO to complete */
-	__asm__ __volatile__ ("nop");
-}
-
 /*
  * Configuration space access functions. Configuration space access is
  * through the IO mapping window, enabling it via the PCICAR register.
@@ -74,9 +67,9 @@ static int mcf_pci_readconfig(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_SUCCESSFUL;
 	}
 
-	syncio();
 	addr = mcf_mk_pcicar(bus->number, devfn, where);
 	__raw_writel(PCICAR_E | addr, PCICAR);
+	__raw_readl(PCICAR);
 	addr = iospace + (where & 0x3);
 
 	switch (size) {
@@ -91,8 +84,8 @@ static int mcf_pci_readconfig(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-	syncio();
 	__raw_writel(0, PCICAR);
+	__raw_readl(PCICAR);
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -106,9 +99,9 @@ static int mcf_pci_writeconfig(struct pci_bus *bus, unsigned int devfn,
 			return PCIBIOS_SUCCESSFUL;
 	}
 
-	syncio();
 	addr = mcf_mk_pcicar(bus->number, devfn, where);
 	__raw_writel(PCICAR_E | addr, PCICAR);
+	__raw_readl(PCICAR);
 	addr = iospace + (where & 0x3);
 
 	switch (size) {
@@ -123,8 +116,8 @@ static int mcf_pci_writeconfig(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-	syncio();
 	__raw_writel(0, PCICAR);
+	__raw_readl(PCICAR);
 	return PCIBIOS_SUCCESSFUL;
 }
 
