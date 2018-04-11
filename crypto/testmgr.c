@@ -1342,19 +1342,30 @@ static int test_comp(struct crypto_comp *tfm,
 		     int ctcount, int dtcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_comp_tfm(tfm));
+	char *output, *decomp_output;
 	unsigned int i;
-	char result[COMP_BUF_SIZE];
 	int ret;
+
+	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!output)
+		return -ENOMEM;
+
+	decomp_output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!decomp_output) {
+		kfree(output);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ctcount; i++) {
 		int ilen;
 		unsigned int dlen = COMP_BUF_SIZE;
 
-		memset(result, 0, sizeof (result));
+		memset(output, 0, sizeof(COMP_BUF_SIZE));
+		memset(decomp_output, 0, sizeof(COMP_BUF_SIZE));
 
 		ilen = ctemplate[i].inlen;
 		ret = crypto_comp_compress(tfm, ctemplate[i].input,
-		                           ilen, result, &dlen);
+					   ilen, output, &dlen);
 		if (ret) {
 			printk(KERN_ERR "alg: comp: compression failed "
 			       "on test %d for %s: ret=%d\n", i + 1, algo,
@@ -1362,7 +1373,17 @@ static int test_comp(struct crypto_comp *tfm,
 			goto out;
 		}
 
-		if (dlen != ctemplate[i].outlen) {
+		ilen = dlen;
+		dlen = COMP_BUF_SIZE;
+		ret = crypto_comp_decompress(tfm, output,
+					     ilen, decomp_output, &dlen);
+		if (ret) {
+			pr_err("alg: comp: compression failed: decompress: on test %d for %s failed: ret=%d\n",
+			       i + 1, algo, -ret);
+			goto out;
+		}
+
+		if (dlen != ctemplate[i].inlen) {
 			printk(KERN_ERR "alg: comp: Compression test %d "
 			       "failed for %s: output len = %d\n", i + 1, algo,
 			       dlen);
@@ -1370,10 +1391,11 @@ static int test_comp(struct crypto_comp *tfm,
 			goto out;
 		}
 
-		if (memcmp(result, ctemplate[i].output, dlen)) {
-			printk(KERN_ERR "alg: comp: Compression test %d "
-			       "failed for %s\n", i + 1, algo);
-			hexdump(result, dlen);
+		if (memcmp(decomp_output, ctemplate[i].input,
+			   ctemplate[i].inlen)) {
+			pr_err("alg: comp: compression failed: output differs: on test %d for %s\n",
+			       i + 1, algo);
+			hexdump(decomp_output, dlen);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1383,11 +1405,11 @@ static int test_comp(struct crypto_comp *tfm,
 		int ilen;
 		unsigned int dlen = COMP_BUF_SIZE;
 
-		memset(result, 0, sizeof (result));
+		memset(decomp_output, 0, sizeof(COMP_BUF_SIZE));
 
 		ilen = dtemplate[i].inlen;
 		ret = crypto_comp_decompress(tfm, dtemplate[i].input,
-		                             ilen, result, &dlen);
+					     ilen, decomp_output, &dlen);
 		if (ret) {
 			printk(KERN_ERR "alg: comp: decompression failed "
 			       "on test %d for %s: ret=%d\n", i + 1, algo,
@@ -1403,10 +1425,10 @@ static int test_comp(struct crypto_comp *tfm,
 			goto out;
 		}
 
-		if (memcmp(result, dtemplate[i].output, dlen)) {
+		if (memcmp(decomp_output, dtemplate[i].output, dlen)) {
 			printk(KERN_ERR "alg: comp: Decompression test %d "
 			       "failed for %s\n", i + 1, algo);
-			hexdump(result, dlen);
+			hexdump(decomp_output, dlen);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1415,11 +1437,13 @@ static int test_comp(struct crypto_comp *tfm,
 	ret = 0;
 
 out:
+	kfree(decomp_output);
+	kfree(output);
 	return ret;
 }
 
 static int test_acomp(struct crypto_acomp *tfm,
-		      const struct comp_testvec *ctemplate,
+			      const struct comp_testvec *ctemplate,
 		      const struct comp_testvec *dtemplate,
 		      int ctcount, int dtcount)
 {
