@@ -95,6 +95,27 @@ void machine_crash_nonpanic_core(void *unused)
 		cpu_relax();
 }
 
+void crash_smp_send_stop(void)
+{
+	static int cpus_stopped;
+	unsigned long msecs;
+
+	if (cpus_stopped)
+		return;
+
+	atomic_set(&waiting_for_crash_ipi, num_online_cpus() - 1);
+	smp_call_function(machine_crash_nonpanic_core, NULL, false);
+	msecs = 1000; /* Wait at most a second for the other cpus to stop */
+	while ((atomic_read(&waiting_for_crash_ipi) > 0) && msecs) {
+		mdelay(1);
+		msecs--;
+	}
+	if (atomic_read(&waiting_for_crash_ipi) > 0)
+		pr_warn("Non-crashing CPUs did not react to IPI\n");
+
+	cpus_stopped = 1;
+}
+
 static void machine_kexec_mask_interrupts(void)
 {
 	unsigned int i;
@@ -120,19 +141,8 @@ static void machine_kexec_mask_interrupts(void)
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
-	unsigned long msecs;
-
 	local_irq_disable();
-
-	atomic_set(&waiting_for_crash_ipi, num_online_cpus() - 1);
-	smp_call_function(machine_crash_nonpanic_core, NULL, false);
-	msecs = 1000; /* Wait at most a second for the other cpus to stop */
-	while ((atomic_read(&waiting_for_crash_ipi) > 0) && msecs) {
-		mdelay(1);
-		msecs--;
-	}
-	if (atomic_read(&waiting_for_crash_ipi) > 0)
-		pr_warn("Non-crashing CPUs did not react to IPI\n");
+	crash_smp_send_stop();
 
 	crash_save_cpu(regs, smp_processor_id());
 	machine_kexec_mask_interrupts();
