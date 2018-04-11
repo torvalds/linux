@@ -312,17 +312,13 @@ static void ipmi_ssif_unlock_cond(struct ssif_info *ssif_info,
 static void deliver_recv_msg(struct ssif_info *ssif_info,
 			     struct ipmi_smi_msg *msg)
 {
-	struct ipmi_smi *intf = ssif_info->intf;
-
-	if (!intf) {
-		ipmi_free_smi_msg(msg);
-	} else if (msg->rsp_size < 0) {
+	if (msg->rsp_size < 0) {
 		return_hosed_msg(ssif_info, msg);
 		pr_err(PFX
 		       "Malformed message in deliver_recv_msg: rsp_size = %d\n",
 		       msg->rsp_size);
 	} else {
-		ipmi_smi_msg_received(intf, msg);
+		ipmi_smi_msg_received(ssif_info->intf, msg);
 	}
 }
 
@@ -449,12 +445,10 @@ static void start_recv_msg_fetch(struct ssif_info *ssif_info,
 static void handle_flags(struct ssif_info *ssif_info, unsigned long *flags)
 {
 	if (ssif_info->msg_flags & WDT_PRE_TIMEOUT_INT) {
-		struct ipmi_smi *intf = ssif_info->intf;
 		/* Watchdog pre-timeout */
 		ssif_inc_stat(ssif_info, watchdog_pretimeouts);
 		start_clear_flags(ssif_info, flags);
-		if (intf)
-			ipmi_smi_watchdog_pretimeout(intf);
+		ipmi_smi_watchdog_pretimeout(ssif_info->intf);
 	} else if (ssif_info->msg_flags & RECEIVE_MSG_AVAIL)
 		/* Messages available. */
 		start_recv_msg_fetch(ssif_info, flags);

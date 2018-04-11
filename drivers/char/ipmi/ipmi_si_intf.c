@@ -287,10 +287,7 @@ static void deliver_recv_msg(struct smi_info *smi_info,
 			     struct ipmi_smi_msg *msg)
 {
 	/* Deliver the message to the upper layer. */
-	if (smi_info->intf)
-		ipmi_smi_msg_received(smi_info->intf, msg);
-	else
-		ipmi_free_smi_msg(msg);
+	ipmi_smi_msg_received(smi_info->intf, msg);
 }
 
 static void return_hosed_msg(struct smi_info *smi_info, int cCode)
@@ -471,8 +468,7 @@ retry:
 
 		start_clear_flags(smi_info);
 		smi_info->msg_flags &= ~WDT_PRE_TIMEOUT_INT;
-		if (smi_info->intf)
-			ipmi_smi_watchdog_pretimeout(smi_info->intf);
+		ipmi_smi_watchdog_pretimeout(smi_info->intf);
 	} else if (smi_info->msg_flags & RECEIVE_MSG_AVAIL) {
 		/* Messages available. */
 		smi_info->curr_msg = alloc_msg_handle_irq(smi_info);
@@ -798,8 +794,7 @@ restart:
 	 * We prefer handling attn over new messages.  But don't do
 	 * this if there is not yet an upper layer to handle anything.
 	 */
-	if (likely(smi_info->intf) &&
-	    (si_sm_result == SI_SM_ATTN || smi_info->got_attn)) {
+	if (si_sm_result == SI_SM_ATTN || smi_info->got_attn) {
 		unsigned char msg[2];
 
 		if (smi_info->si_state != SI_NORMAL) {
