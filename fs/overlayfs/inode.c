@@ -118,13 +118,10 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 			 */
 			if (ovl_test_flag(OVL_INDEX, d_inode(dentry)) ||
 			    (!ovl_verify_lower(dentry->d_sb) &&
-			     (is_dir || lowerstat.nlink == 1)))
+			     (is_dir || lowerstat.nlink == 1))) {
 				stat->ino = lowerstat.ino;
-
-			if (samefs)
-				WARN_ON_ONCE(stat->dev != lowerstat.dev);
-			else
 				stat->dev = ovl_get_pseudo_dev(dentry);
+			}
 		}
 		if (samefs) {
 			/*
