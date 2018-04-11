@@ -1642,6 +1642,21 @@ static unsigned long rcu_cbs_completed(struct rcu_state *rsp,
 		return rnp->completed + 1;
 
 	/*
+	 * If the current rcu_node structure believes that RCU is
+	 * idle, and if the rcu_state structure does not yet reflect
+	 * the start of a new grace period, then the next grace period
+	 * will suffice.  The memory barrier is needed to accurately
+	 * sample the rsp->gpnum, and pairs with the second lock
+	 * acquisition in rcu_gp_init(), which is augmented with
+	 * smp_mb__after_unlock_lock() for this purpose.
+	 */
+	if (rnp->gpnum == rnp->completed) {
+		smp_mb(); /* See above block comment. */
+		if (READ_ONCE(rsp->gpnum) == rnp->completed)
+			return rnp->completed + 1;
+	}
+
+	/*
 	 * Otherwise, wait for a possible partial grace period and
 	 * then the subsequent full grace period.
 	 */
