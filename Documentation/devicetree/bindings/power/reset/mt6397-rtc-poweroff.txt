@@ -1,0 +1,24 @@
+Device-Tree bindings for Power Device on MediaTek PMIC RTC
+
+The power device is responsible for externally power off or on the remote
+MediaTek SoC through the a tiny circuit block BBPU inside PMIC RTC.
+
+Required parent node:
+- rtc
+	For MediaTek PMIC RTC bindings, see:
+	Documentation/devicetree/bindings/mfd/mt6397.txt
+
+Required properties:
+- compatible: Should be one of follows
+	"mediatek,mt6323-rtc-poweroff": for MT6323 PMIC
+	"mediatek,mt6397-rtc-poweroff": for MT6397 PMIC
+
+Example:
+
+	rtc {
+		compatible = "mediatek,mt6323-rtc";
+
+		power-off {
+			compatible = "mediatek,mt6323-rtc-poweroff";
+		};
+	};

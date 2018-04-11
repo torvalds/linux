@@ -760,7 +760,15 @@
 			};
 		};
 
+		mt6323rtc: rtc {
+			compatible = "mediatek,mt6323-rtc";
+
+			power-off {
+				compatible = "mediatek,mt6323-rtc-poweroff";
+			};
+		};
 	};
+
 };
 
 &consys {       
