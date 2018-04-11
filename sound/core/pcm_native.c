@@ -3095,82 +3095,46 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	return result;
 }
 
-static __poll_t snd_pcm_playback_poll(struct file *file, poll_table * wait)
+static __poll_t snd_pcm_poll(struct file *file, poll_table *wait)
 {
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-        __poll_t mask;
+	__poll_t mask, ok;
 	snd_pcm_uframes_t avail;
 
 	pcm_file = file->private_data;
 
 	substream = pcm_file->substream;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		ok = EPOLLOUT | EPOLLWRNORM;
+	else
+		ok = EPOLLIN | EPOLLRDNORM;
 	if (PCM_RUNTIME_CHECK(substream))
-		return EPOLLOUT | EPOLLWRNORM | EPOLLERR;
-	runtime = substream->runtime;
+		return ok | EPOLLERR;
 
+	runtime = substream->runtime;
 	poll_wait(file, &runtime->sleep, wait);
 
+	mask = 0;
 	snd_pcm_stream_lock_irq(substream);
-	avail = snd_pcm_playback_avail(runtime);
+	avail = snd_pcm_avail(substream);
 	switch (runtime->status->state) {
 	case SNDRV_PCM_STATE_RUNNING:
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_PAUSED:
-		if (avail >= runtime->control->avail_min) {
-			mask = EPOLLOUT | EPOLLWRNORM;
-			break;
-		}
-		/* Fall through */
-	case SNDRV_PCM_STATE_DRAINING:
-		mask = 0;
-		break;
-	default:
-		mask = EPOLLOUT | EPOLLWRNORM | EPOLLERR;
-		break;
-	}
-	snd_pcm_stream_unlock_irq(substream);
-	return mask;
-}
-
-static __poll_t snd_pcm_capture_poll(struct file *file, poll_table * wait)
-{
-	struct snd_pcm_file *pcm_file;
-	struct snd_pcm_substream *substream;
-	struct snd_pcm_runtime *runtime;
-        __poll_t mask;
-	snd_pcm_uframes_t avail;
-
-	pcm_file = file->private_data;
-
-	substream = pcm_file->substream;
-	if (PCM_RUNTIME_CHECK(substream))
-		return EPOLLIN | EPOLLRDNORM | EPOLLERR;
-	runtime = substream->runtime;
-
-	poll_wait(file, &runtime->sleep, wait);
-
-	snd_pcm_stream_lock_irq(substream);
-	avail = snd_pcm_capture_avail(runtime);
-	switch (runtime->status->state) {
-	case SNDRV_PCM_STATE_RUNNING:
-	case SNDRV_PCM_STATE_PREPARED:
-	case SNDRV_PCM_STATE_PAUSED:
-		if (avail >= runtime->control->avail_min) {
-			mask = EPOLLIN | EPOLLRDNORM;
-			break;
-		}
-		mask = 0;
+		if (avail >= runtime->control->avail_min)
+			mask = ok;
 		break;
 	case SNDRV_PCM_STATE_DRAINING:
-		if (avail > 0) {
-			mask = EPOLLIN | EPOLLRDNORM;
-			break;
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			mask = ok;
+			if (!avail)
+				mask |= EPOLLERR;
 		}
-		/* Fall through */
+		break;
 	default:
-		mask = EPOLLIN | EPOLLRDNORM | EPOLLERR;
+		mask = ok | EPOLLERR;
 		break;
 	}
 	snd_pcm_stream_unlock_irq(substream);
@@ -3662,7 +3626,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
 		.llseek =		no_llseek,
-		.poll =			snd_pcm_playback_poll,
+		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
@@ -3676,7 +3640,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
 		.llseek =		no_llseek,
-		.poll =			snd_pcm_capture_poll,
+		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
