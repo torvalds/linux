@@ -2192,6 +2192,12 @@ static int __noreturn rcu_gp_kthread(void *arg)
 	struct rcu_state *rsp = arg;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
+	/* Check for early-boot work. */
+	raw_spin_lock_irq_rcu_node(rnp);
+	if (need_any_future_gp(rnp))
+		WRITE_ONCE(rsp->gp_flags, RCU_GP_FLAG_INIT);
+	raw_spin_unlock_irq_rcu_node(rnp);
+
 	rcu_bind_gp_kthread();
 	for (;;) {
 
