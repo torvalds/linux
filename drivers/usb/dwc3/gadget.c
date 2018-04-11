@@ -683,8 +683,7 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action)
 		if (ret < 0)
 			return ret;
 
-		dep->resource_index = dwc3_gadget_ep_get_transfer_index(dep);
-		WARN_ON_ONCE(!dep->resource_index);
+		dwc3_gadget_ep_get_transfer_index(dep);
 	}
 
 out:
@@ -1245,10 +1244,8 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 		return ret;
 	}
 
-	if (starting) {
-		dep->resource_index = dwc3_gadget_ep_get_transfer_index(dep);
-		WARN_ON_ONCE(!dep->resource_index);
-	}
+	if (starting)
+		dwc3_gadget_ep_get_transfer_index(dep);
 
 	return 0;
 }

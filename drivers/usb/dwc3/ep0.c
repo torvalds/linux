@@ -79,7 +79,7 @@ static int dwc3_ep0_start_trans(struct dwc3_ep *dep)
 	if (ret < 0)
 		return ret;
 
-	dep->resource_index = dwc3_gadget_ep_get_transfer_index(dep);
+	dwc3_gadget_ep_get_transfer_index(dep);
 	dwc->ep0_next_event = DWC3_EP0_COMPLETE;
 
 	return 0;
