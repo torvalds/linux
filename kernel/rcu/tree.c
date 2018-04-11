@@ -2335,34 +2335,6 @@ rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
 }
 
 /*
- * Similar to rcu_start_gp_advanced(), but also advance the calling CPU's
- * callbacks.  Note that rcu_start_gp_advanced() cannot do this because it
- * is invoked indirectly from rcu_advance_cbs(), which would result in
- * endless recursion -- or would do so if it wasn't for the self-deadlock
- * that is encountered beforehand.
- *
- * Returns true if the grace-period kthread needs to be awakened.
- */
-static bool rcu_start_gp(struct rcu_state *rsp)
-{
-	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
-	struct rcu_node *rnp = rcu_get_root(rsp);
-	bool ret = false;
-
-	/*
-	 * If there is no grace period in progress right now, any
-	 * callbacks we have up to this point will be satisfied by the
-	 * next grace period.  Also, advancing the callbacks reduces the
-	 * probability of false positives from cpu_needs_another_gp()
-	 * resulting in pointless grace periods.  So, advance callbacks
-	 * then start the grace period!
-	 */
-	ret = rcu_advance_cbs(rsp, rnp, rdp) || ret;
-	ret = rcu_start_gp_advanced(rsp, rnp, rdp) || ret;
-	return ret;
-}
-
-/*
  * Report a full set of quiescent states to the specified rcu_state data
  * structure.  Invoke rcu_gp_kthread_wake() to awaken the grace-period
  * kthread if another grace period is required.  Whether we wake
@@ -2889,22 +2861,27 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	unsigned long flags;
 	bool needwake;
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
+	struct rcu_node *rnp;
 
 	WARN_ON_ONCE(!rdp->beenonline);
 
 	/* Update RCU state based on any recent quiescent states. */
 	rcu_check_quiescent_state(rsp, rdp);
 
-	/* Does this CPU require a not-yet-started grace period? */
-	local_irq_save(flags);
-	if (cpu_needs_another_gp(rsp, rdp)) {
-		raw_spin_lock_rcu_node(rcu_get_root(rsp)); /* irqs disabled. */
-		needwake = rcu_start_gp(rsp);
-		raw_spin_unlock_irqrestore_rcu_node(rcu_get_root(rsp), flags);
-		if (needwake)
-			rcu_gp_kthread_wake(rsp);
-	} else {
-		local_irq_restore(flags);
+	/* No grace period and unregistered callbacks? */
+	if (!rcu_gp_in_progress(rsp) &&
+	    rcu_segcblist_is_enabled(&rdp->cblist)) {
+		local_irq_save(flags);
+		if (rcu_segcblist_restempty(&rdp->cblist, RCU_NEXT_READY_TAIL)) {
+			local_irq_restore(flags);
+		} else {
+			rnp = rdp->mynode;
+			raw_spin_lock_rcu_node(rnp); /* irqs disabled. */
+			needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
+			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+			if (needwake)
+				rcu_gp_kthread_wake(rsp);
+		}
 	}
 
 	/* If there are callbacks ready, invoke them. */
