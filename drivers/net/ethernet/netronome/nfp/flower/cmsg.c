@@ -258,9 +258,6 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 	case NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS:
 		nfp_tunnel_keep_alive(app, skb);
 		break;
-	case NFP_FLOWER_CMSG_TYPE_TUN_NEIGH:
-		/* Acks from the NFP that the route is added - ignore. */
-		break;
 	default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
 				     type);
@@ -305,6 +302,9 @@ void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_PORT_MOD &&
 		   nfp_flower_process_mtu_ack(app, skb)) {
 		/* Handle MTU acks outside wq to prevent RTNL conflict. */
+		dev_consume_skb_any(skb);
+	} else if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH) {
+		/* Acks from the NFP that the route is added - ignore. */
 		dev_consume_skb_any(skb);
 	} else {
 		skb_queue_tail(&priv->cmsg_skbs, skb);
