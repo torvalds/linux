@@ -70,6 +70,7 @@
 #include <asm/numa.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
+#include <asm/mem_detect.h>
 #include "entry.h"
 
 /*
@@ -91,7 +92,8 @@ unsigned long int_hwcap = 0;
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
-unsigned long __initdata max_physmem_end;
+unsigned long __bootdata(max_physmem_end);
+struct mem_detect_info __bootdata(mem_detect);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -720,6 +722,45 @@ static void __init reserve_initrd(void)
 #endif
 }
 
+static void __init reserve_mem_detect_info(void)
+{
+	unsigned long start, size;
+
+	get_mem_detect_reserved(&start, &size);
+	if (size)
+		memblock_reserve(start, size);
+}
+
+static void __init free_mem_detect_info(void)
+{
+	unsigned long start, size;
+
+	get_mem_detect_reserved(&start, &size);
+	if (size)
+		memblock_free(start, size);
+}
+
+static void __init memblock_physmem_add(phys_addr_t start, phys_addr_t size)
+{
+	memblock_dbg("memblock_physmem_add: [%#016llx-%#016llx]\n",
+		     start, start + size - 1);
+	memblock_add_range(&memblock.memory, start, size, 0, 0);
+	memblock_add_range(&memblock.physmem, start, size, 0, 0);
+}
+
+static void __init memblock_add_mem_detect_info(void)
+{
+	unsigned long start, end;
+	int i;
+
+	/* keep memblock lists close to the kernel */
+	memblock_set_bottom_up(true);
+	for_each_mem_detect_block(i, &start, &end)
+		memblock_physmem_add(start, end - start);
+	memblock_set_bottom_up(false);
+	memblock_dump_all();
+}
+
 /*
  * Check for initrd being in usable memory
  */
@@ -984,11 +1025,13 @@ void __init setup_arch(char **cmdline_p)
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
+	reserve_mem_detect_info();
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
-	detect_memory_memblock();
+	memblock_add_mem_detect_info();
 
+	free_mem_detect_info();
 	remove_oldmem();
 
 	/*

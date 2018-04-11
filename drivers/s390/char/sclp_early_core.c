@@ -270,3 +270,20 @@ int __init sclp_early_get_info(struct read_info_sccb *info)
 	*info = sclp_info_sccb;
 	return 0;
 }
+
+int __init sclp_early_get_meminfo(unsigned long *mem, unsigned long *rzm)
+{
+	unsigned long rnmax;
+	unsigned long rnsize;
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
+	rnsize = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
+	rnsize <<= 20;
+	*mem = rnsize * rnmax;
+	*rzm = rnsize;
+	return 0;
+}

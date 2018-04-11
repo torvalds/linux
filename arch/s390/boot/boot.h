@@ -3,5 +3,6 @@
 #define BOOT_BOOT_H
 
 void startup_kernel(void);
+void detect_memory(void);
 
 #endif /* BOOT_BOOT_H */

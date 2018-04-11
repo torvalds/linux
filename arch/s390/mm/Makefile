@@ -4,8 +4,7 @@
 #
 
 obj-y		:= init.o fault.o extmem.o mmap.o vmem.o maccess.o
-obj-y		+= page-states.o gup.o pageattr.o mem_detect.o
-obj-y		+= pgtable.o pgalloc.o
+obj-y		+= page-states.o gup.o pageattr.o pgtable.o pgalloc.o
 
 obj-$(CONFIG_CMM)		+= cmm.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
