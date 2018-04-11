@@ -1704,18 +1704,16 @@ static int create_filter(struct trace_event_call *call,
 			 struct event_filter **filterp)
 {
 	struct filter_parse_error *pe = NULL;
-	struct event_filter *filter = NULL;
 	int err;
 
-	err = create_filter_start(filter_string, set_str, &pe, &filter);
+	err = create_filter_start(filter_string, set_str, &pe, filterp);
 	if (err)
 		return err;
 
-	err = process_preds(call, filter_string, filter, pe);
+	err = process_preds(call, filter_string, *filterp, pe);
 	if (err && set_str)
-		append_filter_err(pe, filter);
+		append_filter_err(pe, *filterp);
 
-	*filterp = filter;
 	return err;
 }
 
@@ -1739,24 +1737,22 @@ static int create_system_filter(struct trace_subsystem_dir *dir,
 				struct trace_array *tr,
 				char *filter_str, struct event_filter **filterp)
 {
-	struct event_filter *filter = NULL;
 	struct filter_parse_error *pe = NULL;
 	int err;
 
-	err = create_filter_start(filter_str, true, &pe, &filter);
+	err = create_filter_start(filter_str, true, &pe, filterp);
 	if (!err) {
 		err = process_system_preds(dir, tr, pe, filter_str);
 		if (!err) {
 			/* System filters just show a default message */
-			kfree(filter->filter_string);
-			filter->filter_string = NULL;
+			kfree((*filterp)->filter_string);
+			(*filterp)->filter_string = NULL;
 		} else {
-			append_filter_err(pe, filter);
+			append_filter_err(pe, *filterp);
 		}
 	}
 	create_filter_finish(pe);
 
-	*filterp = filter;
 	return err;
 }
 
@@ -1764,7 +1760,7 @@ static int create_system_filter(struct trace_subsystem_dir *dir,
 int apply_event_filter(struct trace_event_file *file, char *filter_string)
 {
 	struct trace_event_call *call = file->event_call;
-	struct event_filter *filter;
+	struct event_filter *filter = NULL;
 	int err;
 
 	if (!strcmp(strstrip(filter_string), "0")) {
@@ -1817,7 +1813,7 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 {
 	struct event_subsystem *system = dir->subsystem;
 	struct trace_array *tr = dir->tr;
-	struct event_filter *filter;
+	struct event_filter *filter = NULL;
 	int err = 0;
 
 	mutex_lock(&event_mutex);
@@ -2024,7 +2020,7 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 			      char *filter_str)
 {
 	int err;
-	struct event_filter *filter;
+	struct event_filter *filter = NULL;
 	struct trace_event_call *call;
 
 	mutex_lock(&event_mutex);
