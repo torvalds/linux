@@ -83,7 +83,7 @@ void machine_crash_nonpanic_core(void *unused)
 {
 	struct pt_regs regs;
 
-	crash_setup_regs(&regs, NULL);
+	crash_setup_regs(&regs, get_irq_regs());
 	printk(KERN_DEBUG "CPU %u will stop doing anything useful since another CPU has crashed\n",
 	       smp_processor_id());
 	crash_save_cpu(&regs, smp_processor_id());
