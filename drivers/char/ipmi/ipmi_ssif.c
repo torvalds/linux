@@ -194,7 +194,6 @@ typedef void (*ssif_i2c_done)(struct ssif_info *ssif_info, int result,
 
 struct ssif_info {
 	struct ipmi_smi     *intf;
-	int                 intf_num;
 	spinlock_t	    lock;
 	struct ipmi_smi_msg *waiting_msg;
 	struct ipmi_smi_msg *curr_msg;
@@ -289,8 +288,6 @@ struct ssif_info {
 	((unsigned int) atomic_read(&(ssif)->stats[SSIF_STAT_ ## stat]))
 
 static bool initialized;
-
-static atomic_t next_intf = ATOMIC_INIT(0);
 
 static void return_hosed_msg(struct ssif_info *ssif_info,
 			     struct ipmi_smi_msg *msg);
@@ -1663,8 +1660,6 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
  found:
-	ssif_info->intf_num = atomic_inc_return(&next_intf);
-
 	if (ssif_dbg_probe) {
 		pr_info("ssif_probe: i2c_probe found device at i2c address %x\n",
 			client->addr);
