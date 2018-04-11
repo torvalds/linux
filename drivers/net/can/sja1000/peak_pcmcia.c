@@ -530,7 +530,7 @@ static int pcan_add_channels(struct pcan_pccard *card)
 	pcan_write_reg(card, PCC_CCR, ccr);
 
 	/* wait 2ms before unresetting channels */
-	mdelay(2);
+	usleep_range(2000, 3000);
 
 	ccr &= ~PCC_CCR_RST_ALL;
 	pcan_write_reg(card, PCC_CCR, ccr);
