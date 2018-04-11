@@ -184,8 +184,13 @@ void detect_memory(void)
 		return;
 	}
 
+	if (max_physmem_end) {
+		add_mem_detect_block(0, max_physmem_end);
+		mem_detect.info_source = MEM_DETECT_SCLP_READ_INFO;
+		return;
+	}
+
 	scan_memory(rzm);
 	mem_detect.info_source = MEM_DETECT_TPROT_LOOP;
-	if (!max_physmem_end)
-		max_physmem_end = get_mem_detect_end();
+	max_physmem_end = get_mem_detect_end();
 }
