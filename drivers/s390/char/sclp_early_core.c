@@ -10,6 +10,7 @@
 #include <asm/ebcdic.h>
 #include <asm/irq.h>
 #include <asm/sections.h>
+#include <asm/mem_detect.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
@@ -286,4 +287,56 @@ int __init sclp_early_get_meminfo(unsigned long *mem, unsigned long *rzm)
 	*mem = rnsize * rnmax;
 	*rzm = rnsize;
 	return 0;
+}
+
+#define SCLP_STORAGE_INFO_FACILITY     0x0000400000000000UL
+
+void __weak __init add_mem_detect_block(u64 start, u64 end) {}
+int __init sclp_early_read_storage_info(void)
+{
+	struct read_storage_sccb *sccb = (struct read_storage_sccb *)&sclp_early_sccb;
+	int rc, id, max_id = 0;
+	unsigned long rn, rzm;
+	sclp_cmdw_t command;
+	u16 sn;
+
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	if (!(sclp_info_sccb.facilities & SCLP_STORAGE_INFO_FACILITY))
+		return -EOPNOTSUPP;
+
+	rzm = sclp_info_sccb.rnsize ?: sclp_info_sccb.rnsize2;
+	rzm <<= 20;
+
+	for (id = 0; id <= max_id; id++) {
+		memset(sclp_early_sccb, 0, sizeof(sclp_early_sccb));
+		sccb->header.length = sizeof(sclp_early_sccb);
+		command = SCLP_CMDW_READ_STORAGE_INFO | (id << 8);
+		rc = sclp_early_cmd(command, sccb);
+		if (rc)
+			goto fail;
+
+		max_id = sccb->max_id;
+		switch (sccb->header.response_code) {
+		case 0x0010:
+			for (sn = 0; sn < sccb->assigned; sn++) {
+				if (!sccb->entries[sn])
+					continue;
+				rn = sccb->entries[sn] >> 16;
+				add_mem_detect_block((rn - 1) * rzm, rn * rzm);
+			}
+			break;
+		case 0x0310:
+		case 0x0410:
+			break;
+		default:
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	mem_detect.count = 0;
+	return -EIO;
 }

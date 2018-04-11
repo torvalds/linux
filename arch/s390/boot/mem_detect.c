@@ -126,6 +126,12 @@ void detect_memory(void)
 	unsigned long rzm;
 
 	sclp_early_get_meminfo(&max_physmem_end, &rzm);
+
+	if (!sclp_early_read_storage_info()) {
+		mem_detect.info_source = MEM_DETECT_SCLP_STOR_INFO;
+		return;
+	}
+
 	scan_memory(rzm);
 	mem_detect.info_source = MEM_DETECT_TPROT_LOOP;
 	if (!max_physmem_end)

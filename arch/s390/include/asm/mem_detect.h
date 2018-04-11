@@ -6,6 +6,7 @@
 
 enum mem_info_source {
 	MEM_DETECT_NONE = 0,
+	MEM_DETECT_SCLP_STOR_INFO,
 	MEM_DETECT_TPROT_LOOP
 };
 
@@ -31,6 +32,8 @@ struct mem_detect_info {
 	struct mem_detect_block *entries_extended;
 };
 extern struct mem_detect_info mem_detect;
+
+void add_mem_detect_block(u64 start, u64 end);
 
 static inline int __get_mem_detect_block(u32 n, unsigned long *start,
 					 unsigned long *end)

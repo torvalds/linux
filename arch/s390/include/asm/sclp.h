@@ -106,6 +106,7 @@ struct zpci_report_error_header {
 } __packed;
 
 int sclp_early_read_info(void);
+int sclp_early_read_storage_info(void);
 int sclp_early_get_core_info(struct sclp_core_info *info);
 void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
 void sclp_early_detect(void);

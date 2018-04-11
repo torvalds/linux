@@ -64,6 +64,7 @@ typedef unsigned int sclp_cmdw_t;
 
 #define SCLP_CMDW_READ_CPU_INFO		0x00010001
 #define SCLP_CMDW_READ_SCP_INFO		0x00020001
+#define SCLP_CMDW_READ_STORAGE_INFO	0x00040001
 #define SCLP_CMDW_READ_SCP_INFO_FORCED	0x00120001
 #define SCLP_CMDW_READ_EVENT_DATA	0x00770005
 #define SCLP_CMDW_WRITE_EVENT_DATA	0x00760005
@@ -196,6 +197,15 @@ struct read_info_sccb {
 	u32	hmfai;			/* 124-127 */
 	u8	_pad_128[4096 - 128];	/* 128-4095 */
 } __packed __aligned(PAGE_SIZE);
+
+struct read_storage_sccb {
+	struct sccb_header header;
+	u16 max_id;
+	u16 assigned;
+	u16 standby;
+	u16 :16;
+	u32 entries[0];
+} __packed;
 
 static inline void sclp_fill_core_info(struct sclp_core_info *info,
 				       struct read_cpu_info_sccb *sccb)
