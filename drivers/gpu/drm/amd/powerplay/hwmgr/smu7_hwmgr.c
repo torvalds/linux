@@ -4150,13 +4150,9 @@ static int smu7_read_clock_registers(struct pp_hwmgr *hwmgr)
 static int smu7_get_memory_type(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	uint32_t temp;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	temp = cgs_read_register(hwmgr->device, mmMC_SEQ_MISC0);
-
-	data->is_memory_gddr5 = (MC_SEQ_MISC0_GDDR5_VALUE ==
-			((temp & MC_SEQ_MISC0_GDDR5_MASK) >>
-			 MC_SEQ_MISC0_GDDR5_SHIFT));
+	data->is_memory_gddr5 = (adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5);
 
 	return 0;
 }
