@@ -27,6 +27,13 @@
 #include <obd_class.h>
 #include "osc_internal.h"
 
+static const struct rhashtable_params quota_hash_params = {
+	.key_len	= sizeof(u32),
+	.key_offset	= offsetof(struct osc_quota_info, oqi_id),
+	.head_offset	= offsetof(struct osc_quota_info, oqi_hash),
+	.automatic_shrinking = true,
+};
+
 static inline struct osc_quota_info *osc_oqi_alloc(u32 id)
 {
 	struct osc_quota_info *oqi;
@@ -45,9 +52,10 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 	for (type = 0; type < MAXQUOTAS; type++) {
 		struct osc_quota_info *oqi;
 
-		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
+		oqi = rhashtable_lookup_fast(&cli->cl_quota_hash[type], &qid[type],
+					     quota_hash_params);
 		if (oqi) {
-			/* do not try to access oqi here, it could have been
+			/* Must not access oqi here, it could have been
 			 * freed by osc_quota_setdq()
 			 */
 
@@ -62,6 +70,14 @@ int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 
 	return QUOTA_OK;
 }
+
+static void osc_quota_free(struct rcu_head *head)
+{
+	struct osc_quota_info *oqi = container_of(head, struct osc_quota_info, rcu);
+
+	kmem_cache_free(osc_quota_kmem, oqi);
+}
+
 
 #define MD_QUOTA_FLAG(type) ((type == USRQUOTA) ? OBD_MD_FLUSRQUOTA \
 						: OBD_MD_FLGRPQUOTA)
@@ -84,11 +100,14 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 			continue;
 
 		/* lookup the ID in the per-type hash table */
-		oqi = cfs_hash_lookup(cli->cl_quota_hash[type], &qid[type]);
+		rcu_read_lock();
+		oqi = rhashtable_lookup_fast(&cli->cl_quota_hash[type], &qid[type],
+					     quota_hash_params);
 		if ((flags & FL_QUOTA_FLAG(type)) != 0) {
 			/* This ID is getting close to its quota limit, let's
 			 * switch to sync I/O
 			 */
+			rcu_read_unlock();
 			if (oqi)
 				continue;
 
@@ -98,12 +117,16 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 				break;
 			}
 
-			rc = cfs_hash_add_unique(cli->cl_quota_hash[type],
-						 &qid[type], &oqi->oqi_hash);
+			rc = rhashtable_lookup_insert_fast(&cli->cl_quota_hash[type],
+							   &oqi->oqi_hash, quota_hash_params);
 			/* race with others? */
-			if (rc == -EALREADY) {
-				rc = 0;
+			if (rc) {
 				kmem_cache_free(osc_quota_kmem, oqi);
+				if (rc != -EEXIST) {
+					rc = -ENOMEM;
+					break;
+				}
+				rc = 0;
 			}
 
 			CDEBUG(D_QUOTA, "%s: setdq to insert for %s %d (%d)\n",
@@ -114,14 +137,14 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 			/* This ID is now off the hook, let's remove it from
 			 * the hash table
 			 */
-			if (!oqi)
+			if (!oqi) {
+				rcu_read_unlock();
 				continue;
-
-			oqi = cfs_hash_del_key(cli->cl_quota_hash[type],
-					       &qid[type]);
-			if (oqi)
-				kmem_cache_free(osc_quota_kmem, oqi);
-
+			}
+			if (rhashtable_remove_fast(&cli->cl_quota_hash[type],
+						   &oqi->oqi_hash, quota_hash_params) == 0)
+				call_rcu(&oqi->rcu, osc_quota_free);
+			rcu_read_unlock();
 			CDEBUG(D_QUOTA, "%s: setdq to remove for %s %d (%p)\n",
 			       cli_name(cli),
 			       type == USRQUOTA ? "user" : "group",
@@ -132,76 +155,13 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 	return rc;
 }
 
-/*
- * Hash operations for uid/gid <-> osc_quota_info
- */
-static unsigned int
-oqi_hashfn(struct cfs_hash *hs, const void *key, unsigned int mask)
-{
-	return cfs_hash_u32_hash(*((__u32 *)key), mask);
-}
-
-static int
-oqi_keycmp(const void *key, struct hlist_node *hnode)
-{
-	struct osc_quota_info *oqi;
-	u32 uid;
-
-	LASSERT(key);
-	uid = *((u32 *)key);
-	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
-
-	return uid == oqi->oqi_id;
-}
-
-static void *
-oqi_key(struct hlist_node *hnode)
-{
-	struct osc_quota_info *oqi;
-
-	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
-	return &oqi->oqi_id;
-}
-
-static void *
-oqi_object(struct hlist_node *hnode)
-{
-	return hlist_entry(hnode, struct osc_quota_info, oqi_hash);
-}
-
 static void
-oqi_get(struct cfs_hash *hs, struct hlist_node *hnode)
+oqi_exit(void *vquota, void *data)
 {
+	struct osc_quota_info *oqi = vquota;
+
+	osc_quota_free(&oqi->rcu);
 }
-
-static void
-oqi_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
-{
-}
-
-static void
-oqi_exit(struct cfs_hash *hs, struct hlist_node *hnode)
-{
-	struct osc_quota_info *oqi;
-
-	oqi = hlist_entry(hnode, struct osc_quota_info, oqi_hash);
-
-	kmem_cache_free(osc_quota_kmem, oqi);
-}
-
-#define HASH_QUOTA_BKT_BITS 5
-#define HASH_QUOTA_CUR_BITS 5
-#define HASH_QUOTA_MAX_BITS 15
-
-static struct cfs_hash_ops quota_hash_ops = {
-	.hs_hash	= oqi_hashfn,
-	.hs_keycmp	= oqi_keycmp,
-	.hs_key		= oqi_key,
-	.hs_object	= oqi_object,
-	.hs_get		= oqi_get,
-	.hs_put_locked	= oqi_put_locked,
-	.hs_exit	= oqi_exit,
-};
 
 int osc_quota_setup(struct obd_device *obd)
 {
@@ -209,16 +169,7 @@ int osc_quota_setup(struct obd_device *obd)
 	int i, type;
 
 	for (type = 0; type < MAXQUOTAS; type++) {
-		cli->cl_quota_hash[type] = cfs_hash_create("QUOTA_HASH",
-							   HASH_QUOTA_CUR_BITS,
-							   HASH_QUOTA_MAX_BITS,
-							   HASH_QUOTA_BKT_BITS,
-							   0,
-							   CFS_HASH_MIN_THETA,
-							   CFS_HASH_MAX_THETA,
-							   &quota_hash_ops,
-							   CFS_HASH_DEFAULT);
-		if (!cli->cl_quota_hash[type])
+		if (rhashtable_init(&cli->cl_quota_hash[type], &quota_hash_params) != 0)
 			break;
 	}
 
@@ -226,7 +177,7 @@ int osc_quota_setup(struct obd_device *obd)
 		return 0;
 
 	for (i = 0; i < type; i++)
-		cfs_hash_putref(cli->cl_quota_hash[i]);
+		rhashtable_destroy(&cli->cl_quota_hash[i]);
 
 	return -ENOMEM;
 }
@@ -237,7 +188,8 @@ int osc_quota_cleanup(struct obd_device *obd)
 	int type;
 
 	for (type = 0; type < MAXQUOTAS; type++)
-		cfs_hash_putref(cli->cl_quota_hash[type]);
+		rhashtable_free_and_destroy(&cli->cl_quota_hash[type],
+					    oqi_exit, NULL);
 
 	return 0;
 }

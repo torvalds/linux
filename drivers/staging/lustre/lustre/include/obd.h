@@ -333,7 +333,7 @@ struct client_obd {
 	void		    *cl_writeback_work;
 	void			*cl_lru_work;
 	/* hash tables for osc_quota_info */
-	struct cfs_hash	      *cl_quota_hash[MAXQUOTAS];
+	struct rhashtable	cl_quota_hash[MAXQUOTAS];
 };
 
 #define obd2cli_tgt(obd) ((char *)(obd)->u.cli.cl_target_uuid.uuid)

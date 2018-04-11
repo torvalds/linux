@@ -188,8 +188,9 @@ extern struct lu_kmem_descr osc_caches[];
 extern struct kmem_cache *osc_quota_kmem;
 struct osc_quota_info {
 	/** linkage for quota hash table */
-	struct hlist_node oqi_hash;
-	u32	  oqi_id;
+	struct rhash_head oqi_hash;
+	u32		  oqi_id;
+	struct rcu_head	  rcu;
 };
 
 int osc_quota_setup(struct obd_device *obd);
