@@ -526,7 +526,6 @@ static unsigned long inno_hdmi_phy_clk_recalc_rate(struct clk_hw *hw,
 static long inno_hdmi_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 					 unsigned long *parent_rate)
 {
-	struct inno_hdmi_phy *inno = to_inno_hdmi_phy(hw);
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
 
 	for (; cfg->pixclock != ~0UL; cfg++)
@@ -536,8 +535,6 @@ static long inno_hdmi_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	/* XXX: Limit pixel clock under 600MHz */
 	if (cfg->pixclock > 600000000)
 		return -EINVAL;
-
-	dev_dbg(inno->dev, "%s: rate=%ld\n", __func__, cfg->pixclock);
 
 	return cfg->pixclock;
 }
@@ -1000,7 +997,7 @@ inno_hdmi_rk3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 				     unsigned long parent_rate)
 {
 	unsigned long frac;
-	u8 nd, no_a, no_b, no_c, no_d;
+	u8 nd, no_a, no_b, no_d;
 	u16 nf;
 	u64 vco = parent_rate;
 
@@ -1018,7 +1015,6 @@ inno_hdmi_rk3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 	} else {
 		no_a = inno_read(inno, 0xa5) & 0x1f;
 		no_b = ((inno_read(inno, 0xa5) >> 5) & 7) + 2;
-		no_c = (1 << ((inno_read(inno, 0xa6) >> 5) & 7));
 		no_d = inno_read(inno, 0xa6) & 0x1f;
 		if (no_a == 1)
 			do_div(vco, nd * no_b * no_d * 2);
@@ -1161,7 +1157,7 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(inno->phy)) {
 		dev_err(dev, "failed to create HDMI PHY\n");
 		ret = PTR_ERR(inno->phy);
-		goto err_phy;
+		goto err_regsmap;
 	}
 
 	phy_set_drvdata(inno->phy, inno);
@@ -1171,7 +1167,7 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_provider)) {
 		dev_err(dev, "failed to register PHY provider\n");
 		ret = PTR_ERR(phy_provider);
-		goto err_provider;
+		goto err_regsmap;
 	}
 
 	if (inno->plat_data->ops->init)
@@ -1179,7 +1175,7 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 
 	ret = inno_hdmi_phy_clk_register(inno);
 	if (ret)
-		goto err_register;
+		goto err_regsmap;
 
 	inno->irq = platform_get_irq(pdev, 0);
 	if (inno->irq > 0) {
@@ -1190,16 +1186,11 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_irq;
 	}
+	platform_set_drvdata(pdev, inno);
 	return 0;
 
 err_irq:
 	of_clk_del_provider(pdev->dev.of_node);
-err_register:
-	devm_of_phy_provider_unregister(dev, phy_provider);
-err_provider:
-	devm_phy_destroy(dev, inno->phy);
-err_phy:
-	regmap_exit(inno->regmap);
 err_regsmap:
 	clk_disable_unprepare(inno->sysclk);
 	return ret;
@@ -1207,8 +1198,10 @@ err_regsmap:
 
 static int inno_hdmi_phy_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	struct inno_hdmi_phy *inno = platform_get_drvdata(pdev);
 
+	of_clk_del_provider(pdev->dev.of_node);
+	clk_disable_unprepare(inno->sysclk);
 	return 0;
 }
 
