@@ -198,7 +198,7 @@ static int omap_vout_try_format(struct v4l2_pix_format *pix)
  * omap_vout_get_userptr: Convert user space virtual address to physical
  * address.
  */
-static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
+static int omap_vout_get_userptr(struct videobuf_buffer *vb, long virtp,
 				 u32 *physp)
 {
 	struct frame_vector *vec;

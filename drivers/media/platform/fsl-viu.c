@@ -750,7 +750,7 @@ static int viu_setup_preview(struct viu_dev *dev, struct viu_fh *fh)
 	reg_val.status_cfg |= DMA_ACT | INT_DMA_END_EN | INT_FIELD_EN;
 
 	/* setup the base address of the overlay buffer */
-	reg_val.field_base_addr = (u32)dev->ovbuf.base;
+	reg_val.field_base_addr = (u32)(long)dev->ovbuf.base;
 
 	return 0;
 }
