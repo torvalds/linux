@@ -4392,7 +4392,7 @@ S:	Maintained
 F:	drivers/staging/fsl-dpaa2/ethsw
 
 DPT_I2O SCSI RAID DRIVER
-M:	Adaptec OEM Raid Solutions <aacraid@adaptec.com>
+M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Maintained
@@ -6410,6 +6410,7 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/hmm*
 F:	include/linux/hmm*
+F:	Documentation/vm/hmm.txt
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>
@@ -7344,7 +7345,7 @@ F:	include/linux/ipmi*
 F:	include/uapi/linux/ipmi*
 
 IPS SCSI RAID DRIVER
-M:	Adaptec OEM Raid Solutions <aacraid@adaptec.com>
+M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Maintained
@@ -11762,7 +11763,7 @@ F:	drivers/char/random.c
 
 RAPIDIO SUBSYSTEM
 M:	Matt Porter <mporter@kernel.crashing.org>
-M:	Alexandre Bounine <alexandre.bounine@idt.com>
+M:	Alexandre Bounine <alex.bou9@gmail.com>
 S:	Maintained
 F:	drivers/rapidio/
 

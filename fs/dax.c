@@ -158,11 +158,9 @@ static int wake_exceptional_entry_func(wait_queue_entry_t *wait, unsigned int mo
 }
 
 /*
- * We do not necessarily hold the mapping->tree_lock when we call this
- * function so it is possible that 'entry' is no longer a valid item in the
- * radix tree.  This is okay because all we really need to do is to find the
- * correct waitqueue where tasks might be waiting for that old 'entry' and
- * wake them.
+ * @entry may no longer be the entry at the index in the mapping.
+ * The important information it's conveying is whether the entry at
+ * this index used to be a PMD entry.
  */
 static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
 		pgoff_t index, void *entry, bool wake_all)
@@ -174,7 +172,7 @@ static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
 
 	/*
 	 * Checking for locked entry and prepare_to_wait_exclusive() happens
-	 * under mapping->tree_lock, ditto for entry handling in our callers.
+	 * under the i_pages lock, ditto for entry handling in our callers.
 	 * So at this point all tasks that could have seen our entry locked
 	 * must be in the waitqueue and the following check will see them.
 	 */
@@ -183,41 +181,39 @@ static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
 }
 
 /*
- * Check whether the given slot is locked. The function must be called with
- * mapping->tree_lock held
+ * Check whether the given slot is locked.  Must be called with the i_pages
+ * lock held.
  */
 static inline int slot_locked(struct address_space *mapping, void **slot)
 {
 	unsigned long entry = (unsigned long)
-		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
+		radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock);
 	return entry & RADIX_DAX_ENTRY_LOCK;
 }
 
 /*
- * Mark the given slot is locked. The function must be called with
- * mapping->tree_lock held
+ * Mark the given slot as locked.  Must be called with the i_pages lock held.
  */
 static inline void *lock_slot(struct address_space *mapping, void **slot)
 {
 	unsigned long entry = (unsigned long)
-		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
+		radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock);
 
 	entry |= RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
+	radix_tree_replace_slot(&mapping->i_pages, slot, (void *)entry);
 	return (void *)entry;
 }
 
 /*
- * Mark the given slot is unlocked. The function must be called with
- * mapping->tree_lock held
+ * Mark the given slot as unlocked.  Must be called with the i_pages lock held.
  */
 static inline void *unlock_slot(struct address_space *mapping, void **slot)
 {
 	unsigned long entry = (unsigned long)
-		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
+		radix_tree_deref_slot_protected(slot, &mapping->i_pages.xa_lock);
 
 	entry &= ~(unsigned long)RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
+	radix_tree_replace_slot(&mapping->i_pages, slot, (void *)entry);
 	return (void *)entry;
 }
 
@@ -228,7 +224,7 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
  * put_locked_mapping_entry() when he locked the entry and now wants to
  * unlock it.
  *
- * The function must be called with mapping->tree_lock held.
+ * Must be called with the i_pages lock held.
  */
 static void *get_unlocked_mapping_entry(struct address_space *mapping,
 					pgoff_t index, void ***slotp)
@@ -241,7 +237,7 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
 	ewait.wait.func = wake_exceptional_entry_func;
 
 	for (;;) {
-		entry = __radix_tree_lookup(&mapping->page_tree, index, NULL,
+		entry = __radix_tree_lookup(&mapping->i_pages, index, NULL,
 					  &slot);
 		if (!entry ||
 		    WARN_ON_ONCE(!radix_tree_exceptional_entry(entry)) ||
@@ -254,10 +250,10 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
 		wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
 		prepare_to_wait_exclusive(wq, &ewait.wait,
 					  TASK_UNINTERRUPTIBLE);
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		schedule();
 		finish_wait(wq, &ewait.wait);
-		spin_lock_irq(&mapping->tree_lock);
+		xa_lock_irq(&mapping->i_pages);
 	}
 }
 
@@ -266,15 +262,15 @@ static void dax_unlock_mapping_entry(struct address_space *mapping,
 {
 	void *entry, **slot;
 
-	spin_lock_irq(&mapping->tree_lock);
-	entry = __radix_tree_lookup(&mapping->page_tree, index, NULL, &slot);
+	xa_lock_irq(&mapping->i_pages);
+	entry = __radix_tree_lookup(&mapping->i_pages, index, NULL, &slot);
 	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry) ||
 			 !slot_locked(mapping, slot))) {
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		return;
 	}
 	unlock_slot(mapping, slot);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
 }
 
@@ -388,7 +384,7 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
 	void *entry, **slot;
 
 restart:
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
 	entry = get_unlocked_mapping_entry(mapping, index, &slot);
 
 	if (WARN_ON_ONCE(entry && !radix_tree_exceptional_entry(entry))) {
@@ -420,12 +416,12 @@ restart:
 		if (pmd_downgrade) {
 			/*
 			 * Make sure 'entry' remains valid while we drop
-			 * mapping->tree_lock.
+			 * the i_pages lock.
 			 */
 			entry = lock_slot(mapping, slot);
 		}
 
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		/*
 		 * Besides huge zero pages the only other thing that gets
 		 * downgraded are empty entries which don't need to be
@@ -442,27 +438,27 @@ restart:
 				put_locked_mapping_entry(mapping, index);
 			return ERR_PTR(err);
 		}
-		spin_lock_irq(&mapping->tree_lock);
+		xa_lock_irq(&mapping->i_pages);
 
 		if (!entry) {
 			/*
-			 * We needed to drop the page_tree lock while calling
+			 * We needed to drop the i_pages lock while calling
 			 * radix_tree_preload() and we didn't have an entry to
 			 * lock.  See if another thread inserted an entry at
 			 * our index during this time.
 			 */
-			entry = __radix_tree_lookup(&mapping->page_tree, index,
+			entry = __radix_tree_lookup(&mapping->i_pages, index,
 					NULL, &slot);
 			if (entry) {
 				radix_tree_preload_end();
-				spin_unlock_irq(&mapping->tree_lock);
+				xa_unlock_irq(&mapping->i_pages);
 				goto restart;
 			}
 		}
 
 		if (pmd_downgrade) {
 			dax_disassociate_entry(entry, mapping, false);
-			radix_tree_delete(&mapping->page_tree, index);
+			radix_tree_delete(&mapping->i_pages, index);
 			mapping->nrexceptional--;
 			dax_wake_mapping_entry_waiter(mapping, index, entry,
 					true);
@@ -470,11 +466,11 @@ restart:
 
 		entry = dax_radix_locked_entry(0, size_flag | RADIX_DAX_EMPTY);
 
-		err = __radix_tree_insert(&mapping->page_tree, index,
+		err = __radix_tree_insert(&mapping->i_pages, index,
 				dax_radix_order(entry), entry);
 		radix_tree_preload_end();
 		if (err) {
-			spin_unlock_irq(&mapping->tree_lock);
+			xa_unlock_irq(&mapping->i_pages);
 			/*
 			 * Our insertion of a DAX entry failed, most likely
 			 * because we were inserting a PMD entry and it
@@ -487,12 +483,12 @@ restart:
 		}
 		/* Good, we have inserted empty locked entry into the tree. */
 		mapping->nrexceptional++;
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		return entry;
 	}
 	entry = lock_slot(mapping, slot);
  out_unlock:
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 	return entry;
 }
 
@@ -501,23 +497,23 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
 {
 	int ret = 0;
 	void *entry;
-	struct radix_tree_root *page_tree = &mapping->page_tree;
+	struct radix_tree_root *pages = &mapping->i_pages;
 
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(pages);
 	entry = get_unlocked_mapping_entry(mapping, index, NULL);
 	if (!entry || WARN_ON_ONCE(!radix_tree_exceptional_entry(entry)))
 		goto out;
 	if (!trunc &&
-	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
-	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
+	    (radix_tree_tag_get(pages, index, PAGECACHE_TAG_DIRTY) ||
+	     radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE)))
 		goto out;
 	dax_disassociate_entry(entry, mapping, trunc);
-	radix_tree_delete(page_tree, index);
+	radix_tree_delete(pages, index);
 	mapping->nrexceptional--;
 	ret = 1;
 out:
 	put_unlocked_mapping_entry(mapping, index, entry);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(pages);
 	return ret;
 }
 /*
@@ -587,7 +583,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 				      void *entry, pfn_t pfn_t,
 				      unsigned long flags, bool dirty)
 {
-	struct radix_tree_root *page_tree = &mapping->page_tree;
+	struct radix_tree_root *pages = &mapping->i_pages;
 	unsigned long pfn = pfn_t_to_pfn(pfn_t);
 	pgoff_t index = vmf->pgoff;
 	void *new_entry;
@@ -604,7 +600,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 			unmap_mapping_pages(mapping, vmf->pgoff, 1, false);
 	}
 
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(pages);
 	new_entry = dax_radix_locked_entry(pfn, flags);
 	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
 		dax_disassociate_entry(entry, mapping, false);
@@ -624,17 +620,17 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 		void **slot;
 		void *ret;
 
-		ret = __radix_tree_lookup(page_tree, index, &node, &slot);
+		ret = __radix_tree_lookup(pages, index, &node, &slot);
 		WARN_ON_ONCE(ret != entry);
-		__radix_tree_replace(page_tree, node, slot,
+		__radix_tree_replace(pages, node, slot,
 				     new_entry, NULL);
 		entry = new_entry;
 	}
 
 	if (dirty)
-		radix_tree_tag_set(page_tree, index, PAGECACHE_TAG_DIRTY);
+		radix_tree_tag_set(pages, index, PAGECACHE_TAG_DIRTY);
 
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(pages);
 	return entry;
 }
 
@@ -723,7 +719,7 @@ unlock_pte:
 static int dax_writeback_one(struct dax_device *dax_dev,
 		struct address_space *mapping, pgoff_t index, void *entry)
 {
-	struct radix_tree_root *page_tree = &mapping->page_tree;
+	struct radix_tree_root *pages = &mapping->i_pages;
 	void *entry2, **slot;
 	unsigned long pfn;
 	long ret = 0;
@@ -736,7 +732,7 @@ static int dax_writeback_one(struct dax_device *dax_dev,
 	if (WARN_ON(!radix_tree_exceptional_entry(entry)))
 		return -EIO;
 
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(pages);
 	entry2 = get_unlocked_mapping_entry(mapping, index, &slot);
 	/* Entry got punched out / reallocated? */
 	if (!entry2 || WARN_ON_ONCE(!radix_tree_exceptional_entry(entry2)))
@@ -755,7 +751,7 @@ static int dax_writeback_one(struct dax_device *dax_dev,
 	}
 
 	/* Another fsync thread may have already written back this entry */
-	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+	if (!radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE))
 		goto put_unlocked;
 	/* Lock the entry to serialize with page faults */
 	entry = lock_slot(mapping, slot);
@@ -763,11 +759,11 @@ static int dax_writeback_one(struct dax_device *dax_dev,
 	 * We can clear the tag now but we have to be careful so that concurrent
 	 * dax_writeback_one() calls for the same index cannot finish before we
 	 * actually flush the caches. This is achieved as the calls will look
-	 * at the entry only under tree_lock and once they do that they will
-	 * see the entry locked and wait for it to unlock.
+	 * at the entry only under the i_pages lock and once they do that
+	 * they will see the entry locked and wait for it to unlock.
 	 */
-	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
-	spin_unlock_irq(&mapping->tree_lock);
+	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_TOWRITE);
+	xa_unlock_irq(pages);
 
 	/*
 	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
@@ -787,16 +783,16 @@ static int dax_writeback_one(struct dax_device *dax_dev,
 	 * the pfn mappings are writeprotected and fault waits for mapping
 	 * entry lock.
 	 */
-	spin_lock_irq(&mapping->tree_lock);
-	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_DIRTY);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_lock_irq(pages);
+	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_DIRTY);
+	xa_unlock_irq(pages);
 	trace_dax_writeback_one(mapping->host, index, size >> PAGE_SHIFT);
 	put_locked_mapping_entry(mapping, index);
 	return ret;
 
  put_unlocked:
 	put_unlocked_mapping_entry(mapping, index, entry2);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(pages);
 	return ret;
 }
 
@@ -1566,21 +1562,21 @@ static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
 	pgoff_t index = vmf->pgoff;
 	int vmf_ret, error;
 
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
 	entry = get_unlocked_mapping_entry(mapping, index, &slot);
 	/* Did we race with someone splitting entry or so? */
 	if (!entry ||
 	    (pe_size == PE_SIZE_PTE && !dax_is_pte_entry(entry)) ||
 	    (pe_size == PE_SIZE_PMD && !dax_is_pmd_entry(entry))) {
 		put_unlocked_mapping_entry(mapping, index, entry);
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
 						      VM_FAULT_NOPAGE);
 		return VM_FAULT_NOPAGE;
 	}
-	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+	radix_tree_tag_set(&mapping->i_pages, index, PAGECACHE_TAG_DIRTY);
 	entry = lock_slot(mapping, slot);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 	switch (pe_size) {
 	case PE_SIZE_PTE:
 		error = vm_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);

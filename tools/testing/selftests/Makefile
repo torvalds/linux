@@ -25,6 +25,7 @@ TARGETS += mqueue
 TARGETS += net
 TARGETS += nsfs
 TARGETS += powerpc
+TARGETS += proc
 TARGETS += pstore
 TARGETS += ptrace
 TARGETS += seccomp

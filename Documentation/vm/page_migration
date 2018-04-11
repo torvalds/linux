@@ -90,7 +90,7 @@ Steps:
 
 1. Lock the page to be migrated
 
-2. Insure that writeback is complete.
+2. Ensure that writeback is complete.
 
 3. Lock the new page that we want to move to. It is locked so that accesses to
    this (not yet uptodate) page immediately lock while the move is in progress.
@@ -100,8 +100,8 @@ Steps:
    mapcount is not zero then we do not migrate the page. All user space
    processes that attempt to access the page will now wait on the page lock.
 
-5. The radix tree lock is taken. This will cause all processes trying
-   to access the page via the mapping to block on the radix tree spinlock.
+5. The i_pages lock is taken. This will cause all processes trying
+   to access the page via the mapping to block on the spinlock.
 
 6. The refcount of the page is examined and we back out if references remain
    otherwise we know that we are the only one referencing this page.
@@ -114,12 +114,12 @@ Steps:
 
 9. The radix tree is changed to point to the new page.
 
-10. The reference count of the old page is dropped because the radix tree
+10. The reference count of the old page is dropped because the address space
     reference is gone. A reference to the new page is established because
-    the new page is referenced to by the radix tree.
+    the new page is referenced by the address space.
 
-11. The radix tree lock is dropped. With that lookups in the mapping
-    become possible again. Processes will move from spinning on the tree_lock
+11. The i_pages lock is dropped. With that lookups in the mapping
+    become possible again. Processes will move from spinning on the lock
     to sleeping on the locked new page.
 
 12. The page contents are copied to the new page.

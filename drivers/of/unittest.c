@@ -295,7 +295,7 @@ static void __init of_unittest_printf(void)
 		return;
 	}
 
-	num_to_str(phandle_str, sizeof(phandle_str), np->phandle);
+	num_to_str(phandle_str, sizeof(phandle_str), np->phandle, 0);
 
 	of_unittest_printf_one(np, "%pOF",  full_name);
 	of_unittest_printf_one(np, "%pOFf", full_name);

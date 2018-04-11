@@ -124,10 +124,10 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
 	SetPageSwapCache(page);
 
 	address_space = swap_address_space(entry);
-	spin_lock_irq(&address_space->tree_lock);
+	xa_lock_irq(&address_space->i_pages);
 	for (i = 0; i < nr; i++) {
 		set_page_private(page + i, entry.val + i);
-		error = radix_tree_insert(&address_space->page_tree,
+		error = radix_tree_insert(&address_space->i_pages,
 					  idx + i, page + i);
 		if (unlikely(error))
 			break;
@@ -145,13 +145,13 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
 		VM_BUG_ON(error == -EEXIST);
 		set_page_private(page + i, 0UL);
 		while (i--) {
-			radix_tree_delete(&address_space->page_tree, idx + i);
+			radix_tree_delete(&address_space->i_pages, idx + i);
 			set_page_private(page + i, 0UL);
 		}
 		ClearPageSwapCache(page);
 		page_ref_sub(page, nr);
 	}
-	spin_unlock_irq(&address_space->tree_lock);
+	xa_unlock_irq(&address_space->i_pages);
 
 	return error;
 }
@@ -188,7 +188,7 @@ void __delete_from_swap_cache(struct page *page)
 	address_space = swap_address_space(entry);
 	idx = swp_offset(entry);
 	for (i = 0; i < nr; i++) {
-		radix_tree_delete(&address_space->page_tree, idx + i);
+		radix_tree_delete(&address_space->i_pages, idx + i);
 		set_page_private(page + i, 0);
 	}
 	ClearPageSwapCache(page);
@@ -272,9 +272,9 @@ void delete_from_swap_cache(struct page *page)
 	entry.val = page_private(page);
 
 	address_space = swap_address_space(entry);
-	spin_lock_irq(&address_space->tree_lock);
+	xa_lock_irq(&address_space->i_pages);
 	__delete_from_swap_cache(page);
-	spin_unlock_irq(&address_space->tree_lock);
+	xa_unlock_irq(&address_space->i_pages);
 
 	put_swap_page(page, entry);
 	page_ref_sub(page, hpage_nr_pages(page));
@@ -628,12 +628,11 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
 		return -ENOMEM;
 	for (i = 0; i < nr; i++) {
 		space = spaces + i;
-		INIT_RADIX_TREE(&space->page_tree, GFP_ATOMIC|__GFP_NOWARN);
+		INIT_RADIX_TREE(&space->i_pages, GFP_ATOMIC|__GFP_NOWARN);
 		atomic_set(&space->i_mmap_writable, 0);
 		space->a_ops = &swap_aops;
 		/* swap cache doesn't use writeback related tags */
 		mapping_set_no_writeback_tags(space);
-		spin_lock_init(&space->tree_lock);
 	}
 	nr_swapper_spaces[type] = nr;
 	rcu_assign_pointer(swapper_spaces[type], spaces);

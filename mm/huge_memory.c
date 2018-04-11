@@ -555,8 +555,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
 
 	VM_BUG_ON_PAGE(!PageCompound(page), page);
 
-	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp | __GFP_NORETRY, &memcg,
-				  true)) {
+	if (mem_cgroup_try_charge(page, vma->vm_mm, gfp, &memcg, true)) {
 		put_page(page);
 		count_vm_event(THP_FAULT_FALLBACK);
 		return VM_FAULT_FALLBACK;
@@ -1317,7 +1316,7 @@ alloc:
 	}
 
 	if (unlikely(mem_cgroup_try_charge(new_page, vma->vm_mm,
-				huge_gfp | __GFP_NORETRY, &memcg, true))) {
+					huge_gfp, &memcg, true))) {
 		put_page(new_page);
 		split_huge_pmd(vma, vmf->pmd, vmf->address);
 		if (page)
@@ -2402,6 +2401,12 @@ static void __split_huge_page_tail(struct page *head, int tail,
 
 	page_tail->index = head->index + tail;
 	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));
+
+	/*
+	 * always add to the tail because some iterators expect new
+	 * pages to show after the currently processed elements - e.g.
+	 * migrate_pages
+	 */
 	lru_add_page_tail(head, page_tail, lruvec, list);
 }
 
@@ -2445,7 +2450,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	} else {
 		/* Additional pin to radix tree */
 		page_ref_add(head, 2);
-		spin_unlock(&head->mapping->tree_lock);
+		xa_unlock(&head->mapping->i_pages);
 	}
 
 	spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
@@ -2653,15 +2658,15 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 	if (mapping) {
 		void **pslot;
 
-		spin_lock(&mapping->tree_lock);
-		pslot = radix_tree_lookup_slot(&mapping->page_tree,
+		xa_lock(&mapping->i_pages);
+		pslot = radix_tree_lookup_slot(&mapping->i_pages,
 				page_index(head));
 		/*
 		 * Check if the head page is present in radix tree.
 		 * We assume all tail are present too, if head is there.
 		 */
 		if (radix_tree_deref_slot_protected(pslot,
-					&mapping->tree_lock) != head)
+					&mapping->i_pages.xa_lock) != head)
 			goto fail;
 	}
 
@@ -2695,7 +2700,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		}
 		spin_unlock(&pgdata->split_queue_lock);
 fail:		if (mapping)
-			spin_unlock(&mapping->tree_lock);
+			xa_unlock(&mapping->i_pages);
 		spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
 		unfreeze_page(head);
 		ret = -EBUSY;

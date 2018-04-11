@@ -631,6 +631,14 @@ options ``-kr -i8`` (stands for ``K&R, 8 character indents``), or use
 re-formatting you may want to take a look at the man page.  But
 remember: ``indent`` is not a fix for bad programming.
 
+Note that you can also use the ``clang-format`` tool to help you with
+these rules, to quickly re-format parts of your code automatically,
+and to review full files in order to spot coding style mistakes,
+typos and possible improvements. It is also handy for sorting ``#includes``,
+for aligning variables/macros, for reflowing text and other similar tasks.
+See the file :ref:`Documentation/process/clang-format.rst <clangformat>`
+for more details.
+
 
 10) Kconfig configuration files
 -------------------------------

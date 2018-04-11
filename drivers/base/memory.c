@@ -837,11 +837,8 @@ int __init memory_dev_init(void)
 	 * during boot and have been initialized
 	 */
 	mutex_lock(&mem_sysfs_mutex);
-	for (i = 0; i < NR_MEM_SECTIONS; i += sections_per_block) {
-		/* Don't iterate over sections we know are !present: */
-		if (i > __highest_present_section_nr)
-			break;
-
+	for (i = 0; i <= __highest_present_section_nr;
+		i += sections_per_block) {
 		err = add_memory_block(i);
 		if (!ret)
 			ret = err;
