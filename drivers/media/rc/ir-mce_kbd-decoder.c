@@ -362,7 +362,6 @@ out:
 	dev_dbg(&dev->dev, "failed at state %i (%uus %s)\n",
 		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
-	input_sync(data->idev);
 	return -EINVAL;
 }
 
