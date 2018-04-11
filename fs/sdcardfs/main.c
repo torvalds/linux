@@ -316,7 +316,7 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		err = -ENOMEM;
-		goto out_iput;
+		goto out_sput;
 	}
 	d_set_d_op(sb->s_root, &sdcardfs_ci_dops);
 
@@ -361,8 +361,6 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 	/* no longer needed: free_dentry_private_data(sb->s_root); */
 out_freeroot:
 	dput(sb->s_root);
-out_iput:
-	iput(inode);
 out_sput:
 	/* drop refs we took earlier */
 	atomic_dec(&lower_sb->s_active);
