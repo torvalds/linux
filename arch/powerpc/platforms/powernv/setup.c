@@ -314,7 +314,7 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 	u64 reinit_flags;
 
 	if (xive_enabled())
-		xive_kexec_teardown_cpu(secondary);
+		xive_teardown_cpu();
 	else
 		xics_kexec_teardown_cpu(secondary);
 

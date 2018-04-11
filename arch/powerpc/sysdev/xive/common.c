@@ -1408,28 +1408,6 @@ void xive_teardown_cpu(void)
 	xive_cleanup_cpu_queues(cpu, xc);
 }
 
-void xive_kexec_teardown_cpu(int secondary)
-{
-	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
-	unsigned int cpu = smp_processor_id();
-
-	/* Set CPPR to 0 to disable flow of interrupts */
-	xc->cppr = 0;
-	out_8(xive_tima + xive_tima_offset + TM_CPPR, 0);
-
-	/* Backend cleanup if any */
-	if (xive_ops->teardown_cpu)
-		xive_ops->teardown_cpu(cpu, xc);
-
-#ifdef CONFIG_SMP
-	/* Get rid of IPI */
-	xive_cleanup_cpu_ipi(cpu, xc);
-#endif
-
-	/* Disable and free the queues */
-	xive_cleanup_cpu_queues(cpu, xc);
-}
-
 void xive_shutdown(void)
 {
 	xive_ops->shutdown();
