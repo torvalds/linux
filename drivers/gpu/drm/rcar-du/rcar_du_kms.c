@@ -407,11 +407,6 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 
 static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 {
-	rcdu->props.alpha =
-		drm_property_create_range(rcdu->ddev, 0, "alpha", 0, 255);
-	if (rcdu->props.alpha == NULL)
-		return -ENOMEM;
-
 	/*
 	 * The color key is expressed as an RGB888 triplet stored in a 32-bit
 	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
