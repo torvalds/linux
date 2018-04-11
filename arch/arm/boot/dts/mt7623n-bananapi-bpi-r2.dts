@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Sean Wang <sean.wang@mediatek.com>
+ * Copyright 2017-2018 Sean Wang <sean.wang@mediatek.com>
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
@@ -112,6 +112,10 @@
 		device_type = "memory";
 		reg = <0 0x80000000 0 0x80000000>;
 	};
+};
+
+&btif {
+	status = "okay";
 };
 
 &cir {

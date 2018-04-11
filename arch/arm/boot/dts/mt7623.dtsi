@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2017 MediaTek Inc.
+ * Copyright (c) 2017-2018 MediaTek Inc.
  * Author: John Crispin <john@phrozen.org>
  *	   Sean Wang <sean.wang@mediatek.com>
  *
@@ -486,6 +486,18 @@
 		nvmem-cell-names = "calibration-data";
 	};
 
+	btif: serial@1100c000 {
+		compatible = "mediatek,mt7623-btif",
+			     "mediatek,mtk-btif";
+		reg = <0 0x1100c000 0 0x1000>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_BTIF>;
+		clock-names = "main";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "disabled";
+	};
+
 	nandc: nfi@1100d000 {
 		compatible = "mediatek,mt7623-nfc",
 			     "mediatek,mt2701-nfc";
@@ -508,6 +520,18 @@
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_NFI_ECC>;
 		clock-names = "nfiecc_clk";
+		status = "disabled";
+	};
+
+	nor_flash: spi@11014000 {
+		compatible = "mediatek,mt7623-nor",
+			     "mediatek,mt8173-nor";
+		reg = <0 0x11014000 0 0x1000>;
+		clocks = <&pericfg CLK_PERI_FLASH>,
+			 <&topckgen CLK_TOP_FLASH_SEL>;
+		clock-names = "spi", "sf";
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
@@ -859,6 +883,16 @@
 		reg = <0 0x1b000000 0 0x1000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	hsdma: dma-controller@1b007000 {
+		compatible = "mediatek,mt7623-hsdma";
+		reg = <0 0x1b007000 0 0x1000>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&ethsys CLK_ETHSYS_HSDMA>;
+		clock-names = "hsdma";
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
+		#dma-cells = <1>;
 	};
 
 	eth: ethernet@1b100000 {
