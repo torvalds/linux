@@ -42,50 +42,17 @@
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
-struct vc4_crtc {
-	struct drm_crtc base;
-	const struct vc4_crtc_data *data;
-	void __iomem *regs;
-
-	/* Timestamp at start of vblank irq - unaffected by lock delays. */
-	ktime_t t_vblank;
-
-	/* Which HVS channel we're using for our CRTC. */
-	int channel;
-
-	u8 lut_r[256];
-	u8 lut_g[256];
-	u8 lut_b[256];
-	/* Size in pixels of the COB memory allocated to this CRTC. */
-	u32 cob_size;
-
-	struct drm_pending_vblank_event *event;
-};
-
 struct vc4_crtc_state {
 	struct drm_crtc_state base;
 	/* Dlist area for this CRTC configuration. */
 	struct drm_mm_node mm;
 };
 
-static inline struct vc4_crtc *
-to_vc4_crtc(struct drm_crtc *crtc)
-{
-	return (struct vc4_crtc *)crtc;
-}
-
 static inline struct vc4_crtc_state *
 to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 {
 	return (struct vc4_crtc_state *)crtc_state;
 }
-
-struct vc4_crtc_data {
-	/* Which channel of the HVS this pixelvalve sources from. */
-	int hvs_channel;
-
-	enum vc4_encoder_type encoder_types[4];
-};
 
 #define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
 #define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
