@@ -699,6 +699,16 @@ static int smu10_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 static int smu10_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
 {
+	struct smu10_hwmgr *data = (struct smu10_hwmgr *)(hwmgr->backend);
+
+	if (separation_time != data->separation_time ||
+			cc6_disable != data->cc6_disable ||
+			pstate_disable != data->pstate_disable) {
+		data->separation_time = separation_time;
+		data->cc6_disable = cc6_disable;
+		data->pstate_disable = pstate_disable;
+		data->cc6_setting_changed = true;
+	}
 	return 0;
 }
 
