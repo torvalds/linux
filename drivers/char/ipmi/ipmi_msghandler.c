@@ -3711,7 +3711,7 @@ static void cleanup_smi_msgs(struct ipmi_smi *intf)
 	}
 }
 
-int ipmi_unregister_smi(struct ipmi_smi *intf)
+void ipmi_unregister_smi(struct ipmi_smi *intf)
 {
 	struct ipmi_smi_watcher *w;
 	int intf_num = intf->intf_num, index;
@@ -3755,8 +3755,6 @@ int ipmi_unregister_smi(struct ipmi_smi *intf)
 
 	cleanup_srcu_struct(&intf->users_srcu);
 	kref_put(&intf->refcount, intf_free);
-
-	return 0;
 }
 EXPORT_SYMBOL(ipmi_unregister_smi);
 

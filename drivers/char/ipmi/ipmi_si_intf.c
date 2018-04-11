@@ -2365,16 +2365,13 @@ static void shutdown_smi(void *send_info)
 
 static void shutdown_one_si(struct smi_info *smi_info)
 {
-	int rv;
 	ipmi_smi_t intf = smi_info->intf;
 
 	if (!intf)
 		return;
 
 	smi_info->intf = NULL;
-	rv = ipmi_unregister_smi(intf);
-	if (rv)
-		pr_err(PFX "Unable to unregister device: errno=%d\n", rv);
+	ipmi_unregister_smi(intf);
 }
 
 static void cleanup_one_si(struct smi_info *smi_info)

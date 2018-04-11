@@ -1247,9 +1247,7 @@ static int ssif_remove(struct i2c_client *client)
 	 */
 	intf = ssif_info->intf;
 	ssif_info->intf = NULL;
-	rv = ipmi_unregister_smi(intf);
-	if (rv)
-		pr_err(PFX "Unable to unregister device: errno=%d\n", rv);
+	ipmi_unregister_smi(intf);
 
 	list_for_each_entry(addr_info, &ssif_infos, link) {
 		if (addr_info->client == client) {

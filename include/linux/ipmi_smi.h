@@ -220,7 +220,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
  * Remove a low-level interface from the IPMI driver.  This will
  * return an error if the interface is still in use by a user.
  */
-int ipmi_unregister_smi(ipmi_smi_t intf);
+void ipmi_unregister_smi(ipmi_smi_t intf);
 
 /*
  * The lower layer reports received messages through this interface.
