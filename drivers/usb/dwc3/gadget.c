@@ -2398,7 +2398,9 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 
 	if (event->status & DEPEVT_STATUS_MISSED_ISOC) {
 		status = -EXDEV;
-		stop = true;
+
+		if (list_empty(&dep->started_list))
+			stop = true;
 	}
 
 	dwc3_gadget_ep_cleanup_completed_requests(dep, event, status);
