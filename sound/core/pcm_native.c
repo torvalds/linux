@@ -908,8 +908,8 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
  _tstamp_end:
 	status->appl_ptr = runtime->control->appl_ptr;
 	status->hw_ptr = runtime->status->hw_ptr;
+	status->avail = snd_pcm_avail(substream);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		status->avail = snd_pcm_playback_avail(runtime);
 		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING ||
 		    runtime->status->state == SNDRV_PCM_STATE_DRAINING) {
 			status->delay = runtime->buffer_size - status->avail;
@@ -917,7 +917,6 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 		} else
 			status->delay = 0;
 	} else {
-		status->avail = snd_pcm_capture_avail(runtime);
 		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
 			status->delay = status->avail + runtime->delay;
 		else
@@ -2610,10 +2609,9 @@ static snd_pcm_sframes_t rewind_appl_ptr(struct snd_pcm_substream *substream,
 	return ret < 0 ? 0 : frames;
 }
 
-static snd_pcm_sframes_t snd_pcm_playback_rewind(struct snd_pcm_substream *substream,
-						 snd_pcm_uframes_t frames)
+static snd_pcm_sframes_t snd_pcm_rewind(struct snd_pcm_substream *substream,
+					snd_pcm_uframes_t frames)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_sframes_t ret;
 
 	if (frames == 0)
@@ -2623,33 +2621,14 @@ static snd_pcm_sframes_t snd_pcm_playback_rewind(struct snd_pcm_substream *subst
 	ret = do_pcm_hwsync(substream);
 	if (!ret)
 		ret = rewind_appl_ptr(substream, frames,
-				      snd_pcm_playback_hw_avail(runtime));
+				      snd_pcm_hw_avail(substream));
 	snd_pcm_stream_unlock_irq(substream);
 	return ret;
 }
 
-static snd_pcm_sframes_t snd_pcm_capture_rewind(struct snd_pcm_substream *substream,
-						snd_pcm_uframes_t frames)
+static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
+					 snd_pcm_uframes_t frames)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	snd_pcm_sframes_t ret;
-
-	if (frames == 0)
-		return 0;
-
-	snd_pcm_stream_lock_irq(substream);
-	ret = do_pcm_hwsync(substream);
-	if (!ret)
-		ret = rewind_appl_ptr(substream, frames,
-				      snd_pcm_capture_hw_avail(runtime));
-	snd_pcm_stream_unlock_irq(substream);
-	return ret;
-}
-
-static snd_pcm_sframes_t snd_pcm_playback_forward(struct snd_pcm_substream *substream,
-						  snd_pcm_uframes_t frames)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_sframes_t ret;
 
 	if (frames == 0)
@@ -2659,25 +2638,7 @@ static snd_pcm_sframes_t snd_pcm_playback_forward(struct snd_pcm_substream *subs
 	ret = do_pcm_hwsync(substream);
 	if (!ret)
 		ret = forward_appl_ptr(substream, frames,
-				       snd_pcm_playback_avail(runtime));
-	snd_pcm_stream_unlock_irq(substream);
-	return ret;
-}
-
-static snd_pcm_sframes_t snd_pcm_capture_forward(struct snd_pcm_substream *substream,
-						 snd_pcm_uframes_t frames)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	snd_pcm_sframes_t ret;
-
-	if (frames == 0)
-		return 0;
-
-	snd_pcm_stream_lock_irq(substream);
-	ret = do_pcm_hwsync(substream);
-	if (!ret)
-		ret = forward_appl_ptr(substream, frames,
-				       snd_pcm_capture_avail(runtime));
+				       snd_pcm_avail(substream));
 	snd_pcm_stream_unlock_irq(substream);
 	return ret;
 }
@@ -2830,10 +2791,7 @@ static int snd_pcm_rewind_ioctl(struct snd_pcm_substream *substream,
 		return -EFAULT;
 	if (put_user(0, _frames))
 		return -EFAULT;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		result = snd_pcm_playback_rewind(substream, frames);
-	else
-		result = snd_pcm_capture_rewind(substream, frames);
+	result = snd_pcm_rewind(substream, frames);
 	__put_user(result, _frames);
 	return result < 0 ? result : 0;
 }
@@ -2848,10 +2806,7 @@ static int snd_pcm_forward_ioctl(struct snd_pcm_substream *substream,
 		return -EFAULT;
 	if (put_user(0, _frames))
 		return -EFAULT;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		result = snd_pcm_playback_forward(substream, frames);
-	else
-		result = snd_pcm_capture_forward(substream, frames);
+	result = snd_pcm_forward(substream, frames);
 	__put_user(result, _frames);
 	return result < 0 ? result : 0;
 }
@@ -2992,7 +2947,7 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 		/* provided only for OSS; capture-only and no value returned */
 		if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
 			return -EINVAL;
-		result = snd_pcm_capture_forward(substream, *frames);
+		result = snd_pcm_forward(substream, *frames);
 		return result < 0 ? result : 0;
 	}
 	case SNDRV_PCM_IOCTL_HW_PARAMS:
