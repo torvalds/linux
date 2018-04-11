@@ -111,7 +111,7 @@
 static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen1", .data = (void *)RSND_GEN1 },
 	{ .compatible = "renesas,rcar_sound-gen2", .data = (void *)RSND_GEN2 },
-	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN2 }, /* gen2 compatible */
+	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN3 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
