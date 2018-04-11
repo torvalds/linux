@@ -261,7 +261,6 @@ static int num_max_busy_us;
 static bool unload_when_empty = true;
 
 static int try_smi_init(struct smi_info *smi);
-static void shutdown_one_si(struct smi_info *smi_info);
 static void cleanup_one_si(struct smi_info *smi_info);
 static void cleanup_ipmi_si(void);
 
@@ -2003,14 +2002,8 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 
 	list_add_tail(&new_smi->link, &smi_infos);
 
-	if (initialized) {
+	if (initialized)
 		rv = try_smi_init(new_smi);
-		if (rv) {
-			cleanup_one_si(new_smi);
-			mutex_unlock(&smi_infos_lock);
-			return rv;
-		}
-	}
 out_err:
 	mutex_unlock(&smi_infos_lock);
 	return rv;
@@ -2220,7 +2213,8 @@ static int try_smi_init(struct smi_info *new_smi)
 	return 0;
 
 out_err:
-	shutdown_one_si(new_smi);
+	ipmi_unregister_smi(new_smi->intf);
+	new_smi->intf = NULL;
 
 	kfree(init_name);
 
@@ -2358,17 +2352,10 @@ static void shutdown_smi(void *send_info)
 	smi_info->si_sm = NULL;
 }
 
-static void shutdown_one_si(struct smi_info *smi_info)
-{
-	ipmi_smi_t intf = smi_info->intf;
-
-	if (!intf)
-		return;
-
-	smi_info->intf = NULL;
-	ipmi_unregister_smi(intf);
-}
-
+/*
+ * Must be called with smi_infos_lock held, to serialize the
+ * smi_info->intf check.
+ */
 static void cleanup_one_si(struct smi_info *smi_info)
 {
 	if (!smi_info)
@@ -2376,7 +2363,10 @@ static void cleanup_one_si(struct smi_info *smi_info)
 
 	list_del(&smi_info->link);
 
-	shutdown_one_si(smi_info);
+	if (smi_info->intf) {
+		ipmi_unregister_smi(smi_info->intf);
+		smi_info->intf = NULL;
+	}
 
 	if (smi_info->pdev) {
 		if (smi_info->pdev_registered)
