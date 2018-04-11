@@ -558,7 +558,7 @@ struct obd_device {
 	 */
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
-	struct cfs_hash	     *obd_uuid_hash;
+	struct rhashtable	obd_uuid_hash;
 	wait_queue_head_t	     obd_refcount_waitq;
 	struct list_head	      obd_exports;
 	struct list_head	      obd_unlinked_exports;
@@ -621,6 +621,9 @@ struct obd_device {
 	struct kobject		obd_kobj; /* sysfs object */
 	struct completion	obd_kobj_unregister;
 };
+
+int obd_uuid_add(struct obd_device *obd, struct obd_export *export);
+void obd_uuid_del(struct obd_device *obd, struct obd_export *export);
 
 /* get/set_info keys */
 #define KEY_ASYNC	       "async"

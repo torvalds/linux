@@ -61,9 +61,6 @@ extern atomic_long_t obd_dirty_transit_pages;
 extern char obd_jobid_var[];
 
 /* Some hash init argument constants */
-#define HASH_UUID_BKT_BITS 5
-#define HASH_UUID_CUR_BITS 7
-#define HASH_UUID_MAX_BITS 12
 /* Timeout definitions */
 #define OBD_TIMEOUT_DEFAULT	     100
 /* Time to wait for all clients to reconnect during recovery (hard limit) */

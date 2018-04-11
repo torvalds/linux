@@ -713,7 +713,6 @@ struct obd_export *class_new_export(struct obd_device *obd,
 				    struct obd_uuid *cluuid)
 {
 	struct obd_export *export;
-	struct cfs_hash *hash = NULL;
 	int rc = 0;
 
 	export = kzalloc(sizeof(*export), GFP_NOFS);
@@ -740,7 +739,6 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	class_handle_hash(&export->exp_handle, &export_handle_ops);
 	spin_lock_init(&export->exp_lock);
 	spin_lock_init(&export->exp_rpc_lock);
-	INIT_HLIST_NODE(&export->exp_uuid_hash);
 	spin_lock_init(&export->exp_bl_list_lock);
 	INIT_LIST_HEAD(&export->exp_bl_list);
 	INIT_WORK(&export->exp_zombie_work, obd_zombie_exp_cull);
@@ -757,44 +755,24 @@ struct obd_export *class_new_export(struct obd_device *obd,
 		goto exit_unlock;
 	}
 
-	hash = cfs_hash_getref(obd->obd_uuid_hash);
-	if (!hash) {
-		rc = -ENODEV;
-		goto exit_unlock;
-	}
-	spin_unlock(&obd->obd_dev_lock);
-
 	if (!obd_uuid_equals(cluuid, &obd->obd_uuid)) {
-		rc = cfs_hash_add_unique(hash, cluuid, &export->exp_uuid_hash);
-		if (rc != 0) {
+		rc = obd_uuid_add(obd, export);
+		if (rc) {
 			LCONSOLE_WARN("%s: denying duplicate export for %s, %d\n",
 				      obd->obd_name, cluuid->uuid, rc);
-			rc = -EALREADY;
-			goto exit_err;
+			goto exit_unlock;
 		}
-	}
-
-	spin_lock(&obd->obd_dev_lock);
-	if (obd->obd_stopping) {
-		cfs_hash_del(hash, cluuid, &export->exp_uuid_hash);
-		rc = -ENODEV;
-		goto exit_unlock;
 	}
 
 	class_incref(obd, "export", export);
 	list_add(&export->exp_obd_chain, &export->exp_obd->obd_exports);
 	export->exp_obd->obd_num_exports++;
 	spin_unlock(&obd->obd_dev_lock);
-	cfs_hash_putref(hash);
 	return export;
 
 exit_unlock:
 	spin_unlock(&obd->obd_dev_lock);
-exit_err:
-	if (hash)
-		cfs_hash_putref(hash);
 	class_handle_unhash(&export->exp_handle);
-	LASSERT(hlist_unhashed(&export->exp_uuid_hash));
 	obd_destroy_export(export);
 	kfree(export);
 	return ERR_PTR(rc);
@@ -807,10 +785,8 @@ void class_unlink_export(struct obd_export *exp)
 
 	spin_lock(&exp->exp_obd->obd_dev_lock);
 	/* delete an uuid-export hashitem from hashtables */
-	if (!hlist_unhashed(&exp->exp_uuid_hash))
-		cfs_hash_del(exp->exp_obd->obd_uuid_hash,
-			     &exp->exp_client_uuid,
-			     &exp->exp_uuid_hash);
+	if (exp != exp->exp_obd->obd_self_export)
+		obd_uuid_del(exp->exp_obd, exp);
 
 	list_move(&exp->exp_obd_chain, &exp->exp_obd->obd_unlinked_exports);
 	exp->exp_obd->obd_num_exports--;
