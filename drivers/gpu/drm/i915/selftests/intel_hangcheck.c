@@ -30,6 +30,8 @@
 #include "mock_context.h"
 #include "mock_drm.h"
 
+#define IGT_IDLE_TIMEOUT 50 /* ms; time to wait after flushing between tests */
+
 struct hang {
 	struct drm_i915_private *i915;
 	struct drm_i915_gem_object *hws;
@@ -454,6 +456,11 @@ static int igt_global_reset(void *arg)
 	return err;
 }
 
+static bool wait_for_idle(struct intel_engine_cs *engine)
+{
+	return wait_for(intel_engine_is_idle(engine), IGT_IDLE_TIMEOUT) == 0;
+}
+
 static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 {
 	struct intel_engine_cs *engine;
@@ -480,6 +487,13 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 
 		if (active && !intel_engine_can_store_dword(engine))
 			continue;
+
+		if (!wait_for_idle(engine)) {
+			pr_err("%s failed to idle before reset\n",
+			       engine->name);
+			err = -EIO;
+			break;
+		}
 
 		reset_count = i915_reset_count(&i915->gpu_error);
 		reset_engine_count = i915_reset_engine_count(&i915->gpu_error,
@@ -540,6 +554,19 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 				pr_err("%s engine reset %srecorded!\n",
 				       engine->name, active ? "not " : "");
 				err = -EINVAL;
+				break;
+			}
+
+			if (!wait_for_idle(engine)) {
+				struct drm_printer p =
+					drm_info_printer(i915->drm.dev);
+
+				pr_err("%s failed to idle after reset\n",
+				       engine->name);
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
+
+				err = -EIO;
 				break;
 			}
 		} while (time_before(jiffies, end_time));
@@ -696,6 +723,13 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 		    !intel_engine_can_store_dword(engine))
 			continue;
 
+		if (!wait_for_idle(engine)) {
+			pr_err("i915_reset_engine(%s:%s): failed to idle before reset\n",
+			       engine->name, test_name);
+			err = -EIO;
+			break;
+		}
+
 		memset(threads, 0, sizeof(threads));
 		for_each_engine(other, i915, tmp) {
 			struct task_struct *tsk;
@@ -771,6 +805,20 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 			if (rq) {
 				i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
 				i915_request_put(rq);
+			}
+
+			if (!(flags & TEST_SELF) && !wait_for_idle(engine)) {
+				struct drm_printer p =
+					drm_info_printer(i915->drm.dev);
+
+				pr_err("i915_reset_engine(%s:%s):"
+				       " failed to idle after reset\n",
+				       engine->name, test_name);
+				intel_engine_dump(engine, &p,
+						  "%s\n", engine->name);
+
+				err = -EIO;
+				break;
 			}
 		} while (time_before(jiffies, end_time));
 		clear_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
@@ -981,7 +1029,7 @@ static int wait_for_others(struct drm_i915_private *i915,
 		if (engine == exclude)
 			continue;
 
-		if (wait_for(intel_engine_is_idle(engine), 10))
+		if (!wait_for_idle(engine))
 			return -EIO;
 	}
 
