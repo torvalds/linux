@@ -2872,7 +2872,7 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 
 	if (!listener) {
 		/* create a CM listen node (1/2 node to compare incoming traffic to) */
-		listener = kzalloc(sizeof(*listener), GFP_ATOMIC);
+		listener = kzalloc(sizeof(*listener), GFP_KERNEL);
 		if (!listener)
 			return NULL;
 		cm_core->stats_listen_nodes_created++;
