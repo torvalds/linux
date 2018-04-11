@@ -42,6 +42,7 @@
 
 #include <dt-bindings/clock/rockchip,rk808.h>
 #include "rk3288.dtsi"
+#include "rk3288-linux.dtsi"
 
 / {
 	model = "Rockchip RK3288 Fennec Board";

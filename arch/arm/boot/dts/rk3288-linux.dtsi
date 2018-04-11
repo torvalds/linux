@@ -1,0 +1,12 @@
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT).
+ */
+
+/ {
+	chosen {
+		bootargs = "earlyprintk console=tty1 console=ttyS2,115200n8 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
+	};
+
+};

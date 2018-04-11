@@ -45,10 +45,6 @@
 #include "rk3288.dtsi"
 
 / {
-	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
-	};
-
 	edp_panel: edp-panel {
 		status = "disabled";
 

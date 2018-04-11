@@ -42,6 +42,7 @@
 
 /dts-v1/;
 #include "rk3288-firefly.dtsi"
+#include "rk3288-linux.dtsi"
 
 / {
 	model = "Firefly-RK3288";

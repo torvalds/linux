@@ -40,6 +40,7 @@
 
 /dts-v1/;
 #include "rk3288-evb.dtsi"
+#include "rk3288-linux.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-evb-rk808-linux", "rockchip,rk3288";

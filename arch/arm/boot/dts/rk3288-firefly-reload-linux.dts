@@ -10,6 +10,7 @@
 #include <dt-bindings/display/media-bus-format.h>
 #include"rk3288-firefly.dtsi"
 #include"rk3288-rkisp1.dtsi"
+#include "rk3288-linux.dtsi"
 
 / {
 	model = "Firefly-RK3288";

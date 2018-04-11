@@ -43,6 +43,7 @@
 /dts-v1/;
 
 #include "rk3288.dtsi"
+#include "rk3288-linux.dtsi"
 
 / {
 	model = "PopMetal-RK3288";
