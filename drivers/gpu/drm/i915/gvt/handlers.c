@@ -898,11 +898,14 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 		}
 
 		/*
-		 * Write request format: (command + address) occupies
-		 * 3 bytes, followed by (len + 1) bytes of data.
+		 * Write request format: Headr (command + address + size) occupies
+		 * 4 bytes, followed by (len + 1) bytes of data. See details at
+		 * intel_dp_aux_transfer().
 		 */
-		if (WARN_ON((len + 4) > AUX_BURST_SIZE))
+		if ((len + 1 + 4) > AUX_BURST_SIZE) {
+			gvt_vgpu_err("dp_aux_header: len %d is too large\n", len);
 			return -EINVAL;
+		}
 
 		/* unpack data from vreg to buf */
 		for (t = 0; t < 4; t++) {
@@ -966,8 +969,10 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 		/*
 		 * Read reply format: ACK (1 byte) plus (len + 1) bytes of data.
 		 */
-		if (WARN_ON((len + 2) > AUX_BURST_SIZE))
+		if ((len + 2) > AUX_BURST_SIZE) {
+			gvt_vgpu_err("dp_aux_header: len %d is too large\n", len);
 			return -EINVAL;
+		}
 
 		/* read from virtual DPCD to vreg */
 		/* first 4 bytes: [ACK][addr][addr+1][addr+2] */
