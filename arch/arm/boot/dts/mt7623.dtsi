@@ -960,6 +960,22 @@
 		};
 	};
 
+	i2c1_pins_b: i2c1-alt {
+		pin-i2c1 {
+			pinmux = <MT7623_PIN_242_URTS2_FUNC_SCL1>,
+				 <MT7623_PIN_243_UCTS2_FUNC_SDA1>;
+			bias-disable;
+		};
+	};
+
+	i2c2_pins_b: i2c2-alt {
+		pin-i2c2 {
+			pinmux = <MT7623_PIN_122_GPIO122_FUNC_SDA2>,
+				 <MT7623_PIN_123_HTPLG_FUNC_SCL2>;
+			bias-disable;
+		};
+	};
+
 	i2s0_pins_a: i2s0-default {
 		pin-i2s0 {
 			pinmux = <MT7623_PIN_49_I2S0_DATA_FUNC_I2S0_DATA>,
@@ -1160,6 +1176,15 @@
 		};
 	};
 
+	spi1_pins_a: spi1-default {
+		pins-spi {
+			pinmux = <MT7623_PIN_7_SPI1_CSN_FUNC_SPI1_CS>,
+				<MT7623_PIN_199_SPI1_CK_FUNC_SPI1_CK>,
+				<MT7623_PIN_8_SPI1_MI_FUNC_SPI1_MI>,
+				<MT7623_PIN_9_SPI1_MO_FUNC_SPI1_MO>;
+		};
+	};
+
 	uart0_pins_a: uart0-default {
 		pins-dat {
 			pinmux = <MT7623_PIN_79_URXD0_FUNC_URXD0>,
@@ -1178,6 +1203,13 @@
 		pins-dat {
 			pinmux = <MT7623_PIN_14_GPIO14_FUNC_URXD2>,
 				 <MT7623_PIN_15_GPIO15_FUNC_UTXD2>;
+		};
+	};
+
+	uart2_pins_b: uart2-alt {
+		pins-dat {
+			pinmux = <MT7623_PIN_200_URXD2_FUNC_URXD2>,
+				 <MT7623_PIN_201_UTXD2_FUNC_UTXD2>;
 		};
 	};
 };
