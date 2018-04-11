@@ -138,6 +138,7 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		amdgpu_device_program_register_sequence(adev,
 							golden_settings_polaris11_a11,
 							ARRAY_SIZE(golden_settings_polaris11_a11));
