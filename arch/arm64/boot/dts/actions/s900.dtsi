@@ -173,6 +173,12 @@
 			status = "disabled";
 		};
 
+		sps: power-controller@e012e000 {
+			compatible = "actions,s900-sps";
+			reg = <0x0 0xe012e000 0x0 0x2000>;
+			#power-domain-cells = <1>;
+		};
+
 		cmu: clock-controller@e0160000 {
 			compatible = "actions,s900-cmu";
 			reg = <0x0 0xe0160000 0x0 0x1000>;
