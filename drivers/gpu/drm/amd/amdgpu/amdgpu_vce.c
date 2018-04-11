@@ -51,8 +51,9 @@
 #define FIRMWARE_FIJI		"amdgpu/fiji_vce.bin"
 #define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_vce.bin"
-#define FIRMWARE_POLARIS11         "amdgpu/polaris11_vce.bin"
-#define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
+#define FIRMWARE_POLARIS11	"amdgpu/polaris11_vce.bin"
+#define FIRMWARE_POLARIS12	"amdgpu/polaris12_vce.bin"
+#define FIRMWARE_VEGAM		"amdgpu/vegam_vce.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_vce.bin"
 #define FIRMWARE_VEGA12		"amdgpu/vega12_vce.bin"
@@ -71,6 +72,7 @@ MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
+MODULE_FIRMWARE(FIRMWARE_VEGAM);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
 MODULE_FIRMWARE(FIRMWARE_VEGA12);
@@ -131,6 +133,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		break;
 	case CHIP_POLARIS12:
 		fw_name = FIRMWARE_POLARIS12;
+		break;
+	case CHIP_VEGAM:
+		fw_name = FIRMWARE_VEGAM;
 		break;
 	case CHIP_VEGA10:
 		fw_name = FIRMWARE_VEGA10;
