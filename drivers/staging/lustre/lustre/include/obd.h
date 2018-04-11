@@ -46,6 +46,8 @@
 #include <lustre_intent.h>
 #include <cl_object.h>
 
+#include <linux/rhashtable.h>
+
 #define MAX_OBD_DEVICES 8192
 
 struct osc_async_rc {
@@ -383,7 +385,7 @@ struct lov_obd {
 	__u32		   lov_tgt_size;   /* size of tgts array */
 	int		     lov_connects;
 	int		     lov_pool_count;
-	struct cfs_hash	     *lov_pools_hash_body; /* used for key access */
+	struct rhashtable	lov_pools_hash_body; /* used for key access */
 	struct list_head	lov_pool_list; /* used for sequential access */
 	struct dentry		*lov_pool_debugfs_entry;
 	enum lustre_sec_part    lov_sp_me;

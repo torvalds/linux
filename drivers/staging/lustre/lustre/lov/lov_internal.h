@@ -149,11 +149,16 @@ struct pool_desc {
 	char			 pool_name[LOV_MAXPOOLNAME + 1];
 	struct ost_pool		 pool_obds;
 	atomic_t		 pool_refcount;
-	struct hlist_node	 pool_hash;		/* access by poolname */
-	struct list_head	 pool_list;		/* serial access */
+	struct rhash_head	 pool_hash;		/* access by poolname */
+	union {
+		struct list_head	pool_list;	/* serial access */
+		struct rcu_head		rcu;		/* delayed free */
+	};
 	struct dentry		*pool_debugfs_entry;	/* file in debugfs */
 	struct obd_device	*pool_lobd;		/* owner */
 };
+int lov_pool_hash_init(struct rhashtable *tbl);
+void lov_pool_hash_destroy(struct rhashtable *tbl);
 
 struct lov_request {
 	struct obd_info	  rq_oi;
@@ -241,8 +246,6 @@ void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars);
 /* lov_cl.c */
 extern struct lu_device_type lov_device_type;
 
-/* pools */
-extern struct cfs_hash_ops pool_hash_operations;
 /* ost_pool methods */
 int lov_ost_pool_init(struct ost_pool *op, unsigned int count);
 int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count);
