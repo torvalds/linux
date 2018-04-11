@@ -3,11 +3,9 @@
 #include <asm/sclp.h>
 #include <asm/sections.h>
 #include <asm/mem_detect.h>
+#include <asm/sparsemem.h>
 #include "compressed/decompressor.h"
 #include "boot.h"
-
-#define CHUNK_READ_WRITE 0
-#define CHUNK_READ_ONLY  1
 
 unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
@@ -141,38 +139,25 @@ static int tprot(unsigned long addr)
 	return rc;
 }
 
-static void scan_memory(unsigned long rzm)
+static void search_mem_end(void)
 {
-	unsigned long addr, size;
-	int type;
+	unsigned long range = 1 << (MAX_PHYSMEM_BITS - 20); /* in 1MB blocks */
+	unsigned long offset = 0;
+	unsigned long pivot;
 
-	if (!rzm)
-		rzm = 1UL << 20;
+	while (range > 1) {
+		range >>= 1;
+		pivot = offset + range;
+		if (!tprot(pivot << 20))
+			offset = pivot;
+	}
 
-	addr = 0;
-	do {
-		size = 0;
-		/* assume lowcore is writable */
-		type = addr ? tprot(addr) : CHUNK_READ_WRITE;
-		do {
-			size += rzm;
-			if (max_physmem_end && addr + size >= max_physmem_end)
-				break;
-		} while (type == tprot(addr + size));
-		if (type == CHUNK_READ_WRITE || type == CHUNK_READ_ONLY) {
-			if (max_physmem_end && (addr + size > max_physmem_end))
-				size = max_physmem_end - addr;
-			add_mem_detect_block(addr, addr + size);
-		}
-		addr += size;
-	} while (addr < max_physmem_end);
+	add_mem_detect_block(0, (offset + 1) << 20);
 }
 
 void detect_memory(void)
 {
-	unsigned long rzm;
-
-	sclp_early_get_meminfo(&max_physmem_end, &rzm);
+	sclp_early_get_memsize(&max_physmem_end);
 
 	if (!sclp_early_read_storage_info()) {
 		mem_detect.info_source = MEM_DETECT_SCLP_STOR_INFO;
@@ -190,7 +175,7 @@ void detect_memory(void)
 		return;
 	}
 
-	scan_memory(rzm);
-	mem_detect.info_source = MEM_DETECT_TPROT_LOOP;
+	search_mem_end();
+	mem_detect.info_source = MEM_DETECT_BIN_SEARCH;
 	max_physmem_end = get_mem_detect_end();
 }

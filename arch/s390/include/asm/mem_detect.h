@@ -9,7 +9,7 @@ enum mem_info_source {
 	MEM_DETECT_SCLP_STOR_INFO,
 	MEM_DETECT_DIAG260,
 	MEM_DETECT_SCLP_READ_INFO,
-	MEM_DETECT_TPROT_LOOP
+	MEM_DETECT_BIN_SEARCH
 };
 
 struct mem_detect_block {
