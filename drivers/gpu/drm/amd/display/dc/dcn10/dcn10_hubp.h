@@ -619,8 +619,29 @@ struct dcn_mi_mask {
 	DCN_HUBP_REG_FIELD_LIST(uint32_t);
 };
 
+struct dcn_hubp_state {
+	struct _vcs_dpi_display_dlg_regs_st dlg_attr;
+	struct _vcs_dpi_display_ttu_regs_st ttu_attr;
+	struct _vcs_dpi_display_rq_regs_st rq_regs;
+	uint32_t pixel_format;
+	uint32_t inuse_addr_hi;
+	uint32_t viewport_width;
+	uint32_t viewport_height;
+	uint32_t rotation_angle;
+	uint32_t h_mirror_en;
+	uint32_t sw_mode;
+	uint32_t dcc_en;
+	uint32_t blank_en;
+	uint32_t underflow_status;
+	uint32_t ttu_disable;
+	uint32_t min_ttu_vblank;
+	uint32_t qos_level_low_wm;
+	uint32_t qos_level_high_wm;
+};
+
 struct dcn10_hubp {
 	struct hubp base;
+	struct dcn_hubp_state state;
 	const struct dcn_mi_registers *hubp_regs;
 	const struct dcn_mi_shift *hubp_shift;
 	const struct dcn_mi_mask *hubp_mask;
@@ -698,8 +719,7 @@ void dcn10_hubp_construct(
 	const struct dcn_mi_shift *hubp_shift,
 	const struct dcn_mi_mask *hubp_mask);
 
-void hubp1_read_state(struct hubp *hubp,
-		struct dcn_hubp_state *s);
+void hubp1_read_state(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 

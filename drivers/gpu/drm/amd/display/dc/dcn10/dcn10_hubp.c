@@ -763,10 +763,10 @@ void min_set_viewport(
 		  PRI_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
-void hubp1_read_state(struct hubp *hubp,
-		struct dcn_hubp_state *s)
+void hubp1_read_state(struct hubp *hubp)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	struct dcn_hubp_state *s = &hubp1->state;
 	struct _vcs_dpi_display_dlg_regs_st *dlg_attr = &s->dlg_attr;
 	struct _vcs_dpi_display_ttu_regs_st *ttu_attr = &s->ttu_attr;
 	struct _vcs_dpi_display_rq_regs_st *rq_regs = &s->rq_regs;
