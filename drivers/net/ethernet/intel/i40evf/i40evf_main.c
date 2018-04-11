@@ -681,7 +681,7 @@ i40evf_vlan_filter *i40evf_add_vlan(struct i40evf_adapter *adapter, u16 vlan)
 
 	f = i40evf_find_vlan(adapter, vlan);
 	if (!f) {
-		f = kzalloc(sizeof(*f), GFP_ATOMIC);
+		f = kzalloc(sizeof(*f), GFP_KERNEL);
 		if (!f)
 			goto clearout;
 
