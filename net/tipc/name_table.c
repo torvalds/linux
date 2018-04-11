@@ -665,13 +665,14 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
 /**
  * tipc_nametbl_subscribe - add a subscription object to the name table
  */
-void tipc_nametbl_subscribe(struct tipc_subscription *sub)
+bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 {
 	struct name_table *nt = tipc_name_table(sub->net);
 	struct tipc_net *tn = tipc_net(sub->net);
 	struct tipc_subscr *s = &sub->evt.s;
 	u32 type = tipc_sub_read(s, seq.type);
 	struct tipc_service *sc;
+	bool res = true;
 
 	spin_lock_bh(&tn->nametbl_lock);
 	sc = tipc_service_find(sub->net, type);
@@ -685,8 +686,10 @@ void tipc_nametbl_subscribe(struct tipc_subscription *sub)
 		pr_warn("Failed to subscribe for {%u,%u,%u}\n", type,
 			tipc_sub_read(s, seq.lower),
 			tipc_sub_read(s, seq.upper));
+		res = false;
 	}
 	spin_unlock_bh(&tn->nametbl_lock);
+	return res;
 }
 
 /**
