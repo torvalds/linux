@@ -18,7 +18,9 @@ Required properties:
     removed.
 - #gpio-cells : Should be two.
   - first cell is the pin number
-  - second cell is used to specify flags. Flags are currently unused.
+  - second cell is used to specify flags as described in
+    'Documentation/devicetree/bindings/gpio/gpio.txt'. Allowed values defined by
+    'include/dt-bindings/gpio/gpio.h' (e.g. GPIO_ACTIVE_LOW).
 - gpio-controller : Marks the device node as a GPIO controller.
 - reg : For an address on its bus. I2C uses this a the I2C address of the chip.
         SPI uses this to specify the chipselect line which the chip is
