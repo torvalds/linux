@@ -870,17 +870,22 @@ static int bnxt_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 			 u8 *hfunc)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
+	struct bnxt_vnic_info *vnic;
 	int i = 0;
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 
-	if (indir)
+	if (!bp->vnic_info)
+		return 0;
+
+	vnic = &bp->vnic_info[0];
+	if (indir && vnic->rss_table) {
 		for (i = 0; i < HW_HASH_INDEX_SIZE; i++)
 			indir[i] = le16_to_cpu(vnic->rss_table[i]);
+	}
 
-	if (key)
+	if (key && vnic->rss_hash_key)
 		memcpy(key, vnic->rss_hash_key, HW_HASH_KEY_SIZE);
 
 	return 0;
