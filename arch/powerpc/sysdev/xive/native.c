@@ -395,7 +395,6 @@ static void xive_native_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 
 	/* Enable the pool VP */
 	vp = xive_pool_vps + cpu;
-	pr_debug("CPU %d setting up pool VP 0x%x\n", cpu, vp);
 	for (;;) {
 		rc = opal_xive_set_vp_info(vp, OPAL_XIVE_VP_ENABLED, 0);
 		if (rc != OPAL_BUSY)
@@ -415,16 +414,9 @@ static void xive_native_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 	}
 	vp_cam = be64_to_cpu(vp_cam_be);
 
-	pr_debug("VP CAM = %llx\n", vp_cam);
-
 	/* Push it on the CPU (set LSMFB to 0xff to skip backlog scan) */
-	pr_debug("(Old HW value: %08x)\n",
-		 in_be32(xive_tima + TM_QW2_HV_POOL + TM_WORD2));
 	out_be32(xive_tima + TM_QW2_HV_POOL + TM_WORD0, 0xff);
-	out_be32(xive_tima + TM_QW2_HV_POOL + TM_WORD2,
-		 TM_QW2W2_VP | vp_cam);
-	pr_debug("(New HW value: %08x)\n",
-		 in_be32(xive_tima + TM_QW2_HV_POOL + TM_WORD2));
+	out_be32(xive_tima + TM_QW2_HV_POOL + TM_WORD2, TM_QW2W2_VP | vp_cam);
 }
 
 static void xive_native_teardown_cpu(unsigned int cpu, struct xive_cpu *xc)
