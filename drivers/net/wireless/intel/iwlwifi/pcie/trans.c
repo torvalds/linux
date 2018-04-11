@@ -92,7 +92,7 @@
 #define IWL_FW_MEM_EXTENDED_START	0x40000
 #define IWL_FW_MEM_EXTENDED_END		0x57FFF
 
-static void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
+void iwl_trans_pcie_dump_regs(struct iwl_trans *trans)
 {
 #define PCI_DUMP_SIZE	64
 #define PREFIX_LEN	32
@@ -3175,7 +3175,6 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.ref = iwl_trans_pcie_ref,					\
 	.unref = iwl_trans_pcie_unref,					\
 	.dump_data = iwl_trans_pcie_dump_data,				\
-	.dump_regs = iwl_trans_pcie_dump_regs,				\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
 	.d3_resume = iwl_trans_pcie_d3_resume
 
