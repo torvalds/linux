@@ -335,7 +335,7 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 }
 
 static const struct rockchip_pvtm_channel px30_pvtm_channels[] = {
-	PVTM(PX30_PVTM_CORE, "core", 4, 0, 1, 0x4, 0, 0x4),
+	PVTM(PX30_PVTM_CORE, "core", 3, 0, 1, 0x4, 0, 0x4),
 };
 
 static const struct rockchip_pvtm_info px30_pvtm = {
