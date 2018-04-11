@@ -34,6 +34,11 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
+#include "dm_pp_smu.h"
+#include "../../powerplay/inc/hwmgr.h"
+#include "../../powerplay/hwmgr/smu10_hwmgr.h"
+
+
 
 unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 		unsigned long long current_time_stamp,
@@ -469,9 +474,90 @@ bool dm_pp_get_static_clocks(
 	return true;
 }
 
+void pp_rv_set_display_requirement(struct pp_smu *pp,
+		struct pp_smu_display_requirement_rv *req)
+{
+	struct amdgpu_device *adev = pp->ctx->driver_context;
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+	int ret = 0;
+	if (hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
+		ret = hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, req->hard_min_dcefclk_khz/10);
+	if (hwmgr->hwmgr_func->set_active_display_count)
+		ret = hwmgr->hwmgr_func->set_active_display_count(hwmgr, req->display_count);
+
+	//store_cc6 is not yet implemented in SMU level
+}
+
+void pp_rv_set_wm_ranges(struct pp_smu *pp,
+		struct pp_smu_wm_range_sets *ranges)
+{
+	struct amdgpu_device *adev = pp->ctx->driver_context;
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+	struct pp_wm_sets_with_clock_ranges_soc15 ranges_soc15 = {0};
+	int i = 0;
+
+	if (!hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges ||
+			!pp || !ranges)
+		return;
+
+	//not entirely sure if thats a correct assignment
+	ranges_soc15.num_wm_sets_dmif = ranges->num_reader_wm_sets;
+	ranges_soc15.num_wm_sets_mcif = ranges->num_writer_wm_sets;
+
+	for (i = 0; i < ranges_soc15.num_wm_sets_dmif; i++) {
+		if (ranges->reader_wm_sets[i].wm_inst > 3)
+			ranges_soc15.wm_sets_dmif[i].wm_set_id = DC_WM_SET_A;
+		else
+			ranges_soc15.wm_sets_dmif[i].wm_set_id =
+					ranges->reader_wm_sets[i].wm_inst;
+		ranges_soc15.wm_sets_dmif[i].wm_max_dcefclk_in_khz =
+				ranges->reader_wm_sets[i].max_drain_clk_khz;
+		ranges_soc15.wm_sets_dmif[i].wm_min_dcefclk_in_khz =
+				ranges->reader_wm_sets[i].min_drain_clk_khz;
+		ranges_soc15.wm_sets_dmif[i].wm_max_memclk_in_khz =
+				ranges->reader_wm_sets[i].max_fill_clk_khz;
+		ranges_soc15.wm_sets_dmif[i].wm_min_memclk_in_khz =
+				ranges->reader_wm_sets[i].min_fill_clk_khz;
+	}
+
+	for (i = 0; i < ranges_soc15.num_wm_sets_mcif; i++) {
+		if (ranges->writer_wm_sets[i].wm_inst > 3)
+			ranges_soc15.wm_sets_dmif[i].wm_set_id = DC_WM_SET_A;
+		else
+			ranges_soc15.wm_sets_mcif[i].wm_set_id =
+					ranges->writer_wm_sets[i].wm_inst;
+		ranges_soc15.wm_sets_mcif[i].wm_max_socclk_in_khz =
+				ranges->writer_wm_sets[i].max_fill_clk_khz;
+		ranges_soc15.wm_sets_mcif[i].wm_min_socclk_in_khz =
+				ranges->writer_wm_sets[i].min_fill_clk_khz;
+		ranges_soc15.wm_sets_mcif[i].wm_max_memclk_in_khz =
+				ranges->writer_wm_sets[i].max_fill_clk_khz;
+		ranges_soc15.wm_sets_mcif[i].wm_min_memclk_in_khz =
+				ranges->writer_wm_sets[i].min_fill_clk_khz;
+	}
+
+	hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr, &ranges_soc15);
+
+}
+
+void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
+{
+	struct amdgpu_device *adev = pp->ctx->driver_context;
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+
+	if (hwmgr->hwmgr_func->smus_notify_pwe)
+		hwmgr->hwmgr_func->smus_notify_pwe(hwmgr);
+}
+
 void dm_pp_get_funcs_rv(
 		struct dc_context *ctx,
 		struct pp_smu_funcs_rv *funcs)
-{}
+{
+	funcs->pp_smu.ctx = ctx;
+	funcs->set_display_requirement = pp_rv_set_display_requirement;
+	funcs->set_wm_ranges = pp_rv_set_wm_ranges;
+	funcs->set_pme_wa_enable = pp_rv_set_pme_wa_enable;
+}
+
 
 /**** end of power component interfaces ****/

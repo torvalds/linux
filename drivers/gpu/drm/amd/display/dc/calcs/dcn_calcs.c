@@ -1358,8 +1358,8 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	/* SOCCLK does not affect anytihng but writeback for DCN so for now we dont
 	 * care what the value is, hence min to overdrive level
 	 */
-	ranges.num_reader_wm_sets = WM_COUNT;
-	ranges.num_writer_wm_sets = WM_COUNT;
+	ranges.num_reader_wm_sets = WM_SET_COUNT;
+	ranges.num_writer_wm_sets = WM_SET_COUNT;
 	ranges.reader_wm_sets[0].wm_inst = WM_A;
 	ranges.reader_wm_sets[0].min_drain_clk_khz = min_dcfclk_khz;
 	ranges.reader_wm_sets[0].max_drain_clk_khz = max_dcfclk_khz;
