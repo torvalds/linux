@@ -794,46 +794,61 @@ static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
-	struct device *dev = &adapter->vdev->dev;
+	int retry_count = 0;
 	int rc;
 
 	do {
-		if (adapter->renegotiate) {
-			adapter->renegotiate = false;
+		if (retry_count > IBMVNIC_MAX_QUEUES) {
+			netdev_warn(netdev, "Login attempts exceeded\n");
+			return -1;
+		}
+
+		adapter->init_done_rc = 0;
+		reinit_completion(&adapter->init_done);
+		rc = send_login(adapter);
+		if (rc) {
+			netdev_warn(netdev, "Unable to login\n");
+			return rc;
+		}
+
+		if (!wait_for_completion_timeout(&adapter->init_done,
+						 timeout)) {
+			netdev_warn(netdev, "Login timed out\n");
+			return -1;
+		}
+
+		if (adapter->init_done_rc == PARTIALSUCCESS) {
+			retry_count++;
 			release_sub_crqs(adapter, 1);
 
+			adapter->init_done_rc = 0;
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
 			if (!wait_for_completion_timeout(&adapter->init_done,
 							 timeout)) {
-				dev_err(dev, "Capabilities query timeout\n");
+				netdev_warn(netdev,
+					    "Capabilities query timed out\n");
 				return -1;
 			}
+
 			rc = init_sub_crqs(adapter);
 			if (rc) {
-				dev_err(dev,
-					"Initialization of SCRQ's failed\n");
+				netdev_warn(netdev,
+					    "SCRQ initialization failed\n");
 				return -1;
 			}
+
 			rc = init_sub_crq_irqs(adapter);
 			if (rc) {
-				dev_err(dev,
-					"Initialization of SCRQ's irqs failed\n");
+				netdev_warn(netdev,
+					    "SCRQ irq initialization failed\n");
 				return -1;
 			}
-		}
-
-		reinit_completion(&adapter->init_done);
-		rc = send_login(adapter);
-		if (rc) {
-			dev_err(dev, "Unable to attempt device login\n");
-			return rc;
-		} else if (!wait_for_completion_timeout(&adapter->init_done,
-						 timeout)) {
-			dev_err(dev, "Login timeout\n");
+		} else if (adapter->init_done_rc) {
+			netdev_warn(netdev, "Adapter login failed\n");
 			return -1;
 		}
-	} while (adapter->renegotiate);
+	} while (adapter->init_done_rc == PARTIALSUCCESS);
 
 	/* handle pending MAC address changes after successful login */
 	if (adapter->mac_change_pending) {
@@ -3942,7 +3957,7 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	 * to resend the login buffer with fewer queues requested.
 	 */
 	if (login_rsp_crq->generic.rc.code) {
-		adapter->renegotiate = true;
+		adapter->init_done_rc = login_rsp_crq->generic.rc.code;
 		complete(&adapter->init_done);
 		return 0;
 	}
