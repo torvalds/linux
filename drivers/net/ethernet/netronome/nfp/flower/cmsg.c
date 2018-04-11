@@ -272,18 +272,49 @@ out:
 
 void nfp_flower_cmsg_process_rx(struct work_struct *work)
 {
+	struct sk_buff_head cmsg_joined;
 	struct nfp_flower_priv *priv;
 	struct sk_buff *skb;
 
 	priv = container_of(work, struct nfp_flower_priv, cmsg_work);
+	skb_queue_head_init(&cmsg_joined);
 
-	while ((skb = skb_dequeue(&priv->cmsg_skbs)))
+	spin_lock_bh(&priv->cmsg_skbs_high.lock);
+	skb_queue_splice_tail_init(&priv->cmsg_skbs_high, &cmsg_joined);
+	spin_unlock_bh(&priv->cmsg_skbs_high.lock);
+
+	spin_lock_bh(&priv->cmsg_skbs_low.lock);
+	skb_queue_splice_tail_init(&priv->cmsg_skbs_low, &cmsg_joined);
+	spin_unlock_bh(&priv->cmsg_skbs_low.lock);
+
+	while ((skb = __skb_dequeue(&cmsg_joined)))
 		nfp_flower_cmsg_process_one_rx(priv->app, skb);
+}
+
+static void
+nfp_flower_queue_ctl_msg(struct nfp_app *app, struct sk_buff *skb, int type)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct sk_buff_head *skb_head;
+
+	if (type == NFP_FLOWER_CMSG_TYPE_PORT_REIFY ||
+	    type == NFP_FLOWER_CMSG_TYPE_PORT_MOD)
+		skb_head = &priv->cmsg_skbs_high;
+	else
+		skb_head = &priv->cmsg_skbs_low;
+
+	if (skb_queue_len(skb_head) >= NFP_FLOWER_WORKQ_MAX_SKBS) {
+		nfp_flower_cmsg_warn(app, "Dropping queued control messages\n");
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	skb_queue_tail(skb_head, skb);
+	schedule_work(&priv->cmsg_work);
 }
 
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 {
-	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_flower_cmsg_hdr *cmsg_hdr;
 
 	cmsg_hdr = nfp_flower_cmsg_get_hdr(skb);
@@ -307,7 +338,6 @@ void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 		/* Acks from the NFP that the route is added - ignore. */
 		dev_consume_skb_any(skb);
 	} else {
-		skb_queue_tail(&priv->cmsg_skbs, skb);
-		schedule_work(&priv->cmsg_work);
+		nfp_flower_queue_ctl_msg(app, skb, cmsg_hdr->type);
 	}
 }

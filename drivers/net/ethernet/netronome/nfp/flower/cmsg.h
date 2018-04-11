@@ -108,6 +108,8 @@
 #define NFP_FL_IPV4_TUNNEL_TYPE		GENMASK(7, 4)
 #define NFP_FL_IPV4_PRE_TUN_INDEX	GENMASK(2, 0)
 
+#define NFP_FLOWER_WORKQ_MAX_SKBS	30000
+
 #define nfp_flower_cmsg_warn(app, fmt, args...)                         \
 	do {                                                            \
 		if (net_ratelimit())                                    \
