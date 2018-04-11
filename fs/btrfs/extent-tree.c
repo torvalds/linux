@@ -4681,12 +4681,14 @@ again:
 	trans->allocating_chunk = false;
 
 	spin_lock(&space_info->lock);
-	if (ret < 0 && ret != -ENOSPC)
-		goto out;
-	if (ret)
-		space_info->full = 1;
-	else
+	if (ret < 0) {
+		if (ret == -ENOSPC)
+			space_info->full = 1;
+		else
+			goto out;
+	} else {
 		ret = 1;
+	}
 
 	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
 out:
