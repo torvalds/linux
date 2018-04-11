@@ -139,7 +139,7 @@ DAPM description
 ----------------
 The Dynamic Audio Power Management description describes the codec power
 components and their relationships and registers to the ASoC core.
-Please read dapm.txt for details of building the description.
+Please read dapm.rst for details of building the description.
 
 Please also see the examples in other codec drivers.
 

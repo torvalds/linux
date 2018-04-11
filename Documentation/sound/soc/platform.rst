@@ -66,7 +66,7 @@ Each SoC DAI driver must provide the following features:-
 4. SYSCLK configuration
 5. Suspend and resume (optional)
 
-Please see codec.txt for a description of items 1 - 4.
+Please see codec.rst for a description of items 1 - 4.
 
 
 SoC DSP Drivers
