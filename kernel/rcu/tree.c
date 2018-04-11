@@ -1705,20 +1705,12 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	}
 
 	/*
-	 * If either this rcu_node structure or the root rcu_node structure
-	 * believe that a grace period is in progress, then we must wait
-	 * for the one following, which is in "c".  Because our request
-	 * will be noticed at the end of the current grace period, we don't
-	 * need to explicitly start one.  We only do the lockless check
-	 * of rnp_root's fields if the current rcu_node structure thinks
-	 * there is no grace period in flight, and because we hold rnp->lock,
-	 * the only possible change is when rnp_root's two fields are
-	 * equal, in which case rnp_root->gpnum might be concurrently
-	 * incremented.  But that is OK, as it will just result in our
-	 * doing some extra useless work.
+	 * If this rcu_node structure believes that a grace period is in
+	 * progress, then we must wait for the one following, which is in
+	 * "c".  Because our request will be noticed at the end of the
+	 * current grace period, we don't need to explicitly start one.
 	 */
-	if (rnp->gpnum != rnp->completed ||
-	    READ_ONCE(rnp_root->gpnum) != READ_ONCE(rnp_root->completed)) {
+	if (rnp->gpnum != rnp->completed) {
 		rnp->need_future_gp[c & 0x1]++;
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedleaf"));
 		goto out;
