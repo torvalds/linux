@@ -1099,8 +1099,8 @@ static void audit_log_feature_change(int which, u32 old_feature, u32 new_feature
 
 	if (audit_enabled == AUDIT_OFF)
 		return;
-
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_FEATURE_CHANGE);
+	ab = audit_log_start(current->audit_context,
+			     GFP_KERNEL, AUDIT_FEATURE_CHANGE);
 	if (!ab)
 		return;
 	audit_log_task_info(ab, current);
