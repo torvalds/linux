@@ -10,6 +10,7 @@ Contents:
    af_xdp
    batman-adv
    can
+   can_ucan_protocol
    dpaa2/index
    e100
    e1000
