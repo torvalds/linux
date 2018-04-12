@@ -21,6 +21,7 @@
 
 #include "atomisp_internal.h"
 #include "atomisp_compat.h"
+#include "atomisp_ioctl.h"
 #include "atomisp_compat_ioctl32.h"
 
 static int get_atomisp_histogram32(struct atomisp_histogram *kp,
@@ -863,8 +864,8 @@ static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-long atomisp_do_compat_ioctl(struct file *file,
-			    unsigned int cmd, unsigned long arg)
+static long atomisp_do_compat_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	union {
 		struct atomisp_histogram his;
