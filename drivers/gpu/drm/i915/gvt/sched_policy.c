@@ -103,9 +103,8 @@ static void gvt_balance_timeslice(struct gvt_sched_data *sched_data)
 
 		list_for_each(pos, &sched_data->lru_runq_head) {
 			vgpu_data = container_of(pos, struct vgpu_sched_data, lru_list);
-			fair_timeslice = ms_to_ktime(GVT_TS_BALANCE_PERIOD_MS) *
-						vgpu_data->sched_ctl.weight /
-						total_weight;
+			fair_timeslice = ktime_divns(ms_to_ktime(GVT_TS_BALANCE_PERIOD_MS),
+						     total_weight) * vgpu_data->sched_ctl.weight;
 
 			vgpu_data->allocated_ts = fair_timeslice;
 			vgpu_data->left_ts = vgpu_data->allocated_ts;

@@ -130,6 +130,9 @@ enum bw_defines {
 
 struct bw_calcs_dceip {
 	enum bw_calcs_version version;
+	uint32_t percent_of_ideal_port_bw_received_after_urgent_latency;
+	uint32_t max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation;
+	uint32_t max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation;
 	bool large_cursor;
 	uint32_t cursor_max_outstanding_group_num;
 	bool dmif_pipe_en_fbc_chunk_tracker;
@@ -230,6 +233,7 @@ struct bw_calcs_vbios {
 
 struct bw_calcs_data {
 	/* data for all displays */
+	bool display_synchronization_enabled;
 	uint32_t number_of_displays;
 	enum bw_defines underlay_surface_type;
 	enum bw_defines panning_and_bezel_adjustment;
@@ -241,6 +245,7 @@ struct bw_calcs_data {
 	bool d1_display_write_back_dwb_enable;
 	enum bw_defines d1_underlay_mode;
 
+	bool increase_voltage_to_support_mclk_switch;
 	bool cpup_state_change_enable;
 	bool cpuc_state_change_enable;
 	bool nbp_state_change_enable;
@@ -449,6 +454,7 @@ struct bw_calcs_data {
 	struct bw_fixed dram_speed_change_line_source_transfer_time[maximum_number_of_surfaces][3][8];
 	struct bw_fixed min_dram_speed_change_margin[3][8];
 	struct bw_fixed dispclk_required_for_dram_speed_change[3][8];
+	struct bw_fixed dispclk_required_for_dram_speed_change_pipe[3][8];
 	struct bw_fixed blackout_duration_margin[3][8];
 	struct bw_fixed dispclk_required_for_blackout_duration[3][8];
 	struct bw_fixed dispclk_required_for_blackout_recovery[3][8];

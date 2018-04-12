@@ -162,9 +162,10 @@ static int framebuffer_check(struct drm_device *dev,
 	info = __drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
 	if (!info) {
 		struct drm_format_name_buf format_name;
+
 		DRM_DEBUG_KMS("bad framebuffer format %s\n",
-		              drm_get_format_name(r->pixel_format,
-		                                  &format_name));
+			      drm_get_format_name(r->pixel_format,
+						  &format_name));
 		return -EINVAL;
 	}
 
@@ -461,6 +462,12 @@ int drm_mode_getfb(struct drm_device *dev,
 	if (!fb)
 		return -ENOENT;
 
+	/* Multi-planar framebuffers need getfb2. */
+	if (fb->format->num_planes > 1) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	r->height = fb->height;
 	r->width = fb->width;
 	r->depth = fb->format->depth;
@@ -484,6 +491,7 @@ int drm_mode_getfb(struct drm_device *dev,
 		ret = -ENODEV;
 	}
 
+out:
 	drm_framebuffer_put(fb);
 
 	return ret;

@@ -19,6 +19,11 @@
 #include <linux/posix-timers.h>
 #include <linux/compat.h>
 
+#ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
+/* Architectures may override SYS_NI and COMPAT_SYS_NI */
+#include <asm/syscall_wrapper.h>
+#endif
+
 asmlinkage long sys_ni_posix_timers(void)
 {
 	pr_err_once("process %d (%s) attempted a POSIX timer syscall "
@@ -27,8 +32,13 @@ asmlinkage long sys_ni_posix_timers(void)
 	return -ENOSYS;
 }
 
+#ifndef SYS_NI
 #define SYS_NI(name)  SYSCALL_ALIAS(sys_##name, sys_ni_posix_timers)
+#endif
+
+#ifndef COMPAT_SYS_NI
 #define COMPAT_SYS_NI(name)  SYSCALL_ALIAS(compat_sys_##name, sys_ni_posix_timers)
+#endif
 
 SYS_NI(timer_create);
 SYS_NI(timer_gettime);

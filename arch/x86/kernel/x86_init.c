@@ -8,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 
+#include <asm/acpi.h>
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
 #include <asm/pci_x86.h>
@@ -26,10 +27,11 @@
 
 void x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
-int __init iommu_init_noop(void) { return 0; }
-void iommu_shutdown_noop(void) { }
-bool __init bool_x86_init_noop(void) { return false; }
-void x86_op_int_noop(int cpu) { }
+static int __init iommu_init_noop(void) { return 0; }
+static void iommu_shutdown_noop(void) { }
+static bool __init bool_x86_init_noop(void) { return false; }
+static void x86_op_int_noop(int cpu) { }
+static u64 u64_x86_init_noop(void) { return 0; }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -91,6 +93,11 @@ struct x86_init_ops x86_init __initdata = {
 		.x2apic_available	= bool_x86_init_noop,
 		.init_mem_mapping	= x86_init_noop,
 	},
+
+	.acpi = {
+		.get_root_pointer	= u64_x86_init_noop,
+		.reduced_hw_early_init	= acpi_generic_reduced_hw_init,
+	},
 };
 
 struct x86_cpuinit_ops x86_cpuinit = {
@@ -146,7 +153,7 @@ void arch_restore_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-struct x86_io_apic_ops x86_io_apic_ops __ro_after_init = {
-	.read			= native_io_apic_read,
-	.disable		= native_disable_io_apic,
+struct x86_apic_ops x86_apic_ops __ro_after_init = {
+	.io_apic_read	= native_io_apic_read,
+	.restore	= native_restore_boot_irq_mode,
 };

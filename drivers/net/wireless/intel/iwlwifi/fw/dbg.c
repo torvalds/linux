@@ -8,6 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -942,7 +944,6 @@ dump_trans_data:
 
 out:
 	iwl_fw_free_dump_desc(fwrt);
-	fwrt->dump.trig = NULL;
 	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
 	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
 }
@@ -1112,6 +1113,14 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 	    fwrt->ops->dump_start(fwrt->ops_ctx))
 		return;
 
+	if (fwrt->ops && fwrt->ops->fw_running &&
+	    !fwrt->ops->fw_running(fwrt->ops_ctx)) {
+		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
+		iwl_fw_free_dump_desc(fwrt);
+		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
+		goto out;
+	}
+
 	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/* stop recording */
 		iwl_fw_dbg_stop_recording(fwrt);
@@ -1145,7 +1154,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 			iwl_write_prph(fwrt->trans, DBGC_OUT_CTRL, out_ctrl);
 		}
 	}
-
+out:
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }

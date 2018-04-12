@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
+#include <linux/pmu.h>
 #include <linux/rtc.h>
 
 #include <asm/setup.h>
@@ -699,7 +700,7 @@ static struct mac_model mac_data_table[] = {
 		.name		= "PowerBook 190",
 		.adb_type	= MAC_ADB_PB2,
 		.via_type	= MAC_VIA_QUADRA,
-		.scsi_type	= MAC_SCSI_LATE,
+		.scsi_type	= MAC_SCSI_OLD,
 		.ide_type	= MAC_IDE_BABOON,
 		.scc_type	= MAC_SCC_QUADRA,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
@@ -890,6 +891,9 @@ static void __init mac_identify(void)
 #ifdef CONFIG_ADB_CUDA
 	find_via_cuda();
 #endif
+#ifdef CONFIG_ADB_PMU68K
+	find_via_pmu();
+#endif
 }
 
 static void __init mac_report_hardware(void)
@@ -1061,9 +1065,7 @@ int __init mac_platform_init(void)
 			mac_scsi_old_rsrc, ARRAY_SIZE(mac_scsi_old_rsrc));
 		break;
 	case MAC_SCSI_LATE:
-		/* PDMA logic in 68040 PowerBooks is somehow different to
-		 * '030 models. It's probably more like Quadras (see mac_esp).
-		 */
+		/* XXX PDMA support for PowerBook 500 series needs testing */
 		platform_device_register_simple("mac_scsi", 0,
 			mac_scsi_late_rsrc, ARRAY_SIZE(mac_scsi_late_rsrc));
 		break;

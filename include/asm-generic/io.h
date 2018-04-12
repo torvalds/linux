@@ -1,4 +1,4 @@
-/* Generic I/O port emulation, based on MN10300 code
+/* Generic I/O port emulation.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -852,7 +852,16 @@ static inline void __iomem *__ioremap(phys_addr_t offset, size_t size,
 }
 #endif
 
+#ifndef iounmap
+#define iounmap iounmap
+
+static inline void iounmap(void __iomem *addr)
+{
+}
+#endif
+#endif /* CONFIG_MMU */
 #ifndef ioremap_nocache
+void __iomem *ioremap(phys_addr_t phys_addr, size_t size);
 #define ioremap_nocache ioremap_nocache
 static inline void __iomem *ioremap_nocache(phys_addr_t offset, size_t size)
 {
@@ -883,15 +892,6 @@ static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
 	return ioremap_nocache(offset, size);
 }
 #endif
-
-#ifndef iounmap
-#define iounmap iounmap
-
-static inline void iounmap(void __iomem *addr)
-{
-}
-#endif
-#endif /* CONFIG_MMU */
 
 #ifdef CONFIG_HAS_IOPORT_MAP
 #ifndef CONFIG_GENERIC_IOMAP

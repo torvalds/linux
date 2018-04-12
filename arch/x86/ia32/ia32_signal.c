@@ -33,7 +33,6 @@
 #include <asm/vdso.h>
 #include <asm/sigframe.h>
 #include <asm/sighandling.h>
-#include <asm/sys_ia32.h>
 #include <asm/smap.h>
 
 /*

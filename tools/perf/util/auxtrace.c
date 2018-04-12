@@ -60,6 +60,12 @@
 #include "sane_ctype.h"
 #include "symbol/kallsyms.h"
 
+static bool auxtrace__dont_decode(struct perf_session *session)
+{
+	return !session->itrace_synth_opts ||
+	       session->itrace_synth_opts->dont_decode;
+}
+
 int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 			struct auxtrace_mmap_params *mp,
 			void *userpg, int fd)
@@ -227,9 +233,9 @@ static void *auxtrace_copy_data(u64 size, struct perf_session *session)
 	return p;
 }
 
-static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
-				       unsigned int idx,
-				       struct auxtrace_buffer *buffer)
+static int auxtrace_queues__queue_buffer(struct auxtrace_queues *queues,
+					 unsigned int idx,
+					 struct auxtrace_buffer *buffer)
 {
 	struct auxtrace_queue *queue;
 	int err;
@@ -280,7 +286,7 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 			return -ENOMEM;
 		b->size = BUFFER_LIMIT_FOR_32_BIT;
 		b->consecutive = consecutive;
-		err = auxtrace_queues__add_buffer(queues, idx, b);
+		err = auxtrace_queues__queue_buffer(queues, idx, b);
 		if (err) {
 			auxtrace_buffer__free(b);
 			return err;
@@ -296,11 +302,14 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 	return 0;
 }
 
-static int auxtrace_queues__add_event_buffer(struct auxtrace_queues *queues,
-					     struct perf_session *session,
-					     unsigned int idx,
-					     struct auxtrace_buffer *buffer)
+static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
+				       struct perf_session *session,
+				       unsigned int idx,
+				       struct auxtrace_buffer *buffer,
+				       struct auxtrace_buffer **buffer_ptr)
 {
+	int err;
+
 	if (session->one_mmap) {
 		buffer->data = buffer->data_offset - session->one_mmap_offset +
 			       session->one_mmap_addr;
@@ -311,14 +320,20 @@ static int auxtrace_queues__add_event_buffer(struct auxtrace_queues *queues,
 		buffer->data_needs_freeing = true;
 	} else if (BITS_PER_LONG == 32 &&
 		   buffer->size > BUFFER_LIMIT_FOR_32_BIT) {
-		int err;
-
 		err = auxtrace_queues__split_buffer(queues, idx, buffer);
 		if (err)
 			return err;
 	}
 
-	return auxtrace_queues__add_buffer(queues, idx, buffer);
+	err = auxtrace_queues__queue_buffer(queues, idx, buffer);
+	if (err)
+		return err;
+
+	/* FIXME: Doesn't work for split buffer */
+	if (buffer_ptr)
+		*buffer_ptr = buffer;
+
+	return 0;
 }
 
 static bool filter_cpu(struct perf_session *session, int cpu)
@@ -353,12 +368,10 @@ int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 	buffer->size = event->auxtrace.size;
 	idx = event->auxtrace.idx;
 
-	err = auxtrace_queues__add_event_buffer(queues, session, idx, buffer);
+	err = auxtrace_queues__add_buffer(queues, session, idx, buffer,
+					  buffer_ptr);
 	if (err)
 		goto out_err;
-
-	if (buffer_ptr)
-		*buffer_ptr = buffer;
 
 	return 0;
 
@@ -762,6 +775,9 @@ int auxtrace_queues__process_index(struct auxtrace_queues *queues,
 	size_t i;
 	int err;
 
+	if (auxtrace__dont_decode(session))
+		return 0;
+
 	list_for_each_entry(auxtrace_index, &session->auxtrace_index, list) {
 		for (i = 0; i < auxtrace_index->nr; i++) {
 			ent = &auxtrace_index->entries[i];
@@ -890,12 +906,6 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 out_free:
 	free(ev);
 	return err;
-}
-
-static bool auxtrace__dont_decode(struct perf_session *session)
-{
-	return !session->itrace_synth_opts ||
-	       session->itrace_synth_opts->dont_decode;
 }
 
 int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,

@@ -1379,17 +1379,21 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
  *
  * We initialize the Hardware-reduced ACPI model here:
  */
+void __init acpi_generic_reduced_hw_init(void)
+{
+	/*
+	 * Override x86_init functions and bypass legacy PIC in
+	 * hardware reduced ACPI mode.
+	 */
+	x86_init.timers.timer_init	= x86_init_noop;
+	x86_init.irqs.pre_vector_init	= x86_init_noop;
+	legacy_pic			= &null_legacy_pic;
+}
+
 static void __init acpi_reduced_hw_init(void)
 {
-	if (acpi_gbl_reduced_hardware) {
-		/*
-		 * Override x86_init functions and bypass legacy pic
-		 * in Hardware-reduced ACPI mode
-		 */
-		x86_init.timers.timer_init	= x86_init_noop;
-		x86_init.irqs.pre_vector_init	= x86_init_noop;
-		legacy_pic			= &null_legacy_pic;
-	}
+	if (acpi_gbl_reduced_hardware)
+		x86_init.acpi.reduced_hw_early_init();
 }
 
 /*

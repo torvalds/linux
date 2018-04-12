@@ -29,6 +29,8 @@
 #include "omapdss.h"
 #include "dss.h"
 
+struct dss_device;
+
 /* HDMI Wrapper */
 
 #define HDMI_WP_REVISION			0x0
@@ -324,8 +326,8 @@ phys_addr_t hdmi_wp_get_audio_dma_addr(struct hdmi_wp_data *wp);
 
 /* HDMI PLL funcs */
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
-int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
-	struct hdmi_wp_data *wp);
+int hdmi_pll_init(struct dss_device *dss, struct platform_device *pdev,
+		  struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
 void hdmi_pll_uninit(struct hdmi_pll_data *hpll);
 
 /* HDMI PHY funcs */
@@ -357,6 +359,9 @@ static inline bool hdmi_mode_has_audio(struct hdmi_config *cfg)
 struct omap_hdmi {
 	struct mutex lock;
 	struct platform_device *pdev;
+	struct dss_device *dss;
+
+	struct dss_debugfs_entry *debugfs;
 
 	struct hdmi_wp_data	wp;
 	struct hdmi_pll_data	pll;
@@ -383,5 +388,7 @@ struct omap_hdmi {
 	bool audio_playing;
 	bool display_enabled;
 };
+
+#define dssdev_to_hdmi(dssdev) container_of(dssdev, struct omap_hdmi, output)
 
 #endif

@@ -46,6 +46,12 @@
 #define STATIC
 #include <linux/decompress/mm.h>
 
+#ifdef CONFIG_X86_5LEVEL
+unsigned int pgtable_l5_enabled __ro_after_init;
+unsigned int pgdir_shift __ro_after_init = 39;
+unsigned int ptrs_per_p4d __ro_after_init = 1;
+#endif
+
 extern unsigned long get_cmd_line_ptr(void);
 
 /* Simplified build-specific string for starting entropy. */
@@ -722,6 +728,14 @@ void choose_random_location(unsigned long input,
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		return;
 	}
+
+#ifdef CONFIG_X86_5LEVEL
+	if (__read_cr4() & X86_CR4_LA57) {
+		pgtable_l5_enabled = 1;
+		pgdir_shift = 48;
+		ptrs_per_p4d = 512;
+	}
+#endif
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 

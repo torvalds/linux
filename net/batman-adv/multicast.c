@@ -543,8 +543,8 @@ update:
 		bat_priv->mcast.enabled = true;
 	}
 
-	return !(mcast_data.flags &
-		 (BATADV_MCAST_WANT_ALL_IPV4 | BATADV_MCAST_WANT_ALL_IPV6));
+	return !(mcast_data.flags & BATADV_MCAST_WANT_ALL_IPV4 &&
+		 mcast_data.flags & BATADV_MCAST_WANT_ALL_IPV6);
 }
 
 /**
@@ -814,8 +814,8 @@ static struct batadv_orig_node *
 batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
 			      struct ethhdr *ethhdr)
 {
-	return batadv_transtable_search(bat_priv, ethhdr->h_source,
-					ethhdr->h_dest, BATADV_NO_FLAGS);
+	return batadv_transtable_search(bat_priv, NULL, ethhdr->h_dest,
+					BATADV_NO_FLAGS);
 }
 
 /**

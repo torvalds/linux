@@ -22,10 +22,10 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
-#include <linux/amd-iommu.h>
 #include "kfd_crat.h"
 #include "kfd_priv.h"
 #include "kfd_topology.h"
+#include "kfd_iommu.h"
 
 /* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
  * GPU processor ID are expressed with Bit[31]=1.
@@ -882,7 +882,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	crat_table->length = sizeof(struct crat_header);
 
 	status = acpi_get_table("DSDT", 0, &acpi_table);
-	if (status == AE_NOT_FOUND)
+	if (status != AE_OK)
 		pr_warn("DSDT table not found for OEM information\n");
 	else {
 		crat_table->oem_revision = acpi_table->revision;
@@ -1037,15 +1037,11 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	struct crat_subtype_generic *sub_type_hdr;
 	struct crat_subtype_computeunit *cu;
 	struct kfd_cu_info cu_info;
-	struct amd_iommu_device_info iommu_info;
 	int avail_size = *size;
 	uint32_t total_num_of_cu;
 	int num_of_cache_entries = 0;
 	int cache_mem_filled = 0;
 	int ret = 0;
-	const u32 required_iommu_flags = AMD_IOMMU_DEVICE_FLAG_ATS_SUP |
-					 AMD_IOMMU_DEVICE_FLAG_PRI_SUP |
-					 AMD_IOMMU_DEVICE_FLAG_PASID_SUP;
 	struct kfd_local_mem_info local_mem_info;
 
 	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_GPU)
@@ -1106,12 +1102,8 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	/* Check if this node supports IOMMU. During parsing this flag will
 	 * translate to HSA_CAP_ATS_PRESENT
 	 */
-	iommu_info.flags = 0;
-	if (amd_iommu_device_info(kdev->pdev, &iommu_info) == 0) {
-		if ((iommu_info.flags & required_iommu_flags) ==
-				required_iommu_flags)
-			cu->hsa_capability |= CRAT_CU_FLAGS_IOMMU_PRESENT;
-	}
+	if (!kfd_iommu_check_device(kdev))
+		cu->hsa_capability |= CRAT_CU_FLAGS_IOMMU_PRESENT;
 
 	crat_table->length += sub_type_hdr->length;
 	crat_table->total_entries++;
@@ -1124,6 +1116,9 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
+
+	if (debug_largebar)
+		local_mem_info.local_mem_size_private = 0;
 
 	if (local_mem_info.local_mem_size_private == 0)
 		ret = kfd_fill_gpu_memory_affinity(&avail_size,

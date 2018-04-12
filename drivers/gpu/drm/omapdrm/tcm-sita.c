@@ -33,8 +33,8 @@ static unsigned long mask[8];
  * map		ptr to bitmap
  * stride		slots in a row
  */
-static void free_slots(unsigned long pos, uint16_t w, uint16_t h,
-		unsigned long *map, uint16_t stride)
+static void free_slots(unsigned long pos, u16 w, u16 h,
+		unsigned long *map, u16 stride)
 {
 	int i;
 
@@ -48,7 +48,7 @@ static void free_slots(unsigned long pos, uint16_t w, uint16_t h,
  * map		ptr to bitmap
  * num_bits	number of bits in bitmap
  */
-static int r2l_b2t_1d(uint16_t w, unsigned long *pos, unsigned long *map,
+static int r2l_b2t_1d(u16 w, unsigned long *pos, unsigned long *map,
 		size_t num_bits)
 {
 	unsigned long search_count = 0;
@@ -84,7 +84,7 @@ static int r2l_b2t_1d(uint16_t w, unsigned long *pos, unsigned long *map,
  * num_bits = size of bitmap
  * stride = bits in one row of container
  */
-static int l2r_t2b(uint16_t w, uint16_t h, uint16_t a, int16_t offset,
+static int l2r_t2b(u16 w, u16 h, u16 a, s16 offset,
 		unsigned long *pos, unsigned long slot_bytes,
 		unsigned long *map, size_t num_bits, size_t slot_stride)
 {
@@ -179,7 +179,7 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_slots,
 }
 
 static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u16 align,
-				int16_t offset, uint16_t slot_bytes,
+				s16 offset, u16 slot_bytes,
 				struct tcm_area *area)
 {
 	unsigned long pos;
@@ -208,7 +208,7 @@ static void sita_deinit(struct tcm *tcm)
 static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 {
 	unsigned long pos;
-	uint16_t w, h;
+	u16 w, h;
 
 	pos = area->p0.x + area->p0.y * tcm->width;
 	if (area->is2d) {

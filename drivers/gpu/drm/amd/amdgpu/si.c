@@ -31,7 +31,8 @@
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
 #include "atom.h"
-#include "amdgpu_powerplay.h"
+#include "amd_pcie.h"
+#include "si_dpm.h"
 #include "sid.h"
 #include "si_ih.h"
 #include "gfx_v6_0.h"
@@ -1230,6 +1231,27 @@ static void si_detect_hw_virtualization(struct amdgpu_device *adev)
 		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 }
 
+static void si_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+		RREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+	}
+}
+
+static void si_invalidate_hdp(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_DEBUG0, 1);
+		RREG32(mmHDP_DEBUG0);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_DEBUG0, 1);
+	}
+}
+
 static const struct amdgpu_asic_funcs si_asic_funcs =
 {
 	.read_disabled_bios = &si_read_disabled_bios,
@@ -1241,6 +1263,8 @@ static const struct amdgpu_asic_funcs si_asic_funcs =
 	.set_uvd_clocks = &si_set_uvd_clocks,
 	.set_vce_clocks = NULL,
 	.get_config_memsize = &si_get_config_memsize,
+	.flush_hdp = &si_flush_hdp,
+	.invalidate_hdp = &si_invalidate_hdp,
 };
 
 static uint32_t si_get_rev_id(struct amdgpu_device *adev)
@@ -1461,8 +1485,8 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 {
 	struct pci_dev *root = adev->pdev->bus->self;
 	int bridge_pos, gpu_pos;
-	u32 speed_cntl, mask, current_data_rate;
-	int ret, i;
+	u32 speed_cntl, current_data_rate;
+	int i;
 	u16 tmp16;
 
 	if (pci_is_root_bus(adev->pdev->bus))
@@ -1474,23 +1498,20 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret != 0)
-		return;
-
-	if (!(mask & (DRM_PCIE_SPEED_50 | DRM_PCIE_SPEED_80)))
+	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
+					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
 		return;
 
 	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	current_data_rate = (speed_cntl & LC_CURRENT_DATA_RATE_MASK) >>
 		LC_CURRENT_DATA_RATE_SHIFT;
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate == 2) {
 			DRM_INFO("PCIE gen 3 link speeds already enabled\n");
 			return;
 		}
 		DRM_INFO("enabling PCIE gen 3 link speeds, disable with amdgpu.pcie_gen2=0\n");
-	} else if (mask & DRM_PCIE_SPEED_50) {
+	} else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) {
 		if (current_data_rate == 1) {
 			DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 			return;
@@ -1506,7 +1527,7 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (!gpu_pos)
 		return;
 
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
 			u16 bridge_cfg2, gpu_cfg2;
@@ -1589,9 +1610,9 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 
 	pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
 	tmp16 &= ~0xf;
-	if (mask & DRM_PCIE_SPEED_80)
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 		tmp16 |= 3;
-	else if (mask & DRM_PCIE_SPEED_50)
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
 		tmp16 |= 2;
 	else
 		tmp16 |= 1;
@@ -1962,7 +1983,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
@@ -1976,7 +1997,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
@@ -1990,7 +2011,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);

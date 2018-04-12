@@ -63,10 +63,6 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 		/* Generic Linux logo */
 		logo = &logo_linux_vga16;
 #endif
-#ifdef CONFIG_LOGO_BLACKFIN_VGA16
-		/* Blackfin processor logo */
-		logo = &logo_blackfin_vga16;
-#endif
 #ifdef CONFIG_LOGO_SUPERH_VGA16
 		/* SuperH Linux logo */
 		logo = &logo_superh_vga16;
@@ -77,10 +73,6 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 #ifdef CONFIG_LOGO_LINUX_CLUT224
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
-#endif
-#ifdef CONFIG_LOGO_BLACKFIN_CLUT224
-		/* Blackfin Linux logo */
-		logo = &logo_blackfin_clut224;
 #endif
 #ifdef CONFIG_LOGO_DEC_CLUT224
 		/* DEC Linux logo on MIPS/MIPS64 or ALPHA */
@@ -106,10 +98,6 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 #ifdef CONFIG_LOGO_SUPERH_CLUT224
 		/* SuperH Linux logo */
 		logo = &logo_superh_clut224;
-#endif
-#ifdef CONFIG_LOGO_M32R_CLUT224
-		/* M32R Linux logo */
-		logo = &logo_m32r_clut224;
 #endif
 	}
 	return logo;

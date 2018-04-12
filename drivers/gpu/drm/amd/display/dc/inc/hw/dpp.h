@@ -35,6 +35,8 @@ struct dpp {
 	int inst;
 	struct dpp_caps *caps;
 	struct pwl_params regamma_params;
+	struct pwl_params degamma_params;
+
 };
 
 struct dpp_grph_csc_adjustment {
@@ -130,6 +132,14 @@ struct dpp_funcs {
 			const struct dc_cursor_mi_param *param,
 			uint32_t width
 			);
+	void (*dpp_set_hdr_multiplier)(
+			struct dpp *dpp_base,
+			uint32_t multiplier);
+
+	void (*dpp_dppclk_control)(
+			struct dpp *dpp_base,
+			bool dppclk_div,
+			bool enable);
 
 };
 

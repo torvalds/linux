@@ -1,0 +1,40 @@
+Andestech(nds32) AE3XX Platform
+-----------------------------------------------------------------------------
+The AE3XX prototype demonstrates the AE3XX example platform on the FPGA. It
+is composed of one Andestech(nds32) processor and AE3XX.
+
+Required properties (in root node):
+- compatible = "andestech,ae3xx";
+
+Example:
+/dts-v1/;
+/ {
+	compatible = "andestech,ae3xx";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&intc>;
+};
+
+Andestech(nds32) AG101P Platform
+-----------------------------------------------------------------------------
+AG101P is a generic SoC Platform IP that works with any of Andestech(nds32)
+processors to provide a cost-effective and high performance solution for
+majority of embedded systems in variety of application domains. Users may
+simply attach their IP on one of the system buses together with certain glue
+logics to complete a SoC solution for a specific application. With
+comprehensive simulation and design environments, users may evaluate the
+system performance of their applications and track bugs of their designs
+efficiently. The optional hardware development platform further provides real
+system environment for early prototyping and software/hardware co-development.
+
+Required properties (in root node):
+	compatible = "andestech,ag101p";
+
+Example:
+/dts-v1/;
+/ {
+	compatible = "andestech,ag101p";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&intc>;
+};

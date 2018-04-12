@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -2106,15 +2107,40 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_remove;
 
-	ret = iwl_mvm_add_mcast_sta(mvm, vif);
-	if (ret)
-		goto out_unbind;
-
-	/* Send the bcast station. At this stage the TBTT and DTIM time events
-	 * are added and applied to the scheduler */
-	ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
-	if (ret)
-		goto out_rm_mcast;
+	/*
+	 * This is not very nice, but the simplest:
+	 * For older FWs adding the mcast sta before the bcast station may
+	 * cause assert 0x2b00.
+	 * This is fixed in later FW so make the order of removal depend on
+	 * the TLV
+	 */
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STA_TYPE)) {
+		ret = iwl_mvm_add_mcast_sta(mvm, vif);
+		if (ret)
+			goto out_unbind;
+		/*
+		 * Send the bcast station. At this stage the TBTT and DTIM time
+		 * events are added and applied to the scheduler
+		 */
+		ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
+		if (ret) {
+			iwl_mvm_rm_mcast_sta(mvm, vif);
+			goto out_unbind;
+		}
+	} else {
+		/*
+		 * Send the bcast station. At this stage the TBTT and DTIM time
+		 * events are added and applied to the scheduler
+		 */
+		ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
+		if (ret)
+			goto out_unbind;
+		ret = iwl_mvm_add_mcast_sta(mvm, vif);
+		if (ret) {
+			iwl_mvm_send_rm_bcast_sta(mvm, vif);
+			goto out_unbind;
+		}
+	}
 
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
@@ -2144,7 +2170,6 @@ out_quota_failed:
 	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
-out_rm_mcast:
 	iwl_mvm_rm_mcast_sta(mvm, vif);
 out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
@@ -2682,6 +2707,10 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 		/* enable beacon filtering */
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
+
+		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
+				     false);
+
 		ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
@@ -3465,6 +3494,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		ret = 0;
 		goto out;
 	case NL80211_IFTYPE_STATION:
+		mvmvif->csa_bcn_pending = false;
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		/* always disable PS when a monitor interface is active */
@@ -3508,7 +3538,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	}
 
 	if (switching_chanctx && vif->type == NL80211_IFTYPE_STATION) {
-		u32 duration = 2 * vif->bss_conf.beacon_int;
+		u32 duration = 3 * vif->bss_conf.beacon_int;
 
 		/* iwl_mvm_protect_session() reads directly from the
 		 * device (the system time), so make sure it is
@@ -3521,6 +3551,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 		/* Protect the session to make sure we hear the first
 		 * beacon on the new channel.
 		 */
+		mvmvif->csa_bcn_pending = true;
 		iwl_mvm_protect_session(mvm, vif, duration, duration,
 					vif->bss_conf.beacon_int / 2,
 					true);
@@ -3959,6 +3990,7 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		struct iwl_mvm_sta *mvmsta;
 
+		mvmvif->csa_bcn_pending = false;
 		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
 							  mvmvif->ap_sta_id);
 

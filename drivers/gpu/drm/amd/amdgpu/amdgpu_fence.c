@@ -435,7 +435,9 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,
-				   msecs_to_jiffies(amdgpu_lockup_timeout), ring->name);
+				   (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) ?
+				   MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(amdgpu_lockup_timeout),
+				   ring->name);
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);

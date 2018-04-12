@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <drm/amdgpu_drm.h>
 #include "smumgr.h"
-#include "cgs_common.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
@@ -44,6 +43,7 @@ MODULE_FIRMWARE("amdgpu/polaris11_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_acg_smc.bin");
+MODULE_FIRMWARE("amdgpu/vega12_smc.bin");
 
 int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
@@ -144,57 +144,6 @@ int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 						hwmgr, msg, parameter);
 }
 
-int smu_allocate_memory(void *device, uint32_t size,
-			 enum cgs_gpu_mem_type type,
-			 uint32_t byte_align, uint64_t *mc_addr,
-			 void **kptr, void *handle)
-{
-	int ret = 0;
-	cgs_handle_t cgs_handle;
-
-	if (device == NULL || handle == NULL ||
-	    mc_addr == NULL || kptr == NULL)
-		return -EINVAL;
-
-	ret = cgs_alloc_gpu_mem(device, type, size, byte_align,
-				(cgs_handle_t *)handle);
-	if (ret)
-		return -ENOMEM;
-
-	cgs_handle = *(cgs_handle_t *)handle;
-
-	ret = cgs_gmap_gpu_mem(device, cgs_handle, mc_addr);
-	if (ret)
-		goto error_gmap;
-
-	ret = cgs_kmap_gpu_mem(device, cgs_handle, kptr);
-	if (ret)
-		goto error_kmap;
-
-	return 0;
-
-error_kmap:
-	cgs_gunmap_gpu_mem(device, cgs_handle);
-
-error_gmap:
-	cgs_free_gpu_mem(device, cgs_handle);
-	return ret;
-}
-
-int smu_free_memory(void *device, void *handle)
-{
-	cgs_handle_t cgs_handle = (cgs_handle_t)handle;
-
-	if (device == NULL || handle == NULL)
-		return -EINVAL;
-
-	cgs_kunmap_gpu_mem(device, cgs_handle);
-	cgs_gunmap_gpu_mem(device, cgs_handle);
-	cgs_free_gpu_mem(device, cgs_handle);
-
-	return 0;
-}
-
 int smum_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	if (NULL != hwmgr->smumgr_funcs->init_smc_table)
@@ -236,20 +185,26 @@ bool smum_is_dpm_running(struct pp_hwmgr *hwmgr)
 	return true;
 }
 
-int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
-{
-	if (hwmgr->smumgr_funcs->populate_requested_graphic_levels)
-		return hwmgr->smumgr_funcs->populate_requested_graphic_levels(
-				hwmgr, request);
-
-	return 0;
-}
-
 bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr->smumgr_funcs->is_hw_avfs_present)
 		return hwmgr->smumgr_funcs->is_hw_avfs_present(hwmgr);
 
 	return false;
+}
+
+int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting)
+{
+	if (hwmgr->smumgr_funcs->update_dpm_settings)
+		return hwmgr->smumgr_funcs->update_dpm_settings(hwmgr, profile_setting);
+
+	return -EINVAL;
+}
+
+int smum_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+{
+	if (hwmgr->smumgr_funcs->smc_table_manager)
+		return hwmgr->smumgr_funcs->smc_table_manager(hwmgr, table, table_id, rw);
+
+	return -EINVAL;
 }

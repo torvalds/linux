@@ -815,23 +815,6 @@ config SPRD_WATCHDOG
 	  Say Y here to include watchdog timer supported
 	  by Spreadtrum system.
 
-# BLACKFIN Architecture
-
-config BFIN_WDT
-	tristate "Blackfin On-Chip Watchdog Timer"
-	depends on BLACKFIN
-	---help---
-	  If you say yes here you will get support for the Blackfin On-Chip
-	  Watchdog Timer. If you have one of these processors and wish to
-	  have watchdog support enabled, say Y, otherwise say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_wdt.
-
-# CRIS Architecture
-
-# FRV Architecture
-
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
@@ -1431,8 +1414,6 @@ config NIC7018_WDT
 	  To compile this driver as a module, choose M here: the module will be
 	  called nic7018_wdt.
 
-# M32R Architecture
-
 # M68K Architecture
 
 config M54xx_WATCHDOG
@@ -1605,7 +1586,7 @@ config BCM7038_WDT
 config IMGPDC_WDT
 	tristate "Imagination Technologies PDC Watchdog Timer"
 	depends on HAS_IOMEM
-	depends on METAG || MIPS || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  Driver for Imagination Technologies PowerDown Controller

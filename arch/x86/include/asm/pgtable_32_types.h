@@ -15,6 +15,8 @@
 # include <asm/pgtable-2level_types.h>
 #endif
 
+#define pgtable_l5_enabled 0
+
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 

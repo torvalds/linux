@@ -894,8 +894,6 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       struct machine *machine)
 {
 	size_t size;
-	const char *mmap_name;
-	char name_buff[PATH_MAX];
 	struct map *map = machine__kernel_map(machine);
 	struct kmap *kmap;
 	int err;
@@ -918,7 +916,6 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		return -1;
 	}
 
-	mmap_name = machine__mmap_name(machine, name_buff, sizeof(name_buff));
 	if (machine__is_host(machine)) {
 		/*
 		 * kernel uses PERF_RECORD_MISC_USER for user space maps,
@@ -931,7 +928,7 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 
 	kmap = map__kmap(map);
 	size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
-			"%s%s", mmap_name, kmap->ref_reloc_sym->name) + 1;
+			"%s%s", machine->mmap_name, kmap->ref_reloc_sym->name) + 1;
 	size = PERF_ALIGN(size, sizeof(u64));
 	event->mmap.header.type = PERF_RECORD_MMAP;
 	event->mmap.header.size = (sizeof(event->mmap) -
@@ -1591,17 +1588,6 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 		return -1;
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
-	/*
-	 * Have we already created the kernel maps for this machine?
-	 *
-	 * This should have happened earlier, when we processed the kernel MMAP
-	 * events, but for older perf.data files there was no such thing, so do
-	 * it now.
-	 */
-	if (sample->cpumode == PERF_RECORD_MISC_KERNEL &&
-	    machine__kernel_map(machine) == NULL)
-		machine__create_kernel_maps(machine);
-
 	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :

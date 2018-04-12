@@ -601,6 +601,7 @@ static void use_tunnel_data(struct mlx4_ib_qp *qp, struct mlx4_ib_cq *cq, struct
 	wc->dlid_path_bits = 0;
 
 	if (is_eth) {
+		wc->slid = 0;
 		wc->vlan_id = be16_to_cpu(hdr->tun.sl_vid);
 		memcpy(&(wc->smac[0]), (char *)&hdr->tun.mac_31_0, 4);
 		memcpy(&(wc->smac[4]), (char *)&hdr->tun.slid_mac_47_32, 2);
@@ -851,7 +852,6 @@ repoll:
 			}
 		}
 
-		wc->slid	   = be16_to_cpu(cqe->rlid);
 		g_mlpath_rqpn	   = be32_to_cpu(cqe->g_mlpath_rqpn);
 		wc->src_qp	   = g_mlpath_rqpn & 0xffffff;
 		wc->dlid_path_bits = (g_mlpath_rqpn >> 24) & 0x7f;
@@ -860,6 +860,7 @@ repoll:
 		wc->wc_flags	  |= mlx4_ib_ipoib_csum_ok(cqe->status,
 					cqe->checksum) ? IB_WC_IP_CSUM_OK : 0;
 		if (is_eth) {
+			wc->slid = 0;
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
 			if (be32_to_cpu(cqe->vlan_my_qpn) &
 					MLX4_CQE_CVLAN_PRESENT_MASK) {
@@ -871,6 +872,7 @@ repoll:
 			memcpy(wc->smac, cqe->smac, ETH_ALEN);
 			wc->wc_flags |= (IB_WC_WITH_VLAN | IB_WC_WITH_SMAC);
 		} else {
+			wc->slid = be16_to_cpu(cqe->rlid);
 			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 12;
 			wc->vlan_id = 0xffff;
 		}

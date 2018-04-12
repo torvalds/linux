@@ -177,7 +177,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	} else if (obj->mm.pages) {
 		__i915_do_clflush(obj);
 	} else {
-		GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
+		GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 	}
 
 	obj->cache_dirty = false;

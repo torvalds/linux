@@ -86,6 +86,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "deliver_prefix_signal", VCPU_STAT(deliver_prefix_signal) },
 	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
 	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
+	{ "deliver_io_interrupt", VCPU_STAT(deliver_io_int) },
 	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
 	{ "instruction_epsw", VCPU_STAT(instruction_epsw) },
 	{ "instruction_gs", VCPU_STAT(instruction_gs) },
@@ -2146,6 +2147,7 @@ static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 		/* we still need the basic sca for the ipte control */
 		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
+		return;
 	}
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {

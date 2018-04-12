@@ -162,8 +162,8 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 		info->size << PAGE_SHIFT);
 	i915_gem_object_init(obj, &intel_vgpu_gem_ops);
 
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT;
-	obj->base.write_domain = 0;
+	obj->read_domains = I915_GEM_DOMAIN_GTT;
+	obj->write_domain = 0;
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		unsigned int tiling_mode = 0;
 		unsigned int stride = 0;
@@ -459,7 +459,7 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 
 	obj = vgpu_create_gem(dev, dmabuf_obj->info);
 	if (obj == NULL) {
-		gvt_vgpu_err("create gvt gem obj failed:%d\n", vgpu->id);
+		gvt_vgpu_err("create gvt gem obj failed\n");
 		ret = -ENOMEM;
 		goto out;
 	}

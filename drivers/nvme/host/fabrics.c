@@ -650,6 +650,11 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				ret = -EINVAL;
 				goto out;
 			}
+			if (opts->discovery_nqn) {
+				pr_debug("Ignoring nr_io_queues value for discovery controller\n");
+				break;
+			}
+
 			opts->nr_io_queues = min_t(unsigned int,
 					num_online_cpus(), token);
 			break;

@@ -820,7 +820,7 @@ static int tg3_ape_event_lock(struct tg3 *tp, u32 timeout_us)
 
 		tg3_ape_unlock(tp, TG3_APE_LOCK_MEM);
 
-		usleep_range(10, 20);
+		udelay(10);
 		timeout_us -= (timeout_us > 10) ? 10 : timeout_us;
 	}
 

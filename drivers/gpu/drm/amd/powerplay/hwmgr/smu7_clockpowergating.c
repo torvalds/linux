@@ -162,7 +162,7 @@ void smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 				AMD_CG_STATE_UNGATE);
 		cgs_set_powergating_state(hwmgr->device,
 						AMD_IP_BLOCK_TYPE_UVD,
-						AMD_CG_STATE_UNGATE);
+						AMD_PG_STATE_UNGATE);
 		smu7_update_uvd_dpm(hwmgr, false);
 	}
 
@@ -472,23 +472,12 @@ int smu7_update_clock_gatings(struct pp_hwmgr *hwmgr,
  */
 int smu7_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct cgs_system_info sys_info = {0};
-	uint32_t active_cus;
-	int result;
-
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_CU_INFO;
-
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-
-	if (result)
-		return -EINVAL;
-
-	active_cus = sys_info.value;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	if (enable)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_GFX_CU_PG_ENABLE, active_cus);
+					PPSMC_MSG_GFX_CU_PG_ENABLE,
+					adev->gfx.cu_info.number);
 	else
 		return smum_send_msg_to_smc(hwmgr,
 				PPSMC_MSG_GFX_CU_PG_DISABLE);

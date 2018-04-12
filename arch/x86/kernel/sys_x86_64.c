@@ -97,7 +97,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 	if (off & ~PAGE_MASK)
 		goto out;
 
-	error = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	error = ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 out:
 	return error;
 }

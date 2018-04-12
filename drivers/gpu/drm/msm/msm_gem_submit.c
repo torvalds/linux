@@ -430,6 +430,12 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (MSM_PIPE_FLAGS(args->flags) & ~MSM_SUBMIT_FLAGS)
 		return -EINVAL;
 
+	if (args->flags & MSM_SUBMIT_SUDO) {
+		if (!IS_ENABLED(CONFIG_DRM_MSM_GPU_SUDO) ||
+		    !capable(CAP_SYS_RAWIO))
+			return -EINVAL;
+	}
+
 	queue = msm_submitqueue_get(ctx, args->queueid);
 	if (!queue)
 		return -ENOENT;
@@ -470,6 +476,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+
+	if (args->flags & MSM_SUBMIT_SUDO)
+		submit->in_rb = true;
 
 	ret = submit_lookup_objects(submit, args, file);
 	if (ret)

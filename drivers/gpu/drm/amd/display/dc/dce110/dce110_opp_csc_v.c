@@ -727,7 +727,7 @@ void dce110_opp_v_set_csc_adjustment(
 			CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
 
 	program_color_matrix_v(
-			xfm_dce, tbl_entry, GRAPHICS_CSC_ADJUST_TYPE_SW);
+			xfm_dce, tbl_entry, GRPH_COLOR_MATRIX_SW);
 
 	/*  We did everything ,now program DxOUTPUT_CSC_CONTROL */
 	configure_graphics_mode_v(xfm_dce, config, GRAPHICS_CSC_ADJUST_TYPE_SW,

@@ -9,47 +9,60 @@
  * (at your option) any later version.
  */
 
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_modeset_helper.h>
-#include <drm/tinydrm/ili9341.h>
-#include <drm/tinydrm/mipi-dbi.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/tinydrm/mipi-dbi.h>
+#include <drm/tinydrm/tinydrm-helpers.h>
 #include <video/mipi_display.h>
 
-static int mi0283qt_init(struct mipi_dbi *mipi)
+#define ILI9341_FRMCTR1		0xb1
+#define ILI9341_DISCTRL		0xb6
+#define ILI9341_ETMOD		0xb7
+
+#define ILI9341_PWCTRL1		0xc0
+#define ILI9341_PWCTRL2		0xc1
+#define ILI9341_VMCTRL1		0xc5
+#define ILI9341_VMCTRL2		0xc7
+#define ILI9341_PWCTRLA		0xcb
+#define ILI9341_PWCTRLB		0xcf
+
+#define ILI9341_PGAMCTRL	0xe0
+#define ILI9341_NGAMCTRL	0xe1
+#define ILI9341_DTCTRLA		0xe8
+#define ILI9341_DTCTRLB		0xea
+#define ILI9341_PWRSEQ		0xed
+
+#define ILI9341_EN3GAM		0xf2
+#define ILI9341_PUMPCTRL	0xf7
+
+#define ILI9341_MADCTL_BGR	BIT(3)
+#define ILI9341_MADCTL_MV	BIT(5)
+#define ILI9341_MADCTL_MX	BIT(6)
+#define ILI9341_MADCTL_MY	BIT(7)
+
+static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
+			    struct drm_crtc_state *crtc_state)
 {
-	struct tinydrm_device *tdev = &mipi->tinydrm;
-	struct device *dev = tdev->drm->dev;
+	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
+	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
 	u8 addr_mode;
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
 
-	ret = regulator_enable(mipi->regulator);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Failed to enable regulator %d\n", ret);
-		return ret;
-	}
-
-	/* Avoid flicker by skipping setup if the bootloader has done it */
-	if (mipi_dbi_display_is_on(mipi))
-		return 0;
-
-	mipi_dbi_hw_reset(mipi);
-	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
-		regulator_disable(mipi->regulator);
-		return ret;
-	}
-
-	msleep(20);
+	ret = mipi_dbi_poweron_conditional_reset(mipi);
+	if (ret < 0)
+		return;
+	if (ret == 1)
+		goto out_enable;
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_OFF);
 
@@ -68,7 +81,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 	mipi_dbi_command(mipi, ILI9341_VMCTRL2, 0xbe);
 
 	/* Memory Access Control */
-	mipi_dbi_command(mipi, MIPI_DCS_SET_PIXEL_FORMAT, 0x55);
+	mipi_dbi_command(mipi, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT);
 
 	switch (mipi->rotation) {
 	default:
@@ -112,19 +125,12 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
 	msleep(100);
 
-	return 0;
-}
-
-static void mi0283qt_fini(void *data)
-{
-	struct mipi_dbi *mipi = data;
-
-	DRM_DEBUG_KMS("\n");
-	regulator_disable(mipi->regulator);
+out_enable:
+	mipi_dbi_enable_flush(mipi);
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
-	.enable = mipi_dbi_pipe_enable,
+	.enable = mi0283qt_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = tinydrm_display_pipe_update,
 	.prepare_fb = tinydrm_display_pipe_prepare_fb,
@@ -190,7 +196,7 @@ static int mi0283qt_probe(struct spi_device *spi)
 	if (IS_ERR(mipi->regulator))
 		return PTR_ERR(mipi->regulator);
 
-	mipi->backlight = tinydrm_of_find_backlight(dev);
+	mipi->backlight = devm_of_find_backlight(dev);
 	if (IS_ERR(mipi->backlight))
 		return PTR_ERR(mipi->backlight);
 
@@ -204,17 +210,6 @@ static int mi0283qt_probe(struct spi_device *spi)
 			    &mi0283qt_driver, &mi0283qt_mode, rotation);
 	if (ret)
 		return ret;
-
-	ret = mi0283qt_init(mipi);
-	if (ret)
-		return ret;
-
-	/* use devres to fini after drm unregister (drv->remove is before) */
-	ret = devm_add_action(dev, mi0283qt_fini, mipi);
-	if (ret) {
-		mi0283qt_fini(mipi);
-		return ret;
-	}
 
 	spi_set_drvdata(spi, mipi);
 
@@ -231,25 +226,13 @@ static void mi0283qt_shutdown(struct spi_device *spi)
 static int __maybe_unused mi0283qt_pm_suspend(struct device *dev)
 {
 	struct mipi_dbi *mipi = dev_get_drvdata(dev);
-	int ret;
 
-	ret = drm_mode_config_helper_suspend(mipi->tinydrm.drm);
-	if (ret)
-		return ret;
-
-	mi0283qt_fini(mipi);
-
-	return 0;
+	return drm_mode_config_helper_suspend(mipi->tinydrm.drm);
 }
 
 static int __maybe_unused mi0283qt_pm_resume(struct device *dev)
 {
 	struct mipi_dbi *mipi = dev_get_drvdata(dev);
-	int ret;
-
-	ret = mi0283qt_init(mipi);
-	if (ret)
-		return ret;
 
 	drm_mode_config_helper_resume(mipi->tinydrm.drm);
 

@@ -4383,7 +4383,7 @@ err_dma_alloc_buf:
 	eq->l0_dma = 0;
 
 	if (mhop_num == 1)
-		for (i -= i; i >= 0; i--)
+		for (i -= 1; i >= 0; i--)
 			dma_free_coherent(dev, buf_chk_sz, eq->buf[i],
 					  eq->buf_dma[i]);
 	else if (mhop_num == 2) {

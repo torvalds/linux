@@ -90,6 +90,11 @@ static void free_netvsc_device(struct rcu_head *head)
 		= container_of(head, struct netvsc_device, rcu);
 	int i;
 
+	kfree(nvdev->extension);
+	vfree(nvdev->recv_buf);
+	vfree(nvdev->send_buf);
+	kfree(nvdev->send_section_map);
+
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
 		vfree(nvdev->chan_table[i].mrc.slots);
 
@@ -211,12 +216,6 @@ static void netvsc_teardown_gpadl(struct hv_device *device,
 		net_device->recv_buf_gpadl_handle = 0;
 	}
 
-	if (net_device->recv_buf) {
-		/* Free up the receive buffer */
-		vfree(net_device->recv_buf);
-		net_device->recv_buf = NULL;
-	}
-
 	if (net_device->send_buf_gpadl_handle) {
 		ret = vmbus_teardown_gpadl(device->channel,
 					   net_device->send_buf_gpadl_handle);
@@ -231,12 +230,6 @@ static void netvsc_teardown_gpadl(struct hv_device *device,
 		}
 		net_device->send_buf_gpadl_handle = 0;
 	}
-	if (net_device->send_buf) {
-		/* Free up the send buffer */
-		vfree(net_device->send_buf);
-		net_device->send_buf = NULL;
-	}
-	kfree(net_device->send_section_map);
 }
 
 int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx)
@@ -562,11 +555,13 @@ void netvsc_device_remove(struct hv_device *device)
 		= rtnl_dereference(net_device_ctx->nvdev);
 	int i;
 
-	cancel_work_sync(&net_device->subchan_work);
-
 	netvsc_revoke_buf(device, net_device);
 
 	RCU_INIT_POINTER(net_device_ctx->nvdev, NULL);
+
+	/* And disassociate NAPI context from device */
+	for (i = 0; i < net_device->num_chn; i++)
+		netif_napi_del(&net_device->chan_table[i].napi);
 
 	/*
 	 * At this point, no one should be accessing net_device
@@ -574,14 +569,15 @@ void netvsc_device_remove(struct hv_device *device)
 	 */
 	netdev_dbg(ndev, "net device safe to remove\n");
 
+	/* older versions require that buffer be revoked before close */
+	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_4)
+		netvsc_teardown_gpadl(device, net_device);
+
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
 
-	netvsc_teardown_gpadl(device, net_device);
-
-	/* And dissassociate NAPI context from device */
-	for (i = 0; i < net_device->num_chn; i++)
-		netif_napi_del(&net_device->chan_table[i].napi);
+	if (net_device->nvsp_version >= NVSP_PROTOCOL_VERSION_4)
+		netvsc_teardown_gpadl(device, net_device);
 
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
@@ -645,14 +641,18 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 	queue_sends =
 		atomic_dec_return(&net_device->chan_table[q_idx].queue_sends);
 
-	if (net_device->destroy && queue_sends == 0)
-		wake_up(&net_device->wait_drain);
+	if (unlikely(net_device->destroy)) {
+		if (queue_sends == 0)
+			wake_up(&net_device->wait_drain);
+	} else {
+		struct netdev_queue *txq = netdev_get_tx_queue(ndev, q_idx);
 
-	if (netif_tx_queue_stopped(netdev_get_tx_queue(ndev, q_idx)) &&
-	    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
-	     queue_sends < 1)) {
-		netif_tx_wake_queue(netdev_get_tx_queue(ndev, q_idx));
-		ndev_ctx->eth_stats.wake_queue++;
+		if (netif_tx_queue_stopped(txq) &&
+		    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
+		     queue_sends < 1)) {
+			netif_tx_wake_queue(txq);
+			ndev_ctx->eth_stats.wake_queue++;
+		}
 	}
 }
 

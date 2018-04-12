@@ -1171,6 +1171,7 @@ static bool is_teac_dsd_dac(unsigned int id)
 	switch (id) {
 	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-503/NT-503 */
 	case USB_ID(0x0644, 0x8044): /* Esoteric D-05X */
+	case USB_ID(0x0644, 0x804a): /* TEAC UD-301 */
 		return true;
 	}
 	return false;
