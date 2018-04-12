@@ -1451,6 +1451,7 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
+	struct kvec err_iov = {NULL, 0};
 	struct smb2_err_rsp *err_buf = NULL;
 	struct smb2_symlink_err_rsp *symlink;
 	unsigned int sub_len;
@@ -1473,15 +1474,16 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, &err_buf);
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, &err_iov);
 
 	if (!rc || !err_buf) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
 
+	err_buf = err_iov.iov_base;
 	if (le32_to_cpu(err_buf->ByteCount) < sizeof(struct smb2_symlink_err_rsp) ||
-	    get_rfc1002_length(err_buf) + server->vals->header_preamble_size < SMB2_SYMLINK_STRUCT_SIZE) {
+	    err_iov.iov_len + server->vals->header_preamble_size < SMB2_SYMLINK_STRUCT_SIZE) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
@@ -1494,13 +1496,13 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	print_len = le16_to_cpu(symlink->PrintNameLength);
 	print_offset = le16_to_cpu(symlink->PrintNameOffset);
 
-	if (get_rfc1002_length(err_buf) + server->vals->header_preamble_size <
+	if (err_iov.iov_len + server->vals->header_preamble_size <
 			SMB2_SYMLINK_STRUCT_SIZE + sub_offset + sub_len) {
 		kfree(utf16_path);
 		return -ENOENT;
 	}
 
-	if (get_rfc1002_length(err_buf) + server->vals->header_preamble_size <
+	if (err_iov.iov_len + server->vals->header_preamble_size <
 			SMB2_SYMLINK_STRUCT_SIZE + print_offset + print_len) {
 		kfree(utf16_path);
 		return -ENOENT;
