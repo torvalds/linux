@@ -334,6 +334,11 @@ annotate.*::
 
 		99.93 │      mov    %eax,%eax
 
+	annotate.offset_level::
+		Default is '1', meaning just jump targets will have offsets show right beside
+		the instruction. When set to '2' 'call' instructions will also have its offsets
+		shown, 3 or higher will show offsets for all instructions.
+
 hist.*::
 	hist.percentage::
 		This option control the way to calculate overhead of filtered entries -

@@ -2649,10 +2649,11 @@ int __annotation__scnprintf_samples_period(struct annotation *notes,
  */
 static struct annotation_config {
 	const char *name;
-	bool *value;
+	void *value;
 } annotation__configs[] = {
 	ANNOTATION__CFG(hide_src_code),
 	ANNOTATION__CFG(jump_arrows),
+	ANNOTATION__CFG(offset_level),
 	ANNOTATION__CFG(show_linenr),
 	ANNOTATION__CFG(show_nr_jumps),
 	ANNOTATION__CFG(show_nr_samples),
@@ -2684,8 +2685,16 @@ static int annotation__config(const char *var, const char *value,
 
 	if (cfg == NULL)
 		pr_debug("%s variable unknown, ignoring...", var);
-	else
-		*cfg->value = perf_config_bool(name, value);
+	else if (strcmp(var, "annotate.offset_level") == 0) {
+		perf_config_int(cfg->value, name, value);
+
+		if (*(int *)cfg->value > ANNOTATION__MAX_OFFSET_LEVEL)
+			*(int *)cfg->value = ANNOTATION__MAX_OFFSET_LEVEL;
+		else if (*(int *)cfg->value < ANNOTATION__MIN_OFFSET_LEVEL)
+			*(int *)cfg->value = ANNOTATION__MIN_OFFSET_LEVEL;
+	} else {
+		*(bool *)cfg->value = perf_config_bool(name, value);
+	}
 	return 0;
 }
 
