@@ -318,8 +318,8 @@ static int thinkpad_e530_quirk(const struct dmi_system_id *d)
 
 static const struct dmi_system_id ac_dmi_table[] = {
 	{
+	/* Thinkpad e530 */
 	.callback = thinkpad_e530_quirk,
-	.ident = "thinkpad e530",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "32597CG"),
