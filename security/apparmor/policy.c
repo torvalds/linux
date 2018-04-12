@@ -1085,7 +1085,7 @@ fail:
  * Remove a profile or sub namespace from the current namespace, so that
  * they can not be found anymore and mark them as replaced by unconfined
  *
- * NOTE: removing confinement does not restore rlimits to preconfinemnet values
+ * NOTE: removing confinement does not restore rlimits to preconfinement values
  *
  * Returns: size of data consume else error code if fails
  */
