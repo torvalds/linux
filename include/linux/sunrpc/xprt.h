@@ -197,7 +197,7 @@ struct rpc_xprt {
 	struct list_head	free;		/* free slots */
 	unsigned int		max_reqs;	/* max number of slots */
 	unsigned int		min_reqs;	/* min number of slots */
-	atomic_t		num_reqs;	/* total slots */
+	unsigned int		num_reqs;	/* total slots */
 	unsigned long		state;		/* transport state */
 	unsigned char		resvport   : 1; /* use a reserved port */
 	atomic_t		swapper;	/* we're swapping over this
@@ -373,6 +373,7 @@ void			xprt_wait_for_buffer_space(struct rpc_task *task, rpc_action action);
 void			xprt_write_space(struct rpc_xprt *xprt);
 void			xprt_adjust_cwnd(struct rpc_xprt *xprt, struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
+void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
 void			xprt_pin_rqst(struct rpc_rqst *req);
 void			xprt_unpin_rqst(struct rpc_rqst *req);
