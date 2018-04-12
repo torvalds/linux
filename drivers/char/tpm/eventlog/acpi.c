@@ -27,7 +27,7 @@
 #include <linux/acpi.h>
 #include <linux/tpm_eventlog.h>
 
-#include "tpm.h"
+#include "../tpm.h"
 
 struct acpi_tcpa {
 	struct acpi_table_header hdr;

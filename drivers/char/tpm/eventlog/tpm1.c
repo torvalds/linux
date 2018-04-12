@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/tpm_eventlog.h>
 
-#include "tpm.h"
+#include "../tpm.h"
 
 
 static const char* tcpa_event_type_strings[] = {
