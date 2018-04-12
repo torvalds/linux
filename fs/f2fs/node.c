@@ -1398,6 +1398,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 		fio.op_flags |= WRITE_FLUSH_FUA;
 
 	set_page_writeback(page);
+	ClearPageError(page);
 	fio.old_blkaddr = ni.blk_addr;
 	write_node_page(nid, &fio);
 	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(page));
