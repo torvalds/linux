@@ -92,6 +92,8 @@
 #include "fw/acpi.h"
 #include "fw/debugfs.h"
 
+#include <linux/average.h>
+
 #define IWL_MVM_MAX_ADDRESSES		5
 /* RSSI offset for WkP */
 #define IWL_RSSI_OFFSET 50
@@ -595,6 +597,51 @@ enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_ACTIVE,
 };
 
+enum iwl_mvm_traffic_load {
+	IWL_MVM_TRAFFIC_LOW,
+	IWL_MVM_TRAFFIC_MEDIUM,
+	IWL_MVM_TRAFFIC_HIGH,
+};
+
+DECLARE_EWMA(rate, 16, 16)
+
+struct iwl_mvm_tcm_mac {
+	struct {
+		u32 pkts[IEEE80211_NUM_ACS];
+		u32 airtime;
+	} tx;
+	struct {
+		u32 pkts[IEEE80211_NUM_ACS];
+		u32 airtime;
+		u32 last_ampdu_ref;
+	} rx;
+	struct {
+		/* track AP's transfer in client mode */
+		u64 rx_bytes;
+		struct ewma_rate rate;
+		bool detected;
+	} uapsd_nonagg_detect;
+};
+
+struct iwl_mvm_tcm {
+	struct delayed_work work;
+	spinlock_t lock; /* used when time elapsed */
+	unsigned long ts; /* timestamp when period ends */
+	unsigned long ll_ts;
+	unsigned long uapsd_nonagg_ts;
+	bool paused;
+	struct iwl_mvm_tcm_mac data[NUM_MAC_INDEX_DRIVER];
+	struct {
+		u32 elapsed; /* milliseconds for this TCM period */
+		u32 airtime[NUM_MAC_INDEX_DRIVER];
+		enum iwl_mvm_traffic_load load[NUM_MAC_INDEX_DRIVER];
+		enum iwl_mvm_traffic_load global_load;
+		bool low_latency[NUM_MAC_INDEX_DRIVER];
+		bool change[NUM_MAC_INDEX_DRIVER];
+		bool global_change;
+	} result;
+};
+
 /**
  * struct iwl_mvm_reorder_buffer - per ra/tid/queue reorder buffer
  * @head_sn: reorder window head sn
@@ -977,6 +1024,9 @@ struct iwl_mvm {
 	 * real temperature that is received from the fw
 	 */
 	bool temperature_test;  /* Debug test temperature is enabled */
+
+	unsigned long bt_coex_last_tcm_ts;
+	struct iwl_mvm_tcm tcm;
 
 	struct iwl_time_quota_cmd last_quota_cmd;
 
@@ -1905,6 +1955,15 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
+
+#define MVM_TCM_PERIOD_MSEC 500
+#define MVM_TCM_PERIOD (HZ * MVM_TCM_PERIOD_MSEC / 1000)
+#define MVM_LL_PERIOD (10 * HZ)
+void iwl_mvm_tcm_work(struct work_struct *work);
+void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm);
+void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel);
+void iwl_mvm_resume_tcm(struct iwl_mvm *mvm);
+u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,

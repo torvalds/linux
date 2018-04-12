@@ -667,6 +667,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
+	spin_lock_init(&mvm->tcm.lock);
+	INIT_DELAYED_WORK(&mvm->tcm.work, iwl_mvm_tcm_work);
+	mvm->tcm.ts = jiffies;
+	mvm->tcm.ll_ts = jiffies;
+	mvm->tcm.uapsd_nonagg_ts = jiffies;
+
 	INIT_DELAYED_WORK(&mvm->cs_tx_unblock_dwork, iwl_mvm_tx_unblock_dwork);
 
 	/*
@@ -858,6 +864,8 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->nvm_data);
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
+
+	cancel_delayed_work_sync(&mvm->tcm.work);
 
 	iwl_mvm_tof_clean(mvm);
 
@@ -1432,6 +1440,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		mvm->d0i3_offloading = false;
 	}
 
+	iwl_mvm_pause_tcm(mvm, true);
 	/* make sure we have no running tx while configuring the seqno */
 	synchronize_net();
 
@@ -1615,6 +1624,7 @@ out:
 	/* the FW might have updated the regdomain */
 	iwl_mvm_update_changed_regdom(mvm);
 
+	iwl_mvm_resume_tcm(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_EXIT_WORK);
 	mutex_unlock(&mvm->mutex);
 }

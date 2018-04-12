@@ -1429,6 +1429,237 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 				sta->addr, tid);
 }
 
+u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed)
+{
+	if (!elapsed)
+		return 0;
+
+	return (100 * airtime / elapsed) / USEC_PER_MSEC;
+}
+
+static enum iwl_mvm_traffic_load
+iwl_mvm_tcm_load(struct iwl_mvm *mvm, u32 airtime, unsigned long elapsed)
+{
+	u8 load = iwl_mvm_tcm_load_percentage(airtime, elapsed);
+
+	if (load > IWL_MVM_TCM_LOAD_HIGH_THRESH)
+		return IWL_MVM_TRAFFIC_HIGH;
+	if (load > IWL_MVM_TCM_LOAD_MEDIUM_THRESH)
+		return IWL_MVM_TRAFFIC_MEDIUM;
+
+	return IWL_MVM_TRAFFIC_LOW;
+}
+
+struct iwl_mvm_tcm_iter_data {
+	struct iwl_mvm *mvm;
+	bool any_sent;
+};
+
+static void iwl_mvm_tcm_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_tcm_iter_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool low_latency, prev = mvmvif->low_latency & LOW_LATENCY_TRAFFIC;
+
+	if (mvmvif->id >= NUM_MAC_INDEX_DRIVER)
+		return;
+
+	low_latency = mvm->tcm.result.low_latency[mvmvif->id];
+
+	if (!mvm->tcm.result.change[mvmvif->id] &&
+	    prev == low_latency) {
+		iwl_mvm_update_quotas(mvm, false, NULL);
+		return;
+	}
+
+	if (prev != low_latency) {
+		/* this sends traffic load and updates quota as well */
+		iwl_mvm_update_low_latency(mvm, vif, low_latency,
+					   LOW_LATENCY_TRAFFIC);
+	} else {
+		iwl_mvm_update_quotas(mvm, false, NULL);
+	}
+
+	data->any_sent = true;
+}
+
+static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_tcm_iter_data data = {
+		.mvm = mvm,
+		.any_sent = false,
+	};
+
+	mutex_lock(&mvm->mutex);
+
+	ieee80211_iterate_active_interfaces(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_tcm_iter, &data);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
+		iwl_mvm_config_scan(mvm);
+
+	mutex_unlock(&mvm->mutex);
+}
+
+
+static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
+					    unsigned long ts,
+					    bool handle_uapsd)
+{
+	unsigned int elapsed = jiffies_to_msecs(ts - mvm->tcm.ts);
+	u32 total_airtime = 0;
+	int ac, mac;
+	bool low_latency = false;
+	enum iwl_mvm_traffic_load load;
+	bool handle_ll = time_after(ts, mvm->tcm.ll_ts + MVM_LL_PERIOD);
+
+	if (handle_ll)
+		mvm->tcm.ll_ts = ts;
+	if (handle_uapsd)
+		mvm->tcm.uapsd_nonagg_ts = ts;
+
+	mvm->tcm.result.elapsed = elapsed;
+
+	for (mac = 0; mac < NUM_MAC_INDEX_DRIVER; mac++) {
+		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+		u32 vo_vi_pkts = 0;
+		u32 airtime = mdata->rx.airtime + mdata->tx.airtime;
+
+		total_airtime += airtime;
+
+		load = iwl_mvm_tcm_load(mvm, airtime, elapsed);
+		mvm->tcm.result.change[mac] = load != mvm->tcm.result.load[mac];
+		mvm->tcm.result.load[mac] = load;
+		mvm->tcm.result.airtime[mac] = airtime;
+
+		for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_VI; ac++)
+			vo_vi_pkts += mdata->rx.pkts[ac] +
+				      mdata->tx.pkts[ac];
+
+		/* enable immediately with enough packets but defer disabling */
+		if (vo_vi_pkts > IWL_MVM_TCM_LOWLAT_ENABLE_THRESH)
+			mvm->tcm.result.low_latency[mac] = true;
+		else if (handle_ll)
+			mvm->tcm.result.low_latency[mac] = false;
+
+		if (handle_ll) {
+			/* clear old data */
+			memset(&mdata->rx.pkts, 0, sizeof(mdata->rx.pkts));
+			memset(&mdata->tx.pkts, 0, sizeof(mdata->tx.pkts));
+		}
+		low_latency |= mvm->tcm.result.low_latency[mac];
+
+		memset(&mdata->rx.airtime, 0, sizeof(mdata->rx.airtime));
+		memset(&mdata->tx.airtime, 0, sizeof(mdata->tx.airtime));
+	}
+
+	load = iwl_mvm_tcm_load(mvm, total_airtime, elapsed);
+	mvm->tcm.result.global_change = load != mvm->tcm.result.global_load;
+	mvm->tcm.result.global_load = load;
+
+	/*
+	 * If the current load isn't low we need to force re-evaluation
+	 * in the TCM period, so that we can return to low load if there
+	 * was no traffic at all (and thus iwl_mvm_recalc_tcm didn't get
+	 * triggered by traffic).
+	 */
+	if (load != IWL_MVM_TRAFFIC_LOW)
+		return MVM_TCM_PERIOD;
+	/*
+	 * If low-latency is active we need to force re-evaluation after
+	 * (the longer) MVM_LL_PERIOD, so that we can disable low-latency
+	 * when there's no traffic at all.
+	 */
+	if (low_latency)
+		return MVM_LL_PERIOD;
+	/*
+	 * Otherwise, we don't need to run the work struct because we're
+	 * in the default "idle" state - traffic indication is low (which
+	 * also covers the "no traffic" case) and low-latency is disabled
+	 * so there's no state that may need to be disabled when there's
+	 * no traffic at all.
+	 *
+	 * Note that this has no impact on the regular scheduling of the
+	 * updates triggered by traffic - those happen whenever one of the
+	 * two timeouts expire (if there's traffic at all.)
+	 */
+	return 0;
+}
+
+void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
+{
+	unsigned long ts = jiffies;
+	bool handle_uapsd =
+		false;
+
+	spin_lock(&mvm->tcm.lock);
+	if (mvm->tcm.paused || !time_after(ts, mvm->tcm.ts + MVM_TCM_PERIOD)) {
+		spin_unlock(&mvm->tcm.lock);
+		return;
+	}
+	spin_unlock(&mvm->tcm.lock);
+
+
+	spin_lock(&mvm->tcm.lock);
+	/* re-check if somebody else won the recheck race */
+	if (!mvm->tcm.paused && time_after(ts, mvm->tcm.ts + MVM_TCM_PERIOD)) {
+		/* calculate statistics */
+		unsigned long work_delay = iwl_mvm_calc_tcm_stats(mvm, ts,
+								  handle_uapsd);
+
+		/* the memset needs to be visible before the timestamp */
+		smp_mb();
+		mvm->tcm.ts = ts;
+		if (work_delay)
+			schedule_delayed_work(&mvm->tcm.work, work_delay);
+	}
+	spin_unlock(&mvm->tcm.lock);
+
+	iwl_mvm_tcm_results(mvm);
+}
+
+void iwl_mvm_tcm_work(struct work_struct *work)
+{
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct iwl_mvm *mvm = container_of(delayed_work, struct iwl_mvm,
+					   tcm.work);
+
+	iwl_mvm_recalc_tcm(mvm);
+}
+
+void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel)
+{
+	spin_lock_bh(&mvm->tcm.lock);
+	mvm->tcm.paused = true;
+	spin_unlock_bh(&mvm->tcm.lock);
+	if (with_cancel)
+		cancel_delayed_work_sync(&mvm->tcm.work);
+}
+
+void iwl_mvm_resume_tcm(struct iwl_mvm *mvm)
+{
+	int mac;
+
+	spin_lock_bh(&mvm->tcm.lock);
+	mvm->tcm.ts = jiffies;
+	mvm->tcm.ll_ts = jiffies;
+	for (mac = 0; mac < NUM_MAC_INDEX_DRIVER; mac++) {
+		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+
+		memset(&mdata->rx.pkts, 0, sizeof(mdata->rx.pkts));
+		memset(&mdata->tx.pkts, 0, sizeof(mdata->tx.pkts));
+		memset(&mdata->rx.airtime, 0, sizeof(mdata->rx.airtime));
+		memset(&mdata->tx.airtime, 0, sizeof(mdata->tx.airtime));
+	}
+	/* The TCM data needs to be reset before "paused" flag changes */
+	smp_mb();
+	mvm->tcm.paused = false;
+	spin_unlock_bh(&mvm->tcm.lock);
+}
+
+
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 {
 	bool ps_disabled;

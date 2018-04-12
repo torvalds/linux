@@ -930,6 +930,32 @@ static bool iwl_mvm_txq_should_update(struct iwl_mvm *mvm, int txq_id)
 	return false;
 }
 
+static void iwl_mvm_tx_airtime(struct iwl_mvm *mvm,
+			       struct iwl_mvm_sta *mvmsta,
+			       int airtime)
+{
+	int mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
+	struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+
+	if (mvm->tcm.paused)
+		return;
+
+	if (time_after(jiffies, mvm->tcm.ts + MVM_TCM_PERIOD))
+		schedule_delayed_work(&mvm->tcm.work, 0);
+
+	mdata->tx.airtime += airtime;
+}
+
+static void iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvmsta, int tid)
+{
+	u32 ac = tid_to_mac80211_ac[tid];
+	int mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
+	struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+
+	mdata->tx.pkts[ac]++;
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
@@ -1066,6 +1092,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		mvmsta->tid_data[tid].seq_number = seq_number + 0x10;
 
 	spin_unlock(&mvmsta->lock);
+
+	iwl_mvm_tx_pkt_queued(mvm, mvmsta, tid == IWL_MAX_TID_COUNT ? 0 : tid);
 
 	return 0;
 
@@ -1469,6 +1497,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	if (!IS_ERR(sta)) {
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
+		iwl_mvm_tx_airtime(mvm, mvmsta,
+				   le16_to_cpu(tx_resp->wireless_media_time));
+
 		if (tid != IWL_TID_NON_QOS && tid != IWL_MGMT_TID) {
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
@@ -1610,6 +1641,8 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 			le16_to_cpu(tx_resp->wireless_media_time);
 		mvmsta->tid_data[tid].lq_color =
 			TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
+		iwl_mvm_tx_airtime(mvm, mvmsta,
+				   le16_to_cpu(tx_resp->wireless_media_time));
 	}
 
 	rcu_read_unlock();
@@ -1800,6 +1833,8 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   le32_to_cpu(ba_res->tx_rate));
 		}
 
+		iwl_mvm_tx_airtime(mvm, mvmsta,
+				   le32_to_cpu(ba_res->wireless_time));
 out_unlock:
 		rcu_read_unlock();
 out:

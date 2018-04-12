@@ -76,12 +76,6 @@
 #define IWL_DENSE_EBS_SCAN_RATIO 5
 #define IWL_SPARSE_EBS_SCAN_RATIO 1
 
-enum iwl_mvm_traffic_load {
-	IWL_MVM_TRAFFIC_LOW,
-	IWL_MVM_TRAFFIC_MEDIUM,
-	IWL_MVM_TRAFFIC_HIGH,
-};
-
 #define IWL_SCAN_DWELL_ACTIVE		10
 #define IWL_SCAN_DWELL_PASSIVE		110
 #define IWL_SCAN_DWELL_FRAGMENTED	44
@@ -437,6 +431,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 		ieee80211_scan_completed(mvm->hw, &info);
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
+		iwl_mvm_resume_tcm(mvm);
 	} else {
 		IWL_ERR(mvm,
 			"got scan complete notification but no scan is running\n");
@@ -1568,6 +1563,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
+	iwl_mvm_pause_tcm(mvm, false);
+
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (ret) {
 		/* If the scan failed, it usually means that the FW was unable
@@ -1575,6 +1572,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * should try to send the command again with different params.
 		 */
 		IWL_ERR(mvm, "Scan failed! ret %d\n", ret);
+		iwl_mvm_resume_tcm(mvm);
 		return ret;
 	}
 
@@ -1711,6 +1709,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		mvm->scan_vif = NULL;
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
+		iwl_mvm_resume_tcm(mvm);
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
