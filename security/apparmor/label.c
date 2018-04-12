@@ -2011,7 +2011,7 @@ out:
 
 /**
  * __label_update - insert updated version of @label into labelset
- * @label - the label to update/repace
+ * @label - the label to update/replace
  *
  * Returns: new label that is up to date
  *     else NULL on failure
