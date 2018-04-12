@@ -295,6 +295,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 		 * changed
 		 */
 		plist_del(node, &c->list);
+		/* fall through */
 	case PM_QOS_ADD_REQ:
 		plist_node_init(node, new_value);
 		plist_add(node, &c->list);
@@ -367,6 +368,7 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 		break;
 	case PM_QOS_UPDATE_REQ:
 		pm_qos_flags_remove_req(pqf, req);
+		/* fall through */
 	case PM_QOS_ADD_REQ:
 		req->flags = val;
 		INIT_LIST_HEAD(&req->node);
