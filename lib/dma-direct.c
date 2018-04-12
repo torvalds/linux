@@ -187,6 +187,5 @@ const struct dma_map_ops dma_direct_ops = {
 	.map_sg			= dma_direct_map_sg,
 	.dma_supported		= dma_direct_supported,
 	.mapping_error		= dma_direct_mapping_error,
-	.is_phys		= 1,
 };
 EXPORT_SYMBOL(dma_direct_ops);

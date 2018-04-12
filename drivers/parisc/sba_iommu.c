@@ -2017,8 +2017,6 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	proc_create("sba_iommu", 0, root, &sba_proc_fops);
 	proc_create("sba_iommu-bitmap", 0, root, &sba_proc_bitmap_fops);
 #endif
-
-	parisc_has_iommu();
 	return 0;
 }
 

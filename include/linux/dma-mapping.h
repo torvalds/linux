@@ -133,7 +133,6 @@ struct dma_map_ops {
 #ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
 	u64 (*get_required_mask)(struct device *dev);
 #endif
-	int is_phys;
 };
 
 extern const struct dma_map_ops dma_direct_ops;

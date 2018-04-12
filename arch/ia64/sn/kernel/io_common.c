@@ -480,11 +480,6 @@ sn_io_early_init(void)
 	tioca_init_provider();
 	tioce_init_provider();
 
-	/*
-	 * This is needed to avoid bounce limit checks in the blk layer
-	 */
-	ia64_max_iommu_merge_mask = ~PAGE_MASK;
-
 	sn_irq_lh_init();
 	INIT_LIST_HEAD(&sn_sysdata_list);
 	sn_init_cpei_timer();

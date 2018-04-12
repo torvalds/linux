@@ -42,8 +42,6 @@ extern struct pci_controller* pcibios_alloc_controller(void);
  * decisions.
  */
 
-#define PCI_DMA_BUS_IS_PHYS	(1)
-
 /* Tell PCI code what kind of PCI resource mappings we support */
 #define HAVE_PCI_MMAP			1
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE	1

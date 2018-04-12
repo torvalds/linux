@@ -685,8 +685,6 @@ const struct dma_map_ops s390_pci_dma_ops = {
 	.map_page	= s390_dma_map_pages,
 	.unmap_page	= s390_dma_unmap_pages,
 	.mapping_error	= s390_mapping_error,
-	/* if we support direct DMA this must be conditional */
-	.is_phys	= 0,
 	/* dma_supported is unconditionally true without a callback */
 };
 EXPORT_SYMBOL_GPL(s390_pci_dma_ops);

@@ -26,9 +26,6 @@
 /* RISC-V shim does not initialize PCI bus */
 #define pcibios_assign_all_busses() 1
 
-/* We do not have an IOMMU */
-#define PCI_DMA_BUS_IS_PHYS 1
-
 extern int isa_dma_bridge_buggy;
 
 #ifdef CONFIG_PCI
