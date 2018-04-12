@@ -612,7 +612,6 @@ static void setup_medium(struct floppy_state *fs)
 		struct floppy_struct *g;
 		fs->disk_in = 1;
 		fs->write_protected = swim_readbit(base, WRITE_PROT);
-		fs->type = swim_readbit(base, TWOMEG_MEDIA);
 
 		if (swim_track00(base))
 			printk(KERN_ERR
@@ -620,6 +619,9 @@ static void setup_medium(struct floppy_state *fs)
 
 		swim_track00(base);
 
+		fs->type = swim_readbit(base, TWOMEG_MEDIA) ?
+			HD_MEDIA : DD_MEDIA;
+		fs->head_number = swim_readbit(base, SINGLE_SIDED) ? 1 : 2;
 		get_floppy_geometry(fs, 0, &g);
 		fs->total_secs = g->size;
 		fs->secpercyl = g->head * g->sect;
@@ -655,6 +657,8 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 		err = -ENXIO;
 		goto out;
 	}
+
+	set_capacity(fs->disk, fs->total_secs);
 
 	if (mode & FMODE_NDELAY)
 		return 0;
@@ -808,10 +812,9 @@ static int swim_add_floppy(struct swim_priv *swd, enum drive_location location)
 
 	swim_motor(base, OFF);
 
-	if (swim_readbit(base, SINGLE_SIDED))
-		fs->head_number = 1;
-	else
-		fs->head_number = 2;
+	fs->type = HD_MEDIA;
+	fs->head_number = 2;
+
 	fs->ref_count = 0;
 	fs->ejected = 1;
 
