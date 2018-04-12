@@ -105,6 +105,8 @@ struct ir_raw_event_ctrl {
 	} sharp;
 	struct mce_kbd_dec {
 		struct input_dev *idev;
+		/* locks key up timer */
+		spinlock_t keylock;
 		struct timer_list rx_timeout;
 		char name[64];
 		char phys[64];
