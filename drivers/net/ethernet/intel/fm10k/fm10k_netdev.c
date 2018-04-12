@@ -1537,12 +1537,12 @@ static void *fm10k_dfwd_add_station(struct net_device *dev,
 
 	glort = l2_accel->dglort + 1 + i;
 
-	if (fm10k_host_mbx_ready(interface)) {
+	if (fm10k_host_mbx_ready(interface))
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_NONE);
-		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
-					hw->mac.default_vid, true);
-	}
+
+	fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
+				hw->mac.default_vid, true);
 
 	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
@@ -1583,12 +1583,12 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 
 	glort = l2_accel->dglort + 1 + i;
 
-	if (fm10k_host_mbx_ready(interface)) {
+	if (fm10k_host_mbx_ready(interface))
 		hw->mac.ops.update_xcast_mode(hw, glort,
 					      FM10K_XCAST_MODE_NONE);
-		fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
-					hw->mac.default_vid, false);
-	}
+
+	fm10k_queue_mac_request(interface, glort, sdev->dev_addr,
+				hw->mac.default_vid, false);
 
 	for (vid = fm10k_find_next_vlan(interface, 0);
 	     vid < VLAN_N_VID;
