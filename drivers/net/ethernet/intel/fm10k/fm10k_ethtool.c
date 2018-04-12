@@ -135,8 +135,8 @@ enum {
 static const char fm10k_prv_flags[FM10K_PRV_FLAG_LEN][ETH_GSTRING_LEN] = {
 };
 
-static void fm10k_add_stat_strings(u8 **p, const struct fm10k_stats stats[],
-				   const unsigned int size, ...)
+static void __fm10k_add_stat_strings(u8 **p, const struct fm10k_stats stats[],
+				     const unsigned int size, ...)
 {
 	unsigned int i;
 
@@ -150,31 +150,28 @@ static void fm10k_add_stat_strings(u8 **p, const struct fm10k_stats stats[],
 	}
 }
 
+#define fm10k_add_stat_strings(p, stats, ...) \
+	__fm10k_add_stat_strings(p, stats, ARRAY_SIZE(stats), ## __VA_ARGS__)
+
 static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	unsigned int i;
 
-	fm10k_add_stat_strings(&data, fm10k_gstrings_net_stats,
-			       FM10K_NETDEV_STATS_LEN);
+	fm10k_add_stat_strings(&data, fm10k_gstrings_net_stats);
 
-	fm10k_add_stat_strings(&data, fm10k_gstrings_global_stats,
-			       FM10K_GLOBAL_STATS_LEN);
+	fm10k_add_stat_strings(&data, fm10k_gstrings_global_stats);
 
-	fm10k_add_stat_strings(&data, fm10k_gstrings_mbx_stats,
-			       FM10K_MBX_STATS_LEN);
+	fm10k_add_stat_strings(&data, fm10k_gstrings_mbx_stats);
 
 	if (interface->hw.mac.type != fm10k_mac_vf)
-		fm10k_add_stat_strings(&data, fm10k_gstrings_pf_stats,
-				       FM10K_PF_STATS_LEN);
+		fm10k_add_stat_strings(&data, fm10k_gstrings_pf_stats);
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
 		fm10k_add_stat_strings(&data, fm10k_gstrings_queue_stats,
-				       FM10K_QUEUE_STATS_LEN,
 				       "tx", i);
 
 		fm10k_add_stat_strings(&data, fm10k_gstrings_queue_stats,
-				       FM10K_QUEUE_STATS_LEN,
 				       "rx", i);
 	}
 }
@@ -220,9 +217,9 @@ static int fm10k_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
-static void fm10k_add_ethtool_stats(u64 **data, void *pointer,
-				    const struct fm10k_stats stats[],
-				    const unsigned int size)
+static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
+				      const struct fm10k_stats stats[],
+				      const unsigned int size)
 {
 	unsigned int i;
 	char *p;
@@ -256,6 +253,9 @@ static void fm10k_add_ethtool_stats(u64 **data, void *pointer,
 	}
 }
 
+#define fm10k_add_ethtool_stats(data, pointer, stats) \
+	__fm10k_add_ethtool_stats(data, pointer, stats, ARRAY_SIZE(stats))
+
 static void fm10k_get_ethtool_stats(struct net_device *netdev,
 				    struct ethtool_stats __always_unused *stats,
 				    u64 *data)
@@ -266,20 +266,16 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 	fm10k_update_stats(interface);
 
-	fm10k_add_ethtool_stats(&data, net_stats, fm10k_gstrings_net_stats,
-				FM10K_NETDEV_STATS_LEN);
+	fm10k_add_ethtool_stats(&data, net_stats, fm10k_gstrings_net_stats);
 
-	fm10k_add_ethtool_stats(&data, interface, fm10k_gstrings_global_stats,
-				FM10K_GLOBAL_STATS_LEN);
+	fm10k_add_ethtool_stats(&data, interface, fm10k_gstrings_global_stats);
 
 	fm10k_add_ethtool_stats(&data, &interface->hw.mbx,
-				fm10k_gstrings_mbx_stats,
-				FM10K_MBX_STATS_LEN);
+				fm10k_gstrings_mbx_stats);
 
 	if (interface->hw.mac.type != fm10k_mac_vf) {
 		fm10k_add_ethtool_stats(&data, interface,
-					fm10k_gstrings_pf_stats,
-					FM10K_PF_STATS_LEN);
+					fm10k_gstrings_pf_stats);
 	}
 
 	for (i = 0; i < interface->hw.mac.max_queues; i++) {
@@ -287,13 +283,11 @@ static void fm10k_get_ethtool_stats(struct net_device *netdev,
 
 		ring = interface->tx_ring[i];
 		fm10k_add_ethtool_stats(&data, ring,
-					fm10k_gstrings_queue_stats,
-					FM10K_QUEUE_STATS_LEN);
+					fm10k_gstrings_queue_stats);
 
 		ring = interface->rx_ring[i];
 		fm10k_add_ethtool_stats(&data, ring,
-					fm10k_gstrings_queue_stats,
-					FM10K_QUEUE_STATS_LEN);
+					fm10k_gstrings_queue_stats);
 	}
 }
 
