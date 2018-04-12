@@ -20,6 +20,7 @@
 #include <linux/tpm_eventlog.h>
 
 #include "../tpm.h"
+#include "common.h"
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {

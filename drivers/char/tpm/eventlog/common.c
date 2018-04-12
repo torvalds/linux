@@ -25,7 +25,7 @@
 #include <linux/tpm_eventlog.h>
 
 #include "../tpm.h"
-
+#include "common.h"
 
 static int tpm_bios_measurements_open(struct inode *inode,
 					    struct file *file)

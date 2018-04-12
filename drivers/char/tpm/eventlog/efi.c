@@ -15,6 +15,7 @@
 #include <linux/tpm_eventlog.h>
 
 #include "../tpm.h"
+#include "common.h"
 
 /* read binary bios log from EFI configuration table */
 int tpm_read_log_efi(struct tpm_chip *chip)
