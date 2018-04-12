@@ -28,6 +28,7 @@
 
 #include "udf_sb.h"
 
+#define UNICODE_MAX 0x10ffff
 #define SURROGATE_MASK 0xfffff800
 #define SURROGATE_PAIR 0x0000d800
 
@@ -40,22 +41,12 @@ static int udf_uni2char_utf8(wchar_t uni,
 	if (boundlen <= 0)
 		return -ENAMETOOLONG;
 
-	if ((uni & SURROGATE_MASK) == SURROGATE_PAIR)
-		return -EINVAL;
-
-	if (uni < 0x80) {
-		out[u_len++] = (unsigned char)uni;
-	} else if (uni < 0x800) {
-		if (boundlen < 2)
-			return -ENAMETOOLONG;
-		out[u_len++] = (unsigned char)(0xc0 | (uni >> 6));
-		out[u_len++] = (unsigned char)(0x80 | (uni & 0x3f));
-	} else {
-		if (boundlen < 3)
-			return -ENAMETOOLONG;
-		out[u_len++] = (unsigned char)(0xe0 | (uni >> 12));
-		out[u_len++] = (unsigned char)(0x80 | ((uni >> 6) & 0x3f));
-		out[u_len++] = (unsigned char)(0x80 | (uni & 0x3f));
+	u_len = utf32_to_utf8(uni, out, boundlen);
+	if (u_len < 0) {
+		if (uni > UNICODE_MAX ||
+		    (uni & SURROGATE_MASK) == SURROGATE_PAIR)
+			return -EINVAL;
+		return -ENAMETOOLONG;
 	}
 	return u_len;
 }
@@ -64,56 +55,19 @@ static int udf_char2uni_utf8(const unsigned char *in,
 			     int boundlen,
 			     wchar_t *uni)
 {
-	unsigned int utf_char;
-	unsigned char c;
-	int utf_cnt, u_len;
+	int u_len;
+	unicode_t c;
 
-	utf_char = 0;
-	utf_cnt = 0;
-	for (u_len = 0; u_len < boundlen;) {
-		c = in[u_len++];
-
-		/* Complete a multi-byte UTF-8 character */
-		if (utf_cnt) {
-			utf_char = (utf_char << 6) | (c & 0x3f);
-			if (--utf_cnt)
-				continue;
-		} else {
-			/* Check for a multi-byte UTF-8 character */
-			if (c & 0x80) {
-				/* Start a multi-byte UTF-8 character */
-				if ((c & 0xe0) == 0xc0) {
-					utf_char = c & 0x1f;
-					utf_cnt = 1;
-				} else if ((c & 0xf0) == 0xe0) {
-					utf_char = c & 0x0f;
-					utf_cnt = 2;
-				} else if ((c & 0xf8) == 0xf0) {
-					utf_char = c & 0x07;
-					utf_cnt = 3;
-				} else if ((c & 0xfc) == 0xf8) {
-					utf_char = c & 0x03;
-					utf_cnt = 4;
-				} else if ((c & 0xfe) == 0xfc) {
-					utf_char = c & 0x01;
-					utf_cnt = 5;
-				} else {
-					utf_cnt = -1;
-					break;
-				}
-				continue;
-			} else {
-				/* Single byte UTF-8 character (most common) */
-				utf_char = c;
-			}
-		}
-		*uni = utf_char;
-		break;
-	}
-	if (utf_cnt) {
+	u_len = utf8_to_utf32(in, boundlen, &c);
+	if (u_len < 0) {
 		*uni = '?';
 		return -EINVAL;
 	}
+
+	if (c > MAX_WCHAR_T)
+		*uni = '?';
+	else
+		*uni = c;
 	return u_len;
 }
 
