@@ -2150,11 +2150,9 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		needgp = true;
 	}
 	/* Advance CBs to reduce false positives below. */
-	needgp = rcu_advance_cbs(rsp, rnp, rdp) || needgp;
-	if (needgp || cpu_needs_another_gp(rsp, rdp)) {
+	if (!rcu_accelerate_cbs(rsp, rnp, rdp) && needgp) {
 		WRITE_ONCE(rsp->gp_flags, RCU_GP_FLAG_INIT);
-		trace_rcu_grace_period(rsp->name,
-				       READ_ONCE(rsp->gpnum),
+		trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum),
 				       TPS("newreq"));
 	}
 	WRITE_ONCE(rsp->gp_flags, rsp->gp_flags & RCU_GP_FLAG_INIT);
