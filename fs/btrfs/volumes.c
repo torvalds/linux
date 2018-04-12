@@ -1101,7 +1101,7 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 	return ret;
 }
 
-static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
+static int open_fs_devices(struct btrfs_fs_devices *fs_devices,
 				fmode_t flags, void *holder)
 {
 	struct btrfs_device *device;
@@ -1155,7 +1155,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		ret = 0;
 	} else {
 		list_sort(NULL, &fs_devices->devices, devid_cmp);
-		ret = __btrfs_open_devices(fs_devices, flags, holder);
+		ret = open_fs_devices(fs_devices, flags, holder);
 	}
 	mutex_unlock(&uuid_mutex);
 	return ret;
@@ -6718,8 +6718,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(fs_devices))
 		return fs_devices;
 
-	ret = __btrfs_open_devices(fs_devices, FMODE_READ,
-				   fs_info->bdev_holder);
+	ret = open_fs_devices(fs_devices, FMODE_READ, fs_info->bdev_holder);
 	if (ret) {
 		free_fs_devices(fs_devices);
 		fs_devices = ERR_PTR(ret);
