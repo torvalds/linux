@@ -74,6 +74,7 @@ static async_cookie_t async_cookie;
 static bool battery_driver_registered;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
+static int battery_ac_is_broken;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -222,7 +223,8 @@ static int acpi_battery_handle_discharging(struct acpi_battery *battery)
 	 * was above the device's start charging threshold atm the AC adapter
 	 * was plugged in and the device thus did not start a new charge cycle.
 	 */
-	if (power_supply_is_system_supplied() && battery->rate_now == 0)
+	if ((battery_ac_is_broken || power_supply_is_system_supplied()) &&
+	    battery->rate_now == 0)
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
 
 	return POWER_SUPPLY_STATUS_DISCHARGING;
@@ -1345,6 +1347,13 @@ battery_notification_delay_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init
+battery_ac_is_broken_quirk(const struct dmi_system_id *d)
+{
+	battery_ac_is_broken = 1;
+	return 0;
+}
+
 static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{
 		/* NEC LZ750/LS */
@@ -1360,6 +1369,17 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire V5-573G"),
+		},
+	},
+	{
+		/* Point of View mobii wintab p800w */
+		.callback = battery_ac_is_broken_quirk,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1013"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "08/22/2014"),
 		},
 	},
 	{},
