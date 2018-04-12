@@ -78,7 +78,7 @@ static int get_v4l2_framebuffer32(struct v4l2_framebuffer *kp,
 		get_user(kp->flags, &up->flags))
 			return -EFAULT;
 
-	kp->base = compat_ptr(tmp);
+	kp->base = (void __force *)compat_ptr(tmp);
 	get_v4l2_pix_format((struct v4l2_pix_format *)&kp->fmt, &up->fmt);
 	return 0;
 }
@@ -229,10 +229,10 @@ static int get_atomisp_dvs_6axis_config32(struct atomisp_dvs_6axis_config *kp,
 		get_user(ycoords_uv, &up->ycoords_uv))
 			return -EFAULT;
 
-	kp->xcoords_y = compat_ptr(xcoords_y);
-	kp->ycoords_y = compat_ptr(ycoords_y);
-	kp->xcoords_uv = compat_ptr(xcoords_uv);
-	kp->ycoords_uv = compat_ptr(ycoords_uv);
+	kp->xcoords_y = (void __force *)compat_ptr(xcoords_y);
+	kp->ycoords_y = (void __force *)compat_ptr(ycoords_y);
+	kp->xcoords_uv = (void __force *)compat_ptr(xcoords_uv);
+	kp->ycoords_uv = (void __force *)compat_ptr(ycoords_uv);
 	return 0;
 }
 
@@ -293,7 +293,7 @@ static int get_atomisp_metadata_stat32(struct atomisp_metadata *kp,
 			return -EFAULT;
 
 	kp->data = compat_ptr(data);
-	kp->effective_width = compat_ptr(effective_width);
+	kp->effective_width = (void __force *)compat_ptr(effective_width);
 	return 0;
 }
 
@@ -357,7 +357,7 @@ static int get_atomisp_metadata_by_type_stat32(
 			return -EFAULT;
 
 	kp->data = compat_ptr(data);
-	kp->effective_width = compat_ptr(effective_width);
+	kp->effective_width = (void __force *)compat_ptr(effective_width);
 	return 0;
 }
 
@@ -434,7 +434,7 @@ static int get_atomisp_overlay32(struct atomisp_overlay *kp,
 		get_user(kp->overlay_start_x, &up->overlay_start_y))
 			return -EFAULT;
 
-	kp->frame = compat_ptr(frame);
+	kp->frame = (void __force *)compat_ptr(frame);
 	return 0;
 }
 
@@ -478,7 +478,7 @@ static int get_atomisp_calibration_group32(
 		get_user(calb_grp_values, &up->calb_grp_values))
 			return -EFAULT;
 
-	kp->calb_grp_values = compat_ptr(calb_grp_values);
+	kp->calb_grp_values = (void __force *)compat_ptr(calb_grp_values);
 	return 0;
 }
 
@@ -698,8 +698,8 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 			return -EFAULT;
 
 	while (n >= 0) {
-		compat_uptr_t *src = (compat_uptr_t *)up + n;
-		uintptr_t *dst = (uintptr_t *)kp + n;
+		compat_uptr_t __user *src = ((compat_uptr_t __user *)up) + n;
+		uintptr_t *dst = ((uintptr_t *)kp) + n;
 
 		if (get_user((*dst), src))
 			return -EFAULT;
@@ -734,12 +734,12 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 						(uintptr_t)stp))
 				return -EFAULT;
 
-			kp->shading_table = user_ptr + offset;
+			kp->shading_table = (void __force *)user_ptr + offset;
 			offset = sizeof(struct atomisp_shading_table);
 			if (!kp->shading_table)
 				return -EFAULT;
 
-			if (copy_to_user(kp->shading_table,
+			if (copy_to_user((void __user *)kp->shading_table,
 					 &karg.shading_table,
 					 sizeof(struct atomisp_shading_table)))
 				return -EFAULT;
@@ -752,13 +752,14 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 						(uintptr_t)mtp))
 				return -EFAULT;
 
-			kp->morph_table = user_ptr + offset;
+			kp->morph_table = (void __force *)user_ptr + offset;
 			offset += sizeof(struct atomisp_morph_table);
 			if (!kp->morph_table)
 				return -EFAULT;
 
-			if (copy_to_user(kp->morph_table, &karg.morph_table,
-					   sizeof(struct atomisp_morph_table)))
+			if (copy_to_user((void __user *)kp->morph_table,
+					 &karg.morph_table,
+					 sizeof(struct atomisp_morph_table)))
 				return -EFAULT;
 		}
 
@@ -769,13 +770,14 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 						(uintptr_t)dcp))
 				return -EFAULT;
 
-			kp->dvs2_coefs = user_ptr + offset;
+			kp->dvs2_coefs = (void __force *)user_ptr + offset;
 			offset += sizeof(struct atomisp_dis_coefficients);
 			if (!kp->dvs2_coefs)
 				return -EFAULT;
 
-			if (copy_to_user(kp->dvs2_coefs, &karg.dvs2_coefs,
-				sizeof(struct atomisp_dis_coefficients)))
+			if (copy_to_user((void __user *)kp->dvs2_coefs,
+					 &karg.dvs2_coefs,
+					 sizeof(struct atomisp_dis_coefficients)))
 				return -EFAULT;
 		}
 		/* handle dvs 6axis configuration */
@@ -785,13 +787,14 @@ static int get_atomisp_parameters32(struct atomisp_parameters *kp,
 						(uintptr_t)dscp))
 				return -EFAULT;
 
-			kp->dvs_6axis_config = user_ptr + offset;
+			kp->dvs_6axis_config = (void __force *)user_ptr + offset;
 			offset += sizeof(struct atomisp_dvs_6axis_config);
 			if (!kp->dvs_6axis_config)
 				return -EFAULT;
 
-			if (copy_to_user(kp->dvs_6axis_config, &karg.dvs_6axis_config,
-				sizeof(struct atomisp_dvs_6axis_config)))
+			if (copy_to_user((void __user *)kp->dvs_6axis_config,
+					 &karg.dvs_6axis_config,
+					 sizeof(struct atomisp_dvs_6axis_config)))
 				return -EFAULT;
 		}
 	}
@@ -850,7 +853,7 @@ static int get_atomisp_sensor_ae_bracketing_lut(
 		get_user(lut, &up->lut))
 			return -EFAULT;
 
-	kp->lut = compat_ptr(lut);
+	kp->lut = (void __force *)compat_ptr(lut);
 	return 0;
 }
 
