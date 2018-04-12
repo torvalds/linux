@@ -749,10 +749,11 @@ static void bfq_pd_offline(struct blkg_policy_data *pd)
 	unsigned long flags;
 	int i;
 
-	if (!entity) /* root group */
-		return;
-
 	spin_lock_irqsave(&bfqd->lock, flags);
+
+	if (!entity) /* root group */
+		goto put_async_queues;
+
 	/*
 	 * Empty all service_trees belonging to this group before
 	 * deactivating the group itself.
@@ -783,6 +784,8 @@ static void bfq_pd_offline(struct blkg_policy_data *pd)
 	}
 
 	__bfq_deactivate_entity(entity, false);
+
+put_async_queues:
 	bfq_put_async_queues(bfqd, bfqg);
 
 	spin_unlock_irqrestore(&bfqd->lock, flags);

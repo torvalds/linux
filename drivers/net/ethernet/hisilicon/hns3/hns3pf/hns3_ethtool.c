@@ -22,7 +22,8 @@ struct hns3_stats {
 #define HNS3_TQP_STAT(_string, _member)	{			\
 	.stats_string = _string,				\
 	.stats_size = FIELD_SIZEOF(struct ring_stats, _member),	\
-	.stats_offset = offsetof(struct hns3_enet_ring, stats),	\
+	.stats_offset = offsetof(struct hns3_enet_ring, stats) +\
+			offsetof(struct ring_stats, _member),   \
 }								\
 
 static const struct hns3_stats hns3_txq_stats[] = {
@@ -189,13 +190,13 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hns3_enet_ring *ring;
 	u8 *stat;
-	u32 i;
+	int i, j;
 
 	/* get stats for Tx */
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		ring = nic_priv->ring_data[i].ring;
-		for (i = 0; i < HNS3_TXQ_STATS_COUNT; i++) {
-			stat = (u8 *)ring + hns3_txq_stats[i].stats_offset;
+		for (j = 0; j < HNS3_TXQ_STATS_COUNT; j++) {
+			stat = (u8 *)ring + hns3_txq_stats[j].stats_offset;
 			*data++ = *(u64 *)stat;
 		}
 	}
@@ -203,8 +204,8 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 	/* get stats for Rx */
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		ring = nic_priv->ring_data[i + kinfo->num_tqps].ring;
-		for (i = 0; i < HNS3_RXQ_STATS_COUNT; i++) {
-			stat = (u8 *)ring + hns3_rxq_stats[i].stats_offset;
+		for (j = 0; j < HNS3_RXQ_STATS_COUNT; j++) {
+			stat = (u8 *)ring + hns3_rxq_stats[j].stats_offset;
 			*data++ = *(u64 *)stat;
 		}
 	}

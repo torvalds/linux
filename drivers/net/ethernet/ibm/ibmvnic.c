@@ -2209,6 +2209,12 @@ static irqreturn_t ibmvnic_interrupt_rx(int irq, void *instance)
 	struct ibmvnic_sub_crq_queue *scrq = instance;
 	struct ibmvnic_adapter *adapter = scrq->adapter;
 
+	/* When booting a kdump kernel we can hit pending interrupts
+	 * prior to completing driver initialization.
+	 */
+	if (unlikely(adapter->state != VNIC_OPEN))
+		return IRQ_NONE;
+
 	adapter->rx_stats_buffers[scrq->scrq_num].interrupts++;
 
 	if (napi_schedule_prep(&adapter->napi[scrq->scrq_num])) {

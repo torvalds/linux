@@ -785,6 +785,14 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	return 0;
 }
 
+static void axp288_charger_cancel_work(void *data)
+{
+	struct axp288_chrg_info *info = data;
+
+	cancel_work_sync(&info->otg.work);
+	cancel_work_sync(&info->cable.work);
+}
+
 static int axp288_charger_probe(struct platform_device *pdev)
 {
 	int ret, i, pirq;
@@ -835,6 +843,11 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register power supply: %d\n", ret);
 		return ret;
 	}
+
+	/* Cancel our work on cleanup, register this before the notifiers */
+	ret = devm_add_action(dev, axp288_charger_cancel_work, info);
+	if (ret)
+		return ret;
 
 	/* Register for extcon notification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);

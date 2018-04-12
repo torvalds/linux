@@ -29,6 +29,13 @@ struct aes_block {
 	u8 b[AES_BLOCK_SIZE];
 };
 
+asmlinkage void __aes_ce_encrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
+asmlinkage void __aes_ce_decrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
+
+asmlinkage u32 __aes_ce_sub(u32 l);
+asmlinkage void __aes_ce_invert(struct aes_block *out,
+				const struct aes_block *in);
+
 static int num_rounds(struct crypto_aes_ctx *ctx)
 {
 	/*
@@ -44,10 +51,6 @@ static int num_rounds(struct crypto_aes_ctx *ctx)
 static void aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct aes_block *out = (struct aes_block *)dst;
-	struct aes_block const *in = (struct aes_block *)src;
-	void *dummy0;
-	int dummy1;
 
 	if (!may_use_simd()) {
 		__aes_arm64_encrypt(ctx->key_enc, dst, src, num_rounds(ctx));
@@ -55,49 +58,13 @@ static void aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 	}
 
 	kernel_neon_begin();
-
-	__asm__("	ld1	{v0.16b}, %[in]			;"
-		"	ld1	{v1.4s}, [%[key]], #16		;"
-		"	cmp	%w[rounds], #10			;"
-		"	bmi	0f				;"
-		"	bne	3f				;"
-		"	mov	v3.16b, v1.16b			;"
-		"	b	2f				;"
-		"0:	mov	v2.16b, v1.16b			;"
-		"	ld1	{v3.4s}, [%[key]], #16		;"
-		"1:	aese	v0.16b, v2.16b			;"
-		"	aesmc	v0.16b, v0.16b			;"
-		"2:	ld1	{v1.4s}, [%[key]], #16		;"
-		"	aese	v0.16b, v3.16b			;"
-		"	aesmc	v0.16b, v0.16b			;"
-		"3:	ld1	{v2.4s}, [%[key]], #16		;"
-		"	subs	%w[rounds], %w[rounds], #3	;"
-		"	aese	v0.16b, v1.16b			;"
-		"	aesmc	v0.16b, v0.16b			;"
-		"	ld1	{v3.4s}, [%[key]], #16		;"
-		"	bpl	1b				;"
-		"	aese	v0.16b, v2.16b			;"
-		"	eor	v0.16b, v0.16b, v3.16b		;"
-		"	st1	{v0.16b}, %[out]		;"
-
-	:	[out]		"=Q"(*out),
-		[key]		"=r"(dummy0),
-		[rounds]	"=r"(dummy1)
-	:	[in]		"Q"(*in),
-				"1"(ctx->key_enc),
-				"2"(num_rounds(ctx) - 2)
-	:	"cc");
-
+	__aes_ce_encrypt(ctx->key_enc, dst, src, num_rounds(ctx));
 	kernel_neon_end();
 }
 
 static void aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct aes_block *out = (struct aes_block *)dst;
-	struct aes_block const *in = (struct aes_block *)src;
-	void *dummy0;
-	int dummy1;
 
 	if (!may_use_simd()) {
 		__aes_arm64_decrypt(ctx->key_dec, dst, src, num_rounds(ctx));
@@ -105,60 +72,8 @@ static void aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 	}
 
 	kernel_neon_begin();
-
-	__asm__("	ld1	{v0.16b}, %[in]			;"
-		"	ld1	{v1.4s}, [%[key]], #16		;"
-		"	cmp	%w[rounds], #10			;"
-		"	bmi	0f				;"
-		"	bne	3f				;"
-		"	mov	v3.16b, v1.16b			;"
-		"	b	2f				;"
-		"0:	mov	v2.16b, v1.16b			;"
-		"	ld1	{v3.4s}, [%[key]], #16		;"
-		"1:	aesd	v0.16b, v2.16b			;"
-		"	aesimc	v0.16b, v0.16b			;"
-		"2:	ld1	{v1.4s}, [%[key]], #16		;"
-		"	aesd	v0.16b, v3.16b			;"
-		"	aesimc	v0.16b, v0.16b			;"
-		"3:	ld1	{v2.4s}, [%[key]], #16		;"
-		"	subs	%w[rounds], %w[rounds], #3	;"
-		"	aesd	v0.16b, v1.16b			;"
-		"	aesimc	v0.16b, v0.16b			;"
-		"	ld1	{v3.4s}, [%[key]], #16		;"
-		"	bpl	1b				;"
-		"	aesd	v0.16b, v2.16b			;"
-		"	eor	v0.16b, v0.16b, v3.16b		;"
-		"	st1	{v0.16b}, %[out]		;"
-
-	:	[out]		"=Q"(*out),
-		[key]		"=r"(dummy0),
-		[rounds]	"=r"(dummy1)
-	:	[in]		"Q"(*in),
-				"1"(ctx->key_dec),
-				"2"(num_rounds(ctx) - 2)
-	:	"cc");
-
+	__aes_ce_decrypt(ctx->key_dec, dst, src, num_rounds(ctx));
 	kernel_neon_end();
-}
-
-/*
- * aes_sub() - use the aese instruction to perform the AES sbox substitution
- *             on each byte in 'input'
- */
-static u32 aes_sub(u32 input)
-{
-	u32 ret;
-
-	__asm__("dup	v1.4s, %w[in]		;"
-		"movi	v0.16b, #0		;"
-		"aese	v0.16b, v1.16b		;"
-		"umov	%w[out], v0.4s[0]	;"
-
-	:	[out]	"=r"(ret)
-	:	[in]	"r"(input)
-	:		"v0","v1");
-
-	return ret;
 }
 
 int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
@@ -189,7 +104,7 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		u32 *rki = ctx->key_enc + (i * kwords);
 		u32 *rko = rki + kwords;
 
-		rko[0] = ror32(aes_sub(rki[kwords - 1]), 8) ^ rcon[i] ^ rki[0];
+		rko[0] = ror32(__aes_ce_sub(rki[kwords - 1]), 8) ^ rcon[i] ^ rki[0];
 		rko[1] = rko[0] ^ rki[1];
 		rko[2] = rko[1] ^ rki[2];
 		rko[3] = rko[2] ^ rki[3];
@@ -202,7 +117,7 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		} else if (key_len == AES_KEYSIZE_256) {
 			if (i >= 6)
 				break;
-			rko[4] = aes_sub(rko[3]) ^ rki[4];
+			rko[4] = __aes_ce_sub(rko[3]) ^ rki[4];
 			rko[5] = rko[4] ^ rki[5];
 			rko[6] = rko[5] ^ rki[6];
 			rko[7] = rko[6] ^ rki[7];
@@ -221,13 +136,7 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 
 	key_dec[0] = key_enc[j];
 	for (i = 1, j--; j > 0; i++, j--)
-		__asm__("ld1	{v0.4s}, %[in]		;"
-			"aesimc	v1.16b, v0.16b		;"
-			"st1	{v1.4s}, %[out]	;"
-
-		:	[out]	"=Q"(key_dec[i])
-		:	[in]	"Q"(key_enc[j])
-		:		"v0","v1");
+		__aes_ce_invert(key_dec + i, key_enc + j);
 	key_dec[i] = key_enc[0];
 
 	kernel_neon_end();
