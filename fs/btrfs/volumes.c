@@ -1232,31 +1232,29 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	 */
 	bytenr = btrfs_sb_offset(0);
 	flags |= FMODE_EXCL;
-	mutex_lock(&uuid_mutex);
 
 	bdev = blkdev_get_by_path(path, flags, holder);
-	if (IS_ERR(bdev)) {
-		ret = PTR_ERR(bdev);
-		goto error;
-	}
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
 
 	if (btrfs_read_disk_super(bdev, bytenr, &page, &disk_super)) {
 		ret = -EINVAL;
 		goto error_bdev_put;
 	}
 
+	mutex_lock(&uuid_mutex);
 	device = device_list_add(path, disk_super);
 	if (IS_ERR(device))
 		ret = PTR_ERR(device);
 	else
 		*fs_devices_ret = device->fs_devices;
+	mutex_unlock(&uuid_mutex);
 
 	btrfs_release_disk_super(page);
 
 error_bdev_put:
 	blkdev_put(bdev, flags);
-error:
-	mutex_unlock(&uuid_mutex);
+
 	return ret;
 }
 
