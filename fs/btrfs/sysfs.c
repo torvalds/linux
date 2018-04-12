@@ -589,7 +589,7 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 		return;
 	}
 
-	list_for_each_entry(fs_devs, fs_uuids, list) {
+	list_for_each_entry(fs_devs, fs_uuids, fs_list) {
 		__btrfs_sysfs_remove_fsid(fs_devs);
 	}
 }

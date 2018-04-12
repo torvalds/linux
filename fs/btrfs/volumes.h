@@ -208,6 +208,7 @@ BTRFS_DEVICE_GETSET_FUNCS(bytes_used);
 
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
+	struct list_head fs_list;
 
 	u64 num_devices;
 	u64 open_devices;
@@ -229,7 +230,6 @@ struct btrfs_fs_devices {
 	struct list_head resized_devices;
 	/* devices not currently being allocated */
 	struct list_head alloc_list;
-	struct list_head list;
 
 	struct btrfs_fs_devices *seed;
 	int seeding;

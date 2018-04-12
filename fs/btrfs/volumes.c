@@ -262,7 +262,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 	INIT_LIST_HEAD(&fs_devs->devices);
 	INIT_LIST_HEAD(&fs_devs->resized_devices);
 	INIT_LIST_HEAD(&fs_devs->alloc_list);
-	INIT_LIST_HEAD(&fs_devs->list);
+	INIT_LIST_HEAD(&fs_devs->fs_list);
 	if (fsid)
 		memcpy(fs_devs->fsid, fsid, BTRFS_FSID_SIZE);
 
@@ -308,8 +308,8 @@ void __exit btrfs_cleanup_fs_uuids(void)
 
 	while (!list_empty(&fs_uuids)) {
 		fs_devices = list_entry(fs_uuids.next,
-					struct btrfs_fs_devices, list);
-		list_del(&fs_devices->list);
+					struct btrfs_fs_devices, fs_list);
+		list_del(&fs_devices->fs_list);
 		free_fs_devices(fs_devices);
 	}
 }
@@ -378,7 +378,7 @@ static noinline struct btrfs_fs_devices *find_fsid(u8 *fsid)
 {
 	struct btrfs_fs_devices *fs_devices;
 
-	list_for_each_entry(fs_devices, &fs_uuids, list) {
+	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
 		if (memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE) == 0)
 			return fs_devices;
 	}
@@ -642,7 +642,7 @@ static void btrfs_free_stale_devices(const char *path,
 	struct btrfs_fs_devices *fs_devs, *tmp_fs_devs;
 	struct btrfs_device *dev, *tmp_dev;
 
-	list_for_each_entry_safe(fs_devs, tmp_fs_devs, &fs_uuids, list) {
+	list_for_each_entry_safe(fs_devs, tmp_fs_devs, &fs_uuids, fs_list) {
 
 		if (fs_devs->opened)
 			continue;
@@ -667,7 +667,7 @@ static void btrfs_free_stale_devices(const char *path,
 			/* delete the stale device */
 			if (fs_devs->num_devices == 1) {
 				btrfs_sysfs_remove_fsid(fs_devs);
-				list_del(&fs_devs->list);
+				list_del(&fs_devs->fs_list);
 				free_fs_devices(fs_devs);
 				break;
 			} else {
@@ -767,7 +767,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
 
-		list_add(&fs_devices->list, &fs_uuids);
+		list_add(&fs_devices->fs_list, &fs_uuids);
 
 		device = NULL;
 	} else {
@@ -2294,7 +2294,7 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 		return PTR_ERR(old_devices);
 	}
 
-	list_add(&old_devices->list, &fs_uuids);
+	list_add(&old_devices->fs_list, &fs_uuids);
 
 	memcpy(seed_devices, fs_devices, sizeof(*seed_devices));
 	seed_devices->opened = 1;
