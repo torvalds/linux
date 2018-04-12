@@ -2152,21 +2152,23 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				      struct btrfs_device *tgtdev)
 {
-	WARN_ON(!tgtdev);
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 
-	btrfs_sysfs_rm_device_link(fs_info->fs_devices, tgtdev);
+	WARN_ON(!tgtdev);
+	mutex_lock(&fs_devices->device_list_mutex);
+
+	btrfs_sysfs_rm_device_link(fs_devices, tgtdev);
 
 	if (tgtdev->bdev)
-		fs_info->fs_devices->open_devices--;
+		fs_devices->open_devices--;
 
-	fs_info->fs_devices->num_devices--;
+	fs_devices->num_devices--;
 
 	btrfs_assign_next_active_device(fs_info, tgtdev, NULL);
 
 	list_del_rcu(&tgtdev->dev_list);
 
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	/*
 	 * The update_dev_time() with in btrfs_scratch_superblocks()
