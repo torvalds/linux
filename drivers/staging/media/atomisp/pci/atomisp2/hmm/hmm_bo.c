@@ -319,7 +319,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 	 *	to take off this bo, we just set take the "prev/next" pointers
 	 *	to NULL, the free rbtree stays unchaged
 	 */
-	} else {
+	} else if (bo->prev != NULL && bo->next != NULL) {
 		bo->next->prev = bo->prev;
 		bo->prev->next = bo->next;
 		bo->next = NULL;
