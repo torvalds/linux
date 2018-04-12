@@ -248,6 +248,8 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 			*((*data)++) = *(u8 *)p;
 			break;
 		default:
+			WARN_ONCE(1, "unexpected stat size for %s",
+				  stats[i].stat_string);
 			*((*data)++) = 0;
 		}
 	}
