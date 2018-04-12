@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
 #include <linux/acpi.h>
 
 #include "../codecs/da7219.h"
@@ -79,6 +80,11 @@ static int cz_da7219_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "HP jack creation failed %d\n", ret);
 		return ret;
 	}
+
+	snd_jack_set_key(cz_jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
+	snd_jack_set_key(cz_jack.jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
+	snd_jack_set_key(cz_jack.jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
+	snd_jack_set_key(cz_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 
 	da7219_aad_jack_det(component, &cz_jack);
 
