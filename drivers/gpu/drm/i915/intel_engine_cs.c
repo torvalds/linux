@@ -475,6 +475,9 @@ static bool csb_force_mmio(struct drm_i915_private *i915)
 	if (intel_vgpu_active(i915) && !intel_vgpu_has_hwsp_emulation(i915))
 		return true;
 
+	if (IS_CANNONLAKE(i915))
+		return true;
+
 	return false;
 }
 
