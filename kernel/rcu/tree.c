@@ -1659,12 +1659,9 @@ static unsigned long rcu_cbs_completed(struct rcu_state *rsp,
 	return rnp->completed + 2;
 }
 
-/*
- * Trace-event helper function for rcu_start_future_gp() and
- * rcu_nocb_wait_gp().
- */
-static void trace_rcu_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
-				unsigned long c, const char *s)
+/* Trace-event wrapper function for trace_rcu_future_grace_period.  */
+static void trace_rcu_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
+			      unsigned long c, const char *s)
 {
 	trace_rcu_future_grace_period(rdp->rsp->name, rnp->gpnum,
 				      rnp->completed, c, rnp->level,
@@ -1672,33 +1669,27 @@ static void trace_rcu_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 }
 
 /*
- * Start some future grace period, as needed to handle newly arrived
+ * Start the specified grace period, as needed to handle newly arrived
  * callbacks.  The required future grace periods are recorded in each
- * rcu_node structure's ->need_future_gp field.  Returns true if there
+ * rcu_node structure's ->need_future_gp[] field.  Returns true if there
  * is reason to awaken the grace-period kthread.
  *
  * The caller must hold the specified rcu_node structure's ->lock, which
  * is why the caller is responsible for waking the grace-period kthread.
  */
-static bool __maybe_unused
-rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
-		    unsigned long *c_out)
+static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
+			      unsigned long c)
 {
-	unsigned long c;
 	bool ret = false;
 	struct rcu_state *rsp = rdp->rsp;
 	struct rcu_node *rnp_root = rcu_get_root(rsp);
 
 	raw_lockdep_assert_held_rcu_node(rnp);
 
-	/*
-	 * Pick up grace-period number for new callbacks.  If this
-	 * grace period is already marked as needed, return to the caller.
-	 */
-	c = rcu_cbs_completed(rsp, rnp);
-	trace_rcu_future_gp(rnp, rdp, c, TPS("Startleaf"));
+	/* If the specified GP is already known needed, return to caller. */
+	trace_rcu_this_gp(rnp, rdp, c, TPS("Startleaf"));
 	if (need_future_gp_element(rnp, c)) {
-		trace_rcu_future_gp(rnp, rdp, c, TPS("Prestartleaf"));
+		trace_rcu_this_gp(rnp, rdp, c, TPS("Prestartleaf"));
 		goto out;
 	}
 
@@ -1710,7 +1701,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 */
 	if (rnp->gpnum != rnp->completed) {
 		need_future_gp_element(rnp, c) = true;
-		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedleaf"));
+		trace_rcu_this_gp(rnp, rdp, c, TPS("Startedleaf"));
 		goto out;
 	}
 
@@ -1736,7 +1727,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * recorded, trace and leave.
 	 */
 	if (need_future_gp_element(rnp_root, c)) {
-		trace_rcu_future_gp(rnp, rdp, c, TPS("Prestartedroot"));
+		trace_rcu_this_gp(rnp, rdp, c, TPS("Prestartedroot"));
 		goto unlock_out;
 	}
 
@@ -1745,9 +1736,9 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 
 	/* If a grace period is not already in progress, start one. */
 	if (rnp_root->gpnum != rnp_root->completed) {
-		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedleafroot"));
+		trace_rcu_this_gp(rnp, rdp, c, TPS("Startedleafroot"));
 	} else {
-		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedroot"));
+		trace_rcu_this_gp(rnp, rdp, c, TPS("Startedroot"));
 		if (!rsp->gp_kthread)
 			goto unlock_out; /* No grace-period kthread yet! */
 		WRITE_ONCE(rsp->gp_flags, rsp->gp_flags | RCU_GP_FLAG_INIT);
@@ -1759,8 +1750,6 @@ unlock_out:
 	if (rnp != rnp_root)
 		raw_spin_unlock_rcu_node(rnp_root);
 out:
-	if (c_out != NULL)
-		*c_out = c;
 	return ret;
 }
 
@@ -1776,8 +1765,8 @@ static bool rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 
 	need_future_gp_element(rnp, c) = false;
 	needmore = need_any_future_gp(rnp);
-	trace_rcu_future_gp(rnp, rdp, c,
-			    needmore ? TPS("CleanupMore") : TPS("Cleanup"));
+	trace_rcu_this_gp(rnp, rdp, c,
+			  needmore ? TPS("CleanupMore") : TPS("Cleanup"));
 	return needmore;
 }
 
@@ -1812,6 +1801,7 @@ static void rcu_gp_kthread_wake(struct rcu_state *rsp)
 static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 			       struct rcu_data *rdp)
 {
+	unsigned long c;
 	bool ret = false;
 
 	raw_lockdep_assert_held_rcu_node(rnp);
@@ -1830,8 +1820,9 @@ static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 	 * accelerating callback invocation to an earlier grace-period
 	 * number.
 	 */
-	if (rcu_segcblist_accelerate(&rdp->cblist, rcu_cbs_completed(rsp, rnp)))
-		ret = rcu_start_future_gp(rnp, rdp, NULL);
+	c = rcu_cbs_completed(rsp, rnp);
+	if (rcu_segcblist_accelerate(&rdp->cblist, c))
+		ret = rcu_start_this_gp(rnp, rdp, c);
 
 	/* Trace depending on how much we were able to accelerate. */
 	if (rcu_segcblist_restempty(&rdp->cblist, RCU_WAIT_TAIL))
@@ -2174,8 +2165,8 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(rsp->rda);
 	if (need_any_future_gp(rnp)) {
-		trace_rcu_future_gp(rnp, rdp, rsp->completed - 1,
-				    TPS("CleanupMore"));
+		trace_rcu_this_gp(rnp, rdp, rsp->completed - 1,
+				  TPS("CleanupMore"));
 		needgp = true;
 	}
 	/* Advance CBs to reduce false positives below. */
