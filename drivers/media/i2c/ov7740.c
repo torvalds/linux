@@ -953,7 +953,7 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov7740->ctrl_handler;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 2);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 12);
 	if (ret < 0)
 		return ret;
 
