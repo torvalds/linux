@@ -6932,6 +6932,10 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 	if (!path)
 		return -ENOMEM;
 
+	/*
+	 * uuid_mutex is needed only if we are mounting a sprout FS
+	 * otherwise we don't need it.
+	 */
 	mutex_lock(&uuid_mutex);
 	mutex_lock(&fs_info->chunk_mutex);
 
