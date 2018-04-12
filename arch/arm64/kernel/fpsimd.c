@@ -44,6 +44,7 @@
 #include <asm/fpsimd.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
+#include <asm/processor.h>
 #include <asm/simd.h>
 #include <asm/sigcontext.h>
 #include <asm/sysreg.h>
@@ -167,10 +168,9 @@ static size_t sve_ffr_offset(int vl)
 	return SVE_SIG_FFR_OFFSET(sve_vq_from_vl(vl)) - SVE_SIG_REGS_OFFSET;
 }
 
-static void *sve_pffr(struct task_struct *task)
+static void *sve_pffr(struct thread_struct *thread)
 {
-	return (char *)task->thread.sve_state +
-		sve_ffr_offset(task->thread.sve_vl);
+	return (char *)thread->sve_state + sve_ffr_offset(thread->sve_vl);
 }
 
 static void change_cpacr(u64 val, u64 mask)
@@ -253,7 +253,7 @@ static void task_fpsimd_load(void)
 	WARN_ON(!in_softirq() && !irqs_disabled());
 
 	if (system_supports_sve() && test_thread_flag(TIF_SVE))
-		sve_load_state(sve_pffr(current),
+		sve_load_state(sve_pffr(&current->thread),
 			       &current->thread.uw.fpsimd_state.fpsr,
 			       sve_vq_from_vl(current->thread.sve_vl) - 1);
 	else
@@ -285,7 +285,7 @@ void fpsimd_save(void)
 				return;
 			}
 
-			sve_save_state(sve_pffr(current), &st->fpsr);
+			sve_save_state(sve_pffr(&current->thread), &st->fpsr);
 		} else
 			fpsimd_save_state(st);
 	}
