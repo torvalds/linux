@@ -1334,16 +1334,16 @@ battery_notification_delay_quirk(const struct dmi_system_id *d)
 
 static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{
+		/* NEC LZ750/LS */
 		.callback = battery_bix_broken_package_quirk,
-		.ident = "NEC LZ750/LS",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PC-LZ750LS"),
 		},
 	},
 	{
+		/* Acer Aspire V5-573G */
 		.callback = battery_notification_delay_quirk,
-		.ident = "Acer Aspire V5-573G",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire V5-573G"),
