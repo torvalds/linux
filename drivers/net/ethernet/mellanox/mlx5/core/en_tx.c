@@ -220,28 +220,29 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct 
 		if (skb->encapsulation) {
 			eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM |
 					  MLX5_ETH_WQE_L4_INNER_CSUM;
-			sq->stats.csum_partial_inner++;
+			sq->stats->csum_partial_inner++;
 		} else {
 			eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
-			sq->stats.csum_partial++;
+			sq->stats->csum_partial++;
 		}
 	} else
-		sq->stats.csum_none++;
+		sq->stats->csum_none++;
 }
 
 static inline u16
 mlx5e_tx_get_gso_ihs(struct mlx5e_txqsq *sq, struct sk_buff *skb)
 {
+	struct mlx5e_sq_stats *stats = sq->stats;
 	u16 ihs;
 
 	if (skb->encapsulation) {
 		ihs = skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
-		sq->stats.tso_inner_packets++;
-		sq->stats.tso_inner_bytes += skb->len - ihs;
+		stats->tso_inner_packets++;
+		stats->tso_inner_bytes += skb->len - ihs;
 	} else {
 		ihs = skb_transport_offset(skb) + tcp_hdrlen(skb);
-		sq->stats.tso_packets++;
-		sq->stats.tso_bytes += skb->len - ihs;
+		stats->tso_packets++;
+		stats->tso_bytes += skb->len - ihs;
 	}
 
 	return ihs;
@@ -311,7 +312,7 @@ static inline void mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq,
 		wi->num_wqebbs = 1;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 	}
-	sq->stats.nop += nnops;
+	sq->stats->nop += nnops;
 }
 
 static inline void
@@ -337,7 +338,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	sq->pc += wi->num_wqebbs;
 	if (unlikely(!mlx5e_wqc_has_room_for(wq, sq->cc, sq->pc, MLX5E_SQ_STOP_ROOM))) {
 		netif_tx_stop_queue(sq->txq);
-		sq->stats.stopped++;
+		sq->stats->stopped++;
 	}
 
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq))
@@ -355,6 +356,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5_wqe_data_seg *dseg;
 	struct mlx5e_tx_wqe_info *wi;
 
+	struct mlx5e_sq_stats *stats = sq->stats;
 	unsigned char *skb_data = skb->data;
 	unsigned int skb_len = skb->len;
 	u16 ds_cnt, ds_cnt_inl = 0;
@@ -371,17 +373,17 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		mss       = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		ihs       = mlx5e_tx_get_gso_ihs(sq, skb);
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
-		sq->stats.packets += skb_shinfo(skb)->gso_segs;
+		stats->packets += skb_shinfo(skb)->gso_segs;
 	} else {
 		opcode    = MLX5_OPCODE_SEND;
 		mss       = 0;
 		ihs       = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
-		sq->stats.packets++;
+		stats->packets++;
 	}
 
-	sq->stats.bytes     += num_bytes;
-	sq->stats.xmit_more += skb->xmit_more;
+	stats->bytes     += num_bytes;
+	stats->xmit_more += skb->xmit_more;
 
 	headlen = skb_len - ihs - skb->data_len;
 	ds_cnt += !!headlen;
@@ -415,7 +417,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		if (skb_vlan_tag_present(skb)) {
 			mlx5e_insert_vlan(eseg->inline_hdr.start, skb,
 					  ihs - VLAN_HLEN, &skb_data, &skb_len);
-			sq->stats.added_vlan_packets++;
+			stats->added_vlan_packets++;
 		} else {
 			memcpy(eseg->inline_hdr.start, skb_data, ihs);
 			mlx5e_tx_skb_pull_inline(&skb_data, &skb_len, ihs);
@@ -427,7 +429,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		if (skb->vlan_proto == cpu_to_be16(ETH_P_8021AD))
 			eseg->insert.type |= cpu_to_be16(MLX5_ETH_WQE_SVLAN);
 		eseg->insert.vlan_tci = cpu_to_be16(skb_vlan_tag_get(skb));
-		sq->stats.added_vlan_packets++;
+		stats->added_vlan_packets++;
 	}
 
 	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen, dseg);
@@ -440,7 +442,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 err_drop:
-	sq->stats.dropped++;
+	stats->dropped++;
 	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
@@ -524,7 +526,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 				queue_work(cq->channel->priv->wq,
 					   &sq->recover.recover_work);
 			}
-			sq->stats.cqe_err++;
+			sq->stats->cqe_err++;
 		}
 
 		do {
@@ -584,7 +586,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 				   MLX5E_SQ_STOP_ROOM) &&
 	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
 		netif_tx_wake_queue(sq->txq);
-		sq->stats.wake++;
+		sq->stats->wake++;
 	}
 
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
@@ -641,6 +643,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	struct mlx5_wqe_data_seg *dseg;
 	struct mlx5e_tx_wqe_info *wi;
 
+	struct mlx5e_sq_stats *stats = sq->stats;
 	unsigned char *skb_data = skb->data;
 	unsigned int skb_len = skb->len;
 	u16 headlen, ihs, pi, frag_pi;
@@ -659,17 +662,17 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		mss       = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		ihs       = mlx5e_tx_get_gso_ihs(sq, skb);
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
-		sq->stats.packets += skb_shinfo(skb)->gso_segs;
+		stats->packets += skb_shinfo(skb)->gso_segs;
 	} else {
 		opcode    = MLX5_OPCODE_SEND;
 		mss       = 0;
 		ihs       = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
-		sq->stats.packets++;
+		stats->packets++;
 	}
 
-	sq->stats.bytes     += num_bytes;
-	sq->stats.xmit_more += skb->xmit_more;
+	stats->bytes     += num_bytes;
+	stats->xmit_more += skb->xmit_more;
 
 	headlen = skb_len - ihs - skb->data_len;
 	ds_cnt += !!headlen;
@@ -716,7 +719,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 err_drop:
-	sq->stats.dropped++;
+	stats->dropped++;
 	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;

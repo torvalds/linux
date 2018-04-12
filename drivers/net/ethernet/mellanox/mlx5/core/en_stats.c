@@ -111,20 +111,19 @@ static int mlx5e_grp_sw_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_sw_stats temp, *s = &temp;
-	struct mlx5e_rq_stats *rq_stats;
-	struct mlx5e_sq_stats *sq_stats;
-	struct mlx5e_ch_stats *ch_stats;
-	int i, j;
+	int i;
 
 	memset(s, 0, sizeof(*s));
 	read_lock(&priv->stats_lock);
 	if (!priv->channels_active)
 		goto out;
-	for (i = 0; i < priv->channels.num; i++) {
-		struct mlx5e_channel *c = priv->channels.c[i];
 
-		rq_stats = &c->rq.stats;
-		ch_stats = &c->stats;
+	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++) {
+		struct mlx5e_channel_stats *channel_stats =
+			&priv->channel_stats[i];
+		struct mlx5e_rq_stats *rq_stats = &channel_stats->rq;
+		struct mlx5e_ch_stats *ch_stats = &channel_stats->ch;
+		int j;
 
 		s->rx_packets	+= rq_stats->packets;
 		s->rx_bytes	+= rq_stats->bytes;
@@ -151,8 +150,8 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 		s->rx_cache_waive += rq_stats->cache_waive;
 		s->ch_eq_rearm += ch_stats->eq_rearm;
 
-		for (j = 0; j < priv->channels.params.num_tc; j++) {
-			sq_stats = &c->sq[j].stats;
+		for (j = 0; j < priv->max_opened_tc; j++) {
+			struct mlx5e_sq_stats *sq_stats = &channel_stats->sq[j];
 
 			s->tx_packets		+= sq_stats->packets;
 			s->tx_bytes		+= sq_stats->bytes;
@@ -1160,30 +1159,37 @@ static const struct counter_desc ch_stats_desc[] = {
 
 static int mlx5e_grp_channels_get_num_stats(struct mlx5e_priv *priv)
 {
-	return (NUM_RQ_STATS * priv->channels.num) +
-		(NUM_CH_STATS * priv->channels.num) +
-		(NUM_SQ_STATS * priv->channels.num * priv->channels.params.num_tc);
+	int max_nch = priv->profile->max_nch(priv->mdev);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
+	return (NUM_RQ_STATS * max_nch) +
+	       (NUM_CH_STATS * max_nch) +
+	       (NUM_SQ_STATS * max_nch * priv->max_opened_tc);
 }
 
 static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 					   int idx)
 {
+	int max_nch = priv->profile->max_nch(priv->mdev);
 	int i, j, tc;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return idx;
 
-	for (i = 0; i < priv->channels.num; i++)
+	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_CH_STATS; j++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
 				ch_stats_desc[j].format, i);
 
-	for (i = 0; i < priv->channels.num; i++)
+	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN, rq_stats_desc[j].format, i);
 
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++)
-		for (i = 0; i < priv->channels.num; i++)
+	/* priv->channel_tc2txq[i][tc] is valid only when device is open */
+	for (tc = 0; tc < priv->max_opened_tc; tc++)
+		for (i = 0; i < max_nch; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
 					sq_stats_desc[j].format,
@@ -1195,29 +1201,29 @@ static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 static int mlx5e_grp_channels_fill_stats(struct mlx5e_priv *priv, u64 *data,
 					 int idx)
 {
-	struct mlx5e_channels *channels = &priv->channels;
+	int max_nch = priv->profile->max_nch(priv->mdev);
 	int i, j, tc;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return idx;
 
-	for (i = 0; i < channels->num; i++)
+	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_CH_STATS; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&channels->c[i]->stats,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].ch,
 						     ch_stats_desc, j);
 
-	for (i = 0; i < channels->num; i++)
+	for (i = 0; i < max_nch; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)
 			data[idx++] =
-				MLX5E_READ_CTR64_CPU(&channels->c[i]->rq.stats,
+				MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].rq,
 						     rq_stats_desc, j);
 
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++)
-		for (i = 0; i < channels->num; i++)
+	for (tc = 0; tc < priv->max_opened_tc; tc++)
+		for (i = 0; i < max_nch; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] =
-					MLX5E_READ_CTR64_CPU(&channels->c[i]->sq[tc].stats,
+					MLX5E_READ_CTR64_CPU(&priv->channel_stats[i].sq[tc],
 							     sq_stats_desc, j);
 
 	return idx;
