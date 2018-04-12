@@ -1682,74 +1682,52 @@ static bool rcu_start_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 {
 	bool ret = false;
 	struct rcu_state *rsp = rdp->rsp;
-	struct rcu_node *rnp_root = rcu_get_root(rsp);
+	struct rcu_node *rnp_root;
 
+	/*
+	 * Use funnel locking to either acquire the root rcu_node
+	 * structure's lock or bail out if the need for this grace period
+	 * has already been recorded -- or has already started.  If there
+	 * is already a grace period in progress in a non-leaf node, no
+	 * recording is needed because the end of the grace period will
+	 * scan the leaf rcu_node structures.  Note that rnp->lock must
+	 * not be released.
+	 */
 	raw_lockdep_assert_held_rcu_node(rnp);
-
-	/* If the specified GP is already known needed, return to caller. */
 	trace_rcu_this_gp(rnp, rdp, c, TPS("Startleaf"));
-	if (need_future_gp_element(rnp, c)) {
-		trace_rcu_this_gp(rnp, rdp, c, TPS("Prestartleaf"));
-		goto out;
+	for (rnp_root = rnp; 1; rnp_root = rnp_root->parent) {
+		if (rnp_root != rnp)
+			raw_spin_lock_rcu_node(rnp_root);
+		if (need_future_gp_element(rnp_root, c) ||
+		    ULONG_CMP_GE(rnp_root->gpnum, c) ||
+		    (rnp != rnp_root &&
+		     rnp_root->gpnum != rnp_root->completed)) {
+			trace_rcu_this_gp(rnp_root, rdp, c, TPS("Prestarted"));
+			goto unlock_out;
+		}
+		need_future_gp_element(rnp_root, c) = true;
+		if (rnp_root != rnp && rnp_root->parent != NULL)
+			raw_spin_unlock_rcu_node(rnp_root);
+		if (!rnp_root->parent)
+			break;  /* At root, and perhaps also leaf. */
 	}
 
-	/*
-	 * If this rcu_node structure believes that a grace period is in
-	 * progress, then we must wait for the one following, which is in
-	 * "c".  Because our request will be noticed at the end of the
-	 * current grace period, we don't need to explicitly start one.
-	 */
-	if (rnp->gpnum != rnp->completed) {
-		need_future_gp_element(rnp, c) = true;
-		trace_rcu_this_gp(rnp, rdp, c, TPS("Startedleaf"));
-		goto out;
-	}
-
-	/*
-	 * There might be no grace period in progress.  If we don't already
-	 * hold it, acquire the root rcu_node structure's lock in order to
-	 * start one (if needed).
-	 */
-	if (rnp != rnp_root)
-		raw_spin_lock_rcu_node(rnp_root);
-
-	/*
-	 * Get a new grace-period number.  If there really is no grace
-	 * period in progress, it will be smaller than the one we obtained
-	 * earlier.  Adjust callbacks as needed.
-	 */
-	c = rcu_cbs_completed(rsp, rnp_root);
-	if (!rcu_is_nocb_cpu(rdp->cpu))
-		(void)rcu_segcblist_accelerate(&rdp->cblist, c);
-
-	/*
-	 * If the needed for the required grace period is already
-	 * recorded, trace and leave.
-	 */
-	if (need_future_gp_element(rnp_root, c)) {
-		trace_rcu_this_gp(rnp, rdp, c, TPS("Prestartedroot"));
+	/* If GP already in progress, just leave, otherwise start one. */
+	if (rnp_root->gpnum != rnp_root->completed) {
+		trace_rcu_this_gp(rnp_root, rdp, c, TPS("Startedleafroot"));
 		goto unlock_out;
 	}
-
-	/* Record the need for the future grace period. */
-	need_future_gp_element(rnp_root, c) = true;
-
-	/* If a grace period is not already in progress, start one. */
-	if (rnp_root->gpnum != rnp_root->completed) {
-		trace_rcu_this_gp(rnp, rdp, c, TPS("Startedleafroot"));
-	} else {
-		trace_rcu_this_gp(rnp, rdp, c, TPS("Startedroot"));
-		if (!rsp->gp_kthread)
-			goto unlock_out; /* No grace-period kthread yet! */
-		WRITE_ONCE(rsp->gp_flags, rsp->gp_flags | RCU_GP_FLAG_INIT);
-		trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum),
-				       TPS("newreq"));
-		ret = true;  /* Caller must wake GP kthread. */
+	trace_rcu_this_gp(rnp_root, rdp, c, TPS("Startedroot"));
+	WRITE_ONCE(rsp->gp_flags, rsp->gp_flags | RCU_GP_FLAG_INIT);
+	if (!rsp->gp_kthread) {
+		trace_rcu_this_gp(rnp_root, rdp, c, TPS("NoGPkthread"));
+		goto unlock_out;
 	}
+	trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum), TPS("newreq"));
+	ret = true;  /* Caller must wake GP kthread. */
 unlock_out:
 	if (rnp != rnp_root)
 		raw_spin_unlock_rcu_node(rnp_root);
-out:
 	return ret;
 }
 
