@@ -6,6 +6,17 @@
  *
  *  Copyright (c) 2012 Bernhard Seibold
  *  Copyright (c) 2014 Jamie Lentin <jm@lentin.co.uk>
+ *
+ * Linux IBM/Lenovo Scrollpoint mouse driver:
+ * - IBM Scrollpoint III
+ * - IBM Scrollpoint Pro
+ * - IBM Scrollpoint Optical
+ * - IBM Scrollpoint Optical 800dpi
+ * - IBM Scrollpoint Optical 800dpi Pro
+ * - Lenovo Scrollpoint Optical
+ *
+ *  Copyright (c) 2012 Peter De Wachter <pdewacht@gmail.com>
+ *  Copyright (c) 2018 Peter Ganzhorn <peter.ganzhorn@gmail.com>
  */
 
 /*
@@ -160,6 +171,17 @@ static int lenovo_input_mapping_cptkbd(struct hid_device *hdev,
 	return 0;
 }
 
+static int lenovo_input_mapping_scrollpoint(struct hid_device *hdev,
+		struct hid_input *hi, struct hid_field *field,
+		struct hid_usage *usage, unsigned long **bit, int *max)
+{
+	if (usage->hid == HID_GD_Z) {
+		hid_map_usage(hi, usage, bit, max, EV_REL, REL_HWHEEL);
+		return 1;
+	}
+	return 0;
+}
+
 static int lenovo_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
@@ -171,6 +193,14 @@ static int lenovo_input_mapping(struct hid_device *hdev,
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		return lenovo_input_mapping_cptkbd(hdev, hi, field,
+							usage, bit, max);
+	case USB_DEVICE_ID_IBM_SCROLLPOINT_III:
+	case USB_DEVICE_ID_IBM_SCROLLPOINT_PRO:
+	case USB_DEVICE_ID_IBM_SCROLLPOINT_OPTICAL:
+	case USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL:
+	case USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL_PRO:
+	case USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL:
+		return lenovo_input_mapping_scrollpoint(hdev, hi, field,
 							usage, bit, max);
 	default:
 		return 0;
@@ -883,6 +913,12 @@ static const struct hid_device_id lenovo_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_CUSBKBD) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_CBTKBD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_TPPRODOCK) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_III) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_PRO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_OPTICAL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL_PRO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL) },
 	{ }
 };
 
