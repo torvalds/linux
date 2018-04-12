@@ -980,20 +980,25 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 					V4L2_CID_HFLIP, 0, 1, 1, 0);
 	ov7740->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	ov7740->gain = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 				       V4L2_CID_GAIN, 0, 1023, 1, 500);
+	if (ov7740->gain)
+		ov7740->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
+
 	ov7740->auto_gain = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					    V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+
 	ov7740->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					   V4L2_CID_EXPOSURE, 0, 65535, 1, 500);
+	if (ov7740->exposure)
+		ov7740->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
+
 	ov7740->auto_exposure = v4l2_ctrl_new_std_menu(ctrl_hdlr,
 					&ov7740_ctrl_ops,
 					V4L2_CID_EXPOSURE_AUTO,
 					V4L2_EXPOSURE_MANUAL, 0,
 					V4L2_EXPOSURE_AUTO);
-
-	ov7740->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
-	ov7740->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	v4l2_ctrl_auto_cluster(3, &ov7740->auto_wb, 0, false);
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_gain, 0, true);
