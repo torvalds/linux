@@ -524,8 +524,6 @@ module_param(rcu_kick_kthreads, bool, 0644);
 static ulong jiffies_till_sched_qs = HZ / 10;
 module_param(jiffies_till_sched_qs, ulong, 0444);
 
-static bool rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
-				  struct rcu_data *rdp);
 static void force_qs_rnp(struct rcu_state *rsp, int (*f)(struct rcu_data *rsp));
 static void force_quiescent_state(struct rcu_state *rsp);
 static int rcu_pending(void);
@@ -1679,7 +1677,8 @@ static void trace_rcu_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
  * rcu_node structure's ->need_future_gp field.  Returns true if there
  * is reason to awaken the grace-period kthread.
  *
- * The caller must hold the specified rcu_node structure's ->lock.
+ * The caller must hold the specified rcu_node structure's ->lock, which
+ * is why the caller is responsible for waking the grace-period kthread.
  */
 static bool __maybe_unused
 rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
@@ -1687,7 +1686,8 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 {
 	unsigned long c;
 	bool ret = false;
-	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
+	struct rcu_state *rsp = rdp->rsp;
+	struct rcu_node *rnp_root = rcu_get_root(rsp);
 
 	raw_lockdep_assert_held_rcu_node(rnp);
 
@@ -1695,7 +1695,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * Pick up grace-period number for new callbacks.  If this
 	 * grace period is already marked as needed, return to the caller.
 	 */
-	c = rcu_cbs_completed(rdp->rsp, rnp);
+	c = rcu_cbs_completed(rsp, rnp);
 	trace_rcu_future_gp(rnp, rdp, c, TPS("Startleaf"));
 	if (need_future_gp_element(rnp, c)) {
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Prestartleaf"));
@@ -1727,7 +1727,7 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	 * period in progress, it will be smaller than the one we obtained
 	 * earlier.  Adjust callbacks as needed.
 	 */
-	c = rcu_cbs_completed(rdp->rsp, rnp_root);
+	c = rcu_cbs_completed(rsp, rnp_root);
 	if (!rcu_is_nocb_cpu(rdp->cpu))
 		(void)rcu_segcblist_accelerate(&rdp->cblist, c);
 
@@ -1748,7 +1748,12 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedleafroot"));
 	} else {
 		trace_rcu_future_gp(rnp, rdp, c, TPS("Startedroot"));
-		ret = rcu_start_gp_advanced(rdp->rsp, rnp_root, rdp);
+		if (!rsp->gp_kthread)
+			goto unlock_out; /* No grace-period kthread yet! */
+		WRITE_ONCE(rsp->gp_flags, rsp->gp_flags | RCU_GP_FLAG_INIT);
+		trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum),
+				       TPS("newreq"));
+		ret = true;  /* Caller must wake GP kthread. */
 	}
 unlock_out:
 	if (rnp != rnp_root)
@@ -2296,43 +2301,6 @@ static int __noreturn rcu_gp_kthread(void *arg)
 		rcu_gp_cleanup(rsp);
 		rsp->gp_state = RCU_GP_CLEANED;
 	}
-}
-
-/*
- * Start a new RCU grace period if warranted, re-initializing the hierarchy
- * in preparation for detecting the next grace period.  The caller must hold
- * the root node's ->lock and hard irqs must be disabled.
- *
- * Note that it is legal for a dying CPU (which is marked as offline) to
- * invoke this function.  This can happen when the dying CPU reports its
- * quiescent state.
- *
- * Returns true if the grace-period kthread must be awakened.
- */
-static bool
-rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
-		      struct rcu_data *rdp)
-{
-	raw_lockdep_assert_held_rcu_node(rnp);
-	if (!rsp->gp_kthread || !cpu_needs_another_gp(rsp, rdp)) {
-		/*
-		 * Either we have not yet spawned the grace-period
-		 * task, this CPU does not need another grace period,
-		 * or a grace period is already in progress.
-		 * Either way, don't start a new grace period.
-		 */
-		return false;
-	}
-	WRITE_ONCE(rsp->gp_flags, RCU_GP_FLAG_INIT);
-	trace_rcu_grace_period(rsp->name, READ_ONCE(rsp->gpnum),
-			       TPS("newreq"));
-
-	/*
-	 * We can't do wakeups while holding the rnp->lock, as that
-	 * could cause possible deadlocks with the rq->lock. Defer
-	 * the wakeup to our caller.
-	 */
-	return true;
 }
 
 /*
