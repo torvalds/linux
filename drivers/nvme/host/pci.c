@@ -1380,8 +1380,7 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 	return 0;
 }
 
-static int nvme_alloc_queue(struct nvme_dev *dev, int qid,
-		int depth, int node)
+static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 {
 	struct nvme_queue *nvmeq = &dev->queues[qid];
 
@@ -1596,8 +1595,7 @@ static int nvme_pci_configure_admin_queue(struct nvme_dev *dev)
 	if (result < 0)
 		return result;
 
-	result = nvme_alloc_queue(dev, 0, NVME_AQ_DEPTH,
-			dev_to_node(dev->dev));
+	result = nvme_alloc_queue(dev, 0, NVME_AQ_DEPTH);
 	if (result)
 		return result;
 
@@ -1630,9 +1628,7 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 	int ret = 0;
 
 	for (i = dev->ctrl.queue_count; i <= dev->max_qid; i++) {
-		/* vector == qid - 1, match nvme_create_queue */
-		if (nvme_alloc_queue(dev, i, dev->q_depth,
-		     pci_irq_get_node(to_pci_dev(dev->dev), i - 1))) {
+		if (nvme_alloc_queue(dev, i, dev->q_depth)) {
 			ret = -ENOMEM;
 			break;
 		}
