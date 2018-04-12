@@ -790,7 +790,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	struct swim_priv *swd = data;
 	int drive = (*part & 3);
 
-	if (drive > swd->floppy_count)
+	if (drive >= swd->floppy_count)
 		return NULL;
 
 	*part = 0;
