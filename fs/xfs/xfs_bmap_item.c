@@ -53,6 +53,25 @@ xfs_bui_item_free(
 	kmem_zone_free(xfs_bui_zone, buip);
 }
 
+/*
+ * Freeing the BUI requires that we remove it from the AIL if it has already
+ * been placed there. However, the BUI may not yet have been placed in the AIL
+ * when called by xfs_bui_release() from BUD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the BUI.
+ */
+void
+xfs_bui_release(
+	struct xfs_bui_log_item	*buip)
+{
+	ASSERT(atomic_read(&buip->bui_refcount) > 0);
+	if (atomic_dec_and_test(&buip->bui_refcount)) {
+		xfs_trans_ail_remove(&buip->bui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_bui_item_free(buip);
+	}
+}
+
+
 STATIC void
 xfs_bui_item_size(
 	struct xfs_log_item	*lip,
@@ -142,7 +161,7 @@ xfs_bui_item_unlock(
 	struct xfs_log_item	*lip)
 {
 	if (lip->li_flags & XFS_LI_ABORTED)
-		xfs_bui_item_free(BUI_ITEM(lip));
+		xfs_bui_release(BUI_ITEM(lip));
 }
 
 /*
@@ -204,24 +223,6 @@ xfs_bui_init(
 	atomic_set(&buip->bui_refcount, 2);
 
 	return buip;
-}
-
-/*
- * Freeing the BUI requires that we remove it from the AIL if it has already
- * been placed there. However, the BUI may not yet have been placed in the AIL
- * when called by xfs_bui_release() from BUD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the BUI.
- */
-void
-xfs_bui_release(
-	struct xfs_bui_log_item	*buip)
-{
-	ASSERT(atomic_read(&buip->bui_refcount) > 0);
-	if (atomic_dec_and_test(&buip->bui_refcount)) {
-		xfs_trans_ail_remove(&buip->bui_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_bui_item_free(buip);
-	}
 }
 
 static inline struct xfs_bud_log_item *BUD_ITEM(struct xfs_log_item *lip)
