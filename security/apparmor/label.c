@@ -128,7 +128,7 @@ static int ns_cmp(struct aa_ns *a, struct aa_ns *b)
 }
 
 /**
- * profile_cmp - profile comparision for set ordering
+ * profile_cmp - profile comparison for set ordering
  * @a: profile to compare (NOT NULL)
  * @b: profile to compare (NOT NULL)
  *
@@ -157,7 +157,7 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
 }
 
 /**
- * vec_cmp - label comparision for set ordering
+ * vec_cmp - label comparison for set ordering
  * @a: label to compare (NOT NULL)
  * @vec: vector of profiles to compare (NOT NULL)
  * @n: length of @vec
@@ -463,7 +463,7 @@ fail:
 
 
 /**
- * label_cmp - label comparision for set ordering
+ * label_cmp - label comparison for set ordering
  * @a: label to compare (NOT NULL)
  * @b: label to compare (NOT NULL)
  *
