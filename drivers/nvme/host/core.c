@@ -2220,7 +2220,7 @@ out_unlock:
 
 int nvme_get_log_ext(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 		     u8 log_page, void *log,
-		     size_t size, size_t offset)
+		     size_t size, u64 offset)
 {
 	struct nvme_command c = { };
 	unsigned long dwlen = size / 4 - 1;
@@ -2235,8 +2235,8 @@ int nvme_get_log_ext(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.get_log_page.lid = log_page;
 	c.get_log_page.numdl = cpu_to_le16(dwlen & ((1 << 16) - 1));
 	c.get_log_page.numdu = cpu_to_le16(dwlen >> 16);
-	c.get_log_page.lpol = cpu_to_le32(offset & ((1ULL << 32) - 1));
-	c.get_log_page.lpou = cpu_to_le32(offset >> 32ULL);
+	c.get_log_page.lpol = cpu_to_le32(lower_32_bits(offset));
+	c.get_log_page.lpou = cpu_to_le32(upper_32_bits(offset));
 
 	return nvme_submit_sync_cmd(ctrl->admin_q, &c, log, size);
 }
