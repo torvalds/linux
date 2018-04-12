@@ -1950,13 +1950,14 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *cur_devices;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	u64 num_devices;
 	int ret = 0;
 
 	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&uuid_mutex);
 
-	num_devices = fs_info->fs_devices->num_devices;
+	num_devices = fs_devices->num_devices;
 	btrfs_dev_replace_read_lock(&fs_info->dev_replace);
 	if (btrfs_dev_replace_is_ongoing(&fs_info->dev_replace)) {
 		WARN_ON(num_devices < 1);
@@ -2020,7 +2021,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	 */
 
 	cur_devices = device->fs_devices;
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	mutex_lock(&fs_devices->device_list_mutex);
 	list_del_rcu(&device->dev_list);
 
 	device->fs_devices->num_devices--;
@@ -2034,12 +2035,12 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	if (device->bdev) {
 		device->fs_devices->open_devices--;
 		/* remove sysfs entry */
-		btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
+		btrfs_sysfs_rm_device_link(fs_devices, device);
 	}
 
 	num_devices = btrfs_super_num_devices(fs_info->super_copy) - 1;
 	btrfs_set_super_num_devices(fs_info->super_copy, num_devices);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	/*
 	 * at this point, the device is zero sized and detached from
@@ -2053,8 +2054,6 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	call_rcu(&device->rcu, free_device_rcu);
 
 	if (cur_devices->open_devices == 0) {
-		struct btrfs_fs_devices *fs_devices;
-		fs_devices = fs_info->fs_devices;
 		while (fs_devices) {
 			if (fs_devices->seed == cur_devices) {
 				fs_devices->seed = cur_devices->seed;
@@ -2076,7 +2075,7 @@ error_undo:
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		mutex_lock(&fs_info->chunk_mutex);
 		list_add(&device->dev_alloc_list,
-			 &fs_info->fs_devices->alloc_list);
+			 &fs_devices->alloc_list);
 		device->fs_devices->rw_devices++;
 		mutex_unlock(&fs_info->chunk_mutex);
 	}
