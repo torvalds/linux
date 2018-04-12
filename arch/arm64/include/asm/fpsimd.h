@@ -18,6 +18,8 @@
 
 #include <asm/ptrace.h>
 #include <asm/errno.h>
+#include <asm/processor.h>
+#include <asm/sigcontext.h>
 
 #ifndef __ASSEMBLY__
 
@@ -60,6 +62,17 @@ extern void sve_flush_cpu_state(void);
 
 /* Maximum VL that SVE VL-agnostic software can transparently support */
 #define SVE_VL_ARCH_MAX 0x100
+
+/* Offset of FFR in the SVE register dump */
+static inline size_t sve_ffr_offset(int vl)
+{
+	return SVE_SIG_FFR_OFFSET(sve_vq_from_vl(vl)) - SVE_SIG_REGS_OFFSET;
+}
+
+static inline void *sve_pffr(struct thread_struct *thread)
+{
+	return (char *)thread->sve_state + sve_ffr_offset(thread->sve_vl);
+}
 
 extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,

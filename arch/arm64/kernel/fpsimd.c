@@ -161,18 +161,6 @@ static void sve_free(struct task_struct *task)
 	__sve_free(task);
 }
 
-
-/* Offset of FFR in the SVE register dump */
-static size_t sve_ffr_offset(int vl)
-{
-	return SVE_SIG_FFR_OFFSET(sve_vq_from_vl(vl)) - SVE_SIG_REGS_OFFSET;
-}
-
-static void *sve_pffr(struct thread_struct *thread)
-{
-	return (char *)thread->sve_state + sve_ffr_offset(thread->sve_vl);
-}
-
 static void change_cpacr(u64 val, u64 mask)
 {
 	u64 cpacr = read_sysreg(CPACR_EL1);
