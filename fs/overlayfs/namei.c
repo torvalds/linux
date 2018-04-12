@@ -256,6 +256,12 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		d->stop = true;
 		if (d->is_dir)
 			goto put_and_out;
+
+		/*
+		 * NB: handle failure to lookup non-last element when non-dir
+		 * redirects become possible
+		 */
+		WARN_ON(!last_element);
 		goto out;
 	}
 	if (last_element)
@@ -1006,6 +1012,11 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		if (IS_ERR(inode))
 			goto out_free_oe;
 
+		/*
+		 * NB: handle redirected hard links when non-dir redirects
+		 * become possible
+		 */
+		WARN_ON(OVL_I(inode)->redirect);
 		OVL_I(inode)->redirect = upperredirect;
 	}
 
