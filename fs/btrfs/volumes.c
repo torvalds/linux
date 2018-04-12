@@ -1104,14 +1104,13 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 				fmode_t flags, void *holder)
 {
-	struct list_head *head = &fs_devices->devices;
 	struct btrfs_device *device;
 	struct btrfs_device *latest_dev = NULL;
 	int ret = 0;
 
 	flags |= FMODE_EXCL;
 
-	list_for_each_entry(device, head, dev_list) {
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		/* Just open everything we can; ignore failures here */
 		if (btrfs_open_one_device(fs_devices, device, flags, holder))
 			continue;
