@@ -1780,19 +1780,6 @@ static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq)
 	swake_up_all(sq);
 }
 
-/*
- * Set the root rcu_node structure's ->need_future_gp field
- * based on the sum of those of all rcu_node structures.  This does
- * double-count the root rcu_node structure's requests, but this
- * is necessary to handle the possibility of a rcu_nocb_kthread()
- * having awakened during the time that the rcu_node structures
- * were being updated for the end of the previous grace period.
- */
-static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
-{
-	need_future_gp_element(rnp, rnp->completed + 1) += nrq;
-}
-
 static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp)
 {
 	return &rnp->nocb_gp_wq[rnp->completed & 0x1];
@@ -2492,10 +2479,6 @@ static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu)
 }
 
 static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq)
-{
-}
-
-static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq)
 {
 }
 

@@ -1763,14 +1763,14 @@ out:
  * Clean up any old requests for the just-ended grace period.  Also return
  * whether any additional grace periods have been requested.
  */
-static int rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
+static bool rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	int c = rnp->completed;
-	int needmore;
+	bool needmore;
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 
 	need_future_gp_element(rnp, c) = 0;
-	needmore = need_future_gp_element(rnp, c + 1);
+	needmore = need_any_future_gp(rnp);
 	trace_rcu_future_gp(rnp, rdp, c,
 			    needmore ? TPS("CleanupMore") : TPS("Cleanup"));
 	return needmore;
@@ -2113,7 +2113,6 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 {
 	unsigned long gp_duration;
 	bool needgp = false;
-	int nocb = 0;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	struct swait_queue_head *sq;
@@ -2152,7 +2151,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		if (rnp == rdp->mynode)
 			needgp = __note_gp_changes(rsp, rnp, rdp) || needgp;
 		/* smp_mb() provided by prior unlock-lock pair. */
-		nocb += rcu_future_gp_cleanup(rsp, rnp);
+		needgp = rcu_future_gp_cleanup(rsp, rnp) || needgp;
 		sq = rcu_nocb_gp_get(rnp);
 		raw_spin_unlock_irq_rcu_node(rnp);
 		rcu_nocb_gp_cleanup(sq);
@@ -2162,13 +2161,18 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	}
 	rnp = rcu_get_root(rsp);
 	raw_spin_lock_irq_rcu_node(rnp); /* Order GP before ->completed update. */
-	rcu_nocb_gp_set(rnp, nocb);
 
 	/* Declare grace period done. */
 	WRITE_ONCE(rsp->completed, rsp->gpnum);
 	trace_rcu_grace_period(rsp->name, rsp->completed, TPS("end"));
 	rsp->gp_state = RCU_GP_IDLE;
+	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(rsp->rda);
+	if (need_any_future_gp(rnp)) {
+		trace_rcu_future_gp(rnp, rdp, rsp->completed - 1,
+				    TPS("CleanupMore"));
+		needgp = true;
+	}
 	/* Advance CBs to reduce false positives below. */
 	needgp = rcu_advance_cbs(rsp, rnp, rdp) || needgp;
 	if (needgp || cpu_needs_another_gp(rsp, rdp)) {
