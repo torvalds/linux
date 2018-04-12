@@ -2832,7 +2832,9 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 		goto out_free_head;
 	head->instance = ret;
 	INIT_LIST_HEAD(&head->list);
-	init_srcu_struct(&head->srcu);
+	ret = init_srcu_struct(&head->srcu);
+	if (ret)
+		goto out_ida_remove;
 	head->subsys = ctrl->subsys;
 	head->ns_id = nsid;
 	kref_init(&head->ref);
@@ -2854,6 +2856,7 @@ static struct nvme_ns_head *nvme_alloc_ns_head(struct nvme_ctrl *ctrl,
 	return head;
 out_cleanup_srcu:
 	cleanup_srcu_struct(&head->srcu);
+out_ida_remove:
 	ida_simple_remove(&ctrl->subsys->ns_ida, head->instance);
 out_free_head:
 	kfree(head);
