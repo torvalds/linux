@@ -436,6 +436,14 @@ static int verify_level_key(struct btrfs_fs_info *fs_info,
 	if (!first_key)
 		return 0;
 
+	/*
+	 * For live tree block (new tree blocks in current transaction),
+	 * we need proper lock context to avoid race, which is impossible here.
+	 * So we only checks tree blocks which is read from disk, whose
+	 * generation <= fs_info->last_trans_committed.
+	 */
+	if (btrfs_header_generation(eb) > fs_info->last_trans_committed)
+		return 0;
 	if (found_level)
 		btrfs_node_key_to_cpu(eb, &found_key, 0);
 	else
