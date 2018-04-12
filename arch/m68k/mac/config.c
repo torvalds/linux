@@ -1017,7 +1017,7 @@ int __init mac_platform_init(void)
 		struct resource swim_rsrc = {
 			.flags = IORESOURCE_MEM,
 			.start = (resource_size_t)swim_base,
-			.end   = (resource_size_t)swim_base + 0x2000,
+			.end   = (resource_size_t)swim_base + 0x1FFF,
 		};
 
 		platform_device_register_simple("swim", -1, &swim_rsrc, 1);
