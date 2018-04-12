@@ -62,6 +62,14 @@
 		ramoops_mem: ramoops@68000000 {
 			reg = <0x0 0x110000 0x0 0xf0000>;
 		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x2000000>;
+			linux,cma-default;
+		};
 	};
 
 	ramoops {
