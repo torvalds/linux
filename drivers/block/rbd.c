@@ -2339,6 +2339,7 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 {
 	unsigned int num_osd_ops = obj_req->osd_req->r_num_ops;
+	int ret;
 
 	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
 	rbd_assert(obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_STAT);
@@ -2353,6 +2354,11 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
+	ret = osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
+				  "copyup");
+	if (ret)
+		return ret;
+
 	/*
 	 * Only send non-zero copyup data to save some I/O and network
 	 * bandwidth -- zero copyup data is equivalent to the object not
@@ -2362,9 +2368,6 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 		dout("%s obj_req %p detected zeroes\n", __func__, obj_req);
 		bytes = 0;
 	}
-
-	osd_req_op_cls_init(obj_req->osd_req, 0, CEPH_OSD_OP_CALL, "rbd",
-			    "copyup");
 	osd_req_op_cls_request_data_bvecs(obj_req->osd_req, 0,
 					  obj_req->copyup_bvecs,
 					  obj_req->copyup_bvec_count,

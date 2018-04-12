@@ -767,7 +767,7 @@ void osd_req_op_extent_dup_last(struct ceph_osd_request *osd_req,
 }
 EXPORT_SYMBOL(osd_req_op_extent_dup_last);
 
-void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
+int osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 			u16 opcode, const char *class, const char *method)
 {
 	struct ceph_osd_req_op *op = _osd_req_op_init(osd_req, which,
@@ -779,7 +779,9 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	BUG_ON(opcode != CEPH_OSD_OP_CALL);
 
 	pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
-	BUG_ON(!pagelist);
+	if (!pagelist)
+		return -ENOMEM;
+
 	ceph_pagelist_init(pagelist);
 
 	op->cls.class_name = class;
@@ -799,6 +801,7 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	osd_req_op_cls_request_info_pagelist(osd_req, which, pagelist);
 
 	op->indata_len = payload_len;
+	return 0;
 }
 EXPORT_SYMBOL(osd_req_op_cls_init);
 
@@ -4928,7 +4931,10 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 	if (ret)
 		goto out_put_req;
 
-	osd_req_op_cls_init(req, 0, CEPH_OSD_OP_CALL, class, method);
+	ret = osd_req_op_cls_init(req, 0, CEPH_OSD_OP_CALL, class, method);
+	if (ret)
+		goto out_put_req;
+
 	if (req_page)
 		osd_req_op_cls_request_data_pages(req, 0, &req_page, req_len,
 						  0, false, false);
