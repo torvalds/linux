@@ -926,3 +926,12 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 	afs_set_call_complete(call, ret, remote_abort);
 	return ret;
 }
+
+/*
+ * Log protocol error production.
+ */
+noinline int afs_protocol_error(struct afs_call *call, int error)
+{
+	trace_afs_protocol_error(call, error, __builtin_return_address(0));
+	return error;
+}
