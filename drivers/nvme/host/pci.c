@@ -84,6 +84,7 @@ struct nvme_dev {
 	struct dma_pool *prp_small_pool;
 	unsigned online_queues;
 	unsigned max_qid;
+	unsigned int num_vecs;
 	int q_depth;
 	u32 db_stride;
 	void __iomem *bar;
@@ -414,7 +415,8 @@ static int nvme_pci_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nvme_dev *dev = set->driver_data;
 
-	return blk_mq_pci_map_queues(set, to_pci_dev(dev->dev), 0);
+	return blk_mq_pci_map_queues(set, to_pci_dev(dev->dev),
+			dev->num_vecs > 1 ? 1 /* admin queue */ : 0);
 }
 
 /**
@@ -1456,7 +1458,11 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 		nvmeq->sq_cmds_io = dev->cmb + offset;
 	}
 
-	nvmeq->cq_vector = qid - 1;
+	/*
+	 * A queue's vector matches the queue identifier unless the controller
+	 * has only one vector available.
+	 */
+	nvmeq->cq_vector = dev->num_vecs == 1 ? 0 : qid;
 	result = adapter_alloc_cq(dev, qid, nvmeq);
 	if (result < 0)
 		goto release_vector;
@@ -1910,6 +1916,10 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	int result, nr_io_queues;
 	unsigned long size;
 
+	struct irq_affinity affd = {
+		.pre_vectors = 1
+	};
+
 	nr_io_queues = num_possible_cpus();
 	result = nvme_set_queue_count(&dev->ctrl, &nr_io_queues);
 	if (result < 0)
@@ -1945,11 +1955,12 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	 * setting up the full range we need.
 	 */
 	pci_free_irq_vectors(pdev);
-	nr_io_queues = pci_alloc_irq_vectors(pdev, 1, nr_io_queues,
-			PCI_IRQ_ALL_TYPES | PCI_IRQ_AFFINITY);
-	if (nr_io_queues <= 0)
+	result = pci_alloc_irq_vectors_affinity(pdev, 1, nr_io_queues + 1,
+			PCI_IRQ_ALL_TYPES | PCI_IRQ_AFFINITY, &affd);
+	if (result <= 0)
 		return -EIO;
-	dev->max_qid = nr_io_queues;
+	dev->num_vecs = result;
+	dev->max_qid = max(result - 1, 1);
 
 	/*
 	 * Should investigate if there's a performance win from allocating
