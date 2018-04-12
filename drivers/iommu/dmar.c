@@ -806,7 +806,7 @@ int __init dmar_dev_scope_init(void)
 	return dmar_dev_scope_status;
 }
 
-void dmar_register_bus_notifier(void)
+void __init dmar_register_bus_notifier(void)
 {
 	bus_register_notifier(&pci_bus_type, &dmar_pci_bus_nb);
 }
