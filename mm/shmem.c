@@ -332,12 +332,12 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
 
 	VM_BUG_ON(!expected);
 	VM_BUG_ON(!replacement);
-	item = __radix_tree_lookup(&mapping->page_tree, index, &node, &pslot);
+	item = __radix_tree_lookup(&mapping->i_pages, index, &node, &pslot);
 	if (!item)
 		return -ENOENT;
 	if (item != expected)
 		return -ENOENT;
-	__radix_tree_replace(&mapping->page_tree, node, pslot,
+	__radix_tree_replace(&mapping->i_pages, node, pslot,
 			     replacement, NULL);
 	return 0;
 }
@@ -355,7 +355,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
 	void *item;
 
 	rcu_read_lock();
-	item = radix_tree_lookup(&mapping->page_tree, index);
+	item = radix_tree_lookup(&mapping->i_pages, index);
 	rcu_read_unlock();
 	return item == swp_to_radix_entry(swap);
 }
@@ -590,14 +590,14 @@ static int shmem_add_to_page_cache(struct page *page,
 	page->mapping = mapping;
 	page->index = index;
 
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
 	if (PageTransHuge(page)) {
 		void __rcu **results;
 		pgoff_t idx;
 		int i;
 
 		error = 0;
-		if (radix_tree_gang_lookup_slot(&mapping->page_tree,
+		if (radix_tree_gang_lookup_slot(&mapping->i_pages,
 					&results, &idx, index, 1) &&
 				idx < index + HPAGE_PMD_NR) {
 			error = -EEXIST;
@@ -605,14 +605,14 @@ static int shmem_add_to_page_cache(struct page *page,
 
 		if (!error) {
 			for (i = 0; i < HPAGE_PMD_NR; i++) {
-				error = radix_tree_insert(&mapping->page_tree,
+				error = radix_tree_insert(&mapping->i_pages,
 						index + i, page + i);
 				VM_BUG_ON(error);
 			}
 			count_vm_event(THP_FILE_ALLOC);
 		}
 	} else if (!expected) {
-		error = radix_tree_insert(&mapping->page_tree, index, page);
+		error = radix_tree_insert(&mapping->i_pages, index, page);
 	} else {
 		error = shmem_radix_tree_replace(mapping, index, expected,
 								 page);
@@ -624,10 +624,10 @@ static int shmem_add_to_page_cache(struct page *page,
 			__inc_node_page_state(page, NR_SHMEM_THPS);
 		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, nr);
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 	} else {
 		page->mapping = NULL;
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		page_ref_sub(page, nr);
 	}
 	return error;
@@ -643,13 +643,13 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
 
 	VM_BUG_ON_PAGE(PageCompound(page), page);
 
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
 	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
 	page->mapping = NULL;
 	mapping->nrpages--;
 	__dec_node_page_state(page, NR_FILE_PAGES);
 	__dec_node_page_state(page, NR_SHMEM);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 	put_page(page);
 	BUG_ON(error);
 }
@@ -662,9 +662,9 @@ static int shmem_free_swap(struct address_space *mapping,
 {
 	void *old;
 
-	spin_lock_irq(&mapping->tree_lock);
-	old = radix_tree_delete_item(&mapping->page_tree, index, radswap);
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
+	old = radix_tree_delete_item(&mapping->i_pages, index, radswap);
+	xa_unlock_irq(&mapping->i_pages);
 	if (old != radswap)
 		return -ENOENT;
 	free_swap_and_cache(radix_to_swp_entry(radswap));
@@ -675,7 +675,7 @@ static int shmem_free_swap(struct address_space *mapping,
  * Determine (in bytes) how many of the shmem object's pages mapped by the
  * given offsets are swapped out.
  *
- * This is safe to call without i_mutex or mapping->tree_lock thanks to RCU,
+ * This is safe to call without i_mutex or the i_pages lock thanks to RCU,
  * as long as the inode doesn't go away and racy results are not a problem.
  */
 unsigned long shmem_partial_swap_usage(struct address_space *mapping,
@@ -688,7 +688,7 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 
 	rcu_read_lock();
 
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
 		if (iter.index >= end)
 			break;
 
@@ -717,7 +717,7 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
  * Determine (in bytes) how many of the shmem object's pages mapped by the
  * given vma is swapped out.
  *
- * This is safe to call without i_mutex or mapping->tree_lock thanks to RCU,
+ * This is safe to call without i_mutex or the i_pages lock thanks to RCU,
  * as long as the inode doesn't go away and racy results are not a problem.
  */
 unsigned long shmem_swap_usage(struct vm_area_struct *vma)
@@ -1132,7 +1132,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
 	int error = 0;
 
 	radswap = swp_to_radix_entry(swap);
-	index = find_swap_entry(&mapping->page_tree, radswap);
+	index = find_swap_entry(&mapping->i_pages, radswap);
 	if (index == -1)
 		return -EAGAIN;	/* tell shmem_unuse we found nothing */
 
@@ -1448,7 +1448,7 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
 
 	hindex = round_down(index, HPAGE_PMD_NR);
 	rcu_read_lock();
-	if (radix_tree_gang_lookup_slot(&mapping->page_tree, &results, &idx,
+	if (radix_tree_gang_lookup_slot(&mapping->i_pages, &results, &idx,
 				hindex, 1) && idx < hindex + HPAGE_PMD_NR) {
 		rcu_read_unlock();
 		return NULL;
@@ -1561,14 +1561,14 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 	 * Our caller will very soon move newpage out of swapcache, but it's
 	 * a nice clean interface for us to replace oldpage by newpage there.
 	 */
-	spin_lock_irq(&swap_mapping->tree_lock);
+	xa_lock_irq(&swap_mapping->i_pages);
 	error = shmem_radix_tree_replace(swap_mapping, swap_index, oldpage,
 								   newpage);
 	if (!error) {
 		__inc_node_page_state(newpage, NR_FILE_PAGES);
 		__dec_node_page_state(oldpage, NR_FILE_PAGES);
 	}
-	spin_unlock_irq(&swap_mapping->tree_lock);
+	xa_unlock_irq(&swap_mapping->i_pages);
 
 	if (unlikely(error)) {
 		/*
@@ -2634,7 +2634,7 @@ static void shmem_tag_pins(struct address_space *mapping)
 	start = 0;
 	rcu_read_lock();
 
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+	radix_tree_for_each_slot(slot, &mapping->i_pages, &iter, start) {
 		page = radix_tree_deref_slot(slot);
 		if (!page || radix_tree_exception(page)) {
 			if (radix_tree_deref_retry(page)) {
@@ -2642,10 +2642,10 @@ static void shmem_tag_pins(struct address_space *mapping)
 				continue;
 			}
 		} else if (page_count(page) - page_mapcount(page) > 1) {
-			spin_lock_irq(&mapping->tree_lock);
-			radix_tree_tag_set(&mapping->page_tree, iter.index,
+			xa_lock_irq(&mapping->i_pages);
+			radix_tree_tag_set(&mapping->i_pages, iter.index,
 					   SHMEM_TAG_PINNED);
-			spin_unlock_irq(&mapping->tree_lock);
+			xa_unlock_irq(&mapping->i_pages);
 		}
 
 		if (need_resched()) {
@@ -2677,7 +2677,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 
 	error = 0;
 	for (scan = 0; scan <= LAST_SCAN; scan++) {
-		if (!radix_tree_tagged(&mapping->page_tree, SHMEM_TAG_PINNED))
+		if (!radix_tree_tagged(&mapping->i_pages, SHMEM_TAG_PINNED))
 			break;
 
 		if (!scan)
@@ -2687,7 +2687,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 
 		start = 0;
 		rcu_read_lock();
-		radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
+		radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter,
 					   start, SHMEM_TAG_PINNED) {
 
 			page = radix_tree_deref_slot(slot);
@@ -2713,10 +2713,10 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 				error = -EBUSY;
 			}
 
-			spin_lock_irq(&mapping->tree_lock);
-			radix_tree_tag_clear(&mapping->page_tree,
+			xa_lock_irq(&mapping->i_pages);
+			radix_tree_tag_clear(&mapping->i_pages,
 					     iter.index, SHMEM_TAG_PINNED);
-			spin_unlock_irq(&mapping->tree_lock);
+			xa_unlock_irq(&mapping->i_pages);
 continue_resched:
 			if (need_resched()) {
 				slot = radix_tree_iter_resume(slot, &iter);

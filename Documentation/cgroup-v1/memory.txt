@@ -262,7 +262,7 @@ When oom event notifier is registered, event will be delivered.
 2.6 Locking
 
    lock_page_cgroup()/unlock_page_cgroup() should not be called under
-   mapping->tree_lock.
+   the i_pages lock.
 
    Other lock order is following:
    PG_locked.

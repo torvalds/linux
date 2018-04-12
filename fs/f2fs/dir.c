@@ -732,10 +732,10 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK &&
 			!truncate_hole(dir, page->index, page->index + 1)) {
-		spin_lock_irqsave(&mapping->tree_lock, flags);
-		radix_tree_tag_clear(&mapping->page_tree, page_index(page),
+		xa_lock_irqsave(&mapping->i_pages, flags);
+		radix_tree_tag_clear(&mapping->i_pages, page_index(page),
 				     PAGECACHE_TAG_DIRTY);
-		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+		xa_unlock_irqrestore(&mapping->i_pages, flags);
 
 		clear_page_dirty_for_io(page);
 		ClearPagePrivate(page);

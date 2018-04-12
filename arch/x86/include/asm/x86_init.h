@@ -122,12 +122,14 @@ struct x86_init_pci {
  * @guest_late_init:		guest late init
  * @x2apic_available:		X2APIC detection
  * @init_mem_mapping:		setup early mappings during init_mem_mapping()
+ * @init_after_bootmem:		guest init after boot allocator is finished
  */
 struct x86_hyper_init {
 	void (*init_platform)(void);
 	void (*guest_late_init)(void);
 	bool (*x2apic_available)(void);
 	void (*init_mem_mapping)(void);
+	void (*init_after_bootmem)(void);
 };
 
 /**

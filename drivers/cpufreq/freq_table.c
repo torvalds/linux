@@ -352,20 +352,6 @@ static int set_freq_table_sorted(struct cpufreq_policy *policy)
 	return 0;
 }
 
-int cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
-				      struct cpufreq_frequency_table *table)
-{
-	int ret;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, table);
-	if (ret)
-		return ret;
-
-	policy->freq_table = table;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cpufreq_table_validate_and_show);
-
 int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 {
 	int ret;

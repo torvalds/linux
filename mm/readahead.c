@@ -175,7 +175,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 			break;
 
 		rcu_read_lock();
-		page = radix_tree_lookup(&mapping->page_tree, page_offset);
+		page = radix_tree_lookup(&mapping->i_pages, page_offset);
 		rcu_read_unlock();
 		if (page && !radix_tree_exceptional_entry(page))
 			continue;

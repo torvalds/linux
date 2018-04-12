@@ -347,9 +347,9 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
 	 * By the time control reaches here, RCU grace period has passed
 	 * since I_WB_SWITCH assertion and all wb stat update transactions
 	 * between unlocked_inode_to_wb_begin/end() are guaranteed to be
-	 * synchronizing against mapping->tree_lock.
+	 * synchronizing against the i_pages lock.
 	 *
-	 * Grabbing old_wb->list_lock, inode->i_lock and mapping->tree_lock
+	 * Grabbing old_wb->list_lock, inode->i_lock and the i_pages lock
 	 * gives us exclusion against all wb related operations on @inode
 	 * including IO list manipulations and stat updates.
 	 */
@@ -361,7 +361,7 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
 		spin_lock_nested(&old_wb->list_lock, SINGLE_DEPTH_NESTING);
 	}
 	spin_lock(&inode->i_lock);
-	spin_lock_irq(&mapping->tree_lock);
+	xa_lock_irq(&mapping->i_pages);
 
 	/*
 	 * Once I_FREEING is visible under i_lock, the eviction path owns
@@ -373,22 +373,22 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
 	/*
 	 * Count and transfer stats.  Note that PAGECACHE_TAG_DIRTY points
 	 * to possibly dirty pages while PAGECACHE_TAG_WRITEBACK points to
-	 * pages actually under underwriteback.
+	 * pages actually under writeback.
 	 */
-	radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter, 0,
+	radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter, 0,
 				   PAGECACHE_TAG_DIRTY) {
 		struct page *page = radix_tree_deref_slot_protected(slot,
-							&mapping->tree_lock);
+						&mapping->i_pages.xa_lock);
 		if (likely(page) && PageDirty(page)) {
 			dec_wb_stat(old_wb, WB_RECLAIMABLE);
 			inc_wb_stat(new_wb, WB_RECLAIMABLE);
 		}
 	}
 
-	radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter, 0,
+	radix_tree_for_each_tagged(slot, &mapping->i_pages, &iter, 0,
 				   PAGECACHE_TAG_WRITEBACK) {
 		struct page *page = radix_tree_deref_slot_protected(slot,
-							&mapping->tree_lock);
+						&mapping->i_pages.xa_lock);
 		if (likely(page)) {
 			WARN_ON_ONCE(!PageWriteback(page));
 			dec_wb_stat(old_wb, WB_WRITEBACK);
@@ -430,7 +430,7 @@ skip_switch:
 	 */
 	smp_store_release(&inode->i_state, inode->i_state & ~I_WB_SWITCH);
 
-	spin_unlock_irq(&mapping->tree_lock);
+	xa_unlock_irq(&mapping->i_pages);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&new_wb->list_lock);
 	spin_unlock(&old_wb->list_lock);
@@ -506,8 +506,8 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 
 	/*
 	 * In addition to synchronizing among switchers, I_WB_SWITCH tells
-	 * the RCU protected stat update paths to grab the mapping's
-	 * tree_lock so that stat transfer can synchronize against them.
+	 * the RCU protected stat update paths to grab the i_page
+	 * lock so that stat transfer can synchronize against them.
 	 * Let's continue after I_WB_SWITCH is guaranteed to be visible.
 	 */
 	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);

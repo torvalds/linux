@@ -778,6 +778,7 @@ void __init mem_init(void)
 	free_all_bootmem();
 
 	after_bootmem = 1;
+	x86_init.hyper.init_after_bootmem();
 
 	mem_init_print_info(NULL);
 	printk(KERN_INFO "virtual kernel memory layout:\n"
