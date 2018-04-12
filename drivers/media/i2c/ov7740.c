@@ -1006,6 +1006,13 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 			       V4L2_EXPOSURE_MANUAL, false);
 	v4l2_ctrl_cluster(2, &ov7740->hflip);
 
+	if (ctrl_hdlr->error) {
+		ret = ctrl_hdlr->error;
+		dev_err(&client->dev, "controls initialisation failed (%d)\n",
+			ret);
+		goto error;
+	}
+
 	ret = v4l2_ctrl_handler_setup(ctrl_hdlr);
 	if (ret) {
 		dev_err(&client->dev, "%s control init failed (%d)\n",
