@@ -512,6 +512,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 dtb-$(CONFIG_ARCH_REALVIEW) += \
 	arm-realview-pb1176.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+	px3se-evb.dtb \
 	rk3036-echo.dtb \
 	rk3036-evb.dtb \
 	rk3036-kylin.dtb \
