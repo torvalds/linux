@@ -1309,8 +1309,10 @@ mcr20a_probe(struct spi_device *spi)
 	/* init buf */
 	lp->buf = devm_kzalloc(&spi->dev, SPI_COMMAND_BUFFER, GFP_KERNEL);
 
-	if (!lp->buf)
-		return -ENOMEM;
+	if (!lp->buf) {
+		ret = -ENOMEM;
+		goto free_dev;
+	}
 
 	mcr20a_setup_tx_spi_messages(lp);
 	mcr20a_setup_rx_spi_messages(lp);
