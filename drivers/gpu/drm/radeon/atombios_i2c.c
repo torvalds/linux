@@ -35,7 +35,7 @@
 
 static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 				 u8 slave_addr, u8 flags,
-				 u8 *buf, u8 num)
+				 u8 *buf, int num)
 {
 	struct drm_device *dev = chan->dev;
 	struct radeon_device *rdev = dev->dev_private;
