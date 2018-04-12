@@ -984,8 +984,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	return 0;
 
  err_free_netdev:
-	free_netdev(priv->net_dev);
-	card->priv = NULL;
+	free_netdev(netdev);
  err_release_irq:
 	sdio_claim_host(func);
 	sdio_release_irq(func);
