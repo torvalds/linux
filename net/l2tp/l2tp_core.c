@@ -355,26 +355,6 @@ err_tlock:
 }
 EXPORT_SYMBOL_GPL(l2tp_session_register);
 
-struct l2tp_tunnel *l2tp_tunnel_find_nth(const struct net *net, int nth)
-{
-	struct l2tp_net *pn = l2tp_pernet(net);
-	struct l2tp_tunnel *tunnel;
-	int count = 0;
-
-	rcu_read_lock_bh();
-	list_for_each_entry_rcu(tunnel, &pn->l2tp_tunnel_list, list) {
-		if (++count > nth) {
-			rcu_read_unlock_bh();
-			return tunnel;
-		}
-	}
-
-	rcu_read_unlock_bh();
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(l2tp_tunnel_find_nth);
-
 /*****************************************************************************
  * Receive data handling
  *****************************************************************************/
