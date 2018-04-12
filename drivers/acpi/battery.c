@@ -215,6 +215,19 @@ static bool acpi_battery_is_degraded(struct acpi_battery *battery)
 		battery->full_charge_capacity < battery->design_capacity;
 }
 
+static int acpi_battery_handle_discharging(struct acpi_battery *battery)
+{
+	/*
+	 * Some devices wrongly report discharging if the battery's charge level
+	 * was above the device's start charging threshold atm the AC adapter
+	 * was plugged in and the device thus did not start a new charge cycle.
+	 */
+	if (power_supply_is_system_supplied() && battery->rate_now == 0)
+		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+
+	return POWER_SUPPLY_STATUS_DISCHARGING;
+}
+
 static int acpi_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
@@ -230,7 +243,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->state & ACPI_BATTERY_STATE_DISCHARGING)
-			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+			val->intval = acpi_battery_handle_discharging(battery);
 		else if (battery->state & ACPI_BATTERY_STATE_CHARGING)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (acpi_battery_is_charged(battery))
