@@ -2015,20 +2015,25 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	 * (super_copy) should hold the device list mutex.
 	 */
 
+	/*
+	 * In normal cases the cur_devices == fs_devices. But in case
+	 * of deleting a seed device, the cur_devices should point to
+	 * its own fs_devices listed under the fs_devices->seed.
+	 */
 	cur_devices = device->fs_devices;
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_del_rcu(&device->dev_list);
 
-	device->fs_devices->num_devices--;
-	device->fs_devices->total_devices--;
+	cur_devices->num_devices--;
+	cur_devices->total_devices--;
 
 	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
-		device->fs_devices->missing_devices--;
+		cur_devices->missing_devices--;
 
 	btrfs_assign_next_active_device(fs_info, device, NULL);
 
 	if (device->bdev) {
-		device->fs_devices->open_devices--;
+		cur_devices->open_devices--;
 		/* remove sysfs entry */
 		btrfs_sysfs_rm_device_link(fs_devices, device);
 	}
