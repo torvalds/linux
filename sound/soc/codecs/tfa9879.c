@@ -88,13 +88,14 @@ static int tfa9879_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (tfa9879->lsb_justified)
-		snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
-				    TFA9879_I2S_SET_MASK,
-				    i2s_set << TFA9879_I2S_SET_SHIFT);
+		snd_soc_component_update_bits(component,
+					      TFA9879_SERIAL_INTERFACE_1,
+					      TFA9879_I2S_SET_MASK,
+					      i2s_set << TFA9879_I2S_SET_SHIFT);
 
 	snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
-			    TFA9879_I2S_FS_MASK,
-			    fs << TFA9879_I2S_FS_SHIFT);
+				      TFA9879_I2S_FS_MASK,
+				      fs << TFA9879_I2S_FS_SHIFT);
 	return 0;
 }
 
@@ -103,8 +104,8 @@ static int tfa9879_digital_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_component *component = dai->component;
 
 	snd_soc_component_update_bits(component, TFA9879_MISC_CONTROL,
-			    TFA9879_S_MUTE_MASK,
-			    !!mute << TFA9879_S_MUTE_SHIFT);
+				      TFA9879_S_MUTE_MASK,
+				      !!mute << TFA9879_S_MUTE_SHIFT);
 
 	return 0;
 }
@@ -152,11 +153,11 @@ static int tfa9879_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
-			    TFA9879_SCK_POL_MASK,
-			    sck_pol << TFA9879_SCK_POL_SHIFT);
+				      TFA9879_SCK_POL_MASK,
+				      sck_pol << TFA9879_SCK_POL_SHIFT);
 	snd_soc_component_update_bits(component, TFA9879_SERIAL_INTERFACE_1,
-			    TFA9879_I2S_SET_MASK,
-			    i2s_set << TFA9879_I2S_SET_SHIFT);
+				      TFA9879_I2S_SET_MASK,
+				      i2s_set << TFA9879_I2S_SET_SHIFT);
 	return 0;
 }
 
@@ -298,7 +299,7 @@ static int tfa9879_i2c_probe(struct i2c_client *i2c,
 			     tfa9879_regs[i].reg, tfa9879_regs[i].def);
 
 	return devm_snd_soc_register_component(&i2c->dev, &tfa9879_component,
-				      &tfa9879_dai, 1);
+					       &tfa9879_dai, 1);
 }
 
 static const struct i2c_device_id tfa9879_i2c_id[] = {
