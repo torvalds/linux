@@ -380,24 +380,18 @@ int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 
 int ovl_update_time(struct inode *inode, struct timespec *ts, int flags)
 {
-	struct dentry *alias;
-	struct path upperpath;
+	if (flags & S_ATIME) {
+		struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+		struct path upperpath = {
+			.mnt = ofs->upper_mnt,
+			.dentry = ovl_upperdentry_dereference(OVL_I(inode)),
+		};
 
-	if (!(flags & S_ATIME))
-		return 0;
-
-	alias = d_find_any_alias(inode);
-	if (!alias)
-		return 0;
-
-	ovl_path_upper(alias, &upperpath);
-	if (upperpath.dentry) {
-		touch_atime(&upperpath);
-		inode->i_atime = d_inode(upperpath.dentry)->i_atime;
+		if (upperpath.dentry) {
+			touch_atime(&upperpath);
+			inode->i_atime = d_inode(upperpath.dentry)->i_atime;
+		}
 	}
-
-	dput(alias);
-
 	return 0;
 }
 
