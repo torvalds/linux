@@ -119,19 +119,25 @@ static void mce_kbd_rx_timeout(struct timer_list *t)
 {
 	struct ir_raw_event_ctrl *raw = from_timer(raw, t, mce_kbd.rx_timeout);
 	unsigned char maskcode;
+	unsigned long flags;
 	int i;
 
 	dev_dbg(&raw->dev->dev, "timer callback clearing all keys\n");
 
-	for (i = 0; i < 7; i++) {
-		maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
-		input_report_key(raw->mce_kbd.idev, maskcode, 0);
+	spin_lock_irqsave(&raw->mce_kbd.keylock, flags);
+
+	if (time_is_before_eq_jiffies(raw->mce_kbd.rx_timeout.expires)) {
+		for (i = 0; i < 7; i++) {
+			maskcode = kbd_keycodes[MCIR2_MASK_KEYS_START + i];
+			input_report_key(raw->mce_kbd.idev, maskcode, 0);
+		}
+
+		for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
+			input_report_key(raw->mce_kbd.idev, kbd_keycodes[i], 0);
+
+		input_sync(raw->mce_kbd.idev);
 	}
-
-	for (i = 0; i < MCIR2_MASK_KEYS_START; i++)
-		input_report_key(raw->mce_kbd.idev, kbd_keycodes[i], 0);
-
-	input_sync(raw->mce_kbd.idev);
+	spin_unlock_irqrestore(&raw->mce_kbd.keylock, flags);
 }
 
 static enum mce_kbd_mode mce_kbd_mode(struct mce_kbd_dec *data)
@@ -327,6 +333,7 @@ again:
 			scancode = data->body & 0xffffff;
 			dev_dbg(&dev->dev, "keyboard data 0x%08x\n",
 				data->body);
+			spin_lock(&data->keylock);
 			if (scancode) {
 				delay = nsecs_to_jiffies(dev->timeout) +
 					msecs_to_jiffies(100);
@@ -336,6 +343,7 @@ again:
 			}
 			/* Pass data to keyboard buffer parser */
 			ir_mce_kbd_process_keyboard_data(dev, scancode);
+			spin_unlock(&data->keylock);
 			lsc.rc_proto = RC_PROTO_MCIR2_KBD;
 			break;
 		case MCIR2_MOUSE_NBITS:
@@ -400,6 +408,7 @@ static int ir_mce_kbd_register(struct rc_dev *dev)
 	set_bit(MSC_SCAN, idev->mscbit);
 
 	timer_setup(&mce_kbd->rx_timeout, mce_kbd_rx_timeout, 0);
+	spin_lock_init(&mce_kbd->keylock);
 
 	input_set_drvdata(idev, mce_kbd);
 
