@@ -95,18 +95,28 @@ done
 
 [ $EVALUATE_ONLY -eq 0 ] && cpupower frequency-set -g powersave --max=${max_freq}MHz >& /dev/null
 
-echo "=============================================================================="
+echo "========================================================================"
 echo "The marketing frequency of the cpu is $mkt_freq MHz"
 echo "The maximum frequency of the cpu is $max_freq MHz"
 echo "The minimum frequency of the cpu is $min_freq MHz"
 
 # make a pretty table
-echo "Target      Actual      Difference     MSR(0x199)     max_perf_pct"
+echo "Target Actual Difference MSR(0x199) max_perf_pct" | tr " " "\n" > /tmp/result.tab
 for freq in `seq $max_freq -100 $min_freq`
 do
 	result_freq=$(cat /tmp/result.${freq} | grep "cpu MHz" | awk ' { print $4 } ' | awk -F "." ' { print $1 } ')
 	msr=$(cat /tmp/result.${freq} | grep "msr" | awk ' { print $3 } ')
 	max_perf_pct=$(cat /tmp/result.${freq} | grep "max_perf_pct" | awk ' { print $2 } ' )
-	echo " $freq        $result_freq          $(($result_freq-$freq))          $msr          $(($max_perf_pct*$max_freq))"
+	cat >> /tmp/result.tab << EOF
+$freq
+$result_freq
+$((result_freq - freq))
+$msr
+$((max_perf_pct * max_freq))
+EOF
 done
+
+# print the table
+pr -aTt -5 < /tmp/result.tab
+
 exit 0
