@@ -911,7 +911,7 @@ static int swim_probe(struct platform_device *dev)
 		goto out;
 	}
 
-	swim_base = ioremap(res->start, resource_size(res));
+	swim_base = (struct swim __iomem *)res->start;
 	if (!swim_base) {
 		ret = -ENOMEM;
 		goto out_release_io;
@@ -923,7 +923,7 @@ static int swim_probe(struct platform_device *dev)
 	if (!get_swim_mode(swim_base)) {
 		printk(KERN_INFO "SWIM device not found !\n");
 		ret = -ENODEV;
-		goto out_iounmap;
+		goto out_release_io;
 	}
 
 	/* set platform driver data */
@@ -931,7 +931,7 @@ static int swim_probe(struct platform_device *dev)
 	swd = kzalloc(sizeof(struct swim_priv), GFP_KERNEL);
 	if (!swd) {
 		ret = -ENOMEM;
-		goto out_iounmap;
+		goto out_release_io;
 	}
 	platform_set_drvdata(dev, swd);
 
@@ -945,8 +945,6 @@ static int swim_probe(struct platform_device *dev)
 
 out_kfree:
 	kfree(swd);
-out_iounmap:
-	iounmap(swim_base);
 out_release_io:
 	release_mem_region(res->start, resource_size(res));
 out:
@@ -973,8 +971,6 @@ static int swim_remove(struct platform_device *dev)
 
 	for (drive = 0; drive < swd->floppy_count; drive++)
 		floppy_eject(&swd->unit[drive]);
-
-	iounmap(swd->base);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res)
