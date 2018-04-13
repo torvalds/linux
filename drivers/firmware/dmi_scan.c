@@ -210,9 +210,9 @@ static void __init dmi_save_uuid(const struct dmi_header *dm, int slot,
 	 * says that this is the defacto standard.
 	 */
 	if (dmi_ver >= 0x020600)
-		sprintf(s, "%pUL", d);
+		sprintf(s, "%pUl", d);
 	else
-		sprintf(s, "%pUB", d);
+		sprintf(s, "%pUb", d);
 
 	dmi_ident[slot] = s;
 }
