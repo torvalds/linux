@@ -476,19 +476,6 @@ static int serial_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int serial_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, serial_proc_show, NULL);
-}
-
-static const struct file_operations serial_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= serial_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int serial_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1192,7 +1179,7 @@ static const struct tty_operations serial_ops = {
 	.get_icount =		serial_get_icount,
 	.cleanup =		serial_cleanup,
 	.install =		serial_install,
-	.proc_fops =		&serial_proc_fops,
+	.proc_show =		serial_proc_show,
 };
 
 

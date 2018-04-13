@@ -2616,19 +2616,6 @@ static int mgslpc_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int mgslpc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mgslpc_proc_show, NULL);
-}
-
-static const struct file_operations mgslpc_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mgslpc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int rx_alloc_buffers(MGSLPC_INFO *info)
 {
 	/* each buffer has header and data */
@@ -2815,7 +2802,7 @@ static const struct tty_operations mgslpc_ops = {
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
 	.get_icount = mgslpc_get_icount,
-	.proc_fops = &mgslpc_proc_fops,
+	.proc_show = mgslpc_proc_show,
 };
 
 static int __init synclink_cs_init(void)

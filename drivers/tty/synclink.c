@@ -3534,19 +3534,6 @@ static int mgsl_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int mgsl_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mgsl_proc_show, NULL);
-}
-
-static const struct file_operations mgsl_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mgsl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /* mgsl_allocate_dma_buffers()
  * 
  * 	Allocate and format DMA buffers (ISA adapter)
@@ -4298,7 +4285,7 @@ static const struct tty_operations mgsl_ops = {
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
 	.get_icount = msgl_get_icount,
-	.proc_fops = &mgsl_proc_fops,
+	.proc_show = mgsl_proc_show,
 };
 
 /*
