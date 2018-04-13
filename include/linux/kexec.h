@@ -114,9 +114,6 @@ struct purgatory_info {
 	 * relocation. This memory can be freed post image load.
 	 */
 	void *purgatory_buf;
-
-	/* Address where purgatory is finally loaded and is executed from */
-	unsigned long purgatory_load_addr;
 };
 
 struct kimage;
@@ -170,6 +167,12 @@ struct kexec_buf {
 	unsigned long buf_max;
 	bool top_down;
 };
+
+int kexec_load_purgatory(struct kimage *image, struct kexec_buf *kbuf);
+int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
+				   void *buf, unsigned int size,
+				   bool get_value);
+void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name);
 
 int __weak arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 					    Elf_Shdr *section,
@@ -266,14 +269,6 @@ extern void machine_kexec_cleanup(struct kimage *image);
 extern int kernel_kexec(void);
 extern struct page *kimage_alloc_control_pages(struct kimage *image,
 						unsigned int order);
-extern int kexec_load_purgatory(struct kimage *image, unsigned long min,
-				unsigned long max, int top_down,
-				unsigned long *load_addr);
-extern int kexec_purgatory_get_set_symbol(struct kimage *image,
-					  const char *name, void *buf,
-					  unsigned int size, bool get_value);
-extern void *kexec_purgatory_get_symbol_addr(struct kimage *image,
-					     const char *name);
 extern void __crash_kexec(struct pt_regs *);
 extern void crash_kexec(struct pt_regs *);
 int kexec_should_crash(struct task_struct *);
