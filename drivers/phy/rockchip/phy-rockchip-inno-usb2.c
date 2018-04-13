@@ -1933,6 +1933,17 @@ static int rk312x_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return 0;
 }
 
+static int rk3228_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	int ret = 0;
+
+	/* Open pre-emphasize in non-chirp state for PHY0 otg port */
+	if (rphy->phy_cfg->reg == 0x760)
+		ret = regmap_write(rphy->grf, 0x76c, 0x00070004);
+
+	return ret;
+}
+
 static int rk3308_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	int ret;
@@ -2235,6 +2246,7 @@ static const struct rockchip_usb2phy_cfg rk3228_phy_cfgs[] = {
 	{
 		.reg = 0x760,
 		.num_ports	= 2,
+		.phy_tuning	= rk3228_usb2phy_tuning,
 		.clkout_ctl	= { 0x0768, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
