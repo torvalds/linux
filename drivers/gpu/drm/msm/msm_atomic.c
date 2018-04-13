@@ -75,8 +75,6 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	kms->funcs->complete_commit(kms, state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
-
 	drm_atomic_helper_commit_hw_done(state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
