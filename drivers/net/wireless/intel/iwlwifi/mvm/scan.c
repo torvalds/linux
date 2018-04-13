@@ -228,7 +228,7 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 
 static enum iwl_mvm_traffic_load iwl_mvm_get_traffic_load(struct iwl_mvm *mvm)
 {
-	return IWL_MVM_TRAFFIC_LOW;
+	return mvm->tcm.result.global_load;
 }
 
 static enum
