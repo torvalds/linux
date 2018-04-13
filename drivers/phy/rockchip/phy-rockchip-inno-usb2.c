@@ -40,7 +40,7 @@
 
 #define BIT_WRITEABLE_SHIFT	16
 #define SCHEDULE_DELAY		(60 * HZ)
-#define OTG_SCHEDULE_DELAY	(2 * HZ)
+#define OTG_SCHEDULE_DELAY	(1 * HZ)
 #define BYPASS_SCHEDULE_DELAY	(2 * HZ)
 
 struct rockchip_usb2phy;
@@ -638,7 +638,7 @@ static int rockchip_usb2phy_init(struct phy *phy)
 		}
 
 		schedule_delayed_work(&rport->otg_sm_work,
-				      OTG_SCHEDULE_DELAY * 3);
+				      OTG_SCHEDULE_DELAY);
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		/* clear linestate and enable linestate detect irq */
 		ret = rockchip_usb2phy_enable_line_irq(rphy, rport, true);
@@ -1072,7 +1072,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rport->perip_connected = false;
 			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
-			delay = OTG_SCHEDULE_DELAY * 2;
+			delay = OTG_SCHEDULE_DELAY;
 			wake_unlock(&rport->wakelock);
 		}
 		break;
