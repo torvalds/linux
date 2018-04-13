@@ -110,19 +110,35 @@ int __weak arch_kexec_kernel_verify_sig(struct kimage *image, void *buf,
 }
 #endif
 
-/* Apply relocations of type RELA */
+/*
+ * arch_kexec_apply_relocations_add - apply relocations of type RELA
+ * @pi:		Purgatory to be relocated.
+ * @section:	Section relocations applying to.
+ * @relsec:	Section containing RELAs.
+ * @symtab:	Corresponding symtab.
+ *
+ * Return: 0 on success, negative errno on error.
+ */
 int __weak
-arch_kexec_apply_relocations_add(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
-				 unsigned int relsec)
+arch_kexec_apply_relocations_add(struct purgatory_info *pi, Elf_Shdr *section,
+				 const Elf_Shdr *relsec, const Elf_Shdr *symtab)
 {
 	pr_err("RELA relocation unsupported.\n");
 	return -ENOEXEC;
 }
 
-/* Apply relocations of type REL */
+/*
+ * arch_kexec_apply_relocations - apply relocations of type REL
+ * @pi:		Purgatory to be relocated.
+ * @section:	Section relocations applying to.
+ * @relsec:	Section containing RELs.
+ * @symtab:	Corresponding symtab.
+ *
+ * Return: 0 on success, negative errno on error.
+ */
 int __weak
-arch_kexec_apply_relocations(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
-			     unsigned int relsec)
+arch_kexec_apply_relocations(struct purgatory_info *pi, Elf_Shdr *section,
+			     const Elf_Shdr *relsec, const Elf_Shdr *symtab)
 {
 	pr_err("REL relocation unsupported.\n");
 	return -ENOEXEC;
@@ -879,14 +895,19 @@ static int kexec_apply_relocations(struct kimage *image)
 {
 	int i, ret;
 	struct purgatory_info *pi = &image->purgatory_info;
-	Elf_Shdr *sechdrs = pi->sechdrs;
+	const Elf_Shdr *sechdrs;
 
-	/* Apply relocations */
+	sechdrs = (void *)pi->ehdr + pi->ehdr->e_shoff;
+
 	for (i = 0; i < pi->ehdr->e_shnum; i++) {
-		Elf_Shdr *section, *symtab;
+		const Elf_Shdr *relsec;
+		const Elf_Shdr *symtab;
+		Elf_Shdr *section;
 
-		if (sechdrs[i].sh_type != SHT_RELA &&
-		    sechdrs[i].sh_type != SHT_REL)
+		relsec = sechdrs + i;
+
+		if (relsec->sh_type != SHT_RELA &&
+		    relsec->sh_type != SHT_REL)
 			continue;
 
 		/*
@@ -895,12 +916,12 @@ static int kexec_apply_relocations(struct kimage *image)
 		 * symbol table. And ->sh_info contains section header
 		 * index of section to which relocations apply.
 		 */
-		if (sechdrs[i].sh_info >= pi->ehdr->e_shnum ||
-		    sechdrs[i].sh_link >= pi->ehdr->e_shnum)
+		if (relsec->sh_info >= pi->ehdr->e_shnum ||
+		    relsec->sh_link >= pi->ehdr->e_shnum)
 			return -ENOEXEC;
 
-		section = &sechdrs[sechdrs[i].sh_info];
-		symtab = &sechdrs[sechdrs[i].sh_link];
+		section = pi->sechdrs + relsec->sh_info;
+		symtab = sechdrs + relsec->sh_link;
 
 		if (!(section->sh_flags & SHF_ALLOC))
 			continue;
@@ -917,12 +938,12 @@ static int kexec_apply_relocations(struct kimage *image)
 		 * Respective architecture needs to provide support for applying
 		 * relocations of type SHT_RELA/SHT_REL.
 		 */
-		if (sechdrs[i].sh_type == SHT_RELA)
-			ret = arch_kexec_apply_relocations_add(pi->ehdr,
-							       sechdrs, i);
-		else if (sechdrs[i].sh_type == SHT_REL)
-			ret = arch_kexec_apply_relocations(pi->ehdr,
-							   sechdrs, i);
+		if (relsec->sh_type == SHT_RELA)
+			ret = arch_kexec_apply_relocations_add(pi, section,
+							       relsec, symtab);
+		else if (relsec->sh_type == SHT_REL)
+			ret = arch_kexec_apply_relocations(pi, section,
+							   relsec, symtab);
 		if (ret)
 			return ret;
 	}

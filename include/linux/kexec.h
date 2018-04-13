@@ -171,6 +171,15 @@ struct kexec_buf {
 	bool top_down;
 };
 
+int __weak arch_kexec_apply_relocations_add(struct purgatory_info *pi,
+					    Elf_Shdr *section,
+					    const Elf_Shdr *relsec,
+					    const Elf_Shdr *symtab);
+int __weak arch_kexec_apply_relocations(struct purgatory_info *pi,
+					Elf_Shdr *section,
+					const Elf_Shdr *relsec,
+					const Elf_Shdr *symtab);
+
 int __weak arch_kexec_walk_mem(struct kexec_buf *kbuf,
 			       int (*func)(struct resource *, void *));
 extern int kexec_add_buffer(struct kexec_buf *kbuf);
@@ -304,10 +313,6 @@ int crash_shrink_memory(unsigned long new_size);
 size_t crash_get_memory_size(void);
 void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
 
-int __weak arch_kexec_apply_relocations_add(const Elf_Ehdr *ehdr,
-					Elf_Shdr *sechdrs, unsigned int relsec);
-int __weak arch_kexec_apply_relocations(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
-					unsigned int relsec);
 void arch_kexec_protect_crashkres(void);
 void arch_kexec_unprotect_crashkres(void);
 
