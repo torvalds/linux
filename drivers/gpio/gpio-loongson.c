@@ -17,9 +17,9 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <asm/types.h>
 #include <loongson.h>
-#include <linux/gpio.h>
 
 #define STLS2F_N_GPIO		4
 #define STLS3A_N_GPIO		16
@@ -33,38 +33,6 @@
 #define LOONGSON_GPIO_IN_OFFSET	16
 
 static DEFINE_SPINLOCK(gpio_lock);
-
-static int loongson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
-{
-	u32 temp;
-	u32 mask;
-
-	spin_lock(&gpio_lock);
-	mask = 1 << gpio;
-	temp = LOONGSON_GPIOIE;
-	temp |= mask;
-	LOONGSON_GPIOIE = temp;
-	spin_unlock(&gpio_lock);
-
-	return 0;
-}
-
-static int loongson_gpio_direction_output(struct gpio_chip *chip,
-		unsigned gpio, int level)
-{
-	u32 temp;
-	u32 mask;
-
-	gpio_set_value(gpio, level);
-	spin_lock(&gpio_lock);
-	mask = 1 << gpio;
-	temp = LOONGSON_GPIOIE;
-	temp &= (~mask);
-	LOONGSON_GPIOIE = temp;
-	spin_unlock(&gpio_lock);
-
-	return 0;
-}
 
 static int loongson_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
@@ -95,6 +63,38 @@ static void loongson_gpio_set_value(struct gpio_chip *chip,
 		val &= (~mask);
 	LOONGSON_GPIODATA = val;
 	spin_unlock(&gpio_lock);
+}
+
+static int loongson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
+{
+	u32 temp;
+	u32 mask;
+
+	spin_lock(&gpio_lock);
+	mask = 1 << gpio;
+	temp = LOONGSON_GPIOIE;
+	temp |= mask;
+	LOONGSON_GPIOIE = temp;
+	spin_unlock(&gpio_lock);
+
+	return 0;
+}
+
+static int loongson_gpio_direction_output(struct gpio_chip *chip,
+		unsigned gpio, int level)
+{
+	u32 temp;
+	u32 mask;
+
+	loongson_gpio_set_value(chip, gpio, level);
+	spin_lock(&gpio_lock);
+	mask = 1 << gpio;
+	temp = LOONGSON_GPIOIE;
+	temp &= (~mask);
+	LOONGSON_GPIOIE = temp;
+	spin_unlock(&gpio_lock);
+
+	return 0;
 }
 
 static struct gpio_chip loongson_chip = {
