@@ -7648,7 +7648,7 @@ ath10k_wmi_10_2_4_op_gen_pdev_get_tpc_config(struct ath10k *ar, u32 param)
 	cmd->param = __cpu_to_le32(param);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "wmi pdev get tcp config param:%d\n", param);
+		   "wmi pdev get tpc config param %d\n", param);
 	return skb;
 }
 
