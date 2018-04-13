@@ -963,6 +963,9 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 	if (dc->state != D_PREP)
 		return;
 
+	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK))
+		return;
+
 	trace_f2fs_issue_discard(dc->bdev, dc->start, dc->len);
 
 	dc->error = __blkdev_issue_discard(dc->bdev,
@@ -1395,6 +1398,10 @@ static int issue_discard_thread(void *data)
 			continue;
 		if (kthread_should_stop())
 			return 0;
+		if (is_sbi_flag_set(sbi, SBI_NEED_FSCK)) {
+			wait_ms = dpolicy.max_interval;
+			continue;
+		}
 
 		if (dcc->discard_wake)
 			dcc->discard_wake = 0;
