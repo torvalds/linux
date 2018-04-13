@@ -934,8 +934,8 @@ F:	drivers/char/apm-emulation.c
 APPARMOR SECURITY MODULE
 M:	John Johansen <john.johansen@canonical.com>
 L:	apparmor@lists.ubuntu.com (subscribers-only, general discussion)
-W:	apparmor.wiki.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/apparmor-dev.git
+W:	wiki.apparmor.net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/linux-apparmor
 S:	Supported
 F:	security/apparmor/
 F:	Documentation/admin-guide/LSM/apparmor.rst
