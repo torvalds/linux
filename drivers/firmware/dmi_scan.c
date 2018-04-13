@@ -191,7 +191,7 @@ static void __init dmi_save_uuid(const struct dmi_header *dm, int slot,
 	char *s;
 	int is_ff = 1, is_00 = 1, i;
 
-	if (dmi_ident[slot] || dm->length <= index + 16)
+	if (dmi_ident[slot] || dm->length < index + 16)
 		return;
 
 	d = (u8 *) dm + index;
