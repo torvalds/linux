@@ -941,7 +941,7 @@ int kexec_load_purgatory(struct kimage *image, unsigned long min,
 	if (kexec_purgatory_size <= 0)
 		return -EINVAL;
 
-	pi->ehdr = (Elf_Ehdr *)kexec_purgatory;
+	pi->ehdr = (const Elf_Ehdr *)kexec_purgatory;
 
 	ret = __kexec_load_purgatory(image, min, max, top_down);
 	if (ret)
@@ -965,9 +965,9 @@ out:
 static Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
 					    const char *name)
 {
+	const Elf_Ehdr *ehdr;
 	Elf_Sym *syms;
 	Elf_Shdr *sechdrs;
-	Elf_Ehdr *ehdr;
 	int i, k;
 	const char *strtab;
 

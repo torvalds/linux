@@ -99,14 +99,19 @@ struct compat_kexec_segment {
 
 #ifdef CONFIG_KEXEC_FILE
 struct purgatory_info {
-	/* Pointer to elf header of read only purgatory */
-	Elf_Ehdr *ehdr;
-
-	/* Pointer to purgatory sechdrs which are modifiable */
+	/*
+	 * Pointer to elf header at the beginning of kexec_purgatory.
+	 * Note: kexec_purgatory is read only
+	 */
+	const Elf_Ehdr *ehdr;
+	/*
+	 * Temporary, modifiable buffer for sechdrs used for relocation.
+	 * This memory can be freed post image load.
+	 */
 	Elf_Shdr *sechdrs;
 	/*
-	 * Temporary buffer location where purgatory is loaded and relocated
-	 * This memory can be freed post image load
+	 * Temporary, modifiable buffer for stripped purgatory used for
+	 * relocation. This memory can be freed post image load.
 	 */
 	void *purgatory_buf;
 
