@@ -6,6 +6,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/memory/tegra20-mc.h>
+
 #include "mc.h"
 
 static const struct tegra_mc_client tegra20_mc_clients[] = {
@@ -168,6 +170,119 @@ static const struct tegra_mc_client tegra20_mc_clients[] = {
 	},
 };
 
+#define TEGRA20_MC_RESET(_name, _control, _status, _reset, _bit)	\
+	{								\
+		.name = #_name,						\
+		.id = TEGRA20_MC_RESET_##_name,				\
+		.control = _control,					\
+		.status = _status,					\
+		.reset = _reset,					\
+		.bit = _bit,						\
+	}
+
+static const struct tegra_mc_reset tegra20_mc_resets[] = {
+	TEGRA20_MC_RESET(AVPC,   0x100, 0x140, 0x104,  0),
+	TEGRA20_MC_RESET(DC,     0x100, 0x144, 0x104,  1),
+	TEGRA20_MC_RESET(DCB,    0x100, 0x148, 0x104,  2),
+	TEGRA20_MC_RESET(EPP,    0x100, 0x14c, 0x104,  3),
+	TEGRA20_MC_RESET(2D,     0x100, 0x150, 0x104,  4),
+	TEGRA20_MC_RESET(HC,     0x100, 0x154, 0x104,  5),
+	TEGRA20_MC_RESET(ISP,    0x100, 0x158, 0x104,  6),
+	TEGRA20_MC_RESET(MPCORE, 0x100, 0x15c, 0x104,  7),
+	TEGRA20_MC_RESET(MPEA,   0x100, 0x160, 0x104,  8),
+	TEGRA20_MC_RESET(MPEB,   0x100, 0x164, 0x104,  9),
+	TEGRA20_MC_RESET(MPEC,   0x100, 0x168, 0x104, 10),
+	TEGRA20_MC_RESET(3D,     0x100, 0x16c, 0x104, 11),
+	TEGRA20_MC_RESET(PPCS,   0x100, 0x170, 0x104, 12),
+	TEGRA20_MC_RESET(VDE,    0x100, 0x174, 0x104, 13),
+	TEGRA20_MC_RESET(VI,     0x100, 0x178, 0x104, 14),
+};
+
+static int terga20_mc_hotreset_assert(struct tegra_mc *mc,
+				      const struct tegra_mc_reset *rst)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, rst->reset);
+	mc_writel(mc, value & ~BIT(rst->bit), rst->reset);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+	return 0;
+}
+
+static int terga20_mc_hotreset_deassert(struct tegra_mc *mc,
+					const struct tegra_mc_reset *rst)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, rst->reset);
+	mc_writel(mc, value | BIT(rst->bit), rst->reset);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+	return 0;
+}
+
+static int terga20_mc_block_dma(struct tegra_mc *mc,
+				const struct tegra_mc_reset *rst)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, rst->control) & ~BIT(rst->bit);
+	mc_writel(mc, value, rst->control);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+	return 0;
+}
+
+static bool terga20_mc_dma_idling(struct tegra_mc *mc,
+				  const struct tegra_mc_reset *rst)
+{
+	return mc_readl(mc, rst->status) == 0;
+}
+
+static int terga20_mc_reset_status(struct tegra_mc *mc,
+				   const struct tegra_mc_reset *rst)
+{
+	return (mc_readl(mc, rst->reset) & BIT(rst->bit)) == 0;
+}
+
+static int terga20_mc_unblock_dma(struct tegra_mc *mc,
+				  const struct tegra_mc_reset *rst)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, rst->control) | BIT(rst->bit);
+	mc_writel(mc, value, rst->control);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+	return 0;
+}
+
+const struct tegra_mc_reset_ops terga20_mc_reset_ops = {
+	.hotreset_assert = terga20_mc_hotreset_assert,
+	.hotreset_deassert = terga20_mc_hotreset_deassert,
+	.block_dma = terga20_mc_block_dma,
+	.dma_idling = terga20_mc_dma_idling,
+	.unblock_dma = terga20_mc_unblock_dma,
+	.reset_status = terga20_mc_reset_status,
+};
+
 const struct tegra_mc_soc tegra20_mc_soc = {
 	.clients = tegra20_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra20_mc_clients),
@@ -175,4 +290,7 @@ const struct tegra_mc_soc tegra20_mc_soc = {
 	.client_id_mask = 0x3f,
 	.intmask = MC_INT_SECURITY_VIOLATION | MC_INT_INVALID_GART_PAGE |
 		   MC_INT_DECERR_EMEM,
+	.reset_ops = &terga20_mc_reset_ops,
+	.resets = tegra20_mc_resets,
+	.num_resets = ARRAY_SIZE(tegra20_mc_resets),
 };
