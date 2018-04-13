@@ -457,7 +457,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 		ret = 0;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		if ((val < 0) | (val > 0xFFFF)) {
+		if (val < 0 || val > 0xFFFF) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -469,7 +469,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 		ret = 0;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		if ((val < 0) | (val > 43008000)) { /* 21pF */
+		if (val < 0 || val > 43008000) { /* 21pF */
 			ret = -EINVAL;
 			goto out;
 		}
