@@ -250,6 +250,47 @@ void dcn10_log_hw_state(struct dc *dc)
 	}
 	DTN_INFO("\n");
 
+	DTN_INFO("DPP:    IGAM format  IGAM mode    DGAM mode    RGAM mode"
+			"  GAMUT mode  C11 C12   C13 C14   C21 C22   C23 C24   "
+			"C31 C32   C33 C34\n");
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct dpp *dpp = pool->dpps[i];
+		struct dcn_dpp_state s;
+
+		dpp->funcs->dpp_read_state(dpp, &s);
+
+		DTN_INFO("[%2d]:  %11xh  %-11s  %-11s  %-11s"
+				"%08xh   %08xh %08xh %08xh %08xh %08xh %08xh",
+				dpp->inst,
+				s.igam_input_format,
+				(s.igam_lut_mode == 0) ? "BypassFixed" :
+					((s.igam_lut_mode == 1) ? "BypassFloat" :
+					((s.igam_lut_mode == 2) ? "RAM" :
+					((s.igam_lut_mode == 3) ? "RAM" :
+								 "Unknown"))),
+				(s.dgam_lut_mode == 0) ? "Bypass" :
+					((s.dgam_lut_mode == 1) ? "sRGB" :
+					((s.dgam_lut_mode == 2) ? "Ycc" :
+					((s.dgam_lut_mode == 3) ? "RAM" :
+					((s.dgam_lut_mode == 4) ? "RAM" :
+								 "Unknown")))),
+				(s.rgam_lut_mode == 0) ? "Bypass" :
+					((s.rgam_lut_mode == 1) ? "sRGB" :
+					((s.rgam_lut_mode == 2) ? "Ycc" :
+					((s.rgam_lut_mode == 3) ? "RAM" :
+					((s.rgam_lut_mode == 4) ? "RAM" :
+								 "Unknown")))),
+				s.gamut_remap_mode,
+				s.gamut_remap_c11_c12,
+				s.gamut_remap_c13_c14,
+				s.gamut_remap_c21_c22,
+				s.gamut_remap_c23_c24,
+				s.gamut_remap_c31_c32,
+				s.gamut_remap_c33_c34);
+		DTN_INFO("\n");
+	}
+	DTN_INFO("\n");
+
 	DTN_INFO("MPCC:  OPP  DPP  MPCCBOT  MODE  ALPHA_MODE  PREMULT  OVERLAP_ONLY  IDLE\n");
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct mpcc_state s = {0};

@@ -98,6 +98,30 @@ enum gamut_remap_select {
 	GAMUT_REMAP_COMB_COEFF
 };
 
+void dpp_read_state(struct dpp *dpp_base,
+		struct dcn_dpp_state *s)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	REG_GET(CM_IGAM_CONTROL,
+			CM_IGAM_LUT_MODE, &s->igam_lut_mode);
+	REG_GET(CM_IGAM_CONTROL,
+			CM_IGAM_INPUT_FORMAT, &s->igam_input_format);
+	REG_GET(CM_DGAM_CONTROL,
+			CM_DGAM_LUT_MODE, &s->dgam_lut_mode);
+	REG_GET(CM_RGAM_CONTROL,
+			CM_RGAM_LUT_MODE, &s->rgam_lut_mode);
+	REG_GET(CM_GAMUT_REMAP_CONTROL,
+			CM_GAMUT_REMAP_MODE, &s->gamut_remap_mode);
+
+	s->gamut_remap_c11_c12 = REG_READ(CM_GAMUT_REMAP_C11_C12);
+	s->gamut_remap_c13_c14 = REG_READ(CM_GAMUT_REMAP_C13_C14);
+	s->gamut_remap_c21_c22 = REG_READ(CM_GAMUT_REMAP_C21_C22);
+	s->gamut_remap_c23_c24 = REG_READ(CM_GAMUT_REMAP_C23_C24);
+	s->gamut_remap_c31_c32 = REG_READ(CM_GAMUT_REMAP_C31_C32);
+	s->gamut_remap_c33_c34 = REG_READ(CM_GAMUT_REMAP_C33_C34);
+}
+
 /* Program gamut remap in bypass mode */
 void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
 {
@@ -450,6 +474,7 @@ void dpp1_dppclk_control(
 }
 
 static const struct dpp_funcs dcn10_dpp_funcs = {
+		.dpp_read_state = dpp_read_state,
 		.dpp_reset = dpp_reset,
 		.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
 		.dpp_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,

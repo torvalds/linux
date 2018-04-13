@@ -44,7 +44,23 @@ struct dpp_grph_csc_adjustment {
 	enum graphics_gamut_adjust_type gamut_adjust_type;
 };
 
+struct dcn_dpp_state {
+	uint32_t igam_lut_mode;
+	uint32_t igam_input_format;
+	uint32_t dgam_lut_mode;
+	uint32_t rgam_lut_mode;
+	uint32_t gamut_remap_mode;
+	uint32_t gamut_remap_c11_c12;
+	uint32_t gamut_remap_c13_c14;
+	uint32_t gamut_remap_c21_c22;
+	uint32_t gamut_remap_c23_c24;
+	uint32_t gamut_remap_c31_c32;
+	uint32_t gamut_remap_c33_c34;
+};
+
 struct dpp_funcs {
+	void (*dpp_read_state)(struct dpp *dpp, struct dcn_dpp_state *s);
+
 	void (*dpp_reset)(struct dpp *dpp);
 
 	void (*dpp_set_scaler)(struct dpp *dpp,
