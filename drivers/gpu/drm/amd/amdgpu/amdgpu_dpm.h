@@ -445,6 +445,8 @@ struct amdgpu_pm {
 	uint32_t                pcie_gen_mask;
 	uint32_t                pcie_mlw_mask;
 	struct amd_pp_display_configuration pm_display_cfg;/* set by dc */
+	uint32_t                smu_prv_buffer_size;
+	struct amdgpu_bo        *smu_prv_buffer;
 };
 
 #define R600_SSTU_DFLT                               0

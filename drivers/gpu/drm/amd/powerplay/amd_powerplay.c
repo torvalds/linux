@@ -145,6 +145,37 @@ static int pp_hw_fini(void *handle)
 	return 0;
 }
 
+static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
+{
+	int r = -EINVAL;
+	void *cpu_ptr = NULL;
+	uint64_t gpu_addr;
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+
+	if (amdgpu_bo_create_kernel(adev, adev->pm.smu_prv_buffer_size,
+						PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+						&adev->pm.smu_prv_buffer,
+						&gpu_addr,
+						&cpu_ptr)) {
+		DRM_ERROR("amdgpu: failed to create smu prv buffer\n");
+		return;
+	}
+
+	if (hwmgr->hwmgr_func->notify_cac_buffer_info)
+		r = hwmgr->hwmgr_func->notify_cac_buffer_info(hwmgr,
+					lower_32_bits((unsigned long)cpu_ptr),
+					upper_32_bits((unsigned long)cpu_ptr),
+					lower_32_bits(gpu_addr),
+					upper_32_bits(gpu_addr),
+					adev->pm.smu_prv_buffer_size);
+
+	if (r) {
+		amdgpu_bo_free_kernel(&adev->pm.smu_prv_buffer, NULL, NULL);
+		adev->pm.smu_prv_buffer = NULL;
+		DRM_ERROR("amdgpu: failed to notify SMU buffer address\n");
+	}
+}
+
 static int pp_late_init(void *handle)
 {
 	struct amdgpu_device *adev = handle;
@@ -156,6 +187,8 @@ static int pp_late_init(void *handle)
 					AMD_PP_TASK_COMPLETE_INIT, NULL);
 		mutex_unlock(&hwmgr->smu_lock);
 	}
+	if (adev->pm.smu_prv_buffer_size != 0)
+		pp_reserve_vram_for_smu(adev);
 	return 0;
 }
 
@@ -163,6 +196,8 @@ static void pp_late_fini(void *handle)
 {
 	struct amdgpu_device *adev = handle;
 
+	if (adev->pm.smu_prv_buffer)
+		amdgpu_bo_free_kernel(&adev->pm.smu_prv_buffer, NULL, NULL);
 	amd_powerplay_destroy(adev);
 }
 

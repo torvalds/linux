@@ -690,6 +690,8 @@ void amdgpu_device_gart_location(struct amdgpu_device *adev,
 {
 	u64 size_af, size_bf;
 
+	mc->gart_size += adev->pm.smu_prv_buffer_size;
+
 	size_af = adev->gmc.mc_mask - mc->vram_end;
 	size_bf = mc->vram_start;
 	if (size_bf > size_af) {
@@ -907,6 +909,46 @@ static void amdgpu_device_check_vm_size(struct amdgpu_device *adev)
 	}
 }
 
+static void amdgpu_device_check_smu_prv_buffer_size(struct amdgpu_device *adev)
+{
+	struct sysinfo si;
+	bool is_os_64 = (sizeof(void *) == 8) ? true : false;
+	uint64_t total_memory;
+	uint64_t dram_size_seven_GB = 0x1B8000000;
+	uint64_t dram_size_three_GB = 0xB8000000;
+
+	if (amdgpu_smu_memory_pool_size == 0)
+		return;
+
+	if (!is_os_64) {
+		DRM_WARN("Not 64-bit OS, feature not supported\n");
+		goto def_value;
+	}
+	si_meminfo(&si);
+	total_memory = (uint64_t)si.totalram * si.mem_unit;
+
+	if ((amdgpu_smu_memory_pool_size == 1) ||
+		(amdgpu_smu_memory_pool_size == 2)) {
+		if (total_memory < dram_size_three_GB)
+			goto def_value1;
+	} else if ((amdgpu_smu_memory_pool_size == 4) ||
+		(amdgpu_smu_memory_pool_size == 8)) {
+		if (total_memory < dram_size_seven_GB)
+			goto def_value1;
+	} else {
+		DRM_WARN("Smu memory pool size not supported\n");
+		goto def_value;
+	}
+	adev->pm.smu_prv_buffer_size = amdgpu_smu_memory_pool_size << 28;
+
+	return;
+
+def_value1:
+	DRM_WARN("No enough system memory\n");
+def_value:
+	adev->pm.smu_prv_buffer_size = 0;
+}
+
 /**
  * amdgpu_device_check_arguments - validate module params
  *
@@ -947,6 +989,8 @@ static void amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "valid range is between 4 and 9\n");
 		amdgpu_vm_fragment_size = -1;
 	}
+
+	amdgpu_device_check_smu_prv_buffer_size(adev);
 
 	amdgpu_device_check_vm_size(adev);
 
