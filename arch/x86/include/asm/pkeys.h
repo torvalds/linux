@@ -7,6 +7,11 @@
 extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 		unsigned long init_val);
 
+static inline bool arch_pkeys_enabled(void)
+{
+	return boot_cpu_has(X86_FEATURE_OSPKE);
+}
+
 /*
  * Try to dedicate one of the protection keys to be used as an
  * execute-only protection key.
