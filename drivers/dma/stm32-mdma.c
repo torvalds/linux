@@ -410,13 +410,10 @@ static enum dma_slave_buswidth stm32_mdma_get_max_width(dma_addr_t addr,
 static u32 stm32_mdma_get_best_burst(u32 buf_len, u32 tlen, u32 max_burst,
 				     enum dma_slave_buswidth width)
 {
-	u32 best_burst = max_burst;
-	u32 burst_len = best_burst * width;
+	u32 best_burst;
 
-	while ((burst_len > 0) && (tlen % burst_len)) {
-		best_burst = best_burst >> 1;
-		burst_len = best_burst * width;
-	}
+	best_burst = min((u32)1 << __ffs(tlen | buf_len),
+			 max_burst * width) / width;
 
 	return (best_burst > 0) ? best_burst : 1;
 }
