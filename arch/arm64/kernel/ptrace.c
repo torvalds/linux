@@ -1046,8 +1046,6 @@ static const struct user_regset_view user_aarch64_view = {
 };
 
 #ifdef CONFIG_COMPAT
-#include <linux/compat.h>
-
 enum compat_regset {
 	REGSET_COMPAT_GPR,
 	REGSET_COMPAT_VFP,

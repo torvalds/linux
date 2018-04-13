@@ -31,7 +31,6 @@
 #include <linux/percpu.h>
 #include <linux/prctl.h>
 #include <linux/preempt.h>
-#include <linux/prctl.h>
 #include <linux/ptrace.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>

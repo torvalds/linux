@@ -72,7 +72,6 @@
 #ifdef __ASSEMBLY__
 
 #include <asm/alternative.h>
-#include <asm/cpufeature.h>
 
 /*
  * Convert a kernel VA into a HYP VA.
