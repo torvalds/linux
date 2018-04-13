@@ -851,7 +851,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 	struct efx_channel *channel = efx_get_channel(efx, req->rxq_index);
 	int rc;
 
-	rc = efx->type->filter_insert(efx, &req->spec, false);
+	rc = efx->type->filter_insert(efx, &req->spec, true);
 	if (rc >= 0) {
 		/* Remember this so we can check whether to expire the filter
 		 * later.
