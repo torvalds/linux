@@ -177,6 +177,12 @@ struct ebt_entry *ebt_next_entry(const struct ebt_entry *entry)
 	return (void *)entry + entry->next_offset;
 }
 
+static inline const struct ebt_entry_target *
+ebt_get_target_c(const struct ebt_entry *e)
+{
+	return ebt_get_target((struct ebt_entry *)e);
+}
+
 /* Do some firewalling */
 unsigned int ebt_do_table(struct sk_buff *skb,
 			  const struct nf_hook_state *state,
@@ -230,8 +236,7 @@ unsigned int ebt_do_table(struct sk_buff *skb,
 		 */
 		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, &acpar);
 
-		t = (struct ebt_entry_target *)
-		   (((char *)point) + point->target_offset);
+		t = ebt_get_target_c(point);
 		/* standard target */
 		if (!t->u.target->target)
 			verdict = ((struct ebt_standard_target *)t)->verdict;
@@ -637,7 +642,7 @@ ebt_cleanup_entry(struct ebt_entry *e, struct net *net, unsigned int *cnt)
 		return 1;
 	EBT_WATCHER_ITERATE(e, ebt_cleanup_watcher, net, NULL);
 	EBT_MATCH_ITERATE(e, ebt_cleanup_match, net, NULL);
-	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
+	t = ebt_get_target(e);
 
 	par.net      = net;
 	par.target   = t->u.target;
@@ -716,7 +721,7 @@ ebt_check_entry(struct ebt_entry *e, struct net *net,
 	ret = EBT_WATCHER_ITERATE(e, ebt_check_watcher, &tgpar, &j);
 	if (ret != 0)
 		goto cleanup_watchers;
-	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
+	t = ebt_get_target(e);
 	gap = e->next_offset - e->target_offset;
 
 	target = xt_request_find_target(NFPROTO_BRIDGE, t->u.name, 0);
@@ -789,8 +794,7 @@ static int check_chainloops(const struct ebt_entries *chain, struct ebt_cl_stack
 			if (pos == nentries)
 				continue;
 		}
-		t = (struct ebt_entry_target *)
-		   (((char *)e) + e->target_offset);
+		t = ebt_get_target_c(e);
 		if (strcmp(t->u.name, EBT_STANDARD_TARGET))
 			goto letscontinue;
 		if (e->target_offset + sizeof(struct ebt_standard_target) >
@@ -1396,7 +1400,7 @@ static inline int ebt_entry_to_user(struct ebt_entry *e, const char *base,
 		return -EFAULT;
 
 	hlp = ubase + (((char *)e + e->target_offset) - base);
-	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
+	t = ebt_get_target_c(e);
 
 	ret = EBT_MATCH_ITERATE(e, ebt_match_to_user, base, ubase);
 	if (ret != 0)
@@ -1737,7 +1741,7 @@ static int compat_copy_entry_to_user(struct ebt_entry *e, void __user **dstptr,
 		return ret;
 	target_offset = e->target_offset - (origsize - *size);
 
-	t = (struct ebt_entry_target *) ((char *) e + e->target_offset);
+	t = ebt_get_target(e);
 
 	ret = compat_target_to_user(t, dstptr, size);
 	if (ret)
@@ -1785,7 +1789,7 @@ static int compat_calc_entry(const struct ebt_entry *e,
 	EBT_MATCH_ITERATE(e, compat_calc_match, &off);
 	EBT_WATCHER_ITERATE(e, compat_calc_watcher, &off);
 
-	t = (const struct ebt_entry_target *) ((char *) e + e->target_offset);
+	t = ebt_get_target_c(e);
 
 	off += xt_compat_target_offset(t->u.target);
 	off += ebt_compat_entry_padsize();
