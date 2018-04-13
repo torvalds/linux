@@ -962,20 +962,27 @@ out:
 	return ret;
 }
 
-static Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
-					    const char *name)
+/*
+ * kexec_purgatory_find_symbol - find a symbol in the purgatory
+ * @pi:		Purgatory to search in.
+ * @name:	Name of the symbol.
+ *
+ * Return: pointer to symbol in read-only symtab on success, NULL on error.
+ */
+static const Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
+						  const char *name)
 {
+	const Elf_Shdr *sechdrs;
 	const Elf_Ehdr *ehdr;
-	Elf_Sym *syms;
-	Elf_Shdr *sechdrs;
-	int i, k;
+	const Elf_Sym *syms;
 	const char *strtab;
+	int i, k;
 
-	if (!pi->sechdrs || !pi->ehdr)
+	if (!pi->ehdr)
 		return NULL;
 
-	sechdrs = pi->sechdrs;
 	ehdr = pi->ehdr;
+	sechdrs = (void *)ehdr + ehdr->e_shoff;
 
 	for (i = 0; i < ehdr->e_shnum; i++) {
 		if (sechdrs[i].sh_type != SHT_SYMTAB)
@@ -984,8 +991,8 @@ static Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
 		if (sechdrs[i].sh_link >= ehdr->e_shnum)
 			/* Invalid strtab section number */
 			continue;
-		strtab = (char *)sechdrs[sechdrs[i].sh_link].sh_offset;
-		syms = (Elf_Sym *)sechdrs[i].sh_offset;
+		strtab = (void *)ehdr + sechdrs[sechdrs[i].sh_link].sh_offset;
+		syms = (void *)ehdr + sechdrs[i].sh_offset;
 
 		/* Go through symbols for a match */
 		for (k = 0; k < sechdrs[i].sh_size/sizeof(Elf_Sym); k++) {
@@ -1013,7 +1020,7 @@ static Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
 void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name)
 {
 	struct purgatory_info *pi = &image->purgatory_info;
-	Elf_Sym *sym;
+	const Elf_Sym *sym;
 	Elf_Shdr *sechdr;
 
 	sym = kexec_purgatory_find_symbol(pi, name);
@@ -1036,9 +1043,9 @@ void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name)
 int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 				   void *buf, unsigned int size, bool get_value)
 {
-	Elf_Sym *sym;
-	Elf_Shdr *sechdrs;
 	struct purgatory_info *pi = &image->purgatory_info;
+	const Elf_Sym *sym;
+	Elf_Shdr *sec;
 	char *sym_buf;
 
 	sym = kexec_purgatory_find_symbol(pi, name);
@@ -1051,16 +1058,15 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 		return -EINVAL;
 	}
 
-	sechdrs = pi->sechdrs;
+	sec = pi->sechdrs + sym->st_shndx;
 
-	if (sechdrs[sym->st_shndx].sh_type == SHT_NOBITS) {
+	if (sec->sh_type == SHT_NOBITS) {
 		pr_err("symbol %s is in a bss section. Cannot %s\n", name,
 		       get_value ? "get" : "set");
 		return -EINVAL;
 	}
 
-	sym_buf = (unsigned char *)sechdrs[sym->st_shndx].sh_offset +
-					sym->st_value;
+	sym_buf = (char *)sec->sh_offset + sym->st_value;
 
 	if (get_value)
 		memcpy((void *)buf, sym_buf, size);
