@@ -1297,6 +1297,11 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 				cpu_to_le32(timing->suspend_time);
 		}
 	}
+
+	if (iwl_mvm_is_regular_scan(params))
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+	else
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_2);
 }
 
 static void
