@@ -220,8 +220,8 @@ static int ad7746_select_channel(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan)
 {
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	int ret, delay, idx;
 	u8 vt_setup, cap_setup;
+	int ret, delay, idx;
 
 	switch (chan->type) {
 	case IIO_CAPACITANCE:
@@ -289,8 +289,8 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	bool doit;
 	int ret, timeout = 10;
+	bool doit;
 
 	ret = strtobool(buf, &doit);
 	if (ret < 0)
@@ -680,8 +680,8 @@ static int ad7746_probe(struct i2c_client *client,
 	struct ad7746_platform_data *pdata = client->dev.platform_data;
 	struct ad7746_chip_info *chip;
 	struct iio_dev *indio_dev;
-	int ret = 0;
 	unsigned char regval = 0;
+	int ret = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
