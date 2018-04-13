@@ -349,12 +349,6 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
 			(adev)->powerplay.pp_handle, msg_id))
 
-#define amdgpu_dpm_notify_smu_memory_info(adev, virtual_addr_low, \
-			virtual_addr_hi, mc_addr_low, mc_addr_hi, size) \
-		((adev)->powerplay.pp_funcs->notify_smu_memory_info)( \
-			(adev)->powerplay.pp_handle, virtual_addr_low, \
-			virtual_addr_hi, mc_addr_low, mc_addr_hi, size)
-
 #define amdgpu_dpm_get_power_profile_mode(adev, buf) \
 		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
 			(adev)->powerplay.pp_handle, buf))

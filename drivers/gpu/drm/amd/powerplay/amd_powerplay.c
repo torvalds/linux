@@ -934,35 +934,6 @@ static int pp_dpm_switch_power_profile(void *handle,
 	return 0;
 }
 
-static int pp_dpm_notify_smu_memory_info(void *handle,
-					uint32_t virtual_addr_low,
-					uint32_t virtual_addr_hi,
-					uint32_t mc_addr_low,
-					uint32_t mc_addr_hi,
-					uint32_t size)
-{
-	struct pp_hwmgr *hwmgr = handle;
-	int ret = 0;
-
-	if (!hwmgr || !hwmgr->pm_en)
-		return -EINVAL;
-
-	if (hwmgr->hwmgr_func->notify_cac_buffer_info == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return -EINVAL;
-	}
-
-	mutex_lock(&hwmgr->smu_lock);
-
-	ret = hwmgr->hwmgr_func->notify_cac_buffer_info(hwmgr, virtual_addr_low,
-					virtual_addr_hi, mc_addr_low, mc_addr_hi,
-					size);
-
-	mutex_unlock(&hwmgr->smu_lock);
-
-	return ret;
-}
-
 static int pp_set_power_limit(void *handle, uint32_t limit)
 {
 	struct pp_hwmgr *hwmgr = handle;
@@ -1229,7 +1200,6 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
 	.switch_power_profile = pp_dpm_switch_power_profile,
 	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
-	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,
 	.get_power_profile_mode = pp_get_power_profile_mode,
 	.set_power_profile_mode = pp_set_power_profile_mode,
 	.odn_edit_dpm_table = pp_odn_edit_dpm_table,
