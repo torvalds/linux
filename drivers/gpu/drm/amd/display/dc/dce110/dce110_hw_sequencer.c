@@ -2269,74 +2269,6 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 
 	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
 }
-
-/**
- * TODO REMOVE, USE UPDATE INSTEAD
- */
-static void set_plane_config(
-	const struct dc *dc,
-	struct pipe_ctx *pipe_ctx,
-	struct resource_context *res_ctx)
-{
-	struct mem_input *mi = pipe_ctx->plane_res.mi;
-	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	struct xfm_grph_csc_adjustment adjust;
-	struct out_csc_color_matrix tbl_entry;
-	unsigned int i;
-
-	memset(&adjust, 0, sizeof(adjust));
-	memset(&tbl_entry, 0, sizeof(tbl_entry));
-	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
-
-	dce_enable_fe_clock(dc->hwseq, mi->inst, true);
-
-	set_default_colors(pipe_ctx);
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-		tbl_entry.color_space =
-			pipe_ctx->stream->output_color_space;
-
-		for (i = 0; i < 12; i++)
-			tbl_entry.regval[i] =
-			pipe_ctx->stream->csc_color_matrix.matrix[i];
-
-		pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment
-				(pipe_ctx->plane_res.xfm, &tbl_entry);
-	}
-
-	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
-		adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-
-		for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
-			adjust.temperature_matrix[i] =
-				pipe_ctx->stream->gamut_remap_matrix.matrix[i];
-	}
-
-	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
-
-	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
-	program_scaler(dc, pipe_ctx);
-
-	program_surface_visibility(dc, pipe_ctx);
-
-	mi->funcs->mem_input_program_surface_config(
-			mi,
-			plane_state->format,
-			&plane_state->tiling_info,
-			&plane_state->plane_size,
-			plane_state->rotation,
-			NULL,
-			false);
-	if (mi->funcs->set_blank)
-		mi->funcs->set_blank(mi, pipe_ctx->plane_state->visible);
-
-	if (dc->config.gpu_vm_support)
-		mi->funcs->mem_input_program_pte_vm(
-				pipe_ctx->plane_res.mi,
-				plane_state->format,
-				&plane_state->tiling_info,
-				plane_state->rotation);
-}
-
 static void update_plane_addr(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
@@ -3023,7 +2955,6 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.init_hw = init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,
-	.set_plane_config = set_plane_config,
 	.update_plane_addr = update_plane_addr,
 	.update_pending_status = dce110_update_pending_status,
 	.set_input_transfer_func = dce110_set_input_transfer_func,

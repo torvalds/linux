@@ -2487,15 +2487,6 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
 }
 
-static void set_plane_config(
-	const struct dc *dc,
-	struct pipe_ctx *pipe_ctx,
-	struct resource_context *res_ctx)
-{
-	/* TODO */
-	program_gamut_remap(pipe_ctx);
-}
-
 static void dcn10_config_stereo_parameters(
 		struct dc_stream_state *stream, struct crtc_stereo_flags *flags)
 {
@@ -2673,7 +2664,6 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.init_hw = dcn10_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
-	.set_plane_config = set_plane_config,
 	.update_plane_addr = dcn10_update_plane_addr,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
