@@ -286,12 +286,12 @@ config MARCH_Z13
 	  older machines.
 
 config MARCH_Z14
-	bool "IBM z14"
+	bool "IBM z14 ZR1 and z14"
 	select HAVE_MARCH_Z14_FEATURES
 	help
-	  Select this to enable optimizations for IBM z14 (3906 series).
-	  The kernel will be slightly faster but will not work on older
-	  machines.
+	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
+	  and 3906 series). The kernel will be slightly faster but will not
+	  work on older machines.
 
 endchoice
 
