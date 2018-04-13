@@ -117,7 +117,6 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 static bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
 {
 	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
-	int extra_isize = le32_to_cpu(ri->i_extra_isize);
 
 	if (!f2fs_sb_has_inode_chksum(sbi->sb))
 		return false;
@@ -125,7 +124,8 @@ static bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct page *page
 	if (!RAW_IS_INODE(F2FS_NODE(page)) || !(ri->i_inline & F2FS_EXTRA_ATTR))
 		return false;
 
-	if (!F2FS_FITS_IN_INODE(ri, extra_isize, i_inode_checksum))
+	if (!F2FS_FITS_IN_INODE(ri, le16_to_cpu(ri->i_extra_isize),
+				i_inode_checksum))
 		return false;
 
 	return true;
