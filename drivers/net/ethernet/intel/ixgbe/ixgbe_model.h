@@ -29,8 +29,8 @@ static inline int ixgbe_mat_prgm_sip(struct ixgbe_fdir_filter *input,
 				     union ixgbe_atr_input *mask,
 				     u32 val, u32 m)
 {
-	input->filter.formatted.src_ip[0] = val;
-	mask->formatted.src_ip[0] = m;
+	input->filter.formatted.src_ip[0] = (__force __be32)val;
+	mask->formatted.src_ip[0] = (__force __be32)m;
 	return 0;
 }
 
@@ -38,8 +38,8 @@ static inline int ixgbe_mat_prgm_dip(struct ixgbe_fdir_filter *input,
 				     union ixgbe_atr_input *mask,
 				     u32 val, u32 m)
 {
-	input->filter.formatted.dst_ip[0] = val;
-	mask->formatted.dst_ip[0] = m;
+	input->filter.formatted.dst_ip[0] = (__force __be32)val;
+	mask->formatted.dst_ip[0] = (__force __be32)m;
 	return 0;
 }
 
@@ -55,10 +55,10 @@ static inline int ixgbe_mat_prgm_ports(struct ixgbe_fdir_filter *input,
 				       union ixgbe_atr_input *mask,
 				       u32 val, u32 m)
 {
-	input->filter.formatted.src_port = val & 0xffff;
-	mask->formatted.src_port = m & 0xffff;
-	input->filter.formatted.dst_port = val >> 16;
-	mask->formatted.dst_port = m >> 16;
+	input->filter.formatted.src_port = (__force __be16)(val & 0xffff);
+	mask->formatted.src_port = (__force __be16)(m & 0xffff);
+	input->filter.formatted.dst_port = (__force __be16)(val >> 16);
+	mask->formatted.dst_port = (__force __be16)(m >> 16);
 
 	return 0;
 };

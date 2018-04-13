@@ -1436,7 +1436,8 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 {
 
 	u32 hi_hash_dword, lo_hash_dword, flow_vm_vlan;
-	u32 bucket_hash = 0, hi_dword = 0;
+	u32 bucket_hash = 0;
+	__be32 hi_dword = 0;
 	int i;
 
 	/* Apply masks to input data */
@@ -1475,7 +1476,7 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 	 * Limit hash to 13 bits since max bucket count is 8K.
 	 * Store result at the end of the input stream.
 	 */
-	input->formatted.bkt_hash = bucket_hash & 0x1FFF;
+	input->formatted.bkt_hash = (__force __be16)(bucket_hash & 0x1FFF);
 }
 
 /**
@@ -1584,7 +1585,7 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 		return IXGBE_ERR_CONFIG;
 	}
 
-	switch (input_mask->formatted.flex_bytes & 0xFFFF) {
+	switch ((__force u16)input_mask->formatted.flex_bytes & 0xFFFF) {
 	case 0x0000:
 		/* Mask Flex Bytes */
 		fdirm |= IXGBE_FDIRM_FLEX;
@@ -1654,13 +1655,13 @@ s32 ixgbe_fdir_write_perfect_filter_82599(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, fdirport);
 
 	/* record vlan (little-endian) and flex_bytes(big-endian) */
-	fdirvlan = IXGBE_STORE_AS_BE16(input->formatted.flex_bytes);
+	fdirvlan = IXGBE_STORE_AS_BE16((__force u16)input->formatted.flex_bytes);
 	fdirvlan <<= IXGBE_FDIRVLAN_FLEX_SHIFT;
 	fdirvlan |= ntohs(input->formatted.vlan_id);
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, fdirvlan);
 
 	/* configure FDIRHASH register */
-	fdirhash = input->formatted.bkt_hash;
+	fdirhash = (__force u32)input->formatted.bkt_hash;
 	fdirhash |= soft_id << IXGBE_FDIRHASH_SIG_SW_INDEX_SHIFT;
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRHASH, fdirhash);
 
@@ -1698,7 +1699,7 @@ s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 	s32 err;
 
 	/* configure FDIRHASH register */
-	fdirhash = input->formatted.bkt_hash;
+	fdirhash = (__force u32)input->formatted.bkt_hash;
 	fdirhash |= soft_id << IXGBE_FDIRHASH_SIG_SW_INDEX_SHIFT;
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRHASH, fdirhash);
 
