@@ -4245,6 +4245,9 @@ F:	include/trace/events/fs_dax.h
 
 DEVICE DIRECT ACCESS (DAX)
 M:	Dan Williams <dan.j.williams@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
 L:	linux-nvdimm@lists.01.org
 S:	Supported
 F:	drivers/dax/
@@ -8048,6 +8051,9 @@ F:	tools/lib/lockdep/
 
 LIBNVDIMM BLK: MMIO-APERTURE DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
@@ -8056,6 +8062,9 @@ F:	drivers/nvdimm/region_devs.c
 
 LIBNVDIMM BTT: BLOCK TRANSLATION TABLE
 M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
@@ -8063,6 +8072,9 @@ F:	drivers/nvdimm/btt*
 
 LIBNVDIMM PMEM: PERSISTENT MEMORY DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 S:	Supported
@@ -8078,6 +8090,9 @@ F:	Documentation/devicetree/bindings/pmem/pmem-region.txt
 
 LIBNVDIMM: NON-VOLATILE MEMORY DEVICE SUBSYSTEM
 M:	Dan Williams <dan.j.williams@intel.com>
+M:	Ross Zwisler <ross.zwisler@linux.intel.com>
+M:	Vishal Verma <vishal.l.verma@intel.com>
+M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-nvdimm@lists.01.org
 Q:	https://patchwork.kernel.org/project/linux-nvdimm/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git
