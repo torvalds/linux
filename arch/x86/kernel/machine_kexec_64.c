@@ -30,8 +30,9 @@
 #include <asm/set_memory.h>
 
 #ifdef CONFIG_KEXEC_FILE
-static struct kexec_file_ops *kexec_file_loaders[] = {
+const struct kexec_file_ops * const kexec_file_loaders[] = {
 		&kexec_bzImage64_ops,
+		NULL
 };
 #endif
 
@@ -364,27 +365,6 @@ void arch_crash_save_vmcoreinfo(void)
 /* arch-dependent functionality related to kexec file-based syscall */
 
 #ifdef CONFIG_KEXEC_FILE
-int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
-				  unsigned long buf_len)
-{
-	int i, ret = -ENOEXEC;
-	struct kexec_file_ops *fops;
-
-	for (i = 0; i < ARRAY_SIZE(kexec_file_loaders); i++) {
-		fops = kexec_file_loaders[i];
-		if (!fops || !fops->probe)
-			continue;
-
-		ret = fops->probe(buf, buf_len);
-		if (!ret) {
-			image->fops = fops;
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
 void *arch_kexec_kernel_image_load(struct kimage *image)
 {
 	vfree(image->arch.elf_headers);
@@ -398,27 +378,6 @@ void *arch_kexec_kernel_image_load(struct kimage *image)
 				 image->initrd_buf_len, image->cmdline_buf,
 				 image->cmdline_buf_len);
 }
-
-int arch_kimage_file_post_load_cleanup(struct kimage *image)
-{
-	if (!image->fops || !image->fops->cleanup)
-		return 0;
-
-	return image->fops->cleanup(image->image_loader_data);
-}
-
-#ifdef CONFIG_KEXEC_VERIFY_SIG
-int arch_kexec_kernel_verify_sig(struct kimage *image, void *kernel,
-				 unsigned long kernel_len)
-{
-	if (!image->fops || !image->fops->verify_sig) {
-		pr_debug("kernel loader does not support signature verification.");
-		return -EKEYREJECTED;
-	}
-
-	return image->fops->verify_sig(kernel, kernel_len);
-}
-#endif
 
 /*
  * Apply purgatory relocations.

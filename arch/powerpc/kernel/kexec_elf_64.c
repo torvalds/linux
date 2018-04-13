@@ -657,7 +657,7 @@ out:
 	return ret ? ERR_PTR(ret) : fdt;
 }
 
-struct kexec_file_ops kexec_elf64_ops = {
+const struct kexec_file_ops kexec_elf64_ops = {
 	.probe = elf64_probe,
 	.load = elf64_load,
 };
