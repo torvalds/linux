@@ -502,6 +502,7 @@ enum dmi_field {
 	DMI_CHASSIS_SERIAL,
 	DMI_CHASSIS_ASSET_TAG,
 	DMI_STRING_MAX,
+	DMI_OEM_STRING,	/* special case - will not be in dmi_ident */
 };
 
 struct dmi_strmatch {

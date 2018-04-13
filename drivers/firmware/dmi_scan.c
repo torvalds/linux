@@ -775,7 +775,15 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
 		int s = dmi->matches[i].slot;
 		if (s == DMI_NONE)
 			break;
-		if (dmi_ident[s]) {
+		if (s == DMI_OEM_STRING) {
+			/* DMI_OEM_STRING must be exact match */
+			const struct dmi_device *valid;
+
+			valid = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
+						dmi->matches[i].substr, NULL);
+			if (valid)
+				continue;
+		} else if (dmi_ident[s]) {
 			if (dmi->matches[i].exact_match) {
 				if (!strcmp(dmi_ident[s],
 					    dmi->matches[i].substr))
