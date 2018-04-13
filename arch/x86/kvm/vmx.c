@@ -2886,20 +2886,6 @@ static u64 vmx_read_l1_tsc_offset(struct kvm_vcpu *vcpu)
 }
 
 /*
- * reads and returns guest's timestamp counter "register"
- * guest_tsc = (host_tsc * tsc multiplier) >> 48 + tsc_offset
- * -- Intel TSC Scaling for Virtualization White Paper, sec 1.3
- */
-static u64 guest_read_tsc(struct kvm_vcpu *vcpu)
-{
-	u64 host_tsc, tsc_offset;
-
-	host_tsc = rdtsc();
-	tsc_offset = vmcs_read64(TSC_OFFSET);
-	return kvm_scale_tsc(vcpu, host_tsc) + tsc_offset;
-}
-
-/*
  * writes 'offset' into guest's timestamp counter offset register
  */
 static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
@@ -3529,9 +3515,6 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 #endif
 	case MSR_EFER:
 		return kvm_get_msr_common(vcpu, msr_info);
-	case MSR_IA32_TSC:
-		msr_info->data = guest_read_tsc(vcpu);
-		break;
 	case MSR_IA32_SPEC_CTRL:
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_IBRS) &&
@@ -3650,9 +3633,6 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		    (data & MSR_IA32_BNDCFGS_RSVD))
 			return 1;
 		vmcs_write64(GUEST_BNDCFGS, data);
-		break;
-	case MSR_IA32_TSC:
-		kvm_write_tsc(vcpu, msr_info);
 		break;
 	case MSR_IA32_SPEC_CTRL:
 		if (!msr_info->host_initiated &&
