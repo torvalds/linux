@@ -615,7 +615,7 @@ a block I/O request.
 
    struct bio {
        //...
-       struct block_device     *bi_bdev;
+       struct gendisk          *bi_disk;
        unsigned int            bi_opf;         /* bottom bits req flags, top bits REQ_OP. Use accessors. */
        //... 
        struct bio_vec          *bi_io_vec;     /* the actual vec list */
@@ -707,7 +707,7 @@ The :c:member:`bi_opf` field specifies the type of operation. Use the
 
    struct bio *bio = bio_alloc(GFP_NOIO, 1);  
    //...
-   bio->bi_bdev = bdev;
+   bio->bi_disk = bdev->bd_disk;
    bio->bi_iter.bi_sector = sector;
    bio_set_op_attrs(bio, REQ_OP_READ, 0);
    bio_add_page(bio, page, size, offset);
