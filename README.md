@@ -9,19 +9,18 @@ sudo apt-get install gcc-arm-linux-gnueabihf libc6-armhf-cross u-boot-tools bc m
 
 ## Usage
 
+```sh
   ./build.sh importconfig
-  
   ./build.sh config
-  
   ./build.sh
+```
 
 ## Branch details
 
-Kernel upstream branch are:
- * 4.16, 4.14
-
 Kernel upstream + BPI-R2
-* 4.16_main, 4.14_main, 4.9(_main)
+* 4.14-main
+* 4.9-main
+* 4.16-main (currently not compiling because of wifi driver)
 
 ## Kernel version
 
@@ -29,14 +28,14 @@ Kernel breakdown features by version
 
 |          | 4.4 | 4.9 | 4.14 | 4.16|
 |----------| --- | --- | --- | --- |
-| PCIe     |  Y  |  Y  |  Y  |  Y  |
-| SATA     |  Y  |  Y  |  Y  |  Y  |
+| PCIe     |  Y  |  Y  |  Y  |  Y?  |
+| SATA     |  Y  |  Y  |  Y  |  Y?  |
 | 2 GMAC   |  Y  |  Y  |  N  |  N  |
-| DSA      |  N  |  Y  |  Y  |  Y  |
+| DSA      |  N  |  Y  |  Y  |  Y?  |
 | VLAN     |     |     |  Y  |     |
 | HW NAT   |     |  Y  |  Y? |     |
 | HW QOS   |     |  Y  |  Y? |     |
-| Crypto   |  Y  |  Y  |  Y  |  Y  |
+| Crypto   |  Y  |  Y  |  Y  |  Y?  |
 | WIFI     |     |     |  Y  |     |
 | BT       |     |     |     |     |
 | VIDEO    |  Y  |  N  |  N  |  N  |
