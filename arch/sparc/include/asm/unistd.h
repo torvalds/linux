@@ -21,6 +21,7 @@
 #else
 #define __NR_time		231 /* Linux sparc32                               */
 #endif
+#define __ARCH_WANT_NEW_STAT
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_ALARM

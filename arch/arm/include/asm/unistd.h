@@ -16,6 +16,7 @@
 #include <uapi/asm/unistd.h>
 #include <asm/unistd-nr.h>
 
+#define __ARCH_WANT_NEW_STAT
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE
