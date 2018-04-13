@@ -16,7 +16,8 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 				 enum dma_data_direction dir,
 				 unsigned long attrs)
 {
-	dma_addr_t addr = page_to_phys(page) + offset;
+	dma_addr_t addr = page_to_phys(page) + offset
+		- PFN_PHYS(dev->dma_pfn_offset);
 
 	WARN_ON(size == 0);
 
@@ -36,12 +37,14 @@ static int nommu_map_sg(struct device *dev, struct scatterlist *sg,
 	WARN_ON(nents == 0 || sg[0].length == 0);
 
 	for_each_sg(sg, s, nents, i) {
+		dma_addr_t offset = PFN_PHYS(dev->dma_pfn_offset);
+
 		BUG_ON(!sg_page(s));
 
 		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 			sh_sync_dma_for_device(sg_virt(s), s->length, dir);
 
-		s->dma_address = sg_phys(s);
+		s->dma_address = sg_phys(s) - offset;
 		s->dma_length = s->length;
 	}
 
