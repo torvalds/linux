@@ -405,8 +405,8 @@ static int rvin_s_selection(struct file *file, void *fh,
 		max_rect.height = vin->source.height;
 		v4l2_rect_map_inside(&r, &max_rect);
 
-		v4l_bound_align_image(&r.width, 2, vin->source.width, 1,
-				      &r.height, 4, vin->source.height, 2, 0);
+		v4l_bound_align_image(&r.width, 6, vin->source.width, 0,
+				      &r.height, 2, vin->source.height, 0, 0);
 
 		r.top  = clamp_t(s32, r.top, 0, vin->source.height - r.height);
 		r.left = clamp_t(s32, r.left, 0, vin->source.width - r.width);
