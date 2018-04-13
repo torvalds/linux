@@ -469,6 +469,13 @@ static void link_disconnect_sink(struct dc_link *link)
 	link->dpcd_sink_count = 0;
 }
 
+static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *link)
+{
+	dc_sink_release(link->local_sink);
+	link->local_sink = prev_sink;
+}
+
+
 static bool detect_dp(
 	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
@@ -551,6 +558,17 @@ static bool detect_dp(
 	return true;
 }
 
+static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
+{
+	if (old_edid->length != new_edid->length)
+		return false;
+
+	if (new_edid->length == 0)
+		return false;
+
+	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
+}
+
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
@@ -558,9 +576,13 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	uint8_t i;
 	bool converter_disable_audio = false;
 	struct audio_support *aud_support = &link->dc->res_pool->audio_support;
+	bool same_edid = false;
 	enum dc_edid_status edid_status;
 	struct dc_context *dc_ctx = link->ctx;
 	struct dc_sink *sink = NULL;
+	struct dc_sink *prev_sink = NULL;
+	struct dpcd_caps prev_dpcd_caps;
+	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	DC_LOGGER_INIT(link->ctx->logger);
 	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
@@ -575,6 +597,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			link->local_sink)
 		return true;
 
+	prev_sink = link->local_sink;
+	if (prev_sink != NULL) {
+		dc_sink_retain(prev_sink);
+		memcpy(&prev_dpcd_caps, &link->dpcd_caps, sizeof(struct dpcd_caps));
+	}
 	link_disconnect_sink(link);
 
 	if (new_connection_type != dc_connection_none) {
@@ -616,14 +643,25 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				link,
 				&sink_caps,
 				&converter_disable_audio,
-				aud_support, reason))
+				aud_support, reason)) {
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
 				return false;
+			}
 
+			// Check if dpcp block is the same
+			if (prev_sink != NULL) {
+				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
+					same_dpcd = false;
+			}
 			/* Active dongle downstream unplug */
 			if (link->type == dc_connection_active_dongle
 					&& link->dpcd_caps.sink_count.
-					bits.SINK_COUNT == 0)
+					bits.SINK_COUNT == 0) {
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
 				return true;
+			}
 
 			if (link->type == dc_connection_mst_branch) {
 				LINK_INFO("link=%d, mst branch is now Connected\n",
@@ -634,6 +672,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				 * pbn_per_slot value leading to exception on dc_fixpt_div()
 				 */
 				link->verified_link_cap = link->reported_link_cap;
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
 				return false;
 			}
 
@@ -643,6 +683,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		default:
 			DC_ERROR("Invalid connector type! signal:%d\n",
 				link->connector_signal);
+			if (prev_sink != NULL)
+				dc_sink_release(prev_sink);
 			return false;
 		} /* switch() */
 
@@ -665,6 +707,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink = dc_sink_create(&sink_init_data);
 		if (!sink) {
 			DC_ERROR("Failed to create sink!\n");
+			if (prev_sink != NULL)
+				dc_sink_release(prev_sink);
 			return false;
 		}
 
@@ -688,22 +732,33 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			break;
 		}
 
-		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
-			sink_caps.transaction_type ==
-			DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
-			/*
-			 * TODO debug why Dell 2413 doesn't like
-			 *  two link trainings
-			 */
+		// Check if edid is the same
+		if ((prev_sink != NULL) && ((edid_status == EDID_THE_SAME) || (edid_status == EDID_OK)))
+			same_edid = is_same_edid(&prev_sink->dc_edid, &sink->dc_edid);
 
-			/* deal with non-mst cases */
-			dp_hbr_verify_link_cap(link, &link->reported_link_cap);
+		// If both edid and dpcd are the same, then discard new sink and revert back to original sink
+		if ((same_edid) && (same_dpcd)) {
+			link_disconnect_remap(prev_sink, link);
+			sink = prev_sink;
+			prev_sink = NULL;
+		} else {
+			if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+					sink_caps.transaction_type ==
+						DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
+				/*
+				 * TODO debug why Dell 2413 doesn't like
+				 *  two link trainings
+				 */
+
+				/* deal with non-mst cases */
+				dp_hbr_verify_link_cap(link, &link->reported_link_cap);
+			}
+
+			/* HDMI-DVI Dongle */
+			if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
+					!sink->edid_caps.edid_hdmi)
+				sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
-
-		/* HDMI-DVI Dongle */
-		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
-				!sink->edid_caps.edid_hdmi)
-			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
 		for (i = 0; i < sink->dc_edid.length / EDID_BLOCK_SIZE; i++) {
@@ -762,10 +817,14 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink_caps.signal = SIGNAL_TYPE_NONE;
 	}
 
-	LINK_INFO("link=%d, dc_sink_in=%p is now %s\n",
+	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p dpcd same=%d edid same=%d\n",
 		link->link_index, sink,
 		(sink_caps.signal == SIGNAL_TYPE_NONE ?
-			"Disconnected":"Connected"));
+			"Disconnected":"Connected"), prev_sink,
+			same_dpcd, same_edid);
+
+	if (prev_sink != NULL)
+		dc_sink_release(prev_sink);
 
 	return true;
 }
