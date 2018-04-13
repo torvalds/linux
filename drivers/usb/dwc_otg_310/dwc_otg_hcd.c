@@ -658,6 +658,9 @@ int dwc_otg_hcd_endpoint_disable(dwc_otg_hcd_t *hcd, void *ep_handle,
 		DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 	}
 
+	if (qh->channel)
+		hc_regs = hcd->core_if->host_if->hc_regs[qh->channel->hc_num];
+
 	if (!DWC_CIRCLEQ_EMPTY(&qh->qtd_list) && hc_regs) {
 		hcchar.d32 = DWC_READ_REG32(&hc_regs->hcchar);
 		if (hcchar.b.chen) {
