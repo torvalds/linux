@@ -288,6 +288,17 @@ int __init sclp_early_get_memsize(unsigned long *mem)
 	return 0;
 }
 
+int __init sclp_early_get_hsa_size(unsigned long *hsa_size)
+{
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	*hsa_size = 0;
+	if (sclp_info_sccb.hsa_size)
+		*hsa_size = (sclp_info_sccb.hsa_size - 1) * PAGE_SIZE;
+	return 0;
+}
+
 #define SCLP_STORAGE_INFO_FACILITY     0x0000400000000000UL
 
 void __weak __init add_mem_detect_block(u64 start, u64 end) {}

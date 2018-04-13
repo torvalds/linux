@@ -115,6 +115,7 @@ void sclp_early_printk_force(const char *s);
 void __sclp_early_printk(const char *s, unsigned int len, unsigned int force);
 
 int sclp_early_get_memsize(unsigned long *mem);
+int sclp_early_get_hsa_size(unsigned long *hsa_size);
 int _sclp_get_core_info(struct sclp_core_info *info);
 int sclp_core_configure(u8 core);
 int sclp_core_deconfigure(u8 core);
