@@ -832,6 +832,10 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_GLK_SD)
 		slot->host->mmc_host_ops.get_cd = bxt_get_cd;
 
+	if (slot->chip->pdev->subsystem_vendor == PCI_VENDOR_ID_NI &&
+	    slot->chip->pdev->subsystem_device == PCI_SUBDEVICE_ID_NI_78E3)
+		slot->host->mmc->caps2 |= MMC_CAP2_AVOID_3_3V;
+
 	return 0;
 }
 
