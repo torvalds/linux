@@ -203,26 +203,6 @@ void intel_guc_fini(struct intel_guc *guc)
 	guc_shared_data_destroy(guc);
 }
 
-static u32 get_gt_type(struct drm_i915_private *dev_priv)
-{
-	/* XXX: GT type based on PCI device ID? field seems unused by fw */
-	return 0;
-}
-
-static u32 get_core_family(struct drm_i915_private *dev_priv)
-{
-	u32 gen = INTEL_GEN(dev_priv);
-
-	switch (gen) {
-	case 9:
-		return GUC_CORE_FAMILY_GEN9;
-
-	default:
-		MISSING_CASE(gen);
-		return GUC_CORE_FAMILY_UNKNOWN;
-	}
-}
-
 static u32 get_log_control_flags(void)
 {
 	u32 level = i915_modparams.guc_log_level;
@@ -254,10 +234,6 @@ void intel_guc_init_params(struct intel_guc *guc)
 	int i;
 
 	memset(params, 0, sizeof(params));
-
-	params[GUC_CTL_DEVICE_INFO] |=
-		(get_gt_type(dev_priv) << GUC_CTL_GT_TYPE_SHIFT) |
-		(get_core_family(dev_priv) << GUC_CTL_CORE_FAMILY_SHIFT);
 
 	/*
 	 * GuC ARAT increment is 10 ns. GuC default scheduler quantum is one
