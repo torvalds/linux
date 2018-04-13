@@ -228,8 +228,8 @@ static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 		goto fail;
 
 	/* Encode an upper or lower file handle */
-	fh = ovl_encode_fh(enc_lower ? ovl_dentry_lower(dentry) :
-				       ovl_dentry_upper(dentry), !enc_lower);
+	fh = ovl_encode_real_fh(enc_lower ? ovl_dentry_lower(dentry) :
+				ovl_dentry_upper(dentry), !enc_lower);
 	err = PTR_ERR(fh);
 	if (IS_ERR(fh))
 		goto fail;
@@ -267,8 +267,8 @@ static int ovl_dentry_to_fh(struct dentry *dentry, u32 *fid, int *max_len)
 	return OVL_FILEID;
 }
 
-static int ovl_encode_inode_fh(struct inode *inode, u32 *fid, int *max_len,
-			       struct inode *parent)
+static int ovl_encode_fh(struct inode *inode, u32 *fid, int *max_len,
+			 struct inode *parent)
 {
 	struct dentry *dentry;
 	int type;
@@ -305,14 +305,11 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 	if (d_is_dir(upper ?: lower))
 		return ERR_PTR(-EIO);
 
-	inode = ovl_get_inode(sb, dget(upper), lower, index, !!lower);
+	inode = ovl_get_inode(sb, dget(upper), lowerpath, index, !!lower);
 	if (IS_ERR(inode)) {
 		dput(upper);
 		return ERR_CAST(inode);
 	}
-
-	if (index)
-		ovl_set_flag(OVL_INDEX, inode);
 
 	dentry = d_find_any_alias(inode);
 	if (!dentry) {
@@ -685,7 +682,7 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	if (!ofs->upper_mnt)
 		return ERR_PTR(-EACCES);
 
-	upper = ovl_decode_fh(fh, ofs->upper_mnt);
+	upper = ovl_decode_real_fh(fh, ofs->upper_mnt, true);
 	if (IS_ERR_OR_NULL(upper))
 		return upper;
 
@@ -703,25 +700,39 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 	struct ovl_path *stack = &origin;
 	struct dentry *dentry = NULL;
 	struct dentry *index = NULL;
-	struct inode *inode = NULL;
-	bool is_deleted = false;
+	struct inode *inode;
 	int err;
 
-	/* First lookup indexed upper by fh */
+	/* First lookup overlay inode in inode cache by origin fh */
+	err = ovl_check_origin_fh(ofs, fh, false, NULL, &stack);
+	if (err)
+		return ERR_PTR(err);
+
+	if (!d_is_dir(origin.dentry) ||
+	    !(origin.dentry->d_flags & DCACHE_DISCONNECTED)) {
+		inode = ovl_lookup_inode(sb, origin.dentry, false);
+		err = PTR_ERR(inode);
+		if (IS_ERR(inode))
+			goto out_err;
+		if (inode) {
+			dentry = d_find_any_alias(inode);
+			iput(inode);
+			if (dentry)
+				goto out;
+		}
+	}
+
+	/* Then lookup indexed upper/whiteout by origin fh */
 	if (ofs->indexdir) {
 		index = ovl_get_index_fh(ofs, fh);
 		err = PTR_ERR(index);
 		if (IS_ERR(index)) {
-			if (err != -ESTALE)
-				return ERR_PTR(err);
-
-			/* Found a whiteout index - treat as deleted inode */
-			is_deleted = true;
 			index = NULL;
+			goto out_err;
 		}
 	}
 
-	/* Then try to get upper dir by index */
+	/* Then try to get a connected upper dir by index */
 	if (index && d_is_dir(index)) {
 		struct dentry *upper = ovl_index_upper(ofs, index);
 
@@ -734,24 +745,19 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 		goto out;
 	}
 
-	/* Then lookup origin by fh */
-	err = ovl_check_origin_fh(ofs, fh, NULL, &stack);
-	if (err) {
-		goto out_err;
-	} else if (index) {
+	/* Otherwise, get a connected non-upper dir or disconnected non-dir */
+	if (d_is_dir(origin.dentry) &&
+	    (origin.dentry->d_flags & DCACHE_DISCONNECTED)) {
+		dput(origin.dentry);
+		origin.dentry = NULL;
+		err = ovl_check_origin_fh(ofs, fh, true, NULL, &stack);
+		if (err)
+			goto out_err;
+	}
+	if (index) {
 		err = ovl_verify_origin(index, origin.dentry, false);
 		if (err)
 			goto out_err;
-	} else if (is_deleted) {
-		/* Lookup deleted non-dir by origin inode */
-		if (!d_is_dir(origin.dentry))
-			inode = ovl_lookup_inode(sb, origin.dentry, false);
-		err = -ESTALE;
-		if (!inode || atomic_read(&inode->i_count) == 1)
-			goto out_err;
-
-		/* Deleted but still open? */
-		index = dget(ovl_i_dentry_upper(inode));
 	}
 
 	dentry = ovl_get_dentry(sb, NULL, &origin, index);
@@ -759,7 +765,6 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 out:
 	dput(origin.dentry);
 	dput(index);
-	iput(inode);
 	return dentry;
 
 out_err:
@@ -829,7 +834,7 @@ static struct dentry *ovl_get_parent(struct dentry *dentry)
 }
 
 const struct export_operations ovl_export_operations = {
-	.encode_fh	= ovl_encode_inode_fh,
+	.encode_fh	= ovl_encode_fh,
 	.fh_to_dentry	= ovl_fh_to_dentry,
 	.fh_to_parent	= ovl_fh_to_parent,
 	.get_name	= ovl_get_name,
