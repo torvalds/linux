@@ -556,7 +556,8 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		/* Now read the actual register */
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
-			chan->address >> 8, 3, &chip->data.d8[1]);
+						    chan->address >> 8, 3,
+						    &chip->data.d8[1]);
 
 		if (ret < 0)
 			goto out;
@@ -614,7 +615,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = AD7746_CAPDAC_DACP(chip->capdac[chan->channel]
-			[chan->differential]) * 338646;
+					  [chan->differential]) * 338646;
 
 		ret = IIO_VAL_INT;
 		break;
