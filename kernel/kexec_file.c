@@ -792,7 +792,6 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 	unsigned char *buf_addr;
 	unsigned char *src;
 	Elf_Shdr *sechdrs;
-	int entry_sidx = -1;
 	int i;
 
 	sechdrs = vzalloc(pi->ehdr->e_shnum * sizeof(Elf_Shdr));
@@ -824,32 +823,11 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 						sechdrs[i].sh_offset;
 	}
 
-	/*
-	 * Identify entry point section and make entry relative to section
-	 * start.
-	 */
-	kbuf->image->start = pi->ehdr->e_entry;
-	for (i = 0; i < pi->ehdr->e_shnum; i++) {
-		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
-			continue;
-
-		if (!(sechdrs[i].sh_flags & SHF_EXECINSTR))
-			continue;
-
-		/* Make entry section relative */
-		if (sechdrs[i].sh_addr <= pi->ehdr->e_entry &&
-		    ((sechdrs[i].sh_addr + sechdrs[i].sh_size) >
-		     pi->ehdr->e_entry)) {
-			entry_sidx = i;
-			kbuf->image->start -= sechdrs[i].sh_addr;
-			break;
-		}
-	}
-
 	/* Load SHF_ALLOC sections */
 	buf_addr = kbuf->buffer;
 	load_addr = curr_load_addr = kbuf->mem;
 	bss_addr = load_addr + kbuf->bufsz;
+	kbuf->image->start = pi->ehdr->e_entry;
 
 	for (i = 0; i < pi->ehdr->e_shnum; i++) {
 		unsigned long align;
@@ -858,34 +836,40 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 			continue;
 
 		align = sechdrs[i].sh_addralign;
-		if (sechdrs[i].sh_type != SHT_NOBITS) {
-			curr_load_addr = ALIGN(curr_load_addr, align);
-			offset = curr_load_addr - load_addr;
-			/* We already modifed ->sh_offset to keep src addr */
-			src = (char *) sechdrs[i].sh_offset;
-			memcpy(buf_addr + offset, src, sechdrs[i].sh_size);
 
-			/* Store load address and source address of section */
-			sechdrs[i].sh_addr = curr_load_addr;
-
-			/*
-			 * This section got copied to temporary buffer. Update
-			 * ->sh_offset accordingly.
-			 */
-			sechdrs[i].sh_offset = (unsigned long)(buf_addr + offset);
-
-			/* Advance to the next address */
-			curr_load_addr += sechdrs[i].sh_size;
-		} else {
+		if (sechdrs[i].sh_type == SHT_NOBITS) {
 			bss_addr = ALIGN(bss_addr, align);
 			sechdrs[i].sh_addr = bss_addr;
 			bss_addr += sechdrs[i].sh_size;
+			continue;
 		}
-	}
 
-	/* Update entry point based on load address of text section */
-	if (entry_sidx >= 0)
-		kbuf->image->start += sechdrs[entry_sidx].sh_addr;
+		curr_load_addr = ALIGN(curr_load_addr, align);
+		offset = curr_load_addr - load_addr;
+		/* We already modifed ->sh_offset to keep src addr */
+		src = (char *)sechdrs[i].sh_offset;
+		memcpy(buf_addr + offset, src, sechdrs[i].sh_size);
+
+		if (sechdrs[i].sh_flags & SHF_EXECINSTR &&
+		    pi->ehdr->e_entry >= sechdrs[i].sh_addr &&
+		    pi->ehdr->e_entry < (sechdrs[i].sh_addr
+					 + sechdrs[i].sh_size)) {
+			kbuf->image->start -= sechdrs[i].sh_addr;
+			kbuf->image->start += curr_load_addr;
+		}
+
+		/* Store load address and source address of section */
+		sechdrs[i].sh_addr = curr_load_addr;
+
+		/*
+		 * This section got copied to temporary buffer. Update
+		 * ->sh_offset accordingly.
+		 */
+		sechdrs[i].sh_offset = (unsigned long)(buf_addr + offset);
+
+		/* Advance to the next address */
+		curr_load_addr += sechdrs[i].sh_size;
+	}
 
 	return 0;
 }
