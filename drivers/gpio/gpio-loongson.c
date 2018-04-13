@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
+#include <linux/bitops.h>
 #include <asm/types.h>
 #include <loongson.h>
 
@@ -31,6 +32,11 @@
 #define LOONGSON_N_GPIO	STLS2F_N_GPIO
 #endif
 
+/*
+ * Offset into the register where we read lines, we write them from offset 0.
+ * This offset is the only thing that stand between us and using
+ * GPIO_GENERIC.
+ */
 #define LOONGSON_GPIO_IN_OFFSET	16
 
 static DEFINE_SPINLOCK(gpio_lock);
@@ -38,30 +44,25 @@ static DEFINE_SPINLOCK(gpio_lock);
 static int loongson_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
 	u32 val;
-	u32 mask;
 
-	mask = 1 << (gpio + LOONGSON_GPIO_IN_OFFSET);
 	spin_lock(&gpio_lock);
 	val = LOONGSON_GPIODATA;
 	spin_unlock(&gpio_lock);
 
-	return (val & mask) != 0;
+	return !!(val & BIT(gpio + LOONGSON_GPIO_IN_OFFSET));
 }
 
 static void loongson_gpio_set_value(struct gpio_chip *chip,
 		unsigned gpio, int value)
 {
 	u32 val;
-	u32 mask;
-
-	mask = 1 << gpio;
 
 	spin_lock(&gpio_lock);
 	val = LOONGSON_GPIODATA;
 	if (value)
-		val |= mask;
+		val |= BIT(gpio);
 	else
-		val &= (~mask);
+		val &= ~BIT(gpio);
 	LOONGSON_GPIODATA = val;
 	spin_unlock(&gpio_lock);
 }
@@ -69,12 +70,10 @@ static void loongson_gpio_set_value(struct gpio_chip *chip,
 static int loongson_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
 	u32 temp;
-	u32 mask;
 
 	spin_lock(&gpio_lock);
-	mask = 1 << gpio;
 	temp = LOONGSON_GPIOIE;
-	temp |= mask;
+	temp |= BIT(gpio);
 	LOONGSON_GPIOIE = temp;
 	spin_unlock(&gpio_lock);
 
@@ -85,13 +84,11 @@ static int loongson_gpio_direction_output(struct gpio_chip *chip,
 		unsigned gpio, int level)
 {
 	u32 temp;
-	u32 mask;
 
 	loongson_gpio_set_value(chip, gpio, level);
 	spin_lock(&gpio_lock);
-	mask = 1 << gpio;
 	temp = LOONGSON_GPIOIE;
-	temp &= (~mask);
+	temp &= ~BIT(gpio);
 	LOONGSON_GPIOIE = temp;
 	spin_unlock(&gpio_lock);
 
