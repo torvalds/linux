@@ -58,6 +58,9 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 		unsigned int state_size, void *data);
 #define proc_create_net(name, mode, parent, state_size, ops) \
 	proc_create_net_data(name, mode, parent, state_size, ops, NULL)
+struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
+		struct proc_dir_entry *parent,
+		int (*show)(struct seq_file *, void *), void *data);
 
 #else /* CONFIG_PROC_FS */
 
@@ -97,6 +100,7 @@ static inline int remove_proc_subtree(const char *name, struct proc_dir_entry *p
 
 #define proc_create_net_data(name, mode, parent, ops, state_size, data) ({NULL;})
 #define proc_create_net(name, mode, parent, state_size, ops) ({NULL;})
+#define proc_create_net_single(name, mode, parent, show, data) ({NULL;})
 
 #endif /* CONFIG_PROC_FS */
 

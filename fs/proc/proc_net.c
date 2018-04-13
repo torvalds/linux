@@ -93,37 +93,50 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 }
 EXPORT_SYMBOL_GPL(proc_create_net_data);
 
-int single_open_net(struct inode *inode, struct file *file,
-		int (*show)(struct seq_file *, void *))
+static int single_open_net(struct inode *inode, struct file *file)
 {
-	int err;
+	struct proc_dir_entry *de = PDE(inode);
 	struct net *net;
+	int err;
 
-	err = -ENXIO;
 	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
+	if (!net)
+		return -ENXIO;
 
-	err = single_open(file, show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
+	err = single_open(file, de->single_show, net);
+	if (err)
+		put_net(net);
 	return err;
 }
-EXPORT_SYMBOL_GPL(single_open_net);
 
-int single_release_net(struct inode *ino, struct file *f)
+static int single_release_net(struct inode *ino, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 	put_net(seq->private);
 	return single_release(ino, f);
 }
-EXPORT_SYMBOL_GPL(single_release_net);
+
+static const struct file_operations proc_net_single_fops = {
+	.open		= single_open_net,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release_net,
+};
+
+struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
+		struct proc_dir_entry *parent,
+		int (*show)(struct seq_file *, void *), void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_net_single_fops;
+	p->single_show = show;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL_GPL(proc_create_net_single);
 
 static struct net *get_proc_task_net(struct inode *dir)
 {

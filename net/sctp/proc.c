@@ -88,19 +88,6 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-/* Initialize the seq file operations for 'snmp' object. */
-static int sctp_snmp_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, sctp_snmp_seq_show);
-}
-
-static const struct file_operations sctp_snmp_seq_fops = {
-	.open	 = sctp_snmp_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = single_release_net,
-};
-
 /* Dump local addresses of an association/endpoint. */
 static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_common *epb)
 {
@@ -408,8 +395,8 @@ int __net_init sctp_proc_init(struct net *net)
 	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
 	if (!net->sctp.proc_net_sctp)
 		return -ENOMEM;
-	if (!proc_create("snmp", 0444, net->sctp.proc_net_sctp,
-			 &sctp_snmp_seq_fops))
+	if (!proc_create_net_single("snmp", 0444, net->sctp.proc_net_sctp,
+			 sctp_snmp_seq_show, NULL))
 		goto cleanup;
 	if (!proc_create_net("eps", 0444, net->sctp.proc_net_sctp,
 			&sctp_eps_ops, sizeof(struct seq_net_private)))

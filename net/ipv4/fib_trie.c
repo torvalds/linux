@@ -2348,18 +2348,6 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int fib_triestat_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, fib_triestat_seq_show);
-}
-
-static const struct file_operations fib_triestat_fops = {
-	.open	= fib_triestat_seq_open,
-	.read	= seq_read,
-	.llseek	= seq_lseek,
-	.release = single_release_net,
-};
-
 static struct key_vector *fib_trie_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct fib_trie_iter *iter = seq->private;
@@ -2719,8 +2707,8 @@ int __net_init fib_proc_init(struct net *net)
 			sizeof(struct fib_trie_iter)))
 		goto out1;
 
-	if (!proc_create("fib_triestat", 0444, net->proc_net,
-			 &fib_triestat_fops))
+	if (!proc_create_net_single("fib_triestat", 0444, net->proc_net,
+			fib_triestat_seq_show, NULL))
 		goto out2;
 
 	if (!proc_create_net("route", 0444, net->proc_net, &fib_route_seq_ops,

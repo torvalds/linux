@@ -345,22 +345,10 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int kcm_stats_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, kcm_stats_seq_show);
-}
-
-static const struct file_operations kcm_stats_seq_fops = {
-	.open    = kcm_stats_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release_net,
-};
-
 static int kcm_proc_init_net(struct net *net)
 {
-	if (!proc_create("kcm_stats", 0444, net->proc_net,
-			 &kcm_stats_seq_fops))
+	if (!proc_create_net_single("kcm_stats", 0444, net->proc_net,
+			 kcm_stats_seq_show, NULL))
 		goto out_kcm_stats;
 
 	if (!proc_create_net("kcm", 0444, net->proc_net, &kcm_seq_ops,

@@ -13,9 +13,6 @@ struct seq_net_private {
 #endif
 };
 
-int single_open_net(struct inode *, struct file *file,
-		int (*show)(struct seq_file *, void *));
-int single_release_net(struct inode *, struct file *);
 static inline struct net *seq_file_net(struct seq_file *seq)
 {
 #ifdef CONFIG_NET_NS
@@ -26,8 +23,8 @@ static inline struct net *seq_file_net(struct seq_file *seq)
 }
 
 /*
- * This one is needed for single_open_net since net is stored directly in
- * private not as a struct i.e. seq_file_net can't be used.
+ * This one is needed for proc_create_net_single since net is stored directly
+ * in private not as a struct i.e. seq_file_net can't be used.
  */
 static inline struct net *seq_file_single_net(struct seq_file *seq)
 {
