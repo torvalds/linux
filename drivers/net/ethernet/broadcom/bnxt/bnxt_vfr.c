@@ -64,6 +64,31 @@ static int hwrm_cfa_vfr_free(struct bnxt *bp, u16 vf_idx)
 	return rc;
 }
 
+static int bnxt_hwrm_vfr_qcfg(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
+			      u16 *max_mtu)
+{
+	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_qcfg_input req = {0};
+	u16 mtu;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
+	req.fid = cpu_to_le16(bp->pf.vf[vf_rep->vf_idx].fw_fid);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		mtu = le16_to_cpu(resp->max_mtu_configured);
+		if (!mtu)
+			*max_mtu = BNXT_MAX_MTU;
+		else
+			*max_mtu = mtu;
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static int bnxt_vf_rep_open(struct net_device *dev)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
@@ -365,6 +390,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 				    struct net_device *dev)
 {
 	struct net_device *pf_dev = bp->dev;
+	u16 max_mtu;
 
 	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
 	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
@@ -380,6 +406,10 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	bnxt_vf_rep_eth_addr_gen(bp->pf.mac_addr, vf_rep->vf_idx,
 				 dev->perm_addr);
 	ether_addr_copy(dev->dev_addr, dev->perm_addr);
+	/* Set VF-Rep's max-mtu to the corresponding VF's max-mtu */
+	if (!bnxt_hwrm_vfr_qcfg(bp, vf_rep, &max_mtu))
+		dev->max_mtu = max_mtu;
+	dev->min_mtu = ETH_ZLEN;
 }
 
 static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])

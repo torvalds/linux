@@ -913,7 +913,7 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 		host->check_scc_error(host);
 
 	/* If SET_BLOCK_COUNT, continue with main command */
-	if (host->mrq) {
+	if (host->mrq && !mrq->cmd->error) {
 		tmio_process_mrq(host, mrq);
 		return;
 	}

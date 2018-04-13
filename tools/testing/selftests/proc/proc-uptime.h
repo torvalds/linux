@@ -1,5 +1,5 @@
 /*
- * Copyright _ 2018 Alexey Dobriyan <adobriyan@gmail.com>
+ * Copyright © 2018 Alexey Dobriyan <adobriyan@gmail.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above

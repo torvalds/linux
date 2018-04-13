@@ -972,10 +972,8 @@ xfs_dir_ialloc(
 	xfs_nlink_t	nlink,
 	dev_t		rdev,
 	prid_t		prid,		/* project id */
-	xfs_inode_t	**ipp,		/* pointer to inode; it will be
+	xfs_inode_t	**ipp)		/* pointer to inode; it will be
 					   locked. */
-	int		*committed)
-
 {
 	xfs_trans_t	*tp;
 	xfs_inode_t	*ip;
@@ -1050,8 +1048,6 @@ xfs_dir_ialloc(
 		}
 
 		code = xfs_trans_roll(&tp);
-		if (committed != NULL)
-			*committed = 1;
 
 		/*
 		 * Re-attach the quota info that we detached from prev trx.
@@ -1088,9 +1084,6 @@ xfs_dir_ialloc(
 		}
 		ASSERT(!ialloc_context && ip);
 
-	} else {
-		if (committed != NULL)
-			*committed = 0;
 	}
 
 	*ipp = ip;
@@ -1217,8 +1210,7 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev, prid, &ip,
-			NULL);
+	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev, prid, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -1309,7 +1301,6 @@ xfs_create(
 int
 xfs_create_tmpfile(
 	struct xfs_inode	*dp,
-	struct dentry		*dentry,
 	umode_t			mode,
 	struct xfs_inode	**ipp)
 {
@@ -1351,7 +1342,7 @@ xfs_create_tmpfile(
 	if (error)
 		goto out_trans_cancel;
 
-	error = xfs_dir_ialloc(&tp, dp, mode, 1, 0, prid, &ip, NULL);
+	error = xfs_dir_ialloc(&tp, dp, mode, 1, 0, prid, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -1611,13 +1602,15 @@ xfs_itruncate_extents(
 			goto out;
 	}
 
-	/* Remove all pending CoW reservations. */
-	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
-			last_block, true);
-	if (error)
-		goto out;
+	if (whichfork == XFS_DATA_FORK) {
+		/* Remove all pending CoW reservations. */
+		error = xfs_reflink_cancel_cow_blocks(ip, &tp,
+				first_unmap_block, last_block, true);
+		if (error)
+			goto out;
 
-	xfs_itruncate_clear_reflink_flags(ip);
+		xfs_itruncate_clear_reflink_flags(ip);
+	}
 
 	/*
 	 * Always re-log the inode so that our permanent transaction can keep
@@ -2903,7 +2896,7 @@ xfs_rename_alloc_whiteout(
 	struct xfs_inode	*tmpfile;
 	int			error;
 
-	error = xfs_create_tmpfile(dp, NULL, S_IFCHR | WHITEOUT_MODE, &tmpfile);
+	error = xfs_create_tmpfile(dp, S_IFCHR | WHITEOUT_MODE, &tmpfile);
 	if (error)
 		return error;
 

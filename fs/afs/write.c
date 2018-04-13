@@ -42,10 +42,11 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 	if (!req)
 		return -ENOMEM;
 
-	atomic_set(&req->usage, 1);
+	refcount_set(&req->usage, 1);
 	req->pos = pos;
 	req->len = len;
 	req->nr_pages = 1;
+	req->pages = req->array;
 	req->pages[0] = page;
 	get_page(page);
 
@@ -124,7 +125,12 @@ try_again:
 					     page->index, priv);
 			goto flush_conflicting_write;
 		}
-		if (to < f || from > t)
+		/* If the file is being filled locally, allow inter-write
+		 * spaces to be merged into writes.  If it's not, only write
+		 * back what the user gives us.
+		 */
+		if (!test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags) &&
+		    (to < f || from > t))
 			goto flush_conflicting_write;
 		if (from < f)
 			f = from;
@@ -355,6 +361,12 @@ found_key:
 	}
 
 	switch (ret) {
+	case 0:
+		afs_stat_v(vnode, n_stores);
+		atomic_long_add((last * PAGE_SIZE + to) -
+				(first * PAGE_SIZE + offset),
+				&afs_v2net(vnode)->n_store_bytes);
+		break;
 	case -EACCES:
 	case -EPERM:
 	case -ENOKEY:
@@ -412,7 +424,8 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 		trace_afs_page_dirty(vnode, tracepoint_string("WARN"),
 				     primary_page->index, priv);
 
-	if (start >= final_page || to < PAGE_SIZE)
+	if (start >= final_page ||
+	    (to < PAGE_SIZE && !test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags)))
 		goto no_more;
 
 	start++;
@@ -433,9 +446,10 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 		}
 
 		for (loop = 0; loop < n; loop++) {
-			if (to != PAGE_SIZE)
-				break;
 			page = pages[loop];
+			if (to != PAGE_SIZE &&
+			    !test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags))
+				break;
 			if (page->index > final_page)
 				break;
 			if (!trylock_page(page))
@@ -448,7 +462,8 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 			priv = page_private(page);
 			f = priv & AFS_PRIV_MAX;
 			t = priv >> AFS_PRIV_SHIFT;
-			if (f != 0) {
+			if (f != 0 &&
+			    !test_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags)) {
 				unlock_page(page);
 				break;
 			}
@@ -732,20 +747,6 @@ int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	       datasync);
 
 	return file_write_and_wait_range(file, start, end);
-}
-
-/*
- * Flush out all outstanding writes on a file opened for writing when it is
- * closed.
- */
-int afs_flush(struct file *file, fl_owner_t id)
-{
-	_enter("");
-
-	if ((file->f_mode & FMODE_WRITE) == 0)
-		return 0;
-
-	return vfs_fsync(file, 0);
 }
 
 /*

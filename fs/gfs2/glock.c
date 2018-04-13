@@ -1923,28 +1923,37 @@ void gfs2_glock_exit(void)
 
 static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)
 {
-	if (n == 0)
-		gi->gl = rhashtable_walk_peek(&gi->hti);
-	else {
-		gi->gl = rhashtable_walk_next(&gi->hti);
-		n--;
+	struct gfs2_glock *gl = gi->gl;
+
+	if (gl) {
+		if (n == 0)
+			return;
+		if (!lockref_put_not_zero(&gl->gl_lockref))
+			gfs2_glock_queue_put(gl);
 	}
 	for (;;) {
-		if (IS_ERR_OR_NULL(gi->gl)) {
-			if (!gi->gl)
-				return;
-			if (PTR_ERR(gi->gl) != -EAGAIN) {
-				gi->gl = NULL;
-				return;
+		gl = rhashtable_walk_next(&gi->hti);
+		if (IS_ERR_OR_NULL(gl)) {
+			if (gl == ERR_PTR(-EAGAIN)) {
+				n = 1;
+				continue;
 			}
-			n = 0;
-		} else if (gi->sdp == gi->gl->gl_name.ln_sbd &&
-			   !__lockref_is_dead(&gi->gl->gl_lockref)) {
-			if (!n--)
-				break;
+			gl = NULL;
+			break;
 		}
-		gi->gl = rhashtable_walk_next(&gi->hti);
+		if (gl->gl_name.ln_sbd != gi->sdp)
+			continue;
+		if (n <= 1) {
+			if (!lockref_get_not_dead(&gl->gl_lockref))
+				continue;
+			break;
+		} else {
+			if (__lockref_is_dead(&gl->gl_lockref))
+				continue;
+			n--;
+		}
 	}
+	gi->gl = gl;
 }
 
 static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)
@@ -1988,7 +1997,6 @@ static void gfs2_glock_seq_stop(struct seq_file *seq, void *iter_ptr)
 {
 	struct gfs2_glock_iter *gi = seq->private;
 
-	gi->gl = NULL;
 	rhashtable_walk_stop(&gi->hti);
 }
 
@@ -2076,7 +2084,8 @@ static int gfs2_glocks_release(struct inode *inode, struct file *file)
 	struct seq_file *seq = file->private_data;
 	struct gfs2_glock_iter *gi = seq->private;
 
-	gi->gl = NULL;
+	if (gi->gl)
+		gfs2_glock_put(gi->gl);
 	rhashtable_walk_exit(&gi->hti);
 	return seq_release_private(inode, file);
 }

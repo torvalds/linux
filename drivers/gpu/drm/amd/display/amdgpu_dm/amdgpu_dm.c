@@ -1403,6 +1403,28 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 	return ret;
 }
 
+
+static void register_backlight_device(struct amdgpu_display_manager *dm,
+				      struct dc_link *link)
+{
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
+	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+	if ((link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) &&
+	    link->type != dc_connection_none) {
+		/* Event if registration failed, we should continue with
+		 * DM initialization because not having a backlight control
+		 * is better then a black screen.
+		 */
+		amdgpu_dm_register_backlight_device(dm);
+
+		if (dm->backlight_dev)
+			dm->backlight_link = link;
+	}
+#endif
+}
+
+
 /* In this architecture, the association
  * connector -> encoder -> crtc
  * id not really requried. The crtc and connector will hold the
@@ -1456,6 +1478,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 	/* loops over all connectors on the board */
 	for (i = 0; i < link_cnt; i++) {
+		struct dc_link *link = NULL;
 
 		if (i > AMDGPU_DM_MAX_DISPLAY_INDEX) {
 			DRM_ERROR(
@@ -1482,9 +1505,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail;
 		}
 
-		if (dc_link_detect(dc_get_link_at_index(dm->dc, i),
-				DETECT_REASON_BOOT))
+		link = dc_get_link_at_index(dm->dc, i);
+
+		if (dc_link_detect(link, DETECT_REASON_BOOT)) {
 			amdgpu_dm_update_connector_after_detect(aconnector);
+			register_backlight_device(dm, link);
+		}
+
+
 	}
 
 	/* Software is initialized. Now we can register interrupt handlers. */
@@ -2685,7 +2713,8 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
-	if (link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) {
+	if ((link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) &&
+	    link->type != dc_connection_none) {
 		amdgpu_dm_register_backlight_device(dm);
 
 		if (dm->backlight_dev) {
@@ -3561,6 +3590,7 @@ create_i2c(struct ddc_service *ddc_service,
 	return i2c;
 }
 
+
 /* Note: this function assumes that dc_link_detect() was called for the
  * dc_link which will be represented by this aconnector.
  */
@@ -3629,28 +3659,6 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort
 		|| connector_type == DRM_MODE_CONNECTOR_eDP)
 		amdgpu_dm_initialize_dp_connector(dm, aconnector);
-
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
-	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
-	/* NOTE: this currently will create backlight device even if a panel
-	 * is not connected to the eDP/LVDS connector.
-	 *
-	 * This is less than ideal but we don't have sink information at this
-	 * stage since detection happens after. We can't do detection earlier
-	 * since MST detection needs connectors to be created first.
-	 */
-	if (link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) {
-		/* Event if registration failed, we should continue with
-		 * DM initialization because not having a backlight control
-		 * is better then a black screen.
-		 */
-		amdgpu_dm_register_backlight_device(dm);
-
-		if (dm->backlight_dev)
-			dm->backlight_link = link;
-	}
-#endif
 
 out_free:
 	if (res) {
@@ -4840,33 +4848,6 @@ static int dm_update_planes_state(struct dc *dc,
 	return ret;
 }
 
-static int dm_atomic_check_plane_state_fb(struct drm_atomic_state *state,
-					  struct drm_crtc *crtc)
-{
-	struct drm_plane *plane;
-	struct drm_crtc_state *crtc_state;
-
-	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
-
-	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
-		struct drm_plane_state *plane_state =
-			drm_atomic_get_plane_state(state, plane);
-
-		if (IS_ERR(plane_state))
-			return -EDEADLK;
-
-		crtc_state = drm_atomic_get_crtc_state(plane_state->state, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
-
-		if (crtc->primary == plane && crtc_state->active) {
-			if (!plane_state->fb)
-				return -EINVAL;
-		}
-	}
-	return 0;
-}
-
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
@@ -4890,10 +4871,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		goto fail;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		ret = dm_atomic_check_plane_state_fb(state, crtc);
-		if (ret)
-			goto fail;
-
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->color_mgmt_changed)
 			continue;
