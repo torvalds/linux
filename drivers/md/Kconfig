@@ -545,4 +545,24 @@ config DM_ANDROID_VERITY
 	  of the metadata contents are verified against the key included
 	  in the system keyring. Upon success, the underlying verity
 	  target is setup.
+
+config DM_ANDROID_VERITY_AT_MOST_ONCE_DEFAULT_ENABLED
+	bool "Verity will validate blocks at most once"
+   depends on DM_VERITY
+   ---help---
+	  Default enables at_most_once option for dm-verity
+
+	  Verify data blocks only the first time they are read from the
+	  data device, rather than every time.  This reduces the overhead
+	  of dm-verity so that it can be used on systems that are memory
+	  and/or CPU constrained.  However, it provides a reduced level
+	  of security because only offline tampering of the data device's
+	  content will be detected, not online tampering.
+
+	  Hash blocks are still verified each time they are read from the
+	  hash device, since verification of hash blocks is less performance
+	  critical than data blocks, and a hash block will not be verified
+	  any more after all the data blocks it covers have been verified anyway.
+
+	  If unsure, say N.
 endif # MD
