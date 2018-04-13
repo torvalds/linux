@@ -2672,7 +2672,8 @@ static void vcodec_set_hw_ops(struct vpu_service_info *pservice)
 		} else if (of_machine_is_compatible("rockchip,rk3126") ||
 				of_machine_is_compatible("rockchip,rk3128")) {
 			pservice->hw_ops->power_on = vcodec_power_on_rk312x;
-		} else if (of_machine_is_compatible("rockchip,rk3288")) {
+		} else if (of_machine_is_compatible("rockchip,rk3288") ||
+				of_machine_is_compatible("rockchip,rk3288w")) {
 			pservice->hw_ops->get_freq = vcodec_get_reg_freq_rk3288;
 		}
 	}
