@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -70,6 +71,207 @@ static const struct of_device_id tegra_mc_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_mc_of_match);
+
+static int terga_mc_block_dma_common(struct tegra_mc *mc,
+				     const struct tegra_mc_reset *rst)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, rst->control) | BIT(rst->bit);
+	mc_writel(mc, value, rst->control);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+	return 0;
+}
+
+static bool terga_mc_dma_idling_common(struct tegra_mc *mc,
+				       const struct tegra_mc_reset *rst)
+{
+	return (mc_readl(mc, rst->status) & BIT(rst->bit)) != 0;
+}
+
+static int terga_mc_unblock_dma_common(struct tegra_mc *mc,
+				       const struct tegra_mc_reset *rst)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, rst->control) & ~BIT(rst->bit);
+	mc_writel(mc, value, rst->control);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+	return 0;
+}
+
+static int terga_mc_reset_status_common(struct tegra_mc *mc,
+					const struct tegra_mc_reset *rst)
+{
+	return (mc_readl(mc, rst->control) & BIT(rst->bit)) != 0;
+}
+
+const struct tegra_mc_reset_ops terga_mc_reset_ops_common = {
+	.block_dma = terga_mc_block_dma_common,
+	.dma_idling = terga_mc_dma_idling_common,
+	.unblock_dma = terga_mc_unblock_dma_common,
+	.reset_status = terga_mc_reset_status_common,
+};
+
+static inline struct tegra_mc *reset_to_mc(struct reset_controller_dev *rcdev)
+{
+	return container_of(rcdev, struct tegra_mc, reset);
+}
+
+static const struct tegra_mc_reset *tegra_mc_reset_find(struct tegra_mc *mc,
+							unsigned long id)
+{
+	unsigned int i;
+
+	for (i = 0; i < mc->soc->num_resets; i++)
+		if (mc->soc->resets[i].id == id)
+			return &mc->soc->resets[i];
+
+	return NULL;
+}
+
+static int tegra_mc_hotreset_assert(struct reset_controller_dev *rcdev,
+				    unsigned long id)
+{
+	struct tegra_mc *mc = reset_to_mc(rcdev);
+	const struct tegra_mc_reset_ops *rst_ops;
+	const struct tegra_mc_reset *rst;
+	int retries = 500;
+	int err;
+
+	rst = tegra_mc_reset_find(mc, id);
+	if (!rst)
+		return -ENODEV;
+
+	rst_ops = mc->soc->reset_ops;
+	if (!rst_ops)
+		return -ENODEV;
+
+	if (rst_ops->block_dma) {
+		/* block clients DMA requests */
+		err = rst_ops->block_dma(mc, rst);
+		if (err) {
+			dev_err(mc->dev, "Failed to block %s DMA: %d\n",
+				rst->name, err);
+			return err;
+		}
+	}
+
+	if (rst_ops->dma_idling) {
+		/* wait for completion of the outstanding DMA requests */
+		while (!rst_ops->dma_idling(mc, rst)) {
+			if (!retries--) {
+				dev_err(mc->dev, "Failed to flush %s DMA\n",
+					rst->name);
+				return -EBUSY;
+			}
+
+			usleep_range(10, 100);
+		}
+	}
+
+	if (rst_ops->hotreset_assert) {
+		/* clear clients DMA requests sitting before arbitration */
+		err = rst_ops->hotreset_assert(mc, rst);
+		if (err) {
+			dev_err(mc->dev, "Failed to hot reset %s: %d\n",
+				rst->name, err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int tegra_mc_hotreset_deassert(struct reset_controller_dev *rcdev,
+				      unsigned long id)
+{
+	struct tegra_mc *mc = reset_to_mc(rcdev);
+	const struct tegra_mc_reset_ops *rst_ops;
+	const struct tegra_mc_reset *rst;
+	int err;
+
+	rst = tegra_mc_reset_find(mc, id);
+	if (!rst)
+		return -ENODEV;
+
+	rst_ops = mc->soc->reset_ops;
+	if (!rst_ops)
+		return -ENODEV;
+
+	if (rst_ops->hotreset_deassert) {
+		/* take out client from hot reset */
+		err = rst_ops->hotreset_deassert(mc, rst);
+		if (err) {
+			dev_err(mc->dev, "Failed to deassert hot reset %s: %d\n",
+				rst->name, err);
+			return err;
+		}
+	}
+
+	if (rst_ops->unblock_dma) {
+		/* allow new DMA requests to proceed to arbitration */
+		err = rst_ops->unblock_dma(mc, rst);
+		if (err) {
+			dev_err(mc->dev, "Failed to unblock %s DMA : %d\n",
+				rst->name, err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int tegra_mc_hotreset_status(struct reset_controller_dev *rcdev,
+				    unsigned long id)
+{
+	struct tegra_mc *mc = reset_to_mc(rcdev);
+	const struct tegra_mc_reset_ops *rst_ops;
+	const struct tegra_mc_reset *rst;
+
+	rst = tegra_mc_reset_find(mc, id);
+	if (!rst)
+		return -ENODEV;
+
+	rst_ops = mc->soc->reset_ops;
+	if (!rst_ops)
+		return -ENODEV;
+
+	return rst_ops->reset_status(mc, rst);
+}
+
+static const struct reset_control_ops tegra_mc_reset_ops = {
+	.assert = tegra_mc_hotreset_assert,
+	.deassert = tegra_mc_hotreset_deassert,
+	.status = tegra_mc_hotreset_status,
+};
+
+static int tegra_mc_reset_setup(struct tegra_mc *mc)
+{
+	int err;
+
+	mc->reset.ops = &tegra_mc_reset_ops;
+	mc->reset.owner = THIS_MODULE;
+	mc->reset.of_node = mc->dev->of_node;
+	mc->reset.of_reset_n_cells = 1;
+	mc->reset.nr_resets = mc->soc->num_resets;
+
+	err = reset_controller_register(&mc->reset);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
 
 static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 {
@@ -424,6 +626,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mc);
+	spin_lock_init(&mc->lock);
 	mc->soc = match->data;
 	mc->dev = &pdev->dev;
 
@@ -476,6 +679,13 @@ static int tegra_mc_probe(struct platform_device *pdev)
 				PTR_ERR(mc->smmu));
 			return PTR_ERR(mc->smmu);
 		}
+	}
+
+	err = tegra_mc_reset_setup(mc);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to register reset controller: %d\n",
+			err);
+		return err;
 	}
 
 	mc->irq = platform_get_irq(pdev, 0);
