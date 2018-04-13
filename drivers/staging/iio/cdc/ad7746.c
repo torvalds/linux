@@ -451,7 +451,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		ret = i2c_smbus_write_word_data(chip->client, reg, swab16(val));
+		ret = i2c_smbus_write_word_swapped(chip->client, reg, val);
 		if (ret < 0)
 			goto out;
 
@@ -462,8 +462,8 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			ret = -EINVAL;
 			goto out;
 		}
-		ret = i2c_smbus_write_word_data(chip->client,
-				AD7746_REG_CAP_OFFH, swab16(val));
+		ret = i2c_smbus_write_word_swapped(chip->client,
+						   AD7746_REG_CAP_OFFH, val);
 		if (ret < 0)
 			goto out;
 
@@ -594,21 +594,21 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		ret = i2c_smbus_read_word_data(chip->client, reg);
+		ret = i2c_smbus_read_word_swapped(chip->client, reg);
 		if (ret < 0)
 			goto out;
 		/* 1 + gain_val / 2^16 */
 		*val = 1;
-		*val2 = (15625 * swab16(ret)) / 1024;
+		*val2 = (15625 * ret) / 1024;
 
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		ret = i2c_smbus_read_word_data(chip->client,
-					       AD7746_REG_CAP_OFFH);
+		ret = i2c_smbus_read_word_swapped(chip->client,
+						  AD7746_REG_CAP_OFFH);
 		if (ret < 0)
 			goto out;
-		*val = swab16(ret);
+		*val = ret;
 
 		ret = IIO_VAL_INT;
 		break;
