@@ -170,10 +170,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		if (result == 0)
 			timestamp = 0;
 
-		result = iio_push_to_buffers_with_timestamp(indio_dev, data,
-							    timestamp);
-		if (result)
-			goto flush_fifo;
+		iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
+
 		fifo_count -= bytes_per_datum;
 	}
 
