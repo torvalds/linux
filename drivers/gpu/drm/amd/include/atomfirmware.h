@@ -1264,9 +1264,9 @@ struct atom_smc_dpm_info_v4_1
   uint8_t  ledpin2;
   uint8_t  padding8_4;
 
-  uint8_t  gfxclkspreadenabled;
-  uint8_t  gfxclkspreadpercent;
-  uint16_t gfxclkspreadfreq;
+	uint8_t  pllgfxclkspreadenabled;
+	uint8_t  pllgfxclkspreadpercent;
+	uint16_t pllgfxclkspreadfreq;
 
   uint8_t uclkspreadenabled;
   uint8_t uclkspreadpercent;
@@ -1276,7 +1276,11 @@ struct atom_smc_dpm_info_v4_1
   uint8_t socclkspreadpercent;
   uint16_t socclkspreadfreq;
 
-  uint32_t boardreserved[3];
+	uint8_t  acggfxclkspreadenabled;
+	uint8_t  acggfxclkspreadpercent;
+	uint16_t acggfxclkspreadfreq;
+
+	uint32_t boardreserved[10];
 };
 
 
