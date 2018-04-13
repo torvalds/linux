@@ -94,7 +94,8 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 };
 
 #ifdef CONFIG_CIFS_SMB311
-static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len, __u32 non_ctxlen)
+static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len, __u32 non_ctxlen,
+				size_t hdr_preamble_size)
 {
 	__u16 neg_count;
 	__u32 nc_offset, size_of_pad_before_neg_ctxts;
@@ -108,11 +109,12 @@ static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len, __u32 non_ctxlen)
 
 	/* Make sure that negotiate contexts start after gss security blob */
 	nc_offset = le32_to_cpu(pneg_rsp->NegotiateContextOffset);
-	if (nc_offset < non_ctxlen - 4 /* RFC1001 len field */) {
+	if (nc_offset < non_ctxlen - hdr_preamble_size /* RFC1001 len */) {
 		printk_once(KERN_WARNING "invalid negotiate context offset\n");
 		return 0;
 	}
-	size_of_pad_before_neg_ctxts = nc_offset - (non_ctxlen - 4);
+	size_of_pad_before_neg_ctxts = nc_offset -
+					(non_ctxlen - hdr_preamble_size);
 
 	/* Verify that at least minimal negotiate contexts fit within frame */
 	if (len < nc_offset + (neg_count * sizeof(struct smb2_neg_context))) {
@@ -235,7 +237,8 @@ smb2_check_message(char *buf, unsigned int length, struct TCP_Server_Info *srvr)
 
 #ifdef CONFIG_CIFS_SMB311
 	if (shdr->Command == SMB2_NEGOTIATE)
-		clc_len += get_neg_ctxt_len(hdr, len, clc_len);
+		clc_len += get_neg_ctxt_len(hdr, len, clc_len,
+					srvr->vals->header_preamble_size);
 #endif /* SMB311 */
 	if (srvr->vals->header_preamble_size + len != clc_len) {
 		cifs_dbg(FYI, "Calculated size %u length %zu mismatch mid %llu\n",

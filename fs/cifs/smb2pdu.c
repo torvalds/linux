@@ -474,7 +474,8 @@ static int smb311_decode_neg_context(struct smb2_negotiate_rsp *rsp,
 		if (len_of_ctxts < sizeof(struct smb2_neg_context))
 			break;
 
-		pctx = (struct smb2_neg_context *)(offset + 4 + (char *)rsp);
+		pctx = (struct smb2_neg_context *)(offset +
+			server->vals->header_preamble_size + (char *)rsp);
 		clen = le16_to_cpu(pctx->DataLength);
 		if (clen > len_of_ctxts)
 			break;
