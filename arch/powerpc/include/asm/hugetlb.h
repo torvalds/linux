@@ -202,7 +202,7 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 				    unsigned pdshift)
 {
-	return 0;
+	return NULL;
 }
 #endif /* CONFIG_HUGETLB_PAGE */
 
