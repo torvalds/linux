@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
+#include <linux/platform_device.h>
 #include <asm/types.h>
 #include <loongson.h>
 
@@ -97,19 +98,45 @@ static int loongson_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static struct gpio_chip loongson_chip = {
-	.label                  = "Loongson-gpio-chip",
-	.direction_input        = loongson_gpio_direction_input,
-	.get                    = loongson_gpio_get_value,
-	.direction_output       = loongson_gpio_direction_output,
-	.set                    = loongson_gpio_set_value,
-	.base			= 0,
-	.ngpio                  = LOONGSON_N_GPIO,
-	.can_sleep		= false,
+static int loongson_gpio_probe(struct platform_device *pdev)
+{
+	struct gpio_chip *gc;
+	struct device *dev = &pdev->dev;
+
+	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	if (!gc)
+		return -ENOMEM;
+
+	gc->label = "loongson-gpio-chip";
+	gc->base = 0;
+	gc->ngpio = LOONGSON_N_GPIO;
+	gc->get = loongson_gpio_get_value;
+	gc->set = loongson_gpio_set_value;
+	gc->direction_input = loongson_gpio_direction_input;
+	gc->direction_output = loongson_gpio_direction_output;
+
+	return gpiochip_add_data(gc, NULL);
+}
+
+static struct platform_driver loongson_gpio_driver = {
+	.driver = {
+		.name = "loongson-gpio",
+	},
+	.probe = loongson_gpio_probe,
 };
 
 static int __init loongson_gpio_setup(void)
 {
-	return gpiochip_add_data(&loongson_chip, NULL);
+	struct platform_device *pdev;
+	int ret;
+
+	ret = platform_driver_register(&loongson_gpio_driver);
+	if (ret) {
+		pr_err("error registering loongson GPIO driver\n");
+		return ret;
+	}
+
+	pdev = platform_device_register_simple("loongson-gpio", -1, NULL, 0);
+	return PTR_ERR_OR_ZERO(pdev);
 }
 postcore_initcall(loongson_gpio_setup);
