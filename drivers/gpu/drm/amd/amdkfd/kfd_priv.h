@@ -39,6 +39,8 @@
 
 #include "amd_shared.h"
 
+#define KFD_MAX_RING_ENTRY_SIZE	8
+
 #define KFD_SYSFS_FILE_MODE 0444
 
 /* GPU ID hash width in bits */
