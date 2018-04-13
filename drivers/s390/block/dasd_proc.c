@@ -131,19 +131,6 @@ static const struct seq_operations dasd_devices_seq_ops = {
 	.show		= dasd_devices_show,
 };
 
-static int dasd_devices_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &dasd_devices_seq_ops);
-}
-
-static const struct file_operations dasd_devices_file_ops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_devices_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 #ifdef CONFIG_DASD_PROFILE
 static int dasd_stats_all_block_on(void)
 {
@@ -352,10 +339,10 @@ dasd_proc_init(void)
 	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
-	dasd_devices_entry = proc_create("devices",
+	dasd_devices_entry = proc_create_seq("devices",
 					 S_IFREG | S_IRUGO | S_IWUSR,
 					 dasd_proc_root_entry,
-					 &dasd_devices_file_ops);
+					 &dasd_devices_seq_ops);
 	if (!dasd_devices_entry)
 		goto out_nodevices;
 	dasd_statistics_entry = proc_create("statistics",

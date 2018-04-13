@@ -244,42 +244,6 @@ static const struct seq_operations ipx_seq_socket_ops = {
 	.show   = ipx_seq_socket_show,
 };
 
-static int ipx_seq_route_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &ipx_seq_route_ops);
-}
-
-static int ipx_seq_interface_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &ipx_seq_interface_ops);
-}
-
-static int ipx_seq_socket_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &ipx_seq_socket_ops);
-}
-
-static const struct file_operations ipx_seq_interface_fops = {
-	.open           = ipx_seq_interface_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
-
-static const struct file_operations ipx_seq_route_fops = {
-	.open           = ipx_seq_route_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
-
-static const struct file_operations ipx_seq_socket_fops = {
-	.open           = ipx_seq_socket_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
-
 static struct proc_dir_entry *ipx_proc_dir;
 
 int __init ipx_proc_init(void)
@@ -291,16 +255,17 @@ int __init ipx_proc_init(void)
 
 	if (!ipx_proc_dir)
 		goto out;
-	p = proc_create("interface", S_IRUGO,
-			ipx_proc_dir, &ipx_seq_interface_fops);
+	p = proc_create_seq("interface", S_IRUGO, ipx_proc_dir,
+			&ipx_seq_interface_ops);
 	if (!p)
 		goto out_interface;
 
-	p = proc_create("route", S_IRUGO, ipx_proc_dir, &ipx_seq_route_fops);
+	p = proc_create_seq("route", S_IRUGO, ipx_proc_dir, &ipx_seq_route_ops);
 	if (!p)
 		goto out_route;
 
-	p = proc_create("socket", S_IRUGO, ipx_proc_dir, &ipx_seq_socket_fops);
+	p = proc_create_seq("socket", S_IRUGO, ipx_proc_dir,
+			&ipx_seq_socket_ops);
 	if (!p)
 		goto out_socket;
 

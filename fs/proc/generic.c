@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/uaccess.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
 
@@ -554,6 +555,35 @@ struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 	return proc_create_data(name, mode, parent, proc_fops, NULL);
 }
 EXPORT_SYMBOL(proc_create);
+
+static int proc_seq_open(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	return seq_open(file, de->seq_ops);
+}
+
+static const struct file_operations proc_seq_fops = {
+	.open		= proc_seq_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+struct proc_dir_entry *proc_create_seq_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, const struct seq_operations *ops,
+		void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_seq_fops;
+	p->seq_ops = ops;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL(proc_create_seq_data);
 
 void proc_set_size(struct proc_dir_entry *de, loff_t size)
 {

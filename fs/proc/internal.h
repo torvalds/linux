@@ -44,6 +44,7 @@ struct proc_dir_entry {
 	struct completion *pde_unload_completion;
 	const struct inode_operations *proc_iops;
 	const struct file_operations *proc_fops;
+	const struct seq_operations *seq_ops;
 	void *data;
 	unsigned int low_ino;
 	nlink_t nlink;

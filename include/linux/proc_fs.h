@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 
 struct proc_dir_entry;
+struct seq_operations;
 
 #ifdef CONFIG_PROC_FS
 
@@ -23,6 +24,12 @@ extern struct proc_dir_entry *proc_mkdir_data(const char *, umode_t,
 extern struct proc_dir_entry *proc_mkdir_mode(const char *, umode_t,
 					      struct proc_dir_entry *);
 struct proc_dir_entry *proc_create_mount_point(const char *name);
+
+struct proc_dir_entry *proc_create_seq_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, const struct seq_operations *ops,
+		void *data);
+#define proc_create_seq(name, mode, parent, ops) \
+	proc_create_seq_data(name, mode, parent, ops, NULL)
  
 extern struct proc_dir_entry *proc_create_data(const char *, umode_t,
 					       struct proc_dir_entry *,
@@ -57,6 +64,8 @@ static inline struct proc_dir_entry *proc_mkdir_data(const char *name,
 	umode_t mode, struct proc_dir_entry *parent, void *data) { return NULL; }
 static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
 	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
+#define proc_create_seq_data(name, mode, parent, ops, data) ({NULL;})
+#define proc_create_seq(name, mode, parent, ops) ({NULL;})
 #define proc_create(name, mode, parent, proc_fops) ({NULL;})
 #define proc_create_data(name, mode, parent, proc_fops, data) ({NULL;})
 

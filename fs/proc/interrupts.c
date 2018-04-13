@@ -34,21 +34,9 @@ static const struct seq_operations int_seq_ops = {
 	.show  = show_interrupts
 };
 
-static int interrupts_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &int_seq_ops);
-}
-
-static const struct file_operations proc_interrupts_operations = {
-	.open		= interrupts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static int __init proc_interrupts_init(void)
 {
-	proc_create("interrupts", 0, NULL, &proc_interrupts_operations);
+	proc_create_seq("interrupts", 0, NULL, &int_seq_ops);
 	return 0;
 }
 fs_initcall(proc_interrupts_init);
