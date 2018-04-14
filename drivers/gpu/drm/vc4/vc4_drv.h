@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/mm_types.h>
 #include <linux/reservation.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
@@ -674,7 +675,7 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-int vc4_fault(struct vm_fault *vmf);
+vm_fault_t vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
