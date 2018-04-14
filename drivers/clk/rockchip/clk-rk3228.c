@@ -661,8 +661,10 @@ static const char *const rk3228_critical_clocks[] __initconst = {
 	"pclk_phy_noc",
 	"aclk_vpu_noc",
 	"aclk_rkvdec_noc",
+	"aclk_rkvdec",
 	"hclk_vpu_noc",
 	"hclk_rkvdec_noc",
+	"hclk_rkvdec",
 };
 
 static void __init rk3228_clk_init(struct device_node *np)
