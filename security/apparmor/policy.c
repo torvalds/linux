@@ -1008,6 +1008,9 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 			audit_policy(label, op, ns_name, ent->new->base.hname,
 				     "same as current profile, skipping",
 				     error);
+			/* break refcount cycle with proxy. */
+			aa_put_proxy(ent->new->label.proxy);
+			ent->new->label.proxy = NULL;
 			goto skip;
 		}
 
