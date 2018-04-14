@@ -29,7 +29,7 @@
 /* Address alignment mask for HW buffers */
 #define HW_BUFFER_MASK 0x7f
 
-enum chip_id {
+enum model_id {
 	RCAR_H1,
 	RCAR_M1,
 	RCAR_GEN2,
@@ -87,10 +87,18 @@ struct rvin_graph_entity {
 };
 
 /**
+ * struct rvin_info - Information about the particular VIN implementation
+ * @model:		VIN model
+ */
+struct rvin_info {
+	enum model_id model;
+};
+
+/**
  * struct rvin_dev - Renesas VIN device structure
  * @dev:		(OF) device
  * @base:		device I/O register space remapped to virtual memory
- * @chip:		type of VIN chip
+ * @info:		info about VIN instance
  *
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
@@ -119,7 +127,7 @@ struct rvin_graph_entity {
 struct rvin_dev {
 	struct device *dev;
 	void __iomem *base;
-	enum chip_id chip;
+	const struct rvin_info *info;
 
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
