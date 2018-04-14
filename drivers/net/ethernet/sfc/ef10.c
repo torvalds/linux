@@ -4776,8 +4776,7 @@ static bool efx_ef10_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 		goto out_unlock;
 	}
 
-	if (!rps_may_expire_flow(efx->net_dev, spec->dmaq_id,
-				 flow_id, filter_idx)) {
+	if (!rps_may_expire_flow(efx->net_dev, spec->dmaq_id, flow_id, 0)) {
 		ret = false;
 		goto out_unlock;
 	}
