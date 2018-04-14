@@ -17,6 +17,8 @@
 #ifndef __RCAR_VIN__
 #define __RCAR_VIN__
 
+#include <linux/kref.h>
+
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
@@ -28,6 +30,11 @@
 
 /* Address alignment mask for HW buffers */
 #define HW_BUFFER_MASK 0x7f
+
+/* Max number on VIN instances that can be in a system */
+#define RCAR_VIN_NUM 8
+
+struct rvin_group;
 
 enum model_id {
 	RCAR_H1,
@@ -99,6 +106,8 @@ struct rvin_info {
  * @notifier:		V4L2 asynchronous subdevs notifier
  * @digital:		entity in the DT for local digital subdevice
  *
+ * @group:		Gen3 CSI group
+ * @id:			Gen3 group id for this VIN
  * @pad:		media pad for the video device entity
  *
  * @lock:		protects @queue
@@ -133,6 +142,8 @@ struct rvin_dev {
 	struct v4l2_async_notifier notifier;
 	struct rvin_graph_entity *digital;
 
+	struct rvin_group *group;
+	unsigned int id;
 	struct media_pad pad;
 
 	struct mutex lock;
@@ -163,6 +174,26 @@ struct rvin_dev {
 #define vin_info(d, fmt, arg...)	dev_info(d->dev, fmt, ##arg)
 #define vin_warn(d, fmt, arg...)	dev_warn(d->dev, fmt, ##arg)
 #define vin_err(d, fmt, arg...)		dev_err(d->dev, fmt, ##arg)
+
+/**
+ * struct rvin_group - VIN CSI2 group information
+ * @refcount:		number of VIN instances using the group
+ *
+ * @mdev:		media device which represents the group
+ *
+ * @lock:		protects the count and vin members
+ * @count:		number of enabled VIN instances found in DT
+ * @vin:		VIN instances which are part of the group
+ */
+struct rvin_group {
+	struct kref refcount;
+
+	struct media_device mdev;
+
+	struct mutex lock;
+	unsigned int count;
+	struct rvin_dev *vin[RCAR_VIN_NUM];
+};
 
 int rvin_dma_register(struct rvin_dev *vin, int irq);
 void rvin_dma_unregister(struct rvin_dev *vin);
