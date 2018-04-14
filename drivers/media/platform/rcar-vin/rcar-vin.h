@@ -89,9 +89,14 @@ struct rvin_graph_entity {
 /**
  * struct rvin_info - Information about the particular VIN implementation
  * @model:		VIN model
+ * @max_width:		max input width the VIN supports
+ * @max_height:		max input height the VIN supports
  */
 struct rvin_info {
 	enum model_id model;
+
+	unsigned int max_width;
+	unsigned int max_height;
 };
 
 /**
