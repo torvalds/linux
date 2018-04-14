@@ -412,9 +412,7 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
 {
 	struct ishtp_hid_data *hid_data =  hid->driver_data;
 	struct ishtp_cl_data *client_data = hid_data->client_data;
-	static unsigned char	buf[10];
-	unsigned int	len;
-	struct hostif_msg_to_sensor *msg = (struct hostif_msg_to_sensor *)buf;
+	struct hostif_msg_to_sensor msg = {};
 	int	rv;
 	int	i;
 
@@ -426,14 +424,11 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
 		return;
 	}
 
-	len = sizeof(struct hostif_msg_to_sensor);
-
-	memset(msg, 0, sizeof(struct hostif_msg_to_sensor));
-	msg->hdr.command = (report_type == HID_FEATURE_REPORT) ?
+	msg.hdr.command = (report_type == HID_FEATURE_REPORT) ?
 		HOSTIF_GET_FEATURE_REPORT : HOSTIF_GET_INPUT_REPORT;
 	for (i = 0; i < client_data->num_hid_devices; ++i) {
 		if (hid == client_data->hid_sensor_hubs[i]) {
-			msg->hdr.device_id =
+			msg.hdr.device_id =
 				client_data->hid_devices[i].dev_id;
 			break;
 		}
@@ -442,8 +437,9 @@ void hid_ishtp_get_report(struct hid_device *hid, int report_id,
 	if (i == client_data->num_hid_devices)
 		return;
 
-	msg->report_id = report_id;
-	rv = ishtp_cl_send(client_data->hid_ishtp_cl, buf, len);
+	msg.report_id = report_id;
+	rv = ishtp_cl_send(client_data->hid_ishtp_cl, (uint8_t *)&msg,
+			    sizeof(msg));
 	if (rv)
 		hid_ishtp_trace(client_data,  "%s hid %p send failed\n",
 				__func__, hid);
