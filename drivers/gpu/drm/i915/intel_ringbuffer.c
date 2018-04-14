@@ -618,9 +618,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	ret = intel_whitelist_workarounds_apply(engine);
-	if (ret)
-		return ret;
+	intel_whitelist_workarounds_apply(engine);
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 	if (IS_GEN(dev_priv, 4, 6))

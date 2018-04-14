@@ -1744,9 +1744,7 @@ static int gen8_init_render_ring(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	ret = intel_whitelist_workarounds_apply(engine);
-	if (ret)
-		return ret;
+	intel_whitelist_workarounds_apply(engine);
 
 	/* We need to disable the AsyncFlip performance optimisations in order
 	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
@@ -1769,9 +1767,7 @@ static int gen9_init_render_ring(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	ret = intel_whitelist_workarounds_apply(engine);
-	if (ret)
-		return ret;
+	intel_whitelist_workarounds_apply(engine);
 
 	return 0;
 }

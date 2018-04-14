@@ -1297,7 +1297,6 @@ struct i915_wa_reg {
 struct i915_workarounds {
 	struct i915_wa_reg reg[I915_MAX_WA_REGS];
 	u32 count;
-	u32 hw_whitelist_count[I915_NUM_ENGINES];
 };
 
 struct i915_virtual_gpu {

@@ -11,6 +11,7 @@
  */
 selftest(sanitycheck, i915_live_sanitycheck) /* keep first (igt selfcheck) */
 selftest(uncore, intel_uncore_live_selftests)
+selftest(workarounds, intel_workarounds_live_selftests)
 selftest(requests, i915_request_live_selftests)
 selftest(objects, i915_gem_object_live_selftests)
 selftest(dmabuf, i915_gem_dmabuf_live_selftests)

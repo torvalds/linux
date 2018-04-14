@@ -3304,24 +3304,13 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 static int i915_wa_registers(struct seq_file *m, void *unused)
 {
-	int i;
-	int ret;
-	struct intel_engine_cs *engine;
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct i915_workarounds *workarounds = &dev_priv->workarounds;
-	enum intel_engine_id id;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	int i;
 
 	intel_runtime_pm_get(dev_priv);
 
 	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
-	for_each_engine(engine, dev_priv, id)
-		seq_printf(m, "HW whitelist count for %s: %d\n",
-			   engine->name, workarounds->hw_whitelist_count[id]);
 	for (i = 0; i < workarounds->count; ++i) {
 		i915_reg_t addr;
 		u32 mask, value, read;
@@ -3337,7 +3326,6 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	}
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
