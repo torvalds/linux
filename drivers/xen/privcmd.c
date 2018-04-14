@@ -801,7 +801,7 @@ static void privcmd_close(struct vm_area_struct *vma)
 	kfree(pages);
 }
 
-static int privcmd_fault(struct vm_fault *vmf)
+static vm_fault_t privcmd_fault(struct vm_fault *vmf)
 {
 	printk(KERN_DEBUG "privcmd_fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
 	       vmf->vma, vmf->vma->vm_start, vmf->vma->vm_end,
