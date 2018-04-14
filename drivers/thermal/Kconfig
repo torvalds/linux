@@ -15,6 +15,13 @@ menuconfig THERMAL
 
 if THERMAL
 
+config THERMAL_STATISTICS
+	bool "Thermal state transition statistics"
+	help
+	  Export thermal state transition statistics information through sysfs.
+
+	  If in doubt, say N.
+
 config THERMAL_EMERGENCY_POWEROFF_DELAY_MS
 	int "Emergency poweroff delay in milli-seconds"
 	depends on THERMAL
