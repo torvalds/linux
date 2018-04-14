@@ -769,6 +769,36 @@
 			reg = <0x02100000 0x100000>;
 			ranges;
 
+			crypto: caam@2140000 {
+				compatible = "fsl,imx6ul-caam", "fsl,sec-v4.0";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x2140000 0x3c000>;
+				ranges = <0 0x2140000 0x3c000>;
+				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_CAAM_IPG>, <&clks IMX6UL_CLK_CAAM_ACLK>,
+					 <&clks IMX6UL_CLK_CAAM_MEM>;
+				clock-names = "ipg", "aclk", "mem";
+
+				sec_jr0: jr0@1000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x1000 0x1000>;
+					interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				sec_jr1: jr1@2000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x2000 0x1000>;
+					interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				sec_jr2: jr2@3000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x3000 0x1000>;
+					interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
 			usbotg1: usb@2184000 {
 				compatible = "fsl,imx6ul-usb", "fsl,imx27-usb";
 				reg = <0x02184000 0x200>;
