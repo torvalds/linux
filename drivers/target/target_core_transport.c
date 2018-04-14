@@ -1431,7 +1431,7 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 	return 0;
 }
 
-/*
+/**
  * target_submit_cmd_map_sgls - lookup unpacked lun and submit uninitialized
  * 			 se_cmd + use pre-allocated SGL memory.
  *
@@ -1441,7 +1441,7 @@ transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
  * @sense: pointer to SCSI sense buffer
  * @unpacked_lun: unpacked LUN to reference for struct se_lun
  * @data_length: fabric expected data transfer length
- * @task_addr: SAM task attribute
+ * @task_attr: SAM task attribute
  * @data_dir: DMA data direction
  * @flags: flags for command submission from target_sc_flags_tables
  * @sgl: struct scatterlist memory for unidirectional mapping
@@ -1578,7 +1578,7 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 }
 EXPORT_SYMBOL(target_submit_cmd_map_sgls);
 
-/*
+/**
  * target_submit_cmd - lookup unpacked lun and submit uninitialized se_cmd
  *
  * @se_cmd: command descriptor to submit
@@ -1587,7 +1587,7 @@ EXPORT_SYMBOL(target_submit_cmd_map_sgls);
  * @sense: pointer to SCSI sense buffer
  * @unpacked_lun: unpacked LUN to reference for struct se_lun
  * @data_length: fabric expected data transfer length
- * @task_addr: SAM task attribute
+ * @task_attr: SAM task attribute
  * @data_dir: DMA data direction
  * @flags: flags for command submission from target_sc_flags_tables
  *
@@ -2606,7 +2606,8 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
 
-/* target_get_sess_cmd - Add command to active ->sess_cmd_list
+/**
+ * target_get_sess_cmd - Add command to active ->sess_cmd_list
  * @se_cmd:	command descriptor to add
  * @ack_kref:	Signal that fabric will perform an ack target_put_sess_cmd()
  */
@@ -2800,7 +2801,8 @@ void target_show_cmd(const char *pfx, struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(target_show_cmd);
 
-/* target_sess_cmd_list_set_waiting - Flag all commands in
+/**
+ * target_sess_cmd_list_set_waiting - Flag all commands in
  *         sess_cmd_list to complete cmd_wait_comp.  Set
  *         sess_tearing_down so no more commands are queued.
  * @se_sess:	session to flag
@@ -2835,7 +2837,8 @@ void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 }
 EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
 
-/* target_wait_for_sess_cmds - Wait for outstanding descriptors
+/**
+ * target_wait_for_sess_cmds - Wait for outstanding descriptors
  * @se_sess:    session to wait for active I/O
  */
 void target_wait_for_sess_cmds(struct se_session *se_sess)
