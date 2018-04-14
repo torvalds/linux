@@ -1087,14 +1087,14 @@ static const struct vb2_ops rvin_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 };
 
-void rvin_dma_remove(struct rvin_dev *vin)
+void rvin_dma_unregister(struct rvin_dev *vin)
 {
 	mutex_destroy(&vin->lock);
 
 	v4l2_device_unregister(&vin->v4l2_dev);
 }
 
-int rvin_dma_probe(struct rvin_dev *vin, int irq)
+int rvin_dma_register(struct rvin_dev *vin, int irq)
 {
 	struct vb2_queue *q = &vin->queue;
 	int i, ret;
@@ -1142,7 +1142,7 @@ int rvin_dma_probe(struct rvin_dev *vin, int irq)
 
 	return 0;
 error:
-	rvin_dma_remove(vin);
+	rvin_dma_unregister(vin);
 
 	return ret;
 }

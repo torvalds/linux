@@ -839,7 +839,7 @@ static const struct v4l2_file_operations rvin_fops = {
 	.read		= vb2_fop_read,
 };
 
-void rvin_v4l2_remove(struct rvin_dev *vin)
+void rvin_v4l2_unregister(struct rvin_dev *vin)
 {
 	v4l2_info(&vin->v4l2_dev, "Removing %s\n",
 		  video_device_node_name(&vin->vdev));
@@ -866,7 +866,7 @@ static void rvin_notify(struct v4l2_subdev *sd,
 	}
 }
 
-int rvin_v4l2_probe(struct rvin_dev *vin)
+int rvin_v4l2_register(struct rvin_dev *vin)
 {
 	struct video_device *vdev = &vin->vdev;
 	struct v4l2_subdev *sd = vin_to_source(vin);

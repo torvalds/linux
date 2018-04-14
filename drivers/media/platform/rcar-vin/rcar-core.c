@@ -93,7 +93,7 @@ static int rvin_digital_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 
-	return rvin_v4l2_probe(vin);
+	return rvin_v4l2_register(vin);
 }
 
 static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
@@ -103,7 +103,7 @@ static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 
 	vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
-	rvin_v4l2_remove(vin);
+	rvin_v4l2_unregister(vin);
 	vin->digital->subdev = NULL;
 }
 
@@ -245,7 +245,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = rvin_dma_probe(vin, irq);
+	ret = rvin_dma_register(vin, irq);
 	if (ret)
 		return ret;
 
@@ -260,7 +260,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 
 	return 0;
 error:
-	rvin_dma_remove(vin);
+	rvin_dma_unregister(vin);
 	v4l2_async_notifier_cleanup(&vin->notifier);
 
 	return ret;
@@ -275,7 +275,7 @@ static int rcar_vin_remove(struct platform_device *pdev)
 	v4l2_async_notifier_unregister(&vin->notifier);
 	v4l2_async_notifier_cleanup(&vin->notifier);
 
-	rvin_dma_remove(vin);
+	rvin_dma_unregister(vin);
 
 	return 0;
 }
