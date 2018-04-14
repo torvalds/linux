@@ -23,6 +23,7 @@
 #include "rcar-vin.h"
 
 #define RVIN_DEFAULT_FORMAT	V4L2_PIX_FMT_YUYV
+#define RVIN_DEFAULT_FIELD	V4L2_FIELD_NONE
 
 /* -----------------------------------------------------------------------------
  * Format Conversions
@@ -143,7 +144,7 @@ static int rvin_reset_format(struct rvin_dev *vin)
 	case V4L2_FIELD_INTERLACED:
 		break;
 	default:
-		vin->format.field = V4L2_FIELD_NONE;
+		vin->format.field = RVIN_DEFAULT_FIELD;
 		break;
 	}
 
@@ -193,7 +194,9 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 	source->width = pix->width;
 	source->height = pix->height;
 
-	pix->field = field;
+	if (field != V4L2_FIELD_ANY)
+		pix->field = field;
+
 	pix->width = width;
 	pix->height = height;
 
@@ -212,10 +215,6 @@ static int __rvin_try_format(struct rvin_dev *vin,
 {
 	u32 walign;
 	int ret;
-
-	/* Keep current field if no specific one is asked for */
-	if (pix->field == V4L2_FIELD_ANY)
-		pix->field = vin->format.field;
 
 	/* If requested format is not supported fallback to the default */
 	if (!rvin_format_from_pixel(pix->pixelformat)) {
@@ -246,7 +245,7 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	case V4L2_FIELD_INTERLACED:
 		break;
 	default:
-		pix->field = V4L2_FIELD_NONE;
+		pix->field = RVIN_DEFAULT_FIELD;
 		break;
 	}
 
