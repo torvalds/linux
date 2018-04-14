@@ -75,11 +75,13 @@ struct rvin_graph_entity {
 /**
  * struct rvin_info - Information about the particular VIN implementation
  * @model:		VIN model
+ * @use_mc:		use media controller instead of controlling subdevice
  * @max_width:		max input width the VIN supports
  * @max_height:		max input height the VIN supports
  */
 struct rvin_info {
 	enum model_id model;
+	bool use_mc;
 
 	unsigned int max_width;
 	unsigned int max_height;
