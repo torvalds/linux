@@ -43,6 +43,14 @@ enum model_id {
 	RCAR_GEN3,
 };
 
+enum rvin_csi_id {
+	RVIN_CSI20,
+	RVIN_CSI21,
+	RVIN_CSI40,
+	RVIN_CSI41,
+	RVIN_CSI_MAX,
+};
+
 /**
  * STOPPED  - No operation in progress
  * RUNNING  - Operation in progress have buffers
@@ -80,11 +88,44 @@ struct rvin_graph_entity {
 };
 
 /**
+ * struct rvin_group_route - describes a route from a channel of a
+ *	CSI-2 receiver to a VIN
+ *
+ * @csi:	CSI-2 receiver ID.
+ * @channel:	Output channel of the CSI-2 receiver.
+ * @vin:	VIN ID.
+ * @mask:	Bitmask of the different CHSEL register values that
+ *		allow for a route from @csi + @chan to @vin.
+ *
+ * .. note::
+ *	Each R-Car CSI-2 receiver has four output channels facing the VIN
+ *	devices, each channel can carry one CSI-2 Virtual Channel (VC).
+ *	There is no correlation between channel number and CSI-2 VC. It's
+ *	up to the CSI-2 receiver driver to configure which VC is output
+ *	on which channel, the VIN devices only care about output channels.
+ *
+ *	There are in some cases multiple CHSEL register settings which would
+ *	allow for the same route from @csi + @channel to @vin. For example
+ *	on R-Car H3 both the CHSEL values 0 and 3 allow for a route from
+ *	CSI40/VC0 to VIN0. All possible CHSEL values for a route need to be
+ *	recorded as a bitmask in @mask, in this example bit 0 and 3 should
+ *	be set.
+ */
+struct rvin_group_route {
+	enum rvin_csi_id csi;
+	unsigned int channel;
+	unsigned int vin;
+	unsigned int mask;
+};
+
+/**
  * struct rvin_info - Information about the particular VIN implementation
  * @model:		VIN model
  * @use_mc:		use media controller instead of controlling subdevice
  * @max_width:		max input width the VIN supports
  * @max_height:		max input height the VIN supports
+ * @routes:		list of possible routes from the CSI-2 recivers to
+ *			all VINs. The list mush be NULL terminated.
  */
 struct rvin_info {
 	enum model_id model;
@@ -92,6 +133,7 @@ struct rvin_info {
 
 	unsigned int max_width;
 	unsigned int max_height;
+	const struct rvin_group_route *routes;
 };
 
 /**
