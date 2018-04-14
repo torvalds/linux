@@ -475,6 +475,8 @@ static int rvin_s_std(struct file *file, void *priv, v4l2_std_id a)
 	if (ret < 0)
 		return ret;
 
+	vin->std = a;
+
 	/* Changing the standard will change the width/height */
 	return rvin_reset_format(vin);
 }
@@ -482,9 +484,13 @@ static int rvin_s_std(struct file *file, void *priv, v4l2_std_id a)
 static int rvin_g_std(struct file *file, void *priv, v4l2_std_id *a)
 {
 	struct rvin_dev *vin = video_drvdata(file);
-	struct v4l2_subdev *sd = vin_to_source(vin);
 
-	return v4l2_subdev_call(sd, video, g_std, a);
+	if (v4l2_subdev_has_op(vin_to_source(vin), pad, dv_timings_cap))
+		return -ENOIOCTLCMD;
+
+	*a = vin->std;
+
+	return 0;
 }
 
 static int rvin_subscribe_event(struct v4l2_fh *fh,

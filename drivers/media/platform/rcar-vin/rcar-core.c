@@ -96,6 +96,12 @@ static int rvin_digital_subdevice_attach(struct rvin_dev *vin,
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 		return ret;
 
+	/* Read standard */
+	vin->std = V4L2_STD_UNKNOWN;
+	ret = v4l2_subdev_call(subdev, video, g_std, &vin->std);
+	if (ret < 0 && ret != -ENOIOCTLCMD)
+		return ret;
+
 	/* Add the controls */
 	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 16);
 	if (ret < 0)

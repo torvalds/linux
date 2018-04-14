@@ -118,6 +118,7 @@ struct rvin_info {
  * @crop:		active cropping
  * @compose:		active composing
  * @source:		active size of the video source
+ * @std:		active video standard of the video source
  */
 struct rvin_dev {
 	struct device *dev;
@@ -146,6 +147,7 @@ struct rvin_dev {
 	struct v4l2_rect crop;
 	struct v4l2_rect compose;
 	struct v4l2_rect source;
+	v4l2_std_id std;
 };
 
 #define vin_to_source(vin)		((vin)->digital->subdev)
