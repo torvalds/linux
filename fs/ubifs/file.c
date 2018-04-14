@@ -1513,7 +1513,7 @@ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
  * mmap()d file has taken write protection fault and is being made writable.
  * UBIFS must ensure page is budgeted for.
  */
-static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -1567,8 +1567,7 @@ static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	if (unlikely(page->mapping != inode->i_mapping ||
 		     page_offset(page) > i_size_read(inode))) {
 		/* Page got truncated out from underneath us */
-		err = -EINVAL;
-		goto out_unlock;
+		goto sigbus;
 	}
 
 	if (PagePrivate(page))
@@ -1597,12 +1596,10 @@ static int ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	wait_for_stable_page(page);
 	return VM_FAULT_LOCKED;
 
-out_unlock:
+sigbus:
 	unlock_page(page);
 	ubifs_release_budget(c, &req);
-	if (err)
-		err = VM_FAULT_SIGBUS;
-	return err;
+	return VM_FAULT_SIGBUS;
 }
 
 static const struct vm_operations_struct ubifs_file_vm_ops = {
