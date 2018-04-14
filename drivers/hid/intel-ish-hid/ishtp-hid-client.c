@@ -77,21 +77,21 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 	int curr_hid_dev = client_data->cur_hid_dev;
 
-	if (data_len < sizeof(struct hostif_msg_hdr)) {
-		dev_err(&client_data->cl_device->dev,
-			"[hid-ish]: error, received %u which is less than data header %u\n",
-			(unsigned int)data_len,
-			(unsigned int)sizeof(struct hostif_msg_hdr));
-		++client_data->bad_recv_cnt;
-		ish_hw_reset(hid_ishtp_cl->dev);
-		return;
-	}
-
 	payload = recv_buf + sizeof(struct hostif_msg_hdr);
 	total_len = data_len;
 	cur_pos = 0;
 
 	do {
+		if (cur_pos + sizeof(struct hostif_msg) > total_len) {
+			dev_err(&client_data->cl_device->dev,
+				"[hid-ish]: error, received %u which is less than data header %u\n",
+				(unsigned int)data_len,
+				(unsigned int)sizeof(struct hostif_msg_hdr));
+			++client_data->bad_recv_cnt;
+			ish_hw_reset(hid_ishtp_cl->dev);
+			break;
+		}
+
 		recv_msg = (struct hostif_msg *)(recv_buf + cur_pos);
 		payload_len = recv_msg->hdr.size;
 
