@@ -662,12 +662,30 @@ static const struct v4l2_ioctl_ops rvin_ioctl_ops = {
  * V4L2 Media Controller
  */
 
+static void rvin_mc_try_format(struct rvin_dev *vin,
+			       struct v4l2_pix_format *pix)
+{
+	/*
+	 * The V4L2 specification clearly documents the colorspace fields
+	 * as being set by drivers for capture devices. Using the values
+	 * supplied by userspace thus wouldn't comply with the API. Until
+	 * the API is updated force fixed vaules.
+	 */
+	pix->colorspace = RVIN_DEFAULT_COLORSPACE;
+	pix->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(pix->colorspace);
+	pix->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix->colorspace);
+	pix->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true, pix->colorspace,
+							  pix->ycbcr_enc);
+
+	rvin_format_align(vin, pix);
+}
+
 static int rvin_mc_try_fmt_vid_cap(struct file *file, void *priv,
 				   struct v4l2_format *f)
 {
 	struct rvin_dev *vin = video_drvdata(file);
 
-	rvin_format_align(vin, &f->fmt.pix);
+	rvin_mc_try_format(vin, &f->fmt.pix);
 
 	return 0;
 }
@@ -680,7 +698,7 @@ static int rvin_mc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (vb2_is_busy(&vin->queue))
 		return -EBUSY;
 
-	rvin_format_align(vin, &f->fmt.pix);
+	rvin_mc_try_format(vin, &f->fmt.pix);
 
 	vin->format = f->fmt.pix;
 
