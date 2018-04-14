@@ -223,9 +223,13 @@ struct rvin_dev {
  *
  * @mdev:		media device which represents the group
  *
- * @lock:		protects the count and vin members
+ * @lock:		protects the count, notifier, vin and csi members
  * @count:		number of enabled VIN instances found in DT
+ * @notifier:		pointer to the notifier of a VIN which handles the
+ *			groups async sub-devices.
  * @vin:		VIN instances which are part of the group
+ * @csi:		array of pairs of fwnode and subdev pointers
+ *			to all CSI-2 subdevices.
  */
 struct rvin_group {
 	struct kref refcount;
@@ -234,7 +238,13 @@ struct rvin_group {
 
 	struct mutex lock;
 	unsigned int count;
+	struct v4l2_async_notifier *notifier;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
+
+	struct {
+		struct fwnode_handle *fwnode;
+		struct v4l2_subdev *subdev;
+	} csi[RVIN_CSI_MAX];
 };
 
 int rvin_dma_register(struct rvin_dev *vin, int irq);
