@@ -16,6 +16,7 @@
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include <media/videobuf2-dma-contig.h>
 
@@ -1154,6 +1155,42 @@ int rvin_dma_register(struct rvin_dev *vin, int irq)
 	return 0;
 error:
 	rvin_dma_unregister(vin);
+
+	return ret;
+}
+
+/* -----------------------------------------------------------------------------
+ * Gen3 CHSEL manipulation
+ */
+
+/*
+ * There is no need to have locking around changing the routing
+ * as it's only possible to do so when no VIN in the group is
+ * streaming so nothing can race with the VNMC register.
+ */
+int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel)
+{
+	u32 ifmd, vnmc;
+	int ret;
+
+	ret = pm_runtime_get_sync(vin->dev);
+	if (ret < 0)
+		return ret;
+
+	/* Make register writes take effect immediately. */
+	vnmc = rvin_read(vin, VNMC_REG);
+	rvin_write(vin, vnmc & ~VNMC_VUP, VNMC_REG);
+
+	ifmd = VNCSI_IFMD_DES1 | VNCSI_IFMD_DES0 | VNCSI_IFMD_CSI_CHSEL(chsel);
+
+	rvin_write(vin, ifmd, VNCSI_IFMD_REG);
+
+	vin_dbg(vin, "Set IFMD 0x%x\n", ifmd);
+
+	/* Restore VNMC. */
+	rvin_write(vin, vnmc, VNMC_REG);
+
+	pm_runtime_put(vin->dev);
 
 	return ret;
 }
