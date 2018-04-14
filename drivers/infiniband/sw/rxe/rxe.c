@@ -306,7 +306,6 @@ int rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
 
 	return 0;
 }
-EXPORT_SYMBOL(rxe_set_mtu);
 
 /* called by ifc layer to create new rxe device.
  * The caller should allocate memory for rxe by calling ib_alloc_device.
@@ -335,7 +334,6 @@ err1:
 	rxe_dev_put(rxe);
 	return err;
 }
-EXPORT_SYMBOL(rxe_add);
 
 /* called by the ifc layer to remove a device */
 void rxe_remove(struct rxe_dev *rxe)
@@ -344,7 +342,6 @@ void rxe_remove(struct rxe_dev *rxe)
 
 	rxe_dev_put(rxe);
 }
-EXPORT_SYMBOL(rxe_remove);
 
 static int __init rxe_module_init(void)
 {
