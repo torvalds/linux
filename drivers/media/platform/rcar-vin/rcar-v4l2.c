@@ -841,6 +841,9 @@ static const struct v4l2_file_operations rvin_fops = {
 
 void rvin_v4l2_unregister(struct rvin_dev *vin)
 {
+	if (!video_is_registered(&vin->vdev))
+		return;
+
 	v4l2_info(&vin->v4l2_dev, "Removing %s\n",
 		  video_device_node_name(&vin->vdev));
 
