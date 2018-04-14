@@ -2023,7 +2023,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 		ret = mnt_want_write_file(dst_file);
 		if (ret) {
 			info->status = ret;
-			goto next_loop;
+			goto next_fdput;
 		}
 
 		dst_off = info->dest_offset;
@@ -2058,9 +2058,9 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 
 next_file:
 		mnt_drop_write_file(dst_file);
-next_loop:
+next_fdput:
 		fdput(dst_fd);
-
+next_loop:
 		if (fatal_signal_pending(current))
 			goto out;
 	}
