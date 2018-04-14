@@ -2398,7 +2398,7 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 			return;
 		}
 		WARN_ON_ONCE(oldmask); /* Any child must be all zeroed! */
-		WARN_ON_ONCE(rnp->level != rcu_num_lvls - 1 &&
+		WARN_ON_ONCE(!rcu_is_leaf_node(rnp) &&
 			     rcu_preempt_blocked_readers_cgp(rnp));
 		rnp->qsmask &= ~mask;
 		trace_rcu_quiescent_state_report(rsp->name, rnp->gpnum,
@@ -4056,7 +4056,7 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 
 	init_swait_queue_head(&rsp->gp_wq);
 	init_swait_queue_head(&rsp->expedited_wq);
-	rnp = rsp->level[rcu_num_lvls - 1];
+	rnp = rcu_first_leaf_node(rsp);
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)
 			rnp++;
