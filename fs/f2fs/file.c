@@ -33,19 +33,19 @@
 #include "trace.h"
 #include <trace/events/f2fs.h>
 
-static int f2fs_filemap_fault(struct vm_fault *vmf)
+static vm_fault_t f2fs_filemap_fault(struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vmf->vma->vm_file);
-	int err;
+	vm_fault_t ret;
 
 	down_read(&F2FS_I(inode)->i_mmap_sem);
-	err = filemap_fault(vmf);
+	ret = filemap_fault(vmf);
 	up_read(&F2FS_I(inode)->i_mmap_sem);
 
-	return err;
+	return ret;
 }
 
-static int f2fs_vm_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
