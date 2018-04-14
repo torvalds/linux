@@ -186,7 +186,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	     pix->pixelformat == V4L2_PIX_FMT_XBGR32))
 		pix->pixelformat = RVIN_DEFAULT_FORMAT;
 
-	v4l2_fill_mbus_format(&format.format, pix, vin->digital->code);
+	v4l2_fill_mbus_format(&format.format, pix, vin->mbus_code);
 
 	/* Allow the video device to override field and to scale */
 	field = pix->field;
