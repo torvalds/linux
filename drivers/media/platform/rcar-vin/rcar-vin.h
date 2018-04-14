@@ -47,16 +47,6 @@ enum rvin_dma_state {
 };
 
 /**
- * struct rvin_source_fmt - Source information
- * @width:	Width from source
- * @height:	Height from source
- */
-struct rvin_source_fmt {
-	u32 width;
-	u32 height;
-};
-
-/**
  * struct rvin_video_format - Data format stored in memory
  * @fourcc:	Pixelformat
  * @bpp:	Bytes per pixel
@@ -123,11 +113,11 @@ struct rvin_info {
  * @sequence:		V4L2 buffers sequence number
  * @state:		keeps track of operation state
  *
- * @source:		active format from the video source
  * @format:		active V4L2 pixel format
  *
  * @crop:		active cropping
  * @compose:		active composing
+ * @source:		active size of the video source
  */
 struct rvin_dev {
 	struct device *dev;
@@ -151,11 +141,11 @@ struct rvin_dev {
 	unsigned int sequence;
 	enum rvin_dma_state state;
 
-	struct rvin_source_fmt source;
 	struct v4l2_pix_format format;
 
 	struct v4l2_rect crop;
 	struct v4l2_rect compose;
+	struct v4l2_rect source;
 };
 
 #define vin_to_source(vin)		((vin)->digital->subdev)
