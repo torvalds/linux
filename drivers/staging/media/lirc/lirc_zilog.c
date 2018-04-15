@@ -1228,6 +1228,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 
 	dev_dbg(ir->l.dev, "%s result = %s\n", __func__,
 		ret ? "POLLIN|POLLRDNORM" : "none");
+	put_ir_rx(rx, false);
 	return ret;
 }
 
