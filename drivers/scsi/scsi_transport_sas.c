@@ -223,10 +223,6 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		to_sas_host_attrs(shost)->q = q;
 	}
 
-	/*
-	 * by default assume old behaviour and bounce for any highmem page
-	 */
-	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	return 0;
 }
