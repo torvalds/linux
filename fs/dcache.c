@@ -1230,13 +1230,11 @@ enum d_walk_ret {
  * @parent:	start of walk
  * @data:	data passed to @enter() and @finish()
  * @enter:	callback when first entering the dentry
- * @finish:	callback when successfully finished the walk
  *
- * The @enter() and @finish() callbacks are called with d_lock held.
+ * The @enter() callbacks are called with d_lock held.
  */
 static void d_walk(struct dentry *parent, void *data,
-		   enum d_walk_ret (*enter)(void *, struct dentry *),
-		   void (*finish)(void *))
+		   enum d_walk_ret (*enter)(void *, struct dentry *))
 {
 	struct dentry *this_parent;
 	struct list_head *next;
@@ -1325,8 +1323,6 @@ ascend:
 	if (need_seqretry(&rename_lock, seq))
 		goto rename_retry;
 	rcu_read_unlock();
-	if (finish)
-		finish(data);
 
 out_unlock:
 	spin_unlock(&this_parent->d_lock);
@@ -1375,7 +1371,7 @@ int path_has_submounts(const struct path *parent)
 	struct check_mount data = { .mnt = parent->mnt, .mounted = 0 };
 
 	read_seqlock_excl(&mount_lock);
-	d_walk(parent->dentry, &data, path_check_mount, NULL);
+	d_walk(parent->dentry, &data, path_check_mount);
 	read_sequnlock_excl(&mount_lock);
 
 	return data.mounted;
@@ -1483,7 +1479,7 @@ void shrink_dcache_parent(struct dentry *parent)
 		data.start = parent;
 		data.found = 0;
 
-		d_walk(parent, &data, select_collect, NULL);
+		d_walk(parent, &data, select_collect);
 		if (!data.found)
 			break;
 
@@ -1518,7 +1514,7 @@ static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 static void do_one_tree(struct dentry *dentry)
 {
 	shrink_dcache_parent(dentry);
-	d_walk(dentry, dentry, umount_check, NULL);
+	d_walk(dentry, dentry, umount_check);
 	d_drop(dentry);
 	dput(dentry);
 }
@@ -1575,7 +1571,7 @@ void d_invalidate(struct dentry *dentry)
 	shrink_dcache_parent(dentry);
 	for (;;) {
 		struct dentry *victim = NULL;
-		d_walk(dentry, &victim, find_submount, NULL);
+		d_walk(dentry, &victim, find_submount);
 		if (!victim) {
 			if (had_submounts)
 				shrink_dcache_parent(dentry);
@@ -3082,7 +3078,7 @@ static enum d_walk_ret d_genocide_kill(void *data, struct dentry *dentry)
 
 void d_genocide(struct dentry *parent)
 {
-	d_walk(parent, parent, d_genocide_kill, NULL);
+	d_walk(parent, parent, d_genocide_kill);
 }
 
 EXPORT_SYMBOL(d_genocide);
