@@ -443,13 +443,13 @@ static int ath10k_htt_tx_alloc_buf(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	int ret;
 
-	ret = htt->tx_ops->htt_alloc_txbuff(htt);
+	ret = ath10k_htt_alloc_txbuff(htt);
 	if (ret) {
 		ath10k_err(ar, "failed to alloc cont tx buffer: %d\n", ret);
 		return ret;
 	}
 
-	ret = htt->tx_ops->htt_alloc_frag_desc(htt);
+	ret = ath10k_htt_alloc_frag_desc(htt);
 	if (ret) {
 		ath10k_err(ar, "failed to alloc cont frag desc: %d\n", ret);
 		goto free_txbuf;
@@ -473,10 +473,10 @@ free_txq:
 	ath10k_htt_tx_free_txq(htt);
 
 free_frag_desc:
-	htt->tx_ops->htt_free_frag_desc(htt);
+	ath10k_htt_free_frag_desc(htt);
 
 free_txbuf:
-	htt->tx_ops->htt_free_txbuff(htt);
+	ath10k_htt_free_txbuff(htt);
 
 	return ret;
 }
@@ -530,9 +530,9 @@ void ath10k_htt_tx_destroy(struct ath10k_htt *htt)
 	if (!htt->tx_mem_allocated)
 		return;
 
-	htt->tx_ops->htt_free_txbuff(htt);
+	ath10k_htt_free_txbuff(htt);
 	ath10k_htt_tx_free_txq(htt);
-	htt->tx_ops->htt_free_frag_desc(htt);
+	ath10k_htt_free_frag_desc(htt);
 	ath10k_htt_tx_free_txdone_fifo(htt);
 	htt->tx_mem_allocated = false;
 }

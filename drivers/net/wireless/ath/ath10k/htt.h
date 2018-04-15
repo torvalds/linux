@@ -1856,6 +1856,57 @@ struct ath10k_htt_tx_ops {
 	void (*htt_free_txbuff)(struct ath10k_htt *htt);
 };
 
+static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_send_rx_ring_cfg)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_send_rx_ring_cfg(htt);
+}
+
+static inline int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_send_frag_desc_bank_cfg)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_send_frag_desc_bank_cfg(htt);
+}
+
+static inline int ath10k_htt_alloc_frag_desc(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_alloc_frag_desc)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_alloc_frag_desc(htt);
+}
+
+static inline void ath10k_htt_free_frag_desc(struct ath10k_htt *htt)
+{
+	if (htt->tx_ops->htt_free_frag_desc)
+		htt->tx_ops->htt_free_frag_desc(htt);
+}
+
+static inline int ath10k_htt_tx(struct ath10k_htt *htt,
+				enum ath10k_hw_txrx_mode txmode,
+				struct sk_buff *msdu)
+{
+	return htt->tx_ops->htt_tx(htt, txmode, msdu);
+}
+
+static inline int ath10k_htt_alloc_txbuff(struct ath10k_htt *htt)
+{
+	if (!htt->tx_ops->htt_alloc_txbuff)
+		return -EOPNOTSUPP;
+
+	return htt->tx_ops->htt_alloc_txbuff(htt);
+}
+
+static inline void ath10k_htt_free_txbuff(struct ath10k_htt *htt)
+{
+	if (htt->tx_ops->htt_free_txbuff)
+		htt->tx_ops->htt_free_txbuff(htt);
+}
+
 struct ath10k_htt_rx_ops {
 	size_t (*htt_get_rx_ring_size)(struct ath10k_htt *htt);
 	void (*htt_config_paddrs_ring)(struct ath10k_htt *htt, void *vaddr);
