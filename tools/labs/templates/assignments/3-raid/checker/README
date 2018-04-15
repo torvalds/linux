@@ -1,0 +1,32 @@
+= SOFTWARE RAID TEST SUITE ==
+
+Test suite for software RAID
+
+== FILES ==
+
+README
+	* this file
+
+Makefile
+	* Makefile for automating the build process
+
+_checker
+	* script to run all tests defined in _test/test.c
+
+_test/test.c
+	* test suite for software RAID
+
+== RUNNING ==
+
+In order to run the test suite you can either use the _checker
+script or run the run-test executable.
+
+The _checker script runs all tests and computes assignment grade:
+
+	./_checker
+
+In order to run a specific test pass the test number (1 .. 78) to the
+run-test executable.
+
+	./run-test 5
+

@@ -19,10 +19,12 @@ QEMU_OPTS = -kernel $(ZIMAGE) \
 	-serial pipe:pipe1 -serial pipe:pipe2 \
 	-net nic,model=virtio,vlan=0 -net tap,ifname=tap0,vlan=0,script=no,downscript=no \
 	-drive file=$(YOCTO_IMAGE),if=virtio,format=raw \
+	-drive file=disk1.img,if=virtio,format=raw \
+	-drive file=disk2.img,if=virtio,format=raw \
 	--append "root=/dev/vda console=hvc0" \
 	--display $(QEMU_DISPLAY) -s
 
-boot: .modinst tap0 pipe1.in pipe1.out pipe2.in pipe2.out
+boot: .modinst tap0 pipe1.in pipe1.out pipe2.in pipe2.out disk1.img disk2.img
 	ARCH=$(ARCH) qemu/qemu.sh $(QEMU_OPTS)
 
 TEMPDIR := $(shell mktemp -u)
@@ -67,9 +69,13 @@ pipe2.in: pipe1.out
 pipe2.out: pipe1.in
 	ln $< $@
 
+disk1.img:
+	qemu-img create -f raw $@ 100M
+disk2.img:
+	qemu-img create -f raw $@ 100M
 
 clean::
-	rm -f .modinst
+	rm -f .modinst disk1.img disk2.img
 
 .PHONY: clean tap0
 
