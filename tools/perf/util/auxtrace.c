@@ -302,40 +302,6 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 	return 0;
 }
 
-static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
-				       struct perf_session *session,
-				       unsigned int idx,
-				       struct auxtrace_buffer *buffer,
-				       struct auxtrace_buffer **buffer_ptr)
-{
-	int err;
-
-	if (session->one_mmap) {
-		buffer->data = buffer->data_offset - session->one_mmap_offset +
-			       session->one_mmap_addr;
-	} else if (perf_data__is_pipe(session->data)) {
-		buffer->data = auxtrace_copy_data(buffer->size, session);
-		if (!buffer->data)
-			return -ENOMEM;
-		buffer->data_needs_freeing = true;
-	} else if (BITS_PER_LONG == 32 &&
-		   buffer->size > BUFFER_LIMIT_FOR_32_BIT) {
-		err = auxtrace_queues__split_buffer(queues, idx, buffer);
-		if (err)
-			return err;
-	}
-
-	err = auxtrace_queues__queue_buffer(queues, idx, buffer);
-	if (err)
-		return err;
-
-	/* FIXME: Doesn't work for split buffer */
-	if (buffer_ptr)
-		*buffer_ptr = buffer;
-
-	return 0;
-}
-
 static bool filter_cpu(struct perf_session *session, int cpu)
 {
 	unsigned long *cpu_bitmap = session->itrace_synth_opts->cpu_bitmap;
@@ -343,41 +309,69 @@ static bool filter_cpu(struct perf_session *session, int cpu)
 	return cpu_bitmap && cpu != -1 && !test_bit(cpu, cpu_bitmap);
 }
 
+static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
+				       struct perf_session *session,
+				       unsigned int idx,
+				       struct auxtrace_buffer *buffer,
+				       struct auxtrace_buffer **buffer_ptr)
+{
+	int err = -ENOMEM;
+
+	if (filter_cpu(session, buffer->cpu))
+		return 0;
+
+	buffer = memdup(buffer, sizeof(*buffer));
+	if (!buffer)
+		return -ENOMEM;
+
+	if (session->one_mmap) {
+		buffer->data = buffer->data_offset - session->one_mmap_offset +
+			       session->one_mmap_addr;
+	} else if (perf_data__is_pipe(session->data)) {
+		buffer->data = auxtrace_copy_data(buffer->size, session);
+		if (!buffer->data)
+			goto out_free;
+		buffer->data_needs_freeing = true;
+	} else if (BITS_PER_LONG == 32 &&
+		   buffer->size > BUFFER_LIMIT_FOR_32_BIT) {
+		err = auxtrace_queues__split_buffer(queues, idx, buffer);
+		if (err)
+			goto out_free;
+	}
+
+	err = auxtrace_queues__queue_buffer(queues, idx, buffer);
+	if (err)
+		goto out_free;
+
+	/* FIXME: Doesn't work for split buffer */
+	if (buffer_ptr)
+		*buffer_ptr = buffer;
+
+	return 0;
+
+out_free:
+	auxtrace_buffer__free(buffer);
+	return err;
+}
+
 int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 			       struct perf_session *session,
 			       union perf_event *event, off_t data_offset,
 			       struct auxtrace_buffer **buffer_ptr)
 {
-	struct auxtrace_buffer *buffer;
-	unsigned int idx;
-	int err;
+	struct auxtrace_buffer buffer = {
+		.pid = -1,
+		.tid = event->auxtrace.tid,
+		.cpu = event->auxtrace.cpu,
+		.data_offset = data_offset,
+		.offset = event->auxtrace.offset,
+		.reference = event->auxtrace.reference,
+		.size = event->auxtrace.size,
+	};
+	unsigned int idx = event->auxtrace.idx;
 
-	if (filter_cpu(session, event->auxtrace.cpu))
-		return 0;
-
-	buffer = zalloc(sizeof(struct auxtrace_buffer));
-	if (!buffer)
-		return -ENOMEM;
-
-	buffer->pid = -1;
-	buffer->tid = event->auxtrace.tid;
-	buffer->cpu = event->auxtrace.cpu;
-	buffer->data_offset = data_offset;
-	buffer->offset = event->auxtrace.offset;
-	buffer->reference = event->auxtrace.reference;
-	buffer->size = event->auxtrace.size;
-	idx = event->auxtrace.idx;
-
-	err = auxtrace_queues__add_buffer(queues, session, idx, buffer,
-					  buffer_ptr);
-	if (err)
-		goto out_err;
-
-	return 0;
-
-out_err:
-	auxtrace_buffer__free(buffer);
-	return err;
+	return auxtrace_queues__add_buffer(queues, session, idx, &buffer,
+					   buffer_ptr);
 }
 
 static int auxtrace_queues__add_indexed_event(struct auxtrace_queues *queues,
