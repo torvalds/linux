@@ -1049,16 +1049,14 @@ static int __ibmvnic_open(struct net_device *netdev)
 		netdev_dbg(netdev, "Enabling rx_scrq[%d] irq\n", i);
 		if (prev_state == VNIC_CLOSED)
 			enable_irq(adapter->rx_scrq[i]->irq);
-		else
-			enable_scrq_irq(adapter, adapter->rx_scrq[i]);
+		enable_scrq_irq(adapter, adapter->rx_scrq[i]);
 	}
 
 	for (i = 0; i < adapter->req_tx_queues; i++) {
 		netdev_dbg(netdev, "Enabling tx_scrq[%d] irq\n", i);
 		if (prev_state == VNIC_CLOSED)
 			enable_irq(adapter->tx_scrq[i]->irq);
-		else
-			enable_scrq_irq(adapter, adapter->tx_scrq[i]);
+		enable_scrq_irq(adapter, adapter->tx_scrq[i]);
 	}
 
 	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
@@ -1199,6 +1197,7 @@ static void ibmvnic_disable_irqs(struct ibmvnic_adapter *adapter)
 			if (adapter->tx_scrq[i]->irq) {
 				netdev_dbg(netdev,
 					   "Disabling tx_scrq[%d] irq\n", i);
+				disable_scrq_irq(adapter, adapter->tx_scrq[i]);
 				disable_irq(adapter->tx_scrq[i]->irq);
 			}
 	}
@@ -1208,6 +1207,7 @@ static void ibmvnic_disable_irqs(struct ibmvnic_adapter *adapter)
 			if (adapter->rx_scrq[i]->irq) {
 				netdev_dbg(netdev,
 					   "Disabling rx_scrq[%d] irq\n", i);
+				disable_scrq_irq(adapter, adapter->rx_scrq[i]);
 				disable_irq(adapter->rx_scrq[i]->irq);
 			}
 		}
@@ -2617,11 +2617,18 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long rc;
+	u64 val;
 
 	if (scrq->hw_irq > 0x100000000ULL) {
 		dev_err(dev, "bad hw_irq = %lx\n", scrq->hw_irq);
 		return 1;
 	}
+
+	val = (0xff000000) | scrq->hw_irq;
+	rc = plpar_hcall_norets(H_EOI, val);
+	if (rc)
+		dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
+			val, rc);
 
 	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
 				H_ENABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);
