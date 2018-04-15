@@ -828,29 +828,24 @@ static inline bool fast_dput(struct dentry *dentry)
  */
 void dput(struct dentry *dentry)
 {
-	if (unlikely(!dentry))
-		return;
+	while (dentry) {
+		might_sleep();
 
-repeat:
-	might_sleep();
+		rcu_read_lock();
+		if (likely(fast_dput(dentry))) {
+			rcu_read_unlock();
+			return;
+		}
 
-	rcu_read_lock();
-	if (likely(fast_dput(dentry))) {
+		/* Slow case: now with the dentry lock held */
 		rcu_read_unlock();
-		return;
-	}
 
-	/* Slow case: now with the dentry lock held */
-	rcu_read_unlock();
+		if (likely(retain_dentry(dentry))) {
+			spin_unlock(&dentry->d_lock);
+			return;
+		}
 
-	if (likely(retain_dentry(dentry))) {
-		spin_unlock(&dentry->d_lock);
-		return;
-	}
-
-	dentry = dentry_kill(dentry);
-	if (dentry) {
-		goto repeat;
+		dentry = dentry_kill(dentry);
 	}
 }
 EXPORT_SYMBOL(dput);
