@@ -30,8 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
-/* FIXME: for gpio_get_value() replace this with direct register read */
-#include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/bug.h>
@@ -174,7 +172,6 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 	struct mxc_gpio_port *port = gc->private;
 	u32 bit, val;
 	u32 gpio_idx = d->hwirq;
-	u32 gpio = port->gc.base + gpio_idx;
 	int edge;
 	void __iomem *reg = port->base;
 
@@ -190,13 +187,13 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 		if (GPIO_EDGE_SEL >= 0) {
 			edge = GPIO_INT_BOTH_EDGES;
 		} else {
-			val = gpio_get_value(gpio);
+			val = port->gc.get(&port->gc, gpio_idx);
 			if (val) {
 				edge = GPIO_INT_LOW_LEV;
-				pr_debug("mxc: set GPIO %d to low trigger\n", gpio);
+				pr_debug("mxc: set GPIO %d to low trigger\n", gpio_idx);
 			} else {
 				edge = GPIO_INT_HIGH_LEV;
-				pr_debug("mxc: set GPIO %d to high trigger\n", gpio);
+				pr_debug("mxc: set GPIO %d to high trigger\n", gpio_idx);
 			}
 			port->both_edges |= 1 << gpio_idx;
 		}
