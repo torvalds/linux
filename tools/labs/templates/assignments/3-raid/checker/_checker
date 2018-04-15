@@ -1,0 +1,4 @@
+#!/bin/sh
+
+/bin/dmesg -c > /dev/null 2>&1
+./run-test
