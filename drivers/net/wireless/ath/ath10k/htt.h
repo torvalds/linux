@@ -1916,6 +1916,43 @@ struct ath10k_htt_rx_ops {
 	void (*htt_reset_paddrs_ring)(struct ath10k_htt *htt, int idx);
 };
 
+static inline size_t ath10k_htt_get_rx_ring_size(struct ath10k_htt *htt)
+{
+	if (!htt->rx_ops->htt_get_rx_ring_size)
+		return 0;
+
+	return htt->rx_ops->htt_get_rx_ring_size(htt);
+}
+
+static inline void ath10k_htt_config_paddrs_ring(struct ath10k_htt *htt,
+						 void *vaddr)
+{
+	if (htt->rx_ops->htt_config_paddrs_ring)
+		htt->rx_ops->htt_config_paddrs_ring(htt, vaddr);
+}
+
+static inline void ath10k_htt_set_paddrs_ring(struct ath10k_htt *htt,
+					      dma_addr_t paddr,
+					      int idx)
+{
+	if (htt->rx_ops->htt_set_paddrs_ring)
+		htt->rx_ops->htt_set_paddrs_ring(htt, paddr, idx);
+}
+
+static inline void *ath10k_htt_get_vaddr_ring(struct ath10k_htt *htt)
+{
+	if (!htt->rx_ops->htt_get_vaddr_ring)
+		return NULL;
+
+	return htt->rx_ops->htt_get_vaddr_ring(htt);
+}
+
+static inline void ath10k_htt_reset_paddrs_ring(struct ath10k_htt *htt, int idx)
+{
+	if (htt->rx_ops->htt_reset_paddrs_ring)
+		htt->rx_ops->htt_reset_paddrs_ring(htt, idx);
+}
+
 #define RX_HTT_HDR_STATUS_LEN 64
 
 /* This structure layout is programmed via rx ring setup
