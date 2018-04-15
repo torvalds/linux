@@ -580,6 +580,7 @@ static void __dentry_kill(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	if (likely(can_free))
 		dentry_free(dentry);
+	cond_resched();
 }
 
 static struct dentry *__lock_parent(struct dentry *dentry)
@@ -849,7 +850,6 @@ repeat:
 
 	dentry = dentry_kill(dentry);
 	if (dentry) {
-		cond_resched();
 		goto repeat;
 	}
 }
@@ -1051,8 +1051,6 @@ static void shrink_dentry_list(struct list_head *list)
 {
 	while (!list_empty(list)) {
 		struct dentry *dentry, *parent;
-
-		cond_resched();
 
 		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
