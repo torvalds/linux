@@ -526,22 +526,39 @@ static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
 	return protval;
 }
 
+static inline pgprotval_t check_pgprot(pgprot_t pgprot)
+{
+	pgprotval_t massaged_val = massage_pgprot(pgprot);
+
+	/* mmdebug.h can not be included here because of dependencies */
+#ifdef CONFIG_DEBUG_VM
+	WARN_ONCE(pgprot_val(pgprot) != massaged_val,
+		  "attempted to set unsupported pgprot: %016llx "
+		  "bits: %016llx supported: %016llx\n",
+		  (u64)pgprot_val(pgprot),
+		  (u64)pgprot_val(pgprot) ^ massaged_val,
+		  (u64)__supported_pte_mask);
+#endif
+
+	return massaged_val;
+}
+
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
 	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) |
-		     massage_pgprot(pgprot));
+		     check_pgprot(pgprot));
 }
 
 static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 {
 	return __pmd(((phys_addr_t)page_nr << PAGE_SHIFT) |
-		     massage_pgprot(pgprot));
+		     check_pgprot(pgprot));
 }
 
 static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
 {
 	return __pud(((phys_addr_t)page_nr << PAGE_SHIFT) |
-		     massage_pgprot(pgprot));
+		     check_pgprot(pgprot));
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
@@ -553,7 +570,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	 * the newprot (if present):
 	 */
 	val &= _PAGE_CHG_MASK;
-	val |= massage_pgprot(newprot) & ~_PAGE_CHG_MASK;
+	val |= check_pgprot(newprot) & ~_PAGE_CHG_MASK;
 
 	return __pte(val);
 }
@@ -563,7 +580,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	pmdval_t val = pmd_val(pmd);
 
 	val &= _HPAGE_CHG_MASK;
-	val |= massage_pgprot(newprot) & ~_HPAGE_CHG_MASK;
+	val |= check_pgprot(newprot) & ~_HPAGE_CHG_MASK;
 
 	return __pmd(val);
 }
