@@ -1652,8 +1652,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 
 static int
 lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
-	    const union ldlm_policy_data *policy,
-	    struct lookup_intent *it, struct md_op_data *op_data,
+	    const union ldlm_policy_data *policy, struct md_op_data *op_data,
 	    struct lustre_handle *lockh, __u64 extra_lock_flags)
 {
 	struct obd_device	*obd = exp->exp_obd;
@@ -1669,8 +1668,8 @@ lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	CDEBUG(D_INODE, "ENQUEUE on " DFID " -> mds #%u\n",
 	       PFID(&op_data->op_fid1), tgt->ltd_idx);
 
-	return md_enqueue(tgt->ltd_exp, einfo, policy, it, op_data, lockh,
-			extra_lock_flags);
+	return md_enqueue(tgt->ltd_exp, einfo, policy, op_data, lockh,
+			  extra_lock_flags);
 }
 
 static int

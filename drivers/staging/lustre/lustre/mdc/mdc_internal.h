@@ -77,8 +77,8 @@ int mdc_intent_lock(struct obd_export *exp,
 
 int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		const union ldlm_policy_data *policy,
-		struct lookup_intent *it, struct md_op_data *op_data,
-		struct lustre_handle *lockh, __u64 extra_lock_flags);
+		struct md_op_data *op_data,
+		struct lustre_handle *lockh, u64 extra_lock_flags);
 
 int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, enum ldlm_mode  mode,

@@ -1241,7 +1241,6 @@ static inline int md_create(struct obd_export *exp, struct md_op_data *op_data,
 static inline int md_enqueue(struct obd_export *exp,
 			     struct ldlm_enqueue_info *einfo,
 			     const union ldlm_policy_data *policy,
-			     struct lookup_intent *it,
 			     struct md_op_data *op_data,
 			     struct lustre_handle *lockh,
 			     __u64 extra_lock_flags)
@@ -1250,7 +1249,7 @@ static inline int md_enqueue(struct obd_export *exp,
 
 	EXP_CHECK_MD_OP(exp, enqueue);
 	EXP_MD_COUNTER_INCREMENT(exp, enqueue);
-	rc = MDP(exp->exp_obd, enqueue)(exp, einfo, policy, it, op_data, lockh,
+	rc = MDP(exp->exp_obd, enqueue)(exp, einfo, policy, op_data, lockh,
 					extra_lock_flags);
 	return rc;
 }

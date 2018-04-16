@@ -909,8 +909,7 @@ struct md_ops {
 		      const void *, size_t, umode_t, uid_t, gid_t,
 		      cfs_cap_t, __u64, struct ptlrpc_request **);
 	int (*enqueue)(struct obd_export *, struct ldlm_enqueue_info *,
-		       const union ldlm_policy_data *,
-		       struct lookup_intent *, struct md_op_data *,
+		       const union ldlm_policy_data *, struct md_op_data *,
 		       struct lustre_handle *, __u64);
 	int (*getattr)(struct obd_export *, struct md_op_data *,
 		       struct ptlrpc_request **);
