@@ -66,14 +66,7 @@ void die(struct pt_regs *regs, const char *str)
 static inline void do_trap_siginfo(int signo, int code,
 	unsigned long addr, struct task_struct *tsk)
 {
-	siginfo_t info;
-
-	clear_siginfo(&info);
-	info.si_signo = signo;
-	info.si_errno = 0;
-	info.si_code = code;
-	info.si_addr = (void __user *)addr;
-	force_sig_info(signo, &info, tsk);
+	force_sig_fault(signo, code, (void __user *)addr, tsk);
 }
 
 void do_trap(struct pt_regs *regs, int signo, int code,
