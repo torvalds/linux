@@ -84,6 +84,13 @@ again:
 		__free_pages(page, page_order);
 		page = NULL;
 
+		if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
+		    dev->coherent_dma_mask < DMA_BIT_MASK(64) &&
+		    !(gfp & (GFP_DMA32 | GFP_DMA))) {
+			gfp |= GFP_DMA32;
+			goto again;
+		}
+
 		if (IS_ENABLED(CONFIG_ZONE_DMA) &&
 		    dev->coherent_dma_mask < DMA_BIT_MASK(32) &&
 		    !(gfp & GFP_DMA)) {
