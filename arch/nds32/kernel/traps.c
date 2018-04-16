@@ -222,20 +222,13 @@ void die_if_kernel(const char *str, struct pt_regs *regs, int err)
 
 int bad_syscall(int n, struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	if (current->personality != PER_LINUX) {
 		send_sig(SIGSEGV, current, 1);
 		return regs->uregs[0];
 	}
 
-	clear_siginfo(&info);
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code = ILL_ILLTRP;
-	info.si_addr = (void __user *)instruction_pointer(regs) - 4;
-
-	force_sig_info(SIGILL, &info, current);
+	force_sig_fault(SIGILL, ILL_ILLTRP,
+			(void __user *)instruction_pointer(regs) - 4, current);
 	die_if_kernel("Oops - bad syscall", regs, n);
 	return regs->uregs[0];
 }
@@ -288,16 +281,11 @@ void __init early_trap_init(void)
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 		  int error_code, int si_code)
 {
-	struct siginfo info;
-
 	tsk->thread.trap_no = ENTRY_DEBUG_RELATED;
 	tsk->thread.error_code = error_code;
 
-	clear_siginfo(&info);
-	info.si_signo = SIGTRAP;
-	info.si_code = si_code;
-	info.si_addr = (void __user *)instruction_pointer(regs);
-	force_sig_info(SIGTRAP, &info, tsk);
+	force_sig_fault(SIGTRAP, si_code,
+			(void __user *)instruction_pointer(regs), tsk);
 }
 
 void do_debug_trap(unsigned long entry, unsigned long addr,
