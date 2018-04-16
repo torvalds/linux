@@ -128,7 +128,7 @@ void dma_direct_free(struct device *dev, size_t size, void *cpu_addr,
 		free_pages((unsigned long)cpu_addr, page_order);
 }
 
-static dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
+dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
 		unsigned long attrs)
 {
@@ -139,8 +139,8 @@ static dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 	return dma_addr;
 }
 
-static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
-		int nents, enum dma_data_direction dir, unsigned long attrs)
+int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -175,7 +175,7 @@ int dma_direct_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-static int dma_direct_mapping_error(struct device *dev, dma_addr_t dma_addr)
+int dma_direct_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return dma_addr == DIRECT_MAPPING_ERROR;
 }
