@@ -1314,6 +1314,11 @@ static void ti_sysc_idle(struct work_struct *work)
 		pm_runtime_put_sync(ddata->dev);
 }
 
+static const struct of_device_id sysc_match_table[] = {
+	{ .compatible = "simple-bus", },
+	{ /* sentinel */ },
+};
+
 static int sysc_probe(struct platform_device *pdev)
 {
 	struct ti_sysc_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -1375,8 +1380,8 @@ static int sysc_probe(struct platform_device *pdev)
 	sysc_show_registers(ddata);
 
 	ddata->dev->type = &sysc_device_type;
-	error = of_platform_populate(ddata->dev->of_node,
-				     NULL, pdata ? pdata->auxdata : NULL,
+	error = of_platform_populate(ddata->dev->of_node, sysc_match_table,
+				     pdata ? pdata->auxdata : NULL,
 				     ddata->dev);
 	if (error)
 		goto err;
