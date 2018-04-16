@@ -254,12 +254,20 @@ static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
 
 		lum_size = ll_lov_user_md_size(lump);
 		if (lum_size < 0 || size < lum_size)
-			return 0; /* b=10667: ignore error */
+			return -ERANGE;
 
 		rc = ll_lov_setstripe_ea_info(inode, dentry, it_flags, lump,
 					      lum_size);
-		/* b=10667: rc always be 0 here for now */
-		rc = 0;
+		/**
+		 * b=10667: ignore -EEXIST.
+		 * Silently eat error on setting trusted.lov/lustre.lov
+		 * attribute for platforms that added the default option
+		 * to copy all attributes in 'cp' command. Both rsync and
+		 * tar --xattrs also will try to set LOVEA for existing
+		 * files.
+		 */
+		if (rc == -EEXIST)
+			rc = 0;
 	} else if (S_ISDIR(inode->i_mode)) {
 		rc = ll_dir_setstripe(inode, lump, 0);
 	}
