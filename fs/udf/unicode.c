@@ -129,9 +129,9 @@ static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
 	return gotch;
 }
 
-static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
+static int udf_name_from_CS0(struct super_block *sb,
+			     uint8_t *str_o, int str_max_len,
 			     const uint8_t *ocu, int ocu_len,
-			     int (*conv_f)(wchar_t, unsigned char *, int),
 			     int translate)
 {
 	uint32_t c;
@@ -148,6 +148,7 @@ static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
 	unsigned short valueCRC;
 	uint8_t ext[EXT_SIZE * NLS_MAX_CHARSET_SIZE + 1];
 	uint8_t crc[CRC_LEN];
+	int (*conv_f)(wchar_t, unsigned char *, int);
 
 	if (str_max_len <= 0)
 		return 0;
@@ -156,6 +157,13 @@ static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
 		memset(str_o, 0, str_max_len);
 		return 0;
 	}
+
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
+		conv_f = udf_uni2char_utf8;
+	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
+		conv_f = UDF_SB(sb)->s_nls_map->uni2char;
+	} else
+		BUG();
 
 	cmp_id = ocu[0];
 	if (cmp_id != 8 && cmp_id != 16) {
@@ -247,17 +255,25 @@ static int udf_name_from_CS0(uint8_t *str_o, int str_max_len,
 	return str_o_len;
 }
 
-static int udf_name_to_CS0(uint8_t *ocu, int ocu_max_len,
-			   const uint8_t *str_i, int str_len,
-			   int (*conv_f)(const unsigned char *, int, wchar_t *))
+static int udf_name_to_CS0(struct super_block *sb,
+			   uint8_t *ocu, int ocu_max_len,
+			   const uint8_t *str_i, int str_len)
 {
 	int i, len;
 	unsigned int max_val;
 	wchar_t uni_char;
 	int u_len, u_ch;
+	int (*conv_f)(const unsigned char *, int, wchar_t *);
 
 	if (ocu_max_len <= 0)
 		return 0;
+
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
+		conv_f = udf_char2uni_utf8;
+	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
+		conv_f = UDF_SB(sb)->s_nls_map->char2uni;
+	} else
+		BUG();
 
 	memset(ocu, 0, ocu_max_len);
 	ocu[0] = 8;
@@ -298,7 +314,6 @@ try_again:
 int udf_dstrCS0toChar(struct super_block *sb, uint8_t *utf_o, int o_len,
 		      const uint8_t *ocu_i, int i_len)
 {
-	int (*conv_f)(wchar_t, unsigned char *, int);
 	int s_len = 0;
 
 	if (i_len > 0) {
@@ -310,20 +325,12 @@ int udf_dstrCS0toChar(struct super_block *sb, uint8_t *utf_o, int o_len,
 		}
 	}
 
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		conv_f = udf_uni2char_utf8;
-	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		conv_f = UDF_SB(sb)->s_nls_map->uni2char;
-	} else
-		BUG();
-
-	return udf_name_from_CS0(utf_o, o_len, ocu_i, s_len, conv_f, 0);
+	return udf_name_from_CS0(sb, utf_o, o_len, ocu_i, s_len, 0);
 }
 
 int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
 		     uint8_t *dname, int dlen)
 {
-	int (*conv_f)(wchar_t, unsigned char *, int);
 	int ret;
 
 	if (!slen)
@@ -332,14 +339,7 @@ int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
 	if (dlen <= 0)
 		return 0;
 
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		conv_f = udf_uni2char_utf8;
-	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		conv_f = UDF_SB(sb)->s_nls_map->uni2char;
-	} else
-		BUG();
-
-	ret = udf_name_from_CS0(dname, dlen, sname, slen, conv_f, 1);
+	ret = udf_name_from_CS0(sb, dname, dlen, sname, slen, 1);
 	/* Zero length filename isn't valid... */
 	if (ret == 0)
 		ret = -EINVAL;
@@ -349,15 +349,6 @@ int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
 int udf_put_filename(struct super_block *sb, const uint8_t *sname, int slen,
 		     uint8_t *dname, int dlen)
 {
-	int (*conv_f)(const unsigned char *, int, wchar_t *);
-
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		conv_f = udf_char2uni_utf8;
-	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		conv_f = UDF_SB(sb)->s_nls_map->char2uni;
-	} else
-		BUG();
-
-	return udf_name_to_CS0(dname, dlen, sname, slen, conv_f);
+	return udf_name_to_CS0(sb, dname, dlen, sname, slen);
 }
 
