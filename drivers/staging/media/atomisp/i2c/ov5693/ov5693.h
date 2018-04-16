@@ -31,6 +31,12 @@
 
 #include "../../include/linux/atomisp_platform.h"
 
+/*
+ * FIXME: non-preview resolutions are currently broken
+ */
+#define ENABLE_NON_PREVIEW	0
+
+
 #define OV5693_POWER_UP_RETRY_NUM 5
 
 /* Defines for register writes and register array processing */
@@ -503,6 +509,7 @@ static struct ov5693_reg const ov5693_global_setting[] = {
 	{OV5693_TOK_TERM, 0, 0}
 };
 
+#if ENABLE_NON_PREVIEW
 /*
  * 654x496 30fps 17ms VBlanking 2lane 10Bit (Scaling)
  */
@@ -695,6 +702,7 @@ static struct ov5693_reg const ov5693_736x496[] = {
 	{OV5693_8BIT, 0x0100, 0x01},
 	{OV5693_TOK_TERM, 0, 0}
 };
+#endif
 
 /*
 static struct ov5693_reg const ov5693_736x496[] = {
@@ -727,6 +735,7 @@ static struct ov5693_reg const ov5693_736x496[] = {
 /*
  * 976x556 30fps 8.8ms VBlanking 2lane 10Bit (Scaling)
  */
+#if ENABLE_NON_PREVIEW
 static struct ov5693_reg const ov5693_976x556[] = {
 	{OV5693_8BIT, 0x3501, 0x7b},
 	{OV5693_8BIT, 0x3502, 0x00},
@@ -819,6 +828,7 @@ static struct ov5693_reg const ov5693_1636p_30fps[] = {
 	{OV5693_8BIT, 0x0100, 0x01},
 	{OV5693_TOK_TERM, 0, 0}
 };
+#endif
 
 static struct ov5693_reg const ov5693_1616x1216_30fps[] = {
 	{OV5693_8BIT, 0x3501, 0x7b},
@@ -859,6 +869,7 @@ static struct ov5693_reg const ov5693_1616x1216_30fps[] = {
 /*
  * 1940x1096 30fps 8.8ms VBlanking 2lane 10bit (Scaling)
  */
+#if ENABLE_NON_PREVIEW
 static struct ov5693_reg const ov5693_1940x1096[] = {
 	{OV5693_8BIT, 0x3501, 0x7b},
 	{OV5693_8BIT, 0x3502, 0x00},
@@ -916,6 +927,7 @@ static struct ov5693_reg const ov5693_2592x1456_30fps[] = {
 	{OV5693_8BIT, 0x5002, 0x00},
 	{OV5693_TOK_TERM, 0, 0}
 };
+#endif
 
 static struct ov5693_reg const ov5693_2576x1456_30fps[] = {
 	{OV5693_8BIT, 0x3501, 0x7b},
@@ -951,6 +963,7 @@ static struct ov5693_reg const ov5693_2576x1456_30fps[] = {
 /*
  * 2592x1944 30fps 0.6ms VBlanking 2lane 10Bit
  */
+#if ENABLE_NON_PREVIEW
 static struct ov5693_reg const ov5693_2592x1944_30fps[] = {
 	{OV5693_8BIT, 0x3501, 0x7b},
 	{OV5693_8BIT, 0x3502, 0x00},
@@ -977,6 +990,7 @@ static struct ov5693_reg const ov5693_2592x1944_30fps[] = {
 	{OV5693_8BIT, 0x0100, 0x01},
 	{OV5693_TOK_TERM, 0, 0}
 };
+#endif
 
 /*
  * 11:9 Full FOV Output, expected FOV Res: 2346x1920
@@ -985,6 +999,7 @@ static struct ov5693_reg const ov5693_2592x1944_30fps[] = {
  *
  * WA: Left Offset: 8, Hor scal: 64
  */
+#if ENABLE_NON_PREVIEW
 static struct ov5693_reg const ov5693_1424x1168_30fps[] = {
 	{OV5693_8BIT, 0x3501, 0x3b}, /* long exposure[15:8] */
 	{OV5693_8BIT, 0x3502, 0x80}, /* long exposure[7:0] */
@@ -1019,6 +1034,7 @@ static struct ov5693_reg const ov5693_1424x1168_30fps[] = {
 	{OV5693_8BIT, 0x0100, 0x01},
 	{OV5693_TOK_TERM, 0, 0}
 };
+#endif
 
 /*
  * 3:2 Full FOV Output, expected FOV Res: 2560x1706
@@ -1151,7 +1167,7 @@ static struct ov5693_resolution ov5693_res_preview[] = {
  * Disable non-preview configurations until the configuration selection is
  * improved.
  */
-#if 0
+#if ENABLE_NON_PREVIEW
 struct ov5693_resolution ov5693_res_still[] = {
 	{
 		.desc = "ov5693_736x496_30fps",

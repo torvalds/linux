@@ -254,6 +254,7 @@ struct ov2722_write_ctrl {
 /*
  * Register settings for various resolution
  */
+#if 0
 static struct ov2722_reg const ov2722_QVGA_30fps[] = {
 	{OV2722_8BIT, 0x3718, 0x10},
 	{OV2722_8BIT, 0x3702, 0x0c},
@@ -581,6 +582,7 @@ static struct ov2722_reg const ov2722_VGA_30fps[] = {
 	{OV2722_8BIT, 0x3509, 0x10},
 	{OV2722_TOK_TERM, 0, 0},
 };
+#endif
 
 static struct ov2722_reg const ov2722_1632_1092_30fps[] = {
 	{OV2722_8BIT, 0x3021, 0x03}, /* For stand wait for
@@ -784,6 +786,7 @@ static struct ov2722_reg const ov2722_1452_1092_30fps[] = {
 	{OV2722_8BIT, 0x3509, 0x00},
 	{OV2722_TOK_TERM, 0, 0}
 };
+#if 0
 static struct ov2722_reg const ov2722_1M3_30fps[] = {
 	{OV2722_8BIT, 0x3718, 0x10},
 	{OV2722_8BIT, 0x3702, 0x24},
@@ -890,6 +893,7 @@ static struct ov2722_reg const ov2722_1M3_30fps[] = {
 	{OV2722_8BIT, 0x3509, 0x10},
 	{OV2722_TOK_TERM, 0, 0},
 };
+#endif
 
 static struct ov2722_reg const ov2722_1080p_30fps[] = {
 	{OV2722_8BIT, 0x3021, 0x03}, /* For stand wait for a whole
@@ -996,6 +1000,7 @@ static struct ov2722_reg const ov2722_1080p_30fps[] = {
 	{OV2722_TOK_TERM, 0, 0}
 };
 
+#if 0 /* Currently unused */
 static struct ov2722_reg const ov2722_720p_30fps[] = {
 	{OV2722_8BIT, 0x3021, 0x03},
 	{OV2722_8BIT, 0x3718, 0x10},
@@ -1095,6 +1100,7 @@ static struct ov2722_reg const ov2722_720p_30fps[] = {
 	{OV2722_8BIT, 0x3509, 0x00},
 	{OV2722_TOK_TERM, 0, 0},
 };
+#endif
 
 static struct ov2722_resolution ov2722_res_preview[] = {
 	{

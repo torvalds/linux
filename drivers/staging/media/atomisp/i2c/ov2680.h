@@ -295,6 +295,7 @@ struct ov2680_format {
 	};
 
 
+#if 0 /* None of the definitions below are used currently */
 	/*
 	 * 176x144 30fps  VBlanking 1lane 10Bit (binning)
 	 */
@@ -513,7 +514,6 @@ struct ov2680_format {
 		{OV2680_8BIT, 0x5081, 0x41},
 		{OV2680_TOK_TERM, 0, 0}
 	};
-
 	/*
 	* 800x600 30fps  VBlanking 1lane 10Bit (binning)
 	*/
@@ -685,6 +685,7 @@ struct ov2680_format {
 		// {OV2680_8BIT, 0x5090, 0x0c},
 		{OV2680_TOK_TERM, 0, 0}
 	};
+#endif
 
 	/*
 	 *1616x916  30fps  VBlanking 1lane 10bit
@@ -733,6 +734,7 @@ struct ov2680_format {
 	/*
 	 * 1612x1212 30fps VBlanking 1lane 10Bit
 	 */
+#if 0
 	static struct ov2680_reg const ov2680_1616x1082_30fps[] = {
 		{OV2680_8BIT, 0x3086, 0x00},
 		{OV2680_8BIT, 0x3501, 0x48},
@@ -772,6 +774,7 @@ struct ov2680_format {
 		{OV2680_8BIT, 0x5081, 0x41},
 		{OV2680_TOK_TERM, 0, 0}
         };
+#endif
 	/*
 	 * 1616x1216 30fps VBlanking 1lane 10Bit
 	 */
