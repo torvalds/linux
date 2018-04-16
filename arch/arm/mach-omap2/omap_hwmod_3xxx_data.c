@@ -885,6 +885,7 @@ static struct omap_hwmod omap3xxx_dma_system_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x008c,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_ENAWAKEUP |
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
@@ -990,6 +991,7 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 
 /* 'mcbsp sidetone' class */
 static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sidetone_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x0010,
 	.sysc_flags	= SYSC_HAS_AUTOIDLE,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
@@ -1018,6 +1020,7 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 
 /* SR common */
 static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x24,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_NO_CACHE),
 	.sysc_fields	= &omap34xx_sr_sysc_fields,
@@ -1030,6 +1033,7 @@ static struct omap_hwmod_class omap34xx_smartreflex_hwmod_class = {
 };
 
 static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x38,
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_ENAWAKEUP |
