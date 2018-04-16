@@ -94,14 +94,12 @@ static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 		tasklet_enable(&priv->sme_task);
 }
 
-static
-int ks_wlan_do_power_save(struct ks_wlan_private *priv)
+static void ks_wlan_do_power_save(struct ks_wlan_private *priv)
 {
 	if (is_connect_status(priv->connect_status))
 		hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 	else
 		priv->dev_state = DEVICE_STATE_READY;
-	return 0;
 }
 
 static
