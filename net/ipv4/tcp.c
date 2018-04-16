@@ -1705,6 +1705,10 @@ EXPORT_SYMBOL(tcp_peek_len);
 int tcp_set_rcvlowat(struct sock *sk, int val)
 {
 	sk->sk_rcvlowat = val ? : 1;
+
+	/* Check if we need to signal EPOLLIN right now */
+	tcp_data_ready(sk);
+
 	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
 		return 0;
 
