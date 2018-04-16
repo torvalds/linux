@@ -246,7 +246,7 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
 	struct atomisp_sensor_mode_data *buf = &info->data;
-	u16 reg_val, reg_val_h, dummy;
+	u16 reg_val, reg_val_h;
 	int ret;
 
 	if (!info)
@@ -316,7 +316,9 @@ static int gc2235_get_intg_factor(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	dummy = (reg_val_h << 8) | reg_val;
+#if 0
+	u16 dummy = (reg_val_h << 8) | reg_val;
+#endif
 
 	ret = gc2235_read_reg(client, GC2235_8BIT,
 					GC2235_SH_DELAY_H, &reg_val_h);
