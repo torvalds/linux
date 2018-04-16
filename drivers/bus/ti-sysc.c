@@ -662,6 +662,7 @@ awake:
 static int sysc_suspend(struct device *dev)
 {
 	struct sysc *ddata;
+	int error;
 
 	ddata = dev_get_drvdata(dev);
 
@@ -672,14 +673,27 @@ static int sysc_suspend(struct device *dev)
 	if (!ddata->enabled)
 		return 0;
 
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
+
+	error = pm_runtime_put_sync_suspend(dev);
+	if (error < 0) {
+		dev_warn(ddata->dev, "%s not idle %i %s\n",
+			 __func__, error,
+			 ddata->name ? ddata->name : "");
+
+		return 0;
+	}
+
 	ddata->needs_resume = true;
 
-	return sysc_runtime_suspend(dev);
+	return 0;
 }
 
 static int sysc_resume(struct device *dev)
 {
 	struct sysc *ddata;
+	int error;
 
 	ddata = dev_get_drvdata(dev);
 
@@ -691,9 +705,16 @@ static int sysc_resume(struct device *dev)
 		dev_dbg(ddata->dev, "%s %s\n", __func__,
 			ddata->name ? ddata->name : "");
 
-		ddata->needs_resume = false;
+		error = pm_runtime_get_sync(dev);
+		if (error < 0) {
+			dev_err(ddata->dev, "%s  error %i %s\n",
+				__func__, error,
+				 ddata->name ? ddata->name : "");
 
-		return sysc_runtime_resume(dev);
+			return error;
+		}
+
+		ddata->needs_resume = false;
 	}
 
 	return 0;
@@ -735,6 +756,9 @@ static int sysc_noirq_resume(struct device *dev)
 		return 0;
 
 	if (ddata->needs_resume) {
+		dev_dbg(ddata->dev, "%s %s\n", __func__,
+			ddata->name ? ddata->name : "");
+
 		ddata->needs_resume = false;
 
 		return sysc_runtime_resume(dev);
@@ -1069,18 +1093,33 @@ static int sysc_child_suspend_noirq(struct device *dev)
 
 	ddata = sysc_child_to_parent(dev);
 
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
+
 	error = pm_generic_suspend_noirq(dev);
-	if (error)
+	if (error) {
+		dev_err(dev, "%s error at %i: %i\n",
+			__func__, __LINE__, error);
+
 		return error;
+	}
 
 	if (!pm_runtime_status_suspended(dev)) {
 		error = pm_generic_runtime_suspend(dev);
-		if (error)
+		if (error) {
+			dev_err(dev, "%s error at %i: %i\n",
+				__func__, __LINE__, error);
+
 			return error;
+		}
 
 		error = sysc_runtime_suspend(ddata->dev);
-		if (error)
+		if (error) {
+			dev_err(dev, "%s error at %i: %i\n",
+				__func__, __LINE__, error);
+
 			return error;
+		}
 
 		ddata->child_needs_resume = true;
 	}
@@ -1094,6 +1133,9 @@ static int sysc_child_resume_noirq(struct device *dev)
 	int error;
 
 	ddata = sysc_child_to_parent(dev);
+
+	dev_dbg(ddata->dev, "%s %s\n", __func__,
+		ddata->name ? ddata->name : "");
 
 	if (ddata->child_needs_resume) {
 		ddata->child_needs_resume = false;
