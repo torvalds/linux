@@ -366,7 +366,7 @@ void force_signal_inject(int signal, int code, unsigned long address)
 	}
 
 	/* Force signals we don't understand to SIGKILL */
-	if (WARN_ON(signal != SIGKILL ||
+	if (WARN_ON(signal != SIGKILL &&
 		    siginfo_layout(signal, code) != SIL_FAULT)) {
 		signal = SIGKILL;
 	}
