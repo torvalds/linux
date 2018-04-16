@@ -3928,7 +3928,8 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk;
 	struct request_queue *q;
-	u64 segment_size;
+	unsigned int objset_bytes =
+	    rbd_dev->layout.object_size * rbd_dev->layout.stripe_count;
 	int err;
 
 	/* create gendisk info */
@@ -3968,20 +3969,18 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	/* QUEUE_FLAG_ADD_RANDOM is off by default for blk-mq */
 
-	/* set io sizes to object size */
-	segment_size = rbd_obj_bytes(&rbd_dev->header);
-	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_hw_sectors(q, objset_bytes >> SECTOR_SHIFT);
 	q->limits.max_sectors = queue_max_hw_sectors(q);
 	blk_queue_max_segments(q, USHRT_MAX);
 	blk_queue_max_segment_size(q, UINT_MAX);
-	blk_queue_io_min(q, segment_size);
-	blk_queue_io_opt(q, segment_size);
+	blk_queue_io_min(q, objset_bytes);
+	blk_queue_io_opt(q, objset_bytes);
 
 	/* enable the discard support */
 	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-	q->limits.discard_granularity = segment_size;
-	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
-	blk_queue_max_write_zeroes_sectors(q, segment_size / SECTOR_SIZE);
+	q->limits.discard_granularity = objset_bytes;
+	blk_queue_max_discard_sectors(q, objset_bytes >> SECTOR_SHIFT);
+	blk_queue_max_write_zeroes_sectors(q, objset_bytes >> SECTOR_SHIFT);
 
 	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
 		q->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
