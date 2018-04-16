@@ -34,6 +34,7 @@ struct delay_c {
 
 	struct delay_class read;
 	struct delay_class write;
+	struct delay_class flush;
 
 	int argc;
 };
@@ -126,6 +127,8 @@ static void delay_dtr(struct dm_target *ti)
 		dm_put_device(ti, dc->read.dev);
 	if (dc->write.dev)
 		dm_put_device(ti, dc->write.dev);
+	if (dc->flush.dev)
+		dm_put_device(ti, dc->flush.dev);
 
 	mutex_destroy(&dc->timer_lock);
 
@@ -171,8 +174,8 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	struct delay_c *dc;
 	int ret;
 
-	if (argc != 3 && argc != 6) {
-		ti->error = "Requires exactly 3 or 6 arguments";
+	if (argc != 3 && argc != 6 && argc != 9) {
+		ti->error = "Requires exactly 3, 6 or 9 arguments";
 		return -EINVAL;
 	}
 
@@ -198,10 +201,23 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ret = delay_class_ctr(ti, &dc->write, argv);
 		if (ret)
 			goto bad;
+		ret = delay_class_ctr(ti, &dc->flush, argv);
+		if (ret)
+			goto bad;
 		goto out;
 	}
 
 	ret = delay_class_ctr(ti, &dc->write, argv + 3);
+	if (ret)
+		goto bad;
+	if (argc == 6) {
+		ret = delay_class_ctr(ti, &dc->flush, argv + 3);
+		if (ret)
+			goto bad;
+		goto out;
+	}
+
+	ret = delay_class_ctr(ti, &dc->flush, argv + 6);
 	if (ret)
 		goto bad;
 
@@ -269,7 +285,10 @@ static int delay_map(struct dm_target *ti, struct bio *bio)
 	struct dm_delay_info *delayed = dm_per_bio_data(bio, sizeof(struct dm_delay_info));
 
 	if (bio_data_dir(bio) == WRITE) {
-		c = &dc->write;
+		if (unlikely(bio->bi_opf & REQ_PREFLUSH))
+			c = &dc->flush;
+		else
+			c = &dc->write;
 	} else {
 		c = &dc->read;
 	}
@@ -292,7 +311,7 @@ static void delay_status(struct dm_target *ti, status_type_t type,
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		DMEMIT("%u %u", dc->read.ops, dc->write.ops);
+		DMEMIT("%u %u %u", dc->read.ops, dc->write.ops, dc->flush.ops);
 		break;
 
 	case STATUSTYPE_TABLE:
@@ -300,6 +319,10 @@ static void delay_status(struct dm_target *ti, status_type_t type,
 		if (dc->argc >= 6) {
 			DMEMIT(" ");
 			DMEMIT_DELAY_CLASS(&dc->write);
+		}
+		if (dc->argc >= 9) {
+			DMEMIT(" ");
+			DMEMIT_DELAY_CLASS(&dc->flush);
 		}
 		break;
 	}
@@ -315,6 +338,9 @@ static int delay_iterate_devices(struct dm_target *ti,
 	if (ret)
 		goto out;
 	ret = fn(ti, dc->write.dev, dc->write.start, ti->len, data);
+	if (ret)
+		goto out;
+	ret = fn(ti, dc->flush.dev, dc->flush.start, ti->len, data);
 	if (ret)
 		goto out;
 
