@@ -939,14 +939,7 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sunxi_mmc_host *host = mmc_priv(mmc);
 
-	if (ios->power_mode == MMC_POWER_OFF)
-		sunxi_mmc_reset_host(host);
-
 	sunxi_mmc_card_power(host, ios);
-
-	if (ios->power_mode == MMC_POWER_UP)
-		sunxi_mmc_init_host(host);
-
 	sunxi_mmc_set_bus_width(host, ios->bus_width);
 	sunxi_mmc_set_clk(host, ios);
 }
@@ -1398,6 +1391,10 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		mmc->caps      |= MMC_CAP_1_8V_DDR;
 
 	ret = mmc_of_parse(mmc);
+	if (ret)
+		goto error_free_dma;
+
+	ret = sunxi_mmc_init_host(host);
 	if (ret)
 		goto error_free_dma;
 
