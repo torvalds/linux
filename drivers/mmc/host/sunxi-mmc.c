@@ -888,17 +888,15 @@ static void sunxi_mmc_set_clk(struct sunxi_mmc_host *host, struct mmc_ios *ios)
 	/* Android code had a usleep_range(50000, 55000); here */
 }
 
-static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+static void sunxi_mmc_card_power(struct sunxi_mmc_host *host,
+				 struct mmc_ios *ios)
 {
-	struct sunxi_mmc_host *host = mmc_priv(mmc);
-	u32 rval;
+	struct mmc_host *mmc = host->mmc;
 
-	/* Set the power state */
 	switch (ios->power_mode) {
-	case MMC_POWER_ON:
-		break;
-
 	case MMC_POWER_UP:
+		dev_dbg(mmc_dev(mmc), "Powering card up\n");
+
 		if (!IS_ERR(mmc->supply.vmmc)) {
 			host->ferror = mmc_regulator_set_ocr(mmc,
 							     mmc->supply.vmmc,
@@ -916,25 +914,37 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			}
 			host->vqmmc_enabled = true;
 		}
-
-		host->ferror = sunxi_mmc_init_host(host);
-		if (host->ferror)
-			return;
-
-		dev_dbg(mmc_dev(mmc), "power on!\n");
 		break;
 
 	case MMC_POWER_OFF:
-		dev_dbg(mmc_dev(mmc), "power off!\n");
-		sunxi_mmc_reset_host(host);
+		dev_dbg(mmc_dev(mmc), "Powering card off\n");
+
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
 
 		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled)
 			regulator_disable(mmc->supply.vqmmc);
+
 		host->vqmmc_enabled = false;
 		break;
+
+	default:
+		dev_dbg(mmc_dev(mmc), "Ignoring unknown card power state\n");
+		break;
 	}
+}
+
+static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct sunxi_mmc_host *host = mmc_priv(mmc);
+
+	if (ios->power_mode == MMC_POWER_OFF)
+		sunxi_mmc_reset_host(host);
+
+	sunxi_mmc_card_power(host, ios);
+
+	if (ios->power_mode == MMC_POWER_UP)
+		sunxi_mmc_init_host(host);
 
 	sunxi_mmc_set_bus_width(host, ios->bus_width);
 	sunxi_mmc_set_clk(host, ios);
