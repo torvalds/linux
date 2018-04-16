@@ -522,6 +522,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3126-bnd-m88-emmc.dtb \
 	rk3126-evb.dtb \
 	rk3128-fireprime.dtb \
+	rk3128h-box.dtb \
 	rk3188-radxarock.dtb \
 	rk3228-evb.dtb \
 	rk3229-at-3nod.dtb \
