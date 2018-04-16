@@ -22,7 +22,7 @@ done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
 
 kernver=$(make kernelversion)
-gitbranch=$(git rev-parse --abbrev-ref HEAD)
+gitbranch=$(git rev-parse --abbrev-ref HEAD|sed 's/^4\.[0-9]\+-//')
 
 function pack {
 	prepare_SD
