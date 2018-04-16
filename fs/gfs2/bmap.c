@@ -700,8 +700,6 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct metapath mp = { .mp_aheight = 1, };
-	unsigned int factor = sdp->sd_sb.sb_bsize;
-	const u64 *arr = sdp->sd_heightsize;
 	__be64 *ptr;
 	sector_t lblock;
 	sector_t lend;
@@ -737,22 +735,12 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	iomap->flags = IOMAP_F_MERGED;
 	bmap_lock(ip, flags & IOMAP_WRITE);
 
-	/*
-	 * Directory data blocks have a struct gfs2_meta_header header, so the
-	 * remaining size is smaller than the filesystem block size.  Logical
-	 * block numbers for directories are in units of this remaining size!
-	 */
-	if (gfs2_is_dir(ip)) {
-		factor = sdp->sd_jbsize;
-		arr = sdp->sd_jheightsize;
-	}
-
 	ret = gfs2_meta_inode_buffer(ip, &mp.mp_bh[0]);
 	if (ret)
 		goto out_release;
 
 	height = ip->i_height;
-	while ((lblock + 1) * factor > arr[height])
+	while ((lblock + 1) * sdp->sd_sb.sb_bsize > sdp->sd_heightsize[height])
 		height++;
 	find_metapath(sdp, lblock, &mp, height);
 	if (height > ip->i_height || gfs2_is_stuffed(ip))

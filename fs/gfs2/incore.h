@@ -696,8 +696,6 @@ struct gfs2_sbd {
 	u32 sd_max_dirres;	/* Max blocks needed to add a directory entry */
 	u32 sd_max_height;	/* Max height of a file's metadata tree */
 	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];
-	u32 sd_max_jheight; /* Max height of journaled file's meta tree */
-	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT + 1];
 	u32 sd_max_dents_per_leaf; /* Max number of dirents in a leaf block */
 
 	struct gfs2_args sd_args;	/* Mount arguments */
