@@ -36,31 +36,56 @@
 #define SURROGATE_CHAR_BITS 10
 #define SURROGATE_CHAR_MASK ((1 << SURROGATE_CHAR_BITS) - 1)
 
-static int udf_uni2char_utf8(wchar_t uni,
-			     unsigned char *out,
-			     int boundlen)
-{
-	int u_len = 0;
-
-	if (boundlen <= 0)
-		return -ENAMETOOLONG;
-
-	u_len = utf32_to_utf8(uni, out, boundlen);
-	if (u_len < 0) {
-		if (uni > UNICODE_MAX ||
-		    (uni & SURROGATE_MASK) == SURROGATE_PAIR)
-			return -EINVAL;
-		return -ENAMETOOLONG;
-	}
-	return u_len;
-}
-
 #define ILLEGAL_CHAR_MARK	'_'
 #define EXT_MARK		'.'
 #define CRC_MARK		'#'
 #define EXT_SIZE		5
 /* Number of chars we need to store generated CRC to make filename unique */
 #define CRC_LEN			5
+
+static unicode_t get_utf16_char(const uint8_t *str_i, int str_i_max_len,
+				int str_i_idx, int u_ch, unicode_t *ret)
+{
+	unicode_t c;
+	int start_idx = str_i_idx;
+
+	/* Expand OSTA compressed Unicode to Unicode */
+	c = str_i[str_i_idx++];
+	if (u_ch > 1)
+		c = (c << 8) | str_i[str_i_idx++];
+	if ((c & SURROGATE_MASK) == SURROGATE_PAIR) {
+		unicode_t next;
+
+		/* Trailing surrogate char */
+		if (str_i_idx >= str_i_max_len) {
+			c = UNICODE_MAX + 1;
+			goto out;
+		}
+
+		/* Low surrogate must follow the high one... */
+		if (c & SURROGATE_LOW) {
+			c = UNICODE_MAX + 1;
+			goto out;
+		}
+
+		WARN_ON_ONCE(u_ch != 2);
+		next = str_i[str_i_idx++] << 8;
+		next |= str_i[str_i_idx++];
+		if ((next & SURROGATE_MASK) != SURROGATE_PAIR ||
+		    !(next & SURROGATE_LOW)) {
+			c = UNICODE_MAX + 1;
+			goto out;
+		}
+
+		c = PLANE_SIZE +
+		    ((c & SURROGATE_CHAR_MASK) << SURROGATE_CHAR_BITS) +
+		    (next & SURROGATE_CHAR_MASK);
+	}
+out:
+	*ret = c;
+	return str_i_idx - start_idx;
+}
+
 
 static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
 			      int *str_o_idx,
@@ -70,27 +95,29 @@ static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
 			      int (*conv_f)(wchar_t, unsigned char *, int),
 			      int translate)
 {
-	uint32_t c;
+	unicode_t c;
 	int illChar = 0;
 	int len, gotch = 0;
 
-	for (; (!gotch) && (*str_i_idx < str_i_max_len); *str_i_idx += u_ch) {
+	while (!gotch && *str_i_idx < str_i_max_len) {
 		if (*str_o_idx >= str_o_max_len) {
 			*needsCRC = 1;
 			return gotch;
 		}
 
-		/* Expand OSTA compressed Unicode to Unicode */
-		c = str_i[*str_i_idx];
-		if (u_ch > 1)
-			c = (c << 8) | str_i[*str_i_idx + 1];
-
-		if (translate && (c == '/' || c == 0))
+		len = get_utf16_char(str_i, str_i_max_len, *str_i_idx, u_ch,
+				     &c);
+		/* These chars cannot be converted. Replace them. */
+		if (c == 0 || c > UNICODE_MAX || (conv_f && c > MAX_WCHAR_T) ||
+		    (translate && c == '/')) {
 			illChar = 1;
-		else if (illChar)
+			if (!translate)
+				gotch = 1;
+		} else if (illChar)
 			break;
 		else
 			gotch = 1;
+		*str_i_idx += len;
 	}
 	if (illChar) {
 		*needsCRC = 1;
@@ -98,7 +125,15 @@ static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
 		gotch = 1;
 	}
 	if (gotch) {
-		len = conv_f(c, &str_o[*str_o_idx], str_o_max_len - *str_o_idx);
+		if (conv_f) {
+			len = conv_f(c, &str_o[*str_o_idx],
+				     str_o_max_len - *str_o_idx);
+		} else {
+			len = utf32_to_utf8(c, &str_o[*str_o_idx],
+					    str_o_max_len - *str_o_idx);
+			if (len < 0)
+				len = -ENAMETOOLONG;
+		}
 		/* Valid character? */
 		if (len >= 0)
 			*str_o_idx += len;
@@ -106,7 +141,7 @@ static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
 			*needsCRC = 1;
 			gotch = 0;
 		} else {
-			str_o[(*str_o_idx)++] = '?';
+			str_o[(*str_o_idx)++] = ILLEGAL_CHAR_MARK;
 			*needsCRC = 1;
 		}
 	}
@@ -142,12 +177,10 @@ static int udf_name_from_CS0(struct super_block *sb,
 		return 0;
 	}
 
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		conv_f = udf_uni2char_utf8;
-	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		conv_f = UDF_SB(sb)->s_nls_map->uni2char;
-	} else
-		BUG();
+	else
+		conv_f = NULL;
 
 	cmp_id = ocu[0];
 	if (cmp_id != 8 && cmp_id != 16) {
