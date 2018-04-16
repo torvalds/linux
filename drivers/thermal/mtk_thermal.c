@@ -677,7 +677,6 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	struct device_node *auxadc, *apmixedsys, *np = pdev->dev.of_node;
 	struct mtk_thermal *mt;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	u64 auxadc_phys_base, apmixed_phys_base;
 	struct thermal_zone_device *tzdev;
 
@@ -685,9 +684,7 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	if (!mt)
 		return -ENOMEM;
 
-	of_id = of_match_device(mtk_thermal_of_match, &pdev->dev);
-	if (of_id)
-		mt->conf = (const struct mtk_thermal_data *)of_id->data;
+	mt->conf = of_device_get_match_data(&pdev->dev);
 
 	mt->clk_peri_therm = devm_clk_get(&pdev->dev, "therm");
 	if (IS_ERR(mt->clk_peri_therm))
