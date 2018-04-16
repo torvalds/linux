@@ -309,38 +309,45 @@ void pte_fragment_free(unsigned long *table, int kernel)
 	}
 }
 
+static inline void pgtable_free(void *table, int index)
+{
+	switch (index) {
+	case PTE_INDEX:
+		pte_fragment_free(table, 0);
+		break;
+	case PMD_INDEX:
+		kmem_cache_free(PGT_CACHE(PMD_CACHE_INDEX), table);
+		break;
+	case PUD_INDEX:
+		kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), table);
+		break;
+		/* We don't free pgd table via RCU callback */
+	default:
+		BUG();
+	}
+}
+
 #ifdef CONFIG_SMP
-void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
+void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int index)
 {
 	unsigned long pgf = (unsigned long)table;
 
-	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-	pgf |= shift;
+	BUG_ON(index > MAX_PGTABLE_INDEX_SIZE);
+	pgf |= index;
 	tlb_remove_table(tlb, (void *)pgf);
 }
 
 void __tlb_remove_table(void *_table)
 {
 	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
-	unsigned int shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
+	unsigned int index = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
 
-	if (!shift)
-		/* PTE page needs special handling */
-		pte_fragment_free(table, 0);
-	else {
-		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-		kmem_cache_free(PGT_CACHE(shift), table);
-	}
+	return pgtable_free(table, index);
 }
 #else
-void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
+void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int index)
 {
-	if (!shift) {
-		/* PTE page needs special handling */
-		pte_fragment_free(table, 0);
-	} else {
-		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-		kmem_cache_free(PGT_CACHE(shift), table);
-	}
+
+	return pgtable_free(table, index);
 }
 #endif

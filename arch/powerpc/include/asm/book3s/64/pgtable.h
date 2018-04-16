@@ -273,6 +273,16 @@ extern unsigned long __pte_frag_size_shift;
 /* Bits to mask out from a PGD to get to the PUD page */
 #define PGD_MASKED_BITS		0xc0000000000000ffUL
 
+/*
+ * Used as an indicator for rcu callback functions
+ */
+enum pgtable_index {
+	PTE_INDEX = 0,
+	PMD_INDEX,
+	PUD_INDEX,
+	PGD_INDEX,
+};
+
 extern unsigned long __vmalloc_start;
 extern unsigned long __vmalloc_end;
 #define VMALLOC_START	__vmalloc_start
