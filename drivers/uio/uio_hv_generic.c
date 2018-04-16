@@ -326,6 +326,11 @@ hv_uio_probe(struct hv_device *dev,
 	vmbus_set_chn_rescind_callback(dev->channel, hv_uio_rescind);
 	vmbus_set_sc_create_callback(dev->channel, hv_uio_new_channel);
 
+	ret = sysfs_create_bin_file(&dev->channel->kobj, &ring_buffer_bin_attr);
+	if (ret)
+		dev_notice(&dev->device,
+			   "sysfs create ring bin file failed; %d\n", ret);
+
 	hv_set_drvdata(dev, pdata);
 
 	return 0;
