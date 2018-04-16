@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 
+ccflags-y += -DDEBUG
+
 snd-sof-objs := core.o ops.o loader.o ipc.o pcm.o pm.o debug.o topology.o\
 		control.o trace.o compressed.o utils.o
 snd-sof-spi-objs := hw-spi.o
