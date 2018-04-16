@@ -3928,6 +3928,27 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	if (index && !hs_ep->isochronous)
 		epctrl |= DXEPCTL_SETD0PID;
 
+	/* WA for Full speed ISOC IN in DDMA mode.
+	 * By Clear NAK status of EP, core will send ZLP
+	 * to IN token and assert NAK interrupt relying
+	 * on TxFIFO status only
+	 */
+
+	if (hsotg->gadget.speed == USB_SPEED_FULL &&
+	    hs_ep->isochronous && dir_in) {
+		/* The WA applies only to core versions from 2.72a
+		 * to 4.00a (including both). Also for FS_IOT_1.00a
+		 * and HS_IOT_1.00a.
+		 */
+		u32 gsnpsid = dwc2_readl(hsotg->regs + GSNPSID);
+
+		if ((gsnpsid >= DWC2_CORE_REV_2_72a &&
+		     gsnpsid <= DWC2_CORE_REV_4_00a) ||
+		     gsnpsid == DWC2_FS_IOT_REV_1_00a ||
+		     gsnpsid == DWC2_HS_IOT_REV_1_00a)
+			epctrl |= DXEPCTL_CNAK;
+	}
+
 	dev_dbg(hsotg->dev, "%s: write DxEPCTL=0x%08x\n",
 		__func__, epctrl);
 
