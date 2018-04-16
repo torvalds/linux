@@ -811,29 +811,38 @@ static int sysc_init_syss_mask(struct sysc *ddata)
 }
 
 /*
- * Many child device drivers need to have fck available to get the clock
- * rate for device internal configuration.
+ * Many child device drivers need to have fck and opt clocks available
+ * to get the clock rate for device internal configuration etc.
  */
-static int sysc_child_add_fck(struct sysc *ddata,
-			      struct device *child)
+static int sysc_child_add_named_clock(struct sysc *ddata,
+				      struct device *child,
+				      const char *name)
 {
-	struct clk *fck;
+	struct clk *clk;
 	struct clk_lookup *l;
-	const char *name = clock_names[SYSC_FCK];
+	int error = 0;
 
-	if (IS_ERR_OR_NULL(ddata->clocks[SYSC_FCK]))
+	if (!name)
 		return 0;
 
-	fck = clk_get(child, name);
-	if (!IS_ERR(fck)) {
-		clk_put(fck);
+	clk = clk_get(child, name);
+	if (!IS_ERR(clk)) {
+		clk_put(clk);
 
 		return -EEXIST;
 	}
 
-	l = clkdev_create(ddata->clocks[SYSC_FCK], name, dev_name(child));
+	clk = clk_get(ddata->dev, name);
+	if (IS_ERR(clk))
+		return -ENODEV;
 
-	return l ? 0 : -ENODEV;
+	l = clkdev_create(clk, name, dev_name(child));
+	if (!l)
+		error = -ENOMEM;
+
+	clk_put(clk);
+
+	return error;
 }
 
 static struct device_type sysc_device_type = {
@@ -983,7 +992,8 @@ static int sysc_notifier_call(struct notifier_block *nb,
 
 	switch (event) {
 	case BUS_NOTIFY_ADD_DEVICE:
-		error = sysc_child_add_fck(ddata, dev);
+		error = sysc_child_add_named_clock(ddata, dev,
+						   clock_names[SYSC_FCK]);
 		if (error && error != -EEXIST)
 			dev_warn(ddata->dev, "could not add %s fck: %i\n",
 				 dev_name(dev), error);
