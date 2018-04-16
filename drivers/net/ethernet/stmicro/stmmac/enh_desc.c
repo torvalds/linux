@@ -382,7 +382,7 @@ static int enh_desc_get_tx_timestamp_status(struct dma_desc *p)
 	return (le32_to_cpu(p->des0) & ETDES0_TIME_STAMP_STATUS) >> 17;
 }
 
-static u64 enh_desc_get_timestamp(void *desc, u32 ats)
+static void enh_desc_get_timestamp(void *desc, u32 ats, u64 *ts)
 {
 	u64 ns;
 
@@ -397,7 +397,7 @@ static u64 enh_desc_get_timestamp(void *desc, u32 ats)
 		ns += le32_to_cpu(p->des3) * 1000000000ULL;
 	}
 
-	return ns;
+	*ts = ns;
 }
 
 static int enh_desc_get_rx_timestamp_status(void *desc, void *next_desc,

@@ -32,6 +32,7 @@
 #endif
 
 #include "descs.h"
+#include "hwif.h"
 #include "mmc.h"
 
 /* Synopsys Core versions */
@@ -376,60 +377,6 @@ struct dma_features {
 #define STMMAC_RING_MODE	0x2
 
 #define JUMBO_LEN		9000
-
-/* Descriptors helpers */
-struct stmmac_desc_ops {
-	/* DMA RX descriptor ring initialization */
-	void (*init_rx_desc) (struct dma_desc *p, int disable_rx_ic, int mode,
-			      int end);
-	/* DMA TX descriptor ring initialization */
-	void (*init_tx_desc) (struct dma_desc *p, int mode, int end);
-
-	/* Invoked by the xmit function to prepare the tx descriptor */
-	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
-				 bool csum_flag, int mode, bool tx_own,
-				 bool ls, unsigned int tot_pkt_len);
-	void (*prepare_tso_tx_desc)(struct dma_desc *p, int is_fs, int len1,
-				    int len2, bool tx_own, bool ls,
-				    unsigned int tcphdrlen,
-				    unsigned int tcppayloadlen);
-	/* Set/get the owner of the descriptor */
-	void (*set_tx_owner) (struct dma_desc *p);
-	int (*get_tx_owner) (struct dma_desc *p);
-	/* Clean the tx descriptor as soon as the tx irq is received */
-	void (*release_tx_desc) (struct dma_desc *p, int mode);
-	/* Clear interrupt on tx frame completion. When this bit is
-	 * set an interrupt happens as soon as the frame is transmitted */
-	void (*set_tx_ic)(struct dma_desc *p);
-	/* Last tx segment reports the transmit status */
-	int (*get_tx_ls) (struct dma_desc *p);
-	/* Return the transmit status looking at the TDES1 */
-	int (*tx_status) (void *data, struct stmmac_extra_stats *x,
-			  struct dma_desc *p, void __iomem *ioaddr);
-	/* Get the buffer size from the descriptor */
-	int (*get_tx_len) (struct dma_desc *p);
-	/* Handle extra events on specific interrupts hw dependent */
-	void (*set_rx_owner) (struct dma_desc *p);
-	/* Get the receive frame size */
-	int (*get_rx_frame_len) (struct dma_desc *p, int rx_coe_type);
-	/* Return the reception status looking at the RDES1 */
-	int (*rx_status) (void *data, struct stmmac_extra_stats *x,
-			  struct dma_desc *p);
-	void (*rx_extended_status) (void *data, struct stmmac_extra_stats *x,
-				    struct dma_extended_desc *p);
-	/* Set tx timestamp enable bit */
-	void (*enable_tx_timestamp) (struct dma_desc *p);
-	/* get tx timestamp status */
-	int (*get_tx_timestamp_status) (struct dma_desc *p);
-	/* get timestamp value */
-	 u64(*get_timestamp) (void *desc, u32 ats);
-	/* get rx timestamp status */
-	int (*get_rx_timestamp_status)(void *desc, void *next_desc, u32 ats);
-	/* Display ring */
-	void (*display_ring)(void *head, unsigned int size, bool rx);
-	/* set MSS via context descriptor */
-	void (*set_mss)(struct dma_desc *p, unsigned int mss);
-};
 
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;

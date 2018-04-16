@@ -50,6 +50,7 @@
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 #include "dwmac1000.h"
+#include "hwif.h"
 
 #define STMMAC_ALIGN(x)	L1_CACHE_ALIGN(x)
 #define	TSO_MAX_BUFF_SIZE	(SZ_16K - 1)
@@ -464,9 +465,9 @@ static void stmmac_get_tx_hwtstamp(struct stmmac_priv *priv,
 		return;
 
 	/* check tx tstamp status */
-	if (priv->hw->desc->get_tx_timestamp_status(p)) {
+	if (stmmac_get_tx_timestamp_status(priv, p)) {
 		/* get the valid tstamp */
-		ns = priv->hw->desc->get_timestamp(p, priv->adv_ts);
+		stmmac_get_timestamp(priv, p, priv->adv_ts, &ns);
 
 		memset(&shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
 		shhwtstamp.hwtstamp = ns_to_ktime(ns);
@@ -502,8 +503,8 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 		desc = np;
 
 	/* Check if timestamp is available */
-	if (priv->hw->desc->get_rx_timestamp_status(p, np, priv->adv_ts)) {
-		ns = priv->hw->desc->get_timestamp(desc, priv->adv_ts);
+	if (stmmac_get_rx_timestamp_status(priv, p, np, priv->adv_ts)) {
+		stmmac_get_timestamp(priv, desc, priv->adv_ts, &ns);
 		netdev_dbg(priv->dev, "get valid RX hw timestamp %llu\n", ns);
 		shhwtstamp = skb_hwtstamps(skb);
 		memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
@@ -1008,7 +1009,7 @@ static void stmmac_display_rx_rings(struct stmmac_priv *priv)
 			head_rx = (void *)rx_q->dma_rx;
 
 		/* Display RX ring */
-		priv->hw->desc->display_ring(head_rx, DMA_RX_SIZE, true);
+		stmmac_display_ring(priv, head_rx, DMA_RX_SIZE, true);
 	}
 }
 
@@ -1029,7 +1030,7 @@ static void stmmac_display_tx_rings(struct stmmac_priv *priv)
 		else
 			head_tx = (void *)tx_q->dma_tx;
 
-		priv->hw->desc->display_ring(head_tx, DMA_TX_SIZE, false);
+		stmmac_display_ring(priv, head_tx, DMA_TX_SIZE, false);
 	}
 }
 
@@ -1073,13 +1074,13 @@ static void stmmac_clear_rx_descriptors(struct stmmac_priv *priv, u32 queue)
 	/* Clear the RX descriptors */
 	for (i = 0; i < DMA_RX_SIZE; i++)
 		if (priv->extend_desc)
-			priv->hw->desc->init_rx_desc(&rx_q->dma_erx[i].basic,
-						     priv->use_riwt, priv->mode,
-						     (i == DMA_RX_SIZE - 1));
+			stmmac_init_rx_desc(priv, &rx_q->dma_erx[i].basic,
+					priv->use_riwt, priv->mode,
+					(i == DMA_RX_SIZE - 1));
 		else
-			priv->hw->desc->init_rx_desc(&rx_q->dma_rx[i],
-						     priv->use_riwt, priv->mode,
-						     (i == DMA_RX_SIZE - 1));
+			stmmac_init_rx_desc(priv, &rx_q->dma_rx[i],
+					priv->use_riwt, priv->mode,
+					(i == DMA_RX_SIZE - 1));
 }
 
 /**
@@ -1097,13 +1098,11 @@ static void stmmac_clear_tx_descriptors(struct stmmac_priv *priv, u32 queue)
 	/* Clear the TX descriptors */
 	for (i = 0; i < DMA_TX_SIZE; i++)
 		if (priv->extend_desc)
-			priv->hw->desc->init_tx_desc(&tx_q->dma_etx[i].basic,
-						     priv->mode,
-						     (i == DMA_TX_SIZE - 1));
+			stmmac_init_tx_desc(priv, &tx_q->dma_etx[i].basic,
+					priv->mode, (i == DMA_TX_SIZE - 1));
 		else
-			priv->hw->desc->init_tx_desc(&tx_q->dma_tx[i],
-						     priv->mode,
-						     (i == DMA_TX_SIZE - 1));
+			stmmac_init_tx_desc(priv, &tx_q->dma_tx[i],
+					priv->mode, (i == DMA_TX_SIZE - 1));
 }
 
 /**
@@ -1851,9 +1850,8 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 		else
 			p = tx_q->dma_tx + entry;
 
-		status = priv->hw->desc->tx_status(&priv->dev->stats,
-						      &priv->xstats, p,
-						      priv->ioaddr);
+		status = stmmac_tx_status(priv, &priv->dev->stats,
+				&priv->xstats, p, priv->ioaddr);
 		/* Check if the descriptor is owned by the DMA */
 		if (unlikely(status & tx_dma_own))
 			break;
@@ -1904,7 +1902,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 			tx_q->tx_skbuff[entry] = NULL;
 		}
 
-		priv->hw->desc->release_tx_desc(p, priv->mode);
+		stmmac_release_tx_desc(priv, p, priv->mode);
 
 		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 	}
@@ -1957,13 +1955,11 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 	dma_free_tx_skbufs(priv, chan);
 	for (i = 0; i < DMA_TX_SIZE; i++)
 		if (priv->extend_desc)
-			priv->hw->desc->init_tx_desc(&tx_q->dma_etx[i].basic,
-						     priv->mode,
-						     (i == DMA_TX_SIZE - 1));
+			stmmac_init_tx_desc(priv, &tx_q->dma_etx[i].basic,
+					priv->mode, (i == DMA_TX_SIZE - 1));
 		else
-			priv->hw->desc->init_tx_desc(&tx_q->dma_tx[i],
-						     priv->mode,
-						     (i == DMA_TX_SIZE - 1));
+			stmmac_init_tx_desc(priv, &tx_q->dma_tx[i],
+					priv->mode, (i == DMA_TX_SIZE - 1));
 	tx_q->dirty_tx = 0;
 	tx_q->cur_tx = 0;
 	tx_q->mss = 0;
@@ -2851,10 +2847,10 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
 		buff_size = tmp_len >= TSO_MAX_BUFF_SIZE ?
 			    TSO_MAX_BUFF_SIZE : tmp_len;
 
-		priv->hw->desc->prepare_tso_tx_desc(desc, 0, buff_size,
-			0, 1,
-			(last_segment) && (tmp_len <= TSO_MAX_BUFF_SIZE),
-			0, 0);
+		stmmac_prepare_tso_tx_desc(priv, desc, 0, buff_size,
+				0, 1,
+				(last_segment) && (tmp_len <= TSO_MAX_BUFF_SIZE),
+				0, 0);
 
 		tmp_len -= TSO_MAX_BUFF_SIZE;
 	}
@@ -2926,7 +2922,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* set new MSS value if needed */
 	if (mss != tx_q->mss) {
 		mss_desc = tx_q->dma_tx + tx_q->cur_tx;
-		priv->hw->desc->set_mss(mss_desc, mss);
+		stmmac_set_mss(priv, mss_desc, mss);
 		tx_q->mss = mss;
 		tx_q->cur_tx = STMMAC_GET_ENTRY(tx_q->cur_tx, DMA_TX_SIZE);
 		WARN_ON(tx_q->tx_skbuff[tx_q->cur_tx]);
@@ -3012,7 +3008,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
 	} else {
 		priv->tx_count_frames = 0;
-		priv->hw->desc->set_tx_ic(desc);
+		stmmac_set_tx_ic(priv, desc);
 		priv->xstats.tx_set_ic_bit++;
 	}
 
@@ -3022,11 +3018,11 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		     priv->hwts_tx_en)) {
 		/* declare that device is doing timestamping */
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		priv->hw->desc->enable_tx_timestamp(first);
+		stmmac_enable_tx_timestamp(priv, first);
 	}
 
 	/* Complete the first descriptor before granting the DMA */
-	priv->hw->desc->prepare_tso_tx_desc(first, 1,
+	stmmac_prepare_tso_tx_desc(priv, first, 1,
 			proto_hdr_len,
 			pay_len,
 			1, tx_q->tx_skbuff_dma[first_entry].last_segment,
@@ -3040,7 +3036,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * sure that MSS's own bit is the last thing written.
 		 */
 		dma_wmb();
-		priv->hw->desc->set_tx_owner(mss_desc);
+		stmmac_set_tx_owner(priv, mss_desc);
 	}
 
 	/* The own bit must be the latest setting done when prepare the
@@ -3054,8 +3050,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 			__func__, tx_q->cur_tx, tx_q->dirty_tx, first_entry,
 			tx_q->cur_tx, first, nfrags);
 
-		priv->hw->desc->display_ring((void *)tx_q->dma_tx, DMA_TX_SIZE,
-					     0);
+		stmmac_display_ring(priv, (void *)tx_q->dma_tx, DMA_TX_SIZE, 0);
 
 		pr_info(">>> frame to be transmitted: ");
 		print_pkt(skb->data, skb_headlen(skb));
@@ -3174,9 +3169,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_q->tx_skbuff_dma[entry].last_segment = last_segment;
 
 		/* Prepare the descriptor and set the own bit too */
-		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion,
-						priv->mode, 1, last_segment,
-						skb->len);
+		stmmac_prepare_tx_desc(priv, desc, 0, len, csum_insertion,
+				priv->mode, 1, last_segment, skb->len);
 	}
 
 	/* Only the last descriptor gets to point to the skb. */
@@ -3203,7 +3197,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			tx_head = (void *)tx_q->dma_tx;
 
-		priv->hw->desc->display_ring(tx_head, DMA_TX_SIZE, false);
+		stmmac_display_ring(priv, tx_head, DMA_TX_SIZE, false);
 
 		netdev_dbg(priv->dev, ">>> frame to be transmitted: ");
 		print_pkt(skb->data, skb->len);
@@ -3228,7 +3222,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
 	} else {
 		priv->tx_count_frames = 0;
-		priv->hw->desc->set_tx_ic(desc);
+		stmmac_set_tx_ic(priv, desc);
 		priv->xstats.tx_set_ic_bit++;
 	}
 
@@ -3259,13 +3253,13 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			     priv->hwts_tx_en)) {
 			/* declare that device is doing timestamping */
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-			priv->hw->desc->enable_tx_timestamp(first);
+			stmmac_enable_tx_timestamp(priv, first);
 		}
 
 		/* Prepare the first descriptor setting the OWN bit too */
-		priv->hw->desc->prepare_tx_desc(first, 1, nopaged_len,
-						csum_insertion, priv->mode, 1,
-						last_segment, skb->len);
+		stmmac_prepare_tx_desc(priv, first, 1, nopaged_len,
+				csum_insertion, priv->mode, 1, last_segment,
+				skb->len);
 
 		/* The own bit must be the latest setting done when prepare the
 		 * descriptor and then barrier is needed to make sure that
@@ -3382,9 +3376,9 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 		dma_wmb();
 
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-			priv->hw->desc->init_rx_desc(p, priv->use_riwt, 0, 0);
+			stmmac_init_rx_desc(priv, p, priv->use_riwt, 0, 0);
 		else
-			priv->hw->desc->set_rx_owner(p);
+			stmmac_set_rx_owner(priv, p);
 
 		dma_wmb();
 
@@ -3418,7 +3412,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 		else
 			rx_head = (void *)rx_q->dma_rx;
 
-		priv->hw->desc->display_ring(rx_head, DMA_RX_SIZE, true);
+		stmmac_display_ring(priv, rx_head, DMA_RX_SIZE, true);
 	}
 	while (count < limit) {
 		int status;
@@ -3431,8 +3425,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			p = rx_q->dma_rx + entry;
 
 		/* read the status of the incoming frame */
-		status = priv->hw->desc->rx_status(&priv->dev->stats,
-						   &priv->xstats, p);
+		status = stmmac_rx_status(priv, &priv->dev->stats,
+				&priv->xstats, p);
 		/* check if managed by the DMA otherwise go ahead */
 		if (unlikely(status & dma_own))
 			break;
@@ -3449,11 +3443,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 
 		prefetch(np);
 
-		if ((priv->extend_desc) && (priv->hw->desc->rx_extended_status))
-			priv->hw->desc->rx_extended_status(&priv->dev->stats,
-							   &priv->xstats,
-							   rx_q->dma_erx +
-							   entry);
+		if (priv->extend_desc)
+			stmmac_rx_extended_status(priv, &priv->dev->stats,
+					&priv->xstats, rx_q->dma_erx + entry);
 		if (unlikely(status == discard_frame)) {
 			priv->dev->stats.rx_errors++;
 			if (priv->hwts_rx_en && !priv->extend_desc) {
@@ -3479,7 +3471,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			else
 				des = le32_to_cpu(p->des2);
 
-			frame_len = priv->hw->desc->get_rx_frame_len(p, coe);
+			frame_len = stmmac_get_rx_frame_len(priv, p, coe);
 
 			/*  If frame length is greater than skb buffer size
 			 *  (preallocated during init) then the packet is

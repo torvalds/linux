@@ -58,9 +58,8 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
-		priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum,
-						STMMAC_RING_MODE, 0,
-						false, skb->len);
+		stmmac_prepare_tx_desc(priv, desc, 1, bmax, csum,
+				STMMAC_RING_MODE, 0, false, skb->len);
 		tx_q->tx_skbuff[entry] = NULL;
 		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 
@@ -79,9 +78,8 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
-		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
-						STMMAC_RING_MODE, 1,
-						true, skb->len);
+		stmmac_prepare_tx_desc(priv, desc, 0, len, csum,
+				STMMAC_RING_MODE, 1, true, skb->len);
 	} else {
 		des2 = dma_map_single(priv->device, skb->data,
 				      nopaged_len, DMA_TO_DEVICE);
@@ -92,9 +90,8 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		tx_q->tx_skbuff_dma[entry].len = nopaged_len;
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
-		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len, csum,
-						STMMAC_RING_MODE, 0,
-						true, skb->len);
+		stmmac_prepare_tx_desc(priv, desc, 1, nopaged_len, csum,
+				STMMAC_RING_MODE, 0, true, skb->len);
 	}
 
 	tx_q->cur_tx = entry;

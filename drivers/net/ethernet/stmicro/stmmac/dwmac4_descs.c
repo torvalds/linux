@@ -223,7 +223,7 @@ static int dwmac4_wrback_get_tx_timestamp_status(struct dma_desc *p)
 	return 0;
 }
 
-static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
+static inline void dwmac4_get_timestamp(void *desc, u32 ats, u64 *ts)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
 	u64 ns;
@@ -232,7 +232,7 @@ static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
 	/* convert high/sec time stamp value to nanosecond */
 	ns += le32_to_cpu(p->des1) * 1000000000ULL;
 
-	return ns;
+	*ts = ns;
 }
 
 static int dwmac4_rx_check_timestamp(void *desc)
