@@ -45,9 +45,6 @@ enum soc_type {
  * @reference_voltage: reference voltage of amplifier
  *	in the positive-TC generator block
  *	0 < reference_voltage <= 31
- * @efuse_value: platform defined fuse value
- * @min_efuse_value: minimum valid trimming data
- * @max_efuse_value: maximum valid trimming data
  * @cal_type: calibration type for temperature
  *
  * This structure is required for configuration of exynos_tmu driver.
@@ -55,10 +52,6 @@ enum soc_type {
 struct exynos_tmu_platform_data {
 	u8 gain;
 	u8 reference_voltage;
-
-	u32 efuse_value;
-	u32 min_efuse_value;
-	u32 max_efuse_value;
 
 	u32 cal_type;
 };
