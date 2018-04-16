@@ -554,7 +554,6 @@ asmlinkage void
 do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = fsr_info + fsr_fs(fsr);
-	struct siginfo info;
 
 	if (!inf->fn(addr, fsr & ~FSR_LNX_PF, regs))
 		return;
@@ -563,12 +562,8 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		inf->name, fsr, addr);
 	show_pte(current->mm, addr);
 
-	clear_siginfo(&info);
-	info.si_signo = inf->sig;
-	info.si_errno = 0;
-	info.si_code  = inf->code;
-	info.si_addr  = (void __user *)addr;
-	arm_notify_die("", regs, &info, fsr, 0);
+	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+		       fsr, 0);
 }
 
 void __init
@@ -588,7 +583,6 @@ asmlinkage void
 do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
-	struct siginfo info;
 
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;
@@ -596,12 +590,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 		inf->name, ifsr, addr);
 
-	clear_siginfo(&info);
-	info.si_signo = inf->sig;
-	info.si_errno = 0;
-	info.si_code  = inf->code;
-	info.si_addr  = (void __user *)addr;
-	arm_notify_die("", regs, &info, ifsr, 0);
+	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+		       ifsr, 0);
 }
 
 /*
