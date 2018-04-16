@@ -314,7 +314,7 @@ struct page *pmd_page(pmd_t pmd)
 }
 
 #ifdef CONFIG_PPC_64K_PAGES
-static pte_t *get_from_cache(struct mm_struct *mm)
+static pte_t *get_pte_from_cache(struct mm_struct *mm)
 {
 	void *pte_frag, *ret;
 
@@ -333,7 +333,7 @@ static pte_t *get_from_cache(struct mm_struct *mm)
 	return (pte_t *)ret;
 }
 
-static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
+static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
 {
 	void *ret = NULL;
 	struct page *page;
@@ -372,12 +372,13 @@ pte_t *pte_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel
 {
 	pte_t *pte;
 
-	pte = get_from_cache(mm);
+	pte = get_pte_from_cache(mm);
 	if (pte)
 		return pte;
 
-	return __alloc_for_cache(mm, kernel);
+	return __alloc_for_ptecache(mm, kernel);
 }
+
 #endif /* CONFIG_PPC_64K_PAGES */
 
 void pte_fragment_free(unsigned long *table, int kernel)
