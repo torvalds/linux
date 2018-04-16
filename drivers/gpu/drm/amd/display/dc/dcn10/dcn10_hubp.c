@@ -613,6 +613,13 @@ void hubp1_program_deadline(
 	REG_SET(DCN_SURF1_TTU_CNTL1, 0,
 		REFCYC_PER_REQ_DELIVERY_PRE,
 		ttu_attr->refcyc_per_req_delivery_pre_c);
+
+	REG_SET_3(DCN_CUR0_TTU_CNTL0, 0,
+		REFCYC_PER_REQ_DELIVERY, ttu_attr->refcyc_per_req_delivery_cur0,
+		QoS_LEVEL_FIXED, ttu_attr->qos_level_fixed_cur0,
+		QoS_RAMP_DISABLE, ttu_attr->qos_ramp_disable_cur0);
+	REG_SET(DCN_CUR0_TTU_CNTL1, 0,
+		REFCYC_PER_REQ_DELIVERY_PRE, ttu_attr->refcyc_per_req_delivery_pre_cur0);
 }
 
 static void hubp1_setup(
