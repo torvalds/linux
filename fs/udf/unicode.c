@@ -295,9 +295,10 @@ try_again:
 	return u_len;
 }
 
-int udf_dstrCS0toUTF8(uint8_t *utf_o, int o_len,
+int udf_dstrCS0toChar(struct super_block *sb, uint8_t *utf_o, int o_len,
 		      const uint8_t *ocu_i, int i_len)
 {
+	int (*conv_f)(wchar_t, unsigned char *, int);
 	int s_len = 0;
 
 	if (i_len > 0) {
@@ -309,8 +310,14 @@ int udf_dstrCS0toUTF8(uint8_t *utf_o, int o_len,
 		}
 	}
 
-	return udf_name_from_CS0(utf_o, o_len, ocu_i, s_len,
-				 udf_uni2char_utf8, 0);
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
+		conv_f = udf_uni2char_utf8;
+	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
+		conv_f = UDF_SB(sb)->s_nls_map->uni2char;
+	} else
+		BUG();
+
+	return udf_name_from_CS0(utf_o, o_len, ocu_i, s_len, conv_f, 0);
 }
 
 int udf_get_filename(struct super_block *sb, const uint8_t *sname, int slen,
