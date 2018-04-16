@@ -7,8 +7,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
@@ -179,7 +177,6 @@ static int nft_rt_validate(const struct nft_ctx *ctx, const struct nft_expr *exp
 	return nft_chain_validate_hooks(ctx->chain, hooks);
 }
 
-static struct nft_expr_type nft_rt_type;
 static const struct nft_expr_ops nft_rt_get_ops = {
 	.type		= &nft_rt_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_rt)),
@@ -189,27 +186,10 @@ static const struct nft_expr_ops nft_rt_get_ops = {
 	.validate	= nft_rt_validate,
 };
 
-static struct nft_expr_type nft_rt_type __read_mostly = {
+struct nft_expr_type nft_rt_type __read_mostly = {
 	.name		= "rt",
 	.ops		= &nft_rt_get_ops,
 	.policy		= nft_rt_policy,
 	.maxattr	= NFTA_RT_MAX,
 	.owner		= THIS_MODULE,
 };
-
-static int __init nft_rt_module_init(void)
-{
-	return nft_register_expr(&nft_rt_type);
-}
-
-static void __exit nft_rt_module_exit(void)
-{
-	nft_unregister_expr(&nft_rt_type);
-}
-
-module_init(nft_rt_module_init);
-module_exit(nft_rt_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Anders K. Pedersen <akp@cohaesio.com>");
-MODULE_ALIAS_NFT_EXPR("rt");

@@ -252,6 +252,7 @@ static struct nft_expr_type *nft_basic_types[] = {
 	&nft_dynset_type,
 	&nft_range_type,
 	&nft_meta_type,
+	&nft_rt_type,
 };
 
 int __init nf_tables_core_module_init(void)

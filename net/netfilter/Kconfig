@@ -480,12 +480,6 @@ config NFT_EXTHDR
 	  This option adds the "exthdr" expression that you can use to match
 	  IPv6 extension headers and tcp options.
 
-config NFT_RT
-	tristate "Netfilter nf_tables routing module"
-	help
-	  This option adds the "rt" expression that you can use to match
-	  packet routing information such as the packet nexthop.
-
 config NFT_NUMGEN
 	tristate "Netfilter nf_tables number generator module"
 	help

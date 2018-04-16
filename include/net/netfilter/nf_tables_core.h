@@ -11,6 +11,7 @@ extern struct nft_expr_type nft_payload_type;
 extern struct nft_expr_type nft_dynset_type;
 extern struct nft_expr_type nft_range_type;
 extern struct nft_expr_type nft_meta_type;
+extern struct nft_expr_type nft_rt_type;
 
 int nf_tables_core_module_init(void);
 void nf_tables_core_module_exit(void);
