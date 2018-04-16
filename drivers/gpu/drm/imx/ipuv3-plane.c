@@ -353,7 +353,6 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo, alpha_eba;
 	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
-	struct drm_rect clip;
 	int hsub, vsub;
 	int ret;
 
@@ -369,11 +368,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  can_position, true);

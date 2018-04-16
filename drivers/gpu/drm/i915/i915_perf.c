@@ -1629,10 +1629,10 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
  * Same as gen8_update_reg_state_unlocked only through the batchbuffer. This
  * is only used by the kernel context.
  */
-static int gen8_emit_oa_config(struct drm_i915_gem_request *req,
+static int gen8_emit_oa_config(struct i915_request *rq,
 			       const struct i915_oa_config *oa_config)
 {
-	struct drm_i915_private *dev_priv = req->i915;
+	struct drm_i915_private *dev_priv = rq->i915;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
 	u32 flex_mmio[] = {
 		i915_mmio_reg_offset(EU_PERF_CNTL0),
@@ -1646,7 +1646,7 @@ static int gen8_emit_oa_config(struct drm_i915_gem_request *req,
 	u32 *cs;
 	int i;
 
-	cs = intel_ring_begin(req, ARRAY_SIZE(flex_mmio) * 2 + 4);
+	cs = intel_ring_begin(rq, ARRAY_SIZE(flex_mmio) * 2 + 4);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1684,7 +1684,7 @@ static int gen8_emit_oa_config(struct drm_i915_gem_request *req,
 	}
 
 	*cs++ = MI_NOOP;
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
 	return 0;
 }
@@ -1694,38 +1694,38 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 	struct i915_gem_timeline *timeline;
-	struct drm_i915_gem_request *req;
+	struct i915_request *rq;
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	i915_gem_retire_requests(dev_priv);
+	i915_retire_requests(dev_priv);
 
-	req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	rq = i915_request_alloc(engine, dev_priv->kernel_context);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
 
-	ret = gen8_emit_oa_config(req, oa_config);
+	ret = gen8_emit_oa_config(rq, oa_config);
 	if (ret) {
-		i915_add_request(req);
+		i915_request_add(rq);
 		return ret;
 	}
 
 	/* Queue this switch after all other activity */
 	list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
-		struct drm_i915_gem_request *prev;
+		struct i915_request *prev;
 		struct intel_timeline *tl;
 
 		tl = &timeline->engine[engine->id];
 		prev = i915_gem_active_raw(&tl->last_request,
 					   &dev_priv->drm.struct_mutex);
 		if (prev)
-			i915_sw_fence_await_sw_fence_gfp(&req->submit,
+			i915_sw_fence_await_sw_fence_gfp(&rq->submit,
 							 &prev->submit,
 							 GFP_KERNEL);
 	}
 
-	i915_add_request(req);
+	i915_request_add(rq);
 
 	return 0;
 }

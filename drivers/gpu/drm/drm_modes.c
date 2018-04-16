@@ -773,24 +773,23 @@ EXPORT_SYMBOL(drm_mode_hsync);
 int drm_mode_vrefresh(const struct drm_display_mode *mode)
 {
 	int refresh = 0;
-	unsigned int calc_val;
 
 	if (mode->vrefresh > 0)
 		refresh = mode->vrefresh;
 	else if (mode->htotal > 0 && mode->vtotal > 0) {
-		int vtotal;
-		vtotal = mode->vtotal;
-		/* work out vrefresh the value will be x1000 */
-		calc_val = (mode->clock * 1000);
-		calc_val /= mode->htotal;
-		refresh = (calc_val + vtotal / 2) / vtotal;
+		unsigned int num, den;
+
+		num = mode->clock * 1000;
+		den = mode->htotal * mode->vtotal;
 
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			refresh *= 2;
+			num *= 2;
 		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-			refresh /= 2;
+			den *= 2;
 		if (mode->vscan > 1)
-			refresh /= mode->vscan;
+			den *= mode->vscan;
+
+		refresh = DIV_ROUND_CLOSEST(num, den);
 	}
 	return refresh;
 }
@@ -833,7 +832,7 @@ EXPORT_SYMBOL(drm_mode_get_hv_timing);
  */
 void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 {
-	if ((p == NULL) || ((p->type & DRM_MODE_TYPE_CRTC_C) == DRM_MODE_TYPE_BUILTIN))
+	if (!p)
 		return;
 
 	p->crtc_clock = p->clock;
@@ -1023,19 +1022,18 @@ bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 }
 EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
 
-/**
- * drm_mode_validate_basic - make sure the mode is somewhat sane
- * @mode: mode to check
- *
- * Check that the mode timings are at least somewhat reasonable.
- * Any hardware specific limits are left up for each driver to check.
- *
- * Returns:
- * The mode status
- */
-enum drm_mode_status
+static enum drm_mode_status
 drm_mode_validate_basic(const struct drm_display_mode *mode)
 {
+	if (mode->type & ~DRM_MODE_TYPE_ALL)
+		return MODE_BAD;
+
+	if (mode->flags & ~DRM_MODE_FLAG_ALL)
+		return MODE_BAD;
+
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
+		return MODE_BAD;
+
 	if (mode->clock == 0)
 		return MODE_CLOCK_LOW;
 
@@ -1053,7 +1051,35 @@ drm_mode_validate_basic(const struct drm_display_mode *mode)
 
 	return MODE_OK;
 }
-EXPORT_SYMBOL(drm_mode_validate_basic);
+
+/**
+ * drm_mode_validate_driver - make sure the mode is somewhat sane
+ * @dev: drm device
+ * @mode: mode to check
+ *
+ * First do basic validation on the mode, and then allow the driver
+ * to check for device/driver specific limitations via the optional
+ * &drm_mode_config_helper_funcs.mode_valid hook.
+ *
+ * Returns:
+ * The mode status
+ */
+enum drm_mode_status
+drm_mode_validate_driver(struct drm_device *dev,
+			const struct drm_display_mode *mode)
+{
+	enum drm_mode_status status;
+
+	status = drm_mode_validate_basic(mode);
+	if (status != MODE_OK)
+		return status;
+
+	if (dev->mode_config.funcs->mode_valid)
+		return dev->mode_config.funcs->mode_valid(dev, mode);
+	else
+		return MODE_OK;
+}
+EXPORT_SYMBOL(drm_mode_validate_driver);
 
 /**
  * drm_mode_validate_size - make sure modes adhere to size constraints
@@ -1319,9 +1345,9 @@ EXPORT_SYMBOL(drm_mode_connector_list_update);
  * modeline in fb_mode_option will be parsed instead.
  *
  * This uses the same parameters as the fb modedb.c, except for an extra
- * force-enable, force-enable-digital and force-disable bit at the end:
+ * force-enable, force-enable-digital and force-disable bit at the end::
  *
- * <xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
+ *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
  *
  * The intermediate drm_cmdline_mode structure is required to store additional
  * options from the command line modline like the force-enable/disable flag.
@@ -1555,6 +1581,7 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 
 /**
  * drm_crtc_convert_umode - convert a modeinfo into a drm_display_mode
+ * @dev: drm device
  * @out: drm_display_mode to return to the user
  * @in: drm_mode_modeinfo to use
  *
@@ -1564,18 +1591,12 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_convert_umode(struct drm_display_mode *out,
+int drm_mode_convert_umode(struct drm_device *dev,
+			   struct drm_display_mode *out,
 			   const struct drm_mode_modeinfo *in)
 {
-	int ret = -EINVAL;
-
-	if (in->clock > INT_MAX || in->vrefresh > INT_MAX) {
-		ret = -ERANGE;
-		goto out;
-	}
-
-	if ((in->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
-		goto out;
+	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
+		return -ERANGE;
 
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
@@ -1590,20 +1611,23 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 	out->vscan = in->vscan;
 	out->vrefresh = in->vrefresh;
 	out->flags = in->flags;
-	out->type = in->type;
+	/*
+	 * Old xf86-video-vmware (possibly others too) used to
+	 * leave 'type' unititialized. Just ignore any bits we
+	 * don't like. It's a just hint after all, and more
+	 * useful for the kernel->userspace direction anyway.
+	 */
+	out->type = in->type & DRM_MODE_TYPE_ALL;
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 
-	out->status = drm_mode_validate_basic(out);
+	out->status = drm_mode_validate_driver(dev, out);
 	if (out->status != MODE_OK)
-		goto out;
+		return -EINVAL;
 
 	drm_mode_set_crtcinfo(out, CRTC_INTERLACE_HALVE_V);
 
-	ret = 0;
-
-out:
-	return ret;
+	return 0;
 }
 
 /**

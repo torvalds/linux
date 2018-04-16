@@ -661,32 +661,6 @@ static const struct bpf_func_proto bpf_get_stackid_proto_tp = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_perf_prog_read_value_tp, struct bpf_perf_event_data_kern *, ctx,
-	   struct bpf_perf_event_value *, buf, u32, size)
-{
-	int err = -EINVAL;
-
-	if (unlikely(size != sizeof(struct bpf_perf_event_value)))
-		goto clear;
-	err = perf_event_read_local(ctx->event, &buf->counter, &buf->enabled,
-				    &buf->running);
-	if (unlikely(err))
-		goto clear;
-	return 0;
-clear:
-	memset(buf, 0, size);
-	return err;
-}
-
-static const struct bpf_func_proto bpf_perf_prog_read_value_proto_tp = {
-         .func           = bpf_perf_prog_read_value_tp,
-         .gpl_only       = true,
-         .ret_type       = RET_INTEGER,
-         .arg1_type      = ARG_PTR_TO_CTX,
-         .arg2_type      = ARG_PTR_TO_UNINIT_MEM,
-         .arg3_type      = ARG_CONST_SIZE,
-};
-
 static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -694,8 +668,6 @@ static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
 		return &bpf_perf_event_output_proto_tp;
 	case BPF_FUNC_get_stackid:
 		return &bpf_get_stackid_proto_tp;
-	case BPF_FUNC_perf_prog_read_value:
-		return &bpf_perf_prog_read_value_proto_tp;
 	default:
 		return tracing_func_proto(func_id);
 	}
@@ -722,6 +694,46 @@ const struct bpf_verifier_ops tracepoint_verifier_ops = {
 
 const struct bpf_prog_ops tracepoint_prog_ops = {
 };
+
+BPF_CALL_3(bpf_perf_prog_read_value, struct bpf_perf_event_data_kern *, ctx,
+	   struct bpf_perf_event_value *, buf, u32, size)
+{
+	int err = -EINVAL;
+
+	if (unlikely(size != sizeof(struct bpf_perf_event_value)))
+		goto clear;
+	err = perf_event_read_local(ctx->event, &buf->counter, &buf->enabled,
+				    &buf->running);
+	if (unlikely(err))
+		goto clear;
+	return 0;
+clear:
+	memset(buf, 0, size);
+	return err;
+}
+
+static const struct bpf_func_proto bpf_perf_prog_read_value_proto = {
+         .func           = bpf_perf_prog_read_value,
+         .gpl_only       = true,
+         .ret_type       = RET_INTEGER,
+         .arg1_type      = ARG_PTR_TO_CTX,
+         .arg2_type      = ARG_PTR_TO_UNINIT_MEM,
+         .arg3_type      = ARG_CONST_SIZE,
+};
+
+static const struct bpf_func_proto *pe_prog_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_perf_event_output:
+		return &bpf_perf_event_output_proto_tp;
+	case BPF_FUNC_get_stackid:
+		return &bpf_get_stackid_proto_tp;
+	case BPF_FUNC_perf_prog_read_value:
+		return &bpf_perf_prog_read_value_proto;
+	default:
+		return tracing_func_proto(func_id);
+	}
+}
 
 static bool pe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
 				    struct bpf_insn_access_aux *info)
@@ -779,7 +791,7 @@ static u32 pe_prog_convert_ctx_access(enum bpf_access_type type,
 }
 
 const struct bpf_verifier_ops perf_event_verifier_ops = {
-	.get_func_proto		= tp_prog_func_proto,
+	.get_func_proto		= pe_prog_func_proto,
 	.is_valid_access	= pe_prog_is_valid_access,
 	.convert_ctx_access	= pe_prog_convert_ctx_access,
 };

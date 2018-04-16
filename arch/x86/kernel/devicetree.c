@@ -259,7 +259,7 @@ static void __init dtb_apic_setup(void)
 	dtb_ioapic_setup();
 }
 
-#ifdef CONFIG_OF_FLATTREE
+#ifdef CONFIG_OF_EARLY_FLATTREE
 static void __init x86_flattree_get_config(void)
 {
 	u32 size, map_len;

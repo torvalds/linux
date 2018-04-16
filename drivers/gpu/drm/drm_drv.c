@@ -99,7 +99,7 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 	case DRM_MINOR_CONTROL:
 		return &dev->control;
 	default:
-		return NULL;
+		BUG();
 	}
 }
 

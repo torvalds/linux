@@ -978,10 +978,6 @@ out:
 		lsmc->clcsock = NULL;
 	}
 	release_sock(lsk);
-	/* no more listening, wake up smc_close_wait_listen_clcsock and
-	 * accept
-	 */
-	lsk->sk_state_change(lsk);
 	sock_put(&lsmc->sk); /* sock_hold in smc_listen */
 }
 

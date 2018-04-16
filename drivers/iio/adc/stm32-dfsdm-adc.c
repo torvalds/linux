@@ -54,7 +54,6 @@ struct stm32_dfsdm_adc {
 	struct stm32_dfsdm *dfsdm;
 	const struct stm32_dfsdm_dev_data *dev_data;
 	unsigned int fl_id;
-	unsigned int ch_id;
 
 	/* ADC specific */
 	unsigned int oversamp;
@@ -384,7 +383,7 @@ static ssize_t dfsdm_adc_audio_set_spiclk(struct iio_dev *indio_dev,
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
-	struct stm32_dfsdm_channel *ch = &adc->dfsdm->ch_list[adc->ch_id];
+	struct stm32_dfsdm_channel *ch = &adc->dfsdm->ch_list[chan->channel];
 	unsigned int sample_freq = adc->sample_freq;
 	unsigned int spi_freq;
 	int ret;
@@ -419,18 +418,20 @@ static ssize_t dfsdm_adc_audio_set_spiclk(struct iio_dev *indio_dev,
 	return len;
 }
 
-static int stm32_dfsdm_start_conv(struct stm32_dfsdm_adc *adc, bool dma)
+static int stm32_dfsdm_start_conv(struct stm32_dfsdm_adc *adc,
+				  const struct iio_chan_spec *chan,
+				  bool dma)
 {
 	struct regmap *regmap = adc->dfsdm->regmap;
 	int ret;
 	unsigned int dma_en = 0, cont_en = 0;
 
-	ret = stm32_dfsdm_start_channel(adc->dfsdm, adc->ch_id);
+	ret = stm32_dfsdm_start_channel(adc->dfsdm, chan->channel);
 	if (ret < 0)
 		return ret;
 
 	ret = stm32_dfsdm_filter_configure(adc->dfsdm, adc->fl_id,
-					   adc->ch_id);
+					   chan->channel);
 	if (ret < 0)
 		goto stop_channels;
 
@@ -464,12 +465,13 @@ stop_channels:
 
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
 			   DFSDM_CR1_RCONT_MASK, 0);
-	stm32_dfsdm_stop_channel(adc->dfsdm, adc->fl_id);
+	stm32_dfsdm_stop_channel(adc->dfsdm, chan->channel);
 
 	return ret;
 }
 
-static void stm32_dfsdm_stop_conv(struct stm32_dfsdm_adc *adc)
+static void stm32_dfsdm_stop_conv(struct stm32_dfsdm_adc *adc,
+				  const struct iio_chan_spec *chan)
 {
 	struct regmap *regmap = adc->dfsdm->regmap;
 
@@ -482,7 +484,7 @@ static void stm32_dfsdm_stop_conv(struct stm32_dfsdm_adc *adc)
 	regmap_update_bits(regmap, DFSDM_CR1(adc->fl_id),
 			   DFSDM_CR1_RCONT_MASK, 0);
 
-	stm32_dfsdm_stop_channel(adc->dfsdm, adc->ch_id);
+	stm32_dfsdm_stop_channel(adc->dfsdm, chan->channel);
 }
 
 static int stm32_dfsdm_set_watermark(struct iio_dev *indio_dev,
@@ -609,6 +611,7 @@ static int stm32_dfsdm_adc_dma_start(struct iio_dev *indio_dev)
 static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+	const struct iio_chan_spec *chan = &indio_dev->channels[0];
 	int ret;
 
 	/* Reset adc buffer index */
@@ -618,7 +621,7 @@ static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	ret = stm32_dfsdm_start_conv(adc, true);
+	ret = stm32_dfsdm_start_conv(adc, chan, true);
 	if (ret) {
 		dev_err(&indio_dev->dev, "Can't start conversion\n");
 		goto stop_dfsdm;
@@ -635,7 +638,7 @@ static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
 	return 0;
 
 err_stop_conv:
-	stm32_dfsdm_stop_conv(adc);
+	stm32_dfsdm_stop_conv(adc, chan);
 stop_dfsdm:
 	stm32_dfsdm_stop_dfsdm(adc->dfsdm);
 
@@ -645,11 +648,12 @@ stop_dfsdm:
 static int stm32_dfsdm_predisable(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+	const struct iio_chan_spec *chan = &indio_dev->channels[0];
 
 	if (adc->dma_chan)
 		dmaengine_terminate_all(adc->dma_chan);
 
-	stm32_dfsdm_stop_conv(adc);
+	stm32_dfsdm_stop_conv(adc, chan);
 
 	stm32_dfsdm_stop_dfsdm(adc->dfsdm);
 
@@ -730,7 +734,7 @@ static int stm32_dfsdm_single_conv(struct iio_dev *indio_dev,
 	if (ret < 0)
 		goto stop_dfsdm;
 
-	ret = stm32_dfsdm_start_conv(adc, false);
+	ret = stm32_dfsdm_start_conv(adc, chan, false);
 	if (ret < 0) {
 		regmap_update_bits(adc->dfsdm->regmap, DFSDM_CR2(adc->fl_id),
 				   DFSDM_CR2_REOCIE_MASK, DFSDM_CR2_REOCIE(0));
@@ -751,7 +755,7 @@ static int stm32_dfsdm_single_conv(struct iio_dev *indio_dev,
 	else
 		ret = IIO_VAL_INT;
 
-	stm32_dfsdm_stop_conv(adc);
+	stm32_dfsdm_stop_conv(adc, chan);
 
 stop_dfsdm:
 	stm32_dfsdm_stop_dfsdm(adc->dfsdm);
@@ -765,7 +769,7 @@ static int stm32_dfsdm_write_raw(struct iio_dev *indio_dev,
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
-	struct stm32_dfsdm_channel *ch = &adc->dfsdm->ch_list[adc->ch_id];
+	struct stm32_dfsdm_channel *ch = &adc->dfsdm->ch_list[chan->channel];
 	unsigned int spi_freq = adc->spi_freq;
 	int ret = -EINVAL;
 
@@ -972,7 +976,6 @@ static int stm32_dfsdm_adc_chan_init_one(struct iio_dev *indio_dev,
 	}
 	ch->scan_type.realbits = 24;
 	ch->scan_type.storagebits = 32;
-	adc->ch_id = ch->channel;
 
 	return stm32_dfsdm_chan_configure(adc->dfsdm,
 					  &adc->dfsdm->ch_list[ch->channel]);
@@ -1001,7 +1004,7 @@ static int stm32_dfsdm_audio_init(struct iio_dev *indio_dev)
 	}
 	ch->info_mask_separate = BIT(IIO_CHAN_INFO_SAMP_FREQ);
 
-	d_ch = &adc->dfsdm->ch_list[adc->ch_id];
+	d_ch = &adc->dfsdm->ch_list[ch->channel];
 	if (d_ch->src != DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL)
 		adc->spi_freq = adc->dfsdm->spi_master_freq;
 
@@ -1042,8 +1045,8 @@ static int stm32_dfsdm_adc_init(struct iio_dev *indio_dev)
 		return -ENOMEM;
 
 	for (chan_idx = 0; chan_idx < num_ch; chan_idx++) {
-		ch->scan_index = chan_idx;
-		ret = stm32_dfsdm_adc_chan_init_one(indio_dev, ch);
+		ch[chan_idx].scan_index = chan_idx;
+		ret = stm32_dfsdm_adc_chan_init_one(indio_dev, &ch[chan_idx]);
 		if (ret < 0) {
 			dev_err(&indio_dev->dev, "Channels init failed\n");
 			return ret;

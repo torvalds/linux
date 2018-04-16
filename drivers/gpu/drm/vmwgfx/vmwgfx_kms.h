@@ -50,6 +50,7 @@
  * @unit: The current display unit. Set up by the helper before a call to @clip.
  * @cmd: The allocated fifo space. Set up by the helper before the first @clip
  * call.
+ * @crtc: The crtc for which to build dirty commands.
  * @num_hits: Number of clip rect commands for this display unit.
  * Cleared by the helper before the first @clip call. Updated by the @clip
  * callback.
@@ -71,6 +72,7 @@ struct vmw_kms_dirty {
 	struct vmw_private *dev_priv;
 	struct vmw_display_unit *unit;
 	void *cmd;
+	struct drm_crtc *crtc;
 	u32 num_hits;
 	s32 fb_x;
 	s32 fb_y;
@@ -175,7 +177,6 @@ struct vmw_plane_state {
 	int pinned;
 
 	/* For CPU Blit */
-	struct ttm_bo_kmap_obj host_map;
 	unsigned int cpp;
 };
 
@@ -292,7 +293,8 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
 				  struct vmw_dma_buffer *buf,
 				  bool interruptible,
-				  bool validate_as_mob);
+				  bool validate_as_mob,
+				  bool for_cpu_blit);
 void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf);
 void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 				  struct drm_file *file_priv,
@@ -404,20 +406,23 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 				 s32 dest_x,
 				 s32 dest_y,
 				 unsigned num_clips, int inc,
-				 struct vmw_fence_obj **out_fence);
+				 struct vmw_fence_obj **out_fence,
+				 struct drm_crtc *crtc);
 int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
 				struct drm_clip_rect *clips,
 				struct drm_vmw_rect *vclips,
 				unsigned num_clips, int increment,
 				bool interruptible,
-				struct vmw_fence_obj **out_fence);
+				struct vmw_fence_obj **out_fence,
+				struct drm_crtc *crtc);
 int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 struct drm_file *file_priv,
 			 struct vmw_framebuffer *vfb,
 			 struct drm_vmw_fence_rep __user *user_fence_rep,
 			 struct drm_vmw_rect *vclips,
-			 uint32_t num_clips);
+			 uint32_t num_clips,
+			 struct drm_crtc *crtc);
 
 /*
  * Screen Target Display Unit functions - vmwgfx_stdu.c
@@ -431,7 +436,8 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 			       s32 dest_x,
 			       s32 dest_y,
 			       unsigned num_clips, int inc,
-			       struct vmw_fence_obj **out_fence);
+			       struct vmw_fence_obj **out_fence,
+			       struct drm_crtc *crtc);
 int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		     struct drm_file *file_priv,
 		     struct vmw_framebuffer *vfb,
@@ -441,7 +447,8 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		     uint32_t num_clips,
 		     int increment,
 		     bool to_surface,
-		     bool interruptible);
+		     bool interruptible,
+		     struct drm_crtc *crtc);
 
 int vmw_kms_set_config(struct drm_mode_set *set,
 		       struct drm_modeset_acquire_ctx *ctx);

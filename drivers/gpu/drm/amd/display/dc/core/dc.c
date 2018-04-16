@@ -29,6 +29,7 @@
 #include "core_status.h"
 #include "core_types.h"
 #include "hw_sequencer.h"
+#include "dce/dce_hwseq.h"
 
 #include "resource.h"
 
@@ -38,8 +39,10 @@
 #include "bios_parser_interface.h"
 #include "include/irq_service_interface.h"
 #include "transform.h"
+#include "dmcu.h"
 #include "dpp.h"
 #include "timing_generator.h"
+#include "abm.h"
 #include "virtual/virtual_link_encoder.h"
 
 #include "link_hwss.h"
@@ -49,6 +52,8 @@
 #include "dm_helpers.h"
 #include "mem_input.h"
 #include "hubp.h"
+#define DC_LOGGER \
+	dc->ctx->logger
 
 
 /*******************************************************************************
@@ -214,6 +219,130 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
+/**
+ * dc_stream_configure_crc: Configure CRC capture for the given stream.
+ * @dc: DC Object
+ * @stream: The stream to configure CRC on.
+ * @enable: Enable CRC if true, disable otherwise.
+ * @continuous: Capture CRC on every frame if true. Otherwise, only capture
+ *              once.
+ *
+ * By default, only CRC0 is configured, and the entire frame is used to
+ * calculate the crc.
+ */
+bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
+			     bool enable, bool continuous)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct crc_params param;
+	struct timing_generator *tg;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	/* Always capture the full frame */
+	param.windowa_x_start = 0;
+	param.windowa_y_start = 0;
+	param.windowa_x_end = pipe->stream->timing.h_addressable;
+	param.windowa_y_end = pipe->stream->timing.v_addressable;
+	param.windowb_x_start = 0;
+	param.windowb_y_start = 0;
+	param.windowb_x_end = pipe->stream->timing.h_addressable;
+	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	/* Default to the union of both windows */
+	param.selection = UNION_WINDOW_A_B;
+	param.continuous_mode = continuous;
+	param.enable = enable;
+
+	tg = pipe->stream_res.tg;
+
+	/* Only call if supported */
+	if (tg->funcs->configure_crc)
+		return tg->funcs->configure_crc(tg, &param);
+	DC_LOG_WARNING("CRC capture not supported.");
+	return false;
+}
+
+/**
+ * dc_stream_get_crc: Get CRC values for the given stream.
+ * @dc: DC object
+ * @stream: The DC stream state of the stream to get CRCs from.
+ * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
+ *
+ * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
+ * Return false if stream is not found, or if CRCs are not enabled.
+ */
+bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
+		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct timing_generator *tg;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	tg = pipe->stream_res.tg;
+
+	if (tg->funcs->get_crc)
+		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
+	DC_LOG_WARNING("CRC capture not supported.");
+	return false;
+}
+
+void dc_stream_set_dither_option(struct dc_stream_state *stream,
+		enum dc_dither_option option)
+{
+	struct bit_depth_reduction_params params;
+	struct dc_link *link = stream->status.link;
+	struct pipe_ctx *pipes = NULL;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (link->dc->current_state->res_ctx.pipe_ctx[i].stream ==
+				stream) {
+			pipes = &link->dc->current_state->res_ctx.pipe_ctx[i];
+			break;
+		}
+	}
+
+	if (!pipes)
+		return;
+	if (option > DITHER_OPTION_MAX)
+		return;
+
+	stream->dither_option = option;
+
+	memset(&params, 0, sizeof(params));
+	resource_build_bit_depth_reduction_params(stream, &params);
+	stream->bit_depth_params = params;
+
+	if (pipes->plane_res.xfm &&
+	    pipes->plane_res.xfm->funcs->transform_set_pixel_storage_depth) {
+		pipes->plane_res.xfm->funcs->transform_set_pixel_storage_depth(
+			pipes->plane_res.xfm,
+			pipes->plane_res.scl_data.lb_params.depth,
+			&stream->bit_depth_params);
+	}
+
+	pipes->stream_res.opp->funcs->
+		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
+}
+
 void dc_stream_set_static_screen_events(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,
@@ -359,9 +488,6 @@ static bool construct(struct dc *dc,
 	dc_version = resource_parse_asic_id(init_params->asic_id);
 	dc_ctx->dce_version = dc_version;
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	dc->ctx->fbc_gpu_addr = init_params->fbc_gpu_addr;
-#endif
 	/* Resource should construct all asic specific resources.
 	 * This should be the only place where we need to parse the asic id
 	 */
@@ -487,10 +613,15 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	dc->caps.max_audios = dc->res_pool->audio_count;
 	dc->caps.linear_pitch_alignment = 64;
 
+	/* Populate versioning information */
+	dc->versions.dc_ver = DC_VER;
+
+	if (dc->res_pool->dmcu != NULL)
+		dc->versions.dmcu_version = dc->res_pool->dmcu->dmcu_version;
+
 	dc->config = init_params->flags;
 
-	dm_logger_write(dc->ctx->logger, LOG_DC,
-			"Display Core initialized\n");
+	DC_LOG_DC("Display Core initialized\n");
 
 
 	/* TODO: missing feature to be enabled */
@@ -524,11 +655,13 @@ static void enable_timing_multisync(
 		if (!ctx->res_ctx.pipe_ctx[i].stream ||
 				!ctx->res_ctx.pipe_ctx[i].stream->triggered_crtc_reset.enabled)
 			continue;
+		if (ctx->res_ctx.pipe_ctx[i].stream == ctx->res_ctx.pipe_ctx[i].stream->triggered_crtc_reset.event_source)
+			continue;
 		multisync_pipes[multisync_count] = &ctx->res_ctx.pipe_ctx[i];
 		multisync_count++;
 	}
 
-	if (multisync_count > 1) {
+	if (multisync_count > 0) {
 		dc->hwss.enable_per_frame_crtc_position_reset(
 			dc, multisync_count, multisync_pipes);
 	}
@@ -650,7 +783,6 @@ bool dc_enable_stereo(
 	return ret;
 }
 
-
 /*
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
@@ -669,7 +801,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc_streams[i] =  context->streams[i];
 
 	if (!dcb->funcs->is_accelerated_mode(dcb))
-		dc->hwss.enable_accelerated_mode(dc);
+		dc->hwss.enable_accelerated_mode(dc, context);
+
+	dc->hwss.set_bandwidth(dc, context, false);
 
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
@@ -739,6 +873,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
+	/* pplib is notified if disp_num changed */
+	dc->hwss.set_bandwidth(dc, context, true);
+
 	dc_release_state(dc->current_state);
 
 	dc->current_state = context;
@@ -758,7 +895,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	if (false == context_changed(dc, context))
 		return DC_OK;
 
-	dm_logger_write(dc->ctx->logger, LOG_DC, "%s: %d streams\n",
+	DC_LOG_DC("%s: %d streams\n",
 				__func__, context->stream_count);
 
 	for (i = 0; i < context->stream_count; i++) {
@@ -979,6 +1116,9 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->rotation != u->surface->rotation)
 		update_flags->bits.rotation_change = 1;
 
+	if (u->plane_info->format != u->surface->format)
+		update_flags->bits.pixel_format_change = 1;
+
 	if (u->plane_info->stereo_format != u->surface->stereo_format)
 		update_flags->bits.stereo_format_change = 1;
 
@@ -997,6 +1137,9 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		 */
 		update_flags->bits.bpp_change = 1;
 
+	if (u->gamma && dce_use_lut(u->plane_info->format))
+		update_flags->bits.gamma_change = 1;
+
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
 			sizeof(union dc_tiling_info)) != 0) {
 		update_flags->bits.swizzle_change = 1;
@@ -1012,8 +1155,11 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 
 	if (update_flags->bits.rotation_change
 			|| update_flags->bits.stereo_format_change
+			|| update_flags->bits.pixel_format_change
+			|| update_flags->bits.gamma_change
 			|| update_flags->bits.bpp_change
-			|| update_flags->bits.bandwidth_change)
+			|| update_flags->bits.bandwidth_change
+			|| update_flags->bits.output_tf_change)
 		return UPDATE_TYPE_FULL;
 
 	return UPDATE_TYPE_MED;
@@ -1092,12 +1238,12 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	elevate_update_type(&overall_type, type);
 
 	if (u->in_transfer_func)
-		update_flags->bits.in_transfer_func = 1;
+		update_flags->bits.in_transfer_func_change = 1;
 
 	if (u->input_csc_color_matrix)
 		update_flags->bits.input_csc_change = 1;
 
-	if (update_flags->bits.in_transfer_func
+	if (update_flags->bits.in_transfer_func_change
 			|| update_flags->bits.input_csc_change) {
 		type = UPDATE_TYPE_MED;
 		elevate_update_type(&overall_type, type);
@@ -1183,6 +1329,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		struct dc_state *context)
 {
 	int i, j;
+	struct pipe_ctx *top_pipe_to_program = NULL;
 
 	if (update_type == UPDATE_TYPE_FULL) {
 		dc->hwss.set_bandwidth(dc, context, false);
@@ -1202,39 +1349,64 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (update_type == UPDATE_TYPE_FAST || !pipe_ctx->plane_state)
-			continue;
-
 		if (!pipe_ctx->top_pipe &&
-		    pipe_ctx->stream &&
-		    pipe_ctx->stream == stream) {
-			struct dc_stream_status *stream_status =
+			pipe_ctx->stream &&
+			pipe_ctx->stream == stream) {
+			struct dc_stream_status *stream_status = NULL;
+
+			top_pipe_to_program = pipe_ctx;
+
+			if (update_type == UPDATE_TYPE_FAST || !pipe_ctx->plane_state)
+				continue;
+
+			stream_status =
 					stream_get_status(context, pipe_ctx->stream);
 
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
+
+			if (stream_update && stream_update->abm_level && pipe_ctx->stream_res.abm) {
+				if (pipe_ctx->stream_res.tg->funcs->is_blanked) {
+					// if otg funcs defined check if blanked before programming
+					if (!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg))
+						pipe_ctx->stream_res.abm->funcs->set_abm_level(
+								pipe_ctx->stream_res.abm, stream->abm_level);
+				} else
+					pipe_ctx->stream_res.abm->funcs->set_abm_level(
+							pipe_ctx->stream_res.abm, stream->abm_level);
+			}
 		}
 	}
 
 	if (update_type == UPDATE_TYPE_FULL)
 		context_timing_trace(dc, &context->res_ctx);
 
-	/* Perform requested Updates */
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *plane_state = srf_updates[i].surface;
+	/* Lock the top pipe while updating plane addrs, since freesync requires
+	 *  plane addr update event triggers to be synchronized.
+	 *  top_pipe_to_program is expected to never be NULL
+	 */
+	if (update_type == UPDATE_TYPE_FAST) {
+		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, true);
 
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+		/* Perform requested Updates */
+		for (i = 0; i < surface_count; i++) {
+			struct dc_plane_state *plane_state = srf_updates[i].surface;
 
-			if (pipe_ctx->stream != stream)
-				continue;
+			for (j = 0; j < dc->res_pool->pipe_count; j++) {
+				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (pipe_ctx->plane_state != plane_state)
-				continue;
+				if (pipe_ctx->stream != stream)
+					continue;
 
-			if (update_type == UPDATE_TYPE_FAST && srf_updates[i].flip_addr)
+				if (pipe_ctx->plane_state != plane_state)
+					continue;
+
+				if (srf_updates[i].flip_addr)
 					dc->hwss.update_plane_addr(dc, pipe_ctx);
+			}
 		}
+
+		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 	}
 
 	if (stream && stream_update && update_type > UPDATE_TYPE_FAST)
@@ -1487,12 +1659,17 @@ struct dc_sink *dc_link_add_remote_sink(
 			&dc_sink->dc_edid,
 			&dc_sink->edid_caps);
 
-	if (edid_status != EDID_OK)
-		goto fail;
+	/*
+	 * Treat device as no EDID device if EDID
+	 * parsing fails
+	 */
+	if (edid_status != EDID_OK) {
+		dc_sink->dc_edid.length = 0;
+		dm_error("Bad EDID, status%d!\n", edid_status);
+	}
 
 	return dc_sink;
-fail:
-	dc_link_remove_remote_sink(link, dc_sink);
+
 fail_add_sink:
 	dc_sink_release(dc_sink);
 	return NULL;

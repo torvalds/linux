@@ -844,7 +844,7 @@ static void vce_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
 }
 
 static void vce_v3_0_emit_vm_flush(struct amdgpu_ring *ring,
-			 unsigned int vmid, uint64_t pd_addr)
+				   unsigned int vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, VCE_CMD_UPDATE_PTB);
 	amdgpu_ring_write(ring, vmid);

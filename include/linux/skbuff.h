@@ -4037,11 +4037,33 @@ static inline bool skb_is_gso_v6(const struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
 }
 
+/* Note: Should be called only if skb_is_gso(skb) is true */
+static inline bool skb_is_gso_sctp(const struct sk_buff *skb)
+{
+	return skb_shinfo(skb)->gso_type & SKB_GSO_SCTP;
+}
+
 static inline void skb_gso_reset(struct sk_buff *skb)
 {
 	skb_shinfo(skb)->gso_size = 0;
 	skb_shinfo(skb)->gso_segs = 0;
 	skb_shinfo(skb)->gso_type = 0;
+}
+
+static inline void skb_increase_gso_size(struct skb_shared_info *shinfo,
+					 u16 increment)
+{
+	if (WARN_ON_ONCE(shinfo->gso_size == GSO_BY_FRAGS))
+		return;
+	shinfo->gso_size += increment;
+}
+
+static inline void skb_decrease_gso_size(struct skb_shared_info *shinfo,
+					 u16 decrement)
+{
+	if (WARN_ON_ONCE(shinfo->gso_size == GSO_BY_FRAGS))
+		return;
+	shinfo->gso_size -= decrement;
 }
 
 void __skb_warn_lro_forwarding(const struct sk_buff *skb);

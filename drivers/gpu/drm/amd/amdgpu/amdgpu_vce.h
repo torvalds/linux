@@ -30,6 +30,8 @@
 #define AMDGPU_VCE_HARVEST_VCE0 (1 << 0)
 #define AMDGPU_VCE_HARVEST_VCE1 (1 << 1)
 
+#define AMDGPU_VCE_FW_53_45	((53 << 24) | (45 << 16))
+
 struct amdgpu_vce {
 	struct amdgpu_bo	*vcpu_bo;
 	uint64_t		gpu_addr;

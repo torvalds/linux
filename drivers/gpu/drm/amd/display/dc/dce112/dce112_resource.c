@@ -56,6 +56,8 @@
 #include "dce/dce_11_2_sh_mask.h"
 
 #include "dce100/dce100_resource.h"
+#define DC_LOGGER \
+		dc->ctx->logger
 
 #ifndef mmDP_DPHY_INTERNAL_CTRL
 	#define mmDP_DPHY_INTERNAL_CTRL 0x4aa7
@@ -722,8 +724,7 @@ bool dce112_validate_bandwidth(
 {
 	bool result = false;
 
-	dm_logger_write(
-		dc->ctx->logger, LOG_BANDWIDTH_CALCS,
+	DC_LOG_BANDWIDTH_CALCS(
 		"%s: start",
 		__func__);
 
@@ -737,7 +738,7 @@ bool dce112_validate_bandwidth(
 		result = true;
 
 	if (!result)
-		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,
+		DC_LOG_BANDWIDTH_VALIDATION(
 			"%s: Bandwidth validation failed!",
 			__func__);
 
@@ -1100,6 +1101,7 @@ static bool construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
+	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;

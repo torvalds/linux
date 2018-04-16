@@ -121,7 +121,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		d = to_defact(*a);
 		ret = alloc_defdata(d, defdata);
 		if (ret < 0) {
-			tcf_idr_cleanup(*a, est);
+			tcf_idr_release(*a, bind);
 			return ret;
 		}
 		d->tcf_action = parm->action;

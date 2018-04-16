@@ -655,7 +655,7 @@ static struct tun_struct *tun_enable_queue(struct tun_file *tfile)
 	return tun;
 }
 
-static void tun_ptr_free(void *ptr)
+void tun_ptr_free(void *ptr)
 {
 	if (!ptr)
 		return;
@@ -667,6 +667,7 @@ static void tun_ptr_free(void *ptr)
 		__skb_array_destroy_skb(ptr);
 	}
 }
+EXPORT_SYMBOL_GPL(tun_ptr_free);
 
 static void tun_queue_purge(struct tun_file *tfile)
 {

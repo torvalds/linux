@@ -195,7 +195,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	ASSERT_RTNL();
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		if (ovr)
+		if (ret == ACT_P_CREATED)
 			tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
@@ -225,7 +225,8 @@ static void tcf_vlan_cleanup(struct tc_action *a)
 	struct tcf_vlan_params *p;
 
 	p = rcu_dereference_protected(v->vlan_p, 1);
-	kfree_rcu(p, rcu);
+	if (p)
+		kfree_rcu(p, rcu);
 }
 
 static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,

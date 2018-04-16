@@ -170,7 +170,7 @@ static void vhost_net_buf_unproduce(struct vhost_net_virtqueue *nvq)
 	if (nvq->rx_ring && !vhost_net_buf_is_empty(rxq)) {
 		ptr_ring_unconsume(nvq->rx_ring, rxq->queue + rxq->head,
 				   vhost_net_buf_get_size(rxq),
-				   __skb_array_destroy_skb);
+				   tun_ptr_free);
 		rxq->head = rxq->tail = 0;
 	}
 }
@@ -948,6 +948,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 		n->vqs[i].done_idx = 0;
 		n->vqs[i].vhost_hlen = 0;
 		n->vqs[i].sock_hlen = 0;
+		n->vqs[i].rx_ring = NULL;
 		vhost_net_buf_init(&n->vqs[i].rxq);
 	}
 	vhost_dev_init(dev, vqs, VHOST_NET_VQ_MAX);
@@ -972,6 +973,7 @@ static struct socket *vhost_net_stop_vq(struct vhost_net *n,
 	vhost_net_disable_vq(n, vq);
 	vq->private_data = NULL;
 	vhost_net_buf_unproduce(nvq);
+	nvq->rx_ring = NULL;
 	mutex_unlock(&vq->mutex);
 	return sock;
 }
@@ -1161,14 +1163,14 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		vhost_net_disable_vq(n, vq);
 		vq->private_data = sock;
 		vhost_net_buf_unproduce(nvq);
-		if (index == VHOST_NET_VQ_RX)
-			nvq->rx_ring = get_tap_ptr_ring(fd);
 		r = vhost_vq_init_access(vq);
 		if (r)
 			goto err_used;
 		r = vhost_net_enable_vq(n, vq);
 		if (r)
 			goto err_used;
+		if (index == VHOST_NET_VQ_RX)
+			nvq->rx_ring = get_tap_ptr_ring(fd);
 
 		oldubufs = nvq->ubufs;
 		nvq->ubufs = ubufs;

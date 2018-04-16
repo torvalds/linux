@@ -152,7 +152,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	ASSERT_RTNL();
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
-		if (ovr)
+		if (ret == ACT_P_CREATED)
 			tcf_idr_release(*a, bind);
 		return -ENOMEM;
 	}
@@ -190,7 +190,8 @@ static void tcf_skbmod_cleanup(struct tc_action *a)
 	struct tcf_skbmod_params  *p;
 
 	p = rcu_dereference_protected(d->skbmod_p, 1);
-	kfree_rcu(p, rcu);
+	if (p)
+		kfree_rcu(p, rcu);
 }
 
 static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,

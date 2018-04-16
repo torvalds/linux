@@ -45,7 +45,7 @@ static const struct omap_clkctrl_bit_data am3_gpio4_bit_data[] __initconst = {
 
 static const struct omap_clkctrl_reg_data am3_l4_per_clkctrl_regs[] __initconst = {
 	{ AM3_CPGMAC0_CLKCTRL, NULL, CLKF_SW_SUP, "cpsw_125mhz_gclk", "cpsw_125mhz_clkdm" },
-	{ AM3_LCDC_CLKCTRL, NULL, CLKF_SW_SUP, "lcd_gclk", "lcdc_clkdm" },
+	{ AM3_LCDC_CLKCTRL, NULL, CLKF_SW_SUP | CLKF_SET_RATE_PARENT, "lcd_gclk", "lcdc_clkdm" },
 	{ AM3_USB_OTG_HS_CLKCTRL, NULL, CLKF_SW_SUP, "usbotg_fck", "l3s_clkdm" },
 	{ AM3_TPTC0_CLKCTRL, NULL, CLKF_SW_SUP, "l3_gclk", "l3_clkdm" },
 	{ AM3_EMIF_CLKCTRL, NULL, CLKF_SW_SUP, "dpll_ddr_m2_div2_ck", "l3_clkdm" },
