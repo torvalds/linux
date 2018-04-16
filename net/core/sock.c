@@ -905,7 +905,10 @@ set_rcvbuf:
 	case SO_RCVLOWAT:
 		if (val < 0)
 			val = INT_MAX;
-		sk->sk_rcvlowat = val ? : 1;
+		if (sock->ops->set_rcvlowat)
+			ret = sock->ops->set_rcvlowat(sk, val);
+		else
+			sk->sk_rcvlowat = val ? : 1;
 		break;
 
 	case SO_RCVTIMEO:

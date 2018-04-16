@@ -1701,6 +1701,144 @@ int tcp_peek_len(struct socket *sock)
 }
 EXPORT_SYMBOL(tcp_peek_len);
 
+/* Make sure sk_rcvbuf is big enough to satisfy SO_RCVLOWAT hint */
+int tcp_set_rcvlowat(struct sock *sk, int val)
+{
+	sk->sk_rcvlowat = val ? : 1;
+
+	/* Check if we need to signal EPOLLIN right now */
+	tcp_data_ready(sk);
+
+	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
+		return 0;
+
+	/* val comes from user space and might be close to INT_MAX */
+	val <<= 1;
+	if (val < 0)
+		val = INT_MAX;
+
+	val = min(val, sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
+	if (val > sk->sk_rcvbuf) {
+		sk->sk_rcvbuf = val;
+		tcp_sk(sk)->window_clamp = tcp_win_from_space(sk, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(tcp_set_rcvlowat);
+
+/* When user wants to mmap X pages, we first need to perform the mapping
+ * before freeing any skbs in receive queue, otherwise user would be unable
+ * to fallback to standard recvmsg(). This happens if some data in the
+ * requested block is not exactly fitting in a page.
+ *
+ * We only support order-0 pages for the moment.
+ * mmap() on TCP is very strict, there is no point
+ * trying to accommodate with pathological layouts.
+ */
+int tcp_mmap(struct file *file, struct socket *sock,
+	     struct vm_area_struct *vma)
+{
+	unsigned long size = vma->vm_end - vma->vm_start;
+	unsigned int nr_pages = size >> PAGE_SHIFT;
+	struct page **pages_array = NULL;
+	u32 seq, len, offset, nr = 0;
+	struct sock *sk = sock->sk;
+	const skb_frag_t *frags;
+	struct tcp_sock *tp;
+	struct sk_buff *skb;
+	int ret;
+
+	if (vma->vm_pgoff || !nr_pages)
+		return -EINVAL;
+
+	if (vma->vm_flags & VM_WRITE)
+		return -EPERM;
+	/* TODO: Maybe the following is not needed if pages are COW */
+	vma->vm_flags &= ~VM_MAYWRITE;
+
+	lock_sock(sk);
+
+	ret = -ENOTCONN;
+	if (sk->sk_state == TCP_LISTEN)
+		goto out;
+
+	sock_rps_record_flow(sk);
+
+	if (tcp_inq(sk) < size) {
+		ret = sock_flag(sk, SOCK_DONE) ? -EIO : -EAGAIN;
+		goto out;
+	}
+	tp = tcp_sk(sk);
+	seq = tp->copied_seq;
+	/* Abort if urgent data is in the area */
+	if (unlikely(tp->urg_data)) {
+		u32 urg_offset = tp->urg_seq - seq;
+
+		ret = -EINVAL;
+		if (urg_offset < size)
+			goto out;
+	}
+	ret = -ENOMEM;
+	pages_array = kvmalloc_array(nr_pages, sizeof(struct page *),
+				     GFP_KERNEL);
+	if (!pages_array)
+		goto out;
+	skb = tcp_recv_skb(sk, seq, &offset);
+	ret = -EINVAL;
+skb_start:
+	/* We do not support anything not in page frags */
+	offset -= skb_headlen(skb);
+	if ((int)offset < 0)
+		goto out;
+	if (skb_has_frag_list(skb))
+		goto out;
+	len = skb->data_len - offset;
+	frags = skb_shinfo(skb)->frags;
+	while (offset) {
+		if (frags->size > offset)
+			goto out;
+		offset -= frags->size;
+		frags++;
+	}
+	while (nr < nr_pages) {
+		if (len) {
+			if (len < PAGE_SIZE)
+				goto out;
+			if (frags->size != PAGE_SIZE || frags->page_offset)
+				goto out;
+			pages_array[nr++] = skb_frag_page(frags);
+			frags++;
+			len -= PAGE_SIZE;
+			seq += PAGE_SIZE;
+			continue;
+		}
+		skb = skb->next;
+		offset = seq - TCP_SKB_CB(skb)->seq;
+		goto skb_start;
+	}
+	/* OK, we have a full set of pages ready to be inserted into vma */
+	for (nr = 0; nr < nr_pages; nr++) {
+		ret = vm_insert_page(vma, vma->vm_start + (nr << PAGE_SHIFT),
+				     pages_array[nr]);
+		if (ret)
+			goto out;
+	}
+	/* operation is complete, we can 'consume' all skbs */
+	tp->copied_seq = seq;
+	tcp_rcv_space_adjust(sk);
+
+	/* Clean up data we have read: This will do ACK frames. */
+	tcp_recv_skb(sk, seq, &offset);
+	tcp_cleanup_rbuf(sk, size);
+
+	ret = 0;
+out:
+	release_sock(sk);
+	kvfree(pages_array);
+	return ret;
+}
+EXPORT_SYMBOL(tcp_mmap);
+
 static void tcp_update_recv_tstamps(struct sk_buff *skb,
 				    struct scm_timestamping *tss)
 {

@@ -579,7 +579,7 @@ const struct proto_ops inet6_stream_ops = {
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet_sendmsg,		/* ok		*/
 	.recvmsg	   = inet_recvmsg,		/* ok		*/
-	.mmap		   = sock_no_mmap,
+	.mmap		   = tcp_mmap,
 	.sendpage	   = inet_sendpage,
 	.sendmsg_locked    = tcp_sendmsg_locked,
 	.sendpage_locked   = tcp_sendpage_locked,
@@ -590,6 +590,7 @@ const struct proto_ops inet6_stream_ops = {
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
+	.set_rcvlowat	   = tcp_set_rcvlowat,
 };
 
 const struct proto_ops inet6_dgram_ops = {
