@@ -482,7 +482,8 @@ static void del_sw_hw_rule(struct fs_node *node)
 
 	if (rule->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER  &&
 	    --fte->dests_size) {
-		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
+		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION) |
+			      BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS);
 		fte->action.action &= ~MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		update_fte = true;
 		goto out;
