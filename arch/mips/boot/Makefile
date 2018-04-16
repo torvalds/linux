@@ -125,7 +125,7 @@ $(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS
 	$(call if_changed,its_cat)
 
 quiet_cmd_cpp_its_S = ITS     $@
-      cmd_cpp_its_S = $(CPP) $(cpp_flags) -P -C -o $@ $< \
+      cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
 		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
 			-DVMLINUX_BINARY="\"$(3)\"" \
 			-DVMLINUX_COMPRESSION="\"$(2)\"" \
@@ -135,19 +135,19 @@ quiet_cmd_cpp_its_S = ITS     $@
 			-DADDR_CELLS=$(itb_addr_cells)
 
 $(obj)/vmlinux.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,none,vmlinux.bin)
+	$(call if_changed,cpp_its_S,none,vmlinux.bin)
 
 $(obj)/vmlinux.gz.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,gzip,vmlinux.bin.gz)
+	$(call if_changed,cpp_its_S,gzip,vmlinux.bin.gz)
 
 $(obj)/vmlinux.bz2.its: $(obj)/vmlinux.its.S $(VMLINUX)  FORCE
-	$(call if_changed_dep,cpp_its_S,bzip2,vmlinux.bin.bz2)
+	$(call if_changed,cpp_its_S,bzip2,vmlinux.bin.bz2)
 
 $(obj)/vmlinux.lzma.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,lzma,vmlinux.bin.lzma)
+	$(call if_changed,cpp_its_S,lzma,vmlinux.bin.lzma)
 
 $(obj)/vmlinux.lzo.its: $(obj)/vmlinux.its.S $(VMLINUX) FORCE
-	$(call if_changed_dep,cpp_its_S,lzo,vmlinux.bin.lzo)
+	$(call if_changed,cpp_its_S,lzo,vmlinux.bin.lzo)
 
 quiet_cmd_itb-image = ITB     $@
       cmd_itb-image = \
