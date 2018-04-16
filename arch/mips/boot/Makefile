@@ -126,6 +126,12 @@ quiet_cmd_its_cat = CAT     $@
 $(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS)) FORCE
 	$(call if_changed,its_cat)
 
+targets += vmlinux.its
+targets += vmlinux.gz.its
+targets += vmlinux.bz2.its
+targets += vmlinux.lzmo.its
+targets += vmlinux.lzo.its
+
 quiet_cmd_cpp_its_S = ITS     $@
       cmd_cpp_its_S = $(CPP) -P -C -o $@ $< \
 		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
