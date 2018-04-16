@@ -33,6 +33,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct amdgpu_bo *vram_obj = NULL;
 	struct amdgpu_bo **gtt_obj = NULL;
+	struct amdgpu_bo_param bp;
 	uint64_t gart_addr, vram_addr;
 	unsigned n, size;
 	int i, r;
@@ -58,9 +59,15 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		r = 1;
 		goto out_cleanup;
 	}
+	memset(&bp, 0, sizeof(bp));
+	bp.size = size;
+	bp.byte_align = PAGE_SIZE;
+	bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
+	bp.flags = 0;
+	bp.type = ttm_bo_type_kernel;
+	bp.resv = NULL;
 
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM, 0,
-			     ttm_bo_type_kernel, NULL, &vram_obj);
+	r = amdgpu_bo_create(adev, &bp, &vram_obj);
 	if (r) {
 		DRM_ERROR("Failed to create VRAM object\n");
 		goto out_cleanup;
@@ -79,9 +86,8 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		void **vram_start, **vram_end;
 		struct dma_fence *fence = NULL;
 
-		r = amdgpu_bo_create(adev, size, PAGE_SIZE,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     ttm_bo_type_kernel, NULL, gtt_obj + i);
+		bp.domain = AMDGPU_GEM_DOMAIN_GTT;
+		r = amdgpu_bo_create(adev, &bp, gtt_obj + i);
 		if (r) {
 			DRM_ERROR("Failed to create GTT object %d\n", i);
 			goto out_lclean;

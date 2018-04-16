@@ -191,14 +191,21 @@ int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      u32 domain, struct amdgpu_bo **bo_ptr,
 			      u64 *gpu_addr, void **cpu_addr)
 {
+	struct amdgpu_bo_param bp;
 	bool free = false;
 	int r;
 
+	memset(&bp, 0, sizeof(bp));
+	bp.size = size;
+	bp.byte_align = align;
+	bp.domain = domain;
+	bp.flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+		AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+	bp.type = ttm_bo_type_kernel;
+	bp.resv = NULL;
+
 	if (!*bo_ptr) {
-		r = amdgpu_bo_create(adev, size, align, domain,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     ttm_bo_type_kernel, NULL, bo_ptr);
+		r = amdgpu_bo_create(adev, &bp, bo_ptr);
 		if (r) {
 			dev_err(adev->dev, "(%d) failed to allocate kernel bo\n",
 				r);
@@ -470,19 +477,20 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 				   unsigned long size, int byte_align,
 				   struct amdgpu_bo *bo)
 {
-	struct amdgpu_bo_param bp = {
-		.size = size,
-		.byte_align = byte_align,
-		.domain = AMDGPU_GEM_DOMAIN_GTT,
-		.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC |
-			AMDGPU_GEM_CREATE_SHADOW,
-		.type = ttm_bo_type_kernel,
-		.resv = bo->tbo.resv
-	};
+	struct amdgpu_bo_param bp;
 	int r;
 
 	if (bo->shadow)
 		return 0;
+
+	memset(&bp, 0, sizeof(bp));
+	bp.size = size;
+	bp.byte_align = byte_align;
+	bp.domain = AMDGPU_GEM_DOMAIN_GTT;
+	bp.flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC |
+		AMDGPU_GEM_CREATE_SHADOW;
+	bp.type = ttm_bo_type_kernel;
+	bp.resv = bo->tbo.resv;
 
 	r = amdgpu_bo_do_create(adev, &bp, &bo->shadow);
 	if (!r) {
@@ -495,34 +503,26 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 	return r;
 }
 
-int amdgpu_bo_create(struct amdgpu_device *adev, unsigned long size,
-		     int byte_align, u32 domain,
-		     u64 flags, enum ttm_bo_type type,
-		     struct reservation_object *resv,
+int amdgpu_bo_create(struct amdgpu_device *adev,
+		     struct amdgpu_bo_param *bp,
 		     struct amdgpu_bo **bo_ptr)
 {
-	struct amdgpu_bo_param bp = {
-		.size = size,
-		.byte_align = byte_align,
-		.domain = domain,
-		.flags = flags & ~AMDGPU_GEM_CREATE_SHADOW,
-		.type = type,
-		.resv = resv
-	};
+	u64 flags = bp->flags;
 	int r;
 
-	r = amdgpu_bo_do_create(adev, &bp, bo_ptr);
+	bp->flags = bp->flags & ~AMDGPU_GEM_CREATE_SHADOW;
+	r = amdgpu_bo_do_create(adev, bp, bo_ptr);
 	if (r)
 		return r;
 
 	if ((flags & AMDGPU_GEM_CREATE_SHADOW) && amdgpu_need_backup(adev)) {
-		if (!resv)
+		if (!bp->resv)
 			WARN_ON(reservation_object_lock((*bo_ptr)->tbo.resv,
 							NULL));
 
-		r = amdgpu_bo_create_shadow(adev, size, byte_align, (*bo_ptr));
+		r = amdgpu_bo_create_shadow(adev, bp->size, bp->byte_align, (*bo_ptr));
 
-		if (!resv)
+		if (!bp->resv)
 			reservation_object_unlock((*bo_ptr)->tbo.resv);
 
 		if (r)
