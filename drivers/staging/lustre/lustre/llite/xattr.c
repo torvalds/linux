@@ -296,7 +296,10 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 		return ll_setstripe_ea(dentry, (struct lov_user_md *)value,
 				       size);
 	} else if (!strcmp(name, "lma") || !strcmp(name, "link")) {
-		ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_SETXATTR, 1);
+		int op_type = flags == XATTR_REPLACE ? LPROC_LL_REMOVEXATTR :
+						       LPROC_LL_SETXATTR;
+
+		ll_stats_ops_tally(ll_i2sbi(inode), op_type, 1);
 		return 0;
 	}
 
