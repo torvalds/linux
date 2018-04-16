@@ -15,9 +15,7 @@
 #ifndef __MATH_SUPPORT_H
 #define __MATH_SUPPORT_H
 
-#if defined(__KERNEL__)
 #include <linux/kernel.h> /* Override the definition of max/min from linux kernel*/
-#endif /*__KERNEL__*/
 
 #if defined(_MSC_VER)
 #include <stdlib.h> /* Override the definition of max/min from stdlib.h*/
@@ -216,8 +214,5 @@ static inline unsigned int ceil_pow2(unsigned int a)
 #define OP_std_modadd(base, offset, size) ((base+offset)%(size))
 #endif /* !defined(__ISP) */
 
-#if !defined(__KERNEL__)
-#define clamp(a, min_val, max_val) MIN(MAX((a), (min_val)), (max_val))
-#endif /* !defined(__KERNEL__) */
 
 #endif /* __MATH_SUPPORT_H */

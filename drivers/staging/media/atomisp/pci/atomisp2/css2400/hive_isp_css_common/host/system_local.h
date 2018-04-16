@@ -33,23 +33,8 @@
 #define HRT_ADDRESS_WIDTH	64		/* Surprise, this is a local property */
 #endif
 
-#if !defined(__KERNEL__) || (1==1)
 /* This interface is deprecated */
 #include "hrt/hive_types.h"
-#else  /* __KERNEL__ */
-#include <linux/types.h>
-
-#if HRT_ADDRESS_WIDTH==64
-typedef uint64_t			hrt_address;
-#elif HRT_ADDRESS_WIDTH==32
-typedef uint32_t			hrt_address;
-#else
-#error "system_local.h: HRT_ADDRESS_WIDTH must be one of {32,64}"
-#endif
-
-typedef uint32_t			hrt_vaddress;
-typedef uint32_t			hrt_data;
-#endif /* __KERNEL__ */
 
 /*
  * Cell specific address maps

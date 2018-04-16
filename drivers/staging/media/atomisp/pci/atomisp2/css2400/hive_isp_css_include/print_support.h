@@ -17,9 +17,6 @@
 
 
 #include <stdarg.h>
-#if !defined(__KERNEL__)
-#include <stdio.h>
-#endif
 
 extern int (*sh_css_printf) (const char *fmt, va_list args);
 /* depends on host supplied print function in ia_css_init() */

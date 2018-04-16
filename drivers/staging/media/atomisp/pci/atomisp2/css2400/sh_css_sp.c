@@ -1592,10 +1592,6 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 	 * - compare with (uint16_t)~0 or 0xffff
 	 * - different assert for Linux and Windows
 	 */
-#ifndef __KERNEL__
-	assert(or_mask <= UINT16_MAX);
-	assert(and_mask <= UINT16_MAX);
-#endif
 
 	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
 
