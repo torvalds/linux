@@ -319,10 +319,9 @@ static int sunxi_mmc_reset_host(struct sunxi_mmc_host *host)
 	return 0;
 }
 
-static int sunxi_mmc_init_host(struct mmc_host *mmc)
+static int sunxi_mmc_init_host(struct sunxi_mmc_host *host)
 {
 	u32 rval;
-	struct sunxi_mmc_host *host = mmc_priv(mmc);
 
 	if (sunxi_mmc_reset_host(host))
 		return -EIO;
@@ -885,7 +884,7 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->vqmmc_enabled = true;
 		}
 
-		host->ferror = sunxi_mmc_init_host(mmc);
+		host->ferror = sunxi_mmc_init_host(host);
 		if (host->ferror)
 			return;
 
