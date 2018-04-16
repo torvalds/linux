@@ -45,9 +45,14 @@ void ui_browser__set_percent_color(struct ui_browser *browser,
 	 ui_browser__set_color(browser, color);
 }
 
-void ui_browser__gotorc(struct ui_browser *browser, int y, int x)
+void ui_browser__gotorc_title(struct ui_browser *browser, int y, int x)
 {
 	SLsmg_gotorc(browser->y + y, browser->x + x);
+}
+
+void ui_browser__gotorc(struct ui_browser *browser, int y, int x)
+{
+	SLsmg_gotorc(browser->y + y + browser->extra_title_lines, browser->x + x);
 }
 
 void ui_browser__write_nstring(struct ui_browser *browser __maybe_unused, const char *msg,
@@ -191,6 +196,7 @@ void ui_browser__refresh_dimensions(struct ui_browser *browser)
 {
 	browser->width = SLtt_Screen_Cols - 1;
 	browser->height = browser->rows = SLtt_Screen_Rows - 2;
+	browser->rows -= browser->extra_title_lines;
 	browser->y = 1;
 	browser->x = 0;
 }
@@ -337,8 +343,8 @@ static int __ui_browser__refresh(struct ui_browser *browser)
 	else
 		width += 1;
 
-	SLsmg_fill_region(browser->y + row, browser->x,
-			  browser->height - row, width, ' ');
+	SLsmg_fill_region(browser->y + row + browser->extra_title_lines, browser->x,
+			  browser->rows - row, width, ' ');
 
 	return 0;
 }

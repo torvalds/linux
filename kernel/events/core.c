@@ -4447,6 +4447,9 @@ static void _free_event(struct perf_event *event)
 	if (event->ctx)
 		put_ctx(event->ctx);
 
+	if (event->hw.target)
+		put_task_struct(event->hw.target);
+
 	exclusive_event_destroy(event);
 	module_put(event->pmu->module);
 
@@ -8397,6 +8400,10 @@ static int perf_kprobe_event_init(struct perf_event *event)
 
 	if (event->attr.type != perf_kprobe.type)
 		return -ENOENT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	/*
 	 * no branch sampling for probe events
 	 */
@@ -8434,6 +8441,10 @@ static int perf_uprobe_event_init(struct perf_event *event)
 
 	if (event->attr.type != perf_uprobe.type)
 		return -ENOENT;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	/*
 	 * no branch sampling for probe events
 	 */
@@ -9955,6 +9966,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		 * and we cannot use the ctx information because we need the
 		 * pmu before we get a ctx.
 		 */
+		get_task_struct(task);
 		event->hw.target = task;
 	}
 
@@ -10070,6 +10082,8 @@ err_ns:
 		perf_detach_cgroup(event);
 	if (event->ns)
 		put_pid_ns(event->ns);
+	if (event->hw.target)
+		put_task_struct(event->hw.target);
 	kfree(event);
 
 	return ERR_PTR(err);
