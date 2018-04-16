@@ -564,7 +564,7 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		return rc;
 	/*
 	 * If we're being called to get the size of the xattr list
-	 * (buf_size == 0) then just assume that a lustre.lov xattr
+	 * (size == 0) then just assume that a lustre.lov xattr
 	 * exists.
 	 */
 	if (!size)
@@ -577,14 +577,14 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		len = strnlen(xattr_name, rem - 1) + 1;
 		rem -= len;
 		if (!xattr_type_filter(sbi, get_xattr_type(xattr_name))) {
-			/* Skip OK xattr type leave it in buffer */
+			/* Skip OK xattr type, leave it in buffer. */
 			xattr_name += len;
 			continue;
 		}
 
 		/*
 		 * Move up remaining xattrs in buffer
-		 * removing the xattr that is not OK
+		 * removing the xattr that is not OK.
 		 */
 		memmove(xattr_name, xattr_name + len, rem);
 		rc -= len;
