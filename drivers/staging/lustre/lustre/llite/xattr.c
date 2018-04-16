@@ -81,11 +81,10 @@ static int xattr_type_filter(struct ll_sb_info *sbi,
 	return 0;
 }
 
-static int
-ll_xattr_set_common(const struct xattr_handler *handler,
-		    struct dentry *dentry, struct inode *inode,
-		    const char *name, const void *value, size_t size,
-		    int flags)
+static int ll_xattr_set_common(const struct xattr_handler *handler,
+			       struct dentry *dentry, struct inode *inode,
+			       const char *name, const void *value, size_t size,
+			       int flags)
 {
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ptlrpc_request *req = NULL;
@@ -139,9 +138,9 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 	fullname = kasprintf(GFP_KERNEL, "%s%s", handler->prefix, name);
 	if (!fullname)
 		return -ENOMEM;
-	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode),
-			 valid, fullname, pv, size, 0, flags,
-			 ll_i2suppgid(inode), &req);
+
+	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode), valid, fullname,
+			 pv, size, 0, flags, ll_i2suppgid(inode), &req);
 	kfree(fullname);
 	if (rc) {
 		if (rc == -EOPNOTSUPP && handler->flags == XATTR_USER_T) {
@@ -307,9 +306,8 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 				   flags);
 }
 
-int
-ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
-	      size_t size, u64 valid)
+int ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
+		  size_t size, u64 valid)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
@@ -439,6 +437,7 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 	fullname = kasprintf(GFP_KERNEL, "%s%s", handler->prefix, name);
 	if (!fullname)
 		return -ENOMEM;
+
 	rc = ll_xattr_list(inode, fullname, handler->flags, buffer, size,
 			   OBD_MD_FLXATTR);
 	kfree(fullname);
@@ -562,6 +561,7 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			   OBD_MD_FLXATTRLS);
 	if (rc < 0)
 		return rc;
+
 	/*
 	 * If we're being called to get the size of the xattr list
 	 * (size == 0) then just assume that a lustre.lov xattr
