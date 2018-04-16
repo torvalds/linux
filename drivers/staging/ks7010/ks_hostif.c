@@ -2314,7 +2314,6 @@ void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 	case SME_RSN_ENABLED_CONFIRM:
 	case SME_RSN_MODE_CONFIRM:
 	case SME_MODE_SET_CONFIRM:
-		break;
 	case SME_TERMINATE:
 	default:
 		break;
