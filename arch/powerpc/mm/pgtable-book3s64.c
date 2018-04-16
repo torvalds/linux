@@ -9,10 +9,13 @@
 
 #include <linux/sched.h>
 #include <linux/mm_types.h>
+#include <linux/memblock.h>
 #include <misc/cxl-base.h>
 
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
+#include <asm/trace.h>
+#include <asm/powernv.h>
 
 #include "mmu_decl.h"
 #include <trace/events/thp.h>
@@ -171,3 +174,54 @@ int __meminit remove_section_mapping(unsigned long start, unsigned long end)
 	return hash__remove_section_mapping(start, end);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+void __init mmu_partition_table_init(void)
+{
+	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+	unsigned long ptcr;
+
+	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
+	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
+						MEMBLOCK_ALLOC_ANYWHERE));
+
+	/* Initialize the Partition Table with no entries */
+	memset((void *)partition_tb, 0, patb_size);
+
+	/*
+	 * update partition table control register,
+	 * 64 K size.
+	 */
+	ptcr = __pa(partition_tb) | (PATB_SIZE_SHIFT - 12);
+	mtspr(SPRN_PTCR, ptcr);
+	powernv_set_nmmu_ptcr(ptcr);
+}
+
+void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
+				   unsigned long dw1)
+{
+	unsigned long old = be64_to_cpu(partition_tb[lpid].patb0);
+
+	partition_tb[lpid].patb0 = cpu_to_be64(dw0);
+	partition_tb[lpid].patb1 = cpu_to_be64(dw1);
+
+	/*
+	 * Global flush of TLBs and partition table caches for this lpid.
+	 * The type of flush (hash or radix) depends on what the previous
+	 * use of this partition ID was, not the new use.
+	 */
+	asm volatile("ptesync" : : : "memory");
+	if (old & PATB_HR) {
+		asm volatile(PPC_TLBIE_5(%0,%1,2,0,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 1);
+	} else {
+		asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 0);
+	}
+	/* do we need fixup here ?*/
+	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+}
+EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
