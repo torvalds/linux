@@ -120,6 +120,7 @@ struct fusb302_chip {
 	enum typec_cc_polarity cc_polarity;
 	enum typec_cc_status cc1;
 	enum typec_cc_status cc2;
+	u32 snk_pdo[PDO_MAX_OBJECTS];
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -1212,11 +1213,6 @@ static const u32 snk_pdo[] = {
 static const struct tcpc_config fusb302_tcpc_config = {
 	.src_pdo = src_pdo,
 	.nr_src_pdo = ARRAY_SIZE(src_pdo),
-	.snk_pdo = snk_pdo,
-	.nr_snk_pdo = ARRAY_SIZE(snk_pdo),
-	.max_snk_mv = 5000,
-	.max_snk_ma = 3000,
-	.max_snk_mw = 15000,
 	.operating_snk_mw = 2500,
 	.type = TYPEC_PORT_DRP,
 	.data = TYPEC_PORT_DRD,
@@ -1756,6 +1752,29 @@ static int init_gpio(struct fusb302_chip *chip)
 	return 0;
 }
 
+static int fusb302_composite_snk_pdo_array(struct fusb302_chip *chip)
+{
+	struct device *dev = chip->dev;
+	u32 max_uv, max_ua;
+
+	chip->snk_pdo[0] = PDO_FIXED(5000, 400, PDO_FIXED_FLAGS);
+
+	/*
+	 * As max_snk_ma/mv/mw is not needed for tcpc_config,
+	 * those settings should be passed in via sink PDO, so
+	 * "fcs, max-sink-*" properties will be deprecated, to
+	 * perserve compatibility with existing users of them,
+	 * we read those properties to convert them to be a var
+	 * PDO.
+	 */
+	if (device_property_read_u32(dev, "fcs,max-sink-microvolt", &max_uv) ||
+		device_property_read_u32(dev, "fcs,max-sink-microamp", &max_ua))
+		return 1;
+
+	chip->snk_pdo[1] = PDO_VAR(5000, max_uv / 1000, max_ua / 1000);
+	return 2;
+}
+
 static int fusb302_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1784,17 +1803,12 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->tcpc_dev.config = &chip->tcpc_config;
 	mutex_init(&chip->lock);
 
-	if (!device_property_read_u32(dev, "fcs,max-sink-microvolt", &v))
-		chip->tcpc_config.max_snk_mv = v / 1000;
-
-	if (!device_property_read_u32(dev, "fcs,max-sink-microamp", &v))
-		chip->tcpc_config.max_snk_ma = v / 1000;
-
-	if (!device_property_read_u32(dev, "fcs,max-sink-microwatt", &v))
-		chip->tcpc_config.max_snk_mw = v / 1000;
-
 	if (!device_property_read_u32(dev, "fcs,operating-sink-microwatt", &v))
 		chip->tcpc_config.operating_snk_mw = v / 1000;
+
+	/* Composite sink PDO */
+	chip->tcpc_config.nr_snk_pdo = fusb302_composite_snk_pdo_array(chip);
+	chip->tcpc_config.snk_pdo = chip->snk_pdo;
 
 	/*
 	 * Devicetree platforms should get extcon via phandle (not yet
