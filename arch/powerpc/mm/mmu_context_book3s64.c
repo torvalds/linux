@@ -159,9 +159,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 	mm->context.id = index;
 
-#ifdef CONFIG_PPC_64K_PAGES
 	mm->context.pte_frag = NULL;
-#endif
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_init(mm);
 #endif
@@ -192,7 +190,6 @@ static void destroy_contexts(mm_context_t *ctx)
 	spin_unlock(&mmu_context_lock);
 }
 
-#ifdef CONFIG_PPC_64K_PAGES
 static void destroy_pagetable_page(struct mm_struct *mm)
 {
 	int count;
@@ -212,13 +209,6 @@ static void destroy_pagetable_page(struct mm_struct *mm)
 		free_unref_page(page);
 	}
 }
-
-#else
-static inline void destroy_pagetable_page(struct mm_struct *mm)
-{
-	return;
-}
-#endif
 
 void destroy_context(struct mm_struct *mm)
 {

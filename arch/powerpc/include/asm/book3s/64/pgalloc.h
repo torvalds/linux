@@ -173,31 +173,6 @@ static inline pgtable_t pmd_pgtable(pmd_t pmd)
 	return (pgtable_t)pmd_page_vaddr(pmd);
 }
 
-#ifdef CONFIG_PPC_4K_PAGES
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-					  unsigned long address)
-{
-	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-}
-
-static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
-				      unsigned long address)
-{
-	struct page *page;
-	pte_t *pte;
-
-	pte = (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT);
-	if (!pte)
-		return NULL;
-	page = virt_to_page(pte);
-	if (!pgtable_page_ctor(page)) {
-		__free_page(page);
-		return NULL;
-	}
-	return pte;
-}
-#else /* if CONFIG_PPC_64K_PAGES */
-
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
 {
@@ -209,7 +184,6 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
 {
 	return (pgtable_t)pte_fragment_alloc(mm, address, 0);
 }
-#endif
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {

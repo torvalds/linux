@@ -225,7 +225,7 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 }
 EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
-#ifdef CONFIG_PPC_64K_PAGES
+
 static pte_t *get_pte_from_cache(struct mm_struct *mm)
 {
 	void *pte_frag, *ret;
@@ -264,7 +264,14 @@ static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
 			return NULL;
 	}
 
+
 	ret = page_address(page);
+	/*
+	 * if we support only one fragment just return the
+	 * allocated page.
+	 */
+	if (PTE_FRAG_NR == 1)
+		return ret;
 	spin_lock(&mm->page_table_lock);
 	/*
 	 * If we find pgtable_page set, we return
@@ -290,8 +297,6 @@ pte_t *pte_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel
 
 	return __alloc_for_ptecache(mm, kernel);
 }
-
-#endif /* CONFIG_PPC_64K_PAGES */
 
 void pte_fragment_free(unsigned long *table, int kernel)
 {
