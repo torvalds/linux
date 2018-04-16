@@ -42,6 +42,7 @@ Kernel breakdown features by version
 | AUDIO    |  Y  |  N  |  N  |  N  |
 | OpenVPN  |  ?  |  Y  |  Y  |  ?  |
 | iptables |  ?  |  ?  |  Y  |  ?  |
+| LXC / Docker |  ?  |  ?  |  Y  |  ?  |
 
 kernel 4.4: https://github.com/frank-w/BPI-R2-4.4
 
