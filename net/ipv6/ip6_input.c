@@ -336,7 +336,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	bool deliver;
 
 	__IP6_UPD_PO_STATS(dev_net(skb_dst(skb)->dev),
-			 ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_INMCAST,
+			 __in6_dev_get_safely(skb->dev), IPSTATS_MIB_INMCAST,
 			 skb->len);
 
 	hdr = ipv6_hdr(skb);

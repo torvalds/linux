@@ -3541,7 +3541,8 @@ static int ip6_pkt_drop(struct sk_buff *skb, u8 code, int ipstats_mib_noroutes)
 	case IPSTATS_MIB_INNOROUTES:
 		type = ipv6_addr_type(&ipv6_hdr(skb)->daddr);
 		if (type == IPV6_ADDR_ANY) {
-			IP6_INC_STATS(dev_net(dst->dev), ip6_dst_idev(dst),
+			IP6_INC_STATS(dev_net(dst->dev),
+				      __in6_dev_get_safely(skb->dev),
 				      IPSTATS_MIB_INADDRERRORS);
 			break;
 		}
