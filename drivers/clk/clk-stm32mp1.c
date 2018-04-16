@@ -216,16 +216,12 @@ static const char * const usart1_src[] = {
 	"pclk5", "pll3_q", "ck_hsi", "ck_csi", "pll4_q", "ck_hse"
 };
 
-const char * const usart234578_src[] = {
+static const char * const usart234578_src[] = {
 	"pclk1", "pll4_q", "ck_hsi", "ck_csi", "ck_hse"
 };
 
 static const char * const usart6_src[] = {
 	"pclk2", "pll4_q", "ck_hsi", "ck_csi", "ck_hse"
-};
-
-static const char * const dfsdm_src[] = {
-	"pclk2", "ck_mcu"
 };
 
 static const char * const fdcan_src[] = {
@@ -316,10 +312,8 @@ struct stm32_clk_mgate {
 struct clock_config {
 	u32 id;
 	const char *name;
-	union {
-		const char *parent_name;
-		const char * const *parent_names;
-	};
+	const char *parent_name;
+	const char * const *parent_names;
 	int num_parents;
 	unsigned long flags;
 	void *cfg;
@@ -469,7 +463,7 @@ static void mp1_gate_clk_disable(struct clk_hw *hw)
 	}
 }
 
-const struct clk_ops mp1_gate_clk_ops = {
+static const struct clk_ops mp1_gate_clk_ops = {
 	.enable		= mp1_gate_clk_enable,
 	.disable	= mp1_gate_clk_disable,
 	.is_enabled	= clk_gate_is_enabled,
@@ -698,7 +692,7 @@ static void mp1_mgate_clk_disable(struct clk_hw *hw)
 		mp1_gate_clk_disable(hw);
 }
 
-const struct clk_ops mp1_mgate_clk_ops = {
+static const struct clk_ops mp1_mgate_clk_ops = {
 	.enable		= mp1_mgate_clk_enable,
 	.disable	= mp1_mgate_clk_disable,
 	.is_enabled	= clk_gate_is_enabled,
@@ -732,7 +726,7 @@ static int clk_mmux_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
-const struct clk_ops clk_mmux_ops = {
+static const struct clk_ops clk_mmux_ops = {
 	.get_parent	= clk_mmux_get_parent,
 	.set_parent	= clk_mmux_set_parent,
 	.determine_rate	= __clk_mux_determine_rate,
@@ -1048,10 +1042,10 @@ struct stm32_pll_cfg {
 	u32 offset;
 };
 
-struct clk_hw *_clk_register_pll(struct device *dev,
-				 struct clk_hw_onecell_data *clk_data,
-				 void __iomem *base, spinlock_t *lock,
-				 const struct clock_config *cfg)
+static struct clk_hw *_clk_register_pll(struct device *dev,
+					struct clk_hw_onecell_data *clk_data,
+					void __iomem *base, spinlock_t *lock,
+					const struct clock_config *cfg)
 {
 	struct stm32_pll_cfg *stm_pll_cfg = cfg->cfg;
 
@@ -1405,7 +1399,8 @@ enum {
 	G_USBH,
 	G_ETHSTP,
 	G_RTCAPB,
-	G_TZC,
+	G_TZC1,
+	G_TZC2,
 	G_TZPC,
 	G_IWDG1,
 	G_BSEC,
@@ -1417,7 +1412,7 @@ enum {
 	G_LAST
 };
 
-struct stm32_mgate mp1_mgate[G_LAST];
+static struct stm32_mgate mp1_mgate[G_LAST];
 
 #define _K_GATE(_id, _gate_offset, _gate_bit_idx, _gate_flags,\
 	       _mgate, _ops)\
@@ -1440,7 +1435,7 @@ struct stm32_mgate mp1_mgate[G_LAST];
 	       &mp1_mgate[_id], &mp1_mgate_clk_ops)
 
 /* Peripheral gates */
-struct stm32_gate_cfg per_gate_cfg[G_LAST] = {
+static struct stm32_gate_cfg per_gate_cfg[G_LAST] = {
 	/* Multi gates */
 	K_GATE(G_MDIO,		RCC_APB1ENSETR, 31, 0),
 	K_MGATE(G_DAC12,	RCC_APB1ENSETR, 29, 0),
@@ -1506,7 +1501,8 @@ struct stm32_gate_cfg per_gate_cfg[G_LAST] = {
 	K_GATE(G_BSEC,		RCC_APB5ENSETR, 16, 0),
 	K_GATE(G_IWDG1,		RCC_APB5ENSETR, 15, 0),
 	K_GATE(G_TZPC,		RCC_APB5ENSETR, 13, 0),
-	K_GATE(G_TZC,		RCC_APB5ENSETR, 12, 0),
+	K_GATE(G_TZC2,		RCC_APB5ENSETR, 12, 0),
+	K_GATE(G_TZC1,		RCC_APB5ENSETR, 11, 0),
 	K_GATE(G_RTCAPB,	RCC_APB5ENSETR, 8, 0),
 	K_MGATE(G_USART1,	RCC_APB5ENSETR, 4, 0),
 	K_MGATE(G_I2C6,		RCC_APB5ENSETR, 3, 0),
@@ -1600,7 +1596,7 @@ enum {
 	M_LAST
 };
 
-struct stm32_mmux ker_mux[M_LAST];
+static struct stm32_mmux ker_mux[M_LAST];
 
 #define _K_MUX(_id, _offset, _shift, _width, _mux_flags, _mmux, _ops)\
 	[_id] = {\
@@ -1623,7 +1619,7 @@ struct stm32_mmux ker_mux[M_LAST];
 	_K_MUX(_id, _offset, _shift, _width, _mux_flags,\
 			&ker_mux[_id], &clk_mmux_ops)
 
-const struct stm32_mux_cfg ker_mux_cfg[M_LAST] = {
+static const struct stm32_mux_cfg ker_mux_cfg[M_LAST] = {
 	/* Kernel multi mux */
 	K_MMUX(M_SDMMC12, RCC_SDMMC12CKSELR, 0, 3, 0),
 	K_MMUX(M_SPI23, RCC_SPI2S23CKSELR, 0, 3, 0),
@@ -1860,7 +1856,8 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(USART1, "usart1", "pclk5", 0, G_USART1),
 	PCLK(RTCAPB, "rtcapb", "pclk5", CLK_IGNORE_UNUSED |
 	     CLK_IS_CRITICAL, G_RTCAPB),
-	PCLK(TZC, "tzc", "pclk5", CLK_IGNORE_UNUSED, G_TZC),
+	PCLK(TZC1, "tzc1", "ck_axi", CLK_IGNORE_UNUSED, G_TZC1),
+	PCLK(TZC2, "tzc2", "ck_axi", CLK_IGNORE_UNUSED, G_TZC2),
 	PCLK(TZPC, "tzpc", "pclk5", CLK_IGNORE_UNUSED, G_TZPC),
 	PCLK(IWDG1, "iwdg1", "pclk5", 0, G_IWDG1),
 	PCLK(BSEC, "bsec", "pclk5", CLK_IGNORE_UNUSED, G_BSEC),
@@ -1916,8 +1913,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	KCLK(RNG1_K, "rng1_k", rng_src, 0, G_RNG1, M_RNG1),
 	KCLK(RNG2_K, "rng2_k", rng_src, 0, G_RNG2, M_RNG2),
 	KCLK(USBPHY_K, "usbphy_k", usbphy_src, 0, G_USBPHY, M_USBPHY),
-	KCLK(STGEN_K, "stgen_k",  stgen_src, CLK_IGNORE_UNUSED,
-	     G_STGEN, M_STGEN),
+	KCLK(STGEN_K, "stgen_k", stgen_src, CLK_IS_CRITICAL, G_STGEN, M_STGEN),
 	KCLK(SPDIF_K, "spdif_k", spdif_src, 0, G_SPDIF, M_SPDIF),
 	KCLK(SPI1_K, "spi1_k", spi123_src, 0, G_SPI1, M_SPI1),
 	KCLK(SPI2_K, "spi2_k", spi123_src, 0, G_SPI2, M_SPI23),
@@ -1948,8 +1944,8 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	KCLK(FDCAN_K, "fdcan_k", fdcan_src, 0, G_FDCAN, M_FDCAN),
 	KCLK(SAI1_K, "sai1_k", sai_src, 0, G_SAI1, M_SAI1),
 	KCLK(SAI2_K, "sai2_k", sai2_src, 0, G_SAI2, M_SAI2),
-	KCLK(SAI3_K, "sai3_k", sai_src, 0, G_SAI2, M_SAI3),
-	KCLK(SAI4_K, "sai4_k", sai_src, 0, G_SAI2, M_SAI4),
+	KCLK(SAI3_K, "sai3_k", sai_src, 0, G_SAI3, M_SAI3),
+	KCLK(SAI4_K, "sai4_k", sai_src, 0, G_SAI4, M_SAI4),
 	KCLK(ADC12_K, "adc12_k", adc12_src, 0, G_ADC12, M_ADC12),
 	KCLK(DSI_K, "dsi_k", dsi_src, 0, G_DSI, M_DSI),
 	KCLK(ADFSDM_K, "adfsdm_k", sai_src, 0, G_ADFSDM, M_SAI1),
@@ -1992,10 +1988,6 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 		  _DIV(RCC_MCO2CFGR, 4, 4, 0, NULL)),
 
 	/* Debug clocks */
-	FIXED_FACTOR(NO_ID, "ck_axi_div2", "ck_axi", 0, 1, 2),
-
-	GATE(DBG, "ck_apb_dbg", "ck_axi_div2", 0, RCC_DBGCFGR, 8, 0),
-
 	GATE(CK_DBG, "ck_sys_dbg", "ck_axi", 0, RCC_DBGCFGR, 8, 0),
 
 	COMPOSITE(CK_TRACE, "ck_trace", ck_trace_src, CLK_OPS_PARENT_ENABLE,
