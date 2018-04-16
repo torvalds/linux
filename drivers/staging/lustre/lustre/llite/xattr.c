@@ -91,7 +91,7 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 	struct ptlrpc_request *req = NULL;
 	const char *pv = value;
 	char *fullname;
-	__u64 valid;
+	u64 valid;
 	int rc;
 
 	if (flags == XATTR_REPLACE) {
@@ -246,8 +246,8 @@ static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
 		return rc;
 
 	if (lump && S_ISREG(inode->i_mode)) {
-		__u64 it_flags = FMODE_WRITE;
-		int lum_size;
+		u64 it_flags = FMODE_WRITE;
+		ssize_t lum_size;
 
 		lum_size = ll_lov_user_md_size(lump);
 		if (lum_size < 0 || size < lum_size)
@@ -309,7 +309,7 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 
 int
 ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
-	      size_t size, __u64 valid)
+	      size_t size, u64 valid)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
