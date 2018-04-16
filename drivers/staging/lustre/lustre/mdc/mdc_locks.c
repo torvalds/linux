@@ -568,7 +568,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		  it->it_op, it->it_disposition, it->it_status);
 
 	/* We know what to expect, so we do any byte flipping required here */
-	if (it->it_op & (IT_OPEN | IT_UNLINK | IT_LOOKUP | IT_GETATTR)) {
+	if (it_has_reply_body(it)) {
 		struct mdt_body *body;
 
 		body = req_capsule_server_get(pill, &RMF_MDT_BODY);
