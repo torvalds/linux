@@ -1656,6 +1656,10 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 	if (amdgpu_emu_mode == 1)
 		return 0;
 
+	r = amdgpu_ib_ring_tests(adev);
+	if (r)
+		DRM_ERROR("ib ring test failed (%d).\n", r);
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
@@ -1706,8 +1710,8 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		}
 	}
 
-	mod_delayed_work(system_wq, &adev->late_init_work,
-			msecs_to_jiffies(AMDGPU_RESUME_MS));
+	queue_delayed_work(system_wq, &adev->late_init_work,
+			   msecs_to_jiffies(AMDGPU_RESUME_MS));
 
 	amdgpu_device_fill_reset_magic(adev);
 
@@ -2374,10 +2378,6 @@ fence_driver_init:
 		goto failed;
 	}
 
-	r = amdgpu_ib_ring_tests(adev);
-	if (r)
-		DRM_ERROR("ib ring test failed (%d).\n", r);
-
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_init_data_exchange(adev);
 
@@ -2639,11 +2639,6 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 	amdgpu_fence_driver_resume(adev);
 
-	if (resume) {
-		r = amdgpu_ib_ring_tests(adev);
-		if (r)
-			DRM_ERROR("ib ring test failed (%d).\n", r);
-	}
 
 	r = amdgpu_device_ip_late_init(adev);
 	if (r)
