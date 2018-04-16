@@ -1,5 +1,8 @@
+.. _page_frags:
+
+==============
 Page fragments
---------------
+==============
 
 A page fragment is an arbitrary-length arbitrary-offset area of memory
 which resides within a 0 or higher order compound page.  Multiple

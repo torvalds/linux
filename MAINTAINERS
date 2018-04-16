@@ -15621,7 +15621,7 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zsmalloc.c
 F:	include/linux/zsmalloc.h
-F:	Documentation/vm/zsmalloc.txt
+F:	Documentation/vm/zsmalloc.rst
 
 ZSWAP COMPRESSED SWAP CACHING
 M:	Seth Jennings <sjenning@redhat.com>

@@ -1,3 +1,9 @@
+.. _remap_file_pages:
+
+==============================
+remap_file_pages() system call
+==============================
+
 The remap_file_pages() system call is used to create a nonlinear mapping,
 that is, a mapping in which the pages of the file are mapped into a
 nonsequential order in memory. The advantage of using remap_file_pages()

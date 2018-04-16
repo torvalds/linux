@@ -16,7 +16,7 @@
 /*
  * Heterogeneous Memory Management (HMM)
  *
- * See Documentation/vm/hmm.txt for reasons and overview of what HMM is and it
+ * See Documentation/vm/hmm.rst for reasons and overview of what HMM is and it
  * is for. Here we focus on the HMM API description, with some explanation of
  * the underlying implementation.
  *

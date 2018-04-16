@@ -1,4 +1,8 @@
+.. hmm:
+
+=====================================
 Heterogeneous Memory Management (HMM)
+=====================================
 
 Provide infrastructure and helpers to integrate non-conventional memory (device
 memory like GPU on board memory) into regular kernel path, with the cornerstone
@@ -6,10 +10,10 @@ of this being specialized struct page for such memory (see sections 5 to 7 of
 this document).
 
 HMM also provides optional helpers for SVM (Share Virtual Memory), i.e.,
-allowing a device to transparently access program address coherently with the
-CPU meaning that any valid pointer on the CPU is also a valid pointer for the
-device. This is becoming mandatory to simplify the use of advanced hetero-
-geneous computing where GPU, DSP, or FPGA are used to perform various
+allowing a device to transparently access program address coherently with
+the CPU meaning that any valid pointer on the CPU is also a valid pointer
+for the device. This is becoming mandatory to simplify the use of advanced
+heterogeneous computing where GPU, DSP, or FPGA are used to perform various
 computations on behalf of a process.
 
 This document is divided as follows: in the first section I expose the problems
@@ -21,19 +25,10 @@ fifth section deals with how device memory is represented inside the kernel.
 Finally, the last section presents a new migration helper that allows lever-
 aging the device DMA engine.
 
+.. contents:: :local:
 
-1) Problems of using a device specific memory allocator:
-2) I/O bus, device memory characteristics
-3) Shared address space and migration
-4) Address space mirroring implementation and API
-5) Represent and manage device memory from core kernel point of view
-6) Migration to and from device memory
-7) Memory cgroup (memcg) and rss accounting
-
-
--------------------------------------------------------------------------------
-
-1) Problems of using a device specific memory allocator:
+Problems of using a device specific memory allocator
+====================================================
 
 Devices with a large amount of on board memory (several gigabytes) like GPUs
 have historically managed their memory through dedicated driver specific APIs.
@@ -77,9 +72,8 @@ are only do-able with a shared address space. It is also more reasonable to use
 a shared address space for all other patterns.
 
 
--------------------------------------------------------------------------------
-
-2) I/O bus, device memory characteristics
+I/O bus, device memory characteristics
+======================================
 
 I/O buses cripple shared address spaces due to a few limitations. Most I/O
 buses only allow basic memory access from device to main memory; even cache
@@ -109,9 +103,8 @@ access any memory but we must also permit any memory to be migrated to device
 memory while device is using it (blocking CPU access while it happens).
 
 
--------------------------------------------------------------------------------
-
-3) Shared address space and migration
+Shared address space and migration
+==================================
 
 HMM intends to provide two main features. First one is to share the address
 space by duplicating the CPU page table in the device page table so the same
@@ -148,23 +141,23 @@ ages device memory by migrating the part of the data set that is actively being
 used by the device.
 
 
--------------------------------------------------------------------------------
-
-4) Address space mirroring implementation and API
+Address space mirroring implementation and API
+==============================================
 
 Address space mirroring's main objective is to allow duplication of a range of
 CPU page table into a device page table; HMM helps keep both synchronized. A
 device driver that wants to mirror a process address space must start with the
-registration of an hmm_mirror struct:
+registration of an hmm_mirror struct::
 
  int hmm_mirror_register(struct hmm_mirror *mirror,
                          struct mm_struct *mm);
  int hmm_mirror_register_locked(struct hmm_mirror *mirror,
                                 struct mm_struct *mm);
 
+
 The locked variant is to be used when the driver is already holding mmap_sem
 of the mm in write mode. The mirror struct has a set of callbacks that are used
-to propagate CPU page tables:
+to propagate CPU page tables::
 
  struct hmm_mirror_ops {
      /* sync_cpu_device_pagetables() - synchronize page tables
@@ -193,10 +186,10 @@ The device driver must perform the update action to the range (mark range
 read only, or fully unmap, ...). The device must be done with the update before
 the driver callback returns.
 
-
 When the device driver wants to populate a range of virtual addresses, it can
-use either:
- int hmm_vma_get_pfns(struct vm_area_struct *vma,
+use either::
+
+  int hmm_vma_get_pfns(struct vm_area_struct *vma,
                       struct hmm_range *range,
                       unsigned long start,
                       unsigned long end,
@@ -221,7 +214,7 @@ provides a set of flags to help the driver identify special CPU page table
 entries.
 
 Locking with the update() callback is the most important aspect the driver must
-respect in order to keep things properly synchronized. The usage pattern is:
+respect in order to keep things properly synchronized. The usage pattern is::
 
  int driver_populate_range(...)
  {
@@ -262,9 +255,8 @@ report commands as executed is serialized (there is no point in doing this
 concurrently).
 
 
--------------------------------------------------------------------------------
-
-5) Represent and manage device memory from core kernel point of view
+Represent and manage device memory from core kernel point of view
+=================================================================
 
 Several different designs were tried to support device memory. First one used
 a device specific data structure to keep information about migrated memory and
@@ -280,14 +272,14 @@ unaware of the difference. We only need to make sure that no one ever tries to
 map those pages from the CPU side.
 
 HMM provides a set of helpers to register and hotplug device memory as a new
-region needing a struct page. This is offered through a very simple API:
+region needing a struct page. This is offered through a very simple API::
 
  struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
                                    struct device *device,
                                    unsigned long size);
  void hmm_devmem_remove(struct hmm_devmem *devmem);
 
-The hmm_devmem_ops is where most of the important things are:
+The hmm_devmem_ops is where most of the important things are::
 
  struct hmm_devmem_ops {
      void (*free)(struct hmm_devmem *devmem, struct page *page);
@@ -306,13 +298,12 @@ which it cannot do. This second callback must trigger a migration back to
 system memory.
 
 
--------------------------------------------------------------------------------
-
-6) Migration to and from device memory
+Migration to and from device memory
+===================================
 
 Because the CPU cannot access device memory, migration must use the device DMA
 engine to perform copy from and to device memory. For this we need a new
-migration helper:
+migration helper::
 
  int migrate_vma(const struct migrate_vma_ops *ops,
                  struct vm_area_struct *vma,
@@ -331,7 +322,7 @@ migration might be for a range of addresses the device is actively accessing.
 
 The migrate_vma_ops struct defines two callbacks. First one (alloc_and_copy())
 controls destination memory allocation and copy operation. Second one is there
-to allow the device driver to perform cleanup operations after migration.
+to allow the device driver to perform cleanup operations after migration::
 
  struct migrate_vma_ops {
      void (*alloc_and_copy)(struct vm_area_struct *vma,
@@ -365,9 +356,8 @@ bandwidth but this is considered as a rare event and a price that we are
 willing to pay to keep all the code simpler.
 
 
--------------------------------------------------------------------------------
-
-7) Memory cgroup (memcg) and rss accounting
+Memory cgroup (memcg) and rss accounting
+========================================
 
 For now device memory is accounted as any regular page in rss counters (either
 anonymous if device page is used for anonymous, file if device page is used for
