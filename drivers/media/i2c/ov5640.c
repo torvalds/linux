@@ -168,8 +168,8 @@ struct reg_value {
 struct ov5640_mode_info {
 	enum ov5640_mode_id id;
 	enum ov5640_downsize_mode dn_mode;
-	u32 width;
-	u32 height;
+	u32 hact;
+	u32 vact;
 	const struct reg_value *reg_data;
 	u32 reg_data_size;
 };
@@ -1394,10 +1394,10 @@ ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 		if (!mode->reg_data)
 			continue;
 
-		if ((nearest && mode->width <= width &&
-		     mode->height <= height) ||
-		    (!nearest && mode->width == width &&
-		     mode->height == height))
+		if ((nearest && mode->hact <= width &&
+		     mode->vact <= height) ||
+		    (!nearest && mode->hact == width &&
+		     mode->vact == height))
 			break;
 	}
 
@@ -1886,8 +1886,8 @@ static int ov5640_try_fmt_internal(struct v4l2_subdev *sd,
 	mode = ov5640_find_mode(sensor, fr, fmt->width, fmt->height, true);
 	if (!mode)
 		return -EINVAL;
-	fmt->width = mode->width;
-	fmt->height = mode->height;
+	fmt->width = mode->hact;
+	fmt->height = mode->vact;
 
 	if (new_mode)
 		*new_mode = mode;
@@ -2354,10 +2354,10 @@ static int ov5640_enum_frame_size(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fse->min_width =
-		ov5640_mode_data[0][fse->index].width;
+		ov5640_mode_data[0][fse->index].hact;
 	fse->max_width = fse->min_width;
 	fse->min_height =
-		ov5640_mode_data[0][fse->index].height;
+		ov5640_mode_data[0][fse->index].vact;
 	fse->max_height = fse->min_height;
 
 	return 0;
@@ -2421,14 +2421,14 @@ static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
 	mode = sensor->current_mode;
 
 	frame_rate = ov5640_try_frame_interval(sensor, &fi->interval,
-					       mode->width, mode->height);
+					       mode->hact, mode->vact);
 	if (frame_rate < 0)
 		frame_rate = OV5640_15_FPS;
 
 	sensor->current_fr = frame_rate;
 	sensor->frame_interval = fi->interval;
-	sensor->current_mode = ov5640_find_mode(sensor, frame_rate, mode->width,
-						mode->height, true);
+	sensor->current_mode = ov5640_find_mode(sensor, frame_rate, mode->hact,
+						mode->vact, true);
 	sensor->pending_mode_change = true;
 out:
 	mutex_unlock(&sensor->lock);
