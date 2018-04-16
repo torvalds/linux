@@ -1382,12 +1382,6 @@ static void fill_sigtrap_info(struct task_struct *tsk,
 	info->si_addr = user_mode(regs) ? (void __user *)regs->ip : NULL;
 }
 
-void user_single_step_siginfo(struct task_struct *tsk,
-				struct pt_regs *regs,
-				struct siginfo *info)
-{
-	fill_sigtrap_info(tsk, regs, 0, TRAP_BRKPT, info);
-}
 
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 					 int error_code, int si_code)
@@ -1398,4 +1392,9 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 	fill_sigtrap_info(tsk, regs, error_code, si_code, &info);
 	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
+}
+
+void user_single_step_report(struct pt_regs *regs)
+{
+	send_sigtrap(current, regs, 0, TRAP_BRKPT);
 }
