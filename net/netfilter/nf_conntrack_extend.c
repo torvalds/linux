@@ -9,6 +9,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
