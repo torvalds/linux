@@ -33,6 +33,15 @@
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
 
+struct amdgpu_bo_param {
+	unsigned long			size;
+	int				byte_align;
+	u32				domain;
+	u64				flags;
+	enum ttm_bo_type		type;
+	struct reservation_object	*resv;
+};
+
 /* bo virtual addresses in a vm */
 struct amdgpu_bo_va_mapping {
 	struct amdgpu_bo_va		*bo_va;
