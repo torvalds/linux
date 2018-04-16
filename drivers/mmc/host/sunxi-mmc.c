@@ -871,6 +871,23 @@ static void sunxi_mmc_set_bus_width(struct sunxi_mmc_host *host,
 	}
 }
 
+static void sunxi_mmc_set_clk(struct sunxi_mmc_host *host, struct mmc_ios *ios)
+{
+	u32 rval;
+
+	/* set ddr mode */
+	rval = mmc_readl(host, REG_GCTRL);
+	if (ios->timing == MMC_TIMING_UHS_DDR50 ||
+	    ios->timing == MMC_TIMING_MMC_DDR52)
+		rval |= SDXC_DDR_MODE;
+	else
+		rval &= ~SDXC_DDR_MODE;
+	mmc_writel(host, REG_GCTRL, rval);
+
+	host->ferror = sunxi_mmc_clk_set_rate(host, ios);
+	/* Android code had a usleep_range(50000, 55000); here */
+}
+
 static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sunxi_mmc_host *host = mmc_priv(mmc);
@@ -920,21 +937,7 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	sunxi_mmc_set_bus_width(host, ios->bus_width);
-
-	/* set ddr mode */
-	rval = mmc_readl(host, REG_GCTRL);
-	if (ios->timing == MMC_TIMING_UHS_DDR50 ||
-	    ios->timing == MMC_TIMING_MMC_DDR52)
-		rval |= SDXC_DDR_MODE;
-	else
-		rval &= ~SDXC_DDR_MODE;
-	mmc_writel(host, REG_GCTRL, rval);
-
-	/* set up clock */
-	if (ios->power_mode) {
-		host->ferror = sunxi_mmc_clk_set_rate(host, ios);
-		/* Android code had a usleep_range(50000, 55000); here */
-	}
+	sunxi_mmc_set_clk(host, ios);
 }
 
 static int sunxi_mmc_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
