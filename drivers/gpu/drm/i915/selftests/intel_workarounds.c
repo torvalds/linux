@@ -54,6 +54,11 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 		srm++;
 
 	cs = intel_ring_begin(rq, 4 * RING_MAX_NONPRIV_SLOTS);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_req;
+	}
+
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++) {
 		*cs++ = srm;
 		*cs++ = i915_mmio_reg_offset(RING_FORCE_TO_NONPRIV(base, i));
@@ -75,6 +80,8 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 
 	return result;
 
+err_req:
+	i915_request_add(rq);
 err_pin:
 	i915_vma_unpin(vma);
 err_obj:
