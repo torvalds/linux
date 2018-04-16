@@ -171,12 +171,12 @@ static int hv_uio_ring_mmap(struct file *filp, struct kobject *kobj,
 	return 0;
 }
 
-static struct bin_attribute ring_buffer_bin_attr __ro_after_init = {
+static const struct bin_attribute ring_buffer_bin_attr = {
 	.attr = {
 		.name = "ring",
 		.mode = 0600,
-		/* size is set at init time */
 	},
+	.size = 2 * HV_RING_SIZE * PAGE_SIZE,
 	.mmap = hv_uio_ring_mmap,
 };
 
