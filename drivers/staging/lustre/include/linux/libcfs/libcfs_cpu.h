@@ -72,10 +72,43 @@
 #ifndef __LIBCFS_CPU_H__
 #define __LIBCFS_CPU_H__
 
+#include <linux/cpu.h>
+#include <linux/cpuset.h>
+#include <linux/topology.h>
+
 /* any CPU partition */
 #define CFS_CPT_ANY		(-1)
 
 #ifdef CONFIG_SMP
+/** virtual processing unit */
+struct cfs_cpu_partition {
+	/* CPUs mask for this partition */
+	cpumask_var_t			cpt_cpumask;
+	/* nodes mask for this partition */
+	nodemask_t			*cpt_nodemask;
+	/* spread rotor for NUMA allocator */
+	unsigned int			cpt_spread_rotor;
+};
+
+
+/** descriptor for CPU partitions */
+struct cfs_cpt_table {
+	/* version, reserved for hotplug */
+	unsigned int			ctb_version;
+	/* spread rotor for NUMA allocator */
+	unsigned int			ctb_spread_rotor;
+	/* # of CPU partitions */
+	unsigned int			ctb_nparts;
+	/* partitions tables */
+	struct cfs_cpu_partition	*ctb_parts;
+	/* shadow HW CPU to CPU partition ID */
+	int				*ctb_cpu2cpt;
+	/* all cpus in this partition table */
+	cpumask_var_t			ctb_cpumask;
+	/* all nodes in this partition table */
+	nodemask_t			*ctb_nodemask;
+};
+
 /**
  * return cpumask of CPU partition \a cpt
  */

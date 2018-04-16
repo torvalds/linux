@@ -78,7 +78,6 @@
 #include <linux/timex.h>
 #include <linux/uaccess.h>
 #include <stdarg.h>
-#include <linux/libcfs/linux/linux-cpu.h>
 
 #include <linux/libcfs/libcfs_debug.h>
 #include <linux/libcfs/libcfs_private.h>

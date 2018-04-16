@@ -37,7 +37,7 @@
 struct cfs_cpt_table   *cfs_cpt_table __read_mostly;
 EXPORT_SYMBOL(cfs_cpt_table);
 
-#ifndef HAVE_LIBCFS_CPT
+#ifndef CONFIG_SMP
 
 #define CFS_CPU_VERSION_MAGIC	   0xbabecafe
 
@@ -225,4 +225,4 @@ cfs_cpu_init(void)
 	return cfs_cpt_table ? 0 : -1;
 }
 
-#endif /* HAVE_LIBCFS_CPT */
+#endif /* CONFIG_SMP */
