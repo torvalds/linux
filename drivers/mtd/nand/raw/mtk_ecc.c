@@ -500,7 +500,6 @@ static int mtk_ecc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_ecc *ecc;
 	struct resource *res;
-	const struct of_device_id *of_ecc_id = NULL;
 	u32 max_eccdata_size;
 	int irq, ret;
 
@@ -508,11 +507,7 @@ static int mtk_ecc_probe(struct platform_device *pdev)
 	if (!ecc)
 		return -ENOMEM;
 
-	of_ecc_id = of_match_device(mtk_ecc_dt_match, &pdev->dev);
-	if (!of_ecc_id)
-		return -ENODEV;
-
-	ecc->caps = of_ecc_id->data;
+	ecc->caps = of_device_get_match_data(dev);
 
 	max_eccdata_size = ecc->caps->num_ecc_strength - 1;
 	max_eccdata_size = ecc->caps->ecc_strength[max_eccdata_size];
