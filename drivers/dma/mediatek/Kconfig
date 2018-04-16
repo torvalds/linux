@@ -1,0 +1,13 @@
+
+config MTK_HSDMA
+	tristate "MediaTek High-Speed DMA controller support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	---help---
+	  Enable support for High-Speed DMA controller on MediaTek
+	  SoCs.
+
+	  This controller provides the channels which is dedicated to
+	  memory-to-memory transfer to offload from CPU through ring-
+	  based descriptor management.

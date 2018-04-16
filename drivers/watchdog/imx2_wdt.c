@@ -76,7 +76,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 
-static unsigned timeout = IMX2_WDT_DEFAULT_TIME;
+static unsigned timeout;
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (default="
 				__MODULE_STRING(IMX2_WDT_DEFAULT_TIME) ")");
@@ -281,6 +281,7 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	wdog->info		= &imx2_wdt_info;
 	wdog->ops		= &imx2_wdt_ops;
 	wdog->min_timeout	= 1;
+	wdog->timeout		= IMX2_WDT_DEFAULT_TIME;
 	wdog->max_hw_heartbeat_ms = IMX2_WDT_MAX_TIME * 1000;
 	wdog->parent		= &pdev->dev;
 
@@ -299,11 +300,6 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 
 	wdev->ext_reset = of_property_read_bool(pdev->dev.of_node,
 						"fsl,ext-reset-output");
-	wdog->timeout = clamp_t(unsigned, timeout, 1, IMX2_WDT_MAX_TIME);
-	if (wdog->timeout != timeout)
-		dev_warn(&pdev->dev, "Initial timeout out of range! Clamped from %u to %u\n",
-			 timeout, wdog->timeout);
-
 	platform_set_drvdata(pdev, wdog);
 	watchdog_set_drvdata(wdog, wdev);
 	watchdog_set_nowayout(wdog, nowayout);

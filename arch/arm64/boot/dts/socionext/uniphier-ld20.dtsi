@@ -1,11 +1,9 @@
-/*
- * Device Tree Source for UniPhier LD20 SoC
- *
- * Copyright (C) 2015-2016 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier LD20 SoC
+//
+// Copyright (C) 2015-2016 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/uniphier-gpio.h>
@@ -287,6 +285,92 @@
 						     <21 217 3>;
 		};
 
+		audio@56000000 {
+			compatible = "socionext,uniphier-ld20-aio";
+			reg = <0x56000000 0x80000>;
+			interrupts = <0 144 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_aout1>,
+				    <&pinctrl_aoutiec1>;
+			clock-names = "aio";
+			clocks = <&sys_clk 40>;
+			reset-names = "aio";
+			resets = <&sys_rst 40>;
+			#sound-dai-cells = <1>;
+			socionext,syscon = <&soc_glue>;
+
+			i2s_port0: port@0 {
+				i2s_hdmi: endpoint {
+				};
+			};
+
+			i2s_port1: port@1 {
+				i2s_pcmin2: endpoint {
+				};
+			};
+
+			i2s_port2: port@2 {
+				i2s_line: endpoint {
+					dai-format = "i2s";
+					remote-endpoint = <&evea_line>;
+				};
+			};
+
+			i2s_port3: port@3 {
+				i2s_hpcmout1: endpoint {
+				};
+			};
+
+			i2s_port4: port@4 {
+				i2s_hp: endpoint {
+					dai-format = "i2s";
+					remote-endpoint = <&evea_hp>;
+				};
+			};
+
+			spdif_port0: port@5 {
+				spdif_hiecout1: endpoint {
+				};
+			};
+
+			src_port0: port@6 {
+				i2s_epcmout2: endpoint {
+				};
+			};
+
+			src_port1: port@7 {
+				i2s_epcmout3: endpoint {
+				};
+			};
+
+			comp_spdif_port0: port@8 {
+				comp_spdif_hiecout1: endpoint {
+				};
+			};
+		};
+
+		codec@57900000 {
+			compatible = "socionext,uniphier-evea";
+			reg = <0x57900000 0x1000>;
+			clock-names = "evea", "exiv";
+			clocks = <&sys_clk 41>, <&sys_clk 42>;
+			reset-names = "evea", "exiv", "adamv";
+			resets = <&sys_rst 41>, <&sys_rst 42>, <&adamv_rst 0>;
+			#sound-dai-cells = <1>;
+
+			port@0 {
+				evea_line: endpoint {
+					remote-endpoint = <&i2s_line>;
+				};
+			};
+
+			port@1 {
+				evea_hp: endpoint {
+					remote-endpoint = <&i2s_hp>;
+				};
+			};
+		};
+
 		adamv@57920000 {
 			compatible = "socionext,uniphier-ld20-adamv",
 				     "simple-mfd", "syscon";
@@ -442,7 +526,7 @@
 			cdns,phy-dll-delay-sdclk-hsmmc = <21>;
 		};
 
-		soc-glue@5f800000 {
+		soc_glue: soc-glue@5f800000 {
 			compatible = "socionext,uniphier-ld20-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
@@ -513,6 +597,24 @@
 			};
 		};
 
+		eth: ethernet@65000000 {
+			compatible = "socionext,uniphier-ld20-ave4";
+			status = "disabled";
+			reg = <0x65000000 0x8500>;
+			interrupts = <0 66 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ether_rgmii>;
+			clocks = <&sys_clk 6>;
+			resets = <&sys_rst 6>;
+			phy-mode = "rgmii";
+			local-mac-address = [00 00 00 00 00 00];
+
+			mdio: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		nand: nand@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5b";
 			status = "disabled";
@@ -528,3 +630,21 @@
 };
 
 #include "uniphier-pinctrl.dtsi"
+
+&pinctrl_aout1 {
+	drive-strength = <4>;	/* default: 3.5mA */
+
+	ao1dacck {
+		pins = "AO1DACCK";
+		drive-strength = <5>;	/* 5mA */
+	};
+};
+
+&pinctrl_aoutiec1 {
+	drive-strength = <4>;	/* default: 3.5mA */
+
+	ao1arc {
+		pins = "AO1ARC";
+		drive-strength = <11>;	/* 11mA */
+	};
+};

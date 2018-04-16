@@ -1882,6 +1882,32 @@ TRACE_EVENT(rdev_mgmt_tx,
 		  BOOL_TO_STR(__entry->dont_wait_for_ack))
 );
 
+TRACE_EVENT(rdev_tx_control_port,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 const u8 *buf, size_t len, const u8 *dest, __be16 proto,
+		 bool unencrypted),
+	TP_ARGS(wiphy, netdev, buf, len, dest, proto, unencrypted),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(dest)
+		__field(__be16, proto)
+		__field(bool, unencrypted)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(dest, dest);
+		__entry->proto = proto;
+		__entry->unencrypted = unencrypted;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT ","
+		  " proto: 0x%x, unencrypted: %s",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(dest),
+		  be16_to_cpu(__entry->proto),
+		  BOOL_TO_STR(__entry->unencrypted))
+);
+
 TRACE_EVENT(rdev_set_noack_map,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
 		 u16 noack_map),
@@ -2319,6 +2345,29 @@ TRACE_EVENT(rdev_del_pmk,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(aa))
 );
 
+TRACE_EVENT(rdev_external_auth,
+	    TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		     struct cfg80211_external_auth_params *params),
+	    TP_ARGS(wiphy, netdev, params),
+	    TP_STRUCT__entry(WIPHY_ENTRY
+			     NETDEV_ENTRY
+			     MAC_ENTRY(bssid)
+			     __array(u8, ssid, IEEE80211_MAX_SSID_LEN + 1)
+			     __field(u16, status)
+	    ),
+	    TP_fast_assign(WIPHY_ASSIGN;
+			   NETDEV_ASSIGN;
+			   MAC_ASSIGN(bssid, params->bssid);
+			   memset(__entry->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
+			   memcpy(__entry->ssid, params->ssid.ssid,
+				  params->ssid.ssid_len);
+			   __entry->status = params->status;
+	    ),
+	    TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: " MAC_PR_FMT
+		      ", ssid: %s, status: %u", WIPHY_PR_ARG, NETDEV_PR_ARG,
+		      __entry->bssid, __entry->ssid, __entry->status)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
@@ -2575,6 +2624,27 @@ TRACE_EVENT(cfg80211_mgmt_tx_status,
 	),
 	TP_printk(WDEV_PR_FMT", cookie: %llu, ack: %s",
 		  WDEV_PR_ARG, __entry->cookie, BOOL_TO_STR(__entry->ack))
+);
+
+TRACE_EVENT(cfg80211_rx_control_port,
+	TP_PROTO(struct net_device *netdev, const u8 *buf, size_t len,
+		 const u8 *addr, u16 proto, bool unencrypted),
+	TP_ARGS(netdev, buf, len, addr, proto, unencrypted),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+		__field(u16, proto)
+		__field(bool, unencrypted)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+		__entry->proto = proto;
+		__entry->unencrypted = unencrypted;
+	),
+	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT " proto: 0x%x, unencrypted: %s",
+		  NETDEV_PR_ARG, MAC_PR_ARG(addr),
+		  __entry->proto, BOOL_TO_STR(__entry->unencrypted))
 );
 
 TRACE_EVENT(cfg80211_cqm_rssi_notify,
@@ -3114,7 +3184,7 @@ TRACE_EVENT(rdev_start_radar_detection,
 
 TRACE_EVENT(rdev_set_mcast_rate,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 int mcast_rate[NUM_NL80211_BANDS]),
+		 int *mcast_rate),
 	TP_ARGS(wiphy, netdev, mcast_rate),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY

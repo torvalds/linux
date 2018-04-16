@@ -1025,7 +1025,7 @@ static void pmcraid_get_fwversion_done(struct pmcraid_cmd *cmd)
 static void pmcraid_get_fwversion(struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_ioarcb *ioarcb = &cmd->ioa_cb->ioarcb;
-	struct pmcraid_ioadl_desc *ioadl = ioarcb->add_data.u.ioadl;
+	struct pmcraid_ioadl_desc *ioadl;
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	u16 data_size = sizeof(struct pmcraid_inquiry_data);
 
@@ -3175,7 +3175,7 @@ static int pmcraid_build_ioadl(
 
 	struct scsi_cmnd *scsi_cmd = cmd->scsi_cmd;
 	struct pmcraid_ioarcb *ioarcb = &(cmd->ioa_cb->ioarcb);
-	struct pmcraid_ioadl_desc *ioadl = ioarcb->add_data.u.ioadl;
+	struct pmcraid_ioadl_desc *ioadl;
 
 	u32 length = scsi_bufflen(scsi_cmd);
 
@@ -3225,12 +3225,7 @@ static int pmcraid_build_ioadl(
  */
 static void pmcraid_free_sglist(struct pmcraid_sglist *sglist)
 {
-	int i;
-
-	for (i = 0; i < sglist->num_sg; i++)
-		__free_pages(sg_page(&(sglist->scatterlist[i])),
-			     sglist->order);
-
+	sgl_free_order(sglist->scatterlist, sglist->order);
 	kfree(sglist);
 }
 
@@ -3247,50 +3242,20 @@ static void pmcraid_free_sglist(struct pmcraid_sglist *sglist)
 static struct pmcraid_sglist *pmcraid_alloc_sglist(int buflen)
 {
 	struct pmcraid_sglist *sglist;
-	struct scatterlist *scatterlist;
-	struct page *page;
-	int num_elem, i, j;
 	int sg_size;
 	int order;
-	int bsize_elem;
 
 	sg_size = buflen / (PMCRAID_MAX_IOADLS - 1);
 	order = (sg_size > 0) ? get_order(sg_size) : 0;
-	bsize_elem = PAGE_SIZE * (1 << order);
-
-	/* Determine the actual number of sg entries needed */
-	if (buflen % bsize_elem)
-		num_elem = (buflen / bsize_elem) + 1;
-	else
-		num_elem = buflen / bsize_elem;
 
 	/* Allocate a scatter/gather list for the DMA */
-	sglist = kzalloc(sizeof(struct pmcraid_sglist) +
-			 (sizeof(struct scatterlist) * (num_elem - 1)),
-			 GFP_KERNEL);
-
+	sglist = kzalloc(sizeof(struct pmcraid_sglist), GFP_KERNEL);
 	if (sglist == NULL)
 		return NULL;
 
-	scatterlist = sglist->scatterlist;
-	sg_init_table(scatterlist, num_elem);
 	sglist->order = order;
-	sglist->num_sg = num_elem;
-	sg_size = buflen;
-
-	for (i = 0; i < num_elem; i++) {
-		page = alloc_pages(GFP_KERNEL|GFP_DMA|__GFP_ZERO, order);
-		if (!page) {
-			for (j = i - 1; j >= 0; j--)
-				__free_pages(sg_page(&scatterlist[j]), order);
-			kfree(sglist);
-			return NULL;
-		}
-
-		sg_set_page(&scatterlist[i], page,
-			sg_size < bsize_elem ? sg_size : bsize_elem, 0);
-		sg_size -= bsize_elem;
-	}
+	sgl_alloc_order(buflen, order, false,
+			GFP_KERNEL | GFP_DMA | __GFP_ZERO, &sglist->num_sg);
 
 	return sglist;
 }
@@ -5492,7 +5457,7 @@ static void pmcraid_set_timestamp(struct pmcraid_cmd *cmd)
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	struct pmcraid_ioarcb *ioarcb = &cmd->ioa_cb->ioarcb;
 	__be32 time_stamp_len = cpu_to_be32(PMCRAID_TIMESTAMP_LEN);
-	struct pmcraid_ioadl_desc *ioadl = ioarcb->add_data.u.ioadl;
+	struct pmcraid_ioadl_desc *ioadl;
 	u64 timestamp;
 
 	timestamp = ktime_get_real_seconds() * 1000;
@@ -5665,7 +5630,7 @@ static void pmcraid_init_res_table(struct pmcraid_cmd *cmd)
 static void pmcraid_querycfg(struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_ioarcb *ioarcb = &cmd->ioa_cb->ioarcb;
-	struct pmcraid_ioadl_desc *ioadl = ioarcb->add_data.u.ioadl;
+	struct pmcraid_ioadl_desc *ioadl;
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	__be32 cfg_table_size = cpu_to_be32(sizeof(struct pmcraid_config_table));
 

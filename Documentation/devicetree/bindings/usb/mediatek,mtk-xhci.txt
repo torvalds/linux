@@ -32,7 +32,7 @@ Required properties:
 	"mcu_ck": mcu_bus clock for register access,
 	"dma_ck": dma_bus clock for data transfer by DMA
 
- - phys : a list of phandle + phy specifier pairs
+ - phys : see usb-hcd.txt in the current directory
 
 Optional properties:
  - wakeup-source : enable USB remote wakeup;
@@ -51,6 +51,9 @@ Optional properties:
  - pinctrl-0 : pin control group
 	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
  - imod-interval-ns: default interrupt moderation interval is 5000ns
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
 
 Example:
 usb30: usb@11270000 {

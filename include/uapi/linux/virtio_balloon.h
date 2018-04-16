@@ -53,7 +53,9 @@ struct virtio_balloon_config {
 #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
 #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
 #define VIRTIO_BALLOON_S_CACHES   7   /* Disk caches */
-#define VIRTIO_BALLOON_S_NR       8
+#define VIRTIO_BALLOON_S_HTLB_PGALLOC  8  /* Hugetlb page allocations */
+#define VIRTIO_BALLOON_S_HTLB_PGFAIL   9  /* Hugetlb page allocation failures */
+#define VIRTIO_BALLOON_S_NR       10
 
 /*
  * Memory statistics structure.

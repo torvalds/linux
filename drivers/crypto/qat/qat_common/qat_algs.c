@@ -546,11 +546,14 @@ static int qat_alg_aead_init_sessions(struct crypto_aead *tfm, const u8 *key,
 	if (qat_alg_aead_init_dec_session(tfm, alg, &keys, mode))
 		goto error;
 
+	memzero_explicit(&keys, sizeof(keys));
 	return 0;
 bad_key:
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 error:
+	memzero_explicit(&keys, sizeof(keys));
 	return -EFAULT;
 }
 

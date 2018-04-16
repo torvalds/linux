@@ -22,43 +22,6 @@
 #include <xmit_osdep.h>
 #include <osdep_intf.h>
 
-uint rtw_remainder_len(struct pkt_file *pfile)
-{
-	return pfile->buf_len - ((size_t)(pfile->cur_addr) -
-	       (size_t)(pfile->buf_start));
-}
-
-void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
-{
-
-	pfile->pkt = pktptr;
-	pfile->cur_addr = pktptr->data;
-	pfile->buf_start = pktptr->data;
-	pfile->pkt_len = pktptr->len;
-	pfile->buf_len = pktptr->len;
-
-	pfile->cur_buffer = pfile->buf_start;
-
-}
-
-uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
-{
-	uint	len = 0;
-
-
-	len =  rtw_remainder_len(pfile);
-	len = min(rlen, len);
-
-	if (rmem)
-		skb_copy_bits(pfile->pkt, pfile->buf_len-pfile->pkt_len, rmem, len);
-
-	pfile->cur_addr += len;
-	pfile->pkt_len -= len;
-
-
-	return len;
-}
-
 int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz)
 {
 	int i;

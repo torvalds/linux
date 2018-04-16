@@ -78,5 +78,13 @@ void bios_set_scratch_critical_state(
 	REG_UPDATE(BIOS_SCRATCH_6, S6_CRITICAL_STATE, critial_state);
 }
 
+uint32_t bios_get_vga_enabled_displays(
+	struct dc_bios *bios)
+{
+	uint32_t active_disp = 1;
 
+	if (bios->regs->BIOS_SCRATCH_3) /*follow up with other asic, todo*/
+		active_disp = REG_READ(BIOS_SCRATCH_3) & 0XFFFF;
+	return active_disp;
+}
 

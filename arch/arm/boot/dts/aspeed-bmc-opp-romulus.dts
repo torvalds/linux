@@ -184,9 +184,9 @@
 &i2c12 {
 	status = "okay";
 
-	max31785@52 {
-		compatible = "maxim,max31785";
-		reg = <0x52>;
+	w83773g@4c {
+		compatible = "nuvoton,w83773g";
+		reg = <0x4c>;
 	};
 };
 
@@ -202,6 +202,12 @@
 		gpios = <ASPEED_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "nic_func_mode1";
+	};
+	seq_cont {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(S, 7) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "seq_cont";
 	};
 };
 
@@ -256,4 +262,8 @@
 		reg = <0x01>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
 	};
+};
+
+&ibt {
+	status = "okay";
 };

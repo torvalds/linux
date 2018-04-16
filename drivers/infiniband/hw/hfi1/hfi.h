@@ -70,7 +70,6 @@
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
-#include <rdma/opa_addr.h>
 
 #include "chip_registers.h"
 #include "common.h"

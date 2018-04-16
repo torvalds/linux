@@ -229,7 +229,6 @@ static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
-	struct drm_rect clip = { 0 };
 	struct drm_crtc_state *crtc_state;
 	u32 src_h = state->src_h >> 16;
 
@@ -249,10 +248,7 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-
-	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	return drm_atomic_helper_check_plane_state(state, crtc_state,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   false, true);

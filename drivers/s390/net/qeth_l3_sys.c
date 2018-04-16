@@ -272,9 +272,8 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
-	struct qeth_ipaddr *addr;
 	char *tmp;
-	int rc, i;
+	int rc;
 
 	if (!card)
 		return -EINVAL;
@@ -293,25 +292,9 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	if (strlen(tmp) > 8)
 		return -EINVAL;
 
-	if (card->options.hsuid[0]) {
+	if (card->options.hsuid[0])
 		/* delete old ip address */
-		addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
-		if (!addr)
-			return -ENOMEM;
-
-		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
-		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
-		for (i = 8; i < 16; i++)
-			addr->u.a6.addr.s6_addr[i] =
-				card->options.hsuid[i - 8];
-		addr->u.a6.pfxlen = 0;
-		addr->type = QETH_IP_TYPE_NORMAL;
-
-		spin_lock_bh(&card->ip_lock);
-		qeth_l3_delete_ip(card, addr);
-		spin_unlock_bh(&card->ip_lock);
-		kfree(addr);
-	}
+		qeth_l3_modify_hsuid(card, false);
 
 	if (strlen(tmp) == 0) {
 		/* delete ip address only */
@@ -331,21 +314,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	if (card->dev)
 		memcpy(card->dev->perm_addr, card->options.hsuid, 9);
 
-	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
-	if (addr != NULL) {
-		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
-		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
-		for (i = 8; i < 16; i++)
-			addr->u.a6.addr.s6_addr[i] = card->options.hsuid[i - 8];
-		addr->u.a6.pfxlen = 0;
-		addr->type = QETH_IP_TYPE_NORMAL;
-	} else
-		return -ENOMEM;
-
-	spin_lock_bh(&card->ip_lock);
-	rc = qeth_l3_add_ip(card, addr);
-	spin_unlock_bh(&card->ip_lock);
-	kfree(addr);
+	rc = qeth_l3_modify_hsuid(card, true);
 
 	return rc ? rc : count;
 }
@@ -767,7 +736,8 @@ static ssize_t qeth_l3_dev_vipa_add_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_vipae(buf, proto, addr);
 	if (!rc)
-		rc = qeth_l3_add_vipa(card, proto, addr);
+		rc = qeth_l3_modify_rxip_vipa(card, true, addr,
+					      QETH_IP_TYPE_VIPA, proto);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -796,7 +766,8 @@ static ssize_t qeth_l3_dev_vipa_del_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_vipae(buf, proto, addr);
 	if (!rc)
-		rc = qeth_l3_del_vipa(card, proto, addr);
+		rc = qeth_l3_modify_rxip_vipa(card, false, addr,
+					      QETH_IP_TYPE_VIPA, proto);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -908,7 +879,8 @@ static ssize_t qeth_l3_dev_rxip_add_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_rxipe(buf, proto, addr);
 	if (!rc)
-		rc = qeth_l3_add_rxip(card, proto, addr);
+		rc = qeth_l3_modify_rxip_vipa(card, true, addr,
+					      QETH_IP_TYPE_RXIP, proto);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -937,7 +909,8 @@ static ssize_t qeth_l3_dev_rxip_del_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_rxipe(buf, proto, addr);
 	if (!rc)
-		rc = qeth_l3_del_rxip(card, proto, addr);
+		rc = qeth_l3_modify_rxip_vipa(card, false, addr,
+					      QETH_IP_TYPE_RXIP, proto);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }

@@ -233,8 +233,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
 
-#define QETH_REAL_CARD		1
-#define QETH_VLAN_CARD		2
 #define QETH_BUFSIZE		4096
 
 /**
@@ -554,12 +552,6 @@ enum qeth_card_states {
 enum qeth_prot_versions {
 	QETH_PROT_IPV4 = 0x0004,
 	QETH_PROT_IPV6 = 0x0006,
-};
-
-enum qeth_ip_types {
-	QETH_IP_TYPE_NORMAL,
-	QETH_IP_TYPE_VIPA,
-	QETH_IP_TYPE_RXIP,
 };
 
 enum qeth_cmd_buffer_state {

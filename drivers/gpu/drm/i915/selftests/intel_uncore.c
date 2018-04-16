@@ -61,20 +61,30 @@ static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 
 static int intel_shadow_table_check(void)
 {
-	const i915_reg_t *reg = gen8_shadowed_regs;
-	unsigned int i;
+	struct {
+		const i915_reg_t *regs;
+		unsigned int size;
+	} reg_lists[] = {
+		{ gen8_shadowed_regs, ARRAY_SIZE(gen8_shadowed_regs) },
+		{ gen11_shadowed_regs, ARRAY_SIZE(gen11_shadowed_regs) },
+	};
+	const i915_reg_t *reg;
+	unsigned int i, j;
 	s32 prev;
 
-	for (i = 0, prev = -1; i < ARRAY_SIZE(gen8_shadowed_regs); i++, reg++) {
-		u32 offset = i915_mmio_reg_offset(*reg);
+	for (j = 0; j < ARRAY_SIZE(reg_lists); ++j) {
+		reg = reg_lists[j].regs;
+		for (i = 0, prev = -1; i < reg_lists[j].size; i++, reg++) {
+			u32 offset = i915_mmio_reg_offset(*reg);
 
-		if (prev >= (s32)offset) {
-			pr_err("%s: entry[%d]:(%x) is before previous (%x)\n",
-			       __func__, i, offset, prev);
-			return -EINVAL;
+			if (prev >= (s32)offset) {
+				pr_err("%s: entry[%d]:(%x) is before previous (%x)\n",
+				       __func__, i, offset, prev);
+				return -EINVAL;
+			}
+
+			prev = offset;
 		}
-
-		prev = offset;
 	}
 
 	return 0;
@@ -90,6 +100,7 @@ int intel_uncore_mock_selftests(void)
 		{ __vlv_fw_ranges, ARRAY_SIZE(__vlv_fw_ranges), false },
 		{ __chv_fw_ranges, ARRAY_SIZE(__chv_fw_ranges), false },
 		{ __gen9_fw_ranges, ARRAY_SIZE(__gen9_fw_ranges), true },
+		{ __gen11_fw_ranges, ARRAY_SIZE(__gen11_fw_ranges), true },
 	};
 	int err, i;
 

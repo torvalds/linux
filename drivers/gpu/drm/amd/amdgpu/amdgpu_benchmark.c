@@ -80,8 +80,8 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	int time;
 
 	n = AMDGPU_BENCHMARK_ITERATIONS;
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, sdomain, 0, NULL,
-			     NULL, 0, &sobj);
+	r = amdgpu_bo_create(adev, size, PAGE_SIZE,sdomain, 0,
+			     ttm_bo_type_kernel, NULL, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -93,8 +93,8 @@ static void amdgpu_benchmark_move(struct amdgpu_device *adev, unsigned size,
 	if (r) {
 		goto out_cleanup;
 	}
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, ddomain, 0, NULL,
-			     NULL, 0, &dobj);
+	r = amdgpu_bo_create(adev, size, PAGE_SIZE, ddomain, 0,
+			     ttm_bo_type_kernel, NULL, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}

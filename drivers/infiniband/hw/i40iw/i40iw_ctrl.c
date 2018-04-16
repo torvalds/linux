@@ -2614,10 +2614,8 @@ static enum i40iw_status_code i40iw_sc_qp_flush_wqes(
 
 	qp->flush_sq |= flush_sq;
 	qp->flush_rq |= flush_rq;
-	if (!flush_sq && !flush_rq) {
-		if (info->ae_code != I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR)
-			return 0;
-	}
+	if (!flush_sq && !flush_rq)
+		return 0;
 
 	cqp = qp->pd->dev->cqp;
 	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
@@ -2651,6 +2649,49 @@ static enum i40iw_status_code i40iw_sc_qp_flush_wqes(
 	i40iw_insert_wqe_hdr(wqe, header);
 
 	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QP_FLUSH WQE",
+			wqe, I40IW_CQP_WQE_SIZE * 8);
+
+	if (post_sq)
+		i40iw_sc_cqp_post_sq(cqp);
+	return 0;
+}
+
+/**
+ * i40iw_sc_gen_ae - generate AE, currently uses flush WQE CQP OP
+ * @qp: sc qp
+ * @info: gen ae information
+ * @scratch: u64 saved to be used during cqp completion
+ * @post_sq: flag for cqp db to ring
+ */
+static enum i40iw_status_code i40iw_sc_gen_ae(
+				struct i40iw_sc_qp *qp,
+				struct i40iw_gen_ae_info *info,
+				u64 scratch,
+				bool post_sq)
+{
+	u64 temp;
+	u64 *wqe;
+	struct i40iw_sc_cqp *cqp;
+	u64 header;
+
+	cqp = qp->pd->dev->cqp;
+	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
+	if (!wqe)
+		return I40IW_ERR_RING_FULL;
+
+	temp = info->ae_code |
+	       LS_64(info->ae_source, I40IW_CQPSQ_FWQE_AESOURCE);
+
+	set_64bit_val(wqe, 8, temp);
+
+	header = qp->qp_uk.qp_id |
+		 LS_64(I40IW_CQP_OP_GEN_AE, I40IW_CQPSQ_OPCODE) |
+		 LS_64(1, I40IW_CQPSQ_FWQE_GENERATE_AE) |
+		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
+
+	i40iw_insert_wqe_hdr(wqe, header);
+
+	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "GEN_AE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -4147,6 +4188,13 @@ static enum i40iw_status_code i40iw_exec_cqp_cmd(struct i40iw_sc_dev *dev,
 				&pcmdinfo->in.u.qp_flush_wqes.info,
 				pcmdinfo->in.u.qp_flush_wqes.
 				scratch, pcmdinfo->post_sq);
+		break;
+	case OP_GEN_AE:
+		status = i40iw_sc_gen_ae(
+				pcmdinfo->in.u.gen_ae.qp,
+				&pcmdinfo->in.u.gen_ae.info,
+				pcmdinfo->in.u.gen_ae.scratch,
+				pcmdinfo->post_sq);
 		break;
 	case OP_ADD_ARP_CACHE_ENTRY:
 		status = i40iw_sc_add_arp_cache_entry(

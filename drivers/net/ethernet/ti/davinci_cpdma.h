@@ -19,6 +19,8 @@
 
 #define CPDMA_RX_SOURCE_PORT(__status__)	((__status__ >> 16) & 0x7)
 
+#define CPDMA_RX_VLAN_ENCAP BIT(19)
+
 #define CPDMA_EOI_RX_THRESH	0x0
 #define CPDMA_EOI_RX		0x1
 #define CPDMA_EOI_TX		0x2

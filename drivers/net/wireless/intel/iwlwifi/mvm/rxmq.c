@@ -831,6 +831,16 @@ out:
 	rcu_read_unlock();
 }
 
+static void iwl_mvm_flip_address(u8 *addr)
+{
+	int i;
+	u8 mac_addr[ETH_ALEN];
+
+	for (i = 0; i < ETH_ALEN; i++)
+		mac_addr[i] = addr[ETH_ALEN - i - 1];
+	ether_addr_copy(addr, mac_addr);
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {
@@ -985,21 +995,16 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 */
 		if ((desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU) &&
 		    !WARN_ON(!ieee80211_is_data_qos(hdr->frame_control))) {
-			int i;
 			u8 *qc = ieee80211_get_qos_ctl(hdr);
-			u8 mac_addr[ETH_ALEN];
 
 			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 
-			for (i = 0; i < ETH_ALEN; i++)
-				mac_addr[i] = hdr->addr3[ETH_ALEN - i - 1];
-			ether_addr_copy(hdr->addr3, mac_addr);
+			if (mvm->trans->cfg->device_family ==
+			    IWL_DEVICE_FAMILY_9000) {
+				iwl_mvm_flip_address(hdr->addr3);
 
-			if (ieee80211_has_a4(hdr->frame_control)) {
-				for (i = 0; i < ETH_ALEN; i++)
-					mac_addr[i] =
-						hdr->addr4[ETH_ALEN - i - 1];
-				ether_addr_copy(hdr->addr4, mac_addr);
+				if (ieee80211_has_a4(hdr->frame_control))
+					iwl_mvm_flip_address(hdr->addr4);
 			}
 		}
 		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID) {

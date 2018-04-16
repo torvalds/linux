@@ -4431,7 +4431,7 @@ void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv)
 			timeout = page_thresh;
 		else if (rtl8xxxu_dma_agg_pages <= 6)
 			dev_err(&priv->udev->dev,
-				"%s: dma_agg_pages=%i too small, minium is 6\n",
+				"%s: dma_agg_pages=%i too small, minimum is 6\n",
 				__func__, rtl8xxxu_dma_agg_pages);
 		else
 			dev_err(&priv->udev->dev,

@@ -803,24 +803,13 @@ typedef struct xfs_agi {
 		&(XFS_BUF_TO_AGFL(bp)->agfl_bno[0]) : \
 		(__be32 *)(bp)->b_addr)
 
-/*
- * Size of the AGFL.  For CRC-enabled filesystes we steal a couple of
- * slots in the beginning of the block for a proper header with the
- * location information and CRC.
- */
-#define XFS_AGFL_SIZE(mp) \
-	(((mp)->m_sb.sb_sectsize - \
-	 (xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
-		sizeof(struct xfs_agfl) : 0)) / \
-	  sizeof(xfs_agblock_t))
-
 typedef struct xfs_agfl {
 	__be32		agfl_magicnum;
 	__be32		agfl_seqno;
 	uuid_t		agfl_uuid;
 	__be64		agfl_lsn;
 	__be32		agfl_crc;
-	__be32		agfl_bno[];	/* actually XFS_AGFL_SIZE(mp) */
+	__be32		agfl_bno[];	/* actually xfs_agfl_size(mp) */
 } __attribute__((packed)) xfs_agfl_t;
 
 #define XFS_AGFL_CRC_OFF	offsetof(struct xfs_agfl, agfl_crc)

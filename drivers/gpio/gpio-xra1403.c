@@ -126,10 +126,15 @@ static void xra1403_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	int reg;
 	struct xra1403 *xra = gpiochip_get_data(chip);
-	int value[xra1403_regmap_cfg.max_register];
+	int *value;
 	int i;
 	unsigned int gcr;
 	unsigned int gsr;
+
+	value = kmalloc_array(xra1403_regmap_cfg.max_register, sizeof(*value),
+				GFP_KERNEL);
+	if (!value)
+		return;
 
 	seq_puts(s, "xra reg:");
 	for (reg = 0; reg <= xra1403_regmap_cfg.max_register; reg++)
@@ -154,6 +159,7 @@ static void xra1403_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			   (gcr & BIT(i)) ? "in" : "out",
 			   (gsr & BIT(i)) ? "hi" : "lo");
 	}
+	kfree(value);
 }
 #else
 #define xra1403_dbg_show NULL

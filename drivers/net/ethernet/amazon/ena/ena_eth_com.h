@@ -107,7 +107,8 @@ static inline int ena_com_sq_empty_space(struct ena_com_io_sq *io_sq)
 	return io_sq->q_depth - 1 - cnt;
 }
 
-static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
+static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq,
+					    bool relaxed)
 {
 	u16 tail;
 
@@ -116,7 +117,10 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 	pr_debug("write submission queue doorbell for queue: %d tail: %d\n",
 		 io_sq->qid, tail);
 
-	writel(tail, io_sq->db_addr);
+	if (relaxed)
+		writel_relaxed(tail, io_sq->db_addr);
+	else
+		writel(tail, io_sq->db_addr);
 
 	return 0;
 }

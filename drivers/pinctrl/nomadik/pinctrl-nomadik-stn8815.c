@@ -291,7 +291,17 @@ static const unsigned i2cusb_b_1_pins[] = { STN8815_PIN_C21, STN8815_PIN_C20 };
 static const unsigned clcd_16_23_b_1_pins[] = { STN8815_PIN_AB6,
 	STN8815_PIN_AA6, STN8815_PIN_Y6, STN8815_PIN_Y5, STN8815_PIN_AA5,
 	STN8815_PIN_AB5, STN8815_PIN_AB4, STN8815_PIN_Y4 };
-
+/* Full-speed and high-speed USB pins */
+static const unsigned usbfs_b_1_pins[] = { STN8815_PIN_E21, STN8815_PIN_E20,
+					   STN8815_PIN_C22, STN8815_PIN_D21,
+					   STN8815_PIN_D20, STN8815_PIN_C21,
+					   STN8815_PIN_C20 };
+static const unsigned usbhs_c_1_pins[] = { STN8815_PIN_E21, STN8815_PIN_E20,
+					   STN8815_PIN_C20, STN8815_PIN_C19,
+					   STN8815_PIN_C22, STN8815_PIN_D21,
+					   STN8815_PIN_D20, STN8815_PIN_C21,
+					   STN8815_PIN_C16, STN8815_PIN_A15,
+					   STN8815_PIN_D17, STN8815_PIN_C17 };
 
 #define STN8815_PIN_GROUP(a, b) { .name = #a, .pins = a##_pins,		\
 			.npins = ARRAY_SIZE(a##_pins), .altsetting = b }
@@ -308,6 +318,8 @@ static const struct nmk_pingroup nmk_stn8815_groups[] = {
 	STN8815_PIN_GROUP(u1_b_1, NMK_GPIO_ALT_B),
 	STN8815_PIN_GROUP(i2cusb_b_1, NMK_GPIO_ALT_B),
 	STN8815_PIN_GROUP(clcd_16_23_b_1, NMK_GPIO_ALT_B),
+	STN8815_PIN_GROUP(usbfs_b_1, NMK_GPIO_ALT_B),
+	STN8815_PIN_GROUP(usbhs_c_1, NMK_GPIO_ALT_C),
 };
 
 /* We use this macro to define the groups applicable to a function */
@@ -321,6 +333,7 @@ STN8815_FUNC_GROUPS(i2c1, "i2c1_a_1");
 STN8815_FUNC_GROUPS(i2c0, "i2c0_a_1");
 STN8815_FUNC_GROUPS(i2cusb, "i2cusb_b_1");
 STN8815_FUNC_GROUPS(clcd, "clcd_16_23_b_1");
+STN8815_FUNC_GROUPS(usb, "usbfs_b_1", "usbhs_c_1");
 
 #define FUNCTION(fname)					\
 	{						\
@@ -337,6 +350,7 @@ static const struct nmk_function nmk_stn8815_functions[] = {
 	FUNCTION(i2c0),
 	FUNCTION(i2cusb),
 	FUNCTION(clcd),
+	FUNCTION(usb),
 };
 
 static const struct nmk_pinctrl_soc_data nmk_stn8815_soc = {

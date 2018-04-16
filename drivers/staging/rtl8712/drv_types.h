@@ -161,7 +161,7 @@ struct _adapter {
 	u8	EepromAddressSize;
 	u8	hw_init_completed;
 	struct task_struct *cmdThread;
-	 pid_t evtThread;
+	pid_t evtThread;
 	struct task_struct *xmitThread;
 	pid_t recvThread;
 	uint (*dvobj_init)(struct _adapter *adapter);

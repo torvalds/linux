@@ -54,11 +54,6 @@ to_ds2781_device_info(struct power_supply *psy)
 	return power_supply_get_drvdata(psy);
 }
 
-static inline struct power_supply *to_power_supply(struct device *dev)
-{
-	return dev_get_drvdata(dev);
-}
-
 static inline int ds2781_battery_io(struct ds2781_device_info *dev_info,
 	char *buf, int addr, size_t count, int io)
 {

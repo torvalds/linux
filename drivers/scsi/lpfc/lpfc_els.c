@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1661,6 +1661,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		if (ndlp->nrport) {
 			ndlp->nrport = NULL;
 			lpfc_nlp_put(ndlp);
+			new_ndlp->nlp_fc4_type = ndlp->nlp_fc4_type;
 		}
 
 		/* We shall actually free the ndlp with both nlp_DID and
@@ -2293,10 +2294,11 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		if (phba->nvmet_support) {
 			bf_set(prli_tgt, npr_nvme, 1);
 			bf_set(prli_disc, npr_nvme, 1);
-
 		} else {
 			bf_set(prli_init, npr_nvme, 1);
+			bf_set(prli_conf, npr_nvme, 1);
 		}
+
 		npr_nvme->word1 = cpu_to_be32(npr_nvme->word1);
 		npr_nvme->word4 = cpu_to_be32(npr_nvme->word4);
 		elsiocb->iocb_flag |= LPFC_PRLI_NVME_REQ;
@@ -5269,6 +5271,9 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 	case LPFC_LINK_SPEED_32GHZ:
 		rdp_speed = RDP_PS_32GB;
 		break;
+	case LPFC_LINK_SPEED_64GHZ:
+		rdp_speed = RDP_PS_64GB;
+		break;
 	default:
 		rdp_speed = RDP_PS_UNKNOWN;
 		break;
@@ -5276,6 +5281,8 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 
 	desc->info.port_speed.speed = cpu_to_be16(rdp_speed);
 
+	if (phba->lmt & LMT_64Gb)
+		rdp_cap |= RDP_PS_64GB;
 	if (phba->lmt & LMT_32Gb)
 		rdp_cap |= RDP_PS_32GB;
 	if (phba->lmt & LMT_16Gb)

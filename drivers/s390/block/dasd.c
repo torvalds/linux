@@ -3208,7 +3208,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 	} else {
 		max = block->base->discipline->max_blocks << block->s2b_shift;
 	}
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	q->limits.max_dev_sectors = max;
 	blk_queue_logical_block_size(q, logical_block_size);
 	blk_queue_max_hw_sectors(q, max);
@@ -3231,7 +3231,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 
 		blk_queue_max_discard_sectors(q, max_discard_sectors);
 		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 	}
 }
 
@@ -3918,8 +3918,13 @@ static int dasd_generic_requeue_all_requests(struct dasd_device *device)
 			cqr = refers;
 		}
 
-		if (cqr->block)
-			list_del_init(&cqr->blocklist);
+		/*
+		 * _dasd_requeue_request already checked for a valid
+		 * blockdevice, no need to check again
+		 * all erp requests (cqr->refers) have a cqr->block
+		 * pointer copy from the original cqr
+		 */
+		list_del_init(&cqr->blocklist);
 		cqr->block->base->discipline->free_cp(
 			cqr, (struct request *) cqr->callback_data);
 	}

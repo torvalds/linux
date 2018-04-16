@@ -91,6 +91,17 @@ static inline int inet_sdif(struct sk_buff *skb)
 	return 0;
 }
 
+/* Special input handler for packets caught by router alert option.
+   They are selected only by protocol field, and then processed likely
+   local ones; but only if someone wants them! Otherwise, router
+   not running rsvpd will kill RSVP.
+
+   It is user level problem, what it will make with them.
+   I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
+   but receiver should be enough clever f.e. to forward mtrace requests,
+   sent to multicast group to reach destination designated router.
+ */
+
 struct ip_ra_chain {
 	struct ip_ra_chain __rcu *next;
 	struct sock		*sk;
@@ -100,8 +111,6 @@ struct ip_ra_chain {
 	};
 	struct rcu_head		rcu;
 };
-
-extern struct ip_ra_chain __rcu *ip_ra_chain;
 
 /* IP flags. */
 #define IP_CE		0x8000		/* Flag: "Congestion"		*/
@@ -186,15 +195,15 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 void ip4_datagram_release_cb(struct sock *sk);
 
 struct ip_reply_arg {
-	struct kvec iov[1];   
+	struct kvec iov[1];
 	int	    flags;
 	__wsum 	    csum;
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
-				/* -1 if not needed */ 
+				/* -1 if not needed */
 	int	    bound_dev_if;
 	u8  	    tos;
 	kuid_t	    uid;
-}; 
+};
 
 #define IP_REPLY_ARG_NOSRCCHECK 1
 
@@ -579,18 +588,17 @@ static inline struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *s
 	return skb;
 }
 #endif
-int ip_frag_mem(struct net *net);
 
 /*
  *	Functions provided by ip_forward.c
  */
- 
+
 int ip_forward(struct sk_buff *skb);
- 
+
 /*
  *	Functions provided by ip_options.c
  */
- 
+
 void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 		      __be32 daddr, struct rtable *rt, int is_frag);
 

@@ -243,9 +243,9 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 		    xport == a->sin6_port)
 			return;
 		if (xdr == a->sin6_addr.s6_addr32[3] &&
-		    xport < a->sin6_port)
+		    (u16 __force)xport < (u16 __force)a->sin6_port)
 			break;
-		if (xdr < a->sin6_addr.s6_addr32[3])
+		if ((u32 __force)xdr < (u32 __force)a->sin6_addr.s6_addr32[3])
 			break;
 	}
 
@@ -280,7 +280,7 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 		    xport == a->sin6_port)
 			return;
 		if (diff == 0 &&
-		    xport < a->sin6_port)
+		    (u16 __force)xport < (u16 __force)a->sin6_port)
 			break;
 		if (diff < 0)
 			break;

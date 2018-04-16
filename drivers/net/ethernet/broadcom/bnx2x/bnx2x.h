@@ -166,6 +166,12 @@ do {						\
 #define REG_RD8(bp, offset)		readb(REG_ADDR(bp, offset))
 #define REG_RD16(bp, offset)		readw(REG_ADDR(bp, offset))
 
+#define REG_WR_RELAXED(bp, offset, val)	\
+	writel_relaxed((u32)val, REG_ADDR(bp, offset))
+
+#define REG_WR16_RELAXED(bp, offset, val) \
+	writew_relaxed((u16)val, REG_ADDR(bp, offset))
+
 #define REG_WR(bp, offset, val)		writel((u32)val, REG_ADDR(bp, offset))
 #define REG_WR8(bp, offset, val)	writeb((u8)val, REG_ADDR(bp, offset))
 #define REG_WR16(bp, offset, val)	writew((u16)val, REG_ADDR(bp, offset))
@@ -758,10 +764,8 @@ struct bnx2x_fastpath {
 #if (BNX2X_DB_SHIFT < BNX2X_DB_MIN_SHIFT)
 #error "Min DB doorbell stride is 8"
 #endif
-#define DOORBELL(bp, cid, val) \
-	do { \
-		writel((u32)(val), bp->doorbells + (bp->db_size * (cid))); \
-	} while (0)
+#define DOORBELL_RELAXED(bp, cid, val) \
+	writel_relaxed((u32)(val), (bp)->doorbells + ((bp)->db_size * (cid)))
 
 /* TX CSUM helpers */
 #define SKB_CS_OFF(skb)		(offsetof(struct tcphdr, check) - \

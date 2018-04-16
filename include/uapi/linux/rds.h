@@ -103,6 +103,8 @@
 #define RDS_CMSG_MASKED_ATOMIC_FADD	8
 #define RDS_CMSG_MASKED_ATOMIC_CSWP	9
 #define RDS_CMSG_RXPATH_LATENCY		11
+#define	RDS_CMSG_ZCOPY_COOKIE		12
+#define	RDS_CMSG_ZCOPY_COMPLETION	13
 
 #define RDS_INFO_FIRST			10000
 #define RDS_INFO_COUNTERS		10000
@@ -315,6 +317,12 @@ struct rds_rdma_notify {
 #define RDS_RDMA_CANCELED	2
 #define RDS_RDMA_DROPPED	3
 #define RDS_RDMA_OTHER_ERROR	4
+
+#define	RDS_MAX_ZCOOKIES	8
+struct rds_zcopy_cookies {
+	__u32 num;
+	__u32 cookies[RDS_MAX_ZCOOKIES];
+};
 
 /*
  * Common set of flags for all RDMA related structs

@@ -76,12 +76,12 @@ Examples:
 
 ...
 {
-	syscfg_pctl_a: syscfg_pctl_a@10005000 {
+	syscfg_pctl_a: syscfg-pctl-a@10005000 {
 		compatible = "mediatek,mt8135-pctl-a-syscfg", "syscon";
 		reg = <0 0x10005000 0 0x1000>;
 	};
 
-	syscfg_pctl_b: syscfg_pctl_b@1020c020 {
+	syscfg_pctl_b: syscfg-pctl-b@1020c020 {
 		compatible = "mediatek,mt8135-pctl-b-syscfg", "syscon";
 		reg = <0 0x1020C020 0 0x1000>;
 	};

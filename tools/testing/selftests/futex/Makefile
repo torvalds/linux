@@ -18,6 +18,10 @@ all:
 	done
 
 override define RUN_TESTS
+	@export KSFT_TAP_LEVEL=`echo 1`;
+	@echo "TAP version 13";
+	@echo "selftests: futex";
+	@echo "========================================";
 	@cd $(OUTPUT); ./run.sh
 endef
 

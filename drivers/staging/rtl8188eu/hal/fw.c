@@ -30,7 +30,7 @@
 #include "rtl8188e_hal.h"
 
 #include <linux/firmware.h>
-#include <linux/kmemleak.h>
+#include <linux/slab.h>
 
 static void _rtl88e_enable_fw_download(struct adapter *adapt, bool enable)
 {

@@ -44,6 +44,7 @@
 #include "armv7-m.dtsi"
 #include <dt-bindings/clock/stm32h7-clks.h>
 #include <dt-bindings/mfd/stm32h7-rcc.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	clocks {
@@ -100,6 +101,27 @@
 			};
 		};
 
+		spi2: spi@40003800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40003800 0x400>;
+			interrupts = <36>;
+			clocks = <&rcc SPI2_CK>;
+			status = "disabled";
+
+		};
+
+		spi3: spi@40003c00 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40003c00 0x400>;
+			interrupts = <51>;
+			clocks = <&rcc SPI3_CK>;
+			status = "disabled";
+		};
+
 		usart2: serial@40004400 {
 			compatible = "st,stm32f7-uart";
 			reg = <0x40004400 0x400>;
@@ -138,6 +160,36 @@
 			interrupts = <37>;
 			status = "disabled";
 			clocks = <&rcc USART1_CK>;
+		};
+
+		spi1: spi@40013000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40013000 0x400>;
+			interrupts = <35>;
+			clocks = <&rcc SPI1_CK>;
+			status = "disabled";
+		};
+
+		spi4: spi@40013400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40013400 0x400>;
+			interrupts = <84>;
+			clocks = <&rcc SPI4_CK>;
+			status = "disabled";
+		};
+
+		spi5: spi@40015000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40015000 0x400>;
+			interrupts = <85>;
+			clocks = <&rcc SPI5_CK>;
+			status = "disabled";
 		};
 
 		dma1: dma@40020000 {
@@ -217,6 +269,27 @@
 			};
 		};
 
+		usbotg_hs: usb@40040000 {
+			compatible = "st,stm32f7-hsotg";
+			reg = <0x40040000 0x40000>;
+			interrupts = <77>;
+			clocks = <&rcc USB1OTG_CK>;
+			clock-names = "otg";
+			g-rx-fifo-size = <256>;
+			g-np-tx-fifo-size = <32>;
+			g-tx-fifo-size = <128 128 64 64 64 64 32 32>;
+			status = "disabled";
+		};
+
+		usbotg_fs: usb@40080000 {
+			compatible = "st,stm32f4x9-fsotg";
+			reg = <0x40080000 0x40000>;
+			interrupts = <101>;
+			clocks = <&rcc USB2OTG_CK>;
+			clock-names = "otg";
+			status = "disabled";
+		};
+
 		mdma1: dma@52000000 {
 			compatible = "st,stm32h7-mdma";
 			reg = <0x52000000 0x1000>;
@@ -225,6 +298,29 @@
 			#dma-cells = <5>;
 			dma-channels = <16>;
 			dma-requests = <32>;
+		};
+
+		exti: interrupt-controller@58000000 {
+			compatible = "st,stm32h7-exti";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x58000000 0x400>;
+			interrupts = <1>, <2>, <3>, <6>, <7>, <8>, <9>, <10>, <23>, <40>, <41>, <62>, <76>;
+		};
+
+		syscfg: system-config@58000400 {
+			compatible = "syscon";
+			reg = <0x58000400 0x400>;
+		};
+
+		spi6: spi@58001400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x58001400 0x400>;
+			interrupts = <86>;
+			clocks = <&rcc SPI6_CK>;
+			status = "disabled";
 		};
 
 		lptimer2: timer@58002400 {
@@ -304,12 +400,26 @@
 			};
 		};
 
-		vrefbuf: regulator@58003C00 {
+		vrefbuf: regulator@58003c00 {
 			compatible = "st,stm32-vrefbuf";
 			reg = <0x58003C00 0x8>;
 			clocks = <&rcc VREF_CK>;
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <2500000>;
+			status = "disabled";
+		};
+
+		rtc: rtc@58004000 {
+			compatible = "st,stm32h7-rtc";
+			reg = <0x58004000 0x400>;
+			clocks = <&rcc RTCAPB_CK>, <&rcc RTC_CK>;
+			clock-names = "pclk", "rtc_ck";
+			assigned-clocks = <&rcc RTC_CK>;
+			assigned-clock-parents = <&rcc LSE_CK>;
+			interrupt-parent = <&exti>;
+			interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "alarm";
+			st,syscfg = <&pwrcfg>;
 			status = "disabled";
 		};
 

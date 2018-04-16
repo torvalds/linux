@@ -806,6 +806,7 @@ enum tc_prio_command {
 	TC_PRIO_REPLACE,
 	TC_PRIO_DESTROY,
 	TC_PRIO_STATS,
+	TC_PRIO_GRAFT,
 };
 
 struct tc_prio_qopt_offload_params {
@@ -818,6 +819,11 @@ struct tc_prio_qopt_offload_params {
 	struct gnet_stats_queue *qstats;
 };
 
+struct tc_prio_qopt_offload_graft_params {
+	u8 band;
+	u32 child_handle;
+};
+
 struct tc_prio_qopt_offload {
 	enum tc_prio_command command;
 	u32 handle;
@@ -825,6 +831,8 @@ struct tc_prio_qopt_offload {
 	union {
 		struct tc_prio_qopt_offload_params replace_params;
 		struct tc_qopt_offload_stats stats;
+		struct tc_prio_qopt_offload_graft_params graft_params;
 	};
 };
+
 #endif

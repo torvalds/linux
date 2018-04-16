@@ -2,6 +2,8 @@ GPIO controlled regulators
 
 Required properties:
 - compatible		: Must be "regulator-gpio".
+- regulator-name	: Defined in regulator.txt as optional, but required
+			  here.
 - states		: Selection of available voltages and GPIO configs.
                           if there are no states, then use a fixed regulator
 

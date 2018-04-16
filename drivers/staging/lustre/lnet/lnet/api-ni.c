@@ -961,19 +961,15 @@ static void
 lnet_ping_md_unlink(struct lnet_ping_info *pinfo,
 		    struct lnet_handle_md *md_handle)
 {
-	sigset_t blocked = cfs_block_allsigs();
-
 	LNetMDUnlink(*md_handle);
 	LNetInvalidateMDHandle(md_handle);
 
 	/* NB md could be busy; this just starts the unlink */
 	while (pinfo->pi_features != LNET_PING_FEAT_INVAL) {
 		CDEBUG(D_NET, "Still waiting for ping MD to unlink\n");
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(cfs_time_seconds(1));
+		set_current_state(TASK_NOLOAD);
+		schedule_timeout(HZ);
 	}
-
-	cfs_restore_sigs(blocked);
 }
 
 static void
@@ -1109,7 +1105,7 @@ lnet_clear_zombies_nis_locked(void)
 				       libcfs_nid2str(ni->ni_nid));
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(cfs_time_seconds(1));
+			schedule_timeout(HZ);
 			lnet_net_lock(LNET_LOCK_EX);
 			continue;
 		}
@@ -1218,6 +1214,7 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 	struct lnet_lnd *lnd;
 	struct lnet_tx_queue *tq;
 	int i;
+	u32 seed;
 
 	lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
 
@@ -1355,6 +1352,12 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		tq->tq_credits_max =
 		tq->tq_credits = lnet_ni_tq_credits(ni);
 	}
+
+	/* Nodes with small feet have little entropy. The NID for this
+	 * node gives the most entropy in the low bits.
+	 */
+	seed = LNET_NIDADDR(ni->ni_nid);
+	add_device_randomness(&seed, sizeof(seed));
 
 	CDEBUG(D_LNI, "Added LNI %s [%d/%d/%d/%d]\n",
 	       libcfs_nid2str(ni->ni_nid), ni->ni_peertxcredits,
@@ -2141,7 +2144,6 @@ static int lnet_ping(struct lnet_process_id id, int timeout_ms,
 	int nob;
 	int rc;
 	int rc2;
-	sigset_t blocked;
 
 	infosz = offsetof(struct lnet_ping_info, pi_ni[n_ids]);
 
@@ -2197,13 +2199,9 @@ static int lnet_ping(struct lnet_process_id id, int timeout_ms,
 
 	do {
 		/* MUST block for unlink to complete */
-		if (unlinked)
-			blocked = cfs_block_allsigs();
 
-		rc2 = LNetEQPoll(&eqh, 1, timeout_ms, &event, &which);
-
-		if (unlinked)
-			cfs_restore_sigs(blocked);
+		rc2 = LNetEQPoll(&eqh, 1, timeout_ms, !unlinked,
+				 &event, &which);
 
 		CDEBUG(D_NET, "poll %d(%d %d)%s\n", rc2,
 		       (rc2 <= 0) ? -1 : event.type,

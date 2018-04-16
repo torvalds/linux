@@ -24,8 +24,8 @@ Optional properties:
 - allwinner,rb : shall contain the native Ready/Busy ids.
  or
 - rb-gpios : shall contain the gpios used as R/B pins.
-- nand-ecc-mode : one of the supported ECC modes ("hw", "hw_syndrome", "soft",
-  "soft_bch" or "none")
+- nand-ecc-mode : one of the supported ECC modes ("hw", "soft", "soft_bch" or
+		  "none")
 
 see Documentation/devicetree/bindings/mtd/nand.txt for generic bindings.
 

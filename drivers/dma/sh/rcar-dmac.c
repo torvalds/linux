@@ -1301,8 +1301,17 @@ static unsigned int rcar_dmac_chan_get_residue(struct rcar_dmac_chan *chan,
 	 * If the cookie doesn't correspond to the currently running transfer
 	 * then the descriptor hasn't been processed yet, and the residue is
 	 * equal to the full descriptor size.
+	 * Also, a client driver is possible to call this function before
+	 * rcar_dmac_isr_channel_thread() runs. In this case, the "desc.running"
+	 * will be the next descriptor, and the done list will appear. So, if
+	 * the argument cookie matches the done list's cookie, we can assume
+	 * the residue is zero.
 	 */
 	if (cookie != desc->async_tx.cookie) {
+		list_for_each_entry(desc, &chan->desc.done, node) {
+			if (cookie == desc->async_tx.cookie)
+				return 0;
+		}
 		list_for_each_entry(desc, &chan->desc.pending, node) {
 			if (cookie == desc->async_tx.cookie)
 				return desc->size;
@@ -1677,8 +1686,8 @@ static const struct dev_pm_ops rcar_dmac_pm = {
 	 *   - Wait for the current transfer to complete and stop the device,
 	 *   - Resume transfers, if any.
 	 */
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				      pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(rcar_dmac_runtime_suspend, rcar_dmac_runtime_resume,
 			   NULL)
 };

@@ -26,6 +26,7 @@
 #define __HID_H
 
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -310,13 +311,13 @@ struct hid_item {
  * HID connect requests
  */
 
-#define HID_CONNECT_HIDINPUT		0x01
-#define HID_CONNECT_HIDINPUT_FORCE	0x02
-#define HID_CONNECT_HIDRAW		0x04
-#define HID_CONNECT_HIDDEV		0x08
-#define HID_CONNECT_HIDDEV_FORCE	0x10
-#define HID_CONNECT_FF			0x20
-#define HID_CONNECT_DRIVER		0x40
+#define HID_CONNECT_HIDINPUT		BIT(0)
+#define HID_CONNECT_HIDINPUT_FORCE	BIT(1)
+#define HID_CONNECT_HIDRAW		BIT(2)
+#define HID_CONNECT_HIDDEV		BIT(3)
+#define HID_CONNECT_HIDDEV_FORCE	BIT(4)
+#define HID_CONNECT_FF			BIT(5)
+#define HID_CONNECT_DRIVER		BIT(6)
 #define HID_CONNECT_DEFAULT	(HID_CONNECT_HIDINPUT|HID_CONNECT_HIDRAW| \
 		HID_CONNECT_HIDDEV|HID_CONNECT_FF)
 
@@ -329,25 +330,25 @@ struct hid_item {
  */
 #define MAX_USBHID_BOOT_QUIRKS 4
 
-#define HID_QUIRK_INVERT			0x00000001
-#define HID_QUIRK_NOTOUCH			0x00000002
-#define HID_QUIRK_IGNORE			0x00000004
-#define HID_QUIRK_NOGET				0x00000008
-#define HID_QUIRK_HIDDEV_FORCE			0x00000010
-#define HID_QUIRK_BADPAD			0x00000020
-#define HID_QUIRK_MULTI_INPUT			0x00000040
-#define HID_QUIRK_HIDINPUT_FORCE		0x00000080
-#define HID_QUIRK_NO_EMPTY_INPUT		0x00000100
-/* 0x00000200 reserved for backward compatibility, was NO_INIT_INPUT_REPORTS */
-#define HID_QUIRK_ALWAYS_POLL			0x00000400
-#define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
-#define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		0x00020000
-#define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	0x00040000
-#define HID_QUIRK_HAVE_SPECIAL_DRIVER		0x00080000
-#define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
-#define HID_QUIRK_NO_INIT_REPORTS		0x20000000
-#define HID_QUIRK_NO_IGNORE			0x40000000
-#define HID_QUIRK_NO_INPUT_SYNC			0x80000000
+#define HID_QUIRK_INVERT			BIT(0)
+#define HID_QUIRK_NOTOUCH			BIT(1)
+#define HID_QUIRK_IGNORE			BIT(2)
+#define HID_QUIRK_NOGET				BIT(3)
+#define HID_QUIRK_HIDDEV_FORCE			BIT(4)
+#define HID_QUIRK_BADPAD			BIT(5)
+#define HID_QUIRK_MULTI_INPUT			BIT(6)
+#define HID_QUIRK_HIDINPUT_FORCE		BIT(7)
+/* BIT(8) reserved for backward compatibility, was HID_QUIRK_NO_EMPTY_INPUT */
+/* BIT(9) reserved for backward compatibility, was NO_INIT_INPUT_REPORTS */
+#define HID_QUIRK_ALWAYS_POLL			BIT(10)
+#define HID_QUIRK_SKIP_OUTPUT_REPORTS		BIT(16)
+#define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		BIT(17)
+#define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	BIT(18)
+#define HID_QUIRK_HAVE_SPECIAL_DRIVER		BIT(19)
+#define HID_QUIRK_FULLSPEED_INTERVAL		BIT(28)
+#define HID_QUIRK_NO_INIT_REPORTS		BIT(29)
+#define HID_QUIRK_NO_IGNORE			BIT(30)
+#define HID_QUIRK_NO_INPUT_SYNC			BIT(31)
 
 /*
  * HID device groups
@@ -494,13 +495,13 @@ struct hid_output_fifo {
 	char *raw_report;
 };
 
-#define HID_CLAIMED_INPUT	1
-#define HID_CLAIMED_HIDDEV	2
-#define HID_CLAIMED_HIDRAW	4
-#define HID_CLAIMED_DRIVER	8
+#define HID_CLAIMED_INPUT	BIT(0)
+#define HID_CLAIMED_HIDDEV	BIT(1)
+#define HID_CLAIMED_HIDRAW	BIT(2)
+#define HID_CLAIMED_DRIVER	BIT(3)
 
-#define HID_STAT_ADDED		1
-#define HID_STAT_PARSED		2
+#define HID_STAT_ADDED		BIT(0)
+#define HID_STAT_PARSED		BIT(1)
 
 struct hid_input {
 	struct list_head list;
@@ -686,8 +687,6 @@ struct hid_usage_id {
  * @input_mapped: invoked on input registering after mapping an usage
  * @input_configured: invoked just before the device is registered
  * @feature_mapping: invoked on feature registering
- * @bus_add_driver: invoked when a HID driver is about to be added
- * @bus_removed_driver: invoked when a HID driver has been removed
  * @suspend: invoked on suspend (NULL means nop)
  * @resume: invoked on resume if device was not reset (NULL means nop)
  * @reset_resume: invoked on resume if device was reset (NULL means nop)
@@ -742,8 +741,6 @@ struct hid_driver {
 	void (*feature_mapping)(struct hid_device *hdev,
 			struct hid_field *field,
 			struct hid_usage *usage);
-	void (*bus_add_driver)(struct hid_driver *driver);
-	void (*bus_removed_driver)(struct hid_driver *driver);
 #ifdef CONFIG_PM
 	int (*suspend)(struct hid_device *hdev, pm_message_t message);
 	int (*resume)(struct hid_device *hdev);
@@ -851,7 +848,7 @@ extern int hidinput_connect(struct hid_device *hid, unsigned int force);
 extern void hidinput_disconnect(struct hid_device *);
 
 int hid_set_field(struct hid_field *, unsigned, __s32);
-int hid_input_report(struct hid_device *, int type, u8 *, int, int);
+int hid_input_report(struct hid_device *, int type, u8 *, u32, int);
 int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
 struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
@@ -1102,13 +1099,13 @@ static inline void hid_hw_wait(struct hid_device *hdev)
  *
  * @report: the report we want to know the length
  */
-static inline int hid_report_len(struct hid_report *report)
+static inline u32 hid_report_len(struct hid_report *report)
 {
 	/* equivalent to DIV_ROUND_UP(report->size, 8) + !!(report->id > 0) */
 	return ((report->size - 1) >> 3) + 1 + (report->id > 0);
 }
 
-int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
+int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 		int interrupt);
 
 /* HID quirks API */

@@ -204,23 +204,6 @@ static int sirfsoc_rtc_set_time(struct device *dev,
 	return 0;
 }
 
-static int sirfsoc_rtc_ioctl(struct device *dev, unsigned int cmd,
-		unsigned long arg)
-{
-	switch (cmd) {
-	case RTC_PIE_ON:
-	case RTC_PIE_OFF:
-	case RTC_UIE_ON:
-	case RTC_UIE_OFF:
-	case RTC_AIE_ON:
-	case RTC_AIE_OFF:
-		return 0;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
-}
-
 static int sirfsoc_rtc_alarm_irq_enable(struct device *dev,
 		unsigned int enabled)
 {
@@ -250,7 +233,6 @@ static const struct rtc_class_ops sirfsoc_rtc_ops = {
 	.set_time = sirfsoc_rtc_set_time,
 	.read_alarm = sirfsoc_rtc_read_alarm,
 	.set_alarm = sirfsoc_rtc_set_alarm,
-	.ioctl = sirfsoc_rtc_ioctl,
 	.alarm_irq_enable = sirfsoc_rtc_alarm_irq_enable
 };
 

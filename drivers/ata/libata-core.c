@@ -5240,7 +5240,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	/* Trigger the LED (if available) */
-	ledtrig_disk_activity();
+	ledtrig_disk_activity(!!(qc->tf.flags & ATA_TFLAG_WRITE));
 
 	/* XXX: New EH and old EH use different mechanisms to
 	 * synchronize EH with regular execution path.
@@ -6026,7 +6026,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	return ap;
 }
 
-static void ata_host_release(struct device *gendev, void *res)
+static void ata_devres_release(struct device *gendev, void *res)
 {
 	struct ata_host *host = dev_get_drvdata(gendev);
 	int i;
@@ -6040,13 +6040,36 @@ static void ata_host_release(struct device *gendev, void *res)
 		if (ap->scsi_host)
 			scsi_host_put(ap->scsi_host);
 
+	}
+
+	dev_set_drvdata(gendev, NULL);
+	ata_host_put(host);
+}
+
+static void ata_host_release(struct kref *kref)
+{
+	struct ata_host *host = container_of(kref, struct ata_host, kref);
+	int i;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
 		kfree(ap->pmp_link);
 		kfree(ap->slave_link);
 		kfree(ap);
 		host->ports[i] = NULL;
 	}
+	kfree(host);
+}
 
-	dev_set_drvdata(gendev, NULL);
+void ata_host_get(struct ata_host *host)
+{
+	kref_get(&host->kref);
+}
+
+void ata_host_put(struct ata_host *host)
+{
+	kref_put(&host->kref, ata_host_release);
 }
 
 /**
@@ -6074,26 +6097,31 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	struct ata_host *host;
 	size_t sz;
 	int i;
+	void *dr;
 
 	DPRINTK("ENTER\n");
 
-	if (!devres_open_group(dev, NULL, GFP_KERNEL))
-		return NULL;
-
 	/* alloc a container for our list of ATA ports (buses) */
 	sz = sizeof(struct ata_host) + (max_ports + 1) * sizeof(void *);
-	/* alloc a container for our list of ATA ports (buses) */
-	host = devres_alloc(ata_host_release, sz, GFP_KERNEL);
+	host = kzalloc(sz, GFP_KERNEL);
 	if (!host)
+		return NULL;
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		goto err_free;
+
+	dr = devres_alloc(ata_devres_release, 0, GFP_KERNEL);
+	if (!dr)
 		goto err_out;
 
-	devres_add(dev, host);
+	devres_add(dev, dr);
 	dev_set_drvdata(dev, host);
 
 	spin_lock_init(&host->lock);
 	mutex_init(&host->eh_mutex);
 	host->dev = dev;
 	host->n_ports = max_ports;
+	kref_init(&host->kref);
 
 	/* allocate ports bound to this host */
 	for (i = 0; i < max_ports; i++) {
@@ -6112,6 +6140,8 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 
  err_out:
 	devres_release_group(dev, NULL);
+ err_free:
+	kfree(host);
 	return NULL;
 }
 

@@ -24,7 +24,6 @@
 #include <limits.h>
 
 #include <sys/capability.h>
-#include <sys/resource.h>
 
 #include <linux/unistd.h>
 #include <linux/filter.h>
@@ -41,7 +40,7 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
-
+#include "bpf_rlimit.h"
 #include "../../../include/linux/filter.h"
 
 #ifndef ARRAY_SIZE
@@ -56,6 +55,9 @@
 
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
+
+#define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
+static bool unpriv_disabled = false;
 
 struct bpf_test {
 	const char *descr;
@@ -1595,6 +1597,60 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SK_SKB,
 	},
 	{
+		"direct packet read for SK_MSG",
+		.insns = {
+			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct sk_msg_md, data)),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct sk_msg_md, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SK_MSG,
+	},
+	{
+		"direct packet write for SK_MSG",
+		.insns = {
+			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct sk_msg_md, data)),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct sk_msg_md, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_B, BPF_REG_2, BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SK_MSG,
+	},
+	{
+		"overlapping checks for direct packet access SK_MSG",
+		.insns = {
+			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct sk_msg_md, data)),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct sk_msg_md, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 4),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 6),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_1, BPF_REG_3, 1),
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_2, 6),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SK_MSG,
+	},
+	{
 		"check skb->mark is not writeable by sockets",
 		.insns = {
 			BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_1,
@@ -2587,17 +2643,74 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"runtime/jit: tail_call within bounds, prog once",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 42,
+	},
+	{
+		"runtime/jit: tail_call within bounds, prog loop",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 1),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 41,
+	},
+	{
+		"runtime/jit: tail_call within bounds, no prog",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 2),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 1,
+	},
+	{
+		"runtime/jit: tail_call out of bounds",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 256),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 2,
+	},
+	{
 		"runtime/jit: pass negative index to tail_call",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_3, -1),
 			BPF_LD_MAP_FD(BPF_REG_2, 0),
 			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 				     BPF_FUNC_tail_call),
-			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
 		.fixup_prog = { 1 },
 		.result = ACCEPT,
+		.retval = 2,
 	},
 	{
 		"runtime/jit: pass > 32bit index to tail_call",
@@ -2606,11 +2719,12 @@ static struct bpf_test tests[] = {
 			BPF_LD_MAP_FD(BPF_REG_2, 0),
 			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 				     BPF_FUNC_tail_call),
-			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
 		.fixup_prog = { 2 },
 		.result = ACCEPT,
+		.retval = 42,
 	},
 	{
 		"stack pointer arithmetic",
@@ -11164,6 +11278,94 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 	},
 	{
+		"jit: lsh, rsh, arsh by 1",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_MOV64_IMM(BPF_REG_1, 0xff),
+			BPF_ALU64_IMM(BPF_LSH, BPF_REG_1, 1),
+			BPF_ALU32_IMM(BPF_LSH, BPF_REG_1, 1),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0x3fc, 1),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 1),
+			BPF_ALU32_IMM(BPF_RSH, BPF_REG_1, 1),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0xff, 1),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_ARSH, BPF_REG_1, 1),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0x7f, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 2,
+	},
+	{
+		"jit: mov32 for ldimm64, 1",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_LD_IMM64(BPF_REG_1, 0xfeffffffffffffffULL),
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 32),
+			BPF_LD_IMM64(BPF_REG_2, 0xfeffffffULL),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_1, BPF_REG_2, 1),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 2,
+	},
+	{
+		"jit: mov32 for ldimm64, 2",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_LD_IMM64(BPF_REG_1, 0x1ffffffffULL),
+			BPF_LD_IMM64(BPF_REG_2, 0xffffffffULL),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_1, BPF_REG_2, 1),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 2,
+	},
+	{
+		"jit: various mul tests",
+		.insns = {
+			BPF_LD_IMM64(BPF_REG_2, 0xeeff0d413122ULL),
+			BPF_LD_IMM64(BPF_REG_0, 0xfefefeULL),
+			BPF_LD_IMM64(BPF_REG_1, 0xefefefULL),
+			BPF_ALU64_REG(BPF_MUL, BPF_REG_0, BPF_REG_1),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_0, BPF_REG_2, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			BPF_LD_IMM64(BPF_REG_3, 0xfefefeULL),
+			BPF_ALU64_REG(BPF_MUL, BPF_REG_3, BPF_REG_1),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_3, BPF_REG_2, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV32_REG(BPF_REG_2, BPF_REG_2),
+			BPF_LD_IMM64(BPF_REG_0, 0xfefefeULL),
+			BPF_ALU32_REG(BPF_MUL, BPF_REG_0, BPF_REG_1),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_0, BPF_REG_2, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			BPF_LD_IMM64(BPF_REG_3, 0xfefefeULL),
+			BPF_ALU32_REG(BPF_MUL, BPF_REG_3, BPF_REG_1),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_3, BPF_REG_2, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			BPF_LD_IMM64(BPF_REG_0, 0x952a7bbcULL),
+			BPF_LD_IMM64(BPF_REG_1, 0xfefefeULL),
+			BPF_LD_IMM64(BPF_REG_2, 0xeeff0d413122ULL),
+			BPF_ALU32_REG(BPF_MUL, BPF_REG_2, BPF_REG_1),
+			BPF_JMP_REG(BPF_JEQ, BPF_REG_2, BPF_REG_0, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 2,
+	},
+	{
 		"xadd/w check unaligned stack",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -11245,16 +11447,61 @@ static int create_map(uint32_t size_value, uint32_t max_elem)
 	return fd;
 }
 
+static int create_prog_dummy1(void)
+{
+	struct bpf_insn prog[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 42),
+		BPF_EXIT_INSN(),
+	};
+
+	return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
+				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+}
+
+static int create_prog_dummy2(int mfd, int idx)
+{
+	struct bpf_insn prog[] = {
+		BPF_MOV64_IMM(BPF_REG_3, idx),
+		BPF_LD_MAP_FD(BPF_REG_2, mfd),
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+			     BPF_FUNC_tail_call),
+		BPF_MOV64_IMM(BPF_REG_0, 41),
+		BPF_EXIT_INSN(),
+	};
+
+	return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
+				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+}
+
 static int create_prog_array(void)
 {
-	int fd;
+	int p1key = 0, p2key = 1;
+	int mfd, p1fd, p2fd;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			    sizeof(int), 4, 0);
-	if (fd < 0)
+	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
+			     sizeof(int), 4, 0);
+	if (mfd < 0) {
 		printf("Failed to create prog array '%s'!\n", strerror(errno));
+		return -1;
+	}
 
-	return fd;
+	p1fd = create_prog_dummy1();
+	p2fd = create_prog_dummy2(mfd, p2key);
+	if (p1fd < 0 || p2fd < 0)
+		goto out;
+	if (bpf_map_update_elem(mfd, &p1key, &p1fd, BPF_ANY) < 0)
+		goto out;
+	if (bpf_map_update_elem(mfd, &p2key, &p2fd, BPF_ANY) < 0)
+		goto out;
+	close(p2fd);
+	close(p1fd);
+
+	return mfd;
+out:
+	close(p2fd);
+	close(p1fd);
+	close(mfd);
+	return -1;
 }
 
 static int create_map_in_map(void)
@@ -11375,7 +11622,8 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			goto fail_log;
 		}
 		if (!strstr(bpf_vlog, expected_err) && !reject_from_alignment) {
-			printf("FAIL\nUnexpected error message!\n");
+			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
+			      expected_err, bpf_vlog);
 			goto fail_log;
 		}
 	}
@@ -11459,9 +11707,20 @@ out:
 	return ret;
 }
 
+static void get_unpriv_disabled()
+{
+	char buf[2];
+	FILE *fd;
+
+	fd = fopen("/proc/sys/"UNPRIV_SYSCTL, "r");
+	if (fgets(buf, 2, fd) == buf && atoi(buf))
+		unpriv_disabled = true;
+	fclose(fd);
+}
+
 static int do_test(bool unpriv, unsigned int from, unsigned int to)
 {
-	int i, passes = 0, errors = 0;
+	int i, passes = 0, errors = 0, skips = 0;
 
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];
@@ -11469,7 +11728,10 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 		/* Program types that are not supported by non-root we
 		 * skip right away.
 		 */
-		if (!test->prog_type) {
+		if (!test->prog_type && unpriv_disabled) {
+			printf("#%d/u %s SKIP\n", i, test->descr);
+			skips++;
+		} else if (!test->prog_type) {
 			if (!unpriv)
 				set_admin(false);
 			printf("#%d/u %s ", i, test->descr);
@@ -11478,20 +11740,22 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 				set_admin(true);
 		}
 
-		if (!unpriv) {
+		if (unpriv) {
+			printf("#%d/p %s SKIP\n", i, test->descr);
+			skips++;
+		} else {
 			printf("#%d/p %s ", i, test->descr);
 			do_test_single(test, false, &passes, &errors);
 		}
 	}
 
-	printf("Summary: %d PASSED, %d FAILED\n", passes, errors);
+	printf("Summary: %d PASSED, %d SKIPPED, %d FAILED\n", passes,
+	       skips, errors);
 	return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-	struct rlimit rlim = { 1 << 20, 1 << 20 };
 	unsigned int from = 0, to = ARRAY_SIZE(tests);
 	bool unpriv = !is_admin();
 
@@ -11512,6 +11776,12 @@ int main(int argc, char **argv)
 		}
 	}
 
-	setrlimit(RLIMIT_MEMLOCK, unpriv ? &rlim : &rinf);
+	get_unpriv_disabled();
+	if (unpriv && unpriv_disabled) {
+		printf("Cannot run as unprivileged user with sysctl %s.\n",
+		       UNPRIV_SYSCTL);
+		return EXIT_FAILURE;
+	}
+
 	return do_test(unpriv, from, to);
 }

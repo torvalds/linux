@@ -116,7 +116,7 @@ extern bool ia_css_util_resolution_is_even(
  *
  */
 extern unsigned int ia_css_util_input_format_bpp(
-	enum ia_css_stream_format stream_format,
+	enum atomisp_input_format stream_format,
 	bool two_ppc);
 
 /* @brief check if input format it raw
@@ -126,7 +126,7 @@ extern unsigned int ia_css_util_input_format_bpp(
  *
  */
 extern bool ia_css_util_is_input_format_raw(
-	enum ia_css_stream_format stream_format);
+	enum atomisp_input_format stream_format);
 
 /* @brief check if input format it yuv
  *
@@ -135,7 +135,7 @@ extern bool ia_css_util_is_input_format_raw(
  *
  */
 extern bool ia_css_util_is_input_format_yuv(
-	enum ia_css_stream_format stream_format);
+	enum atomisp_input_format stream_format);
 
 #endif /* __IA_CSS_UTIL_H__ */
 

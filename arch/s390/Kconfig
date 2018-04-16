@@ -120,6 +120,7 @@ config S390
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_DEVICES if !SMP
+	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
@@ -576,7 +577,7 @@ choice
 config EXPOLINE_OFF
 	bool "spectre_v2=off"
 
-config EXPOLINE_MEDIUM
+config EXPOLINE_AUTO
 	bool "spectre_v2=auto"
 
 config EXPOLINE_FULL

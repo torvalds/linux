@@ -55,11 +55,6 @@ wdt_time: Watchdog time in seconds. (default=30)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
-bfin_wdt:
-timeout: Watchdog timeout in seconds. (1<=timeout<=((2^32)/SCLK), default=20)
-nowayout: Watchdog cannot be stopped once started
-	(default=kernel config parameter)
--------------------------------------------------
 coh901327_wdt:
 margin: Watchdog margin in seconds (default 60s)
 -------------------------------------------------

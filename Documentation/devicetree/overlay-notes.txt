@@ -87,12 +87,12 @@ Overlay in-kernel API
 
 The API is quite easy to use.
 
-1. Call of_overlay_apply() to create and apply an overlay changeset. The return
-value is an error or a cookie identifying this overlay.
+1. Call of_overlay_fdt_apply() to create and apply an overlay changeset. The
+return value is an error or a cookie identifying this overlay.
 
 2. Call of_overlay_remove() to remove and cleanup the overlay changeset
-previously created via the call to of_overlay_apply(). Removal of an overlay
-changeset that is stacked by another will not be permitted.
+previously created via the call to of_overlay_fdt_apply(). Removal of an
+overlay changeset that is stacked by another will not be permitted.
 
 Finally, if you need to remove all overlays in one-go, just call
 of_overlay_remove_all() which will remove every single one in the correct

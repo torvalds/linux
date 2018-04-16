@@ -117,7 +117,7 @@ static const char version[] =
 static int apne_owned;	/* signal if card already owned */
 
 static u32 apne_msg_enable;
-module_param_named(msg_enable, apne_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
+module_param_named(msg_enable, apne_msg_enable, uint, 0444);
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 
 struct net_device * __init apne_probe(int unit)

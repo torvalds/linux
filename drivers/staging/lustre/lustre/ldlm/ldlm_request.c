@@ -72,15 +72,6 @@ MODULE_PARM_DESC(ldlm_enqueue_min, "lock enqueue timeout minimum");
 /* in client side, whether the cached locks will be canceled before replay */
 unsigned int ldlm_cancel_unused_locks_before_replay = 1;
 
-static void interrupted_completion_wait(void *data)
-{
-}
-
-struct lock_wait_data {
-	struct ldlm_lock *lwd_lock;
-	__u32	     lwd_conn_cnt;
-};
-
 struct ldlm_async_args {
 	struct lustre_handle lock_handle;
 };
@@ -112,10 +103,8 @@ static int ldlm_request_bufsize(int count, int type)
 	return sizeof(struct ldlm_request) + avail;
 }
 
-static int ldlm_expired_completion_wait(void *data)
+static void ldlm_expired_completion_wait(struct ldlm_lock *lock, __u32 conn_cnt)
 {
-	struct lock_wait_data *lwd = data;
-	struct ldlm_lock *lock = lwd->lwd_lock;
 	struct obd_import *imp;
 	struct obd_device *obd;
 
@@ -135,19 +124,17 @@ static int ldlm_expired_completion_wait(void *data)
 			if (last_dump == 0)
 				libcfs_debug_dumplog();
 		}
-		return 0;
+		return;
 	}
 
 	obd = lock->l_conn_export->exp_obd;
 	imp = obd->u.cli.cl_import;
-	ptlrpc_fail_import(imp, lwd->lwd_conn_cnt);
+	ptlrpc_fail_import(imp, conn_cnt);
 	LDLM_ERROR(lock,
 		   "lock timed out (enqueued at %lld, %llds ago), entering recovery for %s@%s",
 		   (s64)lock->l_last_activity,
 		   (s64)(ktime_get_real_seconds() - lock->l_last_activity),
 		   obd2cli_tgt(obd), imp->imp_connection->c_remote_uuid.uuid);
-
-	return 0;
 }
 
 /**
@@ -251,11 +238,10 @@ EXPORT_SYMBOL(ldlm_completion_ast_async);
 int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 {
 	/* XXX ALLOCATE - 160 bytes */
-	struct lock_wait_data lwd;
 	struct obd_device *obd;
 	struct obd_import *imp = NULL;
-	struct l_wait_info lwi;
 	__u32 timeout;
+	__u32 conn_cnt = 0;
 	int rc = 0;
 
 	if (flags == LDLM_FL_WAIT_NOREPROC) {
@@ -281,32 +267,33 @@ noreproc:
 
 	timeout = ldlm_cp_timeout(lock);
 
-	lwd.lwd_lock = lock;
 	lock->l_last_activity = ktime_get_real_seconds();
-
-	if (ldlm_is_no_timeout(lock)) {
-		LDLM_DEBUG(lock, "waiting indefinitely because of NO_TIMEOUT");
-		lwi = LWI_INTR(interrupted_completion_wait, &lwd);
-	} else {
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(timeout),
-				       ldlm_expired_completion_wait,
-				       interrupted_completion_wait, &lwd);
-	}
 
 	if (imp) {
 		spin_lock(&imp->imp_lock);
-		lwd.lwd_conn_cnt = imp->imp_conn_cnt;
+		conn_cnt = imp->imp_conn_cnt;
 		spin_unlock(&imp->imp_lock);
 	}
-
 	if (OBD_FAIL_CHECK_RESET(OBD_FAIL_LDLM_INTR_CP_AST,
 				 OBD_FAIL_LDLM_CP_BL_RACE | OBD_FAIL_ONCE)) {
 		ldlm_set_fail_loc(lock);
 		rc = -EINTR;
 	} else {
-		/* Go to sleep until the lock is granted or cancelled. */
-		rc = l_wait_event(lock->l_waitq,
-				  is_granted_or_cancelled(lock), &lwi);
+		/* Go to sleep until the lock is granted or canceled. */
+		if (!ldlm_is_no_timeout(lock)) {
+			/* Wait uninterruptible for a while first */
+			rc = wait_event_idle_timeout(lock->l_waitq,
+						     is_granted_or_cancelled(lock),
+						     timeout * HZ);
+			if (rc == 0)
+				ldlm_expired_completion_wait(lock, conn_cnt);
+		}
+		/* Now wait abortable */
+		if (rc == 0)
+			rc = l_wait_event_abortable(lock->l_waitq,
+						    is_granted_or_cancelled(lock));
+		else
+			rc = 0;
 	}
 
 	if (rc) {

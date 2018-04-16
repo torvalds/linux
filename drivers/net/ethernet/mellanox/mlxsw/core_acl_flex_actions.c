@@ -1,6 +1,6 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/core_acl_flex_actions.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, 2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -849,7 +849,6 @@ struct mlxsw_afa_mirror {
 	struct mlxsw_afa_resource resource;
 	int span_id;
 	u8 local_in_port;
-	u8 local_out_port;
 	bool ingress;
 };
 
@@ -859,7 +858,7 @@ mlxsw_afa_mirror_destroy(struct mlxsw_afa_block *block,
 {
 	block->afa->ops->mirror_del(block->afa->ops_priv,
 				    mirror->local_in_port,
-				    mirror->local_out_port,
+				    mirror->span_id,
 				    mirror->ingress);
 	kfree(mirror);
 }
@@ -875,9 +874,8 @@ mlxsw_afa_mirror_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_mirror *
-mlxsw_afa_mirror_create(struct mlxsw_afa_block *block,
-			u8 local_in_port, u8 local_out_port,
-			bool ingress)
+mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u8 local_in_port,
+			const struct net_device *out_dev, bool ingress)
 {
 	struct mlxsw_afa_mirror *mirror;
 	int err;
@@ -887,13 +885,12 @@ mlxsw_afa_mirror_create(struct mlxsw_afa_block *block,
 		return ERR_PTR(-ENOMEM);
 
 	err = block->afa->ops->mirror_add(block->afa->ops_priv,
-					  local_in_port, local_out_port,
+					  local_in_port, out_dev,
 					  ingress, &mirror->span_id);
 	if (err)
 		goto err_mirror_add;
 
 	mirror->ingress = ingress;
-	mirror->local_out_port = local_out_port;
 	mirror->local_in_port = local_in_port;
 	mirror->resource.destructor = mlxsw_afa_mirror_destructor;
 	mlxsw_afa_resource_add(block, &mirror->resource);
@@ -920,13 +917,13 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 }
 
 int
-mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
-			      u8 local_in_port, u8 local_out_port, bool ingress)
+mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u8 local_in_port,
+			      const struct net_device *out_dev, bool ingress)
 {
 	struct mlxsw_afa_mirror *mirror;
 	int err;
 
-	mirror = mlxsw_afa_mirror_create(block, local_in_port, local_out_port,
+	mirror = mlxsw_afa_mirror_create(block, local_in_port, out_dev,
 					 ingress);
 	if (IS_ERR(mirror))
 		return PTR_ERR(mirror);

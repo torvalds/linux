@@ -228,7 +228,10 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 		/* no quirks */
 		break;
 	}
+}
 
+void brcmf_feat_debugfs_create(struct brcmf_pub *drvr)
+{
 	brcmf_debugfs_add_entry(drvr, "features", brcmf_feat_debugfs_read);
 }
 

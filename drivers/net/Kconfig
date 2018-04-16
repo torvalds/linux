@@ -149,9 +149,9 @@ config MACVTAP
 config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
-    depends on IPV6
+    depends on IPV6 || !IPV6
     depends on NETFILTER
-    depends on NET_L3_MASTER_DEV
+    select NET_L3_MASTER_DEV
     ---help---
       This allows one to create virtual devices off of a main interface
       and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
@@ -500,6 +500,7 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
+	depends on MAY_USE_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially

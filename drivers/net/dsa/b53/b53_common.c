@@ -852,7 +852,7 @@ void b53_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data)
 }
 EXPORT_SYMBOL(b53_get_ethtool_stats);
 
-int b53_get_sset_count(struct dsa_switch *ds)
+int b53_get_sset_count(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 

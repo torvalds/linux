@@ -90,7 +90,7 @@ static int tps6586x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	seconds = ticks >> 10;
 	seconds += rtc->epoch_start;
 	rtc_time_to_tm(seconds, tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int tps6586x_rtc_set_time(struct device *dev, struct rtc_time *tm)

@@ -670,10 +670,13 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 		return;
 	}
 	if (target == V4L2_SEL_TGT_COMPOSE) {
+		u32 tmp_min_h = ffs(sink->width) - 3;
+		u32 tmp_min_v = ffs(sink->height) - 1;
+
 		if (ctx->rotation != 90 && ctx->rotation != 270)
 			align_h = 1;
-		max_sc_h = min(SCALER_MAX_HRATIO, 1 << (ffs(sink->width) - 3));
-		max_sc_v = min(SCALER_MAX_VRATIO, 1 << (ffs(sink->height) - 1));
+		max_sc_h = min(SCALER_MAX_HRATIO, 1 << tmp_min_h);
+		max_sc_v = min(SCALER_MAX_VRATIO, 1 << tmp_min_v);
 		min_sz = var->min_out_pixsize;
 	} else {
 		u32 depth = fimc_get_format_depth(sink->fmt);

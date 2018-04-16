@@ -509,7 +509,6 @@ void zd_mac_tx_failed(struct urb *urb)
 	int found = 0;
 	int i, position = 0;
 
-	q = &mac->ack_wait_queue;
 	spin_lock_irqsave(&q->lock, flags);
 
 	skb_queue_walk(q, skb) {

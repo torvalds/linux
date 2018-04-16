@@ -1425,11 +1425,8 @@ static int pnv_eeh_get_pe(struct pci_controller *hose,
 	dev_pe = dev_pe->parent;
 	while (dev_pe && !(dev_pe->type & EEH_PE_PHB)) {
 		int ret;
-		int active_flags = (EEH_STATE_MMIO_ACTIVE |
-				    EEH_STATE_DMA_ACTIVE);
-
 		ret = eeh_ops->get_state(dev_pe, NULL);
-		if (ret <= 0 || (ret & active_flags) == active_flags) {
+		if (ret <= 0 || eeh_state_active(ret)) {
 			dev_pe = dev_pe->parent;
 			continue;
 		}
@@ -1463,7 +1460,6 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	struct eeh_pe *phb_pe, *parent_pe;
 	__be64 frozen_pe_no;
 	__be16 err_type, severity;
-	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	long rc;
 	int state, ret = EEH_NEXT_ERR_NONE;
 
@@ -1626,8 +1622,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Frozen parent PE ? */
 				state = eeh_ops->get_state(parent_pe, NULL);
-				if (state > 0 &&
-				    (state & active_flags) != active_flags)
+				if (state > 0 && !eeh_state_active(state))
 					*pe = parent_pe;
 
 				/* Next parent level */

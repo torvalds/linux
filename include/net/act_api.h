@@ -87,13 +87,17 @@ struct tc_action_ops {
 		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *);
-	int     (*lookup)(struct net *, struct tc_action **, u32);
+	int     (*lookup)(struct net *net, struct tc_action **a, u32 index,
+			  struct netlink_ext_ack *extack);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
-			int bind);
+			int bind, struct netlink_ext_ack *extack);
 	int     (*walk)(struct net *, struct sk_buff *,
-			struct netlink_callback *, int, const struct tc_action_ops *);
+			struct netlink_callback *, int,
+			const struct tc_action_ops *,
+			struct netlink_ext_ack *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
+	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 };
 
@@ -137,14 +141,14 @@ static inline void tc_action_net_exit(struct list_head *net_list,
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct netlink_callback *cb, int type,
-		       const struct tc_action_ops *ops);
+		       const struct tc_action_ops *ops,
+		       struct netlink_ext_ack *extack);
 int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
 bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 		    int bind);
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
 		   int bind, bool cpustats);
-void tcf_idr_cleanup(struct tc_action *a, struct nlattr *est);
 void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a);
 
 int __tcf_idr_release(struct tc_action *a, bool bind, bool strict);
@@ -162,10 +166,12 @@ int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
 		    int nr_actions, struct tcf_result *res);
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
-		    struct list_head *actions);
+		    struct list_head *actions, size_t *attr_size,
+		    struct netlink_ext_ack *extack);
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
-				    char *name, int ovr, int bind);
+				    char *name, int ovr, int bind,
+				    struct netlink_ext_ack *extack);
 int tcf_action_dump(struct sk_buff *skb, struct list_head *, int, int);
 int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);

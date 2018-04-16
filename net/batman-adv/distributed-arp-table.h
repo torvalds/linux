@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2011-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2018  B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *
@@ -28,6 +28,7 @@
 
 #include "originator.h"
 
+struct netlink_callback;
 struct seq_file;
 struct sk_buff;
 
@@ -81,6 +82,7 @@ batadv_dat_init_own_addr(struct batadv_priv *bat_priv,
 int batadv_dat_init(struct batadv_priv *bat_priv);
 void batadv_dat_free(struct batadv_priv *bat_priv);
 int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_dat_cache_dump(struct sk_buff *msg, struct netlink_callback *cb);
 
 /**
  * batadv_dat_inc_counter() - increment the correct DAT packet counter
@@ -167,6 +169,12 @@ static inline int batadv_dat_init(struct batadv_priv *bat_priv)
 
 static inline void batadv_dat_free(struct batadv_priv *bat_priv)
 {
+}
+
+static inline int
+batadv_dat_cache_dump(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline void batadv_dat_inc_counter(struct batadv_priv *bat_priv,

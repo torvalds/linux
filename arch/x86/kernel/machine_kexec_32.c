@@ -195,11 +195,11 @@ void machine_kexec(struct kimage *image)
 		/*
 		 * We need to put APICs in legacy mode so that we can
 		 * get timer interrupts in second kernel. kexec/kdump
-		 * paths already have calls to disable_IO_APIC() in
-		 * one form or other. kexec jump path also need
-		 * one.
+		 * paths already have calls to restore_boot_irq_mode()
+		 * in one form or other. kexec jump path also need one.
 		 */
-		disable_IO_APIC();
+		clear_IO_APIC();
+		restore_boot_irq_mode();
 #endif
 	}
 

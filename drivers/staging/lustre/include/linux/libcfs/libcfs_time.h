@@ -62,7 +62,7 @@ static inline int cfs_time_aftereq(unsigned long t1, unsigned long t2)
 
 static inline unsigned long cfs_time_shift(int seconds)
 {
-	return cfs_time_add(cfs_time_current(), cfs_time_seconds(seconds));
+	return cfs_time_add(cfs_time_current(), seconds * HZ);
 }
 
 /*

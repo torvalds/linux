@@ -1,8 +1,6 @@
-/*
- * Copyright (C) 2017 Thomas Gleixner <tglx@linutronix.de>
- *
- * SPDX-License-Identifier: GPL-2.0
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (C) 2017 Thomas Gleixner <tglx@linutronix.de>
+
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
 #include <linux/bitmap.h>

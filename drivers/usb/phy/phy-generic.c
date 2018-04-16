@@ -63,9 +63,9 @@ static void nop_reset(struct usb_phy_generic *nop)
 	if (!nop->gpiod_reset)
 		return;
 
-	gpiod_set_value(nop->gpiod_reset, 1);
+	gpiod_set_value_cansleep(nop->gpiod_reset, 1);
 	usleep_range(10000, 20000);
-	gpiod_set_value(nop->gpiod_reset, 0);
+	gpiod_set_value_cansleep(nop->gpiod_reset, 0);
 }
 
 /* interface to regulator framework */
@@ -159,7 +159,7 @@ void usb_gen_phy_shutdown(struct usb_phy *phy)
 {
 	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
 
-	gpiod_set_value(nop->gpiod_reset, 1);
+	gpiod_set_value_cansleep(nop->gpiod_reset, 1);
 
 	if (!IS_ERR(nop->clk))
 		clk_disable_unprepare(nop->clk);

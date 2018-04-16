@@ -93,17 +93,6 @@ struct ia_css_cas_binary_descr {
 	bool *is_output_stage;
 };
 
-#define IA_CSS_DEFAULT_CAS_BINARY_DESCR \
-{ \
-	0,		\
-	0,		\
-	NULL,		\
-	NULL,		\
-	NULL,		\
-	NULL,		\
-	NULL,		\
-}
-
 struct ia_css_binary_descr {
 	int mode;
 	bool online;
@@ -124,7 +113,7 @@ struct ia_css_binary_descr {
 #endif
 	bool enable_capture_pp_bli;
 	struct ia_css_resolution dvs_env;
-	enum ia_css_stream_format stream_format;
+	enum atomisp_input_format stream_format;
 	struct ia_css_frame_info *in_info;		/* the info of the input-frame with the
 							   ISP required resolution. */
 	struct ia_css_frame_info *bds_out_info;
@@ -137,7 +126,7 @@ struct ia_css_binary_descr {
 
 struct ia_css_binary {
 	const struct ia_css_binary_xinfo *info;
-	enum ia_css_stream_format input_format;
+	enum atomisp_input_format input_format;
 	struct ia_css_frame_info in_frame_info;
 	struct ia_css_frame_info internal_frame_info;
 	struct ia_css_frame_info out_frame_info[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
@@ -171,79 +160,14 @@ struct ia_css_binary {
 	struct ia_css_isp_param_css_segments  css_params;
 };
 
-#ifdef ISP2401
-
 #define IA_CSS_BINARY_DEFAULT_SETTINGS \
-{ \
-	NULL, \
-	IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY, \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
-	{ 0, 0},/* effective_in_frame_res */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
-	0,	/* input_buf_vectors */ \
-	0,	/* deci_factor_log2 */ \
-	0,	/* vf_downscale_log2 */ \
-	0,	/* s3atbl_width */ \
-	0,	/* s3atbl_height */ \
-	0,	/* s3atbl_isp_width */ \
-	0,	/* s3atbl_isp_height */ \
-	0,	/* morph_tbl_width */ \
-	0,	/* morph_tbl_aligned_width */ \
-	0,	/* morph_tbl_height */ \
-	0,	/* sctbl_width_per_color */ \
-	0,	/* sctbl_aligned_width_per_color */ \
-	0,	/* sctbl_height */ \
-	0,	/* sctbl_legacy_width_per_color */ \
-	0,	/* sctbl_legacy_height */ \
-	IA_CSS_DEFAULT_SDIS_INFO, /* dis */ \
-	{ 0, 0},/* dvs_envelope_info */ \
-	false,	/* online */ \
-	0,	/* uds_xc */ \
-	0,	/* uds_yc */ \
-	0,	/* left_padding */ \
-	DEFAULT_BINARY_METRICS,	/* metrics */ \
-	IA_CSS_DEFAULT_ISP_MEM_PARAMS, /* mem_params */ \
-	IA_CSS_DEFAULT_ISP_CSS_PARAMS, /* css_params */ \
+(struct ia_css_binary) { \
+	.input_format		= ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY, \
+	.in_frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.internal_frame_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.out_frame_info		= {IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
+	.vf_frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
 }
-
-#else
-
-#define IA_CSS_BINARY_DEFAULT_SETTINGS \
-{ \
-	NULL, \
-	IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY, \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
-	{IA_CSS_BINARY_DEFAULT_FRAME_INFO}, \
-	{ 0, 0},/* effective_in_frame_res */ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
-	0,	/* input_buf_vectors */ \
-	0,	/* deci_factor_log2 */ \
-	0,	/* vf_downscale_log2 */ \
-	0,	/* s3atbl_width */ \
-	0,	/* s3atbl_height */ \
-	0,	/* s3atbl_isp_width */ \
-	0,	/* s3atbl_isp_height */ \
-	0,	/* morph_tbl_width */ \
-	0,	/* morph_tbl_aligned_width */ \
-	0,	/* morph_tbl_height */ \
-	0,	/* sctbl_width_per_color */ \
-	0,	/* sctbl_aligned_width_per_color */ \
-	0,	/* sctbl_height */ \
-	IA_CSS_DEFAULT_SDIS_INFO, /* dis */ \
-	{ 0, 0},/* dvs_envelope_info */ \
-	false,	/* online */ \
-	0,	/* uds_xc */ \
-	0,	/* uds_yc */ \
-	0,	/* left_padding */ \
-	DEFAULT_BINARY_METRICS,	/* metrics */ \
-	IA_CSS_DEFAULT_ISP_MEM_PARAMS, /* mem_params */ \
-	IA_CSS_DEFAULT_ISP_CSS_PARAMS, /* css_params */ \
-}
-
-#endif
 
 enum ia_css_err
 ia_css_binary_init_infos(void);
@@ -255,7 +179,7 @@ enum ia_css_err
 ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		 bool online,
 		 bool two_ppc,
-		 enum ia_css_stream_format stream_format,
+		 enum atomisp_input_format stream_format,
 		 const struct ia_css_frame_info *in_info,
 		 const struct ia_css_frame_info *bds_out_info,
 		 const struct ia_css_frame_info *out_info[],

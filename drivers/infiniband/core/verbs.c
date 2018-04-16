@@ -655,7 +655,7 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 
 	return ah->device->modify_ah ?
 		ah->device->modify_ah(ah, ah_attr) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rdma_modify_ah);
 
@@ -663,7 +663,7 @@ int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 {
 	return ah->device->query_ah ?
 		ah->device->query_ah(ah, ah_attr) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rdma_query_ah);
 
@@ -689,7 +689,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 	struct ib_srq *srq;
 
 	if (!pd->device->create_srq)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
 
@@ -722,7 +722,7 @@ int ib_modify_srq(struct ib_srq *srq,
 {
 	return srq->device->modify_srq ?
 		srq->device->modify_srq(srq, srq_attr, srq_attr_mask, NULL) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_modify_srq);
 
@@ -730,7 +730,7 @@ int ib_query_srq(struct ib_srq *srq,
 		 struct ib_srq_attr *srq_attr)
 {
 	return srq->device->query_srq ?
-		srq->device->query_srq(srq, srq_attr) : -ENOSYS;
+		srq->device->query_srq(srq, srq_attr) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_query_srq);
 
@@ -1263,34 +1263,30 @@ static const struct {
 	}
 };
 
-int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
-		       enum rdma_link_layer ll)
+bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
+			enum ib_qp_type type, enum ib_qp_attr_mask mask,
+			enum rdma_link_layer ll)
 {
 	enum ib_qp_attr_mask req_param, opt_param;
-
-	if (cur_state  < 0 || cur_state  > IB_QPS_ERR ||
-	    next_state < 0 || next_state > IB_QPS_ERR)
-		return 0;
 
 	if (mask & IB_QP_CUR_STATE  &&
 	    cur_state != IB_QPS_RTR && cur_state != IB_QPS_RTS &&
 	    cur_state != IB_QPS_SQD && cur_state != IB_QPS_SQE)
-		return 0;
+		return false;
 
 	if (!qp_state_table[cur_state][next_state].valid)
-		return 0;
+		return false;
 
 	req_param = qp_state_table[cur_state][next_state].req_param[type];
 	opt_param = qp_state_table[cur_state][next_state].opt_param[type];
 
 	if ((mask & req_param) != req_param)
-		return 0;
+		return false;
 
 	if (mask & ~(req_param | opt_param | IB_QP_STATE))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
@@ -1457,7 +1453,7 @@ int ib_query_qp(struct ib_qp *qp,
 {
 	return qp->device->query_qp ?
 		qp->device->query_qp(qp->real_qp, qp_attr, qp_attr_mask, qp_init_attr) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_query_qp);
 
@@ -1594,7 +1590,7 @@ EXPORT_SYMBOL(ib_create_cq);
 int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	return cq->device->modify_cq ?
-		cq->device->modify_cq(cq, cq_count, cq_period) : -ENOSYS;
+		cq->device->modify_cq(cq, cq_count, cq_period) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rdma_set_cq_moderation);
 
@@ -1611,7 +1607,7 @@ EXPORT_SYMBOL(ib_destroy_cq);
 int ib_resize_cq(struct ib_cq *cq, int cqe)
 {
 	return cq->device->resize_cq ?
-		cq->device->resize_cq(cq, cqe, NULL) : -ENOSYS;
+		cq->device->resize_cq(cq, cqe, NULL) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_resize_cq);
 
@@ -1620,11 +1616,16 @@ EXPORT_SYMBOL(ib_resize_cq);
 int ib_dereg_mr(struct ib_mr *mr)
 {
 	struct ib_pd *pd = mr->pd;
+	struct ib_dm *dm = mr->dm;
 	int ret;
 
+	rdma_restrack_del(&mr->res);
 	ret = mr->device->dereg_mr(mr);
-	if (!ret)
+	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		if (dm)
+			atomic_dec(&dm->usecnt);
+	}
 
 	return ret;
 }
@@ -1649,7 +1650,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 	struct ib_mr *mr;
 
 	if (!pd->device->alloc_mr)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
 	if (!IS_ERR(mr)) {
@@ -1658,6 +1659,8 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 		mr->need_inval = false;
+		mr->res.type = RDMA_RESTRACK_MR;
+		rdma_restrack_add(&mr->res);
 	}
 
 	return mr;
@@ -1673,7 +1676,7 @@ struct ib_fmr *ib_alloc_fmr(struct ib_pd *pd,
 	struct ib_fmr *fmr;
 
 	if (!pd->device->alloc_fmr)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	fmr = pd->device->alloc_fmr(pd, mr_access_flags, fmr_attr);
 	if (!IS_ERR(fmr)) {
@@ -1757,7 +1760,7 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	int ret;
 
 	if (!qp->device->attach_mcast)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
 	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
@@ -1775,7 +1778,7 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	int ret;
 
 	if (!qp->device->detach_mcast)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
 	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
@@ -1793,7 +1796,7 @@ struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
 	struct ib_xrcd *xrcd;
 
 	if (!device->alloc_xrcd)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	xrcd = device->alloc_xrcd(device, NULL, NULL);
 	if (!IS_ERR(xrcd)) {
@@ -1847,7 +1850,7 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 	struct ib_wq *wq;
 
 	if (!pd->device->create_wq)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	wq = pd->device->create_wq(pd, wq_attr, NULL);
 	if (!IS_ERR(wq)) {
@@ -1902,7 +1905,7 @@ int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	int err;
 
 	if (!wq->device->modify_wq)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	err = wq->device->modify_wq(wq, wq_attr, wq_attr_mask, NULL);
 	return err;
@@ -1927,7 +1930,7 @@ struct ib_rwq_ind_table *ib_create_rwq_ind_table(struct ib_device *device,
 	u32 table_size;
 
 	if (!device->create_rwq_ind_table)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	table_size = (1 << init_attr->log_ind_tbl_size);
 	rwq_ind_table = device->create_rwq_ind_table(device,
@@ -1977,7 +1980,7 @@ struct ib_flow *ib_create_flow(struct ib_qp *qp,
 {
 	struct ib_flow *flow_id;
 	if (!qp->device->create_flow)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	flow_id = qp->device->create_flow(qp, flow_attr, domain);
 	if (!IS_ERR(flow_id)) {
@@ -2004,7 +2007,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status)
 {
 	return mr->device->check_mr_status ?
-		mr->device->check_mr_status(mr, check_mask, mr_status) : -ENOSYS;
+		mr->device->check_mr_status(mr, check_mask, mr_status) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_check_mr_status);
 
@@ -2012,7 +2015,7 @@ int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
 			 int state)
 {
 	if (!device->set_vf_link_state)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->set_vf_link_state(device, vf, port, state);
 }
@@ -2022,7 +2025,7 @@ int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
 		     struct ifla_vf_info *info)
 {
 	if (!device->get_vf_config)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->get_vf_config(device, vf, port, info);
 }
@@ -2032,7 +2035,7 @@ int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
 		    struct ifla_vf_stats *stats)
 {
 	if (!device->get_vf_stats)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->get_vf_stats(device, vf, port, stats);
 }
@@ -2042,7 +2045,7 @@ int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
 		   int type)
 {
 	if (!device->set_vf_guid)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->set_vf_guid(device, vf, port, guid, type);
 }
@@ -2077,7 +2080,7 @@ int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 		 unsigned int *sg_offset, unsigned int page_size)
 {
 	if (unlikely(!mr->device->map_mr_sg))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	mr->page_size = page_size;
 
@@ -2194,7 +2197,14 @@ static void __ib_drain_sq(struct ib_qp *qp)
 	struct ib_cq *cq = qp->send_cq;
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe sdrain;
-	struct ib_send_wr swr = {}, *bad_swr;
+	struct ib_send_wr *bad_swr;
+	struct ib_rdma_wr swr = {
+		.wr = {
+			.next = NULL,
+			{ .wr_cqe	= &sdrain.cqe, },
+			.opcode	= IB_WR_RDMA_WRITE,
+		},
+	};
 	int ret;
 
 	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
@@ -2203,11 +2213,10 @@ static void __ib_drain_sq(struct ib_qp *qp)
 		return;
 	}
 
-	swr.wr_cqe = &sdrain.cqe;
 	sdrain.cqe.done = ib_drain_qp_done;
 	init_completion(&sdrain.done);
 
-	ret = ib_post_send(qp, &swr, &bad_swr);
+	ret = ib_post_send(qp, &swr.wr, &bad_swr);
 	if (ret) {
 		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
 		return;

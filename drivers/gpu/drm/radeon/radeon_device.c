@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_cache.h>
 #include <drm/radeon_drm.h>
 #include <linux/pm_runtime.h>
 #include <linux/vgaarb.h>
@@ -139,6 +140,10 @@ static struct radeon_px_quirk radeon_px_quirk_list[] = {
 	 * https://bugs.freedesktop.org/show_bug.cgi?id=101491
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6741, 0x1043, 0x2122, RADEON_PX_QUIRK_DISABLE_PX },
+	/* Asus K73TK laptop with AMD A6-3420M APU and Radeon 7670m GPU
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=51381#c52
+	 */
+	{ PCI_VENDOR_ID_ATI, 0x6840, 0x1043, 0x2123, RADEON_PX_QUIRK_DISABLE_PX },
 	{ 0, 0, 0, 0, 0 },
 };
 
@@ -1382,6 +1387,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
 		pr_warn("radeon: No coherent DMA available\n");
 	}
+	rdev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */

@@ -234,6 +234,7 @@
 		compatible = "ti,pcm5142";
 
 		reg = <0x4c>;
+		#sound-dai-cells = <0>;
 
 		AVDD-supply = <&reg_3v3>;
 		DVDD-supply = <&reg_3v3>;
@@ -246,7 +247,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "nxp,24c02", "atmel,24c02";
+		compatible = "nxp,se97b", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};

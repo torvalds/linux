@@ -111,7 +111,7 @@ static void swPanelPowerSequence(int disp, int delay)
 	primary_wait_vertical_sync(delay);
 }
 
-void ddk750_setLogicalDispOut(disp_output_t output)
+void ddk750_setLogicalDispOut(enum disp_output output)
 {
 	unsigned int reg;
 

@@ -2,10 +2,6 @@
 /*
  * Scheduler topology setup/handling methods
  */
-#include <linux/sched.h>
-#include <linux/mutex.h>
-#include <linux/sched/isolation.h>
-
 #include "sched.h"
 
 DEFINE_MUTEX(sched_domains_mutex);
@@ -41,8 +37,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	if (!(sd->flags & SD_LOAD_BALANCE)) {
 		printk("does not load-balance\n");
 		if (sd->parent)
-			printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain"
-					" has parent");
+			printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain has parent");
 		return -1;
 	}
 
@@ -50,12 +45,10 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	       cpumask_pr_args(sched_domain_span(sd)), sd->name);
 
 	if (!cpumask_test_cpu(cpu, sched_domain_span(sd))) {
-		printk(KERN_ERR "ERROR: domain->span does not contain "
-				"CPU%d\n", cpu);
+		printk(KERN_ERR "ERROR: domain->span does not contain CPU%d\n", cpu);
 	}
 	if (!cpumask_test_cpu(cpu, sched_group_span(group))) {
-		printk(KERN_ERR "ERROR: domain->groups does not contain"
-				" CPU%d\n", cpu);
+		printk(KERN_ERR "ERROR: domain->groups does not contain CPU%d\n", cpu);
 	}
 
 	printk(KERN_DEBUG "%*s groups:", level + 1, "");
@@ -115,8 +108,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 	if (sd->parent &&
 	    !cpumask_subset(groupmask, sched_domain_span(sd->parent)))
-		printk(KERN_ERR "ERROR: parent span is not a superset "
-			"of domain->span\n");
+		printk(KERN_ERR "ERROR: parent span is not a superset of domain->span\n");
 	return 0;
 }
 
@@ -595,7 +587,7 @@ int group_balance_cpu(struct sched_group *sg)
  * are not.
  *
  * This leads to a few particularly weird cases where the sched_domain's are
- * not of the same number for each cpu. Consider:
+ * not of the same number for each CPU. Consider:
  *
  * NUMA-2	0-3						0-3
  *  groups:	{0-2},{1-3}					{1-3},{0-2}
@@ -780,7 +772,7 @@ fail:
  *	    ^ ^             ^ ^
  *          `-'             `-'
  *
- * The sched_domains are per-cpu and have a two way link (parent & child) and
+ * The sched_domains are per-CPU and have a two way link (parent & child) and
  * denote the ever growing mask of CPUs belonging to that level of topology.
  *
  * Each sched_domain has a circular (double) linked list of sched_group's, each
@@ -1021,6 +1013,7 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
 	d->rd = alloc_rootdomain();
 	if (!d->rd)
 		return sa_sd;
+
 	return sa_rootdomain;
 }
 
@@ -1047,12 +1040,14 @@ static void claim_allocations(int cpu, struct sched_domain *sd)
 }
 
 #ifdef CONFIG_NUMA
-static int sched_domains_numa_levels;
 enum numa_topology_type sched_numa_topology_type;
-static int *sched_domains_numa_distance;
-int sched_max_numa_distance;
-static struct cpumask ***sched_domains_numa_masks;
-static int sched_domains_curr_level;
+
+static int			sched_domains_numa_levels;
+static int			sched_domains_curr_level;
+
+int				sched_max_numa_distance;
+static int			*sched_domains_numa_distance;
+static struct cpumask		***sched_domains_numa_masks;
 #endif
 
 /*
@@ -1074,11 +1069,11 @@ static int sched_domains_curr_level;
  *   SD_ASYM_PACKING        - describes SMT quirks
  */
 #define TOPOLOGY_SD_FLAGS		\
-	(SD_SHARE_CPUCAPACITY |		\
+	(SD_SHARE_CPUCAPACITY	|	\
 	 SD_SHARE_PKG_RESOURCES |	\
-	 SD_NUMA |			\
-	 SD_ASYM_PACKING |		\
-	 SD_ASYM_CPUCAPACITY |		\
+	 SD_NUMA		|	\
+	 SD_ASYM_PACKING	|	\
+	 SD_ASYM_CPUCAPACITY	|	\
 	 SD_SHARE_POWERDOMAIN)
 
 static struct sched_domain *
@@ -1628,7 +1623,7 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 			pr_err("     the %s domain not a subset of the %s domain\n",
 					child->name, sd->name);
 #endif
-			/* Fixup, ensure @sd has at least @child cpus. */
+			/* Fixup, ensure @sd has at least @child CPUs. */
 			cpumask_or(sched_domain_span(sd),
 				   sched_domain_span(sd),
 				   sched_domain_span(child));
@@ -1720,6 +1715,7 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 	ret = 0;
 error:
 	__free_domain_allocs(&d, alloc_state, cpu_map);
+
 	return ret;
 }
 
@@ -1824,6 +1820,7 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
 		return 1;
 
 	tmp = SD_ATTR_INIT;
+
 	return !memcmp(cur ? (cur + idx_cur) : &tmp,
 			new ? (new + idx_new) : &tmp,
 			sizeof(struct sched_domain_attr));
@@ -1929,4 +1926,3 @@ match2:
 
 	mutex_unlock(&sched_domains_mutex);
 }
-

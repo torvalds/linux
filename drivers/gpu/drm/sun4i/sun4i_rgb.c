@@ -52,10 +52,10 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(tcon->panel);
 }
 
-static int sun4i_rgb_mode_valid(struct drm_connector *connector,
-				struct drm_display_mode *mode)
+static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
+						 const struct drm_display_mode *mode)
 {
-	struct sun4i_rgb *rgb = drm_connector_to_sun4i_rgb(connector);
+	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(crtc);
 	struct sun4i_tcon *tcon = rgb->tcon;
 	u32 hsync = mode->hsync_end - mode->hsync_start;
 	u32 vsync = mode->vsync_end - mode->vsync_start;
@@ -108,7 +108,6 @@ static int sun4i_rgb_mode_valid(struct drm_connector *connector,
 
 static struct drm_connector_helper_funcs sun4i_rgb_con_helper_funcs = {
 	.get_modes	= sun4i_rgb_get_modes,
-	.mode_valid	= sun4i_rgb_mode_valid,
 };
 
 static void
@@ -158,6 +157,7 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 static struct drm_encoder_helper_funcs sun4i_rgb_enc_helper_funcs = {
 	.disable	= sun4i_rgb_encoder_disable,
 	.enable		= sun4i_rgb_encoder_enable,
+	.mode_valid	= sun4i_rgb_mode_valid,
 };
 
 static void sun4i_rgb_enc_destroy(struct drm_encoder *encoder)

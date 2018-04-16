@@ -19,7 +19,6 @@
 #include "display.h"
 
 /* Common IP block data across OMAP2xxx */
-extern struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr;
 extern struct omap_hwmod omap2xxx_l3_main_hwmod;
 extern struct omap_hwmod omap2xxx_l4_core_hwmod;
 extern struct omap_hwmod omap2xxx_l4_wkup_hwmod;

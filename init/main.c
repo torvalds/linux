@@ -51,6 +51,7 @@
 #include <linux/taskstats_kern.h>
 #include <linux/delayacct.h>
 #include <linux/unistd.h>
+#include <linux/utsname.h>
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
@@ -96,6 +97,9 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/initcall.h>
 
 static int kernel_init(void *);
 
@@ -491,6 +495,17 @@ void __init __weak thread_stack_cache_init(void)
 
 void __init __weak mem_encrypt_init(void) { }
 
+bool initcall_debug;
+core_param(initcall_debug, initcall_debug, bool, 0644);
+
+#ifdef TRACEPOINTS_ENABLED
+static void __init initcall_debug_enable(void);
+#else
+static inline void initcall_debug_enable(void)
+{
+}
+#endif
+
 /*
  * Set up kernel memory allocators
  */
@@ -612,6 +627,9 @@ asmlinkage __visible void __init start_kernel(void)
 	/* Trace events are available after this */
 	trace_init();
 
+	if (initcall_debug)
+		initcall_debug_enable();
+
 	context_tracking_init();
 	/* init some links before init_ISA_irqs() */
 	early_irq_init();
@@ -689,6 +707,7 @@ asmlinkage __visible void __init start_kernel(void)
 	cred_init();
 	fork_init();
 	proc_caches_init();
+	uts_ns_init();
 	buffer_init();
 	key_init();
 	security_init();
@@ -696,6 +715,7 @@ asmlinkage __visible void __init start_kernel(void)
 	vfs_caches_init();
 	pagecache_init();
 	signals_init();
+	seq_file_init();
 	proc_root_init();
 	nsfs_init();
 	cpuset_init();
@@ -727,9 +747,6 @@ static void __init do_ctors(void)
 		(*fn)();
 #endif
 }
-
-bool initcall_debug;
-core_param(initcall_debug, initcall_debug, bool, 0644);
 
 #ifdef CONFIG_KALLSYMS
 struct blacklist_entry {
@@ -800,37 +817,71 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 #endif
 __setup("initcall_blacklist=", initcall_blacklist);
 
-static int __init_or_module do_one_initcall_debug(initcall_t fn)
+static __init_or_module void
+trace_initcall_start_cb(void *data, initcall_t fn)
 {
-	ktime_t calltime, delta, rettime;
-	unsigned long long duration;
-	int ret;
+	ktime_t *calltime = (ktime_t *)data;
 
 	printk(KERN_DEBUG "calling  %pF @ %i\n", fn, task_pid_nr(current));
-	calltime = ktime_get();
-	ret = fn();
+	*calltime = ktime_get();
+}
+
+static __init_or_module void
+trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
+{
+	ktime_t *calltime = (ktime_t *)data;
+	ktime_t delta, rettime;
+	unsigned long long duration;
+
 	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
+	delta = ktime_sub(rettime, *calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 	printk(KERN_DEBUG "initcall %pF returned %d after %lld usecs\n",
 		 fn, ret, duration);
-
-	return ret;
 }
+
+static ktime_t initcall_calltime;
+
+#ifdef TRACEPOINTS_ENABLED
+static void __init initcall_debug_enable(void)
+{
+	int ret;
+
+	ret = register_trace_initcall_start(trace_initcall_start_cb,
+					    &initcall_calltime);
+	ret |= register_trace_initcall_finish(trace_initcall_finish_cb,
+					      &initcall_calltime);
+	WARN(ret, "Failed to register initcall tracepoints\n");
+}
+# define do_trace_initcall_start	trace_initcall_start
+# define do_trace_initcall_finish	trace_initcall_finish
+#else
+static inline void do_trace_initcall_start(initcall_t fn)
+{
+	if (!initcall_debug)
+		return;
+	trace_initcall_start_cb(&initcall_calltime, fn);
+}
+static inline void do_trace_initcall_finish(initcall_t fn, int ret)
+{
+	if (!initcall_debug)
+		return;
+	trace_initcall_finish_cb(&initcall_calltime, fn, ret);
+}
+#endif /* !TRACEPOINTS_ENABLED */
 
 int __init_or_module do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
-	int ret;
 	char msgbuf[64];
+	int ret;
 
 	if (initcall_blacklisted(fn))
 		return -EPERM;
 
-	if (initcall_debug)
-		ret = do_one_initcall_debug(fn);
-	else
-		ret = fn();
+	do_trace_initcall_start(fn);
+	ret = fn();
+	do_trace_initcall_finish(fn, ret);
 
 	msgbuf[0] = 0;
 
@@ -874,7 +925,7 @@ static initcall_t *initcall_levels[] __initdata = {
 
 /* Keep these in sync with initcalls in include/linux/init.h */
 static char *initcall_level_names[] __initdata = {
-	"early",
+	"pure",
 	"core",
 	"postcore",
 	"arch",
@@ -895,6 +946,7 @@ static void __init do_initcall_level(int level)
 		   level, level,
 		   NULL, &repair_env_string);
 
+	trace_initcall_level(initcall_level_names[level]);
 	for (fn = initcall_levels[level]; fn < initcall_levels[level+1]; fn++)
 		do_one_initcall(*fn);
 }
@@ -929,6 +981,7 @@ static void __init do_pre_smp_initcalls(void)
 {
 	initcall_t *fn;
 
+	trace_initcall_level("early");
 	for (fn = __initcall_start; fn < __initcall0_start; fn++)
 		do_one_initcall(*fn);
 }
@@ -1074,11 +1127,11 @@ static noinline void __init kernel_init_freeable(void)
 	do_basic_setup();
 
 	/* Open the /dev/console on the rootfs, this should never fail */
-	if (sys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
+	if (ksys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
 		pr_err("Warning: unable to open an initial console.\n");
 
-	(void) sys_dup(0);
-	(void) sys_dup(0);
+	(void) ksys_dup(0);
+	(void) ksys_dup(0);
 	/*
 	 * check if there is an early userspace init.  If yes, let it do all
 	 * the work
@@ -1087,7 +1140,8 @@ static noinline void __init kernel_init_freeable(void)
 	if (!ramdisk_execute_command)
 		ramdisk_execute_command = "/init";
 
-	if (sys_access((const char __user *) ramdisk_execute_command, 0) != 0) {
+	if (ksys_access((const char __user *)
+			ramdisk_execute_command, 0) != 0) {
 		ramdisk_execute_command = NULL;
 		prepare_namespace();
 	}

@@ -39,7 +39,8 @@
 #include <linux/pagevec.h>
 
 #include "i915_gem_timeline.h"
-#include "i915_gem_request.h"
+
+#include "i915_request.h"
 #include "i915_selftest.h"
 
 #define I915_GTT_PAGE_SIZE_4K BIT(12)
@@ -398,7 +399,7 @@ struct i915_hw_ppgtt {
 	gen6_pte_t __iomem *pd_addr;
 
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct drm_i915_gem_request *req);
+			 struct i915_request *rq);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 

@@ -11,7 +11,7 @@ config DRM_AMD_DC
 
 config DRM_AMD_DC_PRE_VEGA
 	bool "DC support for Polaris and older ASICs"
-	default n
+	default y
 	help
 	  Choose this option to enable the new DC support for older asics
 	  by default. This includes Polaris, Carrizo, Tonga, Bonaire,

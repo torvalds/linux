@@ -565,7 +565,7 @@ static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
 	if (ret)
 		return ret;
 
-	/* Disable EEE advertisment since this prevents the PHY
+	/* Disable EEE advertisement since this prevents the PHY
 	 * from successfully linking up, trigger auto-negotiation restart
 	 * to let the MAC decide what to do.
 	 */

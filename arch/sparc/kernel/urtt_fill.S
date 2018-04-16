@@ -50,7 +50,12 @@ user_rtt_fill_fixup_common:
 		SET_GL(0)
 		.previous
 
-		wrpr	%g0, RTRAP_PSTATE, %pstate
+661:		wrpr	%g0, RTRAP_PSTATE, %pstate
+		.section		.sun_m7_1insn_patch, "ax"
+		.word			661b
+		/* Re-enable PSTATE.mcde to maintain ADI security */
+		wrpr	%g0, RTRAP_PSTATE|PSTATE_MCDE, %pstate
+		.previous
 
 		mov	%l1, %g6
 		ldx	[%g6 + TI_TASK], %g4

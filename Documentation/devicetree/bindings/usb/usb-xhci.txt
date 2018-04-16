@@ -33,6 +33,11 @@ Optional properties:
   - usb3-lpm-capable: determines if platform is USB3 LPM capable
   - quirk-broken-port-ped: set if the controller has broken port disable mechanism
   - imod-interval-ns: default interrupt moderation interval is 5000ns
+  - phys : see usb-hcd.txt in the current directory
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
+
 
 Example:
 	usb@f0931000 {

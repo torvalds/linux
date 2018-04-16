@@ -185,6 +185,7 @@ static __sum16 icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 	unsigned short *w = ptr;
 	__wsum sum = 0;
 	int i;
+	u16 pa;
 
 	union {
 		struct {
@@ -204,9 +205,10 @@ static __sum16 icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 	pseudo_header.ph.ph_nxt = ipv6->nexthdr;
 
 	w = (u16 *)&pseudo_header;
-	for (i = 0; i < ARRAY_SIZE(pseudo_header.pa); i++)
-		sum = csum_add(sum, csum_unfold(
-					(__force __sum16)pseudo_header.pa[i]));
+	for (i = 0; i < ARRAY_SIZE(pseudo_header.pa); i++) {
+		pa = pseudo_header.pa[i];
+		sum = csum_add(sum, csum_unfold((__force __sum16)pa));
+	}
 
 	w = ptr;
 	while (len > 1) {
@@ -308,7 +310,8 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 		       sizeof(struct neighbour_advertisement));
 
 		icmp6_out.icmp6_cksum = icmp6_checksum(&ipv6_out,
-					(u16 *)icmp_na, sizeof(icmp_na));
+						       (u16 *)icmp_na,
+						       sizeof(icmp_na));
 	} else {
 		return -EINVAL;
 	}
@@ -508,8 +511,9 @@ static struct net_device_stats *gdm_lte_stats(struct net_device *dev)
 
 static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 {
-	struct nic *nic = netdev_priv(dev);
+	struct phy_dev *phy_dev = ((struct nic *)netdev_priv(dev))->phy_dev;
 	struct hci_packet *hci = (struct hci_packet *)buf;
+	int length;
 	int idx;
 	int ret;
 
@@ -517,11 +521,9 @@ static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 	if (ret != 1)
 		return -EINVAL;
 
-	return netlink_send(lte_event.sock, idx, 0, buf,
-			    gdm_dev16_to_cpu(
-				    nic->phy_dev->get_endian(
-					    nic->phy_dev->priv_dev), hci->len)
-			    + HCI_HEADER_SIZE);
+	length = gdm_dev16_to_cpu(phy_dev->get_endian(phy_dev->priv_dev),
+				  hci->len) + HCI_HEADER_SIZE;
+	return netlink_send(lte_event.sock, idx, 0, buf, length);
 }
 
 static void gdm_lte_event_rcv(struct net_device *dev, u16 type,
@@ -683,7 +685,7 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 	struct net_device *dev;
 	struct multi_sdu *multi_sdu = (struct multi_sdu *)buf;
 	struct sdu *sdu = NULL;
-	struct gdm_endian *endian = phy_dev->get_endian(phy_dev->priv_dev);
+	u8 endian = phy_dev->get_endian(phy_dev->priv_dev);
 	u8 *data = (u8 *)multi_sdu->data;
 	u16 i = 0;
 	u16 num_packet;
@@ -728,33 +730,30 @@ static void gdm_lte_pdn_table(struct net_device *dev, char *buf, int len)
 {
 	struct nic *nic = netdev_priv(dev);
 	struct hci_pdn_table_ind *pdn_table = (struct hci_pdn_table_ind *)buf;
+	u8 ed = nic->phy_dev->get_endian(nic->phy_dev->priv_dev);
 
-	if (pdn_table->activate) {
-		nic->pdn_table.activate = pdn_table->activate;
-		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(
-						nic->phy_dev->get_endian(
-							nic->phy_dev->priv_dev),
-						pdn_table->dft_eps_id);
-		nic->pdn_table.nic_type = gdm_dev32_to_cpu(
-						nic->phy_dev->get_endian(
-							nic->phy_dev->priv_dev),
-						pdn_table->nic_type);
-
-		netdev_info(dev, "pdn activated, nic_type=0x%x\n",
-			    nic->pdn_table.nic_type);
-	} else {
+	if (!pdn_table->activate) {
 		memset(&nic->pdn_table, 0x00, sizeof(struct pdn_table));
 		netdev_info(dev, "pdn deactivated\n");
+
+		return;
 	}
+
+	nic->pdn_table.activate = pdn_table->activate;
+	nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(ed, pdn_table->dft_eps_id);
+	nic->pdn_table.nic_type = gdm_dev32_to_cpu(ed, pdn_table->nic_type);
+
+	netdev_info(dev, "pdn activated, nic_type=0x%x\n",
+		    nic->pdn_table.nic_type);
 }
 
 static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 {
 	struct hci_packet *hci = (struct hci_packet *)buf;
 	struct hci_pdn_table_ind *pdn_table = (struct hci_pdn_table_ind *)buf;
-	struct gdm_endian *endian = phy_dev->get_endian(phy_dev->priv_dev);
 	struct sdu *sdu;
 	struct net_device *dev;
+	u8 endian = phy_dev->get_endian(phy_dev->priv_dev);
 	int ret = 0;
 	u16 cmd_evt;
 	u32 nic_type;
@@ -896,12 +895,11 @@ int register_lte_device(struct phy_dev *phy_dev,
 		nic->phy_dev = phy_dev;
 		nic->nic_id = index;
 
-		form_mac_address(
-				net->dev_addr,
-				nic->src_mac_addr,
-				nic->dest_mac_addr,
-				mac_address,
-				index);
+		form_mac_address(net->dev_addr,
+				 nic->src_mac_addr,
+				 nic->dest_mac_addr,
+				 mac_address,
+				 index);
 
 		SET_NETDEV_DEV(net, dev);
 		SET_NETDEV_DEVTYPE(net, &wwan_type);

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/sched.h>
@@ -1839,6 +1826,8 @@ again:
 
 	parent = eb;
 	while (1) {
+		struct btrfs_key first_key;
+
 		level = btrfs_header_level(parent);
 		BUG_ON(level < lowest_level);
 
@@ -1852,6 +1841,7 @@ again:
 		old_bytenr = btrfs_node_blockptr(parent, slot);
 		blocksize = fs_info->nodesize;
 		old_ptr_gen = btrfs_node_ptr_generation(parent, slot);
+		btrfs_node_key_to_cpu(parent, &key, slot);
 
 		if (level <= max_level) {
 			eb = path->nodes[level];
@@ -1876,7 +1866,8 @@ again:
 				break;
 			}
 
-			eb = read_tree_block(fs_info, old_bytenr, old_ptr_gen);
+			eb = read_tree_block(fs_info, old_bytenr, old_ptr_gen,
+					     level - 1, &first_key);
 			if (IS_ERR(eb)) {
 				ret = PTR_ERR(eb);
 				break;
@@ -2036,6 +2027,8 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 	last_snapshot = btrfs_root_last_snapshot(&root->root_item);
 
 	for (i = *level; i > 0; i--) {
+		struct btrfs_key first_key;
+
 		eb = path->nodes[i];
 		nritems = btrfs_header_nritems(eb);
 		while (path->slots[i] < nritems) {
@@ -2056,7 +2049,9 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 		}
 
 		bytenr = btrfs_node_blockptr(eb, path->slots[i]);
-		eb = read_tree_block(fs_info, bytenr, ptr_gen);
+		btrfs_node_key_to_cpu(eb, &first_key, path->slots[i]);
+		eb = read_tree_block(fs_info, bytenr, ptr_gen, i - 1,
+				     &first_key);
 		if (IS_ERR(eb)) {
 			return PTR_ERR(eb);
 		} else if (!extent_buffer_uptodate(eb)) {
@@ -2714,6 +2709,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	path->lowest_level = node->level + 1;
 	rc->backref_cache.path[node->level] = node;
 	list_for_each_entry(edge, &node->upper, list[LOWER]) {
+		struct btrfs_key first_key;
+
 		cond_resched();
 
 		upper = edge->node[UPPER];
@@ -2779,7 +2776,9 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 		blocksize = root->fs_info->nodesize;
 		generation = btrfs_node_ptr_generation(upper->eb, slot);
-		eb = read_tree_block(fs_info, bytenr, generation);
+		btrfs_node_key_to_cpu(upper->eb, &first_key, slot);
+		eb = read_tree_block(fs_info, bytenr, generation,
+				     upper->level - 1, &first_key);
 		if (IS_ERR(eb)) {
 			err = PTR_ERR(eb);
 			goto next;
@@ -2944,7 +2943,8 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 	struct extent_buffer *eb;
 
 	BUG_ON(block->key_ready);
-	eb = read_tree_block(fs_info, block->bytenr, block->key.offset);
+	eb = read_tree_block(fs_info, block->bytenr, block->key.offset,
+			     block->level, NULL);
 	if (IS_ERR(eb)) {
 		return PTR_ERR(eb);
 	} else if (!extent_buffer_uptodate(eb)) {
@@ -3226,7 +3226,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 						   mask);
 			if (!page) {
 				btrfs_delalloc_release_metadata(BTRFS_I(inode),
-							PAGE_SIZE);
+							PAGE_SIZE, true);
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -3245,9 +3245,9 @@ static int relocate_file_extent_cluster(struct inode *inode,
 				unlock_page(page);
 				put_page(page);
 				btrfs_delalloc_release_metadata(BTRFS_I(inode),
-							PAGE_SIZE);
+							PAGE_SIZE, true);
 				btrfs_delalloc_release_extents(BTRFS_I(inode),
-							       PAGE_SIZE);
+							       PAGE_SIZE, true);
 				ret = -EIO;
 				goto out;
 			}
@@ -3274,9 +3274,9 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			unlock_page(page);
 			put_page(page);
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
-							 PAGE_SIZE);
+							 PAGE_SIZE, true);
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
-			                               PAGE_SIZE);
+			                               PAGE_SIZE, true);
 
 			clear_extent_bits(&BTRFS_I(inode)->io_tree,
 					  page_start, page_end,
@@ -3292,7 +3292,8 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		put_page(page);
 
 		index++;
-		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE,
+					       false);
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 		btrfs_throttle(fs_info);
 	}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for STM32 Digital Camera Memory Interface
  *
@@ -5,7 +6,6 @@
  * Authors: Yannick Fertre <yannick.fertre@st.com>
  *          Hugues Fruchet <hugues.fruchet@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  *
  * This driver is based on atmel_isi.c
  *
@@ -93,6 +93,11 @@ enum state {
 #define MIN_HEIGHT	16U
 #define MAX_HEIGHT	2048U
 
+#define MIN_JPEG_WIDTH	16U
+#define MAX_JPEG_WIDTH	2592U
+#define MIN_JPEG_HEIGHT	16U
+#define MAX_JPEG_HEIGHT	2592U
+
 #define TIMEOUT_MS	1000
 
 struct dcmi_graph_entity {
@@ -160,6 +165,7 @@ struct stm32_dcmi {
 	dma_cookie_t			dma_cookie;
 	u32				misr;
 	int				errors_count;
+	int				overrun_count;
 	int				buffers_count;
 };
 
@@ -190,14 +196,67 @@ static inline void reg_clear(void __iomem *base, u32 reg, u32 mask)
 
 static int dcmi_start_capture(struct stm32_dcmi *dcmi);
 
+static void dcmi_buffer_done(struct stm32_dcmi *dcmi,
+			     struct dcmi_buf *buf,
+			     size_t bytesused,
+			     int err)
+{
+	struct vb2_v4l2_buffer *vbuf;
+
+	if (!buf)
+		return;
+
+	vbuf = &buf->vb;
+
+	vbuf->sequence = dcmi->sequence++;
+	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->vb2_buf.timestamp = ktime_get_ns();
+	vb2_set_plane_payload(&vbuf->vb2_buf, 0, bytesused);
+	vb2_buffer_done(&vbuf->vb2_buf,
+			err ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+	dev_dbg(dcmi->dev, "buffer[%d] done seq=%d, bytesused=%zu\n",
+		vbuf->vb2_buf.index, vbuf->sequence, bytesused);
+
+	dcmi->buffers_count++;
+	dcmi->active = NULL;
+}
+
+static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
+{
+	spin_lock_irq(&dcmi->irqlock);
+
+	if (dcmi->state != RUNNING) {
+		spin_unlock_irq(&dcmi->irqlock);
+		return -EINVAL;
+	}
+
+	/* Restart a new DMA transfer with next buffer */
+	if (list_empty(&dcmi->buffers)) {
+		dev_err(dcmi->dev, "%s: No more buffer queued, cannot capture buffer\n",
+			__func__);
+		dcmi->errors_count++;
+		dcmi->active = NULL;
+
+		spin_unlock_irq(&dcmi->irqlock);
+		return -EINVAL;
+	}
+
+	dcmi->active = list_entry(dcmi->buffers.next,
+				  struct dcmi_buf, list);
+	list_del_init(&dcmi->active->list);
+
+	spin_unlock_irq(&dcmi->irqlock);
+
+	return dcmi_start_capture(dcmi);
+}
+
 static void dcmi_dma_callback(void *param)
 {
 	struct stm32_dcmi *dcmi = (struct stm32_dcmi *)param;
 	struct dma_chan *chan = dcmi->dma_chan;
 	struct dma_tx_state state;
 	enum dma_status status;
-
-	spin_lock(&dcmi->irqlock);
+	struct dcmi_buf *buf = dcmi->active;
 
 	/* Check DMA status */
 	status = dmaengine_tx_status(chan, dcmi->dma_cookie, &state);
@@ -215,58 +274,18 @@ static void dcmi_dma_callback(void *param)
 	case DMA_COMPLETE:
 		dev_dbg(dcmi->dev, "%s: Received DMA_COMPLETE\n", __func__);
 
-		if (dcmi->active) {
-			struct dcmi_buf *buf = dcmi->active;
-			struct vb2_v4l2_buffer *vbuf = &dcmi->active->vb;
+		/* Return buffer to V4L2 */
+		dcmi_buffer_done(dcmi, buf, buf->size, 0);
 
-			vbuf->sequence = dcmi->sequence++;
-			vbuf->field = V4L2_FIELD_NONE;
-			vbuf->vb2_buf.timestamp = ktime_get_ns();
-			vb2_set_plane_payload(&vbuf->vb2_buf, 0, buf->size);
-			vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_DONE);
-			dev_dbg(dcmi->dev, "buffer[%d] done seq=%d\n",
-				vbuf->vb2_buf.index, vbuf->sequence);
-
-			dcmi->buffers_count++;
-			dcmi->active = NULL;
-		}
-
-		/* Restart a new DMA transfer with next buffer */
-		if (dcmi->state == RUNNING) {
-			if (list_empty(&dcmi->buffers)) {
-				dev_err(dcmi->dev, "%s: No more buffer queued, cannot capture buffer",
-					__func__);
-				dcmi->errors_count++;
-				dcmi->active = NULL;
-
-				spin_unlock(&dcmi->irqlock);
-				return;
-			}
-
-			dcmi->active = list_entry(dcmi->buffers.next,
-						  struct dcmi_buf, list);
-
-			list_del_init(&dcmi->active->list);
-
-			if (dcmi_start_capture(dcmi)) {
-				dev_err(dcmi->dev, "%s: Cannot restart capture on DMA complete",
-					__func__);
-
-				spin_unlock(&dcmi->irqlock);
-				return;
-			}
-
-			/* Enable capture */
-			reg_set(dcmi->regs, DCMI_CR, CR_CAPTURE);
-		}
-
+		/* Restart capture */
+		if (dcmi_restart_capture(dcmi))
+			dev_err(dcmi->dev, "%s: Cannot restart capture on DMA complete\n",
+				__func__);
 		break;
 	default:
 		dev_err(dcmi->dev, "%s: Received unknown status\n", __func__);
 		break;
 	}
-
-	spin_unlock(&dcmi->irqlock);
 }
 
 static int dcmi_start_dma(struct stm32_dcmi *dcmi,
@@ -359,11 +378,57 @@ static void dcmi_set_crop(struct stm32_dcmi *dcmi)
 	reg_set(dcmi->regs, DCMI_CR, CR_CROP);
 }
 
+static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
+{
+	struct dma_tx_state state;
+	enum dma_status status;
+	struct dma_chan *chan = dcmi->dma_chan;
+	struct dcmi_buf *buf = dcmi->active;
+
+	if (!buf)
+		return;
+
+	/*
+	 * Because of variable JPEG buffer size sent by sensor,
+	 * DMA transfer never completes due to transfer size
+	 * never reached.
+	 * In order to ensure that all the JPEG data are transferred
+	 * in active buffer memory, DMA is drained.
+	 * Then DMA tx status gives the amount of data transferred
+	 * to memory, which is then returned to V4L2 through the active
+	 * buffer payload.
+	 */
+
+	/* Drain DMA */
+	dmaengine_synchronize(chan);
+
+	/* Get DMA residue to get JPEG size */
+	status = dmaengine_tx_status(chan, dcmi->dma_cookie, &state);
+	if (status != DMA_ERROR && state.residue < buf->size) {
+		/* Return JPEG buffer to V4L2 with received JPEG buffer size */
+		dcmi_buffer_done(dcmi, buf, buf->size - state.residue, 0);
+	} else {
+		dcmi->errors_count++;
+		dev_err(dcmi->dev, "%s: Cannot get JPEG size from DMA\n",
+			__func__);
+		/* Return JPEG buffer to V4L2 in ERROR state */
+		dcmi_buffer_done(dcmi, buf, 0, -EIO);
+	}
+
+	/* Abort DMA operation */
+	dmaengine_terminate_all(dcmi->dma_chan);
+
+	/* Restart capture */
+	if (dcmi_restart_capture(dcmi))
+		dev_err(dcmi->dev, "%s: Cannot restart capture on JPEG received\n",
+			__func__);
+}
+
 static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 {
 	struct stm32_dcmi *dcmi = arg;
 
-	spin_lock(&dcmi->irqlock);
+	spin_lock_irq(&dcmi->irqlock);
 
 	/* Stop capture is required */
 	if (dcmi->state == STOPPING) {
@@ -373,50 +438,41 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 
 		complete(&dcmi->complete);
 
-		spin_unlock(&dcmi->irqlock);
+		spin_unlock_irq(&dcmi->irqlock);
 		return IRQ_HANDLED;
 	}
 
 	if ((dcmi->misr & IT_OVR) || (dcmi->misr & IT_ERR)) {
-		/*
-		 * An overflow or an error has been detected,
-		 * stop current DMA transfert & restart it
-		 */
-		dev_warn(dcmi->dev, "%s: Overflow or error detected\n",
-			 __func__);
-
 		dcmi->errors_count++;
-		dmaengine_terminate_all(dcmi->dma_chan);
-
-		reg_set(dcmi->regs, DCMI_ICR, IT_FRAME | IT_OVR | IT_ERR);
-
-		dev_dbg(dcmi->dev, "Restarting capture after DCMI error\n");
-
-		if (dcmi_start_capture(dcmi)) {
-			dev_err(dcmi->dev, "%s: Cannot restart capture on overflow or error\n",
-				__func__);
-
-			spin_unlock(&dcmi->irqlock);
-			return IRQ_HANDLED;
-		}
+		if (dcmi->misr & IT_OVR)
+			dcmi->overrun_count++;
 	}
 
-	spin_unlock(&dcmi->irqlock);
+	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG &&
+	    dcmi->misr & IT_FRAME) {
+		/* JPEG received */
+		spin_unlock_irq(&dcmi->irqlock);
+		dcmi_process_jpeg(dcmi);
+		return IRQ_HANDLED;
+	}
+
+	spin_unlock_irq(&dcmi->irqlock);
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t dcmi_irq_callback(int irq, void *arg)
 {
 	struct stm32_dcmi *dcmi = arg;
+	unsigned long flags;
 
-	spin_lock(&dcmi->irqlock);
+	spin_lock_irqsave(&dcmi->irqlock, flags);
 
 	dcmi->misr = reg_read(dcmi->regs, DCMI_MIS);
 
 	/* Clear interrupt */
 	reg_set(dcmi->regs, DCMI_ICR, IT_FRAME | IT_OVR | IT_ERR);
 
-	spin_unlock(&dcmi->irqlock);
+	spin_unlock_irqrestore(&dcmi->irqlock, flags);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -483,7 +539,7 @@ static int dcmi_buf_prepare(struct vb2_buffer *vb)
 
 		vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->size);
 
-		dev_dbg(dcmi->dev, "buffer[%d] phy=0x%pad size=%zu\n",
+		dev_dbg(dcmi->dev, "buffer[%d] phy=%pad size=%zu\n",
 			vb->index, &buf->paddr, buf->size);
 	}
 
@@ -495,29 +551,24 @@ static void dcmi_buf_queue(struct vb2_buffer *vb)
 	struct stm32_dcmi *dcmi =  vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct dcmi_buf *buf = container_of(vbuf, struct dcmi_buf, vb);
-	unsigned long flags = 0;
 
-	spin_lock_irqsave(&dcmi->irqlock, flags);
+	spin_lock_irq(&dcmi->irqlock);
 
-	if ((dcmi->state == RUNNING) && (!dcmi->active)) {
+	if (dcmi->state == RUNNING && !dcmi->active) {
 		dcmi->active = buf;
 
 		dev_dbg(dcmi->dev, "Starting capture on buffer[%d] queued\n",
 			buf->vb.vb2_buf.index);
 
-		if (dcmi_start_capture(dcmi)) {
+		spin_unlock_irq(&dcmi->irqlock);
+		if (dcmi_start_capture(dcmi))
 			dev_err(dcmi->dev, "%s: Cannot restart capture on overflow or error\n",
 				__func__);
-
-			spin_unlock_irqrestore(&dcmi->irqlock, flags);
-			return;
-		}
 	} else {
 		/* Enqueue to video buffers list */
 		list_add_tail(&buf->list, &dcmi->buffers);
+		spin_unlock_irq(&dcmi->irqlock);
 	}
-
-	spin_unlock_irqrestore(&dcmi->irqlock, flags);
 }
 
 static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -529,7 +580,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = clk_enable(dcmi->mclk);
 	if (ret) {
-		dev_err(dcmi->dev, "%s: Failed to start streaming, cannot enable clock",
+		dev_err(dcmi->dev, "%s: Failed to start streaming, cannot enable clock\n",
 			__func__);
 		goto err_release_buffers;
 	}
@@ -578,6 +629,10 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (dcmi->do_crop)
 		dcmi_set_crop(dcmi);
 
+	/* Enable jpeg capture */
+	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG)
+		reg_set(dcmi->regs, DCMI_CR, CR_CM);/* Snapshot mode */
+
 	/* Enable dcmi */
 	reg_set(dcmi->regs, DCMI_CR, CR_ENABLE);
 
@@ -585,6 +640,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	dcmi->sequence = 0;
 	dcmi->errors_count = 0;
+	dcmi->overrun_count = 0;
 	dcmi->buffers_count = 0;
 	dcmi->active = NULL;
 
@@ -603,19 +659,16 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	dev_dbg(dcmi->dev, "Start streaming, starting capture\n");
 
+	spin_unlock_irq(&dcmi->irqlock);
 	ret = dcmi_start_capture(dcmi);
 	if (ret) {
-		dev_err(dcmi->dev, "%s: Start streaming failed, cannot start capture",
+		dev_err(dcmi->dev, "%s: Start streaming failed, cannot start capture\n",
 			__func__);
-
-		spin_unlock_irq(&dcmi->irqlock);
 		goto err_subdev_streamoff;
 	}
 
 	/* Enable interruptions */
 	reg_set(dcmi->regs, DCMI_IER, IT_FRAME | IT_OVR | IT_ERR);
-
-	spin_unlock_irq(&dcmi->irqlock);
 
 	return 0;
 
@@ -656,9 +709,12 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 	/* Disable stream on the sub device */
 	ret = v4l2_subdev_call(dcmi->entity.subdev, video, s_stream, 0);
 	if (ret && ret != -ENOIOCTLCMD)
-		dev_err(dcmi->dev, "stream off failed in subdev\n");
+		dev_err(dcmi->dev, "%s: Failed to stop streaming, subdev streamoff error (%d)\n",
+			__func__, ret);
 
+	spin_lock_irq(&dcmi->irqlock);
 	dcmi->state = STOPPING;
+	spin_unlock_irq(&dcmi->irqlock);
 
 	timeout = wait_for_completion_interruptible_timeout(&dcmi->complete,
 							    time_ms);
@@ -672,7 +728,8 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 	reg_clear(dcmi->regs, DCMI_CR, CR_ENABLE);
 
 	if (!timeout) {
-		dev_err(dcmi->dev, "Timeout during stop streaming\n");
+		dev_err(dcmi->dev, "%s: Timeout during stop streaming\n",
+			__func__);
 		dcmi->state = STOPPED;
 	}
 
@@ -694,8 +751,13 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 
 	clk_disable(dcmi->mclk);
 
-	dev_dbg(dcmi->dev, "Stop streaming, errors=%d buffers=%d\n",
-		dcmi->errors_count, dcmi->buffers_count);
+	if (dcmi->errors_count)
+		dev_warn(dcmi->dev, "Some errors found while streaming: errors=%d (overrun=%d), buffers=%d\n",
+			 dcmi->errors_count, dcmi->overrun_count,
+			 dcmi->buffers_count);
+	dev_dbg(dcmi->dev, "Stop streaming, errors=%d (overrun=%d), buffers=%d\n",
+		dcmi->errors_count, dcmi->overrun_count,
+		dcmi->buffers_count);
 }
 
 static const struct vb2_ops dcmi_video_qops = {
@@ -749,7 +811,7 @@ static void __find_outer_frame_size(struct stm32_dcmi *dcmi,
 		int h_err = (fsize->height - pix->height);
 		int err = w_err + h_err;
 
-		if ((w_err >= 0) && (h_err >= 0) && (err < min_err)) {
+		if (w_err >= 0 && h_err >= 0 && err < min_err) {
 			min_err = err;
 			match = fsize;
 		}
@@ -771,6 +833,7 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
+	bool do_crop;
 	int ret;
 
 	sd_fmt = find_format_by_fourcc(dcmi, pix->pixelformat);
@@ -780,10 +843,19 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	}
 
 	/* Limit to hardware capabilities */
-	pix->width = clamp(pix->width, MIN_WIDTH, MAX_WIDTH);
-	pix->height = clamp(pix->height, MIN_HEIGHT, MAX_HEIGHT);
+	if (pix->pixelformat == V4L2_PIX_FMT_JPEG) {
+		pix->width = clamp(pix->width, MIN_JPEG_WIDTH, MAX_JPEG_WIDTH);
+		pix->height =
+			clamp(pix->height, MIN_JPEG_HEIGHT, MAX_JPEG_HEIGHT);
+	} else {
+		pix->width = clamp(pix->width, MIN_WIDTH, MAX_WIDTH);
+		pix->height = clamp(pix->height, MIN_HEIGHT, MAX_HEIGHT);
+	}
 
-	if (dcmi->do_crop && dcmi->num_of_sd_framesizes) {
+	/* No crop if JPEG is requested */
+	do_crop = dcmi->do_crop && (pix->pixelformat != V4L2_PIX_FMT_JPEG);
+
+	if (do_crop && dcmi->num_of_sd_framesizes) {
 		struct dcmi_framesize outer_sd_fsize;
 		/*
 		 * If crop is requested and sensor have discrete frame sizes,
@@ -807,7 +879,7 @@ static int dcmi_try_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f,
 	sd_fsize.width = pix->width;
 	sd_fsize.height = pix->height;
 
-	if (dcmi->do_crop) {
+	if (do_crop) {
 		struct v4l2_rect c = dcmi->crop;
 		struct v4l2_rect max_rect;
 
@@ -861,6 +933,10 @@ static int dcmi_set_fmt(struct stm32_dcmi *dcmi, struct v4l2_format *f)
 	ret = dcmi_try_fmt(dcmi, f, &sd_format, &sd_framesize);
 	if (ret)
 		return ret;
+
+	/* Disable crop if JPEG is requested */
+	if (pix->pixelformat == V4L2_PIX_FMT_JPEG)
+		dcmi->do_crop = false;
 
 	/* pix to mbus format */
 	v4l2_fill_mbus_format(mf, pix,
@@ -1084,10 +1160,10 @@ static int dcmi_s_selection(struct file *file, void *priv,
 	r.top  = clamp_t(s32, r.top, 0, pix.height - r.height);
 	r.left = clamp_t(s32, r.left, 0, pix.width - r.width);
 
-	if (!((r.top == dcmi->sd_bounds.top) &&
-	      (r.left == dcmi->sd_bounds.left) &&
-	      (r.width == dcmi->sd_bounds.width) &&
-	      (r.height == dcmi->sd_bounds.height))) {
+	if (!(r.top == dcmi->sd_bounds.top &&
+	      r.left == dcmi->sd_bounds.left &&
+	      r.width == dcmi->sd_bounds.width &&
+	      r.height == dcmi->sd_bounds.height)) {
 		/* Crop if request is different than sensor resolution */
 		dcmi->do_crop = true;
 		dcmi->crop = r;
@@ -1165,6 +1241,22 @@ static int dcmi_enum_framesizes(struct file *file, void *fh,
 	fsize->discrete.height = fse.max_height;
 
 	return 0;
+}
+
+static int dcmi_g_parm(struct file *file, void *priv,
+		       struct v4l2_streamparm *p)
+{
+	struct stm32_dcmi *dcmi = video_drvdata(file);
+
+	return v4l2_g_parm_cap(video_devdata(file), dcmi->entity.subdev, p);
+}
+
+static int dcmi_s_parm(struct file *file, void *priv,
+		       struct v4l2_streamparm *p)
+{
+	struct stm32_dcmi *dcmi = video_drvdata(file);
+
+	return v4l2_s_parm_cap(video_devdata(file), dcmi->entity.subdev, p);
 }
 
 static int dcmi_enum_frameintervals(struct file *file, void *fh,
@@ -1269,6 +1361,9 @@ static const struct v4l2_ioctl_ops dcmi_ioctl_ops = {
 	.vidioc_g_input			= dcmi_g_input,
 	.vidioc_s_input			= dcmi_s_input,
 
+	.vidioc_g_parm			= dcmi_g_parm,
+	.vidioc_s_parm			= dcmi_s_parm,
+
 	.vidioc_enum_framesizes		= dcmi_enum_framesizes,
 	.vidioc_enum_frameintervals	= dcmi_enum_frameintervals,
 
@@ -1334,6 +1429,10 @@ static const struct dcmi_format dcmi_formats[] = {
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
 		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_JPEG,
+		.mbus_code = MEDIA_BUS_FMT_JPEG_1X8,
+		.bpp = 1,
 	},
 };
 

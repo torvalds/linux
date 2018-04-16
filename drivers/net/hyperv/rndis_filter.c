@@ -31,6 +31,7 @@
 #include <linux/rtnetlink.h>
 
 #include "hyperv_net.h"
+#include "netvsc_trace.h"
 
 static void rndis_set_multicast(struct work_struct *w);
 
@@ -241,6 +242,8 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 			pb[0].len;
 	}
 
+	trace_rndis_send(dev->ndev, 0, &req->request_msg);
+
 	rcu_read_lock_bh();
 	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL);
 	rcu_read_unlock_bh();
@@ -362,14 +365,15 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 
 static int rndis_filter_receive_data(struct net_device *ndev,
 				     struct netvsc_device *nvdev,
-				     struct rndis_message *msg,
 				     struct vmbus_channel *channel,
-				     void *data, u32 data_buflen)
+				     struct rndis_message *msg,
+				     u32 data_buflen)
 {
 	struct rndis_packet *rndis_pkt = &msg->msg.pkt;
 	const struct ndis_tcp_ip_checksum_info *csum_info;
 	const struct ndis_pkt_8021q_info *vlan;
 	u32 data_offset;
+	void *data;
 
 	/* Remove the rndis header and pass it back up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
@@ -390,14 +394,15 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 
 	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
 
+	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
+
+	data = (void *)msg + data_offset;
+
 	/*
 	 * Remove the rndis trailer padding from rndis packet message
 	 * rndis_pkt->data_len tell us the real data length, we only copy
 	 * the data packet to the stack, without the rndis trailer padding
 	 */
-	data = (void *)((unsigned long)data + data_offset);
-	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
-
 	return netvsc_recv_callback(ndev, nvdev, channel,
 				    data, rndis_pkt->data_len,
 				    csum_info, vlan);
@@ -416,8 +421,8 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:
-		return rndis_filter_receive_data(ndev, net_dev, rndis_msg,
-						 channel, data, buflen);
+		return rndis_filter_receive_data(ndev, net_dev, channel,
+						 rndis_msg, buflen);
 	case RNDIS_MSG_INIT_C:
 	case RNDIS_MSG_QUERY_C:
 	case RNDIS_MSG_SET_C:
@@ -434,10 +439,10 @@ int rndis_filter_receive(struct net_device *ndev,
 			"unhandled rndis message (type %u len %u)\n",
 			   rndis_msg->ndis_msg_type,
 			   rndis_msg->msg_len);
-		break;
+		return NVSP_STAT_FAIL;
 	}
 
-	return 0;
+	return NVSP_STAT_SUCCESS;
 }
 
 static int rndis_filter_query_device(struct rndis_device *dev,
@@ -858,7 +863,7 @@ static void rndis_set_multicast(struct work_struct *w)
 	if (flags & IFF_PROMISC) {
 		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
 	} else {
-		if (flags & IFF_ALLMULTI)
+		if (!netdev_mc_empty(rdev->ndev) || (flags & IFF_ALLMULTI))
 			filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 		if (flags & IFF_BROADCAST)
 			filter |= NDIS_PACKET_TYPE_BROADCAST;
@@ -942,12 +947,11 @@ static bool netvsc_device_idle(const struct netvsc_device *nvdev)
 	return true;
 }
 
-static void rndis_filter_halt_device(struct rndis_device *dev)
+static void rndis_filter_halt_device(struct netvsc_device *nvdev,
+				     struct rndis_device *dev)
 {
 	struct rndis_request *request;
 	struct rndis_halt_request *halt;
-	struct net_device_context *net_device_ctx = netdev_priv(dev->ndev);
-	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
 
 	/* Attempt to do a rndis device halt */
 	request = get_rndis_request(dev, RNDIS_MSG_HALT,
@@ -1086,6 +1090,8 @@ void rndis_set_subchannel(struct work_struct *w)
 	init_packet->msg.v5_msg.subchn_req.op = NVSP_SUBCHANNEL_ALLOCATE;
 	init_packet->msg.v5_msg.subchn_req.num_subchannels =
 						nvdev->num_chn - 1;
+	trace_nvsp_send(ndev, init_packet);
+
 	ret = vmbus_sendpacket(hv_dev->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -1350,7 +1356,7 @@ void rndis_filter_device_remove(struct hv_device *dev,
 	struct rndis_device *rndis_dev = net_dev->extension;
 
 	/* Halt and release the rndis device */
-	rndis_filter_halt_device(rndis_dev);
+	rndis_filter_halt_device(net_dev, rndis_dev);
 
 	net_dev->extension = NULL;
 

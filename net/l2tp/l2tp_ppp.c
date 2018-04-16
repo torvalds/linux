@@ -698,6 +698,15 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 			error = l2tp_tunnel_create(sock_net(sk), fd, ver, tunnel_id, peer_tunnel_id, &tcfg, &tunnel);
 			if (error < 0)
 				goto end;
+
+			l2tp_tunnel_inc_refcount(tunnel);
+			error = l2tp_tunnel_register(tunnel, sock_net(sk),
+						     &tcfg);
+			if (error < 0) {
+				kfree(tunnel);
+				goto end;
+			}
+			drop_tunnel = true;
 		}
 	} else {
 		/* Error if we can't find the tunnel */
@@ -862,7 +871,7 @@ err:
 /* getname() support.
  */
 static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
-			    int *usockaddr_len, int peer)
+			    int peer)
 {
 	int len = 0;
 	int error = 0;
@@ -961,8 +970,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		memcpy(uaddr, &sp, len);
 	}
 
-	*usockaddr_len = len;
-	error = 0;
+	error = len;
 
 	sock_put(sk);
 end:
@@ -1743,7 +1751,7 @@ static __net_init int pppol2tp_init_net(struct net *net)
 	struct proc_dir_entry *pde;
 	int err = 0;
 
-	pde = proc_create("pppol2tp", S_IRUGO, net->proc_net,
+	pde = proc_create("pppol2tp", 0444, net->proc_net,
 			  &pppol2tp_proc_fops);
 	if (!pde) {
 		err = -ENOMEM;

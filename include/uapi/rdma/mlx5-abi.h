@@ -84,7 +84,7 @@ struct mlx5_ib_alloc_ucontext_req_v2 {
 	__u8	reserved0;
 	__u16	reserved1;
 	__u32	reserved2;
-	__u64	lib_caps;
+	__aligned_u64 lib_caps;
 };
 
 enum mlx5_ib_alloc_ucontext_resp_mask {
@@ -107,6 +107,14 @@ enum mlx5_user_inline_mode {
 	MLX5_USER_INLINE_MODE_TCP_UDP,
 };
 
+enum {
+	MLX5_USER_ALLOC_UCONTEXT_FLOW_ACTION_FLAGS_ESP_AES_GCM = 1 << 0,
+	MLX5_USER_ALLOC_UCONTEXT_FLOW_ACTION_FLAGS_ESP_AES_GCM_REQ_METADATA = 1 << 1,
+	MLX5_USER_ALLOC_UCONTEXT_FLOW_ACTION_FLAGS_ESP_AES_GCM_SPI_STEERING = 1 << 2,
+	MLX5_USER_ALLOC_UCONTEXT_FLOW_ACTION_FLAGS_ESP_AES_GCM_FULL_OFFLOAD = 1 << 3,
+	MLX5_USER_ALLOC_UCONTEXT_FLOW_ACTION_FLAGS_ESP_AES_GCM_TX_IV_IS_ESN = 1 << 4,
+};
+
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
@@ -118,14 +126,14 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	max_recv_wr;
 	__u32	max_srq_recv_wr;
 	__u16	num_ports;
-	__u16	reserved1;
+	__u16	flow_action_flags;
 	__u32	comp_mask;
 	__u32	response_length;
 	__u8	cqe_version;
 	__u8	cmds_supp_uhw;
 	__u8	eth_min_inline;
 	__u8	clock_info_versions;
-	__u64	hca_core_clock_offset;
+	__aligned_u64 hca_core_clock_offset;
 	__u32	log_uar_size;
 	__u32	num_uars_per_page;
 	__u32	num_dyn_bfregs;
@@ -147,7 +155,7 @@ struct mlx5_ib_tso_caps {
 };
 
 struct mlx5_ib_rss_caps {
-	__u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
+	__aligned_u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
 	__u8 rx_hash_function; /* enum mlx5_rx_hash_function_flags */
 	__u8 reserved[7];
 };
@@ -163,6 +171,10 @@ struct mlx5_ib_cqe_comp_caps {
 	__u32 supported_format; /* enum mlx5_ib_cqe_comp_res_format */
 };
 
+enum mlx5_ib_packet_pacing_cap_flags {
+	MLX5_IB_PP_SUPPORT_BURST	= 1 << 0,
+};
+
 struct mlx5_packet_pacing_caps {
 	__u32 qp_rate_limit_min;
 	__u32 qp_rate_limit_max; /* In kpbs */
@@ -172,7 +184,8 @@ struct mlx5_packet_pacing_caps {
 	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
 	 */
 	__u32 supported_qpts;
-	__u32 reserved;
+	__u8  cap_flags; /* enum mlx5_ib_packet_pacing_cap_flags */
+	__u8  reserved[3];
 };
 
 enum mlx5_ib_mpw_caps {
@@ -243,8 +256,8 @@ enum mlx5_ib_create_cq_flags {
 };
 
 struct mlx5_ib_create_cq {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u32	cqe_size;
 	__u8    cqe_comp_en;
 	__u8    cqe_comp_res_format;
@@ -257,15 +270,15 @@ struct mlx5_ib_create_cq_resp {
 };
 
 struct mlx5_ib_resize_cq {
-	__u64	buf_addr;
+	__aligned_u64 buf_addr;
 	__u16	cqe_size;
 	__u16	reserved0;
 	__u32	reserved1;
 };
 
 struct mlx5_ib_create_srq {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u32	flags;
 	__u32	reserved0; /* explicit padding (optional on i386) */
 	__u32	uidx;
@@ -278,8 +291,8 @@ struct mlx5_ib_create_srq_resp {
 };
 
 struct mlx5_ib_create_qp {
-	__u64	buf_addr;
-	__u64	db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u32	sq_wqe_count;
 	__u32	rq_wqe_count;
 	__u32	rq_wqe_shift;
@@ -287,8 +300,8 @@ struct mlx5_ib_create_qp {
 	__u32	uidx;
 	__u32	bfreg_index;
 	union {
-		__u64	sq_buf_addr;
-		__u64	access_key;
+		__aligned_u64 sq_buf_addr;
+		__aligned_u64 access_key;
 	};
 };
 
@@ -314,12 +327,13 @@ enum mlx5_rx_hash_fields {
 	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
 	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
 	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7,
+	MLX5_RX_HASH_IPSEC_SPI		= 1 << 8,
 	/* Save bits for future fields */
 	MLX5_RX_HASH_INNER		= (1UL << 31),
 };
 
 struct mlx5_ib_create_qp_rss {
-	__u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
+	__aligned_u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
 	__u8 rx_hash_function; /* enum mlx5_rx_hash_function_flags */
 	__u8 rx_key_len; /* valid only for Toeplitz */
 	__u8 reserved[6];
@@ -330,6 +344,7 @@ struct mlx5_ib_create_qp_rss {
 
 struct mlx5_ib_create_qp_resp {
 	__u32	bfreg_index;
+	__u32   reserved;
 };
 
 struct mlx5_ib_alloc_mw {
@@ -344,8 +359,8 @@ enum mlx5_ib_create_wq_mask {
 };
 
 struct mlx5_ib_create_wq {
-	__u64   buf_addr;
-	__u64   db_addr;
+	__aligned_u64 buf_addr;
+	__aligned_u64 db_addr;
 	__u32   rq_wqe_count;
 	__u32   rq_wqe_shift;
 	__u32   user_index;
@@ -360,6 +375,18 @@ struct mlx5_ib_create_ah_resp {
 	__u32	response_length;
 	__u8	dmac[ETH_ALEN];
 	__u8	reserved[6];
+};
+
+struct mlx5_ib_burst_info {
+	__u32       max_burst_sz;
+	__u16       typical_pkt_sz;
+	__u16       reserved;
+};
+
+struct mlx5_ib_modify_qp {
+	__u32			   comp_mask;
+	struct mlx5_ib_burst_info  burst_info;
+	__u32			   reserved;
 };
 
 struct mlx5_ib_modify_qp_resp {
@@ -385,13 +412,13 @@ struct mlx5_ib_modify_wq {
 struct mlx5_ib_clock_info {
 	__u32 sign;
 	__u32 resv;
-	__u64 nsec;
-	__u64 cycles;
-	__u64 frac;
+	__aligned_u64 nsec;
+	__aligned_u64 cycles;
+	__aligned_u64 frac;
 	__u32 mult;
 	__u32 shift;
-	__u64 mask;
-	__u64 overflow_period;
+	__aligned_u64 mask;
+	__aligned_u64 overflow_period;
 };
 
 enum mlx5_ib_mmap_cmd {
@@ -403,6 +430,7 @@ enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_CORE_CLOCK                 = 5,
 	MLX5_IB_MMAP_ALLOC_WC                   = 6,
 	MLX5_IB_MMAP_CLOCK_INFO                 = 7,
+	MLX5_IB_MMAP_DEVICE_MEM                 = 8,
 };
 
 enum {

@@ -78,7 +78,7 @@ Binutils
 --------
 
 The build system has, as of 4.13, switched to using thin archives (`ar T`)
-rather than incremental linking (`ld -r`) for built-in.o intermediate steps.
+rather than incremental linking (`ld -r`) for built-in.a intermediate steps.
 This requires binutils 2.20 or newer.
 
 Flex
@@ -430,7 +430,7 @@ udev
 FUSE
 ----
 
-- <http://sourceforge.net/projects/fuse>
+- <https://github.com/libfuse/libfuse/releases>
 
 mcelog
 ------

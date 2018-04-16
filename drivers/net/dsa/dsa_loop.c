@@ -86,7 +86,7 @@ static int dsa_loop_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int dsa_loop_get_sset_count(struct dsa_switch *ds)
+static int dsa_loop_get_sset_count(struct dsa_switch *ds, int port)
 {
 	return __DSA_LOOP_CNT_MAX;
 }

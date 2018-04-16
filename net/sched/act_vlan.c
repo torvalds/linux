@@ -109,7 +109,7 @@ static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {
 
 static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct nlattr *est, struct tc_action **a,
-			 int ovr, int bind)
+			 int ovr, int bind, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
@@ -117,7 +117,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	struct tc_vlan *parm;
 	struct tcf_vlan *v;
 	int action;
-	__be16 push_vid = 0;
+	u16 push_vid = 0;
 	__be16 push_proto = 0;
 	u8 push_prio = 0;
 	bool exists = false;
@@ -268,14 +268,16 @@ nla_put_failure:
 
 static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
 			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops)
+			   const struct tc_action_ops *ops,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, ops);
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
+static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index,
+			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 

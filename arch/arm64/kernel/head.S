@@ -577,6 +577,13 @@ set_hcr:
 7:
 	msr	mdcr_el2, x3			// Configure debug traps
 
+	/* LORegions */
+	mrs	x1, id_aa64mmfr1_el1
+	ubfx	x0, x1, #ID_AA64MMFR1_LOR_SHIFT, 4
+	cbz	x0, 1f
+	msr_s	SYS_LORC_EL1, xzr
+1:
+
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
 

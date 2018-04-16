@@ -333,7 +333,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	struct net_device *pmondev;
 	int status = _FAIL;
 
-	padapter = (struct adapter *)vzalloc(sizeof(*padapter));
+	padapter = vzalloc(sizeof(*padapter));
 	if (padapter == NULL)
 		goto exit;
 	padapter->dvobj = dvobj;

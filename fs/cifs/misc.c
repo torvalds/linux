@@ -848,3 +848,57 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	iov_iter_bvec(&ctx->iter, ITER_BVEC | rw, ctx->bv, npages, ctx->len);
 	return 0;
 }
+
+/**
+ * cifs_alloc_hash - allocate hash and hash context together
+ *
+ * The caller has to make sure @sdesc is initialized to either NULL or
+ * a valid context. Both can be freed via cifs_free_hash().
+ */
+int
+cifs_alloc_hash(const char *name,
+		struct crypto_shash **shash, struct sdesc **sdesc)
+{
+	int rc = 0;
+	size_t size;
+
+	if (*sdesc != NULL)
+		return 0;
+
+	*shash = crypto_alloc_shash(name, 0, 0);
+	if (IS_ERR(*shash)) {
+		cifs_dbg(VFS, "could not allocate crypto %s\n", name);
+		rc = PTR_ERR(*shash);
+		*shash = NULL;
+		*sdesc = NULL;
+		return rc;
+	}
+
+	size = sizeof(struct shash_desc) + crypto_shash_descsize(*shash);
+	*sdesc = kmalloc(size, GFP_KERNEL);
+	if (*sdesc == NULL) {
+		cifs_dbg(VFS, "no memory left to allocate crypto %s\n", name);
+		crypto_free_shash(*shash);
+		*shash = NULL;
+		return -ENOMEM;
+	}
+
+	(*sdesc)->shash.tfm = *shash;
+	(*sdesc)->shash.flags = 0x0;
+	return 0;
+}
+
+/**
+ * cifs_free_hash - free hash and hash context together
+ *
+ * Freeing a NULL hash or context is safe.
+ */
+void
+cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
+{
+	kfree(*sdesc);
+	*sdesc = NULL;
+	if (*shash)
+		crypto_free_shash(*shash);
+	*shash = NULL;
+}

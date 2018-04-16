@@ -319,7 +319,7 @@ static void __init rbtx4927_mtd_init(void)
 
 static void __init rbtx4927_gpioled_init(void)
 {
-	static struct gpio_led leds[] = {
+	static const struct gpio_led leds[] = {
 		{ .name = "gpioled:green:0", .gpio = 0, .active_low = 1, },
 		{ .name = "gpioled:green:1", .gpio = 1, .active_low = 1, },
 	};

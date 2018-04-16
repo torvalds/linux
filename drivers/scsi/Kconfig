@@ -640,88 +640,6 @@ config SCSI_DMX3191D
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
 
-config SCSI_EATA
-	tristate "EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support"
-	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
-	---help---
-	  This driver supports all EATA/DMA-compliant SCSI host adapters.  DPT
-	  ISA and all EISA I/O addresses are probed looking for the "EATA"
-	  signature. The addresses of all the PCI SCSI controllers reported
-          by the PCI subsystem are probed as well.
-
-	  You want to read the start of <file:drivers/scsi/eata.c> and the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called eata.
-
-config SCSI_EATA_TAGGED_QUEUE
-	bool "enable tagged command queueing"
-	depends on SCSI_EATA
-	help
-	  This is a feature of SCSI-2 which improves performance: the host
-	  adapter can send several SCSI commands to a device's queue even if
-	  previous commands haven't finished yet.
-	  This is equivalent to the "eata=tc:y" boot option.
-
-config SCSI_EATA_LINKED_COMMANDS
-	bool "enable elevator sorting"
-	depends on SCSI_EATA
-	help
-	  This option enables elevator sorting for all probed SCSI disks and
-	  CD-ROMs. It definitely reduces the average seek distance when doing
-	  random seeks, but this does not necessarily result in a noticeable
-	  performance improvement: your mileage may vary...
-	  This is equivalent to the "eata=lc:y" boot option.
-
-config SCSI_EATA_MAX_TAGS
-	int "maximum number of queued commands"
-	depends on SCSI_EATA
-	default "16"
-	help
-	  This specifies how many SCSI commands can be maximally queued for
-	  each probed SCSI device. You should reduce the default value of 16
-	  only if you have disks with buggy or limited tagged command support.
-	  Minimum is 2 and maximum is 62. This value is also the window size
-	  used by the elevator sorting option above. The effective value used
-	  by the driver for each probed SCSI device is reported at boot time.
-	  This is equivalent to the "eata=mq:8" boot option.
-
-config SCSI_EATA_PIO
-	tristate "EATA-PIO (old DPT PM2001, PM2012A) support"
-	depends on (ISA || EISA || PCI) && SCSI && BROKEN
-	---help---
-	  This driver supports all EATA-PIO protocol compliant SCSI Host
-	  Adapters like the DPT PM2001 and the PM2012A.  EATA-DMA compliant
-	  host adapters could also use this driver but are discouraged from
-	  doing so, since this driver only supports hard disks and lacks
-	  numerous features.  You might want to have a look at the SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called eata_pio.
-
-config SCSI_FUTURE_DOMAIN
-	tristate "Future Domain 16xx SCSI/AHA-2920A support"
-	depends on (ISA || PCI) && SCSI
-	select CHECK_SIGNATURE
-	---help---
-	  This is support for Future Domain's 16-bit SCSI host adapters
-	  (TMC-1660/1680, TMC-1650/1670, TMC-3260, TMC-1610M/MER/MEX) and
-	  other adapters based on the Future Domain chipsets (Quantum
-	  ISA-200S, ISA-250MG; Adaptec AHA-2920A; and at least one IBM board).
-	  It is explained in section 3.7 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  NOTE: Newer Adaptec AHA-2920C boards use the Adaptec AIC-7850 chip
-	  and should use the aic7xxx driver ("Adaptec AIC7xxx chipset SCSI
-	  controller support"). This Future Domain driver works with the older
-	  Adaptec AHA-2920A boards with a Future Domain chip on them.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fdomain.
-
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
 	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
@@ -923,18 +841,6 @@ config SCSI_IZIP_SLOW_CTR
 
 	  Generally, saying N is fine.
 
-config SCSI_NCR53C406A
-	tristate "NCR53c406a SCSI support"
-	depends on ISA && SCSI
-	help
-	  This is support for the NCR53c406a SCSI host adapter.  For user
-	  configurable parameters, check out <file:drivers/scsi/NCR53c406a.c>
-	  in the kernel source.  Also read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called NCR53c406.
-
 config SCSI_NCR_D700
 	tristate "NCR Dual 700 MCA SCSI support"
 	depends on MCA && SCSI
@@ -1059,6 +965,7 @@ config SCSI_IPR
 	depends on PCI && SCSI && ATA
 	select FW_LOADER
 	select IRQ_POLL
+	select SGL_ALLOC
 	---help---
 	  This driver supports the IBM Power Linux family RAID adapters.
 	  This includes IBM pSeries 5712, 5703, 5709, and 570A, as well
@@ -1264,24 +1171,6 @@ config SCSI_SIM710
 	  This driver is for NCR53c710 based SCSI host adapters.
 
 	  It currently supports Compaq EISA cards and NCR MCA cards
-
-config SCSI_SYM53C416
-	tristate "Symbios 53c416 SCSI support"
-	depends on ISA && SCSI
-	---help---
-	  This is support for the sym53c416 SCSI host adapter, the SCSI
-	  adapter that comes with some HP scanners. This driver requires that
-	  the sym53c416 is configured first using some sort of PnP
-	  configuration program (e.g. isapnp) or by a PnP aware BIOS. If you
-	  are using isapnp then you need to compile this driver as a module
-	  and then load it using insmod after isapnp has run. The parameters
-	  of the configured card(s) should be passed to the driver. The format
-	  is:
-
-	  insmod sym53c416 sym53c416=<base>,<irq> [sym53c416_1=<base>,<irq>]
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sym53c416.
 
 config SCSI_DC395x
 	tristate "Tekram DC395(U/UW/F) and DC315(U) SCSI support"
@@ -1576,6 +1465,7 @@ config ZFCP
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"
 	depends on PCI && SCSI && NET
+	select SGL_ALLOC
 	---help---
 	  This driver supports the PMC SIERRA MaxRAID adapters.
 

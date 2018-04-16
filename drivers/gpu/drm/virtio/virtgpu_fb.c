@@ -118,7 +118,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 
 int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *vgfb,
 			     struct drm_clip_rect *clips,
-			     unsigned num_clips)
+			     unsigned int num_clips)
 {
 	struct virtio_gpu_device *vgdev = vgfb->base.dev->dev_private;
 	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(vgfb->obj);
@@ -127,6 +127,7 @@ int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *vgfb,
 	int left, right, top, bottom;
 	int i;
 	int inc = 1;
+
 	if (!num_clips) {
 		num_clips = 1;
 		clips = &norect;
@@ -172,6 +173,7 @@ static void virtio_gpu_3d_fillrect(struct fb_info *info,
 				   const struct fb_fillrect *rect)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
+
 	drm_fb_helper_sys_fillrect(info, rect);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, rect->dx, rect->dy,
 			     rect->width, rect->height);
@@ -182,6 +184,7 @@ static void virtio_gpu_3d_copyarea(struct fb_info *info,
 				   const struct fb_copyarea *area)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
+
 	drm_fb_helper_sys_copyarea(info, area);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, area->dx, area->dy,
 			   area->width, area->height);
@@ -192,6 +195,7 @@ static void virtio_gpu_3d_imageblit(struct fb_info *info,
 				    const struct fb_image *image)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
+
 	drm_fb_helper_sys_imageblit(info, image);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, image->dx, image->dy,
 			     image->width, image->height);

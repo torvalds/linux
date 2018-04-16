@@ -255,6 +255,10 @@ static const struct test_bitmap_parselist parselist_tests[] __initconst = {
 	{-EINVAL, "-1",	NULL, 8, 0},
 	{-EINVAL, "-0",	NULL, 8, 0},
 	{-EINVAL, "10-1", NULL, 8, 0},
+	{-EINVAL, "0-31:", NULL, 8, 0},
+	{-EINVAL, "0-31:0", NULL, 8, 0},
+	{-EINVAL, "0-31:0/0", NULL, 8, 0},
+	{-EINVAL, "0-31:1/0", NULL, 8, 0},
 	{-EINVAL, "0-31:10/1", NULL, 8, 0},
 };
 
@@ -292,15 +296,17 @@ static void __init test_bitmap_parselist(void)
 	}
 }
 
+#define EXP_BYTES	(sizeof(exp) * 8)
+
 static void __init test_bitmap_arr32(void)
 {
-	unsigned int nbits, next_bit, len = sizeof(exp) * 8;
+	unsigned int nbits, next_bit;
 	u32 arr[sizeof(exp) / 4];
-	DECLARE_BITMAP(bmap2, len);
+	DECLARE_BITMAP(bmap2, EXP_BYTES);
 
 	memset(arr, 0xa5, sizeof(arr));
 
-	for (nbits = 0; nbits < len; ++nbits) {
+	for (nbits = 0; nbits < EXP_BYTES; ++nbits) {
 		bitmap_to_arr32(arr, exp, nbits);
 		bitmap_from_arr32(bmap2, arr, nbits);
 		expect_eq_bitmap(bmap2, exp, nbits);
@@ -312,7 +318,7 @@ static void __init test_bitmap_arr32(void)
 				" tail is not safely cleared: %d\n",
 				nbits, next_bit);
 
-		if (nbits < len - 32)
+		if (nbits < EXP_BYTES - 32)
 			expect_eq_uint(arr[DIV_ROUND_UP(nbits, 32)],
 								0xa5a5a5a5);
 	}

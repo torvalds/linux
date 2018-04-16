@@ -19,7 +19,7 @@
 	model = "Technologic Systems i.MX28 TS-4600";
 	compatible = "technologic,imx28-ts4600", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x10000000>;   /* 256MB */
 	};
 

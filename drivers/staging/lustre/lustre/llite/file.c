@@ -1315,10 +1315,10 @@ static int ll_lov_setea(struct inode *inode, struct file *file,
 					    sizeof(struct lov_user_ost_data);
 	int			 rc;
 
-	if (!capable(CFS_CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	lump = libcfs_kvzalloc(lum_size, GFP_NOFS);
+	lump = kzalloc(lum_size, GFP_NOFS);
 	if (!lump)
 		return -ENOMEM;
 
@@ -1570,7 +1570,7 @@ int ll_fid2path(struct inode *inode, void __user *arg)
 	size_t outsize;
 	int rc;
 
-	if (!capable(CFS_CAP_DAC_READ_SEARCH) &&
+	if (!capable(CAP_DAC_READ_SEARCH) &&
 	    !(ll_i2sbi(inode)->ll_flags & LL_SBI_USER_FID2PATH))
 		return -EPERM;
 
@@ -1840,7 +1840,7 @@ int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss)
 	 * NOT defined in HSM_USER_MASK.
 	 */
 	if (((hss->hss_setmask | hss->hss_clearmask) & ~HSM_USER_MASK) &&
-	    !capable(CFS_CAP_SYS_ADMIN))
+	    !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Detect out-of range archive id */
@@ -2998,7 +2998,7 @@ static int ll_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 	num_bytes = sizeof(*fiemap) + (extent_count *
 				       sizeof(struct fiemap_extent));
-	fiemap = libcfs_kvzalloc(num_bytes, GFP_NOFS);
+	fiemap = kvzalloc(num_bytes, GFP_KERNEL);
 	if (!fiemap)
 		return -ENOMEM;
 
@@ -3361,7 +3361,7 @@ static int ll_layout_fetch(struct inode *inode, struct ldlm_lock *lock)
 		goto out;
 	}
 
-	lvbdata = libcfs_kvzalloc(lmmsize, GFP_NOFS);
+	lvbdata = kvzalloc(lmmsize, GFP_NOFS);
 	if (!lvbdata) {
 		rc = -ENOMEM;
 		goto out;

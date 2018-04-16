@@ -155,6 +155,18 @@ static void lif_configure(struct vsp1_entity *entity,
 			(obth << VI6_LIF_CTRL_OBTH_SHIFT) |
 			(format->code == 0 ? VI6_LIF_CTRL_CFMT : 0) |
 			VI6_LIF_CTRL_REQSEL | VI6_LIF_CTRL_LIF_EN);
+
+	/*
+	 * On R-Car V3M the LIF0 buffer attribute register has to be set to a
+	 * non-default value to guarantee proper operation (otherwise artifacts
+	 * may appear on the output). The value required by the manual is not
+	 * explained but is likely a buffer size or threshold.
+	 */
+	if ((entity->vsp1->version & VI6_IP_VERSION_MASK) ==
+	    (VI6_IP_VERSION_MODEL_VSPD_V3 | VI6_IP_VERSION_SOC_V3M))
+		vsp1_lif_write(lif, dl, VI6_LIF_LBA,
+			       VI6_LIF_LBA_LBA0 |
+			       (1536 << VI6_LIF_LBA_LBA1_SHIFT));
 }
 
 static const struct vsp1_entity_operations lif_entity_ops = {

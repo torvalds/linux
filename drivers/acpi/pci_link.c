@@ -173,8 +173,8 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRS"));
-		return -ENODEV;
+		acpi_handle_debug(link->device->handle, "_PRS not present or invalid");
+		return 0;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,

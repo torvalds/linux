@@ -574,6 +574,34 @@ static int bcm_sysport_set_wol(struct net_device *dev,
 	return 0;
 }
 
+static void bcm_sysport_set_rx_coalesce(struct bcm_sysport_priv *priv,
+					u32 usecs, u32 pkts)
+{
+	u32 reg;
+
+	reg = rdma_readl(priv, RDMA_MBDONE_INTR);
+	reg &= ~(RDMA_INTR_THRESH_MASK |
+		 RDMA_TIMEOUT_MASK << RDMA_TIMEOUT_SHIFT);
+	reg |= pkts;
+	reg |= DIV_ROUND_UP(usecs * 1000, 8192) << RDMA_TIMEOUT_SHIFT;
+	rdma_writel(priv, reg, RDMA_MBDONE_INTR);
+}
+
+static void bcm_sysport_set_tx_coalesce(struct bcm_sysport_tx_ring *ring,
+					struct ethtool_coalesce *ec)
+{
+	struct bcm_sysport_priv *priv = ring->priv;
+	u32 reg;
+
+	reg = tdma_readl(priv, TDMA_DESC_RING_INTR_CONTROL(ring->index));
+	reg &= ~(RING_INTR_THRESH_MASK |
+		 RING_TIMEOUT_MASK << RING_TIMEOUT_SHIFT);
+	reg |= ec->tx_max_coalesced_frames;
+	reg |= DIV_ROUND_UP(ec->tx_coalesce_usecs * 1000, 8192) <<
+			    RING_TIMEOUT_SHIFT;
+	tdma_writel(priv, reg, TDMA_DESC_RING_INTR_CONTROL(ring->index));
+}
+
 static int bcm_sysport_get_coalesce(struct net_device *dev,
 				    struct ethtool_coalesce *ec)
 {
@@ -589,6 +617,7 @@ static int bcm_sysport_get_coalesce(struct net_device *dev,
 
 	ec->rx_coalesce_usecs = (reg >> RDMA_TIMEOUT_SHIFT) * 8192 / 1000;
 	ec->rx_max_coalesced_frames = reg & RDMA_INTR_THRESH_MASK;
+	ec->use_adaptive_rx_coalesce = priv->dim.use_dim;
 
 	return 0;
 }
@@ -597,8 +626,9 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 				    struct ethtool_coalesce *ec)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	struct net_dim_cq_moder moder;
+	u32 usecs, pkts;
 	unsigned int i;
-	u32 reg;
 
 	/* Base system clock is 125Mhz, DMA timeout is this reference clock
 	 * divided by 1024, which yield roughly 8.192 us, our maximum value has
@@ -611,26 +641,28 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 		return -EINVAL;
 
 	if ((ec->tx_coalesce_usecs == 0 && ec->tx_max_coalesced_frames == 0) ||
-	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0))
+	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0) ||
+	    ec->use_adaptive_tx_coalesce)
 		return -EINVAL;
 
-	for (i = 0; i < dev->num_tx_queues; i++) {
-		reg = tdma_readl(priv, TDMA_DESC_RING_INTR_CONTROL(i));
-		reg &= ~(RING_INTR_THRESH_MASK |
-			 RING_TIMEOUT_MASK << RING_TIMEOUT_SHIFT);
-		reg |= ec->tx_max_coalesced_frames;
-		reg |= DIV_ROUND_UP(ec->tx_coalesce_usecs * 1000, 8192) <<
-			 RING_TIMEOUT_SHIFT;
-		tdma_writel(priv, reg, TDMA_DESC_RING_INTR_CONTROL(i));
+	for (i = 0; i < dev->num_tx_queues; i++)
+		bcm_sysport_set_tx_coalesce(&priv->tx_rings[i], ec);
+
+	priv->rx_coalesce_usecs = ec->rx_coalesce_usecs;
+	priv->rx_max_coalesced_frames = ec->rx_max_coalesced_frames;
+	usecs = priv->rx_coalesce_usecs;
+	pkts = priv->rx_max_coalesced_frames;
+
+	if (ec->use_adaptive_rx_coalesce && !priv->dim.use_dim) {
+		moder = net_dim_get_def_profile(priv->dim.dim.mode);
+		usecs = moder.usec;
+		pkts = moder.pkts;
 	}
 
-	reg = rdma_readl(priv, RDMA_MBDONE_INTR);
-	reg &= ~(RDMA_INTR_THRESH_MASK |
-		 RDMA_TIMEOUT_MASK << RDMA_TIMEOUT_SHIFT);
-	reg |= ec->rx_max_coalesced_frames;
-	reg |= DIV_ROUND_UP(ec->rx_coalesce_usecs * 1000, 8192) <<
-			    RDMA_TIMEOUT_SHIFT;
-	rdma_writel(priv, reg, RDMA_MBDONE_INTR);
+	priv->dim.use_dim = ec->use_adaptive_rx_coalesce;
+
+	/* Apply desired coalescing parameters */
+	bcm_sysport_set_rx_coalesce(priv, usecs, pkts);
 
 	return 0;
 }
@@ -709,6 +741,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 	struct bcm_sysport_stats64 *stats64 = &priv->stats64;
 	struct net_device *ndev = priv->netdev;
 	unsigned int processed = 0, to_process;
+	unsigned int processed_bytes = 0;
 	struct bcm_sysport_cb *cb;
 	struct sk_buff *skb;
 	unsigned int p_index;
@@ -800,6 +833,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		 */
 		skb_pull(skb, sizeof(*rsb) + 2);
 		len -= (sizeof(*rsb) + 2);
+		processed_bytes += len;
 
 		/* UniMAC may forward CRC */
 		if (priv->crc_fwd) {
@@ -823,6 +857,9 @@ next:
 		if (priv->rx_read_ptr == priv->num_rx_bds)
 			priv->rx_read_ptr = 0;
 	}
+
+	priv->dim.packets = processed;
+	priv->dim.bytes = processed_bytes;
 
 	return processed;
 }
@@ -972,6 +1009,7 @@ static int bcm_sysport_poll(struct napi_struct *napi, int budget)
 {
 	struct bcm_sysport_priv *priv =
 		container_of(napi, struct bcm_sysport_priv, napi);
+	struct net_dim_sample dim_sample;
 	unsigned int work_done = 0;
 
 	work_done = bcm_sysport_desc_rx(priv, budget);
@@ -994,6 +1032,12 @@ static int bcm_sysport_poll(struct napi_struct *napi, int budget)
 		intrl2_0_mask_clear(priv, INTRL2_0_RDMA_MBDONE);
 	}
 
+	if (priv->dim.use_dim) {
+		net_dim_sample(priv->dim.event_ctr, priv->dim.packets,
+			       priv->dim.bytes, &dim_sample);
+		net_dim(&priv->dim.dim, dim_sample);
+	}
+
 	return work_done;
 }
 
@@ -1010,6 +1054,20 @@ static void bcm_sysport_resume_from_wol(struct bcm_sysport_priv *priv)
 	umac_writel(priv, reg, UMAC_MPD_CTRL);
 
 	netif_dbg(priv, wol, priv->netdev, "resumed from WOL\n");
+}
+
+static void bcm_sysport_dim_work(struct work_struct *work)
+{
+	struct net_dim *dim = container_of(work, struct net_dim, work);
+	struct bcm_sysport_net_dim *ndim =
+			container_of(dim, struct bcm_sysport_net_dim, dim);
+	struct bcm_sysport_priv *priv =
+			container_of(ndim, struct bcm_sysport_priv, dim);
+	struct net_dim_cq_moder cur_profile =
+				net_dim_get_profile(dim->mode, dim->profile_ix);
+
+	bcm_sysport_set_rx_coalesce(priv, cur_profile.usec, cur_profile.pkts);
+	dim->state = NET_DIM_START_MEASURE;
 }
 
 /* RX and misc interrupt routine */
@@ -1030,6 +1088,7 @@ static irqreturn_t bcm_sysport_rx_isr(int irq, void *dev_id)
 	}
 
 	if (priv->irq0_stat & INTRL2_0_RDMA_MBDONE) {
+		priv->dim.event_ctr++;
 		if (likely(napi_schedule_prep(&priv->napi))) {
 			/* disable RX interrupts */
 			intrl2_0_mask_set(priv, INTRL2_0_RDMA_MBDONE);
@@ -1133,7 +1192,7 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 	u32 csum_info;
 	u8 ip_proto;
 	u16 csum_start;
-	u16 ip_ver;
+	__be16 ip_ver;
 
 	/* Re-allocate SKB if needed */
 	if (unlikely(skb_headroom(skb) < sizeof(*tsb))) {
@@ -1152,12 +1211,12 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 	memset(tsb, 0, sizeof(*tsb));
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		ip_ver = htons(skb->protocol);
+		ip_ver = skb->protocol;
 		switch (ip_ver) {
-		case ETH_P_IP:
+		case htons(ETH_P_IP):
 			ip_proto = ip_hdr(skb)->protocol;
 			break;
-		case ETH_P_IPV6:
+		case htons(ETH_P_IPV6):
 			ip_proto = ipv6_hdr(skb)->nexthdr;
 			break;
 		default:
@@ -1171,7 +1230,8 @@ static struct sk_buff *bcm_sysport_insert_tsb(struct sk_buff *skb,
 
 		if (ip_proto == IPPROTO_TCP || ip_proto == IPPROTO_UDP) {
 			csum_info |= L4_LENGTH_VALID;
-			if (ip_proto == IPPROTO_UDP && ip_ver == ETH_P_IP)
+			if (ip_proto == IPPROTO_UDP &&
+			    ip_ver == htons(ETH_P_IP))
 				csum_info |= L4_UDP;
 		} else {
 			csum_info = 0;
@@ -1352,6 +1412,37 @@ static void bcm_sysport_adj_link(struct net_device *dev)
 out:
 	if (changed)
 		phy_print_status(phydev);
+}
+
+static void bcm_sysport_init_dim(struct bcm_sysport_priv *priv,
+				 void (*cb)(struct work_struct *work))
+{
+	struct bcm_sysport_net_dim *dim = &priv->dim;
+
+	INIT_WORK(&dim->dim.work, cb);
+	dim->dim.mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	dim->event_ctr = 0;
+	dim->packets = 0;
+	dim->bytes = 0;
+}
+
+static void bcm_sysport_init_rx_coalesce(struct bcm_sysport_priv *priv)
+{
+	struct bcm_sysport_net_dim *dim = &priv->dim;
+	struct net_dim_cq_moder moder;
+	u32 usecs, pkts;
+
+	usecs = priv->rx_coalesce_usecs;
+	pkts = priv->rx_max_coalesced_frames;
+
+	/* If DIM was enabled, re-apply default parameters */
+	if (dim->use_dim) {
+		moder = net_dim_get_def_profile(dim->dim.mode);
+		usecs = moder.usec;
+		pkts = moder.pkts;
+	}
+
+	bcm_sysport_set_rx_coalesce(priv, usecs, pkts);
 }
 
 static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
@@ -1594,8 +1685,6 @@ static int bcm_sysport_init_rx_ring(struct bcm_sysport_priv *priv)
 	rdma_writel(priv, 0, RDMA_END_ADDR_HI);
 	rdma_writel(priv, priv->num_rx_desc_words - 1, RDMA_END_ADDR_LO);
 
-	rdma_writel(priv, 1, RDMA_MBDONE_INTR);
-
 	netif_dbg(priv, hw, priv->netdev,
 		  "RDMA cfg, num_rx_bds=%d, rx_bds=%p\n",
 		  priv->num_rx_bds, priv->rx_bds);
@@ -1763,6 +1852,8 @@ static void bcm_sysport_netif_start(struct net_device *dev)
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 
 	/* Enable NAPI */
+	bcm_sysport_init_dim(priv, bcm_sysport_dim_work);
+	bcm_sysport_init_rx_coalesce(priv);
 	napi_enable(&priv->napi);
 
 	/* Enable RX interrupt and TX ring full interrupt */
@@ -1948,6 +2039,7 @@ static void bcm_sysport_netif_stop(struct net_device *dev)
 	/* stop all software from updating hardware */
 	netif_tx_stop_all_queues(dev);
 	napi_disable(&priv->napi);
+	cancel_work_sync(&priv->dim.dim.work);
 	phy_stop(dev->phydev);
 
 	/* mask all interrupts */
@@ -2267,6 +2359,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	/* libphy will adjust the link state accordingly */
 	netif_carrier_off(dev);
 
+	priv->rx_max_coalesced_frames = 1;
 	u64_stats_init(&priv->syncp);
 
 	priv->dsa_notifier.notifier_call = bcm_sysport_dsa_notifier;

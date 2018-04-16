@@ -182,7 +182,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			dev_err(wm831x->dev,
 				"GPIO control %d read failed: %d\n",
 				gpio, reg);
-			seq_printf(s, "\n");
+			seq_putc(s, '\n');
 			continue;
 		}
 

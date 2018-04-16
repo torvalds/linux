@@ -234,7 +234,7 @@ static void pseries_cpu_die(unsigned int cpu)
 	 * done here.  Change isolate state to Isolate and
 	 * change allocation-state to Unusable.
 	 */
-	paca[cpu].cpu_start = 0;
+	paca_ptrs[cpu]->cpu_start = 0;
 }
 
 /*

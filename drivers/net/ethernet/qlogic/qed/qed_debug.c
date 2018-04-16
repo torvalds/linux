@@ -265,6 +265,7 @@ struct grc_param_defs {
 	u32 min;
 	u32 max;
 	bool is_preset;
+	bool is_persistent;
 	u32 exclude_all_preset_val;
 	u32 crash_preset_val;
 };
@@ -1520,129 +1521,129 @@ static struct platform_defs s_platform_defs[] = {
 
 static struct grc_param_defs s_grc_param_defs[] = {
 	/* DBG_GRC_PARAM_DUMP_TSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_MSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_USTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_XSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_YSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_REGS */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_RAM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PBUF */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_IOR */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_VFC */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_CM_CTX */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_ILT */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_RSS */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_CAU */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_QM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_MCP */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
-	/* DBG_GRC_PARAM_RESERVED */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	/* DBG_GRC_PARAM_MCP_TRACE_META_SIZE */
+	{{1, 1, 1}, 1, 0xffffffff, false, true, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_CFC */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_IGU */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_BRB */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_BTB */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_BMB */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_NIG */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_MULD */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PRS */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_DMAE */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_TM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_SDM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_DIF */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_STATIC */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_UNSTALL */
-	{{0, 0, 0}, 0, 1, false, 0, 0},
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
 
 	/* DBG_GRC_PARAM_NUM_LCIDS */
-	{{MAX_LCIDS, MAX_LCIDS, MAX_LCIDS}, 1, MAX_LCIDS, false, MAX_LCIDS,
-	 MAX_LCIDS},
+	{{MAX_LCIDS, MAX_LCIDS, MAX_LCIDS}, 1, MAX_LCIDS, false, false,
+	 MAX_LCIDS, MAX_LCIDS},
 
 	/* DBG_GRC_PARAM_NUM_LTIDS */
-	{{MAX_LTIDS, MAX_LTIDS, MAX_LTIDS}, 1, MAX_LTIDS, false, MAX_LTIDS,
-	 MAX_LTIDS},
+	{{MAX_LTIDS, MAX_LTIDS, MAX_LTIDS}, 1, MAX_LTIDS, false, false,
+	 MAX_LTIDS, MAX_LTIDS},
 
 	/* DBG_GRC_PARAM_EXCLUDE_ALL */
-	{{0, 0, 0}, 0, 1, true, 0, 0},
+	{{0, 0, 0}, 0, 1, true, false, 0, 0},
 
 	/* DBG_GRC_PARAM_CRASH */
-	{{0, 0, 0}, 0, 1, true, 0, 0},
+	{{0, 0, 0}, 0, 1, true, false, 0, 0},
 
 	/* DBG_GRC_PARAM_PARITY_SAFE */
-	{{0, 0, 0}, 0, 1, false, 1, 0},
+	{{0, 0, 0}, 0, 1, false, false, 1, 0},
 
 	/* DBG_GRC_PARAM_DUMP_CM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PHY */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_NO_MCP */
-	{{0, 0, 0}, 0, 1, false, 0, 0},
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
 
 	/* DBG_GRC_PARAM_NO_FW_VER */
-	{{0, 0, 0}, 0, 1, false, 0, 0}
+	{{0, 0, 0}, 0, 1, false, false, 0, 0}
 };
 
 static struct rss_mem_defs s_rss_mem_defs[] = {
@@ -4731,8 +4732,13 @@ static enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_section_hdr(dump_buf + offset,
 				       dump, "mcp_trace_meta", 1);
 
-	/* Read trace meta info (trace_meta_size_bytes is dword-aligned) */
-	if (mcp_access) {
+	/* If MCP Trace meta size parameter was set, use it.
+	 * Otherwise, read trace meta.
+	 * trace_meta_size_bytes is dword-aligned.
+	 */
+	trace_meta_size_bytes =
+		qed_grc_get_param(p_hwfn, DBG_GRC_PARAM_MCP_TRACE_META_SIZE);
+	if ((!trace_meta_size_bytes || dump) && mcp_access) {
 		status = qed_mcp_trace_get_meta_info(p_hwfn,
 						     p_ptt,
 						     trace_data_size_bytes,
@@ -5063,8 +5069,9 @@ void qed_dbg_grc_set_params_default(struct qed_hwfn *p_hwfn)
 	u32 i;
 
 	for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
-		dev_data->grc.param_val[i] =
-		    s_grc_param_defs[i].default_val[dev_data->chip_id];
+		if (!s_grc_param_defs[i].is_persistent)
+			dev_data->grc.param_val[i] =
+			    s_grc_param_defs[i].default_val[dev_data->chip_id];
 }
 
 enum dbg_status qed_dbg_grc_get_dump_buf_size(struct qed_hwfn *p_hwfn,
@@ -6071,10 +6078,14 @@ static const struct igu_fifo_addr_data s_igu_fifo_addr_data[] = {
 
 /******************************** Variables **********************************/
 
-/* MCP Trace meta data - used in case the dump doesn't contain the meta data
- * (e.g. due to no NVRAM access).
+/* MCP Trace meta data array - used in case the dump doesn't contain the
+ * meta data (e.g. due to no NVRAM access).
  */
-static struct user_dbg_array s_mcp_trace_meta = { NULL, 0 };
+static struct user_dbg_array s_mcp_trace_meta_arr = { NULL, 0 };
+
+/* Parsed MCP Trace meta data info, based on MCP trace meta array */
+static struct mcp_trace_meta s_mcp_trace_meta;
+static bool s_mcp_trace_meta_valid;
 
 /* Temporary buffer, used for print size calculations */
 static char s_temp_buf[MAX_MSG_LEN];
@@ -6104,6 +6115,9 @@ static u32 qed_read_from_cyclic_buf(void *buf,
 
 	val_ptr = (u8 *)&val;
 
+	/* Assume running on a LITTLE ENDIAN and the buffer is network order
+	 * (BIG ENDIAN), as high order bytes are placed in lower memory address.
+	 */
 	for (i = 0; i < num_bytes_to_read; i++) {
 		val_ptr[i] = bytes_buf[*offset];
 		*offset = qed_cyclic_add(*offset, 1, buf_size);
@@ -6185,7 +6199,7 @@ static u32 qed_read_param(u32 *dump_buf,
 		offset += 4;
 	}
 
-	return offset / 4;
+	return (u32)offset / 4;
 }
 
 /* Reads a section header from the specified buffer.
@@ -6503,6 +6517,8 @@ static void qed_mcp_trace_free_meta(struct qed_hwfn *p_hwfn,
 {
 	u32 i;
 
+	s_mcp_trace_meta_valid = false;
+
 	/* Release modules */
 	if (meta->modules) {
 		for (i = 0; i < meta->modules_num; i++)
@@ -6528,6 +6544,10 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
 {
 	u8 *meta_buf_bytes = (u8 *)meta_buf;
 	u32 offset = 0, signature, i;
+
+	/* Free the previous meta before loading a new one. */
+	if (s_mcp_trace_meta_valid)
+		qed_mcp_trace_free_meta(p_hwfn, meta);
 
 	memset(meta, 0, sizeof(*meta));
 
@@ -6594,31 +6614,153 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
 				      format_len, format_ptr->format_str);
 	}
 
+	s_mcp_trace_meta_valid = true;
 	return DBG_STATUS_OK;
+}
+
+/* Parses an MCP trace buffer. If result_buf is not NULL, the MCP Trace results
+ * are printed to it. The parsing status is returned.
+ * Arguments:
+ * trace_buf - MCP trace cyclic buffer
+ * trace_buf_size - MCP trace cyclic buffer size in bytes
+ * data_offset - offset in bytes of the data to parse in the MCP trace cyclic
+ *               buffer.
+ * data_size - size in bytes of data to parse.
+ * parsed_buf - destination buffer for parsed data.
+ * parsed_bytes - size of parsed data in bytes.
+ */
+static enum dbg_status qed_parse_mcp_trace_buf(u8 *trace_buf,
+					       u32 trace_buf_size,
+					       u32 data_offset,
+					       u32 data_size,
+					       char *parsed_buf,
+					       u32 *parsed_bytes)
+{
+	u32 param_mask, param_shift;
+	enum dbg_status status;
+
+	*parsed_bytes = 0;
+
+	if (!s_mcp_trace_meta_valid)
+		return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+	status = DBG_STATUS_OK;
+
+	while (data_size) {
+		struct mcp_trace_format *format_ptr;
+		u8 format_level, format_module;
+		u32 params[3] = { 0, 0, 0 };
+		u32 header, format_idx, i;
+
+		if (data_size < MFW_TRACE_ENTRY_SIZE)
+			return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+		header = qed_read_from_cyclic_buf(trace_buf,
+						  &data_offset,
+						  trace_buf_size,
+						  MFW_TRACE_ENTRY_SIZE);
+		data_size -= MFW_TRACE_ENTRY_SIZE;
+		format_idx = header & MFW_TRACE_EVENTID_MASK;
+
+		/* Skip message if its index doesn't exist in the meta data */
+		if (format_idx > s_mcp_trace_meta.formats_num) {
+			u8 format_size =
+				(u8)((header & MFW_TRACE_PRM_SIZE_MASK) >>
+				     MFW_TRACE_PRM_SIZE_SHIFT);
+
+			if (data_size < format_size)
+				return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+			data_offset = qed_cyclic_add(data_offset,
+						     format_size,
+						     trace_buf_size);
+			data_size -= format_size;
+			continue;
+		}
+
+		format_ptr = &s_mcp_trace_meta.formats[format_idx];
+
+		for (i = 0,
+		     param_mask = MCP_TRACE_FORMAT_P1_SIZE_MASK,
+		     param_shift = MCP_TRACE_FORMAT_P1_SIZE_SHIFT;
+		     i < MCP_TRACE_FORMAT_MAX_PARAMS;
+		     i++,
+		     param_mask <<= MCP_TRACE_FORMAT_PARAM_WIDTH,
+		     param_shift += MCP_TRACE_FORMAT_PARAM_WIDTH) {
+			/* Extract param size (0..3) */
+			u8 param_size = (u8)((format_ptr->data & param_mask) >>
+					     param_shift);
+
+			/* If the param size is zero, there are no other
+			 * parameters.
+			 */
+			if (!param_size)
+				break;
+
+			/* Size is encoded using 2 bits, where 3 is used to
+			 * encode 4.
+			 */
+			if (param_size == 3)
+				param_size = 4;
+
+			if (data_size < param_size)
+				return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+			params[i] = qed_read_from_cyclic_buf(trace_buf,
+							     &data_offset,
+							     trace_buf_size,
+							     param_size);
+			data_size -= param_size;
+		}
+
+		format_level = (u8)((format_ptr->data &
+				     MCP_TRACE_FORMAT_LEVEL_MASK) >>
+				    MCP_TRACE_FORMAT_LEVEL_SHIFT);
+		format_module = (u8)((format_ptr->data &
+				      MCP_TRACE_FORMAT_MODULE_MASK) >>
+				     MCP_TRACE_FORMAT_MODULE_SHIFT);
+		if (format_level >= ARRAY_SIZE(s_mcp_trace_level_str))
+			return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+		/* Print current message to results buffer */
+		*parsed_bytes +=
+			sprintf(qed_get_buf_ptr(parsed_buf, *parsed_bytes),
+				"%s %-8s: ",
+				s_mcp_trace_level_str[format_level],
+				s_mcp_trace_meta.modules[format_module]);
+		*parsed_bytes +=
+		    sprintf(qed_get_buf_ptr(parsed_buf, *parsed_bytes),
+			    format_ptr->format_str,
+			    params[0], params[1], params[2]);
+	}
+
+	/* Add string NULL terminator */
+	(*parsed_bytes)++;
+
+	return status;
 }
 
 /* Parses an MCP Trace dump buffer.
  * If result_buf is not NULL, the MCP Trace results are printed to it.
  * In any case, the required results buffer size is assigned to
- * parsed_results_bytes.
+ * parsed_bytes.
  * The parsing status is returned.
  */
 static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 						u32 *dump_buf,
-						char *results_buf,
-						u32 *parsed_results_bytes)
+						char *parsed_buf,
+						u32 *parsed_bytes)
 {
-	u32 end_offset, bytes_left, trace_data_dwords, trace_meta_dwords;
-	u32 param_mask, param_shift, param_num_val, num_section_params;
 	const char *section_name, *param_name, *param_str_val;
-	u32 offset, results_offset = 0;
-	struct mcp_trace_meta meta;
+	u32 data_size, trace_data_dwords, trace_meta_dwords;
+	u32 offset, results_offset, parsed_buf_bytes;
+	u32 param_num_val, num_section_params;
 	struct mcp_trace *trace;
 	enum dbg_status status;
 	const u32 *meta_buf;
 	u8 *trace_buf;
 
-	*parsed_results_bytes = 0;
+	*parsed_bytes = 0;
 
 	/* Read global_params section */
 	dump_buf += qed_read_section_hdr(dump_buf,
@@ -6629,7 +6771,7 @@ static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 	/* Print global params */
 	dump_buf += qed_print_section_params(dump_buf,
 					     num_section_params,
-					     results_buf, &results_offset);
+					     parsed_buf, &results_offset);
 
 	/* Read trace_data section */
 	dump_buf += qed_read_section_hdr(dump_buf,
@@ -6646,8 +6788,7 @@ static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 	trace = (struct mcp_trace *)dump_buf;
 	trace_buf = (u8 *)dump_buf + sizeof(*trace);
 	offset = trace->trace_oldest;
-	end_offset = trace->trace_prod;
-	bytes_left = qed_cyclic_sub(end_offset, offset, trace->size);
+	data_size = qed_cyclic_sub(trace->trace_prod, offset, trace->size);
 	dump_buf += trace_data_dwords;
 
 	/* Read meta_data section */
@@ -6664,126 +6805,33 @@ static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 	/* Choose meta data buffer */
 	if (!trace_meta_dwords) {
 		/* Dump doesn't include meta data */
-		if (!s_mcp_trace_meta.ptr)
+		if (!s_mcp_trace_meta_arr.ptr)
 			return DBG_STATUS_MCP_TRACE_NO_META;
-		meta_buf = s_mcp_trace_meta.ptr;
+		meta_buf = s_mcp_trace_meta_arr.ptr;
 	} else {
 		/* Dump includes meta data */
 		meta_buf = dump_buf;
 	}
 
 	/* Allocate meta data memory */
-	status = qed_mcp_trace_alloc_meta(p_hwfn, meta_buf, &meta);
+	status = qed_mcp_trace_alloc_meta(p_hwfn, meta_buf, &s_mcp_trace_meta);
 	if (status != DBG_STATUS_OK)
-		goto free_mem;
+		return status;
 
-	/* Ignore the level and modules masks - just print everything that is
-	 * already in the buffer.
-	 */
-	while (bytes_left) {
-		struct mcp_trace_format *format_ptr;
-		u8 format_level, format_module;
-		u32 params[3] = { 0, 0, 0 };
-		u32 header, format_idx, i;
+	status = qed_parse_mcp_trace_buf(trace_buf,
+					 trace->size,
+					 offset,
+					 data_size,
+					 parsed_buf ?
+					 parsed_buf + results_offset :
+					 NULL,
+					 &parsed_buf_bytes);
+	if (status != DBG_STATUS_OK)
+		return status;
 
-		if (bytes_left < MFW_TRACE_ENTRY_SIZE) {
-			status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-			goto free_mem;
-		}
+	*parsed_bytes = results_offset + parsed_buf_bytes;
 
-		header = qed_read_from_cyclic_buf(trace_buf,
-						  &offset,
-						  trace->size,
-						  MFW_TRACE_ENTRY_SIZE);
-		bytes_left -= MFW_TRACE_ENTRY_SIZE;
-		format_idx = header & MFW_TRACE_EVENTID_MASK;
-
-		/* Skip message if its  index doesn't exist in the meta data */
-		if (format_idx > meta.formats_num) {
-			u8 format_size =
-			    (u8)((header &
-				  MFW_TRACE_PRM_SIZE_MASK) >>
-				 MFW_TRACE_PRM_SIZE_SHIFT);
-
-			if (bytes_left < format_size) {
-				status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-				goto free_mem;
-			}
-
-			offset = qed_cyclic_add(offset,
-						format_size, trace->size);
-			bytes_left -= format_size;
-			continue;
-		}
-
-		format_ptr = &meta.formats[format_idx];
-
-		for (i = 0,
-		     param_mask = MCP_TRACE_FORMAT_P1_SIZE_MASK, param_shift =
-		     MCP_TRACE_FORMAT_P1_SIZE_SHIFT;
-		     i < MCP_TRACE_FORMAT_MAX_PARAMS;
-		     i++, param_mask <<= MCP_TRACE_FORMAT_PARAM_WIDTH,
-		     param_shift += MCP_TRACE_FORMAT_PARAM_WIDTH) {
-			/* Extract param size (0..3) */
-			u8 param_size =
-			    (u8)((format_ptr->data &
-				  param_mask) >> param_shift);
-
-			/* If the param size is zero, there are no other
-			 * parameters.
-			 */
-			if (!param_size)
-				break;
-
-			/* Size is encoded using 2 bits, where 3 is used to
-			 * encode 4.
-			 */
-			if (param_size == 3)
-				param_size = 4;
-
-			if (bytes_left < param_size) {
-				status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-				goto free_mem;
-			}
-
-			params[i] = qed_read_from_cyclic_buf(trace_buf,
-							     &offset,
-							     trace->size,
-							     param_size);
-
-			bytes_left -= param_size;
-		}
-
-		format_level =
-		    (u8)((format_ptr->data &
-			  MCP_TRACE_FORMAT_LEVEL_MASK) >>
-			 MCP_TRACE_FORMAT_LEVEL_SHIFT);
-		format_module =
-		    (u8)((format_ptr->data &
-			  MCP_TRACE_FORMAT_MODULE_MASK) >>
-			 MCP_TRACE_FORMAT_MODULE_SHIFT);
-		if (format_level >= ARRAY_SIZE(s_mcp_trace_level_str)) {
-			status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-			goto free_mem;
-		}
-
-		/* Print current message to results buffer */
-		results_offset +=
-		    sprintf(qed_get_buf_ptr(results_buf,
-					    results_offset), "%s %-8s: ",
-			    s_mcp_trace_level_str[format_level],
-			    meta.modules[format_module]);
-		results_offset +=
-		    sprintf(qed_get_buf_ptr(results_buf,
-					    results_offset),
-			    format_ptr->format_str, params[0], params[1],
-			    params[2]);
-	}
-
-free_mem:
-	*parsed_results_bytes = results_offset + 1;
-	qed_mcp_trace_free_meta(p_hwfn, &meta);
-	return status;
+	return DBG_STATUS_OK;
 }
 
 /* Parses a Reg FIFO dump buffer.
@@ -7291,8 +7339,8 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
 
 void qed_dbg_mcp_trace_set_meta_data(u32 *data, u32 size)
 {
-	s_mcp_trace_meta.ptr = data;
-	s_mcp_trace_meta.size_in_dwords = size;
+	s_mcp_trace_meta_arr.ptr = data;
+	s_mcp_trace_meta_arr.size_in_dwords = size;
 }
 
 enum dbg_status qed_get_mcp_trace_results_buf_size(struct qed_hwfn *p_hwfn,
@@ -7314,6 +7362,19 @@ enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
 	return qed_parse_mcp_trace_dump(p_hwfn,
 					dump_buf,
 					results_buf, &parsed_buf_size);
+}
+
+enum dbg_status qed_print_mcp_trace_line(u8 *dump_buf,
+					 u32 num_dumped_bytes,
+					 char *results_buf)
+{
+	u32 parsed_bytes;
+
+	return qed_parse_mcp_trace_buf(dump_buf,
+				       num_dumped_bytes,
+				       0,
+				       num_dumped_bytes,
+				       results_buf, &parsed_bytes);
 }
 
 enum dbg_status qed_get_reg_fifo_results_buf_size(struct qed_hwfn *p_hwfn,
@@ -7891,6 +7952,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		}
 	}
 
+	qed_set_debug_engine(cdev, org_engine);
 	/* mcp_trace */
 	rc = qed_dbg_mcp_trace(cdev, (u8 *)buffer + offset +
 			       REGDUMP_HEADER_SIZE, &feature_size);
@@ -7902,8 +7964,6 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 	} else {
 		DP_ERR(cdev, "qed_dbg_mcp_trace failed. rc = %d\n", rc);
 	}
-
-	qed_set_debug_engine(cdev, org_engine);
 
 	return 0;
 }
@@ -7929,9 +7989,10 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 			    REGDUMP_HEADER_SIZE + qed_dbg_fw_asserts_size(cdev);
 	}
 
+	qed_set_debug_engine(cdev, org_engine);
+
 	/* Engine common */
 	regs_len += REGDUMP_HEADER_SIZE + qed_dbg_mcp_trace_size(cdev);
-	qed_set_debug_engine(cdev, org_engine);
 
 	return regs_len;
 }

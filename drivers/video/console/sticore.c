@@ -827,10 +827,8 @@ static struct sti_struct *sti_try_rom_generic(unsigned long address,
 	}
 	
 	sti = kzalloc(sizeof(*sti), GFP_KERNEL);
-	if (!sti) {
-		printk(KERN_ERR "Not enough memory !\n");
+	if (!sti)
 		return NULL;
-	}
 
 	spin_lock_init(&sti->lock);
 

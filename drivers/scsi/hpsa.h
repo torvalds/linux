@@ -158,6 +158,7 @@ struct bmic_controller_parameters {
 #pragma pack()
 
 struct ctlr_info {
+	unsigned int *reply_map;
 	int	ctlr;
 	char	devname[8];
 	char    *product_name;

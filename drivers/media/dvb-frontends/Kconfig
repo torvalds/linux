@@ -462,7 +462,7 @@ config DVB_TDA10048
 
 config DVB_AF9013
 	tristate "Afatech AF9013 demodulator"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && I2C_MUX
 	select REGMAP
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -545,6 +545,8 @@ config DVB_GP8PSK_FE
 	tristate
 	depends on DVB_CORE
 	default DVB_USB_GP8PSK
+
+source "drivers/media/dvb-frontends/cxd2880/Kconfig"
 
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
@@ -822,13 +824,6 @@ config DVB_A8293
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 
-config DVB_SP2
-	tristate "CIMaX SP2"
-	depends on DVB_CORE && I2C
-	default m if !MEDIA_SUBDRV_AUTOSELECT
-	help
-	  CIMaX SP2/SP2HF Common Interface module.
-
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
@@ -903,6 +898,27 @@ config DVB_HELENE
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
+
+comment "Common Interface (EN50221) controller drivers"
+	depends on DVB_CORE
+
+config DVB_CXD2099
+	tristate "CXD2099AR Common Interface driver"
+	depends on DVB_CORE && I2C
+	select REGMAP_I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  A driver for the CI controller currently found mostly on
+	  Digital Devices DuoFlex CI (single) addon modules.
+
+	  Say Y when you want to support these devices.
+
+config DVB_SP2
+	tristate "CIMaX SP2"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  CIMaX SP2/SP2HF Common Interface module.
 
 comment "Tools to develop new frontends"
 

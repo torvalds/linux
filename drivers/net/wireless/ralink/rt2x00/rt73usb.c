@@ -38,7 +38,7 @@
  * Allow hardware encryption to be disabled.
  */
 static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 /*

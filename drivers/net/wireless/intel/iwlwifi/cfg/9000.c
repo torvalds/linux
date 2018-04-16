@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,6 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,9 +55,10 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-agn-hw.h"
+#include "fw/file.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	36
+#define IWL9000_UCODE_API_MAX	38
 
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	30
@@ -265,6 +268,67 @@ const struct iwl_cfg iwl9560_2ac_cfg_soc = {
 	.integrated = true,
 	.soc_latency = 5000,
 };
+
+const struct iwl_cfg iwl9460_2ac_cfg_shared_clk = {
+	.name = "Intel(R) Dual Band Wireless AC 9460",
+	.fw_name_pre = IWL9000A_FW_PRE,
+	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
+	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
+	IWL_DEVICE_9000,
+	.ht_params = &iwl9000_ht_params,
+	.nvm_ver = IWL9000_NVM_VERSION,
+	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	.integrated = true,
+	.soc_latency = 5000,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
+};
+
+const struct iwl_cfg iwl9461_2ac_cfg_shared_clk = {
+	.name = "Intel(R) Dual Band Wireless AC 9461",
+	.fw_name_pre = IWL9000A_FW_PRE,
+	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
+	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
+	IWL_DEVICE_9000,
+	.ht_params = &iwl9000_ht_params,
+	.nvm_ver = IWL9000_NVM_VERSION,
+	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	.integrated = true,
+	.soc_latency = 5000,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
+};
+
+const struct iwl_cfg iwl9462_2ac_cfg_shared_clk = {
+	.name = "Intel(R) Dual Band Wireless AC 9462",
+	.fw_name_pre = IWL9000A_FW_PRE,
+	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
+	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
+	IWL_DEVICE_9000,
+	.ht_params = &iwl9000_ht_params,
+	.nvm_ver = IWL9000_NVM_VERSION,
+	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	.integrated = true,
+	.soc_latency = 5000,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
+};
+
+const struct iwl_cfg iwl9560_2ac_cfg_shared_clk = {
+	.name = "Intel(R) Dual Band Wireless AC 9560",
+	.fw_name_pre = IWL9000A_FW_PRE,
+	.fw_name_pre_b_or_c_step = IWL9000B_FW_PRE,
+	.fw_name_pre_rf_next_step = IWL9000RFB_FW_PRE,
+	IWL_DEVICE_9000,
+	.ht_params = &iwl9000_ht_params,
+	.nvm_ver = IWL9000_NVM_VERSION,
+	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	.integrated = true,
+	.soc_latency = 5000,
+	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
+};
+
 MODULE_FIRMWARE(IWL9000A_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL9000B_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL9000RFB_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

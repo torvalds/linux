@@ -45,81 +45,38 @@
  * TIPC addressing primitives
  */
 
-struct tipc_portid {
+struct tipc_socket_addr {
 	__u32 ref;
 	__u32 node;
 };
 
-struct tipc_name {
+struct tipc_service_addr {
 	__u32 type;
 	__u32 instance;
 };
 
-struct tipc_name_seq {
+struct tipc_service_range {
 	__u32 type;
 	__u32 lower;
 	__u32 upper;
 };
 
-/* TIPC Address Size, Offset, Mask specification for Z.C.N
+/*
+ * Application-accessible service types
  */
-#define TIPC_NODE_BITS          12
-#define TIPC_CLUSTER_BITS       12
-#define TIPC_ZONE_BITS          8
 
-#define TIPC_NODE_OFFSET        0
-#define TIPC_CLUSTER_OFFSET     TIPC_NODE_BITS
-#define TIPC_ZONE_OFFSET        (TIPC_CLUSTER_OFFSET + TIPC_CLUSTER_BITS)
-
-#define TIPC_NODE_SIZE          ((1UL << TIPC_NODE_BITS) - 1)
-#define TIPC_CLUSTER_SIZE       ((1UL << TIPC_CLUSTER_BITS) - 1)
-#define TIPC_ZONE_SIZE          ((1UL << TIPC_ZONE_BITS) - 1)
-
-#define TIPC_NODE_MASK		(TIPC_NODE_SIZE << TIPC_NODE_OFFSET)
-#define TIPC_CLUSTER_MASK	(TIPC_CLUSTER_SIZE << TIPC_CLUSTER_OFFSET)
-#define TIPC_ZONE_MASK		(TIPC_ZONE_SIZE << TIPC_ZONE_OFFSET)
-
-#define TIPC_ZONE_CLUSTER_MASK (TIPC_ZONE_MASK | TIPC_CLUSTER_MASK)
-
-static inline __u32 tipc_addr(unsigned int zone,
-			      unsigned int cluster,
-			      unsigned int node)
-{
-	return (zone << TIPC_ZONE_OFFSET) |
-		(cluster << TIPC_CLUSTER_OFFSET) |
-		node;
-}
-
-static inline unsigned int tipc_zone(__u32 addr)
-{
-	return addr >> TIPC_ZONE_OFFSET;
-}
-
-static inline unsigned int tipc_cluster(__u32 addr)
-{
-	return (addr & TIPC_CLUSTER_MASK) >> TIPC_CLUSTER_OFFSET;
-}
-
-static inline unsigned int tipc_node(__u32 addr)
-{
-	return addr & TIPC_NODE_MASK;
-}
+#define TIPC_NODE_STATE		0	/* node state service type */
+#define TIPC_TOP_SRV		1	/* topology server service type */
+#define TIPC_LINK_STATE		2	/* link state service type */
+#define TIPC_RESERVED_TYPES	64	/* lowest user-allowed service type */
 
 /*
- * Application-accessible port name types
+ * Publication scopes when binding service / service range
  */
-
-#define TIPC_CFG_SRV		0	/* configuration service name type */
-#define TIPC_TOP_SRV		1	/* topology service name type */
-#define TIPC_LINK_STATE		2	/* link state name type */
-#define TIPC_RESERVED_TYPES	64	/* lowest user-publishable name type */
-
-/*
- * Publication scopes when binding port names and port name sequences
- */
-#define TIPC_ZONE_SCOPE         1
-#define TIPC_CLUSTER_SCOPE      2
-#define TIPC_NODE_SCOPE         3
+enum tipc_scope {
+	TIPC_CLUSTER_SCOPE = 2, /* 0 can also be used */
+	TIPC_NODE_SCOPE    = 3
+};
 
 /*
  * Limiting values for messages
@@ -151,28 +108,28 @@ static inline unsigned int tipc_node(__u32 addr)
  * TIPC topology subscription service definitions
  */
 
-#define TIPC_SUB_PORTS		0x01	/* filter for port availability */
-#define TIPC_SUB_SERVICE	0x02	/* filter for service availability */
-#define TIPC_SUB_CANCEL		0x04	/* cancel a subscription */
+#define TIPC_SUB_PORTS          0x01    /* filter: evt at each match */
+#define TIPC_SUB_SERVICE        0x02    /* filter: evt at first up/last down */
+#define TIPC_SUB_CANCEL         0x04    /* filter: cancel a subscription */
 
 #define TIPC_WAIT_FOREVER	(~0)	/* timeout for permanent subscription */
 
 struct tipc_subscr {
-	struct tipc_name_seq seq;	/* name sequence of interest */
+	struct tipc_service_range seq;	/* range of interest */
 	__u32 timeout;			/* subscription duration (in ms) */
 	__u32 filter;			/* bitmask of filter options */
 	char usr_handle[8];		/* available for subscriber use */
 };
 
 #define TIPC_PUBLISHED		1	/* publication event */
-#define TIPC_WITHDRAWN		2	/* withdraw event */
+#define TIPC_WITHDRAWN		2	/* withdrawal event */
 #define TIPC_SUBSCR_TIMEOUT	3	/* subscription timeout event */
 
 struct tipc_event {
 	__u32 event;			/* event type */
-	__u32 found_lower;		/* matching name seq instances */
-	__u32 found_upper;		/*    "      "    "     "      */
-	struct tipc_portid port;	/* associated port */
+	__u32 found_lower;		/* matching range */
+	__u32 found_upper;		/*    "      "    */
+	struct tipc_socket_addr port;	/* associated socket */
 	struct tipc_subscr s;		/* associated subscription */
 };
 
@@ -192,20 +149,20 @@ struct tipc_event {
 #define SOL_TIPC	271
 #endif
 
-#define TIPC_ADDR_NAMESEQ	1
-#define TIPC_ADDR_MCAST		1
-#define TIPC_ADDR_NAME		2
-#define TIPC_ADDR_ID		3
+#define TIPC_ADDR_MCAST         1
+#define TIPC_SERVICE_RANGE      1
+#define TIPC_SERVICE_ADDR       2
+#define TIPC_SOCKET_ADDR        3
 
 struct sockaddr_tipc {
 	unsigned short family;
 	unsigned char  addrtype;
 	signed   char  scope;
 	union {
-		struct tipc_portid id;
-		struct tipc_name_seq nameseq;
+		struct tipc_socket_addr id;
+		struct tipc_service_range nameseq;
 		struct {
-			struct tipc_name name;
+			struct tipc_service_addr name;
 			__u32 domain;
 		} name;
 	} addr;
@@ -243,7 +200,7 @@ struct sockaddr_tipc {
 struct tipc_group_req {
 	__u32 type;      /* group id */
 	__u32 instance;  /* member id */
-	__u32 scope;     /* zone/cluster/node */
+	__u32 scope;     /* cluster/node */
 	__u32 flags;
 };
 
@@ -259,7 +216,7 @@ struct tipc_group_req {
 #define TIPC_MAX_MEDIA_NAME	16
 #define TIPC_MAX_IF_NAME	16
 #define TIPC_MAX_BEARER_NAME	32
-#define TIPC_MAX_LINK_NAME	60
+#define TIPC_MAX_LINK_NAME	68
 
 #define SIOCGETLINKNAME		SIOCPROTOPRIVATE
 
@@ -268,4 +225,62 @@ struct tipc_sioc_ln_req {
 	__u32 bearer_id;
 	char linkname[TIPC_MAX_LINK_NAME];
 };
+
+
+/* The macros and functions below are deprecated:
+ */
+
+#define TIPC_CFG_SRV		0
+#define TIPC_ZONE_SCOPE         1
+
+#define TIPC_ADDR_NAMESEQ	1
+#define TIPC_ADDR_NAME		2
+#define TIPC_ADDR_ID		3
+
+#define TIPC_NODE_BITS          12
+#define TIPC_CLUSTER_BITS       12
+#define TIPC_ZONE_BITS          8
+
+#define TIPC_NODE_OFFSET        0
+#define TIPC_CLUSTER_OFFSET     TIPC_NODE_BITS
+#define TIPC_ZONE_OFFSET        (TIPC_CLUSTER_OFFSET + TIPC_CLUSTER_BITS)
+
+#define TIPC_NODE_SIZE          ((1UL << TIPC_NODE_BITS) - 1)
+#define TIPC_CLUSTER_SIZE       ((1UL << TIPC_CLUSTER_BITS) - 1)
+#define TIPC_ZONE_SIZE          ((1UL << TIPC_ZONE_BITS) - 1)
+
+#define TIPC_NODE_MASK		(TIPC_NODE_SIZE << TIPC_NODE_OFFSET)
+#define TIPC_CLUSTER_MASK	(TIPC_CLUSTER_SIZE << TIPC_CLUSTER_OFFSET)
+#define TIPC_ZONE_MASK		(TIPC_ZONE_SIZE << TIPC_ZONE_OFFSET)
+
+#define TIPC_ZONE_CLUSTER_MASK (TIPC_ZONE_MASK | TIPC_CLUSTER_MASK)
+
+#define tipc_portid tipc_socket_addr
+#define tipc_name tipc_service_addr
+#define tipc_name_seq tipc_service_range
+
+static inline __u32 tipc_addr(unsigned int zone,
+			      unsigned int cluster,
+			      unsigned int node)
+{
+	return (zone << TIPC_ZONE_OFFSET) |
+		(cluster << TIPC_CLUSTER_OFFSET) |
+		node;
+}
+
+static inline unsigned int tipc_zone(__u32 addr)
+{
+	return addr >> TIPC_ZONE_OFFSET;
+}
+
+static inline unsigned int tipc_cluster(__u32 addr)
+{
+	return (addr & TIPC_CLUSTER_MASK) >> TIPC_CLUSTER_OFFSET;
+}
+
+static inline unsigned int tipc_node(__u32 addr)
+{
+	return addr & TIPC_NODE_MASK;
+}
+
 #endif

@@ -37,16 +37,16 @@
  */
 
 static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
-		const __u8 *data, unsigned int len)
+		const u8 *data, unsigned int len)
 {
-	static const __u8 hdr[] = {
+	static const u8 hdr[] = {
 		0x11, 0x22, 0x33, 0x44,
 		0xde, 0xad, 0xbe, 0xef,
 		0xde, 0xad, 0xfa, 0xce
 	};
 
 	unsigned int maxlen, nbytes;
-	__u8 *mem;
+	u8 *mem;
 	int is_header = 0;
 
 	if (buf == NULL)

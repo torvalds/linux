@@ -83,6 +83,30 @@ static inline bool is_vlan_dev(const struct net_device *dev)
 #define skb_vlan_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
 #define skb_vlan_tag_get_prio(__skb)	((__skb)->vlan_tci & VLAN_PRIO_MASK)
 
+static inline int vlan_get_rx_ctag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return notifier_to_errno(call_netdevice_notifiers(NETDEV_CVLAN_FILTER_PUSH_INFO, dev));
+}
+
+static inline void vlan_drop_rx_ctag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_CVLAN_FILTER_DROP_INFO, dev);
+}
+
+static inline int vlan_get_rx_stag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return notifier_to_errno(call_netdevice_notifiers(NETDEV_SVLAN_FILTER_PUSH_INFO, dev));
+}
+
+static inline void vlan_drop_rx_stag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_SVLAN_FILTER_DROP_INFO, dev);
+}
+
 /**
  *	struct vlan_pcpu_stats - VLAN percpu rx/tx stats
  *	@rx_packets: number of received packets
@@ -323,13 +347,24 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
 	skb_push(skb, VLAN_HLEN);
 
 	/* Move the mac header sans proto to the beginning of the new header. */
-	memmove(skb->data, skb->data + VLAN_HLEN, mac_len - ETH_TLEN);
+	if (likely(mac_len > ETH_TLEN))
+		memmove(skb->data, skb->data + VLAN_HLEN, mac_len - ETH_TLEN);
 	skb->mac_header -= VLAN_HLEN;
 
 	veth = (struct vlan_ethhdr *)(skb->data + mac_len - ETH_HLEN);
 
 	/* first, the ethernet type */
-	veth->h_vlan_proto = vlan_proto;
+	if (likely(mac_len >= ETH_TLEN)) {
+		/* h_vlan_encapsulated_proto should already be populated, and
+		 * skb->data has space for h_vlan_proto
+		 */
+		veth->h_vlan_proto = vlan_proto;
+	} else {
+		/* h_vlan_encapsulated_proto should not be populated, and
+		 * skb->data has no space for h_vlan_proto
+		 */
+		veth->h_vlan_encapsulated_proto = skb->protocol;
+	}
 
 	/* now, the TCI */
 	veth->h_vlan_TCI = htons(vlan_tci);

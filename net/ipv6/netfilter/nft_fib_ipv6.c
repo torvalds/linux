@@ -180,7 +180,8 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	}
 
 	*dest = 0;
-	rt = (void *)ip6_route_lookup(nft_net(pkt), &fl6, lookup_flags);
+	rt = (void *)ip6_route_lookup(nft_net(pkt), &fl6, pkt->skb,
+				      lookup_flags);
 	if (rt->dst.error)
 		goto put_rt_err;
 

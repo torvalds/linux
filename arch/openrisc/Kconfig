@@ -27,6 +27,7 @@ config OPENRISC
 	select GENERIC_STRNLEN_USER
 	select GENERIC_SMP_IDLE_THREAD
 	select MODULES_USE_ELF_RELA
+	select MULTI_IRQ_HANDLER
 	select HAVE_DEBUG_STACKOVERFLOW
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
@@ -67,6 +68,9 @@ config STACKTRACE_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool  y
+
+config MULTI_IRQ_HANDLER
+	def_bool y
 
 source "init/Kconfig"
 

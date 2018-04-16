@@ -359,6 +359,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_MODIFY_HCA_VPORT_CONTEXT:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_GID:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_PKEY:
+	case MLX5_CMD_OP_QUERY_VNIC_ENV:
 	case MLX5_CMD_OP_QUERY_VPORT_COUNTER:
 	case MLX5_CMD_OP_ALLOC_Q_COUNTER:
 	case MLX5_CMD_OP_QUERY_Q_COUNTER:
@@ -501,6 +502,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(MODIFY_HCA_VPORT_CONTEXT);
 	MLX5_COMMAND_STR_CASE(QUERY_HCA_VPORT_GID);
 	MLX5_COMMAND_STR_CASE(QUERY_HCA_VPORT_PKEY);
+	MLX5_COMMAND_STR_CASE(QUERY_VNIC_ENV);
 	MLX5_COMMAND_STR_CASE(QUERY_VPORT_COUNTER);
 	MLX5_COMMAND_STR_CASE(ALLOC_Q_COUNTER);
 	MLX5_COMMAND_STR_CASE(DEALLOC_Q_COUNTER);
@@ -1802,7 +1804,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	cmd->checksum_disabled = 1;
 	cmd->max_reg_cmds = (1 << cmd->log_sz) - 1;
-	cmd->bitmask = (1 << cmd->max_reg_cmds) - 1;
+	cmd->bitmask = (1UL << cmd->max_reg_cmds) - 1;
 
 	cmd->cmdif_rev = ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
 	if (cmd->cmdif_rev > CMD_IF_REV) {

@@ -5,37 +5,11 @@
  *
  *  Copyright (C) 1991-2002  Linus Torvalds
  */
-#include <linux/sched.h>
-#include <linux/sched/clock.h>
-#include <uapi/linux/sched/types.h>
-#include <linux/sched/loadavg.h>
-#include <linux/sched/hotplug.h>
-#include <linux/wait_bit.h>
-#include <linux/cpuset.h>
-#include <linux/delayacct.h>
-#include <linux/init_task.h>
-#include <linux/context_tracking.h>
-#include <linux/rcupdate_wait.h>
-#include <linux/compat.h>
-
-#include <linux/blkdev.h>
-#include <linux/kprobes.h>
-#include <linux/mmu_context.h>
-#include <linux/module.h>
-#include <linux/nmi.h>
-#include <linux/prefetch.h>
-#include <linux/profile.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/sched/isolation.h>
+#include "sched.h"
 
 #include <asm/switch_to.h>
 #include <asm/tlb.h>
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#endif
 
-#include "sched.h"
 #include "../workqueue_internal.h"
 #include "../smpboot.h"
 
@@ -135,7 +109,7 @@ struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 		 *					[L] ->on_rq
 		 *	RELEASE (rq->lock)
 		 *
-		 * If we observe the old cpu in task_rq_lock, the acquire of
+		 * If we observe the old CPU in task_rq_lock, the acquire of
 		 * the old rq->lock will fully serialize against the stores.
 		 *
 		 * If we observe the new CPU in task_rq_lock, the acquire will
@@ -333,7 +307,7 @@ void hrtick_start(struct rq *rq, u64 delay)
 }
 #endif /* CONFIG_SMP */
 
-static void init_rq_hrtick(struct rq *rq)
+static void hrtick_rq_init(struct rq *rq)
 {
 #ifdef CONFIG_SMP
 	rq->hrtick_csd_pending = 0;
@@ -351,7 +325,7 @@ static inline void hrtick_clear(struct rq *rq)
 {
 }
 
-static inline void init_rq_hrtick(struct rq *rq)
+static inline void hrtick_rq_init(struct rq *rq)
 {
 }
 #endif	/* CONFIG_SCHED_HRTICK */
@@ -609,7 +583,7 @@ static inline bool got_nohz_idle_kick(void)
 {
 	int cpu = smp_processor_id();
 
-	if (!test_bit(NOHZ_BALANCE_KICK, nohz_flags(cpu)))
+	if (!(atomic_read(nohz_flags(cpu)) & NOHZ_KICK_MASK))
 		return false;
 
 	if (idle_cpu(cpu) && !need_resched())
@@ -619,7 +593,7 @@ static inline bool got_nohz_idle_kick(void)
 	 * We can't run Idle Load Balance on this CPU for this time so we
 	 * cancel it and clear NOHZ_BALANCE_KICK
 	 */
-	clear_bit(NOHZ_BALANCE_KICK, nohz_flags(cpu));
+	atomic_andnot(NOHZ_KICK_MASK, nohz_flags(cpu));
 	return false;
 }
 
@@ -900,7 +874,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 	 * this case, we can save a useless back to back clock update.
 	 */
 	if (task_on_rq_queued(rq->curr) && test_tsk_need_resched(rq->curr))
-		rq_clock_skip_update(rq, true);
+		rq_clock_skip_update(rq);
 }
 
 #ifdef CONFIG_SMP
@@ -1457,7 +1431,7 @@ EXPORT_SYMBOL_GPL(kick_process);
  *
  *  - cpu_active must be a subset of cpu_online
  *
- *  - on cpu-up we allow per-cpu kthreads on the online && !active cpu,
+ *  - on CPU-up we allow per-CPU kthreads on the online && !active CPU,
  *    see __set_cpus_allowed_ptr(). At this point the newly online
  *    CPU isn't yet part of the sched domains, and balancing will not
  *    see it.
@@ -2488,17 +2462,17 @@ void wake_up_new_task(struct task_struct *p)
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 
-static struct static_key preempt_notifier_key = STATIC_KEY_INIT_FALSE;
+static DEFINE_STATIC_KEY_FALSE(preempt_notifier_key);
 
 void preempt_notifier_inc(void)
 {
-	static_key_slow_inc(&preempt_notifier_key);
+	static_branch_inc(&preempt_notifier_key);
 }
 EXPORT_SYMBOL_GPL(preempt_notifier_inc);
 
 void preempt_notifier_dec(void)
 {
-	static_key_slow_dec(&preempt_notifier_key);
+	static_branch_dec(&preempt_notifier_key);
 }
 EXPORT_SYMBOL_GPL(preempt_notifier_dec);
 
@@ -2508,7 +2482,7 @@ EXPORT_SYMBOL_GPL(preempt_notifier_dec);
  */
 void preempt_notifier_register(struct preempt_notifier *notifier)
 {
-	if (!static_key_false(&preempt_notifier_key))
+	if (!static_branch_unlikely(&preempt_notifier_key))
 		WARN(1, "registering preempt_notifier while notifiers disabled\n");
 
 	hlist_add_head(&notifier->link, &current->preempt_notifiers);
@@ -2537,7 +2511,7 @@ static void __fire_sched_in_preempt_notifiers(struct task_struct *curr)
 
 static __always_inline void fire_sched_in_preempt_notifiers(struct task_struct *curr)
 {
-	if (static_key_false(&preempt_notifier_key))
+	if (static_branch_unlikely(&preempt_notifier_key))
 		__fire_sched_in_preempt_notifiers(curr);
 }
 
@@ -2555,7 +2529,7 @@ static __always_inline void
 fire_sched_out_preempt_notifiers(struct task_struct *curr,
 				 struct task_struct *next)
 {
-	if (static_key_false(&preempt_notifier_key))
+	if (static_branch_unlikely(&preempt_notifier_key))
 		__fire_sched_out_preempt_notifiers(curr, next);
 }
 
@@ -2628,6 +2602,18 @@ static inline void finish_lock_switch(struct rq *rq)
 	spin_acquire(&rq->lock.dep_map, 0, 0, _THIS_IP_);
 	raw_spin_unlock_irq(&rq->lock);
 }
+
+/*
+ * NOP if the arch has not defined these:
+ */
+
+#ifndef prepare_arch_switch
+# define prepare_arch_switch(next)	do { } while (0)
+#endif
+
+#ifndef finish_arch_post_lock_switch
+# define finish_arch_post_lock_switch()	do { } while (0)
+#endif
 
 /**
  * prepare_task_switch - prepare to switch tasks
@@ -3037,7 +3023,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
 	/*
-	 * 64-bit doesn't need locks to atomically read a 64bit value.
+	 * 64-bit doesn't need locks to atomically read a 64-bit value.
 	 * So we have a optimization chance when the task's delta_exec is 0.
 	 * Reading ->on_cpu is racy, but this is ok.
 	 *
@@ -3096,35 +3082,99 @@ void scheduler_tick(void)
 	rq->idle_balance = idle_cpu(cpu);
 	trigger_load_balance(rq);
 #endif
-	rq_last_tick_reset(rq);
 }
 
 #ifdef CONFIG_NO_HZ_FULL
-/**
- * scheduler_tick_max_deferment
- *
- * Keep at least one tick per second when a single
- * active task is running because the scheduler doesn't
- * yet completely support full dynticks environment.
- *
- * This makes sure that uptime, CFS vruntime, load
- * balancing, etc... continue to move forward, even
- * with a very low granularity.
- *
- * Return: Maximum deferment in nanoseconds.
- */
-u64 scheduler_tick_max_deferment(void)
+
+struct tick_work {
+	int			cpu;
+	struct delayed_work	work;
+};
+
+static struct tick_work __percpu *tick_work_cpu;
+
+static void sched_tick_remote(struct work_struct *work)
 {
-	struct rq *rq = this_rq();
-	unsigned long next, now = READ_ONCE(jiffies);
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct tick_work *twork = container_of(dwork, struct tick_work, work);
+	int cpu = twork->cpu;
+	struct rq *rq = cpu_rq(cpu);
+	struct rq_flags rf;
 
-	next = rq->last_sched_tick + HZ;
+	/*
+	 * Handle the tick only if it appears the remote CPU is running in full
+	 * dynticks mode. The check is racy by nature, but missing a tick or
+	 * having one too much is no big deal because the scheduler tick updates
+	 * statistics and checks timeslices in a time-independent way, regardless
+	 * of when exactly it is running.
+	 */
+	if (!idle_cpu(cpu) && tick_nohz_tick_stopped_cpu(cpu)) {
+		struct task_struct *curr;
+		u64 delta;
 
-	if (time_before_eq(next, now))
-		return 0;
+		rq_lock_irq(rq, &rf);
+		update_rq_clock(rq);
+		curr = rq->curr;
+		delta = rq_clock_task(rq) - curr->se.exec_start;
 
-	return jiffies_to_nsecs(next - now);
+		/*
+		 * Make sure the next tick runs within a reasonable
+		 * amount of time.
+		 */
+		WARN_ON_ONCE(delta > (u64)NSEC_PER_SEC * 3);
+		curr->sched_class->task_tick(rq, curr, 0);
+		rq_unlock_irq(rq, &rf);
+	}
+
+	/*
+	 * Run the remote tick once per second (1Hz). This arbitrary
+	 * frequency is large enough to avoid overload but short enough
+	 * to keep scheduler internal stats reasonably up to date.
+	 */
+	queue_delayed_work(system_unbound_wq, dwork, HZ);
 }
+
+static void sched_tick_start(int cpu)
+{
+	struct tick_work *twork;
+
+	if (housekeeping_cpu(cpu, HK_FLAG_TICK))
+		return;
+
+	WARN_ON_ONCE(!tick_work_cpu);
+
+	twork = per_cpu_ptr(tick_work_cpu, cpu);
+	twork->cpu = cpu;
+	INIT_DELAYED_WORK(&twork->work, sched_tick_remote);
+	queue_delayed_work(system_unbound_wq, &twork->work, HZ);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void sched_tick_stop(int cpu)
+{
+	struct tick_work *twork;
+
+	if (housekeeping_cpu(cpu, HK_FLAG_TICK))
+		return;
+
+	WARN_ON_ONCE(!tick_work_cpu);
+
+	twork = per_cpu_ptr(tick_work_cpu, cpu);
+	cancel_delayed_work_sync(&twork->work);
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+
+int __init sched_tick_offload_init(void)
+{
+	tick_work_cpu = alloc_percpu(struct tick_work);
+	BUG_ON(!tick_work_cpu);
+
+	return 0;
+}
+
+#else /* !CONFIG_NO_HZ_FULL */
+static inline void sched_tick_start(int cpu) { }
+static inline void sched_tick_stop(int cpu) { }
 #endif
 
 #if defined(CONFIG_PREEMPT) && (defined(CONFIG_DEBUG_PREEMPT) || \
@@ -4892,7 +4942,7 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
  *
  * Return: 0.
  */
-SYSCALL_DEFINE0(sched_yield)
+static void do_sched_yield(void)
 {
 	struct rq_flags rf;
 	struct rq *rq;
@@ -4913,7 +4963,11 @@ SYSCALL_DEFINE0(sched_yield)
 	sched_preempt_enable_no_resched();
 
 	schedule();
+}
 
+SYSCALL_DEFINE0(sched_yield)
+{
+	do_sched_yield();
 	return 0;
 }
 
@@ -4997,7 +5051,7 @@ EXPORT_SYMBOL(__cond_resched_softirq);
 void __sched yield(void)
 {
 	set_current_state(TASK_RUNNING);
-	sys_sched_yield();
+	do_sched_yield();
 }
 EXPORT_SYMBOL(yield);
 
@@ -5506,6 +5560,7 @@ void idle_task_exit(void)
 
 	if (mm != &init_mm) {
 		switch_mm(mm, &init_mm, current);
+		current->active_mm = &init_mm;
 		finish_arch_post_lock_switch();
 	}
 	mmdrop(mm);
@@ -5786,6 +5841,7 @@ int sched_cpu_starting(unsigned int cpu)
 {
 	set_cpu_rq_start_time(cpu);
 	sched_rq_cpu_starting(cpu);
+	sched_tick_start(cpu);
 	return 0;
 }
 
@@ -5797,6 +5853,7 @@ int sched_cpu_dying(unsigned int cpu)
 
 	/* Handle pending wakeups and then migrate everything off */
 	sched_ttwu_pending();
+	sched_tick_stop(cpu);
 
 	rq_lock_irqsave(rq, &rf);
 	if (rq->rd) {
@@ -5809,7 +5866,7 @@ int sched_cpu_dying(unsigned int cpu)
 
 	calc_load_migrate(rq);
 	update_max_interval();
-	nohz_balance_exit_idle(cpu);
+	nohz_balance_exit_idle(rq);
 	hrtick_clear(rq);
 	return 0;
 }
@@ -6022,13 +6079,11 @@ void __init sched_init(void)
 		rq_attach_root(rq, &def_root_domain);
 #ifdef CONFIG_NO_HZ_COMMON
 		rq->last_load_update_tick = jiffies;
-		rq->nohz_flags = 0;
-#endif
-#ifdef CONFIG_NO_HZ_FULL
-		rq->last_sched_tick = 0;
+		rq->last_blocked_load_update_tick = jiffies;
+		atomic_set(&rq->nohz_flags, 0);
 #endif
 #endif /* CONFIG_SMP */
-		init_rq_hrtick(rq);
+		hrtick_rq_init(rq);
 		atomic_set(&rq->nr_iowait, 0);
 	}
 
@@ -7027,3 +7082,5 @@ const u32 sched_prio_to_wmult[40] = {
  /*  10 */  39045157,  49367440,  61356676,  76695844,  95443717,
  /*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
+
+#undef CREATE_TRACE_POINTS

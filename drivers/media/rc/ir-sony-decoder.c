@@ -55,8 +55,8 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	if (!geq_margin(ev.duration, SONY_UNIT, SONY_UNIT / 2))
 		goto out;
 
-	IR_dprintk(2, "Sony decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sony decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -148,19 +148,21 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			protocol = RC_PROTO_SONY20;
 			break;
 		default:
-			IR_dprintk(1, "Sony invalid bitcount %u\n", data->count);
+			dev_dbg(&dev->dev, "Sony invalid bitcount %u\n",
+				data->count);
 			goto out;
 		}
 
 		scancode = device << 16 | subdevice << 8 | function;
-		IR_dprintk(1, "Sony(%u) scancode 0x%05x\n", data->count, scancode);
+		dev_dbg(&dev->dev, "Sony(%u) scancode 0x%05x\n", data->count,
+			scancode);
 		rc_keydown(dev, protocol, scancode, 0);
 		goto finish_state_machine;
 	}
 
 out:
-	IR_dprintk(1, "Sony decode failed at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sony decode failed at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 
