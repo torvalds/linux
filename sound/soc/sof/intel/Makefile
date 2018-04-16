@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 
+ccflags-y += -DDEBUG
+
 snd-sof-intel-byt-objs := byt.o
 snd-sof-intel-hsw-objs := hsw.o
 snd-sof-intel-bdw-objs := bdw.o
