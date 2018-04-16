@@ -94,10 +94,11 @@ hv_uio_irqcontrol(struct uio_info *info, s32 irq_state)
  */
 static void hv_uio_channel_cb(void *context)
 {
-	struct hv_uio_private_data *pdata = context;
-	struct hv_device *dev = pdata->device;
+	struct vmbus_channel *chan = context;
+	struct hv_device *hv_dev = chan->device_obj;
+	struct hv_uio_private_data *pdata = hv_get_drvdata(hv_dev);
 
-	dev->channel->inbound.ring_buffer->interrupt_mask = 1;
+	chan->inbound.ring_buffer->interrupt_mask = 1;
 	virt_mb();
 
 	uio_event_notify(&pdata->info);
@@ -180,19 +181,18 @@ static const struct bin_attribute ring_buffer_bin_attr = {
 	.mmap = hv_uio_ring_mmap,
 };
 
-/* Callback from VMBUS subystem when new channel created. */
+/* Callback from VMBUS subsystem when new channel created. */
 static void
 hv_uio_new_channel(struct vmbus_channel *new_sc)
 {
 	struct hv_device *hv_dev = new_sc->primary_channel->device_obj;
 	struct device *device = &hv_dev->device;
-	struct hv_uio_private_data *pdata = hv_get_drvdata(hv_dev);
 	const size_t ring_bytes = HV_RING_SIZE * PAGE_SIZE;
 	int ret;
 
 	/* Create host communication ring */
 	ret = vmbus_open(new_sc, ring_bytes, ring_bytes, NULL, 0,
-			 hv_uio_channel_cb, pdata);
+			 hv_uio_channel_cb, new_sc);
 	if (ret) {
 		dev_err(device, "vmbus_open subchannel failed: %d\n", ret);
 		return;
@@ -234,7 +234,7 @@ hv_uio_probe(struct hv_device *dev,
 
 	ret = vmbus_open(dev->channel, HV_RING_SIZE * PAGE_SIZE,
 			 HV_RING_SIZE * PAGE_SIZE, NULL, 0,
-			 hv_uio_channel_cb, pdata);
+			 hv_uio_channel_cb, dev->channel);
 	if (ret)
 		goto fail;
 
