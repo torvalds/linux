@@ -62,8 +62,6 @@ struct exynos_tmu_platform_data {
 	u32 efuse_value;
 	u32 min_efuse_value;
 	u32 max_efuse_value;
-	u8 first_point_trim;
-	u8 second_point_trim;
 
 	u32 cal_type;
 };
