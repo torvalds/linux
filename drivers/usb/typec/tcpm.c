@@ -1772,39 +1772,63 @@ static int tcpm_pd_check_request(struct tcpm_port *port)
 	return 0;
 }
 
-static int tcpm_pd_select_pdo(struct tcpm_port *port)
+#define min_power(x, y) min(pdo_max_power(x), pdo_max_power(y))
+#define min_current(x, y) min(pdo_max_current(x), pdo_max_current(y))
+
+static int tcpm_pd_select_pdo(struct tcpm_port *port, int *sink_pdo,
+			      int *src_pdo)
 {
-	unsigned int i, max_mw = 0, max_mv = 0;
+	unsigned int i, j, max_src_mv = 0, min_src_mv = 0, max_mw = 0,
+		     max_mv = 0, src_mw = 0, src_ma = 0, max_snk_mv = 0,
+		     min_snk_mv = 0;
 	int ret = -EINVAL;
 
 	/*
-	 * Select the source PDO providing the most power while staying within
-	 * the board's voltage limits. Prefer PDO providing exp
+	 * Select the source PDO providing the most power which has a
+	 * matchig sink cap.
 	 */
 	for (i = 0; i < port->nr_source_caps; i++) {
 		u32 pdo = port->source_caps[i];
 		enum pd_pdo_type type = pdo_type(pdo);
-		unsigned int mv, ma, mw;
 
-		if (type == PDO_TYPE_FIXED)
-			mv = pdo_fixed_voltage(pdo);
-		else
-			mv = pdo_min_voltage(pdo);
-
-		if (type == PDO_TYPE_BATT) {
-			mw = pdo_max_power(pdo);
+		if (type == PDO_TYPE_FIXED) {
+			max_src_mv = pdo_fixed_voltage(pdo);
+			min_src_mv = max_src_mv;
 		} else {
-			ma = min(pdo_max_current(pdo),
-				 port->max_snk_ma);
-			mw = ma * mv / 1000;
+			max_src_mv = pdo_max_voltage(pdo);
+			min_src_mv = pdo_min_voltage(pdo);
 		}
 
-		/* Perfer higher voltages if available */
-		if ((mw > max_mw || (mw == max_mw && mv > max_mv)) &&
-		    mv <= port->max_snk_mv) {
-			ret = i;
-			max_mw = mw;
-			max_mv = mv;
+		if (type == PDO_TYPE_BATT) {
+			src_mw = pdo_max_power(pdo);
+		} else {
+			src_ma = pdo_max_current(pdo);
+			src_mw = src_ma * min_src_mv / 1000;
+		}
+
+		for (j = 0; j < port->nr_snk_pdo; j++) {
+			pdo = port->snk_pdo[j];
+
+			if (pdo_type(pdo) == PDO_TYPE_FIXED) {
+				min_snk_mv = pdo_fixed_voltage(pdo);
+				max_snk_mv = pdo_fixed_voltage(pdo);
+			} else {
+				min_snk_mv = pdo_min_voltage(pdo);
+				max_snk_mv = pdo_max_voltage(pdo);
+			}
+
+			if (max_src_mv <= max_snk_mv &&
+				min_src_mv >= min_snk_mv) {
+				/* Prefer higher voltages if available */
+				if ((src_mw == max_mw && min_src_mv > max_mv) ||
+							src_mw > max_mw) {
+					*src_pdo = i;
+					*sink_pdo = j;
+					max_mw = src_mw;
+					max_mv = min_src_mv;
+					ret = 0;
+				}
+			}
 		}
 	}
 
@@ -1816,13 +1840,16 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 	unsigned int mv, ma, mw, flags;
 	unsigned int max_ma, max_mw;
 	enum pd_pdo_type type;
-	int index;
-	u32 pdo;
+	int src_pdo_index, snk_pdo_index;
+	u32 pdo, matching_snk_pdo;
+	int ret;
 
-	index = tcpm_pd_select_pdo(port);
-	if (index < 0)
-		return -EINVAL;
-	pdo = port->source_caps[index];
+	ret = tcpm_pd_select_pdo(port, &snk_pdo_index, &src_pdo_index);
+	if (ret < 0)
+		return ret;
+
+	pdo = port->source_caps[src_pdo_index];
+	matching_snk_pdo = port->snk_pdo[snk_pdo_index];
 	type = pdo_type(pdo);
 
 	if (type == PDO_TYPE_FIXED)
@@ -1830,26 +1857,28 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 	else
 		mv = pdo_min_voltage(pdo);
 
-	/* Select maximum available current within the board's power limit */
+	/* Select maximum available current within the sink pdo's limit */
 	if (type == PDO_TYPE_BATT) {
-		mw = pdo_max_power(pdo);
-		ma = 1000 * min(mw, port->max_snk_mw) / mv;
+		mw = min_power(pdo, matching_snk_pdo);
+		ma = 1000 * mw / mv;
 	} else {
-		ma = min(pdo_max_current(pdo),
-			 1000 * port->max_snk_mw / mv);
+		ma = min_current(pdo, matching_snk_pdo);
+		mw = ma * mv / 1000;
 	}
-	ma = min(ma, port->max_snk_ma);
 
 	flags = RDO_USB_COMM | RDO_NO_SUSPEND;
 
 	/* Set mismatch bit if offered power is less than operating power */
-	mw = ma * mv / 1000;
 	max_ma = ma;
 	max_mw = mw;
 	if (mw < port->operating_snk_mw) {
 		flags |= RDO_CAP_MISMATCH;
-		max_mw = port->operating_snk_mw;
-		max_ma = max_mw * 1000 / mv;
+		if (type == PDO_TYPE_BATT &&
+		    (pdo_max_power(matching_snk_pdo) > pdo_max_power(pdo)))
+			max_mw = pdo_max_power(matching_snk_pdo);
+		else if (pdo_max_current(matching_snk_pdo) >
+			 pdo_max_current(pdo))
+			max_ma = pdo_max_current(matching_snk_pdo);
 	}
 
 	tcpm_log(port, "cc=%d cc1=%d cc2=%d vbus=%d vconn=%s polarity=%d",
@@ -1858,16 +1887,16 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 		 port->polarity);
 
 	if (type == PDO_TYPE_BATT) {
-		*rdo = RDO_BATT(index + 1, mw, max_mw, flags);
+		*rdo = RDO_BATT(src_pdo_index + 1, mw, max_mw, flags);
 
 		tcpm_log(port, "Requesting PDO %d: %u mV, %u mW%s",
-			 index, mv, mw,
+			 src_pdo_index, mv, mw,
 			 flags & RDO_CAP_MISMATCH ? " [mismatch]" : "");
 	} else {
-		*rdo = RDO_FIXED(index + 1, ma, max_ma, flags);
+		*rdo = RDO_FIXED(src_pdo_index + 1, ma, max_ma, flags);
 
 		tcpm_log(port, "Requesting PDO %d: %u mV, %u mA%s",
-			 index, mv, ma,
+			 src_pdo_index, mv, ma,
 			 flags & RDO_CAP_MISMATCH ? " [mismatch]" : "");
 	}
 
