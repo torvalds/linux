@@ -995,12 +995,10 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
 	int ret = 0;
 	unsigned int coarse_integration = 0;
-	unsigned int fine_integration = 0;
 	unsigned int FLines = 0;
 	unsigned int FrameLengthLines = 0; /* ExposureTime.FrameLengthLines; */
 	unsigned int AnalogGain, DigitalGain;
 	u32 AnalogGainToWrite = 0;
-	u16 exposure_local[3];
 
 	dev_dbg(&client->dev, "%s(0x%X 0x%X 0x%X)\n", __func__,
 		    exposure->integration_time[0], exposure->gain[0],
@@ -1032,10 +1030,7 @@ static long mt9m114_s_exposure(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	/* set coarse/fine integration */
-	exposure_local[0] = REG_EXPO_COARSE;
-	exposure_local[1] = (u16)coarse_integration;
-	exposure_local[2] = (u16)fine_integration;
+	/* set coarse integration */
 	/* 3A provide real exposure time.
 		should not translate to any value here. */
 	ret = mt9m114_write_reg(client, MISENSOR_16BIT,
