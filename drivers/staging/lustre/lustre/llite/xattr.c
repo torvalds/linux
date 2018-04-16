@@ -234,9 +234,6 @@ static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
 	struct inode *inode = d_inode(dentry);
 	int rc = 0;
 
-	if (size != 0 && size < sizeof(struct lov_user_md))
-		return -EINVAL;
-
 	/*
 	 * It is possible to set an xattr to a "" value of zero size.
 	 * For this case we are going to treat it as a removal.
@@ -269,6 +266,9 @@ static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
 		if (rc == -EEXIST)
 			rc = 0;
 	} else if (S_ISDIR(inode->i_mode)) {
+		if (size != 0 && size < sizeof(struct lov_user_md))
+			return -EINVAL;
+
 		rc = ll_dir_setstripe(inode, lump, 0);
 	}
 
