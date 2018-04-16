@@ -1539,7 +1539,6 @@ int send_sig_fault(int sig, int code, void __user *addr
 	return send_sig_info(info.si_signo, &info, t);
 }
 
-#if defined(BUS_MCEERR_AO) && defined(BUS_MCEERR_AR)
 int force_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *t)
 {
 	struct siginfo info;
@@ -1568,7 +1567,6 @@ int send_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *
 	return send_sig_info(info.si_signo, &info, t);
 }
 EXPORT_SYMBOL(send_sig_mceerr);
-#endif
 
 int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper)
 {
@@ -2880,14 +2878,11 @@ int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
 #ifdef __ARCH_SI_TRAPNO
 		new.si_trapno = from->si_trapno;
 #endif
-#ifdef BUS_MCEERR_AR
-		if ((from->si_signo == SIGBUS) && (from->si_code == BUS_MCEERR_AR))
+		if ((from->si_signo == SIGBUS) &&
+		    ((from->si_code == BUS_MCEERR_AR) ||
+		     (from->si_code == BUS_MCEERR_AO)))
 			new.si_addr_lsb = from->si_addr_lsb;
-#endif
-#ifdef BUS_MCEERR_AO
-		if ((from->si_signo == SIGBUS) && (from->si_code == BUS_MCEERR_AO))
-			new.si_addr_lsb = from->si_addr_lsb;
-#endif
+
 		if ((from->si_signo == SIGSEGV) &&
 		    (from->si_code == SEGV_BNDERR)) {
 			new.si_lower = ptr_to_compat(from->si_lower);
@@ -2964,14 +2959,11 @@ int copy_siginfo_from_user32(struct siginfo *to,
 #ifdef __ARCH_SI_TRAPNO
 		to->si_trapno = from.si_trapno;
 #endif
-#ifdef BUS_MCEERR_AR
-		if ((from.si_signo == SIGBUS) && (from.si_code == BUS_MCEERR_AR))
+		if ((from.si_signo == SIGBUS) &&
+		    ((from.si_code == BUS_MCEERR_AR) ||
+		     (from.si_code == BUS_MCEERR_AO)))
 			to->si_addr_lsb = from.si_addr_lsb;
-#endif
-#ifdef BUS_MCEER_AO
-		if ((from.si_signo == SIGBUS) && (from.si_code == BUS_MCEERR_AO))
-			to->si_addr_lsb = from.si_addr_lsb;
-#endif
+
 		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_BNDERR)) {
 			to->si_lower = compat_ptr(from.si_lower);
 			to->si_upper = compat_ptr(from.si_upper);
