@@ -1569,7 +1569,8 @@ static int ov5640_set_mode_exposure_calc(struct ov5640_dev *sensor,
  * change mode directly
  */
 static int ov5640_set_mode_direct(struct ov5640_dev *sensor,
-				  const struct ov5640_mode_info *mode)
+				  const struct ov5640_mode_info *mode,
+				  s32 exposure)
 {
 	int ret;
 
@@ -1585,7 +1586,8 @@ static int ov5640_set_mode_direct(struct ov5640_dev *sensor,
 	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_gain, 1);
 	if (ret)
 		return ret;
-	return __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_exp, V4L2_EXPOSURE_AUTO);
+
+	return __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_exp, exposure);
 }
 
 static int ov5640_set_mode(struct ov5640_dev *sensor,
@@ -1593,6 +1595,7 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 {
 	const struct ov5640_mode_info *mode = sensor->current_mode;
 	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
+	s32 exposure;
 	int ret;
 
 	dn_mode = mode->dn_mode;
@@ -1602,7 +1605,9 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_gain, 0);
 	if (ret)
 		return ret;
-	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.auto_exp, V4L2_EXPOSURE_MANUAL);
+
+	exposure = sensor->ctrls.auto_exp->val;
+	ret = ov5640_set_exposure(sensor, V4L2_EXPOSURE_MANUAL);
 	if (ret)
 		return ret;
 
@@ -1618,7 +1623,7 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 		 * change inside subsampling or scaling
 		 * download firmware directly
 		 */
-		ret = ov5640_set_mode_direct(sensor, mode);
+		ret = ov5640_set_mode_direct(sensor, mode, exposure);
 	}
 
 	if (ret < 0)
