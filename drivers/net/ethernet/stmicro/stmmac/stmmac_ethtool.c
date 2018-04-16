@@ -291,10 +291,8 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 		cmd->base.speed = priv->xstats.pcs_speed;
 
 		/* Get and convert ADV/LP_ADV from the HW AN registers */
-		if (!priv->hw->mac->pcs_get_adv_lp)
+		if (stmmac_pcs_get_adv_lp(priv, priv->ioaddr, &adv))
 			return -EOPNOTSUPP;	/* should never happen indeed */
-
-		priv->hw->mac->pcs_get_adv_lp(priv->ioaddr, &adv);
 
 		/* Encoding of PSE bits is defined in 802.3z, 37.2.1.4 */
 
@@ -393,11 +391,7 @@ stmmac_ethtool_set_link_ksettings(struct net_device *dev,
 			ADVERTISED_10baseT_Full);
 
 		spin_lock(&priv->lock);
-
-		if (priv->hw->mac->pcs_ctrl_ane)
-			priv->hw->mac->pcs_ctrl_ane(priv->ioaddr, 1,
-						    priv->hw->ps, 0);
-
+		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, priv->hw->ps, 0);
 		spin_unlock(&priv->lock);
 
 		return 0;
@@ -442,7 +436,7 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	priv->hw->mac->dump_regs(priv->hw, reg_space);
+	stmmac_dump_mac_regs(priv, priv->hw, reg_space);
 	stmmac_dump_dma_regs(priv, priv->ioaddr, reg_space);
 	/* Copy DMA registers to where ethtool expects them */
 	memcpy(&reg_space[ETHTOOL_DMA_OFFSET], &reg_space[DMA_BUS_MODE / 4],
@@ -454,15 +448,13 @@ stmmac_get_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
+	struct rgmii_adv adv_lp;
 
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 
-	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
-		struct rgmii_adv adv_lp;
-
+	if (priv->hw->pcs && !stmmac_pcs_get_adv_lp(priv, priv->ioaddr, &adv_lp)) {
 		pause->autoneg = 1;
-		priv->hw->mac->pcs_get_adv_lp(priv->ioaddr, &adv_lp);
 		if (!adv_lp.pause)
 			return;
 	} else {
@@ -488,12 +480,10 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	struct phy_device *phy = netdev->phydev;
 	int new_pause = FLOW_OFF;
+	struct rgmii_adv adv_lp;
 
-	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
-		struct rgmii_adv adv_lp;
-
+	if (priv->hw->pcs && !stmmac_pcs_get_adv_lp(priv, priv->ioaddr, &adv_lp)) {
 		pause->autoneg = 1;
-		priv->hw->mac->pcs_get_adv_lp(priv->ioaddr, &adv_lp);
 		if (!adv_lp.pause)
 			return -EOPNOTSUPP;
 	} else {
@@ -515,27 +505,24 @@ stmmac_set_pauseparam(struct net_device *netdev,
 			return phy_start_aneg(phy);
 	}
 
-	priv->hw->mac->flow_ctrl(priv->hw, phy->duplex, priv->flow_ctrl,
-				 priv->pause, tx_cnt);
+	stmmac_flow_ctrl(priv, priv->hw, phy->duplex, priv->flow_ctrl,
+			priv->pause, tx_cnt);
 	return 0;
 }
 
 static void stmmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
 {
-	const char *(*dump)(struct stmmac_safety_stats *stats, int index,
-			unsigned long *count);
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	unsigned long count;
 	int i, j = 0, ret;
 
-	if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
-		dump = priv->hw->mac->safety_feat_dump;
-
+	if (priv->dma_cap.asp) {
 		for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
-			if (dump(&priv->sstats, i, &count))
+			if (!stmmac_safety_feat_dump(priv, &priv->sstats, i,
+						&count, NULL))
 				data[j++] = count;
 		}
 	}
@@ -563,11 +550,10 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 				priv->xstats.phy_eee_wakeup_error_n = val;
 		}
 
-		if ((priv->hw->mac->debug) &&
-		    (priv->synopsys_id >= DWMAC_CORE_3_50))
-			priv->hw->mac->debug(priv->ioaddr,
-					     (void *)&priv->xstats,
-					     rx_queues_count, tx_queues_count);
+		if (priv->synopsys_id >= DWMAC_CORE_3_50)
+			stmmac_mac_debug(priv, priv->ioaddr,
+					(void *)&priv->xstats,
+					rx_queues_count, tx_queues_count);
 	}
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;
@@ -579,8 +565,6 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
-	const char *(*dump)(struct stmmac_safety_stats *stats, int index,
-			unsigned long *count);
 	int i, len, safety_len = 0;
 
 	switch (sset) {
@@ -589,11 +573,11 @@ static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 
 		if (priv->dma_cap.rmon)
 			len += STMMAC_MMC_STATS_LEN;
-		if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
-			dump = priv->hw->mac->safety_feat_dump;
-
+		if (priv->dma_cap.asp) {
 			for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
-				if (dump(&priv->sstats, i, NULL))
+				if (!stmmac_safety_feat_dump(priv,
+							&priv->sstats, i,
+							NULL, NULL))
 					safety_len++;
 			}
 
@@ -611,17 +595,15 @@ static void stmmac_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	int i;
 	u8 *p = data;
 	struct stmmac_priv *priv = netdev_priv(dev);
-	const char *(*dump)(struct stmmac_safety_stats *stats, int index,
-			unsigned long *count);
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
-			dump = priv->hw->mac->safety_feat_dump;
+		if (priv->dma_cap.asp) {
 			for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
-				const char *desc = dump(&priv->sstats, i, NULL);
-
-				if (desc) {
+				const char *desc;
+				if (!stmmac_safety_feat_dump(priv,
+							&priv->sstats, i,
+							NULL, &desc)) {
 					memcpy(p, desc, ETH_GSTRING_LEN);
 					p += ETH_GSTRING_LEN;
 				}

@@ -336,8 +336,8 @@ static void stmmac_enable_eee_mode(struct stmmac_priv *priv)
 
 	/* Check and enter in LPI mode */
 	if (!priv->tx_path_in_lpi_mode)
-		priv->hw->mac->set_eee_mode(priv->hw,
-					    priv->plat->en_tx_lpi_clockgating);
+		stmmac_set_eee_mode(priv, priv->hw,
+				priv->plat->en_tx_lpi_clockgating);
 }
 
 /**
@@ -348,7 +348,7 @@ static void stmmac_enable_eee_mode(struct stmmac_priv *priv)
  */
 void stmmac_disable_eee_mode(struct stmmac_priv *priv)
 {
-	priv->hw->mac->reset_eee_mode(priv->hw);
+	stmmac_reset_eee_mode(priv, priv->hw);
 	del_timer_sync(&priv->eee_ctrl_timer);
 	priv->tx_path_in_lpi_mode = false;
 }
@@ -411,8 +411,8 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 			if (priv->eee_active) {
 				netdev_dbg(priv->dev, "disable EEE\n");
 				del_timer_sync(&priv->eee_ctrl_timer);
-				priv->hw->mac->set_eee_timer(priv->hw, 0,
-							     tx_lpi_timer);
+				stmmac_set_eee_timer(priv, priv->hw, 0,
+						tx_lpi_timer);
 			}
 			priv->eee_active = 0;
 			spin_unlock_irqrestore(&priv->lock, flags);
@@ -427,12 +427,11 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 			mod_timer(&priv->eee_ctrl_timer,
 				  STMMAC_LPI_T(eee_timer));
 
-			priv->hw->mac->set_eee_timer(priv->hw,
-						     STMMAC_DEFAULT_LIT_LS,
-						     tx_lpi_timer);
+			stmmac_set_eee_timer(priv, priv->hw,
+					STMMAC_DEFAULT_LIT_LS, tx_lpi_timer);
 		}
 		/* Set HW EEE according to the speed */
-		priv->hw->mac->set_eee_pls(priv->hw, ndev->phydev->link);
+		stmmac_set_eee_pls(priv, priv->hw, ndev->phydev->link);
 
 		ret = true;
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -796,8 +795,8 @@ static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 
-	priv->hw->mac->flow_ctrl(priv->hw, duplex, priv->flow_ctrl,
-				 priv->pause, tx_cnt);
+	stmmac_flow_ctrl(priv, priv->hw, duplex, priv->flow_ctrl,
+			priv->pause, tx_cnt);
 }
 
 /**
@@ -1663,7 +1662,7 @@ static void stmmac_mac_enable_rx_queues(struct stmmac_priv *priv)
 
 	for (queue = 0; queue < rx_queues_count; queue++) {
 		mode = priv->plat->rx_queues_cfg[queue].mode_to_use;
-		priv->hw->mac->rx_queue_enable(priv->hw, mode, queue);
+		stmmac_rx_queue_enable(priv, priv->hw, mode, queue);
 	}
 }
 
@@ -2000,18 +1999,19 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 
 static bool stmmac_safety_feat_interrupt(struct stmmac_priv *priv)
 {
-	bool ret = false;
+	int ret = false;
 
 	/* Safety features are only available in cores >= 5.10 */
 	if (priv->synopsys_id < DWMAC_CORE_5_10)
 		return ret;
-	if (priv->hw->mac->safety_feat_irq_status)
-		ret = priv->hw->mac->safety_feat_irq_status(priv->dev,
-				priv->ioaddr, priv->dma_cap.asp, &priv->sstats);
-
-	if (ret)
+	ret = stmmac_safety_feat_irq_status(priv, priv->dev,
+			priv->ioaddr, priv->dma_cap.asp, &priv->sstats);
+	if (ret && (ret != -EINVAL)) {
 		stmmac_global_err(priv);
-	return ret;
+		return true;
+	}
+
+	return false;
 }
 
 /**
@@ -2177,8 +2177,7 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 {
 	if (!is_valid_ether_addr(priv->dev->dev_addr)) {
-		priv->hw->mac->get_umac_addr(priv->hw,
-					     priv->dev->dev_addr, 0);
+		stmmac_get_umac_addr(priv, priv->hw, priv->dev->dev_addr, 0);
 		if (!is_valid_ether_addr(priv->dev->dev_addr))
 			eth_hw_addr_random(priv->dev);
 		netdev_info(priv->dev, "device MAC address %pM\n",
@@ -2332,7 +2331,7 @@ static void stmmac_set_tx_queue_weight(struct stmmac_priv *priv)
 
 	for (queue = 0; queue < tx_queues_count; queue++) {
 		weight = priv->plat->tx_queues_cfg[queue].weight;
-		priv->hw->mac->set_mtl_tx_queue_weight(priv->hw, weight, queue);
+		stmmac_set_mtl_tx_queue_weight(priv, priv->hw, weight, queue);
 	}
 }
 
@@ -2353,7 +2352,7 @@ static void stmmac_configure_cbs(struct stmmac_priv *priv)
 		if (mode_to_use == MTL_QUEUE_DCB)
 			continue;
 
-		priv->hw->mac->config_cbs(priv->hw,
+		stmmac_config_cbs(priv, priv->hw,
 				priv->plat->tx_queues_cfg[queue].send_slope,
 				priv->plat->tx_queues_cfg[queue].idle_slope,
 				priv->plat->tx_queues_cfg[queue].high_credit,
@@ -2375,7 +2374,7 @@ static void stmmac_rx_queue_dma_chan_map(struct stmmac_priv *priv)
 
 	for (queue = 0; queue < rx_queues_count; queue++) {
 		chan = priv->plat->rx_queues_cfg[queue].chan;
-		priv->hw->mac->map_mtl_to_dma(priv->hw, queue, chan);
+		stmmac_map_mtl_to_dma(priv, priv->hw, queue, chan);
 	}
 }
 
@@ -2395,7 +2394,7 @@ static void stmmac_mac_config_rx_queues_prio(struct stmmac_priv *priv)
 			continue;
 
 		prio = priv->plat->rx_queues_cfg[queue].prio;
-		priv->hw->mac->rx_queue_prio(priv->hw, prio, queue);
+		stmmac_rx_queue_prio(priv, priv->hw, prio, queue);
 	}
 }
 
@@ -2415,7 +2414,7 @@ static void stmmac_mac_config_tx_queues_prio(struct stmmac_priv *priv)
 			continue;
 
 		prio = priv->plat->tx_queues_cfg[queue].prio;
-		priv->hw->mac->tx_queue_prio(priv->hw, prio, queue);
+		stmmac_tx_queue_prio(priv, priv->hw, prio, queue);
 	}
 }
 
@@ -2436,7 +2435,7 @@ static void stmmac_mac_config_rx_queues_routing(struct stmmac_priv *priv)
 			continue;
 
 		packet = priv->plat->rx_queues_cfg[queue].pkt_route;
-		priv->hw->mac->rx_queue_routing(priv->hw, packet, queue);
+		stmmac_rx_queue_routing(priv, priv->hw, packet, queue);
 	}
 }
 
@@ -2450,50 +2449,47 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 
-	if (tx_queues_count > 1 && priv->hw->mac->set_mtl_tx_queue_weight)
+	if (tx_queues_count > 1)
 		stmmac_set_tx_queue_weight(priv);
 
 	/* Configure MTL RX algorithms */
-	if (rx_queues_count > 1 && priv->hw->mac->prog_mtl_rx_algorithms)
-		priv->hw->mac->prog_mtl_rx_algorithms(priv->hw,
-						priv->plat->rx_sched_algorithm);
+	if (rx_queues_count > 1)
+		stmmac_prog_mtl_rx_algorithms(priv, priv->hw,
+				priv->plat->rx_sched_algorithm);
 
 	/* Configure MTL TX algorithms */
-	if (tx_queues_count > 1 && priv->hw->mac->prog_mtl_tx_algorithms)
-		priv->hw->mac->prog_mtl_tx_algorithms(priv->hw,
-						priv->plat->tx_sched_algorithm);
+	if (tx_queues_count > 1)
+		stmmac_prog_mtl_tx_algorithms(priv, priv->hw,
+				priv->plat->tx_sched_algorithm);
 
 	/* Configure CBS in AVB TX queues */
-	if (tx_queues_count > 1 && priv->hw->mac->config_cbs)
+	if (tx_queues_count > 1)
 		stmmac_configure_cbs(priv);
 
 	/* Map RX MTL to DMA channels */
-	if (priv->hw->mac->map_mtl_to_dma)
-		stmmac_rx_queue_dma_chan_map(priv);
+	stmmac_rx_queue_dma_chan_map(priv);
 
 	/* Enable MAC RX Queues */
-	if (priv->hw->mac->rx_queue_enable)
-		stmmac_mac_enable_rx_queues(priv);
+	stmmac_mac_enable_rx_queues(priv);
 
 	/* Set RX priorities */
-	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_prio)
+	if (rx_queues_count > 1)
 		stmmac_mac_config_rx_queues_prio(priv);
 
 	/* Set TX priorities */
-	if (tx_queues_count > 1 && priv->hw->mac->tx_queue_prio)
+	if (tx_queues_count > 1)
 		stmmac_mac_config_tx_queues_prio(priv);
 
 	/* Set RX routing */
-	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_routing)
+	if (rx_queues_count > 1)
 		stmmac_mac_config_rx_queues_routing(priv);
 }
 
 static void stmmac_safety_feat_configuration(struct stmmac_priv *priv)
 {
-	if (priv->hw->mac->safety_feat_config && priv->dma_cap.asp) {
+	if (priv->dma_cap.asp) {
 		netdev_info(priv->dev, "Enabling Safety Features\n");
-		priv->hw->mac->safety_feat_config(priv->ioaddr,
-				priv->dma_cap.asp);
+		stmmac_safety_feat_config(priv, priv->ioaddr, priv->dma_cap.asp);
 	} else {
 		netdev_info(priv->dev, "No Safety Features support found\n");
 	}
@@ -2528,7 +2524,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	}
 
 	/* Copy the MAC addr into the HW  */
-	priv->hw->mac->set_umac_addr(priv->hw, dev->dev_addr, 0);
+	stmmac_set_umac_addr(priv, priv->hw, dev->dev_addr, 0);
 
 	/* PS and related bits will be programmed according to the speed */
 	if (priv->hw->pcs) {
@@ -2544,7 +2540,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	}
 
 	/* Initialize the MAC Core */
-	priv->hw->mac->core_init(priv->hw, dev);
+	stmmac_core_init(priv, priv->hw, dev);
 
 	/* Initialize MTL*/
 	if (priv->synopsys_id >= DWMAC_CORE_4_00)
@@ -2554,7 +2550,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	if (priv->synopsys_id >= DWMAC_CORE_5_10)
 		stmmac_safety_feat_configuration(priv);
 
-	ret = priv->hw->mac->rx_ipc(priv->hw);
+	ret = stmmac_rx_ipc(priv, priv->hw);
 	if (!ret) {
 		netdev_warn(priv->dev, "RX IPC Checksum Offload disabled\n");
 		priv->plat->rx_coe = STMMAC_RX_COE_NONE;
@@ -2562,7 +2558,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	}
 
 	/* Enable the MAC Rx/Tx */
-	priv->hw->mac->set_mac(priv->ioaddr, true);
+	stmmac_mac_set(priv, priv->ioaddr, true);
 
 	/* Set the HW DMA mode and the COE */
 	stmmac_dma_operation_mode(priv);
@@ -2598,8 +2594,8 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			priv->rx_riwt = MAX_DMA_RIWT;
 	}
 
-	if (priv->hw->pcs && priv->hw->mac->pcs_ctrl_ane)
-		priv->hw->mac->pcs_ctrl_ane(priv->hw, 1, priv->hw->ps, 0);
+	if (priv->hw->pcs)
+		stmmac_pcs_ctrl_ane(priv, priv->hw, 1, priv->hw->ps, 0);
 
 	/* set TX and RX rings length */
 	stmmac_set_rings_length(priv);
@@ -2778,7 +2774,7 @@ static int stmmac_release(struct net_device *dev)
 	free_dma_desc_resources(priv);
 
 	/* Disable the MAC Rx/Tx */
-	priv->hw->mac->set_mac(priv->ioaddr, false);
+	stmmac_mac_set(priv, priv->ioaddr, false);
 
 	netif_carrier_off(dev);
 
@@ -3614,7 +3610,7 @@ static void stmmac_set_rx_mode(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	priv->hw->mac->set_filter(priv->hw, dev);
+	stmmac_set_filter(priv, priv->hw, dev);
 }
 
 /**
@@ -3687,7 +3683,7 @@ static int stmmac_set_features(struct net_device *netdev,
 	/* No check needed because rx_coe has been set before and it will be
 	 * fixed in case of issue.
 	 */
-	priv->hw->mac->rx_ipc(priv->hw);
+	stmmac_rx_ipc(priv, priv->hw);
 
 	return 0;
 }
@@ -3731,8 +3727,7 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 
 	/* To handle GMAC own interrupts */
 	if ((priv->plat->has_gmac) || (priv->plat->has_gmac4)) {
-		int status = priv->hw->mac->host_irq_status(priv->hw,
-							    &priv->xstats);
+		int status = stmmac_host_irq_status(priv, priv->hw, &priv->xstats);
 
 		if (unlikely(status)) {
 			/* For LPI we need to save the tx status */
@@ -3747,9 +3742,8 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 				struct stmmac_rx_queue *rx_q =
 				&priv->rx_queue[queue];
 
-				status |=
-				priv->hw->mac->host_mtl_irq_status(priv->hw,
-								   queue);
+				status |= stmmac_host_mtl_irq_status(priv,
+						priv->hw, queue);
 
 				if (status & CORE_IRQ_MTL_RX_OVERFLOW)
 					stmmac_set_rx_tail_ptr(priv,
@@ -3829,7 +3823,7 @@ static int stmmac_set_mac_address(struct net_device *ndev, void *addr)
 	if (ret)
 		return ret;
 
-	priv->hw->mac->set_umac_addr(priv->hw, ndev->dev_addr, 0);
+	stmmac_set_umac_addr(priv, priv->hw, ndev->dev_addr, 0);
 
 	return ret;
 }
@@ -4418,7 +4412,7 @@ int stmmac_dvr_remove(struct device *dev)
 
 	stmmac_stop_all_dma(priv);
 
-	priv->hw->mac->set_mac(priv->ioaddr, false);
+	stmmac_mac_set(priv, priv->ioaddr, false);
 	netif_carrier_off(ndev);
 	unregister_netdev(ndev);
 	if (priv->plat->stmmac_rst)
@@ -4467,10 +4461,10 @@ int stmmac_suspend(struct device *dev)
 
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device)) {
-		priv->hw->mac->pmt(priv->hw, priv->wolopts);
+		stmmac_pmt(priv, priv->hw, priv->wolopts);
 		priv->irq_wake = 1;
 	} else {
-		priv->hw->mac->set_mac(priv->ioaddr, false);
+		stmmac_mac_set(priv, priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
 		/* Disable clock in case of PWM is off */
 		clk_disable(priv->plat->pclk);
@@ -4534,7 +4528,7 @@ int stmmac_resume(struct device *dev)
 	 */
 	if (device_may_wakeup(priv->device)) {
 		spin_lock_irqsave(&priv->lock, flags);
-		priv->hw->mac->pmt(priv->hw, 0);
+		stmmac_pmt(priv, priv->hw, 0);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		priv->irq_wake = 0;
 	} else {

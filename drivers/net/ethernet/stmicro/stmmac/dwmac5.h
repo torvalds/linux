@@ -43,10 +43,10 @@
 #define DMA_ECC_INT_STATUS		0x00001088
 
 int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
-bool dwmac5_safety_feat_irq_status(struct net_device *ndev,
+int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
 		struct stmmac_safety_stats *stats);
-const char *dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
-			int index, unsigned long *count);
+int dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
+			int index, unsigned long *count, const char **desc);
 
 #endif /* __DWMAC5_H__ */

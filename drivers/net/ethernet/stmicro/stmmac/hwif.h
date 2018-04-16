@@ -228,4 +228,142 @@ struct stmmac_dma_ops {
 #define stmmac_enable_tso(__priv, __args...) \
 	stmmac_do_void_callback(__priv, dma, enable_tso, __args)
 
+struct mac_device_info;
+struct net_device;
+struct rgmii_adv;
+struct stmmac_safety_stats;
+
+/* Helpers to program the MAC core */
+struct stmmac_ops {
+	/* MAC core initialization */
+	void (*core_init)(struct mac_device_info *hw, struct net_device *dev);
+	/* Enable the MAC RX/TX */
+	void (*set_mac)(void __iomem *ioaddr, bool enable);
+	/* Enable and verify that the IPC module is supported */
+	int (*rx_ipc)(struct mac_device_info *hw);
+	/* Enable RX Queues */
+	void (*rx_queue_enable)(struct mac_device_info *hw, u8 mode, u32 queue);
+	/* RX Queues Priority */
+	void (*rx_queue_prio)(struct mac_device_info *hw, u32 prio, u32 queue);
+	/* TX Queues Priority */
+	void (*tx_queue_prio)(struct mac_device_info *hw, u32 prio, u32 queue);
+	/* RX Queues Routing */
+	void (*rx_queue_routing)(struct mac_device_info *hw, u8 packet,
+				 u32 queue);
+	/* Program RX Algorithms */
+	void (*prog_mtl_rx_algorithms)(struct mac_device_info *hw, u32 rx_alg);
+	/* Program TX Algorithms */
+	void (*prog_mtl_tx_algorithms)(struct mac_device_info *hw, u32 tx_alg);
+	/* Set MTL TX queues weight */
+	void (*set_mtl_tx_queue_weight)(struct mac_device_info *hw,
+					u32 weight, u32 queue);
+	/* RX MTL queue to RX dma mapping */
+	void (*map_mtl_to_dma)(struct mac_device_info *hw, u32 queue, u32 chan);
+	/* Configure AV Algorithm */
+	void (*config_cbs)(struct mac_device_info *hw, u32 send_slope,
+			   u32 idle_slope, u32 high_credit, u32 low_credit,
+			   u32 queue);
+	/* Dump MAC registers */
+	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
+	/* Handle extra events on specific interrupts hw dependent */
+	int (*host_irq_status)(struct mac_device_info *hw,
+			       struct stmmac_extra_stats *x);
+	/* Handle MTL interrupts */
+	int (*host_mtl_irq_status)(struct mac_device_info *hw, u32 chan);
+	/* Multicast filter setting */
+	void (*set_filter)(struct mac_device_info *hw, struct net_device *dev);
+	/* Flow control setting */
+	void (*flow_ctrl)(struct mac_device_info *hw, unsigned int duplex,
+			  unsigned int fc, unsigned int pause_time, u32 tx_cnt);
+	/* Set power management mode (e.g. magic frame) */
+	void (*pmt)(struct mac_device_info *hw, unsigned long mode);
+	/* Set/Get Unicast MAC addresses */
+	void (*set_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
+			      unsigned int reg_n);
+	void (*get_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
+			      unsigned int reg_n);
+	void (*set_eee_mode)(struct mac_device_info *hw,
+			     bool en_tx_lpi_clockgating);
+	void (*reset_eee_mode)(struct mac_device_info *hw);
+	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
+	void (*set_eee_pls)(struct mac_device_info *hw, int link);
+	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+		      u32 rx_queues, u32 tx_queues);
+	/* PCS calls */
+	void (*pcs_ctrl_ane)(void __iomem *ioaddr, bool ane, bool srgmi_ral,
+			     bool loopback);
+	void (*pcs_rane)(void __iomem *ioaddr, bool restart);
+	void (*pcs_get_adv_lp)(void __iomem *ioaddr, struct rgmii_adv *adv);
+	/* Safety Features */
+	int (*safety_feat_config)(void __iomem *ioaddr, unsigned int asp);
+	int (*safety_feat_irq_status)(struct net_device *ndev,
+			void __iomem *ioaddr, unsigned int asp,
+			struct stmmac_safety_stats *stats);
+	int (*safety_feat_dump)(struct stmmac_safety_stats *stats,
+			int index, unsigned long *count, const char **desc);
+};
+
+#define stmmac_core_init(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, core_init, __args)
+#define stmmac_mac_set(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_mac, __args)
+#define stmmac_rx_ipc(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, rx_ipc, __args)
+#define stmmac_rx_queue_enable(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, rx_queue_enable, __args)
+#define stmmac_rx_queue_prio(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, rx_queue_prio, __args)
+#define stmmac_tx_queue_prio(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, tx_queue_prio, __args)
+#define stmmac_rx_queue_routing(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, rx_queue_routing, __args)
+#define stmmac_prog_mtl_rx_algorithms(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, prog_mtl_rx_algorithms, __args)
+#define stmmac_prog_mtl_tx_algorithms(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, prog_mtl_tx_algorithms, __args)
+#define stmmac_set_mtl_tx_queue_weight(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_mtl_tx_queue_weight, __args)
+#define stmmac_map_mtl_to_dma(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, map_mtl_to_dma, __args)
+#define stmmac_config_cbs(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, config_cbs, __args)
+#define stmmac_dump_mac_regs(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, dump_regs, __args)
+#define stmmac_host_irq_status(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, host_irq_status, __args)
+#define stmmac_host_mtl_irq_status(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, host_mtl_irq_status, __args)
+#define stmmac_set_filter(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_filter, __args)
+#define stmmac_flow_ctrl(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, flow_ctrl, __args)
+#define stmmac_pmt(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, pmt, __args)
+#define stmmac_set_umac_addr(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_umac_addr, __args)
+#define stmmac_get_umac_addr(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, get_umac_addr, __args)
+#define stmmac_set_eee_mode(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_eee_mode, __args)
+#define stmmac_reset_eee_mode(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, reset_eee_mode, __args)
+#define stmmac_set_eee_timer(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_eee_timer, __args)
+#define stmmac_set_eee_pls(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, set_eee_pls, __args)
+#define stmmac_mac_debug(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, debug, __args)
+#define stmmac_pcs_ctrl_ane(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, pcs_ctrl_ane, __args)
+#define stmmac_pcs_rane(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, pcs_rane, __args)
+#define stmmac_pcs_get_adv_lp(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, pcs_get_adv_lp, __args)
+#define stmmac_safety_feat_config(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, safety_feat_config, __args)
+#define stmmac_safety_feat_irq_status(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, safety_feat_irq_status, __args)
+#define stmmac_safety_feat_dump(__priv, __args...) \
+	stmmac_do_callback(__priv, mac, safety_feat_dump, __args)
+
 #endif /* __STMMAC_HWIF_H__ */
