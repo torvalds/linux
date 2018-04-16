@@ -28,9 +28,13 @@
 
 #include "udf_sb.h"
 
+#define PLANE_SIZE 0x10000
 #define UNICODE_MAX 0x10ffff
 #define SURROGATE_MASK 0xfffff800
 #define SURROGATE_PAIR 0x0000d800
+#define SURROGATE_LOW  0x00000400
+#define SURROGATE_CHAR_BITS 10
+#define SURROGATE_CHAR_MASK ((1 << SURROGATE_CHAR_BITS) - 1)
 
 static int udf_uni2char_utf8(wchar_t uni,
 			     unsigned char *out,
@@ -48,26 +52,6 @@ static int udf_uni2char_utf8(wchar_t uni,
 			return -EINVAL;
 		return -ENAMETOOLONG;
 	}
-	return u_len;
-}
-
-static int udf_char2uni_utf8(const unsigned char *in,
-			     int boundlen,
-			     wchar_t *uni)
-{
-	int u_len;
-	unicode_t c;
-
-	u_len = utf8_to_utf32(in, boundlen, &c);
-	if (u_len < 0) {
-		*uni = '?';
-		return -EINVAL;
-	}
-
-	if (c > MAX_WCHAR_T)
-		*uni = '?';
-	else
-		*uni = c;
 	return u_len;
 }
 
@@ -261,19 +245,17 @@ static int udf_name_to_CS0(struct super_block *sb,
 {
 	int i, len;
 	unsigned int max_val;
-	wchar_t uni_char;
 	int u_len, u_ch;
+	unicode_t uni_char;
 	int (*conv_f)(const unsigned char *, int, wchar_t *);
 
 	if (ocu_max_len <= 0)
 		return 0;
 
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
-		conv_f = udf_char2uni_utf8;
-	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
+	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		conv_f = UDF_SB(sb)->s_nls_map->char2uni;
-	} else
-		BUG();
+	else
+		conv_f = NULL;
 
 	memset(ocu, 0, ocu_max_len);
 	ocu[0] = 8;
@@ -282,30 +264,55 @@ static int udf_name_to_CS0(struct super_block *sb,
 
 try_again:
 	u_len = 1;
-	for (i = 0; i < str_len; i++) {
+	for (i = 0; i < str_len; i += len) {
 		/* Name didn't fit? */
 		if (u_len + u_ch > ocu_max_len)
 			return 0;
-		len = conv_f(&str_i[i], str_len - i, &uni_char);
-		if (!len)
-			continue;
+		if (conv_f) {
+			wchar_t wchar;
+
+			len = conv_f(&str_i[i], str_len - i, &wchar);
+			if (len > 0)
+				uni_char = wchar;
+		} else {
+			len = utf8_to_utf32(&str_i[i], str_len - i,
+					    &uni_char);
+		}
 		/* Invalid character, deal with it */
-		if (len < 0) {
+		if (len <= 0 || uni_char > UNICODE_MAX) {
 			len = 1;
 			uni_char = '?';
 		}
 
 		if (uni_char > max_val) {
-			max_val = 0xffff;
-			ocu[0] = 0x10;
-			u_ch = 2;
-			goto try_again;
+			unicode_t c;
+
+			if (max_val == 0xff) {
+				max_val = 0xffff;
+				ocu[0] = 0x10;
+				u_ch = 2;
+				goto try_again;
+			}
+			/*
+			 * Use UTF-16 encoding for chars outside we
+			 * cannot encode directly.
+			 */
+			if (u_len + 2 * u_ch > ocu_max_len)
+				return 0;
+
+			uni_char -= PLANE_SIZE;
+			c = SURROGATE_PAIR |
+			    ((uni_char >> SURROGATE_CHAR_BITS) &
+			     SURROGATE_CHAR_MASK);
+			ocu[u_len++] = (uint8_t)(c >> 8);
+			ocu[u_len++] = (uint8_t)(c & 0xff);
+			uni_char = SURROGATE_PAIR | SURROGATE_LOW |
+					(uni_char & SURROGATE_CHAR_MASK);
 		}
 
 		if (max_val == 0xffff)
 			ocu[u_len++] = (uint8_t)(uni_char >> 8);
 		ocu[u_len++] = (uint8_t)(uni_char & 0xff);
-		i += len - 1;
 	}
 
 	return u_len;
