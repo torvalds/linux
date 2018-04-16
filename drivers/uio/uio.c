@@ -597,7 +597,7 @@ static int uio_find_mem_index(struct vm_area_struct *vma)
 	return -1;
 }
 
-static int uio_vma_fault(struct vm_fault *vmf)
+static vm_fault_t uio_vma_fault(struct vm_fault *vmf)
 {
 	struct uio_device *idev = vmf->vma->vm_private_data;
 	struct page *page;
