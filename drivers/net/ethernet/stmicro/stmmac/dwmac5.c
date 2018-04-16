@@ -237,15 +237,16 @@ int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp)
 	return 0;
 }
 
-bool dwmac5_safety_feat_irq_status(struct net_device *ndev,
+int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,
 		struct stmmac_safety_stats *stats)
 {
-	bool ret = false, err, corr;
+	bool err, corr;
 	u32 mtl, dma;
+	int ret = 0;
 
 	if (!asp)
-		return false;
+		return -EINVAL;
 
 	mtl = readl(ioaddr + MTL_SAFETY_INT_STATUS);
 	dma = readl(ioaddr + DMA_SAFETY_INT_STATUS);
@@ -282,17 +283,19 @@ static const struct dwmac5_error {
 	{ dwmac5_dma_errors },
 };
 
-const char *dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
-			int index, unsigned long *count)
+int dwmac5_safety_feat_dump(struct stmmac_safety_stats *stats,
+			int index, unsigned long *count, const char **desc)
 {
 	int module = index / 32, offset = index % 32;
 	unsigned long *ptr = (unsigned long *)stats;
 
 	if (module >= ARRAY_SIZE(dwmac5_all_errors))
-		return NULL;
+		return -EINVAL;
 	if (!dwmac5_all_errors[module].desc[offset].valid)
-		return NULL;
+		return -EINVAL;
 	if (count)
 		*count = *(ptr + index);
-	return dwmac5_all_errors[module].desc[offset].desc;
+	if (desc)
+		*desc = dwmac5_all_errors[module].desc[offset].desc;
+	return 0;
 }

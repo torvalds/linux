@@ -49,9 +49,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	addend = neg_adj ? (addend - diff) : (addend + diff);
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->config_addend(priv->ptpaddr, addend);
-
+	stmmac_config_addend(priv, priv->ptpaddr, addend);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -84,10 +82,8 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	nsec = reminder;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->adjust_systime(priv->ptpaddr, sec, nsec, neg_adj,
-				      priv->plat->has_gmac4);
-
+	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj,
+			priv->plat->has_gmac4);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
@@ -110,9 +106,7 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	u64 ns;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	ns = priv->hw->ptp->get_systime(priv->ptpaddr);
-
+	stmmac_get_systime(priv, priv->ptpaddr, &ns);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	*ts = ns_to_timespec64(ns);
@@ -137,9 +131,7 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
-
-	priv->hw->ptp->init_systime(priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
-
+	stmmac_init_systime(priv, priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
