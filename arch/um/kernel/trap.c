@@ -162,14 +162,9 @@ static void show_segv_info(struct uml_pt_regs *regs)
 
 static void bad_segv(struct faultinfo fi, unsigned long ip)
 {
-	struct siginfo si;
-
-	clear_siginfo(&si);
-	si.si_signo = SIGSEGV;
-	si.si_code = SEGV_ACCERR;
-	si.si_addr = (void __user *) FAULT_ADDRESS(fi);
 	current->thread.arch.faultinfo = fi;
-	force_sig_info(SIGSEGV, &si, current);
+	force_sig_fault(SIGSEGV, SEGV_ACCERR, (void __user *) FAULT_ADDRESS(fi),
+			current);
 }
 
 void fatal_sigsegv(void)
@@ -215,13 +210,12 @@ void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		   struct uml_pt_regs *regs)
 {
-	struct siginfo si;
 	jmp_buf *catcher;
+	int si_code;
 	int err;
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
 
-	clear_siginfo(&si);
 	if (!is_user && regs)
 		current->thread.segv_regs = container_of(regs, struct pt_regs, regs);
 
@@ -241,7 +235,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 	if (SEGV_IS_FIXABLE(&fi))
 		err = handle_page_fault(address, ip, is_write, is_user,
-					&si.si_code);
+					&si_code);
 	else {
 		err = -EFAULT;
 		/*
@@ -273,18 +267,14 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	show_segv_info(regs);
 
 	if (err == -EACCES) {
-		si.si_signo = SIGBUS;
-		si.si_errno = 0;
-		si.si_code = BUS_ADRERR;
-		si.si_addr = (void __user *)address;
 		current->thread.arch.faultinfo = fi;
-		force_sig_info(SIGBUS, &si, current);
+		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address,
+				current);
 	} else {
 		BUG_ON(err != -EFAULT);
-		si.si_signo = SIGSEGV;
-		si.si_addr = (void __user *) address;
 		current->thread.arch.faultinfo = fi;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_fault(SIGSEGV, si_code, (void __user *) address,
+				current);
 	}
 
 out:
