@@ -425,6 +425,16 @@ static void test_alternative_case_with_external_branch(void)
 	check(memcmp(ftr_fixup_test6, ftr_fixup_test6_expected, size) == 0);
 }
 
+static void test_alternative_case_with_branch_to_end(void)
+{
+	extern unsigned int ftr_fixup_test7[];
+	extern unsigned int end_ftr_fixup_test7[];
+	extern unsigned int ftr_fixup_test7_expected[];
+	int size = 4 * (end_ftr_fixup_test7 - ftr_fixup_test7);
+
+	check(memcmp(ftr_fixup_test7, ftr_fixup_test7_expected, size) == 0);
+}
+
 static void test_cpu_macros(void)
 {
 	extern u8 ftr_fixup_test_FTR_macros[];
@@ -480,6 +490,7 @@ static int __init test_feature_fixups(void)
 	test_alternative_case_too_small();
 	test_alternative_case_with_branch();
 	test_alternative_case_with_external_branch();
+	test_alternative_case_with_branch_to_end();
 	test_cpu_macros();
 	test_fw_macros();
 	test_lwsync_macros();
