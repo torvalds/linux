@@ -1313,8 +1313,8 @@ static int netsec_netdev_open(struct net_device *ndev)
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
-	/* Enable RX intr. */
-	netsec_write(priv, NETSEC_REG_INTEN_SET, NETSEC_IRQ_RX);
+	/* Enable TX+RX intr. */
+	netsec_write(priv, NETSEC_REG_INTEN_SET, NETSEC_IRQ_RX | NETSEC_IRQ_TX);
 
 	return 0;
 err3:
