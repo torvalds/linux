@@ -243,15 +243,26 @@ void *klp_shadow_get_or_alloc(void *obj, unsigned long id,
 }
 EXPORT_SYMBOL_GPL(klp_shadow_get_or_alloc);
 
+static void klp_shadow_free_struct(struct klp_shadow *shadow,
+				   klp_shadow_dtor_t dtor)
+{
+	hash_del_rcu(&shadow->node);
+	if (dtor)
+		dtor(shadow->obj, shadow->data);
+	kfree_rcu(shadow, rcu_head);
+}
+
 /**
  * klp_shadow_free() - detach and free a <obj, id> shadow variable
  * @obj:	pointer to parent object
  * @id:		data identifier
+ * @dtor:	custom callback that can be used to unregister the variable
+ *		and/or free data that the shadow variable points to (optional)
  *
  * This function releases the memory for this <obj, id> shadow variable
  * instance, callers should stop referencing it accordingly.
  */
-void klp_shadow_free(void *obj, unsigned long id)
+void klp_shadow_free(void *obj, unsigned long id, klp_shadow_dtor_t dtor)
 {
 	struct klp_shadow *shadow;
 	unsigned long flags;
@@ -263,8 +274,7 @@ void klp_shadow_free(void *obj, unsigned long id)
 			       (unsigned long)obj) {
 
 		if (klp_shadow_match(shadow, obj, id)) {
-			hash_del_rcu(&shadow->node);
-			kfree_rcu(shadow, rcu_head);
+			klp_shadow_free_struct(shadow, dtor);
 			break;
 		}
 	}
@@ -276,11 +286,13 @@ EXPORT_SYMBOL_GPL(klp_shadow_free);
 /**
  * klp_shadow_free_all() - detach and free all <*, id> shadow variables
  * @id:		data identifier
+ * @dtor:	custom callback that can be used to unregister the variable
+ *		and/or free data that the shadow variable points to (optional)
  *
  * This function releases the memory for all <*, id> shadow variable
  * instances, callers should stop referencing them accordingly.
  */
-void klp_shadow_free_all(unsigned long id)
+void klp_shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
 {
 	struct klp_shadow *shadow;
 	unsigned long flags;
@@ -290,10 +302,8 @@ void klp_shadow_free_all(unsigned long id)
 
 	/* Delete all <*, id> from hash */
 	hash_for_each(klp_shadow_hash, i, shadow, node) {
-		if (klp_shadow_match(shadow, shadow->obj, id)) {
-			hash_del_rcu(&shadow->node);
-			kfree_rcu(shadow, rcu_head);
-		}
+		if (klp_shadow_match(shadow, shadow->obj, id))
+			klp_shadow_free_struct(shadow, dtor);
 	}
 
 	spin_unlock_irqrestore(&klp_shadow_lock, flags);

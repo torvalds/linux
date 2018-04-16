@@ -65,11 +65,15 @@ to do actions that can be done only once when a new variable is allocated.
 
 * klp_shadow_free() - detach and free a <obj, id> shadow variable
   - find and remove a <obj, id> reference from global hashtable
-    - if found, free shadow variable
+    - if found
+      - call destructor function if defined
+      - free shadow variable
 
 * klp_shadow_free_all() - detach and free all <*, id> shadow variables
   - find and remove any <*, id> references from global hashtable
-    - if found, free shadow variable
+    - if found
+      - call destructor function if defined
+      - free shadow variable
 
 
 2. Use cases
@@ -136,7 +140,7 @@ variable:
 
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
-	klp_shadow_free(sta, PS_LOCK);
+	klp_shadow_free(sta, PS_LOCK, NULL);
 	kfree(sta);
 	...
 
