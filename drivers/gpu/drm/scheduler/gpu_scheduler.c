@@ -136,6 +136,8 @@ int drm_sched_entity_init(struct drm_gpu_scheduler *sched,
 	entity->rq = rq;
 	entity->sched = sched;
 	entity->guilty = guilty;
+	entity->fini_status = 0;
+	entity->last_scheduled = NULL;
 
 	spin_lock_init(&entity->rq_lock);
 	spin_lock_init(&entity->queue_lock);
@@ -197,19 +199,30 @@ static bool drm_sched_entity_is_ready(struct drm_sched_entity *entity)
 	return true;
 }
 
+static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
+				    struct dma_fence_cb *cb)
+{
+	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
+						 finish_cb);
+	drm_sched_fence_finished(job->s_fence);
+	WARN_ON(job->s_fence->parent);
+	dma_fence_put(&job->s_fence->finished);
+	job->sched->ops->free_job(job);
+}
+
+
 /**
  * Destroy a context entity
  *
  * @sched       Pointer to scheduler instance
  * @entity	The pointer to a valid scheduler entity
  *
- * Cleanup and free the allocated resources.
+ * Splitting drm_sched_entity_fini() into two functions, The first one is does the waiting,
+ * removes the entity from the runqueue and returns an error when the process was killed.
  */
-void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
+void drm_sched_entity_do_release(struct drm_gpu_scheduler *sched,
 			   struct drm_sched_entity *entity)
 {
-	int r;
-
 	if (!drm_sched_entity_is_initialized(sched, entity))
 		return;
 	/**
@@ -217,13 +230,28 @@ void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
 	 * queued IBs or discard them on SIGKILL
 	*/
 	if ((current->flags & PF_SIGNALED) && current->exit_code == SIGKILL)
-		r = -ERESTARTSYS;
+		entity->fini_status = -ERESTARTSYS;
 	else
-		r = wait_event_killable(sched->job_scheduled,
+		entity->fini_status = wait_event_killable(sched->job_scheduled,
 					drm_sched_entity_is_idle(entity));
 	drm_sched_entity_set_rq(entity, NULL);
-	if (r) {
+}
+EXPORT_SYMBOL(drm_sched_entity_do_release);
+
+/**
+ * Destroy a context entity
+ *
+ * @sched       Pointer to scheduler instance
+ * @entity	The pointer to a valid scheduler entity
+ *
+ * The second one then goes over the entity and signals all jobs with an error code.
+ */
+void drm_sched_entity_cleanup(struct drm_gpu_scheduler *sched,
+			   struct drm_sched_entity *entity)
+{
+	if (entity->fini_status) {
 		struct drm_sched_job *job;
+		int r;
 
 		/* Park the kernel for a moment to make sure it isn't processing
 		 * our enity.
@@ -241,12 +269,25 @@ void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
 			struct drm_sched_fence *s_fence = job->s_fence;
 			drm_sched_fence_scheduled(s_fence);
 			dma_fence_set_error(&s_fence->finished, -ESRCH);
-			drm_sched_fence_finished(s_fence);
-			WARN_ON(s_fence->parent);
-			dma_fence_put(&s_fence->finished);
-			sched->ops->free_job(job);
+			r = dma_fence_add_callback(entity->last_scheduled, &job->finish_cb,
+							drm_sched_entity_kill_jobs_cb);
+			if (r == -ENOENT)
+				drm_sched_entity_kill_jobs_cb(NULL, &job->finish_cb);
+			else if (r)
+				DRM_ERROR("fence add callback failed (%d)\n", r);
 		}
+
+		dma_fence_put(entity->last_scheduled);
+		entity->last_scheduled = NULL;
 	}
+}
+EXPORT_SYMBOL(drm_sched_entity_cleanup);
+
+void drm_sched_entity_fini(struct drm_gpu_scheduler *sched,
+				struct drm_sched_entity *entity)
+{
+	drm_sched_entity_do_release(sched, entity);
+	drm_sched_entity_cleanup(sched, entity);
 }
 EXPORT_SYMBOL(drm_sched_entity_fini);
 
@@ -530,6 +571,10 @@ void drm_sched_job_recovery(struct drm_gpu_scheduler *sched)
 		spin_unlock(&sched->job_list_lock);
 		fence = sched->ops->run_job(s_job);
 		atomic_inc(&sched->hw_rq_count);
+
+		dma_fence_put(s_job->entity->last_scheduled);
+		s_job->entity->last_scheduled = dma_fence_get(&s_fence->finished);
+
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
 			r = dma_fence_add_callback(fence, &s_fence->cb,
@@ -556,6 +601,7 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       void *owner)
 {
 	job->sched = sched;
+	job->entity = entity;
 	job->s_priority = entity->rq - sched->sched_rq;
 	job->s_fence = drm_sched_fence_create(entity, owner);
 	if (!job->s_fence)
@@ -668,6 +714,9 @@ static int drm_sched_main(void *param)
 
 		fence = sched->ops->run_job(sched_job);
 		drm_sched_fence_scheduled(s_fence);
+
+		dma_fence_put(entity->last_scheduled);
+		entity->last_scheduled = dma_fence_get(&s_fence->finished);
 
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);

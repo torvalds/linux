@@ -913,8 +913,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 		return;
 
 	pm_runtime_get_sync(dev->dev);
-
-	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+	amdgpu_ctx_mgr_entity_fini(&fpriv->ctx_mgr);
 
 	if (adev->asic_type != CHIP_RAVEN) {
 		amdgpu_uvd_free_handles(adev, file_priv);
@@ -935,6 +934,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	pd = amdgpu_bo_ref(fpriv->vm.root.base.bo);
 
 	amdgpu_vm_fini(adev, &fpriv->vm);
+	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+
 	if (pasid)
 		amdgpu_pasid_free_delayed(pd->tbo.resv, pasid);
 	amdgpu_bo_unref(&pd);
