@@ -38,14 +38,4 @@ enum soc_type {
 	SOC_ARCH_EXYNOS7,
 };
 
-/**
- * struct exynos_tmu_platform_data
- * @cal_type: calibration type for temperature
- *
- * This structure is required for configuration of exynos_tmu driver.
- */
-struct exynos_tmu_platform_data {
-	u32 cal_type;
-};
-
 #endif /* _EXYNOS_TMU_H */
