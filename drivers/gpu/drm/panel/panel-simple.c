@@ -547,6 +547,7 @@ static int panel_simple_regulator_disable(struct drm_panel *panel)
 
 static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
 {
+	struct panel_simple *p = to_panel_simple(panel);
 	int err;
 
 	if (on) {
@@ -556,8 +557,11 @@ static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
 				err);
 			return err;
 		}
+
+		p->prepared = true;
+		p->enabled = true;
 	} else {
-		panel_simple_regulator_disable(panel);
+		/* do nothing */
 	}
 
 	return 0;
