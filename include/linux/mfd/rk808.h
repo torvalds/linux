@@ -491,14 +491,22 @@ enum rk805_reg {
 #define RK805_PWRON_FALL_RISE_INT_MSK	0x81
 
 /* RK805 IRQ Definitions */
-#define RK805_IRQ_PWRON_RISE		0
 #define RK805_IRQ_VB_LOW		1
 #define RK805_IRQ_PWRON			2
 #define RK805_IRQ_PWRON_LP		3
 #define RK805_IRQ_HOTDIE		4
 #define RK805_IRQ_RTC_ALARM		5
 #define RK805_IRQ_RTC_PERIOD		6
-#define RK805_IRQ_PWRON_FALL		7
+
+/*
+ * When PMIC irq occurs, regmap-irq.c will traverse all PMIC child
+ * interrupts from low index 0 to high index, we give fall interrupt
+ * high priority to be called earlier than rise, so that it can be
+ * override by late rise event. This can helps to solve key release
+ * glitch which make a wrongly fall event immediately after rise.
+ */
+#define RK805_IRQ_PWRON_FALL		0
+#define RK805_IRQ_PWRON_RISE		7
 
 #define RK805_IRQ_PWRON_RISE_MSK	BIT(0)
 #define RK805_IRQ_VB_LOW_MSK		BIT(1)
