@@ -474,12 +474,6 @@ config NF_TABLES_NETDEV
 	help
 	  This option enables support for the "netdev" table.
 
-config NFT_EXTHDR
-	tristate "Netfilter nf_tables exthdr module"
-	help
-	  This option adds the "exthdr" expression that you can use to match
-	  IPv6 extension headers and tcp options.
-
 config NFT_NUMGEN
 	tristate "Netfilter nf_tables number generator module"
 	help
