@@ -383,18 +383,6 @@ extern const struct stmmac_desc_ops ndesc_ops;
 
 struct mac_device_info;
 
-/* PTP and HW Timer helpers */
-struct stmmac_hwtimestamp {
-	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
-	u32 (*config_sub_second_increment)(void __iomem *ioaddr, u32 ptp_clock,
-					   int gmac4);
-	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
-	int (*config_addend) (void __iomem *ioaddr, u32 addend);
-	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
-			       int add_sub, int gmac4);
-	 u64(*get_systime) (void __iomem *ioaddr);
-};
-
 extern const struct stmmac_hwtimestamp stmmac_ptp;
 extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
 

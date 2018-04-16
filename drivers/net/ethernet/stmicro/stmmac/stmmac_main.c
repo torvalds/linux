@@ -707,18 +707,18 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	priv->hwts_tx_en = config.tx_type == HWTSTAMP_TX_ON;
 
 	if (!priv->hwts_tx_en && !priv->hwts_rx_en)
-		priv->hw->ptp->config_hw_tstamping(priv->ptpaddr, 0);
+		stmmac_config_hw_tstamping(priv, priv->ptpaddr, 0);
 	else {
 		value = (PTP_TCR_TSENA | PTP_TCR_TSCFUPDT | PTP_TCR_TSCTRLSSR |
 			 tstamp_all | ptp_v2 | ptp_over_ethernet |
 			 ptp_over_ipv6_udp | ptp_over_ipv4_udp | ts_event_en |
 			 ts_master_en | snap_type_sel);
-		priv->hw->ptp->config_hw_tstamping(priv->ptpaddr, value);
+		stmmac_config_hw_tstamping(priv, priv->ptpaddr, value);
 
 		/* program Sub Second Increment reg */
-		sec_inc = priv->hw->ptp->config_sub_second_increment(
-			priv->ptpaddr, priv->plat->clk_ptp_rate,
-			priv->plat->has_gmac4);
+		stmmac_config_sub_second_increment(priv,
+				priv->ptpaddr, priv->plat->clk_ptp_rate,
+				priv->plat->has_gmac4, &sec_inc);
 		temp = div_u64(1000000000ULL, sec_inc);
 
 		/* calculate default added value:
@@ -728,15 +728,14 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		 */
 		temp = (u64)(temp << 32);
 		priv->default_addend = div_u64(temp, priv->plat->clk_ptp_rate);
-		priv->hw->ptp->config_addend(priv->ptpaddr,
-					     priv->default_addend);
+		stmmac_config_addend(priv, priv->ptpaddr, priv->default_addend);
 
 		/* initialize system time */
 		ktime_get_real_ts64(&now);
 
 		/* lower 32 bits of tv_sec are safe until y2106 */
-		priv->hw->ptp->init_systime(priv->ptpaddr, (u32)now.tv_sec,
-					    now.tv_nsec);
+		stmmac_init_systime(priv, priv->ptpaddr,
+				(u32)now.tv_sec, now.tv_nsec);
 	}
 
 	return copy_to_user(ifr->ifr_data, &config,

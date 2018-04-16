@@ -366,4 +366,29 @@ struct stmmac_ops {
 #define stmmac_safety_feat_dump(__priv, __args...) \
 	stmmac_do_callback(__priv, mac, safety_feat_dump, __args)
 
+/* PTP and HW Timer helpers */
+struct stmmac_hwtimestamp {
+	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
+	void (*config_sub_second_increment)(void __iomem *ioaddr, u32 ptp_clock,
+					   int gmac4, u32 *ssinc);
+	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
+	int (*config_addend) (void __iomem *ioaddr, u32 addend);
+	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
+			       int add_sub, int gmac4);
+	void (*get_systime) (void __iomem *ioaddr, u64 *systime);
+};
+
+#define stmmac_config_hw_tstamping(__priv, __args...) \
+	stmmac_do_void_callback(__priv, ptp, config_hw_tstamping, __args)
+#define stmmac_config_sub_second_increment(__priv, __args...) \
+	stmmac_do_void_callback(__priv, ptp, config_sub_second_increment, __args)
+#define stmmac_init_systime(__priv, __args...) \
+	stmmac_do_callback(__priv, ptp, init_systime, __args)
+#define stmmac_config_addend(__priv, __args...) \
+	stmmac_do_callback(__priv, ptp, config_addend, __args)
+#define stmmac_adjust_systime(__priv, __args...) \
+	stmmac_do_callback(__priv, ptp, adjust_systime, __args)
+#define stmmac_get_systime(__priv, __args...) \
+	stmmac_do_void_callback(__priv, ptp, get_systime, __args)
+
 #endif /* __STMMAC_HWIF_H__ */
