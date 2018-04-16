@@ -645,8 +645,6 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 	case DOT11_RSN_CONFIG_AUTH_SUITE:
 		hostif_sme_enqueue(priv, SME_RSN_AUTH_CONFIRM);
 		break;
-	case DOT11_PMK_TSC:
-		break;
 	case DOT11_GMK1_TSC:
 		if (atomic_read(&priv->psstatus.snooze_guard))
 			atomic_set(&priv->psstatus.snooze_guard, 0);
@@ -655,15 +653,12 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 		if (atomic_read(&priv->psstatus.snooze_guard))
 			atomic_set(&priv->psstatus.snooze_guard, 0);
 		break;
+	case DOT11_PMK_TSC:
 	case LOCAL_PMK:
-		break;
 	case LOCAL_GAIN:
-		break;
 #ifdef WPS
 	case LOCAL_WPS_ENABLE:
-		break;
 	case LOCAL_WPS_PROBE_REQ:
-		break;
 #endif /* WPS */
 	case LOCAL_REGION:
 	default:
