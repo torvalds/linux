@@ -727,7 +727,7 @@ static int gc0310_init(struct v4l2_subdev *sd)
 	mutex_unlock(&dev->input_lock);
 
 	pr_info("%s E\n", __func__);
-	return 0;
+	return ret;
 }
 
 static int power_ctrl(struct v4l2_subdev *sd, bool flag)
