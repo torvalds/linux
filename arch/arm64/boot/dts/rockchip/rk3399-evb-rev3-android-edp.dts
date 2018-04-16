@@ -83,6 +83,7 @@
 };
 
 &edp {
+	force-hpd;
 	status = "okay";
 
 	ports {
