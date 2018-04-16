@@ -118,10 +118,12 @@ ifeq ($(ADDR_BITS),64)
 	itb_addr_cells = 2
 endif
 
-quiet_cmd_its_cat = CAT     $@
-      cmd_its_cat = cat $^ >$@
+targets += vmlinux.its.S
 
-$(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS))
+quiet_cmd_its_cat = CAT     $@
+      cmd_its_cat = cat $(filter-out $(PHONY), $^) >$@
+
+$(obj)/vmlinux.its.S: $(addprefix $(srctree)/arch/mips/$(PLATFORM)/,$(ITS_INPUTS)) FORCE
 	$(call if_changed,its_cat)
 
 quiet_cmd_cpp_its_S = ITS     $@
