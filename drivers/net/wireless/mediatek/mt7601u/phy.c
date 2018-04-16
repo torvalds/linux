@@ -975,6 +975,7 @@ void mt7601u_agc_restore(struct mt7601u_dev *dev)
 static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 {
 	u8 val = mt7601u_agc_default(dev);
+	long avg_rssi;
 
 	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
 		return;
@@ -984,9 +985,12 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 	 *	 Rssi updates are only on beacons and U2M so should work...
 	 */
 	spin_lock_bh(&dev->con_mon_lock);
-	if (dev->avg_rssi <= -70)
+	avg_rssi = ewma_rssi_read(&dev->avg_rssi);
+	WARN_ON_ONCE(avg_rssi == 0);
+	avg_rssi = -avg_rssi;
+	if (avg_rssi <= -70)
 		val -= 0x20;
-	else if (dev->avg_rssi <= -60)
+	else if (avg_rssi <= -60)
 		val -= 0x10;
 	spin_unlock_bh(&dev->con_mon_lock);
 
@@ -1102,7 +1106,7 @@ void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
 	/* Start/stop collecting beacon data */
 	spin_lock_bh(&dev->con_mon_lock);
 	ether_addr_copy(dev->ap_bssid, info->bssid);
-	dev->avg_rssi = 0;
+	ewma_rssi_init(&dev->avg_rssi);
 	dev->bcn_freq_off = MT_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->con_mon_lock);
 
