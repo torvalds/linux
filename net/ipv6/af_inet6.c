@@ -590,6 +590,7 @@ const struct proto_ops inet6_stream_ops = {
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
+	.set_rcvlowat	   = tcp_set_rcvlowat,
 };
 
 const struct proto_ops inet6_dgram_ops = {
