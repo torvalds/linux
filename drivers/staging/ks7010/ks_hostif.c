@@ -2043,19 +2043,13 @@ void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 	hostif_power_mgmt_request(priv, mode, wake_up, receive_dtims);
 }
 
-static
-void hostif_sme_sleep_set(struct ks_wlan_private *priv)
+static void hostif_sme_sleep_set(struct ks_wlan_private *priv)
 {
-	switch (priv->sleep_mode) {
-	case SLP_SLEEP:
-		hostif_sleep_request(priv, priv->sleep_mode);
-		break;
-	case SLP_ACTIVE:
-		hostif_sleep_request(priv, priv->sleep_mode);
-		break;
-	default:
-		break;
-	}
+	if (priv->sleep_mode != SLP_SLEEP &&
+	    priv->sleep_mode != SLP_ACTIVE)
+		return;
+
+	hostif_sleep_request(priv, priv->sleep_mode);
 }
 
 static
