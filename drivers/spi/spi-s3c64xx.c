@@ -889,7 +889,7 @@ static irqreturn_t s3c64xx_spi_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
+static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd)
 {
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
@@ -1143,7 +1143,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	/* Setup Deufult Mode */
-	s3c64xx_spi_hwinit(sdd, sdd->port_id);
+	s3c64xx_spi_hwinit(sdd);
 
 	spin_lock_init(&sdd->lock);
 	init_completion(&sdd->xfer_completion);
@@ -1258,7 +1258,7 @@ static int s3c64xx_spi_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	s3c64xx_spi_hwinit(sdd, sdd->port_id);
+	s3c64xx_spi_hwinit(sdd);
 
 	return spi_master_resume(master);
 }
