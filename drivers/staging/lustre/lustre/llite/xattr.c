@@ -190,15 +190,18 @@ static int ll_adjust_lum(struct inode *inode, struct lov_user_md *lump)
 {
 	int rc = 0;
 
+	if (!lump)
+		return 0;
+
 	/* Attributes that are saved via getxattr will always have
 	 * the stripe_offset as 0.  Instead, the MDS should be
 	 * allowed to pick the starting OST index.   b=17846
 	 */
-	if (lump && lump->lmm_stripe_offset == 0)
+	if (lump->lmm_stripe_offset == 0)
 		lump->lmm_stripe_offset = -1;
 
 	/* Avoid anyone directly setting the RELEASED flag. */
-	if (lump && (lump->lmm_pattern & LOV_PATTERN_F_RELEASED)) {
+	if (lump->lmm_pattern & LOV_PATTERN_F_RELEASED) {
 		/* Only if we have a released flag check if the file
 		 * was indeed archived.
 		 */
