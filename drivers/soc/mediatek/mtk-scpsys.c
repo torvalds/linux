@@ -1067,15 +1067,13 @@ static const struct of_device_id of_scpsys_match_tbl[] = {
 
 static int scpsys_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const struct scp_subdomain *sd;
 	const struct scp_soc_data *soc;
 	struct scp *scp;
 	struct genpd_onecell_data *pd_data;
 	int i, ret;
 
-	match = of_match_device(of_scpsys_match_tbl, &pdev->dev);
-	soc = (const struct scp_soc_data *)match->data;
+	soc = of_device_get_match_data(&pdev->dev);
 
 	scp = init_scp(pdev, soc->domains, soc->num_domains, &soc->regs,
 			soc->bus_prot_reg_update);
