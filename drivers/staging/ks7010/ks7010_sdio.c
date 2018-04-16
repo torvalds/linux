@@ -10,6 +10,7 @@
  *   published by the Free Software Foundation.
  */
 
+#include <linux/circ_buf.h>
 #include <linux/firmware.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
@@ -43,11 +44,10 @@ static inline void inc_txqtail(struct ks_wlan_private *priv)
 	priv->tx_dev.qtail = (priv->tx_dev.qtail + 1) % TX_DEVICE_BUFF_SIZE;
 }
 
-static inline unsigned int cnt_txqbody(struct ks_wlan_private *priv)
+static inline bool txq_has_space(struct ks_wlan_private *priv)
 {
-	unsigned int tx_cnt = priv->tx_dev.qtail - priv->tx_dev.qhead;
-
-	return (tx_cnt + TX_DEVICE_BUFF_SIZE) % TX_DEVICE_BUFF_SIZE;
+	return (CIRC_SPACE(priv->tx_dev.qhead, priv->tx_dev.qtail,
+			   TX_DEVICE_BUFF_SIZE) > 0);
 }
 
 static inline void inc_rxqhead(struct ks_wlan_private *priv)
@@ -60,11 +60,22 @@ static inline void inc_rxqtail(struct ks_wlan_private *priv)
 	priv->rx_dev.qtail = (priv->rx_dev.qtail + 1) % RX_DEVICE_BUFF_SIZE;
 }
 
-static inline unsigned int cnt_rxqbody(struct ks_wlan_private *priv)
+static inline bool rxq_has_space(struct ks_wlan_private *priv)
 {
-	unsigned int rx_cnt = priv->rx_dev.qtail - priv->rx_dev.qhead;
+	return (CIRC_SPACE(priv->rx_dev.qhead, priv->rx_dev.qtail,
+			   RX_DEVICE_BUFF_SIZE) > 0);
+}
 
-	return (rx_cnt + RX_DEVICE_BUFF_SIZE) % RX_DEVICE_BUFF_SIZE;
+static inline unsigned int txq_count(struct ks_wlan_private *priv)
+{
+	return CIRC_CNT_TO_END(priv->tx_dev.qhead, priv->tx_dev.qtail,
+			       TX_DEVICE_BUFF_SIZE);
+}
+
+static inline unsigned int rxq_count(struct ks_wlan_private *priv)
+{
+	return CIRC_CNT_TO_END(priv->rx_dev.qhead, priv->rx_dev.qtail,
+			       RX_DEVICE_BUFF_SIZE);
 }
 
 /* Read single byte from device address into byte (CMD52) */
@@ -190,11 +201,11 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 		   atomic_read(&priv->psstatus.status),
 		   atomic_read(&priv->psstatus.confirm_wait),
 		   atomic_read(&priv->psstatus.snooze_guard),
-		   cnt_txqbody(priv));
+		   txq_count(priv));
 
 	if (atomic_read(&priv->psstatus.confirm_wait) ||
 	    atomic_read(&priv->psstatus.snooze_guard) ||
-	    cnt_txqbody(priv)) {
+	    txq_has_space(priv)) {
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 0);
 		return;
 	}
@@ -240,7 +251,7 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 		goto err_complete;
 	}
 
-	if ((TX_DEVICE_BUFF_SIZE - 1) <= cnt_txqbody(priv)) {
+	if ((TX_DEVICE_BUFF_SIZE - 1) <= txq_count(priv)) {
 		netdev_err(priv->net_dev, "tx buffer overflow\n");
 		ret = -EOVERFLOW;
 		goto err_complete;
@@ -298,7 +309,7 @@ static void tx_device_task(struct ks_wlan_private *priv)
 	struct tx_device_buffer *sp;
 	int ret;
 
-	if (cnt_txqbody(priv) <= 0 ||
+	if (!txq_has_space(priv) ||
 	    atomic_read(&priv->psstatus.status) == PS_SNOOZE)
 		return;
 
@@ -317,7 +328,7 @@ static void tx_device_task(struct ks_wlan_private *priv)
 		(*sp->complete_handler)(priv, sp->skb);
 	inc_txqhead(priv);
 
-	if (cnt_txqbody(priv) > 0)
+	if (txq_has_space(priv))
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 0);
 }
 
@@ -345,7 +356,7 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 	result = enqueue_txdev(priv, p, size, complete_handler, skb);
 	spin_unlock(&priv->tx_dev.tx_dev_lock);
 
-	if (cnt_txqbody(priv) > 0)
+	if (txq_has_space(priv))
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 0);
 
 	return result;
@@ -356,12 +367,12 @@ static void rx_event_task(unsigned long dev)
 	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
 	struct rx_device_buffer *rp;
 
-	if (cnt_rxqbody(priv) > 0 && priv->dev_state >= DEVICE_STATE_BOOT) {
+	if (rxq_has_space(priv) && priv->dev_state >= DEVICE_STATE_BOOT) {
 		rp = &priv->rx_dev.rx_dev_buff[priv->rx_dev.qhead];
 		hostif_receive(priv, rp->data, rp->size);
 		inc_rxqhead(priv);
 
-		if (cnt_rxqbody(priv) > 0)
+		if (rxq_has_space(priv))
 			tasklet_schedule(&priv->rx_bh_task);
 	}
 }
@@ -374,7 +385,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 	unsigned short event = 0;
 
 	/* receive data */
-	if (cnt_rxqbody(priv) >= (RX_DEVICE_BUFF_SIZE - 1)) {
+	if (rxq_count(priv) >= (RX_DEVICE_BUFF_SIZE - 1)) {
 		netdev_err(priv->net_dev, "rx buffer overflow\n");
 		return;
 	}
@@ -447,7 +458,7 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	/* power save wakeup */
 	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
-		if (cnt_txqbody(priv) > 0) {
+		if (txq_has_space(priv)) {
 			ks_wlan_hw_wakeup_request(priv);
 			queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 		}
@@ -538,7 +549,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 
 		if (byte & WSTATUS_MASK) {
 			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
-				if (cnt_txqbody(priv)) {
+				if (txq_has_space(priv)) {
 					ks_wlan_hw_wakeup_request(priv);
 					queue_delayed_work(priv->wq,
 							   &priv->rw_dwork, 1);
@@ -575,7 +586,7 @@ static void trx_device_exit(struct ks_wlan_private *priv)
 	struct tx_device_buffer *sp;
 
 	/* tx buffer clear */
-	while (cnt_txqbody(priv) > 0) {
+	while (txq_has_space(priv)) {
 		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
 		kfree(sp->sendp);
 		if (sp->complete_handler)	/* TX Complete */
