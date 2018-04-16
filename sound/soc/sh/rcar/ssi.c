@@ -171,7 +171,7 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 		if (status & bit)
 			return;
 
-		udelay(50);
+		udelay(5);
 	}
 
 	dev_warn(dev, "%s[%d] status check failed\n",
