@@ -253,6 +253,13 @@ static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
 		return -EAGAIN;
 	}
 
+	/*
+	 * use it for IPMMU if needed
+	 * see
+	 *	rsnd_preallocate_pages()
+	 */
+	io->dmac_dev = chan->device->dev;
+
 	dma_release_channel(chan);
 
 	dmac->dmaen_num++;
