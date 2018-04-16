@@ -186,21 +186,9 @@ static int get_hsm_state(struct inode *inode, u32 *hus_states)
 	return rc;
 }
 
-static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
-			   size_t size)
+static int ll_adjust_lum(struct inode *inode, struct lov_user_md *lump)
 {
-	struct inode *inode = d_inode(dentry);
 	int rc = 0;
-
-	if (size != 0 && size < sizeof(struct lov_user_md))
-		return -EINVAL;
-
-	/*
-	 * It is possible to set an xattr to a "" value of zero size.
-	 * For this case we are going to treat it as a removal.
-	 */
-	if (!size && lump)
-		lump = NULL;
 
 	/* Attributes that are saved via getxattr will always have
 	 * the stripe_offset as 0.  Instead, the MDS should be
@@ -233,6 +221,29 @@ static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
 			lump->lmm_pattern ^= LOV_PATTERN_F_RELEASED;
 		}
 	}
+
+	return rc;
+}
+
+static int ll_setstripe_ea(struct dentry *dentry, struct lov_user_md *lump,
+			   size_t size)
+{
+	struct inode *inode = d_inode(dentry);
+	int rc = 0;
+
+	if (size != 0 && size < sizeof(struct lov_user_md))
+		return -EINVAL;
+
+	/*
+	 * It is possible to set an xattr to a "" value of zero size.
+	 * For this case we are going to treat it as a removal.
+	 */
+	if (!size && lump)
+		lump = NULL;
+
+	rc = ll_adjust_lum(inode, lump);
+	if (rc)
+		return rc;
 
 	if (lump && S_ISREG(inode->i_mode)) {
 		__u64 it_flags = FMODE_WRITE;
