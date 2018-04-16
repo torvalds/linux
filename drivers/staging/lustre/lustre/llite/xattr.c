@@ -117,11 +117,6 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 	     (handler->flags == XATTR_LUSTRE_T && !strcmp(name, "lov"))))
 		return 0;
 
-	/* b15587: ignore security.capability xattr for now */
-	if ((handler->flags == XATTR_SECURITY_T &&
-	     !strcmp(name, "capability")))
-		return 0;
-
 	/* LU-549:  Disable security.selinux when selinux is disabled */
 	if (handler->flags == XATTR_SECURITY_T && !selinux_is_enabled() &&
 	    strcmp(name, "selinux") == 0)
@@ -382,10 +377,6 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 	rc = xattr_type_filter(sbi, handler);
 	if (rc)
 		return rc;
-
-	/* b15587: ignore security.capability xattr for now */
-	if ((handler->flags == XATTR_SECURITY_T && !strcmp(name, "capability")))
-		return -ENODATA;
 
 	/* LU-549:  Disable security.selinux when selinux is disabled */
 	if (handler->flags == XATTR_SECURITY_T && !selinux_is_enabled() &&
