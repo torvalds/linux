@@ -325,29 +325,33 @@ mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
 }
 
 static inline void
+mlx5e_copy_skb_header(struct device *pdev, struct sk_buff *skb,
+		      struct mlx5e_dma_info *dma_info,
+		      int offset_from, int offset_to, u32 headlen)
+{
+	const void *from = page_address(dma_info->page) + offset_from;
+	/* Aligning len to sizeof(long) optimizes memcpy performance */
+	unsigned int len = ALIGN(headlen, sizeof(long));
+
+	dma_sync_single_for_cpu(pdev, dma_info->addr + offset_from, len,
+				DMA_FROM_DEVICE);
+	skb_copy_to_linear_data_offset(skb, offset_to, from, len);
+}
+
+static inline void
 mlx5e_copy_skb_header_mpwqe(struct device *pdev,
 			    struct sk_buff *skb,
 			    struct mlx5e_dma_info *dma_info,
 			    u32 offset, u32 headlen)
 {
 	u16 headlen_pg = min_t(u32, headlen, PAGE_SIZE - offset);
-	unsigned int len;
 
-	 /* Aligning len to sizeof(long) optimizes memcpy performance */
-	len = ALIGN(headlen_pg, sizeof(long));
-	dma_sync_single_for_cpu(pdev, dma_info->addr + offset, len,
-				DMA_FROM_DEVICE);
-	skb_copy_to_linear_data(skb, page_address(dma_info->page) + offset, len);
+	mlx5e_copy_skb_header(pdev, skb, dma_info, offset, 0, headlen_pg);
 
 	if (unlikely(offset + headlen > PAGE_SIZE)) {
 		dma_info++;
-		headlen_pg = len;
-		len = ALIGN(headlen - headlen_pg, sizeof(long));
-		dma_sync_single_for_cpu(pdev, dma_info->addr, len,
-					DMA_FROM_DEVICE);
-		skb_copy_to_linear_data_offset(skb, headlen_pg,
-					       page_address(dma_info->page),
-					       len);
+		mlx5e_copy_skb_header(pdev, skb, dma_info, 0, headlen_pg,
+				      headlen - headlen_pg);
 	}
 }
 
