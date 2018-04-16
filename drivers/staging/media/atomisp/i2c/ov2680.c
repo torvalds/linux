@@ -396,12 +396,11 @@ static long __ov2680_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
-	u16 vts,hts;
+	u16 vts;
 	int ret,exp_val;
 
        dev_dbg(&client->dev, "+++++++__ov2680_set_exposure coarse_itg %d, gain %d, digitgain %d++\n",coarse_itg, gain, digitgain);
 
-	hts = ov2680_res[dev->fmt_idx].pixels_per_line;
 	vts = ov2680_res[dev->fmt_idx].lines_per_frame;
 
 	/* group hold */
@@ -1190,7 +1189,8 @@ static int ov2680_detect(struct i2c_client *client)
 					OV2680_SC_CMMN_SUB_ID, &high);
 	revision = (u8) high & 0x0f;
 
-	dev_info(&client->dev, "sensor_revision id = 0x%x\n", id);
+	dev_info(&client->dev, "sensor_revision id = 0x%x, rev= %d\n",
+		 id, revision);
 
 	return 0;
 }
