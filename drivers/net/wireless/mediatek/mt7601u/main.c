@@ -288,6 +288,12 @@ mt7601u_sw_scan_complete(struct ieee80211_hw *hw,
 
 	mt7601u_agc_restore(dev);
 	clear_bit(MT7601U_STATE_SCANNING, &dev->state);
+
+	ieee80211_queue_delayed_work(dev->hw, &dev->cal_work,
+				     MT_CALIBRATE_INTERVAL);
+	if (dev->freq_cal.enabled)
+		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
+					     MT_FREQ_CAL_INIT_DELAY);
 }
 
 static int
