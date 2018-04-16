@@ -264,6 +264,7 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p), xattr %s\n",
 	       PFID(ll_inode2fid(inode)), inode, name);
 
+	/* lustre/trusted.lov.xxx would be passed through xattr API */
 	if (!strcmp(name, "lov")) {
 		int op_type = flags == XATTR_REPLACE ? LPROC_LL_REMOVEXATTR :
 						       LPROC_LL_SETXATTR;
