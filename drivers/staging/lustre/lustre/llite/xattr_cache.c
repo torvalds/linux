@@ -357,7 +357,7 @@ static int ll_xattr_cache_refill(struct inode *inode)
 	if (unlikely(!req)) {
 		CDEBUG(D_CACHE, "cancelled by a parallel getxattr\n");
 		ll_intent_drop_lock(&oit);
-		rc = -EIO;
+		rc = -EAGAIN;
 		goto err_unlock;
 	}
 
