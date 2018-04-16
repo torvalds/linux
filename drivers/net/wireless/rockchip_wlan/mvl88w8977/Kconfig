@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+config MVL88W8977
+	tristate "Marvell 88W8977 SDIO WiFi"
+	---help---
+	  Help message of MVL88W8977

@@ -93,6 +93,8 @@ static const char wlan_name[] =
 		"ap6476"
 #elif defined(CONFIG_AP6493)
 		"ap6493"
+#elif defined(CONFIG_MVL88W8977)
+        "mvl88w8977"
 #else
         "wlan_default"
 #endif
@@ -154,6 +156,8 @@ int get_wifi_chip_type(void)
         type = WIFI_RTL8812AU;                        
     } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
         type = WIFI_ESP8089;
+    } else if (strcmp(wifi_chip_type_string, "mvl88w8977") == 0) {
+        type = WIFI_MVL88W8977;
     } else {
         type = WIFI_AP6210;
     }
