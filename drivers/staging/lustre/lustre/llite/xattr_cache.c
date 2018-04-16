@@ -121,10 +121,12 @@ static int ll_xattr_cache_add(struct list_head *cache,
 
 	xattr->xe_name = kstrdup(xattr_name, GFP_NOFS);
 	if (!xattr->xe_name) {
-		CDEBUG(D_CACHE, "failed to alloc xattr name %u\n",
-		       xattr->xe_namelen);
+		CDEBUG(D_CACHE, "failed to alloc xattr name %s\n",
+		       xattr_name);
 		goto err_name;
 	}
+	xattr->xe_namelen = strlen(xattr_name) + 1;
+
 	xattr->xe_value = kmemdup(xattr_val, xattr_val_len, GFP_NOFS);
 	if (!xattr->xe_value)
 		goto err_value;
