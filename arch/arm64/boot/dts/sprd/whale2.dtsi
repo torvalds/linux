@@ -214,8 +214,9 @@
 				reg = <0 0x40310000 0 0x1000>;
 				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-sec = <12>;
-				clock-names = "enable";
-				clocks = <&aon_gate CLK_APCPU_WDG_EB>;
+				clock-names = "enable", "rtc_enable";
+				clocks = <&aon_gate CLK_APCPU_WDG_EB>,
+				       <&aon_gate CLK_AP_WDG_RTC_EB>;
 			};
 		};
 
