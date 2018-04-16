@@ -526,9 +526,6 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 	unsigned int val, mask;
 	int ret;
 
-	clk_prepare_enable(dphy->ref_clk);
-	clk_prepare_enable(dphy->cfg_clk);
-
 	mipi_dphy_enableclk_deassert(dsi);
 	mipi_dphy_shutdownz_assert(dsi);
 	mipi_dphy_rstz_assert(dsi);
@@ -608,12 +605,7 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 
 static void mipi_dphy_power_off(struct dw_mipi_dsi *dsi)
 {
-	struct mipi_dphy *dphy = &dsi->dphy;
-
 	regmap_write(dsi->regmap, DSI_PHY_RSTZ, 0);
-
-	clk_disable_unprepare(dphy->cfg_clk);
-	clk_disable_unprepare(dphy->ref_clk);
 }
 
 static const struct regmap_config testif_regmap_config = {
@@ -1021,7 +1013,6 @@ static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 	regmap_write(dsi->regmap, DSI_INT_MSK1, 0);
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 	mipi_dphy_power_off(dsi);
-	clk_disable_unprepare(dsi->pclk);
 	pm_runtime_put(dsi->dev);
 
 	if (dsi->slave)
@@ -1159,7 +1150,6 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 	u32 val;
 
 	pm_runtime_get_sync(dsi->dev);
-	clk_prepare_enable(dsi->pclk);
 
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
@@ -1620,6 +1610,33 @@ static int dw_mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused dw_mipi_dsi_runtime_suspend(struct device *dev)
+{
+	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(dsi->pclk);
+	clk_disable_unprepare(dsi->dphy.ref_clk);
+	clk_disable_unprepare(dsi->dphy.cfg_clk);
+
+	return 0;
+}
+
+static int __maybe_unused dw_mipi_dsi_runtime_resume(struct device *dev)
+{
+	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+
+	clk_prepare_enable(dsi->dphy.cfg_clk);
+	clk_prepare_enable(dsi->dphy.ref_clk);
+	clk_prepare_enable(dsi->pclk);
+
+	return 0;
+}
+
+static const struct dev_pm_ops dw_mipi_dsi_pm_ops = {
+	SET_RUNTIME_PM_OPS(dw_mipi_dsi_runtime_suspend,
+			   dw_mipi_dsi_runtime_resume, NULL)
+};
+
 static const u32 rk3288_dsi0_grf_reg_fields[MAX_FIELDS] = {
 	[DPICOLORM]		= GRF_REG_FIELD(0x025c,  8,  8),
 	[DPISHUTDN]		= GRF_REG_FIELD(0x025c,  7,  7),
@@ -1702,5 +1719,6 @@ struct platform_driver dw_mipi_dsi_driver = {
 	.driver = {
 		.of_match_table = dw_mipi_dsi_dt_ids,
 		.name = "dw-mipi-dsi",
+		.pm = &dw_mipi_dsi_pm_ops,
 	},
 };
