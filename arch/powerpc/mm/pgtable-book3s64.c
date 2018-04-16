@@ -20,6 +20,11 @@
 #include "mmu_decl.h"
 #include <trace/events/thp.h>
 
+unsigned long __pmd_frag_nr;
+EXPORT_SYMBOL(__pmd_frag_nr);
+unsigned long __pmd_frag_size_shift;
+EXPORT_SYMBOL(__pmd_frag_size_shift);
+
 int (*register_process_table)(unsigned long base, unsigned long page_size,
 			      unsigned long tbl_size);
 
@@ -225,6 +230,85 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 }
 EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
+
+static pmd_t *get_pmd_from_cache(struct mm_struct *mm)
+{
+	void *pmd_frag, *ret;
+
+	spin_lock(&mm->page_table_lock);
+	ret = mm->context.pmd_frag;
+	if (ret) {
+		pmd_frag = ret + PMD_FRAG_SIZE;
+		/*
+		 * If we have taken up all the fragments mark PTE page NULL
+		 */
+		if (((unsigned long)pmd_frag & ~PAGE_MASK) == 0)
+			pmd_frag = NULL;
+		mm->context.pmd_frag = pmd_frag;
+	}
+	spin_unlock(&mm->page_table_lock);
+	return (pmd_t *)ret;
+}
+
+static pmd_t *__alloc_for_pmdcache(struct mm_struct *mm)
+{
+	void *ret = NULL;
+	struct page *page;
+	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO;
+
+	if (mm == &init_mm)
+		gfp &= ~__GFP_ACCOUNT;
+	page = alloc_page(gfp);
+	if (!page)
+		return NULL;
+	if (!pgtable_pmd_page_ctor(page)) {
+		__free_pages(page, 0);
+		return NULL;
+	}
+
+	ret = page_address(page);
+	/*
+	 * if we support only one fragment just return the
+	 * allocated page.
+	 */
+	if (PMD_FRAG_NR == 1)
+		return ret;
+
+	spin_lock(&mm->page_table_lock);
+	/*
+	 * If we find pgtable_page set, we return
+	 * the allocated page with single fragement
+	 * count.
+	 */
+	if (likely(!mm->context.pmd_frag)) {
+		set_page_count(page, PMD_FRAG_NR);
+		mm->context.pmd_frag = ret + PMD_FRAG_SIZE;
+	}
+	spin_unlock(&mm->page_table_lock);
+
+	return (pmd_t *)ret;
+}
+
+pmd_t *pmd_fragment_alloc(struct mm_struct *mm, unsigned long vmaddr)
+{
+	pmd_t *pmd;
+
+	pmd = get_pmd_from_cache(mm);
+	if (pmd)
+		return pmd;
+
+	return __alloc_for_pmdcache(mm);
+}
+
+void pmd_fragment_free(unsigned long *pmd)
+{
+	struct page *page = virt_to_page(pmd);
+
+	if (put_page_testzero(page)) {
+		pgtable_pmd_page_dtor(page);
+		free_unref_page(page);
+	}
+}
 
 static pte_t *get_pte_from_cache(struct mm_struct *mm)
 {

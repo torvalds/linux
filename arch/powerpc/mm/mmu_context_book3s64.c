@@ -160,6 +160,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm->context.id = index;
 
 	mm->context.pte_frag = NULL;
+	mm->context.pmd_frag = NULL;
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_init(mm);
 #endif
@@ -190,15 +191,10 @@ static void destroy_contexts(mm_context_t *ctx)
 	spin_unlock(&mmu_context_lock);
 }
 
-static void destroy_pagetable_page(struct mm_struct *mm)
+static void pte_frag_destroy(void *pte_frag)
 {
 	int count;
-	void *pte_frag;
 	struct page *page;
-
-	pte_frag = mm->context.pte_frag;
-	if (!pte_frag)
-		return;
 
 	page = virt_to_page(pte_frag);
 	/* drop all the pending references */
@@ -208,6 +204,35 @@ static void destroy_pagetable_page(struct mm_struct *mm)
 		pgtable_page_dtor(page);
 		free_unref_page(page);
 	}
+}
+
+static void pmd_frag_destroy(void *pmd_frag)
+{
+	int count;
+	struct page *page;
+
+	page = virt_to_page(pmd_frag);
+	/* drop all the pending references */
+	count = ((unsigned long)pmd_frag & ~PAGE_MASK) >> PMD_FRAG_SIZE_SHIFT;
+	/* We allow PTE_FRAG_NR fragments from a PTE page */
+	if (page_ref_sub_and_test(page, PMD_FRAG_NR - count)) {
+		pgtable_pmd_page_dtor(page);
+		free_unref_page(page);
+	}
+}
+
+static void destroy_pagetable_page(struct mm_struct *mm)
+{
+	void *frag;
+
+	frag = mm->context.pte_frag;
+	if (frag)
+		pte_frag_destroy(frag);
+
+	frag = mm->context.pmd_frag;
+	if (frag)
+		pmd_frag_destroy(frag);
+	return;
 }
 
 void destroy_context(struct mm_struct *mm)

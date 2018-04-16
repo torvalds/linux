@@ -640,6 +640,8 @@ void __init radix__early_init_mmu(void)
 #endif
 	__pte_frag_nr = RADIX_PTE_FRAG_NR;
 	__pte_frag_size_shift = RADIX_PTE_FRAG_SIZE_SHIFT;
+	__pmd_frag_nr = RADIX_PMD_FRAG_NR;
+	__pmd_frag_size_shift = RADIX_PMD_FRAG_SIZE_SHIFT;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();

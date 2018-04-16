@@ -246,6 +246,12 @@ extern unsigned long __pte_frag_size_shift;
 #define PTE_FRAG_SIZE_SHIFT __pte_frag_size_shift
 #define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
 
+extern unsigned long __pmd_frag_nr;
+#define PMD_FRAG_NR __pmd_frag_nr
+extern unsigned long __pmd_frag_size_shift;
+#define PMD_FRAG_SIZE_SHIFT __pmd_frag_size_shift
+#define PMD_FRAG_SIZE (1UL << PMD_FRAG_SIZE_SHIFT)
+
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
 #define PTRS_PER_PUD	(1 << PUD_INDEX_SIZE)
