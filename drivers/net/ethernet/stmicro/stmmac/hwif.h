@@ -391,4 +391,31 @@ struct stmmac_hwtimestamp {
 #define stmmac_get_systime(__priv, __args...) \
 	stmmac_do_void_callback(__priv, ptp, get_systime, __args)
 
+/* Helpers to manage the descriptors for chain and ring modes */
+struct stmmac_mode_ops {
+	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
+		      unsigned int extend_desc);
+	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
+	int (*jumbo_frm)(void *priv, struct sk_buff *skb, int csum);
+	int (*set_16kib_bfsize)(int mtu);
+	void (*init_desc3)(struct dma_desc *p);
+	void (*refill_desc3) (void *priv, struct dma_desc *p);
+	void (*clean_desc3) (void *priv, struct dma_desc *p);
+};
+
+#define stmmac_mode_init(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mode, init, __args)
+#define stmmac_is_jumbo_frm(__priv, __args...) \
+	stmmac_do_callback(__priv, mode, is_jumbo_frm, __args)
+#define stmmac_jumbo_frm(__priv, __args...) \
+	stmmac_do_callback(__priv, mode, jumbo_frm, __args)
+#define stmmac_set_16kib_bfsize(__priv, __args...) \
+	stmmac_do_callback(__priv, mode, set_16kib_bfsize, __args)
+#define stmmac_init_desc3(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mode, init_desc3, __args)
+#define stmmac_refill_desc3(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mode, refill_desc3, __args)
+#define stmmac_clean_desc3(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mode, clean_desc3, __args)
+
 #endif /* __STMMAC_HWIF_H__ */

@@ -1161,9 +1161,8 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
 	else
 		p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[i]);
 
-	if ((priv->hw->mode->init_desc3) &&
-	    (priv->dma_buf_sz == BUF_SIZE_16KiB))
-		priv->hw->mode->init_desc3(p);
+	if (priv->dma_buf_sz == BUF_SIZE_16KiB)
+		stmmac_init_desc3(priv, p);
 
 	return 0;
 }
@@ -1229,13 +1228,14 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_count = priv->plat->rx_queues_to_use;
-	unsigned int bfsize = 0;
 	int ret = -ENOMEM;
+	int bfsize = 0;
 	int queue;
 	int i;
 
-	if (priv->hw->mode->set_16kib_bfsize)
-		bfsize = priv->hw->mode->set_16kib_bfsize(dev->mtu);
+	bfsize = stmmac_set_16kib_bfsize(priv, dev->mtu);
+	if (bfsize < 0)
+		bfsize = 0;
 
 	if (bfsize < BUF_SIZE_16KiB)
 		bfsize = stmmac_set_bfsize(dev->mtu, priv->dma_buf_sz);
@@ -1279,13 +1279,11 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 		/* Setup the chained descriptor addresses */
 		if (priv->mode == STMMAC_CHAIN_MODE) {
 			if (priv->extend_desc)
-				priv->hw->mode->init(rx_q->dma_erx,
-						     rx_q->dma_rx_phy,
-						     DMA_RX_SIZE, 1);
+				stmmac_mode_init(priv, rx_q->dma_erx,
+						rx_q->dma_rx_phy, DMA_RX_SIZE, 1);
 			else
-				priv->hw->mode->init(rx_q->dma_rx,
-						     rx_q->dma_rx_phy,
-						     DMA_RX_SIZE, 0);
+				stmmac_mode_init(priv, rx_q->dma_rx,
+						rx_q->dma_rx_phy, DMA_RX_SIZE, 0);
 		}
 	}
 
@@ -1332,13 +1330,11 @@ static int init_dma_tx_desc_rings(struct net_device *dev)
 		/* Setup the chained descriptor addresses */
 		if (priv->mode == STMMAC_CHAIN_MODE) {
 			if (priv->extend_desc)
-				priv->hw->mode->init(tx_q->dma_etx,
-						     tx_q->dma_tx_phy,
-						     DMA_TX_SIZE, 1);
+				stmmac_mode_init(priv, tx_q->dma_etx,
+						tx_q->dma_tx_phy, DMA_TX_SIZE, 1);
 			else
-				priv->hw->mode->init(tx_q->dma_tx,
-						     tx_q->dma_tx_phy,
-						     DMA_TX_SIZE, 0);
+				stmmac_mode_init(priv, tx_q->dma_tx,
+						tx_q->dma_tx_phy, DMA_TX_SIZE, 0);
 		}
 
 		for (i = 0; i < DMA_TX_SIZE; i++) {
@@ -1886,8 +1882,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 			tx_q->tx_skbuff_dma[entry].map_as_page = false;
 		}
 
-		if (priv->hw->mode->clean_desc3)
-			priv->hw->mode->clean_desc3(tx_q, p);
+		stmmac_clean_desc3(priv, tx_q, p);
 
 		tx_q->tx_skbuff_dma[entry].last_segment = false;
 		tx_q->tx_skbuff_dma[entry].is_jumbo = false;
@@ -3099,11 +3094,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	enh_desc = priv->plat->enh_desc;
 	/* To program the descriptors according to the size of the frame */
 	if (enh_desc)
-		is_jumbo = priv->hw->mode->is_jumbo_frm(skb->len, enh_desc);
+		is_jumbo = stmmac_is_jumbo_frm(priv, skb->len, enh_desc);
 
 	if (unlikely(is_jumbo) && likely(priv->synopsys_id <
 					 DWMAC_CORE_4_00)) {
-		entry = priv->hw->mode->jumbo_frm(tx_q, skb, csum_insertion);
+		entry = stmmac_jumbo_frm(priv, tx_q, skb, csum_insertion);
 		if (unlikely(entry < 0))
 			goto dma_map_err;
 	}
@@ -3332,8 +3327,8 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 			} else {
 				p->des2 = cpu_to_le32(rx_q->rx_skbuff_dma[entry]);
 			}
-			if (priv->hw->mode->refill_desc3)
-				priv->hw->mode->refill_desc3(rx_q, p);
+
+			stmmac_refill_desc3(priv, rx_q, p);
 
 			if (rx_q->rx_zeroc_thresh > 0)
 				rx_q->rx_zeroc_thresh--;
