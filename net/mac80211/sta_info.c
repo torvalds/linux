@@ -358,6 +358,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta->last_connected = ktime_get_seconds();
 	ewma_signal_init(&sta->rx_stats_avg.signal);
+	ewma_avg_signal_init(&sta->status_stats.avg_ack_signal);
 	for (i = 0; i < ARRAY_SIZE(sta->rx_stats_avg.chain_signal); i++)
 		ewma_signal_init(&sta->rx_stats_avg.chain_signal[i]);
 
@@ -2293,6 +2294,15 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	    sta->status_stats.ack_signal_filled) {
 		sinfo->ack_signal = sta->status_stats.last_ack_signal;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
+	}
+
+	if (ieee80211_hw_check(&sta->local->hw, REPORTS_TX_ACK_STATUS) &&
+	    !(sinfo->filled & BIT_ULL(NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG))) {
+		sinfo->avg_ack_signal =
+			-(s8)ewma_avg_signal_read(
+				&sta->status_stats.avg_ack_signal);
+		sinfo->filled |=
+			BIT_ULL(NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG);
 	}
 }
 

@@ -119,6 +119,7 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_START_CB		6
 #define HT_AGG_STATE_STOP_CB		7
 
+DECLARE_EWMA(avg_signal, 10, 8)
 enum ieee80211_agg_stop_reason {
 	AGG_STOP_DECLINED,
 	AGG_STOP_LOCAL_REQUEST,
@@ -550,6 +551,7 @@ struct sta_info {
 		unsigned long last_ack;
 		s8 last_ack_signal;
 		bool ack_signal_filled;
+		struct ewma_avg_signal avg_ack_signal;
 	} status_stats;
 
 	/* Updated from TX path only, no locking requirements */
