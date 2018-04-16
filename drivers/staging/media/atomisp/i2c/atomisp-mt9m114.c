@@ -1805,10 +1805,6 @@ static const struct v4l2_subdev_ops mt9m114_ops = {
 	.sensor = &mt9m114_sensor_ops,
 };
 
-static const struct media_entity_operations mt9m114_entity_ops = {
-	.link_setup = NULL,
-};
-
 static int mt9m114_remove(struct i2c_client *client)
 {
 	struct mt9m114_device *dev;

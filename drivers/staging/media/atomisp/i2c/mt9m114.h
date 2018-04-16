@@ -390,6 +390,7 @@ static struct mt9m114_res_struct mt9m114_res[] = {
 };
 #define N_RES (ARRAY_SIZE(mt9m114_res))
 
+#if 0 /* Currently unused */
 static struct misensor_reg const mt9m114_exitstandby[] = {
 	{MISENSOR_16BIT,  0x098E, 0xDC00},
 	/* exit-standby */
@@ -397,6 +398,7 @@ static struct misensor_reg const mt9m114_exitstandby[] = {
 	{MISENSOR_16BIT,  0x0080, 0x8002},
 	{MISENSOR_TOK_TERM, 0, 0}
 };
+#endif
 
 static struct misensor_reg const mt9m114_exp_win[5][5] = {
 	{
@@ -494,6 +496,7 @@ static struct misensor_reg const mt9m114_exp_center[] = {
 	{MISENSOR_TOK_TERM, 0, 0}
 };
 
+#if 0 /* Currently unused */
 static struct misensor_reg const mt9m114_suspend[] = {
 	 {MISENSOR_16BIT,  0x098E, 0xDC00},
 	 {MISENSOR_8BIT,  0xDC00, 0x40},
@@ -507,6 +510,7 @@ static struct misensor_reg const mt9m114_streaming[] = {
 	 {MISENSOR_16BIT,  0x0080, 0x8002},
 	 {MISENSOR_TOK_TERM, 0, 0}
 };
+#endif
 
 static struct misensor_reg const mt9m114_standby_reg[] = {
 	 {MISENSOR_16BIT,  0x098E, 0xDC00},
@@ -515,12 +519,14 @@ static struct misensor_reg const mt9m114_standby_reg[] = {
 	 {MISENSOR_TOK_TERM, 0, 0}
 };
 
+#if 0 /* Currently unused */
 static struct misensor_reg const mt9m114_wakeup_reg[] = {
 	 {MISENSOR_16BIT,  0x098E, 0xDC00},
 	 {MISENSOR_8BIT,  0xDC00, 0x54},
 	 {MISENSOR_16BIT,  0x0080, 0x8002},
 	 {MISENSOR_TOK_TERM, 0, 0}
 };
+#endif
 
 static struct misensor_reg const mt9m114_chgstat_reg[] = {
 	{MISENSOR_16BIT,  0x098E, 0xDC00},
@@ -530,6 +536,7 @@ static struct misensor_reg const mt9m114_chgstat_reg[] = {
 };
 
 /* [1296x976_30fps] - Intel */
+#if 0
 static struct misensor_reg const mt9m114_960P_init[] = {
 	{MISENSOR_16BIT, 0x098E, 0x1000},
 	{MISENSOR_8BIT, 0xC97E, 0x01},	  /* cam_sysctl_pll_enable = 1 */
@@ -565,6 +572,7 @@ static struct misensor_reg const mt9m114_960P_init[] = {
 	{MISENSOR_16BIT, 0xC86A, 0x03C8}, /* cam_output_height = 960 */
 	{MISENSOR_TOK_TERM, 0, 0},
 };
+#endif
 
 /* [1296x976_30fps_768Mbps] */
 static struct misensor_reg const mt9m114_976P_init[] = {
@@ -679,6 +687,7 @@ static struct misensor_reg const mt9m114_736P_init[] = {
 };
 
 /* [736x496_30fps_768Mbps] */
+#if 0 /* Currently unused */
 static struct misensor_reg const mt9m114_720_480P_init[] = {
 	{MISENSOR_16BIT, 0x98E, 0x1000},
 	{MISENSOR_8BIT, 0xC97E, 0x01},	  /* cam_sysctl_pll_enable = 1 */
@@ -714,6 +723,7 @@ static struct misensor_reg const mt9m114_720_480P_init[] = {
 	{MISENSOR_8BIT, 0xC878, 0x00}, /* 0x0E //cam_aet_aemode = 0 */
 	{MISENSOR_TOK_TERM, 0, 0}
 };
+#endif
 
 static struct misensor_reg const mt9m114_common[] = {
 	/* reset */
@@ -785,7 +795,7 @@ static struct misensor_reg const mt9m114_common[] = {
 	{MISENSOR_TOK_TERM, 0, 0},
 
 };
-
+#if 0 /* Currently unused */
 static struct misensor_reg const mt9m114_antiflicker_50hz[] = {
 	 {MISENSOR_16BIT,  0x098E, 0xC88B},
 	 {MISENSOR_8BIT,  0xC88B, 0x32},
@@ -1774,4 +1784,5 @@ static struct misensor_reg const mt9m114_iq[] = {
 	{MISENSOR_TOK_TERM, 0, 0}
 };
 
+#endif
 #endif
