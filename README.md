@@ -26,7 +26,7 @@ Kernel upstream + BPI-R2
 
 Kernel breakdown features by version
 
-|          | 4.4 | 4.9 | 4.14 | 4.16|
+|          | 4.4 | 4.9 | 4.14 | 4.16 |
 |----------| --- | --- | --- | --- |
 | PCIe     |  Y  |  Y  |  Y  |  Y?  |
 | SATA     |  Y  |  Y  |  Y  |  Y?  |
@@ -36,10 +36,12 @@ Kernel breakdown features by version
 | HW NAT   |     |  Y  |  Y? |     |
 | HW QOS   |     |  Y  |  Y? |     |
 | Crypto   |  Y  |  Y  |  Y  |  Y?  |
-| WIFI     |     |     |  Y  |     |
+| WIFI     |     |     |  Y  |  N  |
 | BT       |     |     |     |     |
 | VIDEO    |  Y  |  N  |  N  |  N  |
 | AUDIO    |  Y  |  N  |  N  |  N  |
+| OpenVPN  |  ?  |  Y  |  Y  |  ?  |
+| iptables |  ?  |  ?  |  Y  |  ?  |
 
 kernel 4.4: https://github.com/frank-w/BPI-R2-4.4
 
