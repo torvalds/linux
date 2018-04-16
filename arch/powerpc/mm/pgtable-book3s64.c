@@ -37,7 +37,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	int changed;
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-	assert_spin_locked(&vma->vm_mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(vma->vm_mm, pmdp));
 #endif
 	changed = !pmd_same(*(pmdp), entry);
 	if (changed) {
@@ -62,7 +62,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 {
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(pte_present(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 	WARN_ON(!(pmd_trans_huge(pmd) || pmd_devmap(pmd)));
 #endif
 	trace_hugepage_set_pmd(addr, pmd_val(pmd));

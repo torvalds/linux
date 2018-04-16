@@ -975,7 +975,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(!radix__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 #endif
 
 	old = radix__pte_update(mm, addr, (pte_t *)pmdp, clr, set, 1);
