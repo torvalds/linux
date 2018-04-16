@@ -230,8 +230,20 @@ static void __init omap4_init_voltages(void)
 	omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", "iva");
 }
 
+int __maybe_unused omap_pm_nop_init(void)
+{
+	return 0;
+}
+
+int (*omap_pm_soc_init)(void);
+
 int __init omap2_common_pm_late_init(void)
 {
+	int error;
+
+	if (!omap_pm_soc_init)
+		return 0;
+
 	/* Init the voltage layer */
 	omap3_twl_init();
 	omap4_twl_init();
@@ -244,5 +256,12 @@ int __init omap2_common_pm_late_init(void)
 	/* Smartreflex device init */
 	omap_devinit_smartreflex();
 
+	error = omap_pm_soc_init();
+	if (error)
+		pr_warn("%s: pm soc init failed: %i\n", __func__, error);
+
+	omap2_clk_enable_autoidle_all();
+
 	return 0;
 }
+omap_late_initcall(omap2_common_pm_late_init);
