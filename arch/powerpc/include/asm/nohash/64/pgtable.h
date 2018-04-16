@@ -6,12 +6,12 @@
  * the ppc64 hashed page table.
  */
 
-#ifdef CONFIG_PPC_64K_PAGES
-#include <asm/nohash/64/pgtable-64k.h>
-#else
 #include <asm/nohash/64/pgtable-4k.h>
-#endif
 #include <asm/barrier.h>
+
+#ifdef CONFIG_PPC_64K_PAGES
+#error "Page size not supported"
+#endif
 
 #define FIRST_USER_ADDRESS	0UL
 
