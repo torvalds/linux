@@ -1123,11 +1123,6 @@ static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 	mipi_dphy_power_off(dsi);
 
 	pm_runtime_put(dsi->dev);
-	clk_disable_unprepare(dsi->pclk);
-	clk_disable_unprepare(dsi->h2p_clk);
-	clk_disable_unprepare(dsi->dphy.hs_clk);
-	clk_disable_unprepare(dsi->dphy.ref_clk);
-	clk_disable_unprepare(dsi->dphy.cfg_clk);
 
 	if (dsi->slave)
 		dw_mipi_dsi_post_disable(dsi->slave);
@@ -1186,11 +1181,6 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 {
 	dw_mipi_dsi_pre_init(dsi);
 
-	clk_prepare_enable(dsi->dphy.cfg_clk);
-	clk_prepare_enable(dsi->dphy.ref_clk);
-	clk_prepare_enable(dsi->dphy.hs_clk);
-	clk_prepare_enable(dsi->h2p_clk);
-	clk_prepare_enable(dsi->pclk);
 	pm_runtime_get_sync(dsi->dev);
 
 	/* MIPI DSI APB software reset request. */
@@ -1671,6 +1661,37 @@ static int dw_mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused dw_mipi_dsi_runtime_suspend(struct device *dev)
+{
+	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(dsi->pclk);
+	clk_disable_unprepare(dsi->h2p_clk);
+	clk_disable_unprepare(dsi->dphy.hs_clk);
+	clk_disable_unprepare(dsi->dphy.ref_clk);
+	clk_disable_unprepare(dsi->dphy.cfg_clk);
+
+	return 0;
+}
+
+static int __maybe_unused dw_mipi_dsi_runtime_resume(struct device *dev)
+{
+	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
+
+	clk_prepare_enable(dsi->dphy.cfg_clk);
+	clk_prepare_enable(dsi->dphy.ref_clk);
+	clk_prepare_enable(dsi->dphy.hs_clk);
+	clk_prepare_enable(dsi->h2p_clk);
+	clk_prepare_enable(dsi->pclk);
+
+	return 0;
+}
+
+static const struct dev_pm_ops dw_mipi_dsi_pm_ops = {
+	SET_RUNTIME_PM_OPS(dw_mipi_dsi_runtime_suspend,
+			   dw_mipi_dsi_runtime_resume, NULL)
+};
+
 static const u32 px30_dsi_grf_reg_fields[MAX_FIELDS] = {
 	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0434,  7,  7),
 	[DPICOLORM]		= GRF_REG_FIELD(0x0434,  3,  3),
@@ -1814,6 +1835,7 @@ static struct platform_driver dw_mipi_dsi_driver = {
 	.remove		= dw_mipi_dsi_remove,
 	.driver		= {
 		.of_match_table = dw_mipi_dsi_dt_ids,
+		.pm = &dw_mipi_dsi_pm_ops,
 		.name	= DRIVER_NAME,
 	},
 };
