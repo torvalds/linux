@@ -1045,6 +1045,8 @@ inno_hdmi_rk3228_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 		do_div(vco, nd * 5);
 	} else {
 		no_a = inno_read(inno, 0xe4) & 0x1f;
+		if (!no_a)
+			no_a = 1;
 		no_b = ((inno_read(inno, 0xe4) >> 5) & 0x3) + 2;
 		no_d = inno_read(inno, 0xe5) & 0x1f;
 
