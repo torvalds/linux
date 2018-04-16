@@ -257,9 +257,6 @@ struct tcpm_port {
 	u32 snk_vdo[VDO_MAX_OBJECTS];
 	unsigned int nr_snk_vdo;
 
-	unsigned int max_snk_mv;
-	unsigned int max_snk_ma;
-	unsigned int max_snk_mw;
 	unsigned int operating_snk_mw;
 
 	/* Requested current / voltage */
@@ -3598,9 +3595,6 @@ EXPORT_SYMBOL_GPL(tcpm_update_source_capabilities);
 
 int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
 				  unsigned int nr_pdo,
-				  unsigned int max_snk_mv,
-				  unsigned int max_snk_ma,
-				  unsigned int max_snk_mw,
 				  unsigned int operating_snk_mw)
 {
 	if (tcpm_validate_caps(port, pdo, nr_pdo))
@@ -3608,9 +3602,6 @@ int tcpm_update_sink_capabilities(struct tcpm_port *port, const u32 *pdo,
 
 	mutex_lock(&port->lock);
 	port->nr_snk_pdo = tcpm_copy_pdos(port->snk_pdo, pdo, nr_pdo);
-	port->max_snk_mv = max_snk_mv;
-	port->max_snk_ma = max_snk_ma;
-	port->max_snk_mw = max_snk_mw;
 	port->operating_snk_mw = operating_snk_mw;
 
 	switch (port->state) {
@@ -3676,9 +3667,6 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	port->nr_snk_vdo = tcpm_copy_vdos(port->snk_vdo, tcpc->config->snk_vdo,
 					  tcpc->config->nr_snk_vdo);
 
-	port->max_snk_mv = tcpc->config->max_snk_mv;
-	port->max_snk_ma = tcpc->config->max_snk_ma;
-	port->max_snk_mw = tcpc->config->max_snk_mw;
 	port->operating_snk_mw = tcpc->config->operating_snk_mw;
 	if (!tcpc->config->try_role_hw)
 		port->try_role = tcpc->config->default_role;
