@@ -1252,7 +1252,6 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 		/* fall through */
 	case USB_CHG_STATE_SECONDARY_DONE:
 		rphy->chg_state = USB_CHG_STATE_DETECTED;
-		delay = 0;
 		/* fall through */
 	case USB_CHG_STATE_DETECTED:
 		/* put the controller in normal mode */
