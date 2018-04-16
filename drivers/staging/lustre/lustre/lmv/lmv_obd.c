@@ -1660,15 +1660,14 @@ lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	struct lmv_obd	   *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc      *tgt;
 
-	CDEBUG(D_INODE, "ENQUEUE '%s' on " DFID "\n",
-	       LL_IT2STR(it), PFID(&op_data->op_fid1));
+	CDEBUG(D_INODE, "ENQUEUE on " DFID "\n", PFID(&op_data->op_fid1));
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
-	CDEBUG(D_INODE, "ENQUEUE '%s' on " DFID " -> mds #%u\n",
-	       LL_IT2STR(it), PFID(&op_data->op_fid1), tgt->ltd_idx);
+	CDEBUG(D_INODE, "ENQUEUE on " DFID " -> mds #%u\n",
+	       PFID(&op_data->op_fid1), tgt->ltd_idx);
 
 	return md_enqueue(tgt->ltd_exp, einfo, policy, it, op_data, lockh,
 			extra_lock_flags);
