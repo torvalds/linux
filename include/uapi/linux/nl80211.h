@@ -2981,6 +2981,8 @@ enum nl80211_sta_bss_param {
  *	received from the station (u64, usec)
  * @NL80211_STA_INFO_PAD: attribute used for padding for 64-bit alignment
  * @NL80211_STA_INFO_ACK_SIGNAL: signal strength of the last ACK frame(u8, dBm)
+ * @NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG: avg signal strength of (data)
+ *	ACK frame (s8, dBm)
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -3020,6 +3022,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_RX_DURATION,
 	NL80211_STA_INFO_PAD,
 	NL80211_STA_INFO_ACK_SIGNAL,
+	NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -5066,6 +5069,9 @@ enum nl80211_feature_flags {
  *	"radar detected" event.
  * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211: Driver supports sending and
  *	receiving control port frames over nl80211 instead of the netdevice.
+ * @NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT: This Driver support data ack
+ *	rssi if firmware support, this flag is to intimate about ack rssi
+ *	support to nl80211.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -5098,6 +5104,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN,
 	NL80211_EXT_FEATURE_DFS_OFFLOAD,
 	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211,
+	NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

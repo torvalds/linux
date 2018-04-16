@@ -4541,6 +4541,9 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 	PUT_SINFO_U64(BEACON_RX, rx_beacon);
 	PUT_SINFO(BEACON_SIGNAL_AVG, rx_beacon_signal_avg, u8);
 	PUT_SINFO(ACK_SIGNAL, ack_signal, u8);
+	if (wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT))
+		PUT_SINFO(DATA_ACK_SIGNAL_AVG, avg_ack_signal, s8);
 
 #undef PUT_SINFO
 #undef PUT_SINFO_U64
