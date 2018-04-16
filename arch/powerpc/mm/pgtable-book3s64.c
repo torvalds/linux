@@ -400,7 +400,7 @@ static inline void pgtable_free(void *table, int index)
 		pte_fragment_free(table, 0);
 		break;
 	case PMD_INDEX:
-		kmem_cache_free(PGT_CACHE(PMD_CACHE_INDEX), table);
+		pmd_fragment_free(table);
 		break;
 	case PUD_INDEX:
 		kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), table);
@@ -431,7 +431,6 @@ void __tlb_remove_table(void *_table)
 #else
 void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int index)
 {
-
 	return pgtable_free(table, index);
 }
 #endif

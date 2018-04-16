@@ -90,8 +90,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	 * need to do this for 4k.
 	 */
 #if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_PPC_64K_PAGES) && \
-	((H_PGD_INDEX_SIZE == H_PUD_CACHE_INDEX) ||		     \
-	 (H_PGD_INDEX_SIZE == H_PMD_CACHE_INDEX))
+	(H_PGD_INDEX_SIZE == H_PUD_CACHE_INDEX)
 	memset(pgd, 0, PGD_TABLE_SIZE);
 #endif
 	return pgd;
@@ -138,13 +137,12 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	return kmem_cache_alloc(PGT_CACHE(PMD_CACHE_INDEX),
-		pgtable_gfp_flags(mm, GFP_KERNEL));
+	return pmd_fragment_alloc(mm, addr);
 }
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
-	kmem_cache_free(PGT_CACHE(PMD_CACHE_INDEX), pmd);
+	pmd_fragment_free((unsigned long *)pmd);
 }
 
 static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
