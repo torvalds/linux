@@ -176,7 +176,7 @@ globl(ftr_fixup_test6_expected)
 /* Test that if we have a larger else case the assembler spots it and
  * reports an error. #if 0'ed so as not to break the build normally.
  */
-ftr_fixup_test7:
+ftr_fixup_test_too_big:
 	or	1,1,1
 BEGIN_FTR_SECTION
 	or	2,2,2
