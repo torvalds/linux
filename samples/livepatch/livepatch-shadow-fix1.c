@@ -56,6 +56,21 @@ struct dummy {
 	unsigned long jiffies_expire;
 };
 
+/*
+ * The constructor makes more sense together with klp_shadow_get_or_alloc().
+ * In this example, it would be safe to assign the pointer also to the shadow
+ * variable returned by klp_shadow_alloc().  But we wanted to show the more
+ * complicated use of the API.
+ */
+static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
+{
+	void **shadow_leak = shadow_data;
+	void *leak = ctor_data;
+
+	*shadow_leak = leak;
+	return 0;
+}
+
 struct dummy *livepatch_fix1_dummy_alloc(void)
 {
 	struct dummy *d;
@@ -74,7 +89,8 @@ struct dummy *livepatch_fix1_dummy_alloc(void)
 	 * pointer to handle resource release.
 	 */
 	leak = kzalloc(sizeof(int), GFP_KERNEL);
-	klp_shadow_alloc(d, SV_LEAK, &leak, sizeof(leak), GFP_KERNEL);
+	klp_shadow_alloc(d, SV_LEAK, sizeof(leak), GFP_KERNEL,
+			 shadow_leak_ctor, leak);
 
 	pr_info("%s: dummy @ %p, expires @ %lx\n",
 		__func__, d, d->jiffies_expire);

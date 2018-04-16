@@ -186,11 +186,17 @@ static inline bool klp_have_reliable_stack(void)
 	       IS_ENABLED(CONFIG_HAVE_RELIABLE_STACKTRACE);
 }
 
+typedef int (*klp_shadow_ctor_t)(void *obj,
+				 void *shadow_data,
+				 void *ctor_data);
+
 void *klp_shadow_get(void *obj, unsigned long id);
-void *klp_shadow_alloc(void *obj, unsigned long id, void *data,
-		       size_t size, gfp_t gfp_flags);
-void *klp_shadow_get_or_alloc(void *obj, unsigned long id, void *data,
-			      size_t size, gfp_t gfp_flags);
+void *klp_shadow_alloc(void *obj, unsigned long id,
+		       size_t size, gfp_t gfp_flags,
+		       klp_shadow_ctor_t ctor, void *ctor_data);
+void *klp_shadow_get_or_alloc(void *obj, unsigned long id,
+			      size_t size, gfp_t gfp_flags,
+			      klp_shadow_ctor_t ctor, void *ctor_data);
 void klp_shadow_free(void *obj, unsigned long id);
 void klp_shadow_free_all(unsigned long id);
 
