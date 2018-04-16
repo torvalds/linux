@@ -381,56 +381,6 @@ struct dma_features {
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
 
-/* Specific DMA helpers */
-struct stmmac_dma_ops {
-	/* DMA core initialization */
-	int (*reset)(void __iomem *ioaddr);
-	void (*init)(void __iomem *ioaddr, struct stmmac_dma_cfg *dma_cfg,
-		     u32 dma_tx, u32 dma_rx, int atds);
-	void (*init_chan)(void __iomem *ioaddr,
-			  struct stmmac_dma_cfg *dma_cfg, u32 chan);
-	void (*init_rx_chan)(void __iomem *ioaddr,
-			     struct stmmac_dma_cfg *dma_cfg,
-			     u32 dma_rx_phy, u32 chan);
-	void (*init_tx_chan)(void __iomem *ioaddr,
-			     struct stmmac_dma_cfg *dma_cfg,
-			     u32 dma_tx_phy, u32 chan);
-	/* Configure the AXI Bus Mode Register */
-	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
-	/* Dump DMA registers */
-	void (*dump_regs)(void __iomem *ioaddr, u32 *reg_space);
-	/* Set tx/rx threshold in the csr6 register
-	 * An invalid value enables the store-and-forward mode */
-	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
-			 int rxfifosz);
-	void (*dma_rx_mode)(void __iomem *ioaddr, int mode, u32 channel,
-			    int fifosz, u8 qmode);
-	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel,
-			    int fifosz, u8 qmode);
-	/* To track extra statistic (if supported) */
-	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
-				   void __iomem *ioaddr);
-	void (*enable_dma_transmission) (void __iomem *ioaddr);
-	void (*enable_dma_irq)(void __iomem *ioaddr, u32 chan);
-	void (*disable_dma_irq)(void __iomem *ioaddr, u32 chan);
-	void (*start_tx)(void __iomem *ioaddr, u32 chan);
-	void (*stop_tx)(void __iomem *ioaddr, u32 chan);
-	void (*start_rx)(void __iomem *ioaddr, u32 chan);
-	void (*stop_rx)(void __iomem *ioaddr, u32 chan);
-	int (*dma_interrupt) (void __iomem *ioaddr,
-			      struct stmmac_extra_stats *x, u32 chan);
-	/* If supported then get the optional core features */
-	void (*get_hw_feature)(void __iomem *ioaddr,
-			       struct dma_features *dma_cap);
-	/* Program the HW RX Watchdog */
-	void (*rx_watchdog)(void __iomem *ioaddr, u32 riwt, u32 number_chan);
-	void (*set_tx_ring_len)(void __iomem *ioaddr, u32 len, u32 chan);
-	void (*set_rx_ring_len)(void __iomem *ioaddr, u32 len, u32 chan);
-	void (*set_rx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
-	void (*set_tx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
-	void (*enable_tso)(void __iomem *ioaddr, bool en, u32 chan);
-};
-
 struct mac_device_info;
 
 /* Helpers to program the MAC core */

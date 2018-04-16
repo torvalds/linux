@@ -443,7 +443,7 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
 	priv->hw->mac->dump_regs(priv->hw, reg_space);
-	priv->hw->dma->dump_regs(priv->ioaddr, reg_space);
+	stmmac_dump_dma_regs(priv, priv->ioaddr, reg_space);
 	/* Copy DMA registers to where ethtool expects them */
 	memcpy(&reg_space[ETHTOOL_DMA_OFFSET], &reg_space[DMA_BUS_MODE / 4],
 	       NUM_DWMAC1000_DMA_REGS * 4);
@@ -529,7 +529,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	unsigned long count;
-	int i, j = 0;
+	int i, j = 0, ret;
 
 	if (priv->dma_cap.asp && priv->hw->mac->safety_feat_dump) {
 		dump = priv->hw->mac->safety_feat_dump;
@@ -541,11 +541,9 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	}
 
 	/* Update the DMA HW counters for dwmac10/100 */
-	if (priv->hw->dma->dma_diagnostic_fr)
-		priv->hw->dma->dma_diagnostic_fr(&dev->stats,
-						 (void *) &priv->xstats,
-						 priv->ioaddr);
-	else {
+	ret = stmmac_dma_diagnostic_fr(priv, &dev->stats, (void *) &priv->xstats,
+			priv->ioaddr);
+	if (ret) {
 		/* If supported, for new GMAC chips expose the MMC counters */
 		if (priv->dma_cap.rmon) {
 			dwmac_mmc_read(priv->mmcaddr, &priv->mmc);
@@ -810,7 +808,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	priv->tx_coal_frames = ec->tx_max_coalesced_frames;
 	priv->tx_coal_timer = ec->tx_coalesce_usecs;
 	priv->rx_riwt = rx_riwt;
-	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt, rx_cnt);
+	stmmac_rx_watchdog(priv, priv->ioaddr, priv->rx_riwt, rx_cnt);
 
 	return 0;
 }
