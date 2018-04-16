@@ -184,14 +184,3 @@ const struct dma_map_ops dma_nommu_ops = {
 	.sync_sg_for_device	= dma_nommu_sync_sg_for_device,
 };
 EXPORT_SYMBOL(dma_nommu_ops);
-
-/* Number of entries preallocated for DMA-API debugging */
-#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-
-static int __init dma_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-
-	return 0;
-}
-fs_initcall(dma_init);

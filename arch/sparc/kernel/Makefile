@@ -74,8 +74,6 @@ obj-$(CONFIG_SPARC64)	+= pcr.o
 obj-$(CONFIG_SPARC64)	+= nmi.o
 obj-$(CONFIG_SPARC64_SMP) += cpumap.o
 
-obj-y                     += dma.o
-
 obj-$(CONFIG_PCIC_PCI)    += pcic.o
 obj-$(CONFIG_LEON_PCI)    += leon_pci.o
 obj-$(CONFIG_SPARC_GRPCI2)+= leon_pci_grpci2.o
