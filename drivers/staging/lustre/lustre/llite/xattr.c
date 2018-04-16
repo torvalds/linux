@@ -136,7 +136,7 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 			return -EPERM;
 	}
 
-	fullname = kasprintf(GFP_KERNEL, "%s%s\n", handler->prefix, name);
+	fullname = kasprintf(GFP_KERNEL, "%s%s", handler->prefix, name);
 	if (!fullname)
 		return -ENOMEM;
 	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode),
@@ -435,7 +435,7 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 	if (handler->flags == XATTR_ACL_DEFAULT_T && !S_ISDIR(inode->i_mode))
 		return -ENODATA;
 #endif
-	fullname = kasprintf(GFP_KERNEL, "%s%s\n", handler->prefix, name);
+	fullname = kasprintf(GFP_KERNEL, "%s%s", handler->prefix, name);
 	if (!fullname)
 		return -ENOMEM;
 	rc = ll_xattr_list(inode, fullname, handler->flags, buffer, size,
