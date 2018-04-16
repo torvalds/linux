@@ -11,8 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
@@ -495,7 +493,6 @@ static void nft_meta_set_destroy(const struct nft_ctx *ctx,
 		static_branch_dec(&nft_trace_enabled);
 }
 
-static struct nft_expr_type nft_meta_type;
 static const struct nft_expr_ops nft_meta_get_ops = {
 	.type		= &nft_meta_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
@@ -534,27 +531,10 @@ nft_meta_select_ops(const struct nft_ctx *ctx,
 	return ERR_PTR(-EINVAL);
 }
 
-static struct nft_expr_type nft_meta_type __read_mostly = {
+struct nft_expr_type nft_meta_type __read_mostly = {
 	.name		= "meta",
 	.select_ops	= nft_meta_select_ops,
 	.policy		= nft_meta_policy,
 	.maxattr	= NFTA_META_MAX,
 	.owner		= THIS_MODULE,
 };
-
-static int __init nft_meta_module_init(void)
-{
-	return nft_register_expr(&nft_meta_type);
-}
-
-static void __exit nft_meta_module_exit(void)
-{
-	nft_unregister_expr(&nft_meta_type);
-}
-
-module_init(nft_meta_module_init);
-module_exit(nft_meta_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_EXPR("meta");
