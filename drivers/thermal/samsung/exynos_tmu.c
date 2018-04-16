@@ -249,24 +249,14 @@ static void exynos_report_trigger(struct exynos_tmu_data *p)
 static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
 {
 	struct exynos_tmu_platform_data *pdata = data->pdata;
-	int temp_code;
 
-	switch (pdata->cal_type) {
-	case TYPE_TWO_POINT_TRIMMING:
-		temp_code = (temp - pdata->first_point_trim) *
-			(data->temp_error2 - data->temp_error1) /
-			(pdata->second_point_trim - pdata->first_point_trim) +
-			data->temp_error1;
-		break;
-	case TYPE_ONE_POINT_TRIMMING:
-		temp_code = temp + data->temp_error1 - pdata->first_point_trim;
-		break;
-	default:
-		temp_code = temp + pdata->default_temp_offset;
-		break;
-	}
+	if (pdata->cal_type == TYPE_ONE_POINT_TRIMMING)
+		return temp + data->temp_error1 - pdata->first_point_trim;
 
-	return temp_code;
+	return (temp - pdata->first_point_trim) *
+		(data->temp_error2 - data->temp_error1) /
+		(pdata->second_point_trim - pdata->first_point_trim) +
+		data->temp_error1;
 }
 
 /*
@@ -276,24 +266,14 @@ static int temp_to_code(struct exynos_tmu_data *data, u8 temp)
 static int code_to_temp(struct exynos_tmu_data *data, u16 temp_code)
 {
 	struct exynos_tmu_platform_data *pdata = data->pdata;
-	int temp;
 
-	switch (pdata->cal_type) {
-	case TYPE_TWO_POINT_TRIMMING:
-		temp = (temp_code - data->temp_error1) *
-			(pdata->second_point_trim - pdata->first_point_trim) /
-			(data->temp_error2 - data->temp_error1) +
-			pdata->first_point_trim;
-		break;
-	case TYPE_ONE_POINT_TRIMMING:
-		temp = temp_code - data->temp_error1 + pdata->first_point_trim;
-		break;
-	default:
-		temp = temp_code - pdata->default_temp_offset;
-		break;
-	}
+	if (pdata->cal_type == TYPE_ONE_POINT_TRIMMING)
+		return temp_code - data->temp_error1 + pdata->first_point_trim;
 
-	return temp;
+	return (temp_code - data->temp_error1) *
+		(pdata->second_point_trim - pdata->first_point_trim) /
+		(data->temp_error2 - data->temp_error1) +
+		pdata->first_point_trim;
 }
 
 static void sanitize_temp_error(struct exynos_tmu_data *data, u32 trim_info)
@@ -1166,8 +1146,6 @@ static int exynos_of_sensor_conf(struct device_node *np,
 	pdata->first_point_trim = (u8)value;
 	of_property_read_u32(np, "samsung,tmu_second_point_trim", &value);
 	pdata->second_point_trim = (u8)value;
-	of_property_read_u32(np, "samsung,tmu_default_temp_offset", &value);
-	pdata->default_temp_offset = (u8)value;
 
 	of_property_read_u32(np, "samsung,tmu_cal_type", &pdata->cal_type);
 
