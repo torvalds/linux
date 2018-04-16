@@ -1172,7 +1172,6 @@ static void rt1305_i2c_shutdown(struct i2c_client *client)
 static struct i2c_driver rt1305_i2c_driver = {
 	.driver = {
 		.name = "rt1305",
-		.owner = THIS_MODULE,
 #if defined(CONFIG_OF)
 		.of_match_table = rt1305_of_match,
 #endif
