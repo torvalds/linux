@@ -2585,6 +2585,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (dma_mapping_error(&oct->pci_dev->dev, dptr)) {
 			dev_err(&oct->pci_dev->dev, "%s DMA mapping error 1\n",
 				__func__);
+			stats->tx_dmamap_fail++;
 			return NETDEV_TX_BUSY;
 		}
 
@@ -2624,6 +2625,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (dma_mapping_error(&oct->pci_dev->dev, g->sg[0].ptr[0])) {
 			dev_err(&oct->pci_dev->dev, "%s DMA mapping error 2\n",
 				__func__);
+			stats->tx_dmamap_fail++;
 			return NETDEV_TX_BUSY;
 		}
 		add_sg_size(&g->sg[0], (skb->len - skb->data_len), 0);

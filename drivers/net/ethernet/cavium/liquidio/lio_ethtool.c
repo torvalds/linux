@@ -96,11 +96,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_packets",
 	"rx_bytes",
 	"tx_bytes",
-	"rx_errors",	/*jabber_err+l2_err+frame_err */
-	"tx_errors",	/*fw_err_pko+fw_err_link+fw_err_drop */
-	"rx_dropped",   /*st->fromwire.total_rcvd - st->fromwire.fw_total_rcvd +
-			 *st->fromwire.dmac_drop + st->fromwire.fw_err_drop
-			 */
+	"rx_errors",
+	"tx_errors",
+	"rx_dropped",
 	"tx_dropped",
 
 	"tx_total_sent",
@@ -119,7 +117,7 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"mac_tx_total_bytes",
 	"mac_tx_mcast_pkts",
 	"mac_tx_bcast_pkts",
-	"mac_tx_ctl_packets",	/*oct->link_stats.fromhost.ctl_sent */
+	"mac_tx_ctl_packets",
 	"mac_tx_total_collisions",
 	"mac_tx_one_collision",
 	"mac_tx_multi_collison",
@@ -170,17 +168,17 @@ static const char oct_vf_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_packets",
 	"rx_bytes",
 	"tx_bytes",
-	"rx_errors", /* jabber_err + l2_err+frame_err */
-	"tx_errors", /* fw_err_pko + fw_err_link+fw_err_drop */
-	"rx_dropped", /* total_rcvd - fw_total_rcvd + dmac_drop + fw_err_drop */
+	"rx_errors",
+	"tx_errors",
+	"rx_dropped",
 	"tx_dropped",
 	"link_state_changes",
 };
 
 /* statistics of host tx queue */
 static const char oct_iq_stats_strings[][ETH_GSTRING_LEN] = {
-	"packets",		/*oct->instr_queue[iq_no]->stats.tx_done*/
-	"bytes",		/*oct->instr_queue[iq_no]->stats.tx_tot_bytes*/
+	"packets",
+	"bytes",
 	"dropped",
 	"iq_busy",
 	"sgentry_sent",
@@ -197,13 +195,9 @@ static const char oct_iq_stats_strings[][ETH_GSTRING_LEN] = {
 
 /* statistics of host rx queue */
 static const char oct_droq_stats_strings[][ETH_GSTRING_LEN] = {
-	"packets",		/*oct->droq[oq_no]->stats.rx_pkts_received */
-	"bytes",		/*oct->droq[oq_no]->stats.rx_bytes_received */
-	"dropped",		/*oct->droq[oq_no]->stats.rx_dropped+
-				 *oct->droq[oq_no]->stats.dropped_nodispatch+
-				 *oct->droq[oq_no]->stats.dropped_toomany+
-				 *oct->droq[oq_no]->stats.dropped_nomem
-				 */
+	"packets",
+	"bytes",
+	"dropped",
 	"dropped_nomem",
 	"dropped_toomany",
 	"fw_dropped",
@@ -1080,16 +1074,33 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = CVM_CAST64(netstats->rx_bytes);
 	/*sum of oct->instr_queue[iq_no]->stats.tx_tot_bytes */
 	data[i++] = CVM_CAST64(netstats->tx_bytes);
-	data[i++] = CVM_CAST64(netstats->rx_errors);
+	data[i++] = CVM_CAST64(netstats->rx_errors +
+			       oct_dev->link_stats.fromwire.fcs_err +
+			       oct_dev->link_stats.fromwire.jabber_err +
+			       oct_dev->link_stats.fromwire.l2_err +
+			       oct_dev->link_stats.fromwire.frame_err);
 	data[i++] = CVM_CAST64(netstats->tx_errors);
 	/*sum of oct->droq[oq_no]->stats->rx_dropped +
 	 *oct->droq[oq_no]->stats->dropped_nodispatch +
 	 *oct->droq[oq_no]->stats->dropped_toomany +
 	 *oct->droq[oq_no]->stats->dropped_nomem
 	 */
-	data[i++] = CVM_CAST64(netstats->rx_dropped);
+	data[i++] = CVM_CAST64(netstats->rx_dropped +
+			       oct_dev->link_stats.fromwire.fifo_err +
+			       oct_dev->link_stats.fromwire.dmac_drop +
+			       oct_dev->link_stats.fromwire.red_drops +
+			       oct_dev->link_stats.fromwire.fw_err_pko +
+			       oct_dev->link_stats.fromwire.fw_err_link +
+			       oct_dev->link_stats.fromwire.fw_err_drop);
 	/*sum of oct->instr_queue[iq_no]->stats.tx_dropped */
-	data[i++] = CVM_CAST64(netstats->tx_dropped);
+	data[i++] = CVM_CAST64(netstats->tx_dropped +
+			       oct_dev->link_stats.fromhost.max_collision_fail +
+			       oct_dev->link_stats.fromhost.max_deferral_fail +
+			       oct_dev->link_stats.fromhost.total_collisions +
+			       oct_dev->link_stats.fromhost.fw_err_pko +
+			       oct_dev->link_stats.fromhost.fw_err_link +
+			       oct_dev->link_stats.fromhost.fw_err_drop +
+			       oct_dev->link_stats.fromhost.fw_err_pki);
 
 	/* firmware tx stats */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[mdata->from_ifidx].
@@ -1798,6 +1809,7 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		rstats->jabber_err = rsp_rstats->jabber_err;
 		rstats->l2_err    = rsp_rstats->l2_err;
 		rstats->frame_err = rsp_rstats->frame_err;
+		rstats->red_drops = rsp_rstats->red_drops;
 
 		/* RX firmware stats */
 		rstats->fw_total_rcvd = rsp_rstats->fw_total_rcvd;
