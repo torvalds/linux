@@ -123,6 +123,7 @@ struct wcn36xx_vif {
 	bool is_joining;
 	bool sta_assoc;
 	struct wcn36xx_hal_mac_ssid ssid;
+	enum wcn36xx_hal_bss_type bss_type;
 
 	/* Power management */
 	enum wcn36xx_power_state pw_state;

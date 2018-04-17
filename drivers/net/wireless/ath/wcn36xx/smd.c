@@ -620,6 +620,7 @@ out:
 int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			      struct cfg80211_scan_request *req)
 {
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 	struct wcn36xx_hal_start_scan_offload_req_msg msg_body;
 	int ret, i;
 
@@ -631,6 +632,7 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	msg_body.max_ch_time = 100;
 	msg_body.scan_hidden = 1;
 	memcpy(msg_body.mac, vif->addr, ETH_ALEN);
+	msg_body.bss_type = vif_priv->bss_type;
 	msg_body.p2p_search = vif->p2p;
 
 	msg_body.num_ssid = min_t(u8, req->n_ssids, ARRAY_SIZE(msg_body.ssids));
@@ -1399,8 +1401,9 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	bss->spectrum_mgt_enable = 0;
 	bss->tx_mgmt_power = 0;
 	bss->max_tx_power = WCN36XX_MAX_POWER(wcn);
-
 	bss->action = update;
+
+	vif_priv->bss_type = bss->bss_type;
 
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
 		    "hal config bss bssid %pM self_mac_addr %pM bss_type %d oper_mode %d nw_type %d\n",
