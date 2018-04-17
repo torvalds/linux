@@ -379,6 +379,17 @@ static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
 		return 0;
 }
 
+static inline u8 ip_tunnel_get_ttl(const struct iphdr *iph,
+				       const struct sk_buff *skb)
+{
+	if (skb->protocol == htons(ETH_P_IP))
+		return iph->ttl;
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		return ((const struct ipv6hdr *)iph)->hop_limit;
+	else
+		return 0;
+}
+
 /* Propogate ECN bits out */
 static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 				     const struct sk_buff *skb)
