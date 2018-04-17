@@ -117,7 +117,6 @@ struct mt76x2_dev {
 	u8 beacon_mask;
 	u8 beacon_data_mask;
 
-	u32 rev;
 	u32 rxfilter;
 
 	u16 chainmask;
@@ -151,7 +150,7 @@ struct mt76x2_sta {
 
 static inline bool is_mt7612(struct mt76x2_dev *dev)
 {
-	return (dev->rev >> 16) == 0x7612;
+	return mt76_chip(&dev->mt76) == 0x7612;
 }
 
 void mt76x2_set_irq_mask(struct mt76x2_dev *dev, u32 clear, u32 set);
