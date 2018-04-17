@@ -8016,7 +8016,6 @@ static const struct net_device_ops rtl_netdev_ops = {
 static const struct rtl_cfg_info {
 	void (*hw_start)(struct net_device *);
 	unsigned int region;
-	unsigned int align;
 	u16 event_slow;
 	unsigned int has_gmii:1;
 	const struct rtl_coalesce_info *coalesce_info;
@@ -8025,7 +8024,6 @@ static const struct rtl_cfg_info {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
 		.region		= 1,
-		.align		= 0,
 		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8169,
@@ -8034,7 +8032,6 @@ static const struct rtl_cfg_info {
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
 		.region		= 2,
-		.align		= 8,
 		.event_slow	= SYSErr | LinkChg | RxOverflow,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
@@ -8043,7 +8040,6 @@ static const struct rtl_cfg_info {
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
 		.region		= 2,
-		.align		= 8,
 		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver |
 				  PCSTimeout,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
