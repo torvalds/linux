@@ -360,7 +360,7 @@ void optc1_program_timing(
 
 }
 
-static void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable)
+void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -1257,20 +1257,20 @@ void optc1_read_otg_state(struct optc *optc1,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
-static void optc1_clear_optc_underflow(struct timing_generator *optc)
+void optc1_clear_optc_underflow(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
 	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
 }
 
-static void optc1_tg_init(struct timing_generator *optc)
+void optc1_tg_init(struct timing_generator *optc)
 {
 	optc1_set_blank_data_double_buffer(optc, true);
 	optc1_clear_optc_underflow(optc);
 }
 
-static bool optc1_is_tg_enabled(struct timing_generator *optc)
+bool optc1_is_tg_enabled(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t otg_enabled = 0;
@@ -1281,7 +1281,7 @@ static bool optc1_is_tg_enabled(struct timing_generator *optc)
 
 }
 
-static bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
+bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t underflow_occurred = 0;

@@ -497,4 +497,14 @@ void optc1_program_stereo(struct timing_generator *optc,
 
 bool optc1_is_stereo_left_eye(struct timing_generator *optc);
 
+void optc1_clear_optc_underflow(struct timing_generator *optc);
+
+void optc1_tg_init(struct timing_generator *optc);
+
+bool optc1_is_tg_enabled(struct timing_generator *optc);
+
+bool optc1_is_optc_underflow_occurred(struct timing_generator *optc);
+
+void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable);
+
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */

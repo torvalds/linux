@@ -849,7 +849,7 @@ static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
-static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void hwss1_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	int dpp_id = pipe_ctx->plane_res.dpp->inst;
@@ -1032,7 +1032,7 @@ static void dcn10_init_hw(struct dc *dc)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		plane_atomic_disconnect(dc, pipe_ctx);
+		hwss1_plane_atomic_disconnect(dc, pipe_ctx);
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2267,7 +2267,7 @@ static void dcn10_apply_ctx_for_surface(
 			old_pipe_ctx->plane_state &&
 			old_pipe_ctx->stream_res.tg == tg) {
 
-			plane_atomic_disconnect(dc, old_pipe_ctx);
+			hwss1_plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
 
 			DC_LOG_DC(
