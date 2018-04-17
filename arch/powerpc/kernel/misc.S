@@ -60,6 +60,10 @@ _GLOBAL(setjmp)
 	PPC_STL	r0,0(r3)
 	PPC_STL	r1,SZL(r3)
 	PPC_STL	r2,2*SZL(r3)
+#ifdef CONFIG_PPC32
+	mfcr	r12
+	stmw	r12, 3*SZL(r3)
+#else
 	mfcr	r0
 	PPC_STL	r0,3*SZL(r3)
 	PPC_STL	r13,4*SZL(r3)
@@ -81,10 +85,15 @@ _GLOBAL(setjmp)
 	PPC_STL	r29,20*SZL(r3)
 	PPC_STL	r30,21*SZL(r3)
 	PPC_STL	r31,22*SZL(r3)
+#endif
 	li	r3,0
 	blr
 
 _GLOBAL(longjmp)
+#ifdef CONFIG_PPC32
+	lmw	r12, 3*SZL(r3)
+	mtcrf	0x38, r12
+#else
 	PPC_LL	r13,4*SZL(r3)
 	PPC_LL	r14,5*SZL(r3)
 	PPC_LL	r15,6*SZL(r3)
@@ -106,6 +115,7 @@ _GLOBAL(longjmp)
 	PPC_LL	r31,22*SZL(r3)
 	PPC_LL	r0,3*SZL(r3)
 	mtcrf	0x38,r0
+#endif
 	PPC_LL	r0,0(r3)
 	PPC_LL	r1,SZL(r3)
 	PPC_LL	r2,2*SZL(r3)
