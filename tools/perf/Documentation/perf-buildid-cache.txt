@@ -59,7 +59,9 @@ OPTIONS
 	exactly same build-id, that is replaced by new one. It can be used
 	to update kallsyms and kernel dso to vmlinux in order to support
 	annotation.
-
+-l::
+--list::
+	List all valid binaries from cache.
 -v::
 --verbose::
 	Be more verbose.
