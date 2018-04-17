@@ -6731,8 +6731,7 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 	void *data;
 	dma_addr_t mapping;
 	struct device *d = tp_to_dev(tp);
-	struct net_device *dev = tp->dev;
-	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
+	int node = dev_to_node(d);
 
 	data = kmalloc_node(rx_buf_sz, GFP_KERNEL, node);
 	if (!data)
