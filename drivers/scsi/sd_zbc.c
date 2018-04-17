@@ -299,16 +299,6 @@ void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	case REQ_OP_WRITE:
 	case REQ_OP_WRITE_ZEROES:
 	case REQ_OP_WRITE_SAME:
-
-		if (result &&
-		    sshdr->sense_key == ILLEGAL_REQUEST &&
-		    sshdr->asc == 0x21)
-			/*
-			 * INVALID ADDRESS FOR WRITE error: It is unlikely that
-			 * retrying write requests failed with any kind of
-			 * alignement error will result in success. So don't.
-			 */
-			cmd->allowed = 0;
 		break;
 
 	case REQ_OP_ZONE_REPORT:
