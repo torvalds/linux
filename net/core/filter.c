@@ -2692,6 +2692,7 @@ static unsigned long xdp_get_metalen(const struct xdp_buff *xdp)
 
 BPF_CALL_2(bpf_xdp_adjust_head, struct xdp_buff *, xdp, int, offset)
 {
+	void *xdp_frame_end = xdp->data_hard_start + sizeof(struct xdp_frame);
 	unsigned long metalen = xdp_get_metalen(xdp);
 	void *data_start = xdp->data_hard_start + metalen;
 	void *data = xdp->data + offset;
@@ -2699,6 +2700,13 @@ BPF_CALL_2(bpf_xdp_adjust_head, struct xdp_buff *, xdp, int, offset)
 	if (unlikely(data < data_start ||
 		     data > xdp->data_end - ETH_HLEN))
 		return -EINVAL;
+
+	/* Avoid info leak, when reusing area prev used by xdp_frame */
+	if (data < xdp_frame_end) {
+		unsigned long clearlen = xdp_frame_end - data;
+
+		memset(data, 0, clearlen);
+	}
 
 	if (metalen)
 		memmove(xdp->data_meta + offset,
@@ -2749,13 +2757,18 @@ static int __bpf_tx_xdp(struct net_device *dev,
 			struct xdp_buff *xdp,
 			u32 index)
 {
+	struct xdp_frame *xdpf;
 	int err;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
 		return -EOPNOTSUPP;
 	}
 
-	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdp);
+	xdpf = convert_to_xdp_frame(xdp);
+	if (unlikely(!xdpf))
+		return -EOVERFLOW;
+
+	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
 	if (err)
 		return err;
 	dev->netdev_ops->ndo_xdp_flush(dev);
@@ -2771,11 +2784,19 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 
 	if (map->map_type == BPF_MAP_TYPE_DEVMAP) {
 		struct net_device *dev = fwd;
+		struct xdp_frame *xdpf;
 
 		if (!dev->netdev_ops->ndo_xdp_xmit)
 			return -EOPNOTSUPP;
 
-		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdp);
+		xdpf = convert_to_xdp_frame(xdp);
+		if (unlikely(!xdpf))
+			return -EOVERFLOW;
+
+		/* TODO: move to inside map code instead, for bulk support
+		 * err = dev_map_enqueue(dev, xdp);
+		 */
+		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
 		if (err)
 			return err;
 		__dev_map_insert_ctx(map, index);

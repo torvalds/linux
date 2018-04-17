@@ -1165,7 +1165,7 @@ struct dev_ifalias {
  *	This function is used to set or query state related to XDP on the
  *	netdevice and manage BPF offload. See definition of
  *	enum bpf_netdev_command for details.
- * int (*ndo_xdp_xmit)(struct net_device *dev, struct xdp_buff *xdp);
+ * int (*ndo_xdp_xmit)(struct net_device *dev, struct xdp_frame *xdp);
  *	This function is used to submit a XDP packet for transmit on a
  *	netdevice.
  * void (*ndo_xdp_flush)(struct net_device *dev);
@@ -1356,7 +1356,7 @@ struct net_device_ops {
 	int			(*ndo_bpf)(struct net_device *dev,
 					   struct netdev_bpf *bpf);
 	int			(*ndo_xdp_xmit)(struct net_device *dev,
-						struct xdp_buff *xdp);
+						struct xdp_frame *xdp);
 	void			(*ndo_xdp_flush)(struct net_device *dev);
 };
 

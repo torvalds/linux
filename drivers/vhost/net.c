@@ -32,6 +32,7 @@
 #include <linux/skbuff.h>
 
 #include <net/sock.h>
+#include <net/xdp.h>
 
 #include "vhost.h"
 
@@ -181,10 +182,10 @@ static void vhost_net_buf_unproduce(struct vhost_net_virtqueue *nvq)
 
 static int vhost_net_buf_peek_len(void *ptr)
 {
-	if (tun_is_xdp_buff(ptr)) {
-		struct xdp_buff *xdp = tun_ptr_to_xdp(ptr);
+	if (tun_is_xdp_frame(ptr)) {
+		struct xdp_frame *xdpf = tun_ptr_to_xdp(ptr);
 
-		return xdp->data_end - xdp->data;
+		return xdpf->len;
 	}
 
 	return __skb_array_len_with_tag(ptr);
