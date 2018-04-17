@@ -2749,13 +2749,18 @@ static int __bpf_tx_xdp(struct net_device *dev,
 			struct xdp_buff *xdp,
 			u32 index)
 {
+	struct xdp_frame *xdpf;
 	int err;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
 		return -EOPNOTSUPP;
 	}
 
-	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdp);
+	xdpf = convert_to_xdp_frame(xdp);
+	if (unlikely(!xdpf))
+		return -EOVERFLOW;
+
+	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
 	if (err)
 		return err;
 	dev->netdev_ops->ndo_xdp_flush(dev);
@@ -2771,11 +2776,19 @@ static int __bpf_tx_xdp_map(struct net_device *dev_rx, void *fwd,
 
 	if (map->map_type == BPF_MAP_TYPE_DEVMAP) {
 		struct net_device *dev = fwd;
+		struct xdp_frame *xdpf;
 
 		if (!dev->netdev_ops->ndo_xdp_xmit)
 			return -EOPNOTSUPP;
 
-		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdp);
+		xdpf = convert_to_xdp_frame(xdp);
+		if (unlikely(!xdpf))
+			return -EOVERFLOW;
+
+		/* TODO: move to inside map code instead, for bulk support
+		 * err = dev_map_enqueue(dev, xdp);
+		 */
+		err = dev->netdev_ops->ndo_xdp_xmit(dev, xdpf);
 		if (err)
 			return err;
 		__dev_map_insert_ctx(map, index);

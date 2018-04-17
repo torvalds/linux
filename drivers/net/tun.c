@@ -1301,17 +1301,12 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_get_stats64	= tun_net_get_stats64,
 };
 
-static int tun_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
+static int tun_xdp_xmit(struct net_device *dev, struct xdp_frame *frame)
 {
 	struct tun_struct *tun = netdev_priv(dev);
-	struct xdp_frame *frame;
 	struct tun_file *tfile;
 	u32 numqueues;
 	int ret = 0;
-
-	frame = convert_to_xdp_frame(xdp);
-	if (unlikely(!frame))
-		return -EOVERFLOW;
 
 	rcu_read_lock();
 
@@ -1334,6 +1329,16 @@ static int tun_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 out:
 	rcu_read_unlock();
 	return ret;
+}
+
+static int tun_xdp_tx(struct net_device *dev, struct xdp_buff *xdp)
+{
+	struct xdp_frame *frame = convert_to_xdp_frame(xdp);
+
+	if (unlikely(!frame))
+		return -EOVERFLOW;
+
+	return tun_xdp_xmit(dev, frame);
 }
 
 static void tun_xdp_flush(struct net_device *dev)
@@ -1683,7 +1688,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		case XDP_TX:
 			get_page(alloc_frag->page);
 			alloc_frag->offset += buflen;
-			if (tun_xdp_xmit(tun->dev, &xdp))
+			if (tun_xdp_tx(tun->dev, &xdp))
 				goto err_redirect;
 			tun_xdp_flush(tun->dev);
 			rcu_read_unlock();
