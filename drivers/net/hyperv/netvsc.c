@@ -525,7 +525,8 @@ static int netvsc_connect_vsp(struct hv_device *device,
 	struct net_device *ndev = hv_get_drvdata(device);
 	static const u32 ver_list[] = {
 		NVSP_PROTOCOL_VERSION_1, NVSP_PROTOCOL_VERSION_2,
-		NVSP_PROTOCOL_VERSION_4, NVSP_PROTOCOL_VERSION_5
+		NVSP_PROTOCOL_VERSION_4, NVSP_PROTOCOL_VERSION_5,
+		NVSP_PROTOCOL_VERSION_6, NVSP_PROTOCOL_VERSION_61
 	};
 	struct nvsp_message *init_packet;
 	int ndis_version, i, ret;
