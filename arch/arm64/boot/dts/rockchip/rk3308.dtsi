@@ -934,7 +934,6 @@
 		clock-names = "acodec", "mclk_tx", "mclk_rx";
 		resets = <&cru SRST_ACODEC_P>;
 		reset-names = "acodec-reset";
-		spk_ctl-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
 

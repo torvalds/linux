@@ -30,6 +30,9 @@
 	status = "okay";
 
 	#sound-dai-cells = <0>;
+
+	hp-ctl-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+	spk-ctl-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 };
 
 &i2s_8ch_2 {
