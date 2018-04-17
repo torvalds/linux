@@ -392,6 +392,7 @@ struct mlx5e_xdpsq {
 	struct {
 		struct mlx5e_dma_info     *di;
 		bool                       doorbell;
+		bool                       redirect_flush;
 	} db;
 
 	/* read only */
