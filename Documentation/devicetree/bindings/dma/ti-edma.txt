@@ -190,7 +190,6 @@ mmc0: mmc@23000000 {
 	power-domains = <&k2g_pds 0xb>;
 	clocks = <&k2g_clks 0xb 1>, <&k2g_clks 0xb 2>;
 	clock-names = "fck", "mmchsdb_fck";
-	status = "disabled";
 };
 
 ------------------------------------------------------------------------------

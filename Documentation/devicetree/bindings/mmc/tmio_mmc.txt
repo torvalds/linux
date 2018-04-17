@@ -67,7 +67,6 @@ Example: R8A7790 (R-Car H2) SDHI controller nodes
 		max-frequency = <195000000>;
 		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
 		resets = <&cpg 314>;
-		status = "disabled";
 	};
 
 	sdhi1: sd@ee120000 {
@@ -81,7 +80,6 @@ Example: R8A7790 (R-Car H2) SDHI controller nodes
 		max-frequency = <195000000>;
 		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
 		resets = <&cpg 313>;
-		status = "disabled";
 	};
 
 	sdhi2: sd@ee140000 {
@@ -95,7 +93,6 @@ Example: R8A7790 (R-Car H2) SDHI controller nodes
 		max-frequency = <97500000>;
 		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
 		resets = <&cpg 312>;
-		status = "disabled";
 	};
 
 	sdhi3: sd@ee160000 {
@@ -109,5 +106,4 @@ Example: R8A7790 (R-Car H2) SDHI controller nodes
 		max-frequency = <97500000>;
 		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
 		resets = <&cpg 311>;
-		status = "disabled";
 	};
