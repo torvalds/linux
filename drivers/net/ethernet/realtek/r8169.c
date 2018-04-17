@@ -836,7 +836,6 @@ struct rtl8169_private {
 	struct rtl8169_counters *counters;
 	struct rtl8169_tc_offsets tc_offset;
 	u32 saved_wolopts;
-	u32 opts1_mask;
 
 	struct rtl_fw {
 		const struct firmware *fw;
@@ -7347,7 +7346,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		u32 status;
 
-		status = le32_to_cpu(desc->opts1) & tp->opts1_mask;
+		status = le32_to_cpu(desc->opts1);
 		if (status & DescOwn)
 			break;
 
@@ -7365,14 +7364,16 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 				dev->stats.rx_length_errors++;
 			if (status & RxCRC)
 				dev->stats.rx_crc_errors++;
-			if (status & RxFOVF) {
+			/* RxFOVF is a reserved bit on later chip versions */
+			if (tp->mac_version == RTL_GIGA_MAC_VER_01 &&
+			    status & RxFOVF) {
 				rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 				dev->stats.rx_fifo_errors++;
-			}
-			if ((status & (RxRUNT | RxCRC)) &&
-			    !(status & (RxRWT | RxFOVF)) &&
-			    (dev->features & NETIF_F_RXALL))
+			} else if (status & (RxRUNT | RxCRC) &&
+				   !(status & RxRWT) &&
+				   dev->features & NETIF_F_RXALL) {
 				goto process_pkt;
+			}
 		} else {
 			struct sk_buff *skb;
 			dma_addr_t addr;
@@ -8326,9 +8327,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->hw_start = cfg->hw_start;
 	tp->event_slow = cfg->event_slow;
 	tp->coalesce_info = cfg->coalesce_info;
-
-	tp->opts1_mask = (tp->mac_version != RTL_GIGA_MAC_VER_01) ?
-		~(RxBOVF | RxFOVF) : ~0;
 
 	timer_setup(&tp->timer, rtl8169_phy_timer, 0);
 
