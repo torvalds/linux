@@ -328,7 +328,7 @@ void drop_inmem_page(struct inode *inode, struct page *page)
 			break;
 	}
 
-	f2fs_bug_on(sbi, !cur || cur->page != page);
+	f2fs_bug_on(sbi, list_empty(head) || cur->page != page);
 	list_del(&cur->list);
 	mutex_unlock(&fi->inmem_lock);
 
