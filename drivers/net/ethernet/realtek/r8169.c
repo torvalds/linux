@@ -819,7 +819,7 @@ struct rtl8169_private {
 	int (*get_link_ksettings)(struct net_device *,
 				  struct ethtool_link_ksettings *);
 	void (*phy_reset_enable)(struct rtl8169_private *tp);
-	void (*hw_start)(struct net_device *);
+	void (*hw_start)(struct rtl8169_private *tp);
 	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
 	unsigned int (*link_ok)(struct rtl8169_private *tp);
 	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
@@ -5354,12 +5354,9 @@ static void rtl_set_rx_tx_config_registers(struct rtl8169_private *tp)
 		(InterFrameGap << TxInterFrameGapShift));
 }
 
-static void rtl_hw_start(struct net_device *dev)
+static void rtl_hw_start(struct  rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	tp->hw_start(dev);
-
+	tp->hw_start(tp);
 	rtl_irq_enable_all(tp);
 }
 
@@ -5468,14 +5465,11 @@ static void rtl_set_rx_mode(struct net_device *dev)
 	RTL_W32(tp, RxConfig, tmp);
 }
 
-static void rtl_hw_start_8169(struct net_device *dev)
+static void rtl_hw_start_8169(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct pci_dev *pdev = tp->pci_dev;
-
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05) {
 		RTL_W16(tp, CPlusCmd, RTL_R16(tp, CPlusCmd) | PCIMulRW);
-		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, 0x08);
+		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
 	}
 
 	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
@@ -5533,7 +5527,7 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	RTL_W32(tp, RxMissed, 0);
 
-	rtl_set_rx_mode(dev);
+	rtl_set_rx_mode(tp->dev);
 
 	/* no early-rx interrupts */
 	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
@@ -6321,10 +6315,8 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 	r8168_mac_ocp_write(tp, 0xe860, data);
 }
 
-static void rtl_hw_start_8168(struct net_device *dev)
+static void rtl_hw_start_8168(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
 	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
 
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
@@ -6449,7 +6441,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 
 	default:
 		printk(KERN_ERR PFX "%s: unknown chipset (mac_version = %d).\n",
-			dev->name, tp->mac_version);
+		       tp->dev->name, tp->mac_version);
 		break;
 	}
 
@@ -6457,7 +6449,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 
 	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
 
-	rtl_set_rx_mode(dev);
+	rtl_set_rx_mode(tp->dev);
 
 	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
 }
@@ -6596,17 +6588,14 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 	rtl_pcie_state_l2l3_enable(tp, false);
 }
 
-static void rtl_hw_start_8101(struct net_device *dev)
+static void rtl_hw_start_8101(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct pci_dev *pdev = tp->pci_dev;
-
 	if (tp->mac_version >= RTL_GIGA_MAC_VER_30)
 		tp->event_slow &= ~RxFIFOOver;
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16)
-		pcie_capability_set_word(pdev, PCI_EXP_DEVCTL,
+		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
 					 PCI_EXP_DEVCTL_NOSNOOP_EN);
 
 	RTL_W8(tp, Cfg9346, Cfg9346_Unlock);
@@ -6664,7 +6653,7 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
 
-	rtl_set_rx_mode(dev);
+	rtl_set_rx_mode(tp->dev);
 
 	RTL_R8(tp, IntrMask);
 
@@ -6864,7 +6853,7 @@ static void rtl_reset_work(struct rtl8169_private *tp)
 	rtl8169_init_ring_indexes(tp);
 
 	napi_enable(&tp->napi);
-	rtl_hw_start(dev);
+	rtl_hw_start(tp);
 	netif_wake_queue(dev);
 	rtl8169_check_link_status(dev, tp);
 }
@@ -7694,7 +7683,7 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_pll_power_up(tp);
 
-	rtl_hw_start(dev);
+	rtl_hw_start(tp);
 
 	if (!rtl8169_init_counter_offsets(dev))
 		netif_warn(tp, hw, dev, "counter reset/update failed\n");
@@ -8001,7 +7990,7 @@ static const struct net_device_ops rtl_netdev_ops = {
 };
 
 static const struct rtl_cfg_info {
-	void (*hw_start)(struct net_device *);
+	void (*hw_start)(struct rtl8169_private *tp);
 	unsigned int region;
 	u16 event_slow;
 	unsigned int has_gmii:1;
