@@ -58,6 +58,46 @@ struct xdp_buff {
 	struct xdp_rxq_info *rxq;
 };
 
+struct xdp_frame {
+	void *data;
+	u16 len;
+	u16 headroom;
+	u16 metasize;
+	/* Lifetime of xdp_rxq_info is limited to NAPI/enqueue time,
+	 * while mem info is valid on remote CPU.
+	 */
+	struct xdp_mem_info mem;
+};
+
+/* Convert xdp_buff to xdp_frame */
+static inline
+struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
+{
+	struct xdp_frame *xdp_frame;
+	int metasize;
+	int headroom;
+
+	/* Assure headroom is available for storing info */
+	headroom = xdp->data - xdp->data_hard_start;
+	metasize = xdp->data - xdp->data_meta;
+	metasize = metasize > 0 ? metasize : 0;
+	if (unlikely((headroom - metasize) < sizeof(*xdp_frame)))
+		return NULL;
+
+	/* Store info in top of packet */
+	xdp_frame = xdp->data_hard_start;
+
+	xdp_frame->data = xdp->data;
+	xdp_frame->len  = xdp->data_end - xdp->data;
+	xdp_frame->headroom = headroom - sizeof(*xdp_frame);
+	xdp_frame->metasize = metasize;
+
+	/* rxq only valid until napi_schedule ends, convert to xdp_mem_info */
+	xdp_frame->mem = xdp->rxq->mem;
+
+	return xdp_frame;
+}
+
 static inline
 void xdp_return_frame(void *data, struct xdp_mem_info *mem)
 {
