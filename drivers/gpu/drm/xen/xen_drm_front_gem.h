@@ -27,8 +27,6 @@ struct page **xen_drm_front_gem_get_pages(struct drm_gem_object *obj);
 
 void xen_drm_front_gem_free_object_unlocked(struct drm_gem_object *gem_obj);
 
-#ifndef CONFIG_DRM_XEN_FRONTEND_CMA
-
 int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
 void *xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj);
@@ -38,6 +36,5 @@ void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
 
 int xen_drm_front_gem_prime_mmap(struct drm_gem_object *gem_obj,
 				 struct vm_area_struct *vma);
-#endif
 
 #endif /* __XEN_DRM_FRONT_GEM_H */

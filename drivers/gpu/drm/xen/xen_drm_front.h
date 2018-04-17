@@ -23,40 +23,14 @@
  *
  * Depending on the requirements for the para-virtualized environment, namely
  * requirements dictated by the accompanying DRM/(v)GPU drivers running in both
- * host and guest environments, number of operating modes of para-virtualized
- * display driver are supported:
- *
- * - display buffers can be allocated by either frontend driver or backend
- * - display buffers can be allocated to be contiguous in memory or not
- *
- * Note! Frontend driver itself has no dependency on contiguous memory for
- * its operation.
+ * host and guest environments, display buffers can be allocated by either
+ * frontend driver or backend.
  */
 
 /**
  * DOC: Buffers allocated by the frontend driver
  *
- * The below modes of operation are configured at compile-time via
- * frontend driver's kernel configuration:
- */
-
-/**
- * DOC: With GEM CMA helpers
- *
- * This use-case is useful when used with accompanying DRM/vGPU driver in
- * guest domain which was designed to only work with contiguous buffers,
- * e.g. DRM driver based on GEM CMA helpers: such drivers can only import
- * contiguous PRIME buffers, thus requiring frontend driver to provide
- * such. In order to implement this mode of operation para-virtualized
- * frontend driver can be configured to use GEM CMA helpers.
- */
-
-/**
- * DOC: Without GEM CMA helpers
- *
- * If accompanying drivers can cope with non-contiguous memory then, to
- * lower pressure on CMA subsystem of the kernel, driver can allocate
- * buffers from system memory.
+ * In this mode of operation driver allocates buffers from system memory.
  *
  * Note! If used with accompanying DRM/(v)GPU drivers this mode of operation
  * may require IOMMU support on the platform, so accompanying DRM/vGPU
@@ -164,13 +138,9 @@ int xen_drm_front_mode_set(struct xen_drm_front_drm_pipeline *pipeline,
 			   u32 x, u32 y, u32 width, u32 height,
 			   u32 bpp, u64 fb_cookie);
 
-int xen_drm_front_dbuf_create_from_sgt(struct xen_drm_front_info *front_info,
-				       u64 dbuf_cookie, u32 width, u32 height,
-				       u32 bpp, u64 size, struct sg_table *sgt);
-
-int xen_drm_front_dbuf_create_from_pages(struct xen_drm_front_info *front_info,
-					 u64 dbuf_cookie, u32 width, u32 height,
-					 u32 bpp, u64 size, struct page **pages);
+int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
+			      u64 dbuf_cookie, u32 width, u32 height,
+			      u32 bpp, u64 size, struct page **pages);
 
 int xen_drm_front_fb_attach(struct xen_drm_front_info *front_info,
 			    u64 dbuf_cookie, u64 fb_cookie, u32 width,

@@ -18,18 +18,6 @@ Buffers allocated by the frontend driver
 .. kernel-doc:: drivers/gpu/drm/xen/xen_drm_front.h
    :doc: Buffers allocated by the frontend driver
 
-With GEM CMA helpers
-~~~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: drivers/gpu/drm/xen/xen_drm_front.h
-   :doc: With GEM CMA helpers
-
-Without GEM CMA helpers
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: drivers/gpu/drm/xen/xen_drm_front.h
-   :doc: Without GEM CMA helpers
-
 Buffers allocated by the backend
 --------------------------------
 

@@ -12,7 +12,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
 
 #include <linux/of_device.h>
 
@@ -167,10 +166,9 @@ int xen_drm_front_mode_set(struct xen_drm_front_drm_pipeline *pipeline,
 	return ret;
 }
 
-static int be_dbuf_create_int(struct xen_drm_front_info *front_info,
+int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 			      u64 dbuf_cookie, u32 width, u32 height,
-			      u32 bpp, u64 size, struct page **pages,
-			      struct sg_table *sgt)
+			      u32 bpp, u64 size, struct page **pages)
 {
 	struct xen_drm_front_evtchnl *evtchnl;
 	struct xen_drm_front_shbuf *shbuf;
@@ -187,7 +185,6 @@ static int be_dbuf_create_int(struct xen_drm_front_info *front_info,
 	buf_cfg.xb_dev = front_info->xb_dev;
 	buf_cfg.pages = pages;
 	buf_cfg.size = size;
-	buf_cfg.sgt = sgt;
 	buf_cfg.be_alloc = front_info->cfg.be_alloc;
 
 	shbuf = xen_drm_front_shbuf_alloc(&buf_cfg);
@@ -235,22 +232,6 @@ fail:
 	mutex_unlock(&evtchnl->u.req.req_io_lock);
 	dbuf_free(&front_info->dbuf_list, dbuf_cookie);
 	return ret;
-}
-
-int xen_drm_front_dbuf_create_from_sgt(struct xen_drm_front_info *front_info,
-				       u64 dbuf_cookie, u32 width, u32 height,
-				       u32 bpp, u64 size, struct sg_table *sgt)
-{
-	return be_dbuf_create_int(front_info, dbuf_cookie, width, height,
-				  bpp, size, NULL, sgt);
-}
-
-int xen_drm_front_dbuf_create_from_pages(struct xen_drm_front_info *front_info,
-					 u64 dbuf_cookie, u32 width, u32 height,
-					 u32 bpp, u64 size, struct page **pages)
-{
-	return be_dbuf_create_int(front_info, dbuf_cookie, width, height,
-				  bpp, size, pages, NULL);
 }
 
 static int xen_drm_front_dbuf_destroy(struct xen_drm_front_info *front_info,
@@ -434,24 +415,11 @@ static int xen_drm_drv_dumb_create(struct drm_file *filp,
 		goto fail;
 	}
 
-	/*
-	 * In case of CONFIG_DRM_XEN_FRONTEND_CMA gem_obj is constructed
-	 * via DRM CMA helpers and doesn't have ->pages allocated
-	 * (xendrm_gem_get_pages will return NULL), but instead can provide
-	 * sg table
-	 */
-	if (xen_drm_front_gem_get_pages(obj))
-		ret = xen_drm_front_dbuf_create_from_pages(drm_info->front_info,
-				xen_drm_front_dbuf_to_cookie(obj),
-				args->width, args->height, args->bpp,
-				args->size,
-				xen_drm_front_gem_get_pages(obj));
-	else
-		ret = xen_drm_front_dbuf_create_from_sgt(drm_info->front_info,
-				xen_drm_front_dbuf_to_cookie(obj),
-				args->width, args->height, args->bpp,
-				args->size,
-				xen_drm_front_gem_get_sg_table(obj));
+	ret = xen_drm_front_dbuf_create(drm_info->front_info,
+					xen_drm_front_dbuf_to_cookie(obj),
+					args->width, args->height, args->bpp,
+					args->size,
+					xen_drm_front_gem_get_pages(obj));
 	if (ret)
 		goto fail_backend;
 
@@ -523,11 +491,7 @@ static const struct file_operations xen_drm_dev_fops = {
 	.poll           = drm_poll,
 	.read           = drm_read,
 	.llseek         = no_llseek,
-#ifdef CONFIG_DRM_XEN_FRONTEND_CMA
-	.mmap           = drm_gem_cma_mmap,
-#else
 	.mmap           = xen_drm_front_gem_mmap,
-#endif
 };
 
 static const struct vm_operations_struct xen_drm_drv_vm_ops = {
@@ -547,6 +511,9 @@ static struct drm_driver xen_drm_driver = {
 	.gem_prime_export          = drm_gem_prime_export,
 	.gem_prime_import_sg_table = xen_drm_front_gem_import_sg_table,
 	.gem_prime_get_sg_table    = xen_drm_front_gem_get_sg_table,
+	.gem_prime_vmap            = xen_drm_front_gem_prime_vmap,
+	.gem_prime_vunmap          = xen_drm_front_gem_prime_vunmap,
+	.gem_prime_mmap            = xen_drm_front_gem_prime_mmap,
 	.dumb_create               = xen_drm_drv_dumb_create,
 	.fops                      = &xen_drm_dev_fops,
 	.name                      = "xendrm-du",
@@ -555,15 +522,6 @@ static struct drm_driver xen_drm_driver = {
 	.major                     = 1,
 	.minor                     = 0,
 
-#ifdef CONFIG_DRM_XEN_FRONTEND_CMA
-	.gem_prime_vmap            = drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap          = drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap            = drm_gem_cma_prime_mmap,
-#else
-	.gem_prime_vmap            = xen_drm_front_gem_prime_vmap,
-	.gem_prime_vunmap          = xen_drm_front_gem_prime_vunmap,
-	.gem_prime_mmap            = xen_drm_front_gem_prime_mmap,
-#endif
 };
 
 static int xen_drm_drv_init(struct xen_drm_front_info *front_info)

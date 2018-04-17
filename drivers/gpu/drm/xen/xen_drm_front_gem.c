@@ -210,15 +210,9 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	/*
-	 * N.B. Although we have an API to create display buffer from sgt
-	 * we use pages API, because we still need those for GEM handling,
-	 * e.g. for mapping etc.
-	 */
-	ret = xen_drm_front_dbuf_create_from_pages(drm_info->front_info,
-						   xen_drm_front_dbuf_to_cookie(&xen_obj->base),
-						   0, 0, 0, size,
-						   xen_obj->pages);
+	ret = xen_drm_front_dbuf_create(drm_info->front_info,
+					xen_drm_front_dbuf_to_cookie(&xen_obj->base),
+					0, 0, 0, size, xen_obj->pages);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

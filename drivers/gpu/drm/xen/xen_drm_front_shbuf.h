@@ -29,15 +29,8 @@ struct xen_drm_front_shbuf {
 	grant_ref_t *grefs;
 	unsigned char *directory;
 
-	/*
-	 * there are 2 ways to provide backing storage for this shared buffer:
-	 * either pages or sgt. if buffer created from sgt then we own
-	 * the pages and must free those ourselves on closure
-	 */
 	int num_pages;
 	struct page **pages;
-
-	struct sg_table *sgt;
 
 	struct xenbus_device *xb_dev;
 
@@ -52,7 +45,6 @@ struct xen_drm_front_shbuf_cfg {
 	struct xenbus_device *xb_dev;
 	size_t size;
 	struct page **pages;
-	struct sg_table *sgt;
 	bool be_alloc;
 };
 
