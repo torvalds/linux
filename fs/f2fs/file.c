@@ -1677,6 +1677,8 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 
 	inode_lock(inode);
 
+	down_write(&F2FS_I(inode)->dio_rwsem[WRITE]);
+
 	if (f2fs_is_atomic_file(inode))
 		goto out;
 
@@ -1706,6 +1708,7 @@ inc_stat:
 	stat_inc_atomic_write(inode);
 	stat_update_max_atomic_write(inode);
 out:
+	up_write(&F2FS_I(inode)->dio_rwsem[WRITE]);
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
