@@ -173,6 +173,7 @@ struct msm_dsi_host {
 
 	bool registered;
 	bool power_on;
+	bool enabled;
 	int irq;
 };
 
@@ -1007,7 +1008,7 @@ static void dsi_wait4video_eng_busy(struct msm_dsi_host *msm_host)
 	if (!(msm_host->mode_flags & MIPI_DSI_MODE_VIDEO))
 		return;
 
-	if (msm_host->power_on) {
+	if (msm_host->power_on && msm_host->enabled) {
 		dsi_wait4video_done(msm_host);
 		/* delay 4 ms to skip BLLP */
 		usleep_range(2000, 4000);
@@ -2209,7 +2210,7 @@ int msm_dsi_host_enable(struct mipi_dsi_host *host)
 	 *	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
 	 * }
 	 */
-
+	msm_host->enabled = true;
 	return 0;
 }
 
@@ -2217,6 +2218,7 @@ int msm_dsi_host_disable(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
+	msm_host->enabled = false;
 	dsi_op_mode_config(msm_host,
 		!!(msm_host->mode_flags & MIPI_DSI_MODE_VIDEO), false);
 
