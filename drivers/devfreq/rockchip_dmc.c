@@ -1995,7 +1995,7 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 
 	prop = of_find_property(np, porp_name, NULL);
 	if (!prop)
-		return -EINVAL;
+		return -ENODEV;
 
 	if (!prop->value)
 		return -ENODATA;
@@ -2797,10 +2797,11 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	struct device_node *events_np, *np = pdev->dev.of_node;
 	struct rockchip_dmcfreq *data;
 	struct devfreq_dev_profile *devp = &rockchip_devfreq_dmc_profile;
+	struct dev_pm_opp *opp;
 	const struct of_device_id *match;
 	int (*init)(struct platform_device *pdev,
 		    struct rockchip_dmcfreq *data);
-	unsigned long opp_rate;
+	unsigned long opp_rate, opp_volt;
 #define MAX_PROP_NAME_LEN	3
 	char name[MAX_PROP_NAME_LEN];
 	bool is_events_available = false;
@@ -2872,35 +2873,58 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (rockchip_dmcfreq_init_freq_table(dev, devp))
 		return -EFAULT;
 
-	of_property_read_u32(np, "upthreshold",
-			     &data->ondemand_data.upthreshold);
-	of_property_read_u32(np, "downdifferential",
-			     &data->ondemand_data.downdifferential);
-	of_property_read_u32(np, "min-cpu-freq", &data->min_cpu_freq);
-	if (rockchip_get_system_status_rate(np, "system-status-freq", data))
-		dev_err(dev, "failed to get system status rate\n");
+	data->rate = clk_get_rate(data->dmc_clk);
+	data->volt = regulator_get_voltage(data->vdd_center);
+	devp->initial_freq = data->rate;
+	opp_rate = data->rate;
+
+	rcu_read_lock();
+	opp = devfreq_recommended_opp(dev, &opp_rate, 0);
+	if (IS_ERR(opp)) {
+		rcu_read_unlock();
+		return PTR_ERR(opp);
+	}
+	opp_volt = dev_pm_opp_get_voltage(opp);
+	rcu_read_unlock();
+
+	if (opp_volt != data->volt) {
+		ret = regulator_set_voltage(data->vdd_center, opp_volt,
+					    INT_MAX);
+		if (ret) {
+			dev_err(dev, "Cannot set voltage %lu uV\n", opp_volt);
+			return ret;
+		}
+	}
+
 	of_property_read_u32(np, "auto-freq-en", &data->auto_freq_en);
 	if (!is_events_available && data->auto_freq_en) {
 		dev_warn(dev, "events isn't available, close auto freq\n");
 		data->auto_freq_en = 0;
 	}
+	ret = rockchip_get_system_status_rate(np, "system-status-freq", data);
+	if (ret) {
+		dev_err(dev, "failed to get system status rate\n");
+		if (ret == -ENODEV && !data->auto_freq_en) {
+			dev_info(dev, "don't add devfreq feature\n");
+			return 0;
+		}
+	}
+	of_property_read_u32(np, "upthreshold",
+			     &data->ondemand_data.upthreshold);
+	of_property_read_u32(np, "downdifferential",
+			     &data->ondemand_data.downdifferential);
+	of_property_read_u32(np, "min-cpu-freq", &data->min_cpu_freq);
 	of_property_read_u32(np, "auto-min-freq", (u32 *)&data->auto_min_rate);
 	data->auto_min_rate *= 1000;
 	if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
 					&data->vop_bw_tbl))
 		dev_err(dev, "failed to get vop bandwidth to dmc rate\n");
-
 	of_property_read_u32(np, "touchboost_duration",
 			     (u32 *)&data->touchboostpulse_duration_val);
 	if (data->touchboostpulse_duration_val)
 		data->touchboostpulse_duration_val *= USEC_PER_MSEC;
 	else
 		data->touchboostpulse_duration_val = 500 * USEC_PER_MSEC;
-
-	data->rate = clk_get_rate(data->dmc_clk);
-	data->volt = regulator_get_voltage(data->vdd_center);
-
-	devp->initial_freq = data->rate;
 
 	ret = devfreq_add_governor(&devfreq_dmc_ondemand);
 	if (ret) {
@@ -2918,11 +2942,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return PTR_ERR(data->devfreq);
 
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
-
-	opp_rate = data->rate;
-	rcu_read_lock();
-	devfreq_recommended_opp(dev, &opp_rate, 0);
-	rcu_read_unlock();
 
 	data->min = devp->freq_table[0];
 	data->max = devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
