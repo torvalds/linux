@@ -29,25 +29,19 @@ static int inv_mpu6050_select_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 {
 	struct iio_dev *indio_dev = i2c_mux_priv(muxc);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
-	/* Use the same mutex which was used everywhere to protect power-op */
 	mutex_lock(&st->lock);
-	if (!st->powerup_count) {
-		ret = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
-		if (ret)
-			goto write_error;
 
-		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
-			     INV_MPU6050_REG_UP_TIME_MAX);
-	}
-	if (!ret) {
-		st->powerup_count++;
-		ret = regmap_write(st->map, st->reg->int_pin_cfg,
-				   INV_MPU6050_INT_PIN_CFG |
-				   INV_MPU6050_BIT_BYPASS_EN);
-	}
-write_error:
+	ret = inv_mpu6050_set_power_itg(st, true);
+	if (ret)
+		goto error_unlock;
+
+	ret = regmap_write(st->map, st->reg->int_pin_cfg,
+			   INV_MPU6050_INT_PIN_CFG |
+			   INV_MPU6050_BIT_BYPASS_EN);
+
+error_unlock:
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -59,12 +53,11 @@ static int inv_mpu6050_deselect_bypass(struct i2c_mux_core *muxc, u32 chan_id)
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
+
 	/* It doesn't really mattter, if any of the calls fails */
 	regmap_write(st->map, st->reg->int_pin_cfg, INV_MPU6050_INT_PIN_CFG);
-	st->powerup_count--;
-	if (!st->powerup_count)
-		regmap_write(st->map, st->reg->pwr_mgmt_1,
-			     INV_MPU6050_BIT_SLEEP);
+	inv_mpu6050_set_power_itg(st, false);
+
 	mutex_unlock(&st->lock);
 
 	return 0;
