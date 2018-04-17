@@ -65,8 +65,10 @@
 #define BLIST_UNMAP_LIMIT_WS	((__force blist_flags_t)(1ULL << 31))
 /* Always retry ABORTED_COMMAND with Internal Target Failure */
 #define BLIST_RETRY_ITF		((__force blist_flags_t)(1ULL << 32))
+/* Always retry ABORTED_COMMAND with ASC 0xc1 */
+#define BLIST_RETRY_ASC_C1	((__force blist_flags_t)(1ULL << 33))
 
-#define __BLIST_LAST_USED BLIST_RETRY_ITF
+#define __BLIST_LAST_USED BLIST_RETRY_ASC_C1
 
 #define __BLIST_HIGH_UNUSED (~(__BLIST_LAST_USED | \
 			       (__force blist_flags_t) \
