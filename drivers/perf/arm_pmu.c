@@ -311,7 +311,7 @@ validate_group(struct perf_event *event)
 	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	for_each_sibling_event(sibling, leader) {
 		if (!validate_event(event->pmu, &fake_pmu, sibling))
 			return -EINVAL;
 	}
@@ -638,7 +638,7 @@ static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_node *node)
 		if (irq_is_percpu_devid(irq))
 			disable_percpu_irq(irq);
 		else
-			disable_irq(irq);
+			disable_irq_nosync(irq);
 	}
 
 	per_cpu(cpu_armpmu, cpu) = NULL;

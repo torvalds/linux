@@ -498,7 +498,6 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	struct hns_roce_v2_wqe_data_seg *dseg;
 	struct hns_roce_rinl_sge *sge_list;
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_v2_db rq_db;
 	unsigned long flags;
 	void *wqe = NULL;
 	int ret = 0;
@@ -509,7 +508,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	spin_lock_irqsave(&hr_qp->rq.lock, flags);
 	ind = hr_qp->rq.head & (hr_qp->rq.wqe_cnt - 1);
 
-	if (hr_qp->state == IB_QPS_RESET || hr_qp->state == IB_QPS_ERR) {
+	if (hr_qp->state == IB_QPS_RESET) {
 		spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
 		*bad_wr = wr;
 		return -EINVAL;
@@ -564,17 +563,7 @@ out:
 		/* Memory barrier */
 		wmb();
 
-		rq_db.byte_4 = 0;
-		rq_db.parameter = 0;
-
-		roce_set_field(rq_db.byte_4, V2_DB_BYTE_4_TAG_M,
-			       V2_DB_BYTE_4_TAG_S, hr_qp->qpn);
-		roce_set_field(rq_db.byte_4, V2_DB_BYTE_4_CMD_M,
-			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_RQ_DB);
-		roce_set_field(rq_db.parameter, V2_DB_PARAMETER_CONS_IDX_M,
-			       V2_DB_PARAMETER_CONS_IDX_S, hr_qp->rq.head);
-
-		hns_roce_write64_k((__le32 *)&rq_db, hr_qp->rq.db_reg_l);
+		*hr_qp->rdb.db_record = hr_qp->rq.head & 0xffff;
 	}
 	spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
 
@@ -1168,7 +1157,8 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 
 	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR |
 				  HNS_ROCE_CAP_FLAG_ROCE_V1_V2 |
-				  HNS_ROCE_CAP_FLAG_RQ_INLINE;
+				  HNS_ROCE_CAP_FLAG_RQ_INLINE |
+				  HNS_ROCE_CAP_FLAG_RECORD_DB;
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = HNS_ROCE_V2_GID_INDEX_NUM;
 	caps->ceqe_depth	= HNS_ROCE_V2_COMP_EQE_NUM;
@@ -1228,14 +1218,14 @@ static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 	roce_set_field(val1, HNS_ROCE_VF_MB5_TOKEN_MASK,
 		       HNS_ROCE_VF_MB5_TOKEN_SHIFT, token);
 
-	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
-	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
+	writeq(in_param, hcr + 0);
+	writeq(out_param, hcr + 2);
 
 	/* Memory barrier */
 	wmb();
 
-	__raw_writel(cpu_to_le32(val0), hcr + 4);
-	__raw_writel(cpu_to_le32(val1), hcr + 5);
+	writel(val0, hcr + 4);
+	writel(val1, hcr + 5);
 
 	mmiowb();
 
@@ -1507,24 +1497,7 @@ static struct hns_roce_v2_cqe *next_cqe_sw_v2(struct hns_roce_cq *hr_cq)
 
 static void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 {
-	struct hns_roce_v2_cq_db cq_db;
-
-	cq_db.byte_4 = 0;
-	cq_db.parameter = 0;
-
-	roce_set_field(cq_db.byte_4, V2_CQ_DB_BYTE_4_TAG_M,
-		       V2_CQ_DB_BYTE_4_TAG_S, hr_cq->cqn);
-	roce_set_field(cq_db.byte_4, V2_CQ_DB_BYTE_4_CMD_M,
-		       V2_CQ_DB_BYTE_4_CMD_S, HNS_ROCE_V2_CQ_DB_PTR);
-
-	roce_set_field(cq_db.parameter, V2_CQ_DB_PARAMETER_CONS_IDX_M,
-		       V2_CQ_DB_PARAMETER_CONS_IDX_S,
-		       cons_index & ((hr_cq->cq_depth << 1) - 1));
-	roce_set_field(cq_db.parameter, V2_CQ_DB_PARAMETER_CMD_SN_M,
-		       V2_CQ_DB_PARAMETER_CMD_SN_S, 1);
-
-	hns_roce_write64_k((__be32 *)&cq_db, hr_cq->cq_db_l);
-
+	*hr_cq->set_ci_db = cons_index & 0xffffff;
 }
 
 static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
@@ -1636,6 +1609,16 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 
 	roce_set_field(cq_context->byte_40_cqe_ba, V2_CQC_BYTE_40_CQE_BA_M,
 		       V2_CQC_BYTE_40_CQE_BA_S, (dma_handle >> (32 + 3)));
+
+	if (hr_cq->db_en)
+		roce_set_bit(cq_context->byte_44_db_record,
+			     V2_CQC_BYTE_44_DB_RECORD_EN_S, 1);
+
+	roce_set_field(cq_context->byte_44_db_record,
+		       V2_CQC_BYTE_44_DB_RECORD_ADDR_M,
+		       V2_CQC_BYTE_44_DB_RECORD_ADDR_S,
+		       ((u32)hr_cq->db.dma) >> 1);
+	cq_context->db_record_addr = hr_cq->db.dma >> 32;
 
 	roce_set_field(cq_context->byte_56_cqe_period_maxcnt,
 		       V2_CQC_BYTE_56_CQ_MAX_CNT_M,
@@ -2273,6 +2256,23 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		qpc_mask->qkey_xrcd = 0;
 		hr_qp->qkey = attr->qkey;
 	}
+
+	if (hr_qp->rdb_en) {
+		roce_set_bit(context->byte_68_rq_db,
+			     V2_QPC_BYTE_68_RQ_RECORD_EN_S, 1);
+		roce_set_bit(qpc_mask->byte_68_rq_db,
+			     V2_QPC_BYTE_68_RQ_RECORD_EN_S, 0);
+	}
+
+	roce_set_field(context->byte_68_rq_db,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_M,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_S,
+		       ((u32)hr_qp->rdb.dma) >> 1);
+	roce_set_field(qpc_mask->byte_68_rq_db,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_M,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_S, 0);
+	context->rq_db_record_addr = hr_qp->rdb.dma >> 32;
+	qpc_mask->rq_db_record_addr = 0;
 
 	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 1);
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 0);
@@ -3211,6 +3211,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		hr_qp->sq.tail = 0;
 		hr_qp->sq_next_wqe = 0;
 		hr_qp->next_sge = 0;
+		if (hr_qp->rq.wqe_cnt)
+			*hr_qp->rdb.db_record = 0;
 	}
 
 out:
@@ -3437,11 +3439,17 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 	if (is_user) {
+		if (hr_qp->rq.wqe_cnt && (hr_qp->rdb_en == 1))
+			hns_roce_db_unmap_user(
+				to_hr_ucontext(hr_qp->ibqp.uobject->context),
+				&hr_qp->rdb);
 		ib_umem_release(hr_qp->umem);
 	} else {
 		kfree(hr_qp->sq.wrid);
 		kfree(hr_qp->rq.wrid);
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+		if (hr_qp->rq.wqe_cnt)
+			hns_roce_free_db(hr_dev, &hr_qp->rdb);
 	}
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) {
@@ -4383,7 +4391,7 @@ err_dma_alloc_buf:
 	eq->l0_dma = 0;
 
 	if (mhop_num == 1)
-		for (i -= i; i >= 0; i--)
+		for (i -= 1; i >= 0; i--)
 			dma_free_coherent(dev, buf_chk_sz, eq->buf[i],
 					  eq->buf_dma[i]);
 	else if (mhop_num == 2) {

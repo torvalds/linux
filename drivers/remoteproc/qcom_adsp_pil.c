@@ -38,7 +38,10 @@ struct adsp_data {
 	const char *firmware_name;
 	int pas_id;
 	bool has_aggre2_clk;
+
 	const char *ssr_name;
+	const char *sysmon_name;
+	int ssctl_id;
 };
 
 struct qcom_adsp {
@@ -75,6 +78,7 @@ struct qcom_adsp {
 	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
+	struct qcom_sysmon *sysmon;
 };
 
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
@@ -82,7 +86,9 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 
 	return qcom_mdt_load(adsp->dev, fw, rproc->firmware, adsp->pas_id,
-			     adsp->mem_region, adsp->mem_phys, adsp->mem_size);
+			     adsp->mem_region, adsp->mem_phys, adsp->mem_size,
+			     &adsp->mem_reloc);
+
 }
 
 static int adsp_start(struct rproc *rproc)
@@ -177,6 +183,7 @@ static const struct rproc_ops adsp_ops = {
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
+	.parse_fw = qcom_register_dump_segments,
 	.load = adsp_load,
 };
 
@@ -200,9 +207,6 @@ static irqreturn_t adsp_fatal_interrupt(int irq, void *dev)
 		dev_err(adsp->dev, "fatal error received: %s\n", msg);
 
 	rproc_report_crash(adsp->rproc, RPROC_FATAL_ERROR);
-
-	if (!IS_ERR(msg))
-		msg[0] = '\0';
 
 	return IRQ_HANDLED;
 }
@@ -398,6 +402,9 @@ static int adsp_probe(struct platform_device *pdev)
 	qcom_add_glink_subdev(rproc, &adsp->glink_subdev);
 	qcom_add_smd_subdev(rproc, &adsp->smd_subdev);
 	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
+	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
+					      desc->sysmon_name,
+					      desc->ssctl_id);
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -419,6 +426,7 @@ static int adsp_remove(struct platform_device *pdev)
 	rproc_del(adsp->rproc);
 
 	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
+	qcom_remove_sysmon_subdev(adsp->sysmon);
 	qcom_remove_smd_subdev(adsp->rproc, &adsp->smd_subdev);
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	rproc_free(adsp->rproc);
@@ -432,6 +440,8 @@ static const struct adsp_data adsp_resource_init = {
 		.pas_id = 1,
 		.has_aggre2_clk = false,
 		.ssr_name = "lpass",
+		.sysmon_name = "adsp",
+		.ssctl_id = 0x14,
 };
 
 static const struct adsp_data slpi_resource_init = {
@@ -440,6 +450,8 @@ static const struct adsp_data slpi_resource_init = {
 		.pas_id = 12,
 		.has_aggre2_clk = true,
 		.ssr_name = "dsps",
+		.sysmon_name = "slpi",
+		.ssctl_id = 0x16,
 };
 
 static const struct of_device_id adsp_of_match[] = {

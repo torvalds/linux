@@ -81,7 +81,7 @@ static void mock_context_unpin(struct intel_engine_cs *engine,
 	i915_gem_context_put(ctx);
 }
 
-static int mock_request_alloc(struct drm_i915_gem_request *request)
+static int mock_request_alloc(struct i915_request *request)
 {
 	struct mock_request *mock = container_of(request, typeof(*mock), base);
 
@@ -91,24 +91,24 @@ static int mock_request_alloc(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-static int mock_emit_flush(struct drm_i915_gem_request *request,
+static int mock_emit_flush(struct i915_request *request,
 			   unsigned int flags)
 {
 	return 0;
 }
 
-static void mock_emit_breadcrumb(struct drm_i915_gem_request *request,
+static void mock_emit_breadcrumb(struct i915_request *request,
 				 u32 *flags)
 {
 }
 
-static void mock_submit_request(struct drm_i915_gem_request *request)
+static void mock_submit_request(struct i915_request *request)
 {
 	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
 		container_of(request->engine, typeof(*engine), base);
 
-	i915_gem_request_submit(request);
+	i915_request_submit(request);
 	GEM_BUG_ON(!request->global_seqno);
 
 	spin_lock_irq(&engine->hw_lock);

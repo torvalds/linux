@@ -1424,7 +1424,7 @@ void __init dn_dev_init(void)
 	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETADDR,
 			     NULL, dn_nl_dump_ifaddr, 0);
 
-	proc_create("decnet_dev", S_IRUGO, init_net.proc_net, &dn_dev_seq_fops);
+	proc_create("decnet_dev", 0444, init_net.proc_net, &dn_dev_seq_fops);
 
 #ifdef CONFIG_SYSCTL
 	{

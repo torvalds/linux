@@ -282,11 +282,11 @@ static int dw_mci_rk3288_parse_dt(struct dw_mci *host)
 
 	priv->drv_clk = devm_clk_get(host->dev, "ciu-drive");
 	if (IS_ERR(priv->drv_clk))
-		dev_dbg(host->dev, "ciu_drv not available\n");
+		dev_dbg(host->dev, "ciu-drive not available\n");
 
 	priv->sample_clk = devm_clk_get(host->dev, "ciu-sample");
 	if (IS_ERR(priv->sample_clk))
-		dev_dbg(host->dev, "ciu_sample not available\n");
+		dev_dbg(host->dev, "ciu-sample not available\n");
 
 	host->priv = priv;
 

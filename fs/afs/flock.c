@@ -613,7 +613,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	posix_test_lock(file, fl);
 	if (fl->fl_type == F_UNLCK) {
 		/* no local locks; consult the server */
-		ret = afs_fetch_status(vnode, key);
+		ret = afs_fetch_status(vnode, key, false);
 		if (ret < 0)
 			goto error;
 

@@ -54,6 +54,7 @@
 
 	aliases {
 		serial0 = &uart_AO;
+		mmc0 = &sd_card_slot;
 	};
 
 	memory {
@@ -68,6 +69,37 @@
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
+	};
+
+	tflash_vdd: regulator-tflash_vdd {
+		/*
+		 * signal name from schematics: TFLASH_VDD_EN
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "TFLASH_VDD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	tf_io: gpio-regulator-tf_io {
+		compatible = "regulator-gpio";
+
+		regulator-name = "TF_IO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		/*
+		 * signal name from schematics: TF_3V3N_1V8_EN
+		 */
+		gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+
+		states = <3300000 0
+			  1800000 1>;
 	};
 };
 
@@ -98,4 +130,60 @@
 
 &usb1 {
 	status = "okay";
+};
+
+&sdio {
+	status = "okay";
+
+	pinctrl-0 = <&sd_b_pins>;
+	pinctrl-names = "default";
+
+	/* SD card */
+	sd_card_slot: slot@1 {
+		compatible = "mmc-slot";
+		reg = <1>;
+		status = "okay";
+
+		bus-width = <4>;
+		no-sdio;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+
+		cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
+		cd-inverted;
+
+		vmmc-supply = <&tflash_vdd>;
+		vqmmc-supply = <&tf_io>;
+	};
+};
+
+&ethmac {
+	status = "okay";
+
+	snps,reset-gpio = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 30000>;
+
+	pinctrl-0 = <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+
+	phy-mode = "rgmii";
+	phy-handle = <&eth_phy>;
+	amlogic,tx-delay-ns = <4>;
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Realtek RTL8211F (0x001cc916) */
+		eth_phy: ethernet-phy@0 {
+			reg = <0>;
+			eee-broken-1000t;
+			interrupt-parent = <&gpio_intc>;
+			/* GPIOH_3 */
+			interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
 };

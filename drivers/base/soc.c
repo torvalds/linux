@@ -150,6 +150,8 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 
 out3:
 	ida_simple_remove(&soc_ida, soc_dev->soc_dev_num);
+	put_device(&soc_dev->dev);
+	soc_dev = NULL;
 out2:
 	kfree(soc_dev);
 out1:

@@ -292,8 +292,8 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr 0x%08lx, size=%d\n",
-		(unsigned long)buf->vaddr, nr_pages << PAGE_SHIFT);
+	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
 	buf->nr_pages = nr_pages;
@@ -656,8 +656,8 @@ static void snd_cx88_wm8775_volume_put(struct snd_kcontrol *kcontrol,
 {
 	struct cx88_audio_dev *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core = chip->core;
-	int left = value->value.integer.value[0];
-	int right = value->value.integer.value[1];
+	u16 left = value->value.integer.value[0];
+	u16 right = value->value.integer.value[1];
 	int v, b;
 
 	/* Pass volume & balance onto any WM8775 */

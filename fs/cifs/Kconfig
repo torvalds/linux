@@ -187,13 +187,13 @@ config CIFS_NFSD_EXPORT
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB311
-	bool "SMB3.1.1 network file system support (Experimental)"
+	bool "SMB3.1.1 network file system support"
 	depends on CIFS
+	select CRYPTO_SHA512
 
 	help
-	  This enables experimental support for the newest, SMB3.1.1, dialect.
-	  This dialect includes improved security negotiation features.
-	  If unsure, say N
+	  This enables support for the newest, and most secure dialect, SMB3.11.
+	  If unsure, say Y
 
 config CIFS_SMB_DIRECT
 	bool "SMB Direct support (Experimental)"

@@ -212,9 +212,14 @@ config NET_IPGRE_BROADCAST
 	  Network), but can be distributed all over the Internet. If you want
 	  to do that, say Y here and to "IP multicast routing" below.
 
+config IP_MROUTE_COMMON
+	bool
+	depends on IP_MROUTE || IPV6_MROUTE
+
 config IP_MROUTE
 	bool "IP: multicast routing"
 	depends on IP_MULTICAST
+	select IP_MROUTE_COMMON
 	help
 	  This is used if you want your machine to act as a router for IP
 	  packets that have several destination addresses. It is needed on the

@@ -51,7 +51,7 @@ static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
 
-static struct kmem_cache *xfrm_dst_cache __read_mostly;
+static struct kmem_cache *xfrm_dst_cache __ro_after_init;
 static __read_mostly seqcount_t xfrm_policy_hash_generation;
 
 static void xfrm_init_pmtu(struct xfrm_dst **bundle, int nr);
@@ -1458,10 +1458,13 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 static int xfrm_get_tos(const struct flowi *fl, int family)
 {
 	const struct xfrm_policy_afinfo *afinfo;
-	int tos = 0;
+	int tos;
 
 	afinfo = xfrm_policy_get_afinfo(family);
-	tos = afinfo ? afinfo->get_tos(fl) : 0;
+	if (!afinfo)
+		return 0;
+
+	tos = afinfo->get_tos(fl);
 
 	rcu_read_unlock();
 
@@ -1740,7 +1743,7 @@ static void xfrm_pcpu_work_fn(struct work_struct *work)
 void xfrm_policy_cache_flush(void)
 {
 	struct xfrm_dst *old;
-	bool found = 0;
+	bool found = false;
 	int cpu;
 
 	might_sleep();
@@ -1891,7 +1894,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	spin_unlock(&pq->hold_queue.lock);
 
 	dst_hold(xfrm_dst_path(dst));
-	dst = xfrm_lookup(net, xfrm_dst_path(dst), &fl, sk, 0);
+	dst = xfrm_lookup(net, xfrm_dst_path(dst), &fl, sk, XFRM_LOOKUP_QUEUE);
 	if (IS_ERR(dst))
 		goto purge_queue;
 
@@ -2729,14 +2732,14 @@ static const void *xfrm_get_dst_nexthop(const struct dst_entry *dst,
 	while (dst->xfrm) {
 		const struct xfrm_state *xfrm = dst->xfrm;
 
+		dst = xfrm_dst_child(dst);
+
 		if (xfrm->props.mode == XFRM_MODE_TRANSPORT)
 			continue;
 		if (xfrm->type->flags & XFRM_TYPE_REMOTE_COADDR)
 			daddr = xfrm->coaddr;
 		else if (!(xfrm->type->flags & XFRM_TYPE_LOCAL_COADDR))
 			daddr = &xfrm->id.daddr;
-
-		dst = xfrm_dst_child(dst);
 	}
 	return daddr;
 }
@@ -2892,8 +2895,6 @@ static int __net_init xfrm_policy_init(struct net *net)
 	INIT_LIST_HEAD(&net->xfrm.policy_all);
 	INIT_WORK(&net->xfrm.policy_hash_work, xfrm_hash_resize);
 	INIT_WORK(&net->xfrm.policy_hthresh.work, xfrm_hash_rebuild);
-	if (net_eq(net, &init_net))
-		xfrm_dev_init();
 	return 0;
 
 out_bydst:
@@ -2996,6 +2997,7 @@ void __init xfrm_init(void)
 		INIT_WORK(&xfrm_pcpu_work[i], xfrm_pcpu_work_fn);
 
 	register_pernet_subsys(&xfrm_net_ops);
+	xfrm_dev_init();
 	seqcount_init(&xfrm_policy_hash_generation);
 	xfrm_input_init();
 }

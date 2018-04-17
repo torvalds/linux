@@ -271,7 +271,7 @@ static int add_internal_subdev(struct imx_media_dev *imxmd,
 			       int ipu_id)
 {
 	struct imx_media_internal_sd_platformdata pdata;
-	struct platform_device_info pdevinfo = {0};
+	struct platform_device_info pdevinfo = {};
 	struct platform_device *pdev;
 
 	pdata.grp_id = isd->id->grp_id;

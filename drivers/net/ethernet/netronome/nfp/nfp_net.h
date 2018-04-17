@@ -391,6 +391,7 @@ struct nfp_net_rx_ring {
  * @rx_drops:	    Number of packets dropped on RX due to lack of resources
  * @hw_csum_rx_ok:  Counter of packets where the HW checksum was OK
  * @hw_csum_rx_inner_ok: Counter of packets where the inner HW checksum was OK
+ * @hw_csum_rx_complete: Counter of packets with CHECKSUM_COMPLETE reported
  * @hw_csum_rx_error:	 Counter of packets with bad checksums
  * @tx_sync:	    Seqlock for atomic updates of TX stats
  * @tx_pkts:	    Number of Transmitted packets
@@ -434,7 +435,7 @@ struct nfp_net_r_vector {
 	u64 rx_drops;
 	u64 hw_csum_rx_ok;
 	u64 hw_csum_rx_inner_ok;
-	u64 hw_csum_rx_error;
+	u64 hw_csum_rx_complete;
 
 	struct nfp_net_tx_ring *xdp_ring;
 
@@ -446,6 +447,7 @@ struct nfp_net_r_vector {
 	u64 tx_gather;
 	u64 tx_lso;
 
+	u64 hw_csum_rx_error;
 	u64 rx_replace_buf_alloc_fail;
 	u64 tx_errors;
 	u64 tx_busy;

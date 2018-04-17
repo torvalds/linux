@@ -324,7 +324,7 @@ enum lu_mgr_type {
 struct lu_client_seq {
 	/* Sequence-controller export. */
 	struct obd_export      *lcs_exp;
-	struct mutex		lcs_mutex;
+	spinlock_t		lcs_lock;
 
 	/*
 	 * Range of allowed for allocation sequences. When using lu_client_seq on

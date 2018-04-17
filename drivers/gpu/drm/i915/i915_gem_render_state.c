@@ -177,7 +177,7 @@ err:
 
 #undef OUT_BATCH
 
-int i915_gem_render_state_emit(struct drm_i915_gem_request *rq)
+int i915_gem_render_state_emit(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
 	struct intel_render_state so = {}; /* keep the compiler happy */

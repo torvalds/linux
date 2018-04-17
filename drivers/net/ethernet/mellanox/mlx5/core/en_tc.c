@@ -675,6 +675,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
+		.has_flow_tag = true,
 		.flow_tag = attr->flow_tag,
 		.encap_id = 0,
 	};
@@ -963,7 +964,7 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		tbl = &arp_tbl;
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (m_neigh->family == AF_INET6)
-		tbl = ipv6_stub->nd_tbl;
+		tbl = &nd_tbl;
 #endif
 	else
 		return;
@@ -2529,12 +2530,17 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
 			} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
-				if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
-				    tcf_vlan_push_prio(a))
-					return -EOPNOTSUPP;
-
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-				attr->vlan = tcf_vlan_push_vid(a);
+				attr->vlan_vid = tcf_vlan_push_vid(a);
+				if (mlx5_eswitch_vlan_actions_supported(priv->mdev)) {
+					attr->vlan_prio = tcf_vlan_push_prio(a);
+					attr->vlan_proto = tcf_vlan_push_proto(a);
+					if (!attr->vlan_proto)
+						attr->vlan_proto = htons(ETH_P_8021Q);
+				} else if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q) ||
+					   tcf_vlan_push_prio(a)) {
+					return -EOPNOTSUPP;
+				}
 			} else { /* action is TCA_VLAN_ACT_MODIFY */
 				return -EOPNOTSUPP;
 			}
@@ -2608,18 +2614,18 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv,
 	if (err != -EAGAIN)
 		flow->flags |= MLX5E_TC_FLOW_OFFLOADED;
 
-	err = rhashtable_insert_fast(&tc->ht, &flow->node,
-				     tc->ht_params);
-	if (err)
-		goto err_del_rule;
-
-	if (flow->flags & MLX5E_TC_FLOW_ESWITCH &&
+	if (!(flow->flags & MLX5E_TC_FLOW_ESWITCH) ||
 	    !(flow->esw_attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP))
 		kvfree(parse_attr);
-	return err;
 
-err_del_rule:
-	mlx5e_tc_del_flow(priv, flow);
+	err = rhashtable_insert_fast(&tc->ht, &flow->node,
+				     tc->ht_params);
+	if (err) {
+		mlx5e_tc_del_flow(priv, flow);
+		kfree(flow);
+	}
+
+	return err;
 
 err_free:
 	kvfree(parse_attr);

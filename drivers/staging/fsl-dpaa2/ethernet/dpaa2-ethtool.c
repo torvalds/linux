@@ -78,20 +78,13 @@ static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	u16 fw_major, fw_minor;
-	int err;
 
 	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, dpaa2_eth_drv_version,
 		sizeof(drvinfo->version));
 
-	err =  dpni_get_api_version(priv->mc_io, 0, &fw_major, &fw_minor);
-	if (!err)
-		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-			 "%u.%u", fw_major, fw_minor);
-	else
-		strlcpy(drvinfo->fw_version, "N/A",
-			sizeof(drvinfo->fw_version));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%u.%u", priv->dpni_ver_major, priv->dpni_ver_minor);
 
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
@@ -126,6 +119,8 @@ out:
 	return err;
 }
 
+#define DPNI_DYNAMIC_LINK_SET_VER_MAJOR		7
+#define DPNI_DYNAMIC_LINK_SET_VER_MINOR		1
 static int
 dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 			     const struct ethtool_link_ksettings *link_settings)
@@ -134,15 +129,16 @@ dpaa2_eth_set_link_ksettings(struct net_device *net_dev,
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	int err = 0;
 
-	netdev_dbg(net_dev, "Setting link parameters...");
-
-	/* Due to a temporary MC limitation, the DPNI must be down
+	/* If using an older MC version, the DPNI must be down
 	 * in order to be able to change link settings. Taking steps to let
 	 * the user know that.
 	 */
-	if (netif_running(net_dev)) {
-		netdev_info(net_dev, "Sorry, interface must be brought down first.\n");
-		return -EACCES;
+	if (dpaa2_eth_cmp_dpni_ver(priv, DPNI_DYNAMIC_LINK_SET_VER_MAJOR,
+				   DPNI_DYNAMIC_LINK_SET_VER_MINOR) < 0) {
+		if (netif_running(net_dev)) {
+			netdev_info(net_dev, "Interface must be brought down first.\n");
+			return -EACCES;
+		}
 	}
 
 	cfg.rate = link_settings->base.speed;

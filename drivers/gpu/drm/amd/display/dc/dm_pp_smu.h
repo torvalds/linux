@@ -91,7 +91,8 @@ struct pp_smu_funcs_rv {
 	/* which SMU message?  are reader and writer WM separate SMU msg? */
 	void (*set_wm_ranges)(struct pp_smu *pp,
 			struct pp_smu_wm_range_sets *ranges);
-
+	/* PME w/a */
+	void (*set_pme_wa_enable)(struct pp_smu *pp);
 };
 
 #if 0

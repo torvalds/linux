@@ -180,11 +180,11 @@ Public keys in the kernel
 =========================
 
 The kernel contains a ring of public keys that can be viewed by root.  They're
-in a keyring called ".system_keyring" that can be seen by::
+in a keyring called ".builtin_trusted_keys" that can be seen by::
 
 	[root@deneb ~]# cat /proc/keys
 	...
-	223c7853 I------     1 perm 1f030000     0     0 keyring   .system_keyring: 1
+	223c7853 I------     1 perm 1f030000     0     0 keyring   .builtin_trusted_keys: 1
 	302d2d52 I------     1 perm 1f010000     0     0 asymmetri Fedora kernel signing key: d69a84e6bce3d216b979e9505b3e3ef9a7118079: X509.RSA a7118079 []
 	...
 
@@ -197,15 +197,15 @@ add those in also (e.g. from the UEFI key database).
 
 Finally, it is possible to add additional public keys by doing::
 
-	keyctl padd asymmetric "" [.system_keyring-ID] <[key-file]
+	keyctl padd asymmetric "" [.builtin_trusted_keys-ID] <[key-file]
 
 e.g.::
 
 	keyctl padd asymmetric "" 0x223c7853 <my_public_key.x509
 
 Note, however, that the kernel will only permit keys to be added to
-``.system_keyring _if_`` the new key's X.509 wrapper is validly signed by a key
-that is already resident in the .system_keyring at the time the key was added.
+``.builtin_trusted_keys`` **if** the new key's X.509 wrapper is validly signed by a key
+that is already resident in the ``.builtin_trusted_keys`` at the time the key was added.
 
 
 ========================

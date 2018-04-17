@@ -538,7 +538,8 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 					     &sun4i_hdmi_regmap_config);
 	if (IS_ERR(hdmi->regmap)) {
 		dev_err(dev, "Couldn't create HDMI encoder regmap\n");
-		return PTR_ERR(hdmi->regmap);
+		ret = PTR_ERR(hdmi->regmap);
+		goto err_disable_mod_clk;
 	}
 
 	ret = sun4i_tmds_create(hdmi);
@@ -551,7 +552,8 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 		hdmi->ddc_parent_clk = devm_clk_get(dev, "ddc");
 		if (IS_ERR(hdmi->ddc_parent_clk)) {
 			dev_err(dev, "Couldn't get the HDMI DDC clock\n");
-			return PTR_ERR(hdmi->ddc_parent_clk);
+			ret = PTR_ERR(hdmi->ddc_parent_clk);
+			goto err_disable_mod_clk;
 		}
 	} else {
 		hdmi->ddc_parent_clk = hdmi->tmds_clk;

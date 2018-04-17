@@ -4,7 +4,6 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/div64.h>
 
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/osdmap.h>
@@ -2139,76 +2138,6 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
 
 	return false;
 }
-
-/*
- * calculate file layout from given offset, length.
- * fill in correct oid, logical length, and object extent
- * offset, length.
- *
- * for now, we write only a single su, until we can
- * pass a stride back to the caller.
- */
-int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-				   u64 off, u64 len,
-				   u64 *ono,
-				   u64 *oxoff, u64 *oxlen)
-{
-	u32 osize = layout->object_size;
-	u32 su = layout->stripe_unit;
-	u32 sc = layout->stripe_count;
-	u32 bl, stripeno, stripepos, objsetno;
-	u32 su_per_object;
-	u64 t, su_offset;
-
-	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, len,
-	     osize, su);
-	if (su == 0 || sc == 0)
-		goto invalid;
-	su_per_object = osize / su;
-	if (su_per_object == 0)
-		goto invalid;
-	dout("osize %u / su %u = su_per_object %u\n", osize, su,
-	     su_per_object);
-
-	if ((su & ~PAGE_MASK) != 0)
-		goto invalid;
-
-	/* bl = *off / su; */
-	t = off;
-	do_div(t, su);
-	bl = t;
-	dout("off %llu / su %u = bl %u\n", off, su, bl);
-
-	stripeno = bl / sc;
-	stripepos = bl % sc;
-	objsetno = stripeno / su_per_object;
-
-	*ono = objsetno * sc + stripepos;
-	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned int)*ono);
-
-	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
-	t = off;
-	su_offset = do_div(t, su);
-	*oxoff = su_offset + (stripeno % su_per_object) * su;
-
-	/*
-	 * Calculate the length of the extent being written to the selected
-	 * object. This is the minimum of the full length requested (len) or
-	 * the remainder of the current stripe being written to.
-	 */
-	*oxlen = min_t(u64, len, su - su_offset);
-
-	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
-	return 0;
-
-invalid:
-	dout(" invalid layout\n");
-	*ono = 0;
-	*oxoff = 0;
-	*oxlen = 0;
-	return -EINVAL;
-}
-EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
 /*
  * Map an object into a PG.

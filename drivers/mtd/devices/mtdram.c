@@ -60,8 +60,7 @@ static int ram_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (check_offs_len(mtd, instr->addr, instr->len))
 		return -EINVAL;
 	memset((char *)mtd->priv + instr->addr, 0xff, instr->len);
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
+
 	return 0;
 }
 

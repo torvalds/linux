@@ -1380,12 +1380,8 @@ static void key_fini(struct lu_context *ctx, int index)
 		lu_ref_del(&key->lct_reference, "ctx", ctx);
 		atomic_dec(&key->lct_used);
 
-		if ((ctx->lc_tags & LCT_NOREF) == 0) {
-#ifdef CONFIG_MODULE_UNLOAD
-			LINVRNT(module_refcount(key->lct_owner) > 0);
-#endif
+		if ((ctx->lc_tags & LCT_NOREF) == 0)
 			module_put(key->lct_owner);
-		}
 		ctx->lc_value[index] = NULL;
 	}
 }
@@ -1411,7 +1407,7 @@ void lu_context_key_degister(struct lu_context_key *key)
 	while (atomic_read(&key->lct_used) > 1) {
 		spin_unlock(&lu_keys_guard);
 		CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
-		       __func__, key->lct_owner ? key->lct_owner->name : "",
+		       __func__, module_name(key->lct_owner),
 		       key, atomic_read(&key->lct_used));
 		schedule();
 		spin_lock(&lu_keys_guard);
@@ -1551,7 +1547,7 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 			spin_unlock(&lu_keys_guard);
 			CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
 			       __func__,
-			       key->lct_owner ? key->lct_owner->name : "",
+			       module_name(key->lct_owner),
 			       key, atomic_read(&key->lct_used),
 			atomic_read(&lu_key_initing_cnt));
 			schedule();
@@ -1619,7 +1615,6 @@ static int keys_fill(struct lu_context *ctx)
 			LINVRNT(key->lct_init);
 			LINVRNT(key->lct_index == i);
 
-			LASSERT(key->lct_owner);
 			if (!(ctx->lc_tags & LCT_NOREF) &&
 			    !try_module_get(key->lct_owner)) {
 				/* module is unloading, skip this key */
@@ -1797,10 +1792,10 @@ int lu_env_refill(struct lu_env *env)
 EXPORT_SYMBOL(lu_env_refill);
 
 struct lu_site_stats {
-	unsigned	lss_populated;
-	unsigned	lss_max_search;
-	unsigned	lss_total;
-	unsigned	lss_busy;
+	unsigned int	lss_populated;
+	unsigned int	lss_max_search;
+	unsigned int	lss_total;
+	unsigned int	lss_busy;
 };
 
 static void lu_site_stats_get(struct cfs_hash *hs,
@@ -2061,73 +2056,3 @@ void lu_kmem_fini(struct lu_kmem_descr *caches)
 	}
 }
 EXPORT_SYMBOL(lu_kmem_fini);
-
-void lu_buf_free(struct lu_buf *buf)
-{
-	LASSERT(buf);
-	if (buf->lb_buf) {
-		LASSERT(buf->lb_len > 0);
-		kvfree(buf->lb_buf);
-		buf->lb_buf = NULL;
-		buf->lb_len = 0;
-	}
-}
-EXPORT_SYMBOL(lu_buf_free);
-
-void lu_buf_alloc(struct lu_buf *buf, size_t size)
-{
-	LASSERT(buf);
-	LASSERT(!buf->lb_buf);
-	LASSERT(!buf->lb_len);
-	buf->lb_buf = libcfs_kvzalloc(size, GFP_NOFS);
-	if (likely(buf->lb_buf))
-		buf->lb_len = size;
-}
-EXPORT_SYMBOL(lu_buf_alloc);
-
-void lu_buf_realloc(struct lu_buf *buf, size_t size)
-{
-	lu_buf_free(buf);
-	lu_buf_alloc(buf, size);
-}
-EXPORT_SYMBOL(lu_buf_realloc);
-
-struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, size_t len)
-{
-	if (!buf->lb_buf && !buf->lb_len)
-		lu_buf_alloc(buf, len);
-
-	if ((len > buf->lb_len) && buf->lb_buf)
-		lu_buf_realloc(buf, len);
-
-	return buf;
-}
-EXPORT_SYMBOL(lu_buf_check_and_alloc);
-
-/**
- * Increase the size of the \a buf.
- * preserves old data in buffer
- * old buffer remains unchanged on error
- * \retval 0 or -ENOMEM
- */
-int lu_buf_check_and_grow(struct lu_buf *buf, size_t len)
-{
-	char *ptr;
-
-	if (len <= buf->lb_len)
-		return 0;
-
-	ptr = libcfs_kvzalloc(len, GFP_NOFS);
-	if (!ptr)
-		return -ENOMEM;
-
-	/* Free the old buf */
-	if (buf->lb_buf) {
-		memcpy(ptr, buf->lb_buf, buf->lb_len);
-		kvfree(buf->lb_buf);
-	}
-
-	buf->lb_buf = ptr;
-	buf->lb_len = len;
-	return 0;
-}

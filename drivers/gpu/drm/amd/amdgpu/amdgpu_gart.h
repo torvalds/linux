@@ -31,7 +31,6 @@
  */
 struct amdgpu_device;
 struct amdgpu_bo;
-struct amdgpu_gart_funcs;
 
 #define AMDGPU_GPU_PAGE_SIZE 4096
 #define AMDGPU_GPU_PAGE_MASK (AMDGPU_GPU_PAGE_SIZE - 1)
@@ -52,8 +51,6 @@ struct amdgpu_gart {
 
 	/* Asic default pte flags */
 	uint64_t			gart_pte_flags;
-
-	const struct amdgpu_gart_funcs *gart_funcs;
 };
 
 int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev);

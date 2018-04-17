@@ -217,6 +217,7 @@ struct fman_mac {
 	struct tgec_cfg *cfg;
 	void *fm;
 	struct fman_rev_info fm_rev_info;
+	bool allmulti_enabled;
 };
 
 static void set_mac_address(struct tgec_regs __iomem *regs, u8 *adr)
@@ -564,6 +565,29 @@ int tgec_add_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 	return 0;
 }
 
+int tgec_set_allmulti(struct fman_mac *tgec, bool enable)
+{
+	u32 entry;
+	struct tgec_regs __iomem *regs = tgec->regs;
+
+	if (!is_init_done(tgec->cfg))
+		return -EINVAL;
+
+	if (enable) {
+		for (entry = 0; entry < TGEC_HASH_TABLE_SIZE; entry++)
+			iowrite32be(entry | TGEC_HASH_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	} else {
+		for (entry = 0; entry < TGEC_HASH_TABLE_SIZE; entry++)
+			iowrite32be(entry & ~TGEC_HASH_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	}
+
+	tgec->allmulti_enabled = enable;
+
+	return 0;
+}
+
 int tgec_del_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 {
 	struct tgec_regs __iomem *regs = tgec->regs;
@@ -591,9 +615,12 @@ int tgec_del_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 			break;
 		}
 	}
-	if (list_empty(&tgec->multicast_addr_hash->lsts[hash]))
-		iowrite32be((hash & ~TGEC_HASH_MCAST_EN),
-			    &regs->hashtable_ctrl);
+
+	if (!tgec->allmulti_enabled) {
+		if (list_empty(&tgec->multicast_addr_hash->lsts[hash]))
+			iowrite32be((hash & ~TGEC_HASH_MCAST_EN),
+				    &regs->hashtable_ctrl);
+	}
 
 	return 0;
 }

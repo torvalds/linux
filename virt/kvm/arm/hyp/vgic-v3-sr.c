@@ -21,6 +21,7 @@
 
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_mmu.h>
 
 #define vtr_to_max_lr_idx(v)		((v) & 0xf)
 #define vtr_to_nr_pre_bits(v)		((((u32)(v) >> 26) & 7) + 1)
@@ -208,69 +209,121 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
-	u64 val;
 
 	/*
 	 * Make sure stores to the GIC via the memory mapped interface
-	 * are now visible to the system register interface.
+	 * are now visible to the system register interface when reading the
+	 * LRs, and when reading back the VMCR on non-VHE systems.
 	 */
-	if (!cpu_if->vgic_sre) {
-		dsb(st);
-		cpu_if->vgic_vmcr = read_gicreg(ICH_VMCR_EL2);
+	if (used_lrs || !has_vhe()) {
+		if (!cpu_if->vgic_sre) {
+			dsb(sy);
+			isb();
+		}
 	}
 
 	if (used_lrs) {
 		int i;
-		u32 nr_pre_bits;
+		u32 elrsr;
 
-		cpu_if->vgic_elrsr = read_gicreg(ICH_ELSR_EL2);
+		elrsr = read_gicreg(ICH_ELSR_EL2);
 
-		write_gicreg(0, ICH_HCR_EL2);
-		val = read_gicreg(ICH_VTR_EL2);
-		nr_pre_bits = vtr_to_nr_pre_bits(val);
+		write_gicreg(cpu_if->vgic_hcr & ~ICH_HCR_EN, ICH_HCR_EL2);
 
 		for (i = 0; i < used_lrs; i++) {
-			if (cpu_if->vgic_elrsr & (1 << i))
+			if (elrsr & (1 << i))
 				cpu_if->vgic_lr[i] &= ~ICH_LR_STATE;
 			else
 				cpu_if->vgic_lr[i] = __gic_v3_get_lr(i);
 
 			__gic_v3_set_lr(0, i);
 		}
+	}
+}
 
-		switch (nr_pre_bits) {
-		case 7:
-			cpu_if->vgic_ap0r[3] = __vgic_v3_read_ap0rn(3);
-			cpu_if->vgic_ap0r[2] = __vgic_v3_read_ap0rn(2);
-		case 6:
-			cpu_if->vgic_ap0r[1] = __vgic_v3_read_ap0rn(1);
-		default:
-			cpu_if->vgic_ap0r[0] = __vgic_v3_read_ap0rn(0);
+void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
+	int i;
+
+	if (used_lrs) {
+		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
+
+		for (i = 0; i < used_lrs; i++)
+			__gic_v3_set_lr(cpu_if->vgic_lr[i], i);
+	}
+
+	/*
+	 * Ensure that writes to the LRs, and on non-VHE systems ensure that
+	 * the write to the VMCR in __vgic_v3_activate_traps(), will have
+	 * reached the (re)distributors. This ensure the guest will read the
+	 * correct values from the memory-mapped interface.
+	 */
+	if (used_lrs || !has_vhe()) {
+		if (!cpu_if->vgic_sre) {
+			isb();
+			dsb(sy);
 		}
+	}
+}
 
-		switch (nr_pre_bits) {
-		case 7:
-			cpu_if->vgic_ap1r[3] = __vgic_v3_read_ap1rn(3);
-			cpu_if->vgic_ap1r[2] = __vgic_v3_read_ap1rn(2);
-		case 6:
-			cpu_if->vgic_ap1r[1] = __vgic_v3_read_ap1rn(1);
-		default:
-			cpu_if->vgic_ap1r[0] = __vgic_v3_read_ap1rn(0);
+void __hyp_text __vgic_v3_activate_traps(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	/*
+	 * VFIQEn is RES1 if ICC_SRE_EL1.SRE is 1. This causes a
+	 * Group0 interrupt (as generated in GICv2 mode) to be
+	 * delivered as a FIQ to the guest, with potentially fatal
+	 * consequences. So we must make sure that ICC_SRE_EL1 has
+	 * been actually programmed with the value we want before
+	 * starting to mess with the rest of the GIC, and VMCR_EL2 in
+	 * particular.  This logic must be called before
+	 * __vgic_v3_restore_state().
+	 */
+	if (!cpu_if->vgic_sre) {
+		write_gicreg(0, ICC_SRE_EL1);
+		isb();
+		write_gicreg(cpu_if->vgic_vmcr, ICH_VMCR_EL2);
+
+
+		if (has_vhe()) {
+			/*
+			 * Ensure that the write to the VMCR will have reached
+			 * the (re)distributors. This ensure the guest will
+			 * read the correct values from the memory-mapped
+			 * interface.
+			 */
+			isb();
+			dsb(sy);
 		}
-	} else {
-		if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
-		    cpu_if->its_vpe.its_vm)
-			write_gicreg(0, ICH_HCR_EL2);
+	}
 
-		cpu_if->vgic_elrsr = 0xffff;
-		cpu_if->vgic_ap0r[0] = 0;
-		cpu_if->vgic_ap0r[1] = 0;
-		cpu_if->vgic_ap0r[2] = 0;
-		cpu_if->vgic_ap0r[3] = 0;
-		cpu_if->vgic_ap1r[0] = 0;
-		cpu_if->vgic_ap1r[1] = 0;
-		cpu_if->vgic_ap1r[2] = 0;
-		cpu_if->vgic_ap1r[3] = 0;
+	/*
+	 * Prevent the guest from touching the GIC system registers if
+	 * SRE isn't enabled for GICv3 emulation.
+	 */
+	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
+		     ICC_SRE_EL2);
+
+	/*
+	 * If we need to trap system registers, we must write
+	 * ICH_HCR_EL2 anyway, even if no interrupts are being
+	 * injected,
+	 */
+	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
+	    cpu_if->its_vpe.its_vm)
+		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
+}
+
+void __hyp_text __vgic_v3_deactivate_traps(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u64 val;
+
+	if (!cpu_if->vgic_sre) {
+		cpu_if->vgic_vmcr = read_gicreg(ICH_VMCR_EL2);
 	}
 
 	val = read_gicreg(ICC_SRE_EL2);
@@ -281,87 +334,80 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 		isb();
 		write_gicreg(1, ICC_SRE_EL1);
 	}
-}
-
-void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
-{
-	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
-	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
-	u64 val;
-	u32 nr_pre_bits;
-	int i;
 
 	/*
-	 * VFIQEn is RES1 if ICC_SRE_EL1.SRE is 1. This causes a
-	 * Group0 interrupt (as generated in GICv2 mode) to be
-	 * delivered as a FIQ to the guest, with potentially fatal
-	 * consequences. So we must make sure that ICC_SRE_EL1 has
-	 * been actually programmed with the value we want before
-	 * starting to mess with the rest of the GIC, and VMCR_EL2 in
-	 * particular.
+	 * If we were trapping system registers, we enabled the VGIC even if
+	 * no interrupts were being injected, and we disable it again here.
 	 */
-	if (!cpu_if->vgic_sre) {
-		write_gicreg(0, ICC_SRE_EL1);
-		isb();
-		write_gicreg(cpu_if->vgic_vmcr, ICH_VMCR_EL2);
-	}
+	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
+	    cpu_if->its_vpe.its_vm)
+		write_gicreg(0, ICH_HCR_EL2);
+}
+
+void __hyp_text __vgic_v3_save_aprs(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if;
+	u64 val;
+	u32 nr_pre_bits;
+
+	vcpu = kern_hyp_va(vcpu);
+	cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 
 	val = read_gicreg(ICH_VTR_EL2);
 	nr_pre_bits = vtr_to_nr_pre_bits(val);
 
-	if (used_lrs) {
-		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
-
-		switch (nr_pre_bits) {
-		case 7:
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[3], 3);
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[2], 2);
-		case 6:
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[1], 1);
-		default:
-			__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[0], 0);
-		}
-
-		switch (nr_pre_bits) {
-		case 7:
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[3], 3);
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[2], 2);
-		case 6:
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[1], 1);
-		default:
-			__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[0], 0);
-		}
-
-		for (i = 0; i < used_lrs; i++)
-			__gic_v3_set_lr(cpu_if->vgic_lr[i], i);
-	} else {
-		/*
-		 * If we need to trap system registers, we must write
-		 * ICH_HCR_EL2 anyway, even if no interrupts are being
-		 * injected. Same thing if GICv4 is used, as VLPI
-		 * delivery is gated by ICH_HCR_EL2.En.
-		 */
-		if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
-		    cpu_if->its_vpe.its_vm)
-			write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
+	switch (nr_pre_bits) {
+	case 7:
+		cpu_if->vgic_ap0r[3] = __vgic_v3_read_ap0rn(3);
+		cpu_if->vgic_ap0r[2] = __vgic_v3_read_ap0rn(2);
+	case 6:
+		cpu_if->vgic_ap0r[1] = __vgic_v3_read_ap0rn(1);
+	default:
+		cpu_if->vgic_ap0r[0] = __vgic_v3_read_ap0rn(0);
 	}
 
-	/*
-	 * Ensures that the above will have reached the
-	 * (re)distributors. This ensure the guest will read the
-	 * correct values from the memory-mapped interface.
-	 */
-	if (!cpu_if->vgic_sre) {
-		isb();
-		dsb(sy);
+	switch (nr_pre_bits) {
+	case 7:
+		cpu_if->vgic_ap1r[3] = __vgic_v3_read_ap1rn(3);
+		cpu_if->vgic_ap1r[2] = __vgic_v3_read_ap1rn(2);
+	case 6:
+		cpu_if->vgic_ap1r[1] = __vgic_v3_read_ap1rn(1);
+	default:
+		cpu_if->vgic_ap1r[0] = __vgic_v3_read_ap1rn(0);
+	}
+}
+
+void __hyp_text __vgic_v3_restore_aprs(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *cpu_if;
+	u64 val;
+	u32 nr_pre_bits;
+
+	vcpu = kern_hyp_va(vcpu);
+	cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	val = read_gicreg(ICH_VTR_EL2);
+	nr_pre_bits = vtr_to_nr_pre_bits(val);
+
+	switch (nr_pre_bits) {
+	case 7:
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[3], 3);
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[2], 2);
+	case 6:
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[1], 1);
+	default:
+		__vgic_v3_write_ap0rn(cpu_if->vgic_ap0r[0], 0);
 	}
 
-	/*
-	 * Prevent the guest from touching the GIC system registers if
-	 * SRE isn't enabled for GICv3 emulation.
-	 */
-	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
-		     ICC_SRE_EL2);
+	switch (nr_pre_bits) {
+	case 7:
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[3], 3);
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[2], 2);
+	case 6:
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[1], 1);
+	default:
+		__vgic_v3_write_ap1rn(cpu_if->vgic_ap1r[0], 0);
+	}
 }
 
 void __hyp_text __vgic_v3_init_lrs(void)

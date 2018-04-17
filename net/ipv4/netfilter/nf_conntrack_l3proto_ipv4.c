@@ -154,8 +154,20 @@ static unsigned int ipv4_conntrack_local(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	if (ip_is_fragment(ip_hdr(skb))) /* IP_NODEFRAG setsockopt set */
+	if (ip_is_fragment(ip_hdr(skb))) { /* IP_NODEFRAG setsockopt set */
+		enum ip_conntrack_info ctinfo;
+		struct nf_conn *tmpl;
+
+		tmpl = nf_ct_get(skb, &ctinfo);
+		if (tmpl && nf_ct_is_template(tmpl)) {
+			/* when skipping ct, clear templates to avoid fooling
+			 * later targets/matches
+			 */
+			skb->_nfct = 0;
+			nf_ct_put(tmpl);
+		}
 		return NF_ACCEPT;
+	}
 
 	return nf_conntrack_in(state->net, PF_INET, state->hook, skb);
 }

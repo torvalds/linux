@@ -1,0 +1,292 @@
+/*
+ * Copyright (C) 2017 Free Electrons
+ * Copyright (C) 2017 NextThing Co
+ *
+ * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <linux/mtd/rawnand.h>
+
+/*
+ * Special Micron status bit that indicates when the block has been
+ * corrected by on-die ECC and should be rewritten
+ */
+#define NAND_STATUS_WRITE_RECOMMENDED	BIT(3)
+
+struct nand_onfi_vendor_micron {
+	u8 two_plane_read;
+	u8 read_cache;
+	u8 read_unique_id;
+	u8 dq_imped;
+	u8 dq_imped_num_settings;
+	u8 dq_imped_feat_addr;
+	u8 rb_pulldown_strength;
+	u8 rb_pulldown_strength_feat_addr;
+	u8 rb_pulldown_strength_num_settings;
+	u8 otp_mode;
+	u8 otp_page_start;
+	u8 otp_data_prot_addr;
+	u8 otp_num_pages;
+	u8 otp_feat_addr;
+	u8 read_retry_options;
+	u8 reserved[72];
+	u8 param_revision;
+} __packed;
+
+static int micron_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = {retry_mode};
+
+	return nand_set_features(chip, ONFI_FEATURE_ADDR_READ_RETRY, feature);
+}
+
+/*
+ * Configure chip properties from Micron vendor-specific ONFI table
+ */
+static int micron_nand_onfi_init(struct nand_chip *chip)
+{
+	struct nand_parameters *p = &chip->parameters;
+	struct nand_onfi_vendor_micron *micron = (void *)p->onfi.vendor;
+
+	if (chip->parameters.onfi.version && p->onfi.vendor_revision) {
+		chip->read_retries = micron->read_retry_options;
+		chip->setup_read_retry = micron_nand_setup_read_retry;
+	}
+
+	if (p->supports_set_get_features) {
+		set_bit(ONFI_FEATURE_ADDR_READ_RETRY, p->set_feature_list);
+		set_bit(ONFI_FEATURE_ADDR_READ_RETRY, p->get_feature_list);
+	}
+
+	return 0;
+}
+
+static int micron_nand_on_die_ooblayout_ecc(struct mtd_info *mtd, int section,
+					    struct mtd_oob_region *oobregion)
+{
+	if (section >= 4)
+		return -ERANGE;
+
+	oobregion->offset = (section * 16) + 8;
+	oobregion->length = 8;
+
+	return 0;
+}
+
+static int micron_nand_on_die_ooblayout_free(struct mtd_info *mtd, int section,
+					     struct mtd_oob_region *oobregion)
+{
+	if (section >= 4)
+		return -ERANGE;
+
+	oobregion->offset = (section * 16) + 2;
+	oobregion->length = 6;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops micron_nand_on_die_ooblayout_ops = {
+	.ecc = micron_nand_on_die_ooblayout_ecc,
+	.free = micron_nand_on_die_ooblayout_free,
+};
+
+static int micron_nand_on_die_ecc_setup(struct nand_chip *chip, bool enable)
+{
+	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = { 0, };
+
+	if (enable)
+		feature[0] |= ONFI_FEATURE_ON_DIE_ECC_EN;
+
+	return nand_set_features(chip, ONFI_FEATURE_ON_DIE_ECC, feature);
+}
+
+static int
+micron_nand_read_page_on_die_ecc(struct mtd_info *mtd, struct nand_chip *chip,
+				 uint8_t *buf, int oob_required,
+				 int page)
+{
+	u8 status;
+	int ret, max_bitflips = 0;
+
+	ret = micron_nand_on_die_ecc_setup(chip, true);
+	if (ret)
+		return ret;
+
+	ret = nand_read_page_op(chip, page, 0, NULL, 0);
+	if (ret)
+		goto out;
+
+	ret = nand_status_op(chip, &status);
+	if (ret)
+		goto out;
+
+	ret = nand_exit_status_op(chip);
+	if (ret)
+		goto out;
+
+	if (status & NAND_STATUS_FAIL)
+		mtd->ecc_stats.failed++;
+
+	/*
+	 * The internal ECC doesn't tell us the number of bitflips
+	 * that have been corrected, but tells us if it recommends to
+	 * rewrite the block. If it's the case, then we pretend we had
+	 * a number of bitflips equal to the ECC strength, which will
+	 * hint the NAND core to rewrite the block.
+	 */
+	else if (status & NAND_STATUS_WRITE_RECOMMENDED)
+		max_bitflips = chip->ecc.strength;
+
+	ret = nand_read_data_op(chip, buf, mtd->writesize, false);
+	if (!ret && oob_required)
+		ret = nand_read_data_op(chip, chip->oob_poi, mtd->oobsize,
+					false);
+
+out:
+	micron_nand_on_die_ecc_setup(chip, false);
+
+	return ret ? ret : max_bitflips;
+}
+
+static int
+micron_nand_write_page_on_die_ecc(struct mtd_info *mtd, struct nand_chip *chip,
+				  const uint8_t *buf, int oob_required,
+				  int page)
+{
+	int ret;
+
+	ret = micron_nand_on_die_ecc_setup(chip, true);
+	if (ret)
+		return ret;
+
+	ret = nand_write_page_raw(mtd, chip, buf, oob_required, page);
+	micron_nand_on_die_ecc_setup(chip, false);
+
+	return ret;
+}
+
+enum {
+	/* The NAND flash doesn't support on-die ECC */
+	MICRON_ON_DIE_UNSUPPORTED,
+
+	/*
+	 * The NAND flash supports on-die ECC and it can be
+	 * enabled/disabled by a set features command.
+	 */
+	MICRON_ON_DIE_SUPPORTED,
+
+	/*
+	 * The NAND flash supports on-die ECC, and it cannot be
+	 * disabled.
+	 */
+	MICRON_ON_DIE_MANDATORY,
+};
+
+/*
+ * Try to detect if the NAND support on-die ECC. To do this, we enable
+ * the feature, and read back if it has been enabled as expected. We
+ * also check if it can be disabled, because some Micron NANDs do not
+ * allow disabling the on-die ECC and we don't support such NANDs for
+ * now.
+ *
+ * This function also has the side effect of disabling on-die ECC if
+ * it had been left enabled by the firmware/bootloader.
+ */
+static int micron_supports_on_die_ecc(struct nand_chip *chip)
+{
+	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = { 0, };
+	int ret;
+
+	if (!chip->parameters.onfi.version)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	if (chip->bits_per_cell != 1)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	ret = micron_nand_on_die_ecc_setup(chip, true);
+	if (ret)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	ret = nand_get_features(chip, ONFI_FEATURE_ON_DIE_ECC, feature);
+	if (ret < 0)
+		return ret;
+
+	if ((feature[0] & ONFI_FEATURE_ON_DIE_ECC_EN) == 0)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	ret = micron_nand_on_die_ecc_setup(chip, false);
+	if (ret)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	ret = nand_get_features(chip, ONFI_FEATURE_ON_DIE_ECC, feature);
+	if (ret < 0)
+		return ret;
+
+	if (feature[0] & ONFI_FEATURE_ON_DIE_ECC_EN)
+		return MICRON_ON_DIE_MANDATORY;
+
+	/*
+	 * Some Micron NANDs have an on-die ECC of 4/512, some other
+	 * 8/512. We only support the former.
+	 */
+	if (chip->ecc_strength_ds != 4)
+		return MICRON_ON_DIE_UNSUPPORTED;
+
+	return MICRON_ON_DIE_SUPPORTED;
+}
+
+static int micron_nand_init(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ondie;
+	int ret;
+
+	ret = micron_nand_onfi_init(chip);
+	if (ret)
+		return ret;
+
+	if (mtd->writesize == 2048)
+		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+
+	ondie = micron_supports_on_die_ecc(chip);
+
+	if (ondie == MICRON_ON_DIE_MANDATORY) {
+		pr_err("On-die ECC forcefully enabled, not supported\n");
+		return -EINVAL;
+	}
+
+	if (chip->ecc.mode == NAND_ECC_ON_DIE) {
+		if (ondie == MICRON_ON_DIE_UNSUPPORTED) {
+			pr_err("On-die ECC selected but not supported\n");
+			return -EINVAL;
+		}
+
+		chip->ecc.bytes = 8;
+		chip->ecc.size = 512;
+		chip->ecc.strength = 4;
+		chip->ecc.algo = NAND_ECC_BCH;
+		chip->ecc.read_page = micron_nand_read_page_on_die_ecc;
+		chip->ecc.write_page = micron_nand_write_page_on_die_ecc;
+		chip->ecc.read_page_raw = nand_read_page_raw;
+		chip->ecc.write_page_raw = nand_write_page_raw;
+
+		mtd_set_ooblayout(mtd, &micron_nand_on_die_ooblayout_ops);
+	}
+
+	return 0;
+}
+
+const struct nand_manufacturer_ops micron_nand_manuf_ops = {
+	.init = micron_nand_init,
+};

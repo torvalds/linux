@@ -769,7 +769,7 @@ static int msm_hdmi_hdcp_auth_part1_key_exchange(struct hdmi_hdcp_ctrl *hdcp_ctr
 	if (rc) {
 		pr_err("%s: wait key and an ready failed\n", __func__);
 		return rc;
-	};
+	}
 
 	/* Read BCAPS and send to HDCP engine */
 	rc = msm_hdmi_hdcp_recv_bcaps(hdcp_ctrl);

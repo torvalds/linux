@@ -33,6 +33,8 @@
 #define PSP_ASD_SHARED_MEM_SIZE	0x4000
 #define PSP_1_MEG		0x100000
 
+struct psp_context;
+
 enum psp_ring_type
 {
 	PSP_RING_TYPE__INVALID = 0,
@@ -53,12 +55,8 @@ struct psp_ring
 	uint32_t			ring_size;
 };
 
-struct psp_context
+struct psp_funcs
 {
-	struct amdgpu_device            *adev;
-	struct psp_ring                 km_ring;
-	struct psp_gfx_cmd_resp		*cmd;
-
 	int (*init_microcode)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
@@ -77,6 +75,15 @@ struct psp_context
 				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
+};
+
+struct psp_context
+{
+	struct amdgpu_device            *adev;
+	struct psp_ring                 km_ring;
+	struct psp_gfx_cmd_resp		*cmd;
+
+	const struct psp_funcs 		*funcs;
 
 	/* fence buffer */
 	struct amdgpu_bo 		*fw_pri_bo;
@@ -123,25 +130,25 @@ struct amdgpu_psp_funcs {
 					enum AMDGPU_UCODE_ID);
 };
 
-#define psp_prep_cmd_buf(ucode, type) (psp)->prep_cmd_buf((ucode), (type))
-#define psp_ring_init(psp, type) (psp)->ring_init((psp), (type))
-#define psp_ring_create(psp, type) (psp)->ring_create((psp), (type))
-#define psp_ring_stop(psp, type) (psp)->ring_stop((psp), (type))
-#define psp_ring_destroy(psp, type) ((psp)->ring_destroy((psp), (type)))
+#define psp_prep_cmd_buf(ucode, type) (psp)->funcs->prep_cmd_buf((ucode), (type))
+#define psp_ring_init(psp, type) (psp)->funcs->ring_init((psp), (type))
+#define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
+#define psp_ring_stop(psp, type) (psp)->funcs->ring_stop((psp), (type))
+#define psp_ring_destroy(psp, type) ((psp)->funcs->ring_destroy((psp), (type)))
 #define psp_cmd_submit(psp, ucode, cmd_mc, fence_mc, index) \
-		(psp)->cmd_submit((psp), (ucode), (cmd_mc), (fence_mc), (index))
+		(psp)->funcs->cmd_submit((psp), (ucode), (cmd_mc), (fence_mc), (index))
 #define psp_compare_sram_data(psp, ucode, type) \
-		(psp)->compare_sram_data((psp), (ucode), (type))
+		(psp)->funcs->compare_sram_data((psp), (ucode), (type))
 #define psp_init_microcode(psp) \
-		((psp)->init_microcode ? (psp)->init_microcode((psp)) : 0)
+		((psp)->funcs->init_microcode ? (psp)->funcs->init_microcode((psp)) : 0)
 #define psp_bootloader_load_sysdrv(psp) \
-		((psp)->bootloader_load_sysdrv ? (psp)->bootloader_load_sysdrv((psp)) : 0)
+		((psp)->funcs->bootloader_load_sysdrv ? (psp)->funcs->bootloader_load_sysdrv((psp)) : 0)
 #define psp_bootloader_load_sos(psp) \
-		((psp)->bootloader_load_sos ? (psp)->bootloader_load_sos((psp)) : 0)
+		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
-		((psp)->smu_reload_quirk ? (psp)->smu_reload_quirk((psp)) : false)
+		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
 #define psp_mode1_reset(psp) \
-		((psp)->mode1_reset ? (psp)->mode1_reset((psp)) : false)
+		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 
@@ -150,5 +157,7 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
 
 extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
+
+int psp_gpu_reset(struct amdgpu_device *adev);
 
 #endif

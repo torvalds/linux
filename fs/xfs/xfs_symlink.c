@@ -264,7 +264,7 @@ xfs_symlink(
 	 * Allocate an inode for the symlink.
 	 */
 	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT), 1, 0,
-			       prid, &ip, NULL);
+			       prid, &ip);
 	if (error)
 		goto out_trans_cancel;
 

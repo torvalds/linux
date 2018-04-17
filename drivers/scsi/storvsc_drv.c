@@ -1311,7 +1311,8 @@ static int storvsc_do_io(struct hv_device *device,
 			 */
 			cpumask_and(&alloced_mask, &stor_device->alloced_cpus,
 				    cpumask_of_node(cpu_to_node(q_num)));
-			for_each_cpu(tgt_cpu, &alloced_mask) {
+			for_each_cpu_wrap(tgt_cpu, &alloced_mask,
+					outgoing_channel->target_cpu + 1) {
 				if (tgt_cpu != outgoing_channel->target_cpu) {
 					outgoing_channel =
 					stor_device->stor_chns[tgt_cpu];

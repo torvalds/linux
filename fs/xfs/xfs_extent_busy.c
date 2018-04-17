@@ -611,10 +611,9 @@ xfs_extent_busy_flush(
 	unsigned		busy_gen)
 {
 	DEFINE_WAIT		(wait);
-	int			log_flushed = 0, error;
+	int			error;
 
-	trace_xfs_log_force(mp, 0, _THIS_IP_);
-	error = _xfs_log_force(mp, XFS_LOG_SYNC, &log_flushed);
+	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	if (error)
 		return;
 

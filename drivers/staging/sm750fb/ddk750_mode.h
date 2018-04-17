@@ -33,5 +33,5 @@ struct mode_parameter {
 	enum spolarity clock_phase_polarity;
 };
 
-int ddk750_setModeTiming(struct mode_parameter *parm, clock_type_t clock);
+int ddk750_setModeTiming(struct mode_parameter *parm, enum clock_type clock);
 #endif

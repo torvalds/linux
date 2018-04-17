@@ -371,6 +371,11 @@ struct ethtool_ops {
 			    u8 *hfunc);
 	int	(*set_rxfh)(struct net_device *, const u32 *indir,
 			    const u8 *key, const u8 hfunc);
+	int	(*get_rxfh_context)(struct net_device *, u32 *indir, u8 *key,
+				    u8 *hfunc, u32 rss_context);
+	int	(*set_rxfh_context)(struct net_device *, const u32 *indir,
+				    const u8 *key, const u8 hfunc,
+				    u32 *rss_context, bool delete);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);

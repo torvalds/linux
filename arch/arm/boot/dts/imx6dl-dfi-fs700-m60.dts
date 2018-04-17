@@ -20,4 +20,9 @@
 / {
 	model = "DFI FS700-M60-6DL i.MX6dl Q7 Board";
 	compatible = "dfi,fs700-m60-6dl", "dfi,fs700e-m60", "fsl,imx6dl";
+
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
 };

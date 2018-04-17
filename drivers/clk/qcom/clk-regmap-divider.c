@@ -28,22 +28,14 @@ static long div_round_ro_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_regmap_div *divider = to_clk_regmap_div(hw);
 	struct clk_regmap *clkr = &divider->clkr;
-	u32 div;
-	struct clk_hw *hw_parent = clk_hw_get_parent(hw);
+	u32 val;
 
-	regmap_read(clkr->regmap, divider->reg, &div);
-	div >>= divider->shift;
-	div &= BIT(divider->width) - 1;
-	div += 1;
+	regmap_read(clkr->regmap, divider->reg, &val);
+	val >>= divider->shift;
+	val &= BIT(divider->width) - 1;
 
-	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
-		if (!hw_parent)
-			return -EINVAL;
-
-		*prate = clk_hw_round_rate(hw_parent, rate * div);
-	}
-
-	return DIV_ROUND_UP_ULL((u64)*prate, div);
+	return divider_ro_round_rate(hw, rate, prate, NULL, divider->width,
+				     CLK_DIVIDER_ROUND_CLOSEST, val);
 }
 
 static long div_round_rate(struct clk_hw *hw, unsigned long rate,

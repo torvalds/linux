@@ -60,7 +60,7 @@ static void strp_abort_strp(struct strparser *strp, int err)
 		struct sock *sk = strp->sk;
 
 		/* Report an error on the lower socket */
-		sk->sk_err = err;
+		sk->sk_err = -err;
 		sk->sk_error_report(sk);
 	}
 }
@@ -458,7 +458,7 @@ static void strp_msg_timeout(struct work_struct *w)
 	/* Message assembly timed out */
 	STRP_STATS_INCR(strp->stats.msg_timeouts);
 	strp->cb.lock(strp);
-	strp->cb.abort_parser(strp, ETIMEDOUT);
+	strp->cb.abort_parser(strp, -ETIMEDOUT);
 	strp->cb.unlock(strp);
 }
 

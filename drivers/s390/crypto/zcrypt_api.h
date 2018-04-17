@@ -21,30 +21,6 @@
 #include <asm/zcrypt.h>
 #include "ap_bus.h"
 
-/* deprecated status calls */
-#define ICAZ90STATUS		_IOR(ZCRYPT_IOCTL_MAGIC, 0x10, struct ica_z90_status)
-#define Z90STAT_PCIXCCCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x43, int)
-
-/**
- * This structure is deprecated and the corresponding ioctl() has been
- * replaced with individual ioctl()s for each piece of data!
- */
-struct ica_z90_status {
-	int totalcount;
-	int leedslitecount; // PCICA
-	int leeds2count;    // PCICC
-	// int PCIXCCCount; is not in struct for backward compatibility
-	int requestqWaitCount;
-	int pendingqWaitCount;
-	int totalOpenCount;
-	int cryptoDomain;
-	// status: 0=not there, 1=PCICA, 2=PCICC, 3=PCIXCC_MCL2, 4=PCIXCC_MCL3,
-	//	   5=CEX2C
-	unsigned char status[64];
-	// qdepth: # work elements waiting for each device
-	unsigned char qdepth[64];
-};
-
 /**
  * device type for an actual device is either PCICA, PCICC, PCIXCC_MCL2,
  * PCIXCC_MCL3, CEX2C, or CEX2A
@@ -179,6 +155,6 @@ struct zcrypt_ops *zcrypt_msgtype(unsigned char *, int);
 int zcrypt_api_init(void);
 void zcrypt_api_exit(void);
 long zcrypt_send_cprb(struct ica_xcRB *xcRB);
-void zcrypt_device_status_mask(struct zcrypt_device_matrix *devstatus);
+void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
 
 #endif /* _ZCRYPT_API_H_ */

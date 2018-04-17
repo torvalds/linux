@@ -22,7 +22,7 @@ Optionnal properties:
 Example:
 
 sound {
-	compatible = "rockchip,rockchip-audio-es8388";
+	compatible = "rockchip,rk3288-hdmi-analog";
 	rockchip,model = "Analog audio output";
 	rockchip,i2s-controller = <&i2s>;
 	rockchip,audio-codec = <&es8388>;

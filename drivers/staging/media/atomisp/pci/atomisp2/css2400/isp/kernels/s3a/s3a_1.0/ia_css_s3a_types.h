@@ -28,7 +28,7 @@
 /* 3A configuration. This configures the 3A statistics collection
  *  module.
  */
- 
+
 /* 3A statistics grid
  *
  *  ISP block: S3A1 (3A Support for 3A ver.1 (Histogram is not used for AE))
@@ -54,7 +54,7 @@ struct ia_css_3a_grid_info {
   	uint32_t awb_fr_enable;					/** awb_fr enabled in binary,
 								   0:disabled, 1:enabled */
 	struct awb_fr_public_grid_config	awb_fr_grd_info;/** see description in awb_fr_public.h*/
-  
+
         uint32_t elem_bit_depth;    /** TODO:Taken from BYT  - need input from AIQ
 					if needed for SKC
 					Bit depth of element used
@@ -97,52 +97,6 @@ struct ia_css_3a_grid_info {
 #endif
 };
 
-
-#if defined(SYSTEM_css_skycam_c0_system)
-#if defined USE_NEW_AE_STRUCT || defined USE_NEW_AWB_STRUCT
-#define DEFAULT_3A_GRID_INFO \
-{ \
-	0,				/* ae_enable */ \
-	{0,0,0,0,0,0,0},	        /* AE:     width,height,b_width,b_height,x_start,y_start*/ \
-	0,				/* awb_enable */ \
-	{0,0,0,0,0,0},			/* AWB:    width,height,b_width,b_height,x_start,y_start*/ \
-	0,				/* af_enable */ \
-	{0,0,0,0,0,0,0},		/* AF:     width,height,b_width,b_height,x_start,y_start,ff_en*/ \
-	0,				/* awb_fr_enable */ \
-	{0,0,0,0,0,0,0},                  /* AWB_FR: width,height,b_width,b_height,x_start,y_start,ff_en*/ \
-	0,				/* elem_bit_depth */ \
-}
-#else
-#define DEFAULT_3A_GRID_INFO \
-{ \
-	0,				/* ae_enable */ \
-	{0,0,0,0,0,0,0,0,0},	        /* AE:     width,height,b_width,b_height,x_start,y_start,x_end,y_end*/ \
-	0,				/* awb_enable */ \
-	{0,0,0,0,0,0,0,0},              /* AWB:    width,height,b_width,b_height,x_start,y_start,x_end,y_end*/ \
-	0,				/* af_enable */ \
-	{0,0,0,0,0,0,0},		/* AF:     width,height,b_width,b_height,x_start,y_start,ff_en*/ \
-	0,				/* awb_fr_enable */ \
-	{0,0,0,0,0,0,0},                  /* AWB_FR: width,height,b_width,b_height,x_start,y_start,ff_en*/ \
-	0,				/* elem_bit_depth */ \
-}
-#endif /* USE_NEW_AE_STRUCT || defined USE_NEW_AWB_STRUCT */
-
-#else
-#define DEFAULT_3A_GRID_INFO \
-{ \
-	0,				/* enable */ \
-	0,				/* use_dmem */ \
-	0,				/* has_histogram */ \
-	0,				/* width */ \
-	0,				/* height */ \
-	0,				/* aligned_width */ \
-	0,				/* aligned_height */ \
-	0,				/* bqs_per_grid_cell */ \
-	0,				/* deci_factor_log2 */ \
-	0,				/* elem_bit_depth */ \
-}
-
-#endif
 
 /* This struct should be split into 3, for AE, AWB and AF.
  * However, that will require driver/ 3A lib modifications.

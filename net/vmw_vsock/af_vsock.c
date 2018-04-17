@@ -759,7 +759,7 @@ vsock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 }
 
 static int vsock_getname(struct socket *sock,
-			 struct sockaddr *addr, int *addr_len, int peer)
+			 struct sockaddr *addr, int peer)
 {
 	int err;
 	struct sock *sk;
@@ -794,7 +794,7 @@ static int vsock_getname(struct socket *sock,
 	 */
 	BUILD_BUG_ON(sizeof(*vm_addr) > 128);
 	memcpy(addr, vm_addr, sizeof(*vm_addr));
-	*addr_len = sizeof(*vm_addr);
+	err = sizeof(*vm_addr);
 
 out:
 	release_sock(sk);

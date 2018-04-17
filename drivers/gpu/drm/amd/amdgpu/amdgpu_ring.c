@@ -360,6 +360,9 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 
 	amdgpu_debugfs_ring_fini(ring);
 
+	dma_fence_put(ring->vmid_wait);
+	ring->vmid_wait = NULL;
+
 	ring->adev->rings[ring->idx] = NULL;
 }
 
@@ -481,7 +484,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 	result = 0;
 
 	if (*pos < 12) {
-		early[0] = amdgpu_ring_get_rptr(ring);
+		early[0] = amdgpu_ring_get_rptr(ring) & ring->buf_mask;
 		early[1] = amdgpu_ring_get_wptr(ring) & ring->buf_mask;
 		early[2] = ring->wptr & ring->buf_mask;
 		for (i = *pos / 4; i < 3 && size; i++) {

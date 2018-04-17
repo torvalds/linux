@@ -163,7 +163,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	LDLM_DEBUG(lock, "client completion callback handler START");
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CANCEL_BL_CB_RACE)) {
-		int to = cfs_time_seconds(1);
+		int to = HZ;
 
 		while (to > 0) {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -327,7 +327,7 @@ static void ldlm_handle_gl_callback(struct ptlrpc_request *req,
 	    !lock->l_readers && !lock->l_writers &&
 	    cfs_time_after(cfs_time_current(),
 			   cfs_time_add(lock->l_last_used,
-					cfs_time_seconds(10)))) {
+					10 * HZ))) {
 		unlock_res_and_lock(lock);
 		if (ldlm_bl_to_thread_lock(ns, NULL, lock))
 			ldlm_handle_bl_callback(ns, NULL, lock);
@@ -833,17 +833,15 @@ static int ldlm_bl_thread_main(void *arg)
 	/* cannot use bltd after this, it is only on caller's stack */
 
 	while (1) {
-		struct l_wait_info lwi = { 0 };
 		struct ldlm_bl_work_item *blwi = NULL;
 		struct obd_export *exp = NULL;
 		int rc;
 
 		rc = ldlm_bl_get_work(blp, &blwi, &exp);
 		if (!rc)
-			l_wait_event_exclusive(blp->blp_waitq,
-					       ldlm_bl_get_work(blp, &blwi,
-								&exp),
-					       &lwi);
+			wait_event_idle_exclusive(blp->blp_waitq,
+						  ldlm_bl_get_work(blp, &blwi,
+								   &exp));
 		atomic_inc(&blp->blp_busy_threads);
 
 		if (ldlm_bl_thread_need_create(blp, blwi))
@@ -871,6 +869,10 @@ int ldlm_get_ref(void)
 {
 	int rc = 0;
 
+	rc = ptlrpc_inc_ref();
+	if (rc)
+		return rc;
+
 	mutex_lock(&ldlm_ref_mutex);
 	if (++ldlm_refcount == 1) {
 		rc = ldlm_setup();
@@ -879,14 +881,18 @@ int ldlm_get_ref(void)
 	}
 	mutex_unlock(&ldlm_ref_mutex);
 
+	if (rc)
+		ptlrpc_dec_ref();
+
 	return rc;
 }
 
 void ldlm_put_ref(void)
 {
+	int rc = 0;
 	mutex_lock(&ldlm_ref_mutex);
 	if (ldlm_refcount == 1) {
-		int rc = ldlm_cleanup();
+		rc = ldlm_cleanup();
 
 		if (rc)
 			CERROR("ldlm_cleanup failed: %d\n", rc);
@@ -896,6 +902,8 @@ void ldlm_put_ref(void)
 		ldlm_refcount--;
 	}
 	mutex_unlock(&ldlm_ref_mutex);
+	if (!rc)
+		ptlrpc_dec_ref();
 }
 
 static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,

@@ -53,6 +53,8 @@
 
 #include "reg_helper.h"
 
+#include "dce/dce_dmcu.h"
+#include "dce/dce_abm.h"
 /* TODO remove this include */
 
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
@@ -364,6 +366,29 @@ static const struct resource_caps res_cap_83 = {
 		.num_pll = 2,
 };
 
+static const struct dce_dmcu_registers dmcu_regs = {
+		DMCU_DCE80_REG_LIST()
+};
+
+static const struct dce_dmcu_shift dmcu_shift = {
+		DMCU_MASK_SH_LIST_DCE80(__SHIFT)
+};
+
+static const struct dce_dmcu_mask dmcu_mask = {
+		DMCU_MASK_SH_LIST_DCE80(_MASK)
+};
+static const struct dce_abm_registers abm_regs = {
+		ABM_DCE110_COMMON_REG_LIST()
+};
+
+static const struct dce_abm_shift abm_shift = {
+		ABM_MASK_SH_LIST_DCE110(__SHIFT)
+};
+
+static const struct dce_abm_mask abm_mask = {
+		ABM_MASK_SH_LIST_DCE110(_MASK)
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -643,6 +668,12 @@ static void destruct(struct dce110_resource_pool *pool)
 		}
 	}
 
+	if (pool->base.abm != NULL)
+			dce_abm_destroy(&pool->base.abm);
+
+	if (pool->base.dmcu != NULL)
+			dce_dmcu_destroy(&pool->base.dmcu);
+
 	if (pool->base.dp_clock_source != NULL)
 		dce80_clock_source_destroy(&pool->base.dp_clock_source);
 
@@ -790,9 +821,11 @@ static bool dce80_construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap.num_timing_generator;
+	pool->base.timing_generator_count = res_cap.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.dual_link_dvi = true;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -848,7 +881,25 @@ static bool dce80_construct(
 		goto res_create_fail;
 	}
 
+	pool->base.dmcu = dce_dmcu_create(ctx,
+			&dmcu_regs,
+			&dmcu_shift,
+			&dmcu_mask);
+	if (pool->base.dmcu == NULL) {
+		dm_error("DC: failed to create dmcu!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
 
+	pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
+	if (pool->base.abm == NULL) {
+		dm_error("DC: failed to create abm!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		pool->base.display_clock->max_clks_state =
 					static_clk_info.max_clocks_state;
@@ -954,6 +1005,7 @@ static bool dce81_construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap_81.num_timing_generator;
+	pool->base.timing_generator_count = res_cap_81.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
@@ -1013,6 +1065,25 @@ static bool dce81_construct(
 		goto res_create_fail;
 	}
 
+	pool->base.dmcu = dce_dmcu_create(ctx,
+			&dmcu_regs,
+			&dmcu_shift,
+			&dmcu_mask);
+	if (pool->base.dmcu == NULL) {
+		dm_error("DC: failed to create dmcu!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+	pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
+	if (pool->base.abm == NULL) {
+		dm_error("DC: failed to create abm!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
 
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		pool->base.display_clock->max_clks_state =
@@ -1119,6 +1190,7 @@ static bool dce83_construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap_83.num_timing_generator;
+	pool->base.timing_generator_count = res_cap_83.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
@@ -1174,6 +1246,25 @@ static bool dce83_construct(
 		goto res_create_fail;
 	}
 
+	pool->base.dmcu = dce_dmcu_create(ctx,
+			&dmcu_regs,
+			&dmcu_shift,
+			&dmcu_mask);
+	if (pool->base.dmcu == NULL) {
+		dm_error("DC: failed to create dmcu!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+	pool->base.abm = dce_abm_create(ctx,
+			&abm_regs,
+			&abm_shift,
+			&abm_mask);
+	if (pool->base.abm == NULL) {
+		dm_error("DC: failed to create abm!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
 
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		pool->base.display_clock->max_clks_state =

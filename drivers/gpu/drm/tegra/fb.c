@@ -55,6 +55,11 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 	uint64_t modifier = fb->base.modifier;
 
 	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+		tiling->mode = TEGRA_BO_TILING_MODE_PITCH;
+		tiling->value = 0;
+		break;
+
 	case DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED:
 		tiling->mode = TEGRA_BO_TILING_MODE_TILED;
 		tiling->value = 0;
@@ -91,9 +96,7 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 		break;
 
 	default:
-		/* TODO: handle YUV formats? */
-		*tiling = fb->planes[0]->tiling;
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -224,12 +227,28 @@ unreference:
 }
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
+static int tegra_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = info->par;
+	struct tegra_bo *bo;
+	int err;
+
+	bo = tegra_fb_get_plane(helper->fb, 0);
+
+	err = drm_gem_mmap_obj(&bo->gem, bo->gem.size, vma);
+	if (err < 0)
+		return err;
+
+	return __tegra_gem_mmap(&bo->gem, vma);
+}
+
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
+	.fb_mmap = tegra_fb_mmap,
 };
 
 static int tegra_fbdev_probe(struct drm_fb_helper *helper,

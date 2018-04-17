@@ -783,19 +783,6 @@ int dwc2_hcd_is_b_host(struct dwc2_hsotg *hsotg);
  */
 void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg);
 
-/**
- * dwc2_hcd_dump_frrem() - Dumps the average frame remaining at SOF
- *
- * @hsotg: The DWC2 HCD
- *
- * This can be used to determine average interrupt latency. Frame remaining is
- * also shown for start transfer and two additional sample points.
- *
- * NOTE: This function will be removed once the peripheral controller code
- * is integrated and the driver is stable
- */
-void dwc2_hcd_dump_frrem(struct dwc2_hsotg *hsotg);
-
 /* URB interface */
 
 /* Transfer flags */
@@ -812,48 +799,5 @@ void dwc2_host_put_tt_info(struct dwc2_hsotg *hsotg,
 int dwc2_host_get_speed(struct dwc2_hsotg *hsotg, void *context);
 void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
 			int status);
-
-#ifdef DEBUG
-/*
- * Macro to sample the remaining PHY clocks left in the current frame. This
- * may be used during debugging to determine the average time it takes to
- * execute sections of code. There are two possible sample points, "a" and
- * "b", so the _letter_ argument must be one of these values.
- *
- * To dump the average sample times, read the "hcd_frrem" sysfs attribute. For
- * example, "cat /sys/devices/lm0/hcd_frrem".
- */
-#define dwc2_sample_frrem(_hcd_, _qh_, _letter_)			\
-do {									\
-	struct hfnum_data _hfnum_;					\
-	struct dwc2_qtd *_qtd_;						\
-									\
-	_qtd_ = list_entry((_qh_)->qtd_list.next, struct dwc2_qtd,	\
-			   qtd_list_entry);				\
-	if (usb_pipeint(_qtd_->urb->pipe) &&				\
-	    (_qh_)->start_active_frame != 0 && !_qtd_->complete_split) { \
-		_hfnum_.d32 = dwc2_readl((_hcd_)->regs + HFNUM);	\
-		switch (_hfnum_.b.frnum & 0x7) {			\
-		case 7:							\
-			(_hcd_)->hfnum_7_samples_##_letter_++;		\
-			(_hcd_)->hfnum_7_frrem_accum_##_letter_ +=	\
-				_hfnum_.b.frrem;			\
-			break;						\
-		case 0:							\
-			(_hcd_)->hfnum_0_samples_##_letter_++;		\
-			(_hcd_)->hfnum_0_frrem_accum_##_letter_ +=	\
-				_hfnum_.b.frrem;			\
-			break;						\
-		default:						\
-			(_hcd_)->hfnum_other_samples_##_letter_++;	\
-			(_hcd_)->hfnum_other_frrem_accum_##_letter_ +=	\
-				_hfnum_.b.frrem;			\
-			break;						\
-		}							\
-	}								\
-} while (0)
-#else
-#define dwc2_sample_frrem(_hcd_, _qh_, _letter_)	do {} while (0)
-#endif
 
 #endif /* __DWC2_HCD_H__ */

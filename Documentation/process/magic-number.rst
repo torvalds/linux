@@ -14,7 +14,7 @@ passing pointers to structures via a void * pointer.  The tty code,
 for example, does this frequently to pass driver-specific and line
 discipline-specific structures back and forth.
 
-The way to use magic numbers is to declare then at the beginning of
+The way to use magic numbers is to declare them at the beginning of
 the structure, like so::
 
 	struct tty_ldisc {

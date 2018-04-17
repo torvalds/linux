@@ -111,6 +111,8 @@ struct dc_vbios_funcs {
 		struct dc_bios *bios);
 	bool (*is_accelerated_mode)(
 		struct dc_bios *bios);
+	uint32_t (*get_vga_enabled_displays)(
+		struct dc_bios *bios);
 	void (*get_bios_event_info)(
 		struct dc_bios *bios,
 		struct bios_event_info *info);
@@ -199,6 +201,7 @@ struct dc_vbios_funcs {
 };
 
 struct bios_registers {
+	uint32_t BIOS_SCRATCH_3;
 	uint32_t BIOS_SCRATCH_6;
 };
 

@@ -48,6 +48,7 @@ struct si2168_dev {
 	u8 ts_mode;
 	bool ts_clock_inv;
 	bool ts_clock_gapped;
+	bool spectral_inversion;
 };
 
 /* firmware command struct */

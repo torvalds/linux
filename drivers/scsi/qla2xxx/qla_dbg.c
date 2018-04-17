@@ -14,7 +14,7 @@
  * | Module Init and Probe        |       0x0193       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
- * | Mailbox commands             |       0x1205       | 0x11a2-0x11ff	|
+ * | Mailbox commands             |       0x1206       | 0x11a2-0x11ff	|
  * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
@@ -60,7 +60,7 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc010       |		|
- * | Misc                         |       0xd302       | 0xd031-0xd0ff	|
+ * | Misc                         |       0xd303       | 0xd031-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
  * |                              |                    | 0xd214-0xd2fe	|
  * | Target Mode		  |	  0xe081       |		|
@@ -717,7 +717,7 @@ qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 
 /**
  * qla2300_fw_dump() - Dumps binary data from the 2300 firmware.
- * @ha: HA context
+ * @vha: HA context
  * @hardware_locked: Called with the hardware_lock
  */
 void
@@ -887,7 +887,7 @@ qla2300_fw_dump_failed:
 
 /**
  * qla2100_fw_dump() - Dumps binary data from the 2100/2200 firmware.
- * @ha: HA context
+ * @vha: HA context
  * @hardware_locked: Called with the hardware_lock
  */
 void

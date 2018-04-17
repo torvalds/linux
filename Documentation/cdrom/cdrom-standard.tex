@@ -234,6 +234,7 @@ struct& cdrom_device_ops\ \{ \hidewidth\cr
   &int& (* open)(struct\ cdrom_device_info *, int)\cr
   &void& (* release)(struct\ cdrom_device_info *);\cr 
   &int& (* drive_status)(struct\ cdrom_device_info *, int);\cr     
+  &unsigned\ int& (* check_events)(struct\ cdrom_device_info *, unsigned\ int, int);\cr
   &int& (* media_changed)(struct\ cdrom_device_info *, int);\cr 
   &int& (* tray_move)(struct\ cdrom_device_info *, int);\cr
   &int& (* lock_door)(struct\ cdrom_device_info *, int);\cr
@@ -245,10 +246,9 @@ struct& cdrom_device_ops\ \{ \hidewidth\cr
   &int& (* reset)(struct\ cdrom_device_info *);\cr
   &int& (* audio_ioctl)(struct\ cdrom_device_info *, unsigned\ int, 
         void *{});\cr 
-  &int& (* dev_ioctl)(struct\ cdrom_device_info *, unsigned\ int, 
-        unsigned\ long);\cr
 \noalign{\medskip}
   &const\ int& capability;& capability flags \cr
+  &int& (* generic_packet)(struct\ cdrom_device_info *, struct\ packet_command *{});\cr
 \};\cr
 }
 $$
@@ -274,19 +274,32 @@ $$
 \halign{$#$\ \hfil&$#$\ \hfil&\hbox to 10em{$#$\hss}&
   $/*$ \rm# $*/$\hfil\cr
 struct& cdrom_device_info\ \{ \hidewidth\cr
-  & struct\ cdrom_device_ops *& ops;& device operations for this major\cr
-  & struct\ cdrom_device_info *& next;& next device_info for this major\cr
+  & const\ struct\ cdrom_device_ops *& ops;& device operations for this major\cr
+  & struct\ list_head& list;& linked list of all device_info\cr
+  & struct\ gendisk *& disk;& matching block layer disk\cr
   & void *&  handle;& driver-dependent data\cr
 \noalign{\medskip}
-  & kdev_t&  dev;& device number (incorporates minor)\cr
   & int& mask;& mask of capability: disables them \cr
   & int& speed;& maximum speed for reading data \cr
   & int& capacity;& number of discs in a jukebox \cr
 \noalign{\medskip}
-  &int& options : 30;& options flags \cr
+  &unsigned\ int& options : 30;& options flags \cr
   &unsigned& mc_flags : 2;& media-change buffer flags \cr
+  &unsigned\ int& vfs_events;& cached events for vfs path\cr
+  &unsigned\ int& ioctl_events;& cached events for ioctl path\cr
   & int& use_count;& number of times device is opened\cr
   & char& name[20];& name of the device type\cr
+\noalign{\medskip}
+  &__u8& sanyo_slot : 2;& Sanyo 3-CD changer support\cr
+  &__u8& keeplocked : 1;& CDROM_LOCKDOOR status\cr
+  &__u8& reserved : 5;& not used yet\cr
+  & int& cdda_method;& see CDDA_* flags\cr
+  &__u8& last_sense;& saves last sense key\cr
+  &__u8& media_written;& dirty flag, DVD+RW bookkeeping\cr
+  &unsigned\ short& mmc3_profile;& current MMC3 profile\cr
+  & int& for_data;& unknown:TBD\cr
+  & int\ (* exit)\ (struct\ cdrom_device_info *);&& unknown:TBD\cr
+  & int& mrw_mode_page;& which MRW mode page is in use\cr
 \}\cr
 }$$
 Using this $struct$, a linked list of the registered minor devices is
@@ -298,9 +311,7 @@ The $mask$ flags can be used to mask out some of the capabilities listed
 in $ops\to capability$, if a specific drive doesn't support a feature
 of the driver. The value $speed$ specifies the maximum head-rate of the
 drive, measured in units of normal audio speed (176\,kB/sec raw data or
-150\,kB/sec file system data). The value $n_discs$ should reflect the
-number of discs the drive can hold simultaneously, if it is designed
-as a juke-box, or otherwise~1. The parameters are declared $const$
+150\,kB/sec file system data).  The parameters are declared $const$
 because they describe properties of the drive, which don't change after
 registration.
 
@@ -1002,7 +1013,7 @@ taken over the torch in maintaining \cdromc\ and integrating much
 \cdrom-related code in the 2.1-kernel.  Thanks to Scott Snyder and
 Gerd Knorr, who were the first to implement this interface for SCSI
 and IDE-CD drivers and added many ideas for extension of the data
-structures relative to kernel~2.0.  Further thanks to Heiko Ei{\sz}feldt,
+structures relative to kernel~2.0.  Further thanks to Heiko Ei{\ss}feldt,
 Thomas Quinot, Jon Tombs, Ken Pizzini, Eberhard M\"onkeberg and Andrew
 Kroll, the \linux\ \cdrom\ device driver developers who were kind
 enough to give suggestions and criticisms during the writing. Finally

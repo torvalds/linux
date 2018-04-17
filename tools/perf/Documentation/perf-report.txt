@@ -80,6 +80,7 @@ OPTIONS
 	- comm: command (name) of the task which can be read via /proc/<pid>/comm
 	- pid: command and tid of the task
 	- dso: name of library or module executed at the time of sample
+	- dso_size: size of library or module executed at the time of sample
 	- symbol: name of function executed at the time of sample
 	- symbol_size: size of function executed at the time of sample
 	- parent: name of function matched to the parent regex filter. Unmatched
@@ -296,6 +297,9 @@ OPTIONS
 --vmlinux=<file>::
         vmlinux pathname
 
+--ignore-vmlinux::
+	Ignore vmlinux files.
+
 --kallsyms=<file>::
         kallsyms pathname
 
@@ -354,7 +358,8 @@ OPTIONS
         Path to objdump binary.
 
 --group::
-	Show event group information together.
+	Show event group information together. It forces group output also
+	if there are no groups defined in data file.
 
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
@@ -367,7 +372,7 @@ OPTIONS
 	Use the data addresses of samples in addition to instruction addresses
 	to build the histograms.  To generate meaningful output, the perf.data
 	file must have been obtained using perf record -d -W and using a
-	special event -e cpu/mem-loads/ or -e cpu/mem-stores/. See
+	special event -e cpu/mem-loads/p or -e cpu/mem-stores/p. See
 	'perf mem' for simpler access.
 
 --percent-limit::

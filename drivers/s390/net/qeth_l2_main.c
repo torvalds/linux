@@ -108,7 +108,7 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setdelmac.mac_length = ETH_ALEN;
 	ether_addr_copy(cmd->data.setdelmac.mac, mac);
 	return qeth_setdelmac_makerc(card, qeth_send_ipa_cmd(card, iob,
@@ -305,7 +305,7 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setdelvlan.vlan_id = i;
 	return qeth_setdelvlan_makerc(card, qeth_send_ipa_cmd(card, iob,
 					    qeth_l2_send_setdelvlan_cb, NULL));
@@ -437,10 +437,8 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 			*done = 1;
 			break;
 		}
-		skb->dev = card->dev;
 		switch (hdr->hdr.l2.id) {
 		case QETH_HEADER_TYPE_LAYER2:
-			skb->pkt_type = PACKET_HOST;
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			if ((card->dev->features & NETIF_F_RXCSUM)
 			   && ((hdr->hdr.l2.flags[1] &
@@ -915,8 +913,8 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 		qeth_l2_set_offline(cgdev);
 
 	if (card->dev) {
-		netif_napi_del(&card->napi);
 		unregister_netdev(card->dev);
+		free_netdev(card->dev);
 		card->dev = NULL;
 	}
 	return;
@@ -975,6 +973,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		return -ENODEV;
 
 	card->dev->ml_priv = card;
+	card->dev->priv_flags |= IFF_UNICAST_FLT;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
 	card->dev->min_mtu = 64;
@@ -991,9 +990,16 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		card->dev->features |= NETIF_F_VLAN_CHALLENGED;
 	else
 		card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if (card->info.type != QETH_CARD_TYPE_OSN &&
+	    card->info.type != QETH_CARD_TYPE_IQD) {
+		card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		card->dev->needed_headroom = sizeof(struct qeth_hdr);
+		card->dev->hw_features |= NETIF_F_SG;
+		card->dev->vlan_features |= NETIF_F_SG;
+	}
+
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
-		card->dev->hw_features = NETIF_F_SG;
-		card->dev->vlan_features = NETIF_F_SG;
 		card->dev->features |= NETIF_F_SG;
 		/* OSA 3S and earlier has no RX/TX support */
 		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
@@ -1004,11 +1010,6 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 			card->dev->hw_features |= NETIF_F_RXCSUM;
 			card->dev->vlan_features |= NETIF_F_RXCSUM;
 		}
-	}
-	if (card->info.type != QETH_CARD_TYPE_OSN &&
-	    card->info.type != QETH_CARD_TYPE_IQD) {
-		card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-		card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	}
 
 	card->info.broadcast_capable = 1;
@@ -1086,7 +1087,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	qeth_l2_setup_bridgeport_attrs(card);
 
 	card->state = CARD_STATE_HARDSETUP;
-	memset(&card->rx, 0, sizeof(struct qeth_rx));
 	qeth_print_status_message(card);
 
 	/* softsetup */
@@ -1374,7 +1374,6 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_card *card;
-	int rc;
 
 	if (!dev)
 		return -ENODEV;
@@ -1385,9 +1384,8 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
 	iob = qeth_wait_for_buffer(&card->write);
-	memcpy(iob->data+IPA_PDU_HEADER_SIZE, data, data_len);
-	rc = qeth_osn_send_ipa_cmd(card, iob, data_len);
-	return rc;
+	memcpy(__ipa_cmd(iob), data, data_len);
+	return qeth_osn_send_ipa_cmd(card, iob, data_len);
 }
 EXPORT_SYMBOL(qeth_osn_assist);
 
@@ -1764,7 +1762,7 @@ static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, ipa_cmd, 0);
 	if (!iob)
 		return iob;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.sbp.hdr.cmdlength = sizeof(struct qeth_ipacmd_sbp_hdr) +
 				      cmd_length;
 	cmd->data.sbp.hdr.command_code = sbp_cmd;
@@ -2129,7 +2127,7 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 		return -ENOMEM;
 
 	/* create header for request */
-	cmd = (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	req = &cmd->data.vnicc;
 
 	/* create sub command header for request */

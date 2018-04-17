@@ -188,8 +188,7 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 	packet->sh_mem_ape1_base = qpd->sh_mem_ape1_base;
 	packet->sh_mem_ape1_limit = qpd->sh_mem_ape1_limit;
 
-	/* TODO: scratch support */
-	packet->sh_hidden_private_base_vmid = 0;
+	packet->sh_hidden_private_base_vmid = qpd->sh_hidden_private_base;
 
 	packet->gds_addr_lo = lower_32_bits(qpd->gds_context_area);
 	packet->gds_addr_hi = upper_32_bits(qpd->gds_context_area);
@@ -354,6 +353,43 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	pr_debug("\n");
 
 	return retval;
+}
+
+/* pm_create_release_mem - Create a RELEASE_MEM packet and return the size
+ *     of this packet
+ *     @gpu_addr - GPU address of the packet. It's a virtual address.
+ *     @buffer - buffer to fill up with the packet. It's a CPU kernel pointer
+ *     Return - length of the packet
+ */
+uint32_t pm_create_release_mem(uint64_t gpu_addr, uint32_t *buffer)
+{
+	struct pm4_mec_release_mem *packet;
+
+	WARN_ON(!buffer);
+
+	packet = (struct pm4_mec_release_mem *)buffer;
+	memset(buffer, 0, sizeof(*packet));
+
+	packet->header.u32All = build_pm4_header(IT_RELEASE_MEM,
+						 sizeof(*packet));
+
+	packet->bitfields2.event_type = CACHE_FLUSH_AND_INV_TS_EVENT;
+	packet->bitfields2.event_index = event_index___release_mem__end_of_pipe;
+	packet->bitfields2.tcl1_action_ena = 1;
+	packet->bitfields2.tc_action_ena = 1;
+	packet->bitfields2.cache_policy = cache_policy___release_mem__lru;
+	packet->bitfields2.atc = 0;
+
+	packet->bitfields3.data_sel = data_sel___release_mem__send_32_bit_low;
+	packet->bitfields3.int_sel =
+		int_sel___release_mem__send_interrupt_after_write_confirm;
+
+	packet->bitfields4.address_lo_32b = (gpu_addr & 0xffffffff) >> 2;
+	packet->address_hi = upper_32_bits(gpu_addr);
+
+	packet->data_lo = 0;
+
+	return sizeof(*packet) / sizeof(unsigned int);
 }
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)

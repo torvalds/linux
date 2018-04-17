@@ -829,11 +829,12 @@ out_release:
 }
 
 static int nr_getname(struct socket *sock, struct sockaddr *uaddr,
-	int *uaddr_len, int peer)
+	int peer)
 {
 	struct full_sockaddr_ax25 *sax = (struct full_sockaddr_ax25 *)uaddr;
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);
+	int uaddr_len;
 
 	memset(&sax->fsa_ax25, 0, sizeof(struct sockaddr_ax25));
 
@@ -848,16 +849,16 @@ static int nr_getname(struct socket *sock, struct sockaddr *uaddr,
 		sax->fsa_ax25.sax25_call   = nr->user_addr;
 		memset(sax->fsa_digipeater, 0, sizeof(sax->fsa_digipeater));
 		sax->fsa_digipeater[0]     = nr->dest_addr;
-		*uaddr_len = sizeof(struct full_sockaddr_ax25);
+		uaddr_len = sizeof(struct full_sockaddr_ax25);
 	} else {
 		sax->fsa_ax25.sax25_family = AF_NETROM;
 		sax->fsa_ax25.sax25_ndigis = 0;
 		sax->fsa_ax25.sax25_call   = nr->source_addr;
-		*uaddr_len = sizeof(struct sockaddr_ax25);
+		uaddr_len = sizeof(struct sockaddr_ax25);
 	}
 	release_sock(sk);
 
-	return 0;
+	return uaddr_len;
 }
 
 int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
@@ -1449,9 +1450,9 @@ static int __init nr_proto_init(void)
 
 	nr_loopback_init();
 
-	proc_create("nr", S_IRUGO, init_net.proc_net, &nr_info_fops);
-	proc_create("nr_neigh", S_IRUGO, init_net.proc_net, &nr_neigh_fops);
-	proc_create("nr_nodes", S_IRUGO, init_net.proc_net, &nr_nodes_fops);
+	proc_create("nr", 0444, init_net.proc_net, &nr_info_fops);
+	proc_create("nr_neigh", 0444, init_net.proc_net, &nr_neigh_fops);
+	proc_create("nr_nodes", 0444, init_net.proc_net, &nr_nodes_fops);
 out:
 	return rc;
 fail:

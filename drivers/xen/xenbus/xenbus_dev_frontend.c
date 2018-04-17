@@ -365,7 +365,7 @@ void xenbus_dev_queue_reply(struct xb_req_data *req)
 			if (WARN_ON(rc))
 				goto out;
 		}
-	} else if (req->msg.type == XS_TRANSACTION_END) {
+	} else if (req->type == XS_TRANSACTION_END) {
 		trans = xenbus_get_transaction(u, req->msg.tx_id);
 		if (WARN_ON(!trans))
 			goto out;
@@ -429,6 +429,10 @@ static int xenbus_write_transaction(unsigned msg_type,
 {
 	int rc;
 	struct xenbus_transaction_holder *trans = NULL;
+	struct {
+		struct xsd_sockmsg hdr;
+		char body[];
+	} *msg = (void *)u->u.buffer;
 
 	if (msg_type == XS_TRANSACTION_START) {
 		trans = kzalloc(sizeof(*trans), GFP_KERNEL);
@@ -437,11 +441,15 @@ static int xenbus_write_transaction(unsigned msg_type,
 			goto out;
 		}
 		list_add(&trans->list, &u->transactions);
-	} else if (u->u.msg.tx_id != 0 &&
-		   !xenbus_get_transaction(u, u->u.msg.tx_id))
+	} else if (msg->hdr.tx_id != 0 &&
+		   !xenbus_get_transaction(u, msg->hdr.tx_id))
 		return xenbus_command_reply(u, XS_ERROR, "ENOENT");
+	else if (msg_type == XS_TRANSACTION_END &&
+		 !(msg->hdr.len == 2 &&
+		   (!strcmp(msg->body, "T") || !strcmp(msg->body, "F"))))
+		return xenbus_command_reply(u, XS_ERROR, "EINVAL");
 
-	rc = xenbus_dev_request_and_reply(&u->u.msg, u);
+	rc = xenbus_dev_request_and_reply(&msg->hdr, u);
 	if (rc && trans) {
 		list_del(&trans->list);
 		kfree(trans);

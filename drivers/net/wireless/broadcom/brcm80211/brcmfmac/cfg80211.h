@@ -355,20 +355,24 @@ static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *cfg)
 
 static inline struct brcmf_cfg80211_info *wiphy_to_cfg(struct wiphy *w)
 {
-	return (struct brcmf_cfg80211_info *)(wiphy_priv(w));
+	struct brcmf_pub *drvr = wiphy_priv(w);
+	return drvr->config;
 }
 
 static inline struct brcmf_cfg80211_info *wdev_to_cfg(struct wireless_dev *wd)
 {
-	return (struct brcmf_cfg80211_info *)(wdev_priv(wd));
+	return wiphy_to_cfg(wd->wiphy);
+}
+
+static inline struct brcmf_cfg80211_vif *wdev_to_vif(struct wireless_dev *wdev)
+{
+	return container_of(wdev, struct brcmf_cfg80211_vif, wdev);
 }
 
 static inline
 struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
 {
-	struct brcmf_cfg80211_vif *vif;
-	vif = list_first_entry(&cfg->vif_list, struct brcmf_cfg80211_vif, list);
-	return vif->wdev.netdev;
+	return brcmf_get_ifp(cfg->pub, 0)->ndev;
 }
 
 static inline struct brcmf_cfg80211_info *ndev_to_cfg(struct net_device *ndev)
@@ -395,11 +399,12 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_info *cfg)
 }
 
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
-						  struct device *busdev,
+						  struct cfg80211_ops *ops,
 						  bool p2pdev_forced);
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
 s32 brcmf_cfg80211_up(struct net_device *ndev);
 s32 brcmf_cfg80211_down(struct net_device *ndev);
+struct cfg80211_ops *brcmf_cfg80211_get_ops(void);
 enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp);
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,

@@ -73,13 +73,12 @@ obj-$(CONFIG_NETFILTER_CONNCOUNT) += nf_conncount.o
 obj-$(CONFIG_NF_DUP_NETDEV)	+= nf_dup_netdev.o
 
 # nf_tables
-nf_tables-objs := nf_tables_core.o nf_tables_api.o nf_tables_trace.o \
-		  nft_immediate.o nft_cmp.o nft_range.o nft_bitwise.o \
-		  nft_byteorder.o nft_payload.o nft_lookup.o nft_dynset.o
+nf_tables-objs := nf_tables_core.o nf_tables_api.o nft_chain_filter.o \
+		  nf_tables_trace.o nft_immediate.o nft_cmp.o nft_range.o \
+		  nft_bitwise.o nft_byteorder.o nft_payload.o nft_lookup.o \
+		  nft_dynset.o
 
 obj-$(CONFIG_NF_TABLES)		+= nf_tables.o
-obj-$(CONFIG_NF_TABLES_INET)	+= nf_tables_inet.o
-obj-$(CONFIG_NF_TABLES_NETDEV)	+= nf_tables_netdev.o
 obj-$(CONFIG_NFT_COMPAT)	+= nft_compat.o
 obj-$(CONFIG_NFT_EXTHDR)	+= nft_exthdr.o
 obj-$(CONFIG_NFT_META)		+= nft_meta.o

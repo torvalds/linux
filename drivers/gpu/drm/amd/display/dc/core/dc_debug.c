@@ -36,26 +36,22 @@
 #include "hw_sequencer.h"
 
 #include "resource.h"
+#define DC_LOGGER \
+	logger
 
 #define SURFACE_TRACE(...) do {\
 		if (dc->debug.surface_trace) \
-			dm_logger_write(logger, \
-					LOG_IF_TRACE, \
-					##__VA_ARGS__); \
+			DC_LOG_IF_TRACE(__VA_ARGS__); \
 } while (0)
 
 #define TIMING_TRACE(...) do {\
 	if (dc->debug.timing_trace) \
-		dm_logger_write(logger, \
-				LOG_SYNC, \
-				##__VA_ARGS__); \
+		DC_LOG_SYNC(__VA_ARGS__); \
 } while (0)
 
 #define CLOCK_TRACE(...) do {\
 	if (dc->debug.clock_trace) \
-		dm_logger_write(logger, \
-				LOG_BANDWIDTH_CALCS, \
-				##__VA_ARGS__); \
+		DC_LOG_BANDWIDTH_CALCS(__VA_ARGS__); \
 } while (0)
 
 void pre_surface_trace(
@@ -361,25 +357,20 @@ void context_clock_trace(
 	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
-	CLOCK_TRACE("Current: dispclk_khz:%d  dppclk_div:%d  dcfclk_khz:%d\n"
-			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d\n"
-			"dram_ccm_us:%d  min_active_dram_ccm_us:%d\n",
+	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
+			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
 			context->bw.dcn.calc_clk.dispclk_khz,
-			context->bw.dcn.calc_clk.dppclk_div,
+			context->bw.dcn.calc_clk.dppclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
 			context->bw.dcn.calc_clk.fclk_khz,
-			context->bw.dcn.calc_clk.dram_ccm_us,
-			context->bw.dcn.calc_clk.min_active_dram_ccm_us);
-	CLOCK_TRACE("Calculated: dispclk_khz:%d  dppclk_div:%d  dcfclk_khz:%d\n"
-			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d\n"
-			"dram_ccm_us:%d  min_active_dram_ccm_us:%d\n",
+			context->bw.dcn.calc_clk.socclk_khz);
+	CLOCK_TRACE("Calculated: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
+			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
 			context->bw.dcn.calc_clk.dispclk_khz,
-			context->bw.dcn.calc_clk.dppclk_div,
+			context->bw.dcn.calc_clk.dppclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			context->bw.dcn.calc_clk.fclk_khz,
-			context->bw.dcn.calc_clk.dram_ccm_us,
-			context->bw.dcn.calc_clk.min_active_dram_ccm_us);
+			context->bw.dcn.calc_clk.fclk_khz);
 #endif
 }

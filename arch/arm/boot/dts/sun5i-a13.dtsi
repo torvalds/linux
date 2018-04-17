@@ -116,8 +116,6 @@
 		432000	1200000
 		>;
 	#cooling-cells = <2>;
-	cooling-min-level = <0>;
-	cooling-max-level = <5>;
 };
 
 &pio {

@@ -349,6 +349,9 @@ static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp, __le16 flow_handle)
 	if (rc)
 		netdev_info(bp->dev, "Error: %s: flow_handle=0x%x rc=%d",
 			    __func__, flow_handle, rc);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -372,6 +375,30 @@ static bool is_wildcard(void *mask, int len)
 			return false;
 	}
 	return true;
+}
+
+static bool is_exactmatch(void *mask, int len)
+{
+	const u8 *p = mask;
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (p[i] != 0xff)
+			return false;
+
+	return true;
+}
+
+static bool bits_set(void *key, int len)
+{
+	const u8 *p = key;
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (p[i] != 0)
+			return true;
+
+	return false;
 }
 
 static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
@@ -484,13 +511,15 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	req.action_flags = cpu_to_le16(action_flags);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc)
 		*flow_handle = resp->flow_handle;
-
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (rc == HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR)
+		rc = -ENOSPC;
+	else if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -561,6 +590,8 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -576,6 +607,9 @@ static int hwrm_cfa_decap_filter_free(struct bnxt *bp,
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -624,6 +658,8 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -639,6 +675,9 @@ static int hwrm_cfa_encap_record_free(struct bnxt *bp,
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 
@@ -746,6 +785,41 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	     flow->l4_key.ip_proto != IPPROTO_UDP)) {
 		netdev_info(bp->dev, "Cannot offload non-TCP/UDP (%d) ports",
 			    flow->l4_key.ip_proto);
+		return false;
+	}
+
+	/* Currently source/dest MAC cannot be partial wildcard  */
+	if (bits_set(&flow->l2_key.smac, sizeof(flow->l2_key.smac)) &&
+	    !is_exactmatch(flow->l2_mask.smac, sizeof(flow->l2_mask.smac))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for Source MAC\n");
+		return false;
+	}
+	if (bits_set(&flow->l2_key.dmac, sizeof(flow->l2_key.dmac)) &&
+	    !is_exactmatch(&flow->l2_mask.dmac, sizeof(flow->l2_mask.dmac))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for Dest MAC\n");
+		return false;
+	}
+
+	/* Currently VLAN fields cannot be partial wildcard */
+	if (bits_set(&flow->l2_key.inner_vlan_tci,
+		     sizeof(flow->l2_key.inner_vlan_tci)) &&
+	    !is_exactmatch(&flow->l2_mask.inner_vlan_tci,
+			   sizeof(flow->l2_mask.inner_vlan_tci))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for VLAN TCI\n");
+		return false;
+	}
+	if (bits_set(&flow->l2_key.inner_vlan_tpid,
+		     sizeof(flow->l2_key.inner_vlan_tpid)) &&
+	    !is_exactmatch(&flow->l2_mask.inner_vlan_tpid,
+			   sizeof(flow->l2_mask.inner_vlan_tpid))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for VLAN TPID\n");
+		return false;
+	}
+
+	/* Currently Ethertype must be set */
+	if (!is_exactmatch(&flow->l2_mask.ether_type,
+			   sizeof(flow->l2_mask.ether_type))) {
+		netdev_info(bp->dev, "Wildcard match unsupported for Ethertype\n");
 		return false;
 	}
 
@@ -977,8 +1051,10 @@ static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
 
 	/* Check if there's another flow using the same tunnel decap.
 	 * If not, add this tunnel to the table and resolve the other
-	 * tunnel header fileds
+	 * tunnel header fileds. Ignore src_port in the tunnel_key,
+	 * since it is not required for decap filters.
 	 */
+	decap_key->tp_src = 0;
 	decap_node = bnxt_tc_get_tunnel_node(bp, &tc_info->decap_table,
 					     &tc_info->decap_ht_params,
 					     decap_key);
@@ -1269,11 +1345,8 @@ static int bnxt_tc_del_flow(struct bnxt *bp,
 	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
 					   tc_info->flow_ht_params);
-	if (!flow_node) {
-		netdev_info(bp->dev, "ERROR: no flow_node for cookie %lx",
-			    tc_flow_cmd->cookie);
+	if (!flow_node)
 		return -EINVAL;
-	}
 
 	return __bnxt_tc_del_flow(bp, flow_node);
 }
@@ -1290,11 +1363,8 @@ static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
 					   &tc_flow_cmd->cookie,
 					   tc_info->flow_ht_params);
-	if (!flow_node) {
-		netdev_info(bp->dev, "Error: no flow_node for cookie %lx",
-			    tc_flow_cmd->cookie);
+	if (!flow_node)
 		return -1;
-	}
 
 	flow = &flow_node->flow;
 	curr_stats = &flow->stats;
@@ -1344,8 +1414,10 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 	} else {
 		netdev_info(bp->dev, "error rc=%d", rc);
 	}
-
 	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	if (rc)
+		rc = -EIO;
 	return rc;
 }
 

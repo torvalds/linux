@@ -36,10 +36,52 @@ u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
 		return (u64)&plt[i - 1];
 
 	pltsec->plt_num_entries++;
-	BUG_ON(pltsec->plt_num_entries > pltsec->plt_max_entries);
+	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
+		return 0;
 
 	return (u64)&plt[i];
 }
+
+#ifdef CONFIG_ARM64_ERRATUM_843419
+u64 module_emit_adrp_veneer(struct module *mod, void *loc, u64 val)
+{
+	struct mod_plt_sec *pltsec = !in_init(mod, loc) ? &mod->arch.core :
+							  &mod->arch.init;
+	struct plt_entry *plt = (struct plt_entry *)pltsec->plt->sh_addr;
+	int i = pltsec->plt_num_entries++;
+	u32 mov0, mov1, mov2, br;
+	int rd;
+
+	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
+		return 0;
+
+	/* get the destination register of the ADRP instruction */
+	rd = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RD,
+					  le32_to_cpup((__le32 *)loc));
+
+	/* generate the veneer instructions */
+	mov0 = aarch64_insn_gen_movewide(rd, (u16)~val, 0,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_INVERSE);
+	mov1 = aarch64_insn_gen_movewide(rd, (u16)(val >> 16), 16,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	mov2 = aarch64_insn_gen_movewide(rd, (u16)(val >> 32), 32,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	br = aarch64_insn_gen_branch_imm((u64)&plt[i].br, (u64)loc + 4,
+					 AARCH64_INSN_BRANCH_NOLINK);
+
+	plt[i] = (struct plt_entry){
+			cpu_to_le32(mov0),
+			cpu_to_le32(mov1),
+			cpu_to_le32(mov2),
+			cpu_to_le32(br)
+		};
+
+	return (u64)&plt[i];
+}
+#endif
 
 #define cmp_3way(a,b)	((a) < (b) ? -1 : (a) > (b))
 
@@ -68,16 +110,21 @@ static bool duplicate_rel(const Elf64_Rela *rela, int num)
 }
 
 static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
-			       Elf64_Word dstidx)
+			       Elf64_Word dstidx, Elf_Shdr *dstsec)
 {
 	unsigned int ret = 0;
 	Elf64_Sym *s;
 	int i;
 
 	for (i = 0; i < num; i++) {
+		u64 min_align;
+
 		switch (ELF64_R_TYPE(rela[i].r_info)) {
 		case R_AARCH64_JUMP26:
 		case R_AARCH64_CALL26:
+			if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+				break;
+
 			/*
 			 * We only have to consider branch targets that resolve
 			 * to symbols that are defined in a different section.
@@ -108,6 +155,41 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			 */
 			if (rela[i].r_addend != 0 || !duplicate_rel(rela, i))
 				ret++;
+			break;
+		case R_AARCH64_ADR_PREL_PG_HI21_NC:
+		case R_AARCH64_ADR_PREL_PG_HI21:
+			if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_843419) ||
+			    !cpus_have_const_cap(ARM64_WORKAROUND_843419))
+				break;
+
+			/*
+			 * Determine the minimal safe alignment for this ADRP
+			 * instruction: the section alignment at which it is
+			 * guaranteed not to appear at a vulnerable offset.
+			 *
+			 * This comes down to finding the least significant zero
+			 * bit in bits [11:3] of the section offset, and
+			 * increasing the section's alignment so that the
+			 * resulting address of this instruction is guaranteed
+			 * to equal the offset in that particular bit (as well
+			 * as all less signficant bits). This ensures that the
+			 * address modulo 4 KB != 0xfff8 or 0xfffc (which would
+			 * have all ones in bits [11:3])
+			 */
+			min_align = 2ULL << ffz(rela[i].r_offset | 0x7);
+
+			/*
+			 * Allocate veneer space for each ADRP that may appear
+			 * at a vulnerable offset nonetheless. At relocation
+			 * time, some of these will remain unused since some
+			 * ADRP instructions can be patched to ADR instructions
+			 * instead.
+			 */
+			if (min_align > SZ_4K)
+				ret++;
+			else
+				dstsec->sh_addralign = max(dstsec->sh_addralign,
+							   min_align);
 			break;
 		}
 	}
@@ -166,10 +248,10 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 		if (strncmp(secstrings + dstsec->sh_name, ".init", 5) != 0)
 			core_plts += count_plts(syms, rels, numrels,
-						sechdrs[i].sh_info);
+						sechdrs[i].sh_info, dstsec);
 		else
 			init_plts += count_plts(syms, rels, numrels,
-						sechdrs[i].sh_info);
+						sechdrs[i].sh_info, dstsec);
 	}
 
 	mod->arch.core.plt->sh_type = SHT_NOBITS;

@@ -8,6 +8,7 @@ Contents:
 
    batman-adv
    can
+   dpaa2/index
    kapi
    z8530book
    msg_zerocopy

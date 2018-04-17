@@ -202,8 +202,9 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	/* the transition latency is set to be 1 higher than the maximum
 	 * transition latency of the ondemand governor */
 	policy->cpuinfo.transition_latency = 10000001;
+	policy->freq_table = &p4clockmod_table[0];
 
-	return cpufreq_table_validate_and_show(policy, &p4clockmod_table[0]);
+	return 0;
 }
 
 

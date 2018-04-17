@@ -160,8 +160,6 @@ static int __init vas_init(void)
 	int found = 0;
 	struct device_node *dn;
 
-	vas_init_dbgdir();
-
 	platform_driver_register(&vas_driver);
 
 	for_each_compatible_node(dn, NULL, "ibm,vas") {
@@ -169,8 +167,10 @@ static int __init vas_init(void)
 		found++;
 	}
 
-	if (!found)
+	if (!found) {
+		platform_driver_unregister(&vas_driver);
 		return -ENODEV;
+	}
 
 	pr_devel("Found %d instances\n", found);
 

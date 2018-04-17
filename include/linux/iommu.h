@@ -465,23 +465,23 @@ static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	return -ENODEV;
 }
 
-static inline int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			      size_t size)
+static inline size_t iommu_unmap(struct iommu_domain *domain,
+				 unsigned long iova, size_t size)
 {
-	return -ENODEV;
+	return 0;
 }
 
-static inline int iommu_unmap_fast(struct iommu_domain *domain, unsigned long iova,
-				   int gfp_order)
+static inline size_t iommu_unmap_fast(struct iommu_domain *domain,
+				      unsigned long iova, int gfp_order)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline size_t iommu_map_sg(struct iommu_domain *domain,
 				  unsigned long iova, struct scatterlist *sg,
 				  unsigned int nents, int prot)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline void iommu_flush_tlb_all(struct iommu_domain *domain)

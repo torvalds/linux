@@ -26,6 +26,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/gpu_scheduler.h>
+#include <drm/drm_print.h>
 
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		18
@@ -35,8 +36,9 @@
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
 
 /* some special values for the owner field */
-#define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
-#define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
+#define AMDGPU_FENCE_OWNER_UNDEFINED	((void *)0ul)
+#define AMDGPU_FENCE_OWNER_VM		((void *)1ul)
+#define AMDGPU_FENCE_OWNER_KFD		((void *)2ul)
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
@@ -128,7 +130,6 @@ struct amdgpu_ring_funcs {
 	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vmid,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
-	void (*emit_hdp_invalidate)(struct amdgpu_ring *ring);
 	void (*emit_gds_switch)(struct amdgpu_ring *ring, uint32_t vmid,
 				uint32_t gds_base, uint32_t gds_size,
 				uint32_t gws_base, uint32_t gws_size,
@@ -151,6 +152,8 @@ struct amdgpu_ring_funcs {
 	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
 	void (*emit_rreg)(struct amdgpu_ring *ring, uint32_t reg);
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
+	void (*emit_reg_wait)(struct amdgpu_ring *ring, uint32_t reg,
+			      uint32_t val, uint32_t mask);
 	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
@@ -195,6 +198,7 @@ struct amdgpu_ring {
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned		vm_inv_eng;
+	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
 
 	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];

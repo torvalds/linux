@@ -343,7 +343,7 @@ static inline void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
 
 static void fuel_gauge_get_status(struct axp288_fg_info *info)
 {
-	int pwr_stat, fg_res;
+	int pwr_stat, fg_res, curr, ret;
 
 	pwr_stat = fuel_gauge_reg_readb(info, AXP20X_PWR_INPUT_STATUS);
 	if (pwr_stat < 0) {
@@ -353,19 +353,42 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 	}
 
 	/* Report full if Vbus is valid and the reported capacity is 100% */
-	if (pwr_stat & PS_STAT_VBUS_VALID) {
-		fg_res = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
-		if (fg_res < 0) {
-			dev_err(&info->pdev->dev,
-				"FG RES read failed: %d\n", fg_res);
-			return;
-		}
-		if (fg_res == (FG_REP_CAP_VALID | 100)) {
-			info->status = POWER_SUPPLY_STATUS_FULL;
-			return;
-		}
+	if (!(pwr_stat & PS_STAT_VBUS_VALID))
+		goto not_full;
+
+	fg_res = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
+	if (fg_res < 0) {
+		dev_err(&info->pdev->dev, "FG RES read failed: %d\n", fg_res);
+		return;
+	}
+	if (!(fg_res & FG_REP_CAP_VALID))
+		goto not_full;
+
+	fg_res &= ~FG_REP_CAP_VALID;
+	if (fg_res == 100) {
+		info->status = POWER_SUPPLY_STATUS_FULL;
+		return;
 	}
 
+	/*
+	 * Sometimes the charger turns itself off before fg-res reaches 100%.
+	 * When this happens the AXP288 reports a not-charging status and
+	 * 0 mA discharge current.
+	 */
+	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR))
+		goto not_full;
+
+	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &curr);
+	if (ret < 0) {
+		dev_err(&info->pdev->dev, "FG get current failed: %d\n", ret);
+		return;
+	}
+	if (curr == 0) {
+		info->status = POWER_SUPPLY_STATUS_FULL;
+		return;
+	}
+
+not_full:
 	if (pwr_stat & PS_STAT_BAT_CHRG_DIR)
 		info->status = POWER_SUPPLY_STATUS_CHARGING;
 	else
@@ -706,6 +729,12 @@ static const struct dmi_system_id axp288_fuel_gauge_blacklist[] = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "To be filled by OEM."),
 			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
 			DMI_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+	},
+	{
+		/* ECS EF20EA */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
 		},
 	},
 	{}

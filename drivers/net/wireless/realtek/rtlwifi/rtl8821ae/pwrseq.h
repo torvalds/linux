@@ -531,7 +531,7 @@ extern struct wlan_pwr_cfg  rtl8812_leave_lps_flow
 	 /*0x23[4] = 1b'0 12H LDO enter normal mode*/},   \
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,\
 	PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT3|BIT4, 0 \
-	 /*0x04[12:11] = 2b'01enable WL suspend*/},
+	 /*0x04[12:11] = 2b'00 disable WL suspend*/},
 
 #define RTL8821A_TRANS_CARDEMU_TO_CARDDIS				\
 	{0x0007, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,\
@@ -572,7 +572,7 @@ extern struct wlan_pwr_cfg  rtl8812_leave_lps_flow
 	 /*0x48[16] = 0 to disable GPIO9 as EXT WAKEUP*/},   \
 	{0x0005, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_ALL_MSK,\
 	PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT3|BIT4, 0 \
-	 /*0x04[12:11] = 2b'01enable WL suspend*/},\
+	 /*0x04[12:11] = 2b'00 disable WL suspend*/},\
 	{0x0023, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK,\
 	PWR_BASEADDR_MAC, PWR_CMD_WRITE, BIT4, 0 \
 	 /*0x23[4] = 1b'0 12H LDO enter normal mode*/},   \

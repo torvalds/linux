@@ -22,9 +22,9 @@
 #define WM8996_FLL_DACLRCLK1  3
 #define WM8996_FLL_BCLK1      4
 
-typedef void (*wm8996_polarity_fn)(struct snd_soc_codec *codec, int polarity);
+typedef void (*wm8996_polarity_fn)(struct snd_soc_component *component, int polarity);
 
-int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+int wm8996_detect(struct snd_soc_component *component, struct snd_soc_jack *jack,
 		  wm8996_polarity_fn polarity_cb);
 
 /*

@@ -39,6 +39,7 @@
 #define GMAC_HW_FEATURE0		0x0000011c
 #define GMAC_HW_FEATURE1		0x00000120
 #define GMAC_HW_FEATURE2		0x00000124
+#define GMAC_HW_FEATURE3		0x00000128
 #define GMAC_MDIO_ADDR			0x00000200
 #define GMAC_MDIO_DATA			0x00000204
 #define GMAC_ADDR_HIGH(reg)		(0x300 + reg * 8)
@@ -191,6 +192,9 @@ enum power_event {
 #define GMAC_HW_FEAT_RXCHCNT		GENMASK(15, 12)
 #define GMAC_HW_FEAT_TXQCNT		GENMASK(9, 6)
 #define GMAC_HW_FEAT_RXQCNT		GENMASK(3, 0)
+
+/* MAC HW features3 bitmap */
+#define GMAC_HW_FEAT_ASP		GENMASK(29, 28)
 
 /* MAC HW ADDR regs */
 #define GMAC_HI_DCS			GENMASK(18, 16)

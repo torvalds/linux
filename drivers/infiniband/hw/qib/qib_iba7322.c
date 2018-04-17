@@ -463,6 +463,16 @@ static u8 ib_rate_to_delay[IB_RATE_120_GBPS + 1] = {
 	[IB_RATE_40_GBPS] = 1
 };
 
+static const char * const qib_sdma_state_names[] = {
+	[qib_sdma_state_s00_hw_down]          = "s00_HwDown",
+	[qib_sdma_state_s10_hw_start_up_wait] = "s10_HwStartUpWait",
+	[qib_sdma_state_s20_idle]             = "s20_Idle",
+	[qib_sdma_state_s30_sw_clean_up_wait] = "s30_SwCleanUpWait",
+	[qib_sdma_state_s40_hw_clean_up_wait] = "s40_HwCleanUpWait",
+	[qib_sdma_state_s50_hw_halt_wait]     = "s50_HwHaltWait",
+	[qib_sdma_state_s99_running]          = "s99_Running",
+};
+
 #define IBA7322_LINKSPEED_SHIFT SYM_LSB(IBCStatusA_0, LinkSpeedActive)
 #define IBA7322_LINKWIDTH_SHIFT SYM_LSB(IBCStatusA_0, LinkWidthActive)
 

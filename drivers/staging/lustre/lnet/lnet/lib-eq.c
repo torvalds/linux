@@ -308,7 +308,7 @@ lnet_eq_dequeue_event(struct lnet_eq *eq, struct lnet_event *ev)
  */
 
 static int
-lnet_eq_wait_locked(int *timeout_ms)
+lnet_eq_wait_locked(int *timeout_ms, long state)
 __must_hold(&the_lnet.ln_eq_wait_lock)
 {
 	int tms = *timeout_ms;
@@ -320,7 +320,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 		return -ENXIO; /* don't want to wait and no new event */
 
 	init_waitqueue_entry(&wl, current);
-	set_current_state(TASK_INTERRUPTIBLE);
+	set_current_state(state);
 	add_wait_queue(&the_lnet.ln_eq_waitq, &wl);
 
 	lnet_eq_wait_unlock();
@@ -359,6 +359,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
  * \param timeout_ms Time in milliseconds to wait for an event to occur on
  * one of the EQs. The constant LNET_TIME_FOREVER can be used to indicate an
  * infinite timeout.
+ * \param interruptible, if true, use TASK_INTERRUPTIBLE, else TASK_NOLOAD
  * \param event,which On successful return (1 or -EOVERFLOW), \a event will
  * hold the next event in the EQs, and \a which will contain the index of the
  * EQ from which the event was taken.
@@ -372,6 +373,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
  */
 int
 LNetEQPoll(struct lnet_handle_eq *eventqs, int neq, int timeout_ms,
+	   int interruptible,
 	   struct lnet_event *event, int *which)
 {
 	int wait = 1;
@@ -412,7 +414,9 @@ LNetEQPoll(struct lnet_handle_eq *eventqs, int neq, int timeout_ms,
 		 *  0 : don't want to wait anymore, but might have new event
 		 *      so need to call dequeue again
 		 */
-		wait = lnet_eq_wait_locked(&timeout_ms);
+		wait = lnet_eq_wait_locked(&timeout_ms,
+					   interruptible ? TASK_INTERRUPTIBLE
+					   : TASK_NOLOAD);
 		if (wait < 0) /* no new event */
 			break;
 	}

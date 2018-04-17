@@ -55,7 +55,7 @@ void sas_init_dev(struct domain_device *dev)
 /* ---------- Domain device discovery ---------- */
 
 /**
- * sas_get_port_device -- Discover devices which caused port creation
+ * sas_get_port_device - Discover devices which caused port creation
  * @port: pointer to struct sas_port of interest
  *
  * Devices directly attached to a HA port, have no parent.  This is
@@ -278,8 +278,8 @@ static void sas_resume_devices(struct work_struct *work)
 }
 
 /**
- * sas_discover_end_dev -- discover an end device (SSP, etc)
- * @end: pointer to domain device of interest
+ * sas_discover_end_dev - discover an end device (SSP, etc)
+ * @dev: pointer to domain device of interest
  *
  * See comment in sas_discover_sata().
  */
@@ -428,8 +428,8 @@ void sas_device_set_phy(struct domain_device *dev, struct sas_port *port)
 /* ---------- Discovery and Revalidation ---------- */
 
 /**
- * sas_discover_domain -- discover the domain
- * @port: port to the domain of interest
+ * sas_discover_domain - discover the domain
+ * @work: work structure embedded in port domain device.
  *
  * NOTE: this process _must_ quit (return) as soon as any connection
  * errors are encountered.  Connection recovery is done elsewhere.
@@ -572,7 +572,8 @@ int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 }
 
 /**
- * sas_init_disc -- initialize the discovery struct in the port
+ * sas_init_disc - initialize the discovery struct in the port
+ * @disc: port discovery structure
  * @port: pointer to struct port
  *
  * Called when the ports are being initialized.

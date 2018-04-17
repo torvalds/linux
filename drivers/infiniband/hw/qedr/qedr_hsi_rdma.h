@@ -45,7 +45,7 @@ struct rdma_cqe_responder {
 	__le32 imm_data_or_inv_r_Key;
 	__le32 length;
 	__le32 imm_data_hi;
-	__le16 rq_cons;
+	__le16 rq_cons_or_srq_id;
 	u8 flags;
 #define RDMA_CQE_RESPONDER_TOGGLE_BIT_MASK  0x1
 #define RDMA_CQE_RESPONDER_TOGGLE_BIT_SHIFT 0
@@ -115,6 +115,7 @@ enum rdma_cqe_requester_status_enum {
 	RDMA_CQE_REQ_STS_RNR_NAK_RETRY_CNT_ERR,
 	RDMA_CQE_REQ_STS_TRANSPORT_RETRY_CNT_ERR,
 	RDMA_CQE_REQ_STS_WORK_REQUEST_FLUSHED_ERR,
+	RDMA_CQE_REQ_STS_XRC_VOILATION_ERR,
 	MAX_RDMA_CQE_REQUESTER_STATUS_ENUM
 };
 
@@ -136,6 +137,7 @@ enum rdma_cqe_type {
 	RDMA_CQE_TYPE_REQUESTER,
 	RDMA_CQE_TYPE_RESPONDER_RQ,
 	RDMA_CQE_TYPE_RESPONDER_SRQ,
+	RDMA_CQE_TYPE_RESPONDER_XRC_SRQ,
 	RDMA_CQE_TYPE_INVALID,
 	MAX_RDMA_CQE_TYPE
 };

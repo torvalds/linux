@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017-2018, Mellanox Technologies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,52 +34,69 @@
 #ifndef IB_USER_IOCTL_VERBS_H
 #define IB_USER_IOCTL_VERBS_H
 
-#include <rdma/rdma_user_ioctl.h>
+#include <linux/types.h>
 
-#define UVERBS_UDATA_DRIVER_DATA_NS	1
-#define UVERBS_UDATA_DRIVER_DATA_FLAG	(1UL << UVERBS_ID_NS_SHIFT)
+#ifndef RDMA_UAPI_PTR
+#define RDMA_UAPI_PTR(_type, _name)	__aligned_u64 _name
+#endif
 
-enum uverbs_default_objects {
-	UVERBS_OBJECT_DEVICE, /* No instances of DEVICE are allowed */
-	UVERBS_OBJECT_PD,
-	UVERBS_OBJECT_COMP_CHANNEL,
-	UVERBS_OBJECT_CQ,
-	UVERBS_OBJECT_QP,
-	UVERBS_OBJECT_SRQ,
-	UVERBS_OBJECT_AH,
-	UVERBS_OBJECT_MR,
-	UVERBS_OBJECT_MW,
-	UVERBS_OBJECT_FLOW,
-	UVERBS_OBJECT_XRCD,
-	UVERBS_OBJECT_RWQ_IND_TBL,
-	UVERBS_OBJECT_WQ,
-	UVERBS_OBJECT_LAST,
+enum ib_uverbs_flow_action_esp_keymat {
+	IB_UVERBS_FLOW_ACTION_ESP_KEYMAT_AES_GCM,
 };
 
-enum {
-	UVERBS_UHW_IN = UVERBS_UDATA_DRIVER_DATA_FLAG,
-	UVERBS_UHW_OUT,
+enum ib_uverbs_flow_action_esp_keymat_aes_gcm_iv_algo {
+	IB_UVERBS_FLOW_ACTION_IV_ALGO_SEQ,
 };
 
-enum uverbs_create_cq_cmd_attr_ids {
-	CREATE_CQ_HANDLE,
-	CREATE_CQ_CQE,
-	CREATE_CQ_USER_HANDLE,
-	CREATE_CQ_COMP_CHANNEL,
-	CREATE_CQ_COMP_VECTOR,
-	CREATE_CQ_FLAGS,
-	CREATE_CQ_RESP_CQE,
+struct ib_uverbs_flow_action_esp_keymat_aes_gcm {
+	__aligned_u64	iv;
+	__u32		iv_algo; /* Use enum ib_uverbs_flow_action_esp_keymat_aes_gcm_iv_algo */
+
+	__u32		salt;
+	__u32		icv_len;
+
+	__u32		key_len;
+	__u32		aes_key[256 / 32];
 };
 
-enum uverbs_destroy_cq_cmd_attr_ids {
-	DESTROY_CQ_HANDLE,
-	DESTROY_CQ_RESP,
+enum ib_uverbs_flow_action_esp_replay {
+	IB_UVERBS_FLOW_ACTION_ESP_REPLAY_NONE,
+	IB_UVERBS_FLOW_ACTION_ESP_REPLAY_BMP,
 };
 
-enum uverbs_actions_cq_ops {
-	UVERBS_CQ_CREATE,
-	UVERBS_CQ_DESTROY,
+struct ib_uverbs_flow_action_esp_replay_bmp {
+	__u32	size;
+};
+
+enum ib_uverbs_flow_action_esp_flags {
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_INLINE_CRYPTO	= 0UL << 0,	/* Default */
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_FULL_OFFLOAD	= 1UL << 0,
+
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_TUNNEL		= 0UL << 1,	/* Default */
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_TRANSPORT	= 1UL << 1,
+
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_DECRYPT		= 0UL << 2,	/* Default */
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_ENCRYPT		= 1UL << 2,
+
+	IB_UVERBS_FLOW_ACTION_ESP_FLAGS_ESN_NEW_WINDOW	= 1UL << 3,
+};
+
+struct ib_uverbs_flow_action_esp_encap {
+	/* This struct represents a list of pointers to flow_xxxx_filter that
+	 * encapsulates the payload in ESP tunnel mode.
+	 */
+	RDMA_UAPI_PTR(void *, val_ptr); /* pointer to a flow_xxxx_filter */
+	RDMA_UAPI_PTR(struct ib_uverbs_flow_action_esp_encap *, next_ptr);
+	__u16	len;		/* Len of the filter struct val_ptr points to */
+	__u16	type;		/* Use flow_spec_type enum */
+};
+
+struct ib_uverbs_flow_action_esp {
+	__u32		spi;
+	__u32		seq;
+	__u32		tfc_pad;
+	__u32		flags;
+	__aligned_u64	hard_limit_pkts;
 };
 
 #endif
-

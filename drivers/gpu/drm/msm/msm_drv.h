@@ -51,7 +51,6 @@ struct msm_rd_state;
 struct msm_perf_state;
 struct msm_gem_submit;
 struct msm_fence_context;
-struct msm_fence_cb;
 struct msm_gem_address_space;
 struct msm_gem_vma;
 

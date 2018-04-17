@@ -1318,7 +1318,7 @@ static const struct file_operations raw6_seq_fops = {
 
 static int __net_init raw6_init_net(struct net *net)
 {
-	if (!proc_create("raw6", S_IRUGO, net->proc_net, &raw6_seq_fops))
+	if (!proc_create("raw6", 0444, net->proc_net, &raw6_seq_fops))
 		return -ENOMEM;
 
 	return 0;

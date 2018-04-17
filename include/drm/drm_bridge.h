@@ -29,6 +29,7 @@
 #include <drm/drm_modes.h>
 
 struct drm_bridge;
+struct drm_bridge_timings;
 struct drm_panel;
 
 /**
@@ -90,7 +91,7 @@ struct drm_bridge_funcs {
 	 *
 	 * drm_mode_status Enum
 	 */
-	enum drm_mode_status (*mode_valid)(struct drm_bridge *crtc,
+	enum drm_mode_status (*mode_valid)(struct drm_bridge *bridge,
 					   const struct drm_display_mode *mode);
 
 	/**
@@ -223,12 +224,43 @@ struct drm_bridge_funcs {
 };
 
 /**
+ * struct drm_bridge_timings - timing information for the bridge
+ */
+struct drm_bridge_timings {
+	/**
+	 * @sampling_edge:
+	 *
+	 * Tells whether the bridge samples the digital input signal
+	 * from the display engine on the positive or negative edge of the
+	 * clock, this should reuse the DRM_BUS_FLAG_PIXDATA_[POS|NEG]EDGE
+	 * bitwise flags from the DRM connector (bit 2 and 3 valid).
+	 */
+	u32 sampling_edge;
+	/**
+	 * @setup_time_ps:
+	 *
+	 * Defines the time in picoseconds the input data lines must be
+	 * stable before the clock edge.
+	 */
+	u32 setup_time_ps;
+	/**
+	 * @hold_time_ps:
+	 *
+	 * Defines the time in picoseconds taken for the bridge to sample the
+	 * input signal after the clock edge.
+	 */
+	u32 hold_time_ps;
+};
+
+/**
  * struct drm_bridge - central DRM bridge control structure
  * @dev: DRM device this bridge belongs to
  * @encoder: encoder to which this bridge is connected
  * @next: the next bridge in the encoder chain
  * @of_node: device node pointer to the bridge
  * @list: to keep track of all added bridges
+ * @timings: the timing specification for the bridge, if any (may
+ * be NULL)
  * @funcs: control functions
  * @driver_private: pointer to the bridge driver's internal context
  */
@@ -240,6 +272,7 @@ struct drm_bridge {
 	struct device_node *of_node;
 #endif
 	struct list_head list;
+	const struct drm_bridge_timings *timings;
 
 	const struct drm_bridge_funcs *funcs;
 	void *driver_private;

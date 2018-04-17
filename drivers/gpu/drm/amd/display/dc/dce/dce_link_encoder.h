@@ -210,8 +210,7 @@ void dce110_link_encoder_enable_tmds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,
-	bool hdmi,
-	bool dual_link,
+	enum signal_type signal,
 	uint32_t pixel_clock);
 
 /* enables DP PHY output */

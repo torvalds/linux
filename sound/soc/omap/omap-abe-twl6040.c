@@ -52,7 +52,7 @@ static int omap_abe_hw_params(struct snd_pcm_substream *substream,
 	int clk_id, freq;
 	int ret;
 
-	clk_id = twl6040_get_clk_id(rtd->codec);
+	clk_id = twl6040_get_clk_id(codec_dai->component);
 	if (clk_id == TWL6040_SYSCLK_SEL_HPPLL)
 		freq = priv->mclk_freq;
 	else if (clk_id == TWL6040_SYSCLK_SEL_LPPLL)
@@ -166,7 +166,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 	struct snd_soc_card *card = rtd->card;
 	struct abe_twl6040 *priv = snd_soc_card_get_drvdata(card);
 	int hs_trim;
@@ -176,7 +176,7 @@ static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	 * Configure McPDM offset cancellation based on the HSOTRIM value from
 	 * twl6040.
 	 */
-	hs_trim = twl6040_get_trim_value(codec, TWL6040_TRIM_HSOTRIM);
+	hs_trim = twl6040_get_trim_value(component, TWL6040_TRIM_HSOTRIM);
 	omap_mcpdm_configure_dn_offsets(rtd, TWL6040_HSF_TRIM_LEFT(hs_trim),
 					TWL6040_HSF_TRIM_RIGHT(hs_trim));
 
@@ -189,7 +189,7 @@ static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 		if (ret)
 			return ret;
 
-		twl6040_hs_jack_detect(codec, &hs_jack, SND_JACK_HEADSET);
+		twl6040_hs_jack_detect(component, &hs_jack, SND_JACK_HEADSET);
 	}
 
 	return 0;

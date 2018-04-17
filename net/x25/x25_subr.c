@@ -335,8 +335,7 @@ int x25_decode(struct sock *sk, struct sk_buff *skb, int *ns, int *nr, int *q,
 		}
 	}
 
-	pr_debug("invalid PLP frame %02X %02X %02X\n",
-	       frame[0], frame[1], frame[2]);
+	pr_debug("invalid PLP frame %3ph\n", frame);
 
 	return X25_ILLEGAL;
 }

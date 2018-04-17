@@ -42,6 +42,8 @@
 #define FN(reg_name, field_name) \
 	abm_dce->abm_shift->field_name, abm_dce->abm_mask->field_name
 
+#define DC_LOGGER \
+	abm->ctx->logger
 #define CTX \
 	abm_dce->base.ctx
 
@@ -323,6 +325,15 @@ static bool dce_abm_immediate_disable(struct abm *abm)
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
+	abm->stored_backlight_registers.BL_PWM_CNTL =
+		REG_READ(BL_PWM_CNTL);
+	abm->stored_backlight_registers.BL_PWM_CNTL2 =
+		REG_READ(BL_PWM_CNTL2);
+	abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL =
+		REG_READ(BL_PWM_PERIOD_CNTL);
+
+	REG_GET(LVTMA_PWRSEQ_REF_DIV, BL_PWM_REF_DIV,
+		&abm->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 	return true;
 }
 
@@ -394,8 +405,7 @@ static bool dce_abm_set_backlight_level(
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
-	dm_logger_write(abm->ctx->logger, LOG_BACKLIGHT,
-			"New Backlight level: %d (0x%X)\n",
+	DC_LOG_BACKLIGHT("New Backlight level: %d (0x%X)\n",
 			backlight_level, backlight_level);
 
 	/* If DMCU is in reset state, DMCU is uninitialized */

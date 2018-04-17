@@ -84,7 +84,7 @@ static void sas_resume_port(struct asd_sas_phy *phy)
 }
 
 /**
- * sas_form_port -- add this phy to a port
+ * sas_form_port - add this phy to a port
  * @phy: the phy of interest
  *
  * This function adds this phy to an existing port, thus creating a wide
@@ -197,8 +197,9 @@ static void sas_form_port(struct asd_sas_phy *phy)
 }
 
 /**
- * sas_deform_port -- remove this phy from the port it belongs to
+ * sas_deform_port - remove this phy from the port it belongs to
  * @phy: the phy of interest
+ * @gone: whether or not the PHY is gone
  *
  * This is called when the physical link to the other phy has been
  * lost (on this phy), in Event thread context. We cannot delay here.

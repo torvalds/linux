@@ -26,7 +26,6 @@ typedef __u16 __sum16;
 
 #include <sys/ioctl.h>
 #include <sys/wait.h>
-#include <sys/resource.h>
 #include <sys/types.h>
 #include <fcntl.h>
 
@@ -34,9 +33,11 @@ typedef __u16 __sum16;
 #include <linux/err.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+
 #include "test_iptunnel_common.h"
 #include "bpf_util.h"
 #include "bpf_endian.h"
+#include "bpf_rlimit.h"
 
 static int error_cnt, pass_cnt;
 
@@ -840,7 +841,8 @@ static void test_tp_attach_query(void)
 static int compare_map_keys(int map1_fd, int map2_fd)
 {
 	__u32 key, next_key;
-	char val_buf[PERF_MAX_STACK_DEPTH * sizeof(__u64)];
+	char val_buf[PERF_MAX_STACK_DEPTH *
+		     sizeof(struct bpf_stack_build_id)];
 	int err;
 
 	err = bpf_map_get_next_key(map1_fd, NULL, &key);
@@ -875,11 +877,186 @@ static void test_stacktrace_map()
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
-		goto out;
+		return;
 
 	/* Get the ID for the sched/sched_switch tracepoint */
 	snprintf(buf, sizeof(buf),
 		 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
+	efd = open(buf, O_RDONLY, 0);
+	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
+		goto close_prog;
+
+	bytes = read(efd, buf, sizeof(buf));
+	close(efd);
+	if (bytes <= 0 || bytes >= sizeof(buf))
+		goto close_prog;
+
+	/* Open the perf event and attach bpf progrram */
+	attr.config = strtol(buf, NULL, 0);
+	attr.type = PERF_TYPE_TRACEPOINT;
+	attr.sample_type = PERF_SAMPLE_RAW | PERF_SAMPLE_CALLCHAIN;
+	attr.sample_period = 1;
+	attr.wakeup_events = 1;
+	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
+			 0 /* cpu 0 */, -1 /* group id */,
+			 0 /* flags */);
+	if (CHECK(pmu_fd < 0, "perf_event_open", "err %d errno %d\n",
+		  pmu_fd, errno))
+		goto close_prog;
+
+	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
+	if (err)
+		goto disable_pmu;
+
+	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
+	if (err)
+		goto disable_pmu;
+
+	/* find map fds */
+	control_map_fd = bpf_find_map(__func__, obj, "control_map");
+	if (control_map_fd < 0)
+		goto disable_pmu;
+
+	stackid_hmap_fd = bpf_find_map(__func__, obj, "stackid_hmap");
+	if (stackid_hmap_fd < 0)
+		goto disable_pmu;
+
+	stackmap_fd = bpf_find_map(__func__, obj, "stackmap");
+	if (stackmap_fd < 0)
+		goto disable_pmu;
+
+	/* give some time for bpf program run */
+	sleep(1);
+
+	/* disable stack trace collection */
+	key = 0;
+	val = 1;
+	bpf_map_update_elem(control_map_fd, &key, &val, 0);
+
+	/* for every element in stackid_hmap, we can find a corresponding one
+	 * in stackmap, and vise versa.
+	 */
+	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
+	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu_noerr;
+
+	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
+	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu_noerr;
+
+	goto disable_pmu_noerr;
+disable_pmu:
+	error_cnt++;
+disable_pmu_noerr:
+	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
+	close(pmu_fd);
+close_prog:
+	bpf_object__close(obj);
+}
+
+static void test_stacktrace_map_raw_tp()
+{
+	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	const char *file = "./test_stacktrace_map.o";
+	int efd, err, prog_fd;
+	__u32 key, val, duration = 0;
+	struct bpf_object *obj;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_RAW_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "prog_load raw tp", "err %d errno %d\n", err, errno))
+		return;
+
+	efd = bpf_raw_tracepoint_open("sched_switch", prog_fd);
+	if (CHECK(efd < 0, "raw_tp_open", "err %d errno %d\n", efd, errno))
+		goto close_prog;
+
+	/* find map fds */
+	control_map_fd = bpf_find_map(__func__, obj, "control_map");
+	if (control_map_fd < 0)
+		goto close_prog;
+
+	stackid_hmap_fd = bpf_find_map(__func__, obj, "stackid_hmap");
+	if (stackid_hmap_fd < 0)
+		goto close_prog;
+
+	stackmap_fd = bpf_find_map(__func__, obj, "stackmap");
+	if (stackmap_fd < 0)
+		goto close_prog;
+
+	/* give some time for bpf program run */
+	sleep(1);
+
+	/* disable stack trace collection */
+	key = 0;
+	val = 1;
+	bpf_map_update_elem(control_map_fd, &key, &val, 0);
+
+	/* for every element in stackid_hmap, we can find a corresponding one
+	 * in stackmap, and vise versa.
+	 */
+	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
+	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
+		  "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
+	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
+		  "err %d errno %d\n", err, errno))
+		goto close_prog;
+
+	goto close_prog_noerr;
+close_prog:
+	error_cnt++;
+close_prog_noerr:
+	bpf_object__close(obj);
+}
+
+static int extract_build_id(char *build_id, size_t size)
+{
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+
+	fp = popen("readelf -n ./urandom_read | grep 'Build ID'", "r");
+	if (fp == NULL)
+		return -1;
+
+	if (getline(&line, &len, fp) == -1)
+		goto err;
+	fclose(fp);
+
+	if (len > size)
+		len = size;
+	memcpy(build_id, line, len);
+	build_id[len] = '\0';
+	return 0;
+err:
+	fclose(fp);
+	return -1;
+}
+
+static void test_stacktrace_build_id(void)
+{
+	int control_map_fd, stackid_hmap_fd, stackmap_fd;
+	const char *file = "./test_stacktrace_build_id.o";
+	int bytes, efd, err, pmu_fd, prog_fd;
+	struct perf_event_attr attr = {};
+	__u32 key, previous_key, val, duration = 0;
+	struct bpf_object *obj;
+	char buf[256];
+	int i, j;
+	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
+	int build_id_matches = 0;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
+		goto out;
+
+	/* Get the ID for the sched/sched_switch tracepoint */
+	snprintf(buf, sizeof(buf),
+		 "/sys/kernel/debug/tracing/events/random/urandom_read/id");
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		goto close_prog;
@@ -929,9 +1106,9 @@ static void test_stacktrace_map()
 		  err, errno))
 		goto disable_pmu;
 
-	/* give some time for bpf program run */
-	sleep(1);
-
+	assert(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")
+	       == 0);
+	assert(system("./urandom_read if=/dev/urandom of=/dev/zero count=4 2> /dev/null") == 0);
 	/* disable stack trace collection */
 	key = 0;
 	val = 1;
@@ -948,7 +1125,40 @@ static void test_stacktrace_map()
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
 		  "err %d errno %d\n", err, errno))
-		; /* fall through */
+		goto disable_pmu;
+
+	err = extract_build_id(buf, 256);
+
+	if (CHECK(err, "get build_id with readelf",
+		  "err %d errno %d\n", err, errno))
+		goto disable_pmu;
+
+	err = bpf_map_get_next_key(stackmap_fd, NULL, &key);
+	if (CHECK(err, "get_next_key from stackmap",
+		  "err %d, errno %d\n", err, errno))
+		goto disable_pmu;
+
+	do {
+		char build_id[64];
+
+		err = bpf_map_lookup_elem(stackmap_fd, &key, id_offs);
+		if (CHECK(err, "lookup_elem from stackmap",
+			  "err %d, errno %d\n", err, errno))
+			goto disable_pmu;
+		for (i = 0; i < PERF_MAX_STACK_DEPTH; ++i)
+			if (id_offs[i].status == BPF_STACK_BUILD_ID_VALID &&
+			    id_offs[i].offset != 0) {
+				for (j = 0; j < 20; ++j)
+					sprintf(build_id + 2 * j, "%02x",
+						id_offs[i].build_id[j] & 0xff);
+				if (strstr(buf, build_id) != NULL)
+					build_id_matches = 1;
+			}
+		previous_key = key;
+	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
+
+	CHECK(build_id_matches < 1, "build id match",
+	      "Didn't find expected build ID from the map");
 
 disable_pmu:
 	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
@@ -965,10 +1175,6 @@ out:
 
 int main(void)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
-
 	test_pkt_access();
 	test_xdp();
 	test_l4lb_all();
@@ -979,6 +1185,8 @@ int main(void)
 	test_obj_name();
 	test_tp_attach_query();
 	test_stacktrace_map();
+	test_stacktrace_build_id();
+	test_stacktrace_map_raw_tp();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;

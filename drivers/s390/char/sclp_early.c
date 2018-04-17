@@ -249,7 +249,7 @@ static void __init sclp_early_console_detect(struct init_sccb *sccb)
 	if (sccb->header.response_code != 0x20)
 		return;
 
-	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
+	if (sclp_early_con_check_vt220(sccb))
 		sclp.has_vt220 = 1;
 
 	if (sclp_early_con_check_linemode(sccb))

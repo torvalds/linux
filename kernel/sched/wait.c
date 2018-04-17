@@ -3,14 +3,7 @@
  *
  * (C) 2004 Nadia Yvette Chambers, Oracle
  */
-#include <linux/init.h>
-#include <linux/export.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
-#include <linux/mm.h>
-#include <linux/wait.h>
-#include <linux/hash.h>
-#include <linux/kthread.h>
+#include "sched.h"
 
 void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, struct lock_class_key *key)
 {
@@ -107,6 +100,7 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 			break;
 		}
 	}
+
 	return nr_exclusive;
 }
 
@@ -317,6 +311,7 @@ int do_wait_intr(wait_queue_head_t *wq, wait_queue_entry_t *wait)
 	spin_unlock(&wq->lock);
 	schedule();
 	spin_lock(&wq->lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(do_wait_intr);
@@ -333,6 +328,7 @@ int do_wait_intr_irq(wait_queue_head_t *wq, wait_queue_entry_t *wait)
 	spin_unlock_irq(&wq->lock);
 	schedule();
 	spin_lock_irq(&wq->lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(do_wait_intr_irq);
@@ -378,6 +374,7 @@ int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, i
 
 	if (ret)
 		list_del_init(&wq_entry->entry);
+
 	return ret;
 }
 EXPORT_SYMBOL(autoremove_wake_function);

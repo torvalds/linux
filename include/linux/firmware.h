@@ -85,4 +85,7 @@ static inline int request_firmware_into_buf(const struct firmware **firmware_p,
 }
 
 #endif
+
+int firmware_request_cache(struct device *device, const char *name);
+
 #endif
