@@ -139,7 +139,7 @@ extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
 
 extern irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data);
-extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
+extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);

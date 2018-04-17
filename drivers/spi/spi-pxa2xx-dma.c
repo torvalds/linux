@@ -144,7 +144,7 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	return IRQ_NONE;
 }
 
-int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
+int pxa2xx_spi_dma_prepare(struct driver_data *drv_data)
 {
 	struct dma_async_tx_descriptor *tx_desc, *rx_desc;
 	int err;
