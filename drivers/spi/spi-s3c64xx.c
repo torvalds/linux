@@ -634,6 +634,7 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 				    struct spi_transfer *xfer)
 {
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	const unsigned int fifo_len = (FIFO_LVL_MASK(sdd) >> 1) + 1;
 	int status;
 	u32 speed;
 	u8 bpw;
@@ -655,9 +656,8 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 
 	/* Polling method for xfers not bigger than FIFO capacity */
 	use_dma = 0;
-	if (!is_polling(sdd) &&
-	    (sdd->rx_dma.ch && sdd->tx_dma.ch &&
-	     (xfer->len > ((FIFO_LVL_MASK(sdd) >> 1) + 1))))
+	if (!is_polling(sdd) && (xfer->len > fifo_len) &&
+	    sdd->rx_dma.ch && sdd->tx_dma.ch)
 		use_dma = 1;
 
 	spin_lock_irqsave(&sdd->lock, flags);
