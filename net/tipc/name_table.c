@@ -241,7 +241,8 @@ err:
 static struct publication *tipc_service_remove_publ(struct net *net,
 						    struct tipc_service *sc,
 						    u32 lower, u32 upper,
-						    u32 node, u32 key)
+						    u32 node, u32 key,
+						    struct service_range **rng)
 {
 	struct tipc_subscription *sub, *tmp;
 	struct service_range *sr;
@@ -275,19 +276,15 @@ static struct publication *tipc_service_remove_publ(struct net *net,
 
 	list_del(&p->all_publ);
 	list_del(&p->local_publ);
-
-	/* Remove service range item if this was its last publication */
-	if (list_empty(&sr->all_publ)) {
+	if (list_empty(&sr->all_publ))
 		last = true;
-		rb_erase(&sr->tree_node, &sc->ranges);
-		kfree(sr);
-	}
 
 	/* Notify any waiting subscriptions */
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, p->lower, p->upper, TIPC_WITHDRAWN,
 					p->port, p->node, p->scope, last);
 	}
+	*rng = sr;
 	return p;
 }
 
@@ -379,13 +376,20 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 					     u32 node, u32 key)
 {
 	struct tipc_service *sc = tipc_service_find(net, type);
+	struct service_range *sr = NULL;
 	struct publication *p = NULL;
 
 	if (!sc)
 		return NULL;
 
 	spin_lock_bh(&sc->lock);
-	p = tipc_service_remove_publ(net, sc, lower, upper, node, key);
+	p = tipc_service_remove_publ(net, sc, lower, upper, node, key, &sr);
+
+	/* Remove service range item if this was its last publication */
+	if (sr && list_empty(&sr->all_publ)) {
+		rb_erase(&sr->tree_node, &sc->ranges);
+		kfree(sr);
+	}
 
 	/* Delete service item if this no more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
@@ -747,16 +751,17 @@ int tipc_nametbl_init(struct net *net)
 static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 {
 	struct service_range *sr, *tmpr;
-	struct publication *p, *tmpb;
+	struct publication *p, *tmp;
 
 	spin_lock_bh(&sc->lock);
 	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_node) {
-		list_for_each_entry_safe(p, tmpb,
-					 &sr->all_publ, all_publ) {
+		list_for_each_entry_safe(p, tmp, &sr->all_publ, all_publ) {
 			tipc_service_remove_publ(net, sc, p->lower, p->upper,
-						 p->node, p->key);
+						 p->node, p->key, &sr);
 			kfree_rcu(p, rcu);
 		}
+		rb_erase(&sr->tree_node, &sc->ranges);
+		kfree(sr);
 	}
 	hlist_del_init_rcu(&sc->service_list);
 	spin_unlock_bh(&sc->lock);
