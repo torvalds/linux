@@ -306,6 +306,7 @@ static inline unsigned int i40e_txd_use_count(unsigned int size)
 struct i40e_tx_buffer {
 	struct i40e_tx_desc *next_to_watch;
 	union {
+		struct xdp_frame *xdpf;
 		struct sk_buff *skb;
 		void *raw_buf;
 	};
