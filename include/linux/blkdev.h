@@ -605,6 +605,11 @@ struct request_queue {
 	 * initialized by the low level device driver (e.g. scsi/sd.c).
 	 * Stacking drivers (device mappers) may or may not initialize
 	 * these fields.
+	 *
+	 * Reads of this information must be protected with blk_queue_enter() /
+	 * blk_queue_exit(). Modifying this information is only allowed while
+	 * no requests are being processed. See also blk_mq_freeze_queue() and
+	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
 	unsigned long		*seq_zones_bitmap;
