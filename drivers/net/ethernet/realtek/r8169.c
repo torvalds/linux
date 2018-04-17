@@ -6713,12 +6713,6 @@ static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 	desc->opts1 = cpu_to_le32(DescOwn | eor | R8169_RX_BUF_SIZE);
 }
 
-static inline void rtl8169_map_to_asic(struct RxDesc *desc, dma_addr_t mapping)
-{
-	desc->addr = cpu_to_le64(mapping);
-	rtl8169_mark_to_asic(desc);
-}
-
 static inline void *rtl8169_align(void *data)
 {
 	return (void *)ALIGN((long)data, 16);
@@ -6751,7 +6745,8 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 		goto err_out;
 	}
 
-	rtl8169_map_to_asic(desc, mapping);
+	desc->addr = cpu_to_le64(mapping);
+	rtl8169_mark_to_asic(desc);
 	return data;
 
 err_out:
