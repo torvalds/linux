@@ -2140,10 +2140,11 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 		return -EIO;
 	}
 
-	wcn36xx_dbg(WCN36XX_DBG_HAL, "scan indication (type %x)", rsp->type);
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "scan indication (type %x)\n", rsp->type);
 
 	switch (rsp->type) {
 	case WCN36XX_HAL_SCAN_IND_FAILED:
+	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
 		scan_info.aborted = true;
 		/* fall through */
 	case WCN36XX_HAL_SCAN_IND_COMPLETED:
@@ -2156,7 +2157,6 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 		break;
 	case WCN36XX_HAL_SCAN_IND_STARTED:
 	case WCN36XX_HAL_SCAN_IND_FOREIGN_CHANNEL:
-	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
 	case WCN36XX_HAL_SCAN_IND_PREEMPTED:
 	case WCN36XX_HAL_SCAN_IND_RESTARTED:
 		break;
