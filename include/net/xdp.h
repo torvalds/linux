@@ -50,6 +50,13 @@ struct xdp_rxq_info {
 	struct xdp_mem_info mem;
 } ____cacheline_aligned; /* perf critical, avoid false-sharing */
 
+struct xdp_buff {
+	void *data;
+	void *data_end;
+	void *data_meta;
+	void *data_hard_start;
+	struct xdp_rxq_info *rxq;
+};
 
 static inline
 void xdp_return_frame(void *data, struct xdp_mem_info *mem)
@@ -71,5 +78,20 @@ void xdp_rxq_info_unused(struct xdp_rxq_info *xdp_rxq);
 bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq);
 int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 			       enum xdp_mem_type type, void *allocator);
+
+/* Drivers not supporting XDP metadata can use this helper, which
+ * rejects any room expansion for metadata as a result.
+ */
+static __always_inline void
+xdp_set_data_meta_invalid(struct xdp_buff *xdp)
+{
+	xdp->data_meta = xdp->data + 1;
+}
+
+static __always_inline bool
+xdp_data_meta_unsupported(const struct xdp_buff *xdp)
+{
+	return unlikely(xdp->data_meta > xdp->data);
+}
 
 #endif /* __LINUX_NET_XDP_H__ */
