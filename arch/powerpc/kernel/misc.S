@@ -85,10 +85,7 @@ _GLOBAL(setjmp)
 	blr
 
 _GLOBAL(longjmp)
-	PPC_LCMPI r4,0
-	bne	1f
-	li	r4,1
-1:	PPC_LL	r13,4*SZL(r3)
+	PPC_LL	r13,4*SZL(r3)
 	PPC_LL	r14,5*SZL(r3)
 	PPC_LL	r15,6*SZL(r3)
 	PPC_LL	r16,7*SZL(r3)
@@ -113,7 +110,9 @@ _GLOBAL(longjmp)
 	PPC_LL	r1,SZL(r3)
 	PPC_LL	r2,2*SZL(r3)
 	mtlr	r0
-	mr	r3,r4
+	mr.	r3, r4
+	bnelr
+	li	r3, 1
 	blr
 
 _GLOBAL(current_stack_pointer)
