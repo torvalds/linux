@@ -6370,7 +6370,7 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	struct device *dev = rx_ring->dev;
 	int orig_node = dev_to_node(dev);
 	int ring_node = -1;
-	int size;
+	int size, err;
 
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
 
@@ -6406,6 +6406,13 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	if (xdp_rxq_info_reg(&rx_ring->xdp_rxq, adapter->netdev,
 			     rx_ring->queue_index) < 0)
 		goto err;
+
+	err = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq,
+					 MEM_TYPE_PAGE_SHARED, NULL);
+	if (err) {
+		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
+		goto err;
+	}
 
 	rx_ring->xdp_prog = adapter->xdp_prog;
 
