@@ -248,11 +248,11 @@ struct veth {
 	__be16 h_vlan_TCI;
 };
 
-bool tun_is_xdp_buff(void *ptr)
+bool tun_is_xdp_frame(void *ptr)
 {
 	return (unsigned long)ptr & TUN_XDP_FLAG;
 }
-EXPORT_SYMBOL(tun_is_xdp_buff);
+EXPORT_SYMBOL(tun_is_xdp_frame);
 
 void *tun_xdp_to_ptr(void *ptr)
 {
@@ -660,10 +660,10 @@ void tun_ptr_free(void *ptr)
 {
 	if (!ptr)
 		return;
-	if (tun_is_xdp_buff(ptr)) {
-		struct xdp_buff *xdp = tun_ptr_to_xdp(ptr);
+	if (tun_is_xdp_frame(ptr)) {
+		struct xdp_frame *xdpf = tun_ptr_to_xdp(ptr);
 
-		put_page(virt_to_head_page(xdp->data));
+		xdp_return_frame(xdpf->data, &xdpf->mem);
 	} else {
 		__skb_array_destroy_skb(ptr);
 	}
@@ -1298,17 +1298,14 @@ static const struct net_device_ops tun_netdev_ops = {
 static int tun_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 {
 	struct tun_struct *tun = netdev_priv(dev);
-	struct xdp_buff *buff = xdp->data_hard_start;
-	int headroom = xdp->data - xdp->data_hard_start;
+	struct xdp_frame *frame;
 	struct tun_file *tfile;
 	u32 numqueues;
 	int ret = 0;
 
-	/* Assure headroom is available and buff is properly aligned */
-	if (unlikely(headroom < sizeof(*xdp) || tun_is_xdp_buff(xdp)))
-		return -ENOSPC;
-
-	*buff = *xdp;
+	frame = convert_to_xdp_frame(xdp);
+	if (unlikely(!frame))
+		return -EOVERFLOW;
 
 	rcu_read_lock();
 
@@ -1323,7 +1320,7 @@ static int tun_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 	/* Encode the XDP flag into lowest bit for consumer to differ
 	 * XDP buffer from sk_buff.
 	 */
-	if (ptr_ring_produce(&tfile->tx_ring, tun_xdp_to_ptr(buff))) {
+	if (ptr_ring_produce(&tfile->tx_ring, tun_xdp_to_ptr(frame))) {
 		this_cpu_inc(tun->pcpu_stats->tx_dropped);
 		ret = -ENOSPC;
 	}
@@ -2001,11 +1998,11 @@ static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 static ssize_t tun_put_user_xdp(struct tun_struct *tun,
 				struct tun_file *tfile,
-				struct xdp_buff *xdp,
+				struct xdp_frame *xdp_frame,
 				struct iov_iter *iter)
 {
 	int vnet_hdr_sz = 0;
-	size_t size = xdp->data_end - xdp->data;
+	size_t size = xdp_frame->len;
 	struct tun_pcpu_stats *stats;
 	size_t ret;
 
@@ -2021,7 +2018,7 @@ static ssize_t tun_put_user_xdp(struct tun_struct *tun,
 		iov_iter_advance(iter, vnet_hdr_sz - sizeof(gso));
 	}
 
-	ret = copy_to_iter(xdp->data, size, iter) + vnet_hdr_sz;
+	ret = copy_to_iter(xdp_frame->data, size, iter) + vnet_hdr_sz;
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
@@ -2189,11 +2186,11 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 			return err;
 	}
 
-	if (tun_is_xdp_buff(ptr)) {
-		struct xdp_buff *xdp = tun_ptr_to_xdp(ptr);
+	if (tun_is_xdp_frame(ptr)) {
+		struct xdp_frame *xdpf = tun_ptr_to_xdp(ptr);
 
-		ret = tun_put_user_xdp(tun, tfile, xdp, to);
-		put_page(virt_to_head_page(xdp->data));
+		ret = tun_put_user_xdp(tun, tfile, xdpf, to);
+		xdp_return_frame(xdpf->data, &xdpf->mem);
 	} else {
 		struct sk_buff *skb = ptr;
 
@@ -2432,10 +2429,10 @@ out_free:
 static int tun_ptr_peek_len(void *ptr)
 {
 	if (likely(ptr)) {
-		if (tun_is_xdp_buff(ptr)) {
-			struct xdp_buff *xdp = tun_ptr_to_xdp(ptr);
+		if (tun_is_xdp_frame(ptr)) {
+			struct xdp_frame *xdpf = tun_ptr_to_xdp(ptr);
 
-			return xdp->data_end - xdp->data;
+			return xdpf->len;
 		}
 		return __skb_array_len_with_tag(ptr);
 	} else {
