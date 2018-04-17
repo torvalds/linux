@@ -336,6 +336,12 @@ struct ath10k_hw_ce_dst_src_wm_regs {
 	struct ath10k_hw_ce_regs_addr_map *wm_low;
 	struct ath10k_hw_ce_regs_addr_map *wm_high; };
 
+struct ath10k_hw_ce_ctrl1_upd {
+	u32 shift;
+	u32 mask;
+	u32 enable;
+};
+
 struct ath10k_hw_ce_regs {
 	u32 sr_base_addr;
 	u32 sr_size_addr;
@@ -358,7 +364,9 @@ struct ath10k_hw_ce_regs {
 	struct ath10k_hw_ce_cmd_halt *cmd_halt;
 	struct ath10k_hw_ce_host_ie *host_ie;
 	struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
-	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr; };
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr;
+	struct ath10k_hw_ce_ctrl1_upd *upd;
+};
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -575,6 +583,9 @@ struct ath10k_hw_params {
 
 	/* target supporting shadow register for ce write */
 	bool shadow_reg_support;
+
+	/* target supporting retention restore on ddr */
+	bool rri_on_ddr;
 };
 
 struct htt_rx_desc;

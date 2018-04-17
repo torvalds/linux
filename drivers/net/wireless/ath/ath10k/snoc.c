@@ -767,6 +767,7 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power down\n");
 
 	ath10k_snoc_wlan_disable(ar);
+	ath10k_ce_free_rri(ar);
 }
 
 static int ath10k_snoc_hif_power_up(struct ath10k *ar)
@@ -781,6 +782,8 @@ static int ath10k_snoc_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
 		return ret;
 	}
+
+	ath10k_ce_alloc_rri(ar);
 
 	ret = ath10k_snoc_init_pipes(ar);
 	if (ret) {

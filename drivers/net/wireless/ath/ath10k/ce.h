@@ -49,6 +49,9 @@ struct ath10k_ce_pipe;
 #define CE_DESC_FLAGS_META_DATA_MASK ar->hw_values->ce_desc_meta_data_mask
 #define CE_DESC_FLAGS_META_DATA_LSB  ar->hw_values->ce_desc_meta_data_lsb
 
+#define CE_DDR_RRI_MASK			GENMASK(15, 0)
+#define CE_DDR_DRRI_SHIFT		16
+
 struct ce_desc {
 	__le32 addr;
 	__le16 nbytes;
@@ -157,6 +160,8 @@ struct ath10k_ce {
 	spinlock_t ce_lock;
 	const struct ath10k_bus_ops *bus_ops;
 	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
+	u32 *vaddr_rri;
+	dma_addr_t paddr_rri;
 };
 
 /*==================Send====================*/
@@ -265,6 +270,8 @@ int ath10k_ce_disable_interrupts(struct ath10k *ar);
 void ath10k_ce_enable_interrupts(struct ath10k *ar);
 void ath10k_ce_dump_registers(struct ath10k *ar,
 			      struct ath10k_fw_crash_data *crash_data);
+void ath10k_ce_alloc_rri(struct ath10k *ar);
+void ath10k_ce_free_rri(struct ath10k *ar);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */
@@ -330,6 +337,9 @@ static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 {
 	return CE0_BASE_ADDRESS + (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS) * ce_id;
 }
+
+#define COPY_ENGINE_ID(COPY_ENGINE_BASE_ADDRESS) (((COPY_ENGINE_BASE_ADDRESS) \
+		- CE0_BASE_ADDRESS) / (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS))
 
 #define CE_SRC_RING_TO_DESC(baddr, idx) \
 	(&(((struct ce_desc *)baddr)[idx]))

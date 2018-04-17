@@ -185,11 +185,30 @@ static inline u32 ath10k_ce_src_ring_write_index_get(struct ath10k *ar,
 				ar->hw_ce_regs->sr_wr_index_addr);
 }
 
+static inline u32 ath10k_ce_src_ring_read_index_from_ddr(struct ath10k *ar,
+							 u32 ce_id)
+{
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	return ce->vaddr_rri[ce_id] & CE_DDR_RRI_MASK;
+}
+
 static inline u32 ath10k_ce_src_ring_read_index_get(struct ath10k *ar,
 						    u32 ce_ctrl_addr)
 {
-	return ath10k_ce_read32(ar, ce_ctrl_addr +
-				ar->hw_ce_regs->current_srri_addr);
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+	u32 ce_id = COPY_ENGINE_ID(ce_ctrl_addr);
+	struct ath10k_ce_pipe *ce_state = &ce->ce_states[ce_id];
+	u32 index;
+
+	if (ar->hw_params.rri_on_ddr &&
+	    (ce_state->attr_flags & CE_ATTR_DIS_INTR))
+		index = ath10k_ce_src_ring_read_index_from_ddr(ar, ce_id);
+	else
+		index = ath10k_ce_read32(ar, ce_ctrl_addr +
+					 ar->hw_ce_regs->current_srri_addr);
+
+	return index;
 }
 
 static inline void
@@ -266,11 +285,31 @@ static inline void ath10k_ce_dest_ring_byte_swap_set(struct ath10k *ar,
 			  ath10k_set_ring_byte(n, ctrl_regs->dst_ring));
 }
 
+static inline
+	u32 ath10k_ce_dest_ring_read_index_from_ddr(struct ath10k *ar, u32 ce_id)
+{
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	return (ce->vaddr_rri[ce_id] >> CE_DDR_DRRI_SHIFT) &
+		CE_DDR_RRI_MASK;
+}
+
 static inline u32 ath10k_ce_dest_ring_read_index_get(struct ath10k *ar,
 						     u32 ce_ctrl_addr)
 {
-	return ath10k_ce_read32(ar, ce_ctrl_addr +
-				ar->hw_ce_regs->current_drri_addr);
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+	u32 ce_id = COPY_ENGINE_ID(ce_ctrl_addr);
+	struct ath10k_ce_pipe *ce_state = &ce->ce_states[ce_id];
+	u32 index;
+
+	if (ar->hw_params.rri_on_ddr &&
+	    (ce_state->attr_flags & CE_ATTR_DIS_INTR))
+		index = ath10k_ce_dest_ring_read_index_from_ddr(ar, ce_id);
+	else
+		index = ath10k_ce_read32(ar, ce_ctrl_addr +
+					 ar->hw_ce_regs->current_drri_addr);
+
+	return index;
 }
 
 static inline void ath10k_ce_dest_ring_base_addr_set(struct ath10k *ar,
@@ -486,7 +525,7 @@ static int _ath10k_ce_send_nolock_64(struct ath10k_ce_pipe *ce_state,
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	struct ce_desc_64 *desc, sdesc;
 	unsigned int nentries_mask = src_ring->nentries_mask;
-	unsigned int sw_index = src_ring->sw_index;
+	unsigned int sw_index;
 	unsigned int write_index = src_ring->write_index;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	__le32 *addr;
@@ -499,6 +538,11 @@ static int _ath10k_ce_send_nolock_64(struct ath10k_ce_pipe *ce_state,
 	if (nbytes > ce_state->src_sz_max)
 		ath10k_warn(ar, "%s: send more we can (nbytes: %d, max: %d)\n",
 			    __func__, nbytes, ce_state->src_sz_max);
+
+	if (ar->hw_params.rri_on_ddr)
+		sw_index = ath10k_ce_src_ring_read_index_from_ddr(ar, ce_state->id);
+	else
+		sw_index = src_ring->sw_index;
 
 	if (unlikely(CE_RING_DELTA(nentries_mask,
 				   write_index, sw_index - 1) <= 0)) {
@@ -1016,7 +1060,10 @@ int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 		src_ring->hw_index = read_index;
 	}
 
-	read_index = src_ring->hw_index;
+	if (ar->hw_params.rri_on_ddr)
+		read_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
+	else
+		read_index = src_ring->hw_index;
 
 	if (read_index == sw_index)
 		return -EIO;
@@ -1841,3 +1888,46 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 	return 0;
 }
 EXPORT_SYMBOL(ath10k_ce_alloc_pipe);
+
+void ath10k_ce_alloc_rri(struct ath10k *ar)
+{
+	int i;
+	u32 value;
+	u32 ctrl1_regs;
+	u32 ce_base_addr;
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	ce->vaddr_rri = dma_alloc_coherent(ar->dev,
+					   (CE_COUNT * sizeof(u32)),
+					   &ce->paddr_rri, GFP_KERNEL);
+
+	if (!ce->vaddr_rri)
+		return;
+
+	ath10k_ce_write32(ar, ar->hw_ce_regs->ce_rri_low,
+			  lower_32_bits(ce->paddr_rri));
+	ath10k_ce_write32(ar, ar->hw_ce_regs->ce_rri_high,
+			  (upper_32_bits(ce->paddr_rri) &
+			  CE_DESC_FLAGS_GET_MASK));
+
+	for (i = 0; i < CE_COUNT; i++) {
+		ctrl1_regs = ar->hw_ce_regs->ctrl1_regs->addr;
+		ce_base_addr = ath10k_ce_base_address(ar, i);
+		value = ath10k_ce_read32(ar, ce_base_addr + ctrl1_regs);
+		value |= ar->hw_ce_regs->upd->mask;
+		ath10k_ce_write32(ar, ce_base_addr + ctrl1_regs, value);
+	}
+
+	memset(ce->vaddr_rri, 0, CE_COUNT * sizeof(u32));
+}
+EXPORT_SYMBOL(ath10k_ce_alloc_rri);
+
+void ath10k_ce_free_rri(struct ath10k *ar)
+{
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+
+	dma_free_coherent(ar->dev, (CE_COUNT * sizeof(u32)),
+			  ce->vaddr_rri,
+			  ce->paddr_rri);
+}
+EXPORT_SYMBOL(ath10k_ce_free_rri);
