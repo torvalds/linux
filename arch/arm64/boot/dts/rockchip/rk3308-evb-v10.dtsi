@@ -256,6 +256,11 @@
 	cpu-supply = <&vdd_core>;
 };
 
+&dmc {
+	center-supply = <&vdd_core>;
+	status = "okay";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
