@@ -32,6 +32,11 @@ const struct of_device_id of_default_bus_match_table[] = {
 	{} /* Empty terminated list */
 };
 
+static const struct of_device_id of_skipped_node_table[] = {
+	{ .compatible = "operating-points-v2", },
+	{} /* Empty terminated list */
+};
+
 static int of_dev_node_match(struct device *dev, void *data)
 {
 	return dev->of_node == data;
@@ -353,6 +358,12 @@ static int of_platform_bus_create(struct device_node *bus,
 	if (strict && (!of_get_property(bus, "compatible", NULL))) {
 		pr_debug("%s() - skipping %pOF, no compatible prop\n",
 			 __func__, bus);
+		return 0;
+	}
+
+	/* Skip nodes for which we don't want to create devices */
+	if (unlikely(of_match_node(of_skipped_node_table, bus))) {
+		pr_debug("%s() - skipping %pOF node\n", __func__, bus);
 		return 0;
 	}
 
