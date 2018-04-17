@@ -68,6 +68,9 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_SOCK_OPS]	= "sock_ops",
 	[BPF_PROG_TYPE_SK_SKB]		= "sk_skb",
 	[BPF_PROG_TYPE_CGROUP_DEVICE]	= "cgroup_device",
+	[BPF_PROG_TYPE_SK_MSG]		= "sk_msg",
+	[BPF_PROG_TYPE_RAW_TRACEPOINT]	= "raw_tracepoint",
+	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR] = "cgroup_sock_addr",
 };
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
