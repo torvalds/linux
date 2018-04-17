@@ -213,7 +213,6 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 	    struct pt_regs *regs)
 {
 	long si_code = FPE_FLTINV;
-	siginfo_t info;
 
 	if (summary & 1) {
 		/* Software-completion summary bit is set, so try to
@@ -228,21 +227,14 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 	}
 	die_if_kernel("Arithmetic fault", regs, 0, NULL);
 
-	clear_siginfo(&info);
-	info.si_signo = SIGFPE;
-	info.si_errno = 0;
-	info.si_code = si_code;
-	info.si_addr = (void __user *) regs->pc;
-	send_sig_info(SIGFPE, &info, current);
+	send_sig_fault(SIGFPE, si_code, (void __user *) regs->pc, 0, current);
 }
 
 asmlinkage void
 do_entIF(unsigned long type, struct pt_regs *regs)
 {
-	siginfo_t info;
 	int signo, code;
 
-	clear_siginfo(&info);
 	if ((regs->ps & ~IPL_MAX) == 0) {
 		if (type == 1) {
 			const unsigned int *data
@@ -272,31 +264,20 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 
 	switch (type) {
 	      case 0: /* breakpoint */
-		info.si_signo = SIGTRAP;
-		info.si_errno = 0;
-		info.si_code = TRAP_BRKPT;
-		info.si_trapno = 0;
-		info.si_addr = (void __user *) regs->pc;
-
 		if (ptrace_cancel_bpt(current)) {
 			regs->pc -= 4;	/* make pc point to former bpt */
 		}
 
-		send_sig_info(SIGTRAP, &info, current);
+		send_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc, 0,
+			       current);
 		return;
 
 	      case 1: /* bugcheck */
-		info.si_signo = SIGTRAP;
-		info.si_errno = 0;
-		info.si_code = TRAP_UNK;
-		info.si_addr = (void __user *) regs->pc;
-		info.si_trapno = 0;
-		send_sig_info(SIGTRAP, &info, current);
+		send_sig_fault(SIGTRAP, TRAP_UNK, (void __user *) regs->pc, 0,
+			       current);
 		return;
 		
 	      case 2: /* gentrap */
-		info.si_addr = (void __user *) regs->pc;
-		info.si_trapno = regs->r16;
 		switch ((long) regs->r16) {
 		case GEN_INTOVF:
 			signo = SIGFPE;
@@ -354,11 +335,8 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			break;
 		}
 
-		info.si_signo = signo;
-		info.si_errno = 0;
-		info.si_code = code;
-		info.si_addr = (void __user *) regs->pc;
-		send_sig_info(signo, &info, current);
+		send_sig_fault(signo, code, (void __user *) regs->pc, regs->r16,
+			       current);
 		return;
 
 	      case 4: /* opDEC */
@@ -382,11 +360,9 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			if (si_code == 0)
 				return;
 			if (si_code > 0) {
-				info.si_signo = SIGFPE;
-				info.si_errno = 0;
-				info.si_code = si_code;
-				info.si_addr = (void __user *) regs->pc;
-				send_sig_info(SIGFPE, &info, current);
+				send_sig_fault(SIGFPE, si_code,
+					       (void __user *) regs->pc, 0,
+					       current);
 				return;
 			}
 		}
@@ -411,11 +387,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		      ;
 	}
 
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code = ILL_ILLOPC;
-	info.si_addr = (void __user *) regs->pc;
-	send_sig_info(SIGILL, &info, current);
+	send_sig_fault(SIGILL, ILL_ILLOPC, (void __user *)regs->pc, 0, current);
 }
 
 /* There is an ifdef in the PALcode in MILO that enables a 
@@ -761,10 +733,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 
 	unsigned long tmp1, tmp2, tmp3, tmp4;
 	unsigned long fake_reg, *reg_addr = &fake_reg;
-	siginfo_t info;
+	int si_code;
 	long error;
-
-	clear_siginfo(&info);
 
 	/* Check the UAC bits to decide what the user wants us to do
 	   with the unaliged access.  */
@@ -986,34 +956,27 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 
 give_sigsegv:
 	regs->pc -= 4;  /* make pc point to faulting insn */
-	info.si_signo = SIGSEGV;
-	info.si_errno = 0;
 
 	/* We need to replicate some of the logic in mm/fault.c,
 	   since we don't have access to the fault code in the
 	   exception handling return path.  */
 	if ((unsigned long)va >= TASK_SIZE)
-		info.si_code = SEGV_ACCERR;
+		si_code = SEGV_ACCERR;
 	else {
 		struct mm_struct *mm = current->mm;
 		down_read(&mm->mmap_sem);
 		if (find_vma(mm, (unsigned long)va))
-			info.si_code = SEGV_ACCERR;
+			si_code = SEGV_ACCERR;
 		else
-			info.si_code = SEGV_MAPERR;
+			si_code = SEGV_MAPERR;
 		up_read(&mm->mmap_sem);
 	}
-	info.si_addr = va;
-	send_sig_info(SIGSEGV, &info, current);
+	send_sig_fault(SIGSEGV, si_code, va, 0, current);
 	return;
 
 give_sigbus:
 	regs->pc -= 4;
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRALN;
-	info.si_addr = va;
-	send_sig_info(SIGBUS, &info, current);
+	send_sig_fault(SIGBUS, BUS_ADRALN, va, 0, current);
 	return;
 }
 
