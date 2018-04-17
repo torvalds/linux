@@ -132,7 +132,7 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 #define RCAR3_THERMAL_GRAN 500 /* mili Celsius */
 
 /* no idea where these constants come from */
-#define TJ_1 96
+#define TJ_1 116
 #define TJ_3 -41
 
 static void rcar_gen3_thermal_calc_coefs(struct equation_coefs *coef,
@@ -146,7 +146,7 @@ static void rcar_gen3_thermal_calc_coefs(struct equation_coefs *coef,
 	 * Division is not scaled in BSP and if scaled it might overflow
 	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
 	 */
-	tj_2 = (FIXPT_INT((ptat[1] - ptat[2]) * 137)
+	tj_2 = (FIXPT_INT((ptat[1] - ptat[2]) * 157)
 		/ (ptat[0] - ptat[2])) - FIXPT_INT(41);
 
 	coef->a1 = FIXPT_DIV(FIXPT_INT(thcode[1] - thcode[2]),
@@ -354,11 +354,11 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 	/* default values if FUSEs are missing */
 	/* TODO: Read values from hardware on supported platforms */
-	int ptat[3] = { 2351, 1509, 435 };
+	int ptat[3] = { 2631, 1509, 435 };
 	int thcode[TSC_MAX_NUM][3] = {
-		{ 3248, 2800, 2221 },
-		{ 3245, 2795, 2216 },
-		{ 3250, 2805, 2237 },
+		{ 3397, 2800, 2221 },
+		{ 3393, 2795, 2216 },
+		{ 3389, 2805, 2237 },
 	};
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
