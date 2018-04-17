@@ -776,7 +776,6 @@ struct rtl8169_private {
 	struct net_device *dev;
 	struct napi_struct napi;
 	u32 msg_enable;
-	u16 txd_version;
 	u16 mac_version;
 	u32 cur_rx; /* Index into the Rx descriptor buffer of next Rx pkt. */
 	u32 cur_tx; /* Index into the Tx descriptor buffer of next Rx pkt. */
@@ -8214,7 +8213,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rtl8169_print_mac_version(tp);
 
 	chipset = tp->mac_version;
-	tp->txd_version = rtl_chip_infos[chipset].txd_version;
 
 	rc = rtl_alloc_irq(tp);
 	if (rc < 0) {
@@ -8299,13 +8297,17 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* Disallow toggling */
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
-	if (tp->txd_version == RTL_TD_0)
+	switch (rtl_chip_infos[chipset].txd_version) {
+	case RTL_TD_0:
 		tp->tso_csum = rtl8169_tso_csum_v1;
-	else if (tp->txd_version == RTL_TD_1) {
+		break;
+	case RTL_TD_1:
 		tp->tso_csum = rtl8169_tso_csum_v2;
 		dev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
-	} else
+		break;
+	default:
 		WARN_ON_ONCE(1);
+	}
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
