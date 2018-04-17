@@ -1029,8 +1029,7 @@ static void pump_transfers(unsigned long data)
 		if (message->is_dma_mapped
 				|| transfer->rx_dma || transfer->tx_dma) {
 			dev_err(&drv_data->pdev->dev,
-				"pump_transfers: mapped transfer length of "
-				"%u is greater than %d\n",
+				"Mapped transfer length of %u is greater than %d\n",
 				transfer->len, MAX_DMA_LEN);
 			message->status = -EINVAL;
 			giveback(drv_data);
@@ -1039,14 +1038,13 @@ static void pump_transfers(unsigned long data)
 
 		/* warn ... we force this to PIO mode */
 		dev_warn_ratelimited(&message->spi->dev,
-				     "pump_transfers: DMA disabled for transfer length %ld "
-				     "greater than %d\n",
+				     "DMA disabled for transfer length %ld greater than %d\n",
 				     (long)drv_data->len, MAX_DMA_LEN);
 	}
 
 	/* Setup the transfer state based on the type of transfer */
 	if (pxa2xx_spi_flush(drv_data) == 0) {
-		dev_err(&drv_data->pdev->dev, "pump_transfers: flush failed\n");
+		dev_err(&drv_data->pdev->dev, "Flush failed\n");
 		message->status = -EIO;
 		giveback(drv_data);
 		return;
@@ -1095,7 +1093,7 @@ static void pump_transfers(unsigned long data)
 						bits, &dma_burst,
 						&dma_thresh))
 			dev_warn_ratelimited(&message->spi->dev,
-					     "pump_transfers: DMA burst size reduced to match bits_per_word\n");
+					     "DMA burst size reduced to match bits_per_word\n");
 	}
 
 	message->state = RUNNING_STATE;
