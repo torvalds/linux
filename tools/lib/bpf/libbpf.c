@@ -1859,6 +1859,9 @@ static void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 
 #define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
 
+#define BPF_S_PROG_SEC(string, ptype) \
+	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK, ptype)
+
 #define BPF_SA_PROG_SEC(string, ptype) \
 	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
 
@@ -1889,10 +1892,13 @@ static const struct {
 	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
 	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
 	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
+	BPF_S_PROG_SEC("cgroup/post_bind4", BPF_CGROUP_INET4_POST_BIND),
+	BPF_S_PROG_SEC("cgroup/post_bind6", BPF_CGROUP_INET6_POST_BIND),
 };
 
 #undef BPF_PROG_SEC
 #undef BPF_PROG_SEC_FULL
+#undef BPF_S_PROG_SEC
 #undef BPF_SA_PROG_SEC
 
 static int bpf_program__identify_section(struct bpf_program *prog)
