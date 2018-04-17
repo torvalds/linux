@@ -2775,6 +2775,61 @@ static inline int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *req)
 }
 #endif /* CONFIG_TI_CPTS */
 
+static int gbe_set_rx_mode(void *intf_priv, bool promisc)
+{
+	struct gbe_intf *gbe_intf = intf_priv;
+	struct gbe_priv *gbe_dev = gbe_intf->gbe_dev;
+	struct cpsw_ale *ale = gbe_dev->ale;
+	unsigned long timeout;
+	int i, ret = -ETIMEDOUT;
+
+	/* Disable(1)/Enable(0) Learn for all ports (host is port 0 and
+	 * slaves are port 1 and up
+	 */
+	for (i = 0; i <= gbe_dev->num_slaves; i++) {
+		cpsw_ale_control_set(ale, i,
+				     ALE_PORT_NOLEARN, !!promisc);
+		cpsw_ale_control_set(ale, i,
+				     ALE_PORT_NO_SA_UPDATE, !!promisc);
+	}
+
+	if (!promisc) {
+		/* Don't Flood All Unicast Packets to Host port */
+		cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 0);
+		dev_vdbg(gbe_dev->dev, "promiscuous mode disabled\n");
+		return 0;
+	}
+
+	timeout = jiffies + HZ;
+
+	/* Clear All Untouched entries */
+	cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
+	do {
+		cpu_relax();
+		if (cpsw_ale_control_get(ale, 0, ALE_AGEOUT)) {
+			ret = 0;
+			break;
+		}
+
+	} while (time_after(timeout, jiffies));
+
+	/* Make sure it is not a false timeout */
+	if (ret && !cpsw_ale_control_get(ale, 0, ALE_AGEOUT))
+		return ret;
+
+	cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
+
+	/* Clear all mcast from ALE */
+	cpsw_ale_flush_multicast(ale,
+				 GBE_PORT_MASK(gbe_dev->ale_ports),
+				 -1);
+
+	/* Flood All Unicast Packets to Host port */
+	cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
+	dev_vdbg(gbe_dev->dev, "promiscuous mode enabled\n");
+	return ret;
+}
+
 static int gbe_ioctl(void *intf_priv, struct ifreq *req, int cmd)
 {
 	struct gbe_intf *gbe_intf = intf_priv;
@@ -3529,6 +3584,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		gbe_dev->max_num_slaves = 8;
 	} else if (of_device_is_compatible(node, "ti,netcp-gbe-2")) {
 		gbe_dev->max_num_slaves = 1;
+		gbe_module.set_rx_mode = gbe_set_rx_mode;
 	} else if (of_device_is_compatible(node, "ti,netcp-xgbe")) {
 		gbe_dev->max_num_slaves = 2;
 	} else {
