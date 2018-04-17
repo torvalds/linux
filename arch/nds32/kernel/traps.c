@@ -318,29 +318,22 @@ void do_debug_trap(unsigned long entry, unsigned long addr,
 
 void unhandled_interruption(struct pt_regs *regs)
 {
-	siginfo_t si;
 	pr_emerg("unhandled_interruption\n");
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGKILL);
-	si.si_signo = SIGKILL;
-	si.si_errno = 0;
-	force_sig_info(SIGKILL, &si, current);
+	force_sig(SIGKILL, current);
 }
 
 void unhandled_exceptions(unsigned long entry, unsigned long addr,
 			  unsigned long type, struct pt_regs *regs)
 {
-	siginfo_t si;
 	pr_emerg("Unhandled Exception: entry: %lx addr:%lx itype:%lx\n", entry,
 		 addr, type);
 	show_regs(regs);
 	if (!user_mode(regs))
 		do_exit(SIGKILL);
-	si.si_signo = SIGKILL;
-	si.si_errno = 0;
-	si.si_addr = (void *)addr;
-	force_sig_info(SIGKILL, &si, current);
+	force_sig(SIGKILL, current);
 }
 
 extern int do_page_fault(unsigned long entry, unsigned long addr,
