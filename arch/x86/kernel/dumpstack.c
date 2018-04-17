@@ -72,29 +72,24 @@ static void printk_stack_address(unsigned long address, int reliable,
 
 static void show_opcodes(u8 *rip)
 {
-	unsigned int code_prologue = OPCODE_BUFSIZE * 43 / 64;
-	unsigned int code_len = OPCODE_BUFSIZE;
-	unsigned char c;
+	unsigned int code_prologue = OPCODE_BUFSIZE * 2 / 3;
+	u8 opcodes[OPCODE_BUFSIZE];
 	u8 *ip;
 	int i;
 
 	printk(KERN_DEFAULT "Code: ");
 
 	ip = (u8 *)rip - code_prologue;
-	if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
-		/* try starting at IP */
-		ip = (u8 *)rip;
-		code_len = code_len - code_prologue + 1;
+	if (probe_kernel_read(opcodes, ip, OPCODE_BUFSIZE)) {
+		pr_cont("Bad RIP value.\n");
+		return;
 	}
-	for (i = 0; i < code_len; i++, ip++) {
-		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
-			pr_cont(" Bad RIP value.");
-			break;
-		}
-		if (ip == (u8 *)rip)
-			pr_cont("<%02x> ", c);
+
+	for (i = 0; i < OPCODE_BUFSIZE; i++, ip++) {
+		if (ip == rip)
+			pr_cont("<%02x> ", opcodes[i]);
 		else
-			pr_cont("%02x ", c);
+			pr_cont("%02x ", opcodes[i]);
 	}
 	pr_cont("\n");
 }
@@ -402,6 +397,10 @@ void show_regs(struct pt_regs *regs)
 	 */
 	if (!user_mode(regs)) {
 		show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
-		show_opcodes((u8 *)regs->ip);
+
+		if (regs->ip < PAGE_OFFSET)
+			printk(KERN_DEFAULT "Code: Bad RIP value.\n");
+		else
+			show_opcodes((u8 *)regs->ip);
 	}
 }
