@@ -7432,8 +7432,7 @@ release_descriptor:
 
 static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 {
-	struct net_device *dev = dev_instance;
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_instance;
 	int handled = 0;
 	u16 status;
 
@@ -7605,7 +7604,7 @@ static int rtl8169_close(struct net_device *dev)
 
 	cancel_work_sync(&tp->wk.work);
 
-	pci_free_irq(pdev, 0, dev);
+	pci_free_irq(pdev, 0, tp);
 
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			  tp->RxPhyAddr);
@@ -7660,7 +7659,7 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_request_firmware(tp);
 
-	retval = pci_request_irq(pdev, 0, rtl8169_interrupt, NULL, dev,
+	retval = pci_request_irq(pdev, 0, rtl8169_interrupt, NULL, tp,
 				 dev->name);
 	if (retval < 0)
 		goto err_release_fw_2;
