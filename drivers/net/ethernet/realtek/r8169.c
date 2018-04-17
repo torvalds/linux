@@ -6784,9 +6784,6 @@ static int rtl8169_rx_fill(struct rtl8169_private *tp)
 	for (i = 0; i < NUM_RX_DESC; i++) {
 		void *data;
 
-		if (tp->Rx_databuff[i])
-			continue;
-
 		data = rtl8169_alloc_rx_data(tp, tp->RxDescArray + i);
 		if (!data) {
 			rtl8169_make_unusable_by_asic(tp->RxDescArray + i);
