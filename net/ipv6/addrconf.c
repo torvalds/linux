@@ -2901,6 +2901,11 @@ static int inet6_addr_add(struct net *net, int ifindex,
 					      expires, flags);
 		}
 
+		/* Send a netlink notification if DAD is enabled and
+		 * optimistic flag is not set
+		 */
+		if (!(ifp->flags & (IFA_F_OPTIMISTIC | IFA_F_NODAD)))
+			ipv6_ifa_notify(0, ifp);
 		/*
 		 * Note that section 3.1 of RFC 4429 indicates
 		 * that the Optimistic flag should not be set for
@@ -5027,14 +5032,6 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 	struct sk_buff *skb;
 	struct net *net = dev_net(ifa->idev->dev);
 	int err = -ENOBUFS;
-
-	/* Don't send DELADDR notification for TENTATIVE address,
-	 * since NEWADDR notification is sent only after removing
-	 * TENTATIVE flag, if DAD has not failed.
-	 */
-	if (ifa->flags & IFA_F_TENTATIVE && !(ifa->flags & IFA_F_DADFAILED) &&
-	    event == RTM_DELADDR)
-		return;
 
 	skb = nlmsg_new(inet6_ifaddr_msgsize(), GFP_ATOMIC);
 	if (!skb)
