@@ -260,7 +260,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		dpp->funcs->dpp_read_state(dpp, &s);
 
 		DTN_INFO("[%2d]:  %11xh  %-11s  %-11s  %-11s"
-				"%08xh   %08xh %08xh %08xh %08xh %08xh %08xh",
+				"%8x    %08xh %08xh %08xh %08xh %08xh %08xh",
 				dpp->inst,
 				s.igam_input_format,
 				(s.igam_lut_mode == 0) ? "BypassFixed" :
