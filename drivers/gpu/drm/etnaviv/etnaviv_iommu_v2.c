@@ -47,8 +47,8 @@ struct etnaviv_iommuv2_domain {
 	u32 *mtlb_cpu;
 	dma_addr_t mtlb_dma;
 	/* S(lave) TLB aka second level pagetable */
-	u32 *stlb_cpu[1024];
-	dma_addr_t stlb_dma[1024];
+	u32 *stlb_cpu[MMUv2_MAX_STLB_ENTRIES];
+	dma_addr_t stlb_dma[MMUv2_MAX_STLB_ENTRIES];
 };
 
 static struct etnaviv_iommuv2_domain *
@@ -57,13 +57,36 @@ to_etnaviv_domain(struct etnaviv_iommu_domain *domain)
 	return container_of(domain, struct etnaviv_iommuv2_domain, base);
 }
 
+static int
+etnaviv_iommuv2_ensure_stlb(struct etnaviv_iommuv2_domain *etnaviv_domain,
+			    int stlb)
+{
+	if (etnaviv_domain->stlb_cpu[stlb])
+		return 0;
+
+	etnaviv_domain->stlb_cpu[stlb] =
+			dma_alloc_wc(etnaviv_domain->base.dev, SZ_4K,
+				     &etnaviv_domain->stlb_dma[stlb],
+				     GFP_KERNEL);
+
+	if (!etnaviv_domain->stlb_cpu[stlb])
+		return -ENOMEM;
+
+	memset32(etnaviv_domain->stlb_cpu[stlb], MMUv2_PTE_EXCEPTION,
+		 SZ_4K / sizeof(u32));
+
+	etnaviv_domain->mtlb_cpu[stlb] = etnaviv_domain->stlb_dma[stlb] |
+						      MMUv2_PTE_PRESENT;
+	return 0;
+}
+
 static int etnaviv_iommuv2_map(struct etnaviv_iommu_domain *domain,
 			       unsigned long iova, phys_addr_t paddr,
 			       size_t size, int prot)
 {
 	struct etnaviv_iommuv2_domain *etnaviv_domain =
 			to_etnaviv_domain(domain);
-	int mtlb_entry, stlb_entry;
+	int mtlb_entry, stlb_entry, ret;
 	u32 entry = (u32)paddr | MMUv2_PTE_PRESENT;
 
 	if (size != SZ_4K)
@@ -74,6 +97,10 @@ static int etnaviv_iommuv2_map(struct etnaviv_iommu_domain *domain,
 
 	mtlb_entry = (iova & MMUv2_MTLB_MASK) >> MMUv2_MTLB_SHIFT;
 	stlb_entry = (iova & MMUv2_STLB_MASK) >> MMUv2_STLB_SHIFT;
+
+	ret = etnaviv_iommuv2_ensure_stlb(etnaviv_domain, mtlb_entry);
+	if (ret)
+		return ret;
 
 	etnaviv_domain->stlb_cpu[mtlb_entry][stlb_entry] = entry;
 
@@ -101,7 +128,7 @@ static size_t etnaviv_iommuv2_unmap(struct etnaviv_iommu_domain *domain,
 static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 {
 	u32 *p;
-	int ret, i, j;
+	int ret, i;
 
 	/* allocate scratch page */
 	etnaviv_domain->base.bad_page_cpu =
@@ -132,23 +159,8 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 		goto fail_mem;
 	}
 
-	/* pre-populate STLB pages (may want to switch to on-demand later) */
-	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++) {
-		etnaviv_domain->stlb_cpu[i] =
-				dma_alloc_wc(etnaviv_domain->base.dev, SZ_4K,
-					     &etnaviv_domain->stlb_dma[i],
-					     GFP_KERNEL);
-		if (!etnaviv_domain->stlb_cpu[i]) {
-			ret = -ENOMEM;
-			goto fail_mem;
-		}
-		p = etnaviv_domain->stlb_cpu[i];
-		for (j = 0; j < SZ_4K / 4; j++)
-			*p++ = MMUv2_PTE_EXCEPTION;
-
-		etnaviv_domain->mtlb_cpu[i] = etnaviv_domain->stlb_dma[i] |
-					      MMUv2_PTE_PRESENT;
-	}
+	memset32(etnaviv_domain->mtlb_cpu, MMUv2_PTE_EXCEPTION,
+		 MMUv2_MAX_STLB_ENTRIES);
 
 	return 0;
 
@@ -165,13 +177,6 @@ fail_mem:
 	if (etnaviv_domain->mtlb_cpu)
 		dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
 			    etnaviv_domain->mtlb_cpu, etnaviv_domain->mtlb_dma);
-
-	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++) {
-		if (etnaviv_domain->stlb_cpu[i])
-			dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
-				    etnaviv_domain->stlb_cpu[i],
-				    etnaviv_domain->stlb_dma[i]);
-	}
 
 	return ret;
 }
