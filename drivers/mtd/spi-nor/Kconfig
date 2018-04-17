@@ -71,7 +71,7 @@ config SPI_FSL_QUADSPI
 config SPI_HISI_SFC
 	tristate "Hisilicon SPI-NOR Flash Controller(SFC)"
 	depends on ARCH_HISI || COMPILE_TEST
-	depends on HAS_IOMEM && HAS_DMA
+	depends on HAS_IOMEM
 	help
 	  This enables support for hisilicon SPI-NOR flash controller.
 
