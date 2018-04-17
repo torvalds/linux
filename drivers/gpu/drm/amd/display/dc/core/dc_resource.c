@@ -1310,6 +1310,19 @@ bool dc_add_all_planes_for_stream(
 }
 
 
+static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
+	struct dc_stream_state *new_stream)
+{
+	if (cur_stream == NULL)
+		return true;
+
+	if (memcmp(&cur_stream->hdr_static_metadata,
+			&new_stream->hdr_static_metadata,
+			sizeof(struct dc_info_packet)) != 0)
+		return true;
+
+	return false;
+}
 
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
@@ -1343,6 +1356,9 @@ static bool are_stream_backends_same(
 		return false;
 
 	if (is_timing_changed(stream_a, stream_b))
+		return false;
+
+	if (is_hdr_static_meta_changed(stream_a, stream_b))
 		return false;
 
 	return true;
@@ -2548,6 +2564,8 @@ bool pipe_need_reprogram(
 	if (is_timing_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
+	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
+		return true;
 
 	return false;
 }
