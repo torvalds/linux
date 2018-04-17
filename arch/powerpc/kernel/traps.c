@@ -969,7 +969,7 @@ void unknown_exception(struct pt_regs *regs)
 	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
 	       regs->nip, regs->msr, regs->trap);
 
-	_exception(SIGTRAP, regs, TRAP_FIXME, 0);
+	_exception(SIGTRAP, regs, TRAP_UNK, 0);
 
 	exception_exit(prev_state);
 }
@@ -991,7 +991,7 @@ bail:
 
 void RunModeException(struct pt_regs *regs)
 {
-	_exception(SIGTRAP, regs, TRAP_FIXME, 0);
+	_exception(SIGTRAP, regs, TRAP_UNK, 0);
 }
 
 void single_step_exception(struct pt_regs *regs)
