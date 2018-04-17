@@ -1139,7 +1139,7 @@ static int save_mixer_state(struct cmipci *cm)
 		struct snd_ctl_elem_value *val;
 		unsigned int i;
 
-		val = kmalloc(sizeof(*val), GFP_ATOMIC);
+		val = kmalloc(sizeof(*val), GFP_KERNEL);
 		if (!val)
 			return -ENOMEM;
 		for (i = 0; i < CM_SAVED_MIXERS; i++) {
