@@ -2692,6 +2692,7 @@ static unsigned long xdp_get_metalen(const struct xdp_buff *xdp)
 
 BPF_CALL_2(bpf_xdp_adjust_head, struct xdp_buff *, xdp, int, offset)
 {
+	void *xdp_frame_end = xdp->data_hard_start + sizeof(struct xdp_frame);
 	unsigned long metalen = xdp_get_metalen(xdp);
 	void *data_start = xdp->data_hard_start + metalen;
 	void *data = xdp->data + offset;
@@ -2699,6 +2700,13 @@ BPF_CALL_2(bpf_xdp_adjust_head, struct xdp_buff *, xdp, int, offset)
 	if (unlikely(data < data_start ||
 		     data > xdp->data_end - ETH_HLEN))
 		return -EINVAL;
+
+	/* Avoid info leak, when reusing area prev used by xdp_frame */
+	if (data < xdp_frame_end) {
+		unsigned long clearlen = xdp_frame_end - data;
+
+		memset(data, 0, clearlen);
+	}
 
 	if (metalen)
 		memmove(xdp->data_meta + offset,
