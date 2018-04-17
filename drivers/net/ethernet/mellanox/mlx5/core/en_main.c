@@ -35,6 +35,7 @@
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
 #include <linux/bpf.h>
+#include <net/page_pool.h>
 #include "eswitch.h"
 #include "en.h"
 #include "en_tc.h"
@@ -389,10 +390,11 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			  struct mlx5e_rq_param *rqp,
 			  struct mlx5e_rq *rq)
 {
+	struct page_pool_params pp_params = { 0 };
 	struct mlx5_core_dev *mdev = c->mdev;
 	void *rqc = rqp->rqc;
 	void *rqc_wq = MLX5_ADDR_OF(rqc, rqc, wq);
-	u32 byte_count;
+	u32 byte_count, pool_size;
 	int npages;
 	int wq_sz;
 	int err;
@@ -432,9 +434,12 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 	rq->buff.map_dir = rq->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 	rq->buff.headroom = mlx5e_get_rq_headroom(mdev, params);
+	pool_size = 1 << params->log_rq_mtu_frames;
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+
+		pool_size = MLX5_MPWRQ_PAGES_PER_WQE << mlx5e_mpwqe_get_log_rq_size(params);
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
@@ -512,13 +517,31 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->mkey_be = c->mkey_be;
 	}
 
-	/* This must only be activate for order-0 pages */
-	if (rq->xdp_prog) {
-		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
-						 MEM_TYPE_PAGE_ORDER0, NULL);
-		if (err)
-			goto err_rq_wq_destroy;
+	/* Create a page_pool and register it with rxq */
+	pp_params.order     = rq->buff.page_order;
+	pp_params.flags     = 0; /* No-internal DMA mapping in page_pool */
+	pp_params.pool_size = pool_size;
+	pp_params.nid       = cpu_to_node(c->cpu);
+	pp_params.dev       = c->pdev;
+	pp_params.dma_dir   = rq->buff.map_dir;
+
+	/* page_pool can be used even when there is no rq->xdp_prog,
+	 * given page_pool does not handle DMA mapping there is no
+	 * required state to clear. And page_pool gracefully handle
+	 * elevated refcnt.
+	 */
+	rq->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(rq->page_pool)) {
+		if (rq->wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
+			kfree(rq->wqe.frag_info);
+		err = PTR_ERR(rq->page_pool);
+		rq->page_pool = NULL;
+		goto err_rq_wq_destroy;
 	}
+	err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
+					 MEM_TYPE_PAGE_POOL, rq->page_pool);
+	if (err)
+		goto err_rq_wq_destroy;
 
 	for (i = 0; i < wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
@@ -556,6 +579,8 @@ err_rq_wq_destroy:
 	if (rq->xdp_prog)
 		bpf_prog_put(rq->xdp_prog);
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
+	if (rq->page_pool)
+		page_pool_destroy(rq->page_pool);
 	mlx5_wq_destroy(&rq->wq_ctrl);
 
 	return err;
@@ -569,6 +594,8 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 		bpf_prog_put(rq->xdp_prog);
 
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
+	if (rq->page_pool)
+		page_pool_destroy(rq->page_pool);
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
