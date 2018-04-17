@@ -25,23 +25,12 @@
 /*
  * Returns (address we are running at) - (address we were linked at)
  * for use before the text and data are mapped to KERNELBASE.
+
+ * add_reloc_offset(x) returns x + reloc_offset().
  */
 
 _GLOBAL(reloc_offset)
-	mflr	r0
-	bl	1f
-1:	mflr	r3
-	PPC_LL	r4,(2f-1b)(r3)
-	subf	r3,r4,r3
-	mtlr	r0
-	blr
-
-	.align	3
-2:	PPC_LONG 1b
-
-/*
- * add_reloc_offset(x) returns x + reloc_offset().
- */
+	li	r3, 0
 _GLOBAL(add_reloc_offset)
 	mflr	r0
 	bl	1f
