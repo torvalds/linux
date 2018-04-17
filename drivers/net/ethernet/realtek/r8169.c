@@ -88,6 +88,7 @@ static const int multicast_filter_limit = 32;
 #define InterFrameGap	0x03	/* 3 means InterFrameGap = the shortest one */
 
 #define R8169_REGS_SIZE		256
+#define R8169_RX_BUF_SIZE	(SZ_16K - 1)
 #define NUM_TX_DESC	64	/* Number of Tx descriptor registers */
 #define NUM_RX_DESC	256U	/* Number of Rx descriptor registers */
 #define R8169_TX_RING_BYTES	(NUM_TX_DESC * sizeof(struct TxDesc))
@@ -343,7 +344,6 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
-static int rx_buf_sz = 16383;
 static int use_dac = -1;
 static struct {
 	u32 msg_enable;
@@ -5385,10 +5385,10 @@ static u16 rtl_rw_cpluscmd(struct rtl8169_private *tp)
 	return cmd;
 }
 
-static void rtl_set_rx_max_size(struct rtl8169_private *tp, unsigned int rx_buf_sz)
+static void rtl_set_rx_max_size(struct rtl8169_private *tp)
 {
 	/* Low hurts. Let's disable the filtering. */
-	RTL_W16(tp, RxMaxSize, rx_buf_sz + 1);
+	RTL_W16(tp, RxMaxSize, R8169_RX_BUF_SIZE + 1);
 }
 
 static void rtl8169_set_magic_reg(struct rtl8169_private *tp, unsigned mac_version)
@@ -5489,7 +5489,7 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
 
-	rtl_set_rx_max_size(tp, rx_buf_sz);
+	rtl_set_rx_max_size(tp);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_01 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_02 ||
@@ -6329,7 +6329,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
-	rtl_set_rx_max_size(tp, rx_buf_sz);
+	rtl_set_rx_max_size(tp);
 
 	tp->cp_cmd |= RTL_R16(tp, CPlusCmd) | PktCntrDisable | INTT_1;
 
@@ -6613,7 +6613,7 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
-	rtl_set_rx_max_size(tp, rx_buf_sz);
+	rtl_set_rx_max_size(tp);
 
 	tp->cp_cmd &= ~R810X_CPCMD_QUIRK_MASK;
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
@@ -6695,29 +6695,28 @@ static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
 static void rtl8169_free_rx_databuff(struct rtl8169_private *tp,
 				     void **data_buff, struct RxDesc *desc)
 {
-	dma_unmap_single(tp_to_dev(tp), le64_to_cpu(desc->addr), rx_buf_sz,
-			 DMA_FROM_DEVICE);
+	dma_unmap_single(tp_to_dev(tp), le64_to_cpu(desc->addr),
+			 R8169_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
 	kfree(*data_buff);
 	*data_buff = NULL;
 	rtl8169_make_unusable_by_asic(desc);
 }
 
-static inline void rtl8169_mark_to_asic(struct RxDesc *desc, u32 rx_buf_sz)
+static inline void rtl8169_mark_to_asic(struct RxDesc *desc)
 {
 	u32 eor = le32_to_cpu(desc->opts1) & RingEnd;
 
 	/* Force memory writes to complete before releasing descriptor */
 	dma_wmb();
 
-	desc->opts1 = cpu_to_le32(DescOwn | eor | rx_buf_sz);
+	desc->opts1 = cpu_to_le32(DescOwn | eor | R8169_RX_BUF_SIZE);
 }
 
-static inline void rtl8169_map_to_asic(struct RxDesc *desc, dma_addr_t mapping,
-				       u32 rx_buf_sz)
+static inline void rtl8169_map_to_asic(struct RxDesc *desc, dma_addr_t mapping)
 {
 	desc->addr = cpu_to_le64(mapping);
-	rtl8169_mark_to_asic(desc, rx_buf_sz);
+	rtl8169_mark_to_asic(desc);
 }
 
 static inline void *rtl8169_align(void *data)
@@ -6733,18 +6732,18 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 	struct device *d = tp_to_dev(tp);
 	int node = dev_to_node(d);
 
-	data = kmalloc_node(rx_buf_sz, GFP_KERNEL, node);
+	data = kmalloc_node(R8169_RX_BUF_SIZE, GFP_KERNEL, node);
 	if (!data)
 		return NULL;
 
 	if (rtl8169_align(data) != data) {
 		kfree(data);
-		data = kmalloc_node(rx_buf_sz + 15, GFP_KERNEL, node);
+		data = kmalloc_node(R8169_RX_BUF_SIZE + 15, GFP_KERNEL, node);
 		if (!data)
 			return NULL;
 	}
 
-	mapping = dma_map_single(d, rtl8169_align(data), rx_buf_sz,
+	mapping = dma_map_single(d, rtl8169_align(data), R8169_RX_BUF_SIZE,
 				 DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(d, mapping))) {
 		if (net_ratelimit())
@@ -6752,7 +6751,7 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 		goto err_out;
 	}
 
-	rtl8169_map_to_asic(desc, mapping, rx_buf_sz);
+	rtl8169_map_to_asic(desc, mapping);
 	return data;
 
 err_out:
@@ -6864,7 +6863,7 @@ static void rtl_reset_work(struct rtl8169_private *tp)
 	rtl8169_hw_reset(tp);
 
 	for (i = 0; i < NUM_RX_DESC; i++)
-		rtl8169_mark_to_asic(tp->RxDescArray + i, rx_buf_sz);
+		rtl8169_mark_to_asic(tp->RxDescArray + i);
 
 	rtl8169_tx_clear(tp);
 	rtl8169_init_ring_indexes(tp);
@@ -7444,7 +7443,7 @@ process_pkt:
 		}
 release_descriptor:
 		desc->opts2 = 0;
-		rtl8169_mark_to_asic(desc, rx_buf_sz);
+		rtl8169_mark_to_asic(desc);
 	}
 
 	count = cur_rx - tp->cur_rx;
