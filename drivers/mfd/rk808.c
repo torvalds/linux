@@ -2,7 +2,7 @@
 /*
  * MFD core driver for Rockchip RK808/RK818
  *
- * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2014-2018, Fuzhou Rockchip Electronics Co., Ltd
  *
  * Author: Chris Zhong <zyw@rock-chips.com>
  * Author: Zhang Qing <zhangqing@rock-chips.com>
@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/devinfo.h>
@@ -640,6 +641,86 @@ static int rk817_pinctrl_init(struct device *dev, struct rk808 *rk808)
 	return 0;
 }
 
+struct rk817_reboot_data_t {
+	struct rk808 *rk808;
+	struct notifier_block reboot_notifier;
+};
+
+static struct rk817_reboot_data_t rk817_reboot_data;
+
+static int rk817_reboot_notifier_handler(struct notifier_block *nb,
+					 unsigned long action, void *cmd)
+{
+	struct rk817_reboot_data_t *data;
+	struct device *dev;
+	int value, power_en_active0, power_en_active1;
+	int ret, i;
+	static const char * const pmic_rst_reg_only_cmd[] = {
+		"loader", "bootloader", "fastboot", "recovery",
+		"ums", "panic", "watchdog", "charge",
+	};
+
+	data = container_of(nb, struct rk817_reboot_data_t, reboot_notifier);
+	dev = &data->rk808->i2c->dev;
+
+	regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE0,
+		    &power_en_active0);
+	if (power_en_active0 != 0) {
+		regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE1,
+			    &power_en_active1);
+		value = power_en_active0 & 0x0f;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(0),
+			     value | 0xf0);
+		value = (power_en_active0 & 0xf0) >> 4;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(1),
+			     value | 0xf0);
+		value = power_en_active1 & 0x0f;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(2),
+			     value | 0xf0);
+		value = (power_en_active1 & 0xf0) >> 4;
+		regmap_write(data->rk808->regmap,
+			     RK817_POWER_EN_REG(3),
+			     value | 0xf0);
+	} else {
+		dev_info(dev, "reboot: not restore POWER_EN\n");
+	}
+
+	if (action != SYS_RESTART || !cmd)
+		return NOTIFY_OK;
+
+	/*
+	 * When system restart, there are two rst actions of PMIC sleep if
+	 * board hardware support:
+	 *
+	 *	0b'00: reset the PMIC itself completely.
+	 *	0b'01: reset the 'RST' related register only.
+	 *
+	 * In the case of 0b'00, PMIC reset itself which triggers SoC NPOR-reset
+	 * at the same time, so the command: reboot load/bootload/recovery, etc
+	 * is not effect any more.
+	 *
+	 * Here we check if this reboot cmd is what we expect for 0b'01.
+	 */
+	for (i = 0; i < ARRAY_SIZE(pmic_rst_reg_only_cmd); i++) {
+		if (!strcmp(cmd, pmic_rst_reg_only_cmd[i])) {
+			ret = regmap_update_bits(data->rk808->regmap,
+						 RK817_SYS_CFG(3),
+						 RK817_RST_FUNC_MSK,
+						 RK817_RST_FUNC_REG);
+			if (ret)
+				dev_err(dev, "reboot: force RK817_RST_FUNC_REG error!\n");
+			else
+				dev_info(dev, "reboot: force RK817_RST_FUNC_REG ok!\n");
+			break;
+		}
+	}
+
+	return NOTIFY_OK;
+}
+
 static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 {
 	u32 inner;
@@ -672,6 +753,13 @@ static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 	regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3), msk, val);
 
 	dev_info(dev, "support pmic reset mode:%d,%d\n", ret, func);
+
+	rk817_reboot_data.rk808 = rk808;
+	rk817_reboot_data.reboot_notifier.notifier_call =
+		rk817_reboot_notifier_handler;
+	ret = register_reboot_notifier(&rk817_reboot_data.reboot_notifier);
+	if (ret)
+		dev_err(dev, "failed to register reboot nb\n");
 }
 
 static const struct of_device_id rk808_of_match[] = {
