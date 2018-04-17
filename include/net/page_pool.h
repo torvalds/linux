@@ -117,13 +117,27 @@ void __page_pool_put_page(struct page_pool *pool,
 
 static inline void page_pool_put_page(struct page_pool *pool, struct page *page)
 {
+	/* When page_pool isn't compiled-in, net/core/xdp.c doesn't
+	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
+	 */
+#ifdef CONFIG_PAGE_POOL
 	__page_pool_put_page(pool, page, false);
+#endif
 }
 /* Very limited use-cases allow recycle direct */
 static inline void page_pool_recycle_direct(struct page_pool *pool,
 					    struct page *page)
 {
 	__page_pool_put_page(pool, page, true);
+}
+
+static inline bool is_page_pool_compiled_in(void)
+{
+#ifdef CONFIG_PAGE_POOL
+	return true;
+#else
+	return false;
+#endif
 }
 
 #endif /* _NET_PAGE_POOL_H */
