@@ -47,11 +47,10 @@ static int __etnaviv_iommu_init(struct etnaviv_iommuv1_domain *etnaviv_domain)
 	u32 *p;
 	int i;
 
-	etnaviv_domain->base.bad_page_cpu = dma_alloc_coherent(
-						etnaviv_domain->base.dev,
-						SZ_4K,
-						&etnaviv_domain->base.bad_page_dma,
-						GFP_KERNEL);
+	etnaviv_domain->base.bad_page_cpu =
+			dma_alloc_wc(etnaviv_domain->base.dev, SZ_4K,
+				     &etnaviv_domain->base.bad_page_dma,
+				     GFP_KERNEL);
 	if (!etnaviv_domain->base.bad_page_cpu)
 		return -ENOMEM;
 
@@ -59,14 +58,14 @@ static int __etnaviv_iommu_init(struct etnaviv_iommuv1_domain *etnaviv_domain)
 	for (i = 0; i < SZ_4K / 4; i++)
 		*p++ = 0xdead55aa;
 
-	etnaviv_domain->pgtable_cpu =
-			dma_alloc_coherent(etnaviv_domain->base.dev, PT_SIZE,
-					   &etnaviv_domain->pgtable_dma,
-					   GFP_KERNEL);
+	etnaviv_domain->pgtable_cpu = dma_alloc_wc(etnaviv_domain->base.dev,
+						   PT_SIZE,
+						   &etnaviv_domain->pgtable_dma,
+						   GFP_KERNEL);
 	if (!etnaviv_domain->pgtable_cpu) {
-		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-				  etnaviv_domain->base.bad_page_cpu,
-				  etnaviv_domain->base.bad_page_dma);
+		dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+			    etnaviv_domain->base.bad_page_cpu,
+			    etnaviv_domain->base.bad_page_dma);
 		return -ENOMEM;
 	}
 
@@ -81,13 +80,12 @@ static void etnaviv_iommuv1_domain_free(struct etnaviv_iommu_domain *domain)
 	struct etnaviv_iommuv1_domain *etnaviv_domain =
 			to_etnaviv_domain(domain);
 
-	dma_free_coherent(etnaviv_domain->base.dev, PT_SIZE,
-			  etnaviv_domain->pgtable_cpu,
-			  etnaviv_domain->pgtable_dma);
+	dma_free_wc(etnaviv_domain->base.dev, PT_SIZE,
+		    etnaviv_domain->pgtable_cpu, etnaviv_domain->pgtable_dma);
 
-	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-			  etnaviv_domain->base.bad_page_cpu,
-			  etnaviv_domain->base.bad_page_dma);
+	dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+		    etnaviv_domain->base.bad_page_cpu,
+		    etnaviv_domain->base.bad_page_dma);
 
 	kfree(etnaviv_domain);
 }

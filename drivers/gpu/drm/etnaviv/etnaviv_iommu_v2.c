@@ -104,11 +104,10 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 	int ret, i, j;
 
 	/* allocate scratch page */
-	etnaviv_domain->base.bad_page_cpu = dma_alloc_coherent(
-						etnaviv_domain->base.dev,
-						SZ_4K,
-						&etnaviv_domain->base.bad_page_dma,
-						GFP_KERNEL);
+	etnaviv_domain->base.bad_page_cpu =
+			dma_alloc_wc(etnaviv_domain->base.dev, SZ_4K,
+				     &etnaviv_domain->base.bad_page_dma,
+				     GFP_KERNEL);
 	if (!etnaviv_domain->base.bad_page_cpu) {
 		ret = -ENOMEM;
 		goto fail_mem;
@@ -117,19 +116,17 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 	for (i = 0; i < SZ_4K / 4; i++)
 		*p++ = 0xdead55aa;
 
-	etnaviv_domain->pta_cpu = dma_alloc_coherent(etnaviv_domain->base.dev,
-						     SZ_4K,
-						     &etnaviv_domain->pta_dma,
-						     GFP_KERNEL);
+	etnaviv_domain->pta_cpu = dma_alloc_wc(etnaviv_domain->base.dev,
+					       SZ_4K, &etnaviv_domain->pta_dma,
+					       GFP_KERNEL);
 	if (!etnaviv_domain->pta_cpu) {
 		ret = -ENOMEM;
 		goto fail_mem;
 	}
 
-	etnaviv_domain->mtlb_cpu = dma_alloc_coherent(etnaviv_domain->base.dev,
-						  SZ_4K,
-						  &etnaviv_domain->mtlb_dma,
-						  GFP_KERNEL);
+	etnaviv_domain->mtlb_cpu = dma_alloc_wc(etnaviv_domain->base.dev,
+						SZ_4K, &etnaviv_domain->mtlb_dma,
+						GFP_KERNEL);
 	if (!etnaviv_domain->mtlb_cpu) {
 		ret = -ENOMEM;
 		goto fail_mem;
@@ -138,10 +135,9 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 	/* pre-populate STLB pages (may want to switch to on-demand later) */
 	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++) {
 		etnaviv_domain->stlb_cpu[i] =
-				dma_alloc_coherent(etnaviv_domain->base.dev,
-						   SZ_4K,
-						   &etnaviv_domain->stlb_dma[i],
-						   GFP_KERNEL);
+				dma_alloc_wc(etnaviv_domain->base.dev, SZ_4K,
+					     &etnaviv_domain->stlb_dma[i],
+					     GFP_KERNEL);
 		if (!etnaviv_domain->stlb_cpu[i]) {
 			ret = -ENOMEM;
 			goto fail_mem;
@@ -158,25 +154,23 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 
 fail_mem:
 	if (etnaviv_domain->base.bad_page_cpu)
-		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-				  etnaviv_domain->base.bad_page_cpu,
-				  etnaviv_domain->base.bad_page_dma);
+		dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+			    etnaviv_domain->base.bad_page_cpu,
+			    etnaviv_domain->base.bad_page_dma);
 
 	if (etnaviv_domain->pta_cpu)
-		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-				  etnaviv_domain->pta_cpu,
-				  etnaviv_domain->pta_dma);
+		dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+			    etnaviv_domain->pta_cpu, etnaviv_domain->pta_dma);
 
 	if (etnaviv_domain->mtlb_cpu)
-		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-				  etnaviv_domain->mtlb_cpu,
-				  etnaviv_domain->mtlb_dma);
+		dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+			    etnaviv_domain->mtlb_cpu, etnaviv_domain->mtlb_dma);
 
 	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++) {
 		if (etnaviv_domain->stlb_cpu[i])
-			dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-					  etnaviv_domain->stlb_cpu[i],
-					  etnaviv_domain->stlb_dma[i]);
+			dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+				    etnaviv_domain->stlb_cpu[i],
+				    etnaviv_domain->stlb_dma[i]);
 	}
 
 	return ret;
@@ -188,23 +182,21 @@ static void etnaviv_iommuv2_domain_free(struct etnaviv_iommu_domain *domain)
 			to_etnaviv_domain(domain);
 	int i;
 
-	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-			  etnaviv_domain->base.bad_page_cpu,
-			  etnaviv_domain->base.bad_page_dma);
+	dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+		    etnaviv_domain->base.bad_page_cpu,
+		    etnaviv_domain->base.bad_page_dma);
 
-	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-			  etnaviv_domain->pta_cpu,
-			  etnaviv_domain->pta_dma);
+	dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+		    etnaviv_domain->pta_cpu, etnaviv_domain->pta_dma);
 
-	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-			  etnaviv_domain->mtlb_cpu,
-			  etnaviv_domain->mtlb_dma);
+	dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+		    etnaviv_domain->mtlb_cpu, etnaviv_domain->mtlb_dma);
 
 	for (i = 0; i < MMUv2_MAX_STLB_ENTRIES; i++) {
 		if (etnaviv_domain->stlb_cpu[i])
-			dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-					  etnaviv_domain->stlb_cpu[i],
-					  etnaviv_domain->stlb_dma[i]);
+			dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+				    etnaviv_domain->stlb_cpu[i],
+				    etnaviv_domain->stlb_dma[i]);
 	}
 
 	vfree(etnaviv_domain);
