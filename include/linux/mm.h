@@ -1770,24 +1770,36 @@ extern int fixup_user_fault(struct mm_struct *mm,
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 extern int __handle_speculative_fault(struct mm_struct *mm,
 				      unsigned long address,
-				      unsigned int flags);
+				      unsigned int flags,
+				      struct vm_area_struct **vma);
 static inline int handle_speculative_fault(struct mm_struct *mm,
 					   unsigned long address,
-					   unsigned int flags)
+					   unsigned int flags,
+					   struct vm_area_struct **vma)
 {
 	/*
 	 * Try speculative page fault for multithreaded user space task only.
 	 */
-	if (!(flags & FAULT_FLAG_USER) || atomic_read(&mm->mm_users) == 1)
+	if (!(flags & FAULT_FLAG_USER) || atomic_read(&mm->mm_users) == 1) {
+		*vma = NULL;
 		return VM_FAULT_RETRY;
-	return __handle_speculative_fault(mm, address, flags);
+	}
+	return __handle_speculative_fault(mm, address, flags, vma);
 }
+extern bool can_reuse_spf_vma(struct vm_area_struct *vma,
+			      unsigned long address);
 #else
 static inline int handle_speculative_fault(struct mm_struct *mm,
 					   unsigned long address,
-					   unsigned int flags)
+					   unsigned int flags,
+					   struct vm_area_struct **vma)
 {
 	return VM_FAULT_RETRY;
+}
+static inline bool can_reuse_spf_vma(struct vm_area_struct *vma,
+				     unsigned long address)
+{
+	return false;
 }
 #endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
 
