@@ -11,7 +11,8 @@ Required properties:
 - clock-names: It should be "acodec".
 - resets : Must contain an entry for each entry in reset-names.
 - reset-names : Must include the following entries: "acodec-reset".
-- spk_ctl-gpios: The gpio of speak controller.
+- hp-ctl-gpios: The gpio of head phone controller.
+- spk-ctl-gpios: The gpio of speak controller.
 
 Example for rk3308 internal codec:
 
@@ -23,6 +24,7 @@ acodec: acodec@ff560000 {
 	clock-names = "acodec";
 	resets = <&cru SRST_ACODEC_P>;
 	reset-names = "acodec-reset";
-	spk_ctl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+	hp-ctl-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+	spk-ctl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
