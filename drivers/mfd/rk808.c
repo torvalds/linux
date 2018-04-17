@@ -1,7 +1,7 @@
 /*
  * MFD core driver for Rockchip RK808/RK818
  *
- * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2014-2018, Fuzhou Rockchip Electronics Co., Ltd
  *
  * Author: Chris Zhong <zyw@rock-chips.com>
  * Author: Zhang Qing <zhangqing@rock-chips.com>
@@ -26,6 +26,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/syscore_ops.h>
 #include <linux/pinctrl/consumer.h>
@@ -1032,6 +1033,52 @@ static int rk817_pinctrl_init(struct device *dev, struct rk808 *rk808)
 	return 0;
 }
 
+struct rk817_reboot_data_t {
+	struct rk808 *rk808;
+	struct notifier_block reboot_notifier;
+};
+
+static struct rk817_reboot_data_t rk817_reboot_data;
+
+static int rk817_reboot_notifier_handler(struct notifier_block *nb,
+					 unsigned long action, void *cmd)
+{
+	struct rk817_reboot_data_t *data;
+	int ret;
+	struct device *dev;
+	int value, power_en_active0, power_en_active1;
+
+	data = container_of(nb, struct rk817_reboot_data_t, reboot_notifier);
+	dev = &data->rk808->i2c->dev;
+
+	regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE0,
+		    &power_en_active0);
+	regmap_read(data->rk808->regmap, RK817_POWER_EN_SAVE1,
+		    &power_en_active1);
+	value = power_en_active0 & 0x0f;
+	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(0), value | 0xf0);
+	value = (power_en_active0 & 0xf0) >> 4;
+	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(1), value | 0xf0);
+	value = power_en_active1 & 0x0f;
+	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(2), value | 0xf0);
+	value = (power_en_active1 & 0xf0) >> 4;
+	regmap_write(data->rk808->regmap, RK817_POWER_EN_REG(3), value | 0xf0);
+
+	if (action != SYS_RESTART)
+		return NOTIFY_OK;
+
+	if (!cmd || !strlen(cmd) || !strcmp(cmd, "normal"))
+		return NOTIFY_OK;
+
+	ret = regmap_update_bits(data->rk808->regmap, RK817_SYS_CFG(3),
+				 RK817_RST_FUNC_MSK, RK817_RST_FUNC_REG);
+	if (ret)
+		dev_err(dev, "reboot: force RK817_RST_FUNC_REG error!\n");
+	else
+		dev_info(dev, "reboot: force RK817_RST_FUNC_REG ok!\n");
+	return NOTIFY_OK;
+}
+
 static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 {
 	u32 inner;
@@ -1064,6 +1111,13 @@ static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 	regmap_update_bits(rk808->regmap, RK817_SYS_CFG(3), msk, val);
 
 	dev_info(dev, "support pmic reset mode:%d,%d\n", ret, func);
+
+	rk817_reboot_data.rk808 = rk808;
+	rk817_reboot_data.reboot_notifier.notifier_call =
+		rk817_reboot_notifier_handler;
+	ret = register_reboot_notifier(&rk817_reboot_data.reboot_notifier);
+	if (ret)
+		dev_err(dev, "failed to register reboot nb\n");
 }
 
 static struct kobject *rk8xx_kobj;
