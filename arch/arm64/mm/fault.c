@@ -305,11 +305,12 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 	 */
 	if (user_mode(regs)) {
 		const struct fault_info *inf = esr_to_fault_info(esr);
-		struct siginfo si = {
-			.si_signo	= inf->sig,
-			.si_code	= inf->code,
-			.si_addr	= (void __user *)addr,
-		};
+		struct siginfo si;
+
+		clear_siginfo(&si);
+		si.si_signo	= inf->sig;
+		si.si_code	= inf->code;
+		si.si_addr	= (void __user *)addr;
 
 		__do_user_fault(&si, esr);
 	} else {
@@ -583,6 +584,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 			nmi_exit();
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
@@ -687,6 +689,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 		show_pte(addr);
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
@@ -729,6 +732,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 		local_irq_enable();
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code  = BUS_ADRALN;
@@ -772,7 +776,6 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 					      struct pt_regs *regs)
 {
 	const struct fault_info *inf = debug_fault_info + DBG_ESR_EVT(esr);
-	struct siginfo info;
 	int rv;
 
 	/*
@@ -788,6 +791,9 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	if (!inf->fn(addr, esr, regs)) {
 		rv = 1;
 	} else {
+		struct siginfo info;
+
+		clear_siginfo(&info);
 		info.si_signo = inf->sig;
 		info.si_errno = 0;
 		info.si_code  = inf->code;

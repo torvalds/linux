@@ -455,6 +455,7 @@ void handle_unaligned(struct pt_regs *regs)
 	struct siginfo si;
 	register int flop=0;	/* true if this is a flop */
 
+	clear_siginfo(&si);
 	__inc_irq_stat(irq_unaligned_count);
 
 	/* log a message with pacing */

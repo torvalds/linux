@@ -28,6 +28,7 @@ static void _send_sig(int signo, int code, unsigned long addr)
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = signo;
 	info.si_errno = 0;
 	info.si_code = code;

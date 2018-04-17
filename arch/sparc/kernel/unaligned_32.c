@@ -313,6 +313,7 @@ static void user_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;

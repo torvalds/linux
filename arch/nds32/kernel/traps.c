@@ -229,6 +229,7 @@ int bad_syscall(int n, struct pt_regs *regs)
 		return regs->uregs[0];
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLTRP;
@@ -292,7 +293,7 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 	tsk->thread.trap_no = ENTRY_DEBUG_RELATED;
 	tsk->thread.error_code = error_code;
 
-	memset(&info, 0, sizeof(info));
+	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_code = si_code;
 	info.si_addr = (void __user *)instruction_pointer(regs);

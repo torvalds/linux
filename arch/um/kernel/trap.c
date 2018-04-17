@@ -164,6 +164,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 {
 	struct siginfo si;
 
+	clear_siginfo(&si);
 	si.si_signo = SIGSEGV;
 	si.si_code = SEGV_ACCERR;
 	si.si_addr = (void __user *) FAULT_ADDRESS(fi);
@@ -220,6 +221,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
 
+	clear_siginfo(&si);
 	if (!is_user && regs)
 		current->thread.segv_regs = container_of(regs, struct pt_regs, regs);
 

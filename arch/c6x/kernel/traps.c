@@ -246,6 +246,7 @@ static void do_trap(struct exception_info *except_info, struct pt_regs *regs)
 	unsigned long addr = instruction_pointer(regs);
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	if (except_info->code != TRAP_BRKPT)
 		pr_err("TRAP: %s PC[0x%lx] signo[%d] code[%d]\n",
 		       except_info->kernel_str, regs->pc,

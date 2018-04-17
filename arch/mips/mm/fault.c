@@ -63,6 +63,7 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 		return;
 #endif
 
+	clear_siginfo(&info);
 	info.si_code = SEGV_MAPERR;
 
 	/*

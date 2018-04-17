@@ -93,6 +93,7 @@ handle_fpe(struct pt_regs *regs)
 	 */
 	__u64 frcopy[36];
 
+	clear_siginfo(&si);
 	memcpy(frcopy, regs->fr, sizeof regs->fr);
 	frcopy[32] = 0;
 

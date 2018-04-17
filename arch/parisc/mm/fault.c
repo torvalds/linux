@@ -356,6 +356,7 @@ bad_area:
 		struct siginfo si;
 		unsigned int lsb = 0;
 
+		clear_siginfo(&si);
 		switch (code) {
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */

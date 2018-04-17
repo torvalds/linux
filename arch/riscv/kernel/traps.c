@@ -68,6 +68,7 @@ static inline void do_trap_siginfo(int signo, int code,
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = signo;
 	info.si_errno = 0;
 	info.si_code = code;

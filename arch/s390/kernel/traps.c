@@ -47,6 +47,7 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 	siginfo_t info;
 
 	if (user_mode(regs)) {
+		clear_siginfo(&info);
 		info.si_signo = si_signo;
 		info.si_errno = 0;
 		info.si_code = si_code;
@@ -86,6 +87,7 @@ void do_per_trap(struct pt_regs *regs)
 		return;
 	if (!current->ptrace)
 		return;
+	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_HWBKPT;
@@ -165,7 +167,6 @@ void translation_exception(struct pt_regs *regs)
 
 void illegal_op(struct pt_regs *regs)
 {
-	siginfo_t info;
         __u8 opcode[6];
 	__u16 __user *location;
 	int is_uprobe_insn = 0;
@@ -178,6 +179,8 @@ void illegal_op(struct pt_regs *regs)
 			return;
 		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
 			if (current->ptrace) {
+				siginfo_t info;
+				clear_siginfo(&info);
 				info.si_signo = SIGTRAP;
 				info.si_errno = 0;
 				info.si_code = TRAP_BRKPT;

@@ -221,6 +221,7 @@ do_sigreturn(struct sigcontext __user *sc)
 	if (ptrace_cancel_bpt (current)) {
 		siginfo_t info;
 
+		clear_siginfo(&info);
 		info.si_signo = SIGTRAP;
 		info.si_errno = 0;
 		info.si_code = TRAP_BRKPT;
@@ -255,6 +256,7 @@ do_rt_sigreturn(struct rt_sigframe __user *frame)
 	if (ptrace_cancel_bpt (current)) {
 		siginfo_t info;
 
+		clear_siginfo(&info);
 		info.si_signo = SIGTRAP;
 		info.si_errno = 0;
 		info.si_code = TRAP_BRKPT;

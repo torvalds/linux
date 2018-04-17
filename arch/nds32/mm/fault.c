@@ -77,6 +77,7 @@ void do_page_fault(unsigned long entry, unsigned long addr,
 	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
+	clear_siginfo(&info);
 	error_code = error_code & (ITYPE_mskINST | ITYPE_mskETYPE);
 	tsk = current;
 	mm = tsk->mm;

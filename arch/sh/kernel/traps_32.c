@@ -537,6 +537,7 @@ uspace_segv:
 		       "access (PC %lx PR %lx)\n", current->comm, regs->pc,
 		       regs->pr);
 
+		clear_siginfo(&info);
 		info.si_signo = SIGBUS;
 		info.si_errno = 0;
 		info.si_code = si_code;
@@ -600,6 +601,7 @@ asmlinkage void do_divide_error(unsigned long r4)
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	switch (r4) {
 	case TRAP_DIVZERO_ERROR:
 		info.si_code = FPE_INTDIV;

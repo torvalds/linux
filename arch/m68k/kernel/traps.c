@@ -1011,6 +1011,7 @@ asmlinkage void trap_c(struct frame *fp)
 	int vector = (fp->ptregs.vector >> 2) & 0xff;
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	if (fp->ptregs.sr & PS_S) {
 		if (vector == VEC_TRACE) {
 			/* traced a trapping instruction on a 68020/30,
@@ -1163,6 +1164,7 @@ asmlinkage void fpemu_signal(int signal, int code, void *addr)
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = signal;
 	info.si_errno = 0;
 	info.si_code = code;

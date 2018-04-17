@@ -91,6 +91,8 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 	siginfo_t info;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
+	clear_siginfo(&info);
+
 	/* As of EV6, a load into $31/$f31 is a prefetch, and never faults
 	   (or is suppressed by the PALcode).  Support that for older CPUs
 	   by ignoring such an instruction.  */

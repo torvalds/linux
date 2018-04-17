@@ -299,6 +299,7 @@ static void handle_gdb_break(struct pt_regs *regs, int wot)
 {
 	struct siginfo si;
 
+	clear_siginfo(&si);
 	si.si_signo = SIGTRAP;
 	si.si_errno = 0;
 	si.si_code = wot;
@@ -489,6 +490,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	unsigned long fault_space = 0;
 	struct siginfo si;
 
+	clear_siginfo(&si);
 	if (code == 1)
 	    pdc_console_restart();  /* switch back to pdc if HPMC */
 	else

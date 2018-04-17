@@ -209,6 +209,7 @@ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
 	unsigned lsb = 0;
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo	= si_signo;
 	info.si_errno	= 0;
 	info.si_code	= si_code;

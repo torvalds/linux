@@ -153,6 +153,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	return retval;
 
   give_sigsegv:
+	clear_siginfo(&si);
 	si.si_signo = SIGSEGV;
 	si.si_errno = 0;
 	si.si_code = SI_KERNEL;
@@ -236,6 +237,7 @@ force_sigsegv_info (int sig, void __user *addr)
 	unsigned long flags;
 	struct siginfo si;
 
+	clear_siginfo(&si);
 	if (sig == SIGSEGV) {
 		/*
 		 * Acquiring siglock around the sa_handler-update is almost

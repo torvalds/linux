@@ -560,6 +560,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 				~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);
 			task_thread_info(tsk)->status |= TS_USEDFPU;
 		} else {
+			clear_siginfo(&info);
 			info.si_signo = SIGFPE;
 			info.si_errno = 0;
 			info.si_code = FPE_FLTINV;

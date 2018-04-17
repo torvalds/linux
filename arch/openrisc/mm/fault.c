@@ -56,6 +56,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
 	int fault;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
+	clear_siginfo(&info);
 	tsk = current;
 
 	/*

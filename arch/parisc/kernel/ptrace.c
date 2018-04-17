@@ -90,6 +90,7 @@ void user_enable_single_step(struct task_struct *task)
 		ptrace_disable(task);
 		/* Don't wake up the task, but let the
 		   parent know something happened. */
+		clear_siginfo(&si);
 		si.si_code = TRAP_TRACE;
 		si.si_addr = (void __user *) (task_regs(task)->iaoq[0] & ~3);
 		si.si_signo = SIGTRAP;

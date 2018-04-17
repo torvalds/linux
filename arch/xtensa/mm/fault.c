@@ -45,6 +45,7 @@ void do_page_fault(struct pt_regs *regs)
 	int fault;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
+	clear_siginfo(&info);
 	info.si_code = SEGV_MAPERR;
 
 	/* We fault-in kernel-space virtual memory on-demand. The

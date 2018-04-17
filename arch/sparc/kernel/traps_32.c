@@ -104,6 +104,7 @@ void do_hw_interrupt(struct pt_regs *regs, unsigned long type)
 	if(regs->psr & PSR_PS)
 		die_if_kernel("Kernel bad trap", regs);
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLTRP;
@@ -124,6 +125,7 @@ void do_illegal_instruction(struct pt_regs *regs, unsigned long pc, unsigned lon
 	       regs->pc, *(unsigned long *)regs->pc);
 #endif
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLOPC;
@@ -139,6 +141,7 @@ void do_priv_instruction(struct pt_regs *regs, unsigned long pc, unsigned long n
 
 	if(psr & PSR_PS)
 		die_if_kernel("Penguin instruction from Penguin mode??!?!", regs);
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_PRVOPC;
@@ -165,6 +168,7 @@ void do_memaccess_unaligned(struct pt_regs *regs, unsigned long pc, unsigned lon
 	instruction_dump ((unsigned long *) regs->pc);
 	printk ("do_MNA!\n");
 #endif
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;
@@ -303,6 +307,7 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 	}
 
 	fsr = fpt->thread.fsr;
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_addr = (void __user *)pc;
@@ -336,6 +341,7 @@ void handle_tag_overflow(struct pt_regs *regs, unsigned long pc, unsigned long n
 
 	if(psr & PSR_PS)
 		die_if_kernel("Penguin overflow trap from kernel mode", regs);
+	clear_siginfo(&info);
 	info.si_signo = SIGEMT;
 	info.si_errno = 0;
 	info.si_code = EMT_TAGOVF;
@@ -365,6 +371,7 @@ void handle_reg_access(struct pt_regs *regs, unsigned long pc, unsigned long npc
 	printk("Register Access Exception at PC %08lx NPC %08lx PSR %08lx\n",
 	       pc, npc, psr);
 #endif
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_OBJERR;
@@ -378,6 +385,7 @@ void handle_cp_disabled(struct pt_regs *regs, unsigned long pc, unsigned long np
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_COPROC;
@@ -395,6 +403,7 @@ void handle_cp_exception(struct pt_regs *regs, unsigned long pc, unsigned long n
 	printk("Co-Processor Exception at PC %08lx NPC %08lx PSR %08lx\n",
 	       pc, npc, psr);
 #endif
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_COPROC;
@@ -408,6 +417,7 @@ void handle_hw_divzero(struct pt_regs *regs, unsigned long pc, unsigned long npc
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = FPE_INTDIV;

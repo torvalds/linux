@@ -65,6 +65,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	if (kernel_mode(regs))
 		die("Exception in kernel mode", regs, signr);
 
+	clear_siginfo(&info);
 	info.si_signo = signr;
 	info.si_errno = 0;
 	info.si_code = code;

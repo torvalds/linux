@@ -168,6 +168,7 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 		return SIGBUS;
 
 	current->thread.trap_nr = BUS_ADRERR;
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;

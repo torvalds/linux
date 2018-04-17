@@ -251,7 +251,7 @@ void __init trap_init(void)
 asmlinkage void do_trap(struct pt_regs *regs, unsigned long address)
 {
 	siginfo_t info;
-	memset(&info, 0, sizeof(info));
+	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_code = TRAP_TRACE;
 	info.si_addr = (void *)address;
@@ -266,6 +266,7 @@ asmlinkage void do_unaligned_access(struct pt_regs *regs, unsigned long address)
 
 	if (user_mode(regs)) {
 		/* Send a SIGBUS */
+		clear_siginfo(&info);
 		info.si_signo = SIGBUS;
 		info.si_errno = 0;
 		info.si_code = BUS_ADRALN;
@@ -285,6 +286,7 @@ asmlinkage void do_bus_fault(struct pt_regs *regs, unsigned long address)
 
 	if (user_mode(regs)) {
 		/* Send a SIGBUS */
+		clear_siginfo(&info);
 		info.si_signo = SIGBUS;
 		info.si_errno = 0;
 		info.si_code = BUS_ADRERR;
@@ -485,6 +487,7 @@ asmlinkage void do_illegal_instruction(struct pt_regs *regs,
 
 	if (user_mode(regs)) {
 		/* Send a SIGILL */
+		clear_siginfo(&info);
 		info.si_signo = SIGILL;
 		info.si_errno = 0;
 		info.si_code = ILL_ILLOPC;

@@ -56,6 +56,7 @@ void do_page_fault(unsigned long address, long cause, struct pt_regs *regs)
 	const struct exception_table_entry *fixup;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
+	clear_siginfo(&info);
 	/*
 	 * If we're in an interrupt or have no user context,
 	 * then must not take the fault.

@@ -520,6 +520,7 @@ static void stack_unaligned(unsigned long sp)
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;

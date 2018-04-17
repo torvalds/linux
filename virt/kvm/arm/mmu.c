@@ -1401,6 +1401,7 @@ static void kvm_send_hwpoison_signal(unsigned long address,
 {
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_signo   = SIGBUS;
 	info.si_errno   = 0;
 	info.si_code    = BUS_MCEERR_AR;

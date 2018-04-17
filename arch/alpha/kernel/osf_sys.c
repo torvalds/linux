@@ -881,6 +881,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 			if (fex & IEEE_TRAP_ENABLE_DZE) si_code = FPE_FLTDIV;
 			if (fex & IEEE_TRAP_ENABLE_INV) si_code = FPE_FLTINV;
 
+			clear_siginfo(&info);
 			info.si_signo = SIGFPE;
 			info.si_errno = 0;
 			info.si_code = si_code;

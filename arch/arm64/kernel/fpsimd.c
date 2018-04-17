@@ -882,7 +882,7 @@ asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 			si_code = FPE_FLTRES;
 	}
 
-	memset(&info, 0, sizeof(info));
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_code = si_code;
 	info.si_addr = (void __user *)instruction_pointer(regs);

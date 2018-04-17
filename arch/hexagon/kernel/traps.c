@@ -414,6 +414,7 @@ void do_trap0(struct pt_regs *regs)
 		if (user_mode(regs)) {
 			struct siginfo info;
 
+			clear_siginfo(&info);
 			info.si_signo = SIGTRAP;
 			info.si_errno = 0;
 			/*

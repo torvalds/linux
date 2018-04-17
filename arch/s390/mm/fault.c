@@ -268,6 +268,7 @@ static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 	struct siginfo si;
 
 	report_user_fault(regs, SIGSEGV, 1);
+	clear_siginfo(&si);
 	si.si_signo = SIGSEGV;
 	si.si_errno = 0;
 	si.si_code = si_code;
@@ -323,6 +324,7 @@ static noinline void do_sigbus(struct pt_regs *regs)
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
+	clear_siginfo(&si);
 	si.si_signo = SIGBUS;
 	si.si_errno = 0;
 	si.si_code = BUS_ADRERR;

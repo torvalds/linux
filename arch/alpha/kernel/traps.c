@@ -228,6 +228,7 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 	}
 	die_if_kernel("Arithmetic fault", regs, 0, NULL);
 
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = si_code;
@@ -241,6 +242,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 	siginfo_t info;
 	int signo, code;
 
+	clear_siginfo(&info);
 	if ((regs->ps & ~IPL_MAX) == 0) {
 		if (type == 1) {
 			const unsigned int *data
@@ -430,6 +432,7 @@ do_entDbg(struct pt_regs *regs)
 
 	die_if_kernel("Instruction fault", regs, 0, NULL);
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLOPC;
@@ -760,6 +763,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	unsigned long fake_reg, *reg_addr = &fake_reg;
 	siginfo_t info;
 	long error;
+
+	clear_siginfo(&info);
 
 	/* Check the UAC bits to decide what the user wants us to do
 	   with the unaliged access.  */

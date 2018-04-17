@@ -172,6 +172,7 @@ static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 	unsigned long addr;
 	siginfo_t info;
 
+	clear_siginfo(&info);
 	info.si_code = code;
 	info.si_signo = sig;
 	info.si_errno = 0;

@@ -88,7 +88,6 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	siginfo_t info;
 	int code = SEGV_MAPERR;
 	int is_write = error_code & ESR_S;
 	int fault;
@@ -295,6 +294,9 @@ out_of_memory:
 do_sigbus:
 	up_read(&mm->mmap_sem);
 	if (user_mode(regs)) {
+		siginfo_t info;
+
+		clear_siginfo(&info);
 		info.si_signo = SIGBUS;
 		info.si_errno = 0;
 		info.si_code = BUS_ADRERR;

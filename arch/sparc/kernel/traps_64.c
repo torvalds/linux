@@ -107,6 +107,7 @@ void bad_trap(struct pt_regs *regs, long lvl)
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLTRP;
@@ -206,6 +207,7 @@ void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGSEGV;
 	info.si_errno = 0;
 	info.si_code = SEGV_MAPERR;
@@ -247,6 +249,7 @@ void sun4v_insn_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGSEGV;
 	info.si_errno = 0;
 	info.si_code = SEGV_MAPERR;
@@ -338,6 +341,7 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 	if (is_no_fault_exception(regs))
 		return;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGSEGV;
 	info.si_errno = 0;
 	info.si_code = SEGV_MAPERR;
@@ -595,6 +599,7 @@ static void spitfire_ue_log(unsigned long afsr, unsigned long afar, unsigned lon
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_OBJERR;
@@ -2211,6 +2216,7 @@ bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
 				addr += PAGE_SIZE;
 			}
 		}
+		clear_siginfo(&info);
 		info.si_signo = SIGKILL;
 		info.si_errno = 0;
 		info.si_trapno = 0;
@@ -2221,6 +2227,7 @@ bool sun4v_nonresum_error_user_handled(struct pt_regs *regs,
 	if (attrs & SUN4V_ERR_ATTRS_PIO) {
 		siginfo_t info;
 
+		clear_siginfo(&info);
 		info.si_signo = SIGBUS;
 		info.si_code = BUS_ADRERR;
 		info.si_addr = (void __user *)sun4v_get_vaddr(regs);
@@ -2368,6 +2375,7 @@ static void do_fpe_common(struct pt_regs *regs)
 			regs->tpc &= 0xffffffff;
 			regs->tnpc &= 0xffffffff;
 		}
+		clear_siginfo(&info);
 		info.si_signo = SIGFPE;
 		info.si_errno = 0;
 		info.si_addr = (void __user *)regs->tpc;
@@ -2440,6 +2448,7 @@ void do_tof(struct pt_regs *regs)
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGEMT;
 	info.si_errno = 0;
 	info.si_code = EMT_TAGOVF;
@@ -2465,6 +2474,7 @@ void do_div0(struct pt_regs *regs)
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = FPE_INTDIV;
@@ -2666,6 +2676,7 @@ void do_illegal_instruction(struct pt_regs *regs)
 			}
 		}
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_ILLOPC;
@@ -2692,6 +2703,7 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 	if (is_no_fault_exception(regs))
 		return;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;
@@ -2717,6 +2729,7 @@ void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_c
 	if (is_no_fault_exception(regs))
 		return;
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;
@@ -2785,6 +2798,7 @@ void do_privop(struct pt_regs *regs)
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_PRVOPC;

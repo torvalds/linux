@@ -152,6 +152,7 @@ sparc_breakpoint (struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
+	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_BRKPT;
