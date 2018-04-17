@@ -328,7 +328,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			break;
 		case GEN_ROPRAND:
 			signo = SIGFPE;
-			code = FPE_FIXME;
+			code = FPE_FLTUNK;
 			break;
 
 		case GEN_DECOVF:
