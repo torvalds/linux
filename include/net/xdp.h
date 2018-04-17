@@ -67,6 +67,7 @@ struct xdp_frame {
 	 * while mem info is valid on remote CPU.
 	 */
 	struct xdp_mem_info mem;
+	struct net_device *dev_rx; /* used by cpumap */
 };
 
 /* Convert xdp_buff to xdp_frame */
