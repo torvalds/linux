@@ -8344,8 +8344,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc < 0)
 		return rc;
 
-	netif_info(tp, probe, dev, "%s at 0x%p, %pM, XID %08x IRQ %d\n",
-		   rtl_chip_infos[chipset].name, tp->mmio_addr, dev->dev_addr,
+	netif_info(tp, probe, dev, "%s, %pM, XID %08x, IRQ %d\n",
+		   rtl_chip_infos[chipset].name, dev->dev_addr,
 		   (u32)(RTL_R32(tp, TxConfig) & 0x9cf0f8ff),
 		   pci_irq_vector(pdev, 0));
 	if (rtl_chip_infos[chipset].jumbo_max != JUMBO_1K) {
