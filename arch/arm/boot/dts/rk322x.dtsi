@@ -813,7 +813,7 @@
 			6   254  1
 		>;
 		nvmem-cells = <&logic_leakage>;
-		nvmem-cell-names = "ddr_leakage";
+		nvmem-cell-names = "gpu_leakage";
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
