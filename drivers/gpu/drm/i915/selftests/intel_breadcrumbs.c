@@ -412,10 +412,11 @@ static int igt_wakeup(void *arg)
 		 * that they are ready for the next test. We wait until all
 		 * threads are complete and waiting for us (i.e. not a seqno).
 		 */
-		err = wait_var_event_timeout(&done, !atomic_read(&done), 10 * HZ);
-		if (err) {
+		if (!wait_var_event_timeout(&done,
+					    !atomic_read(&done), 10 * HZ)) {
 			pr_err("Timed out waiting for %d remaining waiters\n",
 			       atomic_read(&done));
+			err = -ETIMEDOUT;
 			break;
 		}
 
