@@ -78,6 +78,12 @@ extern "C" {
 #define AMDGPU_GEM_DOMAIN_GDS		0x8
 #define AMDGPU_GEM_DOMAIN_GWS		0x10
 #define AMDGPU_GEM_DOMAIN_OA		0x20
+#define AMDGPU_GEM_DOMAIN_MASK		(AMDGPU_GEM_DOMAIN_CPU | \
+					 AMDGPU_GEM_DOMAIN_GTT | \
+					 AMDGPU_GEM_DOMAIN_VRAM | \
+					 AMDGPU_GEM_DOMAIN_GDS | \
+					 AMDGPU_GEM_DOMAIN_GWS | \
+					 AMDGPU_GEM_DOMAIN_OA)
 
 /* Flag that CPU access will be required for the case of VRAM domain */
 #define AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED	(1 << 0)

@@ -229,12 +229,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	/* reject invalid gem domains */
-	if (args->in.domains & ~(AMDGPU_GEM_DOMAIN_CPU |
-				 AMDGPU_GEM_DOMAIN_GTT |
-				 AMDGPU_GEM_DOMAIN_VRAM |
-				 AMDGPU_GEM_DOMAIN_GDS |
-				 AMDGPU_GEM_DOMAIN_GWS |
-				 AMDGPU_GEM_DOMAIN_OA))
+	if (args->in.domains & ~AMDGPU_GEM_DOMAIN_MASK)
 		return -EINVAL;
 
 	/* create a gem object to contain this object in */
