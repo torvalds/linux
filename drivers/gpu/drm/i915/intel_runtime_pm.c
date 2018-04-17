@@ -635,7 +635,7 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-void skl_enable_dc6(struct drm_i915_private *dev_priv)
+static void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
 
@@ -647,13 +647,6 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 			   SKL_SELECT_ALTERNATE_DC_EXIT);
 
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
-}
-
-void skl_disable_dc6(struct drm_i915_private *dev_priv)
-{
-	DRM_DEBUG_KMS("Disabling DC6\n");
-
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
