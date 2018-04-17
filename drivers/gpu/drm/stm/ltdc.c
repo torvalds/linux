@@ -987,14 +987,13 @@ int ltdc_load(struct drm_device *ddev)
 						  &bridge[i]);
 
 		/*
-		 * If at least one endpoint is ready, continue probing,
-		 * else if at least one endpoint is -EPROBE_DEFER and
-		 * there is no previous ready endpoints, defer probing.
+		 * If at least one endpoint is -EPROBE_DEFER, defer probing,
+		 * else if at least one endpoint is ready, continue probing.
 		 */
-		if (!ret)
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		else if (!ret)
 			endpoint_not_ready = 0;
-		else if (ret == -EPROBE_DEFER && endpoint_not_ready)
-			endpoint_not_ready = -EPROBE_DEFER;
 	}
 
 	if (endpoint_not_ready)
