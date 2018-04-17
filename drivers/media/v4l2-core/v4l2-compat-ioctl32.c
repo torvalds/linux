@@ -30,6 +30,24 @@
 	get_user(__assign_tmp, from) || put_user(__assign_tmp, to);	\
 })
 
+#define get_user_cast(__x, __ptr)					\
+({									\
+	get_user(__x, (typeof(*__ptr) __user *)(__ptr));		\
+})
+
+#define put_user_force(__x, __ptr)					\
+({									\
+	put_user((typeof(*__x) __force *)(__x), __ptr);			\
+})
+
+#define assign_in_user_cast(to, from)					\
+({									\
+	typeof(*from) __assign_tmp;					\
+									\
+	get_user_cast(__assign_tmp, from) || put_user(__assign_tmp, to);\
+})
+
+
 static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = -ENOIOCTLCMD;
@@ -543,8 +561,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer __user *p64,
 			return -EFAULT;
 
 		uplane = aux_buf;
-		if (put_user((__force struct v4l2_plane *)uplane,
-			     &p64->m.planes))
+		if (put_user_force(uplane, &p64->m.planes))
 			return -EFAULT;
 
 		while (num_planes--) {
@@ -683,7 +700,7 @@ static int get_v4l2_framebuffer32(struct v4l2_framebuffer __user *p64,
 
 	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
 	    get_user(tmp, &p32->base) ||
-	    put_user((void __force *)compat_ptr(tmp), &p64->base) ||
+	    put_user_force(compat_ptr(tmp), &p64->base) ||
 	    assign_in_user(&p64->capability, &p32->capability) ||
 	    assign_in_user(&p64->flags, &p32->flags) ||
 	    copy_in_user(&p64->fmt, &p32->fmt, sizeof(p64->fmt)))
@@ -832,8 +849,7 @@ static int get_v4l2_ext_controls32(struct file *file,
 	if (aux_space < count * sizeof(*kcontrols))
 		return -EFAULT;
 	kcontrols = aux_buf;
-	if (put_user((__force struct v4l2_ext_control *)kcontrols,
-		     &p64->controls))
+	if (put_user_force(kcontrols, &p64->controls))
 		return -EFAULT;
 
 	for (n = 0; n < count; n++) {
@@ -899,10 +915,9 @@ static int put_v4l2_ext_controls32(struct file *file,
 		unsigned int size = sizeof(*ucontrols);
 		u32 id;
 
-		if (get_user(id, (unsigned int __user *)&kcontrols->id) ||
+		if (get_user_cast(id, &kcontrols->id) ||
 		    put_user(id, &ucontrols->id) ||
-		    assign_in_user(&ucontrols->size,
-				   (unsigned int __user *)&kcontrols->size) ||
+		    assign_in_user_cast(&ucontrols->size, &kcontrols->size) ||
 		    copy_in_user(&ucontrols->reserved2,
 				 (void __user *)&kcontrols->reserved2,
 				 sizeof(ucontrols->reserved2)))
@@ -971,10 +986,9 @@ static int get_v4l2_edid32(struct v4l2_edid __user *p64,
 	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
 	    assign_in_user(&p64->pad, &p32->pad) ||
 	    assign_in_user(&p64->start_block, &p32->start_block) ||
-	    assign_in_user(&p64->blocks,
-			   (u32 __user *)&p32->blocks) ||
+	    assign_in_user_cast(&p64->blocks, &p32->blocks) ||
 	    get_user(tmp, &p32->edid) ||
-	    put_user((void __force *)compat_ptr(tmp), &p64->edid) ||
+	    put_user_force(compat_ptr(tmp), &p64->edid) ||
 	    copy_in_user(p64->reserved, p32->reserved, sizeof(p64->reserved)))
 		return -EFAULT;
 	return 0;
