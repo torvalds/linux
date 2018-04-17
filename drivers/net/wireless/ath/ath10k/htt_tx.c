@@ -1475,8 +1475,11 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	    !test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
-		if (ar->hw_params.continuous_frag_desc)
-			ext_desc->flags |= HTT_MSDU_CHECKSUM_ENABLE;
+		if (ar->hw_params.continuous_frag_desc) {
+			memset(ext_desc->tso_flag, 0, sizeof(ext_desc->tso_flag));
+			ext_desc->tso_flag[3] |=
+				__cpu_to_le32(HTT_MSDU_CHECKSUM_ENABLE_64);
+		}
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's
