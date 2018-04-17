@@ -28,8 +28,13 @@
 #define BLIST_LARGELUN		((__force blist_flags_t)(1ULL << 9))
 /* override additional length field */
 #define BLIST_INQUIRY_36	((__force blist_flags_t)(1ULL << 10))
+#define __BLIST_UNUSED_11	((__force blist_flags_t)(1ULL << 11))
 /* do not do automatic start on add */
 #define BLIST_NOSTARTONADD	((__force blist_flags_t)(1ULL << 12))
+#define __BLIST_UNUSED_13	((__force blist_flags_t)(1ULL << 13))
+#define __BLIST_UNUSED_14	((__force blist_flags_t)(1ULL << 14))
+#define __BLIST_UNUSED_15	((__force blist_flags_t)(1ULL << 15))
+#define __BLIST_UNUSED_16	((__force blist_flags_t)(1ULL << 16))
 /* try REPORT_LUNS even for SCSI-2 devs (if HBA supports more than 8 LUNs) */
 #define BLIST_REPORTLUN2	((__force blist_flags_t)(1ULL << 17))
 /* don't try REPORT_LUNS scan (SCSI-3 devs) */
@@ -44,10 +49,12 @@
 #define BLIST_RETRY_HWERROR	((__force blist_flags_t)(1ULL << 22))
 /* maximum 512 sector cdb length */
 #define BLIST_MAX_512		((__force blist_flags_t)(1ULL << 23))
+#define __BLIST_UNUSED_24	((__force blist_flags_t)(1ULL << 24))
 /* Disable T10 PI (DIF) */
 #define BLIST_NO_DIF		((__force blist_flags_t)(1ULL << 25))
 /* Ignore SBC-3 VPD pages */
 #define BLIST_SKIP_VPD_PAGES	((__force blist_flags_t)(1ULL << 26))
+#define __BLIST_UNUSED_27	((__force blist_flags_t)(1ULL << 27))
 /* Attempt to read VPD pages */
 #define BLIST_TRY_VPD_PAGES	((__force blist_flags_t)(1ULL << 28))
 /* don't try to issue RSOC */
@@ -56,5 +63,19 @@
 #define BLIST_MAX_1024		((__force blist_flags_t)(1ULL << 30))
 /* Use UNMAP limit for WRITE SAME */
 #define BLIST_UNMAP_LIMIT_WS	((__force blist_flags_t)(1ULL << 31))
+
+#define __BLIST_LAST_USED BLIST_UNMAP_LIMIT_WS
+
+#define __BLIST_HIGH_UNUSED (~(__BLIST_LAST_USED | \
+			       (__force blist_flags_t) \
+			       ((__force __u64)__BLIST_LAST_USED - 1ULL)))
+#define __BLIST_UNUSED_MASK (__BLIST_UNUSED_11 | \
+			     __BLIST_UNUSED_13 | \
+			     __BLIST_UNUSED_14 | \
+			     __BLIST_UNUSED_15 | \
+			     __BLIST_UNUSED_16 | \
+			     __BLIST_UNUSED_24 | \
+			     __BLIST_UNUSED_27 | \
+			     __BLIST_HIGH_UNUSED)
 
 #endif

@@ -370,6 +370,12 @@ int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
 		}
 		flags = (__force blist_flags_t)val;
 	}
+	if (flags & __BLIST_UNUSED_MASK) {
+		pr_err("scsi_devinfo (%s:%s): unsupported flags 0x%llx",
+		       vendor, model, flags & __BLIST_UNUSED_MASK);
+		kfree(devinfo);
+		return -EINVAL;
+	}
 	devinfo->flags = flags;
 	devinfo->compatible = compatible;
 
